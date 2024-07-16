@@ -1,5 +1,5 @@
 (* TEST
- flags = "-dtypedtree -dsel -c";
+ flags = "-dtypedtree -dlambda -dno-unique-ids";
  setup-ocamlopt.opt-build-env;
  ocamlopt.opt;
  check-ocamlopt.opt-output;

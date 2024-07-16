@@ -1,228 +1,167 @@
 [
-  structure_item (basic.ml[8,119+0]..basic.ml[8,119+45])
+  structure_item (basic.ml[8,135+0]..basic.ml[8,135+45])
     Tstr_value Nonrec
     [
       <def>
           attribute "inline"
             [
-              structure_item (basic.ml[8,119+13]..[8,119+18])
+              structure_item (basic.ml[8,135+13]..[8,135+18])
                 Pstr_eval
-                expression (basic.ml[8,119+13]..[8,119+18])
-                  Pexp_ident "never" (basic.ml[8,119+13]..[8,119+18])
+                expression (basic.ml[8,135+13]..[8,135+18])
+                  Pexp_ident "never" (basic.ml[8,135+13]..[8,135+18])
             ]
-        pattern (basic.ml[8,119+20]..basic.ml[8,119+21])
-          Tpat_var "f/268"
+        pattern (basic.ml[8,135+20]..basic.ml[8,135+21])
+          Tpat_var "f"
           value_mode global,many,shared
-        expression (basic.ml[8,119+22]..basic.ml[8,119+45]) ghost
+        expression (basic.ml[8,135+22]..basic.ml[8,135+45]) ghost
           Texp_function
           region true
           alloc_mode global,many,shared
           [
             Nolabel
             Param_pat
-              pattern (basic.ml[8,119+22]..basic.ml[8,119+25])
-                Tpat_var "str/270"
+              pattern (basic.ml[8,135+22]..basic.ml[8,135+25])
+                Tpat_var "str"
                 value_mode global,many,shared
           ]
           Tfunction_body
-            expression (basic.ml[8,119+28]..basic.ml[8,119+45])
+            expression (basic.ml[8,135+28]..basic.ml[8,135+45])
               Texp_apply
               apply_mode Tail
               locality_mode global
-              expression (basic.ml[8,119+28]..basic.ml[8,119+41])
+              expression (basic.ml[8,135+28]..basic.ml[8,135+41])
                 Texp_ident "Stdlib!.print_endline"
               [
                 <arg>
                   Nolabel
-                  expression (basic.ml[8,119+42]..basic.ml[8,119+45])
-                    Texp_ident "str/270"
+                  expression (basic.ml[8,135+42]..basic.ml[8,135+45])
+                    Texp_ident "str"
               ]
     ]
-  structure_item (basic.ml[10,166+0]..basic.ml[12,196+3])
+  structure_item (basic.ml[10,182+0]..basic.ml[12,212+3])
     Tstr_module
-    M/272
-      module_expr (basic.ml[10,166+11]..basic.ml[12,196+3])
+    M
+      module_expr (basic.ml[10,182+11]..basic.ml[12,212+3])
         Tmod_structure
         [
-          structure_item (basic.ml[11,184+2]..basic.ml[11,184+11])
+          structure_item (basic.ml[11,200+2]..basic.ml[11,200+11])
             Tstr_value Nonrec
             [
               <def>
-                pattern (basic.ml[11,184+6]..basic.ml[11,184+7])
-                  Tpat_var "f/271"
+                pattern (basic.ml[11,200+6]..basic.ml[11,200+7])
+                  Tpat_var "f"
                   value_mode global,many,shared
-                expression (basic.ml[11,184+10]..basic.ml[11,184+11])
-                  Texp_ident "f/268"
+                expression (basic.ml[11,200+10]..basic.ml[11,200+11])
+                  Texp_ident "f"
             ]
         ]
-  structure_item (basic.ml[14,201+0]..basic.ml[16,238+13])
+  structure_item (basic.ml[14,217+0]..basic.ml[16,254+13])
     Tstr_value Nonrec
     [
       <def>
-        pattern (basic.ml[14,201+4]..basic.ml[14,201+18])
-          Tpat_var "should_be_tail/273"
+        pattern (basic.ml[14,217+4]..basic.ml[14,217+18])
+          Tpat_var "should_be_tail"
           value_mode global,many,shared
-        expression (basic.ml[14,201+19]..basic.ml[16,238+13]) ghost
+        expression (basic.ml[14,217+19]..basic.ml[16,254+13]) ghost
           Texp_function
           region true
           alloc_mode global,many,shared
           [
             Nolabel
             Param_pat
-              pattern (basic.ml[14,201+19]..basic.ml[14,201+21])
+              pattern (basic.ml[14,217+19]..basic.ml[14,217+21])
                 Tpat_construct "()"
                 []
                 None
           ]
           Tfunction_body
-            expression (basic.ml[15,225+2]..basic.ml[16,238+13])
+            expression (basic.ml[15,241+2]..basic.ml[16,254+13])
               Texp_sequence
-              expression (basic.ml[15,225+2]..basic.ml[15,225+11])
+              expression (basic.ml[15,241+2]..basic.ml[15,241+11])
                 Texp_apply
                 apply_mode Default
                 locality_mode global
-                expression (basic.ml[15,225+2]..basic.ml[15,225+3])
-                  Texp_ident "f/268"
+                expression (basic.ml[15,241+2]..basic.ml[15,241+3])
+                  Texp_ident "f"
                 [
                   <arg>
                     Nolabel
-                    expression (basic.ml[15,225+4]..basic.ml[15,225+11])
-                      Texp_constant Const_string("hello",(basic.ml[15,225+5]..basic.ml[15,225+10]),None)
+                    expression (basic.ml[15,241+4]..basic.ml[15,241+11])
+                      Texp_constant Const_string("hello",(basic.ml[15,241+5]..basic.ml[15,241+10]),None)
                 ]
               value
-              expression (basic.ml[16,238+2]..basic.ml[16,238+13])
+              expression (basic.ml[16,254+2]..basic.ml[16,254+13])
                 Texp_apply
                 apply_mode Tail
                 locality_mode global
-                expression (basic.ml[16,238+2]..basic.ml[16,238+3])
-                  Texp_ident "f/268"
+                expression (basic.ml[16,254+2]..basic.ml[16,254+3])
+                  Texp_ident "f"
                 [
                   <arg>
                     Nolabel
-                    expression (basic.ml[16,238+4]..basic.ml[16,238+13])
-                      Texp_constant Const_string("goodbye",(basic.ml[16,238+5]..basic.ml[16,238+12]),None)
+                    expression (basic.ml[16,254+4]..basic.ml[16,254+13])
+                      Texp_constant Const_string("goodbye",(basic.ml[16,254+5]..basic.ml[16,254+12]),None)
                 ]
     ]
-  structure_item (basic.ml[18,253+0]..basic.ml[20,293+15])
+  structure_item (basic.ml[18,269+0]..basic.ml[20,309+15])
     Tstr_value Nonrec
     [
       <def>
-        pattern (basic.ml[18,253+4]..basic.ml[18,253+21])
-          Tpat_var "shouldn't_be_tail/276"
+        pattern (basic.ml[18,269+4]..basic.ml[18,269+21])
+          Tpat_var "shouldn't_be_tail"
           value_mode global,many,shared
-        expression (basic.ml[18,253+22]..basic.ml[20,293+15]) ghost
+        expression (basic.ml[18,269+22]..basic.ml[20,309+15]) ghost
           Texp_function
           region true
           alloc_mode global,many,shared
           [
             Nolabel
             Param_pat
-              pattern (basic.ml[18,253+22]..basic.ml[18,253+24])
+              pattern (basic.ml[18,269+22]..basic.ml[18,269+24])
                 Tpat_construct "()"
                 []
                 None
           ]
           Tfunction_body
-            expression (basic.ml[19,280+2]..basic.ml[20,293+15])
+            expression (basic.ml[19,296+2]..basic.ml[20,309+15])
               Texp_sequence
-              expression (basic.ml[19,280+2]..basic.ml[19,280+11])
+              expression (basic.ml[19,296+2]..basic.ml[19,296+11])
                 Texp_apply
                 apply_mode Default
                 locality_mode global
-                expression (basic.ml[19,280+2]..basic.ml[19,280+3])
-                  Texp_ident "f/268"
+                expression (basic.ml[19,296+2]..basic.ml[19,296+3])
+                  Texp_ident "f"
                 [
                   <arg>
                     Nolabel
-                    expression (basic.ml[19,280+4]..basic.ml[19,280+11])
-                      Texp_constant Const_string("hello",(basic.ml[19,280+5]..basic.ml[19,280+10]),None)
+                    expression (basic.ml[19,296+4]..basic.ml[19,296+11])
+                      Texp_constant Const_string("hello",(basic.ml[19,296+5]..basic.ml[19,296+10]),None)
                 ]
               value
-              expression (basic.ml[20,293+2]..basic.ml[20,293+15])
+              expression (basic.ml[20,309+2]..basic.ml[20,309+15])
                 Texp_apply
                 apply_mode Nontail
                 locality_mode global
-                expression (basic.ml[20,293+2]..basic.ml[20,293+5])
-                  Texp_ident "M/272.f"
+                expression (basic.ml[20,309+2]..basic.ml[20,309+5])
+                  Texp_ident "M.f"
                 [
                   <arg>
                     Nolabel
-                    expression (basic.ml[20,293+6]..basic.ml[20,293+15])
-                      Texp_constant Const_string("goodbye",(basic.ml[20,293+7]..basic.ml[20,293+14]),None)
+                    expression (basic.ml[20,309+6]..basic.ml[20,309+15])
+                      Texp_constant Const_string("goodbye",(basic.ml[20,309+7]..basic.ml[20,309+14]),None)
                 ]
     ]
 ]
 
-*** After instruction selection
-camlBasic__f_0_3_code(R:I/0[%rax]) {basic.ml:8,22-45}
-  str:V/61 := R:I/0[%rax]
-  I/62 := 72057594037927935
-  I/63 := int  mut[str:V/61 + -8]{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
-  I/64 := I/63
-  I/64 := I/64 & I/62{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
-  I/65 := I/64
-  I/65 := I/65 >>u 10{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
-  tmp:I/66 := I/65  * 8 + -1{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
-  I/67 := unsigned int8  mut[str:V/61 + tmp:I/66]{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
-  I/68 := tmp:I/66
-  I/68 := I/68 - I/67{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
-  I/69 := I/68  * 2 + 1{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,30-47}
-  I/70 := 1
-  I/71 := "camlStdlib__print_endline_137"
-  V/72 := val [I/71 + 16]{basic.ml:8,28-45}
-  R:I/2[%rdi] := V/72
-  R:I/3[%rsi] := str:V/61
-  R:I/4[%rdx] := I/70
-  R:I/5[%rcx] := I/69
-  R:I/0[%rax] := extcall "caml_ml_output" R:I/2[%rdi] R:I/3[%rsi] R:I/4[%rdx] R:I/5[%rcx]{basic.ml:8,28-45;stdlib.ml:497,2-24;stdlib.ml:374,2-47}
-  param:V/73 := R:I/0[%rax]
-  I/74 := 21
-  I/75 := "camlStdlib__print_endline_137"
-  V/76 := val [I/75 + 16]{basic.ml:8,28-45}
-  R:I/2[%rdi] := V/76
-  R:I/3[%rsi] := I/74
-  R:I/0[%rax] := extcall "caml_ml_output_char" R:I/2[%rdi] R:I/3[%rsi]{basic.ml:8,28-45;stdlib.ml:497,26-49}
-  param:V/77 := R:I/0[%rax]
-  I/78 := "camlStdlib__print_endline_137"
-  V/79 := val [I/78 + 16]{basic.ml:8,28-45}
-  R:I/2[%rdi] := V/79
-  R:I/0[%rax] := extcall "caml_ml_flush" R:I/2[%rdi]{basic.ml:8,28-45;stdlib.ml:497,51-63}
-  V/80 := R:I/0[%rax]
-  R:I/0[%rax] := V/80
-  return R:I/0[%rax]
-*** After instruction selection
-camlBasic__should_be_tail_1_4_code(R:I/0[%rax]) {basic.ml:14,19-50}
-  param:I/61 := R:I/0[%rax]
-  I/62 := "camlBasic__immstring20"
-  R:I/0[%rax] := I/62
-  R:I/0[%rax] := call "camlBasic__f_0_3_code" R:I/0[%rax]{basic.ml:15,2-11}
-  param:I/63 := R:I/0[%rax]
-  I/64 := "camlBasic__immstring22"
-  R:I/0[%rax] := I/64
-  tailcall "camlBasic__f_0_3_code" R:I/0[%rax]{basic.ml:16,2-13}
-*** After instruction selection
-camlBasic__shouldn't_be_tail_2_5_code(R:I/0[%rax]) {basic.ml:18,22-55}
-  param:I/61 := R:I/0[%rax]
-  I/62 := "camlBasic__immstring20"
-  R:I/0[%rax] := I/62
-  R:I/0[%rax] := call "camlBasic__f_0_3_code" R:I/0[%rax]{basic.ml:19,2-11}
-  param:I/63 := R:I/0[%rax]
-  I/64 := "camlBasic__immstring22"
-  R:I/0[%rax] := I/64
-  R:I/0[%rax] := call "camlBasic__f_0_3_code" R:I/0[%rax]{basic.ml:20,2-15}
-  I/65 := R:I/0[%rax]
-  R:I/0[%rax] := I/65
-  return R:I/0[%rax]
-*** After instruction selection
-camlBasic__entry() no_cse reduce_code_size linscan
-  catch
-    I/62 := "camlBasic"
-    I/63 := I/62
-    *ret*:V/61 := I/63
-    exit(1)
-  with(1)
-    I/64 := 1
-    R:I/0[%rax] := I/64
-    return R:I/0[%rax]
-    
-  endcatch
+(let
+  (f =
+     (function {nlocal = 0} str never_inline : int
+       (apply (field_imm 45 (global Stdlib!)) str))
+   M = (makeblock 0 f)
+   should_be_tail =
+     (function {nlocal = 0} param[int] : int
+       (seq (apply f "hello") (apply f "goodbye")))
+   shouldn't_be_tail =
+     (function {nlocal = 0} param[int] : int
+       (seq (apply f "hello") (applynontail (field_imm 0 M) "goodbye"))))
+  (makeblock 0 f M should_be_tail shouldn't_be_tail))
