@@ -1212,9 +1212,10 @@ let simplify_effect_op dacc apply (op : Call_kind.Effect.t) ~down_to_up =
     | Run_stack { stack; f; arg } ->
       E.run_stack ~stack:(simplify_simple stack) ~f:(simplify_simple f)
         ~arg:(simplify_simple arg)
-    | Resume { stack; f; arg } ->
+    | Resume { stack; f; arg; last_fiber } ->
       E.resume ~stack:(simplify_simple stack) ~f:(simplify_simple f)
         ~arg:(simplify_simple arg)
+        ~last_fiber:(simplify_simple last_fiber)
   in
   let apply = Apply.with_call_kind apply (Call_kind.effect op) in
   let dacc, use_id =
