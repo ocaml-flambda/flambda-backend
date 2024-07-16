@@ -99,7 +99,8 @@ let untransl_modalities ~loc m : Parsetree.modality loc list =
     { txt = Parsetree.Modality s; loc }
   in
   let is_not_id m = not (Modality.is_id m) in
-  Modality.Value.Const.to_list m |> List.filter is_not_id |> List.map untransl_atom
+  Modality.Value.Const.to_list m
+  |> List.filter is_not_id |> List.map untransl_atom
 
 let compose_modalities modalities =
   (* The ordering:
