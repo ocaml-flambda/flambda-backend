@@ -1,8 +1,6 @@
 (* TEST
  flags = "-dtypedtree -dlambda -dno-unique-ids";
- setup-ocamlopt.opt-build-env;
- ocamlopt.opt;
- check-ocamlopt.opt-output;
+ native;
 *)
 
 let [@inline never] f str = print_endline str
