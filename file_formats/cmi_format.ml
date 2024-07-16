@@ -74,7 +74,6 @@ type 'sg cmi_infos_generic = {
     cmi_flags : flags;
 }
 
-<<<<<<< HEAD
 type cmi_infos_lazy = Subst.Lazy.signature cmi_infos_generic
 type cmi_infos = Types.signature cmi_infos_generic
 
@@ -126,15 +125,9 @@ let input_cmi_lazy ic =
       header_kind = kind;
       header_sign = sign;
     } = (input_value ic : header) in
-||||||| 121bedcfd2
-let input_cmi ic =
-  let (name, sign) = (input_value ic : header) in
-=======
-let input_cmi ic =
-  let (name, sign) = (Compression.input_value ic : header) in
->>>>>>> 5.2.0
   let crcs = (input_value ic : crcs) in
   let flags = (input_value ic : flags) in
+  (* CR ocaml 5 compressed-marshal mshinwell: upstream uses [Compression] *)
   {
       cmi_name = name;
       cmi_kind = kind;
@@ -175,7 +168,6 @@ let read_cmi_lazy filename =
 let output_cmi filename oc cmi =
 (* beware: the provided signature must have been substituted for saving *)
   output_string oc Config.cmi_magic_number;
-<<<<<<< HEAD
   let output_int64 oc n =
     let buf = Bytes.create 8 in
     Bytes.set_int64_ne buf 0 n;
@@ -192,21 +184,12 @@ let output_cmi filename oc cmi =
   let len = Int64.sub val_pos data_pos in
   output_int64 oc len;
   Out_channel.seek oc val_pos;
-  (* BACKPORT BEGIN *)
-  (* CR ocaml 5 compressed-marshal mshinwell:
-     upstream uses [Compression] here *)
   output_value oc
     {
       header_name = cmi.cmi_name;
       header_kind = cmi.cmi_kind;
       header_sign = sign;
     };
-  (* BACKPORT END *)
-||||||| 121bedcfd2
-  Marshal.(to_channel oc ((cmi.cmi_name, cmi.cmi_sign) : header) [Compression]);
-=======
-  Compression.output_value oc ((cmi.cmi_name, cmi.cmi_sign) : header);
->>>>>>> 5.2.0
   flush oc;
   let crc = Digest.file filename in
   let my_info =
