@@ -10,6 +10,12 @@
 
 open Stdlib_alpha
 
+(* Test that [Capsule] is exported. *)
+let () =
+  let x = Capsule.Ptr.inject 5 in
+  assert (Capsule.Ptr.project x = 5)
+;;
+
 (* Test that [Or_null] is exported. *)
 
 let () =
