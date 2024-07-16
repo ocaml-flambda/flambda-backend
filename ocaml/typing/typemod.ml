@@ -1189,7 +1189,7 @@ and approx_sig env ssg =
 
 and approx_modtype_info env sinfo =
   let mtd_type = match sinfo.pmtd_type with
-    | Pmtd_underscore -> failwith "underscore not implemented"
+    | Pmtd_underscore -> raise (Error (sinfo.pmtd_loc, env, Underscore_not_allowed_in_signature))
     | Pmtd_abstract -> None
     | Pmtd_define ty -> Some (approx_modtype env ty)
   in
