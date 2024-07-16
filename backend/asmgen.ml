@@ -348,12 +348,25 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
             Regalloc_validate.Description.create (Cfg_with_infos.cfg_with_layout cfg)
         in
         cfg
-        ++ begin match regalloc with
-          | GI -> Profile.record ~accumulate:true "cfg_gi" Regalloc_gi.run
-          | IRC -> Profile.record ~accumulate:true "cfg_irc" Regalloc_irc.run
-          | LS -> Profile.record ~accumulate:true "cfg_ls" Regalloc_ls.run
-          | Upstream -> assert false
-        end
+        ++
+        (
+          let f acc (instr : Cfg.basic Cfg.instruction) = match instr.desc with
+            | Op Spill -> Profile.Counters.increment "spill" acc
+            | Op Reload -> Profile.Counters.increment "reload" acc
+            | _ -> acc
+          in let regalloc_counters (cfg : Cfg_with_infos.t) =
+            Cfg_with_infos.fold_body_instructions
+              cfg ~f ~init:(Profile.Counters.create ~initial_names:["spill"; "reload"] ())
+          in
+          let regalloc_profile =
+            Profile.record_with_counters ~accumulate:true ~counter_f:regalloc_counters
+          in
+          match regalloc with
+            | GI -> regalloc_profile "cfg_gi" Regalloc_gi.run
+            | IRC -> regalloc_profile "cfg_irc" Regalloc_irc.run
+            | LS -> regalloc_profile "cfg_ls" Regalloc_ls.run
+            | Upstream -> assert false
+        )
         ++ Cfg_with_infos.cfg_with_layout
         ++ Profile.record ~accumulate:true "cfg_validate_description"
              (Regalloc_validate.run cfg_description)
@@ -449,7 +462,6 @@ let compile_phrases ~ppf_dump ps =
           match p with
           | Cfunction fd ->
             compile_fundecl ~ppf_dump ~funcnames fd;
-            compile ~funcnames:(String.Set.remove fd.fun_name.sym_name funcnames) ps;
 
             (* Output function-level profiling if specified by user *)
             if !Clflags.profile_granularity = Profile.Function_level then
@@ -457,7 +469,9 @@ let compile_phrases ~ppf_dump ps =
                 Printf.printf "%s:\n" fd.fun_name.sym_name;
                 Profile.print Format.std_formatter !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision;
                 Printf.printf "\n";
-              )
+              );
+
+            compile ~funcnames:(String.Set.remove fd.fun_name.sym_name funcnames) ps
           | Cdata dl ->
             compile_data dl;
             compile ~funcnames ps

@@ -154,6 +154,8 @@ val iter_blocks : t -> f:(Label.t -> basic_block -> unit) -> unit
 
 val fold_blocks : t -> f:(Label.t -> basic_block -> 'a -> 'a) -> init:'a -> 'a
 
+val fold_body_instructions : t -> f:('a -> basic instruction -> 'a) -> init:'a -> 'a
+
 val register_predecessors_for_all_blocks : t -> unit
 
 (** Printing *)
