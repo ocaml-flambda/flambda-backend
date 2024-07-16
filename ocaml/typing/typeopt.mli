@@ -34,7 +34,6 @@ val array_pattern_kind :
   Typedtree.pattern -> Jkind.Sort.t -> Lambda.array_kind
 val bigarray_type_kind_and_layout :
       Env.t -> Types.type_expr -> Lambda.bigarray_kind * Lambda.bigarray_layout
-<<<<<<< HEAD
 
 (* CR layouts v7: [layout], [function_return_layout], [function2_return_layout],
    and [layout_of_sort] have had location arguments added just to support the
@@ -67,12 +66,8 @@ val function2_return_layout :
 val function_arg_layout :
   Env.t -> Location.t -> Jkind.sort -> Types.type_expr -> Lambda.layout
 
-||||||| 121bedcfd2
 val value_kind : Env.t -> Types.type_expr -> Lambda.value_kind
 val function_return_value_kind : Env.t -> Types.type_expr -> Lambda.value_kind
-=======
-val value_kind : Env.t -> Types.type_expr -> Lambda.value_kind
->>>>>>> 5.2.0
 
 val classify_lazy_argument : Typedtree.expression ->
                              [ `Constant_or_function

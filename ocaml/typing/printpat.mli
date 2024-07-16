@@ -16,19 +16,9 @@
 
 
 val pretty_const
-<<<<<<< HEAD
-    : Typedtree.constant -> string
-val top_pretty
-    : Format.formatter -> 'k Typedtree.general_pattern -> unit
-||||||| 121bedcfd2
-    : Asttypes.constant -> string
-val top_pretty
-    : Format.formatter -> 'k Typedtree.general_pattern -> unit
-=======
-  : Asttypes.constant -> string
+  : Typedtree.constant -> string
 val pretty_val : Format.formatter -> 'k Typedtree.general_pattern -> unit
 
->>>>>>> 5.2.0
 val pretty_pat
     : Format.formatter -> 'k Typedtree.general_pattern -> unit
 val pretty_line
