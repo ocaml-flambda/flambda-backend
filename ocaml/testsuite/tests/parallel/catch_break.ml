@@ -1,12 +1,8 @@
 (* TEST
-reason = "CR ocaml 5 domains: re-enable this test";
-skip;
-*)
-
-(*
 hassysthreads;
 include systhreads;
 not-windows;
+poll-insertion;
 no-tsan;
 {
   bytecode;
@@ -79,7 +75,7 @@ let rec wait n =
    callback implementation than we want.*)
 let break_trap s =
   begin
-    try Atomic.incr ready_count; while true do () done
+    try Sys.with_async_exns (fun () -> Atomic.incr ready_count; while true do () done)
     with Sys.Break -> print "[Sys.Break caught]"
   end;
   print s;
@@ -112,7 +108,7 @@ let run () =
 
 let () =
   Sys.catch_break true;
-  (try run () with Sys.Break ->
+  (try Sys.with_async_exns run with Sys.Break ->
      print ("Test could not complete due to scheduling hazard"
             ^ " (possible false positive)."));
   print "Success.";
