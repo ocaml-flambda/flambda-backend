@@ -1014,6 +1014,7 @@ val resume :
   stack:expression ->
   f:expression ->
   arg:expression ->
+  last_fiber:expression ->
   expression
 
 val reperform :
