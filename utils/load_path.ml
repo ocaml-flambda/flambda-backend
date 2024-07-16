@@ -303,10 +303,10 @@ let find_uncap_with_visibility fn =
       Path_cache.find ~uncap:true fn
     else
       try
-        (Misc.find_in_path_uncap (get_visible_path_list ()) fn, Visible)
+        (Misc.find_in_path_normalized (get_visible_path_list ()) fn, Visible)
       with
       | Not_found ->
-        (Misc.find_in_path_uncap (get_hidden_path_list ()) fn, Hidden)
+        (Misc.find_in_path_normalized (get_hidden_path_list ()) fn, Hidden)
   with Not_found ->
     let fn_uncap = String.uncapitalize_ascii fn in
     (!auto_include_callback Dir.find_uncap fn_uncap, Visible)

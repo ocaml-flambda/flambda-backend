@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 (* TEST_BELOW
 (* Blank lines added here to preserve locations. *)
 
@@ -19,6 +20,35 @@
 
 
 
+||||||| 121bedcfd2
+(* TEST
+=======
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+>>>>>>> 5.2.0
 
 
 
@@ -48,6 +78,7 @@ let () =
       print_string bt
     )
   | exn ->
+<<<<<<< HEAD
     Printexc.to_string exn |> print_endline;
     print_endline "ERROR"
 
@@ -77,3 +108,44 @@ let () =
    check-program-output;
  }
 *)
+||||||| 121bedcfd2
+     Printexc.to_string exn |> print_endline;
+     print_endline "ERROR"
+=======
+     Printexc.to_string exn |> print_endline;
+     print_endline "ERROR"
+
+(* TEST
+ include dynlink;
+ readonly_files = "backtrace_dynlink_plugin.ml";
+ libraries = "";
+ shared-libraries;
+ native-dynlink;
+ setup-ocamlopt.byte-build-env;
+ {
+   module = "backtrace_dynlink.ml";
+   flags = "-g";
+   ocamlopt.byte;
+ }{
+   program = "backtrace_dynlink_plugin.cmxs";
+   flags = "-shared -g";
+   all_modules = "backtrace_dynlink_plugin.ml";
+   ocamlopt.byte;
+ }{
+   program = "${test_build_directory}/main.exe";
+   libraries = "dynlink";
+   all_modules = "backtrace_dynlink.cmx";
+   ocamlopt.byte;
+   ocamlrunparam += ",b=1";
+   run;
+   {
+     no-flambda;
+     check-program-output;
+   }{
+     reference = "${test_source_directory}/backtrace_dynlink.flambda.reference";
+     flambda;
+     check-program-output;
+   }
+ }
+*)
+>>>>>>> 5.2.0

@@ -44,9 +44,9 @@
 
 #undef HAS_FULL_THREAD_VARIABLES
 
-/* Define HAS_FULL_THREAD_VARIABLES if C11 __thread variables are fully
-   supported, including across DLLs.  This is not the case with
-   macOS and with Windows + MinGW-64. */
+/* Define HAS_FULL_THREAD_VARIABLES if thread-local storage is fully supported,
+   including across DLLs. This is not the case with macOS and with Windows +
+   MinGW-w64. */
 
 #undef HAS_C99_FLOAT_OPS
 
@@ -289,14 +289,13 @@
 
 #undef HAS_POSIX_SPAWN
 
-#undef HAS_FFS
-#undef HAS_BITSCANFORWARD
-
 #undef HAS_SIGWAIT
 
 #undef HAS_HUGE_PAGES
 
 #undef HUGE_PAGE_SIZE
+
+#undef HAS_LIBUNWIND
 
 #undef HAS_BROKEN_PRINTF
 
@@ -304,7 +303,7 @@
 
 #undef HAS_POSIX_MONOTONIC_CLOCK
 
-#undef HAS_MACH_ABSOLUTE_TIME
+#undef HAS_CLOCK_GETTIME_NSEC_NP
 
 #undef HAS_GNU_GETAFFINITY_NP
 #undef HAS_BSD_GETAFFINITY_NP

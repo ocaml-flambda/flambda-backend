@@ -163,21 +163,24 @@ typedef enum {
 
 /* Starts runtime_events. Needs to be called before
    [caml_runtime_events_create_cursor]. Needs the runtime lock held to call and
-   will trigger a stop-the-world pause. Returns Val_unit. */
-CAMLextern value caml_runtime_events_start(void);
+   will trigger a stop-the-world pause. */
+CAMLextern void caml_runtime_events_start(void);
 
 /* Pauses runtime_events if not currently paused otherwise does nothing.
    No new events (other than the pause itself) will be written to the ring
    buffer by this domain immediately and all other domains soon. Needs the
-   runtime lock held to call as a pause event is written during this call.
-   Returns Val_unit. */
-CAMLextern value caml_runtime_events_pause(void);
+   runtime lock held to call as a pause event is written during this call. */
+CAMLextern void caml_runtime_events_pause(void);
 
 /* Resumes runtime_events if currently paused otherwise does nothing. New events
    (as well as a resume event) will be written to this domain immediately and
    all other domains soon. Needs the runtime lock held to call as a resume event
-   is written during this call. Returns Val_unit. */
-CAMLextern value caml_runtime_events_resume(void);
+   is written during this call. */
+CAMLextern void caml_runtime_events_resume(void);
+
+/* Returns [1] if runtime events are currently active (started and not paused),
+   [0] otherwise. */
+CAMLextern int caml_runtime_events_are_active(void);
 
 #ifdef CAML_INTERNALS
 
@@ -233,8 +236,17 @@ struct runtime_events_metadata_header {
 };
 
 #define RUNTIME_EVENTS_MAX_CUSTOM_EVENTS (1 << 13)
-#define RUNTIME_EVENTS_NUM_ALLOC_BUCKETS 20
 #define RUNTIME_EVENTS_MAX_MSG_LENGTH (1 << 10)
+
+/* Number of tens of single-size buckets */
+#define RUNTIME_EVENTS_NUM_ALLOC_BUCKETS_SINGLE 1
+/* Number of buckets of 10 sizes */
+#define RUNTIME_EVENTS_NUM_ALLOC_BUCKETS_DECADE 9
+/* Total number of buckets */
+#define RUNTIME_EVENTS_NUM_ALLOC_BUCKETS \
+  (10 * RUNTIME_EVENTS_NUM_ALLOC_BUCKETS_SINGLE \
+   + RUNTIME_EVENTS_NUM_ALLOC_BUCKETS_DECADE \
+   + 1)
 
 /* event header fields (for runtime events):
 - length (10 bits)
@@ -295,8 +307,12 @@ void caml_ev_alloc_flush(void);
 CAMLextern value caml_runtime_events_user_register(value event_name,
    value event_tag, value event_type);
 
-/* Write event data to ring buffer. */
-CAMLextern value caml_runtime_events_user_write(value event,
+/* Write event data to ring buffer. Should not be called when the runtime lock
+   is not held, i.e., after [caml_enter_blocking_section()] and before
+   [caml_leave_blocking_section()]. */
+CAMLextern value caml_runtime_events_user_write(
+   value buf,
+   value event,
    value event_content);
 
 /* Resolve an event name to the associated event value using known registered

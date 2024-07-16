@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  include unix;
  modules = "stack_overflow_.c";
  reason = "CR ocaml 5 effects: re-enable this test";
@@ -9,6 +10,15 @@
  }{
    native;
  }
+||||||| 121bedcfd2
+   include unix
+   modules = "stack_overflow_.c"
+   * libunix
+   ** bytecode
+   ** native
+=======
+ modules = "stack_overflow_.c";
+>>>>>>> 5.2.0
 *)
 
 external caml_to_c : (unit -> 'a) -> 'a = "caml_to_c"
@@ -25,8 +35,8 @@ open Effect.Deep
 type _ t += E : unit t
 
 let () =
-  Printf.printf "%d\n%d\n%!"
-    (!(deep 1000))
+  Printf.printf "%d\n%!" (!(deep 1000));
+  Printf.printf "%d\n%!"
     (match_with deep 1000
      { retc = (fun x -> !x);
        exnc = (fun e -> raise e);

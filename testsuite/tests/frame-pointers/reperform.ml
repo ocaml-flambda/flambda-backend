@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  {
    skip;
  }{
@@ -9,12 +10,26 @@
    all_modules = "${readonly_files} reperform.ml";
    native;
  }
+||||||| 121bedcfd2
+
+* frame_pointers
+** native
+
+readonly_files = "fp_backtrace.c"
+all_modules = "${readonly_files} reperform.ml"
+
+=======
+ frame_pointers;
+ readonly_files = "fp_backtrace.c";
+ all_modules = "${readonly_files} reperform.ml";
+ native;
+>>>>>>> 5.2.0
 *)
 
 open Effect
 open Effect.Deep
 
-external fp_backtrace : unit -> unit = "fp_backtrace" [@@noalloc]
+external fp_backtrace : string -> unit = "fp_backtrace" [@@noalloc]
 
 type _ Effect.t += E : unit t
                  | F : unit t
@@ -25,7 +40,7 @@ let rec foo n =
     if n = 5 then begin
       perform E;
       print_endline "# resumed...";
-      fp_backtrace ()
+      fp_backtrace Sys.argv.(0)
     end;
     foo (n + 1) + n
   end

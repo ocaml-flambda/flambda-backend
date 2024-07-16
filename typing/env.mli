@@ -63,6 +63,9 @@ val initial: t Lazy.t
 
 val diff: t -> t -> Ident.t list
 
+(* approximation to the preimage equivalence class of [find_type] *)
+val same_type_declarations: t -> t -> bool
+
 type type_descr_kind =
   (label_description, constructor_description) type_kind
 
@@ -351,10 +354,19 @@ val add_value_lazy:
     ?check:(string -> Warnings.t) -> mode:(Mode.allowed * 'r) Mode.Value.t ->
     Ident.t -> Subst.Lazy.value_description -> t -> t
 val add_value:
+<<<<<<< HEAD
     ?check:(string -> Warnings.t) -> mode:(Mode.allowed * 'r) Mode.Value.t ->
     Ident.t -> Types.value_description -> t -> t
 val add_type:
     check:bool -> ?shape:Shape.t -> Ident.t -> type_declaration -> t -> t
+||||||| 121bedcfd2
+    ?check:(string -> Warnings.t) -> Ident.t -> value_description -> t -> t
+val add_type: check:bool -> Ident.t -> type_declaration -> t -> t
+=======
+    ?check:(string -> Warnings.t) -> Ident.t -> value_description -> t -> t
+val add_type:
+  check:bool -> ?shape:Shape.t -> Ident.t -> type_declaration -> t -> t
+>>>>>>> 5.2.0
 val add_extension:
   check:bool -> ?shape:Shape.t -> rebind:bool -> Ident.t ->
   extension_constructor -> t -> t
@@ -371,7 +383,7 @@ val add_modtype_lazy: update_summary:bool ->
    Ident.t -> Subst.Lazy.modtype_declaration -> t -> t
 val add_class: Ident.t -> class_declaration -> t -> t
 val add_cltype: Ident.t -> class_type_declaration -> t -> t
-val add_local_type: Path.t -> type_declaration -> t -> t
+val add_local_constraint: Path.t -> type_declaration -> t -> t
 
 (* Insertion of persistent signatures *)
 
@@ -383,7 +395,7 @@ val add_local_type: Path.t -> type_declaration -> t -> t
    contents of the module is accessed. *)
 val add_persistent_structure : Ident.t -> t -> t
 
-(* Returns the set of persistent structures found in the given
+ (* Returns the set of persistent structures found in the given
    directory. *)
 val persistent_structures_of_dir : Load_path.Dir.t -> Misc.Stdlib.String.Set.t
 
@@ -471,23 +483,59 @@ val set_unit_name: Compilation_unit.t option -> unit
 val get_unit_name: unit -> Compilation_unit.t option
 
 (* Read, save a signature to/from a file *)
+<<<<<<< HEAD
 val read_signature:
   Compilation_unit.Name.t -> filepath -> add_binding:bool -> signature
         (* Arguments: module name, file name, [add_binding] flag.
            Results: signature. If [add_binding] is true, creates an entry for
            the module in the environment. *)
+||||||| 121bedcfd2
+val read_signature: modname -> filepath -> signature
+        (* Arguments: module name, file name. Results: signature. *)
+=======
+val read_signature: Unit_info.Artifact.t -> signature
+        (* Arguments: module name, file name. Results: signature. *)
+>>>>>>> 5.2.0
 val save_signature:
+<<<<<<< HEAD
   alerts:alerts -> signature -> Compilation_unit.Name.t -> Cmi_format.kind
   -> filepath -> Cmi_format.cmi_infos_lazy
         (* Arguments: signature, module name, module kind, file name. *)
+||||||| 121bedcfd2
+  alerts:alerts -> signature -> modname -> filepath
+  -> Cmi_format.cmi_infos
+        (* Arguments: signature, module name, file name. *)
+=======
+  alerts:alerts -> Types.signature -> Unit_info.Artifact.t
+  -> Cmi_format.cmi_infos
+        (* Arguments: signature, module name, file name. *)
+>>>>>>> 5.2.0
 val save_signature_with_imports:
+<<<<<<< HEAD
   alerts:alerts -> signature -> Compilation_unit.Name.t -> Cmi_format.kind
   -> filepath -> Import_info.t array -> Cmi_format.cmi_infos_lazy
         (* Arguments: signature, module name, module kind,
            file name, imported units with their CRCs. *)
 
 (* Register a module as a parameter to this unit. *)
+<<<<<<< HEAD
+val register_parameter_import: Compilation_unit.Name.t -> unit
+||||||| 121bedcfd2
+  alerts:alerts -> signature -> modname -> filepath -> crcs
+  -> Cmi_format.cmi_infos
+        (* Arguments: signature, module name, file name,
+           imported units with their CRCs. *)
+=======
+  alerts:alerts -> signature -> Unit_info.Artifact.t -> crcs
+  -> Cmi_format.cmi_infos
+        (* Arguments: signature, module name, file name,
+           imported units with their CRCs. *)
+>>>>>>> 5.2.0
+||||||| 2572783060
+val register_parameter_import: Compilation_unit.Name.t -> unit
+=======
 val register_parameter: Compilation_unit.Name.t -> unit
+>>>>>>> ocaml-jst/flambda-patches
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t

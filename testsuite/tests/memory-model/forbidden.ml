@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  modules = "opt.ml barrier.ml hist.ml shared.ml run.ml outcome.ml";
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
@@ -8,6 +9,21 @@
  }{
    native;
  }
+||||||| 121bedcfd2
+  modules="opt.ml barrier.ml hist.ml shared.ml run.ml outcome.ml"
+  * not-bsd
+  ** bytecode
+  ** native
+=======
+ modules = "opt.ml barrier.ml hist.ml shared.ml run.ml outcome.ml";
+ not-bsd;
+ no-tsan; (* tsan detects the intentional data races and fails *)
+ {
+   bytecode;
+ }{
+   native;
+ }
+>>>>>>> 5.2.0
 *)
 
 (* Memory model test:

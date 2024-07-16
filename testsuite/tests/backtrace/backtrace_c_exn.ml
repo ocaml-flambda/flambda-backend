@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 (* TEST_BELOW
 (* Blank lines added here to preserve locations. *)
 
@@ -14,6 +15,17 @@
 (* CR mshinwell: it isn't clear to me why the 5 reference output here
    is not worse.  It seems to have lost the stack frames on the C side.
    (The reference file does match upstream 5.)
+||||||| 121bedcfd2
+(* TEST
+   modules = "backtrace_c_exn_.c"
+   flags = "-g"
+   ocamlrunparam += ",b=1"
+=======
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+>>>>>>> 5.2.0
 *)
 
 (* https://github.com/ocaml-multicore/ocaml-multicore/issues/498 *)
@@ -30,6 +42,7 @@ let () =
   | exn ->
     Printexc.to_string exn |> print_endline;
     Printexc.print_backtrace stdout
+<<<<<<< HEAD
 
 (* TEST
  modules = "backtrace_c_exn_.c";
@@ -55,3 +68,12 @@ let () =
    }
  }
 *)
+||||||| 121bedcfd2
+=======
+
+(* TEST
+ modules = "backtrace_c_exn_.c";
+ flags = "-g";
+ ocamlrunparam += ",b=1";
+*)
+>>>>>>> 5.2.0

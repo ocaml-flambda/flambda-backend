@@ -53,6 +53,7 @@ let () =
     end
   with
   | Dynlink.Error (Dynlink.Library's_module_initializers_failed exn) ->
+<<<<<<< HEAD
       Printf.eprintf "Error: %s\n%!" (Printexc.to_string exn)
 
 (* TEST
@@ -101,3 +102,57 @@ let () =
    }
  }
 *)
+||||||| 121bedcfd2
+      Printf.eprintf "Error: %s\n%!" (Printexc.to_string exn);
+      Printexc.print_backtrace stderr
+=======
+      Printf.eprintf "Error: %s\n%!" (Printexc.to_string exn);
+      Printexc.print_backtrace stderr
+
+(* TEST
+ include dynlink;
+ readonly_files = "test10_plugin.ml";
+ flags += "-g";
+ libraries = "";
+ shared-libraries;
+ {
+   setup-ocamlc.byte-build-env;
+   {
+     module = "test10_main.ml";
+     ocamlc.byte;
+   }{
+     module = "test10_plugin.ml";
+     ocamlc.byte;
+   }{
+     program = "${test_build_directory}/test10.byte";
+     libraries = "dynlink";
+     all_modules = "test10_main.cmo";
+     ocamlc.byte;
+     run;
+     reference = "${test_source_directory}/test10_main.byte.reference";
+     check-program-output;
+   }
+ }{
+   no-flambda;
+   native-dynlink;
+   setup-ocamlopt.byte-build-env;
+   {
+     module = "test10_main.ml";
+     ocamlopt.byte;
+   }{
+     program = "test10_plugin.cmxs";
+     flags = "-shared";
+     all_modules = "test10_plugin.ml";
+     ocamlopt.byte;
+   }{
+     program = "${test_build_directory}/test10.exe";
+     libraries = "dynlink";
+     all_modules = "test10_main.cmx";
+     ocamlopt.byte;
+     run;
+     reference = "${test_source_directory}/test10_main.native.reference";
+     check-program-output;
+   }
+ }
+*)
+>>>>>>> 5.2.0

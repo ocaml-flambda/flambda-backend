@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  reason = "Thread.exit from a Memprof callback is a fatal error under flambda-backend";
  skip;
  include systhreads;
@@ -8,6 +9,27 @@
  }{
    native;
  }
+||||||| 121bedcfd2
+* hassysthreads
+include systhreads
+* skip
+reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634"
+** bytecode
+** native
+=======
+ {
+   include systhreads;
+   hassysthreads;
+ }{
+   reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634";
+   skip;
+   {
+     bytecode;
+   }{
+     native;
+   }
+ }
+>>>>>>> 5.2.0
 *)
 
 (* Tests statmemprof behaviour when a callback terminates its thread.

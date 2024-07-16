@@ -254,13 +254,25 @@ stdlib__Condition.cmi : condition.mli \
     stdlib__Mutex.cmi
 stdlib__Digest.cmo : digest.ml \
     stdlib__String.cmi \
+<<<<<<< HEAD
     stdlib.cmi \
+||||||| 121bedcfd2
+=======
+    stdlib__Int.cmi \
+    stdlib__In_channel.cmi \
+>>>>>>> 5.2.0
     stdlib__Char.cmi \
     stdlib__Bytes.cmi \
     stdlib__Digest.cmi
 stdlib__Digest.cmx : digest.ml \
     stdlib__String.cmx \
+<<<<<<< HEAD
     stdlib.cmx \
+||||||| 121bedcfd2
+=======
+    stdlib__Int.cmx \
+    stdlib__In_channel.cmx \
+>>>>>>> 5.2.0
     stdlib__Char.cmx \
     stdlib__Bytes.cmx \
     stdlib__Digest.cmi
@@ -281,11 +293,59 @@ stdlib__Domain.cmx : domain.ml \
     stdlib__Array.cmx \
     stdlib__Domain.cmi
 stdlib__Domain.cmi : domain.mli
+<<<<<<< HEAD
 effect.cmo : \
     effect.cmi
 effect.cmx : \
     effect.cmi
 effect.cmi :
+||||||| 121bedcfd2
+stdlib__Effect.cmo : effect.ml \
+    stdlib__Printf.cmi \
+    stdlib__Printexc.cmi \
+    stdlib__Obj.cmi \
+    stdlib__Callback.cmi \
+    stdlib__Effect.cmi
+stdlib__Effect.cmx : effect.ml \
+    stdlib__Printf.cmx \
+    stdlib__Printexc.cmx \
+    stdlib__Obj.cmx \
+    stdlib__Callback.cmx \
+    stdlib__Effect.cmi
+stdlib__Effect.cmi : effect.mli \
+    stdlib__Printexc.cmi
+=======
+stdlib__Dynarray.cmo : dynarray.ml \
+    stdlib__Sys.cmi \
+    stdlib__Seq.cmi \
+    stdlib__Printf.cmi \
+    stdlib__List.cmi \
+    stdlib__Array.cmi \
+    stdlib__Dynarray.cmi
+stdlib__Dynarray.cmx : dynarray.ml \
+    stdlib__Sys.cmx \
+    stdlib__Seq.cmx \
+    stdlib__Printf.cmx \
+    stdlib__List.cmx \
+    stdlib__Array.cmx \
+    stdlib__Dynarray.cmi
+stdlib__Dynarray.cmi : dynarray.mli \
+    stdlib__Seq.cmi
+stdlib__Effect.cmo : effect.ml \
+    stdlib__Printf.cmi \
+    stdlib__Printexc.cmi \
+    stdlib__Obj.cmi \
+    stdlib__Callback.cmi \
+    stdlib__Effect.cmi
+stdlib__Effect.cmx : effect.ml \
+    stdlib__Printf.cmx \
+    stdlib__Printexc.cmx \
+    stdlib__Obj.cmx \
+    stdlib__Callback.cmx \
+    stdlib__Effect.cmi
+stdlib__Effect.cmi : effect.mli \
+    stdlib__Printexc.cmi
+>>>>>>> 5.2.0
 stdlib__Either.cmo : either.ml \
     stdlib__Either.cmi
 stdlib__Either.cmx : either.ml \
@@ -413,6 +473,7 @@ stdlib__Gc.cmo : gc.ml \
     stdlib__Printf.cmi \
     stdlib__Printexc.cmi \
     stdlib__Fun.cmi \
+    stdlib__Domain.cmi \
     stdlib__Atomic.cmi \
     stdlib__Gc.cmi
 stdlib__Gc.cmx : gc.ml \
@@ -422,6 +483,7 @@ stdlib__Gc.cmx : gc.ml \
     stdlib__Printf.cmx \
     stdlib__Printexc.cmx \
     stdlib__Fun.cmx \
+    stdlib__Domain.cmx \
     stdlib__Atomic.cmx \
     stdlib__Gc.cmi
 stdlib__Gc.cmi : gc.mli \
@@ -459,15 +521,18 @@ stdlib__In_channel.cmo : in_channel.ml \
     stdlib.cmi \
     stdlib__Fun.cmi \
     stdlib__Bytes.cmi \
+    stdlib__Bigarray.cmi \
     stdlib__In_channel.cmi
 stdlib__In_channel.cmx : in_channel.ml \
     stdlib__Sys.cmx \
     stdlib.cmx \
     stdlib__Fun.cmx \
     stdlib__Bytes.cmx \
+    stdlib__Bigarray.cmx \
     stdlib__In_channel.cmi
 stdlib__In_channel.cmi : in_channel.mli \
-    stdlib.cmi
+    stdlib.cmi \
+    stdlib__Bigarray.cmi
 stdlib__Int.cmo : int.ml \
     stdlib.cmi \
     stdlib__Int.cmi
@@ -565,13 +630,23 @@ stdlib__Map.cmi : map.mli \
     stdlib.cmi \
     stdlib__Seq.cmi
 stdlib__Marshal.cmo : marshal.ml \
+<<<<<<< HEAD
     stdlib__String.cmi \
     stdlib.cmi \
+||||||| 121bedcfd2
+    stdlib__String.cmi \
+=======
+>>>>>>> 5.2.0
     stdlib__Bytes.cmi \
     stdlib__Marshal.cmi
 stdlib__Marshal.cmx : marshal.ml \
+<<<<<<< HEAD
     stdlib__String.cmx \
     stdlib.cmx \
+||||||| 121bedcfd2
+    stdlib__String.cmx \
+=======
+>>>>>>> 5.2.0
     stdlib__Bytes.cmx \
     stdlib__Marshal.cmi
 stdlib__Marshal.cmi : marshal.mli \
@@ -611,14 +686,24 @@ stdlib__Nativeint.cmi : nativeint.mli \
     stdlib.cmi
 stdlib__Obj.cmo : obj.ml \
     stdlib__Sys.cmi \
+<<<<<<< HEAD
     stdlib.cmi \
     stdlib__Nativeint.cmi \
+||||||| 121bedcfd2
+    stdlib__Nativeint.cmi \
+=======
+>>>>>>> 5.2.0
     stdlib__Int32.cmi \
     stdlib__Obj.cmi
 stdlib__Obj.cmx : obj.ml \
     stdlib__Sys.cmx \
+<<<<<<< HEAD
     stdlib.cmx \
     stdlib__Nativeint.cmx \
+||||||| 121bedcfd2
+    stdlib__Nativeint.cmx \
+=======
+>>>>>>> 5.2.0
     stdlib__Int32.cmx \
     stdlib__Obj.cmi
 stdlib__Obj.cmi : obj.mli \
@@ -649,13 +734,16 @@ stdlib__Option.cmi : option.mli \
 stdlib__Out_channel.cmo : out_channel.ml \
     stdlib.cmi \
     stdlib__Fun.cmi \
+    stdlib__Bigarray.cmi \
     stdlib__Out_channel.cmi
 stdlib__Out_channel.cmx : out_channel.ml \
     stdlib.cmx \
     stdlib__Fun.cmx \
+    stdlib__Bigarray.cmx \
     stdlib__Out_channel.cmi
 stdlib__Out_channel.cmi : out_channel.mli \
-    stdlib.cmi
+    stdlib.cmi \
+    stdlib__Bigarray.cmi
 stdlib__Parsing.cmo : parsing.ml \
     stdlib.cmi \
     stdlib__Obj.cmi \

@@ -41,6 +41,7 @@ type iterator = {
   class_type_declaration: iterator -> class_type_declaration -> unit;
   class_type_field: iterator -> class_type_field -> unit;
   constructor_declaration: iterator -> constructor_declaration -> unit;
+  directive_argument: iterator -> directive_argument -> unit;
   expr: iterator -> expression -> unit;
   expr_jane_syntax: iterator -> Jane_syntax.Expression.t -> unit;
   extension: iterator -> extension -> unit;
@@ -68,7 +69,13 @@ type iterator = {
   signature_item_jane_syntax: iterator -> Jane_syntax.Signature_item.t -> unit;
   structure: iterator -> structure -> unit;
   structure_item: iterator -> structure_item -> unit;
+<<<<<<< HEAD
   structure_item_jane_syntax: iterator -> Jane_syntax.Structure_item.t -> unit;
+||||||| 121bedcfd2
+=======
+  toplevel_directive: iterator -> toplevel_directive -> unit;
+  toplevel_phrase: iterator -> toplevel_phrase -> unit;
+>>>>>>> 5.2.0
   typ: iterator -> core_type -> unit;
   typ_jane_syntax: iterator -> Jane_syntax.Core_type.t -> unit;
   typ_mode_syntax : iterator -> Jane_syntax.Mode_expr.t -> core_type -> unit;
@@ -192,6 +199,9 @@ module T = struct
     | Ptyp_package (lid, l) ->
         iter_loc sub lid;
         List.iter (iter_tuple (iter_loc sub) (sub.typ sub)) l
+    | Ptyp_open (mod_ident, t) ->
+        iter_loc sub mod_ident;
+        sub.typ sub t
     | Ptyp_extension x -> sub.extension sub x
 
   let iter_type_declaration sub
@@ -483,6 +493,7 @@ let iter_constant = ()
 module E = struct
   (* Value expressions for the core language *)
 
+<<<<<<< HEAD
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
   module L = Jane_syntax.Layouts
@@ -581,6 +592,37 @@ module E = struct
 
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
+||||||| 121bedcfd2
+  let iter sub {pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} =
+=======
+  let iter_function_param sub { pparam_loc = loc; pparam_desc = desc } =
+    sub.location sub loc;
+    match desc with
+    | Pparam_val (_lab, def, p) ->
+        iter_opt (sub.expr sub) def;
+        sub.pat sub p
+    | Pparam_newtype ty ->
+        iter_loc sub ty
+
+  let iter_body sub body =
+    match body with
+    | Pfunction_body e ->
+        sub.expr sub e
+    | Pfunction_cases (cases, loc, attrs) ->
+        sub.cases sub cases;
+        sub.location sub loc;
+        sub.attributes sub attrs
+
+  let iter_constraint sub constraint_ =
+    match constraint_ with
+    | Pconstraint ty ->
+        sub.typ sub ty
+    | Pcoerce (ty1, ty2) ->
+        iter_opt (sub.typ sub) ty1;
+        sub.typ sub ty2
+
+  let iter sub {pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} =
+>>>>>>> 5.2.0
     sub.location sub loc;
     match Jane_syntax.Expression.of_ast expr with
     | Some (jexp, attrs) ->
@@ -594,11 +636,10 @@ module E = struct
     | Pexp_let (_r, vbs, e) ->
         List.iter (sub.value_binding sub) vbs;
         sub.expr sub e
-    | Pexp_fun (_lab, def, p, e) ->
-        iter_opt (sub.expr sub) def;
-        sub.pat sub p;
-        sub.expr sub e
-    | Pexp_function pel -> sub.cases sub pel
+    | Pexp_function (params, constraint_, body) ->
+        List.iter (iter_function_param sub) params;
+        iter_opt (iter_constraint sub) constraint_;
+        iter_body sub body
     | Pexp_apply (e, l) ->
         sub.expr sub e; List.iter (iter_snd (sub.expr sub)) l
     | Pexp_match (e, pel) ->
@@ -1001,6 +1042,7 @@ let default_iterator =
          | PTyp x -> this.typ this x
          | PPat (x, g) -> this.pat this x; iter_opt (this.expr this) g
       );
+<<<<<<< HEAD
 
     jkind_annotation =
       (fun this -> function
@@ -1014,4 +1056,25 @@ let default_iterator =
           this.jkind_annotation this t;
           this.typ this ty
         | Kind_of ty -> this.typ this ty);
+||||||| 121bedcfd2
+=======
+
+    directive_argument =
+      (fun this a ->
+         this.location this a.pdira_loc
+      );
+
+    toplevel_directive =
+      (fun this d ->
+         iter_loc this d.pdir_name;
+         iter_opt (this.directive_argument this) d.pdir_arg;
+         this.location this d.pdir_loc
+      );
+
+    toplevel_phrase =
+      (fun this -> function
+         | Ptop_def s -> this.structure this s
+         | Ptop_dir d -> this.toplevel_directive this d
+      );
+>>>>>>> 5.2.0
   }

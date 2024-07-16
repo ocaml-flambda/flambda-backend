@@ -18,6 +18,7 @@
 
 #include "config.h"
 #include "misc.h"
+#include "tsan.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -235,18 +236,20 @@ Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
 #define Hd_with_color(hd, color) (((hd) &~ HEADER_COLOR_MASK) | (color))
 
 #define Hp_atomic_val(val) ((atomic_uintnat *)(val) - 1)
-#define Hd_val(val) ((header_t) \
-  (atomic_load_explicit(Hp_atomic_val(val), memory_order_relaxed)))
+CAMLno_tsan_for_perf Caml_inline header_t Hd_val(value val)
+{
+  return atomic_load_explicit(Hp_atomic_val(val), memory_order_relaxed);
+}
 
 #define Color_val(val) (Color_hd (Hd_val (val)))
 
-#define Hd_hp(hp) (* ((header_t *) (hp)))              /* Also an l-value. */
-#define Hp_val(val) (((header_t *) (val)) - 1)
+#define Hd_hp(hp) (* ((volatile header_t *) (hp)))      /* Also an l-value. */
+#define Hp_val(val) (((volatile header_t *) (val)) - 1)
 #define Hp_op(op) (Hp_val (op))
 #define Hp_bp(bp) (Hp_val (bp))
 #define Val_op(op) ((value) (op))
 #define Val_hp(hp) ((value) (((header_t *) (hp)) + 1))
-#define Op_hp(hp) ((value *) Val_hp (hp))
+#define Op_hp(hp) ((volatile value *) Val_hp (hp))
 #define Bp_hp(hp) ((char *) Val_hp (hp))
 
 #define Num_tags (1ull << HEADER_TAG_BITS)
@@ -316,7 +319,13 @@ Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
 #define Tag_hp(hp) (((volatile unsigned char *) (hp)) [sizeof(value)-1])
                                                  /* Also an l-value. */
 #else
+<<<<<<< HEAD
 #define Tag_val(val) (((volatile unsigned char *) (val)) [-sizeof(value)])
+||||||| 121bedcfd2
+#define Tag_val(val) (((unsigned char *) (val)) [-sizeof(value)])
+=======
+#define Tag_val(val) (((volatile unsigned char *) (val)) [- (int)sizeof(value)])
+>>>>>>> 5.2.0
                                                  /* Also an l-value. */
 #define Tag_hp(hp) (((volatile unsigned char *) (hp)) [0])
                                                  /* Also an l-value. */
@@ -344,7 +353,7 @@ Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
 
 /* NOTE: [Forward_tag] and [Infix_tag] must be just under
    [No_scan_tag], with [Infix_tag] the lower one.
-   See [caml_oldify_one] in minor_gc.c for more details.
+   See [oldify_one] in minor_gc.c for more details.
 
    NOTE: Update stdlib/obj.ml whenever you change the tags.
  */
@@ -474,7 +483,7 @@ CAMLextern void caml_Store_double_val (value,double);
 
 /* The [_flat_field] macros are for [floatarray] values and float-only records.
 */
-#define Double_flat_field(v,i) Double_val((value)((double *)(v) + (i)))
+#define Double_flat_field(v,i) Double_val((value)((volatile double *)(v) + (i)))
 #define Store_double_flat_field(v,i,d) do{ \
   mlsize_t caml__temp_i = (i); \
   double caml__temp_d = (d); \
@@ -545,7 +554,11 @@ CAMLextern value caml_atom(tag_t);
 /* Booleans are integers 0 or 1 */
 
 #define Val_bool(x) Val_int((x) != 0)
+#ifdef __cplusplus
+#define Bool_val(x) ((bool) Int_val(x))
+#else
 #define Bool_val(x) Int_val(x)
+#endif
 #define Val_false Val_int(0)
 #define Val_true Val_int(1)
 #define Val_not(x) (Val_false + Val_true - (x))

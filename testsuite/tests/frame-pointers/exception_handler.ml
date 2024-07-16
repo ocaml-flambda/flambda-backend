@@ -1,9 +1,23 @@
 (* TEST
+<<<<<<< HEAD
  runtime5;
  frame_pointers;
  readonly_files = "fp_backtrace.c";
  all_modules = "${readonly_files} exception_handler.ml";
  native;
+||||||| 121bedcfd2
+
+* frame_pointers
+** native
+readonly_files = "fp_backtrace.c"
+all_modules = "${readonly_files} exception_handler.ml"
+
+=======
+ frame_pointers;
+ readonly_files = "fp_backtrace.c";
+ all_modules = "${readonly_files} exception_handler.ml";
+ native;
+>>>>>>> 5.2.0
 *)
 
 (* Force -O3 to ensure the "_code" symbols are present (see the
@@ -11,7 +25,7 @@
 [@@@ocaml.flambda_o3]
 
 (* https://github.com/ocaml/ocaml/pull/11031 *)
-external fp_backtrace : unit -> unit = "fp_backtrace" [@@noalloc]
+external fp_backtrace : string -> unit = "fp_backtrace" [@@noalloc]
 
 exception Exn1
 exception Exn2
@@ -41,7 +55,7 @@ let[@inline never] handler () =
   let _ = Sys.opaque_identity x0 in
   let _ = Sys.opaque_identity x1 in
   let _ = Sys.opaque_identity x2 in
-  fp_backtrace ()
+  fp_backtrace Sys.argv.(0)
 
 let[@inline never] nested i =
   begin

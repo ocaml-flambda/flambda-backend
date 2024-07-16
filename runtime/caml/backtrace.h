@@ -114,6 +114,7 @@ extern void caml_stash_backtrace(value exn, value * sp, int reraise);
 CAMLextern void caml_load_main_debug_info(void);
 #endif
 
+<<<<<<< HEAD
 /* Obtain up to [max_slots] of the callstack of the current domain,
  * including parent fibers. The callstack is written into [*buffer_p],
  * current size [*alloc_size_p], which should be reallocated (on the C
@@ -129,6 +130,24 @@ extern size_t caml_get_callstack(size_t max_slots,
                                  size_t *alloc_size_p,
                                  ssize_t alloc_idx);
 
+||||||| 121bedcfd2
+=======
+/* Obtain up to [max_slots] of the callstack of the current domain,
+ * including parent fibers. The callstack is written into [*buffer_p],
+ * current size [*alloc_size_p], which should be reallocated (on the C
+ * heap) if required. Returns the number of slots obtained.
+ *
+ * If [alloc_idx] is non-negative, then the backtrace is of an
+ * allocation point and may therefore include an initial entry of the
+ * allocation point itself.
+ */
+
+extern size_t caml_get_callstack(size_t max_slots,
+                                 backtrace_slot **buffer_p,
+                                 size_t *alloc_size_p,
+                                 ptrdiff_t alloc_idx);
+
+>>>>>>> 5.2.0
 
 /* Default (C-level) printer for backtraces.  It is called if an
  * exception causes a termination of the program or of a thread.

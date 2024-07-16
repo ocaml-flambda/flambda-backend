@@ -652,10 +652,9 @@ let rec choice ctx t =
     | Ltrywith (l1, id, l2, kind) ->
         (* in [try l1 with id -> l2], the term [l1] is
            not in tail-call position (after it returns
-           we need to remove the exception handler),
-           so it is not transformed here *)
-        let l1 = traverse ctx l1 in
-        let+ l2 = choice ctx ~tail l2 in
+           we need to remove the exception handler) *)
+        let+ l1 = choice ctx ~tail:false l1
+        and+ l2 = choice ctx ~tail l2 in
         Ltrywith (l1, id, l2, kind)
     | Lstaticcatch (l1, ids, l2, r, kind) ->
         (* In [static-catch l1 with ids -> l2],
@@ -863,13 +862,6 @@ let rec choice ctx t =
           | _ -> invalid_arg "choice_prim" in
         let+ l1 = choice ctx ~tail l1 in
         Lprim (Popaque layout, [l1], loc)
-    | (Psequand | Psequor) as shortcutop ->
-        let l1, l2 = match primargs with
-          |  [l1; l2] -> l1, l2
-          | _ -> invalid_arg "choice_prim" in
-        let l1 = traverse ctx l1 in
-        let+ l2 = choice ctx ~tail l2 in
-        Lprim (shortcutop, [l1; l2], loc)
 
     (* in common cases we just return *)
     | Pbytes_to_string | Pbytes_of_string
@@ -974,6 +966,7 @@ let rec choice ctx t =
     | Pbswap16
     | Pbbswap _
     | Pint_as_pointer _
+    | Psequand | Psequor
       ->
         let primargs = traverse_list ctx primargs in
         Choice.lambda (Lprim (prim, primargs, loc))
@@ -1085,6 +1078,8 @@ let rewrite t =
   let ctx = { specialized = Ident.Map.empty } in
   traverse ctx t
 
+module Style = Misc.Style
+
 let () =
   Location.register_error_of_exn
     (function
@@ -1092,13 +1087,16 @@ let () =
                Ambiguous_constructor_arguments
                  { explicit = false; arguments }) ->
           let print_msg ppf =
-            Format.pp_print_text ppf
-              "[@tail_mod_cons]: this constructor application may be \
-               TMC-transformed in several different ways. Please \
-               disambiguate by adding an explicit [@tailcall] \
-               attribute to the call that should be made \
-               tail-recursive, or a [@tailcall false] attribute on \
-               calls that should not be transformed."
+            Format.fprintf ppf
+              "%a:@ this@ constructor@ application@ may@ be@ \
+               TMC-transformed@ in@ several@ different@ ways.@ \
+               Please@ disambiguate@ by@ adding@ an@ explicit@ %a \
+               attribute@ to@ the@ call@ that@ should@ be@ made@ \
+               tail-recursive,@ or@ a@ %a attribute@ on@ \
+               calls@ that@ should@ not@ be@ transformed."
+              Style.inline_code "[@tail_mod_cons]"
+              Style.inline_code "[@tailcall]"
+              Style.inline_code "[@tailcall false]"
           in
           let submgs =
             let sub (info : tmc_call_information) =
@@ -1114,13 +1112,14 @@ let () =
                Ambiguous_constructor_arguments
                  { explicit = true; arguments }) ->
           let print_msg ppf =
-            Format.pp_print_text ppf
-              "[@tail_mod_cons]: this constructor application may be \
-               TMC-transformed in several different ways. Only one of \
-               the arguments may become a TMC call, but several \
-               arguments contain calls that are explicitly marked as \
-               tail-recursive. Please fix the conflict by reviewing \
-               and fixing the conflicting annotations."
+            Format.fprintf ppf
+              "%a:@ this@ constructor@ application@ may@ be@ \
+               TMC-transformed@ in@ several@ different@ ways.@ Only@ one@ of@ \
+               the@ arguments@ may@ become@ a@ TMC@ call,@ but@ several@ \
+               arguments@ contain@ calls@ that@ are@ explicitly@ marked@ as@ \
+               tail-recursive.@ Please@ fix@ the@ conflict@ by@ reviewing@ \
+               and@ fixing@ the@ conflicting@ annotations."
+              Style.inline_code "[@tail_mod_cons]"
           in
           let submgs =
             let sub (info : tmc_call_information) =

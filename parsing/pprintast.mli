@@ -50,13 +50,31 @@ val signature_item: Format.formatter -> Parsetree.signature_item -> unit
 val binding: Format.formatter -> Parsetree.value_binding -> unit
 val payload: Format.formatter -> Parsetree.payload -> unit
 
+<<<<<<< HEAD
 val class_signature: Format.formatter -> Parsetree.class_signature -> unit
 val type_declaration: Format.formatter -> Parsetree.type_declaration -> unit
 
+||||||| 121bedcfd2
+=======
+val tyvar_of_name : string -> string
+  (** Turn a type variable name into a valid identifier, taking care of the
+      special treatment required for the single quote character in second
+      position, or for keywords by escaping them with \#. No-op on "_". *)
+
+>>>>>>> 5.2.0
 val tyvar: Format.formatter -> string -> unit
+<<<<<<< HEAD
   (** Print a type variable name as a valid identifier, taking care of the
       special treatment required for the single quote character in second
       position, or for keywords by escaping them with \#. No-op on "_". *)
 
 val jkind : Format.formatter -> Jane_syntax.Jkind.t -> unit
 val mode : Format.formatter -> Jane_syntax.Mode_expr.Const.t -> unit
+||||||| 121bedcfd2
+  (** Print a type variable name, taking care of the special treatment
+      required for the single quote character in second position. *)
+=======
+  (** Print a type variable name as a valid identifier, taking care of the
+      special treatment required for the single quote character in second
+      position, or for keywords by escaping them with \#. No-op on "_". *)
+>>>>>>> 5.2.0

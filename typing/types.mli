@@ -541,11 +541,18 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
+<<<<<<< HEAD
     Type_abstract of abstract_reason
+||||||| 121bedcfd2
+    Type_abstract
+=======
+    Type_abstract of type_origin
+>>>>>>> 5.2.0
   | Type_record of 'lbl list  * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
 
+<<<<<<< HEAD
 (* CR layouts: after removing the void translation from lambda, we could get rid of
    this src_index / runtime_tag distinction.  But I am leaving it in because it
    may not be long before we need it again.
@@ -585,6 +592,14 @@ and mixed_product_shape =
     flat_suffix : flat_element array;
   }
 
+||||||| 121bedcfd2
+=======
+and type_origin =
+    Definition
+  | Rec_check_regularity       (* See Typedecl.transl_type_decl *)
+  | Existential of string
+
+>>>>>>> 5.2.0
 and record_representation =
   | Record_unboxed
   | Record_inlined of tag * constructor_representation * variant_representation

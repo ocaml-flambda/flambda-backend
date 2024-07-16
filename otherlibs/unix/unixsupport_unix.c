@@ -20,10 +20,17 @@
 #include <caml/callback.h>
 #include <caml/memory.h>
 #include <caml/fail.h>
+<<<<<<< HEAD
 #ifdef CAML_RUNTIME_5
 #include <caml/platform.h>
 #endif
 #include "unixsupport.h"
+||||||| 121bedcfd2
+#include "unixsupport.h"
+=======
+#include <caml/platform.h>
+#include "caml/unixsupport.h"
+>>>>>>> 5.2.0
 #include "cst2constr.h"
 #include <errno.h>
 #ifdef HAS_UNISTD
@@ -244,7 +251,7 @@
 #define EOVERFLOW (-1)
 #endif
 
-static int error_table[] = {
+static const int error_table[] = {
   E2BIG, EACCES, EAGAIN, EBADF, EBUSY, ECHILD, EDEADLK, EDOM,
   EEXIST, EFAULT, EFBIG, EINTR, EINVAL, EIO, EISDIR, EMFILE, EMLINK,
   ENAMETOOLONG, ENFILE, ENODEV, ENOENT, ENOEXEC, ENOLCK, ENOMEM, ENOSPC,

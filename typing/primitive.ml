@@ -32,7 +32,7 @@ type native_repr =
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
-  | Untagged_int
+  | Untagged_immediate
 
 type effects = No_effects | Only_generative_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects
@@ -69,8 +69,23 @@ type error =
 
 exception Error of Location.t * error
 
+<<<<<<< HEAD
 type value_check = Bad_attribute | Bad_layout | Ok_value
+||||||| 121bedcfd2
+let is_ocaml_repr = function
+  | Same_as_ocaml_repr -> true
+  | Unboxed_float
+  | Unboxed_integer _
+  | Untagged_int -> false
+=======
+let is_ocaml_repr = function
+  | Same_as_ocaml_repr -> true
+  | Unboxed_float
+  | Unboxed_integer _
+  | Untagged_immediate -> false
+>>>>>>> 5.2.0
 
+<<<<<<< HEAD
 let check_ocaml_value = function
   | _, Same_as_ocaml_repr Value -> Ok_value
   | _, Same_as_ocaml_repr _
@@ -79,8 +94,35 @@ let check_ocaml_value = function
   | _, Unboxed_vector _
   | _, Unboxed_integer _
   | _, Untagged_int -> Bad_attribute
+||||||| 121bedcfd2
+let is_unboxed = function
+  | Same_as_ocaml_repr
+  | Untagged_int -> false
+  | Unboxed_float
+  | Unboxed_integer _ -> true
+=======
+let is_unboxed = function
+  | Same_as_ocaml_repr
+  | Untagged_immediate -> false
+  | Unboxed_float
+  | Unboxed_integer _ -> true
+>>>>>>> 5.2.0
 
+<<<<<<< HEAD
 let is_builtin_prim_name name = String.length name > 0 && name.[0] = '%'
+||||||| 121bedcfd2
+let is_untagged = function
+  | Untagged_int -> true
+  | Same_as_ocaml_repr
+  | Unboxed_float
+  | Unboxed_integer _ -> false
+=======
+let is_untagged = function
+  | Untagged_immediate -> true
+  | Same_as_ocaml_repr
+  | Unboxed_float
+  | Unboxed_integer _ -> false
+>>>>>>> 5.2.0
 
 let rec make_prim_repr_args arity x =
   if arity = 0 then
@@ -116,8 +158,7 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly
         fatal_error "Primitive.parse_declaration"
   in
   let noalloc_attribute =
-    Attr_helper.has_no_payload_attribute ["noalloc"; "ocaml.noalloc"]
-      valdecl.pval_attributes
+    Attr_helper.has_no_payload_attribute "noalloc" valdecl.pval_attributes
   in
   let builtin_attribute =
     Attr_helper.has_no_payload_attribute ["builtin"; "ocaml.builtin"]
@@ -295,6 +336,7 @@ let print p osig_val_decl =
     else
       attrs
   in
+<<<<<<< HEAD
   let attrs =
     if p.prim_is_layout_poly then
       oattr_layout_poly :: attrs
@@ -317,6 +359,19 @@ let print p osig_val_decl =
       if all_unboxed || not (is_unboxed (m, repr))
       then []
       else [oattr_unboxed])
+||||||| 121bedcfd2
+  let attr_of_native_repr = function
+    | Same_as_ocaml_repr -> None
+    | Unboxed_float
+    | Unboxed_integer _ -> if all_unboxed then None else Some oattr_unboxed
+    | Untagged_int -> if all_untagged then None else Some oattr_untagged
+=======
+  let attr_of_native_repr = function
+    | Same_as_ocaml_repr -> None
+    | Unboxed_float
+    | Unboxed_integer _ -> if all_unboxed then None else Some oattr_unboxed
+    | Untagged_immediate -> if all_untagged then None else Some oattr_untagged
+>>>>>>> 5.2.0
   in
   let type_attrs =
     List.map attrs_of_mode_and_repr p.prim_native_repr_args @
@@ -376,6 +431,7 @@ let equal_boxed_vector_size bi1 bi2 =
 
 let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
+<<<<<<< HEAD
   | Repr_poly, Repr_poly -> true
   | Repr_poly, (Unboxed_float _ | Unboxed_integer _
                | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _)
@@ -393,8 +449,24 @@ let equal_native_repr nr1 nr2 =
   | Unboxed_vector _,
     (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_int |
      Unboxed_integer _) -> false
+||||||| 121bedcfd2
+  | Same_as_ocaml_repr, Same_as_ocaml_repr -> true
+  | Same_as_ocaml_repr,
+    (Unboxed_float | Unboxed_integer _ | Untagged_int) -> false
+  | Unboxed_float, Unboxed_float -> true
+  | Unboxed_float,
+    (Same_as_ocaml_repr | Unboxed_integer _ | Untagged_int) -> false
+=======
+  | Same_as_ocaml_repr, Same_as_ocaml_repr -> true
+  | Same_as_ocaml_repr,
+    (Unboxed_float | Unboxed_integer _ | Untagged_immediate) -> false
+  | Unboxed_float, Unboxed_float -> true
+  | Unboxed_float,
+    (Same_as_ocaml_repr | Unboxed_integer _ | Untagged_immediate) -> false
+>>>>>>> 5.2.0
   | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_boxed_integer bi1 bi2
   | Unboxed_integer _,
+<<<<<<< HEAD
     (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_int |
      Unboxed_vector _) -> false
   | Untagged_int, Untagged_int -> true
@@ -417,11 +489,23 @@ let equal_coeffects cf1 cf2 =
   | No_coeffects, Has_coeffects -> false
   | Has_coeffects, Has_coeffects -> true
   | Has_coeffects, No_coeffects -> false
+||||||| 121bedcfd2
+    (Same_as_ocaml_repr | Unboxed_float | Untagged_int) -> false
+  | Untagged_int, Untagged_int -> true
+  | Untagged_int,
+    (Same_as_ocaml_repr | Unboxed_float | Unboxed_integer _) -> false
+=======
+    (Same_as_ocaml_repr | Unboxed_float | Untagged_immediate) -> false
+  | Untagged_immediate, Untagged_immediate -> true
+  | Untagged_immediate,
+    (Same_as_ocaml_repr | Unboxed_float | Unboxed_integer _) -> false
+>>>>>>> 5.2.0
 
 let native_name_is_external p =
   let nat_name = native_name p in
   nat_name <> "" && nat_name.[0] <> '%'
 
+<<<<<<< HEAD
 module Repr_check = struct
 
   type result =
@@ -748,19 +832,36 @@ let prim_can_contain_layout_any prim =
   | "%array_unsafe_set_indexed_by_nativeint#" -> false
   | _ -> true
 
+||||||| 121bedcfd2
+=======
+module Style = Misc.Style
+
+>>>>>>> 5.2.0
 let report_error ppf err =
   match err with
   | Old_style_float_with_native_repr_attribute ->
+<<<<<<< HEAD
     Format.fprintf ppf "Cannot use \"float\" in conjunction with \
                         [%@unboxed]/[%@untagged]."
   | Old_style_float_with_non_value ->
     Format.fprintf ppf "Cannot use \"float\" in conjunction with \
                         types of non-value layouts."
+||||||| 121bedcfd2
+    Format.fprintf ppf "Cannot use \"float\" in conjunction with \
+                        [%@unboxed]/[%@untagged]."
+=======
+    Format.fprintf ppf "Cannot use %a in conjunction with %a/%a."
+      Style.inline_code "float"
+      Style.inline_code "[@unboxed]"
+      Style.inline_code  "[@untagged]"
+>>>>>>> 5.2.0
   | Old_style_noalloc_with_noalloc_attribute ->
-    Format.fprintf ppf "Cannot use \"noalloc\" in conjunction with \
-                        [%@%@noalloc]."
+    Format.fprintf ppf "Cannot use %a in conjunction with %a."
+      Style.inline_code "noalloc"
+      Style.inline_code "[@@noalloc]"
   | No_native_primitive_with_repr_attribute ->
     Format.fprintf ppf
+<<<<<<< HEAD
       "@[The native code version of the primitive is mandatory@ \
        when attributes [%@untagged] or [%@unboxed] are present.@]"
   | No_native_primitive_with_non_value ->
@@ -782,6 +883,15 @@ let report_error ppf err =
        The declaration contains argument/return types with the@ \
        wrong layout."
       name
+||||||| 121bedcfd2
+      "[@The native code version of the primitive is mandatory@ \
+       when attributes [%@untagged] or [%@unboxed] are present.@]"
+=======
+      "@[The native code version of the primitive is mandatory@ \
+       when attributes %a or %a are present.@]"
+      Style.inline_code "[@untagged]"
+      Style.inline_code "[@unboxed]"
+>>>>>>> 5.2.0
 
 let () =
   Location.register_error_of_exn

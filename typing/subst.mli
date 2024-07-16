@@ -106,10 +106,19 @@ val module_declaration: scoping -> t -> module_declaration -> module_declaration
      apply (compose s1 s2) x = apply s2 (apply s1 x) *)
 val compose: t -> t -> t
 
+<<<<<<< HEAD
 (* A forward reference to be filled in ctype.ml. *)
 val ctype_apply_env_empty:
   (type_expr list -> type_expr -> type_expr list -> type_expr) ref
 
+||||||| 121bedcfd2
+(* A forward reference to be filled in ctype.ml. *)
+val ctype_apply_env_empty:
+  (type_expr list -> type_expr -> type_expr list -> type_expr) ref
+
+
+=======
+>>>>>>> 5.2.0
 module Lazy : sig
   include Types.Wrapped
 

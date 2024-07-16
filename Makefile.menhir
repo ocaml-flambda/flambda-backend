@@ -76,7 +76,7 @@ MENHIRBASICFLAGS := \
 MENHIRFLAGS := \
   $(MENHIRBASICFLAGS) \
   --infer \
-  --ocamlc "$(CAMLC) $(OC_COMMON_COMPFLAGS) $(INCLUDES)" \
+  --ocamlc "$(call CONVERT_PATH, $(CAMLC)) $(OC_COMMON_COMPFLAGS) $(INCLUDES)" \
   --fixed-exception \
   --table \
   --strategy simplified \
@@ -105,7 +105,11 @@ promote-menhir: parsing/parser.mly
 # an incompatible version of menhirLib, which would fail at
 # compile-time.
 
+boot/menhir:
+	@$(MKDIR) $@
+
 .PHONY: import-menhirLib
+<<<<<<< HEAD
 import-menhirLib:
 	@ mkdir -p boot/menhir
 	@ cp \
@@ -114,6 +118,16 @@ import-menhirLib:
 # Partial applications of the form Obj.magic f x in menhirLib cause an issue with locals,
 # so rewrite these to Obj.magic (f x)
 	@ sed -i 's/\b\(in\|then\|with\|else\)\b/@@@\1/g; s/Obj.magic \([a-z0-9_]\+\( [a-z0-9_]\+\)\+\)/Obj.magic (\1)/g;  s/@@@//g' boot/menhir/menhirLib.ml
+||||||| 121bedcfd2
+import-menhirLib:
+	@ mkdir -p boot/menhir
+	@ cp \
+           $(addprefix `$(MENHIR) --suggest-menhirLib`/menhirLib.,ml mli) \
+           boot/menhir
+=======
+import-menhirLib: | boot/menhir
+	@cp $(addprefix $(shell $(MENHIR) --suggest-menhirLib)/menhirLib.,ml mli) $|
+>>>>>>> 5.2.0
 
 
 ## demote-menhir

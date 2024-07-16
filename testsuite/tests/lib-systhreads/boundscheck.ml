@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  include systhreads;
  runtime5;
  hassysthreads;
@@ -7,6 +8,23 @@
  }{
    native;
  }
+||||||| 121bedcfd2
+
+include systhreads
+* hassysthreads
+** bytecode
+** native
+
+=======
+ include systhreads;
+ hassysthreads;
+ no-tsan; (* See https://github.com/ocaml-multicore/ocaml-tsan/issues/31 *)
+ {
+   bytecode;
+ }{
+   native;
+ }
+>>>>>>> 5.2.0
 *)
 
 

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 (* TEST_BELOW
 (* Blank lines added here to preserve locations. *)
 
@@ -9,6 +10,18 @@
 
 
 
+||||||| 121bedcfd2
+(* TEST
+=======
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+
+
+
+
+>>>>>>> 5.2.0
 
 
 *)
@@ -46,6 +59,7 @@ let f () =
           | _ -> None }
 
 let () = f ()
+<<<<<<< HEAD
 
 (* TEST
  flags = "-g";
@@ -62,3 +76,20 @@ let () = f ()
    native;
  }
 *)
+||||||| 121bedcfd2
+=======
+
+(* TEST
+ flags = "-g";
+ {
+   bytecode;
+ }{
+   no-flambda;
+   native;
+ }{
+   reference = "${test_source_directory}/backtrace_effects_nested.flambda.reference";
+   flambda;
+   native;
+ }
+*)
+>>>>>>> 5.2.0

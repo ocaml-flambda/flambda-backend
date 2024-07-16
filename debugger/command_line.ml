@@ -154,10 +154,12 @@ let module_of_longident id =
 let convert_module mdle =
   match mdle with
   | Some m ->
-      (* Strip .ml extension if any, and capitalize *)
-      String.capitalize_ascii(if Filename.check_suffix m ".ml"
-                              then Filename.chop_suffix m ".ml"
-                              else m)
+     (* Strip .ml extension if any, beware that mdle might be a module path *)
+     let stripped =
+       if Filename.check_suffix m ".ml" then Filename.chop_suffix m ".ml"
+       else m
+     in
+     Unit_info.modulize stripped
   | None ->
       try (get_current_event ()).ev_ev.ev_module
       with Not_found -> error "Not in a module."
@@ -262,9 +264,18 @@ let instr_dir ppf lexbuf =
   let new_directory = argument_list_eol argument lexbuf in
     if new_directory = [] then begin
       if yes_or_no "Reinitialize directory list" then begin
+<<<<<<< HEAD
         Load_path.init ~auto_include:Compmisc.auto_include
           ~visible:!default_load_path ~hidden:[];
         Envaux.reset_cache ~preserve_persistent_env:false;
+||||||| 121bedcfd2
+        Load_path.init ~auto_include:Compmisc.auto_include !default_load_path;
+        Envaux.reset_cache ();
+=======
+        Load_path.init ~auto_include:Compmisc.auto_include
+          ~visible:!default_load_path ~hidden:[];
+        Envaux.reset_cache ();
+>>>>>>> 5.2.0
         Hashtbl.clear Debugger_config.load_path_for;
         flush_buffer_list ()
         end

@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
  include unix;
@@ -8,6 +9,20 @@
  }{
    native;
  }
+||||||| 121bedcfd2
+* hasunix
+include unix
+** bytecode
+** native
+=======
+ include unix;
+ hasunix;
+ {
+   bytecode;
+ }{
+   native;
+ }
+>>>>>>> 5.2.0
 *)
 
 open Domain
@@ -39,9 +54,9 @@ let test_serial_domain_spawn () =
   done
 
 let () =
-  let running = ref true in
+  let running = Atomic.make true in
   let rec run_until_stop fn () =
-    while !running do
+    while Atomic.get running do
       fn ();
     done
   in
@@ -51,7 +66,7 @@ let () =
 
   test_serial_domain_spawn ();
 
-  running := false;
+  Atomic.set running false;
   join domain_minor_gc;
   join domain_major_gc;
 

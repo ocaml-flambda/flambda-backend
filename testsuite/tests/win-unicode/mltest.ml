@@ -1,8 +1,21 @@
 (* TEST
+<<<<<<< HEAD
  include unix;
  flags += "-strict-sequence -w +A -warn-error +A";
  windows-unicode;
  toplevel;
+||||||| 121bedcfd2
+include unix
+flags += "-strict-sequence -w +A -warn-error +A"
+* windows-unicode
+** toplevel
+=======
+ include unix;
+ hasunix;
+ flags += "-strict-sequence -w +A -warn-error +A";
+ windows-unicode;
+ toplevel;
+>>>>>>> 5.2.0
 *)
 
 let foreign_names =

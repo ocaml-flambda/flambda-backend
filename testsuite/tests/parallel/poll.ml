@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
  include unix;
@@ -8,6 +9,20 @@
  }{
    native;
  }
+||||||| 121bedcfd2
+* hasunix
+include unix
+** bytecode
+** native
+=======
+ include unix;
+ hasunix;
+ {
+   bytecode;
+ }{
+   native;
+ }
+>>>>>>> 5.2.0
 *)
 
 let continue = Atomic.make true

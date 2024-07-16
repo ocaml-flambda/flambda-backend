@@ -57,15 +57,14 @@ frame_descr * caml_next_frame_descriptor
       /* This marks the top of an ML stack chunk. Move sp to the previous stack
        chunk. This includes skipping over the DWARF link & trap frame
        (4 words). */
-      *sp += 4 * sizeof(value);
+      *sp += Stack_header_size;
       if (*sp == (char*)Stack_high(stack)) {
         /* We've reached the top of stack. No more frames. */
         *pc = 0;
         return NULL;
       }
-      Pop_frame_pointer(*sp);
-      *pc = **(uintnat**)sp;
-      *sp += sizeof(value); /* return address */
+      *sp = First_frame(*sp);
+      *pc = Saved_return_address(*sp);
     }
   }
 }
@@ -83,6 +82,7 @@ void caml_free_backtrace_buffer(backtrace_slot *backtrace_buffer) {
     caml_stat_free(backtrace_buffer);
 }
 
+<<<<<<< HEAD
 /* A backtrace_slot is either a debuginfo or a frame_descr* */
 #define Slot_is_debuginfo(s) ((uintnat)(s) & 2)
 #define Debuginfo_slot(s) ((debuginfo)((uintnat)(s) - 2))
@@ -92,6 +92,18 @@ void caml_free_backtrace_buffer(backtrace_slot *backtrace_buffer) {
 
 static debuginfo debuginfo_extract(frame_descr *d, ssize_t alloc_idx);
 
+||||||| 121bedcfd2
+=======
+/* A backtrace_slot is either a debuginfo or a frame_descr* */
+#define Slot_is_debuginfo(s) ((uintnat)(s) & 2)
+#define Debuginfo_slot(s) ((debuginfo)((uintnat)(s) - 2))
+#define Slot_debuginfo(d) ((backtrace_slot)((uintnat)(d) + 2))
+#define Frame_descr_slot(s) ((frame_descr*)(s))
+#define Slot_frame_descr(f) ((backtrace_slot)(f))
+
+static debuginfo debuginfo_extract(frame_descr *d, ptrdiff_t alloc_idx);
+
+>>>>>>> 5.2.0
 /* Stores the return addresses contained in the given stack fragment
    into the backtrace array ; this version is performance-sensitive as
    it is called at each [raise] in a program compiled with [-g], so we
@@ -133,8 +145,33 @@ void caml_stash_backtrace(value exn, uintnat pc, char * sp, char* trapsp)
   }
 }
 
+<<<<<<< HEAD
 void caml_stash_backtrace_wrapper(value exn, char* rsp, char* trapsp)
+||||||| 121bedcfd2
+/* Stores upto [max_frames_value] frames of the current call stack to
+   return to the user. This is used not in an exception-raising
+   context, but only when the user requests to save the trace
+   (hopefully less often). Instead of using a bounded buffer as
+   [caml_stash_backtrace], we first traverse the stack to compute the
+   right size, then allocate space for the trace. */
+static void get_callstack(struct stack_info* orig_stack, intnat max_frames,
+                          frame_descr*** trace, intnat* trace_size)
+=======
+/* minimum size to allocate a backtrace (in slots) */
+#define MIN_BACKTRACE_SIZE 16
+
+/* Stores up to [max_slots] backtrace slots of the current call stack to
+   return to the user in [*backtrace_p] (with the allocated size in
+   [*alloc_size_p]). Returns the number of frames stored. Instead of
+   using a bounded buffer as [caml_stash_backtrace], we dynamically
+   grow the allocated space as required. */
+static size_t get_callstack(struct stack_info* stack, intnat max_slots,
+                            ptrdiff_t alloc_idx,
+                            backtrace_slot **backtrace_p,
+                            size_t *alloc_size_p)
+>>>>>>> 5.2.0
 {
+<<<<<<< HEAD
 #if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
   /* If we get an rsp that lies in the guard page, just do nothing - using rsp
    * would trigger another segfault, and we are probably in the process of
@@ -159,8 +196,107 @@ void caml_stash_backtrace_wrapper(value exn, char* rsp, char* trapsp)
   sp = rsp + 8;
 #endif
   caml_stash_backtrace(exn, *((uintnat*) pc), sp, trapsp);
+||||||| 121bedcfd2
+  intnat trace_pos;
+  char *sp;
+  uintnat pc;
+  caml_frame_descrs fds;
+  CAMLnoalloc;
+
+  fds = caml_get_frame_descrs();
+
+  /* first compute the size of the trace */
+  {
+    struct stack_info* stack = orig_stack;
+    caml_get_stack_sp_pc(stack, &sp, &pc);
+    trace_pos = 0;
+
+    while(1) {
+      frame_descr *descr = caml_next_frame_descriptor(fds, &pc, &sp, stack);
+      if (trace_pos >= max_frames) break;
+      if (descr == NULL) {
+        stack = Stack_parent(stack);
+        if (stack == NULL) break;
+        caml_get_stack_sp_pc(stack, &sp, &pc);
+      } else {
+        ++trace_pos;
+      }
+    }
+  }
+
+  *trace_size = trace_pos;
+  *trace = caml_stat_alloc(sizeof(frame_descr*) * trace_pos);
+
+  /* then collect the trace */
+  {
+    struct stack_info* stack = orig_stack;
+    caml_get_stack_sp_pc(stack, &sp, &pc);
+    trace_pos = 0;
+
+    while(1) {
+      frame_descr *descr = caml_next_frame_descriptor(fds, &pc, &sp, stack);
+      if (trace_pos >= max_frames) break;
+      if (descr == NULL) {
+        stack = Stack_parent(stack);
+        if (stack == NULL) break;
+        caml_get_stack_sp_pc(stack, &sp, &pc);
+      } else {
+        (*trace)[trace_pos] = descr;
+        ++trace_pos;
+      }
+    }
+  }
+=======
+  backtrace_slot *backtrace = *backtrace_p;
+  size_t alloc_size = *alloc_size_p;
+  size_t slots = 0;
+  char *sp;
+  uintnat pc;
+  caml_frame_descrs fds = caml_get_frame_descrs();
+  CAMLnoalloc;
+
+  caml_get_stack_sp_pc(stack, &sp, &pc);
+
+  while (slots < max_slots) {
+    frame_descr *descr = caml_next_frame_descriptor(fds, &pc, &sp, stack);
+    if (!descr) {
+      stack = Stack_parent(stack);
+      if (!stack) break;
+      caml_get_stack_sp_pc(stack, &sp, &pc);
+    } else {
+      if (slots == alloc_size) {
+        size_t new_size = alloc_size ? alloc_size * 2 : MIN_BACKTRACE_SIZE;
+        backtrace = caml_stat_resize_noexc(backtrace,
+                                           sizeof(backtrace_slot) * new_size);
+
+        if (!backtrace) { /* allocation failed */
+          *backtrace_p = NULL;
+          *alloc_size_p = 0;
+          return 0;
+        }
+        alloc_size = new_size;
+      }
+
+      backtrace_slot slot = Slot_frame_descr(descr);
+      if (alloc_idx >= 0) {
+        debuginfo info = debuginfo_extract(descr, alloc_idx);
+        if (info) {
+          CAMLassert(((uintnat)info & 3) == 0); /* so we can tag it */
+          slot = Slot_debuginfo(info);
+        }
+        alloc_idx = -1;
+      }
+      backtrace[slots++] = slot;
+    }
+  }
+
+  *alloc_size_p = alloc_size;
+  *backtrace_p = backtrace;
+  return slots;
+>>>>>>> 5.2.0
 }
 
+<<<<<<< HEAD
 /* minimum size to allocate a backtrace (in slots) */
 #define MIN_BACKTRACE_SIZE 16
 
@@ -243,6 +379,31 @@ size_t caml_get_callstack(size_t max_slots,
 }
 
 static value alloc_callstack(backtrace_slot* trace, size_t slots)
+||||||| 121bedcfd2
+static value alloc_callstack(frame_descr** trace, intnat trace_len)
+=======
+/* Obtain up to [max_slots] of the callstack of the current domain,
+ * including parent fibers. The callstack is written into [*buffer_p],
+ * current size [*alloc_size_p], which should be reallocated (on the C
+ * heap) if required. Returns the number of slots obtained.
+ *
+ * If [alloc_idx] is non-negative, then the backtrace is of an
+ * allocation point and may therefore include an initial entry of the
+ * allocation point itself.
+ */
+
+size_t caml_get_callstack(size_t max_slots,
+                          backtrace_slot **buffer_p,
+                          size_t *alloc_size_p,
+                          ptrdiff_t alloc_idx)
+{
+  return get_callstack(Caml_state->current_stack, max_slots,
+                       alloc_idx,
+                       buffer_p, alloc_size_p);
+}
+
+static value alloc_callstack(backtrace_slot* trace, size_t slots)
+>>>>>>> 5.2.0
 {
   CAMLparam0();
   CAMLlocal1(callstack);
@@ -292,7 +453,13 @@ CAMLprim value caml_get_continuation_callstack (value cont, value max_frames)
   return alloc_callstack(trace, slots);
 }
 
+<<<<<<< HEAD
 static debuginfo debuginfo_extract(frame_descr *d, ssize_t alloc_idx)
+||||||| 121bedcfd2
+debuginfo caml_debuginfo_extract(backtrace_slot slot)
+=======
+static debuginfo debuginfo_extract(frame_descr *d, ptrdiff_t alloc_idx)
+>>>>>>> 5.2.0
 {
   unsigned char* infoptr;
   uint32_t debuginfo_offset;
@@ -369,11 +536,20 @@ struct name_info {
   char name[1];
 };
 
+/* Extended version of name_info including location fields which didn't fit
+   in the main debuginfo word. */
+struct name_and_loc_info {
+  int32_t filename_offs;
+  uint16_t start_chr;
+  uint16_t end_chr;
+  int32_t end_offset; /* End character position relative to start bol */
+  char name[1];
+};
+
 /* Extract location information for the given frame descriptor */
 void caml_debuginfo_location(debuginfo dbg, /*out*/ struct caml_loc_info * li)
 {
   uint32_t info1, info2;
-  struct name_info * name_info;
 
   /* If no debugging information available, print nothing.
      When everything is compiled with -g, this corresponds to
@@ -387,28 +563,55 @@ void caml_debuginfo_location(debuginfo dbg, /*out*/ struct caml_loc_info * li)
   /* Recover debugging info */
   info1 = ((uint32_t *)dbg)[0];
   info2 = ((uint32_t *)dbg)[1];
-  name_info = (struct name_info*)((char *) dbg + (info1 & 0x3FFFFFC));
   /* Format of the two info words:
-       llllllllllllllllllll aaaaaaaa bbbbbbbbbb ffffffffffffffffffffffff k n
-                         44       36         26                        2 1 0
-                       (32+12)    (32+4)
-     n ( 1 bit ): 0 if this is the final debuginfo
-                  1 if there's another following this one
-     k ( 1 bit ): 0 if it's a call
-                  1 if it's a raise
-     f (24 bits): offset (in 4-byte words) of file name relative to dbg
-     l (20 bits): line number
-     a ( 8 bits): beginning of character range
-     b (10 bits): end of character range */
+     Two possible formats based on value of bit 63:
+     Partially packed format
+       |------------- info2 ------------||------------- info1 -------------|
+       1 lllllllllllllllllll mmmmmmmmmmmmmmmmmm ffffffffffffffffffffffff k n
+      63                  44                 26                        2 1 0
+     Fully packed format:
+       |-------------- info2 --------------||------------- info1 -------------|
+       0 llllllllllll mmm aaaaaa bbbbbbb ooooooooo ffffffffffffffffffffffff k n
+      63           51  48     42      35        26                        2 1 0
+     n (    1 bit ): 0 if this is the final debuginfo
+                     1 if there's another following this one
+     k (    1 bit ): 0 if it's a call
+                     1 if it's a raise
+     f (   24 bits): offset (in 4-byte words) of struct relative to dbg. For
+                     partially packed format, f is struct name_and_loc_info;
+                     for fully packed format, f is struct name_info.
+     m ( 17/3 bits): difference between start line and end line
+     o (  0/9 bits): difference between start bol and end bol
+     a (  0/6 bits): beginning of character range (relative to start bol)
+     b (  0/7 bits): end of character range (relative to end bol)
+     l (19/12 bits): start line number
+   */
   li->loc_valid = 1;
   li->loc_is_raise = (info1 & 2) == 2;
   li->loc_is_inlined = caml_debuginfo_next(dbg) != NULL;
-  li->loc_defname = name_info->name;
-  li->loc_filename =
-    (char *)name_info + name_info->filename_offs;
-  li->loc_lnum = info2 >> 12;
-  li->loc_startchr = (info2 >> 4) & 0xFF;
-  li->loc_endchr = ((info2 & 0xF) << 6) | (info1 >> 26);
+  if (info2 & 0x80000000) {
+    struct name_and_loc_info * name_and_loc_info =
+      (struct name_and_loc_info*)((char *) dbg + (info1 & 0x3FFFFFC));
+    li->loc_defname = name_and_loc_info->name;
+    li->loc_filename =
+      (char *)name_and_loc_info + name_and_loc_info->filename_offs;
+    li->loc_start_lnum = li->loc_end_lnum = (info2 >> 12) & 0x7FFFF;
+    li->loc_end_lnum += ((info2 & 0xFFF) << 6) | (info1 >> 26);
+    li->loc_start_chr = name_and_loc_info->start_chr;
+    li->loc_end_chr = name_and_loc_info->end_chr;
+    li->loc_end_offset = name_and_loc_info->end_offset;
+  } else {
+    struct name_info * name_info =
+      (struct name_info*)((char *) dbg + (info1 & 0x3FFFFFC));
+    li->loc_defname = name_info->name;
+    li->loc_filename =
+      (char *)name_info + name_info->filename_offs;
+    li->loc_start_lnum = li->loc_end_lnum = info2 >> 19;
+    li->loc_end_lnum += (info2 >> 16) & 0x7;
+    li->loc_start_chr = (info2 >> 10) & 0x3F;
+    li->loc_end_chr = li->loc_end_offset = (info2 >> 3) & 0x7F;
+    li->loc_end_offset += (((info2 & 0x7) << 6) | (info1 >> 26));
+  }
 }
 
 value caml_add_debug_info(backtrace_slot start, value size, value events)
