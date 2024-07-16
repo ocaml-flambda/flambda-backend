@@ -93,7 +93,7 @@ module Type = struct
 
   type type_expr = Types.type_expr
 
-   type type_expr = Types.type_expr
+  type type_expr = Types.type_expr
 
   (* A *layout* of a type describes the way values of that type are stored at
      runtime, including details like width, register convention, calling
