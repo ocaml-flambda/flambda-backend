@@ -45,8 +45,6 @@ let is_symbol_used (env : env) symbol =
 
 let poison_value = 0 (* 123456789 *)
 
-let poison_value_31_63 = Targetint_31_63.of_int poison_value
-
 let poison kind = Simple.const_int_of_kind kind poison_value
 
 let rewrite_simple kinds (env : env) simple =
@@ -80,16 +78,9 @@ let rewrite_or_variable default env (or_variable : _ Or_variable.t) =
   | Var (v, _) ->
     if is_var_used env v then or_variable else Or_variable.Const default
 
-let rewrite_field_of_static_block _kinds env (field : Field_of_static_block.t) :
-    Field_of_static_block.t =
-  match field with
-  | Tagged_immediate _ -> field
-  | Symbol sym ->
-    if is_symbol_used env sym
-    then field
-    else Tagged_immediate poison_value_31_63
-  | Dynamically_computed (v, _) ->
-    if is_var_used env v then field else Tagged_immediate poison_value_31_63
+let rewrite_simple_with_debuginfo kinds env (simple : Simple.With_debuginfo.t) =
+  Simple.With_debuginfo.create (rewrite_simple kinds env (Simple.With_debuginfo.simple simple))
+    (Simple.With_debuginfo.dbg simple)
 
 let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
   match sc with
@@ -126,9 +117,9 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
       := Slot_offsets.add_set_of_closures !all_slot_offsets ~is_phantom:false
            set_of_closures;
     Static_const.set_of_closures set_of_closures
-  | Block (tag, mut, fields) ->
-    let fields = List.map (rewrite_field_of_static_block kinds env) fields in
-    Static_const.block tag mut fields
+  | Block (tag, mut, shape, fields) ->
+    let fields = List.map (rewrite_simple_with_debuginfo kinds env) fields in
+    Static_const.block tag mut shape fields
   | Boxed_float f ->
     Static_const.boxed_float (rewrite_or_variable Float.zero env f)
   | Boxed_float32 f ->
@@ -153,7 +144,7 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
     let fields = List.map (rewrite_or_variable Float32.zero env) fields in
     Static_const.immutable_float32_array fields
   | Immutable_value_array fields ->
-    let fields = List.map (rewrite_field_of_static_block kinds env) fields in
+    let fields = List.map (rewrite_simple_with_debuginfo kinds env) fields in
     Static_const.immutable_value_array fields
   | Immutable_int32_array fields ->
     let fields = List.map (rewrite_or_variable Int32.zero env) fields in

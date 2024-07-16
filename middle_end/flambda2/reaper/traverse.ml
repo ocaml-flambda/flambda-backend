@@ -334,17 +334,13 @@ and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
     ~block_like:(fun () symbol static_const ->
       let name = Name.symbol symbol in
       match[@ocaml.warning "-4"] static_const with
-      | Block (_, _, fields) | Immutable_value_array fields ->
+      | Block (_, _, _, fields) | Immutable_value_array fields ->
         List.iteri
-          (fun i (field : Field_of_static_block.t) ->
-            match field with
-            | Symbol s ->
-              record acc name
-                (Block { relation = Block i; target = Code_id_or_name.symbol s })
-            | Tagged_immediate _ -> ()
-            | Dynamically_computed (v, _) ->
-              record acc name
-                (Block { relation = Block i; target = Code_id_or_name.var v }))
+          (fun i (field : Simple.With_debuginfo.t) ->
+            Simple.pattern_match (Simple.With_debuginfo.simple field)
+              ~name:(fun field_name ~coercion:_ ->
+                record acc name (Block { relation = Block i; target = Code_id_or_name.name field_name }))
+              ~const:(fun _ -> ()))
           fields
       | Set_of_closures _ -> assert false
       | _ -> ())
