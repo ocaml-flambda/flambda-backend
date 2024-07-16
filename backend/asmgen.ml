@@ -419,8 +419,6 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code")
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
-  ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
-  ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ Profile.record ~accumulate:true "save_linear" save_linear
   ++ (fun (fd : Linear.fundecl) ->
     match !Flambda_backend_flags.cfg_stack_checks with
