@@ -1859,7 +1859,7 @@ module Desc = struct
   (** The description of a jkind, used as a return type from [get]. *)
   type nonrec t =
     | Type of Type.t
-    | Arrow of t Jkind_types.arrow
+    | Arrow of t Jkind_types.Arrow.t
 end
 
 let rec default_to_value_and_get (t : t) : Const.t =
@@ -2058,8 +2058,8 @@ let equal = equate_or_equal ~allow_mutation:true
 (* Generalises union and intersection at Arrows, as they are mutually recursive when
    defining Arrow kind intersection *)
 let arrow_connective_or_error ~on_args ~on_result
-    ({ args = args1; result = result1 } : _ Jkind_types.arrow)
-    ({ args = args2; result = result2 } : _ Jkind_types.arrow) =
+    ({ args = args1; result = result1 } : _ Jkind_types.Arrow.t)
+    ({ args = args2; result = result2 } : _ Jkind_types.Arrow.t) =
   let args = List.map2 on_args args1 args2 in
   let result = on_result result1 result2 in
   (* FIXME jbachurski: collect all errors rather than picking first? *)

@@ -424,7 +424,7 @@ module Desc : sig
   (** The description of a jkind, used as a return type from [get]. *)
   type nonrec t =
     | Type of Type.t
-    | Arrow of t Jkind_types.arrow
+    | Arrow of t Jkind_types.Arrow.t
 end
 
 (** [default_to_value_and_get] extracts the jkind as a `const`.  If it's a sort
