@@ -63,11 +63,12 @@ method class_of_operation op =
   | Istackoffset _ -> Op_other
   | Iload { mutability; is_atomic } ->
     (* #12173: disable CSE for atomic loads.
-          #12825: atomic loads cannot be treated as Op_other
-            because they update our view / the frontier of the
-            non-atomic locations, so past non-atomic (mutable) loads
-            may be not be valid anymore.
-          We conservatively tread them as non-initializing stores.
+       #12825: atomic loads cannot be treated as Op_other
+               because they update our view / the frontier of the
+               non-atomic locations, so past non-atomic (mutable) loads
+               may be not be valid anymore.
+               We conservatively treat them as non-initializing stores.
+       (the above are upstream PR numbers)
     *)
     if is_atomic then Op_store true
     else Op_load (match mutability with
