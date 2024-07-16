@@ -9,6 +9,12 @@ type t : value => value
 type t : (value) => value
 |}]
 
+type ('a : (value, (value) => value) => value) t
+
+[%%expect {|
+type ('a : (value, (value) => value) => value) t
+|}]
+
 module M : sig
   type a : value => value
 end = struct

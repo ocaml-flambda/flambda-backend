@@ -108,7 +108,7 @@ type out_jkind_user =
   | Ojkind_user_mod of out_jkind_user * string list
   | Ojkind_user_with of out_jkind_user * out_type
   | Ojkind_user_kind_of of out_type
-  | Ojkind_user_arrow of out_jkind_user list * out_jkind_user
+  | Ojkind_user_arrow of out_jkind_user Jkind_types.Arrow.t
 
 and out_jkind_const = { base : string; modal_bounds : string list }
 
@@ -116,6 +116,7 @@ and out_jkind =
   | Ojkind_user of out_jkind_user
   | Ojkind_const of out_jkind_const
   | Ojkind_var of string
+  | Ojkind_arrow of out_jkind Jkind_types.Arrow.t
 
 and out_type_param =
   { oparam_name : string;
