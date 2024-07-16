@@ -94,7 +94,7 @@
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter
-   typemode typetexp patterns printpat parmatch stypes typedecl typeopt
+   typemode typetexp patterns printpat parmatch stypes typeopt typedecl
    value_rec_check typecore solver_intf solver mode_intf mode uniqueness_analysis
    typeclass typemod typedecl_variance typedecl_properties
    typedecl_separability cmt2annot

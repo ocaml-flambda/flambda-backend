@@ -150,7 +150,7 @@ let extern_repr_of_native_repr:
   | Unboxed_float f, _ -> Unboxed_float f
   | Unboxed_integer i, _ -> Unboxed_integer i
   | Unboxed_vector i, _ -> Unboxed_vector i
-  | Untagged_int, _ -> Untagged_int
+  | Untagged_immediate, _ -> Untagged_int
 
 let sort_of_native_repr ~poly_sort repr =
   match extern_repr_of_native_repr ~poly_sort repr with

@@ -32,7 +32,7 @@ type native_repr =
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
-  | Untagged_int
+  | Untagged_immediate
 
 type effects = No_effects | Only_generative_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects
@@ -78,7 +78,7 @@ let check_ocaml_value = function
   | _, Unboxed_float _
   | _, Unboxed_vector _
   | _, Unboxed_integer _
-  | _, Untagged_int -> Bad_attribute
+  | _, Untagged_immediate -> Bad_attribute
 
 let is_builtin_prim_name name = String.length name > 0 && name.[0] = '%'
 
@@ -255,7 +255,7 @@ let print p osig_val_decl =
   let is_unboxed = function
     | _, Same_as_ocaml_repr Value
     | _, Repr_poly
-    | _, Untagged_int -> false
+    | _, Untagged_immediate -> false
     | _, Unboxed_float _
     | _, Unboxed_vector _
     | _, Unboxed_integer _ -> true
@@ -267,7 +267,7 @@ let print p osig_val_decl =
       Language_extension.erasable_extensions_only ()
   in
   let is_untagged = function
-    | _, Untagged_int -> true
+    | _, Untagged_immediate -> true
     | _, Same_as_ocaml_repr _
     | _, Unboxed_float _
     | _, Unboxed_vector _
@@ -312,7 +312,7 @@ let print p osig_val_decl =
      | Unboxed_float _
      | Unboxed_vector _
      | Unboxed_integer _ -> if all_unboxed then [] else [oattr_unboxed]
-     | Untagged_int -> if all_untagged then [] else [oattr_untagged]
+     | Untagged_immediate -> if all_untagged then [] else [oattr_untagged]
      | Same_as_ocaml_repr _->
       if all_unboxed || not (is_unboxed (m, repr))
       then []
@@ -378,27 +378,27 @@ let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
   | Repr_poly, Repr_poly -> true
   | Repr_poly, (Unboxed_float _ | Unboxed_integer _
-               | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _)
+               | Untagged_immediate | Unboxed_vector _ | Same_as_ocaml_repr _)
   | (Unboxed_float _ | Unboxed_integer _
-    | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly -> false
+    | Untagged_immediate | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly -> false
   | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Jkind_types.Sort.Const.equal s1 s2
   | Same_as_ocaml_repr _,
-    (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
+    (Unboxed_float _ | Unboxed_integer _ | Untagged_immediate |
      Unboxed_vector _) -> false
   | Unboxed_float f1, Unboxed_float f2 -> equal_boxed_float f1 f2
   | Unboxed_float _,
-    (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_int |
+    (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_immediate |
      Unboxed_vector _) -> false
   | Unboxed_vector vi1, Unboxed_vector vi2 -> equal_boxed_vector_size vi1 vi2
   | Unboxed_vector _,
-    (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_int |
+    (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_immediate |
      Unboxed_integer _) -> false
   | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_boxed_integer bi1 bi2
   | Unboxed_integer _,
-    (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_int |
+    (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_immediate |
      Unboxed_vector _) -> false
-  | Untagged_int, Untagged_int -> true
-  | Untagged_int,
+  | Untagged_immediate, Untagged_immediate -> true
+  | Untagged_immediate,
     (Same_as_ocaml_repr _ | Unboxed_float _ | Unboxed_integer _ |
      Unboxed_vector _) -> false
 
@@ -440,7 +440,7 @@ module Repr_check = struct
   let value_or_unboxed_or_untagged = function
     | Same_as_ocaml_repr Value
     | Unboxed_float _ | Unboxed_integer _ | Unboxed_vector _
-    | Untagged_int -> true
+    | Untagged_immediate -> true
     | Same_as_ocaml_repr _ | Repr_poly -> false
 
   let check checks prim =

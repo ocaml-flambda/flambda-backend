@@ -1113,7 +1113,7 @@ let check_coherence env loc dpath decl =
   match decl with
     { type_kind = (Type_variant _ | Type_record _| Type_open);
       type_manifest = Some ty } ->
-      if !Clflags.allow_illegal_crossing then begin 
+      if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
         begin match Jkind.sub_with_history jkind' decl.type_jkind with
         | Ok _ -> ()
@@ -2621,8 +2621,9 @@ let is_upstream_compatible_non_value_unbox env ty =
 
 let native_repr_of_type env kind ty =
   match kind, get_desc (Ctype.expand_head_opt env ty) with
-  | Untagged, Tconstr (path, _, _) when Path.same path Predef.path_int ->
-    Some Untagged_int
+  | Untagged, Tconstr (_, _, _) when
+         Typeopt.maybe_pointer_type env ty = Lambda.Immediate ->
+    Some Untagged_immediate
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float ->
     Some (Unboxed_float Pfloat64)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32 ->
@@ -3595,8 +3596,8 @@ let report_error ppf = function
                    Only float, int32, int64, nativeint, vector primitives, and@ \
                    concrete unboxed types can be marked unboxed.@]"
   | Cannot_unbox_or_untag_type Untagged ->
-      fprintf ppf "@[Don't know how to untag this type.@ \
-                   Only int can be untagged.@]"
+      fprintf ppf "@[Don't know how to untag this type. Only int@ \
+                   and other immediate types can be untagged.@]"
   | Deep_unbox_or_untag_attribute kind ->
       fprintf ppf
         "@[The attribute '%s' should be attached to@ \
