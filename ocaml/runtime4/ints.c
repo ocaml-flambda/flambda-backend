@@ -134,6 +134,11 @@ CAMLprim value caml_int_compare(value v1, value v2)
   return Val_long(COMPARE_INT(v1, v2));
 }
 
+CAMLprim value caml_int_compare_unsigned(value v1, value v2)
+{
+  return Val_long(COMPARE_INT((uintnat)v1, (uintnat)v2));
+}
+
 CAMLprim value caml_int_of_string(value s)
 {
     return Val_long(parse_intnat(s, 8 * sizeof(value) - 1, INT_ERRMSG));
@@ -325,6 +330,17 @@ CAMLprim value caml_int32_compare(value v1, value v2)
 {
   return Val_int(caml_int32_compare_unboxed(Int32_val(v1),Int32_val(v2)));
 }
+
+intnat caml_int32_compare_unsigned_unboxed(int32_t i1, int32_t i2)
+{
+  return COMPARE_INT((uint32_t)i1, (uint32_t)i2);
+}
+
+CAMLprim value caml_int32_compare_unsigned(value v1, value v2)
+{
+  return Val_int(caml_int32_compare_unsigned_unboxed(Int32_val(v1),Int32_val(v2)));
+}
+
 
 CAMLprim value caml_int32_format(value fmt, value arg)
 {
@@ -577,6 +593,16 @@ intnat caml_int64_compare_unboxed(int64_t i1, int64_t i2)
 CAMLprim value caml_int64_compare(value v1, value v2)
 {
   return Val_int(caml_int64_compare_unboxed(Int64_val(v1),Int64_val(v2)));
+}
+
+intnat caml_int64_compare_unsigned_unboxed(int64_t i1, int64_t i2)
+{
+  return COMPARE_INT((uint64_t)i1, (uint64_t)i2);
+}
+
+CAMLprim value caml_int64_compare_unsigned(value v1, value v2)
+{
+  return Val_int(caml_int64_compare_unsigned_unboxed(Int64_val(v1),Int64_val(v2)));
 }
 
 CAMLprim value caml_int64_format(value fmt, value arg)
@@ -847,6 +873,17 @@ CAMLprim value caml_nativeint_compare(value v1, value v2)
                                                 Nativeint_val(v2)));
 }
 
+intnat caml_nativeint_compare_unsigned_unboxed(intnat i1, intnat i2)
+{
+  return COMPARE_INT((uintnat)i1, (uintnat)i2);
+}
+
+CAMLprim value caml_nativeint_compare_unsigned(value v1, value v2)
+{
+  return Val_int(caml_nativeint_compare_unsigned_unboxed(Nativeint_val(v1),
+                                                Nativeint_val(v2)));
+}
+
 CAMLprim value caml_nativeint_format(value fmt, value arg)
 {
   char format_string[FORMAT_BUFFER_SIZE];
@@ -884,4 +921,160 @@ CAMLprim value caml_reinterpret_unboxed_int64_as_tagged_int63(value i)
   CAMLassert(Is_block(i));
   CAMLassert(Tag_val(i) == Custom_tag);
   return (value) (Int64_val(i) | 1L);
+}
+
+CAMLprim value caml_int_lessthan_unsigned(value v1, value v2)
+{
+  intnat res = COMPARE_INT((uintnat)v1, (uintnat)v2);
+  return Val_int(res < 0);
+}
+
+CAMLprim value caml_int_lessequal_unsigned(value v1, value v2)
+{
+  intnat res = COMPARE_INT((uintnat)v1, (uintnat)v2);
+  return Val_int(res <= 0);
+}
+
+CAMLprim value caml_greaterthan_unsigned(value v1, value v2)
+{
+  intnat res = COMPARE_INT((uintnat)v1, (uintnat)v2);
+  return Val_int(res > 0);
+}
+
+CAMLprim value caml_greaterequal_unsigned(value v1, value v2)
+{
+  intnat res = COMPARE_INT((uintnat)v1, (uintnat)v2);
+  return Val_int(res >= 0);
+}
+
+intnat caml_int64_lessthan_unsigned_unboxed(int64_t i1, int64_t i2)
+{
+  intnat res = caml_int64_compare_unsigned_unboxed((uint64_t)i1, (uint64_t)i2);
+  return Val_int(res < 0);
+}
+
+intnat caml_int64_lessequal_unsigned_unboxed(int64_t i1, int64_t i2)
+{
+  intnat res = caml_int64_compare_unsigned_unboxed((uint64_t)i1, (uint64_t)i2);
+  return Val_int(res <= 0);
+}
+
+intnat caml_int64_greaterthan_unsigned_unboxed(int64_t i1, int64_t i2)
+{
+  intnat res = caml_int64_compare_unsigned_unboxed((uint64_t)i1, (uint64_t)i2);
+  return Val_int(res > 0);
+}
+
+intnat caml_int64_greaterequal_unsigned_unboxed(int64_t i1, int64_t i2)
+{
+  intnat res = caml_int64_compare_unsigned_unboxed((uint64_t)i1, (uint64_t)i2);
+  return Val_int(res >= 0);
+}
+
+CAMLprim value caml_int64_lessthan_unsigned(value v1, value v2)
+{
+  return Val_int(caml_int64_lessthan_unsigned_unboxed(Int64_val(v1),Int64_val(v2)));
+}
+
+CAMLprim value caml_int64_lessequal_unsigned(value v1, value v2)
+{
+  return Val_int(caml_int64_lessequal_unsigned_unboxed(Int64_val(v1),Int64_val(v2)));
+}
+
+CAMLprim value caml_int64_greaterthan_unsigned(value v1, value v2)
+{
+  return Val_int(caml_int64_greaterthan_unsigned_unboxed(Int64_val(v1),Int64_val(v2)));
+}
+
+CAMLprim value caml_int64_greaterequal_unsigned(value v1, value v2)
+{
+  return Val_int(caml_int64_greaterequal_unsigned_unboxed(Int64_val(v1),Int64_val(v2)));
+}
+
+intnat caml_int32_lessthan_unsigned_unboxed(int32_t i1, int32_t i2)
+{
+  intnat res = caml_int32_compare_unsigned_unboxed((uint32_t)i1, (uint32_t)i2);
+  return Val_int(res < 0);
+}
+
+intnat caml_int32_lessequal_unsigned_unboxed(int32_t i1, int32_t i2)
+{
+  intnat res = caml_int32_compare_unsigned_unboxed((uint32_t)i1, (uint32_t)i2);
+  return Val_int(res <= 0);
+}
+
+intnat caml_int32_greaterthan_unsigned_unboxed(int32_t i1, int32_t i2)
+{
+  intnat res = caml_int32_compare_unsigned_unboxed((uint32_t)i1, (uint32_t)i2);
+  return Val_int(res > 0);
+}
+
+intnat caml_int32_greaterequal_unsigned_unboxed(int32_t i1, int32_t i2)
+{
+  intnat res = caml_int32_compare_unsigned_unboxed((uint32_t)i1, (uint32_t)i2);
+  return Val_int(res >= 0);
+}
+
+CAMLprim value caml_int32_lessthan_unsigned(value v1, value v2)
+{
+  return Val_int(caml_int32_lessthan_unsigned_unboxed(Int32_val(v1),Int32_val(v2)));
+}
+
+CAMLprim value caml_int32_lessequal_unsigned(value v1, value v2)
+{
+  return Val_int(caml_int32_lessequal_unsigned_unboxed(Int32_val(v1),Int32_val(v2)));
+}
+
+CAMLprim value caml_int32_greaterthan_unsigned(value v1, value v2)
+{
+  return Val_int(caml_int32_greaterthan_unsigned_unboxed(Int32_val(v1),Int32_val(v2)));
+}
+
+CAMLprim value caml_int32_greaterequal_unsigned(value v1, value v2)
+{
+  return Val_int(caml_int32_greaterequal_unsigned_unboxed(Int32_val(v1),Int32_val(v2)));
+}
+
+intnat caml_nativeint_lessthan_unsigned_unboxed(intnat i1, intnat i2)
+{
+  intnat res = caml_nativeint_compare_unsigned_unboxed((uintnat)i1, (uintnat)i2);
+  return Val_int(res < 0);
+}
+
+intnat caml_nativeint_lessequal_unsigned_unboxed(intnat i1, intnat i2)
+{
+  intnat res = caml_nativeint_compare_unsigned_unboxed((uintnat)i1, (uintnat)i2);
+  return Val_int(res <= 0);
+}
+
+intnat caml_nativeint_greaterthan_unsigned_unboxed(intnat i1, intnat i2)
+{
+  intnat res = caml_nativeint_compare_unsigned_unboxed((uintnat)i1, (uintnat)i2);
+  return Val_int(res > 0);
+}
+
+intnat caml_nativeint_greaterequal_unsigned_unboxed(intnat i1, intnat i2)
+{
+  intnat res = caml_nativeint_compare_unsigned_unboxed((uintnat)i1, (uintnat)i2);
+  return Val_int(res >= 0);
+}
+
+CAMLprim value caml_nativeint_lessthan_unsigned(value v1, value v2)
+{
+  return Val_int(caml_nativeint_lessthan_unsigned_unboxed(Nativeint_val(v1),Nativeint_val(v2)));
+}
+
+CAMLprim value caml_nativeint_lessequal_unsigned(value v1, value v2)
+{
+  return Val_int(caml_nativeint_lessequal_unsigned_unboxed(Nativeint_val(v1),Nativeint_val(v2)));
+}
+
+CAMLprim value caml_nativeint_greaterthan_unsigned(value v1, value v2)
+{
+  return Val_int(caml_nativeint_greaterthan_unsigned_unboxed(Nativeint_val(v1),Nativeint_val(v2)));
+}
+
+CAMLprim value caml_nativeint_greaterequal_unsigned(value v1, value v2)
+{
+  return Val_int(caml_nativeint_greaterequal_unsigned_unboxed(Nativeint_val(v1),Nativeint_val(v2)));
 }
