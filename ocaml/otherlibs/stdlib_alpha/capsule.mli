@@ -80,18 +80,21 @@ module Mutex : sig
         'k t
         -> ('k Password.t @ local -> 'a) @ local
         -> 'a
+        @@ portable
     (** [with_lock m f] tries to acquire the mutex [m]. If [m] is already
         locked, blocks the current thread until it's unlocked. If successful,
         provides [f] a password for the capsule ['k] associated with [m].
 
-        If [f] raises an exception, the mutex is marked as poisoned. *)
+        If [f] raises an exception, the mutex is marked as poisoned.
 
-    val destroy : 'k t -> 'k Password.t
+        If [m] is already locked by the current thread, raises [Sys_error]. *)
+
+    val destroy : 'k t -> 'k Password.t @@ portable
     (** [destroy m] acquires the mutex [m] and leaks its password.
         It marks the lock as poisoned. *)
 end
 
-val create_with_mutex : unit -> Mutex.packed
+val create_with_mutex : unit -> Mutex.packed @@ portable
 (** [create_with_mutex ()] creates a new capsule with an associated mutex. *)
 
 (** Pointers to data within a capsule. *)
@@ -106,6 +109,7 @@ module Ptr : sig
     val create :
       (unit -> 'a) @ local portable
       -> ('a, 'k) t
+      @@ portable
     (** [create f] runs [f] within the capsule ['k] and creates
         a pointer to the result of [f]. *)
 
@@ -115,6 +119,7 @@ module Ptr : sig
       -> ('a -> 'b) @ local portable
       -> ('a, 'k) t
       -> ('b, 'k) t
+      @@ portable
     (** [map p f t] applies [f] to the value of [p] within the capsule ['k],
         creating a pointer to the result. *)
 
@@ -122,6 +127,7 @@ module Ptr : sig
       ('a, 'k) t
       -> ('b, 'k) t
       -> ('a * 'b, 'k) t
+      @@ portable
     (** [both t1 t2] is a pointer to a pair of the values of [t1] and [t2]. *)
 
     val extract :
@@ -129,6 +135,7 @@ module Ptr : sig
       -> ('a -> 'b @ portable contended) @ local portable
       -> ('a, 'k) t
       -> 'b @ portable contended
+      @@ portable
     (** [extract p f t] applies [f] to the value of [t] within
         the capsule ['k] and returns the result. The result is within ['k]
         so it must be [portable] and it is marked [contended]. *)
@@ -136,12 +143,14 @@ module Ptr : sig
     val inject :
       ('a : value mod uncontended) 'k.
       'a @ portable -> ('a, 'k) t
+      @@ portable
     (** [inject v] is a pointer to an immutable value [v] injected
         into the capsule ['k]. *)
 
     val project :
       ('a : value mod portable) 'k.
       ('a, 'k) t -> 'a @ contended
+      @@ portable
     (** [project t] returns the value of [t]. The result is within
         ['k] so it must be [portable] and it is marked [contended]. *)
 
@@ -150,6 +159,7 @@ module Ptr : sig
       -> ('a -> ('b, 'j) t) @ local portable
       -> ('a, 'k) t
       -> ('b, 'j) t
+      @@ portable
     (** [bind f t] is [project (map f t)]. *)
 
     val iter :
@@ -157,12 +167,14 @@ module Ptr : sig
       -> ('a -> unit) @ local portable
       -> ('a, 'k) t
       -> unit
+      @@ portable
     (** [iter] is [extract] with result type specialized to [unit]. *)
 
     val expose :
       'k Password.t
       -> ('a, 'k) t
       -> 'a
+      @@ portable
     (** [expose p t] retrieves the value stored by [Ptr.t]. It requires
         a [global] [Password.t] leaked by [Mutex.destroy]. *)
 

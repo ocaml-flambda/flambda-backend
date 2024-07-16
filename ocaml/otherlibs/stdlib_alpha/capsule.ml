@@ -16,10 +16,20 @@ module Password = struct
   (* CR layouts v5: this should have layout [void], but
      [void] can't be used for function argument and return types yet. *)
   type 'k t = unit
+
+  (* Can break the soundness of the API. *)
   let unsafe_mk () = ()
 end
 
-module M = Stdlib.Mutex
+(* Like [Stdlib.Mutex], but [portable]. *)
+module M = struct
+  type t
+  external create: unit -> t @@ portable = "caml_ml_mutex_new"
+  external lock: t -> unit @@ portable = "caml_ml_mutex_lock"
+  external unlock: t -> unit @@ portable = "caml_ml_mutex_unlock"
+end
+
+external reraise : exn -> 'a @@ portable = "%reraise"
 
 module Mutex = struct
 
@@ -30,14 +40,23 @@ module Mutex = struct
   exception Poisoned
 
   (* Cannot inline, otherwise flambda might move code around. *)
-  let[@inline never] with_lock t (f @ local) : 'a =
-    M.lock t.mutex;
-    match t.poisoned with
-    | true -> M.unlock t.mutex; raise Poisoned
-    | false ->
-      match f (Password.unsafe_mk ()) with
-      | x -> M.unlock t.mutex; x
-      | exception exn ->  t.poisoned <- true; raise exn
+  let[@inline never] with_lock :
+    'k t
+    -> ('k Password.t @ local -> 'a) @ local
+    -> 'a
+    @@ portable
+    = fun t f ->
+      M.lock t.mutex;
+      match t.poisoned with
+      | true -> M.unlock t.mutex; reraise Poisoned
+      | false ->
+        match f (Password.unsafe_mk ()) with
+        | x -> M.unlock t.mutex; x
+        | exception exn ->
+          t.poisoned <- true;
+          (* NOTE: [unlock] does not poll for asynchronous exceptions *)
+          M.unlock t.mutex;
+          reraise exn
 
   (* Cannot inline, otherwise flambda might move code around. *)
   let[@inline never] destroy t =
@@ -45,10 +64,10 @@ module Mutex = struct
     match t.poisoned with
     | true ->
       M.unlock t.mutex;
-      raise Poisoned
+      reraise Poisoned
     | false ->
-      M.unlock t.mutex;
       t.poisoned <- true;
+      M.unlock t.mutex;
       Password.unsafe_mk ()
 end
 
@@ -58,9 +77,9 @@ let create_with_mutex () =
 module Ptr = struct
   type ('a, 'k) t : value mod portable uncontended
 
-  external unsafe_mk : 'a -> ('a, 'k) t = "%identity"
+  external unsafe_mk : 'a -> ('a, 'k) t @@ portable = "%identity"
 
-  external unsafe_get : ('a, 'k) t -> 'a = "%identity"
+  external unsafe_get : ('a, 'k) t -> 'a @@ portable = "%identity"
 
   let create f = unsafe_mk (f ())
 
@@ -70,9 +89,9 @@ module Ptr = struct
 
   let extract _ f t = f (unsafe_get t)
 
-  let inject x = unsafe_mk x
+  let inject = unsafe_mk
 
-  let project t = unsafe_get t
+  let project = unsafe_get
 
   let bind _ f t = f (unsafe_get t)
 
