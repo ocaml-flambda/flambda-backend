@@ -153,11 +153,11 @@ module Type : sig
 end
 
 module Arrow : sig
-  type 'a t ={ args : 'a list;
-  result : 'a
-}
+  type 'a t =
+    { args : 'a list;
+      result : 'a
+    }
 end
-
 
 type 'type_expr t =
   | Type of 'type_expr Type.t
