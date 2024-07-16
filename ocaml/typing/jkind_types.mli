@@ -152,19 +152,21 @@ module Type : sig
   type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation
 end
 
-type 'a arrow =
-  { args : 'a list;
-    result : 'a
-  }
+module Arrow : sig
+  type 'a t ={ args : 'a list;
+  result : 'a
+}
+end
+
 
 type 'type_expr t =
   | Type of 'type_expr Type.t
-  | Arrow of 'type_expr t arrow
+  | Arrow of 'type_expr t Arrow.t
 
 module Const : sig
   type 'type_expr t =
     | Type of 'type_expr Type.Const.t
-    | Arrow of 'type_expr t arrow
+    | Arrow of 'type_expr t Arrow.t
 end
 
 type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation
