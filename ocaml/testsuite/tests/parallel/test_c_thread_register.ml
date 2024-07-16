@@ -1,7 +1,6 @@
 (* TEST
  modules = "test_c_thread_register_cstubs.c";
- reason = "CR ocaml 5 domains: re-enable this test";
- skip;
+ runtime5;
  include systhreads;
  hassysthreads;
  {
