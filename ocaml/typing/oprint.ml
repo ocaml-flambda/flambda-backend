@@ -328,7 +328,14 @@ let print_jkind_with_modes ppf print_jkind base modes =
           (print_list (fun ppf -> fprintf ppf "%s") (fun ppf -> fprintf ppf "@ "))
           modes
 
-let print_out_jkind ppf = function
+let print_arrow ppf t Jkind_types.Arrow.{ args; result } =
+  let format_args =
+    Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") t
+  in
+  fprintf ppf "(%a) => %a" format_args args t result
+
+let rec print_out_jkind ppf = function
+  | Ojkind_arrow a -> print_arrow ppf print_out_jkind a
   | Ojkind_const { base; modal_bounds=[] } ->
     fprintf ppf "%s" base
   | Ojkind_const { base; modal_bounds=_::_ as modal_bounds } ->
@@ -340,12 +347,8 @@ let print_out_jkind ppf = function
       | Ojkind_user_abbreviation abbrev -> fprintf ppf "%s" abbrev
       | Ojkind_user_mod (base, modes) ->
         print_jkind_with_modes ppf print_out_jkind_user base modes
-      | Ojkind_user_arrow (args, result) ->
-        let format_args =
-          Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ")
-            print_out_jkind_user
-        in
-        fprintf ppf "(%a) => %a" format_args args print_out_jkind_user result
+      | Ojkind_user_arrow a ->
+        print_arrow ppf print_out_jkind_user a
       | Ojkind_user_with _ | Ojkind_user_kind_of _ ->
         failwith "XXX unimplemented jkind syntax"
     in
