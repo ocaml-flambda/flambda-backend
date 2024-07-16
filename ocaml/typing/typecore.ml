@@ -370,9 +370,18 @@ let position_and_mode_default = {
   region_mode = None;
 }
 
+(* Calls to functions that have a dot (e.g. [M.f]) are inferred to be nontail. *)
+let should_infer_nontail maybe_ident =
+  match maybe_ident with
+  | Some ident -> begin match ident with
+    | Longident.Ldot _ -> true
+    | _ -> false
+    end
+  | None -> false
+
 (** Decides the runtime tail call behaviour based on lexical structures and user
     annotation. *)
-let position_and_mode env (expected_mode : expected_mode) sexp
+let position_and_mode env (expected_mode : expected_mode) sexp ~maybe_ident
   : position_and_mode =
   let fail err =
     raise (Error (sexp.pexp_loc, env, Bad_tail_annotation err))
@@ -385,6 +394,8 @@ let position_and_mode env (expected_mode : expected_mode) sexp
   match expected_mode.position with
   | RTail (m ,FTail) -> begin
       match requested with
+      | None when should_infer_nontail maybe_ident ->
+          {apply_position = Nontail; region_mode = None}
       | Some `Tail | Some `Tail_if_possible | None ->
           {apply_position = Tail; region_mode = Some m}
       | Some `Nontail -> {apply_position = Nontail; region_mode = None}
@@ -5350,7 +5361,10 @@ and type_expect_
       end
   | Pexp_apply(sfunct, sargs) ->
       assert (sargs <> []);
-      let pm = position_and_mode env expected_mode sexp in
+      let maybe_ident = match sfunct.pexp_desc with
+        | Pexp_ident { txt = ident; _ } -> Some ident
+        | _ -> None in
+      let pm = position_and_mode env expected_mode sexp ~maybe_ident in
       let funct_mode, funct_expected_mode =
         match pm.apply_position with
         | Tail ->
@@ -5928,7 +5942,7 @@ and type_expect_
         exp_extra = (exp_extra, loc, sexp.pexp_attributes) :: arg.exp_extra;
       }
   | Pexp_send (e, {txt=met}) ->
-      let pm = position_and_mode env expected_mode sexp in
+      let pm = position_and_mode env expected_mode sexp ~maybe_ident:None in
       let (obj,meth,typ) =
         with_local_level_if_principal
           (fun () -> type_send env loc explanation e met)
@@ -5960,7 +5974,7 @@ and type_expect_
         exp_env = env }
   | Pexp_new cl ->
       let (cl_path, cl_decl) = Env.lookup_class ~loc:cl.loc cl.txt env in
-      let pm = position_and_mode env expected_mode sexp in
+      let pm = position_and_mode env expected_mode sexp ~maybe_ident:None in
       begin match cl_decl.cty_new with
           None ->
             raise(Error(loc, env, Virtual_class cl.txt))

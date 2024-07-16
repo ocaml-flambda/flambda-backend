@@ -106,8 +106,16 @@ let inline_object f =
 
 let[@inline never] lazy_ f =
   let x = Sys.opaque_identity (lazy (1 + f ())) in
-  Lazy.force x
+  Lazy.force x [@tail]
+  (* CR less-tco: Somehow make the test output consistent between the native
+     and bytecode compilers without using the above [@tail] annotation.
 
+     As a result of the less-tco project, if there were no [@tail] annotation
+     above, the call to Lazy.force would not be TCO'd. For some reason,
+     the stacktrace without TCO differs between the native and bytecode compiler
+     (the bytecode compiler reports an unknown location for one stack frame).
+     To prevent a diff between the two compilers, our workaround is to force TCO
+     by using the [@tail] annotation. *)
 
 let[@inline never] nontailcall f =
   f () [@nontail]
