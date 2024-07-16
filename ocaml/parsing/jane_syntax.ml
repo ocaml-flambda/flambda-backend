@@ -941,7 +941,7 @@ module N_ary_functions = struct
       pparam_loc : Location.t
     }
 
-  type type_constraint =
+  type type_constraint = Parsetree.type_constraint =
     | Pconstraint of core_type
     | Pcoerce of core_type option * core_type
 

@@ -16,46 +16,57 @@
 open Typedtree
 open Lambda
 open Location
+open Builtin_attributes
+
+let return_if_flambda =
+  if Config.flambda || Config.flambda2 then Return else Mark_used_only
 
 let is_inline_attribute =
-  [ ["inline"; "ocaml.inline"],true ]
+  [ "inline", Return ]
 
 let is_inlined_attribute =
-  [ ["inlined"; "ocaml.inlined"], true
-  ; ["unrolled"; "ocaml.unrolled"], (Config.flambda || Config.flambda2)
+  [ "inlined", Return
+  ; "unrolled", return_if_flambda
   ]
 
 let is_specialise_attribute =
-  [ ["specialise"; "ocaml.specialise"], Config.flambda ]
+  [ "specialise", return_if_flambda ]
 
 let is_specialised_attribute =
-  [ ["specialised"; "ocaml.specialised"], Config.flambda ]
+  [ "specialised", return_if_flambda ]
 
 let is_local_attribute =
-  [ ["local"; "ocaml.local"], true ]
+  [ "local", Return ]
 
 let is_tailcall_attribute =
-  [ ["tailcall"; "ocaml.tailcall"], true ]
+  [ "tailcall", Return ]
 
 let is_tmc_attribute =
-  [ ["tail_mod_cons"; "ocaml.tail_mod_cons"], true ]
+  [ "tail_mod_cons", Return ]
 
 let is_poll_attribute =
-  [ ["poll"; "ocaml.poll"], true ]
+  [ "poll", Return ]
 
 let is_loop_attribute =
-  [ ["loop"; "ocaml.loop"], true ]
+  [ "loop", Return ]
 
 let is_opaque_attribute =
-  [ ["opaque"; "ocaml.opaque"], true ]
+  [ "opaque", Return ]
 
 let is_unboxable_attribute =
-  [ ["unboxable"; "ocaml.unboxable"], true ]
+  [ "unboxable", Return ]
 
-let is_unrolled = function
-  | {txt="unrolled"|"ocaml.unrolled"} -> true
-  | {txt="inline"|"ocaml.inline"|"inlined"|"ocaml.inlined"} -> false
-  | _ -> assert false
+let find_attribute p attributes =
+  let inline_attribute = select_attributes p attributes in
+  let attr =
+    match inline_attribute with
+    | [] -> None
+    | [attr] -> Some attr
+    | attr :: {Parsetree.attr_name = {txt;loc}; _} :: _ ->
+      Location.prerr_warning loc (Warnings.Duplicated_attribute txt);
+      Some attr
+  in
+  attr
 
 let parse_id_payload txt loc options ~default ~empty payload =
   match
@@ -67,8 +78,8 @@ let parse_id_payload txt loc options ~default ~empty payload =
 let parse_inline_attribute attr : inline_attribute =
   match attr with
   | None -> Default_inline
-  | Some {Parsetree.attr_name = {txt;loc} as id; attr_payload = payload} ->
-    if is_unrolled id then begin
+  | Some ({Parsetree.attr_name = {txt;loc}; attr_payload = payload} as attr) ->
+    if attr_equals_builtin attr "unrolled" then begin
       (* the 'unrolled' attributes must be used as [@unrolled n]. *)
       let warning txt = Warnings.Attribute_payload
           (txt, "It must be an integer literal")
@@ -92,8 +103,8 @@ let parse_inline_attribute attr : inline_attribute =
 let parse_inlined_attribute attr : inlined_attribute =
   match attr with
   | None -> Default_inlined
-  | Some {Parsetree.attr_name = {txt;loc} as id; attr_payload = payload} ->
-    if is_unrolled id then begin
+  | Some {Parsetree.attr_name = {txt;loc}; attr_payload = payload} ->
+    if attr_equals_builtin attr "unrolled" then begin
       (* the 'unrolled' attributes must be used as [@unrolled n]. *)
       let warning txt = Warnings.Attribute_payload
           (txt, "It must be an integer literal")
@@ -175,9 +186,6 @@ let parse_opaque_attribute attr =
         ~empty:true
         []
         payload
-
-let find_attribute p l =
-  Builtin_attributes.(find_attribute (Attributes_filter.create p) l)
 
 let get_inline_attribute l =
   let attr = find_attribute is_inline_attribute l in

@@ -271,7 +271,18 @@ let make_startup_file ~ppf_dump units_list ~crc_interfaces =
   Emit.begin_assembly ();
   let name_list =
     List.flatten (List.map (fun (info,_,_) -> info.ui_defines) units_list) in
-  compile_phrase (Cmm_helpers.entry_point name_list);
+  let entry = Cmm_helpers.entry_point name_list in
+  let entry =
+    if Config.tsan then
+      match entry with
+      | Cfunction ({ fun_body; _ } as cf) ->
+          Cmm.Cfunction
+            { cf with fun_body = Thread_sanitizer.wrap_entry_exit fun_body }
+      | _ -> assert false
+    else
+      entry
+  in
+  compile_phrase entry;
   let units = List.map (fun (info,_,_) -> info) units_list in
   List.iter compile_phrase
     (Cmm_helpers.emit_preallocated_blocks [] (* add gc_roots (for dynlink) *)
@@ -361,9 +372,10 @@ let call_linker file_list startup_file output_name =
   and main_obj_runtime = !Clflags.output_complete_object
   in
   let files = startup_file :: (List.rev file_list) in
-  let files, c_lib =
+  let files, ldflags =
     if (not !Clflags.output_c_object) || main_dll || main_obj_runtime then
       files @ (List.rev !Clflags.ccobjs) @ runtime_lib (),
+      native_ldflags ^ " " ^
       (if !Clflags.nopervasives || (main_obj_runtime && not main_dll)
        then "" else Config.native_c_libraries)
     else
@@ -374,7 +386,7 @@ let call_linker file_list startup_file output_name =
     else if !Clflags.output_c_object then Ccomp.Partial
     else Ccomp.Exe
   in
-  let exitcode = Ccomp.call_linker mode output_name files c_lib in
+  let exitcode = Ccomp.call_linker mode output_name files ldflags in
   if not (exitcode = 0)
   then raise(Error(Linking_error exitcode))
 
@@ -420,55 +432,103 @@ let link ~ppf_dump objfiles output_name =
 (* Error report *)
 
 open Format
+module Style = Misc.Style
 
 let report_error ppf = function
   | File_not_found name ->
-      fprintf ppf "Cannot find file %s" name
+      fprintf ppf "Cannot find file %a" Style.inline_code name
   | Not_an_object_file name ->
       fprintf ppf "The file %a is not a compilation unit description"
-        Location.print_filename name
+        (Style.as_inline_code Location.print_filename) name
   | Missing_implementations l ->
      let print_references ppf = function
        | [] -> ()
        | r1 :: rl ->
-           fprintf ppf "%s" r1;
-           List.iter (fun r -> fprintf ppf ",@ %s" r) rl in
+           Style.inline_code ppf r1;
+           List.iter (fun r -> fprintf ppf ",@ %a" Style.inline_code r) rl in
       let print_modules ppf =
         List.iter
          (fun (md, rq) ->
+<<<<<<< HEAD
             fprintf ppf "@ @[<hov 2>%a referenced from %a@]"
             Compilation_unit.print md
             print_references rq) in
+||||||| 121bedcfd2
+            fprintf ppf "@ @[<hov 2>%s referenced from %a@]" md
+            print_references rq) in
+=======
+           fprintf ppf "@ @[<hov 2>%a referenced from %a@]"
+             Style.inline_code md
+             print_references rq) in
+>>>>>>> 5.2.0
       fprintf ppf
        "@[<v 2>No implementations provided for the following modules:%a@]"
        print_modules l
   | Inconsistent_interface(intf, file1, file2) ->
       fprintf ppf
        "@[<hov>Files %a@ and %a@ make inconsistent assumptions \
+<<<<<<< HEAD
               over interface %a@]"
        Location.print_filename file1
        Location.print_filename file2
        CU.Name.print intf
+||||||| 121bedcfd2
+              over interface %s@]"
+       Location.print_filename file1
+       Location.print_filename file2
+       intf
+=======
+              over interface %a@]"
+       (Style.as_inline_code Location.print_filename) file1
+       (Style.as_inline_code Location.print_filename) file2
+       Style.inline_code intf
+>>>>>>> 5.2.0
   | Inconsistent_implementation(intf, file1, file2) ->
       fprintf ppf
        "@[<hov>Files %a@ and %a@ make inconsistent assumptions \
+<<<<<<< HEAD
               over implementation %a@]"
        Location.print_filename file1
        Location.print_filename file2
        CU.print intf
+||||||| 121bedcfd2
+              over implementation %s@]"
+       Location.print_filename file1
+       Location.print_filename file2
+       intf
+=======
+              over implementation %a@]"
+       (Style.as_inline_code Location.print_filename) file1
+       (Style.as_inline_code Location.print_filename) file2
+       Style.inline_code intf
+>>>>>>> 5.2.0
   | Assembler_error file ->
-      fprintf ppf "Error while assembling %a" Location.print_filename file
+      fprintf ppf "Error while assembling %a"
+        (Style.as_inline_code Location.print_filename) file
   | Linking_error exitcode ->
       fprintf ppf "Error during linking (exit code %d)" exitcode
   | Multiple_definition(modname, file1, file2) ->
       fprintf ppf
+<<<<<<< HEAD
         "@[<hov>Files %a@ and %a@ both define a module named %a@]"
         Location.print_filename file1
         Location.print_filename file2
         CU.Name.print modname
+||||||| 121bedcfd2
+        "@[<hov>Files %a@ and %a@ both define a module named %s@]"
+        Location.print_filename file1
+        Location.print_filename file2
+        modname
+=======
+        "@[<hov>Files %a@ and %a@ both define a module named %a@]"
+        (Style.as_inline_code Location.print_filename) file1
+        (Style.as_inline_code Location.print_filename) file2
+        Style.inline_code modname
+>>>>>>> 5.2.0
   | Missing_cmx(filename, name) ->
       fprintf ppf
         "@[<hov>File %a@ was compiled without access@ \
+<<<<<<< HEAD
          to the .cmx file@ for module %a,@ \
          which was produced by `ocamlopt -for-pack'.@ \
          Please recompile %a@ with the correct `-I' option@ \
@@ -477,6 +537,27 @@ let report_error ppf = function
         CU.print name
         Location.print_filename  filename
         CU.Name.print (CU.name name)
+||||||| 121bedcfd2
+         to the .cmx file@ for module %s,@ \
+         which was produced by `ocamlopt -for-pack'.@ \
+         Please recompile %a@ with the correct `-I' option@ \
+         so that %s.cmx@ is found.@]"
+        Location.print_filename filename name
+        Location.print_filename  filename
+        name
+=======
+         to the %a file@ for module %a,@ \
+         which was produced by %a.@ \
+         Please recompile %a@ with the correct %a option@ \
+         so that %a@ is found.@]"
+        (Style.as_inline_code Location.print_filename) filename
+        Style.inline_code ".cmx"
+        Style.inline_code name
+        Style.inline_code "ocamlopt -for-pack"
+        (Style.as_inline_code Location.print_filename) filename
+        Style.inline_code "-I"
+        Style.inline_code (name^".cmx")
+>>>>>>> 5.2.0
 
 let () =
   Location.register_error_of_exn

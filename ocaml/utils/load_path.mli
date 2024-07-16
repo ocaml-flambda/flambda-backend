@@ -22,6 +22,9 @@
     doesn't change during the execution of the compiler.
 *)
 
+(* CR aodintsov/mshinwell: merge the remaining flambda-backend changes
+   upstream *)
+
 val add_dir : hidden:bool -> string -> unit
 (** Add a directory to the end of the load path (i.e. at lowest priority.) *)
 

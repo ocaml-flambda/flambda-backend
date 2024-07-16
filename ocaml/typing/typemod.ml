@@ -21,6 +21,8 @@ open Parsetree
 open Types
 open Format
 
+module Style = Misc.Style
+
 let () = Includemod_errorprinter.register ()
 
 module Sig_component_kind = Shape.Sig_component_kind
@@ -624,8 +626,15 @@ type with_info =
 let merge_constraint initial_env loc sg lid constr =
   let destructive_substitution =
     match constr with
+<<<<<<< HEAD
     | With_type _ | With_type_package _ | With_module _
     | With_modtype _ -> false
+||||||| 121bedcfd2
+    | With_type _ | With_module _ | With_modtype _ -> false
+=======
+    | With_type _ | With_module _ | With_modtype _
+    | With_type_package _ -> false
+>>>>>>> 5.2.0
     | With_typesubst _ | With_modsubst _ | With_modtypesubst _  -> true
   in
   let real_ids = ref [] in
@@ -657,9 +666,15 @@ let merge_constraint initial_env loc sg lid constr =
                 (fun _ -> Btype.newgenvar (Jkind.Primitive.any ~why:Dummy_jkind))
                 sdecl.ptype_params;
             type_arity = arity;
+<<<<<<< HEAD
             type_kind = Type_abstract Abstract_def;
             type_jkind = Jkind.Primitive.value ~why:(Unknown "merge_constraint");
             type_jkind_annotation = None;
+||||||| 121bedcfd2
+            type_kind = Type_abstract;
+=======
+            type_kind = Type_abstract Definition;
+>>>>>>> 5.2.0
             type_private = Private;
             type_manifest = None;
             type_variance =
@@ -727,6 +742,7 @@ let merge_constraint initial_env loc sg lid constr =
             return ~ghosts ~replace_by:None
               (Pident id, lid, Some (Twith_typesubst tdecl))
         end
+<<<<<<< HEAD
     | Sig_type(id, sig_decl, rs, priv), [s], With_type_package cty
       when Ident.name id = s ->
         begin match sig_decl.type_manifest with
@@ -762,6 +778,23 @@ let merge_constraint initial_env loc sg lid constr =
         let tdecl = { tdecl with type_manifest = None } in
         return ~ghosts ~replace_by:(Some(Sig_type(id, tdecl, rs, priv)))
           (Pident id, lid, None)
+||||||| 121bedcfd2
+=======
+    | Sig_type(id, sig_decl, rs, priv), [s], With_type_package cty
+      when Ident.name id = s ->
+        begin match sig_decl.type_manifest with
+        | None -> ()
+        | Some ty ->
+          raise (Error(loc, outer_sig_env, With_package_manifest (lid.txt, ty)))
+        end;
+        let tdecl =
+          Typedecl.transl_package_constraint ~loc outer_sig_env cty.ctyp_type
+        in
+        check_type_decl outer_sig_env sg_for_env loc id None tdecl sig_decl;
+        let tdecl = { tdecl with type_manifest = None } in
+        return ~ghosts ~replace_by:(Some(Sig_type(id, tdecl, rs, priv)))
+          (Pident id, lid, None)
+>>>>>>> 5.2.0
     | Sig_modtype(id, mtd, priv), [s],
       (With_modtype mty | With_modtypesubst mty)
       when Ident.name id = s ->
@@ -853,6 +886,7 @@ let merge_constraint initial_env loc sg lid constr =
     if destructive_substitution then
       check_usage_after_substitution ~loc ~lid initial_env !real_ids
         !unpackable_modtype sg;
+<<<<<<< HEAD
     let sub = match tcstr with
       | (_, _, Some (Twith_typesubst tdecl)) ->
         let how_to_extend_subst =
@@ -876,6 +910,95 @@ let merge_constraint initial_env loc sg lid constr =
                               With_cannot_remove_constrained_type));
               fun s path -> Subst.add_type_function path ~params ~body s
         in
+||||||| 121bedcfd2
+    let sg =
+    match tcstr with
+    | (_, _, Twith_typesubst tdecl) ->
+       let how_to_extend_subst =
+         let sdecl =
+           match constr with
+           | With_typesubst sdecl -> sdecl
+           | _ -> assert false
+         in
+         match type_decl_is_alias sdecl with
+         | Some lid ->
+            let replacement, _ =
+              try Env.find_type_by_name lid.txt initial_env
+              with Not_found -> assert false
+            in
+            fun s path -> Subst.add_type_path path replacement s
+         | None ->
+            let body = Option.get tdecl.typ_type.type_manifest in
+            let params = tdecl.typ_type.type_params in
+            if params_are_constrained params
+            then raise(Error(loc, initial_env,
+                             With_cannot_remove_constrained_type));
+            fun s path -> Subst.add_type_function path ~params ~body s
+       in
+       let sub = Subst.change_locs Subst.identity loc in
+       let sub = List.fold_left how_to_extend_subst sub !real_ids in
+       (* This signature will not be used directly, it will always be freshened
+          by the caller. So what we do with the scope doesn't really matter. But
+          making it local makes it unlikely that we will ever use the result of
+          this function unfreshened without issue. *)
+       Subst.signature Make_local sub sg
+    | (_, _, Twith_modsubst (real_path, _)) ->
+       let sub = Subst.change_locs Subst.identity loc in
+       let sub =
+         List.fold_left
+           (fun s path -> Subst.add_module_path path real_path s)
+           sub
+           !real_ids
+       in
+       (* See explanation in the [Twith_typesubst] case above. *)
+       Subst.signature Make_local sub sg
+    | (_, _, Twith_modtypesubst tmty) ->
+        let add s p = Subst.add_modtype_path p tmty.mty_type s in
+=======
+    let sg =
+    match tcstr with
+    | (_, _, Some (Twith_typesubst tdecl)) ->
+       let how_to_extend_subst =
+         let sdecl =
+           match constr with
+           | With_typesubst sdecl -> sdecl
+           | _ -> assert false
+         in
+         match type_decl_is_alias sdecl with
+         | Some lid ->
+            let replacement, _ =
+              try Env.find_type_by_name lid.txt initial_env
+              with Not_found -> assert false
+            in
+            fun s path -> Subst.add_type_path path replacement s
+         | None ->
+            let body = Option.get tdecl.typ_type.type_manifest in
+            let params = tdecl.typ_type.type_params in
+            if params_are_constrained params
+            then raise(Error(loc, initial_env,
+                             With_cannot_remove_constrained_type));
+            fun s path -> Subst.add_type_function path ~params ~body s
+       in
+       let sub = Subst.change_locs Subst.identity loc in
+       let sub = List.fold_left how_to_extend_subst sub !real_ids in
+       (* This signature will not be used directly, it will always be freshened
+          by the caller. So what we do with the scope doesn't really matter. But
+          making it local makes it unlikely that we will ever use the result of
+          this function unfreshened without issue. *)
+       Subst.signature Make_local sub sg
+    | (_, _, Some (Twith_modsubst (real_path, _))) ->
+       let sub = Subst.change_locs Subst.identity loc in
+       let sub =
+         List.fold_left
+           (fun s path -> Subst.add_module_path path real_path s)
+           sub
+           !real_ids
+       in
+       (* See explanation in the [Twith_typesubst] case above. *)
+       Subst.signature Make_local sub sg
+    | (_, _, Some (Twith_modtypesubst tmty)) ->
+        let add s p = Subst.add_modtype_path p tmty.mty_type s in
+>>>>>>> 5.2.0
         let sub = Subst.change_locs Subst.identity loc in
         let sub = List.fold_left how_to_extend_subst sub !real_ids in
         Some sub
@@ -916,6 +1039,7 @@ let merge_constraint initial_env loc sg lid constr =
   with Includemod.Error explanation ->
     raise(Error(loc, initial_env, With_mismatch(lid.txt, explanation)))
 
+<<<<<<< HEAD
 let merge_package_constraint initial_env loc sg lid cty =
   let _, s = merge_constraint initial_env loc sg lid (With_type_package cty) in
   s
@@ -935,6 +1059,28 @@ let () =
     check_package_with_type_constraints
 
 
+||||||| 121bedcfd2
+=======
+let merge_package_constraint initial_env loc sg lid cty =
+  let _, s = merge_constraint initial_env loc sg lid (With_type_package cty) in
+  s
+
+let check_package_with_type_constraints loc env mty constraints =
+  let sg = extract_sig env loc mty in
+  let sg =
+    List.fold_left
+      (fun sg (lid, cty) ->
+         merge_package_constraint env loc sg lid cty)
+      sg constraints
+  in
+  let scope = Ctype.create_scope () in
+  Mtype.freshen ~scope (Mty_signature sg)
+
+let () =
+  Typetexp.check_package_with_type_constraints :=
+    check_package_with_type_constraints
+
+>>>>>>> 5.2.0
 (* Add recursion flags on declarations arising from a mutually recursive
    block. *)
 
@@ -1494,8 +1640,7 @@ end
 
 let has_remove_aliases_attribute attr =
   let remove_aliases =
-    Attr_helper.get_no_payload_attribute
-      ["remove_aliases"; "ocaml.remove_aliases"] attr
+    Attr_helper.get_no_payload_attribute "remove_aliases" attr
   in
   match remove_aliases with
   | None -> false
@@ -1648,8 +1793,15 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
 
 
 
+<<<<<<< HEAD
 and transl_signature env (sg : Parsetree.signature) =
+||||||| 121bedcfd2
+and transl_signature env sg =
+=======
+and transl_signature ?(toplevel = false) env sg =
+>>>>>>> 5.2.0
   let names = Signature_names.create () in
+<<<<<<< HEAD
 
   let transl_include ~functor_ ~loc env sig_acc sincl =
     let smty = sincl.pincl_mod in
@@ -1742,7 +1894,116 @@ and transl_signature env (sg : Parsetree.signature) =
                   ~params
                   ~body:(Option.get td.typ_type.type_manifest)
                   Subst.identity
+||||||| 121bedcfd2
+  let rec transl_sig env sg =
+    match sg with
+      [] -> [], [], env
+    | item :: srem ->
+        let loc = item.psig_loc in
+        match item.psig_desc with
+        | Psig_value sdesc ->
+            let (tdesc, newenv) =
+              Typedecl.transl_value_decl env item.psig_loc sdesc
+            in
+            Signature_names.check_value names tdesc.val_loc tdesc.val_id;
+            Env.register_uid tdesc.val_val.val_uid tdesc.val_loc;
+            let (trem,rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_value tdesc) env loc :: trem,
+            Sig_value(tdesc.val_id, tdesc.val_val, Exported) :: rem,
+              final_env
+        | Psig_type (rec_flag, sdecls) ->
+            let (decls, newenv) =
+              Typedecl.transl_type_decl env rec_flag sdecls
+            in
+            List.iter (fun td ->
+              Signature_names.check_type names td.typ_loc td.typ_id;
+              if not (Btype.is_row_name (Ident.name td.typ_id)) then
+                Env.register_uid td.typ_type.type_uid td.typ_loc
+            ) decls;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            let sg =
+              map_rec_type_with_row_types ~rec_flag
+                (fun rs td -> Sig_type(td.typ_id, td.typ_type, rs, Exported))
+                decls rem
+            in
+            mksig (Tsig_type (rec_flag, decls)) env loc :: trem,
+            sg,
+            final_env
+        | Psig_typesubst sdecls ->
+            let (decls, newenv) =
+              Typedecl.transl_type_decl env Nonrecursive sdecls
+            in
+            List.iter (fun td ->
+              if td.typ_kind <> Ttype_abstract || td.typ_manifest = None ||
+                 td.typ_private = Private
+              then
+                raise (Error (td.typ_loc, env, Invalid_type_subst_rhs));
+              let params = td.typ_type.type_params in
+              if params_are_constrained params
+              then raise(Error(loc, env, With_cannot_remove_constrained_type));
+              let info =
+                  let subst =
+                    Subst.add_type_function (Pident td.typ_id)
+                      ~params
+                      ~body:(Option.get td.typ_type.type_manifest)
+                      Subst.identity
+                  in
+                  Some (`Substituted_away subst)
+=======
+  let rec transl_sig env sg =
+    match sg with
+      [] -> [], [], env
+    | item :: srem ->
+        let loc = item.psig_loc in
+        match item.psig_desc with
+        | Psig_value sdesc ->
+            let (tdesc, newenv) =
+              Typedecl.transl_value_decl env item.psig_loc sdesc
+            in
+            Signature_names.check_value names tdesc.val_loc tdesc.val_id;
+            let (trem,rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_value tdesc) env loc :: trem,
+            Sig_value(tdesc.val_id, tdesc.val_val, Exported) :: rem,
+              final_env
+        | Psig_type (rec_flag, sdecls) ->
+            let (decls, newenv, _) =
+              Typedecl.transl_type_decl env rec_flag sdecls
+            in
+            List.iter (fun td ->
+              Signature_names.check_type names td.typ_loc td.typ_id;
+            ) decls;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            let sg =
+              map_rec_type_with_row_types ~rec_flag
+                (fun rs td -> Sig_type(td.typ_id, td.typ_type, rs, Exported))
+                decls rem
+            in
+            mksig (Tsig_type (rec_flag, decls)) env loc :: trem,
+            sg,
+            final_env
+        | Psig_typesubst sdecls ->
+            let (decls, newenv, _) =
+              Typedecl.transl_type_decl env Nonrecursive sdecls
+            in
+            List.iter (fun td ->
+              if td.typ_kind <> Ttype_abstract || td.typ_manifest = None ||
+                 td.typ_private = Private
+              then
+                raise (Error (td.typ_loc, env, Invalid_type_subst_rhs));
+              let params = td.typ_type.type_params in
+              if params_are_constrained params
+              then raise(Error(loc, env, With_cannot_remove_constrained_type));
+              let info =
+                  let subst =
+                    Subst.add_type_function (Pident td.typ_id)
+                      ~params
+                      ~body:(Option.get td.typ_type.type_manifest)
+                      Subst.identity
+                  in
+                  Some (`Substituted_away subst)
+>>>>>>> 5.2.0
               in
+<<<<<<< HEAD
               Some (`Substituted_away subst)
           in
           Signature_names.check_type ?info names td.typ_loc td.typ_id
@@ -1797,7 +2058,20 @@ and transl_signature env (sg : Parsetree.signature) =
           | Some name ->
             let id, newenv =
               Env.enter_module_declaration ~scope name pres md env
+||||||| 121bedcfd2
+              Signature_names.check_type ?info names td.typ_loc td.typ_id;
+              Env.register_uid td.typ_type.type_uid td.typ_loc
+            ) decls;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            let sg = rem
+=======
+              Signature_names.check_type ?info names td.typ_loc td.typ_id
+            ) decls;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            let sg = rem
+>>>>>>> 5.2.0
             in
+<<<<<<< HEAD
             Signature_names.check_module names pmd.pmd_name.loc id;
             Some id, newenv
         in
@@ -1829,8 +2103,104 @@ and transl_signature env (sg : Parsetree.signature) =
             { md_type = Mty_alias path;
               md_attributes = pms.pms_attributes;
               md_loc = pms.pms_loc;
+||||||| 121bedcfd2
+            mksig (Tsig_typesubst decls) env loc :: trem,
+            sg,
+            final_env
+        | Psig_typext styext ->
+            let (tyext, newenv) =
+              Typedecl.transl_type_extension false env item.psig_loc styext
+            in
+            let constructors = tyext.tyext_constructors in
+            List.iter (fun ext ->
+              Signature_names.check_typext names ext.ext_loc ext.ext_id;
+              Env.register_uid ext.ext_type.ext_uid ext.ext_loc
+            ) constructors;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+              mksig (Tsig_typext tyext) env loc :: trem,
+              map_ext (fun es ext ->
+                Sig_typext(ext.ext_id, ext.ext_type, es, Exported)
+              ) constructors rem,
+              final_env
+        | Psig_exception sext ->
+            let (ext, newenv) = Typedecl.transl_type_exception env sext in
+            let constructor = ext.tyexn_constructor in
+            Signature_names.check_typext names constructor.ext_loc
+              constructor.ext_id;
+            Env.register_uid
+              constructor.ext_type.ext_uid
+              constructor.ext_loc;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_exception ext) env loc :: trem,
+            Sig_typext(constructor.ext_id,
+                       constructor.ext_type,
+                       Text_exception,
+                       Exported) :: rem,
+            final_env
+        | Psig_module pmd ->
+            let scope = Ctype.create_scope () in
+            let tmty =
+              Builtin_attributes.warning_scope pmd.pmd_attributes
+                (fun () -> transl_modtype env pmd.pmd_type)
+            in
+            let pres =
+              match tmty.mty_type with
+              | Mty_alias _ -> Mp_absent
+              | _ -> Mp_present
+            in
+            let md = {
+              md_type=tmty.mty_type;
+              md_attributes=pmd.pmd_attributes;
+              md_loc=pmd.pmd_loc;
+=======
+            mksig (Tsig_typesubst decls) env loc :: trem,
+            sg,
+            final_env
+        | Psig_typext styext ->
+            let (tyext, newenv, _shapes) =
+              Typedecl.transl_type_extension false env item.psig_loc styext
+            in
+            let constructors = tyext.tyext_constructors in
+            List.iter (fun ext ->
+              Signature_names.check_typext names ext.ext_loc ext.ext_id
+            ) constructors;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+              mksig (Tsig_typext tyext) env loc :: trem,
+              map_ext (fun es ext ->
+                Sig_typext(ext.ext_id, ext.ext_type, es, Exported)
+              ) constructors rem,
+              final_env
+        | Psig_exception sext ->
+            let (ext, newenv, _s) = Typedecl.transl_type_exception env sext in
+            let constructor = ext.tyexn_constructor in
+            Signature_names.check_typext names constructor.ext_loc
+              constructor.ext_id;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_exception ext) env loc :: trem,
+            Sig_typext(constructor.ext_id,
+                       constructor.ext_type,
+                       Text_exception,
+                       Exported) :: rem,
+            final_env
+        | Psig_module pmd ->
+            let scope = Ctype.create_scope () in
+            let tmty =
+              Builtin_attributes.warning_scope pmd.pmd_attributes
+                (fun () -> transl_modtype env pmd.pmd_type)
+            in
+            let pres =
+              match tmty.mty_type with
+              | Mty_alias _ -> Mp_absent
+              | _ -> Mp_present
+            in
+            let md = {
+              md_type=tmty.mty_type;
+              md_attributes=pmd.pmd_attributes;
+              md_loc=pmd.pmd_loc;
+>>>>>>> 5.2.0
               md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
             }
+<<<<<<< HEAD
         in
         let pres =
           match md.md_type with
@@ -1970,6 +2340,416 @@ and transl_signature env (sg : Parsetree.signature) =
         (new_item :: sig_items)
         (List.rev_append new_types sig_type)
         srem
+||||||| 121bedcfd2
+            in
+            let id, newenv =
+              match pmd.pmd_name.txt with
+              | None -> None, env
+              | Some name ->
+                let id, newenv =
+                  Env.enter_module_declaration ~scope name pres md env
+                in
+                Signature_names.check_module names pmd.pmd_name.loc id;
+                Some id, newenv
+            in
+            Env.register_uid md.md_uid md.md_loc;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_module {md_id=id; md_name=pmd.pmd_name;
+                                md_presence=pres; md_type=tmty;
+                                md_loc=pmd.pmd_loc;
+                                md_attributes=pmd.pmd_attributes})
+              env loc :: trem,
+            (match id with
+             | None -> rem
+             | Some id -> Sig_module(id, pres, md, Trec_not, Exported) :: rem),
+            final_env
+        | Psig_modsubst pms ->
+            let scope = Ctype.create_scope () in
+            let path, md =
+              Env.lookup_module ~loc:pms.pms_manifest.loc
+                pms.pms_manifest.txt env
+            in
+            let aliasable = not (Env.is_functor_arg path env) in
+            let md =
+              if not aliasable then
+                md
+              else
+                { md_type = Mty_alias path;
+                  md_attributes = pms.pms_attributes;
+                  md_loc = pms.pms_loc;
+                  md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+                }
+            in
+            let pres =
+              match md.md_type with
+              | Mty_alias _ -> Mp_absent
+              | _ -> Mp_present
+            in
+            let id, newenv =
+              Env.enter_module_declaration ~scope pms.pms_name.txt pres md env
+            in
+            let info =
+              `Substituted_away (Subst.add_module id path Subst.identity)
+            in
+            Signature_names.check_module ~info names pms.pms_name.loc id;
+            Env.register_uid md.md_uid md.md_loc;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_modsubst {ms_id=id; ms_name=pms.pms_name;
+                                  ms_manifest=path; ms_txt=pms.pms_manifest;
+                                  ms_loc=pms.pms_loc;
+                                  ms_attributes=pms.pms_attributes})
+              env loc :: trem,
+            rem,
+            final_env
+        | Psig_recmodule sdecls ->
+            let (tdecls, newenv) =
+              transl_recmodule_modtypes env sdecls in
+            let decls =
+              List.filter_map (fun (md, uid, _) ->
+                match md.md_id with
+                | None -> None
+                | Some id -> Some (id, md, uid)
+              ) tdecls
+            in
+            List.iter (fun (id, md, uid) ->
+              Signature_names.check_module names md.md_loc id;
+              Env.register_uid uid md.md_loc
+            ) decls;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_recmodule (List.map (fun (md, _, _) -> md) tdecls))
+              env loc :: trem,
+            map_rec (fun rs (id, md, uid) ->
+                let d = {Types.md_type = md.md_type.mty_type;
+                         md_attributes = md.md_attributes;
+                         md_loc = md.md_loc;
+                         md_uid = uid;
+                        } in
+                Sig_module(id, Mp_present, d, rs, Exported))
+              decls rem,
+            final_env
+        | Psig_modtype pmtd ->
+            let newenv, mtd, decl = transl_modtype_decl env pmtd in
+            Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
+            Env.register_uid decl.mtd_uid mtd.mtd_loc;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_modtype mtd) env loc :: trem,
+            Sig_modtype (mtd.mtd_id, decl, Exported) :: rem,
+            final_env
+        | Psig_modtypesubst pmtd ->
+            let newenv, mtd, decl = transl_modtype_decl env pmtd in
+            let info =
+              let mty = match mtd.mtd_type with
+                | Some tmty -> tmty.mty_type
+                | None ->
+                    (* parsetree invariant, see Ast_invariants *)
+                    assert false
+              in
+              let subst = Subst.add_modtype mtd.mtd_id mty Subst.identity in
+              match mty with
+              | Mty_ident _ -> `Substituted_away subst
+              | _ -> `Unpackable_modtype_substituted_away (mtd.mtd_id,subst)
+            in
+            Signature_names.check_modtype ~info names pmtd.pmtd_loc mtd.mtd_id;
+            Env.register_uid decl.mtd_uid mtd.mtd_loc;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_modtypesubst mtd) env loc :: trem,
+            rem,
+            final_env
+        | Psig_open sod ->
+            let (od, newenv) = type_open_descr env sod in
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_open od) env loc :: trem,
+            rem, final_env
+        | Psig_include sincl ->
+            let smty = sincl.pincl_mod in
+            let tmty =
+              Builtin_attributes.warning_scope sincl.pincl_attributes
+                (fun () -> transl_modtype env smty)
+            in
+            let mty = tmty.mty_type in
+            let scope = Ctype.create_scope () in
+            let sg, newenv = Env.enter_signature ~scope
+                       (extract_sig env smty.pmty_loc mty) env in
+            Signature_group.iter
+              (Signature_names.check_sig_item names item.psig_loc)
+              sg;
+            let incl =
+              { incl_mod = tmty;
+                incl_type = sg;
+                incl_attributes = sincl.pincl_attributes;
+                incl_loc = sincl.pincl_loc;
+              }
+            in
+            let (trem, rem, final_env) = transl_sig newenv srem  in
+            mksig (Tsig_include incl) env loc :: trem,
+            sg @ rem,
+            final_env
+        | Psig_class cl ->
+            let (classes, newenv) = Typeclass.class_descriptions env cl in
+            List.iter (fun cls ->
+              let open Typeclass in
+              let loc = cls.cls_id_loc.Location.loc in
+              Signature_names.check_type names loc cls.cls_obj_id;
+              Signature_names.check_class names loc cls.cls_id;
+              Signature_names.check_class_type names loc cls.cls_ty_id;
+              Env.register_uid cls.cls_decl.cty_uid cls.cls_decl.cty_loc;
+            ) classes;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            let sg =
+              map_rec (fun rs cls ->
+                let open Typeclass in
+                [Sig_class(cls.cls_id, cls.cls_decl, rs, Exported);
+                 Sig_class_type(cls.cls_ty_id, cls.cls_ty_decl, rs, Exported);
+                 Sig_type(cls.cls_obj_id, cls.cls_obj_abbr, rs, Exported)
+                ]
+              ) classes [rem]
+              |> List.flatten
+            in
+            let typedtree =
+              mksig (Tsig_class
+                       (List.map (fun decr ->
+                          decr.Typeclass.cls_info) classes)) env loc
+              :: trem
+            in
+            typedtree, sg, final_env
+        | Psig_class_type cl ->
+            let (classes, newenv) = Typeclass.class_type_declarations env cl in
+            List.iter (fun decl ->
+              let open Typeclass in
+              let loc = decl.clsty_id_loc.Location.loc in
+              Signature_names.check_class_type names loc decl.clsty_ty_id;
+              Signature_names.check_type names loc decl.clsty_obj_id;
+              Env.register_uid
+                decl.clsty_ty_decl.clty_uid
+                decl.clsty_ty_decl.clty_loc;
+            ) classes;
+            let (trem,rem, final_env) = transl_sig newenv srem in
+            let sg =
+              map_rec (fun rs decl ->
+                let open Typeclass in
+                [Sig_class_type(decl.clsty_ty_id, decl.clsty_ty_decl, rs,
+                                Exported);
+                 Sig_type(decl.clsty_obj_id, decl.clsty_obj_abbr, rs, Exported);
+                ]
+              ) classes [rem]
+              |> List.flatten
+            in
+            let typedtree =
+              mksig
+                (Tsig_class_type
+                   (List.map (fun decl -> decl.Typeclass.clsty_info) classes))
+                env loc
+              :: trem
+            in
+            typedtree, sg, final_env
+        | Psig_attribute x ->
+            Builtin_attributes.warning_attribute x;
+            let (trem,rem, final_env) = transl_sig env srem in
+            mksig (Tsig_attribute x) env loc :: trem, rem, final_env
+        | Psig_extension (ext, _attrs) ->
+            raise (Error_forward (Builtin_attributes.error_of_extension ext))
+=======
+            in
+            let id, newenv =
+              match pmd.pmd_name.txt with
+              | None -> None, env
+              | Some name ->
+                let id, newenv =
+                  Env.enter_module_declaration ~scope name pres md env
+                in
+                Signature_names.check_module names pmd.pmd_name.loc id;
+                Some id, newenv
+            in
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_module {md_id=id; md_name=pmd.pmd_name;
+                                md_uid=md.md_uid; md_presence=pres;
+                                md_type=tmty; md_loc=pmd.pmd_loc;
+                                md_attributes=pmd.pmd_attributes})
+              env loc :: trem,
+            (match id with
+             | None -> rem
+             | Some id -> Sig_module(id, pres, md, Trec_not, Exported) :: rem),
+            final_env
+        | Psig_modsubst pms ->
+            let scope = Ctype.create_scope () in
+            let path, md =
+              Env.lookup_module ~loc:pms.pms_manifest.loc
+                pms.pms_manifest.txt env
+            in
+            let aliasable = not (Env.is_functor_arg path env) in
+            let md =
+              if not aliasable then
+                md
+              else
+                { md_type = Mty_alias path;
+                  md_attributes = pms.pms_attributes;
+                  md_loc = pms.pms_loc;
+                  md_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+                }
+            in
+            let pres =
+              match md.md_type with
+              | Mty_alias _ -> Mp_absent
+              | _ -> Mp_present
+            in
+            let id, newenv =
+              Env.enter_module_declaration ~scope pms.pms_name.txt pres md env
+            in
+            let info =
+              `Substituted_away (Subst.add_module id path Subst.identity)
+            in
+            Signature_names.check_module ~info names pms.pms_name.loc id;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_modsubst {ms_id=id; ms_name=pms.pms_name;
+                                  ms_uid=md.md_uid; ms_manifest=path;
+                                  ms_txt=pms.pms_manifest; ms_loc=pms.pms_loc;
+                                  ms_attributes=pms.pms_attributes})
+              env loc :: trem,
+            rem,
+            final_env
+        | Psig_recmodule sdecls ->
+            let (tdecls, newenv) =
+              transl_recmodule_modtypes env sdecls in
+            let decls =
+              List.filter_map (fun (md, uid, _) ->
+                match md.md_id with
+                | None -> None
+                | Some id -> Some (id, md, uid)
+              ) tdecls
+            in
+            List.iter (fun (id, md, _uid) ->
+              Signature_names.check_module names md.md_loc id;
+            ) decls;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_recmodule (List.map (fun (md, _, _) -> md) tdecls))
+              env loc :: trem,
+            map_rec (fun rs (id, md, uid) ->
+                let d = {Types.md_type = md.md_type.mty_type;
+                         md_attributes = md.md_attributes;
+                         md_loc = md.md_loc;
+                         md_uid = uid;
+                        } in
+                Sig_module(id, Mp_present, d, rs, Exported))
+              decls rem,
+            final_env
+        | Psig_modtype pmtd ->
+            let newenv, mtd, decl = transl_modtype_decl env pmtd in
+            Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_modtype mtd) env loc :: trem,
+            Sig_modtype (mtd.mtd_id, decl, Exported) :: rem,
+            final_env
+        | Psig_modtypesubst pmtd ->
+            let newenv, mtd, _decl = transl_modtype_decl env pmtd in
+            let info =
+              let mty = match mtd.mtd_type with
+                | Some tmty -> tmty.mty_type
+                | None ->
+                    (* parsetree invariant, see Ast_invariants *)
+                    assert false
+              in
+              let subst = Subst.add_modtype mtd.mtd_id mty Subst.identity in
+              match mty with
+              | Mty_ident _ -> `Substituted_away subst
+              | _ -> `Unpackable_modtype_substituted_away (mtd.mtd_id,subst)
+            in
+            Signature_names.check_modtype ~info names pmtd.pmtd_loc mtd.mtd_id;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_modtypesubst mtd) env loc :: trem,
+            rem,
+            final_env
+        | Psig_open sod ->
+            let (od, newenv) = type_open_descr env sod in
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            mksig (Tsig_open od) env loc :: trem,
+            rem, final_env
+        | Psig_include sincl ->
+            let smty = sincl.pincl_mod in
+            let tmty =
+              Builtin_attributes.warning_scope sincl.pincl_attributes
+                (fun () -> transl_modtype env smty)
+            in
+            let mty = tmty.mty_type in
+            let scope = Ctype.create_scope () in
+            let sg, newenv = Env.enter_signature ~scope
+                       (extract_sig env smty.pmty_loc mty) env in
+            Signature_group.iter
+              (Signature_names.check_sig_item names item.psig_loc)
+              sg;
+            let incl =
+              { incl_mod = tmty;
+                incl_type = sg;
+                incl_attributes = sincl.pincl_attributes;
+                incl_loc = sincl.pincl_loc;
+              }
+            in
+            let (trem, rem, final_env) = transl_sig newenv srem  in
+            mksig (Tsig_include incl) env loc :: trem,
+            sg @ rem,
+            final_env
+        | Psig_class cl ->
+            let (classes, newenv) = Typeclass.class_descriptions env cl in
+            List.iter (fun cls ->
+              let open Typeclass in
+              let loc = cls.cls_id_loc.Location.loc in
+              Signature_names.check_type names loc cls.cls_obj_id;
+              Signature_names.check_class names loc cls.cls_id;
+              Signature_names.check_class_type names loc cls.cls_ty_id;
+            ) classes;
+            let (trem, rem, final_env) = transl_sig newenv srem in
+            let sg =
+              map_rec (fun rs cls ->
+                let open Typeclass in
+                [Sig_class(cls.cls_id, cls.cls_decl, rs, Exported);
+                 Sig_class_type(cls.cls_ty_id, cls.cls_ty_decl, rs, Exported);
+                 Sig_type(cls.cls_obj_id, cls.cls_obj_abbr, rs, Exported)
+                ]
+              ) classes [rem]
+              |> List.flatten
+            in
+            let typedtree =
+              mksig (Tsig_class
+                       (List.map (fun decr ->
+                          decr.Typeclass.cls_info) classes)) env loc
+              :: trem
+            in
+            typedtree, sg, final_env
+        | Psig_class_type cl ->
+            let (classes, newenv) = Typeclass.class_type_declarations env cl in
+            List.iter (fun decl ->
+              let open Typeclass in
+              let loc = decl.clsty_id_loc.Location.loc in
+              Signature_names.check_class_type names loc decl.clsty_ty_id;
+              Signature_names.check_type names loc decl.clsty_obj_id;
+            ) classes;
+            let (trem,rem, final_env) = transl_sig newenv srem in
+            let sg =
+              map_rec (fun rs decl ->
+                let open Typeclass in
+                [Sig_class_type(decl.clsty_ty_id, decl.clsty_ty_decl, rs,
+                                Exported);
+                 Sig_type(decl.clsty_obj_id, decl.clsty_obj_abbr, rs, Exported);
+                ]
+              ) classes [rem]
+              |> List.flatten
+            in
+            let typedtree =
+              mksig
+                (Tsig_class_type
+                   (List.map (fun decl -> decl.Typeclass.clsty_info) classes))
+                env loc
+              :: trem
+            in
+            typedtree, sg, final_env
+        | Psig_attribute x ->
+            Builtin_attributes.warning_attribute x;
+            if toplevel || not (Warnings.is_active (Misplaced_attribute ""))
+            then Builtin_attributes.mark_alert_used x;
+            let (trem,rem, final_env) = transl_sig env srem in
+            mksig (Tsig_attribute x) env loc :: trem, rem, final_env
+        | Psig_extension (ext, _attrs) ->
+            raise (Error_forward (Builtin_attributes.error_of_extension ext))
+>>>>>>> 5.2.0
   in
   let previous_saved_types = Cmt_format.get_saved_types () in
   Builtin_attributes.warning_scope []
@@ -2327,7 +3107,9 @@ let rec package_constraints_sig env loc sg constrs =
       | Sig_type (id, ({type_params=[]} as td), rs, priv)
         when List.mem_assoc [Ident.name id] constrs ->
           let ty = List.assoc [Ident.name id] constrs in
-          Sig_type (id, {td with type_manifest = Some ty}, rs, priv)
+          let td = {td with type_manifest = Some ty} in
+          let type_immediate = Typedecl_immediacy.compute_decl env td in
+          Sig_type (id, {td with type_immediate}, rs, priv)
       | Sig_module (id, pres, md, rs, priv) ->
           let rec aux = function
             | (m :: ((_ :: _) as l), t) :: rest when m = Ident.name id ->
@@ -2649,10 +3431,11 @@ and type_application loc strengthen funct_body env smod =
     let strengthen = strengthen && List.for_all has_path args in
     type_module strengthen funct_body None env sfunct
   in
-  List.fold_left (type_one_application ~ctx:(loc, funct, args) funct_body env)
+  List.fold_left
+    (type_one_application ~ctx:(loc, sfunct, funct, args) funct_body env)
     (funct, funct_shape) args
 
-and type_one_application ~ctx:(apply_loc,md_f,args)
+and type_one_application ~ctx:(apply_loc,sfunct,md_f,args)
     funct_body env (funct, funct_shape) app_view =
   match Mtype.scrape_alias env funct.mod_type with
   | Mty_functor (Unit, mty_res) ->
@@ -2682,8 +3465,11 @@ and type_one_application ~ctx:(apply_loc,md_f,args)
       let apply_error () =
         let args = List.map simplify_app_summary args in
         let mty_f = md_f.mod_type in
-        let lid_app = None in
-        raise(Includemod.Apply_error {loc=apply_loc;env;lid_app;mty_f;args})
+        let app_name = match sfunct.pmod_desc with
+          | Pmod_ident l -> Includemod.Named_leftmost_functor l.txt
+          | _ -> Includemod.Anonymous_functor
+        in
+        raise(Includemod.Apply_error {loc=apply_loc;env;app_name;mty_f;args})
       in
       begin match app_view with
       | { arg = None; _ } -> apply_error ()
@@ -2746,11 +3532,14 @@ and type_one_application ~ctx:(apply_loc,md_f,args)
     end
   | Mty_alias path ->
       raise(Error(app_view.f_loc, env, Cannot_scrape_alias path))
-  | _ ->
+  | Mty_ident _ | Mty_signature _  ->
       let args = List.map simplify_app_summary args in
       let mty_f = md_f.mod_type in
-      let lid_app = None in
-      raise(Includemod.Apply_error {loc=apply_loc;env;lid_app;mty_f;args})
+      let app_name = match sfunct.pmod_desc with
+        | Pmod_ident l -> Includemod.Named_leftmost_functor l.txt
+        | _ -> Includemod.Anonymous_functor
+      in
+      raise(Includemod.Apply_error {loc=apply_loc;env;app_name;mty_f;args})
 
 and type_open_decl ?used_slot ?toplevel funct_body names env sod =
   Builtin_attributes.warning_scope sod.popen_attributes
@@ -2891,15 +3680,27 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           Option.is_some toplevel
         in
         let (defs, newenv) =
+<<<<<<< HEAD
           Typecore.type_binding env rec_flag ~force_toplevel sdefs in
         let defs = match rec_flag with
           | Recursive -> Typecore.annotate_recursive_bindings env defs
           | Nonrecursive -> defs
+||||||| 121bedcfd2
+          Typecore.type_binding env rec_flag sdefs in
+        let () = if rec_flag = Recursive then
+          Typecore.check_recursive_bindings env defs
+=======
+          Typecore.type_binding env rec_flag sdefs in
+        let defs = match rec_flag with
+          | Recursive -> Typecore.annotate_recursive_bindings env defs
+          | Nonrecursive -> defs
+>>>>>>> 5.2.0
         in
         (* Note: Env.find_value does not trigger the value_used event. Values
            will be marked as being used during the signature inclusion test. *)
         let items, shape_map =
           List.fold_left
+<<<<<<< HEAD
             (fun (acc, shape_map) (id, id_info, zero_alloc) ->
               List.iter
                 (fun (loc, _mode, sort) ->
@@ -2936,6 +3737,16 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                   val_zero_alloc = zero_alloc;
                   val_modalities = modalities }
               in
+||||||| 121bedcfd2
+            (fun (acc, shape_map) (id, { Asttypes.loc; _ }, _typ)->
+              Signature_names.check_value names loc id;
+              let vd =  Env.find_value (Pident id) newenv in
+              Env.register_uid vd.val_uid vd.val_loc;
+=======
+            (fun (acc, shape_map) (id, { Asttypes.loc; _ }, _typ, _uid)->
+              Signature_names.check_value names loc id;
+              let vd =  Env.find_value (Pident id) newenv in
+>>>>>>> 5.2.0
               Sig_value(id, vd, Exported) :: acc,
               Shape.Map.add_value shape_map id vd.val_uid
             )
@@ -2964,9 +3775,25 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           (fun rs info -> Sig_type(info.typ_id, info.typ_type, rs, Exported))
           decls
         in
+<<<<<<< HEAD
         let shape_map = List.fold_left2
           (fun map { typ_id; _} shape ->
               Shape.Map.add_type map typ_id shape)
+||||||| 121bedcfd2
+        let shape_map = List.fold_left
+          (fun shape_map -> function
+            | Sig_type (id, vd, _, _) ->
+              if not (Btype.is_row_name (Ident.name id)) then begin
+                Env.register_uid vd.type_uid vd.type_loc;
+                Shape.Map.add_type shape_map id vd.type_uid
+              end else shape_map
+            | _ -> assert false
+          )
+=======
+        let shape_map = List.fold_left2
+          (fun map { typ_id; _} shape ->
+            Shape.Map.add_type map typ_id shape)
+>>>>>>> 5.2.0
           shape_map
           decls
           shapes
@@ -3219,10 +4046,22 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         type_str_include ~functor_:false ~loc env shape_map sincl sig_acc
     | Pstr_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
+<<<<<<< HEAD
     | Pstr_attribute attr ->
         Builtin_attributes.parse_standard_implementation_attributes attr;
         Builtin_attributes.mark_alert_used attr;
         Tstr_attribute attr, [], shape_map, env
+||||||| 121bedcfd2
+    | Pstr_attribute x ->
+        Builtin_attributes.warning_attribute x;
+        Tstr_attribute x, [], shape_map, env
+=======
+    | Pstr_attribute x ->
+        Builtin_attributes.warning_attribute x;
+        if toplevel || not (Warnings.is_active (Misplaced_attribute "")) then
+          Builtin_attributes.mark_alert_used x;
+        Tstr_attribute x, [], shape_map, env
+>>>>>>> 5.2.0
   in
   let toplevel_sig = Option.value toplevel ~default:[] in
   let rec type_struct env shape_map sstr str_acc sig_acc
@@ -3450,6 +4289,7 @@ let () =
   Typetexp.transl_modtype_longident := transl_modtype_longident;
   Typetexp.transl_modtype := transl_modtype;
   Typecore.type_open := type_open_ ?toplevel:None;
+  Typetexp.type_open := type_open_ ?toplevel:None;
   Typecore.type_open_decl := type_open_decl;
   Typecore.type_package := type_package;
   Typeclass.type_open_descr := type_open_descr;
@@ -3469,10 +4309,14 @@ let register_params params =
 
 (* Typecheck an implementation file *)
 
-let gen_annot outputprefix sourcefile annots =
-  Cmt2annot.gen_annot (Some (outputprefix ^ ".annot"))
-    ~sourcefile:(Some sourcefile) ~use_summaries:false annots
+let gen_annot target annots =
+  let annot = Unit_info.annot target in
+  Cmt2annot.gen_annot (Some (Unit_info.Artifact.filename annot))
+    ~sourcefile:(Unit_info.Artifact.source_file annot)
+    ~use_summaries:false
+    annots
 
+<<<<<<< HEAD
 let cms_register_toplevel_attributes ~sourcefile ~uid ~f ast =
   (* Cms files do not store the typetree. This can be a problem for Merlin has
     it uses attributes - which is why we manually construct a mapping from uid
@@ -3532,6 +4376,17 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
   let error e =
     raise (Error (Location.in_file sourcefile, initial_env, e))
   in
+||||||| 121bedcfd2
+let type_implementation sourcefile outputprefix modulename initial_env ast =
+=======
+let type_implementation target initial_env ast =
+  let sourcefile = Unit_info.source_file target in
+  let save_cmt target annots initial_env cmi shape =
+    Cmt_format.save_cmt (Unit_info.cmt target)
+      annots initial_env cmi shape;
+    gen_annot target annots;
+  in
+>>>>>>> 5.2.0
   Cmt_format.clear ();
   Misc.try_finally (fun () ->
       Typecore.reset_delayed_checks ();
@@ -3544,12 +4399,26 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
         error Cannot_compile_implementation_as_parameter;
       register_params !Clflags.parameters;
       let (str, sg, names, shape, finalenv) =
+<<<<<<< HEAD
         Profile.record_call "infer" (fun () ->
           type_structure initial_env ast) in
       let uid = Uid.of_compilation_unit_id modulename in
       let shape = Shape.set_uid_if_none shape uid in
       if !Clflags.binary_annotations_cms then
         cms_register_toplevel_struct_attributes ~sourcefile ~uid ast;
+||||||| 121bedcfd2
+        type_structure initial_env ast in
+      let shape =
+        Shape.set_uid_if_none shape
+          (Uid.of_compilation_unit_id (Ident.create_persistent modulename))
+      in
+=======
+        type_structure initial_env ast in
+      let shape =
+        let id = Ident.create_persistent @@ Unit_info.modname target in
+        Shape.set_uid_if_none shape (Uid.of_compilation_unit_id id)
+      in
+>>>>>>> 5.2.0
       let simple_sg = Signature_names.simplify finalenv names sg in
       if !Clflags.print_types then begin
         remove_mode_and_jkind_variables finalenv sg;
@@ -3560,13 +4429,20 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
             ~zap_modality:Mode.Modality.Value.zap_to_id simple_sg
         in
         Typecore.force_delayed_checks ();
+<<<<<<< HEAD
         Typecore.optimise_allocations ();
         let shape = Shape_reduce.local_reduce Env.empty shape in
+||||||| 121bedcfd2
+        let shape = Shape.local_reduce shape in
+=======
+        let shape = Shape_reduce.local_reduce Env.empty shape in
+>>>>>>> 5.2.0
         Printtyp.wrap_printing_env ~error:false initial_env
           (fun () -> fprintf std_formatter "%a@."
-              (Printtyp.printed_signature sourcefile) simple_sg
+              (Printtyp.printed_signature @@ Unit_info.source_file target)
+              simple_sg
           );
-        gen_annot outputprefix sourcefile (Cmt_format.Implementation str);
+        gen_annot target (Cmt_format.Implementation str);
         { structure = str;
           coercion = Tcoerce_none;
           shape;
@@ -3574,6 +4450,15 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           argument_interface = None;
         } (* result is ignored by Compile.implementation *)
       end else begin
+<<<<<<< HEAD
+<<<<<<< HEAD
+        if !Clflags.as_parameter then
+          error Cannot_compile_implementation_as_parameter;
+||||||| 2572783060
+        if !Clflags.as_parameter then
+          error Cannot_compile_implementation_as_parameter;
+=======
+>>>>>>> ocaml-jst/flambda-patches
         let arg_type =
           !Clflags.as_argument_for
           |> Option.map Compilation_unit.Name.of_string
@@ -3583,8 +4468,21 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
         if !Clflags.cmi_file <> None || Sys.file_exists sourceintf then begin
           let import = Compilation_unit.name modulename in
           let intf_file =
+||||||| 121bedcfd2
+        let sourceintf =
+          Filename.remove_extension sourcefile ^ !Config.interface_suffix in
+        if !Clflags.cmi_file <> None || Sys.file_exists sourceintf then begin
+          let intf_file =
+=======
+        let source_intf = Unit_info.mli_from_source target in
+        if !Clflags.cmi_file <> None
+        || Sys.file_exists source_intf then begin
+          let compiled_intf_file =
+>>>>>>> 5.2.0
             match !Clflags.cmi_file with
+            | Some cmi_file -> Unit_info.Artifact.from_filename cmi_file
             | None ->
+<<<<<<< HEAD
               let basename = import |> Compilation_unit.Name.to_string in
               (try
                 Load_path.find_uncap (basename ^ ".cmi")
@@ -3592,7 +4490,20 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
                 raise(Error(Location.in_file sourcefile, Env.empty,
                       Interface_not_compiled sourceintf)))
             | Some cmi_file -> cmi_file
+||||||| 121bedcfd2
+              (try
+                Load_path.find_uncap (modulename ^ ".cmi")
+              with Not_found ->
+                raise(Error(Location.in_file sourcefile, Env.empty,
+                      Interface_not_compiled sourceintf)))
+            | Some cmi_file -> cmi_file
+=======
+                try Unit_info.find_normalized_cmi target with Not_found ->
+                  raise(Error(Location.in_file sourcefile, Env.empty,
+                              Interface_not_compiled source_intf))
+>>>>>>> 5.2.0
           in
+<<<<<<< HEAD
           let dclsig =
             Env.read_signature import intf_file ~add_binding:false
           in
@@ -3604,7 +4515,13 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
             error (Inconsistent_argument_types
                      { new_arg_type = arg_type; old_source_file = intf_file;
                        old_arg_type = arg_type_from_cmi });
+||||||| 121bedcfd2
+          let dclsig = Env.read_signature modulename intf_file in
+=======
+          let dclsig = Env.read_signature compiled_intf_file in
+>>>>>>> 5.2.0
           let coercion, shape =
+<<<<<<< HEAD
             Profile.record_call "check_sig" (fun () ->
               Includemod.compunit initial_env ~mark:Mark_positive
                 sourcefile sg intf_file dclsig shape)
@@ -3620,12 +4537,21 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
              ([Tcoerce_primitive] is a pain in particular). *)
           let argument_interface =
             check_argument_type_if_given initial_env intf_file dclsig arg_type
+||||||| 121bedcfd2
+            Includemod.compunit initial_env ~mark:Mark_positive
+              sourcefile sg intf_file dclsig shape
+=======
+            Includemod.compunit initial_env ~mark:Mark_positive
+              sourcefile sg source_intf
+              dclsig shape
+>>>>>>> 5.2.0
           in
           Typecore.force_delayed_checks ();
           Typecore.optimise_allocations ();
           (* It is important to run these checks after the inclusion test above,
              so that value declarations which are not used internally but
              exported are not reported as being unused. *)
+<<<<<<< HEAD
           Profile.record_call "save_cmt" (fun () ->
             let shape = Shape_reduce.local_reduce Env.empty shape in
             let annots = Cmt_format.Implementation str in
@@ -3634,6 +4560,17 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
             Cms_format.save_cms (outputprefix ^ ".cms") modulename
               annots (Some sourcefile) (Some shape);
             gen_annot outputprefix sourcefile annots);
+||||||| 121bedcfd2
+          let shape = Shape.local_reduce shape in
+          let annots = Cmt_format.Implementation str in
+          Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
+            annots (Some sourcefile) initial_env None (Some shape);
+          gen_annot outputprefix sourcefile annots;
+=======
+          let shape = Shape_reduce.local_reduce Env.empty shape in
+          let annots = Cmt_format.Implementation str in
+          save_cmt target annots initial_env None (Some shape);
+>>>>>>> 5.2.0
           { structure = str;
             coercion;
             shape;
@@ -3641,7 +4578,22 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
             argument_interface;
           }
         end else begin
+<<<<<<< HEAD
+<<<<<<< HEAD
+          if !Clflags.as_parameter then
+            error Cannot_compile_implementation_as_parameter;
+||||||| 2572783060
+          if !Clflags.as_parameter then
+            error Cannot_compile_implementation_as_parameter;
+=======
+>>>>>>> ocaml-jst/flambda-patches
           Location.prerr_warning (Location.in_file sourcefile)
+||||||| 121bedcfd2
+          Location.prerr_warning (Location.in_file sourcefile)
+=======
+          Location.prerr_warning
+            (Location.in_file (Unit_info.source_file target))
+>>>>>>> 5.2.0
             Warnings.Missing_mli;
           let coercion, shape =
             Profile.record_call "check_sig" (fun () ->
@@ -3668,10 +4620,20 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           let shape = Shape_reduce.local_reduce Env.empty shape in
           if not !Clflags.dont_write_files then begin
             let alerts = Builtin_attributes.alerts_of_str ast in
+<<<<<<< HEAD
             let name = Compilation_unit.name modulename in
             let kind =
               Cmi_format.Normal { cmi_impl = modulename; cmi_arg_for = arg_type }
+||||||| 121bedcfd2
+            let cmi =
+              Env.save_signature ~alerts
+                simple_sg modulename (outputprefix ^ ".cmi")
+=======
+            let cmi =
+              Env.save_signature ~alerts simple_sg (Unit_info.cmi target)
+>>>>>>> 5.2.0
             in
+<<<<<<< HEAD
             let cmi =
               Profile.record_call "save_cmi" (fun () ->
                 Env.save_signature ~alerts
@@ -3684,6 +4646,15 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
               Cms_format.save_cms  (outputprefix ^ ".cms") modulename
                 annots (Some sourcefile) (Some shape);
               gen_annot outputprefix sourcefile annots)
+||||||| 121bedcfd2
+            let annots = Cmt_format.Implementation str in
+            Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
+              annots (Some sourcefile) initial_env (Some cmi) (Some shape);
+            gen_annot outputprefix sourcefile annots
+=======
+            let annots = Cmt_format.Implementation str in
+            save_cmt target annots initial_env (Some cmi) (Some shape)
+>>>>>>> 5.2.0
           end;
           { structure = str;
             coercion;
@@ -3695,6 +4666,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
       end
     )
     ~exceptionally:(fun () ->
+<<<<<<< HEAD
         Profile.record_call "save_cmt" (fun () ->
           let annots =
             Cmt_format.Partial_implementation
@@ -3705,14 +4677,40 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           Cms_format.save_cms  (outputprefix ^ ".cms") modulename
             annots (Some sourcefile) None;
           gen_annot outputprefix sourcefile annots)
+||||||| 121bedcfd2
+        let annots =
+          Cmt_format.Partial_implementation
+            (Array.of_list (Cmt_format.get_saved_types ()))
+        in
+        Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
+          annots (Some sourcefile) initial_env None None;
+        gen_annot outputprefix sourcefile annots
+=======
+        let annots =
+          Cmt_format.Partial_implementation
+            (Array.of_list (Cmt_format.get_saved_types ()))
+        in
+        save_cmt target annots initial_env None None
+>>>>>>> 5.2.0
       )
 
+<<<<<<< HEAD
 let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi) None;
   Cms_format.save_cms  (outputprefix ^ ".cmsi") modname
     (Cmt_format.Interface tsg) (Some source_file) None
+||||||| 121bedcfd2
+let save_signature modname tsg outputprefix source_file initial_env cmi =
+  Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
+    (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi) None
+=======
+let save_signature target tsg initial_env cmi =
+  Cmt_format.save_cmt (Unit_info.cmti target)
+    (Cmt_format.Interface tsg) initial_env (Some cmi) None
+>>>>>>> 5.2.0
 
+<<<<<<< HEAD
 let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
   cms_register_toplevel_attributes ~sourcefile ~uid ast
     ~f:(function
@@ -3742,6 +4740,16 @@ let type_interface ~sourcefile modulename env ast =
   ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
           : Typedtree.argument_interface option);
   sg
+||||||| 121bedcfd2
+let type_interface env ast =
+  transl_signature env ast
+=======
+let type_interface env ast =
+  transl_signature ~toplevel:true env ast
+
+let transl_signature env ast =
+  transl_signature ~toplevel:false env ast
+>>>>>>> 5.2.0
 
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)
@@ -3777,11 +4785,12 @@ let package_signatures units =
       Sig_module(newid, Mp_present, md, Trec_not, Exported))
     units_with_ids
 
-let package_units initial_env objfiles cmifile modulename =
+let package_units initial_env objfiles target_cmi =
   (* Read the signatures of the units *)
   let units =
     List.map
       (fun f ->
+<<<<<<< HEAD
          let pref = chop_extensions f in
          let unit =
            pref
@@ -3794,17 +4803,43 @@ let package_units initial_env objfiles cmifile modulename =
            Env.read_signature unit (pref ^ ".cmi") ~add_binding:false in
          if Filename.check_suffix f ".cmi" &&
             not(Mtype.no_code_needed_sig (Lazy.force Env.initial) sg)
+||||||| 121bedcfd2
+         let pref = chop_extensions f in
+         let modname = String.capitalize_ascii(Filename.basename pref) in
+         let sg = Env.read_signature modname (pref ^ ".cmi") in
+         if Filename.check_suffix f ".cmi" &&
+            not(Mtype.no_code_needed_sig Env.initial sg)
+=======
+         let artifact = Unit_info.Artifact.from_filename f in
+         let sg = Env.read_signature (Unit_info.companion_cmi artifact) in
+         if Unit_info.is_cmi artifact &&
+            not(Mtype.no_code_needed_sig Env.initial sg)
+>>>>>>> 5.2.0
          then raise(Error(Location.none, Env.empty,
                           Implementation_is_required f));
+<<<<<<< HEAD
          Compilation_unit.name modname,
          Env.read_signature unit (pref ^ ".cmi") ~add_binding:false)
+||||||| 121bedcfd2
+         (modname, Env.read_signature modname (pref ^ ".cmi")))
+=======
+         Unit_info.Artifact.modname artifact, sg)
+>>>>>>> 5.2.0
       objfiles in
   (* Compute signature of packaged unit *)
   Ident.reinit();
   let sg = package_signatures units in
   (* Compute the shape of the package *)
+<<<<<<< HEAD
   let prefix = Filename.remove_extension cmifile in
   let pack_uid = Uid.of_compilation_unit_id modulename in
+||||||| 121bedcfd2
+  let prefix = Filename.remove_extension cmifile in
+  let pack_uid = Uid.of_compilation_unit_id (Ident.create_persistent prefix) in
+=======
+  let prefix = Unit_info.Artifact.prefix target_cmi in
+  let pack_uid = Uid.of_compilation_unit_id (Ident.create_persistent prefix) in
+>>>>>>> 5.2.0
   let shape =
     List.fold_left (fun map (name, _sg) ->
       let name = Compilation_unit.Name.to_string name in
@@ -3814,22 +4849,37 @@ let package_units initial_env objfiles cmifile modulename =
     |> Shape.str ~uid:pack_uid
   in
   (* See if explicit interface is provided *)
-  let mlifile = prefix ^ !Config.interface_suffix in
-  if Sys.file_exists mlifile then begin
-    if not (Sys.file_exists cmifile) then begin
-      raise(Error(Location.in_file mlifile, Env.empty,
-                  Interface_not_compiled mlifile))
+  let mli = Unit_info.mli_from_artifact target_cmi in
+  if Sys.file_exists mli then begin
+    if not (Sys.file_exists @@ Unit_info.Artifact.filename target_cmi) then
+    begin
+      raise(Error(Location.in_file mli, Env.empty,
+                  Interface_not_compiled mli))
     end;
+<<<<<<< HEAD
     let name = Compilation_unit.name modulename in
     let dclsig = Env.read_signature name cmifile ~add_binding:false in
+||||||| 121bedcfd2
+    let dclsig = Env.read_signature modulename cmifile in
+=======
+    let dclsig = Env.read_signature target_cmi in
+>>>>>>> 5.2.0
     let cc, _shape =
       Includemod.compunit initial_env ~mark:Mark_both
-        "(obtained by packing)" sg mlifile dclsig shape
+        "(obtained by packing)" sg mli dclsig shape
     in
+<<<<<<< HEAD
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None (Some shape);
     Cms_format.save_cms  (prefix ^ ".cms") modulename
       (Cmt_format.Packed (sg, objfiles)) None (Some shape);
+||||||| 121bedcfd2
+    Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
+      (Cmt_format.Packed (sg, objfiles)) None initial_env  None (Some shape);
+=======
+    Cmt_format.save_cmt (Unit_info.companion_cmt target_cmi)
+      (Cmt_format.Packed (sg, objfiles)) initial_env  None (Some shape);
+>>>>>>> 5.2.0
     cc
   end else begin
     (* Determine imports *)
@@ -3849,11 +4899,26 @@ let package_units initial_env objfiles cmifile modulename =
       let kind = Cmi_format.Normal { cmi_impl = modulename; cmi_arg_for } in
       let cmi =
         Env.save_signature_with_imports ~alerts:Misc.Stdlib.String.Map.empty
+<<<<<<< HEAD
           sg name kind (prefix ^ ".cmi") (Array.of_list imports)
+||||||| 121bedcfd2
+          sg modulename
+          (prefix ^ ".cmi") imports
+=======
+          sg target_cmi imports
+>>>>>>> 5.2.0
       in
+<<<<<<< HEAD
       let sign = Subst.Lazy.force_signature cmi.Cmi_format.cmi_sign in
       Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
         (Cmt_format.Packed (sign, objfiles)) None initial_env
+||||||| 121bedcfd2
+      Cmt_format.save_cmt (prefix ^ ".cmt")  modulename
+        (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) None initial_env
+=======
+      Cmt_format.save_cmt (Unit_info.companion_cmt target_cmi)
+        (Cmt_format.Packed (cmi.Cmi_format.cmi_sign, objfiles)) initial_env
+>>>>>>> 5.2.0
         (Some cmi) (Some shape);
       Cms_format.save_cms (prefix ^ ".cms")  modulename
         (Cmt_format.Packed (sign, objfiles)) None (Some shape);
@@ -3870,7 +4935,8 @@ open Printtyp
 let report_error ~loc _env = function
     Cannot_apply mty ->
       Location.errorf ~loc
-        "@[This module is not a functor; it has type@ %a@]" modtype mty
+        "@[This module is not a functor; it has type@ %a@]"
+        (Style.as_inline_code modtype) mty
   | Not_included errs ->
       let main = Includemod_errorprinter.err_msgs errs in
       Location.errorf ~loc "@[<v>Signature mismatch:@ %t@]" main
@@ -3888,11 +4954,19 @@ let report_error ~loc _env = function
       Location.errorf ~loc
         "@[This functor has type@ %a@ \
            The parameter cannot be eliminated in the result type.@ \
+<<<<<<< HEAD
            %s.@]" modtype mty hint
+||||||| 121bedcfd2
+           Please bind the argument to a module identifier.@]" modtype mty
+=======
+         Please bind the argument to a module identifier.@]"
+        (Style.as_inline_code modtype) mty
+>>>>>>> 5.2.0
   | Signature_expected ->
       Location.errorf ~loc "This module type is not a signature"
   | Structure_expected mty ->
       Location.errorf ~loc
+<<<<<<< HEAD
         "@[This module is not a structure; it has type@ %a" modtype mty
   | Functor_expected mty ->
       Location.errorf ~loc
@@ -3908,40 +4982,62 @@ let report_error ~loc _env = function
   | Recursive_include_functor ->
       Location.errorf ~loc
         "@[Including a functor is not supported in recursive module signatures @]"
+||||||| 121bedcfd2
+        "@[This module is not a structure; it has type@ %a" modtype mty
+=======
+        "@[This module is not a structure; it has type@ %a"
+        (Style.as_inline_code modtype) mty
+>>>>>>> 5.2.0
   | With_no_component lid ->
       Location.errorf ~loc
-        "@[The signature constrained by `with' has no component named %a@]"
-        longident lid
+        "@[The signature constrained by %a has no component named %a@]"
+        Style.inline_code "with"
+        (Style.as_inline_code longident) lid
   | With_mismatch(lid, explanation) ->
       let main = Includemod_errorprinter.err_msgs explanation in
       Location.errorf ~loc
         "@[<v>\
-           @[In this `with' constraint, the new definition of %a@ \
+           @[In this %a constraint, the new definition of %a@ \
              does not match its original definition@ \
              in the constrained signature:@]@ \
-           %t@]"
-        longident lid main
+         %t@]"
+        Style.inline_code "with"
+        (Style.as_inline_code longident) lid main
   | With_makes_applicative_functor_ill_typed(lid, path, explanation) ->
       let main = Includemod_errorprinter.err_msgs explanation in
       Location.errorf ~loc
         "@[<v>\
-           @[This `with' constraint on %a makes the applicative functor @ \
-             type %s ill-typed in the constrained signature:@]@ \
-           %t@]"
-        longident lid (Path.name path) main
+           @[This %a constraint on %a makes the applicative functor @ \
+             type %a ill-typed in the constrained signature:@]@ \
+         %t@]"
+        Style.inline_code "with"
+        (Style.as_inline_code longident) lid
+        Style.inline_code (Path.name path)
+        main
   | With_changes_module_alias(lid, id, path) ->
       Location.errorf ~loc
         "@[<v>\
-           @[This `with' constraint on %a changes %s, which is aliased @ \
-             in the constrained signature (as %s)@].@]"
-        longident lid (Path.name path) (Ident.name id)
+           @[This %a constraint on %a changes %a, which is aliased @ \
+             in the constrained signature (as %a)@].@]"
+        Style.inline_code "with"
+        (Style.as_inline_code longident) lid
+        Style.inline_code (Path.name path)
+        Style.inline_code (Ident.name id)
   | With_cannot_remove_constrained_type ->
       Location.errorf ~loc
         "@[<v>Destructive substitutions are not supported for constrained @ \
               types (other than when replacing a type constructor with @ \
               a type constructor with the same arguments).@]"
   | With_cannot_remove_packed_modtype (p,mty) ->
+      let[@manual.ref "ss:module-type-substitution"] manual_ref =
+        [ 12; 7; 3 ]
+      in
+      let pp_constraint ppf () =
+        Format.fprintf ppf "%s := %a"
+          (Path.name p) Printtyp.modtype mty
+      in
       Location.errorf ~loc
+<<<<<<< HEAD
         "This `with' constraint@ %s := %a@ makes a packed module ill-formed."
         (Path.name p) Printtyp.modtype mty
   | With_package_manifest (lid, ty) ->
@@ -3950,11 +5046,27 @@ let report_error ~loc _env = function
          Package `with' constraints may only be used on abstract types."
         longident lid
         Printtyp.type_expr ty
+||||||| 121bedcfd2
+        "This `with' constraint@ %s := %a@ makes a packed module ill-formed."
+        (Path.name p) Printtyp.modtype mty
+=======
+        "This %a constraint@ %a@ makes a packed module ill-formed.@ %a"
+        Style.inline_code "with"
+        (Style.as_inline_code pp_constraint) ()
+        Misc.print_see_manual manual_ref
+  | With_package_manifest (lid, ty) ->
+      Location.errorf ~loc
+        "In the constrained signature, type %a is defined to be %a.@ \
+         Package %a constraints may only be used on abstract types."
+        (Style.as_inline_code longident) lid
+        (Style.as_inline_code Printtyp.type_expr) ty
+        Style.inline_code "with"
+>>>>>>> 5.2.0
   | Repeated_name(kind, name) ->
       Location.errorf ~loc
-        "@[Multiple definition of the %s name %s.@ \
+        "@[Multiple definition of the %s name %a.@ \
          Names must be unique in a given structure or signature.@]"
-        (Sig_component_kind.to_string kind) name
+        (Sig_component_kind.to_string kind) Style.inline_code name
   | Non_generalizable { vars; expression } ->
       let[@manual.ref "ss:valuerestriction"] manual_ref = [ 6; 1; 2 ] in
       prepare_for_printing vars;
@@ -3962,9 +5074,9 @@ let report_error ~loc _env = function
       Location.errorf ~loc
         "@[The type of this expression,@ %a,@ \
          contains the non-generalizable type variable(s): %a.@ %a@]"
-        prepared_type_scheme expression
+        (Style.as_inline_code prepared_type_scheme) expression
         (pp_print_list ~pp_sep:(fun f () -> fprintf f ",@ ")
-           prepared_type_scheme) vars
+           (Style.as_inline_code prepared_type_scheme)) vars
         Misc.print_see_manual manual_ref
   | Non_generalizable_module { vars; mty; item } ->
       let[@manual.ref "ss:valuerestriction"] manual_ref = [ 6; 1; 2 ] in
@@ -3974,10 +5086,10 @@ let report_error ~loc _env = function
         [ Location.msg ~loc:item.val_loc
             "The type of this value,@ %a,@ \
              contains the non-generalizable type variable(s) %a."
-            prepared_type_scheme
+            (Style.as_inline_code prepared_type_scheme)
             item.val_type
             (pp_print_list ~pp_sep:(fun f () -> fprintf f ",@ ")
-               prepared_type_scheme) vars
+               @@ Style.as_inline_code prepared_type_scheme) vars
         ]
       in
       Location.errorf ~loc ~sub
@@ -4005,28 +5117,31 @@ let report_error ~loc _env = function
   | Not_a_packed_module ty ->
       Location.errorf ~loc
         "This expression is not a packed module. It has type@ %a"
-        type_expr ty
+        (Style.as_inline_code type_expr) ty
   | Incomplete_packed_module ty ->
       Location.errorf ~loc
         "The type of this packed module contains variables:@ %a"
-        type_expr ty
+        (Style.as_inline_code type_expr) ty
   | Scoping_pack (lid, ty) ->
       Location.errorf ~loc
         "The type %a in this module cannot be exported.@ \
-        Its type contains local dependencies:@ %a" longident lid type_expr ty
+         Its type contains local dependencies:@ %a"
+        (Style.as_inline_code longident) lid
+        (Style.as_inline_code type_expr) ty
   | Recursive_module_require_explicit_type ->
       Location.errorf ~loc "Recursive modules require an explicit module type."
   | Apply_generative ->
       Location.errorf ~loc
-        "This is a generative functor. It can only be applied to ()"
+        "This is a generative functor. It can only be applied to %a"
+        Style.inline_code "()"
   | Cannot_scrape_alias p ->
       Location.errorf ~loc
         "This is an alias for module %a, which is missing"
-        path p
+        (Style.as_inline_code path) p
   | Cannot_scrape_package_type p ->
       Location.errorf ~loc
         "The type of this packed module refers to %a, which is missing"
-        path p
+        (Style.as_inline_code path) p
   | Badly_formed_signature (context, err) ->
       Location.errorf ~loc "@[In %s:@ %a@]" context Typedecl.report_error err
   | Cannot_hide_id Illegal_shadowing
@@ -4041,36 +5156,46 @@ let report_error ~loc _env = function
       let shadowed_item_kind= Sig_component_kind.to_string shadowed_item_kind in
       let shadowed_msg =
         Location.msg ~loc:shadowed_item_loc
-          "@[%s %s came from this include.@]"
+          "@[%s %a came from this include.@]"
           (String.capitalize_ascii shadowed_item_kind)
-          shadowed
+          Style.inline_code shadowed
       in
       let user_msg =
         Location.msg ~loc:user_loc
-        "@[The %s %s has no valid type@ if %s is shadowed.@]"
-        (Sig_component_kind.to_string user_kind) (Ident.name user_id)
-        shadowed
+        "@[The %s %a has no valid type@ if %a is shadowed.@]"
+        (Sig_component_kind.to_string user_kind)
+         Style.inline_code (Ident.name user_id)
+         Style.inline_code shadowed
       in
       Location.errorf ~loc ~sub:[shadowed_msg; user_msg]
-        "Illegal shadowing of included %s %s@ by %s."
-        shadowed_item_kind shadowed shadower
+        "Illegal shadowing of included %s %a@ by %a."
+        shadowed_item_kind
+        Style.inline_code shadowed
+        Style.inline_code shadower
   | Cannot_hide_id Appears_in_signature
       { opened_item_kind; opened_item_id; user_id; user_kind; user_loc } ->
       let opened_item_kind= Sig_component_kind.to_string opened_item_kind in
       let opened_id = Ident.name opened_item_id in
       let user_msg =
         Location.msg ~loc:user_loc
-          "@[The %s %s has no valid type@ if %s is hidden.@]"
-        (Sig_component_kind.to_string user_kind) (Ident.name user_id)
-        opened_id
+          "@[The %s %a has no valid type@ if %a is hidden.@]"
+          (Sig_component_kind.to_string user_kind)
+          Style.inline_code (Ident.name user_id)
+          Style.inline_code opened_id
       in
       Location.errorf ~loc ~sub:[user_msg]
-        "The %s %s introduced by this open appears in the signature."
-        opened_item_kind opened_id
+        "The %s %a introduced by this open appears in the signature."
+        opened_item_kind
+        Style.inline_code opened_id
   | Invalid_type_subst_rhs ->
-      Location.errorf ~loc "Only type synonyms are allowed on the right of :="
+      Location.errorf ~loc "Only type synonyms are allowed on the right of %a"
+        Style.inline_code  ":="
   | Unpackable_local_modtype_subst p ->
+      let[@manual.ref "ss:module-type-substitution"] manual_ref =
+        [ 12; 7; 3 ]
+      in
       Location.errorf ~loc
+<<<<<<< HEAD
         "The module type@ %s@ is not a valid type for a packed module:@ \
          it is defined as a local substitution for a non-path module type."
         (Path.name p)
@@ -4131,6 +5256,17 @@ let report_error ~loc _env = function
         "This value is %a, but expected to be %a because it is inside a module."
         (Mode.Value.Const.print_axis ax) left
         (Mode.Value.Const.print_axis ax) right
+||||||| 121bedcfd2
+        "The module type@ %s@ is not a valid type for a packed module:@ \
+         it is defined as a local substitution for a non-path module type."
+        (Path.name p)
+=======
+        "The module type@ %a@ is not a valid type for a packed module:@ \
+         it is defined as a local substitution (temporary name)@ \
+         for an anonymous module type.@ %a"
+        Style.inline_code (Path.name p)
+        Misc.print_see_manual manual_ref
+>>>>>>> 5.2.0
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

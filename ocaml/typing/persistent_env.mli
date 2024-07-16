@@ -47,15 +47,29 @@ val report_error: Format.formatter -> error -> unit
 module Persistent_signature : sig
   type t =
     { filename : string; (** Name of the file containing the signature. *)
+<<<<<<< HEAD
       cmi : Cmi_format.cmi_infos_lazy;
       visibility : Load_path.visibility
     }
+||||||| 121bedcfd2
+      cmi : Cmi_format.cmi_infos }
+=======
+      cmi : Cmi_format.cmi_infos;
+      visibility : Load_path.visibility
+    }
+>>>>>>> 5.2.0
 
   (** Function used to load a persistent signature. The default is to look for
       the .cmi file in the load path. This function can be overridden to load
       it from memory, for instance to build a self-contained toplevel. *)
+<<<<<<< HEAD
   val load :
     (allow_hidden:bool -> unit_name:Compilation_unit.Name.t -> t option) ref
+||||||| 121bedcfd2
+  val load : (unit_name:string -> t option) ref
+=======
+  val load : (allow_hidden:bool -> unit_name:string -> t option) ref
+>>>>>>> 5.2.0
 end
 
 type can_load_cmis =
@@ -71,10 +85,21 @@ val clear_missing : 'a t -> unit
 
 val fold : 'a t -> (Compilation_unit.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
+<<<<<<< HEAD
 type address =
   | Aunit of Compilation_unit.t
   | Alocal of Ident.t
   | Adot of address * int
+||||||| 121bedcfd2
+val read : 'a t -> (Persistent_signature.t -> 'a)
+  -> modname -> filepath -> 'a
+val find : 'a t -> (Persistent_signature.t -> 'a)
+  -> modname -> 'a
+=======
+val read : 'a t -> (Persistent_signature.t -> 'a) -> Unit_info.Artifact.t -> 'a
+val find : allow_hidden:bool -> 'a t -> (Persistent_signature.t -> 'a)
+  -> modname -> 'a
+>>>>>>> 5.2.0
 
 type 'a sig_reader =
   Subst.Lazy.signature
@@ -85,6 +110,7 @@ type 'a sig_reader =
   -> flags:Cmi_format.pers_flags list
   -> 'a
 
+<<<<<<< HEAD
 (* If [add_binding] is false, reads the signature from the .cmi but does not
    bind the module name in the environment. *)
 (* CR-someday lmaurer: [add_binding] is apparently always false, including in the
@@ -107,6 +133,13 @@ val register_parameter : 'a t -> Compilation_unit.Name.t -> unit
 (* [is_parameter_import penv md] checks if [md] is a parameter. Raises a fatal
    error if the module has not been imported. *)
 val is_parameter_import : 'a t -> Compilation_unit.Name.t -> bool
+||||||| 121bedcfd2
+val check : 'a t -> (Persistent_signature.t -> 'a)
+  -> loc:Location.t -> modname -> unit
+=======
+val check : allow_hidden:bool -> 'a t -> (Persistent_signature.t -> 'a)
+  -> loc:Location.t -> modname -> unit
+>>>>>>> 5.2.0
 
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment

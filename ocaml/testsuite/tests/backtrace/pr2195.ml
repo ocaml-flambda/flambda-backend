@@ -27,6 +27,7 @@ let () =
     (* The message is platform-specific, so convert the exception to Exit *)
     let bt = Printexc.get_raw_backtrace () in
     Printexc.raise_with_backtrace Exit bt
+<<<<<<< HEAD
 
 (* TEST
  flags += "-g";
@@ -49,3 +50,29 @@ let () =
    native;
  }
 *)
+||||||| 121bedcfd2
+=======
+
+(* TEST
+ flags += "-g";
+ exit_status = "2";
+ no-tsan; (* Exhausting file descriptors kills TSan support (libunwind fails) *)
+ {
+   ocamlrunparam += ",b=0";
+   reference = "${test_source_directory}/pr2195-nolocs.byte.reference";
+   bytecode;
+ }{
+   ocamlrunparam += ",b=1";
+   reference = "${test_source_directory}/pr2195-nolocs.byte.reference";
+   bytecode;
+ }{
+   ocamlrunparam += ",b=2";
+   reference = "${test_source_directory}/pr2195-locs.byte.reference";
+   bytecode;
+ }{
+   reference = "${test_source_directory}/pr2195.opt.reference";
+   compare_programs = "false";
+   native;
+ }
+*)
+>>>>>>> 5.2.0

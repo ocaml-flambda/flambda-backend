@@ -1,7 +1,18 @@
 (* TEST
+<<<<<<< HEAD
  flags = "-I ${ocamlsrcdir}/typing -I ${ocamlsrcdir}/parsing -I ${ocamlsrcdir}/utils";
  include ocamlcommon;
  expect;
+||||||| 121bedcfd2
+   flags = "-I ${ocamlsrcdir}/typing \
+    -I ${ocamlsrcdir}/parsing"
+   include ocamlcommon
+   * expect
+=======
+ flags = "-I ${ocamlsrcdir}/typing -I ${ocamlsrcdir}/parsing";
+ include ocamlcommon;
+ expect;
+>>>>>>> 5.2.0
 *)
 
 let run s =
@@ -9,6 +20,7 @@ let run s =
   let te = Typecore.type_expression (Lazy.force Env.initial) pe in
   let ute = Untypeast.untype_expression te in
   Format.asprintf "%a" Pprintast.expression ute
+;;
 
 [%%expect{|
 val run : string -> string = <fun>

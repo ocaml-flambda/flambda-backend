@@ -1,7 +1,17 @@
+<<<<<<< HEAD
 (* TEST_BELOW
 (* Blank lines added here to preserve locations. *)
 
 *)
+||||||| 121bedcfd2
+(* TEST
+   flags = "-g"
+ *)
+=======
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+*)
+>>>>>>> 5.2.0
 
 
 let id x = Sys.opaque_identity x

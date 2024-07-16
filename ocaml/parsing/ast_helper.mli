@@ -77,12 +77,14 @@ module Typ :
     val object_: ?loc:loc -> ?attrs:attrs -> object_field list
                    -> closed_flag -> core_type
     val class_: ?loc:loc -> ?attrs:attrs -> lid -> core_type list -> core_type
-    val alias: ?loc:loc -> ?attrs:attrs -> core_type -> string -> core_type
+    val alias: ?loc:loc -> ?attrs:attrs -> core_type -> string with_loc
+               -> core_type
     val variant: ?loc:loc -> ?attrs:attrs -> row_field list -> closed_flag
                  -> label list option -> core_type
     val poly: ?loc:loc -> ?attrs:attrs -> str list -> core_type -> core_type
     val package: ?loc:loc -> ?attrs:attrs -> lid -> (lid * core_type) list
                  -> core_type
+    val open_ : ?loc:loc -> ?attrs:attrs -> lid -> core_type -> core_type
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> core_type
 
     val force_poly: core_type -> core_type
@@ -136,20 +138,9 @@ module Exp:
     val constant: ?loc:loc -> ?attrs:attrs -> constant -> expression
     val let_: ?loc:loc -> ?attrs:attrs -> rec_flag -> value_binding list
               -> expression -> expression
-
-    (* We can delete these "prefer_jane_syntax" nudges once we merge
-       syntactic arity from upstream OCaml.
-    *)
-
-    val fun_: ?loc:loc -> ?attrs:attrs -> arg_label -> expression option
-              -> pattern -> expression -> expression
-    [@@alert
-      prefer_jane_syntax "Prefer Jane Syntax for constructing functions"]
-
-    val function_: ?loc:loc -> ?attrs:attrs -> case list -> expression
-    [@@alert
-      prefer_jane_syntax "Prefer Jane Syntax for constructing functions"]
-
+    val function_ : ?loc:loc -> ?attrs:attrs -> function_param list
+                   -> type_constraint option -> function_body
+                   -> expression
     val apply: ?loc:loc -> ?attrs:attrs -> expression
                -> (arg_label * expression) list -> expression
     val match_: ?loc:loc -> ?attrs:attrs -> expression -> case list

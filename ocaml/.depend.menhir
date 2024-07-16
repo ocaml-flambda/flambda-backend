@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 parsing/parser.cmo : \
     parsing/syntaxerr.cmi \
     parsing/parsetree.cmi \
@@ -9,7 +10,24 @@ parsing/parser.cmo : \
     parsing/builtin_attributes.cmi \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmi \
+||||||| 121bedcfd2
+parsing/parser.cmo : parsing/syntaxerr.cmi parsing/parsetree.cmi \
+    parsing/longident.cmi parsing/location.cmi parsing/docstrings.cmi \
+    utils/clflags.cmi parsing/asttypes.cmi parsing/ast_helper.cmi \
+=======
+parsing/parser.cmo : \
+    parsing/syntaxerr.cmi \
+    parsing/parsetree.cmi \
+    parsing/longident.cmi \
+    parsing/location.cmi \
+    parsing/docstrings.cmi \
+    utils/clflags.cmi \
+    parsing/builtin_attributes.cmi \
+    parsing/asttypes.cmi \
+    parsing/ast_helper.cmi \
+>>>>>>> 5.2.0
     parsing/parser.cmi
+<<<<<<< HEAD
 parsing/parser.cmx : \
     parsing/syntaxerr.cmx \
     parsing/parsetree.cmi \
@@ -21,10 +39,32 @@ parsing/parser.cmx : \
     parsing/builtin_attributes.cmx \
     parsing/asttypes.cmi \
     parsing/ast_helper.cmx \
+||||||| 121bedcfd2
+parsing/parser.cmx : parsing/syntaxerr.cmx parsing/parsetree.cmi \
+    parsing/longident.cmx parsing/location.cmx parsing/docstrings.cmx \
+    utils/clflags.cmx parsing/asttypes.cmi parsing/ast_helper.cmx \
+=======
+parsing/parser.cmx : \
+    parsing/syntaxerr.cmx \
+    parsing/parsetree.cmi \
+    parsing/longident.cmx \
+    parsing/location.cmx \
+    parsing/docstrings.cmx \
+    utils/clflags.cmx \
+    parsing/builtin_attributes.cmx \
+    parsing/asttypes.cmi \
+    parsing/ast_helper.cmx \
+>>>>>>> 5.2.0
     parsing/parser.cmi
 parsing/parser.cmi : \
     parsing/parsetree.cmi \
     parsing/longident.cmi \
     parsing/location.cmi \
     parsing/docstrings.cmi
+<<<<<<< HEAD
 parsing/parser.ml parsing/parser.mli: parsing/ast_helper.cmi parsing/asttypes.cmi parsing/builtin_attributes.cmi utils/clflags.cmi parsing/docstrings.cmi parsing/jane_syntax.cmi parsing/location.cmi parsing/longident.cmi parsing/parsetree.cmi parsing/syntaxerr.cmi
+||||||| 121bedcfd2
+parsing/parser.ml parsing/parser.mli: parsing/ast_helper.cmi parsing/asttypes.cmi utils/clflags.cmi parsing/docstrings.cmi parsing/location.cmi parsing/longident.cmi parsing/parsetree.cmi parsing/syntaxerr.cmi
+=======
+parsing/parser.ml parsing/parser.mli: parsing/ast_helper.cmi parsing/asttypes.cmi parsing/builtin_attributes.cmi utils/clflags.cmi parsing/docstrings.cmi parsing/location.cmi parsing/longident.cmi parsing/parsetree.cmi parsing/syntaxerr.cmi
+>>>>>>> 5.2.0

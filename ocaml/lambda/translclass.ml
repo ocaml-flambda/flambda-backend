@@ -43,7 +43,8 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) ?(ret_mode=alloc_heap) r
   | Curried {nlocal=0},
     Lfunction {kind = Curried _ as kind; params = params';
                body = body'; attr; loc; mode = Alloc_heap; ret_mode; region}
-    when List.length params + List.length params' <= Lambda.max_arity() ->
+    when attr.may_fuse_arity &&
+         List.length params + List.length params' <= Lambda.max_arity() ->
       lfunction ~kind ~params:(params @ params')
                 ~return:return_layout
                 ~body:body'
@@ -1069,11 +1070,14 @@ let () =
 (* Error report *)
 
 open Format
+module Style = Misc.Style
 
 let report_error ppf = function
   | Tags (lab1, lab2) ->
-      fprintf ppf "Method labels `%s' and `%s' are incompatible.@ %s"
-        lab1 lab2 "Change one of them."
+      fprintf ppf "Method labels %a and %a are incompatible.@ %s"
+        Style.inline_code lab1
+        Style.inline_code lab2
+        "Change one of them."
 
 let () =
   Location.register_error_of_exn

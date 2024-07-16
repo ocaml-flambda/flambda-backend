@@ -1,4 +1,3 @@
-#2 "otherlibs/dynlink/dynlink_common.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -15,8 +14,6 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
-[@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Dynlink_compilerlibs
 
@@ -137,18 +134,18 @@ module Make (P : Dynlink_platform_intf.S) = struct
       P.fold_initial_units
         ~init:(String.Map.empty, String.Map.empty, String.Set.empty)
         ~f:(fun (ifaces, implems, defined_symbols)
-                ~comp_unit ~interface ~implementation
+                ~compunit ~interface ~implementation
                 ~defined_symbols:defined_symbols_this_unit ->
           let ifaces =
             match interface with
-            | None -> String.Map.add comp_unit (Name, exe) ifaces
-            | Some crc -> String.Map.add comp_unit (Contents crc, exe) ifaces
+            | None -> String.Map.add compunit (Name, exe) ifaces
+            | Some crc -> String.Map.add compunit (Contents crc, exe) ifaces
           in
           let implems =
             match implementation with
             | None -> implems
             | Some (crc, state) ->
-              String.Map.add comp_unit (crc, exe, state) implems
+              String.Map.add compunit (crc, exe, state) implems
           in
           let defined_symbols_this_unit =
             String.Set.of_list defined_symbols_this_unit
@@ -357,6 +354,7 @@ module Make (P : Dynlink_platform_intf.S) = struct
   let load priv filename =
     init ();
     let filename = dll_filename filename in
+<<<<<<< HEAD
     match P.load ~filename ~priv with
     | exception exn -> raise (DT.Error (Cannot_open_dynamic_library exn))
     | handle, units ->
@@ -392,6 +390,52 @@ module Make (P : Dynlink_platform_intf.S) = struct
       with exn ->
         P.finish handle;
         raise exn
+||||||| 121bedcfd2
+    match P.load ~filename ~priv with
+    | exception exn -> raise (DT.Error (Cannot_open_dynamic_library exn))
+    | handle, units ->
+      try
+        with_lock (fun ({unsafe_allowed; _ } as global) ->
+            global.state <- check filename units global.state
+                ~unsafe_allowed
+                ~priv;
+            P.run_shared_startup handle;
+          );
+        List.iter
+          (fun unit_header ->
+             (* Linked modules might call Dynlink themselves,
+                we need to release the lock *)
+             P.run Global.lock handle ~unit_header ~priv;
+             if not priv then with_lock (fun global ->
+                 global.state <- set_loaded filename unit_header global.state
+               )
+          )
+          units;
+        P.finish handle
+      with exn ->
+        P.finish handle;
+        raise exn
+=======
+    let handle, units = P.load ~filename ~priv in
+    Fun.protect ~finally:(fun () -> P.finish handle) (fun () ->
+      with_lock (fun ({unsafe_allowed; _ } as global) ->
+          global.state <- check filename units global.state
+              ~unsafe_allowed
+              ~priv;
+          P.run_shared_startup handle;
+        );
+      List.iter
+        (fun unit_header ->
+           (* Linked modules might call Dynlink themselves,
+              we need to release the lock *)
+           P.run Global.lock handle ~unit_header ~priv;
+           if not priv then with_lock (fun global ->
+               global.state <- set_loaded filename unit_header global.state
+             )
+        )
+        units
+      )
+>>>>>>> 5.2.0
 
   let loadfile filename = load false filename
   let loadfile_private filename = load true filename

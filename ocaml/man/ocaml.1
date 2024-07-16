@@ -36,24 +36,20 @@ The
 command is the toplevel system for OCaml,
 that permits interactive use of the OCaml system through a
 read-eval-print loop. In this mode, the system repeatedly reads OCaml
-phrases from the input, then typechecks, compiles and evaluates
-them, then prints the inferred type and result value, if any. The
-system prints a # (hash) prompt before reading each phrase.
-
-A toplevel phrase can span several lines. It is terminated by ;; (a
-double-semicolon). The syntax of toplevel phrases is as follows.
-
-The toplevel system is started by the command
+phrases from standard input, then typechecks, compiles and evaluates
+them, then prints the inferred type and result value, if any.
+End-of-file on standard input terminates
 .BR ocaml (1).
-Phrases are read on standard input, results are printed on standard
-output, errors on standard error. End-of-file on standard input
-terminates
-.BR ocaml (1).
+
+Input to the toplevel can span several lines. It begins after the #
+(sharp) prompt printed by the system and is terminated by ;; (a
+double-semicolon) followed by optional white space and an end of line.
+The toplevel input consists in one or several toplevel phrases.
 
 If one or more
 .I object-files
-(ending in .cmo or .cma) are given, they are loaded silently before
-starting the toplevel.
+(ending in .cmo or .cma) are given on the command line, they are
+loaded silently before starting the toplevel.
 
 If a
 .I script-file
@@ -322,6 +318,7 @@ Display a short usage summary and exit.
 When
 .BR ocaml (1)
 is invoked, it will read phrases from an initialization file before
+<<<<<<< HEAD
 giving control to the user. The default file is
 .B .ocamlinit
 in the current directory if it exists, otherwise
@@ -331,6 +328,42 @@ Windows this is skipped), otherwise
 .B .ocamlinit
 in the user's home directory
 .RB ( HOME " variable)."
+||||||| 121bedcfd2
+giving control to the user. The default file is
+.B .ocamlinit
+in the current directory if it exists, otherwise
+.B XDG_CONFIG_HOME/ocaml/init.ml
+according to the XDG base directory specification lookup if it exists (on
+Windows this is skipped), otherwise
+.B .ocamlinit
+in the user's home directory (
+.B HOME
+variable).
+=======
+giving control to the user. The file read is the first found of:
+.IP 1.
+\fB.ocamlinit\fP in the current directory;
+.IP 2.
+\fBXDG_CONFIG_HOME/ocaml/init.ml\fP, if \fBXDG_CONFIG_HOME\fP is an absolute
+path;
+.IP 3.
+otherwise, on Unix, \fBHOME/ocaml/init.ml\fP or, on Windows,
+\fBocaml\\init.ml\fP under \fBLocalAppData\fP
+(e.g. \fBC:\\Users\\Bactrian\\AppData\\Local\\ocaml\\init.ml\fP);
+.IP 4.
+\fBocaml/init.ml\fP under any of the absolute paths in \fBXDG_CONFIG_DIRS\fP.
+Paths in \fBXDG_CONFIG_DIRS\fP are colon-delimited on Unix, and
+semicolon-delimited on Windows;
+.IP 5.
+if \fBXDG_CONFIG_DIRS\fP contained no absolute paths,
+\fB/usr/xdg/ocaml/init.ml\fP on Unix or, \fBocaml\\init.ml\fP under any of
+\fBLocalAppData\fP (e.g. \fBC:\\Users\\Bactrian\\AppData\\Local\fP),
+\fBRoamingAppData\fP (e.g. \fBC:\\Users\\Bactrian\\AppData\\Roaming\fP), or
+\fBProgramData\fP (e.g. \fBC:\\ProgramData\fP) on Windows;
+.IP 6.
+\fBHOME/.ocamlinit\fP, if \fBHOME\fP is non-empty;
+
+>>>>>>> 5.2.0
 You can specify a different initialization file
 by using the
 .BI \-init " file"
@@ -356,9 +389,10 @@ attempts to underline visually the location of the error. It
 consults the TERM variable to determines the type of output terminal
 and look up its capabilities in the terminal database.
 .TP
-.B XDG_CONFIG_HOME HOME
-.B .ocamlinit
-lookup procedure (see above).
+.B XDG_CONFIG_HOME HOME XDG_CONFIG_DIRS
+See
+.B INITIALIZATION FILE
+above.
 .SH SEE ALSO
 .BR ocamlc "(1), " ocamlopt "(1), " ocamlrun (1).
 .br

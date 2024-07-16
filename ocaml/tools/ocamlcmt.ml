@@ -189,9 +189,18 @@ let main () =
           | Some "-" -> None
           | Some _ as x -> x
         in
+<<<<<<< HEAD
         Envaux.reset_cache ~preserve_persistent_env:false;
         List.iter (Load_path.add_dir ~hidden:false) cmt.cmt_loadpath.visible;
         List.iter (Load_path.add_dir ~hidden:true) cmt.cmt_loadpath.hidden;
+||||||| 121bedcfd2
+        Envaux.reset_cache ();
+        List.iter Load_path.add_dir cmt.cmt_loadpath;
+=======
+        Envaux.reset_cache ();
+        List.iter (Load_path.add_dir ~hidden:false) cmt.cmt_loadpath.visible;
+        List.iter (Load_path.add_dir ~hidden:true) cmt.cmt_loadpath.hidden;
+>>>>>>> 5.2.0
         Cmt2annot.gen_annot target_filename
           ~sourcefile:cmt.cmt_sourcefile
           ~use_summaries:cmt.cmt_use_summaries

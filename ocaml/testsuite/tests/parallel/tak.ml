@@ -1,7 +1,14 @@
+<<<<<<< HEAD
 (* TEST
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
 *)
+||||||| 121bedcfd2
+(* TEST
+*)
+=======
+(* TEST *)
+>>>>>>> 5.2.0
 
 (* filling minor heaps in parallel to trigger
    minor heap exhaustion codepath organically *)

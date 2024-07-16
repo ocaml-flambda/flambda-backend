@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
  include systhreads;
@@ -8,6 +9,20 @@
  }{
    native;
  }
+||||||| 121bedcfd2
+* hassysthreads
+include systhreads
+** bytecode
+** native
+=======
+ include systhreads;
+ hassysthreads;
+ {
+   bytecode;
+ }{
+   native;
+ }
+>>>>>>> 5.2.0
 *)
 
 

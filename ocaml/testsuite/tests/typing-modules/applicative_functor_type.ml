@@ -22,8 +22,16 @@ Line 1, characters 9-22:
 Error: Modules do not match:
        sig type t = M.t val equal : 'a -> 'a -> bool end
      is not included in Set.OrderedType
+<<<<<<< HEAD
      The value `compare' is required but not provided
      File "set.mli", line 58, characters 4-31: Expected declaration
+||||||| 121bedcfd2
+     The value `compare' is required but not provided
+     File "set.mli", line 55, characters 4-31: Expected declaration
+=======
+     The value "compare" is required but not provided
+     File "set.mli", line 55, characters 4-31: Expected declaration
+>>>>>>> 5.2.0
 |} ]
 
 
@@ -48,7 +56,7 @@ Error: Modules do not match:
        val equal : 'a -> 'a -> bool
      is not included in
        val equal : unit
-     The type 'a -> 'a -> bool is not compatible with the type unit
+     The type "'a -> 'a -> bool" is not compatible with the type "unit"
 |} ]
 
 
@@ -63,7 +71,7 @@ type t = Generative(M).t
 Line 1, characters 9-24:
 1 | type t = Generative(M).t
              ^^^^^^^^^^^^^^^
-Error: The functor Generative is generative, it cannot be applied in type
+Error: The functor "Generative" is generative, it cannot be applied in type
        expressions
 |}]
 
@@ -76,5 +84,5 @@ end
 Line 2, characters 11-25:
 2 |   type t = X.F(Parsing).t
                ^^^^^^^^^^^^^^
-Error: The module X.F is abstract, it cannot be applied
+Error: The module "X.F" is abstract, it cannot be applied
 |}]

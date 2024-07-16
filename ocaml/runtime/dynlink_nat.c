@@ -39,6 +39,13 @@ CAMLexport void (*caml_natdynlink_hook)(void* handle, const char* unit) = NULL;
 #include <string.h>
 #include <limits.h>
 
+/* This should match the value of Compilenv.symbol_separator */
+#ifdef _MSC_VER
+#define CAML_SYM_SEPARATOR "$"
+#else
+#define CAML_SYM_SEPARATOR "."
+#endif
+
 #define Handle_val(v) (*((void **) Data_abstract_val(v)))
 static value Val_handle(void* handle) {
   value res = caml_alloc_small(1, Abstract_tag);
@@ -47,7 +54,14 @@ static value Val_handle(void* handle) {
 }
 
 static void *getsym(void *handle, const char *module, const char *name){
+<<<<<<< HEAD
   char *fullname = caml_stat_strconcat(3, module, ".", name);
+||||||| 121bedcfd2
+  char *fullname = caml_stat_strconcat(4, "caml", module, ".", name);
+=======
+  char *fullname;
+  fullname = caml_stat_strconcat(4, "caml", module, CAML_SYM_SEPARATOR, name);
+>>>>>>> 5.2.0
   void *sym;
   sym = caml_dlsym (handle, fullname);
   /*  printf("%s => %lx\n", fullname, (uintnat) sym); */
@@ -74,12 +88,14 @@ CAMLprim value caml_natdynlink_open(value filename, value global)
   void *sym;
   void *dlhandle;
   char_os *p;
+  int global_dup;
 
   /* TODO: dlclose in case of error... */
 
   p = caml_stat_strdup_to_os(String_val(filename));
+  global_dup = Int_val(global);
   caml_enter_blocking_section();
-  dlhandle = caml_dlopen(p, Int_val(global));
+  dlhandle = caml_dlopen(p, global_dup);
   caml_leave_blocking_section();
   caml_stat_free(p);
 

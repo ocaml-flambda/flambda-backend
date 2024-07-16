@@ -608,6 +608,19 @@ module Complex        = Complex
 module Condition      = Condition
 module Digest         = Digest
 module Domain         = Domain
+<<<<<<< HEAD
+<<<<<<< HEAD
+(* CR ocaml 5 effects:
+   BACKPORT
+||||||| 121bedcfd2
+=======
+module Dynarray       = Dynarray
+>>>>>>> 5.2.0
+||||||| 2572783060
+(* CR ocaml 5 effects:
+   BACKPORT
+=======
+>>>>>>> ocaml-jst/flambda-patches
 module Effect         = Effect
 module Either         = Either
 module Ephemeron      = Ephemeron

@@ -56,8 +56,16 @@ let[@inline available] lognot n = logxor n (-1n)
 
 let unsigned_to_int =
   let max_int = of_int Stdlib.max_int in
+<<<<<<< HEAD
   fun[@inline available] n ->
     if compare zero n <= 0 && compare n max_int <= 0 then
+||||||| 121bedcfd2
+  fun n ->
+    if compare zero n <= 0 && compare n max_int <= 0 then
+=======
+  fun n ->
+    if n >= 0n && n <= max_int then
+>>>>>>> 5.2.0
       Some (to_int n)
     else
       None
@@ -68,8 +76,15 @@ let[@inline available] to_string n = format "%d" n
 external of_string: string -> (nativeint[@unboxed])
   = "caml_nativeint_of_string" "caml_nativeint_of_string_unboxed"
 
+<<<<<<< HEAD
 let[@inline available] of_string_opt s =
   (* TODO: expose a non-raising primitive directly. *)
+||||||| 121bedcfd2
+let of_string_opt s =
+  (* TODO: expose a non-raising primitive directly. *)
+=======
+let of_string_opt s =
+>>>>>>> 5.2.0
   try Some (of_string s)
   with Failure _ -> None
 
@@ -81,19 +96,30 @@ let[@inline available] equal (x: t) (y: t) = compare x y = 0
 let[@inline available] unsigned_compare n m =
   compare (sub n min_int) (sub m min_int)
 
+<<<<<<< HEAD
 let[@inline available] min x y : t = if x <= y then x else y
 let[@inline available] max x y : t = if x >= y then x else y
+||||||| 121bedcfd2
+let min x y : t = if x <= y then x else y
+let max x y : t = if x >= y then x else y
+=======
+let unsigned_lt n m =
+  sub n min_int < sub m min_int
 
-(* Unsigned division from signed division of the same
-   bitness. See Warren Jr., Henry S. (2013). Hacker's Delight (2 ed.), Sec 9-3.
+let min x y : t = if x <= y then x else y
+let max x y : t = if x >= y then x else y
+>>>>>>> 5.2.0
+
+(* Unsigned division from signed division of the same bitness.
+   See Warren Jr., Henry S. (2013). Hacker's Delight (2 ed.), Sec 9-3.
 *)
 let[@inline available] unsigned_div n d =
   if d < zero then
-    if unsigned_compare n d < 0 then zero else one
+    if unsigned_lt n d then zero else one
   else
     let q = shift_left (div (shift_right_logical n 1) d) 1 in
     let r = sub n (mul q d) in
-    if unsigned_compare r d >= 0 then succ q else q
+    if unsigned_lt r d then q else succ q
 
 let[@inline available] unsigned_rem n d =
   sub n (mul ((unsigned_div[@inlined]) n d) d)

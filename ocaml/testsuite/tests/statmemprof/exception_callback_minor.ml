@@ -1,4 +1,18 @@
+<<<<<<< HEAD
 (* TEST *)
+||||||| 121bedcfd2
+(* TEST
+   exit_status = "2"
+   * skip
+   reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634"
+*)
+=======
+(* TEST
+ exit_status = "2";
+ reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634";
+ skip;
+*)
+>>>>>>> 5.2.0
 
 (* Tests that an exception in the alloc_minor callback propagates
    correctly to the top level. *)

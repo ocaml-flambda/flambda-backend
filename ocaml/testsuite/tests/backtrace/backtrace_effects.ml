@@ -1,9 +1,21 @@
+<<<<<<< HEAD
 (* TEST_BELOW
 (* Blank lines added here to preserve locations. *)
 
 
 
 
+||||||| 121bedcfd2
+(* TEST
+   flags = "-g"
+   ocamlrunparam += ",b=1"
+   exit_status = "2"
+=======
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+>>>>>>> 5.2.0
 *)
 
 open Effect
@@ -41,6 +53,7 @@ let baz () =
       | _ -> None }
 
 let _ = baz ()
+<<<<<<< HEAD
 
 (* TEST
  flags = "-g";
@@ -48,3 +61,12 @@ let _ = baz ()
  exit_status = "2";
  skip;
 *)
+||||||| 121bedcfd2
+=======
+
+(* TEST
+ flags = "-g";
+ ocamlrunparam += ",b=1";
+ exit_status = "2";
+*)
+>>>>>>> 5.2.0

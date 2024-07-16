@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  {
    runtime4;
    skip;
@@ -14,6 +15,23 @@
    }
  }
 *)
+||||||| 121bedcfd2
+   include runtime_events
+   include unix
+   * libunix
+   ** bytecode
+   ** native *)
+=======
+ include runtime_events;
+ include unix;
+ libunix;
+ {
+   bytecode;
+ }{
+   native;
+ }
+*)
+>>>>>>> 5.2.0
 
 let got_major = ref false
 let got_minor = ref false

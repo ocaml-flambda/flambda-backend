@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  include runtime_events;
  include unix;
  set OCAMLRUNPARAM = "e=6";
@@ -10,6 +11,24 @@
  }{
    bytecode;
  }
+||||||| 121bedcfd2
+   include runtime_events
+   include unix
+   set OCAMLRUNPARAM = "e=6"
+   * libunix
+   ** native
+   ** bytecode
+=======
+ include runtime_events;
+ include unix;
+ set OCAMLRUNPARAM = "e=6";
+ hasunix;
+ {
+   native;
+ }{
+   bytecode;
+ }
+>>>>>>> 5.2.0
 *)
 
 type Runtime_events.User.tag += Ev

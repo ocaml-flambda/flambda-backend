@@ -22,13 +22,30 @@
 
 ;; FIXME: handle UNIX_OR_WIN32 or something similar
 
+(rule
+ (deps ocamltest_unix_real.ml)
+ (targets ocamltest_unix.ml)
+ (action
+  (copy ocamltest_unix_real.ml ocamltest_unix.ml)))
+
 (library
  (name ocamltest_core_and_plugin)
  (modes byte)
  (wrapped false)
- ; -linkall so we don't fail to include e.g. ocaml_modifiers.ml, which only
- ; has top-level side effects.
  (flags
+<<<<<<< HEAD
+  (:standard -nostdlib))
+ (libraries ocamlcommon stdlib unix)
+||||||| 2572783060
+  (:standard -linkall))
+ (libraries
+  ocamlcommon
+  (select
+   ocamltest_unix.ml
+   from
+   (unix -> ocamltest_unix.real.ml)
+   (-> ocamltest_unix.dummy.ml)))
+=======
   (:standard -linkall -w +a-40-41-42-44-70))
  (libraries
   ocamlcommon
@@ -37,8 +54,9 @@
    from
    (unix -> ocamltest_unix.real.ml)
    (-> ocamltest_unix.dummy.ml)))
+>>>>>>> ocaml-jst/flambda-patches
  (modules
-  (:standard \ options main))
+  (:standard \ options main ocamltest_unix_dummy ocamltest_unix_real))
  (foreign_stubs
   (language c)
   (names run_unix run_stubs)

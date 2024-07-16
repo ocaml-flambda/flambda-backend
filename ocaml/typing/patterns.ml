@@ -79,18 +79,38 @@ end
 module General = struct
   type view = [
     | Half_simple.view
+<<<<<<< HEAD
     | `Var of Ident.t * string loc * Uid.t * Mode.Value.l
     | `Alias of pattern * Ident.t * string loc * Uid.t * Mode.Value.l
+||||||| 121bedcfd2
+    | `Var of Ident.t * string loc
+    | `Alias of pattern * Ident.t * string loc
+=======
+    | `Var of Ident.t * string loc * Uid.t
+    | `Alias of pattern * Ident.t * string loc * Uid.t
+>>>>>>> 5.2.0
   ]
   type pattern = view pattern_data
 
   let view_desc = function
     | Tpat_any ->
        `Any
+<<<<<<< HEAD
     | Tpat_var (id, str, uid, mode) ->
        `Var (id, str, uid, mode)
     | Tpat_alias (p, id, str, uid, mode) ->
        `Alias (p, id, str, uid, mode)
+||||||| 121bedcfd2
+    | Tpat_var (id, str) ->
+       `Var (id, str)
+    | Tpat_alias (p, id, str) ->
+       `Alias (p, id, str)
+=======
+    | Tpat_var (id, str, uid) ->
+       `Var (id, str, uid)
+    | Tpat_alias (p, id, str, uid) ->
+       `Alias (p, id, str, uid)
+>>>>>>> 5.2.0
     | Tpat_constant cst ->
        `Constant cst
     | Tpat_tuple ps ->
@@ -110,8 +130,16 @@ module General = struct
 
   let erase_desc = function
     | `Any -> Tpat_any
+<<<<<<< HEAD
     | `Var (id, str, uid, mode) -> Tpat_var (id, str, uid, mode)
     | `Alias (p, id, str, uid, mode) -> Tpat_alias (p, id, str, uid, mode)
+||||||| 121bedcfd2
+    | `Var (id, str) -> Tpat_var (id, str)
+    | `Alias (p, id, str) -> Tpat_alias (p, id, str)
+=======
+    | `Var (id, str, uid) -> Tpat_var (id, str, uid)
+    | `Alias (p, id, str, uid) -> Tpat_alias (p, id, str, uid)
+>>>>>>> 5.2.0
     | `Constant cst -> Tpat_constant cst
     | `Tuple ps -> Tpat_tuple ps
     | `Construct (cstr, cst_descr, args) ->
@@ -129,7 +157,13 @@ module General = struct
 
   let rec strip_vars (p : pattern) : Half_simple.pattern =
     match p.pat_desc with
+<<<<<<< HEAD
     | `Alias (p, _, _, _, _) -> strip_vars (view p)
+||||||| 121bedcfd2
+    | `Alias (p, _, _) -> strip_vars (view p)
+=======
+    | `Alias (p, _, _, _) -> strip_vars (view p)
+>>>>>>> 5.2.0
     | `Var _ -> { p with pat_desc = `Any }
     | #Half_simple.view as view -> { p with pat_desc = view }
 end

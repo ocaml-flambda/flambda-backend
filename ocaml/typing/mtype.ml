@@ -82,9 +82,19 @@ and strengthen_lazy_sig' ~aliasable sg p =
   let open Subst.Lazy in
   match sg with
     [] -> []
+<<<<<<< HEAD
   | (Sig_value(_, _, _) as sigelt) :: rem ->
       sigelt :: strengthen_lazy_sig' ~aliasable rem p
   | Sig_type(id, {type_kind=Type_abstract _}, _, _) :: rem
+||||||| 121bedcfd2
+  | (SigL_value(_, _, _) as sigelt) :: rem ->
+      sigelt :: strengthen_lazy_sig' ~aliasable env rem p
+  | SigL_type(id, {type_kind=Type_abstract}, _, _) :: rem
+=======
+  | (SigL_value(_, _, _) as sigelt) :: rem ->
+      sigelt :: strengthen_lazy_sig' ~aliasable env rem p
+  | SigL_type(id, {type_kind=Type_abstract _}, _, _) :: rem
+>>>>>>> 5.2.0
     when Btype.is_row_name (Ident.name id) ->
       strengthen_lazy_sig' ~aliasable rem p
   | Sig_type(id, decl, rs, vis) :: rem ->

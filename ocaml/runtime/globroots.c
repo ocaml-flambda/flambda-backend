@@ -244,7 +244,7 @@ static void compute_index_for_global_root_scan(value* glob_block, int* start,
 static void scan_native_globals(scanning_action f, void* fdata)
 {
   int i, j;
-  static link* dyn_globals;
+  link* dyn_globals;
   value* glob;
   value glob_block;
   int start, stop;

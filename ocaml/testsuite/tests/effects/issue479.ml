@@ -1,6 +1,12 @@
 (* TEST
+<<<<<<< HEAD
  skip;
  toplevel;
+||||||| 121bedcfd2
+   * toplevel
+=======
+ toplevel;
+>>>>>>> 5.2.0
 *)
 
 (* https://github.com/ocaml-multicore/ocaml-multicore/issues/479 *)

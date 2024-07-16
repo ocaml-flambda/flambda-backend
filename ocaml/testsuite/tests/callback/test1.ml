@@ -1,4 +1,5 @@
 (* TEST
+<<<<<<< HEAD
  include unix;
  modules = "test1_.c";
  libunix;
@@ -7,6 +8,15 @@
  }{
    native;
  }
+||||||| 121bedcfd2
+   include unix
+   modules = "test1_.c"
+   * libunix
+   ** bytecode
+   ** native
+=======
+ modules = "test1_.c";
+>>>>>>> 5.2.0
 *)
 
 (**************************************************************************)

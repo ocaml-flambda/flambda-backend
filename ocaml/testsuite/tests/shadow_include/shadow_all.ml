@@ -100,15 +100,21 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
+<<<<<<< HEAD
 Error: Illegal shadowing of included type t/2 by t/1.
+||||||| 121bedcfd2
+Error: Illegal shadowing of included type t/2 by t.
+=======
+Error: Illegal shadowing of included type "t/2" by "t".
+>>>>>>> 5.2.0
 Line 2, characters 2-11:
 2 |   include S
       ^^^^^^^^^
-  Type t/2 came from this include.
+  Type "t/2" came from this include.
 Line 3, characters 2-24:
 3 |   val ignore : t -> unit
       ^^^^^^^^^^^^^^^^^^^^^^
-  The value ignore has no valid type if t/2 is shadowed.
+  The value "ignore" has no valid type if "t/2" is shadowed.
 |}]
 
 module type Module = sig
@@ -144,15 +150,21 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
+<<<<<<< HEAD
 Error: Illegal shadowing of included module M/2 by M/1.
+||||||| 121bedcfd2
+Error: Illegal shadowing of included module M/2 by M.
+=======
+Error: Illegal shadowing of included module "M/2" by "M".
+>>>>>>> 5.2.0
 Line 2, characters 2-11:
 2 |   include S
       ^^^^^^^^^
-  Module M/2 came from this include.
+  Module "M/2" came from this include.
 Line 3, characters 2-26:
 3 |   val ignore : M.t -> unit
       ^^^^^^^^^^^^^^^^^^^^^^^^
-  The value ignore has no valid type if M/2 is shadowed.
+  The value "ignore" has no valid type if "M/2" is shadowed.
 |}]
 
 
@@ -189,15 +201,21 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
+<<<<<<< HEAD
 Error: Illegal shadowing of included module type T/2 by T/1.
+||||||| 121bedcfd2
+Error: Illegal shadowing of included module type T/2 by T.
+=======
+Error: Illegal shadowing of included module type "T/2" by "T".
+>>>>>>> 5.2.0
 Line 2, characters 2-11:
 2 |   include S
       ^^^^^^^^^
-  Module type T/2 came from this include.
+  Module type "T/2" came from this include.
 Line 3, characters 2-39:
 3 |   module F : functor (_ : T) -> sig end
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  The module F has no valid type if T/2 is shadowed.
+  The module "F" has no valid type if "T/2" is shadowed.
 |}]
 
 module type Extension = sig
@@ -210,15 +228,21 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
+<<<<<<< HEAD
 Error: Illegal shadowing of included type ext/2 by ext/1.
+||||||| 121bedcfd2
+Error: Illegal shadowing of included type ext/2 by ext.
+=======
+Error: Illegal shadowing of included type "ext/2" by "ext".
+>>>>>>> 5.2.0
 Line 2, characters 2-11:
 2 |   include S
       ^^^^^^^^^
-  Type ext/2 came from this include.
+  Type "ext/2" came from this include.
 Line 3, characters 14-16:
 3 |   type ext += C2
                   ^^
-  The extension constructor C2 has no valid type if ext/2 is shadowed.
+  The extension constructor "C2" has no valid type if "ext/2" is shadowed.
 |}]
 
 module type Class = sig
@@ -506,15 +530,33 @@ end
 Line 8, characters 2-8:
 8 |   type t
       ^^^^^^
+<<<<<<< HEAD
 Error: Illegal shadowing of included type t/2 by t/1.
+||||||| 121bedcfd2
+Error: Illegal shadowing of included type t/4 by t.
+=======
+Error: Illegal shadowing of included type "t/4" by "t".
+>>>>>>> 5.2.0
 Lines 2-5, characters 2-5:
 2 | ..include struct
 3 |     type t = A
 4 |     let x = A
 5 |   end
+<<<<<<< HEAD
   Type t/2 came from this include.
+||||||| 121bedcfd2
+  Type t/4 came from this include.
+=======
+  Type "t/4" came from this include.
+>>>>>>> 5.2.0
 Line 4, characters 8-9:
 4 |     let x = A
             ^
+<<<<<<< HEAD
   The value x has no valid type if t/2 is shadowed.
+||||||| 121bedcfd2
+  The value x has no valid type if t/4 is shadowed.
+=======
+  The value "x" has no valid type if "t/4" is shadowed.
+>>>>>>> 5.2.0
 |}]

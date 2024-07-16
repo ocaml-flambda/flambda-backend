@@ -1,6 +1,16 @@
 (* TEST
+<<<<<<< HEAD
  flags = "-g";
  reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634";
+||||||| 121bedcfd2
+   flags = "-g"
+   * skip
+   reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634"
+=======
+ flags = "-g";
+ reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634";
+ skip;
+>>>>>>> 5.2.0
 *)
 
 module MP = Gc.Memprof

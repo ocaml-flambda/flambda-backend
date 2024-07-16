@@ -1,11 +1,26 @@
 (* TEST
+<<<<<<< HEAD
  runtime5;
  frame_pointers;
  readonly_files = "fp_backtrace.c c_call_.c";
  all_modules = "${readonly_files} c_call.ml";
  native;
+||||||| 121bedcfd2
+
+* frame_pointers
+** native
+readonly_files = "fp_backtrace.c c_call_.c"
+all_modules = "${readonly_files} c_call.ml"
+
+=======
+ frame_pointers;
+ readonly_files = "fp_backtrace.c c_call_.c";
+ all_modules = "${readonly_files} c_call.ml";
+ native;
+>>>>>>> 5.2.0
 *)
 
+<<<<<<< HEAD
 (* Force -O3 to ensure the "_code" symbols are present (see the
    reference file). *)
 [@@@ocaml.flambda_o3]
@@ -14,16 +29,27 @@ external fp_backtrace : unit -> unit = "fp_backtrace"
 external fp_backtrace_no_alloc : unit -> unit = "fp_backtrace" [@@noalloc]
 external fp_backtrace_many_args : int -> int -> int -> int -> int -> int -> int
   -> int -> int -> int -> int -> unit =
+||||||| 121bedcfd2
+external fp_backtrace : unit -> unit = "fp_backtrace"
+external fp_backtrace_no_alloc : unit -> unit = "fp_backtrace" [@@noalloc]
+external fp_backtrace_many_args : int -> int -> int -> int -> int -> int -> int
+  -> int -> int -> int -> int -> unit =
+=======
+external fp_backtrace : string -> unit = "fp_backtrace"
+external fp_backtrace_no_alloc : string -> unit = "fp_backtrace" [@@noalloc]
+external fp_backtrace_many_args : string -> int -> int -> int -> int -> int
+  -> int -> int -> int -> int -> int -> int -> unit =
+>>>>>>> 5.2.0
   "fp_backtrace_many_args_argv" "fp_backtrace_many_args"
 
 let[@inline never] f () =
   (* Check backtrace through caml_c_call_stack_args *)
-  fp_backtrace_many_args 1 2 3 4 5 6 7 8 9 10 11;
+  fp_backtrace_many_args Sys.argv.(0) 1 2 3 4 5 6 7 8 9 10 11;
   (* Check backtrace through caml_c_call.
    * Also check that caml_c_call_stack_args correctly restores rbp register *)
-  fp_backtrace ();
+  fp_backtrace Sys.argv.(0);
   (* Check caml_c_call correctly restores rbp register *)
-  fp_backtrace_no_alloc ();
+  fp_backtrace_no_alloc Sys.argv.(0);
   42
 
 let () = ignore (f ())
