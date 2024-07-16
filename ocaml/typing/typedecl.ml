@@ -2622,7 +2622,7 @@ let is_upstream_compatible_non_value_unbox env ty =
 let native_repr_of_type env kind ty =
   match kind, get_desc (Ctype.expand_head_opt env ty) with
   | Untagged, Tconstr (path, _, _) when Path.same path Predef.path_int ->
-    Some Untagged_int
+    Some Untagged_immediate
   (* CR xclerc for xclerc: upstream has the following instead
   | Untagged, Tconstr (_, _, _) when
          Typeopt.maybe_pointer_type env ty = Lambda.Immediate ->
