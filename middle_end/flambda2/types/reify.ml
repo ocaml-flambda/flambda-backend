@@ -70,7 +70,7 @@ let try_to_reify_fields env ~var_allowed alloc_mode
               | Tagged_immediate _imm -> Some simple
               | Naked_immediate _ | Naked_float _ | Naked_float32 _
               | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _
-              | Naked_nativeint _ ->
+              | Naked_nativeint _ | Null ->
                 (* This should never happen, as we should have got a kind error
                    instead *)
                 None)

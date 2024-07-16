@@ -59,6 +59,7 @@ let rec struct_const ppf = function
       let floats ppf fl =
         List.iter (fun f -> fprintf ppf "@ %s" f) fl in
       fprintf ppf "@[<1>[|@[%s%a@]|]@]" f1 floats fl
+  | Const_null -> fprintf ppf "null"
 
 and struct_consts ppf (hd, tl) =
   let sconsts ppf scl =

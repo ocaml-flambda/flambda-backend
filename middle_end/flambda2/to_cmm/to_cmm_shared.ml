@@ -183,6 +183,7 @@ let const ~dbg cst =
     in
     vec128 ~dbg { high; low }
   | Naked_nativeint t -> targetint ~dbg t
+  | Null -> targetint ~dbg Targetint_32_64.zero
 
 let simple ?consider_inlining_effectful_expressions ~dbg env res s =
   Simple.pattern_match s
@@ -232,6 +233,7 @@ let const_static cst =
       Vector_types.Vec128.Bit_pattern.to_bits v
     in
     [cvec128 { high; low }]
+  | Null -> [cint (nativeint_of_targetint Targetint_32_64.zero)]
 
 let simple_static res s =
   Simple.pattern_match s

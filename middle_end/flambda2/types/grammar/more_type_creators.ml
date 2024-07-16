@@ -285,6 +285,7 @@ let type_for_const const =
   | Naked_int64 n -> TG.this_naked_int64 n
   | Naked_nativeint n -> TG.this_naked_nativeint n
   | Naked_vec128 n -> TG.this_naked_vec128 n
+  | Null -> TG.the_null
 
 let kind_for_const const = TG.kind (type_for_const const)
 

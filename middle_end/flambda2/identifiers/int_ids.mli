@@ -25,6 +25,8 @@ module Const : sig
 
   include Container_types.S with type t := t
 
+  val null : t
+
   val const_true : t
 
   val const_false : t
@@ -74,6 +76,7 @@ module Const : sig
       | Naked_int64 of Int64.t
       | Naked_nativeint of Targetint_32_64.t
       | Naked_vec128 of Vector_types.Vec128.Bit_pattern.t
+      | Null
 
     include Container_types.S with type t := t
   end

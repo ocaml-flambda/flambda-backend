@@ -48,6 +48,7 @@ module Const_data = struct
     | Naked_int64 of Int64.t
     | Naked_nativeint of Targetint_32_64.t
     | Naked_vec128 of Vector_types.Vec128.Bit_pattern.t
+    | Null
 
   let flags = const_flags
 
@@ -96,6 +97,10 @@ module Const_data = struct
           Flambda_colours.naked_number
           Vector_types.Vec128.Bit_pattern.print v
           Flambda_colours.pop
+      | Null ->
+        Format.fprintf ppf "%tnull%t"
+          Flambda_colours.naked_number
+          Flambda_colours.pop
 
     let compare t1 t2 =
       match t1, t2 with
@@ -111,6 +116,7 @@ module Const_data = struct
       | Naked_nativeint n1, Naked_nativeint n2 -> Targetint_32_64.compare n1 n2
       | Naked_vec128 v1, Naked_vec128 v2 ->
         Vector_types.Vec128.Bit_pattern.compare v1 v2
+      | Null, Null -> 0
       | Naked_immediate _, _ -> -1
       | _, Naked_immediate _ -> 1
       | Tagged_immediate _, _ -> -1
@@ -125,6 +131,8 @@ module Const_data = struct
       | _, Naked_int64 _ -> 1
       | Naked_vec128 _, _ -> -1
       | _, Naked_vec128 _ -> 1
+      | Null, _ -> -1
+      | _, Null -> 1
 
     let equal t1 t2 =
       if t1 == t2
@@ -143,9 +151,10 @@ module Const_data = struct
         | Naked_nativeint n1, Naked_nativeint n2 -> Targetint_32_64.equal n1 n2
         | Naked_vec128 v1, Naked_vec128 v2 ->
           Vector_types.Vec128.Bit_pattern.equal v1 v2
+        | Null, Null -> true
         | ( ( Naked_immediate _ | Tagged_immediate _ | Naked_float _
             | Naked_float32 _ | Naked_vec128 _ | Naked_int32 _ | Naked_int64 _
-            | Naked_nativeint _ ),
+            | Naked_nativeint _ | Null ),
             _ ) ->
           false
 
@@ -159,6 +168,7 @@ module Const_data = struct
       | Naked_int64 n -> Hashtbl.hash n
       | Naked_nativeint n -> Targetint_32_64.hash n
       | Naked_vec128 v -> Vector_types.Vec128.Bit_pattern.hash v
+      | Null -> Hashtbl.hash "NULL"
   end)
 end
 
@@ -292,6 +302,8 @@ module Const = struct
   let naked_nativeint i = create (Naked_nativeint i)
 
   let naked_vec128 i = create (Naked_vec128 i)
+
+  let null = create Null
 
   let const_true = tagged_immediate Targetint_31_63.bool_true
 
