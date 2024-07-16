@@ -2,10 +2,10 @@ File "test_signatures_first_class_modules.ml", line 24, characters 5-15:
 Error: Annotation check for zero_alloc strict failed on function Test_signatures_first_class_modules.g_strict_bad (camlTest_signatures_first_class_modules.g_strict_bad_HIDE_STAMP)
 
 File "test_signatures_first_class_modules.ml", line 26, characters 2-7:
-Error: called function may allocate on a path to exceptional return (indirect tailcall)
+Error: called function may allocate on a path to exceptional return (indirect call)
 
 File "test_signatures_first_class_modules.ml", line 35, characters 9-19:
 Error: Annotation check for zero_alloc strict failed on function Test_signatures_first_class_modules.h_strict.f_bad (camlTest_signatures_first_class_modules.f_bad_HIDE_STAMP)
 
 File "test_signatures_first_class_modules.ml", line 35, characters 38-47:
-Error: called function may allocate on a path to exceptional return (indirect tailcall)
+Error: called function may allocate on a path to exceptional return (indirect call)
