@@ -912,6 +912,21 @@ let unboxed_float sign (f, m) =
 let unboxed_type sloc lident tys =
   let loc = make_loc sloc in
   Ptyp_constr (mkloc lident loc, tys)
+
+let app_typevar_list sloc tvs =
+  (* FIXME jbachurski: The source locations here are not right.
+      Variable annotations are also quietly forgotten. *)
+  let tvs =
+    List.map (fun (tv, annot) ->
+      match annot with
+      | None -> mktyp ~loc:sloc (Ptyp_var tv.txt)
+      | Some jkind ->
+        Jane_syntax.Layouts.type_of ~loc:(make_loc sloc) @@
+          Ltyp_var { name = Some tv.txt; jkind }) tvs
+  in
+  List.fold_left
+    (fun rest tv -> mktyp ~loc:sloc (Ptyp_app (tv, [rest])))
+    (List.hd tvs) (List.tl tvs)
 %}
 
 /* Tokens */
@@ -4497,15 +4512,40 @@ tuple_type:
    - variant types:                       [`A]
  *)
 atomic_type:
-  | LPAREN core_type RPAREN
-      { $2 }
+  | atomic_type_not_quote_gen
+      { $1 }
+  | tvs=typevar_list
+      { app_typevar_list $sloc tvs }
+  | tvs=typevar_list LPAREN ty=core_type RPAREN
+      { mktyp ~loc:$sloc (Ptyp_app (ty, [app_typevar_list $sloc tvs])) }
+
+atomic_type_not_quote:
+  | atomic_type_not_quote_gen { $1 }
+
+%inline applied_type:
+  | LPAREN ty=core_type RPAREN
+      { ty }
+  | mktyp(
+    QUOTE v=ident
+      { Ptyp_var v }
+  )   { $1 }
+
+%inline atomic_type_not_quote_gen:
+  | LPAREN ty=core_type RPAREN
+      { ty }
   | LPAREN MODULE ext_attributes package_type RPAREN
       { wrap_typ_attrs ~loc:$sloc (reloc_typ ~loc:$sloc $4) $3 }
   | mktyp( /* begin mktyp group */
-      QUOTE ident
-        { Ptyp_var $2 }
-    | UNDERSCORE
+      UNDERSCORE
         { Ptyp_any }
+    | ty = atomic_type_not_quote
+      tv = applied_type
+        { Ptyp_app (tv, [ty]) }
+    | LPAREN
+      tys = separated_nontrivial_llist(COMMA, one_type_parameter_of_several)
+      RPAREN
+      tv = applied_type
+        { Ptyp_app (tv, tys) }
     | tys = actual_type_parameters
       tid = mkrhs(type_unboxed_longident)
         { unboxed_type $loc(tid) tid.txt tys }
@@ -4539,9 +4579,6 @@ atomic_type:
         { Ptyp_extension $1 }
   )
   { $1 } /* end mktyp group */
-  | LPAREN QUOTE name=ident COLON jkind=jkind_annotation RPAREN
-      { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
-        Ltyp_var { name = Some name; jkind } }
   | LPAREN UNDERSCORE COLON jkind=jkind_annotation RPAREN
       { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
         Ltyp_var { name = None; jkind } }
