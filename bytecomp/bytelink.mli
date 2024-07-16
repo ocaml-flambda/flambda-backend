@@ -37,7 +37,7 @@ type error =
   | Custom_runtime
   | File_exists of filepath
   | Cannot_open_dll of filepath
-  | Required_module_unavailable of Compilation_unit.t * Compilation_unit.t
+  | Required_compunit_unavailable of Compilation_unit.t * Compilation_unit.t
   | Camlheader of string * filepath
   | Wrong_link_order of DepSet.t
   | Multiple_definition of Compilation_unit.t * filepath * filepath

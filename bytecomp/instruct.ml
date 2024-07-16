@@ -15,24 +15,18 @@
 
 open Lambda
 
-<<<<<<< HEAD
-type compilation_env = Debug_event.compilation_env =
-||||||| 121bedcfd2
-type compilation_env =
-=======
-type closure_entry =
+type closure_entry = Debug_event.closure_entry =
   | Free_variable of int
   | Function of int
 
-type closure_env =
+type closure_env = Debug_event.closure_env =
   | Not_in_closure
   | In_closure of {
       entries: closure_entry Ident.tbl;
       env_pos: int;
     }
 
-type compilation_env =
->>>>>>> 5.2.0
+type compilation_env = Debug_event.compilation_env =
   { ce_stack: int Ident.tbl;
     ce_closure: closure_env }
 
@@ -82,8 +76,9 @@ type instruction =
   | Kclosure of label * int
   | Kclosurerec of label list * int
   | Koffsetclosure of int
-  | Kgetglobal of Ident.t
-  | Ksetglobal of Ident.t
+  | Kgetglobal of Compilation_unit.t
+  | Ksetglobal of Compilation_unit.t
+  | Kgetpredef of Ident.t
   | Kconst of structured_constant
   | Kmakeblock of int * int             (* size, tag *)
   | Kmake_faux_mixedblock of int * int  (* size, tag *)

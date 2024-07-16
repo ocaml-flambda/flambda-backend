@@ -19,7 +19,7 @@ type closure = unit -> Obj.t
 type bytecode
 external reify_bytecode :
   bytes array ->
-  Instruct.debug_event list array -> string option ->
+  Debug_event.debug_event list array -> string option ->
     bytecode * closure
                            = "caml_reify_bytecode"
 external release_bytecode : bytecode -> unit

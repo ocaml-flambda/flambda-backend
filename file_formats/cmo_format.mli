@@ -37,7 +37,7 @@ type compilation_unit_descr =
     cu_codesize: int;                   (* Size of code block *)
     cu_reloc: (reloc_info * int) list;  (* Relocation information *)
     cu_imports: Import_info.t array;    (* Names and CRC of intfs imported *)
-    cu_required_globals: Compilation_unit.t list;
+    cu_required_compunits: Compilation_unit.t list;
                                         (* Compilation units whose
                                            initialization side effects
                                            must occur before this one. *)

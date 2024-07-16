@@ -29,6 +29,7 @@ module Global : sig
     | Glob_predef of predef
   val name: t -> string
   val description: Format.formatter -> t -> unit
+  val of_compilation_unit: Compilation_unit.t -> t
   val of_ident: Ident.t -> t option
   module Set : Set.S with type elt = t
   module Map : Map.S with type key = t

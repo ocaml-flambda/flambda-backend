@@ -291,7 +291,7 @@ let add_pseudo_event loc modname c =
     let ev_defname = string_of_scoped_location loc in
     let ev =
       { ev_pos = 0;                   (* patched in emitcode *)
-        ev_module = modname;
+        ev_module = Compilation_unit.full_path_as_string modname;
         ev_loc = to_location loc;
         ev_defname;
         ev_kind = Event_pseudo;
@@ -363,7 +363,7 @@ let functions_to_compile  = (Stack.create () : function_to_compile Stack.t)
 
 (* Name of current compilation unit (for debugging events) *)
 
-let compunit_name = ref ""
+let compunit_name = ref Compilation_unit.dummy
 
 let check_stack stack_info sz =
   let curr = stack_info.max_stack_used in
@@ -395,11 +395,9 @@ let array_primitive (index_kind : Lambda.array_index_kind) prefix =
 let comp_primitive stack_info p sz args =
   check_stack stack_info sz;
   match p with
-    Pgetglobal cu ->
-      Kgetglobal (cu |> Compilation_unit.to_global_ident_for_bytecode)
-  | Psetglobal cu ->
-      Ksetglobal (cu |> Compilation_unit.to_global_ident_for_bytecode)
-  | Pgetpredef id -> Kgetglobal id
+    Pgetglobal cu -> Kgetglobal cu
+  | Psetglobal cu -> Ksetglobal cu
+  | Pgetpredef id -> Kgetpredef id
   | Pintcomp cmp -> Kintcomp cmp
   | Pcompare_ints -> Kccall("caml_int_compare", 2)
   | Pcompare_floats Pfloat64 -> Kccall("caml_float_compare", 2)
@@ -709,16 +707,8 @@ let rec comp_expr stack_info env exp sz cont =
       let fv = Ident.Set.elements(free_variables exp) in
       let entries = closure_entries Single_non_recursive fv in
       let to_compile =
-<<<<<<< HEAD
         { params = List.map (fun p -> p.name) params; body = body; label = lbl;
-          free_vars = fv; num_defs = 1; rec_vars = []; rec_pos = 0 } in
-||||||| 121bedcfd2
-        { params = List.map fst params; body = body; label = lbl;
-          free_vars = fv; num_defs = 1; rec_vars = []; rec_pos = 0 } in
-=======
-        { params = List.map fst params; body = body; label = lbl;
           entries = entries; rec_pos = 0 } in
->>>>>>> 5.2.0
       Stack.push to_compile functions_to_compile;
       comp_args stack_info env (List.map (fun n -> Lvar n) fv) sz
         (Kclosure(lbl, List.length fv) :: cont)
@@ -729,18 +719,19 @@ let rec comp_expr stack_info env exp sz cont =
           (add_pop 1 cont))
   | Lletrec(decl, body) ->
       let ndecl = List.length decl in
-<<<<<<< HEAD
       let fv =
         Ident.Set.elements (free_variables (Lletrec(decl, lambda_unit))) in
       let rec_idents = List.map (fun { id } -> id) decl in
+      let entries =
+        closure_entries (Multiple_recursive rec_idents) fv
+      in
       let rec comp_fun pos = function
           [] -> []
         | { def = {params; body} } :: rem ->
             let lbl = new_label() in
             let to_compile =
               { params = List.map (fun p -> p.name) params; body = body; label = lbl;
-                free_vars = fv; num_defs = ndecl; rec_vars = rec_idents;
-                rec_pos = pos} in
+                entries = entries; rec_pos = pos} in
             Stack.push to_compile functions_to_compile;
             lbl :: comp_fun (pos + 1) rem
       in
@@ -756,107 +747,6 @@ let rec comp_expr stack_info env exp sz cont =
   | Punbox_float (Pfloat64 | Pfloat32)), [arg], _) ->
       comp_expr stack_info env arg sz cont
   | Lprim((Pbox_int _ | Punbox_int _), [arg], _) ->
-||||||| 121bedcfd2
-      if List.for_all (function (_, Lfunction _) -> true | _ -> false)
-                      decl then begin
-        (* let rec of functions *)
-        let fv =
-          Ident.Set.elements (free_variables (Lletrec(decl, lambda_unit))) in
-        let rec_idents = List.map (fun (id, _lam) -> id) decl in
-        let rec comp_fun pos = function
-            [] -> []
-          | (_id, Lfunction{params; body}) :: rem ->
-              let lbl = new_label() in
-              let to_compile =
-                { params = List.map fst params; body = body; label = lbl;
-                  free_vars = fv; num_defs = ndecl; rec_vars = rec_idents;
-                  rec_pos = pos} in
-              Stack.push to_compile functions_to_compile;
-              lbl :: comp_fun (pos + 1) rem
-          | _ -> assert false in
-        let lbls = comp_fun 0 decl in
-        comp_args stack_info env (List.map (fun n -> Lvar n) fv) sz
-          (Kclosurerec(lbls, List.length fv) ::
-           (comp_expr stack_info
-              (add_vars rec_idents (sz+1) env) body (sz + ndecl)
-              (add_pop ndecl cont)))
-      end else begin
-        let decl_size =
-          List.map (fun (id, exp) -> (id, exp, size_of_lambda Ident.empty exp))
-            decl in
-        let rec comp_init new_env sz = function
-          | [] -> comp_nonrec new_env sz ndecl decl_size
-          | (id, _exp, RHS_floatblock blocksize) :: rem ->
-              Kconst(Const_base(Const_int blocksize)) ::
-              Kccall("caml_alloc_dummy_float", 1) :: Kpush ::
-              comp_init (add_var id (sz+1) new_env) (sz+1) rem
-          | (id, _exp, RHS_block blocksize) :: rem ->
-              Kconst(Const_base(Const_int blocksize)) ::
-              Kccall("caml_alloc_dummy", 1) :: Kpush ::
-              comp_init (add_var id (sz+1) new_env) (sz+1) rem
-          | (id, _exp, RHS_infix { blocksize; offset }) :: rem ->
-              Kconst(Const_base(Const_int offset)) ::
-              Kpush ::
-              Kconst(Const_base(Const_int blocksize)) ::
-              Kccall("caml_alloc_dummy_infix", 2) :: Kpush ::
-              comp_init (add_var id (sz+1) new_env) (sz+1) rem
-          | (id, _exp, RHS_function (blocksize,arity)) :: rem ->
-              Kconst(Const_base(Const_int arity)) ::
-              Kpush ::
-              Kconst(Const_base(Const_int blocksize)) ::
-              Kccall("caml_alloc_dummy_function", 2) :: Kpush ::
-              comp_init (add_var id (sz+1) new_env) (sz+1) rem
-          | (id, _exp, RHS_nonrec) :: rem ->
-              Kconst(Const_base(Const_int 0)) :: Kpush ::
-              comp_init (add_var id (sz+1) new_env) (sz+1) rem
-        and comp_nonrec new_env sz i = function
-          | [] -> comp_rec new_env sz ndecl decl_size
-          | (_id, _exp, (RHS_block _ | RHS_infix _ |
-                         RHS_floatblock _ | RHS_function _))
-            :: rem ->
-              comp_nonrec new_env sz (i-1) rem
-          | (_id, exp, RHS_nonrec) :: rem ->
-              comp_expr stack_info new_env exp sz
-                (Kassign (i-1) :: comp_nonrec new_env sz (i-1) rem)
-        and comp_rec new_env sz i = function
-          | [] -> comp_expr stack_info new_env body sz (add_pop ndecl cont)
-          | (_id, exp, (RHS_block _ | RHS_infix _ |
-                        RHS_floatblock _ | RHS_function _))
-            :: rem ->
-              comp_expr stack_info new_env exp sz
-                (Kpush :: Kacc i :: Kccall("caml_update_dummy", 2) ::
-                 comp_rec new_env sz (i-1) rem)
-          | (_id, _exp, RHS_nonrec) :: rem ->
-              comp_rec new_env sz (i-1) rem
-        in
-        comp_init env sz decl_size
-      end
-  | Lprim(Popaque, [arg], _) ->
-=======
-      let fv =
-        Ident.Set.elements (free_variables (Lletrec(decl, lambda_unit))) in
-      let rec_idents = List.map (fun { id } -> id) decl in
-      let entries =
-        closure_entries (Multiple_recursive rec_idents) fv
-      in
-      let rec comp_fun pos = function
-          [] -> []
-        | { def = {params; body} } :: rem ->
-            let lbl = new_label() in
-            let to_compile =
-              { params = List.map fst params; body = body; label = lbl;
-                entries = entries; rec_pos = pos} in
-            Stack.push to_compile functions_to_compile;
-            lbl :: comp_fun (pos + 1) rem
-      in
-      let lbls = comp_fun 0 decl in
-      comp_args stack_info env (List.map (fun n -> Lvar n) fv) sz
-        (Kclosurerec(lbls, List.length fv) ::
-         (comp_expr stack_info
-            (add_vars rec_idents (sz+1) env) body (sz + ndecl)
-            (add_pop ndecl cont)))
-  | Lprim(Popaque, [arg], _) ->
->>>>>>> 5.2.0
       comp_expr stack_info env arg sz cont
   | Lprim(Pignore, [arg], _) ->
       comp_expr stack_info env arg sz (add_const_unit cont)
@@ -1186,7 +1076,7 @@ let rec comp_expr stack_info env exp sz cont =
       let ev_defname = string_of_scoped_location lev.lev_loc in
       let event kind info =
         { ev_pos = 0;                   (* patched in emitcode *)
-          ev_module = !compunit_name;
+          ev_module = Compilation_unit.full_path_as_string !compunit_name;
           ev_loc = to_location lev.lev_loc;
           ev_kind = kind;
           ev_defname;
@@ -1353,7 +1243,7 @@ let comp_remainder cont =
 
 let reset () =
   label_counter := 0;
-  compunit_name := "";
+  compunit_name := Compilation_unit.dummy;
   Stack.clear functions_to_compile
 
 let compile_gen ?modulename ~init_stack expr =

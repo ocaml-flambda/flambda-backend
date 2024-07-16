@@ -18,7 +18,7 @@
 open Lambda
 open Instruct
 
-val compile_implementation: string -> lambda -> instruction list
+val compile_implementation: Compilation_unit.t -> lambda -> instruction list
 val compile_phrase: lambda -> instruction list * bool
 
 val merge_events:

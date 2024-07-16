@@ -99,8 +99,9 @@ type instruction =
   | Kclosure of label * int
   | Kclosurerec of label list * int
   | Koffsetclosure of int
-  | Kgetglobal of Ident.t
-  | Ksetglobal of Ident.t
+  | Kgetglobal of Compilation_unit.t
+  | Ksetglobal of Compilation_unit.t
+  | Kgetpredef of Ident.t
   | Kconst of structured_constant
   | Kmakeblock of int * int             (* size, tag *)
   | Kmake_faux_mixedblock of int * int  (* size, tag *)
