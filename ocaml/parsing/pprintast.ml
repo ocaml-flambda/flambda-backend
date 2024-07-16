@@ -310,18 +310,29 @@ let optional_legacy_modes f m =
     legacy_modes f m;
     pp_print_space f ()
 
-let space_modality f {txt = Modality m; _} =
-  pp_print_string f " ";
+(** Some modalities have a preferred legacy syntax *)
+module Split_modalities = struct
+  type legacy_modality = | Legacy_modality of string [@@unboxed]
+  type t =
+    { legacy : legacy_modality loc list
+    ; nonlegacy : modality loc list
+    }
+
+  let split_list modalities =
+    let f { txt = modality; loc } =
+      match modality with
+      | Modality "global" -> Either.Left { txt = (Legacy_modality "global_"); loc }
+      | Modality _ -> Either.Right { txt = modality; loc }
+    in
+    let legacy, nonlegacy = List.partition_map f modalities in
+    { legacy; nonlegacy }
+end
+
+let modality f {txt = Modality m; _} =
   pp_print_string f m
 
-let legacy_modality f m =
-  let {txt; _} = (m : modality Location.loc) in
-  let s =
-    match txt with
-    | Modality "global" -> "global_"
-    | Modality s -> Misc.fatal_errorf "Unrecognized modality %s - should not parse" s
-  in
-  pp_print_string f s
+let legacy_modality f {txt = Split_modalities.Legacy_modality m; _} =
+  pp_print_string f m
 
 let legacy_modalities f m =
   pp_print_list ~pp_sep:(fun f () -> pp f " ") legacy_modality f m
@@ -337,8 +348,7 @@ let maybe_atat_modalities f m =
   match m with
   | [] -> ()
   | _ :: _ ->
-    pp_print_string f " @@";
-    pp_print_list space_modality f m
+    pp f " @@@@ @[%a@]" (pp_print_list ~pp_sep:pp_print_space modality) m
 
 let mode f m =
   let {txt; _} = (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc) in
@@ -355,10 +365,13 @@ let maybe_modes_type pty ctxt f c =
   | None -> pty ctxt f c
 
 let modalities_type pty ctxt f pca =
-  match pca.pca_modalities with
+  let modalities = Split_modalities.split_list pca.pca_modalities in
+  match modalities.legacy with
   | [] -> pty ctxt f pca.pca_type
-  | m ->
-    pp f "%a %a" legacy_modalities m (pty ctxt) pca.pca_type
+  | _ :: _ ->
+    pp f "%a %a%a" legacy_modalities modalities.legacy
+                   (pty ctxt) pca.pca_type
+                   maybe_atat_modalities modalities.nonlegacy
 
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
@@ -1890,11 +1903,13 @@ and type_def_list ctxt f (rf, exported, l) =
 
 and record_declaration ctxt f lbls =
   let type_record_field f pld =
-    pp f "@[<2>%a%a%s:@;%a@;%a@]"
+    let modalities = Split_modalities.split_list pld.pld_modalities in
+    pp f "@[<2>%a%a%s:@;%a%a@;%a@]"
       mutable_flag pld.pld_mutable
-      optional_legacy_modalities pld.pld_modalities
+      optional_legacy_modalities modalities.legacy
       pld.pld_name.txt
       (core_type ctxt) pld.pld_type
+      maybe_atat_modalities modalities.nonlegacy
       (attributes ctxt) pld.pld_attributes
   in
   pp f "{@\n%a}"
