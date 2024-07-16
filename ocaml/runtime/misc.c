@@ -143,21 +143,17 @@ CAMLexport void caml_fatal_error_arg2 (const char *fmt1, const char *arg1,
   exit(2);
 }
 
-<<<<<<< HEAD
-void caml_fatal_out_of_memory(void)
-{
-  caml_fatal_error("Out of memory");
-}
-
-||||||| 121bedcfd2
-=======
 #ifdef ARCH_SIXTYFOUR
 #define MAX_EXT_TABLE_CAPACITY INT_MAX
 #else
 #define MAX_EXT_TABLE_CAPACITY ((asize_t) (-1) / sizeof(void *))
 #endif
 
->>>>>>> 5.2.0
+void caml_fatal_out_of_memory(void)
+{
+  caml_fatal_error("Out of memory");
+}
+
 void caml_ext_table_init(struct ext_table * tbl, int init_capa)
 {
   CAMLassert (init_capa <= MAX_EXT_TABLE_CAPACITY);
@@ -288,7 +284,17 @@ void caml_bad_caml_state(void)
 {
   caml_fatal_error("no domain lock held");
 }
-<<<<<<< HEAD
+
+#ifdef WITH_THREAD_SANITIZER
+/* This hardcodes a number of suppressions of TSan reports about runtime
+   functions (see #11040). Unlike the CAMLno_tsan qualifier which
+   un-instruments function, this simply silences reports when the call stack
+   contains a frame matching one of the lines starting with "race:". */
+const char * __tsan_default_suppressions(void) {
+  return "deadlock:caml_plat_lock\n" /* Avoids deadlock inversion messages */
+         "deadlock:pthread_mutex_lock\n"; /* idem */
+}
+#endif /* WITH_THREAD_SANITIZER */
 
 /* Flambda 2 invalid term markers */
 
@@ -304,17 +310,3 @@ void caml_flambda2_invalid (value message)
   fprintf (stderr, "Consider using [Sys.opaque_identity].\n");
   abort ();
 }
-||||||| 121bedcfd2
-=======
-
-#ifdef WITH_THREAD_SANITIZER
-/* This hardcodes a number of suppressions of TSan reports about runtime
-   functions (see #11040). Unlike the CAMLno_tsan qualifier which
-   un-instruments function, this simply silences reports when the call stack
-   contains a frame matching one of the lines starting with "race:". */
-const char * __tsan_default_suppressions(void) {
-  return "deadlock:caml_plat_lock\n" /* Avoids deadlock inversion messages */
-         "deadlock:pthread_mutex_lock\n"; /* idem */
-}
-#endif /* WITH_THREAD_SANITIZER */
->>>>>>> 5.2.0

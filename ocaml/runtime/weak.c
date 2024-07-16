@@ -178,6 +178,9 @@ void caml_ephe_clean (value v) {
          then the mark phase must have marked it (or alternatively the
          value concerned is in static data etc). */
       CAMLassert( is_marked (child) || is_not_markable (child) );
+         then the mark phase must have marked it (or alternatively the
+         value concerned is in static data etc). */
+      CAMLassert( is_marked (child) || is_not_markable (child) );
     }
 #endif
   }
@@ -287,7 +290,6 @@ CAMLprim value caml_weak_get (value ar, value n)
   return caml_ephe_get_key(ar, n);
 }
 
-<<<<<<< HEAD
 /* Copy the contents of an object from `from` to `to` (which is
  * already allocated and has the necessary header word). Darken
  * any pointer fields. */
@@ -333,43 +335,6 @@ static void ephe_copy_and_darken(value from, value to)
           Bsize_wsize(Wosize_val(from) - scan_to));
 }
 
-||||||| 121bedcfd2
-=======
-/* Copy the contents of an object from `from` to `to` (which is
- * already allocated and has the necessary header word). Darken
- * any pointer fields. */
-
-static void ephe_copy_and_darken(value from, value to)
-{
-  mlsize_t i = 0; /* size of non-scannable prefix */
-
-  CAMLassert(Is_block(from));
-  CAMLassert(Is_block(to));
-  CAMLassert(Tag_val(from) == Tag_val(to));
-  CAMLassert(Tag_val(from) != Infix_tag);
-  CAMLassert(Wosize_val(from) == Wosize_val(to));
-
-  if (Tag_val(from) > No_scan_tag) {
-    i = Wosize_val(to);
-  }
-  else if (Tag_val(from) == Closure_tag) {
-    i = Start_env_closinfo(Closinfo_val(from));
-  }
-
-  /* Copy non-scannable prefix */
-  memcpy (Bp_val(to), Bp_val(from), Bsize_wsize(i));
-
-  /* Copy and darken scannable fields */
-  caml_domain_state* domain_state = Caml_state;
-  while (i < Wosize_val(to)) {
-    value field = Field(from, i);
-    caml_darken (domain_state, field, 0);
-    Store_field(to, i, field);
-    ++ i;
-  }
-}
-
->>>>>>> 5.2.0
 static value ephe_get_field_copy (value e, mlsize_t offset)
 {
   CAMLparam1 (e);
@@ -400,7 +365,6 @@ static value ephe_get_field_copy (value e, mlsize_t offset)
       infix_offs = Infix_offset_val(val);
       val -= infix_offs;
     }
-<<<<<<< HEAD
 
     if (copy != Val_unit &&
         (Tag_val(val) == Tag_val(copy)) &&
@@ -418,27 +382,6 @@ static value ephe_get_field_copy (value e, mlsize_t offset)
     copy = caml_alloc_with_reserved (Wosize_val(val), Tag_val(val),
                                      Reserved_val(val));
     val = Val_unit;
-||||||| 121bedcfd2
-  } else {
-    Field(e, offset) = elt = v;
-=======
-
-    if (copy != Val_unit &&
-        (Tag_val(val) == Tag_val(copy)) &&
-        (Wosize_val(val) == Wosize_val(copy))) {
-      /* The copy we allocated (on a previous iteration) is large
-       * enough and has the right header bits for us to copy the
-       * contents of val into it. Note that we don't care whether val
-       * has changed since we allocated copy. */
-      break;
-    }
-
-    /* This allocation could provoke a GC, which could change the
-       * header or size of val (e.g. in a finalizer). So we go around
-       * the loop to read val again. */
-    copy = caml_alloc (Wosize_val(val), Tag_val(val));
-    val = Val_unit;
->>>>>>> 5.2.0
   }
 
   ephe_copy_and_darken(val, copy);

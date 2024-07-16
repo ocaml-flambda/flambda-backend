@@ -45,17 +45,10 @@
 #ifdef HAS_UNISTD
 #include <unistd.h>
 #endif
+#ifdef HAS_POSIX_MONOTONIC_CLOCK
 #include <time.h>
-<<<<<<< HEAD
-#ifdef HAS_MACH_ABSOLUTE_TIME
-#include <mach/mach_time.h>
-||||||| 121bedcfd2
-#elif HAS_MACH_ABSOLUTE_TIME
-#include <mach/mach_time.h>
-=======
 #elif HAS_CLOCK_GETTIME_NSEC_NP
 #include <time.h>
->>>>>>> 5.2.0
 #endif
 #ifdef HAS_DIRENT
 #include <dirent.h>
