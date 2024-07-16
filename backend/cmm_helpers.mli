@@ -139,6 +139,11 @@ val mk_compare_float32s_untagged :
 (** Convert a tagged integer into a raw integer with boolean meaning *)
 val test_bool : Debuginfo.t -> expression -> expression
 
+(** Conversions for 16-bit floats *)
+val float_of_float16 : Debuginfo.t -> expression -> expression
+
+val float16_of_float : Debuginfo.t -> expression -> expression
+
 (** Float boxing and unboxing *)
 val box_float32 : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
 

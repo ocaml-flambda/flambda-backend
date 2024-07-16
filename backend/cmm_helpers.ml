@@ -838,6 +838,38 @@ let unbox_vec128 dbg =
       | _ -> Cop (mk_load_immut Onetwentyeight_unaligned, [cmm], dbg))
     | cmm -> Cop (mk_load_immut Onetwentyeight_unaligned, [cmm], dbg))
 
+(* Conversions for 16-bit floats *)
+
+let float_of_float16 dbg c =
+  Cop
+    ( Cextcall
+        { func = "caml_double_of_float16";
+          ty = typ_float;
+          alloc = false;
+          builtin = false;
+          returns = true;
+          effects = No_effects;
+          coeffects = No_coeffects;
+          ty_args = [XInt]
+        },
+      [c],
+      dbg )
+
+let float16_of_float dbg c =
+  Cop
+    ( Cextcall
+        { func = "caml_float16_of_double";
+          ty = typ_int;
+          alloc = false;
+          builtin = false;
+          returns = true;
+          effects = No_effects;
+          coeffects = No_coeffects;
+          ty_args = [XFloat]
+        },
+      [c],
+      dbg )
+
 (* Complex *)
 
 let box_complex dbg c_re c_im =
@@ -1727,6 +1759,7 @@ let curry_function_sym function_kind arity result =
 
 let bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int = function
   | Pbigarray_unknown -> assert false
+  | Pbigarray_float16 -> 2
   | Pbigarray_float32 -> 4
   | Pbigarray_float32_t -> 4
   | Pbigarray_float64 -> 8
@@ -1743,6 +1776,7 @@ let bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int = function
 
 let bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk = function
   | Pbigarray_unknown -> assert false
+  | Pbigarray_float16 -> Sixteen_unsigned
   | Pbigarray_float32 -> Single { reg = Float64 }
   | Pbigarray_float32_t -> Single { reg = Float32 }
   | Pbigarray_float64 -> Double
@@ -3883,6 +3917,9 @@ let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~index =
     box_complex dbg
       (load ~dbg elt_chunk Mutable ~addr)
       (load ~dbg elt_chunk Mutable ~addr:addr')
+  | Pbigarray_float16 ->
+    assert (match elt_chunk with Sixteen_unsigned -> true | _ -> false);
+    float_of_float16 dbg (load ~dbg elt_chunk Mutable ~addr)
   | _ ->
     (* Note that no sign extension operation is necessary here: if the element
        type of the bigarray is signed, then the backend will emit a
@@ -3905,6 +3942,10 @@ let bigarray_store ~dbg ~(elt_kind : Lambda.bigarray_kind) ~elt_size ~elt_chunk
             ~new_value:(complex_re new_value dbg))
          (store ~dbg elt_chunk Assignment ~addr:addr'
             ~new_value:(complex_im new_value dbg)))
+  | Pbigarray_float16 ->
+    assert (match elt_chunk with Sixteen_unsigned -> true | _ -> false);
+    let new_value = float16_of_float dbg new_value in
+    return_unit dbg (store ~dbg elt_chunk Assignment ~addr ~new_value)
   | _ -> return_unit dbg (store ~dbg elt_chunk Assignment ~addr ~new_value)
 
 (* Infix field address. Contrary to regular field addresses, these addresses are

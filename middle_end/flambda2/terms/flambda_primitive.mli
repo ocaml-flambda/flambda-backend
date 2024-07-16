@@ -205,6 +205,9 @@ type equality_comparison =
 
 module Bigarray_kind : sig
   type t =
+    | Float16
+        (** This is analogous to [Float32] in that whilst storage is 16-bit,
+            reading and writing goes via 64-bit floats. *)
     | Float32
     | Float32_t
         (** [Float32_t] is used for bigarrays that contain (unboxed) float32
