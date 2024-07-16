@@ -1618,6 +1618,14 @@ module History = struct
           result = update_reason result reason
         }
 end
+(* module Type *)
+
+(* Re-export some symbols *)
+
+type sort = Type.sort
+
+module Sort = Type.Sort
+module Externality = Type.Externality
 
 (******************************)
 (* constants *)
@@ -1698,7 +1706,8 @@ module Const = struct
     | Abbreviation const ->
       Type (Type.Const.of_user_written_abbreviation ~jkind const)
     | Mod (jkind, modes) ->
-      (* FIXME jbachurski: What should be the interaction between [mod] and arrow kinds? *)
+      (* jbachurski: We coerce here - in the future, the syntax should not permit
+         mod on arrows. Such expressions are not parsed currently. *)
       let jkind =
         to_type_jkind (of_user_written_annotation_unchecked_level jkind)
       in
