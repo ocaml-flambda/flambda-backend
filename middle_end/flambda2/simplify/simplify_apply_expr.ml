@@ -907,9 +907,9 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
     | Indirect_known_arity ->
       Call_kind.indirect_function_call_known_arity apply_alloc_mode
     | Direct code_id ->
-      (* Keep the code ID if it corresponds to a simplified function,
-         otherwise demote it to avoid keeping non-simplified code alive.
-         Keep the function's arity as it is never allowed to change. *)
+      (* Keep the code ID if it corresponds to a simplified function, otherwise
+         demote it to avoid keeping non-simplified code alive. Keep the
+         function's arity as it is never allowed to change. *)
       if Code_id.Set.mem code_id (DA.code_ids_never_simplified dacc)
       then Call_kind.indirect_function_call_known_arity apply_alloc_mode
       else Call_kind.direct_function_call code_id apply_alloc_mode

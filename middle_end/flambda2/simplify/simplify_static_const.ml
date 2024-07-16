@@ -296,20 +296,23 @@ let simplify_static_consts dacc (bound_static : Bound_static.t) static_consts
      be compiled to Invalid, which will trigger at runtime.
 
      To solve this, for now we track these old code IDs in the accumulator and
-     demote any direct calls to them. That ensures that we don't keep any use
-     of non-simplified code. We could also change the slot offsets data to
-     include projections in addition to sets of closures; this piece of data
-     is always computed (during closure conversion for old code IDs) so by
-     using the additional info we could make more accurate decisions on which
-     value slots can be removed. *)
+     demote any direct calls to them. That ensures that we don't keep any use of
+     non-simplified code. We could also change the slot offsets data to include
+     projections in addition to sets of closures; this piece of data is always
+     computed (during closure conversion for old code IDs) so by using the
+     additional info we could make more accurate decisions on which value slots
+     can be removed. *)
   let dacc =
     let old_code_ids =
-      Code_id.Map.fold (fun code_id code old_code_ids ->
-          if Code.stub code then old_code_ids
+      Code_id.Map.fold
+        (fun code_id code old_code_ids ->
+          if Code.stub code
+          then old_code_ids
           else
             match Code.newer_version_of code with
             | None ->
-              if Code_id.is_imported code_id then old_code_ids
+              if Code_id.is_imported code_id
+              then old_code_ids
               else Code_id.Set.add code_id old_code_ids
             | Some _ -> old_code_ids)
         all_code Code_id.Set.empty
