@@ -47,15 +47,39 @@ let cygwin = cygwin ()
 let max_array_length = max_wosize ()
 let max_floatarray_length = max_array_length / (64 / word_size)
 let max_string_length = word_size / 8 * max_array_length - 1
+
+(* In bytecode, [float# array] is treated as [float array].
+   Using [max_floatarray_length] assumes flat float arrays are enabled. *)
+let max_unboxed_float_array_length = max_floatarray_length
+
+let max_custom_array_length = max_array_length - 1
+
+let max_unboxed_float32_array_length =
+  match backend_type with
+  | Native -> max_custom_array_length * (word_size / 32)
+  | Bytecode | Other _ -> max_array_length
+
+let max_unboxed_int64_array_length =
+  match backend_type with
+  | Native -> max_custom_array_length / (64 / word_size)
+  | Bytecode | Other _ -> max_array_length
+
+let max_unboxed_int32_array_length =
+  match backend_type with
+  | Native -> max_custom_array_length * (word_size / 32)
+  | Bytecode | Other _ -> max_array_length
+
+let max_unboxed_nativeint_array_length =
+  match backend_type with
+  | Native -> max_custom_array_length
+  | Bytecode | Other _ -> max_array_length
+
 external runtime_variant : unit -> string = "caml_runtime_variant"
 external runtime_parameters : unit -> string = "caml_runtime_parameters"
 
 external file_exists: string -> bool = "caml_sys_file_exists"
 external is_directory : string -> bool = "caml_sys_is_directory"
-(* BACKPORT
-   not in 4.x runtime (caml_sys_is_regular_file)
 external is_regular_file : string -> bool = "caml_sys_is_regular_file"
-*)
 external remove: string -> unit = "caml_sys_remove"
 external rename : string -> string -> unit = "caml_sys_rename"
 external getenv: string -> string = "caml_sys_getenv"
@@ -162,7 +186,7 @@ let ocaml_release = {
 
 (* Optimization *)
 
-external opaque_identity : 'a -> 'a = "%opaque"
+external[@layout_poly] opaque_identity : ('a : any). 'a -> 'a = "%opaque"
 
 module Immediate64 = struct
   module type Non_immediate = sig

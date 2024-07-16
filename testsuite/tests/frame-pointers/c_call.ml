@@ -1,13 +1,14 @@
 (* TEST
-
-* skip
-reason = "OCaml 5 only"
-** frame_pointers
-*** native
-readonly_files = "fp_backtrace.c c_call_.c"
-all_modules = "${readonly_files} c_call.ml"
-
+ runtime5;
+ frame_pointers;
+ readonly_files = "fp_backtrace.c c_call_.c";
+ all_modules = "${readonly_files} c_call.ml";
+ native;
 *)
+
+(* Force -O3 to ensure the "_code" symbols are present (see the
+   reference file). *)
+[@@@ocaml.flambda_o3]
 
 external fp_backtrace : unit -> unit = "fp_backtrace"
 external fp_backtrace_no_alloc : unit -> unit = "fp_backtrace" [@@noalloc]

@@ -44,9 +44,19 @@ and dllibs = ref ([] : string list)     (* .so and -dllib -lxxx *)
 
 let cmi_file = ref None
 
+module Libloc = struct
+  type t = {
+    path: string;
+    libs: string list;
+    hidden_libs: string list
+  }
+end
+
 let compile_only = ref false            (* -c *)
 and output_name = ref (None : string option) (* -o *)
-and include_dirs = ref ([] : string list)(* -I *)
+and include_dirs = ref ([] : string list) (* -I *)
+and hidden_include_dirs = ref ([] : string list) (* -H *)
+and libloc = ref ([] : Libloc.t list) (* -libloc *)
 and no_std_include = ref false          (* -nostdlib *)
 and no_cwd = ref false                  (* -nocwd *)
 and print_types = ref false             (* -i *)
@@ -70,9 +80,11 @@ and safer_matching = ref false          (* -safer-matching *)
 and preprocessor = ref(None : string option) (* -pp *)
 and all_ppx = ref ([] : string list)        (* -ppx *)
 let absname = ref false                 (* -absname *)
+let directory = ref None                (* -directory *)
 let annotations = ref false             (* -annot *)
 let binary_annotations = ref false      (* -bin-annot *)
 let binary_annotations_cms = ref false  (* -bin-annot-cms *)
+let store_occurrences = ref false       (* -bin-annot-occurrences *)
 and use_threads = ref false             (* -thread *)
 and noassert = ref false                (* -noassert *)
 and verbose = ref false                 (* -verbose *)
@@ -98,17 +110,21 @@ and no_auto_link = ref false            (* -noautolink *)
 and dllpaths = ref ([] : string list)   (* -dllpath *)
 and make_package = ref false            (* -pack *)
 and for_package = ref (None: string option) (* -for-pack *)
-and error_size = ref 500                (* -error-size *)
+and error_size = ref 256                (* -error-size *)
 and float_const_prop = ref true         (* -no-float-const-prop *)
 and transparent_modules = ref false     (* -trans-mod *)
 let unique_ids = ref true               (* -d(no-)unique-ds *)
 let locations = ref true                (* -d(no-)locations *)
+let parameters = ref ([] : string list) (* -parameter *)
+let as_parameter = ref false            (* -as-parameter *)
+let as_argument_for = ref None          (* -as-argument-for *)
 let dump_source = ref false             (* -dsource *)
 let dump_parsetree = ref false          (* -dparsetree *)
 and dump_typedtree = ref false          (* -dtypedtree *)
 and dump_shape = ref false              (* -dshape *)
 and dump_rawlambda = ref false          (* -drawlambda *)
 and dump_lambda = ref false             (* -dlambda *)
+and dump_letreclambda = ref false       (* -dletreclambda *)
 and dump_rawclambda = ref false         (* -drawclambda *)
 and dump_clambda = ref false            (* -dclambda *)
 and dump_rawflambda = ref false            (* -drawflambda *)
@@ -186,6 +202,7 @@ let afl_inst_ratio = ref 100           (* -afl-inst-ratio *)
 
 let function_sections = ref false      (* -function-sections *)
 let probes = ref Config.probes         (* -probes *)
+let allow_illegal_crossing = ref false (* -allow_illegal_crossing *)
 let simplify_rounds = ref None        (* -rounds *)
 let default_simplify_rounds = ref 1        (* -rounds *)
 let rounds () =
@@ -507,13 +524,14 @@ module Compiler_pass = struct
      - the manpages in man/ocaml{c,opt}.m
      - the manual manual/src/cmds/unified-options.etex
   *)
-  type t = Parsing | Typing | Lambda
+  type t = Parsing | Typing | Lambda | Middle_end
          | Scheduling | Emit | Simplify_cfg | Selection
 
   let to_string = function
     | Parsing -> "parsing"
     | Typing -> "typing"
     | Lambda -> "lambda"
+    | Middle_end -> "middle_end"
     | Scheduling -> "scheduling"
     | Emit -> "emit"
     | Simplify_cfg -> "simplify_cfg"
@@ -523,6 +541,7 @@ module Compiler_pass = struct
     | "parsing" -> Some Parsing
     | "typing" -> Some Typing
     | "lambda" -> Some Lambda
+    | "middle_end" -> Some Middle_end
     | "scheduling" -> Some Scheduling
     | "emit" -> Some Emit
     | "simplify_cfg" -> Some Simplify_cfg
@@ -533,6 +552,7 @@ module Compiler_pass = struct
     | Parsing -> 0
     | Typing -> 1
     | Lambda -> 2
+    | Middle_end -> 3
     | Selection -> 20
     | Simplify_cfg -> 49
     | Scheduling -> 50
@@ -542,6 +562,7 @@ module Compiler_pass = struct
     Parsing;
     Typing;
     Lambda;
+    Middle_end;
     Scheduling;
     Emit;
     Simplify_cfg;
@@ -549,6 +570,7 @@ module Compiler_pass = struct
   ]
   let is_compilation_pass _ = true
   let is_native_only = function
+    | Middle_end -> true
     | Scheduling -> true
     | Emit -> true
     | Simplify_cfg -> true
@@ -560,7 +582,7 @@ module Compiler_pass = struct
     | Scheduling -> true
     | Simplify_cfg -> true
     | Selection -> true
-    | Parsing | Typing | Lambda | Emit -> false
+    | Parsing | Typing | Lambda | Middle_end | Emit -> false
 
   let available_pass_names ~filter ~native =
     passes
@@ -576,7 +598,7 @@ module Compiler_pass = struct
     | Scheduling -> prefix ^ Compiler_ir.(extension Linear)
     | Simplify_cfg -> prefix ^ Compiler_ir.(extension Cfg)
     | Selection -> prefix ^ Compiler_ir.(extension Cfg) ^ "-sel"
-    | Emit | Parsing | Typing | Lambda -> Misc.fatal_error "Not supported"
+    | Emit | Parsing | Typing | Lambda | Middle_end -> Misc.fatal_error "Not supported"
 
   let of_input_filename name =
     match Compiler_ir.extract_extension_with_pass name with
@@ -639,37 +661,7 @@ let create_usage_msg program =
 let print_arguments program =
   Arg.usage !arg_spec (create_usage_msg program)
 
-module Annotations = struct
-  type t = Check_default | Check_all | Check_opt_only | No_check
-
-  let all = [ Check_default; Check_all; Check_opt_only; No_check ]
-
-  let to_string = function
-    | Check_default -> "default"
-    | Check_all -> "all"
-    | Check_opt_only -> "opt"
-    | No_check -> "none"
-
-  let equal t1 t2 =
-    match t1, t2 with
-    | Check_default, Check_default -> true
-    | Check_all, Check_all -> true
-    | No_check, No_check -> true
-    | Check_opt_only, Check_opt_only -> true
-    | (Check_default | Check_all | Check_opt_only | No_check), _ -> false
-
-  let of_string v =
-    let f t =
-      if String.equal (to_string t) v then Some t else None
-    in
-    List.find_map f all
-
-  let doc =
-    "\n\    The argument specifies which annotations to check: \n\
-     \      \"opt\" means attributes with \"opt\" payload and is intended for debugging;\n\
-     \      \"default\" means attributes without \"opt\" payload; \n\
-     \      \"all\" covers both \"opt\" and \"default\" and is intended for optimized builds."
-end
-
-let zero_alloc_check = ref Annotations.No_check         (* -zero-alloc-check *)
+let zero_alloc_check = ref Zero_alloc_annotations.Check_default    (* -zero-alloc-check *)
 let zero_alloc_check_assert_all = ref false (* -zero-alloc-check-assert-all *)
+
+let no_auto_include_otherlibs = ref false      (* -no-auto-include-otherlibs *)

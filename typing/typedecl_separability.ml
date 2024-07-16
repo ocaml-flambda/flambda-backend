@@ -130,7 +130,7 @@ let rec immediate_subtypes : type_expr -> type_expr list = fun ty ->
      on which immediate_subtypes is called from [check_type] *)
   | Tarrow(_,ty1,ty2,_) ->
       [ty1; ty2]
-  | Ttuple(tys) -> tys
+  | Ttuple(tys) -> List.map snd tys
   | Tpackage(_, fl) -> (snd (List.split fl))
   | Tobject(row,class_ty) ->
       let class_subtys =
@@ -480,9 +480,9 @@ let msig_of_external_type env decl =
   let check_jkind =
     Ctype.check_decl_jkind env decl
   in
-  if Result.is_error (check_jkind (Jkind.value ~why:Separability_check))
+  if Result.is_error (check_jkind (Jkind.Primitive.value_or_null ~why:Separability_check))
      || Result.is_ok
-          (check_jkind (Jkind.immediate64 ~why:Separability_check))
+          (check_jkind (Jkind.Primitive.immediate64 ~why:Separability_check))
   then best_msig decl
   else worst_msig decl
 

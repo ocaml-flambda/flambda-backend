@@ -16,8 +16,23 @@
 (* Abstract syntax tree after typing *)
 
 open Asttypes
-open Jane_asttypes
 open Types
+open Mode
+
+type constant =
+    Const_int of int
+  | Const_char of char
+  | Const_string of string * Location.t * string option
+  | Const_float of string
+  | Const_float32 of string
+  | Const_unboxed_float of string
+  | Const_unboxed_float32 of string
+  | Const_int32 of int32
+  | Const_int64 of int64
+  | Const_nativeint of nativeint
+  | Const_unboxed_int32 of int32
+  | Const_unboxed_int64 of int64
+  | Const_unboxed_nativeint of nativeint
 
 module Uid = Shape.Uid
 
@@ -35,11 +50,17 @@ type _ pattern_category =
 | Value : value pattern_category
 | Computation : computation pattern_category
 
-type unique_barrier = Mode.Uniqueness.t option
+type unique_barrier = Mode.Uniqueness.r option
 
-type unique_use = Mode.Uniqueness.t * Mode.Linearity.t
+type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
-let shared_many_use = (Mode.Uniqueness.shared, Mode.Linearity.many)
+type texp_field_boxing =
+  | Boxing of Mode.Alloc.r * unique_use
+  | Non_boxing of unique_use
+
+let shared_many_use =
+  ( Mode.Uniqueness.disallow_left Mode.Uniqueness.shared,
+    Mode.Linearity.disallow_right Mode.Linearity.many )
 
 type pattern = value general_pattern
 and 'k general_pattern = 'k pattern_desc pattern_data
@@ -62,11 +83,11 @@ and pat_extra =
 and 'k pattern_desc =
   (* value patterns *)
   | Tpat_any : value pattern_desc
-  | Tpat_var : Ident.t * string loc * Uid.t * Mode.Value.t -> value pattern_desc
+  | Tpat_var : Ident.t * string loc * Uid.t * Mode.Value.l -> value pattern_desc
   | Tpat_alias :
-      value general_pattern * Ident.t * string loc * Uid.t * Mode.Value.t -> value pattern_desc
+      value general_pattern * Ident.t * string loc * Uid.t * Mode.Value.l -> value pattern_desc
   | Tpat_constant : constant -> value pattern_desc
-  | Tpat_tuple : value general_pattern list -> value pattern_desc
+  | Tpat_tuple : (string option * value general_pattern) list -> value pattern_desc
   | Tpat_construct :
       Longident.t loc * constructor_description * value general_pattern list
       * (Ident.t loc list * core_type) option ->
@@ -79,7 +100,7 @@ and 'k pattern_desc =
         closed_flag ->
       value pattern_desc
   | Tpat_array :
-      mutable_flag * value general_pattern list -> value pattern_desc
+      mutability * Jkind.sort * value general_pattern list -> value pattern_desc
   | Tpat_lazy : value general_pattern -> value pattern_desc
   (* computation patterns *)
   | Tpat_value : tpat_value_argument -> computation pattern_desc
@@ -104,48 +125,51 @@ and exp_extra =
   | Texp_constraint of core_type
   | Texp_coerce of core_type option * core_type
   | Texp_poly of core_type option
-  | Texp_newtype of string * const_jkind option
+  | Texp_newtype of string * Jkind.annotation option
+  | Texp_mode_coerce of Jane_syntax.Mode_expr.t
 
-
-and fun_curry_state =
-  | More_args of { partial_mode : Mode.Alloc.t }
-  | Final_arg of { partial_mode : Mode.Alloc.t }
+and arg_label = Types.arg_label =
+  | Nolabel
+  | Labelled of string
+  | Optional of string
+  | Position of string
 
 and expression_desc =
     Texp_ident of
       Path.t * Longident.t loc * Types.value_description * ident_kind * unique_use
   | Texp_constant of constant
   | Texp_let of rec_flag * value_binding list * expression
-  | Texp_function of { arg_label : arg_label; param : Ident.t;
-      cases : value case list; partial : partial;
-      region : bool; curry : fun_curry_state;
-      warnings : Warnings.state;
-      arg_mode : Mode.Alloc.t;
-      arg_sort : Jkind.sort;
-      ret_sort : Jkind.sort;
-      alloc_mode : Mode.Alloc.t }
+  | Texp_function of
+      { params : function_param list;
+        body : function_body;
+        region : bool;
+        ret_mode : Mode.Alloc.l;
+        ret_sort : Jkind.sort;
+        alloc_mode : Mode.Alloc.r;
+        zero_alloc : Zero_alloc.t;
+      }
   | Texp_apply of
       expression * (arg_label * apply_arg) list * apply_position *
-        Mode.Locality.t
+        Mode.Locality.l * Zero_alloc.assume option
   | Texp_match of expression * Jkind.sort * computation case list * partial
   | Texp_try of expression * value case list
-  | Texp_tuple of expression list * Mode.Alloc.t
+  | Texp_tuple of (string option * expression) list * Mode.Alloc.r
   | Texp_construct of
-      Longident.t loc * constructor_description * expression list * Mode.Alloc.t option
-  | Texp_variant of label * (expression * Mode.Alloc.t) option
+      Longident.t loc * constructor_description * expression list * Mode.Alloc.r option
+  | Texp_variant of label * (expression * Mode.Alloc.r) option
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
-      alloc_mode : Mode.Alloc.t option
+      alloc_mode : Mode.Alloc.r option
     }
   | Texp_field of
-      expression * Longident.t loc * label_description * unique_use * Mode.Alloc.t option
+      expression * Longident.t loc * label_description * texp_field_boxing
   | Texp_setfield of
-      expression * Mode.Locality.t * Longident.t loc * label_description * expression
-  | Texp_array of mutable_flag * expression list * Mode.Alloc.t
+      expression * Mode.Locality.l * Longident.t loc * label_description * expression
+  | Texp_array of mutability * Jkind.Sort.t * expression list * Mode.Alloc.r
   | Texp_list_comprehension of comprehension
-  | Texp_array_comprehension of mutable_flag * comprehension
+  | Texp_array_comprehension of mutability * Jkind.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
   | Texp_sequence of expression * Jkind.sort * expression
   | Texp_while of {
@@ -184,7 +208,6 @@ and expression_desc =
       body : value case;
       body_sort : Jkind.sort;
       partial : partial;
-      warnings : Warnings.state;
     }
   | Texp_unreachable
   | Texp_extension_constructor of Longident.t loc * Path.t
@@ -192,8 +215,49 @@ and expression_desc =
   | Texp_probe of { name:string; handler:expression; enabled_at_init:bool; }
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
+  | Texp_src_pos
 
-and ident_kind = Id_value | Id_prim of Mode.Locality.t option
+and function_curry =
+  | More_args of { partial_mode : Mode.Alloc.l }
+  | Final_arg
+
+and function_param =
+  {
+    fp_arg_label: arg_label;
+    fp_param: Ident.t;
+    fp_partial: partial;
+    fp_kind: function_param_kind;
+    fp_sort: Jkind.sort;
+    fp_mode: Mode.Alloc.l;
+    fp_curry: function_curry;
+    fp_newtypes: (string loc * Jkind.annotation option) list;
+    fp_loc: Location.t;
+  }
+
+and function_param_kind =
+  | Tparam_pat of pattern
+  | Tparam_optional_default of pattern * expression * Jkind.sort
+
+and function_body =
+  | Tfunction_body of expression
+  | Tfunction_cases of function_cases
+
+and function_cases =
+  { fc_cases: value case list;
+    fc_env : Env.t;
+    fc_arg_mode: Mode.Alloc.l;
+    fc_arg_sort: Jkind.sort;
+    fc_ret_type : Types.type_expr;
+    fc_partial: partial;
+    fc_param: Ident.t;
+    fc_loc: Location.t;
+    fc_exp_extra: exp_extra option;
+    fc_attributes: attributes;
+  }
+
+and ident_kind =
+  | Id_value
+  | Id_prim of Mode.Locality.l option * Jkind.Sort.t option
 
 and meth =
   | Tmeth_name of string
@@ -235,7 +299,7 @@ and 'k case =
     }
 
 and record_label_definition =
-  | Kept of Types.type_expr * mutable_flag * unique_use
+  | Kept of Types.type_expr * mutability * unique_use
   | Overridden of Longident.t loc * expression
 
 and binding_op =
@@ -255,9 +319,9 @@ and ('a, 'b) arg_or_omitted =
   | Omitted of 'b
 
 and omitted_parameter =
-  { mode_closure : Mode.Alloc.t;
-    mode_arg : Mode.Alloc.t;
-    mode_ret : Mode.Alloc.t;
+  { mode_closure : Mode.Alloc.r;
+    mode_arg : Mode.Alloc.l;
+    mode_ret : Mode.Alloc.l;
     sort_arg : Jkind.sort }
 
 and apply_arg = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
@@ -382,6 +446,7 @@ and module_binding =
     {
      mb_id: Ident.t option;
      mb_name: string option loc;
+     mb_uid: Uid.t;
      mb_presence: module_presence;
      mb_expr: module_expr;
      mb_attributes: attribute list;
@@ -392,6 +457,7 @@ and value_binding =
   {
     vb_pat: pattern;
     vb_expr: expression;
+    vb_rec_kind: Value_rec_types.recursive_binding_kind;
     vb_sort: Jkind.sort;
     vb_attributes: attributes;
     vb_loc: Location.t;
@@ -427,7 +493,8 @@ and primitive_coercion =
   {
     pc_desc: Primitive.description;
     pc_type: type_expr;
-    pc_poly_mode: Mode.Locality.t option;
+    pc_poly_mode: Mode.Locality.l option;
+    pc_poly_sort: Jkind.Sort.t option;
     pc_env: Env.t;
     pc_loc : Location.t;
   }
@@ -464,6 +531,7 @@ and module_declaration =
     {
      md_id: Ident.t option;
      md_name: string option loc;
+     md_uid: Uid.t;
      md_presence: module_presence;
      md_type: module_type;
      md_attributes: attribute list;
@@ -474,6 +542,7 @@ and module_substitution =
     {
      ms_id: Ident.t;
      ms_name: string loc;
+     ms_uid: Uid.t;
      ms_manifest: Path.t;
      ms_txt: Longident.t loc;
      ms_attributes: attributes;
@@ -484,6 +553,7 @@ and module_type_declaration =
     {
      mtd_id: Ident.t;
      mtd_name: string loc;
+     mtd_uid: Uid.t;
      mtd_type: module_type option;
      mtd_attributes: attribute list;
      mtd_loc: Location.t;
@@ -540,16 +610,17 @@ and core_type =
    }
 
 and core_type_desc =
-  | Ttyp_var of string option * const_jkind option
+  | Ttyp_var of string option * Jkind.annotation option
   | Ttyp_arrow of arg_label * core_type * core_type
-  | Ttyp_tuple of core_type list
+  | Ttyp_tuple of (string option * core_type) list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-  | Ttyp_alias of core_type * string option * const_jkind option
+  | Ttyp_alias of core_type * string option * Jkind.annotation option
   | Ttyp_variant of row_field list * closed_flag * label list option
-  | Ttyp_poly of (string * const_jkind option) list * core_type
+  | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
+  | Ttyp_call_pos
 
 and package_type = {
   pack_path : Path.t;
@@ -599,6 +670,7 @@ and type_declaration =
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attribute list;
+    typ_jkind_annotation: Jane_syntax.Jkind.annotation option;
    }
 
 and type_kind =
@@ -611,8 +683,9 @@ and label_declaration =
     {
      ld_id: Ident.t;
      ld_name: string loc;
-     ld_mutable: mutable_flag;
-     ld_global: global_flag;
+     ld_uid: Uid.t;
+     ld_mutable: mutability;
+     ld_modalities: Modality.Value.Const.t;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attribute list;
@@ -622,15 +695,23 @@ and constructor_declaration =
     {
      cd_id: Ident.t;
      cd_name: string loc;
-     cd_vars: (string * const_jkind option) list;
+     cd_uid: Uid.t;
+     cd_vars: (string * Jkind.annotation option) list;
      cd_args: constructor_arguments;
      cd_res: core_type option;
      cd_loc: Location.t;
      cd_attributes: attribute list;
     }
 
+and constructor_argument =
+  {
+    ca_modalities: Modality.Value.Const.t;
+    ca_type: core_type;
+    ca_loc: Location.t;
+  }
+
 and constructor_arguments =
-  | Cstr_tuple of (core_type * global_flag) list
+  | Cstr_tuple of constructor_argument list
   | Cstr_record of label_declaration list
 
 and type_extension =
@@ -662,7 +743,7 @@ and extension_constructor =
   }
 
 and extension_constructor_kind =
-    Text_decl of (string * const_jkind option) list *
+    Text_decl of (string * Jkind.annotation option) list *
                  constructor_arguments *
                  core_type option
   | Text_rebind of Path.t * Longident.t loc
@@ -724,13 +805,32 @@ and 'a class_infos =
     ci_attributes: attribute list;
    }
 
+type argument_interface = {
+  ai_signature: Types.signature;
+  ai_coercion_from_primary: module_coercion;
+}
+
 type implementation = {
   structure: structure;
   coercion: module_coercion;
   signature: Types.signature;
+  argument_interface: argument_interface option;
   shape: Shape.t;
 }
 
+type item_declaration =
+  | Value of value_description
+  | Value_binding of value_binding
+  | Type of type_declaration
+  | Constructor of constructor_declaration
+  | Extension_constructor of extension_constructor
+  | Label of label_declaration
+  | Module of module_declaration
+  | Module_substitution of module_substitution
+  | Module_binding of module_binding
+  | Module_type of module_type_declaration
+  | Class of class_declaration
+  | Class_type of class_type_declaration
 
 (* Auxiliary functions over the a.s.t. *)
 
@@ -743,6 +843,12 @@ let as_computation_pattern (p : pattern) : computation general_pattern =
     pat_env = p.pat_env;
     pat_attributes = [];
   }
+
+let function_arity params body =
+  List.length params +
+  match body with
+  | Tfunction_body _ -> 0
+  | Tfunction_cases _ -> 1
 
 let rec classify_pattern_desc : type k . k pattern_desc -> k pattern_category =
   function
@@ -777,12 +883,12 @@ let shallow_iter_pattern_desc
   : type k . pattern_action -> k pattern_desc -> unit
   = fun f -> function
   | Tpat_alias(p, _, _, _, _) -> f.f p
-  | Tpat_tuple patl -> List.iter f.f patl
+  | Tpat_tuple patl -> List.iter (fun (_, p) -> f.f p) patl
   | Tpat_construct(_, _, patl, _) -> List.iter f.f patl
   | Tpat_variant(_, pat, _) -> Option.iter f.f pat
   | Tpat_record (lbl_pat_list, _) ->
       List.iter (fun (_, _, pat) -> f.f pat) lbl_pat_list
-  | Tpat_array (_, patl) -> List.iter f.f patl
+  | Tpat_array (_, _, patl) -> List.iter f.f patl
   | Tpat_lazy p -> f.f p
   | Tpat_any
   | Tpat_var _
@@ -799,13 +905,13 @@ let shallow_map_pattern_desc
   | Tpat_alias (p1, id, s, uid, m) ->
       Tpat_alias (f.f p1, id, s, uid, m)
   | Tpat_tuple pats ->
-      Tpat_tuple (List.map f.f pats)
+      Tpat_tuple (List.map (fun (label, pat) -> label, f.f pat) pats)
   | Tpat_record (lpats, closed) ->
       Tpat_record (List.map (fun (lid, l,p) -> lid, l, f.f p) lpats, closed)
   | Tpat_construct (lid, c, pats, ty) ->
       Tpat_construct (lid, c, List.map f.f pats, ty)
-  | Tpat_array (am, pats) ->
-      Tpat_array (am, List.map f.f pats)
+  | Tpat_array (am, arg_sort, pats) ->
+      Tpat_array (am, arg_sort, List.map f.f pats)
   | Tpat_lazy p1 -> Tpat_lazy (f.f p1)
   | Tpat_variant (x1, Some p1, x2) ->
       Tpat_variant (x1, Some (f.f p1), x2)
@@ -872,7 +978,7 @@ let rec iter_bound_idents
        d
 
 type full_bound_ident_action =
-  Ident.t -> string loc -> type_expr -> Uid.t -> Mode.Value.t -> Jkind.sort -> unit
+  Ident.t -> string loc -> type_expr -> Uid.t -> Mode.Value.l -> Jkind.sort -> unit
 
 (* The intent is that the sort should be the sort of the type of the pattern.
    It's used to avoid computing jkinds from types.  `f` then gets passed
@@ -911,10 +1017,11 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
             lbl_pat_list
       (* Cases where the inner things must be value: *)
       | Tpat_variant (_, pat, _) -> Option.iter (loop f Jkind.Sort.value) pat
-      | Tpat_tuple patl -> List.iter (loop f Jkind.Sort.value) patl
+      | Tpat_tuple patl ->
+        List.iter (fun (_, pat) -> loop f Jkind.Sort.value pat) patl
         (* CR layouts v5: tuple case to change when we allow non-values in
            tuples *)
-      | Tpat_array (_, patl) -> List.iter (loop f Jkind.Sort.value) patl
+      | Tpat_array (_, arg_sort, patl) -> List.iter (loop f arg_sort) patl
       | Tpat_lazy p | Tpat_exception p -> loop f Jkind.Sort.value p
       (* Cases without variables: *)
       | Tpat_any | Tpat_constant _ -> ()
@@ -923,17 +1030,17 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
 
 let rev_pat_bound_idents_full sort pat =
   let idents_full = ref [] in
-  let add id sloc typ _uid _ sort =
-    idents_full := (id, sloc, typ, sort) :: !idents_full
+  let add id sloc typ uid _ sort =
+    idents_full := (id, sloc, typ, uid, sort) :: !idents_full
   in
   iter_pattern_full ~both_sides_of_or:false add sort pat;
   !idents_full
 
 let rev_only_idents idents_full =
-  List.rev_map (fun (id,_,_,_) -> id) idents_full
+  List.rev_map (fun (id,_,_,_,_) -> id) idents_full
 
 let rev_only_idents_and_types idents_full =
-  List.rev_map (fun (id,_,ty,_) -> (id,ty)) idents_full
+  List.rev_map (fun (id,_,ty,_,_) -> (id,ty)) idents_full
 
 let pat_bound_idents_full sort pat =
   List.rev (rev_pat_bound_idents_full sort pat)
@@ -951,16 +1058,47 @@ let rev_let_bound_idents_full bindings =
   List.iter (fun vb -> iter_bound_idents add vb.vb_pat) bindings;
   !idents_full
 
-let let_bound_idents_with_modes_and_sorts bindings =
+let let_bound_idents_with_modes_sorts_and_checks bindings =
   let modes_and_sorts = Ident.Tbl.create 3 in
   let f id sloc _ _uid mode sort =
     Ident.Tbl.add modes_and_sorts id (sloc.loc, mode, sort)
   in
-  List.iter (fun vb ->
-    iter_pattern_full ~both_sides_of_or:true f vb.vb_sort vb.vb_pat)
-    bindings;
+  let checks =
+    List.fold_left (fun checks vb ->
+      iter_pattern_full ~both_sides_of_or:true f vb.vb_sort vb.vb_pat;
+       match vb.vb_pat.pat_desc, vb.vb_expr.exp_desc with
+       | Tpat_var (id, _, _, _), Texp_function fn ->
+         let zero_alloc =
+           match Zero_alloc.get fn.zero_alloc with
+           | Default_zero_alloc ->
+             (* We fabricate a "Check" attribute if a top-level annotation
+                specifies that all functions should be checked for zero
+                alloc. There is no need to update the zero_alloc variable on the
+                function - if it remains [Default_zero_alloc], translcore adds
+                the check. *)
+             let arity = function_arity fn.params fn.body in
+             if !Clflags.zero_alloc_check_assert_all && arity > 0 then
+               Zero_alloc.create_const
+                 (Check { strict = false;
+                          arity;
+                          loc = Location.none;
+                          opt = false })
+             else
+               fn.zero_alloc
+           | Ignore_assert_all | Check _ | Assume _ -> fn.zero_alloc
+         in
+         Ident.Map.add id zero_alloc checks
+         (* CR ccasinghino: To keep the zero-alloc annotation info aliases, it
+            may be enough to copy it if the vb_expr is an ident. *)
+       | _ -> checks
+    ) Ident.Map.empty bindings
+  in
   List.rev_map
-    (fun (id, _, _, _) -> id, List.rev (Ident.Tbl.find_all modes_and_sorts id))
+    (fun (id, _, _, _) ->
+       let zero_alloc =
+         Option.value (Ident.Map.find_opt id checks) ~default:Zero_alloc.default
+       in
+       id, List.rev (Ident.Tbl.find_all modes_and_sorts id), zero_alloc)
     (rev_let_bound_idents_full bindings)
 
 let let_bound_idents_full bindings =
@@ -1035,6 +1173,6 @@ let rec exp_is_nominal exp =
   | Texp_variant (_, None)
   | Texp_construct (_, _, [], _) ->
       true
-  | Texp_field (parent, _, _, _, _) | Texp_send (parent, _, _) ->
+  | Texp_field (parent, _, _, _) | Texp_send (parent, _, _) ->
       exp_is_nominal parent
   | _ -> false

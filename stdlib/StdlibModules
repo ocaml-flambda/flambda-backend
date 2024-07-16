@@ -35,6 +35,7 @@
 # with lowercase first letters). These must be listed in dependency order.
 STDLIB_MODULE_BASENAMES = \
   camlinternalFormatBasics \
+  camlinternalAtomic \
   stdlib \
   either \
   sys \
@@ -56,12 +57,10 @@ STDLIB_MODULE_BASENAMES = \
   unit \
   marshal \
   array \
-  iarray \
   float \
-  float_u \
   int32 \
-  int64 \
   nativeint \
+  int64 \
   lexing \
   parsing \
   set \
@@ -76,6 +75,10 @@ STDLIB_MODULE_BASENAMES = \
   fun \
   gc \
   digest \
+  mutex \
+  condition \
+  semaphore \
+  domain \
   bigarray \
   random \
   hashtbl \
@@ -90,7 +93,6 @@ STDLIB_MODULE_BASENAMES = \
   filename \
   complex \
   arrayLabels \
-  iarrayLabels \
   listLabels \
   bytesLabels \
   stringLabels \
@@ -98,7 +100,7 @@ STDLIB_MODULE_BASENAMES = \
   stdLabels \
   in_channel \
   out_channel \
-  camlinternalComprehensions
+  camlinternalComprehension
 
 STDLIB_PREFIXED_MODULES = \
   $(filter-out stdlib camlinternal%, $(STDLIB_MODULE_BASENAMES))

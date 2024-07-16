@@ -115,6 +115,8 @@ struct c_stack_link {
   /* OCaml return address */
   void* sp;
   struct c_stack_link* prev;
+  char* async_exn_handler;
+  void* padding; /* for stack alignment in caml_start_program */
 };
 
 /* `gc_regs` and `gc_regs_buckets`.
@@ -247,14 +249,15 @@ CAMLextern struct stack_info* caml_alloc_main_stack (uintnat init_wsize);
 
 void caml_scan_stack(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* v_gc_regs);
+  struct stack_info* stack, value* v_gc_regs,
+  struct caml_local_arenas* locals);
 
 struct stack_info* caml_alloc_stack_noexc(mlsize_t wosize, value hval,
                                           value hexn, value heff, int64_t id);
 /* try to grow the stack until at least required_size words are available.
    returns nonzero on success */
 CAMLextern int caml_try_realloc_stack (asize_t required_wsize);
-CAMLextern uintnat caml_get_init_stack_wsize(void);
+CAMLextern uintnat caml_get_init_stack_wsize(int thread_stack_wsz);
 void caml_change_max_stack_size (uintnat new_max_wsize);
 void caml_maybe_expand_stack(void);
 CAMLextern void caml_free_stack(struct stack_info* stk);
@@ -267,7 +270,8 @@ void caml_get_stack_sp_pc (struct stack_info* stack,
                            char** sp /* out */, uintnat* pc /* out */);
 void
 caml_rewrite_exception_stack(struct stack_info *old_stack,
-                             value** exn_ptr, struct stack_info *new_stack);
+                             value** exn_ptr, value** async_exn_ptr,
+                             struct stack_info *new_stack);
 #endif
 
 value caml_continuation_use (value cont);
@@ -287,6 +291,16 @@ CAMLextern void caml_raise_unhandled_effect (value effect)
 CAMLnoreturn_end;
 
 value caml_make_unhandled_effect_exn (value effect);
+
+#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+// mmap does not seem to guarantee it will always return a page-aligned
+// address as per some man pages from a few years ago (more recent man
+// pages seem to indicate the alignment is guaranteed), hence the last
+// part of the expression below to add an offset guaranteeing alignment
+#define Protected_stack_page(block, page_size) \
+  (((char*) (block)) + (page_size) + (page_size) - \
+   ((uintnat) ((char*) (block)) % (page_size)))
+#endif
 
 #endif /* CAML_INTERNALS */
 

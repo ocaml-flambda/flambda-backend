@@ -20,6 +20,13 @@ type pers_flags =
   | Alerts of alerts
   | Opaque
 
+type kind =
+  | Normal of {
+      cmi_impl : Compilation_unit.t;
+      cmi_arg_for : Compilation_unit.Name.t option;
+    }
+  | Parameter
+
 type error =
   | Not_an_interface of filepath
   | Wrong_version_interface of filepath * string
@@ -53,11 +60,18 @@ module Serialized = Types.Make_wrapped(struct type 'a t = int end)
    input_value and output_value usage. *)
 type crcs = Import_info.t array  (* smaller on disk than using a list *)
 type flags = pers_flags list
-type header = Compilation_unit.t * Serialized.signature
+type header = {
+    header_name : Compilation_unit.Name.t;
+    header_kind : kind;
+    header_sign : Serialized.signature;
+    header_params : Compilation_unit.Name.t list;
+}
 
 type 'sg cmi_infos_generic = {
-    cmi_name : Compilation_unit.t;
+    cmi_name : Compilation_unit.Name.t;
+    cmi_kind : kind;
     cmi_sign : 'sg;
+    cmi_params : Compilation_unit.Name.t list;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }
@@ -108,12 +122,19 @@ let input_cmi_lazy ic =
   in
   let data_len = Bytes.get_int64_ne (read_bytes 8) 0 |> Int64.to_int in
   let data = read_bytes data_len in
-  let (name, sign) = (input_value ic : header) in
+  let {
+      header_name = name;
+      header_kind = kind;
+      header_sign = sign;
+      header_params = params;
+    } = (input_value ic : header) in
   let crcs = (input_value ic : crcs) in
   let flags = (input_value ic : flags) in
   {
       cmi_name = name;
+      cmi_kind = kind;
       cmi_sign = deserialize data sign;
+      cmi_params = params;
       cmi_crcs = crcs;
       cmi_flags = flags;
     }
@@ -167,15 +188,26 @@ let output_cmi filename oc cmi =
   output_int64 oc len;
   Out_channel.seek oc val_pos;
   (* BACKPORT BEGIN *)
-  (* mshinwell: upstream uses [Compression] here *)
-  output_value oc ((cmi.cmi_name, sign) : header);
+  (* CR ocaml 5 compressed-marshal mshinwell:
+     upstream uses [Compression] here *)
+  output_value oc
+    {
+      header_name = cmi.cmi_name;
+      header_kind = cmi.cmi_kind;
+      header_sign = sign;
+      header_params = cmi.cmi_params;
+    };
   (* BACKPORT END *)
   flush oc;
   let crc = Digest.file filename in
-  let crcs =
-    Array.append [| Import_info.create_normal cmi.cmi_name ~crc:(Some crc) |]
-      cmi.cmi_crcs
+  let my_info =
+    match cmi.cmi_kind with
+    | Normal { cmi_impl } ->
+      Import_info.Intf.create_normal cmi.cmi_name cmi_impl ~crc
+    | Parameter ->
+      Import_info.Intf.create_parameter cmi.cmi_name ~crc
   in
+  let crcs = Array.append [| my_info |] cmi.cmi_crcs in
   output_value oc (crcs : crcs);
   output_value oc (cmi.cmi_flags : flags);
   crc

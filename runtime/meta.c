@@ -67,14 +67,15 @@ static char* buffer_of_bytes_array(value ls, asize_t *len)
   int i;
 
   *len = 0;
-  for (i = 0; i < Wosize_val(ls); i++) {
+  mlsize_t ls_size = Wosize_val(ls);
+  for (i = 0; i < ls_size; i++) {
     s = Field(ls, i);
     *len += caml_string_length(s);
   }
 
   ret = caml_stat_alloc(*len);
   off = 0;
-  for (i = 0; i < Wosize_val(ls); i++) {
+  for (i = 0; i < ls_size; i++) {
     size_t s_len;
     s = Field(ls, i);
     s_len = caml_string_length(s);
@@ -121,7 +122,7 @@ CAMLprim value caml_reify_bytecode(value ls_prog,
 
   clos = caml_alloc_small (2, Closure_tag);
   Code_val(clos) = (code_t) prog;
-  Closinfo_val(clos) = Make_closinfo(0, 2);
+  Closinfo_val(clos) = Make_closinfo(0, 2, 1);
   bytecode = caml_alloc_small (2, Abstract_tag);
   Bytecode_val(bytecode)->prog = prog;
   Bytecode_val(bytecode)->len = len;

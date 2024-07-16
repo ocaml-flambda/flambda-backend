@@ -1,15 +1,14 @@
 (* TEST
-
-readonly_files = "a.ml b.ml"
-flags = "-extension layouts_beta"
-* setup-ocamlc.byte-build-env
-** ocamlc.byte
-module = "a.ml"
-*** ocamlc.byte
-module = "b.ml"
-**** script
-script = "rm -f a.cmi"
-***** expect
+ readonly_files = "a.ml b.ml";
+ flags = "-extension layouts_beta";
+ setup-ocamlc.byte-build-env;
+ module = "a.ml";
+ ocamlc.byte;
+ module = "b.ml";
+ ocamlc.byte;
+ script = "rm -f a.cmi";
+ script;
+ expect;
 *)
 
 (* CR layouts v2.5: The commented out code in this file uses void, but could
@@ -45,8 +44,10 @@ Line 1, characters 12-19:
                 ^^^^^^^
 Error: This type B.b_value = A.a_value should be an instance of type
          ('a : immediate)
-       B.b_value has an unknown layout,
-         which might not be a sublayout of immediate.
+       The kind of B.b_value is value
+         because the .cmi file for A.a_value is missing.
+       But the kind of B.b_value must be a subkind of immediate
+         because of the definition of imm_arg at line 3, characters 0-29.
        No .cmi file found containing A.a_value.
        Hint: Adding "a" to your dependencies might help.
 |}];;

@@ -182,15 +182,9 @@ end
 
 module Err = Includemod.Error
 
-let buffer = ref Bytes.empty
-let is_big obj =
+let is_big p =
   let size = !Clflags.error_size in
-  size > 0 &&
-  begin
-    if Bytes.length !buffer < size then buffer := Bytes.create size;
-    try ignore (Marshal.to_buffer !buffer 0 size obj []); false
-    with _ -> true
-  end
+  size > 0 && Misc.is_print_longer_than size p
 
 let show_loc msg ppf loc =
   let pos = loc.Location.loc_start in
@@ -575,11 +569,11 @@ let with_context ?loc ctx printer diff =
 let dwith_context ?loc ctx printer =
   Location.msg ?loc "%a%t" Context.pp (List.rev ctx) printer
 
-let dwith_context_and_elision ?loc ctx printer diff =
-  if is_big (diff.got,diff.expected) then
+let dwith_context_and_elision ?loc ctx print_diff =
+  if is_big print_diff then
     Location.msg ?loc "..."
   else
-    dwith_context ?loc ctx (printer diff)
+    dwith_context ?loc ctx print_diff
 
 (* Merge sub msgs into one printer *)
 let coalesce msgs =
@@ -617,6 +611,23 @@ let core env id x =
         show_locs (diff.got.val_loc, diff.expected.val_loc)
         Printtyp.Conflicts.print_explanations
   | Err.Type_declarations diff ->
+      (* Jkind history doesn't offer helpful information in the case
+         of a signature mismatch. This part is here to strip it away. *)
+      let strip_jkind_history (err: Errortrace.equality_error) =
+        Errortrace.equality_error
+          ~trace:(List.map
+            (function
+              | Errortrace.Unequal_var_jkinds _ ->
+                Errortrace.Unequal_var_jkinds_with_no_history
+              | x -> x) err.trace)
+          ~subst:err.subst
+      in
+      let symptom : Includecore.type_mismatch =
+        match diff.symptom with
+        | Manifest err -> Manifest (strip_jkind_history err)
+        | Constraint err -> Constraint (strip_jkind_history err)
+        | symptom -> symptom
+      in
       Format.dprintf "@[<v>@[<hv>%s:@;<1 2>%a@ %s@;<1 2>%a@]%a%a%t@]"
         "Type declarations do not match"
         !Oprint.out_sig_item
@@ -625,7 +636,7 @@ let core env id x =
         !Oprint.out_sig_item
         (Printtyp.tree_of_type_declaration id diff.expected Trec_first)
         (Includecore.report_type_mismatch
-           "the first" "the second" "declaration" env) diff.symptom
+           "the first" "the second" "declaration" env) symptom
         show_locs (diff.got.type_loc, diff.expected.type_loc)
         Printtyp.Conflicts.print_explanations
   | Err.Extension_constructors diff ->
@@ -693,6 +704,16 @@ let interface_mismatch ppf (diff: _ Err.diff) =
     "The implementation %s@ does not match the interface %s:@ "
     diff.got diff.expected
 
+let parameter_mismatch ppf (diff: _ Err.diff) =
+  Format.fprintf ppf
+    "The argument module %s@ does not match the parameter signature %s:@ "
+    diff.got diff.expected
+
+let compilation_unit_mismatch comparison ppf diff =
+  match (comparison : Err.compilation_unit_comparison) with
+  | Implementation_vs_interface -> interface_mismatch ppf diff
+  | Argument_vs_parameter -> parameter_mismatch ppf diff
+
 let core_module_type_symptom (x:Err.core_module_type_symptom)  =
   match x with
   | Not_an_alias | Not_an_identifier | Abstract_module_type
@@ -723,7 +744,7 @@ let rec module_type ~expansion_token ~eqmode ~env ~before ~ctx diff =
                It is thus better to avoid eliding the current error message.
             *)
             dwith_context ctx (inner diff)
-        | _ -> dwith_context_and_elision ctx inner diff
+        | _ -> dwith_context_and_elision ctx (inner diff)
       in
       let before = next :: before in
       module_type_symptom ~eqmode ~expansion_token ~env ~before ~ctx
@@ -792,7 +813,7 @@ and sigitem ~expansion_token ~env ~before ~ctx (name,s) = match s with
       module_type_decl ~expansion_token ~env ~before ~ctx name diff
 and module_type_decl ~expansion_token ~env ~before ~ctx id diff =
   let next =
-    dwith_context_and_elision ctx (module_type_declarations id) diff in
+    dwith_context_and_elision ctx (module_type_declarations id diff) in
   let before = next :: before in
   match diff.symptom with
   | Not_less_than mts ->
@@ -869,8 +890,10 @@ let module_type_subst ~env id diff =
       [main]
 
 let all env = function
-  | In_Compilation_unit diff ->
-      let first = Location.msg "%a" interface_mismatch diff in
+  | In_Compilation_unit (comparison, diff) ->
+      let first =
+        Location.msg "%a" (compilation_unit_mismatch comparison) diff
+      in
       signature ~expansion_token:true ~env ~before:[first] ~ctx:[] diff.symptom
   | In_Type_declaration (id,reason) ->
       [Location.msg "%t" (core env id reason)]

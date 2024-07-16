@@ -1,7 +1,13 @@
 (* TEST
-include runtime_events
-* skip
-reason = "OCaml 5 only"
+ {
+   include runtime_events;
+   runtime5;
+   { bytecode; }
+   { native; }
+ }{
+   runtime4;
+   skip;
+ }
 *)
 open Runtime_events
 

@@ -24,8 +24,83 @@
 #include "caml/mlvalues.h"
 #include "caml/signals.h"
 #include "caml/runtime_events.h"
+#include "caml/custom.h"
 
 static const mlsize_t mlsize_t_max = -1;
+
+#define Max_array_wosize                   (Max_wosize)
+#define Max_custom_array_wosize            (Max_wosize - 1)
+#define Max_unboxed_float_array_wosize     (Max_array_wosize / (sizeof(double) / sizeof(intnat)))
+#define Max_unboxed_int64_array_wosize     (Max_custom_array_wosize / (sizeof(int64_t) / sizeof(intnat)))
+#define Max_unboxed_int32_array_wosize     (Max_custom_array_wosize * (sizeof(intnat) / sizeof(int32_t)))
+#define Max_unboxed_nativeint_array_wosize (Max_custom_array_wosize)
+
+/* Unboxed arrays */
+
+CAMLprim int caml_unboxed_array_no_polymorphic_compare(value v1, value v2)
+{
+  caml_failwith("Polymorphic comparison is not permitted for unboxed arrays");
+}
+
+CAMLprim intnat caml_unboxed_array_no_polymorphic_hash(value v)
+{
+  caml_failwith("Polymorphic hash is not permitted for unboxed arrays");
+}
+
+CAMLprim void caml_unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64)
+{
+  caml_failwith("Marshalling is not yet implemented for unboxed arrays");
+}
+
+CAMLprim uintnat caml_unboxed_array_deserialize(void* dst)
+{
+  caml_failwith("Marshalling is not yet implemented for unboxed arrays");
+}
+
+// Note: if polymorphic comparison and/or hashing are implemented for
+// the int32 unboxed arrays, care needs to be taken with the last word
+// when the array is of odd length -- this is not currently initialized.
+
+CAMLexport struct custom_operations caml_unboxed_int32_array_ops[2] = {
+  { "_unboxed_int32_even_array",
+    custom_finalize_default,
+    caml_unboxed_array_no_polymorphic_compare,
+    caml_unboxed_array_no_polymorphic_hash,
+    caml_unboxed_array_serialize,
+    caml_unboxed_array_deserialize,
+    custom_compare_ext_default,
+    custom_fixed_length_default },
+  { "_unboxed_int32_odd_array",
+    custom_finalize_default,
+    caml_unboxed_array_no_polymorphic_compare,
+    caml_unboxed_array_no_polymorphic_hash,
+    caml_unboxed_array_serialize,
+    caml_unboxed_array_deserialize,
+    custom_compare_ext_default,
+    custom_fixed_length_default },
+};
+
+CAMLexport struct custom_operations caml_unboxed_int64_array_ops = {
+  "_unboxed_int64_array",
+  custom_finalize_default,
+  caml_unboxed_array_no_polymorphic_compare,
+  caml_unboxed_array_no_polymorphic_hash,
+  caml_unboxed_array_serialize,
+  caml_unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
+
+CAMLexport struct custom_operations caml_unboxed_nativeint_array_ops = {
+  "_unboxed_nativeint_array",
+  custom_finalize_default,
+  caml_unboxed_array_no_polymorphic_compare,
+  caml_unboxed_array_no_polymorphic_hash,
+  caml_unboxed_array_serialize,
+  caml_unboxed_array_deserialize,
+  custom_compare_ext_default,
+  custom_fixed_length_default
+};
 
 /* returns number of elements (either fields or floats) */
 /* [ 'a array -> int ] */
@@ -64,11 +139,35 @@ CAMLprim value caml_floatarray_get(value array, value index)
   double d;
   value res;
 
-  CAMLassert (Tag_val(array) == Double_array_tag);
+  // [caml_floatarray_get] may be called on a floatarray
+  // or a mixed block.
+  CAMLassert (  Tag_val(array) == Double_array_tag
+             || index > Scannable_wosize_val(array) );
+
   if (idx < 0 || idx >= Wosize_val(array) / Double_wosize)
     caml_array_bound_error();
   d = Double_flat_field(array, idx);
   Alloc_small(res, Double_wosize, Double_tag, Alloc_small_enter_GC);
+  Store_double_val(res, d);
+  return res;
+}
+
+/* [ floatarray -> int -> local_ float ] */
+CAMLprim value caml_floatarray_get_local(value array, value index)
+{
+  intnat idx = Long_val(index);
+  double d;
+  value res;
+
+  // [caml_floatarray_get] may be called on a floatarray
+  // or a mixed block.
+  CAMLassert (  Tag_val(array) == Double_array_tag
+             || index > Scannable_wosize_val(array) );
+
+  if (idx < 0 || idx >= Wosize_val(array) / Double_wosize)
+    caml_array_bound_error();
+  d = Double_flat_field(array, idx);
+  res = caml_alloc_local(Double_wosize, Double_tag);
   Store_double_val(res, d);
   return res;
 }
@@ -85,6 +184,18 @@ CAMLprim value caml_array_get(value array, value index)
   return caml_array_get_addr(array, index);
 }
 
+/* [ local_ 'a array -> int -> local_ 'a ] */
+CAMLprim value caml_array_get_local(value array, value index)
+{
+#ifdef FLAT_FLOAT_ARRAY
+  if (Tag_val(array) == Double_array_tag)
+    return caml_floatarray_get_local(array, index);
+#else
+  CAMLassert (Tag_val(array) != Double_array_tag);
+#endif
+  return caml_array_get_addr(array, index);
+}
+
 /* [ 'a array -> int -> 'a -> unit ] where 'a != float */
 CAMLprim value caml_array_set_addr(value array, value index, value newval)
 {
@@ -94,7 +205,20 @@ CAMLprim value caml_array_set_addr(value array, value index, value newval)
   return Val_unit;
 }
 
-/* [ floatarray -> int -> float -> unit ] */
+/* [ local_ 'a array -> int -> local_ 'a -> unit ] where 'a != float
+
+   Must be used carefully, as it can violate the "no forward pointers"
+   restriction on the local stack. */
+CAMLprim value caml_array_set_addr_local(value array, value index, value newval)
+{
+  intnat idx = Long_val(index);
+  if (idx < 0 || idx >= Wosize_val(array)) caml_array_bound_error();
+  caml_modify_local(array, idx, newval);
+  return Val_unit;
+}
+
+/* [ floatarray -> int -> float -> unit ]
+   [ local_ floatarray -> int -> local_ float -> unit ] */
 CAMLprim value caml_floatarray_set(value array, value index, value newval)
 {
   intnat idx = Long_val(index);
@@ -118,6 +242,22 @@ CAMLprim value caml_array_set(value array, value index, value newval)
   return caml_array_set_addr(array, index, newval);
 }
 
+/* [ local_ 'a array -> int -> local_ 'a -> unit ]
+
+   Must be used carefully, as it can violate the "no forward pointers"
+   restriction on the local stack if the array contains pointers (vs. [int]s or
+   unboxed floats). */
+CAMLprim value caml_array_set_local(value array, value index, value newval)
+{
+#ifdef FLAT_FLOAT_ARRAY
+  if (Tag_val(array) == Double_array_tag)
+    return caml_floatarray_set(array, index, newval);
+#else
+  CAMLassert (Tag_val(array) != Double_array_tag);
+#endif
+  return caml_array_set_addr_local(array, index, newval);
+}
+
 /* [ floatarray -> int -> float ] */
 CAMLprim value caml_floatarray_unsafe_get(value array, value index)
 {
@@ -128,6 +268,20 @@ CAMLprim value caml_floatarray_unsafe_get(value array, value index)
   CAMLassert (Tag_val(array) == Double_array_tag);
   d = Double_flat_field(array, idx);
   Alloc_small(res, Double_wosize, Double_tag, Alloc_small_enter_GC);
+  Store_double_val(res, d);
+  return res;
+}
+
+/* [ floatarray -> int -> local_ float ] */
+CAMLprim value caml_floatarray_unsafe_get_local(value array, value index)
+{
+  intnat idx = Long_val(index);
+  double d;
+  value res;
+
+  CAMLassert (Tag_val(array) == Double_array_tag);
+  d = Double_flat_field(array, idx);
+  res = caml_alloc_local(Double_wosize, Double_tag);
   Store_double_val(res, d);
   return res;
 }
@@ -144,6 +298,18 @@ CAMLprim value caml_array_unsafe_get(value array, value index)
   return Field(array, Long_val(index));
 }
 
+/* [ local_ 'a array -> int -> local_ 'a ] */
+CAMLprim value caml_array_unsafe_get_local(value array, value index)
+{
+#ifdef FLAT_FLOAT_ARRAY
+  if (Tag_val(array) == Double_array_tag)
+    return caml_floatarray_unsafe_get_local(array, index);
+#else
+  CAMLassert (Tag_val(array) != Double_array_tag);
+#endif
+  return Field(array, Long_val(index));
+}
+
 /* [ 'a array -> int -> 'a -> unit ] where 'a != float */
 static value caml_array_unsafe_set_addr(value array, value index,value newval)
 {
@@ -152,7 +318,20 @@ static value caml_array_unsafe_set_addr(value array, value index,value newval)
   return Val_unit;
 }
 
-/* [ floatarray -> int -> float -> unit ] */
+/* [ local_ 'a array -> int -> local_ 'a -> unit ] where 'a != float
+
+   Must be used carefully, as it can violate the "no forward pointers"
+   restriction on the local stack. */
+static value caml_array_unsafe_set_addr_local(value array, value index,
+                                              value newval)
+{
+  intnat idx = Long_val(index);
+  caml_modify_local(array, idx, newval);
+  return Val_unit;
+}
+
+/* [ floatarray -> int -> float -> unit ]
+   [ local_ floatarray -> int -> local_ float -> unit ] */
 /* [MM]: [caml_array_unsafe_set_addr] has a fence for enforcing the OCaml
    memory model through its use of [caml_modify].
    [MM] [TODO]: [caml_floatarray_unsafe_set] will also need a similar fence in
@@ -177,6 +356,23 @@ CAMLprim value caml_array_unsafe_set(value array, value index, value newval)
   return caml_array_unsafe_set_addr(array, index, newval);
 }
 
+/* [ local_ 'a array -> int -> local_ 'a -> unit ]
+
+   Must be used carefully, as it can violate the "no forward pointers"
+   restriction on the local stack if the array contains pointers (vs. [int]s or
+   unboxed floats). */
+CAMLprim value caml_array_unsafe_set_local(value array, value index,
+                                           value newval)
+{
+#ifdef FLAT_FLOAT_ARRAY
+  if (Tag_val(array) == Double_array_tag)
+    return caml_floatarray_unsafe_set(array, index, newval);
+#else
+  CAMLassert (Tag_val(array) != Double_array_tag);
+#endif
+  return caml_array_unsafe_set_addr_local(array, index, newval);
+}
+
 /* [len] is a [value] representing number of floats. */
 /* [ int -> floatarray ] */
 CAMLprim value caml_floatarray_create(value len)
@@ -188,7 +384,7 @@ CAMLprim value caml_floatarray_create(value len)
       return Atom(0);
     else
       Alloc_small (result, wosize, Double_array_tag, Alloc_small_enter_GC);
-  }else if (wosize > Max_wosize)
+  }else if (wosize > Max_unboxed_float_array_wosize)
     caml_invalid_argument("Float.Array.create");
   else {
     result = caml_alloc_shr (wosize, Double_array_tag);
@@ -197,8 +393,14 @@ CAMLprim value caml_floatarray_create(value len)
   return caml_process_pending_actions_with_root(result);
 }
 
+CAMLprim value caml_floatarray_create_local(value len)
+{
+  mlsize_t wosize = Long_val(len) * Double_wosize;
+  return caml_alloc_local (wosize, Double_array_tag);
+}
+
 /* [len] is a [value] representing number of words or floats */
-CAMLprim value caml_make_vect(value len, value init)
+static value make_vect_gen(value len, value init, int local)
 {
   CAMLparam2 (len, init);
   CAMLlocal1 (res);
@@ -213,20 +415,24 @@ CAMLprim value caml_make_vect(value len, value init)
     mlsize_t wsize;
     double d;
     d = Double_val(init);
+    if (size > Max_unboxed_float_array_wosize) caml_invalid_argument("Array.make");
     wsize = size * Double_wosize;
-    if (wsize > Max_wosize) caml_invalid_argument("Array.make");
-    res = caml_alloc(wsize, Double_array_tag);
+    res = local ?
+      caml_alloc_local(wsize, Double_array_tag) :
+      caml_alloc(wsize, Double_array_tag);
     for (i = 0; i < size; i++) {
       Store_double_flat_field(res, i, d);
     }
 #endif
   } else {
-    if (size <= Max_young_wosize) {
+    if (size > Max_array_wosize) caml_invalid_argument("Array.make");
+    else if (local) {
+      res = caml_alloc_local(size, 0);
+      for (i = 0; i < size; i++) Field(res, i) = init;
+    } else if (size <= Max_young_wosize) {
       res = caml_alloc_small(size, 0);
       for (i = 0; i < size; i++) Field(res, i) = init;
-    }
-    else if (size > Max_wosize) caml_invalid_argument("Array.make");
-    else {
+    } else {
       if (Is_block(init) && Is_young(init)) {
         /* We don't want to create so many major-to-minor references,
            so [init] is moved to the major heap by doing a minor GC. */
@@ -241,8 +447,19 @@ CAMLprim value caml_make_vect(value len, value init)
     }
   }
   /* Give the GC a chance to run, and run memprof callbacks */
-  caml_process_pending_actions ();
+  if (!local) caml_process_pending_actions ();
   CAMLreturn (res);
+}
+
+
+CAMLprim value caml_make_vect(value len, value init)
+{
+  return make_vect_gen(len, init, 0);
+}
+
+CAMLprim value caml_make_local_vect(value len, value init)
+{
+  return make_vect_gen(len, init, 1);
 }
 
 /* [len] is a [value] representing number of floats */
@@ -268,13 +485,64 @@ CAMLprim value caml_make_float_vect(value len)
 #endif
 }
 
+CAMLprim value caml_make_unboxed_int32_vect(value len)
+{
+  /* This is only used on 64-bit targets. */
+
+  mlsize_t num_elements = Long_val(len);
+  if (num_elements > Max_unboxed_int32_array_wosize) caml_invalid_argument("Array.make");
+
+  /* [num_fields] does not include the custom operations field. */
+  mlsize_t num_fields = num_elements / 2 + num_elements % 2;
+
+  return caml_alloc_custom(&caml_unboxed_int32_array_ops[num_elements % 2],
+                           num_fields * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_int32_vect_bytecode(value len)
+{
+  return caml_make_vect(len, caml_copy_int32(0));
+}
+
+CAMLprim value caml_make_unboxed_int64_vect(value len)
+{
+  mlsize_t num_elements = Long_val(len);
+  if (num_elements > Max_unboxed_int64_array_wosize) caml_invalid_argument("Array.make");
+
+  struct custom_operations* ops = &caml_unboxed_int64_array_ops;
+
+  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_int64_vect_bytecode(value len)
+{
+  return caml_make_vect(len, caml_copy_int64(0));
+}
+
+CAMLprim value caml_make_unboxed_nativeint_vect(value len)
+{
+  /* This is only used on 64-bit targets. */
+
+  mlsize_t num_elements = Long_val(len);
+  if (num_elements > Max_unboxed_nativeint_array_wosize) caml_invalid_argument("Array.make");
+
+  struct custom_operations* ops = &caml_unboxed_nativeint_array_ops;
+
+  return caml_alloc_custom(ops, num_elements * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_nativeint_vect_bytecode(value len)
+{
+  return caml_make_vect(len, caml_copy_nativeint(0));
+}
+
 /* This primitive is used internally by the compiler to compile
    explicit array expressions.
    For float arrays when FLAT_FLOAT_ARRAY is true, it takes an array of
    boxed floats and returns the corresponding flat-allocated [float array].
    In all other cases, it just returns its argument unchanged.
 */
-CAMLprim value caml_make_array(value init)
+static value make_array_gen(value init, int local)
 {
 #ifdef FLAT_FLOAT_ARRAY
   CAMLparam1 (init);
@@ -291,7 +559,9 @@ CAMLprim value caml_make_array(value init)
       CAMLreturn (init);
     } else {
       wsize = size * Double_wosize;
-      if (wsize <= Max_young_wosize) {
+      if (local) {
+        res = caml_alloc_local(wsize, Double_array_tag);
+      } else if (wsize <= Max_young_wosize) {
         res = caml_alloc_small(wsize, Double_array_tag);
       } else {
         res = caml_alloc_shr(wsize, Double_array_tag);
@@ -301,13 +571,24 @@ CAMLprim value caml_make_array(value init)
         Store_double_flat_field(res, i, d);
       }
       /* run memprof callbacks */
-      caml_process_pending_actions();
+      if (!local)
+        caml_process_pending_actions();
       CAMLreturn (res);
     }
   }
 #else
   return init;
 #endif
+}
+
+CAMLprim value caml_make_array(value init)
+{
+  return make_array_gen(init, 0);
+}
+
+CAMLprim value caml_make_array_local(value init)
+{
+  return make_array_gen(init, 1);
 }
 
 /* Blitting */
@@ -359,6 +640,42 @@ CAMLprim value caml_floatarray_blit(value a1, value ofs1, value a2, value ofs2,
   return Val_unit;
 }
 
+CAMLprim value caml_unboxed_int32_vect_blit(value a1, value ofs1, value a2,
+                                            value ofs2, value n)
+{
+  /* See memory model [MM] notes in memory.c */
+  atomic_thread_fence(memory_order_acquire);
+  // Need to skip the custom_operations field
+  memmove((int32_t *)((uintnat *)a2 + 1) + Long_val(ofs2),
+          (int32_t *)((uintnat *)a1 + 1) + Long_val(ofs1),
+          Long_val(n) * sizeof(int32_t));
+  return Val_unit;
+}
+
+CAMLprim value caml_unboxed_int64_vect_blit(value a1, value ofs1, value a2, value ofs2,
+                                            value n)
+{
+  /* See memory model [MM] notes in memory.c */
+  atomic_thread_fence(memory_order_acquire);
+  // Need to skip the custom_operations field
+  memmove((int64_t *)((uintnat *)a2 + 1) + Long_val(ofs2),
+          (int64_t *)((uintnat *)a1 + 1) + Long_val(ofs1),
+          Long_val(n) * sizeof(int64_t));
+  return Val_unit;
+}
+
+CAMLprim value caml_unboxed_nativeint_vect_blit(value a1, value ofs1, value a2,
+                                                value ofs2, value n)
+{
+  /* See memory model [MM] notes in memory.c */
+  atomic_thread_fence(memory_order_acquire);
+  // Need to skip the custom_operations field
+  memmove((uintnat *)((uintnat *)a2 + 1) + Long_val(ofs2),
+          (uintnat *)((uintnat *)a1 + 1) + Long_val(ofs1),
+          Long_val(n) * sizeof(uintnat));
+  return Val_unit;
+}
+
 CAMLprim value caml_array_blit(value a1, value ofs1, value a2, value ofs2,
                                value n)
 {
@@ -370,8 +687,8 @@ CAMLprim value caml_array_blit(value a1, value ofs1, value a2, value ofs2,
     return caml_floatarray_blit(a1, ofs1, a2, ofs2, n);
 #endif
   CAMLassert (Tag_val(a2) != Double_array_tag);
-  if (Is_young(a2)) {
-    /* Arrays of values, destination is in young generation.
+  if (Is_young(a2) || caml_is_stack(a2)) {
+    /* Arrays of values, destination is local or in young generation.
        Here too we can do a direct copy since this cannot create
        old-to-young pointers, nor mess up with the incremental major GC.
        Again, wo_memmove takes care of overlap. */
@@ -410,7 +727,8 @@ CAMLprim value caml_array_blit(value a1, value ofs1, value a2, value ofs2,
 static value caml_array_gather(intnat num_arrays,
                                value arrays[/*num_arrays*/],
                                intnat offsets[/*num_arrays*/],
-                               intnat lengths[/*num_arrays*/])
+                               intnat lengths[/*num_arrays*/],
+                               int local)
 {
   CAMLparamN(arrays, num_arrays);
   value res;                    /* no need to register it as a root */
@@ -437,9 +755,11 @@ static value caml_array_gather(intnat num_arrays,
 #ifdef FLAT_FLOAT_ARRAY
   else if (isfloat) {
     /* This is an array of floats.  We can use memcpy directly. */
-    if (size > Max_wosize/Double_wosize) caml_invalid_argument("Array.concat");
+    if (size > Max_unboxed_float_array_wosize) caml_invalid_argument("Array.concat");
     wsize = size * Double_wosize;
-    res = caml_alloc(wsize, Double_array_tag);
+    res = local ?
+      caml_alloc_local(wsize, Double_array_tag) :
+      caml_alloc(wsize, Double_array_tag);
     for (i = 0, pos = 0; i < num_arrays; i++) {
       /* [res] is freshly allocated, and no other domain has a reference to it.
          Hence, a plain [memcpy] is sufficient. */
@@ -451,10 +771,15 @@ static value caml_array_gather(intnat num_arrays,
     CAMLassert(pos == size);
   }
 #endif
-  else if (size <= Max_young_wosize) {
-    /* Array of values, small enough to fit in young generation.
+  else if (size > Max_array_wosize) {
+    /* Array of values, too big. */
+    caml_invalid_argument("Array.concat");
+  } else if (size <= Max_young_wosize || local) {
+    /* Array of values, local or small enough to fit in young generation.
        We can use memcpy directly. */
-    res = caml_alloc_small(size, 0);
+    res = local ?
+      caml_alloc_local(size, 0) :
+      caml_alloc_small(size, 0);
     for (i = 0, pos = 0; i < num_arrays; i++) {
       /* [res] is freshly allocated, and no other domain has a reference to it.
          Hence, a plain [memcpy] is sufficient. */
@@ -464,10 +789,6 @@ static value caml_array_gather(intnat num_arrays,
       pos += lengths[i];
     }
     CAMLassert(pos == size);
-  }
-  else if (size > Max_wosize) {
-    /* Array of values, too big. */
-    caml_invalid_argument("Array.concat");
   } else {
     /* Array of values, must be allocated in old generation and filled
        using caml_initialize. */
@@ -494,7 +815,15 @@ CAMLprim value caml_array_sub(value a, value ofs, value len)
   value arrays[1] = { a };
   intnat offsets[1] = { Long_val(ofs) };
   intnat lengths[1] = { Long_val(len) };
-  return caml_array_gather(1, arrays, offsets, lengths);
+  return caml_array_gather(1, arrays, offsets, lengths, 0);
+}
+
+CAMLprim value caml_array_sub_local(value a, value ofs, value len)
+{
+  value arrays[1] = { a };
+  intnat offsets[1] = { Long_val(ofs) };
+  intnat lengths[1] = { Long_val(len) };
+  return caml_array_gather(1, arrays, offsets, lengths, 1);
 }
 
 CAMLprim value caml_array_append(value a1, value a2)
@@ -502,10 +831,18 @@ CAMLprim value caml_array_append(value a1, value a2)
   value arrays[2] = { a1, a2 };
   intnat offsets[2] = { 0, 0 };
   intnat lengths[2] = { caml_array_length(a1), caml_array_length(a2) };
-  return caml_array_gather(2, arrays, offsets, lengths);
+  return caml_array_gather(2, arrays, offsets, lengths, 0);
 }
 
-CAMLprim value caml_array_concat(value al)
+CAMLprim value caml_array_append_local(value a1, value a2)
+{
+  value arrays[2] = { a1, a2 };
+  intnat offsets[2] = { 0, 0 };
+  intnat lengths[2] = { caml_array_length(a1), caml_array_length(a2) };
+  return caml_array_gather(2, arrays, offsets, lengths, 1);
+}
+
+static value array_concat_gen(value al, int local)
 {
 #define STATIC_SIZE 16
   value static_arrays[STATIC_SIZE], * arrays;
@@ -542,7 +879,7 @@ CAMLprim value caml_array_concat(value al)
     lengths[i] = caml_array_length(Field(l, 0));
   }
   /* Do the concatenation */
-  res = caml_array_gather(n, arrays, offsets, lengths);
+  res = caml_array_gather(n, arrays, offsets, lengths, local);
   /* Free the extra storage if needed */
   if (n > STATIC_SIZE) {
     caml_stat_free(arrays);
@@ -550,6 +887,16 @@ CAMLprim value caml_array_concat(value al)
     caml_stat_free(lengths);
   }
   return res;
+}
+
+CAMLprim value caml_array_concat(value al)
+{
+  return array_concat_gen(al, 0);
+}
+
+CAMLprim value caml_array_concat_local(value al)
+{
+  return array_concat_gen(al, 1);
 }
 
 CAMLprim value caml_array_fill(value array,
@@ -574,7 +921,7 @@ CAMLprim value caml_array_fill(value array,
   }
 #endif
   fp = &Field(array, ofs);
-  if (Is_young(array)) {
+  if (Is_young(array) || caml_is_stack(array)) {
     for (; len > 0; len--, fp++) *fp = val;
   } else {
     int is_val_young_block = Is_block(val) && Is_young(val);
@@ -584,7 +931,8 @@ CAMLprim value caml_array_fill(value array,
       *fp = val;
       if (Is_block(old)) {
         if (Is_young(old)) continue;
-        caml_darken(Caml_state, old, NULL);
+        if (caml_marking_started())
+          caml_darken(Caml_state, old, NULL);
       }
       if (is_val_young_block)
         Ref_table_add(&Caml_state->minor_tables->major_ref, fp);
@@ -593,3 +941,60 @@ CAMLprim value caml_array_fill(value array,
   }
   return Val_unit;
 }
+
+CAMLprim value caml_iarray_of_array(value a)
+{
+  return a;
+}
+
+CAMLprim value caml_array_of_iarray(value a)
+{
+  return a;
+}
+
+/* We need these pre-declared for [gen_primitives.sh] to work. */
+CAMLprim value caml_array_get_indexed_by_int64(value, value);
+CAMLprim value caml_array_unsafe_get_indexed_by_int64(value, value);
+CAMLprim value caml_array_set_indexed_by_int64(value, value, value);
+CAMLprim value caml_array_unsafe_set_indexed_by_int64(value, value, value);
+
+CAMLprim value caml_array_get_indexed_by_int32(value, value);
+CAMLprim value caml_array_unsafe_get_indexed_by_int32(value, value);
+CAMLprim value caml_array_set_indexed_by_int32(value, value, value);
+CAMLprim value caml_array_unsafe_set_indexed_by_int32(value, value, value);
+
+CAMLprim value caml_array_get_indexed_by_nativeint(value, value);
+CAMLprim value caml_array_unsafe_get_indexed_by_nativeint(value, value);
+CAMLprim value caml_array_set_indexed_by_nativeint(value, value, value);
+CAMLprim value caml_array_unsafe_set_indexed_by_nativeint(value, value, value);
+
+#define CAMLprim_indexed_by(name, index_type, val_func)                     \
+  CAMLprim value caml_array_get_indexed_by_##name(value array, value index) \
+  {                                                                         \
+    index_type idx = val_func(index);                                       \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();           \
+    return caml_array_get(array, Val_long(idx));                            \
+  }                                                                         \
+  CAMLprim value caml_array_unsafe_get_indexed_by_##name(value array,       \
+                                                         value index)       \
+  {                                                                         \
+    return caml_array_unsafe_get(array, Val_long(val_func(index)));         \
+  }                                                                         \
+  CAMLprim value caml_array_set_indexed_by_##name(value array,              \
+                                                  value index,              \
+                                                  value newval)             \
+  {                                                                         \
+    index_type idx = val_func(index);                                       \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();           \
+    return caml_array_set(array, Val_long(idx), newval);                    \
+  }                                                                         \
+  CAMLprim value caml_array_unsafe_set_indexed_by_##name(value array,       \
+                                                         value index,       \
+                                                         value newval)      \
+  {                                                                         \
+    return caml_array_unsafe_set(array, Val_long(val_func(index)), newval); \
+  }
+
+CAMLprim_indexed_by(int64, int64_t, Int64_val)
+CAMLprim_indexed_by(int32, int32_t, Int32_val)
+CAMLprim_indexed_by(nativeint, intnat, Nativeint_val)

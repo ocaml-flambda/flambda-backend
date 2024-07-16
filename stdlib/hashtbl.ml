@@ -1,4 +1,4 @@
-# 1 "hashtbl.ml"
+# 2 "hashtbl.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -62,12 +62,7 @@ let randomized = Atomic.make randomized_default
 let randomize () = Atomic.set randomized true
 let is_randomized () = Atomic.get randomized
 
-(* CR ocaml 5 runtime:
-   BACKPORT BEGIN
 let prng_key = Domain.DLS.new_key Random.State.make_self_init
-*)
-let prng = lazy (Random.State.make_self_init())
-(* BACKPORT END *)
 
 (* Functions which appear before the functorial interface must either be
    independent of the hash function or take it as a parameter (see #2202 and
@@ -83,12 +78,7 @@ let rec power_2_above x n =
 let create ?(random = Atomic.get randomized) initial_size =
   let s = power_2_above 16 initial_size in
   let seed =
-(* CR ocaml 5 runtime:
-    BACKPORT BEGIN
     if random then Random.State.bits (Domain.DLS.get prng_key) else 0
-*)
-    if random then Random.State.bits (Lazy.force prng) else 0
-(* BACKPORT END *)
   in
   { initial_size = s; size = 0; seed = seed; data = Array.make s Empty }
 
@@ -511,7 +501,7 @@ module Make(H: HashedType): (S with type key = H.t) =
    use - see #2202 *)
 
 external seeded_hash_param :
-  int -> int -> int -> 'a -> int = "caml_hash" [@@noalloc]
+  int -> int -> int -> 'a -> int = "caml_hash_exn"
 
 let hash x = seeded_hash_param 10 100 0 x
 let hash_param n1 n2 x = seeded_hash_param n1 n2 0 x
@@ -636,12 +626,7 @@ let of_seq i =
 let rebuild ?(random = Atomic.get randomized) h =
   let s = power_2_above 16 (Array.length h.data) in
   let seed =
-(* CR ocaml 5 runtime:
-  BACKPORT BEGIN
     if random then Random.State.bits (Domain.DLS.get prng_key)
-*)
-    if random then Random.State.bits (Lazy.force prng)
-(* BACKPORT END *)
     else if Obj.size (Obj.repr h) >= 4 then h.seed
     else 0 in
   let h' = {

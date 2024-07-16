@@ -20,9 +20,20 @@ type pers_flags =
   | Alerts of alerts
   | Opaque
 
+type kind =
+  | Normal of {
+      cmi_impl : Compilation_unit.t;
+        (* If this module takes parameters, [cmi_impl] will be the functor that
+           generates instances *)
+      cmi_arg_for : Compilation_unit.Name.t option;
+    }
+  | Parameter
+
 type 'sg cmi_infos_generic = {
-    cmi_name : Compilation_unit.t;
+    cmi_name : Compilation_unit.Name.t;
+    cmi_kind : kind;
     cmi_sign : 'sg;
+    cmi_params : Compilation_unit.Name.t list;
     cmi_crcs : Import_info.t array;
     cmi_flags : pers_flags list;
 }

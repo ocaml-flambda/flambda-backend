@@ -116,7 +116,7 @@ static void check_block (header_t *hp)
     /* For closures, skip to the start of the scannable environment */
     if (tag == Closure_tag) start = Start_env_closinfo(Closinfo_val(v));
     else start = 0;
-    for (i = start; i < Wosize_hp (hp); i++){
+    for (i = start; i < Scannable_wosize_hd (Hd_hp (hp)); i++){
       f = Field (v, i);
       if (Is_block (f) && Is_in_heap (f)){
         check_head (f);
@@ -329,7 +329,7 @@ CAMLprim value caml_gc_quick_stat(value v)
   CAMLreturn (res);
 }
 
-double caml_gc_minor_words_unboxed()
+double caml_gc_minor_words_unboxed(void)
 {
   return (Caml_state->stat_minor_words
           + (double) (Caml_state->young_alloc_end - Caml_state->young_ptr));
@@ -409,7 +409,7 @@ static intnat norm_minsize (intnat s)
   if (s > Minor_heap_max) s = Minor_heap_max;
   /* PR#9128 : Make sure the minor heap occupies an integral number of
      pages, so that no page contains both bytecode and OCaml
-     values. This would confuse, e.g., caml_hash. */
+     values. This would confuse, e.g., caml_hash_exn. */
   s = (s + page_wsize - 1) / page_wsize * page_wsize;
   return s;
 }

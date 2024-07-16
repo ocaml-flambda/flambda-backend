@@ -1,7 +1,7 @@
 ROOTDIR = ../..
 include $(ROOTDIR)/Makefile.common
 
-TEXQUOTE = $(ROOTDIR)/runtime/ocamlrun ../tools/texquote2
+TEXQUOTE = $(ROOTDIR)/runtime4/ocamlrun ../tools/texquote2
 
 DIRS = infoman texstuff textman
 

@@ -684,6 +684,7 @@
             []
           core_type (shortcut_ext_attr.ml[85,1728+23]..[85,1728+24])
             Ptyp_any
+          []
           [
             ""
           ]
@@ -787,6 +788,7 @@
                     Ptyp_constr "t" (shortcut_ext_attr.ml[98,1965+20]..[98,1965+21])
                     []
                   []
+                  []
             ]
           signature_item (shortcut_ext_attr.ml[99,1987+2]..[99,1987+31]) ghost
             Psig_extension "foo"
@@ -799,6 +801,7 @@
                   core_type (shortcut_ext_attr.ml[99,1987+25]..[99,1987+26])
                     Ptyp_constr "t" (shortcut_ext_attr.ml[99,1987+25]..[99,1987+26])
                     []
+                  []
                   [
                     ""
                   ]

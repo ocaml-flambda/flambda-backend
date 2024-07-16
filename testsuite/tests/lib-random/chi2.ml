@@ -1,5 +1,4 @@
-(* TEST
-*)
+(* TEST *)
 
 (* A basic chi-square test to detect simple errors in the Random module. *)
 
@@ -96,7 +95,6 @@ let _ =
          (let p = Int64.to_int 17766642568158577L in
           fun () -> Random.full_int (256 * p) / p)
   end;
-(* BACKPORT
   let r1 = Random.split() in
   let r2 = Random.split() in
   let r3 = Random.State.split r1 in
@@ -106,4 +104,3 @@ let _ =
        (fun () -> Random.State.bits r1 - Random.State.bits r2);
   test "Random.split (r2-r3)"
        (fun () -> Random.State.bits r2 - Random.State.bits r3)
-*)

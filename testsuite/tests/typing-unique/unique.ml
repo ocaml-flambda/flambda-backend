@@ -1,6 +1,6 @@
 (* TEST
-   flags += "-extension unique"
- * expect
+ flags += "-extension unique";
+ expect;
 *)
 
 (* unique means the value is the only usage *)
@@ -141,7 +141,7 @@ let f () =
 Line 4, characters 12-13:
 4 |     unique_ k
                 ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
   Hint: This identifier cannot be used uniquely,
   because it was defined outside of the for-loop.
 |}]
@@ -157,7 +157,7 @@ let f =
 Line 5, characters 14-15:
 5 |     let _ = g a in ()
                   ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
   Hint: This identifier cannot be used uniquely,
   because it was defined outside of the for-loop.
 |}]
@@ -215,7 +215,7 @@ let once_ foo = "foo"
 Line 1, characters 4-21:
 1 | let once_ foo = "foo"
         ^^^^^^^^^^^^^^^^^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 (* the following is fine - we relax many to once *)
@@ -237,16 +237,15 @@ let foo y = unique_ x
 Line 1, characters 20-21:
 1 | let foo y = unique_ x
                         ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 
-(* global modality entails shared modality;
-this is crucial once we introduce borrowing whose scope is controlled
-by locality *)
-type 'a glob = { global_ glob: 'a } [@@unboxed]
+(* CR zqian: [global] should imply [shared]/[many], once we introduce borrowing whose
+scope is controlled by locality *)
+type 'a glob = { glob: 'a @@ shared many } [@@unboxed]
 [%%expect{|
-type 'a glob = { global_ glob : 'a; } [@@unboxed]
+type 'a glob = { glob : 'a @@ many shared; } [@@unboxed]
 |}]
 let dup (glob : 'a) : 'a glob * 'a glob = unique_ ({glob}, {glob})
 [%%expect{|
@@ -303,7 +302,7 @@ let higher_order3 (f : 'a -> 'b) (unique_ x : 'a) = unique_ f x
 Line 1, characters 60-63:
 1 | let higher_order3 (f : 'a -> 'b) (unique_ x : 'a) = unique_ f x
                                                                 ^^^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (shared_id x)
@@ -311,7 +310,7 @@ let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (shared_id x)
 Line 1, characters 54-67:
 1 | let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (shared_id x)
                                                           ^^^^^^^^^^^^^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 let higher_order5 (unique_ x) = let f (unique_ x) = unique_ x in higher_order f x
@@ -357,7 +356,7 @@ let inf3 : bool -> float -> unique_ float -> float = fun b y x ->
 Line 2, characters 58-59:
 2 |   let _ = shared_id y in let unique_ z = if b then x else y in z
                                                               ^
-Error: Found a shared value where a unique value was expected
+Error: This value is shared but expected to be unique.
 |}]
 
 let inf4 (b : bool) (y : float) (unique_ x : float) =
@@ -467,7 +466,7 @@ let curry =
 Line 3, characters 2-15:
 3 |   foo ~a:3 ~c:4
       ^^^^^^^^^^^^^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let curry =
@@ -477,7 +476,7 @@ let curry =
 Line 3, characters 2-15:
 3 |   foo ~a:3 ~c:4
       ^^^^^^^^^^^^^
-Error: Found a once value where a many value was expected
+Error: This value is once but expected to be many.
 |}]
 
 let curry =
@@ -542,23 +541,38 @@ type box = { x : int }
 type box = { x : int; }
 |}]
 
-let curry (unique_ b1 : box) (unique_ b2 : box) = b1
+let curry (unique_ b1 : box) (unique_ b2 : box) = ()
 [%%expect{|
-val curry : unique_ box -> unique_ box -> box = <fun>
+val curry : unique_ box -> unique_ box -> unit = <fun>
 |}]
 
-let curry : unique_ box -> unique_ box -> unique_ box = fun b1 b2 -> b1
+let curry : unique_ box -> unique_ box -> unit = fun b1 b2 -> ()
 [%%expect{|
-val curry : unique_ box -> unique_ box -> unique_ box = <fun>
+val curry : unique_ box -> unique_ box -> unit = <fun>
 |}]
 
-let curry : unique_ box -> (unique_ box -> unique_ box) = fun b1 b2 -> b1
+let curry : unique_ box -> (unique_ box -> unit) = fun b1 b2 -> ()
 [%%expect{|
-Line 1, characters 58-73:
-1 | let curry : unique_ box -> (unique_ box -> unique_ box) = fun b1 b2 -> b1
-                                                              ^^^^^^^^^^^^^^^
-Error: This function when partially applied returns a once value,
+Line 1, characters 51-66:
+1 | let curry : unique_ box -> (unique_ box -> unit) = fun b1 b2 -> ()
+                                                       ^^^^^^^^^^^^^^^
+Error: This function when partially applied returns a value which is once,
        but expected to be many.
+|}]
+
+let curry : unique_ box -> (unique_ box -> unit) = fun b1 -> function | b2 -> ()
+[%%expect{|
+Line 1, characters 51-80:
+1 | let curry : unique_ box -> (unique_ box -> unit) = fun b1 -> function | b2 -> ()
+                                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function when partially applied returns a value which is once,
+       but expected to be many.
+|}]
+
+(* For nested functions, inner functions are not constrained *)
+let no_curry : unique_ box -> (unique_ box -> unit) = fun b1 -> fun b2 -> ()
+[%%expect{|
+val no_curry : unique_ box -> (unique_ box -> unit) = <fun>
 |}]
 
 (* If both type and mode are wrong, complain about type *)
@@ -614,5 +628,29 @@ Error: This value is used here, but it has already been used as unique:
 Line 5, characters 16-17:
 5 |        in Node (x, x)
                     ^
+
+|}]
+
+(* Uniqueness is unbroken by the implicit positional argument. *)
+let f ~(call_pos : [%call_pos]) () =
+  let unique_ x = call_pos in
+  (x, x)
+;;
+[%%expect{|
+val f : call_pos:[%call_pos] -> unit -> lexing_position * lexing_position =
+  <fun>
+|}]
+
+let f ~(call_pos : [%call_pos]) () =
+  unique_ (call_pos, call_pos)
+;;
+[%%expect{|
+Line 2, characters 21-29:
+2 |   unique_ (call_pos, call_pos)
+                         ^^^^^^^^
+Error: This value is used here, but it has already been used as unique:
+Line 2, characters 11-19:
+2 |   unique_ (call_pos, call_pos)
+               ^^^^^^^^
 
 |}]

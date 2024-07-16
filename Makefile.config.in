@@ -218,6 +218,8 @@ WITH_CPP_MANGLING=@cpp_mangling@
 WITH_PROFINFO=@profinfo@
 PROFINFO_WIDTH=@profinfo_width@
 HEADER_RESERVED_BITS=@reserved_header_bits@
+CUSTOM_OPS_STRUCT_SIZE=@custom_ops_struct_size@
+NO_PARTIAL_INLINING_CFLAGS=@no_partial_inlining_cflags@
 LIBUNWIND_AVAILABLE=@libunwind_available@
 LIBUNWIND_INCLUDE_FLAGS=@libunwind_include_flags@
 LIBUNWIND_LINK_FLAGS=@libunwind_link_flags@
@@ -242,6 +244,10 @@ INTEL_JCC_BUG_CFLAGS=@intel_jcc_bug_cflags@
 STACK_ALLOCATION=@stack_allocation@
 POLL_INSERTION=@poll_insertion@
 DUNE=@dune@
+
+# Selection of OCaml 4.x or 5.x runtime
+RUNTIME_SUFFIX=@runtime_suffix@
+RUNTIME_DIR=runtime$(RUNTIME_SUFFIX)
 
 # Deprecated variables
 

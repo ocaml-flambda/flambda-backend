@@ -1,6 +1,6 @@
 (* TEST
-   flags = "-extension layouts_alpha"
-   * expect
+ flags = "-extension layouts_alpha";
+ expect;
 *)
 (* CR layouts v5: when we add the ability to make actual void types, eliminate
    the uses of Obj.magic from this file *)
@@ -62,9 +62,8 @@ type baz = {
 }
 val r : '_weak1 list ref = {contents = []}
 val cons_r : '_weak1 -> unit = <fun>
-Lines 13-21, characters 8-3:
-13 | ........{a1; a2; x; v; z; b1; b2} =
-14 |   {a1 = (cons_r 11; {v = ((cons_r 12; a1).v)});
+Lines 14-21, characters 2-3:
+14 | ..{a1 = (cons_r 11; {v = ((cons_r 12; a1).v)});
 15 |    a2 = (cons_r 9; {v = ((cons_r 10; a2).v)});
 16 |    x = (cons_r 8; x);
 17 |    v = (cons_r 6; {v = ((cons_r 7; v).v)});
@@ -74,7 +73,10 @@ Lines 13-21, characters 8-3:
 21 |   }
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       void_rec has layout void, which is not a sublayout of value.
+       The layout of void_rec is void
+         because of the definition of t_void at line 1, characters 0-18.
+       But the layout of void_rec must be a sublayout of value
+         because it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -122,9 +124,8 @@ let b' = id1' b'
 
 let _ = assert (List.for_all2 (=) !r [12;11;10;9;8;7;6;5;4;3;2;1]);;
 [%%expect{|
-Lines 3-11, characters 9-3:
- 3 | .........{a1; a2; x; v; z; b1; b2} =
- 4 |   {a2 = (cons_r 9; {v = ((cons_r 10; a2).v)});
+Lines 4-11, characters 2-3:
+ 4 | ..{a2 = (cons_r 9; {v = ((cons_r 10; a2).v)});
  5 |    b2 = (cons_r 1; {v = ((cons_r 2; b2).v)});
  6 |    x = (cons_r 8; x);
  7 |    a1 = (cons_r 11; {v = ((cons_r 12; a1).v)});
@@ -134,7 +135,10 @@ Lines 3-11, characters 9-3:
 11 |   }
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       void_rec has layout void, which is not a sublayout of value.
+       The layout of void_rec is void
+         because of the definition of t_void at line 1, characters 0-18.
+       But the layout of void_rec must be a sublayout of value
+         because it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -220,7 +224,10 @@ Lines 17-35, characters 10-27:
 35 |        b2 = (cons_r 1; b2)}
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void
+         because of the definition of t_void at line 1, characters 0-18.
+       But the layout of t_void must be a sublayout of value
+         because it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -321,8 +328,8 @@ let x : t_void = assert false;;
 Line 1, characters 4-5:
 1 | let x : t_void = assert false;;
         ^
-Error: Top-level module bindings must have layout value, but x has layout
-       void.
+Error: Types of top-level module bindings must have layout value, but
+       the type of x has layout void.
 |}];;
 
 module M3_1 = struct
@@ -332,8 +339,8 @@ end;;
 Line 2, characters 6-7:
 2 |   let x : t_void = assert false;;
           ^
-Error: Top-level module bindings must have layout value, but x has layout
-       void.
+Error: Types of top-level module bindings must have layout value, but
+       the type of x has layout void.
 |}];;
 
 module M3_2 = struct
@@ -431,7 +438,10 @@ Line 5, characters 4-6:
         ^^
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void
+         because of the definition of t_void at line 1, characters 0-18.
+       But the layout of t_void must be a sublayout of value
+         because it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -463,9 +473,8 @@ let _ = local_void_bindings_1 vh
 
 let _ = assert (List.for_all2 (=) !r [8;7;6;5;4;3;2;1]);;
 [%%expect{|
-Lines 3-11, characters 26-24:
- 3 | ..........................vh =
- 4 |   let V v = cons_r 1; vh in
+Lines 4-11, characters 2-24:
+ 4 | ..let V v = cons_r 1; vh in
  5 |   {a1 = {v = (cons_r 8; v)};
  6 |    a2 = {v = (cons_r 7; v)};
  7 |    x = (cons_r 6; 12);
@@ -475,7 +484,10 @@ Lines 3-11, characters 26-24:
 11 |    b2 = (cons_r 2; {v})}
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of void_rec is void
+         because of the definition of t_void at line 1, characters 0-18.
+       But the layout of void_rec must be a sublayout of value
+         because it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -496,13 +508,15 @@ let (x, _, vh2, z, _) = local_void_bindings_2 b'
 
 let _ = assert (x = 3 && z = 42)
 [%%expect{|
-Lines 1-3, characters 26-32:
-1 | ..........................b =
-2 |   let {z; a1; b1; x; b2} = b in
+Lines 2-3, characters 2-32:
+2 | ..let {z; a1; b1; x; b2} = b in
 3 |   (x, V b2.v, V b1.v, z, V a1.v)
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       void_rec has layout void, which is not a sublayout of value.
+       The layout of t_void is void
+         because of the definition of t_void at line 1, characters 0-18.
+       But the layout of t_void must be a sublayout of value
+         because it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -598,20 +612,12 @@ let [@warning "-10"] exnmatch1 (V v) =
 
 let _ = assert ((exnmatch1 vh) = 1);;
 [%%expect{|
-Lines 1-13, characters 31-24:
- 1 | ...............................(V v) =
- 2 |   match
- 3 |     {v = (if true then raise (Ex1 42); v)};
- 4 |     if true then raise (Ex2 "test");
- 5 |     {v = ((if true then raise (Ex3 true)); v)}
-...
-10 |   | exception Ex2 "test" -> 3
-11 |   | exception Ex2 _ -> 4
-12 |   | exception Ex3 true -> 5
-13 |   | exception Ex3 _ -> 6
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+Lines 3-5, characters 4-46:
+3 | ....{v = (if true then raise (Ex1 42); v)};
+4 |     if true then raise (Ex2 "test");
+5 |     {v = ((if true then raise (Ex3 true)); v)}
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       void_rec. Please report this error to the Jane Street compilers team.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -637,20 +643,12 @@ let [@warning "-10"] exnmatch2 (V v) =
 
 let _ = assert ((exnmatch2 vh) = 3);;
 [%%expect{|
-Lines 1-13, characters 31-24:
- 1 | ...............................(V v) =
- 2 |   match
- 3 |     {v = v};
- 4 |     if true then raise (Ex2 "test");
- 5 |     {v = ((if true then raise (Ex3 true)); v)}
-...
-10 |   | exception Ex2 "test" -> 3
-11 |   | exception Ex2 _ -> 4
-12 |   | exception Ex3 true -> 5
-13 |   | exception Ex3 _ -> 6
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+Lines 3-5, characters 4-46:
+3 | ....{v = v};
+4 |     if true then raise (Ex2 "test");
+5 |     {v = ((if true then raise (Ex3 true)); v)}
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       void_rec. Please report this error to the Jane Street compilers team.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -675,20 +673,11 @@ let [@warning "-10"] exnmatch3 (V v) =
 
 let _ = assert ((exnmatch3 vh) = 5);;
 [%%expect{|
-Lines 1-12, characters 31-24:
- 1 | ...............................(V v) =
- 2 |   match
- 3 |     {v = v};
- 4 |     {v = ((if true then raise (Ex3 true)); v)}
- 5 |   with
-...
- 9 |   | exception Ex2 "test" -> 3
-10 |   | exception Ex2 _ -> 4
-11 |   | exception Ex3 true -> 5
-12 |   | exception Ex3 _ -> 6
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+Lines 3-4, characters 4-46:
+3 | ....{v = v};
+4 |     {v = ((if true then raise (Ex3 true)); v)}
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       void_rec. Please report this error to the Jane Street compilers team.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -713,20 +702,11 @@ let [@warning "-10"] exnmatch4 (V v) =
 
 let _ = assert ((exnmatch4 vh) = 0);;
 [%%expect{|
-Lines 1-12, characters 31-24:
- 1 | ...............................(V v) =
- 2 |   match
- 3 |     {v = v};
- 4 |     {v = v}
- 5 |   with
-...
- 9 |   | exception Ex2 "test" -> 3
-10 |   | exception Ex2 _ -> 4
-11 |   | exception Ex3 true -> 5
-12 |   | exception Ex3 _ -> 6
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+Lines 3-4, characters 4-11:
+3 | ....{v = v};
+4 |     {v = v}
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       void_rec. Please report this error to the Jane Street compilers team.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -792,20 +772,23 @@ let _ = assert (List.for_all2 (=) !r [7;6;5;4;3;2;1]);;
 [%%expect{|
 type unboxed_inlined_void_rec = UIVR of { uivr_v : t_void; } [@@unboxed]
 type uivr_holder = { uivrh_x : int; uivrh_v : unboxed_inlined_void_rec; }
-Lines 8-18, characters 21-29:
- 8 | .....................vh =
- 9 |   let uivrh =
+Lines 9-18, characters 2-29:
+ 9 | ..let uivrh =
 10 |     cons_r 1;
 11 |     match cons_r 2; vh with
 12 |     | V v -> begin
-...
+13 |         cons_r 3;
+14 |         { uivrh_x = (cons_r 6; 7);
 15 |           uivrh_v = (cons_r 4; UIVR { uivr_v = (cons_r 5; v) }) }
 16 |       end
 17 |   in
 18 |   cons_r uivrh.uivrh_x; uivrh
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of unboxed_inlined_void_rec is void
+         because of the definition of t_void at line 1, characters 0-18.
+       But the layout of unboxed_inlined_void_rec must be a sublayout of value
+         because it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -842,9 +825,8 @@ let () = assert (List.for_all2 (=) !r [4;3;2;1]);;
 [%%expect{|
 exception Test8 of int * void_holder
 type test8_rec = { t8_x : int; t8_v : t_void; }
-Lines 5-11, characters 10-7:
- 5 | ..........(f : unit -> test8_rec) : int * void_holder =
- 6 |   match cons_r 1; f () with
+Lines 6-11, characters 2-7:
+ 6 | ..match cons_r 1; f () with
  7 |   | ({t8_x = x; t8_v = v} | exception (Test8 (x, V v))) ->
  8 |     begin
  9 |       cons_r 3;
@@ -852,7 +834,10 @@ Lines 5-11, characters 10-7:
 11 |     end
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void
+         because of the definition of t_void at line 1, characters 0-18.
+       But the layout of t_void must be a sublayout of value
+         because it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -906,9 +891,8 @@ let () = assert (x = 42);;
 let () = assert (List.for_all2 (=) !r [2;1]);;
 
 [%%expect{|
-Lines 3-11, characters 22-11:
- 3 | ......................vh x =
- 4 |   let v = match vh with
+Lines 4-11, characters 2-11:
+ 4 | ..let v = match vh with
  5 |     | V v -> v
  6 |   in
  7 |   (* not all void *)
@@ -918,7 +902,10 @@ Lines 3-11, characters 22-11:
 11 |   (y, V v')
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void
+         because of the definition of t_void at line 1, characters 0-18.
+       But the layout of t_void must be a sublayout of value
+         because it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -947,9 +934,8 @@ let () = assert (x = 42);;
 let () = assert (List.for_all2 (=) !r [3;2;1]);;
 
 [%%expect{|
-Lines 3-12, characters 22-23:
- 3 | ......................vh x =
- 4 |   let v = match vh with
+Lines 4-12, characters 2-23:
+ 4 | ..let v = match vh with
  5 |     | V v -> v
  6 |   in
  7 |   (* all void *)
@@ -960,7 +946,10 @@ Lines 3-12, characters 22-23:
 12 |   (x, V v1, V v2, V v3)
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
-       t_void has layout void, which is not a sublayout of value.
+       The layout of t_void is void
+         because of the definition of t_void at line 1, characters 0-18.
+       But the layout of t_void must be a sublayout of value
+         because it has to be value for the V1 safety check.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after

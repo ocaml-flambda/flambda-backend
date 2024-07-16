@@ -610,7 +610,7 @@ external re_search_backward: regexp -> string -> int -> int array
 module Domain = struct
   module DLS = struct
 
-    (* CR ocaml 5 runtime: Remove this proxy and use the real Domain.DLS *)
+    (* CR ocaml 5 domains: Remove this proxy and use the real Domain.DLS *)
     let[@inline always] new_key f = ref (f ())
     let[@inline always] set k s = k := s
     let[@inline always] get k = !k

@@ -18,6 +18,7 @@
 open Asttypes
 open Path
 open Types
+open Mode
 open Typedtree
 
 type position = Errortrace.position = First | Second
@@ -34,11 +35,14 @@ type primitive_mismatch =
   | Native_name
   | Result_repr
   | Argument_repr of int
+  | Layout_poly_attr
 
 type value_mismatch =
   | Primitive_mismatch of primitive_mismatch
   | Not_a_primitive
   | Type of Errortrace.moregen_error
+  | Zero_alloc of Zero_alloc.error
+  | Modality of Mode.Modality.Value.error
 
 exception Dont_match of value_mismatch
 
@@ -64,6 +68,10 @@ let primitive_descriptions pd1 pd2 =
     Some (No_alloc First)
   else if pd1.prim_alloc && (not pd2.prim_alloc) then
     Some (No_alloc Second)
+  else if not
+    (Bool.equal pd1.prim_is_layout_poly
+                pd2.prim_is_layout_poly) then
+    Some Layout_poly_attr
   else if not (Bool.equal pd1.prim_c_builtin pd2.prim_c_builtin) then
     Some Builtin
   else if not (Primitive.equal_effects pd1.prim_effects pd2.prim_effects) then
@@ -90,13 +98,21 @@ let value_descriptions ~loc env name
     loc
     vd1.val_attributes vd2.val_attributes
     name;
+  begin match Zero_alloc.sub vd1.val_zero_alloc vd2.val_zero_alloc with
+  | Ok () -> ()
+  | Error e -> raise (Dont_match (Zero_alloc e))
+  end;
+  begin match Mode.Modality.Value.sub vd1.val_modalities vd2.val_modalities with
+  | Ok () -> ()
+  | Error e -> raise (Dont_match (Modality e))
+  end;
   match vd1.val_kind with
   | Val_prim p1 -> begin
      match vd2.val_kind with
      | Val_prim p2 -> begin
-         let ty1_global, _ = Ctype.instance_prim_mode p1 vd1.val_type in
+         let ty1_global, _, _ = Ctype.instance_prim p1 vd1.val_type in
          let ty2_global =
-           let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
+           let ty2, mode2, _ = Ctype.instance_prim p2 vd2.val_type in
            Option.iter
              (fun m -> Mode.Locality.submode_exn m Mode.Locality.global)
              mode2;
@@ -104,9 +120,9 @@ let value_descriptions ~loc env name
          in
          (try Ctype.moregeneral env true ty1_global ty2_global
           with Ctype.Moregen err -> raise (Dont_match (Type err)));
-         let ty1_local, _ = Ctype.instance_prim_mode p1 vd1.val_type in
+         let ty1_local, _, _ = Ctype.instance_prim p1 vd1.val_type in
          let ty2_local =
-           let ty2, mode2 = Ctype.instance_prim_mode p2 vd2.val_type in
+           let ty2, mode2, _ = Ctype.instance_prim p2 vd2.val_type in
            Option.iter
              (fun m -> Mode.Locality.submode_exn Mode.Locality.local m)
              mode2;
@@ -119,11 +135,13 @@ let value_descriptions ~loc env name
          | Some err -> raise (Dont_match (Primitive_mismatch err))
        end
      | _ ->
-        let ty1, mode1 = Ctype.instance_prim_mode p1 vd1.val_type in
+        let ty1, mode1, sort1 = Ctype.instance_prim p1 vd1.val_type in
         (try Ctype.moregeneral env true ty1 vd2.val_type
          with Ctype.Moregen err -> raise (Dont_match (Type err)));
         let pc =
-          {pc_desc = p1; pc_type = vd2.Types.val_type; pc_poly_mode = mode1;
+          {pc_desc = p1; pc_type = vd2.Types.val_type;
+           pc_poly_mode = Option.map Mode.Locality.disallow_right mode1;
+           pc_poly_sort=sort1;
            pc_env = env; pc_loc = vd1.Types.val_loc; } in
         Tcoerce_primitive pc
      end
@@ -171,8 +189,6 @@ type privacy_mismatch =
   | Private_extensible_variant
   | Private_row_type
 
-type locality_mismatch = { order : position }
-
 type type_kind =
   | Kind_abstract
   | Kind_record
@@ -190,7 +206,7 @@ type kind_mismatch = type_kind * type_kind
 type label_mismatch =
   | Type of Errortrace.equality_error
   | Mutability of position
-  | Nonlocality of locality_mismatch
+  | Modality of Modality.Value.equate_error
 
 type record_change =
   (Types.label_declaration, Types.label_declaration, label_mismatch)
@@ -201,6 +217,7 @@ type record_mismatch =
   | Inlined_representation of position
   | Float_representation of position
   | Ufloat_representation of position
+  | Mixed_representation of position
 
 type constructor_mismatch =
   | Type of Errortrace.equality_error
@@ -208,7 +225,7 @@ type constructor_mismatch =
   | Inline_record of record_change list
   | Kind of position
   | Explicit_return_type of position
-  | Nonlocality of int * locality_mismatch
+  | Modality of int * Modality.Value.equate_error
 
 type extension_constructor_mismatch =
   | Constructor_privacy
@@ -247,13 +264,21 @@ type type_mismatch =
   | Extensible_representation of position
   | Jkind of Jkind.Violation.t
 
-let report_locality_mismatch first second ppf err =
-  let {order} = err in
-  let sort = "global" in
-  Format.fprintf ppf "%s is %s and %s is not."
-    (String.capitalize_ascii  (choose order first second))
-    sort
-    (choose_other order first second)
+let report_modality_sub_error first second ppf e =
+  let print_modality id ppf m =
+    Printtyp.modality ~id:(fun ppf -> Format.pp_print_string ppf id) ppf m
+  in
+  let Modality.Value.Error(ax, {left; right}) = e in
+  Format.fprintf ppf "%s is %a and %s is %a."
+    (String.capitalize_ascii second)
+    (print_modality "empty") (Atom (ax, right) : Modality.t)
+    first
+    (print_modality "not") (Atom (ax, left) : Modality.t)
+
+let report_modality_equate_error first second ppf ((equate_step, sub_error) : Modality.Value.equate_error) =
+  match equate_step with
+  | Left_le_right -> report_modality_sub_error first second ppf sub_error
+  | Right_le_left -> report_modality_sub_error second first ppf sub_error
 
 let report_primitive_mismatch first second ppf err =
   let pr fmt = Format.fprintf ppf fmt in
@@ -280,6 +305,8 @@ let report_primitive_mismatch first second ppf err =
   | Argument_repr n ->
       pr "The two primitives' %d%s arguments have different representations"
         n (Misc.ordinal_suffix n)
+  | Layout_poly_attr ->
+      pr "The two primitives have different [@@layout_poly] attributes"
 
 let report_value_mismatch first second env ppf err =
   let pr fmt = Format.fprintf ppf fmt in
@@ -293,6 +320,8 @@ let report_value_mismatch first second env ppf err =
       Printtyp.report_moregen_error ppf Type_scheme env trace
         (fun ppf -> Format.fprintf ppf "The type")
         (fun ppf -> Format.fprintf ppf "is not compatible with the type")
+  | Zero_alloc e -> Zero_alloc.print_error ppf e
+  | Modality e -> report_modality_sub_error first second ppf e
 
 let report_type_inequality env ppf err =
   Printtyp.report_equality_error ppf Type_scheme env err
@@ -319,7 +348,7 @@ let report_label_mismatch first second env ppf err =
       Format.fprintf ppf "%s is mutable and %s is not."
         (String.capitalize_ascii (choose ord first second))
         (choose_other ord first second)
-  | Nonlocality err_ -> report_locality_mismatch first second ppf err_
+  | Modality err_ -> report_modality_equate_error first second ppf err_
 
 let pp_record_diff first second prefix decl env ppf (x : record_change) =
   match x with
@@ -382,6 +411,11 @@ let report_record_mismatch first second decl env ppf err =
       pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
         (choose ord first second) decl
         "uses float# representation"
+  | Mixed_representation ord ->
+      (* CR layouts: As above. *)
+      pr "@[<hv>Their internal representations differ:@ %s %s %s.@]"
+        (choose ord first second) decl
+        "uses mixed representation"
 
 let report_constructor_mismatch first second decl env ppf err =
   let pr fmt  = Format.fprintf ppf fmt in
@@ -398,9 +432,9 @@ let report_constructor_mismatch first second decl env ppf err =
       pr "%s has explicit return type and %s doesn't."
         (String.capitalize_ascii (choose ord first second))
         (choose_other ord first second)
-  | Nonlocality (i, err) ->
-      pr "Locality mismatch at argument position %i : %a"
-        (i + 1) (report_locality_mismatch first second) err
+  | Modality (i, err) ->
+      pr "Modality mismatch at argument position %i:@ %a"
+        (i + 1) (report_modality_equate_error first second) err
         (* argument position is one-based; more intuitive *)
 
 let pp_variant_diff first second prefix decl env ppf (x : variant_change) =
@@ -523,28 +557,31 @@ let report_type_mismatch first second decl env ppf err =
   | Jkind v ->
       Jkind.Violation.report_with_name ~name:first ppf v
 
-let compare_global_flags flag0 flag1 =
-  match flag0, flag1 with
-  | Global, Unrestricted ->
-    Some {order = First}
-  | Unrestricted, Global ->
-    Some {order = Second}
-  | Global, Global
-  | Unrestricted, Unrestricted ->
-    None
-
 module Record_diffing = struct
 
   let compare_labels env params1 params2
         (ld1 : Types.label_declaration)
         (ld2 : Types.label_declaration) =
-        if ld1.ld_mutable <> ld2.ld_mutable
-        then
-          let ord = if ld1.ld_mutable = Asttypes.Mutable then First else Second in
-          Some (Mutability ord)
-        else begin
-          match compare_global_flags ld1.ld_global ld2.ld_global with
-          | None ->
+        let mut =
+          match ld1.ld_mutable, ld2.ld_mutable with
+          | Immutable, Immutable -> None
+          | Mutable _, Immutable -> Some First
+          | Immutable, Mutable _ -> Some Second
+          | Mutable m1, Mutable m2 ->
+            let open Mode.Alloc.Comonadic.Const in
+            (if not (eq m1 legacy) then
+              Misc.fatal_errorf "Unexpected mutable(%a)" print m1);
+            (if not (eq m2 legacy) then
+              Misc.fatal_errorf "Unexpected mutable(%a)" print m2);
+            None
+        in
+        begin match mut with
+        | Some mut -> Some (Mutability mut)
+        | None ->
+          match
+            Modality.Value.Const.equate ld1.ld_modalities ld2.ld_modalities
+          with
+          | Ok () ->
             let tl1 = params1 @ [ld1.ld_type] in
             let tl2 = params2 @ [ld2.ld_type] in
             begin
@@ -553,7 +590,7 @@ module Record_diffing = struct
                 Some (Type err : label_mismatch)
             | () -> None
             end
-          | Some e -> Some (Nonlocality e : label_mismatch)
+          | Error e -> Some (Modality e : label_mismatch)
         end
 
   let rec equal ~loc env params1 params2
@@ -675,6 +712,12 @@ module Record_diffing = struct
      | _, Record_ufloat ->
         Some (Record_mismatch (Ufloat_representation Second))
 
+     | Record_mixed _, Record_mixed _ -> None
+     | Record_mixed _, _ ->
+        Some (Record_mismatch (Mixed_representation First))
+     | _, Record_mixed _ ->
+        Some (Record_mismatch (Mixed_representation Second))
+
      | Record_boxed _, Record_boxed _ -> None
 
 end
@@ -689,6 +732,10 @@ let rec find_map_idx f ?(off = 0) l =
       | Some y -> Some (off, y)
     end
 
+let get_error = function
+  | Ok () -> None
+  | Error e -> Some e
+
 module Variant_diffing = struct
 
   let compare_constructor_arguments ~loc env params1 params2 arg1 arg2 =
@@ -697,15 +744,17 @@ module Variant_diffing = struct
         if List.length arg1 <> List.length arg2 then
           Some (Arity : constructor_mismatch)
         else begin
-          let arg1_tys, arg1_gfs = List.split arg1
-          and arg2_tys, arg2_gfs = List.split arg2
+          let type_and_mode (ca : Types.constructor_argument) = ca.ca_type, ca.ca_modalities in
+          let arg1_tys, arg1_gfs = List.split (List.map type_and_mode arg1)
+          and arg2_tys, arg2_gfs = List.split (List.map type_and_mode arg2)
           in
           (* Ctype.equal must be called on all arguments at once, cf. PR#7378 *)
           match Ctype.equal env true (params1 @ arg1_tys) (params2 @ arg2_tys) with
           | exception Ctype.Equality err -> Some (Type err)
           | () -> List.combine arg1_gfs arg2_gfs
-                  |> find_map_idx (fun (x,y) -> compare_global_flags x y)
-                  |> Option.map (fun (i, err) -> Nonlocality (i, err))
+                  |> find_map_idx
+                    (fun (x,y) -> get_error @@ Modality.Value.Const.equate x y)
+                  |> Option.map (fun (i, err) -> Modality (i, err))
         end
     | Types.Cstr_record l1, Types.Cstr_record l2 ->
         Option.map

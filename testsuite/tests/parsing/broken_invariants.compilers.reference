@@ -26,4 +26,12 @@ Line 2, characters 4-15:
 2 |  [%%missing_rhs]
         ^^^^^^^^^^^
 Error: broken invariant in parsetree: Module type substitution with no right hand side
+Line 2, characters 9-26:
+2 | let f ([%lt_empty_open_pat]) = ();;
+             ^^^^^^^^^^^^^^^^^
+Error: broken invariant in parsetree: Open labeled tuple patterns must have at least one component.
+Line 1, characters 9-28:
+1 | let f ([%lt_short_closed_pat]) = ();;
+             ^^^^^^^^^^^^^^^^^^^
+Error: broken invariant in parsetree: Closed labeled tuple patterns must have at least 2 components.
 

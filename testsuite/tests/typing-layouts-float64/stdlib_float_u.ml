@@ -1,15 +1,21 @@
 (* TEST
-   * native
-     flags = "-extension layouts_alpha"
-   * bytecode
-     flags = "-extension layouts_alpha"
-   * native
-     flags = "-extension layouts_beta"
-   * bytecode
-     flags = "-extension layouts_beta"
+ include stdlib_upstream_compatible;
+ {
+   flags = "-extension layouts_alpha";
+   native;
+ }{
+   flags = "-extension layouts_alpha";
+   bytecode;
+ }{
+   flags = "-extension layouts_beta";
+   native;
+ }{
+   flags = "-extension layouts_beta";
+   bytecode;
+ }
 *)
 
-module Float_u = Stdlib__Float_u
+module Float_u = Stdlib_upstream_compatible.Float_u
 
 (* Constant seed for repeatable random-testing properties *)
 let () = Random.init 1234

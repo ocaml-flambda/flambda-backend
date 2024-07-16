@@ -17,8 +17,9 @@
  (wrapped false)
  (modes byte native)
  (flags (
-   -strict-sequence -principal -absname -w +a-4-9-40-41-42-44-45-48-66
-   -warn-error A -bin-annot -safe-string -strict-formats
+   :standard
+   -strict-sequence -absname -w +67+70
+   -bin-annot -safe-string -strict-formats
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags (:standard -linkall))
@@ -41,6 +42,7 @@
     (.str.objs/byte/str.cmi as str/str.cmi)
     (.str.objs/byte/str.cmt as str/str.cmt)
     (.str.objs/byte/str.cmti as str/str.cmti)
+    (META as str/META)
   )
   (section lib)
   (package ocaml))

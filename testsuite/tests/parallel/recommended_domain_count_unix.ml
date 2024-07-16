@@ -1,10 +1,13 @@
 (* TEST
-* skip
-reason = "OCaml 5 only"
-** hasunix
-include unix
-*** bytecode
-*** native
+ reason = "CR ocaml 5 domains: re-enable this test";
+ skip;
+ include unix;
+ hasunix;
+ {
+   bytecode;
+ }{
+   native;
+ }
 *)
 
 let try_ext cmd =

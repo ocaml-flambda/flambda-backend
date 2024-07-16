@@ -16,6 +16,9 @@
 #ifndef CAML_CONFIG_H
 #define CAML_CONFIG_H
 
+/* CR ocaml 5 all-runtime5: remove this and all uses of it */
+#define CAML_RUNTIME_5
+
 /* CAML_NAME_SPACE was introduced in OCaml 3.08 to declare compatibility with
    the newly caml_-prefixed names of C runtime functions and to disable the
    definition of compatibility macros for the un-prefixed names. The
@@ -227,7 +230,7 @@ typedef uint64_t uintnat;
 #define Minor_heap_min (Max_young_wosize + 1)
 
 /* Default size of the minor zone. (words)  */
-#define Minor_heap_def 262144
+#define Minor_heap_def 1048576
 
 /* Minimum size increment when growing the heap (words).
    Must be a multiple of [Page_size / sizeof (value)]. */
@@ -237,7 +240,7 @@ typedef uint64_t uintnat;
 /* Default speed setting for the major GC.  The heap will grow until
    the dead objects and the free list represent this percentage of the
    total size of live objects. */
-#define Percent_free_def 120
+#define Percent_free_def 160
 
 /* Default setting for the major GC slice smoothing window: 1
    (i.e. no smoothing)
@@ -268,5 +271,18 @@ typedef uint64_t uintnat;
 
 /* Default size of runtime_events ringbuffers, in words, in powers of two */
 #define Default_runtime_events_log_wsize 16
+
+/* Assumed size of cache line. This value can be bigger than the actual L1
+   cache line size. Atomics allocated with aligned constructor are
+   memory-aligned this value to avoid false sharing of cache line. */
+#if defined(TARGET_s390x)
+   #define Cache_line_bsize 256
+#elif defined(TARGET_arm64) || defined(TARGET_power)
+   #define Cache_line_bsize 128
+#elif defined(TARGET_amd64) || defined(TARGET_riscv)
+   #define Cache_line_bsize 64
+#elif (!defined(NATIVE_CODE))
+   #define Cache_line_bsize 64
+#endif
 
 #endif /* CAML_CONFIG_H */

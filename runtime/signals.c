@@ -34,6 +34,7 @@
 #include "caml/sys.h"
 #include "caml/memprof.h"
 #include "caml/finalise.h"
+#include "caml/printexc.h"
 
 /* The set of pending signals (received but not yet processed).
    It is represented as a bit vector.
@@ -106,12 +107,8 @@ CAMLexport value caml_process_pending_signals_exn(void)
 }
 
 /* Record the delivery of a signal, and arrange for it to be processed
-   as soon as possible:
-   - via Caml_state->action_pending, processed in
-     caml_process_pending_actions.
-   - by playing with the allocation limit, processed in
-     caml_alloc_small_dispatch.
-*/
+   as soon as possible, by playing with the allocation limit,
+   processed in caml_alloc_small_dispatch. */
 CAMLexport void caml_record_signal(int signal_number)
 {
   unsigned int i;
@@ -119,8 +116,28 @@ CAMLexport void caml_record_signal(int signal_number)
   i = signal_number - 1;
   atomic_fetch_or(&caml_pending_signals[i / BITS_PER_WORD],
                   (uintnat)1 << (i % BITS_PER_WORD));
-  // FIXME: the TLS variable is not thread-safe
-  caml_interrupt_self();
+  /* We interrupt all domains when a signal arrives. Signals (SIGINT,
+     SIGALRM...) arrive infrequently-enough that this is affordable.
+     This is a strategy that makes as little assumptions as possible
+     about signal-safety, threads, and domains.
+
+     * In mixed C/OCaml applications there is no guarantee that the
+       POSIX signal handler runs in an OCaml thread, so Caml_state might
+       be unavailable.
+
+     * While C11 mandates that atomic thread-local variables are
+       async-signal-safe for reading, gcc does not conform and can
+       allocate in corner cases involving dynamic linking. It is also
+       unclear whether the OSX implementation conforms, but this might
+       be a theoretical concern only.
+
+     * The thread executing a POSIX signal handler is not necessarily
+       the most ready to execute the corresponding OCaml signal handler.
+       Examples:
+       - Ctrl-C in the toplevel when domain 0 is stuck inside [Domain.join].
+       - a thread that has just spawned, before the appropriate mask is set.
+  */
+  caml_interrupt_all_for_signal();
 }
 
 /* Management of blocking sections. */
@@ -146,6 +163,8 @@ CAMLexport void caml_enter_blocking_section(void)
 {
   caml_domain_state * domain = Caml_state;
   while (1){
+    if (Caml_state->in_minor_collection)
+      caml_fatal_error("caml_enter_blocking_section from inside minor GC");
     /* Process all pending signals now */
     caml_process_pending_actions();
     caml_enter_blocking_section_hook ();
@@ -199,6 +218,36 @@ void caml_init_signal_handling(void) {
   for (i = 0; i < NSIG; i++)
     Field(caml_signal_handlers, i) = Val_unit;
   caml_register_generational_global_root(&caml_signal_handlers);
+}
+
+static void check_async_exn(value res, const char *msg)
+{
+  value exn;
+  const value *break_exn;
+
+  if (!Is_exception_result(res))
+    return;
+
+  exn = Extract_exception(res);
+
+  /* [Break] is not introduced as a predefined exception (in predef.ml and
+     stdlib.ml) since it causes trouble in conjunction with warnings about
+     constructor shadowing e.g. in format.ml.
+     "Sys.Break" must match stdlib/sys.mlp. */
+  break_exn = caml_named_value("Sys.Break");
+  if (break_exn != NULL && exn == *break_exn)
+    return;
+
+  caml_fatal_uncaught_exception_with_message(exn, msg);
+}
+
+value caml_raise_async_if_exception(value res, const char* where)
+{
+  if (Is_exception_result(res)) {
+    check_async_exn(res, where);
+    caml_raise_async(Extract_exception(res));
+  }
+  return res;
 }
 
 /* Execute a signal handler immediately */
@@ -270,7 +319,7 @@ void caml_request_minor_gc (void)
    [Caml_state->action_pending] is 1, or there is a function currently
    running which is executing all actions.
 
-   This is used to ensure [Caml_state->young_limit] is always set
+   This is used to ensure that [Caml_state->young_limit] is always set
    appropriately.
 
    In case there are two different callbacks (say, a signal and a
@@ -283,9 +332,7 @@ void caml_request_minor_gc (void)
    calling them first.
 */
 
-CAMLno_tsan /* When called from [caml_record_signal], these memory
-               accesses may not be synchronized. Otherwise we assume
-               that we have unique access to dom_st. */
+/* We assume that we have unique access to dom_st. */
 void caml_set_action_pending(caml_domain_state * dom_st)
 {
   dom_st->action_pending = 1;
@@ -312,16 +359,17 @@ value caml_do_pending_actions_exn(void)
 
   /* Call signal handlers first */
   value exn = caml_process_pending_signals_exn();
+  check_async_exn(exn, "signal handler");
   if (Is_exception_result(exn)) goto exception;
 
-#if 0
   /* Call memprof callbacks */
-  exn = caml_memprof_handle_postponed_exn();
+  exn = caml_memprof_run_callbacks_exn();
+  check_async_exn(exn, "memprof callback");
   if (Is_exception_result(exn)) goto exception;
-#endif
 
   /* Call finalisers */
   exn = caml_final_do_calls_exn();
+  check_async_exn(exn, "finaliser");
   if (Is_exception_result(exn)) goto exception;
 
   return Val_unit;
@@ -348,8 +396,9 @@ value caml_process_pending_actions_with_root_exn(value root)
 
 value caml_process_pending_actions_with_root(value root)
 {
-  return caml_raise_if_exception(
-    caml_process_pending_actions_with_root_exn(root));
+  return caml_raise_async_if_exception(
+    caml_process_pending_actions_with_root_exn(root),
+    "");
 }
 
 CAMLexport value caml_process_pending_actions_exn(void)
@@ -670,6 +719,6 @@ CAMLprim value caml_install_signal_handler(value signal_number, value action)
     caml_modify(&Field(caml_signal_handlers, sig), Field(action, 0));
     caml_plat_unlock(&signal_install_mutex);
   }
-  caml_raise_if_exception(caml_process_pending_signals_exn());
+  (void) caml_raise_async_if_exception(caml_process_pending_signals_exn(), "");
   CAMLreturn (res);
 }

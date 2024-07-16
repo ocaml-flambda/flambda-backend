@@ -22,6 +22,10 @@ type t = {
   test_description : string
 }
 
+val null : t
+
+val does_nothing : t
+
 val compare : t -> t -> int
 
 val register : t -> unit

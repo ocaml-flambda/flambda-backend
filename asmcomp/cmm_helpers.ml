@@ -38,7 +38,9 @@ let bind_nonvar name arg fn =
   | _ -> let id = V.create_local name in Clet(VP.create id, arg, fn (Cvar id))
 
 let caml_black = Nativeint.shift_left (Nativeint.of_int 3) 8
-let caml_local = Nativeint.shift_left (Nativeint.of_int 2) 8
+let caml_local =
+  Nativeint.shift_left (Nativeint.of_int (if Config.runtime5 then 3 else 2)) 8
+(* cf. runtime/caml/gc.h *)
     (* cf. runtime/caml/gc.h *)
 
 (* Loads *)
@@ -707,12 +709,9 @@ let get_header ptr dbg =
      loads can be marked as [Immutable], since the runtime should ensure that
      there is no data race on headers. This saves performance with
      ThreadSanitizer instrumentation by avoiding to instrument header loads. *)
-  Cop(
-(* BACKPORT BEGIN
-    mk_load_immut Word_int,
-*)
-    mk_load_mut Word_int,
-(* BACKPORT END *)
+  Cop((if Config.runtime5
+       then mk_load_immut Word_int
+       else mk_load_mut Word_int),
     [Cop(Cadda, [ptr; Cconst_int(-size_int, dbg)], dbg)], dbg)
 
 let get_header_masked ptr dbg =
@@ -730,12 +729,9 @@ let get_tag ptr dbg =
     Cop(Cand, [get_header ptr dbg; Cconst_int (255, dbg)], dbg)
   else                                  (* If byte loads are efficient *)
     (* Same comment as [get_header] above *)
-    Cop(
-(* BACKPORT BEGIN
-      mk_load_immut Byte_unsigned,
-*)
-      mk_load_mut Byte_unsigned,
-(* BACKPORT END *)
+    Cop((if Config.runtime5
+         then mk_load_immut Byte_unsigned
+         else mk_load_mut Byte_unsigned),
       [Cop(Cadda, [ptr; Cconst_int(tag_offset, dbg)], dbg)], dbg)
 
 let get_size ptr dbg =
@@ -914,8 +910,6 @@ module Extended_machtype = struct
 
   let typ_any_int = [| Extended_machtype_component.Any_int |]
 
-  let typ_int64 = [| Extended_machtype_component.Any_int |]
-
   let typ_float = [| Extended_machtype_component.Float |]
 
   let typ_void = [||]
@@ -934,13 +928,16 @@ module Extended_machtype = struct
     | Ptop -> Misc.fatal_error "No Extended_machtype for layout [Ptop]"
     | Pbottom ->
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
-    | Punboxed_float -> typ_float
+    | Punboxed_float Pfloat64 -> typ_float
+    | Punboxed_float Pfloat32 ->
+      Misc.fatal_error "float32 is not supported in the upstream compiler build."
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int
     | Pvalue Pintval -> typ_tagged_int
     | Punboxed_vector _ ->
-      Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+      Misc.fatal_error
+        "SIMD vectors are not supported in the upstream compiler build."
     | Pvalue _ -> typ_val
     | Punboxed_product _ -> failwith "TODO"
 end
@@ -1012,11 +1009,9 @@ let make_alloc_generic ~mode set_fn dbg tag wordsize args =
     | e1::el -> Csequence(set_fn (Cvar id) (Cconst_int (idx, dbg)) e1 dbg,
                           fill_fields (idx + 2) el) in
     Clet(VP.create id,
-(* BACKPORT BEGIN
-         Cop(Cextcall("caml_alloc_shr_check_gc", typ_val, [], true),
-*)
-         Cop(Cextcall("caml_alloc", typ_val, [], true),
-(* BACKPORT END *)
+         Cop(Cextcall((if Config.runtime5
+                       then "caml_alloc_shr_check_gc"
+                       else "caml_alloc"), typ_val, [], true),
                  [Cconst_int (wordsize, dbg); Cconst_int (tag, dbg)], dbg),
          fill_fields 1 args)
   end
@@ -1576,7 +1571,7 @@ let box_sized size mode dbg exp =
 (* Simplification of some primitives into C calls *)
 
 let default_prim name =
-  Primitive.simple_on_values ~name ~arity:0(*ignored*) ~alloc:true
+  Lambda.simple_prim_on_values ~name ~arity:0(*ignored*) ~alloc:true
 
 let simplif_primitive p : Clambda_primitives.primitive =
   match (p : Clambda_primitives.primitive) with
@@ -2517,6 +2512,8 @@ let arraylength kind arg dbg =
       Cop(Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
   | Pfloatarray ->
       Cop(Cor, [float_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
+  | Punboxedfloatarray _ | Punboxedintarray _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
 
 let bbswap bi arg dbg =
   let prim, tyarg = match (bi : Primitive.boxed_integer) with
@@ -2554,13 +2551,9 @@ let assignment_kind
   | Assignment Modify_maybe_stack, Pointer ->
     assert Config.stack_allocation;
     Caml_modify_local
-(* BACKPORT BEGIN
-  | Heap_initialization, Pointer
-  | Root_initialization, Pointer -> Caml_initialize
-*)
   | Heap_initialization, Pointer -> Caml_initialize
-  | Root_initialization, Pointer -> Simple Initialization
-(* BACKPORT END *)
+  | Root_initialization, Pointer ->
+    if Config.runtime5 then Caml_initialize else Simple Initialization
   | (Assignment _), Immediate -> Simple Assignment
   | Heap_initialization, Immediate
   | Root_initialization, Immediate -> Simple Initialization
@@ -2711,6 +2704,8 @@ let arrayref_unsafe rkind arg1 arg2 dbg =
       int_array_ref arg1 arg2 dbg
   | Pfloatarray_ref mode ->
       float_array_ref mode arg1 arg2 dbg
+  | Punboxedfloatarray_ref _ | Punboxedintarray_ref _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
 
 let arrayref_safe rkind arg1 arg2 dbg =
   match (rkind : Lambda.array_ref_kind) with
@@ -2764,6 +2759,8 @@ let arrayref_safe rkind arg1 arg2 dbg =
                 (get_header_masked arr dbg) dbg;
               idx],
             unboxed_float_array_ref arr idx dbg))))
+  | Punboxedfloatarray_ref _ | Punboxedintarray_ref _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -2814,6 +2811,8 @@ let arrayset_unsafe skind arg1 arg2 arg3 dbg =
       int_array_set arg1 arg2 arg3 dbg
   | Pfloatarray_set ->
       float_array_set arg1 arg2 arg3 dbg
+  | Punboxedfloatarray_set _ | Punboxedintarray_set _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
   )
 
 let arrayset_safe skind arg1 arg2 arg3 dbg =
@@ -2877,6 +2876,8 @@ let arrayset_safe skind arg1 arg2 arg3 dbg =
               (get_header_masked arr dbg) dbg;
             idx],
           float_array_set arr idx newval dbg))))
+  | Punboxedfloatarray_set _ | Punboxedintarray_set _ ->
+      Misc.fatal_errorf "Unboxed arrays not supported"
   )
 
 let bytes_set size unsafe arg1 arg2 arg3 dbg =
@@ -3207,12 +3208,17 @@ let emit_preallocated_blocks preallocated_blocks cont =
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
-  | Pvalue Pfloatval -> Boxed_float
+  | Pvalue (Pboxedfloatval Pfloat64) -> Boxed_float
+  | Pvalue (Pboxedfloatval Pfloat32)
+  | Punboxed_float Pfloat32 ->
+    Misc.fatal_error "float32 is not supported in the upstream compiler build."
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
-  | Ptop | Pbottom | Punboxed_float | Punboxed_int _ | Punboxed_product _ -> Any
+  | Ptop | Pbottom | Punboxed_float Pfloat64
+  | Punboxed_int _ | Punboxed_product _ -> Any
   | Pvalue (Pboxedvectorval _)
   | Punboxed_vector _ ->
-    Misc.fatal_error "SIMD vectors are not yet suppored in the upstream compiler build."
+    Misc.fatal_error
+      "SIMD vectors are not supported in the upstream compiler build."
 
 let make_tuple l = match l with [e] -> e | _ -> Ctuple l

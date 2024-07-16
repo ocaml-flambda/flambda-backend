@@ -209,8 +209,8 @@ module Exp:
 (** Value declarations *)
 module Val:
   sig
-    val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs ->
-      ?prim:string list -> str -> core_type -> value_description
+    val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?prim:string list ->
+      ?modalities:modality with_loc list -> str -> core_type -> value_description
   end
 
 (** Type declarations *)
@@ -218,7 +218,6 @@ module Type:
   sig
     val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?text:text ->
       ?params:(core_type * (variance * injectivity)) list ->
-      ?jkind:attribute ->
       ?cstrs:(core_type * core_type * loc) list ->
       ?kind:type_kind -> ?priv:private_flag -> ?manifest:core_type -> str ->
       type_declaration
@@ -227,8 +226,13 @@ module Type:
       ?vars:str list -> ?args:constructor_arguments -> ?res:core_type ->
       str ->
       constructor_declaration
+
+    val constructor_arg: ?loc:loc -> ?modalities:modality with_loc list -> core_type ->
+      constructor_argument
+
     val field: ?loc:loc -> ?attrs:attrs -> ?info:info ->
-      ?mut:mutable_flag -> str -> core_type -> label_declaration
+      ?mut:mutable_flag -> ?modalities:modality with_loc list -> str -> core_type ->
+      label_declaration
   end
 
 (** Type extensions *)

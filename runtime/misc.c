@@ -84,6 +84,9 @@ void caml_gc_log (char *msg, ...)
     char fmtbuf[GC_LOG_LENGTH];
     va_list args;
     va_start (args, msg);
+    if (caml_verb_gc & 0x1000) {
+      caml_print_timestamp(stderr, caml_verb_gc & 0x2000);
+    }
     snprintf(fmtbuf, GC_LOG_LENGTH, "[%02d] %s\n",
              (Caml_state_opt != NULL) ? Caml_state_opt->id : -1, msg);
     vfprintf(stderr, fmtbuf, args);
@@ -97,6 +100,9 @@ void caml_gc_message (int level, char *msg, ...)
   if ((atomic_load_relaxed(&caml_verb_gc) & level) != 0){
     va_list ap;
     va_start(ap, msg);
+    if (caml_verb_gc & 0x1000) {
+      caml_print_timestamp(stderr, caml_verb_gc & 0x2000);
+    }
     vfprintf (stderr, msg, ap);
     va_end(ap);
     fflush (stderr);
@@ -134,6 +140,11 @@ CAMLexport void caml_fatal_error_arg2 (const char *fmt1, const char *arg1,
   fprintf (stderr, fmt1, arg1);
   fprintf (stderr, fmt2, arg2);
   exit(2);
+}
+
+void caml_fatal_out_of_memory(void)
+{
+  caml_fatal_error("Out of memory");
 }
 
 void caml_ext_table_init(struct ext_table * tbl, int init_capa)
@@ -249,4 +260,19 @@ int caml_runtime_warnings_active(void)
 void caml_bad_caml_state(void)
 {
   caml_fatal_error("no domain lock held");
+}
+
+/* Flambda 2 invalid term markers */
+
+CAMLnoreturn_start
+void caml_flambda2_invalid (value message)
+CAMLnoreturn_end;
+
+void caml_flambda2_invalid (value message)
+{
+  fprintf (stderr, "[ocaml] [flambda2] Invalid code:\n%s\n\n",
+    String_val(message));
+  fprintf (stderr, "This might have arisen from a wrong use of [Obj.magic].\n");
+  fprintf (stderr, "Consider using [Sys.opaque_identity].\n");
+  abort ();
 }

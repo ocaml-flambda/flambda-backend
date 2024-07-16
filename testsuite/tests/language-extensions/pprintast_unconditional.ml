@@ -1,12 +1,13 @@
 (* TEST
-   include ocamlcommon
-   flags = "-I ${ocamlsrcdir}/parsing"
+ include ocamlcommon;
+ flags = "-I ${ocamlsrcdir}/parsing";
 *)
 
 (******************************************************************************)
 (* Setup *)
 
-let () = Language_extension.enable_maximal ();;
+let () = Language_extension.set_universe_and_enable_all
+  Language_extension.Universe.maximal;;
 
 module Example = struct
   open Parsetree
@@ -16,6 +17,47 @@ module Example = struct
     let located =  Location.mknoloc
     let parse p str = p (Lexing.from_string str)
   end
+
+  let modality_record  = parse module_expr
+    "struct \
+      type t = {global_ x : string; global_ y : int} \
+     end"
+  let modality_cstrarg = parse module_expr
+    "struct \
+      type t = Foo of global_ string * global_ string \
+      type u = Foo : global_ string * global_ string -> u \
+     end"
+
+  let modality_val  = parse module_type
+    "sig \
+      val t : string -> string @ local @@ foo bar \
+     end"
+
+  let local_exp = parse expression "let x = foo (local_ x) in local_ y"
+
+  let modal_kind_struct =
+    parse module_expr "struct \
+      type 'a list : immutable_data with 'a \
+      type ('a, 'b) either : immutable_data with 'a * 'b \
+      type 'a gel : kind_of_ 'a mod global \
+      type 'a t : _ \
+      kind_abbrev_ immediate = value mod global unique many sync uncontended \
+      kind_abbrev_ immutable_data = value mod sync uncontended many \
+      kind_abbrev_ immutable = value mod uncontended \
+      kind_abbrev_ data = value mod sync many \
+    end"
+
+  let modal_kind_sig =
+    parse module_type "sig \
+      type 'a list : immutable_data with 'a \
+      type ('a, 'b) either : immutable_data with 'a * 'b \
+      type 'a gel : kind_of_ 'a mod global \
+      type 'a t : _ \
+      kind_abbrev_ immediate = value mod global unique many sync uncontended \
+      kind_abbrev_ immutable_data = value mod sync uncontended many \
+      kind_abbrev_ immutable = value mod uncontended \
+      kind_abbrev_ data = value mod sync many \
+    end"
 
   let longident        = parse longident "No.Longidents.Require.extensions"
   let expression       = parse expression "[x for x = 1 to 10]"
@@ -76,6 +118,14 @@ module Example = struct
                          ; ptype_loc = loc
                          }
   let tyvar            = "no_tyvars_require_extensions"
+  let jkind            = Jane_syntax.Jkind.(
+                            With (
+                              Abbreviation
+                                (Const.mk "value" loc),
+                              core_type
+                            ))
+
+  let mode = Jane_syntax.Mode_expr.Const.mk "global" loc
 end
 
 let print_test_header name =
@@ -123,6 +173,12 @@ end = struct
     Test.setup ()
   ;;
 
+  let modality_record = test "modality_record" module_expr Example.modality_record
+  let modality_cstrarg = test "modality_cstrarg" module_expr Example.modality_cstrarg
+  let modality_val = test "modality_val" module_type Example.modality_val
+
+  let local_exp = test "local_exp" expression Example.local_exp
+
   let longident = test "longident" longident Example.longident
   let expression = test "expression" expression Example.expression
   let pattern = test "pattern" pattern Example.pattern
@@ -146,8 +202,12 @@ end = struct
 
   let string_of_expression = test_string_of "string_of_expression" string_of_expression Example.expression
   let string_of_structure = test_string_of "string_of_structure" string_of_structure Example.structure
+  let modal_kind_struct = test "modal_kind_struct" module_expr Example.modal_kind_struct
+  let modal_kind_sig = test "modal_kind_sig" module_type Example.modal_kind_sig
 
   let tyvar = test "tyvar" tyvar Example.tyvar
+  let jkind = test "jkind" jkind Example.jkind
+  let mode = test "mode" mode Example.mode
 end
 
 
@@ -159,7 +219,8 @@ module _ =
   Print_all
     (struct
       let name = "All extensions enabled"
-      let setup () = Language_extension.enable_maximal ()
+      let setup () = Language_extension.set_universe_and_enable_all
+        Language_extension.Universe.maximal
     end)
     ()
 ;;
@@ -171,7 +232,7 @@ module _ =
   Print_all
     (struct
       let name = "Extensions disallowed"
-      let setup () = Language_extension.disallow_extensions ()
+      let setup () = Language_extension.set_universe_and_enable_all No_extensions
     end)
     ()
 ;;

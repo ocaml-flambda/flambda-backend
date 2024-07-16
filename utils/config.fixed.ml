@@ -45,6 +45,11 @@ let mkdll = native_pack_linker
 let mkexe = native_pack_linker
 let mkmaindll = native_pack_linker
 let flambda = false
+let flambda2 = false
+let stack_allocation = false
+let with_cpp_mangling = false
+let probes = false
+let poll_insertion = false
 let with_flambda_invariants = false
 let with_cmm_invariants = false
 let windows_unicode = false
@@ -59,6 +64,7 @@ let asm = boot_cannot_call "the assembler"
 let asm_cfi_supported = false
 let with_frame_pointers = false
 let reserved_header_bits = 0
+let custom_ops_struct_size = 64
 let ext_exe = ".ex_The boot compiler should not be using Config.ext_exe"
 let ext_obj = ".o_The boot compiler cannot process C objects"
 let ext_asm = ".s_The boot compiler should not be using Config.ext_asm"
@@ -69,3 +75,9 @@ let target = host
 let systhread_supported = false
 let flexdll_dirs = []
 let ar_supports_response_files = true
+
+(* mshinwell: at present always use runtime4 for bootstrap *)
+let runtime5 = false
+let no_stack_checks = false
+(* This setting is only for bootstrap, does not affect dune-built compilers: *)
+let naked_pointers = false

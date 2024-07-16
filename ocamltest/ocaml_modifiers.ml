@@ -96,7 +96,7 @@ let str = make_library_modifier
 let systhreads =
   unix @
   (make_library_modifier
-    "threads" [compiler_subdir ["otherlibs"; "systhreads"]])
+    "threads" [compiler_subdir ["otherlibs"; Ocamltest_config.systhreads_path]])
 
 let runtime_events =
   make_library_modifier
@@ -124,7 +124,12 @@ let compilerlibs_archive archive =
   append Ocaml_variables.libraries [archive] ::
   List.map add_compiler_subdir compilerlibs_subdirs
 
-let debugger = [add_compiler_subdir "debugger"]
+let runtime_suffix = if Config.runtime5 then "" else "4"
+
+let debugger = [add_compiler_subdir ("debugger" ^ runtime_suffix)]
+
+let extension_universe_lib name =
+  make_library_modifier name [compiler_subdir ["otherlibs"; name]]
 
 let _ =
   register_modifiers "principal" principal;
@@ -133,6 +138,14 @@ let _ =
   register_modifiers "unix" unix;
   register_modifiers "dynlink" dynlink;
   register_modifiers "str" str;
+  List.iter
+    (fun name -> register_modifiers name (extension_universe_lib name))
+    [
+      "stdlib_upstream_compatible";
+      "stdlib_stable";
+      "stdlib_beta";
+      "stdlib_alpha";
+    ];
   List.iter
     (fun archive -> register_modifiers archive (compilerlibs_archive archive))
     [

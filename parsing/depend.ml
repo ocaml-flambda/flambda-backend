@@ -14,7 +14,6 @@
 (**************************************************************************)
 
 open Asttypes
-open Jane_asttypes
 open Location
 open Longident
 open Parsetree
@@ -98,7 +97,7 @@ let handle_extension ext =
 
 (* CR layouts: Remember to add this when jkinds can have module
    prefixes. *)
-let add_jkind _bv (_jkind : jkind_annotation) = ()
+let add_jkind _bv (_jkind : Jane_syntax.Jkind.annotation) = ()
 
 let add_vars_jkinds bv vars_jkinds =
   let add_one (_, jkind) = Option.iter (add_jkind bv) jkind in
@@ -133,6 +132,7 @@ let rec add_type bv ty =
 
 and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_layout typ -> add_type_jst_layouts bv typ
+  | Jtyp_tuple x -> add_type_jst_labeled_tuple bv x
 
 and add_type_jst_layouts bv : Jane_syntax.Layouts.core_type -> _ = function
   | Ltyp_var { name = _; jkind } ->
@@ -144,6 +144,9 @@ and add_type_jst_layouts bv : Jane_syntax.Layouts.core_type -> _ = function
     add_type bv aliased_type;
     add_jkind bv jkind
 
+and add_type_jst_labeled_tuple bv : Jane_syntax.Labeled_tuples.core_type -> _ =
+  fun tl -> List.iter (fun (_, ty) -> add_type bv ty) tl
+
 and add_package_type bv (lid, l) =
   add bv lid;
   List.iter (add_type bv) (List.map (fun (_, e) -> e) l)
@@ -153,7 +156,7 @@ let add_opt add_fn bv = function
   | Some x -> add_fn bv x
 
 let add_constructor_arguments bv = function
-  | Pcstr_tuple l -> List.iter (add_type bv) l
+  | Pcstr_tuple l -> List.iter (fun a -> add_type bv a.pca_type) l
   | Pcstr_record l -> List.iter (fun l -> add_type bv l.pld_type) l
 
 let add_constructor_decl bv pcd =
@@ -238,6 +241,8 @@ and add_pattern_jane_syntax bv : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pl) ->
       List.iter (add_pattern bv) pl
   | Jpat_layout (Lpat_constant _) -> add_constant
+  | Jpat_tuple (labeled_pl, _) ->
+      List.iter (fun (_, p) -> add_pattern bv p) labeled_pl
 
 let add_pattern bv pat =
   pattern_bv := bv;
@@ -317,6 +322,11 @@ let rec add_expr bv exp =
       | Pstr_eval ({ pexp_desc = Pexp_construct (c, None) }, _) -> add bv c
       | _ -> handle_extension e
       end
+  | Pexp_extension (({ txt = ("probe"|"ocaml.probe"); _ }, payload) as e) ->
+      begin match Builtin_attributes.get_tracing_probe_payload payload with
+      | Error () -> handle_extension e
+      | Ok { arg; _ } -> add_expr bv arg
+      end
   | Pexp_extension e -> handle_extension e
   | Pexp_unreachable -> ()
 
@@ -325,6 +335,12 @@ and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
   | Jexp_immutable_array x -> add_immutable_array_expr bv x
   | Jexp_layout x -> add_layout_expr bv x
   | Jexp_n_ary_function n_ary -> add_n_ary_function bv n_ary
+  | Jexp_tuple x -> add_labeled_tuple_expr bv x
+  | Jexp_modes x -> add_modes_expr bv x
+
+and add_modes_expr bv : Jane_syntax.Modes.expression -> _ =
+  function
+  | Coerce (_modes, exp) -> add_expr bv exp
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function
@@ -401,6 +417,9 @@ and add_function_constraint bv
     | Pcoerce (ty1, ty2) ->
       add_opt add_type bv ty1;
       add_type bv ty2
+
+and add_labeled_tuple_expr bv : Jane_syntax.Labeled_tuples.expression -> _ =
+  function el -> List.iter (add_expr bv) (List.map snd el)
 
 and add_cases bv cases =
   List.iter (add_case bv) cases
@@ -516,11 +535,13 @@ and add_include_description (bv, m) incl =
   let add = String.Map.fold String.Map.add m' in
   (add bv, add m)
 
-and add_sig_item_jst bvm : Jane_syntax.Signature_item.t -> _ = function
+and add_sig_item_jst (bv, m) : Jane_syntax.Signature_item.t -> _ = function
   | Jsig_include_functor (Ifsig_include_functor incl) ->
       (* It seems to be correct to treat [include functor] the same as
          [include], but it's possible we could do something cleverer. *)
-      add_include_description bvm incl
+      add_include_description (bv, m) incl
+  | Jsig_layout (Lsig_kind_abbrev (_, jkind)) ->
+      add_jkind bv jkind; (bv, m)
 
 and add_sig_item (bv, m) item =
   match Jane_syntax.Signature_item.of_ast item with
@@ -670,11 +691,13 @@ and add_include_declaration (bv, m) incl =
   let add = String.Map.fold String.Map.add m' in
   (add bv, add m)
 
-and add_struct_item_jst bvm : Jane_syntax.Structure_item.t -> _ = function
+and add_struct_item_jst (bv, m) : Jane_syntax.Structure_item.t -> _ = function
   | Jstr_include_functor (Ifstr_include_functor incl) ->
       (* It seems to be correct to treat [include functor] the same as
          [include], but it's possible we could do something cleverer. *)
-      add_include_declaration bvm incl
+      add_include_declaration (bv, m) incl
+  | Jstr_layout (Lstr_kind_abbrev (_name, jkind)) ->
+      add_jkind bv jkind; (bv, m)
 
 and add_struct_item (bv, m) item : _ String.Map.t * _ String.Map.t =
   match Jane_syntax.Structure_item.of_ast item with

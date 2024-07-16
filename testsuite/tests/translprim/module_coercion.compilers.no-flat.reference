@@ -31,13 +31,20 @@
         (function {nlocal = 0} prim[addrarray] prim[int] prim[float] stub
           (array.unsafe_set[addr] prim prim prim))
         (function {nlocal = 0} prim[float] prim[float] stub
-          (compare_floats prim prim))
-        (function {nlocal = 0} prim[float] prim[float] stub (==. prim prim))
-        (function {nlocal = 0} prim[float] prim[float] stub (!=. prim prim))
-        (function {nlocal = 0} prim[float] prim[float] stub (<. prim prim))
-        (function {nlocal = 0} prim[float] prim[float] stub (>. prim prim))
-        (function {nlocal = 0} prim[float] prim[float] stub (<=. prim prim))
-        (function {nlocal = 0} prim[float] prim[float] stub (>=. prim prim)))
+          ignore assert all zero_alloc : int
+          (compare_floats float prim prim))
+        (function {nlocal = 0} prim[float] prim[float] stub
+          ignore assert all zero_alloc : int (Float.== prim prim))
+        (function {nlocal = 0} prim[float] prim[float] stub
+          ignore assert all zero_alloc : int (Float.!= prim prim))
+        (function {nlocal = 0} prim[float] prim[float] stub
+          ignore assert all zero_alloc : int (Float.< prim prim))
+        (function {nlocal = 0} prim[float] prim[float] stub
+          ignore assert all zero_alloc : int (Float.> prim prim))
+        (function {nlocal = 0} prim[float] prim[float] stub
+          ignore assert all zero_alloc : int (Float.<= prim prim))
+        (function {nlocal = 0} prim[float] prim[float] stub
+          ignore assert all zero_alloc : int (Float.>= prim prim)))
       (makeblock 0
         (function {nlocal = 0} prim[addrarray] stub
           (array.length[addr] prim))

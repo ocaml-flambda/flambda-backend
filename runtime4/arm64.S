@@ -60,7 +60,7 @@
         .equ    domain_field_caml_##name, domain_curr_field ; \
         .set    domain_curr_field, domain_curr_field + 1
 #endif
-#include "../runtime/caml/domain_state.tbl"
+#include "../runtime4/caml/domain_state.tbl"
 #undef DOMAIN_STATE
 
 #define Caml_state(var) [DOMAIN_STATE_PTR, 8*domain_field_caml_##var]
@@ -204,7 +204,7 @@ L(caml_call_gc):
     /* Save current allocation pointer for debugging purposes */
         str     ALLOC_PTR, Caml_state(young_ptr)
     /* Save trap pointer in case an exception is raised during GC */
-        str     TRAP_PTR, Caml_state(exception_pointer)
+        str     TRAP_PTR, Caml_state(exn_handler)
     /* Call the garbage collector */
         bl      G(caml_garbage_collection)
     /* Restore registers */
@@ -280,6 +280,91 @@ FUNCTION(caml_allocN)
         CFI_ENDPROC
         END_FUNCTION(caml_allocN)
 
+FUNCTION(caml_call_local_realloc)
+L(caml_call_local_realloc):
+        CFI_STARTPROC
+    /* Set up stack space, saving return address and frame pointer */
+    /* Store return address and frame pointer */
+    /* (2 RA/GP, 24 allocatable int regs, 24 caller-saved float regs) * 8 */
+        CFI_OFFSET(29,-400)
+        CFI_OFFSET(30,-392)
+        stp     x29, x30, [sp,-400]! /* pre-indexing stp */
+        CFI_ADJUST(400)
+        add     x29, sp, #0
+
+    /* Save allocatable integer registers on the stack, using order in proc.ml */
+        stp     x0, x1, [sp, 16]
+        stp     x2, x3, [sp, 32]
+        stp     x4, x5, [sp, 48]
+        stp     x6, x7, [sp, 64]
+        stp     x8, x9, [sp, 80]
+        stp     x10, x11, [sp, 96]
+        stp     x12, x13, [sp, 112]
+        stp     x14, x15, [sp, 128]
+        stp     x19, x20, [sp, 144]
+        stp     x21, x22, [sp, 160]
+        stp     x23, x24, [sp, 176]
+        str     x25, [sp, 192]
+
+    /* Save caller saved floating-point registers on the stack */
+        stp     d0, d1, [sp, 208]
+        stp     d2, d3, [sp, 224]
+        stp     d4, d5, [sp, 240]
+        stp     d6, d7, [sp, 256]
+        stp     d16, d17, [sp, 272]
+        stp     d18, d19, [sp, 288]
+        stp     d20, d21, [sp, 304]
+        stp     d22, d23, [sp, 320]
+        stp     d24, d25, [sp, 336]
+        stp     d26, d27, [sp, 352]
+        stp     d28, d29, [sp, 368]
+        stp     d30, d31, [sp, 384]
+
+    /* Store pointer to saved integer registers in Caml_state->gc_regs */
+        add     TMP, sp, #16
+        str     TMP, Caml_state(gc_regs)
+
+    /* Save current allocation pointer for debugging purposes */
+        str     ALLOC_PTR, Caml_state(young_ptr)
+
+    /* Call the realloc function */
+        bl      G(caml_local_realloc)
+
+    /* Restore registers */
+        ldp     x0, x1, [sp, 16]
+        ldp     x2, x3, [sp, 32]
+        ldp     x4, x5, [sp, 48]
+        ldp     x6, x7, [sp, 64]
+        ldp     x8, x9, [sp, 80]
+        ldp     x10, x11, [sp, 96]
+        ldp     x12, x13, [sp, 112]
+        ldp     x14, x15, [sp, 128]
+        ldp     x19, x20, [sp, 144]
+        ldp     x21, x22, [sp, 160]
+        ldp     x23, x24, [sp, 176]
+        ldr     x25, [sp, 192]
+        ldp     d0, d1, [sp, 208]
+        ldp     d2, d3, [sp, 224]
+        ldp     d4, d5, [sp, 240]
+        ldp     d6, d7, [sp, 256]
+        ldp     d16, d17, [sp, 272]
+        ldp     d18, d19, [sp, 288]
+        ldp     d20, d21, [sp, 304]
+        ldp     d22, d23, [sp, 320]
+        ldp     d24, d25, [sp, 336]
+        ldp     d26, d27, [sp, 352]
+        ldp     d28, d29, [sp, 368]
+        ldp     d30, d31, [sp, 384]
+
+    /* Reload new allocation pointer */
+        ldr     ALLOC_PTR, Caml_state(young_ptr)
+
+    /* Free stack space and return to caller */
+        ldp     x29, x30, [sp], 400
+        ret
+        CFI_ENDPROC
+        END_FUNCTION(caml_call_local_realloc)
+
 /* Call a C function from OCaml */
 /* Function to call is in ADDITIONAL_ARG */
 
@@ -294,7 +379,7 @@ FUNCTION(caml_c_call)
         str     TMP, Caml_state(bottom_of_stack)
     /* Make the exception handler alloc ptr available to the C code */
         str     ALLOC_PTR, Caml_state(young_ptr)
-        str     TRAP_PTR, Caml_state(exception_pointer)
+        str     TRAP_PTR, Caml_state(exn_handler)
     /* Call the function */
         blr     ADDITIONAL_ARG
     /* Reload alloc ptr  */
@@ -338,32 +423,38 @@ L(jump_to_caml):
         ldr     x8, Caml_state(bottom_of_stack)
         ldr     x9, Caml_state(last_return_address)
         ldr     x10, Caml_state(gc_regs)
+        ldr     x11, Caml_state(async_exception_pointer)
         stp     x8, x9, [sp, -32]!     /* 16-byte alignment */
         CFI_ADJUST(32)
         str     x10, [sp, 16]
+        str     x11, [sp, 24]
     /* Setup a trap frame to catch exceptions escaping the OCaml code */
-        ldr     x8, Caml_state(exception_pointer)
+        ldr     x8, Caml_state(exn_handler)
         adr     x9, L(trap_handler)
         stp     x8, x9, [sp, -16]!
         CFI_ADJUST(16)
         add     TRAP_PTR, sp, #0
+    /* Store the async exception pointer */
+        str     TRAP_PTR, Caml_state(async_exception_pointer)
     /* Reload allocation pointer */
         ldr     ALLOC_PTR, Caml_state(young_ptr)
     /* Call the OCaml code */
         blr     TMP2
 L(caml_retaddr):
-    /* Pop the trap frame, restoring caml_exception_pointer */
+    /* Pop the trap frame, restoring caml_exn_handler */
         ldr     x8, [sp], 16
         CFI_ADJUST(-16)
-        str     x8, Caml_state(exception_pointer)
+        str     x8, Caml_state(exn_handler)
     /* Pop the callback link, restoring the global variables */
 L(return_result):
+        ldr     x11, [sp, 24]
         ldr     x10, [sp, 16]
         ldp     x8, x9, [sp], 32
         CFI_ADJUST(-32)
         str     x8, Caml_state(bottom_of_stack)
         str     x9, Caml_state(last_return_address)
         str     x10, Caml_state(gc_regs)
+        str     x11, Caml_state(async_exception_pointer)
     /* Update allocation pointer */
         str     ALLOC_PTR, Caml_state(young_ptr)
     /* Reload callee-save registers and return address */
@@ -389,7 +480,7 @@ L(return_result):
 L(trap_handler):
         CFI_STARTPROC
     /* Save exception pointer */
-        str     TRAP_PTR, Caml_state(exception_pointer)
+        str     TRAP_PTR, Caml_state(exn_handler)
     /* Encode exception bucket as an exception result */
         orr     x0, x0, #2
     /* Return it */
@@ -432,7 +523,7 @@ FUNCTION(caml_raise_exception)
     /* Load the exception bucket */
         mov     x0, C_ARG_2
     /* Reload trap ptr and alloc ptr */
-        ldr     TRAP_PTR, Caml_state(exception_pointer)
+        ldr     TRAP_PTR, Caml_state(exn_handler)
         ldr     ALLOC_PTR, Caml_state(young_ptr)
     /* Test if backtrace is active */
         ldr     TMP, Caml_state(backtrace_active)
@@ -469,9 +560,10 @@ FUNCTION(caml_raise_exception)
 FUNCTION(caml_stack_overflow)
     /* Load the exception bucket */
         ADDRGLOBAL(x0, caml_exn_Stack_overflow)
-    /* Cut stack at current trap handler */
-        mov     sp, TRAP_PTR
-    /* Pop previous handler and jump to it */
+    /* Cut stack at current async exn trap handler */
+        ldr     TMP, Caml_state(async_exception_pointer)
+        mov     sp, TMP
+    /* Pop handler and jump to it */
         ldr     TMP, [sp, 8]
         ldr     TRAP_PTR, [sp], 16
         br      TMP

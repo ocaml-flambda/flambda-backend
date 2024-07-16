@@ -20,6 +20,30 @@ open Asttypes
 open Types
 open Typedtree
 
+type error = Float32_match
+
+exception Error of error
+
+let raise_matched_float32 () = raise (Error Float32_match)
+
+type 'pattern parmatch_case =
+  { pattern : 'pattern;
+    has_guard : bool;
+    needs_refute : bool;
+  }
+
+let typed_case { c_lhs; c_guard; c_rhs } =
+  { pattern = c_lhs;
+    has_guard = Option.is_some c_guard;
+    needs_refute = (c_rhs.exp_desc = Texp_unreachable);
+  }
+
+let untyped_case { Parsetree.pc_lhs; pc_guard; pc_rhs } =
+  { pattern = pc_lhs;
+    has_guard = Option.is_some pc_guard;
+    needs_refute = (pc_rhs.pexp_desc = Parsetree.Pexp_unreachable);
+  }
+
 (*************************************)
 (* Utilities for building patterns   *)
 (*************************************)
@@ -37,7 +61,7 @@ let omega_list = Patterns.omega_list
 let extra_pat =
   make_pat
     (Tpat_var (Ident.create_local "+", mknoloc "+",
-      Uid.internal_not_actually_unique, Mode.Value.max_mode))
+      Uid.internal_not_actually_unique, Mode.Value.disallow_right Mode.Value.max))
     Ctype.none Env.empty
 
 
@@ -130,20 +154,32 @@ let all_coherent column =
         | Const_int32 _, Const_int32 _
         | Const_int64 _, Const_int64 _
         | Const_nativeint _, Const_nativeint _
+        | Const_unboxed_int32 _, Const_unboxed_int32 _
+        | Const_unboxed_int64 _, Const_unboxed_int64 _
+        | Const_unboxed_nativeint _, Const_unboxed_nativeint _
         | Const_float _, Const_float _
+        | Const_float32 _, Const_float32 _
+        | Const_unboxed_float _, Const_unboxed_float _
+        | Const_unboxed_float32 _, Const_unboxed_float32 _
         | Const_string _, Const_string _ -> true
         | ( Const_char _
           | Const_int _
           | Const_int32 _
           | Const_int64 _
           | Const_nativeint _
+          | Const_unboxed_int32 _
+          | Const_unboxed_int64 _
+          | Const_unboxed_nativeint _
           | Const_float _
+          | Const_float32 _
+          | Const_unboxed_float _
+          | Const_unboxed_float32 _
           | Const_string _), _ -> false
       end
     | Tuple l1, Tuple l2 -> l1 = l2
     | Record (lbl1 :: _), Record (lbl2 :: _) ->
       Array.length lbl1.lbl_all = Array.length lbl2.lbl_all
-    | Array (am1, _), Array (am2, _) -> am1 = am2
+    | Array (am1, _, _), Array (am2, _, _) -> am1 = am2
     | Any, _
     | _, Any
     | Record [], Record []
@@ -240,17 +276,24 @@ let is_absent_pat d =
 
 let const_compare x y =
   match x,y with
+  | Const_unboxed_float f1, Const_unboxed_float f2
   | Const_float f1, Const_float f2 ->
       Stdlib.compare (float_of_string f1) (float_of_string f2)
+  | Const_unboxed_float32 _, _
+  | Const_float32 _, _ -> raise_matched_float32 ()
   | Const_string (s1, _, _), Const_string (s2, _, _) ->
       String.compare s1 s2
   | (Const_int _
     |Const_char _
     |Const_string (_, _, _)
     |Const_float _
+    |Const_unboxed_float _
     |Const_int32 _
     |Const_int64 _
     |Const_nativeint _
+    |Const_unboxed_int32 _
+    |Const_unboxed_int64 _
+    |Const_unboxed_nativeint _
     ), _ -> Stdlib.compare x y
 
 let records_args l1 l2 =
@@ -297,12 +340,13 @@ module Compat
       l1=l2 && ocompat op1 op2
   | Tpat_constant c1, Tpat_constant c2 ->
       const_compare c1 c2 = 0
-  | Tpat_tuple ps, Tpat_tuple qs -> compats ps qs
+  | Tpat_tuple labeled_ps, Tpat_tuple labeled_qs ->
+      tuple_compat labeled_ps labeled_qs
   | Tpat_lazy p, Tpat_lazy q -> compat p q
   | Tpat_record (l1,_),Tpat_record (l2,_) ->
       let ps,qs = records_args l1 l2 in
       compats ps qs
-  | Tpat_array (am1, ps), Tpat_array (am2, qs) ->
+  | Tpat_array (am1, _, ps), Tpat_array (am2, _, qs) ->
       am1 = am2 &&
       List.length ps = List.length qs &&
       compats ps qs
@@ -316,6 +360,13 @@ module Compat
   and compats ps qs = match ps,qs with
   | [], [] -> true
   | p::ps, q::qs -> compat p q && compats ps qs
+  | _,_    -> false
+
+  and tuple_compat labeled_ps labeled_qs = match labeled_ps,labeled_qs with
+  | [], [] -> true
+  | (p_label, p)::labeled_ps, (q_label, q)::labeled_qs ->
+      Option.equal String.equal p_label q_label
+      && compat p q && tuple_compat labeled_ps labeled_qs
   | _,_    -> false
 
 end
@@ -365,7 +416,7 @@ let simple_match d h =
   | Lazy, Lazy -> true
   | Record _, Record _ -> true
   | Tuple len1, Tuple len2 -> len1 = len2
-  | Array (am1, len1), Array (am2, len2) -> am1 = am2 && len1 = len2
+  | Array (am1, _, len1), Array (am2, _, len2) -> am1 = am2 && len1 = len2
   | _, Any -> true
   | _, _ -> false
 
@@ -405,8 +456,8 @@ let simple_match_args discr head args =
       | Variant { has_arg = true }
       | Lazy -> [Patterns.omega]
       | Record lbls ->  omega_list lbls
-      | Array (_, len)
-      | Tuple len -> Patterns.omegas len
+      | Array (_, _, len) -> Patterns.omegas len
+      | Tuple lbls -> omega_list lbls
       | Variant { has_arg = false }
       | Any
       | Constant _ -> []
@@ -489,17 +540,17 @@ let rec read_args xs r = match xs,r with
 
 let do_set_args ~erase_mutable q r = match q with
 | {pat_desc = Tpat_tuple omegas} ->
-    let args,rest = read_args omegas r in
-    make_pat (Tpat_tuple args) q.pat_type q.pat_env::rest
+    let args,rest = read_args (List.map snd omegas) r in
+    make_pat
+      (Tpat_tuple
+        (List.map2 (fun (lbl, _) arg -> lbl, arg) omegas args))
+      q.pat_type q.pat_env::rest
 | {pat_desc = Tpat_record (omegas,closed)} ->
     let args,rest = read_args omegas r in
     make_pat
       (Tpat_record
          (List.map2 (fun (lid, lbl,_) arg ->
-           if
-             erase_mutable &&
-             (match lbl.lbl_mut with
-             | Mutable -> true | Immutable -> false)
+           if erase_mutable && Types.is_mutable lbl.lbl_mut
            then
              lid, lbl, omega
            else
@@ -529,10 +580,10 @@ let do_set_args ~erase_mutable q r = match q with
         make_pat (Tpat_lazy arg) q.pat_type q.pat_env::rest
     | _ -> fatal_error "Parmatch.do_set_args (lazy)"
     end
-| {pat_desc = Tpat_array (am, omegas)} ->
+| {pat_desc = Tpat_array (am, arg_sort, omegas)} ->
     let args,rest = read_args omegas r in
     make_pat
-      (Tpat_array (am, args)) q.pat_type q.pat_env::
+      (Tpat_array (am, arg_sort, args)) q.pat_type q.pat_env::
     rest
 | {pat_desc=Tpat_constant _|Tpat_any} ->
     q::r (* case any is used in matching.ml *)
@@ -736,7 +787,7 @@ let close_variant env row =
     let more' =
       if static
       then Btype.newgenty Tnil
-      else Btype.newgenvar (Jkind.value ~why:Row_variable)
+      else Btype.newgenvar (Jkind.Primitive.value ~why:Row_variable)
     in
     (* this unification cannot fail *)
     Ctype.unify env more
@@ -852,7 +903,8 @@ let pats_of_type env ty =
   | Has_no_typedecl ->
       begin match get_desc (Ctype.expand_head env ty) with
         Ttuple tl ->
-          [make_pat (Tpat_tuple (omegas (List.length tl))) ty env]
+          [make_pat (Tpat_tuple (List.map (fun (lbl, _) -> lbl, omega) tl))
+            ty env]
       | _ -> [omega]
       end
   | Typedecl (_, _, {type_kind = Type_abstract _ | Type_open})
@@ -928,7 +980,7 @@ let build_other ext env =
           make_pat
             (Tpat_var (Ident.create_local "*extension*",
                        {txt="*extension*"; loc = d.pat_loc},
-                       Uid.internal_not_actually_unique, Mode.Value.max_mode))
+                       Uid.internal_not_actually_unique, Mode.Value.disallow_right Mode.Value.max))
             Ctype.none Env.empty
       | Construct _ ->
           begin match ext with
@@ -1030,6 +1082,21 @@ let build_other ext env =
             (function Constant(Const_nativeint i) -> i | _ -> assert false)
             (function i -> Tpat_constant(Const_nativeint i))
             0n Nativeint.succ d env
+      | Constant Const_unboxed_int32 _ ->
+          build_other_constant
+            (function Constant(Const_unboxed_int32 i) -> i | _ -> assert false)
+            (function i -> Tpat_constant(Const_unboxed_int32 i))
+            0l Int32.succ d env
+      | Constant Const_unboxed_int64 _ ->
+          build_other_constant
+            (function Constant(Const_unboxed_int64 i) -> i | _ -> assert false)
+            (function i -> Tpat_constant(Const_unboxed_int64 i))
+            0L Int64.succ d env
+      | Constant Const_unboxed_nativeint _ ->
+          build_other_constant
+            (function Constant(Const_unboxed_nativeint i) -> i | _ -> assert false)
+            (function i -> Tpat_constant(Const_unboxed_nativeint i))
+            0n Nativeint.succ d env
       | Constant Const_string _ ->
           build_other_constant
             (function Constant(Const_string (s, _, _)) -> String.length s
@@ -1044,17 +1111,25 @@ let build_other ext env =
                     | _ -> assert false)
             (function f -> Tpat_constant(Const_float (string_of_float f)))
             0.0 (fun f -> f +. 1.0) d env
-      | Array (am, _) ->
+      | Constant Const_unboxed_float _ ->
+          build_other_constant
+            (function Constant(Const_unboxed_float f) -> float_of_string f
+                    | _ -> assert false)
+            (function f -> Tpat_constant(Const_unboxed_float (string_of_float f)))
+            0.0 (fun f -> f +. 1.0) d env
+      | Constant Const_float32 _
+      | Constant Const_unboxed_float32 _ -> raise_matched_float32 ()
+      | Array (am, arg_sort, _) ->
           let all_lengths =
             List.map
               (fun (p,_) -> match p.pat_desc with
-              | Array (am', len) when am = am' -> len
+              | Array (am', _, len) when am = am' -> len
               | _ -> assert false)
               env in
           let rec try_arrays l =
             if List.mem l all_lengths then try_arrays (l+1)
             else
-              make_pat (Tpat_array (am, omegas l))
+              make_pat (Tpat_array (am, arg_sort, omegas l))
                 d.pat_type d.pat_env in
           try_arrays 0
       | _ -> Patterns.omega
@@ -1064,8 +1139,9 @@ let rec has_instance p = match p.pat_desc with
   | Tpat_any | Tpat_var _ | Tpat_constant _ | Tpat_variant (_,None,_) -> true
   | Tpat_alias (p,_,_,_,_) | Tpat_variant (_,Some p,_) -> has_instance p
   | Tpat_or (p1,p2,_) -> has_instance p1 || has_instance p2
-  | Tpat_construct (_,_,ps, _) | Tpat_tuple ps | Tpat_array (_, ps) ->
+  | Tpat_construct (_,_,ps, _) | Tpat_array (_, _, ps) ->
       has_instances ps
+  | Tpat_tuple labeled_ps -> has_instances (List.map snd labeled_ps)
   | Tpat_record (lps,_) -> has_instances (List.map (fun (_,_,x) -> x) lps)
   | Tpat_lazy p
     -> has_instance p
@@ -1707,12 +1783,13 @@ let rec le_pat p q =
   | Tpat_variant(l1,None,_r1), Tpat_variant(l2,None,_) ->
       l1 = l2
   | Tpat_variant(_,_,_), Tpat_variant(_,_,_) -> false
-  | Tpat_tuple(ps), Tpat_tuple(qs) -> le_pats ps qs
+  | Tpat_tuple(labeled_ps), Tpat_tuple(labeled_qs) ->
+      le_tuple_pats labeled_ps labeled_qs
   | Tpat_lazy p, Tpat_lazy q -> le_pat p q
   | Tpat_record (l1,_), Tpat_record (l2,_) ->
       let ps,qs = records_args l1 l2 in
       le_pats ps qs
-  | Tpat_array(am1, ps), Tpat_array(am2, qs) ->
+  | Tpat_array(am1, _, ps), Tpat_array(am2, _, qs) ->
       am1 = am2 && List.length ps = List.length qs && le_pats ps qs
 (* In all other cases, enumeration is performed *)
   | _,_  -> not (satisfiable [[p]] [q])
@@ -1721,6 +1798,13 @@ and le_pats ps qs =
   match ps,qs with
     p::ps, q::qs -> le_pat p q && le_pats ps qs
   | _, _         -> true
+
+and le_tuple_pats labeled_ps labeled_qs =
+  match labeled_ps, labeled_qs with
+    (p_label, p)::labeled_ps, (q_label, q)::labeled_qs ->
+      Option.equal String.equal p_label q_label
+      && le_pat p q && le_tuple_pats labeled_ps labeled_qs
+  | _, _ -> true
 
 let get_mins le ps =
   let rec select_rec r = function
@@ -1745,7 +1829,7 @@ let rec lub p q = match p.pat_desc,q.pat_desc with
 | _,Tpat_or (q1,q2,_)     -> orlub q1 q2 p (* Thanks god, lub is commutative *)
 | Tpat_constant c1, Tpat_constant c2 when const_compare c1 c2 = 0 -> p
 | Tpat_tuple ps, Tpat_tuple qs ->
-    let rs = lubs ps qs in
+    let rs = tuple_lubs ps qs in
     make_pat (Tpat_tuple rs) p.pat_type p.pat_env
 | Tpat_lazy p, Tpat_lazy q ->
     let r = lub p q in
@@ -1766,10 +1850,10 @@ let rec lub p q = match p.pat_desc,q.pat_desc with
     let rs = record_lubs l1 l2 in
     make_pat (Tpat_record (rs, closed))
       p.pat_type p.pat_env
-| Tpat_array (am1, ps), Tpat_array (am2, qs)
+| Tpat_array (am1, arg_sort, ps), Tpat_array (am2, _, qs)
       when am1 = am2 && List.length ps = List.length qs ->
         let rs = lubs ps qs in
-        make_pat (Tpat_array (am1, rs))
+        make_pat (Tpat_array (am1, arg_sort, rs))
           p.pat_type p.pat_env
 | _,_  ->
     raise Empty
@@ -1796,6 +1880,13 @@ and record_lubs l1 l2 =
       else
         (lid1, lbl1,lub p1 p2)::lub_rec rem1 rem2 in
   lub_rec l1 l2
+
+and tuple_lubs ps qs = match ps,qs with
+| [], [] -> []
+| (p_label, p)::ps, (q_label, q)::qs
+      when Option.equal String.equal p_label q_label ->
+    (p_label, lub p q) :: tuple_lubs ps qs
+| _,_ -> raise Empty
 
 and lubs ps qs = match ps,qs with
 | p::ps, q::qs -> lub p q :: lubs ps qs
@@ -1839,8 +1930,8 @@ let pressure_variants_in_computation_pattern tdefs patl =
 
 let rec initial_matrix = function
     [] -> []
-  | {c_guard=Some _} :: rem -> initial_matrix rem
-  | {c_guard=None; c_lhs=p} :: rem -> [p] :: initial_matrix rem
+  | {has_guard=true} :: rem -> initial_matrix rem
+  | {has_guard=false; pattern=p} :: rem -> [p] :: initial_matrix rem
 
 (*
    Build up a working pattern matrix by keeping
@@ -1848,9 +1939,9 @@ let rec initial_matrix = function
 *)
 let rec initial_only_guarded = function
   | [] -> []
-  | { c_guard = None; _} :: rem ->
+  | { has_guard=false; _} :: rem ->
       initial_only_guarded rem
-  | { c_lhs = pat; _ } :: rem ->
+  | { pattern = pat; _ } :: rem ->
       [pat] :: initial_only_guarded rem
 
 
@@ -1939,8 +2030,9 @@ let rec collect_paths_from_pat r p = match p.pat_desc with
       (if extendable_path path then add_path path r else r)
       ps
 | Tpat_any|Tpat_var _|Tpat_constant _| Tpat_variant (_,None,_) -> r
-| Tpat_tuple ps | Tpat_array (_, ps)
-| Tpat_construct (_, {cstr_tag=Extension _}, ps, _)->
+| Tpat_tuple ps ->
+    List.fold_left (fun r (_, p) -> collect_paths_from_pat r p) r ps
+| Tpat_array (_, _, ps) | Tpat_construct (_, {cstr_tag=Extension _}, ps, _)->
     List.fold_left collect_paths_from_pat r ps
 | Tpat_record (lps,_) ->
     List.fold_left
@@ -1964,7 +2056,7 @@ let rec collect_paths_from_pat r p = match p.pat_desc with
 let do_check_fragile loc casel pss =
   let exts =
     List.fold_left
-      (fun r c -> collect_paths_from_pat r c.c_lhs)
+      (fun r c -> collect_paths_from_pat r c.pattern)
       [] casel in
   match exts with
   | [] -> ()
@@ -1988,10 +2080,10 @@ let do_check_fragile loc casel pss =
 
 let check_unused pred casel =
   if Warnings.is_active Warnings.Redundant_case
-  || List.exists (fun c -> c.c_rhs.exp_desc = Texp_unreachable) casel then
+  || List.exists (fun vc -> vc.needs_refute) casel then
     let rec do_rec pref = function
       | [] -> ()
-      | {c_lhs=q; c_guard; c_rhs} :: rem ->
+      | {pattern=q; has_guard; needs_refute=refute} :: rem ->
           let qs = [q] in
             begin try
               let pss =
@@ -2002,7 +2094,6 @@ let check_unused pred casel =
                 |> get_mins le_pats in
               (* First look for redundant or partially redundant patterns *)
               let r = every_satisfiables (make_rows pss) (make_row qs) in
-              let refute = (c_rhs.exp_desc = Texp_unreachable) in
               (* Do not warn for unused [pat -> .] *)
               if r = Unused && refute then () else
               let r =
@@ -2048,7 +2139,7 @@ let check_unused pred casel =
             with Empty | Not_found -> assert false
             end ;
 
-          if c_guard <> None then
+          if has_guard then
             do_rec pref rem
           else
             do_rec ([q]::pref) rem in
@@ -2067,18 +2158,22 @@ let inactive ~partial pat =
   | Total -> begin
       let rec loop pat =
         match pat.pat_desc with
-        | Tpat_lazy _ | Tpat_array (Mutable, _) ->
+        | Tpat_lazy _ | Tpat_array (Mutable _, _, _) ->
           false
         | Tpat_any | Tpat_var _ | Tpat_variant (_, None, _) ->
             true
         | Tpat_constant c -> begin
             match c with
             | Const_string _
-            | Const_int _ | Const_char _ | Const_float _
-            | Const_int32 _ | Const_int64 _ | Const_nativeint _ -> true
+            | Const_int _ | Const_char _ | Const_float _ | Const_float32 _
+            | Const_unboxed_float _ | Const_unboxed_float32 _ | Const_int32 _
+            | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
+            | Const_unboxed_int64 _ | Const_unboxed_nativeint _
+            -> true
           end
-        | Tpat_tuple ps | Tpat_construct (_, _, ps, _)
-        | Tpat_array (Immutable, ps) ->
+        | Tpat_tuple ps ->
+            List.for_all (fun (_,p) -> loop p) ps
+        | Tpat_construct (_, _, ps, _) | Tpat_array (Immutable, _, ps) ->
             List.for_all (fun p -> loop p) ps
         | Tpat_alias (p,_,_,_,_) | Tpat_variant (_, Some p, _) ->
             loop p
@@ -2352,7 +2447,7 @@ let check_ambiguous_bindings =
     if is_active warn0 then
       let check_case ns case = match case with
         | { c_lhs = p; c_guard=None ; _} -> [p]::ns
-        | { c_lhs=p; c_guard=Some g; _} ->
+        | { c_lhs = p; c_guard=Some g; _} ->
             let all =
               Ident.Set.inter (pattern_vars p) (all_rhs_idents g) in
             if not (Ident.Set.is_empty all) then begin
@@ -2370,3 +2465,11 @@ let check_ambiguous_bindings =
             ns
       in
       ignore (List.fold_left check_case [] cases)
+
+let report_error ppf = function
+  | Float32_match -> Format.pp_print_string ppf "float32 literal patterns are not supported."
+
+let () =
+  Location.register_error_of_exn (function
+    | Error err -> Some (Location.error_of_printer_file report_error err)
+    | _ -> None)

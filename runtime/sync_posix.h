@@ -23,6 +23,14 @@
 #include <pthread.h>
 #include <string.h>
 
+#ifdef __linux__
+#include <features.h>
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <linux/futex.h>
+#include <limits.h>
+#endif
+
 typedef int sync_retcode;
 
 /* Mutexes */
@@ -82,6 +90,80 @@ Caml_inline int sync_mutex_unlock(sync_mutex m)
   return pthread_mutex_unlock(m);
 }
 
+/* If we're using glibc, use a custom condition variable implementation to
+   avoid this bug: https://sourceware.org/bugzilla/show_bug.cgi?id=25847
+
+   For now we only have this on linux because it directly uses the linux futex
+   syscalls. */
+#if defined(__linux__) && defined(__GNU_LIBRARY__) && defined(__GLIBC__) && defined(__GLIBC_MINOR__)
+static int custom_condvar_init(custom_condvar * cv)
+{
+  cv->counter = 0;
+  return 0;
+}
+
+static int custom_condvar_destroy(custom_condvar * cv)
+{
+  return 0;
+}
+
+static int custom_condvar_wait(custom_condvar * cv, pthread_mutex_t * mutex)
+{
+  unsigned old_count = cv->counter;
+  pthread_mutex_unlock(mutex);
+  syscall(SYS_futex, &cv->counter, FUTEX_WAIT_PRIVATE, old_count, NULL, NULL, 0);
+  pthread_mutex_lock(mutex);
+  return 0;
+}
+
+static int custom_condvar_signal(custom_condvar * cv)
+{
+  __sync_add_and_fetch(&cv->counter, 1);
+  syscall(SYS_futex, &cv->counter, FUTEX_WAKE_PRIVATE, 1, NULL, NULL, 0);
+  return 0;
+}
+
+static int custom_condvar_broadcast(custom_condvar * cv)
+{
+  __sync_add_and_fetch(&cv->counter, 1);
+  syscall(SYS_futex, &cv->counter, FUTEX_WAKE_PRIVATE, INT_MAX, NULL, NULL, 0);
+  return 0;
+}
+#else
+static int custom_condvar_init(custom_condvar * cv)
+{
+  pthread_condattr_t attr;
+  pthread_condattr_init(&attr);
+#if defined(_POSIX_TIMERS) &&                   \
+  defined(_POSIX_MONOTONIC_CLOCK) &&            \
+  _POSIX_MONOTONIC_CLOCK != (-1)
+  pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
+#endif
+  return pthread_cond_init(cv, &attr);
+}
+
+static int custom_condvar_destroy(custom_condvar * cv)
+{
+  return pthread_cond_destroy(cv);
+}
+
+static int custom_condvar_wait(custom_condvar * cv, pthread_mutex_t * mutex)
+{
+  return pthread_cond_wait(cv, mutex);
+}
+
+static int custom_condvar_signal(custom_condvar * cv)
+{
+  return pthread_cond_signal(cv);
+}
+
+static int custom_condvar_broadcast(custom_condvar * cv)
+{
+  return pthread_cond_broadcast(cv);
+}
+#endif
+
+
 /* Condition variables */
 
 typedef custom_condvar * sync_condvar;
@@ -102,29 +184,29 @@ Caml_inline int sync_condvar_create(sync_condvar * res)
 Caml_inline int sync_condvar_destroy(sync_condvar c)
 {
   int rc;
-  rc = custom_cond_destroy(c);
+  rc = custom_condvar_destroy(c);
   caml_stat_free(c);
   return rc;
 }
 
 Caml_inline int sync_condvar_signal(sync_condvar c)
 {
- return custom_cond_signal(c);
+  return custom_condvar_signal(c);
 }
 
 Caml_inline int sync_condvar_broadcast(sync_condvar c)
 {
-    return custom_cond_broadcast(c);
+  return custom_condvar_broadcast(c);
 }
 
 Caml_inline int sync_condvar_wait(sync_condvar c, sync_mutex m)
 {
-  return custom_cond_wait(c, m);
+  return custom_condvar_wait(c, m);
 }
 
 /* Reporting errors */
 
-static void sync_check_error(int retcode, char * msg)
+Caml_inline void sync_check_error(int retcode, char * msg)
 {
   char * err;
   char buf[1024];

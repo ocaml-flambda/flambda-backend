@@ -17,7 +17,6 @@
 
 open Path
 open Types
-open Asttypes
 open Typedtree
 open Lambda
 
@@ -27,6 +26,9 @@ type error =
   | Sort_without_extension of
       Jkind.Sort.t * Language_extension.maturity * type_expr option
   | Non_value_sort_unknown_ty of Jkind.Sort.t
+  | Small_number_sort_without_extension of Jkind.Sort.t * type_expr option
+  | Not_a_sort of type_expr * Jkind.Violation.t
+  | Unsupported_sort of Jkind.Sort.const
 
 exception Error of Location.t * error
 
@@ -81,15 +83,15 @@ let is_base_type env ty base_ty_path =
   | _ -> false
 
 let is_always_gc_ignorable env ty =
-  let jkind =
+  let ext : Jkind.Externality.t =
     (* We check that we're compiling to (64-bit) native code before counting
-       immediate64 types as gc_ignorable, because bytecode is intended to be
+       External64 types as gc_ignorable, because bytecode is intended to be
        platform independent. *)
     if !Clflags.native_code && Sys.word_size = 64
-    then Jkind.immediate64 ~why:Gc_ignorable_check
-    else Jkind.immediate ~why:Gc_ignorable_check
+    then External64
+    else External
   in
-  Result.is_ok (Ctype.check_type_jkind env ty jkind)
+  Ctype.check_type_externality env ty ext
 
 let maybe_pointer_type env ty =
   let ty = scrape_ty env ty in
@@ -97,19 +99,33 @@ let maybe_pointer_type env ty =
 
 let maybe_pointer exp = maybe_pointer_type exp.exp_env exp.exp_type
 
+(* CR layouts v2.8: Calling [type_legacy_sort] in [typeopt] is not ideal
+   and this function should be removed at some point. To do that, there
+   needs to be a way to store sort vars on [Tconstr]s. That means
+   either introducing a [Tpoly_constr], allow type parameters with
+   sort info, or do something else. *)
+(* CR layouts v3.0: have a better error message
+   for nullable jkinds.*)
+let type_legacy_sort ~why env loc ty =
+  match Ctype.type_legacy_sort ~why env ty with
+  | Ok sort -> sort
+  | Error err -> raise (Error (loc, Not_a_sort (ty, err)))
+
 type classification =
   | Int   (* any immediate type *)
   | Float
+  | Unboxed_float of unboxed_float
+  | Unboxed_int of unboxed_integer
   | Lazy
   | Addr  (* anything except a float or a lazy *)
   | Any
 
 (* Classify a ty into a [classification]. Looks through synonyms, using [scrape_ty].
    Returning [Any] is safe, though may skip some optimizations. *)
-(* CR layouts v2.5: when we allow [float# array] or [float# lazy], this should
-   be updated to check for unboxed float. *)
-let classify env ty : classification =
+let classify env loc ty sort : classification =
   let ty = scrape_ty env ty in
+  match Jkind.(Sort.default_to_value_and_get sort) with
+  | Value -> begin
   if is_always_gc_ignorable env ty then Int
   else match get_desc ty with
   | Tvar _ | Tunivar _ ->
@@ -121,6 +137,7 @@ let classify env ty : classification =
            || Path.same p Predef.path_bytes
            || Path.same p Predef.path_array
            || Path.same p Predef.path_nativeint
+           || Path.same p Predef.path_float32
            || Path.same p Predef.path_int32
            || Path.same p Predef.path_int64 then Addr
       else begin
@@ -140,16 +157,32 @@ let classify env ty : classification =
       Addr
   | Tlink _ | Tsubst _ | Tpoly _ | Tfield _ ->
       assert false
+  end
+  | Float64 -> Unboxed_float Pfloat64
+  | Float32 -> Unboxed_float Pfloat32
+  | Bits32 -> Unboxed_int Pint32
+  | Bits64 -> Unboxed_int Pint64
+  | Word -> Unboxed_int Pnativeint
+  | Void ->
+    raise (Error (loc, Unsupported_sort Void))
 
-let array_type_kind env ty =
+let array_type_kind ~elt_sort env loc ty =
   match scrape_poly env ty with
   | Tconstr(p, [elt_ty], _)
     when Path.same p Predef.path_array || Path.same p Predef.path_iarray ->
-      begin match classify env elt_ty with
+      let elt_sort =
+        match elt_sort with
+        | Some s -> s
+        | None ->
+          type_legacy_sort ~why:Array_element env loc elt_ty
+      in
+      begin match classify env loc elt_ty elt_sort with
       | Any -> if Config.flat_float_array then Pgenarray else Paddrarray
       | Float -> if Config.flat_float_array then Pfloatarray else Paddrarray
       | Addr | Lazy -> Paddrarray
       | Int -> Pintarray
+      | Unboxed_float f -> Punboxedfloatarray f
+      | Unboxed_int i -> Punboxedintarray i
       end
   | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
       Pfloatarray
@@ -157,9 +190,15 @@ let array_type_kind env ty =
       (* This can happen with e.g. Obj.field *)
       Pgenarray
 
-let array_kind exp = array_type_kind exp.exp_env exp.exp_type
+let array_kind exp elt_sort =
+  array_type_kind
+    ~elt_sort:(Some elt_sort)
+    exp.exp_env exp.exp_loc exp.exp_type
 
-let array_pattern_kind pat = array_type_kind pat.pat_env pat.pat_type
+let array_pattern_kind pat elt_sort =
+  array_type_kind
+    ~elt_sort:(Some elt_sort)
+    pat.pat_env pat.pat_loc pat.pat_type
 
 let bigarray_decode_type env ty tbl dfl =
   match scrape env ty with
@@ -197,12 +236,16 @@ let bigarray_type_kind_and_layout env typ =
       (Pbigarray_unknown, Pbigarray_unknown_layout)
 
 let value_kind_of_value_jkind jkind =
-  match Jkind.get_default_value jkind with
-  | Value -> Pgenval
-  | Immediate -> Pintval
-  | Immediate64 ->
+  let const_jkind = Jkind.default_to_value_and_get jkind in
+  let externality_upper_bound =
+    Jkind.Const.get_externality_upper_bound const_jkind
+  in
+  (* CR: assert the sort is a value *)
+  match externality_upper_bound with
+  | External -> Pintval
+  | External64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
-  | Any | Void | Float64 -> assert false
+  | Internal -> Pgenval
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
    current set of sort restrictions, there are two reasons this invariant may
@@ -304,13 +347,13 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
 
        This should be understood, but for now the simple fall back thing is
        sufficient.  *)
-    match Ctype.check_type_jkind env scty (Jkind.value ~why:V1_safety_check)
+    match Ctype.check_type_jkind env scty (Jkind.Primitive.value_or_null ~why:V1_safety_check)
     with
     | Ok _ -> ()
     | Error _ ->
       match
         Ctype.(check_type_jkind env
-                 (correct_levels ty) (Jkind.value ~why:V1_safety_check))
+                 (correct_levels ty) (Jkind.Primitive.value_or_null ~why:V1_safety_check))
       with
       | Ok _ -> ()
       | Error violation ->
@@ -324,7 +367,9 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
   | Tconstr(p, _, _) when Path.same p Predef.path_char ->
     num_nodes_visited, Pintval
   | Tconstr(p, _, _) when Path.same p Predef.path_float ->
-    num_nodes_visited, Pfloatval
+    num_nodes_visited, (Pboxedfloatval Pfloat64)
+  | Tconstr(p, _, _) when Path.same p Predef.path_float32 ->
+    num_nodes_visited, (Pboxedfloatval Pfloat32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int32 ->
     num_nodes_visited, (Pboxedintval Pint32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int64 ->
@@ -346,7 +391,9 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
   | Tconstr(p, _, _)
     when (Path.same p Predef.path_array
           || Path.same p Predef.path_floatarray) ->
-    num_nodes_visited, Parrayval (array_type_kind env ty)
+    (* CR layouts: [~elt_sort:None] here is bad for performance. To
+       fix it, we need a place to store the sort on a [Tconstr]. *)
+    num_nodes_visited, Parrayval (array_type_kind ~elt_sort:None env loc ty)
   | Tconstr(p, _, _) -> begin
       let decl =
         try Env.find_type p env with Not_found -> raise Missing_cmi_fallback
@@ -374,7 +421,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
           value_kind_of_value_jkind decl.type_jkind
         | Type_open -> num_nodes_visited, Pgenval
     end
-  | Ttuple fields ->
+  | Ttuple labeled_fields ->
     if cannot_proceed () then
       num_nodes_visited, Pgenval
     else
@@ -382,17 +429,17 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         let depth = depth + 1 in
         let num_nodes_visited, fields =
-          List.fold_left_map (fun num_nodes_visited field ->
+          List.fold_left_map (fun num_nodes_visited (_, field) ->
             let num_nodes_visited = num_nodes_visited + 1 in
             (* CR layouts v5 - this is fine because voids are not allowed in
                tuples.  When they are, we'll need to make sure that elements
                are values before recurring.
             *)
             value_kind env ~loc ~visited ~depth ~num_nodes_visited field)
-            num_nodes_visited fields
+            num_nodes_visited labeled_fields
         in
         num_nodes_visited,
-        Pvariant { consts = []; non_consts = [0, fields] })
+        Pvariant { consts = []; non_consts = [0, Constructor_uniform fields] })
   | Tvariant row ->
     num_nodes_visited,
     if Ctype.tvariant_not_immediate row then Pgenval else Pintval
@@ -408,47 +455,80 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
          needed when we deal with missing cmis. *)
       match cstrs with
-      | [{cd_args=Cstr_tuple [ty,_]}]
+      | [{cd_args=Cstr_tuple [{ca_type=ty}]}]
       | [{cd_args=Cstr_record [{ld_type=ty}]}] ->
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       | _ -> assert false
     end
-  | Variant_boxed _jkinds ->
+  | Variant_boxed cstrs_and_jkinds ->
     let depth = depth + 1 in
+    let for_constructor_fields fields ~depth ~num_nodes_visited ~field_to_type =
+      List.fold_left_map
+        (fun num_nodes_visited field ->
+           let ty = field_to_type field in
+           let num_nodes_visited = num_nodes_visited + 1 in
+           value_kind env ~loc ~visited ~depth ~num_nodes_visited ty)
+        num_nodes_visited
+        fields
+    in
+    let for_one_uniform_value_constructor
+        fields ~field_to_type ~depth ~num_nodes_visited =
+      let num_nodes_visited, fields =
+        for_constructor_fields fields ~depth ~num_nodes_visited ~field_to_type
+      in
+      num_nodes_visited, Lambda.Constructor_uniform fields
+    in
+    let for_one_mixed_constructor fields ~value_prefix_len ~flat_suffix
+        ~field_to_type ~depth ~num_nodes_visited =
+      let value_prefix, _ =
+        Misc.Stdlib.List.split_at value_prefix_len fields
+      in
+      assert (List.length value_prefix = value_prefix_len);
+      let num_nodes_visited, value_prefix =
+        for_constructor_fields value_prefix ~depth ~num_nodes_visited
+          ~field_to_type
+      in
+      num_nodes_visited + Array.length flat_suffix,
+      Lambda.Constructor_mixed
+        { value_prefix; flat_suffix = Array.to_list flat_suffix }
+    in
     let for_one_constructor (constructor : Types.constructor_declaration)
-          ~depth ~num_nodes_visited =
+          ~depth ~num_nodes_visited
+          ~(cstr_shape : Types.constructor_representation) =
       let num_nodes_visited = num_nodes_visited + 1 in
       match constructor.cd_args with
       | Cstr_tuple fields ->
+        let field_to_type { Types.ca_type } = ca_type in
         let num_nodes_visited, fields =
-          List.fold_left_map
-            (fun num_nodes_visited (ty, _) ->
-               let num_nodes_visited = num_nodes_visited + 1 in
-               (* CR layouts v5: when we add other layouts, we'll need to check
-                  here that we aren't about to call value_kind on a different
-                  sort (we can get this info from the variant representation).
-                  For now we rely on the layout check at the top of value_kind
-                  to rule out void. *)
-               value_kind env ~loc ~visited ~depth ~num_nodes_visited ty)
-            num_nodes_visited fields
+          match cstr_shape with
+          | Constructor_uniform_value ->
+              for_one_uniform_value_constructor fields ~field_to_type
+                ~depth ~num_nodes_visited
+          | Constructor_mixed { value_prefix_len; flat_suffix } ->
+              for_one_mixed_constructor fields
+                ~value_prefix_len ~flat_suffix ~field_to_type
+                ~depth ~num_nodes_visited
         in
         (false, num_nodes_visited), fields
       | Cstr_record labels ->
-        List.fold_left_map
-          (fun (is_mutable, num_nodes_visited)
-               (label:Types.label_declaration) ->
-              let is_mutable =
-                match label.ld_mutable with
-                | Mutable -> true
-                | Immutable -> is_mutable
-              in
-              let num_nodes_visited = num_nodes_visited + 1 in
-              let num_nodes_visited, field =
-                value_kind env ~loc ~visited ~depth ~num_nodes_visited
-                  label.ld_type
-              in
-              (is_mutable, num_nodes_visited), field)
-          (false, num_nodes_visited) labels
+        let field_to_type (lbl:Types.label_declaration) = lbl.ld_type in
+        let is_mutable =
+          List.exists
+            (fun (lbl:Types.label_declaration) ->
+               Types.is_mutable lbl.ld_mutable)
+            labels
+        in
+        let num_nodes_visited, fields =
+          match cstr_shape with
+          | Constructor_uniform_value ->
+              for_one_uniform_value_constructor labels ~field_to_type
+                ~depth ~num_nodes_visited
+          | Constructor_mixed { value_prefix_len; flat_suffix } ->
+              for_one_mixed_constructor labels
+                ~value_prefix_len ~flat_suffix ~field_to_type
+                ~depth ~num_nodes_visited
+        in
+        (is_mutable, num_nodes_visited), fields
     in
     let is_constant (cstr: Types.constructor_declaration) =
       (* CR layouts v5: This won't count constructors with void args as
@@ -460,25 +540,31 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
     if List.for_all is_constant cstrs then
       (num_nodes_visited, Pintval)
     else
-      let result =
-        List.fold_left (fun result constructor ->
+      let _idx, result =
+        List.fold_left (fun (idx, result) constructor ->
+          idx+1,
           match result with
           | None -> None
           | Some (num_nodes_visited,
                   next_const, consts, next_tag, non_consts) ->
+            let cstr_shape, _ = cstrs_and_jkinds.(idx) in
             let (is_mutable, num_nodes_visited), fields =
               for_one_constructor constructor ~depth ~num_nodes_visited
+                ~cstr_shape
             in
             if is_mutable then None
-            else if List.compare_length_with fields 0 = 0 then
+            else match fields with
+            | Constructor_uniform xs when List.compare_length_with xs 0 = 0 ->
               let consts = next_const :: consts in
               Some (num_nodes_visited,
                     next_const + 1, consts, next_tag, non_consts)
-            else
-              let non_consts = (next_tag, fields) :: non_consts in
+            | Constructor_mixed _ | Constructor_uniform _ ->
+              let non_consts =
+                (next_tag, fields) :: non_consts
+              in
               Some (num_nodes_visited,
                     next_const, consts, next_tag + 1, non_consts))
-          (Some (num_nodes_visited, 0, [], 0, []))
+          (0, Some (num_nodes_visited, 0, [], 0, []))
           cstrs
       in
       begin match result with
@@ -493,7 +579,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
 and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
       (labels : Types.label_declaration list) rep =
   match rep with
-  | (Record_unboxed | (Record_inlined (_,Variant_unboxed))) -> begin
+  | (Record_unboxed | (Record_inlined (_, _, Variant_unboxed))) -> begin
       (* CR layouts v1.5: This should only be reachable in the case of a missing
          cmi, according to the comment on scrape_ty.  Reevaluate whether it's
          needed when we deal with missing cmis. *)
@@ -502,49 +588,83 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
         value_kind env ~loc ~visited ~depth ~num_nodes_visited ld_type
       | [] | _ :: _ :: _ -> assert false
     end
-  | _ -> begin
-      let (is_mutable, num_nodes_visited), fields =
-        List.fold_left_map
-          (fun (is_mutable, num_nodes_visited)
-               (label:Types.label_declaration) ->
-            let is_mutable =
-              match label.ld_mutable with
-              | Mutable -> true
-              | Immutable -> is_mutable
-            in
-            let num_nodes_visited = num_nodes_visited + 1 in
-            let num_nodes_visited, field =
-              (* CR layouts v5: when we add other layouts, we'll need to check
-                 here that we aren't about to call value_kind on a different
-                 sort (we can get this info from the label.ld_jkind).  For now
-                 we rely on the layout check at the top of value_kind to rule
-                 out void. *)
-              match rep with
-              | Record_float | Record_ufloat ->
-                (* We're using the `Pfloatval` value kind for unboxed floats.
-                   This is kind of a lie (there are unboxed floats in here, not
-                   boxed floats), but that was already happening here due to the
-                   float record optimization. *)
-                num_nodes_visited, Pfloatval
-              | Record_boxed _ | Record_inlined _ | Record_unboxed ->
-                value_kind env ~loc ~visited ~depth ~num_nodes_visited
-                  label.ld_type
-            in
-            (is_mutable, num_nodes_visited), field)
-          (false, num_nodes_visited) labels
+  | Record_inlined (_, _, (Variant_boxed _ | Variant_extensible))
+  | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _ -> begin
+      let is_mutable =
+        List.exists (fun label -> Types.is_mutable label.Types.ld_mutable)
+          labels
       in
       if is_mutable then
         num_nodes_visited, Pgenval
       else
+        let num_nodes_visited, fields =
+          match rep with
+          | Record_unboxed ->
+              (* The outer match guards against this *)
+              assert false
+          | Record_inlined (_, Constructor_uniform_value, _)
+          | Record_boxed _ | Record_float | Record_ufloat ->
+              let num_nodes_visited, fields =
+                List.fold_left_map
+                  (fun num_nodes_visited (label:Types.label_declaration) ->
+                    let num_nodes_visited = num_nodes_visited + 1 in
+                    let num_nodes_visited, field =
+                      (* CR layouts v5: when we add other layouts, we'll need to
+                        check here that we aren't about to call value_kind on a
+                        different sort (we can get this info from the
+                        label.ld_jkind). For now we rely on the layout check at
+                        the top of value_kind to rule out void. *)
+                      (* We're using the `Pboxedfloatval` value kind for unboxed
+                        floats inside of records. This is kind of a lie, but
+                         that was already happening here due to the float record
+                        optimization. *)
+                      match rep with
+                      | Record_float | Record_ufloat ->
+                        num_nodes_visited, Pboxedfloatval Pfloat64
+                      | Record_inlined _ | Record_boxed _ ->
+                          value_kind env ~loc ~visited ~depth ~num_nodes_visited
+                            label.ld_type
+                      | Record_mixed _ | Record_unboxed ->
+                          (* The outer match guards against this *)
+                          assert false
+                    in
+                    num_nodes_visited, field)
+                  num_nodes_visited labels
+              in
+              num_nodes_visited, Constructor_uniform fields
+          | Record_inlined (_, Constructor_mixed shape, _)
+          | Record_mixed shape ->
+              let { value_prefix_len; flat_suffix } : mixed_product_shape =
+                shape
+              in
+              let labels_value_prefix, _ =
+                Misc.Stdlib.List.split_at value_prefix_len labels
+              in
+              assert (List.length labels_value_prefix = value_prefix_len);
+              let num_nodes_visited, value_prefix =
+                List.fold_left_map
+                  (fun num_nodes_visited
+                    (label:Types.label_declaration) ->
+                    let num_nodes_visited = num_nodes_visited + 1 in
+                    value_kind env ~loc ~visited ~depth ~num_nodes_visited
+                      label.ld_type)
+                  num_nodes_visited labels_value_prefix
+              in
+              let flat_suffix = Array.to_list flat_suffix in
+              num_nodes_visited,
+              Constructor_mixed { value_prefix; flat_suffix }
+        in
         let non_consts =
           match rep with
-          | Record_inlined (Ordinary {runtime_tag}, _) ->
+          | Record_inlined (Ordinary {runtime_tag}, _, _) ->
             [runtime_tag, fields]
           | Record_float | Record_ufloat ->
             [ Obj.double_array_tag, fields ]
           | Record_boxed _ ->
             [0, fields]
-          | Record_inlined (Extension _, _) ->
+          | Record_inlined (Extension _, _, _) ->
+            [0, fields]
+          | Record_mixed _ ->
             [0, fields]
           | Record_unboxed -> assert false
         in
@@ -561,31 +681,54 @@ let value_kind env loc ty =
   with
   | Missing_cmi_fallback -> raise (Error (loc, Non_value_layout (ty, None)))
 
+let[@inline always] layout_of_const_sort_generic ~value_kind ~error
+  : Jkind.Sort.const -> _ = function
+  | Value -> Lambda.Pvalue (Lazy.force value_kind)
+  | Float64 when Language_extension.(is_at_least Layouts Stable) ->
+    Lambda.Punboxed_float Pfloat64
+  | Word when Language_extension.(is_at_least Layouts Stable) ->
+    Lambda.Punboxed_int Pnativeint
+  | Bits32 when Language_extension.(is_at_least Layouts Stable) ->
+    Lambda.Punboxed_int Pint32
+  | Bits64 when Language_extension.(is_at_least Layouts Stable) ->
+    Lambda.Punboxed_int Pint64
+  | Float32 when Language_extension.(is_at_least Layouts Stable) &&
+                 Language_extension.(is_enabled Small_numbers) ->
+    Lambda.Punboxed_float Pfloat32
+  | (Void | Float64 | Float32 | Word | Bits32 | Bits64 as const) ->
+    error const
+
 let layout env loc sort ty =
-  match Jkind.Sort.get_default_value sort with
-  | Value -> Lambda.Pvalue (value_kind env loc ty)
-  | Float64 when Language_extension.(is_at_least Layouts Beta) ->
-    Lambda.Punboxed_float
-  | Float64 ->
-    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Beta, Some ty)))
-  | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
+  layout_of_const_sort_generic
+    (Jkind.Sort.default_to_value_and_get sort)
+    ~value_kind:(lazy (value_kind env loc ty))
+    ~error:(function
+      | Value -> assert false
+      | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
+      | (Float32 as const) ->
+        raise (Error (loc, Small_number_sort_without_extension (Jkind.Sort.of_const const, Some ty)))
+      | (Float64 | Word | Bits32 | Bits64 as const) ->
+        raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, Some ty))))
 
 let layout_of_sort loc sort =
-  match Jkind.Sort.get_default_value sort with
-  | Value -> Lambda.Pvalue Pgenval
-  | Float64 when Language_extension.(is_at_least Layouts Beta) ->
-    Lambda.Punboxed_float
-  | Float64 ->
-    raise (Error (loc, Sort_without_extension (Jkind.Sort.float64, Beta, None)))
-  | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
+  layout_of_const_sort_generic
+    (Jkind.Sort.default_to_value_and_get sort)
+    ~value_kind:(lazy Pgenval)
+    ~error:(function
+    | Value -> assert false
+    | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
+    | (Float32 as const) ->
+      raise (Error (loc, Small_number_sort_without_extension (Jkind.Sort.of_const const, None)))
+    | (Float64 | Word | Bits32 | Bits64 as const) ->
+      raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, None))))
 
-let layout_of_const_sort (s : Jkind.Sort.const) =
-  match s with
-  | Value -> Lambda.Pvalue Pgenval
-  | Float64 when Language_extension.(is_at_least Layouts Beta) ->
-    Lambda.Punboxed_float
-  | Float64 -> Misc.fatal_error "layout_of_const_sort: float64 encountered"
-  | Void -> Misc.fatal_error "layout_of_const_sort: void encountered"
+let layout_of_const_sort s =
+  layout_of_const_sort_generic
+    s
+    ~value_kind:(lazy Pgenval)
+    ~error:(fun const ->
+      Misc.fatal_errorf "layout_of_const_sort: %a encountered"
+        Jkind.Sort.Const.format const)
 
 let function_return_layout env loc sort ty =
   match is_function_type env ty with
@@ -604,9 +747,16 @@ let function_arg_layout env loc sort ty =
 
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
     if the value can be represented as a float/forward/lazy *)
-let lazy_val_requires_forward env ty =
-  match classify env ty with
+let lazy_val_requires_forward env loc ty =
+  let sort = Jkind.Sort.for_lazy_body in
+  match classify env loc ty sort with
   | Any | Lazy -> true
+  (* CR layouts: Fix this when supporting lazy unboxed values.
+     Blocks with forward_tag can get scanned by the gc thus can't
+     store unboxed values. Not boxing is also incorrect since the lazy
+     type has layout [value] which is different from these unboxed layouts. *)
+  | Unboxed_float _ | Unboxed_int _ ->
+    Misc.fatal_error "Unboxed value encountered inside lazy expression"
   | Float -> Config.flat_float_array
   | Addr | Int -> false
 
@@ -621,6 +771,7 @@ let classify_lazy_argument : Typedtree.expression ->
   fun e -> match e.exp_desc with
     | Texp_constant
         ( Const_int _ | Const_char _ | Const_string _
+        | Const_float32 _ (* There is no float32 array optimization *)
         | Const_int32 _ | Const_int64 _ | Const_nativeint _ )
     | Texp_function _
     | Texp_construct (_, {cstr_arity = 0}, _, _) ->
@@ -629,7 +780,7 @@ let classify_lazy_argument : Typedtree.expression ->
        if Config.flat_float_array
        then `Float_that_cannot_be_shortcut
        else `Constant_or_function
-    | Texp_ident _ when lazy_val_requires_forward e.exp_env e.exp_type ->
+    | Texp_ident _ when lazy_val_requires_forward e.exp_env e.exp_loc e.exp_type ->
        `Identifier `Forward_value
     | Texp_ident _ ->
        `Identifier `Other
@@ -646,7 +797,8 @@ let rec layout_union l1 l2 =
   | l, Pbottom -> l
   | Pvalue layout1, Pvalue layout2 ->
       Pvalue (value_kind_union layout1 layout2)
-  | Punboxed_float, Punboxed_float -> Punboxed_float
+  | Punboxed_float f1, Punboxed_float f2 ->
+      if equal_boxed_float f1 f2 then l1 else Ptop
   | Punboxed_int bi1, Punboxed_int bi2 ->
       if equal_boxed_integer bi1 bi2 then l1 else Ptop
   | Punboxed_vector vi1, Punboxed_vector vi2 ->
@@ -654,7 +806,8 @@ let rec layout_union l1 l2 =
   | Punboxed_product layouts1, Punboxed_product layouts2 ->
       if List.compare_lengths layouts1 layouts2 <> 0 then Ptop
       else Punboxed_product (List.map2 layout_union layouts1 layouts2)
-  | (Ptop | Pvalue _ | Punboxed_float | Punboxed_int _ | Punboxed_vector _ | Punboxed_product _),
+  | (Ptop | Pvalue _ | Punboxed_float _ | Punboxed_int _ |
+     Punboxed_vector _ | Punboxed_product _),
     _ ->
       Ptop
 
@@ -696,6 +849,32 @@ let report_error ppf = function
          build file.@ \
          Otherwise, please report this error to the Jane Street compilers team."
         (Language_extension.to_command_line_string Layouts maturity)
+  | Small_number_sort_without_extension (sort, ty) ->
+      fprintf ppf "Non-value layout %a detected" Jkind.Sort.format sort;
+      begin match ty with
+      | None -> ()
+      | Some ty -> fprintf ppf " as sort for type@ %a" Printtyp.type_expr ty
+      end;
+      let extension, verb, flags =
+        match Language_extension.(is_at_least Layouts Stable),
+              Language_extension.(is_enabled Small_numbers) with
+        | false, true -> " layouts", "is", "this flag"
+        | true, false -> " small_numbers", "is", "this flag"
+        | false, false -> "s layouts and small numbers", "are", "these flags"
+        | true, true -> assert false
+      in
+      fprintf ppf
+        ",@ but this requires the extension%s, which %s not enabled.@ \
+         If you intended to use this layout, please add %s to your \
+         build file.@ \
+         Otherwise, please report this error to the Jane Street compilers team."
+        extension verb flags
+  | Not_a_sort (ty, err) ->
+      fprintf ppf "A representable layout is required here.@ %a"
+        (Jkind.Violation.report_with_offender
+           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
+  | Unsupported_sort const ->
+      fprintf ppf "Layout %a is not supported yet." Jkind.Sort.Const.format const
 
 let () =
   Location.register_error_of_exn

@@ -4,18 +4,26 @@ Line 2, characters 22-24:
 2 | type ('a : void) t0 = 'a list;;
                           ^^
 Error: This type ('a : value) should be an instance of type ('a0 : void)
-       'a has layout void, which does not overlap with value.
+       The layout of 'a is void
+         because of the annotation on 'a in the declaration of the type t0.
+       But the layout of 'a must overlap with value
+         because the type argument of list has layout value.
 Line 2, characters 11-15:
 2 | type ('a : valu) t0 = 'a list;;
                ^^^^
-Error: Syntax error: layout expected.
+Error: Unknown layout valu
 type t = float#
 Line 2, characters 9-13:
 2 | type t = int#;;
              ^^^^
-Error: Syntax error: Unboxed type other than float# not expected.
+Error: Unbound type constructor int#
+Hint: Did you mean int?
 Line 2, characters 9-17:
 2 | type t = Float.t#;;
              ^^^^^^^^
-Error: Syntax error: Unboxed type other than float# not expected.
+Error: Unbound type constructor Float.t#
+type ('a : any, 'b : any, 'c : any) t
+type ('a : float64) s1 = ('a, int, bool) t
+val f : ('a : any) 'b. ('a, 'b, bool) t -> int = <fun>
+type ('a, 'b, 'c : bits32) s2 = ('a, 'b, 'c) t
 

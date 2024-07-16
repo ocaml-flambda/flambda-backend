@@ -18,7 +18,6 @@
 (* To assign numbers to globals and primitives *)
 
 open Misc
-open Asttypes
 open Lambda
 open Cmo_format
 
@@ -145,14 +144,24 @@ let output_primitive_table outchan =
 
 (* Translate structured constants *)
 
+(* We cannot use the [float32] type in the compiler, so we represent it as an
+   opaque [Obj.t]. This is sufficient for interfacing with the runtime. *)
+external float32_of_string : string -> Obj.t = "caml_float32_of_string"
+
 let rec transl_const = function
     Const_base(Const_int i) -> Obj.repr i
   | Const_base(Const_char c) -> Obj.repr c
   | Const_base(Const_string (s, _, _)) -> Obj.repr s
-  | Const_base(Const_float f) -> Obj.repr (float_of_string f)
-  | Const_base(Const_int32 i) -> Obj.repr i
-  | Const_base(Const_int64 i) -> Obj.repr i
-  | Const_base(Const_nativeint i) -> Obj.repr i
+  | Const_base(Const_float32 f)
+  | Const_base(Const_unboxed_float32 f) -> float32_of_string f
+  | Const_base(Const_float f)
+  | Const_base(Const_unboxed_float f) -> Obj.repr (float_of_string f)
+  | Const_base(Const_int32 i)
+  | Const_base(Const_unboxed_int32 i) -> Obj.repr i
+  | Const_base(Const_int64 i)
+  | Const_base(Const_unboxed_int64 i) -> Obj.repr i
+  | Const_base(Const_nativeint i)
+  | Const_base(Const_unboxed_nativeint i) -> Obj.repr i
   | Const_immstring s -> Obj.repr s
   | Const_block(tag, fields) ->
       let block = Obj.new_block tag (List.length fields) in
@@ -161,6 +170,12 @@ let rec transl_const = function
       in
       List.iteri transl_field fields;
       block
+  | Const_mixed_block _ ->
+      (* CR layouts v5.9: Support constant mixed blocks in bytecode, either by
+         dynamically allocating them once at top-level, or by supporting
+         marshaling into the cmo format for mixed blocks in bytecode.
+      *)
+      Misc.fatal_error "[Const_mixed_block] not supported in bytecode."
   | Const_float_block fields | Const_float_array fields ->
       let res = Array.Floatarray.create (List.length fields) in
       List.iteri (fun i f -> Array.Floatarray.set res i (float_of_string f))

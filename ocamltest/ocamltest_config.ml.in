@@ -38,6 +38,8 @@ let libunix = @ocamltest_libunix@
 
 let systhreads = @lib_systhreads@
 
+let systhreads_path = {@QS@|@lib_systhreads_path@|@QS@}
+
 let str = @lib_str@
 
 let objext = {@QS@|@OBJEXT@|@QS@}

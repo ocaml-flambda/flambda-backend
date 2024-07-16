@@ -1,8 +1,8 @@
 (* TEST
-   modules = "stubs.c"
-
-   * skip
-     reason = "OCaml 5 only"
+ modules = "stubs.c";
+ runtime5;
+ { bytecode; }
+ { native; }
 *)
 
 external test_skiplist_serial : unit -> unit = "test_skiplist_serial"

@@ -92,6 +92,12 @@ META
 /debugger/debugger_parser.output
 /debugger/ocamldebug
 
+/debugger4/debugger_lexer.ml
+/debugger4/debugger_parser.ml
+/debugger4/debugger_parser.mli
+/debugger4/debugger_parser.output
+/debugger4/ocamldebug
+
 /emacs/ocamltags
 /emacs/*.elc
 
@@ -358,3 +364,6 @@ META
 /yacc/.gdb_history
 
 /otherlibs/dynlink/natdynlinkops
+
+dune.runtime_selection
+/otherlibs/dune

@@ -1,4 +1,4 @@
-# 1 "marshal.ml"
+# 2 "marshal.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -50,11 +50,8 @@ external from_channel: in_channel -> 'a = "caml_input_value"
 external from_bytes_unsafe: bytes -> int -> 'a = "caml_input_value_from_bytes"
 external data_size_unsafe: bytes -> int -> int = "caml_marshal_data_size"
 
-(* BACKPORT BEGIN
 let header_size = 16
-*)
-let header_size = 20
-(* BACKPORT END *)
+
 let data_size buff ofs =
   if ofs < 0 || ofs > Bytes.length buff - header_size
   then invalid_arg "Marshal.data_size"

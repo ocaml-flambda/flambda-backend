@@ -100,8 +100,13 @@ module Error = struct
         {less_than:module_type_diff; greater_than: module_type_diff}
 
 
+  type compilation_unit_comparison =
+    | Implementation_vs_interface
+    | Argument_vs_parameter
+
   type all =
-    | In_Compilation_unit of (string, signature_symptom) diff
+    | In_Compilation_unit of
+        compilation_unit_comparison * (string, signature_symptom) diff
     | In_Signature of signature_symptom
     | In_Include_functor_signature of signature_symptom
     | In_Module_type of module_type_diff
@@ -791,6 +796,8 @@ and signature_components :
               type_declarations ~loc env ~mark subst id1 tydec1 tydec2
             in
             let item = mark_error_as_unrecoverable item in
+            (* Right now we don't filter hidden constructors / labels from the
+            shape. *)
             let shape_map = Shape.Map.add_type_proj shape_map id1 orig_shape in
             id1, item, shape_map, false
         | Sig_typext(id1, ext1, _, _), Sig_typext(_id2, ext2, _, _) ->
@@ -1030,12 +1037,13 @@ let check_modtype_inclusion ~loc env mty1 path1 mty2 =
 
 let check_functor_application_in_path
     ~errors ~loc ~lid_whole_app ~f0_path ~args
-    ~arg_path ~arg_mty ~param_mty env =
+    ~arg_path ~arg_mty ~arg_mode ~param_mty env =
+  Mode.Value.submode_exn arg_mode Mode.Value.legacy;
   match check_modtype_inclusion_raw ~loc env arg_mty arg_path param_mty with
   | Ok _ -> ()
   | Error _errs ->
       if errors then
-        let prepare_arg (arg_path, arg_mty) =
+        let prepare_arg (arg_path, arg_mty, _arg_mode) =
           let aliasable = can_alias env arg_path in
           let smd = Mtype.strengthen ~aliasable arg_mty arg_path in
           (Error.Named arg_path, smd)
@@ -1054,15 +1062,29 @@ let () =
 (* Check that an implementation of a compilation unit meets its
    interface. *)
 
-let compunit env ~mark impl_name impl_sig intf_name intf_sig unit_shape =
+let compunit0
+    ~comparison env ~mark impl_name impl_sig intf_name intf_sig unit_shape =
   match
     signatures ~in_eq:false ~loc:(Location.in_file impl_name) env ~mark
       Subst.identity impl_sig intf_sig unit_shape
   with Result.Error reasons ->
+    let diff = Error.diff impl_name intf_name reasons in
     let cdiff =
-      Error.In_Compilation_unit(Error.diff impl_name intf_name reasons) in
+      Error.In_Compilation_unit(comparison, diff) in
     raise(Error(env, cdiff))
   | Ok x -> x
+
+let compunit = compunit0 ~comparison:Implementation_vs_interface
+
+(* Check that the interface of a compilation unit meets the interface of the
+   parameter it's declared to be an argument for using [-as-argument-for] *)
+
+let compunit_as_argument env arg_name arg_sig param_name param_sig =
+  let cc, _shape =
+    compunit0 env arg_name arg_sig param_name param_sig Shape.dummy_mod
+      ~comparison:Argument_vs_parameter ~mark:Mark_positive
+  in
+  cc
 
 (* Functor diffing computation:
    The diffing computation uses the internal typing function

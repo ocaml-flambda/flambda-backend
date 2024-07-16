@@ -1,12 +1,15 @@
 (* TEST
-   include runtime_events
-   include unix
-   set OCAMLRUNPARAM = "e=6"
-   * skip
-   reason = "OCaml 5 only"
-   ** libunix
-   *** native
-   *** bytecode
+ include runtime_events;
+ include unix;
+ set OCAMLRUNPARAM = "e=6";
+ reason = "CR OCaml 5 domains";
+ skip;
+ libunix;
+ {
+   native;
+ }{
+   bytecode;
+ }
 *)
 
 type Runtime_events.User.tag += Ev

@@ -1,6 +1,6 @@
 (* TEST
-   * expect
-   flags = "-nopervasives" (* can't pass -nostdlib because of objects. *)
+ flags = "-nopervasives"; (* can't pass -nostdlib because of objects. *)
+ expect;
 *)
 
 (* Signatures *)
@@ -100,7 +100,7 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
-Error: Illegal shadowing of included type t/2 by t.
+Error: Illegal shadowing of included type t/2 by t/1.
 Line 2, characters 2-11:
 2 |   include S
       ^^^^^^^^^
@@ -144,7 +144,7 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
-Error: Illegal shadowing of included module M/2 by M.
+Error: Illegal shadowing of included module M/2 by M/1.
 Line 2, characters 2-11:
 2 |   include S
       ^^^^^^^^^
@@ -189,7 +189,7 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
-Error: Illegal shadowing of included module type T/2 by T.
+Error: Illegal shadowing of included module type T/2 by T/1.
 Line 2, characters 2-11:
 2 |   include S
       ^^^^^^^^^
@@ -210,7 +210,7 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
-Error: Illegal shadowing of included type ext/2 by ext.
+Error: Illegal shadowing of included type ext/2 by ext/1.
 Line 2, characters 2-11:
 2 |   include S
       ^^^^^^^^^
@@ -506,15 +506,15 @@ end
 Line 8, characters 2-8:
 8 |   type t
       ^^^^^^
-Error: Illegal shadowing of included type t/4 by t.
+Error: Illegal shadowing of included type t/2 by t/1.
 Lines 2-5, characters 2-5:
 2 | ..include struct
 3 |     type t = A
 4 |     let x = A
 5 |   end
-  Type t/4 came from this include.
+  Type t/2 came from this include.
 Line 4, characters 8-9:
 4 |     let x = A
             ^
-  The value x has no valid type if t/4 is shadowed.
+  The value x has no valid type if t/2 is shadowed.
 |}]

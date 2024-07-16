@@ -270,6 +270,7 @@ let read_one_param ppf position name v =
   | "noassert" -> set "noassert" [ noassert ] v
   | "noautolink" -> set "noautolink" [ no_auto_link ] v
   | "nostdlib" -> set "nostdlib" [ no_std_include ] v
+  | "no-auto-include-otherlibs" -> set "nostdlib" [ no_auto_include_otherlibs ] v
   | "nocwd" -> set "nocwd" [ no_cwd ] v
   | "linkall" -> set "linkall" [ link_everything ] v
   | "nolabels" -> set "nolabels" [ classic ] v
@@ -503,7 +504,8 @@ let read_one_param ppf position name v =
 
   | "extension" -> Language_extension.enable_of_string_exn v
   | "disable-all-extensions" ->
-    if check_bool ppf name v then Language_extension.disallow_extensions ()
+    if check_bool ppf name v then
+      Language_extension.set_universe_and_enable_all No_extensions
 
   | _ ->
     if !warnings_for_discarded_params &&

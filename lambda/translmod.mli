@@ -45,6 +45,7 @@ type unsafe_component =
   | Unsafe_functor
   | Unsafe_non_function
   | Unsafe_typext
+  | Unsafe_non_value_arg
 
 type unsafe_info =
   | Unsafe of { reason:unsafe_component; loc:Location.t; subid:Ident.t }

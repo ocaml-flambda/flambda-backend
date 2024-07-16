@@ -13,12 +13,6 @@
 /*                                                                        */
 /**************************************************************************/
 
-/* CR ocaml 5 runtime: When we update the OCaml 5 runtime, we'll need to
-   update this library as well. The base of
-   https://github.com/ocaml-flambda/ocaml-jst/pull/222 may be a good starting
-   point.
- */
-
 /* POSIX thread implementation of the "st" interface */
 
 #include <errno.h>
@@ -29,13 +23,9 @@
 #include <signal.h>
 #include <time.h>
 #include <sys/time.h>
-#include <features.h>
 #ifdef HAS_UNISTD
 #include <unistd.h>
 #endif
-#include <sys/syscall.h>
-#include <linux/futex.h>
-#include <limits.h>
 
 typedef int st_retcode;
 
@@ -98,78 +88,6 @@ Caml_inline void st_tls_set(st_tlskey k, void * v)
 {
   pthread_setspecific(k, v);
 }
-
-/* If we're using glibc, use a custom condition variable implementation to
-   avoid this bug: https://sourceware.org/bugzilla/show_bug.cgi?id=25847
-
-   For now we only have this on linux because it directly uses the linux futex
-   syscalls. */
-#if defined(__linux__) && defined(__GNU_LIBRARY__) && defined(__GLIBC__) && defined(__GLIBC_MINOR__)
-typedef struct {
-  volatile unsigned counter;
-} custom_condvar;
-
-static int custom_condvar_init(custom_condvar * cv)
-{
-  cv->counter = 0;
-  return 0;
-}
-
-static int custom_condvar_destroy(custom_condvar * cv)
-{
-  return 0;
-}
-
-static int custom_condvar_wait(custom_condvar * cv, pthread_mutex_t * mutex)
-{
-  unsigned old_count = cv->counter;
-  pthread_mutex_unlock(mutex);
-  syscall(SYS_futex, &cv->counter, FUTEX_WAIT_PRIVATE, old_count, NULL, NULL, 0);
-  pthread_mutex_lock(mutex);
-  return 0;
-}
-
-static int custom_condvar_signal(custom_condvar * cv)
-{
-  __sync_add_and_fetch(&cv->counter, 1);
-  syscall(SYS_futex, &cv->counter, FUTEX_WAKE_PRIVATE, 1, NULL, NULL, 0);
-  return 0;
-}
-
-static int custom_condvar_broadcast(custom_condvar * cv)
-{
-  __sync_add_and_fetch(&cv->counter, 1);
-  syscall(SYS_futex, &cv->counter, FUTEX_WAKE_PRIVATE, INT_MAX, NULL, NULL, 0);
-  return 0;
-}
-#else
-typedef pthread_cond_t custom_condvar;
-
-static int custom_condvar_init(custom_condvar * cv)
-{
-  return pthread_cond_init(cv, NULL);
-}
-
-static int custom_condvar_destroy(custom_condvar * cv)
-{
-  return pthread_cond_destroy(cv);
-}
-
-static int custom_condvar_wait(custom_condvar * cv, pthread_mutex_t * mutex)
-{
-  return pthread_cond_wait(cv, mutex);
-}
-
-static int custom_condvar_signal(custom_condvar * cv)
-{
-  return pthread_cond_signal(cv);
-}
-
-static int custom_condvar_broadcast(custom_condvar * cv)
-{
-  return pthread_cond_broadcast(cv);
-}
-#endif
 
 /* The master lock.  This is a mutex that is held most of the time,
    so we implement it in a slightly convoluted way to avoid
@@ -242,7 +160,8 @@ static void st_masterlock_acquire(st_masterlock *m)
     atomic_fetch_add(&m->waiters, -1);
   }
   m->busy = 1;
-  st_bt_lock_acquire(m);
+  // CR ocaml 5 domains: we assume no backup thread
+  // st_bt_lock_acquire(m);
   pthread_mutex_unlock(&m->lock);
 
   return;
@@ -252,9 +171,10 @@ static void st_masterlock_release(st_masterlock * m)
 {
   pthread_mutex_lock(&m->lock);
   m->busy = 0;
-  st_bt_lock_release(m);
-  custom_condvar_signal(&m->is_free);
+  // CR ocaml 5 domains: we assume no backup thread
+  // st_bt_lock_release(m);
   pthread_mutex_unlock(&m->lock);
+  custom_condvar_signal(&m->is_free);
 
   return;
 }
@@ -290,7 +210,8 @@ Caml_inline void st_thread_yield(st_masterlock * m)
      messaging the bt should not be required because yield assumes
      that a thread will resume execution (be it the yielding thread
      or a waiting thread */
-  caml_release_domain_lock();
+  // CR ocaml 5 domains
+  // caml_release_domain_lock();
 
   do {
     /* Note: the POSIX spec prevents the above signal from pairing with this
@@ -303,7 +224,8 @@ Caml_inline void st_thread_yield(st_masterlock * m)
   m->busy = 1;
   atomic_fetch_add(&m->waiters, -1);
 
-  caml_acquire_domain_lock();
+  // CR ocaml 5 domains
+  // caml_acquire_domain_lock();
 
   pthread_mutex_unlock(&m->lock);
 

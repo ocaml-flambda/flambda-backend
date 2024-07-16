@@ -1,6 +1,7 @@
 (* TEST
- * skip
-   reason = "OCaml 5 only"
+ runtime5;
+ { bytecode; }
+ { native; }
 *)
 
 (* Check the numbers drawn from a known state against the numbers

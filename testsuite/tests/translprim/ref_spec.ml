@@ -1,13 +1,16 @@
 (* TEST
-   * setup-ocamlc.byte-build-env
-   ** ocamlc.byte
-      flags = "-dlambda -dno-unique-ids"
-   *** stack-allocation
-   **** check-ocamlc.byte-output
-        compiler_reference = "${test_source_directory}/ref_spec.stack.reference"
-   *** no-stack-allocation
-   **** check-ocamlc.byte-output
-        compiler_reference = "${test_source_directory}/ref_spec.heap.reference"
+ setup-ocamlc.byte-build-env;
+ flags = "-dlambda -dno-unique-ids";
+ ocamlc.byte;
+ {
+   stack-allocation;
+   compiler_reference = "${test_source_directory}/ref_spec.stack.reference";
+   check-ocamlc.byte-output;
+ }{
+   no-stack-allocation;
+   compiler_reference = "${test_source_directory}/ref_spec.heap.reference";
+   check-ocamlc.byte-output;
+ }
 *)
 
 type 'a custom_rec = { x : unit; mutable y : 'a }

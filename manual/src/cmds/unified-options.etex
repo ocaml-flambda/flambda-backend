@@ -300,6 +300,16 @@ the toplevel is running with the "#directory" directive
 (section~\ref{s:toplevel-directives}).
 }%top
 
+\notop{%
+\item["-H" \var{directory}]
+Behaves identically to "-I", except that (a) programs may not directly refer to
+modules added to the search path this way, and (b) these directories are
+searched after any "-I" directories.  This makes it possible to provide the
+compiler with compiled interface and object code files for the current program's
+transitive dependencies (the dependencies of its dependencies) without allowing
+them to silently become direct dependencies.
+}%notop
+
 \top{%
 \item["-init" \var{file}]
 Load the given file instead of the default initialization file.
@@ -886,18 +896,20 @@ either with the same or a different language extension; is idempotent.
 Disable the specified \var{language-extension}.  Can be specified more than once,
 either with the same or a different language extension; is idempotent.
 
-\item[(JST) "-only-erasable-extensions"]
-Restricts the "-extension" option to work only with so-called ``erasable''
-extensions: ones that can be rewritten into attributes while still preserving
-the program's runtime input/output behavior.  Turns off currently-enabled
-non-erasable extensions when specified.  After this flag, specifying a
-non-erasable extension (even to disable it) will fail with an error.  This flag
-cannot be reversed, but it can be strengthened (by "-disable-all-extensions").
+\item[(JST) "-extension-universe" \var{universe}]
+Set the extension universe and enable all extensions in it. Each universe
+allows a set of extensions, and every successive universe includes
+the previous one. Following universes exist:
 
-\item[(JST) "-disable-all-extensions"]
-Disallow all language extensions moving forward, and turn off currently-enabled
-ones.  This makes "-extension" raise errors moving forwards.  This flag cannot
-be reversed.
+\begin{options}
+\item[no_extensions] No extensions.
+\item[upstream_compatible] Extensions compatible with upstream OCaml,
+or erasable extensions.
+\item[stable] All stable extensions.
+\item[beta] All beta extensions.
+\item[alpha] All alpha extensions.
+\end{options}
+
 
 \end{options}
 %

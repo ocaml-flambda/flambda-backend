@@ -137,11 +137,15 @@
 #if defined(FUNCTION_SECTIONS)
         TEXT_SECTION(caml_hot.code_begin)
         .globl  G(caml_hot.code_begin)
+        .globl  G(caml_hot__code_begin)
 G(caml_hot.code_begin):
+G(caml_hot__code_begin):
 
         TEXT_SECTION(caml_hot.code_end)
         .globl  G(caml_hot.code_end)
+        .globl  G(caml_hot__code_end)
 G(caml_hot.code_end):
+G(caml_hot__code_end):
 #endif
 
 #if defined(SYS_macosx)
@@ -199,6 +203,7 @@ G(name):
 #define Cstack_sp(reg)          [reg, #8]
 #define Cstack_sp_offset        8
 #define Cstack_prev(reg)        [reg, #16]
+#define Cstack_async_exn_handler(reg) [reg, #24]
 
 /* struct stack_handler */
 #define Handler_value(reg)      [reg]
@@ -348,7 +353,7 @@ FUNCTION(caml_call_realloc_stack)
         ldp     x29, x30, [sp], 16
         add     sp, sp, 16 /* pop argument */
         ADDRGLOBAL(x0, caml_exn_Stack_overflow)
-        b       G(caml_raise_exn)
+        b       G(caml_raise_async)
         CFI_ENDPROC
         END_FUNCTION(caml_call_realloc_stack)
 
@@ -413,6 +418,29 @@ FUNCTION(caml_allocN)
         ret
         CFI_ENDPROC
         END_FUNCTION(caml_allocN)
+
+/* Reallocate the locals stack.  This is like caml_call_gc, above. */
+FUNCTION(caml_call_local_realloc)
+        CFI_STARTPROC
+L(caml_call_local_realloc):
+    /* Save return address and frame pointer */
+        CFI_OFFSET(29, -16)
+        CFI_OFFSET(30, -8)
+        stp     x29, x30, [sp, -16]!
+        CFI_ADJUST(16)
+        add     x29, sp, #0
+    /* Store all registers (including ALLOC_PTR & TRAP_PTR) */
+        SAVE_ALL_REGS
+        SWITCH_OCAML_TO_C
+    /* Call the runtime to reallocate the local stack */
+        bl      G(caml_local_realloc)
+        SWITCH_C_TO_OCAML
+        RESTORE_ALL_REGS
+    /* Free stack space and return to caller */
+        ldp     x29, x30, [sp], 16
+        ret
+        CFI_ENDPROC
+        END_FUNCTION(caml_call_gc)
 
 /* Call a C function from OCaml */
 /* Function to call is in ADDITIONAL_ARG */
@@ -516,7 +544,9 @@ L(jump_to_caml):
         ldr     ALLOC_PTR, Caml_state(young_ptr)
     /* Build (16-byte aligned) struct c_stack_link on the C stack */
         ldr     x8, Caml_state(c_stack)
-        stp     x8, xzr, [sp, -16]! /* C_stack_prev, pad */
+        ldr     x9, Caml_state(async_exn_handler)
+        stp     x8, x9, [sp, -16]!
+                /* C_stack_prev, C_stack_async_exn_handler */
         CFI_ADJUST(16)
         stp     xzr, xzr, [sp, -16]! /* C_stack_stack, C_stack_sp */
         CFI_ADJUST(16)
@@ -536,6 +566,10 @@ L(jump_to_caml):
         adr     x10, L(trap_handler)
         stp     x9, x10, [x8, -16]!
         mov     TRAP_PTR, x8
+    /* Note that the async exception handler chain always goes through
+       Caml_state, unlike the normal exception handler chain, which goes
+       through the TRAP_PTR register. */
+        str     x8, Caml_state(async_exn_handler)
     /* Switch stacks and call the OCaml code */
         mov     sp, x8
 #ifdef ASM_CFI_SUPPORTED
@@ -571,6 +605,9 @@ L(return_result):
         ldr     x9, Caml_state(c_stack)
         mov     sp, x9
         CFI_RESTORE_STATE
+    /* Restore saved async exception pointer */
+        ldr     x8, Cstack_async_exn_handler(sp)
+        str     x8, Caml_state(async_exn_handler)
     /* Pop the struct c_stack_link */
         ldr     x8, Cstack_prev(sp)
         add     sp, sp, 32
@@ -923,14 +960,14 @@ G(caml_system__code_end):
 /* GC roots for callback */
 
 OBJECT(caml_system.frametable)
-        .quad   2               /* two descriptors */
-        .quad   L(caml_retaddr) /* return address into callback */
-        .short  -1              /* negative frame size => use callback link */
-        .short  0               /* no roots */
+        .quad   2                   /* two descriptors */
+        .4byte  L(caml_retaddr) - . /* return address into callback */
+        .short  -1                  /* negative frame size => use callback link */
+        .short  0                   /* no roots */
         .align  3
-        .quad   L(frame_runstack) /* return address into fiber handler */
-        .short  -1              /* negative frame size => use callback link */
-        .short  0               /* no roots here */
+        .4byte  L(frame_runstack) - . /* return address into fiber handler */
+        .short  -1                    /* negative frame size => use callback link */
+        .short  0                     /* no roots here */
         .align 3
         END_OBJECT(caml_system.frametable)
 

@@ -21,18 +21,24 @@ module type Common_options = sig
   val _no_absname : unit -> unit
   val _alert : string -> unit
   val _I : string -> unit
+  val _H : string -> unit
+  val _libloc : string -> unit
   val _labels : unit -> unit
   val _alias_deps : unit -> unit
   val _no_alias_deps : unit -> unit
   val _app_funct : unit -> unit
   val _no_app_funct : unit -> unit
+  val _directory : string -> unit
   val _disable_all_extensions : unit -> unit
   val _only_erasable_extensions : unit -> unit
   val _extension : string -> unit
   val _no_extension : string -> unit
+  val _extension_universe : string -> unit
+  val _allow_illegal_crossing : unit -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
+  val _no_auto_include_otherlibs : unit -> unit
   val _nocwd : unit -> unit
   val _open : string -> unit
   val _ppx : string -> unit
@@ -76,14 +82,18 @@ module type Core_options = sig
   val _dshape : unit -> unit
   val _drawlambda : unit -> unit
   val _dlambda : unit -> unit
+  val _dletreclambda : unit -> unit
 
 end
 
 module type Compiler_options = sig
   val _a : unit -> unit
   val _annot : unit -> unit
+  val _as_argument_for : string -> unit
+  val _as_parameter : unit -> unit
   val _binannot : unit -> unit
   val _binannot_cms : unit -> unit
+  val _binannot_occurrences : unit -> unit
   val _c : unit -> unit
   val _cc : string -> unit
   val _cclib : string -> unit
@@ -110,6 +120,7 @@ module type Compiler_options = sig
   val _output_obj : unit -> unit
   val _output_complete_obj : unit -> unit
   val _pack : unit -> unit
+  val _parameter : string -> unit
   val _plugin : string -> unit
   val _pp : string -> unit
   val _principal : unit -> unit

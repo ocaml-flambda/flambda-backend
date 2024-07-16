@@ -1,3 +1,5 @@
+/* CR mshinwell: Reverted to 5.x version, need to check conflicts */
+
 /**************************************************************************/
 /*                                                                        */
 /*                                 OCaml                                  */
@@ -43,118 +45,8 @@ struct caml_ephe_info* caml_alloc_ephe_info (void)
   return e;
 }
 
-<<<<<<< HEAD
-/* The minor heap is considered alive. Outside minor and major heap it is
-   considered alive (out of reach of the GC). */
-Caml_inline int Test_if_its_white(value x){
-  CAMLassert (x != caml_ephe_none);
-#ifdef NO_NAKED_POINTERS
-  if (!Is_block(x) || Is_young (x)) return 0;
-#else
-  if (!Is_block(x) || !Is_in_heap(x)) return 0;
-#endif
-  if (Tag_val(x) == Infix_tag) x -= Infix_offset_val(x);
-  return Is_white_val(x);
-}
-
-/* If it is not white during clean phase it is dead, i.e it will be swept */
-Caml_inline int Is_Dead_during_clean(value x)
-{
-  CAMLassert (caml_gc_phase == Phase_clean);
-  return Test_if_its_white(x);
-}
-
-/** caml_ephe_none is considered as not white  */
-Caml_inline int Is_White_During_Mark(value x)
-{
-  CAMLassert (caml_gc_phase == Phase_mark);
-  if (x == caml_ephe_none ) return 0;
-  return Test_if_its_white(x);
-}
-
-/** The minor heap doesn't have to be marked, outside they should
-    already be black. Remains the value in the heap to mark.
-*/
-Caml_inline int Must_be_Marked_during_mark(value x)
-{
-  CAMLassert (x != caml_ephe_none);
-  CAMLassert (caml_gc_phase == Phase_mark);
-#ifdef NO_NAKED_POINTERS
-  return Is_block (x) && !Is_young (x);
-#else
-  return Is_block (x) && Is_in_heap (x);
-#endif
-}
-
-/* [len] is a number of words (fields) */
-CAMLexport value caml_ephemeron_create (mlsize_t len)
-||||||| merged common ancestors
-/* The minor heap is considered alive. Outside minor and major heap it is
-   considered alive (out of reach of the GC). */
-Caml_inline int Test_if_its_white(value x){
-  CAMLassert (x != caml_ephe_none);
-#ifdef NO_NAKED_POINTERS
-  if (!Is_block(x) || Is_young (x)) return 0;
-#else
-  if (!Is_block(x) || !Is_in_heap(x)) return 0;
-#endif
-  if (Tag_val(x) == Infix_tag) x -= Infix_offset_val(x);
-  return Is_white_val(x);
-}
-
-/* If it is not white during clean phase it is dead, i.e it will be swept */
-Caml_inline int Is_Dead_during_clean(value x)
-{
-  CAMLassert (caml_gc_phase == Phase_clean);
-<<<<<<<<< Temporary merge branch 1
-#ifdef NO_NAKED_POINTERS
-  if (!Is_block(x) || Is_young (x)) return 0;
-#else
-  if (!Is_block(x) || !Is_in_heap(x)) return 0;
-#endif
-  if (Tag_val(x) == Infix_tag) x -= Infix_offset_val(x);
-  return Is_white_val(x);
-||||||||| 24dbb0976a
-  if (!Is_block(x)) return 0;
-  if (Tag_val(x) == Infix_tag) x -= Infix_offset_val(x);
-#ifdef NO_NAKED_POINTERS
-  return Is_white_val(x) && !Is_young (x);
-#else
-  return Is_white_val(x) && Is_in_heap (x);
-#endif
-=========
-  return Test_if_its_white(x);
->>>>>>>>> Temporary merge branch 2
-}
-
-/** caml_ephe_none is considered as not white  */
-Caml_inline int Is_White_During_Mark(value x)
-{
-  CAMLassert (caml_gc_phase == Phase_mark);
-  if (x == caml_ephe_none ) return 0;
-  return Test_if_its_white(x);
-}
-
-/** The minor heap doesn't have to be marked, outside they should
-    already be black. Remains the value in the heap to mark.
-*/
-Caml_inline int Must_be_Marked_during_mark(value x)
-{
-  CAMLassert (x != caml_ephe_none);
-  CAMLassert (caml_gc_phase == Phase_mark);
-#ifdef NO_NAKED_POINTERS
-  return Is_block (x) && !Is_young (x);
-#else
-  return Is_block (x) && Is_in_heap (x);
-#endif
-}
-
-/* [len] is a number of words (fields) */
-CAMLexport value caml_ephemeron_create (mlsize_t len)
-=======
 /* [len] is a value that represents a number of words (fields) */
 CAMLprim value caml_ephe_create (value len)
->>>>>>> ocaml/5.1
 {
   mlsize_t size, i;
   value res;
@@ -167,8 +59,16 @@ CAMLprim value caml_ephe_create (value len)
     caml_invalid_argument ("Weak.create");
   res = caml_alloc_shr (size, Abstract_tag);
 
-  Ephe_link(res) = domain_state->ephe_info->live;
-  domain_state->ephe_info->live = res;
+  /* The new ephemeron needs to be added to:
+       live, if marking has started, to be marked next cycle
+       todo, if marking has not started, to be marked this cycle */
+  if (caml_marking_started()) {
+    Ephe_link(res) = domain_state->ephe_info->live;
+    domain_state->ephe_info->live = res;
+  } else {
+    Ephe_link(res) = domain_state->ephe_info->todo;
+    domain_state->ephe_info->todo = res;
+  }
   for (i = CAML_EPHE_DATA_OFFSET; i < size; i++)
     Field(res, i) = caml_ephe_none;
   /* run memprof callbacks */
@@ -275,8 +175,9 @@ void caml_ephe_clean (value v) {
     else if (Is_block (child) && !Is_young (child)) {
       if (Tag_val (child) == Infix_tag) child -= Infix_offset_val (child);
       /* If we scanned all the keys and the data field remains filled,
-         then the mark phase must have marked it */
-      CAMLassert( is_marked (child) );
+         then the mark phase must have marked it (or alternatively the
+         value concerned is in static data etc). */
+      CAMLassert( is_marked (child) || is_not_markable (child) );
     }
 #endif
   }
@@ -362,7 +263,8 @@ static value ephe_get_field (value e, mlsize_t offset)
   if (elt == caml_ephe_none) {
     res = Val_none;
   } else {
-    caml_darken (Caml_state, elt, 0);
+    if (caml_marking_started())
+      caml_darken (Caml_state, elt, 0);
     res = caml_alloc_small (1, Tag_some);
     Field(res, 0) = elt;
   }
@@ -391,7 +293,7 @@ CAMLprim value caml_weak_get (value ar, value n)
 
 static void ephe_copy_and_darken(value from, value to)
 {
-  mlsize_t i = 0; /* size of non-scannable prefix */
+  mlsize_t scan_from, scan_to;
 
   CAMLassert(Is_block(from));
   CAMLassert(Is_block(to));
@@ -400,23 +302,34 @@ static void ephe_copy_and_darken(value from, value to)
   CAMLassert(Wosize_val(from) == Wosize_val(to));
 
   if (Tag_val(from) > No_scan_tag) {
-    i = Wosize_val(to);
+    scan_from = Wosize_val(from);
+    scan_to = scan_from;
   }
   else if (Tag_val(from) == Closure_tag) {
-    i = Start_env_closinfo(Closinfo_val(from));
+    scan_from = Start_env_closinfo(Closinfo_val(from));
+    scan_to = Wosize_val(from);
+  }
+  else {
+    scan_from = 0;
+    scan_to = Scannable_wosize_val(from);
   }
 
   /* Copy non-scannable prefix */
-  memcpy (Bp_val(to), Bp_val(from), Bsize_wsize(i));
+  memcpy (Bp_val(to), Bp_val(from), Bsize_wsize(scan_from));
 
   /* Copy and darken scannable fields */
   caml_domain_state* domain_state = Caml_state;
-  while (i < Wosize_val(to)) {
+  for (mlsize_t i = scan_from; i < scan_to; i++) {
     value field = Field(from, i);
-    caml_darken (domain_state, field, 0);
+    if (caml_marking_started())
+      caml_darken (domain_state, field, 0);
     Store_field(to, i, field);
-    ++ i;
   }
+
+  /* Copy non-scannable suffix */
+  memcpy (Op_val(to)   + scan_to,
+          Op_val(from) + scan_to,
+          Bsize_wsize(Wosize_val(from) - scan_to));
 }
 
 static value ephe_get_field_copy (value e, mlsize_t offset)
@@ -463,7 +376,8 @@ static value ephe_get_field_copy (value e, mlsize_t offset)
     /* This allocation could provoke a GC, which could change the
        * header or size of val (e.g. in a finalizer). So we go around
        * the loop to read val again. */
-    copy = caml_alloc (Wosize_val(val), Tag_val(val));
+    copy = caml_alloc_with_reserved (Wosize_val(val), Tag_val(val),
+                                     Reserved_val(val));
     val = Val_unit;
   }
 
@@ -575,7 +489,8 @@ CAMLprim value caml_ephe_blit_key (value es, value ofs,
 CAMLprim value caml_ephe_blit_data (value es, value ed)
 {
   ephe_blit_field (es, CAML_EPHE_DATA_OFFSET, ed, CAML_EPHE_DATA_OFFSET, 1);
-  caml_darken(0, Field(ed, CAML_EPHE_DATA_OFFSET), 0);
+  if (caml_marking_started())
+    caml_darken(0, Field(ed, CAML_EPHE_DATA_OFFSET), 0);
   /* [ed] may be in [Caml_state->ephe_info->live] list. The data value may be
      unmarked. The ephemerons on the live list are not scanned during ephemeron
      marking. Hence, unconditionally darken the data value. */

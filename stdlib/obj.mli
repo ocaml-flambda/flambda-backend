@@ -1,4 +1,4 @@
-# 1 "obj.mli"
+# 2 "obj.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -171,4 +171,40 @@ module Ephemeron: sig
   val max_ephe_length: int
   (** Maximum length of an ephemeron, ie the maximum number of keys an
       ephemeron could contain *)
+end
+
+module Uniform_or_mixed : sig
+  (** Blocks with a nominally scannable tag can still have a suffix of
+      unscanned objects; such a block is "mixed". This contrasts with
+      "uniform" blocks which are either all-scanned or all-unscanned.
+
+      Note that this module can return different results for the scannable
+      prefix len of a mixed block in native code vs. bytecode. That's
+      because more fields are scanned in bytecode.
+  *)
+
+  type obj_t := t
+
+  type t [@@immediate]
+
+  type repr =
+    | Uniform
+    (** The block is tagged as not scannable or the block is tagged as scannable
+        and all fields can be scanned. *)
+    | Mixed of { scannable_prefix_len : int }
+    (** The block is tagged as scannable but some fields can't be scanned. *)
+
+  val repr : t -> repr
+
+  external of_block : obj_t -> t = "caml_succ_scannable_prefix_len" [@@noalloc]
+
+  val is_uniform : t -> bool
+  (** Equivalent to [repr] returning [Uniform]. *)
+
+  val is_mixed : t -> bool
+  (** Equivalent to [repr] returning [Mixed _]. *)
+
+  val mixed_scannable_prefix_len_exn : t -> int
+  (** Returns the [scannable_prefix_len] without materializing the return
+      value of [repr]. Raises if [is_mixed] is [false]. *)
 end

@@ -1,8 +1,24 @@
 (* TEST
-modules = "stubs.c"
-include runtime_events
-* skip
-reason = "OCaml 5 only"
+ {
+   runtime4;
+   skip;
+ }{
+   reason="this runtime_events test is currently broken, to be fixed later";
+   skip;
+ }
+*)
+
+(* Header to start from when this test gets fixed:
+ {
+   runtime4;
+   skip;
+ }{
+   modules = "stubs.c";
+   include runtime_events;
+   runtime5;
+   { bytecode; }
+   { native; }
+ }
 *)
 
 external start_runtime_events : unit -> unit = "start_runtime_events"

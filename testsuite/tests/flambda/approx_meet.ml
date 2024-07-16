@@ -1,7 +1,4 @@
-(* TEST
-   * flambda
-   * native
-*)
+(* TEST *)
 
 (* from GPR#1794 *)
 

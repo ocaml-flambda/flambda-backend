@@ -1,3 +1,4 @@
+# 2 "domain.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -15,8 +16,6 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
-(* CR ocaml 5 runtime: domains not supported on 4.x
 
 [@@@alert unstable
     "The Domain interface may change in incompatible ways in the future."
@@ -53,6 +52,19 @@ val get_id : 'a t -> id
 val self : unit -> id
 (** [self ()] is the identifier of the currently running domain *)
 
+val cpu_relax : unit -> unit
+(** If busy-waiting, calling cpu_relax () between iterations
+    will improve performance on some CPU architectures *)
+
+val is_main_domain : unit -> bool
+(** [is_main_domain ()] returns true if called from the initial domain. *)
+
+val recommended_domain_count : unit -> int
+(** The recommended maximum number of domains which should be running
+    simultaneously (including domains already running).
+
+    The value returned is at least [1]. *)
+
 val before_first_spawn : (unit -> unit) -> unit
 (** [before_first_spawn f] registers [f] to be called before the first domain
     is spawned by the program. The functions registered with
@@ -79,19 +91,6 @@ let temp_file_key = Domain.DLS.new_key (fun _ ->
     time will open a temporary file and register an [at_exit] callback
     to close it, thus guaranteeing the descriptor is not leaked in
     case the current domain exits. *)
-
-val cpu_relax : unit -> unit
-(** If busy-waiting, calling cpu_relax () between iterations
-    will improve performance on some CPU architectures *)
-
-val is_main_domain : unit -> bool
-(** [is_main_domain ()] returns true if called from the initial domain. *)
-
-val recommended_domain_count : unit -> int
-(** The recommended maximum number of domains which should be running
-    simultaneously (including domains already running).
-
-    The value returned is at least [1]. *)
 
 module DLS : sig
 (** Domain-local Storage *)
@@ -146,5 +145,3 @@ module DLS : sig
         to [k], which cannot be restored later. *)
 
 end
-
-*)

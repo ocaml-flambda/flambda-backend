@@ -1,5 +1,9 @@
 (* TEST
-   * expect
+ flags = "-extension layouts_beta";
+ expect;
+*)
+(* CR layouts: Using [-extension layouts_beta] here is not backward-compatible.
+   We can delete this when internal ticket 1110 is resolved.
 *)
 
 (* Check the unboxing *)
@@ -92,7 +96,7 @@ Error: This type cannot be unboxed because
 |}];;
 
 (* let rec must be rejected *)
-type t10 = A of t10 [@@ocaml.unboxed] [@@value];;
+type t10 : value = A of t10 [@@ocaml.unboxed];;
 [%%expect{|
 type t10 : value = A of t10 [@@unboxed]
 |}];;
@@ -281,7 +285,7 @@ in assert (f x = L 3.14);;
 |}];;
 
 (* Check for a potential infinite loop in the typing algorithm. *)
-type 'a t12 = M of 'a t12 [@@ocaml.unboxed] [@@value];;
+type 'a t12 : value = M of 'a t12 [@@ocaml.unboxed];;
 [%%expect{|
 type 'a t12 : value = M of 'a t12 [@@unboxed]
 |}];;

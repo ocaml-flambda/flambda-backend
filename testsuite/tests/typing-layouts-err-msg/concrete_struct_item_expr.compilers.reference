@@ -1,0 +1,11 @@
+type t_any : any
+Line 1, characters 0-22:
+1 | (assert false : t_any);;
+    ^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type t_any but an expression was expected of type
+         ('a : '_representable_layout_1)
+       The layout of t_any is any
+         because of the definition of t_any at line 6, characters 0-16.
+       But the layout of t_any must be representable
+         because it's the type of an expression in a structure.
+

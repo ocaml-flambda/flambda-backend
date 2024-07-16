@@ -17,7 +17,6 @@ open Typedtree
 open Lambda
 open Location
 
-
 let is_inline_attribute =
   [ ["inline"; "ocaml.inline"],true ]
 
@@ -38,9 +37,6 @@ let is_local_attribute =
 let is_tailcall_attribute =
   [ ["tailcall"; "ocaml.tailcall"], true ]
 
-let is_property_attribute = function
-  | Zero_alloc -> [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
-
 let is_tmc_attribute =
   [ ["tail_mod_cons"; "ocaml.tail_mod_cons"], true ]
 
@@ -50,127 +46,23 @@ let is_poll_attribute =
 let is_loop_attribute =
   [ ["loop"; "ocaml.loop"], true ]
 
-let find_attribute p attributes =
-  let inline_attribute =
-    Builtin_attributes.filter_attributes
-      (Builtin_attributes.Attributes_filter.create p)
-      attributes
-  in
-  let attr =
-    match inline_attribute with
-    | [] -> None
-    | [attr] -> Some attr
-    | attr :: {Parsetree.attr_name = {txt;loc}; _} :: _ ->
-      Location.prerr_warning loc (Warnings.Duplicated_attribute txt);
-      Some attr
-  in
-  attr
+let is_opaque_attribute =
+  [ ["opaque"; "ocaml.opaque"], true ]
+
+let is_unboxable_attribute =
+  [ ["unboxable"; "ocaml.unboxable"], true ]
 
 let is_unrolled = function
   | {txt="unrolled"|"ocaml.unrolled"} -> true
   | {txt="inline"|"ocaml.inline"|"inlined"|"ocaml.inlined"} -> false
   | _ -> assert false
 
-let get_payload get_from_exp =
-  let open Parsetree in
-  function
-  | PStr [{pstr_desc = Pstr_eval (exp, [])}] -> get_from_exp exp
-  | _ -> Result.Error ()
-
-let get_optional_payload get_from_exp =
-  let open Parsetree in
-  function
-  | PStr [] -> Result.Ok None
-  | other -> Result.map Option.some (get_payload get_from_exp other)
-
-let get_id_from_exp =
-  let open Parsetree in
-  function
-  | { pexp_desc = Pexp_ident { txt = Longident.Lident id } } -> Result.Ok id
-  | _ -> Result.Error ()
-
-let get_int_from_exp =
-  let open Parsetree in
-  function
-    | { pexp_desc = Pexp_constant (Pconst_integer(s, None)) } ->
-        begin match Misc.Int_literal_converter.int s with
-        | n -> Result.Ok n
-        | exception (Failure _) -> Result.Error ()
-        end
-    | _ -> Result.Error ()
-
-let get_construct_from_exp =
-  let open Parsetree in
-  function
-    | { pexp_desc =
-          Pexp_construct ({ txt = Longident.Lident constr }, None) } ->
-        Result.Ok constr
-    | _ -> Result.Error ()
-
-let get_bool_from_exp exp =
-  Result.bind (get_construct_from_exp exp)
-    (function
-      | "true" -> Result.Ok true
-      | "false" -> Result.Ok false
-      | _ -> Result.Error ())
-
-let get_ids_from_exp exp =
-  let open Parsetree in
-  (match exp with
-   | { pexp_desc = Pexp_apply (exp, args) } ->
-     get_id_from_exp exp ::
-     List.map (function
-       | (Asttypes.Nolabel, arg) -> get_id_from_exp arg
-       | (_, _) -> Result.Error ())
-       args
-   | _ -> [get_id_from_exp exp])
-  |> List.fold_left (fun acc r ->
-    match acc, r with
-    | Result.Ok ids, Ok id -> Result.Ok (id::ids)
-    | (Result.Error _ | Ok _), _ -> Result.Error ())
-    (Ok [])
-  |> Result.map List.rev
-
-
-let parse_ids_payload txt loc ~default ~empty cases payload =
-  let[@local] warn () =
-    let ( %> ) f g x = g (f x) in
-    let msg =
-      cases
-      |> List.map (fst %> String.concat " " %> Printf.sprintf "'%s'")
-      |> String.concat ", "
-      |> Printf.sprintf "It must be either %s or empty"
-    in
-    Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
-    default
-  in
-  match get_optional_payload get_ids_from_exp payload with
-  | Error () -> warn ()
-  | Ok None -> empty
-  | Ok (Some ids) ->
-      match List.assoc_opt (List.sort String.compare ids) cases with
-      | Some r -> r
-      | None -> warn ()
-
-let parse_id_payload txt loc ~default ~empty cases payload =
-  let[@local] warn () =
-    let ( %> ) f g x = g (f x) in
-    let msg =
-      cases
-      |> List.map (fst %> Printf.sprintf "'%s'")
-      |> String.concat ", "
-      |> Printf.sprintf "It must be either %s or empty"
-    in
-    Location.prerr_warning loc (Warnings.Attribute_payload (txt, msg));
-    default
-  in
-  match get_optional_payload get_id_from_exp payload with
-  | Error () -> warn ()
-  | Ok None -> empty
-  | Ok (Some id) ->
-      match List.assoc_opt id cases with
-      | Some r -> r
-      | None -> warn ()
+let parse_id_payload txt loc options ~default ~empty payload =
+  match
+    Builtin_attributes.parse_optional_id_payload txt loc options ~empty payload
+  with
+  | Ok a -> a
+  | Error () -> default
 
 let parse_inline_attribute attr : inline_attribute =
   match attr with
@@ -181,7 +73,7 @@ let parse_inline_attribute attr : inline_attribute =
       let warning txt = Warnings.Attribute_payload
           (txt, "It must be an integer literal")
       in
-      match get_payload get_int_from_exp payload with
+      match Builtin_attributes.get_int_payload payload with
       | Ok n -> Unroll n
       | Error () ->
         Location.prerr_warning loc (warning txt);
@@ -206,7 +98,7 @@ let parse_inlined_attribute attr : inlined_attribute =
       let warning txt = Warnings.Attribute_payload
           (txt, "It must be an integer literal")
       in
-      match get_payload get_int_from_exp payload with
+      match Builtin_attributes.get_int_payload payload with
       | Ok n -> Unroll n
       | Error () ->
         Location.prerr_warning loc (warning txt);
@@ -249,29 +141,6 @@ let parse_local_attribute attr =
         ]
         payload
 
-let parse_property_attribute attr property =
-  match attr with
-  | None -> Default_check
-  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload}->
-      parse_ids_payload txt loc
-        ~default:Default_check
-        ~empty:(Check { property; strict = false; opt = false; loc; } )
-        [
-          ["assume"],
-          Assume { property; strict = false; never_returns_normally = false; loc; };
-          ["strict"], Check { property; strict = true; opt = false; loc; };
-          ["opt"], Check { property; strict = false; opt = true; loc; };
-          ["opt"; "strict"; ], Check { property; strict = true; opt = true; loc; };
-          ["assume"; "strict"],
-          Assume { property; strict = true; never_returns_normally = false; loc; };
-          ["assume"; "never_returns_normally"],
-          Assume { property; strict = false; never_returns_normally = true; loc; };
-          ["assume"; "strict"; "never_returns_normally"],
-          Assume { property; strict = true; never_returns_normally = true; loc; };
-          ["ignore"], Ignore_assert_all property
-        ]
-        payload
-
 let parse_poll_attribute attr =
   match attr with
   | None -> Default_poll
@@ -297,6 +166,19 @@ let parse_loop_attribute attr =
         ]
         payload
 
+let parse_opaque_attribute attr =
+  match attr with
+  | None -> false
+  | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
+      parse_id_payload txt loc
+        ~default:false
+        ~empty:true
+        []
+        payload
+
+let find_attribute p l =
+  Builtin_attributes.(find_attribute (Attributes_filter.create p) l)
+
 let get_inline_attribute l =
   let attr = find_attribute is_inline_attribute l in
   parse_inline_attribute attr
@@ -309,22 +191,9 @@ let get_local_attribute l =
   let attr = find_attribute is_local_attribute l in
   parse_local_attribute attr
 
-let get_property_attribute l p =
-  let attr = find_attribute (is_property_attribute p) l in
-  let res = parse_property_attribute attr p in
-  (match attr, res with
-   | None, Default_check -> ()
-   | _, Default_check -> ()
-   | None, (Check _ | Assume _ | Ignore_assert_all _) -> assert false
-   | Some _, Ignore_assert_all _ -> ()
-   | Some _, Assume _ -> ()
-   | Some attr, Check { opt; _ } ->
-     if Lambda.is_check_enabled ~opt p && !Clflags.native_code then
-       (* The warning for unchecked functions will not trigger if the check is requested
-          through the [@@@zero_alloc all] top-level annotation rather than through the
-          function annotation [@zero_alloc]. *)
-       Builtin_attributes.register_property attr.attr_name);
-   res
+let get_opaque_attribute l =
+  let attr = find_attribute is_opaque_attribute l in
+  parse_opaque_attribute attr
 
 let get_poll_attribute l =
   let attr = find_attribute is_poll_attribute l in
@@ -360,9 +229,28 @@ let check_poll_local loc attr =
   | _ ->
       ()
 
+let check_opaque_inline loc attr =
+  match attr.is_opaque, attr.inline with
+  | true, (Always_inline | Available_inline | Unroll _) ->
+      Location.prerr_warning loc
+        (Warnings.Inlining_impossible
+           "[@opaque] is incompatible with inlining")
+  | _ ->
+      ()
+
+let check_opaque_local loc attr =
+  match attr.is_opaque, attr.local with
+  | true, Always_local ->
+      Location.prerr_warning loc
+        (Warnings.Inlining_impossible
+           "[@opaque] is incompatible with local function optimization")
+  | _ ->
+      ()
+
+
 let lfunction_with_attr ~attr
-  { kind; params; return; body; attr=_; loc; mode; region } =
-  lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~region
+  { kind; params; return; body; attr=_; loc; mode; ret_mode; region } =
+  lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region
 
 let add_inline_attribute expr loc attributes =
   match expr with
@@ -420,59 +308,6 @@ let add_local_attribute expr loc attributes =
     end
   | _ -> expr
 
-let assume_zero_alloc attributes =
-  let p = Zero_alloc in
-  let attr = find_attribute (is_property_attribute p) attributes in
-  match parse_property_attribute attr p with
-  | Default_check -> false
-  | Ignore_assert_all _ -> false
-  | Assume { property = Zero_alloc; _ } -> true
-  | Check { property = Zero_alloc; _ } -> false
-
-let assume_zero_alloc attributes =
-  (* This function is used for "look-ahead" to find attributes
-     that affect [Scoped_location] settings before translation
-     of expressions in that scope.
-     Warnings will be produced by [add_check_attribute]. *)
-  Warnings.without_warnings (fun () -> assume_zero_alloc attributes)
-
-let add_check_attribute expr loc attributes =
-  let to_string = function
-    | Zero_alloc -> "zero_alloc"
-  in
-  let to_string = function
-    | Check { property; strict; loc = _} ->
-      Printf.sprintf "assert %s%s"
-        (to_string property)
-        (if strict then " strict" else "")
-    | Assume { property; strict; loc = _} ->
-      Printf.sprintf "assume %s%s"
-        (to_string property)
-        (if strict then " strict" else "")
-    | Ignore_assert_all property ->
-      Printf.sprintf "ignore %s" (to_string property)
-    | Default_check -> assert false
-  in
-  match expr with
-  | Lfunction({ attr = { stub = false } as attr; } as funct) ->
-    begin match get_property_attribute attributes Zero_alloc with
-    | Default_check -> expr
-    | (Ignore_assert_all p | Check { property = p; _ } | Assume { property = p; _ })
-      as check ->
-      begin match attr.check with
-      | Default_check -> ()
-      | Ignore_assert_all p'
-      | Assume { property = p'; strict = _; loc = _; }
-      | Check { property = p'; strict = _; loc = _; } ->
-        if p = p' then
-          Location.prerr_warning loc
-            (Warnings.Duplicated_attribute (to_string check));
-      end;
-      let attr = { attr with check } in
-      lfunction_with_attr ~attr funct
-    end
-  | expr -> expr
-
 let add_loop_attribute expr loc attributes =
   match expr with
   | Lfunction({ attr = { stub = false } as attr } as funct) ->
@@ -525,6 +360,39 @@ let add_poll_attribute expr loc attributes =
     end
   | expr -> expr
 
+let add_opaque_attribute expr loc attributes =
+  match expr with
+  | Lfunction({ attr } as funct) ->
+      if not (get_opaque_attribute attributes) then
+        expr
+      else begin
+        if attr.is_opaque then
+          Location.prerr_warning loc
+            (Warnings.Duplicated_attribute "opaque");
+        let attr = { attr with is_opaque = true } in
+        check_opaque_inline loc attr;
+        check_opaque_local loc attr;
+        let attr = { attr with inline = Never_inline; local = Never_local } in
+        lfunction_with_attr ~attr funct
+      end
+  | _ -> expr
+
+let add_unbox_return_attribute expr loc attributes =
+  match expr with
+  | Lfunction funct ->
+      let attr = find_attribute is_unboxable_attribute attributes in
+      begin match attr with
+      | None -> expr
+      | Some _ ->
+          if funct.attr.unbox_return then
+            Location.prerr_warning loc
+              (Warnings.Duplicated_attribute "unboxable");
+          let attr = { funct.attr with unbox_return = true } in
+          lfunction_with_attr ~attr funct
+      end
+  | _ -> expr
+
+
 (* Get the [@inlined] attribute payload (or default if not present). *)
 let get_inlined_attribute e =
   let attr = find_attribute is_inlined_attribute e.exp_attributes in
@@ -557,7 +425,7 @@ let get_tailcall_attribute e =
   match attr with
   | None -> Default_tailcall
   | Some {Parsetree.attr_name = {txt; loc}; attr_payload = payload} ->
-    match get_optional_payload get_bool_from_exp payload with
+    match Builtin_attributes.get_optional_bool_payload payload with
     | Ok (None | Some true) -> Tailcall_expectation true
     | Ok (Some false) -> Tailcall_expectation false
     | Error () ->
@@ -576,16 +444,26 @@ let add_function_attributes lam loc attr =
     add_local_attribute lam loc attr
   in
   let lam =
-    add_check_attribute lam loc attr
-  in
-  let lam =
     add_loop_attribute lam loc attr
   in
   let lam =
     add_tmc_attribute lam loc attr
   in
   let lam =
-    (* last because poll overrides inline and local *)
+    add_unbox_return_attribute lam loc attr
+  in
+  (* last because poll and opaque overrides inline and local *)
+  let lam =
     add_poll_attribute lam loc attr
   in
+  let lam =
+    add_opaque_attribute lam loc attr
+  in
   lam
+
+let transl_param_attributes pat =
+  let attrs = pat.pat_attributes in
+  let unbox_param =
+    Option.is_some (find_attribute is_unboxable_attribute attrs)
+  in
+  { unbox_param }

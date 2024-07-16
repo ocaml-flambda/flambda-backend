@@ -1,6 +1,6 @@
 (* TEST
-* skip
-reason = "OCaml 5 only"
+ reason = "CR ocaml 5 domains: re-enable this test";
+ skip;
 *)
 
 (** Test that domains stdout and stderr are flushed at domain exit *)

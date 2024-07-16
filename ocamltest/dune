@@ -29,7 +29,7 @@
  ; -linkall so we don't fail to include e.g. ocaml_modifiers.ml, which only
  ; has top-level side effects.
  (flags
-  (:standard -linkall))
+  (:standard -linkall -w +a-40-41-42-44-70))
  (libraries
   ocamlcommon
   (select
@@ -50,7 +50,7 @@
 (rule
  (targets empty.ml)
  (deps
-  (source_tree ../runtime4/caml))
+  (source_tree ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/caml))
  (action
   (write-file %{targets} "(* hack *)")))
 
@@ -58,7 +58,11 @@
  (name main)
  (modes byte)
  (flags
-  (:standard -principal -cclib "-I../runtime4"))
+  (:standard
+   -w
+   +a-40-41-42-44-70
+   -cclib
+   "-I../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
  (modules options main)
  (libraries ocamltest_core_and_plugin))
 

@@ -1,7 +1,7 @@
 (* TEST
-   * skip
-   reason = "Unboxed types aren't implemented yet"
-   ** expect
+ reason = "Unboxed types aren't implemented yet";
+ skip;
+ expect;
 *)
 (* CR layouts (v3): enable this test *)
 

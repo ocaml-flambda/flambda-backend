@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 (* undefined labels *)
@@ -299,4 +299,15 @@ Line 6, characters 13-23:
                  ^^^^^^^^^^
 Error: Unbound module Coq__10
 Hint: Did you mean Coq__11?
+|}]
+
+type a = unit
+type b = a = { a : int }
+[%%expect{|
+type a = unit
+Line 2, characters 0-24:
+2 | type b = a = { a : int }
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This variant or record definition does not match that of type a
+       The original is abstract, but this is a record.
 |}]

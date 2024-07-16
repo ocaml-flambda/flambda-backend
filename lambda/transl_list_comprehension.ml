@@ -97,25 +97,23 @@ open Lambda_utils.Constants
     see the documentation for [CamlinternalComprehension] for more details.
     Because these are being looked up in the environment, we need to wait to
     create them until that exists, hence [lazy]. *)
-let ( rev_list_to_list
-    , rev_dlist_concat_map
-    , rev_dlist_concat_iterate_up
-    , rev_dlist_concat_iterate_down )
-  =
+let ( rev_list_to_list,
+      rev_dlist_concat_map,
+      rev_dlist_concat_iterate_up,
+      rev_dlist_concat_iterate_down ) =
   let transl name =
     lazy (Lambda.transl_prim "CamlinternalComprehension" name)
   in
-  ( transl "rev_list_to_list"
-  , transl "rev_dlist_concat_map"
-  , transl "rev_dlist_concat_iterate_up"
-  , transl "rev_dlist_concat_iterate_down" )
-;;
+  ( transl "rev_list_to_list",
+    transl "rev_dlist_concat_map",
+    transl "rev_dlist_concat_iterate_up",
+    transl "rev_dlist_concat_iterate_down" )
 
 (** The [local_] form of the [CamlinternalComprehension.Snoc] constructor, for
     building the intermediate restults of list comprehensions; see the
     documentation for [CamlinternalComprehension.rev_list] for more details. *)
 let rev_list_snoc_local ~loc ~init ~last =
-  Lprim(Pmakeblock(0, Immutable, None, alloc_local), [init; last], loc)
+  Lprim (Pmakeblock (0, Immutable, None, alloc_local), [init; last], loc)
 
 (** The [CamlinternalComprehension.Nil] constructor, for building the
     intermediate restults of list comprehensions; see the documentation for
@@ -125,8 +123,8 @@ let rev_list_nil = int 0
 (** The information needed to translate a single iterator from a
     [for ... and ...] clause (i.e., [x = e1 (down)to e2] or [for pat in xs]). *)
 type translated_iterator =
-  { builder : lambda Lazy.t
-  (** The function that does the appropriate iteration (counting up, counting
+  { builder : lambda Lazy.t;
+        (** The function that does the appropriate iteration (counting up, counting
       down, or iterating over a list).  As discussed at the start of this file,
       this function is expected to have a type of the following form:
       {[
@@ -139,22 +137,22 @@ type translated_iterator =
       the body of the iterator (the final function argument).  Lazy because it
       holds a reference to a primitive, which has to be constructed lazily (see
       above). *)
-  ; arg_lets : Let_binding.t list
-  (** The first-class let bindings that bind the arguments to the [builder]
+    arg_lets : Let_binding.t list;
+        (** The first-class let bindings that bind the arguments to the [builder]
       function that actually does the iteration.  These let bindings need to be
       collected separately so that they can all be bound at once before the
       whole [for ... and ...] clause, so that iterators in such a clause don't
       have their side effects performed multiple times in relation to each
       other.  Every variable bound by one of these let bindings will be passed
       to [builder], filling in the [...iterator arguments...] in its type. *)
-  ; element : Ident.t
-  (** The name given to the values we're iterating over; needs to be a fresh
+    element : Ident.t;
+        (** The name given to the values we're iterating over; needs to be a fresh
       name for [for]-[in] iterators in case the user specifies a complex
       pattern. *)
-  ; element_kind : layout
-  (** The [layout] of the values we're iterating over. *)
-  ; add_bindings : lambda -> lambda
-  (** Any extra bindings that should be present in the body of this iterator,
+    element_kind : layout;
+        (** The [layout] of the values we're iterating over. *)
+    add_bindings : lambda -> lambda
+        (** Any extra bindings that should be present in the body of this iterator,
       for use by nested pieces of the translation; used if the user specifies a
       complex pattern in a [for]-[in] iterator. *)
   }
@@ -167,43 +165,41 @@ type translated_iterator =
     until the rest of the translations have been done. *)
 let iterator ~transl_exp ~scopes = function
   | Texp_comp_range { ident; pattern = _; start; stop; direction } ->
-      (* We have to let-bind [start] and [stop] so that they're evaluated in the
-         correct (i.e., left-to-right) order *)
-      let transl_bound var bound =
-        Let_binding.make
-          (Immutable Strict) (Pvalue Pintval)
-          var (transl_exp ~scopes Jkind.Sort.for_predef_value bound)
-      in
-      let start = transl_bound "start" start in
-      let stop  = transl_bound "stop"  stop  in
-      { builder      = (match direction with
-                        | Upto   -> rev_dlist_concat_iterate_up
-                        | Downto -> rev_dlist_concat_iterate_down)
-      ; arg_lets     = [start; stop]
-      ; element      = ident
-      ; element_kind = Pvalue Pintval
-      ; add_bindings = Fun.id
-      }
+    (* We have to let-bind [start] and [stop] so that they're evaluated in the
+       correct (i.e., left-to-right) order *)
+    let transl_bound var bound =
+      Let_binding.make (Immutable Strict) (Pvalue Pintval) var
+        (transl_exp ~scopes Jkind.Sort.for_predef_value bound)
+    in
+    let start = transl_bound "start" start in
+    let stop = transl_bound "stop" stop in
+    { builder =
+        (match direction with
+        | Upto -> rev_dlist_concat_iterate_up
+        | Downto -> rev_dlist_concat_iterate_down);
+      arg_lets = [start; stop];
+      element = ident;
+      element_kind = Pvalue Pintval;
+      add_bindings = Fun.id
+    }
   | Texp_comp_in { pattern; sequence } ->
-      let iter_list =
-        Let_binding.make (Immutable Strict) (Pvalue Pgenval)
-          "iter_list" (transl_exp ~scopes Jkind.Sort.for_predef_value sequence)
-      in
-      (* Create a fresh variable to use as the function argument *)
-      let element = Ident.create_local "element" in
-      { builder      = rev_dlist_concat_map
-      ; arg_lets     = [iter_list]
-      ; element
-      ; element_kind =
-          Typeopt.layout pattern.pat_env pattern.pat_loc
-            Jkind.Sort.for_list_element pattern.pat_type
-      ; add_bindings =
-          (* CR layouts: to change when we allow non-values in sequences *)
-          Matching.for_let
-            ~scopes ~arg_sort:Jkind.Sort.for_list_element
-            ~return_layout:(Pvalue Pgenval) pattern.pat_loc (Lvar element)
-            pattern
-      }
+    let iter_list =
+      Let_binding.make (Immutable Strict) (Pvalue Pgenval) "iter_list"
+        (transl_exp ~scopes Jkind.Sort.for_predef_value sequence)
+    in
+    (* Create a fresh variable to use as the function argument *)
+    let element = Ident.create_local "element" in
+    { builder = rev_dlist_concat_map;
+      arg_lets = [iter_list];
+      element;
+      element_kind =
+        Typeopt.layout pattern.pat_env pattern.pat_loc
+          Jkind.Sort.for_list_element pattern.pat_type;
+      add_bindings =
+        (* CR layouts: to change when we allow non-values in sequences *)
+        Matching.for_let ~scopes ~arg_sort:Jkind.Sort.for_list_element
+          ~return_layout:(Pvalue Pgenval) pattern.pat_loc (Lvar element) pattern
+    }
 
 (** Translates a list comprehension binding
     ([Typedtree.comprehension_clause_binding]) into Lambda.  At parse time,
@@ -227,53 +223,46 @@ let binding ~transl_exp ~scopes { comp_cb_iterator; comp_cb_attributes = _ } =
     ([accumulator], which changes at every recursive step).  It folds together
     all the [translated_iterator]s by connecting their [body_func]tions to each
     other, and bottoms out at the [inner_body].  *)
-let rec translate_bindings
-          ~transl_exp ~scopes ~loc ~inner_body ~accumulator = function
+let rec translate_bindings ~transl_exp ~scopes ~loc ~inner_body ~accumulator =
+  function
   | cur_binding :: bindings ->
-      let { builder; arg_lets; element; element_kind; add_bindings } =
-        binding ~transl_exp ~scopes cur_binding
-      in
-      let inner_acc = Ident.create_local "accumulator" in
-      let body_arg_lets, body =
-        translate_bindings
-          ~transl_exp ~scopes ~loc
-          ~inner_body ~accumulator:(Lvar inner_acc) bindings
-      in
-      let body_func =
-        Lambda.lfunction
-          ~kind:(Curried { nlocal = 2 })
+    let { builder; arg_lets; element; element_kind; add_bindings } =
+      binding ~transl_exp ~scopes cur_binding
+    in
+    let inner_acc = Ident.create_local "accumulator" in
+    let body_arg_lets, body =
+      translate_bindings ~transl_exp ~scopes ~loc ~inner_body
+        ~accumulator:(Lvar inner_acc) bindings
+    in
+    let body_func =
+      Lambda.lfunction
+        ~kind:(Curried { nlocal = 2 })
           (* Only the accumulator is local, but since the function itself is
              local, [nlocal] has to be equal to the number of parameters *)
-          ~params:[
-            {name = element;
-             layout = element_kind;
-             attributes = Lambda.default_param_attribute;
-             (* CR ncourant: check *)
-             mode = alloc_heap};
-            {name = inner_acc;
-             layout = Pvalue Pgenval;
-             attributes = Lambda.default_param_attribute;
-             mode = alloc_local}
-          ]
-          ~return:(Pvalue Pgenval)
-          ~attr:default_function_attribute
-          ~loc
-          ~mode:alloc_local
-          ~region:true (* One region per iterator, like for loops *)
-          ~body:(add_bindings body)
-      in
-      let result =
-        Lambda_utils.apply
-          ~loc
-          ~mode:alloc_local
-          (Lazy.force builder)
-          (List.map (fun Let_binding.{id; _} -> Lvar id) arg_lets @
-           [body_func; accumulator])
-          ~result_layout:(Pvalue Pgenval)
-      in
-      arg_lets @ body_arg_lets, result
-  | [] ->
-      [], inner_body ~accumulator
+        ~params:
+          [ { name = element;
+              layout = element_kind;
+              attributes = Lambda.default_param_attribute;
+              (* CR ncourant: check *)
+              mode = alloc_heap
+            };
+            { name = inner_acc;
+              layout = Pvalue Pgenval;
+              attributes = Lambda.default_param_attribute;
+              mode = alloc_local
+            } ]
+        ~return:(Pvalue Pgenval) ~attr:default_function_attribute ~loc
+        ~mode:alloc_local ~ret_mode:alloc_local ~region:false
+        ~body:(add_bindings body)
+    in
+    let result =
+      Lambda_utils.apply ~loc ~mode:alloc_local (Lazy.force builder)
+        (List.map (fun Let_binding.{ id; _ } -> Lvar id) arg_lets
+        @ [body_func; accumulator])
+        ~result_layout:(Pvalue Pgenval)
+    in
+    arg_lets @ body_arg_lets, result
+  | [] -> [], inner_body ~accumulator
 
 (** Translate a single clause, either [for ... and ...] or [when ...]
     ([Typedtree.comprehension_clause]), into a single Lambda term of type
@@ -282,43 +271,36 @@ let rec translate_bindings
     most nested accumulator as a labeled argument which will produce the body of
     the iterations) and have a name for the accumulator of the current
     [rev_dlist] ([accumulator], which changes at every recursive step). *)
-let rec translate_clauses
-          ~transl_exp ~scopes ~loc ~comprehension_body ~accumulator = function
-  | clause :: clauses ->
-      let body ~accumulator =
-        translate_clauses ~transl_exp ~scopes ~loc
-          ~comprehension_body ~accumulator clauses
-      in begin
-        match clause with
-        | Texp_comp_for bindings ->
-            let arg_lets, bindings =
-              translate_bindings
-                ~transl_exp ~scopes ~loc ~inner_body:body ~accumulator bindings
-            in
-            Let_binding.let_all arg_lets bindings
-        | Texp_comp_when cond ->
-            Lifthenelse(transl_exp ~scopes Jkind.Sort.for_predef_value cond,
-                        body ~accumulator,
-                        accumulator,
-                        (Pvalue Pgenval) (* [list]s have the standard representation *))
-      end
-  | [] ->
-      comprehension_body ~accumulator
+let rec translate_clauses ~transl_exp ~scopes ~loc ~comprehension_body
+    ~accumulator = function
+  | clause :: clauses -> (
+    let body ~accumulator =
+      translate_clauses ~transl_exp ~scopes ~loc ~comprehension_body
+        ~accumulator clauses
+    in
+    match clause with
+    | Texp_comp_for bindings ->
+      let arg_lets, bindings =
+        translate_bindings ~transl_exp ~scopes ~loc ~inner_body:body
+          ~accumulator bindings
+      in
+      Let_binding.let_all arg_lets bindings
+    | Texp_comp_when cond ->
+      Lifthenelse
+        ( transl_exp ~scopes Jkind.Sort.for_predef_value cond,
+          body ~accumulator,
+          accumulator,
+          Pvalue Pgenval (* [list]s have the standard representation *) ))
+  | [] -> comprehension_body ~accumulator
 
 let comprehension ~transl_exp ~scopes ~loc { comp_body; comp_clauses } =
   let rev_comprehension =
     translate_clauses ~transl_exp ~scopes ~loc
       ~comprehension_body:(fun ~accumulator ->
-        rev_list_snoc_local
-          ~loc
-          ~init:accumulator
+        rev_list_snoc_local ~loc ~init:accumulator
           ~last:(transl_exp ~scopes Jkind.Sort.for_list_element comp_body))
-      ~accumulator:rev_list_nil
-      comp_clauses
+      ~accumulator:rev_list_nil comp_clauses
   in
-  Lambda_utils.apply
-    ~loc
-    ~mode:alloc_heap
+  Lambda_utils.apply ~loc ~mode:alloc_heap
     (Lazy.force rev_list_to_list)
-    [rev_comprehension]
-    ~result_layout:(Pvalue Pgenval)
+    [rev_comprehension] ~result_layout:(Pvalue Pgenval)

@@ -245,7 +245,7 @@ let compile_program (compiler : Ocaml_compilers.compiler) log env =
   match cmas_need_dynamic_loading with
     | Some (Error reason) ->
         (Result.fail_with_reason reason, env)
-    | _ ->
+    | Some (Ok _) | None ->
       let bytecode_links_c_code = (cmas_need_dynamic_loading = Some (Ok ())) in
       let commandline =
       [
@@ -333,7 +333,7 @@ let module_has_interface directory module_name =
   Sys.file_exists interface_fullpath
 
 let add_module_interface directory module_description =
-  match module_description with
+  match[@ocaml.warning "-fragile-match"] module_description with
     | (filename, Ocaml_filetypes.Implementation) when
       module_has_interface directory filename ->
         [(filename, Ocaml_filetypes.Interface); module_description]
@@ -425,11 +425,13 @@ let setup_toplevel_build_env (toplevel : Ocaml_toplevels.toplevel) log env =
 
 let mk_compiler_env_setup name (compiler : Ocaml_compilers.compiler) =
   Actions.make ~name ~description:(Printf.sprintf "Setup build env (%s)" name)
+    ~does_something:false
     (setup_compiler_build_env compiler)
 
 let mk_toplevel_env_setup name (toplevel : Ocaml_toplevels.toplevel) =
   Actions.make ~name
     ~description:(Printf.sprintf "Setup toplevel env (%s)" name)
+    ~does_something:false
     (setup_toplevel_build_env toplevel)
 
 let setup_ocamlc_byte_build_env =
@@ -503,6 +505,7 @@ let ocamlc_byte =
   Actions.make
     ~name:"ocamlc.byte"
     ~description:"Compile the program using ocamlc.byte"
+    ~does_something:true
     (compile Ocaml_compilers.ocamlc_byte)
 
 let ocamlc_opt =
@@ -510,6 +513,7 @@ let ocamlc_opt =
     (Actions.make
       ~name:"ocamlc.opt"
       ~description:"Compile the program using ocamlc.opt"
+      ~does_something:true
       (compile Ocaml_compilers.ocamlc_opt))
 
 let ocamlopt_byte =
@@ -517,6 +521,7 @@ let ocamlopt_byte =
     (Actions.make
       ~name:"ocamlopt.byte"
       ~description:"Compile the program using ocamlopt.byte"
+      ~does_something:true
       (compile Ocaml_compilers.ocamlopt_byte))
 
 let ocamlopt_opt =
@@ -524,6 +529,7 @@ let ocamlopt_opt =
     (Actions.make
       ~name:"ocamlopt.opt"
       ~description:"Compile the program using ocamlopt.opt"
+      ~does_something:true
       (compile Ocaml_compilers.ocamlopt_opt))
 
 let env_with_lib_unix env =
@@ -570,6 +576,7 @@ let debug log env =
 
 let ocamldebug =
   Actions.make ~name:"ocamldebug" ~description:"Run ocamldebug on the program"
+    ~does_something:true
     debug
 
 let objinfo log env =
@@ -612,7 +619,9 @@ let objinfo log env =
 
 let ocamlobjinfo =
   Actions.make ~name:"ocamlobjinfo"
-    ~description:"Run ocamlobjinfo on the program" objinfo
+    ~description:"Run ocamlobjinfo on the program"
+    ~does_something:true
+    objinfo
 
 let mklib log env =
   let program = Environments.safe_lookup Builtin_variables.program env in
@@ -650,7 +659,9 @@ let mklib log env =
 
 let ocamlmklib =
   Actions.make ~name:"ocamlmklib"
-    ~description:"Run ocamlmklib to produce the program" mklib
+    ~description:"Run ocamlmklib to produce the program"
+    ~does_something:false
+    mklib
 
 let finalise_codegen_cc test_basename _log env =
   let test_module =
@@ -754,6 +765,7 @@ let run_codegen log env =
 
 let codegen =
   Actions.make ~name:"codegen" ~description:"Run codegen on the test file"
+    ~does_something:true
     run_codegen
 
 let run_cc log env =
@@ -790,21 +802,27 @@ let run_cc log env =
 
 let cc =
   Actions.make ~name:"cc" ~description:"Run C compiler to build the program"
+    ~does_something:true
     run_cc
 
 let run_expect_once input_file principal log env =
   let expect_flags = Sys.safe_getenv "EXPECT_FLAGS" in
-  let repo_root = "-repo-root " ^ Ocaml_directories.srcdir in
   let principal_flag = if principal then "-principal" else "" in
   let commandline =
   [
     Ocaml_commands.ocamlrun_expect_test;
     expect_flags;
+    Ocaml_flags.toplevel_default_flags;
+    Ocaml_flags.stdlib;
+    directory_flags env;
+    Ocaml_flags.include_toplevel_directory;
     flags env;
-    repo_root;
     principal_flag;
+    libraries Bytecode env;
+    binary_modules Bytecode env;
     input_file
-  ] in
+  ]
+  in
   let exit_status =
     Actions_helpers.run_cmd ~environment:default_ocaml_env log env commandline
   in
@@ -838,11 +856,14 @@ let run_expect log env =
   run_expect_twice input_file log env
 
 let run_expect =
-  Actions.make ~name:"run-expect" ~description:"Run expect test" run_expect
+  Actions.make ~name:"run-expect" ~description:"Run expect test"
+    ~does_something:true
+    run_expect
 
 let make_check_tool_output name tool = Actions.make
   ~name
   ~description:(Printf.sprintf "Check tool output (%s)" name)
+  ~does_something:true
   (Actions_helpers.check_output
     tool#family
     tool#output_variable
@@ -923,6 +944,7 @@ let compare_bytecode_programs =
       ~name:"compare-bytecode-programs"
       ~description:"Compare the bytecode programs generated by ocamlc.byte and \
         ocamlc.opt"
+      ~does_something:true
       compare_bytecode_programs_code)
 
 let compare_binary_files =
@@ -931,6 +953,7 @@ let compare_binary_files =
       ~name:"compare-binary-files"
       ~description:"Compare the native programs generated by ocamlopt.byte and \
         ocamlopt.opt"
+      ~does_something:true
       (compare_programs Ocaml_backends.Native native_programs_comparison_tool))
 
 let compile_module compiler compilername compileroutput log env
@@ -973,7 +996,7 @@ let compile_module compiler compilername compileroutput log env
           what (String.concat " " commandline) exit_status) in
       (Result.fail_with_reason reason, env)
     end in
-  match module_filetype with
+  match[@ocaml.warning "-fragile-match"] module_filetype with
     | Ocaml_filetypes.Interface ->
       let interface_name =
         Ocaml_filetypes.make_filename
@@ -1027,7 +1050,7 @@ let run_test_program_in_toplevel (toplevel : Ocaml_toplevels.toplevel) log env =
       (Result.fail_with_reason reason, env)
     | Some (Ok ()) when not toplevel_supports_dynamic_loading ->
       (Result.skip, env)
-    | _ ->
+    | Some (Ok ()) | None ->
       let testfile = Actions_helpers.testfile env in
       let expected_exit_status =
         Ocaml_tools.expected_exit_status env (toplevel :> Ocaml_tools.tool) in
@@ -1097,6 +1120,7 @@ let run_test_program_in_toplevel (toplevel : Ocaml_toplevels.toplevel) log env =
 let ocaml = Actions.make
   ~name:"ocaml"
   ~description:"Run the test program in the toplevel"
+  ~does_something:true
   (run_test_program_in_toplevel Ocaml_toplevels.ocaml)
 
 let ocamlnat =
@@ -1104,6 +1128,7 @@ let ocamlnat =
     (Actions.make
       ~name:"ocamlnat"
       ~description:"Run the test program in the native toplevel ocamlnat"
+      ~does_something:true
       (run_test_program_in_toplevel Ocaml_toplevels.ocamlnat))
 
 let check_ocaml_output = make_check_tool_output
@@ -1144,13 +1169,16 @@ let config_variables _log env =
     Ocaml_variables.ocamlrunparam, Sys.safe_getenv "OCAMLRUNPARAM";
     Ocaml_variables.ocamlsrcdir, Ocaml_directories.srcdir;
     Ocaml_variables.os_type, Sys.os_type;
+    Ocaml_variables.runtime_dir,
+      if Config.runtime5 then "runtime" else "runtime4"
   ] env
 
 let flat_float_array = Actions.make
   ~name:"flat-float-array"
   ~description:"Passes if the compiler is configured with \
     --enable-flat-float-array"
-  (Actions_helpers.pass_or_skip Ocamltest_config.flat_float_array
+  ~does_something:false
+  (Actions_helpers.predicate Ocamltest_config.flat_float_array
     "compiler configured with --enable-flat-float-array"
     "compiler configured with --disable-flat-float-array")
 
@@ -1158,14 +1186,16 @@ let no_flat_float_array = make
   ~name:"no-flat-float-array"
   ~description:"Passes if the compiler is configured with \
     --disable-flat-float-array"
-  (Actions_helpers.pass_or_skip (not Ocamltest_config.flat_float_array)
+  ~does_something:false
+  (Actions_helpers.predicate (not Ocamltest_config.flat_float_array)
     "compiler configured with --disable-flat-float-array"
-    "compiler configured with --enable-flat-float")
+    "compiler configured with --enable-flat-float-array")
 
 let flambda = Actions.make
   ~name:"flambda"
   ~description:"Passes if the compiler is configured with flambda or flambda2 enabled"
-  (Actions_helpers.pass_or_skip
+  ~does_something:false
+  (Actions_helpers.predicate
      (Ocamltest_config.flambda || Ocamltest_config.flambda2)
     "support for flambda enabled"
     "support for flambda disabled")
@@ -1173,109 +1203,155 @@ let flambda = Actions.make
 let no_flambda = make
   ~name:"no-flambda"
   ~description:"Passes if the compiler is NOT configured with flambda or flambda2 enabled"
-  (Actions_helpers.pass_or_skip
+  ~does_something:false
+  (Actions_helpers.predicate
      (not (Ocamltest_config.flambda || Ocamltest_config.flambda2))
     "support for flambda disabled"
     "support for flambda enabled")
 
+let flambda2 = Actions.make
+  ~name:"flambda2"
+  ~description:"Passes if the compiler is configured with flambda2 enabled"
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.flambda2)
+    "support for flambda2 enabled"
+    "support for flambda2 disabled")
+
+let no_flambda2 = make
+  ~name:"no-flambda2"
+  ~description:"Passes if the compiler is NOT configured with flambda2 enabled"
+  ~does_something:false
+  (Actions_helpers.predicate (not (Ocamltest_config.flambda2))
+    "support for flambda2 disabled"
+    "support for flambda2 enabled")
+
 let shared_libraries = Actions.make
   ~name:"shared-libraries"
   ~description:"Passes if shared libraries are supported"
-  (Actions_helpers.pass_or_skip Ocamltest_config.shared_libraries
+  ~does_something:false
+  (Actions_helpers.predicate Ocamltest_config.shared_libraries
     "Shared libraries are supported."
     "Shared libraries are not supported.")
 
 let no_shared_libraries = Actions.make
   ~name:"no-shared-libraries"
   ~description:"Passes if shared libraries are NOT supported"
-  (Actions_helpers.pass_or_skip (not Ocamltest_config.shared_libraries)
+  ~does_something:false
+  (Actions_helpers.predicate (not Ocamltest_config.shared_libraries)
     "Shared libraries are not supported."
     "Shared libraries are supported.")
 
 let native_compiler = Actions.make
   ~name:"native-compiler"
   ~description:"Passes if the native compiler is available"
-  (Actions_helpers.pass_or_skip Ocamltest_config.native_compiler
+  ~does_something:false
+  (Actions_helpers.predicate Ocamltest_config.native_compiler
     "native compiler available"
     "native compiler not available")
 
 let native_dynlink = Actions.make
   ~name:"native-dynlink"
   ~description:"Passes if native dynlink support is available"
-  (Actions_helpers.pass_or_skip (Ocamltest_config.native_dynlink)
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.native_dynlink)
     "native dynlink support available"
     "native dynlink support not available")
 
 let debugger = Actions.make
   ~name:"debugger"
   ~description:"Passes if the debugger is available"
-  (Actions_helpers.pass_or_skip Ocamltest_config.ocamldebug
+  ~does_something:false
+  (Actions_helpers.predicate Ocamltest_config.ocamldebug
      "debugger available"
      "debugger not available")
 
 let instrumented_runtime = make
   ~name:"instrumented-runtime"
   ~description:"Passes if the instrumented runtime is available"
-  (Actions_helpers.pass_or_skip (Ocamltest_config.instrumented_runtime)
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.instrumented_runtime)
     "instrumented runtime available"
     "instrumented runtime not available")
 
 let csharp_compiler = Actions.make
   ~name:"csharp-compiler"
   ~description:"Passes if the C# compiler is available"
-  (Actions_helpers.pass_or_skip (Ocamltest_config.csc<>"")
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.csc<>"")
     "C# compiler available"
     "C# compiler not available")
 
 let windows_unicode = Actions.make
   ~name:"windows-unicode"
   ~description:"Passes if Windows unicode support is available"
-  (Actions_helpers.pass_or_skip (Ocamltest_config.windows_unicode )
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.windows_unicode )
     "Windows Unicode support available"
     "Windows Unicode support not available")
 
 let afl_instrument = Actions.make
   ~name:"afl-instrument"
   ~description:"Passes if AFL instrumentation is enabled"
-  (Actions_helpers.pass_or_skip Ocamltest_config.afl_instrument
+  ~does_something:false
+  (Actions_helpers.predicate Ocamltest_config.afl_instrument
     "AFL instrumentation enabled"
     "AFL instrumentation disabled")
 
 let no_afl_instrument = Actions.make
   ~name:"no-afl-instrument"
   ~description:"Passes if AFL instrumentation is NOT enabled"
-  (Actions_helpers.pass_or_skip (not Ocamltest_config.afl_instrument)
+  ~does_something:false
+  (Actions_helpers.predicate (not Ocamltest_config.afl_instrument)
     "AFL instrumentation disabled"
     "AFL instrumentation enabled")
 
 let stack_allocation = Actions.make
   ~name:"stack-allocation"
   ~description:"Passes if stack allocation is enabled"
-  (Actions_helpers.pass_or_skip Ocamltest_config.stack_allocation
+  ~does_something:false
+  (Actions_helpers.predicate Ocamltest_config.stack_allocation
     "Stack allocation enabled"
     "Stack allocation disabled")
 
 let no_stack_allocation = Actions.make
   ~name:"no-stack-allocation"
   ~description:"Passes if stack allocation is disabled"
-  (Actions_helpers.pass_or_skip (not Ocamltest_config.stack_allocation)
+  ~does_something:false
+  (Actions_helpers.predicate (not Ocamltest_config.stack_allocation)
     "Stack allocation disabled"
     "Stack allocation enabled")
 
 let poll_insertion = Actions.make
   ~name:"poll-insertion"
   ~description:"Passes if poll insertion is enabled"
-  (Actions_helpers.pass_or_skip Ocamltest_config.poll_insertion
+  ~does_something:false
+  (Actions_helpers.predicate Ocamltest_config.poll_insertion
     "Poll insertion enabled"
     "Poll insertion disabled")
 
 let no_poll_insertion = Actions.make
   ~name:"no-poll-insertion"
   ~description:"Passes if poll insertion is disabled"
-  (Actions_helpers.pass_or_skip (not Ocamltest_config.poll_insertion)
-    "Stack allocation disabled"
-    "Stack allocation enabled")
+  ~does_something:false
+  (Actions_helpers.predicate (not Ocamltest_config.poll_insertion)
+    "Poll insertion disabled"
+    "Poll insertion enabled")
 
+let runtime4 = Actions.make
+  ~name:"runtime4"
+  ~description:"Passes if the OCaml 4.x runtime is being used"
+  ~does_something:false
+  (Actions_helpers.predicate (not Config.runtime5)
+    "4.x runtime being used"
+    "5.x runtime being used")
+
+let runtime5 = Actions.make
+  ~name:"runtime5"
+  ~description:"Passes if the OCaml 5.x runtime is being used"
+  ~does_something:false
+  (Actions_helpers.predicate Config.runtime5
+    "5.x runtime being used"
+    "4.x runtime being used")
 let ocamldoc = Ocaml_tools.ocamldoc
 
 let ocamldoc_output_file env prefix =
@@ -1354,7 +1430,9 @@ let rec ocamldoc_compile_all log env = function
 
 let setup_ocamldoc_build_env =
   Actions.make ~name:"setup_ocamldoc_build_env"
-    ~description:"Setup ocamldoc build environment" @@ fun log env ->
+    ~description:"Setup ocamldoc build environment"
+    ~does_something:false
+    @@ fun log env ->
   let (r,env) = setup_tool_build_env ocamldoc log env in
   if not (Result.is_pass r) then (r,env) else
   let source_directory = Actions_helpers.test_source_directory env in
@@ -1386,7 +1464,9 @@ let ocamldoc_o_flag env =
   | _ -> output
 
 let run_ocamldoc =
-  Actions.make ~name:"ocamldoc" ~description:"Run ocamldoc on the test file" @@
+  Actions.make ~name:"ocamldoc" ~description:"Run ocamldoc on the test file"
+    ~does_something:true
+  @@
   fun log env ->
   (* modules corresponds to secondaries modules of which the
      documentation and cmi files need to be build before the main
@@ -1463,6 +1543,8 @@ let _ =
     no_flat_float_array;
     flambda;
     no_flambda;
+    flambda2;
+    no_flambda2;
     shared_libraries;
     no_shared_libraries;
     native_compiler;
@@ -1484,5 +1566,7 @@ let _ =
     ocamlmklib;
     codegen;
     cc;
-    ocamlobjinfo
+    ocamlobjinfo;
+    runtime4;
+    runtime5
   ]

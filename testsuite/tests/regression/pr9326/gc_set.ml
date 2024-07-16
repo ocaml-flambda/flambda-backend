@@ -1,7 +1,6 @@
-(* TEST
-*)
+(* TEST *)
 
-(* BACKPORT BEGIN
+module OCaml_5 = struct
 open Gc
 
 let min_heap_sz = 524288 (* 512k *)
@@ -11,7 +10,7 @@ let custom_major_ratio = 40
 let custom_minor_ratio = 99
 let custom_minor_max_size = 4096
 
-let _ =
+let run () =
   let g1 = Gc.get() in
   (* Do not use { g1 with ... }, so that the code will break if more fields
      are added to the Gc.control record type *)
@@ -37,19 +36,20 @@ let _ =
   assert (g2.custom_major_ratio = custom_major_ratio);
   assert (g2.custom_minor_ratio = custom_minor_ratio);
   assert (g2.custom_minor_max_size = custom_minor_max_size)
-*)
+end
 
 (* OCaml 4 and 5's runtime differ in what fields are controllable via [Gc.set],
    e.g. [stack_limit] can be changed in OCaml 5 native code but not in OCaml 4
    native code.
  *)
 
+module OCaml_4 = struct
 open Gc
 
 let min_heap_sz = 524288 (* 512k *)
 let maj_heap_inc = 4194304 (* 4M *)
 
-let _ =
+let run () =
   let g1 = Gc.get() in
   (* Do not use { g1 with ... }, so that the code will break if more fields
      are added to the Gc.control record type *)
@@ -77,4 +77,7 @@ let _ =
   assert (g2.custom_minor_ratio = g1.custom_minor_ratio);
   assert (g2.custom_minor_max_size = g1.custom_minor_max_size)
 
-(* BACKPORT END *)
+end
+
+external runtime5 : unit -> bool = "%runtime5"
+let () = if runtime5 () then OCaml_5.run () else OCaml_4.run ()

@@ -1,4 +1,3 @@
-
 #**************************************************************************
 #*                                                                        *
 #*                                 OCaml                                  *
@@ -36,13 +35,16 @@ ifeq "$(FLAMBDA)" "true"
 OPTCOMPFLAGS += -O3
 endif
 
+COMPFLAGS += -I byte
+OPTCOMPFLAGS += -I native
+
 LOCAL_SRC=dynlink_compilerlibs
 
-OBJS=dynlink_compilerlibs.cmo dynlink_types.cmo \
-  dynlink_platform_intf.cmo dynlink_common.cmo dynlink.cmo
+OBJS=byte/dynlink_compilerlibs.cmo dynlink_types.cmo \
+  dynlink_platform_intf.cmo dynlink_common.cmo byte/dynlink.cmo
 
-NATOBJS=dynlink_compilerlibs.cmx dynlink_types.cmx \
-  dynlink_platform_intf.cmx dynlink_common.cmx dynlink.cmx
+NATOBJS=native/dynlink_compilerlibs.cmx dynlink_types.cmx \
+  dynlink_platform_intf.cmx dynlink_common.cmx native/dynlink.cmx
 
 # We need/desire access to compilerlibs for various reasons:
 # - The bytecode dynamic linker is in compilerlibs and has many dependencies
@@ -62,15 +64,18 @@ NATOBJS=dynlink_compilerlibs.cmx dynlink_types.cmx \
 # .mli files from compilerlibs that don't have a corresponding .ml file.
 COMPILERLIBS_INTFS=\
   parsing/asttypes.mli \
-  parsing/jane_asttypes.mli \
   parsing/parsetree.mli \
+  typing/solver_intf.mli \
+  typing/mode_intf.mli \
   typing/outcometree.mli \
+  typing/value_rec_types.mli \
   file_formats/cmo_format.mli \
   file_formats/cmxs_format.mli \
   bytecomp/debug_event.mli
 
 # .ml files from compilerlibs that have corresponding .mli files.
 COMPILERLIBS_SOURCES=\
+  utils/runtimetags.ml \
   utils/binutils.ml \
   utils/config.ml \
   utils/build_path_prefix_map.ml \
@@ -79,8 +84,9 @@ COMPILERLIBS_SOURCES=\
   utils/numbers.ml \
   utils/arg_helper.ml \
   utils/local_store.ml \
-  utils/load_path.ml \
   utils/clflags.ml \
+  utils/load_path.ml \
+  utils/zero_alloc_annotations.ml \
   utils/debug.ml \
   utils/language_extension_kernel.ml \
   utils/language_extension.ml \
@@ -95,6 +101,7 @@ COMPILERLIBS_SOURCES=\
   utils/linkage_name.ml \
   utils/symbol.ml \
   utils/lazy_backtrack.ml \
+  utils/zero_alloc_utils.ml \
   parsing/location.ml \
   parsing/longident.ml \
   parsing/docstrings.ml \
@@ -108,13 +115,17 @@ COMPILERLIBS_SOURCES=\
   parsing/ast_mapper.ml \
   parsing/attr_helper.ml \
   parsing/pprintast.ml \
+  typing/solver.ml \
   typing/mode.ml \
   typing/path.ml \
   typing/shape.ml \
-  typing/jkind.ml \
+  typing/jkind_types.ml \
   typing/primitive.ml \
-  typing/shape.ml \
+  typing/zero_alloc.ml \
   typing/types.ml \
+  typing/oprint.ml \
+  typing/jkind.ml \
+  typing/typedtree.ml \
   typing/btype.ml \
   typing/subst.ml \
   typing/predef.ml \
@@ -122,6 +133,7 @@ COMPILERLIBS_SOURCES=\
   file_formats/cmi_format.ml \
   typing/persistent_env.ml \
   typing/env.ml \
+  typing/shape_reduce.ml \
   lambda/debuginfo.ml \
   lambda/lambda.ml \
   lambda/runtimedef.ml \
@@ -205,21 +217,26 @@ $(LOCAL_SRC)/%.cmx: $(LOCAL_SRC)/%.ml
 
 # Rules for building the [Dynlink_compilerlibs] bytecode and native packs
 # from their components.
-# The dynlink_compilerlibs.cmi file is unfortunately written by both the ocamlc
-# and ocamlopt invocations.  The resulting files are different, probably because
-# of sharing differences.  Writing an .mli file would be problematic.  Instead
-# we allow the compiler to generate the inferred .cmi upon the ocamlc
-# invocation, then trick it (by touching dynlink_compilerlibs.mli) upon the
-# ocamlopt invocation, which causes it to use the ocamlc-generated .cmi.
-dynlink_compilerlibs.cmi: $(COMPILERLIBS_CMO)
-	rm -f dynlink_compilerlibs.mli
-	$(V_OCAMLC)$(OCAMLC) $(COMPFLAGS) -pack -o dynlink_compilerlibs.cmo $(COMPILERLIBS_CMO)
 
-dynlink_compilerlibs.cmo: dynlink_compilerlibs.cmi
+# A multi-target pattern rule can tell GNU make that the recipe simultaneously
+# produces both the cmo and cmi file for Dynlink_compilerlibs. GNU make 4.3+
+# would be required to do the same thing with a static rule (with its grouped
+# targets feature).
+byt%/dynlink_compilerlibs.cmo byt%/dynlink_compilerlibs.cmi: $(COMPILERLIBS_CMO)
+	@$(if $(filter-out e,$*),\
+        $(error Should only build byte/dynlink_compilerlibs.cmo!))
+	$(V_OCAMLC)$(OCAMLC) $(COMPFLAGS) -pack -o byte/dynlink_compilerlibs.cmo $^
 
-dynlink_compilerlibs.cmx: $(COMPILERLIBS_CMX) dynlink_compilerlibs.cmi
-	touch dynlink_compilerlibs.mli
+native/dynlink_compilerlibs.cmx: $(COMPILERLIBS_CMX)
 	$(V_OCAMLOPT)$(OCAMLOPT) $(COMPFLAGS) $(OPTCOMPFLAGS) -pack -o $@ $(COMPILERLIBS_CMX)
+
+%/dynlink.cmi: dynlink.cmi dynlink.mli
+	cp $^ $*/
+
+# Rules for building the interface of the [Dynlink_compilerlibs] packs.
+# To avoid falling foul of the problem described below, the .cmo and .cmx
+# files for the dynlink-specific compilerlibs packs generated here---and in
+# particular the corresponding .cmi files -- are kept in separate directories.
 
 # The main dynlink rules start here.
 
@@ -228,10 +245,17 @@ all: dynlink.cma
 allopt: dynlink.cmxa
 
 dynlink.cma: $(OBJS)
-	$(V_LINKC)$(OCAMLC) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -o $@ $^
+	$(V_LINKC)$(OCAMLC) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -I byte -o $@ $^
 
 dynlink.cmxa: $(NATOBJS)
-	$(V_LINKOPT)$(OCAMLOPT) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -o $@ $^
+	$(V_LINKOPT)$(OCAMLOPT) $(COMPFLAGS) -ccopt "$(NATDYNLINKOPTS)" -a -I native \
+	            -o $@ $^
+# As for all other .cmxa files, ensure that the .cmx files are in the same
+# directory. If this were omitted, ocamldoc in particular will fail to build
+# with a -opaque warning. Note that installopt refers to $(NATOBJS) so doesn't
+# require this file to exist, hence its inclusion in the recipe for dynlink.cmxa
+# rather than as a dependency elsewhere.
+	cp native/dynlink.cmx dynlink.cmx
 
 # Since there is no .mli for [Dynlink_platform_intf], we need to be
 # careful that compilation of the .cmx file does not write the .cmi file again,
@@ -267,14 +291,15 @@ endif
 
 partialclean:
 	rm -f *.cm[ioaxt] *.cmti *.cmxa \
-	      *.cm[iotx] *.cmti *.o *.obj \
+	      byte/*.cm[iot] byte/*.cmti \
+	      native/*.cm[ixt] native/*.cmti native/*.o native/*.obj \
 	      $(LOCAL_SRC)/*.cm[ioaxt] $(LOCAL_SRC)/*.cmti \
         $(LOCAL_SRC)/*.o $(LOCAL_SRC)/*.obj
 
 clean: partialclean
 	rm -f *.a *.lib *.o *.obj *.so *.dll dynlink_platform_intf.mli \
 	      $(LOCAL_SRC)/*.ml $(LOCAL_SRC)/*.mli $(LOCAL_SRC)/Makefile \
-	      $(LOCAL_SRC)/.depend
+	      $(LOCAL_SRC)/.depend byte/dynlink.mli native/dynlink.mli
 
 .PHONY: distclean
 distclean: clean
@@ -285,15 +310,17 @@ beforedepend: dynlink_platform_intf.mli
 
 .PHONY: depend
 DEPEND_DUMMY_FILES=\
-  dynlink_compilerlibs.ml \
-  dynlink_compilerlibs.mli
+  native/dynlink_compilerlibs.ml \
+  byte/dynlink_compilerlibs.mli \
+  byte/dynlink.mli \
+  native/dynlink.mli
 
 depend: beforedepend
 	$(V_GEN)touch $(DEPEND_DUMMY_FILES) && \
 	$(OCAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
-	   -bytecode *.mli *.ml byte/dynlink.ml > .depend && \
+	  -I byte -bytecode *.mli *.ml byte/dynlink.ml > .depend && \
 	$(OCAMLRUN) $(ROOTDIR)/boot/ocamlc -depend -slash \
-	   -native *.ml native/dynlink.ml >> .depend && \
+	  -I native -native *.ml native/dynlink.ml >> .depend && \
 	rm -f $(DEPEND_DUMMY_FILES)
 
 include .depend

@@ -307,6 +307,7 @@ and rewrite_exp_jane_syntax iflag : Jane_syntax.Expression.t -> _ = function
   | Jexp_layout (Lexp_constant _) -> rewrite_constant
   | Jexp_layout (Lexp_newtype (_, _, sexp)) -> rewrite_exp iflag sexp
   | Jexp_n_ary_function x -> rewrite_n_ary_function iflag x
+  | Jexp_tuple ltexp -> rewrite_labeled_tuple_exp iflag ltexp
 
 and rewrite_n_ary_function iflag :
   Jane_syntax.N_ary_functions.expression -> _ = function
@@ -358,6 +359,12 @@ and rewrite_immutable_array_exp iflag :
   function
   | Iaexp_immutable_array exprs ->
     rewrite_exp_list iflag exprs
+
+and rewrite_labeled_tuple_exp iflag :
+  Jane_syntax.Labeled_tuples.expression -> _ =
+  function
+  | Ltexp_tuple sexpl ->
+    rewrite_exp_list iflag (List.map snd sexpl)
 
 and rewrite_ifbody iflag ghost sifbody =
   if !instr_if && not ghost then

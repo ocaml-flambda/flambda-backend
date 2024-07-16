@@ -22,11 +22,16 @@
 #include "misc.h"
 
 /* An interval of a single object to be scanned.
-   The end pointer must always be one-past-the-end of a heap block,
-   but the start pointer is not necessarily the start of the block */
+   The object end pointer must always be one-past-the-end of a heap block,
+   but the start pointer is not necessarily the start of the block,
+   and the scannable end pointer is not necessarily the same as the
+   object end pointer. (The GC should not scan past the scannable
+   end pointer.)
+*/
 typedef struct {
   value* start;
-  value* end;
+  value* scannable_end;
+  value* object_end;
 } mark_entry;
 
 typedef struct {
@@ -92,7 +97,7 @@ void caml_init_major_heap (asize_t);           /* size in bytes */
 asize_t caml_clip_heap_chunk_wsz (asize_t wsz);
 void caml_darken (value, value *);
 void caml_major_collection_slice (intnat);
-void caml_shrink_mark_stack ();
+void caml_shrink_mark_stack (void);
 void major_collection (void);
 void caml_finish_major_cycle (void);
 void caml_set_major_window (int);

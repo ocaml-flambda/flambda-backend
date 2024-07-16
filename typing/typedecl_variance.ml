@@ -65,7 +65,7 @@ let compute_variance env visited vari ty =
         compute_variance_rec (Variance.conjugate vari) ty1;
         compute_same ty2
     | Ttuple tl ->
-        List.iter compute_same tl
+        List.iter (fun (_,t) -> compute_same t) tl
     | Tconstr (path, tl, _) ->
         let open Variance in
         if tl = [] then () else begin
@@ -174,7 +174,7 @@ let compute_variance_type env ~check (required, loc) decl tyl =
                                                         (c,n,i)))))
       params required;
     (* Check propagation from constrained parameters *)
-    let args = Btype.newgenty (Ttuple params) in
+    let args = Btype.newgenty (Ttuple (List.map (fun t -> None, t) params)) in
     let fvl = Ctype.free_variables args in
     let fvl =
       List.filter (fun v -> not (List.exists (eq_type v) params)) fvl in
@@ -253,10 +253,11 @@ let constrained vars ty =
   | _ -> true
 
 let for_constr = function
-  | Types.Cstr_tuple l -> List.map (fun (ty,_) -> false, ty) l
+  | Types.Cstr_tuple l -> List.map (fun {ca_type; _} -> false, ca_type) l
   | Types.Cstr_record l ->
       List.map
-        (fun {Types.ld_mutable; ld_type} -> (ld_mutable = Mutable, ld_type))
+        (fun {Types.ld_mutable; ld_type} ->
+          (Types.is_mutable ld_mutable, ld_type))
         l
 
 let compute_variance_gadt env ~check (required, loc as rloc) decl
@@ -353,7 +354,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
       | Type_record (ftl, _) ->
           compute_variance_type env ~check rloc decl
             (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
-                 (ld_mutable = Mutable, ld_type)) ftl)
+                 (Types.is_mutable ld_mutable, ld_type)) ftl)
     in
     if mn = [] || not abstract then
       List.map Variance.strengthen vari

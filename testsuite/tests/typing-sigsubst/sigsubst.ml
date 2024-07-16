@@ -1,5 +1,5 @@
 (* TEST
-   * expect
+ expect;
 *)
 
 module type Printable = sig
@@ -24,7 +24,7 @@ end
 Line 3, characters 2-36:
 3 |   include Comparable with type t = t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Illegal shadowing of included type t/2 by t.
+Error: Illegal shadowing of included type t/2 by t/1.
 Line 2, characters 2-19:
 2 |   include Printable
       ^^^^^^^^^^^^^^^^^
