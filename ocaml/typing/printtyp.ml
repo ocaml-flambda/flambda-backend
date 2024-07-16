@@ -1128,9 +1128,9 @@ end = struct
           printer_iter_type_expr add_named_vars ty
     end
 
-  let rec substitute ty =
+  let substitute ty =
     match List.assq ty !name_subst with
-    | ty' -> substitute ty'
+    | ty' -> ty'
     | exception Not_found -> ty
 
   let add_subst subst =
