@@ -2683,9 +2683,8 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
        - this isn't a tvar from an outer scopes ([TyVarEnv] gets reset before
          transl)
     *)
-    (* FIXME jbachurski: Is this the way this unwrapping should happen?
-       Is assigning arrows a sort temporarily okay? *)
-    | Tvar { jkind } when is_layout_poly
+    (* jbachurski: Currently, this is only called at base jkinds. *)
+    | Tvar {jkind} when is_layout_poly
                        && Jkind.has_layout_any jkind
                        && get_level ty = Btype.generic_level -> Poly
     | _ ->
