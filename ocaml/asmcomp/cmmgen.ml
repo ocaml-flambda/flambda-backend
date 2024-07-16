@@ -837,7 +837,7 @@ and transl_ccall env prim args dbg =
     | Unboxed_vector _ ->
       Misc.fatal_error
         "SIMD vectors are not supported in the upstream compiler build."
-    | Untagged_int ->
+    | Untagged_immediate ->
         (XInt, untag_int (transl env arg) dbg)
   in
   let rec transl_args native_repr_args args =
@@ -862,7 +862,7 @@ and transl_ccall env prim args dbg =
       Misc.fatal_error
         "float32 is not supported in the upstream compiler build."
     | _, Unboxed_integer bi -> (typ_int, box_int dbg bi alloc_heap)
-    | _, Untagged_int -> (typ_int, (fun i -> tag_int i dbg))
+    | _, Untagged_immediate -> (typ_int, (fun i -> tag_int i dbg))
     | _, Unboxed_vector _ ->
       Misc.fatal_error
         "SIMD vectors are not supported in the upstream compiler build."
