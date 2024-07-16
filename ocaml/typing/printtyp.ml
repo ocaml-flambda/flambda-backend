@@ -1261,15 +1261,25 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
           modes.txt
       in
       Ojkind_user_mod (base, modes)
-    | Arrow (args, result) -> Ojkind_user_arrow (
-        List.map out_jkind_user_of_user_jkind args,
-        out_jkind_user_of_user_jkind result)
+    | Arrow (args, result) -> Ojkind_user_arrow {
+        args = List.map out_jkind_user_of_user_jkind args;
+        result = out_jkind_user_of_user_jkind result }
     | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
   in
   Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
 
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Type.Const.to_out_jkind_const jkind)
+
+let rec out_jkind_of_jkind jkind = match Jkind.get jkind with
+  | Type ty -> begin match Jkind.Type.get ty with
+    | Const clay -> out_jkind_of_const_jkind clay
+    | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
+    end
+  | Arrow { args; result } ->
+    Ojkind_arrow
+      { args = List.map out_jkind_of_jkind args;
+        result = out_jkind_of_jkind result }
 
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
@@ -1287,8 +1297,12 @@ let out_jkind_option_of_jkind jkind =
       then Some (Ojkind_var (Jkind.Sort.Var.name v))
       else None
     end
-  (* TODO jbachurski: out jkinds for arrows *)
-  | Arrow _ -> Some (Ojkind_const { base = "((higher))"; modal_bounds = [] })
+  | Arrow { args; result } ->
+    (* We ignore the rules above for arrows, which should always be printed *)
+    Some (Ojkind_arrow
+      { args = List.map out_jkind_of_jkind args;
+        result = out_jkind_of_jkind result })
+
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
@@ -2674,13 +2688,7 @@ let trees_of_type_expansion'
     if var_jkinds then
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
-          let olay = match Jkind.get jkind with
-            | Type ty -> begin match Jkind.Type.get ty with
-              | Const clay -> out_jkind_of_const_jkind clay
-              | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
-              end
-            | Arrow _ -> Ojkind_const { base = "((higher))"; modal_bounds = [] }
-          in
+          let olay = out_jkind_of_jkind jkind in
           Otyp_jkind_annot (out, olay)
       | _ ->
           out
