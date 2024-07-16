@@ -141,15 +141,7 @@ default:
 	@echo "    ... DIR=d                  ... the tests located in the directory d"
 	@echo "    ... LIST=f                 ... the tests listed in the file f (one \
 	per line)"
-<<<<<<< HEAD
-	@echo "  promote-failed  promote all the tests that failed in the previous run"
-	@echo "  lib                        build library modules"
-	@echo "  tools                      build test tools"
-||||||| 121bedcfd2
-	@echo "  lib                        build library modules"
-	@echo "  tools                      build test tools"
-=======
->>>>>>> 5.2.0
+	@echo "  promote-failed             promote all the tests that failed in the previous run"
 	@echo "  clean                      delete generated files"
 	@echo "  report                     print the report for the last execution"
 	@echo

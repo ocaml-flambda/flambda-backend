@@ -1,40 +1,3 @@
-<<<<<<< HEAD
-Indexed shapes:
-Resolved_alias: Index_aliases.10 -> Index_aliases.2 -> Index_aliases.1 :
-  G (File "index_aliases.ml", line 28, characters 8-9)
-Resolved_alias: Index_aliases.2 -> Index_aliases.1 :
-  B (File "index_aliases.ml", line 27, characters 11-12)
-Resolved: Index_aliases.7 :
-  C (File "index_aliases.ml", line 25, characters 11-12)
-Resolved_alias: Index_aliases.2 -> Index_aliases.1 :
-  B (File "index_aliases.ml", line 24, characters 14-15)
-Resolved: Index_aliases.5 :
-  F (File "index_aliases.ml", line 24, characters 12-13)
-Resolved: Index_aliases.1 :
-  A (File "index_aliases.ml", line 22, characters 14-15)
-Resolved_alias: Index_aliases.6 -> Index_aliases.5 :
-  F' (File "index_aliases.ml", line 22, characters 11-13)
-Resolved: Index_aliases.5 :
-  F (File "index_aliases.ml", line 21, characters 12-13)
-Resolved: Index_aliases.4 :
-  X (File "index_aliases.ml", line 20, characters 32-33)
-Resolved: Index_aliases.1 :
-  A (File "index_aliases.ml", line 18, characters 11-12)
-
-Uid of decls:
-<<<<<<< HEAD
-Index_aliases.1: A (File "index_aliases.ml", line 18, characters 7-8)
-Index_aliases.2: B (File "index_aliases.ml", line 19, characters 7-8)
-Index_aliases.5: F (File "index_aliases.ml", line 21, characters 7-8)
-Index_aliases.7: C (File "index_aliases.ml", line 23, characters 7-8)
-Index_aliases.9: D (File "index_aliases.ml", line 26, characters 7-8)
-Index_aliases.8: C' (File "index_aliases.ml", line 25, characters 7-9)
-Index_aliases.10: G (File "index_aliases.ml", line 28, characters 7-8)
-Index_aliases.6: F' (File "index_aliases.ml", line 22, characters 7-9)
-Index_aliases.3: t (File "index_aliases.ml", line 21, characters 23-24)
-Index_aliases.0: t (File "index_aliases.ml", line 18, characters 23-24)
-||||||| 121bedcfd2
-=======
 Indexed shapes:
 Missing uid : t (File "index_aliases.ml", line 52, characters 9-10)
 Resolved: Index_aliases.26 :
@@ -101,27 +64,3 @@ Index_aliases.6: F' (File "index_aliases.ml", line 22, characters 7-9)
 Index_aliases.3: t (File "index_aliases.ml", line 21, characters 23-24)
 Index_aliases.11: s (File "index_aliases.ml", line 32, characters 21-22)
 Index_aliases.0: t (File "index_aliases.ml", line 18, characters 23-24)
->>>>>>> 5.2.0
-||||||| 2572783060
-Index_aliases.1: A (File "index_aliases.ml", line 18, characters 7-8)
-Index_aliases.2: B (File "index_aliases.ml", line 19, characters 7-8)
-Index_aliases.5: F (File "index_aliases.ml", line 21, characters 7-8)
-Index_aliases.7: C (File "index_aliases.ml", line 23, characters 7-8)
-Index_aliases.9: D (File "index_aliases.ml", line 26, characters 7-8)
-Index_aliases.8: C' (File "index_aliases.ml", line 25, characters 7-9)
-Index_aliases.10: G (File "index_aliases.ml", line 28, characters 7-8)
-Index_aliases.6: F' (File "index_aliases.ml", line 22, characters 7-9)
-Index_aliases.3: t (File "index_aliases.ml", line 21, characters 23-24)
-Index_aliases.0: t (File "index_aliases.ml", line 18, characters 23-24)
-=======
-Index_aliases.1: A (File "index_aliases.ml", line 17, characters 7-8)
-Index_aliases.2: B (File "index_aliases.ml", line 18, characters 7-8)
-Index_aliases.5: F (File "index_aliases.ml", line 20, characters 7-8)
-Index_aliases.7: C (File "index_aliases.ml", line 22, characters 7-8)
-Index_aliases.9: D (File "index_aliases.ml", line 25, characters 7-8)
-Index_aliases.8: C' (File "index_aliases.ml", line 24, characters 7-9)
-Index_aliases.10: G (File "index_aliases.ml", line 27, characters 7-8)
-Index_aliases.6: F' (File "index_aliases.ml", line 21, characters 7-9)
-Index_aliases.3: t (File "index_aliases.ml", line 20, characters 23-24)
-Index_aliases.0: t (File "index_aliases.ml", line 17, characters 23-24)
->>>>>>> ocaml-jst/flambda-patches

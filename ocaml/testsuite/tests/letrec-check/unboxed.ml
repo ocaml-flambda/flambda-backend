@@ -1,14 +1,8 @@
 (* TEST
-<<<<<<< HEAD
  expect;
 *)
 (* CR layouts: Using layout annotations here is not backward-compatible.
    We can delete this when internal ticket 1110 is resolved.
-||||||| 121bedcfd2
-   * expect
-=======
- expect;
->>>>>>> 5.2.0
 *)
 
 type r = R of r list [@@unboxed]

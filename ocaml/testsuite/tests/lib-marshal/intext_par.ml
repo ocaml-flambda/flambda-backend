@@ -1,20 +1,8 @@
 (* TEST
-<<<<<<< HEAD
  reason = "CR ocaml 5 domains: re-enable this test";
  modules = "intextaux_par.c";
- skip;
-||||||| 121bedcfd2
-   modules = "intextaux_par.c"
-=======
- modules = "intextaux_par.c";
  no-tsan; (* Takes too much time and memory with tsan *)
- {
-   bytecode;
- }
- {
-   native;
- }
->>>>>>> 5.2.0
+ skip;
 *)
 
 (* Test for output_value / input_value *)

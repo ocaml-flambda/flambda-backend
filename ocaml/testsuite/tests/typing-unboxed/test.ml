@@ -61,16 +61,8 @@ end;;
 Line 11, characters 2-71:
 11 |   external f : (int32 [@unboxed]) -> (int32 [@unboxed]) = "f" "noalloc"
        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-<<<<<<< HEAD
 Error: The native code version of the primitive is mandatory
        when attributes [@untagged] or [@unboxed] are present.
-||||||| 121bedcfd2
-Error: [@The native code version of the primitive is mandatory
-       when attributes [@untagged] or [@unboxed] are present.
-=======
-Error: The native code version of the primitive is mandatory
-       when attributes "[@untagged]" or "[@unboxed]" are present.
->>>>>>> 5.2.0
 |}]
 
 module Old_style_warning = struct
@@ -653,14 +645,8 @@ Line 1, characters 14-17:
 1 | external h : (int [@unboxed]) -> float = "h" "h_nat";;
                   ^^^
 Error: Don't know how to unbox this type.
-<<<<<<< HEAD
        Only float, int32, int64, nativeint, vector primitives, and
        concrete unboxed types can be marked unboxed.
-||||||| 121bedcfd2
-       Only float, int32, int64 and nativeint can be unboxed.
-=======
-       Only "float", "int32", "int64", and "nativeint" can be unboxed.
->>>>>>> 5.2.0
 |}]
 
 (* Bad: unboxing the function type *)
@@ -670,14 +656,8 @@ Line 1, characters 13-25:
 1 | external i : int -> float [@unboxed] = "i" "i_nat";;
                  ^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
-<<<<<<< HEAD
        Only float, int32, int64, nativeint, vector primitives, and
        concrete unboxed types can be marked unboxed.
-||||||| 121bedcfd2
-       Only float, int32, int64 and nativeint can be unboxed.
-=======
-       Only "float", "int32", "int64", and "nativeint" can be unboxed.
->>>>>>> 5.2.0
 |}]
 
 (* Bad: unboxing a "deep" sub-type. *)
@@ -729,96 +709,48 @@ external o : (float[@unboxed]) -> float = "o";;
 Line 1, characters 0-45:
 1 | external o : (float[@unboxed]) -> float = "o";;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-<<<<<<< HEAD
 Error: The native code version of the primitive is mandatory
        when attributes [@untagged] or [@unboxed] are present.
-||||||| 121bedcfd2
-Error: [@The native code version of the primitive is mandatory
-       when attributes [@untagged] or [@unboxed] are present.
-=======
-Error: The native code version of the primitive is mandatory
-       when attributes "[@untagged]" or "[@unboxed]" are present.
->>>>>>> 5.2.0
 |}]
 external p : float -> (float[@unboxed]) = "p";;
 [%%expect{|
 Line 1, characters 0-45:
 1 | external p : float -> (float[@unboxed]) = "p";;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-<<<<<<< HEAD
 Error: The native code version of the primitive is mandatory
        when attributes [@untagged] or [@unboxed] are present.
-||||||| 121bedcfd2
-Error: [@The native code version of the primitive is mandatory
-       when attributes [@untagged] or [@unboxed] are present.
-=======
-Error: The native code version of the primitive is mandatory
-       when attributes "[@untagged]" or "[@unboxed]" are present.
->>>>>>> 5.2.0
 |}]
 external q : (int[@untagged]) -> float = "q";;
 [%%expect{|
 Line 1, characters 0-44:
 1 | external q : (int[@untagged]) -> float = "q";;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-<<<<<<< HEAD
 Error: The native code version of the primitive is mandatory
        when attributes [@untagged] or [@unboxed] are present.
-||||||| 121bedcfd2
-Error: [@The native code version of the primitive is mandatory
-       when attributes [@untagged] or [@unboxed] are present.
-=======
-Error: The native code version of the primitive is mandatory
-       when attributes "[@untagged]" or "[@unboxed]" are present.
->>>>>>> 5.2.0
 |}]
 external r : int -> (int[@untagged]) = "r";;
 [%%expect{|
 Line 1, characters 0-42:
 1 | external r : int -> (int[@untagged]) = "r";;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-<<<<<<< HEAD
 Error: The native code version of the primitive is mandatory
        when attributes [@untagged] or [@unboxed] are present.
-||||||| 121bedcfd2
-Error: [@The native code version of the primitive is mandatory
-       when attributes [@untagged] or [@unboxed] are present.
-=======
-Error: The native code version of the primitive is mandatory
-       when attributes "[@untagged]" or "[@unboxed]" are present.
->>>>>>> 5.2.0
 |}]
 external s : int -> int = "s" [@@untagged];;
 [%%expect{|
 Line 1, characters 0-42:
 1 | external s : int -> int = "s" [@@untagged];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-<<<<<<< HEAD
 Error: The native code version of the primitive is mandatory
        when attributes [@untagged] or [@unboxed] are present.
-||||||| 121bedcfd2
-Error: [@The native code version of the primitive is mandatory
-       when attributes [@untagged] or [@unboxed] are present.
-=======
-Error: The native code version of the primitive is mandatory
-       when attributes "[@untagged]" or "[@unboxed]" are present.
->>>>>>> 5.2.0
 |}]
 external t : float -> float = "t" [@@unboxed];;
 [%%expect{|
 Line 1, characters 0-45:
 1 | external t : float -> float = "t" [@@unboxed];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-<<<<<<< HEAD
 Error: The native code version of the primitive is mandatory
        when attributes [@untagged] or [@unboxed] are present.
-||||||| 121bedcfd2
-Error: [@The native code version of the primitive is mandatory
-       when attributes [@untagged] or [@unboxed] are present.
-=======
-Error: The native code version of the primitive is mandatory
-       when attributes "[@untagged]" or "[@unboxed]" are present.
->>>>>>> 5.2.0
 |}]
 
 (* PR#7424 *)

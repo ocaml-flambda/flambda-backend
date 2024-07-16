@@ -1,5 +1,4 @@
 (* TEST
-<<<<<<< HEAD
  setup-ocamlc.byte-build-env;
  flags = "-dlambda -dno-unique-ids";
  ocamlc.byte;
@@ -12,17 +11,6 @@
    compiler_reference = "${test_source_directory}/comparison_table.heap.reference";
    check-ocamlc.byte-output;
  }
-||||||| 121bedcfd2
-   * setup-ocamlc.byte-build-env
-   ** ocamlc.byte
-      flags = "-dlambda -dno-unique-ids"
-   *** check-ocamlc.byte-output
-=======
- setup-ocamlc.byte-build-env;
- flags = "-dlambda -dno-unique-ids";
- ocamlc.byte;
- check-ocamlc.byte-output;
->>>>>>> 5.2.0
 *)
 
 external cmp : 'a -> 'a -> int = "%compare";;

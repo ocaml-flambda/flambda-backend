@@ -8,6 +8,16 @@
 
 
 
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+
+
+
+
+
+
 
 *)
 
@@ -69,7 +79,6 @@ module H (X : sig val x : int end) = X
 module type S = sig
   module F:  sig val x : int end -> sig end
 end
-<<<<<<< HEAD
 
 (* Nominal type comparison *)
 
@@ -91,16 +100,3 @@ end
  ocamlc.byte;
  check-ocamlc.byte-output;
 *)
-||||||| 121bedcfd2
-=======
-
-(* TEST
- flags = "-w +A";
- setup-ocamlc.byte-build-env;
- module = "w32.mli";
- ocamlc.byte;
- module = "w32.ml";
- ocamlc.byte;
- check-ocamlc.byte-output;
-*)
->>>>>>> 5.2.0

@@ -1,18 +1,7 @@
 (* TEST
-<<<<<<< HEAD
  flags = "-I ${ocamlsrcdir}/typing -I ${ocamlsrcdir}/parsing -I ${ocamlsrcdir}/utils";
  include ocamlcommon;
  expect;
-||||||| 121bedcfd2
-   flags = "-I ${ocamlsrcdir}/typing \
-    -I ${ocamlsrcdir}/parsing"
-   include ocamlcommon
-   * expect
-=======
- flags = "-I ${ocamlsrcdir}/typing -I ${ocamlsrcdir}/parsing";
- include ocamlcommon;
- expect;
->>>>>>> 5.2.0
 *)
 
 let run s =
@@ -21,6 +10,29 @@ let run s =
   let ute = Untypeast.untype_expression te in
   Format.asprintf "%a" Pprintast.expression ute
 ;;
+
+[%%expect{|
+val run : string -> string = <fun>
+|}];;
+
+run {| match None with Some (Some _) -> () | _ -> () |};;
+
+[%%expect{|
+- : string = "match None with | Some (Some _) -> () | _ -> ()"
+|}];;
+
+(***********************************)
+(* Untypeast/pprintast maintain the arity of a function. *)
+
+(* 4-ary function *)
+run {| fun x y z -> function w -> x y z w |};;
+
+[%%expect{|
+- : string = "fun x y z -> function | w -> x y z w"
+|}];;
+
+(* 3-ary function returning a 1-ary function *)
+run {| fun x y z -> (function w -> x y z w) |};;
 
 [%%expect{|
 val run : string -> string = <fun>

@@ -112,19 +112,9 @@ and bar () =
 [%%expect {|
 Line 4, characters 26-27:
 4 |   x |> List.fold_left max 0 x
-<<<<<<< HEAD
-                              ^
-Error: This expression has type int but an expression was expected of type
-         'a -> 'b
-||||||| 121bedcfd2
-           ^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type int
-       This is not a function; it cannot be applied.
-=======
            ^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "int"
        This is not a function; it cannot be applied.
->>>>>>> 5.2.0
 |}]
 
 

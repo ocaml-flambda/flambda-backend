@@ -1,21 +1,9 @@
-<<<<<<< HEAD
 (* TEST *)
 
 (* Checks that the allocated words counted by statmemprof
    (with sampling rate of 1) match the numbers reported by
    Gc.counters(). *)
 
-||||||| 121bedcfd2
-(* TEST
-* skip
-reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634"
-*)
-=======
-(* TEST
- reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634";
- skip;
-*)
->>>>>>> 5.2.0
 module MP = Gc.Memprof
 
 (* Returns the number of words allocated on the minor and major heaps

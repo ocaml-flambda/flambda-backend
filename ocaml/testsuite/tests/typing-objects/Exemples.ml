@@ -541,25 +541,12 @@ Error: Type
          "int_comparable2" =
            "< cmp : int_comparable2 -> int; set_x : int -> unit; x : int >"
        is not a subtype of
-<<<<<<< HEAD
-         int_comparable = < cmp : int_comparable -> int; x : int >
-       Type int_comparable is not a subtype of int_comparable2
-       The first object type has no method set_x
-||||||| 121bedcfd2
-         int_comparable = < cmp : int_comparable -> int; x : int >
-       Type int_comparable = < cmp : int_comparable -> int; x : int >
-       is not a subtype of
-         int_comparable2 =
-           < cmp : int_comparable2 -> int; set_x : int -> unit; x : int >
-       The first object type has no method set_x
-=======
          "int_comparable" = "< cmp : int_comparable -> int; x : int >"
        Type "int_comparable" = "< cmp : int_comparable -> int; x : int >"
        is not a subtype of
          "int_comparable2" =
            "< cmp : int_comparable2 -> int; set_x : int -> unit; x : int >"
        The first object type has no method "set_x"
->>>>>>> 5.2.0
 |}];;      (* Fail : 'a comp2 is not a subtype *)
 (new sorted_list ())#add c2;;
 [%%expect{|
