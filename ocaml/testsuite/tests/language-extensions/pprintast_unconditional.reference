@@ -9,13 +9,15 @@ modality_record:
       global_ y:
         int @@ local many once shared unique portable nonportable contended
                uncontended
-        }
+        ;
+      z: bool @@ unique }
   end
 
 modality_cstrarg:
   struct
     type t =
-      | Foo of global_ string * global_ string @@ portable 
+      | Foo of global_ string * global_ string @@ portable *
+      string @@ portable 
     type u =
       | Foo: global_ string * global_ string -> u 
   end
@@ -117,13 +119,15 @@ modality_record:
       global_ y:
         int @@ local many once shared unique portable nonportable contended
                uncontended
-        }
+        ;
+      z: bool @@ unique }
   end
 
 modality_cstrarg:
   struct
     type t =
-      | Foo of global_ string * global_ string @@ portable 
+      | Foo of global_ string * global_ string @@ portable *
+      string @@ portable 
     type u =
       | Foo: global_ string * global_ string -> u 
   end

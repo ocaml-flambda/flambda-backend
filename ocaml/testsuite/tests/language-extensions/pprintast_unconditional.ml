@@ -22,11 +22,12 @@ module Example = struct
     "struct \
       type t = {global_ x : string;
                 global_ y : int @@ local many once shared unique portable nonportable
-                                   contended uncontended} \
+                                   contended uncontended;
+                z : bool @@ unique} \
      end"
   let modality_cstrarg = parse module_expr
     "struct \
-      type t = Foo of global_ string * global_ string @@ portable \
+      type t = Foo of global_ string * global_ string @@ portable * string @@ portable \
       type u = Foo : global_ string * global_ string -> u \
      end"
 
