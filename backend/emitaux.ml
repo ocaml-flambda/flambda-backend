@@ -285,33 +285,37 @@ let emit_frames a =
     and has_next = if has_next then 1 else 0
     and char_end = d.dinfo_char_end + d.dinfo_start_bol - d.dinfo_end_bol in
     let char_end_offset = d.dinfo_end_bol - d.dinfo_start_bol in
-    Int64.(add (shift_left (of_int d.dinfo_line) 51)
-             (add (shift_left (of_int (d.dinfo_end_line - d.dinfo_line)) 48)
-                (add (shift_left (of_int d.dinfo_char_start) 42)
-                   (add (shift_left (of_int char_end) 35)
-                      (add (shift_left (of_int char_end_offset) 26)
-                         (add (shift_left (of_int kind) 1)
-                            (of_int has_next)))))))
-      in
+    Int64.(
+      add
+        (shift_left (of_int d.dinfo_line) 51)
+        (add
+           (shift_left (of_int (d.dinfo_end_line - d.dinfo_line)) 48)
+           (add
+              (shift_left (of_int d.dinfo_char_start) 42)
+              (add
+                 (shift_left (of_int char_end) 35)
+                 (add
+                    (shift_left (of_int char_end_offset) 26)
+                    (add (shift_left (of_int kind) 1) (of_int has_next)))))))
+  in
   let partially_pack_info fd_raise d has_next =
-    (* Partially packed debuginfo:
-       1lllllllllmmmmmmmmddddddddddddkn
-         1           - d points to a name_and_loc_info struct
-         l (19 bits) - start line number
-         m (18 bits) - offset of end line number from start
-         d (24 bits) - memory offset to name_and_loc_info struct
-         k (1 bit)   - fd_raise flag
-         n (1 bit)   - has_next flag *)
+    (* Partially packed debuginfo: 1lllllllllmmmmmmmmddddddddddddkn 1 - d points
+       to a name_and_loc_info struct l (19 bits) - start line number m (18 bits)
+       - offset of end line number from start d (24 bits) - memory offset to
+       name_and_loc_info struct k (1 bit) - fd_raise flag n (1 bit) - has_next
+       flag *)
     let open Debuginfo in
     let start_line = Int.min 0x7FFFF d.dinfo_line
     and end_line = Int.min 0x3FFFF (d.dinfo_end_line - d.dinfo_line)
     and kind = if fd_raise then 1 else 0
     and has_next = if has_next then 1 else 0 in
-    Int64.(add (shift_left Int64.one 63)
-             (add (shift_left (of_int start_line) 44)
-                (add (shift_left (of_int end_line) 26)
-                   (add (shift_left (of_int kind) 1)
-                      (of_int has_next)))))
+    Int64.(
+      add (shift_left Int64.one 63)
+        (add
+           (shift_left (of_int start_line) 44)
+           (add
+              (shift_left (of_int end_line) 26)
+              (add (shift_left (of_int kind) 1) (of_int has_next)))))
   in
   let emit_debuginfo (rs, dbg) lbl =
     let rdbg = dbg |> Debuginfo.Dbg.to_list |> List.rev in
@@ -327,25 +331,29 @@ let emit_frames a =
       let is_fully_packable =
         d.dinfo_line <= 0xFFF
         && d.dinfo_end_line - d.dinfo_line <= 0x7
-        && d.dinfo_char_start <= 0x3F
-        && char_end <= 0x7F
+        && d.dinfo_char_start <= 0x3F && char_end <= 0x7F
         && d.dinfo_end_bol - d.dinfo_start_bol <= 0x1FF
       in
       let info =
-        if is_fully_packable then
-          fully_pack_info rs d (rest <> [])
-        else
-          partially_pack_info rs d (rest <> [])
+        if is_fully_packable
+        then fully_pack_info rs d (rest <> [])
+        else partially_pack_info rs d (rest <> [])
       in
       let loc =
-        if is_fully_packable then
-          None
+        if is_fully_packable
+        then None
         else
-          Some (Int.min 0xFFFF d.dinfo_char_start,   (* start_chr *)
-                Int.min 0xFFFF char_end,             (* end_chr *)
-                Int.min 0x3FFFFFFF d.dinfo_char_end) (* end_offset *)
+          Some
+            ( Int.min 0xFFFF d.dinfo_char_start,
+              (* start_chr *)
+              Int.min 0xFFFF char_end,
+              (* end_chr *)
+              Int.min 0x3FFFFFFF d.dinfo_char_end )
+        (* end_offset *)
       in
-      a.efa_label_rel (label_defname d.dinfo_file defname loc) (Int64.to_int32 info);
+      a.efa_label_rel
+        (label_defname d.dinfo_file defname loc)
+        (Int64.to_int32 info);
       a.efa_32 (Int64.to_int32 (Int64.shift_right info 32));
       match rest with [] -> () | d :: rest -> emit false d rest
     in
