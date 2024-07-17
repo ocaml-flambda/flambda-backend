@@ -430,39 +430,52 @@ and function_param =
        [Total] otherwise.
     *)
     fp_kind: function_param_kind;
-    fp_newtypes: string loc list;
-      (** [fp_newtypes] are the new type declarations that come *after* that
-          parameter. The newtypes that come before the first parameter are
-          placed as exp_extras on the Texp_function node. This is just used in
-          {!Untypeast}. *)
+    fp_sort: Jkind.sort;
+    fp_mode: Mode.Alloc.l;
+    fp_curry: function_curry;
+    fp_newtypes: (string loc * Jkind.annotation option) list;
+    (** [fp_newtypes] are the new type declarations that come *after* that
+        parameter. The newtypes that come before the first parameter are
+        placed as exp_extras on the Texp_function node. This is just used in
+        {!Untypeast}. *)
     fp_loc: Location.t;
-      (** [fp_loc] is the location of the entire value parameter, not including
-          the [fp_newtypes].
-      *)
+    (** [fp_loc] is the location of the entire value parameter, not including
+        the [fp_newtypes].
+    *)
   }
 
 and function_param_kind =
   | Tparam_pat of pattern
   (** [Tparam_pat p] is a non-optional argument with pattern [p]. *)
-  | Tparam_optional_default of pattern * expression
-  (** [Tparam_optional_default (p, e)] is an optional argument [p] with default
-      value [e], i.e. [?x:(p = e)]. If the parameter is of type [a option], the
-      pattern and expression are of type [a]. *)
+  | Tparam_optional_default of pattern * expression * Jkind.sort
+  (** [Tparam_optional_default (p, e, sort)] is an optional argument [p] with
+      default value [e], i.e. [?x:(p = e)]. If the parameter is of type
+      [a option], the pattern and expression are of type [a]. [sort] is the
+      sort of [e]. *)
 
 and function_body =
   | Tfunction_body of expression
-  | Tfunction_cases of
-      { cases: value case list;
-        partial: partial;
-        param: Ident.t;
-        loc: Location.t;
-        exp_extra: exp_extra option;
-        attributes: attributes;
-        (** [attributes] is just used in untypeast. *)
-      }
+  | Tfunction_cases of function_cases
 (** The function body binds a final argument in [Tfunction_cases],
     and this argument is pattern-matched against the cases.
 *)
+
+and function_cases =
+  { fc_cases: value case list;
+    fc_env : Env.t;
+    (** [fc_env] contains entries from all parameters except
+        for the last one being matched by the cases.
+    *)
+    fc_arg_mode: Mode.Alloc.l;
+    fc_arg_sort: Jkind.sort;
+    fc_ret_type : Types.type_expr;
+    fc_partial: partial;
+    fc_param: Ident.t;
+    fc_loc: Location.t;
+    fc_exp_extra: exp_extra option;
+    fc_attributes: attributes;
+    (** [fc_attributes] is just used in untypeast. *)
+  }
 
 and ident_kind =
   | Id_value
