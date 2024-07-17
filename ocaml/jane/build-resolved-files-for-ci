@@ -25,6 +25,19 @@ dune_targets=$(
   done
 )
 
+# ocamlcommon mls
+mls=$(
+  { echo ocaml/parsing/*.ml
+  } | tr ' ' '\n'
+)
+echo "$mls"
+dune_targets=$(
+  for ml in $mls; do
+    cmx=$(basename ${ml%.ml})
+    echo _build/default/ocaml/.ocamlcommon.objs/native/$cmx.cmx
+  done
+)
+
 # # ocamlbytecomp mlis
 # mlis=$(
 #   { echo driver/{errors,compile,maindriver}.mli
