@@ -350,13 +350,16 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         cfg
         ++
         (
-          let f acc (instr : Cfg.basic Cfg.instruction) = match instr.desc with
-            | Op Spill -> Profile.Counters.increment "spill" acc
-            | Op Reload -> Profile.Counters.increment "reload" acc
+          let f ((spills, reloads) as acc) (instr : Cfg.basic Cfg.instruction) = match instr.desc with
+            | Op Spill -> (spills + 1, reloads)
+            | Op Reload -> (spills, reloads + 1)
             | _ -> acc
-          in let regalloc_counters (cfg : Cfg_with_infos.t) =
-            Cfg_with_infos.fold_body_instructions
-              cfg ~f ~init:(Profile.Counters.create ~initial_names:["spill"; "reload"] ())
+          in
+          let regalloc_counters (cfg : Cfg_with_infos.t) =
+            let (spills, reloads) = Cfg_with_infos.fold_body_instructions cfg ~f ~init:(0, 0) in
+            Profile.Counters.create ()
+            |> Profile.Counters.set "spill" spills
+            |> Profile.Counters.set "reload" reloads
           in
           let regalloc_profile =
             Profile.record_with_counters ~accumulate:true ~counter_f:regalloc_counters

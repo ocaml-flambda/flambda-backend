@@ -25,9 +25,8 @@ type file = string
 module Counters : sig
   type t
 
-  val create : ?initial_names:(string list) -> unit -> t
+  val create : unit -> t
   val is_empty : t -> bool
-  val increment : string -> t -> t
   val get : string -> t -> int
   val set : string -> int -> t -> t
   val union : t -> t -> t
