@@ -19,16 +19,10 @@
 #include <caml/debugger.h>
 #ifdef CAML_RUNTIME_5
 #include <caml/runtime_events.h>
-<<<<<<< HEAD
 #else
 #include <caml/eventlog.h>
 #endif
-#include "unixsupport.h"
-||||||| 121bedcfd2
-#include "unixsupport.h"
-=======
 #include "caml/unixsupport.h"
->>>>>>> 5.2.0
 #include <caml/domain.h>
 #include <caml/fail.h>
 
