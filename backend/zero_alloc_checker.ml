@@ -1407,8 +1407,8 @@ module Annotation : sig
 
   val is_strict : t -> bool
 
-  val is_check_enabled :
-    Cmm.codegen_option list -> string -> Debuginfo.t -> bool
+  val is_check_enabled : t option -> bool
+
 end = struct
   (**
    ***************************************************************************
@@ -1520,8 +1520,8 @@ end = struct
       Misc.fatal_errorf "Unexpected duplicate annotation %a for %s"
         Debuginfo.print_compact dbg fun_name ()
 
-  let is_check_enabled codegen_options fun_name dbg =
-    match find codegen_options fun_name dbg with
+  let is_check_enabled t =
+    match t with
     | None -> false
     | Some { assume; _ } -> not assume
 end
@@ -2692,13 +2692,120 @@ let unit_info = Unit_info.create ()
 
 let unresolved_deps = Unresolved_dependencies.create ()
 
+(* [Selectgen] sets [return] field of [Iextcall] to prevent dead code elimination
+   on functions that zero_alloc checker needs to see (details in PR#2112).
+   Here we can clear [returns] field to allow subsequent passes to eliminate dead code.
+*)
+let update_caml_flambda_invalid (fd : Mach.fundecl) =
+  let rec fixup (i : Mach.instruction) : Mach.instruction =
+    match i.desc with
+    | Iop (Iextcall ({ func = "caml_flambda2_invalid"; _ }  as caml_flambda2_invalid)) ->
+      let desc = Mach.Iop (Iextcall { caml_flambda2_invalid with returns = false;
+                                    }) in
+      { i with desc; next = Mach.end_instr () }
+    | Iop (Imove | Ispill | Ireload
+          | Iconst_int _ | Iconst_float32 _ | Iconst_float _
+          | Iconst_symbol _ | Iconst_vec128 _
+          | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
+          | Iload _ | Istore _ | Ialloc _
+          | Iintop _ | Iintop_imm _ | Iintop_atomic _
+          | Ifloatop _
+          | Icsel _ | Ireinterpret_cast _ | Istatic_cast _
+          | Ispecific _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _
+          | Iopaque
+          | Ibeginregion | Iendregion | Ipoll _ | Idls_get) ->
+      { i with next = fixup i.next }
+    | Iend | Ireturn _ | Iop(Itailcall_ind) | Iop(Itailcall_imm _) | Iraise _ | Iexit _ ->
+      i
+    | Iifthenelse(tst, ifso, ifnot) ->
+      let next = fixup i.next in
+      { i with desc = Iifthenelse(tst, fixup ifso, fixup ifnot); next }
+    | Iswitch(index, cases) ->
+      let next = fixup i.next in
+      { i with desc = Iswitch(index, Array.map fixup cases); next }
+    | Icatch(rec_flag, ts, handlers, body) ->
+      let next = fixup i.next in
+      let handlers =
+        List.map (fun (n, ts, handler, is_cold) ->
+          (n, ts, fixup handler, is_cold))
+          handlers
+      in
+      { i with desc = Icatch(rec_flag, ts, handlers, fixup body); next }
+    | Itrywith(body, kind, (ts, handler)) ->
+      let next = fixup i.next in
+      { i with desc = Itrywith(fixup body, kind, (ts, fixup handler)); next }
+  in
+  (* This condition matches the one in [Selectgen] to avoid copying [fd] unnecessarily. *)
+  let enabled =
+    Annotation.is_check_enabled (Annotation.find fd.fun_codegen_options fd.fun_name fd.fun_dbg)
+  in
+  if enabled then
+    (* This condition matches the one in [Selectgen] to avoid
+       copying [fd] unnecessarily. *)
+    { fd with fun_body = fixup fd.Mach.fun_body }
+  else
+    fd
+
+let update_caml_flambda_invalid_cfg cfg_with_layout =
+    let cfg = Cfg_with_layout.cfg cfg_with_layout in
+  (* This condition matches the one in [Selectgen] to avoid copying [fd] unnecessarily. *)
+    let enabled =
+      Annotation.is_check_enabled
+        (Annotation.of_cfg cfg.fun_codegen_options cfg.fun_name cfg.fun_dbg) in
+  if (enabled)
+  then
+  let modified = ref false in
+  Cfg.iter_blocks cfg ~f:(fun label block ->
+    match block.terminator.desc with
+    | Prim { op = External
+                    ({ func_symbol = "caml_flambda2_invalid"; _ }
+                     as caml_flambda2_invalid) ; label_after = _ } ->
+      let successors = (Cfg.successor_labels ~normal:true ~exn:true block) in
+      block.terminator <- { block.terminator with
+                            desc = Call_no_return caml_flambda2_invalid;
+                          };
+      block.exn <- None;
+      block.can_raise <- false;
+      (* update predecessors for successors of [block].  *)
+      Label.Set.iter (fun successor_label ->
+        let successor_block = Cfg.get_block_exn cfg successor_label in
+        successor_block.predecessors <-
+          Label.Set.remove label successor_block.predecessors
+      ) successors;
+      modified := true
+    | Prim { op = (Probe _| External _); _ }
+    | Never | Always _
+    | Parity_test _
+    | Truth_test _
+    | Float_test _
+    | Int_test _
+    | Switch _
+    | Return
+    | Raise _
+    | Tailcall_self _
+    | Tailcall_func _
+    | Call_no_return _
+    | Call _
+    | Specific_can_raise _ -> ()
+  );
+  if !modified then
+  Profile.record ~accumulate:true "cleanup"
+    (fun () ->
+       Eliminate_fallthrough_blocks.run cfg_with_layout;
+       Merge_straightline_blocks.run cfg_with_layout;
+       Eliminate_dead_code.run_dead_block cfg_with_layout;
+       Simplify_terminator.run cfg)
+    ()
+
+
 let fundecl ppf_dump ~future_funcnames fd =
   Analysis.fundecl fd ~future_funcnames unit_info unresolved_deps ppf_dump;
-  fd
+  update_caml_flambda_invalid fd
 
 let cfg ppf_dump ~future_funcnames cl =
   let cfg = Cfg_with_layout.cfg cl in
   Analysis.cfg cfg ~future_funcnames unit_info unresolved_deps ppf_dump;
+  update_caml_flambda_invalid_cfg cl;
   cl
 
 let reset_unit_info () =
@@ -2720,4 +2827,4 @@ let iter_witnesses f =
 let () = Location.register_error_of_exn Report.print
 
 let is_check_enabled codegen_options fun_name dbg =
-  Annotation.is_check_enabled codegen_options fun_name dbg
+  Annotation.is_check_enabled (Annotation.find codegen_options fun_name dbg)
