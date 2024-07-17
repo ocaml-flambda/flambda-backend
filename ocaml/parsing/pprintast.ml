@@ -301,6 +301,8 @@ let tyvar_of_name s =
 let tyvar ppf s =
   Format.fprintf ppf "%s" (tyvar_of_name s)
 
+let string_loc ppf x = fprintf ppf "%s" x.txt
+
 let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%a" ident_of_name x
 
@@ -910,10 +912,13 @@ and function_params_then_body ctxt f params constraint_ body ~delimiter =
    expressions that aren't already self-delimiting.
 *)
 and expression ?(jane_syntax_parens = false) ctxt f x =
-    match Jane_syntax.Expression.of_ast x with
-    | Some (jexpr, attrs) ->
-        jane_syntax_expr ctxt attrs f jexpr ~parens:jane_syntax_parens
-    | None ->
+  match Jane_syntax.Expression.of_ast x with
+  | Some (jexpr, attrs) ->
+      jane_syntax_expr ctxt attrs f jexpr ~parens:jane_syntax_parens
+  | None ->
+  if x.pexp_attributes <> [] then
+    pp f "((%a)@,%a)" (expression ctxt) {x with pexp_attributes=[]}
+      (attributes ctxt) x.pexp_attributes
   else match x.pexp_desc with
     | Pexp_function _ | Pexp_match _ | Pexp_try _ | Pexp_sequence _
     | Pexp_newtype _
@@ -945,7 +950,7 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
         | [], Some c ->
             pp f "@[<2>(%a@;%a)@]"
               (function_body ctxt) body
-              (type_constraint ctxt) c
+              (function_constraint ctxt) c
         | _ :: _, _ ->
           pp f "@[<2>fun@;%a@]"
             (fun f () ->
@@ -1645,8 +1650,6 @@ and pp_print_pexp_function ctxt sep f x =
      "fun (type a) -> ..."). This isn't necessary for round-tripping -- it just
      makes the pretty-printing a bit prettier. *)
   match Jane_syntax.Expression.of_ast x with
-  | Some (Jexp_n_ary_function (params, c, body), []) ->
-      function_params_then_body ctxt f params c body ~delimiter:sep
   | Some (Jexp_layout (Lexp_newtype (str, lay, e)), []) ->
       pp f "@[(type@ %s :@ %a)@]@ %a"
         str.txt
@@ -1660,10 +1663,8 @@ and pp_print_pexp_function ctxt sep f x =
     match x.pexp_desc with
     | Pexp_newtype (str,e) ->
       pp f "(type@ %s)@ %a" str.txt (pp_print_pexp_function ctxt sep) e
-    | Pexp_fun (a, b, c, body) ->
-      pp f "%a@;%a"
-        (label_exp ctxt) (a, b, c)
-        (pp_print_pexp_function ctxt sep) body
+    | Pexp_function (params, c, body) ->
+        function_params_then_body ctxt f params c body ~delimiter:sep
     | _ ->
        pp f "%s@;%a" sep (expression ctxt) x
 
@@ -1966,6 +1967,8 @@ and type_def_list ctxt f (rf, exported, l) =
           { x with ptype_attributes = remaining_attributes }
     in
     pp f "@[<2>%s %a%a%a%t%s%a@]%a" kwd
+      nonrec_flag rf
+      (type_params ctxt) x.ptype_params
       ident_of_name x.ptype_name.txt
       layout_annot eq
       (type_declaration ctxt) x
@@ -2172,9 +2175,6 @@ and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) ~parens =
   | Jexp_comprehension x -> comprehension_expr ctxt f x
   | Jexp_immutable_array x -> immutable_array_expr ctxt f x
   | Jexp_layout x -> layout_expr ctxt f x ~parens
-  | Jexp_n_ary_function x   ->
-      if parens then pp f "(%a)" (n_ary_function_expr reset_ctxt) x
-      else n_ary_function_expr ctxt f x
   | Jexp_tuple ltexp        -> labeled_tuple_expr ctxt f ltexp
   | Jexp_modes mexp ->
       if parens then pp f "(%a)" (mode_expr ctxt) mexp
