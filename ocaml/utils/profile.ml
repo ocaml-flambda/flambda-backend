@@ -36,7 +36,7 @@ module Counters = struct
   let to_string t =
     t
     |> String.Map.bindings
-    |> List.map (fun (name, count) -> Printf.sprintf "%s = %s" name (string_of_int count))
+    |> List.map (fun (name, count) -> Printf.sprintf "%s = %d" name count)
     |> String.concat "; "
     |> Printf.sprintf "[%s]"
 end
