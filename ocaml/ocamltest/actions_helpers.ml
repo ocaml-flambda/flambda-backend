@@ -17,33 +17,19 @@
 
 open Ocamltest_stdlib
 
-let fail_with_reason reason =
-  let code _log env =
-    let result = Result.fail_with_reason reason in
-    (result, env)
-  in
-  Actions.make ~name:"fail" ~description:"Make the test fail"
-    ~does_something:true
-    code
-
 let skip_with_reason reason =
   let code _log env =
     let result = Result.skip_with_reason reason in
     (result, env)
   in
-  Actions.make ~name:"skip" ~description:"Skip the test"
-    ~does_something:true
-    code
+  Actions.make ~name:"skip" ~description:"Skip the test" code
 
-let predicate test pass_reason _skip_reason _log env =
+let pass_or_skip test pass_reason skip_reason _log env =
   let open Result in
   let result =
-    (* We always use the [pass_reason].  If we used the [skip_reason] in the
-       failure case, there would be a double negation, and the error message
-       printed would be wrong. *)
     if test
-    then predicate_satisfied_with_reason pass_reason
-    else predicate_not_satisfied_with_reason pass_reason in
+    then pass_with_reason pass_reason
+    else skip_with_reason skip_reason in
   (result, env)
 
 let mkreason what commandline exitcode =

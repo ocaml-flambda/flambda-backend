@@ -15,9 +15,7 @@
 
 (* Definition of test-result related types and functions *)
 
-type status = Pass | Skip | Fail | Predicate of bool
-(* CR xclerc/mshinwell: maybe [Predicate] should be split and put under
-   [Pass] and [Skip]? *)
+type status = Pass | Skip | Fail
 
 type t = {
   status : status;
@@ -40,52 +38,20 @@ let skip_with_reason r = result_with_reason Skip r
 
 let fail_with_reason r = result_with_reason Fail r
 
-let predicate_satisfied_with_reason r =
-  result_with_reason (Predicate true) r
-
-let predicate_not_satisfied_with_reason r =
-  result_with_reason (Predicate false) r
-
 let string_of_status = function
   | Pass -> "=> passed"
   | Skip -> "=> skipped"
   | Fail -> "=> failed"
-  | Predicate true -> "=> predicate is true"
-  | Predicate false -> "=> predicate is false"
 
 let string_of_reason = function
   | None -> ""
   | Some reason -> (" (" ^ reason ^ ")")
 
 let string_of_result r =
-  match r.status with
-  | Pass
-  | Skip
-  | Fail ->
-    (string_of_status r.status) ^ (string_of_reason r.reason)
-  | Predicate b ->
-    Printf.sprintf "=> predicate \"%s\" is %s"
-      (Option.value r.reason ~default:"<unknown>")
-      (if b then "satisfied" else "not satisfied")
+  (string_of_status r.status) ^ (string_of_reason r.reason)
 
-let is_pass r =
-  match r.status with
-  | Pass | Predicate true -> true
-  | Skip
-  | Fail
-  | Predicate false -> false
+let is_pass r = r.status = Pass
 
-let is_skip r =
-  match r.status with
-  | Skip | Predicate false -> true
-  | Pass
-  | Fail
-  | Predicate true -> false
+let is_skip r = r.status = Skip
 
-let is_fail r =
-  match r.status with
-  | Fail -> true
-  | Pass
-  | Skip
-  | Predicate true
-  | Predicate false -> false
+let is_fail r = r.status = Fail

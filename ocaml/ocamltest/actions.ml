@@ -21,7 +21,6 @@ type t = {
   name : string;
   action_description : string;
   body : code;
-  does_something : bool;
   mutable hook : code option
 }
 
@@ -29,13 +28,10 @@ let name a = a.name
 
 let description a = a.action_description
 
-let does_something t = t.does_something
-
 let action_name = Variables.make ("action_name", "Name of the current action")
 
-let make ~name ~description ~does_something body =
-  { name; body; action_description = description; hook = None;
-    does_something }
+let make ~name ~description body =
+  { name; body; action_description = description; hook = None }
 
 let update action code = { action with body = code }
 
