@@ -55,43 +55,7 @@ module Type = struct
      compile a manipulation (storing, passing, etc) of a runtime value. *)
   module Sort = Jkind_types.Type.Sort
 
-(******************************)
-(*** user errors ***)
-
-type const = Types.type_expr Jkind_types.Const.t
-
-module Error = struct
-  type t =
-    | Insufficient_level of
-        { jkind : const;
-          required_layouts_level : Language_extension.maturity
-        }
-    | Unknown_jkind of Jane_syntax.Jkind.t
-    | Unknown_mode of Jane_syntax.Mode_expr.Const.t
-    | Multiple_jkinds of
-        { from_annotation : const;
-          from_attribute : const
-        }
-
-  exception User_error of Location.t * t
-end
-
-let user_raise ~loc err = raise (Error.User_error (loc, err))
-
-let printtyp_path = ref (fun _ _ -> assert false)
-
-let set_printtyp_path f = printtyp_path := f
-
-(* A *sort* is the information the middle/back ends need to be able to
-   compile a manipulation (storing, passing, etc) of a runtime value. *)
-module Sort = Jkind_types.Type.Sort
-
-type sort = Sort.t
-
-module Type = struct
-  open Jkind_types.Type
-
-  type type_expr = Types.type_expr
+  type sort = Sort.t
 
   type type_expr = Types.type_expr
 
