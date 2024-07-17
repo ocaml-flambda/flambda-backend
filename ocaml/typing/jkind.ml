@@ -1123,18 +1123,15 @@ let add_portability_and_contention_crossing ~from t =
    parameter might effectively be unused.
 *)
 (* CR layouts: When everything is stable, remove this function. *)
-let get_required_layouts_level (context : History.annotation_context)
+let get_required_layouts_level (_context : History.annotation_context)
     (jkind : Const.t) : Language_extension.maturity =
-  let legacy_layout = Const.get_legacy_layout jkind in
-  match context, legacy_layout with
-  | ( _,
-      ( Value | Immediate | Immediate64 | Any | Float64 | Float32 | Word
-      | Bits32 | Bits64 | Any_non_null ) ) ->
-    (* CR layouts v3.0: we allow [Any_non_null] because, without [Alpha],
-       explicit [Any] annotations are converted to [Any_non_null] to
-       preserve compatibility with array arguments. *)
+  let layout = Const.get_layout jkind in
+  let nullability = jkind.nullability_upper_bound in
+  match layout, nullability with
+  | (Sort (Float64 | Float32 | Word | Bits32 | Bits64) | Any), _
+  | Sort Value, Non_null ->
     Stable
-  | _, (Value_or_null | Void) -> Alpha
+  | Sort Void, _ | Sort Value, Maybe_null -> Alpha
 
 (******************************)
 (* construction *)
