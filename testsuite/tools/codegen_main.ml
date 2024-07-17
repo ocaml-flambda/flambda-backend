@@ -75,7 +75,7 @@ let main() =
      "-dlinear", Arg.Set dump_linear, "";
      "-dtimings", Arg.Unit (fun () -> profile_columns := [ `Time ]), "";
      "-dcounters", Arg.Unit (fun () -> profile_columns := [ `Counters ]), "";
-     "-dfunc_level", Arg.Unit (fun () -> profile_granularity := Profile.Function_level), "";
+     "-dfunc_level", Arg.Unit (fun () -> profile_granularity := Function_level), "";
     ] compile_file usage
 
 let () =
