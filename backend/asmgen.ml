@@ -462,9 +462,10 @@ let compile_phrases ~ppf_dump ps =
           match p with
           | Cfunction fd ->
             let compile_fundec = compile_fundecl ~ppf_dump ~funcnames in
+            (* Only profile if function level granularity selected*)
             let profiled_compile_fundec = match !profile_granularity with
             | Function_level -> Profile.record ~accumulate:true fd.fun_name.sym_name compile_fundec
-            | _ -> compile_fundec (* Don't profile if function level granularity not selected*)
+            | File_level -> compile_fundec
             in profiled_compile_fundec fd;
             compile ~funcnames:(String.Set.remove fd.fun_name.sym_name funcnames) ps
           | Cdata dl ->
