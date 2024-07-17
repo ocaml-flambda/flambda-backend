@@ -33,8 +33,6 @@ module Counters = struct
 
   let is_empty = String.Map.is_empty
 
-
-
   let to_string t =
     t
     |> String.Map.bindings

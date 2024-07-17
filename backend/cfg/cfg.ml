@@ -230,8 +230,8 @@ let iter_blocks t ~f = Label.Tbl.iter f t.blocks
 let fold_blocks t ~f ~init = Label.Tbl.fold f t.blocks init
 
 let fold_body_instructions t ~f ~init =
-  let helper _ block acc = DLL.fold_left block.body ~f ~init:acc
-  in fold_blocks t ~f:helper ~init
+  let helper _ block acc = DLL.fold_left block.body ~f ~init:acc in
+  fold_blocks t ~f:helper ~init
 
 let register_predecessors_for_all_blocks (t : t) =
   Label.Tbl.iter
