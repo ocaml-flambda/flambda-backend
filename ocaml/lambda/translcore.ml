@@ -1083,7 +1083,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             match
               Ctype.check_type_jkind
                 e.exp_env (Ctype.correct_levels val_type)
-                (Jkind.Primitive.value ~why:Probe)
+              (* CR layouts v3: here we allow [value_or_null] because this check
+                 happens too late for the typecheker to infer [non_null]. Test that
+                 nothing breaks once we have null pointers. *)
+                (Jkind.Primitive.value_or_null ~why:Probe)
             with
             | Ok _ -> ()
             | Error _ -> raise (Error (e.exp_loc, Bad_probe_layout id))

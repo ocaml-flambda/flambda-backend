@@ -196,10 +196,10 @@ module History = struct
     | Polymorphic_variant_field
     | Structure_element
     | V1_safety_check
+    | Probe
 
   type value_creation_reason =
     | Class_let_binding
-    | Probe
     | Object
     | Instance_variable
     | Object_field

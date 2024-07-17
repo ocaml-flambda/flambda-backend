@@ -1475,12 +1475,12 @@ module Format_history = struct
       fprintf ppf "it's the type of something stored in a module structure"
     | V1_safety_check ->
       fprintf ppf "it has to be value for the V1 safety check"
+    | Probe -> format_with_notify_js ppf "it's a probe"
 
   let format_value_creation_reason ppf ~layout_or_kind :
       History.value_creation_reason -> _ = function
     | Class_let_binding ->
       fprintf ppf "it's the type of a let-bound variable in a class expression"
-    | Probe -> format_with_notify_js ppf "it's a probe"
     | Object -> fprintf ppf "it's the type of an object"
     | Instance_variable -> fprintf ppf "it's the type of an instance variable"
     | Object_field -> fprintf ppf "it's the type of an object field"
@@ -1942,10 +1942,10 @@ module Debug_printers = struct
     | Polymorphic_variant_field -> fprintf ppf "Polymorphic_variant_field"
     | Structure_element -> fprintf ppf "Structure_element"
     | V1_safety_check -> fprintf ppf "V1_safety_check"
+    | Probe -> fprintf ppf "Probe"
 
   let value_creation_reason ppf : History.value_creation_reason -> _ = function
     | Class_let_binding -> fprintf ppf "Class_let_binding"
-    | Probe -> fprintf ppf "Probe"
     | Object -> fprintf ppf "Object"
     | Instance_variable -> fprintf ppf "Instance_variable"
     | Object_field -> fprintf ppf "Object_field"
