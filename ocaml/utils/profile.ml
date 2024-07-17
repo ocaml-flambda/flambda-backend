@@ -101,7 +101,7 @@ let hierarchy = ref (create ())
 let initial_measure = ref None
 let reset () = hierarchy := create (); initial_measure := None
 
-let _record_call ?(accumulate = false) ?counter_f name f =
+let record_call_internal ?(accumulate = false) ?counter_f name f =
   let E prev_hierarchy = !hierarchy in
   let start_measure = Measure.create () in
   if !initial_measure = None then initial_measure := Some start_measure;
@@ -137,12 +137,12 @@ let _record_call ?(accumulate = false) ?counter_f name f =
           Measure_diff.accumulate this_measure_diff start_measure end_measure in
         Hashtbl.add prev_hierarchy name (measure_diff, E this_table))
 
-let record_call = _record_call ?counter_f:None
+let record_call = record_call_internal ?counter_f:None
 
 let record ?accumulate pass f x = record_call ?accumulate pass (fun () -> f x)
 
 let record_with_counters ?accumulate ~counter_f pass f x =
-  _record_call ?accumulate ~counter_f pass (fun () -> f x)
+  record_call_internal ?accumulate ~counter_f pass (fun () -> f x)
 
 type display = {
   to_string : max:float -> width:int -> string;
