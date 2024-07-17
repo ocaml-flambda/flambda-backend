@@ -69,13 +69,9 @@ type iterator = {
   signature_item_jane_syntax: iterator -> Jane_syntax.Signature_item.t -> unit;
   structure: iterator -> structure -> unit;
   structure_item: iterator -> structure_item -> unit;
-<<<<<<< HEAD
   structure_item_jane_syntax: iterator -> Jane_syntax.Structure_item.t -> unit;
-||||||| 121bedcfd2
-=======
   toplevel_directive: iterator -> toplevel_directive -> unit;
   toplevel_phrase: iterator -> toplevel_phrase -> unit;
->>>>>>> 5.2.0
   typ: iterator -> core_type -> unit;
   typ_jane_syntax: iterator -> Jane_syntax.Core_type.t -> unit;
   typ_mode_syntax : iterator -> Jane_syntax.Mode_expr.t -> core_type -> unit;
@@ -493,11 +489,9 @@ let iter_constant = ()
 module E = struct
   (* Value expressions for the core language *)
 
-<<<<<<< HEAD
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
   module L = Jane_syntax.Layouts
-  module N_ary = Jane_syntax.N_ary_functions
   module LT = Jane_syntax.Labeled_tuples
   module Modes = Jane_syntax.Modes
 
@@ -537,43 +531,6 @@ module E = struct
       iter_loc_txt sub sub.jkind_annotation jkind;
       sub.expr sub inner_expr
 
-  let iter_function_param sub : N_ary.function_param -> _ =
-    fun { pparam_loc = loc; pparam_desc = desc } ->
-      sub.location sub loc;
-      match desc with
-      | Pparam_val (_label, def, pat) ->
-          iter_opt (sub.expr sub) def;
-          sub.pat sub pat
-      | Pparam_newtype (newtype, jkind) ->
-          iter_loc sub newtype;
-          iter_opt (iter_loc_txt sub sub.jkind_annotation) jkind
-
-  let iter_function_constraint sub : N_ary.function_constraint -> _ =
-    (* Enable warning 9 to ensure that the record pattern doesn't miss any
-       field. *)
-    fun[@ocaml.warning "+9"] { mode_annotations; type_constraint } ->
-      sub.modes sub mode_annotations;
-      match type_constraint with
-      | Pconstraint ty ->
-          sub.typ sub ty
-      | Pcoerce (ty1, ty2) ->
-          Option.iter (sub.typ sub) ty1;
-          sub.typ sub ty2
-
-  let iter_function_body sub : N_ary.function_body -> _ = function
-    | Pfunction_body expr ->
-        sub.expr sub expr
-    | Pfunction_cases (cases, loc, attrs) ->
-        sub.cases sub cases;
-        sub.location sub loc;
-        sub.attributes sub attrs
-
-  let iter_n_ary_function sub : N_ary.expression -> _ =
-    fun (params, constraint_, body) ->
-      List.iter (iter_function_param sub) params;
-      Option.iter (iter_function_constraint sub) constraint_;
-      iter_function_body sub body
-
   let iter_labeled_tuple sub : LT.expression -> _ = function
     | el -> List.iter (iter_snd (sub.expr sub)) el
 
@@ -586,43 +543,42 @@ module E = struct
     | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
     | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
     | Jexp_layout layout_exp -> iter_layout_exp sub layout_exp
-    | Jexp_n_ary_function n_ary_exp -> iter_n_ary_function sub n_ary_exp
     | Jexp_tuple lt_exp -> iter_labeled_tuple sub lt_exp
     | Jexp_modes mode_exp -> iter_modes_exp sub mode_exp
 
-  let iter sub
-        ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
-||||||| 121bedcfd2
-  let iter sub {pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} =
-=======
-  let iter_function_param sub { pparam_loc = loc; pparam_desc = desc } =
-    sub.location sub loc;
-    match desc with
-    | Pparam_val (_lab, def, p) ->
-        iter_opt (sub.expr sub) def;
-        sub.pat sub p
-    | Pparam_newtype ty ->
-        iter_loc sub ty
+  let iter_function_param sub : function_param -> _ =
+    fun { pparam_loc = loc; pparam_desc = desc } ->
+      sub.location sub loc;
+      match desc with
+      | Pparam_val (_label, def, pat) ->
+          iter_opt (sub.expr sub) def;
+          sub.pat sub pat
+      | Pparam_newtype (newtype, jkind) ->
+          iter_loc sub newtype;
+          iter_opt (iter_loc_txt sub sub.jkind_annotation) jkind
 
-  let iter_body sub body =
-    match body with
-    | Pfunction_body e ->
-        sub.expr sub e
+  let iter_function_constraint sub : function_constraint -> _ =
+    (* Enable warning 9 to ensure that the record pattern doesn't miss any
+       field. *)
+    fun[@ocaml.warning "+9"] { mode_annotations; type_constraint } ->
+      sub.modes sub mode_annotations;
+      match type_constraint with
+      | Pconstraint ty ->
+          sub.typ sub ty
+      | Pcoerce (ty1, ty2) ->
+          Option.iter (sub.typ sub) ty1;
+          sub.typ sub ty2
+
+  let iter_function_body sub : function_body -> _ = function
+    | Pfunction_body expr ->
+        sub.expr sub expr
     | Pfunction_cases (cases, loc, attrs) ->
         sub.cases sub cases;
         sub.location sub loc;
         sub.attributes sub attrs
 
-  let iter_constraint sub constraint_ =
-    match constraint_ with
-    | Pconstraint ty ->
-        sub.typ sub ty
-    | Pcoerce (ty1, ty2) ->
-        iter_opt (sub.typ sub) ty1;
-        sub.typ sub ty2
-
-  let iter sub {pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} =
->>>>>>> 5.2.0
+  let iter sub
+      ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
     sub.location sub loc;
     match Jane_syntax.Expression.of_ast expr with
     | Some (jexp, attrs) ->
@@ -638,8 +594,8 @@ module E = struct
         sub.expr sub e
     | Pexp_function (params, constraint_, body) ->
         List.iter (iter_function_param sub) params;
-        iter_opt (iter_constraint sub) constraint_;
-        iter_body sub body
+        iter_opt (iter_function_constraint sub) constraint_;
+        iter_function_body sub body
     | Pexp_apply (e, l) ->
         sub.expr sub e; List.iter (iter_snd (sub.expr sub)) l
     | Pexp_match (e, pel) ->
@@ -1042,7 +998,6 @@ let default_iterator =
          | PTyp x -> this.typ this x
          | PPat (x, g) -> this.pat this x; iter_opt (this.expr this) g
       );
-<<<<<<< HEAD
 
     jkind_annotation =
       (fun this -> function
@@ -1056,8 +1011,6 @@ let default_iterator =
           this.jkind_annotation this t;
           this.typ this ty
         | Kind_of ty -> this.typ this ty);
-||||||| 121bedcfd2
-=======
 
     directive_argument =
       (fun this a ->
@@ -1076,5 +1029,4 @@ let default_iterator =
          | Ptop_def s -> this.structure this s
          | Ptop_dir d -> this.toplevel_directive this d
       );
->>>>>>> 5.2.0
   }

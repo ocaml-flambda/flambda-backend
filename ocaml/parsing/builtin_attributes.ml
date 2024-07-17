@@ -15,7 +15,6 @@
 
 open Asttypes
 open Parsetree
-<<<<<<< HEAD
 open Ast_helper
 
 
@@ -31,7 +30,11 @@ let mark_used t = Attribute_table.remove unused_attrs t
 (* [attr_order] is used to issue unused attribute warnings in the order the
    attributes occur in the file rather than the random order of the hash table
 *)
-let attr_order a1 a2 = Location.compare a1.loc a2.loc
+let attr_order a1 a2 =
+  match String.compare a1.loc.loc_start.pos_fname a2.loc.loc_start.pos_fname
+  with
+  | 0 -> Int.compare a1.loc.loc_start.pos_cnum a2.loc.loc_start.pos_cnum
+  | n -> n
 
 let unchecked_zero_alloc_attributes = Attribute_table.create 1
 let mark_zero_alloc_attribute_checked txt loc =
@@ -66,52 +69,59 @@ let warn_unused () =
    misplaced attribute warnings.  Explicitly excluded is [deprecated_mutable],
    which is currently broken in the compiler *)
 let builtin_attrs =
-  [ "inline"; "ocaml.inline"
-  ; "inlined"; "ocaml.inlined"
-  ; "specialise"; "ocaml.specialise"
-  ; "specialised"; "ocaml.specialised"
-  ; "tailcall"; "ocaml.tailcall"
-  ; "unrolled"; "ocaml.unrolled"
-  ; "error"; "ocaml.error"
-  ; "alert"; "ocaml.alert"
-  ; "deprecated"; "ocaml.deprecated"
-  ; "warning"; "ocaml.warning"
-  ; "warnerror"; "ocaml.warnerror"
-  ; "ppwarning"; "ocaml.ppwarning"
-  ; "explicit_arity"; "ocaml.explicit_arity"
-  ; "warn_on_literal_pattern"; "ocaml.warn_on_literal_pattern"
-  ; "immediate"; "ocaml.immediate"
-  ; "immediate64"; "ocaml.immediate64"
-  ; "boxed"; "ocaml.boxed"
-  ; "unboxed"; "ocaml.unboxed"
-  ; "principal"; "ocaml.principal"
-  ; "noprincipal"; "ocaml.noprincipal"
-  ; "nolabels"; "ocaml.nolabels"
-  ; "flambda_oclassic"; "ocaml.flambda_oclassic"
-  ; "flambda_o3"; "ocaml.flambda_o3"
-  ; "afl_inst_ratio"; "ocaml.afl_inst_ratio"
-  ; "local_opt"; "ocaml.local_opt"
-  ; "curry"; "ocaml.curry"; "extension.curry"
+  [ "inline"
+  ; "inlined"
+  ; "specialise"
+  ; "specialised"
+  ; "tailcall"
+  ; "unrolled"
+  ; "error"
+  ; "alert"
+  ; "deprecated"
+  ; "warning"
+  ; "warnerror"
+  ; "ppwarning"
+  ; "explicit_arity"
+  ; "warn_on_literal_pattern"
+  ; "immediate"
+  ; "immediate64"
+  ; "boxed"
+  ; "unboxed"
+  ; "principal"
+  ; "noprincipal"
+  ; "nolabels"
+  ; "flambda_oclassic"
+  ; "flambda_o3"
+  ; "afl_inst_ratio"
+  ; "local_opt"
+  ; "curry"; "extension.curry"
   (* [local] and [global] are never used and always trigger warning 53 *)
-  ; "global"; "ocaml.global"; "extension.global"
-  ; "local"; "ocaml.local"; "extension.local"
-  ; "nontail"; "ocaml.nontail"; "extension.nontail"
-  ; "tail"; "ocaml.tail"; "extension.tail"
-  ; "noalloc"; "ocaml.noalloc"
-  ; "zero_alloc"; "ocaml.zero_alloc"
-  ; "untagged"; "ocaml.untagged"
-  ; "poll"; "ocaml.poll"
-  ; "loop"; "ocaml.loop"
-  ; "tail_mod_cons"; "ocaml.tail_mod_cons"
-  ; "unaliasable"; "ocaml.unaliasable"
-  ; "builtin"; "ocaml.builtin"
-  ; "no_effects"; "ocaml.no_effects"
-  ; "no_coeffects"; "ocaml.no_coeffects"
-  ; "only_generative_effects"; "ocaml.only_generative_effects"
-  ; "error_message"; "ocaml.error_message"
-  ; "layout_poly"; "ocaml.layout_poly"
-  ; "no_mutable_implied_modalities"; "ocaml.no_mutable_implied_modalities"
+  ; "global"; "extension.global"
+  ; "local"; "extension.local"
+  ; "nontail"; "extension.nontail"
+  ; "tail"; "extension.tail"
+  ; "noalloc"
+  ; "zero_alloc"
+  ; "untagged"
+  ; "poll"
+  ; "loop"
+  ; "tail_mod_cons"
+  ; "unaliasable"
+  ; "builtin"
+  ; "no_effects"
+  ; "no_coeffects"
+  ; "only_generative_effects"
+  ; "error_message"
+  ; "layout_poly"
+  ; "no_mutable_implied_modalities"
   ]
+
+let drop_ocaml_attr_prefix s =
+  let len = String.length s in
+  if String.starts_with ~prefix:"ocaml." s && len > 6 then
+    String.sub s 6 (len - 6)
+  else
+    s
 
 (* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't
    upstream the "jane" prefix.
@@ -145,94 +155,10 @@ let is_builtin_attr =
     List.map (fun x -> x ^ ".") builtin_attr_prefixes
   in
   fun s ->
-    Hashtbl.mem builtin_attrs s
+    Hashtbl.mem builtin_attrs (drop_ocaml_attr_prefix s)
     || List.exists
         (fun prefix -> String.starts_with ~prefix s)
         builtin_attr_prefixes_with_trailing_dot
-
-type attr_tracking_time = Parser | Invariant_check
-
-let register_attr attr_tracking_time name =
-  match attr_tracking_time with
-  | Parser when !Clflags.all_ppx <> [] -> ()
-  | Parser | Invariant_check ->
-    if is_builtin_attr name.txt then
-      Attribute_table.replace unused_attrs name ()
-
-let ident_of_payload = function
-  | PStr[{pstr_desc=Pstr_eval({pexp_desc=Pexp_ident {txt=Lident id}},_)}] ->
-     Some id
-  | _ -> None
-||||||| 121bedcfd2
-=======
-open Ast_helper
-
-
-module Attribute_table = Hashtbl.Make (struct
-  type t = string with_loc
-
-  let hash : t -> int = Hashtbl.hash
-  let equal : t -> t -> bool = (=)
-end)
-let unused_attrs = Attribute_table.create 128
-let mark_used t = Attribute_table.remove unused_attrs t
-
-(* [attr_order] is used to issue unused attribute warnings in the order the
-   attributes occur in the file rather than the random order of the hash table
-*)
-let attr_order a1 a2 =
-  match String.compare a1.loc.loc_start.pos_fname a2.loc.loc_start.pos_fname
-  with
-  | 0 -> Int.compare a1.loc.loc_start.pos_cnum a2.loc.loc_start.pos_cnum
-  | n -> n
-
-let warn_unused () =
-  let keys = List.of_seq (Attribute_table.to_seq_keys unused_attrs) in
-  let keys = List.sort attr_order keys in
-  List.iter (fun sloc ->
-    Location.prerr_warning sloc.loc (Warnings.Misplaced_attribute sloc.txt))
-    keys
-
-(* These are the attributes that are tracked in the builtin_attrs table for
-   misplaced attribute warnings. *)
-let builtin_attrs =
-  [ "alert"
-  ; "boxed"
-  ; "deprecated"
-  ; "deprecated_mutable"
-  ; "explicit_arity"
-  ; "immediate"
-  ; "immediate64"
-  ; "inline"
-  ; "inlined"
-  ; "noalloc"
-  ; "poll"
-  ; "ppwarning"
-  ; "specialise"
-  ; "specialised"
-  ; "tailcall"
-  ; "tail_mod_cons"
-  ; "unboxed"
-  ; "untagged"
-  ; "unrolled"
-  ; "warnerror"
-  ; "warning"
-  ; "warn_on_literal_pattern"
-  ]
-
-let builtin_attrs =
-  let tbl = Hashtbl.create 128 in
-  List.iter (fun attr -> Hashtbl.add tbl attr ()) builtin_attrs;
-  tbl
-
-let drop_ocaml_attr_prefix s =
-  let len = String.length s in
-  if String.starts_with ~prefix:"ocaml." s && len > 6 then
-    String.sub s 6 (len - 6)
-  else
-    s
-
-let is_builtin_attr s = Hashtbl.mem builtin_attrs (drop_ocaml_attr_prefix s)
 
 type current_phase = Parser | Invariant_check
 
@@ -242,7 +168,11 @@ let register_attr current_phase name =
   | Parser | Invariant_check ->
     if is_builtin_attr name.txt then
       Attribute_table.replace unused_attrs name ()
->>>>>>> 5.2.0
+
+let ident_of_payload = function
+  | PStr[{pstr_desc=Pstr_eval({pexp_desc=Pexp_ident {txt=Lident id}},_)}] ->
+     Some id
+  | _ -> None
 
 let string_of_cst = function
   | Pconst_string(s, _, _) -> Some s
@@ -361,32 +291,6 @@ let cat s1 s2 =
   if s2 = "" then s1 else s1 ^ "\n" ^ s2
 
 let alert_attr x =
-<<<<<<< HEAD
-  match x.attr_name.txt with
-  | "ocaml.deprecated"|"deprecated" -> begin
-      mark_used x.attr_name;
-      Some (x, "deprecated", string_of_opt_payload x.attr_payload)
-    end
-  | "ocaml.alert"|"alert" ->
-      begin match kind_and_message x.attr_payload with
-      | Some (kind, message) -> begin
-        mark_used x.attr_name;
-        Some (x, kind, message)
-      end
-      | None -> None (* note: bad payloads detected by warning_attribute *)
-      end
-  | _ -> None
-||||||| 121bedcfd2
-  match x.attr_name.txt with
-  | "ocaml.deprecated"|"deprecated" ->
-      Some (x, "deprecated", string_of_opt_payload x.attr_payload)
-  | "ocaml.alert"|"alert" ->
-      begin match kind_and_message x.attr_payload with
-      | Some (kind, message) -> Some (x, kind, message)
-      | None -> None (* note: bad payloads detected by warning_attribute *)
-      end
-  | _ -> None
-=======
   if attr_equals_builtin x "deprecated" then
     Some (x, "deprecated", string_of_opt_payload x.attr_payload)
   else if attr_equals_builtin x "alert" then
@@ -395,36 +299,9 @@ let alert_attr x =
     | None -> None (* note: bad payloads detected by warning_attribute *)
     end
   else None
->>>>>>> 5.2.0
 
 let alert_attrs l =
   List.filter_map alert_attr l
-
-let mark_alert_used a =
-  match a.attr_name.txt with
-  | "ocaml.deprecated"|"deprecated"|"ocaml.alert"|"alert" ->
-    mark_used a.attr_name
-  | _ -> ()
-
-let mark_alerts_used l = List.iter mark_alert_used l
-
-let mark_warn_on_literal_pattern_used l =
-  List.iter (fun a ->
-    match a.attr_name.txt with
-    | "ocaml.warn_on_literal_pattern"|"warn_on_literal_pattern" ->
-      mark_used a.attr_name
-    | _ -> ())
-    l
-
-let mark_payload_attrs_used payload =
-  let iter =
-    { Ast_iterator.default_iterator
-      with attribute = fun self a ->
-        mark_used a.attr_name;
-        Ast_iterator.default_iterator.attribute self a
-    }
-  in
-  iter.payload iter payload
 
 let alerts_of_attrs l =
   List.fold_left
@@ -530,67 +407,6 @@ let warning_attribute ?(ppwarning = true) =
             warn_payload loc name.txt "Invalid payload"
           end
   in
-<<<<<<< HEAD
-  function
-  | {attr_name = {txt = ("ocaml.warning"|"warning"); _} as name;
-     attr_loc;
-     attr_payload;
-     } ->
-      process attr_loc name false attr_payload
-  | {attr_name = {txt = ("ocaml.warnerror"|"warnerror"); _} as name;
-     attr_loc;
-     attr_payload
-    } ->
-      process attr_loc name true attr_payload
-  | {attr_name = {txt="ocaml.ppwarning"|"ppwarning"; _} as name;
-     attr_loc = _;
-     attr_payload =
-       PStr [
-         { pstr_desc=
-             Pstr_eval({pexp_desc=Pexp_constant (Pconst_string (s, _, _))},_);
-           pstr_loc }
-       ];
-    } when ppwarning ->
-    (mark_used name;
-     Location.prerr_warning pstr_loc (Warnings.Preprocessor s))
-  | {attr_name = {txt = ("ocaml.alert"|"alert"); _} as name;
-     attr_loc;
-     attr_payload;
-     } ->
-      (mark_used name;
-       process_alert attr_loc name.txt attr_payload)
-  | _ ->
-     ()
-||||||| 121bedcfd2
-  function
-  | {attr_name = {txt = ("ocaml.warning"|"warning") as txt; _};
-     attr_loc;
-     attr_payload;
-     } ->
-      process attr_loc txt false attr_payload
-  | {attr_name = {txt = ("ocaml.warnerror"|"warnerror") as txt; _};
-     attr_loc;
-     attr_payload
-    } ->
-      process attr_loc txt true attr_payload
-  | {attr_name = {txt="ocaml.ppwarning"|"ppwarning"; _};
-     attr_loc = _;
-     attr_payload =
-       PStr [
-         { pstr_desc=
-             Pstr_eval({pexp_desc=Pexp_constant (Pconst_string (s, _, _))},_);
-           pstr_loc }
-       ];
-    } when ppwarning ->
-     Location.prerr_warning pstr_loc (Warnings.Preprocessor s)
-  | {attr_name = {txt = ("ocaml.alert"|"alert") as txt; _};
-     attr_loc;
-     attr_payload;
-     } ->
-      process_alert attr_loc txt attr_payload
-  | _ ->
-     ()
-=======
   fun ({attr_name; attr_loc; attr_payload} as attr) ->
     if attr_equals_builtin attr "warning" then
       process attr_loc attr_name false attr_payload
@@ -611,7 +427,6 @@ let warning_attribute ?(ppwarning = true) =
          warn_payload attr_loc attr_name.txt
            "A single string literal is expected")
       end
->>>>>>> 5.2.0
 
 let warning_scope ?ppwarning attrs f =
   let prev = Warnings.backup () in
@@ -624,45 +439,14 @@ let warning_scope ?ppwarning attrs f =
     Warnings.restore prev;
     raise exn
 
-<<<<<<< HEAD
-let has_attribute nms attrs =
-||||||| 121bedcfd2
-
-let warn_on_literal_pattern =
-=======
 let has_attribute nm attrs =
->>>>>>> 5.2.0
   List.exists
-<<<<<<< HEAD
-    (fun a ->
-       if List.mem a.attr_name.txt nms
-       then (mark_used a.attr_name; true)
-       else false)
-    attrs
-||||||| 121bedcfd2
-    (fun a -> match a.attr_name.txt with
-       | "ocaml.warn_on_literal_pattern"|"warn_on_literal_pattern" -> true
-       | _ -> false
-    )
-=======
     (fun a ->
        if attr_equals_builtin a nm
        then (mark_used a.attr_name; true)
        else false)
     attrs
->>>>>>> 5.2.0
 
-<<<<<<< HEAD
-module Attributes_filter = struct
-  type t = (string list * bool) list
-||||||| 121bedcfd2
-let explicit_arity =
-  List.exists
-    (fun a -> match a.attr_name.txt with
-       | "ocaml.explicit_arity"|"explicit_arity" -> true
-       | _ -> false
-    )
-=======
 type attr_action = Mark_used_only | Return
 let select_attributes actions attrs =
   List.filter (fun a ->
@@ -674,39 +458,11 @@ let select_attributes actions attrs =
       end)
       actions
   ) attrs
->>>>>>> 5.2.0
 
-<<<<<<< HEAD
-  let create (t : t) = t
-end
-||||||| 121bedcfd2
-let immediate =
-  List.exists
-    (fun a -> match a.attr_name.txt with
-       | "ocaml.immediate"|"immediate" -> true
-       | _ -> false
-    )
-=======
-let warn_on_literal_pattern attrs =
-  has_attribute "warn_on_literal_pattern" attrs
->>>>>>> 5.2.0
-
-<<<<<<< HEAD
-let filter_attributes ?(mark=true) (nms_and_conds : Attributes_filter.t) attrs =
-  List.filter (fun a ->
-    List.exists (fun (nms, cond) ->
-      if List.mem a.attr_name.txt nms
-      then (if mark then mark_used a.attr_name; cond)
-      else false)
-      nms_and_conds
-  ) attrs
-
-let find_attribute ?mark_used p attributes =
-  let inline_attribute =
-    filter_attributes ?mark:mark_used p attributes
-  in
+let select_attribute p attributes =
+  let attributes = select_attributes p attributes in
   let attr =
-    match inline_attribute with
+    match attributes with
     | [] -> None
     | [attr] -> Some attr
     | attr :: {Parsetree.attr_name = {txt;loc}; _} :: _ ->
@@ -720,13 +476,6 @@ let when_attribute_is nms attr ~f =
     mark_used attr.attr_name;
     f ()
   end
-
-let warn_on_literal_pattern attrs =
-  has_attribute ["ocaml.warn_on_literal_pattern"; "warn_on_literal_pattern"]
-    attrs
-
-let explicit_arity attrs =
-  has_attribute ["ocaml.explicit_arity"; "explicit_arity"] attrs
 
 type jkind_attribute =
   | Immediate64
@@ -755,20 +504,11 @@ let jkind attrs =
   | Some (a, l) ->
      mark_used a.attr_name;
      Some (Location.mkloc l a.attr_loc)
-||||||| 121bedcfd2
-let immediate64 =
-  List.exists
-    (fun a -> match a.attr_name.txt with
-       | "ocaml.immediate64"|"immediate64" -> true
-       | _ -> false
-    )
-=======
+
+let warn_on_literal_pattern attrs =
+  has_attribute "warn_on_literal_pattern" attrs
+
 let explicit_arity attrs = has_attribute "explicit_arity" attrs
-
-let immediate attrs = has_attribute "immediate" attrs
-
-let immediate64 attrs = has_attribute "immediate64" attrs
->>>>>>> 5.2.0
 
 (* The "ocaml.boxed (default)" and "ocaml.unboxed (default)"
    attributes cannot be input by the user, they are added by the
@@ -777,16 +517,9 @@ let immediate64 attrs = has_attribute "immediate64" attrs
    source file because the default can change between compiler
    invocations. *)
 
-<<<<<<< HEAD
-let has_unboxed attrs = has_attribute ["ocaml.unboxed"; "unboxed"] attrs
-||||||| 121bedcfd2
-let check l a = List.mem a.attr_name.txt l
-=======
 let has_unboxed attrs = has_attribute "unboxed" attrs
->>>>>>> 5.2.0
 
-<<<<<<< HEAD
-let has_boxed attrs = has_attribute ["ocaml.boxed"; "boxed"] attrs
+let has_boxed attrs = has_attribute "boxed" attrs
 
 let parse_empty_payload attr =
   match attr.attr_payload with
@@ -908,21 +641,21 @@ let parse_standard_implementation_attributes attr =
   zero_alloc_attribute attr
 
 let has_no_mutable_implied_modalities attrs =
-  has_attribute ["ocaml.no_mutable_implied_modalities";"no_mutable_implied_modalities"] attrs
+  has_attribute "no_mutable_implied_modalities" attrs
 
 let has_local_opt attrs =
-  has_attribute ["ocaml.local_opt"; "local_opt"] attrs
+  has_attribute "local_opt" attrs
 
 let has_layout_poly attrs =
-  has_attribute ["ocaml.layout_poly"; "layout_poly"] attrs
+  has_attribute "layout_poly" attrs
 
 let has_curry attrs =
-  has_attribute
-    [Jane_syntax.Arrow_curry.curry_attr_name; "ocaml.curry"; "curry"] attrs
+  has_attribute Jane_syntax.Arrow_curry.curry_attr_name attrs
+  || has_attribute "curry" attrs
 
 let tailcall attr =
-  let has_nontail = has_attribute ["ocaml.nontail"; "nontail"] attr in
-  let tail_attrs = filter_attributes [["ocaml.tail";"tail"], true] attr in
+  let has_nontail = has_attribute "nontail" attr in
+  let tail_attrs = select_attributes ["tail", Return] attr in
   match has_nontail, tail_attrs with
   | true, (_ :: _) -> Error `Conflict
   | _, (_ :: _ :: _) -> Error `Conflict
@@ -982,7 +715,7 @@ let is_zero_alloc_check_enabled ~opt =
   | Check_opt_only -> opt
 
 let is_zero_alloc_attribute =
-  [ ["zero_alloc"; "ocaml.zero_alloc"], true ]
+  [ "zero_alloc", Return ]
 
 let get_payload get_from_exp =
   let open Parsetree in
@@ -1182,7 +915,7 @@ let parse_zero_alloc_attribute ~is_arity_allowed ~default_arity attr =
       parse_zero_alloc_payload ~loc ~arity ~warn ~empty:(empty arity) payload
 
 let get_zero_alloc_attribute ~in_signature ~default_arity l =
-  let attr = find_attribute is_zero_alloc_attribute l in
+  let attr = select_attribute is_zero_alloc_attribute l in
   let res =
       parse_zero_alloc_attribute ~is_arity_allowed:in_signature ~default_arity
         attr
@@ -1265,13 +998,3 @@ let get_tracing_probe_payload (payload : Parsetree.payload) =
     | _ -> Error ()
   in
   Ok { name; name_loc; enabled_at_init; arg }
-||||||| 121bedcfd2
-let has_unboxed attr =
-  List.exists (check ["ocaml.unboxed"; "unboxed"])
-    attr
-
-let has_boxed attr =
-  List.exists (check ["ocaml.boxed"; "boxed"]) attr
-=======
-let has_boxed attrs = has_attribute "boxed" attrs
->>>>>>> 5.2.0

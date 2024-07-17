@@ -261,16 +261,8 @@ let print_filename ppf file =
    Some of the information (filename, line number or characters numbers) in the
    location might be invalid; in which case we do not print it.
  *)
-<<<<<<< HEAD
 let print_loc ~capitalize_first ppf loc =
-  setup_colors ();
-||||||| 121bedcfd2
-let print_loc ppf loc =
-  setup_colors ();
-=======
-let print_loc ppf loc =
   setup_tags ();
->>>>>>> 5.2.0
   let file_valid = function
     | "_none_" ->
         (* This is a dummy placeholder, but we print it anyway to please editors

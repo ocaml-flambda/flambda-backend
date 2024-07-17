@@ -24,21 +24,9 @@ type error =
 
 exception Error of Location.t * error
 
-<<<<<<< HEAD
-let get_no_payload_attribute alt_names attrs =
-  match
-    Builtin_attributes.filter_attributes
-      (Builtin_attributes.Attributes_filter.create [alt_names,true])
-      attrs
-  with
-||||||| 121bedcfd2
-let get_no_payload_attribute alt_names attrs =
-  match List.filter (fun a -> List.mem a.attr_name.txt alt_names) attrs with
-=======
 let get_no_payload_attribute nm attrs =
   let actions = [(nm, Builtin_attributes.Return)] in
   match Builtin_attributes.select_attributes actions attrs with
->>>>>>> 5.2.0
   | [] -> None
   | [ {attr_name = name; attr_payload = PStr []; attr_loc = _} ] -> Some name
   | [ {attr_name = name; _} ] ->
