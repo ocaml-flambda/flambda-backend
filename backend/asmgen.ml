@@ -466,7 +466,7 @@ let compile_phrases ~ppf_dump ps =
             (* Output function-level profiling if specified by user *)
             if !Clflags.profile_granularity = Profile.Function_level then
               (
-                Printf.printf "%s:\n" fd.fun_name.sym_name;
+                Printf.printf "%s\n" fd.fun_name.sym_name;
                 Profile.print Format.std_formatter !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision;
                 Printf.printf "\n";
               );

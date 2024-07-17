@@ -335,21 +335,26 @@ let display_rows ppf rows =
                   else String.make width '-'
   in
   let widths = width_by_column ~n_columns ~display_cell rows in
-  let rec loop (R (name, values, rows)) ~indentation =
+  (* We track print row functions in a queue to ensure ancestors not worth displaying have
+  print functions executed if a descendant is worth displaying (possible with counters) *)
+  let rec loop (R (name, values, rows)) ~indentation ~print_stack =
     let worth_displaying, cell_strings =
       values
       |> List.mapi (fun i cell -> display_cell i cell ~width:widths.(i))
       |> List.split
     in
-    if List.exists (fun b -> b) worth_displaying then
-      Format.fprintf ppf "%s%s %s@\n"
-        indentation (String.concat " " cell_strings) name
-    (* Display file name no matter what (can be omitted by counters) *)
-    else if String.ends_with ~suffix:".ml" name then
-      Format.fprintf ppf "%s:\n" name;
-    List.iter (loop ~indentation:("  " ^ indentation)) rows;
+    let should_display_row = List.exists (fun b -> b) worth_displaying in
+    let print_row () =
+      let cell_data = if should_display_row then String.concat " " cell_strings else "" in
+      Format.fprintf ppf "%s%s %s@\n" indentation cell_data name
+    in
+    print_stack := print_row :: !print_stack;
+    if should_display_row then
+      (List.rev !print_stack |> List.iter (fun f -> f ()); print_stack := []);
+    List.iter (loop ~indentation:("  " ^ indentation) ~print_stack) rows;
+    if !print_stack <> [] then print_stack := List.tl !print_stack
   in
-  List.iter (loop ~indentation:"") rows
+  List.iter (loop ~indentation:"" ~print_stack:(ref [])) rows
 
 let print ppf columns ~timings_precision =
   match columns with
