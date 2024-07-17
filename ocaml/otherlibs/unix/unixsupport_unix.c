@@ -20,17 +20,10 @@
 #include <caml/callback.h>
 #include <caml/memory.h>
 #include <caml/fail.h>
-<<<<<<< HEAD
 #ifdef CAML_RUNTIME_5
 #include <caml/platform.h>
 #endif
-#include "unixsupport.h"
-||||||| 121bedcfd2
-#include "unixsupport.h"
-=======
-#include <caml/platform.h>
 #include "caml/unixsupport.h"
->>>>>>> 5.2.0
 #include "cst2constr.h"
 #include <errno.h>
 #ifdef HAS_UNISTD
