@@ -366,15 +366,9 @@ let maybe_modes_type pty ctxt f c =
 
 let modalities_type pty ctxt f pca =
   let modalities = Split_modalities.split_list pca.pca_modalities in
-  let space_if_legacies =
-    match modalities.legacy with
-    | [] -> ""
-    | _ :: _ -> " "
-  in
-  pp f "%a%s%a%a" legacy_modalities modalities.legacy
-                  space_if_legacies
-                  (pty ctxt) pca.pca_type
-                  maybe_atat_modalities modalities.nonlegacy
+  optional_legacy_modalities f modalities.legacy;
+  pty ctxt f pca.pca_type;
+  maybe_atat_modalities f modalities.nonlegacy
 
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
