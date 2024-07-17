@@ -160,7 +160,13 @@ let debug_ocaml = ref false             (* -debug-ocaml *)
 let default_timings_precision  = 3
 let timings_precision = ref default_timings_precision (* -dtimings-precision *)
 let profile_columns : profile_column list ref = ref [] (* -dprofile/-dtimings/-dcounters *)
-let profile_granularity : profile_granularity_level ref = ref File_level (* -dfunc-level *)
+let profile_granularity : profile_granularity_level ref = ref File_level (* -dgranularity *)
+
+let set_profile_granularity v =
+  profile_granularity := match v with
+  | "file" -> File_level
+  | "func" -> Function_level
+  | _ -> raise (Invalid_argument (Format.sprintf "profile granularity: %s" v))
 
 let native_code = ref false             (* set to true under ocamlopt *)
 

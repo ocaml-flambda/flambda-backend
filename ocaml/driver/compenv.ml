@@ -482,12 +482,19 @@ let read_one_param ppf position name v =
   | "can-discard" ->
     can_discard := v ::!can_discard
 
-  | "timings" | "profile" ->
-     let if_on = if name = "timings" then [ `Time ] else Profile.all_columns in
+  | "timings" | "counters" | "profile" ->
+    let if_on = match name with
+      | "timings" -> [ `Time ]
+      | "counters" -> [ `Counters ]
+      | "profile" -> Profile.all_columns
+      | _ -> assert false
+    in
      profile_columns := if check_bool ppf name v then if_on else []
 
   | "timings-precision" ->
      int_setter ppf "timings-precision" timings_precision v
+
+  | "granularity" -> Clflags.set_profile_granularity v
 
   | "stop-after" ->
     set_compiler_pass ppf v ~name Clflags.stop_after ~filter:(fun _ -> true)

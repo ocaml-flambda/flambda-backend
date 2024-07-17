@@ -534,8 +534,10 @@ let mk_dcounters f =
 let mk_dprofile f =
   "-dprofile", Arg.Unit f, Profile.options_doc
 
-let mk_dfunc_level f =
-  "-dfunc-level", Arg.Unit f, " Print function level profile information (default file)";
+let mk_dgranularity f =
+  "-dgranularity",
+  Arg.Symbol (["file"; "func"], f),
+  " Specify granularity level for profile information (-dtimings, -dcounters, -dprofile)";
 ;;
 
 let mk_unbox_closures f =
@@ -1040,7 +1042,7 @@ module type Compiler_options = sig
   val _dtimings_precision : int -> unit
   val _dcounters : unit -> unit
   val _dprofile : unit -> unit
-  val _dfunc_level : unit -> unit
+  val _dgranularity : string -> unit
   val _dump_into_file : unit -> unit
   val _dump_dir : string -> unit
 
@@ -1315,7 +1317,7 @@ struct
     mk_dtimings_precision F._dtimings_precision;
     mk_dcounters F._dcounters;
     mk_dprofile F._dprofile;
-    mk_dfunc_level F._dfunc_level;
+    mk_dgranularity F._dgranularity;
     mk_dump_into_file F._dump_into_file;
     mk_dump_dir F._dump_dir;
     mk_debug_ocaml F._debug_ocaml;
@@ -1583,7 +1585,7 @@ struct
     mk_dtimings_precision F._dtimings_precision;
     mk_dcounters F._dcounters;
     mk_dprofile F._dprofile;
-    mk_dfunc_level F._dfunc_level;
+    mk_dgranularity F._dgranularity;
     mk_dump_into_file F._dump_into_file;
     mk_dump_dir F._dump_dir;
     mk_dump_pass F._dump_pass;
@@ -2027,7 +2029,7 @@ module Default = struct
     let _dtimings () = profile_columns := [`Time]
     let _dtimings_precision n = timings_precision := n
     let _dcounters () = profile_columns := [`Counters]
-    let _dfunc_level () = profile_granularity := Function_level
+    let _dgranularity = Clflags.set_profile_granularity
     let _dump_into_file = set dump_into_file
     let _dump_dir s = dump_dir := Some s
     let _for_pack s = for_package := (Some (String.capitalize_ascii s))
