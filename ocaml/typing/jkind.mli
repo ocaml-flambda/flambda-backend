@@ -75,23 +75,6 @@ module Layout : sig
     val get_sort : t -> Sort.Const.t option
 
     val to_string : t -> string
-
-    (* CR layouts v2.8: remove this *)
-    module Legacy : sig
-      type t = Jkind_types.Layout.Const.Legacy.t =
-        | Any
-        | Any_non_null
-        | Value_or_null
-        | Value
-        | Void
-        | Immediate64
-        | Immediate
-        | Float64
-        | Float32
-        | Word
-        | Bits32
-        | Bits64
-    end
   end
 end
 
@@ -174,11 +157,6 @@ module Const : sig
 
   (** Gets the layout of a constant jkind. Never does mutation. *)
   val get_layout : t -> Layout.Const.t
-
-  (* CR layouts v2.8: remove this *)
-
-  (** Gets the legacy layout of a constant jkind. Never does mutation. *)
-  val get_legacy_layout : t -> Layout.Const.Legacy.t
 
   (** Gets the maximum modes for types of this constant jkind. *)
   val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
