@@ -562,11 +562,6 @@ OCAML_NATIVE_PROGRAMS = \
 $(foreach PROGRAM, $(OCAML_NATIVE_PROGRAMS),\
   $(eval $(call OCAML_NATIVE_PROGRAM,$(PROGRAM))))
 
-<<<<<<< HEAD
-USE_RUNTIME_PRIMS = -use-prims ../$(RUNTIME_DIR)/primitives
-||||||| 121bedcfd2
-USE_RUNTIME_PRIMS = -use-prims ../runtime/primitives
-=======
 # OCaml libraries that are compiled in both bytecode and native code
 
 # List of compilerlibs
@@ -583,7 +578,7 @@ COMPILERLIBS = $(addprefix compilerlibs/, \
 # with ./ocamlc (e.g. ocamltex)
 
 $(COMPILERLIBS:=.cma): \
-  CAMLC = $(BOOT_OCAMLC) $(BOOT_STDLIBFLAGS) -use-prims runtime/primitives
+  CAMLC = $(BOOT_OCAMLC) $(BOOT_STDLIBFLAGS) -use-prims $(RUNTIME_DIR)/primitives
 
 # The following dependency ensures that the two versions of the
 # configuration module (the one for the bootstrap compiler and the
@@ -611,8 +606,7 @@ OCAML_NATIVE_LIBRARIES =
 $(foreach LIBRARY, $(OCAML_NATIVE_LIBRARIES),\
   $(eval $(call OCAML_NATIVE_LIBRARY,$(LIBRARY))))
 
-USE_RUNTIME_PRIMS = -use-prims ../runtime/primitives
->>>>>>> 5.2.0
+USE_RUNTIME_PRIMS = -use-prims ../$(RUNTIME_DIR)/primitives
 USE_STDLIB = -nostdlib -I ../stdlib
 
 FLEXDLL_OBJECTS = \
@@ -625,11 +619,6 @@ FLEXDLL_SOURCES = \
   $(addprefix $(FLEXDLL_SOURCE_DIR)/, flexdll.c flexdll_initer.c flexdll.h) \
   $(wildcard $(FLEXDLL_SOURCE_DIR)/*.ml*)
 
-<<<<<<< HEAD
-boot/ocamlruns$(EXE): $(RUNTIME_DIR)/ocamlruns$(EXE)
-||||||| 121bedcfd2
-boot/ocamlruns$(EXE): runtime/ocamlruns$(EXE)
-=======
 $(BYTE_BINDIR) $(OPT_BINDIR):
 	$(MKDIR) $@
 
@@ -656,94 +645,29 @@ partialclean::
 	rm -f $(BYTE_BINDIR)/flexlink $(BYTE_BINDIR)/flexlink.exe
 
 ifeq "$(BOOTSTRAPPING_FLEXDLL)" "true"
-# The recipe for runtime/ocamlruns$(EXE) also produces runtime/primitives
-boot/ocamlrun$(EXE): runtime/ocamlruns$(EXE)
+# The recipe for $(RUNTIME_DIR)/ocamlruns$(EXE) also produces $(RUNTIME_DIR)/primitives
+boot/ocamlrun$(EXE): $(RUNTIME_DIR)/ocamlruns$(EXE)
 
 $(foreach runtime, ocamlrun ocamlrund ocamlruni, \
-  $(eval runtime/$(runtime)$(EXE): | $(BYTE_BINDIR)/flexlink$(EXE)))
+  $(eval $(RUNTIME_DIR)/$(runtime)$(EXE): | $(BYTE_BINDIR)/flexlink$(EXE)))
 
 tools/checkstack$(EXE): | $(BYTE_BINDIR)/flexlink$(EXE)
 else
-boot/ocamlrun$(EXE): runtime/ocamlrun$(EXE) runtime/primitives
+boot/ocamlrun$(EXE): $(RUNTIME_DIR)/ocamlrun$(EXE) $(RUNTIME_DIR)/primitives
 endif
 
-# $< refers to runtime/ocamlruns when bootstrapping flexlink and
-# runtime/ocamlrun otherwise (see above).
+# $< refers to $(RUNTIME_DIR)/ocamlruns when bootstrapping flexlink and
+# $(RUNTIME_DIR)/ocamlrun otherwise (see above).
 boot/ocamlrun$(EXE):
->>>>>>> 5.2.0
 	cp $< $@
 
 # Start up the system from the distribution compiler
-<<<<<<< HEAD
-# The process depends on whether FlexDLL is also being bootstrapped.
-# Normal procedure:
-#   - Build the runtime
-#   - Build the standard library using $(RUNTIME_DIR)/ocamlrun
-# FlexDLL procedure:
-#   - Build ocamlruns
-#   - Build the standard library using boot/ocamlruns
-#   - Build flexlink and FlexDLL support objects
-#   - Build the runtime
-# $(RUNTIME_DIR)/ocamlrun is then installed to boot/ocamlrun and the stdlib artefacts
-# are copied to boot/
-||||||| 121bedcfd2
-# The process depends on whether FlexDLL is also being bootstrapped.
-# Normal procedure:
-#   - Build the runtime
-#   - Build the standard library using runtime/ocamlrun
-# FlexDLL procedure:
-#   - Build ocamlruns
-#   - Build the standard library using boot/ocamlruns
-#   - Build flexlink and FlexDLL support objects
-#   - Build the runtime
-# runtime/ocamlrun is then installed to boot/ocamlrun and the stdlib artefacts
-# are copied to boot/
-=======
->>>>>>> 5.2.0
 .PHONY: coldstart
-<<<<<<< HEAD
-coldstart: $(COLDSTART_DEPS)
-ifeq "$(BOOTSTRAPPING_FLEXDLL)" "false"
-	$(MAKE) runtime-all
-	$(MAKE) -C stdlib \
-	  OCAMLRUN='$$(ROOTDIR)/$(RUNTIME_DIR)/ocamlrun$(EXE)' \
-	  CAMLC='$$(BOOT_OCAMLC) $(USE_RUNTIME_PRIMS)' all
-else
-	$(MAKE) -C stdlib OCAMLRUN='$$(ROOTDIR)/boot/ocamlruns$(EXE)' \
-    CAMLC='$$(BOOT_OCAMLC)' all
-	$(MAKE) boot/flexlink.byte$(EXE)
-	$(MAKE) runtime-all
-endif # ifeq "$(BOOTSTRAPPING_FLEXDLL)" "false"
-	rm -f boot/ocamlrun$(EXE)
-	cp $(RUNTIME_DIR)/ocamlrun$(EXE) boot/ocamlrun$(EXE)
-	cd boot; rm -f $(LIBFILES)
-	cd stdlib; cp $(LIBFILES) ../boot
-	cd boot; $(LN) ../$(RUNTIME_DIR)/libcamlrun.$(A) .
-||||||| 121bedcfd2
-coldstart: $(COLDSTART_DEPS)
-ifeq "$(BOOTSTRAPPING_FLEXDLL)" "false"
-	$(MAKE) runtime-all
-	$(MAKE) -C stdlib \
-	  OCAMLRUN='$$(ROOTDIR)/runtime/ocamlrun$(EXE)' \
-	  CAMLC='$$(BOOT_OCAMLC) $(USE_RUNTIME_PRIMS)' all
-else
-	$(MAKE) -C stdlib OCAMLRUN='$$(ROOTDIR)/boot/ocamlruns$(EXE)' \
-    CAMLC='$$(BOOT_OCAMLC)' all
-	$(MAKE) boot/flexlink.byte$(EXE)
-	$(MAKE) runtime-all
-endif # ifeq "$(BOOTSTRAPPING_FLEXDLL)" "false"
-	rm -f boot/ocamlrun$(EXE)
-	cp runtime/ocamlrun$(EXE) boot/ocamlrun$(EXE)
-	cd boot; rm -f $(LIBFILES)
-	cd stdlib; cp $(LIBFILES) ../boot
-	cd boot; $(LN) ../runtime/libcamlrun.$(A) .
-=======
-coldstart: boot/ocamlrun$(EXE) runtime/libcamlrun.$(A)
+coldstart: boot/ocamlrun$(EXE) $(RUNTIME_DIR)/libcamlrun.$(A)
 	$(MAKE) -C stdlib OCAMLRUN='$$(ROOTDIR)/$<' USE_BOOT_OCAMLC=true all
 	rm -f $(addprefix boot/, libcamlrun.$(A) $(LIBFILES))
 	cp $(addprefix stdlib/, $(LIBFILES)) boot
-	cd boot; $(LN) ../runtime/libcamlrun.$(A) .
->>>>>>> 5.2.0
+	cd boot; $(LN) ../$(RUNTIME_DIR)/libcamlrun.$(A) .
 
 # Recompile the core system using the bootstrap compiler
 .PHONY: coreall
@@ -1055,19 +979,11 @@ partialclean::
 TOPFLAGS ?=
 OC_TOPFLAGS = $(STDLIBFLAGS) -I toplevel -noinit $(TOPINCLUDES) $(TOPFLAGS)
 
-<<<<<<< HEAD
-# Note: Beware that, since this rule begins with a coldstart, both
-# boot/ocamlrun and $(RUNTIME_DIR)/ocamlrun will be the same when the toplevel
-||||||| 121bedcfd2
-# Note: Beware that, since this rule begins with a coldstart, both
-# boot/ocamlrun and runtime/ocamlrun will be the same when the toplevel
-=======
 RUN_OCAML = $(RLWRAP) $(OCAMLRUN) ./ocaml$(EXE) $(OC_TOPFLAGS)
 RUN_OCAMLNAT = $(RLWRAP) ./ocamlnat$(EXE) $(OC_TOPFLAGS)
 
 # Note: Beware that, since these rules begin with a coldstart, both
-# boot/ocamlrun and runtime/ocamlrun will be the same when the toplevel
->>>>>>> 5.2.0
+# boot/ocamlrun and $(RUNTIME_DIR)/ocamlrun will be the same when the toplevel
 # is run.
 .PHONY: runtop
 runtop: coldstart
@@ -1300,20 +1216,12 @@ runtime_BYTECODE_ONLY_C_SOURCES = \
   fail_byt \
   fix_code \
   interp \
-<<<<<<< HEAD
-  startup_byt
-||||||| 121bedcfd2
-  startup_byt
-runtime_BYTECODE_C_SOURCES = \
-  $(runtime_COMMON_C_SOURCES:%=runtime/%.c) \
-  $(runtime_BYTECODE_ONLY_C_SOURCES:%=runtime/%.c)
-=======
   startup_byt \
   zstd
+
 runtime_BYTECODE_C_SOURCES = \
-  $(runtime_COMMON_C_SOURCES:%=runtime/%.c) \
-  $(runtime_BYTECODE_ONLY_C_SOURCES:%=runtime/%.c)
->>>>>>> 5.2.0
+  $(runtime_COMMON_C_SOURCES:%=$(RUNTIME_DIR)/%.c) \
+  $(runtime_BYTECODE_ONLY_C_SOURCES:%=$(RUNTIME_DIR)/%.c)
 
 runtime_NATIVE_ONLY_C_SOURCES = \
   backtrace_nat \
@@ -1335,14 +1243,8 @@ runtime_NATIVE_C_SOURCES = \
   $(runtime$(RUNTIME_SUFFIX)_NATIVE_ONLY_C_SOURCES:%=$(RUNTIME_DIR)/%.c)
 
 ## Header files generated by configure
-<<<<<<< HEAD
-runtime_CONFIGURED_HEADERS = $(addprefix $(RUNTIME_DIR)/caml/, m.h s.h version.h)
-||||||| 121bedcfd2
-runtime_CONFIGURED_HEADERS = $(addprefix runtime/caml/, m.h s.h version.h)
-=======
 runtime_CONFIGURED_HEADERS = \
-  $(addprefix runtime/caml/, exec.h m.h s.h version.h)
->>>>>>> 5.2.0
+  $(addprefix $(RUNTIME_DIR)/caml/, exec.h m.h s.h version.h)
 
 ## Header files generated by make
 runtime_BUILT_HEADERS = $(addprefix $(RUNTIME_DIR)/, \
@@ -1354,14 +1256,8 @@ runtime_PROGRAMS = $(RUNTIME_DIR)/ocamlrun$(EXE)
 runtime_BYTECODE_STATIC_LIBRARIES = $(addprefix $(RUNTIME_DIR)/, \
   ld.conf libcamlrun.$(A))
 runtime_BYTECODE_SHARED_LIBRARIES =
-<<<<<<< HEAD
-runtime_NATIVE_STATIC_LIBRARIES = $(RUNTIME_DIR)/libasmrun.$(A)
-||||||| 121bedcfd2
-runtime_NATIVE_STATIC_LIBRARIES = runtime/libasmrun.$(A)
-=======
 runtime_NATIVE_STATIC_LIBRARIES = \
-  runtime/libasmrun.$(A) runtime/libcomprmarsh.$(A)
->>>>>>> 5.2.0
+  $(RUNTIME_DIR)/libasmrun.$(A) $(RUNTIME_DIR)/libcomprmarsh.$(A)
 runtime_NATIVE_SHARED_LIBRARIES =
 
 ifeq "$(RUNTIMED)" "true"
@@ -1412,7 +1308,7 @@ libasmruni_OBJECTS = \
 libasmrunpic_OBJECTS = $(runtime_NATIVE_C_SOURCES:.c=.npic.$(O)) \
   $(runtime_ASM_OBJECTS:.$(O)=_libasmrunpic.$(O))
 
-libcomprmarsh_OBJECTS = runtime/zstd.npic.$(O)
+libcomprmarsh_OBJECTS = $(RUNTIME_DIR)/zstd.npic.$(O)
 
 ## General (non target-specific) assembler and compiler flags
 
@@ -1446,86 +1342,13 @@ $(RUNTIME_DIR)/ld.conf: $(ROOTDIR)/Makefile.config
 	$(V_GEN)echo "$(STUBLIBDIR)" > $@ && \
 	echo "$(LIBDIR)" >> $@
 
-runtime/primitives: runtime/gen_primitives.sh $(runtime_BYTECODE_C_SOURCES)
-	$(V_GEN)runtime/gen_primitives.sh $@ $(runtime_BYTECODE_C_SOURCES)
+$(RUNTIME_DIR)/primitives: $(RUNTIME_DIR)/gen_primitives.sh $(runtime_BYTECODE_C_SOURCES)
+	$(V_GEN)$(RUNTIME_DIR)/gen_primitives.sh $@ $(runtime_BYTECODE_C_SOURCES)
 
-<<<<<<< HEAD
-# Warning: we use "sort | uniq" instead of "sort -u" because in the MSVC
-# port, the "sort" program in the path is Microsoft's and not cygwin's
-
-# Warning: POSIX sort is locale dependent, that's why we set LC_ALL explicitly.
-# Sort is unstable for "is_directory" and "isatty"
-# see http://pubs.opengroup.org/onlinepubs/9699919799/utilities/sort.html:
-# "using sort to process pathnames, it is recommended that LC_ALL .. set to C"
-
-# To speed up builds, we avoid changing "primitives" when files
-# containing primitives change but the primitives table does not
-ifeq "$(RUNTIME_SUFFIX)" "4"
-  GEN_PRIMS_DIR=$(RUNTIME_DIR)
-  GEN_PRIMS_REL=.
-else
-  GEN_PRIMS_DIR=
-  GEN_PRIMS_REL=$(RUNTIME_DIR)
-endif
-$(RUNTIME_DIR)/primitives: \
-  $(shell (cd $(ROOTDIR)/$(GEN_PRIMS_DIR) && $(GEN_PRIMS_REL)/gen_primitives.sh) > $(ROOTDIR)/$(RUNTIME_DIR)/primitives.new; \
-                    cmp -s $(RUNTIME_DIR)/primitives $(RUNTIME_DIR)/primitives.new || \
-                    echo $(RUNTIME_DIR)/primitives.new)
-	$(V_GEN)cp $^ $@
-
-$(RUNTIME_DIR)/prims.c : $(RUNTIME_DIR)/primitives
-	$(V_GEN)export LC_ALL=C; \
-	(echo '#include "caml/config.h"'; \
-	 echo 'typedef intnat value;'; \
-	 echo 'typedef value (*c_primitive)(void);'; \
-	 echo; \
-	 sed -e 's/.*/extern value &(void);/' $<; \
-	 echo; \
-	 echo 'const c_primitive caml_builtin_cprim[] = {'; \
-	 sed -e 's/.*/  &,/' $<; \
-	 echo '  0 };'; \
-	 echo; \
-	 echo 'const char * const caml_names_of_builtin_cprim[] = {'; \
-	 sed -e 's/.*/  "&",/' $<; \
-	 echo '  0 };') > $@
-||||||| 121bedcfd2
-# Warning: we use "sort | uniq" instead of "sort -u" because in the MSVC
-# port, the "sort" program in the path is Microsoft's and not cygwin's
-
-# Warning: POSIX sort is locale dependent, that's why we set LC_ALL explicitly.
-# Sort is unstable for "is_directory" and "isatty"
-# see http://pubs.opengroup.org/onlinepubs/9699919799/utilities/sort.html:
-# "using sort to process pathnames, it is recommended that LC_ALL .. set to C"
-
-# To speed up builds, we avoid changing "primitives" when files
-# containing primitives change but the primitives table does not
-runtime/primitives: \
-  $(shell runtime/gen_primitives.sh > runtime/primitives.new; \
-                    cmp -s runtime/primitives runtime/primitives.new || \
-                    echo runtime/primitives.new)
-	$(V_GEN)cp $^ $@
-
-runtime/prims.c : runtime/primitives
-	$(V_GEN)export LC_ALL=C; \
-	(echo '#include "caml/config.h"'; \
-	 echo 'typedef intnat value;'; \
-	 echo 'typedef value (*c_primitive)(void);'; \
-	 echo; \
-	 sed -e 's/.*/extern value &(void);/' $<; \
-	 echo; \
-	 echo 'c_primitive caml_builtin_cprim[] = {'; \
-	 sed -e 's/.*/  &,/' $<; \
-	 echo '  0 };'; \
-	 echo; \
-	 echo 'char * caml_names_of_builtin_cprim[] = {'; \
-	 sed -e 's/.*/  "&",/' $<; \
-	 echo '  0 };') > $@
-=======
-runtime/prims.c: runtime/gen_primsc.sh runtime/primitives
-	$(V_GEN)runtime/gen_primsc.sh \
-                    runtime/primitives $(runtime_BYTECODE_C_SOURCES) \
+$(RUNTIME_DIR)/prims.c: $(RUNTIME_DIR)/gen_primsc.sh $(RUNTIME_DIR)/primitives
+	$(V_GEN)$(RUNTIME_DIR)/gen_primsc.sh \
+                    $(RUNTIME_DIR)/primitives $(runtime_BYTECODE_C_SOURCES) \
                     > $@
->>>>>>> 5.2.0
 
 $(RUNTIME_DIR)/caml/opnames.h : $(RUNTIME_DIR)/caml/instruct.h
 	$(V_GEN)tr -d '\r' < $< | \
@@ -1607,7 +1430,7 @@ $(RUNTIME_DIR)/libasmrun_pic.$(A): $(libasmrunpic_OBJECTS)
 $(RUNTIME_DIR)/libasmrun_shared.$(SO): $(libasmrunpic_OBJECTS)
 	$(V_MKDLL)$(MKDLL) -o $@ $^ $(NATIVECCLIBS)
 
-runtime/libcomprmarsh.$(A): $(libcomprmarsh_OBJECTS)
+$(RUNTIME_DIR)/libcomprmarsh.$(A): $(libcomprmarsh_OBJECTS)
 	$(V_MKLIB)$(call MKLIB,$@, $^)
 
 ## Runtime target-specific preprocessor and compiler flags
@@ -1719,52 +1542,16 @@ $(RUNTIME_DIR)/%.i.o: $(RUNTIME_DIR)/%.S
 $(RUNTIME_DIR)/%_libasmrunpic.o: $(RUNTIME_DIR)/%.S
 	$(V_ASM)$(ASPP) $(OC_ASPPFLAGS) $(SHAREDLIB_CFLAGS) -o $@ $<
 
-<<<<<<< HEAD
-$(RUNTIME_DIR)/domain_state64.inc: \
-  $(RUNTIME_DIR)/gen_domain_state64_inc.awk $(RUNTIME_DIR)/caml/domain_state.tbl
-	$(V_GEN)$(AWK) -f $^ > $@
-||||||| 121bedcfd2
-runtime/domain_state64.inc: \
-  runtime/gen_domain_state64_inc.awk runtime/caml/domain_state.tbl
-	$(V_GEN)$(AWK) -f $^ > $@
-=======
-runtime/domain_state.inc: runtime/caml/domain_state.tbl
+$(RUNTIME_DIR)/domain_state.inc: $(RUNTIME_DIR)/caml/domain_state.tbl
 	$(V_GEN)$(CPP) $< > $@
->>>>>>> 5.2.0
 
-<<<<<<< HEAD
-$(RUNTIME_DIR)/domain_state32.inc: \
-  $(RUNTIME_DIR)/gen_domain_state32_inc.awk $(RUNTIME_DIR)/caml/domain_state.tbl
-	$(V_GEN)$(AWK) -f $^ > $@
-
-$(RUNTIME_DIR)/amd64nt.obj: $(RUNTIME_DIR)/amd64nt.asm $(RUNTIME_DIR)/domain_state64.inc
-||||||| 121bedcfd2
-runtime/domain_state32.inc: \
-  runtime/gen_domain_state32_inc.awk runtime/caml/domain_state.tbl
-	$(V_GEN)$(AWK) -f $^ > $@
-
-runtime/amd64nt.obj: runtime/amd64nt.asm runtime/domain_state64.inc
-=======
-runtime/amd64nt.obj: runtime/amd64nt.asm runtime/domain_state.inc
->>>>>>> 5.2.0
+$(RUNTIME_DIR)/amd64nt.obj: $(RUNTIME_DIR)/amd64nt.asm $(RUNTIME_DIR)/domain_state.inc
 	$(V_ASM)$(ASM)$@ $<
 
-<<<<<<< HEAD
-$(RUNTIME_DIR)/amd64nt.d.obj: $(RUNTIME_DIR)/amd64nt.asm $(RUNTIME_DIR)/domain_state64.inc
-||||||| 121bedcfd2
-runtime/amd64nt.d.obj: runtime/amd64nt.asm runtime/domain_state64.inc
-=======
-runtime/amd64nt.d.obj: runtime/amd64nt.asm runtime/domain_state.inc
->>>>>>> 5.2.0
+$(RUNTIME_DIR)/amd64nt.d.obj: $(RUNTIME_DIR)/amd64nt.asm $(RUNTIME_DIR)/domain_state.inc
 	$(V_ASM)$(ASM)$@ $(ocamlrund_CPPFLAGS) $<
 
-<<<<<<< HEAD
-$(RUNTIME_DIR)/amd64nt.i.obj: $(RUNTIME_DIR)/amd64nt.asm $(RUNTIME_DIR)/domain_state64.inc
-||||||| 121bedcfd2
-runtime/amd64nt.i.obj: runtime/amd64nt.asm runtime/domain_state64.inc
-=======
-runtime/amd64nt.i.obj: runtime/amd64nt.asm runtime/domain_state.inc
->>>>>>> 5.2.0
+$(RUNTIME_DIR)/amd64nt.i.obj: $(RUNTIME_DIR)/amd64nt.asm $(RUNTIME_DIR)/domain_state.inc
 	$(V_ASM)$(ASM)$@ $(ocamlruni_CPPFLAGS) $<
 
 $(RUNTIME_DIR)/%_libasmrunpic.obj: $(RUNTIME_DIR)/%.asm
@@ -1798,21 +1585,9 @@ clean::
 	rm -f $(addprefix $(RUNTIME_DIR)/, ocamlrun ocamlrund ocamlruni ocamlruns sak)
 	rm -f $(addprefix $(RUNTIME_DIR)/, \
 	  ocamlrun.exe ocamlrund.exe ocamlruni.exe ocamlruns.exe sak.exe)
-<<<<<<< HEAD
-	rm -f $(RUNTIME_DIR)/primitives $(RUNTIME_DIR)/primitives.new $(RUNTIME_DIR)/prims.c \
-||||||| 121bedcfd2
-	rm -f runtime/primitives runtime/primitives.new runtime/prims.c \
-=======
-	rm -f runtime/primitives runtime/primitives*.new runtime/prims.c \
->>>>>>> 5.2.0
+	rm -f $(RUNTIME_DIR)/primitives $(RUNTIME_DIR)/primitives*.new $(RUNTIME_DIR)/prims.c \
 	  $(runtime_BUILT_HEADERS)
-<<<<<<< HEAD
-	rm -f $(RUNTIME_DIR)/domain_state*.inc
-||||||| 121bedcfd2
-	rm -f runtime/domain_state*.inc
-=======
-	rm -f runtime/domain_state.inc
->>>>>>> 5.2.0
+	rm -f $(RUNTIME_DIR)/domain_state.inc
 	rm -rf $(DEPDIR)
 	rm -f stdlib/libcamlrun.a stdlib/libcamlrun.lib
 
@@ -1822,15 +1597,9 @@ runtimeopt: stdlib/libasmrun.$(A)
 .PHONY: makeruntimeopt
 makeruntimeopt: runtime-allopt
 stdlib/libasmrun.$(A): runtime-allopt
-<<<<<<< HEAD
 	cd stdlib; $(LN) ../$(RUNTIME_DIR)/libasmrun.$(A) .
-||||||| 121bedcfd2
-	cd stdlib; $(LN) ../runtime/libasmrun.$(A) .
-=======
-	cd stdlib; $(LN) ../runtime/libasmrun.$(A) .
-stdlib/libcomprmarsh.$(A): runtime/libcomprmarsh.$(A)
-	cd stdlib; $(LN) ../runtime/libcomprmarsh.$(A) .
->>>>>>> 5.2.0
+stdlib/libcomprmarsh.$(A): $(RUNTIME_DIR)/libcomprmarsh.$(A)
+	cd stdlib; $(LN) ../$(RUNTIME_DIR)/libcomprmarsh.$(A) .
 
 clean::
 	rm -f stdlib/libasmrun.a stdlib/libasmrun.lib
@@ -1838,17 +1607,7 @@ clean::
 
 # Dependencies
 
-<<<<<<< HEAD
-subdirs = \
-  stdlib $(addprefix otherlibs/, \
-    $(filter-out runtime_events, $(ALL_OTHERLIBS))) \
-  debugger$(RUNTIME_SUFFIX) ocamldoc ocamltest
-||||||| 121bedcfd2
-subdirs = stdlib $(addprefix otherlibs/, $(ALL_OTHERLIBS)) \
-  debugger ocamldoc ocamltest
-=======
 subdirs = stdlib $(addprefix otherlibs/, $(ALL_OTHERLIBS))
->>>>>>> 5.2.0
 
 .PHONY: alldepend
 alldepend: depend
@@ -1868,7 +1627,7 @@ library-cross:
 
 .PHONY: library-cross5
 library-cross5:
-	$(MAKE) -C stdlib OCAMLRUN=../runtime/ocamlrun$(EXE) all
+	$(MAKE) -C stdlib OCAMLRUN=../$(RUNTIME_DIR)/ocamlrun$(EXE) all
 
 .PHONY: libraryopt
 libraryopt:
@@ -2300,26 +2059,9 @@ clean::
 
 # The replay debugger
 
-<<<<<<< HEAD
-.PHONY: ocamldebugger
-ocamldebugger: ocamlc ocamlyacc ocamllex otherlibraries
-	$(MAKE) -C debugger$(RUNTIME_SUFFIX) all
-||||||| 121bedcfd2
-.PHONY: ocamldebugger
-ocamldebugger: ocamlc ocamlyacc ocamllex otherlibraries
-	$(MAKE) -C debugger all
-=======
 ocamldebug_LIBRARIES = compilerlibs/ocamlcommon \
   $(addprefix otherlibs/,unix/unix dynlink/dynlink)
->>>>>>> 5.2.0
 
-<<<<<<< HEAD
-partialclean::
-	$(MAKE) -C debugger$(RUNTIME_SUFFIX) clean
-||||||| 121bedcfd2
-partialclean::
-	$(MAKE) -C debugger clean
-=======
 # The following dependencies are necessary at the moment, because the
 # root Makefile does not know yet how to build the other libraries
 # Once their build will happen in this root Makefile, too, it will become
@@ -2329,7 +2071,7 @@ otherlibs/unix/unix.cma: otherlibraries
 otherlibs/dynlink/dynlink.cma: otherlibraries
 otherlibs/str/str.cma: otherlibraries
 
-debugger/%: VPATH += otherlibs/unix otherlibs/dynlink
+debugger$(RUNTIME_SUFFIX)/%: VPATH += otherlibs/unix otherlibs/dynlink
 
 ocamldebug_COMPILER_SOURCES = $(addprefix toplevel/, \
   genprintval.mli genprintval.ml \
@@ -2337,7 +2079,7 @@ ocamldebug_COMPILER_SOURCES = $(addprefix toplevel/, \
 
 # The modules listed in the following variable are packed into ocamldebug.cmo
 
-ocamldebug_DEBUGGER_SOURCES = $(addprefix debugger/,\
+ocamldebug_DEBUGGER_SOURCES = $(addprefix debugger$(RUNTIME_SUFFIX)/,\
   int64ops.mli int64ops.ml \
   primitives.mli primitives.ml \
   unix_tools.mli unix_tools.ml \
@@ -2377,39 +2119,38 @@ ocamldebug_DEBUGGER_OBJECTS = \
 
 ocamldebug_SOURCES = \
   $(ocamldebug_COMPILER_SOURCES) \
-  $(addprefix debugger/, \
+  $(addprefix debugger$(RUNTIME_SUFFIX)/, \
     ocamldebug.ml \
     ocamldebug_entry.mli ocamldebug_entry.ml)
 
-debugger/%: OC_BYTECODE_LINKFLAGS = -linkall
+debugger$(RUNTIME_SUFFIX)/%: OC_BYTECODE_LINKFLAGS = -linkall
 
-debugger/%: CAMLC = $(BEST_OCAMLC) $(STDLIBFLAGS)
+debugger$(RUNTIME_SUFFIX)/%: CAMLC = $(BEST_OCAMLC) $(STDLIBFLAGS)
 
 .PHONY: ocamldebug ocamldebugger
-ocamldebug: debugger/ocamldebug$(EXE)
-ocamldebugger: debugger/ocamldebug$(EXE)
+ocamldebug: debugger$(RUNTIME_SUFFIX)/ocamldebug$(EXE)
+ocamldebugger: debugger$(RUNTIME_SUFFIX)/ocamldebug$(EXE)
 # the 'ocamldebugger' target is an alias of 'ocamldebug' for
 # backward-compatibility with old ./configure scripts; it can be
 # removed after most contributors have re-run ./configure once, for
 # example after 5.2 is branched
 
-debugger/ocamldebug$(EXE): ocamlc ocamlyacc ocamllex
+debugger$(RUNTIME_SUFFIX)/ocamldebug$(EXE): ocamlc ocamlyacc ocamllex
 
 $(ocamldebug_DEBUGGER_OBJECTS): OC_COMMON_COMPFLAGS += -for-pack ocamldebug
-debugger/ocamldebug.cmo: $(ocamldebug_DEBUGGER_OBJECTS)
+debugger$(RUNTIME_SUFFIX)/ocamldebug.cmo: $(ocamldebug_DEBUGGER_OBJECTS)
 	$(V_OCAMLC)$(CAMLC) $(OC_COMMON_COMPFLAGS) -pack -o $@ $^
 
-debugger/ocamldebug_entry.cmo: debugger/ocamldebug.cmo
+debugger$(RUNTIME_SUFFIX)/ocamldebug_entry.cmo: debugger$(RUNTIME_SUFFIX)/ocamldebug.cmo
 
 clean::
-	rm -f debugger/ocamldebug debugger/ocamldebug.exe
-	rm -f debugger/debugger_lexer.ml
-	rm -f $(addprefix debugger/debugger_parser.,ml mli output)
+	rm -f debugger$(RUNTIME_SUFFIX)/ocamldebug debugger$(RUNTIME_SUFFIX)/ocamldebug.exe
+	rm -f debugger$(RUNTIME_SUFFIX)/debugger_lexer.ml
+	rm -f $(addprefix debugger$(RUNTIME_SUFFIX)/debugger_parser.,ml mli output)
 
-beforedepend:: debugger/debugger_lexer.ml
+beforedepend:: debugger$(RUNTIME_SUFFIX)/debugger_lexer.ml
 
-beforedepend:: debugger/debugger_parser.ml debugger/debugger_parser.mli
->>>>>>> 5.2.0
+beforedepend:: debugger$(RUNTIME_SUFFIX)/debugger_parser.ml debugger$(RUNTIME_SUFFIX)/debugger_parser.mli
 
 # Check that the native-code compiler is supported
 .PHONY: checknative
@@ -2512,19 +2253,6 @@ tools/ocamldep$(EXE): OC_BYTECODE_LINKFLAGS += -compat-32
 # The profiler
 
 ocamlprof_LIBRARIES =
-<<<<<<< HEAD
-ocamlprof_MODULES = \
-  config build_path_prefix_map misc identifiable numbers arg_helper \
-  local_store  zero_alloc_annotations clflags load_path terminfo warnings \
-  location longident docstrings syntaxerr ast_helper camlinternalMenhirLib \
-  parser pprintast lexer parse ocamlprof
-||||||| 121bedcfd2
-ocamlprof_MODULES = \
-  config build_path_prefix_map misc identifiable numbers arg_helper \
-  local_store load_path clflags terminfo warnings location longident \
-  docstrings syntaxerr ast_helper camlinternalMenhirLib parser pprintast \
-  lexer parse ocamlprof
-=======
 ocamlprof_SOURCES = \
   config.mli config.ml \
   build_path_prefix_map.mli build_path_prefix_map.ml \
@@ -2533,6 +2261,7 @@ ocamlprof_SOURCES = \
   numbers.mli numbers.ml \
   arg_helper.mli arg_helper.ml \
   local_store.mli local_store.ml \
+  zero_alloc_annotations.mli zero_alloc_annotations.ml \
   load_path.mli load_path.ml \
   clflags.mli clflags.ml \
   terminfo.mli terminfo.ml \
@@ -2550,19 +2279,7 @@ ocamlprof_SOURCES = \
   pprintast.mli pprintast.ml \
   parse.mli parse.ml \
   ocamlprof.mli ocamlprof.ml
->>>>>>> 5.2.0
 
-<<<<<<< HEAD
-ocamlcp_ocamloptp_MODULES = \
-  config build_path_prefix_map misc profile warnings identifiable numbers \
-  arg_helper local_store zero_alloc_annotations clflags load_path terminfo \
-  location ccomp compenv main_args ocamlcp_common zero_alloc_annotations
-||||||| 121bedcfd2
-ocamlcp_ocamloptp_MODULES = \
-  config build_path_prefix_map misc profile warnings identifiable numbers \
-  arg_helper local_store load_path clflags terminfo location ccomp compenv \
-  main_args ocamlcp_common
-=======
 ocamlcp_ocamloptp_SOURCES = \
   config.mli config.ml \
   build_path_prefix_map.mli build_path_prefix_map.ml \
@@ -2573,6 +2290,7 @@ ocamlcp_ocamloptp_SOURCES = \
   numbers.mli numbers.ml \
   arg_helper.mli arg_helper.ml \
   local_store.mli local_store.ml \
+  zero_alloc_annotations.mli zero_alloc_annotations.ml \
   load_path.mli load_path.ml \
   clflags.mli clflags.ml \
   terminfo.mli terminfo.ml \
@@ -2581,7 +2299,6 @@ ocamlcp_ocamloptp_SOURCES = \
   compenv.mli compenv.ml \
   main_args.mli main_args.ml \
   ocamlcp_common.mli ocamlcp_common.ml
->>>>>>> 5.2.0
 
 ocamlcp_LIBRARIES =
 ocamlcp_SOURCES = $(ocamlcp_ocamloptp_SOURCES) ocamlcp.mli ocamlcp.ml
@@ -2600,15 +2317,6 @@ ocamlmklib_SOURCES = \
 # To make custom toplevels
 
 ocamlmktop_LIBRARIES =
-<<<<<<< HEAD
-ocamlmktop_MODULES = \
-  config build_path_prefix_map misc identifiable numbers arg_helper \
-  local_store zero_alloc_annotations clflags load_path profile ccomp ocamlmktop
-||||||| 121bedcfd2
-ocamlmktop_MODULES = \
-  config build_path_prefix_map misc identifiable numbers arg_helper \
-  local_store load_path clflags profile ccomp ocamlmktop
-=======
 ocamlmktop_SOURCES = \
   config.mli config.ml \
   build_path_prefix_map.mli build_path_prefix_map.ml \
@@ -2616,13 +2324,13 @@ ocamlmktop_SOURCES = \
   identifiable.mli identifiable.ml \
   numbers.mli numbers.ml \
   arg_helper.mli arg_helper.ml \
+  zero_alloc_annotations.mli zero_alloc_annotations.ml \
   local_store.mli local_store.ml \
   load_path.mli load_path.ml \
   clflags.mli clflags.ml \
   profile.mli profile.ml \
   ccomp.mli ccomp.ml \
   ocamlmktop.mli ocamlmktop.ml
->>>>>>> 5.2.0
 
 # Reading cmt files
 
@@ -2809,13 +2517,7 @@ depend: beforedepend
 
 .PHONY: distclean
 distclean: clean
-<<<<<<< HEAD
-	$(MAKE) -C debugger$(RUNTIME_SUFFIX) distclean
-||||||| 121bedcfd2
-	$(MAKE) -C debugger distclean
-=======
 	if [ -f flexdll/Makefile ]; then $(MAKE) -C flexdll distclean MSVC_DETECT=0; fi
->>>>>>> 5.2.0
 	$(MAKE) -C manual distclean
 	rm -f ocamldoc/META
 	rm -f $(addprefix ocamltest/,ocamltest_config.ml ocamltest_unix.ml)
@@ -2956,13 +2658,7 @@ ifeq "$(build_libraries_manpages)" "true"
 	$(MAKE) -C api_docgen install
 endif
 	if test -n "$(WITH_DEBUGGER)"; then \
-<<<<<<< HEAD
-	  $(MAKE) -C debugger$(RUNTIME_SUFFIX) install; \
-||||||| 121bedcfd2
-	  $(MAKE) -C debugger install; \
-=======
-	  $(INSTALL_PROG) debugger/ocamldebug$(EXE) "$(INSTALL_BINDIR)"; \
->>>>>>> 5.2.0
+	  $(INSTALL_PROG) debugger$(RUNTIME_SUFFIX)/ocamldebug$(EXE) "$(INSTALL_BINDIR)"; \
 	fi
 ifeq "$(BOOTSTRAPPING_FLEXDLL)" "true"
 ifeq "$(TOOLCHAIN)" "msvc"
