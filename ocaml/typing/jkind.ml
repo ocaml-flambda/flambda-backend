@@ -765,6 +765,28 @@ module Const = struct
       in
       List.fold_left meet_mode base parsed_modes
     | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
+
+  (* The [annotation_context] parameter can be used to allow annotations / kinds
+     in different contexts to be enabled with different extension settings.
+     At some points in time, we will not care about the context, and so this
+     parameter might effectively be unused.
+  *)
+  (* CR layouts: When everything is stable, remove this function. *)
+  let get_required_layouts_level (_context : History.annotation_context)
+      (jkind : t) : Language_extension.maturity =
+    match jkind.layout, jkind.nullability_upper_bound with
+    | (Sort (Float64 | Float32 | Word | Bits32 | Bits64) | Any), _
+    | Sort Value, Non_null ->
+      Stable
+    | Sort Void, _ | Sort Value, Maybe_null -> Alpha
+
+  let of_user_written_annotation ~context Location.{ loc; txt = annot } =
+    let const = of_user_written_annotation_unchecked_level annot in
+    let required_layouts_level = get_required_layouts_level context const in
+    if not (Language_extension.is_at_least Layouts required_layouts_level)
+    then
+      raise ~loc (Insufficient_level { jkind = const; required_layouts_level });
+    const
 end
 
 module Desc = struct
@@ -1012,23 +1034,6 @@ let add_portability_and_contention_crossing ~from t =
   in
   { t with jkind }, added_crossings
 
-(*** extension requirements ***)
-(* The [annotation_context] parameter can be used to allow annotations / kinds
-   in different contexts to be enabled with different extension settings.
-   At some points in time, we will not care about the context, and so this
-   parameter might effectively be unused.
-*)
-(* CR layouts: When everything is stable, remove this function. *)
-let get_required_layouts_level (_context : History.annotation_context)
-    (jkind : Const.t) : Language_extension.maturity =
-  let layout = Const.get_layout jkind in
-  let nullability = jkind.nullability_upper_bound in
-  match layout, nullability with
-  | (Sort (Float64 | Float32 | Word | Bits32 | Bits64) | Any), _
-  | Sort Value, Non_null ->
-    Stable
-  | Sort Void, _ | Sort Value, Maybe_null -> Alpha
-
 (******************************)
 (* construction *)
 
@@ -1062,18 +1067,11 @@ let of_const ~why
     has_warned = false
   }
 
-let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
-  let const = Const.of_user_written_annotation_unchecked_level annot in
-  let required_layouts_level = get_required_layouts_level context const in
-  if not (Language_extension.is_at_least Layouts required_layouts_level)
-  then raise ~loc (Insufficient_level { jkind = const; required_layouts_level });
-  const
-
 let of_annotated_const ~context ~const ~const_loc =
   of_const ~why:(Annotated (context, const_loc)) const
 
 let of_annotation ~context (annot : _ Location.loc) =
-  let const = const_of_user_written_annotation ~context annot in
+  let const = Const.of_user_written_annotation ~context annot in
   let jkind = of_annotated_const ~const ~const_loc:annot.loc ~context in
   jkind, (const, annot)
 
@@ -1896,8 +1894,7 @@ module Debug_printers = struct
     | Concrete_legacy_creation concrete ->
       fprintf ppf "Concrete_legacy_creation %a" concrete_legacy_creation_reason
         concrete
-    | Primitive id ->
-      fprintf ppf "Primitive %s" (Ident.name id)
+    | Primitive id -> fprintf ppf "Primitive %s" (Ident.name id)
     | Imported -> fprintf ppf "Imported"
     | Imported_type_argument { parent_path; position; arity } ->
       fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position

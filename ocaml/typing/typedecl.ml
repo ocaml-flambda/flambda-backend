@@ -537,7 +537,7 @@ let make_constructor
             Option.map
               (fun annot ->
                  let const =
-                    Jkind.const_of_user_written_annotation
+                    Jkind.Const.of_user_written_annotation
                       ~context:(Constructor_type_parameter (cstr_path, v.txt))
                       annot
                  in
