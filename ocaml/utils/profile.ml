@@ -27,11 +27,11 @@ module Counters = struct
   let get name t = String.Map.find_opt name t |> opt_value
   let set name count t = String.Map.add name count t
   let increment name = String.Map.update name (fun x -> Some (opt_value x |> succ))
+  let is_empty = String.Map.is_empty
+  let union = String.Map.union (fun _ count1 count2 -> Some (count1 + count2))
 
   let create ?(initial_names = []) () =
     List.fold_left (fun acc name -> set name 0 acc) String.Map.empty initial_names
-
-  let is_empty = String.Map.is_empty
 
   let to_string t =
     t
@@ -86,7 +86,7 @@ module Measure_diff = struct
       t.allocated_words +. (m2.allocated_words -. m1.allocated_words);
     top_heap_words_increase =
       t.top_heap_words_increase + (m2.top_heap_words - m1.top_heap_words);
-    counters = m2.counters
+    counters = Counters.union t.counters m2.counters
   }
   let of_diff m1 m2 =
     accumulate (zero ()) m1 m2
