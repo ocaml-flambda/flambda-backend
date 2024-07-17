@@ -24,9 +24,10 @@ module String = Misc.Stdlib.String
 module Counters = struct
   type t = int String.Map.t
 
-  let get name t = String.Map.find name t
+  let opt_value = Option.value ~default:0
+  let get name t = String.Map.find_opt name t |> opt_value
   let set name count t = String.Map.add name count t
-  let increment name t = set name (get name t + 1) t
+  let increment name = String.Map.update name (fun x -> Some (opt_value x |> succ))
 
   let create ?(initial_names = []) () =
     List.fold_left (fun acc name -> set name 0 acc) String.Map.empty initial_names
