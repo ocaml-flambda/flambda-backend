@@ -17,6 +17,8 @@
  (targets unix.ml)
  (action (copy unix_unix.ml unix.ml)))
 
+(include_subdirs unqualified)
+
 (library
  (name unix)
  (wrapped false)
@@ -34,7 +36,8 @@
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags (:standard -linkall))
  (modules unix unixLabels)
- (foreign_stubs (language c) (names
+ (foreign_stubs (language c)
+  (names
    accept_unix
    access
    addrofstr
@@ -161,8 +164,8 @@
     (libunix_stubs.a as unix/libunix_stubs.a)
     (libunix_stubs.a as libunix_stubs_native.a) ; for special_dune compat
     (dllunix_stubs.so as stublibs/dllunix_stubs.so)
-    (socketaddr.h as caml/socketaddr.h)
-    (unixsupport.h as caml/unixsupport.h)
+    (caml/socketaddr.h as caml/socketaddr.h)
+    (caml/unixsupport.h as caml/unixsupport.h)
     (META as unix/META)
   )
   (section lib)
