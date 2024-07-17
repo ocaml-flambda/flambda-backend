@@ -4669,7 +4669,8 @@ let rec is_inferred sexp =
       is_inferred sbody
   | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint (_, Some _, _)
   | Pexp_coerce _ | Pexp_send _ | Pexp_new _ -> true
-  | Pexp_sequence (_, e) | Pexp_open (_, e) -> is_inferred e
+  | Pexp_sequence (_, e) | Pexp_open (_, e) | Pexp_constraint (e, None, _) ->
+      is_inferred e
   | Pexp_ifthenelse (_, e1, Some e2) -> is_inferred e1 && is_inferred e2
   | _ -> false
 
