@@ -1801,12 +1801,7 @@ module Type = struct
 end
 
 include Type
-
-module Violation = struct
-  include Type.Violation
-
-  let of_type_jkind t = t
-end
+module Violation = Type.Violation
 
 module Const = struct
   include Type.Const

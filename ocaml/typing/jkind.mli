@@ -110,21 +110,6 @@ module Type : sig
   end
 
   (******************************)
-  (* errors *)
-
-  module Violation : sig
-    type violation =
-      | Not_a_subjkind of t * t
-      | No_intersection of t * t
-
-    type t
-
-    (** Set [?missing_cmi] to mark [t] as having arisen from a missing cmi *)
-
-    val of_ : ?missing_cmi:Path.t -> violation -> t
-  end
-
-  (******************************)
   (* constants *)
 
   module Const : sig
@@ -538,9 +523,6 @@ module Violation : sig
 
   (** Set [?missing_cmi] to mark [t] as having arisen from a missing cmi *)
   val of_ : ?missing_cmi:Path.t -> violation -> t
-
-  (** Promote an existing [Jkind.Type.Violation.t] into [Jkind.Violation.t] *)
-  val of_type_jkind : Type.Violation.t -> t
 
   (** Is this error from a missing cmi? *)
   val is_missing_cmi : t -> bool
