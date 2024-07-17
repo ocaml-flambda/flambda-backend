@@ -1339,28 +1339,6 @@ module Type = struct
   include Format_history
 
   (******************************)
-  (* errors *)
-
-  module Violation = struct
-    type violation =
-      | Not_a_subjkind of t * t
-      | No_intersection of t * t
-
-    type nonrec t =
-      { violation : violation;
-        missing_cmi : Path.t option
-      }
-    (* [missing_cmi]: is this error a result of a missing cmi file?
-       This is stored separately from the [violation] because it's
-       used to change the behavior of [value_kind], and we don't
-       want that function to inspect something that is purely about
-       the choice of error message. (Though the [Path.t] payload *is*
-       indeed just about the payload.) *)
-
-    let of_ ?missing_cmi violation = { violation; missing_cmi }
-  end
-
-  (******************************)
   (* relations *)
 
   let equate_or_equal ~allow_mutation
@@ -1910,8 +1888,6 @@ let format_history ~intro ppf (t : t) =
 (******************************)
 (* errors *)
 
-(* This has been moved from Jkind.Type *)
-
 module Violation = struct
   open Format
 
@@ -1932,18 +1908,6 @@ module Violation = struct
      indeed just about the payload.) *)
 
   let of_ ?missing_cmi violation = { violation; missing_cmi }
-
-  let of_type_jkind_violation (t : Type.Violation.violation) =
-    match t with
-    | Not_a_subjkind (ty, ty') ->
-      Not_a_subjkind (of_type_jkind ty, of_type_jkind ty')
-    | No_intersection (ty, ty') ->
-      No_intersection (of_type_jkind ty, of_type_jkind ty')
-
-  let of_type_jkind (t : Type.Violation.t) =
-    { violation = of_type_jkind_violation t.violation;
-      missing_cmi = t.missing_cmi
-    }
 
   let rec any_missing_cmi (t : _ Jkind_types.t) =
     match t with
