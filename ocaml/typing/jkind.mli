@@ -164,6 +164,11 @@ module Const : sig
   (** Gets the maximum mode on the externality axis for types of this constant jkind. *)
   val get_externality_upper_bound : t -> Externality.t
 
+  val of_user_written_annotation :
+    context:History.annotation_context ->
+    Jane_syntax.Jkind.annotation ->
+    t
+
   module Builtin : sig
     type nonrec t =
       { jkind : t;
@@ -276,9 +281,6 @@ val of_new_legacy_sort_var :
 val of_new_legacy_sort : why:History.concrete_legacy_creation_reason -> t
 
 val of_const : why:History.creation_reason -> Const.t -> t
-
-val const_of_user_written_annotation :
-  context:History.annotation_context -> Jane_syntax.Jkind.annotation -> Const.t
 
 (** The typed jkind together with its user-written annotation. *)
 type annotation = Types.type_expr Jkind_types.annotation
