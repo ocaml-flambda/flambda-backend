@@ -39,16 +39,8 @@ val type_toplevel_phrase:
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
   Env.t
 val type_implementation:
-<<<<<<< HEAD
-  sourcefile:string -> string -> Compilation_unit.t -> Env.t ->
+  Unit_info.t -> Compilation_unit.t -> Compilation_unit.t -> Env.t ->
   Parsetree.structure -> Typedtree.implementation
-||||||| 121bedcfd2
-  string -> string -> string -> Env.t ->
-  Parsetree.structure -> Typedtree.implementation
-=======
-  Unit_info.t -> Env.t -> Parsetree.structure ->
-  Typedtree.implementation
->>>>>>> 5.2.0
 val type_interface:
   sourcefile:string -> Compilation_unit.t -> Env.t ->
   Parsetree.signature -> Typedtree.signature
@@ -69,25 +61,12 @@ val modtype_of_package:
 val path_of_module : Typedtree.module_expr -> Path.t option
 
 val save_signature:
-<<<<<<< HEAD
-  Compilation_unit.t -> Typedtree.signature -> string -> string ->
+  Unit_info.t -> Compilation_unit.t -> Typedtree.signature ->
   Env.t -> Cmi_format.cmi_infos_lazy -> unit
-||||||| 121bedcfd2
-  string -> Typedtree.signature -> string -> string ->
-  Env.t -> Cmi_format.cmi_infos -> unit
-=======
-  Unit_info.t -> Typedtree.signature -> Env.t ->
-  Cmi_format.cmi_infos -> unit
->>>>>>> 5.2.0
 
 val package_units:
-<<<<<<< HEAD
-  Env.t -> string list -> string -> Compilation_unit.t -> Typedtree.module_coercion
-||||||| 121bedcfd2
-  Env.t -> string list -> string -> string -> Typedtree.module_coercion
-=======
-  Env.t -> string list -> Unit_info.Artifact.t -> Typedtree.module_coercion
->>>>>>> 5.2.0
+  Env.t -> string list -> Unit_info.Artifact.t -> Compilation_unit.t
+  -> Typedtree.module_coercion
 
 (* Should be in Envaux, but it breaks the build of the debugger *)
 val initial_env:

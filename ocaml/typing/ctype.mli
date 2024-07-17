@@ -179,18 +179,9 @@ val generic_instance: type_expr -> type_expr
 val instance_list: type_expr list -> type_expr list
         (* Take an instance of a list of type schemes *)
 val new_local_type:
-<<<<<<< HEAD
         ?loc:Location.t -> ?manifest_and_scope:(type_expr * int) ->
-        Jkind.t -> jkind_annot:Jkind.annotation option -> type_declaration
-val existential_name: constructor_description -> type_expr -> string
-||||||| 121bedcfd2
-        ?loc:Location.t ->
-        ?manifest_and_scope:(type_expr * int) -> unit -> type_declaration
-val existential_name: constructor_description -> type_expr -> string
-=======
-        ?loc:Location.t ->
-        ?manifest_and_scope:(type_expr * int) ->
-        type_origin -> type_declaration
+        type_origin -> Jkind.t -> jkind_annot:Jkind.annotation option ->
+        type_declaration
 
 module Pattern_env : sig
   type t = private

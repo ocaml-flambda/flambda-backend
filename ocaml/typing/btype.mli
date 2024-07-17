@@ -82,13 +82,8 @@ val is_Tconstr: type_expr -> bool
 val is_Tpoly: type_expr -> bool
 
 val dummy_method: label
-<<<<<<< HEAD
-val type_kind_is_abstract: type_declaration -> bool
-||||||| 121bedcfd2
-=======
 val type_kind_is_abstract: type_declaration -> bool
 val type_origin : type_declaration -> type_origin
->>>>>>> 5.2.0
 
 (**** polymorphic variants ****)
 
