@@ -167,6 +167,7 @@ static value alloc_shared(caml_domain_state* d,
 {
   void* mem = caml_shared_try_alloc(d->shared_heap, wosize, tag,
                                     reserved);
+                                    reserved);
   d->allocated_words += Whsize_wosize(wosize);
   if (mem == NULL) {
     caml_fatal_error("allocation failure during minor GC");
@@ -845,51 +846,6 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
   caml_gc_log("running stw empty_minor_heap_promote");
   caml_empty_minor_heap_promote(domain, participating_count, participating);
 
-<<<<<<< HEAD
-  /* collect gc stats before leaving the barrier */
-  caml_collect_gc_stats_sample(domain);
-
-  if( participating_count > 1 ) {
-    CAML_EV_BEGIN(EV_MINOR_LEAVE_BARRIER);
-    {
-      SPIN_WAIT {
-        if (atomic_load_acquire(&domains_finished_minor_gc) ==
-            participating_count) {
-          break;
-        }
-
-        caml_do_opportunistic_major_slice(domain, 0);
-      }
-    }
-    CAML_EV_END(EV_MINOR_LEAVE_BARRIER);
-  }
-||||||| 121bedcfd2
-  /* collect gc stats before leaving the barrier */
-  caml_collect_gc_stats_sample(domain);
-
-  if( participating_count > 1 ) {
-    CAML_EV_BEGIN(EV_MINOR_LEAVE_BARRIER);
-    {
-      SPIN_WAIT {
-        if( atomic_load_explicit
-          (&domains_finished_minor_gc, memory_order_acquire)
-          ==
-          participating_count ) {
-          break;
-        }
-
-        caml_do_opportunistic_major_slice(domain, 0);
-      }
-    }
-    CAML_EV_END(EV_MINOR_LEAVE_BARRIER);
-  }
-=======
-  CAML_EV_BEGIN(EV_MINOR_FINALIZED);
-  caml_gc_log("finalizing dead minor custom blocks");
-  custom_finalize_minor(domain);
-  CAML_EV_END(EV_MINOR_FINALIZED);
->>>>>>> 5.2.0
-
   CAML_EV_BEGIN(EV_MINOR_FINALIZED);
   caml_gc_log("finalizing dead minor custom blocks");
   custom_finalize_minor(domain);
@@ -903,6 +859,7 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
   CAML_EV_BEGIN(EV_MINOR_CLEAR);
   caml_gc_log("running stw empty_minor_heap_domain_clear");
   caml_empty_minor_heap_domain_clear(domain);
+
 
 #ifdef DEBUG
   {
@@ -1003,21 +960,6 @@ void caml_alloc_small_dispatch (caml_domain_state * dom_st,
       /* In the case of allocations performed from C, only perform
          non-delayable actions. */
       caml_handle_gc_interrupt();
-<<<<<<< HEAD
-      /* We might be here due to a recently-recorded signal, so we
-         need to remember that we must run signal handlers. In
-         addition, in the case of long-running C code that regularly
-         polls with caml_process_pending_actions, we want to force a
-         query of all callbacks at every minor collection or major
-         slice (similarly to OCaml behaviour). */
-      dom_st->action_pending = 1;
-||||||| 121bedcfd2
-      /* In the case of long-running C code that regularly polls with
-         [caml_process_pending_actions], still force a query of all
-         callbacks at every minor collection or major slice. */
-      dom_st->action_pending = 1;
-=======
->>>>>>> 5.2.0
     }
 
     /* Now, there might be enough room in the minor heap to do our

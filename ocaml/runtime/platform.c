@@ -163,18 +163,6 @@ uintnat caml_mem_round_up_pages(uintnat size)
 
 #define Is_page_aligned(size) ((size & (caml_plat_pagesize - 1)) == 0)
 
-<<<<<<< HEAD
-void* caml_mem_map(uintnat size, int reserve_only)
-||||||| 121bedcfd2
-#ifdef DEBUG
-static struct lf_skiplist mmap_blocks = {NULL};
-#endif
-
-#ifndef _WIN32
-#endif
-
-void* caml_mem_map(uintnat size, uintnat alignment, int reserve_only)
-=======
 #ifdef DEBUG
 static struct lf_skiplist mmap_blocks = {NULL};
 #endif
@@ -183,26 +171,7 @@ static struct lf_skiplist mmap_blocks = {NULL};
 #endif
 
 void* caml_mem_map(uintnat size, int reserve_only)
->>>>>>> 5.2.0
 {
-<<<<<<< HEAD
-  void* mem = caml_plat_mem_map(size, reserve_only);
-||||||| 121bedcfd2
-  CAMLassert(Is_power_of_2(alignment));
-  CAMLassert(Is_page_aligned(size));
-  alignment = round_up(alignment, caml_plat_mmap_alignment);
-
-#ifdef DEBUG
-  if (mmap_blocks.head == NULL) {
-    /* The first call to caml_mem_map should be during caml_init_domains, called
-       by caml_init_gc during startup - i.e. before any domains have started. */
-    CAMLassert(atomic_load_acq(&caml_num_domains_running) <= 1);
-    caml_lf_skiplist_init(&mmap_blocks);
-  }
-#endif
-
-  void* mem = caml_plat_mem_map(size, alignment, reserve_only);
-=======
 #ifdef DEBUG
   if (mmap_blocks.head == NULL) {
     /* The first call to caml_mem_map should be during caml_init_domains, called
@@ -213,7 +182,6 @@ void* caml_mem_map(uintnat size, int reserve_only)
 #endif
 
   void* mem = caml_plat_mem_map(size, reserve_only);
->>>>>>> 5.2.0
 
   if (mem == 0) {
     caml_gc_message(0x1000, "mmap %" ARCH_INTNAT_PRINTF_FORMAT "d bytes failed",

@@ -62,7 +62,6 @@ CAMLexport value caml_alloc_with_reserved (mlsize_t wosize, tag_t tag,
   return result;
 }
 
-<<<<<<< HEAD
 CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag) {
   return caml_alloc_with_reserved (wosize, tag, 0);
 }
@@ -92,34 +91,10 @@ value caml_alloc_shr_reserved_check_gc (mlsize_t wosize, tag_t tag,
   return result;
 }
 
-||||||| 121bedcfd2
-/* This is used by the native compiler for large block allocations. */
-=======
-/* This is used by the native compiler for large block allocations.
-   The resulting block can be filled with [caml_modify], or [caml_initialize],
-   or direct writes for integer values and code pointers.
-   If [tag == Closure_tag], no GC must take place until field 1
-   of the block has been set to the correct "arity & start of environment"
-   information (issue #11482). */
-
-#ifdef NATIVE_CODE
->>>>>>> 5.2.0
 CAMLexport value caml_alloc_shr_check_gc (mlsize_t wosize, tag_t tag)
 {
-<<<<<<< HEAD
   return caml_alloc_shr_reserved_check_gc(wosize, tag, 0);
-||||||| 121bedcfd2
-  caml_check_urgent_gc (Val_unit);
-  return caml_alloc_shr (wosize, tag);
-=======
-  CAMLassert(tag < No_scan_tag);
-  caml_check_urgent_gc (Val_unit);
-  value result = caml_alloc_shr (wosize, tag);
-  for (mlsize_t i = 0; i < wosize; i++) Field (result, i) = Val_unit;
-  return result;
->>>>>>> 5.2.0
 }
-#endif
 
 CAMLexport value caml_alloc_mixed_shr_check_gc (mlsize_t wosize, tag_t tag,
                                                 mlsize_t scannable_prefix_len)

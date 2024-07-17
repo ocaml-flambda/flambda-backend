@@ -117,33 +117,6 @@ CAMLexport void caml_record_signal(int signal_number)
   i = signal_number - 1;
   atomic_fetch_or(&caml_pending_signals[i / BITS_PER_WORD],
                   (uintnat)1 << (i % BITS_PER_WORD));
-<<<<<<< HEAD
-  /* We interrupt all domains when a signal arrives. Signals (SIGINT,
-     SIGALRM...) arrive infrequently-enough that this is affordable.
-     This is a strategy that makes as little assumptions as possible
-     about signal-safety, threads, and domains.
-
-     * In mixed C/OCaml applications there is no guarantee that the
-       POSIX signal handler runs in an OCaml thread, so Caml_state might
-       be unavailable.
-
-     * While C11 mandates that atomic thread-local variables are
-       async-signal-safe for reading, gcc does not conform and can
-       allocate in corner cases involving dynamic linking. It is also
-       unclear whether the OSX implementation conforms, but this might
-       be a theoretical concern only.
-
-     * The thread executing a POSIX signal handler is not necessarily
-       the most ready to execute the corresponding OCaml signal handler.
-       Examples:
-       - Ctrl-C in the toplevel when domain 0 is stuck inside [Domain.join].
-       - a thread that has just spawned, before the appropriate mask is set.
-  */
-  caml_interrupt_all_for_signal();
-||||||| 121bedcfd2
-  // FIXME: the TLS variable is not thread-safe
-  caml_interrupt_self();
-=======
   /* We interrupt all domains when a signal arrives. Signals (SIGINT,
      SIGALRM...) arrive infrequently-enough that this is affordable.
      This is a strategy that makes as little assumptions as possible
@@ -166,7 +139,6 @@ CAMLexport void caml_record_signal(int signal_number)
        - a thread that has just spawned, before the appropriate mask is set.
   */
   caml_interrupt_all_signal_safe();
->>>>>>> 5.2.0
 }
 
 /* Management of blocking sections. */
@@ -192,23 +164,9 @@ static int check_pending_actions(caml_domain_state * dom_st);
 
 CAMLexport void caml_enter_blocking_section(void)
 {
-<<<<<<< HEAD
-  caml_domain_state * domain = Caml_state;
-  while (1){
-    if (Caml_state->in_minor_collection)
-      caml_fatal_error("caml_enter_blocking_section from inside minor GC");
-||||||| 121bedcfd2
-  while (1){
-=======
   caml_domain_state * domain = Caml_state;
   while (1) {
->>>>>>> 5.2.0
     /* Process all pending signals now */
-<<<<<<< HEAD
-    caml_process_pending_actions();
-||||||| 121bedcfd2
-    caml_raise_if_exception(caml_process_pending_signals_exn());
-=======
     if (check_pending_actions(domain)) {
       /* First reset young_limit, and set action_pending in case there
          are further async callbacks pending beyond OCaml signal
@@ -216,7 +174,6 @@ CAMLexport void caml_enter_blocking_section(void)
       caml_handle_gc_interrupt();
       caml_raise_if_exception(caml_process_pending_signals_exn());
     }
->>>>>>> 5.2.0
     caml_enter_blocking_section_hook ();
     /* Check again if a signal arrived in the meanwhile. If none,
        done; otherwise, try again. Since we do not hold the domain
@@ -375,18 +332,10 @@ void caml_request_minor_gc (void)
    [Caml_state->action_pending] is set, to execute asynchronous
    actions as soon as possible when back in OCaml code.
 
-<<<<<<< HEAD
-   This is used to ensure that [Caml_state->young_limit] is always set
-   appropriately.
-||||||| 121bedcfd2
-   This is used to ensure [Caml_state->young_limit] is always set
-   appropriately.
-=======
    [Caml_state->action_pending] is then reset _at the beginning_ of
    processing all actions. Hence, when a delayable action is pending,
    either [Caml_state->action_pending] is true, or there is a function
    running which is in process of executing all actions.
->>>>>>> 5.2.0
 
    In case there are two different callbacks (say, a signal and a
    finaliser) arriving at the same time, then the processing of one
@@ -398,31 +347,15 @@ void caml_request_minor_gc (void)
    by calling them first.
 */
 
-<<<<<<< HEAD
-/* We assume that we have unique access to dom_st. */
-void caml_set_action_pending(caml_domain_state * dom_st)
-||||||| 121bedcfd2
-CAMLno_tsan /* When called from [caml_record_signal], these memory
-               accesses may not be synchronized. Otherwise we assume
-               that we have unique access to dom_st. */
-void caml_set_action_pending(caml_domain_state * dom_st)
-=======
 /* We assume that we have unique access to dom_st. */
 CAMLexport void caml_set_action_pending(caml_domain_state * dom_st)
->>>>>>> 5.2.0
 {
   dom_st->action_pending = 1;
-<<<<<<< HEAD
-  atomic_store_release(&dom_st->young_limit, (uintnat)-1);
-||||||| 121bedcfd2
-  atomic_store_rel(&dom_st->young_limit, (uintnat)-1);
-=======
 }
 
 static int check_pending_actions(caml_domain_state * dom_st)
 {
   return Caml_check_gc_interrupt(dom_st) || dom_st->action_pending;
->>>>>>> 5.2.0
 }
 
 CAMLexport int caml_check_pending_actions(void)

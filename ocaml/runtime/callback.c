@@ -56,23 +56,9 @@
 Caml_inline value alloc_and_clear_stack_parent(caml_domain_state* domain_state)
 {
   struct stack_info* parent_stack = Stack_parent(domain_state->current_stack);
-<<<<<<< HEAD
-  if (parent_stack == NULL) {
-    return Val_unit;
-  } else {
-    value cont = caml_alloc_1(Cont_tag, Val_ptr(parent_stack));
-    Stack_parent(domain_state->current_stack) = NULL;
-    return cont;
-  }
-||||||| 121bedcfd2
-  value cont = caml_alloc_1(Cont_tag, Val_ptr(parent_stack));
-  Stack_parent(domain_state->current_stack) = NULL;
-  return cont;
-=======
   value cont = caml_alloc_2(Cont_tag, Val_ptr(parent_stack), Val_long(0));
   Stack_parent(domain_state->current_stack) = NULL;
   return cont;
->>>>>>> 5.2.0
 }
 
 Caml_inline void restore_stack_parent(caml_domain_state* domain_state,

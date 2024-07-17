@@ -213,12 +213,6 @@ CAMLexport CAMLweakdef void caml_modify (volatile value *fp, value val)
 
   /* See Note [MM] above */
   atomic_thread_fence(memory_order_acquire);
-<<<<<<< HEAD
-  atomic_store_release(&Op_atomic_val((value)fp)[0], val);
-||||||| 121bedcfd2
-  atomic_store_explicit(&Op_atomic_val((value)fp)[0], val,
-                        memory_order_release);
-=======
 
 #if defined(WITH_THREAD_SANITIZER) && defined(NATIVE_CODE)
   /* The release store below is not instrumented because of the
@@ -230,7 +224,6 @@ CAMLexport CAMLweakdef void caml_modify (volatile value *fp, value val)
 #endif
 
   atomic_store_release(&Op_atomic_val((value)fp)[0], val);
->>>>>>> 5.2.0
 }
 
 /* Dependent memory is all memory blocks allocated out of the heap
@@ -278,12 +271,6 @@ CAMLexport void caml_adjust_gc_speed (mlsize_t res, mlsize_t max)
   Caml_state->extra_heap_resources += (double) res / (double) max;
   if (Caml_state->extra_heap_resources > 0.2){
     CAML_EV_COUNTER (EV_C_REQUEST_MAJOR_ADJUST_GC_SPEED, 1);
-<<<<<<< HEAD
-    caml_request_major_slice (1);
-||||||| 121bedcfd2
-    Caml_state->extra_heap_resources = 1.0;
-    caml_request_major_slice ();
-=======
     caml_request_major_slice (1);
   }
 }
@@ -298,7 +285,6 @@ CAMLexport void caml_adjust_minor_gc_speed (mlsize_t res, mlsize_t max)
   Caml_state->extra_heap_resources_minor += (double) res / (double) max;
   if (Caml_state->extra_heap_resources_minor > 1.0) {
     caml_request_minor_gc ();
->>>>>>> 5.2.0
   }
 }
 
