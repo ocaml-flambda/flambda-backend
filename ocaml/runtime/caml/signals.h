@@ -62,16 +62,8 @@ CAMLextern atomic_uintnat caml_pending_signals[NSIG_WORDS];
 #define caml_requested_major_slice (Caml_state_field(requested_major_slice))
 #define caml_requested_minor_gc (Caml_state_field(requested_minor_gc))
 
-<<<<<<< HEAD
-int caml_check_pending_signals(void);
-void caml_request_major_slice (int global);
-||||||| 121bedcfd2
-int caml_check_pending_signals(void);
-void caml_request_major_slice (void);
-=======
 CAMLextern int caml_check_pending_signals(void);
 void caml_request_major_slice (int global);
->>>>>>> 5.2.0
 void caml_request_minor_gc (void);
 CAMLextern int caml_convert_signal_number (int);
 CAMLextern int caml_rev_convert_signal_number (int);
