@@ -1,7 +1,7 @@
 let $camlUnroll3__first_const32 = Block 0 () in
 let code rec size(22)
       even_0 (n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let next_depth = rec_info (succ my_depth) in
@@ -20,7 +20,7 @@ let code rec size(22)
           -> k * k1
 and code rec size(22)
       odd_1 (n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let next_depth = rec_info (succ my_depth) in
@@ -57,7 +57,7 @@ in
 let code odd_1 deleted and code even_0 deleted in
 let code rec loopify(never) size(18) newer_version_of(even_0)
       even_0_1 (n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %phys_eq (n, 0) in
@@ -73,7 +73,7 @@ let code rec loopify(never) size(18) newer_version_of(even_0)
           -> k * k1
 and code rec loopify(never) size(18) newer_version_of(odd_1)
       odd_1_1 (n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %phys_eq (n, 0) in

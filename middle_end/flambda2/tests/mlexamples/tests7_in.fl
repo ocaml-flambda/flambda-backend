@@ -3,7 +3,7 @@ let $camlTests7__immstring6 = "Cow" in
 let $camlTests7__immstring9 = "Sheep" in
 let code size(37)
       f_0 (x : imm tagged, str)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %string_length str in
@@ -22,7 +22,7 @@ let code size(37)
 in
 let code size(31)
       foo_1 (af : float ^ 2, y : float boxed)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : float boxed =
   let prim = %block_load float (af, 1) in

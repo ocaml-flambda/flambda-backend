@@ -1,6 +1,6 @@
 let $camlUnroll2__first_const23 = Block 0 () in
 let code rec loopify(never) size(23)
-      foo_0 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
+      foo_0 (x : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let Popaque = %Opaque 1 in
   (let untagged = %untag_imm Popaque in
@@ -17,7 +17,7 @@ let code rec loopify(never) size(23)
         my_closure ~ depth my_depth -> next_depth (Psubint) -> k * k1
 in
 let code size(5)
-      bar_1 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
+      bar_1 (x : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let foo = %project_value_slot bar.foo my_closure in
   apply direct(foo_0) unroll(2) foo (x) -> k * k1
 in

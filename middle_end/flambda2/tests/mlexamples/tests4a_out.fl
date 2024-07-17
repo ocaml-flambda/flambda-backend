@@ -1,7 +1,7 @@
 let code pr2162_3_as_int64_0 deleted in
 let code loopify(never) size(21) newer_version_of(pr2162_3_as_int64_0)
       pr2162_3_as_int64_0_1 (z : imm tagged, x : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   (let untagged = %untag_imm z in

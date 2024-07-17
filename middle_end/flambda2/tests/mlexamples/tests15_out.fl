@@ -15,7 +15,7 @@ let code negate_5 deleted in
 let code foo_6 deleted in
 let code loopify(never) size(11) newer_version_of(list_to_array_0)
       list_to_array_0_1 (param : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : any array =
   let prim = %is_int param in
@@ -31,7 +31,7 @@ let code loopify(never) size(14) newer_version_of(is_c_1)
          param :
            [ 0 of imm tagged |1 of imm tagged |2 of imm tagged
            |3 of imm tagged ])
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %get_tag param in
@@ -43,7 +43,7 @@ in
 let $camlTests15__is_c_8 = closure is_c_1_1 @is_c in
 let code loopify(never) size(4) newer_version_of(set_to_x_2)
       set_to_x_2_1 (b, i : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let Pbytessetu = %bytes_set 8 b.(i) 120i in
@@ -52,7 +52,7 @@ in
 let $camlTests15__set_to_x_9 = closure set_to_x_2_1 @set_to_x in
 let code loopify(never) size(3) newer_version_of(classical_id_3)
       classical_id_3_1 (b : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let Pnot = %not b in
@@ -62,7 +62,7 @@ in
 let $camlTests15__classical_id_10 = closure classical_id_3_1 @classical_id in
 let code loopify(never) size(1) newer_version_of(swapped_4)
       swapped_4_1 (param : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   cont k (17459)
@@ -70,7 +70,7 @@ in
 let $camlTests15__swapped_11 = closure swapped_4_1 @swapped in
 let code loopify(never) size(2) newer_version_of(negate_5)
       negate_5_1 (x : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let Pnegint = %int_arith ~- x in
@@ -79,7 +79,7 @@ in
 let $camlTests15__negate_12 = closure negate_5_1 @negate in
 let code loopify(never) size(2) newer_version_of(foo_6)
       foo_6_1 (x : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let Porint = x lor 42 in
