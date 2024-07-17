@@ -79,7 +79,7 @@ val new_scoped_ty: int -> type_desc -> type_expr
 val newvar: ?name:string -> Jkind.t -> type_expr
 val new_rep_var :
   ?name:string -> why:Jkind.Type.History.concrete_jkind_reason -> unit ->
-  type_expr * Jkind.sort
+  type_expr * Jkind.Type.sort
         (* Return a fresh representable variable, along with its sort *)
 val newvar2: ?name:string -> int -> Jkind.t -> type_expr
         (* Return a fresh variable *)
@@ -210,7 +210,7 @@ val prim_mode :
         -> (Mode.allowed * 'r) Mode.Locality.t
 val instance_prim:
         Primitive.description -> type_expr ->
-        type_expr * Mode.Locality.lr option * Jkind.Sort.t option
+        type_expr * Mode.Locality.lr option * Jkind.Type.Sort.t option
 
 (** Given (a @ m1 -> b -> c) @ m0, where [m0] and [m1] are modes expressed by
     user-syntax, [curry_mode m0 m1] gives the mode we implicitly interpret b->c
@@ -551,7 +551,7 @@ val type_jkind_purely : Env.t -> type_expr -> jkind
    needed) *)
 val type_sort :
   why:Jkind.Type.History.concrete_jkind_reason ->
-  Env.t -> type_expr -> (Jkind.sort, Jkind.Violation.t) result
+  Env.t -> type_expr -> (Jkind.Type.sort, Jkind.Violation.t) result
 
 (* Jkind checking. [constrain_type_jkind] will update the jkind of type
    variables to make the check true, if possible.  [check_decl_jkind] and
@@ -571,7 +571,7 @@ val constrain_type_jkind :
 (* Check whether a type's externality's upper bound is less than some target.
    Potentially cheaper than just calling [type_jkind], because this can stop
    expansion once it succeeds. *)
-val check_type_externality : Env.t -> type_expr -> Jkind.Externality.t -> bool
+val check_type_externality : Env.t -> type_expr -> Jkind.Type.Externality.t -> bool
 
 (* This function should get called after a type is generalized.
 

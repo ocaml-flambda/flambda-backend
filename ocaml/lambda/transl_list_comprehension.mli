@@ -15,7 +15,7 @@ open Debuginfo.Scoped_location
     so is parameterized by [Translcore.transl_exp], its [scopes] argument, and
     the [loc]ation. *)
 val comprehension :
-  transl_exp:(scopes:scopes -> Jkind.sort -> expression -> lambda) ->
+  transl_exp:(scopes:scopes -> Jkind.Type.sort -> expression -> lambda) ->
   scopes:scopes ->
   loc:scoped_location ->
   comprehension ->

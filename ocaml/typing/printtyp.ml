@@ -1279,7 +1279,7 @@ let out_jkind_option_of_jkind jkind =
     end
   | Var v -> (* This handles (X1). *)
     if !Clflags.verbose_types
-    then Some (Ojkind_var (Jkind.Sort.Var.name v))
+    then Some (Ojkind_var (Jkind.Type.Sort.Var.name v))
     else None
 
 let alias_nongen_row mode px ty =
@@ -2668,7 +2668,7 @@ let trees_of_type_expansion'
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
           let olay = match Jkind.get jkind with
             | Const clay -> out_jkind_of_const_jkind clay
-            | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
+            | Var v      -> Ojkind_var (Jkind.Type.Sort.Var.name v)
           in
           Otyp_jkind_annot (out, olay)
       | _ ->

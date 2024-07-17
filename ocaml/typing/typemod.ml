@@ -86,7 +86,7 @@ type error =
   | Invalid_type_subst_rhs
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
-  | Toplevel_nonvalue of string * Jkind.sort
+  | Toplevel_nonvalue of string * Jkind.Type.sort
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Cannot_compile_implementation_as_parameter
@@ -2888,7 +2888,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    (* CR layouts v5: this jkind check has the effect of
                       defaulting the sort of top-level bindings to value, which
                       will change. *)
-                   if not Jkind.Sort.(equate sort value)
+                   if not Jkind.Type.Sort.(equate sort value)
                    then raise (Error (loc, env,
                                    Toplevel_nonvalue (Ident.name id,sort)))
                 )
@@ -4038,7 +4038,7 @@ let report_error ~loc _env = function
   | Toplevel_nonvalue (id, sort) ->
       Location.errorf ~loc
         "@[Types of top-level module bindings must have layout value, but@ \
-         the type of %s has layout@ %a.@]" id Jkind.Sort.format sort
+         the type of %s has layout@ %a.@]" id Jkind.Type.Sort.format sort
  | Strengthening_mismatch(lid, explanation) ->
       let main = Includemod_errorprinter.err_msgs explanation in
       Location.errorf ~loc

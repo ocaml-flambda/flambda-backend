@@ -49,7 +49,7 @@ let mkTexp_construct ?id:(mode = Some (Alloc.disallow_left Alloc.legacy))
   Texp_construct (name, desc, args, mode)
 
 type texp_function_param_identifier = {
-  param_sort : Jkind.Sort.t;
+  param_sort : Jkind.Type.Sort.t;
   param_mode : Alloc.l;
   param_curry : function_curry;
   param_newtypes : (string Location.loc * Jkind.annotation option) list;
@@ -66,7 +66,7 @@ type texp_function_param = {
 
 type texp_function_cases_identifier = {
   last_arg_mode : Alloc.l;
-  last_arg_sort : Jkind.Sort.t;
+  last_arg_sort : Jkind.Type.Sort.t;
   last_arg_exp_extra : exp_extra option;
   last_arg_attributes : attributes;
   env : Env.t;
@@ -89,7 +89,7 @@ type texp_function = {
 
 type texp_function_identifier = {
   alloc_mode : Alloc.r;
-  ret_sort : Jkind.sort;
+  ret_sort : Jkind.Type.sort;
   region : bool;
   ret_mode : Alloc.l;
   zero_alloc : Builtin_attributes.zero_alloc_attribute;
@@ -98,7 +98,7 @@ type texp_function_identifier = {
 let texp_function_cases_identifier_defaults =
   {
     last_arg_mode = Alloc.disallow_right Alloc.legacy;
-    last_arg_sort = Jkind.Sort.value;
+    last_arg_sort = Jkind.Type.Sort.value;
     last_arg_exp_extra = None;
     last_arg_attributes = [];
     env = Env.empty;
@@ -107,7 +107,7 @@ let texp_function_cases_identifier_defaults =
 
 let texp_function_param_identifier_defaults =
   {
-    param_sort = Jkind.Sort.value;
+    param_sort = Jkind.Type.Sort.value;
     param_mode = Alloc.disallow_right Alloc.legacy;
     param_curry = More_args { partial_mode = Alloc.disallow_right Alloc.legacy };
     param_newtypes = [];
@@ -116,7 +116,7 @@ let texp_function_param_identifier_defaults =
 let texp_function_defaults =
   {
     alloc_mode = Alloc.disallow_left Alloc.legacy;
-    ret_sort = Jkind.Sort.value;
+    ret_sort = Jkind.Type.Sort.value;
     ret_mode = Alloc.disallow_right Alloc.legacy;
     region = false;
     zero_alloc = Builtin_attributes.Default_zero_alloc;
@@ -178,14 +178,14 @@ let mkTexp_function ?(id = texp_function_defaults)
       zero_alloc = id.zero_alloc;
     }
 
-type texp_sequence_identifier = Jkind.sort
+type texp_sequence_identifier = Jkind.Type.sort
 
-let mkTexp_sequence ?id:(sort = Jkind.Sort.value) (e1, e2) =
+let mkTexp_sequence ?id:(sort = Jkind.Type.Sort.value) (e1, e2) =
   Texp_sequence (e1, sort, e2)
 
-type texp_match_identifier = Jkind.sort
+type texp_match_identifier = Jkind.Type.sort
 
-let mkTexp_match ?id:(sort = Jkind.Sort.value) (e, cases, partial) =
+let mkTexp_match ?id:(sort = Jkind.Type.Sort.value) (e, cases, partial) =
   Texp_match (e, sort, cases, partial)
 
 let mkTexp_assert e loc = Texp_assert (e, loc)
@@ -291,11 +291,11 @@ type tpat_alias_identifier = Value.l
 let mkTpat_alias ?id:(mode = dummy_value_mode) (p, ident, name) =
   Tpat_alias (p, ident, name, Uid.internal_not_actually_unique, mode)
 
-type tpat_array_identifier = mutability * Jkind.sort
+type tpat_array_identifier = mutability * Jkind.Type.sort
 
 let mkTpat_array
     ?id:(mut, arg_sort =
-        (Mutable Alloc.Comonadic.Const.legacy, Jkind.Sort.value)) l =
+        (Mutable Alloc.Comonadic.Const.legacy, Jkind.Type.Sort.value)) l =
   Tpat_array (mut, arg_sort, l)
 
 type tpat_tuple_identifier = string option list
@@ -336,9 +336,9 @@ let view_tpat (type a) (p : a pattern_desc) : a matched_pattern_desc =
       Tpat_tuple (pats, labels)
   | _ -> O p
 
-type tstr_eval_identifier = Jkind.sort
+type tstr_eval_identifier = Jkind.Type.sort
 
-let mkTstr_eval ?id:(sort = Jkind.Sort.value) (e, attrs) =
+let mkTstr_eval ?id:(sort = Jkind.Type.Sort.value) (e, attrs) =
   Tstr_eval (e, sort, attrs)
 
 type matched_structure_item_desc =
@@ -350,9 +350,9 @@ let view_tstr (si : structure_item_desc) =
   | Tstr_eval (e, sort, attrs) -> Tstr_eval (e, attrs, sort)
   | _ -> O si
 
-type arg_identifier = Jkind.sort
+type arg_identifier = Jkind.Type.sort
 
-let mkArg ?id:(sort = Jkind.Sort.value) e = Arg (e, sort)
+let mkArg ?id:(sort = Jkind.Type.Sort.value) e = Arg (e, sort)
 
 let map_arg_or_omitted f arg =
   match arg with Arg (e, sort) -> Arg (f e, sort) | Omitted o -> Omitted o
@@ -392,7 +392,7 @@ let mk_value_binding ~vb_pat ~vb_expr ~vb_attributes =
     vb_attributes;
     vb_rec_kind = Dynamic;
     vb_loc = Location.none;
-    vb_sort = Jkind.Sort.value;
+    vb_sort = Jkind.Type.Sort.value;
   }
 
 let mk_value_description ~val_type ~val_kind ~val_attributes =

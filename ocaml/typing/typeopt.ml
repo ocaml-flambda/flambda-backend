@@ -22,13 +22,13 @@ open Lambda
 
 type error =
     Non_value_layout of type_expr * Jkind.Violation.t option
-  | Non_value_sort of Jkind.Sort.t * type_expr
+  | Non_value_sort of Jkind.Type.Sort.t * type_expr
   | Sort_without_extension of
-      Jkind.Sort.t * Language_extension.maturity * type_expr option
-  | Non_value_sort_unknown_ty of Jkind.Sort.t
-  | Small_number_sort_without_extension of Jkind.Sort.t * type_expr option
+      Jkind.Type.Sort.t * Language_extension.maturity * type_expr option
+  | Non_value_sort_unknown_ty of Jkind.Type.Sort.t
+  | Small_number_sort_without_extension of Jkind.Type.Sort.t * type_expr option
   | Not_a_sort of type_expr * Jkind.Violation.t
-  | Unsupported_sort of Jkind.Sort.const
+  | Unsupported_sort of Jkind.Type.Sort.const
 
 exception Error of Location.t * error
 
@@ -83,7 +83,7 @@ let is_base_type env ty base_ty_path =
   | _ -> false
 
 let is_always_gc_ignorable env ty =
-  let ext : Jkind.Externality.t =
+  let ext : Jkind.Type.Externality.t =
     (* We check that we're compiling to (64-bit) native code before counting
        External64 types as gc_ignorable, because bytecode is intended to be
        platform independent. *)
@@ -122,7 +122,7 @@ type classification =
    Returning [Any] is safe, though may skip some optimizations. *)
 let classify env loc ty sort : classification =
   let ty = scrape_ty env ty in
-  match Jkind.Sort.default_to_value_and_get sort with
+  match Jkind.Type.Sort.default_to_value_and_get sort with
   | Value -> begin
   if is_always_gc_ignorable env ty then Int
   else match get_desc ty with
@@ -664,7 +664,7 @@ let value_kind env loc ty =
   | Missing_cmi_fallback -> raise (Error (loc, Non_value_layout (ty, None)))
 
 let[@inline always] layout_of_const_sort_generic ~value_kind ~error
-  : Jkind.Sort.const -> _ = function
+  : Jkind.Type.Sort.const -> _ = function
   | Value -> Lambda.Pvalue (Lazy.force value_kind)
   | Float64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_float Pfloat64
@@ -682,27 +682,27 @@ let[@inline always] layout_of_const_sort_generic ~value_kind ~error
 
 let layout env loc sort ty =
   layout_of_const_sort_generic
-    (Jkind.Sort.default_to_value_and_get sort)
+    (Jkind.Type.Sort.default_to_value_and_get sort)
     ~value_kind:(lazy (value_kind env loc ty))
     ~error:(function
       | Value -> assert false
-      | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
+      | Void -> raise (Error (loc, Non_value_sort (Jkind.Type.Sort.void,ty)))
       | (Float32 as const) ->
-        raise (Error (loc, Small_number_sort_without_extension (Jkind.Sort.of_const const, Some ty)))
+        raise (Error (loc, Small_number_sort_without_extension (Jkind.Type.Sort.of_const const, Some ty)))
       | (Float64 | Word | Bits32 | Bits64 as const) ->
-        raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, Some ty))))
+        raise (Error (loc, Sort_without_extension (Jkind.Type.Sort.of_const const, Stable, Some ty))))
 
 let layout_of_sort loc sort =
   layout_of_const_sort_generic
-    (Jkind.Sort.default_to_value_and_get sort)
+    (Jkind.Type.Sort.default_to_value_and_get sort)
     ~value_kind:(lazy Pgenval)
     ~error:(function
     | Value -> assert false
-    | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
+    | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Type.Sort.void))
     | (Float32 as const) ->
-      raise (Error (loc, Small_number_sort_without_extension (Jkind.Sort.of_const const, None)))
+      raise (Error (loc, Small_number_sort_without_extension (Jkind.Type.Sort.of_const const, None)))
     | (Float64 | Word | Bits32 | Bits64 as const) ->
-      raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, None))))
+      raise (Error (loc, Sort_without_extension (Jkind.Type.Sort.of_const const, Stable, None))))
 
 let layout_of_const_sort s =
   layout_of_const_sort_generic
@@ -710,7 +710,7 @@ let layout_of_const_sort s =
     ~value_kind:(lazy Pgenval)
     ~error:(fun const ->
       Misc.fatal_errorf "layout_of_const_sort: %a encountered"
-        Jkind.Sort.Const.format const)
+        Jkind.Type.Sort.Const.format const)
 
 let function_return_layout env loc sort ty =
   match is_function_type env ty with
@@ -730,7 +730,7 @@ let function_arg_layout env loc sort ty =
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
     if the value can be represented as a float/forward/lazy *)
 let lazy_val_requires_forward env loc ty =
-  let sort = Jkind.Sort.for_lazy_body in
+  let sort = Jkind.Type.Sort.for_lazy_body in
   match classify env loc ty sort with
   | Any | Lazy -> true
   (* CR layouts: Fix this when supporting lazy unboxed values.
@@ -813,14 +813,14 @@ let report_error ppf = function
       fprintf ppf
         "Non-value layout %a detected in [Typeopt.layout] as sort for type@ %a.@ \
          Please report this error to the Jane Street compilers team."
-        Jkind.Sort.format sort Printtyp.type_expr ty
+        Jkind.Type.Sort.format sort Printtyp.type_expr ty
   | Non_value_sort_unknown_ty sort ->
       fprintf ppf
         "Non-value layout %a detected in [layout_of_sort]@ Please report this \
          error to the Jane Street compilers team."
-        Jkind.Sort.format sort
+        Jkind.Type.Sort.format sort
   | Sort_without_extension (sort, maturity, ty) ->
-      fprintf ppf "Non-value layout %a detected" Jkind.Sort.format sort;
+      fprintf ppf "Non-value layout %a detected" Jkind.Type.Sort.format sort;
       begin match ty with
       | None -> ()
       | Some ty -> fprintf ppf " as sort for type@ %a" Printtyp.type_expr ty
@@ -832,7 +832,7 @@ let report_error ppf = function
          Otherwise, please report this error to the Jane Street compilers team."
         (Language_extension.to_command_line_string Layouts maturity)
   | Small_number_sort_without_extension (sort, ty) ->
-      fprintf ppf "Non-value layout %a detected" Jkind.Sort.format sort;
+      fprintf ppf "Non-value layout %a detected" Jkind.Type.Sort.format sort;
       begin match ty with
       | None -> ()
       | Some ty -> fprintf ppf " as sort for type@ %a" Printtyp.type_expr ty
@@ -856,7 +856,7 @@ let report_error ppf = function
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
   | Unsupported_sort const ->
-      fprintf ppf "Layout %a is not supported yet." Jkind.Sort.Const.format const
+      fprintf ppf "Layout %a is not supported yet." Jkind.Type.Sort.Const.format const
 
 let () =
   Location.register_error_of_exn

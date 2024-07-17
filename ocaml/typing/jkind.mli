@@ -320,13 +320,6 @@ module Type : sig
   end
 end
 
-(* Re-export some symbols *)
-
-type sort = Type.sort
-
-module Sort = Type.Sort
-module Externality = Type.Externality
-
 (** A Jkind.t is a type representing general, higher-order kinds. Its special
     case is a zeroth-order kind of runtime-representable types (Jkind.Type.t). *)
 type t = Types.type_expr Jkind_types.t
@@ -409,7 +402,7 @@ val to_const : t -> Const.t option
 
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
-val of_new_sort_var : why:Type.History.concrete_jkind_reason -> t * sort
+val of_new_sort_var : why:Type.History.concrete_jkind_reason -> t * Type.sort
 
 (** Create a fresh sort variable, packed into a jkind. *)
 val of_new_sort : why:Type.History.concrete_jkind_reason -> t
@@ -487,7 +480,7 @@ val default_to_value : t -> unit
 
 (** Returns the sort corresponding to the jkind.  Call only on representable
     jkinds - raises on Any. *)
-val sort_of_jkind : Type.t -> sort
+val sort_of_jkind : Type.t -> Type.sort
 
 (** Extract the [const] from a [Jkind.Type.t], looking through unified
     sort variables. Returns [Var] if the final, non-variable jkind has not
