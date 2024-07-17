@@ -27,16 +27,8 @@ type raw_data = nativeint  (* @since 4.12 *)
 
 external repr : 'a -> t = "%identity"
 external obj : t -> 'a = "%identity"
-<<<<<<< HEAD
 external magic : 'a -> 'b = "%obj_magic"
 val is_block : t -> bool
-||||||| 121bedcfd2
-external magic : 'a -> 'b = "%identity"
-val [@inline always] is_block : t -> bool
-=======
-external magic : 'a -> 'b = "%identity"
-val is_block : t -> bool
->>>>>>> 5.2.0
 external is_int : t -> bool = "%obj_is_int"
 external tag : t -> int = "caml_obj_tag" [@@noalloc]
 val size : t -> int

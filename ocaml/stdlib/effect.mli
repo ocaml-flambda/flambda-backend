@@ -1,4 +1,3 @@
-# 1 "effect.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -12,6 +11,10 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+
+(* CR mshinwell: To be re-enabled in due course *)
+
+(*
 
 [@@@alert unstable
     "The Effect interface may change in incompatible ways in the future."
@@ -146,3 +149,5 @@ module Shallow : sig
   (** [get_callstack c n] returns a description of the top of the call stack on
       the continuation [c], with at most [n] entries. *)
 end
+
+*)
