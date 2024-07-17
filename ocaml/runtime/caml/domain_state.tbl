@@ -52,15 +52,6 @@ DOMAIN_STATE(intnat, local_sp)
 DOMAIN_STATE(void*, local_top)
 DOMAIN_STATE(intnat, local_limit)
 
-DOMAIN_STATE(char*, async_exn_handler)
-/* Async exception pointer that points into the current stack */
-
-/* Local allocations */
-DOMAIN_STATE(struct caml_local_arenas*, local_arenas)
-DOMAIN_STATE(intnat, local_sp)
-DOMAIN_STATE(void*, local_top)
-DOMAIN_STATE(intnat, local_limit)
-
 DOMAIN_STATE(intnat, action_pending)
 /* Whether we are due to start the processing of delayable pending
    actions. See runtime/signal.c. Valid values: 0,1. */
