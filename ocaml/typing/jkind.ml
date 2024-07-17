@@ -1358,8 +1358,6 @@ module Type = struct
        indeed just about the payload.) *)
 
     let of_ ?missing_cmi violation = { violation; missing_cmi }
-
-    let is_missing_cmi viol = Option.is_some viol.missing_cmi
   end
 
   (******************************)
