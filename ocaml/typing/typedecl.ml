@@ -2681,8 +2681,6 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
        - this isn't a tvar from an outer scopes ([TyVarEnv] gets reset before
          transl)
     *)
-    (* FIXME jbachurski: Is this the way this unwrapping should happen?
-       Is assigning arrows a sort temporarily okay? *)
     | Tvar {jkind} when is_layout_poly
                        && Jkind.has_layout_any jkind
                        && get_level ty = Btype.generic_level -> Poly
@@ -3187,7 +3185,7 @@ let transl_package_constraint ~loc ty =
 let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
   let arity = List.length params in
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
-    let params = List.map (fun jkind -> Ctype.newvar jkind) params in
+    let params = List.map Ctype.newvar params in
     { type_params = params;
       type_arity = arity;
       type_kind = Type_abstract Abstract_def;
