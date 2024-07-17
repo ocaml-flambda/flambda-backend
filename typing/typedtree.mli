@@ -119,23 +119,11 @@ and 'k pattern_desc =
   (* value patterns *)
   | Tpat_any : value pattern_desc
         (** _ *)
-<<<<<<< HEAD
   | Tpat_var : Ident.t * string loc * Uid.t * Mode.Value.l -> value pattern_desc
-||||||| 121bedcfd2
-  | Tpat_var : Ident.t * string loc -> value pattern_desc
-=======
-  | Tpat_var : Ident.t * string loc * Uid.t -> value pattern_desc
->>>>>>> 5.2.0
         (** x *)
   | Tpat_alias :
-<<<<<<< HEAD
       value general_pattern * Ident.t * string loc * Uid.t * Mode.Value.l
         -> value pattern_desc
-||||||| 121bedcfd2
-      value general_pattern * Ident.t * string loc -> value pattern_desc
-=======
-      value general_pattern * Ident.t * string loc * Uid.t -> value pattern_desc
->>>>>>> 5.2.0
         (** P as a *)
   | Tpat_constant : constant -> value pattern_desc
         (** 1, 'a', "true", 1.0, 1l, 1L, 1n *)
@@ -269,7 +257,6 @@ and expression_desc =
         (** let P1 = E1 and ... and Pn = EN in E       (flag = Nonrecursive)
             let rec P1 = E1 and ... and Pn = EN in E   (flag = Recursive)
          *)
-<<<<<<< HEAD
   | Texp_function of
       { params : function_param list;
         body : function_body;
@@ -294,41 +281,7 @@ and expression_desc =
       *)
   | Texp_apply of
       expression * (arg_label * apply_arg) list * apply_position *
-<<<<<<< HEAD
-        Mode.Locality.l * Zero_alloc_utils.Assume_info.t
-||||||| 121bedcfd2
-  | Texp_function of { arg_label : arg_label; param : Ident.t;
-      cases : value case list; partial : partial; }
-        (** [Pexp_fun] and [Pexp_function] both translate to [Texp_function].
-            See {!Parsetree} for more details.
-
-            [param] is the identifier that is to be used to name the
-            parameter of the function.
-
-            partial =
-              [Partial] if the pattern match is partial
-              [Total] otherwise.
-         *)
-  | Texp_apply of expression * (arg_label * expression option) list
-=======
-  | Texp_function of function_param list * function_body
-    (** fun P0 P1 -> function p1 -> e1 | p2 -> e2  (body = Tfunction_cases _)
-        fun P0 P1 -> E                             (body = Tfunction_body _)
-
-        This construct has the same arity as the originating
-        {{!Parsetree.expression_desc.Pexp_function}[Pexp_function]}.
-        Arity determines when side-effects for effectful parameters are run
-        (e.g. optional argument defaults, matching against lazy patterns).
-        Parameters' effects are run left-to-right when an n-ary function is
-        saturated with n arguments.
-    *)
-  | Texp_apply of expression * (arg_label * expression option) list
->>>>>>> 5.2.0
-||||||| 2572783060
-        Mode.Locality.l * Zero_alloc_utils.Assume_info.t
-=======
         Mode.Locality.l * Zero_alloc.assume option
->>>>>>> ocaml-jst/flambda-patches
         (** E0 ~l1:E1 ... ~ln:En
 
             The expression can be Omitted if the expression is abstracted over
@@ -479,52 +432,39 @@ and function_param =
        [Total] otherwise.
     *)
     fp_kind: function_param_kind;
-    fp_sort: Jkind.sort;
-    fp_mode: Mode.Alloc.l;
-    fp_curry: function_curry;
-    fp_newtypes: (string loc * Jkind.annotation option) list;
-    (** [fp_newtypes] are the new type declarations that come *after* that
-        parameter. The newtypes that come before the first parameter are
-        placed as exp_extras on the Texp_function node. This is just used in
-        {!Untypeast}. *)
+    fp_newtypes: string loc list;
+      (** [fp_newtypes] are the new type declarations that come *after* that
+          parameter. The newtypes that come before the first parameter are
+          placed as exp_extras on the Texp_function node. This is just used in
+          {!Untypeast}. *)
     fp_loc: Location.t;
-    (** [fp_loc] is the location of the entire value parameter, not including
-        the [fp_newtypes].
-    *)
+      (** [fp_loc] is the location of the entire value parameter, not including
+          the [fp_newtypes].
+      *)
   }
 
 and function_param_kind =
   | Tparam_pat of pattern
   (** [Tparam_pat p] is a non-optional argument with pattern [p]. *)
-  | Tparam_optional_default of pattern * expression * Jkind.sort
-  (** [Tparam_optional_default (p, e, sort)] is an optional argument [p] with
-      default value [e], i.e. [?x:(p = e)]. If the parameter is of type
-      [a option], the pattern and expression are of type [a]. [sort] is the
-      sort of [e]. *)
+  | Tparam_optional_default of pattern * expression
+  (** [Tparam_optional_default (p, e)] is an optional argument [p] with default
+      value [e], i.e. [?x:(p = e)]. If the parameter is of type [a option], the
+      pattern and expression are of type [a]. *)
 
 and function_body =
   | Tfunction_body of expression
-  | Tfunction_cases of function_cases
+  | Tfunction_cases of
+      { cases: value case list;
+        partial: partial;
+        param: Ident.t;
+        loc: Location.t;
+        exp_extra: exp_extra option;
+        attributes: attributes;
+        (** [attributes] is just used in untypeast. *)
+      }
 (** The function body binds a final argument in [Tfunction_cases],
     and this argument is pattern-matched against the cases.
 *)
-
-and function_cases =
-  { fc_cases: value case list;
-    fc_env : Env.t;
-    (** [fc_env] contains entries from all parameters except
-        for the last one being matched by the cases.
-    *)
-    fc_arg_mode: Mode.Alloc.l;
-    fc_arg_sort: Jkind.sort;
-    fc_ret_type : Types.type_expr;
-    fc_partial: partial;
-    fc_param: Ident.t;
-    fc_loc: Location.t;
-    fc_exp_extra: exp_extra option;
-    fc_attributes: attributes;
-    (** [fc_attributes] is just used in untypeast. *)
-  }
 
 and ident_kind =
   | Id_value
@@ -576,54 +516,6 @@ and 'k case =
      c_guard: expression option;
      c_rhs: expression;
     }
-
-and function_param =
-  {
-    fp_arg_label: arg_label;
-    fp_param: Ident.t;
-    (** [fp_param] is the identifier that is to be used to name the
-        parameter of the function.
-    *)
-    fp_partial: partial;
-    (**
-       [fp_partial] =
-       [Partial] if the pattern match is partial
-       [Total] otherwise.
-    *)
-    fp_kind: function_param_kind;
-    fp_newtypes: string loc list;
-      (** [fp_newtypes] are the new type declarations that come *after* that
-          parameter. The newtypes that come before the first parameter are
-          placed as exp_extras on the Texp_function node. This is just used in
-          {!Untypeast}. *)
-    fp_loc: Location.t;
-      (** [fp_loc] is the location of the entire value parameter, not including
-          the [fp_newtypes].
-      *)
-  }
-
-and function_param_kind =
-  | Tparam_pat of pattern
-  (** [Tparam_pat p] is a non-optional argument with pattern [p]. *)
-  | Tparam_optional_default of pattern * expression
-  (** [Tparam_optional_default (p, e)] is an optional argument [p] with default
-      value [e], i.e. [?x:(p = e)]. If the parameter is of type [a option], the
-      pattern and expression are of type [a]. *)
-
-and function_body =
-  | Tfunction_body of expression
-  | Tfunction_cases of
-      { cases: value case list;
-        partial: partial;
-        param: Ident.t;
-        loc: Location.t;
-        exp_extra: exp_extra option;
-        attributes: attributes;
-        (** [attributes] is just used in untypeast. *)
-      }
-(** The function body binds a final argument in [Tfunction_cases],
-    and this argument is pattern-matched against the cases.
-*)
 
 and record_label_definition =
   | Kept of Types.type_expr * Types.mutability * unique_use
@@ -793,13 +685,8 @@ and value_binding =
   {
     vb_pat: pattern;
     vb_expr: expression;
-<<<<<<< HEAD
     vb_rec_kind: Value_rec_types.recursive_binding_kind;
     vb_sort: Jkind.sort;
-||||||| 121bedcfd2
-=======
-    vb_rec_kind: Value_rec_types.recursive_binding_kind;
->>>>>>> 5.2.0
     vb_attributes: attributes;
     vb_loc: Location.t;
   }
@@ -970,24 +857,14 @@ and core_type_desc =
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-<<<<<<< HEAD
-  | Ttyp_alias of core_type * string option * Jkind.annotation option
-||||||| 121bedcfd2
-  | Ttyp_alias of core_type * string
-=======
-  | Ttyp_alias of core_type * string loc
->>>>>>> 5.2.0
+  | Ttyp_alias of core_type * string loc option * Jkind.annotation option
   | Ttyp_variant of row_field list * closed_flag * label list option
   | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
-<<<<<<< HEAD
+  | Ttyp_open of Path.t * Longident.t loc * core_type
   | Ttyp_call_pos
       (** [Ttyp_call_pos] represents the type of the value of a Position
           argument ([lbl:[%call_pos] -> ...]). *)
-||||||| 121bedcfd2
-=======
-  | Ttyp_open of Path.t * Longident.t loc * core_type
->>>>>>> 5.2.0
 
 and package_type = {
   pack_path : Path.t;
@@ -1051,16 +928,9 @@ and label_declaration =
     {
      ld_id: Ident.t;
      ld_name: string loc;
-<<<<<<< HEAD
      ld_uid: Uid.t;
      ld_mutable: Types.mutability;
      ld_modalities: Mode.Modality.Value.Const.t;
-||||||| 121bedcfd2
-     ld_mutable: mutable_flag;
-=======
-     ld_uid: Uid.t;
-     ld_mutable: mutable_flag;
->>>>>>> 5.2.0
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attributes;
@@ -1070,15 +940,8 @@ and constructor_declaration =
     {
      cd_id: Ident.t;
      cd_name: string loc;
-<<<<<<< HEAD
      cd_uid: Uid.t;
      cd_vars: (string * Jkind.annotation option) list;
-||||||| 121bedcfd2
-     cd_vars: string loc list;
-=======
-     cd_uid: Uid.t;
-     cd_vars: string loc list;
->>>>>>> 5.2.0
      cd_args: constructor_arguments;
      cd_res: core_type option;
      cd_loc: Location.t;
@@ -1264,7 +1127,6 @@ val exists_pattern: (pattern -> bool) -> pattern -> bool
 
 val let_bound_idents: value_binding list -> Ident.t list
 val let_bound_idents_full:
-<<<<<<< HEAD
     value_binding list -> (Ident.t * string loc * Types.type_expr * Uid.t) list
 
 (* [let_bound_idents_with_modes_sorts_and_checks] finds all the idents in the
@@ -1282,19 +1144,7 @@ val let_bound_idents_full:
 val let_bound_idents_with_modes_sorts_and_checks:
   value_binding list
   -> (Ident.t * (Location.t * Mode.Value.l * Jkind.sort) list
-<<<<<<< HEAD
-              * Builtin_attributes.zero_alloc_attribute) list
-||||||| 121bedcfd2
-    value_binding list -> (Ident.t * string loc * Types.type_expr) list
-=======
-    value_binding list ->
-    (Ident.t * string loc * Types.type_expr * Types.Uid.t) list
->>>>>>> 5.2.0
-||||||| 2572783060
-              * Builtin_attributes.zero_alloc_attribute) list
-=======
               * Zero_alloc.t) list
->>>>>>> ocaml-jst/flambda-patches
 
 (** Alpha conversion of patterns *)
 val alpha_pat:
@@ -1307,15 +1157,8 @@ val pat_bound_idents: 'k general_pattern -> Ident.t list
 val pat_bound_idents_with_types:
   'k general_pattern -> (Ident.t * Types.type_expr) list
 val pat_bound_idents_full:
-<<<<<<< HEAD
   Jkind.sort -> 'k general_pattern
   -> (Ident.t * string loc * Types.type_expr * Types.Uid.t * Jkind.sort) list
-||||||| 121bedcfd2
-  'k general_pattern -> (Ident.t * string loc * Types.type_expr) list
-=======
-  'k general_pattern ->
-  (Ident.t * string loc * Types.type_expr * Types.Uid.t) list
->>>>>>> 5.2.0
 
 (** Splits an or pattern into its value (left) and exception (right) parts. *)
 val split_pattern:

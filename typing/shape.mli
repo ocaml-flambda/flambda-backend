@@ -112,27 +112,15 @@ module Item : sig
   val class_ : Ident.t -> t
   val class_type : Ident.t -> t
 
-<<<<<<< HEAD
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
 
-||||||| 121bedcfd2
-=======
-  val print : Format.formatter -> t -> unit
-
->>>>>>> 5.2.0
   module Map : Map.S with type key = t
 end
 
 type var = Ident.t
-<<<<<<< HEAD
 type t = private { hash: int; uid: Uid.t option; desc: desc; approximated: bool }
-||||||| 121bedcfd2
-type t = { uid: Uid.t option; desc: desc }
-=======
-type t = { uid: Uid.t option; desc: desc; approximated: bool }
->>>>>>> 5.2.0
 and desc =
   | Var of var
   | Abs of var * t
@@ -146,16 +134,10 @@ and desc =
 
 val print : Format.formatter -> t -> unit
 
-<<<<<<< HEAD
 val strip_head_aliases : t -> t
 
 val equal : t -> t -> bool
 
-||||||| 121bedcfd2
-=======
-val strip_head_aliases : t -> t
-
->>>>>>> 5.2.0
 (* Smart constructors *)
 
 val for_unnamed_functor_param : var
@@ -165,13 +147,8 @@ val var : Uid.t -> Ident.t -> t
 val abs : ?uid:Uid.t -> var -> t -> t
 val app : ?uid:Uid.t -> t -> arg:t -> t
 val str : ?uid:Uid.t -> t Item.Map.t -> t
-<<<<<<< HEAD
 val alias : ?uid:Uid.t -> t -> t
 val error : ?uid:Uid.t -> string -> t
-||||||| 121bedcfd2
-=======
-val alias : ?uid:Uid.t -> t -> t
->>>>>>> 5.2.0
 val proj : ?uid:Uid.t -> t -> Item.t -> t
 val leaf : Uid.t -> t
 val leaf' : Uid.t option -> t
