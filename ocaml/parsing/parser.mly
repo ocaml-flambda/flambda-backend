@@ -913,19 +913,22 @@ let unboxed_type sloc lident tys =
   let loc = make_loc sloc in
   Ptyp_constr (mkloc lident loc, tys)
 
-let app_typevar_list sloc tvs =
-  (* FIXME jbachurski: The source locations here are not right.
-      Variable annotations are also quietly forgotten. *)
+let app_typevar_list
+    (tvs : ((Lexing.position * Lexing.position) *
+             string with_loc *
+             Jane_syntax.Jkind.annotation option) list) =
   let tvs =
-    List.map (fun (tv, annot) ->
+    List.map (fun (loc, tv, annot) ->
       match annot with
-      | None -> mktyp ~loc:sloc (Ptyp_var tv.txt)
+      | None -> mktyp ~loc (Ptyp_var tv.txt)
       | Some jkind ->
-        Jane_syntax.Layouts.type_of ~loc:(make_loc sloc) @@
+        Jane_syntax.Layouts.type_of ~loc:(make_loc loc) @@
           Ltyp_var { name = Some tv.txt; jkind }) tvs
   in
   List.fold_left
-    (fun rest tv -> mktyp ~loc:sloc (Ptyp_app (tv, [rest])))
+    (fun rest tv ->
+      let loc = (rest.ptyp_loc.loc_start, tv.ptyp_loc.loc_end) in
+      mktyp ~loc (Ptyp_app (tv, [rest])))
     (List.hd tvs) (List.tl tvs)
 %}
 
@@ -4209,16 +4212,21 @@ with_type_binder:
 
 /* Polymorphic types */
 
-%inline typevar: (* : string with_loc * jkind_annotation option *)
+%inline typevar: (* : (position * position) * string * jkind_annotation option *)
     QUOTE mkrhs(ident)
-      { ($2, None) }
+      { ($sloc, $2, None) }
     | LPAREN QUOTE tyvar=mkrhs(ident) COLON jkind=jkind_annotation RPAREN
-      { (tyvar, Some jkind) }
+      { ($sloc, tyvar, Some jkind) }
 ;
-%inline typevar_list:
-  (* : (string with_loc * jkind_annotation option) list *)
+%inline typevar_list_with_full_pos:
+  (* : ((position * position) * string with_loc * jkind_annotation option) list *)
   nonempty_llist(typevar)
     { $1 }
+;
+%inline typevar_list:
+  (* : string with_loc * jkind_annotation option) list *)
+  typevar_list_with_full_pos
+    { List.map (fun (_, a, b) -> (a, b)) $1 }
 ;
 %inline poly(X):
   typevar_list DOT X
@@ -4512,10 +4520,10 @@ tuple_type:
 atomic_type:
   | atomic_type_not_quote_gen
       { $1 }
-  | tvs=typevar_list
-      { app_typevar_list $sloc tvs }
-  | tvs=typevar_list LPAREN ty=core_type RPAREN
-      { mktyp ~loc:$sloc (Ptyp_app (ty, [app_typevar_list $sloc tvs])) }
+  | tvs=typevar_list_with_full_pos
+      { app_typevar_list tvs }
+  | tvs=typevar_list_with_full_pos LPAREN ty=core_type RPAREN
+      { mktyp ~loc:$sloc (Ptyp_app (ty, [app_typevar_list tvs])) }
 
 atomic_type_not_quote:
   | atomic_type_not_quote_gen { $1 }
