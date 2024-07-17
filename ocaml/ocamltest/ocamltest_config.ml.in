@@ -86,13 +86,7 @@ let exe = {@QS@|@exeext@|@QS@}
 let mkdll = {@QS@|@mkdll_exp@|@QS@}
 let mkexe = {@QS@|@mkexe_exp@|@QS@}
 
-<<<<<<< HEAD
-let bytecc_libs = {@QS@|@cclibs@|@QS@}
-||||||| 121bedcfd2
-let bytecc_libs = {@QS@|@bytecclibs@|@QS@}
-=======
 let bytecc_libs = {@QS@|@zstd_libs@ @cclibs@|@QS@}
->>>>>>> 5.2.0
 
 let nativecc_libs = {@QS@|@cclibs@|@QS@}
 
@@ -103,7 +97,6 @@ let function_sections = @function_sections@
 let instrumented_runtime = @instrumented_runtime@
 
 let frame_pointers = @frame_pointers@
-<<<<<<< HEAD
 
 let probes = @probes@
 
@@ -112,8 +105,5 @@ let stack_allocation = @stack_allocation@
 let poll_insertion = @poll_insertion@
 
 let naked_pointers = @naked_pointers@
-||||||| 121bedcfd2
-=======
 
 let tsan = @tsan@
->>>>>>> 5.2.0

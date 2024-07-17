@@ -98,13 +98,13 @@ let file ~style ~compact f =
   let lexbuf = Lexing.from_channel lex_ic in
   Location.init lexbuf f;
   let rec seek_to_begin () =
-    match[@ocaml.warning "-fragile-match"] Tsl_lexer.token lexbuf with
+    match Tsl_lexer.token lexbuf with
     | Tsl_parser.TSL_BEGIN_C_STYLE position -> (c_kind, position)
     | Tsl_parser.TSL_BEGIN_OCAML_STYLE position -> (ocaml_kind, position)
     | _ -> seek_to_begin ()
   in
   let rec seek_to_end () =
-    match[@ocaml.warning "-fragile-match"] Tsl_lexer.token lexbuf with
+    match Tsl_lexer.token lexbuf with
     | Tsl_parser.TSL_END_C_STYLE -> ()
     | Tsl_parser.TSL_END_OCAML_STYLE -> ()
     | _ -> seek_to_end ()
