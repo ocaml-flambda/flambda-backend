@@ -14,17 +14,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
-<<<<<<< HEAD
 open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-(* Message digest (MD5) *)
-||||||| 121bedcfd2
-(* Message digest (MD5) *)
-=======
 (* Utility functions *)
->>>>>>> 5.2.0
 
 let hex_of_string d =
   let char_hex n =
