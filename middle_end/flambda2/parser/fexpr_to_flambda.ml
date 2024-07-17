@@ -372,12 +372,13 @@ let alloc_mode_for_allocations env (alloc : Fexpr.alloc_mode_for_allocations) =
     Alloc_mode.For_allocations.local ~region:r
 
 let alloc_mode_for_applications env
-    (alloc : Fexpr.alloc_mode_for_allocations (* XXX *)) =
+    (alloc : Fexpr.alloc_mode_for_applications) =
   match alloc with
   | Heap -> Alloc_mode.For_applications.heap
-  | Local { region = r } ->
+  | Local { region = r; ghost_region = r' } ->
     let r = find_region env r in
-    Alloc_mode.For_applications.local ~region:r ~ghost_region:r
+    let r' = find_region env r' in
+    Alloc_mode.For_applications.local ~region:r ~ghost_region:r'
 
 let alloc_mode_for_assignments (alloc : Fexpr.alloc_mode_for_assignments) =
   match alloc with
@@ -392,8 +393,8 @@ let init_or_assign _env (ia : Fexpr.init_or_assign) :
 
 let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
   match nullop with
-  | Begin_region -> Begin_region { ghost = false }
-  | Begin_try_region -> Begin_try_region { ghost = false }
+  | Begin_region { ghost } -> Begin_region { ghost } 
+  | Begin_try_region { ghost }-> Begin_try_region { ghost }
 
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
@@ -404,8 +405,8 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   | Unbox_number bk -> Unbox_number bk
   | Tag_immediate -> Tag_immediate
   | Untag_immediate -> Untag_immediate
-  | End_region -> End_region { ghost = false }
-  | End_try_region -> End_try_region { ghost = false }
+  | End_region { ghost } -> End_region { ghost }
+  | End_try_region { ghost } -> End_try_region { ghost }
   | Get_tag -> Get_tag
   | Int_arith (i, o) -> Int_arith (i, o)
   | Is_flat_float_array -> Is_flat_float_array
@@ -866,6 +867,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let { Fexpr.params;
                 closure_var;
                 region_var;
+                ghost_region_var;
                 depth_var;
                 ret_cont;
                 exn_cont;
@@ -885,10 +887,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           in
           let my_closure, env = fresh_var env closure_var in
           let my_region, env = fresh_var env region_var in
-          (* CR mshinwell: ghost region handling needs to be added to Fexpr *)
-          let my_ghost_region, env =
-            fresh_var env { txt = "my_ghost_region"; loc = Loc_unknown }
-          in
+          let my_ghost_region, env = fresh_var env ghost_region_var in
           let my_depth, env = fresh_var env depth_var in
           let return_continuation, env =
             fresh_cont env ret_cont ~sort:Return
@@ -1112,5 +1111,5 @@ let conv comp_unit (fexpr : Fexpr.flambda_unit) : Flambda_unit.t =
   let body = expr env fexpr.body in
   Flambda_unit.create ~return_continuation ~exn_continuation
     ~toplevel_my_region:toplevel_region
-    ~toplevel_my_ghost_region:(Variable.create "my_ghost_region")
+    ~toplevel_my_ghost_region:toplevel_region (* XXX *)
     ~body ~module_symbol ~used_value_slots:Unknown

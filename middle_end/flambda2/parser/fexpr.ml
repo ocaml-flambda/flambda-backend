@@ -235,6 +235,10 @@ type alloc_mode_for_allocations =
   | Heap
   | Local of { region : region }
 
+type alloc_mode_for_applications =
+  | Heap
+  | Local of { region : region; ghost_region : region }
+
 type alloc_mode_for_assignments =
   | Heap
   | Local
@@ -261,8 +265,8 @@ type signed_or_unsigned = Flambda_primitive.signed_or_unsigned =
   | Unsigned
 
 type nullop =
-  | Begin_region
-  | Begin_try_region
+  | Begin_region of { ghost : bool }
+  | Begin_try_region of { ghost : bool }
 
 type unary_int_arith_op = Flambda_primitive.unary_int_arith_op =
   | Neg
@@ -276,8 +280,8 @@ type unop =
   | Array_length of array_kind_for_length
   | Boolean_not
   | Box_number of box_kind * alloc_mode_for_allocations
-  | End_region
-  | End_try_region
+  | End_region of { ghost : bool }
+  | End_try_region of { ghost : bool }
   | Get_tag
   | Int_arith of standard_int * unary_int_arith_op
   | Is_flat_float_array
@@ -389,9 +393,9 @@ type function_call =
   | Direct of
       { code_id : code_id;
         function_slot : function_slot option;
-        alloc : alloc_mode_for_allocations
+        alloc : alloc_mode_for_applications
       }
-  | Indirect of alloc_mode_for_allocations
+  | Indirect of alloc_mode_for_applications
 (* Will translate to indirect_known_arity or indirect_unknown_arity depending on
    whether the apply record's arities field has a value *)
 
@@ -547,6 +551,7 @@ and params_and_body =
   { params : kinded_parameter list;
     closure_var : variable;
     region_var : variable;
+    ghost_region_var : variable;
     depth_var : variable;
     ret_cont : continuation_id;
     exn_cont : continuation_id;

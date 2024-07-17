@@ -503,12 +503,13 @@ let alloc_mode_for_allocations env (alloc : Alloc_mode.For_allocations.t) :
     Local { region = r }
 
 let alloc_mode_for_applications env (alloc : Alloc_mode.For_applications.t) :
-    Fexpr.alloc_mode_for_allocations (* XXX *) =
+    Fexpr.alloc_mode_for_applications =
   match alloc with
   | Heap -> Heap
-  | Local { region = r; ghost_region = _ } ->
+  | Local { region = r; ghost_region = r' } ->
     let r = Env.find_region_exn env r in
-    Local { region = r }
+    let r' = Env.find_region_exn env r' in
+    Local { region = r; ghost_region = r' }
 
 let alloc_mode_for_assignments _env (alloc : Alloc_mode.For_assignments.t) :
     Fexpr.alloc_mode_for_assignments =
@@ -522,8 +523,8 @@ let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
 
 let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
   match op with
-  | Begin_region { ghost = _ } -> Begin_region
-  | Begin_try_region { ghost = _ } -> Begin_try_region
+  | Begin_region { ghost } -> Begin_region { ghost }
+  | Begin_try_region { ghost } -> Begin_try_region { ghost }
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
   | Dls_get ->
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
@@ -536,8 +537,8 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Tag_immediate -> Tag_immediate
   | Get_tag -> Get_tag
-  | End_region { ghost = _ } -> End_region
-  | End_try_region { ghost = _ } -> End_try_region
+  | End_region { ghost } -> End_region { ghost }
+  | End_try_region { ghost } -> End_try_region { ghost }
   | Int_arith (i, o) -> Int_arith (i, o)
   | Is_flat_float_array -> Is_flat_float_array
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)
@@ -868,7 +869,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
                ~my_closure
                ~is_my_closure_used:_
                ~my_region
-               ~my_ghost_region:_
+               ~my_ghost_region
                ~my_depth
                ~free_names_of_body:_
                :
@@ -886,6 +887,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
             in
             let closure_var, env = Env.bind_var env my_closure in
             let region_var, env = Env.bind_var env my_region in
+            let ghost_region_var, env = Env.bind_var env my_ghost_region in
             let depth_var, env = Env.bind_var env my_depth in
             let body = expr env body in
             (* CR-someday lmaurer: Omit exn_cont, closure_var if not used *)
@@ -894,6 +896,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
               exn_cont;
               closure_var;
               region_var;
+              ghost_region_var;
               depth_var;
               body
             })
