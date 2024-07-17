@@ -140,7 +140,8 @@
    wait
    write_unix
    )
-   (flags ((:include %{project_root}/oc_cflags.sexp)
+   (flags (-I %{project_root}/ocaml/%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}
+           (:include %{project_root}/oc_cflags.sexp)
            (:include %{project_root}/sharedlib_cflags.sexp)
            (:include %{project_root}/oc_cppflags.sexp)))
  ))
