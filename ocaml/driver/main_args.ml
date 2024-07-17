@@ -2027,7 +2027,7 @@ module Default = struct
     let _dtimings () = profile_columns := [`Time]
     let _dtimings_precision n = timings_precision := n
     let _dcounters () = profile_columns := [`Counters]
-    let _dfunc_level () = profile_granularity := Profile.Function_level
+    let _dfunc_level () = profile_granularity := Function_level
     let _dump_into_file = set dump_into_file
     let _dump_dir s = dump_dir := Some s
     let _for_pack s = for_package := (Some (String.capitalize_ascii s))

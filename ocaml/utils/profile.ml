@@ -16,7 +16,6 @@
 [@@@ocaml.warning "+a-18-40-42-48"]
 
 type file = string
-type granularity = File_level | Function_level
 
 module Int = Misc.Stdlib.Int
 module String = Misc.Stdlib.String
@@ -124,7 +123,11 @@ let _record_call ?(accumulate = false) ?counter_f name f =
   Misc.try_finally (
     match counter_f with
     | Some counter_f ->
-        fun () -> let result = f () in counters := counter_f result; result
+        fun () ->
+          let result = f () in
+          if List.mem `Counters !Clflags.profile_columns then
+            counters := counter_f result;
+          result
     | None -> f
     )
     ~always:(fun () ->
@@ -235,7 +238,6 @@ let compute_other_category (E table : hierarchy) (total : Measure_diff.t) =
   !r
 
 type row = R of string * (float * display) list * row list
-type column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap | `Counters]
 
 let rec rows_of_hierarchy ~nesting make_row name measure_diff hierarchy env =
   let rows =

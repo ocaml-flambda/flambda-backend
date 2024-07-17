@@ -21,7 +21,6 @@
 *)
 
 type file = string
-type granularity = File_level | Function_level
 
 module Counters : sig
   type t
@@ -48,15 +47,13 @@ val record_with_counters :
 (** [record_with_counters counter_f pass f arg] records the profile information of [f arg]
   and records counter information given by calling [counter_f] on the result of [f arg] *)
 
-type column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap | `Counters ]
-
-val print : Format.formatter -> column list -> timings_precision:int -> unit
+val print : Format.formatter -> Clflags.profile_column list -> timings_precision:int -> unit
 (** Prints the selected recorded profiling information to the formatter. *)
 
 (** Command line flags *)
 
 val options_doc : string
-val all_columns : column list
+val all_columns : Clflags.profile_column list
 
 (** A few pass names that are needed in several places, and shared to
     avoid typos. *)

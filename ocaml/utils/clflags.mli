@@ -59,6 +59,9 @@ module Libloc : sig
   }
 end
 
+type profile_column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap | `Counters ]
+type profile_granularity_level = File_level | Function_level
+
 val objfiles : string list ref
 val ccobjs : string list ref
 val dllibs : string list ref
@@ -200,8 +203,8 @@ val keep_locs : bool ref
 val opaque : bool ref
 val default_timings_precision : int
 val timings_precision : int ref
-val profile_columns : Profile.column list ref
-val profile_granularity : Profile.granularity ref
+val profile_columns : profile_column list ref
+val profile_granularity : profile_granularity_level ref
 val flambda_invariant_checks : bool ref
 val unbox_closures : bool ref
 val unbox_closures_factor : int ref

@@ -52,6 +52,9 @@ module Libloc = struct
   }
 end
 
+type profile_column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap | `Counters ]
+type profile_granularity_level = File_level | Function_level
+
 let compile_only = ref false            (* -c *)
 and output_name = ref (None : string option) (* -o *)
 and include_dirs = ref ([] : string list) (* -I *)
@@ -156,8 +159,8 @@ let dump_combine = ref false            (* -dcombine *)
 let debug_ocaml = ref false             (* -debug-ocaml *)
 let default_timings_precision  = 3
 let timings_precision = ref default_timings_precision (* -dtimings-precision *)
-let profile_columns : Profile.column list ref = ref [] (* -dprofile/-dtimings/-dcounters *)
-let profile_granularity : Profile.granularity ref = ref Profile.File_level (* -dfunc_level *)
+let profile_columns : profile_column list ref = ref [] (* -dprofile/-dtimings/-dcounters *)
+let profile_granularity : profile_granularity_level ref = ref File_level (* -dfunc-level *)
 
 let native_code = ref false             (* set to true under ocamlopt *)
 
