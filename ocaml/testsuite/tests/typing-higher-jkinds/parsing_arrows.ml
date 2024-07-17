@@ -13,6 +13,8 @@ type s : (value, value mod local) => value
 type t : (value) => (value) => value
 
 [%%expect{|
-Uncaught exception: Failure("Arrow jkind (=>) syntax parsed, but annotations are not implemented")
-
+Line 1, characters 9-23:
+1 | type p : value => value
+             ^^^^^^^^^^^^^^
+Error: Arrow jkind (=>) syntax parsed, but annotations are not implemented
 |}]
