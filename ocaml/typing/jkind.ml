@@ -80,23 +80,6 @@ module Layout = struct
       | Sort Word -> "word"
       | Sort Bits32 -> "bits32"
       | Sort Bits64 -> "bits64"
-
-    module Legacy = struct
-      (* CR layouts v2.8: get rid of this *)
-      type t = Jkind_types.Layout.Const.Legacy.t =
-        | Any
-        | Any_non_null
-        | Value_or_null
-        | Value
-        | Void
-        | Immediate64
-        | Immediate
-        | Float64
-        | Float32
-        | Word
-        | Bits32
-        | Bits64
-    end
   end
 
   type t = Sort.t layout
@@ -291,27 +274,6 @@ module Const = struct
   let get_modal_upper_bounds const = const.modes_upper_bounds
 
   let get_externality_upper_bound const = const.externality_upper_bound
-
-  let get_legacy_layout
-      { layout;
-        modes_upper_bounds = _;
-        externality_upper_bound;
-        nullability_upper_bound
-      } : Layout.Const.Legacy.t =
-    match layout, externality_upper_bound, nullability_upper_bound with
-    | Any, _, Maybe_null -> Any
-    | Any, _, Non_null -> Any_non_null
-    (* CR layouts v3.0: support [Immediate(64)_or_null]. *)
-    | Sort Value, _, Maybe_null -> Value_or_null
-    | Sort Value, Internal, Non_null -> Value
-    | Sort Value, External64, Non_null -> Immediate64
-    | Sort Value, External, Non_null -> Immediate
-    | Sort Void, _, _ -> Void
-    | Sort Float64, _, _ -> Float64
-    | Sort Float32, _, _ -> Float32
-    | Sort Word, _, _ -> Word
-    | Sort Bits32, _, _ -> Bits32
-    | Sort Bits64, _, _ -> Bits64
 
   let equal
       { layout = lay1;
