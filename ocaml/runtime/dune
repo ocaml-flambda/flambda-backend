@@ -41,7 +41,6 @@
    ../Makefile.build_config
    ../Makefile.config_if_required
    ../Makefile.common ../Makefile
-   ../compilerlibs/Makefile.compilerlibs
    ../Makefile.menhir
    ../.depend
    ../.depend.menhir
