@@ -101,11 +101,6 @@ static debuginfo debuginfo_extract(frame_descr *d, ptrdiff_t alloc_idx);
    TODO: Consider rewriting this to use get_callstack, so we only have
    one body of code capturing callstacks.
 */
-   [caml_get_current_callstack] was implemented.
-
-   TODO: Consider rewriting this to use get_callstack, so we only have
-   one body of code capturing callstacks.
-*/
 void caml_stash_backtrace(value exn, uintnat pc, char * sp, char* trapsp)
 {
   caml_domain_state* domain_state = Caml_state;
@@ -181,12 +176,8 @@ static size_t get_callstack(struct stack_info* stack, intnat max_slots,
   backtrace_slot *backtrace = *backtrace_p;
   size_t alloc_size = *alloc_size_p;
   size_t slots = 0;
-  backtrace_slot *backtrace = *backtrace_p;
-  size_t alloc_size = *alloc_size_p;
-  size_t slots = 0;
   char *sp;
   uintnat pc;
-  caml_frame_descrs fds = caml_get_frame_descrs();
   caml_frame_descrs fds = caml_get_frame_descrs();
   CAMLnoalloc;
 

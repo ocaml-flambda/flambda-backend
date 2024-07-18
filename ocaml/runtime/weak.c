@@ -178,9 +178,6 @@ void caml_ephe_clean (value v) {
          then the mark phase must have marked it (or alternatively the
          value concerned is in static data etc). */
       CAMLassert( is_marked (child) || is_not_markable (child) );
-         then the mark phase must have marked it (or alternatively the
-         value concerned is in static data etc). */
-      CAMLassert( is_marked (child) || is_not_markable (child) );
     }
 #endif
   }

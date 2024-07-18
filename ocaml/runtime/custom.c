@@ -16,6 +16,7 @@
 #define CAML_INTERNALS
 
 #include <string.h>
+#include <assert.h>
 
 #include "caml/alloc.h"
 #include "caml/camlatomic.h"
@@ -27,6 +28,8 @@
 #include "caml/shared_heap.h"
 #include "caml/signals.h"
 #include "caml/memprof.h"
+
+static_assert(sizeof(struct custom_operations) == CUSTOM_OPS_STRUCT_SIZE, "");
 
 uintnat caml_custom_major_ratio = Custom_major_ratio_def;
 uintnat caml_custom_minor_ratio = Custom_minor_ratio_def;
@@ -113,8 +116,9 @@ CAMLexport value caml_alloc_custom_mem(const struct custom_operations * ops,
                                        mlsize_t mem)
 {
   size_t mem_words = (mem + sizeof(value) - 1) / sizeof(value);
+  value v = alloc_custom_gen (ops, bsz, mem, 0, get_max_minor());
   caml_memprof_sample_block(v, mem_words, mem_words, CAML_MEMPROF_SRC_CUSTOM);
-  return alloc_custom_gen (ops, bsz, mem, 0, get_max_minor());
+  return v;
 }
 
 struct custom_operations_list {

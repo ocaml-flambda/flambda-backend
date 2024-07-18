@@ -54,7 +54,7 @@ CAMLexport void caml_raise(value v)
 CAMLexport void caml_raise_async(value v)
 {
   Caml_check_caml_state();
-  Unlock_exn();
+  caml_channel_cleanup_on_raise();
   CAMLassert(!Is_exception_result(v));
 
   if (Stack_parent(Caml_state->current_stack) != NULL) {

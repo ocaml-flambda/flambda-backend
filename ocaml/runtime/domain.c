@@ -794,8 +794,6 @@ init_shared_heap_failure:
 alloc_minor_tables_failure:
   caml_memprof_delete_domain(domain_state);
 init_memprof_failure:
-  caml_memprof_delete_domain(domain_state);
-init_memprof_failure:
   domain_self = NULL;
 
 
@@ -1693,17 +1691,6 @@ void caml_reset_young_limit(caml_domain_state * dom_st)
               (uintnat)dom_st->memprof_young_trigger);
   CAMLassert ((uintnat)dom_st->young_ptr >=
               (uintnat)dom_st->young_trigger);
-  /* An interrupt might have been queued in the meanwhile; the
-     atomic_exchange achieves the proper synchronisation with the
-     reads that follow (an atomic_store is not enough). */
-  value *trigger = dom_st->young_trigger > dom_st->memprof_young_trigger ?
-          dom_st->young_trigger : dom_st->memprof_young_trigger;
-  CAMLassert ((uintnat)dom_st->young_ptr >=
-              (uintnat)dom_st->memprof_young_trigger);
-  CAMLassert ((uintnat)dom_st->young_ptr >=
-              (uintnat)dom_st->young_trigger);
-  /* An interrupt might have been queued in the meanwhile; this
-     achieves the proper synchronisation. */
   atomic_exchange(&dom_st->young_limit, (uintnat)trigger);
 
   /* For non-delayable asynchronous actions, we immediately interrupt
@@ -1752,16 +1739,6 @@ static void stw_global_major_slice(
   void *unused,
   int participating_count,
   caml_domain_state **participating)
-{
-  domain->requested_major_slice = 1;
-  /* Nothing else to do, as [stw_hander] will call [caml_poll_gc_work]
-     right after the callback. */
-}
-
-static void global_major_slice_callback (caml_domain_state *domain,
-                                         void *unused,
-                                         int participating_count,
-                                         caml_domain_state **participating)
 {
   domain->requested_major_slice = 1;
   /* Nothing else to do, as [stw_hander] will call [caml_poll_gc_work]

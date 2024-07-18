@@ -845,15 +845,3 @@ CAMLprim value caml_eventlog_pause(value v)
 {
   caml_failwith("Called caml_eventlog_pause in runtime5: not supported.");
 }
-
-/* Linker compatibility with unused 4 stdlib externals */
-
-CAMLprim value caml_eventlog_resume(value v)
-{
-  caml_failwith("Called caml_eventlog_resume in runtime5: not supported.");
-}
-
-CAMLprim value caml_eventlog_pause(value v)
-{
-  caml_failwith("Called caml_eventlog_pause in runtime5: not supported.");
-}

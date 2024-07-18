@@ -107,7 +107,7 @@ CAMLno_asan void caml_raise_async(value v)
   Caml_check_caml_state();
   char* limit_of_current_c_stack_chunk;
 
-  Unlock_exn();
+  caml_channel_cleanup_on_raise();
 
   CAMLassert(!Is_exception_result(v));
 

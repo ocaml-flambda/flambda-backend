@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stddef.h>
+#include <assert.h>
 #include "caml/config.h"
 #include "caml/custom.h"
 #include "caml/misc.h"
@@ -495,7 +496,7 @@ void caml_local_realloc(void)
       s->next_length = Init_local_arena_bsize;
     } else {
       /* overflow check */
-      CAML_STATIC_ASSERT(((intnat)Init_local_arena_bsize << (2*Max_local_arenas)) > 0);
+      static_assert(((intnat)Init_local_arena_bsize << (2*Max_local_arenas)) > 0, "");
       s->next_length *= 4;
     }
     /* may need to loop, if a very large allocation was requested */

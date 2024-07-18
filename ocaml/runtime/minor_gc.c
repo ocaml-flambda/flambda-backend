@@ -167,7 +167,6 @@ static value alloc_shared(caml_domain_state* d,
 {
   void* mem = caml_shared_try_alloc(d->shared_heap, wosize, tag,
                                     reserved);
-                                    reserved);
   d->allocated_words += Whsize_wosize(wosize);
   if (mem == NULL) {
     caml_fatal_error("allocation failure during minor GC");
@@ -755,28 +754,6 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
       }
     }
     CAML_EV_END(EV_MINOR_LEAVE_BARRIER);
-  }
-}
-
-/* Finalize dead custom blocks and do the accounting for the live
-   ones. This must be done right after leaving the barrier. At this
-   point, all domains have finished minor GC, but this domain hasn't
-   resumed running OCaml code. Other domains may have resumed OCaml
-   code, but they cannot have any pointers into our minor heap. */
-static void custom_finalize_minor (caml_domain_state * domain)
-{
-  struct caml_custom_elt *elt;
-  for (elt = domain->minor_tables->custom.base;
-       elt < domain->minor_tables->custom.ptr; elt++) {
-    value *v = &elt->block;
-    if (Is_block(*v) && Is_young(*v)) {
-      if (get_header_val(*v) == 0) { /* value copied to major heap */
-        caml_adjust_gc_speed(elt->mem, elt->max);
-      } else {
-        void (*final_fun)(value) = Custom_ops_val(*v)->finalize;
-        if (final_fun != NULL) final_fun(*v);
-      }
-    }
   }
 }
 

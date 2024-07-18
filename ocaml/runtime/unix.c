@@ -17,6 +17,7 @@
 
 /* Unix-specific stuff */
 
+#include <sys/time.h>
 #define _GNU_SOURCE
            /* Helps finding RTLD_DEFAULT in glibc */
            /* also secure_getenv */
@@ -27,9 +28,7 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#ifdef HAS_GETTIMEOFDAY
 #include <sys/time.h>
-#endif
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>

@@ -27,6 +27,7 @@
  (action
    (progn
      (run %{dep:gen_primitives.sh} primitives %{deps})
+     (run rm -f prims.c)
      (with-stdout-to prims.c (run %{dep:gen_primsc.sh} primitives %{deps})))))
 
 (rule

@@ -910,7 +910,8 @@ static void compact_update_block(header_t* p)
   if (tag == Cont_tag) {
     value stk = Field(Val_hp(p), 0);
     if (Ptr_val(stk)) {
-      caml_scan_stack(&compact_update_value, 0, NULL, Ptr_val(stk), 0);
+      /// XXX mshinwell: check locals argument
+      caml_scan_stack(&compact_update_value, 0, NULL, Ptr_val(stk), 0, NULL);
     }
   } else {
     uintnat offset = 0;
@@ -1291,14 +1292,14 @@ void caml_compact_heap(caml_domain_state* domain_state,
   uintnat freed_pools = 0;
   while (cur_pool) {
     pool* next_pool = cur_pool->next;
- |
+
     #ifdef DEBUG
     for (header_t *p = POOL_FIRST_BLOCK(cur_pool, cur_pool->sz);
          p < POOL_END(cur_pool); p++) {
       *p = Debug_free_major;
     }
     #endif
- |
+
     pool_free(heap, cur_pool, cur_pool->sz);
     cur_pool = next_pool;
     freed_pools++;

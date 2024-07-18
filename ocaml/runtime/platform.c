@@ -32,6 +32,7 @@
 #endif
 
 #include "caml/alloc.h"
+#include "caml/lf_skiplist.h"
 #include "sync_posix.h"
 
 #ifdef _WIN32
