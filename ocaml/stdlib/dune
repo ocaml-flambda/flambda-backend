@@ -47,13 +47,14 @@
   ../Makefile.config
   ../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}/sak)
  (action
-  (run make -s COMPUTE_DEPS=false %{targets})))
+  (run make COMPUTE_DEPS=false %{targets})))
 
 (copy_files ../Makefile.config)
 
 (install
  (files
   Makefile.config
+  ; CR mshinwell all-runtime5: delete all camlheader* stuff
   camlheader
   camlheaderd
   camlheaderi
