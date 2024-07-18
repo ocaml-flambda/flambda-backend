@@ -1191,9 +1191,9 @@ let rec copy ?partial ?keep_names copy_scope ty =
       (* Using jkind "any" is ok here: We're forgetting the type because it
          will be unified with the original later. *)
       newty2 ~level:forget
-        (Tvar { name = None; jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind })
+        (Tvar { name = None; jkind = Jkind.Primitive.top ~why:Dummy_jkind })
     else
-    let t = newstub ~scope:(get_scope ty) (Jkind.Type.Primitive.any ~why:Dummy_jkind) in
+    let t = newstub ~scope:(get_scope ty) (Jkind.Primitive.top ~why:Dummy_jkind) in
     For_copy.redirect_desc copy_scope ty (Tsubst (t, None));
     let desc' =
       match desc with
@@ -1496,13 +1496,13 @@ let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) sch =
     if is_Tvar ty || may_share && TypeSet.is_empty univars then
       if get_level ty <> generic_level then ty else
       (* jkind not consulted during copy_sep, so Any is safe *)
-      let t = newstub ~scope:(get_scope ty) (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
+      let t = newstub ~scope:(get_scope ty) (Jkind.Primitive.top ~why:Dummy_jkind) in
       add_delayed_copy t ty;
       t
     else try
       TypeHash.find visited ty
     with Not_found -> begin
-      let t = newstub ~scope:(get_scope ty) (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
+      let t = newstub ~scope:(get_scope ty) (Jkind.Primitive.top ~why:Dummy_jkind) in
       TypeHash.add visited ty t;
       let desc' =
         match get_desc ty with
@@ -1727,7 +1727,7 @@ let subst env level priv abbrev oty params args body =
   if List.length params <> List.length args then raise Cannot_subst;
   let old_level = !current_level in
   current_level := level;
-  let body0 = newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in          (* Stub *)
+  let body0 = newvar (Jkind.Primitive.top ~why:Dummy_jkind) in          (* Stub *)
   let undo_abbrev =
     match oty with
     | None -> fun () -> () (* No abbreviation added *)
@@ -2098,7 +2098,7 @@ let rec estimate_type_jkind env ty =
     try
       Jkind (Env.find_type p env).type_jkind
     with
-      Not_found -> Jkind (Type.Primitive.any ~why:(Missing_cmi p) |> Jkind.of_type_jkind)
+      Not_found -> Jkind (Jkind.Primitive.top ~why:(Missing_cmi p))
   end
   | Tvariant row ->
       if tvariant_not_immediate row
@@ -2164,7 +2164,7 @@ let type_jkind_sub env ty jkind =
     | Tconstr(p, _args, _abbrev) ->
         let jkind_bound =
           try (Env.find_type p env).type_jkind
-          with Not_found -> Jkind.Type.Primitive.any ~why:(Missing_cmi p) |> Jkind.of_type_jkind
+          with Not_found -> Jkind.Primitive.top ~why:(Missing_cmi p)
         in
         if Jkind.sub jkind_bound jkind
         then Success
@@ -4039,7 +4039,7 @@ let unify_delaying_jkind_checks env ty1 ty2 =
 
 (* Lower the level of a type to the current level *)
 let enforce_current_level env ty =
-  unify_var env (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)) ty
+  unify_var env (newvar (Jkind.Primitive.top ~why:Dummy_jkind)) ty
 
 
 (**** Special cases of unification ****)
@@ -6143,7 +6143,7 @@ let rec unalias_object ty =
   | Tunivar _ ->
       ty
   | Tconstr _ ->
-      newvar2 level (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)
+      newvar2 level (Jkind.Primitive.top ~why:Dummy_jkind)
   | _ ->
       assert false
 
@@ -6371,7 +6371,7 @@ let rec nondep_type_rec ?(expand_private=false) env ids ty =
   | _ -> try TypeHash.find nondep_hash ty
   with Not_found ->
     let ty' = newgenstub ~scope:(get_scope ty)
-                (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
+                (Jkind.Primitive.top ~why:Dummy_jkind) in
     TypeHash.add nondep_hash ty ty';
     match
       match get_desc ty with

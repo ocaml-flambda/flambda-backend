@@ -249,7 +249,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let type_jkind, type_jkind_annotation, sdecl_attributes =
     Jkind.of_type_decl_default
       ~context:(Type_declaration path)
-      ~default:(Jkind.Type.Primitive.any ~why:Initial_typedecl_env |> Jkind.of_type_jkind)
+      ~default:(Jkind.Primitive.top ~why:Initial_typedecl_env)
       sdecl
   in
   let abstract_reason, type_manifest =
@@ -783,7 +783,6 @@ let transl_declaration env sdecl (id, uid) =
       Some cty, Some cty.ctyp_type
   in
   let any = Jkind.Type.Primitive.any ~why:Initial_typedecl_env in
-  let any' = Jkind.Type.Primitive.any ~why:Initial_typedecl_env |> Jkind.of_type_jkind in
   (* jkind_default is the jkind to use for now as the type_jkind when there
      is no annotation and no manifest.
      See Note [Default jkinds in transl_declaration].
@@ -853,7 +852,7 @@ let transl_declaration env sdecl (id, uid) =
         let tcstrs, cstrs = List.split (List.map make_cstr scstrs) in
         let rep, jkind =
           if unbox then
-            Variant_unboxed, any'
+            Variant_unboxed, any |> Jkind.of_type_jkind
           else
             (* We mark all arg jkinds "any" here.  They are updated later,
                after the circular type checks make it safe to check jkinds.
@@ -888,7 +887,7 @@ let transl_declaration env sdecl (id, uid) =
                [Record_mixed].  Those cases are fixed up after we can get
                accurate jkinds for the fields, in [update_decl_jkind]. *)
             if unbox then
-              Record_unboxed, any'
+              Record_unboxed, any |> Jkind.of_type_jkind
             else
               Record_boxed (Array.make (List.length lbls) any),
               Jkind.Type.Primitive.value ~why:Boxed_record |> Jkind.of_type_jkind
@@ -902,7 +901,7 @@ let transl_declaration env sdecl (id, uid) =
          a kind in [update_decl_jkind] and the manifest in [check_coherence].
          Both of those functions update the [type_jkind] field in the
          [type_declaration] as appropriate.
-       - If there's no annotation but there is a manifest, just use [any].
+       - If there's no annotation but there is a manifest, just use [top].
          This will get updated to the manifest's jkind in [check_coherence].
        - If there's no annotation and no manifest, we fill in with the
          default calculated above here. It will get updated in
@@ -910,7 +909,7 @@ let transl_declaration env sdecl (id, uid) =
     *)
       match jkind_from_annotation, man with
       | Some annot, _ -> annot
-      | None, Some _ -> Jkind.Type.Primitive.any ~why:Initial_typedecl_env |> Jkind.of_type_jkind
+      | None, Some _ -> Jkind.Primitive.top ~why:Initial_typedecl_env
       | None, None -> jkind_default
     in
     let arity = List.length params in
@@ -1845,7 +1844,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
   let args =
     (* The jkinds here shouldn't matter for the purposes of
        [check_well_founded] *)
-    List.map (fun _ -> Ctype.newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind))
+    List.map (fun _ -> Ctype.newvar (Jkind.Primitive.top ~why:Dummy_jkind))
       decl.type_params
   in
   let visited = ref TypeMap.empty in
@@ -2251,7 +2250,7 @@ let transl_extension_constructor_decl
     | Cstr_tuple args -> List.length args
     | Cstr_record _ -> 1
   in
-  let jkinds = Array.make num_args (Jkind.Type.Primitive.any ~why:Dummy_jkind) in
+  let jkinds = Array.make num_args (Jkind.Primitive.top ~why:Dummy_jkind) in
   let args, constant =
     update_constructor_arguments_jkinds env loc args jkinds
   in
@@ -3163,7 +3162,7 @@ let transl_package_constraint ~loc ty =
   { type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind;
+    type_jkind = Jkind.Primitive.top ~why:Dummy_jkind;
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)

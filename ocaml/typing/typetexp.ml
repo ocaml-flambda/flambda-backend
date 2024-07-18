@@ -429,8 +429,10 @@ end = struct
     tv
 
   let new_jkind ~is_named { jkind_initialization } =
+    (* FIXME jbachurski: Should these be created with [any], or [top]?
+        (seems to be used for the jkind of [_], so [top]?) *)
     match jkind_initialization with
-    | Any -> Jkind.Type.Primitive.any ~why:(if is_named then Unification_var else Wildcard) |> Jkind.of_type_jkind
+    | Any -> Jkind.Primitive.top ~why:(if is_named then Unification_var else Wildcard)
     | Sort -> Jkind.of_new_sort ~why:(if is_named then Unification_var else Wildcard)
 
 
@@ -443,7 +445,7 @@ end = struct
     TyVarMap.iter
       (fun name (ty, loc) ->
         if flavor = Unification || is_in_scope name then
-          let v = new_global_var (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
+          let v = new_global_var (Jkind.Primitive.top ~why:Dummy_jkind) in
           let snap = Btype.snapshot () in
           if try unify env v ty; true with _ -> Btype.backtrack snap; false
           then try
@@ -453,7 +455,7 @@ end = struct
               raise(Error(loc, env,
                           Unbound_type_variable ("'"^name,
                                                  get_in_scope_names ())));
-            let v2 = new_global_var (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
+            let v2 = new_global_var (Jkind.Primitive.top ~why:Dummy_jkind) in
             r := (loc, v, v2) :: !r;
             add name v2)
       !used_variables;

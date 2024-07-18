@@ -1809,6 +1809,12 @@ module Const = struct
   let of_type_jkind t = t
 end
 
+module Primitive = struct
+  include Type.Primitive
+
+  let top = any
+end
+
 let to_const _ = None
 
 let to_type_jkind t = t

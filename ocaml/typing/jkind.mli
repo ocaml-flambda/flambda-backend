@@ -142,9 +142,9 @@ module Type : sig
           name : string
         }
 
-      (** This jkind is the top of the jkind lattice. All types have jkind [any].
-      But we cannot compile run-time manipulations of values of types with jkind
-      [any]. *)
+      (** This jkind is the top of the  *type* jkind lattice. All types have
+        jkind [any]. But we cannot compile run-time manipulations of values of
+        types with jkind [any]. *)
       val any : t
 
       (** Value of types of this jkind are not retained at all at runtime *)
@@ -194,9 +194,9 @@ module Type : sig
   end
 
   module Primitive : sig
-    (** This jkind is the top of the jkind lattice. All types have jkind [any].
-      But we cannot compile run-time manipulations of values of types with jkind
-      [any]. *)
+    (** This jkind is the top of the  *type* jkind lattice. All types have
+      jkind [any]. But we cannot compile run-time manipulations of values of
+      types with jkind [any]. *)
     val any : why:History.any_creation_reason -> t
 
     (** Value of types of this jkind are not retained at all at runtime *)
@@ -341,6 +341,11 @@ module Const : sig
   val format : Format.formatter -> t -> unit
 
   val equal : t -> t -> bool
+end
+
+module Primitive : sig
+  (** Top element of the jkind lattice, including higher jkinds *)
+  val top : why:Type.History.any_creation_reason -> t
 end
 
 (******************************)
@@ -533,8 +538,7 @@ val sub_or_error : t -> t -> (unit, Violation.t) result
 (** Like [sub], but returns the subjkind with an updated history. *)
 val sub_with_history : t -> t -> (t, Violation.t) result
 
-(** Checks to see whether a jkind is the maximum jkind. Never does any
-    mutation. *)
+(** Checks to see whether a jkind is top. Never does any mutation. *)
 val is_max : t -> bool
 
 (** Checks to see whether a jkind is has layout. Never does any mutation. *)
