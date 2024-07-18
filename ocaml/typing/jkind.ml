@@ -2111,7 +2111,9 @@ let sub_with_history sub super =
 
 (* This doesn't do any mutation because mutating a sort variable can't make it
    any, and modal upper bounds are constant. *)
-let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind
+(* TODO jbachurski: Until the Top jkind is implemented, no jkind is max *)
+(* let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind *)
+let is_max _jkind = false
 
 let has_layout_any (jkind : t) =
   match jkind with

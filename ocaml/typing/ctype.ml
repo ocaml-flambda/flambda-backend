@@ -2207,9 +2207,11 @@ let constrain_type_jkind ~fixed env ty jkind =
   | Failure ty_jkind ->
     Error (Jkind.Violation.of_ (Not_a_subjkind (ty_jkind, jkind)))
 
-(* jbachurski: There used to be an optimisation for [constrain_type_jkind] here
-   that omitted checks against any (is_max) - this is no longer sound, as any is
-   only the top element for type jkinds, and not higher ones. *)
+let constrain_type_jkind ~fixed env ty jkind =
+  (* An optimization to avoid doing any work if we're checking against
+      any. *)
+  if Jkind.is_max jkind then Ok ()
+  else constrain_type_jkind ~fixed env ty jkind
 
 let check_type_jkind env ty jkind =
   constrain_type_jkind ~fixed:true env ty jkind
