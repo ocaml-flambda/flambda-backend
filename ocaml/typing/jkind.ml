@@ -51,13 +51,13 @@ let set_printtyp_path f = printtyp_path := f
 module Type = struct
   open Jkind_types.Type
 
-  type type_expr = Types.type_expr
-
   (* A *sort* is the information the middle/back ends need to be able to
      compile a manipulation (storing, passing, etc) of a runtime value. *)
   module Sort = Jkind_types.Type.Sort
 
   type sort = Sort.t
+
+  type type_expr = Types.type_expr
 
   (* A *layout* of a type describes the way values of that type are stored at
      runtime, including details like width, register convention, calling
@@ -309,6 +309,7 @@ module Type = struct
     let has_warned t = t.has_warned
   end
 
+  (* forward declare [Const.t] so we can use it for [Error.t] *)
   type const = type_expr Jkind_types.Type.Const.t
 
   module Const = struct
