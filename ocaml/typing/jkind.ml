@@ -655,7 +655,7 @@ module Const = struct
     | Immediate -> Builtin.immediate.jkind
     | Immediate64 -> Builtin.immediate64.jkind
 
-  module ModeParser = struct
+  module Mode_parser = struct
     type mode =
       | Areality of Locality.Const.t
       | Linearity of Linearity.Const.t
@@ -714,8 +714,8 @@ module Const = struct
     | Mod (jkind, modes) ->
       let base = of_user_written_annotation_unchecked_level jkind in
       (* for each mode, lower the corresponding modal bound to be that mode *)
-      let parsed_modes = ModeParser.parse_modes modes in
-      let meet_mode jkind (mode : ModeParser.mode) =
+      let parsed_modes = Mode_parser.parse_modes modes in
+      let meet_mode jkind (mode : Mode_parser.mode) =
         match mode with
         | Areality areality ->
           { jkind with
