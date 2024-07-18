@@ -170,7 +170,7 @@ let subst_type env t =
       Btype.iter_type_expr iter t;
       let open Types in
       match get_desc t with
-      | Tconstr (p, [_], _) when Path.same p Predef.path_option ->
+      | Tconstr (p, Applied [_], _) when Path.same p Predef.path_option ->
           ()
       | Tconstr (p, l, a) ->
           let new_p =

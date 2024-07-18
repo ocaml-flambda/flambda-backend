@@ -71,6 +71,10 @@ type row_field
 type field_kind
 type commutable
 
+type app_args = private
+  | Unapplied
+  | Applied of type_expr list
+
 and type_desc =
   | Tvar of { name : string option; jkind : jkind }
   (** [Tvar (Some "a")] ==> ['a] or ['_a]
@@ -92,9 +96,12 @@ and type_desc =
       [Ttuple [Some "l1", t1; None, t2; Some "l3", t3]] ==> [l1:t1 * t2 * l3:t3]
   *)
 
-  | Tconstr of Path.t * type_expr list * abbrev_memo ref
+  | Tconstr of Path.t * app_args * abbrev_memo ref
   (** [Tconstr (`A.B.t', [t1;...;tn], _)] ==> [(t1,...,tn) A.B.t]
       The last parameter keep tracks of known expansions, see [abbrev_memo]. *)
+
+  | Tapp of type_expr * app_args
+  (**  *)
 
   | Tobject of type_expr * (Path.t * type_expr list) option ref
   (** [Tobject (`f1:t1;...;fn: tn', `None')] ==> [< f1: t1; ...; fn: tn >]
@@ -955,3 +962,21 @@ val set_univar: type_expr option ref -> type_expr -> unit
 val link_kind: inside:field_kind -> field_kind -> unit
 val link_commu: inside:commutable -> commutable -> unit
 val set_commu_ok: commutable -> unit
+
+(*  *)
+module AppArgs : sig
+  type t = app_args
+
+  val unapp : t
+  val one : type_expr -> t
+
+  val of_list : type_expr list -> t
+  val to_list : t -> type_expr list
+
+  val map : (type_expr -> type_expr) -> t -> t
+  val iter : (type_expr -> unit) -> t -> unit
+  val iter2 : ('a -> type_expr -> unit) -> 'a list -> t -> unit
+  val fold_left : ('acc -> type_expr -> 'acc) -> 'acc -> t -> 'acc
+
+  val matches_decl : type_declaration -> t -> bool
+end
