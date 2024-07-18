@@ -304,12 +304,12 @@ let rec typexp copy_scope s ty =
         | _ -> assert false
       else match desc with
       | Tconstr (p, args, _abbrev) ->
-         let args = List.map (typexp copy_scope s) args in
+         let args = AppArgs.map (typexp copy_scope s) args in
          begin match Path.Map.find p s.types with
          | exception Not_found -> Tconstr(type_path s p, args, ref Mnil)
          | Path _ -> Tconstr(type_path s p, args, ref Mnil)
          | Type_function { params; body } ->
-            Tlink (!ctype_apply_env_empty params body args)
+            Tlink (!ctype_apply_env_empty params body (AppArgs.to_list args))
          end
       | Tpackage(p, fl) ->
           Tpackage(modtype_path s p,
