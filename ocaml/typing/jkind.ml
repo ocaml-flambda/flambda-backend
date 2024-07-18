@@ -1596,13 +1596,6 @@ module History = struct
 end
 (* module Type *)
 
-(* Re-export some symbols *)
-
-type sort = Type.sort
-
-module Sort = Type.Sort
-module Externality = Type.Externality
-
 (******************************)
 (* constants *)
 (* Mostly wrapping implementations for Type jkinds *)
@@ -1642,39 +1635,9 @@ module Const = struct
     | Arrow _ ->
       raise (Unexpected_higher_jkind "Coerced arrow to type jkind (const)")
 
-  module Primitive = struct
-    type nonrec t =
-      { jkind : t;
-        name : string
-      }
-
-    let of_type_jkind ({ jkind; name } : Type.Const.Primitive.t) =
-      { jkind = Type jkind; name }
-
-    let any = of_type_jkind Type.Const.Primitive.any
-
-    let void = of_type_jkind Type.Const.Primitive.void
-
-    let value = of_type_jkind Type.Const.Primitive.value
-
-    let immediate64 = of_type_jkind Type.Const.Primitive.immediate64
-
-    let immediate = of_type_jkind Type.Const.Primitive.immediate
-
-    let float64 = of_type_jkind Type.Const.Primitive.float64
-
-    let float32 = of_type_jkind Type.Const.Primitive.float32
-
-    let word = of_type_jkind Type.Const.Primitive.word
-
-    let bits32 = of_type_jkind Type.Const.Primitive.bits32
-
-    let bits64 = of_type_jkind Type.Const.Primitive.bits64
-  end
-
   let of_attribute : Builtin_attributes.jkind_attribute -> t = function
-    | Immediate -> Primitive.immediate.jkind
-    | Immediate64 -> Primitive.immediate64.jkind
+    | Immediate -> of_type_jkind Type.Const.Primitive.immediate.jkind
+    | Immediate64 -> of_type_jkind Type.Const.Primitive.immediate64.jkind
 
   let rec of_user_written_annotation_unchecked_level
       (jkind : Jane_syntax.Jkind.t) : t =
@@ -1708,25 +1671,8 @@ let rec of_const ~why (t : Const.t) : t =
 let of_type_jkind t : t = Type t
 
 module Primitive = struct
-  let any ~why = of_type_jkind (Type.Primitive.any ~why)
-
-  let void ~why = of_type_jkind (Type.Primitive.void ~why)
-
-  let value ~why = of_type_jkind (Type.Primitive.value ~why)
-
-  let immediate64 ~why = of_type_jkind (Type.Primitive.immediate64 ~why)
-
-  let immediate ~why = of_type_jkind (Type.Primitive.immediate ~why)
-
-  let float64 ~why = of_type_jkind (Type.Primitive.float64 ~why)
-
-  let float32 ~why = of_type_jkind (Type.Primitive.float32 ~why)
-
-  let word ~why = of_type_jkind (Type.Primitive.word ~why)
-
-  let bits32 ~why = of_type_jkind (Type.Primitive.bits32 ~why)
-
-  let bits64 ~why = of_type_jkind (Type.Primitive.bits64 ~why)
+  (* TODO jbachurski: Implement the top element for the jkind lattice *)
+  let top ~why = of_type_jkind (Type.Primitive.any ~why)
 end
 
 (******************************)
