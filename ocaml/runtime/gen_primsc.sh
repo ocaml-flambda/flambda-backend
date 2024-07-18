@@ -17,6 +17,8 @@
 
 # Build the runtime/prims.c file, with proper C declarations of the primitives
 
+set -eu -o pipefail
+
 export LC_ALL=C
 
 case $# in
@@ -24,6 +26,12 @@ case $# in
      exit 2;;
   *) primitives="$1"; shift;;
 esac
+
+# float32 primitives contain macros in their definitions, so we preprocess
+# first.  Of course, we must ensure that CAMLprim does not get preprocessed
+# away, hence -DCAML_NO_DEFINE_CAMLprim below.
+CC=$(cat ../Makefile.config | grep '^CC *=' | cut -d= -f2)
+OCAMLC_CFLAGS=$(cat ../Makefile.config | grep '^OCAMLC_CFLAGS *=' | cut -d= -f2)
 
 cat <<'EOF'
 /* Generated file, do not edit */
@@ -41,10 +49,11 @@ EOF
 # The second pattern matches multi-line definitions such as
 #    CAMLprim value foo(value x,
 #                       value y)
+(for file in "$@"; \
+ do $CC $OCAMLC_CFLAGS -E -I$(pwd) -DCAML_NO_DEFINE_CAMLprim $file; done) |
 sed -n \
   -e '/^CAMLprim value .*)/p' \
-  -e '/^CAMLprim value [^)]*$/,/)/p' \
-  "$@" |
+  -e '/^CAMLprim value [^)]*$/,/)/p' |
 # Transform these definitions into "CAMLextern" declarations
 sed \
   -e 's/^CAMLprim /CAMLextern /' \
@@ -61,3 +70,4 @@ echo
 echo 'const char * const caml_names_of_builtin_cprim[] = {'
 sed -e 's/.*/  "&",/' "$primitives"
 echo '  0 };'
+
