@@ -2,6 +2,7 @@
  readonly_files = "\
    bad_arg_impl.ml bad_arg_impl.reference \
    bad_arg_intf.mli bad_arg_intf.reference \
+   bad_instance_repeated_arg_name.ml bad_instance_repeated_arg_name.reference \
    bad_param_param.mli bad_param_param.reference \
    bad_ref_direct.ml bad_ref_direct.reference \
    bad_ref_indirect.reference \
@@ -128,6 +129,15 @@
 
        reference = "monoid_utils_as_program.reference";
        check-program-output;
+     }{
+       flags = "-parameter Semigroup";
+       module = "bad_instance_repeated_arg_name.ml";
+       compiler_output = "bad_instance_repeated_arg_name.output";
+       ocamlc_byte_exit_status = "2";
+       ocamlc.byte;
+
+       compiler_reference = "bad_instance_repeated_arg_name.reference";
+       check-ocamlc.byte-output;
      }
    }
  }{
@@ -247,6 +257,15 @@
 
        reference = "monoid_utils_as_program.reference";
        check-program-output;
+     }{
+       flags = "-parameter Semigroup";
+       module = "bad_instance_repeated_arg_name.ml";
+       compiler_output = "bad_instance_repeated_arg_name.output";
+       ocamlopt_byte_exit_status = "2";
+       ocamlopt.byte;
+
+       compiler_reference = "bad_instance_repeated_arg_name.reference";
+       check-ocamlopt.byte-output;
      }
    }
  }

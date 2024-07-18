@@ -174,7 +174,7 @@ let extension_regs (type a) ?prefix (ext : a Language_extension.t) () =
     | Small_numbers -> hard_float32_reg ()
     | Mode | Unique | Include_functor | Comprehensions
     | Polymorphic_parameters | Immutable_arrays
-    | Module_strengthening | Layouts | Labeled_tuples -> [||]
+    | Module_strengthening | Layouts | Labeled_tuples | Instances -> [||]
   in match prefix with
   | None -> regs
   | Some p -> Array.sub regs 0 (Int.min p (Array.length regs))
