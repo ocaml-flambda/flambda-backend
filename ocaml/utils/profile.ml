@@ -17,25 +17,45 @@
 
 type file = string
 
+module Int = Misc.Stdlib.Int
+module String = Misc.Stdlib.String
+
+module Counters = struct
+  type t = int String.Map.t
+
+  let create () = String.Map.empty
+  let get name t = String.Map.find_opt name t |> Option.value ~default:0
+  let set name count t = String.Map.add name count t
+  let is_empty = String.Map.is_empty
+  let union = String.Map.union (fun _ count1 count2 -> Some (count1 + count2))
+  let to_string t =
+    t
+    |> String.Map.bindings
+    |> List.map (fun (name, count) -> Printf.sprintf "%s = %d" name count)
+    |> String.concat "; "
+    |> Printf.sprintf "[%s]"
+end
+
 external time_include_children: bool -> float = "caml_sys_time_include_children"
 let cpu_time () = time_include_children true
 
-module Int = Misc.Stdlib.Int
 
 module Measure = struct
   type t = {
     time : float;
     allocated_words : float;
     top_heap_words : int;
+    counters : Counters.t;
   }
-  let create () =
+  let create ?(counters = Counters.create ()) () =
     let stat = Gc.quick_stat () in
     {
       time = cpu_time ();
       allocated_words = stat.minor_words +. stat.major_words;
       top_heap_words = stat.top_heap_words;
+      counters = counters;
     }
-  let zero = { time = 0.; allocated_words = 0.; top_heap_words = 0 }
+  let zero = { time = 0.; allocated_words = 0.; top_heap_words = 0; counters = Counters.create () }
 end
 
 module Measure_diff = struct
@@ -45,12 +65,14 @@ module Measure_diff = struct
     duration : float;
     allocated_words : float;
     top_heap_words_increase : int;
+    counters : Counters.t;
   }
   let zero () = {
     timestamp = timestamp ();
     duration = 0.;
     allocated_words = 0.;
     top_heap_words_increase = 0;
+    counters = Counters.create ();
   }
   let accumulate t (m1 : Measure.t) (m2 : Measure.t) = {
     timestamp = t.timestamp;
@@ -59,6 +81,7 @@ module Measure_diff = struct
       t.allocated_words +. (m2.allocated_words -. m1.allocated_words);
     top_heap_words_increase =
       t.top_heap_words_increase + (m2.top_heap_words - m1.top_heap_words);
+    counters = Counters.union t.counters m2.counters
   }
   let of_diff m1 m2 =
     accumulate (zero ()) m1 m2
@@ -73,7 +96,7 @@ let hierarchy = ref (create ())
 let initial_measure = ref None
 let reset () = hierarchy := create (); initial_measure := None
 
-let record_call ?(accumulate = false) name f =
+let record_call_internal ?(accumulate = false) ?counter_f name f =
   let E prev_hierarchy = !hierarchy in
   let start_measure = Measure.create () in
   if !initial_measure = None then initial_measure := Some start_measure;
@@ -91,15 +114,30 @@ let record_call ?(accumulate = false) name f =
     else Measure_diff.zero (), Hashtbl.create 2
   in
   hierarchy := E this_table;
-  Misc.try_finally f
+  let counters = ref (Counters.create ()) in
+  Misc.try_finally (
+    match counter_f with
+    | Some counter_f ->
+        fun () ->
+          let result = f () in
+          if List.mem `Counters !Clflags.profile_columns then
+            counters := counter_f result;
+          result
+    | None -> f
+    )
     ~always:(fun () ->
         hierarchy := E prev_hierarchy;
-        let end_measure = Measure.create () in
+        let end_measure = Measure.create ~counters:(!counters) () in
         let measure_diff =
           Measure_diff.accumulate this_measure_diff start_measure end_measure in
         Hashtbl.add prev_hierarchy name (measure_diff, E this_table))
 
+let record_call = record_call_internal ?counter_f:None
+
 let record ?accumulate pass f x = record_call ?accumulate pass (fun () -> f x)
+
+let record_with_counters ?accumulate ~counter_f pass f x =
+  record_call_internal ?accumulate ~counter_f pass (fun () -> f x)
 
 type display = {
   to_string : max:float -> width:int -> string;
@@ -169,6 +207,11 @@ let memory_word_display =
     in
     { to_string; worth_displaying }
 
+let counters_display counters  =
+  let to_string ~max:_ ~width:_ = Counters.to_string counters in
+  let worth_displaying ~max:_ = not (Counters.is_empty counters) in
+  0., { to_string; worth_displaying }
+
 let profile_list (E table) =
   let l = Hashtbl.fold (fun k d l -> (k, d) :: l) table [] in
   List.sort (fun (_, (p1, _)) (_, (p2, _)) ->
@@ -184,12 +227,12 @@ let compute_other_category (E table : hierarchy) (total : Measure_diff.t) =
       allocated_words = p1.allocated_words -. p2.allocated_words;
       top_heap_words_increase =
         p1.top_heap_words_increase - p2.top_heap_words_increase;
+      counters = Counters.create ();
     }
   ) table;
   !r
 
 type row = R of string * (float * display) list * row list
-type column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap ]
 
 let rec rows_of_hierarchy ~nesting make_row name measure_diff hierarchy env =
   let rows =
@@ -248,6 +291,7 @@ let rows_of_hierarchy hierarchy measure_diff initial_measure columns timings_pre
         | `Abs_top_heap ->
           make (float_of_int top_heap_words)
            ~f:(memory_word_display ~previous:(float_of_int prev_top_heap_words))
+        | `Counters -> counters_display p.counters
       ) columns,
       top_heap_words
   in
@@ -289,18 +333,26 @@ let display_rows ppf rows =
                   else String.make width '-'
   in
   let widths = width_by_column ~n_columns ~display_cell rows in
-  let rec loop (R (name, values, rows)) ~indentation =
+  (* We track print row functions in a queue to ensure ancestors not worth displaying have
+  print functions executed if a descendant is worth displaying (possible with counters) *)
+  let rec loop (R (name, values, rows)) ~indentation ~print_stack =
     let worth_displaying, cell_strings =
       values
       |> List.mapi (fun i cell -> display_cell i cell ~width:widths.(i))
       |> List.split
     in
-    if List.exists (fun b -> b) worth_displaying then
-      Format.fprintf ppf "%s%s %s@\n"
-        indentation (String.concat " " cell_strings) name;
-    List.iter (loop ~indentation:("  " ^ indentation)) rows;
+    let should_display_row = List.exists (fun b -> b) worth_displaying in
+    let print_row () =
+      let cell_data = if should_display_row then String.concat " " cell_strings else "" in
+      Format.fprintf ppf "%s%s %s@\n" indentation cell_data name
+    in
+    print_stack := print_row :: !print_stack;
+    if should_display_row then
+      (List.rev !print_stack |> List.iter (fun f -> f ()); print_stack := []);
+    List.iter (loop ~indentation:("  " ^ indentation) ~print_stack) rows;
+    if !print_stack <> [] then print_stack := List.tl !print_stack
   in
-  List.iter (loop ~indentation:"") rows
+  List.iter (loop ~indentation:"" ~print_stack:(ref [])) rows
 
 let print ppf columns ~timings_precision =
   match columns with
@@ -320,6 +372,7 @@ let column_mapping = [
   "alloc", `Alloc;
   "top-heap", `Top_heap;
   "absolute-top-heap", `Abs_top_heap;
+  "counters", `Counters;
 ]
 
 let column_names = List.map fst column_mapping
