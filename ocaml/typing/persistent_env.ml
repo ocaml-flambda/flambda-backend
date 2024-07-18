@@ -134,8 +134,8 @@ type binding =
 (* Data relating to an actual referenceable module, with a signature and a
    representation in memory. *)
 type 'a pers_struct_info = {
-  ps_import : import;
-  ps_binding : binding;
+  ps_name_info: pers_name;
+  ps_binding: binding;
   ps_val : 'a;
 }
 
@@ -719,7 +719,7 @@ let acknowledge_pers_struct penv modname pers_name val_of_pers_sig =
   in
   let pm = val_of_pers_sig sign modname uid ~shape ~address ~flags in
   let ps =
-    { ps_import = import;
+    { ps_name_info = pers_name;
       ps_binding = binding;
       ps_val = pm;
     }
@@ -738,7 +738,7 @@ let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
 let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
   match Hashtbl.find persistent_structures name with
-  | ps -> check_visibility ~allow_hidden ps.ps_import; ps
+  | ps -> check_visibility ~allow_hidden ps.ps_name_info.pn_import; ps
   | exception Not_found ->
       let pers_name = find_pers_name ~allow_hidden penv check name in
       acknowledge_pers_struct penv name pers_name val_of_pers_sig
@@ -857,11 +857,20 @@ let local_ident penv modname =
   | Some { ps_binding = Constant _; _ }
   | None -> None
 
-let runtime_parameters ({persistent_structures; _} as penv) =
+let is_imported_parameter penv modname =
+  match find_info_in_cache penv modname with
+  | Some pers_struct -> pers_struct.ps_name_info.pn_import.imp_is_param
+  | None -> false
+
+let runtime_parameters {persistent_structures; _} =
   persistent_structures
-  |> Hashtbl.to_seq_keys
+  |> Hashtbl.to_seq_values
   |> Seq.filter_map
-       (fun name -> local_ident penv name |> Option.map (fun id -> name, id))
+        (fun ps ->
+           match ps.ps_binding with
+           | Runtime_parameter local_ident ->
+               Some (ps.ps_name_info.pn_global, local_ident)
+           | Constant _ -> None)
   |> List.of_seq
 
 let parameters {param_imports; _} =

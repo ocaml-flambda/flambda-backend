@@ -40,6 +40,7 @@ type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
 | Non_value_jkind of type_expr * Jkind.sort
+| Instantiating_packed of Compilation_unit.t
 
 exception Error of Location.t * error
 
@@ -242,11 +243,19 @@ let rec compose_coercions c1 c2 =
   | (_, _) ->
       fatal_error "Translmod.compose_coercions"
 
-(*
-let apply_coercion a b c =
-  Format.eprintf "@[<2>apply_coercion@ %a@]@." Includemod.print_coercion b;
-  apply_coercion a b c
+let dump_coercions = Option.is_some (Sys.getenv_opt "DUMP_COERCIONS")
 
+let apply_coercion a b c d =
+  if dump_coercions then
+    Format.eprintf "@[<2>apply_coercion@ %a@]@." Includemod.print_coercion c;
+  let ans = apply_coercion a b c d in
+  if dump_coercions then
+    Format.eprintf "@[<2>apply_coercion@ %a@ = %a@]@."
+      Includemod.print_coercion c
+      Printlambda.lambda ans;
+  ans
+
+(*
 let compose_coercions c1 c2 =
   let c3 = compose_coercions c1 c2 in
   let open Includemod in
@@ -918,6 +927,71 @@ let required_globals ~flambda body =
   Translprim.clear_used_primitives ();
   required
 
+let add_arg_block_to_module_block primary_block_lam size restr =
+  let primary_block_id = Ident.create_local "*primary-block*" in
+  let arg_block_id = Ident.create_local "*arg-block*" in
+  let arg_block_lam =
+    apply_coercion Loc_unknown Strict restr (Lvar primary_block_id)
+  in
+  let get_field i = Lprim (mod_field i, [Lvar primary_block_id], Loc_unknown) in
+  let all_fields = List.init size get_field @ [Lvar arg_block_id] in
+  let arg_block_field = size in
+  let new_size = size + 1 in
+  Llet(Strict, layout_module, primary_block_id, primary_block_lam,
+       Llet(Strict, layout_module, arg_block_id, arg_block_lam,
+            Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+                  all_fields,
+                  Loc_unknown))),
+  new_size,
+  Some arg_block_field
+
+let add_parameters lam params =
+  let params =
+    List.map
+      (fun name ->
+        { name;
+          layout = Pvalue Pgenval;
+          attributes = Lambda.default_param_attribute;
+          mode = Lambda.alloc_heap })
+      params
+  in
+  let inline =
+    (* We want to inline the functor so that [-instantiate] compiles away the
+       function call and actually substitutes. *)
+    Always_inline
+  in
+  lfunction ~kind:(Curried { nlocal = 0 }) ~params ~return:(Pvalue Pgenval)
+    ~attr:{ default_function_attribute with is_a_functor = true; inline }
+    ~loc:Loc_unknown
+    ~body:lam
+    ~mode:alloc_heap
+    ~ret_mode:alloc_heap
+    ~region:true
+
+let transl_implementation_module ~scopes module_id (str, cc, cc2) =
+  let path = global_path module_id in
+  let lam, size =
+    transl_struct ~scopes Loc_unknown [] cc path str
+  in
+  match cc2 with
+  | None -> lam, size, None
+  | Some cc2 -> add_arg_block_to_module_block lam size cc2
+
+let wrap_toplevel_functor_in_struct code =
+  Lprim(Pmakeblock(0, Immutable, None, Lambda.alloc_heap),
+        [ code ],
+        Loc_unknown)
+
+(* Convert an flambda-style implementation (module block only) to a
+   non-flambda-style one (set global as side effect) *)
+
+let wrap_in_setglobal implementation =
+  let code =
+    Lprim (Psetglobal implementation.compilation_unit, [implementation.code],
+           Loc_unknown)
+  in
+  { implementation with code }
+
 (* Compile an implementation *)
 
 type compilation_unit_style =
@@ -925,33 +999,64 @@ type compilation_unit_style =
   | Set_global_to_block
   | Set_individual_fields
 
-let transl_implementation_plain_block compilation_unit (str, cc) =
+let has_parameters () =
+  !Clflags.parameters <> []
+
+let transl_implementation_plain_block compilation_unit impl =
   reset_labels ();
   primitive_declarations := [];
   Translprim.clear_used_primitives ();
   Translcore.clear_probe_handlers ();
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
-  let body, size =
+  let body, (size, arg_block_field) =
+    (* FIXME: This is wrong. [Translobj] needs to know not to look in the
+       global to find its hidden field. *)
     Translobj.transl_label_init (fun () ->
-      let body, size =
-        transl_struct ~scopes Loc_unknown [] cc
-          (global_path compilation_unit) str in
-      Translcore.declare_probe_handlers body, size)
+      let body, size, arg_block_field =
+        transl_implementation_module ~scopes compilation_unit
+          impl
+      in
+      Translcore.declare_probe_handlers body, (size, arg_block_field))
+  in
+  let body, module_block_format =
+    match has_parameters () with
+    | false ->
+        body, Mb_record { mb_size = size }
+    | true ->
+        let mb_runtime_params, runtime_param_idents =
+          match Env.runtime_parameters () with
+          | [] ->
+              (* We didn't end up using any of the parameters, but this is still a
+                 parameterised module, so it must still be implemented as a function that
+                 produces a distinct value for each instance. *)
+              let unit_ident = Ident.create_local "*unit*" in
+              [ Rp_unit ], [ unit_ident ]
+          | globals ->
+              List.map
+                (fun (global, _) ->
+                   if Env.is_imported_parameter (Global_module.to_name global)
+                   then Rp_argument_block global
+                   else Rp_dependency global)
+                globals,
+              List.map (fun (_, ident) -> ident) globals
+        in
+        let body = add_parameters body runtime_param_idents in
+        let body = wrap_toplevel_functor_in_struct body in
+        let format =
+          Mb_wrapped_function { mb_runtime_params;
+                                mb_returned_size = size }
+        in
+        body, format
   in
   { compilation_unit;
-    main_module_block_size = size;
+    module_block_format;
+    arg_block_field;
     required_globals = required_globals ~flambda:true body;
     code = body }
 
-let transl_implementation_set_global module_name (str, cc) =
-  let implementation =
-    transl_implementation_plain_block module_name (str, cc)
-  in
-  let code =
-    Lprim (Psetglobal implementation.compilation_unit, [implementation.code],
-           Loc_unknown)
-  in
-  { implementation with code }
+let transl_implementation_set_global module_name impl =
+  transl_implementation_plain_block module_name impl
+  |> wrap_in_setglobal
 
 (* Build the list of value identifiers defined by a toplevel structure
    (excluding primitive declarations). *)
@@ -1502,14 +1607,48 @@ let build_ident_map restr idlist more_ids =
   in
   natural_map pos map prims aliases more_ids
 
+let store_arg_block_with_module_block
+    module_name set_primary_fields restr size =
+  let glob = Lprim(Pgetglobal module_name, [], Loc_unknown) in
+  let primary_block_id = Ident.create_local "*primary-block*" in
+  let primary_block_lam =
+    (* We could just access the global, but if [restr] is the trivial coercion,
+       that would end up storing the global in itself as a circular reference,
+       which we might be able to get working but doesn't seem worth the
+       hassle. Instead, we access each field of the global and repackage it as a
+       new block (which will be optimised away if not needed). *)
+    let get_field i = Lprim (mod_field i, [glob], Loc_unknown) in
+    let fields = List.init size get_field in
+    Lprim(Pmakeblock(0, Immutable, None, alloc_heap), fields, Loc_unknown)
+  in
+  let arg_block_id = Ident.create_local "*arg-block*" in
+  let arg_block_lam =
+    apply_coercion Loc_unknown Strict restr (Lvar primary_block_id)
+  in
+  let arg_field = size in
+  let new_size = size + 1 in
+  let set_arg_block =
+    Lprim(mod_setfield arg_field, [glob; Lvar arg_block_id], Loc_unknown)
+  in
+  let lam =
+    Lsequence(set_primary_fields,
+              Llet(Strict, layout_module, primary_block_id, primary_block_lam,
+                   Llet(Strict, layout_module, arg_block_id, arg_block_lam,
+                        set_arg_block)))
+  in
+  new_size, lam, Some arg_field
+
 (* Compile an implementation using transl_store_structure
    (for the native-code compiler). *)
 
-let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
+let transl_store_gen_init () =
   reset_labels ();
   primitive_declarations := [];
   Translcore.clear_probe_handlers ();
-  Translprim.clear_used_primitives ();
+  Translprim.clear_used_primitives ()
+
+let transl_store_structure_gen
+      ~scopes module_name ({ str_items = str }, restr, restr2) topl =
   let (map, prims, aliases, size) =
     build_ident_map restr (defined_idents str) (more_idents str) in
   let f str =
@@ -1525,62 +1664,58 @@ let transl_store_gen ~scopes module_name ({ str_items = str }, restr) topl =
     in
     Translcore.declare_probe_handlers expr
   in
-  transl_store_label_init module_name size f str
+  let size, expr =
+    transl_store_label_init module_name size f str
+  in
+  match restr2 with
+  | None -> size, expr, None
+  | Some restr2 ->
+      store_arg_block_with_module_block module_name expr restr2 size
   (*size, transl_label_init (transl_store_structure module_id map prims str)*)
 
+let transl_store_implementation_as_functor
+    ~scopes:_ _module_id _impl =
+  Misc.fatal_error "Parameterised modules only supported with flambda2"
+
 let transl_store_phrases module_name str =
+  transl_store_gen_init ();
   let scopes =
     enter_compilation_unit ~scopes:empty_scopes module_name
   in
-  transl_store_gen ~scopes module_name (str,Tcoerce_none) true
+  let size, lam, _arg_block_field =
+    transl_store_structure_gen ~scopes module_name (str,Tcoerce_none,None) true
+  in
+  size, lam
 
-let transl_implementation_set_fields compilation_unit (str, restr) =
+let transl_store_gen module_name impl topl =
+  transl_store_gen_init ();
+  match has_parameters () with
+  | false ->
+      transl_store_structure_gen module_name impl topl
+  | true ->
+      transl_store_implementation_as_functor module_name impl
+
+let transl_implementation_set_fields compilation_unit impl =
   let s = !transl_store_subst in
   transl_store_subst := Ident.Map.empty;
   let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
-  let i, code = transl_store_gen ~scopes compilation_unit (str, restr) false in
+  let i, code, arg_block_field =
+    transl_store_gen ~scopes compilation_unit impl false
+  in
   transl_store_subst := s;
-  { Lambda.main_module_block_size = i;
+  { Lambda.module_block_format = Mb_record { mb_size = i };
+    arg_block_field;
     code;
     (* compilation_unit is not used by closure, but this allow to share
        the type with the flambda version *)
     compilation_unit;
     required_globals = required_globals ~flambda:true code }
 
-let transl_implementation0 compilation_unit impl ~style =
+let transl_implementation compilation_unit impl ~style =
   match style with
   | Plain_block -> transl_implementation_plain_block compilation_unit impl
   | Set_global_to_block -> transl_implementation_set_global compilation_unit impl
   | Set_individual_fields -> transl_implementation_set_fields compilation_unit impl
-
-let stub_out_runtime_parameters compilation_unit code =
-  let runtime_parameters = Env.runtime_parameters () in
-  match runtime_parameters with
-  | [] -> code
-  | _ ->
-      (* Raise [Invalid_argument "-parameter not yet implemented"] at top level. This
-         makes the module unusable (which is to say, safe) but well-formed so that
-         compilation goes through. *)
-    let scopes = enter_compilation_unit ~scopes:empty_scopes compilation_unit in
-    let loc = of_location ~scopes Location.none in
-    let slot =
-      transl_extension_path
-        loc
-        (Lazy.force Env.initial)
-        Predef.path_invalid_argument
-    in
-    let message =
-      Lconst (Const_base (Const_string("-parameter not yet implemented",
-                                       Location.none, None)))
-    in
-    Lprim (Praise Raise_regular,
-           [Lprim(Pmakeblock(0, Immutable, None, alloc_heap), [ slot; message ], loc)],
-           loc)
-
-let transl_implementation compilation_unit impl ~style =
-  let program = transl_implementation0 compilation_unit impl ~style in
-  let code = stub_out_runtime_parameters compilation_unit program.code in
-  { program with code }
 
 (* Compile a toplevel phrase *)
 
@@ -1867,6 +2002,98 @@ let transl_package component_names target_name coercion ~style =
   | Set_individual_fields ->
       transl_package_set_fields component_names target_name coercion
 
+type runtime_arg =
+  | Argument_block of {
+      ra_unit : Compilation_unit.t;
+      ra_field : int;
+    }
+  | Dependency of Compilation_unit.t
+  | Unit
+
+let unit_of_runtime_arg arg =
+  match arg with
+  | Argument_block { ra_unit = cu; _ } | Dependency cu -> Some cu
+  | Unit -> None
+
+let transl_runtime_arg arg =
+  match arg with
+  | Argument_block { ra_unit; ra_field; } ->
+      Lprim (mod_field ra_field,
+             [Lprim (Pgetglobal ra_unit, [], Loc_unknown)],
+             Loc_unknown)
+  | Dependency cu ->
+      Lprim (Pgetglobal cu, [], Loc_unknown)
+  | Unit ->
+      lambda_unit
+
+let transl_instance_plain_block
+      compilation_unit ~runtime_args ~main_module_block_size ~arg_block_field
+    : Lambda.program =
+  let base_compilation_unit, _args =
+    Compilation_unit.split_instance_exn compilation_unit
+  in
+  let instantiating_functor_lam =
+    (* Any parameterized module has a block with exactly one field, namely the
+       instantiating functor *)
+    Lprim (mod_field 0,
+           [Lprim (Pgetglobal base_compilation_unit, [], Loc_unknown)],
+           Loc_unknown)
+  in
+  let runtime_args_lam = List.map transl_runtime_arg runtime_args in
+  let code =
+    Lapply {
+      ap_func = instantiating_functor_lam;
+      ap_args = runtime_args_lam;
+      ap_result_layout = Pvalue Pgenval;
+      ap_loc = Loc_unknown;
+      ap_inlined = Always_inlined; (* Definitely inline!! *)
+      ap_tailcall = Default_tailcall;
+      ap_specialised = Default_specialise;
+      ap_mode = alloc_heap;
+      ap_region_close = Rc_normal;
+      ap_probe = None;
+    }
+  in
+  let required_globals =
+    base_compilation_unit :: List.filter_map unit_of_runtime_arg runtime_args
+    |> Compilation_unit.Set.of_list
+  in
+  let module_block_format = Mb_record { mb_size = main_module_block_size } in
+  {
+    compilation_unit;
+    code;
+    required_globals;
+    module_block_format;
+    arg_block_field;
+  }
+
+let transl_instance_set_global
+      compilation_unit ~runtime_args ~main_module_block_size ~arg_block_field =
+  transl_instance_plain_block compilation_unit ~runtime_args
+    ~main_module_block_size ~arg_block_field
+  |> wrap_in_setglobal
+
+let transl_instance_set_fields
+      _compilation_unit ~runtime_args:_ ~main_module_block_size:_
+      ~arg_block_field:_ =
+  Misc.fatal_error "Parameterised modules not supported in Closure"
+
+let transl_instance instance_unit ~runtime_args ~main_module_block_size
+      ~arg_block_field ~style =
+  assert (Compilation_unit.is_instance instance_unit);
+  if (runtime_args = []) then
+    Misc.fatal_error "Trying to instantiate but passing no arguments";
+  match style with
+  | Plain_block ->
+      transl_instance_plain_block instance_unit ~runtime_args
+        ~main_module_block_size ~arg_block_field
+  | Set_global_to_block ->
+      transl_instance_set_global instance_unit ~runtime_args
+        ~main_module_block_size ~arg_block_field
+  | Set_individual_fields ->
+      transl_instance_set_fields instance_unit ~runtime_args
+        ~main_module_block_size ~arg_block_field
+
 (* Error report *)
 
 open Format
@@ -1914,6 +2141,11 @@ let report_error loc = function
          Please report this error to the Jane Street compilers team."
         Jkind.Sort.format sort
         Printtyp.type_expr ty
+  | Instantiating_packed comp_unit ->
+      Location.errorf ~loc
+        "Cannot instantiate using the packed module %a@ \
+         as either the instantiated module or an argument"
+      Compilation_unit.print comp_unit
 
 let () =
   Location.register_error_of_exn

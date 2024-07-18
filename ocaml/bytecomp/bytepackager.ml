@@ -178,7 +178,7 @@ let build_global_target ~ppf_dump oc target_name state members coercion =
         | PM_intf -> None
         | PM_impl _ -> Some (m.pm_name |> unit_of_name))
       members in
-  let _size, lam =
+  let main_module_block_size, lam =
     Translmod.transl_package components compilation_unit coercion
       ~style:Set_global_to_block
   in
@@ -197,7 +197,8 @@ let build_global_target ~ppf_dump oc target_name state members coercion =
     rev_append_map
       (fun (r, ofs) -> (r, state.offset + ofs))
       pack_relocs state.relocs in
-  { state with events; debug_dirs; relocs; offset = state.offset + size}
+  { state with events; debug_dirs; relocs; offset = state.offset + size},
+  main_module_block_size
 
 (* Build the .cmo file obtained by packaging the given .cmo files. *)
 
@@ -237,7 +238,7 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let state = empty_state in
     let state =
       List.fold_left (process_append_pack_member targetname oc) state members in
-    let state =
+    let state, main_module_block_size =
       build_global_target ~ppf_dump oc targetname state members coercion in
     let pos_debug = pos_out oc in
     (* CR mshinwell: Compression not supported in the OCaml 4 runtime
@@ -261,16 +262,22 @@ let package_object_files ~ppf_dump files targetfile targetname coercion =
     let for_pack_prefix = CU.Prefix.from_clflags () in
     let modname = targetname |> CU.Name.of_string in
     let cu_name = CU.create for_pack_prefix modname in
+    let format : Lambda.module_block_format =
+      (* Open modules not supported with packs, so always just a record *)
+      Mb_record { mb_size = main_module_block_size }
+    in
     let compunit =
       { cu_name;
         cu_pos = pos_code;
         cu_codesize = pos_debug - pos_code;
         cu_reloc = List.rev state.relocs;
+        cu_arg_descr = None;
         cu_imports =
           Array.of_list
             ((Import_info.create modname
                ~crc_with_unit:(Some (cu_name, Env.crc_of_unit modname)))
               :: imports);
+        cu_format = format;
         cu_primitives = List.rev state.primitives;
         cu_required_globals = Compilation_unit.Set.elements required_globals;
         cu_force_link = force_link;
