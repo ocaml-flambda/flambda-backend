@@ -2003,7 +2003,7 @@ let rec extract_concrete_typedecl env ty =
       end
   | Tapp (ty, _) | Tpoly(ty, _) -> extract_concrete_typedecl env ty
   | Tarrow _ | Ttuple _ | Tobject _ | Tfield _ | Tnil
-  | Tvariant _ | Tpackage _ -> Has_no_typedecl
+  | Tvariant _ | Tpackage _ | Tapp _ -> Has_no_typedecl
   | Tvar _ | Tunivar _ -> May_have_typedecl
   | Tlink _ | Tsubst _ -> assert false
 
@@ -2178,6 +2178,16 @@ and estimate_type_jkind env ty =
     match type_jkind_for_app (type_jkind env ty) 0 tys with
     | Some jkind -> Jkind jkind
     | None -> failwith "no jkind for tapp???"
+  end
+  | Tapp (ty, tys) -> begin
+    let app_jkind = estimate_type_jkind env ty in
+    match tys, jkind_of_result app_jkind with
+    | Unapplied, _ -> app_jkind
+    | Applied _, Type _ -> assert false
+    | Applied tys, Arrow { args; result } ->
+      if List.length tys = List.length args
+      then Jkind result
+      else assert false
   end
   | Tvariant row ->
       if tvariant_not_immediate row

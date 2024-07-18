@@ -1014,7 +1014,7 @@ let rec check_constraints_rec env loc visited ty =
                             (ty, violation, Check_constraints)))
         | All_good -> ()
       end;
-      List.iter (check_constraints_rec env loc visited) args
+      AppArgs.iter (check_constraints_rec env loc visited) args
   | Tpoly (ty, tl) ->
       let _, ty = Ctype.instance_poly false tl ty in
       check_constraints_rec env loc visited ty
