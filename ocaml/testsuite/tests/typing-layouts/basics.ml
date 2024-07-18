@@ -264,7 +264,7 @@ Error: This expression has type ('a : value)
        but an expression was expected of type
          Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-55.
 |}]
@@ -299,7 +299,7 @@ Error: This expression has type ('a : value)
        but an expression was expected of type
          Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-50.
 |}]
@@ -318,7 +318,7 @@ Error: This expression has type ('a : value)
        but an expression was expected of type
          Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-70.
 |}]
@@ -337,7 +337,7 @@ Error: This expression has type ('a : value)
        but an expression was expected of type
          Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-65.
 |}]
@@ -505,7 +505,7 @@ Line 1, characters 19-25:
                        ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
        The kind of string is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of imm_id at line 1, characters 0-33.
 |}];;
@@ -528,7 +528,7 @@ Line 1, characters 33-46:
 Error: This expression has type string but an expression was expected of type
          'a imm_id = ('a : immediate)
        The kind of string is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of id_for_imms at line 1, characters 16-35.
 |}]
@@ -544,7 +544,7 @@ Line 2, characters 9-15:
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
        The kind of string is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the annotation on 'a in the declaration of the type t4.
 |}];;
@@ -558,7 +558,7 @@ Line 1, characters 10-16:
               ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
        The kind of string is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -591,7 +591,7 @@ Line 3, characters 0-15:
     ^^^^^^^^^^^^^^^
 Error:
        The kind of s5 is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of s5 must be a subkind of immediate
          because of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -730,7 +730,7 @@ Error: This expression has type ('a : value)
        but an expression was expected of type
          Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -827,7 +827,7 @@ Line 6, characters 21-22:
 Error: This expression has type ('a : value)
        but an expression was expected of type float#
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -916,7 +916,7 @@ Error: Signature mismatch:
          val x : string
        The type ('a : immediate) is not compatible with the type string
        The kind of string is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of x at line 8, characters 10-26.
 |}];;
@@ -957,7 +957,7 @@ Error: Signature mismatch:
        The type 'a t = ('a : immediate) is not compatible with the type
          string
        The kind of string is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of x at line 8, characters 10-26.
 |}]

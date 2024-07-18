@@ -483,7 +483,7 @@ Line 2, characters 25-33:
 Error: This expression has type string but an expression was expected of type
          ('a : value mod unique)
        The kind of string is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of string must be a subkind of value mod unique
          because of the definition of t at line 1, characters 0-54.
 |}]

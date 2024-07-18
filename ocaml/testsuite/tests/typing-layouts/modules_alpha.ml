@@ -134,7 +134,7 @@ Line 5, characters 25-30:
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
        The kind of string is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of t at line 2, characters 2-25.
 |}]
@@ -377,7 +377,7 @@ Line 14, characters 17-23:
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
        The kind of string is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of f at line 3, characters 2-20.
 |}]
@@ -393,7 +393,7 @@ Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
 Error: The kind of type string is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of type string must be a subkind of immediate
          because of the definition of t at line 2, characters 2-20.
 |}]
@@ -467,7 +467,7 @@ Error: In this `with' constraint, the new definition of t
        is not included in
          type t : immediate
        The kind of the first is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of the first must be a subkind of immediate
          because of the definition of t at line 2, characters 2-20.
 |}];;
