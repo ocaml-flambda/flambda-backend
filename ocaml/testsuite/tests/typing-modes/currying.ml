@@ -1,4 +1,5 @@
 (* TEST
+ flags += "-extension unique";
  expect;
 *)
 
@@ -358,4 +359,135 @@ Error: This value escapes its region.
   Hint: Cannot return a local value without an "exclave_" annotation.
   Hint: This is a partial application
         Adding 1 more argument may make the value non-local
+|}]
+
+(* The above tests for the locality axis exhaust cases wrt
+  [Known_arg/Unknown_arg/Omitted_optional_arg/Omitted],
+  Tests below only try to exhaust mode axes. *)
+
+(* Uniqueness & linearity *)
+
+let _ =
+  let f : _ @ unique -> (_ -> _) = fun _ -> fun x -> x in
+  f "hello" "world"
+[%%expect{|
+Line 3, characters 2-11:
+3 |   f "hello" "world"
+      ^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling once values, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+
+let _ =
+  let f : _ @ once -> (_ -> _) = fun _ -> fun x -> x in
+  f "hello" "world"
+[%%expect{|
+Line 3, characters 2-11:
+3 |   f "hello" "world"
+      ^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling once values, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+
+let _ =
+  let f : _ -> (_ -> _) @@ once = fun _ -> fun x -> x in
+  f "hello" "world"
+[%%expect{|
+Line 3, characters 2-11:
+3 |   f "hello" "world"
+      ^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling once values, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+
+let _ =
+  let f : _ -> (_ -> _) @@ unique = fun _ -> fun x -> x in
+  f "hello" "world"
+[%%expect{|
+- : string = "world"
+|}]
+
+(* portability and contention, due to the choice of legacy modes, don't have
+   the same problem. *)
+let _ =
+  let f : _ @ uncontended -> (_ -> _) = fun _ -> fun x -> x in
+  f "hello" "world"
+[%%expect{|
+- : string = "world"
+|}]
+
+let _ =
+  let f : _ @ nonportable -> (_ -> _) = fun _ -> fun x -> x in
+  f "hello" "world"
+[%%expect{|
+- : string = "world"
+|}]
+
+let _ =
+  let f : _ -> (_ -> _) @@ nonportable = fun _ -> fun x -> x in
+  f "hello" "world"
+[%%expect{|
+- : string = "world"
+|}]
+
+let _ =
+  let f : _ -> (_ -> _) @@ uncontended = fun _ -> fun x -> x in
+  f "hello" "world"
+[%%expect{|
+- : string = "world"
+|}]
+
+(* printing is similar to generating [cmi] without [mli]. Tests below show that
+   the inferred type of [g] doesn't contain extra parenthesis, as they would
+   if pushed to legacy; this is prevented by [check_curried_application_complete]. *)
+let f g x =
+  g (x: _ @@ once) x [@nontail]
+[%%expect{|
+val f : (once_ 'a -> 'a -> 'b) -> 'a -> 'b = <fun>
+|}]
+
+let f g x y =
+  g (x: _ @@ unique) y [@nontail]
+[%%expect{|
+val f : ('a -> 'b -> 'c) -> unique_ 'a -> 'b -> 'c = <fun>
+|}]
+
+let f (g @ unique) x =
+  g x x [@nontail]
+[%%expect{|
+val f : unique_ ('a -> 'a -> 'b) -> 'a -> 'b = <fun>
+|}]
+
+let f (g @ once) x =
+  g x x [@nontail]
+[%%expect{|
+val f : once_ ('a -> 'a -> 'b) -> 'a -> 'b = <fun>
+|}]
+
+(* portability and contention is not affected due to the choice of legacy modes. *)
+let f g x =
+  g (x: _ @@ nonportable) x [@nontail]
+[%%expect{|
+val f : ('a -> 'a -> 'b) -> 'a -> 'b = <fun>
+|}]
+
+let f g x y =
+  g (x: _ @@ uncontended) y [@nontail]
+[%%expect{|
+val f : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+|}]
+
+let f (g @ uncontended) x =
+  g x x [@nontail]
+[%%expect{|
+val f : ('a -> 'a -> 'b) -> 'a -> 'b = <fun>
+|}]
+
+let f (g @ nonportable) x =
+  g x x [@nontail]
+[%%expect{|
+val f : ('a -> 'a -> 'b) -> 'a -> 'b = <fun>
 |}]
