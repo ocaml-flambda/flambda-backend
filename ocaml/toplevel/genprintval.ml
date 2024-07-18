@@ -235,7 +235,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
 
     let abstract_type =
       let id = Ident.create_local "abstract" in
-      let ty = Btype.newgenty (Tconstr (Pident id, [], ref Mnil)) in
+      let ty = Btype.newgenty (Tconstr (Pident id, AppArgs.unapp, ref Mnil)) in
       ty
 
     (* The main printing function *)
@@ -298,7 +298,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               Oval_stuff "<fun>"
           | Ttuple(labeled_tys) ->
               Oval_tuple (tree_of_labeled_val_list 0 depth obj labeled_tys)
-          | Tconstr(path, [ty_arg], _)
+          | Tconstr(path, Applied [ty_arg], _)
             when Path.same path Predef.path_list ->
               if O.is_block obj then
                 match check_depth depth obj ty with
@@ -320,23 +320,23 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                     Oval_list (List.rev (tree_of_conses [] depth obj ty_arg))
               else
                 Oval_list []
-          | Tconstr(path, [ty_arg], _)
+          | Tconstr(path, Applied [ty_arg], _)
             when Path.same path Predef.path_array ->
               tree_of_generic_array Asttypes.Mutable depth obj ty_arg
-          | Tconstr(path, [ty_arg], _)
+          | Tconstr(path, Applied [ty_arg], _)
             when Path.same path Predef.path_iarray ->
               tree_of_generic_array Asttypes.Immutable depth obj ty_arg
 
-          | Tconstr(path, [], _)
+          | Tconstr(path, Unapplied, _)
               when Path.same path Predef.path_string ->
             Oval_string ((O.obj obj : string), !printer_steps, Ostr_string)
 
-          | Tconstr (path, [], _)
+          | Tconstr (path, Unapplied, _)
               when Path.same path Predef.path_bytes ->
             let s = Bytes.to_string (O.obj obj : bytes) in
             Oval_string (s, !printer_steps, Ostr_bytes)
 
-          | Tconstr (path, [ty_arg], _)
+          | Tconstr (path, Applied [ty_arg], _)
             when Path.same path Predef.path_lazy_t ->
              let obj_tag = O.tag obj in
              (* Lazy values are represented in three possible ways:
@@ -394,6 +394,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                  Oval_constr (Oide_ident (Out_name.create "lazy"), [v])
                end
           | Tconstr(path, ty_list, _) -> begin
+              let ty_list = AppArgs.to_list ty_list in
               try
                 let decl = Env.find_type path env in
                 match decl with
@@ -438,7 +439,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                         Some t ->
                           begin match get_desc t with
                             Tconstr (_,params,_) ->
-                              params
+                              AppArgs.to_list params
                           | _ -> assert false end
                       | None -> decl.type_params
                     in
@@ -523,6 +524,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               | Datarepr.Constr_not_found -> (* raised by find_constr_by_tag *)
                   Oval_stuff "<unknown constructor>"
               end
+          | Tapp _ -> Oval_stuff "<Tapp>"
           | Tvariant row ->
               if O.is_block obj then
                 let tag : int = O.obj (O.field obj 0) in
@@ -693,7 +695,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         let type_params =
           match get_desc cstr.cstr_res with
             Tconstr (_,params,_) ->
-             params
+             AppArgs.to_list params
           | _ -> assert false
         in
         let args = instantiate_types env type_params ty_list cstr.cstr_args in
@@ -730,7 +732,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | (_name, Generic (path, fn)) :: remainder ->
           begin match get_desc (Ctype.expand_head env ty) with
           | Tconstr (p, args, _) when Path.same p path ->
-              begin try apply_generic_printer path (fn depth) args
+              begin try apply_generic_printer path (fn depth) (AppArgs.to_list args)
               with exn -> (fun _obj -> out_exn path exn) end
           | _ -> find remainder end in
       find !printers

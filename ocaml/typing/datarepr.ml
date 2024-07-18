@@ -97,7 +97,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       existentials,
       [
         {
-          ca_type = newgenconstr path type_params;
+          ca_type = newgenconstr path (AppArgs.of_list type_params);
           ca_modalities = Mode.Modality.Value.Const.id;
           ca_loc = Location.none
         }
@@ -105,7 +105,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       Some tdecl
 
 let constructor_descrs ~current_unit ty_path decl cstrs rep =
-  let ty_res = newgenconstr ty_path decl.type_params in
+  let ty_res = newgenconstr ty_path (AppArgs.of_list decl.type_params) in
   let cstr_shapes_and_arg_jkinds =
     match rep with
     | Variant_extensible -> assert false
@@ -174,7 +174,7 @@ let extension_descr ~current_unit path_ext ext =
   let ty_res =
     match ext.ext_ret_type with
         Some type_ret -> type_ret
-      | None -> newgenconstr ext.ext_type_path ext.ext_type_params
+      | None -> newgenconstr ext.ext_type_path (AppArgs.of_list ext.ext_type_params)
   in
   let cstr_tag = Extension (path_ext, ext.ext_arg_jkinds) in
   let existentials, cstr_args, cstr_inlined =
@@ -270,6 +270,6 @@ let constructors_of_type ~current_unit ty_path decl =
 let labels_of_type ty_path decl =
   match decl.type_kind with
   | Type_record(labels, rep) ->
-      label_descrs (newgenconstr ty_path decl.type_params)
+      label_descrs (newgenconstr ty_path (AppArgs.of_list decl.type_params))
         labels rep decl.type_private
   | Type_variant _ | Type_abstract _ | Type_open -> []

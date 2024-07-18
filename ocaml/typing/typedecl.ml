@@ -381,7 +381,7 @@ let set_private_row env loc p decl =
         r
     | _ -> assert false
   in
-  set_type_desc rv (Tconstr (p, decl.type_params, ref Mnil))
+  set_type_desc rv (Tconstr (p, AppArgs.of_list decl.type_params, ref Mnil))
 
 (* Makes sure a type is representable. When called with a type variable, will
    lower [any] to a sort variable if [allow_unboxed = true], and to [value]
@@ -1014,7 +1014,7 @@ let rec check_constraints_rec env loc visited ty =
                             (ty, violation, Check_constraints)))
         | All_good -> ()
       end;
-      List.iter (check_constraints_rec env loc visited) args
+      AppArgs.iter (check_constraints_rec env loc visited) args
   | Tpoly (ty, tl) ->
       let _, ty = Ctype.instance_poly false tl ty in
       check_constraints_rec env loc visited ty
@@ -1129,10 +1129,10 @@ let check_kind_coherence env loc dpath decl =
       try
         let decl' = Env.find_type path env in
         let err =
-          if List.length args <> List.length decl.type_params
+          if not @@ AppArgs.matches_decl decl args
           then Some Includecore.Arity
           else begin
-            match Ctype.equal env false args decl.type_params with
+            match Ctype.equal env false (AppArgs.to_list args) decl.type_params with
             | exception Ctype.Equality err ->
                 Some (Includecore.Constraint err)
             | () ->
@@ -1852,11 +1852,11 @@ let check_well_founded ~abs_env env loc path to_check visited ty0 =
     match get_desc ty with
     | Tconstr(p, tyl, _) ->
         let to_check = to_check p in
-        if to_check then List.iter (check_subtype parents trace ty) tyl;
+        if to_check then AppArgs.iter (check_subtype parents trace ty) tyl;
         begin match Ctype.try_expand_once_opt env ty with
         | ty' -> check parents (Expands_to (ty, ty') :: trace) ty'
         | exception Ctype.Cannot_expand ->
-            if not to_check then List.iter (check_subtype parents trace ty) tyl
+            if not to_check then AppArgs.iter (check_subtype parents trace ty) tyl
         end
     | _ ->
         Btype.iter_type_expr (check_subtype parents trace ty) ty
@@ -1943,7 +1943,7 @@ let check_regularity ~abs_env env loc path decl to_check =
       match get_desc ty with
       | Tconstr(path', args', _) ->
           if Path.same path path' then begin
-            if not (Ctype.is_equal abs_env false args args') then
+            if not (Ctype.is_equal abs_env false args (AppArgs.to_list args')) then
               raise (Error(loc,
                      Non_regular {
                        definition=path;
@@ -1965,7 +1965,7 @@ let check_regularity ~abs_env env loc path decl to_check =
               let (params, body) =
                 Ctype.instance_parameterized_type params0 body0 in
               begin
-                try List.iter2 (Ctype.unify abs_env) params args'
+                try AppArgs.iter2 (Ctype.unify abs_env) params args'
                 with Ctype.Unify err ->
                   raise (Error(loc, Constraint_failed (abs_env, err)));
               end;
@@ -1974,7 +1974,7 @@ let check_regularity ~abs_env env loc path decl to_check =
                 body
             with Not_found -> ()
           end;
-          List.iter (check_subtype cpath args prev_exp trace ty) args'
+          AppArgs.iter (check_subtype cpath args prev_exp trace ty) args'
       | Tpoly (ty, tl) ->
           let (_, ty) = Ctype.instance_poly ~keep_names:true false tl ty in
           check_regular cpath args prev_exp trace ty
@@ -2040,7 +2040,7 @@ let name_recursion sdecl id decl =
       type_private = Private; } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
     if Ctype.deep_occur ty ty' then
-      let td = Tconstr(Path.Pident id, decl.type_params, ref Mnil) in
+      let td = Tconstr(Path.Pident id, AppArgs.of_list decl.type_params, ref Mnil) in
       link_type ty (newty2 ~level:(get_level ty) td);
       {decl with type_manifest = Some ty'}
     else decl
@@ -2355,12 +2355,12 @@ let transl_extension_constructor ~scope env type_path type_params
         let cstr_type_params = (Env.find_type cstr_type_path env).type_params in
         let cstr_types =
           (Btype.newgenty
-             (Tconstr(cstr_type_path, cstr_type_params, ref Mnil)))
+             (Tconstr(cstr_type_path, AppArgs.of_list cstr_type_params, ref Mnil)))
           :: cstr_type_params
         in
         let ext_types =
           (Btype.newgenty
-             (Tconstr(type_path, type_params, ref Mnil)))
+             (Tconstr(type_path, AppArgs.of_list type_params, ref Mnil)))
           :: type_params
         in
         if not (Ctype.is_equal env true cstr_types ext_types) then
@@ -2389,8 +2389,8 @@ let transl_extension_constructor ~scope env type_path type_params
                 | _ -> assert false
               in
               let decl = Ctype.instance_declaration decl in
-              assert (List.length decl.type_params = List.length tl);
-              List.iter2 (Ctype.unify env) decl.type_params tl;
+              assert (AppArgs.matches_decl decl tl);
+              AppArgs.iter2 (Ctype.unify env) decl.type_params tl;
               let lbls =
                 match decl.type_kind with
                 | Type_record (lbls, Record_inlined _) -> lbls
