@@ -1045,7 +1045,6 @@ let of_new_legacy_sort_var ~why =
 
 let of_new_legacy_sort ~why = fst (of_new_legacy_sort_var ~why)
 
-(* CR layouts v2.8: remove this function *)
 let of_const ~why
     ({ layout;
        modes_upper_bounds;
