@@ -40,13 +40,7 @@ let load_path = ref ([] : (string * string array) list)
 let files =
   ref ([] : (string * file_kind * String.Set.t * string list) list)
 let module_map = ref String.Map.empty
-<<<<<<< HEAD
-let debug = ref false
 let strict = ref false
-||||||| 121bedcfd2
-let debug = ref false
-=======
->>>>>>> 5.2.0
 
 module Error_occurred : sig
   val set : unit -> unit
@@ -108,15 +102,9 @@ let find_module_in_load_path name =
   let names = List.map (fun ext -> name ^ ext) (!mli_synonyms @ !ml_synonyms) in
   let uname = String.uncapitalize_ascii name in
   let unames =
-<<<<<<< HEAD
-||||||| 121bedcfd2
-    let uname = String.uncapitalize_ascii name in
-=======
     let uname = Unit_info.normalize name in
->>>>>>> 5.2.0
     List.map (fun ext -> uname ^ ext) (!mli_synonyms @ !ml_synonyms)
   in
-<<<<<<< HEAD
   let stdlib_unames =
     (* Jane Street: This is a hack to deal with the fact that we refer to our
        custom stdlib modules with names like [Stdlib__Int32_u] from within the
@@ -149,17 +137,6 @@ let find_module_in_load_path name =
       else
         find_in_array a (pos + 1)
     end in
-||||||| 121bedcfd2
-  let rec find_in_array a pos =
-    if pos >= Array.length a then None else begin
-      let s = a.(pos) in
-      if List.mem s names || List.mem s unames then
-        Some s
-      else
-        find_in_array a (pos + 1)
-    end in
-=======
->>>>>>> 5.2.0
   let rec find_in_path = function
     | [] -> raise Not_found
     | (dir, contents) :: rem ->
@@ -645,9 +622,7 @@ let run_main argv =
       "-I", Arg.String (prepend_to_list Clflags.include_dirs),
         "<dir>  Add <dir> to the list of include directories";
       "-H", Arg.String (prepend_to_list Clflags.hidden_include_dirs),
-        "<dir>  Add <dir> to the list of include directories";
-      "-H", Arg.String (add_to_list Clflags.hidden_include_dirs),
-        "<dir>  Add <dir> to the list of include directories";
+        "<dir>  Add <dir> to the list of hidden include directories";
       "-nocwd", Arg.Set nocwd,
         " Do not add current working directory to \
           the list of include directories";
