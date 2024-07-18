@@ -6,6 +6,8 @@
    include runtime_events;
    set OCAML_RUNTIME_EVENTS_START = "1";
    runtime5;
+   { bytecode; }
+   { native; }
  }
 *)
 

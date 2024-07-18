@@ -614,33 +614,37 @@ and meet_head_of_kind_rec_info _env t1 _t2 : _ Or_bottom.t =
 and meet_head_of_kind_region _env () () : _ Or_bottom.t = Ok ((), TEE.empty)
 
 and meet_row_like :
-      'index 'maps_to 'row_tag 'known.
+      'lattice 'shape 'maps_to 'row_tag 'known.
       meet_maps_to:
         (Meet_env.t -> 'maps_to -> 'maps_to -> ('maps_to * TEE.t) Or_bottom.t) ->
-      equal_index:('index -> 'index -> bool) ->
-      subset_index:('index -> 'index -> bool) ->
-      union_index:('index -> 'index -> 'index) ->
+      equal_index:('lattice -> 'lattice -> bool) ->
+      subset_index:('lattice -> 'lattice -> bool) ->
+      union_index:('lattice -> 'lattice -> 'lattice) ->
+      meet_shape:('shape -> 'shape -> 'shape Or_bottom.t) ->
       is_empty_map_known:('known -> bool) ->
       get_singleton_map_known:
-        ('known -> ('row_tag * ('index, 'maps_to) TG.Row_like_case.t) option) ->
+        ('known ->
+        ('row_tag * ('lattice, 'shape, 'maps_to) TG.Row_like_case.t) option) ->
       merge_map_known:
         (('row_tag ->
-         ('index, 'maps_to) TG.Row_like_case.t option ->
-         ('index, 'maps_to) TG.Row_like_case.t option ->
-         ('index, 'maps_to) TG.Row_like_case.t option) ->
+         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option ->
+         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option ->
+         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option) ->
         'known ->
         'known ->
         'known) ->
       Meet_env.t ->
       known1:'known ->
       known2:'known ->
-      other1:('index, 'maps_to) TG.Row_like_case.t Or_bottom.t ->
-      other2:('index, 'maps_to) TG.Row_like_case.t Or_bottom.t ->
-      ('known * ('index, 'maps_to) TG.Row_like_case.t Or_bottom.t * TEE.t)
+      other1:('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t ->
+      other2:('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t ->
+      ('known
+      * ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t
+      * TEE.t)
       Or_bottom.t =
- fun ~meet_maps_to ~equal_index ~subset_index ~union_index ~is_empty_map_known
-     ~get_singleton_map_known ~merge_map_known meet_env ~known1 ~known2 ~other1
-     ~other2 ->
+ fun ~meet_maps_to ~equal_index ~subset_index ~union_index ~meet_shape
+     ~is_empty_map_known ~get_singleton_map_known ~merge_map_known meet_env
+     ~known1 ~known2 ~other1 ~other2 ->
   let env_extension = ref None in
   let need_join =
     (* The returned env_extension is the join of the env_extension produced by
@@ -681,23 +685,36 @@ and meet_row_like :
       assert need_join;
       env_extension := Some (join_env_extension join_env ext2 ext)
   in
-  let meet_index (i1 : 'index TG.row_like_index) (i2 : 'index TG.row_like_index)
-      : 'index TG.row_like_index Or_bottom.t =
-    match i1, i2 with
-    | Known i1', Known i2' -> if equal_index i1' i2' then Ok i1 else Bottom
-    | Known known, At_least at_least | At_least at_least, Known known ->
-      if subset_index at_least known
-      then
-        (* [at_least] is included in [known] hence [Known known] is included in
-           [At_least at_least], hence [Known known] \inter [At_least at_least] =
-           [Known known] *)
-        Ok (TG.Row_like_index.known known)
-      else Bottom
-    | At_least i1', At_least i2' ->
-      Ok (TG.Row_like_index.at_least (union_index i1' i2'))
+  let meet_index (i1 : ('lattice, 'shape) TG.row_like_index)
+      (i2 : ('lattice, 'shape) TG.row_like_index) :
+      ('lattice, 'shape) TG.row_like_index Or_bottom.t =
+    match meet_shape i1.shape i2.shape with
+    | Bottom -> Bottom
+    | Ok shape -> (
+      match i1.domain, i2.domain with
+      | Known i1', Known i2' ->
+        if equal_index i1' i2'
+        then Ok (TG.Row_like_index.create ~domain:i1.domain ~shape)
+        else Bottom
+      | Known known, At_least at_least | At_least at_least, Known known ->
+        if subset_index at_least known
+        then
+          (* [at_least] is included in [known] hence [Known known] is included
+             in [At_least at_least], hence [Known known] \inter [At_least
+             at_least] = [Known known] *)
+          Ok
+            (TG.Row_like_index.create
+               ~domain:(TG.Row_like_index_domain.known known)
+               ~shape)
+        else Bottom
+      | At_least i1', At_least i2' ->
+        Ok
+          (TG.Row_like_index.create
+             ~domain:(TG.Row_like_index_domain.at_least (union_index i1' i2'))
+             ~shape))
   in
-  let meet_case (case1 : ('index, 'maps_to) TG.Row_like_case.t)
-      (case2 : ('index, 'maps_to) TG.Row_like_case.t) =
+  let meet_case (case1 : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t)
+      (case2 : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t) =
     match meet_index case1.index case2.index with
     | Bottom -> None
     | Ok index -> (
@@ -716,31 +733,59 @@ and meet_row_like :
             let env_extension =
               if need_join then env_extension else TEE.empty
             in
-            Some (TG.Row_like_case.create ~maps_to ~index ~env_extension))))
+            Some
+              (Or_unknown.Known
+                 (TG.Row_like_case.create ~maps_to ~index ~env_extension)))))
   in
-  let meet_knowns case1 case2 : ('index, 'maps_to) TG.Row_like_case.t option =
+  let meet_knowns
+      (case1 :
+        ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option)
+      (case2 :
+        ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option) :
+      ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option =
     match case1, case2 with
     | None, None -> None
     | Some case1, None -> (
       match other2 with
       | Bottom -> None
-      | Ok other_case -> meet_case case1 other_case)
+      | Ok other_case -> (
+        match case1 with
+        | Unknown ->
+          join_env_extension other_case.env_extension;
+          Some (Known other_case)
+        | Known case1 -> meet_case case1 other_case))
     | None, Some case2 -> (
       match other1 with
       | Bottom -> None
-      | Ok other_case -> meet_case other_case case2)
-    | Some case1, Some case2 -> meet_case case1 case2
+      | Ok other_case -> (
+        match case2 with
+        | Unknown ->
+          join_env_extension other_case.env_extension;
+          Some (Known other_case)
+        | Known case2 -> meet_case other_case case2))
+    | Some case1, Some case2 -> (
+      match case1, case2 with
+      | Unknown, Unknown ->
+        join_env_extension TEE.empty;
+        Some Unknown
+      | Known case, Unknown | Unknown, Known case ->
+        join_env_extension case.env_extension;
+        Some (Known case)
+      | Known case1, Known case2 -> meet_case case1 case2)
   in
   let known =
     merge_map_known
       (fun _tag case1 case2 -> meet_knowns case1 case2)
       known1 known2
   in
-  let other : ('index, 'maps_to) TG.Row_like_case.t Or_bottom.t =
+  let other : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t =
     match other1, other2 with
     | Bottom, _ | _, Bottom -> Bottom
     | Ok other1, Ok other2 -> (
-      match meet_case other1 other2 with None -> Bottom | Some r -> Ok r)
+      match meet_case other1 other2 with
+      | None -> Bottom
+      | Some Unknown -> Misc.fatal_error "meet_case should not produce Unknown"
+      | Some (Known r) -> Ok r)
   in
   if is_empty_map_known known
      && match other with Bottom -> true | Ok _ -> false
@@ -759,11 +804,19 @@ and meet_row_like_for_blocks env
     ({ known_tags = known2; other_tags = other2; alloc_mode = alloc_mode2 } :
       TG.Row_like_for_blocks.t) : (TG.Row_like_for_blocks.t * TEE.t) Or_bottom.t
     =
+  let meet_shape shape1 shape2 : _ Or_bottom.t =
+    if K.Block_shape.equal shape1 shape2 then Ok shape1 else Bottom
+  in
+  let get_singleton_map_known known =
+    match (Tag.Map.get_singleton known : (_ * _ Or_unknown.t) option) with
+    | Some (tag, Known case) -> Some (tag, case)
+    | Some (_, Unknown) | None -> None
+  in
   let<* known_tags, other_tags, env_extension =
     meet_row_like ~meet_maps_to:meet_int_indexed_product
       ~equal_index:TG.Block_size.equal ~subset_index:TG.Block_size.subset
-      ~union_index:TG.Block_size.union ~is_empty_map_known:Tag.Map.is_empty
-      ~get_singleton_map_known:Tag.Map.get_singleton
+      ~union_index:TG.Block_size.union ~meet_shape
+      ~is_empty_map_known:Tag.Map.is_empty ~get_singleton_map_known
       ~merge_map_known:Tag.Map.merge env ~known1 ~known2 ~other1 ~other2
   in
   let<+ alloc_mode = meet_alloc_mode alloc_mode1 alloc_mode2 in
@@ -776,15 +829,27 @@ and meet_row_like_for_closures env
     ({ known_closures = known2; other_closures = other2 } :
       TG.Row_like_for_closures.t) :
     (TG.Row_like_for_closures.t * TEE.t) Or_bottom.t =
+  let meet_shape () () = Or_bottom.Ok () in
+  let merge_map_known merge_case known1 known2 =
+    Function_slot.Map.merge
+      (fun fslot case1 case2 ->
+        let case1 = Option.map Or_unknown.known case1 in
+        let case2 = Option.map Or_unknown.known case2 in
+        match merge_case fslot case1 case2 with
+        | None -> None
+        | Some (Or_unknown.Known case) -> Some case
+        | Some Or_unknown.Unknown ->
+          Misc.fatal_error "Unknown case in closure meet")
+      known1 known2
+  in
   let<+ known_closures, other_closures, env_extension =
     meet_row_like ~meet_maps_to:meet_closures_entry
       ~equal_index:Set_of_closures_contents.equal
       ~subset_index:Set_of_closures_contents.subset
-      ~union_index:Set_of_closures_contents.union
+      ~union_index:Set_of_closures_contents.union ~meet_shape
       ~is_empty_map_known:Function_slot.Map.is_empty
-      ~get_singleton_map_known:Function_slot.Map.get_singleton
-      ~merge_map_known:Function_slot.Map.merge env ~known1 ~known2 ~other1
-      ~other2
+      ~get_singleton_map_known:Function_slot.Map.get_singleton ~merge_map_known
+      env ~known1 ~known2 ~other1 ~other2
   in
   ( TG.Row_like_for_closures.create_raw ~known_closures ~other_closures,
     env_extension )
@@ -895,44 +960,36 @@ and meet_product_value_slot_indexed env
   in
   TG.Product.Value_slot_indexed.create components_by_index, env_extension
 
-and meet_int_indexed_product env (prod1 : TG.Product.Int_indexed.t)
-    (prod2 : TG.Product.Int_indexed.t) : _ Or_bottom.t =
-  if not (K.equal prod1.kind prod2.kind)
-  then Bottom
-  else
-    let fields1 = prod1.fields in
-    let fields2 = prod2.fields in
-    let any_bottom = ref false in
-    let env_extension = ref TEE.empty in
-    let length = max (Array.length fields1) (Array.length fields2) in
-    let fields =
-      Array.init length (fun index ->
-          let get_opt fields =
-            if index >= Array.length fields then None else Some fields.(index)
-          in
-          match get_opt fields1, get_opt fields2 with
-          | None, None -> assert false
-          | Some t, None | None, Some t -> t
-          | Some ty1, Some ty2 -> (
-            match meet env ty1 ty2 with
-            | Ok (ty, env_extension') -> (
-              match meet_env_extension env !env_extension env_extension' with
-              | Bottom ->
-                any_bottom := true;
-                MTC.bottom_like ty1
-              | Ok extension ->
-                env_extension := extension;
-                ty)
+and meet_int_indexed_product env (fields1 : TG.Product.Int_indexed.t)
+    (fields2 : TG.Product.Int_indexed.t) : _ Or_bottom.t =
+  let any_bottom = ref false in
+  let env_extension = ref TEE.empty in
+  let length = max (Array.length fields1) (Array.length fields2) in
+  let fields =
+    Array.init length (fun index ->
+        let get_opt fields =
+          if index >= Array.length fields then None else Some fields.(index)
+        in
+        match get_opt fields1, get_opt fields2 with
+        | None, None -> assert false
+        | Some t, None | None, Some t -> t
+        | Some ty1, Some ty2 -> (
+          match meet env ty1 ty2 with
+          | Ok (ty, env_extension') -> (
+            match meet_env_extension env !env_extension env_extension' with
             | Bottom ->
               any_bottom := true;
-              MTC.bottom_like ty1))
-    in
-    if !any_bottom
-    then Bottom
-    else
-      Ok
-        ( TG.Product.Int_indexed.create_from_array prod1.kind fields,
-          !env_extension )
+              MTC.bottom_like ty1
+            | Ok extension ->
+              env_extension := extension;
+              ty)
+          | Bottom ->
+            any_bottom := true;
+            MTC.bottom_like ty1))
+  in
+  if !any_bottom
+  then Bottom
+  else Ok (TG.Product.Int_indexed.create_from_array fields, !env_extension)
 
 and meet_function_type (env : Meet_env.t)
     (func_type1 : TG.Function_type.t Or_unknown_or_bottom.t)
@@ -1097,11 +1154,17 @@ and join ?bound_name env (t1 : TG.t) (t2 : TG.t) : TG.t Or_unknown.t =
     match bound_name with
     | None -> shared_aliases
     | Some bound_name ->
-      (* This ensures that we're not creating an alias to a different simple
-         that is just bound_name with different coercion. Such an alias is
-         forbidden. *)
+      (* We only return one type for each name, so we have to decide whether to
+         return an alias or an expanded head. Usually we prefer aliases, because
+         we hope that the alias itself will have a concrete equation anyway, but
+         we must be careful to ensure that we don't return aliases to self
+         (obviously wrong) or, if two variables [x] and [y] alias each other,
+         redundant equations [x : (= y)] and [y : (= x)]. *)
       Aliases.Alias_set.filter
-        ~f:(fun simple -> not (Simple.same simple (Simple.name bound_name)))
+        ~f:(fun alias ->
+          TE.alias_is_bound_strictly_earlier
+            (Join_env.target_join_env env)
+            ~bound_name ~alias)
         shared_aliases
   in
   let unknown () : _ Or_unknown.t =
@@ -1291,7 +1354,7 @@ and join_variant env ~(blocks1 : TG.Row_like_for_blocks.t Or_unknown.t)
     ~(imms2 : TG.t Or_unknown.t) :
     (TG.Row_like_for_blocks.t Or_unknown.t * TG.t Or_unknown.t) Or_unknown.t =
   let blocks_join env b1 b2 : _ Or_unknown.t =
-    Known (join_row_like_for_blocks env b1 b2)
+    join_row_like_for_blocks env b1 b2
   in
   let blocks = join_unknown blocks_join env blocks1 blocks2 in
   let imms = join_unknown (join ?bound_name:None) env imms1 imms2 in
@@ -1376,71 +1439,80 @@ and join_head_of_kind_region _env () () : _ Or_unknown.t = Known ()
    results from generic [join]s without needing to propagate them. *)
 
 and join_row_like :
-      'index 'maps_to 'row_tag 'known.
-      join_maps_to:(Join_env.t -> 'maps_to -> 'maps_to -> 'maps_to) ->
-      maps_to_field_kind:('maps_to -> K.t) option ->
-      equal_index:('index -> 'index -> bool) ->
-      inter_index:('index -> 'index -> 'index) ->
+      'lattice 'shape 'maps_to 'row_tag 'known.
+      join_maps_to:(Join_env.t -> 'shape -> 'maps_to -> 'maps_to -> 'maps_to) ->
+      equal_index:('lattice -> 'lattice -> bool) ->
+      inter_index:('lattice -> 'lattice -> 'lattice) ->
+      join_shape:('shape -> 'shape -> 'shape Or_unknown.t) ->
       merge_map_known:
         (('row_tag ->
-         ('index, 'maps_to) TG.Row_like_case.t option ->
-         ('index, 'maps_to) TG.Row_like_case.t option ->
-         ('index, 'maps_to) TG.Row_like_case.t option) ->
+         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option ->
+         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option ->
+         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option) ->
         'known ->
         'known ->
         'known) ->
       Join_env.t ->
       known1:'known ->
       known2:'known ->
-      other1:('index, 'maps_to) TG.Row_like_case.t Or_bottom.t ->
-      other2:('index, 'maps_to) TG.Row_like_case.t Or_bottom.t ->
-      'known * ('index, 'maps_to) TG.Row_like_case.t Or_bottom.t =
- fun ~join_maps_to ~maps_to_field_kind ~equal_index ~inter_index
-     ~merge_map_known join_env ~known1 ~known2 ~other1 ~other2 ->
-  let join_index (i1 : 'index TG.row_like_index) (i2 : 'index TG.row_like_index)
-      : 'index TG.row_like_index =
-    match i1, i2 with
-    | Known i1', Known i2' ->
-      if equal_index i1' i2'
-      then i1
-      else
-        (* We can't represent exactly the union, This is the best
-           approximation *)
-        TG.Row_like_index.at_least (inter_index i1' i2')
-    | Known i1', At_least i2'
-    | At_least i1', Known i2'
-    | At_least i1', At_least i2' ->
-      TG.Row_like_index.at_least (inter_index i1' i2')
+      other1:('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t ->
+      other2:('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t ->
+      ('known * ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t)
+      Or_unknown.t =
+ fun ~join_maps_to ~equal_index ~inter_index ~join_shape ~merge_map_known
+     join_env ~known1 ~known2 ~other1 ~other2 ->
+  let join_index (i1 : ('lattice, 'shape) TG.row_like_index)
+      (i2 : ('lattice, 'shape) TG.row_like_index) :
+      ('lattice, 'shape) TG.row_like_index Or_unknown.t =
+    match join_shape i1.shape i2.shape with
+    | Unknown -> Unknown
+    | Known shape -> (
+      let return_index domain =
+        Or_unknown.Known (TG.Row_like_index.create ~domain ~shape)
+      in
+      match i1.domain, i2.domain with
+      | Known i1', Known i2' ->
+        if equal_index i1' i2'
+        then return_index i1.domain
+        else
+          (* We can't represent exactly the union, This is the best
+             approximation *)
+          return_index (TG.Row_like_index_domain.at_least (inter_index i1' i2'))
+      | Known i1', At_least i2'
+      | At_least i1', Known i2'
+      | At_least i1', At_least i2' ->
+        return_index (TG.Row_like_index_domain.at_least (inter_index i1' i2')))
   in
-  let matching_kinds (case1 : ('index, 'maps_to) TG.Row_like_case.t)
-      (case2 : ('index, 'maps_to) TG.Row_like_case.t) =
-    match maps_to_field_kind with
-    | None -> true
-    | Some maps_to_field_kind ->
-      K.equal
-        (maps_to_field_kind case1.maps_to)
-        (maps_to_field_kind case2.maps_to)
-  in
-  let join_case join_env (case1 : ('index, 'maps_to) TG.Row_like_case.t)
-      (case2 : ('index, 'maps_to) TG.Row_like_case.t) =
+  let join_case join_env
+      (case1 : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t)
+      (case2 : ('lattice, 'shape, 'maps_to) TG.Row_like_case.t) : _ Or_unknown.t
+      =
     let index = join_index case1.index case2.index in
-    let maps_to = join_maps_to join_env case1.maps_to case2.maps_to in
-    let env_extension =
-      join_env_extension join_env case1.env_extension case2.env_extension
-    in
-    TG.Row_like_case.create ~maps_to ~index ~env_extension
+    Or_unknown.map index
+      ~f:(fun (index : ('lattice, 'shape) TG.Row_like_index.t) ->
+        let maps_to =
+          join_maps_to join_env index.shape case1.maps_to case2.maps_to
+        in
+        let env_extension =
+          join_env_extension join_env case1.env_extension case2.env_extension
+        in
+        TG.Row_like_case.create ~maps_to ~index ~env_extension)
   in
-  let join_knowns case1 case2 : ('index, 'maps_to) TG.Row_like_case.t option =
-    (* We assume that if tags are equals, the products will contains values of
-       the same kinds. *)
+  let join_knowns
+      (case1 :
+        ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option)
+      (case2 :
+        ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option) :
+      ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option =
     match case1, case2 with
     | None, None -> None
-    | Some case1, None -> (
+    | Some Unknown, _ | _, Some Unknown -> Some Unknown
+    | Some (Known case1), None -> (
       let only_case1 () =
         (* cf. Type_descr.join_head_or_unknown_or_bottom, we need to join these
            to ensure that free variables not present in the target env are
            cleaned out of the types. Same below *)
-        (* CR pchambart: This seams terribly inefficient. *)
+        (* CR pchambart: This seems terribly inefficient. *)
         let join_env =
           Join_env.create
             (Join_env.target_join_env join_env)
@@ -1452,12 +1524,8 @@ and join_row_like :
       in
       match other2 with
       | Bottom -> only_case1 ()
-      | Ok other_case ->
-        if matching_kinds case1 other_case
-        then Some (join_case join_env case1 other_case)
-        else (* If kinds don't match, the tags can't match *)
-          only_case1 ())
-    | None, Some case2 -> (
+      | Ok other_case -> Some (join_case join_env case1 other_case))
+    | None, Some (Known case2) -> (
       let only_case2 () =
         (* See at the other bottom case *)
         let join_env =
@@ -1471,20 +1539,19 @@ and join_row_like :
       in
       match other1 with
       | Bottom -> only_case2 ()
-      | Ok other_case ->
-        if matching_kinds other_case case2
-        then Some (join_case join_env other_case case2)
-        else only_case2 ())
-    | Some case1, Some case2 -> Some (join_case join_env case1 case2)
+      | Ok other_case -> Some (join_case join_env other_case case2))
+    | Some (Known case1), Some (Known case2) ->
+      Some (join_case join_env case1 case2)
   in
   let known =
     merge_map_known
       (fun _tag case1 case2 -> join_knowns case1 case2)
       known1 known2
   in
-  let other : ('index, 'maps_to) TG.Row_like_case.t Or_bottom.t =
+  let other :
+      ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_bottom.t Or_unknown.t =
     match other1, other2 with
-    | Bottom, Bottom -> Bottom
+    | Bottom, Bottom -> Known Bottom
     | Ok other1, Bottom ->
       (* See the previous cases *)
       let env =
@@ -1494,7 +1561,7 @@ and join_row_like :
           ~right_env:(Join_env.left_join_env join_env)
       in
       let other1 = join_case env other1 other1 in
-      Ok other1
+      Or_unknown.map other1 ~f:(fun other1 -> Or_bottom.Ok other1)
     | Bottom, Ok other2 ->
       (* See the previous cases *)
       let env =
@@ -1504,38 +1571,58 @@ and join_row_like :
           ~right_env:(Join_env.right_join_env join_env)
       in
       let other2 = join_case env other2 other2 in
-      Ok other2
-    | Ok other1, Ok other2 -> Ok (join_case join_env other1 other2)
+      Or_unknown.map other2 ~f:(fun other2 -> Or_bottom.Ok other2)
+    | Ok other1, Ok other2 ->
+      Or_unknown.map (join_case join_env other1 other2) ~f:(fun case ->
+          Or_bottom.Ok case)
   in
-  known, other
+  Or_unknown.map other ~f:(fun other -> known, other)
 
 and join_row_like_for_blocks env
     ({ known_tags = known1; other_tags = other1; alloc_mode = alloc_mode1 } :
       TG.Row_like_for_blocks.t)
     ({ known_tags = known2; other_tags = other2; alloc_mode = alloc_mode2 } :
       TG.Row_like_for_blocks.t) =
-  let known_tags, other_tags =
-    join_row_like ~join_maps_to:join_int_indexed_product
-      ~maps_to_field_kind:(Some TG.Product.Int_indexed.field_kind)
-      ~equal_index:TG.Block_size.equal ~inter_index:TG.Block_size.inter
-      ~merge_map_known:Tag.Map.merge env ~known1 ~known2 ~other1 ~other2
+  let join_shape shape1 shape2 : _ Or_unknown.t =
+    if K.Block_shape.equal shape1 shape2 then Known shape1 else Unknown
   in
-  let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
-  TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags ~alloc_mode
+  Or_unknown.map
+    (join_row_like ~join_maps_to:join_int_indexed_product
+       ~equal_index:TG.Block_size.equal ~inter_index:TG.Block_size.inter
+       ~join_shape ~merge_map_known:Tag.Map.merge env ~known1 ~known2 ~other1
+       ~other2) ~f:(fun (known_tags, other_tags) ->
+      let alloc_mode = join_alloc_mode alloc_mode1 alloc_mode2 in
+      TG.Row_like_for_blocks.create_raw ~known_tags ~other_tags ~alloc_mode)
 
 and join_row_like_for_closures env
     ({ known_closures = known1; other_closures = other1 } :
       TG.Row_like_for_closures.t)
     ({ known_closures = known2; other_closures = other2 } :
       TG.Row_like_for_closures.t) : TG.Row_like_for_closures.t =
-  let known_closures, other_closures =
-    join_row_like ~join_maps_to:join_closures_entry ~maps_to_field_kind:None
+  let merge_map_known join_case known1 known2 =
+    Function_slot.Map.merge
+      (fun function_slot case1 case2 ->
+        let case1 = Option.map Or_unknown.known case1 in
+        let case2 = Option.map Or_unknown.known case2 in
+        match (join_case function_slot case1 case2 : _ Or_unknown.t option) with
+        | None -> None
+        | Some (Known case) -> Some case
+        | Some Unknown ->
+          Misc.fatal_error "Join row_like case for closures returned Unknown")
+      known1 known2
+  in
+  match
+    join_row_like
+      ~join_maps_to:(fun env () x y -> join_closures_entry env x y)
       ~equal_index:Set_of_closures_contents.equal
       ~inter_index:Set_of_closures_contents.inter
-      ~merge_map_known:Function_slot.Map.merge env ~known1 ~known2 ~other1
-      ~other2
-  in
-  TG.Row_like_for_closures.create_raw ~known_closures ~other_closures
+      ~join_shape:(fun () () -> Or_unknown.Known ())
+      ~merge_map_known env ~known1 ~known2 ~other1 ~other2
+  with
+  | Known (known_closures, other_closures) ->
+    TG.Row_like_for_closures.create_raw ~known_closures ~other_closures
+  | Unknown ->
+    Misc.fatal_error "Join row_like case for closures returned Unknown"
 
 and join_closures_entry env
     ({ function_types = function_types1;
@@ -1607,15 +1694,8 @@ and join_value_slot_indexed_product env
   in
   TG.Product.Value_slot_indexed.create value_slot_components_by_index
 
-and join_int_indexed_product env
-    ({ fields = fields1; kind = kind1 } : TG.Product.Int_indexed.t)
-    ({ fields = fields2; kind = kind2 } : TG.Product.Int_indexed.t) :
-    TG.Product.Int_indexed.t =
-  if not (K.equal kind1 kind2)
-  then
-    Misc.fatal_errorf
-      "join_int_indexed_product between mismatching kinds %a and %a@." K.print
-      kind1 K.print kind2;
+and join_int_indexed_product env shape (fields1 : TG.Product.Int_indexed.t)
+    (fields2 : TG.Product.Int_indexed.t) : TG.Product.Int_indexed.t =
   let length1 = Array.length fields1 in
   let length2 = Array.length fields2 in
   let length = min length1 length2 in
@@ -1642,10 +1722,10 @@ and join_int_indexed_product env
           then fields1.(index)
           else
             match join env fields1.(index) fields2.(index) with
-            | Unknown -> MTC.unknown kind1
+            | Unknown -> MTC.unknown_from_shape shape index
             | Known ty -> ty)
   in
-  TG.Product.Int_indexed.create_from_array kind1 fields
+  TG.Product.Int_indexed.create_from_array fields
 
 and join_function_type (env : Join_env.t)
     (func_type1 : TG.Function_type.t Or_unknown_or_bottom.t)

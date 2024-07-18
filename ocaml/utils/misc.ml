@@ -168,6 +168,14 @@ module Stdlib = struct
         if a' == a && l' == l then l0 else a' :: l'
       | [] -> []
 
+    let fold_lefti f accu l =
+      let rec aux f i accu l =
+        match l with
+        | [] -> accu
+        | a::l -> aux f (succ i) (f i accu a) l
+      in
+      aux f 0 accu l
+
     let chunks_of n l =
       if n <= 0 then raise (Invalid_argument "chunks_of");
       (* Invariant: List.length l = remaining *)
@@ -1124,6 +1132,29 @@ let output_of_print print =
     Format.pp_print_flush ppf ()
   in
   output
+
+let is_print_longer_than size p =
+  let exception Limit_exceeded in
+  let limit = ref size in
+  let count_down len =
+    limit := !limit - len;
+    if !limit < 0 then raise Limit_exceeded
+  in
+  let out_string _ _ len = count_down len in
+  let out_newline () = count_down 1 in
+  let out_spaces n = count_down n in
+  let out_flush _ = () in
+  let out_indent _ = () in
+  let out_functions : Format.formatter_out_functions = {
+    out_string;
+    out_flush;
+    out_newline;
+    out_spaces;
+    out_indent}
+  in
+  let ppf = Format.formatter_of_out_functions out_functions in
+  try p ppf; false
+  with Limit_exceeded -> true
 
 let to_string_of_print print =
   let to_string t =

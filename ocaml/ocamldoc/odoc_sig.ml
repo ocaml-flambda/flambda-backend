@@ -492,8 +492,8 @@ module Analyser =
       let record comments
           { Typedtree.ld_id; ld_mutable; ld_type; ld_loc; ld_attributes } =
         get_field env comments @@
-        {Types.ld_id; ld_mutable; ld_modalities = Mode.Modality.Value.id;
-         ld_jkind=Jkind.any ~why:Dummy_jkind (* ignored *);
+        {Types.ld_id; ld_mutable; ld_modalities = Mode.Modality.Value.Const.id;
+         ld_jkind=Jkind.Primitive.any ~why:Dummy_jkind (* ignored *);
          ld_type=ld_type.Typedtree.ctyp_type;
          ld_loc; ld_attributes; ld_uid=Types.Uid.internal_not_actually_unique} in
       let open Typedtree in

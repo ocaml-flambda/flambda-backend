@@ -599,6 +599,17 @@ let mem_simple ?min_name_mode t simple =
     ~name:(fun name ~coercion:_ -> mem ?min_name_mode t name)
     ~const:(fun _ -> true)
 
+let alias_is_bound_strictly_earlier t ~bound_name ~alias =
+  let time_of_name =
+    binding_time_and_mode t bound_name
+    |> Binding_time.With_name_mode.binding_time
+  in
+  let time_of_alias =
+    binding_time_and_mode_of_simple t alias
+    |> Binding_time.With_name_mode.binding_time
+  in
+  Binding_time.strictly_earlier time_of_alias ~than:time_of_name
+
 let with_current_level t ~current_level = { t with current_level }
 
 let with_current_level_and_next_binding_time t ~current_level next_binding_time
@@ -1087,8 +1098,9 @@ let type_simple_in_term_exn t ?min_name_mode simple =
     Format.eprintf "\n%tContext is:%t typing environment@ %a\n"
       Flambda_colours.error Flambda_colours.pop print t;
     Printexc.raise_with_backtrace Misc.Fatal_error bt
-  | exception Binding_time_resolver_failure -> TG.alias_type_of kind simple
-  | alias -> TG.alias_type_of kind alias
+  | exception Binding_time_resolver_failure ->
+    TG.alias_type_of kind simple, simple
+  | alias -> TG.alias_type_of kind alias, alias
 
 let get_canonical_simple_exn t ?min_name_mode ?name_mode_of_existing_simple
     simple =
@@ -1250,7 +1262,8 @@ end = struct
         TG.alias_type_of Flambda_kind.value (Simple.symbol symbol)
       | Block_approximation (tag, fields, alloc_mode) ->
         let fields = List.map type_from_approx (Array.to_list fields) in
-        MTC.immutable_block ~is_unique:false tag ~field_kind:Flambda_kind.value
+        let shape : Flambda_kind.Block_shape.t = Value_only in
+        MTC.immutable_block ~is_unique:false (Tag.Scannable.to_tag tag) ~shape
           ~fields alloc_mode
       | Closure_approximation
           { code_id;
@@ -1415,12 +1428,17 @@ end = struct
             then
               match TG.Row_like_for_blocks.get_singleton blocks with
               | None -> Value_unknown
-              | Some ((tag, _size), fields, alloc_mode) ->
+              | Some (tag, Value_only, _size, fields, alloc_mode) ->
                 let fields =
                   List.map type_to_approx
                     (TG.Product.Int_indexed.components fields)
                 in
-                Block_approximation (tag, Array.of_list fields, alloc_mode)
+                Block_approximation
+                  ( Option.get (Tag.Scannable.of_tag tag),
+                    Array.of_list fields,
+                    alloc_mode )
+              | Some (_, (Float_record | Mixed_record _), _, _, _) ->
+                Value_unknown
             else Value_unknown))
       | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
       | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _

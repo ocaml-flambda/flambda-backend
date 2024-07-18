@@ -453,4 +453,14 @@ caml_negf_mask LABEL QWORD
 caml_absf_mask LABEL QWORD
         QWORD   7FFFFFFFFFFFFFFFH, 0FFFFFFFFFFFFFFFFH
 
+        PUBLIC  caml_negf32_mask
+        ALIGN   16
+caml_negf32_mask LABEL QWORD
+        QWORD   80000000H, 0
+
+        PUBLIC  caml_absf32_mask
+        ALIGN   16
+caml_absf32_mask LABEL QWORD
+        QWORD   FFFFFFFF7FFFFFFFH, 0FFFFFFFFFFFFFFFFH
+
         END

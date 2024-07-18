@@ -74,7 +74,8 @@ val meet_naked_vec128s :
 
 type variant_like_proof = private
   { const_ctors : Targetint_31_63.Set.t Or_unknown.t;
-    non_const_ctors_with_sizes : Targetint_31_63.t Tag.Scannable.Map.t
+    non_const_ctors_with_sizes :
+      (Targetint_31_63.t * Flambda_kind.Block_shape.t) Tag.Scannable.Map.t
   }
 
 val meet_variant_like :
@@ -118,7 +119,7 @@ val prove_is_or_is_not_a_boxed_float :
 val prove_unique_tag_and_size :
   Typing_env.t ->
   Type_grammar.t ->
-  (Tag.t * Targetint_31_63.t) proof_of_property
+  (Tag.t * Flambda_kind.Block_shape.t * Targetint_31_63.t) proof_of_property
 
 val prove_is_int : Typing_env.t -> Type_grammar.t -> bool proof_of_property
 
@@ -131,7 +132,8 @@ val prove_get_tag :
 val prove_unique_fully_constructed_immutable_heap_block :
   Typing_env.t ->
   Type_grammar.t ->
-  (Tag_and_size.t * Simple.t list) proof_of_property
+  (Tag.t * Flambda_kind.Block_shape.t * Targetint_31_63.t * Simple.t list)
+  proof_of_property
 
 val meet_is_naked_number_array :
   Typing_env.t ->

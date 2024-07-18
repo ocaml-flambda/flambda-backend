@@ -79,7 +79,14 @@ type additional_action_config =
   | Duplicate_variables
   | Prepare_for_saving
 
-let with_additional_action (config : additional_action_config) s =
+let with_additional_action =
+  (* Memoize the built-in jkinds *)
+  let builtins =
+    Jkind.Const.Primitive.all
+    |> List.map (fun (builtin : Jkind.Const.Primitive.t) ->
+          builtin.jkind, Jkind.of_const builtin.jkind ~why:Jkind.History.Imported)
+  in
+  fun (config : additional_action_config) s ->
   (* CR layouts: it would be better to put all this stuff outside this
      function, but it's in here because we really want to tailor the reason
      to describe the module a symbol is imported from. But RAE's initial
@@ -94,29 +101,16 @@ let with_additional_action (config : additional_action_config) s =
     match config with
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
-        let reason = Jkind.Imported in
-        let any = Jkind.of_const Any ~why:reason in
-        let void = Jkind.of_const Void ~why:reason in
-        let value = Jkind.of_const Value ~why:reason in
-        let immediate = Jkind.of_const Immediate ~why:reason in
-        let immediate64 = Jkind.of_const Immediate64 ~why:reason in
-        let float64 = Jkind.of_const Float64 ~why:reason in
-        let float32 = Jkind.of_const Float32 ~why:reason in
-        let word = Jkind.of_const Word ~why:reason in
-        let bits32 = Jkind.of_const Bits32 ~why:reason in
-        let bits64 = Jkind.of_const Bits64 ~why:reason in
-        let prepare_jkind loc lay =
-          match Jkind.get lay with
-          | Const Any -> any
-          | Const Void -> void
-          | Const Value -> value
-          | Const Immediate -> immediate
-          | Const Immediate64 -> immediate64
-          | Const Float64 -> float64
-          | Const Float32 -> float32
-          | Const Word -> word
-          | Const Bits32 -> bits32
-          | Const Bits64 -> bits64
+        let prepare_jkind loc jkind =
+          match Jkind.get jkind with
+          | Const const ->
+            let builtin =
+              List.find_opt (fun (builtin, _) -> Jkind.Const.equal const builtin) builtins
+            in
+            begin match builtin with
+            | Some (__, jkind) -> jkind
+            | None -> Jkind.of_const const ~why:Jkind.History.Imported
+            end
           | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
         in
         Prepare_for_saving prepare_jkind
@@ -294,7 +288,7 @@ let rec typexp copy_scope s ty =
     let has_fixed_row =
       not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
     (* Make a stub *)
-    let jkind = Jkind.any ~why:Dummy_jkind in
+    let jkind = Jkind.Primitive.any ~why:Dummy_jkind in
     let ty' =
       if should_duplicate_vars then newpersty (Tvar {name = None; jkind})
       else newgenstub ~scope:(get_scope ty) jkind
@@ -749,9 +743,20 @@ let force_type_expr ty = Wrap.force (fun _ s ty ->
 
 let rec subst_lazy_value_description s descr =
   { val_type = Wrap.substitute ~compose Keep s descr.val_type;
+    val_modalities = descr.val_modalities;
     val_kind = descr.val_kind;
     val_loc = loc s descr.val_loc;
-    val_zero_alloc = descr.val_zero_alloc;
+    val_zero_alloc =
+      (* When saving a cmi file, we replace zero_alloc variables with constants.
+         This is necessary because users of the library can't change the
+         zero_alloc check that was done on functions in it, and safe because all
+         type inference is done by the time we write the cmi file (and anyway
+         additional inference steps could only cause the funtion to get checked
+         more strictly than the signature indicates, which is sound). *)
+     (match s.additional_action with
+      | Prepare_for_saving _ ->
+        Zero_alloc.create_const (Zero_alloc.get descr.val_zero_alloc)
+      | _ -> descr.val_zero_alloc);
     val_attributes = attrs s descr.val_attributes;
     val_uid = descr.val_uid;
   }

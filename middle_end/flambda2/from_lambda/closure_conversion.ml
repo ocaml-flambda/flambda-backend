@@ -404,10 +404,11 @@ module Inlining = struct
     let callee = Apply.callee apply in
     let region_inlined_into =
       match Apply.call_kind apply with
-      | Function { alloc_mode; _ } | Method { alloc_mode; _ } -> alloc_mode
-      | C_call _ ->
+      | Function { alloc_mode; _ } -> alloc_mode
+      | Method _ | C_call _ | Effect _ ->
         Misc.fatal_error
-          "Trying to call [Closure_conversion.Inlining.inline] on a C call."
+          "Trying to call [Closure_conversion.Inlining.inline] on a non-OCaml \
+           function call."
     in
     let args = Apply.args apply in
     let apply_return_continuation = Apply.continuation apply in
@@ -508,10 +509,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   in
   let cost_metrics_of_body, free_names_of_body, acc, body =
     Acc.measure_cost_metrics acc ~f:(fun acc ->
-        k acc
-          (List.map
-             (fun var -> Named.create_simple (Simple.var var))
-             let_bound_vars))
+        k acc (List.map Named.create_var let_bound_vars))
   in
   let alloc_mode =
     match Lambda.alloc_mode_of_primitive_description prim_desc with
@@ -752,6 +750,82 @@ let close_raise acc env ~raise_kind ~arg ~dbg exn_continuation =
   let acc, arg = find_simple acc env arg in
   close_raise0 acc env ~raise_kind ~arg ~dbg exn_continuation
 
+let close_effect_primitive acc env ~dbg exn_continuation
+    (prim : Lambda.primitive) ~args ~let_bound_ids_with_kinds
+    (k : Acc.t -> Named.t list -> Expr_with_acc.t) : Expr_with_acc.t =
+  if not Config.runtime5
+  then Misc.fatal_error "Effect primitives are only supported on runtime5";
+  (* CR mshinwell: share with close_c_call, above *)
+  let _env, let_bound_vars =
+    List.fold_left_map
+      (fun env (id, kind) -> Env.add_var_like env id Not_user_visible kind)
+      env let_bound_ids_with_kinds
+  in
+  let let_bound_var =
+    match let_bound_vars with
+    | [let_bound_var] -> let_bound_var
+    | [] | _ :: _ :: _ ->
+      Misc.fatal_errorf
+        "close_effect_primitive: expected singleton return for primitive %a, \
+         but got: [%a]"
+        Printlambda.primitive prim
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print)
+        let_bound_vars
+  in
+  let continuation = Continuation.create () in
+  let return_kind = Flambda_kind.With_subkind.any_value in
+  let params =
+    [BP.create let_bound_var return_kind] |> Bound_parameters.create
+  in
+  let close call_kind =
+    let apply acc =
+      Apply_expr.create ~callee:None ~continuation:(Return continuation)
+        exn_continuation ~args:[] ~args_arity:Flambda_arity.nullary
+        ~return_arity:
+          (Flambda_arity.create_singletons
+             [Flambda_kind.With_subkind.any_value])
+        ~call_kind dbg ~inlined:Never_inlined
+        ~inlining_state:(Inlining_state.default ~round:0)
+        ~probe:None ~position:Normal
+        ~relative_history:Inlining_history.Relative.empty
+      |> Expr_with_acc.create_apply acc
+    in
+    Let_cont_with_acc.build_non_recursive acc continuation
+      ~handler_params:params
+      ~handler:(fun acc ->
+        let cost_metrics_of_body, free_names_of_body, acc, code_after_call =
+          Acc.measure_cost_metrics acc ~f:(fun acc ->
+              k acc (List.map Named.create_var let_bound_vars))
+        in
+        let acc =
+          Acc.with_cost_metrics
+            (Cost_metrics.( + ) (Acc.cost_metrics acc) cost_metrics_of_body)
+            (Acc.with_free_names free_names_of_body acc)
+        in
+        acc, code_after_call)
+      ~body:apply ~is_exn_handler:false ~is_cold:false
+  in
+  let module C = Call_kind in
+  let module E = C.Effect in
+  match[@ocaml.warning "-fragile-match"] prim, args with
+  | Pperform, [[eff]] ->
+    let call_kind = C.effect (E.perform ~eff) in
+    close call_kind
+  | Prunstack, [[stack]; [f]; [arg]] ->
+    let call_kind = C.effect (E.run_stack ~stack ~f ~arg) in
+    close call_kind
+  | Presume, [[stack]; [f]; [arg]] ->
+    let call_kind = C.effect (E.resume ~stack ~f ~arg) in
+    close call_kind
+  | Preperform, [[eff]; [cont]; [last_fiber]] ->
+    let call_kind = C.effect (E.reperform ~eff ~cont ~last_fiber) in
+    close call_kind
+  | _ ->
+    Misc.fatal_errorf
+      "close_effect_primitive: Wrong primitive and/or number of arguments: %a \
+       (%d args)"
+      Printlambda.primitive prim (List.length args)
+
 let close_primitive acc env ~let_bound_ids_with_kinds named
     (prim : Lambda.primitive) ~args loc
     (exn_continuation : IR.exn_continuation option) ~current_region
@@ -879,6 +953,17 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
         assert false
     in
     k acc [Named.create_simple (Simple.symbol sym)]
+  | (Pperform | Prunstack | Presume | Preperform), args ->
+    let exn_continuation =
+      match exn_continuation with
+      | None ->
+        Misc.fatal_errorf
+          "Effect primitive is missing exception continuation: %a"
+          IR.print_named named
+      | Some exn_continuation -> exn_continuation
+    in
+    close_effect_primitive acc env ~dbg exn_continuation prim ~args
+      ~let_bound_ids_with_kinds k
   | prim, args ->
     Lambda_to_flambda_primitives.convert_and_bind acc exn_continuation
       ~big_endian:(Env.big_endian env) ~register_const0 prim ~args dbg
@@ -1053,7 +1138,6 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
             ( Variadic
                 (Make_block (Values (tag, _), Immutable, alloc_mode), fields),
               _ ) -> (
-          let tag' = Tag.Scannable.to_tag tag in
           let approxs =
             List.map (find_value_approximation body_env) fields |> Array.of_list
           in
@@ -1071,7 +1155,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
             let acc =
               Acc.add_symbol_approximation acc sym
                 (Value_approximation.Block_approximation
-                   (tag', approxs, Alloc_mode.For_allocations.as_type alloc_mode))
+                   (tag, approxs, Alloc_mode.For_allocations.as_type alloc_mode))
             in
             body acc body_env
           | Computed_static static_fields ->
@@ -1095,7 +1179,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
             in
             let approx =
               Value_approximation.Block_approximation
-                (tag', approxs, Alloc_mode.For_allocations.as_type alloc_mode)
+                (tag, approxs, Alloc_mode.For_allocations.as_type alloc_mode)
             in
             let acc = Acc.add_symbol_approximation acc symbol approx in
             let acc, body = body acc body_env in
@@ -1105,7 +1189,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
               defining_expr ~body
           | Dynamic_block ->
             let body_env =
-              Env.add_block_approximation body_env var tag' approxs
+              Env.add_block_approximation body_env var tag approxs
                 (Alloc_mode.For_allocations.as_type alloc_mode)
             in
             bind acc body_env)
@@ -1881,8 +1965,7 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
       ~zero_alloc_attribute:
         (Zero_alloc_attribute.from_lambda
-           (Function_decl.zero_alloc_attribute decl)
-           (Debuginfo.Scoped_location.to_location (Function_decl.loc decl)))
+           (Function_decl.zero_alloc_attribute decl))
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~is_opaque:false ~recursive ~newer_version_of:None ~cost_metrics
       ~inlining_arguments:(Inlining_arguments.create ~round:0)
@@ -2250,8 +2333,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
       ~zero_alloc_attribute:
         (Zero_alloc_attribute.from_lambda
-           (Function_decl.zero_alloc_attribute decl)
-           (Debuginfo.Scoped_location.to_location (Function_decl.loc decl)))
+           (Function_decl.zero_alloc_attribute decl))
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~is_opaque:(Function_decl.is_opaque decl)
       ~recursive ~newer_version_of:None ~cost_metrics
@@ -2380,7 +2462,6 @@ let close_functions acc external_env ~current_region function_declarations =
         let zero_alloc_attribute =
           Zero_alloc_attribute.from_lambda
             (Function_decl.zero_alloc_attribute decl)
-            (Debuginfo.Scoped_location.to_location (Function_decl.loc decl))
         in
         let cost_metrics = Cost_metrics.zero in
         let dbg = Debuginfo.from_location (Function_decl.loc decl) in
@@ -2489,6 +2570,9 @@ let close_functions acc external_env ~current_region function_declarations =
   let acc = Acc.with_free_names Name_occurrences.empty acc in
   let funs =
     function_code_ids_in_order |> List.rev |> Function_slot.Lmap.of_list
+    |> Function_slot.Lmap.map
+         (fun code_id : Function_declarations.code_id_in_function_declaration ->
+           Code_id code_id)
   in
   let function_decls = Function_declarations.create funs in
   let value_slots =

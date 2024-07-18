@@ -1,6 +1,7 @@
 open Stdlib
 
 [@@@ocaml.warning "-unused-value-declaration"]
+[@@@ocaml.warning "-unused-module"]
 
 let failmsg = ref (fun () -> ())
 

@@ -26,6 +26,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 module C = Cfg
+module Dll = Flambda_backend_utils.Doubly_linked_list
 
 (* Convert simple [Switch] to branches. *)
 let simplify_switch (block : C.basic_block) labels =
@@ -73,6 +74,52 @@ let simplify_switch (block : C.basic_block) labels =
     block.terminator <- { block.terminator with desc }
   | _ -> ()
 
+(* Compute the destination of a terminator, knowing that [reg] is equal to
+   [const], returning [None] if the destination is not statically known. *)
+let evaluate_terminator ~(reg : Reg.t) ~(const : nativeint)
+    (term : Cfg.terminator Cfg.instruction) : Label.t option =
+  let same_reg ~arg_idx =
+    arg_idx >= 0
+    && arg_idx < Array.length term.arg
+    && Reg.same reg (Array.unsafe_get term.arg arg_idx)
+  in
+  match term.desc with
+  | Parity_test { ifso; ifnot } ->
+    if same_reg ~arg_idx:0
+    then if Nativeint.logand const 1n = 0n then Some ifso else Some ifnot
+    else None
+  | Truth_test { ifso; ifnot } ->
+    if same_reg ~arg_idx:0
+    then if const <> 0n then Some ifso else Some ifnot
+    else None
+  | Int_test { lt; eq; gt; is_signed; imm } -> (
+    match imm with
+    | None -> None
+    | Some const' ->
+      if same_reg ~arg_idx:0
+      then
+        let const' = Nativeint.of_int const' in
+        let result =
+          if is_signed
+          then Nativeint.compare const const'
+          else Nativeint.unsigned_compare const const'
+        in
+        if result < 0 then Some lt else if result > 0 then Some gt else Some eq
+      else None)
+  | Switch labels ->
+    if same_reg ~arg_idx:0 && const <= Nativeint.of_int Int.max_int
+    then
+      let idx = Nativeint.to_int const in
+      if idx >= 0 && idx < Array.length labels
+      then Some (Array.unsafe_get labels idx)
+      else None
+    else None
+  | Never -> assert false
+  | Always _ | Float_test _ | Return | Raise _ | Tailcall_self _
+  | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _
+    ->
+    None
+
 (* CR-someday gyorsh: merge (Lbranch | Lcondbranch | Lcondbranch3)+ into a
    single terminator when the argments are the same. Enables reordering of
    branch instructions and save cmp instructions. The main problem is that it
@@ -85,21 +132,50 @@ let simplify_switch (block : C.basic_block) labels =
    order. Also, for linear to cfg and back will be harder to generate exactly
    the same layout. Also, how do we map execution counts about branches onto
    this terminator? *)
-let block (block : C.basic_block) =
+let block (cfg : C.t) (block : C.basic_block) : bool =
   match block.terminator.desc with
-  | Always _ -> ()
+  | Always successor_label -> (
+    match[@ocaml.warning "-4"] Dll.last block.body with
+    | None -> false
+    | Some { desc = Op (Const_int const); res = [| reg |]; _ } ->
+      (* If we have an Iconst_int instruction at the end of the block followed
+         by a jump to an empty block whose terminator is a condition over the
+         Iconst_value, then we can evaluate the condition at compile-time and
+         short-circuit the empty block. *)
+      let successor_block = C.get_block_exn cfg successor_label in
+      if Dll.is_empty successor_block.body
+      then (
+        let new_successor =
+          evaluate_terminator ~reg ~const successor_block.terminator
+        in
+        match new_successor with
+        | None -> false
+        | Some succ ->
+          block.terminator <- { block.terminator with desc = Always succ };
+          true)
+      else false
+    | Some _ -> false)
   | Never ->
     Misc.fatal_errorf "Cannot simplify terminator: Never (in block %d)"
       block.start
   | Parity_test _ | Truth_test _ | Int_test _ | Float_test _ ->
     let labels = C.successor_labels ~normal:true ~exn:false block in
-    if Label.Set.cardinal labels = 1
+    (if Label.Set.cardinal labels = 1
     then
       let l = Label.Set.min_elt labels in
-      block.terminator <- { block.terminator with desc = Always l }
-  | Switch labels -> simplify_switch block labels
+      block.terminator <- { block.terminator with desc = Always l });
+    false
+  | Switch labels ->
+    simplify_switch block labels;
+    false
   | Raise _ | Return | Tailcall_self _ | Tailcall_func _ | Call_no_return _
   | Call _ | Prim _ | Specific_can_raise _ ->
-    ()
+    false
 
-let run cfg = C.iter_blocks cfg ~f:(fun _ b -> block b)
+let run cfg =
+  let registration_needed =
+    C.fold_blocks cfg ~init:false ~f:(fun _ b registration_needed ->
+        let shortcircuit = block cfg b in
+        registration_needed || shortcircuit)
+  in
+  if registration_needed then Cfg.register_predecessors_for_all_blocks cfg

@@ -13,7 +13,7 @@ type maturity = Language_extension_kernel.maturity =
     or off, while a [maturity t] can have different maturity settings. *)
 type 'a t = 'a Language_extension_kernel.t =
   | Comprehensions : unit t
-  | Mode : unit t
+  | Mode : maturity t
   | Unique : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t

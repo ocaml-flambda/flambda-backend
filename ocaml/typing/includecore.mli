@@ -17,7 +17,6 @@
 
 open Typedtree
 open Types
-open Mode
 
 type position = Errortrace.position = First | Second
 
@@ -37,8 +36,8 @@ type value_mismatch =
   | Primitive_mismatch of primitive_mismatch
   | Not_a_primitive
   | Type of Errortrace.moregen_error
-  | Zero_alloc of { missing_entirely : bool }
-  | Zero_alloc_arity of int * int
+  | Zero_alloc of Zero_alloc.error
+  | Modality of Mode.Modality.Value.error
 
 exception Dont_match of value_mismatch
 
@@ -61,7 +60,7 @@ type kind_mismatch = type_kind * type_kind
 type label_mismatch =
   | Type of Errortrace.equality_error
   | Mutability of position
-  | Modality of Modality.Value.equate_error
+  | Modality of Mode.Modality.Value.equate_error
 
 type record_change =
   (Types.label_declaration as 'ld, 'ld, label_mismatch) Diffing_with_keys.change
@@ -79,7 +78,7 @@ type constructor_mismatch =
   | Inline_record of record_change list
   | Kind of position
   | Explicit_return_type of position
-  | Modality of int * Modality.Value.equate_error
+  | Modality of int * Mode.Modality.Value.equate_error
 
 type extension_constructor_mismatch =
   | Constructor_privacy

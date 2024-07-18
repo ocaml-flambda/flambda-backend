@@ -494,7 +494,6 @@ module Acc = struct
             | Tagged_immediate i -> Value_int i
             | Dynamically_computed _ -> Value_unknown
           in
-          let tag = Tag.Scannable.to_tag tag in
           let fields = List.map approx_of_field fields |> Array.of_list in
           Block_approximation (tag, fields, Alloc_mode.For_types.unknown ())
         else Value_unknown
@@ -958,8 +957,7 @@ module Expr_with_acc = struct
             { function_call = Indirect_unknown_arity | Indirect_known_arity; _ }
           ->
           false
-        | Method _ -> false
-        | C_call _ -> false)
+        | Method _ | C_call _ | Effect _ -> false)
     in
     let acc =
       match Apply.callee apply with

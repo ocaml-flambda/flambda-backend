@@ -71,6 +71,9 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
       action
   in
   match EB.rewrite_switch_arm uacc action ~use_id arity with
+  | Invalid _ ->
+    (* The destination is unreachable; delete the [Switch] arm. *)
+    new_let_conts, arms, mergeable_arms, identity_arms, not_arms
   | Apply_cont action -> (
     let action =
       let cont = Apply_cont.continuation action in
@@ -288,7 +291,7 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
   let uacc =
     let fields = List.map Field_of_static_block.tagged_immediate consts in
     let block_type =
-      T.immutable_block ~is_unique:false Tag.zero ~field_kind:K.value
+      T.immutable_block ~is_unique:false Tag.zero ~shape:Value_only
         Alloc_mode.For_types.heap
         ~fields:
           (List.map
@@ -576,10 +579,9 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
 
 let simplify_switch0 dacc switch ~down_to_up =
   let scrutinee = Switch.scrutinee switch in
-  let scrutinee_ty =
+  let scrutinee_ty, scrutinee =
     S.simplify_simple dacc scrutinee ~min_name_mode:NM.normal
   in
-  let scrutinee = T.get_alias_exn scrutinee_ty in
   let dacc_before_switch = dacc in
   let typing_env_at_use = DA.typing_env dacc in
   let arms, dacc =

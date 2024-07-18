@@ -60,14 +60,11 @@ let deciders =
 let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
     =
   let param_type_is_alias_to_symbol =
-    match T.get_alias_exn param_type with
-    | exception Not_found -> false
-    | alias ->
-      (* The parameter types will have been computed from the types of the
-         continuation's arguments at the use site(s), which in turn will have
-         been computed from simplified [Simple]s. As such we shouldn't need to
-         canonicalise any alias again here. *)
-      Simple.is_symbol alias
+    (* The parameter types will have been computed from the types of the
+       continuation's arguments at the use site(s), which in turn will have been
+       computed from simplified [Simple]s. As such we shouldn't need to
+       canonicalise any alias again here. *)
+    T.is_alias_to_a_symbol param_type
   in
   let param_kind_is_not_value =
     match T.kind param_type with
@@ -87,13 +84,13 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
       then Do_not_unbox Max_depth_exceeded
       else
         match T.prove_unique_tag_and_size tenv param_type with
-        | Proved (tag, size) when unbox_blocks -> (
+        | Proved (tag, shape, size) when unbox_blocks -> (
           let fields =
             make_optimistic_fields ~add_tag_to_name:false ~depth ~recursive tenv
-              param_type tag size
+              param_type tag shape size
           in
           match fields with
-          | Some fields -> Unbox (Unique_tag_and_size { tag; fields })
+          | Some fields -> Unbox (Unique_tag_and_size { tag; shape; fields })
           | None -> Do_not_unbox All_fields_invalid)
         | Proved _ | Unknown -> (
           match T.prove_variant_like tenv param_type with
@@ -107,10 +104,14 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
             in
             let fields_by_tag =
               Tag.Scannable.Map.filter_map
-                (fun scannable_tag size ->
+                (fun scannable_tag (size, shape) ->
                   let tag = Tag.Scannable.to_tag scannable_tag in
-                  make_optimistic_fields ~add_tag_to_name:true ~depth ~recursive
-                    tenv param_type tag size)
+                  match
+                    make_optimistic_fields ~add_tag_to_name:true ~depth
+                      ~recursive tenv param_type tag shape size
+                  with
+                  | None -> None
+                  | Some decision -> Some (shape, decision))
                 non_const_ctors_with_sizes
             in
             if Tag.Scannable.Map.is_empty fields_by_tag
@@ -119,9 +120,9 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
               match
                 const_ctors, Tag.Scannable.Map.get_singleton fields_by_tag
               with
-              | Zero, Some (scannable_tag, fields) ->
+              | Zero, Some (scannable_tag, (shape, fields)) ->
                 let tag = Tag.Scannable.to_tag scannable_tag in
-                Unbox (Unique_tag_and_size { tag; fields })
+                Unbox (Unique_tag_and_size { tag; shape; fields })
               | (Zero | At_least_one _), _ ->
                 Unbox (Variant { tag; const_ctors; fields_by_tag }))
           | Proved _ | Unknown -> (
@@ -137,14 +138,12 @@ let rec make_optimistic_decision ~depth ~recursive tenv ~param_type : U.decision
             | Proved _ | Unknown -> Do_not_unbox Incomplete_parameter_type)))
 
 and make_optimistic_fields ~add_tag_to_name ~depth ~recursive tenv param_type
-    (tag : Tag.t) size =
-  let field_kind, field_base_name =
-    if Tag.equal tag Tag.double_array_tag
-    then K.naked_float, "unboxed_float_field"
-    else K.value, "unboxed_field"
-  in
-  let field_kind_with_subkind =
-    K.With_subkind.create field_kind K.With_subkind.Subkind.Anything
+    (tag : Tag.t) (shape : K.Block_shape.t) size =
+  let field_base_name =
+    match shape with
+    | Value_only -> "unboxed_field"
+    | Float_record -> "unboxed_float_field"
+    | Mixed_record _ -> "unboxed_mixed_field"
   in
   let field_name n =
     Format.asprintf "%s%a_%d" field_base_name (pp_tag add_tag_to_name) tag n
@@ -153,19 +152,21 @@ and make_optimistic_fields ~add_tag_to_name ~depth ~recursive tenv param_type
     List.init (Targetint_31_63.to_int size) (fun i ->
         Extra_param_and_args.create ~name:(field_name i))
   in
-  let type_of_var (epa : Extra_param_and_args.t) =
-    T.alias_type_of field_kind (Simple.var epa.param)
+  let type_of_var index (epa : Extra_param_and_args.t) =
+    T.alias_type_of
+      (K.Block_shape.element_kind shape index)
+      (Simple.var epa.param)
   in
-  let field_types = List.map type_of_var field_vars in
+  let field_types = List.mapi type_of_var field_vars in
   let tenv =
-    List.fold_left
-      (fun acc { Extra_param_and_args.param = var; args = _ } ->
+    Misc.Stdlib.List.fold_lefti
+      (fun index acc { Extra_param_and_args.param = var; args = _ } ->
         let name = Bound_name.create (Name.var var) Name_mode.normal in
-        TE.add_definition acc name field_kind)
+        TE.add_definition acc name (K.Block_shape.element_kind shape index))
       tenv field_vars
   in
   let shape =
-    T.immutable_block ~is_unique:false tag ~field_kind ~fields:field_types
+    T.immutable_block ~is_unique:false tag ~shape ~fields:field_types
       (Alloc_mode.For_types.unknown ())
   in
   match T.meet tenv param_type shape with
@@ -184,7 +185,7 @@ and make_optimistic_fields ~add_tag_to_name ~depth ~recursive tenv param_type
             make_optimistic_decision ~depth:(depth + 1) ~recursive tenv
               ~param_type:var_type
           in
-          { epa; decision; kind = field_kind_with_subkind })
+          { epa; decision; kind = K.With_subkind.anything (T.kind var_type) })
         field_vars field_types
     in
     Some fields

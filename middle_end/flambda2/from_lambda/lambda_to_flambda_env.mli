@@ -143,6 +143,8 @@ val leaving_region : t -> t
 
 val current_region : t -> Ident.t
 
+val parent_region : t -> Ident.t
+
 val my_region : t -> Ident.t
 
 (** The innermost (newest) region is first in the list. *)
@@ -150,6 +152,8 @@ val region_stack : t -> region_stack_element list
 
 val region_stack_in_cont_scope :
   t -> Continuation.t -> region_stack_element list
+
+val pop_one_region : t -> t * region_stack_element
 
 (** Hack for staticfail (which should eventually use
       [pop_regions_up_to_context]) *)

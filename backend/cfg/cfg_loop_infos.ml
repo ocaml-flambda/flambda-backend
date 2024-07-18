@@ -21,9 +21,10 @@ end
 
 module EdgeMap : Map.S with type key = Edge.t = Map.Make (Edge)
 
-(* CR-soon xclerc for xclerc: consider deduplicating. *)
+module EdgeSet : Set.S with type elt = Edge.t = Set.Make (Edge)
+
 let compute_back_edges cfg dominators =
-  Cfg.fold_blocks cfg ~init:[] ~f:(fun src_label src_block acc ->
+  Cfg.fold_blocks cfg ~init:EdgeSet.empty ~f:(fun src_label src_block acc ->
       let dst_labels =
         (* CR-soon xclerc for xclerc: probably safe to pass `~exn:false`. *)
         Cfg.successor_labels ~normal:true ~exn:true src_block
@@ -34,7 +35,7 @@ let compute_back_edges cfg dominators =
             Cfg_dominators.is_dominating dominators dst_label src_label
           in
           if is_back_edge
-          then { Edge.src = src_label; dst = dst_label } :: acc
+          then EdgeSet.add { Edge.src = src_label; dst = dst_label } acc
           else acc)
         dst_labels acc)
 
@@ -61,8 +62,9 @@ let compute_loop_of_back_edge cfg { Edge.src; dst } =
 type loops = loop EdgeMap.t
 
 let compute_loops_of_back_edges cfg back_edges =
-  List.fold_left back_edges ~init:EdgeMap.empty ~f:(fun acc edge ->
-      EdgeMap.add edge (compute_loop_of_back_edge cfg edge) acc)
+  EdgeSet.fold
+    (fun edge acc -> EdgeMap.add edge (compute_loop_of_back_edge cfg edge) acc)
+    back_edges EdgeMap.empty
 
 type header_map = loop list Label.Map.t
 
@@ -116,7 +118,7 @@ let compute_loop_depths cfg header_map =
     init
 
 type t =
-  { back_edges : Edge.t list;
+  { back_edges : EdgeSet.t;
     loops : loops;
     header_map : header_map;
     loop_depths : loop_depths
@@ -132,8 +134,9 @@ let build : Cfg.t -> Cfg_dominators.t -> t =
   then (
     Format.eprintf "*** Cfg_loop_infos.build for %S\n" cfg.Cfg.fun_name;
     Format.eprintf "back edges:\n";
-    List.iter back_edges ~f:(fun { Edge.src; dst } ->
-        Format.eprintf "- %d -> %d\n" src dst);
+    EdgeSet.iter
+      (fun { Edge.src; dst } -> Format.eprintf "- %d -> %d\n" src dst)
+      back_edges;
     EdgeMap.iter
       (fun { Edge.src; dst } labels ->
         Format.eprintf "loop for back edge %d -> %d:\n" src dst;

@@ -65,7 +65,6 @@ module Uid : sig
 
   val mk : current_unit:Compilation_unit.t option -> t
   val of_compilation_unit_id : Compilation_unit.t -> t
-  val of_global_name : Global_module.Name.t -> t
   val of_predef_id : Ident.t -> t
   val internal_not_actually_unique : t
 

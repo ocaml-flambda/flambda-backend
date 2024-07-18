@@ -169,6 +169,9 @@ val mem : ?min_name_mode:Name_mode.t -> t -> Name.t -> bool
 
 val mem_simple : ?min_name_mode:Name_mode.t -> t -> Simple.t -> bool
 
+val alias_is_bound_strictly_earlier :
+  t -> bound_name:Name.t -> alias:Simple.t -> bool
+
 (* CR vlaviron: If the underlying level in the extension defines several
    variables, then there is no guarantee that the binding order in the result
    will match the binding order used to create the level. If they don't match,
@@ -188,7 +191,7 @@ val add_env_extension_from_level :
   t -> Typing_env_level.t -> meet_type:meet_type -> t
 
 val type_simple_in_term_exn :
-  t -> ?min_name_mode:Name_mode.t -> Simple.t -> Type_grammar.t
+  t -> ?min_name_mode:Name_mode.t -> Simple.t -> Type_grammar.t * Simple.t
 
 (** [name_mode_of_existing_simple] can be provided to improve performance of
     this function. *)

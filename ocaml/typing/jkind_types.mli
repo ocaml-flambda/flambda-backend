@@ -79,11 +79,32 @@ module Sort : sig
 end
 
 module Layout : sig
-  type ('type_expr, 'sort) layout =
+  type 'sort layout =
     | Sort of 'sort
     | Any
 
-  type 'type_expr t = ('type_expr, Sort.t) layout
+  module Const : sig
+    type t = Sort.const layout
+
+    module Legacy : sig
+      type t =
+        | Any
+        | Any_non_null
+        | Value_or_null
+        | Value
+        | Void
+        (* CR layouts v3.0: implement [Immediate(64)_or_null]. *)
+        | Immediate64
+        | Immediate
+        | Float64
+        | Float32
+        | Word
+        | Bits32
+        | Bits64
+    end
+  end
+
+  type t = Sort.t layout
 end
 
 module Externality : sig
@@ -93,27 +114,22 @@ module Externality : sig
     | Internal
 end
 
+module Nullability : sig
+  type t =
+    | Non_null
+    | Maybe_null
+end
+
 module Modes = Mode.Alloc.Const
 
 module Jkind_desc : sig
   type 'type_expr t =
-    { layout : 'type_expr Layout.t;
+    { layout : Layout.t;
       modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t
+      externality_upper_bound : Externality.t;
+      nullability_upper_bound : Nullability.t
     }
 end
-
-type const =
-  | Any
-  | Value
-  | Void
-  | Immediate64
-  | Immediate
-  | Float64
-  | Float32
-  | Word
-  | Bits32
-  | Bits64
 
 type 'type_expr history =
   | Interact of
@@ -131,4 +147,13 @@ type 'type_expr t =
     has_warned : bool
   }
 
-type annotation = const * Jane_syntax.Jkind.annotation
+module Const : sig
+  type 'type_expr t =
+    { layout : Layout.Const.t;
+      modes_upper_bounds : Modes.t;
+      externality_upper_bound : Externality.t;
+      nullability_upper_bound : Nullability.t
+    }
+end
+
+type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation

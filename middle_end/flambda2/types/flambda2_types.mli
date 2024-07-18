@@ -206,7 +206,7 @@ module Typing_env : sig
 
   (** Raises [Not_found] if no canonical [Simple] was found. *)
   val type_simple_in_term_exn :
-    t -> ?min_name_mode:Name_mode.t -> Simple.t -> flambda_type
+    t -> ?min_name_mode:Name_mode.t -> Simple.t -> flambda_type * Simple.t
 
   (** Raises [Not_found] if no canonical [Simple] was found. *)
   val get_alias_then_canonical_simple_exn :
@@ -461,7 +461,7 @@ val any_block : t
 val immutable_block :
   is_unique:bool ->
   Tag.t ->
-  field_kind:Flambda_kind.t ->
+  shape:Flambda_kind.Block_shape.t ->
   Alloc_mode.For_types.t ->
   fields:t list ->
   t
@@ -472,7 +472,7 @@ val immutable_block :
 val immutable_block_with_size_at_least :
   tag:Tag.t Or_unknown.t ->
   n:Targetint_31_63.t ->
-  field_kind:Flambda_kind.t ->
+  shape:Flambda_kind.Block_shape.t ->
   field_n_minus_one:Variable.t ->
   t
 
@@ -480,7 +480,7 @@ val mutable_block : Alloc_mode.For_types.t -> t
 
 val variant :
   const_ctors:t ->
-  non_const_ctors:t list Tag.Scannable.Map.t ->
+  non_const_ctors:(Flambda_kind.Block_shape.t * t list) Tag.Scannable.Map.t ->
   Alloc_mode.For_types.t ->
   t
 
@@ -539,8 +539,6 @@ val alias_type_of : Flambda_kind.t -> Simple.t -> t
 (** Determine the (unique) kind of a type. *)
 val kind : t -> Flambda_kind.t
 
-val get_alias_exn : t -> Simple.t
-
 (** For each of the kinds in an arity, create an "unknown" type. *)
 val unknown_types_from_arity : [`Unarized] Flambda_arity.t -> t list
 
@@ -549,6 +547,8 @@ val unknown_types_from_arity : [`Unarized] Flambda_arity.t -> t list
 val is_bottom : Typing_env.t -> t -> bool
 
 val is_unknown : Typing_env.t -> t -> bool
+
+val is_alias_to_a_symbol : t -> bool
 
 val type_for_const : Reg_width_const.t -> t
 
@@ -593,7 +593,8 @@ val meet_naked_nativeints :
 
 type variant_like_proof = private
   { const_ctors : Targetint_31_63.Set.t Or_unknown.t;
-    non_const_ctors_with_sizes : Targetint_31_63.t Tag.Scannable.Map.t
+    non_const_ctors_with_sizes :
+      (Targetint_31_63.t * Flambda_kind.Block_shape.t) Tag.Scannable.Map.t
   }
 
 val meet_variant_like : Typing_env.t -> t -> variant_like_proof meet_shortcut
@@ -634,10 +635,15 @@ val prove_is_or_is_not_a_boxed_float :
   Typing_env.t -> t -> bool proof_of_property
 
 val prove_unique_tag_and_size :
-  Typing_env.t -> t -> (Tag.t * Targetint_31_63.t) proof_of_property
+  Typing_env.t ->
+  t ->
+  (Tag.t * Flambda_kind.Block_shape.t * Targetint_31_63.t) proof_of_property
 
 val prove_unique_fully_constructed_immutable_heap_block :
-  Typing_env.t -> t -> (Tag_and_size.t * Simple.t list) proof_of_property
+  Typing_env.t ->
+  t ->
+  (Tag.t * Flambda_kind.Block_shape.t * Targetint_31_63.t * Simple.t list)
+  proof_of_property
 
 val prove_is_int : Typing_env.t -> t -> bool proof_of_property
 

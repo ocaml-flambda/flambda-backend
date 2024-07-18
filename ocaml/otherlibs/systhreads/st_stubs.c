@@ -848,6 +848,11 @@ CAMLexport int caml_c_thread_register(void)
   }
   /* Associate the thread descriptor with the thread */
   st_tls_set(caml_thread_key, (void *) th);
+
+  /* Prepare Caml_state for allocation etc., so its various members correspond
+     to those for the newly-registered thread */
+  restore_runtime_state(th);
+
   /* Allocate the thread descriptor on the heap */
   th->descr = caml_thread_new_descriptor(Val_unit);  /* no closure */
 
@@ -855,6 +860,9 @@ CAMLexport int caml_c_thread_register(void)
     st_retcode err = start_tick_thread();
     sync_check_error(err, "caml_register_c_thread");
   }
+
+  /* Save any modifications to Caml_state back to the thread descriptor */
+  save_runtime_state();
 
   /* Release the master lock */
   thread_lock_release(Dom_c_threads);

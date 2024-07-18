@@ -42,6 +42,8 @@ type arg_at_use = private
 
 type arg_types_by_use_id = arg_at_use Apply_cont_rewrite_id.Map.t list
 
+val print_arg_type_at_use : Format.formatter -> arg_at_use -> unit
+
 val get_arg_types_by_use_id : t -> arg_types_by_use_id
 
 (* When we want to get the arg_types_by_use_id of the invariant params of a
