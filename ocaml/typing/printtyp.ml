@@ -43,12 +43,10 @@ module Sig_component_kind = Shape.Sig_component_kind
    printed. Specifically, we print the user-written jkind in any of these
    cases:
 
-   (C1.1) The type declaration is abstract and has no manifest (i.e.,
-   it's written without any [=]-signs).
+   (C1.1) The type declaration is abstract, has no manifest (i.e.,
+   it's written without any [=]-signs), and the annotation is not equivalent to value.
 
    In this case, there is no way to know the jkind without the annotation.
-   It is possible we might print a redundant [ : value ] annotation, but if the
-   user included this, they are probably happy to have it be printed, too.
 
    (C1.2) The type is [@@unboxed]. If an [@@unboxed] type is recursive, it can
    be impossible to deduce the jkind.  We thus defer to the user in determining
@@ -1864,8 +1862,13 @@ let tree_of_type_decl id decl =
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
-  let jkind_annotation = match ty, unboxed, decl.type_has_illegal_crossings with
-    | (Otyp_abstract, _, _) | (_, true, _) | (_, _, true) ->
+  let is_value =
+    match decl.type_jkind_annotation with
+    | Some (jkind, _) -> Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
+    | None -> false
+  in
+  let jkind_annotation = match ty, unboxed, is_value, decl.type_has_illegal_crossings with
+    | (Otyp_abstract, _, false, _) | (_, true, _, _) | (_, _, _, true) ->
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
            user-written annotation. *)
