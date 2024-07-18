@@ -279,7 +279,7 @@ val of_new_legacy_sort : why:History.concrete_legacy_creation_reason -> t
 
 val of_const : why:History.creation_reason -> Const.t -> t
 
-(** The typed jkind together with its user-written annotation. *)
+(** The [Jkind.Const.t] together with its user-written annotation. *)
 type annotation = Types.type_expr Jkind_types.annotation
 
 val of_annotation :
