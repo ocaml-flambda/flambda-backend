@@ -354,8 +354,8 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Arg_helper.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Identifiable.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Numbers.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Profile.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Clflags.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Profile.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debug.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension_kernel.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension.cmo
@@ -439,8 +439,8 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Arg_helper.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Identifiable.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Numbers.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Profile.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Clflags.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Profile.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debug.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension_kernel.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension.cmx
