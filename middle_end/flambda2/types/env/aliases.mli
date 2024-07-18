@@ -63,13 +63,11 @@ type add_result = private
     canonical_element : Simple.t;
         (** The canonical element of the combined equivalence class. In the type
             environment, this will be the name (if it is a name) that is
-            assigned a concrete type. Does not carry a coercion. *)
+            assigned a concrete type. *)
     alias_of_demoted_element : Simple.t
         (** Whichever argument to [add] had its equivalence class consumed and
             its canonical element demoted to an alias. It is this name that
-            needs its type to change to record the new canonical element. Its
-            coercion has been adjusted so that it is properly an alias of
-            [canonical_element]. *)
+            needs its type to change to record the new canonical element. *)
   }
 
 (** Add an alias relationship to the tracker. The two simple expressions must be
@@ -78,10 +76,10 @@ type add_result = private
     [{ t = t'; canonical_element; alias_of_demoted_element }], then according to
     [t'],
 
-    - [canonical_element] is the canonical element of both [s1] and [s2];
+    - [canonical_element] is either [s1] or [s2] and is now canonical for both,
 
-    - [alias_of_demoted_element] is either [s1] or [s2] (possibly with a new
-    coercion; see note on [add_result]); and
+    - [alias_of_demoted_element] is whichever of [s1] or [s2] is not
+      [canonical_element], and
 
     - [alias_of_demoted_element] is no longer canonical. *)
 val add :

@@ -2134,44 +2134,56 @@ let remove_mode_and_jkind_variables env sg =
   let rm _env ty = Ctype.remove_mode_and_jkind_variables ty; None in
   List.find_map (nongen_signature_item env rm) sg |> ignore
 
-let rec map_inferred_modalities_sg env map sg =
+let rec remove_modality_and_zero_alloc_variables_sg env ~zap_modality sg =
   let sg_item = function
     | Sig_value (id, desc, vis) ->
         let val_modalities =
           desc.val_modalities
-          |> map |> Mode.Modality.Value.of_const
+          |> zap_modality |> Mode.Modality.Value.of_const
         in
-        let desc = {desc with val_modalities} in
+        let val_zero_alloc =
+          Zero_alloc.create_const (Zero_alloc.get desc.val_zero_alloc)
+        in
+        let desc = {desc with val_modalities; val_zero_alloc} in
         Sig_value (id, desc, vis)
     | Sig_module (id, pres, md, re, vis) ->
-        let md_type = map_inferred_modalities_mty env map md.md_type in
+        let md_type =
+          remove_modality_and_zero_alloc_variables_mty env ~zap_modality
+            md.md_type
+        in
         let md = {md with md_type} in
         Sig_module (id, pres, md, re, vis)
     | item -> item
   in
   List.map sg_item sg
 
-and map_inferred_modalities_mty env map mty =
+and remove_modality_and_zero_alloc_variables_mty env ~zap_modality mty =
   match mty with
   | Mty_ident _ | Mty_alias _ ->
     (* module types with names can't have inferred modalities. *)
     mty
-  | Mty_signature sg -> Mty_signature (map_inferred_modalities_sg env map sg)
+  | Mty_signature sg ->
+    Mty_signature
+      (remove_modality_and_zero_alloc_variables_sg env ~zap_modality sg)
   | Mty_functor (param, mty) ->
     let param : Types.functor_parameter =
       match param with
       | Named (id, mty) ->
           let mty =
-            map_inferred_modalities_mty env Mode.Modality.Value.to_const_exn mty
+            remove_modality_and_zero_alloc_variables_mty env
+              ~zap_modality:Mode.Modality.Value.to_const_exn mty
           in
           Named (id, mty)
       | Unit -> Unit
     in
-    let mty = map_inferred_modalities_mty env map mty in
+    let mty =
+      remove_modality_and_zero_alloc_variables_mty env ~zap_modality mty
+    in
     Mty_functor (param, mty)
   | Mty_strengthen (mty, path, alias) ->
-      let mty = map_inferred_modalities_mty
-        env Mode.Modality.Value.to_const_exn mty
+      let mty =
+        remove_modality_and_zero_alloc_variables_mty env
+        ~zap_modality:Mode.Modality.Value.to_const_exn mty
       in
       Mty_strengthen (mty, path, alias)
 
@@ -2925,13 +2937,13 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    convert "Assume"s in structures to the equivalent "Check" for
                    the signature. *)
                 let open Builtin_attributes in
-                match[@warning "+9"] zero_alloc with
-                | Default_zero_alloc | Ignore_assert_all -> Default_zero_alloc
-                | Check _ -> zero_alloc
+                match[@warning "+9"] Zero_alloc.get zero_alloc with
+                | Default_zero_alloc | Check _ -> zero_alloc
                 | Assume { strict; arity; loc;
                            never_returns_normally = _;
                            never_raises = _} ->
-                  Check { strict; arity; loc; opt = false }
+                  Zero_alloc.create_const (Check { strict; arity; loc; opt = false })
+                | Ignore_assert_all -> Zero_alloc.default
               in
               let (first_loc, _, _) = List.hd id_info in
               Signature_names.check_value names first_loc id;
@@ -3332,7 +3344,10 @@ let type_module_type_of env smod =
   check_nongen_modtype env smod.pmod_loc mty;
   (* for [module type of], we zap to identity modality for best legacy
   compatibility *)
-  let mty = map_inferred_modalities_mty env Mode.Modality.Value.zap_to_id mty in
+  let mty =
+    remove_modality_and_zero_alloc_variables_mty env
+      ~zap_modality:Mode.Modality.Value.zap_to_id mty
+  in
   tmty, mty
 
 (* For Typecore *)
@@ -3562,7 +3577,8 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
         let simple_sg =
           (* Printing [.mli] from [.ml], we zap to identity modality for legacy
              compatibility. *)
-          map_inferred_modalities_sg finalenv Mode.Modality.Value.zap_to_id simple_sg
+          remove_modality_and_zero_alloc_variables_sg finalenv
+            ~zap_modality:Mode.Modality.Value.zap_to_id simple_sg
         in
         Typecore.force_delayed_checks ();
         Typecore.optimise_allocations ();
@@ -3660,8 +3676,8 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           let simple_sg =
             (* Generating [cmi] without [mli]. This [cmi] will only be on the
                LHS of inclusion check, so we zap to floor (strongest). *)
-            map_inferred_modalities_sg finalenv Mode.Modality.Value.zap_to_floor
-            simple_sg
+            remove_modality_and_zero_alloc_variables_sg finalenv
+              ~zap_modality:Mode.Modality.Value.zap_to_floor simple_sg
           in
           normalize_signature simple_sg;
           let argument_interface =

@@ -53,7 +53,6 @@ utils/compilation_unit.cmo : \
     utils/int_replace_polymorphic_compare.cmi \
     utils/identifiable.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     utils/clflags.cmi \
     utils/compilation_unit.cmi
 utils/compilation_unit.cmx : \
@@ -61,14 +60,11 @@ utils/compilation_unit.cmx : \
     utils/int_replace_polymorphic_compare.cmx \
     utils/identifiable.cmx \
     typing/ident.cmx \
-    utils/global.cmx \
     utils/clflags.cmx \
     utils/compilation_unit.cmi
 utils/compilation_unit.cmi : \
-    utils/misc.cmi \
     utils/identifiable.cmi \
-    typing/ident.cmi \
-    utils/global.cmi
+    typing/ident.cmi
 utils/config.common.cmo :
 utils/config.common.cmx :
 utils/config.fixed.cmo :
@@ -128,16 +124,6 @@ utils/domainstate.cmo : \
 utils/domainstate.cmx : \
     utils/domainstate.cmi
 utils/domainstate.cmi :
-utils/global.cmo : \
-    utils/misc.cmi \
-    utils/identifiable.cmi \
-    utils/global.cmi
-utils/global.cmx : \
-    utils/misc.cmx \
-    utils/identifiable.cmx \
-    utils/global.cmi
-utils/global.cmi : \
-    utils/identifiable.cmi
 utils/identifiable.cmo : \
     utils/misc.cmi \
     utils/identifiable.cmi
@@ -850,7 +836,6 @@ typing/env.cmo : \
     utils/language_extension.cmi \
     typing/jkind.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     typing/datarepr.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmi_format.cmi \
@@ -877,7 +862,6 @@ typing/env.cmx : \
     utils/language_extension.cmx \
     typing/jkind.cmx \
     typing/ident.cmx \
-    utils/global.cmx \
     typing/datarepr.cmx \
     utils/compilation_unit.cmx \
     file_formats/cmi_format.cmx \
@@ -900,7 +884,6 @@ typing/env.cmi : \
     typing/jkind.cmi \
     utils/import_info.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmi_format.cmi \
     parsing/asttypes.cmi
@@ -947,19 +930,16 @@ typing/ident.cmo : \
     utils/misc.cmi \
     utils/local_store.cmi \
     utils/identifiable.cmi \
-    utils/global.cmi \
     utils/clflags.cmi \
     typing/ident.cmi
 typing/ident.cmx : \
     utils/misc.cmx \
     utils/local_store.cmx \
     utils/identifiable.cmx \
-    utils/global.cmx \
     utils/clflags.cmx \
     typing/ident.cmi
 typing/ident.cmi : \
-    utils/identifiable.cmi \
-    utils/global.cmi
+    utils/identifiable.cmi
 typing/includeclass.cmo : \
     typing/types.cmi \
     typing/printtyp.cmi \
@@ -1350,7 +1330,6 @@ typing/persistent_env.cmo : \
     utils/lazy_backtrack.cmi \
     utils/import_info.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     utils/consistbl.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmi_format.cmi \
@@ -1366,7 +1345,6 @@ typing/persistent_env.cmx : \
     utils/lazy_backtrack.cmx \
     utils/import_info.cmx \
     typing/ident.cmx \
-    utils/global.cmx \
     utils/consistbl.cmx \
     utils/compilation_unit.cmx \
     file_formats/cmi_format.cmx \
@@ -1381,7 +1359,6 @@ typing/persistent_env.cmi : \
     utils/lazy_backtrack.cmi \
     utils/import_info.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     utils/consistbl.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmi_format.cmi
@@ -1555,7 +1532,6 @@ typing/shape.cmo : \
     utils/misc.cmi \
     utils/identifiable.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     utils/compilation_unit.cmi \
     typing/shape.cmi
 typing/shape.cmx : \
@@ -1563,14 +1539,12 @@ typing/shape.cmx : \
     utils/misc.cmx \
     utils/identifiable.cmx \
     typing/ident.cmx \
-    utils/global.cmx \
     utils/compilation_unit.cmx \
     typing/shape.cmi
 typing/shape.cmi : \
     typing/path.cmi \
     utils/identifiable.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     utils/compilation_unit.cmi
 typing/shape_reduce.cmo : \
     typing/shape.cmi \
@@ -2139,7 +2113,6 @@ typing/typemod.cmo : \
     typing/includecore.cmi \
     utils/import_info.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     typing/envaux.cmi \
     typing/env.cmi \
     typing/ctype.cmi \
@@ -2184,7 +2157,6 @@ typing/typemod.cmx : \
     typing/includecore.cmx \
     utils/import_info.cmx \
     typing/ident.cmx \
-    utils/global.cmx \
     typing/envaux.cmx \
     typing/env.cmx \
     typing/ctype.cmx \
@@ -2212,7 +2184,6 @@ typing/typemod.cmi : \
     typing/jkind.cmi \
     typing/includemod.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     typing/env.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmi_format.cmi
@@ -3910,7 +3881,6 @@ middle_end/compilenv.cmo : \
     utils/linkage_name.cmi \
     utils/import_info.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     middle_end/flambda/export_info.cmi \
     typing/env.cmi \
     utils/config.cmi \
@@ -3931,7 +3901,6 @@ middle_end/compilenv.cmx : \
     utils/linkage_name.cmx \
     utils/import_info.cmx \
     typing/ident.cmx \
-    utils/global.cmx \
     middle_end/flambda/export_info.cmx \
     typing/env.cmx \
     utils/config.cmx \
@@ -4677,7 +4646,6 @@ file_formats/cmi_format.cmo : \
     utils/misc.cmi \
     parsing/location.cmi \
     utils/import_info.cmi \
-    utils/global.cmi \
     utils/config.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmi_format.cmi
@@ -4687,7 +4655,6 @@ file_formats/cmi_format.cmx : \
     utils/misc.cmx \
     parsing/location.cmx \
     utils/import_info.cmx \
-    utils/global.cmx \
     utils/config.cmx \
     utils/compilation_unit.cmx \
     file_formats/cmi_format.cmi
@@ -4696,7 +4663,6 @@ file_formats/cmi_format.cmi : \
     typing/subst.cmi \
     utils/misc.cmi \
     utils/import_info.cmi \
-    utils/global.cmi \
     utils/compilation_unit.cmi
 file_formats/cmo_format.cmi : \
     utils/import_info.cmi \
@@ -6832,7 +6798,6 @@ driver/compile_common.cmo : \
     driver/pparse.cmi \
     utils/misc.cmi \
     typing/includemod.cmi \
-    utils/global.cmi \
     typing/env.cmi \
     utils/config.cmi \
     driver/compmisc.cmi \
@@ -6856,7 +6821,6 @@ driver/compile_common.cmx : \
     driver/pparse.cmx \
     utils/misc.cmx \
     typing/includemod.cmx \
-    utils/global.cmx \
     typing/env.cmx \
     utils/config.cmx \
     driver/compmisc.cmx \
@@ -7891,7 +7855,6 @@ tools/objinfo.cmo : \
     lambda/lambda.cmi \
     utils/import_info.cmi \
     typing/ident.cmi \
-    utils/global.cmi \
     middle_end/flambda/export_info.cmi \
     utils/compilation_unit.cmi \
     file_formats/cmxs_format.cmi \
@@ -7916,7 +7879,6 @@ tools/objinfo.cmx : \
     lambda/lambda.cmx \
     utils/import_info.cmx \
     typing/ident.cmx \
-    utils/global.cmx \
     middle_end/flambda/export_info.cmx \
     utils/compilation_unit.cmx \
     file_formats/cmxs_format.cmi \
