@@ -1466,6 +1466,8 @@ module Format_history = struct
 
   let format_value_or_null_creation_reason ppf :
       History.value_or_null_creation_reason -> _ = function
+    | Primitive id ->
+      fprintf ppf "it is the primitive value_or_null type %s" (Ident.name id)
     | Tuple_element -> fprintf ppf "it's the type of a tuple element"
     | Separability_check ->
       fprintf ppf "the check that a type is definitely not `float`"
@@ -1937,6 +1939,7 @@ module Debug_printers = struct
 
   let value_or_null_creation_reason ppf :
       History.value_or_null_creation_reason -> _ = function
+    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
     | Tuple_element -> fprintf ppf "Tuple_element"
     | Separability_check -> fprintf ppf "Separability_check"
     | Polymorphic_variant_field -> fprintf ppf "Polymorphic_variant_field"

@@ -191,6 +191,7 @@ module History = struct
      enough subjkinding for interfaces to accept [value_or_null]
      in [list] or [option]. *)
   type value_or_null_creation_reason =
+    | Primitive of Ident.t
     | Tuple_element
     | Separability_check
     | Polymorphic_variant_field

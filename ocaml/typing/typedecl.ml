@@ -1094,26 +1094,28 @@ let check_constraints env sdecl (_, decl) =
       check_constraints_rec env sty.ptyp_loc visited ty
   end
 
-(*
-   Check that the type expression (if present) is compatible with the kind.
+(* Check that [type_jkind] (where we've stored the jkind annotation, if any)
+   corresponds to the manifest (e.g., in the case where [type_jkind] is
+   immediate, we should check the manifest is immediate). Also, update the
+   resulting jkind to match the manifest. *)
+let narrow_to_manifest_jkind env loc decl =
+  match decl.type_manifest with
+  | None -> decl
+  | Some ty ->
+    let jkind' = Ctype.type_jkind_purely env ty in
+    match Jkind.sub_with_history jkind' decl.type_jkind with
+    | Ok jkind' -> { decl with type_jkind = jkind' }
+    | Error v ->
+      raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
+
+(* Check that the type expression (if present) is compatible with the kind.
    If both a variant/record definition and a type equation are given,
    need to check that the equation refers to a type of the same kind
-   with the same constructors and labels.
-
-   If the kind is [Type_abstract], we need to check that [type_jkind] (where
-   we've stored the jkind annotation, if any) corresponds to the manifest
-   (e.g., in the case where [type_jkind] is immediate, we should check the
-   manifest is immediate).  It would also be nice to store the best possible
-   jkind for this type in the kind, to avoid expansions later.  So, we do the
-   relatively expensive thing of computing the best possible jkind for the
-   manifest, checking that it's a subjkind of [type_jkind], and then replacing
-   [type_jkind] with what we computed.
-*)
-let check_coherence env loc dpath decl =
-  match decl with
-    { type_kind = (Type_variant _ | Type_record _| Type_open);
-      type_manifest = Some ty } ->
-      if !Clflags.allow_illegal_crossing then begin 
+   with the same constructors and labels. *)
+let check_kind_coherence env loc dpath decl =
+  match decl.type_kind, decl.type_manifest with
+  | (Type_variant _ | Type_record _ | Type_open), Some ty ->
+      if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
         begin match Jkind.sub_with_history jkind' decl.type_jkind with
         | Ok _ -> ()
@@ -1121,45 +1123,40 @@ let check_coherence env loc dpath decl =
           raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
         end
       end;
-      begin match get_desc ty with
-        Tconstr(path, args, _) ->
-          begin try
-            let decl' = Env.find_type path env in
-            let err =
-              if List.length args <> List.length decl.type_params
-              then Some Includecore.Arity
-              else begin
-                match Ctype.equal env false args decl.type_params with
-                | exception Ctype.Equality err ->
-                    Some (Includecore.Constraint err)
-                | () ->
-                    Includecore.type_declarations ~loc ~equality:true env
-                      ~mark:true
-                      (Path.last path)
-                      decl'
-                      dpath
-                      (Subst.type_declaration
-                         (Subst.add_type_path dpath path Subst.identity) decl)
-              end
-            in
-            if err <> None then
-              raise(Error(loc, Definition_mismatch (ty, env, err)))
-            else
-              decl
-          with Not_found ->
-            raise(Error(loc, Unavailable_type_constructor path))
+    begin match get_desc ty with
+    | Tconstr(path, args, _) ->
+      begin
+      try
+        let decl' = Env.find_type path env in
+        let err =
+          if List.length args <> List.length decl.type_params
+          then Some Includecore.Arity
+          else begin
+            match Ctype.equal env false args decl.type_params with
+            | exception Ctype.Equality err ->
+                Some (Includecore.Constraint err)
+            | () ->
+                Includecore.type_declarations ~loc ~equality:true env
+                  ~mark:true
+                  (Path.last path)
+                  decl'
+                  dpath
+                  (Subst.type_declaration
+                     (Subst.add_type_path dpath path Subst.identity) decl)
           end
-      | _ -> raise(Error(loc, Definition_mismatch (ty, env, None)))
+        in
+        if err <> None then
+          raise (Error(loc, Definition_mismatch (ty, env, err)))
+      with Not_found ->
+        raise(Error(loc, Unavailable_type_constructor path))
       end
-  | { type_kind = Type_abstract _;
-      type_manifest = Some ty } ->
-    let jkind' = Ctype.type_jkind_purely env ty in
-    begin match Jkind.sub_with_history jkind' decl.type_jkind with
-    | Ok jkind' -> { decl with type_jkind = jkind' }
-    | Error v ->
-      raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
+    | _ -> ()
     end
-  | { type_manifest = None } -> decl
+  | _ -> ()
+
+let check_coherence env loc dpath decl =
+  check_kind_coherence env loc dpath decl;
+  narrow_to_manifest_jkind env loc decl
 
 let check_abbrev env sdecl (id, decl) =
   (id, check_coherence env sdecl.ptype_loc (Path.Pident id) decl)
@@ -1605,7 +1602,7 @@ let update_decl_jkind env dpath decl =
     | false -> jkind, false
   in
 
-  let new_decl, new_jkind = match decl.type_kind with
+  let inferred_decl, inferred_jkind = match decl.type_kind with
     | Type_abstract _ -> decl, decl.type_jkind
     | Type_open ->
       let type_jkind = Jkind.Primitive.value ~why:Extensible_variant in
@@ -1624,6 +1621,21 @@ let update_decl_jkind env dpath decl =
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
+  in
+
+  (* If the type manifest jkind is available, we roll back to
+     the previous [decl.type_jkind] from the annotation, delaying
+     computing the final jkind until [check_coherence].
+
+     This is necessary to support types like ['a or_null], which have a
+     non-standard jkind for their [type_kind]. When jkind-from-kind
+     and jkind-from-manifest conflict, we want to pick the one from manifest. *)
+  let new_decl, new_jkind =
+    match decl.type_manifest with
+    | None -> inferred_decl, inferred_jkind
+    | Some _ ->
+      let type_jkind = decl.type_jkind in
+      { inferred_decl with type_jkind }, type_jkind
   in
 
   (* check that the jkind computed from the kind matches the jkind
