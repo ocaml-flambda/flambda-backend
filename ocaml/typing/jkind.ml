@@ -51,20 +51,6 @@ module Layout = struct
       | _, Any -> Less
       | Any, Sort _ | Sort _, Sort _ -> Not_le
 
-    let value = Sort Sort.Value
-
-    let void = Sort Sort.Void
-
-    let float64 = Sort Sort.Float64
-
-    let float32 = Sort Sort.Float32
-
-    let word = Sort Sort.Word
-
-    let bits32 = Sort Sort.Bits32
-
-    let bits64 = Sort Sort.Bits64
-
     let get_sort : t -> Sort.Const.t option = function
       | Sort s -> Some s
       | Any -> None
@@ -338,14 +324,14 @@ module Const = struct
 
     let value_or_null =
       { jkind =
-          of_layout Layout.Const.value ~mode_crossing:false
+          of_layout (Sort Value) ~mode_crossing:false
             ~nullability:Maybe_null;
         name = "value_or_null"
       }
 
     let value =
       { jkind =
-          of_layout Layout.Const.value ~mode_crossing:false
+          of_layout (Sort Value) ~mode_crossing:false
             ~nullability:Non_null;
         name = "value"
       }
@@ -369,13 +355,13 @@ module Const = struct
     (* CR layouts v3: change to [or_null] when separability is implemented. *)
     let void =
       { jkind =
-          of_layout Layout.Const.void ~mode_crossing:false ~nullability:Non_null;
+          of_layout (Sort Void) ~mode_crossing:false ~nullability:Non_null;
         name = "void"
       }
 
     let immediate =
       { jkind =
-          of_layout Layout.Const.value ~mode_crossing:true ~nullability:Non_null;
+          of_layout (Sort Value) ~mode_crossing:true ~nullability:Non_null;
         name = "immediate"
       }
 
@@ -419,7 +405,7 @@ module Const = struct
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float64 =
       { jkind =
-          of_layout Layout.Const.float64 ~mode_crossing:true
+          of_layout (Sort Float64) ~mode_crossing:true
             ~nullability:Non_null;
         name = "float64"
       }
@@ -429,7 +415,7 @@ module Const = struct
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float32 =
       { jkind =
-          of_layout Layout.Const.float32 ~mode_crossing:true
+          of_layout (Sort Float32) ~mode_crossing:true
             ~nullability:Non_null;
         name = "float32"
       }
@@ -437,14 +423,14 @@ module Const = struct
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let word =
       { jkind =
-          of_layout Layout.Const.word ~mode_crossing:false ~nullability:Non_null;
+          of_layout (Sort Word) ~mode_crossing:false ~nullability:Non_null;
         name = "word"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits32 =
       { jkind =
-          of_layout Layout.Const.bits32 ~mode_crossing:false
+          of_layout (Sort Bits32) ~mode_crossing:false
             ~nullability:Non_null;
         name = "bits32"
       }
@@ -452,7 +438,7 @@ module Const = struct
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits64 =
       { jkind =
-          of_layout Layout.Const.bits64 ~mode_crossing:false
+          of_layout (Sort Bits64) ~mode_crossing:false
             ~nullability:Non_null;
         name = "bits64"
       }
