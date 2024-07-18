@@ -31,6 +31,7 @@ let () =
           cmi_kind;
           cmi_params;
           cmi_sign;
+          cmi_globals;
           cmi_crcs;
           cmi_flags
         } =
@@ -41,6 +42,7 @@ let () =
           cmi_kind;
           cmi_params;
           cmi_sign = Subst.Lazy.of_signature cmi_sign;
+          cmi_globals;
           cmi_crcs;
           cmi_flags
         }

@@ -2997,6 +2997,22 @@ type _ load =
   | Load : module_data load
   | Don't_load : unit load
 
+let lookup_global_name_module
+      (type a) (load : a load) ~errors ~use ~loc path name env =
+  match load with
+  | Don't_load ->
+      check_pers_mod ~allow_hidden:false ~loc name;
+      path, (() : a)
+  | Load -> begin
+      match find_pers_mod ~allow_hidden:false name with
+      | mda ->
+          use_module ~use ~loc path mda;
+          path, (mda : a)
+      | exception Not_found ->
+          let s = Global_module.Name.to_string name in
+          may_lookup_error errors loc env (Unbound_module (Lident s))
+    end
+
 let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
   let path, locks, data =
     match find_name_module ~mark:use s env.modules with
@@ -3014,20 +3030,13 @@ let lookup_ident_module (type a) (load : a load) ~errors ~use ~loc s env =
   | Mod_unbound reason ->
       report_module_unbound ~errors ~loc env reason
   | Mod_persistent -> begin
-      (* Currently there are never instance arguments *)
+      (* This is only used when processing [Longident.t]s, which never have
+         instance arguments *)
       let name = Global_module.Name.create_exn s [] in
-      match load with
-      | Don't_load ->
-          check_pers_mod ~allow_hidden:false ~loc name;
-          path, locks, (() : a)
-      | Load -> begin
-          match find_pers_mod ~allow_hidden:false name with
-          | mda ->
-              use_module ~use ~loc path mda;
-              path, locks, (mda : a)
-          | exception Not_found ->
-              may_lookup_error errors loc env (Unbound_module (Lident s))
-        end
+      let path, a =
+        lookup_global_name_module load ~errors ~use ~loc path name env
+      in
+      path, locks, a
     end
 
 let escape_mode ~errors ~env ~loc ~item ~lid vmode escaping_context =
@@ -3438,6 +3447,16 @@ let lookup_module_path ~errors ~use ~lock ~loc ~load lid env : Path.t * _ =
   in
   path, vmode
 
+let lookup_module_instance_path ~errors ~use ~loc ~load name env : Path.t =
+  (* Since [name] is always global, we know that the path is just [name] and we
+     could just return it, but going through the usual sequence ensures that all
+     the same checks and error reporting happen as for a normal identifier. *)
+  let path = Pident (Ident.create_global name) in
+  if !Clflags.transparent_modules && not load then
+    fst (lookup_global_name_module Don't_load ~errors ~use ~loc path name env)
+  else
+    fst (lookup_global_name_module Load ~errors ~use ~loc path name env)
+
 let lookup_value_lazy ~errors ~use ~loc lid env =
   match lid with
   | Lident s -> lookup_ident_value ~errors ~use ~loc s env
@@ -3623,6 +3642,9 @@ let lookup_module_path ?(use=true) ?(lock=use) ~loc ~load lid env =
     lookup_module_path ~errors:true ~use ~lock ~loc ~load lid env
   in
   path, vmode.mode
+
+let lookup_module_instance_path ?(use=true) ~loc ~load lid env =
+  lookup_module_instance_path ~errors:true ~use ~loc ~load lid env
 
 let lookup_module ?(use=true) ?(lock=use) ~loc lid env =
   let path, desc, vmode = lookup_module ~errors:true ~use ~lock ~loc lid env in
