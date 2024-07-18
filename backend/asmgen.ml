@@ -213,6 +213,21 @@ let rec regalloc ~ppf_dump round (fd : Mach.fundecl) =
     newfd
   end
 
+let regalloc_profile =
+  let f ((spills, reloads) as acc) (instr : Cfg.basic Cfg.instruction) =
+  match instr.desc with
+  | Op Spill -> (spills + 1, reloads)
+  | Op Reload -> (spills, reloads + 1)
+  | _ -> acc
+  in
+  let regalloc_counters (cfg : Cfg_with_infos.t) =
+    let (spills, reloads) = Cfg_with_infos.fold_body_instructions cfg ~f ~init:(0, 0) in
+    Profile.Counters.create ()
+    |> Profile.Counters.set "spill" spills
+    |> Profile.Counters.set "reload" reloads
+  in
+  Profile.record_with_counters ~accumulate:true ~counter_f:regalloc_counters
+
 let (++) x f = f x
 
 let ocamlcfg_verbose =
@@ -348,28 +363,12 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
             Regalloc_validate.Description.create (Cfg_with_infos.cfg_with_layout cfg)
         in
         cfg
-        ++
-        (
-          let f ((spills, reloads) as acc) (instr : Cfg.basic Cfg.instruction) = match instr.desc with
-            | Op Spill -> (spills + 1, reloads)
-            | Op Reload -> (spills, reloads + 1)
-            | _ -> acc
-          in
-          let regalloc_counters (cfg : Cfg_with_infos.t) =
-            let (spills, reloads) = Cfg_with_infos.fold_body_instructions cfg ~f ~init:(0, 0) in
-            Profile.Counters.create ()
-            |> Profile.Counters.set "spill" spills
-            |> Profile.Counters.set "reload" reloads
-          in
-          let regalloc_profile =
-            Profile.record_with_counters ~accumulate:true ~counter_f:regalloc_counters
-          in
-          match regalloc with
-            | GI -> regalloc_profile "cfg_gi" Regalloc_gi.run
-            | IRC -> regalloc_profile "cfg_irc" Regalloc_irc.run
-            | LS -> regalloc_profile "cfg_ls" Regalloc_ls.run
-            | Upstream -> assert false
-        )
+        ++ begin match regalloc with
+          | GI -> regalloc_profile "cfg_gi" Regalloc_gi.run
+          | IRC -> regalloc_profile "cfg_irc" Regalloc_irc.run
+          | LS -> regalloc_profile "cfg_ls" Regalloc_ls.run
+          | Upstream -> assert false
+        end
         ++ Cfg_with_infos.cfg_with_layout
         ++ Profile.record ~accumulate:true "cfg_validate_description"
              (Regalloc_validate.run cfg_description)
