@@ -2696,19 +2696,18 @@ let unresolved_deps = Unresolved_dependencies.create ()
 let update_caml_flambda_invalid (fd : Mach.fundecl) =
   let rec fixup (i : Mach.instruction) : Mach.instruction =
     match i.desc with
-    | Iop
-        (Iextcall
-          ({ func = "caml_flambda2_invalid"; _ } as caml_flambda2_invalid)) ->
-      let desc =
-        Mach.Iop (Iextcall { caml_flambda2_invalid with returns = false })
-      in
-      { i with desc; next = Mach.end_instr () }
+    | Iop (Iextcall ({ func; _ } as ext)) ->
+      if String.equal func Cmm.caml_flambda2_invalid
+      then
+        let desc = Mach.Iop (Iextcall { ext with returns = false }) in
+        { i with desc; next = Mach.end_instr () }
+      else { i with next = fixup i.next }
     | Iop
         ( Imove | Ispill | Ireload | Iconst_int _ | Iconst_float32 _
         | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _ | Icall_ind
-        | Icall_imm _ | Iextcall _ | Istackoffset _ | Iload _ | Istore _
-        | Ialloc _ | Iintop _ | Iintop_imm _ | Iintop_atomic _ | Ifloatop _
-        | Icsel _ | Ireinterpret_cast _ | Istatic_cast _ | Ispecific _
+        | Icall_imm _ | Istackoffset _ | Iload _ | Istore _ | Ialloc _
+        | Iintop _ | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _
+        | Ireinterpret_cast _ | Istatic_cast _ | Ispecific _
         | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
         | Ibeginregion | Iendregion | Ipoll _ | Idls_get ) ->
       { i with next = fixup i.next }
@@ -2756,29 +2755,25 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
     let modified = ref false in
     Cfg.iter_blocks cfg ~f:(fun label block ->
         match block.terminator.desc with
-        | Prim
-            { op =
-                External
-                  ({ func_symbol = "caml_flambda2_invalid"; _ } as
-                  caml_flambda2_invalid);
-              label_after = _
-            } ->
-          let successors = Cfg.successor_labels ~normal:true ~exn:true block in
-          block.terminator
-            <- { block.terminator with
-                 desc = Call_no_return caml_flambda2_invalid
-               };
-          block.exn <- None;
-          block.can_raise <- false;
-          (* update predecessors for successors of [block]. *)
-          Label.Set.iter
-            (fun successor_label ->
-              let successor_block = Cfg.get_block_exn cfg successor_label in
-              successor_block.predecessors
-                <- Label.Set.remove label successor_block.predecessors)
-            successors;
-          modified := true
-        | Prim { op = Probe _ | External _; _ }
+        | Prim { op = External ({ func_symbol; _ } as ext); label_after = _ } ->
+          if String.equal func_symbol Cmm.caml_flambda2_invalid
+          then (
+            let successors =
+              Cfg.successor_labels ~normal:true ~exn:true block
+            in
+            block.terminator
+              <- { block.terminator with desc = Call_no_return ext };
+            block.exn <- None;
+            block.can_raise <- false;
+            (* update predecessors for successors of [block]. *)
+            Label.Set.iter
+              (fun successor_label ->
+                let successor_block = Cfg.get_block_exn cfg successor_label in
+                successor_block.predecessors
+                  <- Label.Set.remove label successor_block.predecessors)
+              successors;
+            modified := true)
+        | Prim { op = Probe _; _ }
         | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
         | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
         | Tailcall_func _ | Call_no_return _ | Call _ | Specific_can_raise _ ->
