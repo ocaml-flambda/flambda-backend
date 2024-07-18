@@ -205,5 +205,5 @@ camlheaderd:
 camlheaderi:
 	touch camlheaderi
 
-.PHONY: camlheaderur
+camlheaderur:
 	touch camlheaderur
