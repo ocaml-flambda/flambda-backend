@@ -884,7 +884,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             let ty = cty.ctyp_type in
             let nm =
               match get_desc cty.ctyp_type with
-                Tconstr(p, tl, _) -> Some(p, tl)
+                Tconstr(p, tl, _) -> Some(p, AppArgs.to_list tl)
               | _                 -> None
             in
             name := if Hashtbl.length hfields <> 0 then None else nm;
