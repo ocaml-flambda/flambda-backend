@@ -1323,7 +1323,7 @@ module Element_repr = struct
       | Some Bits64, _ -> Unboxed_element Bits64
       | Some Void, _ -> Element_without_runtime_component { loc; ty }
       | None, _ ->
-          Misc.fatal_error "Element_repr.classify: unexpected Any"
+          Misc.fatal_error "Element_repr.classify: unexpected abstract layout"
 
   let unboxed_to_flat : unboxed_element -> flat_element = function
     | Float64 -> Float64
