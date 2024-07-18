@@ -238,15 +238,17 @@ let bigarray_type_kind_and_layout env typ =
 
 let value_kind_of_value_jkind jkind =
   let const_jkind = Jkind.default_to_value_and_get jkind in
+  let layout = Jkind.Const.get_layout const_jkind in
   let externality_upper_bound =
     Jkind.Const.get_externality_upper_bound const_jkind
   in
-  (* CR: assert the sort is a value *)
-  match externality_upper_bound with
-  | External -> Pintval
-  | External64 ->
+  match layout, externality_upper_bound with
+  | Sort Value, External -> Pintval
+  | Sort Value, External64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
-  | Internal -> Pgenval
+  | Sort Value, Internal -> Pgenval
+  | (Any | Sort (Void | Float64 | Float32 | Word | Bits32 | Bits64)) , _ ->
+    Misc.fatal_error "expected a layout of value"
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
    current set of sort restrictions, there are two reasons this invariant may
