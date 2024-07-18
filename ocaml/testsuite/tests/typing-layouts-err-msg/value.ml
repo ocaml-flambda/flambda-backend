@@ -160,7 +160,7 @@ Line 1, characters 40-45:
 Error: This expression has type string but an expression was expected of type
          ('a : void)
        The layout of string is value
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the layout of string must be a sublayout of void
          because of the annotation on the type variable 'a.
 |}];;
