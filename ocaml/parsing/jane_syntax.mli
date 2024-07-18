@@ -100,6 +100,17 @@ module Immutable_arrays : sig
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
 end
 
+(** The attribute placed on the inner [Ptyp_arrow] node in [x -> (y -> z)]
+    (meaning the [y -> z] node) to indicate parenthesization. This is relevant
+    for locals, as [local_ x -> (y -> z)] is different than
+    [local_ x -> y -> z].
+*)
+module Arrow_curry : sig
+  val curry_attr_name : string
+
+  val curry_attr : Location.t -> Parsetree.attribute
+end
+
 module Mode_expr : sig
   (** [Mode_expr] appears in several places:
   - let local_ x = ...
@@ -199,7 +210,7 @@ module Jkind : sig
 
   type t =
     | Default
-    | Primitive_layout_or_abbreviation of Const.t
+    | Abbreviation of Const.t
     | Mod of t * Mode_expr.t
     | With of t * Parsetree.core_type
     | Kind_of of Parsetree.core_type

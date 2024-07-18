@@ -240,7 +240,7 @@ let match_simple_printer_type desc ~is_old_style =
   in
   match
     Ctype.with_local_level ~post:Ctype.generalize begin fun () ->
-      let ty_arg = Ctype.newvar (Jkind.value ~why:Debug_printer_argument) in
+      let ty_arg = Ctype.newvar (Jkind.Primitive.value ~why:Debug_printer_argument) in
       Ctype.unify !toplevel_env
         (make_printer_type ty_arg)
         (Ctype.instance desc.val_type);
@@ -259,7 +259,7 @@ let match_generic_printer_type desc ty_path params =
   match
     Ctype.with_local_level ~post:(List.iter Ctype.generalize) begin fun () ->
       let args = List.map (fun _ -> Ctype.newvar
-                                      (Jkind.value ~why:Debug_printer_argument))
+                                      (Jkind.Primitive.value ~why:Debug_printer_argument))
                           params in
       let ty_target = Ctype.newty (Tconstr (ty_path, args, ref Mnil)) in
       let printer_args_ty =
@@ -430,7 +430,7 @@ let reg_show_prim name to_sig doc =
 let () =
   reg_show_prim "show_val"
     (fun env loc id lid ->
-       let _path, desc, _, _ = Env.lookup_value ~loc lid env in
+       let _path, desc, _ = Env.lookup_value ~loc lid env in
        [ Sig_value (id, desc, Exported) ]
     )
     "Print the signature of the corresponding value."
@@ -573,7 +573,7 @@ let secretly_the_same_path env path1 path2 =
 let () =
   reg_show_prim "show_module"
     (fun env loc id lid ->
-       let path, md = Env.lookup_module ~loc lid env in
+       let path, md, _ = Env.lookup_module ~loc lid env in
        let id = match path with
          | Pident id -> id
          | _ -> id
@@ -624,7 +624,7 @@ let () =
 let () =
   reg_show_prim "show_class"
     (fun env loc id lid ->
-       let _path, desc_class = Env.lookup_class ~loc lid env in
+       let _path, desc_class, _ = Env.lookup_class ~loc lid env in
        let _path, desc_cltype = Env.lookup_cltype ~loc lid env in
        let _path, typedcl = Env.lookup_type ~loc lid env in
        [

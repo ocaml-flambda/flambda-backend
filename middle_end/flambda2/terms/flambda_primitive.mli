@@ -28,6 +28,9 @@ module Block_kind : sig
   type t =
     | Values of Tag.Scannable.t * Flambda_kind.With_subkind.t list
     | Naked_floats
+    | Mixed of Tag.Scannable.t * Flambda_kind.Mixed_block_shape.t
+
+  val to_shape : t -> Tag.t * Flambda_kind.Block_shape.t
 
   val print : Format.formatter -> t -> unit
 
@@ -61,47 +64,6 @@ module Array_kind_for_length : sig
   type t =
     | Array_kind of Array_kind.t
     | Float_array_opt_dynamic
-end
-
-module Mixed_block_flat_element : sig
-  type t =
-    | Imm
-    | Float_boxed
-    | Float64
-    | Float32
-    | Bits32
-    | Bits64
-    | Word
-
-  val from_lambda : Lambda.flat_element -> t
-
-  val to_string : t -> string
-
-  val print : Format.formatter -> t -> unit
-
-  val compare : t -> t -> int
-end
-
-module Mixed_block_kind : sig
-  type t =
-    { value_prefix_len : int;
-      (* We use an array just so we can index into the middle. *)
-      flat_suffix : Mixed_block_flat_element.t array
-    }
-
-  val from_lambda : Lambda.mixed_block_shape -> t
-
-  val to_lambda : t -> Lambda.mixed_block_shape
-
-  val print : Format.formatter -> t -> unit
-
-  val compare : t -> t -> int
-
-  val fold_left : ('a -> Flambda_kind.t -> 'a) -> 'a -> t -> 'a
-
-  val element_kind : int -> t -> Flambda_kind.t
-
-  val length : t -> int
 end
 
 module Init_or_assign : sig
@@ -184,7 +146,7 @@ end
 module Mixed_block_access_field_kind : sig
   type t =
     | Value_prefix of Block_access_field_kind.t
-    | Flat_suffix of Mixed_block_flat_element.t
+    | Flat_suffix of Flambda_kind.t
 
   val print : Format.formatter -> t -> unit
 
@@ -202,7 +164,8 @@ module Block_access_kind : sig
     | Mixed of
         { tag : Tag.Scannable.t Or_unknown.t;
           size : Targetint_31_63.t Or_unknown.t;
-          field_kind : Mixed_block_access_field_kind.t
+          field_kind : Mixed_block_access_field_kind.t;
+          shape : Flambda_kind.Mixed_block_shape.t
         }
 
   val print : Format.formatter -> t -> unit
@@ -212,6 +175,8 @@ module Block_access_kind : sig
   val element_kind_for_load : t -> Flambda_kind.t
 
   val element_subkind_for_load : t -> Flambda_kind.With_subkind.t
+
+  val to_block_shape : t -> Flambda_kind.Block_shape.t
 end
 
 (* CR-someday mshinwell: We should have unboxed arrays of int32, int64 and
@@ -487,11 +452,6 @@ type ternary_primitive =
 type variadic_primitive =
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
-  | Make_mixed_block of
-      Tag.Scannable.t
-      * Mixed_block_kind.t
-      * Mutability.t
-      * Alloc_mode.For_allocations.t
 (* CR mshinwell: Invariant checks -- e.g. that the number of arguments matches
    [num_dimensions] *)
 
@@ -539,7 +499,7 @@ val args_kind_of_ternary_primitive :
   ternary_primitive -> Flambda_kind.t * Flambda_kind.t * Flambda_kind.t
 
 type arg_kinds =
-  | Variadic of Flambda_kind.t list
+  | Variadic_mixed of Flambda_kind.Mixed_block_shape.t
   | Variadic_all_of_kind of Flambda_kind.t
 
 val args_kind_of_variadic_primitive : variadic_primitive -> arg_kinds

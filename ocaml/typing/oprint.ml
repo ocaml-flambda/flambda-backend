@@ -323,9 +323,27 @@ let pr_var = Pprintast.tyvar
 let ty_var ~non_gen ppf s =
   pr_var ppf (if non_gen then "_" ^ s else s)
 
+let print_jkind_with_modes ppf print_jkind base modes =
+  fprintf ppf "%a mod @[%a@]" print_jkind base
+          (print_list (fun ppf -> fprintf ppf "%s") (fun ppf -> fprintf ppf "@ "))
+          modes
+
 let print_out_jkind ppf = function
-  | Olay_const jkind -> fprintf ppf "%s" (Jkind.string_of_const jkind)
-  | Olay_var v     -> fprintf ppf "%s" v
+  | Ojkind_const { base; modal_bounds=[] } ->
+    fprintf ppf "%s" base
+  | Ojkind_const { base; modal_bounds=_::_ as modal_bounds } ->
+    print_jkind_with_modes ppf (fun ppf -> fprintf ppf "%s") base modal_bounds
+  | Ojkind_var v -> fprintf ppf "%s" v
+  | Ojkind_user jkind ->
+    let rec print_out_jkind_user ppf = function
+      | Ojkind_user_default -> fprintf ppf "_"
+      | Ojkind_user_abbreviation abbrev -> fprintf ppf "%s" abbrev
+      | Ojkind_user_mod (base, modes) ->
+        print_jkind_with_modes ppf print_out_jkind_user base modes
+      | Ojkind_user_with _ | Ojkind_user_kind_of _ ->
+        failwith "XXX unimplemented jkind syntax"
+    in
+    print_out_jkind_user ppf jkind
 
 let print_out_jkind_annot ppf = function
   | None -> ()
@@ -863,7 +881,7 @@ and print_out_sig_item ppf =
            | Orec_first -> "type"
            | Orec_next  -> "and")
           ppf td
-  | Osig_value { oval_name; oval_type;
+  | Osig_value { oval_name; oval_type; oval_modalities;
                  oval_prims; oval_attributes } ->
       let kwd = if oval_prims = [] then "val" else "external" in
       let pr_prims ppf =
@@ -873,8 +891,9 @@ and print_out_sig_item ppf =
             fprintf ppf "@ = \"%s\"" s;
             List.iter (fun s -> fprintf ppf "@ \"%s\"" s) sl
       in
-      fprintf ppf "@[<2>%s %a :@ %a%a%a@]" kwd value_ident oval_name
+      fprintf ppf "@[<2>%s %a :@ %a%a%a%a@]" kwd value_ident oval_name
         !out_type oval_type
+        print_out_modalities_new oval_modalities
         pr_prims oval_prims
         (fun ppf -> List.iter (fun a -> fprintf ppf "@ [@@@@%s]" a.oattr_name))
         oval_attributes

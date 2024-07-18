@@ -15,7 +15,7 @@
 
 (* Definition of test-result related types and functions *)
 
-type status = Pass | Skip | Fail
+type status = private Pass | Skip | Fail | Predicate of bool
 
 type t = {
   status : status;
@@ -29,6 +29,9 @@ val skip : t
 val fail : t
 
 val pass_with_reason : string -> t
+
+val predicate_satisfied_with_reason : string -> t
+val predicate_not_satisfied_with_reason : string -> t
 
 val skip_with_reason : string -> t
 

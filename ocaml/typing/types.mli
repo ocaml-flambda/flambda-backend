@@ -514,7 +514,7 @@ type type_declaration =
        be computed from the decl kind. This happens in
        Ctype.add_jkind_equation. *)
 
-    type_jkind_annotation: Jkind_types.annotation option;
+    type_jkind_annotation: type_expr Jkind_types.annotation option;
     (* This is the jkind annotation written by the user. If the user did
     not write this declaration (because it's a synthesized declaration
     for an e.g. local abstract type or an inlined record), then this field
@@ -622,7 +622,7 @@ and label_declaration =
   {
     ld_id: Ident.t;
     ld_mutable: mutability;
-    ld_modalities: Mode.Modality.Value.t;
+    ld_modalities: Mode.Modality.Value.Const.t;
     ld_type: type_expr;
     ld_jkind : jkind;
     ld_loc: Location.t;
@@ -642,7 +642,7 @@ and constructor_declaration =
 
 and constructor_argument =
   {
-    ca_modalities: Mode.Modality.Value.t;
+    ca_modalities: Mode.Modality.Value.Const.t;
     ca_type: type_expr;
     ca_loc: Location.t;
   }
@@ -743,9 +743,10 @@ module type Wrapped = sig
 
   type value_description =
     { val_type: type_expr wrapped;                (* Type of the value *)
+      val_modalities: Mode.Modality.Value.t;      (* Modalities on the value *)
       val_kind: value_kind;
       val_loc: Location.t;
-      val_zero_alloc: Builtin_attributes.zero_alloc_attribute;
+      val_zero_alloc: Zero_alloc.t;
       val_attributes: Parsetree.attributes;
       val_uid: Uid.t;
     }
@@ -865,8 +866,9 @@ type label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutability;                (* Is this a mutable field? *)
-    lbl_modalities: Mode.Modality.Value.t; (* Modalities on the field *)
-    lbl_jkind : jkind;                (* Jkind of the argument *)
+    lbl_modalities: Mode.Modality.Value.Const.t;
+                                        (* Modalities on the field *)
+    lbl_jkind : jkind;                  (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in the type *)
     lbl_all: label_description array;   (* All the labels in this type *)

@@ -109,40 +109,45 @@ let compute_closure_types_inside_functions ~denv ~all_sets_of_closures
         let function_decls = Set_of_closures.function_decls set_of_closures in
         let all_function_slots_in_set =
           Function_slot.Map.mapi
-            (fun function_slot old_code_id ->
-              let code_or_metadata = DE.find_code_exn denv old_code_id in
-              let new_code_id =
-                (* The types of the functions involved should reference the
-                   _new_ code IDs (where such exist), so that direct recursive
-                   calls can be compiled straight to the new code. *)
-                if Code_or_metadata.code_present code_or_metadata
-                   && not
-                        (Code_metadata.stub
-                           (Code_or_metadata.code_metadata code_or_metadata))
-                then Code_id.Map.find old_code_id old_to_new_code_ids_all_sets
-                else old_code_id
-              in
-              let rec_info =
-                (* From inside their own bodies, every function in the set
-                   currently being defined has an unknown recursion depth *)
-                T.unknown K.rec_info
-              in
-              let code_metadata =
-                code_or_metadata |> Code_or_metadata.code_metadata
-              in
-              let absolute_history, _relative_history =
-                DE.inlining_history_tracker denv
-                |> Inlining_history.Tracker.fundecl
-                     ~dbg:(Code_metadata.dbg code_metadata)
-                     ~function_relative_history:
-                       (Code_metadata.relative_history code_metadata)
-                     ~name:(Function_slot.name function_slot)
-              in
-              Inlining_report.record_decision_at_function_definition
-                ~absolute_history ~code_metadata ~pass:Before_simplify
-                ~are_rebuilding_terms:(DE.are_rebuilding_terms denv)
-                (Code_metadata.inlining_decision code_metadata);
-              function_decl_type old_code_id ~new_code_id ~rec_info)
+            (fun function_slot
+                 (old_code_id :
+                   Function_declarations.code_id_in_function_declaration) ->
+              match old_code_id with
+              | Deleted _ -> Or_unknown_or_bottom.Unknown
+              | Code_id old_code_id ->
+                let code_or_metadata = DE.find_code_exn denv old_code_id in
+                let new_code_id =
+                  (* The types of the functions involved should reference the
+                     _new_ code IDs (where such exist), so that direct recursive
+                     calls can be compiled straight to the new code. *)
+                  if Code_or_metadata.code_present code_or_metadata
+                     && not
+                          (Code_metadata.stub
+                             (Code_or_metadata.code_metadata code_or_metadata))
+                  then Code_id.Map.find old_code_id old_to_new_code_ids_all_sets
+                  else old_code_id
+                in
+                let rec_info =
+                  (* From inside their own bodies, every function in the set
+                     currently being defined has an unknown recursion depth *)
+                  T.unknown K.rec_info
+                in
+                let code_metadata =
+                  code_or_metadata |> Code_or_metadata.code_metadata
+                in
+                let absolute_history, _relative_history =
+                  DE.inlining_history_tracker denv
+                  |> Inlining_history.Tracker.fundecl
+                       ~dbg:(Code_metadata.dbg code_metadata)
+                       ~function_relative_history:
+                         (Code_metadata.relative_history code_metadata)
+                       ~name:(Function_slot.name function_slot)
+                in
+                Inlining_report.record_decision_at_function_definition
+                  ~absolute_history ~code_metadata ~pass:Before_simplify
+                  ~are_rebuilding_terms:(DE.are_rebuilding_terms denv)
+                  (Code_metadata.inlining_decision code_metadata);
+                function_decl_type old_code_id ~new_code_id ~rec_info)
             (Function_declarations.funs function_decls)
         in
         Function_slot.Map.mapi
@@ -206,18 +211,25 @@ let compute_old_to_new_code_ids_all_sets denv ~all_sets_of_closures =
     (fun old_to_new_code_ids_all_sets set_of_closures ->
       let function_decls = Set_of_closures.function_decls set_of_closures in
       Function_slot.Map.fold
-        (fun _ old_code_id old_to_new_code_ids ->
-          let code =
-            try DE.find_code_exn denv old_code_id
-            with Not_found ->
-              Misc.fatal_errorf "Missing code for %a" Code_id.print old_code_id
-          in
-          if Code_or_metadata.code_present code
-             && not (Code_metadata.stub (Code_or_metadata.code_metadata code))
-          then
-            let new_code_id = Code_id.rename old_code_id in
-            Code_id.Map.add old_code_id new_code_id old_to_new_code_ids
-          else old_to_new_code_ids)
+        (fun _
+             (old_code_id :
+               Function_declarations.code_id_in_function_declaration)
+             old_to_new_code_ids ->
+          match old_code_id with
+          | Deleted _ -> old_to_new_code_ids
+          | Code_id old_code_id ->
+            let code =
+              try DE.find_code_exn denv old_code_id
+              with Not_found ->
+                Misc.fatal_errorf "Missing code for %a" Code_id.print
+                  old_code_id
+            in
+            if Code_or_metadata.code_present code
+               && not (Code_metadata.stub (Code_or_metadata.code_metadata code))
+            then
+              let new_code_id = Code_id.rename old_code_id in
+              Code_id.Map.add old_code_id new_code_id old_to_new_code_ids
+            else old_to_new_code_ids)
         (Function_declarations.funs function_decls)
         old_to_new_code_ids_all_sets)
     Code_id.Map.empty all_sets_of_closures

@@ -273,7 +273,9 @@ let rec subkind : Fexpr.subkind -> Flambda_kind.With_subkind.Subkind.t =
     let non_consts =
       non_consts
       |> List.map (fun (tag, sk) ->
-             tag_scannable tag, List.map value_kind_with_subkind sk)
+             ( tag_scannable tag,
+               ( Flambda_kind.Block_shape.Value_only,
+                 List.map value_kind_with_subkind sk ) ))
       |> Tag.Scannable.Map.of_list
     in
     Variant { consts; non_consts }
@@ -439,14 +441,6 @@ let block_access_kind (ak : Fexpr.block_access_kind) :
   | Naked_floats { size = s } ->
     let size = size s in
     Naked_floats { size }
-  | Mixed { tag; size = s; field_kind } ->
-    let tag : Tag.Scannable.t Or_unknown.t =
-      match tag with
-      | Some tag -> Known (tag |> tag_scannable)
-      | None -> Unknown
-    in
-    let s = size s in
-    Mixed { tag; size = s; field_kind }
 
 let binop (binop : Fexpr.binop) : Flambda_primitive.binary_primitive =
   match binop with
@@ -531,7 +525,11 @@ let set_of_closures env fun_decls value_slots alloc =
       function_slot, code_id
     in
     List.map translate_fun_decl fun_decls
-    |> Function_slot.Lmap.of_list |> Function_declarations.create
+    |> Function_slot.Lmap.of_list
+    |> Function_slot.Lmap.map
+         (fun code_id : Function_declarations.code_id_in_function_declaration ->
+           Code_id code_id)
+    |> Function_declarations.create
   in
   let value_slots = Option.value value_slots ~default:[] in
   let value_slots : Simple.t Value_slot.Map.t =
@@ -931,7 +929,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~first_complex_local_param:(Flambda_arity.num_params params_arity)
             ~result_arity ~result_types:Unknown ~result_mode
             ~contains_no_escaping_local_allocs:false ~stub:false ~inline
-            ~zero_alloc_attribute:Default_check
+            ~zero_alloc_attribute:Default_zero_alloc
               (* CR gyorsh: should [check] be set properly? *)
             ~is_a_functor:false ~is_opaque:false ~recursive
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)

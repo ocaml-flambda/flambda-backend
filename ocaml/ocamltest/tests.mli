@@ -24,6 +24,8 @@ type t = {
 
 val null : t
 
+val does_nothing : t
+
 val compare : t -> t -> int
 
 val register : t -> unit

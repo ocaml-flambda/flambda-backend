@@ -143,6 +143,10 @@ module Stdlib : sig
     (** [map_sharing f l] is [map f l]. If for all elements of the list
         [f e == e] then [map_sharing f l == l] *)
 
+    val fold_lefti : (int -> 'a -> 'b -> 'a) -> 'a -> 'b list -> 'a
+    (** [fold_lefti f init l] is like [fold_left] but also takes as parameter
+        the zero-based index of the element *)
+
     val chunks_of : int -> 'a t -> 'a t t
     (** [chunks_of n t] returns a list of nonempty lists whose
         concatenation is equal to the original list. Every list has [n]
@@ -647,6 +651,10 @@ val output_of_print :
 (** [output_of_print print] produces an output function from a pretty printer.
     Note that naively using [Format.formatter_of_out_channel] typechecks but
     doesn't work because it fails to flush the formatter. *)
+
+val is_print_longer_than: int -> (Format.formatter -> unit) -> bool
+(** Returns [true] if the printed string is longer than the given integer. Stops
+    early if so. Spaces and newlines are counted, but indentation is not. *)
 
 val to_string_of_print :
   (Format.formatter -> 'a -> unit) -> 'a -> string

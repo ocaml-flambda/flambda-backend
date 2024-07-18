@@ -105,9 +105,11 @@ Error: This value escapes its region.
 let u =
     let obj = new cla in
     portable_use obj#m
-(* CR zqian: this should fail. *)
 [%%expect{|
-val u : unit = ()
+Line 3, characters 17-22:
+3 |     portable_use obj#m
+                     ^^^^^
+Error: This value is nonportable but expected to be portable.
 |}]
 
 (* for methods, arguments can be of any modes *)
@@ -135,9 +137,11 @@ Error: This value is nonportable but expected to be portable.
 let u =
     let foo () = new cla in
     portable_use foo
-(* CR zqian: this should fail. *)
 [%%expect{|
-val u : unit = ()
+Line 3, characters 17-20:
+3 |     portable_use foo
+                     ^^^
+Error: This value is nonportable but expected to be portable.
 |}]
 
 module type SC = sig
@@ -162,7 +166,31 @@ val u : unit = ()
 let u =
     let obj = new cla in
     portable_use obj
-(* CR zqian: this should fail. *)
 [%%expect{|
-val u : unit = ()
+Line 3, characters 17-20:
+3 |     portable_use obj
+                     ^^^
+Error: This value is nonportable but expected to be portable.
+|}]
+
+let foo () =
+    let x = object end in
+    portable_use x
+[%%expect{|
+Line 3, characters 17-18:
+3 |     portable_use x
+                     ^
+Error: This value is nonportable but expected to be portable.
+|}]
+
+class cla = object
+    method m =
+        let o = {< >} in
+        portable_use o
+end
+[%%expect{|
+Line 4, characters 21-22:
+4 |         portable_use o
+                         ^
+Error: This value is nonportable but expected to be portable.
 |}]

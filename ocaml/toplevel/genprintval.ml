@@ -250,14 +250,16 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | Print_as of string (* can't print *)
 
     let get_and_default_jkind_for_printing jkind =
-      match Jkind.get_default_value jkind with
-      (* CR layouts v3.0: [Value] should probably require special
+      let const = Jkind.default_to_value_and_get jkind in
+      let legacy_layout = Jkind.Const.get_legacy_layout const in
+      match legacy_layout with
+      (* CR layouts v3.0: [Value_or_null] should probably require special
          printing to avoid descending into NULL. (This module uses
          lots of unsafe Obj features.)
       *)
-      | Immediate64 | Immediate | Value -> Print_as_value
+      | Immediate64 | Immediate | Value | Value_or_null -> Print_as_value
       | Void -> Print_as "<void>"
-      | Any -> Print_as "<any>"
+      | Any | Any_non_null -> Print_as "<any>"
       | Float64 | Float32 | Bits32 | Bits64 | Word -> Print_as "<abstr>"
 
     let outval_of_value max_steps max_depth check_depth env obj ty =
@@ -618,25 +620,28 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       tree_list start ty_list
 
       and tree_of_generic_array am depth obj ty_arg =
-        let oval elts = Oval_array (elts, am) in
-        let length = O.size obj in
-        if length > 0 then
-          match check_depth depth obj ty with
-            Some x -> x
-          | None ->
-              let rec tree_of_items tree_list i =
-                if !printer_steps < 0 || depth < 0 then
-                  Oval_ellipsis :: tree_list
-                else if i < length then
-                  let tree =
-                    nest tree_of_val (depth - 1) (O.field obj i) ty_arg
-                  in
-                  tree_of_items (tree :: tree_list) (i + 1)
-                else tree_list
-              in
-              oval (List.rev (tree_of_items [] 0))
+        if O.tag obj = Obj.custom_tag then
+          Oval_stuff "<abstr array>"
         else
-          oval []
+          let oval elts = Oval_array (elts, am) in
+          let length = O.size obj in
+          if length > 0 then
+            match check_depth depth obj ty with
+              Some x -> x
+            | None ->
+                let rec tree_of_items tree_list i =
+                  if !printer_steps < 0 || depth < 0 then
+                    Oval_ellipsis :: tree_list
+                  else if i < length then
+                    let tree =
+                      nest tree_of_val (depth - 1) (O.field obj i) ty_arg
+                    in
+                    tree_of_items (tree :: tree_list) (i + 1)
+                  else tree_list
+                in
+                oval (List.rev (tree_of_items [] 0))
+          else
+            oval []
 
       and tree_of_constr_with_args
              tree_of_cstr cstr_name inlined start depth obj ty_args unboxed =

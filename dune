@@ -167,6 +167,7 @@
   cfg_to_linear_desc
   cfg_cse
   cfg_stack_checks
+  cfg_polling
   eliminate_dead_code
   disconnect_block
   eliminate_dead_blocks
@@ -176,7 +177,6 @@
   label
   linear_utils
   simplify_terminator
-  cfg_equivalence
   ;; backend/regalloc
   regalloc_gi
   regalloc_gi_state

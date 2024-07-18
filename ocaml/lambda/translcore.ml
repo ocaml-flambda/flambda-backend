@@ -54,7 +54,7 @@ let layout_exp sort e = layout e.exp_env e.exp_loc sort e.exp_type
 let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
 
 let check_record_field_sort loc sort =
-  match Jkind.Sort.get_default_value sort with
+  match Jkind.Sort.default_to_value_and_get sort with
   | Value | Float64 | Float32 | Bits32 | Bits64 | Word -> ()
   | Void -> raise (Error (loc, Illegal_void_record_field))
 
@@ -350,6 +350,38 @@ let can_apply_primitive p pmode pos args =
     end
   end
 
+let zero_alloc_of_application
+      ~num_args (annotation : Zero_alloc.assume option) funct =
+  match annotation, funct.exp_desc with
+  | Some assume, _ ->
+    (* The user wrote a zero_alloc attribute on the application - keep it. *)
+    Builtin_attributes.assume_zero_alloc assume
+  | None, Texp_ident (_, _, { val_zero_alloc; _ }, _, _) ->
+    (* We assume the call is zero_alloc if the function is known to be
+       zero_alloc. If the function is zero_alloc opt, then we need to be sure
+       that the opt checks were run to license this assumption. We judge
+       whether the opt checks were run based on the argument to the
+       [-zero-alloc-check] command line flag. *)
+    let use_opt =
+      match !Clflags.zero_alloc_check with
+      | Check_default | No_check -> false
+      | Check_all | Check_opt_only -> true
+    in
+    begin match Zero_alloc.get val_zero_alloc with
+    | Check c when c.arity = num_args && (use_opt || not c.opt) ->
+      let assume : Zero_alloc.assume =
+        { strict = c.strict;
+          never_returns_normally = false;
+          never_raises = false;
+          arity = c.arity;
+          loc = c.loc }
+      in
+      Builtin_attributes.assume_zero_alloc assume
+    | Check _ | Default_zero_alloc | Ignore_assert_all | Assume _ ->
+      Zero_alloc_utils.Assume_info.none
+    end
+  | None, _ -> Zero_alloc_utils.Assume_info.none
+
 let rec transl_exp ~scopes sort e =
   transl_exp1 ~scopes ~in_new_scope:false sort e
 
@@ -387,7 +419,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim (pmode, psort), _);
                  exp_type = prim_type; } as funct,
-               oargs, pos, ap_mode, assume_zero_alloc)
+               oargs, pos, ap_mode, zero_alloc)
     when can_apply_primitive p pmode pos oargs ->
       let rec cut_args prim_repr oargs =
         match prim_repr, oargs with
@@ -408,6 +440,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let position =
         if extra_args = [] then transl_apply_position pos
         else Rc_normal
+      in
+      let assume_zero_alloc =
+        match zero_alloc with
+        | None -> Zero_alloc_utils.Assume_info.none
+        | Some assume -> Builtin_attributes.assume_zero_alloc assume
       in
       let lam =
         let loc =
@@ -433,7 +470,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
              ~position ~mode
              ~result_layout lam extra_args (of_location ~scopes e.exp_loc))
       end
-  | Texp_apply(funct, oargs, position, ap_mode, assume_zero_alloc)
+  | Texp_apply(funct, oargs, position, ap_mode, zero_alloc)
     ->
       let tailcall = Translattribute.get_tailcall_attribute funct in
       let inlined = Translattribute.get_inlined_attribute funct in
@@ -441,6 +478,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let result_layout = layout_exp sort e in
       let position = transl_apply_position position in
       let mode = transl_locality_mode_l ap_mode in
+      let assume_zero_alloc =
+        zero_alloc_of_application ~num_args:(List.length oargs) zero_alloc funct
+      in
       event_after ~scopes e
         (transl_apply ~scopes ~tailcall ~inlined ~specialised
            ~assume_zero_alloc
@@ -623,7 +663,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
               in
               Mread_flat_suffix flat_read
           in
-          Lprim (Pmixedfield (lbl.lbl_pos, read, sem), [targ],
+          let shape : Lambda.mixed_block_shape =
+            { value_prefix_len; flat_suffix }
+          in
+          Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [targ],
                   of_location ~scopes e.exp_loc)
       end
   | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
@@ -655,7 +698,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
               let flat_element = flat_suffix.(lbl.lbl_num - value_prefix_len) in
               Mwrite_flat_suffix flat_element
            in
-           Psetmixedfield(lbl.lbl_pos, write, mode)
+           let shape : Lambda.mixed_block_shape =
+             { value_prefix_len; flat_suffix }
+           in
+           Psetmixedfield(lbl.lbl_pos, write, shape, mode)
         end
       in
       Lprim(access, [transl_exp ~scopes Jkind.Sort.for_record arg;
@@ -1016,7 +1062,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             match
               Ctype.check_type_jkind
                 e.exp_env (Ctype.correct_levels val_type)
-                (Jkind.value ~why:Probe)
+                (Jkind.Primitive.value ~why:Probe)
             with
             | Ok _ -> ()
             | Error _ -> raise (Error (e.exp_loc, Bad_probe_layout id))
@@ -1573,8 +1619,13 @@ and transl_function ~in_new_scope ~scopes e params body
       ~zero_alloc =
   let attrs = e.exp_attributes in
   let mode = transl_alloc_mode_r alloc_mode in
+  let zero_alloc = Zero_alloc.get zero_alloc in
   let assume_zero_alloc =
-    Builtin_attributes.assume_zero_alloc ~is_check_allowed:true zero_alloc
+    match zero_alloc with
+    | Default_zero_alloc | Check _ | Ignore_assert_all ->
+      Zero_alloc_utils.Assume_info.none
+    | Assume assume ->
+      Builtin_attributes.assume_zero_alloc assume
   in
   let scopes =
     if in_new_scope then
@@ -1601,6 +1652,21 @@ and transl_function ~in_new_scope ~scopes e params body
          transl_function_without_attributes
            ~mode ~return_sort ~return_mode
            ~scopes e.exp_loc repr ~region params body)
+  in
+  let zero_alloc : Lambda.zero_alloc_attribute =
+    match (zero_alloc : Builtin_attributes.zero_alloc_attribute) with
+    | Default_zero_alloc ->
+      if !Clflags.zero_alloc_check_assert_all &&
+         Builtin_attributes.is_zero_alloc_check_enabled ~opt:false
+      then Check { strict = false; loc = e.exp_loc }
+      else Default_zero_alloc
+    | Check { strict; opt; arity = _; loc } ->
+      if Builtin_attributes.is_zero_alloc_check_enabled ~opt
+      then Check { strict; loc }
+      else Default_zero_alloc
+    | Assume { strict; never_returns_normally; never_raises; loc; arity = _; } ->
+      Assume { strict; never_returns_normally; never_raises; loc }
+    | Ignore_assert_all -> Default_zero_alloc
   in
   let attr =
     { function_attribute_disallowing_arity_fusion with zero_alloc }
@@ -1743,7 +1809,10 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                       in
                       Mread_flat_suffix read
                    in
-                   Pmixedfield (i, read, sem)
+                   let shape : Lambda.mixed_block_shape =
+                     { value_prefix_len; flat_suffix }
+                   in
+                   Pmixedfield (i, read, shape, sem)
                in
                Lprim(access, [Lvar init_id],
                      of_location ~scopes loc),
@@ -1848,8 +1917,11 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                     in
                     Mwrite_flat_suffix flat_element
                 in
+                let shape : Lambda.mixed_block_shape =
+                  { value_prefix_len; flat_suffix }
+                in
                 Psetmixedfield
-                  (lbl.lbl_pos, write, Assignment modify_heap)
+                  (lbl.lbl_pos, write, shape, Assignment modify_heap)
               end
           in
           Lsequence(Lprim(upd, [Lvar copy_id;
