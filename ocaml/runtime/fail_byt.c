@@ -36,21 +36,9 @@ CAMLexport void caml_raise(value v)
   Caml_check_caml_state();
   CAMLassert(!Is_exception_result(v));
 
-<<<<<<< HEAD
-  v = caml_process_pending_actions_with_root(v);
-||||||| 121bedcfd2
-  // avoid calling caml_raise recursively
-  v = caml_process_pending_actions_with_root_exn(v);
-  if (Is_exception_result(v))
-    v = Extract_exception(v);
-=======
   caml_channel_cleanup_on_raise();
 
-  // avoid calling caml_raise recursively
-  v = caml_process_pending_actions_with_root_exn(v);
-  if (Is_exception_result(v))
-    v = Extract_exception(v);
->>>>>>> 5.2.0
+  v = caml_process_pending_actions_with_root(v);
 
   if (Caml_state->external_raise == NULL) {
     caml_terminate_signals();
@@ -66,7 +54,7 @@ CAMLexport void caml_raise(value v)
 CAMLexport void caml_raise_async(value v)
 {
   Caml_check_caml_state();
-  Unlock_exn();
+  caml_channel_cleanup_on_raise();
   CAMLassert(!Is_exception_result(v));
 
   if (Stack_parent(Caml_state->current_stack) != NULL) {

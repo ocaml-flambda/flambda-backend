@@ -109,17 +109,7 @@ CAMLprim value caml_gc_counters(value v)
   CAMLlocal1 (res);
 
   /* get a copy of these before allocating anything... */
-<<<<<<< HEAD
-  double minwords = Caml_state->stat_minor_words
-    + (double) Wsize_bsize ((uintnat)Caml_state->young_end -
-        (uintnat) Caml_state->young_ptr);
-||||||| 121bedcfd2
-  double minwords = Caml_state->stat_minor_words
-    + ((double) Wsize_bsize ((uintnat)Caml_state->young_end -
-        (uintnat) Caml_state->young_ptr)) / sizeof(value);
-=======
   double minwords = caml_gc_minor_words_unboxed();
->>>>>>> 5.2.0
   double prowords = Caml_state->stat_promoted_words;
   double majwords = Caml_state->stat_major_words +
                     (double) Caml_state->allocated_words;
@@ -263,13 +253,7 @@ CAMLprim value caml_gc_major(value v)
 {
   Caml_check_caml_state();
   CAMLassert (v == Val_unit);
-<<<<<<< HEAD
   return caml_raise_async_if_exception(gc_major_exn (0), "");
-||||||| 121bedcfd2
-  return caml_raise_if_exception(gc_major_exn());
-=======
-  return caml_raise_if_exception(gc_major_exn(0));
->>>>>>> 5.2.0
 }
 
 static value gc_full_major_exn(int force_compaction)
@@ -281,15 +265,8 @@ static value gc_full_major_exn(int force_compaction)
   /* In general, it can require up to 3 GC cycles for a
      currently-unreachable object to be collected. */
   for (i = 0; i < 3; i++) {
-<<<<<<< HEAD
     caml_empty_minor_heaps_once();
     caml_finish_major_cycle(force_compaction && i == 2);
-||||||| 121bedcfd2
-    caml_empty_minor_heaps_once();
-    caml_finish_major_cycle();
-=======
-    caml_finish_major_cycle(0);
->>>>>>> 5.2.0
     exn = caml_process_pending_actions_exn();
     if (Is_exception_result(exn)) break;
   }
@@ -320,31 +297,9 @@ CAMLprim value caml_gc_compaction(value v)
   Caml_check_caml_state();
   CAML_EV_BEGIN(EV_EXPLICIT_GC_COMPACT);
   CAMLassert (v == Val_unit);
-<<<<<<< HEAD
   value exn = gc_full_major_exn(1);
-||||||| 121bedcfd2
-  exn = gc_major_exn();
-  ++ Caml_state->stat_forced_major_collections;
-=======
-  value exn = Val_unit;
-  int i;
-  /* We do a full major before this compaction. See [caml_full_major_exn] for
-     why this needs three iterations. */
-  for (i = 0; i < 3; i++) {
-    caml_finish_major_cycle(i == 2);
-    exn = caml_process_pending_actions_exn();
-    if (Is_exception_result(exn)) break;
-  }
-  ++ Caml_state->stat_forced_major_collections;
->>>>>>> 5.2.0
   CAML_EV_END(EV_EXPLICIT_GC_COMPACT);
-<<<<<<< HEAD
   return caml_raise_async_if_exception(exn, "");
-||||||| 121bedcfd2
-  return exn;
-=======
-  return caml_raise_if_exception(exn);
->>>>>>> 5.2.0
 }
 
 CAMLprim value caml_gc_stat(value v)

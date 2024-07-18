@@ -178,6 +178,7 @@ static void runtime_events_teardown_from_stw_single(int remove_file) {
     current_metadata = NULL;
 
     atomic_store_release(&runtime_events_enabled, 0);
+    atomic_store_release(&runtime_events_enabled, 0);
 }
 
 /* Stop-the-world which calls the teardown code */
@@ -415,30 +416,14 @@ static void stw_create_runtime_events(
   caml_global_barrier();
 }
 
-<<<<<<< HEAD
-CAMLprim value caml_runtime_events_start(void) {
-  while (!atomic_load_acquire(&runtime_events_enabled)) {
-||||||| 121bedcfd2
-CAMLprim value caml_runtime_events_start(void) {
-  while (!atomic_load_acq(&runtime_events_enabled)) {
-=======
 CAMLexport void caml_runtime_events_start(void) {
   while (!atomic_load_acquire(&runtime_events_enabled)) {
->>>>>>> 5.2.0
     caml_try_run_on_all_domains(&stw_create_runtime_events, NULL, NULL);
   }
 }
 
-<<<<<<< HEAD
-CAMLprim value caml_runtime_events_pause(void) {
-  if (!atomic_load_acquire(&runtime_events_enabled)) return Val_unit;
-||||||| 121bedcfd2
-CAMLprim value caml_runtime_events_pause(void) {
-  if (!atomic_load_acq(&runtime_events_enabled)) return Val_unit;
-=======
 CAMLexport void caml_runtime_events_pause(void) {
   if (!atomic_load_acquire(&runtime_events_enabled)) return;
->>>>>>> 5.2.0
 
   uintnat not_paused = 0;
 
@@ -447,16 +432,8 @@ CAMLexport void caml_runtime_events_pause(void) {
   }
 }
 
-<<<<<<< HEAD
-CAMLprim value caml_runtime_events_resume(void) {
-  if (!atomic_load_acquire(&runtime_events_enabled)) return Val_unit;
-||||||| 121bedcfd2
-CAMLprim value caml_runtime_events_resume(void) {
-  if (!atomic_load_acq(&runtime_events_enabled)) return Val_unit;
-=======
 CAMLexport void caml_runtime_events_resume(void) {
   if (!atomic_load_acquire(&runtime_events_enabled)) return;
->>>>>>> 5.2.0
 
   uintnat paused = 1;
 
@@ -599,22 +576,6 @@ static void write_to_ring(ev_category category, ev_message_type type,
 
 /* Functions for putting runtime data on to the runtime_events */
 
-<<<<<<< HEAD
-static inline int ring_is_active(void) {
-    return
-      atomic_load_relaxed(&runtime_events_enabled)
-      && !atomic_load_relaxed(&runtime_events_paused);
-}
-
-||||||| 121bedcfd2
-static inline int ring_is_active(void) {
-    return
-      atomic_load_explicit(&runtime_events_enabled, memory_order_relaxed)
-      && !atomic_load_explicit(&runtime_events_paused, memory_order_relaxed);
-}
-
-=======
->>>>>>> 5.2.0
 void caml_ev_begin(ev_runtime_phase phase) {
   if ( ring_is_active() ) {
     write_to_ring(EV_RUNTIME, (ev_message_type){.runtime=EV_BEGIN}, phase, 0,
