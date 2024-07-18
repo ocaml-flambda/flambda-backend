@@ -510,6 +510,19 @@ module Layouts : sig
     (Jkind.annotation * Parsetree.attributes) option
 end
 
+module Instances : sig
+  (** The name of an instance module. Gets converted to [Global.Name.t] in the
+      flambda-backend compiler. *)
+  type instance =
+    { head : string;
+      args : (instance * instance) list
+    }
+
+  type module_expr = Imod_instance of instance
+
+  val module_expr_of : loc:Location.t -> module_expr -> Parsetree.module_expr
+end
+
 (******************************************)
 (* General facility, which we export *)
 
@@ -695,4 +708,11 @@ module Extension_constructor : sig
     ?docs:Docstrings.docs ->
     t ->
     Parsetree.extension_constructor
+end
+
+(** Novel syntax in module expressions *)
+module Module_expr : sig
+  type t = Emod_instance of Instances.module_expr
+
+  include AST with type t := t and type ast := Parsetree.module_expr
 end

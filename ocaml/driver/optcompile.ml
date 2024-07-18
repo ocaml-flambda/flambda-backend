@@ -24,7 +24,9 @@ let with_info =
   Compile_common.with_info ~native:true ~tool_name
 
 let interface ~source_file ~output_prefix =
-  with_info ~source_file ~output_prefix ~dump_ext:"cmi" @@ fun info ->
+  with_info ~source_file ~output_prefix ~dump_ext:"cmi"
+    ~compilation_unit:Inferred_from_output_prefix
+  @@ fun info ->
   Compile_common.interface
     ~hook_parse_tree:(fun _ -> ())
     ~hook_typed_tree:(fun _ -> ())
@@ -33,13 +35,19 @@ let interface ~source_file ~output_prefix =
 (** Native compilation backend for .ml files. *)
 
 let compile i ~backend ~middle_end ~transl_style
-      Typedtree.{structure; coercion; _} =
-  (structure, coercion)
+      Typedtree.{structure; coercion; argument_interface} =
+  let argument_coercion =
+    match argument_interface with
+    | Some { ai_coercion_from_primary; ai_signature = _ } ->
+      Some ai_coercion_from_primary
+    | None -> None
+  in
+  (structure, coercion, argument_coercion)
   |> Profile.(record transl)
     (Translmod.transl_implementation i.module_name ~style:transl_style)
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Profile.(record generate)
-    (fun program ->
+    (fun (program : Lambda.program) ->
        Builtin_attributes.warn_unused ();
        let code = Simplif.simplify_lambda program.Lambda.code in
        { program with Lambda.code }
@@ -52,7 +60,8 @@ let compile i ~backend ~middle_end ~transl_style
             ~middle_end
             ~ppf_dump:i.ppf_dump
             lambda;
-       Compilenv.save_unit_info (cmx i)))
+          Compilenv.save_unit_info (cmx i)
+            ~arg_block_field:program.arg_block_field))
 
 let flambda i backend typed =
   compile i typed ~backend ~transl_style:Plain_block

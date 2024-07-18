@@ -57,6 +57,7 @@ val type_open_:
 val modtype_of_package:
         Env.t -> Location.t ->
         Path.t -> (Longident.t * type_expr) list -> module_type
+val type_instance : Env.t -> Compilation_unit.t -> Typedtree.module_coercion
 
 val path_of_module : Typedtree.module_expr -> Path.t option
 
@@ -154,13 +155,14 @@ type error =
   | Compiling_as_parameterised_parameter
   | Cannot_compile_implementation_as_parameter
   | Cannot_implement_parameter of Compilation_unit.Name.t * Misc.filepath
-  | Argument_for_non_parameter of Compilation_unit.Name.t * Misc.filepath
-  | Cannot_find_argument_type of Compilation_unit.Name.t
+  | Argument_for_non_parameter of Global_module.Name.t * Misc.filepath
+  | Cannot_find_argument_type of Global_module.Name.t
   | Inconsistent_argument_types of {
-      new_arg_type: Compilation_unit.Name.t option;
-      old_arg_type: Compilation_unit.Name.t option;
+      new_arg_type: Global_module.Name.t option;
+      old_arg_type: Global_module.Name.t option;
       old_source_file: Misc.filepath;
     }
+  | Duplicate_parameter_name of Global_module.Name.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

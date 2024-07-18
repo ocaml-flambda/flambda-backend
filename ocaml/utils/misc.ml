@@ -207,6 +207,29 @@ module Stdlib = struct
           }
       in
       find_prefix ~longest_common_prefix_rev:[] first second
+
+    let [@inline] merge_iter ~cmp ~left_only ~right_only ~both t1 t2 =
+      let rec loop t1 t2 =
+        match t1, t2 with
+        | [], [] -> ()
+        | a :: t1', [] -> left_only a; loop t1' []
+        | [], b :: t2' -> right_only b; loop [] t2'
+        | a :: t1', b :: t2' ->
+            match cmp a b with
+            | 0 -> both a b; loop t1' t2'
+            | c when c < 0 -> left_only a; loop t1' t2
+            | _ -> right_only b; loop t1 t2'
+      in
+      loop t1 t2
+
+    let [@inline] merge_map ~cmp ~left_only ~right_only ~both t1 t2 =
+      let acc_rev = ref [] in
+      let add c = acc_rev := c :: !acc_rev in
+      merge_iter t1 t2 ~cmp
+        ~left_only:(fun a -> add (left_only a))
+        ~right_only:(fun b -> add (right_only b))
+        ~both:(fun a b -> add (both a b));
+      List.rev !acc_rev
   end
 
   module Option = struct
@@ -1092,12 +1115,28 @@ let print_see_manual ppf manual_section =
 let output_of_print print =
   let output out_channel t =
     let ppf = Format.formatter_of_out_channel out_channel in
+    (* Effectively disable automatic wrapping because [Printf]-based code
+       doesn't expect it *)
+    Format.pp_set_margin ppf Int.max_int;
     print ppf t;
     (* Must flush the formatter immediately because it has a buffer separate
        from the output channel's buffer *)
     Format.pp_print_flush ppf ()
   in
   output
+
+
+let to_string_of_print print =
+  let to_string t =
+    (* Implemented similarly to [Format.asprintf] *)
+    let buf = Buffer.create 32 in
+    let ppf = Format.formatter_of_buffer buf in
+    Format.pp_set_margin ppf Int.max_int;
+    print ppf t;
+    Format.pp_print_flush ppf ();
+    Buffer.contents buf
+  in
+  to_string
 
 
 type filepath = string

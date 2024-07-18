@@ -23,7 +23,7 @@ type pers_flags =
 type kind =
   | Normal of {
       cmi_impl : Compilation_unit.t;
-      cmi_arg_for : Compilation_unit.Name.t option;
+      cmi_arg_for : Global_module.Name.t option;
     }
   | Parameter
 
@@ -63,15 +63,17 @@ type flags = pers_flags list
 type header = {
     header_name : Compilation_unit.Name.t;
     header_kind : kind;
+    header_globals : Global_module.t array;
     header_sign : Serialized.signature;
-    header_params : Compilation_unit.Name.t list;
+    header_params : Global_module.t list;
 }
 
 type 'sg cmi_infos_generic = {
     cmi_name : Compilation_unit.Name.t;
     cmi_kind : kind;
+    cmi_globals : Global_module.t array;
     cmi_sign : 'sg;
-    cmi_params : Compilation_unit.Name.t list;
+    cmi_params : Global_module.t list;
     cmi_crcs : crcs;
     cmi_flags : flags;
 }
@@ -125,6 +127,7 @@ let input_cmi_lazy ic =
   let {
       header_name = name;
       header_kind = kind;
+      header_globals = globals;
       header_sign = sign;
       header_params = params;
     } = (input_value ic : header) in
@@ -133,6 +136,7 @@ let input_cmi_lazy ic =
   {
       cmi_name = name;
       cmi_kind = kind;
+      cmi_globals = globals;
       cmi_sign = deserialize data sign;
       cmi_params = params;
       cmi_crcs = crcs;
@@ -194,6 +198,7 @@ let output_cmi filename oc cmi =
     {
       header_name = cmi.cmi_name;
       header_kind = cmi.cmi_kind;
+      header_globals = cmi.cmi_globals;
       header_sign = sign;
       header_params = cmi.cmi_params;
     };

@@ -13,6 +13,7 @@ type _ t =
   | SIMD : unit t
   | Labeled_tuples : unit t
   | Small_numbers : unit t
+  | Instances : unit t
 
 type 'a language_extension_kernel = 'a t
 
@@ -31,6 +32,7 @@ module Exist = struct
     ; Pack SIMD
     ; Pack Labeled_tuples
     ; Pack Small_numbers
+    ; Pack Instances
     ]
 end
 
@@ -51,6 +53,7 @@ let to_string : type a. a t -> string = function
   | SIMD -> "simd"
   | Labeled_tuples -> "labeled_tuples"
   | Small_numbers -> "small_numbers"
+  | Instances -> "instances"
 
 (* converts full extension names, like "layouts_alpha" to a pair of
    an extension and its maturity. For extensions that don't take an
@@ -71,6 +74,7 @@ let pair_of_string extn_name : Exist_pair.t option =
   | "simd" -> Some (Pair (SIMD, ()))
   | "labeled_tuples" -> Some (Pair (Labeled_tuples, ()))
   | "small_numbers" -> Some (Pair (Small_numbers, ()))
+  | "instances" -> Some (Pair (Instances, ()))
   | _ -> None
 
 let maturity_to_string = function
@@ -103,7 +107,8 @@ let is_erasable : type a. a t -> bool = function
   | Module_strengthening
   | SIMD
   | Labeled_tuples
-  | Small_numbers ->
+  | Small_numbers
+  | Instances ->
       false
 
 (* See the mli. *)

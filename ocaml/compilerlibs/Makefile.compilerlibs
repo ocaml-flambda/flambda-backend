@@ -50,6 +50,7 @@ UTILS = \
   utils/domainstate.cmo \
   utils/binutils.cmo \
   utils/target_system.cmo \
+  utils/global.cmo \
   typing/ident.cmo \
   utils/compilation_unit.cmo utils/linkage_name.cmo utils/symbol.cmo \
   utils/import_info.cmo \
@@ -97,6 +98,7 @@ TYPING = \
   typing/predef.cmo \
   typing/datarepr.cmo \
   file_formats/cmi_format.cmo \
+  typing/signature_with_global_bindings.cmo \
   typing/persistent_env.cmo \
   typing/env.cmo \
   typing/shape_reduce.cmo \
@@ -171,7 +173,8 @@ COMP = \
   driver/main_args.cmo \
   driver/compmisc.cmo \
   driver/makedepend.cmo \
-  driver/compile_common.cmo
+  driver/compile_common.cmo \
+  driver/instantiator.cmo
 COMP_CMI = \
   file_formats/cmo_format.cmi \
   file_formats/cmx_format.cmi \
@@ -193,6 +196,7 @@ BYTECOMP = \
   bytecomp/bytepackager.cmo \
   driver/errors.cmo \
   driver/compile.cmo \
+  bytecomp/byteinstantiator.cmo \
   driver/maindriver.cmo
 BYTECOMP_CMI =
 

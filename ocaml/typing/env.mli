@@ -47,7 +47,7 @@ type summary =
   | Env_value_unbound of summary * string * value_unbound_reason
   | Env_module_unbound of summary * string * module_unbound_reason
 
-type address =
+type address = Persistent_env.address =
   | Aunit of Compilation_unit.t
   | Alocal of Ident.t
   | Adot of address * int
@@ -265,6 +265,8 @@ val lookup_module_path:
   ?use:bool -> loc:Location.t -> load:bool -> Longident.t -> t -> Path.t
 val lookup_modtype_path:
   ?use:bool -> loc:Location.t -> Longident.t -> t -> Path.t
+val lookup_module_instance_path:
+  ?use:bool -> loc:Location.t -> load:bool -> Global_module.Name.t -> t -> Path.t
 
 val lookup_constructor:
   ?use:bool -> loc:Location.t -> constructor_usage -> Longident.t -> t ->
@@ -335,6 +337,14 @@ val bound_class: string -> t -> bool
 val bound_cltype: string -> t -> bool
 
 val make_copy_of_types: t -> (t -> t)
+
+(* Resolution of globals *)
+
+(* [global_of_instance_compilation_unit cu] checks that a compilation unit is a
+   complete instantiation - that is, that all of its parameters are filled by
+   arguments, and all of those arguments' parameters are filled, and so on -
+   and converts it into a global. *)
+val global_of_instance_compilation_unit : Compilation_unit.t -> Global_module.t
 
 (* Insertion by identifier *)
 
@@ -461,9 +471,9 @@ val reset_cache_toplevel: unit -> unit
 val set_unit_name: Compilation_unit.t option -> unit
 val get_unit_name: unit -> Compilation_unit.t option
 
-(* Read, save a signature to/from a file *)
+(* Read, save a signature to/from a file. *)
 val read_signature:
-  Compilation_unit.Name.t -> filepath -> add_binding:bool -> signature
+  Global_module.Name.t -> filepath -> add_binding:bool -> signature
         (* Arguments: module name, file name, [add_binding] flag.
            Results: signature. If [add_binding] is true, creates an entry for
            the module in the environment. *)
@@ -478,7 +488,7 @@ val save_signature_with_imports:
            file name, imported units with their CRCs. *)
 
 (* Register a module as a parameter to this unit. *)
-val register_parameter: Compilation_unit.Name.t -> unit
+val register_parameter: Global_module.Name.t -> unit
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
@@ -491,11 +501,11 @@ val import_crcs: source:string -> Import_info.t array -> unit
 
 (* Return the set of imports represented as runtime parameters (see
    [Persistent_env.runtime_parameters] for details) *)
-val runtime_parameters: unit -> (Compilation_unit.Name.t * Ident.t) list
+val runtime_parameters: unit -> (Global_module.t * Ident.t) list
 
 (* Return the list of parameters specified for the current unit, in
    alphabetical order *)
-val parameters: unit -> Compilation_unit.Name.t list
+val parameters: unit -> Global_module.Name.t list
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
 val is_imported_opaque: Compilation_unit.Name.t -> bool
@@ -505,12 +515,15 @@ val register_import_as_opaque: Compilation_unit.Name.t -> unit
 
 (* [is_parameter_unit md] returns true if [md] was compiled with
    -as-parameter *)
-val is_parameter_unit: Compilation_unit.Name.t -> bool
+val is_parameter_unit: Global_module.Name.t -> bool
 
 (* [implemented_parameter md] is the argument given to -as-argument-for when
    [md] was compiled *)
-val implemented_parameter:
-  Compilation_unit.Name.t -> Compilation_unit.Name.t option
+val implemented_parameter: Global_module.Name.t -> Global_module.Name.t option
+
+(* [is_imported_parameter md] is true if [md] has been imported and is a
+   parameter to this module *)
+val is_imported_parameter: Global_module.Name.t -> bool
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)
@@ -530,6 +543,7 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
+  | Incomplete_instantiation of { unset_param : Global_module.Name.t; }
 
 exception Error of error
 

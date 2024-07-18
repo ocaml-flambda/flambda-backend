@@ -35,10 +35,12 @@ type error =
 
 exception Error of error
 
+module Infos_table = Global.Name.Tbl
+
 let global_infos_table =
-  (CU.Name.Tbl.create 17 : unit_infos option CU.Name.Tbl.t)
+  (Infos_table.create 17 : unit_infos option Infos_table.t)
 let export_infos_table =
-  (CU.Name.Tbl.create 10 : Export_info.t CU.Name.Tbl.t)
+  (Infos_table.create 10 : Export_info.t Infos_table.t)
 
 let imported_sets_of_closures_table =
   (Set_of_closures_id.Tbl.create 10
@@ -83,8 +85,10 @@ let default_ui_export_info =
 let current_unit =
   { ui_unit = CU.dummy;
     ui_defines = [];
+    ui_arg_descr = None;
     ui_imports_cmi = [| |];
     ui_imports_cmx = [| |];
+    ui_runtime_params = [];
     ui_curry_fun = [];
     ui_apply_fun = [];
     ui_send_fun = [];
@@ -93,13 +97,15 @@ let current_unit =
     ui_for_pack = None }
 
 let reset compilation_unit =
-  CU.Name.Tbl.clear global_infos_table;
+  Infos_table.clear global_infos_table;
   Set_of_closures_id.Tbl.clear imported_sets_of_closures_table;
   CU.set_current (Some compilation_unit);
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
+  current_unit.ui_arg_descr <- None;
   current_unit.ui_imports_cmi <- [| |];
   current_unit.ui_imports_cmx <- [| |];
+  current_unit.ui_runtime_params <- [];
   current_unit.ui_curry_fun <- [];
   current_unit.ui_apply_fun <- [];
   current_unit.ui_send_fun <- [];
@@ -108,7 +114,7 @@ let reset compilation_unit =
   structured_constants := structured_constants_empty;
   current_unit.ui_export_info <- default_ui_export_info;
   merged_environment := Export_info.empty;
-  CU.Name.Tbl.clear export_infos_table
+  Infos_table.clear export_infos_table
 
 let current_unit_infos () =
   current_unit
@@ -140,6 +146,13 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
+let equal_args (name1, value1) (name2, value2) =
+  CU.equal name1 name2 && CU.equal value1 value2
+
+let equal_up_to_pack_prefix cu1 cu2 =
+  CU.Name.equal (CU.name cu1) (CU.name cu2)
+  && List.equal equal_args (CU.instance_arguments cu1) (CU.instance_arguments cu2)
+
 let get_unit_info comp_unit =
   (* If this fails, it likely means that someone didn't call
      [CU.which_cmx_file]. *)
@@ -147,20 +160,20 @@ let get_unit_info comp_unit =
   (* CR lmaurer: Surely this should just compare [comp_unit] to
      [current_unit.ui_unit], but doing so seems to break Closure. We should fix
      that. *)
-  if CU.Name.equal (CU.name comp_unit) (CU.name current_unit.ui_unit)
+  if equal_up_to_pack_prefix comp_unit current_unit.ui_unit
   then
     Some current_unit
   else begin
-    let cmx_name = CU.name comp_unit in
+    let name = CU.to_global_name_without_prefix comp_unit in
     try
-      CU.Name.Tbl.find global_infos_table cmx_name
+      Infos_table.find global_infos_table name
     with Not_found ->
       let (infos, crc) =
-        if Env.is_imported_opaque cmx_name then (None, None)
+        if Env.is_imported_opaque (CU.name comp_unit) then (None, None)
         else begin
           try
             let filename =
-              Load_path.find_uncap ((cmx_name |> CU.Name.to_string) ^ ".cmx") in
+              Load_path.find_uncap (CU.base_filename comp_unit ^ ".cmx") in
             let (ui, crc) = read_unit_info filename in
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
@@ -182,7 +195,7 @@ let get_unit_info comp_unit =
                         (filename, p1, CU.name current_unit.ui_unit, p2))));
             (Some ui, Some crc)
           with Not_found ->
-            let warn = Warnings.No_cmx_file (cmx_name |> CU.Name.to_string) in
+            let warn = Warnings.No_cmx_file (Global.Name.to_string name) in
               Location.prerr_warning Location.none warn;
               (None, None)
           end
@@ -190,7 +203,7 @@ let get_unit_info comp_unit =
       let import = Import_info.create_normal comp_unit ~crc in
       current_unit.ui_imports_cmx <-
         Array.append [| import |] current_unit.ui_imports_cmx;
-      CU.Name.Tbl.add global_infos_table cmx_name infos;
+      Infos_table.add global_infos_table name infos;
       infos
   end
 
@@ -201,7 +214,8 @@ let get_global_info global_ident =
   get_unit_info (which_cmx_file global_ident)
 
 let cache_unit_info ui =
-  CU.Name.Tbl.add global_infos_table (CU.name ui.ui_unit) (Some ui)
+  Infos_table.add global_infos_table
+    (ui.ui_unit |> CU.to_global_name_without_prefix) (Some ui)
 
 (* Return the approximation of a global identifier *)
 
@@ -248,15 +262,15 @@ let approx_for_global comp_unit =
   if CU.equal comp_unit CU.predef_exn
   then invalid_arg "approx_for_global with predef_exn compilation unit";
   let accessible_comp_unit = which_cmx_file comp_unit in
-  let cmx_name = CU.name accessible_comp_unit in
-  match CU.Name.Tbl.find export_infos_table cmx_name with
+  let name = accessible_comp_unit |> CU.to_global_name_without_prefix in
+  match Infos_table.find export_infos_table name with
   | otherwise -> Some otherwise
   | exception Not_found ->
     match get_unit_info accessible_comp_unit with
     | None -> None
     | Some ui ->
       let exported = get_flambda_export_info ui in
-      CU.Name.Tbl.add export_infos_table cmx_name exported;
+      Infos_table.add export_infos_table name exported;
       merged_environment := Export_info.merge !merged_environment exported;
       Some exported
 
@@ -291,8 +305,21 @@ let write_unit_info info filename =
   Digest.output oc crc;
   close_out oc
 
-let save_unit_info filename =
+let save_unit_info filename ~arg_block_field =
   current_unit.ui_imports_cmi <- Array.of_list (Env.imports());
+  current_unit.ui_arg_descr <-
+    begin match !Clflags.as_argument_for, arg_block_field with
+    | Some arg_param, Some arg_block_field ->
+      (* Currently, parameters don't have parameters, so we assume the argument
+          list is empty *)
+      let arg_param = Global.Name.create arg_param [] in
+      Some { arg_param; arg_block_field }
+    | None, None -> None
+    | Some _, None -> Misc.fatal_error "No argument block"
+    | None, Some _ -> Misc.fatal_error "Unexpected argument block"
+  end;
+  current_unit.ui_runtime_params <-
+    Env.locally_bound_imports () |> List.map fst;
   write_unit_info current_unit filename
 
 let snapshot () = !structured_constants

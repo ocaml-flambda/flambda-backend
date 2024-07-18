@@ -42,6 +42,10 @@ module Name : sig
 
   val to_string : t -> string
 
+  val of_head_of_global_name : Global_module.Name.t -> t
+
+  val to_global_name : t -> Global_module.Name.t
+
   (** The name of the distinguished compilation unit for predefined exceptions. *)
   val predef_exn : t
 end
@@ -94,6 +98,42 @@ val create : Prefix.t -> Name.t -> t
 (** Create a compilation unit contained by another. Effectively uses the
     parent compilation unit as the prefix. *)
 val create_child : t -> Name.t -> t
+
+(** Create a compilation unit that's an instantiation of another unit with
+    given arguments. The arguments will be sorted alphabetically by
+    parameter name. *)
+val create_instance : t -> (t * t) list -> t
+
+(** Create the compilation unit named by the given [Global_module.Name.t].
+    Usually only meaningful if the global name is a _complete instantiation_,
+    which is to say either (a) the named module has no parameters, or (b) there
+    is an argument for each parameter and each argument is itself a complete
+    instantiation. This ensures the name determines a compile-time constant, and
+    then the [t] returned here is the module corresponding to that constant.
+
+    The exception to the above is that a global name with _no_ arguments makes
+    sense even if the named module takes parameters, only in this case the [t]
+    refers to the module with the instantiating functor. This is only relevant
+    in two cases: when we're compiling the parameterised module itself, and
+    when we're instantiating it. *)
+val of_global_name : Global_module.Name.t -> t
+
+(** Convert the compilation unit to a [Global_module.Name.t], if possible (which
+    is to say, if its prefix is empty). *)
+val to_global_name : t -> Global_module.Name.t option
+
+(** Like [to_global_name] but throw a fatal error if there is a non-empty
+    prefix. *)
+val to_global_name_exn : t -> Global_module.Name.t
+
+(** Like [to_global_name] but succeed even when there is a pack prefix,
+    discarding the prefix in that case. *)
+val to_global_name_without_prefix : t -> Global_module.Name.t
+
+(** Create the compilation unit named by the given [Global_module.t]. Throws a
+    fatal error if the global is not a complete instantiation, which is to say,
+    if it has any hidden arguments at any depth. *)
+val of_complete_global_exn : Global_module.t -> t
 
 (** Create a compilation unit from the given [name]. No prefix is allowed;
     throws a fatal error if there is a "." in the name. (As a special case,
@@ -172,6 +212,14 @@ val name : t -> Name.t
    finished. *)
 val name_as_string : t -> string
 
+(** Whether the compilation unit is a name without any prefix or instance
+    arguments. *)
+val is_plain_name : t -> bool
+
+(** Whether the compilation unit has the given name and neither a prefix nor any
+    instance arguments. *)
+val equal_to_name : t -> Name.t -> bool
+
 (** The "-for-pack" prefix associated with the given compilation unit. *)
 val for_pack_prefix : t -> Prefix.t
 
@@ -190,9 +238,49 @@ val full_path : t -> Name.t list
     usual conventions. *)
 val full_path_as_string : t -> string
 
+(** Returns the string that should form the base of the .cmx/o file for this
+    unit. Usually just [name_as_string t] uncapitalized, but if there are
+    instance arguments, they're encoded in a Bash-friendly but otherwise
+    unspecified manner. *)
+val base_filename : t -> Misc.filepath
+
+(** Return a representation of the name as its prefix, its name, and its
+    arguments with nesting levels attached. Good for implementing horrible name
+    mangling and little else. So:
+
+      * [Foo] ==> [[], "Foo", []]
+      * [Foo[X:Bar]] ==> [[], "Foo", [(0, "X", "Bar")]]
+      * [Foo[X:Bar][Y:Baz]] ==> [[], "Foo", [(0, "X", "Bar"); (0, "Y", "Baz")]]
+      * [Foo[X:Bar[Y:Baz]]] ==> [[], "Foo", [(0, "X", "Bar"); (1, "Y", "Baz")]]
+
+    I believe it's possible to parse this form back to the usual nested form,
+    which one should only want to do in order to prove the encoding is
+    unambiguous.
+*)
+val flatten : t -> Prefix.t * Name.t * (int * Name.t * Name.t) list
+
+(** Returns the arguments in the compilation unit, if it is an instance, or
+    the empty list otherwise. *)
+val instance_arguments : t -> (t * t) list
+
+(** Returns [true] iff the given compilation unit is an instance (equivalent
+    to [instance_arguments t <> []]). *)
+val is_instance : t -> bool
+
+(** Returns the unit that was instantiated and the arguments it was given, if
+    this is an instance, throwing a fatal error otherwise. *)
+val split_instance_exn : t -> t * (t * t) list
+
 type error = private
   | Invalid_character of char * string
   | Bad_compilation_unit_name of string
+  | Child_of_instance of { child_name : string }
+  | Packed_instance of { name : string }
+  | Duplicate_argument of
+      { param : string;
+        value1 : string;
+        value2 : string
+      }
 
 (** The exception raised by conversion functions in this module. *)
 exception Error of error

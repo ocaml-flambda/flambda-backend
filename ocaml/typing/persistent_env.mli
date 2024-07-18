@@ -16,9 +16,7 @@
 
 open Misc
 
-module Consistbl_data : sig
-  type t
-end
+module Consistbl_data = Import_info.Intf.Nonalias.Kind
 
 module Consistbl : module type of struct
   include Consistbl.Make (Compilation_unit.Name) (Consistbl_data)
@@ -32,12 +30,35 @@ type error =
       filepath * Compilation_unit.t * Compilation_unit.t
   | Direct_reference_from_wrong_package of
       Compilation_unit.t * filepath * Compilation_unit.Prefix.t
-  | Illegal_import_of_parameter of Compilation_unit.Name.t * filepath
-  | Not_compiled_as_parameter of Compilation_unit.Name.t * filepath
+  | Illegal_import_of_parameter of Global_module.Name.t * filepath
+  | Not_compiled_as_parameter of Global_module.Name.t * filepath
   | Imported_module_has_unset_parameter of
-      { imported : Compilation_unit.Name.t;
-        parameter : Compilation_unit.Name.t;
+      { imported : Global_module.Name.t;
+        parameter : Global_module.Name.t;
   }
+  | Imported_module_has_no_such_parameter of
+      { imported : Compilation_unit.Name.t;
+        valid_parameters : Global_module.Name.t list;
+        parameter : Global_module.Name.t;
+        value : Global_module.Name.t;
+  }
+  | Not_compiled_as_argument of Compilation_unit.Name.t * filepath
+  | Argument_type_mismatch of
+      { value : Global_module.Name.t;
+        filename : filepath;
+        expected : Global_module.Name.t;
+        actual : Global_module.Name.t;
+  }
+  | Inconsistent_global_name_resolution of
+      { name : Global_module.Name.t;
+        old_global : Global_module.t;
+        new_global : Global_module.t;
+        first_mentioned_by : Global_module.Name.t;
+        now_mentioned_by : Global_module.Name.t;
+  }
+  | Unbound_module_as_argument_value of
+       { instance : Global_module.Name.t; value : Global_module.Name.t; }
+
 
 
 exception Error of error
@@ -69,7 +90,7 @@ val empty : unit -> 'a t
 val clear : 'a t -> unit
 val clear_missing : 'a t -> unit
 
-val fold : 'a t -> (Compilation_unit.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
+val fold : 'a t -> (Global_module.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 
 type address =
   | Aunit of Compilation_unit.t
@@ -78,7 +99,7 @@ type address =
 
 type 'a sig_reader =
   Subst.Lazy.signature
-  -> Compilation_unit.Name.t
+  -> Global_module.Name.t
   -> Shape.Uid.t
   -> shape:Shape.t
   -> address:address
@@ -90,32 +111,28 @@ type 'a sig_reader =
 (* CR-someday lmaurer: [add_binding] is apparently always false, including in the
    [-instantiate] branch. We should remove this parameter. *)
 val read : 'a t -> 'a sig_reader
-  -> Compilation_unit.Name.t -> filepath -> add_binding:bool -> Subst.Lazy.signature
-val find : allow_hidden:bool -> 'a t -> 'a sig_reader
-  -> Compilation_unit.Name.t -> 'a
+  -> Global_module.Name.t -> filepath -> add_binding:bool -> Subst.Lazy.signature
+val find : allow_hidden:bool
+  -> 'a t -> 'a sig_reader -> Global_module.Name.t -> 'a
 
-val find_in_cache : 'a t -> Compilation_unit.Name.t -> 'a option
+val find_in_cache : 'a t -> Global_module.Name.t -> 'a option
 
 val check : allow_hidden:bool -> 'a t -> 'a sig_reader
-  -> loc:Location.t -> Compilation_unit.Name.t -> unit
+  -> loc:Location.t -> Global_module.Name.t -> unit
 
 (* Lets it be known that the given module is a parameter to this module and thus is
    expected to have been compiled as such. Raises an exception if the module has already
    been imported as a non-parameter. *)
-val register_parameter : 'a t -> Compilation_unit.Name.t -> unit
+val register_parameter : 'a t -> Global_module.Name.t -> unit
 
 (* [is_parameter_import penv md] checks if [md] is a parameter. Raises a fatal
    error if the module has not been imported. *)
-val is_parameter_import : 'a t -> Compilation_unit.Name.t -> bool
+val is_parameter_import : 'a t -> Global_module.Name.t -> bool
 
 (* [looked_up penv md] checks if one has already tried
    to read the signature for [md] in the environment
    [penv] (it may have failed) *)
-val looked_up : 'a t -> Compilation_unit.Name.t -> bool
-
-(* [is_imported penv md] checks if [md] has been successfully
-   imported in the environment [penv] *)
-val is_imported : 'a t -> Compilation_unit.Name.t -> bool
+val looked_up : 'a t -> Global_module.Name.t -> bool
 
 (* [is_imported_opaque penv md] checks if [md] has been imported
    in [penv] as an opaque module *)
@@ -125,10 +142,21 @@ val is_imported_opaque : 'a t -> Compilation_unit.Name.t -> bool
    opaque module *)
 val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 
+(* [local_ident penv md] returns the local identifier generated for [md] if
+   [md] is either a parameter or a dependency with a parameter. This is used
+   strictly for code generation - types should always use persistent
+   [Ident.t]s. *)
+val local_ident : 'a t -> Global_module.Name.t -> Ident.t option
+
 (* [implemented_parameter penv md] returns the argument to [-as-argument-for]
    that [md] was compiled with. *)
-val implemented_parameter : 'a t -> Compilation_unit.Name.t
-  -> Compilation_unit.Name.t option
+val implemented_parameter : 'a t
+  -> Global_module.Name.t -> Global_module.Name.t option
+
+val global_of_global_name : 'a t
+  -> check:bool
+  -> Global_module.Name.t
+  -> Global_module.t
 
 val make_cmi : 'a t
   -> Compilation_unit.Name.t
@@ -146,11 +174,10 @@ val without_cmis : 'a t -> ('b -> 'c) -> 'b -> 'c
     allow [penv] to openi cmis during its execution *)
 
 (* may raise Consistbl.Inconsistency *)
-val import_crcs : 'a t -> source:filepath ->
-  Import_info.t array -> unit
+val import_crcs : 'a t -> source:filepath -> Import_info.Intf.t array -> unit
 
 (* Return the set of compilation units imported, with their CRC *)
-val imports : 'a t -> Import_info.t list
+val imports : 'a t -> Import_info.Intf.t list
 
 (* Return the set of imports represented as runtime parameters. If this module is indeed
    parameterised (that is, [parameters] returns a non-empty list), it will be compiled as
@@ -161,13 +188,18 @@ val imports : 'a t -> Import_info.t list
 
    Note that the word "runtime" is a bit of a fiction reflecting a front-end view of the
    world. In fact we aim to inline away all passing of runtime parameters. *)
-val runtime_parameters : 'a t -> (Compilation_unit.Name.t * Ident.t) list
+val runtime_parameters : 'a t -> (Global_module.t * Ident.t) list
+
+(* Find whether a module has been imported as a parameter. This means that it
+   is a registered parameter import (see [register_parameter_import]) _and_ it has
+   been actually imported (i.e., it has occurred at least once). *)
+val is_imported_parameter : 'a t -> Global_module.Name.t -> bool
 
 (* Return the list of parameters specified for the current unit, in alphabetical order.
    All of these will have been specified by [-parameter] but not all of them are
    necessarily imported - any that don't appear in the source are still considered
    parameters of the module but will not appear in [imports]. *)
-val parameters : 'a t -> Compilation_unit.Name.t list
+val parameters : 'a t -> Global_module.Name.t list
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: 'a t -> Compilation_unit.Name.t -> Digest.t

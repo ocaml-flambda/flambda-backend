@@ -1,0 +1,2 @@
+File "bad_instance_arg_value_not_found.ml", line 1:
+Error: Unbound module Banana in instance Monoid_utils[Monoid:Banana]

@@ -45,6 +45,11 @@ module type Map = sig
 
   val of_list : (key * 'a) list -> 'a t
 
+  type 'a duplicate =
+    | Duplicate of { key : key; value1 : 'a; value2 : 'a }
+
+  val of_list_checked : (key * 'a) list -> ('a t, 'a duplicate) Result.t
+
   val disjoint_union :
     ?eq:('a -> 'a -> bool) -> ?print:(Format.formatter -> 'a -> unit) -> 'a t ->
     'a t -> 'a t
@@ -103,6 +108,25 @@ module Make_map (T : Thing) = struct
 
   let of_list l =
     List.fold_left (fun map (id, v) -> add id v map) empty l
+
+  type 'a duplicate =
+    | Duplicate of { key : key; value1 : 'a; value2 : 'a }
+
+  let of_list_checked l =
+    let rec loop acc l =
+      match l with
+      | [] -> Ok acc
+      | (id, v) :: l ->
+        begin
+          match find_opt id acc with
+          | None ->
+            let acc = add id v acc in
+            loop acc l
+          | Some value1 ->
+            Error (Duplicate { key = id; value1; value2 = v })
+        end
+    in
+    loop empty l
 
   let disjoint_union ?eq ?print m1 m2 =
     union (fun id v1 v2 ->

@@ -83,6 +83,7 @@
     ast_mapper
     attr_helper
     builtin_attributes
+    global_module
     ident
     path
     shape
@@ -102,6 +103,7 @@
     lazy_backtrack
     zero_alloc_utils
     subst
+    signature_with_global_bindings
     predef
     datarepr
     cmi_format
@@ -189,6 +191,7 @@
 (copy_files ../../parsing/ast_mapper.ml)
 (copy_files ../../parsing/attr_helper.ml)
 (copy_files ../../parsing/builtin_attributes.ml)
+(copy_files ../../typing/global_module.ml)
 (copy_files ../../typing/ident.ml)
 (copy_files ../../typing/path.ml)
 (copy_files ../../typing/jkind.ml)
@@ -203,6 +206,7 @@
 (copy_files ../../typing/types.ml)
 (copy_files ../../typing/btype.ml)
 (copy_files ../../typing/subst.ml)
+(copy_files ../../typing/signature_with_global_bindings.ml)
 (copy_files ../../typing/predef.ml)
 (copy_files ../../typing/datarepr.ml)
 (copy_files ../../typing/typedtree.ml)
@@ -259,6 +263,7 @@
 (copy_files ../../parsing/ast_mapper.mli)
 (copy_files ../../parsing/attr_helper.mli)
 (copy_files ../../parsing/builtin_attributes.mli)
+(copy_files ../../typing/global_module.mli)
 (copy_files ../../typing/ident.mli)
 (copy_files ../../typing/path.mli)
 (copy_files ../../typing/jkind.mli)
@@ -273,6 +278,7 @@
 (copy_files ../../typing/types.mli)
 (copy_files ../../typing/btype.mli)
 (copy_files ../../typing/subst.mli)
+(copy_files ../../typing/signature_with_global_bindings.mli)
 (copy_files ../../typing/predef.mli)
 (copy_files ../../typing/datarepr.mli)
 (copy_files ../../typing/typedtree.mli)
@@ -358,6 +364,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Terminfo.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Location.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Global_module.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Ident.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Longident.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Compilation_unit.cmo
@@ -389,6 +396,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Signature_with_global_bindings.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Bytesections.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Cmi_format.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debuginfo.cmo
@@ -442,6 +450,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Terminfo.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Location.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Global_module.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ident.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Longident.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Compilation_unit.cmx
@@ -473,6 +482,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Signature_with_global_bindings.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Bytesections.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Cmi_format.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debuginfo.cmx

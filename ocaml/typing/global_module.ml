@@ -3,15 +3,40 @@
 let pp_concat pp ppf list =
   Format.pp_print_list ~pp_sep:Format.pp_print_cut pp ppf list
 
+type ('name, 'value) duplicate =
+  | Duplicate of { name : 'name; value1 : 'value; value2 : 'value }
+
+let check_uniqueness_of_sorted l ~cmp =
+  let rec loop n1 v1 l =
+    match l with
+    | [] -> Ok ()
+    | (n2, v2) :: l ->
+      if cmp n1 n2 = 0 then
+        Error (Duplicate { name = n1; value1 = v1; value2 = v2 })
+      else
+        loop n2 v2 l
+  in
+  match l with
+  | [] -> Ok ()
+  | (n1, v1) :: l -> loop n1 v1 l
+
+let sort_and_check_uniqueness l ~cmp =
+  let l = List.stable_sort (fun (n1, _) (n2, _) -> cmp n1 n2) l in
+  check_uniqueness_of_sorted l ~cmp |> Result.map (fun () -> l)
+
 module Name : sig
   type t = private {
     head : string;
     args : (t * t) list;
   }
 
-  val create : string -> (t * t) list -> t
+  val create : string -> (t * t) list -> (t, (t, t) duplicate) Result.t
+
+  val create_exn : string -> (t * t) list -> t
 
   val unsafe_create_unchecked : string -> (t * t) list -> t
+
+  val to_string : t -> string
 
   include Identifiable.S with type t := t
 end = struct
@@ -56,16 +81,19 @@ end = struct
   end)
 
   let create head args =
-    let sorted_args =
-      List.sort_uniq (fun (name1, _) (name2, _) -> compare name1 name2) args
-    in
-    let t = { head; args = sorted_args } in
-    if List.length args != List.length sorted_args then
+    sort_and_check_uniqueness args ~cmp:compare
+    |> Result.map (fun args -> { head; args })
+
+  let create_exn head args =
+    match create head args with
+    | Ok t -> t
+    | Error (Duplicate _) ->
       Misc.fatal_errorf "Names of instance arguments must be unique:@ %a"
-        print t;
-    t
+        print { head; args }
 
   let unsafe_create_unchecked head args = { head; args }
+
+  let to_string = print |> Misc.to_string_of_print
 end
 
 let compare_arg_name (name1, _) (name2, _) = Name.compare name1 name2
@@ -85,7 +113,17 @@ module T0 : sig
 
   include Identifiable.S with type t := t
 
-  val create : string -> (Name.t * t) list -> hidden_args:(Name.t * t) list -> t
+  val create
+     : string
+    -> (Name.t * t) list
+    -> hidden_args:(Name.t * t) list
+    -> (t, (Name.t, t) duplicate) Result.t
+
+  val create_exn
+     : string
+    -> (Name.t * t) list
+    -> hidden_args:(Name.t * t) list
+    -> t
 
   val to_name : t -> Name.t
 end = struct
@@ -145,22 +183,20 @@ end = struct
   end)
 
   let create head visible_args ~hidden_args =
-    let visible_args_sorted = List.sort compare_arg_name visible_args in
-    let hidden_args_sorted = List.sort compare_arg_name hidden_args in
-    let t =
-      {
-        head;
-        visible_args = visible_args_sorted;
-        hidden_args = hidden_args_sorted;
-      }
-    in
-    if
-      List.length visible_args != List.length visible_args_sorted
-      || List.length hidden_args != List.length hidden_args_sorted
-    then
+    let (let*) = Result.bind in
+    let* visible_args = sort_and_check_uniqueness visible_args ~cmp:Name.compare in
+    let* hidden_args = sort_and_check_uniqueness hidden_args ~cmp:Name.compare in
+    (* This should check that visible and hidden args don't overlap.
+       Fortunately, we don't ever parse these directly from the user, so there
+       isn't much chance of an overlap actually happening. *)
+    Ok { head; visible_args; hidden_args }
+
+  let create_exn head visible_args ~hidden_args =
+    match create head visible_args ~hidden_args with
+    | Ok t -> t
+    | Error (Duplicate _) ->
       Misc.fatal_errorf "Names of arguments and parameters must be unique:@ %a"
-        print t;
-    t
+        print { head; visible_args; hidden_args }
 
   (* CR-someday lmaurer: Should try and make this unnecessary or at least cheap.
      Could do it by making [Name.t] an unboxed existential so that converting from
@@ -173,6 +209,8 @@ end = struct
 end
 
 include T0
+
+let to_string = print |> Misc.to_string_of_print
 
 let all_args t = t.visible_args @ t.hidden_args
 
@@ -197,7 +235,7 @@ and subst0_inside { head; visible_args; hidden_args } s ~changed =
   let visible_args =
     List.merge compare_arg_name visible_args matching_hidden_args
   in
-  create head visible_args ~hidden_args
+  create_exn head visible_args ~hidden_args
 and subst0_alist l s ~changed =
   List.map (fun (name, value) -> name, subst0 value s ~changed) l
 

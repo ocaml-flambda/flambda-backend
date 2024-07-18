@@ -90,6 +90,7 @@
    ;; TYPING
    ident path jkind primitive shape shape_reduce types btype oprint subst predef datarepr
    global_module cmi_format persistent_env env errortrace mode jkind_types jkind_intf
+   signature_with_global_bindings
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
    includemod includemod_errorprinter
@@ -112,7 +113,7 @@
    debug_event meta opcodes bytesections dll symtable
 
    ;; some of COMP
-   pparse main_args compenv compmisc makedepend compile_common
+   pparse main_args compenv compmisc makedepend compile_common instantiator
    ; manual update: mli only files
    annot value_rec_types asttypes cmo_format outcometree parsetree debug_event
  ))
@@ -129,8 +130,8 @@
  (libraries ocamlcommon)
  (modules
     ;; bytecomp/
-    bytegen bytelibrarian bytelink bytepackager emitcode printinstr
-    instruct
+    bytegen byteinstantiator bytelibrarian bytelink bytepackager emitcode
+    printinstr instruct
 
     ;; driver/
     errors compile maindriver

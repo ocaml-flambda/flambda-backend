@@ -708,9 +708,31 @@ and lambda_event_kind =
   | Lev_function
   | Lev_pseudo
 
+(* Descriptor for a parameter that this module takes at runtime. *)
+type runtime_param_descr =
+  | Rp_argument_block of Global_module.t  (* The argument block of a module
+                                             compiled with [-as-argument-for] *)
+  | Rp_dependency of Global_module.t      (* A parameterised module (not itself a
+                                             parameter) that this module depends
+                                             on *)
+  | Rp_unit                               (* The unit value (only used when
+                                             there are no other parameters) *)
+
+type module_block_format =
+  | Mb_record of { mb_size : int }      (* A block with [mb_size] fields *)
+  | Mb_wrapped_function of { mb_runtime_params : runtime_param_descr list;
+                             mb_returned_size : int;
+                           }
+                                        (* A block with exactly one field:
+                                           a function taking [mb_runtime_params] and
+                                           returning a block with
+                                           [mb_returned_size] fields *)
+
 type program =
   { compilation_unit : Compilation_unit.t;
-    main_module_block_size : int;
+    module_block_format : module_block_format;
+    arg_block_field : int option;       (* Unnamed field with argument block
+                                           (see [arg_descr]) *)
     required_globals : Compilation_unit.Set.t;
                                         (* Modules whose initializer side effects
                                            must occur before [code]. *)
@@ -835,6 +857,8 @@ val transl_module_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_value_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_extension_path: scoped_location -> Env.t -> Path.t -> lambda
 val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
+
+val transl_address : scoped_location -> Persistent_env.address -> lambda
 
 val transl_mixed_product_shape: Types.mixed_product_shape -> mixed_block_shape
 
@@ -986,3 +1010,13 @@ val simple_prim_on_values
 -> arity:int
 -> alloc:bool
 -> external_call_description
+
+(* Info for a compilation unit that implements a parameter (i.e., is an argument
+   for that parameter) *)
+
+type arg_descr =
+  { arg_param: Global_module.Name.t;    (* The parameter implemented *)
+    arg_block_field: int; }             (* The index of an unnamed field
+                                           containing the block to use as the
+                                           argument value (may be a supertype of
+                                           the whole compilation unit's type) *)

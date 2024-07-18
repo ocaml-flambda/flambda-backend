@@ -1,0 +1,29 @@
+module Monoid_utils_of_string =
+  Monoid_utils[Monoid:Monoid_of_semigroup[Semigroup:String_semigroup]]
+module Monoid_utils_of_semigroup = Monoid_utils[Monoid:Monoid_of_semigroup]
+module Category_utils_of_semigroup =
+  Category_utils[Category:Category_of_monoid[Monoid:Monoid_of_semigroup]]
+module Category_utils_of_list =
+  Category_utils[Category:Category_of_monoid[Monoid:List_monoid]]
+module Category_of_list_monoid = Category_of_monoid[Monoid:List_monoid]
+val concat_string_options :
+  Monoid_utils_of_string.ts ->
+  Monoid_of_semigroup[Semigroup:String_semigroup].t
+val concat_semi : Monoid_utils_of_semigroup.ts -> Monoid_of_semigroup.t
+val concat_chain_semi :
+  ('a, 'b) Chain[Category:Category_of_monoid[Monoid:Monoid_of_semigroup]].t ->
+  ('a, 'b) Category_of_monoid[Monoid:Monoid_of_semigroup].t
+val append3_semi :
+  ('a, 'b) Category_of_monoid[Monoid:Monoid_of_semigroup].t ->
+  ('b, 'c) Category_of_monoid[Monoid:Monoid_of_semigroup].t ->
+  ('c, 'd) Category_of_monoid[Monoid:Monoid_of_semigroup].t ->
+  ('a, 'd) Category_of_monoid[Monoid:Monoid_of_semigroup].t
+val concat_lists : 'a list list -> 'a list
+val concat_chain_lists :
+  ('a, 'b) Chain[Category:Category_of_monoid[Monoid:List_monoid]].t ->
+  ('a, 'b) Category_of_monoid[Monoid:List_monoid].t
+val append3_lists :
+  ('a, 'b) Category_of_monoid[Monoid:List_monoid].t ->
+  ('b, 'c) Category_of_monoid[Monoid:List_monoid].t ->
+  ('c, 'd) Category_of_monoid[Monoid:List_monoid].t ->
+  ('a, 'd) Category_of_monoid[Monoid:List_monoid].t

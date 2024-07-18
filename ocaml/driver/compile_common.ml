@@ -30,13 +30,23 @@ let obj i = i.output_prefix ^ Config.ext_obj
 let cmo i = i.output_prefix ^ ".cmo"
 let annot i = i.output_prefix ^ ".annot"
 
-let with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k =
+type compilation_unit_or_inferred =
+  | Exactly of Compilation_unit.t
+  | Inferred_from_output_prefix
+
+let with_info ~native ~tool_name ~source_file ~output_prefix
+      ~compilation_unit ~dump_ext k =
   Compmisc.init_path ();
-  let module_name = Compenv.module_of_filename source_file output_prefix in
-  let for_pack_prefix = Compilation_unit.Prefix.from_clflags () in
   let compilation_unit =
-    Compilation_unit.create for_pack_prefix
-      (module_name |> Compilation_unit.Name.of_string)
+    match compilation_unit with
+    | Exactly compilation_unit -> compilation_unit
+    | Inferred_from_output_prefix ->
+        let module_name =
+          Compenv.module_of_filename source_file output_prefix
+        in
+        let for_pack_prefix = Compilation_unit.Prefix.from_clflags () in
+        Compilation_unit.create for_pack_prefix
+          (module_name |> Compilation_unit.Name.of_string)
   in
   Compilation_unit.set_current (Some compilation_unit);
   let env = Compmisc.initial_env() in
@@ -88,7 +98,7 @@ let emit_signature info ast tsg =
       else begin
         let cmi_arg_for =
           match !Clflags.as_argument_for with
-          | Some arg_type -> Some (Compilation_unit.Name.of_string arg_type)
+          | Some arg_type -> Some (Global_module.Name.create_exn arg_type [])
           | None -> None
         in
         Normal { cmi_impl = info.module_name; cmi_arg_for }

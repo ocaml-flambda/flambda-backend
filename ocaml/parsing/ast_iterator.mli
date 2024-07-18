@@ -57,6 +57,7 @@ type iterator = {
   module_declaration: iterator -> module_declaration -> unit;
   module_substitution: iterator -> module_substitution -> unit;
   module_expr: iterator -> module_expr -> unit;
+  module_expr_jane_syntax: iterator -> Jane_syntax.Module_expr.t -> unit;
   module_type: iterator -> module_type -> unit;
   module_type_declaration: iterator -> module_type_declaration -> unit;
   module_type_jane_syntax: iterator -> Jane_syntax.Module_type.t -> unit;

@@ -126,6 +126,7 @@ COMPILERLIBS_SOURCES=\
   typing/typedtree.ml \
   typing/btype.ml \
   typing/subst.ml \
+  typing/signature_with_global_bindings.ml \
   typing/predef.ml \
   typing/datarepr.ml \
   file_formats/cmi_format.ml \

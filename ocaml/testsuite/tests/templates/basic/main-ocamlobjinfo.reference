@@ -1,0 +1,65 @@
+File main.cmo
+Unit name: Main
+Interfaces imported:
+	00000000000000000000000000000000	String_semigroup
+	00000000000000000000000000000000	Stdlib__Seq
+	00000000000000000000000000000000	Stdlib__List
+	00000000000000000000000000000000	Stdlib__Either
+	00000000000000000000000000000000	Stdlib
+	00000000000000000000000000000000	Semigroup
+	00000000000000000000000000000000	Monoid_utils
+	00000000000000000000000000000000	Monoid_of_semigroup
+	00000000000000000000000000000000	Monoid
+	00000000000000000000000000000000	Main
+	00000000000000000000000000000000	List_monoid
+	00000000000000000000000000000000	List_element
+	00000000000000000000000000000000	Import
+	00000000000000000000000000000000	Chain
+	00000000000000000000000000000000	Category_utils
+	00000000000000000000000000000000	Category_of_monoid
+	00000000000000000000000000000000	Category
+	00000000000000000000000000000000	CamlinternalFormatBasics
+Runtime parameters:
+	Chain[Category:Category_of_monoid[Monoid:Monoid_of_semigroup]]
+	Category_utils[Category:Category_of_monoid[Monoid:Monoid_of_semigroup]]
+	Monoid_utils[Monoid:Monoid_of_semigroup]
+	Monoid_of_semigroup
+	Chain[Category:Category_of_monoid[Monoid:List_monoid]]
+	Import
+	Category_of_monoid[Monoid:List_monoid]
+	List_element
+	List_monoid
+	Category_utils[Category:Category_of_monoid[Monoid:List_monoid]]
+	Category_of_monoid[Monoid:Monoid_of_semigroup]
+Required globals:
+	Monoid_utils[Monoid:Monoid_of_semigroup[Semigroup:String_semigroup]]
+	Stdlib__List
+Uses unsafe features: no
+Force link: no
+File main.cmi
+Unit name: Main
+Is parameter: no
+Parameters:
+	List_element
+	Semigroup
+Interfaces imported:
+	00000000000000000000000000000000	Main
+	00000000000000000000000000000000	Stdlib
+	00000000000000000000000000000000	Semigroup
+	00000000000000000000000000000000	Monoid_of_semigroup
+	00000000000000000000000000000000	Monoid
+	00000000000000000000000000000000	List_monoid
+	00000000000000000000000000000000	List_element
+	00000000000000000000000000000000	Import
+	00000000000000000000000000000000	Chain
+	00000000000000000000000000000000	Category_of_monoid
+	00000000000000000000000000000000	Category
+	00000000000000000000000000000000	CamlinternalFormatBasics
+Globals in scope:
+	Chain[Category:Category_of_monoid[Monoid:Monoid_of_semigroup{Semigroup}]]
+	Monoid_of_semigroup{Semigroup}
+	Chain[Category:Category_of_monoid[Monoid:List_monoid{List_element}]]
+	Import{List_element}{Semigroup}
+	Category_of_monoid[Monoid:List_monoid{List_element}]
+	List_monoid{List_element}
+	Category_of_monoid[Monoid:Monoid_of_semigroup{Semigroup}]
