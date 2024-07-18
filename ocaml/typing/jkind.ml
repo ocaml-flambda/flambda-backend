@@ -493,7 +493,16 @@ module Const = struct
         bits64 ]
   end
 
-  module To_out_jkind_const = struct
+  module To_out_jkind_const : sig
+    (** Convert a [t] into a [Outcometree.out_jkind_const].
+        The jkind is written in terms of the built-in jkind that requires the least amount
+        of modes after the mod. For example,
+        [value mod global many unique portable uncontended external_ non_null] could be
+        written in terms of [value] (as it appears above), or in terms of [immediate]
+        (which would just be [immediate]). Since the latter requires less modes to be
+        printed, it is chosen. *)
+    val convert : allow_null:bool -> t -> Outcometree.out_jkind_const
+  end = struct
     type printable_jkind =
       { base : string;
         modal_bounds : string list
