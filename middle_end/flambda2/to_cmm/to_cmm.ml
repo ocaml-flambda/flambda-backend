@@ -58,7 +58,8 @@ let flush_cmm_helpers_state res =
    it will already be included in the list of GC roots; otherwise it does not
    *have* to be a root. *)
 
-let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
+let unit0 ~offsets ~all_code ~reachable_names ~code_ids_kept_for_zero_alloc
+    flambda_unit =
   (* If someone wants to add 32-bit support in the future there will be a
      (merged) PR on ocaml-flambda/flambda-backend which can be used as a guide:
      https://github.com/ocaml-flambda/flambda-backend/pull/685 *)
@@ -74,6 +75,7 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
     Env.create offsets all_code ~return_continuation:dummy_k
       ~trans_prim:To_cmm_primitive.trans_prim
       ~exn_continuation:(Flambda_unit.exn_continuation flambda_unit)
+      ~code_ids_kept_for_zero_alloc
   in
   let _env, return_cont_params =
     (* The environment is dropped because the handler for the dummy continuation
@@ -132,13 +134,17 @@ let unit0 ~offsets ~all_code ~reachable_names flambda_unit =
       then fun_codegen
       else Cmm.No_CSE :: fun_codegen
     in
-    C.cfunction (C.fundecl entry_sym [] body fun_codegen dbg Default_poll)
+    C.cfunction
+      (C.fundecl entry_sym [] body fun_codegen dbg Default_poll
+         ~only_kept_for_zero_alloc:false)
   in
   let { R.data_items; gc_roots; functions } = R.to_cmm res in
   let _res, cmm_helpers_data = flush_cmm_helpers_state res in
   let gc_root_data = C.gc_root_table gc_roots in
   (gc_root_data :: data_items) @ cmm_helpers_data @ functions @ [entry]
 
-let unit ~offsets ~all_code ~reachable_names flambda_unit =
+let unit ~offsets ~all_code ~reachable_names ~code_ids_kept_for_zero_alloc
+    flambda_unit =
   Profile.record_call "flambda_to_cmm" (fun () ->
-      unit0 ~offsets ~all_code ~reachable_names flambda_unit)
+      unit0 ~offsets ~all_code ~reachable_names ~code_ids_kept_for_zero_alloc
+        flambda_unit)

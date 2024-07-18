@@ -133,7 +133,12 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
     in
     Compiler_hooks.execute Raw_flambda2 raw_flambda;
     print_rawflambda ppf raw_flambda;
-    let flambda, offsets, reachable_names, cmx, all_code =
+    let ( flambda,
+          offsets,
+          reachable_names,
+          cmx,
+          all_code,
+          code_ids_kept_for_zero_alloc ) =
       match mode, close_program_metadata with
       | Classic, Classic (code, reachable_names, cmx, offsets) ->
         (if Flambda_features.inlining_report ()
@@ -143,14 +148,20 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
             Inlining_report.output_then_forget_decisions ~output_prefix
           in
           Compiler_hooks.execute Inlining_tree inlining_tree);
-        raw_flambda, offsets, reachable_names, cmx, code
+        ( raw_flambda,
+          offsets,
+          reachable_names,
+          cmx,
+          code,
+          Flambda2_identifiers.Code_id.Set.empty )
       | Normal, Normal ->
         let round = 0 in
         let { Simplify.unit = flambda;
               exported_offsets;
               cmx;
               all_code;
-              reachable_names
+              reachable_names;
+              code_ids_kept_for_zero_alloc
             } =
           Profile.record_call ~accumulate:true "simplify" (fun () ->
               Simplify.run ~cmx_loader ~round ~code_slot_offsets raw_flambda)
@@ -165,7 +176,12 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
         Compiler_hooks.execute Flambda2 flambda;
         print_flambda "simplify" ppf flambda;
         print_flexpect "simplify" ppf ~raw_flambda flambda;
-        flambda, exported_offsets, reachable_names, cmx, all_code
+        ( flambda,
+          exported_offsets,
+          reachable_names,
+          cmx,
+          all_code,
+          code_ids_kept_for_zero_alloc )
     in
     (match cmx with
     | None ->
@@ -173,6 +189,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
     | Some cmx -> Compilenv.set_export_info cmx);
     let cmm =
       Flambda2_to_cmm.To_cmm.unit flambda ~all_code ~offsets ~reachable_names
+        ~code_ids_kept_for_zero_alloc
     in
     if not keep_symbol_tables
     then (

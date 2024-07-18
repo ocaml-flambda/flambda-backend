@@ -21,7 +21,8 @@ type simplify_result =
     unit : Flambda_unit.t;
     all_code : Exported_code.t;
     exported_offsets : Exported_offsets.t;
-    reachable_names : Name_occurrences.t
+    reachable_names : Name_occurrences.t;
+    code_ids_kept_for_zero_alloc : Code_id.Set.t
   }
 
 let run ~cmx_loader ~round ~code_slot_offsets unit =
@@ -106,4 +107,11 @@ let run ~cmx_loader ~round ~code_slot_offsets unit =
     FU.create ~return_continuation ~exn_continuation ~toplevel_my_region
       ~module_symbol ~body ~used_value_slots:(Known used_value_slots)
   in
-  { cmx; unit; all_code; exported_offsets; reachable_names }
+  let code_ids_kept_for_zero_alloc = UA.code_ids_kept_for_zero_alloc uacc in
+  { cmx;
+    unit;
+    all_code;
+    exported_offsets;
+    reachable_names;
+    code_ids_kept_for_zero_alloc
+  }

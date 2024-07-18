@@ -55,11 +55,40 @@ let simplify_toplevel_common dacc simplify ~params ~implicit_params
               Or_unknown.Known (DA.used_value_slots dacc),
               "toplevel" )
         in
+        (* CR mshinwell: maybe [code_ids_to_never_delete] should have
+           "zero_alloc" in the name *)
+        let code_ids_to_never_delete = DA.code_ids_to_never_delete dacc in
+        let may_be_code_ids_kept_for_zero_alloc =
+          not (Code_id.Set.is_empty code_ids_to_never_delete)
+        in
         let flow_result =
           Flow.Analysis.analyze data_flow ~print_name ~code_age_relation
-            ~used_value_slots
-            ~code_ids_to_never_delete:(DA.code_ids_to_never_delete dacc)
-            ~return_continuation ~exn_continuation
+            ~used_value_slots ~code_ids_to_never_delete ~return_continuation
+            ~exn_continuation
+        in
+        let code_ids_kept_for_zero_alloc =
+          if not may_be_code_ids_kept_for_zero_alloc
+          then Code_id.Set.empty
+          else
+            let flow_result_without_never_delete =
+              Flow.Analysis.analyze data_flow ~print_name ~code_age_relation
+                ~used_value_slots ~code_ids_to_never_delete:Code_id.Set.empty
+                ~return_continuation ~exn_continuation
+            in
+            match flow_result.data_flow_result.reachable_code_ids with
+            | Unknown ->
+              (* This value will never be used (it means we were called not at
+                 toplevel). *)
+              Code_id.Set.empty
+            | Known reachable_code_ids -> (
+              match
+                flow_result_without_never_delete.data_flow_result
+                  .reachable_code_ids
+              with
+              | Unknown -> assert false
+              | Known reachable_code_ids_without_never_delete ->
+                Code_id.Set.diff reachable_code_ids.live_code_ids
+                  reachable_code_ids_without_never_delete.live_code_ids)
         in
         let uenv =
           UE.add_function_return_or_exn_continuation
@@ -71,7 +100,8 @@ let simplify_toplevel_common dacc simplify ~params ~implicit_params
             (Flambda_arity.create_singletons [K.With_subkind.any_value])
         in
         let uacc =
-          UA.create ~flow_result ~compute_slot_offsets:true uenv dacc
+          UA.create ~flow_result ~compute_slot_offsets:true
+            ~code_ids_kept_for_zero_alloc uenv dacc
         in
         let uacc =
           if Flow.Analysis.did_perform_mutable_unboxing flow_result

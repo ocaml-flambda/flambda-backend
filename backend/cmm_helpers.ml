@@ -2807,7 +2807,8 @@ let send_function (arity, result, mode) =
       fun_body = body;
       fun_codegen_options = [];
       fun_dbg;
-      fun_poll = Default_poll
+      fun_poll = Default_poll;
+      fun_only_kept_for_zero_alloc = false
     }
 
 let apply_function (arity, result, mode) =
@@ -2821,7 +2822,8 @@ let apply_function (arity, result, mode) =
       fun_body = body;
       fun_codegen_options = [];
       fun_dbg;
-      fun_poll = Default_poll
+      fun_poll = Default_poll;
+      fun_only_kept_for_zero_alloc = false
     }
 
 (* Generate tuplifying functions:
@@ -2859,7 +2861,8 @@ let tuplify_function arity return =
             dbg () );
       fun_codegen_options = [];
       fun_dbg;
-      fun_poll = Default_poll
+      fun_poll = Default_poll;
+      fun_only_kept_for_zero_alloc = false
     }
 
 (* Generate currying functions:
@@ -3011,7 +3014,8 @@ let final_curry_function nlocal arity result =
           last_clos (narity - 1);
       fun_codegen_options = [];
       fun_dbg;
-      fun_poll = Default_poll
+      fun_poll = Default_poll;
+      fun_only_kept_for_zero_alloc = false
     }
 
 let intermediate_curry_functions ~nlocal ~arity result =
@@ -3071,7 +3075,8 @@ let intermediate_curry_functions ~nlocal ~arity result =
                 dbg () );
           fun_codegen_options = [];
           fun_dbg;
-          fun_poll = Default_poll
+          fun_poll = Default_poll;
+          fun_only_kept_for_zero_alloc = false
         }
       ::
       (if has_nary
@@ -3102,7 +3107,8 @@ let intermediate_curry_functions ~nlocal ~arity result =
                   clos (num + 1);
               fun_codegen_options = [];
               fun_dbg;
-              fun_poll = Default_poll
+              fun_poll = Default_poll;
+              fun_only_kept_for_zero_alloc = false
             }
         in
         [cf]
@@ -3521,7 +3527,8 @@ let entry_point namelist =
         fun_body = Csequence (body, cconst_int 1);
         fun_codegen_options = [Reduce_code_size; Use_linscan_regalloc];
         fun_dbg;
-        fun_poll = Default_poll
+        fun_poll = Default_poll;
+        fun_only_kept_for_zero_alloc = false
       } ]
 
 (* Generate the table of globals *)
@@ -3939,8 +3946,16 @@ let cfunction decl = Cmm.Cfunction decl
 
 let cdata d = Cmm.Cdata d
 
-let fundecl fun_name fun_args fun_body fun_codegen_options fun_dbg fun_poll =
-  { Cmm.fun_name; fun_args; fun_body; fun_codegen_options; fun_dbg; fun_poll }
+let fundecl fun_name fun_args fun_body fun_codegen_options fun_dbg fun_poll
+    ~only_kept_for_zero_alloc =
+  { Cmm.fun_name;
+    fun_args;
+    fun_body;
+    fun_codegen_options;
+    fun_dbg;
+    fun_poll;
+    fun_only_kept_for_zero_alloc = only_kept_for_zero_alloc
+  }
 
 (* Gc root table *)
 

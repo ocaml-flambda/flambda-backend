@@ -82,6 +82,7 @@ val create :
   trans_prim:t trans_prim ->
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
+  code_ids_kept_for_zero_alloc:Code_id.Set.t ->
   t
 
 (** Given an existing environment providing the "global" information (such as
@@ -357,3 +358,5 @@ val get_cmm_continuation : t -> Continuation.t -> Lambda.static_label
 (** print function *)
 val print_param_type :
   (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a param_type -> unit
+
+val code_ids_kept_for_zero_alloc : t -> Code_id.Set.t

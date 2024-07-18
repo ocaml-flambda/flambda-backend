@@ -336,6 +336,7 @@ type fundecl =
     fun_codegen_options : codegen_option list;
     fun_poll: Lambda.poll_attribute;
     fun_dbg : Debuginfo.t;
+    fun_only_kept_for_zero_alloc : bool;
   }
 
 type data_item =

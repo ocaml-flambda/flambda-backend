@@ -940,6 +940,7 @@ val fundecl :
   codegen_option list ->
   Debuginfo.t ->
   Lambda.poll_attribute ->
+  only_kept_for_zero_alloc:bool ->
   fundecl
 
 (** Create a cmm phrase for a function declaration. *)
