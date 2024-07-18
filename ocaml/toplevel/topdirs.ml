@@ -227,7 +227,7 @@ let extract_target_parameters ty =
   | Some tgt ->
       let tgt = Ctype.expand_head !toplevel_env tgt in
       match get_desc tgt with
-      | Tconstr (path, (_ :: _ as args), _)
+      | Tconstr (path, Applied (_ :: _ as args), _)
         when Ctype.all_distinct_vars !toplevel_env args ->
           Some (path, args)
       | _ -> None
@@ -261,7 +261,7 @@ let match_generic_printer_type desc ty_path params =
       let args = List.map (fun _ -> Ctype.newvar
                                       (Jkind.Type.Primitive.value ~why:Debug_printer_argument |> Jkind.of_type_jkind))
                           params in
-      let ty_target = Ctype.newty (Tconstr (ty_path, args, ref Mnil)) in
+      let ty_target = Ctype.newty (Tconstr (ty_path, AppArgs.of_list args, ref Mnil)) in
       let printer_args_ty =
         List.map (fun ty_var -> make_printer_type ty_var) args in
       let ty_expected =
