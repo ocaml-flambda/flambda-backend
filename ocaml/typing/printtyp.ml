@@ -1274,7 +1274,7 @@ let out_jkind_of_const_jkind jkind =
 let rec out_jkind_of_jkind jkind = match Jkind.get jkind with
   | Type ty -> begin match Jkind.Type.get ty with
     | Const clay -> out_jkind_of_const_jkind clay
-    | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
+    | Var v      -> Ojkind_var (Jkind.Type.Sort.Var.name v)
     end
   | Arrow { args; result } ->
     Ojkind_arrow
@@ -1285,16 +1285,23 @@ let rec out_jkind_of_jkind jkind = match Jkind.get jkind with
    Note [When to print jkind annotations] *)
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
-  | Const jkind ->
-    let value_jkind = Jkind.Type.Const.Primitive.value.jkind |> Jkind.Const.of_type_jkind in
-    begin match Jkind.Const.equal jkind value_jkind with
-    | true -> None
-    | false -> Some (out_jkind_of_const_jkind jkind)
+  | Type ty -> begin
+    match Jkind.Type.get ty with
+    | Const jkind -> begin
+      match Jkind.Type.Const.equal jkind Jkind.Type.Const.Primitive.value.jkind with
+      | true -> None
+      | false -> Some (out_jkind_of_const_jkind jkind)
+      end
+    | Var v -> (* This handles (X1). *)
+      if !Clflags.verbose_types
+      then Some (Ojkind_var (Jkind.Type.Sort.Var.name v))
+      else None
     end
-  | Var v -> (* This handles (X1). *)
-    if !Clflags.verbose_types
-    then Some (Ojkind_var (Jkind.Type.Sort.Var.name v))
-    else None
+  | Arrow { args; result } ->
+    (* We ignore the rules above for arrows, which should always be printed *)
+    Some (Ojkind_arrow
+      { args = List.map out_jkind_of_jkind args;
+        result = out_jkind_of_jkind result })
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
@@ -2680,10 +2687,7 @@ let trees_of_type_expansion'
     if var_jkinds then
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
-          let olay = match Jkind.get jkind with
-            | Const clay -> out_jkind_of_const_jkind clay
-            | Var v      -> Ojkind_var (Jkind.Type.Sort.Var.name v)
-          in
+          let olay = out_jkind_of_jkind jkind in
           Otyp_jkind_annot (out, olay)
       | _ ->
           out
@@ -3003,8 +3007,8 @@ let explanation (type variety) intro prev env
              {[ The type int occurs inside int list -> 'a |}
         *)
     end
-| Errortrace.Bad_jkind (t,e) ->
-    Some (dprintf "@ @[<hov>%a@]"
+  | Errortrace.Bad_jkind (t,e) ->
+      Some (dprintf "@ @[<hov>%a@]"
               (Jkind.Violation.report_with_offender
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Bad_jkind_sort (t,e) ->

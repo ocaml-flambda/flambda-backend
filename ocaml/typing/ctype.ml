@@ -2102,8 +2102,8 @@ let rec estimate_type_jkind env ty =
   end
   | Tvariant row ->
       if tvariant_not_immediate row
-      then Jkind (Type.Primitive.value ~why:Polymorphic_variant)
-      else Jkind (Type.Primitive.immediate ~why:Immediate_polymorphic_variant)
+      then Jkind (Type.Primitive.value ~why:Polymorphic_variant |> Jkind.of_type_jkind)
+      else Jkind (Type.Primitive.immediate ~why:Immediate_polymorphic_variant |> Jkind.of_type_jkind)
   | Tvar { jkind } when get_level ty = generic_level ->
     (* Once a Tvar gets generalized with a jkind, it should be considered
        as fixed (similar to the Tunivar case below).
@@ -5722,7 +5722,7 @@ let rec build_subtype env (visited : transient_expr list)
           set_type_desc ty
             (Tvar { name = None;
                     jkind = Jkind.Type.Primitive.value
-                               ~why:(Unknown "build subtype 1")});
+                               ~why:(Unknown "build subtype 1") |> Jkind.of_type_jkind});
           let t'' = newvar (Jkind.Type.Primitive.value ~why:(Unknown "build subtype 2") |> Jkind.of_type_jkind)
           in
           let loops = (get_id ty, t'') :: loops in
@@ -5764,7 +5764,7 @@ let rec build_subtype env (visited : transient_expr list)
               else
                 if co then build_subtype env visited loops posi level t
                 else (newvar (Jkind.Type.Primitive.value
-                                ~why:(Unknown "build_subtype 3")),
+                                ~why:(Unknown "build_subtype 3") |> Jkind.of_type_jkind),
                       Changed))
             decl.type_variance tl
         in
