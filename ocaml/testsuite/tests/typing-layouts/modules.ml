@@ -14,7 +14,7 @@ type t_imm64 : immediate64
 type t_float64 : float64
 type t_any   : any;;
 [%%expect {|
-type t_value : value
+type t_value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
@@ -519,7 +519,7 @@ module type S6_4f = sig
   val m : (module S6_3 with type t = t_float64)
 end;;
 [%%expect{|
-module type S6_3 = sig type t : value end
+module type S6_3 = sig type t end
 Line 6, characters 10-47:
 6 |   val m : (module S6_3 with type t = t_float64)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -528,7 +528,7 @@ Error: In this `with' constraint, the new definition of t
        Type declarations do not match:
          type t = t_float64
        is not included in
-         type t : value
+         type t
        The layout of the first is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of the first must be a sublayout of value

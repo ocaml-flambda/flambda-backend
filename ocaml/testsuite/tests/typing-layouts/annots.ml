@@ -15,7 +15,7 @@ type t_float64 : float64
 type t_any : any;;
 
 [%%expect{|
-type t_value : value
+type t_value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
@@ -64,16 +64,16 @@ type t_value_mod_external64 : value mod external64
 
 [%%expect{|
 type t_value_mod_global : value mod global
-type t_value_mod_local : value mod local
+type t_value_mod_local
 type t_value_mod_many : value mod many
-type t_value_mod_once : value mod once
+type t_value_mod_once
 type t_value_mod_unique : value mod unique
-type t_value_mod_shared : value mod shared
-type t_value_mod_internal : value mod internal
-type t_value_mod_contended : value mod contended
+type t_value_mod_shared
+type t_value_mod_internal
+type t_value_mod_contended
 type t_value_mod_uncontended : value mod uncontended
 type t_value_mod_portable : value mod portable
-type t_value_mod_nonportable : value mod nonportable
+type t_value_mod_nonportable
 type t_value_mod_external : value mod external_
 type t_value_mod_external64 : value mod external64
 |}]
@@ -92,7 +92,7 @@ type t8 : value mod global local many once unique shared internal uncontended co
 type t1 : float32 mod internal shared many local
 type t2 : bits64 mod once external64 unique
 type t3 : immediate mod local unique
-type t4 : value mod local local
+type t4
 type t5 : float64 mod global global
 type t6 : bits32 mod local global
 type t7 : bits64 mod global local
@@ -991,7 +991,7 @@ Error: This expression has type string but an expression was expected of type
 
 type t_value : value
 [%%expect {|
-type t_value : value
+type t_value
 |}]
 
 type t = { x : int }

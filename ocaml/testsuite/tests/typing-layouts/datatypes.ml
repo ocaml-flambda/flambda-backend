@@ -15,7 +15,7 @@ type t_value : value
 type t_immediate : immediate;;
 type t_any : any;;
 [%%expect {|
-type t_value : value
+type t_value
 type t_immediate : immediate
 type t_any : any
 |}];;
@@ -449,8 +449,7 @@ type t3 = t_any M.t2
 type t4 = t_any M.t2 M.t1
 
 [%%expect {|
-module M :
-  sig type 'a t1 : value constraint 'a = 'b t2 and (!'c : any) t2 end
+module M : sig type 'a t1 constraint 'a = 'b t2 and (!'c : any) t2 end
 type t3 = t_any M.t2
 Line 10, characters 10-20:
 10 | type t4 = t_any M.t2 M.t1
@@ -474,8 +473,7 @@ type t3 = t_any M.t2
 type t4 = t_any M.t2 M.t1
 
 [%%expect {|
-module M :
-  sig type (!'c : any) t2 and 'a t1 : value constraint 'a = 'b t2 end
+module M : sig type (!'c : any) t2 and 'a t1 constraint 'a = 'b t2 end
 type t3 = t_any M.t2
 Line 10, characters 10-20:
 10 | type t4 = t_any M.t2 M.t1
@@ -499,8 +497,7 @@ type t3 = t_any M.t2
 type t4 = t_any M.t2 M.t1
 
 [%%expect {|
-module M :
-  sig type (!'c : any) t2 type 'a t1 : value constraint 'a = 'b t2 end
+module M : sig type (!'c : any) t2 type 'a t1 constraint 'a = 'b t2 end
 type t3 = t_any M.t2
 Line 10, characters 10-20:
 10 | type t4 = t_any M.t2 M.t1

@@ -18,7 +18,7 @@ type void_unboxed_record = { vur_void : t_void } [@@unboxed];;
 
 [%%expect{|
 type t_any : any
-type t_value : value
+type t_value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64

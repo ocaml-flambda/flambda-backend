@@ -24,7 +24,7 @@ type t1_mixed3 = T1_mixed3 of t_value * t_immediate
 [%%expect {|
 type t_void : void
 type t_any : any
-type t_value : value
+type t_value
 type t_immediate : immediate
 type t1_void = T1_void of t_void
 type t1_value = T1_value of t_value

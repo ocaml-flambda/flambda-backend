@@ -15,7 +15,7 @@ type t_float64 : float64;;
 type t_any   : any;;
 
 [%%expect{|
-type t_value : value
+type t_value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
@@ -2629,7 +2629,7 @@ end
 
 (* CR layouts v2.9: This message is rubbish. *)
 [%%expect{|
-module M2 : sig type t : value end
+module M2 : sig type t end
 Line 11, characters 6-10:
 11 |     | Refl -> 42
            ^^^^
@@ -2772,7 +2772,7 @@ end
 
 [%%expect{|
 type (!'a : any) inj
-module type S = sig type 'a value : value type 'a bits64 : bits64 end
+module type S = sig type 'a value type 'a bits64 : bits64 end
 type ('a : any) s = 'a
 module F :
   functor (X : S) ->

@@ -16,7 +16,7 @@ type t_void  : void
 type void_variant = VV of t_void
 [%%expect{|
 type t_any : any
-type t_value : value
+type t_value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
