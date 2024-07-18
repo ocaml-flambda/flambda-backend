@@ -4,15 +4,24 @@
  {
    native;
  }{
+   flags = "-O3";
+   native;
+ }{
    bytecode;
  }{
    flags = "-extension layouts_alpha";
+   native;
+ }{
+   flags = "-extension layouts_alpha -O3";
    native;
  }{
    flags = "-extension layouts_alpha";
    bytecode;
  }{
    flags = "-extension layouts_beta";
+   native;
+ }{
+   flags = "-extension layouts_beta -O3";
    native;
  }{
    flags = "-extension layouts_beta";

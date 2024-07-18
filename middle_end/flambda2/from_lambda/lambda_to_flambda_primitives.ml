@@ -381,27 +381,26 @@ let checked_alignment ~dbg ~primitive ~conditions : H.expr_primitive =
       dbg
     }
 
+(* CR layouts: Hunt down remaining uses and convert to [check_bound] *)
 let check_bound_tagged tagged_index bound : H.expr_primitive =
   Binary
     ( Int_comp (I.Naked_immediate, Yielding_bool (Lt Unsigned)),
       untag_int tagged_index,
       bound )
 
-let check_bound (index_kind : Lambda.array_index_kind) index untagged_bound :
-    H.expr_primitive =
+let check_bound (index_kind : Lambda.array_index_kind) (bound_kind : I_or_f.t)
+    index bound : H.expr_primitive =
   let (comp_kind : I.t), index, bound =
+    let convert_bound_to dst =
+      H.Prim (Unary (Num_conv { src = bound_kind; dst }, bound))
+    in
     match index_kind with
-    | Ptagged_int_index -> I.Naked_immediate, untag_int index, untagged_bound
+    | Ptagged_int_index ->
+      I.Naked_immediate, untag_int index, convert_bound_to Naked_immediate
     | Punboxed_int_index bint ->
       ( standard_int_of_boxed_integer bint,
         index,
-        H.Prim
-          (Unary
-             ( Num_conv
-                 { src = Naked_immediate;
-                   dst = standard_int_or_float_of_boxed_integer bint
-                 },
-               untagged_bound )) )
+        convert_bound_to (standard_int_or_float_of_boxed_integer bint) )
   in
   Binary (Int_comp (comp_kind, Yielding_bool (Lt Unsigned)), index, bound)
 
@@ -480,7 +479,7 @@ let actual_max_length_for_string_like_access ~size_int ~access_size length =
 
 let string_like_access_validity_condition ~size_int ~access_size ~length
     index_kind index : H.expr_primitive =
-  check_bound index_kind index
+  check_bound index_kind Naked_immediate index
     (actual_max_length_for_string_like_access ~size_int ~access_size length)
 
 let string_or_bytes_access_validity_condition ~size_int str kind access_size
@@ -799,31 +798,7 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
 let array_access_validity_condition array array_kind index
     (index_kind : L.array_index_kind) =
   let arr_len_as_tagged_imm = H.Prim (Unary (Array_length array_kind, array)) in
-  (* The reason why we convert the array length instead of the index value is
-     because of edge cases around large negative numbers.
-
-     Given [-9223372036854775807] as a [Naked_int64] index, its bit
-     representation is
-     [0b1000000000000000000000000000000000000000000000000000000000000001]. If we
-     convert that into a [Tagged_immediate], it becomes [0b11] and the bounds
-     check would pass in cases that we should reject.
-
-     This also has the added benefit of producing better assembly code. Usually
-     saving one instruction compared to tagging the index value. *)
-  let (comp_kind : I.t), arr_len =
-    match index_kind with
-    | Ptagged_int_index -> I.Tagged_immediate, arr_len_as_tagged_imm
-    | Punboxed_int_index bint ->
-      ( standard_int_of_boxed_integer bint,
-        H.Prim
-          (Unary
-             ( Num_conv
-                 { src = Tagged_immediate;
-                   dst = standard_int_or_float_of_boxed_integer bint
-                 },
-               arr_len_as_tagged_imm )) )
-  in
-  [H.Binary (Int_comp (comp_kind, Yielding_bool (Lt Unsigned)), index, arr_len)]
+  [check_bound index_kind Tagged_immediate index arr_len_as_tagged_imm]
 
 let check_array_access ~dbg ~array array_kind ~index ~index_kind primitive :
     H.expr_primitive =
