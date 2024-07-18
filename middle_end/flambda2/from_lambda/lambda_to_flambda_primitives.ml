@@ -388,7 +388,7 @@ let check_bound_tagged tagged_index bound : H.expr_primitive =
       untag_int tagged_index,
       bound )
 
-let check_bound (index_kind : Lambda.array_index_kind) (bound_kind : I_or_f.t)
+let check_bound ~(index_kind : Lambda.array_index_kind) ~(bound_kind : I_or_f.t)
     index bound : H.expr_primitive =
   let (comp_kind : I.t), index, bound =
     let convert_bound_to dst =
@@ -478,18 +478,18 @@ let actual_max_length_for_string_like_access ~size_int ~access_size length =
 (* String-like validity conditions *)
 
 let string_like_access_validity_condition ~size_int ~access_size ~length
-    index_kind index : H.expr_primitive =
-  check_bound index_kind Naked_immediate index
+    ~index_kind index : H.expr_primitive =
+  check_bound ~index_kind ~bound_kind:Naked_immediate index
     (actual_max_length_for_string_like_access ~size_int ~access_size length)
 
 let string_or_bytes_access_validity_condition ~size_int str kind access_size
-    index_kind index : H.expr_primitive =
-  string_like_access_validity_condition index_kind index ~size_int ~access_size
+    ~index_kind index : H.expr_primitive =
+  string_like_access_validity_condition ~index_kind index ~size_int ~access_size
     ~length:(Prim (Unary (String_length kind, str)))
 
-let bigstring_access_validity_condition ~size_int big_str access_size index_kind
-    index : H.expr_primitive =
-  string_like_access_validity_condition index_kind index ~size_int ~access_size
+let bigstring_access_validity_condition ~size_int big_str access_size
+    ~index_kind index : H.expr_primitive =
+  string_like_access_validity_condition ~index_kind index ~size_int ~access_size
     ~length:(bigarray_dim_bound big_str 1)
 
 let bigstring_alignment_validity_condition bstr alignment tagged_index :
@@ -501,7 +501,7 @@ let bigstring_alignment_validity_condition bstr alignment tagged_index :
       Simple Simple.untagged_const_zero )
 
 let checked_string_or_bytes_access ~dbg ~size_int ~access_size ~primitive kind
-    string index_kind index =
+    string ~index_kind index =
   (match (access_size : P.string_accessor_width) with
   | One_twenty_eight { aligned = true } ->
     Misc.fatal_error
@@ -512,10 +512,10 @@ let checked_string_or_bytes_access ~dbg ~size_int ~access_size ~primitive kind
   checked_access ~dbg ~primitive
     ~conditions:
       [ string_or_bytes_access_validity_condition ~size_int string kind
-          access_size index_kind index ]
+          access_size ~index_kind index ]
 
 let checked_bigstring_access ~dbg ~size_int ~access_size ~primitive arg1
-    index_kind arg2 =
+    ~index_kind arg2 =
   let primitive =
     match (access_size : P.string_accessor_width) with
     | One_twenty_eight { aligned = true } ->
@@ -530,10 +530,10 @@ let checked_bigstring_access ~dbg ~size_int ~access_size ~primitive arg1
   checked_access ~dbg ~primitive
     ~conditions:
       [ bigstring_access_validity_condition ~size_int arg1 access_size
-          index_kind arg2 ]
+          ~index_kind arg2 ]
 
 (* String-like loads *)
-let string_like_load_unsafe ~access_size kind mode ~boxed string index_kind
+let string_like_load_unsafe ~access_size kind mode ~boxed string ~index_kind
     index ~current_region =
   let index = convert_index_to_tagged_int index index_kind in
   let wrap =
@@ -560,26 +560,26 @@ let get_header obj mode ~current_region =
   wrap (Unary (Get_header, obj))
 
 let string_like_load_safe ~dbg ~size_int ~access_size kind mode ~boxed str
-    index_kind index ~current_region =
+    ~index_kind index ~current_region =
   match (kind : P.string_like_value) with
   | String ->
     checked_string_or_bytes_access ~dbg ~size_int ~access_size String
       ~primitive:
-        (string_like_load_unsafe ~access_size String mode ~boxed str index_kind
+        (string_like_load_unsafe ~access_size String mode ~boxed str ~index_kind
            index ~current_region)
-      str index_kind index
+      str ~index_kind index
   | Bytes ->
     checked_string_or_bytes_access ~dbg ~size_int ~access_size Bytes
       ~primitive:
-        (string_like_load_unsafe ~access_size Bytes mode ~boxed str index_kind
+        (string_like_load_unsafe ~access_size Bytes mode ~boxed str ~index_kind
            index ~current_region)
-      str index_kind index
+      str ~index_kind index
   | Bigstring ->
     checked_bigstring_access ~dbg ~size_int ~access_size
       ~primitive:
         (string_like_load_unsafe ~access_size Bigstring mode ~boxed str
-           index_kind index ~current_region)
-      str index_kind index
+           ~index_kind index ~current_region)
+      str ~index_kind index
 
 (* Bytes-like set *)
 let bytes_like_set_unsafe ~access_size kind ~boxed bytes index new_value =
@@ -603,13 +603,15 @@ let bytes_like_set_safe ~dbg ~size_int ~access_size kind ~boxed bytes index
     checked_string_or_bytes_access ~dbg ~size_int ~access_size Bytes
       ~primitive:
         (bytes_like_set_unsafe ~access_size Bytes ~boxed bytes index new_value)
-      bytes (* CR layouts: fix kind *) Ptagged_int_index index
+      bytes (* CR layouts: fix kind *)
+      ~index_kind:Ptagged_int_index index
   | Bigstring ->
     checked_bigstring_access ~dbg ~size_int ~access_size
       ~primitive:
         (bytes_like_set_unsafe ~access_size Bigstring ~boxed bytes index
            new_value)
-      bytes (* CR layouts: fix kind *) Ptagged_int_index index
+      bytes (* CR layouts: fix kind *)
+      ~index_kind:Ptagged_int_index index
 
 (* Array vector load/store *)
 
@@ -796,15 +798,16 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
 
 (* Array accesses *)
 let array_access_validity_condition array array_kind index
-    (index_kind : L.array_index_kind) =
+    ~(index_kind : L.array_index_kind) =
   let arr_len_as_tagged_imm = H.Prim (Unary (Array_length array_kind, array)) in
-  [check_bound index_kind Tagged_immediate index arr_len_as_tagged_imm]
+  [ check_bound ~index_kind ~bound_kind:Tagged_immediate index
+      arr_len_as_tagged_imm ]
 
 let check_array_access ~dbg ~array array_kind ~index ~index_kind primitive :
     H.expr_primitive =
   checked_access ~primitive
     ~conditions:
-      (array_access_validity_condition array array_kind index index_kind)
+      (array_access_validity_condition array array_kind index ~index_kind)
     ~dbg
 
 let array_load_unsafe ~array ~index (array_ref_kind : Array_ref_kind.t)
@@ -1287,101 +1290,105 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pstringlength, [[arg]] -> [tag_int (Unary (String_length String, arg))]
   | Pbyteslength, [[arg]] -> [tag_int (Unary (String_length Bytes, arg))]
   | Pstringrefu, [[str]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Eight String None ~boxed:false str
-        (* CR layouts: fix kind *) Ptagged_int_index index ~current_region ]
+    [ string_like_load_unsafe ~access_size:Eight String None ~boxed:false
+        str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbytesrefu, [[bytes]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Eight Bytes None ~boxed:false bytes
-        (* CR layouts: fix kind *) Ptagged_int_index index ~current_region ]
+    [ string_like_load_unsafe ~access_size:Eight Bytes None ~boxed:false
+        bytes (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pstringrefs, [[str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Eight String
-        ~boxed:false None str (* CR layouts: fix kind *) Ptagged_int_index index
-        ~current_region ]
+        ~boxed:false None str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbytesrefs, [[bytes]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Eight Bytes ~boxed:false
-        None bytes (* CR layouts: fix kind *) Ptagged_int_index index
-        ~current_region ]
+        None bytes (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pstring_load_16 true (* unsafe *), [[str]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Sixteen String ~boxed:false None str
-        (* CR layouts: fix kind *) Ptagged_int_index index ~current_region ]
+    [ string_like_load_unsafe ~access_size:Sixteen String ~boxed:false None
+        str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbytes_load_16 true (* unsafe *), [[bytes]; [index]] ->
-    [ string_like_load_unsafe ~access_size:Sixteen Bytes ~boxed:false None bytes
-        (* CR layouts: fix kind *) Ptagged_int_index index ~current_region ]
+    [ string_like_load_unsafe ~access_size:Sixteen Bytes ~boxed:false None
+        bytes (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pstring_load_32 (true (* unsafe *), mode), [[str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Thirty_two String ~boxed:true
-        (Some mode) str (* CR layouts: fix kind *) Ptagged_int_index index
-        ~current_region ]
+        (Some mode) str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pstring_load_f32 (true (* unsafe *), mode), [[str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Single String ~boxed:true (Some mode)
-        str (* CR layouts: fix kind *) Ptagged_int_index index ~current_region
-    ]
+        str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbytes_load_32 (true (* unsafe *), mode), [[bytes]; [index]] ->
     [ string_like_load_unsafe ~access_size:Thirty_two Bytes ~boxed:true
-        (Some mode) bytes (* CR layouts: fix kind *) Ptagged_int_index index
-        ~current_region ]
+        (Some mode) bytes (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbytes_load_f32 (true (* unsafe *), mode), [[bytes]; [index]] ->
     [ string_like_load_unsafe ~access_size:Single Bytes ~boxed:true (Some mode)
-        bytes (* CR layouts: fix kind *) Ptagged_int_index index ~current_region
-    ]
+        bytes (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pstring_load_64 (true (* unsafe *), mode), [[str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Sixty_four String ~boxed:true
-        (Some mode) str (* CR layouts: fix kind *) Ptagged_int_index index
-        ~current_region ]
+        (Some mode) str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbytes_load_64 (true (* unsafe *), mode), [[bytes]; [index]] ->
     [ string_like_load_unsafe ~access_size:Sixty_four Bytes ~boxed:true
-        (Some mode) bytes (* CR layouts: fix kind *) Ptagged_int_index index
-        ~current_region ]
+        (Some mode) bytes (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pstring_load_128 { unsafe = true; mode }, [[str]; [index]] ->
     [ string_like_load_unsafe
         ~access_size:(One_twenty_eight { aligned = false })
-        String ~boxed:true (Some mode) str
-        (* CR layouts: fix kind *) Ptagged_int_index index ~current_region ]
+        String ~boxed:true (Some mode) str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbytes_load_128 { unsafe = true; mode }, [[str]; [index]] ->
     [ string_like_load_unsafe
         ~access_size:(One_twenty_eight { aligned = false })
-        Bytes ~boxed:true (Some mode) str
-        (* CR layouts: fix kind *) Ptagged_int_index index ~current_region ]
+        Bytes ~boxed:true (Some mode) str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pstring_load_16 false (* safe *), [[str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixteen String
-        ~boxed:false None str (* CR layouts: fix kind *) Ptagged_int_index index
-        ~current_region ]
+        ~boxed:false None str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pstring_load_32 (false (* safe *), mode), [[str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two String
-        (Some mode) ~boxed:true str (* CR layouts: fix kind *) Ptagged_int_index
-        index ~current_region ]
+        (Some mode) ~boxed:true str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pstring_load_f32 (false (* safe *), mode), [[str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Single String
-        (Some mode) ~boxed:true str (* CR layouts: fix kind *) Ptagged_int_index
-        index ~current_region ]
+        (Some mode) ~boxed:true str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pstring_load_64 (false (* safe *), mode), [[str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four String
-        (Some mode) ~boxed:true str (* CR layouts: fix kind *) Ptagged_int_index
-        index ~current_region ]
+        (Some mode) ~boxed:true str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pstring_load_128 { unsafe = false; mode }, [[str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned = false })
-        String (Some mode) ~boxed:true str
-        (* CR layouts: fix kind *) Ptagged_int_index index ~current_region ]
+        String (Some mode) ~boxed:true str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbytes_load_16 false (* safe *), [[bytes]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixteen Bytes
-        ~boxed:false None bytes (* CR layouts: fix kind *) Ptagged_int_index
-        index ~current_region ]
+        ~boxed:false None bytes (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbytes_load_32 (false (* safe *), mode), [[bytes]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two Bytes
-        ~boxed:true (Some mode) bytes
-        (* CR layouts: fix kind *) Ptagged_int_index index ~current_region ]
+        ~boxed:true (Some mode) bytes (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbytes_load_f32 (false (* safe *), mode), [[bytes]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Single Bytes ~boxed:true
-        (Some mode) bytes (* CR layouts: fix kind *) Ptagged_int_index index
-        ~current_region ]
+        (Some mode) bytes (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbytes_load_64 (false (* safe *), mode), [[bytes]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four Bytes
-        ~boxed:true (Some mode) bytes
-        (* CR layouts: fix kind *) Ptagged_int_index index ~current_region ]
+        ~boxed:true (Some mode) bytes (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbytes_load_128 { unsafe = false; mode }, [[bytes]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned = false })
-        Bytes ~boxed:true (Some mode) bytes
-        (* CR layouts: fix kind *) Ptagged_int_index index ~current_region ]
+        Bytes ~boxed:true (Some mode) bytes (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbytes_set_16 true (* unsafe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set_unsafe ~access_size:Sixteen Bytes ~boxed:false bytes index
         new_value ]
@@ -1784,46 +1791,46 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [tag_int (Unary (Bigarray_length { dimension }, arg))]
   | Pbigstring_load_16 { unsafe = true; index_kind }, [[big_str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Sixteen Bigstring ~boxed:false None
-        big_str index_kind index ~current_region ]
+        big_str ~index_kind index ~current_region ]
   | Pbigstring_load_32 { unsafe = true; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Thirty_two Bigstring (Some mode)
-        ~boxed big_str (* CR layouts: fix kind *) Ptagged_int_index index
-        ~current_region ]
+        ~boxed big_str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbigstring_load_f32 { unsafe = true; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Single Bigstring (Some mode) ~boxed
-        big_str (* CR layouts: fix kind *) Ptagged_int_index index
-        ~current_region ]
+        big_str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbigstring_load_64 { unsafe = true; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_unsafe ~access_size:Sixty_four Bigstring (Some mode)
-        ~boxed big_str (* CR layouts: fix kind *) Ptagged_int_index index
-        ~current_region ]
+        ~boxed big_str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | ( Pbigstring_load_128 { unsafe = true; aligned; mode; boxed },
       [[big_str]; [index]] ) ->
     [ string_like_load_unsafe
         ~access_size:(One_twenty_eight { aligned })
-        Bigstring (Some mode) ~boxed big_str
-        (* CR layouts: fix kind *) Ptagged_int_index index ~current_region ]
+        Bigstring (Some mode) ~boxed big_str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbigstring_load_16 { unsafe = false; index_kind }, [[big_str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixteen Bigstring
-        ~boxed:false None big_str index_kind index ~current_region ]
+        ~boxed:false None big_str ~index_kind index ~current_region ]
   | Pbigstring_load_32 { unsafe = false; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Thirty_two Bigstring
-        (Some mode) ~boxed big_str (* CR layouts: fix kind *) Ptagged_int_index
-        index ~current_region ]
+        (Some mode) ~boxed big_str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbigstring_load_f32 { unsafe = false; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Single Bigstring
-        (Some mode) ~boxed big_str (* CR layouts: fix kind *) Ptagged_int_index
-        index ~current_region ]
+        (Some mode) ~boxed big_str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbigstring_load_64 { unsafe = false; mode; boxed }, [[big_str]; [index]] ->
     [ string_like_load_safe ~dbg ~size_int ~access_size:Sixty_four Bigstring
-        (Some mode) ~boxed big_str (* CR layouts: fix kind *) Ptagged_int_index
-        index ~current_region ]
+        (Some mode) ~boxed big_str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | ( Pbigstring_load_128 { unsafe = false; aligned; mode; boxed },
       [[big_str]; [index]] ) ->
     [ string_like_load_safe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned })
-        Bigstring (Some mode) ~boxed big_str
-        (* CR layouts: fix kind *) Ptagged_int_index index ~current_region ]
+        Bigstring (Some mode) ~boxed big_str (* CR layouts: fix kind *)
+        ~index_kind:Ptagged_int_index index ~current_region ]
   | Pbigstring_set_16 { unsafe = true }, [[bigstring]; [index]; [new_value]] ->
     [ bytes_like_set_unsafe ~access_size:Sixteen Bigstring ~boxed:false
         bigstring index new_value ]
