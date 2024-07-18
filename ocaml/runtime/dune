@@ -17,7 +17,7 @@
   (mode fallback)
   (action
     (progn
-     (bash "rm -f runtime/sak")
+     (bash "rm -f sak")
      (bash "cd .. && make V=1 'SAK_LINK=cc -o $(1) $(2)' COMPUTE_DEPS=false runtime/sak")
     )
   ))
@@ -28,7 +28,7 @@
   (deps sak)
   (action
     (progn
-     (bash "rm -f runtime/build_config.h")
+     (bash "rm -f build_config.h")
      (bash "cd .. && make V=1 runtime/build_config.h")
     )
   ))
