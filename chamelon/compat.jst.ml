@@ -2,7 +2,10 @@ open Typedtree
 open Types
 open Mode
 
-let dummy_jkind = Jkind.Primitive.value ~why:(Unknown "dummy_layout")
+let dummy_jkind =
+  Jkind.Type.Primitive.value ~why:(Unknown "dummy_layout")
+  |> Jkind.of_type_jkind
+
 let dummy_value_mode = Value.disallow_right Value.legacy
 let mkTvar name = Tvar { name; jkind = dummy_jkind }
 
@@ -102,7 +105,9 @@ let texp_function_cases_identifier_defaults =
     last_arg_exp_extra = None;
     last_arg_attributes = [];
     env = Env.empty;
-    ret_type = Ctype.newvar (Jkind.Primitive.any ~why:Dummy_jkind);
+    ret_type =
+      Ctype.newvar
+        (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind);
   }
 
 let texp_function_param_identifier_defaults =

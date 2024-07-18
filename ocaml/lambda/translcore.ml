@@ -1022,7 +1022,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
             match
               Ctype.check_type_jkind
                 e.exp_env (Ctype.correct_levels val_type)
-                (Jkind.Primitive.value ~why:Probe)
+                (Jkind.Type.Primitive.value ~why:Probe |> Jkind.of_type_jkind)
             with
             | Ok _ -> ()
             | Error _ -> raise (Error (e.exp_loc, Bad_probe_layout id))

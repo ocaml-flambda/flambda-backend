@@ -332,8 +332,6 @@ end
 
 (******************************)
 (* constants *)
-(* See documentation of relevant functions in Jkind.Type for details
-   - the functions here wrap them *)
 
 module Const : sig
   type t = Types.type_expr Jkind_types.Const.t
@@ -343,55 +341,6 @@ module Const : sig
   val format : Format.formatter -> t -> unit
 
   val equal : t -> t -> bool
-
-  module Primitive : sig
-    type nonrec t =
-      { jkind : t;
-        name : string
-      }
-
-    val any : t
-
-    val void : t
-
-    val value : t
-
-    val immediate64 : t
-
-    val immediate : t
-
-    val float64 : t
-
-    val float32 : t
-
-    val word : t
-
-    val bits32 : t
-
-    val bits64 : t
-  end
-end
-
-module Primitive : sig
-  val any : why:Type.History.any_creation_reason -> t
-
-  val void : why:Type.History.void_creation_reason -> t
-
-  val value : why:Type.History.value_creation_reason -> t
-
-  val immediate64 : why:Type.History.immediate64_creation_reason -> t
-
-  val immediate : why:Type.History.immediate_creation_reason -> t
-
-  val float64 : why:Type.History.float64_creation_reason -> t
-
-  val float32 : why:Type.History.float32_creation_reason -> t
-
-  val word : why:Type.History.word_creation_reason -> t
-
-  val bits32 : why:Type.History.bits32_creation_reason -> t
-
-  val bits64 : why:Type.History.bits64_creation_reason -> t
 end
 
 (******************************)

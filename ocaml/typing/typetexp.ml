@@ -287,7 +287,7 @@ end = struct
 
   let mk_poly_univars_tuple_without_jkind var =
     let name = var.txt in
-    let original_jkind = Jkind.Primitive.value ~why:Univar in
+    let original_jkind = Jkind.Type.Primitive.value ~why:Univar |> Jkind.of_type_jkind in
     let jkind_info = { original_jkind; jkind_annot = None; defaulted = true } in
     name, mk_pending_univar name original_jkind jkind_info
 
@@ -430,7 +430,7 @@ end = struct
 
   let new_jkind ~is_named { jkind_initialization } =
     match jkind_initialization with
-    | Any -> Jkind.Primitive.any ~why:(if is_named then Unification_var else Wildcard)
+    | Any -> Jkind.Type.Primitive.any ~why:(if is_named then Unification_var else Wildcard) |> Jkind.of_type_jkind
     | Sort -> Jkind.of_new_sort ~why:(if is_named then Unification_var else Wildcard)
 
 
@@ -443,7 +443,7 @@ end = struct
     TyVarMap.iter
       (fun name (ty, loc) ->
         if flavor = Unification || is_in_scope name then
-          let v = new_global_var (Jkind.Primitive.any ~why:Dummy_jkind) in
+          let v = new_global_var (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
           let snap = Btype.snapshot () in
           if try unify env v ty; true with _ -> Btype.backtrack snap; false
           then try
@@ -453,7 +453,7 @@ end = struct
               raise(Error(loc, env,
                           Unbound_type_variable ("'"^name,
                                                  get_in_scope_names ())));
-            let v2 = new_global_var (Jkind.Primitive.any ~why:Dummy_jkind) in
+            let v2 = new_global_var (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
             r := (loc, v, v2) :: !r;
             add name v2)
       !used_variables;
@@ -818,7 +818,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       let name = ref None in
       let mkfield l f =
         newty (Tvariant (create_row ~fields:[l,f]
-                           ~more:(newvar (Jkind.Primitive.value ~why:Row_variable))
+                           ~more:(newvar (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind))
                            ~closed:true ~fixed:None ~name:None)) in
       let hfields = Hashtbl.create 17 in
       let add_typed_field loc l f =
@@ -853,7 +853,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
                  polymorphic variants. *)
               match
                 constrain_type_jkind env ctyp_type
-                  (Jkind.Primitive.value ~why:Polymorphic_variant_field)
+                  (Jkind.Type.Primitive.value ~why:Polymorphic_variant_field |> Jkind.of_type_jkind)
               with
               | Ok _ -> ()
               | Error e ->
@@ -928,9 +928,9 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       in
       let more =
         if Btype.static_row
-             (make_row (newvar (Jkind.Primitive.value ~why:Row_variable)))
+             (make_row (newvar (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind)))
         then newty Tnil
-        else TyVarEnv.new_var (Jkind.Primitive.value ~why:Row_variable) policy
+        else TyVarEnv.new_var (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind) policy
       in
       more_slot := Some more;
       let ty = newty (Tvariant (make_row more)) in
@@ -1050,7 +1050,7 @@ and transl_type_poly env ~policy ~row_context mode loc (vars : (_, _) Either.t)
   let ty_list = TyVarEnv.check_poly_univars env loc new_univars in
   let ty_list = List.filter (fun v -> deep_occur v ty) ty_list in
   let ty' = Btype.newgenty (Tpoly(ty, ty_list)) in
-  unify_var env (newvar (Jkind.Primitive.any ~why:Dummy_jkind)) ty';
+  unify_var env (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)) ty';
   Ttyp_poly (typed_vars, cty), ty'
 
 and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_opt
@@ -1085,7 +1085,7 @@ and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_op
           with_local_level_if_principal begin fun () ->
             let jkind, jkind_annot =
               match jkind_annot_opt with
-              | None -> Jkind.Primitive.any ~why:Dummy_jkind, None
+              | None -> Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind, None
               | Some jkind_annot ->
                 let jkind, annot =
                   jkind_of_annotation (Type_variable ("'" ^ alias)) attrs jkind_annot
@@ -1146,7 +1146,7 @@ and transl_type_aux_tuple env ~policy ~row_context stl =
   List.iter (fun (_, {ctyp_type; ctyp_loc}) ->
     (* CR layouts v5: remove value requirement *)
     match
-      constrain_type_jkind env ctyp_type (Jkind.Primitive.value ~why:Tuple_element)
+      constrain_type_jkind env ctyp_type (Jkind.Type.Primitive.value ~why:Tuple_element |> Jkind.of_type_jkind)
     with
     | Ok _ -> ()
     | Error e ->
@@ -1182,7 +1182,7 @@ and transl_fields env ~policy ~row_context o fields =
         begin
           match
             constrain_type_jkind
-              env ty1.ctyp_type (Jkind.Primitive.value ~why:Object_field)
+              env ty1.ctyp_type (Jkind.Type.Primitive.value ~why:Object_field |> Jkind.of_type_jkind)
           with
           | Ok _ -> ()
           | Error e ->
@@ -1229,7 +1229,7 @@ and transl_fields env ~policy ~row_context o fields =
   let ty_init =
      match o with
      | Closed -> newty Tnil
-     | Open -> TyVarEnv.new_var (Jkind.Primitive.value ~why:Row_variable) policy
+     | Open -> TyVarEnv.new_var (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind) policy
   in
   let ty = List.fold_left (fun ty (s, ty') ->
       newty (Tfield (s, field_public, ty', ty))) ty_init fields in
