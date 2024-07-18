@@ -28,9 +28,14 @@ let modname (x: t) = x.modname
 let prefix (x: t) = x.prefix
 
 let basename_chop_extensions basename  =
-  match String.index basename '.' with
-  | dot_pos -> String.sub basename 0 dot_pos
-  | exception Not_found -> basename
+  try
+    (* For hidden files (i.e., those starting with '.'), include the initial
+       '.' in the module name rather than let it be empty. It's still not a
+       /good/ module name, but at least it's not rejected out of hand by
+       [Compilation_unit.Name.of_string]. *)
+    let pos = String.index_from basename 1 '.' in
+    String.sub basename 0 pos
+  with Not_found -> basename
 
 let modulize s = String.capitalize_ascii s
 

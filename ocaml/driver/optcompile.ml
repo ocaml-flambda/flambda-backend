@@ -36,83 +36,7 @@ let compile i ~backend ~middle_end ~transl_style
       Typedtree.{structure; coercion; _} =
   (structure, coercion)
   |> Profile.(record transl)
-<<<<<<< HEAD
     (Translmod.transl_implementation i.module_name ~style:transl_style)
-||||||| 121bedcfd2
-      (Translmod.transl_implementation_flambda i.module_name)
-  |> Profile.(record generate)
-    (fun {Lambda.module_ident; main_module_block_size;
-          required_globals; code } ->
-      let () =
-        let (module_ident, main_module_block_size), code =
-          ((module_ident, main_module_block_size), code)
-          |>> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
-          |>> Simplif.simplify_lambda
-          |>> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
-        in
-
-        if Clflags.(should_stop_after Compiler_pass.Lambda) then () else (
-          let program : Lambda.program =
-            { Lambda.
-              module_ident;
-              main_module_block_size;
-              required_globals;
-              code;
-            }
-          in
-          Asmgen.compile_implementation
-            ~backend
-            ~prefixname:i.output_prefix
-            ~middle_end:Flambda_middle_end.lambda_to_clambda
-            ~ppf_dump:i.ppf_dump
-            program)
-      in
-      Compilenv.save_unit_info (cmx i))
-
-
-let clambda i backend Typedtree.{structure; coercion; _} =
-  Clflags.use_inlining_arguments_set Clflags.classic_arguments;
-  (structure, coercion)
-  |> Profile.(record transl)
-    (Translmod.transl_store_implementation i.module_name)
-=======
-      (Translmod.transl_implementation_flambda (Unit_info.modname i.target))
-  |> Profile.(record generate)
-    (fun {Lambda.module_ident; main_module_block_size;
-          required_globals; code } ->
-      let () =
-        let (module_ident, main_module_block_size), code =
-          ((module_ident, main_module_block_size), code)
-          |>> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
-          |>> Simplif.simplify_lambda
-          |>> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
-        in
-
-        if Clflags.(should_stop_after Compiler_pass.Lambda) then () else (
-          let program : Lambda.program =
-            { Lambda.
-              module_ident;
-              main_module_block_size;
-              required_globals;
-              code;
-            }
-          in
-          Asmgen.compile_implementation
-            ~backend
-            ~prefixname:(Unit_info.prefix i.target)
-            ~middle_end:Flambda_middle_end.lambda_to_clambda
-            ~ppf_dump:i.ppf_dump
-            program)
-      in
-      Compilenv.save_unit_info Unit_info.(Artifact.filename @@ cmx i.target))
-
-
-let clambda i backend Typedtree.{structure; coercion; _} =
-  Clflags.use_inlining_arguments_set Clflags.classic_arguments;
-  (structure, coercion)
-  |> Profile.(record transl)
-    (Translmod.transl_store_implementation (Unit_info.modname i.target))
->>>>>>> 5.2.0
   |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.program
   |> Profile.(record generate)
     (fun program ->
@@ -121,35 +45,15 @@ let clambda i backend Typedtree.{structure; coercion; _} =
        { program with Lambda.code }
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
        |>(fun lambda ->
-<<<<<<< HEAD
           if Clflags.(should_stop_after Compiler_pass.Lambda) then () else
           Asmgen.compile_implementation
             ~backend
-            ~prefixname:i.output_prefix
+            ~prefixname:(Unit_info.prefix i.target)
             ~middle_end
             ~ppf_dump:i.ppf_dump
             lambda;
-       Compilenv.save_unit_info (cmx i)))
-||||||| 121bedcfd2
-          if Clflags.(should_stop_after Compiler_pass.Lambda) then () else
-          Asmgen.compile_implementation
-            ~backend
-            ~prefixname:i.output_prefix
-            ~middle_end:Closure_middle_end.lambda_to_clambda
-            ~ppf_dump:i.ppf_dump
-            lambda;
-          Compilenv.save_unit_info (cmx i)))
-=======
-           if Clflags.(should_stop_after Compiler_pass.Lambda) then () else
-             Asmgen.compile_implementation
-               ~backend
-               ~prefixname:(Unit_info.prefix i.target)
-               ~middle_end:Closure_middle_end.lambda_to_clambda
-               ~ppf_dump:i.ppf_dump
-               lambda;
            Compilenv.save_unit_info
              Unit_info.(Artifact.filename @@ cmx i.target)))
->>>>>>> 5.2.0
 
 let flambda i backend typed =
   compile i typed ~backend ~transl_style:Plain_block
@@ -162,28 +66,13 @@ let clambda i backend typed =
 
 (* Emit assembly directly from Linear IR *)
 let emit i =
-<<<<<<< HEAD
   Compilenv.reset i.module_name;
   Asmgen.compile_implementation_linear i.output_prefix ~progname:i.source_file
-||||||| 121bedcfd2
-  Compilenv.reset ?packname:!Clflags.for_package i.module_name;
-  Asmgen.compile_implementation_linear i.output_prefix ~progname:i.source_file
-=======
-  Compilenv.reset ?packname:!Clflags.for_package (Unit_info.modname i.target);
-  Asmgen.compile_implementation_linear i.target
->>>>>>> 5.2.0
 
 let implementation ~backend ~start_from ~source_file
     ~output_prefix ~keep_symbol_tables:_ =
   let backend info typed =
-<<<<<<< HEAD
     Compilenv.reset info.module_name;
-||||||| 121bedcfd2
-    Compilenv.reset ?packname:!Clflags.for_package info.module_name;
-=======
-    Compilenv.reset ?packname:!Clflags.for_package
-      (Unit_info.modname info.target);
->>>>>>> 5.2.0
     if Config.flambda
     then flambda info backend typed
     else clambda info backend typed
