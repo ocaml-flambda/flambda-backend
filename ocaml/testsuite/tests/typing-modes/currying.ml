@@ -30,7 +30,7 @@ Line 1, characters 15-20:
 1 | let apply3 x = g x x x
                    ^^^^^
 Error: This application is complete, but surplus arguments were provided afterwards.
-       When passing or calling a local value, extra arguments are passed in a separate application.
+       When passing or calling local values, extra arguments are passed in a separate application.
   Hint: Try wrapping the marked application in parentheses.
 |}]
 let apply3_wrapped x = (g x x) x
@@ -49,7 +49,7 @@ Line 1, characters 15-20:
 1 | let apply4 x = g x x x x
                    ^^^^^
 Error: This application is complete, but surplus arguments were provided afterwards.
-       When passing or calling a local value, extra arguments are passed in a separate application.
+       When passing or calling local values, extra arguments are passed in a separate application.
   Hint: Try wrapping the marked application in parentheses.
 |}]
 let apply4_wrapped x = (g x x) x x
@@ -71,19 +71,12 @@ Line 1, characters 29-30:
 |}]
 
 (*
- * Defaulting of modes in module type of (like mli-less files)
+ * Defaulting of modes in printing, similar to mli-less files
  *)
 
 let f g = g (local_ (1, 2)) 1 2 3 [@nontail]
 [%%expect{|
 val f : (local_ int * int -> int -> int -> int -> 'a) -> 'a = <fun>
-|}]
-module type F = module type of struct
-  let f g = g (local_ (1, 2)) 1 2 3 [@nontail]
-end
-[%%expect{|
-module type F =
-  sig val f : (local_ int * int -> int -> int -> int -> 'a) -> 'a end
 |}]
 
 (*
@@ -130,7 +123,7 @@ Line 2, characters 2-21:
 2 |   f ~a:(local_ ref 1) 2 ~c:4
       ^^^^^^^^^^^^^^^^^^^
 Error: This application is complete, but surplus arguments were provided afterwards.
-       When passing or calling a local value, extra arguments are passed in a separate application.
+       When passing or calling local values, extra arguments are passed in a separate application.
   Hint: Try wrapping the marked application in parentheses.
 |}]
 let app42_wrapped (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
@@ -194,7 +187,7 @@ Line 2, characters 2-14:
 2 |   f ~a:(ref 1) 2 ~c:4
       ^^^^^^^^^^^^
 Error: This application is complete, but surplus arguments were provided afterwards.
-       When passing or calling a local value, extra arguments are passed in a separate application.
+       When passing or calling local values, extra arguments are passed in a separate application.
   Hint: Try wrapping the marked application in parentheses.
 |}]
 let app42'_wrapped (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
@@ -211,7 +204,7 @@ Line 2, characters 2-14:
 2 |   f ~a:(ref 1) 2
       ^^^^^^^^^^^^
 Error: This application is complete, but surplus arguments were provided afterwards.
-       When passing or calling a local value, extra arguments are passed in a separate application.
+       When passing or calling local values, extra arguments are passed in a separate application.
   Hint: Try wrapping the marked application in parentheses.
 |}]
 let app43'_wrapped (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
@@ -267,7 +260,7 @@ Line 5, characters 19-33:
 5 |   let bar = local_ foo ~b:"hello" in
                        ^^^^^^^^^^^^^^
 Error: This application is complete, but surplus arguments were provided afterwards.
-       When passing or calling a local value, extra arguments are passed in a separate application.
+       When passing or calling local values, extra arguments are passed in a separate application.
   Hint: Try splitting the application in two. The arguments that come
   after a in the function's type should be applied separately.
 |}]
@@ -293,7 +286,7 @@ Line 3, characters 9-26:
 3 | let () = overapp ~a:1 ~b:2 ~c:3 ~d:4
              ^^^^^^^^^^^^^^^^^
 Error: This application is complete, but surplus arguments were provided afterwards.
-       When passing or calling a local value, extra arguments are passed in a separate application.
+       When passing or calling local values, extra arguments are passed in a separate application.
   Hint: Try wrapping the marked application in parentheses.
 |}]
 
@@ -303,7 +296,7 @@ Line 1, characters 20-21:
 1 | let () = overapp ~b:2 ~a:1 ~c:3 ~d:4
                         ^
 Error: This application is complete, but surplus arguments were provided afterwards.
-       When passing or calling a local value, extra arguments are passed in a separate application.
+       When passing or calling local values, extra arguments are passed in a separate application.
   Hint: Try splitting the application in two. The arguments that come
   after this one in the function's type should be applied separately.
 |}]
@@ -314,7 +307,7 @@ Line 1, characters 25-26:
 1 | let () = overapp ~c:1 ~b:2
                              ^
 Error: This application is complete, but surplus arguments were provided afterwards.
-       When passing or calling a local value, extra arguments are passed in a separate application.
+       When passing or calling local values, extra arguments are passed in a separate application.
   Hint: Try splitting the application in two. The arguments that come
   after this one in the function's type should be applied separately.
 |}]
@@ -325,7 +318,7 @@ Line 1, characters 9-26:
 1 | let () = overapp ~d:1 ~a:2
              ^^^^^^^^^^^^^^^^^
 Error: This application is complete, but surplus arguments were provided afterwards.
-       When passing or calling a local value, extra arguments are passed in a separate application.
+       When passing or calling local values, extra arguments are passed in a separate application.
   Hint: Try splitting the application in two. The arguments that come
   after b in the function's type should be applied separately.
 |}]
