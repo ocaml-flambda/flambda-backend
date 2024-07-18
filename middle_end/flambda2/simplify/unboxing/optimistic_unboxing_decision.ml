@@ -141,9 +141,9 @@ and make_optimistic_fields ~add_tag_to_name ~depth ~recursive tenv param_type
     (tag : Tag.t) (shape : K.Block_shape.t) size =
   let field_base_name =
     match shape with
-    | Value_only -> "unboxed_field"
+    | Scannable Value_only -> "unboxed_field"
+    | Scannable (Mixed_record _) -> "unboxed_mixed_field"
     | Float_record -> "unboxed_float_field"
-    | Mixed_record _ -> "unboxed_mixed_field"
   in
   let field_name n =
     Format.asprintf "%s%a_%d" field_base_name (pp_tag add_tag_to_name) tag n

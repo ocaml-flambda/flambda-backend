@@ -167,7 +167,6 @@ type primitive =
   | Poffsetint of int
   | Poffsetref of int
   (* Float operations *)
-  (* CR mslater: (float32) use a single cast primitive *)
   | Pfloatoffloat32 of alloc_mode
   | Pfloat32offloat of alloc_mode
   | Pintoffloat of boxed_float
@@ -225,25 +224,30 @@ type primitive =
   (* load/set 16,32,64,128 bits from a string: (unsafe)*)
   | Pstring_load_16 of bool
   | Pstring_load_32 of bool * alloc_mode
+  | Pstring_load_f32 of bool * alloc_mode
   | Pstring_load_64 of bool * alloc_mode
   | Pstring_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_load_16 of bool
   | Pbytes_load_32 of bool * alloc_mode
+  | Pbytes_load_f32 of bool * alloc_mode
   | Pbytes_load_64 of bool * alloc_mode
   | Pbytes_load_128 of { unsafe : bool; mode: alloc_mode }
   | Pbytes_set_16 of bool
   | Pbytes_set_32 of bool
+  | Pbytes_set_f32 of bool
   | Pbytes_set_64 of bool
   | Pbytes_set_128 of { unsafe : bool }
   (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
   | Pbigstring_load_16 of { unsafe : bool }
   | Pbigstring_load_32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
+  | Pbigstring_load_f32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
   | Pbigstring_load_64 of { unsafe : bool; mode: alloc_mode; boxed : bool }
   | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode;
       boxed : bool }
   | Pbigstring_set_16 of { unsafe : bool }
   | Pbigstring_set_32 of { unsafe : bool; boxed : bool }
+  | Pbigstring_set_f32 of { unsafe : bool; boxed : bool }
   | Pbigstring_set_64 of { unsafe : bool; boxed : bool }
   | Pbigstring_set_128 of { aligned : bool; unsafe : bool; boxed : bool }
   (* load/set SIMD vectors in GC-managed arrays *)
@@ -251,6 +255,7 @@ type primitive =
   | Pfloat_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Pint_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_float_array_load_128 of { unsafe : bool; mode : alloc_mode }
+  | Punboxed_float32_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_int32_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_int64_array_load_128 of { unsafe : bool; mode : alloc_mode }
   | Punboxed_nativeint_array_load_128 of { unsafe : bool; mode : alloc_mode }
@@ -258,6 +263,7 @@ type primitive =
   | Pfloat_array_set_128 of { unsafe : bool }
   | Pint_array_set_128 of { unsafe : bool }
   | Punboxed_float_array_set_128 of { unsafe : bool }
+  | Punboxed_float32_array_set_128 of { unsafe : bool }
   | Punboxed_int32_array_set_128 of { unsafe : bool }
   | Punboxed_int64_array_set_128 of { unsafe : bool }
   | Punboxed_nativeint_array_set_128 of { unsafe : bool }
@@ -284,6 +290,17 @@ type primitive =
   | Pbox_float of boxed_float * alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
+  | Preinterpret_unboxed_int64_as_tagged_int63
+  | Preinterpret_tagged_int63_as_unboxed_int64
+    (** At present [Preinterpret_unboxed_int64_as_tagged_int63] and
+        [Preinterpret_tagged_int63_as_unboxed_int64] will cause a fatal error
+        if the target system is 32-bit bytecode.
+
+        The [Preinterpret_tagged_int63_as_unboxed_int64] primitive is the
+        identity on machine words.  The
+        [Preinterpret_unboxed_int64_as_tagged_int63] compiles to logical OR
+        with 1 on machine words, to ensure that the tag bit is always set in
+        the result, just in case it was not in the incoming unboxed int64. *)
   (* Jane Street extensions *)
   | Parray_to_iarray (* Unsafely reinterpret a mutable array as an immutable
                         one; O(1) *)
@@ -429,7 +446,8 @@ and boxed_vector =
 
 and bigarray_kind =
     Pbigarray_unknown
-  | Pbigarray_float32 | Pbigarray_float64
+  | Pbigarray_float32 | Pbigarray_float32_t
+  | Pbigarray_float64
   | Pbigarray_sint8 | Pbigarray_uint8
   | Pbigarray_sint16 | Pbigarray_uint16
   | Pbigarray_int32 | Pbigarray_int64
@@ -479,6 +497,7 @@ val layout_of_extern_repr : extern_repr -> layout
 type structured_constant =
     Const_base of constant
   | Const_block of int * structured_constant list
+  | Const_mixed_block of int * mixed_block_shape * structured_constant list
   | Const_float_array of string list
   | Const_immstring of string
   | Const_float_block of string list

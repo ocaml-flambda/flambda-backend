@@ -490,6 +490,54 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive
         ((Pbigarrayset(true, 3, Pbigarray_unknown, Pbigarray_unknown_layout)),
          5);
+    | "%caml_ba_float32_ref_1" ->
+      Primitive
+        ((Pbigarrayref(false, 1, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         2);
+    | "%caml_ba_float32_ref_2" ->
+      Primitive
+        ((Pbigarrayref(false, 2, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         3);
+    | "%caml_ba_float32_ref_3" ->
+      Primitive
+        ((Pbigarrayref(false, 3, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         4);
+    | "%caml_ba_float32_set_1" ->
+      Primitive
+        ((Pbigarrayset(false, 1, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         3);
+    | "%caml_ba_float32_set_2" ->
+      Primitive
+        ((Pbigarrayset(false, 2, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         4);
+    | "%caml_ba_float32_set_3" ->
+      Primitive
+        ((Pbigarrayset(false, 3, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         5);
+    | "%caml_ba_float32_unsafe_ref_1" ->
+      Primitive
+        ((Pbigarrayref(true, 1, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         2);
+    | "%caml_ba_float32_unsafe_ref_2" ->
+      Primitive
+        ((Pbigarrayref(true, 2, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         3);
+    | "%caml_ba_float32_unsafe_ref_3" ->
+      Primitive
+        ((Pbigarrayref(true, 3, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         4);
+    | "%caml_ba_float32_unsafe_set_1" ->
+      Primitive
+        ((Pbigarrayset(true, 1, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         3);
+    | "%caml_ba_float32_unsafe_set_2" ->
+      Primitive
+        ((Pbigarrayset(true, 2, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         4);
+    | "%caml_ba_float32_unsafe_set_3" ->
+      Primitive
+        ((Pbigarrayset(true, 3, Pbigarray_float32_t, Pbigarray_unknown_layout)),
+         5);
     | "%caml_ba_dim_1" -> Primitive ((Pbigarraydim(1)), 1)
     | "%caml_ba_dim_2" -> Primitive ((Pbigarraydim(2)), 1)
     | "%caml_ba_dim_3" -> Primitive ((Pbigarraydim(3)), 1)
@@ -497,6 +545,8 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%caml_string_get16u" -> Primitive ((Pstring_load_16(true)), 2)
     | "%caml_string_get32" -> Primitive ((Pstring_load_32(false, mode)), 2)
     | "%caml_string_get32u" -> Primitive ((Pstring_load_32(true, mode)), 2)
+    | "%caml_string_getf32" -> Primitive ((Pstring_load_f32(false, mode)), 2)
+    | "%caml_string_getf32u" -> Primitive ((Pstring_load_f32(true, mode)), 2)
     | "%caml_string_get64" -> Primitive ((Pstring_load_64(false, mode)), 2)
     | "%caml_string_get64u" -> Primitive ((Pstring_load_64(true, mode)), 2)
     | "%caml_string_getu128" ->
@@ -507,6 +557,8 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%caml_string_set16u" -> Primitive ((Pbytes_set_16(true)), 3)
     | "%caml_string_set32" -> Primitive ((Pbytes_set_32(false)), 3)
     | "%caml_string_set32u" -> Primitive ((Pbytes_set_32(true)), 3)
+    | "%caml_string_setf32" -> Primitive ((Pbytes_set_f32(false)), 3)
+    | "%caml_string_setf32u" -> Primitive ((Pbytes_set_f32(true)), 3)
     | "%caml_string_set64" -> Primitive ((Pbytes_set_64(false)), 3)
     | "%caml_string_set64u" -> Primitive ((Pbytes_set_64(true)), 3)
     | "%caml_string_setu128" ->
@@ -517,6 +569,8 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%caml_bytes_get16u" -> Primitive ((Pbytes_load_16(true)), 2)
     | "%caml_bytes_get32" -> Primitive ((Pbytes_load_32(false, mode)), 2)
     | "%caml_bytes_get32u" -> Primitive ((Pbytes_load_32(true, mode)), 2)
+    | "%caml_bytes_getf32" -> Primitive ((Pbytes_load_f32(false, mode)), 2)
+    | "%caml_bytes_getf32u" -> Primitive ((Pbytes_load_f32(true, mode)), 2)
     | "%caml_bytes_get64" -> Primitive ((Pbytes_load_64(false, mode)), 2)
     | "%caml_bytes_get64u" -> Primitive ((Pbytes_load_64(true, mode)), 2)
     | "%caml_bytes_getu128" ->
@@ -527,6 +581,8 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%caml_bytes_set16u" -> Primitive ((Pbytes_set_16(true)), 3)
     | "%caml_bytes_set32" -> Primitive ((Pbytes_set_32(false)), 3)
     | "%caml_bytes_set32u" -> Primitive ((Pbytes_set_32(true)), 3)
+    | "%caml_bytes_setf32" -> Primitive ((Pbytes_set_f32(false)), 3)
+    | "%caml_bytes_setf32u" -> Primitive ((Pbytes_set_f32(true)), 3)
     | "%caml_bytes_set64" -> Primitive ((Pbytes_set_64(false)), 3)
     | "%caml_bytes_set64u" -> Primitive ((Pbytes_set_64(true)), 3)
     | "%caml_bytes_setu128" ->
@@ -541,6 +597,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive ((Pbigstring_load_32 { unsafe = false; mode; boxed = true }), 2)
     | "%caml_bigstring_get32u" ->
       Primitive ((Pbigstring_load_32 { unsafe = true; mode; boxed = true }), 2)
+    | "%caml_bigstring_getf32" ->
+      Primitive ((Pbigstring_load_f32 { unsafe = false; mode; boxed = true }), 2)
+    | "%caml_bigstring_getf32u" ->
+      Primitive ((Pbigstring_load_f32 { unsafe = true; mode; boxed = true }), 2)
     | "%caml_bigstring_get64" ->
       Primitive ((Pbigstring_load_64 { unsafe = false; mode; boxed = true }), 2)
     | "%caml_bigstring_get64u" ->
@@ -565,6 +625,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive ((Pbigstring_set_32 { unsafe = false; boxed = true }), 3)
     | "%caml_bigstring_set32u" ->
       Primitive ((Pbigstring_set_32 { unsafe = true; boxed = true }), 3)
+    | "%caml_bigstring_setf32" ->
+      Primitive ((Pbigstring_set_f32 { unsafe = false; boxed = true }), 3)
+    | "%caml_bigstring_setf32u" ->
+      Primitive ((Pbigstring_set_f32 { unsafe = true; boxed = true }), 3)
     | "%caml_bigstring_set64" ->
       Primitive ((Pbigstring_set_64 { unsafe = false; boxed = true }), 3)
     | "%caml_bigstring_set64u" ->
@@ -587,11 +651,18 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%caml_bigstring_get32u#" ->
       Primitive ((Pbigstring_load_32 { unsafe = true; mode; boxed = false }),
         2)
+    | "%caml_bigstring_getf32#" ->
+      Primitive ((Pbigstring_load_f32 { unsafe = false; mode; boxed = false }),
+        2)
+    | "%caml_bigstring_getf32u#" ->
+      Primitive ((Pbigstring_load_f32 { unsafe = true; mode; boxed = false }),
+        2)
     | "%caml_bigstring_get64#" ->
       Primitive ((Pbigstring_load_64 { unsafe = false; mode; boxed = false }),
         2)
     | "%caml_bigstring_get64u#" ->
-      Primitive ((Pbigstring_load_64 { unsafe = true; mode; boxed = false }), 2)
+      Primitive ((Pbigstring_load_64 { unsafe = true; mode; boxed = false }),
+        2)
     | "%caml_bigstring_getu128#" ->
       Primitive ((Pbigstring_load_128 {aligned = false; unsafe = false; mode;
         boxed = false }), 2)
@@ -608,6 +679,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive ((Pbigstring_set_32 { unsafe = false; boxed = false }), 3)
     | "%caml_bigstring_set32u#" ->
       Primitive ((Pbigstring_set_32 { unsafe = true; boxed = false }), 3)
+    | "%caml_bigstring_setf32#" ->
+      Primitive ((Pbigstring_set_f32 { unsafe = false; boxed = false }), 3)
+    | "%caml_bigstring_setf32u#" ->
+      Primitive ((Pbigstring_set_f32 { unsafe = true; boxed = false }), 3)
     | "%caml_bigstring_set64#" ->
       Primitive ((Pbigstring_set_64 { unsafe = false; boxed = false }), 3)
     | "%caml_bigstring_set64u#" ->
@@ -636,6 +711,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive ((Punboxed_float_array_load_128 {unsafe = false; mode}), 2)
     | "%caml_unboxed_float_array_get128u" ->
       Primitive ((Punboxed_float_array_load_128 {unsafe = true; mode}), 2)
+    | "%caml_unboxed_float32_array_get128" ->
+      Primitive ((Punboxed_float32_array_load_128 {unsafe = false; mode}), 2)
+    | "%caml_unboxed_float32_array_get128u" ->
+      Primitive ((Punboxed_float32_array_load_128 {unsafe = true; mode}), 2)
     | "%caml_int_array_get128" ->
       Primitive ((Pint_array_load_128 {unsafe = false; mode}), 2)
     | "%caml_int_array_get128u" ->
@@ -660,11 +739,14 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive ((Pfloatarray_set_128 {unsafe = false}), 3)
     | "%caml_floatarray_set128u" ->
       Primitive ((Pfloatarray_set_128 {unsafe = true}), 3)
-    (* CR mslater: (float32) unboxed arrays *)
     | "%caml_unboxed_float_array_set128" ->
       Primitive ((Punboxed_float_array_set_128 {unsafe = false}), 3)
     | "%caml_unboxed_float_array_set128u" ->
       Primitive ((Punboxed_float_array_set_128 {unsafe = true}), 3)
+    | "%caml_unboxed_float32_array_set128" ->
+      Primitive ((Punboxed_float32_array_set_128 {unsafe = false}), 3)
+    | "%caml_unboxed_float32_array_set128u" ->
+      Primitive ((Punboxed_float32_array_set_128 {unsafe = true}), 3)
     | "%caml_int_array_set128" ->
       Primitive ((Pint_array_set_128 {unsafe = false}), 3)
     | "%caml_int_array_set128u" ->
@@ -727,6 +809,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%box_int32" -> Primitive(Pbox_int (Pint32, mode), 1)
     | "%unbox_int64" -> Primitive(Punbox_int Pint64, 1)
     | "%box_int64" -> Primitive(Pbox_int (Pint64, mode), 1)
+    | "%reinterpret_tagged_int63_as_unboxed_int64" ->
+      Primitive(Preinterpret_tagged_int63_as_unboxed_int64, 1)
+    | "%reinterpret_unboxed_int64_as_tagged_int63" ->
+      Primitive(Preinterpret_unboxed_int64_as_tagged_int63, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
        raise(Error(loc, Unknown_builtin_primitive s))
     | _ -> External lambda_prim
@@ -1460,19 +1546,26 @@ let lambda_primitive_needs_event_after = function
   | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
   | Pbintcomp _ | Punboxed_int_comp _ | Pcompare_bints _
   | Pbigarrayref _ | Pbigarrayset _ | Pbigarraydim _ | Pstring_load_16 _
-  | Pstring_load_32 _ | Pstring_load_64 _ | Pstring_load_128 _ | Pbytes_load_16 _
-  | Pbytes_load_32 _ | Pbytes_load_64 _ | Pbytes_load_128 _ | Pbytes_set_16 _
-  | Pbytes_set_32 _ | Pbytes_set_64 _ | Pbytes_set_128 _ | Pbigstring_load_16 _
-  | Pbigstring_load_32 _ | Pbigstring_load_64 _ | Pbigstring_load_128 _
-  | Pbigstring_set_16 _ | Pbigstring_set_32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
+  | Pstring_load_32 _ | Pstring_load_f32 _ | Pstring_load_64 _ | Pstring_load_128 _
+  | Pbytes_load_16 _ | Pbytes_load_32 _ | Pbytes_load_f32 _ | Pbytes_load_64 _
+  | Pbytes_load_128 _ | Pbytes_set_16 _ | Pbytes_set_32 _  | Pbytes_set_f32 _
+  | Pbytes_set_64 _ | Pbytes_set_128 _ | Pbigstring_load_16 _
+  | Pbigstring_load_32 _ | Pbigstring_load_f32 _ | Pbigstring_load_64 _
+  | Pbigstring_load_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
+  | Pbigstring_set_f32 _ | Pbigstring_set_64 _ | Pbigstring_set_128 _
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _ | Pint_array_load_128 _
-  | Punboxed_float_array_load_128 _ | Punboxed_int32_array_load_128 _
-  | Punboxed_int64_array_load_128 _ | Punboxed_nativeint_array_load_128 _
+  | Punboxed_float_array_load_128 _| Punboxed_float32_array_load_128 _
+  | Punboxed_int32_array_load_128 _ | Punboxed_int64_array_load_128 _
+  | Punboxed_nativeint_array_load_128 _
   | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
-  | Punboxed_float_array_set_128 _ | Punboxed_int32_array_set_128 _
-  | Punboxed_int64_array_set_128 _ | Punboxed_nativeint_array_set_128 _
+  | Punboxed_float_array_set_128 _| Punboxed_float32_array_set_128 _
+  | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
+  | Punboxed_nativeint_array_set_128 _
   | Prunstack | Pperform | Preperform | Presume
   | Pbbswap _ | Pobj_dup | Pget_header _ -> true
+  (* [Preinterpret_tagged_int63_as_unboxed_int64] has to allocate in
+     bytecode, because int64# is actually represented as a boxed value. *)
+  | Preinterpret_tagged_int63_as_unboxed_int64 -> true
 
   | Pbytes_to_string | Pbytes_of_string
   | Parray_to_iarray | Parray_of_iarray
@@ -1498,6 +1591,7 @@ let lambda_primitive_needs_event_after = function
   | Pintofbint _ | Pctconst _ | Pbswap16 | Pint_as_pointer _ | Popaque _
   | Pdls_get
   | Pobj_magic _ | Punbox_float _ | Punbox_int _
+  | Preinterpret_unboxed_int64_as_tagged_int63
   (* These don't allocate in bytecode; they're just identity functions: *)
   | Pbox_float (_, _) | Pbox_int _
     -> false

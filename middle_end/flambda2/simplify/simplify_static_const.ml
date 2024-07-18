@@ -17,28 +17,22 @@
 open! Flambda.Import
 open! Simplify_import
 
-let simplify_field_of_block dacc (field : Field_of_static_block.t) =
-  match field with
-  | Symbol sym -> field, T.alias_type_of K.value (Simple.symbol sym)
-  | Tagged_immediate i -> field, T.this_tagged_immediate i
-  | Dynamically_computed (var, dbg) ->
-    let min_name_mode = Name_mode.normal in
-    let ty, simple = S.simplify_simple dacc (Simple.var var) ~min_name_mode in
-    Simple.pattern_match simple
-      ~name:(fun name ~coercion:_ ->
-        (* CR mshinwell: It's safe to drop the coercion, but perhaps not
-           ideal. *)
-        Name.pattern_match name
-          ~var:(fun var ->
-            Field_of_static_block.Dynamically_computed (var, dbg), ty)
-          ~symbol:(fun sym -> Field_of_static_block.Symbol sym, ty))
-      ~const:(fun const ->
-        match Reg_width_const.descr const with
-        | Tagged_immediate imm -> Field_of_static_block.Tagged_immediate imm, ty
-        | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-        | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ ->
-          (* CR mshinwell: This should be "invalid" and propagate up *)
-          field, ty)
+let simplify_field_of_block dacc (field, expected_kind) =
+  let ty, simple =
+    S.simplify_simple dacc
+      (Simple.With_debuginfo.simple field)
+      ~min_name_mode:Name_mode.normal
+  in
+  let field =
+    Simple.With_debuginfo.create simple (Simple.With_debuginfo.dbg field)
+  in
+  if not (K.equal (T.kind ty) expected_kind)
+  then
+    Misc.fatal_errorf
+      "Kind %a specified for a field of a static block, but the field has \
+       type:@ %a"
+      K.print expected_kind T.print ty;
+  field, ty
 
 let simplify_or_variable dacc type_for_const (or_variable : _ Or_variable.t)
     kind =
@@ -64,6 +58,20 @@ let rebuild_naked_number_array dacc ~bind_result_sym kind type_creator creator
   in
   creator (DA.are_rebuilding_terms dacc) fields, dacc
 
+let simplify_static_const_block_type ~tag ~fields ~shape
+    ~(is_mutable : Mutability.t) =
+  (* Similar to Simplify_variadic_primitive.simplify_make_block_of_values *)
+  let tag = Tag.Scannable.to_tag tag in
+  let shape = K.Block_shape.Scannable shape in
+  match is_mutable with
+  | Immutable ->
+    T.immutable_block ~is_unique:false tag ~shape ~fields
+      Alloc_mode.For_types.heap
+  | Immutable_unique ->
+    T.immutable_block ~is_unique:true tag ~shape ~fields
+      Alloc_mode.For_types.heap
+  | Mutable -> T.mutable_block Alloc_mode.For_types.heap
+
 let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     ~result_sym : Rebuilt_static_const.t * DA.t =
   let bind_result_sym typ =
@@ -72,28 +80,25 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
         DE.add_equation_on_symbol denv result_sym typ)
   in
   match static_const with
-  | Block (tag, is_mutable, fields) ->
+  | Block (tag, is_mutable, shape, fields) ->
     let fields_with_tys =
-      List.map (fun field -> simplify_field_of_block dacc field) fields
+      let fields_with_kinds =
+        match shape with
+        | Value_only -> List.map (fun field -> field, K.value) fields
+        | Mixed_record shape ->
+          List.combine fields
+            (Array.to_list (K.Mixed_block_shape.field_kinds shape))
+      in
+      List.map (simplify_field_of_block dacc) fields_with_kinds
     in
     let fields, field_tys = List.split fields_with_tys in
     let ty =
-      (* Same as Simplify_variadic_primitive.simplify_make_block_of_values *)
-      let tag = Tag.Scannable.to_tag tag in
-      let fields = field_tys in
-      match is_mutable with
-      | Immutable ->
-        T.immutable_block ~is_unique:false tag ~shape:K.Block_shape.Value_only
-          ~fields Alloc_mode.For_types.heap
-      | Immutable_unique ->
-        T.immutable_block ~is_unique:true tag ~shape:K.Block_shape.Value_only
-          ~fields Alloc_mode.For_types.heap
-      | Mutable -> T.any_value
+      simplify_static_const_block_type ~tag ~fields:field_tys ~shape ~is_mutable
     in
     let dacc = bind_result_sym ty in
     ( Rebuilt_static_const.create_block
         (DA.are_rebuilding_terms dacc)
-        tag is_mutable ~fields,
+        tag is_mutable shape ~fields,
       dacc )
   | Boxed_float32 or_var ->
     let or_var, ty =
@@ -193,7 +198,9 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
       T.this_naked_nativeint RSC.create_immutable_nativeint_array ~fields
   | Immutable_value_array fields ->
     let fields_with_tys =
-      List.map (fun field -> simplify_field_of_block dacc field) fields
+      List.map
+        (fun field -> simplify_field_of_block dacc (field, K.value))
+        fields
     in
     let fields, field_tys = List.split fields_with_tys in
     let dacc =

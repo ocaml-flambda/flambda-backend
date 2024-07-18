@@ -33,9 +33,10 @@ module Block_kind = struct
 
   let to_shape t : _ * K.Block_shape.t =
     match t with
-    | Values (tag, _) -> Tag.Scannable.to_tag tag, Value_only
+    | Values (tag, _) -> Tag.Scannable.to_tag tag, Scannable Value_only
     | Naked_floats -> Tag.double_array_tag, Float_record
-    | Mixed (tag, fields) -> Tag.Scannable.to_tag tag, Mixed_record fields
+    | Mixed (tag, fields) ->
+      Tag.Scannable.to_tag tag, Scannable (Mixed_record fields)
 
   let [@ocamlformat "disable"] print ppf t =
    match t with
@@ -359,7 +360,7 @@ end
 module Mixed_block_access_field_kind = struct
   type t =
     | Value_prefix of Block_access_field_kind.t
-    | Flat_suffix of K.t
+    | Flat_suffix of K.Flat_suffix_element.t
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -374,20 +375,20 @@ module Mixed_block_access_field_kind = struct
           "@[<hov 1>(Flat_suffix \
            @[<hov 1>(flat_element@ %a)@]\
            )@]"
-          K.print flat_element
+          K.Flat_suffix_element.print flat_element
 
   let compare t1 t2 =
     match t1, t2 with
     | Value_prefix field_kind1, Value_prefix field_kind2 ->
       Block_access_field_kind.compare field_kind1 field_kind2
     | Flat_suffix element_kind1, Flat_suffix element_kind2 ->
-      K.compare element_kind1 element_kind2
+      K.Flat_suffix_element.compare element_kind1 element_kind2
     | Value_prefix _, Flat_suffix _ -> -1
     | Flat_suffix _, Value_prefix _ -> 1
 
   let to_element_kind = function
     | Value_prefix _ -> K.value
-    | Flat_suffix kind -> kind
+    | Flat_suffix kind -> K.Flat_suffix_element.kind kind
 end
 
 module Block_access_kind = struct
@@ -451,13 +452,13 @@ module Block_access_kind = struct
       K.With_subkind.tagged_immediate
     | Naked_floats _ -> K.With_subkind.naked_float
     | Mixed { field_kind = Flat_suffix field_kind; _ } ->
-      K.With_subkind.anything field_kind
+      K.Flat_suffix_element.to_kind_with_subkind field_kind
 
   let to_block_shape t : K.Block_shape.t =
     match t with
-    | Values _ -> Value_only
+    | Values _ -> Scannable Value_only
     | Naked_floats _ -> Float_record
-    | Mixed { shape; _ } -> Mixed_record shape
+    | Mixed { shape; _ } -> Scannable (Mixed_record shape)
 
   let element_kind_for_set = element_kind_for_load
 
@@ -620,6 +621,7 @@ let print_equality_comparison ppf op =
 module Bigarray_kind = struct
   type t =
     | Float32
+    | Float32_t
     | Float64
     | Sint8
     | Uint8
@@ -635,6 +637,7 @@ module Bigarray_kind = struct
   let element_kind t =
     match t with
     | Float32 | Float64 -> K.naked_float
+    | Float32_t -> K.naked_float32
     | Sint8 | Uint8 | Sint16 | Uint16 -> K.naked_immediate
     | Int32 -> K.naked_int32
     | Int64 -> K.naked_int64
@@ -648,6 +651,7 @@ module Bigarray_kind = struct
     let fprintf = Format.fprintf in
     match t with
     | Float32 -> fprintf ppf "Float32"
+    | Float32_t -> fprintf ppf "Float32_t"
     | Float64 -> fprintf ppf "Float64"
     | Sint8 -> fprintf ppf "Sint8"
     | Uint8 -> fprintf ppf "Uint8"
@@ -664,6 +668,7 @@ module Bigarray_kind = struct
     match kind with
     | Pbigarray_unknown -> None
     | Pbigarray_float32 -> Some Float32
+    | Pbigarray_float32_t -> Some Float32_t
     | Pbigarray_float64 -> Some Float64
     | Pbigarray_sint8 -> Some Sint8
     | Pbigarray_uint8 -> Some Uint8
@@ -679,6 +684,7 @@ module Bigarray_kind = struct
   let to_lambda t : Lambda.bigarray_kind =
     match t with
     | Float32 -> Pbigarray_float32
+    | Float32_t -> Pbigarray_float32_t
     | Float64 -> Pbigarray_float64
     | Sint8 -> Pbigarray_sint8
     | Uint8 -> Pbigarray_uint8
@@ -714,8 +720,8 @@ let reading_from_a_bigarray kind =
     ( Effects.Only_generative_effects Immutable,
       Coeffects.Has_coeffects,
       Placement.Strict )
-  | Float32 | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32 | Int64
-  | Int_width_int | Targetint_width_int ->
+  | Float32 | Float32_t | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32
+  | Int64 | Int_width_int | Targetint_width_int ->
     Effects.No_effects, Coeffects.Has_coeffects, Placement.Strict
 
 (* The bound checks are taken care of outside the array primitive (using an
@@ -723,8 +729,8 @@ let reading_from_a_bigarray kind =
    lambda_to_flambda_primitives.ml). *)
 let writing_to_a_bigarray kind =
   match (kind : Bigarray_kind.t) with
-  | Float32 | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32 | Int64
-  | Int_width_int | Targetint_width_int | Complex32
+  | Float32 | Float32_t | Float64 | Sint8 | Uint8 | Sint16 | Uint16 | Int32
+  | Int64 | Int_width_int | Targetint_width_int | Complex32
   | Complex64
     (* Technically, the write of a complex generates read of fields from the
        given complex, but since those reads are immutable, there is no
@@ -757,6 +763,7 @@ type string_accessor_width =
   | Eight
   | Sixteen
   | Thirty_two
+  | Single
   | Sixty_four
   | One_twenty_eight of { aligned : bool }
 
@@ -766,6 +773,7 @@ let print_string_accessor_width ppf w =
   | Eight -> fprintf ppf "8"
   | Sixteen -> fprintf ppf "16"
   | Thirty_two -> fprintf ppf "32"
+  | Single -> fprintf ppf "f32"
   | Sixty_four -> fprintf ppf "64"
   | One_twenty_eight { aligned = false } -> fprintf ppf "128u"
   | One_twenty_eight { aligned = true } -> fprintf ppf "128a"
@@ -775,6 +783,7 @@ let byte_width_of_string_accessor_width width =
   | Eight -> 1
   | Sixteen -> 2
   | Thirty_two -> 4
+  | Single -> 4
   | Sixty_four -> 8
   | One_twenty_eight _ -> 16
 
@@ -782,6 +791,7 @@ let kind_of_string_accessor_width width =
   match width with
   | Eight | Sixteen -> K.value
   | Thirty_two -> K.naked_int32
+  | Single -> K.naked_float32
   | Sixty_four -> K.naked_int64
   | One_twenty_eight _ -> K.naked_vec128
 
@@ -943,6 +953,27 @@ let nullary_classify_for_printing p =
   | Begin_try_region | Enter_inlined_apply _ | Dls_get ->
     Neither
 
+module Reinterpret_64_bit_word = struct
+  type t =
+    | Tagged_int63_as_unboxed_int64
+    | Unboxed_int64_as_tagged_int63
+    | Unboxed_int64_as_unboxed_float64
+    | Unboxed_float64_as_unboxed_int64
+
+  let compare = Stdlib.compare
+
+  let print ppf t =
+    match t with
+    | Tagged_int63_as_unboxed_int64 ->
+      Format.pp_print_string ppf "Tagged_int63_as_unboxed_int64"
+    | Unboxed_int64_as_tagged_int63 ->
+      Format.pp_print_string ppf "Unboxed_int64_as_tagged_int63"
+    | Unboxed_int64_as_unboxed_float64 ->
+      Format.pp_print_string ppf "Unboxed_int64_as_unboxed_float64"
+    | Unboxed_float64_as_unboxed_int64 ->
+      Format.pp_print_string ppf "Unboxed_float64_as_unboxed_int64"
+end
+
 type unary_primitive =
   | Duplicate_block of { kind : Duplicate_block_kind.t }
   | Duplicate_array of
@@ -967,7 +998,7 @@ type unary_primitive =
         dst : Flambda_kind.Standard_int_or_float.t
       }
   | Boolean_not
-  | Reinterpret_int64_as_float
+  | Reinterpret_64_bit_word of Reinterpret_64_bit_word.t
   | Unbox_number of Flambda_kind.Boxable_number.t
   | Box_number of Flambda_kind.Boxable_number.t * Alloc_mode.For_allocations.t
   | Untag_immediate
@@ -1004,7 +1035,7 @@ let unary_primitive_eligible_for_cse p ~arg =
   | Float_arith _ ->
     (* See comment in effects_and_coeffects *)
     Flambda_features.float_const_prop ()
-  | Num_conv _ | Boolean_not | Reinterpret_int64_as_float -> true
+  | Num_conv _ | Boolean_not | Reinterpret_64_bit_word _ -> true
   | Unbox_number _ | Untag_immediate -> false
   | Box_number (_, Local _) ->
     (* For the moment we don't CSE any local allocations. *)
@@ -1035,7 +1066,7 @@ let compare_unary_primitive p1 p2 =
     | Float_arith _ -> 10
     | Num_conv _ -> 11
     | Boolean_not -> 12
-    | Reinterpret_int64_as_float -> 13
+    | Reinterpret_64_bit_word _ -> 13
     | Unbox_number _ -> 14
     | Box_number _ -> 15
     | Untag_immediate -> 16
@@ -1089,6 +1120,9 @@ let compare_unary_primitive p1 p2 =
   | Bigarray_length { dimension = dim1 }, Bigarray_length { dimension = dim2 }
     ->
     Stdlib.compare dim1 dim2
+  | Reinterpret_64_bit_word reinterpret1, Reinterpret_64_bit_word reinterpret2
+    ->
+    Reinterpret_64_bit_word.compare reinterpret1 reinterpret2
   | Unbox_number kind1, Unbox_number kind2 ->
     K.Boxable_number.compare kind1 kind2
   | Box_number (kind1, alloc_mode1), Box_number (kind2, alloc_mode2) ->
@@ -1120,7 +1154,7 @@ let compare_unary_primitive p1 p2 =
       block_access_field_kind2
   | ( ( Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag
       | String_length _ | Int_as_pointer _ | Opaque_identity _ | Int_arith _
-      | Num_conv _ | Boolean_not | Reinterpret_int64_as_float | Float_arith _
+      | Num_conv _ | Boolean_not | Reinterpret_64_bit_word _ | Float_arith _
       | Array_length _ | Bigarray_length _ | Unbox_number _ | Box_number _
       | Untag_immediate | Tag_immediate | Project_function_slot _
       | Project_value_slot _ | Is_boxed_float | Is_flat_float_array | End_region
@@ -1155,7 +1189,9 @@ let print_unary_primitive ppf p =
       Flambda_kind.Standard_int_or_float.print_lowercase src
       Flambda_kind.Standard_int_or_float.print_lowercase dst
   | Boolean_not -> fprintf ppf "Boolean_not"
-  | Reinterpret_int64_as_float -> fprintf ppf "Reinterpret_int64_as_float"
+  | Reinterpret_64_bit_word reinterpret ->
+    fprintf ppf "@[<hov 1>(Reinterpret_64_bit_word@ %a)@]"
+      Reinterpret_64_bit_word.print reinterpret
   | Float_arith (width, op) -> print_unary_float_arith_op ppf width op
   | Array_length ak ->
     fprintf ppf "(Array_length %a)" Array_kind_for_length.print ak
@@ -1195,7 +1231,12 @@ let arg_kind_of_unary_primitive p =
   | Int_arith (kind, _) -> K.Standard_int.to_kind kind
   | Num_conv { src; dst = _ } -> K.Standard_int_or_float.to_kind src
   | Boolean_not -> K.value
-  | Reinterpret_int64_as_float -> K.naked_int64
+  | Reinterpret_64_bit_word reinterpret -> (
+    match reinterpret with
+    | Tagged_int63_as_unboxed_int64 -> K.value
+    | Unboxed_int64_as_tagged_int63 -> K.naked_int64
+    | Unboxed_int64_as_unboxed_float64 -> K.naked_int64
+    | Unboxed_float64_as_unboxed_int64 -> K.naked_float)
   | Float_arith (Float64, _) -> K.naked_float
   | Float_arith (Float32, _) -> K.naked_float32
   | Array_length _ | Bigarray_length _ -> K.value
@@ -1224,7 +1265,12 @@ let result_kind_of_unary_primitive p : result_kind =
   | Int_arith (kind, _) -> Singleton (K.Standard_int.to_kind kind)
   | Num_conv { src = _; dst } -> Singleton (K.Standard_int_or_float.to_kind dst)
   | Boolean_not -> Singleton K.value
-  | Reinterpret_int64_as_float -> Singleton K.naked_float
+  | Reinterpret_64_bit_word reinterpret -> (
+    match reinterpret with
+    | Tagged_int63_as_unboxed_int64 -> Singleton K.naked_int64
+    | Unboxed_int64_as_tagged_int63 -> Singleton K.value
+    | Unboxed_int64_as_unboxed_float64 -> Singleton K.naked_float
+    | Unboxed_float64_as_unboxed_int64 -> Singleton K.naked_int64)
   | Float_arith (Float64, _) -> Singleton K.naked_float
   | Float_arith (Float32, _) -> Singleton K.naked_float32
   | Array_length _ -> Singleton K.value
@@ -1272,7 +1318,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
     No_effects, coeffects_of_mode alloc_mode, Strict
   | Opaque_identity _ -> Arbitrary_effects, Has_coeffects, Strict
   | Int_arith (_, (Neg | Swap_byte_endianness))
-  | Num_conv _ | Boolean_not | Reinterpret_int64_as_float ->
+  | Num_conv _ | Boolean_not | Reinterpret_64_bit_word _ ->
     No_effects, No_coeffects, Strict
   | Float_arith (_width, (Abs | Neg)) ->
     (* Float operations are not really pure since they actually access the
@@ -1334,7 +1380,7 @@ let unary_classify_for_printing p =
   | Duplicate_array _ | Duplicate_block _ | Obj_dup -> Constructive
   | String_length _ | Get_tag -> Destructive
   | Is_int _ | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_int64_as_float | Float_arith _ ->
+  | Reinterpret_64_bit_word _ | Float_arith _ ->
     Neither
   | Array_length _ | Bigarray_length _ | Unbox_number _ | Untag_immediate ->
     Destructive
@@ -1361,7 +1407,7 @@ let free_names_unary_primitive p =
       project_from Name_mode.normal
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
   | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_int64_as_float | Float_arith _ | Array_length _
+  | Reinterpret_64_bit_word _ | Float_arith _ | Array_length _
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region | End_try_region | Obj_dup
   | Get_header
@@ -1382,7 +1428,7 @@ let apply_renaming_unary_primitive p renaming =
     if alloc_mode == alloc_mode' then p else Int_as_pointer alloc_mode'
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
   | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_int64_as_float | Float_arith _ | Array_length _
+  | Reinterpret_64_bit_word _ | Float_arith _ | Array_length _
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region | End_try_region
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
@@ -1395,7 +1441,7 @@ let ids_for_export_unary_primitive p =
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Duplicate_array _ | Duplicate_block _ | Is_int _ | Get_tag | String_length _
   | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
-  | Reinterpret_int64_as_float | Float_arith _ | Array_length _
+  | Reinterpret_64_bit_word _ | Float_arith _ | Array_length _
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region | End_try_region
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
@@ -1622,6 +1668,7 @@ let result_kind_of_binary_primitive p : result_kind =
   | String_or_bigstring_load (_, (Eight | Sixteen)) ->
     Singleton K.naked_immediate
   | String_or_bigstring_load (_, Thirty_two) -> Singleton K.naked_int32
+  | String_or_bigstring_load (_, Single) -> Singleton K.naked_float32
   | String_or_bigstring_load (_, Sixty_four) -> Singleton K.naked_int64
   | String_or_bigstring_load (_, One_twenty_eight _) -> Singleton K.naked_vec128
   | Bigarray_load (_, kind, _) -> Singleton (Bigarray_kind.element_kind kind)
@@ -1774,6 +1821,8 @@ let args_kind_of_ternary_primitive p =
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_immediate
   | Bytes_or_bigstring_set (Bytes, Thirty_two) ->
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_int32
+  | Bytes_or_bigstring_set (Bytes, Single) ->
+    string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_float32
   | Bytes_or_bigstring_set (Bytes, Sixty_four) ->
     string_or_bytes_kind, bytes_or_bigstring_index_kind, K.naked_int64
   | Bytes_or_bigstring_set (Bytes, One_twenty_eight _) ->
@@ -1782,6 +1831,8 @@ let args_kind_of_ternary_primitive p =
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_immediate
   | Bytes_or_bigstring_set (Bigstring, Thirty_two) ->
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_int32
+  | Bytes_or_bigstring_set (Bigstring, Single) ->
+    bigstring_kind, bytes_or_bigstring_index_kind, K.naked_float32
   | Bytes_or_bigstring_set (Bigstring, Sixty_four) ->
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_int64
   | Bytes_or_bigstring_set (Bigstring, One_twenty_eight _) ->

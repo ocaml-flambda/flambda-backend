@@ -35,11 +35,7 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 type t_any_non_null : any_non_null;;
 
 [%%expect{|
-Line 1, characters 22-34:
-1 | type t_any_non_null : any_non_null;;
-                          ^^^^^^^^^^^^
-Error: Layout any_non_null is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+type t_any_non_null : any_non_null
 |}]
 
 type t_value_or_null : value_or_null;;
@@ -127,10 +123,10 @@ Line 1, characters 8-29:
             ^^^^^^^^^^^^^^^^^^^^^
 Error: This alias is bound to type int but is used as an instance of type
          ('a : float64)
-       The layout of int is immediate, because
-         it is the primitive immediate type int.
-       But the layout of int must be a sublayout of float64, because
-         of the annotation on the type variable 'a.
+       The layout of int is value
+         because it is the primitive immediate type int.
+       But the layout of int must be a sublayout of float64
+         because of the annotation on the type variable 'a.
 |}]
 
 let x : (int as ('a : immediate)) list as ('b : value) = [3;4;5]
@@ -147,10 +143,10 @@ Line 1, characters 8-36:
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This alias is bound to type int list
        but is used as an instance of type ('a : immediate)
-       The layout of int list is value, because
-         it's a boxed variant type.
-       But the layout of int list must be a sublayout of immediate, because
-         of the annotation on the type variable 'a.
+       The kind of int list is value
+         because it's a boxed variant type.
+       But the kind of int list must be a subkind of immediate
+         because of the annotation on the type variable 'a.
 |}]
 (* CR layouts: error message could be phrased better *)
 
@@ -161,13 +157,11 @@ Line 1, characters 8-43:
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This alias is bound to type int list
        but is used as an instance of type ('a : value mod global)
-       The layout of int list is value, because
-         it's a boxed variant type.
-       But the layout of int list must be a sublayout of value, because
-         of the annotation on the type variable 'a.
+       The kind of int list is value
+         because it's a boxed variant type.
+       But the kind of int list must be a subkind of value mod global
+         because of the annotation on the type variable 'a.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 (****************************************)
 (* Test 2: Annotation on type parameter *)
@@ -292,13 +286,11 @@ Line 1, characters 9-15:
 1 | type t = string t2_imm
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The layout of string is value, because
-         it is the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because
-         of the definition of t2_imm at line 1, characters 0-28.
+       The kind of string is value
+         because it is the primitive value type string.
+       But the kind of string must be a subkind of immediate
+         because of the definition of t2_imm at line 1, characters 0-28.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t = string t2_global
 ;;
@@ -307,13 +299,11 @@ Line 1, characters 9-15:
 1 | type t = string t2_global
              ^^^^^^
 Error: This type string should be an instance of type ('a : value mod global)
-       The layout of string is value, because
-         it is the primitive value type string.
-       But the layout of string must be a sublayout of value, because
-         of the definition of t2_global at line 8, characters 0-38.
+       The kind of string is value
+         because it is the primitive value type string.
+       But the kind of string must be a subkind of value mod global
+         because of the definition of t2_global at line 8, characters 0-38.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type u : word
 type t = u t2_complex
@@ -325,13 +315,11 @@ Line 2, characters 9-10:
              ^
 Error: This type u should be an instance of type
          ('a : word mod many external_)
-       The layout of u is word, because
-         of the definition of u at line 1, characters 0-13.
-       But the layout of u must be a sublayout of word, because
-         of the definition of t2_complex at line 10, characters 0-53.
+       The kind of u is word
+         because of the definition of u at line 1, characters 0-13.
+       But the kind of u must be a subkind of word mod many external_
+         because of the definition of t2_complex at line 10, characters 0-53.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 let f : 'a t2_imm -> 'a t2_imm = fun x -> x
 let f : 'a t2_global -> 'a t2_global = fun x -> x
@@ -379,12 +367,10 @@ let f : ('a : value). 'a t2_imm -> 'a t2_imm = fun x -> x
 Line 1, characters 8-44:
 1 | let f : ('a : value). 'a t2_imm -> 'a t2_imm = fun x -> x
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have layout value.
-       But it was inferred to have layout immediate, because
-         of the definition of t2_imm at line 1, characters 0-28.
+Error: The universal type variable 'a was declared to have kind value.
+       But it was inferred to have kind immediate
+         because of the definition of t2_imm at line 1, characters 0-28.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 let f : ('a : value). 'a t2_global -> 'a t2_global = fun x -> x
 ;;
@@ -392,12 +378,10 @@ let f : ('a : value). 'a t2_global -> 'a t2_global = fun x -> x
 Line 1, characters 8-50:
 1 | let f : ('a : value). 'a t2_global -> 'a t2_global = fun x -> x
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have layout value.
-       But it was inferred to have layout value, because
-         of the definition of t2_global at line 8, characters 0-38.
+Error: The universal type variable 'a was declared to have kind value.
+       But it was inferred to have kind value mod global
+         because of the definition of t2_global at line 8, characters 0-38.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 let f : ('a : word). 'a t2_complex -> 'a t2_complex = fun x -> x
 ;;
@@ -405,9 +389,9 @@ let f : ('a : word). 'a t2_complex -> 'a t2_complex = fun x -> x
 Line 1, characters 8-51:
 1 | let f : ('a : word). 'a t2_complex -> 'a t2_complex = fun x -> x
             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have layout word.
-       But it was inferred to have layout word, because
-         of the definition of t2_complex at line 10, characters 0-53.
+Error: The universal type variable 'a was declared to have kind word.
+       But it was inferred to have kind word mod many external_
+         because of the definition of t2_complex at line 10, characters 0-53.
 |}]
 
 type 'a t = 'a t2_imm
@@ -502,10 +486,10 @@ Line 1, characters 31-41:
                                    ^^^^^^^^^^
 Error: This definition has type 'b -> 'b which is less general than
          ('a : any). 'a -> 'a
-       The layout of 'a is any, because
-         of the annotation on the universal variable 'a.
-       But the layout of 'a must be representable, because
-         we must know concretely how to pass a function argument.
+       The layout of 'a is any
+         because of the annotation on the universal variable 'a.
+       But the layout of 'a must be representable
+         because we must know concretely how to pass a function argument.
 |}]
 (* CR layouts v2.9: This error message is not great. Check later if layout history
    is able to improve it. *)
@@ -558,13 +542,11 @@ Line 1, characters 24-31:
                             ^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       The layout of string is value, because
-         it is the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because
-         of the definition of r at line 1, characters 0-47.
+       The kind of string is value
+         because it is the primitive value type string.
+       But the kind of string must be a subkind of immediate
+         because of the definition of r at line 1, characters 0-47.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 let f { fieldg } = fieldg "hello"
 ;;
@@ -574,13 +556,11 @@ Line 1, characters 26-33:
                               ^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : value mod global)
-       The layout of string is value, because
-         it is the primitive value type string.
-       But the layout of string must be a sublayout of value, because
-         of the definition of rg at line 1, characters 0-56.
+       The kind of string is value
+         because it is the primitive value type string.
+       But the kind of string must be a subkind of value mod global
+         because of the definition of rg at line 1, characters 0-56.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 let f { fieldc } = fieldc "hello"
 ;;
@@ -590,13 +570,11 @@ Line 1, characters 26-33:
                               ^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : word mod many external_)
-       The layout of string is value, because
-         it is the primitive value type string.
-       But the layout of string must be a sublayout of word, because
-         of the definition of rc at line 1, characters 0-70.
+       The layout of string is value
+         because it is the primitive value type string.
+       But the layout of string must be a sublayout of word
+         because of the definition of rc at line 1, characters 0-70.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 let r = { field = fun x -> x }
 let r = { field = Fun.id }
@@ -630,10 +608,10 @@ Line 2, characters 18-55:
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This field value has type 'b -> 'b which is less general than
          'a. 'a -> 'a
-       The layout of 'a is value, because
-         of the definition of r_value at line 1, characters 0-39.
-       But the layout of 'a must be a sublayout of immediate, because
-         of the annotation on the abstract type declaration for a.
+       The kind of 'a is value
+         because of the definition of r_value at line 1, characters 0-39.
+       But the kind of 'a must be a subkind of immediate
+         because of the annotation on the abstract type declaration for a.
 |}]
 (* CR layouts v1.5: that's a pretty awful error message *)
 
@@ -644,10 +622,10 @@ Line 1, characters 18-62:
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This field value has type 'b -> 'b which is less general than
          'a. 'a -> 'a
-       The layout of 'a is value, because
-         of the definition of r_value at line 1, characters 0-39.
-       But the layout of 'a must be a sublayout of value, because
-         of the annotation on the abstract type declaration for a.
+       The kind of 'a is value
+         because of the definition of r_value at line 1, characters 0-39.
+       But the kind of 'a must be a subkind of value mod global
+         because of the annotation on the abstract type declaration for a.
 |}]
 (* CR layouts v1.5: that's a pretty awful error message *)
 
@@ -666,10 +644,10 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a is value, because
-           of the annotation on the universal variable 'a.
-         But the layout of 'a must be a sublayout of immediate, because
-           of the definition of t_imm at line 1, characters 0-27.
+         The kind of 'a is value
+           because of the annotation on the universal variable 'a.
+         But the kind of 'a must be a subkind of immediate
+           because of the definition of t_imm at line 1, characters 0-27.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
@@ -692,15 +670,13 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a is value, because
-           of the annotation on the universal variable 'a.
-         But the layout of 'a must be a sublayout of value, because
-           of the definition of t_global at line 1, characters 0-37.
+         The kind of 'a is value
+           because of the annotation on the universal variable 'a.
+         But the kind of 'a must be a subkind of value mod global
+           because of the definition of t_global at line 1, characters 0-37.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type ('a : word mod external_ many shared) t_complex
 
@@ -716,15 +692,13 @@ Error: Layout mismatch in final type declaration consistency check.
        clever enough to propagate layouts through variables in different
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
-         The layout of 'a is word, because
-           of the annotation on the universal variable 'a.
-         But the layout of 'a must be a sublayout of word, because
-           of the definition of t_complex at line 1, characters 0-52.
+         The kind of 'a is word
+           because of the annotation on the universal variable 'a.
+         But the kind of 'a must be a subkind of word mod many external_
+           because of the definition of t_complex at line 1, characters 0-52.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 (********************)
 (* Test 5: newtypes *)
@@ -768,10 +742,10 @@ Line 1, characters 29-36:
 Error: This pattern matches values of type a
        but a pattern was expected which matches values of type
          ('a : '_representable_layout_1)
-       The layout of a is any, because
-         of the annotation on the abstract type declaration for a.
-       But the layout of a must be representable, because
-         we must know concretely how to pass a function argument.
+       The layout of a is any
+         because of the annotation on the abstract type declaration for a.
+       But the layout of a must be representable
+         because we must know concretely how to pass a function argument.
 |}]
 
 (****************************************)
@@ -814,10 +788,10 @@ Line 1, characters 33-43:
 1 | let f : type (a : any). a -> a = fun x -> x
                                      ^^^^^^^^^^
 Error: Function arguments and returns must be representable.
-       The layout of a is any, because
-         of the annotation on the abstract type declaration for a.
-       But the layout of a must be representable, because
-         we must know concretely how to pass a function argument.
+       The layout of a is any
+         because of the annotation on the abstract type declaration for a.
+       But the layout of a must be representable
+         because we must know concretely how to pass a function argument.
 |}]
 
 (**************************************************)
@@ -831,12 +805,10 @@ end
 Line 2, characters 10-36:
 2 |   val f : 'a. 'a t2_imm -> 'a t2_imm
               ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was defaulted to have layout value.
-       But it was inferred to have layout immediate, because
-         of the definition of t2_imm at line 1, characters 0-28.
+Error: The universal type variable 'a was defaulted to have kind value.
+       But it was inferred to have kind immediate
+         because of the definition of t2_imm at line 1, characters 0-28.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 let f : 'a. 'a t2_imm -> 'a t2_imm = fun x -> x
 
@@ -844,12 +816,10 @@ let f : 'a. 'a t2_imm -> 'a t2_imm = fun x -> x
 Line 1, characters 8-34:
 1 | let f : 'a. 'a t2_imm -> 'a t2_imm = fun x -> x
             ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was defaulted to have layout value.
-       But it was inferred to have layout immediate, because
-         of the definition of t2_imm at line 1, characters 0-28.
+Error: The universal type variable 'a was defaulted to have kind value.
+       But it was inferred to have kind immediate
+         because of the definition of t2_imm at line 1, characters 0-28.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 (********************************************)
 (* Test 8: Annotation on universal variable *)
@@ -870,12 +840,10 @@ end
 Line 2, characters 10-46:
 2 |   val f : ('a : value). 'a t2_imm -> 'a t2_imm
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have layout value.
-       But it was inferred to have layout immediate, because
-         of the definition of t2_imm at line 1, characters 0-28.
+Error: The universal type variable 'a was declared to have kind value.
+       But it was inferred to have kind immediate
+         because of the definition of t2_imm at line 1, characters 0-28.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 module type S = sig
   val f : ('a : value). 'a t2_global -> 'a t2_global
@@ -885,12 +853,10 @@ end
 Line 2, characters 10-52:
 2 |   val f : ('a : value). 'a t2_global -> 'a t2_global
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have layout value.
-       But it was inferred to have layout value, because
-         of the definition of t2_global at line 8, characters 0-38.
+Error: The universal type variable 'a was declared to have kind value.
+       But it was inferred to have kind value mod global
+         because of the definition of t2_global at line 8, characters 0-38.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 module type S = sig
   val f : ('a : value). 'a t2_complex -> 'a t2_complex
@@ -902,10 +868,10 @@ Line 2, characters 24-26:
                             ^^
 Error: This type ('a : value) should be an instance of type
          ('b : word mod many external_)
-       The layout of 'a is value, because
-         of the annotation on the universal variable 'a.
-       But the layout of 'a must overlap with word, because
-         of the definition of t2_complex at line 10, characters 0-53.
+       The layout of 'a is value
+         because of the annotation on the universal variable 'a.
+       But the layout of 'a must overlap with word
+         because of the definition of t2_complex at line 10, characters 0-53.
 |}]
 
 module type S = sig
@@ -916,12 +882,10 @@ end
 Line 2, characters 10-53:
 2 |   val f : ('a : word). 'a t2_complex -> 'a t2_complex
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have layout word.
-       But it was inferred to have layout word, because
-         of the definition of t2_complex at line 10, characters 0-53.
+Error: The universal type variable 'a was declared to have kind word.
+       But it was inferred to have kind word mod many external_
+         because of the definition of t2_complex at line 10, characters 0-53.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 module type S = sig
   val f : 'a t2_imm -> 'a t2_imm
@@ -1002,13 +966,11 @@ Line 1, characters 43-51:
                                                ^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       The layout of string is value, because
-         it is the primitive value type string.
-       But the layout of string must be a sublayout of immediate, because
-         of the annotation on the universal variable 'a.
+       The kind of string is value
+         because it is the primitive value type string.
+       But the kind of string must be a subkind of immediate
+         because of the annotation on the universal variable 'a.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 let f (x : ('a : value mod global). 'a -> 'a) = x "string"
 
@@ -1018,13 +980,11 @@ Line 1, characters 50-58:
                                                       ^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : value mod global)
-       The layout of string is value, because
-         it is the primitive value type string.
-       But the layout of string must be a sublayout of value, because
-         of the annotation on the universal variable 'a.
+       The kind of string is value
+         because it is the primitive value type string.
+       But the kind of string must be a subkind of value mod global
+         because of the annotation on the universal variable 'a.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 (**************************************)
 (* Test 10: Annotation of record type *)
@@ -1051,10 +1011,10 @@ type t : value mod global = { x : int}
 Line 1, characters 0-38:
 1 | type t : value mod global = { x : int}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed record type.
+       But the kind of type t must be a subkind of value mod global
+         because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: This should be accepted, because t should be inferred to be
    immediate *)
@@ -1064,10 +1024,10 @@ type t : any mod portable = { x : float }
 Line 1, characters 0-41:
 1 | type t : any mod portable = { x : float }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed record type.
-       But the layout of type t must be a sublayout of any, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed record type.
+       But the kind of type t must be a subkind of any mod portable
+         because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: This should be accepted, because t should be inferred to be
    immediate *)
@@ -1099,78 +1059,66 @@ type t : value mod global = { x : t_value }
 Line 1, characters 0-43:
 1 | type t : value mod global = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed record type.
+       But the kind of type t must be a subkind of value mod global
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t : value mod unique = { x : t_value }
 [%%expect {|
 Line 1, characters 0-43:
 1 | type t : value mod unique = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed record type.
+       But the kind of type t must be a subkind of value mod unique
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t : value mod many = { x : t_value }
 [%%expect {|
 Line 1, characters 0-41:
 1 | type t : value mod many = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed record type.
+       But the kind of type t must be a subkind of value mod many
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t : value mod portable = { x : t_value }
 [%%expect {|
 Line 1, characters 0-45:
 1 | type t : value mod portable = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed record type.
+       But the kind of type t must be a subkind of value mod portable
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t : value mod uncontended = { x : t_value }
 [%%expect {|
 Line 1, characters 0-48:
 1 | type t : value mod uncontended = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed record type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed record type.
+       But the kind of type t must be a subkind of value mod uncontended
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t : value mod external_ = { x : t_value }
 [%%expect {|
 Line 1, characters 0-46:
 1 | type t : value mod external_ = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed record type.
-       But the layout of type t must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed record type.
+       But the kind of type t must be a subkind of value mod external_
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 (***************************************)
 (* Test 11: Annotation of variant type *)
@@ -1192,26 +1140,22 @@ type t : value mod global = Foo of int
 Line 1, characters 0-38:
 1 | type t : value mod global = Foo of int
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed variant type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed variant type.
+       But the kind of type t must be a subkind of value mod global
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t : any mod portable = Foo of float
 [%%expect {|
 Line 1, characters 0-40:
 1 | type t : any mod portable = Foo of float
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed variant type.
-       But the layout of type t must be a sublayout of any, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed variant type.
+       But the kind of type t must be a subkind of any mod portable
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t = Foo | Bar
 let f (x : t) : _ as (_ : immediate) = x
@@ -1262,78 +1206,66 @@ type t : value mod global = Foo of t_value
 Line 1, characters 0-42:
 1 | type t : value mod global = Foo of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed variant type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed variant type.
+       But the kind of type t must be a subkind of value mod global
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t : value mod unique = Foo of t_value
 [%%expect {|
 Line 1, characters 0-42:
 1 | type t : value mod unique = Foo of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed variant type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed variant type.
+       But the kind of type t must be a subkind of value mod unique
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t : value mod many = Foo of t_value
 [%%expect {|
 Line 1, characters 0-40:
 1 | type t : value mod many = Foo of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed variant type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed variant type.
+       But the kind of type t must be a subkind of value mod many
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t : value mod portable = Foo of t_value
 [%%expect {|
 Line 1, characters 0-44:
 1 | type t : value mod portable = Foo of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed variant type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed variant type.
+       But the kind of type t must be a subkind of value mod portable
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t : value mod uncontended = Foo of t_value
 [%%expect {|
 Line 1, characters 0-47:
 1 | type t : value mod uncontended = Foo of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed variant type.
-       But the layout of type t must be a sublayout of value, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed variant type.
+       But the kind of type t must be a subkind of value mod uncontended
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t : value mod external_ = Foo of t_value
 [%%expect {|
 Line 1, characters 0-45:
 1 | type t : value mod external_ = Foo of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is value, because
-         it's a boxed variant type.
-       But the layout of type t must be a sublayout of immediate, because
-         of the annotation on the declaration of the type t.
+Error: The kind of type t is value
+         because it's a boxed variant type.
+       But the kind of type t must be a subkind of value mod external_
+         because of the annotation on the declaration of the type t.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 (***************************************)
 (* Test 12: Annotation on private type *)
@@ -1395,13 +1327,11 @@ type t : float64 mod global portable
 Line 2, characters 0-47:
 2 | type u : bits64 mod global portable = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is float64, because
-         of the definition of t at line 1, characters 0-36.
-       But the layout of type t must be a sublayout of bits64, because
-         of the definition of u at line 2, characters 0-47.
+Error: The layout of type t is float64
+         because of the definition of t at line 1, characters 0-36.
+       But the layout of type t must be a sublayout of bits64
+         because of the definition of u at line 2, characters 0-47.
 |}]
-(* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
-   mismatch, not a layout mismatch. *)
 
 type t : word
 type u : word mod global = private t
@@ -1410,10 +1340,10 @@ type t : word
 Line 2, characters 0-36:
 2 | type u : word mod global = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is word, because
-         of the definition of t at line 1, characters 0-13.
-       But the layout of type t must be a sublayout of word, because
-         of the definition of u at line 2, characters 0-36.
+Error: The kind of type t is word
+         because of the definition of t at line 1, characters 0-13.
+       But the kind of type t must be a subkind of word mod global
+         because of the definition of u at line 2, characters 0-36.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
   mismatch, not a layout mismatch. *)
@@ -1425,10 +1355,10 @@ type t : word
 Line 2, characters 0-36:
 2 | type u : word mod unique = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is word, because
-         of the definition of t at line 1, characters 0-13.
-       But the layout of type t must be a sublayout of word, because
-         of the definition of u at line 2, characters 0-36.
+Error: The kind of type t is word
+         because of the definition of t at line 1, characters 0-13.
+       But the kind of type t must be a subkind of word mod unique
+         because of the definition of u at line 2, characters 0-36.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
   mismatch, not a layout mismatch. *)
@@ -1440,10 +1370,10 @@ type t : word
 Line 2, characters 0-34:
 2 | type u : word mod many = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is word, because
-         of the definition of t at line 1, characters 0-13.
-       But the layout of type t must be a sublayout of word, because
-         of the definition of u at line 2, characters 0-34.
+Error: The kind of type t is word
+         because of the definition of t at line 1, characters 0-13.
+       But the kind of type t must be a subkind of word mod many
+         because of the definition of u at line 2, characters 0-34.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
   mismatch, not a layout mismatch. *)
@@ -1455,10 +1385,10 @@ type t : word
 Line 2, characters 0-38:
 2 | type u : word mod portable = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is word, because
-         of the definition of t at line 1, characters 0-13.
-       But the layout of type t must be a sublayout of word, because
-         of the definition of u at line 2, characters 0-38.
+Error: The kind of type t is word
+         because of the definition of t at line 1, characters 0-13.
+       But the kind of type t must be a subkind of word mod portable
+         because of the definition of u at line 2, characters 0-38.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
   mismatch, not a layout mismatch. *)
@@ -1470,10 +1400,10 @@ type t : word
 Line 2, characters 0-41:
 2 | type u : word mod uncontended = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is word, because
-         of the definition of t at line 1, characters 0-13.
-       But the layout of type t must be a sublayout of word, because
-         of the definition of u at line 2, characters 0-41.
+Error: The kind of type t is word
+         because of the definition of t at line 1, characters 0-13.
+       But the kind of type t must be a subkind of word mod uncontended
+         because of the definition of u at line 2, characters 0-41.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
   mismatch, not a layout mismatch. *)
@@ -1485,10 +1415,10 @@ type t : word
 Line 2, characters 0-39:
 2 | type u : word mod external_ = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is word, because
-         of the definition of t at line 1, characters 0-13.
-       But the layout of type t must be a sublayout of word, because
-         of the definition of u at line 2, characters 0-39.
+Error: The kind of type t is word
+         because of the definition of t at line 1, characters 0-13.
+       But the kind of type t must be a subkind of word mod external_
+         because of the definition of u at line 2, characters 0-39.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
   mismatch, not a layout mismatch. *)
@@ -1687,10 +1617,10 @@ Line 1, characters 37-53:
                                          ^^^^^^^^^^^^^^^^
 Error: This definition has type 'b -> 'b which is less general than
          'a. 'a -> 'a
-       The layout of 'a is value, because
-         of the annotation on the universal variable 'a.
-       But the layout of 'a must be a sublayout of immediate, because
-         of the definition of f_imm at line 1, characters 4-9.
+       The kind of 'a is value
+         because of the annotation on the universal variable 'a.
+       But the kind of 'a must be a subkind of immediate
+         because of the definition of f_imm at line 1, characters 4-9.
 |}]
 
 type (_ : value) g =

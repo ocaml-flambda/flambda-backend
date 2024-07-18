@@ -1190,3 +1190,38 @@ Error: Signature mismatch:
        The former provides a weaker "zero_alloc" guarantee than the latter.
        Hint: Add a "zero_alloc" attribute to the implementation.
 |}]
+
+(************************)
+(* Test 14: with module *)
+
+(* [with module] constraints require us to remove variables just like [module
+   type of].  Regression test: the below used to hit an assert, as a result of
+   not removing the vars in the signature of [S_plain] in the implementation of
+   [N]. *)
+module type S = sig
+  module M : sig
+    val f : int -> int
+  end
+end
+
+module N : sig
+  module Plain : sig
+    val f : int -> int
+  end
+
+  module type S_plain = S with module M = Plain
+end = struct
+  module Plain = struct
+    let f x = x+1
+  end
+
+  module type S_plain = S with module M = Plain
+end
+[%%expect{|
+module type S = sig module M : sig val f : int -> int end end
+module N :
+  sig
+    module Plain : sig val f : int -> int end
+    module type S_plain = sig module M : sig val f : int -> int end end
+  end
+|}]

@@ -1,2 +1,2 @@
 File "f32c1.ml", line 1:
-Error: Did not find constant float arguments for caml_float32x4_const1
+Error: Did not find constant float32 arguments for caml_float32x4_const1

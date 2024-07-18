@@ -548,7 +548,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | String_length string_or_bytes -> String_length string_or_bytes
   | Boolean_not -> Boolean_not
   | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
-  | Float_arith _ | Reinterpret_int64_as_float | Is_boxed_float | Obj_dup
+  | Float_arith _ | Reinterpret_64_bit_word _ | Is_boxed_float | Obj_dup
   | Get_header | Atomic_load _ ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
@@ -675,15 +675,19 @@ let set_of_closures env sc =
   let elts = match elts with [] -> None | _ -> Some elts in
   fun_decls, elts
 
-let field_of_block env (field : Field_of_static_block.t) : Fexpr.field_of_block
-    =
-  match field with
-  | Symbol symbol -> Symbol (Env.find_symbol_exn env symbol)
-  | Tagged_immediate imm ->
-    Tagged_immediate
-      (imm |> Targetint_31_63.to_targetint |> Targetint_32_64.to_string)
-  | Dynamically_computed (var, _dbg) ->
-    Dynamically_computed (Env.find_var_exn env var)
+let field_of_block env field =
+  Simple.pattern_match'
+    (Simple.With_debuginfo.simple field)
+    ~var:(fun var ~coercion:_ : Fexpr.field_of_block ->
+      Dynamically_computed (Env.find_var_exn env var))
+    ~symbol:(fun symbol ~coercion:_ : Fexpr.field_of_block ->
+      Symbol (Env.find_symbol_exn env symbol))
+    ~const:(fun cst : Fexpr.field_of_block ->
+      match[@ocaml.warning "-fragile-match"] Reg_width_const.descr cst with
+      | Tagged_immediate imm ->
+        Tagged_immediate
+          (imm |> Targetint_31_63.to_targetint |> Targetint_32_64.to_string)
+      | _ -> Misc.fatal_error "Mixed blocks not supported yet in fexpr")
 
 let or_variable f env (ov : _ Or_variable.t) : _ Fexpr.or_variable =
   match ov with
@@ -692,7 +696,7 @@ let or_variable f env (ov : _ Or_variable.t) : _ Fexpr.or_variable =
 
 let static_const env (sc : Static_const.t) : Fexpr.static_data =
   match sc with
-  | Block (tag, mutability, fields) ->
+  | Block (tag, mutability, _shape, fields) ->
     let tag = tag |> Tag.Scannable.to_int in
     let elements = List.map (field_of_block env) fields in
     Block { tag; mutability; elements }

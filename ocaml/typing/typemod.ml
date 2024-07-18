@@ -552,6 +552,59 @@ let params_are_constrained =
   in
   loop
 
+let rec remove_modality_and_zero_alloc_variables_sg env ~zap_modality sg =
+  let sg_item = function
+    | Sig_value (id, desc, vis) ->
+        let val_modalities =
+          desc.val_modalities
+          |> zap_modality |> Mode.Modality.Value.of_const
+        in
+        let val_zero_alloc =
+          Zero_alloc.create_const (Zero_alloc.get desc.val_zero_alloc)
+        in
+        let desc = {desc with val_modalities; val_zero_alloc} in
+        Sig_value (id, desc, vis)
+    | Sig_module (id, pres, md, re, vis) ->
+        let md_type =
+          remove_modality_and_zero_alloc_variables_mty env ~zap_modality
+            md.md_type
+        in
+        let md = {md with md_type} in
+        Sig_module (id, pres, md, re, vis)
+    | item -> item
+  in
+  List.map sg_item sg
+
+and remove_modality_and_zero_alloc_variables_mty env ~zap_modality mty =
+  match mty with
+  | Mty_ident _ | Mty_alias _ ->
+    (* module types with names can't have inferred modalities. *)
+    mty
+  | Mty_signature sg ->
+    Mty_signature
+      (remove_modality_and_zero_alloc_variables_sg env ~zap_modality sg)
+  | Mty_functor (param, mty) ->
+    let param : Types.functor_parameter =
+      match param with
+      | Named (id, mty) ->
+          let mty =
+            remove_modality_and_zero_alloc_variables_mty env
+              ~zap_modality:Mode.Modality.Value.to_const_exn mty
+          in
+          Named (id, mty)
+      | Unit -> Unit
+    in
+    let mty =
+      remove_modality_and_zero_alloc_variables_mty env ~zap_modality mty
+    in
+    Mty_functor (param, mty)
+  | Mty_strengthen (mty, path, alias) ->
+      let mty =
+        remove_modality_and_zero_alloc_variables_mty env
+        ~zap_modality:Mode.Modality.Value.to_const_exn mty
+      in
+      Mty_strengthen (mty, path, alias)
+
 type with_info =
   | With_type of Parsetree.type_declaration
   | With_typesubst of Parsetree.type_declaration
@@ -629,6 +682,7 @@ let merge_constraint initial_env loc sg lid constr =
             type_attributes = [];
             type_unboxed_default = false;
             type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+            type_has_illegal_crossings = false;
           }
         and id_row = Ident.create_local (s^"#row") in
         let initial_env =
@@ -746,6 +800,10 @@ let merge_constraint initial_env loc sg lid constr =
         let sig_env = Env.add_signature sg_for_env outer_sig_env in
         let mty = md'.md_type in
         let mty = Mtype.scrape_for_type_of ~remove_aliases sig_env mty in
+        let mty =
+          remove_modality_and_zero_alloc_variables_mty sig_env
+            ~zap_modality:Mode.Modality.Value.zap_to_floor mty
+        in
         let md'' = { md' with md_type = mty } in
         let newmd = Mtype.strengthen_decl ~aliasable:false md'' path in
         ignore(Includemod.modtypes  ~mark:Mark_both ~loc sig_env
@@ -2119,59 +2177,6 @@ let check_nongen_signature env sg =
 let remove_mode_and_jkind_variables env sg =
   let rm _env ty = Ctype.remove_mode_and_jkind_variables ty; None in
   List.find_map (nongen_signature_item env rm) sg |> ignore
-
-let rec remove_modality_and_zero_alloc_variables_sg env ~zap_modality sg =
-  let sg_item = function
-    | Sig_value (id, desc, vis) ->
-        let val_modalities =
-          desc.val_modalities
-          |> zap_modality |> Mode.Modality.Value.of_const
-        in
-        let val_zero_alloc =
-          Zero_alloc.create_const (Zero_alloc.get desc.val_zero_alloc)
-        in
-        let desc = {desc with val_modalities; val_zero_alloc} in
-        Sig_value (id, desc, vis)
-    | Sig_module (id, pres, md, re, vis) ->
-        let md_type =
-          remove_modality_and_zero_alloc_variables_mty env ~zap_modality
-            md.md_type
-        in
-        let md = {md with md_type} in
-        Sig_module (id, pres, md, re, vis)
-    | item -> item
-  in
-  List.map sg_item sg
-
-and remove_modality_and_zero_alloc_variables_mty env ~zap_modality mty =
-  match mty with
-  | Mty_ident _ | Mty_alias _ ->
-    (* module types with names can't have inferred modalities. *)
-    mty
-  | Mty_signature sg ->
-    Mty_signature
-      (remove_modality_and_zero_alloc_variables_sg env ~zap_modality sg)
-  | Mty_functor (param, mty) ->
-    let param : Types.functor_parameter =
-      match param with
-      | Named (id, mty) ->
-          let mty =
-            remove_modality_and_zero_alloc_variables_mty env
-              ~zap_modality:Mode.Modality.Value.to_const_exn mty
-          in
-          Named (id, mty)
-      | Unit -> Unit
-    in
-    let mty =
-      remove_modality_and_zero_alloc_variables_mty env ~zap_modality mty
-    in
-    Mty_functor (param, mty)
-  | Mty_strengthen (mty, path, alias) ->
-      let mty =
-        remove_modality_and_zero_alloc_variables_mty env
-        ~zap_modality:Mode.Modality.Value.to_const_exn mty
-      in
-      Mty_strengthen (mty, path, alias)
 
 (* Helpers for typing recursive modules *)
 

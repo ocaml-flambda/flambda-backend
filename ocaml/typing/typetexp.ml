@@ -430,9 +430,12 @@ end = struct
 
   let new_jkind ~is_named { jkind_initialization } =
     match jkind_initialization with
+    (* CR layouts v3.0: while [Any] case allows nullable jkinds, [Sort] does not.
+       From testing, we need all callsites that use [Sort] to be non-null to
+       preserve backwards compatibility. But we also need [Any] callsites
+       to accept nullable jkinds to allow cases like [type ('a : value_or_null) t = 'a]. *)
     | Any -> Jkind.Primitive.any ~why:(if is_named then Unification_var else Wildcard)
-    | Sort -> Jkind.of_new_sort ~why:(if is_named then Unification_var else Wildcard)
-
+    | Sort -> Jkind.of_new_legacy_sort ~why:(if is_named then Unification_var else Wildcard)
 
   let new_any_var loc env jkind = function
     | { extensibility = Fixed } -> raise(Error(loc, env, No_type_wildcards))
@@ -538,7 +541,7 @@ let transl_type_param env path styp =
    to ask for it with an annotation.  Some restriction here seems necessary
    for backwards compatibility (e.g., we wouldn't want [type 'a id = 'a] to
    have jkind any).  But it might be possible to infer [any] in some cases. *)
-  let jkind = Jkind.of_new_sort ~why:(Unannotated_type_parameter path) in
+  let jkind = Jkind.of_new_legacy_sort ~why:(Unannotated_type_parameter path) in
   let attrs = styp.ptyp_attributes in
   match styp.ptyp_desc with
     Ptyp_any -> transl_type_param_var env loc attrs None jkind None
@@ -554,7 +557,7 @@ let transl_type_param env path styp =
 
 let get_type_param_jkind path styp =
   match Jane_syntax.Core_type.of_ast styp with
-  | None -> Jkind.of_new_sort ~why:(Unannotated_type_parameter path)
+  | None -> Jkind.of_new_legacy_sort ~why:(Unannotated_type_parameter path)
   | Some (Jtyp_layout (Ltyp_var { name; jkind }), _attrs) ->
     let jkind, _ =
       Jkind.of_annotation
@@ -853,7 +856,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
                  polymorphic variants. *)
               match
                 constrain_type_jkind env ctyp_type
-                  (Jkind.Primitive.value ~why:Polymorphic_variant_field)
+                  (Jkind.Primitive.value_or_null ~why:Polymorphic_variant_field)
               with
               | Ok _ -> ()
               | Error e ->
@@ -1146,7 +1149,7 @@ and transl_type_aux_tuple env ~policy ~row_context stl =
   List.iter (fun (_, {ctyp_type; ctyp_loc}) ->
     (* CR layouts v5: remove value requirement *)
     match
-      constrain_type_jkind env ctyp_type (Jkind.Primitive.value ~why:Tuple_element)
+      constrain_type_jkind env ctyp_type (Jkind.Primitive.value_or_null ~why:Tuple_element)
     with
     | Ok _ -> ()
     | Error e ->
@@ -1456,15 +1459,15 @@ let report_error env ppf = function
       fprintf ppf ".@]";
   | Bad_univar_jkind { name; jkind_info; inferred_jkind } ->
       fprintf ppf
-        "@[<hov>The universal type variable %a was %s to have layout %a.@;%a@]"
+        "@[<hov>The universal type variable %a was %s to have kind %a.@;%a@]"
         Pprintast.tyvar name
         (if jkind_info.defaulted then "defaulted" else "declared")
         Jkind.format jkind_info.original_jkind
         (Jkind.format_history ~intro:(
           dprintf "But it was inferred to have %t"
             (fun ppf -> match Jkind.get inferred_jkind with
-            | Const c -> fprintf ppf "layout %a" Jkind.Const.format c
-            | Var _ -> fprintf ppf "a representable layout")))
+            | Const c -> fprintf ppf "kind %a" Jkind.Const.format c
+            | Var _ -> fprintf ppf "a representable kind")))
         inferred_jkind
   | Multiple_constraints_on_type s ->
       fprintf ppf "Multiple constraints for type %a" longident s

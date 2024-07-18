@@ -300,3 +300,84 @@ external seeded_hash_param : int -> int -> int -> 'a -> int = "caml_hash_exn"
 
 let seeded_hash seed x = seeded_hash_param 10 100 seed x
 let hash x = seeded_hash_param 10 100 0 x
+
+module Bytes = struct
+  external get : bytes -> pos:int -> float32 = "%caml_bytes_getf32"
+  external unsafe_get : bytes -> pos:int -> float32 = "%caml_bytes_getf32u"
+  external set : bytes -> pos:int -> float32 -> unit = "%caml_bytes_setf32"
+
+  external unsafe_set : bytes -> pos:int -> float32 -> unit
+    = "%caml_bytes_setf32u"
+end
+
+module String = struct
+  external get : string -> pos:int -> float32 = "%caml_string_getf32"
+  external unsafe_get : string -> pos:int -> float32 = "%caml_string_getf32u"
+end
+
+module Bigstring = struct
+  open Bigarray
+
+  type t = (char, int8_unsigned_elt, c_layout) Array1.t
+
+  external get : t -> pos:int -> float32 = "%caml_bigstring_getf32"
+  external unsafe_get : t -> pos:int -> float32 = "%caml_bigstring_getf32u"
+  external set : t -> pos:int -> float32 -> unit = "%caml_bigstring_setf32"
+
+  external unsafe_set : t -> pos:int -> float32 -> unit
+    = "%caml_bigstring_setf32u"
+end
+
+module Bigarray = struct
+  open Bigarray
+
+  module Array1 = struct
+    external get : ('a, float32_elt, 'c) Array1.t -> int -> float32
+      = "%caml_ba_float32_ref_1"
+
+    external set : ('a, float32_elt, 'c) Array1.t -> int -> float32 -> unit
+      = "%caml_ba_float32_set_1"
+
+    external unsafe_get : ('a, float32_elt, 'c) Array1.t -> int -> float32
+      = "%caml_ba_float32_unsafe_ref_1"
+
+    external unsafe_set :
+      ('a, float32_elt, 'c) Array1.t -> int -> float32 -> unit
+      = "%caml_ba_float32_unsafe_set_1"
+  end
+
+  module Array2 = struct
+    external get : ('a, float32_elt, 'c) Array2.t -> int -> int -> float32
+      = "%caml_ba_float32_ref_2"
+
+    external set :
+      ('a, float32_elt, 'c) Array2.t -> int -> int -> float32 -> unit
+      = "%caml_ba_float32_set_2"
+
+    external unsafe_get :
+      ('a, float32_elt, 'c) Array2.t -> int -> int -> float32
+      = "%caml_ba_float32_unsafe_ref_2"
+
+    external unsafe_set :
+      ('a, float32_elt, 'c) Array2.t -> int -> int -> float32 -> unit
+      = "%caml_ba_float32_unsafe_set_2"
+  end
+
+  module Array3 = struct
+    external get :
+      ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32
+      = "%caml_ba_float32_ref_3"
+
+    external set :
+      ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32 -> unit
+      = "%caml_ba_float32_set_3"
+
+    external unsafe_get :
+      ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32
+      = "%caml_ba_float32_unsafe_ref_3"
+
+    external unsafe_set :
+      ('a, float32_elt, 'c) Array3.t -> int -> int -> int -> float32 -> unit
+      = "%caml_ba_float32_unsafe_set_3"
+  end
+end

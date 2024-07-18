@@ -213,9 +213,11 @@ let compute_static_size lam =
     | Pbigarrayset _
     | Pbytes_set_16 _
     | Pbytes_set_32 _
+    | Pbytes_set_f32 _
     | Pbytes_set_64 _
     | Pbigstring_set_16 _
     | Pbigstring_set_32 _
+    | Pbigstring_set_f32 _
     | Pbigstring_set_64 _ ->
         (* Unit-returning primitives. Most of these are only generated from
            external declarations and not special-cased by [Value_rec_check],
@@ -225,13 +227,16 @@ let compute_static_size lam =
     | Pduprecord (repres, size) ->
         begin match repres with
         | Record_boxed _
-        | Record_inlined (_, (Variant_boxed _ | Variant_extensible)) ->
+        | Record_inlined (_, Constructor_uniform_value,
+                          (Variant_boxed _ | Variant_extensible)) ->
             Block (Regular_block size)
         | Record_float ->
             Block (Float_record size)
+        | Record_inlined (_, Constructor_mixed shape,
+                          (Variant_boxed _ | Variant_extensible))
         | Record_mixed shape ->
             Block (Mixed_record (size, Lambda.transl_mixed_product_shape shape))
-        | Record_unboxed | Record_ufloat | Record_inlined (_, Variant_unboxed) ->
+        | Record_unboxed | Record_ufloat | Record_inlined (_, _, Variant_unboxed) ->
             Misc.fatal_error "size_of_primitive"
         end
     | Pmakeblock _ ->
@@ -320,12 +325,15 @@ let compute_static_size lam =
     | Pbigarraydim _
     | Pstring_load_16 _
     | Pstring_load_32 _
+    | Pstring_load_f32 _
     | Pstring_load_64 _
     | Pbytes_load_16 _
     | Pbytes_load_32 _
+    | Pbytes_load_f32 _
     | Pbytes_load_64 _
     | Pbigstring_load_16 _
     | Pbigstring_load_32 _
+    | Pbigstring_load_f32 _
     | Pbigstring_load_64 _
     | Pbswap16
     | Pbbswap _
@@ -350,6 +358,7 @@ let compute_static_size lam =
     | Pfloat_array_set_128 _
     | Pint_array_set_128 _
     | Punboxed_float_array_set_128 _
+    | Punboxed_float32_array_set_128 _
     | Punboxed_int32_array_set_128 _
     | Punboxed_int64_array_set_128 _
     | Punboxed_nativeint_array_set_128 _ ->
@@ -374,6 +383,7 @@ let compute_static_size lam =
     | Pfloat_array_load_128 _
     | Pint_array_load_128 _
     | Punboxed_float_array_load_128 _
+    | Punboxed_float32_array_load_128 _
     | Punboxed_int32_array_load_128 _
     | Punboxed_int64_array_load_128 _
     | Punboxed_nativeint_array_load_128 _
@@ -385,7 +395,9 @@ let compute_static_size lam =
     | Pbox_int (_, _)
     | Pfloatoffloat32 _
     | Pfloat32offloat _
-    | Pget_header _ ->
+    | Pget_header _
+    | Preinterpret_tagged_int63_as_unboxed_int64
+    | Preinterpret_unboxed_int64_as_tagged_int63 ->
         dynamic_size lam
   in
   compute_expression_size Ident.Map.empty lam

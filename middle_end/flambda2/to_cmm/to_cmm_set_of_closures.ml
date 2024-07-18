@@ -652,7 +652,7 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
     let tag = Tag.(to_int closure_tag) in
     C.make_alloc
       ~mode:(Alloc_mode.For_allocations.to_lambda closure_alloc_mode)
-      dbg tag l
+      dbg ~tag l
   in
   let soc_var = Variable.create "*set_of_closures*" in
   let defining_expr = Env.simple csoc free_vars in

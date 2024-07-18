@@ -213,20 +213,24 @@ let const_static cst =
            (tag_targetint (Targetint_31_63.to_targetint i))) ]
   | Naked_float f -> [cfloat (Numeric_types.Float_by_bit_pattern.to_float f)]
   | Naked_float32 f ->
-    (* Here we are relying on the data section being zero initialized to
-       maintain the invariant that statically-allocated float32 values are zero
-       padded. *)
-    [cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f)]
-  | Naked_int32 i -> [cint (Nativeint.of_int32 i)]
-  (* We don't compile flambda-backend in 32-bit mode, so nativeint is 64
-     bits. *)
-  | Naked_int64 i -> [cint (Int64.to_nativeint i)]
+    (* Statically-allocated float32 values are zero padded. We must explicitly
+       add the padding otherwise subsequent values will be misaligned. If this
+       code is ever used on big-endian systems (which seems unlikely), this
+       needs checking. (It should be fine so long as a 32-bit load is used.) *)
+    [cfloat32 (Numeric_types.Float32_by_bit_pattern.to_float f); cint32 0l]
+  | Naked_int32 i ->
+    (* Just in case of future big endian support, this is also written
+       explicitly in two halves. *)
+    [cint32 i; cint32 0l]
+  | Naked_int64 i ->
+    (* We don't use To_cmm for 32-bit targets, so nativeint is 64 bits. *)
+    [cint (Int64.to_nativeint i)]
+  | Naked_nativeint t -> [cint (nativeint_of_targetint t)]
   | Naked_vec128 v ->
     let { Vector_types.Vec128.Bit_pattern.high; low } =
       Vector_types.Vec128.Bit_pattern.to_bits v
     in
     [cvec128 { high; low }]
-  | Naked_nativeint t -> [cint (nativeint_of_targetint t)]
 
 let simple_static res s =
   Simple.pattern_match s

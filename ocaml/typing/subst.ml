@@ -446,8 +446,9 @@ let variant_representation ~prepare_jkind loc = function
 (* called only when additional_action is [Prepare_for_saving] *)
 let record_representation ~prepare_jkind loc = function
   | Record_unboxed -> Record_unboxed
-  | Record_inlined (tag, variant_rep) ->
+  | Record_inlined (tag, constructor_rep, variant_rep) ->
     Record_inlined (constructor_tag ~prepare_jkind loc tag,
+                    constructor_rep,
                     variant_representation ~prepare_jkind loc variant_rep)
   | Record_boxed lays ->
       Record_boxed (Array.map (prepare_jkind loc) lays)
@@ -502,6 +503,7 @@ let type_declaration' copy_scope s decl =
     type_attributes = attrs s decl.type_attributes;
     type_unboxed_default = decl.type_unboxed_default;
     type_uid = decl.type_uid;
+    type_has_illegal_crossings = decl.type_has_illegal_crossings;
   }
 
 let type_declaration s decl =

@@ -1344,6 +1344,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
     type_attributes = [];
     type_unboxed_default = false;
     type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+    type_has_illegal_crossings = false;
   }
 
 let existential_name cstr ty =
@@ -2273,6 +2274,12 @@ let type_jkind_purely env ty =
 
 let type_sort ~why env ty =
   let jkind, sort = Jkind.of_new_sort_var ~why in
+  match constrain_type_jkind env ty jkind with
+  | Ok _ -> Ok sort
+  | Error _ as e -> e
+
+let type_legacy_sort ~why env ty =
+  let jkind, sort = Jkind.of_new_legacy_sort_var ~why in
   match constrain_type_jkind env ty jkind with
   | Ok _ -> Ok sort
   | Error _ as e -> e
@@ -6491,6 +6498,7 @@ let nondep_type_decl env mid is_covariant decl =
       type_attributes = decl.type_attributes;
       type_unboxed_default = decl.type_unboxed_default;
       type_uid = decl.type_uid;
+      type_has_illegal_crossings = decl.type_has_illegal_crossings;
     }
   with Nondep_cannot_erase _ as exn ->
     clear_hash ();

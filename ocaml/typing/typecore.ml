@@ -1453,7 +1453,7 @@ let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
       (fun (label, p) mode ->
         ( label,
           p,
-          newgenvar (Jkind.Primitive.value ~why:Tuple_element),
+          newgenvar (Jkind.Primitive.value_or_null ~why:Tuple_element),
           simple_pat_mode mode ))
       args arg_modes
   in
@@ -1622,7 +1622,7 @@ let solve_Ppat_array ~refine loc env mutability expected_ty =
     if Types.is_mutable mutability then Predef.type_array
     else Predef.type_iarray
   in
-  let jkind, arg_sort = Jkind.of_new_sort_var ~why:Array_element in
+  let jkind, arg_sort = Jkind.of_new_legacy_sort_var ~why:Array_element in
   let ty_elt = newgenvar jkind in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine
@@ -1656,7 +1656,7 @@ let solve_Ppat_variant ~refine loc env tag no_arg expected_ty =
   let arg_type =
     if no_arg
     then []
-    else [newgenvar (Jkind.Primitive.value ~why:Polymorphic_variant_field)]
+    else [newgenvar (Jkind.Primitive.value_or_null ~why:Polymorphic_variant_field)]
   in
   let fields = [tag, rf_either ~no_arg arg_type ~matched:true] in
   let make_row more =
@@ -4248,7 +4248,7 @@ and type_approx_aux_jane_syntax
 
 and type_tuple_approx (env: Env.t) loc ty_expected l =
   let labeled_tys = List.map
-    (fun (label, _) -> label, newvar (Jkind.Primitive.value ~why:Tuple_element)) l
+    (fun (label, _) -> label, newvar (Jkind.Primitive.value_or_null ~why:Tuple_element)) l
   in
   let ty = newty (Ttuple labeled_tys) in
   begin try unify env ty ty_expected with Unify err ->
@@ -5552,7 +5552,7 @@ and type_expect_
         | None -> None
         | Some sarg ->
             let ty_expected =
-              newvar (Jkind.Primitive.value ~why:Polymorphic_variant_field)
+              newvar (Jkind.Primitive.value_or_null ~why:Polymorphic_variant_field)
             in
             let alloc_mode, argument_mode = register_allocation expected_mode in
             let arg =
@@ -5637,7 +5637,7 @@ and type_expect_
         if List.exists
             (fun (_, {lbl_repres; _}, _) ->
               match lbl_repres with
-              | Record_unboxed | Record_inlined (_, Variant_unboxed) -> false
+              | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> false
               | _ -> true)
             lbl_a_list then
           let alloc_mode, argument_mode = register_allocation expected_mode in
@@ -6289,7 +6289,7 @@ and type_expect_
         | [] -> spat_acc, ty_acc, ty_acc_sort
         | { pbop_pat = spat; _} :: rest ->
             (* CR layouts v5: eliminate value requirement *)
-            let ty = newvar (Jkind.Primitive.value ~why:Tuple_element) in
+            let ty = newvar (Jkind.Primitive.value_or_null ~why:Tuple_element) in
             let loc = Location.ghostify slet.pbop_op.loc in
             let spat_acc = Ast_helper.Pat.tuple ~loc [spat_acc; spat] in
             let ty_acc = newty (Ttuple [None, ty_acc; None, ty]) in
@@ -6308,7 +6308,7 @@ and type_expect_
               | [] ->
                 Jkind.of_new_sort_var ~why:Function_argument
               (* CR layouts v5: eliminate value requirement for tuple elements *)
-              | _ -> Jkind.Primitive.value ~why:Tuple_element, Jkind.Sort.value
+              | _ -> Jkind.Primitive.value_or_null ~why:Tuple_element, Jkind.Sort.value
             in
             loop slet.pbop_pat (newvar initial_jkind) initial_sort sands
           in
@@ -7621,7 +7621,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
           let arg = type_option_none env (instance ty_arg) Location.none in
           (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
       | Position _ ->
-          let arg = src_pos (Location.ghostify app_loc) [] env in
+          let arg = src_pos (Location.ghostify funct.exp_loc) [] env in
           (lbl, Arg (arg, Mode.Value.legacy, sort_arg))
       | Labelled _ | Nolabel -> assert false)
   | Omitted _ as arg -> (lbl, arg)
@@ -7727,7 +7727,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   (* CR layouts v5: non-values in tuples *)
   let labeled_subtypes =
     List.map (fun (label, _) -> label,
-                                newgenvar (Jkind.Primitive.value ~why:Tuple_element))
+                                newgenvar (Jkind.Primitive.value_or_null ~why:Tuple_element))
     sexpl
   in
   let to_unify = newgenty (Ttuple labeled_subtypes) in
@@ -8753,7 +8753,7 @@ and type_generic_array
   in
   check_construct_mutability ~loc ~env mutability argument_mode;
   let argument_mode = mode_modality modalities argument_mode in
-  let jkind, elt_sort = Jkind.of_new_sort_var ~why:Array_element in
+  let jkind, elt_sort = Jkind.of_new_legacy_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->

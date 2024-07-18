@@ -108,20 +108,6 @@ let command_line_options =
       " Do not emit .note.ocaml_eh section with trap handling information"
   ] @ Extension.args
 
-let assert_simd_enabled () =
-  if not (Language_extension.is_enabled SIMD) then
-  Misc.fatal_error "SIMD is not enabled. This error might happen \
-  if you are using SIMD yourself or are linking code that uses it. \
-  Pass [-extension-universe stable] to the compiler, or set \
-  (extension_universe stable) in your library configuration file."
-
-let assert_float32_enabled () =
-  if not (Language_extension.is_enabled Small_numbers) then
-  Misc.fatal_error "float32 is not enabled. This error might happen \
-  if you are using float32 yourself or are linking code that uses it. \
-  Pass [-extension-universe beta] to the compiler, or set \
-  (extension_universe beta) in your library configuration file."
-
 (* Specific operations for the AMD64 processor *)
 
 open Format

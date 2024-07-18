@@ -47,10 +47,12 @@ module Mixed_product_kind = struct
   type t =
     | Record
     | Cstr_tuple
+    | Cstr_record
 
   let to_plural_string = function
     | Record -> "records"
     | Cstr_tuple -> "constructors"
+    | Cstr_record -> "inline record arguments to constructors"
 end
 
 type mixed_product_violation =
@@ -133,7 +135,6 @@ type error =
   | Local_not_enabled
   | Unexpected_layout_any_in_primitive of string
   | Useless_layout_poly
-  | Modality_on_primitive
   | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute
   | Zero_alloc_attr_non_function
   | Zero_alloc_attr_bad_user_arity
@@ -280,6 +281,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       type_attributes = sdecl_attributes;
       type_unboxed_default = false;
       type_uid = uid;
+      type_has_illegal_crossings = false;
     }
   in
   add_type ~check:true id decl env
@@ -505,12 +507,9 @@ let transl_constructor_arguments ~new_var_jkind ~unboxed
       Types.Cstr_tuple flds', Cstr_tuple flds
   | Pcstr_record l ->
       let lbls, lbls' =
-        (* CR layouts: we forbid fields of inlined records from being
-           non-value, see comment in [check_representable].
-           When we allow mixed inline records, we still want to
-           disallow non-value types in unboxed records, so this
-           should become `not unboxed`, as in the `Pcstr_tuple` case. *)
-        transl_labels ~new_var_jkind ~allow_unboxed:false
+        (* CR layouts: we forbid [@@unboxed] variants from being
+           non-value, see comment in [check_representable]. *)
+        transl_labels ~new_var_jkind ~allow_unboxed:(not unboxed)
           env univars closed l (Inlined_record { unboxed })
       in
       Types.Cstr_record lbls',
@@ -929,6 +928,7 @@ let transl_declaration env sdecl (id, uid) =
         type_attributes = sdecl_attributes;
         type_unboxed_default = unboxed_default;
         type_uid = uid;
+        type_has_illegal_crossings = false;
       } in
   (* Check constraints *)
     List.iter
@@ -1113,6 +1113,14 @@ let check_coherence env loc dpath decl =
   match decl with
     { type_kind = (Type_variant _ | Type_record _| Type_open);
       type_manifest = Some ty } ->
+      if !Clflags.allow_illegal_crossing then begin 
+        let jkind' = Ctype.type_jkind_purely env ty in
+        begin match Jkind.sub_with_history jkind' decl.type_jkind with
+        | Ok _ -> ()
+        | Error v ->
+          raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
+        end
+      end;
       begin match get_desc ty with
         Tconstr(path, args, _) ->
           begin try
@@ -1345,6 +1353,15 @@ module Element_repr = struct
     | None -> None
     | Some (`Continue flat_suffix | `Stop flat_suffix) ->
         Some (Array.of_list flat_suffix)
+
+  let mixed_product_shape loc ts kind ~on_flat_field_expected =
+    let flat_suffix = mixed_product_flat_suffix ts ~on_flat_field_expected in
+    match flat_suffix with
+    | None -> None
+    | Some flat_suffix ->
+        let value_prefix_len = List.length ts - Array.length flat_suffix in
+        assert_mixed_product_support loc kind ~value_prefix_len;
+        Some { value_prefix_len; flat_suffix }
 end
 
 let update_constructor_representation
@@ -1360,7 +1377,7 @@ let update_constructor_representation
             Element_repr.classify env loc arg_type arg_jkind, arg_type)
             arg_types_and_modes arg_jkinds
         in
-        Element_repr.mixed_product_flat_suffix arg_reprs
+        Element_repr.mixed_product_shape loc arg_reprs Cstr_tuple
           ~on_flat_field_expected:(fun ~non_value ~boxed ->
               let violation =
                 Flat_constructor_arg_expected
@@ -1370,17 +1387,12 @@ let update_constructor_representation
               in
               raise (Error (loc, Illegal_mixed_product violation)))
     | Cstr_record fields ->
-        (* CR layouts v5.1: Mixed inline records are rejected in
-           [update_label_jkinds] so this apparent "support" is misleading.
-           This will be resolved soon by adding support for mixed inline
-           records.
-        *)
         let arg_reprs =
           List.map (fun ld ->
               Element_repr.classify env loc ld.Types.ld_type ld.ld_jkind, ld)
             fields
         in
-        Element_repr.mixed_product_flat_suffix arg_reprs
+        Element_repr.mixed_product_shape loc arg_reprs Cstr_record
           ~on_flat_field_expected:(fun ~non_value ~boxed ->
             let violation =
               Flat_field_expected
@@ -1393,17 +1405,13 @@ let update_constructor_representation
   in
   match flat_suffix with
   | None -> Constructor_uniform_value
-  | Some flat_suffix ->
-      let value_prefix_len =
-        Array.length arg_jkinds - Array.length flat_suffix
-      in
+  | Some shape ->
       (* CR layouts v5.9: Enable extension constructors in the flambda2
          middle-end so that we can permit them in the source language.
       *)
       if is_extension_constructor then
         raise (Error (loc, Illegal_mixed_product Extension_constructor));
-      assert_mixed_product_support loc Cstr_tuple ~value_prefix_len;
-      Constructor_mixed { value_prefix_len; flat_suffix }
+      Constructor_mixed shape
 
 
 (* This function updates jkind stored in kinds with more accurate jkinds.
@@ -1493,8 +1501,8 @@ let update_decl_jkind env dpath decl =
         | { values = true; float64s = true }
         | { imms = true; float64s = true }
         | { non_float64_unboxed_fields = true } ->
-            let flat_suffix =
-              Element_repr.mixed_product_flat_suffix reprs
+            let shape =
+              Element_repr.mixed_product_shape loc reprs Record
                 ~on_flat_field_expected:(fun ~non_value ~boxed ->
                   let violation =
                     Flat_field_expected
@@ -1505,16 +1513,12 @@ let update_decl_jkind env dpath decl =
                   raise (Error (boxed.Types.ld_loc,
                                 Illegal_mixed_product violation)))
             in
-            let flat_suffix =
-              match flat_suffix with
+            let shape =
+              match shape with
               | Some x -> x
               | None -> Misc.fatal_error "expected mixed block"
             in
-            let value_prefix_len =
-              Array.length jkinds - Array.length flat_suffix
-            in
-            assert_mixed_product_support loc Record ~value_prefix_len;
-            Record_mixed { value_prefix_len; flat_suffix }
+            Record_mixed shape
         (* value-only records are stored as boxed records *)
         | { values = true; float64s = false; non_float64_unboxed_fields = false }
         | { imms = true; float64s = false; non_float64_unboxed_fields = false }
@@ -1595,6 +1599,12 @@ let update_decl_jkind env dpath decl =
       assert false
   in
 
+  let add_crossings jkind =
+    match !Clflags.allow_illegal_crossing with
+    | true -> Jkind.add_portability_and_contention_crossing ~from:decl.type_jkind jkind
+    | false -> jkind, false
+  in
+
   let new_decl, new_jkind = match decl.type_kind with
     | Type_abstract _ -> decl, decl.type_jkind
     | Type_open ->
@@ -1602,11 +1612,17 @@ let update_decl_jkind env dpath decl =
       { decl with type_jkind }, type_jkind
     | Type_record (lbls, rep) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
-      { decl with type_kind = Type_record (lbls, rep); type_jkind },
+      let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
+      { decl with type_kind = Type_record (lbls, rep);
+                  type_jkind;
+                  type_has_illegal_crossings },
       type_jkind
     | Type_variant (cstrs, rep) ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
-      { decl with type_kind = Type_variant (cstrs, rep); type_jkind },
+      let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
+      { decl with type_kind = Type_variant (cstrs, rep);
+                  type_jkind;
+                  type_has_illegal_crossings },
       type_jkind
   in
 
@@ -2883,9 +2899,15 @@ let error_if_containing_unexpected_jkind prim env cty ty =
 (* Translate a value declaration *)
 let transl_value_decl env loc valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
+  let modalities =
+    valdecl.pval_modalities
+    |> Typemode.transl_modalities ~maturity:Alpha
+        ~has_mutable_implied_modalities:false
+    |> Mode.Modality.Value.of_const
+  in
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
-                (Jkind.Primitive.value ~why:Structure_element) with
+                (Jkind.Primitive.value_or_null ~why:Structure_element) with
   | Ok () -> ()
   | Error err ->
     raise(Error(cty.ctyp_loc, Non_value_in_sig(err,valdecl.pval_name.txt,cty.ctyp_type)))
@@ -2894,12 +2916,6 @@ let transl_value_decl env loc valdecl =
   let v =
   match valdecl.pval_prim with
     [] when Env.is_in_signature env ->
-      let modalities =
-        valdecl.pval_modalities
-        |> Typemode.transl_modalities ~maturity:Alpha
-            ~has_mutable_implied_modalities:false
-        |> Mode.Modality.Value.of_const
-      in
       let default_arity =
         let rec count_arrows n ty =
           match get_desc ty with
@@ -2932,11 +2948,6 @@ let transl_value_decl env loc valdecl =
   | [] ->
       raise (Error(valdecl.pval_loc, Val_in_structure))
   | _ ->
-      let modalities =
-        match valdecl.pval_modalities with
-        | [] -> Mode.Modality.Value.id
-        | m :: _ -> raise (Error(m.loc, Modality_on_primitive))
-      in
       let global_repr =
         match
           get_native_repr_attribute valdecl.pval_attributes ~global_repr:None
@@ -3100,6 +3111,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_attributes = sdecl.ptype_attributes;
       type_unboxed_default;
       type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+      type_has_illegal_crossings = false;
     }
   in
   Option.iter (fun p -> set_private_row env sdecl.ptype_loc p new_sig_decl)
@@ -3140,6 +3152,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
 
       type_variance = new_type_variance;
       type_separability = new_type_separability;
+      type_has_illegal_crossings = false;
     } in
   {
     typ_id = id;
@@ -3178,7 +3191,8 @@ let transl_package_constraint ~loc ty =
     type_loc = loc;
     type_attributes = [];
     type_unboxed_default = false;
-    type_uid = Uid.mk ~current_unit:(Env.get_unit_name ())
+    type_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
+    type_has_illegal_crossings = false;
   }
 
 (* Approximate a type declaration: just make all types abstract *)
@@ -3202,6 +3216,7 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
       type_attributes = [];
       type_unboxed_default = false;
       type_uid = Uid.internal_not_actually_unique;
+      type_has_illegal_crossings = false;
     }
   end
 
@@ -3645,8 +3660,8 @@ let report_error ppf = function
       match error with
       | Flat_field_expected { boxed_lbl; non_value_lbl } ->
           fprintf ppf
-            "@[Expected all flat fields after non-value field, %s,@]@,\
-            \ @[but found boxed field, %s.@]"
+            "@[Expected all flat fields after non-value field, %s,@]@,@ \
+             @[but found boxed field, %s.@]"
             (Ident.name non_value_lbl)
             (Ident.name boxed_lbl)
       | Flat_constructor_arg_expected { boxed_arg; non_value_arg } ->
@@ -3727,9 +3742,6 @@ let report_error ppf = function
         "@[[@@layout_poly] on this external declaration has no@ \
            effect. Consider removing it or adding a type@ \
            variable for it to operate on.@]"
-  | Modality_on_primitive ->
-      fprintf ppf
-        "@[Modality on primitive is not supported yet.@]"
   | Zero_alloc_attr_unsupported ca ->
       let variety = match ca with
         | Default_zero_alloc  | Check _ -> assert false
