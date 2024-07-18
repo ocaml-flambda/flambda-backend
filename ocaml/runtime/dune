@@ -79,6 +79,7 @@
  (no-infer
    (progn
      (bash "touch .depend") ; hack.
+     (bash "rm -f sak build_config.h") ; hack
      (bash "cd .. && make V=1 -j8 runtime/libasmrun.a runtime/libasmrund.a runtime/libasmruni.a runtime/libasmrun_pic.a \
     runtime/libasmrun_shared.so runtime/libcamlrun.a runtime/libcamlrund.a runtime/libcamlruni.a runtime/libcamlrun_pic.a \
     runtime/libcamlrun_shared.so runtime/ocamlrun runtime/ocamlrund runtime/ocamlruni runtime/ld.conf COMPUTE_DEPS=false")

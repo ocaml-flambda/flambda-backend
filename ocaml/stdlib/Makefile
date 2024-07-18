@@ -193,3 +193,17 @@ depend:
 	-e 's/^(${STDLIB_NAMESPACE_MODULES})(\.[^i]*)(i?) :/\1\2\3 : \1.ml\3/' \
 	-e 's#(^| )(${STDLIB_NAMESPACE_MODULES})[.]#\1stdlib__\u\2.#' \
 	> .$@
+
+# The following are for compatibility with runtime4
+
+camlheader:
+	touch camlheader
+
+camlheaderd:
+	touch camlheaderd
+
+camlheaderi:
+	touch camlheaderi
+
+.PHONY: camlheaderur
+	touch camlheaderur
