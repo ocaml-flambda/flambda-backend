@@ -166,7 +166,7 @@ let classify env loc ty sort : classification =
 
 let array_type_kind ~elt_sort env loc ty =
   match scrape_poly env ty with
-  | Tconstr(p, [elt_ty], _)
+  | Tconstr(p, [[elt_ty]], _)
     when Path.same p Predef.path_array || Path.same p Predef.path_iarray ->
       let elt_sort =
         match elt_sort with
@@ -226,7 +226,7 @@ let layout_table =
 
 let bigarray_type_kind_and_layout env typ =
   match scrape env typ with
-  | Tconstr(_p, [_caml_type; elt_type; layout_type], _abbrev) ->
+  | Tconstr(_p, [[_caml_type; elt_type; layout_type]], _abbrev) ->
       (bigarray_decode_type env elt_type kind_table Pbigarray_unknown,
        bigarray_decode_type env layout_type layout_table
                             Pbigarray_unknown_layout)

@@ -693,7 +693,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
               if not (Btype.tpoly_is_mono arg_ty) then
                 raise (Error (arg.ptyp_loc, env, Polymorphic_optional_param));
               newmono
-                (newconstr Predef.path_option [Btype.tpoly_get_mono arg_ty])
+                (newconstr Predef.path_option [[Btype.tpoly_get_mono arg_ty]])
             end
           in
           let arg_mode = Alloc.of_const arg_mode in
@@ -757,7 +757,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         )
         (List.combine (List.combine stl args) params);
       let constr =
-        newconstr path (List.map (fun ctyp -> ctyp.ctyp_type) args) in
+        newconstr path [List.map (fun ctyp -> ctyp.ctyp_type) args] in
       ctyp (Ttyp_constr (path, lid, args)) constr
   | Ptyp_app _ -> failwith "General type application is not implemented"
   | Ptyp_object (fields, o) ->
@@ -882,8 +882,9 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             let ty = cty.ctyp_type in
             let nm =
               match get_desc cty.ctyp_type with
-                Tconstr(p, tl, _) -> Some(p, tl)
-              | _                 -> None
+              | Tconstr(p, [], _)   -> Some(p, [])
+              | Tconstr(p, [tl], _) -> Some(p, tl)
+              | _                   -> None
             in
             name := if Hashtbl.length hfields <> 0 then None else nm;
             let fl = match get_desc (expand_head env cty.ctyp_type), nm with

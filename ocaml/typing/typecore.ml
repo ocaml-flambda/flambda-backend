@@ -723,7 +723,7 @@ let unboxed_constant_or_raise env loc cst =
 (* Specific version of type_option, using newty rather than newgenty *)
 
 let type_option ty =
-  newty (Tconstr(Predef.path_option,[ty], ref Mnil))
+  newty (Tconstr(Predef.path_option,[[ty]], ref Mnil))
 
 let mkexp exp_desc exp_type exp_loc exp_env =
   { exp_desc; exp_type;
@@ -736,7 +736,7 @@ let type_option_none env ty loc =
 
 let extract_option_type env ty =
   match get_desc (expand_head env ty) with
-    Tconstr(path, [ty], _) when Path.same path Predef.path_option -> ty
+    Tconstr(path, [[ty]], _) when Path.same path Predef.path_option -> ty
   | _ -> assert false
 
 let protect_expansion env ty =
@@ -967,7 +967,7 @@ let unify_pat ?refine ?sdesc_for_hint env pat expected_ty =
 let unify_head_only ~refine loc env ty constr =
   let path = cstr_type_path constr in
   let decl = Env.find_type path !env in
-  let ty' = Ctype.newconstr path (Ctype.instance_list decl.type_params) in
+  let ty' = Ctype.newconstr path [Ctype.instance_list decl.type_params] in
   unify_pat_types ~refine loc env ty' ty
 
 (* Creating new conjunctive types is not allowed when typing patterns *)
@@ -1682,7 +1682,7 @@ let build_or_pat env loc lid =
     newvar (Jkind.Primitive.value ~why:(Type_argument {parent_path = path; position = i+1; arity}))
   ) decl.type_params in
   let row0 =
-    let ty = expand_head env (newty(Tconstr(path, tyl, ref Mnil))) in
+    let ty = expand_head env (newty(Tconstr(path, [tyl], ref Mnil))) in
     match get_desc ty with
       Tvariant row when static_row row -> row
     | _ -> raise(Error(lid.loc, env, Not_a_polymorphic_variant_type lid.txt))
@@ -4109,7 +4109,7 @@ let rec approx_type env sty =
       then newvar (Jkind.Primitive.any ~why:Dummy_jkind)
       else begin
         let tyl = List.map (approx_type env) ctl in
-        newconstr path tyl
+        newconstr path [tyl]
       end
   | _ -> approx_type_default ()
 
@@ -5644,7 +5644,7 @@ and type_expect_
             let decl = Env.find_type p' env in
             let ty =
               with_local_level ~post:generalize_structure
-                (fun () -> newconstr p' (instance_list decl.type_params))
+                (fun () -> newconstr p' [instance_list decl.type_params])
             in
             ty, opt_exp_opath
       in

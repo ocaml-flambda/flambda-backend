@@ -644,7 +644,7 @@ and raw_type_desc ppf = function
       fprintf ppf "@[<1>Ttuple@,%a@]" labeled_type_list tl
   | Tconstr (p, tl, abbrev) ->
       fprintf ppf "@[<hov1>Tconstr(@,%a,@,%a,@,%a)@]" path p
-        raw_type_list tl
+        (raw_list raw_type_list) tl
         (raw_list path) (list_of_memo !abbrev)
   | Tobject (t, nm) ->
       fprintf ppf "@[<hov1>Tobject(@,%a,@,@[<1>ref%t@])@]" raw_type t
@@ -776,7 +776,7 @@ let rec normalize_type_path ?(cache=false) env p =
   try
     let (params, ty, _) = Env.find_type_expansion p env in
     match get_desc ty with
-      Tconstr (p1, tyl, _) ->
+      Tconstr (p1, [tyl], _) ->
         if List.length params = List.length tyl
         && List.for_all2 eq_type params tyl
         then normalize_type_path ~cache env p1
@@ -971,9 +971,9 @@ let nameable_row row =
    subterms that would be printed by the type printer. *)
 let printer_iter_type_expr f ty =
   match get_desc ty with
-  | Tconstr(p, tyl, _) ->
+  | Tconstr(p, tyls, _) ->
       let (_p', s) = best_type_path p in
-      List.iter f (apply_subst s tyl)
+      List.iter (List.iter f) (apply_subst s tyls)
   | Tvariant row -> begin
       match row_name row with
       | Some(_p, tyl) when nameable_row row ->
@@ -1369,7 +1369,7 @@ let tree_of_modes modes =
   example [A -> local_ (B -> C)], we will call [tree_of_typexp] on (B -> C) with
   alloc_mode = local. This is helpful for reproducing the mode currying logic in
   [ctype.ml], so that parsing and printing roundtrip. *)
-let rec tree_of_typexp mode alloc_mode ty =
+let rec tree_of_typexp mode alloc_mode (ty : type_expr) =
   let px = proxy ty in
   if List.memq px !printed_aliases && not (List.memq px !delayed) then
    let non_gen = is_non_gen mode (Transient_expr.type_expr px) in
@@ -1399,7 +1399,7 @@ let rec tree_of_typexp mode alloc_mode ty =
         let t1 =
           if is_optional l then
             match get_desc (tpoly_get_mono ty1) with
-            | Tconstr(path, [ty], _)
+            | Tconstr(path, [[ty]], _)
               when Path.same path Predef.path_option ->
                 tree_of_typexp mode arg_mode ty
             | _ -> Otyp_stuff "<hidden>"
@@ -1413,6 +1413,7 @@ let rec tree_of_typexp mode alloc_mode ty =
     | Ttuple labeled_tyl ->
         Otyp_tuple (tree_of_labeled_typlist mode labeled_tyl)
     | Tconstr(p, tyl, _abbrev) ->
+        let tyl = match tyl with [] -> [] | [tyl] -> tyl | _ -> assert false in
         let p', s = best_type_path p in
         let tyl' = apply_subst s tyl in
         if is_nth s && not (tyl'=[])
@@ -1523,7 +1524,7 @@ and tree_of_row_field mode (l, f) =
       else (l, false, tree_of_typlist mode tyl)
   | Rabsent -> (l, false, [] (* actually, an error *))
 
-and tree_of_typlist mode tyl =
+and tree_of_typlist mode (tyl : type_expr list) =
   List.map (tree_of_typexp mode Alloc.Const.legacy) tyl
 
 and tree_of_labeled_typlist mode tyl =
@@ -1604,7 +1605,7 @@ and tree_of_typfields mode rest = function
       let (fields, rest) = tree_of_typfields mode rest l in
       (field :: fields, rest)
 
-let tree_of_typexp mode ty = tree_of_typexp mode Alloc.Const.legacy ty
+let tree_of_typexp mode (ty : type_expr) = tree_of_typexp mode Alloc.Const.legacy ty
 
 let typexp mode ppf ty =
   !Oprint.out_type ppf (tree_of_typexp mode ty)
@@ -2229,7 +2230,7 @@ let rec tree_of_class_type mode params =
       let tr =
        if is_optional l then
          match get_desc ty with
-         | Tconstr(path, [ty], _) when Path.same path Predef.path_option ->
+         | Tconstr(path, [[ty]], _) when Path.same path Predef.path_option ->
              tree_of_typexp mode ty
          | _ -> Otyp_stuff "<hidden>"
        else tree_of_typexp mode ty in
@@ -2673,7 +2674,7 @@ let same_path t t' =
       | (Id | Map _), (Id | Map _) when Path.same p1 p2 ->
           let tl = apply_subst s1 tl and tl' = apply_subst s2 tl' in
           List.length tl = List.length tl' &&
-          List.for_all2 eq_type tl tl'
+          List.for_all2 (List.for_all2 eq_type) tl tl'
       | _ -> false
       end
   | _ ->

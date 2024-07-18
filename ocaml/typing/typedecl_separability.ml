@@ -63,7 +63,7 @@ let structure : type_definition -> type_structure = fun def ->
           match def.type_kind with
           | Type_variant ([{cd_res = Some ret_type}], _) ->
              begin match get_desc ret_type with
-             | Tconstr (_, tyl, _) -> tyl
+             | Tconstr (_, [tyl], _) -> tyl
              | _ -> assert false
              end
           | _ -> def.type_params
@@ -151,7 +151,7 @@ let rec immediate_subtypes : type_expr -> type_expr list = fun ty ->
   | Tlink _ | Tsubst _ -> assert false (* impossible due to Ctype.repr *)
   | Tvar _ | Tunivar _ -> []
   | Tpoly (pty, _) -> [pty]
-  | Tconstr (_path, tys, _) -> tys
+  | Tconstr (_path, tys, _) -> List.flatten tys
 
 and immediate_subtypes_object_row acc ty = match get_desc ty with
   | Tnil -> acc
@@ -443,7 +443,9 @@ let check_type
         check_type hyps pty m
     | (Tunivar(_)         , _      ) -> empty
     (* Type constructor case. *)
+    | (Tconstr(_,[],_)    , _      ) -> empty
     | (Tconstr(path,tys,_), m      ) ->
+        let tys = match tys with [] -> [] | [tys] -> tys | _ -> assert false in
         let msig = (Env.find_type path env).type_separability in
         let on_param context (ty, m_param) =
           let hyps = match m_param with

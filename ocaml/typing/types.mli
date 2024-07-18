@@ -70,7 +70,7 @@ type row_desc
 type row_field
 type field_kind
 type commutable
-
+and applied_type = Path of Path.t
 and type_desc =
   | Tvar of { name : string option; jkind : jkind }
   (** [Tvar (Some "a")] ==> ['a] or ['_a]
@@ -92,7 +92,7 @@ and type_desc =
       [Ttuple [Some "l1", t1; None, t2; Some "l3", t3]] ==> [l1:t1 * t2 * l3:t3]
   *)
 
-  | Tconstr of Path.t * type_expr list * abbrev_memo ref
+  | Tconstr of applied_type * type_expr list list * abbrev_memo ref
   (** [Tconstr (`A.B.t', [t1;...;tn], _)] ==> [(t1,...,tn) A.B.t]
       The last parameter keep tracks of known expansions, see [abbrev_memo]. *)
 

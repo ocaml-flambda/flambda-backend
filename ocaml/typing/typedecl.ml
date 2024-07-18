@@ -309,7 +309,7 @@ let update_type temp_env env id loc =
   | Some ty ->
       try
         Ctype.(unify_delaying_jkind_checks env
-                 (newconstr path decl.type_params) ty)
+                 (newconstr path [decl.type_params]) ty)
       with Ctype.Unify err ->
         raise (Error(loc, Type_clash (env, err)))
 
@@ -379,7 +379,7 @@ let set_private_row env loc p decl =
         r
     | _ -> assert false
   in
-  set_type_desc rv (Tconstr (p, decl.type_params, ref Mnil))
+  set_type_desc rv (Tconstr (p, [decl.type_params], ref Mnil))
 
 (* Makes sure a type is representable. When called with a type variable, will
    lower [any] to a sort variable if [allow_unboxed = true], and to [value]
@@ -589,7 +589,7 @@ let make_constructor
                    expansion produces gibberish.) *)
                 [Ctype.unexpanded_diff
                    ~got:ret_type
-                   ~expected:(Ctype.newconstr type_path type_params)]
+                   ~expected:(Ctype.newconstr type_path [type_params])]
               in
               raise (Error(sret_type.ptyp_loc,
                            Constraint_failed(
@@ -997,7 +997,7 @@ let rec check_constraints_rec env loc visited ty =
         try Env.find_type path env
         with Not_found ->
           raise (Error(loc, Unavailable_type_constructor path)) in
-      let ty' = Ctype.newconstr path (Ctype.instance_list decl.type_params) in
+      let ty' = Ctype.newconstr path [Ctype.instance_list decl.type_params] in
       begin
         (* We don't expand the error trace because that produces types that
            *already* violate the constraints -- we need to report a problem with
@@ -1015,7 +1015,7 @@ let rec check_constraints_rec env loc visited ty =
                             (ty, violation, Check_constraints)))
         | All_good -> ()
       end;
-      List.iter (check_constraints_rec env loc visited) args
+      List.iter (List.iter (check_constraints_rec env loc visited)) args
   | Tpoly (ty, tl) ->
       let _, ty = Ctype.instance_poly false tl ty in
       check_constraints_rec env loc visited ty
@@ -1116,6 +1116,7 @@ let check_coherence env loc dpath decl =
       type_manifest = Some ty } ->
       begin match get_desc ty with
         Tconstr(path, args, _) ->
+          let args = match args with [] -> [] | [args] -> args | _ -> assert false in
           begin try
             let decl' = Env.find_type path env in
             let err =
@@ -1825,11 +1826,11 @@ let check_well_founded ~abs_env env loc path to_check visited ty0 =
     match get_desc ty with
     | Tconstr(p, tyl, _) ->
         let to_check = to_check p in
-        if to_check then List.iter (check_subtype parents trace ty) tyl;
+        if to_check then List.iter (List.iter (check_subtype parents trace ty)) tyl;
         begin match Ctype.try_expand_once_opt env ty with
         | ty' -> check parents (Expands_to (ty, ty') :: trace) ty'
         | exception Ctype.Cannot_expand ->
-            if not to_check then List.iter (check_subtype parents trace ty) tyl
+            if not to_check then List.iter (List.iter (check_subtype parents trace ty)) tyl
         end
     | _ ->
         Btype.iter_type_expr (check_subtype parents trace ty) ty
@@ -1852,7 +1853,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
   in
   let visited = ref TypeMap.empty in
   check_well_founded ~abs_env env loc path (Path.same path) visited
-    (Ctype.newconstr path args)
+    (Ctype.newconstr path [args])
 
 (* Given a new type declaration [type t = ...] (potentially mutually-recursive),
    we check that accepting the declaration does not introduce ill-founded types.
@@ -1914,14 +1915,16 @@ let check_regularity ~abs_env env loc path decl to_check =
     if not (TypeSet.mem ty !visited) then begin
       visited := TypeSet.add ty !visited;
       match get_desc ty with
+      (* FIXME jbachurski: No regularity check for repeated type application *)
       | Tconstr(path', args', _) ->
+          let args' = match args' with [] -> [] | [args'] -> args' | _ -> assert false in
           if Path.same path path' then begin
             if not (Ctype.is_equal abs_env false args args') then
               raise (Error(loc,
                      Non_regular {
                        definition=path;
                        used_as=ty;
-                       defined_as=Ctype.newconstr path args;
+                       defined_as=Ctype.newconstr path [args];
                        reaching_path=List.rev trace;
                      }))
           end
@@ -2013,7 +2016,7 @@ let name_recursion sdecl id decl =
       type_private = Private; } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
     if Ctype.deep_occur ty ty' then
-      let td = Tconstr(Path.Pident id, decl.type_params, ref Mnil) in
+      let td = Tconstr(Path.Pident id, [decl.type_params], ref Mnil) in
       link_type ty (newty2 ~level:(get_level ty) td);
       {decl with type_manifest = Some ty'}
     else decl
@@ -2296,10 +2299,10 @@ let transl_extension_constructor ~scope env type_path type_params
         let res, ret_type =
           if cdescr.cstr_generalized then
             let params = Ctype.instance_list type_params in
-            let res = Ctype.newconstr type_path params in
-            let ret_type = Some (Ctype.newconstr type_path params) in
+            let res = Ctype.newconstr type_path [params] in
+            let ret_type = Some (Ctype.newconstr type_path [params]) in
               res, ret_type
-          else (Ctype.newconstr type_path typext_params), None
+          else (Ctype.newconstr type_path [typext_params]), None
         in
         begin
           try
@@ -2328,12 +2331,12 @@ let transl_extension_constructor ~scope env type_path type_params
         let cstr_type_params = (Env.find_type cstr_type_path env).type_params in
         let cstr_types =
           (Btype.newgenty
-             (Tconstr(cstr_type_path, cstr_type_params, ref Mnil)))
+             (Tconstr(cstr_type_path, [cstr_type_params], ref Mnil)))
           :: cstr_type_params
         in
         let ext_types =
           (Btype.newgenty
-             (Tconstr(type_path, type_params, ref Mnil)))
+             (Tconstr(type_path, [type_params], ref Mnil)))
           :: type_params
         in
         if not (Ctype.is_equal env true cstr_types ext_types) then
@@ -2358,7 +2361,8 @@ let transl_extension_constructor ~scope env type_path type_params
           | Some decl ->
               let tl =
                 match List.map (fun {Types.ca_type=ty; _} -> get_desc ty) args with
-                | [ Tconstr(_, tl, _) ] -> tl
+                | [ Tconstr(_, [], _) ] -> []
+                | [ Tconstr(_, [tl], _) ] -> tl
                 | _ -> assert false
               in
               let decl = Ctype.instance_declaration decl in

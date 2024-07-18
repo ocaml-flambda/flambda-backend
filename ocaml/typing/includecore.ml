@@ -1147,7 +1147,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
            decl2.type_private decl2.type_kind
     | (None, Some ty2) ->
         let ty1 =
-          Btype.newgenty (Tconstr(path, decl2.type_params, ref Mnil))
+          Btype.newgenty (Tconstr(path, [decl2.type_params], ref Mnil))
         in
         match Ctype.equal env true decl1.type_params decl2.type_params with
         | exception Ctype.Equality err -> Some (Constraint err)
@@ -1237,10 +1237,10 @@ let extension_constructors ~loc env ~mark id ext1 ext2 =
     Env.mark_extension_used usage ext1
   end;
   let ty1 =
-    Btype.newgenty (Tconstr(ext1.ext_type_path, ext1.ext_type_params, ref Mnil))
+    Btype.newgenty (Tconstr(ext1.ext_type_path, [ext1.ext_type_params], ref Mnil))
   in
   let ty2 =
-    Btype.newgenty (Tconstr(ext2.ext_type_path, ext2.ext_type_params, ref Mnil))
+    Btype.newgenty (Tconstr(ext2.ext_type_path, [ext2.ext_type_params], ref Mnil))
   in
   let tl1 = ty1 :: ext1.ext_type_params in
   let tl2 = ty2 :: ext2.ext_type_params in

@@ -452,7 +452,7 @@ and class_type_aux env virt self_scope scty =
       let ty = cty.ctyp_type in
       let ty =
         if Btype.is_optional l
-        then Ctype.newty (Tconstr(Predef.path_option,[ty], ref Mnil))
+        then Ctype.newty (Tconstr(Predef.path_option,[[ty]], ref Mnil))
         else ty in
       let clty = class_type env virt self_scope scty in
       let typ = Cty_arrow (l, ty, clty.cltyp_type) in
@@ -1731,7 +1731,7 @@ let class_infos define_class kind
   in
   (* Check the abbreviation for the object type *)
   let (obj_params', obj_type) = Ctype.instance_class params typ in
-  let constr = Ctype.newconstr (Path.Pident obj_id) obj_params in
+  let constr = Ctype.newconstr (Path.Pident obj_id) [obj_params] in
   begin
     let row = Btype.self_type_row obj_type in
     Ctype.unify env row (Ctype.newty Tnil);

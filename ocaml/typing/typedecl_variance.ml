@@ -66,16 +66,17 @@ let compute_variance env visited vari ty =
         compute_same ty2
     | Ttuple tl ->
         List.iter (fun (_,t) -> compute_same t) tl
-    | Tconstr (path, tl, _) ->
-        let open Variance in
-        if tl = [] then () else begin
-          try
-            let decl = Env.find_type path env in
-            List.iter2
-              (fun ty v -> compute_variance_rec (compose vari v) ty)
-              tl decl.type_variance
-          with Not_found ->
-            List.iter (compute_variance_rec unknown) tl
+    | Tconstr (_, [], _) -> ()
+    | Tconstr (path, tl, _memo) ->
+        let tl = match tl with [] -> [] | [tl] -> tl | _ -> assert false in
+        let open Variance in begin
+        try
+          let decl = Env.find_type path env in
+          List.iter2
+            (fun ty v -> compute_variance_rec (compose vari v) ty)
+            tl decl.type_variance
+        with Not_found ->
+          List.iter (compute_variance_rec unknown) tl
         end
     | Tobject (ty, _) ->
         compute_same ty
@@ -269,6 +270,7 @@ let compute_variance_gadt env ~check (required, loc as rloc) decl
   | Some ret_type ->
       match get_desc ret_type with
       | Tconstr (_, tyl, _) ->
+          let tyl = match tyl with [] -> [] | [tyl] -> tyl | _ -> assert false in
           (* let tyl = List.map (Ctype.expand_head env) tyl in *)
           let fvl = List.map (Ctype.free_variables ?env:None) tyl in
           let _ =
