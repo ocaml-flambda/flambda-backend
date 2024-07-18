@@ -692,3 +692,135 @@ Error: Signature mismatch:
        Line 12, characters 2-19:
          Definition of module type A/1
 |}]
+
+module M : sig
+  type 'a t
+
+  module type S = sig
+    val foo : int t -> int t
+  end
+end = struct
+  type t = int
+
+  module type S = _
+
+  module F(X:S) = struct
+    let _ = X.foo 42
+  end
+end
+
+(* CR selee: This needs to be fixed *)
+[%%expect {|
+Uncaught exception: Invalid_argument("List.iter2")
+
+|}]
+
+module M : sig
+  module S : sig
+    type 'a t
+  end
+
+  module type T = sig
+    val foo : int S.t -> int S.t
+  end
+end = struct
+  module S = struct
+    type t = int
+  end
+
+  module type T = _
+
+  module F(X:T) = struct
+    let _ = X.foo 42
+  end
+end
+
+(* CR selee: This needs to be fixed *)
+[%%expect{|
+Uncaught exception: Invalid_argument("List.iter2")
+
+|}]
+
+module M : sig
+  module type A = sig
+    type 'a t
+
+    val foo : int t -> int t
+  end
+
+  module type B = A
+
+end = struct
+  module type B = _
+
+  module F(X:B) = struct
+    let _ = X.foo 42
+  end
+
+  module type A = _
+end
+
+(* CR selee: This needs to be fixed *)
+[%%expect {|
+Line 14, characters 12-17:
+14 |     let _ = X.foo 42
+                 ^^^^^
+Error: The module X is abstract, it cannot have any components
+|}]
+
+(* CR selee: Surely this error message should be improved? *)
+module M : sig
+  type 'a t
+
+  module type S = sig
+    type t' = int t -> int t
+
+    val foo : t'
+  end
+end = struct
+  module type S = _
+
+  module F(X:S) = struct
+    let _ = X.foo "hi"
+  end
+
+  type t = string
+end
+
+(* CR selee: This needs to be fixed *)
+[%%expect {|
+Line 13, characters 18-22:
+13 |     let _ = X.foo "hi"
+                       ^^^^
+Error: Function arguments and returns must be representable.
+       The layout of int t is any, because
+         the .cmi file for t is missing.
+       But the layout of int t must be representable, because
+         we must know concretely how to pass a function argument.
+       No .cmi file found containing t.
+|}]
+
+module M : sig
+  type t
+  type s = t -> t
+end = struct
+  type s = int -> int
+  type t = int
+end
+
+[%%expect {|
+module M : sig type t type s = t -> t end
+|}]
+(*
+module M : sig
+  module type S = sig type 'a t end -> sig type 'a t end
+
+  module F : S =
+end = struct
+
+  module type S = sig type t = int end -> sig type 'a t end
+
+end
+
+[%%expect {||}]
+*)
