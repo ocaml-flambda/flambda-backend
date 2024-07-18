@@ -222,7 +222,8 @@ type error =
       Env.closure_context option *
       contention_context option *
       Env.shared_context option
-  | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
+  | Curried_application_complete of
+      arg_label * Mode.Alloc.error * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of Alloc.equate_error
   | Uncurried_function_escapes of Alloc.error
   | Local_return_annotation_mismatch of Location.t
@@ -3467,15 +3468,12 @@ let remaining_function_type ty_ret mode_ret rev_args =
   in
   ty_ret
 
-(* Check that within a single application, the return modes of curried arrows
-   increase along the application. That is, check that this is not an
-   unparenthesized over-application of a local function that returns a global
-   function.
-
-   This check is not required for soundness, but including it simplifies the
-   principal types of applications, making the inferred types more sensible
-   in ml files that lack an mli. *)
-let check_local_application_complete ~env ~app_loc args =
+(** Within a single application, constrain the curried arrow type as given by
+   [close_over] and [partial_apply]. This constraint is not required for
+   soundness, but useful in the lack of a signature, in which case the
+   variance-blind defaulting logic will push modes towards undesirable
+   direction. *)
+let check_curried_application_complete ~env ~app_loc args =
   let arg_mode_fun (_lbl, arg) =
     match arg with
     | Arg ( Known_arg { mode_fun; _ }
@@ -3500,7 +3498,7 @@ let check_local_application_complete ~env ~app_loc args =
       let submode m1 m2 =
         match Alloc.submode m1 m2 with
         | Ok () -> ()
-        | Error _ ->
+        | Error e ->
           let loc, loc_kind =
             match arg with
             | Arg (Known_arg {sarg; _} | Unknown_arg {sarg; _}) ->
@@ -3511,13 +3509,13 @@ let check_local_application_complete ~env ~app_loc args =
                            loc_end = sarg.pexp_loc.loc_end;
                            loc_ghost = app_loc.loc_ghost || sarg.pexp_loc.loc_ghost },
                 `Prefix
-            | _ ->
+            | Arg (Eliminated_optional_arg _) | Omitted _ ->
               app_loc, `Entire_apply
           in
-          raise (Error(loc, env, Local_application_complete (lbl, loc_kind)))
+          raise (Error(loc, env, Curried_application_complete (lbl, e, loc_kind)))
       in
-      submode mode_fun mode_ret;
-      submode mode_arg mode_ret;
+      submode (Alloc.partial_apply mode_fun) mode_ret;
+      submode (Alloc.close_over mode_arg) mode_ret;
       loop has_commuted rest
   in
   loop false args
@@ -7705,7 +7703,7 @@ and type_application env app_loc expected_mode position_and_mode
           let ty_ret, mode_ret, args =
             type_omitted_parameters expected_mode env ty_ret mode_ret args
           in
-          check_local_application_complete ~env ~app_loc untyped_args;
+          check_curried_application_complete ~env ~app_loc untyped_args;
           ty_ret, mode_ret, args, position_and_mode
         end ~post:(fun (ty_ret, _, _, _) -> generalize_structure ty_ret)
       in
@@ -10164,7 +10162,7 @@ let report_error ~loc env = function
             Format.dprintf "This value is %a but expected to be %a."
               (Value.Const.print_axis ax) left (Value.Const.print_axis ax) right
         end
-  | Local_application_complete (lbl, loc_kind) ->
+  | Curried_application_complete (lbl, Error (ax, {left; _}), loc_kind) ->
       let sub =
         match loc_kind with
         | `Prefix ->
@@ -10186,7 +10184,8 @@ let report_error ~loc env = function
       in
       Location.errorf ~loc ~sub
         "@[This application is complete, but surplus arguments were provided afterwards.@ \
-         When passing or calling a local value, extra arguments are passed in a separate application.@]"
+         When passing or calling %a values, extra arguments are passed in a separate application.@]"
+         (Alloc.Const.print_axis ax) left
   | Param_mode_mismatch (s, Error (ax, {left; right})) ->
       let actual, expected =
         match s with
