@@ -2741,12 +2741,7 @@ let update_caml_flambda_invalid (fd : Mach.fundecl) =
     Annotation.is_check_enabled
       (Annotation.find fd.fun_codegen_options fd.fun_name fd.fun_dbg)
   in
-  if enabled
-  then
-    (* This condition matches the one in [Selectgen] to avoid copying [fd]
-       unnecessarily. *)
-    { fd with fun_body = fixup fd.Mach.fun_body }
-  else fd
+  if enabled then { fd with fun_body = fixup fd.Mach.fun_body } else fd
 
 let update_caml_flambda_invalid_cfg cfg_with_layout =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
