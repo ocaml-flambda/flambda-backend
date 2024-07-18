@@ -34,8 +34,6 @@ type type_expr = Types.type_expr
 module Layout = struct
   open Jkind_types.Layout
 
-  type nonrec 'sort layout = 'sort layout
-
   module Const = struct
     type t = Sort.const layout
 
