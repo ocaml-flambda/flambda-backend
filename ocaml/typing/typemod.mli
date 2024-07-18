@@ -167,6 +167,7 @@ type error =
   | Underscore_not_allowed_in_signature
   | Cannot_infer_module_type
   | Unbound_path_in_inferred_type of Btype.path_kind * Path.t
+  | Incompatible_type_declaration of Ident.t * type_declaration
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

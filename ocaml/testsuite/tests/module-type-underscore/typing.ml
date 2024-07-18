@@ -745,10 +745,12 @@ end = struct
   end
 end
 
-(* CR selee: This needs to be fixed *)
 [%%expect {|
-Uncaught exception: Invalid_argument("List.iter2")
-
+Line 8, characters 2-14:
+8 |   type t = int
+      ^^^^^^^^^^^^
+Error: This type declaration is incompatible with the corresponding
+       declaration in the signature: expected type 'a t.
 |}]
 
 module M : sig
@@ -771,10 +773,12 @@ end = struct
   end
 end
 
-(* CR selee: This needs to be fixed *)
 [%%expect{|
-Uncaught exception: Invalid_argument("List.iter2")
-
+Line 11, characters 4-16:
+11 |     type t = int
+         ^^^^^^^^^^^^
+Error: This type declaration is incompatible with the corresponding
+       declaration in the signature: expected type 'a t.
 |}]
 
 module M : sig
