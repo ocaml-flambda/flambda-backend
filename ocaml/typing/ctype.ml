@@ -263,6 +263,8 @@ let newobj fields      = newty (Tobject (fields, ref None))
 
 let newconstr path tyl = newty (Tconstr (path, AppArgs.of_list tyl, ref Mnil))
 
+let newapp ty tyl = newty (Tapp (ty, AppArgs.of_list tyl))
+
 let newmono ty = newty (Tpoly(ty, []))
 
 let none = newty (Ttuple [])                (* Clearly ill-formed type *)

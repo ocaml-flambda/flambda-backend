@@ -88,6 +88,7 @@ val new_global_var: ?name:string -> Jkind.t -> type_expr
            (as type variables ['a] in type constraints). *)
 val newobj: type_expr -> type_expr
 val newconstr: Path.t -> type_expr list -> type_expr
+val newapp : type_expr -> type_expr list -> type_expr
 val newmono : type_expr -> type_expr
 val none: type_expr
         (* A dummy type expression *)
