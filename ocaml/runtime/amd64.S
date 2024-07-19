@@ -546,74 +546,7 @@ G(caml_system__code_begin):
         movupd       (15*16 + 13*8)(%r15),%xmm15;      \
         movq    Caml_state(young_ptr), %r15
 
-/* Save non-callee saved registers that may be in use to a free gc_regs
-   bucket, except for %xmm8 to %xmm15 as they are not used to pass
-   arguments and return values in the System V amd64 ABI.
-   Returns: bucket in %r15. Clobbers %r11 (after saving it) */
-#ifdef WITH_THREAD_SANITIZER
-#define TSAN_SAVE_CALLER_REGS                               \
-    /* First, save the young_ptr. */                   \
-        movq    %r15, Caml_state(young_ptr);           \
-    /* Now, use %r15 to point to the gc_regs bucket */ \
-    /* We save %r11 first to allow it to be scratch */ \
-        movq    Caml_state(gc_regs_buckets), %r15;     \
-        movq    %r11, 11*8(%r15);                      \
-        movq    0(%r15), %r11; /* next ptr */          \
-        movq    %r11, Caml_state(gc_regs_buckets);     \
-        movq    %rax,         0*8(%r15);               \
-        movq    %rdi,         2*8(%r15);               \
-        movq    %rsi,         3*8(%r15);               \
-        movq    %rdx,         4*8(%r15);               \
-        movq    %rcx,         5*8(%r15);               \
-        movq    %r8,          6*8(%r15);               \
-        movq    %r9,          7*8(%r15);               \
-        movq    %r10,        10*8(%r15);               \
-             /* %r11 is at   11*8(%r15); */            \
-        movsd   %xmm0,   (0+13)*8(%r15);               \
-        movsd   %xmm1,   (1+13)*8(%r15);               \
-        movsd   %xmm2,   (2+13)*8(%r15);               \
-        movsd   %xmm3,   (3+13)*8(%r15);               \
-        movsd   %xmm4,   (4+13)*8(%r15);               \
-        movsd   %xmm5,   (5+13)*8(%r15);               \
-        movsd   %xmm6,   (6+13)*8(%r15);               \
-        movsd   %xmm7,   (7+13)*8(%r15);
-#else
-#define TSAN_SAVE_CALLER_REGS
-#endif
-
-/* Restore registers saved by TSAN_SAVE_CALLER_REGS. Expects gc_regs bucket in
-   %r15 */
-#ifdef WITH_THREAD_SANITIZER
-
 // CR mshinwell: the below probably needs fixing for SIMD
-
-#define TSAN_RESTORE_CALLER_REGS                            \
-    /* Restore %rax, freeing up the next ptr slot */   \
-        movq    0*8(%r15), %rax;                       \
-        movq    Caml_state(gc_regs_buckets), %r11;     \
-        movq    %r11, 0(%r15); /* next ptr */          \
-        movq    %r15, Caml_state(gc_regs_buckets);     \
-           /* above:  0*8(%r15),%rax; */               \
-        movq          2*8(%r15),%rdi;                  \
-        movq          3*8(%r15),%rsi;                  \
-        movq          4*8(%r15),%rdx;                  \
-        movq          5*8(%r15),%rcx;                  \
-        movq          6*8(%r15),%r8;                   \
-        movq          7*8(%r15),%r9;                   \
-        movq         10*8(%r15),%r10;                  \
-        movq         11*8(%r15),%r11;                  \
-        movsd    (0+13)*8(%r15),%xmm0;                 \
-        movsd    (1+13)*8(%r15),%xmm1;                 \
-        movsd    (2+13)*8(%r15),%xmm2;                 \
-        movsd    (3+13)*8(%r15),%xmm3;                 \
-        movsd    (4+13)*8(%r15),%xmm4;                 \
-        movsd    (5+13)*8(%r15),%xmm5;                 \
-        movsd    (6+13)*8(%r15),%xmm6;                 \
-        movsd    (7+13)*8(%r15),%xmm7;                 \
-        movq    Caml_state(young_ptr), %r15
-#else
-#define TSAN_RESTORE_CALLER_REGS
-#endif
 
 /* Save non-callee saved registers that may be in use to a free gc_regs
    bucket, except for %xmm8 to %xmm15 as they are not used to pass
@@ -1078,7 +1011,6 @@ CFI_STARTPROC
 CFI_ENDPROC
 ENDFUNCTION(G(caml_tsan_exit_on_raise_asm))
 #endif
-
 
 FUNCTION(G(caml_reraise_exn))
 CFI_STARTPROC

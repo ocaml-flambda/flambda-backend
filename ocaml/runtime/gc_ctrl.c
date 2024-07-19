@@ -265,6 +265,7 @@ static value gc_full_major_exn(int force_compaction)
   /* In general, it can require up to 3 GC cycles for a
      currently-unreachable object to be collected. */
   for (i = 0; i < 3; i++) {
+    // XXX mshinwell for sdolan: please check conflict diff here
     caml_empty_minor_heaps_once();
     caml_finish_major_cycle(force_compaction && i == 2);
     exn = caml_process_pending_actions_exn();
@@ -297,6 +298,7 @@ CAMLprim value caml_gc_compaction(value v)
   Caml_check_caml_state();
   CAML_EV_BEGIN(EV_EXPLICIT_GC_COMPACT);
   CAMLassert (v == Val_unit);
+  // XXX mshinwell for sdolan: please check conflict diff here
   value exn = gc_full_major_exn(1);
   CAML_EV_END(EV_EXPLICIT_GC_COMPACT);
   return caml_raise_async_if_exception(exn, "");

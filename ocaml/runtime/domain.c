@@ -61,7 +61,6 @@ typedef cpuset_t cpu_set_t;
 #include "caml/major_gc.h"
 #include "caml/minor_gc.h"
 #include "caml/memprof.h"
-#include "caml/memprof.h"
 #include "caml/misc.h"
 #include "caml/memory.h"
 #include "caml/osdeps.h"
