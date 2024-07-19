@@ -117,6 +117,10 @@ val flatten_fields:
     future. (Test cases were added to typing-gadts/test.ml)
 *)
 
+val app_params_of_decl : type_declaration -> type_expr list
+val app_variance_of_decl : type_declaration -> Variance.t list
+val app_separability_of_decl : type_declaration -> Separability.t list
+
 val associate_fields:
         (string * field_kind * type_expr) list ->
         (string * field_kind * type_expr) list ->
@@ -538,6 +542,12 @@ val get_unboxed_type_approximation : Env.t -> type_expr -> type_expr
    just checks that all constructors have no arguments, doesn't consider
    void. *)
 val tvariant_not_immediate : row_desc -> bool
+
+val arity_matches_decl : Env.t -> type_declaration -> int -> bool
+
+(* Extract the jkind of the declared datatype constructor in an unapplied context.
+   None if not a datatype constructor (i.e. abstract type) nor alias for one. *)
+val jkind_of_decl_unapplied : Env.t -> type_declaration -> jkind option
 
 (* Cheap upper bound on jkind.  Will not expand unboxed types - call
    [type_jkind] if that's needed. *)
