@@ -996,7 +996,7 @@ let rec check_constraints_rec env loc visited ty =
         try Env.find_type path env
         with Not_found ->
           raise (Error(loc, Unavailable_type_constructor path)) in
-      let ty' = Ctype.newconstr path (Ctype.instance_list decl.type_params) in
+      let ty' = Ctype.newconstr path (Ctype.instance_list (Ctype.app_params_of_decl decl)) in
       begin
         (* We don't expand the error trace because that produces types that
            *already* violate the constraints -- we need to report a problem with
@@ -1129,7 +1129,7 @@ let check_kind_coherence env loc dpath decl =
       try
         let decl' = Env.find_type path env in
         let err =
-          if not @@ AppArgs.matches_decl decl args
+          if not @@ Ctype.arity_matches_decl env decl (AppArgs.length args)
           then Some Includecore.Arity
           else begin
             match Ctype.equal env false (AppArgs.to_list args) decl.type_params with
@@ -2389,7 +2389,7 @@ let transl_extension_constructor ~scope env type_path type_params
                 | _ -> assert false
               in
               let decl = Ctype.instance_declaration decl in
-              assert (AppArgs.matches_decl decl tl);
+              assert (Ctype.arity_matches_decl env decl (AppArgs.length tl));
               AppArgs.iter2 (Ctype.unify env) decl.type_params tl;
               let lbls =
                 match decl.type_kind with

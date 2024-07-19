@@ -725,7 +725,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             List.map (fun _ -> t) decl.type_params
         | _ -> stl
       in
-      if List.length stl <> decl.type_arity then
+      if not @@ Ctype.arity_matches_decl env decl (List.length stl) then
         raise(Error(styp.ptyp_loc, env,
                     Type_arity_mismatch(lid.txt, decl.type_arity,
                                         List.length stl)));
@@ -740,7 +740,8 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             if get_level ty = Btype.generic_level then unify_var else unify
       in
       let arity = List.length params in
-      List.iteri
+      (* If it is applied, then the arities match, so [combine] works out *)
+      if List.length params > 0 then List.iteri
         (fun idx ((sty, cty), ty') ->
            begin match Types.get_desc ty' with
            | Tvar {jkind; _} when Jkind.History.has_imported_history jkind ->

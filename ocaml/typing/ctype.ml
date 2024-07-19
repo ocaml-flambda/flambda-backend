@@ -886,6 +886,24 @@ let update_scope_for tr_exn scope ty =
     (without this constraint, the type system would actually be unsound.)
 *)
 
+let app_params_of_decl decl =
+  match decl.type_arity, decl.type_jkind with
+  | 0, Type _ -> []
+  | 0, Arrow { args; result = _ } -> List.map Btype.newgenvar args
+  | _ -> decl.type_params
+
+let app_variance_of_decl decl =
+  match decl.type_arity, decl.type_jkind with
+  | 0, Type _ -> []
+  | 0, Arrow { args; result = _ } -> Variance.unknown_signature ~injective:true ~arity:(List.length args)
+  | _ -> decl.type_variance
+
+let app_separability_of_decl decl =
+  match decl.type_arity, decl.type_jkind with
+  | 0, Type _ -> []
+  | 0, Arrow { args; result = _ } -> Separability.default_signature ~arity:(List.length args)
+  | _ -> decl.type_separability
+
 let rec update_level env level expand ty =
   if get_level ty > level then begin
     if level < get_scope ty then raise_scope_escape_exn ty;
@@ -899,9 +917,9 @@ let rec update_level env level expand ty =
         with Cannot_expand ->
           raise_escape_exn (Constructor p)
         end
-    | Tconstr(p, Applied (_ :: _ as tl), _) ->
+    | Tconstr(p, Applied tl, _) ->
         let variance =
-          try (Env.find_type p env).type_variance
+          try Env.find_type p env |> app_variance_of_decl
           with Not_found -> List.map (fun _ -> Variance.unknown) tl in
         let needs_expand =
           expand ||
@@ -980,7 +998,7 @@ let rec lower_contravariant env var_level visited contra ty =
        let variance, maybe_expand =
          try
            let typ = Env.find_type path env in
-           typ.type_variance,
+           app_variance_of_decl typ,
            type_kind_is_abstract typ
           with Not_found ->
             (* See testsuite/tests/typing-missing-cmi-2 for an example *)
@@ -1685,10 +1703,10 @@ let instance_prim_layout (desc : Primitive.description) ty =
          from an outer scope *)
       if level = generic_level && try_mark_node ty then begin
         begin match get_desc ty with
-        | Tvar ({ jkind = Type jkind; _ } as r) when Jkind.Type.has_layout_any jkind ->
+        | Tvar ({ jkind; _ } as r) when Jkind.has_layout_any jkind ->
           For_copy.redirect_desc copy_scope ty
             (Tvar {r with jkind = get_jkind ()})
-        | Tunivar ({ jkind = Type jkind; _ } as r) when Jkind.Type.has_layout_any jkind ->
+        | Tunivar ({ jkind; _ } as r) when Jkind.has_layout_any jkind ->
           For_copy.redirect_desc copy_scope ty
             (Tunivar {r with jkind = get_jkind ()})
         | _ -> ()
@@ -2091,6 +2109,57 @@ let tvariant_not_immediate row =
       | _ -> false)
     (row_fields row)
 
+
+(* Jkinds *)
+
+let is_datatype_decl (k : type_decl_kind) =
+  match k with
+  | Type_record _ | Type_variant _ | Type_open -> true
+  | Type_abstract _ -> false
+
+let find_type_opt p env =
+  try Some (Env.find_type p env) with Not_found -> None
+
+let rec jkind_of_decl_unapplied env (decl : type_declaration) : jkind option =
+  (* FIXME jbachurski: Shouldn't we look at type_variance and type_separability here? *)
+  match decl.type_arity with
+  | 0 -> Some decl.type_jkind
+  | _ when is_datatype_decl decl.type_kind ->
+    Some (Arrow
+    { args = List.map (type_jkind env) decl.type_params
+    ; result = decl.type_jkind })
+  | _ -> None
+
+and type_jkind_for_app (app_jkind : jkind) app_arity tys =
+  match tys, app_jkind with
+  | Unapplied, _ when app_arity = 0 -> Some app_jkind
+  | Unapplied, _ -> None
+  | Applied tys, _ when app_arity > 0 ->
+    if List.length tys = app_arity
+    then Some app_jkind
+    else None
+  | Applied _, Type _ -> None
+  | Applied tys, Arrow { args; result } ->
+    if List.length tys = List.length args
+    then Some result
+    else None
+
+and type_jkind_for_app_decl ~top env decl tys =
+  if decl.type_arity > 0 then Some (decl.type_jkind)
+  else match jkind_of_decl_unapplied env decl with
+  | Some jkind -> begin
+    match type_jkind_for_app jkind 0 tys with
+    | Some jkind -> Some jkind
+    | None -> None
+  end
+  | None -> Some top
+
+and type_jkind_for_app_path env path tys =
+  let top = Jkind.Primitive.top ~why:(Missing_cmi path) in
+  match find_type_opt path env with
+  | Some decl -> type_jkind_for_app_decl ~top env decl tys
+  | None -> Some top
+
 (* We assume here that [get_unboxed_type_representation] has already been
    called, if the type is a Tconstr.  This allows for some optimization by
    callers (e.g., skip expanding if the kind tells them enough).
@@ -2099,24 +2168,18 @@ let tvariant_not_immediate row =
    in some edge cases (when [get_unboxed_type_representation] ran out of fuel,
    or when the type is a Tconstr that is missing from the Env due to a missing
    cmi). *)
-let rec estimate_type_jkind env ty =
+and estimate_type_jkind env ty =
   let open Jkind in
   match get_desc ty with
-  | Tconstr(p, _, _) -> begin
-    try
-      Jkind (Env.find_type p env).type_jkind
-    with
-      Not_found -> Jkind (Jkind.Primitive.top ~why:(Missing_cmi p))
+  | Tconstr(p, tys, _) -> begin
+    match type_jkind_for_app_path env p tys with
+    | Some jkind -> Jkind jkind
+    | None -> failwith "no jkind for tconstr???"
   end
   | Tapp (ty, tys) -> begin
-    let app_jkind = estimate_type_jkind env ty in
-    match tys, jkind_of_result app_jkind with
-    | Unapplied, _ -> app_jkind
-    | Applied _, Type _ -> assert false
-    | Applied tys, Arrow { args; result } ->
-      if List.length tys = List.length args
-      then Jkind result
-      else assert false
+    match type_jkind_for_app (type_jkind env ty) 0 tys with
+    | Some jkind -> Jkind jkind
+    | None -> failwith "no jkind for tapp???"
   end
   | Tvariant row ->
       if tvariant_not_immediate row
@@ -2142,6 +2205,23 @@ let rec estimate_type_jkind env ty =
   | Tunivar { jkind } -> Jkind jkind
   | Tpoly (ty, _) -> estimate_type_jkind env ty
   | Tpackage _ -> Jkind (Type.Primitive.value ~why:First_class_module |> Jkind.of_type_jkind)
+
+and type_jkind env ty =
+  jkind_of_result (estimate_type_jkind env (get_unboxed_type_approximation env ty))
+
+let arity_matches_decl env decl t = match t, decl.type_arity with
+  | 0, 0 -> true
+  | 0, _ -> begin
+    match jkind_of_decl_unapplied env decl with
+    | None -> false
+    | Some _ -> true
+  end
+  | m, 0 -> begin
+    match decl.type_jkind with
+    | Type _ -> false
+    | Arrow { args = kind_args; result = _ } -> List.length kind_args = m
+  end
+  | m, n -> m = n
 
 (**** checking jkind relationships ****)
 
@@ -2179,11 +2259,8 @@ let type_jkind_sub env ty jkind =
     (* This is an optimization to avoid unboxing if we can tell the constraint
        is satisfied from the type_kind *)
     match get_desc ty with
-    | Tconstr(p, _args, _abbrev) ->
-        let jkind_bound =
-          try (Env.find_type p env).type_jkind
-          with Not_found -> Jkind.Primitive.top ~why:(Missing_cmi p)
-        in
+    | Tconstr _ ->
+        let jkind_bound = estimate_type_jkind env ty |> jkind_of_result in
         if Jkind.sub jkind_bound jkind
         then Success
         else if fuel < 0 then Failure jkind_bound
@@ -2274,9 +2351,6 @@ let constrain_type_jkind_exn env texn ty jkind =
 
 let estimate_type_jkind env typ =
   jkind_of_result (estimate_type_jkind env typ)
-
-let type_jkind env ty =
-  estimate_type_jkind env (get_unboxed_type_approximation env ty)
 
 let type_jkind_purely env ty =
   if !Clflags.principal || Env.has_local_constraints env then
@@ -2611,7 +2685,7 @@ let occur_univar ?(inj_only=false) env ty =
       | Tconstr (_, Unapplied, _) -> ()
       | Tconstr (p, Applied tl, _) ->
           begin try
-            let td = Env.find_type p env in
+            let var = Env.find_type p env |> app_variance_of_decl in
             List.iter2
               (fun t v ->
                 (* The null variance only occurs in type abbreviations and
@@ -2623,7 +2697,7 @@ let occur_univar ?(inj_only=false) env ty =
                    object and variant types too. *)
                 if Variance.(if inj_only then mem Inj v else not (eq v null))
                 then occur_rec bound t)
-              tl td.type_variance
+              tl var
           with Not_found ->
             if not inj_only then List.iter (occur_rec bound) tl
           end
@@ -2675,11 +2749,11 @@ let univars_escape env univar_pairs vl ty =
       | Tconstr (_, Unapplied, _) -> ()
       | Tconstr (p, tl, _) ->
           begin try
-            let td = Env.find_type p env in
+            let var = Env.find_type p env |> app_variance_of_decl in
             AppArgs.iter2
               (* see occur_univar *)
               (fun v t -> if not Variance.(eq v null) then occur t)
-              td.type_variance tl
+              var tl
           with Not_found ->
             AppArgs.iter occur tl
           end
@@ -3108,7 +3182,7 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
     in
     if compatible_paths p1 p2 then begin
       let inj =
-        try List.map Variance.(mem Inj) (Env.find_type p1 env).type_variance
+        try List.map Variance.(mem Inj) (Env.find_type p1 env |> app_variance_of_decl)
         with Not_found -> List.map (fun _ -> false) tl1
       in
       List.iter2
@@ -3603,7 +3677,7 @@ and unify3 env t1 t1' t2 t2' =
             let tl2 = AppArgs.to_list tl2 in
             let inj =
               try List.map Variance.(mem Inj)
-                    (Env.find_type p1 !env).type_variance
+                    (Env.find_type p1 !env |> app_variance_of_decl)
               with Not_found -> List.map (fun _ -> false) tl1
             in
             List.iter2
@@ -4699,7 +4773,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
                 match Env.find_type p1 env with
                 | decl ->
                     moregen_param_list inst_nongen variance type_pairs env
-                      decl.type_variance tl1 tl2
+                      (decl |> app_variance_of_decl) tl1 tl2
                 | exception Not_found ->
                     moregen_list inst_nongen Invariant type_pairs env tl1 tl2
             end
@@ -5784,7 +5858,7 @@ let rec build_subtype env (visited : transient_expr list)
       if memq_warn tt visited then (t, Unchanged) else
       let visited = tt :: visited in
       begin try
-        let decl = Env.find_type p env in
+        let var = Env.find_type p env |> app_variance_of_decl in
         if level = 0 && generic_abbrev env p && safe_abbrev env t
         && not (has_constr_row' env t)
         then warn := true;
@@ -5800,7 +5874,7 @@ let rec build_subtype env (visited : transient_expr list)
                 else (newvar (Jkind.Type.Primitive.value
                                 ~why:(Unknown "build_subtype 3") |> Jkind.of_type_jkind),
                       Changed))
-            decl.type_variance (AppArgs.to_list tl)
+            var (AppArgs.to_list tl)
         in
         let c = collect tl' in
         if c > Unchanged then (newconstr p (List.map fst tl'), c)
@@ -5951,7 +6025,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
         subtype_rec env trace t1 (expand_abbrev env t2) cstrs
     | (Tconstr(p1, tl1, _), Tconstr(p2, tl2, _)) when Path.same p1 p2 ->
         begin try
-          let decl = Env.find_type p1 env in
+          let var = Env.find_type p1 env |> app_variance_of_decl in
           List.fold_left2
             (fun cstrs v (t1, t2) ->
               let (co, cn) = Variance.get_upper v in
@@ -5975,7 +6049,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
                     t2 t1
                     cstrs
                 else cstrs)
-            cstrs decl.type_variance (List.combine (AppArgs.to_list tl1) (AppArgs.to_list tl2))
+            cstrs var (List.combine (AppArgs.to_list tl1) (AppArgs.to_list tl2))
         with Not_found ->
           (trace, t1, t2, !univar_pairs)::cstrs
         end
