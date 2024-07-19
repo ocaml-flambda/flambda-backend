@@ -20,22 +20,22 @@ let write_ref : ('a : value mod portable uncontended) .
 
 module Cell = struct
   type 'a t =
-    | Mk : 'k Capsule.Mutex.t * ('a myref, 'k) Capsule.Ptr.t -> 'a t
+    | Mk : 'k Capsule.Mutex.t * ('a myref, 'k) Capsule.Data.t -> 'a t
 
   let create x =
     let (P m) = Capsule.create_with_mutex () in
-    let p = Capsule.Ptr.create (fun () -> mk_ref x)  in
+    let p = Capsule.Data.create (fun () -> mk_ref x)  in
     Mk (m, p)
 
   let read t =
     let (Mk (m, p)) = t in
     Capsule.Mutex.with_lock m (fun k ->
-      Capsule.Ptr.extract k read_ref p)
+      Capsule.Data.extract k read_ref p)
 
   let write t x =
     let (Mk (m, p)) = t in
     Capsule.Mutex.with_lock m (fun k ->
-      Capsule.Ptr.iter k (write_ref x) p)
+      Capsule.Data.iter k (write_ref x) p)
 end
 
 let () =
