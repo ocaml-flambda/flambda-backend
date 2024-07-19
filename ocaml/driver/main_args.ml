@@ -320,6 +320,12 @@ let mk_no_probes f =
 let mk_labels f =
   "-labels", Arg.Unit f, " Use commuting label mode"
 
+let mk_always_tco f =
+  "-always-tco", Arg.Unit f, " Always apply tail-call optimization to function applications in tail-position (unless marked [@nontail])"
+
+let mk_no_always_tco f =
+  "-no-always-tco", Arg.Unit f, " Use a heuristic to sometimes apply tail-call optimization to function applications in tail-position"
+
 let mk_linkall f =
   "-linkall", Arg.Unit f, " Link all modules, even unused ones"
 
@@ -915,6 +921,8 @@ module type Common_options = sig
   val _nostdlib : unit -> unit
   val _no_auto_include_otherlibs : unit -> unit
   val _nocwd : unit -> unit
+  val _always_tco : unit -> unit
+  val _no_always_tco : unit -> unit
   val _open : string -> unit
   val _ppx : string -> unit
   val _principal : unit -> unit
@@ -1221,6 +1229,8 @@ struct
     mk_nostdlib F._nostdlib;
     mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
+    mk_always_tco F._always_tco;
+    mk_no_always_tco F._no_always_tco;
     mk_nopervasives F._nopervasives;
     mk_o F._o;
     mk_opaque F._opaque;
@@ -1322,6 +1332,8 @@ struct
     mk_nostdlib F._nostdlib;
     mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
+    mk_always_tco F._always_tco;
+    mk_no_always_tco F._no_always_tco;
     mk_nopervasives F._nopervasives;
     mk_open F._open;
     mk_ppx F._ppx;
@@ -1453,6 +1465,8 @@ struct
     mk_nostdlib F._nostdlib;
     mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
+    mk_always_tco F._always_tco;
+    mk_no_always_tco F._no_always_tco;
     mk_nopervasives F._nopervasives;
     mk_no_unbox_free_vars_of_closures F._no_unbox_free_vars_of_closures;
     mk_no_unbox_specialised_args F._no_unbox_specialised_args;
@@ -1600,6 +1614,8 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_nostdlib F._nostdlib;
     mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
+    mk_always_tco F._always_tco;
+    mk_no_always_tco F._no_always_tco;
     mk_nopervasives F._nopervasives;
     mk_no_unbox_free_vars_of_closures F._no_unbox_free_vars_of_closures;
     mk_no_unbox_specialised_args F._no_unbox_specialised_args;
@@ -1703,6 +1719,8 @@ struct
     mk_nostdlib F._nostdlib;
     mk_no_auto_include_otherlibs F._no_auto_include_otherlibs;
     mk_nocwd F._nocwd;
+    mk_always_tco F._always_tco;
+    mk_no_always_tco F._no_always_tco;
     mk_open F._open;
     mk_pp F._pp;
     mk_ppx F._ppx;
@@ -1814,6 +1832,8 @@ module Default = struct
     let _nostdlib = set no_std_include
     let _no_auto_include_otherlibs = set no_auto_include_otherlibs
     let _nocwd = set no_cwd
+    let _always_tco = set always_tco
+    let _no_always_tco = clear always_tco
     let _open s = open_modules := (s :: (!open_modules))
     let _principal = set principal
     let _rectypes = set recursive_types

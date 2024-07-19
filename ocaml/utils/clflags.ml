@@ -113,6 +113,8 @@ and for_package = ref (None: string option) (* -for-pack *)
 and error_size = ref 500                (* -error-size *)
 and float_const_prop = ref true         (* -no-float-const-prop *)
 and transparent_modules = ref false     (* -trans-mod *)
+and always_tco = ref true               (* -always-tco *)
+
 let unique_ids = ref true               (* -d(no-)unique-ds *)
 let locations = ref true                (* -d(no-)locations *)
 let as_parameter = ref false            (* -as-parameter *)
