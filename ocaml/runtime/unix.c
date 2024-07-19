@@ -17,7 +17,9 @@
 
 /* Unix-specific stuff */
 
+// XXX mshinwell for mshinwell: figure out what is going on here
 #include <sys/time.h>
+
 #define _GNU_SOURCE
            /* Helps finding RTLD_DEFAULT in glibc */
            /* also secure_getenv */
@@ -28,7 +30,6 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
