@@ -30,11 +30,7 @@ let mark_used t = Attribute_table.remove unused_attrs t
 (* [attr_order] is used to issue unused attribute warnings in the order the
    attributes occur in the file rather than the random order of the hash table
 *)
-let attr_order a1 a2 =
-  match String.compare a1.loc.loc_start.pos_fname a2.loc.loc_start.pos_fname
-  with
-  | 0 -> Int.compare a1.loc.loc_start.pos_cnum a2.loc.loc_start.pos_cnum
-  | n -> n
+let attr_order a1 a2 = Location.compare a1.loc a2.loc
 
 let unchecked_zero_alloc_attributes = Attribute_table.create 1
 let mark_zero_alloc_attribute_checked txt loc =
@@ -66,8 +62,7 @@ let warn_unused () =
   end
 
 (* These are the attributes that are tracked in the builtin_attrs table for
-   misplaced attribute warnings.  Explicitly excluded is [deprecated_mutable],
-   which is currently broken in the compiler *)
+   misplaced attribute warnings. *)
 let builtin_attrs =
   [ "inline"
   ; "inlined"
@@ -78,6 +73,7 @@ let builtin_attrs =
   ; "error"
   ; "alert"
   ; "deprecated"
+  ; "deprecated_mutable"
   ; "warning"
   ; "warnerror"
   ; "ppwarning"
