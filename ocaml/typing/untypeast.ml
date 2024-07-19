@@ -1053,10 +1053,9 @@ let core_type sub ct =
         Ptyp_class (map_loc sub lid, List.map (sub.typ sub) list)
     | Ttyp_alias (ct, Some s, None) ->
         Ptyp_alias (sub.typ sub ct, s)
-    | Ttyp_alias (ct, s, Some (_, jkind_annotation)) ->
-        let s = Option.map Location.get_txt s in
+    | Ttyp_alias (ct, name, Some (_, jkind_annotation)) ->
         Jane_syntax.Layouts.type_of ~loc
-          (Ltyp_alias { aliased_type = sub.typ sub ct; name = s;
+          (Ltyp_alias { aliased_type = sub.typ sub ct; name;
                         jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
     | Ttyp_alias (_, None, None) ->

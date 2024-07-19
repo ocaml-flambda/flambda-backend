@@ -193,37 +193,6 @@ end = struct
   let used_variables =
     ref (TyVarMap.empty : (type_expr * Location.t) TyVarMap.t)
 
-<<<<<<< HEAD
-||||||| 121bedcfd2
-  (* These are variables we expect to become univars (they were introduced with
-     e.g. ['a .]), but we need to make sure they don't unify first.  Why not
-     just birth them as univars? Because they might successfully unify with a
-     row variable in the ['a. < m : ty; .. > as 'a] idiom.  They are like the
-     [used_variables], but will not be globalized in [globalize_used_variables].
-  *)
-  let univars = ref ([] : (string * type_expr) list)
-  let assert_univars uvs =
-    assert (List.for_all (fun (_name, v) -> not_generic v) uvs)
-
-=======
-  (* These are variables we expect to become univars (they were introduced with
-     e.g. ['a .]), but we need to make sure they don't unify first.  Why not
-     just birth them as univars? Because they might successfully unify with a
-     row variable in the ['a. < m : ty; .. > as 'a] idiom.  They are like the
-     [used_variables], but will not be globalized in [globalize_used_variables].
-  *)
-  type pending_univar = {
-    univar: type_expr  (** the univar itself *);
-    mutable associated: type_expr option ref list
-     (** associated references to row variables that we want to generalize
-       if possible *)
-  }
-
-  let univars = ref ([] : (string * pending_univar) list)
-  let assert_univars uvs =
-    assert (List.for_all (fun (_name, v) -> not_generic v.univar) uvs)
-
->>>>>>> 5.2.0
   (* These are variables that will become univars when we're done with the
      current type. Used to force free variables in method types to become
      univars.
@@ -265,7 +234,6 @@ end = struct
     TyVarMap.fold add_name !type_variables []
 
   (*****)
-<<<<<<< HEAD
   (* These are variables we expect to become univars (they were introduced with
      e.g. ['a .]), but we need to make sure they don't unify first.  Why not
      just birth them as univars? Because they might successfully unify with a
@@ -292,11 +260,6 @@ end = struct
       if String.equal name n
       then t
       else find_poly_univars name rest
-||||||| 121bedcfd2
-  type poly_univars = (string * type_expr) list
-=======
-  type poly_univars = (string * pending_univar) list
->>>>>>> 5.2.0
 
   let with_univars new_ones f =
     assert_univars new_ones;
@@ -330,7 +293,6 @@ end = struct
     name, mk_pending_univar name original_jkind jkind_info
 
   let make_poly_univars vars =
-<<<<<<< HEAD
     List.map mk_poly_univars_tuple_without_jkind vars
 
   let make_poly_univars_jkinds ~context vars_jkinds =
@@ -350,37 +312,11 @@ end = struct
            | _ -> acc
         )
         promoted vars
-||||||| 121bedcfd2
-    List.map (fun name -> name, newvar ~name ()) vars
-=======
-    let make name = { univar=newvar ~name (); associated = [] } in
-    List.map (fun name -> name, make name ) vars
-
-  let promote_generics_to_univars promoted vars =
-      List.fold_left
-        (fun acc v ->
-           match get_desc v with
-           | Tvar name when get_level v = Btype.generic_level ->
-               set_type_desc v (Tunivar name);
-               v :: acc
-           | _ -> acc
-        )
-        promoted vars
->>>>>>> 5.2.0
 
   let check_poly_univars env loc vars =
-<<<<<<< HEAD
     vars |> List.iter (fun (_, p) -> generalize p.univar);
     let univars =
       vars |> List.map (fun (name, {univar=ty1; jkind_info; _ }) ->
-||||||| 121bedcfd2
-    vars |> List.iter (fun (_, v) -> generalize v);
-    vars |> List.map (fun (name, ty1) ->
-=======
-    vars |> List.iter (fun (_, p) -> generalize p.univar);
-    let univars =
-      vars |> List.map (fun (name, {univar=ty1; _ }) ->
->>>>>>> 5.2.0
       let v = Btype.proxy ty1 in
       let cant_quantify reason =
         raise (Error (loc, env, Cannot_quantify(name, reason)))
@@ -436,17 +372,9 @@ end = struct
   (* throws Not_found if the variable is not in scope *)
   let lookup_local ~row_context name =
     try
-<<<<<<< HEAD
       let p = find_poly_univars name !univars in
       associate row_context p;
       p.univar
-||||||| 121bedcfd2
-      List.assoc name !univars
-=======
-      let p = List.assoc name !univars in
-      associate row_context p;
-      p.univar
->>>>>>> 5.2.0
     with Not_found ->
       instance (fst (TyVarMap.find name !used_variables))
       (* This call to instance might be redundant; all variables
@@ -628,7 +556,6 @@ let transl_type_param env path styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
     (fun () -> transl_type_param env path styp)
 
-<<<<<<< HEAD
 let get_type_param_jkind path styp =
   match Jane_syntax.Core_type.of_ast styp with
   | None -> Jkind.of_new_legacy_sort ~why:(Unannotated_type_parameter path)
@@ -715,34 +642,17 @@ let transl_bound_vars : (_, _) Either.t -> _ =
   | Right vars_jkinds -> TyVarEnv.make_poly_univars_jkinds
                            ~context:(fun v -> Univar ("'" ^ v)) vars_jkinds
 
-let rec transl_type env ~policy ?(aliased=false) ~row_context mode styp =
-  Builtin_attributes.warning_scope styp.ptyp_attributes
-    (fun () -> transl_type_aux env ~policy ~aliased ~row_context mode styp)
-||||||| 121bedcfd2
-let rec transl_type env policy styp =
-  Builtin_attributes.warning_scope styp.ptyp_attributes
-    (fun () -> transl_type_aux env policy styp)
-=======
-(* Forward declaration (set in Typemod.type_open) *)
->>>>>>> 5.2.0
-
-<<<<<<< HEAD
-and transl_type_aux env ~row_context ~aliased ~policy mode styp =
-||||||| 121bedcfd2
-and transl_type_aux env policy styp =
-=======
 let type_open :
   (?used_slot:bool ref -> override_flag -> Env.t -> Location.t ->
    Longident.t loc -> Path.t * Env.t)
     ref =
   ref (fun ?used_slot:_ _ -> assert false)
 
-let rec transl_type env ~policy ?(aliased=false) ~row_context styp =
+let rec transl_type env ~policy ?(aliased=false) ~row_context mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
-    (fun () -> transl_type_aux env ~policy ~aliased ~row_context styp)
+    (fun () -> transl_type_aux env ~policy ~aliased ~row_context mode styp)
 
-and transl_type_aux env ~row_context ~aliased ~policy styp =
->>>>>>> 5.2.0
+and transl_type_aux env ~row_context ~aliased ~policy mode styp =
   let loc = styp.ptyp_loc in
   let ctyp ctyp_desc ctyp_type =
     { ctyp_desc; ctyp_type; ctyp_env = env;
@@ -759,7 +669,6 @@ and transl_type_aux env ~row_context ~aliased ~policy styp =
      in
      ctyp (Ttyp_var (None, None)) ty
   | Ptyp_var name ->
-<<<<<<< HEAD
       let desc, typ =
         transl_type_var env ~policy ~row_context
           styp.ptyp_attributes styp.ptyp_loc name None
@@ -807,71 +716,12 @@ and transl_type_aux env ~row_context ~aliased ~policy styp =
         | [] -> transl_type env ~policy ~row_context ret_mode ret
       in
       loop mode args
-||||||| 121bedcfd2
-    let ty =
-      if not (valid_tyvar_name name) then
-        raise (Error (styp.ptyp_loc, env, Invalid_variable_name ("'" ^ name)));
-      begin try
-        TyVarEnv.lookup_local name
-      with Not_found ->
-        let v = TyVarEnv.new_var ~name policy in
-        TyVarEnv.remember_used name v styp.ptyp_loc;
-        v
-      end
-    in
-    ctyp (Ttyp_var name) ty
-  | Ptyp_arrow(l, st1, st2) ->
-    let cty1 = transl_type env policy st1 in
-    let cty2 = transl_type env policy st2 in
-    let ty1 = cty1.ctyp_type in
-    let ty1 =
-      if Btype.is_optional l
-      then newty (Tconstr(Predef.path_option,[ty1], ref Mnil))
-      else ty1 in
-    let ty = newty (Tarrow(l, ty1, cty2.ctyp_type, commu_ok)) in
-    ctyp (Ttyp_arrow (l, cty1, cty2)) ty
-=======
-    let ty =
-      if not (valid_tyvar_name name) then
-        raise (Error (styp.ptyp_loc, env, Invalid_variable_name ("'" ^ name)));
-      begin try
-        TyVarEnv.lookup_local ~row_context:row_context name
-      with Not_found ->
-        let v = TyVarEnv.new_var ~name policy in
-        TyVarEnv.remember_used name v styp.ptyp_loc;
-        v
-      end
-    in
-    ctyp (Ttyp_var name) ty
-  | Ptyp_arrow(l, st1, st2) ->
-    let cty1 = transl_type env ~policy ~row_context st1 in
-    let cty2 = transl_type env ~policy ~row_context st2 in
-    let ty1 = cty1.ctyp_type in
-    let ty1 =
-      if Btype.is_optional l
-      then newty (Tconstr(Predef.path_option,[ty1], ref Mnil))
-      else ty1 in
-    let ty = newty (Tarrow(l, ty1, cty2.ctyp_type, commu_ok)) in
-    ctyp (Ttyp_arrow (l, cty1, cty2)) ty
->>>>>>> 5.2.0
   | Ptyp_tuple stl ->
-<<<<<<< HEAD
     let desc, typ =
       transl_type_aux_tuple env ~policy ~row_context
         (List.map (fun t -> (None, t)) stl)
     in
     ctyp desc typ
-||||||| 121bedcfd2
-    assert (List.length stl >= 2);
-    let ctys = List.map (transl_type env policy) stl in
-    let ty = newty (Ttuple (List.map (fun ctyp -> ctyp.ctyp_type) ctys)) in
-    ctyp (Ttyp_tuple ctys) ty
-=======
-    assert (List.length stl >= 2);
-    let ctys = List.map (transl_type env ~policy ~row_context) stl in
-    let ty = newty (Ttuple (List.map (fun ctyp -> ctyp.ctyp_type) ctys)) in
-    ctyp (Ttyp_tuple ctys) ty
->>>>>>> 5.2.0
   | Ptyp_constr(lid, stl) ->
       let (path, decl) = Env.lookup_type ~loc:lid.loc lid.txt env in
       let stl =
@@ -884,15 +734,9 @@ and transl_type_aux env ~row_context ~aliased ~policy styp =
         raise(Error(styp.ptyp_loc, env,
                     Type_arity_mismatch(lid.txt, decl.type_arity,
                                         List.length stl)));
-<<<<<<< HEAD
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
       in
-||||||| 121bedcfd2
-      let args = List.map (transl_type env policy) stl in
-=======
-      let args = List.map (transl_type env ~policy ~row_context) stl in
->>>>>>> 5.2.0
       let params = instance_list decl.type_params in
       let unify_param =
         match decl.type_manifest with
@@ -951,15 +795,9 @@ and transl_type_aux env ~row_context ~aliased ~policy styp =
         raise(Error(styp.ptyp_loc, env,
                     Type_arity_mismatch(lid.txt, decl.type_arity,
                                         List.length stl)));
-<<<<<<< HEAD
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
       in
-||||||| 121bedcfd2
-      let args = List.map (transl_type env policy) stl in
-=======
-      let args = List.map (transl_type env ~policy ~row_context) stl in
->>>>>>> 5.2.0
       let body = Option.get decl.type_manifest in
       let (params, body) = instance_parameterized_type decl.type_params body in
       List.iter2
@@ -981,82 +819,11 @@ and transl_type_aux env ~row_context ~aliased ~policy styp =
       in
       ctyp (Ttyp_class (path, lid, args)) ty
   | Ptyp_alias(st, alias) ->
-<<<<<<< HEAD
     let desc, typ =
       transl_type_alias env ~policy ~row_context
         mode styp.ptyp_attributes loc st (Some alias) None
     in
     ctyp desc typ
-||||||| 121bedcfd2
-      let cty =
-        try
-          let t = TyVarEnv.lookup_local alias in
-          let ty = transl_type env policy st in
-          begin try unify_var env t ty.ctyp_type with Unify err ->
-            let err = Errortrace.swap_unification_error err in
-            raise(Error(styp.ptyp_loc, env, Alias_type_mismatch err))
-          end;
-          ty
-        with Not_found ->
-          let t, ty =
-            with_local_level_if_principal begin fun () ->
-              let t = newvar () in
-              TyVarEnv.remember_used alias t styp.ptyp_loc;
-              let ty = transl_type env policy st in
-              begin try unify_var env t ty.ctyp_type with Unify err ->
-                let err = Errortrace.swap_unification_error err in
-                raise(Error(styp.ptyp_loc, env, Alias_type_mismatch err))
-              end;
-              (t, ty)
-            end
-            ~post: (fun (t, _) -> generalize_structure t)
-          in
-          let t = instance t in
-          let px = Btype.proxy t in
-          begin match get_desc px with
-          | Tvar None -> set_type_desc px (Tvar (Some alias))
-          | Tunivar None -> set_type_desc px (Tunivar (Some alias))
-          | _ -> ()
-          end;
-          { ty with ctyp_type = t }
-      in
-      ctyp (Ttyp_alias (cty, alias)) cty.ctyp_type
-=======
-      let cty =
-        try
-          let t = TyVarEnv.lookup_local ~row_context alias.txt in
-          let ty = transl_type env ~policy ~aliased:true ~row_context st in
-          begin try unify_var env t ty.ctyp_type with Unify err ->
-            let err = Errortrace.swap_unification_error err in
-            raise(Error(alias.loc, env, Alias_type_mismatch err))
-          end;
-          ty
-        with Not_found ->
-          let t, ty =
-            with_local_level_if_principal begin fun () ->
-              let t = newvar () in
-              (* Use the whole location, which is used by [Type_mismatch]. *)
-              TyVarEnv.remember_used alias.txt t styp.ptyp_loc;
-              let ty = transl_type env ~policy ~row_context st in
-              begin try unify_var env t ty.ctyp_type with Unify err ->
-                let err = Errortrace.swap_unification_error err in
-                raise(Error(alias.loc, env, Alias_type_mismatch err))
-              end;
-              (t, ty)
-            end
-            ~post: (fun (t, _) -> generalize_structure t)
-          in
-          let t = instance t in
-          let px = Btype.proxy t in
-          begin match get_desc px with
-          | Tvar None -> set_type_desc px (Tvar (Some alias.txt))
-          | Tunivar None -> set_type_desc px (Tunivar (Some alias.txt))
-          | _ -> ()
-          end;
-          { ty with ctyp_type = t }
-      in
-      ctyp (Ttyp_alias (cty, alias)) cty.ctyp_type
->>>>>>> 5.2.0
   | Ptyp_variant(fields, closed, present) ->
       let name = ref None in
       let mkfield l f =
@@ -1086,16 +853,10 @@ and transl_type_aux env ~row_context ~aliased ~policy styp =
             name := None;
             let tl =
               Builtin_attributes.warning_scope rf_attributes
-<<<<<<< HEAD
                 (fun () ->
                    List.map
                      (transl_type env ~policy ~row_context Alloc.Const.legacy)
                      stl)
-||||||| 121bedcfd2
-                (fun () -> List.map (transl_type env policy) stl)
-=======
-                (fun () -> List.map (transl_type env ~policy ~row_context) stl)
->>>>>>> 5.2.0
             in
             List.iter (fun {ctyp_type; ctyp_loc} ->
               (* CR layouts: at some point we'll allow different jkinds in
@@ -1124,15 +885,9 @@ and transl_type_aux env ~row_context ~aliased ~policy styp =
             add_typed_field styp.ptyp_loc l.txt f;
               Ttag (l,c,tl)
         | Rinherit sty ->
-<<<<<<< HEAD
             let cty =
               transl_type env ~policy ~row_context Alloc.Const.legacy sty
             in
-||||||| 121bedcfd2
-            let cty = transl_type env policy sty in
-=======
-            let cty = transl_type env ~policy ~row_context sty in
->>>>>>> 5.2.0
             let ty = cty.ctyp_type in
             let nm =
               match get_desc cty.ctyp_type with
@@ -1191,33 +946,9 @@ and transl_type_aux env ~row_context ~aliased ~policy styp =
       let ty = newty (Tvariant (make_row more)) in
       ctyp (Ttyp_variant (tfields, closed, present)) ty
   | Ptyp_poly(vars, st) ->
-<<<<<<< HEAD
       let desc, typ =
         transl_type_poly env ~policy ~row_context mode styp.ptyp_loc
           (Either.Left vars) st
-||||||| 121bedcfd2
-      let vars = List.map (fun v -> v.txt) vars in
-      let new_univars, cty =
-        with_local_level begin fun () ->
-          let new_univars = TyVarEnv.make_poly_univars vars in
-          let cty = TyVarEnv.with_univars new_univars begin fun () ->
-            transl_type env policy st
-          end in
-          (new_univars, cty)
-        end
-        ~post:(fun (_,cty) -> generalize_ctyp cty)
-=======
-      let vars = List.map (fun v -> v.txt) vars in
-      let new_univars, cty =
-        with_local_level begin fun () ->
-          let new_univars = TyVarEnv.make_poly_univars vars in
-          let cty = TyVarEnv.with_univars new_univars begin fun () ->
-            transl_type env ~policy ~row_context st
-          end in
-          (new_univars, cty)
-        end
-        ~post:(fun (_,cty) -> generalize_ctyp cty)
->>>>>>> 5.2.0
       in
       ctyp desc typ
   | Ptyp_package (p, l) ->
@@ -1233,7 +964,6 @@ and transl_type_aux env ~row_context ~aliased ~policy styp =
        the [create_package_mty] hack that constructs fake source code. *)
       let loc = styp.ptyp_loc in
       let l = sort_constraints_no_duplicates loc env l in
-<<<<<<< HEAD
       let mty = Ast_helper.Mty.mk ~loc (Pmty_ident p) in
       let mty = TyVarEnv.with_local_scope (fun () -> !transl_modtype env mty) in
       let ptys =
@@ -1241,15 +971,6 @@ and transl_type_aux env ~row_context ~aliased ~policy styp =
           s, transl_type env ~policy ~row_context Alloc.Const.legacy pty
         ) l
       in
-||||||| 121bedcfd2
-      let mty = create_package_mty loc p l in
-=======
-      let mty = Ast_helper.Mty.mk ~loc (Pmty_ident p) in
-      let mty = TyVarEnv.with_local_scope (fun () -> !transl_modtype env mty) in
-      let ptys =
-        List.map (fun (s, pty) -> s, transl_type env ~policy ~row_context pty) l
-      in
->>>>>>> 5.2.0
       let mty =
         if ptys <> [] then
           !check_package_with_type_constraints loc env mty.mty_type ptys
@@ -1269,12 +990,11 @@ and transl_type_aux env ~row_context ~aliased ~policy styp =
       let path, new_env =
         !type_open Asttypes.Fresh env loc mod_ident
       in
-      let cty = transl_type new_env ~policy ~row_context t in
+      let cty = transl_type new_env ~policy ~row_context mode t in
       ctyp (Ttyp_open (path, mod_ident, cty)) cty.ctyp_type
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
-<<<<<<< HEAD
 and transl_type_aux_jst env ~policy ~row_context mode attrs loc
       (jtyp : Jane_syntax.Core_type.t) =
   let ctyp_desc, ctyp_type =
@@ -1349,10 +1069,10 @@ and transl_type_poly env ~policy ~row_context mode loc (vars : (_, _) Either.t)
   unify_var env (newvar (Jkind.Primitive.any ~why:Dummy_jkind)) ty';
   Ttyp_poly (typed_vars, cty), ty'
 
-and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_opt
+and transl_type_alias env ~row_context ~policy mode attrs styp_loc styp name_opt
       jkind_annot_opt =
   let cty, jkind_annot = match name_opt with
-    | Some alias ->
+    | Some { txt = alias; loc = alias_loc } ->
       begin try
         let t = TyVarEnv.lookup_local ~row_context alias in
         let cty =
@@ -1389,7 +1109,8 @@ and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_op
                 jkind, Some annot
             in
             let t = newvar jkind in
-            TyVarEnv.remember_used alias t alias_loc;
+            (* Use the whole location, which is used by [Type_mismatch]. *)
+            TyVarEnv.remember_used alias t styp_loc;
             let ty = transl_type env ~policy ~row_context mode styp in
             begin try unify_var env t ty.ctyp_type with Unify err ->
               let err = Errortrace.swap_unification_error err in
@@ -1455,11 +1176,6 @@ and transl_type_aux_tuple env ~policy ~row_context stl =
   Ttyp_tuple ctys, ctyp_type
 
 and transl_fields env ~policy ~row_context o fields =
-||||||| 121bedcfd2
-and transl_fields env policy o fields =
-=======
-and transl_fields env ~policy ~row_context o fields =
->>>>>>> 5.2.0
   let hfields = Hashtbl.create 17 in
   let add_typed_field loc l ty =
     try
@@ -1477,15 +1193,8 @@ and transl_fields env ~policy ~row_context o fields =
     | Otag (s, ty1) -> begin
         let ty1 =
           Builtin_attributes.warning_scope of_attributes
-<<<<<<< HEAD
             (fun () -> transl_type env ~policy ~row_context Alloc.Const.legacy
                 (Ast_helper.Typ.force_poly ty1))
-||||||| 121bedcfd2
-            (fun () -> transl_type env policy (Ast_helper.Typ.force_poly ty1))
-=======
-            (fun () -> transl_type env ~policy ~row_context
-                (Ast_helper.Typ.force_poly ty1))
->>>>>>> 5.2.0
         in
         begin
           match
@@ -1503,13 +1212,7 @@ and transl_fields env ~policy ~row_context o fields =
         field
       end
     | Oinherit sty -> begin
-<<<<<<< HEAD
         let cty = transl_type env ~policy ~row_context Alloc.Const.legacy sty in
-||||||| 121bedcfd2
-        let cty = transl_type env policy sty in
-=======
-        let cty = transl_type env ~policy ~row_context sty in
->>>>>>> 5.2.0
         let nm =
           match get_desc cty.ctyp_type with
             Tconstr(p, _, _) -> Some p
@@ -1573,16 +1276,9 @@ let rec make_fixed_univars ty =
         Btype.iter_type_expr make_fixed_univars ty
     end
 
-<<<<<<< HEAD
 let transl_type env policy mode styp =
   transl_type env ~policy ~row_context:[] mode styp
 
-||||||| 121bedcfd2
-=======
-let transl_type env policy styp =
-  transl_type env ~policy ~row_context:[] styp
-
->>>>>>> 5.2.0
 let make_fixed_univars ty =
   make_fixed_univars ty;
   Btype.unmark_type ty
@@ -1770,49 +1466,21 @@ let report_error env ppf = function
         (Style.as_inline_code pp_tag) lab2
         "Change one of them."
   | Invalid_variable_name name ->
-<<<<<<< HEAD
-      fprintf ppf "The type variable name %s is not allowed in programs" name
-  | Cannot_quantify (name, reason) ->
-||||||| 121bedcfd2
-      fprintf ppf "The type variable name %s is not allowed in programs" name
-  | Cannot_quantify (name, v) ->
-=======
       fprintf ppf "The type variable name %a is not allowed in programs"
         Style.inline_code name
-  | Cannot_quantify (name, v) ->
->>>>>>> 5.2.0
+  | Cannot_quantify (name, reason) ->
       fprintf ppf
         "@[<hov>The universal type variable %a cannot be generalized:@ "
-<<<<<<< HEAD
-        Pprintast.tyvar name;
+        (Style.as_inline_code Pprintast.tyvar) name;
       begin match reason with
       | Unified v ->
-        fprintf ppf "it is bound to@ %a" Printtyp.type_expr v
+        fprintf ppf "it is bound to@ %a"
+          (Style.as_inline_code Printtyp.type_expr) v;
       | Univar ->
-||||||| 121bedcfd2
-        Pprintast.tyvar name;
-      if Btype.is_Tvar v then
-        fprintf ppf "it escapes its scope"
-      else if Btype.is_Tunivar v then
-=======
-        (Style.as_inline_code Pprintast.tyvar) name;
-      if Btype.is_Tvar v then
-        fprintf ppf "it escapes its scope"
-      else if Btype.is_Tunivar v then
->>>>>>> 5.2.0
         fprintf ppf "it is already bound to another variable"
-<<<<<<< HEAD
       | Scope_escape ->
         fprintf ppf "it escapes its scope"
       end;
-||||||| 121bedcfd2
-      else
-        fprintf ppf "it is bound to@ %a" Printtyp.type_expr v;
-=======
-      else
-        fprintf ppf "it is bound to@ %a"
-          (Style.as_inline_code Printtyp.type_expr) v;
->>>>>>> 5.2.0
       fprintf ppf ".@]";
   | Bad_univar_jkind { name; jkind_info; inferred_jkind } ->
       fprintf ppf
@@ -1843,8 +1511,7 @@ let report_error env ppf = function
            | None -> fprintf ppf "") nm
   | Not_an_object ty ->
       fprintf ppf "@[The type %a@ is not an object type@]"
-<<<<<<< HEAD
-        Printtyp.type_expr ty
+        (Style.as_inline_code Printtyp.type_expr) ty
   | Unsupported_extension ext ->
       let ext = Language_extension.to_string ext in
       fprintf ppf "@[The %s extension is disabled@ \
@@ -1860,7 +1527,8 @@ let report_error env ppf = function
     in
     fprintf ppf "@[%s types must have layout value.@ %a@]"
       s (Jkind.Violation.report_with_offender
-           ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
+           ~offender:(fun ppf ->
+               Style.as_inline_code Printtyp.type_expr ppf typ)) err
   | Non_sort {vloc; typ; err} ->
     let s =
       match vloc with
@@ -1869,25 +1537,24 @@ let report_error env ppf = function
     in
     fprintf ppf "@[%s types must have a representable layout.@ %a@]"
       s (Jkind.Violation.report_with_offender
-           ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
+           ~offender:(fun ppf ->
+               Style.as_inline_code Printtyp.type_expr ppf typ)) err
   | Bad_jkind_annot(ty, violation) ->
     fprintf ppf "@[<b 2>Bad layout annotation:@ %a@]"
       (Jkind.Violation.report_with_offender
-         ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+         ~offender:(fun ppf ->
+             Style.as_inline_code Printtyp.type_expr ppf ty)) violation
   | Did_you_mean_unboxed lid ->
     fprintf ppf "@[%a isn't a class type.@ \
-                 Did you mean the unboxed type %a#?@]" longident lid longident lid
+                 Did you mean the unboxed type %a?@]"
+      (Style.as_inline_code longident) lid
+      (Style.as_inline_code (fun ppf lid -> fprintf ppf "%a#" longident lid)) lid
   | Invalid_label_for_call_pos arg_label ->
       fprintf ppf "A position argument must not be %s."
         (match arg_label with
         | Nolabel -> "unlabelled"
         | Optional _ -> "optional"
         | Labelled _ -> assert false )
-||||||| 121bedcfd2
-        Printtyp.type_expr ty
-=======
-        (Style.as_inline_code Printtyp.type_expr) ty
->>>>>>> 5.2.0
 
 let () =
   Location.register_error_of_exn

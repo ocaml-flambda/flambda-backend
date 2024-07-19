@@ -1155,7 +1155,7 @@ module Layouts = struct
         }
     | Ltyp_alias of
         { aliased_type : core_type;
-          name : string option;
+          name : string loc option;
           jkind : Jkind.annotation
         }
 
@@ -1332,9 +1332,7 @@ module Layouts = struct
             let has_name, inner_typ =
               match name with
               | None -> "anon", aliased_type
-              | Some name ->
-                ( "named",
-                  Ast_helper.Typ.alias aliased_type (Location.mkloc name loc) )
+              | Some name -> "named", Ast_helper.Typ.alias aliased_type name
             in
             Type_of.wrap_jane_syntax ["alias"; has_name] ~payload inner_typ)
     with No_wrap_necessary result_type -> result_type
@@ -1374,7 +1372,7 @@ module Layouts = struct
         let jkind = Decode.from_payload ~loc payload in
         match typ.ptyp_desc with
         | Ptyp_alias (inner_typ, name) ->
-          Ltyp_alias { aliased_type = inner_typ; name = Some name.txt; jkind }
+          Ltyp_alias { aliased_type = inner_typ; name = Some name; jkind }
         | _ -> Desugaring_error.raise ~loc (Unexpected_wrapped_type typ))
       | _ -> Desugaring_error.raise ~loc (Unexpected_attribute names)
     in

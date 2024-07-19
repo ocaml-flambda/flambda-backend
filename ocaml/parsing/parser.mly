@@ -4252,11 +4252,12 @@ alias_type:
    { $1 }
   | aliased_type = alias_type AS
              LPAREN
-             name = tyvar_name_or_underscore
+             name = mkrhs(tyvar_name_or_underscore)
              COLON
              jkind = jkind_annotation
              RPAREN
-        { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc)
+        { let name = Option.map (fun x -> mkloc x name.loc) name.txt in
+          Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc)
               (Ltyp_alias { aliased_type; name; jkind }) }
 ;
 

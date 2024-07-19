@@ -540,7 +540,7 @@ and core_type_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
   | Jtyp_layout (Ltyp_alias { aliased_type; name; jkind }) ->
     pp f "@[<2>%a@;as@;(%a :@ %a)@]"
       (core_type1 ctxt) aliased_type
-      tyvar_option name
+      tyvar_option (Option.map Location.get_txt name)
       (jkind_annotation ctxt) jkind
   | Jtyp_layout (Ltyp_poly {bound_vars = []; inner_type}) ->
     core_type ctxt f inner_type
