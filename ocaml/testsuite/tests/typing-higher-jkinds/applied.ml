@@ -1,6 +1,4 @@
 (* TEST
- reason = "Type application for higher jkinds is not supported yet";
- skip;
  flags = "-extension layouts_alpha";
  expect;
 *)
@@ -59,14 +57,14 @@ type p = t t
 |}]
 
 
-type r' : (value => value) => value
+type r : (value => value) => value
 
 [%%expect {|
 type r' : ((value) => value) => value
 |}]
 
 
-type ('a : value => value) r'
+type ('a : value => value) r
 
 [%%expect {|
 type ('a : ((higher))) r'
