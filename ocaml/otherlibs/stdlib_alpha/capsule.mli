@@ -100,13 +100,17 @@ val create_with_mutex : unit -> Mutex.packed @@ portable
 (** [create_with_mutex ()] creates a new capsule with an associated mutex. *)
 
 (** Pointers to data within a capsule. *)
-module Ptr : sig
+module Data : sig
 
     type ('a, 'k) t : value mod portable uncontended
     (** [('a, 'k) t] is the type of pointers to ['a]s in
         the capsule ['k]. It can be passed between domains.
         Operations on [('a, 'k) t] require a ['k Password.t],
         created from the ['k Mutex.t]. *)
+
+    exception Contended of exn @@ contended
+    (** If a function accessing the contents of the capsule raises an exception,
+        it is wrapped in [Contended] to avoid leaking access to the data. *)
 
     val create :
       (unit -> 'a) @ local portable

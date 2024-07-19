@@ -12,12 +12,16 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module Password = struct
+module Password : sig
   (* CR layouts v5: this should have layout [void], but
      [void] can't be used for function argument and return types yet. *)
-  type 'k t = unit
+  type 'k t
 
   (* Can break the soundness of the API. *)
+  val unsafe_mk : unit -> 'k t @@ portable
+end = struct
+  type 'k t = unit
+
   let unsafe_mk () = ()
 end
 
@@ -29,7 +33,9 @@ module M = struct
   external unlock: t -> unit @@ portable = "caml_ml_mutex_unlock"
 end
 
-external reraise : exn -> 'a @@ portable = "%reraise"
+(* Like [Stdlib.raise], but [portable], and the value
+   it never returns is also [portable] *)
+external reraise : exn -> 'a @ portable @@ portable = "%reraise"
 
 module Mutex = struct
 
@@ -39,8 +45,7 @@ module Mutex = struct
 
   exception Poisoned
 
-  (* Cannot inline, otherwise flambda might move code around. *)
-  let[@inline never] with_lock :
+  let with_lock :
     'k t
     -> ('k Password.t @ local -> 'a) @ local
     -> 'a
@@ -58,8 +63,7 @@ module Mutex = struct
           M.unlock t.mutex;
           reraise exn
 
-  (* Cannot inline, otherwise flambda might move code around. *)
-  let[@inline never] destroy t =
+  let destroy t =
     M.lock t.mutex;
     match t.poisoned with
     | true ->
@@ -74,28 +78,40 @@ end
 let create_with_mutex () =
   Mutex.P { mutex = M.create (); poisoned = false }
 
-module Ptr = struct
+module Data = struct
   type ('a, 'k) t : value mod portable uncontended
+
+  exception Contended of exn @@ contended
 
   external unsafe_mk : 'a -> ('a, 'k) t @@ portable = "%identity"
 
   external unsafe_get : ('a, 'k) t -> 'a @@ portable = "%identity"
 
-  let create f = unsafe_mk (f ())
+  let create f =
+    try unsafe_mk (f ()) with
+    | exn -> reraise (Contended exn)
 
-  let map _ f t = unsafe_mk (f (unsafe_get t))
+  let map _ f t =
+    try unsafe_mk (f (unsafe_get t)) with
+    | exn -> reraise (Contended exn)
 
   let both t1 t2 = unsafe_mk (unsafe_get t1, unsafe_get t2)
 
-  let extract _ f t = f (unsafe_get t)
+  let extract _ f t =
+    try f (unsafe_get t) with
+    | exn -> reraise (Contended exn)
 
   let inject = unsafe_mk
 
   let project = unsafe_get
 
-  let bind _ f t = f (unsafe_get t)
+  let bind _ f t =
+    try f (unsafe_get t) with
+    | exn -> reraise (Contended exn)
 
-  let iter _ f t = f (unsafe_get t)
+  let iter _ f t =
+    try f (unsafe_get t) with
+    | exn -> reraise (Contended exn)
 
   let expose _ t = unsafe_get t
 end
