@@ -245,8 +245,11 @@ t := λ [[ 'aᵢ : κᵢ ]]. δ : κ ∈ Γ
 ∀ i, Γ ⊢ τᵢ : κᵢ
 ------------------- T_NOMINATIVE
 Γ ⊢ [[ τᵢ ]]ₙ t : κ[ [[ τᵢ/'aᵢ ]] ] {best}
-  (* this can be [best] only because we require the kind of a nominative
-     type in a sig to *equal* the kind of a nominative type in a struct *)
+  (* this can be [best] because we use the (best) kind inferred by the
+  compiler, not any kind written by the user, for nominative type declarations.
+  (Alternatively, we could require the kind of a nominative
+  type in a sig to *equal* the kind of a nominative type in a struct, which
+  would also allow [best] here.) *)
 
 ∀ i, Γ ⊢ τᵢ : κᵢ
 ∃ j ∈ [0, n],
