@@ -330,7 +330,7 @@
                                                                     [(consts (0))
                                                                     (non_consts (
                                                                     [0: *, *]))]]))]
-                                                                    (applynontail
+                                                                    (apply
                                                                     (field_imm 19
                                                                     (global Stdlib__List!))
                                                                     (apply
@@ -521,7 +521,7 @@
                     [(consts (0))
                      (non_consts ([0: *,
                                    [(consts (0)) (non_consts ([0: *, *]))]]))]
-                    (applynontail (field_imm 19 (global Stdlib__List!))
+                    (apply (field_imm 19 (global Stdlib__List!))
                       (apply uncurry f) l)))
                (makeblock 0 ([(consts ())
                               (non_consts ([0:

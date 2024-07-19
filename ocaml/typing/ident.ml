@@ -287,22 +287,24 @@ let rec remove id = function
         let rr = remove id r in if r == rr then m else balance l k rr
 
 let rec find_previous id = function
-    None ->
-      raise Not_found
+    None -> None
   | Some k ->
-      if same id k.ident then k.data else find_previous id k.previous
+      if same id k.ident then Some k.data else find_previous id k.previous
 
-let rec find_same id = function
-    Empty ->
-      raise Not_found
+let rec find_same_opt id = function
+    Empty -> None
   | Node(l, k, r, _) ->
       let c = String.compare (name id) (name k.ident) in
       if c = 0 then
         if same id k.ident
-        then k.data
+        then Some k.data
         else find_previous id k.previous
       else
-        find_same id (if c < 0 then l else r)
+        find_same_opt id (if c < 0 then l else r)
+
+let find_same id tbl = match find_same_opt id tbl with
+    None -> raise Not_found
+  | Some k -> k
 
 let rec find_name n = function
     Empty ->

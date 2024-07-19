@@ -1,0 +1,20 @@
+(letrec
+  (foo
+     (function {nlocal = 0} n[int] : int (if (> n 0) (apply foo (- n 2)) 0)))
+  (letrec
+    (bar
+       (function {nlocal = 0} n[int] : int
+         (if (> n 0) (apply baz (- n 2)) 0))
+      baz (function {nlocal = 0} n[int] : int (apply bar (+ n 1))))
+    (letrec
+      (collatz
+         (function {nlocal = 0} n[int] k[int] : int
+           (let
+             (next =
+                (function {nlocal = 0} n[int] k[int] never_inline : int
+                  (let
+                    (n =[int] (- n 1)
+                     k =[int] (if (== (mod k 2) 0) (/ k 2) (+ (* 3 k) 1)))
+                    (apply collatz n k))))
+             (seq (ignore next) (if (> n 0) (applynontail next n k) k)))))
+      (makeblock 0 foo bar baz collatz))))
