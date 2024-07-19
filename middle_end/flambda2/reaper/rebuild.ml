@@ -101,7 +101,8 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
                  let code_metadata = env.get_code_metadata code_id in
                  Deleted
                    { function_slot_size =
-                       Code_metadata.function_slot_size code_metadata
+                       Code_metadata.function_slot_size code_metadata ;
+                     dbg = Code_metadata.dbg code_metadata
                    })
            (FD.funs_in_order function_decls))
     in
@@ -222,7 +223,8 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
               let code_metadata = env.get_code_metadata code_id in
               Deleted
                 { function_slot_size =
-                    Code_metadata.function_slot_size code_metadata
+                    Code_metadata.function_slot_size code_metadata ;
+                  dbg = Code_metadata.dbg code_metadata
                 }
         in
         slot, code_id)
