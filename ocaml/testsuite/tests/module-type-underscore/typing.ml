@@ -625,22 +625,48 @@ module M : sig
   module type A
 
   module type B = sig
-    module type A
-    module type C = A
+    module type D
+    module type C = D
   end
 
 end = struct
   module type A
 
-  module type B = _
+  module type B = sig
+    module type D
+    module type C = D
+  end
 end
 
 [%%expect {|
 module M :
   sig
     module type A
-    module type B = sig module type A module type C = A end
+    module type B = sig module type D module type C = D end
   end
+|}]
+
+module M : sig
+  module type A = sig
+    type t
+  end
+
+  module type B = A
+
+  module type C = B
+end = struct
+  module type A = sig
+    type t
+  end
+
+  module type C = A
+
+  module type B = _
+end
+
+[%%expect{|
+module M :
+  sig module type A = sig type t end module type B = A module type C = B end
 |}]
 
 module M : sig
@@ -782,6 +808,111 @@ Error: This type declaration is incompatible with the corresponding
 |}]
 
 module M : sig
+  module A : sig
+    module B : sig
+      module C : sig
+        module D : sig
+          type 'a t
+        end
+      end
+    end
+  end
+
+  module type T = sig
+    val foo : int A.B.C.D.t -> int A.B.C.D.t
+  end
+end = struct
+  module A = struct
+    module B = struct
+      module C = struct
+        module D = struct
+          type t = int
+        end
+      end
+    end
+  end
+
+  module type T = _
+
+  module F(X:T) = struct
+    let _ = X.foo 42
+  end
+end
+
+[%%expect {|
+Line 20, characters 10-22:
+20 |           type t = int
+               ^^^^^^^^^^^^
+Error: This type declaration is incompatible with the corresponding
+       declaration in the signature: expected type 'a t.
+|}]
+
+module M : sig
+  module A : sig
+    type ta
+    module B : sig
+      type tb
+      module C : sig
+        type ('a, 'b) tc
+        module D : sig
+          type 'a td = (ta, tb) tc
+        end
+      end
+    end
+  end
+
+  module type T = sig
+    val foo : int A.B.C.D.td -> int A.B.C.D.td
+  end
+end = struct
+  module A = struct
+    type ta
+    module B = struct
+      type tb
+      module C = struct
+        type ('a, 'b) tc
+        module D = struct
+          type td = int
+        end
+      end
+    end
+  end
+
+  module type T = _
+
+  module F(X:T) = struct
+    let _ = X.foo 42
+  end
+end
+
+[%%expect {|
+Line 26, characters 10-23:
+26 |           type td = int
+               ^^^^^^^^^^^^^
+Error: This type declaration is incompatible with the corresponding
+       declaration in the signature: expected type 'a td = (ta, tb) tc.
+|}]
+
+module M : sig
+  module type A = sig
+    type 'a t
+    module type B = sig
+      type nonrec t = int t
+    end
+  end
+end = struct
+  module type A = _
+end
+
+[%%expect {|
+module M :
+  sig
+    module type A =
+      sig type 'a t module type B = sig type nonrec t = int t end end
+  end
+|}]
+
+module M : sig
   module type A = sig
     type 'a t
 
@@ -884,6 +1015,36 @@ Line 9, characters 4-21:
 9 |     module type S = _
         ^^^^^^^^^^^^^^^^^
 Error: Cannot infer module type without a corresponding definition.
+|}]
+
+module M : sig
+  module type A = sig
+    type 'a t
+
+    val foo : int t -> int t
+  end
+
+  module type B = A
+
+  module type C = B
+end = struct
+  module type C = sig
+    type t = int
+
+    val foo : int -> int
+  end
+
+  module type B = _
+
+  module type A = _
+end
+
+[%%expect {|
+Line 13, characters 4-16:
+13 |     type t = int
+         ^^^^^^^^^^^^
+Error: This type declaration is incompatible with the corresponding
+       declaration in the signature: expected type 'a t.
 |}]
 
 module A = struct

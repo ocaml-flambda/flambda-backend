@@ -3012,73 +3012,73 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
   (* Functions to check whether two (module types | modules | types) are "compatible", and
      adding them to a [Subst.t]. See comment in [type_str_item] below on why we need these. *)
 
-  let rec check_expected_typedecl sig_env env subst id expected_decl actual_decl =
+  let rec check_expected_typedecl sig_env env id expected_decl actual_decl =
+    (* CR selee: ignore for now, but I suspect we'll need it for mcomp check *)
     ignore sig_env;
-    (* CR selee: Do we need this substitution? *)
-    let expected_decl = Subst.type_declaration subst expected_decl in
 
-    (* For now, just check their arity *)
+    (* CR selee: For now, just check their arity *)
     if expected_decl.type_arity <> actual_decl.type_arity then
       raise (Error (actual_decl.type_loc, env,
         Incompatible_type_declaration (id, expected_decl)));
     ()
 
-  and check_expected_modtype sig_env env subst sig_map id expected_modtype actual_modtype =
-    match expected_modtype, actual_modtype with
-    | Some expected_modtype, Some actual_modtype ->
-      (* Apply substitution to [expected_modtype] first, in case it is referring to
-        other things beyond its scope *)
-      let expected_modtype = Subst.modtype Keep subst expected_modtype in
+  and check_expected_modtype sig_env env subst sig_map expected_modtype actual_modtype =
+    let check_expected_sig_item sig_env env sig_map subst = function
+      | Sig_value _ | Sig_typext _ | Sig_class _ | Sig_class_type _ -> subst
+      | Sig_type (ident, decl, _, _) ->
+          add_expected_type_to_subst sig_env env (Some sig_map) [ident, decl] subst
+      | Sig_module (ident, _, decl, _, _) ->
+          add_expected_module_to_subst sig_env env (Some sig_map) (Some ident) decl subst
+      | Sig_modtype (ident, decl, _) ->
+          add_expected_modtype_to_subst sig_env env (Some sig_map) ident decl subst
+    in
 
-      let check_expected_sig_item sig_env sig_map subst = function
-        | Sig_value _ | Sig_typext _ | Sig_class _ | Sig_class_type _ -> subst
-        | Sig_type (ident, decl, _, _) ->
-            add_expected_type_to_subst sig_env env (Some sig_map) [ident, decl] subst
-        | Sig_module (ident, _, decl, _, _) ->
-            add_expected_module_to_subst sig_env env (Some sig_map) (Some ident) decl subst
-        | Sig_modtype (ident, decl, _) ->
-            add_expected_modtype_to_subst sig_env env (Some sig_map) ident decl subst
+    let check_expected_sig expected_sig actual_sig =
+      let sig_env = Env.add_signature expected_sig sig_env in
+      let env = Env.add_signature actual_sig env in
+      let sig_map = Sig_map.add_signature expected_sig sig_map in
+      let newsubst =
+        List.fold_left
+          (fun acc item -> check_expected_sig_item sig_env env sig_map acc item)
+          subst actual_sig
       in
+      ignore newsubst;
+    in
 
-      let check_expected_sig expected_sig actual_sig =
-        let sig_env = Env.add_signature expected_sig sig_env in
-        let sig_map = Sig_map.add_signature expected_sig sig_map in
-        let newsubst =
-          List.fold_left
-            (fun acc item -> check_expected_sig_item sig_env sig_map acc item)
-            subst actual_sig
-        in
-        (* CR selee: Is it right to ignore? *)
-        ignore newsubst;
-      in
-
-      let extract_modtype env path =
-        (* CR selee: this is probably wrong *)
-        begin match (Env.find_module path env).md_type with
-          | exception Not_found ->
-              (* CR selee: continue for now, but we should raise an error here *)
-              None
-          | ty -> Some ty
-        end
-      in
-
-      begin match expected_modtype, actual_modtype with
-        | Mty_ident p1, Mty_ident p2 when Path.same p1 p2 -> ()
-        | Mty_ident p1, Mty_ident p2 ->
-            check_expected_modtype sig_env env subst sig_map id (extract_modtype sig_env p1) (extract_modtype env p2)
-        | Mty_ident p1, _ ->
-            check_expected_modtype sig_env env subst sig_map id (extract_modtype sig_env p1) (Some actual_modtype)
-        | _, Mty_ident p2 ->
-            check_expected_modtype sig_env env subst sig_map id (Some expected_modtype) (extract_modtype env p2)
-        | Mty_signature s1, Mty_signature s2 ->
-            check_expected_sig s1 s2
-        | _ ->
-            (* TODO *)
-            ()
+    let extract_modtype env path =
+      (* CR selee: Cleaner way to do this? *)
+      begin match (Env.find_module path env).md_type with
+        | exception Not_found ->
+            begin match (Env.find_modtype path env).mtd_type with
+              | exception Not_found ->
+                Misc.fatal_errorf "Modtype not found in enclosing env: %a" Path.print path
+              | ty -> ty
+            end
+        | ty -> Some ty
       end
-    | _ ->
-      (* Abstract, nothing to check? TODO *)
-      ()
+    in
+
+    let rec extract_signature env modtype =
+      match modtype with
+      | None -> None
+      | Some (Mty_signature sg) -> Some sg
+      | Some (Mty_ident path) ->
+        let modtype = extract_modtype env path in
+        extract_signature env modtype
+      | _ ->
+        (* CR selee: Cover more cases *)
+        None
+    in
+
+    (* CR selee: When we see two [Path.t]s, we should first try applying [subst]
+       to the expected one, and check if they're the same. This saves us having to
+       look into the paths. *)
+    let s1 = extract_signature sig_env expected_modtype in
+    let s2 = extract_signature env actual_modtype in
+    begin match s1, s2 with
+      | Some s1, Some s2 -> check_expected_sig s1 s2
+      | _ -> ()
+    end
 
   and add_expected_type_to_subst sig_env env sig_map ident_and_decls subst =
     match sig_map with
@@ -3088,7 +3088,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             match Sig_map.find_type (Ident.name id) sig_map with
             | None -> subst
             | Some (sig_ident, sig_decl) ->
-                check_expected_typedecl sig_env env subst sig_ident sig_decl decl;
+                check_expected_typedecl sig_env env sig_ident sig_decl decl;
                 Subst.add_type sig_ident (Pident id) subst
           in
           List.fold_left add_to_subst subst ident_and_decls
@@ -3103,7 +3103,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             begin match Sig_map.find_module (Ident.name ident) sig_map with
               | None -> subst
               | Some (sig_ident, sig_decl) ->
-                  check_expected_modtype sig_env env subst sig_map ident
+                  check_expected_modtype sig_env env subst sig_map
                     (Some sig_decl.md_type) (Some decl.Types.md_type);
                   Subst.add_module sig_ident (Pident ident) subst
             end
@@ -3124,7 +3124,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           | None -> subst
           | Some (sig_ident, sig_decl) ->
               check_expected_modtype sig_env env subst sig_map
-                sig_ident sig_decl.mtd_type decl.Types.mtd_type;
+                sig_decl.mtd_type decl.Types.mtd_type;
               Subst.add_modtype sig_ident (Mty_ident (Pident ident)) subst
         end
 
