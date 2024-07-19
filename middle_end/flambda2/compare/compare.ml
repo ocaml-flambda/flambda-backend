@@ -721,8 +721,8 @@ let function_decls env
     (fun_decl2 : Function_declarations.code_id_in_function_declaration) :
     unit Comparison.t =
   match fun_decl1, fun_decl2 with
-  | ( Deleted { function_slot_size = size1 },
-      Deleted { function_slot_size = size2 } ) ->
+  | ( Deleted { function_slot_size = size1 ; dbg = _ },
+      Deleted { function_slot_size = size2 ; dbg = _ } ) ->
     if Int.equal size1 size2 then Equivalent else Different { approximant = () }
   | Code_id code_id1, Code_id code_id2 ->
     if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
