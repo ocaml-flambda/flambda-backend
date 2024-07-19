@@ -5720,7 +5720,7 @@ let rec build_subtype env (visited : transient_expr list)
           set_type_desc ty
             (Tvar { name = None;
                     jkind = Jkind.Type.Primitive.value
-                               ~why:(Unknown "build subtype 1")});
+                               ~why:(Unknown "build subtype 1") |> Jkind.of_type_jkind});
           let t'' = newvar (Jkind.Type.Primitive.value ~why:(Unknown "build subtype 2") |> Jkind.of_type_jkind)
           in
           let loops = (get_id ty, t'') :: loops in

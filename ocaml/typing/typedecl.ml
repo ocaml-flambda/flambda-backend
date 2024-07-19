@@ -2250,7 +2250,7 @@ let transl_extension_constructor_decl
     | Cstr_tuple args -> List.length args
     | Cstr_record _ -> 1
   in
-  let jkinds = Array.make num_args (Jkind.Primitive.top ~why:Dummy_jkind) in
+  let jkinds = Array.make num_args (Jkind.Type.Primitive.any ~why:Dummy_jkind) in
   let args, constant =
     update_constructor_arguments_jkinds env loc args jkinds
   in
