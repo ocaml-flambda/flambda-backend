@@ -3094,6 +3094,9 @@ let unboxed_type ~errors ~env ~loc ~lid ty =
   match ty with
   | None -> ()
   | Some ty ->
+    (* Sometimes, this function is called on a generalized type variable
+       when it actually should check the specialized one. This is sound,
+       but incomplete. *)
     match !constrain_type_jkind env ty Jkind.Primitive.(value_or_null ~why:Captured_in_object) with
     | Ok () -> ()
     | Result.Error err ->
