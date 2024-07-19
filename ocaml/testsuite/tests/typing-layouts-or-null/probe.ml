@@ -1,8 +1,10 @@
 (* TEST
  setup-ocamlopt.opt-build-env;
- arch_amd64;
+ {
+  arch_amd64;
+  native;
+ }
  flags = "-extension layouts_alpha";
- compiler_reference2 = "${test_source_directory}/probe.reference";
  compile_only = "true";
  ocamlopt.opt;
  check-ocamlopt.opt-output;
