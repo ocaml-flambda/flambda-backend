@@ -194,8 +194,8 @@ module Make_Fixpoint (G : Graph) = struct
       components
 
   let check_fixpoint (graph : G.graph) (roots : Node.Set.t) (state : G.state) =
-    (* Checks that the given state is a post-fixpoint for propagation, and
-       that all roots are set to [Top]. *)
+    (* Checks that the given state is a post-fixpoint for propagation, and that
+       all roots are set to [Top]. *)
     Node.Set.iter
       (fun root -> assert (G.less_equal state G.top (G.get state root)))
       roots;

@@ -337,9 +337,14 @@ and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
       | Block (_, _, _, fields) | Immutable_value_array fields ->
         List.iteri
           (fun i (field : Simple.With_debuginfo.t) ->
-            Simple.pattern_match (Simple.With_debuginfo.simple field)
+            Simple.pattern_match
+              (Simple.With_debuginfo.simple field)
               ~name:(fun field_name ~coercion:_ ->
-                record acc name (Block { relation = Block i; target = Code_id_or_name.name field_name }))
+                record acc name
+                  (Block
+                     { relation = Block i;
+                       target = Code_id_or_name.name field_name
+                     }))
               ~const:(fun _ -> ()))
           fields
       | Set_of_closures _ -> assert false
