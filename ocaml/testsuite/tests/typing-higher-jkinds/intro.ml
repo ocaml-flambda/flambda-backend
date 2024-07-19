@@ -6,8 +6,5 @@
 *)
 
 
-module M : sig
-  type a : (value, value) => value
-end = struct
-  type a : (value, value) => value
-end
+type t : value => value
+type p = int t

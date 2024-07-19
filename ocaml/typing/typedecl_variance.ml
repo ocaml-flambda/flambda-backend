@@ -70,10 +70,10 @@ let compute_variance env visited vari ty =
     | Tconstr (path, Applied tl, _) ->
         let open Variance in begin
           try
-            let decl = Env.find_type path env in
+            let var = Env.find_type path env |> Ctype.app_variance_of_decl in
             List.iter2
               (fun ty v -> compute_variance_rec (compose vari v) ty)
-              tl decl.type_variance
+              tl var
           with Not_found ->
             List.iter (compute_variance_rec unknown) tl
         end
@@ -433,7 +433,7 @@ let update_class_decls env cldecls =
     Typedecl_properties.compute_property property env decls required in
   List.map2
     (fun (_,decl) (_, _, clty, cltydef, _) ->
-      let variance = decl.type_variance in
+      let variance = Ctype.app_variance_of_decl decl in
       (decl, {clty with cty_variance = variance},
        {cltydef with
         clty_variance = variance;
