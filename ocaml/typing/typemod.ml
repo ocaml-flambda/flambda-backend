@@ -826,6 +826,13 @@ let merge_constraint initial_env loc sg lid constr =
         let sig_env = Env.add_signature sg_for_env outer_sig_env in
         let sg = extract_sig sig_env loc md.md_type in
         let ((path, _, tcstr), newsg) = merge_signature sig_env sg namelist in
+        let newsg =
+          if destructive_substitution then
+            remove_modality_and_zero_alloc_variables_sg sig_env
+              ~zap_modality:Mode.Modality.Value.zap_to_id newsg
+          else
+            newsg
+        in
         let path = path_concat id path in
         real_ids := path :: !real_ids;
         let item =

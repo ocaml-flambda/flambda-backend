@@ -1259,9 +1259,7 @@ module M_outer : sig module M_inner : sig type t val f : unit -> unit end end
 module type M_outer_strong = sig module M_inner = M_outer.M_inner end
 module type M_outer_subst =
   sig module M_inner : sig val f : unit -> unit end end
->> Fatal error: zero_alloc: variable constraint
-Uncaught exception: Misc.Fatal_error
-
+module M : M_outer_subst
 |}]
 
 (********************************************)
@@ -1300,9 +1298,7 @@ module M_outer :
 module type S_outer_strong = sig module M_inner = M_outer.M_inner end
 module type S_outer_subst =
   sig module M_inner : sig val f : unit -> unit end end
->> Fatal error: zero_alloc: variable constraint
-Uncaught exception: Misc.Fatal_error
-
+module M : S_outer_subst
 |}]
 
 (*************************************************)
@@ -1341,7 +1337,5 @@ module M_outer :
 module type S_outer_strong = sig module M_inner = M_outer.M_inner end
 module type S_outer_subst =
   sig module M_inner : sig val f : unit -> unit end end
->> Fatal error: zero_alloc: variable constraint
-Uncaught exception: Misc.Fatal_error
-
+module M : S_outer_subst
 |}]
