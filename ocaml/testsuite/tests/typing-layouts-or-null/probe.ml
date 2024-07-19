@@ -1,11 +1,8 @@
 (* TEST
+ arch_amd64;
+ ocamlopt_flags = "-extension-universe alpha";
+ native;
  setup-ocamlopt.opt-build-env;
- {
-  arch_amd64;
-  native;
- }
- flags = "-extension layouts_alpha";
- compile_only = "true";
  ocamlopt.opt;
  check-ocamlopt.opt-output;
 *)
