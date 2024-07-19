@@ -308,7 +308,7 @@ TODO
 ===========
 
 (* left abstract; checks equality between `σ₁` and `σ₂` *)
-   
+
 
 Γ ⊢ layout₁ ≤ layout₂
 =====================
@@ -366,7 +366,7 @@ m₁ ≤ m₂
 Γ ⊢ σ₀ : κ₀ {best}     (* another critical use of `best` *)
 m'_Ξ = m_Ξ ⊔ mode(Ξ(κ₀))
 ---------------------------------- MR_BEST
-Γ ⊢ m_Ξ with σ₀ and [[ σᵢ ]] ↝ m'_Ξ with with_types(Ξ(κ₉)) and [[ σᵢ ]]
+Γ ⊢ m_Ξ with σ₀ and [[ σᵢ ]] ↝ m'_Ξ with with_types(Ξ(κ₀)) and [[ σᵢ ]]
 
 σ₀ ∈ [[ σᵢ ]]
 ----------------------------- MR_DUP
@@ -398,7 +398,7 @@ m'_Ξ = m_Ξ ⊔ mode(Ξ(κ₀))
 Γ ⊢ m₁_Ξ with σ₁₀ and [[ σ₁ ]] ≤ m₂_Ξ with σ₂₀ and [[ σ₂ ]]
   (* As elsewhere, the `with σ and [[ σ ]]` notation means to
   non-deterministically select. *)
-  
+
 Γ ⊢ground_Ξ [[ σ₁ ]] ↠ m₁'_Ξ
 (m₁_Ξ ⊔ m₁'_Ξ) ≤ m₂_Ξ
 ----------------------------- MSUB_BOUND
@@ -549,7 +549,7 @@ t' := λ [[ 'aᵢ : κᵢ ]]. δ' : κ₀'' ∈ Γ
 
 Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
 Γ, [[ 'aᵢ : κᵢ ]], t : π [[ 'aᵢ : κᵢ ]]. κ₀ ⊢tk type_kind ↠ δ : κ₀'
-Γ' = t := λ [[ 'aᵢ : κᵢ ]]. δ : κ₀  (* user-written jkind is preserved *)
+Γ' = t := λ [[ 'aᵢ : κᵢ ]]. δ : κ₀'  (* inferred jkind, not user-written one *)
 Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ jkind ↠ κ₀
 Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ κ₀' ≤ κ₀
 ----------------------------------------------- D_KINDED_NOMINATIVE
@@ -788,7 +788,7 @@ type 'a id =
   | Id of 'a [@@unboxed]
 (* string id crosses uniqueness, but only because of the [@@unboxed]
   *)
-  
+
 ==============================
 
 (* example showing how grounding out a right-hand argument
@@ -822,5 +822,5 @@ end)
 (* ^^ actually problematic. *)
 
 (* I think we just want to reject [F]. *)
-  
+
 ```
