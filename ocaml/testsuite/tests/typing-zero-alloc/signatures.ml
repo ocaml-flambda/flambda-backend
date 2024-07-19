@@ -1225,3 +1225,123 @@ module N :
     module type S_plain = sig module M : sig val f : int -> int end end
   end
 |}]
+
+(******************************************)
+(* Test 15: destructive type substitution *)
+
+module M_outer = struct
+  module M_inner = struct
+    type t
+    let f () = () (* this has a zero_alloc variable (and a modality variable) *)
+  end
+end
+
+(* In [M_outer_strong], the type of [M_inner] will be
+   [Mty_alias M_outer.M_inner] *)
+module type M_outer_strong = sig
+  module M_inner = M_outer.M_inner
+end
+
+(* As a result of the destructive substition, we'll eliminate the alias.  When
+   this happens, we shouldn't keep the zero_alloc variables on [f] *)
+module type M_outer_subst = M_outer_strong
+  with type M_inner.t := M_outer.M_inner.t
+
+(* If we had kept the zero_alloc or modality variables, this would give an
+   error. *)
+module M : M_outer_subst = struct
+  module M_inner = struct
+    let f () = ()
+  end
+end
+[%%expect{|
+module M_outer : sig module M_inner : sig type t val f : unit -> unit end end
+module type M_outer_strong = sig module M_inner = M_outer.M_inner end
+module type M_outer_subst =
+  sig module M_inner : sig val f : unit -> unit end end
+>> Fatal error: zero_alloc: variable constraint
+Uncaught exception: Misc.Fatal_error
+
+|}]
+
+(********************************************)
+(* Test 16: destructive module substitution *)
+
+module M_outer = struct
+  module M_inner = struct
+    module M_innest = struct end
+    let f () = () (* this has a zero_alloc variable (and a modality variable) *)
+  end
+end
+
+(* In [M_outer_strong], the type of [M_inner] will be
+   [Mty_alias M_outer.M_inner] *)
+module type S_outer_strong = sig
+  module M_inner = M_outer.M_inner
+end
+
+(* As a result of the destructive substition, we'll eliminate the alias.  When
+   this happens, we shouldn't keep the zero_alloc variables on [f] *)
+module type S_outer_subst = S_outer_strong
+  with module M_inner.M_innest := M_outer.M_inner.M_innest
+
+(* If we had kept the zero_alloc or modality variables, this would give an
+   error. *)
+module M : S_outer_subst = struct
+  module M_inner = struct
+    let f () = ()
+  end
+end
+[%%expect{|
+module M_outer :
+  sig
+    module M_inner : sig module M_innest : sig end val f : unit -> unit end
+  end
+module type S_outer_strong = sig module M_inner = M_outer.M_inner end
+module type S_outer_subst =
+  sig module M_inner : sig val f : unit -> unit end end
+>> Fatal error: zero_alloc: variable constraint
+Uncaught exception: Misc.Fatal_error
+
+|}]
+
+(*************************************************)
+(* Test 17: destructive module type substitution *)
+
+module M_outer = struct
+  module M_inner = struct
+    module type S = sig end
+    let f () = () (* this has a zero_alloc variable (and a modality variable *)
+  end
+end
+
+(* In [M_outer_strong], the type of [M_inner] will be
+   [Mty_alias M_outer.M_inner] *)
+module type S_outer_strong = sig
+  module M_inner = M_outer.M_inner
+end
+
+(* As a result of the destructive substition, we'll eliminate the alias.  When
+   this happens, we shouldn't keep the zero_alloc variables on [f] *)
+module type S_outer_subst = S_outer_strong
+  with module type M_inner.S := M_outer.M_inner.S
+
+(* If we had kept the zero_alloc or modality variables, this would give an
+   error. *)
+module M : S_outer_subst = struct
+  module M_inner = struct
+    let f () = ()
+  end
+end
+[%%expect{|
+module M_outer :
+  sig
+    module M_inner : sig module type S = sig end val f : unit -> unit end
+  end
+module type S_outer_strong = sig module M_inner = M_outer.M_inner end
+module type S_outer_subst =
+  sig module M_inner : sig val f : unit -> unit end end
+>> Fatal error: zero_alloc: variable constraint
+Uncaught exception: Misc.Fatal_error
+
+|}]
