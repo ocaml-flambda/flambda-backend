@@ -1,5 +1,6 @@
 (* TEST
  arch_amd64;
+ not-macos;
  ocamlopt_flags = "-extension-universe alpha";
  native;
  setup-ocamlopt.opt-build-env;
