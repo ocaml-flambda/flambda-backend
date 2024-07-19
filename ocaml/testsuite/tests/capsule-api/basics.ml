@@ -10,32 +10,25 @@ module Capsule = Stdlib_alpha.Capsule
 
 type 'a myref = { mutable v : 'a}
 
-(* We need extra annotations to convince the typechecker for examples below. *)
-let mk_ref : ('a : value mod portable uncontended) .
-  ('a -> 'a myref) @@ portable = fun v -> {v}
-let read_ref : ('a : value mod portable uncontended) .
-  ('a myref -> 'a @ portable contended) @@ portable = fun r -> r.v
-let write_ref : ('a : value mod portable uncontended) .
-  'a -> ('a myref -> unit) @ portable = fun v -> fun r -> r.v <- v
-
 module Cell = struct
   type 'a t =
     | Mk : 'k Capsule.Mutex.t * ('a myref, 'k) Capsule.Data.t -> 'a t
 
-  let create x =
+  let create (type a : value mod portable uncontended) (x : a) : a t =
     let (P m) = Capsule.create_with_mutex () in
-    let p = Capsule.Data.create (fun () -> mk_ref x)  in
+    let p = Capsule.Data.create (fun () -> {v = x})  in
     Mk (m, p)
 
-  let read t =
+  let read (type a : value mod portable uncontended) (t : a t) : a =
     let (Mk (m, p)) = t in
     Capsule.Mutex.with_lock m (fun k ->
-      Capsule.Data.extract k read_ref p)
+      let read' : a myref -> a @ portable contended @@ portable = (fun r -> r.v) in
+      Capsule.Data.extract k read' p)
 
-  let write t x =
+  let write (type a : value mod portable uncontended) (t : a t) (x : a) =
     let (Mk (m, p)) = t in
     Capsule.Mutex.with_lock m (fun k ->
-      Capsule.Data.iter k (write_ref x) p)
+      Capsule.Data.iter k (fun r -> r.v <- x) p)
 end
 
 let () =

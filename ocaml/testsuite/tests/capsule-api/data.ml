@@ -12,13 +12,18 @@ external reraise : exn -> 'a @ portable @@ portable = "%reraise"
 
 type 'a myref = { mutable v : 'a}
 
-(* We need extra annotations to convince the typechecker for examples below. *)
-let mk_ref : ('a : value mod portable uncontended) .
-  ('a -> 'a myref) @@ portable = fun v -> {v}
-let read_ref : ('a : value mod portable uncontended) .
+let mk_ref : ('a -> 'a myref) @@ portable = fun v -> {v}
+
+(* We need ['a] to be [portable] to return a [portable] value from the read.
+   The return value is marked as [contended] because our callsites require that,
+   but the typechecker does not implicitly downcast the result. *)
+let read_ref : ('a : value mod portable) .
   ('a myref -> 'a @ portable contended) @@ portable = fun r -> r.v
+
+(* We need ['a] to be [portable] and [uncontended] to capture it in
+   a [portable] closure like this.*)
 let write_ref : ('a : value mod portable uncontended) .
-  'a -> ('a myref -> unit) @ portable = fun v -> fun r -> r.v <- v
+  'a -> ('a myref -> unit) @ portable = fun v r -> r.v <- v
 
 type 'a guarded =
   | Mk : 'k Capsule.Mutex.t * ('a, 'k) Capsule.Data.t -> 'a guarded
