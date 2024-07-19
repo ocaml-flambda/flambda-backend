@@ -71,12 +71,12 @@ module M : sig val x : string @@ global many portable contended end
 *)
 module Module_type_of_comonadic = struct
     module M = struct
-        let x @ portable = "hello"
+        let x @ portable = fun x -> x
     end
     (* for comonadic axes, we default to id = meet_with_max, which is the
     weakest. The original modality is not mutated. *)
     module M' : module type of M = struct
-        let x @ portable = "hello"
+        let x @ portable = fun x -> x
     end
     let _ = portable_use M.x (* The original modality stays portable *)
     let _ = portable_use M'.x
@@ -170,18 +170,18 @@ Error: Signature mismatch:
    flexible. *)
 module Without_inclusion = struct
     module M = struct
-        let x @ portable = "hello"
+        let x @ portable = fun x -> x
     end
     let () = portable_use M.x
 end
 [%%expect{|
 module Without_inclusion :
-  sig module M : sig val x : string @@ global many portable end end
+  sig module M : sig val x : 'a -> 'a @@ global many portable end end
 |}]
 
 module Without_inclusion = struct
     module M = struct
-        let x @ nonportable = "hello"
+        let x @ nonportable = fun x -> x
     end
     let () = portable_use M.x
 end
@@ -218,9 +218,9 @@ Error: Signature mismatch:
 
 module Inclusion_weakens_monadic = struct
     module M : sig
-        val x : string @@ contended
+        val x : int ref @@ contended
     end = struct
-        let x @ uncontended = "hello"
+        let x @ uncontended = ref 10
     end
     let _ = uncontended_use M.x
 end
@@ -233,9 +233,9 @@ Error: This value is contended but expected to be uncontended.
 
 module Inclusion_weakens_comonadic = struct
   module M : sig
-      val x : string @@ nonportable
+      val x : 'a -> 'a @@ nonportable
   end = struct
-      let x @ portable = "hello"
+      let x @ portable = fun x -> x
   end
   let _ = portable_use M.x
 end
@@ -248,14 +248,14 @@ Error: This value is nonportable but expected to be portable.
 
 module Inclusion_match = struct
     module M : sig
-        val x : string @@ uncontended
+        val x : int ref @@ uncontended
     end = struct
-        let x @ uncontended = "hello"
+        let x @ uncontended = ref 10
     end
     let () = uncontended_use M.x
 end
 [%%expect{|
-module Inclusion_match : sig module M : sig val x : string end end
+module Inclusion_match : sig module M : sig val x : int ref end end
 |}]
 
 (* [foo] closes over [M.x] instead of [M]. This is better ergonomics. *)
@@ -277,7 +277,7 @@ module Close_over_value :
 
 module Close_over_value_monadic = struct
   module M = struct
-    let r @ uncontended = "hello"
+    let r @ uncontended = fun x -> x
   end
   let (foo @ portable) () =
     let uncontended_use (_ @ uncontended) = () in

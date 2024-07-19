@@ -271,12 +271,8 @@ Error: This value escapes its region.
 
 let string_duplicate = let once_ x : string = "hello" in Fun.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 1, characters 64-65:
-1 | let string_duplicate = let once_ x : string = "hello" in Fun.id x
-                                                                    ^
-Error: This value is once but expected to be many.
+val string_duplicate : string = "hello"
 |}]
 
 let int_duplicate = let once_ x : int = 5 in Fun.id x
