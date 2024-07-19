@@ -112,7 +112,9 @@ let extract_accumulators_from_function outer_dacc ~dacc_after_body
   in
   let code_ids_to_remember = DA.code_ids_to_remember dacc_after_body in
   let code_ids_to_never_delete = DA.code_ids_to_never_delete dacc_after_body in
-  let code_ids_never_simplified = DA.code_ids_never_simplified dacc_after_body in
+  let code_ids_never_simplified =
+    DA.code_ids_never_simplified dacc_after_body
+  in
   let used_value_slots = UA.used_value_slots uacc_after_upwards_traversal in
   let shareable_constants =
     UA.shareable_constants uacc_after_upwards_traversal

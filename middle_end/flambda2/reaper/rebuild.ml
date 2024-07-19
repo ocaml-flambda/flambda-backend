@@ -79,7 +79,8 @@ let rewrite_or_variable default env (or_variable : _ Or_variable.t) =
     if is_var_used env v then or_variable else Or_variable.Const default
 
 let rewrite_simple_with_debuginfo kinds env (simple : Simple.With_debuginfo.t) =
-  Simple.With_debuginfo.create (rewrite_simple kinds env (Simple.With_debuginfo.simple simple))
+  Simple.With_debuginfo.create
+    (rewrite_simple kinds env (Simple.With_debuginfo.simple simple))
     (Simple.With_debuginfo.dbg simple)
 
 let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
@@ -101,7 +102,7 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
                  let code_metadata = env.get_code_metadata code_id in
                  Deleted
                    { function_slot_size =
-                       Code_metadata.function_slot_size code_metadata ;
+                       Code_metadata.function_slot_size code_metadata;
                      dbg = Code_metadata.dbg code_metadata
                    })
            (FD.funs_in_order function_decls))
@@ -184,14 +185,9 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
       bound
   in
   let code_is_used bv =
-    (*
-    let xx =
-      Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var bv))
-    in
-    Format.eprintf "BV: %a %a@." Bound_var.print bv
-      (Format.pp_print_option Dep_solver.pp_elt)
-      xx;
-  *)
+    (* let xx = Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var
+       bv)) in Format.eprintf "BV: %a %a@." Bound_var.print bv
+       (Format.pp_print_option Dep_solver.pp_elt) xx; *)
     match
       Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var bv))
     with
@@ -217,13 +213,13 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
           | Deleted _ -> code_id
           | Code_id code_id ->
             if code_is_used bound_var
-            (* || Code_metadata.stub (env.get_code_metadata code_id) *)
+               (* || Code_metadata.stub (env.get_code_metadata code_id) *)
             then Code_id code_id
             else
               let code_metadata = env.get_code_metadata code_id in
               Deleted
                 { function_slot_size =
-                    Code_metadata.function_slot_size code_metadata ;
+                    Code_metadata.function_slot_size code_metadata;
                   dbg = Code_metadata.dbg code_metadata
                 }
         in
