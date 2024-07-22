@@ -16,19 +16,9 @@ end = struct
 end
 
 [%%expect{|
-Lines 9-12, characters 6-3:
- 9 | ......struct
+Line 10, characters 2-10:
 10 |   type _ t
-11 |   let f _ = ()
-12 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type _ t val f : 'a -> unit end
-       is not included in
-         sig type (_, _) t val f : ('a, 'b) t -> unit end
-       Type declarations do not match:
-         type _ t
-       is not included in
-         type (_, _) t
-       They have different arities.
+       ^^^^^^^^
+Error: This type declaration is incompatible with the corresponding
+       declaration in the signature: expected type (_, _) t.
 |}]
