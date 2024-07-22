@@ -275,6 +275,7 @@ module Close_over_value :
   end
 |}]
 
+(* CR mode-crossing: this should use mutable record *)
 module Close_over_value_monadic = struct
   module M = struct
     let r @ uncontended = fun x -> x
