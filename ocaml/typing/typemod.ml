@@ -2923,6 +2923,19 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         end
   in
 
+  let add_expected_include_to_subst expected_sig actual_sig subst =
+    let add_item subst = function
+      | Sig_type (id, _, _, _) ->
+          add_expected_type_to_subst expected_sig [id] subst
+      | Sig_module (id, _, _, _, _) ->
+          add_expected_module_to_subst expected_sig (Some id) subst
+      | Sig_modtype (id, _, _) ->
+          add_expected_modtype_to_subst expected_sig id subst
+      | Sig_value _ | Sig_typext _ | Sig_class _ | Sig_class_type _ -> subst
+    in
+    List.fold_left add_item subst actual_sig
+  in
+
   let type_str_include ~functor_ ~loc env subst shape_map sincl sig_acc =
     let smodl = sincl.pincl_mod in
     let modl, modl_shape =
@@ -2959,7 +2972,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
     sg,
     shape,
     new_env,
-    subst
+    add_expected_include_to_subst expected_sig sg subst
   in
 
   let type_str_include_functor ~loc env subst shape_map ifincl sig_acc =
