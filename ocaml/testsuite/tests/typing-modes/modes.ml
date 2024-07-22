@@ -167,13 +167,15 @@ type r = local_ once_ unique_ string -> local_ once_ unique_ string
 
 type r = local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
-type r = local_ once_ unique_ string * string -> local_ once_ string * string
+type r =
+    local_ once_ unique_ string * y:string -> local_ once_ string * w:string
 |}]
 
 type r = x:local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
 type r =
-    x:local_ once_ unique_ string * string -> local_ once_ string * string
+    x:local_ once_ unique_ string * y:string -> local_ once_
+    string * w:string
 |}]
 
 

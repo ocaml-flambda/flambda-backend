@@ -606,20 +606,28 @@ Ptop_def
                 expression (//toplevel//[2,1+12]..[2,1+18]) ghost
                   Pexp_tuple
                   [
-                    expression (//toplevel//[2,1+12]..[2,1+13])
-                      Pexp_constant PConst_int (3,None)
-                    expression (//toplevel//[2,1+15]..[2,1+18]) ghost
-                      Pexp_construct "::" (//toplevel//[2,1+15]..[2,1+18]) ghost
-                      Some
-                        expression (//toplevel//[2,1+15]..[2,1+18]) ghost
-                          Pexp_tuple
-                          [
-                            expression (//toplevel//[2,1+15]..[2,1+16])
-                              Pexp_constant PConst_int (4,None)
-                            expression (//toplevel//[2,1+17]..[2,1+18]) ghost
-                              Pexp_construct "[]" (//toplevel//[2,1+17]..[2,1+18]) ghost
-                              None
-                          ]
+                    <tuple component>
+                    Label: None
+                      expression (//toplevel//[2,1+12]..[2,1+13])
+                        Pexp_constant PConst_int (3,None)
+                    <tuple component>
+                    Label: None
+                      expression (//toplevel//[2,1+15]..[2,1+18]) ghost
+                        Pexp_construct "::" (//toplevel//[2,1+15]..[2,1+18]) ghost
+                        Some
+                          expression (//toplevel//[2,1+15]..[2,1+18]) ghost
+                            Pexp_tuple
+                            [
+                              <tuple component>
+                              Label: None
+                                expression (//toplevel//[2,1+15]..[2,1+16])
+                                  Pexp_constant PConst_int (4,None)
+                              <tuple component>
+                              Label: None
+                                expression (//toplevel//[2,1+17]..[2,1+18]) ghost
+                                  Pexp_construct "[]" (//toplevel//[2,1+17]..[2,1+18]) ghost
+                                  None
+                            ]
                   ]
       ]
   ]

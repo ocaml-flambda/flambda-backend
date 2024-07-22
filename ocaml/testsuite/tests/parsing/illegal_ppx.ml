@@ -22,13 +22,11 @@ let complex_record loc =
 
 let lt_empty_open_pat loc =
   let pat = H.Pat.mk Ppat_any in
-  Jane_syntax.Labeled_tuples.pat_of ~loc
-    ([], Open)
+  H.Pat.tuple ~loc [] Open
 
 let lt_short_closed_pat loc =
   let pat = H.Pat.mk Ppat_any in
-  Jane_syntax.Labeled_tuples.pat_of ~loc
-    ([Some "baz", pat], Closed)
+  H.Pat.tuple ~loc [Some "baz", pat] Closed
 
 let super = M.default_mapper
 let expr mapper e =

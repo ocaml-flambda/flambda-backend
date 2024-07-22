@@ -246,7 +246,7 @@ let rec mktailexp nilloc = let open Location in function
   | e1 :: el ->
       let exp_el, el_loc = mktailexp nilloc el in
       let loc = (e1.pexp_loc.loc_start, snd el_loc) in
-      let arg = ghexp ~loc (Pexp_tuple [e1; ghexp ~loc:el_loc exp_el]) in
+      let arg = ghexp ~loc (Pexp_tuple [None, e1; None, ghexp ~loc:el_loc exp_el]) in
       ghexp_cons_desc loc arg, loc
 
 let rec mktailpat nilloc = let open Location in function
@@ -256,7 +256,7 @@ let rec mktailpat nilloc = let open Location in function
   | p1 :: pl ->
       let pat_pl, el_loc = mktailpat nilloc pl in
       let loc = (p1.ppat_loc.loc_start, snd el_loc) in
-      let arg = ghpat ~loc (Ppat_tuple [p1; ghpat ~loc:el_loc pat_pl]) in
+      let arg = ghpat ~loc (Ppat_tuple ([None, p1; None, ghpat ~loc:el_loc pat_pl], Closed)) in
       ghpat_cons_desc loc arg, loc
 
 let mkstrexp e attrs =
@@ -356,21 +356,6 @@ let expecting (loc : Lexing.position * Lexing.position) nonterm =
 let removed_string_set loc =
   raise(Syntaxerr.Error(Syntaxerr.Removed_string_set(make_loc loc)))
 
-let ppat_ltuple loc elts closed =
-  Jane_syntax.Labeled_tuples.pat_of
-    ~loc:(make_loc loc)
-    (elts, closed)
-
-let ptyp_ltuple loc tl =
-  Jane_syntax.Labeled_tuples.typ_of
-    ~loc:(make_loc loc)
-    tl
-
-let pexp_ltuple loc args =
-  Jane_syntax.Labeled_tuples.expr_of
-    ~loc:(make_loc loc)
-    args
-
 (* Using the function [not_expecting] in a semantic action means that this
    syntactic form is recognized by the parser but is in fact incorrect. This
    idiom is used in a few places to produce ad hoc syntax error messages. *)
@@ -439,9 +424,12 @@ type ('dot,'index) array_family = {
 let bigarray_untuplify exp =
   match Jane_syntax.Expression.of_ast exp with
   | Some _ -> [exp]
-  | None -> match exp with
-    { pexp_desc = Pexp_tuple explist; pexp_loc = _ } -> explist
-  | exp -> [exp]
+  | None ->
+     match exp.pexp_desc with
+     | Pexp_tuple explist when
+            List.for_all (function None, _ -> true | _ -> false) explist ->
+        List.map (fun (_, e) -> e) explist
+     | _ -> [exp]
 
 (* Immutable array indexing is a regular operator, so it doesn't need a special
    case here *)
@@ -2744,7 +2732,8 @@ fun_expr:
         let let_ = {pbop_op; pbop_pat; pbop_exp; pbop_loc} in
         mkexp ~loc:$sloc (Pexp_letop{ let_; ands; body}) }
   | fun_expr COLONCOLON expr
-      { mkexp_cons ~loc:$sloc $loc($2) (ghexp ~loc:$sloc (Pexp_tuple[$1;$3])) }
+      { mkexp_cons ~loc:$sloc $loc($2)
+          (ghexp ~loc:$sloc (Pexp_tuple[None, $1;None, $3])) }
   | mkrhs(label) LESSMINUS expr
       { mkexp ~loc:$sloc (Pexp_setinstvar($1, $3)) }
   | simple_expr DOT mkrhs(label_longident) LESSMINUS expr
@@ -2812,7 +2801,7 @@ fun_expr:
   | simple_expr nonempty_llist(labeled_simple_expr)
       { mkexp ~loc:$sloc (Pexp_apply($1, $2)) }
   | labeled_tuple %prec below_COMMA
-      { pexp_ltuple $sloc $1 }
+      { mkexp ~loc:$sloc (Pexp_tuple $1) }
   | mkrhs(constr_longident) simple_expr %prec below_HASH
       { mkexp ~loc:$sloc (Pexp_construct($1, Some $2)) }
   | name_tag simple_expr %prec below_HASH
@@ -3483,7 +3472,9 @@ pattern_no_exn:
 
 %inline pattern_(self):
   | self COLONCOLON pattern
-      { mkpat_cons ~loc:$sloc $loc($2) (ghpat ~loc:$sloc (Ppat_tuple[$1;$3])) }
+      { mkpat_cons ~loc:$sloc $loc($2)
+          (ghpat ~loc:$sloc (Ppat_tuple ([None, $1;None, $3], Closed)))
+      }
   | self attribute
       { Pat.attr $1 $2 }
   | pattern_gen
@@ -3502,7 +3493,7 @@ pattern_no_exn:
   ) { $1 }
   | reversed_labeled_tuple_pattern(self)
       { let closed, pats = $1 in
-        ppat_ltuple $sloc (List.rev pats) closed
+        mkpat ~loc:$sloc (Ppat_tuple (List.rev pats, closed))
       }
 ;
 
@@ -4312,7 +4303,7 @@ strict_function_or_labeled_tuple_type:
            let (tuple, tuple_loc), arg_modes = tuple_with_modes in
            let ty, ltys = tuple in
            let label = Labelled label in
-           let domain = ptyp_ltuple tuple_loc ((None, ty) :: ltys) in
+           let domain = mktyp ~loc:tuple_loc (Ptyp_tuple ((None, ty) :: ltys)) in
            let domain = extra_rhs_core_type domain ~pos:(snd tuple_loc) in
            Ptyp_arrow(label, mktyp_with_modes arg_modes domain , codomain) }
     )
@@ -4327,7 +4318,7 @@ strict_function_or_labeled_tuple_type:
            let (codomain, codomain_loc), ret_modes = codomain_with_modes in
            let ty, ltys = tuple in
            let label = Labelled label in
-           let domain = ptyp_ltuple tuple_loc ((None, ty) :: ltys) in
+           let domain = mktyp ~loc:tuple_loc (Ptyp_tuple ((None, ty) :: ltys)) in
            let domain = extra_rhs_core_type domain ~pos:(snd tuple_loc) in
            Ptyp_arrow(label,
             mktyp_with_modes arg_modes domain ,
@@ -4337,7 +4328,7 @@ strict_function_or_labeled_tuple_type:
     { $1 }
   | label = LIDENT COLON proper_tuple_type %prec MINUSGREATER
     { let ty, ltys = $3 in
-      ptyp_ltuple $sloc ((Some label, ty) :: ltys)
+      mktyp ~loc:$sloc (Ptyp_tuple ((Some label, ty) :: ltys))
     }
 ;
 
@@ -4455,7 +4446,7 @@ tuple_type:
       { ty }
   | proper_tuple_type %prec below_FUNCTOR
     { let ty, ltys = $1 in
-      ptyp_ltuple $sloc ((None, ty) :: ltys)
+      mktyp ~loc:$sloc (Ptyp_tuple ((None, ty) :: ltys))
     }
 ;
 
