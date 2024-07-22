@@ -1122,6 +1122,35 @@ module M :
 |}]
 
 module A = struct
+  module type D = sig
+    type 'a t
+  end
+
+  module type B = D
+end
+
+module M : sig
+  module type B = sig
+    type t
+  end
+
+  module type C = B
+end = struct
+  include A
+
+  module type C = _
+end
+
+[%%expect {|
+module A : sig module type D = sig type 'a t end module type B = D end
+Line 3, characters 4-13:
+3 |     type 'a t
+        ^^^^^^^^^
+Error: This type declaration is incompatible with the corresponding
+       declaration in the signature: expected type t.
+|}]
+
+module A = struct
   module type B = sig
     type t = int
   end
