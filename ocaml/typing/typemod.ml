@@ -106,18 +106,12 @@ type error =
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
 
-(** When calling [transl_modtype_decl], there are three possibilities for its
-    [expected_modtype_decl]:
-    - [From_signature]: we are checking a signature.
-    - [No_expected]: we are checking a struct, but we don't have information about
-       its expected signature.
-    - [Expected _]: we are checking a struct, and we do have information about its
-       expected signature (where "expected signature" is used for inferring module types
-       when we see a [module type S = _]). *)
-type expected_modtype_decl =
-  | From_signature
-  | No_expected
-  | Expected of modtype_declaration
+type modtype_decl_context =
+  | In_signature
+  (** We are checking a signature. *)
+  | In_structure of modtype_declaration option
+  (** We are checking a struct, with a given expected signature (used for inferring
+      module types when we see a [module type S = _]) *)
 
 open Typedtree
 
@@ -1899,13 +1893,13 @@ and transl_signature env (sg : Parsetree.signature) =
         sig_items,
         newenv
     | Psig_modtype pmtd ->
-        let newenv, mtd, decl = transl_modtype_decl ~expected_modtype_decl:From_signature env pmtd in
+        let newenv, mtd, decl = transl_modtype_decl ~context:In_signature env pmtd in
         Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
         mksig (Tsig_modtype mtd) env loc,
         [Sig_modtype (mtd.mtd_id, decl, Exported)],
         newenv
     | Psig_modtypesubst pmtd ->
-        let newenv, mtd, _decl = transl_modtype_decl ~expected_modtype_decl:From_signature env pmtd in
+        let newenv, mtd, _decl = transl_modtype_decl ~context:In_signature env pmtd in
         let info =
           let mty = match mtd.mtd_type with
             | Tmtd_define tmty -> tmty.mty_type
@@ -2007,11 +2001,11 @@ and transl_signature env (sg : Parsetree.signature) =
        sg
     )
 
-and transl_modtype_decl ~expected_modtype_decl env pmtd =
+and transl_modtype_decl ~context env pmtd =
   Builtin_attributes.warning_scope pmtd.pmtd_attributes
-    (fun () -> transl_modtype_decl_aux env pmtd ~expected_modtype_decl)
+    (fun () -> transl_modtype_decl_aux env pmtd ~context)
 
-and transl_modtype_decl_aux ~expected_modtype_decl env
+and transl_modtype_decl_aux ~context env
     {pmtd_name; pmtd_type; pmtd_attributes; pmtd_loc} =
   (* If we are typechecking a signature or a struct without an explicit signature,
      [expected] is [None].
@@ -2026,10 +2020,10 @@ and transl_modtype_decl_aux ~expected_modtype_decl env
       let tmty = transl_modtype (Env.in_signature true env) ty in
       Tmtd_define tmty, Some (tmty.mty_type)
     | Pmtd_underscore ->
-      begin match expected_modtype_decl with
-        | From_signature -> raise (Error (pmtd_loc, env, Underscore_not_allowed_in_signature))
-        | No_expected -> raise (Error (pmtd_loc, env, Cannot_infer_module_type))
-        | Expected mtd -> Tmtd_underscore, mtd.Types.mtd_type
+      begin match context with
+        | In_signature -> raise (Error (pmtd_loc, env, Underscore_not_allowed_in_signature))
+        | In_structure None -> raise (Error (pmtd_loc, env, Cannot_infer_module_type))
+        | In_structure (Some mtd) -> Tmtd_underscore, mtd.Types.mtd_type
       end
   in
   let decl =
@@ -2557,7 +2551,7 @@ and type_module_aux ~alias ~expected_modtype sttn funct_body anchor env smod =
           | Mty_functor _
           | Mty_alias _
           | Mty_strengthen _ -> None
-          (* For now, we only allow module type inference in cases where the signature
+          (* CR selee: For now, we only allow module type inference in cases where the signature
              is "close" to the struct (i.e. declared in the same place). *)
           | Mty_signature sg -> Some sg)
         in
@@ -2871,7 +2865,7 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
 and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
   let names = Signature_names.create () in
 
-  let type_str_include ~functor_ ~loc env shape_map sincl sig_acc =
+  let type_str_include ~functor_ ~loc env subst shape_map sincl sig_acc =
     let smodl = sincl.pincl_mod in
     let modl, modl_shape =
       Builtin_attributes.warning_scope sincl.pincl_attributes
@@ -2902,19 +2896,20 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         incl_loc = sincl.pincl_loc;
       }
     in
-    Tstr_include incl, sg, shape, new_env
+    (* CR selee: Properly update [subst] for things that have been included *)
+    Tstr_include incl, sg, shape, new_env, subst
   in
 
-  let type_str_include_functor ~loc env shape_map ifincl sig_acc =
+  let type_str_include_functor ~loc env subst shape_map ifincl sig_acc =
     match (ifincl : Jane_syntax.Include_functor.structure_item) with
     | Ifstr_include_functor incl ->
-        type_str_include ~functor_:true ~loc env shape_map incl sig_acc
+        type_str_include ~functor_:true ~loc env subst shape_map incl sig_acc
   in
 
-  let type_str_item_jst ~loc env shape_map jitem sig_acc =
+  let type_str_item_jst ~loc env subst shape_map jitem sig_acc =
     match (jitem : Jane_syntax.Structure_item.t) with
     | Jstr_include_functor ifincl ->
-        type_str_include_functor ~loc env shape_map ifincl sig_acc
+        type_str_include_functor ~loc env subst shape_map ifincl sig_acc
     | Jstr_layout (Lstr_kind_abbrev _) ->
         Misc.fatal_error "kind_abbrev not supported!"
   in
@@ -2928,8 +2923,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
     let md_mode = Mode.Value.legacy in
     match Jane_syntax.Structure_item.of_ast item with
     | Some jitem ->
-        let (tstr, sg, map, newenv) = type_str_item_jst ~loc env shape_map jitem sig_acc in
-        tstr, sg, map, newenv, subst
+        type_str_item_jst ~loc env subst shape_map jitem sig_acc
     | None ->
     match desc with
     | Pstr_eval (sexpr, attrs) ->
@@ -3257,7 +3251,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         newenv,
         newsubst
     | Pstr_modtype pmtd ->
-        let expected_modtype_decl, ident_in_expected =
+        let context, ident_in_expected =
           let get_modtype_decl = function
             | Sig_modtype (ident, decl, _)
                 when Ident.name ident = pmtd.pmtd_name.txt ->
@@ -3265,15 +3259,15 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             | _ -> None
           in
           match expected_sig with
-          | None -> No_expected, None
+          | None -> In_structure None, None
           | Some sg ->
             begin match List.find_map get_modtype_decl sg with
-              | Some (decl, ident) -> Expected decl, Some ident
-              | None -> No_expected, None
+              | Some (decl, ident) -> In_structure (Some decl), Some ident
+              | None -> In_structure None, None
             end
         in
         (* check that it is non-abstract *)
-        let newenv, mtd, decl = transl_modtype_decl env pmtd ~expected_modtype_decl in
+        let newenv, mtd, decl = transl_modtype_decl env pmtd ~context in
         Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
         let id = mtd.mtd_id in
         let map = Shape.Map.add_module_type shape_map id decl.mtd_uid in
@@ -3351,8 +3345,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         new_env,
         subst
     | Pstr_include sincl ->
-        let (tstr, sg, map, newenv) = type_str_include ~functor_:false ~loc env shape_map sincl sig_acc in
-        tstr, sg, map, newenv, subst
+        type_str_include ~functor_:false ~loc env subst shape_map sincl sig_acc
     | Pstr_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
     | Pstr_attribute attr ->
@@ -3409,6 +3402,7 @@ let type_toplevel_phrase env sig_acc s =
   Env.reset_probes ();
   Typecore.reset_allocations ();
   let (str, sg, to_remove_from_sg, shape, env) =
+    (* CR selee: We will support file-level inference in a later PR. *)
     type_structure ~toplevel:(Some sig_acc) ~expected_sig:None false None env s in
   remove_mode_and_jkind_variables env sg;
   remove_mode_and_jkind_variables_for_toplevel str;
