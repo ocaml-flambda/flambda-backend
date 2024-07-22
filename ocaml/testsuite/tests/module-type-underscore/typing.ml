@@ -850,27 +850,28 @@ end = struct
   module type C = _
 end
 
-(* CR selee: This should be fixed by supporting substitution for includes *)
 [%%expect {|
 module A : sig module type B = sig type t = int end end
-Lines 13-17, characters 6-3:
-13 | ......struct
-14 |   include A
-15 |
-16 |   module type C = _
-17 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig module type B = A.B module type C = B/2 end
-       is not included in
-         sig module type B = sig type t = int end module type C = B end
-       Module type declarations do not match:
-         module type C = B/2
-       does not match
-         module type C = B/1
-       At position module type C = <here>
-       Module types do not match: B/2 is not equal to B/1
+module M : sig module type B = sig type t = int end module type C = B end
+|}]
 
-       Lines 2-4, characters 2-5:
-         Definition of module type B/1
+module A = struct
+  module type B = sig
+    type t = int
+  end
+end
+
+module M : sig
+  include module type of A
+
+  module type C = B
+end = struct
+  include A
+
+  module type C = _
+end
+
+[%%expect {|
+module A : sig module type B = sig type t = int end end
+module M : sig module type B = sig type t = int end module type C = B end
 |}]
