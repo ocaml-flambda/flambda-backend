@@ -93,12 +93,17 @@ let class_infos sub f x =
   List.iter (fun (ct, _) -> sub.typ sub ct) x.ci_params;
   f x.ci_expr
 
+let module_type_declaration_type sub = function
+  | Tmtd_abstract
+  | Tmtd_underscore -> ()
+  | Tmtd_define ty -> sub.module_type sub ty
+
 let module_type_declaration sub x =
   sub.item_declaration sub (Module_type x);
   sub.location sub x.mtd_loc;
   sub.attributes sub x.mtd_attributes;
   iter_loc sub x.mtd_name;
-  Option.iter (sub.module_type sub) x.mtd_type
+  module_type_declaration_type sub x.mtd_type
 
 let module_declaration sub md =
   let {md_loc; md_name; md_type; md_attributes; _} = md in

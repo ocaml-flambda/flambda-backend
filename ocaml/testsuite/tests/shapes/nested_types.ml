@@ -21,20 +21,20 @@ end
 {
  "M"[module] ->
    {<.35>
-    "Exn"[extension constructor] -> {<.1>
-                                     "lbl_exn"[label] -> <.0>;
+    "Exn"[extension constructor] -> {<.17>
+                                     "lbl_exn"[label] -> <.16>;
                                      };
-    "Ext"[extension constructor] -> {<.7>
-                                     "lbl_ext"[label] -> <.6>;
+    "Ext"[extension constructor] -> {<.23>
+                                     "lbl_ext"[label] -> <.22>;
                                      };
-    "ext"[type] -> <.5>;
-    "l"[type] -> {<.3>
-                  "lbl"[label] -> <.4>;
+    "ext"[type] -> <.21>;
+    "l"[type] -> {<.19>
+                  "lbl"[label] -> <.20>;
                   };
     "t"[type] ->
-      {<.9>
-       "C"[constructor] -> {<.11>
-                            "lbl_cstr"[label] -> <.10>;
+      {<.25>
+       "C"[constructor] -> {<.27>
+                            "lbl_cstr"[label] -> <.26>;
                             };
        };
     };

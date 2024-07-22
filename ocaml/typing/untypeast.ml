@@ -777,8 +777,9 @@ let module_type_declaration sub mtd =
   let loc = sub.location sub mtd.mtd_loc in
   let attrs = sub.attributes sub mtd.mtd_attributes in
   let typ = match mtd.mtd_type with
-    | None -> Pmtd_abstract
-    | Some ty -> Pmtd_define (sub.module_type sub ty)
+    | Tmtd_abstract -> Pmtd_abstract
+    | Tmtd_underscore -> Pmtd_underscore
+    | Tmtd_define ty -> Pmtd_define (sub.module_type sub ty)
   in
   Mtd.mk ~loc ~attrs
     (map_loc sub mtd.mtd_name)

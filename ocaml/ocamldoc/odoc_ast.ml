@@ -1499,12 +1499,10 @@ module Analyser =
           in
           let kind, sig_mtype =
             match modtype, tt_module_type.mtd_type with
-            | Pmtd_define modtype, Some mty_type ->
+            | Pmtd_define modtype, Tmtd_define mty_type ->
                 Some (Sig.analyse_module_type_kind env complete_name
                         modtype mty_type.mty_type),
                 Some mty_type.mty_type
-            | Pmtd_underscore, Some mty_type ->
-                Some Module_type_underscore, Some mty_type.mty_type
             | _ -> None, None
           in
           let comment_opt =

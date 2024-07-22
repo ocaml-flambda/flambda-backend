@@ -29,8 +29,10 @@ module Signature_names : sig
 end
 
 val type_module:
+        expected_modtype:Types.module_type option ->
         Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t
 val type_structure:
+  expected_sig:Types.signature option ->
   Env.t -> Parsetree.structure ->
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
   Env.t
@@ -162,6 +164,8 @@ type error =
       old_source_file: Misc.filepath;
     }
   | Submode_failed of Mode.Value.error
+  | Underscore_not_allowed_in_signature
+  | Cannot_infer_module_type
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

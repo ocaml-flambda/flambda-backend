@@ -116,8 +116,8 @@ end
 
 module Positive_ref = Make_covariant(struct type 'a t = 'a ref end)
 [%%expect {|
-Line 6, characters 2-23:
-6 |   type +'a t = 'a i M.t
+Line 3, characters 2-23:
+3 |   type +'a t = 'a i M.t
       ^^^^^^^^^^^^^^^^^^^^^
 Error: In this definition, expected parameter variances are not satisfied.
        The 1st type parameter was expected to be covariant,
