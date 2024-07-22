@@ -1140,9 +1140,9 @@ let default_mapper =
       | With (t, ty) ->
         With (this.jkind_annotation this t, this.typ this ty)
       | Kind_of ty -> Kind_of (this.typ this ty)
-      | Arrow (args, result) -> Arrow
-        (List.map (this.jkind_annotation this) args,
-         this.jkind_annotation this result));
+      | Arrow (args, result) ->
+        Arrow (List.map (this.jkind_annotation this) args,
+               this.jkind_annotation this result));
 
     expr_jane_syntax = E.map_jst;
     extension_constructor_jane_syntax = T.map_extension_constructor_jst;
