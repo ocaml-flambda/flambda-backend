@@ -2787,8 +2787,8 @@ let hide_variant_name t =
       newty2 ~level:(get_level t)
         (Tvariant
            (create_row ~fields ~fixed ~closed ~name:None
-              ~more:(newvar2 (get_level more)
-                       (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind))))
+              ~more:(new_type_var2 (get_level more)
+                       (Jkind.Type.Primitive.value ~why:Row_variable))))
   | _ -> t
 
 let prepare_expansion Errortrace.{ty; expanded} =

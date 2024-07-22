@@ -81,11 +81,15 @@ val new_rep_var :
   ?name:string -> why:Jkind.Type.History.concrete_jkind_reason -> unit ->
   type_expr * Jkind.Type.sort
         (* Return a fresh representable variable, along with its sort *)
+val new_type_var: ?name:string -> Jkind.Type.t -> type_expr
+        (* Short-hand for [newvar], converting a [Jkind.Type.t] to [Jkind.t] *)
 val newvar2: ?name:string -> int -> Jkind.t -> type_expr
         (* Return a fresh variable *)
 val new_global_var: ?name:string -> Jkind.t -> type_expr
         (* Return a fresh variable, bound at toplevel
            (as type variables ['a] in type constraints). *)
+val new_type_var2: ?name:string -> int -> Jkind.Type.t -> type_expr
+        (* Short-hand for [newvar2], converting a [Jkind.Type.t] to [Jkind.t] *)
 val newobj: type_expr -> type_expr
 val newconstr: Path.t -> type_expr list -> type_expr
 val newmono : type_expr -> type_expr

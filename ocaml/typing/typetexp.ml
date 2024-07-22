@@ -820,7 +820,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       let name = ref None in
       let mkfield l f =
         newty (Tvariant (create_row ~fields:[l,f]
-                           ~more:(newvar (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind))
+                           ~more:(new_type_var (Jkind.Type.Primitive.value ~why:Row_variable))
                            ~closed:true ~fixed:None ~name:None)) in
       let hfields = Hashtbl.create 17 in
       let add_typed_field loc l f =
@@ -930,7 +930,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       in
       let more =
         if Btype.static_row
-             (make_row (newvar (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind)))
+             (make_row (new_type_var (Jkind.Type.Primitive.value ~why:Row_variable)))
         then newty Tnil
         else TyVarEnv.new_var (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind) policy
       in
@@ -1052,7 +1052,7 @@ and transl_type_poly env ~policy ~row_context mode loc (vars : (_, _) Either.t)
   let ty_list = TyVarEnv.check_poly_univars env loc new_univars in
   let ty_list = List.filter (fun v -> deep_occur v ty) ty_list in
   let ty' = Btype.newgenty (Tpoly(ty, ty_list)) in
-  unify_var env (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)) ty';
+  unify_var env (new_type_var (Jkind.Type.Primitive.any ~why:Dummy_jkind)) ty';
   Ttyp_poly (typed_vars, cty), ty'
 
 and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_opt

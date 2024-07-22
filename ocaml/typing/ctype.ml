@@ -253,9 +253,11 @@ let newvar ?name jkind =
 let new_rep_var ?name ~why () =
   let jkind, sort = Jkind.of_new_sort_var ~why in
   newvar ?name jkind, sort
+let new_type_var ?name type_jkind = newvar ?name (Jkind.of_type_jkind type_jkind)
 let newvar2 ?name level jkind = newty2 ~level (Tvar { name; jkind })
 let new_global_var ?name jkind =
   newty2 ~level:!global_level (Tvar { name; jkind })
+let new_type_var2 ?name level type_jkind = newvar2 ?name level (Jkind.of_type_jkind type_jkind)
 let newstub ~scope jkind =
   newty3 ~level:!current_level ~scope (Tvar { name = None; jkind })
 
@@ -1263,7 +1265,7 @@ let rec copy ?partial ?keep_names copy_scope ty =
                     if row_closed row && not (is_fixed row)
                     && TypeSet.is_empty (free_univars ty)
                     && not (List.for_all not_reither fields) then
-                      let more' = newvar (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind) in
+                      let more' = new_type_var (Jkind.Type.Primitive.value ~why:Row_variable) in
                       (more',
                        create_row ~fields:(List.filter not_reither fields)
                          ~more:more' ~closed:false ~fixed:None ~name:None)
@@ -4173,8 +4175,8 @@ exception Filter_method_failed of filter_method_failure
 (* Used by [filter_method]. *)
 let rec filter_method_field env name ty =
   let method_type ~level =
-      let ty1 = newvar2 level (Jkind.Type.Primitive.value ~why:Object_field |> Jkind.of_type_jkind) in
-      let ty2 = newvar2 level (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind) in
+      let ty1 = new_type_var2 level (Jkind.Type.Primitive.value ~why:Object_field) in
+      let ty2 = new_type_var2 level (Jkind.Type.Primitive.value ~why:Row_variable) in
       let ty' = newty2 ~level (Tfield (name, field_public, ty1, ty2)) in
       ty', ty1
   in
@@ -4207,7 +4209,7 @@ let rec filter_method_field env name ty =
 (* Unify [ty] and [< name : 'a; .. >]. Return ['a]. *)
 let filter_method env name ty =
   let object_type ~level ~scope =
-      let ty1 = newvar2 level (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind) in
+      let ty1 = new_type_var2 level (Jkind.Type.Primitive.value ~why:Row_variable) in
       let ty' = newty3 ~level ~scope (Tobject (ty1, ref None)) in
       let ty_meth = filter_method_field env name ty1 in
       (ty', ty_meth)
@@ -4249,8 +4251,8 @@ let rec filter_method_row env name priv ty =
   match get_desc ty with
   | Tvar _ ->
       let level = get_level ty in
-      let field = newvar2 level (Jkind.Type.Primitive.value ~why:Object_field |> Jkind.of_type_jkind) in
-      let row = newvar2 level (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind) in
+      let field = new_type_var2 level (Jkind.Type.Primitive.value ~why:Object_field) in
+      let row = new_type_var2 level (Jkind.Type.Primitive.value ~why:Row_variable) in
       let kind, priv =
         match priv with
         | Private ->
@@ -4286,7 +4288,7 @@ let rec filter_method_row env name priv ty =
         | Private ->
           let level = get_level ty in
           let kind = field_absent in
-          Mprivate kind, newvar2 level (Jkind.Type.Primitive.value ~why:Object_field |> Jkind.of_type_jkind), ty
+          Mprivate kind, new_type_var2 level (Jkind.Type.Primitive.value ~why:Object_field), ty
       end
   | _ ->
       raise Filter_method_row_failed
@@ -4294,7 +4296,7 @@ let rec filter_method_row env name priv ty =
 (* Operations on class signatures *)
 
 let new_class_signature () =
-  let row = newvar (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind) in
+  let row = new_type_var (Jkind.Type.Primitive.value ~why:Row_variable) in
   let self = newobj row in
   { csig_self = self;
     csig_self_row = row;
@@ -4529,7 +4531,7 @@ let generalize_class_signature_spine env sign =
   (* But keep levels correct on the type of self *)
   Meths.iter
     (fun _ (_, _, ty) ->
-       unify_var env (newvar (Jkind.Type.Primitive.value ~why:Object |> Jkind.of_type_jkind)) ty)
+       unify_var env (new_type_var (Jkind.Type.Primitive.value ~why:Object)) ty)
     meths;
   sign.csig_meths <- new_meths
 
@@ -5721,7 +5723,7 @@ let rec build_subtype env (visited : transient_expr list)
             (Tvar { name = None;
                     jkind = Jkind.Type.Primitive.value
                                ~why:(Unknown "build subtype 1") |> Jkind.of_type_jkind});
-          let t'' = newvar (Jkind.Type.Primitive.value ~why:(Unknown "build subtype 2") |> Jkind.of_type_jkind)
+          let t'' = new_type_var (Jkind.Type.Primitive.value ~why:(Unknown "build subtype 2"))
           in
           let loops = (get_id ty, t'') :: loops in
           (* May discard [visited] as level is going down *)
@@ -5800,7 +5802,7 @@ let rec build_subtype env (visited : transient_expr list)
       let c = collect fields in
       let row =
         create_row ~fields:(List.map fst fields)
-          ~more:(newvar (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind))
+          ~more:(new_type_var (Jkind.Type.Primitive.value ~why:Row_variable))
           ~closed:posi ~fixed:None
           ~name:(if c > Unchanged then None else row_name row)
       in
@@ -5822,7 +5824,7 @@ let rec build_subtype env (visited : transient_expr list)
       else (t, Unchanged)
   | Tnil ->
       if posi then
-        let v = newvar (Jkind.Type.Primitive.value ~why:Tnil |> Jkind.of_type_jkind) in
+        let v = new_type_var (Jkind.Type.Primitive.value ~why:Tnil) in
         (v, Changed)
       else begin
         warn := true;
@@ -6033,7 +6035,7 @@ and subtype_fields env trace ty1 ty2 cstrs =
   let cstrs =
     if miss2 = [] then cstrs else
     (trace, rest1, build_fields (get_level ty2) miss2
-                     (newvar (Jkind.Type.Primitive.value ~why:Object_field |> Jkind.of_type_jkind)),
+                     (new_type_var (Jkind.Type.Primitive.value ~why:Object_field)),
      !univar_pairs) :: cstrs
   in
   List.fold_left
