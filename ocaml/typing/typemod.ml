@@ -2007,13 +2007,6 @@ and transl_modtype_decl ~context env pmtd =
 
 and transl_modtype_decl_aux ~context env
     {pmtd_name; pmtd_type; pmtd_attributes; pmtd_loc} =
-  (* If we are typechecking a signature or a struct without an explicit signature,
-     [expected] is [None].
-
-     If we are typechecking a struct and there is a corresponding signature,
-     then [expected] is the [Some] of [Typedtree.module_type_declaration] from that
-     signature. *)
-
   let tmty, mty = match pmtd_type with
     | Pmtd_abstract -> Tmtd_abstract, None
     | Pmtd_define ty ->
