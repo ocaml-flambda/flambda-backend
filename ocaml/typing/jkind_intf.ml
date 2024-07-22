@@ -260,7 +260,7 @@ module History = struct
   type any_non_null_creation_reason = Array_type_argument
 
   type immutable_data_creation_reason = Primitive of Ident.t
-  
+
   type float64_creation_reason = Primitive of Ident.t
 
   type float32_creation_reason = Primitive of Ident.t
