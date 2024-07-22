@@ -103,7 +103,7 @@ let rec make_directory dir =
       Sys.mkdir dir 0o777
     end
 
-let with_ppf_dump ?stdout ~file_prefix f =
+let with_ppf_file ~file_prefix ~file_extension f =
   let with_ch ch =
     let ppf = Format.formatter_of_out_channel ch in
     ppf,
@@ -112,20 +112,21 @@ let with_ppf_dump ?stdout ~file_prefix f =
        close_out ch)
   in
   let ppf_dump, finally =
-    match !Clflags.dump_dir, !Clflags.dump_into_file with
-    | None, false ->
-        let formatter =
-          if Option.is_some stdout then Format.std_formatter
-          else Format.err_formatter
-        in
-        formatter, ignore
-    | None, true -> with_ch (open_out (file_prefix ^ ".dump"))
-    | Some d, _ ->
-        let () = make_directory Filename.(dirname @@ concat d @@ file_prefix) in
-        let _, ch =
-          Filename.open_temp_file ~temp_dir:d (file_prefix ^ ".")  ".dump"
-        in
-        with_ch ch
-
+    match !Clflags.dump_dir with
+    | None -> with_ch (open_out (file_prefix ^ file_extension))
+    | Some d ->
+      let () = make_directory Filename.(dirname @@ concat d @@ file_prefix) in
+      let _, ch =
+        Filename.open_temp_file ~temp_dir:d (file_prefix ^ ".") file_extension
+      in
+      with_ch ch
   in
   Misc.try_finally (fun () -> f ppf_dump) ~always:finally
+
+let with_ppf_dump ?stdout ~file_prefix f =
+  match !Clflags.dump_into_file with
+  | false ->
+    let formatter =
+      if Option.is_some stdout then Format.std_formatter else Format.err_formatter in
+    Misc.try_finally (fun () -> f formatter)
+  | _ -> with_ppf_file ~file_prefix ~file_extension:".dump" f

@@ -319,7 +319,11 @@ let width_by_column ~n_columns ~display_cell rows =
   List.iter loop rows;
   a
 
-let display_rows ppf rows =
+let output_rows
+    ~(output_row : prefix:string -> cell_strings:string list -> name:string -> unit)
+    ~(new_prefix : prev:string -> curr_name:string -> string)
+    rows
+  =
   let n_columns =
     match rows with
     | [] -> 0
@@ -335,26 +339,26 @@ let display_rows ppf rows =
   let widths = width_by_column ~n_columns ~display_cell rows in
   (* We track print row functions in a queue to ensure ancestors not worth displaying have
   print functions executed if a descendant is worth displaying (possible with counters) *)
-  let rec loop (R (name, values, rows)) ~indentation ~print_stack =
+  let rec loop (R (name, values, rows)) ~prefix ~output_stack =
     let worth_displaying, cell_strings =
       values
       |> List.mapi (fun i cell -> display_cell i cell ~width:widths.(i))
       |> List.split
     in
-    let should_display_row = List.exists (fun b -> b) worth_displaying in
-    let print_row () =
-      let cell_data = if should_display_row then String.concat " " cell_strings else "" in
-      Format.fprintf ppf "%s%s %s@\n" indentation cell_data name
+    let should_output_row = List.exists (fun b -> b) worth_displaying in
+    let output_current () =
+      let cell_strings = if should_output_row then cell_strings else [] in
+      output_row ~prefix ~cell_strings ~name
     in
-    print_stack := print_row :: !print_stack;
-    if should_display_row then
-      (List.rev !print_stack |> List.iter (fun f -> f ()); print_stack := []);
-    List.iter (loop ~indentation:("  " ^ indentation) ~print_stack) rows;
-    if !print_stack <> [] then print_stack := List.tl !print_stack
+    output_stack := output_current :: !output_stack;
+    if should_output_row then
+      (List.rev !output_stack |> List.iter (fun f -> f ()); output_stack := []);
+    List.iter (loop ~prefix:(new_prefix ~prev:prefix ~curr_name:name) ~output_stack) rows;
+    if !output_stack <> [] then output_stack := List.tl !output_stack
   in
-  List.iter (loop ~indentation:"" ~print_stack:(ref [])) rows
+  List.iter (loop ~prefix:"" ~output_stack:(ref [])) rows
 
-let print ppf columns ~timings_precision =
+let output_columns output_rows_f columns ~timings_precision =
   match columns with
   | [] -> ()
   | _ :: _ ->
@@ -364,8 +368,21 @@ let print ppf columns ~timings_precision =
        | None -> Measure.zero
      in
      let total = Measure_diff.of_diff Measure.zero (Measure.create ()) in
-     display_rows ppf
-       (rows_of_hierarchy !hierarchy total initial_measure columns timings_precision)
+     output_rows_f (rows_of_hierarchy !hierarchy total initial_measure columns timings_precision)
+
+let print ppf =
+  output_rows
+    ~output_row:(fun ~prefix ~cell_strings ~name ->
+      Format.fprintf ppf "%s%s %s@\n" prefix (String.concat " " cell_strings) name)
+    ~new_prefix:(fun ~prev ~curr_name:_ -> "  " ^ prev)
+  |> output_columns
+
+let output_to_csv ppf_file =
+  output_rows
+    ~output_row:(fun ~prefix ~cell_strings ~name ->
+      Format.fprintf ppf_file "%s%s,%s\n" prefix name (String.concat "," cell_strings))
+    ~new_prefix:(fun ~prev ~curr_name -> Format.sprintf "%s%s/" prev curr_name)
+  |> output_columns
 
 let column_mapping = [
   "time", `Time;
