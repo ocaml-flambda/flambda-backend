@@ -282,7 +282,7 @@ val of_new_legacy_sort : why:History.concrete_legacy_creation_reason -> t
 
 val of_const : why:History.creation_reason -> Const.t -> t
 
-(** CR layouts v2.8: remove this when prining is improved *)
+(* CR layouts v2.8: remove this when prining is improved *)
 (** The [Jkind.Const.t] together with its user-written annotation. *)
 type annotation = Types.type_expr Jkind_types.annotation
 
@@ -453,4 +453,8 @@ val has_layout_any : t -> bool
 
 module Debug_printers : sig
   val t : Format.formatter -> t -> unit
+
+  module Const : sig
+    val t : Format.formatter -> Const.t -> unit
+  end
 end
