@@ -477,14 +477,16 @@ let worst_msig decl = List.map (fun _ -> Deepsep) decl.type_params
    this when we add unboxed floats, or, better, just delete the float
    array optimization and this entire file at that point. *)
 let msig_of_external_type env decl =
-  let check_jkind =
-    Ctype.check_decl_jkind env decl
+  let is_not_value_or_null =
+    Result.is_error (Ctype.check_decl_jkind env decl
+                        (Jkind.Builtin.value_or_null ~why:Separability_check))
   in
-  if Result.is_error (check_jkind (Jkind.Builtin.value_or_null ~why:Separability_check))
-     || Result.is_ok
-          (check_jkind (Jkind.Builtin.immediate64 ~why:Separability_check))
-  then best_msig decl
-  else worst_msig decl
+  let is_external =
+    match Jkind.get_externality_upper_bound decl.type_jkind with
+    | Internal -> false
+    | External | External64 -> true
+  in
+  if is_not_value_or_null || is_external then best_msig decl else worst_msig decl
 
 (** [msig_of_context ~decl_loc constructor context] returns the
    separability signature of a single-constructor type whose

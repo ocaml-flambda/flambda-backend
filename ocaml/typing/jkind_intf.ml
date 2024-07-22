@@ -240,8 +240,6 @@ module History = struct
     | Primitive of Ident.t
     | Immediate_polymorphic_variant
 
-  type immediate64_creation_reason = Separability_check
-
   (* CR layouts v5: make new void_creation_reasons *)
   type void_creation_reason = |
 
@@ -256,8 +254,7 @@ module History = struct
     | Inside_of_Tarrow
     | Wildcard
     | Unification_var
-
-  type any_non_null_creation_reason = Array_type_argument
+    | Array_type_argument
 
   type creation_reason =
     | Annotated of annotation_context * Location.t
@@ -265,10 +262,8 @@ module History = struct
     | Value_or_null_creation of value_or_null_creation_reason
     | Value_creation of value_creation_reason
     | Immediate_creation of immediate_creation_reason
-    | Immediate64_creation of immediate64_creation_reason
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
-    | Any_non_null_creation of any_non_null_creation_reason
     | Concrete_creation of concrete_creation_reason
     | Concrete_legacy_creation of concrete_legacy_creation_reason
     | Primitive of Ident.t

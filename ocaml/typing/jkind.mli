@@ -233,8 +233,6 @@ module Builtin : sig
     [any]. *)
   val any : why:History.any_creation_reason -> t
 
-  val any_non_null : why:History.any_non_null_creation_reason -> t
-
   (** Value of types of this jkind are not retained at all at runtime *)
   val void : why:History.void_creation_reason -> t
 
@@ -243,16 +241,15 @@ module Builtin : sig
   (** This is the jkind of normal ocaml values *)
   val value : why:History.value_creation_reason -> t
 
-  (** Values of types of this jkind are immediate on 64-bit platforms; on other
-    platforms, we know nothing other than that it's a value. *)
-  val immediate64 : why:History.immediate64_creation_reason -> t
-
   (** We know for sure that values of types of this jkind are always immediate *)
   val immediate : why:History.immediate_creation_reason -> t
 end
 
 (** Take an existing [t] and add an ability to mode-cross along all the axes. *)
 val add_mode_crossing : t -> t
+
+(** Take an existing [t] and add an ability to mode-cross across the nullability axis. *)
+val add_nullability_crossing : t -> t
 
 (** Take an existing [t] and add an ability to mode-cross along the portability and
     contention axes, if [from] crosses the respective axes. Return the new jkind,

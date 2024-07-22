@@ -338,7 +338,8 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type1 ident_array
        ~variance:Variance.full
        ~separability:Separability.Ind
-       ~param_jkind:(Jkind.Builtin.any_non_null ~why:Array_type_argument)
+       ~param_jkind:(Jkind.add_nullability_crossing
+                      (Jkind.Builtin.any ~why:Array_type_argument))
   |> add_type1 ident_iarray
        ~variance:Variance.covariant
        ~separability:Separability.Ind

@@ -183,6 +183,8 @@ module Nullability = struct
 
   let max = Maybe_null
 
+  let min = Non_null
+
   let equal n1 n2 =
     match n1, n2 with
     | Non_null, Non_null -> true
@@ -834,6 +836,9 @@ module Jkind_desc = struct
       externality_upper_bound = Externality.min
     }
 
+  let add_nullability_crossing t =
+    { t with nullability_upper_bound = Nullability.min }
+
   let add_portability_and_contention_crossing ~from t =
     let new_portability =
       Portability.Const.meet t.modes_upper_bounds.portability
@@ -924,8 +929,6 @@ module Jkind_desc = struct
   module Builtin = struct
     let any = max
 
-    let any_non_null = of_const Const.Builtin.any_non_null.jkind
-
     let value_or_null = of_const Const.Builtin.value_or_null.jkind
 
     let value = of_const Const.Builtin.value.jkind
@@ -1000,9 +1003,6 @@ module Builtin = struct
     | Dummy_jkind -> any_dummy_jkind (* share this one common case *)
     | _ -> fresh_jkind Jkind_desc.Builtin.any ~why:(Any_creation why)
 
-  let any_non_null ~why =
-    fresh_jkind Jkind_desc.Builtin.any_non_null ~why:(Any_non_null_creation why)
-
   let value_v1_safety_check =
     { jkind = Jkind_desc.Builtin.value_or_null;
       history = Creation (Value_or_null_creation V1_safety_check);
@@ -1027,6 +1027,9 @@ end
 
 let add_mode_crossing t =
   { t with jkind = Jkind_desc.add_mode_crossing t.jkind }
+
+let add_nullability_crossing t =
+  { t with jkind = Jkind_desc.add_nullability_crossing t.jkind }
 
 let add_portability_and_contention_crossing ~from t =
   let jkind, added_crossings =
@@ -1360,9 +1363,6 @@ module Format_history = struct
       format_with_notify_js ppf
         "there's a call to [type_expression] via the ocaml API"
     | Inside_of_Tarrow -> fprintf ppf "argument or result of a function type"
-
-  let format_any_non_null_creation_reason ppf :
-      History.any_non_null_creation_reason -> unit = function
     | Array_type_argument ->
       fprintf ppf "it's the type argument to the array type"
 
@@ -1378,11 +1378,6 @@ module Format_history = struct
     | Immediate_polymorphic_variant ->
       fprintf ppf
         "it's an enumeration variant type (all constructors are constant)"
-
-  let format_immediate64_creation_reason ppf :
-      History.immediate64_creation_reason -> _ = function
-    | Separability_check ->
-      fprintf ppf "the check that a type is definitely not `float`"
 
   let format_value_or_null_creation_reason ppf :
       History.value_or_null_creation_reason -> _ = function
@@ -1462,11 +1457,8 @@ module Format_history = struct
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
     | Any_creation any -> format_any_creation_reason ppf any
-    | Any_non_null_creation any -> format_any_non_null_creation_reason ppf any
     | Immediate_creation immediate ->
       format_immediate_creation_reason ppf immediate
-    | Immediate64_creation immediate64 ->
-      format_immediate64_creation_reason ppf immediate64
     | Void_creation _ -> .
     | Value_or_null_creation value ->
       format_value_or_null_creation_reason ppf value
@@ -1811,9 +1803,6 @@ module Debug_printers = struct
     | Unification_var -> fprintf ppf "Unification_var"
     | Type_expression_call -> fprintf ppf "Type_expression_call"
     | Inside_of_Tarrow -> fprintf ppf "Inside_of_Tarrow"
-
-  let any_non_null_creation_reason ppf :
-      History.any_non_null_creation_reason -> unit = function
     | Array_type_argument -> fprintf ppf "Array_type_argument"
 
   let immediate_creation_reason ppf : History.immediate_creation_reason -> _ =
@@ -1823,10 +1812,6 @@ module Debug_printers = struct
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
     | Immediate_polymorphic_variant ->
       fprintf ppf "Immediate_polymorphic_variant"
-
-  let immediate64_creation_reason ppf : History.immediate64_creation_reason -> _
-      = function
-    | Separability_check -> fprintf ppf "Separability_check"
 
   let value_or_null_creation_reason ppf :
       History.value_or_null_creation_reason -> _ = function
@@ -1876,13 +1861,8 @@ module Debug_printers = struct
         loc
     | Missing_cmi p -> fprintf ppf "Missing_cmi %a" !printtyp_path p
     | Any_creation any -> fprintf ppf "Any_creation %a" any_creation_reason any
-    | Any_non_null_creation any ->
-      fprintf ppf "Any_non_null_creation %a" any_non_null_creation_reason any
     | Immediate_creation immediate ->
       fprintf ppf "Immediate_creation %a" immediate_creation_reason immediate
-    | Immediate64_creation immediate64 ->
-      fprintf ppf "Immediate64_creation %a" immediate64_creation_reason
-        immediate64
     | Value_or_null_creation value ->
       fprintf ppf "Value_or_null_creation %a" value_or_null_creation_reason
         value
