@@ -632,7 +632,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           ~args_arity:param_arity ~return_arity ~call_kind dbg
           ~inlined:Default_inlined
           ~inlining_state:(Inlining_state.default ~round:0)
-          ~probe:None ~position:Normal
+          ~probe:None ~tail:Default_tail ~position:Normal
           ~relative_history:(Env.relative_history_from_scoped ~loc env)
       in
       Expr_with_acc.create_apply acc apply
@@ -1246,6 +1246,7 @@ let close_exact_or_unknown_apply acc env
        loc;
        inlined;
        probe;
+       tail;
        mode;
        region_close;
        region;
@@ -1296,6 +1297,7 @@ let close_exact_or_unknown_apply acc env
   let args, _split_args_arity = List.split args_with_arity in
   let inlined_call = Inlined_attribute.from_lambda inlined in
   let probe = Probe.from_lambda probe in
+  let tail = Tail.from_lambda tail in
   let position =
     match region_close with
     | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
@@ -1309,7 +1311,7 @@ let close_exact_or_unknown_apply acc env
       (Debuginfo.from_location loc)
       ~inlined:inlined_call
       ~inlining_state:(Inlining_state.default ~round:0)
-      ~probe ~position
+      ~probe ~tail ~position
       ~relative_history:(Env.relative_history_from_scoped ~loc env)
   in
   if Flambda_features.classic_mode ()
@@ -1755,7 +1757,7 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
                 ~current_region:my_region))
         Debuginfo.none ~inlined:Inlined_attribute.Default_inlined
         ~inlining_state:(Inlining_state.default ~round:0)
-        ~probe:None ~position:Normal
+        ~probe:None ~tail:Default_tail ~position:Normal
         ~relative_history:(Env.relative_history_from_scoped ~loc external_env)
     in
     let projection =
@@ -2839,6 +2841,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
     let inlined = Inlined_attribute.from_lambda apply.inlined in
     (* Keeping the inlining attributes matches the behaviour of simplify *)
     let probe = Probe.from_lambda apply.probe in
+    let tail = Tail.from_lambda apply.tail in
     let position =
       match apply.region_close with
       | Rc_normal | Rc_close_at_apply -> Apply.Position.Normal
@@ -2861,7 +2864,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         ~args_arity:remaining_arity ~return_arity:apply.return_arity ~call_kind
         apply_dbg ~inlined
         ~inlining_state:(Inlining_state.default ~round:0)
-        ~probe ~position
+        ~probe ~tail ~position
         ~relative_history:(Env.relative_history_from_scoped ~loc:apply.loc env)
     in
     match needs_region with

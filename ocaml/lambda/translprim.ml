@@ -1262,6 +1262,7 @@ let lambda_of_prim prim_name prim loc args arg_exps =
            application attributes to functions applied with the application
            operators. *)
         ap_tailcall = Default_tailcall;
+        ap_tail = Default_tail;
         ap_inlined = Default_inlined;
         ap_specialised = Default_specialise;
         ap_probe = None;
