@@ -488,8 +488,29 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
            ~position ~mode (transl_exp ~scopes Jkind.Sort.for_function funct)
            oargs (of_location ~scopes e.exp_loc))
   | Texp_match(arg, arg_sort, pat_expr_list, partial) ->
-      transl_match ~scopes ~arg_sort ~return_sort:sort e arg pat_expr_list
-        partial
+      let default () =
+        transl_match ~scopes ~arg_sort ~return_sort:sort e arg pat_expr_list
+          partial
+      in
+      (* Test if we can convert this match into a let. This is the effective opposite of
+         [turn_let_into_match] in [typecore.ml] *)
+      (match pat_expr_list, partial with
+      | [{c_lhs; c_rhs; c_guard = None}], Total when c_rhs.exp_desc <> Texp_unreachable ->
+        let val_pat, exn_pat = split_pattern c_lhs in
+        (match val_pat, exn_pat with
+          | Some { pat_desc = Tpat_or _; _ }, _ -> default ()
+          | Some pv, None ->
+            let return_layout = layout_exp sort e in
+            transl_let ~scopes ~return_layout Nonrecursive
+              [{vb_pat = pv;
+                vb_expr = arg;
+                vb_rec_kind = Dynamic;
+                vb_sort = arg_sort;
+                vb_attributes = [];
+                vb_loc = Location.none}]
+              (event_before ~scopes c_rhs (transl_exp ~scopes sort c_rhs))
+          | _ -> default ())
+      | _ -> default ())
   | Texp_try(body, pat_expr_list) ->
       let id = Typecore.name_cases "exn" pat_expr_list in
       let return_layout = layout_exp sort e in

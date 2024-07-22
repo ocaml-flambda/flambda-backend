@@ -29,6 +29,13 @@ let[@inline never] string_match n x =
     | _ -> assert false in
   left - right
 
+let[@inline never] labeled_match n x =
+  let ~left, ~right = match x with
+    | 0 -> ~left:n, ~right:42
+    | 1 -> ~left:42, ~right:n
+    | _ -> assert false in
+  left - right
+
 
 
 
@@ -53,4 +60,6 @@ let () =
   printf "big_match:\n";
   for i = 0 to 5 do test big_match n i done;
   printf "string_match:\n";
-  for i = 0 to 5 do test string_match n (string_of_int i) done
+  for i = 0 to 5 do test string_match n (string_of_int i) done;
+  printf "labeled_match:\n";
+  for i = 0 to 1 do test labeled_match n i done;
