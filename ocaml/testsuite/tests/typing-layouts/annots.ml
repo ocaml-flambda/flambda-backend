@@ -286,8 +286,8 @@ Line 1, characters 9-15:
 1 | type t = string t2_imm
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
        But the kind of string must be a subkind of immediate
          because of the definition of t2_imm at line 1, characters 0-28.
 |}]
@@ -299,8 +299,8 @@ Line 1, characters 9-15:
 1 | type t = string t2_global
              ^^^^^^
 Error: This type string should be an instance of type ('a : value mod global)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
        But the kind of string must be a subkind of value mod global
          because of the definition of t2_global at line 8, characters 0-38.
 |}]
@@ -542,8 +542,8 @@ Line 1, characters 24-31:
                             ^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
        But the kind of string must be a subkind of immediate
          because of the definition of r at line 1, characters 0-47.
 |}]
@@ -556,8 +556,8 @@ Line 1, characters 26-33:
                               ^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : value mod global)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
        But the kind of string must be a subkind of value mod global
          because of the definition of rg at line 1, characters 0-56.
 |}]
@@ -571,7 +571,7 @@ Line 1, characters 26-33:
 Error: This expression has type string but an expression was expected of type
          ('a : word mod many external_)
        The layout of string is value
-         because it is the primitive value type string.
+         because it is the primitive immutable_data type string.
        But the layout of string must be a sublayout of word
          because of the definition of rc at line 1, characters 0-70.
 |}]
@@ -966,8 +966,8 @@ Line 1, characters 43-51:
                                                ^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
        But the kind of string must be a subkind of immediate
          because of the annotation on the universal variable 'a.
 |}]
@@ -980,8 +980,8 @@ Line 1, characters 50-58:
                                                       ^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : value mod global)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
        But the kind of string must be a subkind of value mod global
          because of the annotation on the universal variable 'a.
 |}]

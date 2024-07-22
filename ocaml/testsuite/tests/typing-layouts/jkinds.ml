@@ -482,8 +482,8 @@ Line 2, characters 25-33:
                              ^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : value mod unique)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
        But the kind of string must be a subkind of value mod unique
          because of the definition of t at line 1, characters 0-54.
 |}]
@@ -787,8 +787,7 @@ Line 2, characters 0-77:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type t is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of
-         value mod many uncontended portable
+       But the kind of type t must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: This should be accepted *)
@@ -1126,13 +1125,13 @@ type t : value mod uncontended = Foo of int [@@unboxed]
 type t : value mod external_ = Foo of int [@@unboxed]
 |}]
 
-type t : any mod portable = Foo of string [@@unboxed]
+type t : any mod portable = Foo of t_value [@@unboxed]
 [%%expect {|
-Line 1, characters 0-53:
-1 | type t : any mod portable = Foo of string [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-54:
+1 | type t : any mod portable = Foo of t_value [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type t is value
-         because it is the primitive value type string.
+         because of the definition of t_value at line 1, characters 0-20.
        But the kind of type t must be a subkind of any mod portable
          because of the annotation on the declaration of the type t.
 |}]
@@ -1151,7 +1150,7 @@ Error: The kind of type t is value
          because it instantiates an unannotated type parameter of t,
          defaulted to kind value.
        But the kind of type t must be a subkind of
-         value mod global unique many uncontended portable
+         immutable_data mod global unique
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1166,7 +1165,7 @@ Error: The kind of type t is value
          because it instantiates an unannotated type parameter of t,
          defaulted to kind value.
        But the kind of type t must be a subkind of
-         value mod global unique many uncontended portable
+         immutable_data mod global unique
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
