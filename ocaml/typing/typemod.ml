@@ -186,6 +186,12 @@ type modtype_decl_context =
       been gone through substitution from the elements in the signature to the elements
       in the struct seen so far.*)
 
+
+type modtype_context =
+  | From_module
+  (** The module type originated from a module declaration. *)
+  | From_modtype
+  (** The module type originated from a module type declaration. *)
 open Typedtree
 
 let rec path_concat head p =
@@ -3045,29 +3051,30 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
       ignore newsubst;
     in
 
-    let extract_modtype env path =
-      (* CR selee: Cleaner way to do this? *)
-      begin match (Env.find_module path env).md_type with
-        | exception Not_found ->
-            begin match (Env.find_modtype path env).mtd_type with
-              | exception Not_found ->
-                Misc.fatal_errorf "Modtype not found in enclosing env: %a" Path.print path
-              | ty -> ty
-            end
-        | ty -> Some ty
-      end
+    let extract_modtype env context path =
+      try
+        match context with
+          | From_module -> Some ((Env.find_module path env).md_type)
+          | From_modtype -> (Env.find_modtype path env).mtd_type
+      with Not_found -> Misc.fatal_errorf "Modtype not found in enclosing env: %a" Path.print path
     in
 
     let rec extract_signature env modtype =
       match modtype with
       | None -> None
-      | Some (Mty_signature sg) -> Some sg
-      | Some (Mty_ident path) ->
-        let modtype = extract_modtype env path in
-        extract_signature env modtype
-      | _ ->
-        (* CR selee: Cover more cases *)
-        None
+      | Some modtype ->
+        begin match modtype with
+          | Mty_signature sg -> Some sg
+          | Mty_ident path ->
+              let modtype = extract_modtype env From_modtype path in
+              extract_signature env modtype
+          | Mty_alias path ->
+              let modtype = extract_modtype env From_module path in
+              extract_signature env modtype
+          | Mty_functor _ | Mty_strengthen _ ->
+            (* CR selee: Cover more cases *)
+             None
+        end
     in
 
     let same_path_after_subst p1 p2 =
