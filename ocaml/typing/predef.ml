@@ -418,16 +418,25 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_string))
        ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type ident_unboxed_float
-       ~jkind:(Jkind.Builtin.float64 ~why:(Primitive ident_unboxed_float))
+       ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float) Jkind.Const.Builtin.float64.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.float64
   |> add_type ident_unboxed_nativeint
-       ~jkind:(Jkind.add_mode_crossing (Jkind.Builtin.word ~why:(Primitive ident_unboxed_nativeint)))
+       ~jkind:
+         (Jkind.add_mode_crossing
+           (Jkind.of_const ~why:(Primitive ident_unboxed_nativeint)
+               Jkind.Const.Builtin.word.jkind))
        ~jkind_annotation:Jkind.Const.Builtin.word
   |> add_type ident_unboxed_int32
-       ~jkind:(Jkind.add_mode_crossing (Jkind.Builtin.bits32 ~why:(Primitive ident_unboxed_int32)))
+       ~jkind:
+         (Jkind.add_mode_crossing
+           (Jkind.of_const ~why:(Primitive ident_unboxed_int32)
+               Jkind.Const.Builtin.bits32.jkind))
        ~jkind_annotation:Jkind.Const.Builtin.bits32
   |> add_type ident_unboxed_int64
-       ~jkind:(Jkind.add_mode_crossing (Jkind.Builtin.bits64 ~why:(Primitive ident_unboxed_int64)))
+       ~jkind:
+         (Jkind.add_mode_crossing
+           (Jkind.of_const ~why:(Primitive ident_unboxed_int64)
+               Jkind.Const.Builtin.bits64.jkind))
        ~jkind_annotation:Jkind.Const.Builtin.bits64
   |> add_type ident_bytes
   |> add_type ident_unit
@@ -473,7 +482,8 @@ let add_small_number_extension_types add_type env =
   env
   |> add_type ident_float32
   |> add_type ident_unboxed_float32
-       ~jkind:(Jkind.Builtin.float32 ~why:(Primitive ident_unboxed_float32))
+       ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float32)
+          Jkind.Const.Builtin.float32.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.float32
 
 let or_null_kind tvar =

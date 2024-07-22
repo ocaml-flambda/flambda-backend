@@ -945,16 +945,6 @@ module Jkind_desc = struct
     let immediate64 = of_const Const.Builtin.immediate64.jkind
 
     let immediate = of_const Const.Builtin.immediate.jkind
-
-    let float64 = of_const Const.Builtin.float64.jkind
-
-    let float32 = of_const Const.Builtin.float32.jkind
-
-    let word = of_const Const.Builtin.word.jkind
-
-    let bits32 = of_const Const.Builtin.bits32.jkind
-
-    let bits64 = of_const Const.Builtin.bits64.jkind
   end
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
@@ -1023,8 +1013,7 @@ module Builtin = struct
     | _ -> fresh_jkind Jkind_desc.Builtin.any ~why:(Any_creation why)
 
   let any_non_null ~why =
-    fresh_jkind Jkind_desc.Builtin.any_non_null
-      ~why:(Any_non_null_creation why)
+    fresh_jkind Jkind_desc.Builtin.any_non_null ~why:(Any_non_null_creation why)
 
   let value_v1_safety_check =
     { jkind = Jkind_desc.Builtin.value_or_null;
@@ -1053,20 +1042,6 @@ module Builtin = struct
 
   let immediate ~why =
     fresh_jkind Jkind_desc.Builtin.immediate ~why:(Immediate_creation why)
-
-  let float64 ~why =
-    fresh_jkind Jkind_desc.Builtin.float64 ~why:(Float64_creation why)
-
-  let float32 ~why =
-    fresh_jkind Jkind_desc.Builtin.float32 ~why:(Float32_creation why)
-
-  let word ~why = fresh_jkind Jkind_desc.Builtin.word ~why:(Word_creation why)
-
-  let bits32 ~why =
-    fresh_jkind Jkind_desc.Builtin.bits32 ~why:(Bits32_creation why)
-
-  let bits64 ~why =
-    fresh_jkind Jkind_desc.Builtin.bits64 ~why:(Bits64_creation why)
 end
 
 let add_mode_crossing t =
@@ -1523,36 +1498,6 @@ module Format_history = struct
         "unknown @[(please alert the Jane Street@;\
          compilers team with this message: %s)@]" s
 
-  let format_immutable_data_creation_reason ppf :
-      History.immutable_data_creation_reason -> _ = function
-    | Primitive id ->
-      fprintf ppf "it is the primitive immutable_data type %s" (Ident.name id)
-
-  let format_float64_creation_reason ppf : History.float64_creation_reason -> _
-      = function
-    | Primitive id ->
-      fprintf ppf "it is the primitive float64 type %s" (Ident.name id)
-
-  let format_float32_creation_reason ppf : History.float32_creation_reason -> _
-      = function
-    | Primitive id ->
-      fprintf ppf "it is the primitive float32 type %s" (Ident.name id)
-
-  let format_word_creation_reason ppf : History.word_creation_reason -> _ =
-    function
-    | Primitive id ->
-      fprintf ppf "it is the primitive word type %s" (Ident.name id)
-
-  let format_bits32_creation_reason ppf : History.bits32_creation_reason -> _ =
-    function
-    | Primitive id ->
-      fprintf ppf "it is the primitive bits32 type %s" (Ident.name id)
-
-  let format_bits64_creation_reason ppf : History.bits64_creation_reason -> _ =
-    function
-    | Primitive id ->
-      fprintf ppf "it is the primitive bits64 type %s" (Ident.name id)
-
   let format_creation_reason ppf ~layout_or_kind :
       History.creation_reason -> unit = function
     | Annotated (ctx, _) ->
@@ -1570,16 +1515,10 @@ module Format_history = struct
       format_value_or_null_creation_reason ppf value
     | Value_creation value ->
       format_value_creation_reason ppf ~layout_or_kind value
-    | Immutable_data_creation float ->
-      format_immutable_data_creation_reason ppf float
-    | Float64_creation float -> format_float64_creation_reason ppf float
-    | Float32_creation float -> format_float32_creation_reason ppf float
-    | Word_creation word -> format_word_creation_reason ppf word
-    | Bits32_creation bits32 -> format_bits32_creation_reason ppf bits32
-    | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
     | Concrete_creation concrete -> format_concrete_creation_reason ppf concrete
     | Concrete_legacy_creation concrete ->
       format_concrete_legacy_creation_reason ppf concrete
+    | Primitive id -> fprintf ppf "it is the primitive type %s" (Ident.name id)
     | Imported ->
       fprintf ppf "of %s requirements from an imported definition"
         layout_or_kind
@@ -1974,29 +1913,6 @@ module Debug_printers = struct
     | Recmod_fun_arg -> fprintf ppf "Recmod_fun_arg"
     | Unknown s -> fprintf ppf "Unknown %s" s
 
-  let immutable_data_creation_reason ppf :
-      History.immutable_data_creation_reason -> _ = function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-
-  let float64_creation_reason ppf : History.float64_creation_reason -> _ =
-    function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-
-  let float32_creation_reason ppf : History.float32_creation_reason -> _ =
-    function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-
-  let word_creation_reason ppf : History.word_creation_reason -> _ = function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-
-  let bits32_creation_reason ppf : History.bits32_creation_reason -> _ =
-    function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-
-  let bits64_creation_reason ppf : History.bits64_creation_reason -> _ =
-    function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-
   let creation_reason ppf : History.creation_reason -> unit = function
     | Annotated (ctx, loc) ->
       fprintf ppf "Annotated (%a,%a)" annotation_context ctx Location.print_loc
@@ -2016,24 +1932,13 @@ module Debug_printers = struct
     | Value_creation value ->
       fprintf ppf "Value_creation %a" value_creation_reason value
     | Void_creation _ -> .
-    | Immutable_data_creation immutable_data ->
-      fprintf ppf "Immutable_data_creation %a" immutable_data_creation_reason
-        immutable_data
-    | Float64_creation float ->
-      fprintf ppf "Float64_creation %a" float64_creation_reason float
-    | Float32_creation float ->
-      fprintf ppf "Float32_creation %a" float32_creation_reason float
-    | Word_creation word ->
-      fprintf ppf "Word_creation %a" word_creation_reason word
-    | Bits32_creation bits32 ->
-      fprintf ppf "Bits32_creation %a" bits32_creation_reason bits32
-    | Bits64_creation bits64 ->
-      fprintf ppf "Bits64_creation %a" bits64_creation_reason bits64
     | Concrete_creation concrete ->
       fprintf ppf "Concrete_creation %a" concrete_creation_reason concrete
     | Concrete_legacy_creation concrete ->
       fprintf ppf "Concrete_legacy_creation %a" concrete_legacy_creation_reason
         concrete
+    | Primitive id ->
+      fprintf ppf "Primitive %s" (Ident.name id)
     | Imported -> fprintf ppf "Imported"
     | Imported_type_argument { parent_path; position; arity } ->
       fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position

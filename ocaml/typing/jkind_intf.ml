@@ -259,18 +259,6 @@ module History = struct
 
   type any_non_null_creation_reason = Array_type_argument
 
-  type immutable_data_creation_reason = Primitive of Ident.t
-
-  type float64_creation_reason = Primitive of Ident.t
-
-  type float32_creation_reason = Primitive of Ident.t
-
-  type word_creation_reason = Primitive of Ident.t
-
-  type bits32_creation_reason = Primitive of Ident.t
-
-  type bits64_creation_reason = Primitive of Ident.t
-
   type creation_reason =
     | Annotated of annotation_context * Location.t
     | Missing_cmi of Path.t
@@ -281,14 +269,9 @@ module History = struct
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
     | Any_non_null_creation of any_non_null_creation_reason
-    | Immutable_data_creation of immutable_data_creation_reason
-    | Float64_creation of float64_creation_reason
-    | Float32_creation of float32_creation_reason
-    | Word_creation of word_creation_reason
-    | Bits32_creation of bits32_creation_reason
-    | Bits64_creation of bits64_creation_reason
     | Concrete_creation of concrete_creation_reason
     | Concrete_legacy_creation of concrete_legacy_creation_reason
+    | Primitive of Ident.t
     | Imported
     | Imported_type_argument of
         { parent_path : Path.t;

@@ -238,37 +238,12 @@ module Builtin : sig
   (** This is the jkind of normal ocaml values *)
   val value : why:History.value_creation_reason -> t
 
-  (* CR layouts v2.8: remove this in PR #2676 *)
-
-  (** This is the jkind of normal immutable ocaml values *)
-  val immutable_data : why:History.immutable_data_creation_reason -> t
-
   (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)
   val immediate64 : why:History.immediate64_creation_reason -> t
 
   (** We know for sure that values of types of this jkind are always immediate *)
   val immediate : why:History.immediate_creation_reason -> t
-
-  (** This is the jkind of unboxed 64-bit floats.  They have sort
-    Float64. Mode-crosses. *)
-  val float64 : why:History.float64_creation_reason -> t
-
-  (** This is the jkind of unboxed 32-bit floats.  They have sort
-    Float32. Mode-crosses. *)
-  val float32 : why:History.float32_creation_reason -> t
-
-  (** This is the jkind of unboxed native-sized integers. They have sort
-    Word. Does not mode-cross. *)
-  val word : why:History.word_creation_reason -> t
-
-  (** This is the jkind of unboxed 32-bit integers. They have sort Bits32. Does
-    not mode-cross. *)
-  val bits32 : why:History.bits32_creation_reason -> t
-
-  (** This is the jkind of unboxed 64-bit integers. They have sort Bits64. Does
-    not mode-cross. *)
-  val bits64 : why:History.bits64_creation_reason -> t
 end
 
 (** Take an existing [t] and add an ability to mode-cross along all the axes. *)
