@@ -1812,13 +1812,14 @@ end
 module Primitive = struct
   include Type.Primitive
 
-  let top ~(why : Type.History.top_creation_reason) = match why with
-  | Missing_cmi p -> any ~why:(Missing_cmi p)
-  | Initial_typedecl_env -> any ~why:Initial_typedecl_env
-  | Dummy_jkind -> any ~why:Dummy_jkind
-  | Type_expression_call -> any ~why:Type_expression_call
-  | Wildcard -> any ~why:Wildcard
-  | Unification_var -> any ~why:Unification_var
+  let top ~(why : Type.History.top_creation_reason) =
+    match why with
+    | Missing_cmi p -> any ~why:(Missing_cmi p)
+    | Initial_typedecl_env -> any ~why:Initial_typedecl_env
+    | Dummy_jkind -> any ~why:Dummy_jkind
+    | Type_expression_call -> any ~why:Type_expression_call
+    | Wildcard -> any ~why:Wildcard
+    | Unification_var -> any ~why:Unification_var
 end
 
 let to_const _ = None
