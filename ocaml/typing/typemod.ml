@@ -2927,6 +2927,71 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         Misc.fatal_error "kind_abbrev not supported!"
   in
 
+  (* CR selee: We might be able to use [FieldMap] as in [Includemod.pair_components]
+     to make the lookups below faster. *)
+
+  let add_expected_type_to_subst expected_sig idents subst =
+    match expected_sig with
+      | None -> subst
+      | Some expected_sig ->
+          let add_to_subst subst id =
+            let get_ident = function
+              | Sig_type (sig_ident, _, _, _)
+                  when Ident.name sig_ident = Ident.name id -> Some sig_ident
+              | _ -> None
+            in
+            match List.find_map get_ident expected_sig with
+            | None -> subst
+            | Some sig_ident ->
+                Subst.add_type sig_ident (Pident id) subst
+          in
+        List.fold_left add_to_subst subst idents
+  in
+
+  let add_expected_module_to_subst expected_sig ident subst =
+    match expected_sig with
+    | None -> subst
+    | Some expected_sig ->
+      begin match ident with
+        | None -> subst
+        | Some ident ->
+            let get_ident = function
+              | Sig_module (sig_ident, _, _, _, _)
+                  when Ident.name sig_ident = Ident.name ident -> Some sig_ident
+              | _ -> None
+            in
+            begin match List.find_map get_ident expected_sig with
+              | None -> subst
+              | Some sig_ident ->
+                  Subst.add_module sig_ident (Pident ident) subst
+            end
+      end
+  in
+
+  let add_expected_rec_modules_to_subst expected_sig idents subst =
+    List.fold_left
+      (fun acc ident ->
+        add_expected_module_to_subst expected_sig ident acc) subst idents
+  in
+
+  let add_expected_modtype_to_subst expected_sig ident subst =
+    (* CR selee: we are currently duplicating some work because we need the expected
+       modtype decl again in the [Pstr_modtype] branch. *)
+    match expected_sig with
+    | None -> subst
+    | Some expected_sig ->
+        let get_ident = function
+          | Sig_modtype (sig_ident, _, _)
+              when Ident.name sig_ident = Ident.name ident -> Some sig_ident
+          | _ -> None
+        in
+        begin match List.find_map get_ident expected_sig with
+          | None -> subst
+          | Some sig_ident ->
+              Subst.add_modtype sig_ident (Mty_ident (Pident ident)) subst
+        end
+  in
+
   let type_str_item
         env subst shape_map ({pstr_loc = loc; pstr_desc = desc} as item) sig_acc =
     (* [subst] is a running [Subst] object. For every type, module and module type we
@@ -3038,27 +3103,14 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           decls
           shapes
         in
-        let newsubst = match expected_sig with
-          | None -> subst
-          | Some expected_sig ->
-              let add_to_subst subst { typ_id; typ_name; _ } =
-                let get_ident = function
-                  | Sig_type (ident, _, _, _)
-                      when Ident.name ident = typ_name.txt -> Some ident
-                  | _ -> None
-                in
-                match List.find_map get_ident expected_sig with
-                | None -> subst
-                | Some sig_ident ->
-                    Subst.add_type sig_ident (Pident typ_id) subst
-              in
-              List.fold_left add_to_subst subst decls
+        let idents =
+          List.map (fun { typ_id; _ } -> typ_id) decls
         in
         Tstr_type (rec_flag, decls),
         items,
         shape_map,
         enrich_type_decls anchor decls env newenv,
-        newsubst
+        add_expected_type_to_subst expected_sig idents subst
     | Pstr_typext styext ->
         let (tyext, newenv, shapes) =
           Typedecl.transl_type_extension true env loc styext
@@ -3119,37 +3171,25 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         let md_shape = Shape.set_uid_if_none md_shape md_uid in
         (*prerr_endline (Ident.unique_toplevel_name id);*)
         Mtype.lower_nongen outer_scope md.md_type;
-        let id, newenv, sg, ident_in_expected =
+        let id, newenv, sg =
           match name.txt with
-          | None -> None, env, [], None
+          | None -> None, env, []
           | Some name ->
             let id, e = Env.enter_module_declaration
               ~scope ~shape:md_shape name pres md env
             in
             Signature_names.check_module names pmb_loc id;
-            let get_ident sg = begin match sg with
-              | Sig_module (ident, _, _, _, _)
-                  when Ident.name ident = name -> Some ident
-              | _ -> None
-            end in
             Some id, e,
             [Sig_module(id, pres,
                         {md_type = modl.mod_type;
                          md_attributes = attrs;
                          md_loc = pmb_loc;
                          md_uid;
-                        }, Trec_not, Exported)],
-            Option.join (Option.map (List.find_map get_ident) expected_sig)
+                        }, Trec_not, Exported)]
         in
-        let shape_map, newsubst = match id with
-          | Some id ->
-              let shape_map = Shape.Map.add_module shape_map id md_shape in
-              let newsubst = match ident_in_expected with
-                | None -> subst
-                | Some sig_id -> Subst.add_module sig_id (Pident id) subst
-              in
-              shape_map, newsubst
-          | None -> shape_map, subst
+        let shape_map = match id with
+          | Some id -> Shape.Map.add_module shape_map id md_shape
+          | None -> shape_map
         in
         Tstr_module {mb_id=id; mb_name=name; mb_uid = md.md_uid;
                      mb_expr=modl; mb_presence=pres; mb_attributes=attrs;
@@ -3157,7 +3197,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         sg,
         shape_map,
         newenv,
-        newsubst
+        add_expected_module_to_subst expected_sig id subst
     | Pstr_recmodule sbind ->
         let sbind =
           List.map
@@ -3231,25 +3271,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             Shape.Map.add_module map id shape
           ) shape_map mbs
         in
-        let newsubst = match expected_sig with
-          | None -> subst
-          | Some expected_sig ->
-              let add_to_subst subst ({ mb_id; mb_name; }, _, _) =
-                match mb_id with
-                | None -> subst
-                | Some md_id ->
-                    let get_ident sig_item = match sig_item, mb_name.txt with
-                      | Sig_module (ident, _, _, _, _), Some md_name
-                          when Ident.name ident = md_name -> Some ident
-                      | _ -> None
-                    in
-                    begin match List.find_map get_ident expected_sig with
-                      | None -> subst
-                      | Some sig_ident ->
-                          Subst.add_module sig_ident (Pident md_id) subst
-                      end
-              in
-              List.fold_left add_to_subst subst bindings2
+        let idents =
+          List.map (fun (id, _, _, _) -> Some id) mbs
         in
         Tstr_recmodule (List.map (fun (mb, _, _) -> mb) bindings2),
         map_rec (fun rs (id, mb, uid, _shape) ->
@@ -3262,34 +3285,29 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
            mbs [],
         shape_map,
         newenv,
-        newsubst
+        add_expected_rec_modules_to_subst expected_sig idents subst
     | Pstr_modtype pmtd ->
-        let context, ident_in_expected =
+        let context =
           let get_modtype_decl = function
             | Sig_modtype (ident, decl, _)
                 when Ident.name ident = pmtd.pmtd_name.txt ->
-                  Some (Subst.modtype_declaration Keep subst decl, ident)
+                  Some (Subst.modtype_declaration Keep subst decl)
             | _ -> None
           in
           match expected_sig with
-          | None -> In_structure None, None
-          | Some sg ->
-            begin match List.find_map get_modtype_decl sg with
-              | Some (decl, ident) -> In_structure (Some decl), Some ident
-              | None -> In_structure None, None
-            end
+          | None -> In_structure None
+          | Some sg -> In_structure (List.find_map get_modtype_decl sg)
         in
         (* check that it is non-abstract *)
         let newenv, mtd, decl = transl_modtype_decl env pmtd ~context in
         Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
         let id = mtd.mtd_id in
         let map = Shape.Map.add_module_type shape_map id decl.mtd_uid in
-        let newsubst = match ident_in_expected with
-          | None -> subst
-          | Some sig_id ->
-            Subst.add_modtype sig_id (Mty_ident (Pident id)) subst
-        in
-        Tstr_modtype mtd, [Sig_modtype (id, decl, Exported)], map, newenv, newsubst
+        Tstr_modtype mtd,
+        [Sig_modtype (id, decl, Exported)],
+        map,
+        newenv,
+        add_expected_modtype_to_subst expected_sig id subst
     | Pstr_open sod ->
         let toplevel = Option.is_some toplevel in
         let (od, sg, newenv) =
