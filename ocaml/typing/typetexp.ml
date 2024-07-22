@@ -768,7 +768,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
     in
     let constr =
-      newapp ty (List.map (fun ctyp -> ctyp.ctyp_type) args) in
+      newapp ty.ctyp_type (List.map (fun ctyp -> ctyp.ctyp_type) args) in
     ctyp (Ttyp_app (ty, args)) constr
   | Ptyp_object (fields, o) ->
       let ty, fields = transl_fields env ~policy ~row_context o fields in

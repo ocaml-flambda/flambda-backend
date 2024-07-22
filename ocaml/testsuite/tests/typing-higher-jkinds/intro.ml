@@ -6,5 +6,4 @@
 *)
 
 
-type t : value => value
-type p = int t
+type ('a : value => value) t = int 'a
