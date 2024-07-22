@@ -53,6 +53,21 @@ module Sort = struct
       | Bits64 -> "bits64"
 
     let format ppf const = Format.fprintf ppf "%s" (to_string const)
+
+    module Debug_printers = struct
+      open Format
+
+      let t ppf c =
+        fprintf ppf
+          (match c with
+          | Void -> "Void"
+          | Value -> "Value"
+          | Float64 -> "Float64"
+          | Float32 -> "Float32"
+          | Word -> "Word"
+          | Bits32 -> "Bits32"
+          | Bits64 -> "Bits64")
+    end
   end
 
   module Var = struct
@@ -259,16 +274,7 @@ module Sort = struct
 
     let rec t ppf = function
       | Var v -> fprintf ppf "Var %a" var v
-      | Const c ->
-        fprintf ppf
-          (match c with
-          | Void -> "Void"
-          | Value -> "Value"
-          | Float64 -> "Float64"
-          | Float32 -> "Float32"
-          | Word -> "Word"
-          | Bits32 -> "Bits32"
-          | Bits64 -> "Bits64")
+      | Const c -> Const.Debug_printers.t ppf c
 
     and opt_t ppf = function
       | Some s -> fprintf ppf "Some %a" t s

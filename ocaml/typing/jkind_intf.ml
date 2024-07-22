@@ -39,6 +39,10 @@ module type Sort = sig
     val equal : t -> t -> bool
 
     val format : Format.formatter -> t -> unit
+
+    module Debug_printers : sig
+      val t : Format.formatter -> t -> unit
+    end
   end
 
   module Var : sig

@@ -64,6 +64,14 @@ module Layout = struct
       | Sort Word -> "word"
       | Sort Bits32 -> "bits32"
       | Sort Bits64 -> "bits64"
+
+    module Debug_printers = struct
+      open Format
+
+      let t ppf = function
+        | Any -> fprintf ppf "Any"
+        | Sort s -> fprintf ppf "Sort %a" Sort.Const.Debug_printers.t s
+    end
   end
 
   type t = Sort.t layout
@@ -324,15 +332,13 @@ module Const = struct
 
     let value_or_null =
       { jkind =
-          of_layout (Sort Value) ~mode_crossing:false
-            ~nullability:Maybe_null;
+          of_layout (Sort Value) ~mode_crossing:false ~nullability:Maybe_null;
         name = "value_or_null"
       }
 
     let value =
       { jkind =
-          of_layout (Sort Value) ~mode_crossing:false
-            ~nullability:Non_null;
+          of_layout (Sort Value) ~mode_crossing:false ~nullability:Non_null;
         name = "value"
       }
 
@@ -354,14 +360,12 @@ module Const = struct
 
     (* CR layouts v3: change to [or_null] when separability is implemented. *)
     let void =
-      { jkind =
-          of_layout (Sort Void) ~mode_crossing:false ~nullability:Non_null;
+      { jkind = of_layout (Sort Void) ~mode_crossing:false ~nullability:Non_null;
         name = "void"
       }
 
     let immediate =
-      { jkind =
-          of_layout (Sort Value) ~mode_crossing:true ~nullability:Non_null;
+      { jkind = of_layout (Sort Value) ~mode_crossing:true ~nullability:Non_null;
         name = "immediate"
       }
 
@@ -405,8 +409,7 @@ module Const = struct
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float64 =
       { jkind =
-          of_layout (Sort Float64) ~mode_crossing:true
-            ~nullability:Non_null;
+          of_layout (Sort Float64) ~mode_crossing:true ~nullability:Non_null;
         name = "float64"
       }
 
@@ -415,31 +418,27 @@ module Const = struct
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let float32 =
       { jkind =
-          of_layout (Sort Float32) ~mode_crossing:true
-            ~nullability:Non_null;
+          of_layout (Sort Float32) ~mode_crossing:true ~nullability:Non_null;
         name = "float32"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let word =
-      { jkind =
-          of_layout (Sort Word) ~mode_crossing:false ~nullability:Non_null;
+      { jkind = of_layout (Sort Word) ~mode_crossing:false ~nullability:Non_null;
         name = "word"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits32 =
       { jkind =
-          of_layout (Sort Bits32) ~mode_crossing:false
-            ~nullability:Non_null;
+          of_layout (Sort Bits32) ~mode_crossing:false ~nullability:Non_null;
         name = "bits32"
       }
 
     (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
     let bits64 =
       { jkind =
-          of_layout (Sort Bits64) ~mode_crossing:false
-            ~nullability:Non_null;
+          of_layout (Sort Bits64) ~mode_crossing:false ~nullability:Non_null;
         name = "bits64"
       }
 
@@ -1894,6 +1893,19 @@ module Debug_printers = struct
   let t ppf ({ jkind; history = h; has_warned = _ } : t) : unit =
     fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
       Jkind_desc.Debug_printers.t jkind history h
+
+  module Const = struct
+    let t ppf (jkind : Const.t) =
+      fprintf ppf
+        "@[{ layout = <v 2>%a@,\
+         ; modes_upper_bounds = <v 2>%a@,\
+         ; externality_upper_bound = <v 2>%a@,\
+         ; nullability_upper_bound = <v 2>%a@,\
+         }@]"
+        Layout.Const.Debug_printers.t jkind.layout Modes.print
+        jkind.modes_upper_bounds Externality.print jkind.externality_upper_bound
+        Nullability.print jkind.nullability_upper_bound
+  end
 end
 
 (*** formatting user errors ***)
