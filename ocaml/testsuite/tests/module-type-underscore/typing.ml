@@ -874,20 +874,3 @@ Error: Signature mismatch:
        Lines 2-4, characters 2-5:
          Definition of module type B/1
 |}]
-
-(*
-module M : sig
-  module type S = sig type 'a t end -> sig type 'a t end
-
-  module F : S =
-end = struct
-
-  module type S = sig type t = int end -> sig type 'a t end
-
-end
-
-[%%expect {||}]
-*)
-
-[%%expect{|
-|}]
