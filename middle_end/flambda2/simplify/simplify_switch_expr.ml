@@ -571,6 +571,9 @@ let simplify_arm ~typing_env_at_use ~scrutinee_ty arm action (arms, dacc) =
       |> Flambda_arity.create_singletons
     in
     let action = Apply_cont.update_args action ~args in
+    let dbg = AC.debuginfo action in
+    let dbg = DE.add_inlined_debuginfo (DA.denv dacc) dbg in
+    let action = AC.with_debuginfo action ~dbg in
     let dacc =
       DA.map_flow_acc dacc
         ~f:
