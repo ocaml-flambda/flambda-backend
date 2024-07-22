@@ -1253,6 +1253,22 @@ let for_boxed_variant ~all_voids =
   then Primitive.immediate ~why:Enumeration
   else Primitive.value ~why:Boxed_variant
 
+let for_arrow (_arg_type : Types.type_expr) (_ret_type : Types.type_expr) =
+  (* Until [with] syntax is supported, ignore argument and return types *)
+  fresh_jkind
+    { layout = Sort (Const Value);
+      modes_upper_bounds =
+        { linearity = Linearity.Const.max;
+          areality = Locality.Const.max;
+          uniqueness = Uniqueness.Const.min;
+          portability = Portability.Const.max;
+          contention = Contention.Const.min
+        };
+      externality_upper_bound = Externality.max;
+      nullability_upper_bound = Non_null
+    }
+    ~why:(Value_creation Arrow)
+
 (******************************)
 (* elimination and defaulting *)
 
