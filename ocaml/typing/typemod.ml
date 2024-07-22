@@ -3443,7 +3443,6 @@ let type_toplevel_phrase env sig_acc s =
   Env.reset_probes ();
   Typecore.reset_allocations ();
   let (str, sg, to_remove_from_sg, shape, env) =
-    (* CR selee: We will support file-level inference in a later PR. *)
     type_structure ~toplevel:(Some sig_acc) ~expected_sig:None false None env s in
   remove_mode_and_jkind_variables env sg;
   remove_mode_and_jkind_variables_for_toplevel str;
