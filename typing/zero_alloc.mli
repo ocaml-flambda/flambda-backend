@@ -53,3 +53,5 @@ val print_error : Format.formatter -> error -> unit
    zero_alloc check t2. It returns [Ok ()] if so, and [Error e] if not.  If [t1]
    is a variable, it may be set to make the relation hold. *)
 val sub : t -> t -> (unit, error) Result.t
+
+val debug_printer : Format.formatter -> t -> unit
