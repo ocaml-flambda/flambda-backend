@@ -2869,6 +2869,19 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
     let smodl = sincl.pincl_mod in
     let modl, modl_shape =
       Builtin_attributes.warning_scope sincl.pincl_attributes
+        (* CR selee: We also want to support inferrence in the case the module type
+           is nested within a module; i.e.
+
+           module M : sig
+             module N : sig
+               module type S = sig ... end
+             end
+           end = struct
+            module N = struct
+              module type S = _
+            end
+          end
+        *)
         (fun () -> type_module ~expected_modtype:None true funct_body None env smodl)
     in
     let scope = Ctype.create_scope () in
