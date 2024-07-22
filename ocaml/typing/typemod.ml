@@ -2858,55 +2858,6 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
 and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
   let names = Signature_names.create () in
 
-  let type_str_include ~functor_ ~loc env subst shape_map sincl sig_acc =
-    let smodl = sincl.pincl_mod in
-    let modl, modl_shape =
-      Builtin_attributes.warning_scope sincl.pincl_attributes
-        (fun () -> type_module ~expected_modtype:None true funct_body None env smodl)
-    in
-    let scope = Ctype.create_scope () in
-    let incl_kind, sg =
-      if functor_ then
-        let sg, incl_kind =
-          extract_sig_functor_open funct_body env smodl.pmod_loc
-            modl.mod_type sig_acc
-        in
-        incl_kind, sg
-      else
-        Tincl_structure, extract_sig_open env smodl.pmod_loc modl.mod_type
-    in
-    (* Rename all identifiers bound by this signature to avoid clashes *)
-    let sg, shape, new_env =
-      Env.enter_signature_and_shape ~scope ~parent_shape:shape_map
-        modl_shape sg env
-    in
-    Signature_group.iter (Signature_names.check_sig_item names loc) sg;
-    let incl =
-      { incl_mod = modl;
-        incl_type = sg;
-        incl_kind;
-        incl_attributes = sincl.pincl_attributes;
-        incl_loc = sincl.pincl_loc;
-      }
-    in
-    (* CR selee: Properly update [subst] for things that have been included *)
-    Tstr_include incl, sg, shape, new_env, subst
-  in
-
-  let type_str_include_functor ~loc env subst shape_map ifincl sig_acc =
-    match (ifincl : Jane_syntax.Include_functor.structure_item) with
-    | Ifstr_include_functor incl ->
-        type_str_include ~functor_:true ~loc env subst shape_map incl sig_acc
-  in
-
-  let type_str_item_jst ~loc env subst shape_map jitem sig_acc =
-    match (jitem : Jane_syntax.Structure_item.t) with
-    | Jstr_include_functor ifincl ->
-        type_str_include_functor ~loc env subst shape_map ifincl sig_acc
-    | Jstr_layout (Lstr_kind_abbrev _) ->
-        Misc.fatal_error "kind_abbrev not supported!"
-  in
-
   (* CR selee: We might be able to use [FieldMap] as in [Includemod.pair_components]
      to make the lookups below faster. *)
 
@@ -2970,6 +2921,59 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           | Some sig_ident ->
               Subst.add_modtype sig_ident (Mty_ident (Pident ident)) subst
         end
+  in
+
+  let type_str_include ~functor_ ~loc env subst shape_map sincl sig_acc =
+    let smodl = sincl.pincl_mod in
+    let modl, modl_shape =
+      Builtin_attributes.warning_scope sincl.pincl_attributes
+        (fun () -> type_module ~expected_modtype:None true funct_body None env smodl)
+    in
+    let scope = Ctype.create_scope () in
+    let incl_kind, sg =
+      if functor_ then
+        let sg, incl_kind =
+          extract_sig_functor_open funct_body env smodl.pmod_loc
+            modl.mod_type sig_acc
+          in
+          incl_kind, sg
+      else
+        Tincl_structure, extract_sig_open env smodl.pmod_loc modl.mod_type
+    in
+    (* Rename all identifiers bound by this signature to avoid clashes *)
+    let sg, shape, new_env =
+      Env.enter_signature_and_shape ~scope ~parent_shape:shape_map
+        modl_shape sg env
+    in
+    Signature_group.iter (Signature_names.check_sig_item names loc) sg;
+    let incl =
+      { incl_mod = modl;
+        incl_type = sg;
+        incl_kind;
+        incl_attributes = sincl.pincl_attributes;
+        incl_loc = sincl.pincl_loc;
+      }
+    in
+    (* CR selee: Properly update [subst] for things that have been included *)
+    Tstr_include incl,
+    sg,
+    shape,
+    new_env,
+    subst
+  in
+
+  let type_str_include_functor ~loc env subst shape_map ifincl sig_acc =
+    match (ifincl : Jane_syntax.Include_functor.structure_item) with
+    | Ifstr_include_functor incl ->
+        type_str_include ~functor_:true ~loc env subst shape_map incl sig_acc
+  in
+
+  let type_str_item_jst ~loc env subst shape_map jitem sig_acc =
+    match (jitem : Jane_syntax.Structure_item.t) with
+    | Jstr_include_functor ifincl ->
+        type_str_include_functor ~loc env subst shape_map ifincl sig_acc
+    | Jstr_layout (Lstr_kind_abbrev _) ->
+        Misc.fatal_error "kind_abbrev not supported!"
   in
 
   let type_str_item
