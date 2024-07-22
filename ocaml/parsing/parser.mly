@@ -1114,6 +1114,7 @@ The precedences must be listed from low to high.
 %right    OR BARBAR                     /* expr (e || e || e) */
 %right    AMPERSAND AMPERAMPER          /* expr (e && e && e) */
 %nonassoc below_EQUAL
+%left     EQUALGREATER                  /* jkind (k => k => k) */
 %left     INFIXOP0 EQUAL LESS GREATER   /* expr (e OP e OP e) */
 %right    ATAT AT INFIXOP1              /* expr (e OP e OP e) */
 %nonassoc below_LBRACKETAT
@@ -4739,6 +4740,7 @@ operator:
   | STAR           {"*"}
   | PERCENT        {"%"}
   | EQUAL          {"="}
+  | EQUALGREATER  {"=>"}
   | LESS           {"<"}
   | GREATER        {">"}
   | OR            {"or"}
