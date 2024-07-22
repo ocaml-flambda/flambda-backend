@@ -183,11 +183,13 @@ Line 2, characters 11-12:
 Error: This value escapes its region.
 |}]
 
-let string_duplicate : once_ _ -> string = fun x -> x
+type t_value
+let value_duplicate : once_ _ -> t_value = fun x -> x
 
 [%%expect{|
-Line 1, characters 52-53:
-1 | let string_duplicate : once_ _ -> string = fun x -> x
+type t_value
+Line 2, characters 52-53:
+2 | let value_duplicate : once_ _ -> t_value = fun x -> x
                                                         ^
 Error: This value is once but expected to be many.
 |}]
@@ -198,11 +200,11 @@ let int_duplicate : once_ _ -> int = fun x -> x
 val int_duplicate : once_ int -> int = <fun>
 |}]
 
-let string_list_duplicate : once_ _ -> string list = fun x -> x
+let value_list_duplicate : once_ _ -> t_value list = fun x -> x
 
 [%%expect{|
 Line 1, characters 62-63:
-1 | let string_list_duplicate : once_ _ -> string list = fun x -> x
+1 | let value_list_duplicate : once_ _ -> t_value list = fun x -> x
                                                                   ^
 Error: This value is once but expected to be many.
 |}]
