@@ -625,14 +625,18 @@ module Jkind = struct
       bind (Const.of_structure_item item) (fun c -> ret loc (Abbreviation c))
     | Some ("arrow", result :: args, loc) ->
       bind (of_structure_item result) (fun { txt = result } ->
-          let args = List.map of_structure_item args in
-          if List.for_all Option.is_some args
-          then
-            let args = List.map Option.get args in
-            let args = List.map (fun { txt } -> txt) args in
-            ret loc (Arrow (args, result))
-          else None)
+          bind (of_structure_item_list args) (fun args ->
+              let args = List.map (fun { txt } -> txt) args in
+              ret loc (Arrow (args, result))))
     | Some _ | None -> None
+
+  and of_structure_item_list items =
+    List.fold_right
+      Option.(
+        fun arg acc ->
+          bind acc (fun acc ->
+              Option.map (fun arg -> arg :: acc) (of_structure_item arg)))
+      items (Some [])
 end
 
 (** Jkind annotations' encoding as attribute payload, used in both n-ary
