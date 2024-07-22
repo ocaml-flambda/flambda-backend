@@ -415,8 +415,9 @@ let build_initial_env add_type add_extension empty_env =
        )
        ~jkind:(Jkind.Builtin.value ~why:Boxed_record)
   |> add_type ident_string
-       ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_string))
-       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
+       ~jkind:(Jkind.of_const ~why:(Primitive ident_string)
+                Jkind.Const.Builtin.immutable_data.jkind)
+       ~jkind_annotation:Jkind.Const.Builtin.word
   |> add_type ident_unboxed_float
        ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float) Jkind.Const.Builtin.float64.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.float64

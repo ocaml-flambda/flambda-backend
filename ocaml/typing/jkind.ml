@@ -910,40 +910,6 @@ module Jkind_desc = struct
 
     let void = of_const Const.Builtin.void.jkind
 
-    let immutable_data = of_const Const.Builtin.immutable_data.jkind
-
-    (* [immediate64] describes types that are stored directly (no indirection)
-       on 64-bit platforms but indirectly on 32-bit platforms. The key question:
-       along which modes should a [immediate64] cross? As of today, all of them,
-       but the reasoning for each is independent and somewhat subtle:
-
-       * Locality: This is fine, because we do not have stack-allocation on
-       32-bit platforms. Thus mode-crossing is sound at any type on 32-bit,
-       including immediate64 types.
-
-       * Linearity: This is fine, because linearity matters only for function
-       types, and an immediate64 cannot be a function type and cannot store
-       one either.
-
-       * Uniqueness: This is fine, because uniqueness matters only for
-       in-place update, and no record supporting in-place update is an
-       immediate64. ([@@unboxed] records do not support in-place update.)
-
-       * Portability: This is fine, because portability matters only for function
-       types, and an immediate64 cannot be a function type and cannot store
-       one either.
-
-       * Contention: This is fine, because contention matters only for
-       types with mutable fields, and an immediate64 does not have immutable
-       fields.
-
-       In practice, the functor that creates immediate64s,
-       [Stdlib.Sys.Immediate64.Make], will require these conditions on its
-       argument. But the arguments that we expect here will have no trouble
-       meeting the conditions.
-    *)
-    let immediate64 = of_const Const.Builtin.immediate64.jkind
-
     let immediate = of_const Const.Builtin.immediate.jkind
   end
 
@@ -1032,13 +998,6 @@ module Builtin = struct
 
   let value ~(why : History.value_creation_reason) =
     fresh_jkind Jkind_desc.Builtin.value ~why:(Value_creation why)
-
-  let immutable_data ~why =
-    fresh_jkind Jkind_desc.Builtin.immutable_data
-      ~why:(Immutable_data_creation why)
-
-  let immediate64 ~why =
-    fresh_jkind Jkind_desc.Builtin.immediate64 ~why:(Immediate64_creation why)
 
   let immediate ~why =
     fresh_jkind Jkind_desc.Builtin.immediate ~why:(Immediate_creation why)
