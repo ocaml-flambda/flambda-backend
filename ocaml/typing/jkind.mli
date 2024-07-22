@@ -345,7 +345,7 @@ end
 
 module Primitive : sig
   (** Top element of the jkind lattice, including higher jkinds *)
-  val top : why:Type.History.any_creation_reason -> t
+  val top : why:Type.History.top_creation_reason -> t
 end
 
 (******************************)

@@ -253,6 +253,14 @@ module History = struct
 
   type bits64_creation_reason = Primitive of Ident.t
 
+  type top_creation_reason =
+    | Missing_cmi of Path.t
+    | Initial_typedecl_env
+    | Dummy_jkind
+    | Type_expression_call
+    | Wildcard
+    | Unification_var
+
   type creation_reason =
     | Annotated of annotation_context * Location.t
     | Missing_cmi of Path.t
