@@ -469,6 +469,13 @@ CAMLprim value caml_ba_uint8_getf32(value vb, value vind)
 #endif
 }
 
+CAMLprim value caml_ba_uint8_getf32_indexed_by_int64(value array, value index)
+{
+  int64_t idx = Int64_val(index);
+  if (idx != Long_val(Val_long(idx))) caml_array_bound_error();
+  return caml_ba_uint8_getf32(array, Val_long(idx));
+}
+
 CAMLprim value caml_ba_uint8_setf32(value vb, value vind, value newval)
 {
 #ifdef ARCH_BIG_ENDIAN

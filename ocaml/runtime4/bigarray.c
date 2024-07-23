@@ -677,6 +677,13 @@ CAMLprim value caml_ba_uint8_get32(value vb, value vind)
   return caml_copy_int32(res);
 }
 
+CAMLprim value caml_ba_uint8_get32_indexed_by_int64(value array, value index)
+{
+  int64_t idx = Int64_val(index);
+  if (idx != Long_val(Val_long(idx))) caml_array_bound_error();
+  return caml_ba_uint8_get32(array, Val_long(idx));
+}
+
 CAMLprim value caml_ba_uint8_get64(value vb, value vind)
 {
   uint64_t res;
@@ -704,6 +711,13 @@ CAMLprim value caml_ba_uint8_get64(value vb, value vind)
         | (uint64_t) b2 << 8 | (uint64_t) b1;
 #endif
   return caml_copy_int64(res);
+}
+
+CAMLprim value caml_ba_uint8_get64_indexed_by_int64(value array, value index)
+{
+  int64_t idx = Int64_val(index);
+  if (idx != Long_val(Val_long(idx))) caml_array_bound_error();
+  return caml_ba_uint8_get64(array, Val_long(idx));
 }
 
 /* Generic write to a big array */

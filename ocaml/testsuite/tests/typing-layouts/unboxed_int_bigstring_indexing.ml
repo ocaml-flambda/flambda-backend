@@ -39,6 +39,36 @@ external caml_bigstring_get_16
   -> int
   = "%caml_bigstring_get16"
 
+external caml_bigstring_get_32
+  :  bigstring
+  -> int
+  -> int
+  = "%caml_bigstring_get32"
+
+external caml_bigstring_get_f32
+  :  bigstring
+  -> int
+  -> int
+  = "%caml_bigstring_getf32"
+
+external caml_bigstring_get_64
+  :  bigstring
+  -> int
+  -> int
+  = "%caml_bigstring_get64"
+
+external caml_bigstring_get_64
+  :  bigstring
+  -> int
+  -> int
+  = "%caml_bigstring_geta128"
+
+external caml_bigstring_get_64
+  :  bigstring
+  -> int
+  -> int
+  = "%caml_bigstring_getu128"
+
 module By_int64_u = struct
   module I = Stdlib_upstream_compatible.Int64_u
 
@@ -54,6 +84,66 @@ module By_int64_u = struct
       -> int64#
       -> int
       = "%caml_bigstring_get16u_indexed_by_int64#"
+
+    external get32
+      :  bigstring
+      -> int64#
+      -> int
+      = "%caml_bigstring_get32_indexed_by_int64#"
+
+    external get32u
+      :  bigstring
+      -> int64#
+      -> int
+      = "%caml_bigstring_get32u_indexed_by_int64#"
+
+    external getf32
+      :  bigstring
+      -> int64#
+      -> int
+      = "%caml_bigstring_getf32_indexed_by_int64#"
+
+    external getf32u
+      :  bigstring
+      -> int64#
+      -> int
+      = "%caml_bigstring_getf32u_indexed_by_int64#"
+
+    external get64
+      :  bigstring
+      -> int64#
+      -> int
+      = "%caml_bigstring_get64_indexed_by_int64#"
+
+    external get64u
+      :  bigstring
+      -> int64#
+      -> int
+      = "%caml_bigstring_get64u_indexed_by_int64#"
+
+    external geta128
+      :  bigstring
+      -> int64#
+      -> int
+      = "%caml_bigstring_geta128_indexed_by_int64#"
+
+    external geta128u
+      :  bigstring
+      -> int64#
+      -> int
+      = "%caml_bigstring_geta128u_indexed_by_int64#"
+
+    external getu128
+      :  bigstring
+      -> int64#
+      -> int
+      = "%caml_bigstring_getu128_indexed_by_int64#"
+
+    external getu128u
+      :  bigstring
+      -> int64#
+      -> int
+      = "%caml_bigstring_getu128u_indexed_by_int64#"
 
     let assert_bound_check_get f bs i =
       try
@@ -78,7 +168,14 @@ let create_bs () = reference_str |> bigstring_of_string
 
 let () =
   let bs = create_bs () in
+  (* -1 *)
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get16 bs (-#1L);
+  By_int64_u.A.assert_bound_check_get By_int64_u.A.get32 bs (-#1L);
+  By_int64_u.A.assert_bound_check_get By_int64_u.A.getf32 bs (-#1L);
+  By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs (-#1L);
+  (* By_int64_u.A.assert_bound_check_get By_int64_u.A.geta128 bs (-#1L); *)
+  (* By_int64_u.A.assert_bound_check_get By_int64_u.A.getu128 bs (-#1L); *)
+  (* Close to length *)
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get16 bs #300L;
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get16 bs #299L;
   (* This is

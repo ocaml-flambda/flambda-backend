@@ -1722,24 +1722,24 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbigstring_load_16 { unsafe; index_kind }, [[big_str]; [index]] ->
     [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Sixteen Bigstring
         ~boxed:false None big_str ~index_kind index ~current_region ]
-  | Pbigstring_load_32 { unsafe; mode; boxed }, [[big_str]; [index]] ->
-    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Thirty_two Bigstring
-        (Some mode) ~boxed big_str (* CR layouts: fix kind *)
-        ~index_kind:Ptagged_int_index index ~current_region ]
-  | Pbigstring_load_f32 { unsafe; mode; boxed }, [[big_str]; [index]] ->
-    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Single Bigstring
-        (Some mode) ~boxed big_str (* CR layouts: fix kind *)
-        ~index_kind:Ptagged_int_index index ~current_region ]
-  | Pbigstring_load_64 { unsafe; mode; boxed }, [[big_str]; [index]] ->
-    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Sixty_four Bigstring
-        (Some mode) ~boxed big_str (* CR layouts: fix kind *)
-        ~index_kind:Ptagged_int_index index ~current_region ]
-  | Pbigstring_load_128 { unsafe; aligned; mode; boxed }, [[big_str]; [index]]
+  | Pbigstring_load_32 { unsafe; index_kind; mode; boxed }, [[big_str]; [index]]
     ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Thirty_two Bigstring
+        (Some mode) ~boxed big_str ~index_kind index ~current_region ]
+  | Pbigstring_load_f32 { unsafe; index_kind; mode; boxed }, [[big_str]; [index]]
+    ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Single Bigstring
+        (Some mode) ~boxed big_str ~index_kind index ~current_region ]
+  | Pbigstring_load_64 { unsafe; index_kind; mode; boxed }, [[big_str]; [index]]
+    ->
+    [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Sixty_four Bigstring
+        (Some mode) ~boxed big_str ~index_kind index ~current_region ]
+  | ( Pbigstring_load_128 { unsafe; aligned; index_kind; mode; boxed },
+      [[big_str]; [index]] ) ->
     [ string_like_load ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned })
-        Bigstring (Some mode) ~boxed big_str (* CR layouts: fix kind *)
-        ~index_kind:Ptagged_int_index index ~current_region ]
+        Bigstring (Some mode) ~boxed big_str ~index_kind index ~current_region
+    ]
   | Pbigstring_set_16 { unsafe }, [[bigstring]; [index]; [new_value]] ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixteen Bigstring
         ~boxed:false bigstring index new_value ]
