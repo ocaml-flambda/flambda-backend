@@ -214,29 +214,29 @@ Error: This function when partially applied returns a value which is nonportable
        but expected to be portable.
 |}]
 
-let foo : 'a @ uncontended portable -> (string -> string) @ portable = fun a b -> best_bytes ()
+let foo : 'a @ uncontended portable -> (unit -> bytes) @ portable = fun a b -> best_bytes ()
 [%%expect{|
-Line 1, characters 82-95:
-1 | let foo : 'a @ uncontended portable -> (string -> string) @ portable = fun a b -> best_bytes ()
-                                                                                      ^^^^^^^^^^^^^
-Error: This expression has type bytes but an expression was expected of type
-         string
+Line 1, characters 68-92:
+1 | let foo : 'a @ uncontended portable -> (unit -> bytes) @ portable = fun a b -> best_bytes ()
+                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function when partially applied returns a value which is nonportable,
+       but expected to be portable.
 |}]
 
-let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
+let foo : 'a @ contended portable -> (unit -> bytes) @ portable @@ nonportable contended = fun a b -> best_bytes ()
 [%%expect{|
-Line 1, characters 105-118:
-1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
-                                                                                                             ^^^^^^^^^^^^^
-Error: This expression has type bytes but an expression was expected of type
-         string
+Line 1, characters 91-115:
+1 | let foo : 'a @ contended portable -> (unit -> bytes) @ portable @@ nonportable contended = fun a b -> best_bytes ()
+                                                                                               ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This function when partially applied returns a value which is nonportable,
+       but expected to be portable.
 |}]
 
-let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
+let foo : 'a @ contended portable -> (unit -> bytes) @ portable @@ uncontended portable = fun a b -> best_bytes ()
 [%%expect{|
-Line 1, characters 104-114:
-1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
-                                                                                                            ^^^^^^^^^^
+Line 1, characters 101-111:
+1 | let foo : 'a @ contended portable -> (unit -> bytes) @ portable @@ uncontended portable = fun a b -> best_bytes ()
+                                                                                                         ^^^^^^^^^^
 Error: The value best_bytes is nonportable, so cannot be used inside a closure that is portable.
 |}]
 
