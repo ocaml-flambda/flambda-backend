@@ -621,91 +621,35 @@ let prim_has_valid_reprs ~loc prim =
       exactly [Same_as_ocaml_repr Bits64; Same_as_ocaml_repr Value]
 
     (* Bigstring primitives *)
-    | "%caml_bigstring_get32#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits32]
-    | "%caml_bigstring_getf32#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Float32]
+    | "%caml_bigstring_get32#"
     | "%caml_bigstring_get32u#" ->
       exactly [
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Bits32]
+    | "%caml_bigstring_getf32#"
     | "%caml_bigstring_getf32u#" ->
       exactly [
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Float32]
-    | "%caml_bigstring_get64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64]
+    | "%caml_bigstring_get64#"
     | "%caml_bigstring_get64u#" ->
       exactly [
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Bits64]
-    | "%caml_bigstring_get16_indexed_by_int64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_get16u_indexed_by_int64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_get32_indexed_by_int64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_get32u_indexed_by_int64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_getf32_indexed_by_int64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_getf32u_indexed_by_int64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_get64_indexed_by_int64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_get64u_indexed_by_int64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_geta128_indexed_by_int64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_geta128u_indexed_by_int64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_getu128_indexed_by_int64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
+    | "%caml_bigstring_get16_indexed_by_int64#"
+    | "%caml_bigstring_get16u_indexed_by_int64#"
+    | "%caml_bigstring_get32_indexed_by_int64#"
+    | "%caml_bigstring_get32u_indexed_by_int64#"
+    | "%caml_bigstring_getf32_indexed_by_int64#"
+    | "%caml_bigstring_getf32u_indexed_by_int64#"
+    | "%caml_bigstring_get64_indexed_by_int64#"
+    | "%caml_bigstring_get64u_indexed_by_int64#"
+    | "%caml_bigstring_geta128_indexed_by_int64#"
+    | "%caml_bigstring_geta128u_indexed_by_int64#"
+    | "%caml_bigstring_getu128_indexed_by_int64#"
     | "%caml_bigstring_getu128u_indexed_by_int64#" ->
       exactly [
         Same_as_ocaml_repr Value;
