@@ -3161,6 +3161,12 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         List.fold_left add_to_subst subst clty_ids
 
   and add_expected_include_to_subst sig_env env expected_sig actual_sig subst =
+    let sig_env = match expected_sig with
+      | None -> sig_env
+      | Some expected_sig -> Env.add_signature expected_sig sig_env
+    in
+    let env = Env.add_signature actual_sig env in
+
     let add_item subst = function
       | Sig_type (id, decl, _, _) ->
           add_expected_type_to_subst sig_env env expected_sig [id, decl] subst
