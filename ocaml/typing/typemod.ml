@@ -102,6 +102,7 @@ type error =
   | Submode_failed of Mode.Value.error
   | Underscore_not_allowed_in_signature
   | Cannot_infer_module_type
+  | Unbound_path_in_inferred_type of Path.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -2115,7 +2116,9 @@ and transl_modtype_decl_aux ~context env
       begin match context with
         | In_signature -> raise (Error (pmtd_loc, env, Underscore_not_allowed_in_signature))
         | In_structure None -> raise (Error (pmtd_loc, env, Cannot_infer_module_type))
-        | In_structure (Some mtd) -> Tmtd_underscore, mtd.Types.mtd_type
+        | In_structure (Some mtd) ->
+          check_no_unbound_paths env pmtd_loc mtd.Types.mtd_type;
+          Tmtd_underscore, mtd.Types.mtd_type
       end
   in
   let decl =
@@ -4414,6 +4417,9 @@ let report_error ~loc _env = function
   | Cannot_infer_module_type ->
     Location.errorf ~loc
       "Cannot infer module type without a corresponding definition."
+  | Unbound_path_in_inferred_type p ->
+      Location.errorf ~loc
+        "Unbound path %a@ in inferred module type." path p
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env
