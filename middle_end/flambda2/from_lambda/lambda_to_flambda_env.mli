@@ -50,6 +50,19 @@ val get_unboxed_product_fields :
   Ident.t ->
   ([`Complex] Flambda_arity.Component_for_creation.t * Ident.t list) option
 
+val get_unboxed_product_components_in_scope :
+  t ->
+  ([`Complex] Flambda_arity.Component_for_creation.t
+  * (Ident.t * Flambda_kind.With_subkind.t) array)
+  Ident.Map.t
+
+val with_unboxed_product_components_in_scope :
+  t ->
+  ([`Complex] Flambda_arity.Component_for_creation.t
+  * (Ident.t * Flambda_kind.With_subkind.t) array)
+  Ident.Map.t ->
+  t
+
 type add_continuation_result = private
   { body_env : t;
     handler_env : t;

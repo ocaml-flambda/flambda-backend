@@ -115,6 +115,13 @@ let register_unboxed_product t ~unboxed_product ~before_unarization ~fields =
 let unboxed_product_components_in_scope t =
   Ident.Map.keys t.unboxed_product_components_in_scope
 
+let get_unboxed_product_components_in_scope t =
+  t.unboxed_product_components_in_scope
+
+let with_unboxed_product_components_in_scope t
+    unboxed_product_components_in_scope =
+  { t with unboxed_product_components_in_scope }
+
 type add_continuation_result =
   { body_env : t;
     handler_env : t;

@@ -1607,10 +1607,23 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     | Some ids -> ids
     | None -> Lambda.free_variables body
   in
+  let free_idents_of_body =
+    Ident.Set.fold
+      (fun id acc ->
+        match Env.get_unboxed_product_fields env id with
+        | None -> Ident.Set.add id acc
+        | Some (_, fields) ->
+          List.fold_left (fun acc id -> Ident.Set.add id acc) acc fields)
+      free_idents_of_body Ident.Set.empty
+  in
   let my_region = Ident.create_local "my_region" in
   let new_env =
     Env.create ~current_unit:(Env.current_unit env)
       ~return_continuation:body_cont ~exn_continuation:body_exn_cont ~my_region
+  in
+  let new_env =
+    Env.with_unboxed_product_components_in_scope new_env
+      (Env.get_unboxed_product_components_in_scope env)
   in
   let exn_continuation : IR.exn_continuation =
     { exn_handler = body_exn_cont; extra_args = [] }
