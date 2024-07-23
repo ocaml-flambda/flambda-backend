@@ -379,9 +379,11 @@ let print ppf =
   |> output_columns
 
 let output_to_csv ppf_file =
+  let sanitise = String.map (fun c -> if c = ',' then '_' else c) in
+  let to_csv l = l |> List.map sanitise |> String.concat "," in
   output_rows
     ~output_row:(fun ~prefix ~cell_strings ~name ->
-      Format.fprintf ppf_file "%s%s,%s\n" prefix name (String.concat "," cell_strings))
+      Format.fprintf ppf_file "%s%s\n" prefix (to_csv (name :: cell_strings)))
     ~new_prefix:(fun ~prev ~curr_name -> Format.sprintf "%s%s/" prev curr_name)
     ~always_output_ancestors:false
   |> output_columns
