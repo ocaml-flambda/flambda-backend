@@ -323,6 +323,7 @@ let output_rows
     ~(output_row : prefix:string -> cell_strings:string list -> name:string -> unit)
     ~(new_prefix : prev:string -> curr_name:string -> string)
     ?(always_output_ancestors = true)
+    ?(pad_empty = true)
     rows
   =
   let n_columns =
@@ -335,7 +336,7 @@ let output_rows
     let display_cell = c.worth_displaying ~max:maxs.(i) in
     display_cell, if display_cell
                   then c.to_string ~max:maxs.(i) ~width
-                  else String.make width '-'
+                  else if pad_empty then String.make width '-' else ""
   in
   let widths = width_by_column ~n_columns ~display_cell rows in
   (* We track print row functions in a queue to ensure ancestors not worth displaying have
@@ -386,6 +387,7 @@ let output_to_csv ppf_file =
       Format.fprintf ppf_file "%s%s\n" prefix (to_csv (name :: cell_strings)))
     ~new_prefix:(fun ~prev ~curr_name -> Format.sprintf "%s%s/" prev curr_name)
     ~always_output_ancestors:false
+    ~pad_empty:false
   |> output_columns
 
 let column_mapping = [
