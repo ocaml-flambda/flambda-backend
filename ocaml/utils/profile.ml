@@ -379,34 +379,35 @@ let print ppf =
     ~new_prefix:(fun ~prev ~curr_name:_ -> "  " ^ prev)
   |> output_columns
 
-let output_to_csv ppf_file =
+let column_mapping = [
+  `Time, "time";
+  `Alloc, "alloc";
+  `Top_heap, "top-heap";
+  `Abs_top_heap, "absolute-top-heap";
+  `Counters, "counters"
+]
+
+let output_to_csv ppf_file columns =
   let sanitise = String.map (fun c -> if c = ',' then '_' else c) in
-  let to_csv l = l |> List.map sanitise |> String.concat "," in
-  output_rows
+  let to_csv cell_strings = cell_strings |> List.map sanitise |> String.concat "," in
+  let string_columns = List.map (fun col -> List.assoc col column_mapping) columns in
+  Format.fprintf ppf_file "%s\n" (to_csv ("stage name" :: string_columns));
+  let output_row_f = output_rows
     ~output_row:(fun ~prefix ~cell_strings ~name ->
       Format.fprintf ppf_file "%s%s\n" prefix (to_csv (name :: cell_strings)))
     ~new_prefix:(fun ~prev ~curr_name -> Format.sprintf "%s%s/" prev curr_name)
     ~always_output_ancestors:false
     ~pad_empty:false
-  |> output_columns
+  in output_columns output_row_f columns
 
-let column_mapping = [
-  "time", `Time;
-  "alloc", `Alloc;
-  "top-heap", `Top_heap;
-  "absolute-top-heap", `Abs_top_heap;
-  "counters", `Counters;
-]
-
-let column_names = List.map fst column_mapping
+let all_columns = List.map fst column_mapping
+let column_names = List.map snd column_mapping
 
 let options_doc =
   Printf.sprintf
     " Print performance information for each pass\
    \n    The columns are: %s."
     (String.concat " " column_names)
-
-let all_columns = List.map snd column_mapping
 
 let generate = "generate"
 let transl = "transl"
