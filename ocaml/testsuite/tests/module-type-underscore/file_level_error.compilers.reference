@@ -1,0 +1,21 @@
+File "file_level_error.ml", lines 16-20, characters 16-3:
+16 | ................struct
+17 |   type t = int
+18 |   let foo x = x * x
+19 |   let bar x = x + x
+20 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = int val foo : int -> int val bar : int -> int end
+       is not included in
+         S
+       Values do not match:
+         val bar : int -> int
+       is not included in
+         val bar : t -> unit
+       The type int -> int is not compatible with the type t -> unit
+       Type int is not compatible with type unit
+       File "file_level_error.mli", line 5, characters 4-23:
+         Expected declaration
+       File "file_level_error.ml", line 19, characters 6-9:
+         Actual declaration
