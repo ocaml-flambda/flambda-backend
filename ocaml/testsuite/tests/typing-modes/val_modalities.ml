@@ -275,9 +275,7 @@ module Close_over_value :
   end
 |}]
 
-(* CR mode-crossing: this should use mutable record *)
-
-(* This is used in place of a mutable record *)
+(* CR mode-crossing: This is used for the below test in place of a mutable record. *)
 module M : sig
   type t
   val mk : t @@ portable
