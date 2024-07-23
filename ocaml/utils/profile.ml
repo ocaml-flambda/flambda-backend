@@ -322,6 +322,7 @@ let width_by_column ~n_columns ~display_cell rows =
 let output_rows
     ~(output_row : prefix:string -> cell_strings:string list -> name:string -> unit)
     ~(new_prefix : prev:string -> curr_name:string -> string)
+    ?(always_output_ancestors = true)
     rows
   =
   let n_columns =
@@ -350,7 +351,7 @@ let output_rows
       let cell_strings = if should_output_row then cell_strings else [] in
       output_row ~prefix ~cell_strings ~name
     in
-    output_stack := output_current :: !output_stack;
+    output_stack := output_current :: (if always_output_ancestors then !output_stack else []);
     if should_output_row then
       (List.rev !output_stack |> List.iter (fun f -> f ()); output_stack := []);
     List.iter (loop ~prefix:(new_prefix ~prev:prefix ~curr_name:name) ~output_stack) rows;
@@ -382,6 +383,7 @@ let output_to_csv ppf_file =
     ~output_row:(fun ~prefix ~cell_strings ~name ->
       Format.fprintf ppf_file "%s%s,%s\n" prefix name (String.concat "," cell_strings))
     ~new_prefix:(fun ~prev ~curr_name -> Format.sprintf "%s%s/" prev curr_name)
+    ~always_output_ancestors:false
   |> output_columns
 
 let column_mapping = [
