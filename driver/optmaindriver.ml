@@ -182,11 +182,14 @@ let main unix argv ppf ~flambda2 =
       Format.fprintf Format.std_formatter "    %i minor\n" stats.minor_collections;
       Format.fprintf Format.std_formatter "    %i major\n" stats.major_collections;
     end;
-    Profile.print Format.std_formatter !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision;
-    if !Clflags.dump_into_csv then begin
+    if !Clflags.dump_into_csv then
       let output_csv ppf_file = Profile.output_to_csv
         ppf_file !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision
       in
       Compmisc.with_ppf_file ~file_prefix:"profile" ~file_extension:".csv" output_csv
-    end;
+    else
+      Profile.print
+        Format.std_formatter
+        !Clflags.profile_columns
+        ~timings_precision:!Clflags.timings_precision;
     0
