@@ -1490,9 +1490,10 @@ let map_kind f = function
 
 let instance_declaration decl =
   For_copy.with_scope (fun copy_scope ->
-    {decl with type_params = List.map (copy copy_scope) decl.type_params;
-     type_manifest = Option.map (copy copy_scope) decl.type_manifest;
-     type_kind = map_kind (copy copy_scope) decl.type_kind;
+    let copy = copy ~keep_names:true copy_scope in
+    {decl with type_params = List.map copy decl.type_params;
+     type_manifest = Option.map copy decl.type_manifest;
+     type_kind = map_kind copy decl.type_kind;
     }
   )
 

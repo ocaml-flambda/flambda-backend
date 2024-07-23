@@ -36,7 +36,7 @@ Line 1, characters 32-34:
 1 | module type S1'' = S1 with type 'a t = 'a list;;
                                     ^^
 Error: The type constraints are not consistent.
-       Type "('a : value)" is not compatible with type "('b : void)"
+       Type "('a : value)" is not compatible with type "('a0 : void)"
        The layout of 'a is void
          because of the definition of t at line 10, characters 2-20.
        But the layout of 'a must overlap with value

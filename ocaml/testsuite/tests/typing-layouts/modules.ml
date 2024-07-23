@@ -69,7 +69,7 @@ Line 1, characters 34-36:
 1 | module type S1f'' = S1f with type 'a t = 'a list;;
                                       ^^
 Error: The type constraints are not consistent.
-       Type "('a : value)" is not compatible with type "('b : float64)"
+       Type "('a : value)" is not compatible with type "('a0 : float64)"
        The layout of 'a is float64
          because of the definition of t at line 2, characters 2-23.
        But the layout of 'a must overlap with value
