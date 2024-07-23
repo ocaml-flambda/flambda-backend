@@ -235,7 +235,7 @@ let bigarray_type_kind_and_layout env typ =
       (Pbigarray_unknown, Pbigarray_unknown_layout)
 
 let value_kind_of_value_jkind jkind =
-  let jkind = Jkind.to_type_jkind jkind in
+  let jkind = Jkind.to_type_jkind ~loc:__LOC__ jkind in
   let const_jkind = Jkind.Type.default_to_value_and_get jkind in
   let externality_upper_bound =
     Jkind.Type.Const.get_externality_upper_bound const_jkind

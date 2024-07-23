@@ -647,7 +647,7 @@ and raw_type_desc ppf = function
         raw_type_list (AppArgs.to_list tl)
         (raw_list path) (list_of_memo !abbrev)
   | Tapp (t, tl) ->
-      fprintf ppf "@[<hov1>Tconstr(@,%a,@,%a)@]"
+      fprintf ppf "@[<hov1>Tapp(@,%a,@,%a)@]"
         raw_type t
         raw_type_list (AppArgs.to_list tl)
   | Tobject (t, nm) ->
@@ -1286,6 +1286,7 @@ let rec out_jkind_of_jkind jkind = match Jkind.get jkind with
     Ojkind_arrow
       { args = List.map out_jkind_of_jkind args;
         result = out_jkind_of_jkind result }
+  | Top -> Ojkind_top
 
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
@@ -1303,11 +1304,8 @@ let out_jkind_option_of_jkind jkind =
       then Some (Ojkind_var (Jkind.Type.Sort.Var.name v))
       else None
     end
-  | Arrow { args; result } ->
-    (* We ignore the rules above for arrows, which should always be printed *)
-    Some (Ojkind_arrow
-      { args = List.map out_jkind_of_jkind args;
-        result = out_jkind_of_jkind result })
+  (* We ignore the rules above otherwise, as we always print *)
+  | _ -> Some (out_jkind_of_jkind jkind)
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
@@ -2354,7 +2352,7 @@ let dummy =
     type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.Primitive.top ~why:Dummy_jkind;
+    type_jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind;
     type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;

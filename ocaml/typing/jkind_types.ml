@@ -407,11 +407,13 @@ end
 type 'type_expr t =
   | Type of 'type_expr Type.t
   | Arrow of 'type_expr t Arrow.t
+  | Top
 
 module Const = struct
   type 'type_expr t =
     | Type of 'type_expr Type.Const.t
     | Arrow of 'type_expr t Arrow.t
+    | Top
 end
 
 type 'type_expr const = 'type_expr Const.t

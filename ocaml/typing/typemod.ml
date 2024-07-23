@@ -597,7 +597,7 @@ let merge_constraint initial_env loc sg lid constr =
         let decl_row =
           let arity = List.length sdecl.ptype_params in
           { type_params =
-              (* jkind any is fine on the params because they get thrown away
+              (* jkind top is fine on the params because they get thrown away
                  below *)
               List.map
                 (fun _ -> Btype.newgenvar (Jkind.Primitive.top ~why:Dummy_jkind))

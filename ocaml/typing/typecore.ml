@@ -799,7 +799,7 @@ let mode_cross_left env ty mode =
   let mode =
     if not (is_principal ty) then mode else
     let jkind = type_jkind_purely env ty in
-    let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
+    let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind ~loc:__LOC__ jkind) in
     let upper_bounds = Const.alloc_as_value upper_bounds in
     Value.meet_const upper_bounds mode
   in
@@ -812,22 +812,30 @@ let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
 
 (** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
     fragment is a left mode. *)
-let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
+let alloc_mode_cross_to_max_min ~loc env ty { monadic; comonadic } =
   let monadic = Alloc.Monadic.disallow_left monadic in
   let comonadic = Alloc.Comonadic.disallow_right comonadic in
   if not (is_principal ty) then { monadic; comonadic } else
+  let () = match constrain_type_jkind env ty (Jkind.of_type_jkind (Jkind.Type.Primitive.any ~why:Dummy_jkind)) with
+    | Ok () -> ()
+    | Error err -> raise (Error (loc, env, Not_a_value(err, None)))
+  in
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
+  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind ~loc:__LOC__ jkind) in
   let upper_bounds = Alloc.Const.split upper_bounds in
   let comonadic = Alloc.Comonadic.meet_const upper_bounds.comonadic comonadic in
   let monadic = Alloc.Monadic.imply upper_bounds.monadic monadic in
   { monadic; comonadic }
 
 (** Mode cross a right mode *)
-let expect_mode_cross env ty (expected_mode : expected_mode) =
+let expect_mode_cross ~loc env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
+  let () = match constrain_type_jkind env ty (Jkind.of_type_jkind (Jkind.Type.Primitive.any ~why:Dummy_jkind)) with
+    | Ok () -> ()
+    | Error err -> raise (Error (loc, env, Not_a_value(err, None)))
+  in
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
+  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind ~loc:__LOC__ jkind) in
   let upper_bounds = Const.alloc_as_value upper_bounds in
   let mode = Value.imply upper_bounds expected_mode.mode in
   (* - [strict_local] doesn't need to be updated, because it's only relavant for
@@ -1229,7 +1237,7 @@ let enter_orpat_variables loc env  p1_vs p2_vs =
             pv1 :: vars, alist
           else begin
             begin try
-              unify_var env (newvar (Jkind.Primitive.top ~why:Dummy_jkind)) t1;
+              unify_var env (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)) t1;
               unify env t1 t2
             with
             | Unify err ->
@@ -1328,7 +1336,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
          think about when it gets defaulted.)
 
          RAE: why? It looks fine as-is. *)
-      let ty = newvar (Jkind.Primitive.top ~why:Dummy_jkind) in
+      let ty = newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
       let ppl = List.map (fun (_, l, p) -> l.lbl_num, p) lpl in
       let do_label lbl =
         let _, ty_arg, ty_res = instance_label false lbl in
@@ -4069,7 +4077,7 @@ let loc_rest_of_function
    (which mentions approx_type) for why it can't be value.  *)
 (* CR layouts v2: RAE thinks this any is fine in perpetuity. Before changing
    this, let's talk. *)
-let approx_type_default () = newvar (Jkind.Primitive.top ~why:Dummy_jkind)
+let approx_type_default () = newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)
 
 let rec approx_type env sty =
   match Jane_syntax.Core_type.of_ast sty with
@@ -4110,7 +4118,7 @@ let rec approx_type env sty =
   | Ptyp_constr (lid, ctl) ->
       let path, decl = Env.lookup_type ~use:false ~loc:lid.loc lid.txt env in
       if List.length ctl <> decl.type_arity
-      then newvar (Jkind.Primitive.top ~why:Dummy_jkind)
+      then newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)
       else begin
         let tyl = List.map (approx_type env) ctl in
         newconstr path tyl
@@ -4883,7 +4891,7 @@ let split_function_ty
     let snap = Btype.snapshot () in
     let really_poly =
       try
-        unify env (newmono (newvar (Jkind.Primitive.top ~why:Dummy_jkind))) ty_arg;
+        unify env (newmono (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind))) ty_arg;
         false
       with Unify _ -> true
     in
@@ -4923,7 +4931,7 @@ let split_function_ty
           | Error _ -> raise (Error (loc_fun, env, Function_returns_local))
         end
       in
-      let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
+      let ret_value_mode = expect_mode_cross ~loc:loc_fun env ty_ret ret_value_mode in
       ret_value_mode
   in
   let ty_arg_mono =
@@ -5154,7 +5162,7 @@ let zero_alloc_of_application ~num_args attrs funct =
 let rec type_exp ?recarg env expected_mode sexp =
   (* We now delegate everything to type_expect *)
   type_expect ?recarg env expected_mode sexp
-    (mk_expected (newvar (Jkind.Primitive.top ~why:Dummy_jkind)))
+    (mk_expected (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)))
 
 (* Typing of an expression with an expected type.
    This provide better error messages, and allows controlled
@@ -5333,7 +5341,7 @@ and type_expect_
                 let bound_exp_type = Ctype.instance bound_exp.exp_type in
                 let loc = proper_exp_loc bound_exp in
                 let outer_var =
-                  newvar2 outer_level (Jkind.Primitive.top ~why:Dummy_jkind)
+                  newvar2 outer_level (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)
                 in
                 (* Checking unification within an environment extended with the
                    module bindings allows us to correctly accept more programs.
@@ -5347,7 +5355,7 @@ and type_expect_
         end
         ~post:(fun (_pat_exp_list, body, new_env) ->
           (* The "body" component of the scope escape check. *)
-          unify_exp new_env body (newvar (Jkind.Primitive.top ~why:Dummy_jkind)))
+          unify_exp new_env body (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)))
       in
       re {
         exp_desc = Texp_let(rec_flag, pat_exp_list, body);
@@ -5426,12 +5434,12 @@ and type_expect_
                with Unify _ -> assert false);
               ret_tvar (TypeSet.add ty seen) ty_fun
           | Tvar _ ->
-              let v = newvar (Jkind.Primitive.top ~why:Dummy_jkind) in
+              let v = newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
               let rt = get_level ty > get_level v in
               unify_var env v ty;
               rt
           | _ ->
-            let v = newvar (Jkind.Primitive.top ~why:Dummy_jkind) in
+            let v = newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
             unify_var env v ty;
             false
       in
@@ -6294,7 +6302,7 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_open (od, e) ->
-      let tv = newvar (Jkind.Primitive.top ~why:Dummy_jkind) in
+      let tv = newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
       let (od, _, newenv) = !type_open_decl env od in
       let exp = type_expect newenv expected_mode e ty_expected_explained in
       (* Force the return type to be well-formed in the original
@@ -6715,7 +6723,7 @@ and type_function
                 like [type_exp].
             *)
             type_function env expected_mode
-              (newvar (Jkind.Primitive.top ~why:Dummy_jkind))
+              (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind))
               rest body_constraint body ~in_function ~first
           in
           (params, body, newtypes, contains_gadt, fun_alloc_mode, ret_info),
@@ -6844,7 +6852,7 @@ and type_function
                      uses the [arg_mode.comonadic] as a left mode, and
                      [arg_mode.monadic] as a right mode, hence they need to be
                      mode-crossed differently. *)
-                  let arg_mode = alloc_mode_cross_to_max_min env ty_arg arg_mode in
+                  let arg_mode = alloc_mode_cross_to_max_min ~loc env ty_arg arg_mode in
                   begin match
                     Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
                   with
@@ -6981,7 +6989,7 @@ and type_function
                     let cases, ty_fun, fun_alloc_mode, ret_info =
                       (* The analogy to [type_exp] for expressions. *)
                       type_cases_expect env expected_mode
-                        (newvar (Jkind.Primitive.top ~why:Dummy_jkind))
+                        (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind))
                     in
                     (cases, fun_alloc_mode, ret_info), ty_fun);
                 }
@@ -7566,7 +7574,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       end
       end
   | None ->
-      let mode = expect_mode_cross env ty_expected' mode in
+      let mode = expect_mode_cross ~loc:sarg.pexp_loc env ty_expected' mode in
       let texp = type_expect ?recarg env mode sarg
         (mk_expected ?explanation ty_expected') in
       unify_exp env texp ty_expected;
@@ -7604,7 +7612,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
             let snap = Btype.snapshot () in
             let really_poly =
               try
-                unify env (newmono (newvar (Jkind.Primitive.top ~why:Dummy_jkind)))
+                unify env (newmono (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)))
                   ty_arg;
                 false
               with Unify _ -> true
@@ -7769,7 +7777,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
     List.map2
       (fun (label, body) ((_, ty), argument_mode) ->
         let argument_mode = mode_default argument_mode in
-        let argument_mode = expect_mode_cross env ty argument_mode in
+        let argument_mode = expect_mode_cross ~loc env ty argument_mode in
           (label, type_expect env argument_mode body (mk_expected ty)))
       sexpl types_and_modes
   in
@@ -8058,7 +8066,7 @@ and map_half_typed_cases
         else ty_res, (fun env -> env)
       in
       (* Unify all cases (delayed to keep it order-free) *)
-      let ty_arg' = newvar (Jkind.Primitive.top ~why:Dummy_jkind) in
+      let ty_arg' = newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
       let unify_pats ty =
         List.iter (fun { typed_pat = pat; pat_type_for_unif = pat_ty; _ } ->
           unify_pat_types pat.pat_loc (ref env) pat_ty ty
@@ -8784,7 +8792,7 @@ and type_generic_array
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
-  let argument_mode = expect_mode_cross env ty argument_mode in
+  let argument_mode = expect_mode_cross ~loc env ty argument_mode in
   let argl =
     List.map
       (fun sarg -> type_expect env argument_mode sarg (mk_expected ty))
@@ -9393,7 +9401,7 @@ let type_representable_expression ~why env sexp =
   exp, sort
 
 let type_expression env sexp =
-  type_expression env (Jkind.Primitive.top ~why:Type_expression_call) sexp
+  type_expression env (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) sexp
 
 (* Error report *)
 

@@ -412,7 +412,7 @@ val of_type_decl_default :
   t * annotation option * Parsetree.attributes
 
 (** Assert this jkind is not higher order - it is a type jkind. Raises otherwise. *)
-val to_type_jkind : t -> Type.t
+val to_type_jkind : loc:string -> t -> Type.t
 
 (** Convert a type jkind into a general jkind *)
 val of_type_jkind : Type.t -> t
@@ -425,6 +425,7 @@ module Desc : sig
   type nonrec t =
     | Type of Type.t
     | Arrow of t Jkind_types.Arrow.t
+    | Top
 end
 
 (** [default_to_value_and_get] extracts the jkind as a `const`.  If it's a sort

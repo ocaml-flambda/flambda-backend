@@ -1999,10 +1999,11 @@ let rec extract_concrete_typedecl env ty =
                 | May_have_typedecl -> May_have_typedecl
           end
       end
+  | Tapp (ty, _) ->
+    extract_concrete_typedecl env ty
   | Tpoly(ty, _) -> extract_concrete_typedecl env ty
-  (* FIXME jbachurski: Does Tapp have a typedecl in this function's understanding? *)
   | Tarrow _ | Ttuple _ | Tobject _ | Tfield _ | Tnil
-  | Tvariant _ | Tpackage _ | Tapp _ -> Has_no_typedecl
+  | Tvariant _ | Tpackage _ -> Has_no_typedecl
   | Tvar _ | Tunivar _ -> May_have_typedecl
   | Tlink _ | Tsubst _ -> assert false
 
@@ -2129,8 +2130,9 @@ let rec jkind_of_decl_unapplied env (decl : type_declaration) : jkind option =
     ; result = decl.type_jkind })
   | _ -> None
 
-and type_jkind_for_app (app_jkind : jkind) app_arity tys =
+and type_jkind_for_app (app_jkind : jkind) app_arity tys : jkind option =
   match tys, app_jkind with
+  | _, Top -> Some Top
   | Unapplied, _ when app_arity = 0 -> Some app_jkind
   | Unapplied, _ -> None
   | Applied tys, _ when app_arity > 0 ->
@@ -2143,21 +2145,19 @@ and type_jkind_for_app (app_jkind : jkind) app_arity tys =
     then Some result
     else None
 
-and type_jkind_for_app_decl ~top env decl tys =
-  if decl.type_arity > 0 then Some (decl.type_jkind)
-  else match jkind_of_decl_unapplied env decl with
+and type_jkind_for_app_decl env decl tys =
+  match jkind_of_decl_unapplied env decl with
   | Some jkind -> begin
     match type_jkind_for_app jkind 0 tys with
     | Some jkind -> Some jkind
     | None -> None
   end
-  | None -> Some top
+  | None -> type_jkind_for_app decl.type_jkind decl.type_arity tys
 
 and type_jkind_for_app_path env path tys =
-  let top = Jkind.Primitive.top ~why:(Missing_cmi path) in
   match find_type_opt path env with
-  | Some decl -> type_jkind_for_app_decl ~top env decl tys
-  | None -> Some top
+  | Some decl -> type_jkind_for_app_decl env decl tys
+  | None -> Some (Jkind.Type.Primitive.any ~why:(Missing_cmi path) |> Jkind.of_type_jkind)
 
 (* We assume here that [get_unboxed_type_representation] has already been
    called, if the type is a Tconstr.  This allows for some optimization by
@@ -2219,6 +2219,7 @@ let arity_matches_decl env decl t = match t, decl.type_arity with
     match decl.type_jkind with
     | Type _ -> false
     | Arrow { args = kind_args; result = _ } -> List.length kind_args = m
+    | Top -> true
   end
   | m, n -> m = n
 
@@ -2918,7 +2919,7 @@ let reify env t =
       visited := TypeSet.add ty !visited;
       match get_desc ty with
         Tvar { name; jkind } ->
-          let jkind = Jkind.to_type_jkind jkind  in
+          let jkind = Jkind.to_type_jkind ~loc:__LOC__ jkind  in
           let level = get_level ty in
           let path, t = create_fresh_constr level name jkind in
           link_type ty t;
@@ -2930,7 +2931,7 @@ let reify env t =
             let m = row_more r in
             match get_desc m with
               Tvar { name; jkind }  ->
-                let jkind = Jkind.to_type_jkind jkind in
+                let jkind = Jkind.to_type_jkind ~loc:__LOC__ jkind in
                 let level = get_level m in
                 let path, t = create_fresh_constr level name jkind in
                 let row =
@@ -3064,6 +3065,13 @@ let rec mcomp type_pairs env t1 t2 =
             raise_unexplained_for Unify
         | (_, Tconstr (_, Unapplied, _), _, _) when has_injective_univars env t1' ->
             raise_unexplained_for Unify
+        | (Tapp (t, args), Tapp (t', args'), _, _) ->
+            mcomp type_pairs env t t';
+            mcomp_list type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
+        | (Tapp (t, args'), Tconstr (p, args, _), _, _)
+        | (Tconstr (p, args, _), Tapp (t, args'), _, _) ->
+            mcomp type_pairs env t (newconstr p []);
+            mcomp_list type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
         | (Tconstr (p, _, _), _, _, other) | (_, Tconstr (p, _, _), other, _) ->
             begin try
               let decl = Env.find_type p env in
@@ -3716,6 +3724,13 @@ and unify3 env t1 t1' t2 t2' =
             mcomp_for Unify !env t1' t2';
             record_equation t1' t2'
           )
+      | (Tapp (t, args), Tapp (t', args')) ->
+          unify env t t';
+          unify_appargs env args args'
+      | (Tapp (t, args'), Tconstr (p, args, _))
+      | (Tconstr (p, args, _), Tapp (t, args')) ->
+          unify env t (newconstr p []);
+          unify_appargs env args args'
       | (Tobject (fi1, nm1), Tobject (fi2, _)) ->
           unify_fields env fi1 fi2;
           (* Type [t2'] may have been instantiated by [unify_fields] *)
@@ -4137,7 +4152,7 @@ let unify_delaying_jkind_checks env ty1 ty2 =
 
 (* Lower the level of a type to the current level *)
 let enforce_current_level env ty =
-  unify_var env (newvar (Jkind.Primitive.top ~why:Dummy_jkind)) ty
+  unify_var env (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)) ty
 
 
 (**** Special cases of unification ****)
@@ -4778,6 +4793,13 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
               end
           | (Tnil,  Tconstr _ ) -> raise_for Moregen (Obj (Abstract_row Second))
           | (Tconstr _,  Tnil ) -> raise_for Moregen (Obj (Abstract_row First))
+          | (Tapp (t, args), Tapp (t', args')) ->
+              moregen inst_nongen variance type_pairs env t t';
+              moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
+          | (Tapp (t, args'), Tconstr (p, args, _))
+          | (Tconstr (p, args, _), Tapp (t, args')) ->
+              moregen inst_nongen variance type_pairs env t (newconstr p []);
+              moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
           | (Tvariant row1, Tvariant row2) ->
               moregen_row inst_nongen variance type_pairs env row1 row2
           | (Tobject (fi1, _nm1), Tobject (fi2, _nm2)) ->
@@ -5196,6 +5218,13 @@ let rec eqtype rename type_pairs subst env t1 t2 =
               raise_for Equality (Obj (Abstract_row Second))
           | (Tconstr _,  Tnil ) ->
               raise_for Equality (Obj (Abstract_row First))
+          | (Tapp (t, args), Tapp (t', args')) ->
+              eqtype rename type_pairs subst env t t';
+              eqtype_appargs rename type_pairs subst env args args'
+          | (Tapp (t, args'), Tconstr (p, args, _))
+          | (Tconstr (p, args, _), Tapp (t, args')) ->
+              eqtype rename type_pairs subst env t (newconstr p []);
+              eqtype_appargs rename type_pairs subst env args args'
           | (Tvariant row1, Tvariant row2) ->
               eqtype_row rename type_pairs subst env row1 row2
           | (Tobject (fi1, _nm1), Tobject (fi2, _nm2)) ->
@@ -5721,6 +5750,11 @@ let build_submode posi m =
   if posi then build_submode_pos (Alloc.allow_left m)
   else build_submode_neg (Alloc.allow_right m)
 
+let subtype_error ~env ~trace ~unification_trace =
+  raise (Subtype (Subtype.error
+                    ~trace:(expand_subtype_trace env (List.rev trace))
+                    ~unification_trace))
+
 (* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and
    [Alloc] get unified *)
 let mode_cross_left env ty mode =
@@ -5729,8 +5763,12 @@ let mode_cross_left env ty mode =
      are bad when checking for principality. Really, I'm surprised that
      the types here aren't principal. In any case, leaving the check out
      now; will return and figure this out later. *)
+  let () = match constrain_type_jkind env ty (Jkind.of_type_jkind (Jkind.Type.Primitive.any ~why:Dummy_jkind)) with
+    | Ok () -> ()
+    | Error _ -> subtype_error ~env ~trace:[] ~unification_trace:[]
+  in
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
+  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind ~loc:__LOC__ jkind) in
   Alloc.meet_const upper_bounds mode
 
 (* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value]
@@ -5738,8 +5776,12 @@ let mode_cross_left env ty mode =
 let mode_cross_right env ty mode =
   (* CR layouts v2.8: This should probably check for principality. See
      similar comment in [mode_cross_left]. *)
+  let () = match constrain_type_jkind env ty (Jkind.of_type_jkind (Jkind.Type.Primitive.any ~why:Dummy_jkind)) with
+    | Ok () -> ()
+    | Error _ -> subtype_error ~env ~trace:[] ~unification_trace:[]
+  in
   let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
+  let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind ~loc:__LOC__ jkind) in
   Alloc.imply upper_bounds mode
 
 let rec build_subtype env (visited : transient_expr list)
@@ -5966,10 +6008,6 @@ let enlarge_type env ty =
 
 let subtypes = TypePairs.create 17
 
-let subtype_error ~env ~trace ~unification_trace =
-  raise (Subtype (Subtype.error
-                    ~trace:(expand_subtype_trace env (List.rev trace))
-                    ~unification_trace))
 
 let subtype_alloc_mode env trace a1 a2 =
   match Alloc.submode a1 a2 with
@@ -6248,7 +6286,7 @@ let rec unalias_object ty =
   | Tunivar _ ->
       ty
   | Tconstr _ ->
-      newvar2 level (Jkind.Primitive.top ~why:Dummy_jkind)
+      newvar2 level (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)
   | _ ->
       assert false
 
@@ -6476,7 +6514,7 @@ let rec nondep_type_rec ?(expand_private=false) env ids ty =
   | _ -> try TypeHash.find nondep_hash ty
   with Not_found ->
     let ty' = newgenstub ~scope:(get_scope ty)
-                (Jkind.Primitive.top ~why:Dummy_jkind) in
+                (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
     TypeHash.add nondep_hash ty ty';
     match
       match get_desc ty with

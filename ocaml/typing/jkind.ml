@@ -1583,7 +1583,8 @@ module History = struct
     match t with
     | Type ty -> Type.History.has_imported_history ty
     | Arrow { args; result } ->
-      List.for_all has_imported_history args && has_imported_history result
+      List.exists has_imported_history args && has_imported_history result
+    | Top -> false
 
   let rec update_reason (t : t) reason : t =
     match t with
@@ -1593,6 +1594,7 @@ module History = struct
         { args = List.map (fun t' -> update_reason t' reason) args;
           result = update_reason result reason
         }
+    | Top -> Top
 end
 (* module Type *)
 
@@ -1614,6 +1616,7 @@ module Const = struct
            ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
            format)
         args format result
+    | Top -> Format.fprintf ppf "((top))"
 
   let jkind_case2 ~typ ~arrow ~default (t : t) (t' : t) =
     match t, t' with
@@ -1629,11 +1632,15 @@ module Const = struct
         List.for_all2 equal args1 args2 && equal result1 result2)
       ~default:false t t'
 
-  let to_type_jkind (t : t) =
+  let to_type_jkind ~loc (t : t) =
     match t with
     | Type ty -> ty
     | Arrow _ ->
-      raise (Unexpected_higher_jkind "Coerced arrow to type jkind (const)")
+      raise
+        (Unexpected_higher_jkind ("Coerced arrow to type jkind (const): " ^ loc))
+    | Top ->
+      raise
+        (Unexpected_higher_jkind ("Coerced top to type jkind (const)" ^ loc))
 
   let of_attribute : Builtin_attributes.jkind_attribute -> t = function
     | Immediate -> of_type_jkind Type.Const.Primitive.immediate.jkind
@@ -1648,7 +1655,8 @@ module Const = struct
       (* jbachurski: We coerce here - in the future, the syntax should not permit
          mod on arrows. Such expressions are not parsed currently. *)
       let jkind =
-        to_type_jkind (of_user_written_annotation_unchecked_level jkind)
+        to_type_jkind ~loc:__LOC__
+          (of_user_written_annotation_unchecked_level jkind)
       in
       Type
         (List.fold_left Type.Const.meet_mode_in_parse jkind
@@ -1667,12 +1675,15 @@ let rec of_const ~why (t : Const.t) : t =
   | Arrow { args; result } ->
     Arrow
       { args = List.map (of_const ~why) args; result = of_const ~why result }
+  | Top -> Top
 
 let of_type_jkind t : t = Type t
 
 module Primitive = struct
   (* TODO jbachurski: Implement the top element for the jkind lattice *)
-  let top ~why = of_type_jkind (Type.Primitive.any ~why)
+  let top ~why : t =
+    ignore why;
+    Top
 end
 
 (******************************)
@@ -1696,6 +1707,7 @@ let rec to_const (t : t) : Const.t option =
       Some
         (Arrow { args = List.map Option.get args; result = Option.get result })
     else None
+  | Top -> Some Top
 
 (* of_const is defined above for use in Primitive *)
 
@@ -1706,6 +1718,7 @@ let get_required_layouts_level context (const : Const.t) =
   match const with
   | Type ty -> Type.get_required_layouts_level context ty
   | Arrow _ -> Language_extension.Alpha
+  | Top -> Language_extension.Alpha
 
 let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
   let const = Const.of_user_written_annotation_unchecked_level annot in
@@ -1770,18 +1783,15 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
     user_raise ~loc:decl.ptype_loc
       (Multiple_jkinds { from_annotation; from_attribute })
 
-let of_type_decl_default' ~of_type_decl ~context ~default
-    (decl : Parsetree.type_declaration) =
+let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
   match of_type_decl ~context decl with
   | Some (t, const, attrs) -> t, Some const, attrs
   | None -> default, None, decl.ptype_attributes
 
-let of_type_decl_default = of_type_decl_default' ~of_type_decl
-
-let[@inline never] to_type_jkind (t : t) =
+let to_type_jkind ~loc (t : t) =
   match t with
   | Type ty -> ty
-  | _ -> raise (Unexpected_higher_jkind "Coerced arrow to type jkind")
+  | _ -> raise (Unexpected_higher_jkind ("Coerced arrow to type jkind: " ^ loc))
 
 (******************************)
 (* elimination and defaulting *)
@@ -1791,6 +1801,7 @@ module Desc = struct
   type nonrec t =
     | Type of Type.t
     | Arrow of t Jkind_types.Arrow.t
+    | Top
 end
 
 let rec default_to_value_and_get (t : t) : Const.t =
@@ -1801,6 +1812,7 @@ let rec default_to_value_and_get (t : t) : Const.t =
       { args = List.map default_to_value_and_get args;
         result = default_to_value_and_get result
       }
+  | Top -> Top
 
 let default_to_value t = ignore (default_to_value_and_get t)
 
@@ -1808,6 +1820,7 @@ let get (t : t) : Desc.t =
   match t with
   | Type ty -> Type ty
   | Arrow { args; result } -> Desc.Arrow { args; result }
+  | Top -> Top
 
 let sort_of_jkind = Type.sort_of_jkind
 
@@ -1823,6 +1836,7 @@ let rec format ppf (jkind : t) =
          ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
          format)
       args format result
+  | Top -> Format.fprintf ppf "((top))"
 
 let format_history ~intro ppf (t : t) =
   match t with
@@ -1830,6 +1844,7 @@ let format_history ~intro ppf (t : t) =
   | Arrow _ ->
     (* TODO jbachurski: Implement history formatting for higher jkinds. *)
     Format.fprintf ppf "%t (...??)" intro
+  | Top -> Format.fprintf ppf "%t (...??)" intro
 
 (******************************)
 (* errors *)
@@ -1866,6 +1881,7 @@ module Violation = struct
       List.map any_missing_cmi (result :: args)
       |> List.find_opt Option.is_some
       |> Option.join
+    | Top -> None
 
   let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
@@ -1950,21 +1966,16 @@ end
 (******************************)
 (* relations *)
 
-let jkind_case2 ~typ ~arrow ~default (t : t) (t' : t) =
+let rec equate_or_equal ~allow_mutation (t : t) (t' : t) =
   match t, t' with
-  | Type s, Type s' -> typ s s'
-  | Arrow a, Arrow a' -> arrow a a'
-  | _, _ -> default
-
-let rec equate_or_equal ~allow_mutation t t' =
-  jkind_case2
-    ~typ:(Type.equate_or_equal ~allow_mutation)
-    ~arrow:
-      (fun { args = args1; result = result1 } { args = args2; result = result2 } ->
-      let arg_eqs = List.map2 (equate_or_equal ~allow_mutation) args1 args2 in
-      equate_or_equal ~allow_mutation result1 result2
-      && List.for_all (fun x -> x) arg_eqs)
-    ~default:false t t'
+  | Type ty, Type ty' -> Type.equate_or_equal ~allow_mutation ty ty'
+  | ( Arrow { args = args1; result = result1 },
+      Arrow { args = args2; result = result2 } ) ->
+    let arg_eqs = List.map2 (equate_or_equal ~allow_mutation) args1 args2 in
+    equate_or_equal ~allow_mutation result1 result2
+    && List.for_all (fun x -> x) arg_eqs
+  | Top, Top -> true
+  | _ -> false
 
 let equate = equate_or_equal ~allow_mutation:true
 
@@ -1987,40 +1998,46 @@ let arrow_connective_or_error ~on_args ~on_result
     let result = Result.get_ok result in
     Ok (Arrow { args; result } : t)
 
-let rec intersection_or_error ~reason t t' =
-  jkind_case2
-    ~typ:(fun ty ty' : (t, _) result ->
-      match Type.Jkind_desc.intersection ty.jkind ty'.jkind with
-      | None -> Error (Violation.of_ (No_intersection (Type ty, Type ty')))
-      | Some jkind ->
-        Ok
-          (Type
-             { jkind;
-               history = Type.combine_histories reason ty ty';
-               has_warned = ty.has_warned || ty'.has_warned
-             }))
-    ~arrow:
-      (arrow_connective_or_error ~on_args:(union_or_error ~reason)
-         ~on_result:(intersection_or_error ~reason))
-    ~default:(Error (Violation.of_ (No_intersection (t, t'))))
-    t t'
-
-and union_or_error ~reason t t' =
-  jkind_case2
-    ~typ:(fun ty ty' : (t, _) result ->
-      (* Union is infallible at type jkinds due to [any] *)
+let rec intersection_or_error ~reason (t : t) (t' : t) : (t, _) result =
+  match t, t' with
+  | _, Top -> Ok t
+  | Top, _ -> Ok t'
+  | Type ty, Type ty' -> (
+    match Type.Jkind_desc.intersection ty.jkind ty'.jkind with
+    | None -> Error (Violation.of_ (No_intersection (Type ty, Type ty')))
+    | Some jkind ->
       Ok
         (Type
-           { jkind = Type.Jkind_desc.union ty.jkind ty'.jkind;
+           { jkind;
              history = Type.combine_histories reason ty ty';
              has_warned = ty.has_warned || ty'.has_warned
            }))
-    ~arrow:
-      (arrow_connective_or_error
-         ~on_args:(intersection_or_error ~reason)
-         ~on_result:(union_or_error ~reason))
-    ~default:(Error (Violation.of_ (No_union (t, t'))))
-    t t'
+  | Arrow a, Arrow a' ->
+    arrow_connective_or_error ~on_args:(union_or_error ~reason)
+      ~on_result:(intersection_or_error ~reason)
+      a a'
+  | _ -> Error (Violation.of_ (No_intersection (t, t')))
+
+and union_or_error ~reason (t : t) (t' : t) : (t, _) result =
+  match t, t' with
+  | _, Top -> Ok Top
+  | Top, _ -> Ok Top
+  | Type ty, Type ty' ->
+    (* Union is infallible at type jkinds due to [any] *)
+    Ok
+      (Type
+         { jkind = Type.Jkind_desc.union ty.jkind ty'.jkind;
+           history = Type.combine_histories reason ty ty';
+           has_warned = ty.has_warned || ty'.has_warned
+         })
+  | Arrow a, Arrow a' -> (
+    let r =
+      arrow_connective_or_error
+        ~on_args:(intersection_or_error ~reason)
+        ~on_result:(union_or_error ~reason) a a'
+    in
+    match r with Ok ty -> Ok ty | Error _ -> Ok Top)
+  | _ -> Error (Violation.of_ (No_union (t, t')))
 
 let has_intersection t t' =
   Result.is_ok
@@ -2028,17 +2045,19 @@ let has_intersection t t' =
      (* This reason is just used as a dummy for the test *)
        ~reason:Type.History.Subjkind t t')
 
-let rec check_sub t t' : Misc.Le_result.t =
-  jkind_case2 ~typ:Type.check_sub
-    ~arrow:
-      (fun { args = args1; result = result1 } { args = args2; result = result2 }
-           : Misc.Le_result.t ->
-      if List.length args1 <> List.length args2
-      then Misc.Le_result.Not_le
-      else
-        Misc.Le_result.combine_list
-          (check_sub result1 result2 :: List.map2 check_sub args2 args1))
-    ~default:Misc.Le_result.Not_le t t'
+let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
+  match t, t' with
+  | Top, Top -> Misc.Le_result.Equal
+  | _, Top -> Misc.Le_result.Less
+  | Type ty, Type ty' -> Type.check_sub ty ty'
+  | ( Arrow { args = args1; result = result1 },
+      Arrow { args = args2; result = result2 } ) ->
+    if List.length args1 <> List.length args2
+    then Misc.Le_result.Not_le
+    else
+      Misc.Le_result.combine_list
+        (check_sub result1 result2 :: List.map2 check_sub args2 args1)
+  | _ -> Misc.Le_result.Not_le
 
 let sub t t' = Misc.Le_result.is_le (check_sub t t')
 
@@ -2077,6 +2096,7 @@ module Debug_printers = struct
       Format.fprintf ppf "{ args = [%a];@ result = %a;@ }"
         (Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf "; ") t)
         args t result
+    | Top -> Format.fprintf ppf "Top"
 
   (*** formatting user errors ***)
   let report_error ~loc : Error.t -> _ = function

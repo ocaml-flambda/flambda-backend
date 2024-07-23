@@ -121,7 +121,7 @@ let with_additional_action =
 let apply_prepare_jkind s lay loc =
   match s.additional_action with
   | Prepare_for_saving prepare_jkind ->
-      lay |> Jkind.of_type_jkind |> prepare_jkind loc |> Jkind.to_type_jkind
+      lay |> Jkind.of_type_jkind |> prepare_jkind loc |> Jkind.to_type_jkind ~loc:__LOC__
   | Duplicate_variables | No_action -> lay
 
 let change_locs s loc = { s with loc = Some loc; last_compose = None }
@@ -289,7 +289,7 @@ let rec typexp copy_scope s ty =
     let has_fixed_row =
       not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
     (* Make a stub *)
-    let jkind = Jkind.Primitive.top ~why:Dummy_jkind in
+    let jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind in
     let ty' =
       if should_duplicate_vars then newpersty (Tvar {name = None; jkind})
       else newgenstub ~scope:(get_scope ty) jkind
@@ -429,7 +429,7 @@ let constructor_declaration copy_scope s c =
   }
 
 let prepare_at_type ~prepare_jkind loc ty =
-  ty |> Jkind.of_type_jkind |> prepare_jkind loc |> Jkind.to_type_jkind
+  ty |> Jkind.of_type_jkind |> prepare_jkind loc |> Jkind.to_type_jkind ~loc:__LOC__
 
 (* called only when additional_action is [Prepare_for_saving] *)
 let constructor_tag ~prepare_jkind loc = function

@@ -9,6 +9,8 @@ type ('m : value => value) monad = {
 }
 
 [%%expect{|
-Uncaught exception: Failure("General type application is not implemented")
-
+type ('m : (value) => value) monad = {
+  return : 'a. 'a -> <Tapp>;
+  bind : 'a 'b. <Tapp> -> ('a -> <Tapp>) -> <Tapp>;
+}
 |}]

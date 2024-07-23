@@ -640,6 +640,14 @@ let transl_bound_vars : (_, _) Either.t -> _ =
   | Right vars_jkinds -> TyVarEnv.make_poly_univars_jkinds
                            ~context:(fun v -> Univar ("'" ^ v)) vars_jkinds
 
+let constrain_type_expr_to_any ~loc ~vloc env typ =
+  let any = Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind in
+  match constrain_type_jkind env typ any with
+  | Ok _ -> ()
+  | Error err ->
+    raise (Error(loc, env,
+                Non_sort {vloc; err; typ}))
+
 let rec transl_type env ~policy ?(aliased=false) ~row_context mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
     (fun () -> transl_type_aux env ~policy ~aliased ~row_context mode styp)
@@ -698,6 +706,11 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
                 (newconstr Predef.path_option [Btype.tpoly_get_mono arg_ty])
             end
           in
+          ignore constrain_type_expr_to_any;
+          (*
+          constrain_type_expr_to_any ~loc:arg_cty.ctyp_loc ~vloc:Fun_arg env arg_cty.ctyp_type;
+          constrain_type_expr_to_any ~loc:ret_cty.ctyp_loc ~vloc:Fun_ret env ret_cty.ctyp_type;
+          *)
           let arg_mode = Alloc.of_const arg_mode in
           let ret_mode = Alloc.of_const ret_mode in
           let arrow_desc = (l, arg_mode, ret_mode) in
@@ -738,7 +751,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       in
       let arity = List.length params in
       (* If it is applied, then the arities match, so [combine] works out *)
-      if List.length params > 0 then List.iteri
+      if List.length args = List.length params then List.iteri
         (fun idx ((sty, cty), ty') ->
            begin match Types.get_desc ty' with
            | Tvar {jkind; _} when Jkind.History.has_imported_history jkind ->
