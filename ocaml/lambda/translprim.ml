@@ -208,45 +208,85 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     let (_, repr) = lambda_prim.prim_native_repr_res in
     Lambda.layout_of_extern_repr repr
   in
-  let module String_map = Map.Make(String) in 
+  let module String_map = Map.Make (String) in
   let indexing_primitives =
     let types_and_widths =
       [
-        ( (fun _aligned unsafe _boxed -> Printf.sprintf "%%caml_bigstring_get16%s" unsafe),
+        ( (fun _aligned unsafe _boxed ->
+            Printf.sprintf "%%caml_bigstring_get16%s" unsafe),
           fun ~aligned:_ ~unsafe ~boxed:_ ->
             Pbigstring_load_16 { unsafe; index_kind = Ptagged_int_index } );
         ( (fun _aligned -> Printf.sprintf "%%caml_bigstring_get32%s%s"),
-          fun ~aligned:_ ~unsafe ~boxed -> Pbigstring_load_32 { unsafe; mode; boxed } );
+          fun ~aligned:_ ~unsafe ~boxed ->
+            Pbigstring_load_32 { unsafe; mode; boxed } );
         ( (fun _aligned -> Printf.sprintf "%%caml_bigstring_getf32%s%s"),
-          fun ~aligned:_ ~unsafe ~boxed -> Pbigstring_load_f32 { unsafe; mode; boxed } );
+          fun ~aligned:_ ~unsafe ~boxed ->
+            Pbigstring_load_f32 { unsafe; mode; boxed } );
         ( (fun _aligned -> Printf.sprintf "%%caml_bigstring_get64%s%s"),
-          fun ~aligned:_ ~unsafe ~boxed -> Pbigstring_load_64 { unsafe; mode; boxed } );
+          fun ~aligned:_ ~unsafe ~boxed ->
+            Pbigstring_load_64 { unsafe; mode; boxed } );
         ( Printf.sprintf "%%caml_bigstring_get%s128%s%s",
           fun ~aligned ~unsafe ~boxed ->
             Pbigstring_load_128 { aligned; unsafe; mode; boxed } );
+        ( (fun _aligned unsafe _boxed ->
+            Printf.sprintf "%%caml_bytes_get16%s" unsafe),
+          fun ~aligned:_ ~unsafe ~boxed:_ -> Pbytes_load_16 unsafe );
+        ( (fun _aligned unsafe _boxed ->
+            Printf.sprintf "%%caml_bytes_get32%s" unsafe),
+          fun ~aligned:_ ~unsafe ~boxed:_ -> Pbytes_load_32 (unsafe, mode) );
+        ( (fun _aligned unsafe _boxed ->
+            Printf.sprintf "%%caml_bytes_getf32%s" unsafe),
+          fun ~aligned:_ ~unsafe ~boxed:_ -> Pbytes_load_f32 (unsafe, mode) );
+        ( (fun _aligned unsafe _boxed ->
+            Printf.sprintf "%%caml_bytes_get64%s" unsafe),
+          fun ~aligned:_ ~unsafe ~boxed:_ -> Pbytes_load_64 (unsafe, mode) );
+        ( (fun _aligned unsafe _boxed ->
+            Printf.sprintf "%%caml_bytes_getu128%s" unsafe),
+          fun ~aligned:_ ~unsafe ~boxed:_ -> Pbytes_load_128 { unsafe; mode }
+        );
+        ( (fun _aligned unsafe _boxed ->
+            Printf.sprintf "%%caml_string_get16%s" unsafe),
+          fun ~aligned:_ ~unsafe ~boxed:_ -> Pstring_load_16 unsafe );
+        ( (fun _aligned unsafe _boxed ->
+            Printf.sprintf "%%caml_string_get32%s" unsafe),
+          fun ~aligned:_ ~unsafe ~boxed:_ -> Pstring_load_32 (unsafe, mode) );
+        ( (fun _aligned unsafe _boxed ->
+            Printf.sprintf "%%caml_string_getf32%s" unsafe),
+          fun ~aligned:_ ~unsafe ~boxed:_ -> Pstring_load_f32 (unsafe, mode) );
+        ( (fun _aligned unsafe _boxed ->
+            Printf.sprintf "%%caml_string_get64%s" unsafe),
+          fun ~aligned:_ ~unsafe ~boxed:_ -> Pstring_load_64 (unsafe, mode) );
+        ( (fun _aligned unsafe _boxed ->
+            Printf.sprintf "%%caml_string_getu128%s" unsafe),
+          fun ~aligned:_ ~unsafe ~boxed:_ -> Pstring_load_128 { unsafe; mode }
+        );
       ]
     in
     let unsafes = [ (true, "u"); (false, "") ] in
     let boxeds = [ (true, ""); (false, "#") ] in
-    let aligned = [ (true, "a"); (false, "u") ] in 
-    let cartesian_product l1 l2 l3 l4 =
-      List.concat_map
-        (fun x1 ->
-          List.concat_map
-            (fun x2 ->
-              List.concat_map
-                (fun x3 -> List.map (fun x4 -> (x1, x2, x3, x4)) l4)
-                l3)
-            l2)
-        l1
-    in
-    cartesian_product types_and_widths aligned unsafes boxeds
+    let aligned = [ (true, "a"); (false, "u") ] in
+    let module Hlist = struct
+      type _ t = [] : unit t | ( :: ) : 'a * 'b t -> ('a -> 'b) t
+      type _ lt = [] : unit lt | ( :: ) : 'a list * 'b lt -> ('a -> 'b) lt
+
+      let rec cartesian_product : type l. l lt -> l t list = function
+        | [] -> [ [] ]
+        | hd :: tl ->
+            let tl = cartesian_product tl in
+            List.concat_map
+              (fun x1 -> List.map (fun x2 : _ t -> x1 :: x2) tl)
+              hd
+    end in
+    Hlist.cartesian_product [ types_and_widths; aligned; unsafes; boxeds ]
     |> List.map
          (fun
-           ( (string_gen, primitive_gen),
-             (aligned, aligned_sigil),
-             (unsafe, unsafe_sigil),
-             (boxed, boxed_sigil) )
+           ([
+              (string_gen, primitive_gen);
+              (aligned, aligned_sigil);
+              (unsafe, unsafe_sigil);
+              (boxed, boxed_sigil);
+            ] :
+             _ Hlist.t)
          ->
            let string = string_gen aligned_sigil unsafe_sigil boxed_sigil in
            let primitive = primitive_gen ~aligned ~unsafe ~boxed in
@@ -587,18 +627,6 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%caml_ba_dim_1" -> Primitive ((Pbigarraydim(1)), 1)
     | "%caml_ba_dim_2" -> Primitive ((Pbigarraydim(2)), 1)
     | "%caml_ba_dim_3" -> Primitive ((Pbigarraydim(3)), 1)
-    | "%caml_string_get16" -> Primitive ((Pstring_load_16(false)), 2)
-    | "%caml_string_get16u" -> Primitive ((Pstring_load_16(true)), 2)
-    | "%caml_string_get32" -> Primitive ((Pstring_load_32(false, mode)), 2)
-    | "%caml_string_get32u" -> Primitive ((Pstring_load_32(true, mode)), 2)
-    | "%caml_string_getf32" -> Primitive ((Pstring_load_f32(false, mode)), 2)
-    | "%caml_string_getf32u" -> Primitive ((Pstring_load_f32(true, mode)), 2)
-    | "%caml_string_get64" -> Primitive ((Pstring_load_64(false, mode)), 2)
-    | "%caml_string_get64u" -> Primitive ((Pstring_load_64(true, mode)), 2)
-    | "%caml_string_getu128" ->
-      Primitive ((Pstring_load_128 {unsafe = false; mode}), 2)
-    | "%caml_string_getu128u" ->
-      Primitive ((Pstring_load_128 {unsafe = true; mode}), 2)
     | "%caml_string_set16" -> Primitive ((Pbytes_set_16(false)), 3)
     | "%caml_string_set16u" -> Primitive ((Pbytes_set_16(true)), 3)
     | "%caml_string_set32" -> Primitive ((Pbytes_set_32(false)), 3)
@@ -611,18 +639,6 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive ((Pbytes_set_128 {unsafe = false}), 3)
     | "%caml_string_setu128u" ->
       Primitive ((Pbytes_set_128 {unsafe = true}), 3)
-    | "%caml_bytes_get16" -> Primitive ((Pbytes_load_16(false)), 2)
-    | "%caml_bytes_get16u" -> Primitive ((Pbytes_load_16(true)), 2)
-    | "%caml_bytes_get32" -> Primitive ((Pbytes_load_32(false, mode)), 2)
-    | "%caml_bytes_get32u" -> Primitive ((Pbytes_load_32(true, mode)), 2)
-    | "%caml_bytes_getf32" -> Primitive ((Pbytes_load_f32(false, mode)), 2)
-    | "%caml_bytes_getf32u" -> Primitive ((Pbytes_load_f32(true, mode)), 2)
-    | "%caml_bytes_get64" -> Primitive ((Pbytes_load_64(false, mode)), 2)
-    | "%caml_bytes_get64u" -> Primitive ((Pbytes_load_64(true, mode)), 2)
-    | "%caml_bytes_getu128" ->
-      Primitive ((Pbytes_load_128 {unsafe = false; mode}), 2)
-    | "%caml_bytes_getu128u" ->
-      Primitive ((Pbytes_load_128 {unsafe = true; mode}), 2)
     | "%caml_bytes_set16" -> Primitive ((Pbytes_set_16(false)), 3)
     | "%caml_bytes_set16u" -> Primitive ((Pbytes_set_16(true)), 3)
     | "%caml_bytes_set32" -> Primitive ((Pbytes_set_32(false)), 3)
