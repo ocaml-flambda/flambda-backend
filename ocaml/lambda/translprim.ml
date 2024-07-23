@@ -208,6 +208,52 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     let (_, repr) = lambda_prim.prim_native_repr_res in
     Lambda.layout_of_extern_repr repr
   in
+  let module String_map = Map.Make(String) in 
+  let indexing_primitives =
+    let types_and_widths =
+      [
+        ( (fun _aligned unsafe _boxed -> Printf.sprintf "%%caml_bigstring_get16%s" unsafe),
+          fun ~aligned:_ ~unsafe ~boxed:_ ->
+            Pbigstring_load_16 { unsafe; index_kind = Ptagged_int_index } );
+        ( (fun _aligned -> Printf.sprintf "%%caml_bigstring_get32%s%s"),
+          fun ~aligned:_ ~unsafe ~boxed -> Pbigstring_load_32 { unsafe; mode; boxed } );
+        ( (fun _aligned -> Printf.sprintf "%%caml_bigstring_getf32%s%s"),
+          fun ~aligned:_ ~unsafe ~boxed -> Pbigstring_load_f32 { unsafe; mode; boxed } );
+        ( (fun _aligned -> Printf.sprintf "%%caml_bigstring_get64%s%s"),
+          fun ~aligned:_ ~unsafe ~boxed -> Pbigstring_load_64 { unsafe; mode; boxed } );
+        ( Printf.sprintf "%%caml_bigstring_get%s128%s%s",
+          fun ~aligned ~unsafe ~boxed ->
+            Pbigstring_load_128 { aligned; unsafe; mode; boxed } );
+      ]
+    in
+    let unsafes = [ (true, "u"); (false, "") ] in
+    let boxeds = [ (true, ""); (false, "#") ] in
+    let aligned = [ (true, "a"); (false, "u") ] in 
+    let cartesian_product l1 l2 l3 l4 =
+      List.concat_map
+        (fun x1 ->
+          List.concat_map
+            (fun x2 ->
+              List.concat_map
+                (fun x3 -> List.map (fun x4 -> (x1, x2, x3, x4)) l4)
+                l3)
+            l2)
+        l1
+    in
+    cartesian_product types_and_widths aligned unsafes boxeds
+    |> List.map
+         (fun
+           ( (string_gen, primitive_gen),
+             (aligned, aligned_sigil),
+             (unsafe, unsafe_sigil),
+             (boxed, boxed_sigil) )
+         ->
+           let string = string_gen aligned_sigil unsafe_sigil boxed_sigil in
+           let primitive = primitive_gen ~aligned ~unsafe ~boxed in
+           (string, Primitive (primitive, 2)))
+    |> List.to_seq
+    |> fun seq -> String_map.add_seq seq String_map.empty
+  in
   let prim = match p.prim_name with
     | "%identity" -> Identity
     | "%bytes_to_string" -> Primitive (Pbytes_to_string, 1)
@@ -589,42 +635,12 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive ((Pbytes_set_128 {unsafe = false}), 3)
     | "%caml_bytes_setu128u" ->
       Primitive ((Pbytes_set_128 {unsafe = true}), 3)
-    | "%caml_bigstring_get16" ->
-      Primitive ((Pbigstring_load_16 { unsafe = false;
-        index_kind = Ptagged_int_index}), 2)
-    | "%caml_bigstring_get16u" ->
-      Primitive ((Pbigstring_load_16 { unsafe = true;
-        index_kind = Ptagged_int_index}), 2)
     | "%caml_bigstring_get16_indexed_by_int64#" ->
       Primitive ((Pbigstring_load_16 { unsafe = false;
         index_kind = Punboxed_int_index Pint64}), 2)
     | "%caml_bigstring_get16u_indexed_by_int64#" ->
       Primitive ((Pbigstring_load_16 { unsafe = true;
         index_kind = Punboxed_int_index Pint64}), 2)
-    | "%caml_bigstring_get32" ->
-      Primitive ((Pbigstring_load_32 { unsafe = false; mode; boxed = true }), 2)
-    | "%caml_bigstring_get32u" ->
-      Primitive ((Pbigstring_load_32 { unsafe = true; mode; boxed = true }), 2)
-    | "%caml_bigstring_getf32" ->
-      Primitive ((Pbigstring_load_f32 { unsafe = false; mode; boxed = true }), 2)
-    | "%caml_bigstring_getf32u" ->
-      Primitive ((Pbigstring_load_f32 { unsafe = true; mode; boxed = true }), 2)
-    | "%caml_bigstring_get64" ->
-      Primitive ((Pbigstring_load_64 { unsafe = false; mode; boxed = true }), 2)
-    | "%caml_bigstring_get64u" ->
-      Primitive ((Pbigstring_load_64 { unsafe = true; mode; boxed = true }), 2)
-    | "%caml_bigstring_getu128" ->
-      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = false; mode;
-        boxed = true }), 2)
-    | "%caml_bigstring_getu128u" ->
-      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = true; mode;
-        boxed = true }), 2)
-    | "%caml_bigstring_geta128" ->
-      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = false; mode;
-        boxed = true }), 2)
-    | "%caml_bigstring_geta128u" ->
-      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = true; mode;
-        boxed = true }), 2)
     | "%caml_bigstring_set16" ->
       Primitive ((Pbigstring_set_16 { unsafe = false }), 3)
     | "%caml_bigstring_set16u" ->
@@ -653,36 +669,6 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%caml_bigstring_seta128u" ->
       Primitive ((Pbigstring_set_128 {aligned = true; unsafe = true;
         boxed = true}), 3)
-    | "%caml_bigstring_get32#" ->
-      Primitive ((Pbigstring_load_32 { unsafe = false; mode; boxed = false }),
-        2)
-    | "%caml_bigstring_get32u#" ->
-      Primitive ((Pbigstring_load_32 { unsafe = true; mode; boxed = false }),
-        2)
-    | "%caml_bigstring_getf32#" ->
-      Primitive ((Pbigstring_load_f32 { unsafe = false; mode; boxed = false }),
-        2)
-    | "%caml_bigstring_getf32u#" ->
-      Primitive ((Pbigstring_load_f32 { unsafe = true; mode; boxed = false }),
-        2)
-    | "%caml_bigstring_get64#" ->
-      Primitive ((Pbigstring_load_64 { unsafe = false; mode; boxed = false }),
-        2)
-    | "%caml_bigstring_get64u#" ->
-      Primitive ((Pbigstring_load_64 { unsafe = true; mode; boxed = false }),
-        2)
-    | "%caml_bigstring_getu128#" ->
-      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = false; mode;
-        boxed = false }), 2)
-    | "%caml_bigstring_getu128u#" ->
-      Primitive ((Pbigstring_load_128 {aligned = false; unsafe = true; mode;
-        boxed = false }), 2)
-    | "%caml_bigstring_geta128#" ->
-      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = false; mode;
-        boxed = false }), 2)
-    | "%caml_bigstring_geta128u#" ->
-      Primitive ((Pbigstring_load_128 {aligned = true; unsafe = true; mode;
-        boxed = false }), 2)
     | "%caml_bigstring_set32#" ->
       Primitive ((Pbigstring_set_32 { unsafe = false; boxed = false }), 3)
     | "%caml_bigstring_set32u#" ->
@@ -822,7 +808,12 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
       Primitive(Preinterpret_unboxed_int64_as_tagged_int63, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
+      (match String_map.find_opt s indexing_primitives with
+       | Some p -> p
+       | None -> 
+
        raise(Error(loc, Unknown_builtin_primitive s))
+      )
     | _ -> External lambda_prim
   in
   prim
