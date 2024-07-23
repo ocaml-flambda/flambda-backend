@@ -489,7 +489,7 @@ let check_usage_of_path_of_substituted_item paths ~loc ~lid env super =
       | sig_item ->
          super.Btype.it_signature_item self sig_item
       );
-      Btype.it_path = (fun referenced_path ->
+      Btype.it_path = (fun _path_type referenced_path ->
         iter_path_apply referenced_path ~f:(fun funct arg ->
           if List.exists
                (fun path -> path_is_strict_prefix path ~prefix:arg)
@@ -1606,6 +1606,40 @@ let mksig desc env loc =
   sg
 
 (* let signature sg = List.map (fun item -> item.sig_type) sg *)
+
+(** When inferring a module type upon seeing a [Pmtd_underscore], we first apply a
+    substitution from the paths appearing in the signature to the paths appearing in
+    the structure. If after the substitution we encounter a [Path.t] not recognised by
+    the env of the struct, this means the module type being inferred has a symbol not yet
+    included in the env of the struct, and so we should error out. This avoids having
+    confusing error messages later. *)
+let check_no_unbound_paths env loc mty =
+  let env, super = iterator_with_env env in
+  let iterator =
+    { super with
+      Btype.it_path = (fun path_kind path ->
+        let env = Lazy.force (!env) in
+        try
+          match path_kind with
+          | Path_value ->
+              ignore (Env.find_value path env);
+          | Path_type ->
+              ignore (Env.find_type path env);
+          | Path_module ->
+              ignore (Env.find_module_lazy path env);
+          | Path_modtype ->
+              ignore (Env.find_modtype_lazy path env);
+          | Path_class ->
+              ignore (Env.find_class path env);
+          | Path_classtype ->
+              ignore (Env.find_cltype path env);
+        with
+        | Not_found -> raise (Error (loc, env, Unbound_path_in_inferred_type path))
+      );}
+  in
+  match mty with
+  | None -> ()
+  | Some mty -> iterator.it_module_type iterator mty
 
 let rec transl_modtype env smty =
   Builtin_attributes.warning_scope smty.pmty_attributes

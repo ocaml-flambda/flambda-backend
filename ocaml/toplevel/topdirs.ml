@@ -442,7 +442,7 @@ let is_nonrec_type id td =
   *)
   let recursive_use = ref false in
   let nonrecursive_use = ref false in
-  let it_path = function
+  let it_path _f = function
     | Path.Pident id' when Ident.name id' = Ident.name id ->
         if Ident.same id id' then
           recursive_use := true
@@ -553,8 +553,8 @@ let () =
 
 let is_rec_module id md =
   let exception Exit in
-  let rec it_path = function
-    | Path.Pdot(root, _ ) -> it_path root
+  let rec it_path _path_type = function
+    | Path.Pdot(root, _ ) -> it_path Btype.Path_module root
     | Path.Pident id' -> if (Ident.same id id') then raise Exit
     | _ -> ()
   in
