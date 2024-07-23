@@ -668,7 +668,7 @@ Line 2, characters 10-22:
 2 | let _ = f (fun x -> x)
               ^^^^^^^^^^^^
 Error:
-       The kind of 'a -> 'b is value
+       The kind of 'a -> 'b is value mod unique uncontended
          because it's a function type.
        But the kind of 'a -> 'b must be a subkind of value mod portable
          because of the definition of f at line 1, characters 4-5.

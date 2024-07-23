@@ -276,9 +276,22 @@ module Close_over_value :
 |}]
 
 (* CR mode-crossing: this should use mutable record *)
+
+(* This is used in place of a mutable record *)
+module M : sig
+  type t
+  val mk : t @@ portable
+end = struct
+  type t = unit
+  let mk = ()
+end
+[%%expect {|
+module M : sig type t val mk : t @@ portable end
+|}]
+
 module Close_over_value_monadic = struct
   module M = struct
-    let r @ uncontended = fun x -> x
+    let r @ uncontended = M.mk
   end
   let (foo @ portable) () =
     let uncontended_use (_ @ uncontended) = () in
