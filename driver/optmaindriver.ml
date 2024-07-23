@@ -154,40 +154,40 @@ let main unix argv ppf ~flambda2 =
     Location.report_exception ppf x;
     2
   | () ->
-    if !Flambda_backend_flags.gc_timings then begin
-      let minor = Gc_timings.gc_minor_ns () in
-      let major = Gc_timings.gc_major_ns () in
-      let stats = Gc.quick_stat () in
-      let secs x = x *. 1e-9 in
-      let precision = !Clflags.timings_precision in
-      let w2b n = n * (Sys.word_size / 8) in
-      let fw2b x = w2b (Float.to_int x) in
-      Format.fprintf Format.std_formatter "%0.*fs gc\n" precision (secs (minor +. major));
-      Format.fprintf Format.std_formatter "  %0.*fs minor\n" precision (secs minor);
-      Format.fprintf Format.std_formatter "  %0.*fs major\n" precision (secs major);
-      Format.fprintf Format.std_formatter "- heap\n";
-      (* Having minor + major + promoted = total alloc make more sense for
-         hierarchical stats. *)
-      Format.fprintf Format.std_formatter "  %ib alloc\n"
-        (fw2b stats.minor_words + (fw2b stats.major_words - fw2b stats.promoted_words));
-      Format.fprintf Format.std_formatter "    %ib minor\n"
-        (fw2b stats.minor_words - fw2b stats.promoted_words);
-      Format.fprintf Format.std_formatter "    %ib major\n"
-        (fw2b stats.major_words - fw2b stats.promoted_words);
-      Format.fprintf Format.std_formatter "    %ib promoted\n"
-        (fw2b stats.promoted_words);
-      Format.fprintf Format.std_formatter "  %ib top\n" (w2b stats.top_heap_words);
-      Format.fprintf Format.std_formatter "  %i collections\n"
-        (stats.minor_collections + stats.major_collections);
-      Format.fprintf Format.std_formatter "    %i minor\n" stats.minor_collections;
-      Format.fprintf Format.std_formatter "    %i major\n" stats.major_collections;
-    end;
     if !Clflags.dump_into_csv then
       let output_csv ppf_file = Profile.output_to_csv
         ppf_file !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision
       in
       Compmisc.with_ppf_file ~file_prefix:"profile" ~file_extension:".csv" output_csv
     else
+      if !Flambda_backend_flags.gc_timings then begin
+        let minor = Gc_timings.gc_minor_ns () in
+        let major = Gc_timings.gc_major_ns () in
+        let stats = Gc.quick_stat () in
+        let secs x = x *. 1e-9 in
+        let precision = !Clflags.timings_precision in
+        let w2b n = n * (Sys.word_size / 8) in
+        let fw2b x = w2b (Float.to_int x) in
+        Format.fprintf Format.std_formatter "%0.*fs gc\n" precision (secs (minor +. major));
+        Format.fprintf Format.std_formatter "  %0.*fs minor\n" precision (secs minor);
+        Format.fprintf Format.std_formatter "  %0.*fs major\n" precision (secs major);
+        Format.fprintf Format.std_formatter "- heap\n";
+        (* Having minor + major + promoted = total alloc make more sense for
+           hierarchical stats. *)
+        Format.fprintf Format.std_formatter "  %ib alloc\n"
+          (fw2b stats.minor_words + (fw2b stats.major_words - fw2b stats.promoted_words));
+        Format.fprintf Format.std_formatter "    %ib minor\n"
+          (fw2b stats.minor_words - fw2b stats.promoted_words);
+        Format.fprintf Format.std_formatter "    %ib major\n"
+          (fw2b stats.major_words - fw2b stats.promoted_words);
+        Format.fprintf Format.std_formatter "    %ib promoted\n"
+          (fw2b stats.promoted_words);
+        Format.fprintf Format.std_formatter "  %ib top\n" (w2b stats.top_heap_words);
+        Format.fprintf Format.std_formatter "  %i collections\n"
+          (stats.minor_collections + stats.major_collections);
+        Format.fprintf Format.std_formatter "    %i minor\n" stats.minor_collections;
+        Format.fprintf Format.std_formatter "    %i major\n" stats.major_collections;
+      end;
       Profile.print
         Format.std_formatter
         !Clflags.profile_columns
