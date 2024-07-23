@@ -1626,6 +1626,7 @@ module History = struct
         { args = List.map (fun t' -> update_reason t' reason) args;
           result = update_reason result reason
         }
+    | Top -> Top
 end
 (* module Type *)
 
@@ -1647,6 +1648,7 @@ module Const = struct
            ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
            format)
         args format result
+    | Top -> Format.fprintf ppf "((top))"
 
   let jkind_case2 ~typ ~arrow ~default (t : t) (t' : t) =
     match t, t' with
@@ -1662,11 +1664,15 @@ module Const = struct
         List.for_all2 equal args1 args2 && equal result1 result2)
       ~default:false t t'
 
-  let to_type_jkind (t : t) =
+  let to_type_jkind ~loc (t : t) =
     match t with
     | Type ty -> ty
     | Arrow _ ->
-      raise (Unexpected_higher_jkind "Coerced arrow to type jkind (const)")
+      raise
+        (Unexpected_higher_jkind ("Coerced arrow to type jkind (const): " ^ loc))
+    | Top ->
+      raise
+        (Unexpected_higher_jkind ("Coerced top to type jkind (const)" ^ loc))
 
   let of_attribute : Builtin_attributes.jkind_attribute -> t = function
     | Immediate -> of_type_jkind Type.Const.Primitive.immediate.jkind
@@ -1681,7 +1687,8 @@ module Const = struct
       (* jbachurski: We coerce here - in the future, the syntax should not permit
          mod on arrows. Such expressions are not parsed currently. *)
       let jkind =
-        to_type_jkind (of_user_written_annotation_unchecked_level jkind)
+        to_type_jkind ~loc:__LOC__
+          (of_user_written_annotation_unchecked_level jkind)
       in
       Type
         (List.fold_left Type.Const.meet_mode_in_parse jkind
@@ -1700,12 +1707,15 @@ let rec of_const ~why (t : Const.t) : t =
   | Arrow { args; result } ->
     Arrow
       { args = List.map (of_const ~why) args; result = of_const ~why result }
+  | Top -> Top
 
 let of_type_jkind t : t = Type t
 
 module Primitive = struct
   (* TODO jbachurski: Implement the top element for the jkind lattice *)
-  let top ~why = of_type_jkind (Type.Primitive.any ~why)
+  let top ~why : t =
+    ignore why;
+    Top
 end
 
 (******************************)
@@ -1729,6 +1739,7 @@ let rec to_const (t : t) : Const.t option =
       Some
         (Arrow { args = List.map Option.get args; result = Option.get result })
     else None
+  | Top -> Some Top
 
 (* of_const is defined above for use in Primitive *)
 
@@ -1739,6 +1750,7 @@ let get_required_layouts_level context (const : Const.t) =
   match const with
   | Type ty -> Type.get_required_layouts_level context ty
   | Arrow _ -> Language_extension.Alpha
+  | Top -> Language_extension.Alpha
 
 let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
   let const = Const.of_user_written_annotation_unchecked_level annot in
@@ -1803,18 +1815,15 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
     user_raise ~loc:decl.ptype_loc
       (Multiple_jkinds { from_annotation; from_attribute })
 
-let of_type_decl_default' ~of_type_decl ~context ~default
-    (decl : Parsetree.type_declaration) =
+let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
   match of_type_decl ~context decl with
   | Some (t, const, attrs) -> t, Some const, attrs
   | None -> default, None, decl.ptype_attributes
 
-let of_type_decl_default = of_type_decl_default' ~of_type_decl
-
-let[@inline never] to_type_jkind (t : t) =
+let to_type_jkind ~loc (t : t) =
   match t with
   | Type ty -> ty
-  | _ -> raise (Unexpected_higher_jkind "Coerced arrow to type jkind")
+  | _ -> raise (Unexpected_higher_jkind ("Coerced arrow to type jkind: " ^ loc))
 
 (******************************)
 (* elimination and defaulting *)
@@ -1824,6 +1833,7 @@ module Desc = struct
   type nonrec t =
     | Type of Type.t
     | Arrow of t Jkind_types.Arrow.t
+    | Top
 end
 
 let rec default_to_value_and_get (t : t) : Const.t =
@@ -1834,6 +1844,7 @@ let rec default_to_value_and_get (t : t) : Const.t =
       { args = List.map default_to_value_and_get args;
         result = default_to_value_and_get result
       }
+  | Top -> Top
 
 let default_to_value t = ignore (default_to_value_and_get t)
 
@@ -1841,6 +1852,7 @@ let get (t : t) : Desc.t =
   match t with
   | Type ty -> Type ty
   | Arrow { args; result } -> Desc.Arrow { args; result }
+  | Top -> Top
 
 let sort_of_jkind = Type.sort_of_jkind
 
@@ -1856,6 +1868,7 @@ let rec format ppf (jkind : t) =
          ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
          format)
       args format result
+  | Top -> Format.fprintf ppf "((top))"
 
 let format_history ~intro ppf (t : t) =
   match t with
@@ -1863,6 +1876,7 @@ let format_history ~intro ppf (t : t) =
   | Arrow _ ->
     (* TODO jbachurski: Implement history formatting for higher jkinds. *)
     Format.fprintf ppf "%t (...??)" intro
+  | Top -> Format.fprintf ppf "%t (...??)" intro
 
 (******************************)
 (* errors *)
@@ -1899,6 +1913,7 @@ module Violation = struct
       List.map any_missing_cmi (result :: args)
       |> List.find_opt Option.is_some
       |> Option.join
+    | Top -> None
 
   let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
@@ -2103,6 +2118,7 @@ module Debug_printers = struct
       Format.fprintf ppf "{ args = [%a];@ result = %a;@ }"
         (Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf "; ") t)
         args t result
+    | Top -> Format.fprintf ppf "Top"
 
   (*** formatting user errors ***)
   let report_error ~loc : Error.t -> _ = function

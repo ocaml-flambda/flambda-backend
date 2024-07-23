@@ -77,7 +77,10 @@ let compute_variance env visited vari ty =
           with Not_found ->
             List.iter (compute_variance_rec unknown) tl
         end
-    | Tapp _ -> assert false
+    | Tapp (ty, tl) ->
+      let open Variance in
+      compute_variance_rec unknown ty;
+      AppArgs.iter (compute_variance_rec unknown) tl
     | Tobject (ty, _) ->
         compute_same ty
     | Tfield (_, _, ty1, ty2) ->

@@ -361,6 +361,7 @@ let rec print_out_jkind ppf = function
         failwith "XXX unimplemented jkind syntax"
     in
     print_out_jkind_user ppf jkind
+  | Ojkind_top -> fprintf ppf "((top))"
 
 let print_out_jkind_annot ppf = function
   | None -> ()

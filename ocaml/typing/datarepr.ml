@@ -110,7 +110,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
     | Variant_extensible -> assert false
     | Variant_boxed x -> x
     | Variant_unboxed -> [| Constructor_uniform_value,
-                            [| Jkind.to_type_jkind decl.type_jkind |] |]
+                            [| Jkind.to_type_jkind ~loc:__LOC__ decl.type_jkind |] |]
   in
   let all_void jkinds = Array.for_all Jkind.Type.is_void_defaulting jkinds in
   let num_consts = ref 0 and num_nonconsts = ref 0 in

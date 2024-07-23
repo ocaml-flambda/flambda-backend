@@ -1014,7 +1014,7 @@ let rec check_constraints_rec env loc visited ty =
                             (ty, violation, Check_constraints)))
         | All_good -> ()
       end;
-      AppArgs.iter (check_constraints_rec env loc visited) args
+      List.iter (check_constraints_rec env loc visited) args
   | Tpoly (ty, tl) ->
       let _, ty = Ctype.instance_poly false tl ty in
       check_constraints_rec env loc visited ty
@@ -1174,7 +1174,7 @@ let update_label_jkinds env loc lbls named =
   in
   let lbls =
     List.mapi (fun idx (Types.{ld_type} as lbl) ->
-      let ld_jkind = Ctype.type_jkind env ld_type |> Jkind.to_type_jkind in
+      let ld_jkind = Ctype.type_jkind env ld_type |> Jkind.to_type_jkind ~loc:__LOC__ in
       update idx ld_jkind;
       {lbl with ld_jkind}
     ) lbls
@@ -1191,7 +1191,7 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
   match cd_args with
   | Types.Cstr_tuple tys ->
     List.iteri (fun idx {Types.ca_type=ty; _} ->
-      jkinds.(idx) <- Ctype.type_jkind env ty |> Jkind.to_type_jkind) tys;
+      jkinds.(idx) <- Ctype.type_jkind env ty |> Jkind.to_type_jkind ~loc:__LOC__) tys;
     cd_args, Array.for_all Jkind.Type.is_void_defaulting jkinds
   | Types.Cstr_record lbls ->
     let lbls, all_void =
@@ -1434,7 +1434,7 @@ let update_decl_jkind env dpath decl =
   let update_record_kind loc lbls rep =
     match lbls, rep with
     | [Types.{ld_type} as lbl], Record_unboxed ->
-      let ld_jkind = Ctype.type_jkind env ld_type |> Jkind.to_type_jkind in
+      let ld_jkind = Ctype.type_jkind env ld_type |> Jkind.to_type_jkind ~loc:__LOC__ in
       [{lbl with ld_jkind}], Record_unboxed, ld_jkind
     | _, Record_boxed jkinds ->
       let lbls, all_void =
@@ -1548,11 +1548,11 @@ let update_decl_jkind env dpath decl =
     | [{Types.cd_args} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [{ca_type=ty; _}] -> begin
-            let jkind = Ctype.type_jkind env ty |> Jkind.to_type_jkind in
+            let jkind = Ctype.type_jkind env ty |> Jkind.to_type_jkind ~loc:__LOC__ in
             cstrs, Variant_unboxed, jkind
           end
         | Cstr_record [{ld_type} as lbl] -> begin
-            let ld_jkind = Ctype.type_jkind env ld_type |> Jkind.to_type_jkind in
+            let ld_jkind = Ctype.type_jkind env ld_type |> Jkind.to_type_jkind ~loc:__LOC__ in
             [{ cstr with Types.cd_args =
                            Cstr_record [{ lbl with ld_jkind }] }],
             Variant_unboxed, ld_jkind
@@ -3164,7 +3164,7 @@ let transl_package_constraint ~loc ty =
   { type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.Primitive.top ~why:Dummy_jkind;
+    type_jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind;
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)
