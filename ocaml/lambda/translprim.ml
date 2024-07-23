@@ -842,10 +842,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | s when String.length s > 0 && s.[0] = '%' ->
       (match String_map.find_opt s indexing_primitives with
        | Some p -> p
-       | None -> 
-
-       raise(Error(loc, Unknown_builtin_primitive s))
-      )
+       | None -> raise (Error (loc, Unknown_builtin_primitive s)))
     | _ -> External lambda_prim
   in
   prim
