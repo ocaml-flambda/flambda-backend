@@ -1607,6 +1607,8 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     | Some ids -> ids
     | None -> Lambda.free_variables body
   in
+  let unboxed_product_components_in_scope = Env.get_unboxed_product_components_in_scope env in
+  let unboxed_product_components_in_scope = Ident.Map.filter (fun id _ -> Ident.Set.mem id free_idents_of_body) unboxed_product_components_in_scope in
   let free_idents_of_body =
     Ident.Set.fold
       (fun id acc ->
@@ -1623,7 +1625,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   in
   let new_env =
     Env.with_unboxed_product_components_in_scope new_env
-      (Env.get_unboxed_product_components_in_scope env)
+      unboxed_product_components_in_scope
   in
   let exn_continuation : IR.exn_continuation =
     { exn_handler = body_exn_cont; extra_args = [] }
