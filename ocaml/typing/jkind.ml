@@ -1253,8 +1253,7 @@ let for_boxed_variant ~all_voids =
   then Primitive.immediate ~why:Enumeration
   else Primitive.value ~why:Boxed_variant
 
-let for_arrow (_arg_type : Types.type_expr) (_ret_type : Types.type_expr) =
-  (* Until [with] syntax is supported, ignore argument and return types *)
+let for_arrow =
   fresh_jkind
     { layout = Sort (Const Value);
       modes_upper_bounds =
