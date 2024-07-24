@@ -1884,7 +1884,7 @@ Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
 Error:
-       The kind of 'a -> 'b is value
+       The kind of 'a -> 'b is value mod unique uncontended
          because it's a function type.
        But the kind of 'a -> 'b must be a subkind of immediate
          because of the definition of t35 at line 1, characters 0-30.

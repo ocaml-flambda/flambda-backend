@@ -458,6 +458,8 @@ val f : ('a -> 'b -> 'c) -> unique_ 'a -> 'b -> 'c = <fun>
 let f (g @ unique) x =
   g x x [@nontail]
 [%%expect{|
+val f : unique_ ('a -> 'a -> 'b) -> ('a -> 'b) = <fun>
+|}, Principal{|
 val f : unique_ ('a -> 'a -> 'b) -> 'a -> 'b = <fun>
 |}]
 

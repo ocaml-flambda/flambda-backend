@@ -386,6 +386,9 @@ val for_boxed_record : all_void:bool -> t
     all of the fields of all of its constructors are [void]. *)
 val for_boxed_variant : all_voids:bool -> t
 
+(** The jkind of an arrow type. *)
+val for_arrow : t
+
 (******************************)
 (* elimination and defaulting *)
 
