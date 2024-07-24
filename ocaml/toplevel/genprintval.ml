@@ -518,7 +518,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               | Datarepr.Constr_not_found -> (* raised by find_constr_by_tag *)
                   Oval_stuff "<unknown constructor>"
               end
-          | Tapp _ -> Oval_stuff "<Tapp>"
+          | Tapp _ -> Oval_stuff "<Tapp-val>"
           | Tvariant row ->
               if O.is_block obj then
                 let tag : int = O.obj (O.field obj 0) in
