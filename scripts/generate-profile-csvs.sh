@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# To be run from the root of the Flambda backend repo
+
+set -e -u -o pipefail
+
+dump_dir="`pwd`/profile"
+summary_path="`pwd`/summary.csv"
+
+export OLD_OCAMLPARAM="${OCAMLPARAM:-}"
+export OCAMLPARAM="_,profile=1,dump-into-csv=1,dump-dir=$dump_dir,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses"
+export BUILD_OCAMLPARAM="$OCAMLPARAM"
+
+revert_env_variables() {
+  export OCAMLPARAM="$OLD_OCAMLPARAM"
+  unset OLD_OCAMLPARAM
+}
+trap revert_env_variables EXIT
+
+./scripts/build-compiler.sh
+python3 ./scripts/combine-profile-information.py "$dump_dir" "$summary_path"
+rmdir "$dump_dir"
