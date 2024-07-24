@@ -371,9 +371,8 @@ and transl_exp1 ~scopes ~in_new_scope sort e =
   Translobj.oo_wrap e.exp_env true (transl_exp0 ~scopes ~in_new_scope sort) e
 
 and transl_exp0 ~in_new_scope ~scopes sort e =
-  let unwrap_tail_attribute_exn
-    (attr : ([`Tail | `Nontail | `Tail_if_possible] option, [`Conflict]) result) =
-    match attr with
+  let unwrap_tail_attribute_exn e =
+    match Builtin_attributes.tailcall e.exp_attributes with
     | Ok requested -> begin
         match requested with
         | Some `Tail -> Explicit_tail
@@ -436,7 +435,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       if extra_args = [] then lam
       else begin
         let tailcall = Translattribute.get_tailcall_attribute funct in
-        let tail = unwrap_tail_attribute_exn (Builtin_attributes.tailcall funct.exp_attributes) in
+        let tail =
+          (* The [@tail] or [@nontail] attribute is on the whole e, not funct. *)
+          unwrap_tail_attribute_exn e in
         let inlined = Translattribute.get_inlined_attribute funct in
         let specialised = Translattribute.get_specialised_attribute funct in
         let position = transl_apply_position pos in
@@ -451,7 +452,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_apply(funct, oargs, position, ap_mode, assume_zero_alloc)
     ->
       let tailcall = Translattribute.get_tailcall_attribute funct in
-      let tail = unwrap_tail_attribute_exn (Builtin_attributes.tailcall funct.exp_attributes) in
+        let tail =
+          (* The [@tail] or [@nontail] attribute is on the whole e, not funct. *)
+          unwrap_tail_attribute_exn e in
       let inlined = Translattribute.get_inlined_attribute funct in
       let specialised = Translattribute.get_specialised_attribute funct in
       let result_layout = layout_exp sort e in

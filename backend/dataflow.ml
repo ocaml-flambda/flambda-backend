@@ -51,7 +51,7 @@ let analyze ?(exnhandler = fun x -> x) ?(exnescape = D.bot)
     match i.desc with
     | Iend ->
         transfer i ~next:end_ ~exn
-    | Ireturn _ | Iop (Itailcall_ind | Itailcall_imm _) ->
+    | Ireturn _ | Iop (Itailcall_ind _ | Itailcall_imm _) ->
         transfer i ~next:D.bot ~exn:D.bot
     | Iop _ ->
         let bx = before end_ exn i.next in

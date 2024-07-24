@@ -1541,7 +1541,7 @@ let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
     (Extended_machtype.change_tagged_int_to_val result)
     mode;
   Cop
-    ( Capply (Extended_machtype.to_machtype result, apos),
+    ( Capply (Extended_machtype.to_machtype result, apos, Default_tail),
       (* See the cases for caml_apply regarding [change_tagged_int_to_val]. *)
       Cconst_symbol
         ( send_function_name
@@ -2393,7 +2393,8 @@ let split_arity_for_apply arity args =
     let args1, args2 = Misc.Stdlib.List.split_at max_arity args in
     (a1, args1), Some (a2, args2)
 
-let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
+let call_caml_apply extended_ty extended_args_type mut clos args pos mode tail
+    dbg =
   (* Treat tagged int arguments and results as [typ_val], to avoid generating
      excessive numbers of caml_apply functions. *)
   let ty = Extended_machtype.to_machtype extended_ty in
@@ -2403,7 +2404,7 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
       :: args
       @ [clos]
     in
-    Cop (Capply (ty, pos), cargs, dbg)
+    Cop (Capply (ty, pos, tail), cargs, dbg)
   in
   if !Flambda_backend_flags.caml_apply_inline_fast_path
   then
@@ -2428,7 +2429,7 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
                     dbg ),
                 dbg,
                 Cop
-                  ( Capply (ty, pos),
+                  ( Capply (ty, pos, tail),
                     (get_field_codepointer mut clos 2 dbg :: args) @ [clos],
                     dbg ),
                 dbg,
@@ -2454,37 +2455,38 @@ let maybe_reset_current_region ~dbg ~body_tail ~body_nontail old_region =
       dbg (),
       Any )
 
-let apply_or_call_caml_apply result arity mut clos args pos mode dbg =
+let apply_or_call_caml_apply result arity mut clos args pos mode tail dbg =
   match args with
   | [arg] ->
     bind "fun" clos (fun clos ->
         Cop
-          ( Capply (Extended_machtype.to_machtype result, pos),
+          ( Capply (Extended_machtype.to_machtype result, pos, tail),
             [get_field_codepointer mut clos 0 dbg; arg; clos],
             dbg ))
-  | _ -> call_caml_apply result arity mut clos args pos mode dbg
+  | _ -> call_caml_apply result arity mut clos args pos mode tail dbg
 
 let rec might_split_call_caml_apply ?old_region result arity mut clos args pos
-    mode dbg =
+    mode tail dbg =
   match split_arity_for_apply arity args with
   | (arity, args), None -> (
     match old_region with
-    | None -> apply_or_call_caml_apply result arity mut clos args pos mode dbg
+    | None ->
+      apply_or_call_caml_apply result arity mut clos args pos mode tail dbg
     | Some old_region ->
       maybe_reset_current_region ~dbg:placeholder_dbg
         ~body_tail:
-          (apply_or_call_caml_apply result arity mut clos args pos mode dbg)
+          (apply_or_call_caml_apply result arity mut clos args pos mode tail dbg)
         ~body_nontail:
           (apply_or_call_caml_apply result arity mut clos args Rc_normal
-             Lambda.alloc_local dbg)
+             Lambda.alloc_local tail dbg)
         old_region)
   | (arity, args), Some (arity', args') -> (
     let body old_region =
       bind "result"
         (call_caml_apply [| Val |] arity mut clos args Rc_normal
-           Lambda.alloc_local dbg) (fun clos ->
+           Lambda.alloc_local tail dbg) (fun clos ->
           might_split_call_caml_apply ?old_region result arity' mut clos args'
-            pos mode dbg)
+            pos mode tail dbg)
     in
     (* When splitting [caml_applyM] into [caml_applyN] and [caml_applyK] it is
        possible for [caml_applyN] to allocate on the local stack. If we are not
@@ -2503,8 +2505,8 @@ let rec might_split_call_caml_apply ?old_region result arity mut clos args pos
         (fun region -> body (Some region))
     | _ -> body old_region)
 
-let generic_apply mut clos args args_type result (pos, mode) dbg =
-  might_split_call_caml_apply result args_type mut clos args pos mode dbg
+let generic_apply mut clos args args_type result (pos, mode) tail dbg =
+  might_split_call_caml_apply result args_type mut clos args pos mode tail dbg
 
 let send kind met obj args args_type result akind dbg =
   let call_met obj args args_type clos =
@@ -2512,7 +2514,7 @@ let send kind met obj args args_type result akind dbg =
        Immutable load *)
     generic_apply Asttypes.Mutable clos (obj :: args)
       (Extended_machtype.typ_val :: args_type)
-      result akind dbg
+      result akind Default_tail dbg
   in
   bind "obj" obj (fun obj ->
       match (kind : Lambda.meth_kind), args, args_type with
@@ -2652,7 +2654,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
     | [arg] -> (
       let app =
         Cop
-          ( Capply (result, Rc_normal),
+          ( Capply (result, Rc_normal, Default_tail),
             [ get_field_codepointer Asttypes.Mutable (Cvar clos) 0 (dbg ());
               Cvar arg;
               Cvar clos ],
@@ -2671,7 +2673,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
       Clet
         ( VP.create newclos,
           Cop
-            ( Capply (typ_val, Rc_normal),
+            ( Capply (typ_val, Rc_normal, Default_tail),
               [ get_field_codepointer Asttypes.Mutable (Cvar clos) 0 (dbg ());
                 Cvar arg;
                 Cvar clos ],
@@ -2702,7 +2704,7 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
               dbg () ),
           dbg (),
           Cop
-            ( Capply (result, Rc_normal),
+            ( Capply (result, Rc_normal, Default_tail),
               get_field_codepointer Asttypes.Mutable (Cvar clos) 2 (dbg ())
               :: List.map (fun s -> Cvar s) all_args,
               dbg () ),
@@ -2817,7 +2819,7 @@ let tuplify_function arity return =
       fun_args = [VP.create arg, typ_val; VP.create clos, typ_val];
       fun_body =
         Cop
-          ( Capply (return, Rc_normal),
+          ( Capply (return, Rc_normal, Default_tail),
             get_field_codepointer Asttypes.Mutable (Cvar clos) 2 (dbg ())
             :: access_components 0
             @ [Cvar clos],
@@ -2938,7 +2940,7 @@ let rec make_curry_apply result narity args_type args clos n =
   match args_type with
   | [] ->
     Cop
-      ( Capply (result, Rc_normal),
+      ( Capply (result, Rc_normal, Default_tail),
         (get_field_codepointer Asttypes.Mutable (Cvar clos) 2 (dbg ()) :: args)
         @ [Cvar clos],
         dbg () )
@@ -3428,7 +3430,7 @@ let entry_point namelist =
     in
     Csequence
       ( Cop
-          ( Capply (typ_void, Rc_normal),
+          ( Capply (typ_void, Rc_normal, Default_tail),
             [Cop (mk_load_immut Word_int, [f], dbg ())],
             dbg () ),
         incr_global_inited () )
@@ -3809,16 +3811,16 @@ let load ~dbg memory_chunk mutability ~addr =
 let store ~dbg kind init ~addr ~new_value =
   Cop (Cstore (kind, init), [addr; new_value], dbg)
 
-let direct_call ~dbg ty pos f_code_sym args =
-  Cop (Capply (ty, pos), f_code_sym :: args, dbg)
+let direct_call ~dbg ty pos tail f_code_sym args =
+  Cop (Capply (ty, pos, tail), f_code_sym :: args, dbg)
 
-let indirect_call ~dbg ty pos alloc_mode f args_type args =
+let indirect_call ~dbg ty pos alloc_mode tail f args_type args =
   might_split_call_caml_apply ty args_type Asttypes.Mutable f args pos
-    alloc_mode dbg
+    alloc_mode tail dbg
 
-let indirect_full_call ~dbg ty pos alloc_mode f args_type = function
+let indirect_full_call ~dbg ty pos alloc_mode tail f args_type = function
   (* the single-argument case is already optimized by indirect_call *)
-  | [_] as args -> indirect_call ~dbg ty pos alloc_mode f args_type args
+  | [_] as args -> indirect_call ~dbg ty pos alloc_mode tail f args_type args
   | args ->
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
     let v = Backend_var.create_local "*closure*" in
@@ -3830,7 +3832,7 @@ let indirect_full_call ~dbg ty pos alloc_mode f args_type = function
     letin v' ~defining_expr:f
       ~body:
         (Cop
-           ( Capply (Extended_machtype.to_machtype ty, pos),
+           ( Capply (Extended_machtype.to_machtype ty, pos, tail),
              (fun_ptr :: args) @ [Cvar v],
              dbg ))
 

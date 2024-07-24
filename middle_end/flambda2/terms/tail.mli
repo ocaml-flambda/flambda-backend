@@ -18,3 +18,7 @@ type t =
   | Default_tail (* No [@tail] or [@nontail] attribute *)
 
 val from_lambda : Lambda.tail_attribute -> t
+
+val to_lambda : t -> Lambda.tail_attribute
+
+val print : Format.formatter -> t -> unit

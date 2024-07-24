@@ -68,7 +68,7 @@ let instr' ?(print_reg = Printmach.reg) ppf i =
       fprintf ppf "prologue"
   | Lop op ->
       begin match op with
-      | Ialloc _ | Ipoll _ | Icall_ind | Icall_imm _ | Iextcall _ | Iprobe _ ->
+      | Ialloc _ | Ipoll _ | Icall_ind _ | Icall_imm _ | Iextcall _ | Iprobe _ ->
           fprintf ppf "@[<1>{%a}@]@," regsetaddr i.live
       | _ -> ()
       end;

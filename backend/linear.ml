@@ -49,7 +49,7 @@ and instruction_desc =
 
 let has_fallthrough = function
   | Lreturn | Lbranch _ | Lswitch _ | Lraise _
-  | Lop Itailcall_ind | Lop (Itailcall_imm _)
+  | Lop (Itailcall_ind _) | Lop (Itailcall_imm _)
   | Lop (Ipoll { return_label = Some _ }) -> false
   | _ -> true
 

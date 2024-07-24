@@ -155,6 +155,17 @@ let test' ?(print_reg = reg) tst ppf arg =
 
 let test tst ppf arg = test' tst ppf arg
 
+(* CR less-tco: Remove this tail debug print *)
+let ptail ppf (tail : Lambda.tail_attribute) =
+  let str =
+    match tail with
+    | Explicit_tail -> "[@tail]"
+    | Hint_tail -> "[@tail hint]"
+    | Explicit_non_tail -> "[@nontail]"
+    | Default_tail -> ""
+  in
+  fprintf ppf "%s" str
+
 let operation' ?(print_reg = reg) op arg ppf res =
   let reg = print_reg in
   let regs = regs' ~print_reg in
@@ -168,10 +179,10 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iconst_float f -> fprintf ppf "%F" (Int64.float_of_bits f)
   | Iconst_symbol s -> fprintf ppf "\"%s\"" s.sym_name
   | Iconst_vec128 {high; low} -> fprintf ppf "%016Lx:%016Lx" high low
-  | Icall_ind -> fprintf ppf "call %a" regs arg
-  | Icall_imm { func; } -> fprintf ppf "call \"%s\" %a" func.sym_name regs arg
-  | Itailcall_ind -> fprintf ppf "tailcall %a" regs arg
-  | Itailcall_imm { func; } -> fprintf ppf "tailcall \"%s\" %a" func.sym_name regs arg
+  | Icall_ind { tail; } -> fprintf ppf "call%a %a" ptail tail regs arg
+  | Icall_imm { func; tail; } -> fprintf ppf "call%a \"%s\" %a" ptail tail func.sym_name regs arg
+  | Itailcall_ind { tail; } -> fprintf ppf "tailcall%a %a" ptail tail regs arg
+  | Itailcall_imm { func; tail; } -> fprintf ppf "tailcall%a \"%s\" %a" ptail tail func.sym_name regs arg
   | Iextcall { func; alloc; _ } ->
       fprintf ppf "extcall \"%s\" %a%s" func regs arg
       (if alloc then "" else " (noalloc)")

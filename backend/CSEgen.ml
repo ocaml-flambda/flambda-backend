@@ -58,7 +58,7 @@ method class_of_operation op =
   | Imove | Ispill | Ireload -> assert false   (* treated specially *)
   | Iconst_int _ | Iconst_float32 _ | Iconst_float _
   | Iconst_symbol _ | Iconst_vec128 _ -> Op_pure
-  | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
+  | Icall_ind _ | Icall_imm _ | Itailcall_ind _ | Itailcall_imm _
   | Iextcall _ | Iprobe _ | Iopaque -> assert false  (* treated specially *)
   | Istackoffset _ -> Op_other
   | Iload { mutability; is_atomic } ->
@@ -100,7 +100,7 @@ method private kill_loads n =
 
 method private cse n i k =
   match i.desc with
-  | Iend | Ireturn _ | Iop(Itailcall_ind) | Iop(Itailcall_imm _)
+  | Iend | Ireturn _ | Iop(Itailcall_ind _) | Iop(Itailcall_imm _)
   | Iexit _ | Iraise _ ->
       k i
   | Iop (Imove | Ispill | Ireload) ->
@@ -108,7 +108,7 @@ method private cse n i k =
          as to the argument reg. *)
       let n1 = set_move n i.arg.(0) i.res.(0) in
       self#cse n1 i.next (fun next -> k { i with next; })
-  | Iop (Icall_ind | Icall_imm _ | Iextcall _ | Iprobe _) ->
+  | Iop (Icall_ind _ | Icall_imm _ | Iextcall _ | Iprobe _) ->
       (* For function calls and probes, we should at least forget:
          - equations involving memory loads, since the callee can
            perform arbitrary memory stores;

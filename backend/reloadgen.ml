@@ -101,13 +101,13 @@ method private reload i k =
        However, something needs to be done for the function pointer in
        indirect calls. *)
     Iend | Ireturn _ | Iop(Itailcall_imm _) | Iraise _ -> k i
-  | Iop(Itailcall_ind) ->
+  | Iop(Itailcall_ind _) ->
       let newarg = self#makereg1 i.arg in
       k (insert_moves i.dbg i.arg newarg
            {i with arg = newarg})
   | Iop(Icall_imm _ | Iextcall _) ->
       self#reload i.next (fun next -> k {i with next; })
-  | Iop(Icall_ind) ->
+  | Iop(Icall_ind _) ->
       let newarg = self#makereg1 i.arg in
       self#reload i.next (fun next ->
         k (insert_moves i.dbg i.arg newarg

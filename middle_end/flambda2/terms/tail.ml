@@ -22,3 +22,20 @@ let from_lambda (tail : Lambda.tail_attribute) : t =
   | Hint_tail -> Hint_tail
   | Explicit_non_tail -> Explicit_non_tail
   | Default_tail -> Default_tail
+
+let to_lambda (tail : t) : Lambda.tail_attribute =
+  match tail with
+  | Explicit_tail -> Explicit_tail
+  | Hint_tail -> Hint_tail
+  | Explicit_non_tail -> Explicit_non_tail
+  | Default_tail -> Default_tail
+
+let print ppf t =
+  let str =
+    match t with
+    | Explicit_tail -> "Explicit_tail"
+    | Hint_tail -> "Hint_tail"
+    | Explicit_non_tail -> "Explicit_non_tail"
+    | Default_tail -> "Default_tail"
+  in
+  Format.pp_print_string ppf str
