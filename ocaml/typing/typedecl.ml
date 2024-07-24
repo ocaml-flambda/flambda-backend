@@ -991,7 +991,7 @@ let rec check_constraints_rec env loc visited ty =
   if TypeSet.mem ty !visited then () else begin
   visited := TypeSet.add ty !visited;
   match get_desc ty with
-  | Tconstr (path, args, _) ->
+  | Tconstr (path, Applied args, _) ->
       let decl =
         try Env.find_type path env
         with Not_found ->
@@ -1014,7 +1014,7 @@ let rec check_constraints_rec env loc visited ty =
                             (ty, violation, Check_constraints)))
         | All_good -> ()
       end;
-      AppArgs.iter (check_constraints_rec env loc visited) args
+      List.iter (check_constraints_rec env loc visited) args
   | Tpoly (ty, tl) ->
       let _, ty = Ctype.instance_poly false tl ty in
       check_constraints_rec env loc visited ty
