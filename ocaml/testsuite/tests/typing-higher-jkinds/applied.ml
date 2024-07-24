@@ -7,6 +7,7 @@ type t : value => value
 
 [%%expect {|
 type t : value => value
+type t : value => value
 |}]
 
 
@@ -73,12 +74,14 @@ type r : (value => value) => value
 
 [%%expect {|
 type r : (value => value) => value
+type r : (value => value) => value
 |}]
 
 
 type ('a : value => value) r
 
 [%%expect {|
+type ('a : value => value) r
 type ('a : value => value) r
 |}]
 
@@ -88,8 +91,7 @@ module type M = sig
 end
 
 [%%expect{|
-Uncaught exception: File "ocaml/typing/jkind.ml", line 173, characters 26-32: Assertion failed
-
+module type M = sig val g : ('a : value => value). 'a r -> 'a r end
 |}]
 
 
@@ -102,6 +104,8 @@ end
 [%%expect{|
 module type M =
   sig
+    type r : (value => value) => value
+    type s : value => value
     type r : (value => value) => value
     type s : value => value
     val g : s r -> s r
@@ -118,6 +122,8 @@ end
 [%%expect{|
 module type M =
   sig
+    type r : (value => value) => value
+    type s : value => value
     type r : (value => value) => value
     type s : value => value
     val g : int s r -> int s r
