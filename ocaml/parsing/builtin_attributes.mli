@@ -184,6 +184,7 @@ val has_curry: Parsetree.attributes -> bool
 
 (* Setting use:true will raise a warning if the attribute has an invalid parameter;
    tailcall should only be called with use:true once to generate exactly one alert. *)
+(* CR less-tco: Maybe remove use:true *)
 val tailcall : Parsetree.attributes -> use:bool ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
 
