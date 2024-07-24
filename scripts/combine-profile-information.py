@@ -19,37 +19,53 @@ if not DUMP_DIR.exists():
     raise ValueError(f"{DUMP_DIR} does not exist")
 SUMMARY_PATH = Path(args.summary_path)
 
-SUMMARY_NON_COUNTER_FIELD_NAMES = [
-    "pass name",
-    "time",
-    # CR mitom: Not supporting memory for now
-    # "alloc",
-    # "top-heap",
-    # "absolute-top-heap",
-]
-SUMMARY_COUNTER_FIELD_NAMES = [
-    "spill",
-    "reload",
-]
-SUMMARY_FIELD_NAMES = SUMMARY_NON_COUNTER_FIELD_NAMES + SUMMARY_COUNTER_FIELD_NAMES
-
-
-def get_field_names(csv_path: Path) -> List[str]:
-    with open(csv_path) as csv_file:
-        csv_reader = csv.DictReader(csv_file)
-        field_names = csv_reader.fieldnames
-    return field_names
-
 
 def parse_counters(counters: str) -> Dict[str, str]:
+    if not counters:
+        return {}
     split_counters = counters.strip("[]").split("; ")
     return dict(map(lambda x: tuple(x.split(" = ")), split_counters))
 
 
-def csv_to_summary(csv_reader: csv.DictReader) -> Dict[str, str]:
-    rows = list(csv_reader)
+def get_csv_rows(csv_path: Path) -> List[Dict]:
+    with open(csv_path) as csv_file:
+        csv_reader = csv.DictReader(csv_file)
+        return list(csv_reader)
+
+
+PRIMARY_KEY = "pass name"
+summary_non_counter_fields = set()
+summary_counter_fields = set()
+
+for csv_path in DUMP_DIR.glob("*.csv"):
+    rows = get_csv_rows(csv_path)
+    curr_fields = set(rows[0])
+    curr_fields.remove(PRIMARY_KEY)
+    if "counters" in curr_fields:
+        curr_fields.remove("counters")
+        for row in rows:
+            summary_counter_fields.update(parse_counters(row["counters"]))
+    summary_non_counter_fields.update(curr_fields)
+
+# CR mitom: Not supporting memory for now
+SUMMARY_UNSUPPORTED_FIELDS = {
+    "alloc",
+    "top-heap",
+    "absolute-top-heap",
+}
+
+# Ensure consistent ordering of summary fields
+field_collections = {PRIMARY_KEY}, summary_non_counter_fields, summary_counter_fields
+SUMMARY_FIELD_NAMES = sum(
+    map(lambda fields: sorted(fields - SUMMARY_UNSUPPORTED_FIELDS), field_collections),
+    []
+)
+
+
+def csv_to_summary(rows: List[Dict]) -> Dict[str, str]:
+    primary_key_summary = {PRIMARY_KEY: rows[0][PRIMARY_KEY]}
     non_counters_summary = {
-        k: v for k, v in rows[0].items() if k in SUMMARY_NON_COUNTER_FIELD_NAMES
+        k: v for k, v in rows[0].items() if k in summary_non_counter_fields
     }
     counters_summary = next(
         (parse_counters(row["counters"]) for row in rows if row["counters"]),
@@ -57,7 +73,8 @@ def csv_to_summary(csv_reader: csv.DictReader) -> Dict[str, str]:
     )
     if counters_summary is None:
         return None
-    return {**non_counters_summary, **counters_summary}
+    summary = {**primary_key_summary, **non_counters_summary, **counters_summary}
+    return {k: v for k, v in summary.items() if k in SUMMARY_FIELD_NAMES}
 
 
 def split_into_number_and_unit(number_string: str) -> (str, Union[int, float]):
@@ -84,12 +101,10 @@ def update_totals(totals: dict, summary: dict) -> None:
 
 
 def process_csv(csv_path: Path, summary_csv_writer: csv.DictWriter, totals: dict) -> None:
-    with open(csv_path) as csv_file:
-        csv_reader = csv.DictReader(csv_file)
-        summary = csv_to_summary(csv_reader)
-        if summary is not None:
-            summary_csv_writer.writerow(summary)
-            update_totals(totals, summary)
+    summary = csv_to_summary(get_csv_rows(csv_path))
+    if summary is not None:
+        summary_csv_writer.writerow(summary)
+        update_totals(totals, summary)
 
 
 with open(SUMMARY_PATH, "w", newline="") as summary_csv_file:
