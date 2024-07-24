@@ -27,10 +27,20 @@ end = struct
   let hide x = x
 end
 
+module Hidden_function : sig
+  type (-'a, +'b) t
+  val hide : ('a -> 'b) -> ('a, 'b) t
+end = struct
+  type ('a, 'b) t = 'a -> 'b
+  let hide x = x
+end
+
 [%%expect{|
 module Hidden_string : sig type t val hide : string -> t end
 module Hidden_int : sig type t : immediate val hide : int -> t end
 module Hidden_float_u : sig type t : float64 val hide : float# -> t end
+module Hidden_function :
+  sig type (-'a, +'b) t val hide : ('a -> 'b) -> ('a, 'b) t end
 |}]
 
 module Float_u : sig
@@ -330,6 +340,12 @@ Line 1, characters 56-57:
 Error: This value is shared but expected to be unique.
 |}]
 
+let function_unshare : _ -> unique_ (int -> int) = fun x -> x
+
+[%%expect{|
+val function_unshare : (int -> int) -> unique_ (int -> int) = <fun>
+|}]
+
 let hidden_string_unshare : _ -> unique_ Hidden_string.t =
   fun x -> x
 
@@ -390,12 +406,12 @@ Line 3, characters 11-12:
 Error: This value is shared but expected to be unique.
 |}]
 
-let function_unshare : _ -> unique_ (int -> int) = fun x -> x
+let hidden_function_unshare : _ -> unique_ (int, int) Hidden_function.t = fun x -> x
 
 [%%expect{|
-Line 1, characters 60-61:
-1 | let function_unshare : _ -> unique_ (int -> int) = fun x -> x
-                                                                ^
+Line 1, characters 83-84:
+1 | let hidden_function_unshare : _ -> unique_ (int, int) Hidden_function.t = fun x -> x
+                                                                                       ^
 Error: This value is shared but expected to be unique.
 |}]
 
