@@ -129,4 +129,4 @@ let with_ppf_dump ?stdout ~file_prefix f =
     let formatter =
       if Option.is_some stdout then Format.std_formatter else Format.err_formatter in
     Misc.try_finally (fun () -> f formatter)
-  | _ -> with_ppf_file ~file_prefix ~file_extension:".dump" f
+  | true -> with_ppf_file ~file_prefix ~file_extension:".dump" f
