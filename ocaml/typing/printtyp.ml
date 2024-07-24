@@ -1422,7 +1422,9 @@ let rec tree_of_typexp mode alloc_mode ty =
         if is_nth s && not (tyl'=[])
         then tree_of_typexp mode Alloc.Const.legacy (List.hd tyl')
         else Otyp_constr (tree_of_path (Some Type) p', tree_of_typlist mode tyl')
-    | Tapp _ -> Otyp_stuff "<Tapp>"
+    | Tapp (ty, tyl) ->
+        Otyp_app (tree_of_typexp mode Alloc.Const.legacy ty,
+                  tree_of_typlist mode (AppArgs.to_list tyl))
     | Tvariant row ->
         let Row {fields; name; closed; _} = row_repr row in
         let fields =
