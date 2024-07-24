@@ -52,7 +52,7 @@ val print : Format.formatter -> Clflags.profile_column list -> timings_precision
 
 val output_to_csv :
 Format.formatter -> Clflags.profile_column list -> timings_precision:int -> unit
-(** Outputs the selected recorded profiling information to given CSV file formatter. *)
+(** Outputs the selected recorded profiling information in CSV format to the formatter. *)
 
 (** Command line flags *)
 
