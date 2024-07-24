@@ -1297,11 +1297,8 @@ let out_jkind_option_of_jkind jkind =
       then Some (Ojkind_var (Jkind.Type.Sort.Var.name v))
       else None
     end
-  | Arrow { args; result } ->
-    (* We ignore the rules above for arrows, which should always be printed *)
-    Some (Ojkind_arrow
-      { args = List.map out_jkind_of_jkind args;
-        result = out_jkind_of_jkind result })
+  (* We ignore the rules above for arrows, which should always be printed *)
+  | _ -> Some (out_jkind_of_jkind jkind)
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
