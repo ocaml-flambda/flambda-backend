@@ -738,7 +738,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       in
       let arity = List.length params in
       (* If it is applied, then the arities match, so [combine] works out *)
-      if List.length params > 0 then List.iteri
+      if List.length args = List.length params then List.iteri
         (fun idx ((sty, cty), ty') ->
            begin match Types.get_desc ty' with
            | Tvar {jkind; _} when Jkind.History.has_imported_history jkind ->
