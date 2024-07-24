@@ -269,6 +269,7 @@ module Type = struct
     let has_warned t = t.has_warned
   end
 
+  (* forward declare [Const.t] so we can use it for [Error.t] *)
   type const = type_expr Jkind_types.Type.Const.t
 
   module Const = struct
@@ -1582,7 +1583,7 @@ module History = struct
     match t with
     | Type ty -> Type.History.has_imported_history ty
     | Arrow { args; result } ->
-      List.exists has_imported_history args || has_imported_history result
+      List.exists has_imported_history args && has_imported_history result
     | Top -> false
 
   let rec update_reason (t : t) reason : t =
@@ -1973,6 +1974,7 @@ let rec equate_or_equal ~allow_mutation (t : t) (t' : t) =
     let arg_eqs = List.map2 (equate_or_equal ~allow_mutation) args1 args2 in
     equate_or_equal ~allow_mutation result1 result2
     && List.for_all (fun x -> x) arg_eqs
+  | Top, Top -> true
   | _ -> false
 
 let equate = equate_or_equal ~allow_mutation:true
@@ -1998,6 +2000,8 @@ let arrow_connective_or_error ~on_args ~on_result
 
 let rec intersection_or_error ~reason (t : t) (t' : t) : (t, _) result =
   match t, t' with
+  | _, Top -> Ok t
+  | Top, _ -> Ok t'
   | Type ty, Type ty' -> (
     match Type.Jkind_desc.intersection ty.jkind ty'.jkind with
     | None -> Error (Violation.of_ (No_intersection (Type ty, Type ty')))
@@ -2016,6 +2020,8 @@ let rec intersection_or_error ~reason (t : t) (t' : t) : (t, _) result =
 
 and union_or_error ~reason (t : t) (t' : t) : (t, _) result =
   match t, t' with
+  | _, Top -> Ok Top
+  | Top, _ -> Ok Top
   | Type ty, Type ty' ->
     (* Union is infallible at type jkinds due to [any] *)
     Ok
@@ -2024,10 +2030,13 @@ and union_or_error ~reason (t : t) (t' : t) : (t, _) result =
            history = Type.combine_histories reason ty ty';
            has_warned = ty.has_warned || ty'.has_warned
          })
-  | Arrow a, Arrow a' ->
-    arrow_connective_or_error
-      ~on_args:(intersection_or_error ~reason)
-      ~on_result:(union_or_error ~reason) a a'
+  | Arrow a, Arrow a' -> (
+    let r =
+      arrow_connective_or_error
+        ~on_args:(intersection_or_error ~reason)
+        ~on_result:(union_or_error ~reason) a a'
+    in
+    match r with Ok ty -> Ok ty | Error _ -> Ok Top)
   | _ -> Error (Violation.of_ (No_union (t, t')))
 
 let has_intersection t t' =
@@ -2038,6 +2047,8 @@ let has_intersection t t' =
 
 let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
   match t, t' with
+  | Top, Top -> Misc.Le_result.Equal
+  | _, Top -> Misc.Le_result.Less
   | Type ty, Type ty' -> Type.check_sub ty ty'
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
