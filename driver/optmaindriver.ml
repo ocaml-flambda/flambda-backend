@@ -159,7 +159,7 @@ let main unix argv ppf ~flambda2 =
         ppf_file !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision
       in
       Compmisc.with_ppf_file ~file_prefix:"profile" ~file_extension:".csv" output_csv
-    else
+    else begin
       if !Flambda_backend_flags.gc_timings then begin
         let minor = Gc_timings.gc_minor_ns () in
         let major = Gc_timings.gc_major_ns () in
@@ -192,4 +192,5 @@ let main unix argv ppf ~flambda2 =
         Format.std_formatter
         !Clflags.profile_columns
         ~timings_precision:!Clflags.timings_precision;
+    end;
     0
