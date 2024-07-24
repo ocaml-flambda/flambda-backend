@@ -163,6 +163,10 @@ module TyVarEnv : sig
     row_context:type_expr option ref list -> string -> type_expr
     (* look up a local type variable; throws Not_found if it isn't in scope *)
 
+  val lookup_global :
+    string -> type_expr
+    (* look up a global type variable; throws Not_found if it isn't in scope *)
+
   val remember_used : string -> type_expr -> Location.t -> unit
     (* remember that a given name is bound to a given type *)
 
@@ -225,7 +229,7 @@ end = struct
      ~finally:(fun () -> widen context)
 
   (* throws Not_found if the variable is not in scope *)
-  let lookup_global_type_variable name =
+  let lookup_global name =
     TyVarMap.find name !type_variables
 
   let get_in_scope_names () =
@@ -450,7 +454,7 @@ end = struct
           let snap = Btype.snapshot () in
           if try unify env v ty; true with _ -> Btype.backtrack snap; false
           then try
-            r := (loc, v, lookup_global_type_variable name) :: !r
+            r := (loc, v, lookup_global name) :: !r
           with Not_found ->
             if extensibility = Fixed && Btype.is_Tvar ty then
               raise(Error(loc, env,
@@ -1014,7 +1018,10 @@ and transl_type_var env ~policy ~row_context attrs loc name jkind_annot_opt =
   let ty = try
       TyVarEnv.lookup_local ~row_context name
     with Not_found ->
-      let jkind = TyVarEnv.new_jkind ~is_named:true policy in
+      let jkind =
+        try TyVarEnv.lookup_global name |> estimate_type_jkind env
+        with Not_found -> TyVarEnv.new_jkind ~is_named:true policy
+      in
       let ty = TyVarEnv.new_var ~name jkind policy in
       TyVarEnv.remember_used name ty loc;
       ty
