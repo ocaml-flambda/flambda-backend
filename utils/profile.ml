@@ -319,7 +319,13 @@ let width_by_column ~n_columns ~display_cell rows =
   List.iter loop rows;
   a
 
-let display_rows ppf rows =
+let output_rows
+    ~(output_row : prefix:string -> cell_strings:string list -> name:string -> unit)
+    ~(new_prefix : prev:string -> curr_name:string -> string)
+    ~(always_output_ancestors : bool)
+    ~(pad_empty : bool)
+    rows
+  =
   let n_columns =
     match rows with
     | [] -> 0
@@ -330,31 +336,31 @@ let display_rows ppf rows =
     let display_cell = c.worth_displaying ~max:maxs.(i) in
     display_cell, if display_cell
                   then c.to_string ~max:maxs.(i) ~width
-                  else String.make width '-'
+                  else if pad_empty then String.make width '-' else ""
   in
   let widths = width_by_column ~n_columns ~display_cell rows in
   (* We track print row functions in a queue to ensure ancestors not worth displaying have
   print functions executed if a descendant is worth displaying (possible with counters) *)
-  let rec loop (R (name, values, rows)) ~indentation ~print_stack =
+  let rec loop (R (name, values, rows)) ~prefix ~output_stack =
     let worth_displaying, cell_strings =
       values
       |> List.mapi (fun i cell -> display_cell i cell ~width:widths.(i))
       |> List.split
     in
-    let should_display_row = List.exists (fun b -> b) worth_displaying in
-    let print_row () =
-      let cell_data = if should_display_row then String.concat " " cell_strings else "" in
-      Format.fprintf ppf "%s%s %s@\n" indentation cell_data name
+    let should_output_row = List.exists (fun b -> b) worth_displaying in
+    let output_current () =
+      let cell_strings = if should_output_row then cell_strings else [] in
+      output_row ~prefix ~cell_strings ~name
     in
-    print_stack := print_row :: !print_stack;
-    if should_display_row then
-      (List.rev !print_stack |> List.iter (fun f -> f ()); print_stack := []);
-    List.iter (loop ~indentation:("  " ^ indentation) ~print_stack) rows;
-    if !print_stack <> [] then print_stack := List.tl !print_stack
+    output_stack := output_current :: (if always_output_ancestors then !output_stack else []);
+    if should_output_row then
+      (List.rev !output_stack |> List.iter (fun f -> f ()); output_stack := []);
+    List.iter (loop ~prefix:(new_prefix ~prev:prefix ~curr_name:name) ~output_stack) rows;
+    if !output_stack <> [] then output_stack := List.tl !output_stack
   in
-  List.iter (loop ~indentation:"" ~print_stack:(ref [])) rows
+  List.iter (loop ~prefix:"" ~output_stack:(ref [])) rows
 
-let print ppf columns ~timings_precision =
+let output_columns output_rows_f columns ~timings_precision =
   match columns with
   | [] -> ()
   | _ :: _ ->
@@ -364,26 +370,46 @@ let print ppf columns ~timings_precision =
        | None -> Measure.zero
      in
      let total = Measure_diff.of_diff Measure.zero (Measure.create ()) in
-     display_rows ppf
-       (rows_of_hierarchy !hierarchy total initial_measure columns timings_precision)
+     output_rows_f (rows_of_hierarchy !hierarchy total initial_measure columns timings_precision)
+
+let print ppf =
+  output_rows
+    ~output_row:(fun ~prefix ~cell_strings ~name ->
+      Format.fprintf ppf "%s%s %s@\n" prefix (String.concat " " cell_strings) name)
+    ~new_prefix:(fun ~prev ~curr_name:_ -> "  " ^ prev)
+    ~always_output_ancestors:true
+    ~pad_empty:true
+  |> output_columns
 
 let column_mapping = [
-  "time", `Time;
-  "alloc", `Alloc;
-  "top-heap", `Top_heap;
-  "absolute-top-heap", `Abs_top_heap;
-  "counters", `Counters;
+  `Time, "time";
+  `Alloc, "alloc";
+  `Top_heap, "top-heap";
+  `Abs_top_heap, "absolute-top-heap";
+  `Counters, "counters"
 ]
 
-let column_names = List.map fst column_mapping
+let output_to_csv ppf columns =
+  let sanitise = String.map (fun c -> if c = ',' then '_' else c) in
+  let to_csv cell_strings = cell_strings |> List.map sanitise |> String.concat "," in
+  let string_columns = List.map (fun col -> List.assoc col column_mapping) columns in
+  Format.fprintf ppf "%s@\n" (to_csv ("pass name" :: string_columns));
+  let output_row_f = output_rows
+    ~output_row:(fun ~prefix ~cell_strings ~name ->
+      Format.fprintf ppf "%s%s@\n" prefix (to_csv (name :: cell_strings)))
+    ~new_prefix:(fun ~prev ~curr_name -> Format.sprintf "%s%s/" prev curr_name)
+    ~always_output_ancestors:false
+    ~pad_empty:false
+  in output_columns output_row_f columns
+
+let all_columns = List.map fst column_mapping
+let column_names = List.map snd column_mapping
 
 let options_doc =
   Printf.sprintf
     " Print performance information for each pass\
    \n    The columns are: %s."
     (String.concat " " column_names)
-
-let all_columns = List.map snd column_mapping
 
 let generate = "generate"
 let transl = "transl"

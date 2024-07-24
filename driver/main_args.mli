@@ -144,6 +144,7 @@ module type Compiler_options = sig
   val _dprofile : unit -> unit
   val _dgranularity : string -> unit
   val _dump_into_file : unit -> unit
+  val _dump_into_csv : unit -> unit
   val _dump_dir : string -> unit
 
   val _args: string -> string array
