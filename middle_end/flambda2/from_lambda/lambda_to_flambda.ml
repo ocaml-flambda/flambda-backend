@@ -1730,7 +1730,7 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
           in
           let k = restore_continuation_context_for_switch_arm env k in
           let consts_rev =
-            (arm, k, Debuginfo.none, None, IR.Var var :: extra_args)
+            (arm, k, Debuginfo.none, None, get_unarized_vars var env @ extra_args)
             :: consts_rev
           in
           consts_rev, wrappers
