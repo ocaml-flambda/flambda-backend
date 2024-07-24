@@ -101,7 +101,9 @@ and type_desc =
       The last parameter keep tracks of known expansions, see [abbrev_memo]. *)
 
   | Tapp of type_expr * app_args
-  (**  *)
+  (** [Tapp (t, [t1;...;tn])] ==> [(t1,...,tn) t]
+      Applied in cases where the applied constructor is not a path,
+      but e.g. a variable *)
 
   | Tobject of type_expr * (Path.t * type_expr list) option ref
   (** [Tobject (`f1:t1;...;fn: tn', `None')] ==> [< f1: t1; ...; fn: tn >]
