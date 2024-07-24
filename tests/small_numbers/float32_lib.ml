@@ -4,7 +4,7 @@
 
 (* Tests for the float32 otherlib  *)
 
-module F32 = Stdlib_stable.Float32
+module F32 = Stdlib_beta.Float32
 
 module CF32 = struct
   type t = float32
