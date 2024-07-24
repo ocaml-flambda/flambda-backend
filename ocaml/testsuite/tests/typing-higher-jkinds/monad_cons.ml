@@ -9,7 +9,7 @@ type ('m : value => value) monad = {
 }
 
 [%%expect{|
-type ('m : (value) => value) monad = {
+type ('m : value => value) monad = {
   return : 'a. 'a -> <Tapp>;
   bind : 'a 'b. <Tapp> -> ('a -> <Tapp>) -> <Tapp>;
 }
@@ -32,7 +32,6 @@ let result = prod list [-1; 1] [0; 1; 2]
 
 [%%expect{|
 val prod :
-  ('a : (value) => value) 'b 'c. 'a monad -> <Tapp> -> <Tapp> -> <Tapp> =
-  <fun>
+  ('a : value => value) 'b 'c. 'a monad -> <Tapp> -> <Tapp> -> <Tapp> = <fun>
 val result : <Tapp> = <Tapp-val>
 |}]
