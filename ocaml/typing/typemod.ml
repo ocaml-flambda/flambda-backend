@@ -2923,6 +2923,25 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         end
   in
 
+  let add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst =
+    let subst = add_expected_type_to_subst expected_sig ty_ids subst in
+    match expected_sig with
+      | None -> subst
+      | Some expected_sig ->
+          let add_to_subst subst id =
+            let get_ident = function
+              | Sig_class_type (sig_ident, _, _, _)
+                  when Ident.name sig_ident = Ident.name id -> Some sig_ident
+              | _ -> None
+            in
+            match List.find_map get_ident expected_sig with
+            | None -> subst
+            | Some sig_ident ->
+                Subst.add_type sig_ident (Pident id) subst
+          in
+        List.fold_left add_to_subst subst clty_ids
+  in
+
   let add_expected_include_to_subst expected_sig actual_sig subst =
     let add_item subst = function
       | Sig_type (id, _, _, _) ->
@@ -2931,7 +2950,9 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           add_expected_module_to_subst expected_sig (Some id) subst
       | Sig_modtype (id, _, _) ->
           add_expected_modtype_to_subst expected_sig id subst
-      | Sig_value _ | Sig_typext _ | Sig_class _ | Sig_class_type _ -> subst
+      | Sig_class_type (id, _, _, _) ->
+          add_expected_class_type_to_subst expected_sig [id] [] subst
+      | Sig_value _ | Sig_typext _ | Sig_class _ -> subst
     in
     List.fold_left add_item subst actual_sig
   in
@@ -3339,6 +3360,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             |> map Shape.Map.add_type cls.cls_obj_id (Shape.leaf uid)
           ) shape_map classes
         in
+        let clty_ids = List.map (fun cl -> cl.Typeclass.cls_ty_id) classes in
+        let ty_ids = List.map (fun cl -> cl.Typeclass.cls_obj_id) classes in
         Tstr_class
           (List.map (fun cls ->
                (cls.Typeclass.cls_info,
@@ -3354,7 +3377,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
              classes []),
         shape_map,
         new_env,
-        subst
+        add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst
+
     | Pstr_class_type cl ->
         let (classes, new_env) = Typeclass.class_type_declarations env cl in
         let shape_map = List.fold_left (fun acc decl ->
@@ -3368,6 +3392,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             |> map Shape.Map.add_type decl.clsty_obj_id (Shape.leaf uid)
           ) shape_map classes
         in
+        let clty_ids = List.map (fun cl -> cl.Typeclass.clsty_ty_id) classes in
+        let ty_ids = List.map (fun cl -> cl.Typeclass.clsty_obj_id) classes in
         Tstr_class_type
           (List.map (fun cl ->
                (cl.Typeclass.clsty_ty_id,
@@ -3384,7 +3410,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
              classes []),
         shape_map,
         new_env,
-        subst
+        add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst
     | Pstr_include sincl ->
         type_str_include ~functor_:false ~loc env subst shape_map sincl sig_acc
     | Pstr_extension (ext, _attrs) ->
