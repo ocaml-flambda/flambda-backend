@@ -10,7 +10,7 @@
    https://github.com/ocaml-flambda/flambda-backend/pull/2763
 *)
 
-module Float32_u = Stdlib_stable.Float32_u
+module Float32_u = Stdlib_beta.Float32_u
 
 type t =
   | Mutable_str of { mutable x : string }
