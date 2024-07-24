@@ -2180,16 +2180,6 @@ and estimate_type_jkind env ty =
     | Some jkind -> Jkind jkind
     | None -> failwith "no jkind for tapp???"
   end
-  | Tapp (ty, tys) -> begin
-    let app_jkind = estimate_type_jkind env ty in
-    match tys, jkind_of_result app_jkind with
-    | Unapplied, _ -> app_jkind
-    | Applied _, Type _ -> assert false
-    | Applied tys, Arrow { args; result } ->
-      if List.length tys = List.length args
-      then Jkind result
-      else assert false
-  end
   | Tvariant row ->
       if tvariant_not_immediate row
       then Jkind (Type.Primitive.value ~why:Polymorphic_variant |> Jkind.of_type_jkind)
