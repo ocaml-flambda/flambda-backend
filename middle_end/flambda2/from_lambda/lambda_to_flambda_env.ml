@@ -111,10 +111,10 @@ let register_unboxed_product t ~unboxed_product ~before_unarization ~fields =
         (before_unarization, Array.of_list fields)
         t.unboxed_product_components_in_scope
   }
-
+(*
 let unboxed_product_components_in_scope t =
   Ident.Map.keys t.unboxed_product_components_in_scope
-
+*)
 let get_unboxed_product_components_in_scope t =
   t.unboxed_product_components_in_scope
 
@@ -147,8 +147,8 @@ let add_continuation t cont ~push_to_try_stack ~pop_region
         t.mutables_needed_by_continuations
     in
     let unboxed_product_components_needed_by_continuations =
-      Continuation.Map.add cont
-        (unboxed_product_components_in_scope t)
+(*      Continuation.Map.add cont
+        (unboxed_product_components_in_scope t) *)
         t.unboxed_product_components_needed_by_continuations
     in
     let try_stack =
@@ -167,12 +167,12 @@ let add_continuation t cont ~push_to_try_stack ~pop_region
       t.current_values_of_mutables_in_scope
   in
   let unboxed_product_components_in_scope =
-    Ident.Map.map
+(*    Ident.Map.map
       (fun (before_unarization, fields) ->
         let fields =
           Array.map (fun (field, layout) -> Ident.rename field, layout) fields
         in
-        before_unarization, fields)
+        before_unarization, fields) *)
       t.unboxed_product_components_in_scope
   in
   let handler_env =
@@ -191,9 +191,9 @@ let add_continuation t cont ~push_to_try_stack ~pop_region
       region_stack
     }
   in
-  let extra_params_for_unboxed_products =
+  let extra_params_for_unboxed_products = [] (*
     Ident.Map.data handler_env.unboxed_product_components_in_scope
-    |> List.map snd |> List.map Array.to_list |> List.concat
+    |> List.map snd |> List.map Array.to_list |> List.concat *)
   in
   let extra_params =
     Ident.Map.data handler_env.current_values_of_mutables_in_scope
@@ -262,8 +262,8 @@ let extra_args_for_continuation_with_kinds t cont =
           | current_value, kind -> current_value, kind)
         mutables
   in
-  let for_unboxed_products =
-    match
+  let for_unboxed_products = []
+(*    match
       Continuation.Map.find cont
         t.unboxed_product_components_needed_by_continuations
     with
@@ -280,7 +280,7 @@ let extra_args_for_continuation_with_kinds t cont =
             Misc.fatal_errorf "No field list registered for unboxed product %a"
               Ident.print unboxed_product
           | _, fields -> Array.to_list fields)
-        unboxed_products
+        unboxed_products *)
   in
   for_mutables @ for_unboxed_products
 
