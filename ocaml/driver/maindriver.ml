@@ -113,9 +113,11 @@ let main argv ppf =
     n
   | exception Continue
   | () ->
-    Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile"
-      (fun ppf -> Profile.print ppf !Clflags.profile_columns
-        ~timings_precision:!Clflags.timings_precision);
+    (* Prevents outputting when using make install to dump CSVs for whole compiler *)
+    if not !Clflags.dump_into_csv then
+      Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile"
+        (fun ppf -> Profile.print ppf !Clflags.profile_columns
+          ~timings_precision:!Clflags.timings_precision);
     0
   | exception x ->
     Location.report_exception ppf x;
