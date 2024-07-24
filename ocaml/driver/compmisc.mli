@@ -21,6 +21,9 @@ val initial_env : unit -> Env.t
 val set_from_env : 'a option ref -> 'a Clflags.env_reader -> unit
 val read_clflags_from_env : unit -> unit
 
+val with_ppf_file :
+  file_prefix:string -> file_extension:string -> (Format.formatter -> 'a) -> 'a
+
 val with_ppf_dump : ?stdout:unit ->
   file_prefix:string -> (Format.formatter -> 'a) -> 'a
 
