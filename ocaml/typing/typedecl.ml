@@ -908,7 +908,7 @@ let transl_declaration env sdecl (id, uid) =
     *)
       match jkind_from_annotation, man with
       | Some annot, _ -> annot
-      | None, Some _ -> Jkind.Primitive.top ~why:Initial_typedecl_env
+      | None, Some _ -> Jkind.Type.Primitive.any ~why:Initial_typedecl_env |> Jkind.of_type_jkind
       | None, None -> jkind_default
     in
     let arity = List.length params in
