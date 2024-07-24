@@ -37,6 +37,24 @@ type t =
   | Const of const
   | Var of var
 
+let debug_printer ppf t =
+  let head c = match c with
+    | Default_zero_alloc -> "Default"
+    | Ignore_assert_all -> "Ignore"
+    | Check _ -> "Check"
+    | Assume _ -> "Assume"
+  in
+  match t with
+  | Const c -> Format.fprintf ppf "Const %s" (head c)
+  | Var v ->
+    let print_desc ppf desc =
+      match desc with
+      | None -> Format.fprintf ppf "None"
+      | Some desc ->
+        Format.fprintf ppf "{ strict = %b; opt = %b }" desc.strict desc.opt
+    in
+    Format.fprintf ppf "Var { arity = %d; desc = %a }" v.arity print_desc v.desc
+
 (* For backtracking *)
 type change = desc option * var
 let undo_change (d, v) = v.desc <- d

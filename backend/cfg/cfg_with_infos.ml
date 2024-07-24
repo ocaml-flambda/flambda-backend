@@ -35,6 +35,8 @@ let cfg t = Cfg_with_layout.cfg t.cfg_with_layout
 
 let fold_blocks t ~f ~init = Cfg.fold_blocks (cfg t) ~f ~init
 
+let fold_body_instructions t = Cfg.fold_body_instructions (cfg t)
+
 let get_block_exn t label = Cfg.get_block_exn (cfg t) label
 
 let[@inline] compute_if_necessary r ~f =

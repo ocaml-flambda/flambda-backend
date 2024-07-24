@@ -388,6 +388,22 @@ module Const = struct
         name = "value"
       }
 
+    let immutable_data =
+      { jkind =
+          { layout = Sort Value;
+            modes_upper_bounds =
+              { linearity = Linearity.Const.min;
+                contention = Contention.Const.min;
+                portability = Portability.Const.min;
+                uniqueness = Uniqueness.Const.max;
+                areality = Locality.Const.max
+              };
+            externality_upper_bound = Externality.max;
+            nullability_upper_bound = Nullability.Non_null
+          };
+        name = "immutable_data"
+      }
+
     (* CR layouts v3: change to [or_null] when separability is implemented. *)
     let void =
       { jkind =
@@ -484,6 +500,7 @@ module Const = struct
         any_non_null;
         value_or_null;
         value;
+        immutable_data;
         void;
         immediate;
         immediate64;
@@ -499,6 +516,7 @@ module Const = struct
         { any_non_null with name = "any" };
         { value_or_null with name = "value" };
         value;
+        immutable_data;
         void;
         immediate;
         immediate64;
@@ -935,6 +953,8 @@ module Jkind_desc = struct
 
     let void = of_const Const.Primitive.void.jkind
 
+    let immutable_data = of_const Const.Primitive.immutable_data.jkind
+
     (* [immediate64] describes types that are stored directly (no indirection)
        on 64-bit platforms but indirectly on 32-bit platforms. The key question:
        along which modes should a [immediate64] cross? As of today, all of them,
@@ -1066,6 +1086,10 @@ module Primitive = struct
 
   let value ~(why : History.value_creation_reason) =
     fresh_jkind Jkind_desc.Primitive.value ~why:(Value_creation why)
+
+  let immutable_data ~why =
+    fresh_jkind Jkind_desc.Primitive.immutable_data
+      ~why:(Immutable_data_creation why)
 
   let immediate64 ~why =
     fresh_jkind Jkind_desc.Primitive.immediate64 ~why:(Immediate64_creation why)
@@ -1223,6 +1247,21 @@ let for_boxed_variant ~all_voids =
   if all_voids
   then Primitive.immediate ~why:Enumeration
   else Primitive.value ~why:Boxed_variant
+
+let for_arrow =
+  fresh_jkind
+    { layout = Sort (Const Value);
+      modes_upper_bounds =
+        { linearity = Linearity.Const.max;
+          areality = Locality.Const.max;
+          uniqueness = Uniqueness.Const.min;
+          portability = Portability.Const.max;
+          contention = Contention.Const.min
+        };
+      externality_upper_bound = Externality.max;
+      nullability_upper_bound = Non_null
+    }
+    ~why:(Value_creation Arrow)
 
 (******************************)
 (* elimination and defaulting *)
@@ -1461,6 +1500,8 @@ module Format_history = struct
 
   let format_value_or_null_creation_reason ppf :
       History.value_or_null_creation_reason -> _ = function
+    | Primitive id ->
+      fprintf ppf "it is the primitive value_or_null type %s" (Ident.name id)
     | Tuple_element -> fprintf ppf "it's the type of a tuple element"
     | Separability_check ->
       fprintf ppf "the check that a type is definitely not `float`"
@@ -1470,12 +1511,14 @@ module Format_history = struct
       fprintf ppf "it's the type of something stored in a module structure"
     | V1_safety_check ->
       fprintf ppf "it has to be value for the V1 safety check"
+    | Probe -> format_with_notify_js ppf "it's a probe"
+    | Captured_in_object ->
+      fprintf ppf "it's the type of a variable captured in an object"
 
   let format_value_creation_reason ppf ~layout_or_kind :
       History.value_creation_reason -> _ = function
     | Class_let_binding ->
       fprintf ppf "it's the type of a let-bound variable in a class expression"
-    | Probe -> format_with_notify_js ppf "it's a probe"
     | Object -> fprintf ppf "it's the type of an object"
     | Instance_variable -> fprintf ppf "it's the type of an instance variable"
     | Object_field -> fprintf ppf "it's the type of an object field"
@@ -1517,8 +1560,6 @@ module Format_history = struct
     | Debug_printer_argument ->
       format_with_notify_js ppf
         "it's the type of an argument to a debugger printer function"
-    | Captured_in_object ->
-      fprintf ppf "it's the type of a variable captured in an object"
     | Recmod_fun_arg ->
       fprintf ppf
         "it's the type of the first argument to a function in a recursive \
@@ -1527,6 +1568,11 @@ module Format_history = struct
       fprintf ppf
         "unknown @[(please alert the Jane Street@;\
          compilers team with this message: %s)@]" s
+
+  let format_immutable_data_creation_reason ppf :
+      History.immutable_data_creation_reason -> _ = function
+    | Primitive id ->
+      fprintf ppf "it is the primitive immutable_data type %s" (Ident.name id)
 
   let format_float64_creation_reason ppf : History.float64_creation_reason -> _
       = function
@@ -1570,6 +1616,8 @@ module Format_history = struct
       format_value_or_null_creation_reason ppf value
     | Value_creation value ->
       format_value_creation_reason ppf ~layout_or_kind value
+    | Immutable_data_creation float ->
+      format_immutable_data_creation_reason ppf float
     | Float64_creation float -> format_float64_creation_reason ppf float
     | Float32_creation float -> format_float32_creation_reason ppf float
     | Word_creation word -> format_word_creation_reason ppf word
@@ -1932,15 +1980,17 @@ module Debug_printers = struct
 
   let value_or_null_creation_reason ppf :
       History.value_or_null_creation_reason -> _ = function
+    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
     | Tuple_element -> fprintf ppf "Tuple_element"
     | Separability_check -> fprintf ppf "Separability_check"
     | Polymorphic_variant_field -> fprintf ppf "Polymorphic_variant_field"
     | Structure_element -> fprintf ppf "Structure_element"
     | V1_safety_check -> fprintf ppf "V1_safety_check"
+    | Probe -> fprintf ppf "Probe"
+    | Captured_in_object -> fprintf ppf "Captured_in_object"
 
   let value_creation_reason ppf : History.value_creation_reason -> _ = function
     | Class_let_binding -> fprintf ppf "Class_let_binding"
-    | Probe -> fprintf ppf "Probe"
     | Object -> fprintf ppf "Object"
     | Instance_variable -> fprintf ppf "Instance_variable"
     | Object_field -> fprintf ppf "Object_field"
@@ -1967,9 +2017,12 @@ module Debug_printers = struct
     | Class_type_argument -> fprintf ppf "Class_type_argument"
     | Class_term_argument -> fprintf ppf "Class_term_argument"
     | Debug_printer_argument -> fprintf ppf "Debug_printer_argument"
-    | Captured_in_object -> fprintf ppf "Captured_in_object"
     | Recmod_fun_arg -> fprintf ppf "Recmod_fun_arg"
     | Unknown s -> fprintf ppf "Unknown %s" s
+
+  let immutable_data_creation_reason ppf :
+      History.immutable_data_creation_reason -> _ = function
+    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
 
   let float64_creation_reason ppf : History.float64_creation_reason -> _ =
     function
@@ -2009,6 +2062,9 @@ module Debug_printers = struct
     | Value_creation value ->
       fprintf ppf "Value_creation %a" value_creation_reason value
     | Void_creation _ -> .
+    | Immutable_data_creation immutable_data ->
+      fprintf ppf "Immutable_data_creation %a" immutable_data_creation_reason
+        immutable_data
     | Float64_creation float ->
       fprintf ppf "Float64_creation %a" float64_creation_reason float
     | Float32_creation float ->

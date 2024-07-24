@@ -685,7 +685,7 @@ end;;
 Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
-Error: This expression has type ('a : value)
+Error: This expression has type ('a : value_or_null)
        but an expression was expected of type t_bits32
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.

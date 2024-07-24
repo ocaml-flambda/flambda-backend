@@ -213,6 +213,21 @@ let rec regalloc ~ppf_dump round (fd : Mach.fundecl) =
     newfd
   end
 
+let regalloc_profile =
+  let f ((spills, reloads) as acc) (instr : Cfg.basic Cfg.instruction) =
+  match instr.desc with
+  | Op Spill -> (spills + 1, reloads)
+  | Op Reload -> (spills, reloads + 1)
+  | _ -> acc
+  in
+  let regalloc_counters (cfg : Cfg_with_infos.t) =
+    let (spills, reloads) = Cfg_with_infos.fold_body_instructions cfg ~f ~init:(0, 0) in
+    Profile.Counters.create ()
+    |> Profile.Counters.set "spill" spills
+    |> Profile.Counters.set "reload" reloads
+  in
+  Profile.record_with_counters ~accumulate:true ~counter_f:regalloc_counters
+
 let (++) x f = f x
 
 let ocamlcfg_verbose =
@@ -349,9 +364,9 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         in
         cfg
         ++ begin match regalloc with
-          | GI -> Profile.record ~accumulate:true "cfg_gi" Regalloc_gi.run
-          | IRC -> Profile.record ~accumulate:true "cfg_irc" Regalloc_irc.run
-          | LS -> Profile.record ~accumulate:true "cfg_ls" Regalloc_ls.run
+          | GI -> regalloc_profile "cfg_gi" Regalloc_gi.run
+          | IRC -> regalloc_profile "cfg_irc" Regalloc_irc.run
+          | LS -> regalloc_profile "cfg_ls" Regalloc_ls.run
           | Upstream -> assert false
         end
         ++ Cfg_with_infos.cfg_with_layout
@@ -448,7 +463,11 @@ let compile_phrases ~ppf_dump ps =
           if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
           match p with
           | Cfunction fd ->
-            compile_fundecl ~ppf_dump ~funcnames fd;
+            (* Only profile if function level granularity selected*)
+            let profile_wrapper = match !profile_granularity with
+            | Function_level -> Profile.record ~accumulate:true fd.fun_name.sym_name
+            | File_level -> fun x -> x
+            in profile_wrapper (compile_fundecl ~ppf_dump ~funcnames) fd;
             compile ~funcnames:(String.Set.remove fd.fun_name.sym_name funcnames) ps
           | Cdata dl ->
             compile_data dl;

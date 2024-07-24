@@ -18,7 +18,7 @@ let eqi lv hv l h =
 ;;
 
 let eqf32 lv hv l h =
-    let f32 = Stdlib_stable.Float32.to_float in
+    let f32 = Stdlib_beta.Float32.to_float in
     if l <> lv then Printf.printf "%f <> %f\n" (f32 l) (f32 lv);
     if h <> hv then Printf.printf "%f <> %f\n" (f32 h) (f32 hv);
 ;;

@@ -222,7 +222,8 @@ type error =
       Env.closure_context option *
       contention_context option *
       Env.shared_context option
-  | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
+  | Curried_application_complete of
+      arg_label * Mode.Alloc.error * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of Alloc.equate_error
   | Uncurried_function_escapes of Alloc.error
   | Local_return_annotation_mismatch of Location.t
@@ -240,13 +241,6 @@ type error =
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
-
-type in_function =
-  { ty_fun: type_expected;
-    loc_fun: Location.t;
-    (** [region_locked] is whether the function has its own region. *)
-    region_locked: bool;
-  }
 
 let error_of_filter_arrow_failure ~explanation ~first ty_fun
   : filter_arrow_failure -> _ = function
@@ -3467,15 +3461,12 @@ let remaining_function_type ty_ret mode_ret rev_args =
   in
   ty_ret
 
-(* Check that within a single application, the return modes of curried arrows
-   increase along the application. That is, check that this is not an
-   unparenthesized over-application of a local function that returns a global
-   function.
-
-   This check is not required for soundness, but including it simplifies the
-   principal types of applications, making the inferred types more sensible
-   in ml files that lack an mli. *)
-let check_local_application_complete ~env ~app_loc args =
+(** Within a single application, constrain the curried arrow type as given by
+   [close_over] and [partial_apply]. This constraint is not required for
+   soundness, but useful in the lack of a signature, in which case the
+   variance-blind defaulting logic will push modes towards undesirable
+   direction. *)
+let check_curried_application_complete ~env ~app_loc args =
   let arg_mode_fun (_lbl, arg) =
     match arg with
     | Arg ( Known_arg { mode_fun; _ }
@@ -3500,7 +3491,7 @@ let check_local_application_complete ~env ~app_loc args =
       let submode m1 m2 =
         match Alloc.submode m1 m2 with
         | Ok () -> ()
-        | Error _ ->
+        | Error e ->
           let loc, loc_kind =
             match arg with
             | Arg (Known_arg {sarg; _} | Unknown_arg {sarg; _}) ->
@@ -3511,13 +3502,13 @@ let check_local_application_complete ~env ~app_loc args =
                            loc_end = sarg.pexp_loc.loc_end;
                            loc_ghost = app_loc.loc_ghost || sarg.pexp_loc.loc_ghost },
                 `Prefix
-            | _ ->
+            | Arg (Eliminated_optional_arg _) | Omitted _ ->
               app_loc, `Entire_apply
           in
-          raise (Error(loc, env, Local_application_complete (lbl, loc_kind)))
+          raise (Error(loc, env, Curried_application_complete (lbl, e, loc_kind)))
       in
-      submode mode_fun mode_ret;
-      submode mode_arg mode_ret;
+      submode (Alloc.partial_apply mode_fun) mode_ret;
+      submode (Alloc.close_over mode_arg) mode_ret;
       loop has_commuted rest
   in
   loop false args
@@ -3931,111 +3922,6 @@ let check_recursive_class_bindings env ids exprs =
        if not (Value_rec_check.is_valid_class_expr ids expr) then
          raise(Error(expr.cl_loc, env, Illegal_class_expr)))
     exprs
-
-module Is_local_returning : sig
-  val function_body : Parsetree.function_body -> bool
-end = struct
-
-  (* Is the return value annotated with "local_"?
-     [assert false] can work either way *)
-
-  type local_returning_flag =
-    | Local of Location.t  (* location of a local return *)
-    | Not of Location.t  (* location of a non-local return *)
-    | Either
-
-  let combine flag1 flag2 =
-    match flag1, flag2 with
-    | (Local _ as flag), Local _
-    | (Local _ as flag), Either
-    | (Not _ as flag), Not _
-    | (Not _ as flag), Either
-    | Either, (Local _ as flag)
-    | Either, (Not _ as flag)
-    | (Either as flag), Either ->
-      flag
-
-    | Local local_loc, Not not_local_loc
-    | Not not_local_loc, Local local_loc ->
-       raise(Error(not_local_loc, Env.empty,
-                   Local_return_annotation_mismatch local_loc))
-
-  let expr e =
-    let rec loop e =
-      match Jane_syntax.Expression.of_ast e with
-      | Some (jexp, _attrs) -> begin
-          match jexp with
-          | Jexp_comprehension   _ -> Not e.pexp_loc
-          | Jexp_immutable_array _ -> Not e.pexp_loc
-          | Jexp_layout (Lexp_constant _) -> Not e.pexp_loc
-          | Jexp_layout (Lexp_newtype (_, _, e)) -> loop e
-          | Jexp_tuple _ -> Not e.pexp_loc
-          | Jexp_modes (Coerce (modes, exp)) ->
-              if List.exists
-                  (fun { Location.txt; _ } -> txt = "local")
-                  modes.txt
-              then Local e.pexp_loc
-              else loop exp
-        end
-      | None      ->
-      match e.pexp_desc with
-      | Pexp_assert { pexp_desc = Pexp_construct ({ txt = Lident "false" },
-                                                  None) } ->
-          Either
-      | Pexp_ident _ | Pexp_constant _ | Pexp_apply _ | Pexp_tuple _
-      | Pexp_construct _ | Pexp_variant _ | Pexp_record _ | Pexp_field _
-      | Pexp_setfield _ | Pexp_array _ | Pexp_while _ | Pexp_for _ | Pexp_send _
-      | Pexp_new _ | Pexp_setinstvar _ | Pexp_override _ | Pexp_assert _
-      | Pexp_lazy _ | Pexp_object _ | Pexp_pack _ | Pexp_function _
-      | Pexp_letop _ | Pexp_extension _ | Pexp_unreachable ->
-          Not e.pexp_loc
-      | Pexp_let(_, _, e) | Pexp_sequence(_, e) | Pexp_constraint(e, _)
-      | Pexp_coerce(e, _, _) | Pexp_letmodule(_, _, e) | Pexp_letexception(_, e)
-      | Pexp_poly(e, _) | Pexp_newtype(_, e) | Pexp_open(_, e)
-      | Pexp_ifthenelse(_, e, None)->
-          loop e
-      | Pexp_ifthenelse(_, e1, Some e2)-> combine (loop e1) (loop e2)
-      | Pexp_match(_, cases) -> begin
-          match cases with
-          | [] -> Not e.pexp_loc
-          | first :: rest ->
-              List.fold_left
-                (fun acc pc -> combine acc (loop pc.pc_rhs))
-                (loop first.pc_rhs) rest
-        end
-      | Pexp_try(e, cases) ->
-          List.fold_left
-            (fun acc pc -> combine acc (loop pc.pc_rhs))
-            (loop e) cases
-    in
-    loop e
-
-  let cases cs =
-    match cs with
-    | [] -> Either
-    | case :: cases ->
-        let is_local_returning_case case =
-          expr case.pc_rhs
-        in
-        List.fold_left
-          (fun acc case -> combine acc (is_local_returning_case case))
-          (is_local_returning_case case) cases
-
-  let function_body body =
-    match body with
-    | Pfunction_body body -> expr body
-    | Pfunction_cases (cs, _, _) -> cases cs
-
-  let is_strictly_local = function
-    | Local _ -> true
-    | Either | Not _ -> false
-        (* [fun _ -> assert false] must not be local-returning for
-          backward compatibility *)
-
-  (* for exporting from this module *)
-
-  let function_body body = is_strictly_local (function_body body)
-end
 
 (* The "rest of the function" extends from the start of the first parameter
    to the end of the overall function. The parser does not construct such
@@ -4849,9 +4735,7 @@ let split_function_ty
   in
   if expected_mode.strictly_local then
     Locality.submode_exn Locality.local (Alloc.proj (Comonadic Areality) alloc_mode);
-  let { ty_fun = { ty = ty_fun; explanation }; loc_fun; region_locked } =
-    in_function
-  in
+  let { ty = ty_fun; explanation }, loc_fun = in_function in
   let separate = !Clflags.principal || Env.has_local_constraints env in
   let { ty_arg; ty_ret; arg_mode; ret_mode } as filtered_arrow =
     with_local_level_if separate begin fun () ->
@@ -4898,8 +4782,7 @@ let split_function_ty
             (alloc_as_value alloc_mode).comonadic
             env
         in
-        if region_locked then Env.add_region_lock env
-        else env
+        Env.add_region_lock env
   in
   let ret_value_mode = alloc_as_value ret_mode in
   let expected_inner_mode =
@@ -4908,17 +4791,7 @@ let split_function_ty
       function *)
       mode_default ret_value_mode
     else
-      let ret_value_mode =
-        if region_locked then mode_return ret_value_mode
-        else begin
-          (* if the function has no region, we force the ret_mode to be local *)
-          match
-            Locality.submode Locality.local (Alloc.proj (Comonadic Areality) ret_mode)
-          with
-          | Ok () -> mode_default ret_value_mode
-          | Error _ -> raise (Error (loc_fun, env, Function_returns_local))
-        end
-      in
+      let ret_value_mode = mode_return ret_value_mode in
       let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
       ret_value_mode
   in
@@ -4933,10 +4806,7 @@ let split_function_ty
       end
     end
   in
-  let arg_value_mode =
-    if region_locked then alloc_to_value_l2r arg_mode
-    else Value.disallow_right (alloc_as_value arg_mode)
-  in
+  let arg_value_mode = alloc_to_value_l2r arg_mode in
   let expected_pat_mode = simple_pat_mode arg_value_mode in
   let type_sort ~why ty =
     match Ctype.type_sort ~why env ty with
@@ -6644,7 +6514,7 @@ and type_function
       params_suffix body_constraint body ~first ~in_function
   : type_function_result
   =
-  let { ty_fun; loc_fun; _ } = in_function in
+  let ty_fun, (loc_fun : Location.t) = in_function in
   let loc =
     loc_rest_of_function ~first ~loc_function:loc_fun params_suffix body
   in
@@ -7474,6 +7344,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               |> Locality.disallow_right,
               None)}
         in
+        let e = {texp with exp_type = ty_res; exp_desc = Texp_exclave e} in
         let cases = [ case eta_pat e ] in
         let cases_loc = { texp.exp_loc with loc_ghost = true } in
         let param = name_cases "param" cases in
@@ -7491,7 +7362,6 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               ret_mode = Alloc.disallow_right mret;
               ret_sort;
               alloc_mode;
-              region = false;
               zero_alloc = Zero_alloc.default
             }
         }
@@ -7679,7 +7549,7 @@ and type_application env app_loc expected_mode position_and_mode
           let ty_ret, mode_ret, args =
             type_omitted_parameters expected_mode env ty_ret mode_ret args
           in
-          check_local_application_complete ~env ~app_loc untyped_args;
+          check_curried_application_complete ~env ~app_loc untyped_args;
           ty_ret, mode_ret, args, position_and_mode
         end ~post:(fun (ty_ret, _, _, _) -> generalize_structure ty_ret)
       in
@@ -8791,13 +8661,7 @@ and type_n_ary_function
       ~explanation ~attributes
       (params, constraint_, body)
     =
-    let region_locked = not (Is_local_returning.function_body body) in
-    let in_function =
-      { ty_fun = mk_expected (instance ty_expected) ?explanation;
-        loc_fun = loc;
-        region_locked;
-      }
-    in
+    let in_function = mk_expected (instance ty_expected) ?explanation, loc in
     let { function_ = exp_type, result_params, body;
           newtypes; params_contain_gadt = contains_gadt;
           ret_info; fun_alloc_mode;
@@ -8900,7 +8764,7 @@ and type_n_ary_function
     re
       { exp_desc =
           Texp_function
-            { params; body; region = region_locked; ret_sort;
+            { params; body; ret_sort;
               alloc_mode = Mode.Alloc.disallow_left fun_alloc_mode; ret_mode;
               zero_alloc
             };
@@ -10133,7 +9997,7 @@ let report_error ~loc env = function
             Format.dprintf "This value is %a but expected to be %a."
               (Value.Const.print_axis ax) left (Value.Const.print_axis ax) right
         end
-  | Local_application_complete (lbl, loc_kind) ->
+  | Curried_application_complete (lbl, Error (ax, {left; _}), loc_kind) ->
       let sub =
         match loc_kind with
         | `Prefix ->
@@ -10155,7 +10019,8 @@ let report_error ~loc env = function
       in
       Location.errorf ~loc ~sub
         "@[This application is complete, but surplus arguments were provided afterwards.@ \
-         When passing or calling a local value, extra arguments are passed in a separate application.@]"
+         When passing or calling %a values, extra arguments are passed in a separate application.@]"
+         (Alloc.Const.print_axis ax) left
   | Param_mode_mismatch (s, Error (ax, {left; right})) ->
       let actual, expected =
         match s with
@@ -10194,8 +10059,8 @@ let report_error ~loc env = function
         "Exclave expression should only be in tail position of the current region."
   | Exclave_returns_not_local ->
       Location.errorf ~loc
-        "This expression was expected to be not local, but is an exclave expression,@ \
-         which must be local."
+        "@[This expression is local because it is an exclave,@ \
+          but was expected otherwise.@]"
   | Optional_poly_param ->
       Location.errorf ~loc
         "Optional parameters cannot be polymorphic"

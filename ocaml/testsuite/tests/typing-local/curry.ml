@@ -88,7 +88,7 @@ let[@inline never] f z =
 let () = f 42
 
 let[@inline never] tupled : (string*string) -> local_ string =
-  fun (a,b) -> local_ (a^b)
+  fun (a,b) -> exclave_ (a^b)
 let () =
   match tupled ("a","b") with
   | "ab" -> Printf.printf "%20s: ok\n" "tupled"

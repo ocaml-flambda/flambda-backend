@@ -445,9 +445,8 @@ and expression i ppf x =
       line i ppf "Texp_let %a\n" fmt_rec_flag rf;
       list i (value_binding rf) ppf l;
       expression i ppf e;
-  | Texp_function { params; body; region; alloc_mode = am } ->
+  | Texp_function { params; body; alloc_mode = am } ->
       line i ppf "Texp_function\n";
-      line i ppf "region %b\n" region;
       alloc_mode i ppf am;
       list i function_param ppf params;
       function_body i ppf body;

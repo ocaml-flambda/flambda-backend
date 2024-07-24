@@ -342,10 +342,10 @@ external get_int64_ne : bytes -> int -> (int64[@local_opt]) = "%caml_bytes_get64
 external swap32 : (int32[@local_opt]) -> (int32[@local_opt]) = "%bswap_int32"
 external swap64 : (int64[@local_opt]) -> (int64[@local_opt]) = "%bswap_int64"
 
-let get_int32_be b i = local_
+let get_int32_be b i = exclave_
   if Sys.big_endian then get_int32_ne b i
   else swap32 (opaque_local (get_int32_ne b i))
-let get_int64_be b i = local_
+let get_int64_be b i = exclave_
   if Sys.big_endian then get_int64_ne b i
   else swap64 (opaque_local (get_int64_ne b i))
 let data = Bytes.of_string "\x00\x11\x22\x33\x44\x55\x66\x77"
@@ -367,10 +367,10 @@ external bigstring_get_int32_ne :
       bigstring -> int -> (int32[@local_opt]) = "%caml_bigstring_get32"
 external bigstring_get_int64_ne :
       bigstring -> int -> (int64[@local_opt]) = "%caml_bigstring_get64"
-let bigstring_get_int32_be b i = local_
+let bigstring_get_int32_be b i = exclave_
   if Sys.big_endian then bigstring_get_int32_ne b i
   else swap32 (opaque_local (bigstring_get_int32_ne b i))
-let bigstring_get_int64_be b i = local_
+let bigstring_get_int64_be b i = exclave_
   if Sys.big_endian then bigstring_get_int64_ne b i
   else swap64 (opaque_local (bigstring_get_int64_ne b i))
 let bigstring_of_string s =
