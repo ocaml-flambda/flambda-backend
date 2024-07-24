@@ -263,6 +263,8 @@ let newobj fields      = newty (Tobject (fields, ref None))
 
 let newconstr path tyl = newty (Tconstr (path, AppArgs.of_list tyl, ref Mnil))
 
+let newapp ty tyl = newty (Tapp (ty, AppArgs.of_list tyl))
+
 let newmono ty = newty (Tpoly(ty, []))
 
 let none = newty (Ttuple [])                (* Clearly ill-formed type *)
@@ -1997,10 +1999,9 @@ let rec extract_concrete_typedecl env ty =
                 | May_have_typedecl -> May_have_typedecl
           end
       end
-  | Tpoly(ty, _) -> extract_concrete_typedecl env ty
-  (* FIXME jbachurski: Does Tapp have a typedecl in this function's understanding? *)
+  | Tapp (ty, _) | Tpoly(ty, _) -> extract_concrete_typedecl env ty
   | Tarrow _ | Ttuple _ | Tobject _ | Tfield _ | Tnil
-  | Tvariant _ | Tpackage _ | Tapp _ -> Has_no_typedecl
+  | Tvariant _ | Tpackage _ -> Has_no_typedecl
   | Tvar _ | Tunivar _ -> May_have_typedecl
   | Tlink _ | Tsubst _ -> assert false
 
@@ -2127,7 +2128,7 @@ let rec jkind_of_decl_unapplied env (decl : type_declaration) : jkind option =
     ; result = decl.type_jkind })
   | _ -> None
 
-and type_jkind_for_app (app_jkind : jkind) app_arity tys =
+and type_jkind_for_app (app_jkind : jkind) app_arity tys : jkind option =
   match tys, app_jkind with
   | Unapplied, _ when app_arity = 0 -> Some app_jkind
   | Unapplied, _ -> None
@@ -2141,21 +2142,19 @@ and type_jkind_for_app (app_jkind : jkind) app_arity tys =
     then Some result
     else None
 
-and type_jkind_for_app_decl ~top env decl tys =
-  if decl.type_arity > 0 then Some (decl.type_jkind)
-  else match jkind_of_decl_unapplied env decl with
+and type_jkind_for_app_decl env decl tys =
+  match jkind_of_decl_unapplied env decl with
   | Some jkind -> begin
     match type_jkind_for_app jkind 0 tys with
     | Some jkind -> Some jkind
     | None -> None
   end
-  | None -> Some top
+  | None -> type_jkind_for_app decl.type_jkind decl.type_arity tys
 
 and type_jkind_for_app_path env path tys =
-  let top = Jkind.Primitive.top ~why:(Missing_cmi path) in
   match find_type_opt path env with
-  | Some decl -> type_jkind_for_app_decl ~top env decl tys
-  | None -> Some top
+  | Some decl -> type_jkind_for_app_decl env decl tys
+  | None -> Some (Jkind.Type.Primitive.any ~why:(Missing_cmi path) |> Jkind.of_type_jkind)
 
 (* We assume here that [get_unboxed_type_representation] has already been
    called, if the type is a Tconstr.  This allows for some optimization by
@@ -4135,8 +4134,7 @@ let unify_delaying_jkind_checks env ty1 ty2 =
 
 (* Lower the level of a type to the current level *)
 let enforce_current_level env ty =
-  unify_var env (newvar (Jkind.Primitive.top ~why:Dummy_jkind)) ty
-
+  unify_var env (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)) ty
 
 (**** Special cases of unification ****)
 
@@ -6246,7 +6244,7 @@ let rec unalias_object ty =
   | Tunivar _ ->
       ty
   | Tconstr _ ->
-      newvar2 level (Jkind.Primitive.top ~why:Dummy_jkind)
+      newvar2 level (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)
   | _ ->
       assert false
 
@@ -6474,7 +6472,7 @@ let rec nondep_type_rec ?(expand_private=false) env ids ty =
   | _ -> try TypeHash.find nondep_hash ty
   with Not_found ->
     let ty' = newgenstub ~scope:(get_scope ty)
-                (Jkind.Primitive.top ~why:Dummy_jkind) in
+                (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind) in
     TypeHash.add nondep_hash ty ty';
     match
       match get_desc ty with
