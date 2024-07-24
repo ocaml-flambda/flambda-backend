@@ -250,7 +250,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let type_jkind, type_jkind_annotation, sdecl_attributes =
     Jkind.of_type_decl_default
       ~context:(Type_declaration path)
-      ~default:(Jkind.Primitive.top ~why:Initial_typedecl_env)
+      ~default:(Jkind.Type.Primitive.any ~why:Initial_typedecl_env |> Jkind.of_type_jkind)
       sdecl
   in
   let abstract_reason, type_manifest =
@@ -908,7 +908,7 @@ let transl_declaration env sdecl (id, uid) =
     *)
       match jkind_from_annotation, man with
       | Some annot, _ -> annot
-      | None, Some _ -> Jkind.Primitive.top ~why:Initial_typedecl_env
+      | None, Some _ -> Jkind.Type.Primitive.any ~why:Initial_typedecl_env |> Jkind.of_type_jkind
       | None, None -> jkind_default
     in
     let arity = List.length params in
@@ -1874,7 +1874,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
   let args =
     (* The jkinds here shouldn't matter for the purposes of
        [check_well_founded] *)
-    List.map (fun _ -> Ctype.newvar (Jkind.Primitive.top ~why:Dummy_jkind))
+  List.map (fun _ -> Ctype.newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind))
       decl.type_params
   in
   let visited = ref TypeMap.empty in
