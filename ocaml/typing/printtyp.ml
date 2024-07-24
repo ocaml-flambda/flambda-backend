@@ -651,7 +651,7 @@ and raw_type_desc ppf = function
         raw_type_list (AppArgs.to_list tl)
         (raw_list path) (list_of_memo !abbrev)
   | Tapp (t, tl) ->
-      fprintf ppf "@[<hov1>Tconstr(@,%a,@,%a)@]"
+      fprintf ppf "@[<hov1>Tapp(@,%a,@,%a)@]"
         raw_type t
         raw_type_list (AppArgs.to_list tl)
   | Tobject (t, nm) ->
