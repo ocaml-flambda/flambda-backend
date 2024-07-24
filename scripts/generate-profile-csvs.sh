@@ -18,5 +18,5 @@ revert_env_variables() {
 trap revert_env_variables EXIT
 
 ./scripts/build-compiler.sh
-python3 ./scripts/combine-profile-information.py "$dump_dir" "$summary_path"
+python3 ./scripts/combine-profile-information.py "$dump_dir" -o "$summary_path"
 rmdir "$dump_dir"

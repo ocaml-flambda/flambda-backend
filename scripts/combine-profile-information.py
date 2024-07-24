@@ -10,13 +10,16 @@ from typing import Dict, List, Union
 
 parser = ArgumentParser(description="Combine multiple profile information CSVs into one")
 parser.add_argument("dump_dir", help="The folder the profile information has been dumped in")
-parser.add_argument("summary_path", help="The path to store the summary CSV")
+parser.add_argument("-o", "--summary_path", help="The path to store the summary CSV")
 
 args = parser.parse_args()
 
 DUMP_DIR = Path(args.dump_dir)
 if not DUMP_DIR.exists():
     raise ValueError(f"{DUMP_DIR} does not exist")
+
+if args.summary_path is None:
+    args.summary_path = DUMP_DIR.parent / "summary.csv"
 SUMMARY_PATH = Path(args.summary_path)
 
 
