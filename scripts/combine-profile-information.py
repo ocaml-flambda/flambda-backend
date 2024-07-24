@@ -65,19 +65,14 @@ SUMMARY_FIELD_NAMES = sum(
 )
 
 
-def csv_to_summary(rows: List[Dict]) -> Dict[str, str]:
-    primary_key_summary = {PRIMARY_KEY: rows[0][PRIMARY_KEY]}
-    non_counters_summary = {
-        k: v for k, v in rows[0].items() if k in summary_non_counter_fields
-    }
-    counters_summary = next(
-        (parse_counters(row["counters"]) for row in rows if row["counters"]),
-        None
-    )
-    if counters_summary is None:
-        return None
-    summary = {**primary_key_summary, **non_counters_summary, **counters_summary}
-    return {k: v for k, v in summary.items() if k in SUMMARY_FIELD_NAMES}
+def row_summary(row: Dict[str, str]) -> Dict[str, str]:
+    full_summary = {**row, **parse_counters(row["counters"])}
+    return {k: v for k, v in full_summary.items() if k in SUMMARY_FIELD_NAMES}
+
+
+def csv_to_summaries(rows: List[Dict]) -> List[Dict[str, str]]:
+    counter_rows = [row for row in rows if row["counters"]]
+    return map(row_summary, counter_rows)
 
 
 def split_into_number_and_unit(number_string: str) -> (str, Union[int, float]):
@@ -93,8 +88,7 @@ def split_into_number_and_unit(number_string: str) -> (str, Union[int, float]):
 
 
 def process_csv(csv_path: Path, summary_csv_writer: csv.DictWriter) -> None:
-    summary = csv_to_summary(get_csv_rows(csv_path))
-    if summary is not None:
+    for summary in csv_to_summaries(get_csv_rows(csv_path)):
         summary_csv_writer.writerow(summary)
 
 
