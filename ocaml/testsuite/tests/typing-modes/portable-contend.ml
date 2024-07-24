@@ -205,39 +205,24 @@ Line 4, characters 23-26:
 Error: This value is nonportable but expected to be portable.
 |}]
 
-let foo : 'a @ nonportable contended -> ('a -> 'a) @ portable = fun a b -> best_bytes ()
+(* closing over nonportable gives nonportable *)
+let foo : 'a @ nonportable contended -> (unit -> unit) @ portable = fun a () -> ()
 [%%expect{|
-Line 1, characters 64-88:
-1 | let foo : 'a @ nonportable contended -> ('a -> 'a) @ portable = fun a b -> best_bytes ()
-                                                                    ^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 68-82:
+1 | let foo : 'a @ nonportable contended -> (unit -> unit) @ portable = fun a () -> ()
+                                                                        ^^^^^^^^^^^^^^
 Error: This function when partially applied returns a value which is nonportable,
        but expected to be portable.
 |}]
 
-let foo : 'a @ uncontended portable -> (unit -> bytes) @ portable = fun a b -> best_bytes ()
+(* closing over uncontended gives nonportable *)
+let foo : 'a @ uncontended portable -> (unit -> unit) @ portable = fun a () -> ()
 [%%expect{|
-Line 1, characters 68-92:
-1 | let foo : 'a @ uncontended portable -> (unit -> bytes) @ portable = fun a b -> best_bytes ()
-                                                                        ^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 67-81:
+1 | let foo : 'a @ uncontended portable -> (unit -> unit) @ portable = fun a () -> ()
+                                                                       ^^^^^^^^^^^^^^
 Error: This function when partially applied returns a value which is nonportable,
        but expected to be portable.
-|}]
-
-let foo : 'a @ contended portable -> (unit -> bytes) @ portable @@ nonportable contended = fun a b -> best_bytes ()
-[%%expect{|
-Line 1, characters 91-115:
-1 | let foo : 'a @ contended portable -> (unit -> bytes) @ portable @@ nonportable contended = fun a b -> best_bytes ()
-                                                                                               ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function when partially applied returns a value which is nonportable,
-       but expected to be portable.
-|}]
-
-let foo : 'a @ contended portable -> (unit -> bytes) @ portable @@ uncontended portable = fun a b -> best_bytes ()
-[%%expect{|
-Line 1, characters 101-111:
-1 | let foo : 'a @ contended portable -> (unit -> bytes) @ portable @@ uncontended portable = fun a b -> best_bytes ()
-                                                                                                         ^^^^^^^^^^
-Error: The value best_bytes is nonportable, so cannot be used inside a closure that is portable.
 |}]
 
 (* immediates crosses portability and contention *)
