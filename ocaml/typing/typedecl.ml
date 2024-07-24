@@ -3163,7 +3163,7 @@ let transl_package_constraint ~loc ty =
   { type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind;
+    type_jkind = Jkind.Primitive.top ~why:Dummy_jkind;
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)

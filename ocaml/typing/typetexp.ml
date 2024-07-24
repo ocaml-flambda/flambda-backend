@@ -1039,7 +1039,7 @@ and transl_type_var env ~policy ~row_context attrs loc name jkind_annot_opt =
       TyVarEnv.lookup_local ~row_context name
     with Not_found ->
       let jkind =
-        try TyVarEnv.lookup_global name |> type_jkind env
+        try TyVarEnv.lookup_global name |> estimate_type_jkind env
         with Not_found -> TyVarEnv.new_jkind ~is_named:true policy
       in
       let ty = TyVarEnv.new_var ~name jkind policy in
