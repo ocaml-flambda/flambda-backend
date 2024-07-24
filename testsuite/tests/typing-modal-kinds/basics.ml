@@ -678,12 +678,8 @@ Line 2, characters 71-72:
 
 |}]
 
-(* CR layouts: this should succeed. *)
 let foo : (string -> string) -> (string -> string) @ unique
   = fun f -> f
 [%%expect{|
-Line 2, characters 13-14:
-2 |   = fun f -> f
-                 ^
-Error: This value is shared but expected to be unique.
+val foo : (string -> string) -> unique_ (string -> string) = <fun>
 |}]
