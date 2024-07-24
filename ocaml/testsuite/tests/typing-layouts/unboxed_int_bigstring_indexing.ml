@@ -42,19 +42,13 @@ external caml_bigstring_get_16
 external caml_bigstring_get_32
   :  bigstring
   -> int
-  -> int
+  -> int32
   = "%caml_bigstring_get32"
-
-external caml_bigstring_get_f32
-  :  bigstring
-  -> int
-  -> int
-  = "%caml_bigstring_getf32"
 
 external caml_bigstring_get_64
   :  bigstring
   -> int
-  -> int
+  -> int64
   = "%caml_bigstring_get64"
 
 module By_int64_u = struct
@@ -76,62 +70,26 @@ module By_int64_u = struct
     external get32
       :  bigstring
       -> int64#
-      -> int
+      -> int32
       = "%caml_bigstring_get32_indexed_by_int64#"
 
     external get32u
       :  bigstring
       -> int64#
-      -> int
+      -> int32
       = "%caml_bigstring_get32u_indexed_by_int64#"
-
-    external getf32
-      :  bigstring
-      -> int64#
-      -> int
-      = "%caml_bigstring_getf32_indexed_by_int64#"
-
-    external getf32u
-      :  bigstring
-      -> int64#
-      -> int
-      = "%caml_bigstring_getf32u_indexed_by_int64#"
 
     external get64
       :  bigstring
       -> int64#
-      -> int
+      -> int64
       = "%caml_bigstring_get64_indexed_by_int64#"
 
     external get64u
       :  bigstring
       -> int64#
-      -> int
+      -> int64
       = "%caml_bigstring_get64u_indexed_by_int64#"
-
-    (* external geta128 *)
-    (*   :  bigstring *)
-    (*   -> int64# *)
-    (*   -> int *)
-    (*   = "%caml_bigstring_geta128_indexed_by_int64#" *)
-
-    (* external geta128u *)
-    (*   :  bigstring *)
-    (*   -> int64# *)
-    (*   -> int *)
-    (*   = "%caml_bigstring_geta128u_indexed_by_int64#" *)
-
-    (* external getu128 *)
-    (*   :  bigstring *)
-    (*   -> int64# *)
-    (*   -> int *)
-    (*   = "%caml_bigstring_getu128_indexed_by_int64#" *)
-
-    (* external getu128u *)
-    (*   :  bigstring *)
-    (*   -> int64# *)
-    (*   -> int *)
-    (*   = "%caml_bigstring_getu128u_indexed_by_int64#" *)
 
     let assert_bound_check_get f bs i =
       try
@@ -159,27 +117,20 @@ let () =
   (* -1 *)
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get16 bs (-#1L);
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get32 bs (-#1L);
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.getf32 bs (-#1L);
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs (-#1L);
-  (* By_int64_u.A.assert_bound_check_get By_int64_u.A.geta128 bs (-#1L); *)
-  (* By_int64_u.A.assert_bound_check_get By_int64_u.A.getu128 bs (-#1L); *)
   (* Past length *)
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get16 bs #300L;
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get32 bs #300L;
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.getf32 bs #300L;
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs #300L;
   (* Length -1 *)
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get16 bs #299L;
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get32 bs #299L;
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.getf32 bs #299L;
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs #299L;
   (* Length -2 *)
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get32 bs #298L;
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.getf32 bs #298L;
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs #298L;
   (* Length -3 *)
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get32 bs #297L;
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.getf32 bs #297L;
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs #297L;
   (* Length -4 *)
   By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs #296L;
@@ -197,10 +148,6 @@ let () =
     bs
     (-#9223372036854775807L);
   By_int64_u.A.assert_bound_check_get
-    By_int64_u.A.getf32
-    bs
-    (-#9223372036854775807L);
-  By_int64_u.A.assert_bound_check_get
     By_int64_u.A.get64
     bs
     (-#9223372036854775807L)
@@ -209,19 +156,31 @@ let () =
 let () =
   let bs1 = create_bs () in
   let bs2 = create_bs () in
-  let check ref get getu i =
-    assert (ref bs1 i = get bs2 (i |> By_int64_u.I.of_int));
-    assert (ref bs1 i = getu bs2 (i |> By_int64_u.I.of_int))
+  let check ref gets getu eq i =
+    let ref = ref bs1 i in
+    assert (eq ref (gets bs2 (i |> By_int64_u.I.of_int)));
+    assert (eq ref (getu bs2 (i |> By_int64_u.I.of_int)))
   in
   let check16 =
-    check caml_bigstring_get_16 By_int64_u.A.get16 By_int64_u.A.get16u
+    check
+      caml_bigstring_get_16
+      By_int64_u.A.get16
+      By_int64_u.A.get16u
+      Int.equal
   in
-  let check32 i =
-    check caml_bigstring_get_32 By_int64_u.A.get32 By_int64_u.A.get32u i;
-    check caml_bigstring_get_f32 By_int64_u.A.getf32 By_int64_u.A.getf32u i
+  let check32 =
+    check
+      caml_bigstring_get_32
+      By_int64_u.A.get32
+      By_int64_u.A.get32u
+      Int32.equal
   in
   let check64 =
-    check caml_bigstring_get_64 By_int64_u.A.get64 By_int64_u.A.get64u
+    check
+      caml_bigstring_get_64
+      By_int64_u.A.get64
+      By_int64_u.A.get64u
+      Int64.equal
   in
   for i = 0 to 292 do
     check16 i;
