@@ -2606,7 +2606,7 @@ end = struct
           (* CR gyorsh: show this be treated as a jump, without affecting the
              summary? *)
           transform_tailcall_imm t t.current_fun_name dbg
-        | Tailcall_func { op = (Direct { sym_name; _ }); _ } ->
+        | Tailcall_func { op = Direct { sym_name; _ }; _ } ->
           transform_tailcall_imm t sym_name dbg
         | Tailcall_func { op = Indirect; _ } ->
           (* Sound to ignore [next] and [exn] because the call never returns. *)

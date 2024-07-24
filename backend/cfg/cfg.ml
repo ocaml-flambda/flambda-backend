@@ -167,11 +167,12 @@ let replace_successor_labels t ~normal ~exn block ~f =
       | Switch labels -> Switch (Array.map f labels)
       | Tailcall_self { op = { destination }; tail } ->
         Tailcall_self { op = { destination = f destination }; tail }
-      | Tailcall_func { op = Indirect; _ }
-      | Tailcall_func { op = (Direct _); _ }
+      | Tailcall_func { op = Indirect; tail = _ }
+      | Tailcall_func { op = Direct _; tail = _ }
       | Return | Raise _ | Call_no_return _ ->
         block.terminator.desc
-      | Call { op; label_after; tail } -> Call { op; label_after = f label_after; tail }
+      | Call { op; label_after; tail } ->
+        Call { op; label_after = f label_after; tail }
       | Prim { op; label_after } -> Prim { op; label_after = f label_after }
       | Specific_can_raise { op; label_after } ->
         Specific_can_raise { op; label_after = f label_after }
@@ -390,8 +391,8 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
          { func =
              { sym_name = Printf.sprintf "self(%d)" destination;
                sym_global = Local
-             }
-         ; tail
+             };
+           tail
          })
   | Tailcall_func { op = call; tail } ->
     dump_mach_op ppf

@@ -34,7 +34,7 @@ module S = struct
     | Indirect
     | Direct of Cmm.symbol
 
-  type destination = { destination: Label.t }
+  type destination = { destination : Label.t }
 
   type external_call_operation =
     { func_symbol : string;
@@ -173,13 +173,13 @@ module S = struct
 
   type 'a with_tail_attr =
     { op : 'a;
-      tail: Lambda.tail_attribute
+      tail : Lambda.tail_attribute
     }
 
   type 'a with_label_after_and_tail_attr =
     { op : 'a;
       label_after : Label.t;
-      tail: Lambda.tail_attribute
+      tail : Lambda.tail_attribute
     }
 
   (* Properties of the representation of successors:
@@ -209,6 +209,7 @@ module S = struct
     (* CR less-tco: Track [@tail] attribute on external calls? *)
     | Call_no_return of external_call_operation
     | Call of func_call_operation with_label_after_and_tail_attr
+    (* CR less-tco: Track [@tail] attribute on primitive (external) calls? *)
     | Prim of prim_call_operation with_label_after
     | Specific_can_raise of Arch.specific_operation with_label_after
 end

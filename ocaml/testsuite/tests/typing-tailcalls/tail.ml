@@ -18,11 +18,11 @@
 (* These calls should be inferred as tail-calls because they call, in tail 
    position, a function defined in some ancestor let rec. *)
 let rec foo n =
-  if n > 0 then foo (n - 2) [@nontail] else ()
+  if n > 0 then foo (n - 2) else ()
 
 let rec bar n =
-  if n > 0 then baz (n - 2) [@tail hint] else ()
-and baz n = bar (n + 1) [@nontail]
+  if n > 0 then baz (n - 2) else ()
+and baz n = bar (n + 1)
 
 (* (less-tco) The current heuristic used in -no-always-tco (incorrectly) does not
    infer tailcalls for the tail-position application of `next n k`.

@@ -250,8 +250,8 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
            [Available_ranges.Make_ranges.end_pos_offset]. *)
         let made_unavailable_2 =
           match op with
-          | Icall_ind _ | Icall_imm _ | Ialloc _ | Ipoll _ | Iprobe _ | Iendregion
-            ->
+          | Icall_ind _ | Icall_imm _ | Ialloc _ | Ipoll _ | Iprobe _
+          | Iendregion ->
             RD.Set.filter
               (fun reg ->
                 let holds_immediate = RD.holds_non_pointer reg in
@@ -284,12 +284,12 @@ let rec available_regs (instr : M.instruction) ~all_regs_that_might_be_named
                   false))
               avail_before
           | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _
-          | Iconst_float32 _ | Iconst_vec128 _ | Iconst_symbol _ | Itailcall_ind _
-          | Itailcall_imm _ | Iextcall _ | Istackoffset _ | Iload _ | Istore _
-          | Iintop _ | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _
-          | Iopaque | Ispecific _ | Istatic_cast _ | Ireinterpret_cast _
-          | Iname_for_debugger _ | Iprobe_is_enabled _ | Ibeginregion | Idls_get
-            ->
+          | Iconst_float32 _ | Iconst_vec128 _ | Iconst_symbol _
+          | Itailcall_ind _ | Itailcall_imm _ | Iextcall _ | Istackoffset _
+          | Iload _ | Istore _ | Iintop _ | Iintop_imm _ | Iintop_atomic _
+          | Ifloatop _ | Icsel _ | Iopaque | Ispecific _ | Istatic_cast _
+          | Ireinterpret_cast _ | Iname_for_debugger _ | Iprobe_is_enabled _
+          | Ibeginregion | Idls_get ->
             RD.Set.empty
         in
         let made_unavailable =

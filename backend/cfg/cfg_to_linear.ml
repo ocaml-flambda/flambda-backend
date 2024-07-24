@@ -150,13 +150,14 @@ let linearize_terminator cfg_with_layout (func : string) start
     match terminator.desc with
     | Return -> [L.Lreturn], None
     | Raise kind -> [L.Lraise kind], None
-    | Tailcall_func { op = Indirect; tail } -> [L.Lop (Itailcall_ind { tail })], None
-    | Tailcall_func { op = (Direct func_symbol); tail } ->
+    | Tailcall_func { op = Indirect; tail } ->
+      [L.Lop (Itailcall_ind { tail })], None
+    | Tailcall_func { op = Direct func_symbol; tail } ->
       [L.Lop (Itailcall_imm { func = func_symbol; tail })], None
     | Tailcall_self { op = { destination }; tail } ->
       ( [ L.Lop
-            (Itailcall_imm { func = { sym_name = func; sym_global = Local }; tail })
-        ],
+            (Itailcall_imm
+               { func = { sym_name = func; sym_global = Local }; tail }) ],
         Some destination )
     | Call_no_return { func_symbol; alloc; ty_args; ty_res; stack_ofs } ->
       single

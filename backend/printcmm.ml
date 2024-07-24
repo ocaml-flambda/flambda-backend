@@ -200,12 +200,13 @@ let static_cast : Cmm.static_cast -> string = function
 
 let operation d = function
   | Capply(_ty, _, tail) ->
-    (* CR less-tco: Remove debug code *)
-    let tail = (match tail with
+    (* CR less-tco: Remove tail attribute debug print code *)
+    let tail =
+      match tail with
       | Explicit_tail -> "[@tail]"
       | Hint_tail -> "[@tail hint]"
       | Explicit_non_tail -> "[@nontail]"
-      | Default_tail -> "")
+      | Default_tail -> ""
     in "app" ^ tail ^ location d
   | Cextcall { func = lbl; _ } ->
       Printf.sprintf "extcall \"%s\"%s" lbl (location d)
