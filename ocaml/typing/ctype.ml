@@ -4143,7 +4143,7 @@ let unify_delaying_jkind_checks env ty1 ty2 =
 
 (* Lower the level of a type to the current level *)
 let enforce_current_level env ty =
-  unify_var env (newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)) ty
+  unify_var env (new_type_var (Jkind.Type.Primitive.any ~why:Dummy_jkind)) ty
 
 (**** Special cases of unification ****)
 
@@ -5869,8 +5869,8 @@ let rec build_subtype env (visited : transient_expr list)
                 else build_subtype env visited loops (not posi) level t
               else
                 if co then build_subtype env visited loops posi level t
-                else (newvar (Jkind.Type.Primitive.value
-                                ~why:(Unknown "build_subtype 3") |> Jkind.of_type_jkind),
+                else (new_type_var (Jkind.Type.Primitive.value
+                                ~why:(Unknown "build_subtype 3")),
                       Changed))
             var (AppArgs.to_list tl)
         in
@@ -6253,7 +6253,7 @@ let rec unalias_object ty =
   | Tunivar _ ->
       ty
   | Tconstr _ ->
-      newvar2 level (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind)
+      new_type_var2 level (Jkind.Type.Primitive.any ~why:Dummy_jkind)
   | _ ->
       assert false
 

@@ -1874,7 +1874,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
   let args =
     (* The jkinds here shouldn't matter for the purposes of
        [check_well_founded] *)
-  List.map (fun _ -> Ctype.newvar (Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind))
+  List.map (fun _ -> Ctype.new_type_var (Jkind.Type.Primitive.any ~why:Dummy_jkind))
       decl.type_params
   in
   let visited = ref TypeMap.empty in
