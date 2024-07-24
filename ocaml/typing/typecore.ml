@@ -242,13 +242,6 @@ type error =
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
 
-type in_function =
-  { ty_fun: type_expected;
-    loc_fun: Location.t;
-    (** [region_locked] is whether the function has its own region. *)
-    region_locked: bool;
-  }
-
 let error_of_filter_arrow_failure ~explanation ~first ty_fun
   : filter_arrow_failure -> _ = function
   | Unification_error unif_err ->
@@ -3930,116 +3923,6 @@ let check_recursive_class_bindings env ids exprs =
          raise(Error(expr.cl_loc, env, Illegal_class_expr)))
     exprs
 
-module Is_local_returning : sig
-  val function_body : Jane_syntax.N_ary_functions.function_body -> bool
-end = struct
-
-  (* Is the return value annotated with "local_"?
-     [assert false] can work either way *)
-
-  type local_returning_flag =
-    | Local of Location.t  (* location of a local return *)
-    | Not of Location.t  (* location of a non-local return *)
-    | Either
-
-  let combine flag1 flag2 =
-    match flag1, flag2 with
-    | (Local _ as flag), Local _
-    | (Local _ as flag), Either
-    | (Not _ as flag), Not _
-    | (Not _ as flag), Either
-    | Either, (Local _ as flag)
-    | Either, (Not _ as flag)
-    | (Either as flag), Either ->
-      flag
-
-    | Local local_loc, Not not_local_loc
-    | Not not_local_loc, Local local_loc ->
-       raise(Error(not_local_loc, Env.empty,
-                   Local_return_annotation_mismatch local_loc))
-
-  let expr e =
-    let rec loop e =
-      match Jane_syntax.Expression.of_ast e with
-      | Some (jexp, _attrs) -> begin
-          match jexp with
-          | Jexp_comprehension   _ -> Not e.pexp_loc
-          | Jexp_immutable_array _ -> Not e.pexp_loc
-          | Jexp_layout (Lexp_constant _) -> Not e.pexp_loc
-          | Jexp_layout (Lexp_newtype (_, _, e)) -> loop e
-          | Jexp_n_ary_function _ -> Not e.pexp_loc
-          | Jexp_tuple _ -> Not e.pexp_loc
-          | Jexp_modes (Coerce (modes, exp)) ->
-              if List.exists
-                  (fun m ->
-                     let {txt; _} =
-                       (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc)
-                     in
-                     txt = "local")
-                  modes.txt
-              then Local e.pexp_loc
-              else loop exp
-        end
-      | None      ->
-      match e.pexp_desc with
-      | Pexp_assert { pexp_desc = Pexp_construct ({ txt = Lident "false" },
-                                                  None) } ->
-          Either
-      | Pexp_ident _ | Pexp_constant _ | Pexp_apply _ | Pexp_tuple _
-      | Pexp_construct _ | Pexp_variant _ | Pexp_record _ | Pexp_field _
-      | Pexp_setfield _ | Pexp_array _ | Pexp_while _ | Pexp_for _ | Pexp_send _
-      | Pexp_new _ | Pexp_setinstvar _ | Pexp_override _ | Pexp_assert _
-      | Pexp_lazy _ | Pexp_object _ | Pexp_pack _ | Pexp_function _ | Pexp_fun _
-      | Pexp_letop _ | Pexp_extension _ | Pexp_unreachable ->
-          Not e.pexp_loc
-      | Pexp_let(_, _, e) | Pexp_sequence(_, e) | Pexp_constraint(e, _)
-      | Pexp_coerce(e, _, _) | Pexp_letmodule(_, _, e) | Pexp_letexception(_, e)
-      | Pexp_poly(e, _) | Pexp_newtype(_, e) | Pexp_open(_, e)
-      | Pexp_ifthenelse(_, e, None)->
-          loop e
-      | Pexp_ifthenelse(_, e1, Some e2)-> combine (loop e1) (loop e2)
-      | Pexp_match(_, cases) -> begin
-          match cases with
-          | [] -> Not e.pexp_loc
-          | first :: rest ->
-              List.fold_left
-                (fun acc pc -> combine acc (loop pc.pc_rhs))
-                (loop first.pc_rhs) rest
-        end
-      | Pexp_try(e, cases) ->
-          List.fold_left
-            (fun acc pc -> combine acc (loop pc.pc_rhs))
-            (loop e) cases
-    in
-    loop e
-
-  let cases cs =
-    match cs with
-    | [] -> Either
-    | case :: cases ->
-        let is_local_returning_case case =
-          expr case.pc_rhs
-        in
-        List.fold_left
-          (fun acc case -> combine acc (is_local_returning_case case))
-          (is_local_returning_case case) cases
-
-  let function_body (body : Jane_syntax.N_ary_functions.function_body) =
-    match body with
-    | Pfunction_body body -> expr body
-    | Pfunction_cases (cs, _, _) -> cases cs
-
-  let is_strictly_local = function
-    | Local _ -> true
-    | Either | Not _ -> false
-        (* [fun _ -> assert false] must not be local-returning for
-          backward compatibility *)
-
-  (* for exporting from this module *)
-
-  let function_body body = is_strictly_local (function_body body)
-end
-
 (* The "rest of the function" extends from the start of the first parameter
    to the end of the overall function. The parser does not construct such
    a location so we forge one for type errors.
@@ -4859,9 +4742,7 @@ let split_function_ty
   in
   if expected_mode.strictly_local then
     Locality.submode_exn Locality.local (Alloc.proj (Comonadic Areality) alloc_mode);
-  let { ty_fun = { ty = ty_fun; explanation }; loc_fun; region_locked } =
-    in_function
-  in
+  let { ty = ty_fun; explanation }, loc_fun = in_function in
   let separate = !Clflags.principal || Env.has_local_constraints env in
   let { ty_arg; ty_ret; arg_mode; ret_mode } as filtered_arrow =
     with_local_level_if separate begin fun () ->
@@ -4908,8 +4789,7 @@ let split_function_ty
             (alloc_as_value alloc_mode).comonadic
             env
         in
-        if region_locked then Env.add_region_lock env
-        else env
+        Env.add_region_lock env
   in
   let ret_value_mode = alloc_as_value ret_mode in
   let expected_inner_mode =
@@ -4918,17 +4798,7 @@ let split_function_ty
       function *)
       mode_default ret_value_mode
     else
-      let ret_value_mode =
-        if region_locked then mode_return ret_value_mode
-        else begin
-          (* if the function has no region, we force the ret_mode to be local *)
-          match
-            Locality.submode Locality.local (Alloc.proj (Comonadic Areality) ret_mode)
-          with
-          | Ok () -> mode_default ret_value_mode
-          | Error _ -> raise (Error (loc_fun, env, Function_returns_local))
-        end
-      in
+      let ret_value_mode = mode_return ret_value_mode in
       let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
       ret_value_mode
   in
@@ -4943,10 +4813,7 @@ let split_function_ty
       end
     end
   in
-  let arg_value_mode =
-    if region_locked then alloc_to_value_l2r arg_mode
-    else Value.disallow_right (alloc_as_value arg_mode)
-  in
+  let arg_value_mode = alloc_to_value_l2r arg_mode in
   let expected_pat_mode = simple_pat_mode arg_value_mode in
   let type_sort ~why ty =
     match Ctype.type_sort ~why env ty with
@@ -6657,7 +6524,7 @@ and type_function
   : type_function_result
   =
   let open Jane_syntax.N_ary_functions in
-  let { ty_fun; loc_fun; _ } = in_function in
+  let ty_fun, (loc_fun : Location.t) = in_function in
   (* The "rest of the function" extends from the start of the first parameter
      to the end of the overall function. The parser does not construct such
      a location so we forge one for type errors.
@@ -7498,6 +7365,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               |> Locality.disallow_right,
               None)}
         in
+        let e = {texp with exp_type = ty_res; exp_desc = Texp_exclave e} in
         let cases = [ case eta_pat e ] in
         let cases_loc = { texp.exp_loc with loc_ghost = true } in
         let param = name_cases "param" cases in
@@ -7515,7 +7383,6 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               ret_mode = Alloc.disallow_right mret;
               ret_sort;
               alloc_mode;
-              region = false;
               zero_alloc = Zero_alloc.default
             }
         }
@@ -8820,13 +8687,7 @@ and type_n_ary_function
       ~explanation ~attributes
       ((params, constraint_, body) : Jane_syntax.N_ary_functions.expression)
     =
-    let region_locked = not (Is_local_returning.function_body body) in
-    let in_function =
-      { ty_fun = mk_expected (instance ty_expected) ?explanation;
-        loc_fun = loc;
-        region_locked;
-      }
-    in
+    let in_function = mk_expected (instance ty_expected) ?explanation, loc in
     let { function_ = exp_type, result_params, body;
           newtypes; params_contain_gadt = contains_gadt;
           ret_info; fun_alloc_mode;
@@ -8929,7 +8790,7 @@ and type_n_ary_function
     re
       { exp_desc =
           Texp_function
-            { params; body; region = region_locked; ret_sort;
+            { params; body; ret_sort;
               alloc_mode = Mode.Alloc.disallow_left fun_alloc_mode; ret_mode;
               zero_alloc
             };
@@ -10224,8 +10085,8 @@ let report_error ~loc env = function
         "Exclave expression should only be in tail position of the current region."
   | Exclave_returns_not_local ->
       Location.errorf ~loc
-        "This expression was expected to be not local, but is an exclave expression,@ \
-         which must be local."
+        "@[This expression is local because it is an exclave,@ \
+          but was expected otherwise.@]"
   | Optional_poly_param ->
       Location.errorf ~loc
         "Optional parameters cannot be polymorphic"
