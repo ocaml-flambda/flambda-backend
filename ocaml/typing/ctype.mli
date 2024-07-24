@@ -95,6 +95,7 @@ val new_type_var2: ?name:string -> int -> Jkind.Type.t -> type_expr
         (* Short-hand for [newvar2], converting a [Jkind.Type.t] to [Jkind.t] *)
 val newobj: type_expr -> type_expr
 val newconstr: Path.t -> type_expr list -> type_expr
+val newapp : type_expr -> type_expr list -> type_expr
 val newmono : type_expr -> type_expr
 val none: type_expr
         (* A dummy type expression *)
