@@ -1008,7 +1008,7 @@ let apply_exprs env apply1 apply2 : Expr.t Comparison.t =
             ~args:args1' ~call_kind:call_kind1' (Apply.dbg apply1)
             ~inlined:(Apply.inlined apply1)
             ~inlining_state:(Apply.inlining_state apply1)
-            ~probe:None ~position:(Apply.position apply1)
+            ~probe:None ~tail:Default_tail ~position:(Apply.position apply1)
             ~relative_history:(Apply_expr.relative_history apply1)
             ~args_arity:(Apply_expr.args_arity apply1)
             ~return_arity:(Apply_expr.return_arity apply1)

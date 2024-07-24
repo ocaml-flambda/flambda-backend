@@ -182,7 +182,9 @@ val has_local_opt: Parsetree.attributes -> bool
 val has_layout_poly: Parsetree.attributes -> bool
 val has_curry: Parsetree.attributes -> bool
 
-val tailcall : Parsetree.attributes ->
+(* Setting use:true will raise a warning if the attribute has an invalid parameter;
+   tailcall should only be called with use:true once to generate exactly one alert. *)
+val tailcall : Parsetree.attributes -> use:bool ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
 
 (* CR layouts v1.5: Remove everything except for [Immediate64] and [Immediate]

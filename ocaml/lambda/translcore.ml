@@ -372,7 +372,7 @@ and transl_exp1 ~scopes ~in_new_scope sort e =
 
 and transl_exp0 ~in_new_scope ~scopes sort e =
   let unwrap_tail_attribute_exn e =
-    match Builtin_attributes.tailcall e.exp_attributes with
+    match Builtin_attributes.tailcall e.exp_attributes ~use:false with
     | Ok requested -> begin
         match requested with
         | Some `Tail -> Explicit_tail

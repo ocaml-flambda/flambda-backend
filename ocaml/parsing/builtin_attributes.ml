@@ -643,7 +643,7 @@ let has_layout_poly attrs =
 let has_curry attrs =
   has_attribute ["extension.curry"; "ocaml.curry"; "curry"] attrs
 
-let tailcall attr =
+let tailcall attr ~use =
   let has_nontail = has_attribute ["ocaml.nontail"; "nontail"] attr in
   let tail_attrs = filter_attributes [["ocaml.tail";"tail"], true] attr in
   match has_nontail, tail_attrs with
@@ -656,9 +656,10 @@ let tailcall attr =
      match ident_of_payload t.attr_payload with
      | Some "hint" -> Ok (Some `Tail_if_possible)
      | _ ->
-        Location.prerr_warning t.attr_loc
-          (Warnings.Attribute_payload
-             (t.attr_name.txt, "Only 'hint' is supported"));
+        (if use then
+          Location.prerr_warning t.attr_loc
+            (Warnings.Attribute_payload
+               (t.attr_name.txt, "Only 'hint' is supported")));
         Ok (Some `Tail_if_possible)
 
 let error_message_attr l =
