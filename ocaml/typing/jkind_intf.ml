@@ -77,7 +77,7 @@ module type Sort = sig
   val format : Format.formatter -> t -> unit
 
   (** Defaults any variables to value; leaves other sorts alone *)
-  val default_to_value : t -> unit
+  val default_to_value : t -> bool
 
   (** Checks whether this sort is [void], defaulting to [value] if a sort
       variable is unfilled. *)
@@ -85,7 +85,7 @@ module type Sort = sig
 
   (** [default_to_value_and_get] extracts the sort as a `const`.  If it's a variable,
       it is set to [value] first. *)
-  val default_to_value_and_get : t -> Const.t
+  val default_to_value_and_get : t -> Const.t option
 
   (** To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
   type change

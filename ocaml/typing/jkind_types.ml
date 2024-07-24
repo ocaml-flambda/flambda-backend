@@ -27,7 +27,7 @@ module Type = struct
       | Var of var
       | Const of const
 
-    and var = t option ref
+    and var = t list ref
 
     module Const = struct
       type t = const
@@ -75,7 +75,7 @@ module Type = struct
     end
 
     (* To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
-    type change = var * t option
+    type change = var * t list
 
     let change_log : (change -> unit) ref = ref (fun _ -> ())
 
@@ -85,7 +85,7 @@ module Type = struct
 
     let undo_change (v, t_op) = v := t_op
 
-    let set : var -> t option -> unit =
+    let set : var -> t list -> unit =
      fun v t_op ->
       log_change (v, !v);
       v := t_op
@@ -119,33 +119,30 @@ module Type = struct
 
     let of_var v = Var v
 
-    let new_var () = Var (ref None)
+    let new_var () = Var (ref [])
 
     (* Post-condition: If the result is a [Var v], then [!v] is [None]. *)
     let rec get : t -> t = function
       | Const _ as t -> t
-      | Var r as t -> (
-        match !r with
-        | None -> t
-        | Some s ->
-          let result = get s in
-          if result != s then set r (Some result);
-          (* path compression *)
-          result)
+      | Var r as t ->
+        let result = List.map get !r in
+        set r result;
+        (* path compression *)
+        t
 
-    let memoized_value : t option = Some (Const Value)
+    let memoized_value : t = Const Value
 
-    let memoized_void : t option = Some (Const Void)
+    let memoized_void : t = Const Void
 
-    let memoized_float64 : t option = Some (Const Float64)
+    let memoized_float64 : t = Const Float64
 
-    let memoized_float32 : t option = Some (Const Float32)
+    let memoized_float32 : t = Const Float32
 
-    let memoized_word : t option = Some (Const Word)
+    let memoized_word : t = Const Word
 
-    let memoized_bits32 : t option = Some (Const Bits32)
+    let memoized_bits32 : t = Const Bits32
 
-    let memoized_bits64 : t option = Some (Const Bits64)
+    let memoized_bits64 : t = Const Bits64
 
     let[@inline] get_memoized = function
       | Value -> memoized_value
@@ -156,18 +153,23 @@ module Type = struct
       | Bits32 -> memoized_bits32
       | Bits64 -> memoized_bits64
 
-    let rec default_to_value_and_get : t -> const = function
-      | Const c -> c
+    let rec default_to_value_and_get : t -> const option = function
+      | Const c -> Some c
       | Var r -> (
         match !r with
-        | None ->
-          set r memoized_value;
-          Value
-        | Some s ->
-          let result = default_to_value_and_get s in
-          set r (get_memoized result);
-          (* path compression *)
-          result)
+        | [] ->
+          set r [memoized_value];
+          Some Value
+        | s -> (
+          let result =
+            List.map default_to_value_and_get s |> List.sort_uniq compare
+          in
+          match result with
+          | [Some result] ->
+            set r [get_memoized result];
+            (* path compression *)
+            Some result
+          | _ -> None))
 
     let default_to_value t = ignore (default_to_value_and_get t)
 
@@ -273,11 +275,7 @@ module Type = struct
             | Bits32 -> "Bits32"
             | Bits64 -> "Bits64")
 
-      and opt_t ppf = function
-        | Some s -> fprintf ppf "Some %a" t s
-        | None -> fprintf ppf "None"
-
-      and var ppf v = fprintf ppf "{ contents = %a }" opt_t !v
+      and var ppf v = fprintf ppf "{ contents = [%a] }" (pp_print_list t) !v
     end
 
     let for_function = value

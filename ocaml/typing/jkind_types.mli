@@ -59,7 +59,7 @@ module Type : sig
       | Var of var
       | Const of const
 
-    and var = t option ref
+    and var = t list ref
 
     include
       Jkind_intf.Sort
