@@ -163,6 +163,8 @@ module TyVarEnv : sig
     row_context:type_expr option ref list -> string -> type_expr
     (* look up a local type variable; throws Not_found if it isn't in scope *)
 
+  val lookup_global : string -> type_expr
+
   val remember_used : string -> type_expr -> Location.t -> unit
     (* remember that a given name is bound to a given type *)
 
@@ -225,7 +227,7 @@ end = struct
      ~finally:(fun () -> widen context)
 
   (* throws Not_found if the variable is not in scope *)
-  let lookup_global_type_variable name =
+  let lookup_global name =
     TyVarMap.find name !type_variables
 
   let get_in_scope_names () =
@@ -429,8 +431,6 @@ end = struct
     tv
 
   let new_jkind ~is_named { jkind_initialization } =
-    (* FIXME jbachurski: Should these be created with [any], or [top]?
-        (seems to be used for the jkind of [_], so [top]?) *)
     match jkind_initialization with
     | Any -> Jkind.Primitive.top ~why:(if is_named then Unification_var else Wildcard)
     | Sort -> Jkind.of_new_sort ~why:(if is_named then Unification_var else Wildcard)
@@ -449,7 +449,7 @@ end = struct
           let snap = Btype.snapshot () in
           if try unify env v ty; true with _ -> Btype.backtrack snap; false
           then try
-            r := (loc, v, lookup_global_type_variable name) :: !r
+            r := (loc, v, lookup_global name) :: !r
           with Not_found ->
             if extensibility = Fixed && Btype.is_Tvar ty then
               raise(Error(loc, env,
@@ -706,11 +706,9 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
                 (newconstr Predef.path_option [Btype.tpoly_get_mono arg_ty])
             end
           in
-          ignore constrain_type_expr_to_any;
-          (*
+          (* ignore constrain_type_expr_to_any; *)
           constrain_type_expr_to_any ~loc:arg_cty.ctyp_loc ~vloc:Fun_arg env arg_cty.ctyp_type;
           constrain_type_expr_to_any ~loc:ret_cty.ctyp_loc ~vloc:Fun_ret env ret_cty.ctyp_type;
-          *)
           let arg_mode = Alloc.of_const arg_mode in
           let ret_mode = Alloc.of_const ret_mode in
           let arrow_desc = (l, arg_mode, ret_mode) in
@@ -1040,7 +1038,10 @@ and transl_type_var env ~policy ~row_context attrs loc name jkind_annot_opt =
   let ty = try
       TyVarEnv.lookup_local ~row_context name
     with Not_found ->
-      let jkind = TyVarEnv.new_jkind ~is_named:true policy in
+      let jkind =
+        try TyVarEnv.lookup_global name |> type_jkind env
+        with Not_found -> TyVarEnv.new_jkind ~is_named:true policy
+      in
       let ty = TyVarEnv.new_var ~name jkind policy in
       TyVarEnv.remember_used name ty loc;
       ty

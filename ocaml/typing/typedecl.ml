@@ -155,7 +155,6 @@ let get_unboxed_from_attributes sdecl =
    transl_type_decl) or unified with existing sort-variable-free types (as in
    transl_with_constraint). *)
 let make_params env path params =
-  TyVarEnv.reset (); (* [transl_type_param] binds type variables *)
   let make_param (sty, v) =
     try
       (transl_type_param env path sty, v)
@@ -909,8 +908,7 @@ let transl_declaration env sdecl (id, uid) =
     *)
       match jkind_from_annotation, man with
       | Some annot, _ -> annot
-      (* FIXME jbachurski: might want this to be [top] and inferred? *)
-      | None, Some _ -> Jkind.Type.Primitive.any ~why:Initial_typedecl_env |> Jkind.of_type_jkind
+      | None, Some _ -> Jkind.Primitive.top ~why:Initial_typedecl_env
       | None, None -> jkind_default
     in
     let arity = List.length params in
