@@ -92,32 +92,16 @@ def split_into_number_and_unit(number_string: str) -> (str, Union[int, float]):
     return number, unit
 
 
-def update_totals(totals: dict, summary: dict) -> None:
-    for k, v in summary.items():
-        if k != "pass name":
-            total_number, total_unit = totals[k]
-            number, unit = split_into_number_and_unit(v)
-            if total_unit is None:
-                total_unit = unit
-            total_number += number
-            totals[k] = (total_number, total_unit)
-
-
-def process_csv(csv_path: Path, summary_csv_writer: csv.DictWriter, totals: dict) -> None:
+def process_csv(csv_path: Path, summary_csv_writer: csv.DictWriter) -> None:
     summary = csv_to_summary(get_csv_rows(csv_path))
     if summary is not None:
         summary_csv_writer.writerow(summary)
-        update_totals(totals, summary)
 
 
 with open(SUMMARY_PATH, "w", newline="") as summary_csv_file:
-    totals = {k: (0, None) for k in SUMMARY_FIELD_NAMES if k != "pass name"}
     summary_csv_writer = csv.DictWriter(summary_csv_file, fieldnames=SUMMARY_FIELD_NAMES)
     summary_csv_writer.writeheader()
 
     for curr_csv_path in DUMP_DIR.glob("*.csv"):
-        process_csv(curr_csv_path, summary_csv_writer, totals)
+        process_csv(curr_csv_path, summary_csv_writer)
         curr_csv_path.unlink()
-    totals = {k: "".join(map(str, v)) for k, v in totals.items()}
-    totals["pass name"] = "total"
-    summary_csv_writer.writerow(totals)
