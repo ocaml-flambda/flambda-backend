@@ -179,7 +179,7 @@ type ('a : word) t4_6 = 'a * 'a
 Line 1, characters 24-26:
 1 | type ('a : word) t4_6 = 'a * 'a
                             ^^
-Error: This type ('a : value) should be an instance of type ('a0 : word)
+Error: Tuple element types must have layout value.
        The layout of 'a is word, because
          of the annotation on 'a in the declaration of the type t4_6.
        But the layout of 'a must overlap with value, because
@@ -189,10 +189,10 @@ Error: This type ('a : value) should be an instance of type ('a0 : word)
 (* check for layout propagation *)
 type ('a : word, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
 [%%expect{|
-Line 1, characters 29-31:
+Line 1, characters 43-45:
 1 | type ('a : word, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
-                                 ^^
-Error: This type ('b : value) should be an instance of type ('a : word)
+                                               ^^
+Error: Tuple element types must have layout value.
        The layout of 'a is word, because
          of the annotation on 'a in the declaration of the type t4_7.
        But the layout of 'a must overlap with value, because
@@ -363,7 +363,7 @@ type ('a : word) f7_5 = [ `A of 'a ];;
 Line 1, characters 32-34:
 1 | type ('a : word) f7_5 = [ `A of 'a ];;
                                     ^^
-Error: This type ('a : value) should be an instance of type ('a0 : word)
+Error: Polymorphic variant constructor argument types must have layout value.
        The layout of 'a is word, because
          of the annotation on 'a in the declaration of the type f7_5.
        But the layout of 'a must overlap with value, because
@@ -569,10 +569,10 @@ Error: Object field types must have layout value.
 
 type ('a : word) t12_2 = < x : 'a >;;
 [%%expect{|
-Line 1, characters 31-33:
+Line 1, characters 27-33:
 1 | type ('a : word) t12_2 = < x : 'a >;;
-                                   ^^
-Error: This type ('a : value) should be an instance of type ('a0 : word)
+                               ^^^^^^
+Error: Object field types must have layout value.
        The layout of 'a is word, because
          of the annotation on 'a in the declaration of the type t12_2.
        But the layout of 'a must overlap with value, because
@@ -598,7 +598,7 @@ end;;
 Line 2, characters 13-15:
 2 |   method x : 'a t_word_id -> 'a t_word_id = assert false
                  ^^
-Error: This type ('a : word) should be an instance of type ('a0 : value)
+Error: This type ('a : value) should be an instance of type ('b : word)
        The layout of 'a is value, because
          it's a type argument to a class constructor.
        But the layout of 'a must overlap with word, because
@@ -649,7 +649,7 @@ end
 Line 2, characters 10-12:
 2 |   val x : 'a t_word_id -> 'a t_word_id
               ^^
-Error: This type ('a : word) should be an instance of type ('a0 : value)
+Error: This type ('a : value) should be an instance of type ('b : word)
        The layout of 'a is value, because
          it's a type argument to a class constructor.
        But the layout of 'a must overlap with word, because

@@ -21,8 +21,6 @@ let list : list monad = {
 }
 
 [%%expect{|
-val singleton : 'a -> 'a list = <fun>
-val concat_map : 'a list -> ('a -> 'b list) -> 'b list = <fun>
 val list : list monad = {return = <fun>; bind = <fun>}
 |}]
 
@@ -36,7 +34,5 @@ let result = prod list [-1; 1] [0; 1; 2]
 val prod :
   ('a : (value) => value) 'b 'c. 'a monad -> <Tapp> -> <Tapp> -> <Tapp> =
   <fun>
-val xs : int list = [-1; 1]
-val ys : int list = [0; 1; 2]
-val result : <Tapp> = [(-1, 0); (-1, 1); (-1, 2); (1, 0); (1, 1); (1, 2)]
+val result : <Tapp> = <Tapp-val>
 |}]
