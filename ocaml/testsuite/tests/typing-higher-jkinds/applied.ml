@@ -132,6 +132,6 @@ end = struct
 end
 
 [%%expect{|
-type ('a : value => value) t = <Tapp>
+type ('a : value => value) t = int 'a
 module M : sig type a = int list end
 |}]

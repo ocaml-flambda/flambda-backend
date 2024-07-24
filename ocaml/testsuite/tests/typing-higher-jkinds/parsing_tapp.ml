@@ -10,7 +10,7 @@ type ('m : value => value) monad = {
 
 [%%expect{|
 type ('m : value => value) monad = {
-  return : 'a. 'a -> <Tapp>;
-  bind : 'a 'b. <Tapp> -> ('a -> <Tapp>) -> <Tapp>;
+  return : 'a. 'a -> 'a 'm;
+  bind : 'a 'b. 'a 'm -> ('a -> 'b 'm) -> 'b 'm;
 }
 |}]
