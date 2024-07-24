@@ -155,7 +155,6 @@ let get_unboxed_from_attributes sdecl =
    transl_type_decl) or unified with existing sort-variable-free types (as in
    transl_with_constraint). *)
 let make_params env path params =
-  TyVarEnv.reset (); (* [transl_type_param] binds type variables *)
   let make_param (sty, v) =
     try
       (transl_type_param env path sty, v)
