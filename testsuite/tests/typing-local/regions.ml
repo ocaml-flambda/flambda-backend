@@ -30,7 +30,7 @@ let check_not_empty name =
 
 let () = check_empty "startup"
 
-let allocate_in_current_region x = local_
+let allocate_in_current_region x = exclave_
   ignore_local (Some x);
   ()
 
@@ -150,7 +150,7 @@ let () =
   check_empty "after inlined tailcall"
 
 
-let[@inline never] local_ret a b = local_ ref (a + b)
+let[@inline never] local_ret a b = exclave_ ref (a + b)
 let[@inline never] calls_local_ret () =
   let local_ r = (local_ret 1) 2 in
   let () = ignore_local r in
@@ -253,7 +253,7 @@ let () = check_empty "class instantiation"
 
 
 let glob = ref 0
-let[@inline never] local_fn_ret () s = local_
+let[@inline never] local_fn_ret () s = exclave_
   incr glob;
   fun x -> Gc.minor (); string_of_int x ^ s
 
@@ -261,7 +261,7 @@ let globstr = ref ""
 let unknown_fn = ref local_fn_ret
 let gpart_fn = ref (local_fn_ret ())
 let obj = ref (object
-  method local_ret s = local_
+  method local_ret s = exclave_
     incr glob;
     fun x -> Gc.minor (); string_of_int x ^ s
   end)
@@ -283,8 +283,8 @@ let () =
 
 type t = { x : int } [@@unboxed]
 let[@inline never] create_local () =
-  let local_ _extra = opaque_identity (Some (opaque_identity ())) in
-  local_ { x = opaque_identity 0 }
+  exclave_ let local_ _extra = opaque_identity (Some (opaque_identity ())) in
+  { x = opaque_identity 0 }
 let create_and_ignore () =
   let x = create_local () in
   ignore (Sys.opaque_identity x : t)

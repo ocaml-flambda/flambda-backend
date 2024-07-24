@@ -259,7 +259,6 @@ and expression_desc =
   | Texp_function of
       { params : function_param list;
         body : function_body;
-        region : bool;
         ret_mode : Mode.Alloc.l;
         (* Mode where the function allocates, ie local for a function of
            type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)

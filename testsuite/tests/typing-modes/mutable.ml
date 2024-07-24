@@ -7,12 +7,12 @@
 
 (* By default, mutable implies [global many shared] modalities *)
 type r = {mutable s : string}
-let foo (local_ s) = local_ {s}
+let foo (local_ s) = exclave_ {s}
 [%%expect{|
 type r = { mutable s : string; }
-Line 2, characters 29-30:
-2 | let foo (local_ s) = local_ {s}
-                                 ^
+Line 2, characters 31-32:
+2 | let foo (local_ s) = exclave_ {s}
+                                   ^
 Error: This value escapes its region.
 |}]
 
@@ -27,7 +27,7 @@ type 'a r = { mutable s : 'a; }
 |}]
 
 (* We can now construct a local record using a local field. *)
-let foo (local_ s) = local_ {s}
+let foo (local_ s) = exclave_ {s}
 [%%expect{|
 val foo : local_ 'a -> local_ 'a r = <fun>
 |}]
@@ -63,11 +63,11 @@ type r' = {mutable s' : string @@ global [@no_mutable_implied_modalities]}
 type r' = { mutable global_ s' : string; }
 |}]
 
-let foo (local_ s') = local_ {s'}
+let foo (local_ s') = exclave_ {s'}
 [%%expect{|
-Line 1, characters 30-32:
-1 | let foo (local_ s') = local_ {s'}
-                                  ^^
+Line 1, characters 32-34:
+1 | let foo (local_ s') = exclave_ {s'}
+                                    ^^
 Error: This value escapes its region.
 |}]
 
