@@ -1583,7 +1583,7 @@ module History = struct
     match t with
     | Type ty -> Type.History.has_imported_history ty
     | Arrow { args; result } ->
-      List.for_all has_imported_history args && has_imported_history result
+      List.exists has_imported_history args || has_imported_history result
 
   let rec update_reason (t : t) reason : t =
     match t with
@@ -1950,21 +1950,15 @@ end
 (******************************)
 (* relations *)
 
-let jkind_case2 ~typ ~arrow ~default (t : t) (t' : t) =
+let rec equate_or_equal ~allow_mutation (t : t) (t' : t) =
   match t, t' with
-  | Type s, Type s' -> typ s s'
-  | Arrow a, Arrow a' -> arrow a a'
-  | _, _ -> default
-
-let rec equate_or_equal ~allow_mutation t t' =
-  jkind_case2
-    ~typ:(Type.equate_or_equal ~allow_mutation)
-    ~arrow:
-      (fun { args = args1; result = result1 } { args = args2; result = result2 } ->
-      let arg_eqs = List.map2 (equate_or_equal ~allow_mutation) args1 args2 in
-      equate_or_equal ~allow_mutation result1 result2
-      && List.for_all (fun x -> x) arg_eqs)
-    ~default:false t t'
+  | Type ty, Type ty' -> Type.equate_or_equal ~allow_mutation ty ty'
+  | ( Arrow { args = args1; result = result1 },
+      Arrow { args = args2; result = result2 } ) ->
+    let arg_eqs = List.map2 (equate_or_equal ~allow_mutation) args1 args2 in
+    equate_or_equal ~allow_mutation result1 result2
+    && List.for_all (fun x -> x) arg_eqs
+  | _ -> false
 
 let equate = equate_or_equal ~allow_mutation:true
 
@@ -1987,40 +1981,39 @@ let arrow_connective_or_error ~on_args ~on_result
     let result = Result.get_ok result in
     Ok (Arrow { args; result } : t)
 
-let rec intersection_or_error ~reason t t' =
-  jkind_case2
-    ~typ:(fun ty ty' : (t, _) result ->
-      match Type.Jkind_desc.intersection ty.jkind ty'.jkind with
-      | None -> Error (Violation.of_ (No_intersection (Type ty, Type ty')))
-      | Some jkind ->
-        Ok
-          (Type
-             { jkind;
-               history = Type.combine_histories reason ty ty';
-               has_warned = ty.has_warned || ty'.has_warned
-             }))
-    ~arrow:
-      (arrow_connective_or_error ~on_args:(union_or_error ~reason)
-         ~on_result:(intersection_or_error ~reason))
-    ~default:(Error (Violation.of_ (No_intersection (t, t'))))
-    t t'
-
-and union_or_error ~reason t t' =
-  jkind_case2
-    ~typ:(fun ty ty' : (t, _) result ->
-      (* Union is infallible at type jkinds due to [any] *)
+let rec intersection_or_error ~reason (t : t) (t' : t) : (t, _) result =
+  match t, t' with
+  | Type ty, Type ty' -> (
+    match Type.Jkind_desc.intersection ty.jkind ty'.jkind with
+    | None -> Error (Violation.of_ (No_intersection (Type ty, Type ty')))
+    | Some jkind ->
       Ok
         (Type
-           { jkind = Type.Jkind_desc.union ty.jkind ty'.jkind;
+           { jkind;
              history = Type.combine_histories reason ty ty';
              has_warned = ty.has_warned || ty'.has_warned
            }))
-    ~arrow:
-      (arrow_connective_or_error
-         ~on_args:(intersection_or_error ~reason)
-         ~on_result:(union_or_error ~reason))
-    ~default:(Error (Violation.of_ (No_union (t, t'))))
-    t t'
+  | Arrow a, Arrow a' ->
+    arrow_connective_or_error ~on_args:(union_or_error ~reason)
+      ~on_result:(intersection_or_error ~reason)
+      a a'
+  | _ -> Error (Violation.of_ (No_intersection (t, t')))
+
+and union_or_error ~reason (t : t) (t' : t) : (t, _) result =
+  match t, t' with
+  | Type ty, Type ty' ->
+    (* Union is infallible at type jkinds due to [any] *)
+    Ok
+      (Type
+         { jkind = Type.Jkind_desc.union ty.jkind ty'.jkind;
+           history = Type.combine_histories reason ty ty';
+           has_warned = ty.has_warned || ty'.has_warned
+         })
+  | Arrow a, Arrow a' ->
+    arrow_connective_or_error
+      ~on_args:(intersection_or_error ~reason)
+      ~on_result:(union_or_error ~reason) a a'
+  | _ -> Error (Violation.of_ (No_union (t, t')))
 
 let has_intersection t t' =
   Result.is_ok
@@ -2028,17 +2021,17 @@ let has_intersection t t' =
      (* This reason is just used as a dummy for the test *)
        ~reason:Type.History.Subjkind t t')
 
-let rec check_sub t t' : Misc.Le_result.t =
-  jkind_case2 ~typ:Type.check_sub
-    ~arrow:
-      (fun { args = args1; result = result1 } { args = args2; result = result2 }
-           : Misc.Le_result.t ->
-      if List.length args1 <> List.length args2
-      then Misc.Le_result.Not_le
-      else
-        Misc.Le_result.combine_list
-          (check_sub result1 result2 :: List.map2 check_sub args2 args1))
-    ~default:Misc.Le_result.Not_le t t'
+let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
+  match t, t' with
+  | Type ty, Type ty' -> Type.check_sub ty ty'
+  | ( Arrow { args = args1; result = result1 },
+      Arrow { args = args2; result = result2 } ) ->
+    if List.length args1 <> List.length args2
+    then Misc.Le_result.Not_le
+    else
+      Misc.Le_result.combine_list
+        (check_sub result1 result2 :: List.map2 check_sub args2 args1)
+  | _ -> Misc.Le_result.Not_le
 
 let sub t t' = Misc.Le_result.is_le (check_sub t t')
 
