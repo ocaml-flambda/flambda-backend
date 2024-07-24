@@ -322,8 +322,8 @@ let width_by_column ~n_columns ~display_cell rows =
 let output_rows
     ~(output_row : prefix:string -> cell_strings:string list -> name:string -> unit)
     ~(new_prefix : prev:string -> curr_name:string -> string)
-    ?(always_output_ancestors = true)
-    ?(pad_empty = true)
+    ~(always_output_ancestors : bool)
+    ~(pad_empty : bool)
     rows
   =
   let n_columns =
@@ -377,6 +377,8 @@ let print ppf =
     ~output_row:(fun ~prefix ~cell_strings ~name ->
       Format.fprintf ppf "%s%s %s@\n" prefix (String.concat " " cell_strings) name)
     ~new_prefix:(fun ~prev ~curr_name:_ -> "  " ^ prev)
+    ~always_output_ancestors:true
+    ~pad_empty:true
   |> output_columns
 
 let column_mapping = [
