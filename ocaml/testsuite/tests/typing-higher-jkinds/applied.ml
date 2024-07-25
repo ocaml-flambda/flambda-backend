@@ -62,8 +62,8 @@ Error: Layout mismatch in final type declaration consistency check.
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
          The layout of t is ((value) => value) (...??)
-         But the layout of t must be a sublayout of value, because
-           of the definition of t at line 1, characters 0-23.
+         But the layout of t must be a sublayout of value, which
+           was projected from a higher jkind.
        A good next step is to add a layout annotation on a parameter to
        the declaration where this error is reported.
 |}]
