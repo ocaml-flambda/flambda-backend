@@ -1,6 +1,13 @@
-File "poll_attr_both.ml", line 1:
+File "poll_attr_both.ml", lines 16-22, characters 19-13:
+16 | ...................x =
+17 |   let y = Sys.opaque_identity(ref 42) in
+18 |     let x2 = v x in
+19 |       for c = 0 to x2 do
+20 |         ignore(Sys.opaque_identity(42))
+21 |       done;
+22 |       x2 + !y
 Error: Function with poll-error attribute contains polling points:
+	inserted poll
 	allocation at File "poll_attr_both.ml", line 17, characters 29-37
 	function call at File "poll_attr_both.ml", line 18, characters 13-16
-	(plus compiler-inserted polling point(s) in prologue and/or loop back edges)
 

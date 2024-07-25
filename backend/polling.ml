@@ -29,7 +29,7 @@ let function_is_assumed_to_never_poll func =
 
 (* These are used for the poll error annotation later on*)
 type polling_point = Alloc | Poll | Function_call | External_call
-type error = Poll_error of (polling_point * Debuginfo.t) list
+type error = Poll_error of Debuginfo.t * (polling_point * Debuginfo.t) list
 
 exception Error of error
 
@@ -276,7 +276,7 @@ let instrument_fundecl ~future_funcnames:_ (f : Mach.fundecl) : Mach.fundecl =
     | Error_poll -> begin
         match find_poll_alloc_or_calls new_body with
         | [] -> ()
-        | poll_error_instrs -> raise (Error(Poll_error poll_error_instrs))
+        | poll_error_instrs -> raise (Error(Poll_error (f.fun_dbg, poll_error_instrs)))
       end
     | Default_poll -> () end;
     let new_contains_calls = f.fun_contains_calls || !contains_polls in
@@ -300,7 +300,7 @@ let instr_type p =
   | External_call -> "external call that allocates"
 
 let report_error ppf = function
-| Poll_error instrs ->
+| Poll_error (_fun_dbg, instrs) ->
   begin
     let num_inserted_polls =
       List.fold_left
@@ -311,27 +311,28 @@ let report_error ppf = function
       if num_user_polls = 0 then
         fprintf ppf "Function with poll-error attribute contains polling \
         points (inserted by the compiler)\n"
-      else begin
+      else
         fprintf ppf
         "Function with poll-error attribute contains polling points:\n";
-        List.iter (fun (p,dbg) ->
-          begin match p with
-          | Poll -> ()
-          | Alloc | Function_call | External_call ->
-            fprintf ppf "\t%s at " (instr_type p);
+      List.iter (fun (p,dbg) ->
+        begin match p with
+        | Poll
+        | Alloc | Function_call | External_call ->
+          fprintf ppf "\t%s" (instr_type p);
+          if not (Debuginfo.is_none dbg) then begin
+            fprintf ppf " at ";
             Location.print_loc ppf (Debuginfo.to_location dbg);
-            fprintf ppf "\n"
-          end
-        ) instrs;
-        if num_inserted_polls > 0 then
-          fprintf ppf "\t(plus compiler-inserted polling point(s) in prologue \
-          and/or loop back edges)\n"
-      end
+          end;
+          fprintf ppf "\n"
+        end
+      ) instrs
   end
 
 let () =
   Location.register_error_of_exn
     (function
-      | Error err -> Some (Location.error_of_printer_file report_error err)
+      | Error (Poll_error (fun_dbg, _instrs) as err) ->
+        let loc = Debuginfo.to_location fun_dbg in
+        Some (Location.error_of_printer ~loc report_error err)
       | _ -> None
     )

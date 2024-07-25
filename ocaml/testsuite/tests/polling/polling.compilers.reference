@@ -1,0 +1,30 @@
+Lines 8-11, characters 28-6:
+ 8 | ............................x =
+ 9 |   for _ = 0 to x do
+10 |     ignore(Sys.opaque_identity(ref 42))
+11 |   done
+Error: Function with poll-error attribute contains polling points:
+	allocation at Line 10, characters 30-38
+
+Lines 2-5, characters 31-6:
+2 | ...............................x =
+3 |   for _ = 0 to x do
+4 |     ()
+5 |   done
+Error: Function with poll-error attribute contains polling points (inserted by the compiler)
+	inserted poll
+
+Lines 2-4, characters 29-11:
+2 | .............................x =
+3 |   ignore(Sys.opaque_identity(ref 42));
+4 |   tailrec x
+Error: Function with poll-error attribute contains polling points:
+	allocation at Line 3, characters 28-36
+
+Lines 2-3, characters 38-20:
+2 | ......................................x =
+3 |   tailrec_no_alloc x
+Error: Function with poll-error attribute contains polling points (inserted by the compiler)
+	inserted poll
+
+

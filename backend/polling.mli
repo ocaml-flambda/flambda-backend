@@ -24,7 +24,7 @@ val is_disabled : string -> bool
 
 type polling_point = Alloc | Poll | Function_call | External_call
 
-type error = Poll_error of (polling_point * Debuginfo.t) list
+type error = Poll_error of Debuginfo.t * (polling_point * Debuginfo.t) list
 
 exception Error of error
 

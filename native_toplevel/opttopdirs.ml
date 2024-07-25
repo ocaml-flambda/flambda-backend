@@ -213,7 +213,10 @@ let _ =
              (Directive_string (parse_warnings std_out false));
 
   Hashtbl.add directive_table "warn_error"
-             (Directive_string (parse_warnings std_out true))
+             (Directive_string (parse_warnings std_out true));
+
+  Hashtbl.add directive_table "reset_location"
+             (Directive_bool (fun b -> reset_location := b))
 
 let section_options = "Compiler options"
 

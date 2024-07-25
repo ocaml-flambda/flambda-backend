@@ -52,7 +52,7 @@ type polling_point = Polling.polling_point =
   | Function_call
   | External_call
 
-type error = Polling.error = Poll_error of (polling_point * Debuginfo.t) list
+type error = Polling.error = Poll_error of Debuginfo.t * (polling_point * Debuginfo.t) list
 
 exception Error = Polling.Error
 
@@ -347,7 +347,7 @@ let instrument_fundecl :
             ~cmp:(fun left right -> Debuginfo.compare (snd left) (snd right))
             poll_error_instrs
         in
-        raise (Error (Poll_error poll_error_instrs)))
+        raise (Error (Poll_error (cfg.fun_dbg, poll_error_instrs))))
     | Default_poll -> ());
     let new_contains_calls =
       (* `added_poll` is used to avoid iterating over the CFG if we have added a
