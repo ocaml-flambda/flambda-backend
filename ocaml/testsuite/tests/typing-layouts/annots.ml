@@ -81,24 +81,99 @@ type t_value_mod_external64 : value mod external64
 type t1 : float32 mod internal shared many local
 type t2 : bits64 mod once external64 unique
 type t3 : immediate mod local unique
-type t4 : value mod local local
-type t5 : float64 mod global global
-type t6 : bits32 mod local global
-type t7 : bits64 mod global local
-type t8 : value mod global local many once unique shared internal uncontended contended
-                    portable nonportable external64 external_
 
-[%%expect{|
+[%%expect {|
 type t1 : float32 mod internal shared many local
 type t2 : bits64 mod once external64 unique
 type t3 : immediate mod local unique
-type t4
+|}]
+
+type t4 : value mod local local
+[%%expect {|
+Line 1, characters 26-31:
+1 | type t4 : value mod local local
+                              ^^^^^
+Error: The locality axis has already been specified.
+|}]
+
 type t5 : float64 mod global global
+[%%expect {|
+Line 1, characters 29-35:
+1 | type t5 : float64 mod global global
+                                 ^^^^^^
+Error: The locality axis has already been specified.
+|}]
+
 type t6 : bits32 mod local global
+[%%expect {|
+Line 1, characters 27-33:
+1 | type t6 : bits32 mod local global
+                               ^^^^^^
+Error: The locality axis has already been specified.
+|}]
+
 type t7 : bits64 mod global local
-type t8
-  : value mod global local many once unique shared internal uncontended
-              contended portable nonportable external64 external_
+[%%expect {|
+Line 1, characters 28-33:
+1 | type t7 : bits64 mod global local
+                                ^^^^^
+Error: The locality axis has already been specified.
+|}]
+
+type t8 : value mod local many unique uncontended nonportable external64 local
+[%%expect {|
+Line 1, characters 73-78:
+1 | type t8 : value mod local many unique uncontended nonportable external64 local
+                                                                             ^^^^^
+Error: The locality axis has already been specified.
+|}]
+
+type t9 : value mod once many
+[%%expect {|
+Line 1, characters 25-29:
+1 | type t9 : value mod once many
+                             ^^^^
+Error: The linearity axis has already been specified.
+|}]
+
+type t10 : value mod contended uncontended
+[%%expect {|
+Line 1, characters 31-42:
+1 | type t10 : value mod contended uncontended
+                                   ^^^^^^^^^^^
+Error: The contention axis has already been specified.
+|}]
+
+type t11 : value mod portable nonportable
+[%%expect {|
+Line 1, characters 30-41:
+1 | type t11 : value mod portable nonportable
+                                  ^^^^^^^^^^^
+Error: The portability axis has already been specified.
+|}]
+
+type t12 : value mod external64 external_
+[%%expect {|
+Line 1, characters 32-41:
+1 | type t12 : value mod external64 external_
+                                    ^^^^^^^^^
+Error: The externality axis has already been specified.
+|}]
+
+type t13 : value mod maybe_null non_null
+[%%expect {|
+Line 1, characters 32-40:
+1 | type t13 : value mod maybe_null non_null
+                                    ^^^^^^^^
+Error: The nullability axis has already been specified.
+|}]
+
+type t14 : value mod unique shared
+[%%expect {|
+Line 1, characters 28-34:
+1 | type t14 : value mod unique shared
+                                ^^^^^^
+Error: The uniqueness axis has already been specified.
 |}]
 
 (***************************************)
