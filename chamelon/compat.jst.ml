@@ -19,8 +19,10 @@ let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
 type nonrec apply_arg = apply_arg
 
 type texp_apply_identifier =
-  apply_position * position_and_tail_attribute * Locality.l *
-  Zero_alloc_utils.Assume_info.t
+  apply_position
+  * position_and_tail_attribute
+  * Locality.l
+  * Zero_alloc_utils.Assume_info.t
 
 let mkTexp_apply
     ?id:(pos, opos, mode, za =
