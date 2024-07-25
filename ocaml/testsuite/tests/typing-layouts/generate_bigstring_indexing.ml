@@ -57,8 +57,7 @@ module _ = struct
   let create_bs () = reference_str |> bigstring_of_string
   let try_with f = try Ok (f ()) with err -> Error err
 
-|}^indent 2 tests^{|
-end;;
+|}^indent 2 tests^{|end;;
 |}
 
 let bigstring_one_test_template ~width ~index ~ref_result ~test_result ~conv_index
@@ -108,8 +107,8 @@ for i = -1 to length + 1 do
   check_get i
 done
 ;;
-
-|}^extra_bounds
+|}^extra_bounds^{|
+|}
 ;;
 
 let extra_bounds_template ~index = {|
@@ -162,6 +161,18 @@ let bigstring_tests =
          ; test = "int"
          ; conv = "fun x -> x"
          ; eq = "Int.equal"
+         }
+       ; { width = "32"
+         ; ref = "int32"
+         ; test = "int32"
+         ; conv = "fun x -> x"
+         ; eq = "Int32.equal"
+         }
+       ; { width = "64"
+         ; ref = "int64"
+         ; test = "int64"
+         ; conv = "fun x -> x"
+         ; eq = "Int64.equal"
          }
        ]
      ]
