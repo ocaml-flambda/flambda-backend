@@ -30,10 +30,8 @@ type t =
     mutables_needed_by_continuations : Ident.Set.t Continuation.Map.t;
     unboxed_product_components_in_scope :
       ([`Complex] Flambda_arity.Component_for_creation.t
-      * (Ident.t * Flambda_kind.With_subkind.t) array)
+      * Ident.t list)
       Ident.Map.t;
-    unboxed_product_components_needed_by_continuations :
-      Ident.Set.t Continuation.Map.t;
     try_stack : Continuation.t list;
     try_stack_at_handler : Continuation.t list Continuation.Map.t;
     static_exn_continuation : Continuation.t Numeric_types.Int.Map.t;
@@ -53,15 +51,10 @@ let create ~current_unit ~return_continuation ~exn_continuation ~my_region =
   in
   let id = Ident.create_local "unused" in
   let ident_stamp_upon_starting = Ident.stamp id in
-  let unboxed_product_components_needed_by_continuations =
-    Continuation.Map.of_list
-      [return_continuation, Ident.Set.empty; exn_continuation, Ident.Set.empty]
-  in
   { current_unit;
     current_values_of_mutables_in_scope = Ident.Map.empty;
     mutables_needed_by_continuations;
     unboxed_product_components_in_scope = Ident.Map.empty;
-    unboxed_product_components_needed_by_continuations;
     try_stack = [];
     try_stack_at_handler = Continuation.Map.empty;
     static_exn_continuation = Numeric_types.Int.Map.empty;
@@ -108,19 +101,12 @@ let register_unboxed_product t ~unboxed_product ~before_unarization ~fields =
   { t with
     unboxed_product_components_in_scope =
       Ident.Map.add unboxed_product
-        (before_unarization, Array.of_list fields)
+        (before_unarization, fields)
         t.unboxed_product_components_in_scope
   }
-(*
-let unboxed_product_components_in_scope t =
-  Ident.Map.keys t.unboxed_product_components_in_scope
-*)
-let get_unboxed_product_components_in_scope t =
-  t.unboxed_product_components_in_scope
 
-let with_unboxed_product_components_in_scope t
-    unboxed_product_components_in_scope =
-  { t with unboxed_product_components_in_scope }
+let register_unboxed_product_with_kinds t ~unboxed_product ~before_unarization ~fields =
+  register_unboxed_product t ~unboxed_product ~before_unarization ~fields:(List.map fst fields)
 
 type add_continuation_result =
   { body_env : t;
@@ -146,17 +132,11 @@ let add_continuation t cont ~push_to_try_stack ~pop_region
       Continuation.Map.add cont (mutables_in_scope t)
         t.mutables_needed_by_continuations
     in
-    let unboxed_product_components_needed_by_continuations =
-(*      Continuation.Map.add cont
-        (unboxed_product_components_in_scope t) *)
-        t.unboxed_product_components_needed_by_continuations
-    in
     let try_stack =
       if push_to_try_stack then cont :: t.try_stack else t.try_stack
     in
     { t with
       mutables_needed_by_continuations;
-      unboxed_product_components_needed_by_continuations;
       try_stack;
       region_stack_in_cont_scope
     }
@@ -165,15 +145,6 @@ let add_continuation t cont ~push_to_try_stack ~pop_region
     Ident.Map.mapi
       (fun mut_var (_outer_value, kind) -> Ident.rename mut_var, kind)
       t.current_values_of_mutables_in_scope
-  in
-  let unboxed_product_components_in_scope =
-(*    Ident.Map.map
-      (fun (before_unarization, fields) ->
-        let fields =
-          Array.map (fun (field, layout) -> Ident.rename field, layout) fields
-        in
-        before_unarization, fields) *)
-      t.unboxed_product_components_in_scope
   in
   let handler_env =
     let handler_env =
@@ -186,18 +157,12 @@ let add_continuation t cont ~push_to_try_stack ~pop_region
     in
     { handler_env with
       current_values_of_mutables_in_scope;
-      unboxed_product_components_in_scope;
       region_stack_in_cont_scope;
       region_stack
     }
   in
-  let extra_params_for_unboxed_products = [] (*
-    Ident.Map.data handler_env.unboxed_product_components_in_scope
-    |> List.map snd |> List.map Array.to_list |> List.concat *)
-  in
   let extra_params =
     Ident.Map.data handler_env.current_values_of_mutables_in_scope
-    @ extra_params_for_unboxed_products
   in
   { body_env; handler_env; extra_params }
 
@@ -248,7 +213,6 @@ let get_try_stack_at_handler t continuation =
   | stack -> stack
 
 let extra_args_for_continuation_with_kinds t cont =
-  let for_mutables =
     match Continuation.Map.find cont t.mutables_needed_by_continuations with
     | exception Not_found ->
       Misc.fatal_errorf "Unbound continuation %a" Continuation.print cont
@@ -261,28 +225,6 @@ let extra_args_for_continuation_with_kinds t cont =
             Misc.fatal_errorf "No current value for %a" Ident.print mut
           | current_value, kind -> current_value, kind)
         mutables
-  in
-  let for_unboxed_products = []
-(*    match
-      Continuation.Map.find cont
-        t.unboxed_product_components_needed_by_continuations
-    with
-    | exception Not_found ->
-      Misc.fatal_errorf "Unbound continuation %a" Continuation.print cont
-    | unboxed_products_to_fields ->
-      let unboxed_products = Ident.Set.elements unboxed_products_to_fields in
-      List.concat_map
-        (fun unboxed_product ->
-          match
-            Ident.Map.find unboxed_product t.unboxed_product_components_in_scope
-          with
-          | exception Not_found ->
-            Misc.fatal_errorf "No field list registered for unboxed product %a"
-              Ident.print unboxed_product
-          | _, fields -> Array.to_list fields)
-        unboxed_products *)
-  in
-  for_mutables @ for_unboxed_products
 
 let extra_args_for_continuation t cont =
   List.map fst (extra_args_for_continuation_with_kinds t cont)
@@ -297,7 +239,7 @@ let get_unboxed_product_fields t id =
   match Ident.Map.find id t.unboxed_product_components_in_scope with
   | exception Not_found -> None
   | before_unarization, fields ->
-    Some (before_unarization, List.map fst (Array.to_list fields))
+    Some (before_unarization, fields)
 
 let entering_region t id ~continuation_closing_region
     ~continuation_after_closing_region =
