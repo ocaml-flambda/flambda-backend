@@ -690,8 +690,8 @@ and lambda_apply =
     ap_loc : scoped_location;
     (* Upstream [@tailcall] attribute *)
     ap_tailcall : tailcall_attribute;
-    (* Where the application was in the source (modulo the lambda simplif
-       pass), and its [@tail] / [@nontail] attribute. *)
+    (* Where the application was in the source, and its
+       [@tail] / [@nontail] attribute. *)
     ap_position : position_and_tail_attribute;
     ap_inlined : inlined_attribute; (* [@inlined] attribute in code *)
     ap_specialised : specialise_attribute;

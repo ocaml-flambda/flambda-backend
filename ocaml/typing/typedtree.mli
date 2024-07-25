@@ -319,7 +319,7 @@ and expression_desc =
             [apply_position] is the inferred apply position.
 
             [position_and_tail_attribute] records the original apply position
-            in the source (modulo lambda simplif) and [@tail]/[@nontail] attributes.
+            in the source and [@tail]/[@nontail] attributes.
 
             The [Zero_alloc_utils.Assume_info.t] records the optional
             [@zero_alloc assume] attribute that may appear on applications.  If

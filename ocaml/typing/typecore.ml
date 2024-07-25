@@ -361,7 +361,7 @@ type position_and_mode = {
   apply_position : apply_position;
   (** Runtime tail call behaviour of the application *)
   original_position: position_and_tail_attribute;
-  (** Original source position of the application (modulo lambda simplif)
+  (** Original source position of the application
       and [@tail]/[@nontail] attributes *)
   region_mode : Regionality.r option;
   (** INVARIANT: [Some m] iff [apply_position] is [Tail], where [m] is the mode

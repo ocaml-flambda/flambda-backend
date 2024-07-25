@@ -9,7 +9,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-(** The original source position (modulo the lambda simplf pass) and the [@tail] and
+(** The original source position and the [@tail] and
     [@nontail] annotations for a function application. *)
 
 type tail_attribute = Lambda.tail_attribute
