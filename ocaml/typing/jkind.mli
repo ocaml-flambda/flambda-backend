@@ -89,21 +89,9 @@ module Type : sig
   (** A Jkind.Type.t is a full description of the runtime representation of values
       of a given type. It includes sorts, but also the abstract top jkind
       [Any] and subjkinds of other sorts, such as [Immediate]. *)
-  type t = Types.type_expr Jkind_types.Type.t
+  type t = Types.type_expr Jkind_types.type_jkind
 
   type desc = Types.type_expr Jkind_types.Type.Jkind_desc.t
-
-  module History : sig
-    include module type of struct
-      include Jkind_intf.History
-    end
-
-    (* history *)
-
-    val has_imported_history : t -> bool
-
-    val update_reason : t -> creation_reason -> t
-  end
 
   (******************************)
   (* constants *)
@@ -190,6 +178,8 @@ module Type : sig
   end
 
   module Primitive : sig
+    open Jkind_intf
+
     (** This jkind is the top of the  *type* jkind lattice. All types have
       jkind [any]. But we cannot compile run-time manipulations of values of
       types with jkind [any]. *)
@@ -237,12 +227,12 @@ module Type : sig
 
   (** Create a fresh sort variable, packed into a jkind, returning both
       the resulting kind and the sort. *)
-  val of_new_sort_var : why:History.concrete_jkind_reason -> t * sort
+  val of_new_sort_var : why:Jkind_intf.History.concrete_jkind_reason -> t * sort
 
   (** Create a fresh sort variable, packed into a jkind. *)
-  val of_new_sort : why:History.concrete_jkind_reason -> t
+  val of_new_sort : why:Jkind_intf.History.concrete_jkind_reason -> t
 
-  val of_const : why:History.creation_reason -> Const.t -> t
+  val of_const : why:Jkind_intf.History.creation_reason -> Const.t -> t
 
   (** Choose an appropriate jkind for a boxed record type, given whether
       all of its fields are [void]. *)
@@ -327,7 +317,7 @@ type desc = Types.type_expr Jkind_types.Jkind_desc.t
 module History : sig
   val has_imported_history : t -> bool
 
-  val update_reason : t -> Type.History.creation_reason -> t
+  val update_reason : t -> Jkind_intf.History.creation_reason -> t
 
   (* Mark the jkind as having produced a compiler warning. *)
   val with_warning : t -> t
@@ -351,7 +341,7 @@ end
 
 module Primitive : sig
   (** Top element of the jkind lattice, including higher jkinds *)
-  val top : why:Type.History.any_creation_reason -> t
+  val top : why:Jkind_intf.History.any_creation_reason -> t
 end
 
 (******************************)
@@ -362,15 +352,16 @@ val to_const : t -> Const.t option
 
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
-val of_new_sort_var : why:Type.History.concrete_jkind_reason -> t * Type.sort
+val of_new_sort_var :
+  why:Jkind_intf.History.concrete_jkind_reason -> t * Type.sort
 
 (** Create a fresh sort variable, packed into a jkind. *)
-val of_new_sort : why:Type.History.concrete_jkind_reason -> t
+val of_new_sort : why:Jkind_intf.History.concrete_jkind_reason -> t
 
-val of_const : why:Type.History.creation_reason -> Const.t -> t
+val of_const : why:Jkind_intf.History.creation_reason -> Const.t -> t
 
 val const_of_user_written_annotation :
-  context:Type.History.annotation_context ->
+  context:Jkind_intf.History.annotation_context ->
   Jane_syntax.Jkind.annotation ->
   Const.t
 
@@ -378,13 +369,13 @@ val const_of_user_written_annotation :
 type annotation = Types.type_expr Jkind_types.annotation
 
 val of_annotation :
-  context:Type.History.annotation_context ->
+  context:Jkind_intf.History.annotation_context ->
   Jane_syntax.Jkind.annotation ->
   t * annotation
 
 val of_annotation_option_default :
   default:t ->
-  context:Type.History.annotation_context ->
+  context:Jkind_intf.History.annotation_context ->
   Jane_syntax.Jkind.annotation option ->
   t * annotation option
 
@@ -402,7 +393,7 @@ val of_annotation_option_default :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl :
-  context:Type.History.annotation_context ->
+  context:Jkind_intf.History.annotation_context ->
   Parsetree.type_declaration ->
   (t * annotation * Parsetree.attributes) option
 
@@ -412,7 +403,7 @@ val of_type_decl :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl_default :
-  context:Type.History.annotation_context ->
+  context:Jkind_intf.History.annotation_context ->
   default:t ->
   Parsetree.type_declaration ->
   t * annotation option * Parsetree.attributes
@@ -424,7 +415,8 @@ val to_type_jkind : t -> Type.t
 val of_type_jkind : Type.t -> t
 
 (** Construct the jkind from an arrow with a given reason *)
-val of_arrow : why:Type.History.creation_reason -> t Jkind_types.Arrow.t -> t
+val of_arrow :
+  why:Jkind_intf.History.creation_reason -> t Jkind_types.Arrow.t -> t
 
 (******************************)
 (* elimination and defaulting *)
@@ -529,7 +521,10 @@ val has_intersection : t -> t -> bool
     it should be thought of as modifying the first jkind to be the
     intersection of the two, not something that modifies the second jkind. *)
 val intersection_or_error :
-  reason:Type.History.interact_reason -> t -> t -> (t, Violation.t) Result.t
+  reason:Jkind_intf.History.interact_reason ->
+  t ->
+  t ->
+  (t, Violation.t) Result.t
 
 (** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
     either [t1] or [t2] to make their layouts equal.*)
