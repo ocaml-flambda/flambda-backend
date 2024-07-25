@@ -373,3 +373,93 @@ Line 7, characters 21-29:
                          ^^^^^^^^
 Error: This value is nonportable but expected to be portable.
 |}]
+
+(* The example below demonstrates the need to zap modalities from [with module]
+   constraints.  A similar example appears in the zero_alloc tests, because
+   [zero_alloc] variables must be treated similarly. *)
+module type S = sig
+  module M : sig
+    val f : int -> int
+  end
+end
+
+module N : sig
+  module Plain : sig
+    val f : int -> int
+  end
+
+  module type S_plain = S with module M = Plain
+end = struct
+  module Plain = struct
+    let f x = x+1
+  end
+
+  module type S_plain = S with module M = Plain
+end
+[%%expect{|
+module type S = sig module M : sig val f : int -> int end end
+module N :
+  sig
+    module Plain : sig val f : int -> int end
+    module type S_plain = sig module M : sig val f : int -> int end end
+  end
+|}]
+
+(* This revised version of that example does not typecheck. It would be nice if
+   it did, but to make it do so seems hard. In the case of zero_alloc we can fix
+   this with a zero_alloc annotation in the structure, but there is currently no
+   equivalent for that with modalities. *)
+module type S = sig
+  module M : sig
+    val f : int -> int
+  end
+end
+
+module N : sig
+  module Plain : sig
+    val f : int -> int @@ portable
+  end
+
+  module type S_plain = S with module M = Plain
+end = struct
+  module Plain = struct
+    let f x = x+1
+  end
+
+  module type S_plain = S with module M = Plain
+end
+[%%expect{|
+module type S = sig module M : sig val f : int -> int end end
+Lines 13-19, characters 6-3:
+13 | ......struct
+14 |   module Plain = struct
+15 |     let f x = x+1
+16 |   end
+17 |
+18 |   module type S_plain = S with module M = Plain
+19 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           module Plain : sig val f : int -> int @@ global many end
+           module type S_plain =
+             sig module M : sig val f : int -> int end end
+         end
+       is not included in
+         sig
+           module Plain : sig val f : int -> int @@ portable end
+           module type S_plain =
+             sig module M : sig val f : int -> int @@ portable end end
+         end
+       In module Plain:
+       Modules do not match:
+         sig val f : int -> int @@ global many end
+       is not included in
+         sig val f : int -> int @@ portable end
+       In module Plain:
+       Values do not match:
+         val f : int -> int @@ global many
+       is not included in
+         val f : int -> int @@ portable
+       The second is portable and the first is not.
+|}]
