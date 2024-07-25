@@ -124,16 +124,20 @@ let basic_or_terminator_of_operation :
   | Iconst_float f -> Basic (Op (Const_float f))
   | Iconst_symbol s -> Basic (Op (Const_symbol s))
   | Iconst_vec128 bits -> Basic (Op (Const_vec128 bits))
-  | Icall_ind ->
-    With_next_label (fun label_after -> Call { op = Indirect; label_after })
-  | Icall_imm { func } ->
-    With_next_label (fun label_after -> Call { op = Direct func; label_after })
-  | Itailcall_ind -> Terminator (Tailcall_func Indirect)
-  | Itailcall_imm { func } ->
+  | Icall_ind { tail } ->
+    With_next_label
+      (fun label_after -> Call { op = Indirect; label_after; tail })
+  | Icall_imm { func; tail } ->
+    With_next_label
+      (fun label_after -> Call { op = Direct func; label_after; tail })
+  | Itailcall_ind { tail } -> Terminator (Tailcall_func { op = Indirect; tail })
+  | Itailcall_imm { func; tail } ->
     Terminator
       (if String.equal (State.get_fun_name state) func.sym_name
-      then Tailcall_self { destination = State.get_tailrec_label state }
-      else Tailcall_func (Direct func))
+      then
+        Tailcall_self
+          { op = { destination = State.get_tailrec_label state }; tail }
+      else Tailcall_func { op = Direct func; tail })
   | Iextcall { func; ty_res; ty_args; alloc; returns; stack_ofs } ->
     let external_call =
       { Cfg.func_symbol = func; alloc; ty_res; ty_args; stack_ofs }

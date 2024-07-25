@@ -332,6 +332,17 @@ let check_func_call_operation :
   | _ -> different location "function call operation"
  [@@ocaml.warning "-4"]
 
+let check_tail_attribute :
+    location -> Lambda.tail_attribute -> Lambda.tail_attribute -> unit =
+ fun location expected result ->
+  match expected, result with
+  | Explicit_tail, Explicit_tail -> ()
+  | Hint_tail, Hint_tail -> ()
+  | Explicit_non_tail, Explicit_non_tail -> ()
+  | Default_tail, Default_tail -> ()
+  | _ -> different location "tail attribute"
+ [@@ocaml.warning "-4"]
+
 let check_basic : State.t -> location -> Cfg.basic -> Cfg.basic -> unit =
  fun state location expected result ->
   match expected, result with
@@ -482,19 +493,25 @@ let check_terminator_instruction :
     Array.iter2 (fun l1 l2 -> State.add_to_explore state l1 l2) a1 a2
   | Return, Return -> ()
   | Raise rk1, Raise rk2 when equal_raise_kind rk1 rk2 -> ()
-  | ( Tailcall_self { destination = expected_destination },
-      Tailcall_self { destination = result_destination } ) ->
+  | ( Tailcall_self
+        { op = { destination = expected_destination }; tail = expected_tail },
+      Tailcall_self
+        { op = { destination = result_destination }; tail = actual_tail } ) ->
     let location = location ^ " (terminator)" in
+    check_tail_attribute location expected_tail actual_tail;
     State.add_labels_to_check state location expected_destination
       result_destination
-  | Tailcall_func tc1, Tailcall_func tc2 ->
+  | ( Tailcall_func { op = tc1; tail = tail1 },
+      Tailcall_func { op = tc2; tail = tail2 } ) ->
     let location = location ^ " (terminator)" in
-    check_func_call_operation location tc1 tc2
+    check_func_call_operation location tc1 tc2;
+    check_tail_attribute location tail1 tail2
   | Call_no_return cn1, Call_no_return cn2 ->
     check_external_call_operation location cn1 cn2
-  | Call { op = cn1; label_after = lbl1 }, Call { op = cn2; label_after = lbl2 }
-    ->
+  | ( Call { op = cn1; label_after = lbl1; tail = tail1 },
+      Call { op = cn2; label_after = lbl2; tail = tail2 } ) ->
     check_func_call_operation location cn1 cn2;
+    check_tail_attribute location tail1 tail2;
     State.add_to_explore state lbl1 lbl2
   | Prim { op = cn1; label_after = lbl1 }, Prim { op = cn2; label_after = lbl2 }
     ->

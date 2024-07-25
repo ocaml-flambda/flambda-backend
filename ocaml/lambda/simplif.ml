@@ -863,6 +863,7 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
             ap_region_close = Rc_normal;
             ap_mode = alloc_heap;
             ap_tailcall = Default_tailcall;
+            ap_tail = Default_tail;
             ap_inlined = Default_inlined;
             ap_specialised = Default_specialise;
             ap_probe=None;

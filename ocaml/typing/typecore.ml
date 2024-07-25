@@ -404,7 +404,7 @@ let position_and_mode env (expected_mode : expected_mode) sexp ~callee_expr
     raise (Error (sexp.pexp_loc, env, Bad_tail_annotation err))
   in
   let requested =
-    match Builtin_attributes.tailcall sexp.pexp_attributes with
+    match Builtin_attributes.tailcall sexp.pexp_attributes ~use:true with
     | Ok r -> r
     | Error `Conflict -> fail `Conflict
   in

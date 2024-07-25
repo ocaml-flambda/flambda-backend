@@ -223,7 +223,7 @@ type static_cast =
   | Scalar_of_v128 of Primitive.vec128_type
 
 type operation =
-    Capply of machtype * Lambda.region_close
+    Capply of machtype * Lambda.region_close * Lambda.tail_attribute
   | Cextcall of
       { func: string;
         ty: machtype;

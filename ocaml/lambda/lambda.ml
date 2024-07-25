@@ -564,6 +564,12 @@ type tailcall_attribute =
        [@tailcall false] has [false] *)
   | Default_tailcall (* no [@tailcall] attribute *)
 
+type tail_attribute =
+  | Explicit_tail           (* [@tail] *)
+  | Hint_tail               (* [@tail hint] *)
+  | Explicit_non_tail       (* [@nontail] *)
+  | Default_tail            (* No [@tail] or [@nontail] attribute *)
+
 type inline_attribute =
   | Always_inline (* [@inline] or [@inline always] *)
   | Never_inline (* [@inline never] *)
@@ -772,6 +778,7 @@ and lambda_apply =
     ap_mode : alloc_mode;
     ap_loc : scoped_location;
     ap_tailcall : tailcall_attribute;
+    ap_tail : tail_attribute;
     ap_inlined : inlined_attribute;
     ap_specialised : specialise_attribute;
     ap_probe : probe;
@@ -1472,7 +1479,7 @@ let shallow_map ~tail ~non_tail:f = function
   | Lmutvar _
   | Lconst _ as lam -> lam
   | Lapply { ap_func; ap_args; ap_result_layout; ap_region_close; ap_mode; ap_loc; ap_tailcall;
-             ap_inlined; ap_specialised; ap_probe } ->
+             ap_tail; ap_inlined; ap_specialised; ap_probe } ->
       Lapply {
         ap_func = f ap_func;
         ap_args = List.map f ap_args;
@@ -1481,6 +1488,7 @@ let shallow_map ~tail ~non_tail:f = function
         ap_mode;
         ap_loc;
         ap_tailcall;
+        ap_tail;
         ap_inlined;
         ap_specialised;
         ap_probe;

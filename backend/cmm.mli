@@ -203,7 +203,7 @@ type static_cast =
   | Scalar_of_v128 of Primitive.vec128_type
 
 type operation =
-    Capply of machtype * Lambda.region_close
+    Capply of machtype * Lambda.region_close * Lambda.tail_attribute
   | Cextcall of
       { func: string;
         ty: machtype;
@@ -213,6 +213,7 @@ type operation =
         returns: bool;
         effects: effects;
         coeffects: coeffects;
+        (* CR less-tco: Consider adding a Lambda.tail_attribute field here as well. *)
       }
       (** The [machtype] is the machine type of the result.
           The [exttype list] describes the unboxing types of the arguments.

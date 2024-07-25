@@ -992,6 +992,12 @@ let apply_tailcall_attribute ppf = function
   | Tailcall_expectation false ->
     fprintf ppf " tailcall(false)"
 
+let apply_tail_attribute ppf = function
+  | Explicit_tail -> fprintf ppf " tail"
+  | Hint_tail -> fprintf ppf " tail hint"
+  | Explicit_non_tail -> fprintf ppf " nontail"
+  | Default_tail -> fprintf ppf ""
+
 let apply_inlined_attribute ppf = function
   | Default_inlined -> ()
   | Always_inlined -> fprintf ppf " always_inline"
@@ -1028,9 +1034,10 @@ let rec lam ppf = function
       let lams ppf largs =
         List.iter (fun l -> fprintf ppf "@ %a" lam l) largs in
       let form = apply_kind "apply" ap.ap_region_close ap.ap_mode in
-      fprintf ppf "@[<2>(%s@ %a%a%a%a%a%a)@]" form
+      fprintf ppf "@[<2>(%s@ %a%a%a%a%a%a%a)@]" form
         lam ap.ap_func lams ap.ap_args
         apply_tailcall_attribute ap.ap_tailcall
+        apply_tail_attribute ap.ap_tail
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
         apply_probe ap.ap_probe

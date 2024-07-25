@@ -82,6 +82,7 @@ type t =
     inlined : Inlined_attribute.t;
     inlining_state : Inlining_state.t;
     probe : Probe.t;
+    tail : Tail.t;
     position : Position.t;
     relative_history : Inlining_history.Relative.t
   }
@@ -94,7 +95,7 @@ let [@ocamlformat "disable"] print_inlining_paths ppf relative_history =
 let [@ocamlformat "disable"] print ppf
     { callee; continuation; exn_continuation; args; args_arity;
       return_arity; call_kind; dbg; inlined; inlining_state; probe;
-      position; relative_history } =
+      tail = tail; position; relative_history } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(%a\u{3008}%a\u{3009}\u{300a}%a\u{300b}\
       (%a))@]@ \
@@ -106,6 +107,7 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>(inlining_state@ %a)@]@ \
       %a\
       @[<hov 1>(probe@ %a)@]@ \
+      @[<hov 1>(tail@ %a)@]@ \
       @[<hov 1>(position@ %a)@]\
       )@]"
     (Misc.Stdlib.Option.print Simple.print) callee
@@ -122,6 +124,7 @@ let [@ocamlformat "disable"] print ppf
     Inlining_state.print inlining_state
     print_inlining_paths relative_history
     Probe.print probe
+    Tail.print tail
     (fun ppf position ->
        match position with
        | Position.Normal -> Format.pp_print_string ppf "Normal"
@@ -140,6 +143,7 @@ let invariant
        inlined = _;
        inlining_state = _;
        probe = _;
+       tail = _;
        position = _;
        relative_history = _
      } as t) =
@@ -173,7 +177,7 @@ let invariant
 
 let create ~callee ~continuation exn_continuation ~args ~args_arity
     ~return_arity ~(call_kind : Call_kind.t) dbg ~inlined ~inlining_state ~probe
-    ~position ~relative_history =
+    ~tail ~position ~relative_history =
   let t =
     { callee;
       continuation;
@@ -186,6 +190,7 @@ let create ~callee ~continuation exn_continuation ~args ~args_arity
       inlined;
       inlining_state;
       probe;
+      tail;
       position;
       relative_history
     }
@@ -225,6 +230,7 @@ let free_names_without_exn_continuation
       inlined = _;
       inlining_state = _;
       probe = _;
+      tail = _;
       position = _;
       relative_history = _
     } =
@@ -248,6 +254,7 @@ let free_names_except_callee
       inlined = _;
       inlining_state = _;
       probe = _;
+      tail = _;
       position = _;
       relative_history = _
     } =
@@ -276,6 +283,7 @@ let apply_renaming
        inlined;
        inlining_state;
        probe;
+       tail;
        position;
        relative_history
      } as t) renaming =
@@ -310,6 +318,7 @@ let apply_renaming
       inlined;
       inlining_state;
       probe;
+      tail;
       position;
       relative_history
     }
@@ -326,6 +335,7 @@ let ids_for_export
       inlined = _;
       inlining_state = _;
       probe = _;
+      tail = _;
       position = _;
       relative_history = _
     } =
@@ -367,6 +377,8 @@ let with_args t args ~args_arity = { t with args; args_arity }
 let inlining_arguments t = inlining_state t |> Inlining_state.arguments
 
 let probe t = t.probe
+
+let tail t = t.tail
 
 let returns t =
   match continuation t with Return _ -> true | Never_returns -> false

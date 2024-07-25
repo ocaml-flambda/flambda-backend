@@ -326,7 +326,7 @@ let destroyed_at_c_noalloc_call =
 
 (* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function
-  | Iop(Icall_ind | Icall_imm _) ->
+  | Iop(Icall_ind _ | Icall_imm _) ->
       all_phys_regs
   | Iop(Iextcall {alloc; stack_ofs; }) ->
     assert (stack_ofs >= 0);

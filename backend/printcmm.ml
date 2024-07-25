@@ -199,7 +199,15 @@ let static_cast : Cmm.static_cast -> string = function
   | V128_of_scalar ty -> Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
 
 let operation d = function
-  | Capply(_ty, _) -> "app" ^ location d
+  | Capply(_ty, _, tail) ->
+    (* CR less-tco: Remove tail attribute debug print code *)
+    let tail =
+      match tail with
+      | Explicit_tail -> "[@tail]"
+      | Hint_tail -> "[@tail hint]"
+      | Explicit_non_tail -> "[@nontail]"
+      | Default_tail -> ""
+    in "app" ^ tail ^ location d
   | Cextcall { func = lbl; _ } ->
       Printf.sprintf "extcall \"%s\"%s" lbl (location d)
   | Cload {memory_chunk; mutability} -> (
@@ -336,7 +344,7 @@ let rec expr ppf = function
       fprintf ppf "@[<2>(%s" (operation dbg op);
       List.iter (fun e -> fprintf ppf "@ %a" expr e) el;
       begin match op with
-      | Capply(mty, _) -> fprintf ppf "@ %a" machtype mty
+      | Capply(mty, _, _) -> fprintf ppf "@ %a" machtype mty
       | Cextcall { ty; ty_args; alloc = _; func = _; returns; } ->
         let ty = if returns then Some ty else None in
         fprintf ppf "@ %a" extcall_signature (ty, ty_args)

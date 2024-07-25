@@ -75,7 +75,7 @@ let polled_loops_analysis funbody =
     match i.desc with
     | Iend -> next
     | Iop (Ialloc _ | Ipoll _)
-    | Iop (Itailcall_ind | Itailcall_imm _) -> Safe
+    | Iop (Itailcall_ind _ | Itailcall_imm _) -> Safe
     | Iop op ->
       if operation_can_raise op
       then Unsafe_or_safe.join next exn
@@ -132,7 +132,7 @@ let potentially_recursive_tailcall ~future_funcnames funbody =
     match i.desc with
     | Iend -> next
     | Iop (Ialloc _ | Ipoll _) -> Always_polls
-    | Iop (Itailcall_ind) -> Might_not_poll
+    | Iop (Itailcall_ind _) -> Might_not_poll
     | Iop (Itailcall_imm { func }) ->
       (* We optimise by making a partial ordering over Mach functions: in
          definition order within a compilation unit, and dependency order
@@ -238,8 +238,8 @@ let find_poll_alloc_or_calls instr =
       match i.desc with
       | Iop(Ipoll _) -> Some (Poll, i.dbg)
       | Iop(Ialloc _) -> Some (Alloc, i.dbg)
-      | Iop(Icall_ind | Icall_imm _ |
-            Itailcall_ind | Itailcall_imm _ ) -> Some (Function_call, i.dbg)
+      | Iop(Icall_ind _ | Icall_imm _ |
+            Itailcall_ind _ | Itailcall_imm _ ) -> Some (Function_call, i.dbg)
       | Iop(Iextcall { alloc = true }) -> Some (External_call, i.dbg)
       | Iop(Imove | Ispill | Ireload | Iconst_int _ | Iconst_float32 _ |
             Iconst_float _ | Iconst_vec128 _ |

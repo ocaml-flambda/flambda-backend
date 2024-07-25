@@ -13,8 +13,6 @@
  }
 *)
 
-(* 
- flags = "-no-always-tco -dtypedtree -dlambda -dno-unique-ids -flambda2-inline-threshold 0 -inline 0"; *)
 (* These calls should be inferred as tail-calls because they call, in tail 
    position, a function defined in some ancestor let rec. *)
 let rec foo n =

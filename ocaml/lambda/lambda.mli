@@ -461,11 +461,19 @@ type structured_constant =
   | Const_immstring of string
   | Const_float_block of string list
 
+(* Upstream [@tailcail] attribute. *)
 type tailcall_attribute =
   | Tailcall_expectation of bool
     (* [@tailcall] and [@tailcall true] have [true],
        [@tailcall false] has [false] *)
   | Default_tailcall (* no [@tailcall] attribute *)
+
+(* Info for the [@tail] and [@nontail] attributes. *)
+type tail_attribute =
+  | Explicit_tail           (* [@tail] *)
+  | Hint_tail               (* [@tail hint] *)
+  | Explicit_non_tail       (* [@nontail] *)
+  | Default_tail            (* No [@tail] or [@nontail] attribute *)
 
 (* Function declaration inlining annotations *)
 type inline_attribute =
@@ -683,7 +691,8 @@ and lambda_apply =
     ap_region_close : region_close;
     ap_mode : alloc_mode;
     ap_loc : scoped_location;
-    ap_tailcall : tailcall_attribute;
+    ap_tailcall : tailcall_attribute;  (* Upstream [@tailcall] attribute *)
+    ap_tail : tail_attribute;          (* [@tail] / [@nontail] attribute *)
     ap_inlined : inlined_attribute; (* [@inlined] attribute in code *)
     ap_specialised : specialise_attribute;
     ap_probe : probe;
