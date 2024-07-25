@@ -450,8 +450,8 @@ let let_cont_nonrecursive_with_extra_params acc env ccenv ~is_exn_handler
               (Flambda_arity.unarize arity)
           in
           let handler_env =
-            Env.register_unboxed_product_with_kinds handler_env ~unboxed_product:id
-              ~before_unarization:arity_component ~fields
+            Env.register_unboxed_product_with_kinds handler_env
+              ~unboxed_product:id ~before_unarization:arity_component ~fields
           in
           let new_params_rev =
             List.map (fun (id, kind) -> id, IR.Not_user_visible, kind) fields
@@ -1616,10 +1616,11 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     Ident.Set.fold
       (fun id (new_env, free_idents_of_body) ->
         match Env.get_unboxed_product_fields env id with
-        | None -> (new_env, Ident.Set.add id free_idents_of_body)
+        | None -> new_env, Ident.Set.add id free_idents_of_body
         | Some (before_unarization, fields) ->
-          Env.register_unboxed_product new_env ~unboxed_product:id ~before_unarization ~fields,
-          Ident.Set.union free_idents_of_body (Ident.Set.of_list fields))
+          ( Env.register_unboxed_product new_env ~unboxed_product:id
+              ~before_unarization ~fields,
+            Ident.Set.union free_idents_of_body (Ident.Set.of_list fields) ))
       free_idents_of_body (new_env, Ident.Set.empty)
   in
   let exn_continuation : IR.exn_continuation =
@@ -1725,7 +1726,11 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
           in
           let k = restore_continuation_context_for_switch_arm env k in
           let consts_rev =
-            (arm, k, Debuginfo.none, None, get_unarized_vars var env @ extra_args)
+            ( arm,
+              k,
+              Debuginfo.none,
+              None,
+              get_unarized_vars var env @ extra_args )
             :: consts_rev
           in
           consts_rev, wrappers

@@ -29,8 +29,7 @@ type t =
       (Ident.t * Flambda_kind.With_subkind.t) Ident.Map.t;
     mutables_needed_by_continuations : Ident.Set.t Continuation.Map.t;
     unboxed_product_components_in_scope :
-      ([`Complex] Flambda_arity.Component_for_creation.t
-      * Ident.t list)
+      ([`Complex] Flambda_arity.Component_for_creation.t * Ident.t list)
       Ident.Map.t;
     try_stack : Continuation.t list;
     try_stack_at_handler : Continuation.t list Continuation.Map.t;
@@ -105,8 +104,10 @@ let register_unboxed_product t ~unboxed_product ~before_unarization ~fields =
         t.unboxed_product_components_in_scope
   }
 
-let register_unboxed_product_with_kinds t ~unboxed_product ~before_unarization ~fields =
-  register_unboxed_product t ~unboxed_product ~before_unarization ~fields:(List.map fst fields)
+let register_unboxed_product_with_kinds t ~unboxed_product ~before_unarization
+    ~fields =
+  register_unboxed_product t ~unboxed_product ~before_unarization
+    ~fields:(List.map fst fields)
 
 type add_continuation_result =
   { body_env : t;
@@ -213,18 +214,18 @@ let get_try_stack_at_handler t continuation =
   | stack -> stack
 
 let extra_args_for_continuation_with_kinds t cont =
-    match Continuation.Map.find cont t.mutables_needed_by_continuations with
-    | exception Not_found ->
-      Misc.fatal_errorf "Unbound continuation %a" Continuation.print cont
-    | mutables ->
-      let mutables = Ident.Set.elements mutables in
-      List.map
-        (fun mut ->
-          match Ident.Map.find mut t.current_values_of_mutables_in_scope with
-          | exception Not_found ->
-            Misc.fatal_errorf "No current value for %a" Ident.print mut
-          | current_value, kind -> current_value, kind)
-        mutables
+  match Continuation.Map.find cont t.mutables_needed_by_continuations with
+  | exception Not_found ->
+    Misc.fatal_errorf "Unbound continuation %a" Continuation.print cont
+  | mutables ->
+    let mutables = Ident.Set.elements mutables in
+    List.map
+      (fun mut ->
+        match Ident.Map.find mut t.current_values_of_mutables_in_scope with
+        | exception Not_found ->
+          Misc.fatal_errorf "No current value for %a" Ident.print mut
+        | current_value, kind -> current_value, kind)
+      mutables
 
 let extra_args_for_continuation t cont =
   List.map fst (extra_args_for_continuation_with_kinds t cont)
@@ -238,8 +239,7 @@ let get_mutable_variable_with_kind t id =
 let get_unboxed_product_fields t id =
   match Ident.Map.find id t.unboxed_product_components_in_scope with
   | exception Not_found -> None
-  | before_unarization, fields ->
-    Some (before_unarization, fields)
+  | before_unarization, fields -> Some (before_unarization, fields)
 
 let entering_region t id ~continuation_closing_region
     ~continuation_after_closing_region =
