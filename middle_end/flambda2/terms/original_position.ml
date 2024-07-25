@@ -10,32 +10,23 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type t =
-  | Explicit_tail (* [@tail] *)
-  | Hint_tail (* [@tail hint] *)
-  | Explicit_non_tail (* [@nontail] *)
-  | Default_tail (* No [@tail] or [@nontail] attribute *)
+type tail_attribute = Lambda.tail_attribute
 
-let from_lambda (tail : Lambda.tail_attribute) : t =
-  match tail with
-  | Explicit_tail -> Explicit_tail
-  | Hint_tail -> Hint_tail
-  | Explicit_non_tail -> Explicit_non_tail
-  | Default_tail -> Default_tail
+type t = Lambda.position_and_tail_attribute
 
-let to_lambda (tail : t) : Lambda.tail_attribute =
-  match tail with
-  | Explicit_tail -> Explicit_tail
-  | Hint_tail -> Hint_tail
-  | Explicit_non_tail -> Explicit_non_tail
-  | Default_tail -> Default_tail
-
-let print ppf t =
-  let str =
-    match t with
-    | Explicit_tail -> "Explicit_tail"
-    | Hint_tail -> "Hint_tail"
-    | Explicit_non_tail -> "Explicit_non_tail"
-    | Default_tail -> "Default_tail"
+let print ppf (t : t) =
+  let pattr ppf (tail_attribute : tail_attribute) =
+    let str =
+      match tail_attribute with
+      | Explicit_tail -> "Explicit_tail"
+      | Hint_tail -> "Hint_tail"
+      | Explicit_non_tail -> "Explicit_non_tail"
+      | Default_tail -> "Default_tail"
+    in
+    Format.pp_print_string ppf str
   in
-  Format.pp_print_string ppf str
+  match t with
+  | Unknown_position -> Format.pp_print_string ppf "Unknown_position"
+  | Tail_position attr -> Format.fprintf ppf "Tail_position (%a)" pattr attr
+  | Not_tail_position attr ->
+    Format.fprintf ppf "Not_tail_position (%a)" pattr attr

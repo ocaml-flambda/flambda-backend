@@ -22,7 +22,8 @@ let last_is_anys = function
          (if (field_imm 0 param/14) (if (field_imm 1 param/14) (exit 1) 1)
            (if (field_imm 1 param/14) (exit 1) 2))
         with (1) 3)))
-  (apply (field_imm 1 (global Toploop!)) "last_is_anys" last_is_anys/12))
+  (apply (field_imm 1 (global Toploop!)) "last_is_anys"
+    last_is_anys/12 Unknown_position))
 val last_is_anys : bool * bool -> int = <fun>
 |}]
 
@@ -40,7 +41,8 @@ let last_is_vars = function
          (if (field_imm 0 param/23) (if (field_imm 1 param/23) (exit 3) 1)
            (if (field_imm 1 param/23) (exit 3) 2))
         with (3) 3)))
-  (apply (field_imm 1 (global Toploop!)) "last_is_vars" last_is_vars/19))
+  (apply (field_imm 1 (global Toploop!)) "last_is_vars"
+    last_is_vars/19 Unknown_position))
 val last_is_vars : bool * bool -> int = <fun>
 |}]
 
@@ -57,9 +59,9 @@ type t = ..
   (A/27 = (makeblock_unique 248 "A" (caml_fresh_oo_id 0))
    B/28 = (makeblock_unique 248 "B" (caml_fresh_oo_id 0))
    C/29 = (makeblock_unique 248 "C" (caml_fresh_oo_id 0)))
-  (seq (apply (field_imm 1 (global Toploop!)) "A/27" A/27)
-    (apply (field_imm 1 (global Toploop!)) "B/28" B/28)
-    (apply (field_imm 1 (global Toploop!)) "C/29" C/29)))
+  (seq (apply (field_imm 1 (global Toploop!)) "A/27" A/27 Unknown_position)
+    (apply (field_imm 1 (global Toploop!)) "B/28" B/28 Unknown_position)
+    (apply (field_imm 1 (global Toploop!)) "C/29" C/29 Unknown_position)))
 type t += A | B of unit | C of bool * int
 |}]
 
@@ -73,9 +75,9 @@ let f = function
 ;;
 [%%expect{|
 (let
-  (C/29 = (apply (field_imm 0 (global Toploop!)) "C/29")
-   B/28 = (apply (field_imm 0 (global Toploop!)) "B/28")
-   A/27 = (apply (field_imm 0 (global Toploop!)) "A/27")
+  (C/29 = (apply (field_imm 0 (global Toploop!)) "C/29" Unknown_position)
+   B/28 = (apply (field_imm 0 (global Toploop!)) "B/28" Unknown_position)
+   A/27 = (apply (field_imm 0 (global Toploop!)) "A/27" Unknown_position)
    f/30 =
      (function {nlocal = 0}
        param/32[(consts ()) (non_consts ([0: *, [int], [int]]))] : int
@@ -88,6 +90,6 @@ let f = function
              (if (== (field_imm 0 *match*/33) B/28) 2
                (if (== (field_imm 0 *match*/33) C/29) 3 4))
              (if (field_imm 2 param/32) 12 11))))))
-  (apply (field_imm 1 (global Toploop!)) "f" f/30))
+  (apply (field_imm 1 (global Toploop!)) "f" f/30 Unknown_position))
 val f : t * bool * bool -> int = <fun>
 |}]

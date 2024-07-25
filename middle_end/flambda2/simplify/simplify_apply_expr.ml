@@ -552,7 +552,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               exn_continuation ~args ~args_arity:param_arity
               ~return_arity:result_arity ~call_kind dbg ~inlined:Default_inlined
               ~inlining_state:(Apply.inlining_state apply)
-              ~position:Normal ~probe:None ~tail:Default_tail
+              ~probe:None ~position:Normal ~original_position:Unknown_position
               ~relative_history:Inlining_history.Relative.empty
           in
           let cost_metrics =
@@ -1045,7 +1045,8 @@ let simplify_apply_shared dacc apply =
       ~call_kind:(Apply.call_kind apply)
       (DE.add_inlined_debuginfo (DA.denv dacc) (Apply.dbg apply))
       ~inlined:(Apply.inlined apply) ~inlining_state ~probe:(Apply.probe apply)
-      ~tail:(Apply.tail apply) ~position:(Apply.position apply)
+      ~position:(Apply.position apply)
+      ~original_position:(Apply.original_position apply)
       ~relative_history:
         (Inlining_history.Relative.concat
            ~earlier:(DE.relative_history (DA.denv dacc))

@@ -71,10 +71,10 @@ type operation =
   | Iconst_float of int64
   | Iconst_vec128 of Cmm.vec128_bits
   | Iconst_symbol of Cmm.symbol
-  | Icall_ind of { tail : Lambda.tail_attribute }
-  | Icall_imm of { func : Cmm.symbol; tail : Lambda.tail_attribute }
-  | Itailcall_ind of { tail : Lambda.tail_attribute }
-  | Itailcall_imm of { func : Cmm.symbol; tail : Lambda.tail_attribute }
+  | Icall_ind of { original_position : Lambda.position_and_tail_attribute }
+  | Icall_imm of { func : Cmm.symbol; original_position : Lambda.position_and_tail_attribute }
+  | Itailcall_ind of { original_position : Lambda.position_and_tail_attribute }
+  | Itailcall_imm of { func : Cmm.symbol; original_position : Lambda.position_and_tail_attribute }
   | Iextcall of { func : string;
                   ty_res : Cmm.machtype; ty_args : Cmm.exttype list;
                   alloc : bool; returns : bool;

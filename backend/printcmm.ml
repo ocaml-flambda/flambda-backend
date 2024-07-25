@@ -198,16 +198,21 @@ let static_cast : Cmm.static_cast -> string = function
   | Scalar_of_v128 ty -> Printf.sprintf "%s->scalar" (Primitive.vec128_name ty)
   | V128_of_scalar ty -> Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
 
+(* CR less-tco: Remove tail attribute debug print code *)
+let original_position : Lambda.position_and_tail_attribute -> string =
+  let pattr : Lambda.tail_attribute -> string = function
+    | Explicit_tail -> "[@tail]"
+    | Hint_tail -> "[@tail hint]"
+    | Explicit_non_tail -> "[@nontail]"
+    | Default_tail -> "default"
+  in
+  function
+  | Unknown_position -> "(opos unknown)"
+  | Tail_position attr -> Printf.sprintf "(opos tail %s)" (pattr attr)
+  | Not_tail_position attr -> Printf.sprintf "(opos not_tail %s)" (pattr attr)
+
 let operation d = function
-  | Capply(_ty, _, tail) ->
-    (* CR less-tco: Remove tail attribute debug print code *)
-    let tail =
-      match tail with
-      | Explicit_tail -> "[@tail]"
-      | Hint_tail -> "[@tail hint]"
-      | Explicit_non_tail -> "[@nontail]"
-      | Default_tail -> ""
-    in "app" ^ tail ^ location d
+  | Capply(_ty, _, sp) -> "app" ^ (original_position sp) ^ location d
   | Cextcall { func = lbl; _ } ->
       Printf.sprintf "extcall \"%s\"%s" lbl (location d)
   | Cload {memory_chunk; mutability} -> (

@@ -9,16 +9,11 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-(** [@tail] and [@nontail] annotations on a function call. *)
+(** The original source position (modulo the lambda simplf pass) and the [@tail] and
+    [@nontail] annotations for a function application. *)
 
-type t =
-  | Explicit_tail (* [@tail] *)
-  | Hint_tail (* [@tail hint] *)
-  | Explicit_non_tail (* [@nontail] *)
-  | Default_tail (* No [@tail] or [@nontail] attribute *)
+type tail_attribute = Lambda.tail_attribute
 
-val from_lambda : Lambda.tail_attribute -> t
-
-val to_lambda : t -> Lambda.tail_attribute
+type t = Lambda.position_and_tail_attribute
 
 val print : Format.formatter -> t -> unit
