@@ -803,7 +803,7 @@ let merge_constraint initial_env loc sg lid constr =
         let mty = Mtype.scrape_for_type_of ~remove_aliases sig_env mty in
         let mty =
           remove_modality_and_zero_alloc_variables_mty sig_env
-            ~zap_modality:Mode.Modality.Value.zap_to_floor mty
+            ~zap_modality:Mode.Modality.Value.zap_to_id mty
         in
         let md'' = { md' with md_type = mty } in
         let newmd = Mtype.strengthen_decl ~aliasable:false md'' path in
