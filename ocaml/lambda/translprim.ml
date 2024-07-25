@@ -277,6 +277,8 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     let index_kinds =
       [
         (Ptagged_int_index, "");
+        (Punboxed_int_index Pnativeint, "_indexed_by_nativeint#");
+        (Punboxed_int_index Pint32, "_indexed_by_int32#");
         (Punboxed_int_index Pint64, "_indexed_by_int64#");
       ]
     in

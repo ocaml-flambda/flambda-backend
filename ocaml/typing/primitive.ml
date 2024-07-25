@@ -655,6 +655,38 @@ let prim_has_valid_reprs ~loc prim =
         Same_as_ocaml_repr Value;
         Same_as_ocaml_repr Bits64;
         Same_as_ocaml_repr Value]
+    | "%caml_bigstring_get16_indexed_by_int32#"
+    | "%caml_bigstring_get16u_indexed_by_int32#"
+    | "%caml_bigstring_get32_indexed_by_int32#"
+    | "%caml_bigstring_get32u_indexed_by_int32#"
+    | "%caml_bigstring_getf32_indexed_by_int32#"
+    | "%caml_bigstring_getf32u_indexed_by_int32#"
+    | "%caml_bigstring_get64_indexed_by_int32#"
+    | "%caml_bigstring_get64u_indexed_by_int32#"
+    | "%caml_bigstring_geta128_indexed_by_int32#"
+    | "%caml_bigstring_geta128u_indexed_by_int32#"
+    | "%caml_bigstring_getu128_indexed_by_int32#"
+    | "%caml_bigstring_getu128u_indexed_by_int32#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Bits32;
+        Same_as_ocaml_repr Value]
+    | "%caml_bigstring_get16_indexed_by_nativeint#"
+    | "%caml_bigstring_get16u_indexed_by_nativeint#"
+    | "%caml_bigstring_get32_indexed_by_nativeint#"
+    | "%caml_bigstring_get32u_indexed_by_nativeint#"
+    | "%caml_bigstring_getf32_indexed_by_nativeint#"
+    | "%caml_bigstring_getf32u_indexed_by_nativeint#"
+    | "%caml_bigstring_get64_indexed_by_nativeint#"
+    | "%caml_bigstring_get64u_indexed_by_nativeint#"
+    | "%caml_bigstring_geta128_indexed_by_nativeint#"
+    | "%caml_bigstring_geta128u_indexed_by_nativeint#"
+    | "%caml_bigstring_getu128_indexed_by_nativeint#"
+    | "%caml_bigstring_getu128u_indexed_by_nativeint#" ->
+      exactly [
+        Same_as_ocaml_repr Value;
+        Same_as_ocaml_repr Word;
+        Same_as_ocaml_repr Value]
 
     (* CR layouts: add these when we have unboxed simd layouts *)
     (* | "%caml_bigstring_getu128#" ->

@@ -147,7 +147,17 @@ type result =
 
 let bigstring_tests =
   Hlist.cartesian_product
-    ([ [ { type_ = "int64#"
+    ([ [ 
+{ type_ = "nativeint#"
+         ; conv = "Stdlib_upstream_compatible.Nativeint_u.of_int"
+         ; extra_bounds = []
+         }
+         ;
+       { type_ = "int32#"
+         ; conv = "Stdlib_upstream_compatible.Int32_u.of_int"
+         ; extra_bounds = [ "-#2147483648l"; "-#2147483647l"; "#2147483647l" ]
+         }
+       ; { type_ = "int64#"
          ; conv = "Stdlib_upstream_compatible.Int64_u.of_int"
          ; extra_bounds =
              [ "-#9223372036854775808L"

@@ -469,12 +469,21 @@ CAMLprim value caml_ba_uint8_getf32(value vb, value vind)
 #endif
 }
 
-CAMLprim value caml_ba_uint8_getf32_indexed_by_int64(value array, value index)
-{
-  int64_t idx = Int64_val(index);
-  if (idx != Long_val(Val_long(idx))) caml_array_bound_error();
-  return caml_ba_uint8_getf32(array, Val_long(idx));
-}
+CAMLprim value caml_ba_uint8_getf32_indexed_by_int64(value array, value index);
+CAMLprim value caml_ba_uint8_getf32_indexed_by_int32(value array, value index);
+CAMLprim value caml_ba_uint8_getf32_indexed_by_nativeint(value array, value index);
+
+#define CAMLprim_indexed_by(name, index_type, val_func)                        \
+  CAMLprim value caml_ba_uint8_getf32_indexed_by_##name(value vb, value vind)  \
+  {                                                                            \
+    index_type idx = val_func(vind);                                           \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();              \
+    return caml_ba_uint8_getf32(vb, Val_long(idx));                            \
+  }
+
+CAMLprim_indexed_by(int64, int64_t, Int64_val)
+CAMLprim_indexed_by(int32, int32_t, Int32_val)
+CAMLprim_indexed_by(nativeint, intnat, Nativeint_val)
 
 CAMLprim value caml_ba_uint8_setf32(value vb, value vind, value newval)
 {
