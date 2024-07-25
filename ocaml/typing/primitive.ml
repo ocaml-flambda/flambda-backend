@@ -477,6 +477,57 @@ end
 let prim_has_valid_reprs ~loc prim =
   let open Repr_check in
   let check =
+    let module String_map = Map.Make (String) in
+    let stringlike_indexing_primitives =
+      let widths : (_ * _ * Jkind_types.Sort.const) list =
+        [
+          ("16", "", Value);
+          ("32", "", Value);
+          ("64", "", Value);
+          ("a128", "", Value);
+          ("u128", "", Value);
+          ("16", "#", Value);
+          ("32", "#", Bits32);
+          ("f32", "#", Float32);
+          ("64", "#", Bits64);
+        ]
+      in
+      let indices : (_ * Jkind_types.Sort.const) list =
+        [
+          ("", Value);
+          ("_indexed_by_nativeint#", Word);
+          ("_indexed_by_int32#", Bits32);
+          ("_indexed_by_int64#", Bits64);
+        ]
+      in
+      let containers = [ "bigstring"; "bytes"; "string" ] in
+      let safes = [ ""; "u" ] in
+      Misc.Hlist.cartesian_product [ containers; widths; safes; indices ]
+      |> List.map
+           (fun
+             ([
+                container;
+                (width_sigil, unboxed_sigil, width_kind);
+                safe_sigil;
+                (index_sigil, index_kind);
+              ] :
+               _ Hlist.t)
+           ->
+             let string =
+               Printf.sprintf "%%caml_%s_get%s%s%s%s" container width_sigil
+                 safe_sigil unboxed_sigil index_sigil
+             in
+             let reprs =
+               [
+                 Same_as_ocaml_repr Value;
+                 Same_as_ocaml_repr index_kind;
+                 Same_as_ocaml_repr width_kind;
+               ]
+             in
+             (string, reprs))
+      |> List.to_seq
+      |> fun seq -> String_map.add_seq seq String_map.empty
+    in
     match prim.prim_name with
     | "%identity"
     | "%opaque"
@@ -620,74 +671,6 @@ let prim_has_valid_reprs ~loc prim =
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
       exactly [Same_as_ocaml_repr Bits64; Same_as_ocaml_repr Value]
 
-    (* Bigstring primitives *)
-    | "%caml_bigstring_get32#"
-    | "%caml_bigstring_get32u#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits32]
-    | "%caml_bigstring_getf32#"
-    | "%caml_bigstring_getf32u#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Float32]
-    | "%caml_bigstring_get64#"
-    | "%caml_bigstring_get64u#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64]
-    | "%caml_bigstring_get16_indexed_by_int64#"
-    | "%caml_bigstring_get16u_indexed_by_int64#"
-    | "%caml_bigstring_get32_indexed_by_int64#"
-    | "%caml_bigstring_get32u_indexed_by_int64#"
-    | "%caml_bigstring_getf32_indexed_by_int64#"
-    | "%caml_bigstring_getf32u_indexed_by_int64#"
-    | "%caml_bigstring_get64_indexed_by_int64#"
-    | "%caml_bigstring_get64u_indexed_by_int64#"
-    | "%caml_bigstring_geta128_indexed_by_int64#"
-    | "%caml_bigstring_geta128u_indexed_by_int64#"
-    | "%caml_bigstring_getu128_indexed_by_int64#"
-    | "%caml_bigstring_getu128u_indexed_by_int64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_get16_indexed_by_int32#"
-    | "%caml_bigstring_get16u_indexed_by_int32#"
-    | "%caml_bigstring_get32_indexed_by_int32#"
-    | "%caml_bigstring_get32u_indexed_by_int32#"
-    | "%caml_bigstring_getf32_indexed_by_int32#"
-    | "%caml_bigstring_getf32u_indexed_by_int32#"
-    | "%caml_bigstring_get64_indexed_by_int32#"
-    | "%caml_bigstring_get64u_indexed_by_int32#"
-    | "%caml_bigstring_geta128_indexed_by_int32#"
-    | "%caml_bigstring_geta128u_indexed_by_int32#"
-    | "%caml_bigstring_getu128_indexed_by_int32#"
-    | "%caml_bigstring_getu128u_indexed_by_int32#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits32;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_get16_indexed_by_nativeint#"
-    | "%caml_bigstring_get16u_indexed_by_nativeint#"
-    | "%caml_bigstring_get32_indexed_by_nativeint#"
-    | "%caml_bigstring_get32u_indexed_by_nativeint#"
-    | "%caml_bigstring_getf32_indexed_by_nativeint#"
-    | "%caml_bigstring_getf32u_indexed_by_nativeint#"
-    | "%caml_bigstring_get64_indexed_by_nativeint#"
-    | "%caml_bigstring_get64u_indexed_by_nativeint#"
-    | "%caml_bigstring_geta128_indexed_by_nativeint#"
-    | "%caml_bigstring_geta128u_indexed_by_nativeint#"
-    | "%caml_bigstring_getu128_indexed_by_nativeint#"
-    | "%caml_bigstring_getu128u_indexed_by_nativeint#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Word;
-        Same_as_ocaml_repr Value]
-
     (* CR layouts: add these when we have unboxed simd layouts *)
     (* | "%caml_bigstring_getu128#" ->
     | "%caml_bigstring_getu128u#" ->
@@ -736,20 +719,21 @@ let prim_has_valid_reprs ~loc prim =
     | "%caml_bigstring_setu128u#" ->
     | "%caml_bigstring_seta128#" ->
     | "%caml_bigstring_seta128u#" -> *)
-
-    | name when is_builtin_prim_name name ->
-      no_non_value_repr
-
-    (* These can probably support non-value reprs if the need arises:
-      {|
-        | "%send"
-        | "%sendself"
-        | "%sendcache"
-      |}
-    *)
-    | _ ->
-      (* make no assumptions about external c primitives *)
-      fun _ -> Success
+    | name -> (
+        match String_map.find_opt name stringlike_indexing_primitives with
+        | Some reprs -> exactly reprs
+        | None ->
+            if is_builtin_prim_name name then no_non_value_repr
+              (* These can probably support non-value reprs if the need arises:
+                 {|
+                   | "%send"
+                   | "%sendself"
+                   | "%sendcache"
+                 |}
+              *)
+            else
+              (* make no assumptions about external c primitives *)
+              fun _ -> Success)
   in
   match check prim with
   | Success -> ()

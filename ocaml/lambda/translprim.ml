@@ -282,19 +282,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         (Punboxed_int_index Pint64, "_indexed_by_int64#");
       ]
     in
-    let module Hlist = struct
-      type _ t = [] : unit t | ( :: ) : 'a * 'b t -> ('a -> 'b) t
-      type _ lt = [] : unit lt | ( :: ) : 'a list * 'b lt -> ('a -> 'b) lt
-
-      let rec cartesian_product : type l. l lt -> l t list = function
-        | [] -> [ [] ]
-        | hd :: tl ->
-            let tl = cartesian_product tl in
-            List.concat_map
-              (fun x1 -> List.map (fun x2 : _ t -> x1 :: x2) tl)
-              hd
-    end in
-    Hlist.cartesian_product
+    Misc.Hlist.cartesian_product
       [ types_and_widths; aligneds; unsafes; boxeds; index_kinds ]
     |> List.map
          (fun
@@ -305,7 +293,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
               (boxed, boxed_sigil);
               (index_kind, index_kind_sigil);
             ] :
-             _ Hlist.t)
+             _ Misc.Hlist.t)
          ->
            let string =
              string_gen aligned_sigil unsafe_sigil boxed_sigil
