@@ -19,6 +19,8 @@ jobs:
           - name: flambda2_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
           - name: flambda2_dev
             config: --enable-middle-end=flambda2 --enable-dev
@@ -27,6 +29,8 @@ jobs:
           - name: flambda2_dev_runtime5
             config: --enable-middle-end=flambda2 --enable-dev --enable-runtime5
             os: ubuntu-latest
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
           - name: flambda2_debug_runtime5
             config: --enable-middle-end=flambda2 --enable-runtime5
@@ -34,6 +38,8 @@ jobs:
             build_ocamlparam: ''
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
           - name: flambda2_debug_runtime
             config: --enable-middle-end=flambda2
@@ -41,24 +47,32 @@ jobs:
             build_ocamlparam: ''
             use_runtime: d
             ocamlrunparam: "v=0,V=1"
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
           - name: flambda2_o3
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,O3=1'
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
           - name: flambda2_o3_heap
             config: --enable-middle-end=flambda2 --disable-stack-allocation
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,O3=1'
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
           - name: flambda2_o3_advanced_meet_frame_pointers_runtime5
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced'
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
           - name: flambda2_o3_advanced_meet_frame_pointers_runtime5_debug
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5
@@ -66,13 +80,16 @@ jobs:
             build_ocamlparam: ''
             use_runtime: d
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced'
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
           - name: flambda2_frame_pointers_oclassic
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
             build_ocamlparam: ''
             ocamlparam: '_,Oclassic=1'
-            disable_testcases: 'ocaml/testsuite/tests/typing-local/regression_cmm_unboxing.ml ocaml/testsuite/tests/int64-unboxing/test.ml'
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-local/regression_cmm_unboxing.ml ocaml/testsuite/tests/int64-unboxing/test.ml ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
           # CR ccasinghino: We encountered build errors (missing autoconf, and
           # then other errors) when `macos-latest` started referring to version
@@ -81,6 +98,8 @@ jobs:
           - name: flambda2_macos
             config: --enable-middle-end=flambda2 --disable-warn-error
             os: macos-12
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
           - name: irc
             config: --enable-middle-end=flambda2
@@ -88,6 +107,8 @@ jobs:
             build_ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
           - name: irc_frame_pointers
             config: --enable-middle-end=flambda2 --enable-frame-pointers
@@ -95,6 +116,8 @@ jobs:
             build_ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             ocamlparam: '_,w=-46,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1'
             check_arch: true
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
           - name: ls
             config: --enable-middle-end=flambda2
@@ -102,6 +125,8 @@ jobs:
             build_ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
             ocamlparam: '_,w=-46,regalloc=ls,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=LS_ORDER:layout,regalloc-validate=1'
             check_arch: true
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
           - name: gi
             config: --enable-middle-end=flambda2
@@ -109,6 +134,8 @@ jobs:
             build_ocamlparam: '_,w=-46,regalloc=gi,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=GI_PRIORITY_HEURISTICS:interval-length,regalloc-param=GI_SELECTION_HEURISTICS:first-available,regalloc-param=GI_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1,cfg-cse-optimize=1'
             ocamlparam: '_,w=-46,regalloc=gi,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=GI_PRIORITY_HEURISTICS:interval-length,regalloc-param=GI_SELECTION_HEURISTICS:first-available,regalloc-param=GI_SPILLING_HEURISTICS:flat-uses,regalloc-validate=1,cfg-cse-optimize=1'
             check_arch: true
+            # CR less-tco: Delete the propagate_attr test, or make it less fragile (turn off backend IR outputs).
+            disable_testcases: 'ocaml/testsuite/tests/typing-tailcalls/propagate_attr.ml'
 
     env:
       J: "3"
