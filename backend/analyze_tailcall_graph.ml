@@ -41,9 +41,9 @@ module Graph = struct
     ;;
   end
 
-  module Edge = struct
+  module Edge_head = struct
     type label =
-      | Unknown_fn
+      | Unknown_edge
       (* [@tail] *)
       | Explicit_tail
       (* No annotation. Was in tail position and was tail call optimized *)
@@ -59,19 +59,19 @@ module Graph = struct
 
   type t =
     { (* Only need to store the edges / vertices for the Known_fn case. *)
-      adjacencies : Edge.t list String.Tbl.t
+      adjacencies : Edge_head.t list String.Tbl.t
     }
 
   let create () = { adjacencies = String.Tbl.create 100 }
   let reset t = String.Tbl.reset t.adjacencies
 
-  let successors t (v : Vertex.t) : Edge.t Seq.t =
+  let successors t (v : Vertex.t) : Edge_head.t Seq.t =
     match v with
     | Unknown_fn ->
       String.Tbl.to_seq_keys t.adjacencies
-      |> Seq.map (fun fun_name : Edge.t ->
-        { to_ = Known_fn fun_name; label = Unknown_fn })
-      |> Seq.cons ({ to_ = Unknown_fn; label = Unknown_fn } : Edge.t)
+      |> Seq.map (fun fun_name : Edge_head.t ->
+        { to_ = Known_fn fun_name; label = Unknown_edge })
+      |> Seq.cons ({ to_ = Unknown_fn; label = Unknown_edge } : Edge_head.t)
     | Known_fn fun_name -> String.Tbl.find t.adjacencies fun_name |> List.to_seq
   ;;
 
@@ -82,10 +82,10 @@ module Graph = struct
     ~(apos : [ `Tail | `Nontail ])
     ~(opos : Typedtree.position_and_tail_attribute)
     =
-    let label : Edge.label option =
+    let label : Edge_head.label option =
       let fail () = failwith "case should be impossible" in
       match apos, opos with
-      | _, Unknown_position -> Some Unknown_fn
+      | _, Unknown_position -> Some Unknown_edge
       | `Tail, Tail_position attr ->
         (match attr with
          | Explicit_tail -> Some Explicit_tail
@@ -115,7 +115,7 @@ module Graph = struct
     match label with
     | None -> ()
     | Some label ->
-      let edge : Edge.t = { to_; label } in
+      let edge : Edge_head.t = { to_; label } in
       (match String.Tbl.find_opt t.adjacencies from with
        | None -> String.Tbl.add t.adjacencies from [ edge ]
        | Some lst -> String.Tbl.replace t.adjacencies from (edge :: lst))
@@ -140,7 +140,7 @@ module Global = struct
     let to_ (op : Cfg.func_call_operation) : Graph.Vertex.t =
       match op with
       | Indirect -> Unknown_fn
-      | Direct { sym_name; _ } -> Known_fn from
+      | Direct { sym_name; _ } -> Known_fn sym_name
     in
     Cfg.iter_blocks cfg ~f:(fun _ block ->
       match block.terminator.desc with
@@ -166,9 +166,52 @@ module Global = struct
     cfg_with_layout
   ;;
 
+  let replace ~c ~with_ str = String.split_on_char c str |> String.concat with_
+
+  let mangle_vertex (v : Graph.Vertex.t) =
+    match v with
+    | Unknown_fn -> "__Unknown_fn__"
+    | Known_fn fn -> fn |> replace ~c:'.' ~with_:"_dot_"
+  ;;
+
+  let label_of_vertex (v : Graph.Vertex.t) =
+    match v with
+    | Unknown_fn -> "<unknown>"
+    | Known_fn fn -> fn
+  ;;
+
+  let print_vertex ppf kv =
+    Format.fprintf ppf "%s [label=\"%s\"]" (mangle_vertex kv) (label_of_vertex kv)
+  ;;
+
+  let print_edge ppf ((kv, { to_; label }) : Graph.Vertex.t * Graph.Edge_head.t) =
+    let color =
+      match label with
+      | Unknown_edge -> "black"
+      | Explicit_tail -> "blue"
+      | Implicit_tail -> "black"
+      | Implicit_nontail -> "red"
+    in
+    Format.fprintf
+      ppf
+      "%s -> %s [color=\"%s\"]"
+      (mangle_vertex kv)
+      (mangle_vertex to_)
+      color
+  ;;
+
   let print_dot ppf =
     match !graph with
     | None -> ()
-    | Some g -> Format.pp_print_string ppf "Graph = Some"
+    | Some g ->
+      Format.fprintf ppf "digraph {\n";
+      String.Tbl.iter
+        (fun kv edges ->
+          let kv : Graph.Vertex.t = Known_fn kv in
+          Format.fprintf ppf "  %a\n" print_vertex kv;
+          List.iter (fun e -> Format.fprintf ppf "  %a\n" print_edge (kv, e)) edges;
+          ())
+        g.adjacencies;
+      Format.fprintf ppf "}\n\n"
   ;;
 end

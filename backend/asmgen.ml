@@ -330,7 +330,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
                      (Zero_alloc_checker.cfg ~future_funcnames:funcnames ppf_dump))
           ++ (fun cfg_with_layout ->
             match !Flambda_backend_flags.cfg_analyze_tailcall_graph with
-            | false -> Format.print_string "###"; cfg_with_layout
+            | false -> cfg_with_layout
             | true ->
                 cfg_with_layout
                 ++ Profile.record ~accumulate:true "analyze_tailcall_graph"
