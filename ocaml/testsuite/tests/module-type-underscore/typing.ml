@@ -1180,3 +1180,17 @@ module M :
       end
   end
 |}]
+
+
+module M : sig
+  module type S = sig
+    val either : 'a -> ('a, 'b) Either.t
+  end
+end = struct
+  module type S = _
+end
+
+[%%expect {|
+module M :
+  sig module type S = sig val either : 'a -> ('a, 'b) Either.t end end
+|}]

@@ -1640,7 +1640,11 @@ let check_no_unbound_paths env loc mty =
   in
   match mty with
   | None -> ()
-  | Some mty -> iterator.it_module_type iterator mty
+  | Some mty ->
+    begin
+      iterator.it_module_type iterator mty;
+      Btype.(unmark_iterators.it_module_type unmark_iterators) mty
+    end
 
 let rec transl_modtype env smty =
   Builtin_attributes.warning_scope smty.pmty_attributes
