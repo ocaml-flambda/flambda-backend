@@ -101,6 +101,8 @@ module Type : sig
       [Any] and subjkinds of other sorts, such as [Immediate]. *)
   type t = Types.type_expr Jkind_types.Type.t
 
+  type desc = Types.type_expr Jkind_types.Type.Jkind_desc.t
+
   module History : sig
     include module type of struct
       include Jkind_intf.History
@@ -111,12 +113,6 @@ module Type : sig
     val has_imported_history : t -> bool
 
     val update_reason : t -> creation_reason -> t
-
-    (* Mark the jkind as having produced a compiler warning. *)
-    val with_warning : t -> t
-
-    (* Whether this jkind has produced a compiler warning. *)
-    val has_warned : t -> bool
   end
 
   (******************************)
@@ -342,8 +338,6 @@ module Type : sig
   (*********************************)
   (* pretty printing *)
 
-  val format : Format.formatter -> t -> unit
-
   (** Format the history of this jkind: what interactions it has had and why
       it is the jkind that it is. Might be a no-op: see [display_histories]
       in the implementation of the [Jkind] module.
@@ -364,10 +358,18 @@ end
     case is a zeroth-order kind of runtime-representable types (Jkind.Type.t). *)
 type t = Types.type_expr Jkind_types.t
 
+type desc = Types.type_expr Jkind_types.Jkind_desc.t
+
 module History : sig
   val has_imported_history : t -> bool
 
   val update_reason : t -> Type.History.creation_reason -> t
+
+  (* Mark the jkind as having produced a compiler warning. *)
+  val with_warning : t -> t
+
+  (* Whether this jkind has produced a compiler warning. *)
+  val has_warned : t -> bool
 end
 
 (******************************)
@@ -456,6 +458,9 @@ val to_type_jkind : t -> Type.t
 
 (** Convert a type jkind into a general jkind *)
 val of_type_jkind : Type.t -> t
+
+(** Construct the jkind from an arrow with a given reason *)
+val of_arrow : why:Type.History.creation_reason -> t Jkind_types.Arrow.t -> t
 
 (******************************)
 (* elimination and defaulting *)

@@ -1282,8 +1282,8 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Type.Const.to_out_jkind_const jkind)
 
-let rec out_jkind_of_jkind ~sort_var_names jkind =
-  match Jkind.get jkind with
+let rec out_jkind_of_jkind ~sort_var_names t =
+  match Jkind.get t with
   | Type ty -> begin match Jkind.Type.get ty with
     | Const clay -> out_jkind_of_const_jkind clay
     | Var v      -> Ojkind_var (if sort_var_names then Jkind.Type.Sort.Var.name v else "_")
@@ -1295,8 +1295,7 @@ let rec out_jkind_of_jkind ~sort_var_names jkind =
 
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
-let out_jkind_option_of_jkind jkind =
-  match Jkind.get jkind with
+let out_jkind_option_of_jkind t = match Jkind.get t with
   | Type ty -> begin
     match Jkind.Type.get ty with
     | Const jkind -> 
@@ -1317,7 +1316,7 @@ let out_jkind_option_of_jkind jkind =
       else None
     end
   (* We ignore the rules above for arrows, which should always be printed *)
-  | _ -> Some (out_jkind_of_jkind ~sort_var_names:!Clflags.verbose_types jkind)
+  | _ -> Some (out_jkind_of_jkind ~sort_var_names:!Clflags.verbose_types t)
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
