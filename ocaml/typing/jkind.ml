@@ -13,10 +13,13 @@
 (**************************************************************************)
 
 open Mode
+open Jkind_types.History
 
 [@@@warning "+9"]
 
 exception Unexpected_higher_jkind of string
+
+type type_expr = Types.type_expr
 
 (******************************)
 (*** user errors ***)
@@ -56,8 +59,6 @@ module Type = struct
   module Sort = Jkind_types.Type.Sort
 
   type sort = Sort.t
-
-  type type_expr = Types.type_expr
 
   (* A *layout* of a type describes the way values of that type are stored at
      runtime, including details like width, register convention, calling
@@ -263,10 +264,6 @@ module Type = struct
       match t.history with Creation Imported -> true | _ -> false
 
     let update_reason t reason = { t with history = Creation reason }
-
-    let with_warning t = { t with has_warned = true }
-
-    let has_warned t = t.has_warned
   end
 
   type const = type_expr Jkind_types.Type.Const.t
@@ -684,6 +681,16 @@ module Type = struct
         externality_upper_bound
       }
 
+    let default_to_value_and_get
+        { layout; modes_upper_bounds; externality_upper_bound } : Const.t =
+      match layout with
+      | Any -> { layout = Any; modes_upper_bounds; externality_upper_bound }
+      | Sort s ->
+        { layout = Sort (Sort.default_to_value_and_get s);
+          modes_upper_bounds;
+          externality_upper_bound
+        }
+
     let not_mode_crossing layout =
       { layout;
         modes_upper_bounds = Modes.max;
@@ -822,6 +829,11 @@ module Type = struct
           Const { layout = Sort s; modes_upper_bounds; externality_upper_bound }
         | Var v -> Var v)
 
+    let format ppf t =
+      match get t with
+      | Const c -> Format.fprintf ppf "%a" Const.format c
+      | Var v -> Format.fprintf ppf "%s" (Sort.Var.name v)
+
     module Debug_printers = struct
       open Format
 
@@ -834,7 +846,17 @@ module Type = struct
     end
   end
 
-  type t = type_expr Jkind_types.Type.t
+  type 'type_expr jkind = 'type_expr Jkind_types.Type.t =
+    { jkind : 'type_expr Jkind_types.Type.Jkind_desc.t;
+      history : 'type_expr Jkind_types.Type.history;
+      has_warned : bool
+    }
+
+  type desc = Types.type_expr Jkind_types.Type.Jkind_desc.t
+
+  type history = type_expr Jkind_types.Type.history
+
+  type nonrec t = Types.type_expr jkind
 
   let fresh_jkind jkind ~why =
     { jkind; history = Creation why; has_warned = false }
@@ -946,16 +968,8 @@ module Type = struct
   (******************************)
   (* elimination and defaulting *)
 
-  let default_to_value_and_get
-      { jkind = { layout; modes_upper_bounds; externality_upper_bound }; _ } :
-      Const.t =
-    match layout with
-    | Any -> { layout = Any; modes_upper_bounds; externality_upper_bound }
-    | Sort s ->
-      { layout = Sort (Sort.default_to_value_and_get s);
-        modes_upper_bounds;
-        externality_upper_bound
-      }
+  let default_to_value_and_get t : Const.t =
+    Jkind_desc.default_to_value_and_get t.jkind
 
   let default_to_value t = ignore (default_to_value_and_get t)
 
@@ -984,11 +998,6 @@ module Type = struct
 
   (*********************************)
   (* pretty printing *)
-
-  let format ppf jkind =
-    match get jkind with
-    | Const c -> Format.fprintf ppf "%a" Const.format c
-    | Var v -> Format.fprintf ppf "%s" (Sort.Var.name v)
 
   module Report_missing_cmi : sig
     (* used both in format_history and in Violation.report_general *)
@@ -1283,6 +1292,9 @@ module Type = struct
         in
         fprintf ppf "of the definition%a at %a" format_id id
           Location.print_loc_in_lowercase loc
+      | Unapplied_constructor ->
+        fprintf ppf "it is the kind of an unapplied type constructor"
+      | Temporary -> fprintf ppf "it is an intermediate created by an operation"
 
     let format_interact_reason ppf : History.interact_reason -> _ = function
       | Gadt_equation name ->
@@ -1322,6 +1334,7 @@ module Type = struct
           ->
           fprintf ppf "@[<v 2>  %a@]@;%a@ @[<v 2>  %a@]" in_order lhs_history
             format_interact_reason reason in_order rhs_history
+        | Projection _ -> fprintf ppf "(projection...?)"
         | Creation c -> format_creation_reason ppf c
       in
       fprintf ppf "@;%t has this layout history:@;@[<v 2>  %a@]" intro in_order
@@ -1553,6 +1566,12 @@ module Type = struct
         fprintf ppf "Generalized (%s, %a)"
           (match id with Some id -> Ident.unique_name id | None -> "")
           Location.print_loc loc
+      | Unapplied_constructor -> fprintf ppf "Unapplied_constructor"
+      | Temporary -> fprintf ppf "Temporary"
+
+    let project_reason ppf : History.project_reason -> _ = function
+      | Arrow_argument i -> fprintf ppf "Arrow_argument %d" i
+      | Arrow_result -> fprintf ppf "Arrow_result"
 
     let interact_reason ppf : History.interact_reason -> _ = function
       | Gadt_equation p -> fprintf ppf "Gadt_equation %a" Path.print p
@@ -1560,38 +1579,64 @@ module Type = struct
         fprintf ppf "Tyvar_refinement_intersection"
       | Subjkind -> fprintf ppf "Subjkind"
 
-    let rec history ppf = function
+    let rec history ~desc ppf =
+      let open Jkind_types.History in
+      function
       | Interact { reason; lhs_jkind; lhs_history; rhs_jkind; rhs_history } ->
         fprintf ppf
           "Interact {@[reason = %a;@ lhs_jkind = %a;@ lhs_history = %a;@ \
            rhs_jkind = %a;@ rhs_history = %a}@]"
-          interact_reason reason Jkind_desc.Debug_printers.t lhs_jkind history
-          lhs_history Jkind_desc.Debug_printers.t rhs_jkind history rhs_history
+          interact_reason reason desc lhs_jkind (history ~desc) lhs_history desc
+          rhs_jkind (history ~desc) rhs_history
+      | Projection { reason; jkind; history = history_ } ->
+        fprintf ppf "Projection {@[reason = %a;@ jkind = %a;@ history = %a}@]"
+          project_reason reason desc jkind (history ~desc) history_
       | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
 
     let t ppf ({ jkind; history = h; has_warned = _ } : t) : unit =
       fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
-        Jkind_desc.Debug_printers.t jkind history h
+        Jkind_desc.Debug_printers.t jkind
+        (history ~desc:Jkind_desc.Debug_printers.t)
+        h
   end
 end
 
-type nonrec t = Types.type_expr Jkind_types.t
+open Jkind_types.Jkind_desc
+
+type 'type_expr jkind = 'type_expr Jkind_types.t =
+  { jkind : 'type_expr Jkind_types.Jkind_desc.t;
+    history : 'type_expr Jkind_types.history;
+    has_warned : bool
+  }
+
+type desc = type_expr Jkind_types.Jkind_desc.t
+
+type history = type_expr Jkind_types.history
+
+type nonrec t = type_expr jkind
 
 module History = struct
-  let rec has_imported_history (t : t) : bool =
-    match t with
-    | Type ty -> Type.History.has_imported_history ty
-    | Arrow { args; result } ->
-      List.exists has_imported_history args || has_imported_history result
+  let has_imported_history t : bool =
+    match t.history with Creation Imported -> true | _ -> false
 
-  let rec update_reason (t : t) reason : t =
-    match t with
-    | Type ty -> Type (Type.History.update_reason ty reason)
-    | Arrow { args; result } ->
-      Arrow
-        { args = List.map (fun t' -> update_reason t' reason) args;
-          result = update_reason result reason
-        }
+  let update_reason t reason = { t with history = Creation reason }
+
+  let with_warning (t : t) = { t with has_warned = true }
+
+  let has_warned (t : t) = t.has_warned
+
+  let of_type_jkind (t : Type.history) : history =
+    Jkind_types.History.desc_map (fun ty -> Type ty) t
+
+  let to_type_jkind (_history : history) : Type.history =
+    (* Jkind_types.History.desc_map
+       (function
+         | Type ty -> ty
+         | _ ->
+           raise
+             (Unexpected_higher_jkind "Coerced arrow to type jkind (history)"))
+       history *)
+    Creation Temporary
 end
 (* module Type *)
 
@@ -1660,18 +1705,78 @@ module Const = struct
     | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 end
 
-let rec of_const ~why (t : Const.t) : t =
-  match t with
-  | Type t -> Type (Type.of_const ~why t)
-  | Arrow { args; result } ->
-    Arrow
-      { args = List.map (of_const ~why) args; result = of_const ~why result }
+let of_const ~why (c : Const.t) : t =
+  let rec go (c : Const.t) : desc =
+    match c with
+    | Type ty -> Type (Type.of_const ~why ty).jkind
+    | Arrow { args; result } ->
+      Arrow { args = List.map go args; result = go result }
+  in
+  { jkind = go c; history = Creation why; has_warned = false }
 
-let of_type_jkind t : t = Type t
+let of_type_jkind ({ jkind; history; has_warned } : Type.t) : t =
+  { jkind = Type jkind; history = History.of_type_jkind history; has_warned }
+
+let of_arrow ~why ({ args; result } : t Jkind_types.Arrow.t) : t =
+  { jkind =
+      Arrow { args = List.map (fun t -> t.jkind) args; result = result.jkind };
+    history = Creation why;
+    has_warned = false
+  }
 
 module Primitive = struct
   (* TODO jbachurski: Implement the top element for the jkind lattice *)
   let top ~why = of_type_jkind (Type.Primitive.any ~why)
+end
+
+(******************************)
+
+module Jkind_desc = struct
+  type t = desc
+
+  let rec to_const : t -> Const.t option = function
+    | Type ty -> (
+      match Type.Jkind_desc.get ty with
+      | Const c -> Some (Type c)
+      | Var _ -> None)
+    | Arrow { args; result } ->
+      let args = List.map to_const args in
+      let result = to_const result in
+      if List.for_all Option.is_some args && Option.is_some result
+      then
+        Some
+          (Arrow { args = List.map Option.get args; result = Option.get result })
+      else None
+
+  let rec default_to_value_and_get : t -> Const.t = function
+    | Type ty -> Type (Type.Jkind_desc.default_to_value_and_get ty)
+    | Arrow { args; result } ->
+      Arrow
+        { args = List.map default_to_value_and_get args;
+          result = default_to_value_and_get result
+        }
+
+  let rec format ppf = function
+    | Type ty -> Type.Jkind_desc.format ppf ty
+    | Arrow { args; result } ->
+      Format.fprintf ppf "((%a) => %a)"
+        (Format.pp_print_list
+           ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+           format)
+        args format result
+
+  module Debug_printers = struct
+    open Format
+
+    let rec t ppf = function
+      | Type ty -> Type.Jkind_desc.Debug_printers.t ppf ty
+      | Arrow { args; result } ->
+        fprintf ppf "{ args = [%a];@ result = %a }"
+          (Format.pp_print_list
+             ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+             t)
+          args t result
+  end
 end
 
 (******************************)
@@ -1683,18 +1788,7 @@ let of_new_sort_var ~why =
 
 let of_new_sort ~why = Type.of_new_sort ~why |> of_type_jkind
 
-let rec to_const (t : t) : Const.t option =
-  match t with
-  | Type ty -> (
-    match Type.get ty with Const c -> Some (Type c) | Var _ -> None)
-  | Arrow { args; result } ->
-    let args = List.map to_const args in
-    let result = to_const result in
-    if List.for_all Option.is_some args && Option.is_some result
-    then
-      Some
-        (Arrow { args = List.map Option.get args; result = Option.get result })
-    else None
+let to_const (t : t) = Jkind_desc.to_const t.jkind
 
 (* of_const is defined above for use in Primitive *)
 
@@ -1777,9 +1871,10 @@ let of_type_decl_default' ~of_type_decl ~context ~default
 
 let of_type_decl_default = of_type_decl_default' ~of_type_decl
 
-let[@inline never] to_type_jkind (t : t) =
-  match t with
-  | Type ty -> ty
+let[@inline never] to_type_jkind ({ jkind; history; has_warned } : t) : Type.t =
+  match jkind with
+  | Type ty ->
+    { jkind = ty; history = History.to_type_jkind history; has_warned }
   | _ -> raise (Unexpected_higher_jkind "Coerced arrow to type jkind")
 
 (******************************)
@@ -1792,40 +1887,58 @@ module Desc = struct
     | Arrow of t Jkind_types.Arrow.t
 end
 
-let rec default_to_value_and_get (t : t) : Const.t =
-  match t with
-  | Type ty -> Type (Type.default_to_value_and_get ty)
-  | Arrow { args; result } ->
-    Arrow
-      { args = List.map default_to_value_and_get args;
-        result = default_to_value_and_get result
-      }
+let default_to_value_and_get (t : t) : Const.t =
+  Jkind_desc.default_to_value_and_get t.jkind
 
 let default_to_value t = ignore (default_to_value_and_get t)
 
-let get (t : t) : Desc.t =
-  match t with
-  | Type ty -> Type ty
-  | Arrow { args; result } -> Desc.Arrow { args; result }
+let get t : Desc.t =
+  match t.jkind with
+  | Type ty ->
+    Type
+      { jkind = ty;
+        history = History.to_type_jkind t.history;
+        has_warned = false
+      }
+  | Arrow { args; result } ->
+    Arrow
+      { args =
+          List.mapi
+            (fun i _ : t ->
+              { jkind = result;
+                history =
+                  Projection
+                    { reason = Arrow_argument i;
+                      jkind = t.jkind;
+                      history = t.history
+                    };
+                has_warned = false
+              })
+            args;
+        result =
+          { jkind = result;
+            history =
+              Projection
+                { reason = Arrow_result; jkind = t.jkind; history = t.history };
+            has_warned = false
+          }
+      }
 
 let sort_of_jkind = Type.sort_of_jkind
 
 (*********************************)
 (* pretty printing *)
 
-let rec format ppf (jkind : t) =
-  match jkind with
-  | Type ty -> Type.format ppf ty
-  | Arrow { args; result } ->
-    Format.fprintf ppf "((%a) => %a)"
-      (Format.pp_print_list
-         ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
-         format)
-      args format result
+let format ppf (t : t) = Jkind_desc.format ppf t.jkind
 
 let format_history ~intro ppf (t : t) =
-  match t with
-  | Type ty -> Type.format_history ~intro ppf ty
+  match t.jkind with
+  | Type ty ->
+    Type.format_history ~intro ppf
+      { jkind = ty;
+        history = History.to_type_jkind t.history;
+        has_warned = t.has_warned
+      }
   | Arrow _ ->
     (* TODO jbachurski: Implement history formatting for higher jkinds. *)
     Format.fprintf ppf "%t (...??)" intro
@@ -1854,17 +1967,11 @@ module Violation = struct
 
   let of_ ?missing_cmi violation = { violation; missing_cmi }
 
-  let rec any_missing_cmi (t : _ Jkind_types.t) =
-    match t with
-    | Type { history; _ } -> (
-      match history with
-      | Creation (Missing_cmi p) -> Some p
-      | Creation (Any_creation (Missing_cmi p)) -> Some p
-      | _ -> None)
-    | Arrow { args; result } ->
-      List.map any_missing_cmi (result :: args)
-      |> List.find_opt Option.is_some
-      |> Option.join
+  let any_missing_cmi (t : _ Jkind_types.t) =
+    match t.history with
+    | Creation (Missing_cmi p) -> Some p
+    | Creation (Any_creation (Missing_cmi p)) -> Some p
+    | _ -> None
 
   let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
@@ -1949,15 +2056,18 @@ end
 (******************************)
 (* relations *)
 
-let rec equate_or_equal ~allow_mutation (t : t) (t' : t) =
-  match t, t' with
-  | Type ty, Type ty' -> Type.equate_or_equal ~allow_mutation ty ty'
-  | ( Arrow { args = args1; result = result1 },
-      Arrow { args = args2; result = result2 } ) ->
-    let arg_eqs = List.map2 (equate_or_equal ~allow_mutation) args1 args2 in
-    equate_or_equal ~allow_mutation result1 result2
-    && List.for_all (fun x -> x) arg_eqs
-  | _ -> false
+let equate_or_equal ~allow_mutation (t : t) (t' : t) =
+  let rec go k k' =
+    match k, k' with
+    | Type ty, Type ty' ->
+      Type.Jkind_desc.equate_or_equal ~allow_mutation ty ty'
+    | ( Arrow { args = args1; result = result1 },
+        Arrow { args = args2; result = result2 } ) ->
+      let arg_eqs = List.map2 go args1 args2 in
+      go result1 result2 && List.for_all (fun x -> x) arg_eqs
+    | _ -> false
+  in
+  go t.jkind t'.jkind
 
 let equate = equate_or_equal ~allow_mutation:true
 
@@ -1967,6 +2077,11 @@ let equal = equate_or_equal ~allow_mutation:true
 
 (* Generalises union and intersection at Arrows, as they are mutually recursive when
    defining Arrow kind intersection *)
+
+let () = ignore Type.combine_histories
+
+let combine_histories (_ : Jkind_intf.History.interact_reason) _ t' = t'.history
+
 let arrow_connective_or_error ~on_args ~on_result
     ({ args = args1; result = result1 } : _ Jkind_types.Arrow.t)
     ({ args = args2; result = result2 } : _ Jkind_types.Arrow.t) =
@@ -1978,36 +2093,34 @@ let arrow_connective_or_error ~on_args ~on_result
   else
     let args = List.map Result.get_ok args in
     let result = Result.get_ok result in
-    Ok (Arrow { args; result } : t)
+    Ok (of_arrow ~why:Temporary { args; result })
 
-let rec intersection_or_error ~reason (t : t) (t' : t) : (t, _) result =
-  match t, t' with
+let rec intersection_or_error ~reason t t' =
+  match get t, get t' with
   | Type ty, Type ty' -> (
     match Type.Jkind_desc.intersection ty.jkind ty'.jkind with
-    | None -> Error (Violation.of_ (No_intersection (Type ty, Type ty')))
+    | None -> Error (Violation.of_ (No_intersection (t, t')))
     | Some jkind ->
       Ok
-        (Type
-           { jkind;
-             history = Type.combine_histories reason ty ty';
-             has_warned = ty.has_warned || ty'.has_warned
-           }))
+        { jkind = Type jkind;
+          history = combine_histories reason t t';
+          has_warned = t.has_warned || t'.has_warned
+        })
   | Arrow a, Arrow a' ->
     arrow_connective_or_error ~on_args:(union_or_error ~reason)
       ~on_result:(intersection_or_error ~reason)
       a a'
   | _ -> Error (Violation.of_ (No_intersection (t, t')))
 
-and union_or_error ~reason (t : t) (t' : t) : (t, _) result =
-  match t, t' with
+and union_or_error ~reason t t' =
+  match get t, get t' with
   | Type ty, Type ty' ->
     (* Union is infallible at type jkinds due to [any] *)
     Ok
-      (Type
-         { jkind = Type.Jkind_desc.union ty.jkind ty'.jkind;
-           history = Type.combine_histories reason ty ty';
-           has_warned = ty.has_warned || ty'.has_warned
-         })
+      { jkind = Type (Type.Jkind_desc.union ty.jkind ty'.jkind);
+        history = combine_histories reason t t';
+        has_warned = t.has_warned || t'.has_warned
+      }
   | Arrow a, Arrow a' ->
     arrow_connective_or_error
       ~on_args:(intersection_or_error ~reason)
@@ -2021,7 +2134,7 @@ let has_intersection t t' =
        ~reason:Type.History.Subjkind t t')
 
 let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
-  match t, t' with
+  match get t, get t' with
   | Type ty, Type ty' -> Type.check_sub ty ty'
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
@@ -2039,12 +2152,8 @@ let sub_or_error t t' =
 
 let sub_with_history sub super =
   match check_sub sub super with
-  | Less | Equal -> (
-    match (sub, super : t * t) with
-    | Type ty, Type ty' ->
-      Ok (Type { ty with history = Type.combine_histories Subjkind ty ty' } : t)
-    (* FIXME jbachurski: Is there a sensible way to combine histories here? *)
-    | _ -> Ok sub)
+  | Less | Equal ->
+    Ok { sub with history = combine_histories Subjkind sub super }
   | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
 (* This doesn't do any mutation because mutating a sort variable can't make it
@@ -2053,22 +2162,22 @@ let sub_with_history sub super =
 (* let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind *)
 let is_max _jkind = false
 
-let has_layout_any (jkind : t) =
-  match jkind with
-  | Type ty -> ( match ty.jkind.layout with Any -> true | _ -> false)
+let has_layout_any (t : t) =
+  match t.jkind with
+  | Type ty -> ( match ty.layout with Any -> true | _ -> false)
   | _ -> false
 
 (*********************************)
 (* debugging *)
 
 module Debug_printers = struct
-  let rec t ppf (jkind : t) : unit =
-    match jkind with
-    | Type ty -> Type.Debug_printers.t ppf ty
-    | Arrow { args; result } ->
-      Format.fprintf ppf "{ args = [%a];@ result = %a;@ }"
-        (Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf "; ") t)
-        args t result
+  open Format
+
+  let t ppf ({ jkind; history = h; has_warned = _ } : t) : unit =
+    fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
+      Jkind_desc.Debug_printers.t jkind
+      (Type.Debug_printers.history ~desc:Jkind_desc.Debug_printers.t)
+      h
 
   (*** formatting user errors ***)
   let report_error ~loc : Error.t -> _ = function

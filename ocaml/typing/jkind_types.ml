@@ -12,6 +12,36 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module History = struct
+  type 'desc t =
+    | Interact of
+        { reason : Jkind_intf.History.interact_reason;
+          lhs_jkind : 'desc;
+          lhs_history : 'desc t;
+          rhs_jkind : 'desc;
+          rhs_history : 'desc t
+        }
+    | Projection of
+        { reason : Jkind_intf.History.project_reason;
+          jkind : 'desc;
+          history : 'desc t
+        }
+    | Creation of Jkind_intf.History.creation_reason
+
+  let rec desc_map f = function
+    | Interact { reason; lhs_jkind; lhs_history; rhs_jkind; rhs_history } ->
+      Interact
+        { reason;
+          lhs_jkind = f lhs_jkind;
+          lhs_history = desc_map f lhs_history;
+          rhs_jkind = f rhs_jkind;
+          rhs_history = desc_map f rhs_history
+        }
+    | Projection { reason; jkind; history } ->
+      Projection { reason; jkind = f jkind; history = desc_map f history }
+    | Creation why -> Creation why
+end
+
 module Type = struct
   module Sort = struct
     type const =
@@ -231,7 +261,7 @@ module Type = struct
       | Const c1 -> swap_equate_result (equate_sort_const s2 c1)
       | Var v1 -> equate_var v1 s2
 
-    (* Don't expose whether or not mutation happened; we just need that for [Jkind] *)
+    (* Don't expose whether or not mutation happened; we just need that for [nd] *)
     let equate s1 s2 =
       match equate_tracking_mutation s1 s2 with
       | Unequal -> false
@@ -368,15 +398,7 @@ module Type = struct
      This is a natural consequence of producing this history by comparing
      jkinds.
   *)
-  type 'type_expr history =
-    | Interact of
-        { reason : Jkind_intf.History.interact_reason;
-          lhs_jkind : 'type_expr Jkind_desc.t;
-          lhs_history : 'type_expr history;
-          rhs_jkind : 'type_expr Jkind_desc.t;
-          rhs_history : 'type_expr history
-        }
-    | Creation of Jkind_intf.History.creation_reason
+  type 'type_expr history = 'type_expr Jkind_desc.t History.t
 
   type 'type_expr t =
     { jkind : 'type_expr Jkind_desc.t;
@@ -404,9 +426,19 @@ module Arrow = struct
     }
 end
 
+module Jkind_desc = struct
+  type 'type_expr t =
+    | Type of 'type_expr Type.Jkind_desc.t
+    | Arrow of 'type_expr t Arrow.t
+end
+
+type 'type_expr history = 'type_expr Jkind_desc.t History.t
+
 type 'type_expr t =
-  | Type of 'type_expr Type.t
-  | Arrow of 'type_expr t Arrow.t
+  { jkind : 'type_expr Jkind_desc.t;
+    history : 'type_expr history;
+    has_warned : bool
+  }
 
 module Const = struct
   type 'type_expr t =

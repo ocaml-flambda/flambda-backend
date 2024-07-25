@@ -176,7 +176,7 @@ let typevars ppf vs =
   List.iter (typevar_jkind ~print_quote:true ppf) vs
 
 let jkind_array i ppf jkinds =
-  array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Jkind.Type.format l)
+  array (i+1) (fun _ ppf l -> fprintf ppf "%a;@ " Jkind.format (Jkind.of_type_jkind l))
     ppf jkinds
 
 let tag ppf = let open Types in function
