@@ -253,6 +253,10 @@ let emit_instr = function
           out opCONSTINT; out_int (Char.code c)
       | Const_block(t, []) ->
           if t = 0 then out opATOM0 else (out opATOM; out_int t)
+      | Const_null ->
+        out opCONST0;
+        out opC_CALL1;
+        slot_for_c_prim "caml_int_as_pointer"
       | _ ->
           out opGETGLOBAL; slot_for_literal sc
       end
@@ -388,6 +392,11 @@ let rec emit = function
           out opPUSHCONSTINT; out_int(Char.code c)
       | Const_block(t, []) ->
           if t = 0 then out opPUSHATOM0 else (out opPUSHATOM; out_int t)
+      | Const_null ->
+          out opPUSH;
+          out opCONST0;
+          out opC_CALL1;
+          slot_for_c_prim "caml_int_as_pointer"
       | _ ->
           out opPUSHGETGLOBAL; slot_for_literal sc
       end;
