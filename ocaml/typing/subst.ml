@@ -109,7 +109,7 @@ let with_additional_action =
                 Jkind.Const.equal const (Jkind.Const.of_type_jkind builtin)) builtins
             in
             begin match builtin with
-            | Some (__, jkind) -> (Type jkind : jkind)
+            | Some (__, jkind) -> (Jkind.of_type_jkind jkind : jkind)
             | None -> Jkind.of_const const ~why:Jkind.Type.History.Imported
             end
           | None -> raise(Error (loc, Unconstrained_jkind_variable))
