@@ -19,17 +19,19 @@ let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
 type nonrec apply_arg = apply_arg
 
 type texp_apply_identifier =
-  apply_position * Locality.l * Zero_alloc_utils.Assume_info.t
+  apply_position * position_and_tail_attribute * Locality.l *
+  Zero_alloc_utils.Assume_info.t
 
 let mkTexp_apply
-    ?id:(pos, mode, za =
+    ?id:(pos, opos, mode, za =
         ( Default,
+          Unknown_position,
           Locality.disallow_right Locality.legacy,
           Zero_alloc_utils.Assume_info.none )) (exp, args) =
   let args =
     List.map (fun (label, x) -> (Typetexp.transl_label label None, x)) args
   in
-  Texp_apply (exp, args, pos, mode, za)
+  Texp_apply (exp, args, pos, opos, mode, za)
 
 type texp_tuple_identifier = string option list * Alloc.r
 
@@ -219,9 +221,9 @@ let view_texp (e : expression_desc) =
   match e with
   | Texp_ident (path, longident, vd, ident_kind, uu) ->
       Texp_ident (path, longident, vd, (ident_kind, uu))
-  | Texp_apply (exp, args, pos, mode, za) ->
+  | Texp_apply (exp, args, pos, opos, mode, za) ->
       let args = List.map (fun (label, x) -> (untype_label label, x)) args in
-      Texp_apply (exp, args, (pos, mode, za))
+      Texp_apply (exp, args, (pos, opos, mode, za))
   | Texp_construct (name, desc, args, mode) ->
       Texp_construct (name, desc, args, mode)
   | Texp_tuple (args, mode) ->
