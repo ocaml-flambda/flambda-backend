@@ -204,9 +204,10 @@ module S = struct
     | Switch of Label.t array
     | Return
     | Raise of Lambda.raise_kind
-    (* CR less-tco: Change `op` to be some other field name, or inline `with_tail_attr`? 
-       It is unfortunate that with_tail_attr uses `op` as a field, so the label path
-       is .op.destination (since destination is not really an op). *)
+    (* CR less-tco: Change `op` to be some other field name, or inline
+       `with_tail_attr`? It is unfortunate that with_tail_attr uses `op` as a
+       field, so the label path is .op.destination (since destination is not
+       really an op). *)
     | Tailcall_self of destination with_tail_attr
     | Tailcall_func of func_call_operation with_tail_attr
     (* CR less-tco: Track [@tail] attribute on external calls? *)
