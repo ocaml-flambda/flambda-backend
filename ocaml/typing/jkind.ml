@@ -1585,8 +1585,6 @@ module Type = struct
         in
         fprintf ppf "of the definition%a at %a" format_id id
           Location.print_loc_in_lowercase loc
-      | Unapplied_constructor ->
-        fprintf ppf "it is the kind of an unapplied type constructor"
       | Temporary -> fprintf ppf "it is an intermediate created by an operation"
 
     let format_interact_reason ppf : History.interact_reason -> _ = function
@@ -1604,18 +1602,22 @@ module Type = struct
     let format_flattened_history ~intro ~layout_or_kind ppf t =
       let jkind_desc = Jkind_desc.get t.jkind in
       fprintf ppf "@[<v 2>%t" intro;
-      (match t.history with
-      | Creation reason -> (
-        fprintf ppf "@ because %a"
-          (format_creation_reason ~layout_or_kind)
-          reason;
-        match reason, jkind_desc with
-        | Concrete_legacy_creation _, Const _ ->
-          fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format
-            jkind_desc
-        | _ -> ())
-      | Projection _ -> fprintf ppf ", which@ was projected from a higher jkind"
-      | _ -> assert false);
+      (* FIXME jbachurski: Application to higher-kinded types should probably
+          be described here, but this is a good approximation of existing
+          errors messages. *)
+      let rec leaf h =
+        match h with
+        | Creation reason -> reason
+        | Projection { history; _ } -> leaf history
+        | _ -> assert false
+      in
+      let reason = leaf t.history in
+      fprintf ppf "@ because %a" (format_creation_reason ~layout_or_kind) reason;
+      (match reason, jkind_desc with
+      | Concrete_legacy_creation _, Const _ ->
+        fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format
+          jkind_desc
+      | _ -> ());
       fprintf ppf ".";
       (match t.history with
       | Creation (Annotated (With_error_message (message, _), _)) ->
@@ -1851,7 +1853,6 @@ module Type = struct
         fprintf ppf "Generalized (%s, %a)"
           (match id with Some id -> Ident.unique_name id | None -> "")
           Location.print_loc loc
-      | Unapplied_constructor -> fprintf ppf "Unapplied_constructor"
       | Temporary -> fprintf ppf "Temporary"
 
     let project_reason ppf : History.project_reason -> _ = function
@@ -1974,10 +1975,10 @@ let of_const ~why (c : Const.t) : t =
 let of_type_jkind ({ jkind; history; has_warned } : Type.t) : t =
   { jkind = Type jkind; history; has_warned }
 
-let of_arrow ~why ({ args; result } : t Jkind_types.Arrow.t) : t =
+let of_arrow ~history ({ args; result } : t Jkind_types.Arrow.t) : t =
   { jkind =
       Arrow { args = List.map (fun t -> t.jkind) args; result = result.jkind };
-    history = Creation why;
+    history;
     has_warned = false
   }
 
@@ -2418,7 +2419,7 @@ let rec intersection_or_error ~reason (t1 : t) (t2 : t) =
       Arrow { args = args2; result = result2 } ) ->
     let* args = union_list_or_error ~reason ~violation args1 args2 in
     let* result = intersection_or_error ~reason result1 result2 in
-    Ok (of_arrow ~why:Temporary { args; result })
+    Ok (of_arrow ~history:(Creation Temporary) { args; result })
   | Type _, Arrow _ | Arrow _, Type _ -> Error violation
 
 and union_or_error ~reason (t1 : t) (t2 : t) =
@@ -2436,7 +2437,7 @@ and union_or_error ~reason (t1 : t) (t2 : t) =
       Arrow { args = args2; result = result2 } ) ->
     let* args = intersection_list_or_error ~reason ~violation args1 args2 in
     let* result = union_or_error ~reason result1 result2 in
-    Ok (of_arrow ~why:Temporary { args; result })
+    Ok (of_arrow ~history:(Creation Temporary) { args; result })
   | Type _, Arrow _ | Arrow _, Type _ -> Error violation
 
 and intersection_list_or_error ~reason ~violation =

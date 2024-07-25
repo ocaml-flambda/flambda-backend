@@ -454,7 +454,7 @@ val of_type_jkind : Type.t -> t
 
 (** Construct the jkind from an arrow with a given reason *)
 val of_arrow :
-  why:Jkind_intf.History.creation_reason -> t Jkind_types.Arrow.t -> t
+  history:Types.type_expr Jkind_types.history -> t Jkind_types.Arrow.t -> t
 
 (******************************)
 (* elimination and defaulting *)
