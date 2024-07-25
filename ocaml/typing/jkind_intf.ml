@@ -283,7 +283,6 @@ module History = struct
         }
     (* [position] is 1-indexed *)
     | Generalized of Ident.t option * Location.t
-    | Unapplied_constructor
     | Temporary
 
   type project_reason =
