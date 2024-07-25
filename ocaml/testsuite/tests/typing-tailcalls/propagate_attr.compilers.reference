@@ -30,10 +30,10 @@ After simplify:
      (contains_no_escaping_local_allocs true) (recursive Non_recursive)
      (cost_metrics
       size: 10 removed: {call: 0 alloc: 0 prim: 0 branch: 0 direct: 0
-                         poly_cmp: 0 requested: 0}) (inlining_arguments O3)
-     (dbg propagate_attr.ml:19,8--19) (is_tupled false)
-     (is_my_closure_used false)
-     (inlining_decision (Small_function (size 10) (small_function_size 100)))
+                         poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic) (dbg propagate_attr.ml:12,8--19)
+     (is_tupled false) (is_my_closure_used false)
+     (inlining_decision (Function_body_too_large 10))
      (loopify Never_loopify)))
    (λ〈k19〉《k18》⟅my_region/50N⟆
       (param/52UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/51N ∷ 𝕍) my_depth/49N .
@@ -43,9 +43,9 @@ After simplify:
       (call_kind
        (C (needs_caml_c_call true) (is_c_builtin false) (effects Heap)
         (coeffects Arbitrary_effects) (alloc_mode Has_coeffects)))
-      (dbg propagate_attr.ml:19,13--19) (inline Default_inlined)
-      (inlining_state (depth 0, arguments O3)) (probe ()) (tail Default_tail)
-      (position Normal))))))
+      (dbg propagate_attr.ml:12,13--19) (inline Default_inlined)
+      (inlining_state (depth 0, arguments Oclassic)) (probe ())
+      (tail Default_tail) (position Normal))))))
  Propagate_attr.camlPropagate_attr__foo_5 ↤ (foo/0 ∷ 𝕍) =
   (set_of_closures Heap ({((foo/0 ∷ 𝕍) camlPropagate_attr__foo_0_5_code)}))
  camlPropagate_attr__tail_1_6_code =
@@ -57,23 +57,22 @@ After simplify:
      (result_types (Unknown)) (result_mode Heap)
      (contains_no_escaping_local_allocs true) (recursive Non_recursive)
      (cost_metrics
-      size: 10 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
-                         poly_cmp: 0 requested: 0}) (inlining_arguments O3)
-     (dbg propagate_attr.ml:21,9--30) (is_tupled false)
-     (is_my_closure_used false)
-     (inlining_decision (Small_function (size 10) (small_function_size 100)))
+      size: 4 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
+                        poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic) (dbg propagate_attr.ml:14,9--30)
+     (is_tupled false) (is_my_closure_used false)
+     (inlining_decision (Small_function (size 4) (small_function_size 10)))
      (loopify Never_loopify)))
    (λ〈k23〉《k22》⟅my_region/56N⟆
       (param/58UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/57N ∷ 𝕍) my_depth/55N .
     (apply
-     (((Some *extern*.ext)〈k23〉《k22》(0)) (args_arity 𝕍)
-      (return_arity 𝕍)
+     (((Some Propagate_attr.camlPropagate_attr__foo_5)〈k23〉《k22》(0))
+      (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
       (call_kind
-       (C (needs_caml_c_call true) (is_c_builtin false) (effects Heap)
-        (coeffects Arbitrary_effects) (alloc_mode Has_coeffects)))
-      (dbg propagate_attr.ml:22,2--8;propagate_attr.ml:19,13--19)
-      (inline Default_inlined) (inlining_state (depth 10, arguments O3))
-      (probe ()) (tail Default_tail) (position Normal))))))
+       (Function (function_call (Direct camlPropagate_attr__foo_0_5_code))
+        (alloc_mode Heap))) (dbg propagate_attr.ml:15,2--8)
+      (inline Default_inlined) (inlining_state (depth 0, arguments Oclassic))
+      (probe ()) (tail Explicit_tail) (position Normal))))))
  Propagate_attr.camlPropagate_attr__tail_6 ↤ (tail/1 ∷ 𝕍) =
   (set_of_closures Heap ({((tail/1 ∷ 𝕍) camlPropagate_attr__tail_1_6_code)}))
  camlPropagate_attr__tail_hint_2_7_code =
@@ -85,23 +84,22 @@ After simplify:
      (result_types (Unknown)) (result_mode Heap)
      (contains_no_escaping_local_allocs true) (recursive Non_recursive)
      (cost_metrics
-      size: 10 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
-                         poly_cmp: 0 requested: 0}) (inlining_arguments O3)
-     (dbg propagate_attr.ml:24,14--40) (is_tupled false)
-     (is_my_closure_used false)
-     (inlining_decision (Small_function (size 10) (small_function_size 100)))
+      size: 4 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
+                        poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic) (dbg propagate_attr.ml:17,14--40)
+     (is_tupled false) (is_my_closure_used false)
+     (inlining_decision (Small_function (size 4) (small_function_size 10)))
      (loopify Never_loopify)))
-   (λ〈k29〉《k28》⟅my_region/70N⟆
-      (param/72UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/71N ∷ 𝕍) my_depth/69N .
+   (λ〈k27〉《k26》⟅my_region/63N⟆
+      (param/65UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/64N ∷ 𝕍) my_depth/62N .
     (apply
-     (((Some *extern*.ext)〈k29〉《k28》(0)) (args_arity 𝕍)
-      (return_arity 𝕍)
+     (((Some Propagate_attr.camlPropagate_attr__foo_5)〈k27〉《k26》(0))
+      (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
       (call_kind
-       (C (needs_caml_c_call true) (is_c_builtin false) (effects Heap)
-        (coeffects Arbitrary_effects) (alloc_mode Has_coeffects)))
-      (dbg propagate_attr.ml:25,2--8;propagate_attr.ml:19,13--19)
-      (inline Default_inlined) (inlining_state (depth 10, arguments O3))
-      (probe ()) (tail Default_tail) (position Normal))))))
+       (Function (function_call (Direct camlPropagate_attr__foo_0_5_code))
+        (alloc_mode Heap))) (dbg propagate_attr.ml:18,2--8)
+      (inline Default_inlined) (inlining_state (depth 0, arguments Oclassic))
+      (probe ()) (tail Hint_tail) (position Normal))))))
  Propagate_attr.camlPropagate_attr__tail_hint_7 ↤ (tail_hint/2 ∷ 𝕍) =
   (set_of_closures Heap
    ({((tail_hint/2 ∷ 𝕍) camlPropagate_attr__tail_hint_2_7_code)}))
@@ -114,23 +112,22 @@ After simplify:
      (result_types (Unknown)) (result_mode Heap)
      (contains_no_escaping_local_allocs true) (recursive Non_recursive)
      (cost_metrics
-      size: 10 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
-                         poly_cmp: 0 requested: 0}) (inlining_arguments O3)
-     (dbg propagate_attr.ml:27,12--36) (is_tupled false)
-     (is_my_closure_used false)
-     (inlining_decision (Small_function (size 10) (small_function_size 100)))
+      size: 4 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
+                        poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic) (dbg propagate_attr.ml:20,12--36)
+     (is_tupled false) (is_my_closure_used false)
+     (inlining_decision (Small_function (size 4) (small_function_size 10)))
      (loopify Never_loopify)))
-   (λ〈k35〉《k34》⟅my_region/84N⟆
-      (param/86UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/85N ∷ 𝕍) my_depth/83N .
+   (λ〈k31〉《k30》⟅my_region/70N⟆
+      (param/72UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/71N ∷ 𝕍) my_depth/69N .
     (apply
-     (((Some *extern*.ext)〈k35〉《k34》(0)) (args_arity 𝕍)
-      (return_arity 𝕍)
+     (((Some Propagate_attr.camlPropagate_attr__foo_5)〈k31〉《k30》(0))
+      (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
       (call_kind
-       (C (needs_caml_c_call true) (is_c_builtin false) (effects Heap)
-        (coeffects Arbitrary_effects) (alloc_mode Has_coeffects)))
-      (dbg propagate_attr.ml:28,2--8;propagate_attr.ml:19,13--19)
-      (inline Default_inlined) (inlining_state (depth 10, arguments O3))
-      (probe ()) (tail Default_tail) (position Normal))))))
+       (Function (function_call (Direct camlPropagate_attr__foo_0_5_code))
+        (alloc_mode Heap))) (dbg propagate_attr.ml:21,2--8)
+      (inline Default_inlined) (inlining_state (depth 0, arguments Oclassic))
+      (probe ()) (tail Explicit_non_tail) (position Nontail))))))
  Propagate_attr.camlPropagate_attr__nontail_8 ↤ (nontail/3 ∷ 𝕍) =
   (set_of_closures Heap
    ({((nontail/3 ∷ 𝕍) camlPropagate_attr__nontail_3_8_code)}))
@@ -143,22 +140,21 @@ After simplify:
      (result_types (Unknown)) (result_mode Heap)
      (contains_no_escaping_local_allocs true) (recursive Non_recursive)
      (cost_metrics
-      size: 10 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
-                         poly_cmp: 0 requested: 0}) (inlining_arguments O3)
-     (dbg propagate_attr.ml:30,12--25) (is_tupled false)
-     (is_my_closure_used false)
-     (inlining_decision (Small_function (size 10) (small_function_size 100)))
+      size: 4 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
+                        poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic) (dbg propagate_attr.ml:23,12--25)
+     (is_tupled false) (is_my_closure_used false)
+     (inlining_decision (Small_function (size 4) (small_function_size 10)))
      (loopify Never_loopify)))
-   (λ〈k41〉《k40》⟅my_region/98N⟆
-      (param/100UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/99N ∷ 𝕍) my_depth/97N .
+   (λ〈k35〉《k34》⟅my_region/77N⟆
+      (param/79UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/78N ∷ 𝕍) my_depth/76N .
     (apply
-     (((Some *extern*.ext)〈k41〉《k40》(0)) (args_arity 𝕍)
-      (return_arity 𝕍)
+     (((Some Propagate_attr.camlPropagate_attr__foo_5)〈k35〉《k34》(0))
+      (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
       (call_kind
-       (C (needs_caml_c_call true) (is_c_builtin false) (effects Heap)
-        (coeffects Arbitrary_effects) (alloc_mode Has_coeffects)))
-      (dbg propagate_attr.ml:31,2--8;propagate_attr.ml:19,13--19)
-      (inline Default_inlined) (inlining_state (depth 10, arguments O3))
+       (Function (function_call (Direct camlPropagate_attr__foo_0_5_code))
+        (alloc_mode Heap))) (dbg propagate_attr.ml:24,2--8)
+      (inline Default_inlined) (inlining_state (depth 0, arguments Oclassic))
       (probe ()) (tail Default_tail) (position Normal))))))
  Propagate_attr.camlPropagate_attr__default_9 ↤ (default/4 ∷ 𝕍) =
   (set_of_closures Heap
@@ -204,16 +200,16 @@ After simplify:
  global "camlPropagate_attr__foo_5":
  addr G:"camlPropagate_attr__foo_0_5_code"
  int 108086391056891909)
-(function{propagate_attr.ml:19,8-19} camlPropagate_attr__foo_0_5_code
+(function{propagate_attr.ml:12,8-19} camlPropagate_attr__foo_0_5_code
      (param/308: int)
- (extcall "ext"{propagate_attr.ml:19,13-19} 1 int->val))
+ (extcall "ext"{propagate_attr.ml:12,13-19} 1 int->val))
 
 *** After instruction selection
-camlPropagate_attr__foo_0_5_code(R:I/0[%rax]) {propagate_attr.ml:19,8-19}
+camlPropagate_attr__foo_0_5_code(R:I/0[%rax]) {propagate_attr.ml:12,8-19}
   param:I/61 := R:I/0[%rax]
   I/62 := 1
   R:I/2[%rdi] := I/62
-  R:I/0[%rax] := extcall "ext" R:I/2[%rdi]{propagate_attr.ml:19,13-19}
+  R:I/0[%rax] := extcall "ext" R:I/2[%rdi]{propagate_attr.ml:12,13-19}
   V/63 := R:I/0[%rax]
   R:I/0[%rax] := V/63
   return R:I/0[%rax]
@@ -249,70 +245,88 @@ predecessors: 100
 successors:
 exn-successors:
 
-(function{propagate_attr.ml:21,9-30} camlPropagate_attr__tail_1_6_code
+(function{propagate_attr.ml:14,9-30} camlPropagate_attr__tail_1_6_code
      (param/310: int)
- (extcall "ext"{propagate_attr.ml:22,2-8;propagate_attr.ml:19,13-19} 1
-   int->val))
+ (app[@tail]{propagate_attr.ml:15,2-8} G:"camlPropagate_attr__foo_0_5_code" 1
+   int))
 
 *** After instruction selection
-camlPropagate_attr__tail_1_6_code(R:I/0[%rax]) {propagate_attr.ml:21,9-30}
+camlPropagate_attr__tail_1_6_code(R:I/0[%rax]) {propagate_attr.ml:14,9-30}
   param:I/61 := R:I/0[%rax]
   I/62 := 1
-  R:I/2[%rdi] := I/62
-  R:I/0[%rax] := extcall "ext" R:I/2[%rdi]{propagate_attr.ml:22,2-8;propagate_attr.ml:19,13-19}
-  V/63 := R:I/0[%rax]
-  R:I/0[%rax] := V/63
-  return R:I/0[%rax]
+  R:I/0[%rax] := I/62
+  tailcall[@tail] "camlPropagate_attr__foo_0_5_code" R:I/0[%rax]{propagate_attr.ml:15,2-8}
 *** After cfgize
 
 cfg for 
 camlPropagate_attr__tail_1_6_code
-layout.length=3
-blocks.length=3
+layout.length=2
+blocks.length=2
 
 1:
-prologue
 goto 104
 predecessors:
 successors: 104
 exn-successors:
 
 104:
-I/62[%rdi] := 1
-R:I/2[%rdi] := I/62[%rdi]
-R:I/0[%rax] := extcall "ext" R:I/2[%rdi]
-goto 106
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+tailcall[@tail] "camlPropagate_attr__foo_0_5_code" R:I/0[%rax]
 predecessors: 1
-successors: 106
-exn-successors:
-
-106:
-V/63[%rax] := R:I/0[%rax]
-R:I/0[%rax] := V/63[%rax]
-reload retaddr
-Return R:I/0[%rax]
-predecessors: 104
 successors:
 exn-successors:
 
-(function{propagate_attr.ml:24,14-40} camlPropagate_attr__tail_hint_2_7_code
+(function{propagate_attr.ml:17,14-40} camlPropagate_attr__tail_hint_2_7_code
      (param/312: int)
- (extcall "ext"{propagate_attr.ml:25,2-8;propagate_attr.ml:19,13-19} 1
-   int->val))
+ (app[@tail hint]{propagate_attr.ml:18,2-8}
+   G:"camlPropagate_attr__foo_0_5_code" 1 int))
 
 *** After instruction selection
-camlPropagate_attr__tail_hint_2_7_code(R:I/0[%rax]) {propagate_attr.ml:24,14-40}
+camlPropagate_attr__tail_hint_2_7_code(R:I/0[%rax]) {propagate_attr.ml:17,14-40}
   param:I/61 := R:I/0[%rax]
   I/62 := 1
-  R:I/2[%rdi] := I/62
-  R:I/0[%rax] := extcall "ext" R:I/2[%rdi]{propagate_attr.ml:25,2-8;propagate_attr.ml:19,13-19}
-  V/63 := R:I/0[%rax]
-  R:I/0[%rax] := V/63
-  return R:I/0[%rax]
+  R:I/0[%rax] := I/62
+  tailcall[@tail hint] "camlPropagate_attr__foo_0_5_code" R:I/0[%rax]{propagate_attr.ml:18,2-8}
 *** After cfgize
 
 cfg for 
 camlPropagate_attr__tail_hint_2_7_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 106
+predecessors:
+successors: 106
+exn-successors:
+
+106:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+tailcall[@tail hint] "camlPropagate_attr__foo_0_5_code" R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
+
+(function{propagate_attr.ml:20,12-36} camlPropagate_attr__nontail_3_8_code
+     (param/314: int)
+ (app[@nontail]{propagate_attr.ml:21,2-8}
+   G:"camlPropagate_attr__foo_0_5_code" 1 int))
+
+*** After instruction selection
+camlPropagate_attr__nontail_3_8_code(R:I/0[%rax]) {propagate_attr.ml:20,12-36}
+  param:I/61 := R:I/0[%rax]
+  I/62 := 1
+  R:I/0[%rax] := I/62
+  R:I/0[%rax] := call[@nontail] "camlPropagate_attr__foo_0_5_code" R:I/0[%rax]{propagate_attr.ml:21,2-8}
+  I/63 := R:I/0[%rax]
+  R:I/0[%rax] := I/63
+  return R:I/0[%rax]
+*** After cfgize
+
+cfg for 
+camlPropagate_attr__nontail_3_8_code
 layout.length=3
 blocks.length=3
 
@@ -324,112 +338,51 @@ successors: 108
 exn-successors:
 
 108:
-I/62[%rdi] := 1
-R:I/2[%rdi] := I/62[%rdi]
-R:I/0[%rax] := extcall "ext" R:I/2[%rdi]
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+R:I/0[%rax] := call[@nontail] "camlPropagate_attr__foo_0_5_code" R:I/0[%rax]
 goto 110
 predecessors: 1
 successors: 110
 exn-successors:
 
 110:
-V/63[%rax] := R:I/0[%rax]
-R:I/0[%rax] := V/63[%rax]
+I/63[%rax] := R:I/0[%rax]
+R:I/0[%rax] := I/63[%rax]
 reload retaddr
 Return R:I/0[%rax]
 predecessors: 108
 successors:
 exn-successors:
 
-(function{propagate_attr.ml:27,12-36} camlPropagate_attr__nontail_3_8_code
-     (param/314: int)
- (extcall "ext"{propagate_attr.ml:28,2-8;propagate_attr.ml:19,13-19} 1
-   int->val))
+(function{propagate_attr.ml:23,12-25} camlPropagate_attr__default_4_9_code
+     (param/316: int)
+ (app{propagate_attr.ml:24,2-8} G:"camlPropagate_attr__foo_0_5_code" 1 int))
 
 *** After instruction selection
-camlPropagate_attr__nontail_3_8_code(R:I/0[%rax]) {propagate_attr.ml:27,12-36}
+camlPropagate_attr__default_4_9_code(R:I/0[%rax]) {propagate_attr.ml:23,12-25}
   param:I/61 := R:I/0[%rax]
   I/62 := 1
-  R:I/2[%rdi] := I/62
-  R:I/0[%rax] := extcall "ext" R:I/2[%rdi]{propagate_attr.ml:28,2-8;propagate_attr.ml:19,13-19}
-  V/63 := R:I/0[%rax]
-  R:I/0[%rax] := V/63
-  return R:I/0[%rax]
+  R:I/0[%rax] := I/62
+  tailcall "camlPropagate_attr__foo_0_5_code" R:I/0[%rax]{propagate_attr.ml:24,2-8}
 *** After cfgize
 
 cfg for 
-camlPropagate_attr__nontail_3_8_code
-layout.length=3
-blocks.length=3
+camlPropagate_attr__default_4_9_code
+layout.length=2
+blocks.length=2
 
 1:
-prologue
 goto 112
 predecessors:
 successors: 112
 exn-successors:
 
 112:
-I/62[%rdi] := 1
-R:I/2[%rdi] := I/62[%rdi]
-R:I/0[%rax] := extcall "ext" R:I/2[%rdi]
-goto 114
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+tailcall "camlPropagate_attr__foo_0_5_code" R:I/0[%rax]
 predecessors: 1
-successors: 114
-exn-successors:
-
-114:
-V/63[%rax] := R:I/0[%rax]
-R:I/0[%rax] := V/63[%rax]
-reload retaddr
-Return R:I/0[%rax]
-predecessors: 112
-successors:
-exn-successors:
-
-(function{propagate_attr.ml:30,12-25} camlPropagate_attr__default_4_9_code
-     (param/316: int)
- (extcall "ext"{propagate_attr.ml:31,2-8;propagate_attr.ml:19,13-19} 1
-   int->val))
-
-*** After instruction selection
-camlPropagate_attr__default_4_9_code(R:I/0[%rax]) {propagate_attr.ml:30,12-25}
-  param:I/61 := R:I/0[%rax]
-  I/62 := 1
-  R:I/2[%rdi] := I/62
-  R:I/0[%rax] := extcall "ext" R:I/2[%rdi]{propagate_attr.ml:31,2-8;propagate_attr.ml:19,13-19}
-  V/63 := R:I/0[%rax]
-  R:I/0[%rax] := V/63
-  return R:I/0[%rax]
-*** After cfgize
-
-cfg for 
-camlPropagate_attr__default_4_9_code
-layout.length=3
-blocks.length=3
-
-1:
-prologue
-goto 116
-predecessors:
-successors: 116
-exn-successors:
-
-116:
-I/62[%rdi] := 1
-R:I/2[%rdi] := I/62[%rdi]
-R:I/0[%rax] := extcall "ext" R:I/2[%rdi]
-goto 118
-predecessors: 1
-successors: 118
-exn-successors:
-
-118:
-V/63[%rax] := R:I/0[%rax]
-R:I/0[%rax] := V/63[%rax]
-reload retaddr
-Return R:I/0[%rax]
-predecessors: 116
 successors:
 exn-successors:
 
@@ -457,13 +410,12 @@ layout.length=2
 blocks.length=2
 
 1:
-prologue
-goto 122
+goto 116
 predecessors:
-successors: 122
+successors: 116
 exn-successors:
 
-122:
+116:
 I/64[%rax] := 1
 R:I/0[%rax] := I/64[%rax]
 Return R:I/0[%rax]
