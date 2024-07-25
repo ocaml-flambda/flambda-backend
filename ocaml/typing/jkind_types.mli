@@ -154,14 +154,6 @@ module Type : sig
       }
   end
 
-  type 'type_expr history = 'type_expr Jkind_desc.t History.t
-
-  type 'type_expr t =
-    { jkind : 'type_expr Jkind_desc.t;
-      history : 'type_expr history;
-      has_warned : bool
-    }
-
   module Const : sig
     type 'type_expr t =
       { layout : Layout.Const.t;
@@ -184,6 +176,12 @@ module Jkind_desc : sig
 end
 
 type 'type_expr history = 'type_expr Jkind_desc.t History.t
+
+type 'type_expr type_jkind =
+  { jkind : 'type_expr Type.Jkind_desc.t;
+    history : 'type_expr history;
+    has_warned : bool
+  }
 
 type 'type_expr t =
   { jkind : 'type_expr Jkind_desc.t;

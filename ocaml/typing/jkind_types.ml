@@ -401,20 +401,6 @@ module Type = struct
       }
   end
 
-  (* A history of conditions placed on a jkind.
-
-     INVARIANT: at most one sort variable appears in this history.
-     This is a natural consequence of producing this history by comparing
-     jkinds.
-  *)
-  type 'type_expr history = 'type_expr Jkind_desc.t History.t
-
-  type 'type_expr t =
-    { jkind : 'type_expr Jkind_desc.t;
-      history : 'type_expr history;
-      has_warned : bool
-    }
-
   module Const = struct
     type 'type_expr t =
       { layout : Layout.Const.t;
@@ -439,6 +425,12 @@ module Jkind_desc = struct
 end
 
 type 'type_expr history = 'type_expr Jkind_desc.t History.t
+
+type 'type_expr type_jkind =
+  { jkind : 'type_expr Type.Jkind_desc.t;
+    history : 'type_expr history;
+    has_warned : bool
+  }
 
 type 'type_expr t =
   { jkind : 'type_expr Jkind_desc.t;
