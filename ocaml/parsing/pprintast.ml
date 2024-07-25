@@ -874,7 +874,7 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
         paren true (expression reset_ctxt) f x
     | Pexp_newtype (lid, e) ->
         pp f "@[<2>fun@;(type@;%s)@;%a@]" lid.txt
-          (pp_print_pexp_function ctxt "->") e
+          (pp_print_pexp_newtype ctxt "->") e
     | Pexp_function (params, constraint_, body) ->
         begin match params, constraint_ with
           (* Omit [fun] if there are no params. *)
@@ -1575,7 +1575,7 @@ and payload ctxt f = function
       pp f "?@ "; pattern ctxt f x;
       pp f " when "; expression ctxt f e
 
-and pp_print_pexp_function ctxt sep f x =
+and pp_print_pexp_newtype ctxt sep f x =
   (* We go to some trouble to print nested [Lexp_newtype] as
      newtype parameters of the same "fun" (rather than printing several nested
      "fun (type a) -> ..."). This isn't necessary for round-tripping -- it just
@@ -1585,7 +1585,7 @@ and pp_print_pexp_function ctxt sep f x =
       pp f "@[(type@ %s :@ %a)@]@ %a"
         str.txt
         (jkind_annotation ctxt) lay
-        (pp_print_pexp_function ctxt sep) e
+        (pp_print_pexp_newtype ctxt sep) e
   | Some (jst, attrs) ->
       pp f "%s@;%a" sep (jane_syntax_expr ctxt attrs ~parens:false) jst
   | None ->
@@ -1593,11 +1593,18 @@ and pp_print_pexp_function ctxt sep f x =
   else
     match x.pexp_desc with
     | Pexp_newtype (str,e) ->
-      pp f "(type@ %s)@ %a" str.txt (pp_print_pexp_function ctxt sep) e
-    | Pexp_function (params, c, body) ->
-        function_params_then_body ctxt f params c body ~delimiter:sep
+      pp f "(type@ %s)@ %a" str.txt (pp_print_pexp_newtype ctxt sep) e
     | _ ->
        pp f "%s@;%a" sep (expression ctxt) x
+
+and pp_print_params_then_equals ctxt f x =
+  if x.pexp_attributes <> [] then pp f "=@;%a" (expression ctxt) x
+  else
+  match x.pexp_desc with
+  | Pexp_function (params, constraint_, body) ->
+      function_params_then_body ctxt f params constraint_ body
+        ~delimiter:"="
+  | _ -> pp_print_pexp_newtype ctxt "=" f x
 
 (* transform [f = fun g h -> ..] to [f g h = ... ] could be improved *)
 and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; _} =
@@ -1662,7 +1669,7 @@ and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; _} =
         begin match p with
         | {ppat_desc=Ppat_var _; ppat_attributes=[]} ->
             pp f "%a@ %a" (simple_pattern ctxt) p
-              (pp_print_pexp_function ctxt "=") x
+              (pp_print_params_then_equals ctxt) x
         | _ ->
             pp f "%a@;=@;%a" (pattern ctxt) p (expression ctxt) x
         end
@@ -2177,7 +2184,7 @@ and layout_expr ctxt f (x : Jane_syntax.Layouts.expression) ~parens =
     pp f "@[<2>fun@;(type@;%s :@;%a)@;%a@]"
       lid.txt
       (jkind_annotation ctxt) jkind
-      (pp_print_pexp_function ctxt "->") inner_expr
+      (pp_print_pexp_newtype ctxt "->") inner_expr
 
 and unboxed_constant _ctxt f (x : Jane_syntax.Layouts.constant)
   =
