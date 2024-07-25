@@ -30,14 +30,17 @@
     (Whether a function is implicitly TCO'd or not depends on the heuristic we are
     developing as part of the less-tco project.) *)
 
-(** Reset the shared state for the compilation unit *)
-val reset_unit_info : unit -> unit
+module Global : sig
+  (** Reset the shared state for the compilation unit *)
+  val reset_unit_info : unit -> unit
 
-(** Analyzes a single function's CFG. This should be called on every function in a
+  (** Analyzes a single function's CFG. This should be called on every function in a
     compilation unit. *)
-val cfg :
-  Format.formatter ->
-  future_funcnames:Misc.Stdlib.String.Set.t ->
-  Cfg_with_layout.t ->
-  Cfg_with_layout.t
+  val cfg
+    :  Format.formatter
+    -> future_funcnames:Misc.Stdlib.String.Set.t
+    -> Cfg_with_layout.t
+    -> Cfg_with_layout.t
 
+  val print_dot : Format.formatter -> unit
+end
