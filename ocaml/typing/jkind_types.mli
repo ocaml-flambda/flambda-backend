@@ -41,6 +41,25 @@
 
    All definitions here are commented in jkind.ml or jkind.mli. *)
 
+module History : sig
+  type 'desc t =
+    | Interact of
+        { reason : Jkind_intf.History.interact_reason;
+          lhs_jkind : 'desc;
+          lhs_history : 'desc t;
+          rhs_jkind : 'desc;
+          rhs_history : 'desc t
+        }
+    | Projection of
+        { reason : Jkind_intf.History.project_reason;
+          jkind : 'desc;
+          history : 'desc t
+        }
+    | Creation of Jkind_intf.History.creation_reason
+
+  val desc_map : ('a -> 'b) -> 'a t -> 'b t
+end
+
 module Type : sig
   module Sort : sig
     (* We need to expose these details for use in [Jkind] *)
@@ -125,15 +144,7 @@ module Type : sig
       }
   end
 
-  type 'type_expr history =
-    | Interact of
-        { reason : Jkind_intf.History.interact_reason;
-          lhs_jkind : 'type_expr Jkind_desc.t;
-          lhs_history : 'type_expr history;
-          rhs_jkind : 'type_expr Jkind_desc.t;
-          rhs_history : 'type_expr history
-        }
-    | Creation of Jkind_intf.History.creation_reason
+  type 'type_expr history = 'type_expr Jkind_desc.t History.t
 
   type 'type_expr t =
     { jkind : 'type_expr Jkind_desc.t;
@@ -159,9 +170,19 @@ module Arrow : sig
     }
 end
 
+module Jkind_desc : sig
+  type 'type_expr t =
+    | Type of 'type_expr Type.Jkind_desc.t
+    | Arrow of 'type_expr t Arrow.t
+end
+
+type 'type_expr history = 'type_expr Jkind_desc.t History.t
+
 type 'type_expr t =
-  | Type of 'type_expr Type.t
-  | Arrow of 'type_expr t Arrow.t
+  { jkind : 'type_expr Jkind_desc.t;
+    history : 'type_expr history;
+    has_warned : bool
+  }
 
 module Const : sig
   type 'type_expr t =
