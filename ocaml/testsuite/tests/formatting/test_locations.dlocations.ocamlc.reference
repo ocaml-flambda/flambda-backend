@@ -114,6 +114,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                 expression (test_locations.ml[19,572+9]..test_locations.ml[19,572+34])
                   Texp_apply
                   apply_mode Tail
+                  original_position Tail_position (Default_tail)
                   locality_mode global
                   expression (test_locations.ml[19,572+21]..test_locations.ml[19,572+22])
                     Texp_ident "Stdlib!.+"
@@ -123,6 +124,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                       expression (test_locations.ml[19,572+9]..test_locations.ml[19,572+20])
                         Texp_apply
                         apply_mode Default
+                        original_position Not_tail_position (Default_tail)
                         locality_mode global
                         expression (test_locations.ml[19,572+9]..test_locations.ml[19,572+12])
                           Texp_ident "fib"
@@ -132,6 +134,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                             expression (test_locations.ml[19,572+13]..test_locations.ml[19,572+20])
                               Texp_apply
                               apply_mode Default
+                              original_position Not_tail_position (Default_tail)
                               locality_mode global
                               expression (test_locations.ml[19,572+16]..test_locations.ml[19,572+17])
                                 Texp_ident "Stdlib!.-"
@@ -151,6 +154,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                       expression (test_locations.ml[19,572+23]..test_locations.ml[19,572+34])
                         Texp_apply
                         apply_mode Default
+                        original_position Not_tail_position (Default_tail)
                         locality_mode global
                         expression (test_locations.ml[19,572+23]..test_locations.ml[19,572+26])
                           Texp_ident "fib"
@@ -160,6 +164,7 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
                             expression (test_locations.ml[19,572+27]..test_locations.ml[19,572+34])
                               Texp_apply
                               apply_mode Default
+                              original_position Not_tail_position (Default_tail)
                               locality_mode global
                               expression (test_locations.ml[19,572+30]..test_locations.ml[19,572+31])
                                 Texp_ident "Stdlib!.-"
@@ -188,8 +193,8 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
              (before Test_locations.fib test_locations.ml(19):581-606
                (+
                  (after Test_locations.fib test_locations.ml(19):581-592
-                   (apply fib (- n 1)))
+                   (apply fib (- n 1) Not_tail_position (Default_tail)))
                  (after Test_locations.fib test_locations.ml(19):595-606
-                   (apply fib (- n 2)))))
+                   (apply fib (- n 2) Not_tail_position (Default_tail)))))
              (before Test_locations.fib test_locations.ml(18):570-571 1)))))
     (pseudo <unknown location> (makeblock 0 fib))))

@@ -106,7 +106,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
          always be direct applications of an OCaml function:@ %a"
         Apply.print apply
   in
-  let tail = Tail.to_lambda (Apply.tail apply) in
+  let original_position = Apply.original_position apply in
   let pos =
     match Apply.position apply with
     | Normal ->
@@ -169,7 +169,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     | None ->
       ( C.direct_call ~dbg
           (C.Extended_machtype.to_machtype return_ty)
-          pos tail (C.symbol ~dbg code_sym) args,
+          pos original_position (C.symbol ~dbg code_sym) args,
         free_vars,
         env,
         res,
@@ -194,7 +194,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     ( C.indirect_call ~dbg return_ty pos
         (Alloc_mode.For_allocations.to_lambda alloc_mode)
-        tail callee args_ty (split_args ()),
+        original_position callee args_ty (split_args ()),
       free_vars,
       env,
       res,
@@ -217,7 +217,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     else
       ( C.indirect_full_call ~dbg return_ty pos
           (Alloc_mode.For_allocations.to_lambda alloc_mode)
-          tail callee args_ty args,
+          original_position callee args_ty args,
         free_vars,
         env,
         res,

@@ -5,8 +5,11 @@
          ignore assert all zero_alloc never_loop
          (let
            (cow =
-              (function {nlocal = 0} x[int] : int (apply (field_imm 0 X) x))
-            sheep = (function {nlocal = 0} x[int] : int (+ 1 (apply cow x))))
+              (function {nlocal = 0} x[int] : int
+                (apply (field_imm 0 X) x Tail_position (Default_tail)))
+            sheep =
+              (function {nlocal = 0} x[int] : int
+                (+ 1 (apply cow x Not_tail_position (Default_tail)))))
            (makeblock 0 cow sheep)))
      F =
        (function {nlocal = 0} X Y is_a_functor always_inline
@@ -14,8 +17,11 @@
          (let
            (cow =
               (function {nlocal = 0} x[int] : int
-                (apply (field_imm 0 Y) (apply (field_imm 0 X) x)))
-            sheep = (function {nlocal = 0} x[int] : int (+ 1 (apply cow x))))
+                (apply (field_imm 0 Y)
+                  (apply (field_imm 0 X) x Not_tail_position (Default_tail)) Tail_position (Default_tail)))
+            sheep =
+              (function {nlocal = 0} x[int] : int
+                (+ 1 (apply cow x Not_tail_position (Default_tail)))))
            (makeblock 0 cow sheep)))
      F1 =
        (function {nlocal = 0} X Y is_a_functor always_inline
@@ -23,8 +29,11 @@
          (let
            (cow =
               (function {nlocal = 0} x[int] : int
-                (apply (field_imm 0 Y) (apply (field_imm 0 X) x)))
-            sheep = (function {nlocal = 0} x[int] : int (+ 1 (apply cow x))))
+                (apply (field_imm 0 Y)
+                  (apply (field_imm 0 X) x Not_tail_position (Default_tail)) Tail_position (Default_tail)))
+            sheep =
+              (function {nlocal = 0} x[int] : int
+                (+ 1 (apply cow x Not_tail_position (Default_tail)))))
            (makeblock 0 sheep)))
      F2 =
        (function {nlocal = 0} X Y is_a_functor always_inline
@@ -34,8 +43,11 @@
             Y =a (makeblock 0 (field_imm 1 Y))
             cow =
               (function {nlocal = 0} x[int] : int
-                (apply (field_imm 0 Y) (apply (field_imm 0 X) x)))
-            sheep = (function {nlocal = 0} x[int] : int (+ 1 (apply cow x))))
+                (apply (field_imm 0 Y)
+                  (apply (field_imm 0 X) x Not_tail_position (Default_tail)) Tail_position (Default_tail)))
+            sheep =
+              (function {nlocal = 0} x[int] : int
+                (+ 1 (apply cow x Not_tail_position (Default_tail)))))
            (makeblock 0 sheep)))
      M =
        (let
@@ -45,9 +57,12 @@
               (let
                 (cow =
                    (function {nlocal = 0} x[int] : int
-                     (apply (field_imm 0 Y) (apply (field_imm 0 X) x)))
+                     (apply (field_imm 0 Y)
+                       (apply (field_imm 0 X)
+                         x Not_tail_position (Default_tail)) Tail_position (Default_tail)))
                  sheep =
-                   (function {nlocal = 0} x[int] : int (+ 1 (apply cow x))))
+                   (function {nlocal = 0} x[int] : int
+                     (+ 1 (apply cow x Not_tail_position (Default_tail)))))
                 (makeblock 0 cow sheep))))
          (makeblock 0
            (function {nlocal = 0} funarg funarg is_a_functor stub
@@ -55,6 +70,6 @@
              (let
                (let =
                   (apply F (makeblock 0 (field_imm 1 funarg))
-                    (makeblock 0 (field_imm 1 funarg))))
+                    (makeblock 0 (field_imm 1 funarg)) Unknown_position))
                (makeblock 0 (field_imm 1 let)))))))
     (makeblock 0 O F F1 F2 M)))

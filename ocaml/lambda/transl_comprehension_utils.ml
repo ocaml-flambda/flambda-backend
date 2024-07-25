@@ -59,7 +59,9 @@ module Lambda_utils = struct
        widely used *)
     let region_close = Rc_normal in
     let tailcall = Default_tailcall in
-    let tail = Default_tail in
+    let apply_position : Typedtree.position_and_tail_attribute =
+      Unknown_position
+    in
     let inlined = Default_inlined in
     let specialised = Default_specialise in
     let probe = None in
@@ -70,7 +72,7 @@ module Lambda_utils = struct
         ap_region_close = region_close;
         ap_mode = mode;
         ap_tailcall = tailcall;
-        ap_tail = tail;
+        ap_position = apply_position;
         ap_inlined = inlined;
         ap_specialised = specialised;
         ap_probe = probe;

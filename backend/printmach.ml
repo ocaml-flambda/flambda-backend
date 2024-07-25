@@ -156,15 +156,18 @@ let test' ?(print_reg = reg) tst ppf arg =
 let test tst ppf arg = test' tst ppf arg
 
 (* CR less-tco: Remove this tail debug print *)
-let ptail ppf (tail : Lambda.tail_attribute) =
-  let str =
+let ptail ppf (original_position : Lambda.position_and_tail_attribute) =
+  let pattr (tail : Lambda.tail_attribute) =
     match tail with
     | Explicit_tail -> "[@tail]"
     | Hint_tail -> "[@tail hint]"
     | Explicit_non_tail -> "[@nontail]"
-    | Default_tail -> ""
+    | Default_tail -> "default"
   in
-  fprintf ppf "%s" str
+  match original_position with
+  | Unknown_position -> fprintf ppf "(opos unknown)"
+  | Tail_position attr -> fprintf ppf "(opos tail %s)" (pattr attr)
+  | Not_tail_position attr -> fprintf ppf "(opos not_tail %s)" (pattr attr)
 
 let operation' ?(print_reg = reg) op arg ppf res =
   let reg = print_reg in
@@ -179,10 +182,14 @@ let operation' ?(print_reg = reg) op arg ppf res =
   | Iconst_float f -> fprintf ppf "%F" (Int64.float_of_bits f)
   | Iconst_symbol s -> fprintf ppf "\"%s\"" s.sym_name
   | Iconst_vec128 {high; low} -> fprintf ppf "%016Lx:%016Lx" high low
-  | Icall_ind { tail; } -> fprintf ppf "call%a %a" ptail tail regs arg
-  | Icall_imm { func; tail; } -> fprintf ppf "call%a \"%s\" %a" ptail tail func.sym_name regs arg
-  | Itailcall_ind { tail; } -> fprintf ppf "tailcall%a %a" ptail tail regs arg
-  | Itailcall_imm { func; tail; } -> fprintf ppf "tailcall%a \"%s\" %a" ptail tail func.sym_name regs arg
+  | Icall_ind { original_position; } ->
+    fprintf ppf "call%a %a" ptail original_position regs arg
+  | Icall_imm { func; original_position; } ->
+    fprintf ppf "call%a \"%s\" %a" ptail original_position func.sym_name regs arg
+  | Itailcall_ind { original_position; } ->
+    fprintf ppf "tailcall%a %a" ptail original_position regs arg
+  | Itailcall_imm { func; original_position; } ->
+    fprintf ppf "tailcall%a \"%s\" %a" ptail original_position func.sym_name regs arg
   | Iextcall { func; alloc; _ } ->
       fprintf ppf "extcall \"%s\" %a%s" func regs arg
       (if alloc then "" else " (noalloc)")

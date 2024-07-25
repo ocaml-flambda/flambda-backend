@@ -58,8 +58,8 @@ val create :
   inlined:Inlined_attribute.t ->
   inlining_state:Inlining_state.t ->
   probe:Probe.t ->
-  tail:Tail.t ->
   position:Position.t ->
+  original_position:Original_position.t ->
   relative_history:Inlining_history.Relative.t ->
   t
 
@@ -123,7 +123,7 @@ val inlining_arguments : t -> Inlining_arguments.t
 
 val probe : t -> Probe.t
 
-val tail : t -> Tail.t
+val original_position : t -> Original_position.t
 
 val relative_history : t -> Inlining_history.Relative.t
 

@@ -592,7 +592,7 @@ let expression sub exp =
         in
         Jane_syntax.N_ary_functions.expr_of ~loc (params, constraint_, body)
         |> add_jane_syntax_attributes
-    | Texp_apply (exp, list, _, _, _) ->
+    | Texp_apply (exp, list, _, _, _, _) ->
         let list = List.map (fun (arg_label, arg) -> label arg_label, arg) list in
         Pexp_apply (sub.expr sub exp,
           List.fold_right (fun (label, arg) list ->
