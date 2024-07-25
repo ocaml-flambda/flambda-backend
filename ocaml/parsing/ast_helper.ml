@@ -103,6 +103,9 @@ module Typ = struct
         | Ptyp_constr( { txt = Longident.Lident s }, [])
           when List.mem s var_names ->
             Ptyp_var s
+        | Ptyp_constr( { txt = Longident.Lident s }, lst)
+          when List.mem s var_names ->
+            Ptyp_app({t with ptyp_desc = Ptyp_var s}, List.map loop lst)
         | Ptyp_constr(longident, lst) ->
             Ptyp_constr(longident, List.map loop lst)
         | Ptyp_app(core_type, lst) ->
