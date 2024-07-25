@@ -325,7 +325,7 @@ let report_error ppf = function
           end;
           fprintf ppf "\n"
         end
-      ) instrs
+      ) (List.sort (fun (_, left) (_, right) -> Debuginfo.compare left right) instrs)
   end
 
 let () =
