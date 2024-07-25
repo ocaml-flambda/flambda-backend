@@ -1,0 +1,196 @@
+let indent spaces string =
+  let indent_string = String.make spaces ' ' in
+  String.split_on_char '\n' string
+  |> List.concat_map (fun line ->
+    if String.equal line "" then [ "\n" ] else [ indent_string; line; "\n" ])
+  |> String.concat ""
+;;
+
+let template ~tests = {|(* TEST
+ flambda2;
+ include stdlib_upstream_compatible;
+ {
+   native;
+ }{
+   flags = "-O3";
+   native;
+ }{
+   bytecode;
+ }{
+   flags = "-extension layouts_alpha";
+   native;
+ }{
+   flags = "-extension layouts_alpha -O3";
+   native;
+ }{
+   flags = "-extension layouts_alpha";
+   bytecode;
+ }{
+   flags = "-extension layouts_beta";
+   native;
+ }{
+   flags = "-extension layouts_beta -O3";
+   native;
+ }{
+   flags = "-extension layouts_beta";
+   bytecode;
+ }
+*)
+
+|}^tests
+
+let bigstring_tests_template ~length ~tests = {|
+module _ = struct
+  open Bigarray
+
+  type bigstring = (char, int8_unsigned_elt, c_layout) Array1.t
+
+  let bigstring_of_string s =
+    let a = Array1.create char c_layout (String.length s) in
+    for i = 0 to String.length s - 1 do
+      a.{i} <- s.[i]
+    done;
+    a
+
+  let length = |}^length^{|
+  let reference_str = String.init length (fun i -> i * 7 mod 256 |> char_of_int)
+  let create_bs () = reference_str |> bigstring_of_string
+  let try_with f = try Ok (f ()) with err -> Error err
+
+|}^indent 2 tests^{|
+end;;
+|}
+
+let bigstring_one_test_template ~width ~index ~ref_result ~test_result ~conv_index
+      ~conv_result ~eq ~extra_bounds = {|
+external reference : bigstring -> int -> |}^ref_result^{|
+  = "%caml_bigstring_get|}^width^{|"
+
+external tested_s : bigstring -> |}^index^{| -> |}^test_result^{|
+  = "%caml_bigstring_get|}^width^{|_indexed_by_|}^index^{|"
+
+external tested_u : bigstring -> |}^index^{| -> |}^test_result^{|
+  = "%caml_bigstring_get|}^width^{|u_indexed_by_|}^index^{|"
+
+let of_boxed_index : int -> |}^index^{| = |}^conv_index^{|
+let to_boxed_result : |}^test_result^{| -> |}^ref_result^{| = |}^conv_result^{|
+let eq : |}^ref_result^{| -> |}^ref_result^{| -> bool = |}^eq^{|
+
+let check_get_bounds, check_get =
+  let bs_ref = create_bs () and bs_s = create_bs () and bs_u = create_bs () in
+  let check_get_bounds i =
+    match try_with (fun () -> tested_s bs_s i) with
+    | Error (Invalid_argument _) -> ()
+    | _ -> assert false
+  in
+  ( check_get_bounds
+  , fun i ->
+      let test_i = of_boxed_index i in
+      match try_with (fun () -> reference bs_ref i) with
+      | Ok res ->
+        (match
+           ( try_with (fun () -> tested_s bs_s test_i)
+           , try_with (fun () -> tested_u bs_u test_i) )
+         with
+         | Ok s, Ok u ->
+           assert (eq res (to_boxed_result s));
+           assert (eq res (to_boxed_result u))
+         | _ -> assert false)
+      | Error (Invalid_argument _) -> check_get_bounds (of_boxed_index i)
+      | Error _ ->
+        (match try_with (fun () -> tested_s bs_s test_i) with
+         | Error (Invalid_argument _) -> assert false
+         | Error _ -> ()
+         | Ok _ -> assert false) )
+;;
+
+for i = -1 to length + 1 do
+  check_get i
+done
+;;
+
+|}^extra_bounds
+;;
+
+let extra_bounds_template ~index = {|
+check_get_bounds (|}^index^{|);;|}
+
+module Hlist = struct
+  type _ t =
+    | [] : unit t
+    | ( :: ) : 'a * 'b t -> ('a -> 'b) t
+
+  type _ lt =
+    | [] : unit lt
+    | ( :: ) : 'a list * 'b lt -> ('a -> 'b) lt
+
+  let rec cartesian_product : type l. l lt -> l t list = function
+    | [] -> [ [] ]
+    | hd :: tl ->
+      let tl = cartesian_product tl in
+      List.concat_map (fun x1 -> List.map (fun x2 : _ t -> x1 :: x2) tl) hd
+  ;;
+end
+
+type index =
+  { type_ : string
+  ; conv : string
+  ; extra_bounds : string list
+  }
+
+type result =
+  { width : string
+  ; ref : string
+  ; test : string
+  ; conv : string
+  ; eq : string
+  }
+
+let bigstring_tests =
+  Hlist.cartesian_product
+    ([ [ { type_ = "int64#"
+         ; conv = "Stdlib_upstream_compatible.Int64_u.of_int"
+         ; extra_bounds =
+             [ "-#9223372036854775808L"
+             ; "-#9223372036854775807L"
+             ; "#9223372036854775807L"
+             ]
+         }
+       ]
+     ; [ { width = "16"
+         ; ref = "int"
+         ; test = "int"
+         ; conv = "fun x -> x"
+         ; eq = "Int.equal"
+         }
+       ]
+     ]
+     : _ Hlist.lt)
+  |> List.map
+       (fun
+           ([ { type_; conv = conv_index; extra_bounds }
+            ; { width; ref; test; conv = conv_result; eq }
+            ] :
+             _ Hlist.t)
+         ->
+          let extra_bounds =
+            String.concat
+              ""
+              (List.map
+                 (fun index -> extra_bounds_template ~index)
+                 extra_bounds)
+          in
+          bigstring_one_test_template
+            ~width
+            ~index:type_
+            ~ref_result:ref
+            ~test_result:test
+            ~conv_index
+            ~conv_result
+            ~eq
+            ~extra_bounds)
+  |> String.concat ""
+;;
+
+template ~tests:(bigstring_tests_template ~length:"300" ~tests:bigstring_tests)
+|> print_string

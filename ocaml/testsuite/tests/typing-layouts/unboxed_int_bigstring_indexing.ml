@@ -29,171 +29,74 @@
  }
 *)
 
-open Bigarray
 
-type bigstring = (char, int8_unsigned_elt, c_layout) Array1.t
+module _ = struct
+  open Bigarray
 
-external caml_bigstring_get_16
-  :  bigstring
-  -> int
-  -> int
-  = "%caml_bigstring_get16"
+  type bigstring = (char, int8_unsigned_elt, c_layout) Array1.t
 
-external caml_bigstring_get_32
-  :  bigstring
-  -> int
-  -> int32
-  = "%caml_bigstring_get32"
+  let bigstring_of_string s =
+    let a = Array1.create char c_layout (String.length s) in
+    for i = 0 to String.length s - 1 do
+      a.{i} <- s.[i]
+    done;
+    a
 
-external caml_bigstring_get_64
-  :  bigstring
-  -> int
-  -> int64
-  = "%caml_bigstring_get64"
+  let length = 300
+  let reference_str = String.init length (fun i -> i * 7 mod 256 |> char_of_int)
+  let create_bs () = reference_str |> bigstring_of_string
+  let try_with f = try Ok (f ()) with err -> Error err
 
-module By_int64_u = struct
-  module I = Stdlib_upstream_compatible.Int64_u
 
-  module A = struct
-    external get16
-      :  bigstring
-      -> int64#
-      -> int
-      = "%caml_bigstring_get16_indexed_by_int64#"
+  external reference : bigstring -> int -> int
+    = "%caml_bigstring_get16"
 
-    external get16u
-      :  bigstring
-      -> int64#
-      -> int
-      = "%caml_bigstring_get16u_indexed_by_int64#"
+  external tested_s : bigstring -> int64# -> int
+    = "%caml_bigstring_get16_indexed_by_int64#"
 
-    external get32
-      :  bigstring
-      -> int64#
-      -> int32
-      = "%caml_bigstring_get32_indexed_by_int64#"
+  external tested_u : bigstring -> int64# -> int
+    = "%caml_bigstring_get16u_indexed_by_int64#"
 
-    external get32u
-      :  bigstring
-      -> int64#
-      -> int32
-      = "%caml_bigstring_get32u_indexed_by_int64#"
+  let of_boxed_index : int -> int64# = Stdlib_upstream_compatible.Int64_u.of_int
+  let to_boxed_result : int -> int = fun x -> x
+  let eq : int -> int -> bool = Int.equal
 
-    external get64
-      :  bigstring
-      -> int64#
-      -> int64
-      = "%caml_bigstring_get64_indexed_by_int64#"
+  let check_get_bounds, check_get =
+    let bs_ref = create_bs () and bs_s = create_bs () and bs_u = create_bs () in
+    let check_get_bounds i =
+      match try_with (fun () -> tested_s bs_s i) with
+      | Error (Invalid_argument _) -> ()
+      | _ -> assert false
+    in
+    ( check_get_bounds
+    , fun i ->
+        let test_i = of_boxed_index i in
+        match try_with (fun () -> reference bs_ref i) with
+        | Ok res ->
+          (match
+             ( try_with (fun () -> tested_s bs_s test_i)
+             , try_with (fun () -> tested_u bs_u test_i) )
+           with
+           | Ok s, Ok u ->
+             assert (eq res (to_boxed_result s));
+             assert (eq res (to_boxed_result u))
+           | _ -> assert false)
+        | Error (Invalid_argument _) -> check_get_bounds (of_boxed_index i)
+        | Error _ ->
+          (match try_with (fun () -> tested_s bs_s test_i) with
+           | Error (Invalid_argument _) -> assert false
+           | Error _ -> ()
+           | Ok _ -> assert false) )
+  ;;
 
-    external get64u
-      :  bigstring
-      -> int64#
-      -> int64
-      = "%caml_bigstring_get64u_indexed_by_int64#"
+  for i = -1 to length + 1 do
+    check_get i
+  done
+  ;;
 
-    let assert_bound_check_get f bs i =
-      try
-        ignore (f bs i);
-        assert false
-      with
-      | Invalid_argument _ -> ()
-    ;;
-  end
-end
 
-let bigstring_of_string s =
-  let a = Array1.create char c_layout (String.length s) in
-  for i = 0 to String.length s - 1 do
-    a.{i} <- s.[i]
-  done;
-  a
-;;
+  check_get_bounds (-#9223372036854775808L);;
+  check_get_bounds (-#9223372036854775807L);;
+  check_get_bounds (#9223372036854775807L);;
 
-let reference_str = String.init 300 (fun i -> i * 7 mod 256 |> char_of_int)
-let create_bs () = reference_str |> bigstring_of_string
-
-let () =
-  let bs = create_bs () in
-  (* -1 *)
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get16 bs (-#1L);
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get32 bs (-#1L);
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs (-#1L);
-  (* Past length *)
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get16 bs #300L;
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get32 bs #300L;
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs #300L;
-  (* Length -1 *)
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get16 bs #299L;
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get32 bs #299L;
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs #299L;
-  (* Length -2 *)
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get32 bs #298L;
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs #298L;
-  (* Length -3 *)
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get32 bs #297L;
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs #297L;
-  (* Length -4 *)
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs #296L;
-  (* Length -7 *)
-  By_int64_u.A.assert_bound_check_get By_int64_u.A.get64 bs #293L;
-  (* This is
-     0b1000000000000000000000000000000000000000000000000000000000000001
-     in binary and should be out of bound. *)
-  By_int64_u.A.assert_bound_check_get
-    By_int64_u.A.get16
-    bs
-    (-#9223372036854775807L);
-  By_int64_u.A.assert_bound_check_get
-    By_int64_u.A.get32
-    bs
-    (-#9223372036854775807L);
-  By_int64_u.A.assert_bound_check_get
-    By_int64_u.A.get64
-    bs
-    (-#9223372036854775807L)
-;;
-
-let () =
-  let bs1 = create_bs () in
-  let bs2 = create_bs () in
-  let check ref gets getu eq i =
-    let ref = ref bs1 i in
-    assert (eq ref (gets bs2 (i |> By_int64_u.I.of_int)));
-    assert (eq ref (getu bs2 (i |> By_int64_u.I.of_int)))
-  in
-  let check16 =
-    check
-      caml_bigstring_get_16
-      By_int64_u.A.get16
-      By_int64_u.A.get16u
-      Int.equal
-  in
-  let check32 =
-    check
-      caml_bigstring_get_32
-      By_int64_u.A.get32
-      By_int64_u.A.get32u
-      Int32.equal
-  in
-  let check64 =
-    check
-      caml_bigstring_get_64
-      By_int64_u.A.get64
-      By_int64_u.A.get64u
-      Int64.equal
-  in
-  for i = 0 to 292 do
-    check16 i;
-    check64 i
-  done;
-  check32 293;
-  check16 293;
-  check32 294;
-  check16 294;
-  check32 295;
-  check16 295;
-  check32 296;
-  check16 296;
-  check16 297;
-  check16 298
-;;
+end;;
