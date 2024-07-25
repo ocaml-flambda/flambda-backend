@@ -8,8 +8,8 @@ import csv
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Tuple, Union
 
-parser = ArgumentParser(description="Combine multiple profile information CSVs into one")
-parser.add_argument("dump_dir", help="The folder the profile information has been dumped in")
+parser = ArgumentParser(description="Combine multiple profile CSVs into one")
+parser.add_argument("dump_dir", help="The folder the profile CSVs have been dumped in")
 parser.add_argument("-o", "--summary_path", help="The path to store the summary CSV")
 
 args = parser.parse_args()
@@ -46,8 +46,11 @@ def get_input_csv_paths() -> Iterator[Tuple[Path, CsvRows]]:
 
 def split_into_number_and_unit(number_string: str) -> (Union[int, float], str):
     numeric = "".join(map(str, range(10))) + "."
-    unit_start_position = next((i for i, c in enumerate(number_string) if c not in numeric), len(number_string))
-    number, unit = float(number_string[:unit_start_position]), number_string[unit_start_position:]
+    unit_start_position = next(
+        (i for i, c in enumerate(number_string) if c not in numeric), len(number_string)
+    )
+    number = float(number_string[:unit_start_position])
+    unit = number_string[unit_start_position:]
     if number.is_integer():
         number = int(number)
     return number, unit
@@ -75,10 +78,7 @@ summary_non_counter_fields -= {
 
 # Ensure consistent ordering of summary fields
 field_collections = {PRIMARY_KEY}, summary_non_counter_fields, summary_counter_fields
-SUMMARY_FIELD_NAMES = sum(
-    map(lambda fields: sorted(fields), field_collections),
-    []
-)
+SUMMARY_FIELD_NAMES = sum(map(lambda fields: sorted(fields), field_collections), [])
 
 units = {}
 for field in summary_non_counter_fields:
@@ -87,7 +87,7 @@ for field in summary_non_counter_fields:
 
 
 def strip_units(row: CsvRow) -> CsvRow:
-    return {k: (v[:-len(units[k])] if k in units else v) for k, v in row.items()}
+    return {k: (v[: -len(units[k])] if k in units else v) for k, v in row.items()}
 
 
 def row_summary(row: CsvRow) -> SummaryRow:
@@ -102,10 +102,8 @@ def csv_to_summaries(rows: CsvRows) -> Iterable[SummaryRow]:
 
 def split_into_number_and_unit(number_string: str) -> (str, Union[int, float]):
     number_chars = "".join(str(i) for i in range(10)) + "."
-    suffix_start = next(
-        (i for i, c in enumerate(number_string) if c not in number_chars),
-        len(number_string)
-    )
+    non_numeric = (i for i, c in enumerate(number_string) if c not in number_chars)
+    suffix_start = next(non_numeric, len(number_string))
     number, unit = float(number_string[:suffix_start]), number_string[suffix_start:]
     if number.is_integer():
         number = int(number)
@@ -118,8 +116,11 @@ def process_csv(csv_path: Path, summary_csv_writer: csv.DictWriter) -> None:
 
 
 with open(SUMMARY_PATH, "w", newline="") as summary_csv_file:
-    summary_csv_writer = csv.DictWriter(summary_csv_file, fieldnames=SUMMARY_FIELD_NAMES)
+    summary_csv_writer = csv.DictWriter(
+        summary_csv_file, fieldnames=SUMMARY_FIELD_NAMES
+    )
     summary_csv_writer.writeheader()
+    # Add units as second header (can use header=[0,1] in pandas.read_csv)
     summary_csv_writer.writerow(units)
 
     for curr_csv_path in get_input_csv_paths():
