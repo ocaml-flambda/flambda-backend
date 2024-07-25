@@ -246,7 +246,9 @@ type path_kind =
   | Path_module
   | Path_modtype
   | Path_class
+  | Path_class_lhs
   | Path_classtype
+  | Path_classtype_lhs
 
 let fold_row f init row =
   let result =
@@ -380,11 +382,11 @@ let type_iterators =
     List.iter (it.it_type_expr it) cd.cty_params;
     it.it_class_type it cd.cty_type;
     Option.iter (it.it_type_expr it) cd.cty_new;
-    it.it_path Path_classtype cd.cty_path
+    it.it_path Path_class_lhs cd.cty_path
   and it_class_type_declaration it ctd =
     List.iter (it.it_type_expr it) ctd.clty_params;
     it.it_class_type it ctd.clty_type;
-    it.it_path Path_classtype ctd.clty_path
+    it.it_path Path_classtype_lhs ctd.clty_path
   and it_functor_param it = function
     | Unit -> ()
     | Named (_, mt) -> it.it_module_type it mt

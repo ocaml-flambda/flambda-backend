@@ -134,7 +134,9 @@ type path_kind =
   | Path_module
   | Path_modtype
   | Path_class
+  | Path_class_lhs
   | Path_classtype
+  | Path_classtype_lhs
 
 val iter_type_expr: (type_expr -> unit) -> type_expr -> unit
         (* Iteration on types *)

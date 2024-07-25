@@ -1634,6 +1634,7 @@ let check_no_unbound_paths env loc mty =
               ignore (Env.find_class path env);
           | Path_classtype ->
               ignore (Env.find_cltype path env);
+          | Path_class_lhs | Path_classtype_lhs -> ()
         with
         | Not_found -> raise (Error (loc, env, Unbound_path_in_inferred_type path))
       );}
