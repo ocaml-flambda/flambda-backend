@@ -78,7 +78,7 @@ val newty: type_desc -> type_expr
 val new_scoped_ty: int -> type_desc -> type_expr
 val newvar: ?name:string -> Jkind.t -> type_expr
 val new_rep_var :
-  ?name:string -> why:Jkind.Type.History.concrete_jkind_reason -> unit ->
+  ?name:string -> why:Jkind_intf.History.concrete_jkind_reason -> unit ->
   type_expr * Jkind.Type.sort
         (* Return a fresh representable variable, along with its sort *)
 val new_type_var: ?name:string -> Jkind.Type.t -> type_expr
@@ -565,7 +565,7 @@ val type_jkind_purely : Env.t -> type_expr -> jkind
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
 val type_sort :
-  why:Jkind.Type.History.concrete_jkind_reason ->
+  why:Jkind_intf.History.concrete_jkind_reason ->
   Env.t -> type_expr -> (Jkind.Type.sort, Jkind.Violation.t) result
 
 (* Jkind checking. [constrain_type_jkind] will update the jkind of type

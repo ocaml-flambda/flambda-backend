@@ -52,8 +52,6 @@ let printtyp_path = ref (fun _ _ -> assert false)
 let set_printtyp_path f = printtyp_path := f
 
 module Type = struct
-  open Jkind_types.Type
-
   (* A *sort* is the information the middle/back ends need to be able to
      compile a manipulation (storing, passing, etc) of a runtime value. *)
   module Sort = Jkind_types.Type.Sort
@@ -260,15 +258,6 @@ module Type = struct
       | false, _ -> Not_le
 
     let equal a b = Misc.Le_result.is_equal (less_or_equal a b)
-  end
-
-  module History = struct
-    include Jkind_intf.History
-
-    let has_imported_history t =
-      match t.history with Creation Imported -> true | _ -> false
-
-    let update_reason t reason = { t with history = Creation reason }
   end
 
   type const = type_expr Jkind_types.Type.Const.t
@@ -851,15 +840,13 @@ module Type = struct
     end
   end
 
-  type 'type_expr jkind = 'type_expr Jkind_types.Type.t =
+  type 'type_expr jkind = 'type_expr Jkind_types.type_jkind =
     { jkind : 'type_expr Jkind_types.Type.Jkind_desc.t;
-      history : 'type_expr Jkind_types.Type.history;
+      history : 'type_expr Jkind_types.history;
       has_warned : bool
     }
 
   type desc = Types.type_expr Jkind_types.Type.Jkind_desc.t
-
-  type history = type_expr Jkind_types.Type.history
 
   type nonrec t = Types.type_expr jkind
 
@@ -870,6 +857,8 @@ module Type = struct
   (* constants *)
 
   module Primitive = struct
+    open Jkind_intf
+
     let any_dummy_jkind =
       { jkind = Jkind_desc.max;
         history = Creation (Any_creation Dummy_jkind);
@@ -929,8 +918,9 @@ module Type = struct
      parameter might effectively be unused.
   *)
   (* CR layouts: When everything is stable, remove this function. *)
-  let get_required_layouts_level (context : History.annotation_context)
-      (jkind : Const.t) : Language_extension.maturity =
+  let get_required_layouts_level
+      (context : Jkind_intf.History.annotation_context) (jkind : Const.t) :
+      Language_extension.maturity =
     let legacy_layout = Const.get_legacy_layout jkind in
     match context, legacy_layout with
     | ( _,
@@ -1065,6 +1055,7 @@ module Type = struct
        actually look closely at error messages once this is activated *)
 
     open Format
+    open Jkind_intf
 
     let format_with_notify_js ppf str =
       fprintf ppf
@@ -1323,6 +1314,7 @@ module Type = struct
         | Concrete_creation _, Const _ ->
           fprintf ppf ", defaulted to layout %a" Desc.format jkind_desc
         | _ -> ())
+      | Projection _ -> fprintf ppf ", which@ was projected from a higher jkind"
       | _ -> assert false);
       fprintf ppf ".";
       (match t.history with
@@ -1368,56 +1360,8 @@ module Type = struct
 
   let () = Types.set_jkind_equal equal
 
-  (* Not all jkind history reasons are created equal. Some are more helpful than others.
-      This function encodes that information.
-
-      The reason with higher score should get preserved when combined with one of lower
-      score. *)
-  let score_reason = function
-    (* error_message annotated by the user should always take priority *)
-    | Creation (Annotated (With_error_message _, _)) -> 1
-    (* Concrete creation is quite vague, prefer more specific reasons *)
-    | Creation (Concrete_creation _) -> -1
-    | _ -> 0
-
-  let combine_histories reason lhs rhs =
-    if flattened_histories
-    then
-      match Desc.sub (Jkind_desc.get lhs.jkind) (Jkind_desc.get rhs.jkind) with
-      | Less -> lhs.history
-      | Not_le ->
-        rhs.history
-        (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
-      | Equal ->
-        if score_reason lhs.history >= score_reason rhs.history
-        then lhs.history
-        else rhs.history
-    else
-      Interact
-        { reason;
-          lhs_jkind = lhs.jkind;
-          lhs_history = lhs.history;
-          rhs_jkind = rhs.jkind;
-          rhs_history = rhs.history
-        }
-
   (* this is hammered on; it must be fast! *)
   let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
-
-  let intersection ~reason t t' =
-    let ( let* ) = Option.bind in
-    let* jkind = Jkind_desc.intersection t.jkind t'.jkind in
-    Some
-      { jkind;
-        history = combine_histories reason t t';
-        has_warned = t.has_warned || t'.has_warned
-      }
-
-  let union ~reason t t' =
-    { jkind = Jkind_desc.union t.jkind t'.jkind;
-      history = combine_histories reason t t';
-      has_warned = t.has_warned || t'.has_warned
-    }
 
   let is_void_defaulting = function
     | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
@@ -1428,6 +1372,7 @@ module Type = struct
 
   module Debug_printers = struct
     open Format
+    open Jkind_intf
 
     let concrete_jkind_reason ppf : History.concrete_jkind_reason -> unit =
       function
@@ -1599,25 +1544,11 @@ module Type = struct
         fprintf ppf "Tyvar_refinement_intersection"
       | Subjkind -> fprintf ppf "Subjkind"
 
-    let rec history ~desc ppf =
-      let open Jkind_types.History in
-      function
-      | Interact { reason; lhs_jkind; lhs_history; rhs_jkind; rhs_history } ->
-        fprintf ppf
-          "Interact {@[reason = %a;@ lhs_jkind = %a;@ lhs_history = %a;@ \
-           rhs_jkind = %a;@ rhs_history = %a}@]"
-          interact_reason reason desc lhs_jkind (history ~desc) lhs_history desc
-          rhs_jkind (history ~desc) rhs_history
-      | Projection { reason; jkind; history = history_ } ->
-        fprintf ppf "Projection {@[reason = %a;@ jkind = %a;@ history = %a}@]"
-          project_reason reason desc jkind (history ~desc) history_
-      | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
+    let history = ref (fun _ppf _h -> ())
 
     let t ppf ({ jkind; history = h; has_warned = _ } : t) : unit =
       fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
-        Jkind_desc.Debug_printers.t jkind
-        (history ~desc:Jkind_desc.Debug_printers.t)
-        h
+        Jkind_desc.Debug_printers.t jkind !history h
   end
 end
 
@@ -1631,8 +1562,6 @@ type 'type_expr jkind = 'type_expr Jkind_types.t =
 
 type desc = type_expr Jkind_types.Jkind_desc.t
 
-type history = type_expr Jkind_types.history
-
 type nonrec t = type_expr jkind
 
 module History = struct
@@ -1644,19 +1573,6 @@ module History = struct
   let with_warning (t : t) = { t with has_warned = true }
 
   let has_warned (t : t) = t.has_warned
-
-  let of_type_jkind (t : Type.history) : history =
-    Jkind_types.History.desc_map (fun ty -> Type ty) t
-
-  let to_type_jkind (_history : history) : Type.history =
-    (* Jkind_types.History.desc_map
-       (function
-         | Type ty -> ty
-         | _ ->
-           raise
-             (Unexpected_higher_jkind "Coerced arrow to type jkind (history)"))
-       history *)
-    Creation Temporary
 end
 (* module Type *)
 
@@ -1729,7 +1645,7 @@ let of_const ~why (c : Const.t) : t =
   { jkind = go c; history = Creation why; has_warned = false }
 
 let of_type_jkind ({ jkind; history; has_warned } : Type.t) : t =
-  { jkind = Type jkind; history = History.of_type_jkind history; has_warned }
+  { jkind = Type jkind; history; has_warned }
 
 let of_arrow ~why ({ args; result } : t Jkind_types.Arrow.t) : t =
   { jkind =
@@ -1876,8 +1792,7 @@ let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
 
 let[@inline never] to_type_jkind ({ jkind; history; has_warned } : t) : Type.t =
   match jkind with
-  | Type ty ->
-    { jkind = ty; history = History.to_type_jkind history; has_warned }
+  | Type ty -> { jkind = ty; history; has_warned }
   | _ -> raise (Unexpected_higher_jkind "Coerced arrow to type jkind")
 
 (******************************)
@@ -1901,18 +1816,13 @@ let default_all_sort_variables_to_value (t : t) =
 
 let get t : Desc.t =
   match t.jkind with
-  | Type ty ->
-    Type
-      { jkind = ty;
-        history = History.to_type_jkind t.history;
-        has_warned = false
-      }
+  | Type ty -> Type { jkind = ty; history = t.history; has_warned = false }
   | Arrow { args; result } ->
     Arrow
       { args =
           List.mapi
-            (fun i _ : t ->
-              { jkind = result;
+            (fun i arg : t ->
+              { jkind = arg;
                 history =
                   Projection
                     { reason = Arrow_argument i;
@@ -1940,10 +1850,7 @@ let format_history ~intro ppf (t : t) =
   match t.jkind with
   | Type ty ->
     Type.format_history ~intro ppf
-      { jkind = ty;
-        history = History.to_type_jkind t.history;
-        has_warned = t.has_warned
-      }
+      { jkind = ty; history = t.history; has_warned = t.has_warned }
   | Arrow _ ->
     (* TODO jbachurski: Implement history formatting for higher jkinds. *)
     Format.fprintf ppf "%t (...??)" intro
@@ -2080,9 +1987,43 @@ let equate = equate_or_equal ~allow_mutation:true
    (layouts v2.8) allow_mutation is to be set to false *)
 let equal = equate_or_equal ~allow_mutation:true
 
-let () = ignore Type.combine_histories
+(* Not all jkind history reasons are created equal. Some are more helpful than others.
+    This function encodes that information.
 
-let combine_histories (_ : Jkind_intf.History.interact_reason) _ t' = t'.history
+    The reason with higher score should get preserved when combined with one of lower
+    score. *)
+let score_reason = function
+  (* error_message annotated by the user should always take priority *)
+  | Creation (Annotated (With_error_message _, _)) -> 1
+  (* Concrete creation is quite vague, prefer more specific reasons *)
+  | Creation (Concrete_creation _) -> -1
+  | _ -> 0
+
+let combine_histories reason lhs rhs =
+  if Type.flattened_histories
+  then
+    let break_tie lh rh =
+      if score_reason lh >= score_reason rh then lh else rh
+    in
+    match lhs.jkind, rhs.jkind with
+    | Type ty, Type ty' -> (
+      match
+        Type.Desc.sub (Type.Jkind_desc.get ty) (Type.Jkind_desc.get ty')
+      with
+      | Less -> lhs.history
+      | Not_le ->
+        rhs.history
+        (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
+      | Equal -> break_tie lhs.history rhs.history)
+    | _ -> break_tie lhs.history rhs.history
+  else
+    Interact
+      { reason;
+        lhs_jkind = lhs.jkind;
+        lhs_history = lhs.history;
+        rhs_jkind = rhs.jkind;
+        rhs_history = rhs.history
+      }
 
 let rec combine_list_or_error ~violation combine ts1 ts2 =
   let ( let* ) = Result.bind in
@@ -2100,10 +2041,15 @@ let rec intersection_or_error ~reason (t1 : t) (t2 : t) =
   let ( let* ) = Result.bind in
   let violation = Violation.of_ (No_intersection (t1, t2)) in
   match get t1, get t2 with
-  | Type ty1, Type ty2 ->
-    Type.intersection ~reason ty1 ty2
-    |> Option.map of_type_jkind
-    |> Option.to_result ~none:violation
+  | Type ty1, Type ty2 -> (
+    match Type.Jkind_desc.intersection ty1.jkind ty2.jkind with
+    | None -> Error (Violation.of_ (No_intersection (t1, t2)))
+    | Some jkind ->
+      Ok
+        { jkind = Type jkind;
+          history = combine_histories reason t1 t2;
+          has_warned = t1.has_warned || t2.has_warned
+        })
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
     let* args = union_list_or_error ~reason ~violation args1 args2 in
@@ -2117,7 +2063,11 @@ and union_or_error ~reason (t1 : t) (t2 : t) =
   match get t1, get t2 with
   | Type ty1, Type ty2 ->
     (* Union is infallible at type jkinds *)
-    Ok (Type.union ~reason ty1 ty2 |> of_type_jkind)
+    Ok
+      { jkind = Type (Type.Jkind_desc.union ty1.jkind ty2.jkind);
+        history = combine_histories reason t1 t2;
+        has_warned = ty1.has_warned || ty2.has_warned
+      }
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
     let* args = intersection_list_or_error ~reason ~violation args1 args2 in
@@ -2135,7 +2085,7 @@ let has_intersection t t' =
   Result.is_ok
     (intersection_or_error
      (* This reason is just used as a dummy for the test *)
-       ~reason:Type.History.Subjkind t t')
+       ~reason:Jkind_intf.History.Subjkind t t')
 
 let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
   match get t, get t' with
@@ -2179,11 +2129,28 @@ let has_layout_any (t : t) =
 module Debug_printers = struct
   open Format
 
-  let t ppf ({ jkind; history = h; has_warned = _ } : t) : unit =
+  let rec history ppf =
+    let open Jkind_types.History in
+    function
+    | Interact { reason; lhs_jkind; lhs_history; rhs_jkind; rhs_history } ->
+      fprintf ppf
+        "Interact {@[reason = %a;@ lhs_jkind = %a;@ lhs_history = %a;@ \
+         rhs_jkind = %a;@ rhs_history = %a}@]"
+        Type.Debug_printers.interact_reason reason Jkind_desc.Debug_printers.t
+        lhs_jkind history lhs_history Jkind_desc.Debug_printers.t rhs_jkind
+        history rhs_history
+    | Projection { reason; jkind; history = history_ } ->
+      fprintf ppf "Projection {@[reason = %a;@ jkind = %a;@ history = %a}@]"
+        Type.Debug_printers.project_reason reason Jkind_desc.Debug_printers.t
+        jkind history history_
+    | Creation c ->
+      fprintf ppf "Creation (%a)" Type.Debug_printers.creation_reason c
+
+  and t ppf ({ jkind; history = h; has_warned = _ } : t) : unit =
     fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
-      Jkind_desc.Debug_printers.t jkind
-      (Type.Debug_printers.history ~desc:Jkind_desc.Debug_printers.t)
-      h
+      Jkind_desc.Debug_printers.t jkind history h
+
+  let () = Type.Debug_printers.history := history
 
   (*** formatting user errors ***)
   let report_error ~loc : Error.t -> _ = function

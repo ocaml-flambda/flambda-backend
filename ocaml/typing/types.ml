@@ -102,7 +102,7 @@ and _ commutable_gen =
   | Cunknown : [> `none] commutable_gen
   | Cvar : {mutable commu: any commutable_gen} -> [> `var] commutable_gen
 
-and type_jkind = type_expr Jkind_types.Type.t
+and type_jkind = type_expr Jkind_types.type_jkind
 and jkind = type_expr Jkind_types.t
 
 (* jkind depends on types defined in this file, but Jkind.Type.equal is required

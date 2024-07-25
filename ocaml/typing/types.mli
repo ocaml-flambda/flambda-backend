@@ -228,7 +228,7 @@ and abbrev_memo =
 
 (** Jkinds classify types. *)
 (* CR layouts v2.8: Say more here. *)
-and type_jkind = type_expr Jkind_types.Type.t
+and type_jkind = type_expr Jkind_types.type_jkind
 and jkind = type_expr Jkind_types.t
 
 (* jkind depends on types defined in this file, but Jkind.Type.equal is required
