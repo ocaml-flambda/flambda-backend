@@ -1369,14 +1369,14 @@ let emit_instr ~first ~fallthrough i =
   | Lop(Iconst_symbol s) ->
       add_used_symbol s.sym_name;
       load_symbol_addr s (res i 0)
-  | Lop(Icall_ind) ->
+  | Lop(Icall_ind _) ->
       I.call (arg i 0);
       record_frame i.live (Dbg_other i.dbg)
   | Lop(Icall_imm { func; }) ->
       add_used_symbol func.sym_name;
       emit_call func;
       record_frame i.live (Dbg_other i.dbg)
-  | Lop(Itailcall_ind) ->
+  | Lop(Itailcall_ind _) ->
       output_epilogue (fun () -> I.jmp (arg i 0))
   | Lop(Itailcall_imm { func; }) ->
       begin

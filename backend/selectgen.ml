@@ -63,8 +63,9 @@ class virtual selector_generic =
 
     method mark_instr : Mach.instruction_desc -> unit =
       function
-      | Iop (Icall_ind | Icall_imm _ | Iextcall _ | Iprobe _) -> self#mark_call
-      | Iop (Itailcall_ind | Itailcall_imm _) -> self#mark_tailcall
+      | Iop (Icall_ind _ | Icall_imm _ | Iextcall _ | Iprobe _) ->
+        self#mark_call
+      | Iop (Itailcall_ind _ | Itailcall_imm _) -> self#mark_tailcall
       | Iop (Ialloc _) | Iop (Ipoll _) ->
         self#mark_call (* caml_alloc*, caml_garbage_collection (incl. polls) *)
       | Iraise raise_kind -> (
@@ -84,8 +85,9 @@ class virtual selector_generic =
         _dbg : Mach.operation * Cmm.expression list =
       let open Mach in
       match op, args with
-      | Capply _, Cconst_symbol (func, _dbg) :: rem -> Icall_imm { func }, rem
-      | Capply _, _ -> Icall_ind, args
+      | Capply (_, _, tail), Cconst_symbol (func, _dbg) :: rem ->
+        Icall_imm { func; tail }, rem
+      | Capply (_, _, tail), _ -> Icall_ind { tail }, args
       | Cextcall { func; builtin = true }, _ ->
         Misc.fatal_errorf
           "Selection.select_operation: builtin not recognized %s" func ()
@@ -369,7 +371,7 @@ class virtual selector_generic =
           let ty = Select_utils.oper_result_type op in
           let new_op, new_args = self#select_operation op simple_args dbg in
           match new_op with
-          | Icall_ind ->
+          | Icall_ind _ ->
             let r1 = self#emit_tuple env new_args in
             let rarg = Array.sub r1 1 (Array.length r1 - 1) in
             let rd = self#regs_for ty in
@@ -731,13 +733,13 @@ class virtual selector_generic =
         | None -> ()
         | Some r1 -> self#emit_tail (self#bind_let_mut env v k r1) e2)
       | Cphantom_let (_var, _defining_expr, body) -> self#emit_tail env body
-      | Cop ((Capply (ty, Rc_normal) as op), args, dbg) -> (
+      | Cop ((Capply (ty, Rc_normal, _) as op), args, dbg) -> (
         match self#emit_parts_list env args with
         | None -> ()
         | Some (simple_args, env) -> (
           let new_op, new_args = self#select_operation op simple_args dbg in
           match new_op with
-          | Icall_ind ->
+          | Icall_ind { tail } ->
             let r1 = self#emit_tuple env new_args in
             let rd = self#regs_for ty in
             let rarg = Array.sub r1 1 (Array.length r1 - 1) in
@@ -746,7 +748,7 @@ class virtual selector_generic =
             let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
             if stack_ofs = 0 && Select_utils.trap_stack_is_empty env
             then (
-              let call = Mach.Iop Itailcall_ind in
+              let call = Mach.Iop (Itailcall_ind { tail }) in
               self#insert_moves env rarg loc_arg;
               self#insert_debug env call dbg
                 (Array.append [| r1.(0) |] loc_arg)
@@ -761,7 +763,7 @@ class virtual selector_generic =
               self#insert env
                 (Mach.Ireturn (Select_utils.pop_all_traps env))
                 loc_res [||])
-          | Icall_imm { func } ->
+          | Icall_imm { func; tail } ->
             let r1 = self#emit_tuple env new_args in
             let rd = self#regs_for ty in
             let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
@@ -769,13 +771,13 @@ class virtual selector_generic =
             let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
             if stack_ofs = 0 && Select_utils.trap_stack_is_empty env
             then (
-              let call = Mach.Iop (Itailcall_imm { func }) in
+              let call = Mach.Iop (Itailcall_imm { func; tail }) in
               self#insert_moves env r1 loc_arg;
               self#insert_debug env call dbg loc_arg [||])
             else if func.sym_name = !Select_utils.current_function_name
                     && Select_utils.trap_stack_is_empty env
             then (
-              let call = Mach.Iop (Itailcall_imm { func }) in
+              let call = Mach.Iop (Itailcall_imm { func; tail }) in
               let loc_arg' = Proc.loc_parameters (Reg.typv r1) in
               self#insert_moves env r1 loc_arg';
               self#insert_debug env call dbg loc_arg' [||])

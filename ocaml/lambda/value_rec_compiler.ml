@@ -504,6 +504,7 @@ let rec split_static_function lfun block_var local_idents lam :
         ap_args = List.map (fun p -> Lvar (p.name)) params;
         ap_loc = no_loc;
         ap_tailcall = Default_tailcall;
+        ap_tail = Default_tail;
         ap_inlined = Default_inlined;
         ap_specialised = Default_specialise;
         ap_result_layout = lfun.return;

@@ -71,10 +71,10 @@ type operation =
   | Iconst_float of int64
   | Iconst_vec128 of Cmm.vec128_bits
   | Iconst_symbol of Cmm.symbol
-  | Icall_ind
-  | Icall_imm of { func : Cmm.symbol; }
-  | Itailcall_ind
-  | Itailcall_imm of { func : Cmm.symbol; }
+  | Icall_ind of { tail : Lambda.tail_attribute }
+  | Icall_imm of { func : Cmm.symbol; tail : Lambda.tail_attribute }
+  | Itailcall_ind of { tail : Lambda.tail_attribute }
+  | Itailcall_imm of { func : Cmm.symbol; tail : Lambda.tail_attribute }
   | Iextcall of { func : string;
                   ty_res : Cmm.machtype; ty_args : Cmm.exttype list;
                   alloc : bool; returns : bool;
@@ -175,7 +175,7 @@ let rec instr_iter f i =
       f i;
       match i.desc with
         Iend -> ()
-      | Ireturn _ | Iop Itailcall_ind | Iop(Itailcall_imm _) -> ()
+      | Ireturn _ | Iop(Itailcall_ind _) | Iop(Itailcall_imm _) -> ()
       | Iifthenelse(_tst, ifso, ifnot) ->
           instr_iter f ifso; instr_iter f ifnot; instr_iter f i.next
       | Iswitch(_index, cases) ->
@@ -194,7 +194,7 @@ let rec instr_iter f i =
       | Iop (Imove | Ispill | Ireload
             | Iconst_int _ | Iconst_float32 _ | Iconst_float _
             | Iconst_symbol _ | Iconst_vec128 _
-            | Icall_ind | Icall_imm _ | Iextcall _ | Istackoffset _
+            | Icall_ind _ | Icall_imm _ | Iextcall _ | Istackoffset _
             | Iload _ | Istore _ | Ialloc _
             | Iintop _ | Iintop_imm _ | Iintop_atomic _
             | Ifloatop _
@@ -205,7 +205,7 @@ let rec instr_iter f i =
         instr_iter f i.next
 
 let operation_is_pure = function
-  | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
+  | Icall_ind _ | Icall_imm _ | Itailcall_ind _ | Itailcall_imm _
   | Iextcall _ | Istackoffset _ | Istore _ | Ialloc _ | Ipoll _
   | Idls_get
   | Iopaque
@@ -236,7 +236,7 @@ let operation_is_pure = function
 
 let operation_can_raise op =
   match op with
-  | Icall_ind | Icall_imm _ | Iextcall _
+  | Icall_ind _ | Icall_imm _ | Iextcall _
   | Iprobe _ -> true
   | Ispecific sop -> Arch.operation_can_raise sop
   | Iintop_imm((Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
@@ -249,7 +249,7 @@ let operation_can_raise op =
   | Iconst_int _ | Iconst_float _ | Iconst_float32 _
   | Iconst_symbol _ | Iconst_vec128 _
   | Istackoffset _ | Istore _  | Iload _ | Iname_for_debugger _
-  | Itailcall_imm _ | Itailcall_ind
+  | Itailcall_imm _ | Itailcall_ind _
   | Iopaque | Ibeginregion | Iendregion
   | Iprobe_is_enabled _ | Ialloc _ | Ipoll _ | Idls_get
     -> false

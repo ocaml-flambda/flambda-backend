@@ -27,6 +27,7 @@ val pure_module : module_expr -> let_kind
 val transl_exp: scopes:scopes -> Jkind.sort -> expression -> lambda
 val transl_apply: scopes:scopes
                   -> ?tailcall:tailcall_attribute
+                  -> ?tail:tail_attribute
                   -> ?inlined:inlined_attribute
                   -> ?specialised:specialise_attribute
                   -> ?position:region_close

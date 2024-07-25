@@ -12,17 +12,16 @@
             ]
         pattern (nontail.ml[6,85+20]..nontail.ml[6,85+21])
           Tpat_var "f"
-          value_mode global,many,shared
+          value_mode global,many,nonportable;join(shared,contended)(modevar#1[shared,uncontended .. unique,uncontended])
         expression (nontail.ml[6,85+22]..nontail.ml[6,85+45]) ghost
           Texp_function
-          region true
-          alloc_mode global,many,shared
+          alloc_mode global,many,nonportable;id(modevar#3[shared,contended .. unique,uncontended])
           [
             Nolabel
             Param_pat
               pattern (nontail.ml[6,85+22]..nontail.ml[6,85+25])
                 Tpat_var "str"
-                value_mode global,many,shared
+                value_mode global,many,nonportable;shared,uncontended
           ]
           Tfunction_body
             expression (nontail.ml[6,85+28]..nontail.ml[6,85+45])
@@ -50,7 +49,7 @@
               <def>
                 pattern (nontail.ml[9,150+6]..nontail.ml[9,150+7])
                   Tpat_var "f"
-                  value_mode global,many,shared
+                  value_mode global,many,nonportable;shared,uncontended
                 expression (nontail.ml[9,150+10]..nontail.ml[9,150+11])
                   Texp_ident "f"
             ]
@@ -61,11 +60,10 @@
       <def>
         pattern (nontail.ml[14,289+4]..nontail.ml[14,289+7])
           Tpat_var "foo"
-          value_mode global,many,shared
+          value_mode global,many,nonportable;join(shared,contended)(modevar#f[shared,uncontended .. unique,uncontended])
         expression (nontail.ml[14,289+8]..nontail.ml[16,315+13]) ghost
           Texp_function
-          region true
-          alloc_mode global,many,shared
+          alloc_mode global,many,nonportable;id(modevar#11[shared,contended .. unique,uncontended])
           [
             Nolabel
             Param_pat
@@ -109,11 +107,10 @@
       <def>
         pattern (nontail.ml[18,330+4]..nontail.ml[18,330+7])
           Tpat_var "bar"
-          value_mode global,many,shared
+          value_mode global,many,nonportable;join(shared,contended)(modevar#1f[shared,uncontended .. unique,uncontended])
         expression (nontail.ml[18,330+8]..nontail.ml[20,356+15]) ghost
           Texp_function
-          region true
-          alloc_mode global,many,shared
+          alloc_mode global,many,nonportable;id(modevar#21[shared,contended .. unique,uncontended])
           [
             Nolabel
             Param_pat

@@ -852,6 +852,7 @@ val direct_call :
   dbg:Debuginfo.t ->
   machtype ->
   Lambda.region_close ->
+  Lambda.tail_attribute ->
   expression ->
   expression list ->
   expression
@@ -862,6 +863,7 @@ val indirect_call :
   Extended_machtype.t ->
   Lambda.region_close ->
   Lambda.alloc_mode ->
+  Lambda.tail_attribute ->
   expression ->
   Extended_machtype.t list ->
   expression list ->
@@ -874,6 +876,7 @@ val indirect_full_call :
   Extended_machtype.t ->
   Lambda.region_close ->
   Lambda.alloc_mode ->
+  Lambda.tail_attribute ->
   expression ->
   Extended_machtype.t list ->
   expression list ->

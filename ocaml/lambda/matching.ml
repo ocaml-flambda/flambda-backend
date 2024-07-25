@@ -1969,6 +1969,7 @@ let call_force_lazy_block ?(inlined = Default_inlined) varg loc ~pos =
   let force_fun = Lazy.force code_force_lazy_block in
   Lapply
     { ap_tailcall = Default_tailcall;
+      ap_tail = Default_tail;
       ap_loc = loc;
       ap_func = force_fun;
       ap_args = [ Lprim (Popaque Lambda.layout_lazy, [ varg ], loc) ];
@@ -2051,6 +2052,7 @@ let inline_lazy_force arg pos loc =
        (see https://github.com/stedolan/crowbar/issues/14) *)
     Lapply
       { ap_tailcall = Default_tailcall;
+        ap_tail = Default_tail;
         ap_loc = loc;
         ap_func = Lazy.force code_force_lazy;
         ap_args = [ Lconst (Const_base (Const_int 0)); arg ];

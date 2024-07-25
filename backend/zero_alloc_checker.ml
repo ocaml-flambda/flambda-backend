@@ -2215,18 +2215,18 @@ end = struct
       let desc = Printf.sprintf "probe %s handler %s" name handler_code_sym in
       let w = create_witnesses t (Probe { name; handler_code_sym }) dbg in
       transform_call t ~next ~exn handler_code_sym w ~desc dbg
-    | Icall_ind ->
+    | Icall_ind _ ->
       let w = create_witnesses t Indirect_call dbg in
       transform_top t ~next ~exn w "indirect call" dbg
-    | Itailcall_ind ->
+    | Itailcall_ind _ ->
       (* Sound to ignore [next] and [exn] because the call never returns. *)
       let w = create_witnesses t Indirect_tailcall dbg in
       transform_top t ~next:Value.normal_return ~exn:Value.exn_escape w
         "indirect tailcall" dbg
-    | Icall_imm { func = { sym_name = func; _ } } ->
+    | Icall_imm { func = { sym_name = func; _ }; _ } ->
       let w = create_witnesses t (Direct_call { callee = func }) dbg in
       transform_call t ~next ~exn func w ~desc:("direct call to " ^ func) dbg
-    | Itailcall_imm { func = { sym_name = func; _ } } ->
+    | Itailcall_imm { func = { sym_name = func; _ }; _ } ->
       (* Sound to ignore [next] and [exn] because the call never returns. *)
       let w = create_witnesses t (Direct_tailcall { callee = func }) dbg in
       transform_call t ~next:Value.normal_return ~exn:Value.exn_escape func w
@@ -2603,9 +2603,9 @@ end = struct
           (* CR gyorsh: show this be treated as a jump, without affecting the
              summary? *)
           transform_tailcall_imm t t.current_fun_name dbg
-        | Tailcall_func (Direct { sym_name; _ }) ->
+        | Tailcall_func { op = Direct { sym_name; _ }; _ } ->
           transform_tailcall_imm t sym_name dbg
-        | Tailcall_func Indirect ->
+        | Tailcall_func { op = Indirect; _ } ->
           (* Sound to ignore [next] and [exn] because the call never returns. *)
           let w = create_witnesses t Indirect_tailcall dbg in
           transform_top t ~next:Value.normal_return ~exn:Value.exn_escape w
@@ -2704,7 +2704,7 @@ let update_caml_flambda_invalid (fd : Mach.fundecl) =
       else { i with next = fixup i.next }
     | Iop
         ( Imove | Ispill | Ireload | Iconst_int _ | Iconst_float32 _
-        | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _ | Icall_ind
+        | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _ | Icall_ind _
         | Icall_imm _ | Istackoffset _ | Iload _ | Istore _ | Ialloc _
         | Iintop _ | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _
         | Ireinterpret_cast _ | Istatic_cast _ | Ispecific _
@@ -2712,7 +2712,7 @@ let update_caml_flambda_invalid (fd : Mach.fundecl) =
         | Ibeginregion | Iendregion | Ipoll _ | Idls_get ) ->
       { i with next = fixup i.next }
     | Iend | Ireturn _
-    | Iop Itailcall_ind
+    | Iop (Itailcall_ind _)
     | Iop (Itailcall_imm _)
     | Iraise _ | Iexit _ ->
       i

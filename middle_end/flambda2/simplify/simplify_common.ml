@@ -160,7 +160,8 @@ let split_direct_over_application apply
         (Call_kind.indirect_function_call_unknown_arity outer_apply_alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
-      ~probe:(Apply.probe apply) ~position:(Apply.position apply)
+      ~probe:(Apply.probe apply) ~tail:(Apply.tail apply)
+      ~position:(Apply.position apply)
       ~relative_history:(Apply.relative_history apply)
   in
   let perform_over_application_free_names =
@@ -254,7 +255,8 @@ let split_direct_over_application apply
         (Call_kind.direct_function_call callee's_code_id inner_apply_alloc_mode)
       (Apply.dbg apply) ~inlined:(Apply.inlined apply)
       ~inlining_state:(Apply.inlining_state apply)
-      ~probe:(Apply.probe apply) ~position:(Apply.position apply)
+      ~probe:(Apply.probe apply) ~tail:(Apply.tail apply)
+      ~position:(Apply.position apply)
       ~relative_history:(Apply.relative_history apply)
   in
   let both_applications =

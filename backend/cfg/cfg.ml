@@ -106,7 +106,7 @@ let mem_block t label = Label.Tbl.mem t.blocks label
 
 let successor_labels_normal ti =
   match ti.desc with
-  | Tailcall_self { destination } -> Label.Set.singleton destination
+  | Tailcall_self { op = { destination }; _ } -> Label.Set.singleton destination
   | Switch labels -> Array.to_seq labels |> Label.Set.of_seq
   | Return | Raise _ | Tailcall_func _ -> Label.Set.empty
   | Call_no_return _ -> Label.Set.empty
@@ -119,7 +119,7 @@ let successor_labels_normal ti =
     |> Label.Set.add uo
   | Int_test { lt; gt; eq; imm = _; is_signed = _ } ->
     Label.Set.singleton lt |> Label.Set.add gt |> Label.Set.add eq
-  | Call { op = _; label_after }
+  | Call { op = _; label_after; tail = _ }
   | Prim { op = _; label_after }
   | Specific_can_raise { op = _; label_after } ->
     Label.Set.singleton label_after
@@ -167,13 +167,14 @@ let replace_successor_labels t ~normal ~exn block ~f =
       | Float_test { width; lt; eq; gt; uo } ->
         Float_test { width; lt = f lt; eq = f eq; gt = f gt; uo = f uo }
       | Switch labels -> Switch (Array.map f labels)
-      | Tailcall_self { destination } ->
-        Tailcall_self { destination = f destination }
-      | Tailcall_func Indirect
-      | Tailcall_func (Direct _)
+      | Tailcall_self { op = { destination }; tail } ->
+        Tailcall_self { op = { destination = f destination }; tail }
+      | Tailcall_func { op = Indirect; tail = _ }
+      | Tailcall_func { op = Direct _; tail = _ }
       | Return | Raise _ | Call_no_return _ ->
         block.terminator.desc
-      | Call { op; label_after } -> Call { op; label_after = f label_after }
+      | Call { op; label_after; tail } ->
+        Call { op; label_after = f label_after; tail }
       | Prim { op; label_after } -> Prim { op; label_after = f label_after }
       | Specific_can_raise { op; label_after } ->
         Specific_can_raise { op; label_after = f label_after }
@@ -390,24 +391,25 @@ let dump_terminator' ?(print_reg = Printmach.reg) ?(res = [||]) ?(args = [||])
     fprintf ppf "Call_no_return %s%a" func_symbol print_args args
   | Return -> fprintf ppf "Return%a" print_args args
   | Raise _ -> fprintf ppf "Raise%a" print_args args
-  | Tailcall_self { destination } ->
+  | Tailcall_self { op = { destination }; tail } ->
     dump_mach_op ppf
       (Mach.Itailcall_imm
          { func =
              { sym_name = Printf.sprintf "self(%d)" destination;
                sym_global = Local
-             }
+             };
+           tail
          })
-  | Tailcall_func call ->
+  | Tailcall_func { op = call; tail } ->
     dump_mach_op ppf
       (match call with
-      | Indirect -> Mach.Itailcall_ind
-      | Direct func -> Mach.Itailcall_imm { func })
-  | Call { op = call; label_after } ->
+      | Indirect -> Mach.Itailcall_ind { tail }
+      | Direct func -> Mach.Itailcall_imm { func; tail })
+  | Call { op = call; label_after; tail } ->
     Format.fprintf ppf "%t%a" print_res dump_mach_op
       (match call with
-      | Indirect -> Mach.Icall_ind
-      | Direct func -> Mach.Icall_imm { func });
+      | Indirect -> Mach.Icall_ind { tail }
+      | Direct func -> Mach.Icall_imm { func; tail });
     Format.fprintf ppf "%sgoto %d" sep label_after
   | Prim { op = prim; label_after } ->
     Format.fprintf ppf "%t%a" print_res dump_mach_op

@@ -419,7 +419,7 @@ let destroyed_by_simd_op op =
 
 (* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function
-    Iop(Icall_ind | Icall_imm _) -> all_phys_regs
+    Iop(Icall_ind _ | Icall_imm _) -> all_phys_regs
   | Iop(Iextcall {alloc; stack_ofs; }) ->
       assert (stack_ofs >= 0);
       if alloc || stack_ofs > 0 then all_phys_regs
@@ -456,7 +456,7 @@ let destroyed_at_oper = function
        | Ireinterpret_cast _ | Istatic_cast _
        | Iconst_int _ | Iconst_float32 _ | Iconst_float _
        | Iconst_symbol _ | Iconst_vec128 _
-       | Itailcall_ind | Itailcall_imm _ | Istackoffset _ | Iload _
+       | Itailcall_ind _ | Itailcall_imm _ | Istackoffset _ | Iload _
        | Iname_for_debugger _ | Iprobe _| Iprobe_is_enabled _ | Iopaque | Idls_get)
   | Iend | Ireturn _ | Iifthenelse (_, _, _) | Icatch (_, _, _, _)
   | Iexit _ | Iraise _
@@ -588,7 +588,7 @@ let safe_register_pressure = function
   | Icsel _
   | Iconst_int _ | Iconst_float32 _ | Iconst_float _
   | Iconst_symbol _ | Iconst_vec128 _
-  | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
+  | Icall_ind _ | Icall_imm _ | Itailcall_ind _ | Itailcall_imm _
   | Istackoffset _ | Iload _ | Istore (_, _, _)
   | Iintop _ | Iintop_imm (_, _) | Iintop_atomic _
   | Ispecific _ | Iname_for_debugger _
@@ -645,7 +645,7 @@ let max_register_pressure =
   | Ireinterpret_cast _ | Istatic_cast _
   | Iconst_int _ | Iconst_float _ | Iconst_float32 _
   | Iconst_symbol _ | Iconst_vec128 _
-  | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
+  | Icall_ind _ | Icall_imm _ | Itailcall_ind _ | Itailcall_imm _
   | Istackoffset _ | Iload _
   | Ispecific(Ilea _ | Isextend32 | Izextend32 | Iprefetch _ | Ipause
              | Irdtsc | Irdpmc | Istore_int (_, _, _)

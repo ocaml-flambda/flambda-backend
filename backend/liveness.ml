@@ -29,7 +29,7 @@ module Analyzer = Dataflow.Backward(Domain)
 
 let transfer i ~next ~exn =
   match i.desc with
-  | Ireturn _ | Iop(Itailcall_ind) | Iop(Itailcall_imm _) ->
+  | Ireturn _ | Iop(Itailcall_ind _) | Iop(Itailcall_imm _) ->
       i.live <- Reg.Set.empty; (* no regs are live across *)
       Reg.set_of_array i.arg
   | Iop op ->

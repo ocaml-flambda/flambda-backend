@@ -193,8 +193,8 @@ method! reload_operation op arg res =
                | Ilfence | Isfence | Imfence
                | Iprefetch _ | Ibswap _)
   | Imove|Ispill|Ireload|Iconst_float _|Iconst_float32 _|Iconst_vec128 _
-  | Icall_ind|Icall_imm _|Ifloatop (_,(Icompf _|Inegf|Iabsf))
-  | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload _
+  | Icall_ind _|Icall_imm _|Ifloatop (_,(Icompf _|Inegf|Iabsf))
+  | Itailcall_ind _|Itailcall_imm _|Iextcall _|Istackoffset _|Iload _
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
   | Iopaque | Ibeginregion | Iendregion | Ipoll _ | Idls_get
     -> (* Other operations: all args and results in registers,

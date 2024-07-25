@@ -165,8 +165,8 @@ let pseudoregs_for_operation op arg res =
       | Irdtsc | Iprefetch _ )
   | Imove | Ispill | Ireload | Ireinterpret_cast _ | Istatic_cast _
   | Iconst_int _ | Iconst_float32 _ | Iconst_float _ | Iconst_vec128 _
-  | Iconst_symbol _ | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _
-  | Iextcall _ | Istackoffset _ | Iload _
+  | Iconst_symbol _ | Icall_ind _ | Icall_imm _ | Itailcall_ind _
+  | Itailcall_imm _ | Iextcall _ | Istackoffset _ | Iload _
   | Istore (_, _, _)
   | Ialloc _ | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
   | Ibeginregion | Iendregion | Ipoll _ | Idls_get ->
