@@ -165,9 +165,7 @@ module Const : sig
   val get_externality_upper_bound : t -> Externality.t
 
   val of_user_written_annotation :
-    context:History.annotation_context ->
-    Jane_syntax.Jkind.annotation ->
-    t
+    context:History.annotation_context -> Jane_syntax.Jkind.annotation -> t
 
   module Builtin : sig
     type nonrec t =
@@ -283,6 +281,7 @@ val of_new_legacy_sort : why:History.concrete_legacy_creation_reason -> t
 val of_const : why:History.creation_reason -> Const.t -> t
 
 (* CR layouts v2.8: remove this when prining is improved *)
+
 (** The [Jkind.Const.t] together with its user-written annotation. *)
 type annotation = Types.type_expr Jkind_types.annotation
 

@@ -1,8 +1,7 @@
 open Location
 open Mode
 
-type error =
-  | Unrecognized_modality of string
+type error = Unrecognized_modality of string
 
 exception Error of Location.t * error
 
