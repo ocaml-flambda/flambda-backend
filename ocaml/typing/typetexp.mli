@@ -36,7 +36,7 @@ module TyVarEnv : sig
         without jkind annotations *)
 
   val make_poly_univars_jkinds :
-    context:(string -> Jkind.History.annotation_context) ->
+    context:(string -> Jkind.Type.History.annotation_context) ->
     (string Location.loc * Jane_syntax.Jkind.annotation option) list ->
     poly_univars
     (** remember that a list of strings connotes univars; this must

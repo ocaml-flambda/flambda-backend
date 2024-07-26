@@ -86,8 +86,8 @@ type error =
   | Invalid_type_subst_rhs
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
-  | Toplevel_nonvalue of string * Jkind.sort
-  | Toplevel_unnamed_nonvalue of Jkind.sort
+  | Toplevel_nonvalue of string * Jkind.Type.sort
+  | Toplevel_unnamed_nonvalue of Jkind.Type.sort
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Compiling_as_parameterised_parameter
@@ -655,11 +655,11 @@ let merge_constraint initial_env loc sg lid constr =
               (* jkind any is fine on the params because they get thrown away
                  below *)
               List.map
-                (fun _ -> Btype.newgenvar (Jkind.Primitive.any ~why:Dummy_jkind))
+                (fun _ -> Btype.newgenvar (Jkind.Primitive.top ~why:Dummy_jkind))
                 sdecl.ptype_params;
             type_arity = arity;
             type_kind = Type_abstract Abstract_def;
-            type_jkind = Jkind.Primitive.value ~why:(Unknown "merge_constraint");
+            type_jkind = Jkind.Type.Primitive.value ~why:(Unknown "merge_constraint") |> Jkind.of_type_jkind;
             type_jkind_annotation = None;
             type_private = Private;
             type_manifest = None;
@@ -2904,7 +2904,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         in
         if force_toplevel then
           (* See comment on [force_toplevel]. *)
-          begin match Jkind.Sort.default_to_value_and_get sort with
+          begin match Jkind.Type.Sort.default_to_value_and_get sort with
           | Value -> ()
           | Void | Float64 | Float32 | Word | Bits32 | Bits64 ->
             raise (Error (sexpr.pexp_loc, env, Toplevel_unnamed_nonvalue sort))
@@ -2922,7 +2922,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
           List.iter (fun vb ->
             match vb.vb_pat.pat_desc with
             | Tpat_any ->
-              begin match Jkind.Sort.default_to_value_and_get vb.vb_sort with
+              begin match Jkind.Type.Sort.default_to_value_and_get vb.vb_sort with
               | Value -> ()
               | Void | Float64 | Float32 | Word | Bits32 | Bits64 ->
                 raise (Error (vb.vb_loc, env,
@@ -2940,7 +2940,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    (* CR layouts v5: this jkind check has the effect of
                       defaulting the sort of top-level bindings to value, which
                       will change. *)
-                   if not Jkind.Sort.(equate sort value)
+                   if not Jkind.Type.Sort.(equate sort value)
                    then raise (Error (loc, env,
                                    Toplevel_nonvalue (Ident.name id,sort)))
                 )
@@ -3463,7 +3463,7 @@ let type_package env m p fl =
   List.iter
     (fun (n, ty) ->
       try Ctype.unify env ty
-            (Ctype.newvar (Jkind.Primitive.any ~why:Dummy_jkind))
+            (Ctype.newvar (Jkind.Primitive.top ~why:Dummy_jkind))
       with Ctype.Unify _ ->
         raise (Error(modl.mod_loc, env, Scoping_pack (n,ty))))
     fl';
@@ -4111,12 +4111,12 @@ let report_error ~loc _env = function
   | Toplevel_nonvalue (id, sort) ->
       Location.errorf ~loc
         "@[Types of top-level module bindings must have layout value, but@ \
-         the type of %s has layout@ %a.@]" id Jkind.Sort.format sort
+         the type of %s has layout@ %a.@]" id Jkind.Type.Sort.format sort
   | Toplevel_unnamed_nonvalue sort ->
       Location.errorf ~loc
         "@[Types of unnamed expressions must have layout value when using@ \
            the toplevel, but this expression has layout@ %a.@]"
-        Jkind.Sort.format sort
+        Jkind.Type.Sort.format sort
  | Strengthening_mismatch(lid, explanation) ->
       let main = Includemod_errorprinter.err_msgs explanation in
       Location.errorf ~loc

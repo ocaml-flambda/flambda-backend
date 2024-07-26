@@ -106,8 +106,8 @@ exception Error of Location.t * error
 let dbg = false
 
 let jkind_layout_default_to_value_and_check_not_void loc jkind =
-  let const = Jkind.default_to_value_and_get jkind in
-  let layout = Jkind.Const.get_layout const in
+  let const = Jkind.Type.default_to_value_and_get jkind in
+  let layout = Jkind.Type.Const.get_layout const in
   match layout with
   | Sort Void -> raise (Error (loc, Void_layout))
   | _ -> ()
@@ -210,7 +210,7 @@ module Half_simple : sig
   type nonrec clause = pattern Non_empty_row.t clause
 
   val of_clause :
-    arg:lambda -> arg_sort:Jkind.sort -> General.clause -> clause
+    arg:lambda -> arg_sort:Jkind.Type.sort -> General.clause -> clause
 end = struct
   include Patterns.Half_simple
 
@@ -279,7 +279,7 @@ module Simple : sig
 
   val explode_or_pat :
     arg:lambda ->
-    arg_sort:Jkind.sort ->
+    arg_sort:Jkind.Type.sort ->
     Half_simple.pattern ->
     mk_action:(vars:Ident.t list -> lambda) ->
     patbound_action_vars:Ident.t list ->
@@ -943,7 +943,7 @@ end
 
 type 'row pattern_matching = {
   mutable cases : 'row list;
-  args : (lambda * let_kind * Jkind.sort * layout) list;
+  args : (lambda * let_kind * Jkind.Type.sort * layout) list;
       (** args are not just Ident.t in at least the following cases:
         - when matching the arguments of a constructor,
           direct field projections are used (make_field_args)
@@ -1692,7 +1692,7 @@ let make_line_matching get_expr_args head def = function
       }
 
 type 'a division = {
-  args : (lambda * let_kind * Jkind.sort * layout) list;
+  args : (lambda * let_kind * Jkind.Type.sort * layout) list;
   cells : ('a * cell) list
 }
 
@@ -1862,7 +1862,7 @@ let get_expr_args_variant_nonconst ~scopes head (arg, _mut, _sort, _layout)
       rem =
   let loc = head_loc ~scopes head in
    let field_prim = nonconstant_variant_field 1 in
-  (Lprim (field_prim, [ arg ], loc), Alias, Jkind.Sort.for_variant_arg,
+  (Lprim (field_prim, [ arg ], loc), Alias, Jkind.Type.Sort.for_variant_arg,
    layout_variant_arg)
   :: rem
 
@@ -2081,7 +2081,7 @@ let inline_lazy_force arg pos loc =
 
 let get_expr_args_lazy ~scopes head (arg, _mut, _sort, _layout) rem =
   let loc = head_loc ~scopes head in
-  (inline_lazy_force arg Rc_normal loc, Strict, Jkind.Sort.for_lazy_body,
+  (inline_lazy_force arg Rc_normal loc, Strict, Jkind.Type.Sort.for_lazy_body,
    layout_lazy_contents) :: rem
 
 let divide_lazy ~scopes head ctx pm =
@@ -2106,7 +2106,7 @@ let get_expr_args_tuple ~scopes head (arg, _mut, _sort, _layout) rem =
       rem
     else
       (Lprim (Pfield (pos, Pointer, Reads_agree), [ arg ], loc), Alias,
-       Jkind.Sort.for_tuple_element, layout_tuple_element)
+       Jkind.Type.Sort.for_tuple_element, layout_tuple_element)
         :: make_args (pos + 1)
   in
   make_args 0
@@ -3805,7 +3805,7 @@ let for_trywith ~scopes ~return_layout loc param pat_act_list =
      It is important to *not* include location information in
      the reraise (hence the [_noloc]) to avoid seeing this
      silent reraise in exception backtraces. *)
-  compile_matching ~scopes ~arg_sort:Jkind.Sort.for_predef_value
+  compile_matching ~scopes ~arg_sort:Jkind.Type.Sort.for_predef_value
     ~arg_layout:layout_block ~return_layout loc ~failer:(Reraise_noloc param)
     None param pat_act_list Partial
 
@@ -3922,12 +3922,12 @@ let assign_pat ~scopes body_layout opt nraise catch_ids loc pat pat_sort lam =
         opt := true;
         List.fold_left2
           (fun acc (_, pat) lam ->
-             collect Jkind.Sort.for_tuple_element acc pat lam)
+             collect Jkind.Type.Sort.for_tuple_element acc pat lam)
           acc patl lams
     | Tpat_tuple patl, Lconst (Const_block (_, scl)) ->
         opt := true;
         let collect_const acc (_, pat) sc =
-          collect Jkind.Sort.for_tuple_element acc pat (Lconst sc)
+          collect Jkind.Type.Sort.for_tuple_element acc pat (Lconst sc)
         in
         List.fold_left2 collect_const acc patl scl
     | _ ->
@@ -3997,7 +3997,7 @@ let for_tupled_function ~scopes ~return_layout loc paraml pats_act_list partial 
   (* The arguments of a tupled function are always values since they must be
      tuple elements *)
   let args =
-    List.map (fun id -> (Lvar id, Strict, Jkind.Sort.for_tuple_element,
+    List.map (fun id -> (Lvar id, Strict, Jkind.Type.Sort.for_tuple_element,
                          layout_tuple_element))
       paraml
   in
@@ -4099,12 +4099,12 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
     let sloc = Scoped_location.of_location ~scopes loc in
     Lprim (Pmakeblock (0, Immutable, None, mode), param_lambda, sloc)
   in
-  let arg_sort = Jkind.Sort.for_tuple in
+  let arg_sort = Jkind.Type.Sort.for_tuple in
   let handler =
     let partial = check_partial pat_act_list partial in
     let rows = map_on_rows (fun p -> (p, [])) pat_act_list in
     toplevel_handler ~scopes ~return_layout loc ~failer:Raise_match_failure
-      partial [ (arg, Strict, Jkind.Sort.for_tuple, layout_block) ] rows in
+      partial [ (arg, Strict, Jkind.Type.Sort.for_tuple, layout_block) ] rows in
   handler (fun partial pm1 ->
     let pm1_half =
       { pm1 with

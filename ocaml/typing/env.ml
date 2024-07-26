@@ -3100,7 +3100,8 @@ let unboxed_type ~errors ~env ~loc ~lid ty =
        can be assigned more specific jkinds), we actually want to work on these generic types
        here. After all, it's the value in the environment that is getting captured by the object,
        not a specific instance of that variable. *)
-    match !constrain_type_jkind env ty Jkind.Primitive.(value_or_null ~why:Captured_in_object) with
+    let value_or_null_jkind = Jkind.Type.Primitive.value_or_null ~why:Captured_in_object |> Jkind.of_type_jkind in
+    match !constrain_type_jkind env ty value_or_null_jkind with
     | Ok () -> ()
     | Result.Error err ->
       may_lookup_error errors loc env (Non_value_used_in_object (lid, ty, err))

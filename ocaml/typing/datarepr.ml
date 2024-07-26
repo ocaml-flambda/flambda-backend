@@ -70,16 +70,16 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       in
       let type_params = TypeSet.elements arg_vars_set in
       let arity = List.length type_params in
-      let is_void_label lbl = Jkind.is_void_defaulting lbl.ld_jkind in
+      let is_void_label lbl = Jkind.Type.is_void_defaulting lbl.ld_jkind in
       let jkind =
-        Jkind.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
+        Jkind.Type.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
       in
       let tdecl =
         {
           type_params;
           type_arity = arity;
           type_kind = Type_record (lbls, rep);
-          type_jkind = jkind;
+          type_jkind = Jkind.of_type_jkind jkind;
           type_jkind_annotation = None;
           type_private = priv;
           type_manifest = None;
@@ -110,9 +110,10 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
     match rep with
     | Variant_extensible -> assert false
     | Variant_boxed x -> x
-    | Variant_unboxed -> [| Constructor_uniform_value, [| decl.type_jkind |] |]
+    | Variant_unboxed -> [| Constructor_uniform_value,
+                            [| Jkind.to_type_jkind decl.type_jkind |] |]
   in
-  let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in
+  let all_void jkinds = Array.for_all Jkind.Type.is_void_defaulting jkinds in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
   let cstr_constant =
     Array.map
@@ -208,7 +209,7 @@ let none =
 let dummy_label =
   { lbl_name = ""; lbl_res = none; lbl_arg = none;
     lbl_mut = Immutable; lbl_modalities = Mode.Modality.Value.Const.id;
-    lbl_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
+    lbl_jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind;
     lbl_num = -1; lbl_pos = -1; lbl_all = [||];
     lbl_repres = Record_unboxed;
     lbl_private = Public;
@@ -222,7 +223,7 @@ let label_descrs ty_res lbls repres priv =
   let rec describe_labels num pos = function
       [] -> []
     | l :: rest ->
-        let is_void = Jkind.is_void_defaulting l.ld_jkind  in
+        let is_void = Jkind.Type.is_void_defaulting l.ld_jkind  in
         let lbl =
           { lbl_name = Ident.name l.ld_id;
             lbl_res = ty_res;

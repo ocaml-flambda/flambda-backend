@@ -80,15 +80,19 @@ val newvar: ?name:string -> Jkind.t -> type_expr
 
 val new_rep_var
   : ?name:string
-  -> why:Jkind.History.concrete_creation_reason
+  -> why:Jkind.Type.History.concrete_creation_reason
   -> unit
-  -> type_expr * Jkind.sort
+  -> type_expr * Jkind.Type.sort
         (* Return a fresh representable variable, along with its sort *)
+val new_type_var: ?name:string -> Jkind.Type.t -> type_expr
+        (* Short-hand for [newvar], converting a [Jkind.Type.t] to [Jkind.t] *)
 val newvar2: ?name:string -> int -> Jkind.t -> type_expr
         (* Return a fresh variable *)
 val new_global_var: ?name:string -> Jkind.t -> type_expr
         (* Return a fresh variable, bound at toplevel
            (as type variables ['a] in type constraints). *)
+val new_type_var2: ?name:string -> int -> Jkind.Type.t -> type_expr
+        (* Short-hand for [newvar2], converting a [Jkind.Type.t] to [Jkind.t] *)
 val newobj: type_expr -> type_expr
 val newconstr: Path.t -> type_expr list -> type_expr
 val newmono : type_expr -> type_expr
@@ -213,7 +217,7 @@ val prim_mode :
         -> (Mode.allowed * 'r) Mode.Locality.t
 val instance_prim:
         Primitive.description -> type_expr ->
-        type_expr * Mode.Locality.lr option * Jkind.Sort.t option
+        type_expr * Mode.Locality.lr option * Jkind.Type.Sort.t option
 
 (** Given (a @ m1 -> b -> c) @ m0, where [m0] and [m1] are modes expressed by
     user-syntax, [curry_mode m0 m1] gives the mode we implicitly interpret b->c
@@ -324,7 +328,7 @@ val all_distinct_vars: Env.t -> type_expr list -> bool
 type matches_result =
   | Unification_failure of Errortrace.unification_error
   | Jkind_mismatch of { original_jkind : jkind; inferred_jkind : jkind
-                     ; ty : type_expr }
+                      ; ty : type_expr }
   | All_good
 val matches: expand_error_trace:bool -> Env.t ->
   type_expr -> type_expr -> matches_result
@@ -553,14 +557,14 @@ val type_jkind_purely : Env.t -> type_expr -> jkind
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
 val type_sort :
-  why:Jkind.History.concrete_creation_reason ->
-  Env.t -> type_expr -> (Jkind.sort, Jkind.Violation.t) result
+  why:Jkind.Type.History.concrete_creation_reason ->
+  Env.t -> type_expr -> (Jkind.Type.sort, Jkind.Violation.t) result
 
 (* As [type_sort], but constrain the jkind to be non-null.
    Used for checking array elements. *)
 val type_legacy_sort :
-  why:Jkind.History.concrete_legacy_creation_reason ->
-  Env.t -> type_expr -> (Jkind.sort, Jkind.Violation.t) result
+  why:Jkind.Type.History.concrete_legacy_creation_reason ->
+  Env.t -> type_expr -> (Jkind.Type.sort, Jkind.Violation.t) result
 
 (* Jkind checking. [constrain_type_jkind] will update the jkind of type
    variables to make the check true, if possible.  [check_decl_jkind] and
@@ -580,7 +584,7 @@ val constrain_type_jkind :
 (* Check whether a type's externality's upper bound is less than some target.
    Potentially cheaper than just calling [type_jkind], because this can stop
    expansion once it succeeds. *)
-val check_type_externality : Env.t -> type_expr -> Jkind.Externality.t -> bool
+val check_type_externality : Env.t -> type_expr -> Jkind.Type.Externality.t -> bool
 
 (* This function should get called after a type is generalized.
 

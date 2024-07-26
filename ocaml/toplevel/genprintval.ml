@@ -250,8 +250,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | Print_as of string (* can't print *)
 
     let get_and_default_jkind_for_printing jkind =
-      let const = Jkind.default_to_value_and_get jkind in
-      let legacy_layout = Jkind.Const.get_legacy_layout const in
+      let const = Jkind.Type.default_to_value_and_get jkind in
+      let legacy_layout = Jkind.Type.Const.get_legacy_layout const in
       match legacy_layout with
       (* CR layouts v3.0: [Value_or_null] should probably require special
          printing to avoid descending into NULL. (This module uses
@@ -567,7 +567,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               let name = Ident.name ld_id in
               (* PR#5722: print full module path only
                  for first record field *)
-              let is_void = Jkind.is_void_defaulting ld_jkind in
+              let is_void = Jkind.Type.is_void_defaulting ld_jkind in
               let lid =
                 if first then tree_of_label env path (Out_name.create name)
                 else Oide_ident (Out_name.create name)

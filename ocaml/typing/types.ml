@@ -97,12 +97,13 @@ and _ commutable_gen =
   | Cunknown : [> `none] commutable_gen
   | Cvar : {mutable commu: any commutable_gen} -> [> `var] commutable_gen
 
+and type_jkind = type_expr Jkind_types.Type.t
 and jkind = type_expr Jkind_types.t
 
-(* jkind depends on types defined in this file, but Jkind.equal is required
+(* jkind depends on types defined in this file, but Jkind.Type.equal is required
    here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
    function. *)
-(** Corresponds to [Jkind.equal] *)
+(** Corresponds to [Jkind.Type.equal] *)
 let jkind_equal = ref (fun _ _ ->
     failwith "jkind_equal should be set by jkind.ml")
 let set_jkind_equal f = jkind_equal := f
@@ -278,7 +279,7 @@ and ('lbl, 'cstr) type_kind =
 
 and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
                        runtime_tag: int}   (* The runtime tag *)
-        | Extension of Path.t * jkind array
+        | Extension of Path.t * type_jkind array
 
 and abstract_reason =
     Abstract_def
@@ -301,14 +302,14 @@ and mixed_product_shape =
 and record_representation =
   | Record_unboxed
   | Record_inlined of tag * constructor_representation * variant_representation
-  | Record_boxed of jkind array
+  | Record_boxed of type_jkind array
   | Record_float
   | Record_ufloat
   | Record_mixed of mixed_product_shape
 
 and variant_representation =
   | Variant_unboxed
-  | Variant_boxed of (constructor_representation * jkind array) array
+  | Variant_boxed of (constructor_representation * type_jkind array) array
   | Variant_extensible
 
 and constructor_representation =
@@ -321,7 +322,7 @@ and label_declaration =
     ld_mutable: mutability;
     ld_modalities: Mode.Modality.Value.Const.t;
     ld_type: type_expr;
-    ld_jkind : jkind;
+    ld_jkind : type_jkind;
     ld_loc: Location.t;
     ld_attributes: Parsetree.attributes;
     ld_uid: Uid.t;
@@ -352,7 +353,7 @@ type extension_constructor =
   { ext_type_path: Path.t;
     ext_type_params: type_expr list;
     ext_args: constructor_arguments;
-    ext_arg_jkinds: jkind array;
+    ext_arg_jkinds: type_jkind array;
     ext_shape: constructor_representation;
     ext_constant: bool;
     ext_ret_type: type_expr option;
@@ -572,7 +573,7 @@ type constructor_description =
     cstr_res: type_expr;                (* Type of the result *)
     cstr_existentials: type_expr list;  (* list of existentials *)
     cstr_args: constructor_argument list; (* Type of the arguments *)
-    cstr_arg_jkinds: jkind array;       (* Jkinds of the arguments *)
+    cstr_arg_jkinds: type_jkind array;  (* Jkinds of the arguments *)
     cstr_arity: int;                    (* Number of arguments *)
     cstr_tag: tag;                      (* Tag for heap blocks *)
     cstr_repr: variant_representation;  (* Repr of the outer variant *)
@@ -707,7 +708,7 @@ type label_description =
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutability;                (* Is this a mutable field? *)
     lbl_modalities: Mode.Modality.Value.Const.t;(* Modalities on the field *)
-    lbl_jkind : jkind;                (* Jkind of the argument *)
+    lbl_jkind : type_jkind;             (* Jkind of the argument *)
     lbl_pos: int;                       (* Position in block *)
     lbl_num: int;                       (* Position in type *)
     lbl_all: label_description array;   (* All the labels in this type *)
@@ -781,7 +782,7 @@ type change =
   | Ccommu : [`var] commutable_gen -> change
   | Cuniv : type_expr option ref * type_expr option -> change
   | Cmodes : Mode.changes -> change
-  | Csort : Jkind_types.Sort.change -> change
+  | Csort : Jkind_types.Type.Sort.change -> change
   | Czero_alloc : Zero_alloc.change -> change
 
 type changes =
@@ -798,7 +799,7 @@ let log_change ch =
 
 let () =
   Mode.set_append_changes (fun changes -> log_change (Cmodes !changes));
-  Jkind_types.Sort.set_change_log (fun change -> log_change (Csort change));
+  Jkind_types.Type.Sort.set_change_log (fun change -> log_change (Csort change));
   Zero_alloc.set_change_log (fun change -> log_change (Czero_alloc change))
 
 (* constructor and accessors for [field_kind] *)
@@ -1049,7 +1050,7 @@ let undo_change = function
   | Ccommu (Cvar r)  -> r.commu <- Cunknown
   | Cuniv  (r, v)    -> r := v
   | Cmodes c          -> Mode.undo_changes c
-  | Csort change -> Jkind_types.Sort.undo_change change
+  | Csort change -> Jkind_types.Type.Sort.undo_change change
   | Czero_alloc c -> Zero_alloc.undo_change c
 
 type snapshot = changes ref * int
