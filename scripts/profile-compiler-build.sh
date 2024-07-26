@@ -27,15 +27,8 @@ if [ -d "$dump_dir" ] && [ "$(ls -A "$dump_dir")" ]; then
   done
 fi
 
-export OLD_OCAMLPARAM="${OCAMLPARAM:-}"
 export OCAMLPARAM="_,profile=1,dump-into-csv=1,dump-dir=$dump_dir,regalloc=irc"
 export BUILD_OCAMLPARAM="$OCAMLPARAM"
-
-revert_env_variables() {
-  export OCAMLPARAM="$OLD_OCAMLPARAM"
-  unset OLD_OCAMLPARAM
-}
-trap revert_env_variables EXIT
 
 build_compiler() {
   git clean -Xdf
