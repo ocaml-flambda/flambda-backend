@@ -25,31 +25,76 @@
  **********************************************************************************)
 
 module String = Misc.Stdlib.String
+module Int = Numbers.Int
 
-module Graph = struct
+module Graph : sig
+  module Vertex : sig
+    type t
+
+    val unknown : t
+    val to_dot_id : t -> string
+    val to_dot_label : t -> string
+  end
+
+  module Edge_head : sig
+    type label =
+      | Unknown_edge
+      (* [@tail] *)
+      | Always_tail_edge
+      | Inferred_tail_edge
+      | Inferred_nontail_edge
+
+    type t =
+      { to_ : Vertex.t
+      ; label : label
+      }
+  end
+
+  type t
+
+  val create : unit -> t
+  val reset : t -> unit
+  val successors : t -> Vertex.t -> Edge_head.t Seq.t
+  val find_vertex : t -> [ `Known_fn of string ] -> Vertex.t
+
+  val add_edge
+    :  t
+    -> from:Vertex.t
+    -> to_:Vertex.t
+    -> actual_position:[ `Tail | `Nontail ]
+    -> original_position:Typedtree.position_and_tail_attribute
+    -> unit
+end = struct
   module Vertex = struct
     type t =
       (* The Unknown_fn vertex an implicit tail edge to every other vertex. *)
       | Unknown_fn
-      | Known_fn of string
+      | Known_fn of
+          { id : int
+          ; name : string
+          }
 
-    let equal v1 v2 =
-      match v1, v2 with
-      | Unknown_fn, Unknown_fn -> true
-      | Known_fn fn1, Known_fn fn2 -> String.equal fn1 fn2
-      | Unknown_fn, Known_fn _ | Known_fn _, Unknown_fn -> false
+    let unknown = Unknown_fn
+
+    let to_dot_id t =
+      match t with
+      | Unknown_fn -> "0"
+      | Known_fn { id; _ } -> Int.to_string id
+    ;;
+
+    let to_dot_label t =
+      match t with
+      | Unknown_fn -> "<unknown>"
+      | Known_fn { name; _ } -> name
     ;;
   end
 
   module Edge_head = struct
     type label =
       | Unknown_edge
-      (* [@tail] *)
-      | Explicit_tail
-      (* No annotation. Was in tail position and was tail call optimized *)
-      | Implicit_tail
-      (* No annotation. Was in tail position and was NOT tail cail optimized *)
-      | Implicit_nontail
+      | Always_tail_edge
+      | Inferred_tail_edge
+      | Inferred_nontail_edge
 
     type t =
       { to_ : Vertex.t
@@ -58,72 +103,105 @@ module Graph = struct
   end
 
   type t =
-    { (* Only need to store the edges / vertices for the Known_fn case. *)
-      adjacencies : Edge_head.t list String.Tbl.t
+    { vertex_by_name : Vertex.t String.Tbl.t
+    ; (* Only need to store the edges / vertices for the Known_fn case. *)
+      adjacencies : Edge_head.t list Int.Tbl.t
     }
 
-  let create () = { adjacencies = String.Tbl.create 100 }
-  let reset t = String.Tbl.reset t.adjacencies
+  let create () =
+    { vertex_by_name = String.Tbl.create 100; adjacencies = Int.Tbl.create 100 }
+  ;;
+
+  let reset t =
+    String.Tbl.reset t.vertex_by_name;
+    Int.Tbl.reset t.adjacencies
+  ;;
 
   let successors t (v : Vertex.t) : Edge_head.t Seq.t =
     match v with
     | Unknown_fn ->
-      String.Tbl.to_seq_keys t.adjacencies
-      |> Seq.map (fun fun_name : Edge_head.t ->
-        { to_ = Known_fn fun_name; label = Unknown_edge })
+      String.Tbl.to_seq_values t.vertex_by_name
+      |> Seq.map (fun vtx : Edge_head.t -> { to_ = vtx; label = Unknown_edge })
       |> Seq.cons ({ to_ = Unknown_fn; label = Unknown_edge } : Edge_head.t)
-    | Known_fn fun_name -> String.Tbl.find t.adjacencies fun_name |> List.to_seq
+    | Known_fn { id; _ } -> id |> Int.Tbl.find t.adjacencies |> List.to_seq
+  ;;
+
+  let find_vertex t (fn : [ `Known_fn of string ]) : Vertex.t =
+    let (`Known_fn name) = fn in
+    match String.Tbl.find_opt t.vertex_by_name name with
+    | None ->
+      let id = String.Tbl.length t.vertex_by_name in
+      let v : Vertex.t = Known_fn { id; name } in
+      String.Tbl.add t.vertex_by_name name v;
+      v
+    | Some v -> v
   ;;
 
   let add_edge
     t
-    ~(from : string)
+    ~(from : Vertex.t)
     ~(to_ : Vertex.t)
     ~(actual_position : [ `Tail | `Nontail ])
     ~(original_position : Typedtree.position_and_tail_attribute)
     =
+    let label =
+      let impossible_because ~case fmt =
+        Misc.fatal_errorf ("case " ^^ " impossible because " ^^ fmt)
+      in
+      match original_position, actual_position with
+      | Unknown_position, _ -> `Unknown_edge
+      | Not_tail_position Explicit_tail, _ ->
+        impossible_because
+          "[@tail] not allowed on applications not in tail position"
+          ~case:"Not_tail_position Explicit_tail, _"
+      | Tail_position Explicit_tail, `Nontail ->
+        impossible_because
+          "[@tail] was not optimized to a tailcall"
+          ~case:"Tail_position Explicit_tail, `Nontail"
+      | Tail_position Hint_tail, `Nontail ->
+        impossible_because
+          "[@tail hint] on application in tail position was not optimized to a tailcall"
+          ~case:"Tail_position Hint_tail, `Nontail"
+      | Tail_position Explicit_non_tail, `Tail
+      | Not_tail_position Explicit_non_tail, `Tail ->
+        impossible_because
+          "[@nontail] was optimized to a tailcall"
+          ~case:"_ Explicit_non_tail, `Tail"
+      | Not_tail_position attr, `Nontail -> `Not_in_tail_position
+      | Tail_position (Explicit_tail | Hint_tail), `Tail
+      | Not_tail_position Hint_tail, `Tail -> `Explicit_tail
+      | Tail_position Default_tail, `Tail -> `Inferred_tail
+      | Not_tail_position Default_tail, `Tail -> `Became_tail_after_optimizations
+      | Tail_position Explicit_non_tail, `Nontail -> `Requested_nontail
+      | Tail_position Default_tail, `Nontail -> `Inferred_nontail
+    in
     let label : Edge_head.label option =
-      let impossible_because fmt = Misc.fatal_errorf "impossible because " ^^ fmt in
-      match actual_position, original_position with
-      | _, Unknown_position -> Some Unknown_edge
-      | `Tail, Tail_position attr ->
-        (match attr with
-         | Explicit_tail -> Some Explicit_tail
-         | Hint_tail -> Some Explicit_tail
-         | Explicit_non_tail ->
-           impossible_because "[@nontail] was optimized to a tailcall"
-         | Default_tail -> Some Implicit_tail)
-      | `Tail, Not_tail_position attr ->
-        (match attr with
-         | Explicit_tail ->
-           impossible_because "[@tail] not allowed on applications not in tail position"
-         | Hint_tail -> Some Explicit_tail
-         | Explicit_non_tail ->
-           impossible_because "[@nontail] was optimized to a tailcall"
-         | Default_tail -> Some Implicit_tail)
-      | `Nontail, Tail_position attr ->
-        (match attr with
-         | Explicit_tail -> impossible_because "[@tail] was not optimized to a tailcall"
-         | Hint_tail ->
-           impossible_because
-             "[@tail hint] on application in tail position was not optimized to a \
-              tailcall"
-         (* This case might be interesting for further analysis *)
-         | Explicit_non_tail -> None
-         | Default_tail -> Some Implicit_nontail)
-      | `Nontail, Not_tail_position attr -> None
+      match label with
+      | `Not_in_tail_position | `Requested_nontail -> None
+      | `Unknown_edge -> Some Unknown_edge
+      | `Explicit_tail -> Some Always_tail_edge
+      | `Became_tail_after_optimizations ->
+        (* This is a conservative approximation *) Some Always_tail_edge
+      | `Inferred_tail -> Some Inferred_tail_edge
+      | `Inferred_nontail -> Some Inferred_nontail_edge
     in
     match label with
     | None -> ()
     | Some label ->
       let edge : Edge_head.t = { to_; label } in
-      (match String.Tbl.find_opt t.adjacencies from with
-       | None -> String.Tbl.add t.adjacencies from [ edge ]
-       | Some lst -> String.Tbl.replace t.adjacencies from (edge :: lst))
+      (match from with
+       | Unknown_fn -> ()
+       | Known_fn { id = from; _ } ->
+         (match Int.Tbl.find_opt t.adjacencies from with
+          | None -> Int.Tbl.add t.adjacencies from [ edge ]
+          | Some lst -> Int.Tbl.replace t.adjacencies from (edge :: lst)))
   ;;
 end
 
 module Global = struct
+  module Vertex = Graph.Vertex
+  module Edge_head = Graph.Edge_head
+
   let graph : Graph.t option ref = ref None
   let reset_unit_info () = graph := None
 
@@ -137,30 +215,21 @@ module Global = struct
       | Some g -> g
     in
     let cfg = Cfg_with_layout.cfg cfg_with_layout in
-    let from = Cfg.fun_name cfg in
-    let to_ (op : Cfg.func_call_operation) : Graph.Vertex.t =
+    let from = Graph.find_vertex graph (`Known_fn (Cfg.fun_name cfg)) in
+    let to_ (op : Cfg.func_call_operation) : Vertex.t =
       match op with
-      | Indirect -> Unknown_fn
-      | Direct { sym_name; _ } -> Known_fn sym_name
+      | Indirect -> Vertex.unknown
+      | Direct { sym_name; _ } -> Graph.find_vertex graph (`Known_fn sym_name)
     in
     Cfg.iter_blocks cfg ~f:(fun _ block ->
+      let add_edge = Graph.add_edge graph ~from in
       match block.terminator.desc with
       | Tailcall_self { original_position; _ } ->
-        Graph.add_edge
-          graph
-          ~from
-          ~to_:(Known_fn from)
-          ~actual_position:`Tail
-          ~original_position
+        add_edge ~to_:from ~actual_position:`Tail ~original_position
       | Tailcall_func { original_position; op } ->
-        Graph.add_edge graph ~from ~to_:(to_ op) ~actual_position:`Tail ~original_position
+        add_edge ~to_:(to_ op) ~actual_position:`Tail ~original_position
       | Call { original_position; op; _ } ->
-        Graph.add_edge
-          graph
-          ~from
-          ~to_:(to_ op)
-          ~actual_position:`Nontail
-          ~original_position
+        add_edge ~to_:(to_ op) ~actual_position:`Nontail ~original_position
       (* (less-tco) Handle Call_no_return and Prim? *)
       | Call_no_return _
       | Prim _
@@ -179,36 +248,32 @@ module Global = struct
 
   let replace ~c ~with_ str = String.split_on_char c str |> String.concat with_
 
-  let mangle_vertex (v : Graph.Vertex.t) =
-    match v with
-    | Unknown_fn -> "Unknown_fn"
-    | Known_fn fn -> "K_" ^ (fn |> replace ~c:'.' ~with_:"_dot_")
-  ;;
-
-  let label_of_vertex (v : Graph.Vertex.t) =
-    match v with
-    | Unknown_fn -> "<unknown>"
-    | Known_fn fn -> fn
-  ;;
-
   let print_vertex ppf kv =
-    Format.fprintf ppf "%s [label=\"%s\"]" (mangle_vertex kv) (label_of_vertex kv)
+    Format.fprintf ppf "%s [label=\"%s\"]" (Vertex.to_dot_id kv) (Vertex.to_dot_label kv)
   ;;
 
-  let print_edge ppf ((kv, { to_; label }) : Graph.Vertex.t * Graph.Edge_head.t) =
+  let print_edge ppf ((kv, { to_; label }) : Vertex.t * Edge_head.t) =
     let color =
       match label with
       | Unknown_edge -> "black"
-      | Explicit_tail -> "blue"
-      | Implicit_tail -> "black"
-      | Implicit_nontail -> "red"
+      | Always_tail_edge -> "black"
+      | Inferred_tail_edge -> "blue"
+      | Inferred_nontail_edge -> "red"
+    in
+    let style =
+      match label with
+      | Unknown_edge -> "dotted"
+      | Always_tail_edge -> "solid"
+      | Inferred_tail_edge -> "solid"
+      | Inferred_nontail_edge -> "solid"
     in
     Format.fprintf
       ppf
-      "%s -> %s [color=\"%s\"]"
-      (mangle_vertex kv)
-      (mangle_vertex to_)
+      "%s -> %s [color=\"%s\" style=\"%s\"]"
+      (Vertex.to_dot_id kv)
+      (Vertex.to_dot_id to_)
       color
+      style
   ;;
 
   let print_dot ppf =
@@ -218,7 +283,7 @@ module Global = struct
       Format.fprintf ppf "digraph {\n";
       String.Tbl.iter
         (fun kv edges ->
-          let kv : Graph.Vertex.t = Known_fn kv in
+          let kv : Vertex.t = Known_fn kv in
           Format.fprintf ppf "  %a\n" print_vertex kv;
           List.iter (fun e -> Format.fprintf ppf "  %a\n" print_edge (kv, e)) edges;
           ())
