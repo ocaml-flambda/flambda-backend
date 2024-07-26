@@ -30,7 +30,7 @@
     (Whether a function is implicitly TCO'd or not depends on the heuristic we are
     developing as part of the less-tco project.) *)
 
-module Global : sig
+module Global_state : sig
   (** Reset the shared state for the compilation unit *)
   val reset_unit_info : unit -> unit
 
