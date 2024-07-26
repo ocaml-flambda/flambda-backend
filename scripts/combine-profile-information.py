@@ -1,6 +1,6 @@
 """
-Script to multiple CSVs (each containing profile information of compiling one file) into
-a single summary profile information CSV file.
+Script to combine multiple CSVs (each containing profile information of compiling one
+file) into a single summary profile information CSV file.
 """
 
 from argparse import ArgumentParser
