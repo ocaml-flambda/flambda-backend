@@ -224,8 +224,10 @@ end = struct
     let edge : Edge.t =
       { from = unknown; to_ = vertex; label = Firm_tail_edge { unknown_caller = true } }
     in
-    let edges = Vertex.Tbl.find t.adjacencies unknown in
-    Edge.Tbl.replace edges edge ();
+    let unknown_edges = Vertex.Tbl.find t.adjacencies unknown in
+    Edge.Tbl.replace unknown_edges edge ();
+    let new_edges = Edge.Tbl.create 10 in
+    Vertex.Tbl.replace t.adjacencies vertex new_edges;
     vertex
   ;;
 
@@ -291,14 +293,7 @@ end = struct
     match from with
     | Unknown_fn -> (* An edge already exists from Unknown_fn to every other vertex *) ()
     | Known_fn _ ->
-      let edges =
-        match Vertex.Tbl.find_opt t.adjacencies from with
-        | None ->
-          let edges = Edge.Tbl.create 10 in
-          Vertex.Tbl.replace t.adjacencies from edges;
-          edges
-        | Some edges -> edges
-      in
+      let edges = Vertex.Tbl.find t.adjacencies from in
       Edge.Tbl.replace edges edge ()
   ;;
 
@@ -334,10 +329,11 @@ end = struct
   ;;
 
   let print_dot t ppf =
-    Format.fprintf ppf "digraph {\n";
+    Format.fprintf ppf "strict digraph {\n";
+    Format.fprintf ppf "  rankdir=LR\n";
     Vertex.Tbl.iter
       (fun vtx edges ->
-        if not Vertex.(vtx = unknown) then Format.fprintf ppf "  %a\n" print_vertex vtx;
+        if not (Vertex.is_unknown vtx) then Format.fprintf ppf "  %a\n" print_vertex vtx;
         Edge.Tbl.iter (fun e () -> Format.fprintf ppf "  %a\n" print_edge e) edges;
         ())
       t.adjacencies;
