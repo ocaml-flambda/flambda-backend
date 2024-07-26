@@ -558,23 +558,23 @@ module Type = struct
     end
 
     let of_user_written_abbreviation ~jkind (const : Jane_syntax.Jkind.Const.t)
-        : t =
+        =
       let { txt = name; loc } =
         (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
       in
       (* CR layouts 2.8: move this to predef *)
       match name with
-      | "any" -> Primitive.any.jkind
-      | "value" -> Primitive.value.jkind
-      | "void" -> Primitive.void.jkind
-      | "immediate64" -> Primitive.immediate64.jkind
-      | "immediate" -> Primitive.immediate.jkind
-      | "float64" -> Primitive.float64.jkind
-      | "float32" -> Primitive.float32.jkind
-      | "word" -> Primitive.word.jkind
-      | "bits32" -> Primitive.bits32.jkind
-      | "bits64" -> Primitive.bits64.jkind
-      | _ -> user_raise ~loc (Unknown_jkind jkind)
+      | "any" -> Ok Primitive.any.jkind
+      | "value" -> Ok Primitive.value.jkind
+      | "void" -> Ok Primitive.void.jkind
+      | "immediate64" -> Ok Primitive.immediate64.jkind
+      | "immediate" -> Ok Primitive.immediate.jkind
+      | "float64" -> Ok Primitive.float64.jkind
+      | "float32" -> Ok Primitive.float32.jkind
+      | "word" -> Ok Primitive.word.jkind
+      | "bits32" -> Ok Primitive.bits32.jkind
+      | "bits64" -> Ok Primitive.bits64.jkind
+      | _ -> Error (loc, (Unknown_jkind jkind : Error.t))
 
     let meet_mode_in_parse jkind (mode : ModeParser.mode) =
       (* for each mode, lower the corresponding modal bound to be that mode *)
@@ -1296,11 +1296,25 @@ module Const = struct
     | Immediate -> of_type_jkind Type.Const.Primitive.immediate.jkind
     | Immediate64 -> of_type_jkind Type.Const.Primitive.immediate64.jkind
 
+  let of_user_written_abbreviation ~jkind const =
+    let { txt = name; loc = _ } =
+      (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
+    in
+    (* CR layouts 2.8: move this to predef
+       jbachurski: (CC from Type.Const.of_user_written_abbreviation) *)
+    match name with
+    | "top" -> Ok Jkind_types.Const.Top
+    | _ ->
+      Result.map of_type_jkind
+        (Type.Const.of_user_written_abbreviation ~jkind const)
+
   let rec of_user_written_annotation_unchecked_level
       (jkind : Jane_syntax.Jkind.t) : t =
     match jkind with
-    | Abbreviation const ->
-      Type (Type.Const.of_user_written_abbreviation ~jkind const)
+    | Abbreviation const -> (
+      match of_user_written_abbreviation ~jkind const with
+      | Ok k -> k
+      | Error (loc, err) -> user_raise ~loc err)
     | Mod (jkind, modes) ->
       (* jbachurski: We coerce here - in the future, the syntax should not permit
          mod on arrows. Such expressions are not parsed currently. *)
