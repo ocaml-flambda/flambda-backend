@@ -1577,6 +1577,7 @@ module Const = struct
            ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
            (format_gen ~hiding))
         args (format_gen ~hiding) result
+    | Top -> Format.fprintf ppf "top"
 
   let format = format_gen ~hiding:true
 
@@ -1588,13 +1589,15 @@ module Const = struct
     | ( Arrow { args = args1; result = result1 },
         Arrow { args = args2; result = result2 } ) ->
       List.for_all2 equal args1 args2 && equal result1 result2
-    | Type _, Arrow _ | Arrow _, Type _ -> false
+    | Top, Top -> true
+    | _, (Arrow _ | Type _ | Top) -> false
 
   let to_type_jkind (t : t) =
     match t with
     | Type ty -> ty
     | Arrow _ ->
       raise (Unexpected_higher_jkind "Coerced arrow to type jkind (const)")
+    | Top -> raise (Unexpected_higher_jkind "Coerced top to type jkind (const)")
 
   let of_attribute : Builtin_attributes.jkind_attribute -> t = function
     | Immediate -> of_type_jkind Type.Const.Primitive.immediate.jkind
@@ -1628,6 +1631,7 @@ let of_const ~why (c : Const.t) : t =
     | Type ty -> Type (Type.of_const ~why ty).desc
     | Arrow { args; result } ->
       Arrow { args = List.map go args; result = go result }
+    | Top -> Top
   in
   { desc = go c; history = Creation why; has_warned = false }
 
@@ -1664,6 +1668,7 @@ module Jkind_desc = struct
         Some
           (Arrow { args = List.map Option.get args; result = Option.get result })
       else None
+    | Top -> Some Top
 
   let rec format ppf = function
     | Type ty -> Type.Jkind_desc.format ppf ty
@@ -1673,18 +1678,20 @@ module Jkind_desc = struct
            ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
            format)
         args format result
+    | Top -> Format.fprintf ppf "top"
 
   module Debug_printers = struct
     open Format
 
     let rec t ppf = function
-      | Type ty -> Type.Jkind_desc.Debug_printers.t ppf ty
+      | Type ty -> fprintf ppf "Type %a" Type.Jkind_desc.Debug_printers.t ty
       | Arrow { args; result } ->
-        fprintf ppf "{ args = [%a];@ result = %a }"
+        fprintf ppf "Arrow { args = [%a];@ result = %a }"
           (Format.pp_print_list
              ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
              t)
           args t result
+      | Top -> Format.fprintf ppf "Top"
   end
 end
 
@@ -1707,7 +1714,7 @@ let to_const (t : t) = Jkind_desc.to_const t.desc
 let get_required_layouts_level context (const : Const.t) =
   match const with
   | Type ty -> Type.get_required_layouts_level context ty
-  | Arrow _ -> Language_extension.Alpha
+  | Arrow _ | Top -> Language_extension.Alpha
 
 let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
   let const = Const.of_user_written_annotation_unchecked_level annot in
@@ -1793,6 +1800,7 @@ module Desc = struct
         { args : t list;
           result : t
         }
+    | Top
 end
 
 let default_all_sort_variables_to_value (t : t) =
@@ -1801,6 +1809,7 @@ let default_all_sort_variables_to_value (t : t) =
     | Arrow { args; result } ->
       List.iter go args;
       go result
+    | Top -> ()
   in
   go t.desc
 
@@ -1830,6 +1839,7 @@ let get t : Desc.t =
             has_warned = false
           }
       }
+  | Top -> Top
 
 (*********************************)
 (* pretty printing *)
@@ -2330,7 +2340,8 @@ let equate_or_equal ~allow_mutation (t : t) (t' : t) =
     | ( Arrow { args = args1; result = result1 },
         Arrow { args = args2; result = result2 } ) ->
       go result1 result2 && List.for_all2 go args1 args2
-    | Type _, Arrow _ | Arrow _, Type _ -> false
+    | Top, Top -> true
+    | _, (Arrow _ | Type _ | Top) -> false
   in
   go t.desc t'.desc
 

@@ -462,6 +462,7 @@ module Desc : sig
         { args : t list;
           result : t
         }
+    | Top
 end
 
 (** Defaults all sort variables within the [Jkind.t] to value *)

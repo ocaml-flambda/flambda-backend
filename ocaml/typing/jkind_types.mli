@@ -154,6 +154,7 @@ module Jkind_desc : sig
         { args : 'type_expr t list;
           result : 'type_expr t
         }
+    | Top
 end
 
 module History : sig
@@ -194,6 +195,7 @@ module Const : sig
         { args : 'type_expr t list;
           result : 'type_expr t
         }
+    | Top
 end
 
 type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation

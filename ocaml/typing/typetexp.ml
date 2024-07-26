@@ -648,6 +648,7 @@ let check_arity_matches_decl ~loc ~txt env decl arity =
       match Jkind.get decl.type_jkind with
       | Type _ -> false
       | Arrow { args = kind_args; result = _ } -> List.length kind_args = m
+      | Top -> false
     end
     | m, n -> m = n
   in

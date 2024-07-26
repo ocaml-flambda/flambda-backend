@@ -2136,6 +2136,7 @@ let rec jkind_of_decl_unapplied env (decl : type_declaration) =
 
 and type_jkind_for_app app_jkind app_arity tys =
   match tys, Jkind.get app_jkind with
+  | _, Top -> Some app_jkind
   | Unapplied, _ when app_arity = 0 -> Some app_jkind
   | Unapplied, _ -> None
   | Applied tys, _ when app_arity > 0 ->
@@ -2401,6 +2402,7 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
                | Some (Sort Value) | None -> true
                | _ -> false)
       | Arrow _ -> false
+      | Top -> false
     in
     if Language_extension.erasable_extensions_only ()
       && is_immediate jkind && not (Jkind.History.has_warned jkind)
