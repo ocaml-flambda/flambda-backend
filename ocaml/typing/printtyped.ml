@@ -420,6 +420,25 @@ and expression_alloc_mode i ppf (expr, am) =
   alloc_mode i ppf am;
   expression i ppf expr
 
+(* CR less-tco: Consolidate this code with `Original_position.print` *)
+and original_position ppf (t : position_and_tail_attribute) =
+  let pattr ppf (tail_attribute : tail_attribute) =
+    let str =
+      match tail_attribute with
+      | Explicit_tail -> "Explicit_tail"
+      | Hint_tail -> "Hint_tail"
+      | Explicit_non_tail -> "Explicit_non_tail"
+      | Default_tail -> "Default_tail"
+    in Format.pp_print_string ppf str
+  in
+  match t with
+  | Unknown_position ->
+    Format.pp_print_string ppf "Unknown_position"
+  | Tail_position attr ->
+    Format.fprintf ppf "Tail_position (%a)" pattr attr
+  | Not_tail_position attr ->
+    Format.fprintf ppf "Not_tail_position (%a)" pattr attr
+
 and expression i ppf x =
   line i ppf "expression %a\n" fmt_location x.exp_loc;
   attributes i ppf x.exp_attributes;
@@ -444,13 +463,14 @@ and expression i ppf x =
       alloc_mode i ppf am;
       list i function_param ppf params;
       function_body i ppf body;
-  | Texp_apply (e, l, m, am, za) ->
+  | Texp_apply (e, l, m, opos, am, za) ->
       line i ppf "Texp_apply\n";
       line i ppf "apply_mode %s\n"
         (match m with
          | Tail -> "Tail"
          | Nontail -> "Nontail"
          | Default -> "Default");
+      line i ppf "original_position %a\n" original_position opos;
       locality_mode i ppf am;
       if not (Zero_alloc_utils.Assume_info.is_none za) then
         line i ppf "assume_zero_alloc %a\n"

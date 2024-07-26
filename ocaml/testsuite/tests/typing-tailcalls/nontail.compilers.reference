@@ -28,6 +28,7 @@
             expression (nontail.ml[6,85+28]..nontail.ml[6,85+45])
               Texp_apply
               apply_mode Nontail
+              original_position Tail_position (Default_tail)
               locality_mode global
               expression (nontail.ml[6,85+28]..nontail.ml[6,85+41])
                 Texp_ident "Stdlib!.print_endline"
@@ -80,6 +81,7 @@
               expression (nontail.ml[15,302+2]..nontail.ml[15,302+11])
                 Texp_apply
                 apply_mode Default
+                original_position Not_tail_position (Default_tail)
                 locality_mode global
                 expression (nontail.ml[15,302+2]..nontail.ml[15,302+3])
                   Texp_ident "f"
@@ -93,6 +95,7 @@
               expression (nontail.ml[16,315+2]..nontail.ml[16,315+13])
                 Texp_apply
                 apply_mode Nontail
+                original_position Tail_position (Default_tail)
                 locality_mode global
                 expression (nontail.ml[16,315+2]..nontail.ml[16,315+3])
                   Texp_ident "f"
@@ -128,6 +131,7 @@
               expression (nontail.ml[19,343+2]..nontail.ml[19,343+11])
                 Texp_apply
                 apply_mode Default
+                original_position Not_tail_position (Default_tail)
                 locality_mode global
                 expression (nontail.ml[19,343+2]..nontail.ml[19,343+3])
                   Texp_ident "f"
@@ -141,6 +145,7 @@
               expression (nontail.ml[20,356+2]..nontail.ml[20,356+15])
                 Texp_apply
                 apply_mode Nontail
+                original_position Tail_position (Default_tail)
                 locality_mode global
                 expression (nontail.ml[20,356+2]..nontail.ml[20,356+5])
                   Texp_ident "M.f"
@@ -156,12 +161,16 @@
 (let
   (f =
      (function {nlocal = 0} str never_inline : int
-       (applynontail (field_imm 45 (global Stdlib!)) str))
+       (applynontail (field_imm 45 (global Stdlib!))
+         str Tail_position (Default_tail)))
    M = (makeblock 0 f)
    foo =
      (function {nlocal = 0} param[int] : int
-       (seq (apply f "hello") (applynontail f "goodbye")))
+       (seq (apply f "hello" Not_tail_position (Default_tail))
+         (applynontail f "goodbye" Tail_position (Default_tail))))
    bar =
      (function {nlocal = 0} param[int] : int
-       (seq (apply f "hello") (applynontail (field_imm 0 M) "goodbye"))))
+       (seq (apply f "hello" Not_tail_position (Default_tail))
+         (applynontail (field_imm 0 M)
+           "goodbye" Tail_position (Default_tail)))))
   (makeblock 0 f M foo bar))

@@ -1,11 +1,14 @@
 (letrec
   (foo
-     (function {nlocal = 0} n[int] : int (if (> n 0) (apply foo (- n 2)) 0)))
+     (function {nlocal = 0} n[int] : int
+       (if (> n 0) (apply foo (- n 2) Tail_position (Default_tail)) 0)))
   (letrec
     (bar
        (function {nlocal = 0} n[int] : int
-         (if (> n 0) (apply baz (- n 2)) 0))
-      baz (function {nlocal = 0} n[int] : int (apply bar (+ n 1))))
+         (if (> n 0) (apply baz (- n 2) Tail_position (Default_tail)) 0))
+      baz
+        (function {nlocal = 0} n[int] : int
+          (apply bar (+ n 1) Tail_position (Default_tail))))
     (letrec
       (collatz
          (function {nlocal = 0} n[int] k[int] : int
@@ -15,6 +18,8 @@
                   (let
                     (n =[int] (- n 1)
                      k =[int] (if (== (mod k 2) 0) (/ k 2) (+ (* 3 k) 1)))
-                    (apply collatz n k))))
-             (seq (ignore next) (if (> n 0) (applynontail next n k) k)))))
+                    (apply collatz n k Tail_position (Default_tail)))))
+             (seq (ignore next)
+               (if (> n 0)
+                 (applynontail next n k Tail_position (Default_tail)) k)))))
       (makeblock 0 foo bar baz collatz))))

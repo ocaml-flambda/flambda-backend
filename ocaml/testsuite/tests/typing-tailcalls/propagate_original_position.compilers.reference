@@ -1,0 +1,956 @@
+(let
+  (foo/269 =
+     (function {nlocal = 0} param/271[int] never_inline : int (ext 0))
+   tail_on_tail_app/272 =
+     (function {nlocal = 0} param/274[int] : int
+       (apply foo/269 0 Tail_position (Explicit_tail)))
+   tail_hint_on_tail_app/275 =
+     (function {nlocal = 0} param/277[int] : int
+       (apply foo/269 0 Tail_position (Hint_tail)))
+   tail_hint_on_not_tail_app/278 =
+     (function {nlocal = 0} param/280[int] : int
+       (seq (apply foo/269 0 Not_tail_position (Hint_tail))
+         (apply foo/269 0 Tail_position (Default_tail))))
+   tail_hint_in_simplif/281 =
+     (function {nlocal = 0} param/284[int] : int
+       (apply foo/269 0 Not_tail_position (Hint_tail)))
+   nontail_on_tail_app/285 =
+     (function {nlocal = 0} param/287[int] : int
+       (applynontail foo/269 0 Tail_position (Explicit_non_tail)))
+   nontail_on_not_tail_app/288 =
+     (function {nlocal = 0} param/290[int] : int
+       (seq (applynontail foo/269 0 Not_tail_position (Explicit_non_tail))
+         (apply foo/269 0 Tail_position (Default_tail))))
+   nontail_hint_in_simplif/291 =
+     (function {nlocal = 0} param/294[int] : int
+       (applynontail foo/269 0 Not_tail_position (Explicit_non_tail)))
+   default/295 =
+     (function {nlocal = 0} param/297[int] : int
+       (apply foo/269 0 Tail_position (Default_tail)))
+   default_in_simplif/298 =
+     (function {nlocal = 0} param/301[int] : int
+       (apply foo/269 0 Not_tail_position (Default_tail))))
+  (makeblock 0 foo/269 tail_on_tail_app/272 tail_hint_on_tail_app/275
+    tail_hint_on_not_tail_app/278 tail_hint_in_simplif/281
+    nontail_on_tail_app/285 nontail_on_not_tail_app/288
+    nontail_hint_in_simplif/291 default/295 default_in_simplif/298))
+
+After simplify:
+((module_symbol Propagate_original_position.camlPropagate_original_position)
+ (return_continuation k3) (exn_continuation k2)
+ (toplevel_my_region toplevel_my_region/0N) (used_value_slots { })
+ camlPropagate_original_position__foo_0_0_code = (Deleted)
+ camlPropagate_original_position__tail_on_tail_app_1_1_code = (Deleted)
+ camlPropagate_original_position__tail_hint_on_tail_app_2_2_code = (Deleted)
+ camlPropagate_original_position__tail_hint_on_not_tail_app_3_3_code =
+  (Deleted)
+ camlPropagate_original_position__tail_hint_in_simplif_4_4_code = (Deleted)
+ camlPropagate_original_position__nontail_on_tail_app_5_5_code = (Deleted)
+ camlPropagate_original_position__nontail_on_not_tail_app_6_6_code =
+  (Deleted)
+ camlPropagate_original_position__nontail_hint_in_simplif_7_7_code =
+  (Deleted)
+ camlPropagate_original_position__default_8_8_code = (Deleted)
+ camlPropagate_original_position__default_in_simplif_9_9_code = (Deleted)
+ camlPropagate_original_position__foo_0_10_code =
+  ((code_metadata
+    ((newer_version_of camlPropagate_original_position__foo_0_0_code)
+     (stub false) (inline Never_inline) () (poll_attribute Default)
+     (is_a_functor false) (is_opaque false) (params_arity 𝕍=tagged_ℕ𝕚)
+     (param_modes (Heap)) (first_complex_local_param 1)
+     (result_arity 𝕍=tagged_ℕ𝕚) (result_types (Unknown)) (result_mode Heap)
+     (contains_no_escaping_local_allocs true) (recursive Non_recursive)
+     (cost_metrics
+      size: 10 removed: {call: 0 alloc: 0 prim: 0 branch: 0 direct: 0
+                         poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic)
+     (dbg propagate_original_position.ml:12,23--34) (is_tupled false)
+     (is_my_closure_used false) (inlining_decision Never_inline_attribute)
+     (loopify Never_loopify)))
+   (λ〈k31〉《k30》⟅my_region/92N⟆
+      (param/94UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/93N ∷ 𝕍) my_depth/91N .
+    (apply
+     (((Some *extern*.ext)〈k31〉《k30》(0)) (args_arity 𝕍)
+      (return_arity 𝕍)
+      (call_kind
+       (C (needs_caml_c_call true) (is_c_builtin false) (effects Heap)
+        (coeffects Arbitrary_effects) (alloc_mode Has_coeffects)))
+      (dbg propagate_original_position.ml:12,28--34) (inline Default_inlined)
+      (inlining_state (depth 0, arguments Oclassic)) (probe ())
+      (original_position Unknown_position) (position Normal))))))
+ Propagate_original_position.camlPropagate_original_position__foo_10 ↤
+ (foo/0 ∷ 𝕍) =
+  (set_of_closures Heap
+   ({((foo/0 ∷ 𝕍) camlPropagate_original_position__foo_0_10_code)}))
+ camlPropagate_original_position__tail_on_tail_app_1_11_code =
+  ((code_metadata
+    ((newer_version_of
+      camlPropagate_original_position__tail_on_tail_app_1_1_code)
+     (stub false) (inline Default_inline) () (poll_attribute Default)
+     (is_a_functor false) (is_opaque false) (params_arity 𝕍=tagged_ℕ𝕚)
+     (param_modes (Heap)) (first_complex_local_param 1)
+     (result_arity 𝕍=tagged_ℕ𝕚) (result_types (Unknown)) (result_mode Heap)
+     (contains_no_escaping_local_allocs true) (recursive Non_recursive)
+     (cost_metrics
+      size: 4 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
+                        poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic)
+     (dbg propagate_original_position.ml:14,21--42) (is_tupled false)
+     (is_my_closure_used false)
+     (inlining_decision (Small_function (size 4) (small_function_size 10)))
+     (loopify Never_loopify)))
+   (λ〈k35〉《k34》⟅my_region/98N⟆
+      (param/100UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/99N ∷ 𝕍) my_depth/97N .
+    (apply
+     (((Some
+       Propagate_original_position.camlPropagate_original_position__foo_10)〈k35〉《k34》(0))
+      (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
+      (call_kind
+       (Function
+        (function_call
+         (Direct camlPropagate_original_position__foo_0_10_code))
+        (alloc_mode Heap))) (dbg propagate_original_position.ml:15,2--8)
+      (inline Default_inlined) (inlining_state (depth 0, arguments Oclassic))
+      (probe ()) (original_position Tail_position (Explicit_tail))
+      (position Normal))))))
+ Propagate_original_position.camlPropagate_original_position__tail_on_tail_app_11 ↤
+ (tail_on_tail_app/1 ∷ 𝕍) =
+  (set_of_closures Heap
+   ({((tail_on_tail_app/1 ∷ 𝕍)
+      camlPropagate_original_position__tail_on_tail_app_1_11_code)}))
+ camlPropagate_original_position__tail_hint_on_tail_app_2_12_code =
+  ((code_metadata
+    ((newer_version_of
+      camlPropagate_original_position__tail_hint_on_tail_app_2_2_code)
+     (stub false) (inline Default_inline) () (poll_attribute Default)
+     (is_a_functor false) (is_opaque false) (params_arity 𝕍=tagged_ℕ𝕚)
+     (param_modes (Heap)) (first_complex_local_param 1)
+     (result_arity 𝕍=tagged_ℕ𝕚) (result_types (Unknown)) (result_mode Heap)
+     (contains_no_escaping_local_allocs true) (recursive Non_recursive)
+     (cost_metrics
+      size: 4 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
+                        poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic)
+     (dbg propagate_original_position.ml:17,26--52) (is_tupled false)
+     (is_my_closure_used false)
+     (inlining_decision (Small_function (size 4) (small_function_size 10)))
+     (loopify Never_loopify)))
+   (λ〈k39〉《k38》⟅my_region/105N⟆
+      (param/107UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/106N ∷ 𝕍) my_depth/104N .
+    (apply
+     (((Some
+       Propagate_original_position.camlPropagate_original_position__foo_10)〈k39〉《k38》(0))
+      (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
+      (call_kind
+       (Function
+        (function_call
+         (Direct camlPropagate_original_position__foo_0_10_code))
+        (alloc_mode Heap))) (dbg propagate_original_position.ml:18,2--8)
+      (inline Default_inlined) (inlining_state (depth 0, arguments Oclassic))
+      (probe ()) (original_position Tail_position (Hint_tail))
+      (position Normal))))))
+ Propagate_original_position.camlPropagate_original_position__tail_hint_on_tail_app_12 ↤
+ (tail_hint_on_tail_app/2 ∷ 𝕍) =
+  (set_of_closures Heap
+   ({((tail_hint_on_tail_app/2 ∷ 𝕍)
+      camlPropagate_original_position__tail_hint_on_tail_app_2_12_code)}))
+ camlPropagate_original_position__tail_hint_on_not_tail_app_3_13_code =
+  ((code_metadata
+    ((newer_version_of
+      camlPropagate_original_position__tail_hint_on_not_tail_app_3_3_code)
+     (stub false) (inline Default_inline) () (poll_attribute Default)
+     (is_a_functor false) (is_opaque false) (params_arity 𝕍=tagged_ℕ𝕚)
+     (param_modes (Heap)) (first_complex_local_param 1)
+     (result_arity 𝕍=tagged_ℕ𝕚) (result_types (Unknown)) (result_mode Heap)
+     (contains_no_escaping_local_allocs true) (recursive Non_recursive)
+     (cost_metrics
+      size: 9 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
+                        poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic)
+     (dbg propagate_original_position.ml:20,30--66) (is_tupled false)
+     (is_my_closure_used false)
+     (inlining_decision (Small_function (size 9) (small_function_size 10)))
+     (loopify Never_loopify)))
+   (λ〈k43〉《k42》⟅my_region/112N⟆
+      (param/114UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/113N ∷ 𝕍) my_depth/111N .
+    ((apply
+      (((Some
+        Propagate_original_position.camlPropagate_original_position__foo_10)〈k47〉《k42》(0))
+       (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
+       (call_kind
+        (Function
+         (function_call
+          (Direct camlPropagate_original_position__foo_0_10_code))
+         (alloc_mode Heap))) (dbg propagate_original_position.ml:21,2--8)
+       (inline Default_inlined)
+       (inlining_state (depth 0, arguments Oclassic)) (probe ())
+       (original_position Not_tail_position (Hint_tail)) (position Normal)))
+     k47 (param/119N ∷ 𝕍=tagged_ℕ𝕚) #One: goto k46
+     k46 #One:
+     (apply
+      (((Some
+        Propagate_original_position.camlPropagate_original_position__foo_10)〈k43〉《k42》(0))
+       (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
+       (call_kind
+        (Function
+         (function_call
+          (Direct camlPropagate_original_position__foo_0_10_code))
+         (alloc_mode Heap))) (dbg propagate_original_position.ml:22,2--8)
+       (inline Default_inlined)
+       (inlining_state (depth 0, arguments Oclassic)) (probe ())
+       (original_position Tail_position (Default_tail)) (position Normal)))))))
+ Propagate_original_position.camlPropagate_original_position__tail_hint_on_not_tail_app_13 ↤
+ (tail_hint_on_not_tail_app/3 ∷ 𝕍) =
+  (set_of_closures Heap
+   ({((tail_hint_on_not_tail_app/3 ∷ 𝕍)
+      camlPropagate_original_position__tail_hint_on_not_tail_app_3_13_code)}))
+ camlPropagate_original_position__tail_hint_in_simplif_4_14_code =
+  ((code_metadata
+    ((newer_version_of
+      camlPropagate_original_position__tail_hint_in_simplif_4_4_code)
+     (stub false) (inline Default_inline) () (poll_attribute Default)
+     (is_a_functor false) (is_opaque false) (params_arity 𝕍=tagged_ℕ𝕚)
+     (param_modes (Heap)) (first_complex_local_param 1)
+     (result_arity 𝕍=tagged_ℕ𝕚) (result_types (Unknown)) (result_mode Heap)
+     (contains_no_escaping_local_allocs true) (recursive Non_recursive)
+     (cost_metrics
+      size: 4 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
+                        poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic)
+     (dbg propagate_original_position.ml:24,25--64) (is_tupled false)
+     (is_my_closure_used false)
+     (inlining_decision (Small_function (size 4) (small_function_size 10)))
+     (loopify Never_loopify)))
+   (λ〈k49〉《k48》⟅my_region/123N⟆
+      (param/125UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/124N ∷ 𝕍) my_depth/122N .
+    (apply
+     (((Some
+       Propagate_original_position.camlPropagate_original_position__foo_10)〈k49〉《k48》(0))
+      (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
+      (call_kind
+       (Function
+        (function_call
+         (Direct camlPropagate_original_position__foo_0_10_code))
+        (alloc_mode Heap))) (dbg propagate_original_position.ml:25,10--16)
+      (inline Default_inlined) (inlining_state (depth 0, arguments Oclassic))
+      (probe ()) (original_position Not_tail_position (Hint_tail))
+      (position Normal))))))
+ Propagate_original_position.camlPropagate_original_position__tail_hint_in_simplif_14 ↤
+ (tail_hint_in_simplif/4 ∷ 𝕍) =
+  (set_of_closures Heap
+   ({((tail_hint_in_simplif/4 ∷ 𝕍)
+      camlPropagate_original_position__tail_hint_in_simplif_4_14_code)}))
+ camlPropagate_original_position__nontail_on_tail_app_5_15_code =
+  ((code_metadata
+    ((newer_version_of
+      camlPropagate_original_position__nontail_on_tail_app_5_5_code)
+     (stub false) (inline Default_inline) () (poll_attribute Default)
+     (is_a_functor false) (is_opaque false) (params_arity 𝕍=tagged_ℕ𝕚)
+     (param_modes (Heap)) (first_complex_local_param 1)
+     (result_arity 𝕍=tagged_ℕ𝕚) (result_types (Unknown)) (result_mode Heap)
+     (contains_no_escaping_local_allocs true) (recursive Non_recursive)
+     (cost_metrics
+      size: 4 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
+                        poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic)
+     (dbg propagate_original_position.ml:27,24--48) (is_tupled false)
+     (is_my_closure_used false)
+     (inlining_decision (Small_function (size 4) (small_function_size 10)))
+     (loopify Never_loopify)))
+   (λ〈k53〉《k52》⟅my_region/130N⟆
+      (param/132UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/131N ∷ 𝕍) my_depth/129N .
+    (apply
+     (((Some
+       Propagate_original_position.camlPropagate_original_position__foo_10)〈k53〉《k52》(0))
+      (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
+      (call_kind
+       (Function
+        (function_call
+         (Direct camlPropagate_original_position__foo_0_10_code))
+        (alloc_mode Heap))) (dbg propagate_original_position.ml:28,2--8)
+      (inline Default_inlined) (inlining_state (depth 0, arguments Oclassic))
+      (probe ()) (original_position Tail_position (Explicit_non_tail))
+      (position Nontail))))))
+ Propagate_original_position.camlPropagate_original_position__nontail_on_tail_app_15 ↤
+ (nontail_on_tail_app/5 ∷ 𝕍) =
+  (set_of_closures Heap
+   ({((nontail_on_tail_app/5 ∷ 𝕍)
+      camlPropagate_original_position__nontail_on_tail_app_5_15_code)}))
+ camlPropagate_original_position__nontail_on_not_tail_app_6_16_code =
+  ((code_metadata
+    ((newer_version_of
+      camlPropagate_original_position__nontail_on_not_tail_app_6_6_code)
+     (stub false) (inline Default_inline) () (poll_attribute Default)
+     (is_a_functor false) (is_opaque false) (params_arity 𝕍=tagged_ℕ𝕚)
+     (param_modes (Heap)) (first_complex_local_param 1)
+     (result_arity 𝕍=tagged_ℕ𝕚) (result_types (Unknown)) (result_mode Heap)
+     (contains_no_escaping_local_allocs true) (recursive Non_recursive)
+     (cost_metrics
+      size: 9 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
+                        poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic)
+     (dbg propagate_original_position.ml:30,28--62) (is_tupled false)
+     (is_my_closure_used false)
+     (inlining_decision (Small_function (size 9) (small_function_size 10)))
+     (loopify Never_loopify)))
+   (λ〈k57〉《k56》⟅my_region/137N⟆
+      (param/139UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/138N ∷ 𝕍) my_depth/136N .
+    ((apply
+      (((Some
+        Propagate_original_position.camlPropagate_original_position__foo_10)〈k61〉《k56》(0))
+       (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
+       (call_kind
+        (Function
+         (function_call
+          (Direct camlPropagate_original_position__foo_0_10_code))
+         (alloc_mode Heap))) (dbg propagate_original_position.ml:31,2--8)
+       (inline Default_inlined)
+       (inlining_state (depth 0, arguments Oclassic)) (probe ())
+       (original_position Not_tail_position (Explicit_non_tail))
+       (position Nontail)))
+     k61 (param/144N ∷ 𝕍=tagged_ℕ𝕚) #One: goto k60
+     k60 #One:
+     (apply
+      (((Some
+        Propagate_original_position.camlPropagate_original_position__foo_10)〈k57〉《k56》(0))
+       (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
+       (call_kind
+        (Function
+         (function_call
+          (Direct camlPropagate_original_position__foo_0_10_code))
+         (alloc_mode Heap))) (dbg propagate_original_position.ml:32,2--8)
+       (inline Default_inlined)
+       (inlining_state (depth 0, arguments Oclassic)) (probe ())
+       (original_position Tail_position (Default_tail)) (position Normal)))))))
+ Propagate_original_position.camlPropagate_original_position__nontail_on_not_tail_app_16 ↤
+ (nontail_on_not_tail_app/6 ∷ 𝕍) =
+  (set_of_closures Heap
+   ({((nontail_on_not_tail_app/6 ∷ 𝕍)
+      camlPropagate_original_position__nontail_on_not_tail_app_6_16_code)}))
+ camlPropagate_original_position__nontail_hint_in_simplif_7_17_code =
+  ((code_metadata
+    ((newer_version_of
+      camlPropagate_original_position__nontail_hint_in_simplif_7_7_code)
+     (stub false) (inline Default_inline) () (poll_attribute Default)
+     (is_a_functor false) (is_opaque false) (params_arity 𝕍=tagged_ℕ𝕚)
+     (param_modes (Heap)) (first_complex_local_param 1)
+     (result_arity 𝕍=tagged_ℕ𝕚) (result_types (Unknown)) (result_mode Heap)
+     (contains_no_escaping_local_allocs true) (recursive Non_recursive)
+     (cost_metrics
+      size: 4 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
+                        poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic)
+     (dbg propagate_original_position.ml:34,28--65) (is_tupled false)
+     (is_my_closure_used false)
+     (inlining_decision (Small_function (size 4) (small_function_size 10)))
+     (loopify Never_loopify)))
+   (λ〈k63〉《k62》⟅my_region/148N⟆
+      (param/150UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/149N ∷ 𝕍) my_depth/147N .
+    (apply
+     (((Some
+       Propagate_original_position.camlPropagate_original_position__foo_10)〈k63〉《k62》(0))
+      (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
+      (call_kind
+       (Function
+        (function_call
+         (Direct camlPropagate_original_position__foo_0_10_code))
+        (alloc_mode Heap))) (dbg propagate_original_position.ml:35,10--16)
+      (inline Default_inlined) (inlining_state (depth 0, arguments Oclassic))
+      (probe ()) (original_position Not_tail_position (Explicit_non_tail))
+      (position Nontail))))))
+ Propagate_original_position.camlPropagate_original_position__nontail_hint_in_simplif_17 ↤
+ (nontail_hint_in_simplif/7 ∷ 𝕍) =
+  (set_of_closures Heap
+   ({((nontail_hint_in_simplif/7 ∷ 𝕍)
+      camlPropagate_original_position__nontail_hint_in_simplif_7_17_code)}))
+ camlPropagate_original_position__default_8_18_code =
+  ((code_metadata
+    ((newer_version_of camlPropagate_original_position__default_8_8_code)
+     (stub false) (inline Default_inline) () (poll_attribute Default)
+     (is_a_functor false) (is_opaque false) (params_arity 𝕍=tagged_ℕ𝕚)
+     (param_modes (Heap)) (first_complex_local_param 1)
+     (result_arity 𝕍=tagged_ℕ𝕚) (result_types (Unknown)) (result_mode Heap)
+     (contains_no_escaping_local_allocs true) (recursive Non_recursive)
+     (cost_metrics
+      size: 4 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
+                        poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic)
+     (dbg propagate_original_position.ml:37,12--25) (is_tupled false)
+     (is_my_closure_used false)
+     (inlining_decision (Small_function (size 4) (small_function_size 10)))
+     (loopify Never_loopify)))
+   (λ〈k67〉《k66》⟅my_region/155N⟆
+      (param/157UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/156N ∷ 𝕍) my_depth/154N .
+    (apply
+     (((Some
+       Propagate_original_position.camlPropagate_original_position__foo_10)〈k67〉《k66》(0))
+      (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
+      (call_kind
+       (Function
+        (function_call
+         (Direct camlPropagate_original_position__foo_0_10_code))
+        (alloc_mode Heap))) (dbg propagate_original_position.ml:38,2--8)
+      (inline Default_inlined) (inlining_state (depth 0, arguments Oclassic))
+      (probe ()) (original_position Tail_position (Default_tail))
+      (position Normal))))))
+ Propagate_original_position.camlPropagate_original_position__default_18 ↤
+ (default/8 ∷ 𝕍) =
+  (set_of_closures Heap
+   ({((default/8 ∷ 𝕍) camlPropagate_original_position__default_8_18_code)}))
+ camlPropagate_original_position__default_in_simplif_9_19_code =
+  ((code_metadata
+    ((newer_version_of
+      camlPropagate_original_position__default_in_simplif_9_9_code)
+     (stub false) (inline Default_inline) () (poll_attribute Default)
+     (is_a_functor false) (is_opaque false) (params_arity 𝕍=tagged_ℕ𝕚)
+     (param_modes (Heap)) (first_complex_local_param 1)
+     (result_arity 𝕍=tagged_ℕ𝕚) (result_types (Unknown)) (result_mode Heap)
+     (contains_no_escaping_local_allocs true) (recursive Non_recursive)
+     (cost_metrics
+      size: 4 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
+                        poly_cmp: 0 requested: 0})
+     (inlining_arguments Oclassic)
+     (dbg propagate_original_position.ml:40,23--49) (is_tupled false)
+     (is_my_closure_used false)
+     (inlining_decision (Small_function (size 4) (small_function_size 10)))
+     (loopify Never_loopify)))
+   (λ〈k71〉《k70》⟅my_region/162N⟆
+      (param/164UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/163N ∷ 𝕍) my_depth/161N .
+    (apply
+     (((Some
+       Propagate_original_position.camlPropagate_original_position__foo_10)〈k71〉《k70》(0))
+      (args_arity 𝕍=tagged_ℕ𝕚) (return_arity 𝕍=tagged_ℕ𝕚)
+      (call_kind
+       (Function
+        (function_call
+         (Direct camlPropagate_original_position__foo_0_10_code))
+        (alloc_mode Heap))) (dbg propagate_original_position.ml:41,10--16)
+      (inline Default_inlined) (inlining_state (depth 0, arguments Oclassic))
+      (probe ()) (original_position Not_tail_position (Default_tail))
+      (position Normal))))))
+ Propagate_original_position.camlPropagate_original_position__default_in_simplif_19 ↤
+ (default_in_simplif/9 ∷ 𝕍) =
+  (set_of_closures Heap
+   ({((default_in_simplif/9 ∷ 𝕍)
+      camlPropagate_original_position__default_in_simplif_9_19_code)}))
+ Propagate_original_position.camlPropagate_original_position =
+  (Immutable_block (tag 0)
+   (Propagate_original_position.camlPropagate_original_position__foo_10
+   Propagate_original_position.camlPropagate_original_position__tail_on_tail_app_11
+   Propagate_original_position.camlPropagate_original_position__tail_hint_on_tail_app_12
+   Propagate_original_position.camlPropagate_original_position__tail_hint_on_not_tail_app_13
+   Propagate_original_position.camlPropagate_original_position__tail_hint_in_simplif_14
+   Propagate_original_position.camlPropagate_original_position__nontail_on_tail_app_15
+   Propagate_original_position.camlPropagate_original_position__nontail_on_not_tail_app_16
+   Propagate_original_position.camlPropagate_original_position__nontail_hint_in_simplif_17
+   Propagate_original_position.camlPropagate_original_position__default_18
+   Propagate_original_position.camlPropagate_original_position__default_in_simplif_19))
+ module_init_end k3 Propagate_original_position.camlPropagate_original_position)
+(data global "camlPropagate_original_position__gc_roots": int 0)
+(data
+ int 11008
+ global "camlPropagate_original_position":
+ addr G:"camlPropagate_original_position__foo_10"
+ addr G:"camlPropagate_original_position__tail_on_tail_app_11"
+ addr G:"camlPropagate_original_position__tail_hint_on_tail_app_12"
+ addr G:"camlPropagate_original_position__tail_hint_on_not_tail_app_13"
+ addr G:"camlPropagate_original_position__tail_hint_in_simplif_14"
+ addr G:"camlPropagate_original_position__nontail_on_tail_app_15"
+ addr G:"camlPropagate_original_position__nontail_on_not_tail_app_16"
+ addr G:"camlPropagate_original_position__nontail_hint_in_simplif_17"
+ addr G:"camlPropagate_original_position__default_18"
+ addr G:"camlPropagate_original_position__default_in_simplif_19")
+(data
+ int 3063
+ global "camlPropagate_original_position__default_in_simplif_19":
+ addr G:"camlPropagate_original_position__default_in_simplif_9_19_code"
+ int 108086391056891909)
+(data
+ int 3063
+ global "camlPropagate_original_position__default_18":
+ addr G:"camlPropagate_original_position__default_8_18_code"
+ int 108086391056891909)
+(data
+ int 3063
+ global "camlPropagate_original_position__nontail_hint_in_simplif_17":
+ addr G:"camlPropagate_original_position__nontail_hint_in_simplif_7_17_code"
+ int 108086391056891909)
+(data
+ int 3063
+ global "camlPropagate_original_position__nontail_on_not_tail_app_16":
+ addr G:"camlPropagate_original_position__nontail_on_not_tail_app_6_16_code"
+ int 108086391056891909)
+(data
+ int 3063
+ global "camlPropagate_original_position__nontail_on_tail_app_15":
+ addr G:"camlPropagate_original_position__nontail_on_tail_app_5_15_code"
+ int 108086391056891909)
+(data
+ int 3063
+ global "camlPropagate_original_position__tail_hint_in_simplif_14":
+ addr G:"camlPropagate_original_position__tail_hint_in_simplif_4_14_code"
+ int 108086391056891909)
+(data
+ int 3063
+ global "camlPropagate_original_position__tail_hint_on_not_tail_app_13":
+ addr G:"camlPropagate_original_position__tail_hint_on_not_tail_app_3_13_code"
+ int 108086391056891909)
+(data
+ int 3063
+ global "camlPropagate_original_position__tail_hint_on_tail_app_12":
+ addr G:"camlPropagate_original_position__tail_hint_on_tail_app_2_12_code"
+ int 108086391056891909)
+(data
+ int 3063
+ global "camlPropagate_original_position__tail_on_tail_app_11":
+ addr G:"camlPropagate_original_position__tail_on_tail_app_1_11_code"
+ int 108086391056891909)
+(data
+ int 3063
+ global "camlPropagate_original_position__foo_10":
+ addr G:"camlPropagate_original_position__foo_0_10_code"
+ int 108086391056891909)
+(function{propagate_original_position.ml:12,23-34}
+ camlPropagate_original_position__foo_0_10_code (param/343: int)
+ (extcall "ext"{propagate_original_position.ml:12,28-34} 1 int->val))
+
+*** After instruction selection
+camlPropagate_original_position__foo_0_10_code(R:I/0[%rax]) {propagate_original_position.ml:12,23-34}
+  param:I/61 := R:I/0[%rax]
+  I/62 := 1
+  R:I/2[%rdi] := I/62
+  R:I/0[%rax] := extcall "ext" R:I/2[%rdi]{propagate_original_position.ml:12,28-34}
+  V/63 := R:I/0[%rax]
+  R:I/0[%rax] := V/63
+  return R:I/0[%rax]
+*** After cfgize
+
+cfg for 
+camlPropagate_original_position__foo_0_10_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 100
+predecessors:
+successors: 100
+exn-successors:
+
+100:
+I/62[%rdi] := 1
+R:I/2[%rdi] := I/62[%rdi]
+R:I/0[%rax] := extcall "ext" R:I/2[%rdi]
+goto 102
+predecessors: 1
+successors: 102
+exn-successors:
+
+102:
+V/63[%rax] := R:I/0[%rax]
+R:I/0[%rax] := V/63[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 100
+successors:
+exn-successors:
+
+(function{propagate_original_position.ml:14,21-42}
+ camlPropagate_original_position__tail_on_tail_app_1_11_code (param/345: int)
+ (app(opos tail [@tail]){propagate_original_position.ml:15,2-8}
+   G:"camlPropagate_original_position__foo_0_10_code" 1 int))
+
+*** After instruction selection
+camlPropagate_original_position__tail_on_tail_app_1_11_code(R:I/0[%rax]) {propagate_original_position.ml:14,21-42}
+  param:I/61 := R:I/0[%rax]
+  I/62 := 1
+  R:I/0[%rax] := I/62
+  tailcall(opos tail [@tail]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]{propagate_original_position.ml:15,2-8}
+*** After cfgize
+
+cfg for 
+camlPropagate_original_position__tail_on_tail_app_1_11_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 104
+predecessors:
+successors: 104
+exn-successors:
+
+104:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+tailcall(opos tail [@tail]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
+
+(function{propagate_original_position.ml:17,26-52}
+ camlPropagate_original_position__tail_hint_on_tail_app_2_12_code
+     (param/347: int)
+ (app(opos tail [@tail hint]){propagate_original_position.ml:18,2-8}
+   G:"camlPropagate_original_position__foo_0_10_code" 1 int))
+
+*** After instruction selection
+camlPropagate_original_position__tail_hint_on_tail_app_2_12_code(R:I/0[%rax]) {propagate_original_position.ml:17,26-52}
+  param:I/61 := R:I/0[%rax]
+  I/62 := 1
+  R:I/0[%rax] := I/62
+  tailcall(opos tail [@tail hint]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]{propagate_original_position.ml:18,2-8}
+*** After cfgize
+
+cfg for 
+camlPropagate_original_position__tail_hint_on_tail_app_2_12_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 106
+predecessors:
+successors: 106
+exn-successors:
+
+106:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+tailcall(opos tail [@tail hint]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
+
+(function{propagate_original_position.ml:20,30-66}
+ camlPropagate_original_position__tail_hint_on_not_tail_app_3_13_code
+     (param/349: int)
+ (let
+   param/350
+     (app(opos not_tail [@tail hint]){propagate_original_position.ml:21,2-8}
+       G:"camlPropagate_original_position__foo_0_10_code" 1 int)
+   (app(opos tail default){propagate_original_position.ml:22,2-8}
+     G:"camlPropagate_original_position__foo_0_10_code" 1 int)))
+
+*** After instruction selection
+camlPropagate_original_position__tail_hint_on_not_tail_app_3_13_code(R:I/0[%rax]) {propagate_original_position.ml:20,30-66}
+  param:I/61 := R:I/0[%rax]
+  I/62 := 1
+  R:I/0[%rax] := I/62
+  R:I/0[%rax] := call(opos not_tail [@tail hint]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]{propagate_original_position.ml:21,2-8}
+  param:I/63 := R:I/0[%rax]
+  I/64 := 1
+  R:I/0[%rax] := I/64
+  tailcall(opos tail default) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]{propagate_original_position.ml:22,2-8}
+*** After cfgize
+
+cfg for 
+camlPropagate_original_position__tail_hint_on_not_tail_app_3_13_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 108
+predecessors:
+successors: 108
+exn-successors:
+
+108:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+R:I/0[%rax] := call(opos not_tail [@tail hint]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]
+goto 110
+predecessors: 1
+successors: 110
+exn-successors:
+
+110:
+I/64[%rax] := 1
+R:I/0[%rax] := I/64[%rax]
+tailcall(opos tail default) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]
+predecessors: 108
+successors:
+exn-successors:
+
+(function{propagate_original_position.ml:24,25-64}
+ camlPropagate_original_position__tail_hint_in_simplif_4_14_code
+     (param/352: int)
+ (app(opos not_tail [@tail hint]){propagate_original_position.ml:25,10-16}
+   G:"camlPropagate_original_position__foo_0_10_code" 1 int))
+
+*** After instruction selection
+camlPropagate_original_position__tail_hint_in_simplif_4_14_code(R:I/0[%rax]) {propagate_original_position.ml:24,25-64}
+  param:I/61 := R:I/0[%rax]
+  I/62 := 1
+  R:I/0[%rax] := I/62
+  tailcall(opos not_tail [@tail hint]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]{propagate_original_position.ml:25,10-16}
+*** After cfgize
+
+cfg for 
+camlPropagate_original_position__tail_hint_in_simplif_4_14_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 112
+predecessors:
+successors: 112
+exn-successors:
+
+112:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+tailcall(opos not_tail [@tail hint]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
+
+(function{propagate_original_position.ml:27,24-48}
+ camlPropagate_original_position__nontail_on_tail_app_5_15_code
+     (param/354: int)
+ (app(opos tail [@nontail]){propagate_original_position.ml:28,2-8}
+   G:"camlPropagate_original_position__foo_0_10_code" 1 int))
+
+*** After instruction selection
+camlPropagate_original_position__nontail_on_tail_app_5_15_code(R:I/0[%rax]) {propagate_original_position.ml:27,24-48}
+  param:I/61 := R:I/0[%rax]
+  I/62 := 1
+  R:I/0[%rax] := I/62
+  R:I/0[%rax] := call(opos tail [@nontail]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]{propagate_original_position.ml:28,2-8}
+  I/63 := R:I/0[%rax]
+  R:I/0[%rax] := I/63
+  return R:I/0[%rax]
+*** After cfgize
+
+cfg for 
+camlPropagate_original_position__nontail_on_tail_app_5_15_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 114
+predecessors:
+successors: 114
+exn-successors:
+
+114:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+R:I/0[%rax] := call(opos tail [@nontail]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]
+goto 116
+predecessors: 1
+successors: 116
+exn-successors:
+
+116:
+I/63[%rax] := R:I/0[%rax]
+R:I/0[%rax] := I/63[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 114
+successors:
+exn-successors:
+
+(function{propagate_original_position.ml:30,28-62}
+ camlPropagate_original_position__nontail_on_not_tail_app_6_16_code
+     (param/356: int)
+ (let
+   param/357
+     (app(opos not_tail [@nontail]){propagate_original_position.ml:31,2-8}
+       G:"camlPropagate_original_position__foo_0_10_code" 1 int)
+   (app(opos tail default){propagate_original_position.ml:32,2-8}
+     G:"camlPropagate_original_position__foo_0_10_code" 1 int)))
+
+*** After instruction selection
+camlPropagate_original_position__nontail_on_not_tail_app_6_16_code(R:I/0[%rax]) {propagate_original_position.ml:30,28-62}
+  param:I/61 := R:I/0[%rax]
+  I/62 := 1
+  R:I/0[%rax] := I/62
+  R:I/0[%rax] := call(opos not_tail [@nontail]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]{propagate_original_position.ml:31,2-8}
+  param:I/63 := R:I/0[%rax]
+  I/64 := 1
+  R:I/0[%rax] := I/64
+  tailcall(opos tail default) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]{propagate_original_position.ml:32,2-8}
+*** After cfgize
+
+cfg for 
+camlPropagate_original_position__nontail_on_not_tail_app_6_16_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 118
+predecessors:
+successors: 118
+exn-successors:
+
+118:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+R:I/0[%rax] := call(opos not_tail [@nontail]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]
+goto 120
+predecessors: 1
+successors: 120
+exn-successors:
+
+120:
+I/64[%rax] := 1
+R:I/0[%rax] := I/64[%rax]
+tailcall(opos tail default) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]
+predecessors: 118
+successors:
+exn-successors:
+
+(function{propagate_original_position.ml:34,28-65}
+ camlPropagate_original_position__nontail_hint_in_simplif_7_17_code
+     (param/359: int)
+ (app(opos not_tail [@nontail]){propagate_original_position.ml:35,10-16}
+   G:"camlPropagate_original_position__foo_0_10_code" 1 int))
+
+*** After instruction selection
+camlPropagate_original_position__nontail_hint_in_simplif_7_17_code(R:I/0[%rax]) {propagate_original_position.ml:34,28-65}
+  param:I/61 := R:I/0[%rax]
+  I/62 := 1
+  R:I/0[%rax] := I/62
+  R:I/0[%rax] := call(opos not_tail [@nontail]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]{propagate_original_position.ml:35,10-16}
+  I/63 := R:I/0[%rax]
+  R:I/0[%rax] := I/63
+  return R:I/0[%rax]
+*** After cfgize
+
+cfg for 
+camlPropagate_original_position__nontail_hint_in_simplif_7_17_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 122
+predecessors:
+successors: 122
+exn-successors:
+
+122:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+R:I/0[%rax] := call(opos not_tail [@nontail]) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]
+goto 124
+predecessors: 1
+successors: 124
+exn-successors:
+
+124:
+I/63[%rax] := R:I/0[%rax]
+R:I/0[%rax] := I/63[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 122
+successors:
+exn-successors:
+
+(function{propagate_original_position.ml:37,12-25}
+ camlPropagate_original_position__default_8_18_code (param/361: int)
+ (app(opos tail default){propagate_original_position.ml:38,2-8}
+   G:"camlPropagate_original_position__foo_0_10_code" 1 int))
+
+*** After instruction selection
+camlPropagate_original_position__default_8_18_code(R:I/0[%rax]) {propagate_original_position.ml:37,12-25}
+  param:I/61 := R:I/0[%rax]
+  I/62 := 1
+  R:I/0[%rax] := I/62
+  tailcall(opos tail default) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]{propagate_original_position.ml:38,2-8}
+*** After cfgize
+
+cfg for 
+camlPropagate_original_position__default_8_18_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 126
+predecessors:
+successors: 126
+exn-successors:
+
+126:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+tailcall(opos tail default) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
+
+(function{propagate_original_position.ml:40,23-49}
+ camlPropagate_original_position__default_in_simplif_9_19_code
+     (param/363: int)
+ (app(opos not_tail default){propagate_original_position.ml:41,10-16}
+   G:"camlPropagate_original_position__foo_0_10_code" 1 int))
+
+*** After instruction selection
+camlPropagate_original_position__default_in_simplif_9_19_code(R:I/0[%rax]) {propagate_original_position.ml:40,23-49}
+  param:I/61 := R:I/0[%rax]
+  I/62 := 1
+  R:I/0[%rax] := I/62
+  tailcall(opos not_tail default) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]{propagate_original_position.ml:41,10-16}
+*** After cfgize
+
+cfg for 
+camlPropagate_original_position__default_in_simplif_9_19_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 128
+predecessors:
+successors: 128
+exn-successors:
+
+128:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+tailcall(opos not_tail default) "camlPropagate_original_position__foo_0_10_code" R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
+
+(function no_cse reduce_code_size linscan
+ camlPropagate_original_position__entry ()
+ (catch (exit 1 G:"camlPropagate_original_position") with(1 *ret*/340: val)
+   1))
+
+*** After instruction selection
+camlPropagate_original_position__entry() no_cse reduce_code_size linscan
+  catch
+    I/62 := "camlPropagate_original_position"
+    I/63 := I/62
+    *ret*:V/61 := I/63
+    exit(1)
+  with(1)
+    I/64 := 1
+    R:I/0[%rax] := I/64
+    return R:I/0[%rax]
+    
+  endcatch
+*** After cfgize
+
+cfg for 
+camlPropagate_original_position__entry
+layout.length=2
+blocks.length=2
+
+1:
+goto 132
+predecessors:
+successors: 132
+exn-successors:
+
+132:
+I/64[%rax] := 1
+R:I/0[%rax] := I/64[%rax]
+Return R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
+
+(data addr G:"ext")

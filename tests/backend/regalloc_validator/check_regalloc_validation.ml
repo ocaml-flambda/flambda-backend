@@ -300,7 +300,10 @@ let base_templ () : Cfg_desc.t * (unit -> int) =
             exn = None;
             terminator =
               { id = make_id ();
-                desc = Call { op = Indirect; label_after = move_tmp_res_label; tail = Default_tail };
+                desc = Call { op = Indirect; 
+                              label_after = move_tmp_res_label;
+                              original_position = Unknown_position 
+                            };
                 arg = arg_locs;
                 res = tmp_result_locs
               }

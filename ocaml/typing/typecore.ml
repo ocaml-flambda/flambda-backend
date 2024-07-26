@@ -360,6 +360,9 @@ type expected_mode =
 type position_and_mode = {
   apply_position : apply_position;
   (** Runtime tail call behaviour of the application *)
+  original_position: position_and_tail_attribute;
+  (** Original source position of the application
+      and [@tail]/[@nontail] attributes *)
   region_mode : Regionality.r option;
   (** INVARIANT: [Some m] iff [apply_position] is [Tail], where [m] is the mode
      of the surrounding region *)
@@ -367,6 +370,7 @@ type position_and_mode = {
 
 let position_and_mode_default = {
   apply_position = Default;
+  original_position = Unknown_position;
   region_mode = None;
 }
 
@@ -404,26 +408,37 @@ let position_and_mode env (expected_mode : expected_mode) sexp ~callee_expr
     raise (Error (sexp.pexp_loc, env, Bad_tail_annotation err))
   in
   let requested =
-    match Builtin_attributes.tailcall sexp.pexp_attributes ~use:true with
+    match Builtin_attributes.tailcall sexp.pexp_attributes with
     | Ok r -> r
     | Error `Conflict -> fail `Conflict
   in
+  let tail_attribute =
+    match requested with
+    | Some `Tail -> Explicit_tail
+    | Some `Tail_if_possible -> Hint_tail
+    | Some `Nontail -> Explicit_non_tail
+    | None -> Default_tail
+  in
   match expected_mode.position with
   | RTail (m ,FTail) -> begin
+      let original_position = Tail_position tail_attribute in
       match requested with
       | None -> if should_infer_tail env callee_expr then
-          {apply_position = Tail; region_mode = Some m}
+          {apply_position = Tail; original_position; region_mode = Some m}
         else
-          {apply_position = Nontail; region_mode = None}
+          {apply_position = Nontail; original_position; region_mode = None}
       | Some `Tail | Some `Tail_if_possible ->
-          {apply_position = Tail; region_mode = Some m}
-      | Some `Nontail -> {apply_position = Nontail; region_mode = None}
+        {apply_position = Tail; original_position; region_mode = Some m}
+      | Some `Nontail ->
+        {apply_position = Nontail; original_position; region_mode = None}
     end
   | RNontail | RTail(_, FNontail) -> begin
+      let original_position = Not_tail_position tail_attribute in
       match requested with
       | None | Some `Tail_if_possible ->
-          {apply_position = Default; region_mode = None}
-      | Some `Nontail -> {apply_position = Nontail; region_mode = None}
+        {apply_position = Default; original_position; region_mode = None}
+      | Some `Nontail ->
+        {apply_position = Nontail; original_position; region_mode = None}
       | Some `Tail -> fail `Not_a_tailcall
   end
 
@@ -3772,7 +3787,7 @@ let rec is_nonexpansive exp =
   | Texp_let(_rec_flag, pat_exp_list, body) ->
       List.for_all (fun vb -> is_nonexpansive vb.vb_expr) pat_exp_list &&
       is_nonexpansive body
-  | Texp_apply(e, (_,Omitted _)::el, _, _, _) ->
+  | Texp_apply(e, (_,Omitted _)::el, _, _, _, _) ->
       is_nonexpansive e && List.for_all is_nonexpansive_arg (List.map snd el)
   | Texp_match(e, _, cases, _) ->
      (* Not sure this is necessary, if [e] is nonexpansive then we shouldn't
@@ -3845,7 +3860,7 @@ let rec is_nonexpansive exp =
              Val_prim {Primitive.prim_name =
                          ("%raise" | "%reraise" | "%raise_notrace")}},
              Id_prim _, _) },
-      [Nolabel, Arg (e, _)], _, _, _) ->
+      [Nolabel, Arg (e, _)], _, _, _, _) ->
      is_nonexpansive e
   | Texp_array (_, _, _ :: _, _)
   | Texp_apply _
@@ -5467,8 +5482,8 @@ and type_expect_
       in
 
       rue {
-        exp_desc = Texp_apply(funct, args, pm.apply_position, ap_mode,
-                              assume_zero_alloc);
+        exp_desc = Texp_apply(funct, args, pm.apply_position, pm.original_position,
+                              ap_mode, assume_zero_alloc);
         exp_loc = loc; exp_extra = [];
         exp_type = ty_res;
         exp_attributes = sexp.pexp_attributes;
@@ -7487,6 +7502,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
            Texp_apply
              (texp,
               args @ [Nolabel, Arg (eta_var, arg_sort)], Nontail,
+              Unknown_position,
               ret_mode
               |> Value.proj (Comonadic Areality)
               |> regional_to_global

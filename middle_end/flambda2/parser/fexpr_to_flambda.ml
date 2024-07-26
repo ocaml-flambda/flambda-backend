@@ -1044,7 +1044,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
         ~continuation exn_continuation
         ~args:((List.map (simple env)) args)
         ~args_arity ~return_arity ~call_kind Debuginfo.none ~inlined
-        ~inlining_state ~probe:None ~tail:Default_tail ~position:Normal
+        ~inlining_state ~probe:None ~position:Normal
+        ~original_position:Unknown_position
         ~relative_history:Inlining_history.Relative.empty
     in
     Flambda.Expr.create_apply apply
