@@ -111,7 +111,7 @@ let check_get_bounds, check_get =
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
   ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i))
+  , (fun i -> c_for_bs i; c_for_b i) )
 ;;
 
 for i = -1 to length + 1 do

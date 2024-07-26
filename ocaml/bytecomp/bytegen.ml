@@ -454,10 +454,14 @@ let comp_primitive stack_info p sz args =
   | Pbytes_set_32(_) -> Kccall("caml_bytes_set32", 3)
   | Pbytes_set_f32(_) -> Kccall("caml_bytes_setf32", 3)
   | Pbytes_set_64(_) -> Kccall("caml_bytes_set64", 3)
-  | Pbytes_load_16(_) -> Kccall("caml_bytes_get16", 2)
-  | Pbytes_load_32(_) -> Kccall("caml_bytes_get32", 2)
-  | Pbytes_load_f32(_) -> Kccall("caml_bytes_getf32", 2)
-  | Pbytes_load_64(_) -> Kccall("caml_bytes_get64", 2)
+  | Pbytes_load_16 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_bytes_get16", 2)
+  | Pbytes_load_32 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_bytes_get32", 2)
+  | Pbytes_load_f32 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_bytes_getf32", 2)
+  | Pbytes_load_64 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_bytes_get64", 2)
   | Parraylength _ -> Kvectlength
   (* In bytecode, nothing is ever actually stack-allocated, so we ignore the
      array modes (allocation for [Parrayref{s,u}], modification for
