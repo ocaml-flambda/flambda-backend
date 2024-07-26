@@ -4,7 +4,7 @@
 
 set -e -u -o pipefail
 
-dump_dir="`pwd`/profile"
+dump_dir="`pwd`/_profile"
 summary_path="`pwd`/summary.csv"
 
 export OLD_OCAMLPARAM="${OCAMLPARAM:-}"
