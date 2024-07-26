@@ -1272,14 +1272,16 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Type.Const.to_out_jkind_const jkind)
 
-let rec out_jkind_of_jkind jkind =
+let rec out_jkind_of_jkind ~sort_var_names jkind =
   match Jkind.get jkind with
   | Type ty -> begin match Jkind.Type.get ty with
     | Const clay -> out_jkind_of_const_jkind clay
-    | Var v      -> Ojkind_var (Jkind.Type.Sort.Var.name v)
+    | Var v      -> Ojkind_var (if sort_var_names then Jkind.Type.Sort.Var.name v else "_")
     end
   | Arrow { args; result } ->
-    Ojkind_arrow (List.map out_jkind_of_jkind args, out_jkind_of_jkind result)
+    Ojkind_arrow (
+      List.map (out_jkind_of_jkind ~sort_var_names) args,
+      out_jkind_of_jkind ~sort_var_names result)
 
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
@@ -1298,7 +1300,7 @@ let out_jkind_option_of_jkind jkind =
       else None
     end
   (* We ignore the rules above for arrows, which should always be printed *)
-  | _ -> Some (out_jkind_of_jkind jkind)
+  | _ -> Some (out_jkind_of_jkind ~sort_var_names:!Clflags.verbose_types jkind)
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
@@ -2684,7 +2686,7 @@ let trees_of_type_expansion'
     if var_jkinds then
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
-          let olay = out_jkind_of_jkind jkind in
+          let olay = out_jkind_of_jkind ~sort_var_names:true jkind in
           Otyp_jkind_annot (out, olay)
       | _ ->
           out
