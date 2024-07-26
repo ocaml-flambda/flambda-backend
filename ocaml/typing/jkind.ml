@@ -1467,6 +1467,14 @@ module Type = struct
       function
       | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
 
+    let top_creation_reason ppf : History.top_creation_reason -> unit = function
+      | Missing_cmi p -> fprintf ppf "Missing_cmi %a" Path.print p
+      | Initial_typedecl_env -> fprintf ppf "Initial_typedecl_env"
+      | Dummy_jkind -> fprintf ppf "Dummy_jkind"
+      | Type_expression_call -> fprintf ppf "Type_expression_call"
+      | Wildcard -> fprintf ppf "Wildcard"
+      | Unification_var -> fprintf ppf "Unification_var"
+
     let creation_reason ppf : History.creation_reason -> unit = function
       | Annotated (ctx, loc) ->
         fprintf ppf "Annotated (%a,%a)" annotation_context ctx
@@ -1502,6 +1510,8 @@ module Type = struct
       | Concrete_legacy_creation concrete ->
         fprintf ppf "Concrete_legacy_creation %a"
           concrete_legacy_creation_reason concrete
+      | Top_creation top ->
+        fprintf ppf "Top_creation %a" top_creation_reason top
       | Imported -> fprintf ppf "Imported"
       | Imported_type_argument { parent_path; position; arity } ->
         fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position
@@ -1660,8 +1670,8 @@ let of_arrow ~history ~args ~result : t =
   }
 
 module Primitive = struct
-  (* TODO jbachurski: Implement the top element for the jkind lattice *)
-  let top ~why = of_type_jkind (Type.Primitive.any ~why)
+  let top ~why =
+    { jkind = Top; history = Creation (Top_creation why); has_warned = false }
 end
 
 (******************************)
@@ -2089,6 +2099,17 @@ module Format_history = struct
     | Primitive id ->
       fprintf ppf "it is the primitive bits64 type %s" (Ident.name id)
 
+  let format_top_creation_reason ppf : History.top_creation_reason -> unit =
+    function
+    | Missing_cmi p -> format_any_creation_reason ppf (Missing_cmi p)
+    | Wildcard -> format_any_creation_reason ppf Wildcard
+    | Unification_var -> format_any_creation_reason ppf Unification_var
+    | Initial_typedecl_env ->
+      format_any_creation_reason ppf Initial_typedecl_env
+    | Dummy_jkind -> format_any_creation_reason ppf Dummy_jkind
+    | Type_expression_call ->
+      format_any_creation_reason ppf Type_expression_call
+
   let format_creation_reason ppf ~layout_or_kind :
       History.creation_reason -> unit = function
     | Annotated (ctx, _) ->
@@ -2114,6 +2135,7 @@ module Format_history = struct
     | Concrete_creation concrete -> format_concrete_creation_reason ppf concrete
     | Concrete_legacy_creation concrete ->
       format_concrete_legacy_creation_reason ppf concrete
+    | Top_creation top -> format_top_creation_reason ppf top
     | Imported ->
       fprintf ppf "of %s requirements from an imported definition"
         layout_or_kind
@@ -2496,9 +2518,7 @@ let sub_with_history (t : t) (t' : t) =
 
 (* This doesn't do any mutation because mutating a sort variable can't make it
    any, and modal upper bounds are constant. *)
-(* TODO jbachurski: Until the Top jkind is implemented, no jkind is max *)
-(* let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind *)
-let is_max _jkind = false
+let is_max t = sub (Primitive.top ~why:Dummy_jkind) t
 
 let has_layout_any (t : t) =
   match t.desc with
