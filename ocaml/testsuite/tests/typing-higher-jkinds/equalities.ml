@@ -43,7 +43,8 @@ Error: Signature mismatch:
          type a : value => value
        The layout of the first is value, because
          of the definition of a at line 4, characters 2-16.
-       But the layout of the first must be a sublayout of ((value) => value) (...??)
+       But the layout of the first must be a sublayout of ((value) => value), because
+         of the definition of a at line 2, characters 2-25.
 |}]
 
 module M : sig
@@ -65,7 +66,8 @@ Error: Signature mismatch:
          type a : value => value
        is not included in
          type a : value
-       The layout of the first is ((value) => value) (...??)
+       The layout of the first is ((value) => value), because
+         of the definition of a at line 4, characters 2-25.
        But the layout of the first must be a sublayout of value, because
          of the definition of a at line 2, characters 2-16.
 |}]
@@ -98,8 +100,10 @@ Error: Signature mismatch:
          type a : value => value
        is not included in
          type a : (value, value) => value
-       The layout of the first is ((value) => value) (...??)
-       But the layout of the first must be a sublayout of ((value, value) => value) (...??)
+       The layout of the first is ((value) => value), because
+         of the definition of a at line 4, characters 2-25.
+       But the layout of the first must be a sublayout of ((value, value) => value), because
+         of the definition of a at line 2, characters 2-34.
 |}]
 
 module M : sig
