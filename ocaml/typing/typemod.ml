@@ -3169,22 +3169,25 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           in
         List.fold_left add_to_subst subst clty_ids
 
-  and add_expected_include_to_subst sig_env env expected_sig actual_sig subst =
-    let sig_env = match expected_sig with
-      | None -> sig_env
-      | Some expected_sig -> Env.add_signature expected_sig sig_env
+  and add_expected_include_to_subst sig_env env sig_map expected_sig actual_sig subst =
+    let (sig_env, sig_map) =
+      match expected_sig with
+      | None -> sig_env, sig_map
+      | Some expected_sig ->
+          Env.add_signature expected_sig sig_env,
+          Option.map (fun map -> Sig_map.add_signature expected_sig map) sig_map
     in
     let env = Env.add_signature actual_sig env in
 
     let add_item subst = function
       | Sig_type (id, decl, _, _) ->
-          add_expected_type_to_subst sig_env env expected_sig [id, decl] subst
+          add_expected_type_to_subst sig_env env sig_map [id, decl] subst
       | Sig_module (id, _, decl, _, _) ->
-          add_expected_module_to_subst sig_env env expected_sig (Some id) decl subst
+          add_expected_module_to_subst sig_env env sig_map (Some id) decl subst
       | Sig_modtype (id, decl, _) ->
-          add_expected_modtype_to_subst sig_env env expected_sig id decl subst
+          add_expected_modtype_to_subst sig_env env sig_map id decl subst
       | Sig_class_type (id, _, _, _) ->
-          add_expected_class_type_to_subst sig_env env expected_sig [id] [] subst
+          add_expected_class_type_to_subst sig_env env sig_map [id] [] subst
       | Sig_value _ | Sig_typext _ | Sig_class _ -> subst
     in
     List.fold_left add_item subst actual_sig
@@ -3230,7 +3233,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
     sg,
     shape,
     new_env,
-    add_expected_include_to_subst sig_env env sig_map sg subst,
+    add_expected_include_to_subst sig_env env sig_map expected_sig sg subst,
     Sig_map.add_signature sg str_map
   in
 
