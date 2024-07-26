@@ -127,7 +127,7 @@ type error =
   | Closing_self_type of class_signature
   | Polymorphic_class_parameter
   | Non_value_binding of string * Jkind.Violation.t
-  | Non_value_let_binding of string * Jkind.sort
+  | Non_value_let_binding of string * Jkind.Type.sort
   | Nonoptional_call_pos_label of string
 
 exception Error of Location.t * Env.t * error

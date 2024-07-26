@@ -787,7 +787,7 @@ let close_variant env row =
     let more' =
       if static
       then Btype.newgenty Tnil
-      else Btype.newgenvar (Jkind.Primitive.value ~why:Row_variable)
+      else Btype.newgenvar (Jkind.Type.Primitive.value ~why:Row_variable |> Jkind.of_type_jkind)
     in
     (* this unification cannot fail *)
     Ctype.unify env more

@@ -3090,7 +3090,10 @@ let unboxed_type ~errors ~env ~loc ~lid ty =
   match ty with
   | None -> ()
   | Some ty ->
-    match !constrain_type_jkind env ty Jkind.Primitive.(value ~why:Captured_in_object) with
+    let jkind =
+      Jkind.Type.Primitive.(value ~why:Captured_in_object) |> Jkind.of_type_jkind
+    in
+    match !constrain_type_jkind env ty jkind with
     | Ok () -> ()
     | Result.Error err ->
       may_lookup_error errors loc env (Non_value_used_in_object (lid, ty, err))

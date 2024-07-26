@@ -39,7 +39,7 @@ type unsafe_info =
 type error =
   Circular_dependency of (Ident.t * unsafe_info) list
 | Conflicting_inline_attributes
-| Non_value_jkind of type_expr * Jkind.sort
+| Non_value_jkind of type_expr * Jkind.Type.sort
 
 exception Error of Location.t * error
 
@@ -55,7 +55,7 @@ exception Error of Location.t * error
    When this sanity check is removed, consider whether it must be replaced with
    some defaulting. *)
 let sort_must_not_be_void loc ty sort =
-  if Jkind.Sort.is_void_defaulting sort then
+  if Jkind.Type.Sort.is_void_defaulting sort then
     raise (Error (loc, Non_value_jkind (ty, sort)))
 
 let cons_opt x_opt xs =
@@ -300,7 +300,7 @@ let init_shape id modl =
             Tarrow(_,ty_arg,_,_) -> begin
               (* CR layouts: We should allow any representable layout here. It
                  will require reworking [camlinternalMod.init_mod]. *)
-              let jkind = Jkind.Primitive.value ~why:Recmod_fun_arg in
+              let jkind = Jkind.Type.Primitive.value ~why:Recmod_fun_arg |> Jkind.of_type_jkind in
               let ty_arg = Ctype.correct_levels ty_arg in
               match Ctype.check_type_jkind env ty_arg jkind with
               | Ok _ -> const_int 0 (* camlinternalMod.Function *)
@@ -606,7 +606,7 @@ and transl_module ~scopes cc rootpath mexp =
       transl_module ~scopes (compose_coercions cc ccarg) rootpath arg
   | Tmod_unpack(arg, _) ->
       apply_coercion loc Strict cc
-        (Translcore.transl_exp ~scopes Jkind.Sort.for_module arg)
+        (Translcore.transl_exp ~scopes Jkind.Type.Sort.for_module arg)
 
 and transl_apply ~scopes ~loc ~cc mod_env funct translated_arg =
   let inlined_attribute =
@@ -1883,7 +1883,7 @@ let report_error loc = function
       Location.errorf
         "Non-value sort %a detected in [translmod] in type %a:@ \
          Please report this error to the Jane Street compilers team."
-        Jkind.Sort.format sort
+        Jkind.Type.Sort.format sort
         Printtyp.type_expr ty
 
 let () =

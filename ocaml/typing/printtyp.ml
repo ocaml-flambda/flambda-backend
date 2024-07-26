@@ -1266,20 +1266,21 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
   Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
 
 let out_jkind_of_const_jkind jkind =
-  Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
+  Ojkind_const (Jkind.Type.Const.to_out_jkind_const jkind)
 
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
   | Const jkind ->
-    begin match Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind with
+    let value_jkind = Jkind.Type.Const.Primitive.value.jkind |> Jkind.Const.of_type_jkind in
+    begin match Jkind.Const.equal jkind value_jkind with
     | true -> None
     | false -> Some (out_jkind_of_const_jkind jkind)
     end
   | Var v -> (* This handles (X1). *)
     if !Clflags.verbose_types
-    then Some (Ojkind_var (Jkind.Sort.Var.name v))
+    then Some (Ojkind_var (Jkind.Type.Sort.Var.name v))
     else None
 
 let alias_nongen_row mode px ty =
@@ -2326,7 +2327,7 @@ let dummy =
     type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
+    type_jkind = Jkind.Primitive.top ~why:Dummy_jkind;
     type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;
@@ -2668,7 +2669,7 @@ let trees_of_type_expansion'
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
           let olay = match Jkind.get jkind with
             | Const clay -> out_jkind_of_const_jkind clay
-            | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
+            | Var v      -> Ojkind_var (Jkind.Type.Sort.Var.name v)
           in
           Otyp_jkind_annot (out, olay)
       | _ ->
@@ -2786,8 +2787,8 @@ let hide_variant_name t =
       newty2 ~level:(get_level t)
         (Tvariant
            (create_row ~fields ~fixed ~closed ~name:None
-              ~more:(newvar2 (get_level more)
-                       (Jkind.Primitive.value ~why:Row_variable))))
+              ~more:(new_type_var2 (get_level more)
+                       (Jkind.Type.Primitive.value ~why:Row_variable))))
   | _ -> t
 
 let prepare_expansion Errortrace.{ty; expanded} =

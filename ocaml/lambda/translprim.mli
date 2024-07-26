@@ -36,7 +36,7 @@ val transl_primitive :
   Lambda.scoped_location -> Primitive.description -> Env.t ->
   Types.type_expr ->
   poly_mode:Mode.Locality.l option ->
-  poly_sort:Jkind.Sort.t option ->
+  poly_sort:Jkind.Type.Sort.t option ->
   Path.t option ->
   Lambda.lambda
 
@@ -44,7 +44,7 @@ val transl_primitive_application :
   Lambda.scoped_location -> Primitive.description -> Env.t ->
   Types.type_expr ->
   poly_mode:Mode.Locality.l option ->
-  poly_sort:Jkind.Sort.t option -> Path.t ->
+  poly_sort:Jkind.Type.Sort.t option -> Path.t ->
   Typedtree.expression option ->
   Lambda.lambda list -> Typedtree.expression list ->
   Lambda.region_close -> Lambda.lambda
@@ -55,8 +55,8 @@ val transl_primitive_application :
     [poly_sort] must be [Some sort] when [Repr_poly] is given. It will produce
     fatal error if it's [None].  *)
 val sort_of_native_repr :
-  poly_sort:Jkind.Sort.t option ->
-  Primitive.native_repr -> Jkind.Sort.const
+  poly_sort:Jkind.Type.Sort.t option ->
+  Primitive.native_repr -> Jkind.Type.Sort.const
 
 (* Errors *)
 

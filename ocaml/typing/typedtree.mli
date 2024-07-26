@@ -163,7 +163,7 @@ and 'k pattern_desc =
             Invariant: n > 0
          *)
   | Tpat_array :
-      Types.mutability * Jkind.sort * value general_pattern list -> value pattern_desc
+      Types.mutability * Jkind.Type.sort * value general_pattern list -> value pattern_desc
         (** [| P1; ...; Pn |]    (flag = Mutable)
             [: P1; ...; Pn :]    (flag = Immutable) *)
   | Tpat_lazy : value general_pattern -> value pattern_desc
@@ -263,7 +263,7 @@ and expression_desc =
         ret_mode : Mode.Alloc.l;
         (* Mode where the function allocates, ie local for a function of
            type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
-        ret_sort : Jkind.sort;
+        ret_sort : Jkind.Type.sort;
         alloc_mode : Mode.Alloc.r;
         (* Mode at which the closure is allocated *)
         zero_alloc : Builtin_attributes.zero_alloc_attribute
@@ -300,7 +300,7 @@ and expression_desc =
             [@zero_alloc assume] attribute that may appear on applications.  If
             that attribute is absent, it is [Assume_info.none].
           *)
-  | Texp_match of expression * Jkind.sort * computation case list * partial
+  | Texp_match of expression * Jkind.Type.sort * computation case list * partial
         (** match E0 with
             | P1 -> E1
             | P2 | exception P3 -> E2
@@ -361,15 +361,15 @@ and expression_desc =
       expression * Mode.Locality.l * Longident.t loc *
       Types.label_description * expression
     (** [alloc_mode] translates to the [modify_mode] of the record *)
-  | Texp_array of Types.mutability * Jkind.Sort.t * expression list * Mode.Alloc.r
+  | Texp_array of Types.mutability * Jkind.Type.Sort.t * expression list * Mode.Alloc.r
   | Texp_list_comprehension of comprehension
-  | Texp_array_comprehension of Types.mutability * Jkind.sort * comprehension
+  | Texp_array_comprehension of Types.mutability * Jkind.Type.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
-  | Texp_sequence of expression * Jkind.sort * expression
+  | Texp_sequence of expression * Jkind.Type.sort * expression
   | Texp_while of {
       wh_cond : expression;
       wh_body : expression;
-      wh_body_sort : Jkind.sort
+      wh_body_sort : Jkind.Type.sort
     }
   | Texp_for of {
       for_id  : Ident.t;
@@ -378,7 +378,7 @@ and expression_desc =
       for_to   : expression;
       for_dir  : direction_flag;
       for_body : expression;
-      for_body_sort : Jkind.sort;
+      for_body_sort : Jkind.Type.sort;
     }
   | Texp_send of expression * meth * apply_position
   | Texp_new of
@@ -398,9 +398,9 @@ and expression_desc =
       let_ : binding_op;
       ands : binding_op list;
       param : Ident.t;
-      param_sort : Jkind.sort;
+      param_sort : Jkind.Type.sort;
       body : value case;
-      body_sort : Jkind.sort;
+      body_sort : Jkind.Type.sort;
       partial : partial;
     }
   | Texp_unreachable
@@ -433,7 +433,7 @@ and function_param =
        [Total] otherwise.
     *)
     fp_kind: function_param_kind;
-    fp_sort: Jkind.sort;
+    fp_sort: Jkind.Type.sort;
     fp_mode: Mode.Alloc.l;
     fp_curry: function_curry;
     fp_newtypes: (string loc * Jkind.annotation option) list;
@@ -450,7 +450,7 @@ and function_param =
 and function_param_kind =
   | Tparam_pat of pattern
   (** [Tparam_pat p] is a non-optional argument with pattern [p]. *)
-  | Tparam_optional_default of pattern * expression * Jkind.sort
+  | Tparam_optional_default of pattern * expression * Jkind.Type.sort
   (** [Tparam_optional_default (p, e, sort)] is an optional argument [p] with
       default value [e], i.e. [?x:(p = e)]. If the parameter is of type
       [a option], the pattern and expression are of type [a]. [sort] is the
@@ -470,7 +470,7 @@ and function_cases =
         for the last one being matched by the cases.
     *)
     fc_arg_mode: Mode.Alloc.l;
-    fc_arg_sort: Jkind.sort;
+    fc_arg_sort: Jkind.Type.sort;
     fc_ret_type : Types.type_expr;
     fc_partial: partial;
     fc_param: Ident.t;
@@ -482,7 +482,7 @@ and function_cases =
 
 and ident_kind =
   | Id_value
-  | Id_prim of Mode.Locality.l option * Jkind.Sort.t option
+  | Id_prim of Mode.Locality.l option * Jkind.Type.Sort.t option
 
 and meth =
     Tmeth_name of string
@@ -543,9 +543,9 @@ and binding_op =
     bop_op_type : Types.type_expr;
     (* This is the type at which the operator was used.
        It is always an instance of [bop_op_val.val_type] *)
-    bop_op_return_sort : Jkind.sort;
+    bop_op_return_sort : Jkind.Type.sort;
     bop_exp : expression;
-    bop_exp_sort : Jkind.sort;
+    bop_exp_sort : Jkind.Type.sort;
     bop_loc : Location.t;
   }
 
@@ -557,9 +557,9 @@ and omitted_parameter =
   { mode_closure : Mode.Alloc.r;
     mode_arg : Mode.Alloc.l;
     mode_ret : Mode.Alloc.l;
-    sort_arg : Jkind.sort }
+    sort_arg : Jkind.Type.sort }
 
-and apply_arg = (expression * Jkind.sort, omitted_parameter) arg_or_omitted
+and apply_arg = (expression * Jkind.Type.sort, omitted_parameter) arg_or_omitted
 
 and apply_position =
   | Tail          (* must be tail-call optimised *)
@@ -669,7 +669,7 @@ and structure_item =
   }
 
 and structure_item_desc =
-    Tstr_eval of expression * Jkind.sort * attributes
+    Tstr_eval of expression * Jkind.Type.sort * attributes
   | Tstr_value of rec_flag * value_binding list
   | Tstr_primitive of value_description
   | Tstr_type of rec_flag * type_declaration list
@@ -700,7 +700,7 @@ and value_binding =
     vb_pat: pattern;
     vb_expr: expression;
     vb_rec_kind: Value_rec_types.recursive_binding_kind;
-    vb_sort: Jkind.sort;
+    vb_sort: Jkind.Type.sort;
     vb_attributes: attributes;
     vb_loc: Location.t;
   }
@@ -747,7 +747,7 @@ and primitive_coercion =
     pc_desc: Primitive.description;
     pc_type: Types.type_expr;
     pc_poly_mode: Mode.Locality.l option;
-    pc_poly_sort: Jkind.Sort.t option;
+    pc_poly_sort: Jkind.Type.Sort.t option;
     pc_env: Env.t;
     pc_loc : Location.t;
   }
@@ -1156,7 +1156,7 @@ val let_bound_idents_full:
 *)
 val let_bound_idents_with_modes_sorts_and_checks:
   value_binding list
-  -> (Ident.t * (Location.t * Mode.Value.l * Jkind.sort) list
+  -> (Ident.t * (Location.t * Mode.Value.l * Jkind.Type.sort) list
               * Builtin_attributes.zero_alloc_attribute) list
 
 (** Alpha conversion of patterns *)
@@ -1170,8 +1170,8 @@ val pat_bound_idents: 'k general_pattern -> Ident.t list
 val pat_bound_idents_with_types:
   'k general_pattern -> (Ident.t * Types.type_expr) list
 val pat_bound_idents_full:
-  Jkind.sort -> 'k general_pattern
-  -> (Ident.t * string loc * Types.type_expr * Types.Uid.t * Jkind.sort) list
+  Jkind.Type.sort -> 'k general_pattern
+  -> (Ident.t * string loc * Types.type_expr * Types.Uid.t * Jkind.Type.sort) list
 
 (** Splits an or pattern into its value (left) and exception (right) parts. *)
 val split_pattern:
