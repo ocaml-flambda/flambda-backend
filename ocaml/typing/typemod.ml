@@ -3169,14 +3169,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           in
         List.fold_left add_to_subst subst clty_ids
 
-  and add_expected_include_to_subst sig_env env sig_map expected_sig actual_sig subst =
-    let (sig_env, sig_map) =
-      match expected_sig with
-      | None -> sig_env, sig_map
-      | Some expected_sig ->
-          Env.add_signature expected_sig sig_env,
-          Option.map (fun map -> Sig_map.add_signature expected_sig map) sig_map
-    in
+  and add_expected_include_to_subst sig_env env sig_map actual_sig subst =
     let env = Env.add_signature actual_sig env in
 
     let add_item subst = function
@@ -3233,7 +3226,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
     sg,
     shape,
     new_env,
-    add_expected_include_to_subst sig_env env sig_map expected_sig sg subst,
+    add_expected_include_to_subst sig_env env sig_map sg subst,
     Sig_map.add_signature sg str_map
   in
 
