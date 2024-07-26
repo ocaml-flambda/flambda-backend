@@ -422,6 +422,7 @@ module Jkind_desc = struct
         { args : 'type_expr t list;
           result : 'type_expr t
         }
+    | Top
 end
 
 type 'type_expr history = 'type_expr Jkind_desc.t History.t
@@ -445,6 +446,7 @@ module Const = struct
         { args : 'type_expr t list;
           result : 'type_expr t
         }
+    | Top
 end
 
 type 'type_expr const = 'type_expr Const.t

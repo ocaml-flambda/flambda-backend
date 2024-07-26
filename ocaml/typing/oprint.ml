@@ -350,8 +350,8 @@ let rec print_out_jkind_const ppf (ojkind : Outcometree.out_jkind_const) =
     failwith "XXX unimplemented jkind syntax"
 
 let rec print_out_jkind ppf = function
-| Ojkind_const jkind -> print_out_jkind_const ppf jkind
-| Ojkind_var v -> fprintf ppf "%s" v
+  | Ojkind_const jkind -> print_out_jkind_const ppf jkind
+  | Ojkind_var v -> fprintf ppf "%s" v
   | Ojkind_arrow (args, result) ->
     print_arrow
       ~is_atom:(function Ojkind_const (Ojkind_const_arrow _) | Ojkind_arrow _ -> false | _ -> true)
