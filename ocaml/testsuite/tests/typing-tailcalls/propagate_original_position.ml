@@ -9,7 +9,7 @@
    cmm/mach output. In CI it is disabled for all configs except for flambda2_dev. *)
 external ext : unit -> unit = "ext"
 
-let foo () = ext ()
+let[@inline never] foo () = ext ()
 
 let tail_on_tail_app () =
   foo () [@tail]

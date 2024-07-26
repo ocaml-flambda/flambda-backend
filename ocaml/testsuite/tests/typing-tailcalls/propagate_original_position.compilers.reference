@@ -1,5 +1,6 @@
 (let
-  (foo/269 = (function {nlocal = 0} param/271[int] : int (ext 0))
+  (foo/269 =
+     (function {nlocal = 0} param/271[int] never_inline : int (ext 0))
    tail_on_tail_app/272 =
      (function {nlocal = 0} param/274[int] : int
        (apply foo/269 0 Tail_position (Explicit_tail)))
@@ -54,7 +55,7 @@ After simplify:
  camlPropagate_original_position__foo_0_10_code =
   ((code_metadata
     ((newer_version_of camlPropagate_original_position__foo_0_0_code)
-     (stub false) (inline Default_inline) () (poll_attribute Default)
+     (stub false) (inline Never_inline) () (poll_attribute Default)
      (is_a_functor false) (is_opaque false) (params_arity 𝕍=tagged_ℕ𝕚)
      (param_modes (Heap)) (first_complex_local_param 1)
      (result_arity 𝕍=tagged_ℕ𝕚) (result_types (Unknown)) (result_mode Heap)
@@ -63,9 +64,8 @@ After simplify:
       size: 10 removed: {call: 0 alloc: 0 prim: 0 branch: 0 direct: 0
                          poly_cmp: 0 requested: 0})
      (inlining_arguments Oclassic)
-     (dbg propagate_original_position.ml:12,8--19) (is_tupled false)
-     (is_my_closure_used false)
-     (inlining_decision (Function_body_too_large 10))
+     (dbg propagate_original_position.ml:12,23--34) (is_tupled false)
+     (is_my_closure_used false) (inlining_decision Never_inline_attribute)
      (loopify Never_loopify)))
    (λ〈k31〉《k30》⟅my_region/92N⟆
       (param/94UV ∷ 𝕍=tagged_ℕ𝕚) (my_closure/93N ∷ 𝕍) my_depth/91N .
@@ -75,7 +75,7 @@ After simplify:
       (call_kind
        (C (needs_caml_c_call true) (is_c_builtin false) (effects Heap)
         (coeffects Arbitrary_effects) (alloc_mode Has_coeffects)))
-      (dbg propagate_original_position.ml:12,13--19) (inline Default_inlined)
+      (dbg propagate_original_position.ml:12,28--34) (inline Default_inlined)
       (inlining_state (depth 0, arguments Oclassic)) (probe ())
       (original_position Unknown_position) (position Normal))))))
  Propagate_original_position.camlPropagate_original_position__foo_10 ↤
@@ -510,16 +510,16 @@ After simplify:
  global "camlPropagate_original_position__foo_10":
  addr G:"camlPropagate_original_position__foo_0_10_code"
  int 108086391056891909)
-(function{propagate_original_position.ml:12,8-19}
+(function{propagate_original_position.ml:12,23-34}
  camlPropagate_original_position__foo_0_10_code (param/343: int)
- (extcall "ext"{propagate_original_position.ml:12,13-19} 1 int->val))
+ (extcall "ext"{propagate_original_position.ml:12,28-34} 1 int->val))
 
 *** After instruction selection
-camlPropagate_original_position__foo_0_10_code(R:I/0[%rax]) {propagate_original_position.ml:12,8-19}
+camlPropagate_original_position__foo_0_10_code(R:I/0[%rax]) {propagate_original_position.ml:12,23-34}
   param:I/61 := R:I/0[%rax]
   I/62 := 1
   R:I/2[%rdi] := I/62
-  R:I/0[%rax] := extcall "ext" R:I/2[%rdi]{propagate_original_position.ml:12,13-19}
+  R:I/0[%rax] := extcall "ext" R:I/2[%rdi]{propagate_original_position.ml:12,28-34}
   V/63 := R:I/0[%rax]
   R:I/0[%rax] := V/63
   return R:I/0[%rax]
