@@ -134,7 +134,8 @@ let main argv ppf =
     Location.report_exception ppf x;
     2
   | () ->
-      (* Prevents outputting when using make install to dump CSVs for whole compiler *)
+      (* Prevents outputting when using make install to dump CSVs for whole compiler.
+         Example use case: scripts/profile-compiler-build.sh *)
       if not !Clflags.dump_into_csv then
         Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile"
           (fun ppf -> Profile.print ppf !Clflags.profile_columns
