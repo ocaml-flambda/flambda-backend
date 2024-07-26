@@ -17,6 +17,13 @@ revert_env_variables() {
 }
 trap revert_env_variables EXIT
 
-./scripts/build-compiler.sh
+build_compiler() {
+  git clean -Xdf
+  autoconf
+  ./configure --enable-ocamltest --enable-warn-error --enable-dev --prefix=`pwd`/_install
+  make install
+}
+
+build_compiler
 python3 ./scripts/combine-profile-information.py "$dump_dir" -o "$summary_path"
 rmdir "$dump_dir"
