@@ -8,7 +8,7 @@ dump_dir="`pwd`/_profile"
 summary_path="`pwd`/summary.csv"
 
 export OLD_OCAMLPARAM="${OCAMLPARAM:-}"
-export OCAMLPARAM="_,profile=1,dump-into-csv=1,dump-dir=$dump_dir,regalloc=irc,regalloc-param=SPLIT_LIVE_RANGES:on,regalloc-param=IRC_SPILLING_HEURISTICS:flat-uses"
+export OCAMLPARAM="_,profile=1,dump-into-csv=1,dump-dir=$dump_dir,regalloc=irc"
 export BUILD_OCAMLPARAM="$OCAMLPARAM"
 
 revert_env_variables() {
