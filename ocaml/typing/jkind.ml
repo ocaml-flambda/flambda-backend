@@ -2419,6 +2419,8 @@ let rec intersection_or_error ~reason (t1 : t) (t2 : t) =
   let ( let* ) = Result.bind in
   let violation = Violation.of_ (No_intersection (t1, t2)) in
   match get t1, get t2 with
+  | _, Top -> Ok t1
+  | Top, _ -> Ok t2
   | Type ty1, Type ty2 -> (
     match Type.Jkind_desc.intersection ty1.desc ty2.desc with
     | None -> Error (Violation.of_ (No_intersection (t1, t2)))
@@ -2467,13 +2469,15 @@ let has_intersection t t' =
 
 let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
   match get t, get t' with
+  | Top, Top -> Misc.Le_result.Equal
+  | _, Top -> Misc.Le_result.Less
   | Type ty, Type ty' -> Type.check_sub ty ty'
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
     Misc.Le_result.combine
       (check_sub result1 result2)
       (check_sub_list args2 args1)
-  | Type _, Arrow _ | Arrow _, Type _ -> Misc.Le_result.Not_le
+  | _, (Type _ | Arrow _) -> Misc.Le_result.Not_le
 
 and check_sub_list ts ts' =
   if List.length ts <> List.length ts'
