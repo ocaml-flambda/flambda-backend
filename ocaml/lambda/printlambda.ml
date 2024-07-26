@@ -389,7 +389,8 @@ let field_read_semantics ppf sem =
   | Reads_agree -> ()
   | Reads_vary -> fprintf ppf "_mut"
 
-let primitive ppf = function
+(* CR layouts: Deactivate the warning *)
+let primitive ppf = function[@ocaml.warning "+9"]
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
   | Pbytes_of_string -> fprintf ppf "bytes_of_string"
   | Pignore -> fprintf ppf "ignore"
@@ -662,22 +663,25 @@ let primitive ppf = function
      fprintf ppf "string.unsafe_unaligned_get128%s" (alloc_kind mode)
   | Pstring_load_128 {unsafe = false; mode} ->
      fprintf ppf "string.unaligned_get128%s" (alloc_kind mode)
-  | Pbytes_load_16(unsafe) ->
-     if unsafe then fprintf ppf "bytes.unsafe_get16"
-     else fprintf ppf "bytes.get16"
-  | Pbytes_load_32(unsafe,m) ->
-     if unsafe then fprintf ppf "bytes.unsafe_get32%s" (alloc_kind m)
-     else fprintf ppf "bytes.get32%s" (alloc_kind m)
-  | Pbytes_load_f32(unsafe,m) ->
-     if unsafe then fprintf ppf "bytes.unsafe_getf32%s" (alloc_kind m)
-     else fprintf ppf "bytes.getf32%s" (alloc_kind m)
-  | Pbytes_load_64(unsafe,m) ->
-     if unsafe then fprintf ppf "bytes.unsafe_get64%s" (alloc_kind m)
-     else fprintf ppf "bytes.get64%s" (alloc_kind m)
-  | Pbytes_load_128 {unsafe = true; mode} ->
-     fprintf ppf "bytes.unsafe_unaligned_get128%s" (alloc_kind mode)
-  | Pbytes_load_128 {unsafe = false; mode} ->
-     fprintf ppf "bytes.unaligned_get128%s" (alloc_kind mode)
+  | Pbytes_load_16 {unsafe; index_kind} ->
+     fprintf ppf "bytes.%sget16[indexed by %a]" (if unsafe then "unsafe_" else "")
+       array_index_kind index_kind
+  | Pbytes_load_32 {unsafe; index_kind; mode; boxed} ->
+     fprintf ppf "bytes.%sget32%s%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "#" else "")
+       (alloc_kind mode) array_index_kind index_kind
+  | Pbytes_load_f32{unsafe; index_kind; mode; boxed} ->
+     fprintf ppf "bytes.%sgetf32%s%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "#" else "")
+       (alloc_kind mode) array_index_kind index_kind
+  | Pbytes_load_64{unsafe; index_kind; mode; boxed} ->
+     fprintf ppf "bytes.%sget64%s%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "#" else "")
+       (alloc_kind mode) array_index_kind index_kind
+  | Pbytes_load_128 {unsafe; index_kind; mode} ->
+     fprintf ppf "bytes.%sunaligned_get128%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (alloc_kind mode) array_index_kind
+       index_kind
   | Pbytes_set_16(unsafe) ->
      if unsafe then fprintf ppf "bytes.unsafe_set16"
      else fprintf ppf "bytes.set16"
@@ -694,45 +698,45 @@ let primitive ppf = function
      fprintf ppf "bytes.unsafe_unaligned_set128"
   | Pbytes_set_128 {unsafe = false} ->
      fprintf ppf "bytes.unaligned_set128"
-  | Pbigstring_load_16 { unsafe } ->
-     if unsafe then fprintf ppf "bigarray.array1.unsafe_get16"
-     else fprintf ppf "bigarray.array1.get16"
-  | Pbigstring_load_32 { unsafe; mode = m } ->
-     if unsafe then fprintf ppf "bigarray.array1.unsafe_get32%s" (alloc_kind m)
-     else fprintf ppf "bigarray.array1.get32%s" (alloc_kind m)
-  | Pbigstring_load_f32 { unsafe; mode = m } ->
-     if unsafe then fprintf ppf "bigarray.array1.unsafe_getf32%s" (alloc_kind m)
-     else fprintf ppf "bigarray.array1.getf32%s" (alloc_kind m)
-  | Pbigstring_load_64 { unsafe; mode = m } ->
-     if unsafe then fprintf ppf "bigarray.array1.unsafe_get64%s" (alloc_kind m)
-     else fprintf ppf "bigarray.array1.get64%s" (alloc_kind m)
-  | Pbigstring_load_128 {unsafe = true; aligned = false; mode} ->
-     fprintf ppf "bigarray.array1.unsafe_unaligned_get128%s" (alloc_kind mode)
-  | Pbigstring_load_128 {unsafe = false; aligned = false; mode} ->
-     fprintf ppf "bigarray.array1.unaligned_get128%s" (alloc_kind mode)
-  | Pbigstring_load_128 {unsafe = true; aligned = true; mode} ->
-     fprintf ppf "bigarray.array1.unsafe_aligned_get128%s" (alloc_kind mode)
-  | Pbigstring_load_128 {unsafe = false; aligned = true; mode} ->
-     fprintf ppf "bigarray.array1.aligned_get128%s" (alloc_kind mode)
+  | Pbigstring_load_16 { unsafe; index_kind } ->
+     fprintf ppf "bigarray.array1.%sget16[indexed by %a]"
+       (if unsafe then "unsafe_" else "") array_index_kind index_kind
+  | Pbigstring_load_32 { unsafe; mode; boxed; index_kind } ->
+     fprintf ppf "bigarray.array1.%sget32%s%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+       (alloc_kind mode) array_index_kind index_kind
+  | Pbigstring_load_f32 { unsafe; mode; boxed; index_kind } ->
+     fprintf ppf "bigarray.array1.%sgetf32%s%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+       (alloc_kind mode) array_index_kind index_kind
+  | Pbigstring_load_64 { unsafe; mode; boxed; index_kind } ->
+     fprintf ppf "bigarray.array1.%sget64%s%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+       (alloc_kind mode) array_index_kind index_kind
+  | Pbigstring_load_128 { unsafe; aligned; mode; boxed; index_kind } ->
+     fprintf ppf "bigarray.array1.%s%sget128%s%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "")
+       (if aligned then "aligned_" else "unaligned_")
+       (if boxed then "" else "#") (alloc_kind mode) array_index_kind index_kind
   | Pbigstring_set_16 { unsafe } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set16"
      else fprintf ppf "bigarray.array1.set16"
-  | Pbigstring_set_32 { unsafe } ->
+  | Pbigstring_set_32 { unsafe; boxed = _ } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set32"
      else fprintf ppf "bigarray.array1.set32"
-  | Pbigstring_set_f32 { unsafe } ->
+  | Pbigstring_set_f32 { unsafe; boxed = _ } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_setf32"
      else fprintf ppf "bigarray.array1.setf32"
-  | Pbigstring_set_64 { unsafe } ->
+  | Pbigstring_set_64 { unsafe; boxed = _ } ->
      if unsafe then fprintf ppf "bigarray.array1.unsafe_set64"
      else fprintf ppf "bigarray.array1.set64"
-  | Pbigstring_set_128 {unsafe = true; aligned = false} ->
+  | Pbigstring_set_128 {unsafe = true; aligned = false; boxed = _} ->
      fprintf ppf "bigarray.array1.unsafe_unaligned_set128"
-  | Pbigstring_set_128 {unsafe = true; aligned = true} ->
+  | Pbigstring_set_128 {unsafe = true; aligned = true; boxed = _} ->
      fprintf ppf "bigarray.array1.unsafe_aligned_set128"
-  | Pbigstring_set_128 {unsafe = false; aligned = false} ->
+  | Pbigstring_set_128 {unsafe = false; aligned = false; boxed = _} ->
      fprintf ppf "bigarray.array1.unaligned_set128"
-  | Pbigstring_set_128 {unsafe = false; aligned = true} ->
+  | Pbigstring_set_128 {unsafe = false; aligned = true; boxed = _} ->
      fprintf ppf "bigarray.array1.aligned_set128"
   | Pfloatarray_load_128 {unsafe; mode} ->
      if unsafe then fprintf ppf "floatarray.unsafe_get128%s" (alloc_kind mode)

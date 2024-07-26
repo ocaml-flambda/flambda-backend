@@ -242,11 +242,15 @@ type primitive =
   | Pstring_load_f32 of bool * alloc_mode
   | Pstring_load_64 of bool * alloc_mode
   | Pstring_load_128 of { unsafe : bool; mode: alloc_mode }
-  | Pbytes_load_16 of bool
-  | Pbytes_load_32 of bool * alloc_mode
-  | Pbytes_load_f32 of bool * alloc_mode
-  | Pbytes_load_64 of bool * alloc_mode
-  | Pbytes_load_128 of { unsafe : bool; mode: alloc_mode }
+  | Pbytes_load_16 of { unsafe : bool; index_kind : array_index_kind }
+  | Pbytes_load_32 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pbytes_load_f32 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pbytes_load_64 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pbytes_load_128 of { unsafe : bool; index_kind : array_index_kind;
+      mode: alloc_mode }
   | Pbytes_set_16 of bool
   | Pbytes_set_32 of bool
   | Pbytes_set_f32 of bool
@@ -1764,9 +1768,9 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
      (* Boxes arising from Bigarray access are always Alloc_heap *)
      Some alloc_heap
   | Pstring_load_16 _ | Pbytes_load_16 _ -> None
-  | Pstring_load_32 (_, m) | Pbytes_load_32 (_, m)
-  | Pstring_load_f32 (_, m) | Pbytes_load_f32 (_, m)
-  | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m)
+  | Pstring_load_32 (_, m) | Pbytes_load_32 { mode = m; _ }
+  | Pstring_load_f32 (_, m) | Pbytes_load_f32 { mode = m; _ }
+  | Pstring_load_64 (_, m) | Pbytes_load_64 { mode = m; _ }
   | Pstring_load_128 { mode = m; _ } | Pbytes_load_128 { mode = m; _ }
   | Pfloatarray_load_128 { mode = m; _ }
   | Pfloat_array_load_128 { mode = m; _ }

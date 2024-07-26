@@ -229,26 +229,26 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
           fun ~aligned ~unsafe ~boxed ~index_kind ->
             Pbigstring_load_128 { aligned; unsafe; index_kind; mode; boxed }
         );
-        ( (fun _aligned unsafe _boxed _index_kind ->
-            Printf.sprintf "%%caml_bytes_get16%s" unsafe),
-          fun ~aligned:_ ~unsafe ~boxed:_ ~index_kind:_ ->
-            Pbytes_load_16 unsafe );
-        ( (fun _aligned unsafe _boxed _index_kind ->
-            Printf.sprintf "%%caml_bytes_get32%s" unsafe),
-          fun ~aligned:_ ~unsafe ~boxed:_ ~index_kind:_ ->
-            Pbytes_load_32 (unsafe, mode) );
-        ( (fun _aligned unsafe _boxed _index_kind ->
-            Printf.sprintf "%%caml_bytes_getf32%s" unsafe),
-          fun ~aligned:_ ~unsafe ~boxed:_ ~index_kind:_ ->
-            Pbytes_load_f32 (unsafe, mode) );
-        ( (fun _aligned unsafe _boxed _index_kind ->
-            Printf.sprintf "%%caml_bytes_get64%s" unsafe),
-          fun ~aligned:_ ~unsafe ~boxed:_ ~index_kind:_ ->
-            Pbytes_load_64 (unsafe, mode) );
-        ( (fun _aligned unsafe _boxed _index_kind ->
-            Printf.sprintf "%%caml_bytes_getu128%s" unsafe),
-          fun ~aligned:_ ~unsafe ~boxed:_ ~index_kind:_ ->
-            Pbytes_load_128 { unsafe; mode } );
+        ( (fun _aligned unsafe _boxed index_kind ->
+            Printf.sprintf "%%caml_bytes_get16%s%s" unsafe index_kind),
+          fun ~aligned:_ ~unsafe ~boxed:_ ~index_kind ->
+            Pbytes_load_16 { unsafe; index_kind } );
+        ( (fun _aligned ->
+            Printf.sprintf "%%caml_bytes_get32%s%s%s"),
+          fun ~aligned:_ ~unsafe ~boxed ~index_kind ->
+            Pbytes_load_32 { unsafe; index_kind; mode; boxed } );
+        ( (fun _aligned ->
+            Printf.sprintf "%%caml_bytes_getf32%s%s%s"),
+          fun ~aligned:_ ~unsafe ~boxed ~index_kind ->
+            Pbytes_load_f32 { unsafe; index_kind; mode; boxed } );
+        ( (fun _aligned ->
+            Printf.sprintf "%%caml_bytes_get64%s%s%s"),
+          fun ~aligned:_ ~unsafe ~boxed ~index_kind ->
+            Pbytes_load_64 { unsafe; index_kind; mode; boxed } );
+        ( (fun _aligned unsafe _boxed index_kind ->
+            Printf.sprintf "%%caml_bytes_getu128%s%s" unsafe index_kind),
+          fun ~aligned:_ ~unsafe ~boxed:_ ~index_kind ->
+            Pbytes_load_128 { unsafe; index_kind; mode } );
         ( (fun _aligned unsafe _boxed _index_kind ->
             Printf.sprintf "%%caml_string_get16%s" unsafe),
           fun ~aligned:_ ~unsafe ~boxed:_ ~index_kind:_ ->

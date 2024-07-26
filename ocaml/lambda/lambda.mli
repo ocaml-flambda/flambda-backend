@@ -227,11 +227,15 @@ type primitive =
   | Pstring_load_f32 of bool * alloc_mode
   | Pstring_load_64 of bool * alloc_mode
   | Pstring_load_128 of { unsafe : bool; mode: alloc_mode }
-  | Pbytes_load_16 of bool
-  | Pbytes_load_32 of bool * alloc_mode
-  | Pbytes_load_f32 of bool * alloc_mode
-  | Pbytes_load_64 of bool * alloc_mode
-  | Pbytes_load_128 of { unsafe : bool; mode: alloc_mode }
+  | Pbytes_load_16 of { unsafe : bool; index_kind : array_index_kind }
+  | Pbytes_load_32 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pbytes_load_f32 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pbytes_load_64 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pbytes_load_128 of { unsafe : bool; index_kind : array_index_kind;
+      mode: alloc_mode }
   | Pbytes_set_16 of bool
   | Pbytes_set_32 of bool
   | Pbytes_set_f32 of bool

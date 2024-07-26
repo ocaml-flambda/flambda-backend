@@ -35,6 +35,7 @@ let bigstring_tests_template ~length ~tests = {|
 let try_with f = try Ok (f ()) with err -> Error err
 let length = |}^length^{|
 let reference_str = String.init length (fun i -> i * 7 mod 256 |> char_of_int)
+let create_b () = reference_str |> Bytes.of_string
 
 open struct
   open Bigarray
@@ -48,54 +49,69 @@ open struct
     done;
     a
 
-  let create_bigstring () = reference_str |> bigstring_of_string
+  let create_bs () = reference_str |> bigstring_of_string
 end
 
 |}^tests
 
+let external_bindings_template ~container ~sigil ~width ~index ~ref_result
+      ~test_result = {|
+external |}^sigil^{|_reference : |}^container^{| -> int -> |}^ref_result^{|
+  = "%caml_|}^container^{|_get|}^width^{|"
+
+external |}^sigil^{|_tested_s : |}^container^{| -> |}^index^{| -> |}^test_result^{|
+  = "%caml_|}^container^{|_get|}^width^{|_indexed_by_|}^index^{|"
+
+external |}^sigil^{|_tested_u : |}^container^{| -> |}^index^{| -> |}^test_result^{|
+  = "%caml_|}^container^{|_get|}^width^{|u_indexed_by_|}^index^{|"
+|}
+
 let bigstring_one_test_template ~width ~index ~ref_result ~test_result ~conv_index
       ~conv_result ~eq ~extra_bounds = {|
-external reference : bigstring -> int -> |}^ref_result^{|
-  = "%caml_bigstring_get|}^width^{|"
-
-external tested_s : bigstring -> |}^index^{| -> |}^test_result^{|
-  = "%caml_bigstring_get|}^width^{|_indexed_by_|}^index^{|"
-
-external tested_u : bigstring -> |}^index^{| -> |}^test_result^{|
-  = "%caml_bigstring_get|}^width^{|u_indexed_by_|}^index^{|"
-
 let of_boxed_index : int -> |}^index^{| = |}^conv_index^{|
 let to_boxed_result : |}^test_result^{| -> |}^ref_result^{| = |}^conv_result^{|
 let eq : |}^ref_result^{| -> |}^ref_result^{| -> bool = |}^eq^{|
-
+|}
+^external_bindings_template
+   ~container:"bigstring" ~sigil:"bs" ~width ~index ~ref_result ~test_result
+^external_bindings_template
+   ~container:"bytes" ~sigil:"b" ~width ~index ~ref_result ~test_result
+^{|
 let check_get_bounds, check_get =
-  let bs_ref = create_bigstring ()
-  and bs_s = create_bigstring ()
-  and bs_u = create_bigstring () in
-  let check_get_bounds i =
-    match try_with (fun () -> tested_s bs_s i) with
-    | Error (Invalid_argument _) -> ()
-    | _ -> assert false
-  in
-  ( check_get_bounds
-  , fun i ->
-      let test_i = of_boxed_index i in
-      match try_with (fun () -> reference bs_ref i) with
-      | Ok res ->
-        (match
-           ( try_with (fun () -> tested_s bs_s test_i)
-           , try_with (fun () -> tested_u bs_u test_i) )
-         with
-         | Ok s, Ok u ->
-           assert (eq res (to_boxed_result s));
-           assert (eq res (to_boxed_result u))
-         | _ -> assert false)
-      | Error (Invalid_argument _) -> check_get_bounds (of_boxed_index i)
-      | Error _ ->
-        (match try_with (fun () -> tested_s bs_s test_i) with
-         | Error (Invalid_argument _) -> assert false
-         | Error _ -> ()
-         | Ok _ -> assert false) )
+  let create_checkers create reference tested_s tested_u =
+    let for_ref = create ()
+    and for_s = create ()
+    and for_u = create () in
+    let check_get_bounds i =
+      match try_with (fun () -> tested_s for_s i) with
+      | Error (Invalid_argument _) -> ()
+      | _ -> assert false
+    in
+    ( check_get_bounds
+    , fun i ->
+        let test_i = of_boxed_index i in
+        match try_with (fun () -> reference for_ref i) with
+        | Ok res ->
+          (match
+             ( try_with (fun () -> tested_s for_s test_i)
+             , try_with (fun () -> tested_u for_u test_i) )
+           with
+           | Ok s, Ok u ->
+             assert (eq res (to_boxed_result s));
+             assert (eq res (to_boxed_result u))
+           | _ -> assert false)
+        | Error (Invalid_argument _) -> check_get_bounds (of_boxed_index i)
+        | Error _ ->
+          (match try_with (fun () -> tested_s for_s test_i) with
+           | Error (Invalid_argument _) -> assert false
+           | Error _ -> ()
+           | Ok _ -> assert false) ) in
+  let cb_for_bs, c_for_bs =
+    create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_b, c_for_b =
+    create_checkers create_b b_reference b_tested_s b_tested_u in
+  ( (fun i -> cb_for_bs i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i))
 ;;
 
 for i = -1 to length + 1 do
