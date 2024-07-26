@@ -411,6 +411,7 @@ module Desc : sig
   type nonrec t =
     | Type of Type.t
     | Arrow of t Jkind_types.Arrow.t
+    | Top
 end
 
 (** [default_to_value_and_get] extracts the jkind as a `const`.  If it's a sort

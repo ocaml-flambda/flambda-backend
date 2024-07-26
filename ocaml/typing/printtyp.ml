@@ -1286,6 +1286,7 @@ let rec out_jkind_of_jkind t = match Jkind.get t with
     Ojkind_arrow
       { args = List.map out_jkind_of_jkind args;
         result = out_jkind_of_jkind result }
+  | Top -> Ojkind_top
 
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
