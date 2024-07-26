@@ -1,11 +1,3 @@
-let indent spaces string =
-  let indent_string = String.make spaces ' ' in
-  String.split_on_char '\n' string
-  |> List.concat_map (fun line ->
-    if String.equal line "" then [ "\n" ] else [ indent_string; line; "\n" ])
-  |> String.concat ""
-;;
-
 let template ~tests = {|(* TEST
  flambda2;
  include stdlib_upstream_compatible;
@@ -40,7 +32,11 @@ let template ~tests = {|(* TEST
 |}^tests
 
 let bigstring_tests_template ~length ~tests = {|
-module _ = struct
+let try_with f = try Ok (f ()) with err -> Error err
+let length = |}^length^{|
+let reference_str = String.init length (fun i -> i * 7 mod 256 |> char_of_int)
+
+open struct
   open Bigarray
 
   type bigstring = (char, int8_unsigned_elt, c_layout) Array1.t
@@ -52,13 +48,10 @@ module _ = struct
     done;
     a
 
-  let length = |}^length^{|
-  let reference_str = String.init length (fun i -> i * 7 mod 256 |> char_of_int)
-  let create_bs () = reference_str |> bigstring_of_string
-  let try_with f = try Ok (f ()) with err -> Error err
+  let create_bigstring () = reference_str |> bigstring_of_string
+end
 
-|}^indent 2 tests^{|end;;
-|}
+|}^tests
 
 let bigstring_one_test_template ~width ~index ~ref_result ~test_result ~conv_index
       ~conv_result ~eq ~extra_bounds = {|
@@ -76,7 +69,9 @@ let to_boxed_result : |}^test_result^{| -> |}^ref_result^{| = |}^conv_result^{|
 let eq : |}^ref_result^{| -> |}^ref_result^{| -> bool = |}^eq^{|
 
 let check_get_bounds, check_get =
-  let bs_ref = create_bs () and bs_s = create_bs () and bs_u = create_bs () in
+  let bs_ref = create_bigstring ()
+  and bs_s = create_bigstring ()
+  and bs_u = create_bigstring () in
   let check_get_bounds i =
     match try_with (fun () -> tested_s bs_s i) with
     | Error (Invalid_argument _) -> ()
@@ -147,13 +142,11 @@ type result =
 
 let bigstring_tests =
   Hlist.cartesian_product
-    ([ [ 
-{ type_ = "nativeint#"
+    ([ [ { type_ = "nativeint#"
          ; conv = "Stdlib_upstream_compatible.Nativeint_u.of_int"
          ; extra_bounds = []
          }
-         ;
-       { type_ = "int32#"
+       ; { type_ = "int32#"
          ; conv = "Stdlib_upstream_compatible.Int32_u.of_int"
          ; extra_bounds = [ "-#2147483648l"; "-#2147483647l"; "#2147483647l" ]
          }
