@@ -1261,9 +1261,10 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
           modes.txt
       in
       Ojkind_user_mod (base, modes)
-    | Arrow (args, result) -> Ojkind_user_arrow {
-        args = List.map out_jkind_user_of_user_jkind args;
-        result = out_jkind_user_of_user_jkind result }
+    | Arrow (args, result) ->
+      Ojkind_user_arrow (
+        List.map out_jkind_user_of_user_jkind args,
+        out_jkind_user_of_user_jkind result)
     | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
   in
   Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
@@ -1271,15 +1272,14 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Type.Const.to_out_jkind_const jkind)
 
-let rec out_jkind_of_jkind jkind = match Jkind.get jkind with
+let rec out_jkind_of_jkind jkind =
+  match Jkind.get jkind with
   | Type ty -> begin match Jkind.Type.get ty with
     | Const clay -> out_jkind_of_const_jkind clay
     | Var v      -> Ojkind_var (Jkind.Type.Sort.Var.name v)
     end
   | Arrow { args; result } ->
-    Ojkind_arrow
-      { args = List.map out_jkind_of_jkind args;
-        result = out_jkind_of_jkind result }
+    Ojkind_arrow (List.map out_jkind_of_jkind args, out_jkind_of_jkind result)
 
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
