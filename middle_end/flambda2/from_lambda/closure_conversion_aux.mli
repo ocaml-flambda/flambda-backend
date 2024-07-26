@@ -74,10 +74,10 @@ module IR : sig
       region_close : Lambda.region_close;
       inlined : Lambda.inlined_attribute;
       probe : Lambda.probe;
-      tail : Lambda.tail_attribute;
       mode : Lambda.alloc_mode;
       region : Ident.t;
       ghost_region : Ident.t;
+      original_position : Lambda.position_and_tail_attribute;
       args_arity : [`Complex] Flambda_arity.t;
       return_arity : [`Unarized] Flambda_arity.t
     }

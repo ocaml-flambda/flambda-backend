@@ -187,7 +187,7 @@ val has_or_null_reexport : Parsetree.attributes -> bool
 (* Setting use:true will raise a warning if the attribute has an invalid parameter;
    tailcall should only be called with use:true once to generate exactly one alert. *)
 (* CR less-tco: Maybe remove use:true *)
-val tailcall : Parsetree.attributes -> use:bool ->
+val tailcall : Parsetree.attributes ->
     ([`Tail|`Nontail|`Tail_if_possible] option, [`Conflict]) result
 
 (* CR layouts v1.5: Remove everything except for [Immediate64] and [Immediate]

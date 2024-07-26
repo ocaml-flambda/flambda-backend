@@ -1043,11 +1043,23 @@ let apply_tailcall_attribute ppf = function
   | Tailcall_expectation false ->
     fprintf ppf " tailcall(false)"
 
-let apply_tail_attribute ppf = function
-  | Explicit_tail -> fprintf ppf " tail"
-  | Hint_tail -> fprintf ppf " tail hint"
-  | Explicit_non_tail -> fprintf ppf " nontail"
-  | Default_tail -> fprintf ppf ""
+let apply_original_position ppf (opos : position_and_tail_attribute) =
+  let pattr ppf (tail_attribute : tail_attribute) =
+    let str =
+      match tail_attribute with
+      | Explicit_tail -> "Explicit_tail"
+      | Hint_tail -> "Hint_tail"
+      | Explicit_non_tail -> "Explicit_non_tail"
+      | Default_tail -> "Default_tail"
+    in Format.pp_print_string ppf str
+  in
+  match opos with
+  | Unknown_position ->
+    Format.pp_print_string ppf " Unknown_position"
+  | Tail_position attr ->
+    Format.fprintf ppf " Tail_position (%a)" pattr attr
+  | Not_tail_position attr ->
+    Format.fprintf ppf " Not_tail_position (%a)" pattr attr
 
 let apply_inlined_attribute ppf = function
   | Default_inlined -> ()
@@ -1088,7 +1100,7 @@ let rec lam ppf = function
       fprintf ppf "@[<2>(%s@ %a%a%a%a%a%a%a)@]" form
         lam ap.ap_func lams ap.ap_args
         apply_tailcall_attribute ap.ap_tailcall
-        apply_tail_attribute ap.ap_tail
+        apply_original_position ap.ap_position
         apply_inlined_attribute ap.ap_inlined
         apply_specialised_attribute ap.ap_specialised
         apply_probe ap.ap_probe

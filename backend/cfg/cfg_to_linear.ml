@@ -150,14 +150,16 @@ let linearize_terminator cfg_with_layout (func : string) start
     match terminator.desc with
     | Return -> [L.Lreturn], None
     | Raise kind -> [L.Lraise kind], None
-    | Tailcall_func { op = Indirect; tail } ->
-      [L.Lop (Itailcall_ind { tail })], None
-    | Tailcall_func { op = Direct func_symbol; tail } ->
-      [L.Lop (Itailcall_imm { func = func_symbol; tail })], None
-    | Tailcall_self { op = { destination }; tail } ->
+    | Tailcall_func { op = Indirect; original_position } ->
+      [L.Lop (Itailcall_ind { original_position })], None
+    | Tailcall_func { op = Direct func_symbol; original_position } ->
+      [L.Lop (Itailcall_imm { func = func_symbol; original_position })], None
+    | Tailcall_self { op = { destination }; original_position } ->
       ( [ L.Lop
             (Itailcall_imm
-               { func = { sym_name = func; sym_global = Local }; tail }) ],
+               { func = { sym_name = func; sym_global = Local };
+                 original_position
+               }) ],
         Some destination )
     | Call_no_return { func_symbol; alloc; ty_args; ty_res; stack_ofs } ->
       single
@@ -170,11 +172,12 @@ let linearize_terminator cfg_with_layout (func : string) start
                 returns = false;
                 stack_ofs
               }))
-    | Call { op; label_after; tail } ->
+    | Call { op; label_after; original_position } ->
       let op : Mach.operation =
         match op with
-        | Indirect -> Icall_ind { tail }
-        | Direct func_symbol -> Icall_imm { func = func_symbol; tail }
+        | Indirect -> Icall_ind { original_position }
+        | Direct func_symbol ->
+          Icall_imm { func = func_symbol; original_position }
       in
       branch_or_fallthrough [L.Lop op] label_after, None
     | Prim { op; label_after } ->

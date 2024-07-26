@@ -23,15 +23,37 @@ let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
 type nonrec apply_arg = apply_arg
 
 type texp_apply_identifier =
+<<<<<<< HEAD
   apply_position * Locality.l * Builtin_attributes.zero_alloc_assume option
+||||||| parent of 7d6fe1950 (Propagate original fn application position through the typetree into the backend (#2852))
+  apply_position * Locality.l * Zero_alloc_utils.Assume_info.t
+=======
+  apply_position
+  * position_and_tail_attribute
+  * Locality.l
+  * Zero_alloc_utils.Assume_info.t
+>>>>>>> 7d6fe1950 (Propagate original fn application position through the typetree into the backend (#2852))
 
 let mkTexp_apply
+<<<<<<< HEAD
     ?id:(pos, mode, za =
         (Default, Locality.disallow_right Locality.legacy, None)) (exp, args) =
+||||||| parent of 7d6fe1950 (Propagate original fn application position through the typetree into the backend (#2852))
+    ?id:(pos, mode, za =
+        ( Default,
+          Locality.disallow_right Locality.legacy,
+          Zero_alloc_utils.Assume_info.none )) (exp, args) =
+=======
+    ?id:(pos, opos, mode, za =
+        ( Default,
+          Unknown_position,
+          Locality.disallow_right Locality.legacy,
+          Zero_alloc_utils.Assume_info.none )) (exp, args) =
+>>>>>>> 7d6fe1950 (Propagate original fn application position through the typetree into the backend (#2852))
   let args =
     List.map (fun (label, x) -> (Typetexp.transl_label label None, x)) args
   in
-  Texp_apply (exp, args, pos, mode, za)
+  Texp_apply (exp, args, pos, opos, mode, za)
 
 type texp_tuple_identifier = string option list * alloc_mode
 
@@ -217,9 +239,9 @@ let view_texp (e : expression_desc) =
   match e with
   | Texp_ident (path, longident, vd, ident_kind, uu) ->
       Texp_ident (path, longident, vd, (ident_kind, uu))
-  | Texp_apply (exp, args, pos, mode, za) ->
+  | Texp_apply (exp, args, pos, opos, mode, za) ->
       let args = List.map (fun (label, x) -> (untype_label label, x)) args in
-      Texp_apply (exp, args, (pos, mode, za))
+      Texp_apply (exp, args, (pos, opos, mode, za))
   | Texp_construct (name, desc, args, mode) ->
       Texp_construct (name, desc, args, mode)
   | Texp_tuple (args, mode) ->

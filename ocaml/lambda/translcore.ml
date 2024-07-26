@@ -403,19 +403,6 @@ and transl_exp1 ~scopes ~in_new_scope sort e =
   Translobj.oo_wrap e.exp_env true (transl_exp0 ~scopes ~in_new_scope sort) e
 
 and transl_exp0 ~in_new_scope ~scopes sort e =
-  let unwrap_tail_attribute_exn e =
-    match Builtin_attributes.tailcall e.exp_attributes ~use:false with
-    | Ok requested -> begin
-        match requested with
-        | Some `Tail -> Explicit_tail
-        | Some `Tail_if_possible -> Hint_tail
-        | Some `Nontail -> Explicit_non_tail
-        | None -> Default_tail
-      end
-    (* This `failwith` should be unreachable because we would have failed
-       translation into Typedtree if we had a conflicting attribute *)
-    | Error `Conflict -> failwith "Transcore unwrap_tail_attribute_exn"
-  in
   match e.exp_desc with
   | Texp_ident(path, _, desc, kind, _) ->
       transl_ident (of_location ~scopes e.exp_loc)
@@ -432,7 +419,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
                                        Id_prim (pmode, psort), _);
                  exp_type = prim_type; } as funct,
-               oargs, pos, ap_mode, zero_alloc)
+               oargs, pos, original_position, ap_mode, zero_alloc)
     when can_apply_primitive p pmode pos oargs ->
       let rec cut_args prim_repr oargs =
         match prim_repr, oargs with
@@ -472,26 +459,19 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       if extra_args = [] then lam
       else begin
         let tailcall = Translattribute.get_tailcall_attribute funct in
-        let tail =
-          (* The [@tail] or [@nontail] attribute is on the whole e, not funct. *)
-          unwrap_tail_attribute_exn e in
         let inlined = Translattribute.get_inlined_attribute funct in
         let specialised = Translattribute.get_specialised_attribute funct in
         let position = transl_apply_position pos in
         let mode = transl_locality_mode_l ap_mode in
         let result_layout = layout_exp sort e in
         event_after ~scopes e
-          (transl_apply ~scopes ~tailcall ~tail ~inlined ~specialised
-             ~assume_zero_alloc
-             ~position ~mode
+          (transl_apply ~scopes ~tailcall ~inlined ~specialised
+             ~assume_zero_alloc ~position ~original_position ~mode
              ~result_layout lam extra_args (of_location ~scopes e.exp_loc))
       end
-  | Texp_apply(funct, oargs, position, ap_mode, zero_alloc)
+  | Texp_apply(funct, oargs, position, original_position, ap_mode, zero_alloc)
     ->
       let tailcall = Translattribute.get_tailcall_attribute funct in
-        let tail =
-          (* The [@tail] or [@nontail] attribute is on the whole e, not funct. *)
-          unwrap_tail_attribute_exn e in
       let inlined = Translattribute.get_inlined_attribute funct in
       let specialised = Translattribute.get_specialised_attribute funct in
       let result_layout = layout_exp sort e in
@@ -501,10 +481,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         zero_alloc_of_application ~num_args:(List.length oargs) zero_alloc funct
       in
       event_after ~scopes e
-        (transl_apply ~scopes ~tailcall ~tail ~inlined ~specialised
-           ~assume_zero_alloc
-           ~result_layout
-           ~position ~mode (transl_exp ~scopes Jkind.Sort.for_function funct)
+        (transl_apply ~scopes ~tailcall ~inlined ~specialised
+           ~assume_zero_alloc ~position ~original_position ~mode
+           ~result_layout (transl_exp ~scopes Jkind.Sort.for_function funct)
            oargs (of_location ~scopes e.exp_loc))
   | Texp_match(arg, arg_sort, pat_expr_list, partial) ->
       transl_match ~scopes ~arg_sort ~return_sort:sort e arg pat_expr_list
@@ -885,7 +864,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                     ap_region_close = pos;
                     ap_probe = None;
                     ap_tailcall = Default_tailcall;
-                    ap_tail = Default_tail;
+                    ap_position = Unknown_position;
                     ap_inlined = Default_inlined;
                     ap_specialised = Default_specialise}
       in
@@ -903,7 +882,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         ap_region_close=pos;
         ap_mode=alloc_heap;
         ap_tailcall=Default_tailcall;
-        ap_tail=Default_tail;
+        ap_position=Unknown_position;
         ap_inlined=Default_inlined;
         ap_specialised=Default_specialise;
         ap_probe=None;
@@ -931,7 +910,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
              ap_region_close=Rc_normal;
              ap_mode=alloc_heap;
              ap_tailcall=Default_tailcall;
-             ap_tail=Default_tail;
+             ap_position=Unknown_position;
              ap_inlined=Default_inlined;
              ap_specialised=Default_specialise;
              ap_probe=None;
@@ -1162,7 +1141,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           ap_mode = alloc_local;
           ap_loc = of_location e.exp_loc ~scopes;
           ap_tailcall = Default_tailcall;
-          ap_tail = Default_tail;
+          ap_position = Unknown_position;
           ap_inlined = Never_inlined;
           ap_specialised = Always_specialise;
           ap_probe = Some {name; enabled_at_init};
@@ -1274,11 +1253,11 @@ and transl_tupled_cases ~scopes rhs_sort patl_expr_list =
 
 and transl_apply ~scopes
       ?(tailcall=Default_tailcall)
-      ?(tail=Default_tail)
       ?(inlined = Default_inlined)
       ?(specialised = Default_specialise)
       ?(assume_zero_alloc = Zero_alloc_utils.Assume_info.none)
       ?(position=Rc_normal)
+      ?(original_position=Unknown_position)
       ?(mode=alloc_heap)
       ~result_layout
       lam sargs loc
@@ -1324,7 +1303,7 @@ and transl_apply ~scopes
           ap_region_close=pos;
           ap_mode=mode;
           ap_tailcall=tailcall;
-          ap_tail=tail;
+          ap_position=original_position;
           ap_inlined=inlined;
           ap_specialised=specialised;
           ap_probe=None;
@@ -2188,7 +2167,7 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
                ap_region_close=Rc_normal;
                ap_mode=alloc_heap;
                ap_tailcall = Default_tailcall;
-               ap_tail = Default_tail;
+               ap_position = Unknown_position;
                ap_inlined = Default_inlined;
                ap_specialised = Default_specialise;
                ap_probe=None;
@@ -2238,7 +2217,7 @@ and transl_letop ~scopes loc env let_ ands param param_sort case case_sort
     ap_region_close=Rc_normal;
     ap_mode=alloc_heap;
     ap_tailcall = Default_tailcall;
-    ap_tail = Default_tail;
+    ap_position = Unknown_position;
     ap_inlined = Default_inlined;
     ap_specialised = Default_specialise;
     ap_probe=None;
@@ -2258,13 +2237,13 @@ let transl_scoped_exp ~scopes sort exp =
   maybe_region_exp sort exp (transl_scoped_exp ~scopes sort exp)
 
 let transl_apply
-      ~scopes ?tailcall ?tail ?inlined ?specialised ?position ?mode ~result_layout fn
-      args loc =
+      ~scopes ?tailcall ?inlined ?specialised ?position
+      ?original_position ?mode ~result_layout fn args loc =
   maybe_region_layout result_layout
     (transl_apply
-       ~scopes ?tailcall ?tail ?inlined ?specialised
-       ~assume_zero_alloc:Zero_alloc_utils.Assume_info.none ?position ?mode
-       ~result_layout fn args loc)
+       ~scopes ?tailcall ?inlined ?specialised
+       ~assume_zero_alloc:Zero_alloc_utils.Assume_info.none ?position
+       ?original_position ?mode ~result_layout fn args loc)
 
 (* Error report *)
 

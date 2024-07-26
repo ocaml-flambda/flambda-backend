@@ -82,8 +82,8 @@ type t =
     inlined : Inlined_attribute.t;
     inlining_state : Inlining_state.t;
     probe : Probe.t;
-    tail : Tail.t;
     position : Position.t;
+    original_position : Original_position.t;
     relative_history : Inlining_history.Relative.t
   }
 
@@ -95,7 +95,7 @@ let [@ocamlformat "disable"] print_inlining_paths ppf relative_history =
 let [@ocamlformat "disable"] print_normal ppf
     { callee; continuation; exn_continuation; args; args_arity;
       return_arity; call_kind; dbg; inlined; inlining_state; probe;
-      tail = tail; position; relative_history } =
+      position; original_position; relative_history } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(%a\u{3008}%a\u{3009}\u{300a}%a\u{300b}\
       (%a))@]@ \
@@ -107,7 +107,7 @@ let [@ocamlformat "disable"] print_normal ppf
       @[<hov 1>(inlining_state@ %a)@]@ \
       %a\
       @[<hov 1>(probe@ %a)@]@ \
-      @[<hov 1>(tail@ %a)@]@ \
+      @[<hov 1>(original_position@ %a)@]@ \
       @[<hov 1>(position@ %a)@]\
       )@]"
     (Misc.Stdlib.Option.print Simple.print) callee
@@ -124,7 +124,7 @@ let [@ocamlformat "disable"] print_normal ppf
     Inlining_state.print inlining_state
     print_inlining_paths relative_history
     Probe.print probe
-    Tail.print tail
+    Original_position.print original_position
     (fun ppf position ->
        match position with
        | Position.Normal -> Format.pp_print_string ppf "Normal"
@@ -134,7 +134,7 @@ let [@ocamlformat "disable"] print_normal ppf
 let [@ocamlformat "disable"] print_effect ppf
     { callee = _; continuation; exn_continuation; args = _; args_arity = _;
       return_arity = _; call_kind; dbg; inlined = _; inlining_state = _;
-      probe = _; position; relative_history = _; tail = _ } =
+      probe = _; position; relative_history = _; original_position = _ } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>%a@]@ \
       @[<hov 1>\u{3008}%a\u{3009}\u{300a}%a\u{300b}@]@ \
@@ -170,8 +170,8 @@ let invariant
        inlined = _;
        inlining_state = _;
        probe = _;
-       tail = _;
        position = _;
+       original_position = _;
        relative_history = _
      } as t) =
   (match callee with
@@ -212,7 +212,7 @@ let invariant
 
 let create ~callee ~continuation exn_continuation ~args ~args_arity
     ~return_arity ~(call_kind : Call_kind.t) dbg ~inlined ~inlining_state ~probe
-    ~tail ~position ~relative_history =
+    ~position ~original_position ~relative_history =
   let t =
     { callee;
       continuation;
@@ -225,8 +225,8 @@ let create ~callee ~continuation exn_continuation ~args ~args_arity
       inlined;
       inlining_state;
       probe;
-      tail;
       position;
+      original_position;
       relative_history
     }
   in
@@ -265,8 +265,8 @@ let free_names_without_exn_continuation
       inlined = _;
       inlining_state = _;
       probe = _;
-      tail = _;
       position = _;
+      original_position = _;
       relative_history = _
     } =
   Name_occurrences.union_list
@@ -289,8 +289,8 @@ let free_names_except_callee
       inlined = _;
       inlining_state = _;
       probe = _;
-      tail = _;
       position = _;
+      original_position = _;
       relative_history = _
     } =
   Name_occurrences.union_list
@@ -318,8 +318,8 @@ let apply_renaming
        inlined;
        inlining_state;
        probe;
-       tail;
        position;
+       original_position;
        relative_history
      } as t) renaming =
   let continuation' =
@@ -353,8 +353,8 @@ let apply_renaming
       inlined;
       inlining_state;
       probe;
-      tail;
       position;
+      original_position;
       relative_history
     }
 
@@ -370,8 +370,8 @@ let ids_for_export
       inlined = _;
       inlining_state = _;
       probe = _;
-      tail = _;
       position = _;
+      original_position = _;
       relative_history = _
     } =
   let callee_ids =
@@ -413,7 +413,7 @@ let inlining_arguments t = inlining_state t |> Inlining_state.arguments
 
 let probe t = t.probe
 
-let tail t = t.tail
+let original_position t = t.original_position
 
 let returns t =
   match continuation t with Return _ -> true | Never_returns -> false

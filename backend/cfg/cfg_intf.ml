@@ -171,15 +171,15 @@ module S = struct
       label_after : Label.t
     }
 
-  type 'a with_tail_attr =
+  type 'a with_original_position =
     { op : 'a;
-      tail : Lambda.tail_attribute
+      original_position : Lambda.position_and_tail_attribute
     }
 
-  type 'a with_label_after_and_tail_attr =
+  type 'a with_label_after_and_original_position =
     { op : 'a;
       label_after : Label.t;
-      tail : Lambda.tail_attribute
+      original_position : Lambda.position_and_tail_attribute
     }
 
   (* Properties of the representation of successors:
@@ -208,11 +208,11 @@ module S = struct
        `with_tail_attr`? It is unfortunate that with_tail_attr uses `op` as a
        field, so the label path is .op.destination (since destination is not
        really an op). *)
-    | Tailcall_self of destination with_tail_attr
-    | Tailcall_func of func_call_operation with_tail_attr
+    | Tailcall_self of destination with_original_position
+    | Tailcall_func of func_call_operation with_original_position
     (* CR less-tco: Track [@tail] attribute on external calls? *)
     | Call_no_return of external_call_operation
-    | Call of func_call_operation with_label_after_and_tail_attr
+    | Call of func_call_operation with_label_after_and_original_position
     (* CR less-tco: Track [@tail] attribute on primitive (external) calls? *)
     | Prim of prim_call_operation with_label_after
     | Specific_can_raise of Arch.specific_operation with_label_after

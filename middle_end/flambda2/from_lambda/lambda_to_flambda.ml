@@ -890,7 +890,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
         ap_mode;
         ap_loc;
         ap_tailcall = _;
-        ap_tail;
+        ap_position;
         ap_inlined;
         ap_specialised = _;
         ap_probe
@@ -900,7 +900,7 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
     maybe_insert_let_cont "apply_result" ap_result_layout k acc env ccenv
       (fun acc env ccenv k ->
         cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode
-          ap_loc ap_inlined ap_probe ap_result_layout ap_tail k k_exn)
+          ap_loc ap_inlined ap_probe ap_result_layout ap_position k k_exn)
   | Lfunction func ->
     let id = Ident.create_local (name_for_function func) in
     let dbg = Debuginfo.from_location func.loc in
@@ -1214,11 +1214,11 @@ let rec cps acc env ccenv (lam : L.lambda) (k : cps_continuation)
                         region_close = pos;
                         inlined = Default_inlined;
                         probe = None;
-                        tail = Default_tail;
                         mode;
                         region = Env.Region_stack_element.region current_region;
                         ghost_region =
                           Env.Region_stack_element.ghost_region current_region;
+                        original_position = Unknown_position;
                         args_arity = Flambda_arity.create args_arity;
                         return_arity =
                           Flambda_arity.unarize_t
@@ -1487,7 +1487,7 @@ and cps_non_tail_var :
     k_exn
 
 and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
-    ap_inlined ap_probe ap_return ap_tail (k : Continuation.t)
+    ap_inlined ap_probe ap_return ap_position (k : Continuation.t)
     (k_exn : Continuation.t) : Expr_with_acc.t =
   cps_non_tail_list acc env ccenv ap_args
     (fun acc env ccenv args args_arity ->
@@ -1510,7 +1510,7 @@ and cps_tail_apply acc env ccenv ap_func ap_args ap_region_close ap_mode ap_loc
               region_close = ap_region_close;
               inlined = ap_inlined;
               probe = ap_probe;
-              tail = ap_tail;
+              original_position = ap_position;
               mode = ap_mode;
               region = Env.Region_stack_element.region current_region;
               ghost_region =

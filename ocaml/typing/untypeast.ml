@@ -593,7 +593,7 @@ let expression sub exp =
             params
         in
         Pexp_function (params, constraint_, body)
-    | Texp_apply (exp, list, _, _, _) ->
+    | Texp_apply (exp, list, _, _, _, _) ->
         let list = List.map (fun (arg_label, arg) -> label arg_label, arg) list in
         Pexp_apply (sub.expr sub exp,
           List.fold_right (fun (label, arg) list ->

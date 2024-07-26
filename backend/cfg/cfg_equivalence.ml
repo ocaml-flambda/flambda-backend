@@ -332,7 +332,7 @@ let check_func_call_operation :
   | _ -> different location "function call operation"
  [@@ocaml.warning "-4"]
 
-let check_tail_attribute :
+let check_tail_attr :
     location -> Lambda.tail_attribute -> Lambda.tail_attribute -> unit =
  fun location expected result ->
   match expected, result with
@@ -340,7 +340,22 @@ let check_tail_attribute :
   | Hint_tail, Hint_tail -> ()
   | Explicit_non_tail, Explicit_non_tail -> ()
   | Default_tail, Default_tail -> ()
-  | _ -> different location "tail attribute"
+  | _ -> different location "original position tail attribute"
+ [@@ocaml.warning "-4"]
+
+let check_original_position :
+    location ->
+    Lambda.position_and_tail_attribute ->
+    Lambda.position_and_tail_attribute ->
+    unit =
+ fun location expected result ->
+  match expected, result with
+  | Unknown_position, Unknown_position -> ()
+  | Tail_position expected, Tail_position result ->
+    check_tail_attr location expected result
+  | Not_tail_position expected, Not_tail_position result ->
+    check_tail_attr location expected result
+  | _, _ -> different location "original position"
  [@@ocaml.warning "-4"]
 
 let check_basic : State.t -> location -> Cfg.basic -> Cfg.basic -> unit =
@@ -494,24 +509,28 @@ let check_terminator_instruction :
   | Return, Return -> ()
   | Raise rk1, Raise rk2 when equal_raise_kind rk1 rk2 -> ()
   | ( Tailcall_self
-        { op = { destination = expected_destination }; tail = expected_tail },
+        { op = { destination = expected_destination };
+          original_position = expected_opos
+        },
       Tailcall_self
-        { op = { destination = result_destination }; tail = actual_tail } ) ->
+        { op = { destination = result_destination };
+          original_position = actual_opos
+        } ) ->
     let location = location ^ " (terminator)" in
-    check_tail_attribute location expected_tail actual_tail;
+    check_original_position location expected_opos actual_opos;
     State.add_labels_to_check state location expected_destination
       result_destination
-  | ( Tailcall_func { op = tc1; tail = tail1 },
-      Tailcall_func { op = tc2; tail = tail2 } ) ->
+  | ( Tailcall_func { op = tc1; original_position = opos1 },
+      Tailcall_func { op = tc2; original_position = opos2 } ) ->
     let location = location ^ " (terminator)" in
     check_func_call_operation location tc1 tc2;
-    check_tail_attribute location tail1 tail2
+    check_original_position location opos1 opos2
   | Call_no_return cn1, Call_no_return cn2 ->
     check_external_call_operation location cn1 cn2
-  | ( Call { op = cn1; label_after = lbl1; tail = tail1 },
-      Call { op = cn2; label_after = lbl2; tail = tail2 } ) ->
+  | ( Call { op = cn1; label_after = lbl1; original_position = opos1 },
+      Call { op = cn2; label_after = lbl2; original_position = opos2 } ) ->
     check_func_call_operation location cn1 cn2;
-    check_tail_attribute location tail1 tail2;
+    check_original_position location opos1 opos2;
     State.add_to_explore state lbl1 lbl2
   | Prim { op = cn1; label_after = lbl1 }, Prim { op = cn2; label_after = lbl2 }
     ->
