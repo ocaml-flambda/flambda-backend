@@ -1271,19 +1271,14 @@ module Const = struct
         args format result
     | Top -> Format.fprintf ppf "top"
 
-  let jkind_case2 ~typ ~arrow ~default (t : t) (t' : t) =
+  let rec equal (t : t) (t' : t) =
     match t, t' with
-    | Type s, Type s' -> typ s s'
-    | Arrow a, Arrow a' -> arrow a a'
-    | _, _ -> default
-
-  let rec equal t t' =
-    jkind_case2 ~typ:Type.Const.equal
-      ~arrow:
-        (fun { args = args1; result = result1 }
-             { args = args2; result = result2 } ->
-        List.for_all2 equal args1 args2 && equal result1 result2)
-      ~default:false t t'
+    | Type ty, Type ty' -> Type.Const.equal ty ty'
+    | ( Arrow { args = args1; result = result1 },
+        Arrow { args = args2; result = result2 } ) ->
+      List.for_all2 equal args1 args2 && equal result1 result2
+    | Top, Top -> true
+    | _ -> false
 
   let to_type_jkind (t : t) =
     match t with
@@ -2002,6 +1997,7 @@ let equate_or_equal ~allow_mutation (t : t) (t' : t) =
         Arrow { args = args2; result = result2 } ) ->
       let arg_eqs = List.map2 go args1 args2 in
       go result1 result2 && List.for_all (fun x -> x) arg_eqs
+    | Top, Top -> true
     | _ -> false
   in
   go t.jkind t'.jkind
@@ -2067,6 +2063,8 @@ let arrow_connective_or_error ~on_args ~on_result
 
 let rec intersection_or_error ~reason t t' =
   match get t, get t' with
+  | _, Top -> Ok t
+  | Top, _ -> Ok t'
   | Type ty, Type ty' -> (
     match Type.Jkind_desc.intersection ty.jkind ty'.jkind with
     | None -> Error (Violation.of_ (No_intersection (t, t')))
@@ -2084,6 +2082,8 @@ let rec intersection_or_error ~reason t t' =
 
 and union_or_error ~reason t t' =
   match get t, get t' with
+  | Top, _ -> Ok t
+  | _, Top -> Ok t'
   | Type ty, Type ty' ->
     (* Union is infallible at type jkinds due to [any] *)
     Ok
@@ -2091,10 +2091,15 @@ and union_or_error ~reason t t' =
         history = combine_histories reason t t';
         has_warned = t.has_warned || t'.has_warned
       }
-  | Arrow a, Arrow a' ->
-    arrow_connective_or_error
-      ~on_args:(intersection_or_error ~reason)
-      ~on_result:(union_or_error ~reason) a a'
+  | Arrow a, Arrow a' -> (
+    match
+      arrow_connective_or_error
+        ~on_args:(intersection_or_error ~reason)
+        ~on_result:(union_or_error ~reason) a a'
+    with
+    | Ok ty -> Ok ty
+    | Error _ ->
+      Ok { jkind = Top; history = Creation Temporary; has_warned = false })
   | _ -> Error (Violation.of_ (No_union (t, t')))
 
 let has_intersection t t' =
@@ -2105,6 +2110,8 @@ let has_intersection t t' =
 
 let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
   match get t, get t' with
+  | Top, Top -> Misc.Le_result.Equal
+  | _, Top -> Misc.Le_result.Less
   | Type ty, Type ty' -> Type.check_sub ty ty'
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
