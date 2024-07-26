@@ -416,6 +416,7 @@ module Jkind_desc = struct
   type 'type_expr t =
     | Type of 'type_expr Type.Jkind_desc.t
     | Arrow of 'type_expr t Arrow.t
+    | Top
 end
 
 type 'type_expr history = 'type_expr Jkind_desc.t History.t
@@ -436,6 +437,7 @@ module Const = struct
   type 'type_expr t =
     | Type of 'type_expr Type.Const.t
     | Arrow of 'type_expr t Arrow.t
+    | Top
 end
 
 type 'type_expr const = 'type_expr Const.t
