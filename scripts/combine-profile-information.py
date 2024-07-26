@@ -125,4 +125,3 @@ with open(SUMMARY_PATH, "w", newline="") as summary_csv_file:
 
     for curr_csv_path in get_input_csv_paths():
         process_csv(curr_csv_path, summary_csv_writer)
-        curr_csv_path.unlink()
