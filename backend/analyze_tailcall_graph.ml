@@ -170,8 +170,8 @@ module Global = struct
 
   let mangle_vertex (v : Graph.Vertex.t) =
     match v with
-    | Unknown_fn -> "__Unknown_fn__"
-    | Known_fn fn -> fn |> replace ~c:'.' ~with_:"_dot_"
+    | Unknown_fn -> "Unknown_fn"
+    | Known_fn fn -> "K_" ^ (fn |> replace ~c:'.' ~with_:"_dot_")
   ;;
 
   let label_of_vertex (v : Graph.Vertex.t) =
