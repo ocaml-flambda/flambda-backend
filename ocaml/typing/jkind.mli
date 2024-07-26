@@ -328,17 +328,6 @@ module Type : sig
   val set_externality_upper_bound : t -> Externality.t -> t
 
   (*********************************)
-  (* pretty printing *)
-
-  (** Format the history of this jkind: what interactions it has had and why
-      it is the jkind that it is. Might be a no-op: see [display_histories]
-      in the implementation of the [Jkind] module.
-
-      The [intro] is something like "The jkind of t is". *)
-  val format_history :
-    intro:(Format.formatter -> unit) -> Format.formatter -> t -> unit
-
-  (*********************************)
   (* debugging *)
 
   module Debug_printers : sig
