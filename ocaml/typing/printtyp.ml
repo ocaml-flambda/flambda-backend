@@ -1288,6 +1288,7 @@ let rec out_jkind_of_jkind ~sort_var_names t =
     Ojkind_arrow (
       List.map (out_jkind_of_jkind ~sort_var_names) args,
       out_jkind_of_jkind ~sort_var_names result)
+  | Top -> Ojkind_top
 
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
