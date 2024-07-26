@@ -399,7 +399,7 @@ val to_type_jkind : t -> Type.t
 (** Convert a type jkind into a general jkind *)
 val of_type_jkind : Type.t -> t
 
-(** Construct the jkind from an arrow with a given reason *)
+(** Construct the jkind from an arrow with a given history *)
 val of_arrow :
   history:Types.type_expr Jkind_types.history -> t Jkind_types.Arrow.t -> t
 
