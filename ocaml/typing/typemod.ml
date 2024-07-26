@@ -3077,7 +3077,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         end
     in
 
-    let same_path_after_subst p1 p2 =
+    let same_modtype_path_after_subst p1 p2 =
       (* When we see two [Path.t]s, first try applying [subst] to the expected path.
          If the two paths are the same after substitution, we don't need to look into
          the paths to tell that they're the same. *)
@@ -3087,9 +3087,18 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
       with Fatal_error -> false
     in
 
+    let same_module_path_after_subst p1 p2 =
+      try
+        let p1_after_subst = Subst.module_path subst p1 in
+        Path.same p1_after_subst p2
+      with Fatal_error -> false
+    in
+
     match expected_modtype, actual_modtype with
       | Some (Mty_ident p1), Some (Mty_ident p2)
-          when same_path_after_subst p1 p2 -> ()
+          when same_modtype_path_after_subst p1 p2 -> ()
+      | Some (Mty_alias p1), Some (Mty_alias p2)
+          when same_module_path_after_subst p1 p2 -> ()
       | _ ->
           let s1 = extract_signature sig_env expected_modtype in
           let s2 = extract_signature env actual_modtype in
