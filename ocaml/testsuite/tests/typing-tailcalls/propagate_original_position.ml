@@ -11,7 +11,7 @@ external ext : unit -> unit = "ext"
 
 let foo () = ext ()
 
-let tail () =
+let tail_on_tail_app () =
   foo () [@tail]
 
 let tail_hint_on_tail_app () =

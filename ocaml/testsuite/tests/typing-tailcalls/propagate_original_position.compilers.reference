@@ -1,6 +1,6 @@
 (let
   (foo/269 = (function {nlocal = 0} param/271[int] : int (ext 0))
-   tail/272 =
+   tail_on_tail_app/272 =
      (function {nlocal = 0} param/274[int] : int
        (apply foo/269 0 Tail_position (Explicit_tail)))
    tail_hint_on_tail_app/275 =
@@ -29,7 +29,7 @@
    default_in_simplif/298 =
      (function {nlocal = 0} param/301[int] : int
        (apply foo/269 0 Not_tail_position (Default_tail))))
-  (makeblock 0 foo/269 tail/272 tail_hint_on_tail_app/275
+  (makeblock 0 foo/269 tail_on_tail_app/272 tail_hint_on_tail_app/275
     tail_hint_on_not_tail_app/278 tail_hint_in_simplif/281
     nontail_on_tail_app/285 nontail_on_not_tail_app/288
     nontail_hint_in_simplif/291 default/295 default_in_simplif/298))
@@ -39,7 +39,7 @@ After simplify:
  (return_continuation k3) (exn_continuation k2)
  (toplevel_my_region toplevel_my_region/0N) (used_value_slots { })
  camlPropagate_original_position__foo_0_0_code = (Deleted)
- camlPropagate_original_position__tail_1_1_code = (Deleted)
+ camlPropagate_original_position__tail_on_tail_app_1_1_code = (Deleted)
  camlPropagate_original_position__tail_hint_on_tail_app_2_2_code = (Deleted)
  camlPropagate_original_position__tail_hint_on_not_tail_app_3_3_code =
   (Deleted)
@@ -82,9 +82,10 @@ After simplify:
  (foo/0 ∷ 𝕍) =
   (set_of_closures Heap
    ({((foo/0 ∷ 𝕍) camlPropagate_original_position__foo_0_10_code)}))
- camlPropagate_original_position__tail_1_11_code =
+ camlPropagate_original_position__tail_on_tail_app_1_11_code =
   ((code_metadata
-    ((newer_version_of camlPropagate_original_position__tail_1_1_code)
+    ((newer_version_of
+      camlPropagate_original_position__tail_on_tail_app_1_1_code)
      (stub false) (inline Default_inline) () (poll_attribute Default)
      (is_a_functor false) (is_opaque false) (params_arity 𝕍=tagged_ℕ𝕚)
      (param_modes (Heap)) (first_complex_local_param 1)
@@ -94,7 +95,7 @@ After simplify:
       size: 4 removed: {call: 0 alloc: 0 prim: 2 branch: 0 direct: 0
                         poly_cmp: 0 requested: 0})
      (inlining_arguments Oclassic)
-     (dbg propagate_original_position.ml:14,9--30) (is_tupled false)
+     (dbg propagate_original_position.ml:14,21--42) (is_tupled false)
      (is_my_closure_used false)
      (inlining_decision (Small_function (size 4) (small_function_size 10)))
      (loopify Never_loopify)))
@@ -112,10 +113,11 @@ After simplify:
       (inline Default_inlined) (inlining_state (depth 0, arguments Oclassic))
       (probe ()) (original_position Tail_position (Explicit_tail))
       (position Normal))))))
- Propagate_original_position.camlPropagate_original_position__tail_11 ↤
- (tail/1 ∷ 𝕍) =
+ Propagate_original_position.camlPropagate_original_position__tail_on_tail_app_11 ↤
+ (tail_on_tail_app/1 ∷ 𝕍) =
   (set_of_closures Heap
-   ({((tail/1 ∷ 𝕍) camlPropagate_original_position__tail_1_11_code)}))
+   ({((tail_on_tail_app/1 ∷ 𝕍)
+      camlPropagate_original_position__tail_on_tail_app_1_11_code)}))
  camlPropagate_original_position__tail_hint_on_tail_app_2_12_code =
   ((code_metadata
     ((newer_version_of
@@ -434,7 +436,7 @@ After simplify:
  Propagate_original_position.camlPropagate_original_position =
   (Immutable_block (tag 0)
    (Propagate_original_position.camlPropagate_original_position__foo_10
-   Propagate_original_position.camlPropagate_original_position__tail_11
+   Propagate_original_position.camlPropagate_original_position__tail_on_tail_app_11
    Propagate_original_position.camlPropagate_original_position__tail_hint_on_tail_app_12
    Propagate_original_position.camlPropagate_original_position__tail_hint_on_not_tail_app_13
    Propagate_original_position.camlPropagate_original_position__tail_hint_in_simplif_14
@@ -449,7 +451,7 @@ After simplify:
  int 11008
  global "camlPropagate_original_position":
  addr G:"camlPropagate_original_position__foo_10"
- addr G:"camlPropagate_original_position__tail_11"
+ addr G:"camlPropagate_original_position__tail_on_tail_app_11"
  addr G:"camlPropagate_original_position__tail_hint_on_tail_app_12"
  addr G:"camlPropagate_original_position__tail_hint_on_not_tail_app_13"
  addr G:"camlPropagate_original_position__tail_hint_in_simplif_14"
@@ -500,8 +502,8 @@ After simplify:
  int 108086391056891909)
 (data
  int 3063
- global "camlPropagate_original_position__tail_11":
- addr G:"camlPropagate_original_position__tail_1_11_code"
+ global "camlPropagate_original_position__tail_on_tail_app_11":
+ addr G:"camlPropagate_original_position__tail_on_tail_app_1_11_code"
  int 108086391056891909)
 (data
  int 3063
@@ -553,13 +555,13 @@ predecessors: 100
 successors:
 exn-successors:
 
-(function{propagate_original_position.ml:14,9-30}
- camlPropagate_original_position__tail_1_11_code (param/345: int)
+(function{propagate_original_position.ml:14,21-42}
+ camlPropagate_original_position__tail_on_tail_app_1_11_code (param/345: int)
  (app(opos tail [@tail]){propagate_original_position.ml:15,2-8}
    G:"camlPropagate_original_position__foo_0_10_code" 1 int))
 
 *** After instruction selection
-camlPropagate_original_position__tail_1_11_code(R:I/0[%rax]) {propagate_original_position.ml:14,9-30}
+camlPropagate_original_position__tail_on_tail_app_1_11_code(R:I/0[%rax]) {propagate_original_position.ml:14,21-42}
   param:I/61 := R:I/0[%rax]
   I/62 := 1
   R:I/0[%rax] := I/62
@@ -567,7 +569,7 @@ camlPropagate_original_position__tail_1_11_code(R:I/0[%rax]) {propagate_original
 *** After cfgize
 
 cfg for 
-camlPropagate_original_position__tail_1_11_code
+camlPropagate_original_position__tail_on_tail_app_1_11_code
 layout.length=2
 blocks.length=2
 
