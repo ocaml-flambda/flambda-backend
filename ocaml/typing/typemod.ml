@@ -111,7 +111,9 @@ type modtype_decl_context =
   (** We are checking a signature. *)
   | In_structure of modtype_declaration option
   (** We are checking a struct, with a given expected signature (used for inferring
-      module types when we see a [module type S = _]) *)
+      module types when we see a [module type S = _]). The expected signature would have
+      been gone through substitution from the elements in the signature to the elements
+      in the struct seen so far.*)
 
 (** Map of items in a signature (similar to an [Env.t] after [Env.add_signature]), but
     only indexed by the item's name as a string. This avoids us having to iterate through
@@ -165,15 +167,11 @@ module Sig_map = struct
     in
     List.fold_left add_item map sg
 
-  let _find_value name map = String.Map.find_opt name map.values
-
   let find_type name map = String.Map.find_opt name map.types
 
   let find_module name map = String.Map.find_opt name map.modules
 
   let find_module_type name map = String.Map.find_opt name map.module_types
-
-  let _find_class name map = String.Map.find_opt name map.classes
 
   let find_class_type name map = String.Map.find_opt name map.class_types
 end
@@ -3420,7 +3418,6 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         shape_map,
         new_env,
         add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst
-
     | Pstr_class_type cl ->
         let (classes, new_env) = Typeclass.class_type_declarations env cl in
         let shape_map = List.fold_left (fun acc decl ->
