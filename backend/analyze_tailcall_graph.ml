@@ -79,38 +79,39 @@ module Graph = struct
     t
     ~(from : string)
     ~(to_ : Vertex.t)
-    ~(apos : [ `Tail | `Nontail ])
-    ~(opos : Typedtree.position_and_tail_attribute)
+    ~(actual_position : [ `Tail | `Nontail ])
+    ~(original_position : Typedtree.position_and_tail_attribute)
     =
     let label : Edge_head.label option =
-      let fail () = failwith "case should be impossible" in
-      match apos, opos with
+      let impossible_because fmt = Misc.fatal_errorf "impossible because " ^^ fmt in
+      match actual_position, original_position with
       | _, Unknown_position -> Some Unknown_edge
       | `Tail, Tail_position attr ->
         (match attr with
          | Explicit_tail -> Some Explicit_tail
          | Hint_tail -> Some Explicit_tail
-         | Explicit_non_tail -> fail ()
+         | Explicit_non_tail ->
+           impossible_because "[@nontail] was optimized to a tailcall"
          | Default_tail -> Some Implicit_tail)
       | `Tail, Not_tail_position attr ->
         (match attr with
-         | Explicit_tail -> fail ()
+         | Explicit_tail ->
+           impossible_because "[@tail] not allowed on applications not in tail position"
          | Hint_tail -> Some Explicit_tail
-         | Explicit_non_tail -> fail ()
+         | Explicit_non_tail ->
+           impossible_because "[@nontail] was optimized to a tailcall"
          | Default_tail -> Some Implicit_tail)
       | `Nontail, Tail_position attr ->
         (match attr with
-         | Explicit_tail -> fail ()
-         | Hint_tail -> fail ()
+         | Explicit_tail -> impossible_because "[@tail] was not optimized to a tailcall"
+         | Hint_tail ->
+           impossible_because
+             "[@tail hint] on application in tail position was not optimized to a \
+              tailcall"
          (* This case might be interesting for further analysis *)
          | Explicit_non_tail -> None
          | Default_tail -> Some Implicit_nontail)
-      | `Nontail, Not_tail_position attr ->
-        (match attr with
-         | Explicit_tail -> None
-         | Hint_tail -> None
-         | Explicit_non_tail -> None
-         | Default_tail -> None)
+      | `Nontail, Not_tail_position attr -> None
     in
     match label with
     | None -> ()
@@ -144,12 +145,22 @@ module Global = struct
     in
     Cfg.iter_blocks cfg ~f:(fun _ block ->
       match block.terminator.desc with
-      | Tailcall_self { original_position = opos; _ } ->
-        Graph.add_edge graph ~from ~to_:(Known_fn from) ~apos:`Tail ~opos
-      | Tailcall_func { original_position = opos; op } ->
-        Graph.add_edge graph ~from ~to_:(to_ op) ~apos:`Tail ~opos
-      | Call { original_position = opos; op; _ } ->
-        Graph.add_edge graph ~from ~to_:(to_ op) ~apos:`Nontail ~opos
+      | Tailcall_self { original_position; _ } ->
+        Graph.add_edge
+          graph
+          ~from
+          ~to_:(Known_fn from)
+          ~actual_position:`Tail
+          ~original_position
+      | Tailcall_func { original_position; op } ->
+        Graph.add_edge graph ~from ~to_:(to_ op) ~actual_position:`Tail ~original_position
+      | Call { original_position; op; _ } ->
+        Graph.add_edge
+          graph
+          ~from
+          ~to_:(to_ op)
+          ~actual_position:`Nontail
+          ~original_position
       (* (less-tco) Handle Call_no_return and Prim? *)
       | Call_no_return _
       | Prim _
