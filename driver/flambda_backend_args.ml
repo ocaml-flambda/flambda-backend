@@ -70,10 +70,10 @@ let mk_no_cfg_zero_alloc_checker f =
   "-no-cfg-zero-alloc-checker", Arg.Unit f, " Do not apply zero_alloc checker to CFG"
 
 let mk_cfg_analyze_tailcalls f =
-  "-cfg-analyze-tailcall-graph", Arg.Unit f, " Run the tailcall graph analyzer on the CFG"
+  "-cfg-analyze-tailcalls", Arg.Unit f, " Run the tailcall graph analyzer on the CFG"
 
 let mk_no_cfg_analyze_tailcalls f =
-  "-no-cfg-analyze-tailcall-graph", Arg.Unit f, " Do not run the tailcall graph analyzer on the CFG"
+  "-no-cfg-analyze-tailcalls", Arg.Unit f, " Do not run the tailcall graph analyzer on the CFG"
 
 let mk_dcfg_tailcalls f =
   "-dcfg-tailcalls", Arg.Unit f, " Dump the tailcall graph as dot"

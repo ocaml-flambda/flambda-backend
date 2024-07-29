@@ -195,6 +195,7 @@ end = struct
   let successors t (v : Vertex.t) : unit Edge.Tbl.t = Vertex.Tbl.find t.adjacencies v
 
   let find_or_add_vertex t ~(fn_name : string) : Vertex.t =
+    Format.eprintf "find_or_add_vertex %s@." fn_name;
     let vertex =
       match String.Tbl.find_opt t.vertex_by_name fn_name with
       | None ->
