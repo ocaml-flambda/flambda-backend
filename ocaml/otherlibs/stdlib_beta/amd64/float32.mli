@@ -199,14 +199,14 @@ external to_int64 : (t[@local_opt]) -> int64
 external of_bits : (int32[@local_opt]) -> t
   = "caml_float32_of_bits_bytecode" "caml_float32_of_bits"
   [@@unboxed] [@@noalloc] [@@builtin]
-(** Convert a 32-bit float to a 32-bit integer, preserving the value's
+(** Convert a 32-bit integer to a 32-bit float, preserving the value's
     bit pattern.
     The amd64 flambda-backend compiler translates this call to MOVD. *)
 
 external to_bits : (t[@local_opt]) -> int32
   = "caml_float32_to_bits_bytecode" "caml_float32_to_bits"
   [@@unboxed] [@@noalloc] [@@builtin]
-(** Convert a 32-bit integer to a 32-bit float, preserving the value's
+(** Convert a 32-bit float to a 32-bit integer, preserving the value's
     bit pattern.
     The amd64 flambda-backend compiler translates this call to MOVD. *)
 
