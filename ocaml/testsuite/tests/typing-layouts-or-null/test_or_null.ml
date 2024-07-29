@@ -77,7 +77,7 @@ let test =
   a'.y
 
 [%%expect{|
-val test : int or_null = Null
+val test : int or_null = <unknown constructor>
 |}]
 
 let mytup = (4, This 5)

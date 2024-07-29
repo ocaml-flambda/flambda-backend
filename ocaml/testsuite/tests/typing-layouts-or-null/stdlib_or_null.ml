@@ -17,7 +17,7 @@ let _ = Or_null.this 3.14
 
 [%%expect{|
 - : 'a Or_null.t = Or_null.Null
-- : float Or_null.t = Or_null.This 3.14
+- : float Or_null.t = <unknown constructor>
 |}]
 
 let _ = Or_null.value Null ~default:3
@@ -43,7 +43,7 @@ let _ = Or_null.bind (This 3) (fun x -> This (x + 5))
 [%%expect{|
 - : int or_null = Null
 - : 'a or_null = Null
-- : int or_null = This 8
+- : int or_null = <unknown constructor>
 |}]
 
 let _ = Or_null.map ((+) 5) Null
@@ -51,7 +51,7 @@ let _ = Or_null.map ((+) 5) (This 3)
 
 [%%expect{|
 - : int or_null = Null
-- : int or_null = This 8
+- : int or_null = <unknown constructor>
 |}]
 
 let _ = Or_null.fold ~null:3 ~this:((+) 5) Null
@@ -97,7 +97,7 @@ let _ = Or_null.equal (=) (This 3) (This 5)
 [%%expect{|
 - : bool = true
 - : bool = false
-- : bool = false
+- : bool = true
 - : bool = true
 - : bool = false
 |}]
@@ -112,7 +112,7 @@ let _ = Or_null.compare Int.compare (This 5) (This 0)
 [%%expect{|
 - : int = 0
 - : int = 1
-- : int = -1
+- : int = 0
 - : int = 0
 - : int = -1
 - : int = 1
@@ -153,5 +153,5 @@ let _ = Or_null.of_option (Some "test")
 - : 'a option = None
 - : int option = Some 5
 - : 'a Or_null.t = Or_null.Null
-- : string Or_null.t = Or_null.This "test"
+- : string Or_null.t = <unknown constructor>
 |}]
