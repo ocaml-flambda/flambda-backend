@@ -3,9 +3,7 @@
 *)
 
 let mode_to_string (m : Jane_syntax.Mode_expr.t) =
-  List.map (fun m ->
-    (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc).txt
-  ) m.txt
+  List.map (fun m -> m.Location.txt) m.txt
   |> String.concat " "
 let mapper: Ast_mapper.mapper =
   let open Ast_mapper in
