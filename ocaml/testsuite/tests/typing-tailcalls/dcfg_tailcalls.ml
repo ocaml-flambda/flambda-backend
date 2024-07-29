@@ -1,7 +1,7 @@
 (* TEST
  {
    setup-ocamlopt.opt-build-env;
-   flags = "-no-always-tco -regalloc cfg -regalloc-param IRC_SPILLING_HEURISTICS:flat-uses -cfg-analyze-tailcalls -dcfg-tailcalls -c";
+   flags = "-no-always-tco -regalloc cfg -regalloc-param IRC_SPILLING_HEURISTICS:flat-uses -dcfg-tailcalls -c";
    compiler_reference2 = "${test_source_directory}/dcfg_tailcalls.dot";
    ocamlopt.opt;
    check-ocamlopt.opt-output;
