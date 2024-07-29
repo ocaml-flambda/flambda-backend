@@ -195,7 +195,6 @@ end = struct
   let successors t (v : Vertex.t) : unit Edge.Tbl.t = Vertex.Tbl.find t.adjacencies v
 
   let find_or_add_vertex t ~(fn_name : string) : Vertex.t =
-    Format.eprintf "find_or_add_vertex %s@." fn_name;
     let vertex =
       match String.Tbl.find_opt t.vertex_by_name fn_name with
       | None ->
@@ -287,33 +286,45 @@ end = struct
 
   let replace ~c ~with_ str = String.split_on_char c str |> String.concat with_
 
-  let print_vertex ppf kv =
-    Format.fprintf ppf "%s [label=\"%s\"]" (Vertex.to_dot_id kv) (Vertex.to_dot_label kv)
-  ;;
-
-  let print_edge ppf ({ from; to_; label } : Edge.t) =
-    let color =
-      match label with
-      | Old_tail_edge -> "black"
-      | Old_nontail_edge -> "lightgrey"
-      | Inferred_tail_edge -> "blue"
-      | Inferred_nontail_edge -> "red"
-    in
-    let style =
-      let maybe_unknown_style () = if Vertex.is_unknown from then "dashed" else "solid" in
-      match label with
-      | Old_tail_edge -> maybe_unknown_style ()
-      | Old_nontail_edge -> maybe_unknown_style ()
-      | Inferred_tail_edge -> "solid"
-      | Inferred_nontail_edge -> "solid"
-    in
+  let print_vertex_line ppf kv =
+    let color = if Vertex.is_unknown kv then "red" else "black" in
     Format.fprintf
       ppf
-      "%s -> %s [color=\"%s\" style=\"%s\"]"
-      (Vertex.to_dot_id from)
-      (Vertex.to_dot_id to_)
+      "  %s [label=\"%s\" shape=box color=\"%s\" fontcolor=\"%s\"]\n"
+      (Vertex.to_dot_id kv)
+      (Vertex.to_dot_label kv)
       color
-      style
+      color
+  ;;
+
+  let print_edge_line ppf ({ from; to_; label } : Edge.t) =
+    if Vertex.is_unknown from
+    then ()
+    else (
+      let color =
+        match label with
+        | Old_tail_edge -> "black"
+        | Old_nontail_edge -> "lightgrey"
+        | Inferred_tail_edge -> "blue"
+        | Inferred_nontail_edge -> "red"
+      in
+      let style =
+        let maybe_unknown_style () =
+          if Vertex.is_unknown from then "dashed" else "solid"
+        in
+        match label with
+        | Old_tail_edge -> maybe_unknown_style ()
+        | Old_nontail_edge -> maybe_unknown_style ()
+        | Inferred_tail_edge -> "solid"
+        | Inferred_nontail_edge -> "solid"
+      in
+      Format.fprintf
+        ppf
+        "  %s -> %s [color=\"%s\" style=\"%s\"]\n"
+        (Vertex.to_dot_id from)
+        (Vertex.to_dot_id to_)
+        color
+        style)
   ;;
 
   let print_dot t ppf =
@@ -321,8 +332,8 @@ end = struct
     Format.fprintf ppf "  rankdir=LR\n";
     Vertex.Tbl.iter
       (fun vtx edges ->
-        if not (Vertex.is_unknown vtx) then Format.fprintf ppf "  %a\n" print_vertex vtx;
-        Edge.Tbl.iter (fun e () -> Format.fprintf ppf "  %a\n" print_edge e) edges;
+        print_vertex_line ppf vtx;
+        Edge.Tbl.iter (fun e () -> print_edge_line ppf e) edges;
         ())
       t.adjacencies;
     Format.fprintf ppf "}\n\n"

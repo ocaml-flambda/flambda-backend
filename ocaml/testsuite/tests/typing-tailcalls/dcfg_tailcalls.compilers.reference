@@ -1,4 +1,1288 @@
-strict digraph {
-  rankdir=LR
-}
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__normal_recursive_0_33_code
+layout.length=5
+blocks.length=5
+
+1:
+goto 100
+predecessors:
+successors: 100
+exn-successors:
+
+100:
+n:I/61[%rax] := R:I/0[%rax]
+I/63[%rax] := n:I/61[%rax]
+n:I/62[%rax] := I/63[%rax]
+goto 102
+predecessors: 1
+successors: 102
+exn-successors:
+
+102:
+if n:I/62[%rax] < s 1 goto 106
+if n:I/62[%rax] = s 1 goto 106
+if n:I/62[%rax] > s 1 goto 105
+predecessors: 100 105
+successors: 105 106
+exn-successors:
+
+105:
+I/65[%rax] := n:I/62[%rax]
+I/65[%rax] := I/65[%rax] + -4
+I/66[%rax] := I/65[%rax]
+n:I/62[%rax] := I/66[%rax]
+goto 102
+predecessors: 102
+successors: 102
+exn-successors:
+
+106:
+I/64[%rax] := 1
+R:I/0[%rax] := I/64[%rax]
+Return R:I/0[%rax]
+predecessors: 102
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__calls_normal_recursive_1_34_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 108
+predecessors:
+successors: 108
+exn-successors:
+
+108:
+I/62[%rax] := 7
+R:I/0[%rax] := I/62[%rax]
+R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__normal_recursive_0_33_code" R:I/0[%rax]
+goto 110
+predecessors: 1
+successors: 110
+exn-successors:
+
+110:
+I/63[%rax] := R:I/0[%rax]
+R:I/0[%rax] := I/63[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 108
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__mutually_recursive0_2_35_code
+layout.length=4
+blocks.length=4
+
+1:
+goto 112
+predecessors:
+successors: 112
+exn-successors:
+
+112:
+n:I/61[%rax] := R:I/0[%rax]
+if n:I/61[%rax] < s 1 goto 115
+if n:I/61[%rax] = s 1 goto 115
+if n:I/61[%rax] > s 1 goto 114
+predecessors: 1
+successors: 114 115
+exn-successors:
+
+114:
+I/63[%rax] := n:I/61[%rax]
+I/63[%rax] := I/63[%rax] + -4
+R:I/0[%rax] := I/63[%rax]
+tailcall(opos tail default) "camlDcfg_tailcalls__mutally_recursive1_3_36_code" R:I/0[%rax]
+predecessors: 112
+successors:
+exn-successors:
+
+115:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+Return R:I/0[%rax]
+predecessors: 112
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__mutally_recursive1_3_36_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 117
+predecessors:
+successors: 117
+exn-successors:
+
+117:
+n:I/61[%rax] := R:I/0[%rax]
+I/62[%rax] := n:I/61[%rax]
+I/62[%rax] := I/62[%rax] + 2
+R:I/0[%rax] := I/62[%rax]
+tailcall(opos tail default) "camlDcfg_tailcalls__mutually_recursive0_2_35_code" R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__calls_mutually_recursive_4_37_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 119
+predecessors:
+successors: 119
+exn-successors:
+
+119:
+I/62[%rax] := 7
+R:I/0[%rax] := I/62[%rax]
+R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__mutually_recursive0_2_35_code" R:I/0[%rax]
+goto 121
+predecessors: 1
+successors: 121
+exn-successors:
+
+121:
+I/63[%rax] := R:I/0[%rax]
+R:I/0[%rax] := I/63[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 119
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__mutually_recursive_not_in_tail_position0_5_38_code
+layout.length=5
+blocks.length=5
+
+1:
+prologue
+goto 123
+predecessors:
+successors: 123
+exn-successors:
+
+123:
+n:I/61[%rax] := R:I/0[%rax]
+if n:I/61[%rax] < s 1 goto 126
+if n:I/61[%rax] = s 1 goto 126
+if n:I/61[%rax] > s 1 goto 125
+predecessors: 1
+successors: 125 126
+exn-successors:
+
+125:
+I/62[%rax] := n:I/61[%rax]
+I/62[%rax] := I/62[%rax] + -4
+R:I/0[%rax] := I/62[%rax]
+R:I/0[%rax] := call(opos not_tail default) "camlDcfg_tailcalls__mutally_recursive1_6_39_code" R:I/0[%rax]
+goto 128
+predecessors: 123
+successors: 128
+exn-successors:
+
+128:
+apply_result:I/63[%rax] := R:I/0[%rax]
+I/64[%rax] := apply_result:I/63[%rax]
+I/64[%rax] := I/64[%rax] + 2
+R:I/0[%rax] := I/64[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 125
+successors:
+exn-successors:
+
+126:
+R:I/0[%rax] := n:I/61[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 123
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__mutally_recursive1_6_39_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 130
+predecessors:
+successors: 130
+exn-successors:
+
+130:
+n:I/61[%rax] := R:I/0[%rax]
+I/62[%rax] := n:I/61[%rax]
+I/62[%rax] := I/62[%rax] + 2
+R:I/0[%rax] := I/62[%rax]
+tailcall(opos tail default) "camlDcfg_tailcalls__mutually_recursive_not_in_tail_position0_5_38_code" R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__calls_mutually_recursive_not_in_tail_position_7_40_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 132
+predecessors:
+successors: 132
+exn-successors:
+
+132:
+I/62[%rax] := 7
+R:I/0[%rax] := I/62[%rax]
+R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__mutually_recursive_not_in_tail_position0_5_38_code" R:I/0[%rax]
+goto 134
+predecessors: 1
+successors: 134
+exn-successors:
+
+134:
+I/63[%rax] := R:I/0[%rax]
+R:I/0[%rax] := I/63[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 132
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__multiple_callers_8_41_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 136
+predecessors:
+successors: 136
+exn-successors:
+
+136:
+n:I/61[%rax] := R:I/0[%rax]
+I/62[%rax] := n:I/61[%rax]
+I/62[%rax] := I/62[%rax] * 5
+I/63[%rax] := I/62[%rax]
+I/63[%rax] := I/63[%rax] + -4
+R:I/0[%rax] := I/63[%rax]
+Return R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__calls_multiple_callers0_9_42_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 138
+predecessors:
+successors: 138
+exn-successors:
+
+138:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__multiple_callers_8_41_code" R:I/0[%rax]
+goto 140
+predecessors: 1
+successors: 140
+exn-successors:
+
+140:
+I/63[%rax] := R:I/0[%rax]
+R:I/0[%rax] := I/63[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 138
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__calls_multiple_callers1_10_43_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 142
+predecessors:
+successors: 142
+exn-successors:
+
+142:
+I/62[%rax] := 3
+R:I/0[%rax] := I/62[%rax]
+R:I/0[%rax] := call(opos not_tail default) "camlDcfg_tailcalls__multiple_callers_8_41_code" R:I/0[%rax]
+goto 144
+predecessors: 1
+successors: 144
+exn-successors:
+
+144:
+k:I/63[%rax] := R:I/0[%rax]
+I/64[%rax] := k:I/63[%rax]
+I/64[%rax] := I/64[%rax] + 2
+R:I/0[%rax] := I/64[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 142
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__calls_multiple_callers2_11_44_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 146
+predecessors:
+successors: 146
+exn-successors:
+
+146:
+I/62[%rax] := 5
+R:I/0[%rax] := I/62[%rax]
+tailcall(opos tail [@tail]) "camlDcfg_tailcalls__multiple_callers_8_41_code" R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__explicit_tail_12_45_code
+layout.length=4
+blocks.length=4
+
+1:
+goto 148
+predecessors:
+successors: 148
+exn-successors:
+
+148:
+n:I/61[%rax] := R:I/0[%rax]
+if n:I/61[%rax] < s 1 goto 151
+if n:I/61[%rax] = s 1 goto 151
+if n:I/61[%rax] > s 1 goto 150
+predecessors: 1 150
+successors: 150 151
+exn-successors:
+
+150:
+I/63[%rax] := n:I/61[%rax]
+I/63[%rax] := I/63[%rax] + -4
+R:I/0[%rax] := I/63[%rax]
+tailcall(opos tail [@tail]) "self(148)" R:I/0[%rax]
+predecessors: 148
+successors: 148
+exn-successors:
+
+151:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+Return R:I/0[%rax]
+predecessors: 148
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__hint_tail_13_46_code
+layout.length=4
+blocks.length=4
+
+1:
+goto 153
+predecessors:
+successors: 153
+exn-successors:
+
+153:
+n:I/61[%rax] := R:I/0[%rax]
+if n:I/61[%rax] < s 1 goto 156
+if n:I/61[%rax] = s 1 goto 156
+if n:I/61[%rax] > s 1 goto 155
+predecessors: 1 155
+successors: 155 156
+exn-successors:
+
+155:
+I/63[%rax] := n:I/61[%rax]
+I/63[%rax] := I/63[%rax] + -4
+R:I/0[%rax] := I/63[%rax]
+tailcall(opos tail [@tail hint]) "self(153)" R:I/0[%rax]
+predecessors: 153
+successors: 153
+exn-successors:
+
+156:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+Return R:I/0[%rax]
+predecessors: 153
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__explicit_nontail_14_47_code
+layout.length=5
+blocks.length=5
+
+1:
+prologue
+goto 158
+predecessors:
+successors: 158
+exn-successors:
+
+158:
+n:I/61[%rax] := R:I/0[%rax]
+if n:I/61[%rax] < s 1 goto 161
+if n:I/61[%rax] = s 1 goto 161
+if n:I/61[%rax] > s 1 goto 160
+predecessors: 1
+successors: 160 161
+exn-successors:
+
+160:
+I/63[%rax] := n:I/61[%rax]
+I/63[%rax] := I/63[%rax] + -4
+R:I/0[%rax] := I/63[%rax]
+R:I/0[%rax] := call(opos tail [@nontail]) "camlDcfg_tailcalls__explicit_nontail_14_47_code" R:I/0[%rax]
+goto 163
+predecessors: 158
+successors: 163
+exn-successors:
+
+163:
+I/64[%rax] := R:I/0[%rax]
+R:I/0[%rax] := I/64[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 160
+successors:
+exn-successors:
+
+161:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 158
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__nontail_optimized_to_tail_15_48_code
+layout.length=4
+blocks.length=4
+
+1:
+goto 165
+predecessors:
+successors: 165
+exn-successors:
+
+165:
+n:I/61[%rax] := R:I/0[%rax]
+if n:I/61[%rax] < s 1 goto 168
+if n:I/61[%rax] = s 1 goto 168
+if n:I/61[%rax] > s 1 goto 167
+predecessors: 1 167
+successors: 167 168
+exn-successors:
+
+167:
+I/63[%rax] := n:I/61[%rax]
+I/63[%rax] := I/63[%rax] + -4
+R:I/0[%rax] := I/63[%rax]
+tailcall(opos not_tail default) "self(165)" R:I/0[%rax]
+predecessors: 165
+successors: 165
+exn-successors:
+
+168:
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
+Return R:I/0[%rax]
+predecessors: 165
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__collatz_16_49_code
+layout.length=5
+blocks.length=5
+
+1:
+prologue
+goto 170
+predecessors:
+successors: 170
+exn-successors:
+
+170:
+n:I/61[%rax] := R:I/0[%rax]
+k:I/62[%rbx] := R:I/1[%rbx]
+if n:I/61[%rax] < s 1 goto 173
+if n:I/61[%rax] = s 1 goto 173
+if n:I/61[%rax] > s 1 goto 172
+predecessors: 1
+successors: 172 173
+exn-successors:
+
+172:
+R:I/0[%rax] := n:I/61[%rax]
+R:I/1[%rbx] := k:I/62[%rbx]
+R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__next_17_50_code" R:I/0[%rax] R:I/1[%rbx]
+goto 175
+predecessors: 170
+successors: 175
+exn-successors:
+
+175:
+I/63[%rax] := R:I/0[%rax]
+R:I/0[%rax] := I/63[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 172
+successors:
+exn-successors:
+
+173:
+R:I/0[%rax] := k:I/62[%rbx]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 170
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__next_17_50_code
+layout.length=5
+blocks.length=5
+
+1:
+goto 177
+predecessors:
+successors: 177
+exn-successors:
+
+177:
+n:I/61[%rax] := R:I/0[%rax]
+k:I/62[%rbx] := R:I/1[%rbx]
+dividend:I/64[%rdi] := k:I/62[%rbx]
+dividend:I/64[%rdi] := dividend:I/64[%rdi] >>s 1
+I/65[%rsi] := dividend:I/64[%rdi]
+I/65[%rsi] := I/65[%rsi] >>u 63
+I/66[%rdx] := dividend:I/64[%rdi]
+I/66[%rdx] := I/66[%rdx] + I/65[%rsi]
+I/67[%rsi] := I/66[%rdx]
+I/67[%rsi] := I/67[%rsi] & -2
+I/68[%rdi] := dividend:I/64[%rdi]
+I/68[%rdi] := I/68[%rdi] - I/67[%rsi]
+I/69[%rdi] := I/68[%rdi]  * 2 + 1
+if I/69[%rdi] < s 1 goto 183
+if I/69[%rdi] = s 1 goto 182
+if I/69[%rdi] > s 1 goto 183
+predecessors: 1
+successors: 182 183
+exn-successors:
+
+182:
+I/74[%rbx] := I/66[%rdx]
+I/75[%rbx] := I/74[%rbx]
+I/75[%rbx] := I/75[%rbx] | 1
+I/76[%rbx] := I/75[%rbx]
+k:I/63[%rbx] := I/76[%rbx]
+goto 179
+predecessors: 177
+successors: 179
+exn-successors:
+
+183:
+I/70[%rbx] := k:I/62[%rbx]
+I/70[%rbx] := I/70[%rbx] * 3
+I/71[%rbx] := I/70[%rbx]
+k:I/63[%rbx] := I/71[%rbx]
+goto 179
+predecessors: 177
+successors: 179
+exn-successors:
+
+179:
+I/77[%rax] := n:I/61[%rax]
+I/77[%rax] := I/77[%rax] + -2
+R:I/0[%rax] := I/77[%rax]
+R:I/1[%rbx] := k:I/63[%rbx]
+tailcall(opos tail default) "camlDcfg_tailcalls__collatz_16_49_code" R:I/0[%rax] R:I/1[%rbx]
+predecessors: 182 183
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__mutually_recursive_and_calls_parameter0_18_51_code
+layout.length=5
+blocks.length=5
+
+1:
+prologue
+goto 185
+predecessors:
+successors: 185
+exn-successors:
+
+185:
+f:V/61[%rdi] := R:I/0[%rax]
+n:I/62[%rbx] := R:I/1[%rbx]
+if n:I/62[%rbx] < s 1 goto 188
+if n:I/62[%rbx] = s 1 goto 188
+if n:I/62[%rbx] > s 1 goto 187
+predecessors: 1
+successors: 187 188
+exn-successors:
+
+187:
+I/66[%rbx] := n:I/62[%rbx]
+I/66[%rbx] := I/66[%rbx] + -4
+R:I/0[%rax] := f:V/61[%rdi]
+R:I/1[%rbx] := I/66[%rbx]
+tailcall(opos tail default) "camlDcfg_tailcalls__mutually_recursive_and_calls_parameter1_19_52_code" R:I/0[%rax] R:I/1[%rbx]
+predecessors: 185
+successors:
+exn-successors:
+
+188:
+I/63[%rax] := 3
+I/64[%rsi] := int  mut[f:V/61[%rdi]]
+R:I/0[%rax] := I/63[%rax]
+R:I/1[%rbx] := f:V/61[%rdi]
+R:I/0[%rax] := call(opos tail default) I/64[%rsi] R:I/0[%rax] R:I/1[%rbx]
+goto 190
+predecessors: 185
+successors: 190
+exn-successors:
+
+190:
+V/65[%rax] := R:I/0[%rax]
+R:I/0[%rax] := V/65[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 188
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__mutually_recursive_and_calls_parameter1_19_52_code
+layout.length=5
+blocks.length=5
+
+1:
+prologue
+goto 192
+predecessors:
+successors: 192
+exn-successors:
+
+192:
+f:V/61[%rdi] := R:I/0[%rax]
+n:I/62[%rbx] := R:I/1[%rbx]
+if n:I/62[%rbx] < s 1 goto 195
+if n:I/62[%rbx] = s 1 goto 195
+if n:I/62[%rbx] > s 1 goto 194
+predecessors: 1
+successors: 194 195
+exn-successors:
+
+194:
+I/66[%rbx] := n:I/62[%rbx]
+I/66[%rbx] := I/66[%rbx] + 2
+R:I/0[%rax] := f:V/61[%rdi]
+R:I/1[%rbx] := I/66[%rbx]
+tailcall(opos tail default) "camlDcfg_tailcalls__mutually_recursive_and_calls_parameter0_18_51_code" R:I/0[%rax] R:I/1[%rbx]
+predecessors: 192
+successors:
+exn-successors:
+
+195:
+I/63[%rax] := 1
+I/64[%rsi] := int  mut[f:V/61[%rdi]]
+R:I/0[%rax] := I/63[%rax]
+R:I/1[%rbx] := f:V/61[%rdi]
+R:I/0[%rax] := call(opos tail default) I/64[%rsi] R:I/0[%rax] R:I/1[%rbx]
+goto 197
+predecessors: 192
+successors: 197
+exn-successors:
+
+197:
+V/65[%rax] := R:I/0[%rax]
+R:I/0[%rax] := V/65[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 195
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__fn[dcfg_tailcalls.ml:77,51--67]_21_54_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 199
+predecessors:
+successors: 199
+exn-successors:
+
+199:
+x:I/61[%rax] := R:I/0[%rax]
+I/62[%rax] := x:I/61[%rax]
+I/62[%rax] := I/62[%rax] + 2
+R:I/0[%rax] := I/62[%rax]
+Return R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__calls_list_map_in_tail_position_20_53_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 201
+predecessors:
+successors: 201
+exn-successors:
+
+201:
+lst:V/61[%rbx] := R:I/0[%rax]
+I/62[%rax] := "camlDcfg_tailcalls__fn[dcfg_tailcalls.ml:77,51--67]_53"
+R:I/0[%rax] := I/62[%rax]
+R:I/1[%rbx] := lst:V/61[%rbx]
+R:I/0[%rax] := call(opos tail default) "camlStdlib__List__map_15_113_code" R:I/0[%rax] R:I/1[%rbx]
+goto 203
+predecessors: 1
+successors: 203
+exn-successors:
+
+203:
+V/63[%rax] := R:I/0[%rax]
+R:I/0[%rax] := V/63[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 201
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__calls_list_map_not_in_tail_position_22_55_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 205
+predecessors:
+successors: 205
+exn-successors:
+
+205:
+lst:V/61[%rbx] := R:I/0[%rax]
+I/62[%rax] := "camlDcfg_tailcalls__fn[dcfg_tailcalls.ml:79,21--37]_55"
+R:I/0[%rax] := I/62[%rax]
+R:I/1[%rbx] := lst:V/61[%rbx]
+R:I/0[%rax] := call(opos not_tail default) "camlStdlib__List__map_15_113_code" R:I/0[%rax] R:I/1[%rbx]
+goto 207
+predecessors: 1
+successors: 207
+exn-successors:
+
+207:
+lst:V/63[%rax] := R:I/0[%rax]
+lst:V/63[%rax] := opaque lst:V/63[%rax]
+R:I/0[%rax] := lst:V/63[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 205
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__fn[dcfg_tailcalls.ml:79,21--37]_23_56_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 209
+predecessors:
+successors: 209
+exn-successors:
+
+209:
+x:I/61[%rax] := R:I/0[%rax]
+I/62[%rax] := x:I/61[%rax]
+I/62[%rax] := I/62[%rax] + 2
+R:I/0[%rax] := I/62[%rax]
+Return R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__cps_style0_24_57_code
+layout.length=5
+blocks.length=5
+
+1:
+prologue
+goto 211
+predecessors:
+successors: 211
+exn-successors:
+
+211:
+n:I/61[%rax] := R:I/0[%rax]
+k:V/62[%rbx] := R:I/1[%rbx]
+if n:I/61[%rax] < s 1 goto 213
+if n:I/61[%rax] = s 1 goto 214
+if n:I/61[%rax] > s 1 goto 214
+predecessors: 1
+successors: 213 214
+exn-successors:
+
+213:
+I/65[%rdi] := int  mut[k:V/62[%rbx]]
+R:I/0[%rax] := n:I/61[%rax]
+R:I/1[%rbx] := k:V/62[%rbx]
+R:I/0[%rax] := call(opos tail default) I/65[%rdi] R:I/0[%rax] R:I/1[%rbx]
+goto 216
+predecessors: 211
+successors: 216
+exn-successors:
+
+216:
+V/66[%rax] := R:I/0[%rax]
+R:I/0[%rax] := V/66[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 213
+successors:
+exn-successors:
+
+214:
+I/63[%rax] := n:I/61[%rax]
+I/63[%rax] := I/63[%rax] + -20
+R:I/0[%rax] := I/63[%rax]
+R:I/1[%rbx] := k:V/62[%rbx]
+tailcall(opos tail default) "camlDcfg_tailcalls__cps_style1_25_58_code" R:I/0[%rax] R:I/1[%rbx]
+predecessors: 211
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__cps_style1_25_58_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 218
+predecessors:
+successors: 218
+exn-successors:
+
+218:
+n:I/61[%rax] := R:I/0[%rax]
+k:V/62[%rbx] := R:I/1[%rbx]
+I/63[%rax] := n:I/61[%rax]
+I/63[%rax] := I/63[%rax] + 2
+R:I/0[%rax] := I/63[%rax]
+R:I/1[%rbx] := k:V/62[%rbx]
+tailcall(opos tail default) "camlDcfg_tailcalls__cps_style2_26_59_code" R:I/0[%rax] R:I/1[%rbx]
+predecessors: 1
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__cps_style2_26_59_code
+layout.length=2
+blocks.length=2
+
+1:
+goto 220
+predecessors:
+successors: 220
+exn-successors:
+
+220:
+n:I/61[%rax] := R:I/0[%rax]
+k:V/62[%rbx] := R:I/1[%rbx]
+I/63[%rax] := n:I/61[%rax]
+I/63[%rax] := I/63[%rax] + 10
+R:I/0[%rax] := I/63[%rax]
+R:I/1[%rbx] := k:V/62[%rbx]
+tailcall(opos tail default) "camlDcfg_tailcalls__cps_style0_24_57_code" R:I/0[%rax] R:I/1[%rbx]
+predecessors: 1
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__call_cps_style_27_60_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 222
+predecessors:
+successors: 222
+exn-successors:
+
+222:
+k:V/61[%rax] := R:I/0[%rax]
+
+{}
+*set_of_closures*:V/62[%rbx] := alloc 32
+[*set_of_closures*:V/62[%rbx] + -8] := 3319 (init)
+I/63[%rdi] := "camlDcfg_tailcalls__fn[dcfg_tailcalls.ml:101,4--51]_28_61_code"
+val[*set_of_closures*:V/62[%rbx]] := I/63[%rdi] (init)
+I/64[%rdi] := 108086391056891909
+val[*set_of_closures*:V/62[%rbx] + 8] := I/64[%rdi] (init)
+val[*set_of_closures*:V/62[%rbx] + 16] := k:V/61[%rax] (init)
+I/65[%rax] := 7
+R:I/0[%rax] := I/65[%rax]
+R:I/1[%rbx] := *set_of_closures*:V/62[%rbx]
+R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__cps_style0_24_57_code" R:I/0[%rax] R:I/1[%rbx]
+goto 224
+predecessors: 1
+successors: 224
+exn-successors:
+
+224:
+I/66[%rax] := R:I/0[%rax]
+R:I/0[%rax] := I/66[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 222
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__fn[dcfg_tailcalls.ml:101,4--51]_28_61_code
+layout.length=5
+blocks.length=5
+
+1:
+prologue
+goto 229
+predecessors:
+successors: 229
+exn-successors:
+
+229:
+x:I/61[%rax] := R:I/0[%rax]
+my_closure:V/62[%rbx] := R:I/1[%rbx]
+if x:I/61[%rax] < s 21 goto 232
+if x:I/61[%rax] = s 21 goto 232
+if x:I/61[%rax] > s 21 goto 231
+predecessors: 1
+successors: 231 232
+exn-successors:
+
+231:
+V/64[%rbx] := val [my_closure:V/62[%rbx] + 16]
+R:I/0[%rax] := x:I/61[%rax]
+R:I/1[%rbx] := V/64[%rbx]
+R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__cps_style0_24_57_code" R:I/0[%rax] R:I/1[%rbx]
+goto 234
+predecessors: 229
+successors: 234
+exn-successors:
+
+234:
+I/65[%rax] := R:I/0[%rax]
+R:I/0[%rax] := I/65[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 231
+successors:
+exn-successors:
+
+232:
+I/63[%rax] := 1
+R:I/0[%rax] := I/63[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 229
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__apply_in_tail_position_in_exclave_29_62_code
+layout.length=4
+blocks.length=4
+
+1:
+goto 236
+predecessors:
+successors: 236
+exn-successors:
+
+236:
+n:I/61[%rax] := R:I/0[%rax]
+if n:I/61[%rax] < s 1 goto 238
+if n:I/61[%rax] = s 1 goto 239
+if n:I/61[%rax] > s 1 goto 239
+predecessors: 1 239
+successors: 238 239
+exn-successors:
+
+238:
+R:I/0[%rax] := n:I/61[%rax]
+Return R:I/0[%rax]
+predecessors: 236
+successors:
+exn-successors:
+
+239:
+I/62[%rax] := n:I/61[%rax]
+I/62[%rax] := I/62[%rax] + -4
+R:I/0[%rax] := I/62[%rax]
+tailcall(opos not_tail default) "self(236)" R:I/0[%rax]
+predecessors: 236
+successors: 236
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__bind_30_63_code
+layout.length=5
+blocks.length=5
+
+1:
+prologue
+goto 241
+predecessors:
+successors: 241
+exn-successors:
+
+241:
+f:V/61[%rdi] := R:I/0[%rax]
+param:V/62[%rbx] := R:I/1[%rbx]
+if even param:V/62[%rbx] goto 244
+else goto 243
+predecessors: 1
+successors: 243 244
+exn-successors:
+
+243:
+I/66[%rax] := 1
+R:I/0[%rax] := I/66[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 241
+successors:
+exn-successors:
+
+244:
+V/63[%rax] := val [param:V/62[%rbx]]
+I/64[%rsi] := int  mut[f:V/61[%rdi]]
+R:I/0[%rax] := V/63[%rax]
+R:I/1[%rbx] := f:V/61[%rdi]
+R:I/0[%rax] := call(opos tail default) I/64[%rsi] R:I/0[%rax] R:I/1[%rbx]
+goto 246
+predecessors: 241
+successors: 246
+exn-successors:
+
+246:
+V/65[%rax] := R:I/0[%rax]
+R:I/0[%rax] := V/65[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 244
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__monadic_loop_31_64_code
+layout.length=3
+blocks.length=3
+
+1:
+prologue
+goto 248
+predecessors:
+successors: 248
+exn-successors:
+
+248:
+int_option:V/61[%rbx] := R:I/0[%rax]
+I/62[%rax] := "camlDcfg_tailcalls__next956"
+R:I/0[%rax] := I/62[%rax]
+R:I/1[%rbx] := int_option:V/61[%rbx]
+R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__bind_30_63_code" R:I/0[%rax] R:I/1[%rbx]
+goto 250
+predecessors: 1
+successors: 250
+exn-successors:
+
+250:
+V/63[%rax] := R:I/0[%rax]
+R:I/0[%rax] := V/63[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 248
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__next_32_65_code
+layout.length=4
+blocks.length=4
+
+1:
+prologue
+goto 252
+predecessors:
+successors: 252
+exn-successors:
+
+252:
+x:I/61[%rax] := R:I/0[%rax]
+if x:I/61[%rax] < s 1 goto 254
+if x:I/61[%rax] = s 1 goto 255
+if x:I/61[%rax] > s 1 goto 255
+predecessors: 1
+successors: 254 255
+exn-successors:
+
+254:
+I/65[%rax] := 1
+R:I/0[%rax] := I/65[%rax]
+reload retaddr
+Return R:I/0[%rax]
+predecessors: 252
+successors:
+exn-successors:
+
+255:
+
+{}
+V/62[%rbx] := alloc 16
+[V/62[%rbx] + -8] := 1024 (init)
+I/63[%rax] := x:I/61[%rax]
+I/63[%rax] := I/63[%rax] + -4
+val[V/62[%rbx]] := I/63[%rax] (init)
+R:I/0[%rax] := V/62[%rbx]
+tailcall(opos tail default) "camlDcfg_tailcalls__monadic_loop_31_64_code" R:I/0[%rax]
+predecessors: 252
+successors:
+exn-successors:
+
+*** After cfgize
+
+cfg for 
+camlDcfg_tailcalls__entry
+layout.length=2
+blocks.length=2
+
+1:
+goto 262
+predecessors:
+successors: 262
+exn-successors:
+
+262:
+I/64[%rax] := 1
+R:I/0[%rax] := I/64[%rax]
+Return R:I/0[%rax]
+predecessors: 1
+successors:
+exn-successors:
 
