@@ -300,7 +300,7 @@ end = struct
   let hide_unknown_edges = true
 
   let print_edge_line ppf ({ from; to_; label } : Edge.t) =
-    if Vertex.is_unknown && hide_unknown_edges from
+    if Vertex.is_unknown from && hide_unknown_edges
     then ()
     else (
       let color =
