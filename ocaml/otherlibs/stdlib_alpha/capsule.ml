@@ -87,30 +87,33 @@ module Data = struct
 
   external unsafe_get : ('a, 'k) t -> 'a @@ portable = "%identity"
 
-  let create f =
-    try unsafe_mk (f ()) with
-    | exn -> reraise (Contended exn)
+  let create f = unsafe_mk (f ())
 
   let map _ f t =
-    try unsafe_mk (f (unsafe_get t)) with
-    | exn -> reraise (Contended exn)
+    let v = unsafe_get t in
+    match f v with
+    | res -> unsafe_mk res
+    | exception exn -> reraise (Contended exn)
 
   let both t1 t2 = unsafe_mk (unsafe_get t1, unsafe_get t2)
 
   let extract _ f t =
-    try f (unsafe_get t) with
-    | exn -> reraise (Contended exn)
+    let v = unsafe_get t in
+    try f v with
+    |  exn -> reraise (Contended exn)
 
   let inject = unsafe_mk
 
   let project = unsafe_get
 
   let bind _ f t =
-    try f (unsafe_get t) with
+    let v = unsafe_get t in
+    try f v with
     | exn -> reraise (Contended exn)
 
   let iter _ f t =
-    try f (unsafe_get t) with
+    let v = unsafe_get t in
+    try f v with
     | exn -> reraise (Contended exn)
 
   let expose _ t = unsafe_get t
