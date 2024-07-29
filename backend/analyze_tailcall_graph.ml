@@ -43,16 +43,16 @@ module Graph : sig
   module Edge : sig
     (* For the purpose of analyzing whether TCO inference might break existing
        code (by causing a stack overflow) we are interested in whether there
-       are any cycles with (Firm_tail_edges _) and Inferred_nontail_edges.
+       are any cycles with Old_tail_edges and Inferred_nontail_edges.
        To find these cycles, we plan on finding SCC's for the subgraph
        consistening of just edges with those labels. *)
     type label =
-      (* "Firm" edges are edges that are (very likely) not changing their
+      (* "Old" edges are edges that are (very likely) not changing their
          TCO behavior as a result of adding TCO inference. I.e., before TCO
          inference, they were tail (nontail) if and only if after TCO
          inference they are tail (nontail). *)
-      | Firm_tail_edge of { unknown_caller : bool }
-      | Firm_nontail_edge of { unknown_caller : bool }
+      | Old_tail_edge
+      | Old_nontail_edge
       (* "Inferred" edges are edges that might possibly change their TCO
          behavior as a result of adding TCO inference. *)
       | Inferred_tail_edge
@@ -72,7 +72,7 @@ module Graph : sig
   val create : unit -> t
   val reset : t -> unit
   val successors : t -> Vertex.t -> unit Edge.Tbl.t
-  val find_or_add_vertex : t -> [ `Known_fn of string ] -> Vertex.t
+  val find_or_add_vertex : t -> fn_name:string -> Vertex.t
 
   val add_edge
     :  t
@@ -87,7 +87,6 @@ end = struct
   module Vertex = struct
     module T = struct
       type t =
-        (* The Unknown_fn vertex an implicit tail edge to every other vertex. *)
         | Unknown_fn
         | Known_fn of
             { id : int
@@ -134,8 +133,8 @@ end = struct
   module Edge = struct
     module T = struct
       type label =
-        | Firm_tail_edge of { unknown_caller : bool }
-        | Firm_nontail_edge of { unknown_caller : bool }
+        | Old_tail_edge
+        | Old_nontail_edge
         | Inferred_tail_edge
         | Inferred_nontail_edge
 
@@ -147,10 +146,8 @@ end = struct
 
       let label_equal l1 l2 =
         match l1, l2 with
-        | Firm_tail_edge { unknown_caller = u1 }, Firm_tail_edge { unknown_caller = u2 }
-          -> u1 = u2
-        | ( Firm_nontail_edge { unknown_caller = u1 }
-          , Firm_nontail_edge { unknown_caller = u2 } ) -> u1 = u2
+        | Old_tail_edge, Old_tail_edge -> true
+        | Old_nontail_edge, Old_nontail_edge -> true
         | Inferred_tail_edge, Inferred_tail_edge -> true
         | Inferred_nontail_edge, Inferred_nontail_edge -> true
         | _ -> false
@@ -174,60 +171,48 @@ end = struct
 
   type t =
     { vertex_by_name : Vertex.t String.Tbl.t
-    ; (* Only need to store the edges / vertices for the Known_fn case. *)
-      adjacencies : unit Edge.Tbl.t Vertex.Tbl.t
+    ; adjacencies : unit Edge.Tbl.t Vertex.Tbl.t
     }
 
-  (* This is nice so we don't have to check for the empty case when adding an edge from
-     unknown in find_or_add_vertex. *)
-  let add_unknown_self_loop t =
-    let edge : Edge.t =
-      { from = Vertex.unknown
-      ; to_ = Vertex.unknown
-      ; label = Firm_tail_edge { unknown_caller = true }
-      }
-    in
-    Vertex.Tbl.replace
-      t.adjacencies
-      Vertex.unknown
-      ([ edge, () ] |> List.to_seq |> Edge.Tbl.of_seq)
+  let init_unknown_edges t =
+    Vertex.Tbl.replace t.adjacencies Vertex.unknown (Edge.Tbl.create 100)
   ;;
 
   let create () =
     let t =
       { vertex_by_name = String.Tbl.create 100; adjacencies = Vertex.Tbl.create 100 }
     in
-    add_unknown_self_loop t;
+    init_unknown_edges t;
     t
   ;;
 
   let reset t =
     String.Tbl.reset t.vertex_by_name;
     Vertex.Tbl.reset t.adjacencies;
-    add_unknown_self_loop t
+    init_unknown_edges t
   ;;
 
-  let successors t : Vertex.t -> unit Edge.Tbl.t = Vertex.Tbl.find t.adjacencies
+  let successors t (v : Vertex.t) : unit Edge.Tbl.t = Vertex.Tbl.find t.adjacencies v
 
-  let find_or_add_vertex t (fn : [ `Known_fn of string ]) : Vertex.t =
-    let (`Known_fn name) = fn in
+  let find_or_add_vertex t ~(fn_name : string) : Vertex.t =
     let vertex =
-      match String.Tbl.find_opt t.vertex_by_name name with
+      match String.Tbl.find_opt t.vertex_by_name fn_name with
       | None ->
         let id = String.Tbl.length t.vertex_by_name in
-        let v : Vertex.t = Known_fn { id; name } in
-        String.Tbl.replace t.vertex_by_name name v;
-        v
-      | Some v -> v
+        let vertex : Vertex.t = Known_fn { id; name = fn_name } in
+        String.Tbl.replace t.vertex_by_name fn_name vertex;
+        (* Add edge from unknown *)
+        let unknown = Vertex.unknown in
+        let edge_from_unknown : Edge.t =
+          { from = unknown; to_ = vertex; label = Old_tail_edge }
+        in
+        Edge.Tbl.replace (successors t unknown) edge_from_unknown ();
+        (* Initialize vertex's adjacency set *)
+        let edges_from_vertex = Edge.Tbl.create 10 in
+        Vertex.Tbl.replace t.adjacencies vertex edges_from_vertex;
+        vertex
+      | Some vertex -> vertex
     in
-    let unknown = Vertex.unknown in
-    let edge : Edge.t =
-      { from = unknown; to_ = vertex; label = Firm_tail_edge { unknown_caller = true } }
-    in
-    let unknown_edges = Vertex.Tbl.find t.adjacencies unknown in
-    Edge.Tbl.replace unknown_edges edge ();
-    let new_edges = Edge.Tbl.create 10 in
-    Vertex.Tbl.replace t.adjacencies vertex new_edges;
     vertex
   ;;
 
@@ -278,20 +263,22 @@ end = struct
     in
     let label : Edge.label =
       match label with
-      | `Unknown_tail -> Firm_tail_edge { unknown_caller = true }
-      | `Unknown_nontail -> Firm_nontail_edge { unknown_caller = true }
-      | `Not_in_tail_position -> Firm_nontail_edge { unknown_caller = false }
-      | `Requested_nontail -> Firm_nontail_edge { unknown_caller = false }
-      | `Requested_tail -> Firm_tail_edge { unknown_caller = false }
+      | `Unknown_tail -> Old_tail_edge
+      | `Unknown_nontail -> Old_nontail_edge
+      | `Not_in_tail_position -> Old_nontail_edge
+      | `Requested_nontail -> Old_nontail_edge
+      | `Requested_tail -> Old_tail_edge
       | `Became_tail_after_optimizations ->
         (* This is a conservative approximation *)
-        Firm_tail_edge { unknown_caller = false }
+        Old_tail_edge
       | `Inferred_tail -> Inferred_tail_edge
       | `Inferred_nontail -> Inferred_nontail_edge
     in
     let edge : Edge.t = { from; to_; label } in
     match from with
-    | Unknown_fn -> (* An edge already exists from Unknown_fn to every other vertex *) ()
+    | Unknown_fn ->
+      (* An edge already exists from Unknown_fn (added when the vertex was created) *)
+      ()
     | Known_fn _ ->
       let edges = Vertex.Tbl.find t.adjacencies from in
       Edge.Tbl.replace edges edge ()
@@ -306,16 +293,16 @@ end = struct
   let print_edge ppf ({ from; to_; label } : Edge.t) =
     let color =
       match label with
-      | Firm_tail_edge _ -> "black"
-      | Firm_nontail_edge _ -> "lightgrey"
+      | Old_tail_edge -> "black"
+      | Old_nontail_edge -> "lightgrey"
       | Inferred_tail_edge -> "blue"
       | Inferred_nontail_edge -> "red"
     in
     let style =
-      let unknown_style unknown_caller = if unknown_caller then "dashed" else "solid" in
+      let maybe_unknown_style () = if Vertex.is_unknown from then "dashed" else "solid" in
       match label with
-      | Firm_tail_edge { unknown_caller } -> unknown_style unknown_caller
-      | Firm_nontail_edge { unknown_caller } -> unknown_style unknown_caller
+      | Old_tail_edge -> maybe_unknown_style ()
+      | Old_nontail_edge -> maybe_unknown_style ()
       | Inferred_tail_edge -> "solid"
       | Inferred_nontail_edge -> "solid"
     in
@@ -350,11 +337,11 @@ module Global_state = struct
 
   let cfg fmt ~future_funcnames cfg_with_layout =
     let cfg = Cfg_with_layout.cfg cfg_with_layout in
-    let from = Graph.find_or_add_vertex graph (`Known_fn (Cfg.fun_name cfg)) in
+    let from = Graph.find_or_add_vertex graph ~fn_name:(Cfg.fun_name cfg) in
     let to_ (op : Cfg.func_call_operation) : Vertex.t =
       match op with
       | Indirect -> Vertex.unknown
-      | Direct { sym_name; _ } -> Graph.find_or_add_vertex graph (`Known_fn sym_name)
+      | Direct { sym_name; _ } -> Graph.find_or_add_vertex graph ~fn_name:sym_name
     in
     Cfg.iter_blocks cfg ~f:(fun _ block ->
       let add_edge = Graph.add_edge graph ~from in

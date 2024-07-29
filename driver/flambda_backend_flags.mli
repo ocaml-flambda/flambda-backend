@@ -26,7 +26,8 @@ val cfg_peephole_optimize: bool ref
 
 val cfg_cse_optimize: bool ref
 val cfg_zero_alloc_checker : bool ref
-val cfg_analyze_tailcall_graph : bool ref
+val cfg_analyze_tailcalls : bool ref
+val dcfg_tailcalls : bool ref
 
 val cfg_stack_checks : bool ref
 val cfg_stack_checks_threshold : int ref
