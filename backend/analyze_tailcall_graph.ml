@@ -45,7 +45,7 @@ module Graph : sig
        code (by causing a stack overflow) we are interested in whether there
        are any cycles with Old_tail_edges and Inferred_nontail_edges.
        To find these cycles, we plan on finding SCC's for the subgraph
-       consistening of just edges with those labels. *)
+       consisting of just edges with those labels. *)
     type label =
       (* "Old" edges are edges that are (very likely) not changing their
          TCO behavior as a result of adding TCO inference. I.e., before TCO
@@ -225,7 +225,7 @@ end = struct
     =
     let label =
       let impossible_because ~case fmt =
-        Misc.fatal_errorf ("case " ^^ " impossible because " ^^ fmt)
+        Misc.fatal_errorf ("case " ^^ case ^^ " impossible because " ^^ fmt)
       in
       match original_position, actual_position with
       (* CR less-tco: Clarify Unknown_position.
@@ -297,8 +297,10 @@ end = struct
       color
   ;;
 
+  let hide_unknown_edges = true
+
   let print_edge_line ppf ({ from; to_; label } : Edge.t) =
-    if Vertex.is_unknown from
+    if Vertex.is_unknown && hide_unknown_edges from
     then ()
     else (
       let color =

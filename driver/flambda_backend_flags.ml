@@ -26,7 +26,7 @@ let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
 let cfg_cse_optimize = ref false        (* -[no-]cfg-cse-optimize *)
 let cfg_zero_alloc_checker = ref false  (* -[no-]cfg-zero-alloc-checker *)
 let cfg_analyze_tailcalls = ref false   (* -[no-]cfg-analyze-tailcalls *)
-let dcfg_tailcalls = ref false          (* -[no-]dcfg-tailcalls *)
+let dcfg_tailcalls = ref false          (* -d[no-]cfg-tailcalls *)
 
 let cfg_stack_checks = ref true         (* -[no-]cfg-stack-check *)
 let cfg_stack_checks_threshold = ref 16384 (* -cfg-stack-threshold *)
