@@ -31,6 +31,13 @@ modalities := separated_nonempty_list(SPACE, modality)
 ```
 
 # Where can they appear
+
+Mode expressions and modalities can appear after either `@` or `@@`. The former
+is used in most cases, while the latter is used for disambiguition. For example,
+in `val f : a -> b @ global`, the `@ global` could be annotating either `b` or
+`f`. To avoid the ambiguity, we will write `val f : a -> b @ local @@ global`
+where `local` is the mode of `b` and `global` is the modality on `f`.
+
 ## Function parameter
 ```ocaml
 let foo ?(label_let_pattern = default) = ..
