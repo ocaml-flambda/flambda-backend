@@ -68,16 +68,16 @@ module Graph : sig
   module Edge : sig
     (* For the purpose of analyzing whether TCO inference might break existing
        code (by causing a stack overflow) we are interested in whether there
-       are any cycles with Old_tail_edges and Inferred_nontail_edges.
+       are any cycles with Plain_tail_edges and Inferred_nontail_edges.
        To find these cycles, we plan on finding SCC's for the subgraph
        consisting of just edges with those labels. *)
     type label =
-      (* "Old" edges are edges that are (very likely) not changing their
+      (* "Plain" edges are edges that are (very likely) not changing their
          TCO behavior as a result of adding TCO inference. I.e., before TCO
          inference, they were tail (nontail) if and only if after TCO
          inference they are tail (nontail). *)
-      | Old_tail_edge
-      | Old_nontail_edge
+      | Plain_tail_edge
+      | Plain_nontail_edge
       (* "Inferred" edges are edges that might possibly change their TCO
          behavior as a result of adding TCO inference. *)
       | Inferred_tail_edge
@@ -161,8 +161,8 @@ end = struct
   module Edge = struct
     module T = struct
       type label =
-        | Old_tail_edge
-        | Old_nontail_edge
+        | Plain_tail_edge
+        | Plain_nontail_edge
         | Inferred_tail_edge
         | Inferred_nontail_edge
 
@@ -174,8 +174,8 @@ end = struct
 
       let label_equal l1 l2 =
         match l1, l2 with
-        | Old_tail_edge, Old_tail_edge -> true
-        | Old_nontail_edge, Old_nontail_edge -> true
+        | Plain_tail_edge, Plain_tail_edge -> true
+        | Plain_nontail_edge, Plain_nontail_edge -> true
         | Inferred_tail_edge, Inferred_tail_edge -> true
         | Inferred_nontail_edge, Inferred_nontail_edge -> true
         | _ -> false
@@ -234,7 +234,7 @@ end = struct
         (* Add edge from unknown *)
         let unknown = Vertex.unknown in
         let edge_from_unknown : Edge.t =
-          { from = unknown; to_ = vertex; label = Old_tail_edge }
+          { from = unknown; to_ = vertex; label = Plain_tail_edge }
         in
         Edge.Hashset.add (successors t unknown) edge_from_unknown;
         (* Initialize vertex's adjacency set *)
@@ -293,14 +293,14 @@ end = struct
     in
     let label : Edge.label =
       match label with
-      | `Unknown_tail -> Old_tail_edge
-      | `Unknown_nontail -> Old_nontail_edge
-      | `Not_in_tail_position -> Old_nontail_edge
-      | `Requested_nontail -> Old_nontail_edge
-      | `Requested_tail -> Old_tail_edge
+      | `Unknown_tail -> Plain_tail_edge
+      | `Unknown_nontail -> Plain_nontail_edge
+      | `Not_in_tail_position -> Plain_nontail_edge
+      | `Requested_nontail -> Plain_nontail_edge
+      | `Requested_tail -> Plain_tail_edge
       | `Became_tail_after_optimizations ->
         (* This is a conservative approximation *)
-        Old_tail_edge
+        Plain_tail_edge
       | `Inferred_tail -> Inferred_tail_edge
       | `Inferred_nontail -> Inferred_nontail_edge
     in
@@ -335,8 +335,8 @@ end = struct
     else (
       let color =
         match label with
-        | Old_tail_edge -> "black"
-        | Old_nontail_edge -> "lightgrey"
+        | Plain_tail_edge -> "black"
+        | Plain_nontail_edge -> "lightgrey"
         | Inferred_tail_edge -> "blue"
         | Inferred_nontail_edge -> "red"
       in
@@ -345,8 +345,8 @@ end = struct
           if Vertex.is_unknown from then "dashed" else "solid"
         in
         match label with
-        | Old_tail_edge -> maybe_unknown_style ()
-        | Old_nontail_edge -> maybe_unknown_style ()
+        | Plain_tail_edge -> maybe_unknown_style ()
+        | Plain_nontail_edge -> maybe_unknown_style ()
         | Inferred_tail_edge -> "solid"
         | Inferred_nontail_edge -> "solid"
       in
