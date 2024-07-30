@@ -111,7 +111,70 @@ type modtype_decl_context =
   (** We are checking a signature. *)
   | In_structure of modtype_declaration option
   (** We are checking a struct, with a given expected signature (used for inferring
-      module types when we see a [module type S = _]) *)
+      module types when we see a [module type S = _]). The expected signature would have
+      been gone through substitution from the elements in the signature to the elements
+      in the struct seen so far.*)
+
+(** Map of items in a signature (similar to an [Env.t] after [Env.add_signature]), but
+    only indexed by the item's name as a string. This avoids us having to iterate through
+    an [expected_sig] to find the declaration we are looking for in [type_str_item]. *)
+module Sig_map = struct
+  type t = {
+    values: (Ident.t * value_description) String.Map.t;
+    types: (Ident.t * type_declaration) String.Map.t;
+    modules: (Ident.t * module_declaration) String.Map.t;
+    module_types: (Ident.t * modtype_declaration) String.Map.t;
+    classes: (Ident.t * class_declaration) String.Map.t;
+    class_types: (Ident.t * class_type_declaration) String.Map.t;
+  }
+
+  let empty = {
+    values = String.Map.empty;
+    types = String.Map.empty;
+    modules = String.Map.empty;
+    module_types = String.Map.empty;
+    classes = String.Map.empty;
+    class_types = String.Map.empty;
+  }
+
+  let add_value id value map =
+    { map with values = String.Map.add (Ident.name id) (id, value) map.values }
+
+  let add_type id typ map =
+    { map with types = String.Map.add (Ident.name id) (id, typ) map.types }
+
+  let add_module id modl map =
+    { map with modules = String.Map.add (Ident.name id) (id, modl) map.modules }
+
+  let add_module_type id modtype map =
+    { map with module_types = String.Map.add (Ident.name id) (id, modtype) map.module_types }
+
+  let add_class id cls map =
+    { map with classes = String.Map.add (Ident.name id) (id, cls) map.classes }
+
+  let add_class_type id clstype map =
+    { map with class_types = String.Map.add (Ident.name id) (id, clstype) map.class_types }
+
+  let add_signature sg map =
+    let add_item map = function
+      | Sig_value (id, desc, _) -> add_value id desc map
+      | Sig_type (id, decl, _, _) -> add_type id decl map
+      | Sig_typext _ -> map
+      | Sig_module (id, _, decl, _, _) -> add_module id decl map
+      | Sig_modtype (id, decl, _) -> add_module_type id decl map
+      | Sig_class (id, decl, _, _) -> add_class id decl map
+      | Sig_class_type (id, decl, _, _) -> add_class_type id decl map
+    in
+    List.fold_left add_item map sg
+
+  let find_type name map = String.Map.find_opt name map.types
+
+  let find_module name map = String.Map.find_opt name map.modules
+
+  let find_module_type name map = String.Map.find_opt name map.module_types
+
+  let find_class_type name map = String.Map.find_opt name map.class_types
+end
 
 open Typedtree
 
@@ -2857,23 +2920,18 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
 
 and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
   let names = Signature_names.create () in
-
-  (* CR selee: We might be able to use [FieldMap] as in [Includemod.pair_components]
-     to make the lookups below faster. *)
+  let expected_sig =
+    Option.map(fun sg -> Sig_map.add_signature sg (Sig_map.empty)) expected_sig
+  in
 
   let add_expected_type_to_subst expected_sig idents subst =
     match expected_sig with
       | None -> subst
       | Some expected_sig ->
           let add_to_subst subst id =
-            let get_ident = function
-              | Sig_type (sig_ident, _, _, _)
-                  when Ident.name sig_ident = Ident.name id -> Some sig_ident
-              | _ -> None
-            in
-            match List.find_map get_ident expected_sig with
+            match Sig_map.find_type (Ident.name id) expected_sig with
             | None -> subst
-            | Some sig_ident ->
+            | Some (sig_ident, _) ->
                 Subst.add_type sig_ident (Pident id) subst
           in
         List.fold_left add_to_subst subst idents
@@ -2886,14 +2944,9 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
       begin match ident with
         | None -> subst
         | Some ident ->
-            let get_ident = function
-              | Sig_module (sig_ident, _, _, _, _)
-                  when Ident.name sig_ident = Ident.name ident -> Some sig_ident
-              | _ -> None
-            in
-            begin match List.find_map get_ident expected_sig with
+            begin match Sig_map.find_module (Ident.name ident) expected_sig with
               | None -> subst
-              | Some sig_ident ->
+              | Some (sig_ident, _) ->
                   Subst.add_module sig_ident (Pident ident) subst
             end
       end
@@ -2906,21 +2959,28 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
   in
 
   let add_expected_modtype_to_subst expected_sig ident subst =
-    (* CR selee: we are currently duplicating some work because we need the expected
-       modtype decl again in the [Pstr_modtype] branch. *)
     match expected_sig with
     | None -> subst
     | Some expected_sig ->
-        let get_ident = function
-          | Sig_modtype (sig_ident, _, _)
-              when Ident.name sig_ident = Ident.name ident -> Some sig_ident
-          | _ -> None
-        in
-        begin match List.find_map get_ident expected_sig with
+        begin match Sig_map.find_module_type (Ident.name ident) expected_sig with
           | None -> subst
-          | Some sig_ident ->
+          | Some (sig_ident, _) ->
               Subst.add_modtype sig_ident (Mty_ident (Pident ident)) subst
         end
+  in
+
+  let add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst =
+    let subst = add_expected_type_to_subst expected_sig ty_ids subst in
+    match expected_sig with
+      | None -> subst
+      | Some expected_sig ->
+          let add_to_subst subst id =
+            match Sig_map.find_class_type (Ident.name id) expected_sig with
+            | None -> subst
+            | Some (sig_ident, _) ->
+                Subst.add_type sig_ident (Pident id) subst
+          in
+        List.fold_left add_to_subst subst clty_ids
   in
 
   let add_expected_include_to_subst expected_sig actual_sig subst =
@@ -2931,7 +2991,9 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           add_expected_module_to_subst expected_sig (Some id) subst
       | Sig_modtype (id, _, _) ->
           add_expected_modtype_to_subst expected_sig id subst
-      | Sig_value _ | Sig_typext _ | Sig_class _ | Sig_class_type _ -> subst
+      | Sig_class_type (id, _, _, _) ->
+          add_expected_class_type_to_subst expected_sig [id] [] subst
+      | Sig_value _ | Sig_typext _ | Sig_class _ -> subst
     in
     List.fold_left add_item subst actual_sig
   in
@@ -3298,15 +3360,14 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         add_expected_rec_modules_to_subst expected_sig idents subst
     | Pstr_modtype pmtd ->
         let context =
-          let get_modtype_decl = function
-            | Sig_modtype (ident, decl, _)
-                when Ident.name ident = pmtd.pmtd_name.txt ->
-                  Some (Subst.modtype_declaration Keep subst decl)
-            | _ -> None
-          in
           match expected_sig with
           | None -> In_structure None
-          | Some sg -> In_structure (List.find_map get_modtype_decl sg)
+          | Some expected_sig ->
+              begin match Sig_map.find_module_type pmtd.pmtd_name.txt expected_sig with
+                | None -> In_structure None
+                | Some (_, decl) ->
+                    In_structure (Some (Subst.modtype_declaration Keep subst decl))
+              end
         in
         (* check that it is non-abstract *)
         let newenv, mtd, decl = transl_modtype_decl env pmtd ~context in
@@ -3339,6 +3400,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             |> map Shape.Map.add_type cls.cls_obj_id (Shape.leaf uid)
           ) shape_map classes
         in
+        let clty_ids = List.map (fun cl -> cl.Typeclass.cls_ty_id) classes in
+        let ty_ids = List.map (fun cl -> cl.Typeclass.cls_obj_id) classes in
         Tstr_class
           (List.map (fun cls ->
                (cls.Typeclass.cls_info,
@@ -3354,7 +3417,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
              classes []),
         shape_map,
         new_env,
-        subst
+        add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst
     | Pstr_class_type cl ->
         let (classes, new_env) = Typeclass.class_type_declarations env cl in
         let shape_map = List.fold_left (fun acc decl ->
@@ -3368,6 +3431,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             |> map Shape.Map.add_type decl.clsty_obj_id (Shape.leaf uid)
           ) shape_map classes
         in
+        let clty_ids = List.map (fun cl -> cl.Typeclass.clsty_ty_id) classes in
+        let ty_ids = List.map (fun cl -> cl.Typeclass.clsty_obj_id) classes in
         Tstr_class_type
           (List.map (fun cl ->
                (cl.Typeclass.clsty_ty_id,
@@ -3384,7 +3449,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
              classes []),
         shape_map,
         new_env,
-        subst
+        add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst
     | Pstr_include sincl ->
         type_str_include ~functor_:false ~loc env subst shape_map sincl sig_acc
     | Pstr_extension (ext, _attrs) ->
