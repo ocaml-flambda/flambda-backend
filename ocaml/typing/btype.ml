@@ -250,6 +250,16 @@ type path_kind =
   | Path_classtype
   | Path_classtype_lhs
 
+let print_path_kind ppf = function
+  | Path_value -> Format.fprintf ppf "value"
+  | Path_type -> Format.fprintf ppf "type"
+  | Path_module -> Format.fprintf ppf "module"
+  | Path_modtype -> Format.fprintf ppf "module type"
+  | Path_class -> Format.fprintf ppf "class"
+  | Path_class_lhs -> Format.fprintf ppf "class"
+  | Path_classtype -> Format.fprintf ppf "class type"
+  | Path_classtype_lhs -> Format.fprintf ppf "class type"
+
 let fold_row f init row =
   let result =
     List.fold_left

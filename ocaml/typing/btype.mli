@@ -138,6 +138,8 @@ type path_kind =
   | Path_classtype
   | Path_classtype_lhs
 
+val print_path_kind: Format.formatter -> path_kind -> unit
+
 val iter_type_expr: (type_expr -> unit) -> type_expr -> unit
         (* Iteration on types *)
 val fold_type_expr: ('a -> type_expr -> 'a) -> 'a -> type_expr -> 'a

@@ -102,7 +102,7 @@ type error =
   | Submode_failed of Mode.Value.error
   | Underscore_not_allowed_in_signature
   | Cannot_infer_module_type
-  | Unbound_path_in_inferred_type of Path.t
+  | Unbound_path_in_inferred_type of Btype.path_kind * Path.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -1631,9 +1631,9 @@ let mksig desc env loc =
     was declared somewhere outside so it can't be unbound. This way, we avoid expensive
     [Env.t] queries.*)
 let check_no_unbound_paths env loc sig_map str_map mty =
-  let check_error path in_sig in_str =
+  let check_error path_kind path in_sig in_str =
     if in_sig && (not in_str) then
-      raise (Error (loc, env, Unbound_path_in_inferred_type path))
+      raise (Error (loc, env, Unbound_path_in_inferred_type (path_kind, path)))
   in
   let iterator =
     { Btype.type_iterators with
@@ -1665,7 +1665,7 @@ let check_no_unbound_paths env loc sig_map str_map mty =
                     (true, true)
               end
             in
-            check_error path in_sig in_str;
+            check_error path_kind path in_sig in_str;
         | Pdot _ | Papply _ | Pextra_ty _ ->
             let rec check p =
               match p with
@@ -1673,7 +1673,7 @@ let check_no_unbound_paths env loc sig_map str_map mty =
                   let name = Ident.name id in
                   let in_sig = Sig_map.has_module name sig_map in
                   let in_str = Sig_map.has_module name str_map in
-                  check_error path in_sig in_str
+                  check_error path_kind path in_sig in_str
               | Pdot (p, _) | Pextra_ty (p, _) -> check p
               | Papply (p1, p2) -> check p1; check p2
             in
@@ -4505,9 +4505,10 @@ let report_error ~loc _env = function
   | Cannot_infer_module_type ->
     Location.errorf ~loc
       "Cannot infer module type without a corresponding definition."
-  | Unbound_path_in_inferred_type p ->
+  | Unbound_path_in_inferred_type (k, p) ->
       Location.errorf ~loc
-        "Unbound path %a@ in inferred module type." path p
+        "The inferred module type refers to %a %a, which is unbound here."
+        Btype.print_path_kind k path p
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

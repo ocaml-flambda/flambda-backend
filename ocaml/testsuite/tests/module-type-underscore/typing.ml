@@ -702,7 +702,7 @@ end
 Line 10, characters 2-19:
 10 |   module type B = _
        ^^^^^^^^^^^^^^^^^
-Error: Unbound path A in inferred module type.
+Error: The inferred module type refers to module type A, which is unbound here.
 |}]
 
 module M : sig
@@ -725,7 +725,7 @@ end
 Line 10, characters 2-19:
 10 |   module type B = _
        ^^^^^^^^^^^^^^^^^
-Error: Unbound path A.t in inferred module type.
+Error: The inferred module type refers to type A.t, which is unbound here.
 |}]
 
 
@@ -800,7 +800,7 @@ end
 Line 11, characters 2-19:
 11 |   module type B = _
        ^^^^^^^^^^^^^^^^^
-Error: Unbound path A in inferred module type.
+Error: The inferred module type refers to module type A, which is unbound here.
 |}]
 
 module M : sig
@@ -822,7 +822,7 @@ end
 Line 11, characters 2-19:
 11 |   module type B = _
        ^^^^^^^^^^^^^^^^^
-Error: Unbound path A in inferred module type.
+Error: The inferred module type refers to module type A, which is unbound here.
 |}]
 
 module M : sig
@@ -847,7 +847,7 @@ end
 Line 10, characters 2-19:
 10 |   module type S = _
        ^^^^^^^^^^^^^^^^^
-Error: Unbound path t in inferred module type.
+Error: The inferred module type refers to type t, which is unbound here.
 |}]
 
 module M : sig
