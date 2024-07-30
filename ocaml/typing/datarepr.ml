@@ -262,7 +262,7 @@ let find_constr ~constant tag cstrs =
       (function
         | ({cstr_tag=Ordinary {runtime_tag=tag'}; cstr_constant},_) ->
           tag' = tag && cstr_constant = constant
-        | ({cstr_tag=Extension _},_) -> false)
+        | ({cstr_tag=(Extension _ | Null)},_) -> false)
       cstrs
   with
   | Not_found -> raise Constr_not_found

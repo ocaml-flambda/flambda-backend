@@ -672,6 +672,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
           | Record_mixed _ ->
             [0, fields]
           | Record_unboxed -> assert false
+          | Record_inlined (Null, _, _) -> assert false
         in
         (num_nodes_visited, Pvariant { consts = []; non_consts })
     end

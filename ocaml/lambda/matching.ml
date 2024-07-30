@@ -2963,6 +2963,7 @@ let split_cases tag_lambda_list =
         | Ordinary {runtime_tag}, Variant_boxed _ ->
           (consts, (runtime_tag, act) :: nonconsts)
         | _, (Variant_extensible | Variant_with_null) -> assert false
+        | Null, _ -> Misc.fatal_error "[Null] constructors not implemented"
         | Extension _, _ -> assert false
       )
   in
@@ -2987,7 +2988,7 @@ let split_extension_cases tag_lambda_list =
        match cstr_constant, cstr_tag with
        | true, Extension (path,_) -> Left (path, act)
        | false, Extension (path,_)-> Right (path, act)
-       | _, Ordinary _ -> assert false)
+       | _, (Ordinary _ | Null) -> assert false)
     tag_lambda_list
 
 let transl_match_on_option value_kind arg loc ~if_some ~if_none =

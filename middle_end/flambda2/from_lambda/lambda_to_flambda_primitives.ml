@@ -1072,7 +1072,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           Misc.fatal_error "Mixed blocks extensible variants are not supported")
       | Record_inlined (Extension _, _, _)
       | Record_inlined (Ordinary _, _, (Variant_unboxed | Variant_extensible
-        | Variant_with_null)) | Record_unboxed ->
+        | Variant_with_null)) | Record_unboxed | Record_inlined (Null, _, _) ->
         Misc.fatal_errorf "Cannot handle record kind for Pduprecord: %a"
           Printlambda.primitive prim
     in

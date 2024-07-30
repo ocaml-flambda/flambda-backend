@@ -560,6 +560,7 @@ and ('lbl, 'cstr) type_kind =
 and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
                        runtime_tag: int}    (* The runtime tag *)
         | Extension of Path.t * jkind array
+        | Null (* Null pointer *)
 
 and abstract_reason =
     Abstract_def

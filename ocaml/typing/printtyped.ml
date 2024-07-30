@@ -183,6 +183,7 @@ let tag ppf = let open Types in function
   | Ordinary {src_index;runtime_tag} ->
       fprintf ppf "Ordinary {index: %d; tag: %d}" src_index runtime_tag
   | Extension (p,_) -> fprintf ppf "Extension %a" fmt_path p
+  | Null -> fprintf ppf "Null"
 
 let variant_representation i ppf = let open Types in function
   | Variant_unboxed ->
