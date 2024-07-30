@@ -1678,7 +1678,8 @@ end
 (* Mostly wrapping implementations for Type jkinds *)
 
 let of_new_sort_var ~why =
-  Type.of_new_sort_var ~why |> fun (a, b) -> of_type_jkind a, b
+  let t, sort = Type.of_new_sort_var ~why in
+  of_type_jkind t, sort
 
 let of_new_sort ~why = Type.of_new_sort ~why |> of_type_jkind
 
