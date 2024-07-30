@@ -3363,11 +3363,11 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           match expected_sig with
           | None -> In_structure None
           | Some expected_sig ->
-            begin match Sig_map.find_module_type pmtd.pmtd_name.txt expected_sig with
-              | None -> In_structure None
-              | Some (_, decl) ->
-                  In_structure (Some (Subst.modtype_declaration Keep subst decl))
-            end
+              begin match Sig_map.find_module_type pmtd.pmtd_name.txt expected_sig with
+                | None -> In_structure None
+                | Some (_, decl) ->
+                    In_structure (Some (Subst.modtype_declaration Keep subst decl))
+              end
         in
         (* check that it is non-abstract *)
         let newenv, mtd, decl = transl_modtype_decl env pmtd ~context in
