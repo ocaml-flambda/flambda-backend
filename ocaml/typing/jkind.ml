@@ -176,7 +176,10 @@ module Type = struct
 
     let union t1 t2 =
       match t1, t2 with
-      | Sort s1, Sort s2 -> if Sort.equate s1 s2 then t1 else Any
+      (* jbachurski: As discussed with lwhite, [if Sort.equate s1 s2 then t1 else Any]
+         is not sound here and a change to the representation of sorts would be
+         required to compute this accurately. Fail for now. *)
+      | Sort _, Sort _ -> assert false
       | _, Any -> Any
       | Any, _ -> Any
 
