@@ -1951,56 +1951,63 @@ let equate = equate_or_equal ~allow_mutation:true
    (layouts v2.8) allow_mutation is to be set to false *)
 let equal = equate_or_equal ~allow_mutation:true
 
-(* Generalises union and intersection at Arrows, as they are mutually recursive when
-   defining Arrow kind intersection *)
-let arrow_connective_or_error ~on_args ~on_result
-    ({ args = args1; result = result1 } : _ Jkind_types.Arrow.t)
-    ({ args = args2; result = result2 } : _ Jkind_types.Arrow.t) =
-  let args = List.map2 on_args args1 args2 in
-  let result = on_result result1 result2 in
-  (* FIXME jbachurski: collect all errors rather than picking first? *)
-  if List.exists Result.is_error args || Result.is_error result
-  then List.find Result.is_error (result :: args)
-  else
-    let args = List.map Result.get_ok args in
-    let result = Result.get_ok result in
+(* TODO jbachurski: This helper is redundant once histories
+   are properly tracked on higher kinds. *)
+let combining_type_jkinds ~reason (ty1 : Type.t) (ty2 : Type.t) jkind : t =
+  Type
+    { jkind;
+      history = Type.combine_histories reason ty1 ty2;
+      has_warned = ty1.has_warned || ty2.has_warned
+    }
+
+let rec combine_list_or_error ~violation combine ts1 ts2 =
+  let ( let* ) = Result.bind in
+  match ts1, ts2 with
+  | [], [] -> Ok []
+  | t1 :: ts1, t2 :: ts2 ->
+    (* TODO jbachurski: Should errors be collected here
+       rather than picking first? *)
+    let* t = combine t1 t2 in
+    let* ts = combine_list_or_error ~violation combine ts1 ts2 in
+    Ok (t :: ts)
+  | [], _ :: _ | _ :: _, [] -> Error violation
+
+let rec intersection_or_error ~reason (t1 : t) (t2 : t) : (t, _) result =
+  let ( let* ) = Result.bind in
+  let violation = Violation.of_ (No_intersection (t1, t2)) in
+  match t1, t2 with
+  | Type ty1, Type ty2 ->
+    Type.Jkind_desc.intersection ty1.jkind ty2.jkind
+    |> Option.map (combining_type_jkinds ~reason ty1 ty2)
+    |> Option.to_result ~none:violation
+  | ( Arrow { args = args1; result = result1 },
+      Arrow { args = args2; result = result2 } ) ->
+    let* args = union_list_or_error ~reason ~violation args1 args2 in
+    let* result = intersection_or_error ~reason result1 result2 in
     Ok (Arrow { args; result } : t)
+  | Type _, Arrow _ | Arrow _, Type _ -> Error violation
 
-let rec intersection_or_error ~reason (t : t) (t' : t) : (t, _) result =
-  match t, t' with
-  | Type ty, Type ty' -> (
-    match Type.Jkind_desc.intersection ty.jkind ty'.jkind with
-    | None -> Error (Violation.of_ (No_intersection (Type ty, Type ty')))
-    | Some jkind ->
-      Ok
-        (Type
-           { jkind;
-             history = Type.combine_histories reason ty ty';
-             has_warned = ty.has_warned || ty'.has_warned
-           }))
-  | Arrow a, Arrow a' ->
-    arrow_connective_or_error ~on_args:(union_or_error ~reason)
-      ~on_result:(intersection_or_error ~reason)
-      a a'
-  | Type _, Arrow _ | Arrow _, Type _ ->
-    Error (Violation.of_ (No_intersection (t, t')))
+and union_or_error ~reason (t1 : t) (t2 : t) =
+  let ( let* ) = Result.bind in
+  let violation = Violation.of_ (No_union (t1, t2)) in
+  match t1, t2 with
+  | Type ty1, Type ty2 ->
+    (* Union is infallible at type jkinds *)
+    Type.Jkind_desc.union ty1.jkind ty2.jkind
+    |> combining_type_jkinds ~reason ty1 ty2
+    |> Result.ok
+  | ( Arrow { args = args1; result = result1 },
+      Arrow { args = args2; result = result2 } ) ->
+    let* args = intersection_list_or_error ~reason ~violation args1 args2 in
+    let* result = union_or_error ~reason result1 result2 in
+    Ok (Arrow { args; result } : t)
+  | Type _, Arrow _ | Arrow _, Type _ -> Error violation
 
-and union_or_error ~reason (t : t) (t' : t) : (t, _) result =
-  match t, t' with
-  | Type ty, Type ty' ->
-    (* Union is infallible at type jkinds due to [any] *)
-    Ok
-      (Type
-         { jkind = Type.Jkind_desc.union ty.jkind ty'.jkind;
-           history = Type.combine_histories reason ty ty';
-           has_warned = ty.has_warned || ty'.has_warned
-         })
-  | Arrow a, Arrow a' ->
-    arrow_connective_or_error
-      ~on_args:(intersection_or_error ~reason)
-      ~on_result:(union_or_error ~reason) a a'
-  | Type _, Arrow _ | Arrow _, Type _ ->
-    Error (Violation.of_ (No_union (t, t')))
+and intersection_list_or_error ~reason ~violation =
+  combine_list_or_error ~violation (intersection_or_error ~reason)
+
+and union_list_or_error ~reason ~violation =
+  combine_list_or_error ~violation (union_or_error ~reason)
 
 let has_intersection t t' =
   Result.is_ok
