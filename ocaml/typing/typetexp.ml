@@ -90,6 +90,8 @@ type error =
   | Non_sort of
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
+  | Jkind_mismatch_in_application of Jkind.t list * Jkind.t * Jkind.Violation.t option
+  | Unknown_jkind_at_application of type_expr
   | Did_you_mean_unboxed of Longident.t
   | Invalid_label_for_call_pos of Parsetree.arg_label
 
@@ -797,12 +799,32 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       ctyp (Ttyp_constr (path, lid, args)) constr
   | Ptyp_app (st, stl) ->
     let ty = transl_type env ~policy ~row_context Alloc.Const.legacy st in
-    let args =
+    let arg_tys =
       List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
     in
+    let app_jkind = estimate_type_jkind env ty.ctyp_type in
+    let app_err violation =
+      let arg_jkinds =
+        List.map (fun arg -> estimate_type_jkind env arg.ctyp_type) arg_tys
+      in
+      Error (
+        styp.ptyp_loc, env,
+        Jkind_mismatch_in_application (arg_jkinds, app_jkind, violation))
+    in
+    begin match Jkind.get app_jkind with
+    | Arrow { args; result = _ } ->
+      List.iter2 (fun arg jkind ->
+      Format.printf "%a <= %a\n" Printtyp.type_expr arg.ctyp_type Jkind.format jkind;
+      begin match constrain_type_jkind env arg.ctyp_type jkind with
+      | Ok () -> ()
+      | Error err -> raise (app_err (Some err))
+      end) arg_tys args
+    | Type _  -> raise (app_err None)
+    | Top -> raise (Error (st.ptyp_loc, env, Unknown_jkind_at_application ty.ctyp_type))
+    end;
     let constr =
-      newapp ty.ctyp_type (List.map (fun ctyp -> ctyp.ctyp_type) args) in
-    ctyp (Ttyp_app (ty, args)) constr
+      newapp ty.ctyp_type (List.map (fun ctyp -> ctyp.ctyp_type) arg_tys) in
+    ctyp (Ttyp_app (ty, arg_tys)) constr
   | Ptyp_object (fields, o) ->
       let ty, fields = transl_fields env ~policy ~row_context o fields in
       ctyp (Ttyp_object (fields, o)) (newobj ty)
@@ -1557,6 +1579,16 @@ let report_error env ppf = function
     fprintf ppf "@[<b 2>Bad layout annotation:@ %a@]"
       (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Jkind_mismatch_in_application (arg_jkinds, app_jkind, _) ->
+    let jkind_format_list =
+      Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ") Jkind.format
+    in
+    fprintf ppf "@[<b 2>Types of jkind (%a) cannot be applied to %a.@]"
+      jkind_format_list arg_jkinds Jkind.format app_jkind
+  | Unknown_jkind_at_application ty ->
+    fprintf ppf "@[<b 2>The type %a is applied,@ \
+                 but its jkind is unknown (presumed top) in this position.@]"
+      Printtyp.type_expr ty
   | Did_you_mean_unboxed lid ->
     fprintf ppf "@[%a isn't a class type.@ \
                  Did you mean the unboxed type %a#?@]" longident lid longident lid
