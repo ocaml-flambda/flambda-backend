@@ -431,12 +431,8 @@ module Desc : sig
     | Arrow of t Jkind_types.Arrow.t
 end
 
-(** [default_to_value_and_get] extracts the jkind as a `const`.  If it's a sort
-    variable, it is set to [value] first. *)
-val default_to_value_and_get : t -> Const.t
-
-(** [default_to_value t] is [ignore (default_to_value_and_get t)] *)
-val default_to_value : t -> unit
+(** Defaults all sort variables within the [Jkind.t] to value *)
+val default_all_sort_variables_to_value : t -> unit
 
 (** Extract the [const] from a [Jkind.Type.t], looking through unified
     sort variables. Returns [Var] if the final, non-variable jkind has not

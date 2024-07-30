@@ -1784,16 +1784,12 @@ module Desc = struct
     | Arrow of t Jkind_types.Arrow.t
 end
 
-let rec default_to_value_and_get (t : t) : Const.t =
+let rec default_all_sort_variables_to_value (t : t) =
   match t with
-  | Type ty -> Type (Type.default_to_value_and_get ty)
+  | Type ty -> Type.default_to_value ty
   | Arrow { args; result } ->
-    Arrow
-      { args = List.map default_to_value_and_get args;
-        result = default_to_value_and_get result
-      }
-
-let default_to_value t = ignore (default_to_value_and_get t)
+    List.iter default_all_sort_variables_to_value args;
+    default_all_sort_variables_to_value result
 
 let get (t : t) : Desc.t =
   match t with
