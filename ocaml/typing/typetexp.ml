@@ -797,7 +797,6 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
     begin match Jkind.get app_jkind with
     | Arrow { args; result = _ } ->
       List.iter2 (fun arg jkind ->
-      Format.printf "%a <= %a\n" Printtyp.type_expr arg.ctyp_type Jkind.format jkind;
       begin match constrain_type_jkind env arg.ctyp_type jkind with
       | Ok () -> ()
       | Error err -> raise (app_err (Some err))
