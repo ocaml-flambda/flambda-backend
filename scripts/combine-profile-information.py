@@ -6,6 +6,7 @@ file) into a single summary profile information CSV file.
 from argparse import ArgumentParser
 import csv
 from pathlib import Path
+from string import digits
 from typing import Dict, Iterable, Iterator, List, Tuple, Union
 
 parser = ArgumentParser(description="Combine multiple profile CSVs into one")
@@ -45,7 +46,7 @@ def get_input_csv_paths() -> Iterator[Tuple[Path, CsvRows]]:
 
 
 def split_into_number_and_unit(number_string: str) -> (Union[int, float], str):
-    numeric = "".join(map(str, range(10))) + "."
+    numeric = digits + "."
     unit_start_position = next(
         (i for i, c in enumerate(number_string) if c not in numeric), len(number_string)
     )
@@ -57,17 +58,21 @@ def split_into_number_and_unit(number_string: str) -> (Union[int, float], str):
 
 
 PRIMARY_KEY = "pass name"
+COUNTERS_Field = "counters"
 summary_non_counter_fields = set()
 summary_counter_fields = set()
 
+# Retrieve non-counter and counter field names selected dynamically from CSV files (also
+# asserts that all CSV files should have primary key and counters fields)
 for rows in map(get_csv_rows, get_input_csv_paths()):
-    curr_fields = set(rows[0])
-    curr_fields.remove(PRIMARY_KEY)
-    if "counters" in curr_fields:
-        curr_fields.remove("counters")
-        for row in rows:
-            summary_counter_fields.update(parse_counters(row["counters"]))
-    summary_non_counter_fields.update(curr_fields)
+    fields = set(rows[0])
+    assert PRIMARY_KEY in fields
+    assert COUNTERS_Field in fields
+
+    fields.remove(PRIMARY_KEY)
+    fields.remove(COUNTERS_Field)
+    summary_counter_fields.update(parse_counters(rows[0][COUNTERS_Field]))
+    summary_non_counter_fields.update(fields)
 
 # CR mitom: Not supporting memory for now
 summary_non_counter_fields -= {
@@ -125,3 +130,4 @@ with open(SUMMARY_PATH, "w", newline="") as summary_csv_file:
 
     for curr_csv_path in get_input_csv_paths():
         process_csv(curr_csv_path, summary_csv_writer)
+print("Outputted summary CSV file to {}.".format(SUMMARY_PATH))
