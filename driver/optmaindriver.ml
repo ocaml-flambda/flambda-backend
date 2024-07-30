@@ -134,6 +134,10 @@ let main argv ppf =
     Location.report_exception ppf x;
     2
   | () ->
+      (* CR mitom: Logic for dumping into CSV from "driver/optmaindriver.ml" not
+         implemented here. However, the bytecode compiler explicitly ignores dump-into-csv
+         flag as it is used in upstream and building our compiler.
+      *)
       Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile"
         (fun ppf -> Profile.print ppf !Clflags.profile_columns
         ~timings_precision:!Clflags.timings_precision);
