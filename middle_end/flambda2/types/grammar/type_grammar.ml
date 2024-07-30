@@ -75,6 +75,7 @@ and head_of_kind_value =
         contents : array_contents Or_unknown.t;
         alloc_mode : Alloc_mode.For_types.t
       }
+  | Null
 
 (* CR someday vlaviron: comparison results are encoded as naked immediates, and
    in a few cases (physical equality mostly) some values of the boolean carry
@@ -293,6 +294,7 @@ and free_names_head_of_kind_value0 ~follow_value_slots head =
           (free_names0 ~follow_value_slots field))
       (free_names0 ~follow_value_slots length)
       fields
+  | Null -> Name_occurrences.empty
 
 and free_names_head_of_kind_naked_immediate0 ~follow_value_slots head =
   match head with
@@ -606,6 +608,7 @@ and apply_renaming_head_of_kind_value head renaming =
           contents = Known (Immutable { fields = fields' });
           alloc_mode
         }
+  | Null -> head
 
 and apply_renaming_head_of_kind_naked_immediate head renaming =
   match head with
@@ -872,6 +875,7 @@ and print_head_of_kind_value ppf head =
       element_kind print length Alloc_mode.For_types.print alloc_mode
       (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
       (Array.to_list fields)
+  | Null -> Format.fprintf ppf "@[<hov 1>(Null)@]"
 
 and print_head_of_kind_naked_immediate ppf head =
   match head with
@@ -1093,6 +1097,7 @@ and ids_for_export_head_of_kind_value head =
     Array.fold_left
       (fun ids field -> Ids_for_export.union ids (ids_for_export field))
       (ids_for_export length) fields
+  | Null -> Ids_for_export.empty
 
 and ids_for_export_head_of_kind_naked_immediate head =
   match head with
@@ -1340,6 +1345,7 @@ and apply_coercion_head_of_kind_value head coercion : _ Or_bottom.t =
       } ->
     (* Same as the block case (in [Variant]) above. *)
     if Coercion.is_id coercion then Ok head else Bottom
+  | Null -> if Coercion.is_id coercion then Ok head else Bottom
 
 and apply_coercion_head_of_kind_naked_immediate head coercion : _ Or_bottom.t =
   if Coercion.is_id coercion then Ok head else Bottom
@@ -1750,6 +1756,7 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_value head
           contents = Known (Immutable { fields = fields' });
           alloc_mode
         }
+  | Null -> head
 
 and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_immediate
     head ~used_value_slots ~canonicalise =
@@ -2271,6 +2278,7 @@ and project_head_of_kind_value ~to_project ~expand head =
           contents = Known (Immutable { fields = fields' });
           alloc_mode
         }
+  | Null -> head
 
 and project_head_of_kind_naked_immediate ~to_project ~expand head =
   match head with
@@ -2991,6 +2999,8 @@ let any_region = Region TD.unknown
 
 let any_rec_info = Rec_info TD.unknown
 
+let the_null = Value (TD.create Null)
+
 let this_naked_immediate i : t =
   Naked_immediate (TD.create_equals (Simple.const (RWC.naked_immediate i)))
 
@@ -3286,6 +3296,8 @@ module Head_of_kind_value = struct
 
   let create_array_with_contents ~element_kind ~length contents alloc_mode =
     Array { element_kind; length; contents; alloc_mode }
+
+  let create_null = Null
 end
 
 module type Head_of_kind_naked_number_intf = sig
@@ -3372,7 +3384,7 @@ let rec recover_some_aliases t =
         (No_alias
           ( Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
           | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | String _
-          | Closures _ | Array _ )) ->
+          | Closures _ | Array _ | Null )) ->
       t
     | Ok (No_alias (Variant { immediates; blocks; is_unique = _ })) -> (
       match blocks with

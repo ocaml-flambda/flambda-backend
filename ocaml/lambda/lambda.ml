@@ -340,6 +340,7 @@ and value_kind =
     }
   | Parrayval of array_kind
   | Pboxedvectorval of boxed_vector
+  | Pnull
 
 and layout =
   | Ptop
@@ -512,8 +513,9 @@ let rec equal_value_kind x y =
              Int.equal tag1 tag2
              && equal_constructor_shape cstr1 cstr2)
            non_consts1 non_consts2
+  | Pnull, Pnull -> true
   | (Pgenval | Pboxedfloatval _ | Pboxedintval _ | Pintval | Pvariant _
-      | Parrayval _ | Pboxedvectorval _), _ -> false
+      | Parrayval _ | Pboxedvectorval _ | Pnull), _ -> false
 
 and equal_constructor_shape x y =
   match x, y with
@@ -903,6 +905,7 @@ let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
 let layout_letrec = layout_any_value
 let layout_probe_arg = Pvalue Pgenval
+let layout_null = Pvalue Pnull
 let layout_unboxed_product layouts = Punboxed_product layouts
 
 (* CR ncourant: use [Ptop] or remove this as soon as possible. *)

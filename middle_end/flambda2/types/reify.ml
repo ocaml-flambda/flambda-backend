@@ -584,6 +584,7 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       Invalid
     | Value Unknown
     | Value (Ok (String _))
+    | Value (Ok Null)
     | Naked_immediate Unknown
     | Naked_float32 Unknown
     | Naked_float Unknown

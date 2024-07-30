@@ -179,6 +179,7 @@ let rec value_kind ppf = function
   | Pboxedvectorval (Pvec128 v) -> fprintf ppf "[%s]" (vec128_name v)
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
+  | Pnull -> fprintf ppf "[null]"
 
 and value_kind' ppf = function
   | Pgenval -> fprintf ppf "*"
@@ -189,6 +190,7 @@ and value_kind' ppf = function
   | Pboxedvectorval (Pvec128 v) -> fprintf ppf "[%s]" (vec128_name v)
   | Pvariant { consts; non_consts; } ->
     variant_kind value_kind' ppf ~consts ~non_consts
+  | Pnull -> fprintf ppf "[null]"
 
 let rec layout' is_top ppf layout_ =
   match layout_ with
@@ -220,6 +222,7 @@ let return_kind ppf (mode, kind) =
     fprintf ppf ": %s%s@ " smode (vec128_name v)
   | Pvalue (Pvariant { consts; non_consts; }) ->
     variant_kind value_kind' ppf ~consts ~non_consts
+  | Pvalue Pnull -> fprintf ppf ": null@ "
   | Punboxed_float bf -> fprintf ppf ": unboxed_%s@ " (boxed_float_name bf)
   | Punboxed_int bi -> fprintf ppf ": unboxed_%s@ " (boxed_integer_name bi)
   | Punboxed_vector (Pvec128 v) -> fprintf ppf ": unboxed_%s@ " (vec128_name v)
@@ -241,6 +244,7 @@ let field_kind ppf = function
       (Format.pp_print_list ~pp_sep:Format.pp_print_space
         (tag_and_constructor_shape value_kind'))
       non_consts
+  | Pnull -> pp_print_string ppf "null"
 
 let alloc_kind = function
   | Alloc_heap -> ""

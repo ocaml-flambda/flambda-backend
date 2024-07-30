@@ -1579,7 +1579,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
             | Pboxedfloatval Pfloat64 -> true
             | Pboxedfloatval Pfloat32
             | Pgenval | Pintval | Pboxedintval _ | Pvariant _ | Parrayval _
-            | Pboxedvectorval _ ->
+            | Pboxedvectorval _ | Pnull ->
               false)
           field_kinds);
       Some (Unboxed_float_record (List.length field_kinds))
@@ -1598,7 +1598,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
         match bv with Pvec128 _ -> Naked_vec128
       in
       Some (Unboxed_number bn)
-    | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
+    | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _ | Pnull)
     | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
     | Punboxed_product _ ->
       Location.prerr_warning

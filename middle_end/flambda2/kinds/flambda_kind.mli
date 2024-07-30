@@ -216,6 +216,7 @@ module With_subkind : sig
       | Unboxed_int32_array
       | Unboxed_int64_array
       | Unboxed_nativeint_array
+      | Null
 
     include Container_types.S with type t := t
   end
@@ -271,6 +272,8 @@ module With_subkind : sig
   val value_array : t
 
   val generic_array : t
+
+  val null : t
 
   val block : Tag.t -> t list -> t
 

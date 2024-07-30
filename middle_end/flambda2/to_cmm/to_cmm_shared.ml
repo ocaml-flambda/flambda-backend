@@ -62,7 +62,7 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   match Flambda_kind.With_subkind.kind kind with
   | Value -> (
     match Flambda_kind.With_subkind.subkind kind with
-    | Tagged_immediate -> Cmm.typ_int
+    | Tagged_immediate | Null -> Cmm.typ_int
     | Anything | Boxed_float32 | Boxed_float | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
@@ -83,6 +83,7 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   | Value -> (
     match Flambda_kind.With_subkind.subkind kind with
     | Tagged_immediate -> Extended_machtype.typ_tagged_int
+    | Null -> Extended_machtype.typ_any_int
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
@@ -103,7 +104,7 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
   match Flambda_kind.With_subkind.kind kind with
   | Value -> (
     match Flambda_kind.With_subkind.subkind kind with
-    | Tagged_immediate -> Word_int
+    | Tagged_immediate | Null -> Word_int
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
     | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
     | Immediate_array | Unboxed_float32_array | Unboxed_int32_array

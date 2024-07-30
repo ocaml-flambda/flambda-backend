@@ -374,6 +374,7 @@ and value_kind =
     }
   | Parrayval of array_kind
   | Pboxedvectorval of boxed_vector
+  | Pnull
 
 (* Because we check for and error on void in the translation to lambda, we don't
    need a constructor for it here. *)
@@ -807,6 +808,7 @@ val layout_any_value : layout
 val layout_letrec : layout
 (* The probe hack: Free vars in probes must have layout value. *)
 val layout_probe_arg : layout
+val layout_null : layout
 
 val layout_unboxed_product : layout list -> layout
 

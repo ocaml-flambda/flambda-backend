@@ -425,9 +425,10 @@ and meet_head_of_kind_value env (head1 : TG.head_of_kind_value)
     ( TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
         contents alloc_mode,
       env_extension )
+  | Null, Null -> Or_bottom.Ok (TG.Head_of_kind_value.create_null, TEE.empty)
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
       | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
-      | Closures _ | String _ | Array _ ),
+      | Closures _ | String _ | Array _ | Null ),
       _ ) ->
     (* This assumes that all the different constructors are incompatible. This
        could break very hard for dubious uses of Obj. *)
@@ -1313,9 +1314,10 @@ and join_head_of_kind_value env (head1 : TG.head_of_kind_value)
     let>+ length = join env length1 length2 in
     TG.Head_of_kind_value.create_array_with_contents ~element_kind ~length
       contents alloc_mode
+  | Null, Null -> Known TG.Head_of_kind_value.create_null
   | ( ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
       | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
-      | Closures _ | String _ | Array _ ),
+      | Closures _ | String _ | Array _ | Null ),
       _ ) ->
     Unknown
 

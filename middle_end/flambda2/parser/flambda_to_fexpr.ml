@@ -442,6 +442,7 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
     Misc.fatal_error
       "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
        implemented"
+  | Null -> Misc.fatal_error "fexpr support for null not yet implemented"
 
 and variant_subkind consts non_consts : Fexpr.subkind =
   let consts =

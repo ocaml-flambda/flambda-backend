@@ -66,6 +66,7 @@ and head_of_kind_value = private
         contents : array_contents Or_unknown.t;
         alloc_mode : Alloc_mode.For_types.t
       }
+  | Null
 
 and head_of_kind_naked_immediate = private
   | Naked_immediates of Targetint_31_63.Set.t
@@ -223,6 +224,8 @@ val any_naked_vec128 : t
 val any_region : t
 
 val any_rec_info : t
+
+val the_null : t
 
 val this_tagged_immediate : Targetint_31_63.t -> t
 
@@ -663,6 +666,8 @@ module Head_of_kind_value : sig
     array_contents Or_unknown.t ->
     Alloc_mode.For_types.t ->
     t
+
+  val create_null : t
 end
 
 module Head_of_kind_naked_immediate : sig

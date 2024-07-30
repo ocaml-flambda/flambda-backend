@@ -3976,7 +3976,7 @@ let kind_of_layout (layout : Lambda.layout) =
   | Pvalue (Pboxedfloatval bf) -> Boxed_float bf
   | Pvalue (Pboxedintval bi) -> Boxed_integer bi
   | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
-  | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
+  | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _ | Pnull)
   | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
   | Punboxed_product _ ->
     Any
