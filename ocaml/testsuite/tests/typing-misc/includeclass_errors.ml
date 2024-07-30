@@ -71,20 +71,15 @@ end
 
 [%%expect{|
 class type ['a] ct = object val x : 'a end
-Lines 5-7, characters 6-3:
-5 | ......struct
+Line 6, characters 2-27:
 6 |   class type c = object end
-7 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig class type c = object  end end
-       is not included in
-         sig class type ['a] c = object  end end
-       Class type declarations do not match:
-         class type c = object  end
-       does not match
-         class type ['a] c = object  end
-       The classes do not have the same number of type parameters
+      ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This type declaration is incompatible with the corresponding
+       declaration in the signature: expected type 'a c = <  >.
+Line 4, characters 2-32:
+4 |   class type ['a] c = object end
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Expected declaration here
 |}]
 
 module M: sig

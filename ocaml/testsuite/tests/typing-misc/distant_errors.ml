@@ -21,4 +21,8 @@ Line 10, characters 2-10:
        ^^^^^^^^
 Error: This type declaration is incompatible with the corresponding
        declaration in the signature: expected type (_, _) t.
+Line 7, characters 2-15:
+7 |   type (_, _) t
+      ^^^^^^^^^^^^^
+  Expected declaration here
 |}]
