@@ -884,7 +884,8 @@ Error: The type constraints are not consistent.
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because it's the type of an object field.
+         because it instantiates an unannotated type parameter of t,
+         defaulted to layout value.
 |}];;
 
 (*******************************************************************)
@@ -954,7 +955,7 @@ end
 Line 6, characters 24-26:
 6 |       val virtual baz : 'a t
                             ^^
-Error: This type ('a : void) should be an instance of type ('a0 : value)
+Error: This type ('a : value) should be an instance of type ('b : void)
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with void
@@ -973,7 +974,7 @@ end;;
 Line 6, characters 29-31:
 6 |       method void_id (A a) : 'a t = a
                                  ^^
-Error: This type ('a : void) should be an instance of type ('a0 : value)
+Error: This type ('a : value) should be an instance of type ('b : void)
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with void
@@ -993,7 +994,7 @@ end;;
 Line 5, characters 4-6:
 5 |     'a t ->
         ^^
-Error: This type ('a : void) should be an instance of type ('a0 : value)
+Error: This type ('a : value) should be an instance of type ('b : void)
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with void
@@ -1748,8 +1749,7 @@ let f #poly_var = "hello"
 Line 1, characters 41-43:
 1 | type ('a : void) poly_var = [`A of int * 'a | `B]
                                              ^^
-Error: This type ('a : value_or_null) should be an instance of type
-         ('a0 : void)
+Error: Tuple element types must have layout value.
        The layout of 'a is void
          because of the annotation on 'a in the declaration of the type
                                       poly_var.

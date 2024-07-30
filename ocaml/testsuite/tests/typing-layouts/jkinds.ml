@@ -1271,14 +1271,14 @@ type ('a : bits32 mod global unique) t = 'a
 
 type ('a : bits32) t = ('a : word)
 [%%expect {|
-Line 1, characters 23-34:
+Line 1, characters 29-33:
 1 | type ('a : bits32) t = ('a : word)
-                           ^^^^^^^^^^^
-Error: This type ('a : word) should be an instance of type ('a0 : bits32)
-       The layout of 'a is bits32
-         because of the annotation on 'a in the declaration of the type t.
-       But the layout of 'a must overlap with word
-         because of the annotation on the type variable 'a.
+                                 ^^^^
+Error: Bad layout annotation:
+         The layout of 'a is bits32
+           because of the annotation on 'a in the declaration of the type t.
+         But the layout of 'a must overlap with word
+           because of the annotation on the type variable 'a.
 |}]
 
 let f : ('a : any mod global unique) -> ('a: any mod uncontended) = fun x -> x
