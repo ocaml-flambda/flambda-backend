@@ -186,12 +186,12 @@ type modtype_decl_context =
       been gone through substitution from the elements in the signature to the elements
       in the struct seen so far.*)
 
-
 type modtype_context =
   | From_module
   (** The module type originated from a module declaration. *)
   | From_modtype
   (** The module type originated from a module type declaration. *)
+
 open Typedtree
 
 let rec path_concat head p =
@@ -3028,7 +3028,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         Incompatible_type_declaration (id, expected_decl)));
     ()
 
-  and check_expected_modtype sig_env env subst sig_map expected_modtype actual_modtype =
+  and check_expected_modtype sig_env env subst expected_modtype actual_modtype =
     let check_expected_sig_item sig_env env sig_map subst = function
       | Sig_value _ | Sig_typext _ | Sig_class _ | Sig_class_type _ -> subst
       | Sig_type (ident, decl, _, _) ->
@@ -3042,7 +3042,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
     let check_expected_sig expected_sig actual_sig =
       let sig_env = Env.add_signature expected_sig sig_env in
       let env = Env.add_signature actual_sig env in
-      let sig_map = Sig_map.add_signature expected_sig sig_map in
+      let sig_map = Sig_map.add_signature expected_sig (Sig_map.empty) in
       let newsubst =
         List.fold_left
           (fun acc item -> check_expected_sig_item sig_env env sig_map acc item)
@@ -3130,7 +3130,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             begin match Sig_map.find_module (Ident.name ident) sig_map with
               | None -> subst
               | Some (sig_ident, sig_decl) ->
-                  check_expected_modtype sig_env env subst sig_map
+                  check_expected_modtype sig_env env subst
                     (Some sig_decl.md_type) (Some decl.Types.md_type);
                   Subst.add_module sig_ident (Pident ident) subst
             end
@@ -3151,7 +3151,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         begin match Sig_map.find_module_type (Ident.name ident) sig_map with
           | None -> subst
           | Some (sig_ident, sig_decl) ->
-              check_expected_modtype sig_env env subst sig_map
+              check_expected_modtype sig_env env subst
                 sig_decl.mtd_type decl.Types.mtd_type;
               Subst.add_modtype sig_ident (Mty_ident (Pident ident)) subst
         end
@@ -4630,7 +4630,10 @@ let report_error ~loc _env = function
         "The inferred module type refers to %a %a, which is unbound here."
         Btype.print_path_kind k path p
   | Incompatible_type_declaration (expected_ident, expected_decl) ->
-      Location.errorf ~loc
+      let expected_error =
+        Location.msg ~loc:expected_decl.type_loc "Expected declaration here"
+      in
+      Location.errorf ~loc ~sub:[expected_error]
         "@[This type declaration is incompatible with the corresponding @ \
         declaration in the signature:@ expected %a.@]" (type_declaration expected_ident) expected_decl
 

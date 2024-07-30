@@ -777,6 +777,10 @@ Line 8, characters 2-14:
       ^^^^^^^^^^^^
 Error: This type declaration is incompatible with the corresponding
        declaration in the signature: expected type 'a t.
+Line 2, characters 2-11:
+2 |   type 'a t
+      ^^^^^^^^^
+  Expected declaration here
 |}]
 
 module M : sig
@@ -805,6 +809,10 @@ Line 11, characters 4-16:
          ^^^^^^^^^^^^
 Error: This type declaration is incompatible with the corresponding
        declaration in the signature: expected type 'a t.
+Line 3, characters 4-13:
+3 |     type 'a t
+        ^^^^^^^^^
+  Expected declaration here
 |}]
 
 module M : sig
@@ -845,6 +853,10 @@ Line 20, characters 10-22:
                ^^^^^^^^^^^^
 Error: This type declaration is incompatible with the corresponding
        declaration in the signature: expected type 'a t.
+Line 6, characters 10-19:
+6 |           type 'a t
+              ^^^^^^^^^
+  Expected declaration here
 |}]
 
 module M : sig
@@ -891,6 +903,10 @@ Line 26, characters 10-23:
                ^^^^^^^^^^^^^
 Error: This type declaration is incompatible with the corresponding
        declaration in the signature: expected type 'a td = (ta, tb) tc.
+Line 9, characters 10-34:
+9 |           type 'a td = (ta, tb) tc
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  Expected declaration here
 |}]
 
 module M : sig
@@ -1045,6 +1061,10 @@ Line 13, characters 4-16:
          ^^^^^^^^^^^^
 Error: This type declaration is incompatible with the corresponding
        declaration in the signature: expected type 'a t.
+Line 3, characters 4-13:
+3 |     type 'a t
+        ^^^^^^^^^
+  Expected declaration here
 |}]
 
 module A = struct
@@ -1148,6 +1168,10 @@ Line 3, characters 4-13:
         ^^^^^^^^^
 Error: This type declaration is incompatible with the corresponding
        declaration in the signature: expected type t.
+Line 11, characters 4-10:
+11 |     type t
+         ^^^^^^
+  Expected declaration here
 |}]
 
 module A = struct
@@ -1407,4 +1431,25 @@ Error: Signature mismatch:
        Modules do not match: sig end is not included in sig type t end
        In module A:
        The type `t' is required but not provided
+|}]
+
+module type S = sig type t end
+
+module M : sig
+  module N : S
+
+  type 'a t
+
+  val foo : N.t -> N.t
+end = struct
+  module N = struct type t end
+
+  type 'a t
+
+  let foo x = x
+end
+
+[%%expect{|
+module type S = sig type t end
+module M : sig module N : S type 'a t val foo : N.t -> N.t end
 |}]
