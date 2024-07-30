@@ -294,7 +294,8 @@ Line 1, characters 31-45:
                                    ^^^^^^^^^^^^^^
 Error: This type signature for x is not a value type.
        The layout of type 'a t_bits32_id is bits32
-         because of the definition of t_bits32_id at line 2, characters 0-35.
+         because it's a fresh unification variable,
+         defaulted to layout bits32.
        But the layout of type 'a t_bits32_id must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}];;

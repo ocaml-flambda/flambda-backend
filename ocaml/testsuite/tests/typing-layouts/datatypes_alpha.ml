@@ -385,7 +385,8 @@ Error: Layout mismatch in final type declaration consistency check.
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
          The layout of 'a is void
-           because of the definition of void_t at line 1, characters 0-23.
+           because it instantiates an unannotated type parameter of t8_6,
+           defaulted to layout void.
          But the layout of 'a must overlap with value
            because it instantiates an unannotated type parameter of t8_5,
            defaulted to layout value.
