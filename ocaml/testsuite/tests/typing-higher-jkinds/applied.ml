@@ -123,3 +123,16 @@ module type M =
     val g : int s r -> int s r
   end
 |}]
+
+type ('a : value => value) t = int 'a
+
+module M : sig
+  type a = int list
+end = struct
+  type a = list t
+end
+
+[%%expect{|
+type ('a : value => value) t = int 'a
+module M : sig type a = int list end
+|}]
