@@ -575,6 +575,7 @@ and ('lbl, 'cstr) type_kind =
 and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
                        runtime_tag: int}    (* The runtime tag *)
         | Extension of Path.t * jkind_l array
+        | Null (* Null pointer *)
 
 (* A mixed product contains a possibly-empty prefix of values followed by a
    non-empty suffix of "flat" elements. Intuitively, a flat element is one that
