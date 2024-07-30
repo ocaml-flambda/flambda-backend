@@ -454,7 +454,9 @@ let check_type
             | Deepsep -> Hyps.poison hyps in
           context ++ check_type hyps ty (compose m m_param) in
         List.fold_left on_param empty (List.combine tys msig)
-    | (Tapp _, _) -> assert false
+    | (Tapp (_, Unapplied), _) -> empty
+    | (Tapp (ty, Applied tys), m) ->
+      List.fold_left (fun context ty -> context ++ check_type (Hyps.poison hyps) ty (compose m Deepsep)) empty (ty :: tys)
   in
   check_type Hyps.empty ty m
 
