@@ -2056,9 +2056,9 @@ let has_layout_any (jkind : t) =
 module Debug_printers = struct
   let rec t ppf (jkind : t) : unit =
     match jkind with
-    | Type ty -> Type.Debug_printers.t ppf ty
+    | Type ty -> Format.fprintf ppf "Type %a" Type.Debug_printers.t ty
     | Arrow { args; result } ->
-      Format.fprintf ppf "{ args = [%a];@ result = %a;@ }"
+      Format.fprintf ppf "Arrow { args = [%a];@ result = %a;@ }"
         (Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf "; ") t)
         args t result
 
