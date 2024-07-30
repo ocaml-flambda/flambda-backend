@@ -313,6 +313,7 @@ type primitive =
   | Pget_header of alloc_mode
   (* Fetching domain-local state *)
   | Pdls_get
+  | Pisnull
 
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.const
@@ -1822,6 +1823,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
          at a level where these primitives are necessary is very likely going
          to be native. *)
       Some alloc_heap
+  | Pisnull -> None
 
 let constant_layout: constant -> layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
@@ -2010,6 +2012,7 @@ let primitive_result_layout (p : primitive) =
   | Pdls_get -> layout_any_value
   | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int
+  | Pisnull -> layout_int
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function

@@ -996,7 +996,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Presume | Preperform | Patomic_exchange | Patomic_cas
       | Patomic_fetch_add | Pdls_get | Patomic_load _
       | Preinterpret_tagged_int63_as_unboxed_int64
-      | Preinterpret_unboxed_int64_as_tagged_int63 ->
+      | Preinterpret_unboxed_int64_as_tagged_int63 | Pisnull ->
         (* Inconsistent with outer match *)
         assert false
     in

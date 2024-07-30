@@ -313,6 +313,7 @@ type primitive =
      if the value is locally allocated *)
   (* Fetching domain-local state *)
   | Pdls_get
+  | Pisnull
 
 (** This is the same as [Primitive.native_repr] but with [Repr_poly]
     compiled away. *)

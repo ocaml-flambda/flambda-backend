@@ -403,6 +403,7 @@ type unary_primitive =
           (by the type system) should always go through caml_obj_tag, which is
           opaque to the compiler. *)
   | Atomic_load of Block_access_field_kind.t
+  | Is_null
 
 (** Whether a comparison is to yield a boolean result, as given by a particular
     comparison operator, or whether it is to behave in the manner of "compare"

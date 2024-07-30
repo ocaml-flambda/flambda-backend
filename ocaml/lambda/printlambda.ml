@@ -816,6 +816,7 @@ let primitive ppf = function
       fprintf ppf "reinterpret_tagged_int63_as_unboxed_int64"
   | Preinterpret_unboxed_int64_as_tagged_int63 ->
       fprintf ppf "reinterpret_unboxed_int64_as_tagged_int63"
+  | Pisnull -> fprintf ppf "isnull"
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -985,6 +986,7 @@ let name_of_primitive = function
       "Preinterpret_tagged_int63_as_unboxed_int64"
   | Preinterpret_unboxed_int64_as_tagged_int63 ->
       "Preinterpret_unboxed_int64_as_tagged_int63"
+  | Pisnull -> "Pisnull"
 
 let zero_alloc_attribute ppf check =
   match check with
