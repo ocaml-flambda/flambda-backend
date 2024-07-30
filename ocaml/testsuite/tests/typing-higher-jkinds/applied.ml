@@ -134,3 +134,16 @@ let f (x : 'a t) = x
 type 'a t
 val f : 'a t -> 'a t = <fun>
 |}]
+
+type ('a : value => value) t = int 'a
+
+module M : sig
+  type a = int list
+end = struct
+  type a = list t
+end
+
+[%%expect{|
+type ('a : value => value) t = int 'a
+module M : sig type a = int list end
+|}]
