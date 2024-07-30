@@ -648,6 +648,9 @@ let has_curry attrs =
   has_attribute
     [Jane_syntax.Arrow_curry.curry_attr_name; "ocaml.curry"; "curry"] attrs
 
+let has_or_null_reexport attrs =
+  has_attribute ["ocaml.or_null_reexport"; "or_null_reexport"] attrs
+
 let tailcall attr =
   let has_nontail = has_attribute ["ocaml.nontail"; "nontail"] attr in
   let tail_attrs = filter_attributes [["ocaml.tail";"tail"], true] attr in

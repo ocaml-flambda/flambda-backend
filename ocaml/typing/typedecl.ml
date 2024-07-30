@@ -138,6 +138,10 @@ type error =
   | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute
   | Zero_alloc_attr_non_function
   | Zero_alloc_attr_bad_user_arity
+  | Invalid_reexport of
+      { definition: Path.t
+      ; expected: Path.t
+      }
 
 open Typedtree
 
@@ -1094,6 +1098,54 @@ let check_constraints env sdecl (_, decl) =
       check_constraints_rec env sty.ptyp_loc visited ty
   end
 
+(* CR layouts v3: this is a hack to allow re-exporting the definition
+   of ['a or_null], including constructors, even if one can't define
+   ['a or_null] "honestly", with tools available to users.
+
+   Remove when we allow users to define their own null constructors.
+*)
+let reexport_special_types env loc dpath decl =
+  let or_null_reexport =
+    Builtin_attributes.has_or_null_reexport decl.type_attributes
+  in
+  match or_null_reexport with
+  | false -> decl
+  | true ->
+    let fail () =
+      raise (Error (loc, Invalid_reexport
+        { definition = dpath; expected = Predef.path_or_null }))
+    in
+    match decl.type_kind, decl.type_manifest with
+    (* We require users to define ['a t = 'a or_null]. By assumption,
+       they can't define the valid type kind, so it must be left abstract.
+       Manifest must be set to [or_null] so typechecking stays correct. *)
+    | Type_abstract _, Some ty ->
+      let param =
+        match get_desc ty with
+        | Tconstr(path, [param], _)
+          when Path.same path Predef.path_or_null -> param
+        | _ -> fail ()
+      in
+      let or_null_decl = Env.find_type Predef.path_or_null env in
+      let type_kind =
+        let open Types in
+        match or_null_decl.type_kind with
+        | Type_variant (cstrs, repr) ->
+          let cstrs = List.map (fun cstr ->
+            let cd_args =
+              (* Annoyingly, we must manually set the variable in [This of 'b]
+                 to be equal to the argument in ['a or_null]. *)
+              match cstr.cd_args with
+              | Cstr_tuple [] -> Cstr_tuple []
+              | Cstr_tuple [arg] -> Cstr_tuple [{arg with ca_type = param}]
+              | Cstr_tuple (_ :: _ :: _) | Cstr_record _ -> assert false
+            in { cstr with cd_args }) cstrs
+          in Type_variant (cstrs, repr)
+        | _ -> assert false
+      in
+      { decl with type_kind }
+    | _, _ -> fail ()
+
 (* Check that [type_jkind] (where we've stored the jkind annotation, if any)
    corresponds to the manifest (e.g., in the case where [type_jkind] is
    immediate, we should check the manifest is immediate). Also, update the
@@ -1155,6 +1207,7 @@ let check_kind_coherence env loc dpath decl =
   | _ -> ()
 
 let check_coherence env loc dpath decl =
+  let decl = reexport_special_types env loc dpath decl in
   check_kind_coherence env loc dpath decl;
   narrow_to_manifest_jkind env loc decl
 
@@ -1602,7 +1655,7 @@ let update_decl_jkind env dpath decl =
     | false -> jkind, false
   in
 
-  let inferred_decl, inferred_jkind = match decl.type_kind with
+  let new_decl, new_jkind = match decl.type_kind with
     | Type_abstract _ -> decl, decl.type_jkind
     | Type_open ->
       let type_jkind = Jkind.Primitive.value ~why:Extensible_variant in
@@ -1621,21 +1674,6 @@ let update_decl_jkind env dpath decl =
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
-  in
-
-  (* If the type manifest jkind is available, we roll back to
-     the previous [decl.type_jkind] from the annotation, delaying
-     computing the final jkind until [check_coherence].
-
-     This is necessary to support types like ['a or_null], which have a
-     non-standard jkind for their [type_kind]. When jkind-from-kind
-     and jkind-from-manifest conflict, we want to pick the one from manifest. *)
-  let new_decl, new_jkind =
-    match decl.type_manifest with
-    | None -> inferred_decl, inferred_jkind
-    | Some _ ->
-      let type_jkind = decl.type_jkind in
-      { inferred_decl with type_jkind }, type_jkind
   in
 
   (* check that the jkind computed from the kind matches the jkind
@@ -3772,6 +3810,12 @@ let report_error ppf = function
   | Zero_alloc_attr_bad_user_arity ->
     fprintf ppf
       "@[Invalid zero_alloc attribute: arity must be greater than 0.@]"
+  | Invalid_reexport {definition; expected} ->
+    fprintf ppf
+      "@[Invalid reexport declaration.\
+         @ Type %s must be defined to be equal to %s\
+         @ with no explicit representation.@]"
+      (Path.name definition) (Path.name expected)
 
 let () =
   Location.register_error_of_exn

@@ -24,9 +24,7 @@
 (* CR layouts: enable ocamlformat for this module when it starts supporting
    jkind annotations. *)
 
-type 'a t : value_or_null = 'a or_null =
-  | Null
-  | This of 'a
+type 'a t : value_or_null = 'a or_null [@@or_null_reexport]
       (** The type of nullable values. Either [Null] or a value [This v].
           ['a or_null] has a non-standard layout [value_or_null],
           preventing the type constructor from being nested. *)
