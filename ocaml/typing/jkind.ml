@@ -971,7 +971,7 @@ module Type = struct
   let sort_of_jkind l =
     match get l with
     | Const { layout = Sort s; _ } -> Sort.of_const s
-    | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.sort_of_jkind"
+    | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.Type.sort_of_jkind"
     | Var v -> Sort.of_var v
 
   let get_layout jk : Layout.Const.t option =
@@ -1799,8 +1799,6 @@ let get (t : t) : Desc.t =
   match t with
   | Type ty -> Type ty
   | Arrow { args; result } -> Desc.Arrow { args; result }
-
-let sort_of_jkind = Type.sort_of_jkind
 
 (*********************************)
 (* pretty printing *)
