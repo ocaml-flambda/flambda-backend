@@ -43,13 +43,6 @@ module type M = sig
   val f : ('a : value => value). unit -> unit 'a
 end
 [%%expect {|
-unit <= value
-'a <= value
-'a <= immediate
-'a <= value
-'b <= immediate
-
-unit <= value
 module type M = sig val f : ('a : value => value). unit -> unit 'a end
 |}]
 
