@@ -34,10 +34,22 @@ type ('a, 'm : immediate => immediate) t = 'a 'm
 type ('a : immediate, 'm : immediate => immediate) t = 'a 'm
 |}]
 
+type ('a, 'b, 'c : (value, immediate) => value) t = ('a, 'b) 'c
+[%%expect {|
+type ('a, 'b : immediate, 'c : (value, immediate) => value) t = ('a, 'b) 'c
+|}]
+
 module type M = sig
   val f : ('a : value => value). unit -> unit 'a
 end
 [%%expect {|
+unit <= value
+'a <= value
+'a <= immediate
+'a <= value
+'b <= immediate
+
+unit <= value
 module type M = sig val f : ('a : value => value). unit -> unit 'a end
 |}]
 
