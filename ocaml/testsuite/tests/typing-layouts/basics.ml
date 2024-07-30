@@ -1068,7 +1068,8 @@ Error: The type constraints are not consistent.
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because it's the type of an object field.
+         because it instantiates an unannotated type parameter of t,
+         defaulted to layout value.
 |}];;
 
 (*******************************************************************)
@@ -1142,7 +1143,7 @@ end
 Line 6, characters 24-26:
 6 |       val virtual baz : 'a t
                             ^^
-Error: This type ('a : float64) should be an instance of type ('a0 : value)
+Error: This type ('a : value) should be an instance of type ('b : float64)
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64
@@ -1161,7 +1162,7 @@ end;;
 Line 6, characters 26-28:
 6 |       method void_id (a : 'a t) : 'a t = a
                               ^^
-Error: This type ('a : float64) should be an instance of type ('a0 : value)
+Error: This type ('a : value) should be an instance of type ('b : float64)
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64
@@ -1181,7 +1182,7 @@ end;;
 Line 5, characters 4-6:
 5 |     'a t ->
         ^^
-Error: This type ('a : float64) should be an instance of type ('a0 : value)
+Error: This type ('a : value) should be an instance of type ('b : float64)
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64
@@ -1777,7 +1778,7 @@ let f #poly_var = "hello"
 Line 1, characters 44-46:
 1 | type ('a : float64) poly_var = [`A of int * 'a | `B]
                                                 ^^
-Error: This type ('a : value) should be an instance of type ('a0 : float64)
+Error: Tuple element types must have layout value.
        The layout of 'a is float64
          because of the annotation on 'a in the declaration of the type
                                       poly_var.
