@@ -1180,3 +1180,37 @@ module M :
       end
   end
 |}]
+
+module M : sig
+  module A : sig type t end
+  module type S = sig type t = A.t -> A.t end
+end = struct
+  module A = struct end
+  module type S = _
+end
+
+(* CR selee: Currently our boundness check relies on the compatibility check.
+   As this branch doesn't have the compatibility check, it doesn't error properly
+   in this case. This should error properly before inclusion checking *)
+[%%expect {|
+Lines 4-7, characters 6-3:
+4 | ......struct
+5 |   module A = struct end
+6 |   module type S = _
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           module A : sig end
+           module type S = sig type t = A.t -> A.t end
+         end
+       is not included in
+         sig
+           module A : sig type t end
+           module type S = sig type t = A.t -> A.t end
+         end
+       In module A:
+       Modules do not match: sig end is not included in sig type t end
+       In module A:
+       The type `t' is required but not provided
+|}]

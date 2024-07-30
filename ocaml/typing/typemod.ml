@@ -1674,7 +1674,8 @@ let check_no_unbound_paths env loc sig_map str_map mty =
             in
             check_error path in_sig in_str;
         | Pdot _ | Papply _ | Pextra_ty _ ->
-            let rec check p = match p with
+            let rec check p =
+              match p with
               | Pident id ->
                   let name = Ident.name id in
                   let in_sig = Sig_map.has_module name sig_map in
@@ -1689,10 +1690,10 @@ let check_no_unbound_paths env loc sig_map str_map mty =
   match mty with
   | None -> ()
   | Some mty ->
-    begin
-      iterator.it_module_type iterator mty;
-      Btype.(unmark_iterators.it_module_type unmark_iterators) mty
-    end
+      begin
+        iterator.it_module_type iterator mty;
+        Btype.(unmark_iterators.it_module_type unmark_iterators) mty
+      end
 
 let rec transl_modtype env smty =
   Builtin_attributes.warning_scope smty.pmty_attributes
@@ -2045,8 +2046,7 @@ and transl_signature env (sg : Parsetree.signature) =
         sig_items,
         newenv
     | Psig_modtype pmtd ->
-        let newenv, mtd, decl =
-          transl_modtype_decl ~context:In_signature env pmtd in
+        let newenv, mtd, decl = transl_modtype_decl ~context:In_signature env pmtd in
         Signature_names.check_modtype names pmtd.pmtd_loc mtd.mtd_id;
         mksig (Tsig_modtype mtd) env loc,
         [Sig_modtype (mtd.mtd_id, decl, Exported)],
@@ -2168,8 +2168,7 @@ and transl_modtype_decl_aux ~context env
     | Pmtd_underscore ->
       begin match context with
         | In_signature -> raise (Error (pmtd_loc, env, Underscore_not_allowed_in_signature))
-        | In_structure None ->
-            raise (Error (pmtd_loc, env, Cannot_infer_module_type))
+        | In_structure None -> raise (Error (pmtd_loc, env, Cannot_infer_module_type))
         | In_structure Some ({ expected = mtd; sig_map; str_map }) ->
             check_no_unbound_paths env pmtd_loc sig_map str_map mtd.Types.mtd_type;
             Tmtd_underscore, mtd.Types.mtd_type
