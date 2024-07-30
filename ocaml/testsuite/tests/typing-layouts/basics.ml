@@ -1068,7 +1068,8 @@ Error: The type constraints are not consistent.
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because it's the type of an object field.
+         because it instantiates an unannotated type parameter of t,
+         defaulted to layout value.
 |}];;
 
 (*******************************************************************)

@@ -884,7 +884,8 @@ Error: The type constraints are not consistent.
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because it's the type of an object field.
+         because it instantiates an unannotated type parameter of t,
+         defaulted to layout value.
 |}];;
 
 (*******************************************************************)
