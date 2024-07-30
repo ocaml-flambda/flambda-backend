@@ -1955,7 +1955,7 @@ let rec equate_or_equal ~allow_mutation (t : t) (t' : t) =
     let arg_eqs = List.map2 (equate_or_equal ~allow_mutation) args1 args2 in
     equate_or_equal ~allow_mutation result1 result2
     && List.for_all (fun x -> x) arg_eqs
-  | _ -> false
+  | Type _, Arrow _ | Arrow _, Type _ -> false
 
 let equate = equate_or_equal ~allow_mutation:true
 
@@ -1994,7 +1994,8 @@ let rec intersection_or_error ~reason (t : t) (t' : t) : (t, _) result =
     arrow_connective_or_error ~on_args:(union_or_error ~reason)
       ~on_result:(intersection_or_error ~reason)
       a a'
-  | _ -> Error (Violation.of_ (No_intersection (t, t')))
+  | Type _, Arrow _ | Arrow _, Type _ ->
+    Error (Violation.of_ (No_intersection (t, t')))
 
 and union_or_error ~reason (t : t) (t' : t) : (t, _) result =
   match t, t' with
@@ -2010,7 +2011,8 @@ and union_or_error ~reason (t : t) (t' : t) : (t, _) result =
     arrow_connective_or_error
       ~on_args:(intersection_or_error ~reason)
       ~on_result:(union_or_error ~reason) a a'
-  | _ -> Error (Violation.of_ (No_union (t, t')))
+  | Type _, Arrow _ | Arrow _, Type _ ->
+    Error (Violation.of_ (No_union (t, t')))
 
 let has_intersection t t' =
   Result.is_ok
@@ -2028,7 +2030,7 @@ let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
     else
       Misc.Le_result.combine_list
         (check_sub result1 result2 :: List.map2 check_sub args2 args1)
-  | _ -> Misc.Le_result.Not_le
+  | Type _, Arrow _ | Arrow _, Type _ -> Misc.Le_result.Not_le
 
 let sub t t' = Misc.Le_result.is_le (check_sub t t')
 
