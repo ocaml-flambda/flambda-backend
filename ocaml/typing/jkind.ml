@@ -1851,10 +1851,7 @@ module Violation = struct
       | Creation (Missing_cmi p) -> Some p
       | Creation (Any_creation (Missing_cmi p)) -> Some p
       | _ -> None)
-    | Arrow { args; result } ->
-      List.map any_missing_cmi (result :: args)
-      |> List.find_opt Option.is_some
-      |> Option.join
+    | Arrow { args; result } -> List.find_map any_missing_cmi (result :: args)
 
   let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
@@ -1944,9 +1941,8 @@ let rec equate_or_equal ~allow_mutation (t : t) (t' : t) =
   | Type ty, Type ty' -> Type.equate_or_equal ~allow_mutation ty ty'
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
-    let arg_eqs = List.map2 (equate_or_equal ~allow_mutation) args1 args2 in
     equate_or_equal ~allow_mutation result1 result2
-    && List.for_all (fun x -> x) arg_eqs
+    && List.for_all2 (equate_or_equal ~allow_mutation) args1 args2
   | Type _, Arrow _ | Arrow _, Type _ -> false
 
 let equate = equate_or_equal ~allow_mutation:true
@@ -2017,27 +2013,30 @@ let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
   | Type ty, Type ty' -> Type.check_sub ty ty'
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
-    if List.length args1 <> List.length args2
-    then Misc.Le_result.Not_le
-    else
-      Misc.Le_result.combine_list
-        (check_sub result1 result2 :: List.map2 check_sub args2 args1)
+    Misc.Le_result.combine
+      (check_sub result1 result2)
+      (check_sub_list args2 args1)
   | Type _, Arrow _ | Arrow _, Type _ -> Misc.Le_result.Not_le
+
+and check_sub_list ts ts' =
+  if List.length ts <> List.length ts'
+  then Misc.Le_result.Not_le
+  else Misc.Le_result.combine_list (List.map2 check_sub ts ts')
 
 let sub t t' = Misc.Le_result.is_le (check_sub t t')
 
 let sub_or_error t t' =
   if sub t t' then Ok () else Error (Violation.of_ (Not_a_subjkind (t, t')))
 
-let sub_with_history sub super =
-  match check_sub sub super with
-  | Less | Equal -> (
-    match (sub, super : t * t) with
+let sub_with_history (t : t) (t' : t) =
+  if sub t t'
+  then
+    match t, t' with
     | Type ty, Type ty' ->
       Ok (Type { ty with history = Type.combine_histories Subjkind ty ty' } : t)
     (* FIXME jbachurski: Is there a sensible way to combine histories here? *)
-    | _ -> Ok sub)
-  | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
+    | _ -> Ok t
+  else Error (Violation.of_ (Not_a_subjkind (t, t')))
 
 (* This doesn't do any mutation because mutating a sort variable can't make it
    any, and modal upper bounds are constant. *)
