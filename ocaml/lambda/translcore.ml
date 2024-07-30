@@ -524,15 +524,15 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | [x] -> x
         | _ -> assert false
       end else begin match cstr.cstr_tag, cstr.cstr_repr with
-      | Null, _ -> Misc.fatal_error "[Null] constructors not implemented yet"
-      | Ordinary _, Variant_with_null ->
-        Misc.fatal_error "[Variant_with_null] not implemented yet"
+      | Null, Variant_with_null -> Lconst Const_null
+      | Null, (Variant_boxed _ | Variant_unboxed | Variant_extensible) ->
+        assert false
       | Ordinary {runtime_tag}, _ when cstr.cstr_constant ->
           assert (args_with_sorts = []);
           (* CR layouts v5: This could have void args, but for now we've ruled
              that out by checking that the sort list is empty *)
           Lconst(const_int runtime_tag)
-      | Ordinary _, (Variant_unboxed) ->
+      | Ordinary _, (Variant_unboxed | Variant_with_null) ->
           (match ll with [v] -> v | _ -> assert false)
       | Ordinary {runtime_tag}, Variant_boxed _ ->
           let constant =
