@@ -1764,13 +1764,10 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
     user_raise ~loc:decl.ptype_loc
       (Multiple_jkinds { from_annotation; from_attribute })
 
-let of_type_decl_default' ~of_type_decl ~context ~default
-    (decl : Parsetree.type_declaration) =
+let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
   match of_type_decl ~context decl with
   | Some (t, const, attrs) -> t, Some const, attrs
   | None -> default, None, decl.ptype_attributes
-
-let of_type_decl_default = of_type_decl_default' ~of_type_decl
 
 let[@inline never] to_type_jkind (t : t) =
   match t with
