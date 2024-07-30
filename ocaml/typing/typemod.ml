@@ -159,18 +159,14 @@ module Sig_map = struct
     in
     List.fold_left add_item map sg
 
-  let find_value name map = String.Map.find_opt name map.values
   let find_type name map = String.Map.find_opt name map.types
   let find_module name map = String.Map.find_opt name map.modules
   let find_module_type name map = String.Map.find_opt name map.module_types
-  let find_class name map = String.Map.find_opt name map.classes
   let find_class_type name map = String.Map.find_opt name map.class_types
 
-  let has_value name map = Option.is_some (find_value name map)
   let has_type name map = Option.is_some (find_type name map)
   let has_module name map = Option.is_some (find_module name map)
   let has_module_type name map = Option.is_some (find_module_type name map)
-  let has_class name map = Option.is_some (find_class name map)
   let has_class_type name map = Option.is_some (find_class_type name map)
 end
 
@@ -1635,6 +1631,18 @@ let check_no_unbound_paths env loc sig_map str_map mty =
     if in_sig && (not in_str) then
       raise (Error (loc, env, Unbound_path_in_inferred_type (path_kind, path)))
   in
+  let rec check_heads initial_kind initial_path path =
+    match path with
+    | Pident id ->
+        let name = Ident.name id in
+        let in_sig = Sig_map.has_module name sig_map in
+        let in_str = Sig_map.has_module name str_map in
+        check_error initial_kind initial_path in_sig in_str
+    | Pdot (p, _) | Pextra_ty (p, _) -> check_heads initial_kind initial_path p
+    | Papply (p1, p2) ->
+        check_heads initial_kind initial_path p1;
+        check_heads initial_kind initial_path p2
+  in
   let iterator =
     { Btype.type_iterators with
       Btype.it_path = (fun path_kind path ->
@@ -1644,8 +1652,7 @@ let check_no_unbound_paths env loc sig_map str_map mty =
             let (in_sig, in_str) =
               begin match path_kind with
                 | Path_value ->
-                    Sig_map.has_value name sig_map,
-                    Sig_map.has_value name str_map
+                    Misc.fatal_error "Module type contains reference to a value"
                 | Path_type ->
                     Sig_map.has_type name sig_map,
                     Sig_map.has_type name str_map
@@ -1656,8 +1663,7 @@ let check_no_unbound_paths env loc sig_map str_map mty =
                     Sig_map.has_module_type name sig_map,
                     Sig_map.has_module_type name str_map
                 | Path_class ->
-                    Sig_map.has_class name sig_map,
-                    Sig_map.has_class name str_map
+                    Misc.fatal_error "Module type contains reference to a class"
                 | Path_classtype ->
                     Sig_map.has_class_type name sig_map,
                     Sig_map.has_class_type name str_map
@@ -1666,18 +1672,10 @@ let check_no_unbound_paths env loc sig_map str_map mty =
               end
             in
             check_error path_kind path in_sig in_str;
-        | Pdot _ | Papply _ | Pextra_ty _ ->
-            let rec check p =
-              match p with
-              | Pident id ->
-                  let name = Ident.name id in
-                  let in_sig = Sig_map.has_module name sig_map in
-                  let in_str = Sig_map.has_module name str_map in
-                  check_error path_kind path in_sig in_str
-              | Pdot (p, _) | Pextra_ty (p, _) -> check p
-              | Papply (p1, p2) -> check p1; check p2
-            in
-            check path
+        | Pdot (p, _) | Pextra_ty (p, _) -> check_heads path_kind path p
+        | Papply (p1, p2) ->
+            check_heads path_kind path p1;
+            check_heads path_kind path p2;
       );}
   in
   match mty with
