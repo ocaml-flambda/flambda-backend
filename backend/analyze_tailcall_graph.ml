@@ -27,6 +27,30 @@
 module String = Misc.Stdlib.String
 module Int = Numbers.Int
 
+module Hashset = struct
+  module type S = sig
+    type elt
+    type t
+
+    val create : int -> t
+    val add : t -> elt -> unit
+    val remove : t -> elt -> unit
+    val mem : t -> elt -> bool
+    val iter : t -> f:(elt -> unit) -> unit
+  end
+
+  module Make (T : Hashtbl.S) : S with type elt = T.key = struct
+    type elt = T.key
+    type t = unit T.t
+
+    let create n = T.create n
+    let add t k = T.replace t k ()
+    let remove t k = T.remove t k
+    let mem t k = T.mem t k
+    let iter t ~f = T.iter (fun e () -> f e) t
+  end
+end
+
 module Graph : sig
   module Vertex : sig
     type t
@@ -38,6 +62,7 @@ module Graph : sig
     val to_dot_label : t -> string
 
     module Tbl : Hashtbl.S with type key = t
+    module Hashset : Hashset.S with type elt = t
   end
 
   module Edge : sig
@@ -65,13 +90,14 @@ module Graph : sig
       }
 
     module Tbl : Hashtbl.S with type key = t
+    module Hashset : Hashset.S with type elt = t
   end
 
   type t
 
   val create : unit -> t
   val reset : t -> unit
-  val successors : t -> Vertex.t -> unit Edge.Tbl.t
+  val successors : t -> Vertex.t -> Edge.Hashset.t
   val find_or_add_vertex : t -> fn_name:string -> Vertex.t
 
   val add_edge
@@ -128,6 +154,8 @@ end = struct
     module Tbl = Hashtbl.Make (struct
         include T
       end)
+
+    module Hashset = Hashset.Make (Tbl)
   end
 
   module Edge = struct
@@ -167,15 +195,17 @@ end = struct
     module Tbl = Hashtbl.Make (struct
         include T
       end)
+
+    module Hashset = Hashset.Make (Tbl)
   end
 
   type t =
     { vertex_by_name : Vertex.t String.Tbl.t
-    ; adjacencies : unit Edge.Tbl.t Vertex.Tbl.t
+    ; adjacencies : Edge.Hashset.t Vertex.Tbl.t
     }
 
   let init_unknown_edges t =
-    Vertex.Tbl.replace t.adjacencies Vertex.unknown (Edge.Tbl.create 100)
+    Vertex.Tbl.replace t.adjacencies Vertex.unknown (Edge.Hashset.create 100)
   ;;
 
   let create () =
@@ -192,7 +222,7 @@ end = struct
     init_unknown_edges t
   ;;
 
-  let successors t (v : Vertex.t) : unit Edge.Tbl.t = Vertex.Tbl.find t.adjacencies v
+  let successors t (v : Vertex.t) : Edge.Hashset.t = Vertex.Tbl.find t.adjacencies v
 
   let find_or_add_vertex t ~(fn_name : string) : Vertex.t =
     let vertex =
@@ -206,9 +236,9 @@ end = struct
         let edge_from_unknown : Edge.t =
           { from = unknown; to_ = vertex; label = Old_tail_edge }
         in
-        Edge.Tbl.replace (successors t unknown) edge_from_unknown ();
+        Edge.Hashset.add (successors t unknown) edge_from_unknown;
         (* Initialize vertex's adjacency set *)
-        let edges_from_vertex = Edge.Tbl.create 10 in
+        let edges_from_vertex = Edge.Hashset.create 10 in
         Vertex.Tbl.replace t.adjacencies vertex edges_from_vertex;
         vertex
       | Some vertex -> vertex
@@ -281,7 +311,7 @@ end = struct
       ()
     | Known_fn _ ->
       let edges = Vertex.Tbl.find t.adjacencies from in
-      Edge.Tbl.replace edges edge ()
+      Edge.Hashset.add edges edge
   ;;
 
   let replace ~c ~with_ str = String.split_on_char c str |> String.concat with_
@@ -335,7 +365,7 @@ end = struct
     Vertex.Tbl.iter
       (fun vtx edges ->
         print_vertex_line ppf vtx;
-        Edge.Tbl.iter (fun e () -> print_edge_line ppf e) edges;
+        Edge.Hashset.iter edges ~f:(fun e -> print_edge_line ppf e);
         ())
       t.adjacencies;
     Format.fprintf ppf "}\n\n"
