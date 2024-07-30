@@ -107,15 +107,6 @@ type error =
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
 
-type modtype_decl_context =
-  | In_signature
-  (** We are checking a signature. *)
-  | In_structure of modtype_declaration option
-  (** We are checking a struct, with a given expected signature (used for inferring
-      module types when we see a [module type S = _]). The expected signature would have
-      been gone through substitution from the elements in the signature to the elements
-      in the struct seen so far.*)
-
 (** Map of items in a signature (similar to an [Env.t] after [Env.add_signature]), but
     only indexed by the item's name as a string. This avoids us having to iterate through
     an [expected_sig] to find the declaration we are looking for in [type_str_item]. *)
@@ -168,10 +159,11 @@ module Sig_map = struct
     in
     List.fold_left add_item map sg
 
+  let find_value name map = String.Map.find_opt name map.values
   let find_type name map = String.Map.find_opt name map.types
   let find_module name map = String.Map.find_opt name map.modules
   let find_module_type name map = String.Map.find_opt name map.module_types
-
+  let find_class name map = String.Map.find_opt name map.classes
   let find_class_type name map = String.Map.find_opt name map.class_types
 
   let has_value name map = Option.is_some (find_value name map)
@@ -193,8 +185,9 @@ type modtype_decl_context =
   (** We are checking a signature. *)
   | In_structure of modtype_decl_expected option
   (** We are checking a struct, with a given expected signature (used for inferring
-      module types when we see a [module type S = _]). [sig_map] contains all the names
-      in the signature, and [str_map] contains all the names seen in the struct so far. *)
+      module types when we see a [module type S = _]). The expected signature would have
+      been gone through substitution from the elements in the signature to the elements
+      in the struct seen so far.*)
 
 open Typedtree
 
