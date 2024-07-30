@@ -114,6 +114,7 @@ type type_mismatch =
   | Variant_mismatch of variant_change list
   | Unboxed_representation of position * attributes
   | Extensible_representation of position
+  | With_null_representation of position
   | Jkind of Jkind.Violation.t
 
 val value_descriptions:

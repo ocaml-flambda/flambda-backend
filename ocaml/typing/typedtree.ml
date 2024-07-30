@@ -1005,6 +1005,10 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
           let sorts =
             match cstr.cstr_repr with
             | Variant_unboxed -> [ sort ]
+            (* CR layouts v3: this hardcodes ['a or_null]. Fix when we allow
+               users to write their own null constructors. *)
+            | Variant_with_null when cstr.cstr_constant -> []
+            | Variant_with_null -> [ Jkind.Sort.value ]
             | Variant_boxed _ | Variant_extensible ->
               Array.to_list (Array.map Jkind.sort_of_jkind
                                           cstr.cstr_arg_jkinds)

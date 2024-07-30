@@ -1867,8 +1867,8 @@ let tree_of_type_decl id decl =
     | Type_variant (cstrs, rep) ->
         let unboxed =
           match rep with
-          | Variant_unboxed -> true
-          | Variant_boxed _ | Variant_extensible -> false
+          | Variant_unboxed  | Variant_with_null -> true
+          | Variant_boxed _ | Variant_extensible-> false
         in
         tree_of_manifest (Otyp_sum (List.map tree_of_constructor_in_decl cstrs)),
         decl.type_private,

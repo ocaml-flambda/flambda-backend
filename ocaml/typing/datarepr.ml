@@ -111,6 +111,16 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
     | Variant_extensible -> assert false
     | Variant_boxed x -> x
     | Variant_unboxed -> [| Constructor_uniform_value, [| decl.type_jkind |] |]
+    | Variant_with_null ->
+      (* CR layouts v3: this hardcodes ['a or_null]. Fix when we allow
+         users to write their own null constructors. *)
+      let arg_jkind = Jkind.Primitive.value ~why:(Type_argument {
+        parent_path = ty_path;
+        position = 1;
+        arity = 1})
+      in
+      [| Constructor_uniform_value, [| |]
+       ; Constructor_uniform_value, [| arg_jkind |] |]
   in
   let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in
   let num_consts = ref 0 and num_nonconsts = ref 0 in

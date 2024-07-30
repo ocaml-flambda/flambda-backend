@@ -442,6 +442,7 @@ let variant_representation ~prepare_jkind loc = function
          (fun (cstr, jkinds) -> cstr, Array.map (prepare_jkind loc) jkinds)
          cstrs_and_jkinds)
   | Variant_extensible -> Variant_extensible
+  | Variant_with_null -> Variant_with_null
 
 (* called only when additional_action is [Prepare_for_saving] *)
 let record_representation ~prepare_jkind loc = function

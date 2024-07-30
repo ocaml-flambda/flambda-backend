@@ -310,6 +310,7 @@ and variant_representation =
   | Variant_unboxed
   | Variant_boxed of (constructor_representation * jkind array) array
   | Variant_extensible
+  | Variant_with_null
 
 and constructor_representation =
   | Constructor_uniform_value
@@ -644,7 +645,8 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
         cstrs_and_jkinds2
   | Variant_extensible, Variant_extensible ->
       true
-  | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
+  | Variant_with_null, Variant_with_null -> true
+  | (Variant_unboxed | Variant_boxed _ | Variant_extensible | Variant_with_null), _ ->
       false
 
 let equal_record_representation r1 r2 = match r1, r2 with
@@ -679,16 +681,16 @@ let may_equal_constr c1 c2 =
 let find_unboxed_type decl =
   match decl.type_kind with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
-  | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, Variant_unboxed))
-  | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)
+  | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, (Variant_unboxed | Variant_with_null)))
+  | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], (Variant_unboxed | Variant_with_null))
   | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
-                  Variant_unboxed) ->
+                  (Variant_unboxed | Variant_with_null)) ->
     Some arg
   | Type_record (_, ( Record_inlined _ | Record_unboxed
                     | Record_boxed _ | Record_float | Record_ufloat
                     | Record_mixed _))
   | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
-                     | Variant_extensible ))
+                     | Variant_extensible | Variant_with_null))
   | Type_abstract _ | Type_open ->
     None
 
