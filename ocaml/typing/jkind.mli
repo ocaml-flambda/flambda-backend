@@ -259,6 +259,10 @@ module Type : sig
   (******************************)
   (* elimination and defaulting *)
 
+  (** Returns the sort corresponding to the jkind.  Call only on representable
+    jkinds - raises on Any. *)
+  val sort_of_jkind : t -> sort
+
   module Desc : sig
     (** The description of a jkind, used as a return type from [get]. *)
     type t =
@@ -433,10 +437,6 @@ val default_to_value_and_get : t -> Const.t
 
 (** [default_to_value t] is [ignore (default_to_value_and_get t)] *)
 val default_to_value : t -> unit
-
-(** Returns the sort corresponding to the jkind.  Call only on representable
-    jkinds - raises on Any. *)
-val sort_of_jkind : Type.t -> Type.sort
 
 (** Extract the [const] from a [Jkind.Type.t], looking through unified
     sort variables. Returns [Var] if the final, non-variable jkind has not
