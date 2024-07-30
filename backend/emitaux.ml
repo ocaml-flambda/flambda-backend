@@ -634,7 +634,17 @@ let add_stack_checks_if_needed (fundecl : Linear.fundecl) ~stack_offset
       preproc_stack_check ~fun_body:fundecl.fun_body ~frame_size ~trap_size
     in
     assert (max_frame_size_with_calls >= max_frame_size);
+    (* CR xclerc for xclerc: should probably be passed as a parameter. *)
+    let upper_threshold = 4096 in
+    let include_callee_checks_if_under_threshold () =
+      if max_frame_size >= upper_threshold
+         || max_frame_size_with_calls <= upper_threshold
+      then Some (max_frame_size_with_calls, callees)
+      else Some (max_frame_size, String.Set.empty)
+    in
     let insert_stack_check : (int * String.Set.t) option =
+      (* CR xclerc for xclerc: update the comments below to take into account
+         the upper threshold. *)
       match
         ( max_frame_size >= stack_threshold_size,
           max_frame_size_with_calls >= stack_threshold_size,
@@ -646,13 +656,13 @@ let add_stack_checks_if_needed (fundecl : Linear.fundecl) ~stack_offset
            [callees], so lifting out other checks is clearly beneficial. *)
         (* CR mshinwell/xclerc: we could use [max_frame_size] if the first
            boolean is [true] and the second [false]. *)
-        Some (max_frame_size_with_calls, callees)
+        include_callee_checks_if_under_threshold ()
       | false, true, false, _ ->
         (* The stack check threshold will only be crossed if we include all of
            the stack checks from the [callees]. We adopt the heuristic that in
            this case it is beneficial to lift out the checks from the
            [callees]. *)
-        Some (max_frame_size_with_calls, callees)
+        include_callee_checks_if_under_threshold ()
       | false, false, false, true ->
         (* In this case the threshold will not be crossed even if we lift out
            all of the stack checks from the [callees]. Furthermore, since
