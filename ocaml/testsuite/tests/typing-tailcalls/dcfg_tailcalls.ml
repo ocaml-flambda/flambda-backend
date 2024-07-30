@@ -57,6 +57,33 @@ let [@loop never] rec nontail_optimized_to_tail n =
   else ()
 
 
+let [@inline never] same_caller_multiple_applications n = n * 5
+let calls_same_caller_multiple_applications n =
+  match n mod 7 with
+  | 0 -> same_caller_multiple_applications (n + 0)        [@tail]
+  | 1 -> same_caller_multiple_applications (n + 1)        [@tail hint]
+  | 2 -> same_caller_multiple_applications (n + 2)        [@nontail]
+  | 3 -> same_caller_multiple_applications (n + 3)        (* default *)
+  | _ -> (same_caller_multiple_applications (n + 4)) + 1  (* not in tail position *)
+
+
+(* (less-tco) When converting to cmm (backend/cmm_helpers.ml) there are
+   functions that generate synthetic functions to e.g. put values in a
+   tuple. These show up as (possibly tail) calls to unknown functions.
+   However, these functions are leaves, and we should mark them as such
+   to make the analysis more precise. *)
+let [@inline never] sum_uncurried (a, b, c) = a + b + c
+let [@inline never] sum a b c = a + b + c
+
+(* CR less-tco: Fix this test so that it shows our impl. is not precise. *)
+(* let calls_tuplify_in_tail_position a = *)
+(*   sum_uncurried (a, a, a) *)
+
+let calls_closure_in_tail_position n =
+  let [@inline never] sum_closure k = sum k k in
+  sum_closure n n
+
+
 (* Test helper recursion *)
 let rec collatz n k =
   let[@inline never] next n k =

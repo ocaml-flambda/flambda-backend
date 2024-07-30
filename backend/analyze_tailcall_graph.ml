@@ -66,27 +66,29 @@ module Graph : sig
   end
 
   module Edge : sig
-    (* For the purpose of analyzing whether TCO inference might break existing
+    module Label : sig
+      (* For the purpose of analyzing whether TCO inference might break existing
        code (by causing a stack overflow) we are interested in whether there
-       are any cycles with Plain_tail_edges and Inferred_nontail_edges.
+       are any cycles with Explicit_tail_edges and Inferred_nontail_edges.
        To find these cycles, we plan on finding SCC's for the subgraph
        consisting of just edges with those labels. *)
-    type label =
-      (* "Plain" edges are edges that are (very likely) not changing their
-         TCO behavior as a result of adding TCO inference. I.e., before TCO
-         inference, they were tail (nontail) if and only if after TCO
-         inference they are tail (nontail). *)
-      | Plain_tail_edge
-      | Plain_nontail_edge
-      (* "Inferred" edges are edges that might possibly change their TCO
+      type t =
+        (* "Explicit" here really means "not inferred." "Explicit" edges are edges
+         that are (very likely) not changing their TCO behavior as a result of
+         adding TCO inference. I.e., before TCO inference, they were tail
+         (nontail) if and only if after TCO inference they are tail (nontail). *)
+        | Explicit_tail_edge
+        | Explicit_nontail_edge
+        (* "Inferred" edges are edges that might possibly change their TCO
          behavior as a result of adding TCO inference. *)
-      | Inferred_tail_edge
-      | Inferred_nontail_edge
+        | Inferred_tail_edge
+        | Inferred_nontail_edge
+    end
 
     type t =
       { from : Vertex.t
+      ; label : Label.t
       ; to_ : Vertex.t
-      ; label : label
       }
 
     module Tbl : Hashtbl.S with type key = t
@@ -151,51 +153,54 @@ end = struct
       | Known_fn { name; _ } -> name
     ;;
 
-    module Tbl = Hashtbl.Make (struct
-        include T
-      end)
-
+    module Tbl = Hashtbl.Make (T)
     module Hashset = Hashset.Make (Tbl)
   end
 
   module Edge = struct
     module T = struct
-      type label =
-        | Plain_tail_edge
-        | Plain_nontail_edge
-        | Inferred_tail_edge
-        | Inferred_nontail_edge
+      module Label = struct
+        type t =
+          | Explicit_tail_edge
+          | Explicit_nontail_edge
+          | Inferred_tail_edge
+          | Inferred_nontail_edge
+
+        let equal t1 t2 =
+          match t1, t2 with
+          | Explicit_tail_edge, Explicit_tail_edge -> true
+          | Explicit_nontail_edge, Explicit_nontail_edge -> true
+          | Inferred_tail_edge, Inferred_tail_edge -> true
+          | Inferred_nontail_edge, Inferred_nontail_edge -> true
+          | _ -> false
+        ;;
+
+        let hash t =
+          match t with
+          | Explicit_tail_edge -> 0
+          | Explicit_nontail_edge -> 1
+          | Inferred_tail_edge -> 2
+          | Inferred_nontail_edge -> 3
+        ;;
+      end
 
       type t =
         { from : Vertex.t
+        ; label : Label.t
         ; to_ : Vertex.t
-        ; label : label
         }
 
-      let label_equal l1 l2 =
-        match l1, l2 with
-        | Plain_tail_edge, Plain_tail_edge -> true
-        | Plain_nontail_edge, Plain_nontail_edge -> true
-        | Inferred_tail_edge, Inferred_tail_edge -> true
-        | Inferred_nontail_edge, Inferred_nontail_edge -> true
-        | _ -> false
-      ;;
-
       let equal e1 e2 =
-        label_equal e1.label e2.label
-        && Vertex.equal e1.from e2.from
+        Vertex.equal e1.from e2.from
+        && Label.equal e1.label e2.label
         && Vertex.equal e1.to_ e2.to_
       ;;
 
-      let hash e1 = Vertex.hash e1.from + Vertex.hash e1.to_
+      let hash e1 = Vertex.hash e1.from + Label.hash e1.label + Vertex.hash e1.to_
     end
 
     include T
-
-    module Tbl = Hashtbl.Make (struct
-        include T
-      end)
-
+    module Tbl = Hashtbl.Make (T)
     module Hashset = Hashset.Make (Tbl)
   end
 
@@ -234,7 +239,7 @@ end = struct
         (* Add edge from unknown *)
         let unknown = Vertex.unknown in
         let edge_from_unknown : Edge.t =
-          { from = unknown; to_ = vertex; label = Plain_tail_edge }
+          { from = unknown; to_ = vertex; label = Explicit_tail_edge }
         in
         Edge.Hashset.add (successors t unknown) edge_from_unknown;
         (* Initialize vertex's adjacency set *)
@@ -291,16 +296,16 @@ end = struct
       | Not_tail_position Default_tail, `Tail -> `Became_tail_after_optimizations
       | Not_tail_position _, `Nontail -> `Not_in_tail_position
     in
-    let label : Edge.label =
+    let label : Edge.Label.t =
       match label with
-      | `Unknown_tail -> Plain_tail_edge
-      | `Unknown_nontail -> Plain_nontail_edge
-      | `Not_in_tail_position -> Plain_nontail_edge
-      | `Requested_nontail -> Plain_nontail_edge
-      | `Requested_tail -> Plain_tail_edge
+      | `Unknown_tail -> Explicit_tail_edge
+      | `Unknown_nontail -> Explicit_nontail_edge
+      | `Not_in_tail_position -> Explicit_nontail_edge
+      | `Requested_nontail -> Explicit_nontail_edge
+      | `Requested_tail -> Explicit_tail_edge
       | `Became_tail_after_optimizations ->
         (* This is a conservative approximation *)
-        Plain_tail_edge
+        Explicit_tail_edge
       | `Inferred_tail -> Inferred_tail_edge
       | `Inferred_nontail -> Inferred_nontail_edge
     in
@@ -313,8 +318,6 @@ end = struct
       let edges = Vertex.Tbl.find t.adjacencies from in
       Edge.Hashset.add edges edge
   ;;
-
-  let replace ~c ~with_ str = String.split_on_char c str |> String.concat with_
 
   let print_vertex_line ppf kv =
     let color = if Vertex.is_unknown kv then "red" else "black" in
@@ -335,8 +338,8 @@ end = struct
     else (
       let color =
         match label with
-        | Plain_tail_edge -> "black"
-        | Plain_nontail_edge -> "lightgrey"
+        | Explicit_tail_edge -> "black"
+        | Explicit_nontail_edge -> "lightgrey"
         | Inferred_tail_edge -> "blue"
         | Inferred_nontail_edge -> "red"
       in
@@ -345,8 +348,8 @@ end = struct
           if Vertex.is_unknown from then "dashed" else "solid"
         in
         match label with
-        | Plain_tail_edge -> maybe_unknown_style ()
-        | Plain_nontail_edge -> maybe_unknown_style ()
+        | Explicit_tail_edge -> maybe_unknown_style ()
+        | Explicit_nontail_edge -> maybe_unknown_style ()
         | Inferred_tail_edge -> "solid"
         | Inferred_nontail_edge -> "solid"
       in
