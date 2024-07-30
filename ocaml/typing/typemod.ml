@@ -102,18 +102,10 @@ type error =
   | Submode_failed of Mode.Value.error
   | Underscore_not_allowed_in_signature
   | Cannot_infer_module_type
+  | Unbound_path_in_inferred_type of Btype.path_kind * Path.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
-
-type modtype_decl_context =
-  | In_signature
-  (** We are checking a signature. *)
-  | In_structure of modtype_declaration option
-  (** We are checking a struct, with a given expected signature (used for inferring
-      module types when we see a [module type S = _]). The expected signature would have
-      been gone through substitution from the elements in the signature to the elements
-      in the struct seen so far.*)
 
 (** Map of items in a signature (similar to an [Env.t] after [Env.add_signature]), but
     only indexed by the item's name as a string. This avoids us having to iterate through
@@ -168,13 +160,30 @@ module Sig_map = struct
     List.fold_left add_item map sg
 
   let find_type name map = String.Map.find_opt name map.types
-
   let find_module name map = String.Map.find_opt name map.modules
-
   let find_module_type name map = String.Map.find_opt name map.module_types
-
   let find_class_type name map = String.Map.find_opt name map.class_types
+
+  let has_type name map = Option.is_some (find_type name map)
+  let has_module name map = Option.is_some (find_module name map)
+  let has_module_type name map = Option.is_some (find_module_type name map)
+  let has_class_type name map = Option.is_some (find_class_type name map)
 end
+
+type modtype_decl_expected = {
+  expected: modtype_declaration;
+  sig_map: Sig_map.t;
+  str_map: Sig_map.t;
+}
+
+type modtype_decl_context =
+  | In_signature
+  (** We are checking a signature. *)
+  | In_structure of modtype_decl_expected option
+  (** We are checking a struct, with a given expected signature (used for inferring
+      module types when we see a [module type S = _]). The expected signature would have
+      been gone through substitution from the elements in the signature to the elements
+      in the struct seen so far.*)
 
 open Typedtree
 
@@ -487,7 +496,7 @@ let check_usage_of_path_of_substituted_item paths ~loc ~lid env super =
       | sig_item ->
          super.Btype.it_signature_item self sig_item
       );
-      Btype.it_path = (fun referenced_path ->
+      Btype.it_path = (fun _path_type referenced_path ->
         iter_path_apply referenced_path ~f:(fun funct arg ->
           if List.exists
                (fun path -> path_is_strict_prefix path ~prefix:arg)
@@ -1605,6 +1614,78 @@ let mksig desc env loc =
 
 (* let signature sg = List.map (fun item -> item.sig_type) sg *)
 
+(** When inferring a module type upon seeing a [Pmtd_underscore], we first apply a
+    substitution from the paths appearing in the signature to the paths appearing in
+    the structure. If after the substitution we encounter a [Path.t] not recognised by
+    the env of the struct, this means the module type being inferred has a symbol not yet
+    included in the struct, and so we should error out. This avoids having confusing
+    error messages later.
+
+    We do this check by checking if the head name (e.g [A] in [A.t]) doesn't appear
+    in the current structure but does appear in the signature. If it does appear in the
+    current structure, then all is well; if it doesn't appear in the signature, then it
+    was declared somewhere outside so it can't be unbound. This way, we avoid expensive
+    [Env.t] queries.*)
+let check_no_unbound_paths env loc sig_map str_map mty =
+  let check_error path_kind path in_sig in_str =
+    if in_sig && (not in_str) then
+      raise (Error (loc, env, Unbound_path_in_inferred_type (path_kind, path)))
+  in
+  let rec check_heads initial_kind initial_path path =
+    match path with
+    | Pident id ->
+        let name = Ident.name id in
+        let in_sig = Sig_map.has_module name sig_map in
+        let in_str = Sig_map.has_module name str_map in
+        check_error initial_kind initial_path in_sig in_str
+    | Pdot (p, _) | Pextra_ty (p, _) -> check_heads initial_kind initial_path p
+    | Papply (p1, p2) ->
+        check_heads initial_kind initial_path p1;
+        check_heads initial_kind initial_path p2
+  in
+  let iterator =
+    { Btype.type_iterators with
+      Btype.it_path = (fun path_kind path ->
+        match path with
+        | Pident id ->
+            let name = Ident.name id in
+            let (in_sig, in_str) =
+              begin match path_kind with
+                | Path_value ->
+                    Misc.fatal_error "Module type contains reference to a value"
+                | Path_type ->
+                    Sig_map.has_type name sig_map,
+                    Sig_map.has_type name str_map
+                | Path_module ->
+                    Sig_map.has_module name sig_map,
+                    Sig_map.has_module name str_map
+                | Path_modtype ->
+                    Sig_map.has_module_type name sig_map,
+                    Sig_map.has_module_type name str_map
+                | Path_class ->
+                    Misc.fatal_error "Module type contains reference to a class"
+                | Path_classtype ->
+                    Sig_map.has_class_type name sig_map,
+                    Sig_map.has_class_type name str_map
+                | Path_class_lhs | Path_classtype_lhs ->
+                    (true, true)
+              end
+            in
+            check_error path_kind path in_sig in_str;
+        | Pdot (p, _) | Pextra_ty (p, _) -> check_heads path_kind path p
+        | Papply (p1, p2) ->
+            check_heads path_kind path p1;
+            check_heads path_kind path p2;
+      );}
+  in
+  match mty with
+  | None -> ()
+  | Some mty ->
+      begin
+        iterator.it_module_type iterator mty;
+        Btype.(unmark_iterators.it_module_type unmark_iterators) mty
+      end
+
 let rec transl_modtype env smty =
   Builtin_attributes.warning_scope smty.pmty_attributes
     (fun () -> transl_modtype_aux env smty)
@@ -2066,7 +2147,7 @@ and transl_signature env (sg : Parsetree.signature) =
 
 and transl_modtype_decl ~context env pmtd =
   Builtin_attributes.warning_scope pmtd.pmtd_attributes
-    (fun () -> transl_modtype_decl_aux env pmtd ~context)
+    (fun () -> transl_modtype_decl_aux ~context env pmtd)
 
 and transl_modtype_decl_aux ~context env
     {pmtd_name; pmtd_type; pmtd_attributes; pmtd_loc} =
@@ -2079,7 +2160,9 @@ and transl_modtype_decl_aux ~context env
       begin match context with
         | In_signature -> raise (Error (pmtd_loc, env, Underscore_not_allowed_in_signature))
         | In_structure None -> raise (Error (pmtd_loc, env, Cannot_infer_module_type))
-        | In_structure (Some mtd) -> Tmtd_underscore, mtd.Types.mtd_type
+        | In_structure Some ({ expected = mtd; sig_map; str_map }) ->
+            check_no_unbound_paths env pmtd_loc sig_map str_map mtd.Types.mtd_type;
+            Tmtd_underscore, mtd.Types.mtd_type
       end
   in
   let decl =
@@ -2998,7 +3081,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
     List.fold_left add_item subst actual_sig
   in
 
-  let type_str_include ~functor_ ~loc env subst shape_map sincl sig_acc =
+  let type_str_include ~functor_ ~loc env subst str_map shape_map sincl sig_acc =
     let smodl = sincl.pincl_mod in
     let modl, modl_shape =
       Builtin_attributes.warning_scope sincl.pincl_attributes
@@ -3034,33 +3117,38 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
     sg,
     shape,
     new_env,
-    add_expected_include_to_subst expected_sig sg subst
+    add_expected_include_to_subst expected_sig sg subst,
+    Sig_map.add_signature sg str_map
   in
 
-  let type_str_include_functor ~loc env subst shape_map ifincl sig_acc =
+  let type_str_include_functor ~loc env subst str_map shape_map ifincl sig_acc =
     match (ifincl : Jane_syntax.Include_functor.structure_item) with
     | Ifstr_include_functor incl ->
-        type_str_include ~functor_:true ~loc env subst shape_map incl sig_acc
+        type_str_include ~functor_:true ~loc env subst str_map shape_map incl sig_acc
   in
 
-  let type_str_item_jst ~loc env subst shape_map jitem sig_acc =
+  let type_str_item_jst ~loc env subst str_map shape_map jitem sig_acc =
     match (jitem : Jane_syntax.Structure_item.t) with
     | Jstr_include_functor ifincl ->
-        type_str_include_functor ~loc env subst shape_map ifincl sig_acc
+        type_str_include_functor ~loc env subst str_map shape_map ifincl sig_acc
     | Jstr_layout (Lstr_kind_abbrev _) ->
         Misc.fatal_error "kind_abbrev not supported!"
   in
 
   let type_str_item
-        env subst shape_map ({pstr_loc = loc; pstr_desc = desc} as item) sig_acc =
+        env subst str_map shape_map ({pstr_loc = loc; pstr_desc = desc} as item) sig_acc =
     (* [subst] is a running [Subst] object. For every type, module and module type we
        have seen in the [struct] so far also present in [expected_sig], [subst] contains
        a mapping from its Ident.t to its corresponding definition within the struct.
-       It is used for module type inferrence with the underscore syntax. *)
+       It is used for module type inferrence with the underscore syntax.
+
+       [str_map] is a running [Sig_map.t] object, containing every name we've seen
+        in the [struct] so far. It is used for boundness checks before filling in a
+        [Pstr_underscore]. *)
     let md_mode = Mode.Value.legacy in
     match Jane_syntax.Structure_item.of_ast item with
     | Some jitem ->
-        type_str_item_jst ~loc env subst shape_map jitem sig_acc
+        type_str_item_jst ~loc env subst str_map shape_map jitem sig_acc
     | None ->
     match desc with
     | Pstr_eval (sexpr, attrs) ->
@@ -3072,7 +3160,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             (fun () -> Typecore.type_representable_expression
                          ~why:Structure_item_expression env sexpr)
         in
-        Tstr_eval (expr, sort, attrs), [], shape_map, env, subst
+        Tstr_eval (expr, sort, attrs), [], shape_map, env, subst, str_map
     | Pstr_value(rec_flag, sdefs) ->
         let force_toplevel =
           (* Values bound by '_' still escape in the toplevel, because
@@ -3087,9 +3175,9 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         in
         (* Note: Env.find_value does not trigger the value_used event. Values
            will be marked as being used during the signature inclusion test. *)
-        let items, shape_map =
+        let items, shape_map, str_map =
           List.fold_left
-            (fun (acc, shape_map) (id, id_info, zero_alloc) ->
+            (fun (acc, shape_map, str_map) (id, id_info, zero_alloc) ->
               List.iter
                 (fun (loc, _mode, sort) ->
                    (* CR layouts v5: this jkind check has the effect of
@@ -3126,16 +3214,18 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
                   val_modalities = modalities }
               in
               Sig_value(id, vd, Exported) :: acc,
-              Shape.Map.add_value shape_map id vd.val_uid
+              Shape.Map.add_value shape_map id vd.val_uid,
+              Sig_map.add_value id vd str_map
             )
-            ([], shape_map)
+            ([], shape_map, str_map)
             (let_bound_idents_with_modes_sorts_and_checks defs)
         in
         Tstr_value(rec_flag, defs),
         List.rev items,
         shape_map,
         newenv,
-        subst
+        subst,
+        str_map
     | Pstr_primitive sdesc ->
         let (desc, newenv) = Typedecl.transl_value_decl env loc sdesc in
         Signature_names.check_value names desc.val_loc desc.val_id;
@@ -3143,7 +3233,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         [Sig_value(desc.val_id, desc.val_val, Exported)],
         Shape.Map.add_value shape_map desc.val_id desc.val_val.val_uid,
         newenv,
-        subst
+        subst,
+        Sig_map.add_value desc.val_id desc.val_val str_map
     | Pstr_type (rec_flag, sdecls) ->
         let (decls, newenv, shapes) =
           Typedecl.transl_type_decl env rec_flag sdecls
@@ -3162,6 +3253,10 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           decls
           shapes
         in
+        let str_map = List.fold_left
+          (fun map { typ_id; typ_type; _ } -> Sig_map.add_type typ_id typ_type map)
+          str_map decls
+        in
         let idents =
           List.map (fun { typ_id; _ } -> typ_id) decls
         in
@@ -3169,7 +3264,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         items,
         shape_map,
         enrich_type_decls anchor decls env newenv,
-        add_expected_type_to_subst expected_sig idents subst
+        add_expected_type_to_subst expected_sig idents subst,
+        str_map
     | Pstr_typext styext ->
         let (tyext, newenv, shapes) =
           Typedecl.transl_type_extension true env loc styext
@@ -3186,7 +3282,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
            constructors,
          shape_map,
          newenv,
-         subst)
+         subst,
+         str_map)
     | Pstr_exception sext ->
         let (ext, newenv, shape) = Typedecl.transl_type_exception env sext in
         let constructor = ext.tyexn_constructor in
@@ -3201,7 +3298,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           constructor.ext_id
           shape,
         newenv,
-        subst
+        subst,
+        str_map
     | Pstr_module {pmb_name = name; pmb_expr = smodl; pmb_attributes = attrs;
                    pmb_loc;
                   } ->
@@ -3263,13 +3361,18 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           | Some id -> Shape.Map.add_module shape_map id md_shape
           | None -> shape_map
         in
+        let str_map = match id with
+          | Some id -> Sig_map.add_module id md str_map
+          | None -> str_map
+        in
         Tstr_module {mb_id=id; mb_name=name; mb_uid = md.md_uid;
                      mb_expr=modl; mb_presence=pres; mb_attributes=attrs;
                      mb_loc=pmb_loc; },
         sg,
         shape_map,
         newenv,
-        add_expected_module_to_subst expected_sig id subst
+        add_expected_module_to_subst expected_sig id subst,
+        str_map
     | Pstr_recmodule sbind ->
         let sbind =
           List.map
@@ -3312,11 +3415,11 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
                in
                (id, name, mty, modl, mty', attrs, loc, shape, uid))
             decls sbind in
-        let newenv = (* allow aliasing recursive modules from outside *)
+        let (newenv, str_map) = (* allow aliasing recursive modules from outside *)
           List.fold_left
-            (fun env (id_opt, _, mty, _, _, attrs, loc, shape, uid) ->
+            (fun (env, map) (id_opt, _, mty, _, _, attrs, loc, shape, uid) ->
                match id_opt with
-               | None -> env
+               | None -> env, map
                | Some id ->
                    let mdecl =
                      {
@@ -3327,9 +3430,10 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
                      }
                    in
                    Env.add_module_declaration ~check:true ~shape
-                     id Mp_present mdecl env
+                     id Mp_present mdecl env,
+                   Sig_map.add_module id mdecl map
             )
-            env bindings1
+            (env, str_map) bindings1
         in
         let bindings2 =
           check_recmodule_inclusion newenv bindings1 in
@@ -3357,17 +3461,22 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
            mbs [],
         shape_map,
         newenv,
-        add_expected_rec_modules_to_subst expected_sig idents subst
+        add_expected_rec_modules_to_subst expected_sig idents subst,
+        str_map
     | Pstr_modtype pmtd ->
         let context =
           match expected_sig with
           | None -> In_structure None
           | Some expected_sig ->
-              begin match Sig_map.find_module_type pmtd.pmtd_name.txt expected_sig with
-                | None -> In_structure None
-                | Some (_, decl) ->
-                    In_structure (Some (Subst.modtype_declaration Keep subst decl))
-              end
+            begin match Sig_map.find_module_type pmtd.pmtd_name.txt expected_sig with
+              | None -> In_structure None
+              | Some (_, decl) ->
+                  In_structure (Some ({
+                    expected = Subst.modtype_declaration Keep subst decl;
+                    sig_map = expected_sig;
+                    str_map;
+                  }))
+            end
         in
         (* check that it is non-abstract *)
         let newenv, mtd, decl = transl_modtype_decl env pmtd ~context in
@@ -3378,13 +3487,14 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         [Sig_modtype (id, decl, Exported)],
         map,
         newenv,
-        add_expected_modtype_to_subst expected_sig id subst
+        add_expected_modtype_to_subst expected_sig id subst,
+        Sig_map.add_module_type id decl str_map
     | Pstr_open sod ->
         let toplevel = Option.is_some toplevel in
         let (od, sg, newenv) =
           type_open_decl ~toplevel funct_body names env sod
         in
-        Tstr_open od, sg, shape_map, newenv, subst
+        Tstr_open od, sg, shape_map, newenv, subst, str_map
     | Pstr_class cl ->
         let (classes, new_env) = Typeclass.class_declarations env cl in
         let shape_map = List.fold_left (fun acc cls ->
@@ -3399,6 +3509,13 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             |> map Shape.Map.add_class_type cls.cls_ty_id uid
             |> map Shape.Map.add_type cls.cls_obj_id (Shape.leaf uid)
           ) shape_map classes
+        in
+        let str_map = List.fold_left (fun map cls ->
+            let open Typeclass in
+            Sig_map.add_class cls.cls_id cls.cls_decl map
+            |> Sig_map.add_class_type cls.cls_ty_id cls.cls_ty_decl
+            |> Sig_map.add_type cls.cls_obj_id cls.cls_obj_abbr
+          ) str_map classes
         in
         let clty_ids = List.map (fun cl -> cl.Typeclass.cls_ty_id) classes in
         let ty_ids = List.map (fun cl -> cl.Typeclass.cls_obj_id) classes in
@@ -3417,7 +3534,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
              classes []),
         shape_map,
         new_env,
-        add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst
+        add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst,
+        str_map
     | Pstr_class_type cl ->
         let (classes, new_env) = Typeclass.class_type_declarations env cl in
         let shape_map = List.fold_left (fun acc decl ->
@@ -3430,6 +3548,12 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             map Shape.Map.add_class_type decl.clsty_ty_id uid acc
             |> map Shape.Map.add_type decl.clsty_obj_id (Shape.leaf uid)
           ) shape_map classes
+        in
+        let str_map = List.fold_left (fun map decl ->
+            let open Typeclass in
+            Sig_map.add_class_type decl.clsty_ty_id decl.clsty_ty_decl map
+            |> Sig_map.add_type decl.clsty_obj_id decl.clsty_obj_abbr
+          ) str_map classes
         in
         let clty_ids = List.map (fun cl -> cl.Typeclass.clsty_ty_id) classes in
         let ty_ids = List.map (fun cl -> cl.Typeclass.clsty_obj_id) classes in
@@ -3449,38 +3573,39 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
              classes []),
         shape_map,
         new_env,
-        add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst
+        add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst,
+        str_map
     | Pstr_include sincl ->
-        type_str_include ~functor_:false ~loc env subst shape_map sincl sig_acc
+        type_str_include ~functor_:false ~loc env subst str_map shape_map sincl sig_acc
     | Pstr_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
     | Pstr_attribute attr ->
         Builtin_attributes.parse_standard_implementation_attributes attr;
         Builtin_attributes.mark_alert_used attr;
-        Tstr_attribute attr, [], shape_map, env, subst
+        Tstr_attribute attr, [], shape_map, env, subst, str_map
   in
   let toplevel_sig = Option.value toplevel ~default:[] in
-  let rec type_struct env subst shape_map sstr str_acc sig_acc
+  let rec type_struct env subst str_map shape_map sstr str_acc sig_acc
             sig_acc_include_functor =
     match sstr with
     | [] ->
-      (List.rev str_acc, List.rev sig_acc, shape_map, env, subst)
+      (List.rev str_acc, List.rev sig_acc, shape_map, env, subst, str_map)
     | pstr :: srem ->
         let previous_saved_types = Cmt_format.get_saved_types () in
-        let desc, sg, shape_map, new_env, new_subst =
-          type_str_item env subst shape_map pstr sig_acc_include_functor
+        let desc, sg, shape_map, new_env, new_subst, str_map =
+          type_str_item env subst str_map shape_map pstr sig_acc_include_functor
         in
         let str = { str_desc = desc; str_loc = pstr.pstr_loc; str_env = env } in
         Cmt_format.set_saved_types (Cmt_format.Partial_structure_item str
                                     :: previous_saved_types);
-        type_struct new_env new_subst shape_map srem (str :: str_acc)
+        type_struct new_env new_subst str_map shape_map srem (str :: str_acc)
           (List.rev_append sg sig_acc)
           (List.rev_append sg sig_acc_include_functor)
   in
   let previous_saved_types = Cmt_format.get_saved_types () in
   let run () =
-    let (items, sg, shape_map, final_env, _final_subst) =
-      type_struct env Subst.identity Shape.Map.empty sstr [] [] toplevel_sig
+    let (items, sg, shape_map, final_env, _final_subst, _str_map) =
+      type_struct env Subst.identity Sig_map.empty Shape.Map.empty sstr [] [] toplevel_sig
     in
     let str = { str_items = items; str_type = sg; str_final_env = final_env } in
     Cmt_format.set_saved_types
@@ -4378,6 +4503,10 @@ let report_error ~loc _env = function
   | Cannot_infer_module_type ->
     Location.errorf ~loc
       "Cannot infer module type without a corresponding definition."
+  | Unbound_path_in_inferred_type (k, p) ->
+      Location.errorf ~loc
+        "The inferred module type refers to %a %a, which is unbound here."
+        Btype.print_path_kind k path p
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

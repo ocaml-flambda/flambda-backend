@@ -700,7 +700,7 @@ let collect_arg_paths mty =
   and bindings = ref Ident.empty in
   (* let rt = Ident.create "Root" in
      and prefix = ref (Path.Pident rt) in *)
-  let it_path p = paths := Path.Set.union (get_arg_paths p) !paths
+  let it_path _type p = paths := Path.Set.union (get_arg_paths p) !paths
   and it_signature_item it si =
     type_iterators.it_signature_item it si;
     match si with

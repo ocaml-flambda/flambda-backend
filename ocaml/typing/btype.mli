@@ -127,6 +127,19 @@ val set_static_row_name: type_declaration -> Path.t -> unit
 
 (**** Utilities for type traversal ****)
 
+(* Kinds in paths *)
+type path_kind =
+  | Path_value
+  | Path_type
+  | Path_module
+  | Path_modtype
+  | Path_class
+  | Path_class_lhs
+  | Path_classtype
+  | Path_classtype_lhs
+
+val print_path_kind: Format.formatter -> path_kind -> unit
+
 val iter_type_expr: (type_expr -> unit) -> type_expr -> unit
         (* Iteration on types *)
 val fold_type_expr: ('a -> type_expr -> 'a) -> 'a -> type_expr -> 'a
@@ -159,7 +172,7 @@ type type_iterators =
     it_type_kind: type_iterators -> type_decl_kind -> unit;
     it_do_type_expr: type_iterators -> type_expr -> unit;
     it_type_expr: type_iterators -> type_expr -> unit;
-    it_path: Path.t -> unit; }
+    it_path: path_kind -> Path.t -> unit; }
 val type_iterators: type_iterators
         (* Iteration on arbitrary type information.
            [it_type_expr] calls [mark_node] to avoid loops. *)

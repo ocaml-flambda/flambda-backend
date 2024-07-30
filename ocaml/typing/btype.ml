@@ -239,6 +239,27 @@ let set_static_row_name decl path =
                   (*  Utilities for type traversal  *)
                   (**********************************)
 
+(* Kinds of paths *)
+type path_kind =
+  | Path_value
+  | Path_type
+  | Path_module
+  | Path_modtype
+  | Path_class
+  | Path_class_lhs
+  | Path_classtype
+  | Path_classtype_lhs
+
+let print_path_kind ppf = function
+  | Path_value -> Format.fprintf ppf "value"
+  | Path_type -> Format.fprintf ppf "type"
+  | Path_module -> Format.fprintf ppf "module"
+  | Path_modtype -> Format.fprintf ppf "module type"
+  | Path_class -> Format.fprintf ppf "class"
+  | Path_class_lhs -> Format.fprintf ppf "class"
+  | Path_classtype -> Format.fprintf ppf "class type"
+  | Path_classtype_lhs -> Format.fprintf ppf "class type"
+
 let fold_row f init row =
   let result =
     List.fold_left
@@ -315,7 +336,7 @@ type type_iterators =
     it_type_kind: type_iterators -> type_decl_kind -> unit;
     it_do_type_expr: type_iterators -> type_expr -> unit;
     it_type_expr: type_iterators -> type_expr -> unit;
-    it_path: Path.t -> unit; }
+    it_path: path_kind -> Path.t -> unit; }
 
 let iter_type_expr_cstr_args f = function
   | Cstr_tuple tl -> List.iter (fun ca -> f ca.ca_type) tl
@@ -359,7 +380,7 @@ let type_iterators =
     Option.iter (it.it_type_expr it) td.type_manifest;
     it.it_type_kind it td.type_kind
   and it_extension_constructor it td =
-    it.it_path td.ext_type_path;
+    it.it_path Path_type td.ext_type_path;
     List.iter (it.it_type_expr it) td.ext_type_params;
     iter_type_expr_cstr_args (it.it_type_expr it) td.ext_args;
     Option.iter (it.it_type_expr it) td.ext_ret_type
@@ -371,27 +392,27 @@ let type_iterators =
     List.iter (it.it_type_expr it) cd.cty_params;
     it.it_class_type it cd.cty_type;
     Option.iter (it.it_type_expr it) cd.cty_new;
-    it.it_path cd.cty_path
+    it.it_path Path_class_lhs cd.cty_path
   and it_class_type_declaration it ctd =
     List.iter (it.it_type_expr it) ctd.clty_params;
     it.it_class_type it ctd.clty_type;
-    it.it_path ctd.clty_path
+    it.it_path Path_classtype_lhs ctd.clty_path
   and it_functor_param it = function
     | Unit -> ()
     | Named (_, mt) -> it.it_module_type it mt
   and it_module_type it = function
-      Mty_ident p
-    | Mty_alias p -> it.it_path p
+      Mty_ident p -> it.it_path Path_modtype p
+    | Mty_alias p -> it.it_path Path_module p
     | Mty_signature sg -> it.it_signature it sg
     | Mty_functor (p, mt) ->
         it.it_functor_param it p;
         it.it_module_type it mt
     | Mty_strengthen (mty, p, _) ->
         it.it_module_type it mty;
-        it.it_path p
+        it.it_path Path_module p
   and it_class_type it = function
       Cty_constr (p, tyl, cty) ->
-        it.it_path p;
+        it.it_path Path_classtype p;
         List.iter (it.it_type_expr it) tyl;
         it.it_class_type it cty
     | Cty_signature cs ->
@@ -408,13 +429,14 @@ let type_iterators =
     iter_type_expr (it.it_type_expr it) ty;
     match get_desc ty with
       Tconstr (p, _, _)
-    | Tobject (_, {contents=Some (p, _)})
+    | Tobject (_, {contents=Some (p, _)}) ->
+        it.it_path Path_type p
     | Tpackage (p, _) ->
-        it.it_path p
+        it.it_path Path_module p
     | Tvariant row ->
-        Option.iter (fun (p,_) -> it.it_path p) (row_name row)
+        Option.iter (fun (p,_) -> it.it_path Path_type p) (row_name row)
     | _ -> ()
-  and it_path _p = ()
+  and it_path _f _p = ()
   in
   { it_path; it_type_expr = it_do_type_expr; it_do_type_expr;
     it_type_kind; it_class_type; it_functor_param; it_module_type;

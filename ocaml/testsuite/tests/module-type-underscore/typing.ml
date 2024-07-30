@@ -698,35 +698,36 @@ end = struct
   module type A = _
 end
 
-(* CR selee: Give a better error message later *)
 [%%expect{|
-Lines 9-13, characters 6-3:
- 9 | ......struct
+Line 10, characters 2-19:
 10 |   module type B = _
-11 |
-12 |   module type A = _
-13 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig
-           module type B = A
-           module type A = sig type t val foo : t -> t end
-         end
-       is not included in
-         sig
-           module type A = sig type t val foo : t -> t end
-           module type B = A
-         end
-       Module type declarations do not match:
-         module type B = A/2
-       does not match
-         module type B = A/1
-       At position module type B = <here>
-       Module types do not match: A/2 is not equal to A/1
-
-       Line 12, characters 2-19:
-         Definition of module type A/1
+       ^^^^^^^^^^^^^^^^^
+Error: The inferred module type refers to module type A, which is unbound here.
 |}]
+
+module M : sig
+  module A : sig
+    type t
+  end
+
+  module type B = sig
+    val f : A.t -> A.t
+  end
+end = struct
+  module type B = _
+
+  module A = struct
+    type t = int
+  end
+end
+
+[%%expect {|
+Line 10, characters 2-19:
+10 |   module type B = _
+       ^^^^^^^^^^^^^^^^^
+Error: The inferred module type refers to type A.t, which is unbound here.
+|}]
+
 
 module M : sig
   type 'a t
@@ -795,15 +796,35 @@ end = struct
   module type A = _
 end
 
-(* CR selee: This needs to be fixed *)
 [%%expect {|
-Line 14, characters 12-17:
-14 |     let _ = X.foo 42
-                 ^^^^^
-Error: The module X is abstract, it cannot have any components
+Line 11, characters 2-19:
+11 |   module type B = _
+       ^^^^^^^^^^^^^^^^^
+Error: The inferred module type refers to module type A, which is unbound here.
 |}]
 
-(* CR selee: Surely this error message should be improved? *)
+module M : sig
+  module type A = sig
+    type 'a t
+
+    val foo : int t -> int t
+  end
+
+  module type B = A -> A
+
+end = struct
+  module type B = _
+
+  module type A = _
+end
+
+[%%expect {|
+Line 11, characters 2-19:
+11 |   module type B = _
+       ^^^^^^^^^^^^^^^^^
+Error: The inferred module type refers to module type A, which is unbound here.
+|}]
+
 module M : sig
   type 'a t
 
@@ -822,17 +843,11 @@ end = struct
   type t = string
 end
 
-(* CR selee: This needs to be fixed *)
 [%%expect {|
-Line 13, characters 18-22:
-13 |     let _ = X.foo "hi"
-                       ^^^^
-Error: Function arguments and returns must be representable.
-       The layout of int t is any, because
-         the .cmi file for t is missing.
-       But the layout of int t must be representable, because
-         we must know concretely how to pass a function argument.
-       No .cmi file found containing t.
+Line 10, characters 2-19:
+10 |   module type S = _
+       ^^^^^^^^^^^^^^^^^
+Error: The inferred module type refers to type t, which is unbound here.
 |}]
 
 module M : sig
@@ -1164,4 +1179,38 @@ module M :
         val of_seq : 'a Seq.t -> 'a list
       end
   end
+|}]
+
+module M : sig
+  module A : sig type t end
+  module type S = sig type t = A.t -> A.t end
+end = struct
+  module A = struct end
+  module type S = _
+end
+
+(* CR selee: Currently our boundness check relies on the compatibility check.
+   As this branch doesn't have the compatibility check, it doesn't error properly
+   in this case. This should error properly before inclusion checking *)
+[%%expect {|
+Lines 4-7, characters 6-3:
+4 | ......struct
+5 |   module A = struct end
+6 |   module type S = _
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           module A : sig end
+           module type S = sig type t = A.t -> A.t end
+         end
+       is not included in
+         sig
+           module A : sig type t end
+           module type S = sig type t = A.t -> A.t end
+         end
+       In module A:
+       Modules do not match: sig end is not included in sig type t end
+       In module A:
+       The type `t' is required but not provided
 |}]
