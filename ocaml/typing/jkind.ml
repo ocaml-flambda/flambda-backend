@@ -176,8 +176,9 @@ module Type = struct
 
     let union t1 t2 =
       match t1, t2 with
-      (* jbachurski: As discussed with lwhite, [if Sort.equate s1 s2 then t1 else Any]
-         is not sound here and a change to the representation of sorts would be
+      (* TODO jbachurski: As discussed with lwhite,
+         [if Sort.equate s1 s2 then t1 else Any] is not sound
+         and a change to the representation of sorts would be
          required to compute this accurately. Fail for now. *)
       | Sort _, Sort _ -> assert false
       | _, Any -> Any
@@ -1642,7 +1643,7 @@ module Const = struct
     | Abbreviation const ->
       Type (Type.Const.of_user_written_abbreviation ~jkind const)
     | Mod (jkind, modes) ->
-      (* jbachurski: We coerce here - in the future, the syntax should not permit
+      (* TODO jbachurski: We coerce here - in the future, the syntax should not permit
          mod on arrows. Such expressions are not parsed currently. *)
       let jkind =
         to_type_jkind (of_user_written_annotation_unchecked_level jkind)
@@ -1693,11 +1694,6 @@ let rec to_const (t : t) : Const.t option =
       Some
         (Arrow { args = List.map Option.get args; result = Option.get result })
     else None
-
-(* of_const is defined above for use in Primitive *)
-
-(* The following are placeholders, which assume general higher-order kinds are
-   not present in annotations and declarations. *)
 
 let get_required_layouts_level context (const : Const.t) =
   match const with
