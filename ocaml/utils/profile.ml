@@ -396,7 +396,7 @@ let output_to_csv ppf columns =
   Format.fprintf ppf "%s@\n" (to_csv ("pass name" :: string_columns));
   let output_row_f = output_rows
     ~output_row:(fun ~prefix ~cell_strings ~name ->
-      Format.fprintf ppf "%s%s@\n" prefix (to_csv (name :: cell_strings)))
+      Format.fprintf ppf "%s@\n" (to_csv ((prefix ^ name) :: cell_strings)))
     ~new_prefix:(fun ~prev ~curr_name -> Format.sprintf "%s%s/" prev curr_name)
     ~always_output_ancestors:false
     ~pad_empty:false
