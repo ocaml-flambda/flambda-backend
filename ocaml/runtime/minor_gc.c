@@ -130,7 +130,7 @@ extern int caml_debug_is_minor(value val) {
 }
 
 extern int caml_debug_is_major(value val) {
-  return Is_block(val) && !Is_young(val);
+  return val != Val_null && Is_block(val) && !Is_young(val);
 }
 #endif
 
@@ -259,7 +259,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
   tag_t tag;
 
   tail_call:
-  if (!(Is_block(v) && Is_young(v))) {
+  if (v == Val_null || !(Is_block(v) && Is_young(v))) {
     /* not a minor block */
     *p = v;
     return;
@@ -382,7 +382,7 @@ static void oldify_one (void* st_v, value v, volatile value *p)
     f = Forward_val (v);
     ft = 0;
 
-    if (Is_block (f)) {
+    if (f != Val_null && Is_block (f)) {
       ft = Tag_val (get_header_val(f) == 0 ? Field(f, 0) : f);
     }
 
@@ -658,7 +658,7 @@ void caml_empty_minor_heap_promote(caml_domain_state* domain,
   for (r = self_minor_tables->major_ref.base;
        r < self_minor_tables->major_ref.ptr; r++) {
     value vnew = **r;
-    CAMLassert (!Is_block(vnew)
+    CAMLassert ((vnew == Val_null || !Is_block(vnew))
             || (get_header_val(vnew) != 0 && !Is_young(vnew)));
   }
 #endif

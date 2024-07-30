@@ -375,6 +375,7 @@ let const c : Fexpr.const =
   | Naked_vec128 bits ->
     Naked_vec128 (Vector_types.Vec128.Bit_pattern.to_bits bits)
   | Naked_nativeint i -> Naked_nativeint (i |> targetint)
+  | Null -> Misc.fatal_error "null not supported"
 
 let depth_or_infinity (d : int Or_infinity.t) : Fexpr.rec_info =
   match d with Finite d -> Depth d | Infinity -> Infinity
@@ -442,6 +443,7 @@ let rec subkind (k : Flambda_kind.With_subkind.Subkind.t) : Fexpr.subkind =
     Misc.fatal_error
       "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
        implemented"
+  | Null -> Misc.fatal_error "fexpr support for null not yet implemented"
 
 and variant_subkind consts non_consts : Fexpr.subkind =
   let consts =
@@ -549,7 +551,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Boolean_not -> Boolean_not
   | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
   | Float_arith _ | Reinterpret_64_bit_word _ | Is_boxed_float | Obj_dup
-  | Get_header | Atomic_load _ ->
+  | Get_header | Atomic_load _ | Is_null ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)

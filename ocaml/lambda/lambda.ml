@@ -313,6 +313,7 @@ type primitive =
   | Pget_header of alloc_mode
   (* Fetching domain-local state *)
   | Pdls_get
+  | Pisnull
 
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.const
@@ -340,6 +341,7 @@ and value_kind =
     }
   | Parrayval of array_kind
   | Pboxedvectorval of boxed_vector
+  | Pnull
 
 and layout =
   | Ptop
@@ -512,8 +514,9 @@ let rec equal_value_kind x y =
              Int.equal tag1 tag2
              && equal_constructor_shape cstr1 cstr2)
            non_consts1 non_consts2
+  | Pnull, Pnull -> true
   | (Pgenval | Pboxedfloatval _ | Pboxedintval _ | Pintval | Pvariant _
-      | Parrayval _ | Pboxedvectorval _), _ -> false
+      | Parrayval _ | Pboxedvectorval _ | Pnull), _ -> false
 
 and equal_constructor_shape x y =
   match x, y with
@@ -570,6 +573,7 @@ type structured_constant =
   | Const_float_array of string list
   | Const_immstring of string
   | Const_float_block of string list
+  | Const_null
 
 type tailcall_attribute =
   | Tailcall_expectation of bool
@@ -903,6 +907,7 @@ let layout_lazy_contents = Pvalue Pgenval
 let layout_any_value = Pvalue Pgenval
 let layout_letrec = layout_any_value
 let layout_probe_arg = Pvalue Pgenval
+let layout_null = Pvalue Pnull
 let layout_unboxed_product layouts = Punboxed_product layouts
 
 (* CR ncourant: use [Ptop] or remove this as soon as possible. *)
@@ -1818,6 +1823,7 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
          at a level where these primitives are necessary is very likely going
          to be native. *)
       Some alloc_heap
+  | Pisnull -> None
 
 let constant_layout: constant -> layout = function
   | Const_int _ | Const_char _ -> Pvalue Pintval
@@ -1837,6 +1843,7 @@ let structured_constant_layout = function
   | Const_base const -> constant_layout const
   | Const_mixed_block _ | Const_block _ | Const_immstring _ -> Pvalue Pgenval
   | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)
+  | Const_null -> Pvalue Pnull
 
 let layout_of_extern_repr : extern_repr -> _ = function
   | Untagged_int ->  layout_int
@@ -2005,6 +2012,7 @@ let primitive_result_layout (p : primitive) =
   | Pdls_get -> layout_any_value
   | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int
+  | Pisnull -> layout_int
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function

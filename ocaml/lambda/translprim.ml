@@ -1592,6 +1592,7 @@ let lambda_primitive_needs_event_after = function
   | Pdls_get
   | Pobj_magic _ | Punbox_float _ | Punbox_int _
   | Preinterpret_unboxed_int64_as_tagged_int63
+  | Pisnull
   (* These don't allocate in bytecode; they're just identity functions: *)
   | Pbox_float (_, _) | Pbox_int _
     -> false

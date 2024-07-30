@@ -285,6 +285,7 @@ let type_for_const const =
   | Naked_int64 n -> TG.this_naked_int64 n
   | Naked_nativeint n -> TG.this_naked_nativeint n
   | Naked_vec128 n -> TG.this_naked_vec128 n
+  | Null -> TG.the_null
 
 let kind_for_const const = TG.kind (type_for_const const)
 
@@ -371,6 +372,7 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
   | Generic_array ->
     TG.mutable_array ~element_kind:Unknown ~length:any_tagged_immediate
       alloc_mode
+  | Null -> TG.the_null
 
 let unknown_types_from_arity arity =
   List.map

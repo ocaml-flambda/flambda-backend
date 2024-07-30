@@ -764,6 +764,12 @@ let simplify_atomic_load
     (P.result_kind' original_prim)
     ~original_term
 
+let simplify_is_null ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_
+    ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
+
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
@@ -820,5 +826,6 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Get_header -> simplify_get_header ~original_prim
     | Atomic_load block_access_field_kind ->
       simplify_atomic_load block_access_field_kind ~original_prim
+    | Is_null -> simplify_is_null ~original_prim
   in
   simplifier dacc ~original_term ~arg ~arg_ty ~result_var

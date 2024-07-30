@@ -798,6 +798,7 @@ let unary_primitive env res dbg f arg =
       | Immediate -> Immediate
     in
     None, res, C.atomic_load ~dbg imm_or_ptr arg
+  | Is_null -> None, res, C.eq ~dbg arg (C.int 0 ~dbg)
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with

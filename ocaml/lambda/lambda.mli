@@ -313,6 +313,7 @@ type primitive =
      if the value is locally allocated *)
   (* Fetching domain-local state *)
   | Pdls_get
+  | Pisnull
 
 (** This is the same as [Primitive.native_repr] but with [Repr_poly]
     compiled away. *)
@@ -374,6 +375,7 @@ and value_kind =
     }
   | Parrayval of array_kind
   | Pboxedvectorval of boxed_vector
+  | Pnull
 
 (* Because we check for and error on void in the translation to lambda, we don't
    need a constructor for it here. *)
@@ -501,6 +503,7 @@ type structured_constant =
   | Const_float_array of string list
   | Const_immstring of string
   | Const_float_block of string list
+  | Const_null
 
 type tailcall_attribute =
   | Tailcall_expectation of bool
@@ -807,6 +810,7 @@ val layout_any_value : layout
 val layout_letrec : layout
 (* The probe hack: Free vars in probes must have layout value. *)
 val layout_probe_arg : layout
+val layout_null : layout
 
 val layout_unboxed_product : layout list -> layout
 

@@ -603,6 +603,11 @@ Caml_inline void extern_unboxed_int(struct caml_extern_state* s, intnat n)
   writecode64(s, CODE_UNBOXED_INT64, n);
 }
 
+Caml_inline void extern_null(struct caml_extern_state* s)
+{
+  writecode8(s, CODE_NULL, 0);
+}
+
 /* Marshaling references to previously-marshaled blocks */
 
 Caml_inline void extern_shared_reference(struct caml_extern_state* s,
@@ -809,7 +814,9 @@ static void extern_rec(struct caml_extern_state* s, value v)
   sp = s->extern_stack;
 
   while(1) {
-  if (Is_long(v)) {
+  if (v == Val_null) {
+    extern_null(s);
+  } else if (Is_long(v)) {
     extern_int(s, Long_val(v));
   }
   else {

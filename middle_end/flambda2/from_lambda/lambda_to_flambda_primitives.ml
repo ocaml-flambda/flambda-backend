@@ -1071,8 +1071,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           (* CR layouts v5.9: support this *)
           Misc.fatal_error "Mixed blocks extensible variants are not supported")
       | Record_inlined (Extension _, _, _)
-      | Record_inlined (Ordinary _, _, (Variant_unboxed | Variant_extensible
-        | Variant_with_null)) | Record_unboxed | Record_inlined (Null, _, _) ->
+      | Record_inlined
+          ( Ordinary _,
+            _,
+            (Variant_unboxed | Variant_extensible | Variant_with_null) )
+      | Record_unboxed
+      | Record_inlined (Null, _, _) ->
         Misc.fatal_errorf "Cannot handle record kind for Pduprecord: %a"
           Printlambda.primitive prim
     in
@@ -1954,6 +1958,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         "Preinterpret_tagged_int63_as_unboxed_int64 can only be used on 64-bit \
          targets";
     [Unary (Reinterpret_64_bit_word Tagged_int63_as_unboxed_int64, i)]
+  | Pisnull, [[arg]] -> [tag_int (Unary (Is_null, arg))]
   | ( ( Pmodint Unsafe
       | Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
@@ -1984,7 +1989,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punbox_int _ | Pbox_int _ | Punboxed_product_field _ | Pget_header _
       | Pufloatfield _ | Patomic_load _ | Pmixedfield _
       | Preinterpret_unboxed_int64_as_tagged_int63
-      | Preinterpret_tagged_int63_as_unboxed_int64 ),
+      | Preinterpret_tagged_int63_as_unboxed_int64 | Pisnull ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \

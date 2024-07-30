@@ -347,7 +347,7 @@ static int visit(scanning_action f, void* fdata,
   value v = *p, vblock = v;
   header_t hd;
   int ix;
-  if (!Is_block(v))
+  if (v == Val_null || !Is_block(v))
     return -1;
 
   if (Is_young(v)) {
@@ -633,7 +633,7 @@ CAMLprim value caml_ensure_stack_capacity(value required_space)
  Caml_inline int is_scannable(scanning_action_flags flags, value v) {
   return
       (flags & SCANNING_ONLY_YOUNG_VALUES)
-      || (Is_block(v) && caml_find_code_fragment_by_pc((char *) v) == NULL);
+      || (v != Val_null && Is_block(v) && caml_find_code_fragment_by_pc((char *) v) == NULL);
 }
 
 void caml_scan_stack(

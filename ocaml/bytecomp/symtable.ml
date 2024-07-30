@@ -181,6 +181,8 @@ let rec transl_const = function
       List.iteri (fun i f -> Array.Floatarray.set res i (float_of_string f))
         fields;
       Obj.repr res
+  | Const_null ->
+      Misc.fatal_error "[Const_null] not implemented in bytecode."
 
 (* Initialization for batch linking *)
 

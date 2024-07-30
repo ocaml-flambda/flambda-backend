@@ -162,7 +162,8 @@ let preserve_tailcall_for_prim = function
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pdls_get | Preinterpret_tagged_int63_as_unboxed_int64
-  | Preinterpret_unboxed_int64_as_tagged_int63 ->
+  | Preinterpret_unboxed_int64_as_tagged_int63
+  | Pisnull ->
       false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -614,6 +615,7 @@ let comp_primitive stack_info p sz args =
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
   | Pmake_unboxed_product _ | Punboxed_product_field _
+  | Pisnull
     ->
       fatal_error "Bytegen.comp_primitive"
 
@@ -1237,4 +1239,3 @@ let compile_phrase expr =
   let init_code = comp_block empty_env expr 1 [Kreturn 1] in
   let fun_code = comp_remainder [] in
   (init_code, fun_code))
-
