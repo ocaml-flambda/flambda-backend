@@ -539,6 +539,10 @@ static void intern_rec(struct caml_intern_state* s,
         caml_failwith("input_value: CODE_UNBOXED_INT64 not supported on 32 bit");
         break;
 #endif
+      case CODE_NULL:
+        read8s(s);
+        v = Val_null;
+        break;
       case CODE_SHARED8:
         ofs = read8u(s);
       read_shared:
