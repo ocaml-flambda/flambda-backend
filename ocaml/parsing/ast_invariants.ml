@@ -40,7 +40,6 @@ let module_type_substitution_missing_rhs loc =
 let empty_comprehension loc = err loc "Comprehension with no clauses"
 let function_without_value_parameters loc =
   err loc "Functions must have a value parameter."
-
 let redundant_nested_constraints loc =
   err loc "Nested pattern constraints must all specify a type"
 

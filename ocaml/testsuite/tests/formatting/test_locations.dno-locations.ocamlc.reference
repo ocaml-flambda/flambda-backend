@@ -92,7 +92,6 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
           value_mode global,many,nonportable;join(shared,contended)(modevar#1[shared,uncontended .. unique,uncontended])
         expression 
           Texp_function
-          region true
           alloc_mode global,many,nonportable;id(modevar#7[shared,contended .. unique,uncontended])
           []
           Tfunction_cases 

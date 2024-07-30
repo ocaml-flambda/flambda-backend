@@ -4,7 +4,7 @@
 
 type n = Z | S of n
 
-let rec gen_locals (local_ n) depth _ = local_
+let rec gen_locals (local_ n) depth _ = exclave_
   if depth = 0
   then
     S n

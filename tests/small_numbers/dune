@@ -12,7 +12,7 @@
 (executables
  (names float32_builtin float32_lib float32_u_lib)
  (modules float32_builtin float32_lib float32_u_lib)
- (libraries stdlib_stable)
+ (libraries stdlib_beta)
  (foreign_archives stubs))
 
 (rule
@@ -35,7 +35,9 @@
 (rule
  (alias runtest)
  (enabled_if
-  (= %{context_name} "main"))
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} "amd64")))
  (action
   (progn
    (diff empty.expected float32_builtin.out)
@@ -73,7 +75,7 @@
   float32_builtin_bytecode
   float32_lib_bytecode
   float32_u_lib_bytecode)
- (libraries stdlib_stable stubs_bytecode)
+ (libraries stdlib_beta stubs_bytecode)
  (ocamlc_flags
   (:standard -extension-universe beta)))
 
@@ -103,7 +105,9 @@
 (rule
  (alias runtest)
  (enabled_if
-  (= %{context_name} "main"))
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} "amd64")))
  (action
   (progn
    (diff empty.expected float32_builtin_bytecode.out)
@@ -133,7 +137,7 @@
   float32_builtin_nodynlink
   float32_lib_nodynlink
   float32_u_lib_nodynlink)
- (libraries stdlib_stable)
+ (libraries stdlib_beta)
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -nodynlink)))
@@ -164,7 +168,9 @@
 (rule
  (alias runtest)
  (enabled_if
-  (= %{context_name} "main"))
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} "amd64")))
  (action
   (progn
    (diff empty.expected float32_builtin_nodynlink.out)
@@ -191,7 +197,7 @@
   float32_builtin_internal
   float32_lib_internal
   float32_u_lib_internal)
- (libraries stdlib_stable)
+ (libraries stdlib_beta)
  (enabled_if
   (<> %{system} macosx))
  (foreign_archives stubs)
@@ -228,6 +234,7 @@
  (enabled_if
   (and
    (= %{context_name} "main")
+   (= %{architecture} "amd64")
    (<> %{system} macosx)))
  (action
   (progn

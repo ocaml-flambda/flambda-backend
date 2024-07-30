@@ -25,6 +25,9 @@ val cfg : t -> Cfg.t
 val fold_blocks :
   t -> f:(Label.t -> Cfg.basic_block -> 'a -> 'a) -> init:'a -> 'a
 
+val fold_body_instructions :
+  t -> f:('a -> Cfg.basic Cfg.instruction -> 'a) -> init:'a -> 'a
+
 val get_block_exn : t -> Label.t -> Cfg.basic_block
 
 val liveness : t -> liveness

@@ -288,7 +288,8 @@ type error =
       Env.closure_context option *
       contention_context option *
       Env.shared_context option
-  | Local_application_complete of arg_label * [`Prefix|`Single_arg|`Entire_apply]
+  | Curried_application_complete of
+      arg_label * Mode.Alloc.error * [`Prefix|`Single_arg|`Entire_apply]
   | Param_mode_mismatch of Mode.Alloc.equate_error
   | Uncurried_function_escapes of Mode.Alloc.error
   | Local_return_annotation_mismatch of Location.t

@@ -5,16 +5,20 @@ modality_record:
   struct
     type t =
       {
-      global_ x: string @@ shared portable ;
-      global_ y: int @@ portable }
+      global_ x: string ;
+      global_ y:
+        int @@ local many once shared unique portable nonportable contended uncontended
+        ;
+      z: bool @@ unique }
   end
 
 modality_cstrarg:
   struct
     type t =
-      | Foo of global_ string @@ portable * global_ string @@ shared 
+      | Foo of global_ string * global_ string @@ portable *
+      string @@ portable 
     type u =
-      | Foo: global_ string @@ shared portable * global_ string -> u 
+      | Foo: global_ string * global_ string -> u 
   end
 
 modality_val: sig val t : string -> local_ string @@ foo bar end
@@ -115,16 +119,20 @@ modality_record:
   struct
     type t =
       {
-      global_ x: string @@ shared portable ;
-      global_ y: int @@ portable }
+      global_ x: string ;
+      global_ y:
+        int @@ local many once shared unique portable nonportable contended uncontended
+        ;
+      z: bool @@ unique }
   end
 
 modality_cstrarg:
   struct
     type t =
-      | Foo of global_ string @@ portable * global_ string @@ shared 
+      | Foo of global_ string * global_ string @@ portable *
+      string @@ portable 
     type u =
-      | Foo: global_ string @@ shared portable * global_ string -> u 
+      | Foo: global_ string * global_ string -> u 
   end
 
 modality_val: sig val t : string -> local_ string @@ foo bar end

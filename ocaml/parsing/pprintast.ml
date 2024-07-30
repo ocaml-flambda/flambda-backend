@@ -290,10 +290,9 @@ let tyvar_loc f str = tyvar f str.txt
 let string_quot f x = pp f "`%s" x
 
 (* legacy modes and modalities *)
-let legacy_mode f m =
-  let Mode txt = m.txt in
+let legacy_mode f { txt = Mode s; _ } =
   let s =
-    match txt with
+    match s with
     | "local" -> "local_"
     | "unique" -> "unique_"
     | "once" -> "once_"
@@ -331,9 +330,8 @@ let optional_legacy_modalities f m =
     pp_print_space f ()
 
 (* new mode and modality syntax *)
-let mode f m =
-  let {txt = Mode txt; _} = m in
-  pp_print_string f txt
+let mode f { txt = Mode s; _ } =
+  pp_print_string f s
 
 let modes f m =
   pp_print_list ~pp_sep:(fun f () -> pp f " ") mode f m
@@ -375,7 +373,6 @@ let split_out_legacy_modes =
 let maybe_legacy_modes_type_at_modes pty ctxt f (c, m) =
   let legacy, m = split_out_legacy_modes m in
   pp f "%a%a%a" optional_legacy_modes legacy (pty ctxt) c optional_at_modes m
-
 
 let split_out_legacy_modalities =
   List.partition (fun m ->
@@ -913,7 +910,7 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
         paren true (expression reset_ctxt) f x
     | Pexp_newtype (lid, e) ->
         pp f "@[<2>fun@;(type@;%s)@;%a@]" lid.txt
-          (pp_print_pexp_function ctxt "->") e
+          (pp_print_pexp_newtype ctxt "->") e
     | Pexp_function (params, constraint_, body) ->
         begin match params, constraint_ with
           (* Omit [fun] if there are no params. *)
@@ -1624,7 +1621,7 @@ and payload ctxt f = function
       pp f "?@ "; pattern ctxt f x;
       pp f " when "; expression ctxt f e
 
-and pp_print_pexp_function ctxt sep f x =
+and pp_print_pexp_newtype ctxt sep f x =
   (* We go to some trouble to print nested [Lexp_newtype] as
      newtype parameters of the same "fun" (rather than printing several nested
      "fun (type a) -> ..."). This isn't necessary for round-tripping -- it just
@@ -1634,7 +1631,7 @@ and pp_print_pexp_function ctxt sep f x =
       pp f "@[(type@ %s :@ %a)@]@ %a"
         str.txt
         (jkind_annotation ctxt) lay
-        (pp_print_pexp_function ctxt sep) e
+        (pp_print_pexp_newtype ctxt sep) e
   | Some (jst, attrs) ->
       pp f "%s@;%a" sep (jane_syntax_expr ctxt attrs ~parens:false) jst
   | None ->
@@ -1642,11 +1639,18 @@ and pp_print_pexp_function ctxt sep f x =
   else
     match x.pexp_desc with
     | Pexp_newtype (str,e) ->
-      pp f "(type@ %s)@ %a" str.txt (pp_print_pexp_function ctxt sep) e
-    | Pexp_function (params, c, body) ->
-        function_params_then_body ctxt f params c body ~delimiter:sep
+      pp f "(type@ %s)@ %a" str.txt (pp_print_pexp_newtype ctxt sep) e
     | _ ->
        pp f "%s@;%a" sep (expression ctxt) x
+
+and pp_print_params_then_equals ctxt f x =
+  if x.pexp_attributes <> [] then pp f "=@;%a" (expression ctxt) x
+  else
+  match x.pexp_desc with
+  | Pexp_function (params, constraint_, body) ->
+      function_params_then_body ctxt f params constraint_ body
+        ~delimiter:"="
+  | _ -> pp_print_pexp_newtype ctxt "=" f x
 
 (* transform [f = fun g h -> ..] to [f g h = ... ] could be improved *)
 and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; pvb_modes = modes; _} =
@@ -1728,12 +1732,12 @@ and binding ctxt f {pvb_pat=p; pvb_expr=x; pvb_constraint = ct; pvb_modes = mode
           | [] ->
             pp f "%a@ %a"
               (simple_pattern ctxt) p
-              (pp_print_pexp_function ctxt "=") x
+              (pp_print_params_then_equals ctxt) x
           | _ ->
             pp f "(%a%a)@ %a"
               (simple_pattern ctxt) p
               optional_at_modes modes
-              (pp_print_pexp_function ctxt "=") x
+              (pp_print_params_then_equals ctxt) x
           end
         | _ ->
           pp f "%a%a@;=@;%a"
@@ -2221,7 +2225,7 @@ and layout_expr ctxt f (x : Jane_syntax.Layouts.expression) ~parens =
     pp f "@[<2>fun@;(type@;%s :@;%a)@;%a@]"
       lid.txt
       (jkind_annotation ctxt) jkind
-      (pp_print_pexp_function ctxt "->") inner_expr
+      (pp_print_pexp_newtype ctxt "->") inner_expr
 
 and unboxed_constant _ctxt f (x : Jane_syntax.Layouts.constant)
   =

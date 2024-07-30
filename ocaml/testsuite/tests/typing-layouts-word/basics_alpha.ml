@@ -685,7 +685,7 @@ end;;
 Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
-Error: This expression has type ('a : value)
+Error: This expression has type ('a : value_or_null)
        but an expression was expected of type t_word
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.

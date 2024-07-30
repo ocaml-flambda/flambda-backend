@@ -20,12 +20,15 @@ module Example = struct
 
   let modality_record  = parse module_expr
     "struct \
-      type t = {global_ x : string @@ shared portable; global_ y : int @@ portable} \
+      type t = {global_ x : string;
+                global_ y : int @@ local many once shared unique portable nonportable
+                                   contended uncontended;
+                z : bool @@ unique} \
      end"
   let modality_cstrarg = parse module_expr
     "struct \
-      type t = Foo of global_ string @@ portable * string @@ global shared \
-      type u = Foo : global_ string @@ shared portable * string @@ global -> u \
+      type t = Foo of global_ string * global_ string @@ portable * string @@ portable \
+      type u = Foo : global_ string * global_ string -> u \
      end"
 
   let modality_val  = parse module_type
