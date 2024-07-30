@@ -240,6 +240,7 @@ module Type = struct
           { from_annotation : const;
             from_attribute : const
           }
+      | Arrow_not_implemented
 
     exception User_error of Location.t * t
   end
@@ -550,7 +551,7 @@ module Type = struct
         List.map parse_mode modes
     end
 
-    let rec of_user_written_annotation_unchecked_level
+    let rec of_user_written_annotation_unchecked_level ~loc
         (jkind : Jane_syntax.Jkind.t) : t =
       match jkind with
       | Abbreviation const -> (
@@ -571,7 +572,7 @@ module Type = struct
         | "bits64" -> Primitive.bits64.jkind
         | _ -> raise ~loc (Unknown_jkind jkind))
       | Mod (jkind, modes) ->
-        let base = of_user_written_annotation_unchecked_level jkind in
+        let base = of_user_written_annotation_unchecked_level ~loc jkind in
         (* for each mode, lower the corresponding modal bound to be that mode *)
         let parsed_modes = ModeParser.parse_modes modes in
         let meet_mode jkind (mode : ModeParser.mode) =
@@ -632,6 +633,7 @@ module Type = struct
             }
         in
         List.fold_left meet_mode base parsed_modes
+      | Arrow _ -> raise ~loc Arrow_not_implemented
       | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 
     module Sort = Sort.Const
@@ -907,7 +909,7 @@ module Type = struct
     }
 
   let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
-    let const = Const.of_user_written_annotation_unchecked_level annot in
+    let const = Const.of_user_written_annotation_unchecked_level ~loc annot in
     let required_layouts_level = get_required_layouts_level context const in
     if not (Language_extension.is_at_least Layouts required_layouts_level)
     then
@@ -1753,6 +1755,9 @@ module Type = struct
 
   (*** formatting user errors ***)
   let report_error ~loc : Error.t -> _ = function
+    | Arrow_not_implemented ->
+      Location.errorf ~loc
+        "Arrow jkind (=>) syntax parsed, but annotations are not implemented"
     | Unknown_jkind jkind ->
       Location.errorf ~loc
         (* CR layouts v2.9: use the context to produce a better error message.

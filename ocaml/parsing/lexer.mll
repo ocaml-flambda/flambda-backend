@@ -707,6 +707,7 @@ rule token = parse
   | "*"  { STAR }
   | ","  { COMMA }
   | "->" { MINUSGREATER }
+  | "=>" { EQUALGREATER }
   | "."  { DOT }
   | ".." { DOTDOT }
   | "." (dotsymbolchar symbolchar* as op) { DOTOP op }
