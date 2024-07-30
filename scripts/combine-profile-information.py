@@ -58,7 +58,7 @@ def split_into_number_and_unit(number_string: str) -> (Union[int, float], str):
 
 
 PRIMARY_KEY = "pass name"
-COUNTERS_Field = "counters"
+COUNTERS_FIELD = "counters"
 summary_non_counter_fields = set()
 summary_counter_fields = set()
 
@@ -67,11 +67,13 @@ summary_counter_fields = set()
 for rows in map(get_csv_rows, get_input_csv_paths()):
     fields = set(rows[0])
     assert PRIMARY_KEY in fields
-    assert COUNTERS_Field in fields
+    assert COUNTERS_FIELD in fields
+
+    for row in rows:
+        summary_counter_fields.update(parse_counters(row[COUNTERS_FIELD]))
 
     fields.remove(PRIMARY_KEY)
-    fields.remove(COUNTERS_Field)
-    summary_counter_fields.update(parse_counters(rows[0][COUNTERS_Field]))
+    fields.remove(COUNTERS_FIELD)
     summary_non_counter_fields.update(fields)
 
 # CR mitom: Not supporting memory for now
