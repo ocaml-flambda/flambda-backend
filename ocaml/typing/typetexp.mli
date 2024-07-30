@@ -168,6 +168,8 @@ type error =
   | Non_sort of
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
+  | Jkind_mismatch_in_application of Jkind.t list * Jkind.t * Jkind.Violation.t option
+  | Unknown_jkind_at_application of type_expr
   | Did_you_mean_unboxed of Longident.t
   | Invalid_label_for_call_pos of Parsetree.arg_label
 
