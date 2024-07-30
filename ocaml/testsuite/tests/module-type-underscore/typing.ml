@@ -548,7 +548,6 @@ end
 module M : sig module type A module type B = A end
 |}]
 
-
 module M : sig
   type t
 
@@ -567,6 +566,8 @@ module M : sig
     class type e1 = c
     class f : d
     class type f1 = d
+
+    val foo : c -> c
   end
 end = struct
   type t = int
@@ -595,6 +596,7 @@ module M :
         class type e1 = c
         class f : d
         class type f1 = d
+        val foo : c -> c
       end
   end
 |}]
