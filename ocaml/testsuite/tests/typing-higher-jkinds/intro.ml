@@ -5,6 +5,7 @@
  check-ocamlopt.byte-output;
 *)
 
-
-type t : value => value
-type p = int t
+type ('m : value => value) monad = {
+  return : 'a. 'a -> 'a 'm;
+  bind : 'a 'b. 'a 'm -> ('a -> 'b 'm) -> 'b 'm
+}
