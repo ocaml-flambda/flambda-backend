@@ -1618,19 +1618,13 @@ module Const = struct
            format)
         args format result
 
-  let jkind_case2 ~typ ~arrow ~default (t : t) (t' : t) =
+  let rec equal (t : t) (t' : t) =
     match t, t' with
-    | Type s, Type s' -> typ s s'
-    | Arrow a, Arrow a' -> arrow a a'
-    | _, _ -> default
-
-  let rec equal t t' =
-    jkind_case2 ~typ:Type.Const.equal
-      ~arrow:
-        (fun { args = args1; result = result1 }
-             { args = args2; result = result2 } ->
-        List.for_all2 equal args1 args2 && equal result1 result2)
-      ~default:false t t'
+    | Type s, Type s' -> Type.Const.equal s s'
+    | ( Arrow { args = args1; result = result1 },
+        Arrow { args = args2; result = result2 } ) ->
+      List.for_all2 equal args1 args2 && equal result1 result2
+    | Type _, Arrow _ | Arrow _, Type _ -> false
 
   let to_type_jkind (t : t) =
     match t with
