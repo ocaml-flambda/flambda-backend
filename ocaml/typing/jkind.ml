@@ -2057,7 +2057,7 @@ module Debug_printers = struct
     match jkind with
     | Type ty -> Format.fprintf ppf "Type %a" Type.Debug_printers.t ty
     | Arrow { args; result } ->
-      Format.fprintf ppf "Arrow { args = [%a];@ result = %a;@ }"
+      Format.fprintf ppf "Arrow { args = [%a];@ result = %a }"
         (Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf "; ") t)
         args t result
 
