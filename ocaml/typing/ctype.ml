@@ -3069,6 +3069,13 @@ let rec mcomp type_pairs env t1 t2 =
             raise_unexplained_for Unify
         | (_, Tconstr (_, Unapplied, _), _, _) when has_injective_univars env t1' ->
             raise_unexplained_for Unify
+        | (Tapp (t, args), Tapp (t', args'), _, _) ->
+            mcomp type_pairs env t t';
+            mcomp_list type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
+        | (Tapp (t, args'), Tconstr (p, args, _), _, _)
+        | (Tconstr (p, args, _), Tapp (t, args'), _, _) ->
+            mcomp type_pairs env t (newconstr p []);
+            mcomp_list type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
         | (Tconstr (p, _, _), _, _, other) | (_, Tconstr (p, _, _), other, _) ->
             begin try
               let decl = Env.find_type p env in
@@ -3721,6 +3728,13 @@ and unify3 env t1 t1' t2 t2' =
             mcomp_for Unify !env t1' t2';
             record_equation t1' t2'
           )
+      | (Tapp (t, args), Tapp (t', args')) ->
+          unify env t t';
+          unify_appargs env args args'
+      | (Tapp (t, args'), Tconstr (p, args, _))
+      | (Tconstr (p, args, _), Tapp (t, args')) ->
+          unify env t (newconstr p []);
+          unify_appargs env args args'
       | (Tobject (fi1, nm1), Tobject (fi2, _)) ->
           unify_fields env fi1 fi2;
           (* Type [t2'] may have been instantiated by [unify_fields] *)
@@ -4782,6 +4796,13 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
               end
           | (Tnil,  Tconstr _ ) -> raise_for Moregen (Obj (Abstract_row Second))
           | (Tconstr _,  Tnil ) -> raise_for Moregen (Obj (Abstract_row First))
+          | (Tapp (t, args), Tapp (t', args')) ->
+              moregen inst_nongen variance type_pairs env t t';
+              moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
+          | (Tapp (t, args'), Tconstr (p, args, _))
+          | (Tconstr (p, args, _), Tapp (t, args')) ->
+              moregen inst_nongen variance type_pairs env t (newconstr p []);
+              moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
           | (Tvariant row1, Tvariant row2) ->
               moregen_row inst_nongen variance type_pairs env row1 row2
           | (Tobject (fi1, _nm1), Tobject (fi2, _nm2)) ->
@@ -5200,6 +5221,13 @@ let rec eqtype rename type_pairs subst env t1 t2 =
               raise_for Equality (Obj (Abstract_row Second))
           | (Tconstr _,  Tnil ) ->
               raise_for Equality (Obj (Abstract_row First))
+          | (Tapp (t, args), Tapp (t', args')) ->
+              eqtype rename type_pairs subst env t t';
+              eqtype_appargs rename type_pairs subst env args args'
+          | (Tapp (t, args'), Tconstr (p, args, _))
+          | (Tconstr (p, args, _), Tapp (t, args')) ->
+              eqtype rename type_pairs subst env t (newconstr p []);
+              eqtype_appargs rename type_pairs subst env args args'
           | (Tvariant row1, Tvariant row2) ->
               eqtype_row rename type_pairs subst env row1 row2
           | (Tobject (fi1, _nm1), Tobject (fi2, _nm2)) ->
