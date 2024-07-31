@@ -1,3 +1,46 @@
+// visiting vertex 0
+// visiting vertex 1
+// visiting vertex 2
+// visiting vertex 3
+// visiting vertex 4
+// visiting vertex 5
+// visiting vertex 6
+// visiting vertex 7
+// visiting vertex 8
+// visiting vertex 9
+// visiting vertex 10
+// visiting vertex 11
+// visiting vertex 12
+// visiting vertex 13
+// visiting vertex 14
+// visiting vertex 15
+// visiting vertex 16
+// visiting vertex 17
+// visiting vertex 18
+// visiting vertex 19
+// visiting vertex 20
+// visiting vertex -1
+// visiting vertex 21
+// visiting vertex 22
+// visiting vertex 23
+// visiting vertex 24
+// visiting vertex 25
+// visiting vertex 26
+// visiting vertex 27
+// visiting vertex 28
+// visiting vertex 29
+// visiting vertex 30
+// visiting vertex 31
+// visiting vertex 32
+// visiting vertex 33
+// visiting vertex 34
+// visiting vertex 35
+// visiting vertex 36
+// visiting vertex 37
+// visiting vertex 38
+// visiting vertex 39
+// visiting vertex 40
+// visiting vertex 41
 digraph {
   rankdir=LR
 
@@ -16,7 +59,6 @@ digraph {
     35 -> 32 [color="red" style="solid"]
     20 [label="camlDcfg_tailcalls__calls_closure_in_tail_position_20_60_code" color="black" fontcolor="black"]
     20 -> unknown [color="red" style="solid"]
-    20 -> 21 [color="red" style="solid"]
     36 [label="camlDcfg_tailcalls__fn[dcfg_tailcalls.ml:128,4--51]_35_74_code" color="black" fontcolor="black"]
     36 -> 32 [color="red" style="solid"]
     22 [label="camlDcfg_tailcalls__partial_sum_22_22_code" color="black" fontcolor="black"]
@@ -35,23 +77,53 @@ digraph {
     26 -> unknown [color="red" style="solid"]
     unknown [label="<unknown>" color="red" fontcolor="red"]
   }
+  20 -> 21 [color="red" style="solid"]
 
-  41 [label="camlDcfg_tailcalls__entry" color="black" fontcolor="black"]
-  37 [label="camlDcfg_tailcalls__apply_in_tail_position_in_exclave_36_75_code" color="black" fontcolor="black"]
-  37 -> 37 [color="black" style="solid"]
-  31 [label="camlDcfg_tailcalls__fn[dcfg_tailcalls.ml:106,21--37]_30_69_code" color="black" fontcolor="black"]
-  30 [label="camlDcfg_tailcalls__calls_list_map_not_in_tail_position_29_68_code" color="black" fontcolor="black"]
-  30 -> 29 [color="lightgrey" style="solid"]
-  subgraph cluster_5 {
-    label="5"
-    color=mistyrose
-    style=filled
-    28 [label="camlDcfg_tailcalls__calls_list_map_in_tail_position_27_66_code" color="black" fontcolor="black"]
-    28 -> 29 [color="red" style="solid"]
+  subgraph cluster_1 {
+    label="1"
+    style=invis
+    41 [label="camlDcfg_tailcalls__entry" color="black" fontcolor="black"]
   }
 
-  29 [label="camlStdlib__List__map_15_113_code" color="black" fontcolor="black"]
-  27 [label="camlDcfg_tailcalls__fn[dcfg_tailcalls.ml:104,51--67]_28_67_code" color="black" fontcolor="black"]
+  subgraph cluster_2 {
+    label="2"
+    style=invis
+    37 [label="camlDcfg_tailcalls__apply_in_tail_position_in_exclave_36_75_code" color="black" fontcolor="black"]
+    37 -> 37 [color="black" style="solid"]
+  }
+
+  subgraph cluster_3 {
+    label="3"
+    style=invis
+    31 [label="camlDcfg_tailcalls__fn[dcfg_tailcalls.ml:106,21--37]_30_69_code" color="black" fontcolor="black"]
+  }
+
+  subgraph cluster_4 {
+    label="4"
+    style=invis
+    30 [label="camlDcfg_tailcalls__calls_list_map_not_in_tail_position_29_68_code" color="black" fontcolor="black"]
+  }
+  30 -> 29 [color="lightgrey" style="solid"]
+
+  subgraph cluster_5 {
+    label="5"
+    style=invis
+    28 [label="camlDcfg_tailcalls__calls_list_map_in_tail_position_27_66_code" color="black" fontcolor="black"]
+  }
+  28 -> 29 [color="red" style="solid"]
+
+  subgraph cluster_6 {
+    label="6"
+    style=invis
+    29 [label="camlStdlib__List__map_15_113_code" color="black" fontcolor="black"]
+  }
+
+  subgraph cluster_7 {
+    label="7"
+    style=invis
+    27 [label="camlDcfg_tailcalls__fn[dcfg_tailcalls.ml:104,51--67]_28_67_code" color="black" fontcolor="black"]
+  }
+
   subgraph cluster_8 {
     label="8"
     color=mistyrose
@@ -62,60 +134,121 @@ digraph {
     24 -> 23 [color="blue" style="solid"]
   }
 
-  21 [label="camlDcfg_tailcalls__sum_closure_21_61_code" color="black" fontcolor="black"]
-  19 [label="camlDcfg_tailcalls__sum_19_59_code" color="black" fontcolor="black"]
-  18 [label="camlDcfg_tailcalls__sum_uncurried_18_58_code" color="black" fontcolor="black"]
+  subgraph cluster_9 {
+    label="9"
+    style=invis
+    21 [label="camlDcfg_tailcalls__sum_closure_21_61_code" color="black" fontcolor="black"]
+  }
+
+  subgraph cluster_10 {
+    label="10"
+    style=invis
+    19 [label="camlDcfg_tailcalls__sum_19_59_code" color="black" fontcolor="black"]
+  }
+
+  subgraph cluster_11 {
+    label="11"
+    style=invis
+    18 [label="camlDcfg_tailcalls__sum_uncurried_18_58_code" color="black" fontcolor="black"]
+  }
+
   subgraph cluster_12 {
     label="12"
-    color=mistyrose
-    style=filled
+    style=invis
     17 [label="camlDcfg_tailcalls__calls_same_caller_multiple_applications_17_57_code" color="black" fontcolor="black"]
-    17 -> 16 [color="black" style="solid"]
-    17 -> 16 [color="lightgrey" style="solid"]
-    17 -> 16 [color="red" style="solid"]
+  }
+  17 -> 16 [color="black" style="solid"]
+  17 -> 16 [color="lightgrey" style="solid"]
+  17 -> 16 [color="red" style="solid"]
+
+  subgraph cluster_13 {
+    label="13"
+    style=invis
+    16 [label="camlDcfg_tailcalls__same_caller_multiple_applications_16_56_code" color="black" fontcolor="black"]
   }
 
-  16 [label="camlDcfg_tailcalls__same_caller_multiple_applications_16_56_code" color="black" fontcolor="black"]
-  15 [label="camlDcfg_tailcalls__nontail_optimized_to_tail_15_55_code" color="black" fontcolor="black"]
-  15 -> 15 [color="black" style="solid"]
-  14 [label="camlDcfg_tailcalls__explicit_nontail_14_54_code" color="black" fontcolor="black"]
-  14 -> 14 [color="lightgrey" style="solid"]
-  13 [label="camlDcfg_tailcalls__hint_tail_13_53_code" color="black" fontcolor="black"]
-  13 -> 13 [color="black" style="solid"]
-  12 [label="camlDcfg_tailcalls__explicit_tail_12_52_code" color="black" fontcolor="black"]
-  12 -> 12 [color="black" style="solid"]
-  11 [label="camlDcfg_tailcalls__calls_multiple_callers2_11_51_code" color="black" fontcolor="black"]
+  subgraph cluster_14 {
+    label="14"
+    style=invis
+    15 [label="camlDcfg_tailcalls__nontail_optimized_to_tail_15_55_code" color="black" fontcolor="black"]
+    15 -> 15 [color="black" style="solid"]
+  }
+
+  subgraph cluster_15 {
+    label="15"
+    style=invis
+    14 [label="camlDcfg_tailcalls__explicit_nontail_14_54_code" color="black" fontcolor="black"]
+    14 -> 14 [color="lightgrey" style="solid"]
+  }
+
+  subgraph cluster_16 {
+    label="16"
+    style=invis
+    13 [label="camlDcfg_tailcalls__hint_tail_13_53_code" color="black" fontcolor="black"]
+    13 -> 13 [color="black" style="solid"]
+  }
+
+  subgraph cluster_17 {
+    label="17"
+    style=invis
+    12 [label="camlDcfg_tailcalls__explicit_tail_12_52_code" color="black" fontcolor="black"]
+    12 -> 12 [color="black" style="solid"]
+  }
+
+  subgraph cluster_18 {
+    label="18"
+    style=invis
+    11 [label="camlDcfg_tailcalls__calls_multiple_callers2_11_51_code" color="black" fontcolor="black"]
+  }
   11 -> 8 [color="black" style="solid"]
-  10 [label="camlDcfg_tailcalls__calls_multiple_callers1_10_50_code" color="black" fontcolor="black"]
+
+  subgraph cluster_19 {
+    label="19"
+    style=invis
+    10 [label="camlDcfg_tailcalls__calls_multiple_callers1_10_50_code" color="black" fontcolor="black"]
+  }
   10 -> 8 [color="lightgrey" style="solid"]
+
   subgraph cluster_20 {
     label="20"
-    color=mistyrose
-    style=filled
+    style=invis
     9 [label="camlDcfg_tailcalls__calls_multiple_callers0_9_49_code" color="black" fontcolor="black"]
-    9 -> 8 [color="red" style="solid"]
+  }
+  9 -> 8 [color="red" style="solid"]
+
+  subgraph cluster_21 {
+    label="21"
+    style=invis
+    8 [label="camlDcfg_tailcalls__multiple_callers_8_48_code" color="black" fontcolor="black"]
   }
 
-  8 [label="camlDcfg_tailcalls__multiple_callers_8_48_code" color="black" fontcolor="black"]
   subgraph cluster_22 {
     label="22"
-    color=mistyrose
-    style=filled
+    style=invis
     7 [label="camlDcfg_tailcalls__calls_mutually_recursive_not_in_tail_position_7_47_code" color="black" fontcolor="black"]
-    7 -> 5 [color="red" style="solid"]
   }
+  7 -> 5 [color="red" style="solid"]
 
-  6 [label="camlDcfg_tailcalls__mutally_recursive1_6_46_code" color="black" fontcolor="black"]
+  subgraph cluster_23 {
+    label="23"
+    style=invis
+    6 [label="camlDcfg_tailcalls__mutally_recursive1_6_46_code" color="black" fontcolor="black"]
+  }
   6 -> 5 [color="blue" style="solid"]
-  5 [label="camlDcfg_tailcalls__mutually_recursive_not_in_tail_position0_5_45_code" color="black" fontcolor="black"]
+
+  subgraph cluster_24 {
+    label="24"
+    style=invis
+    5 [label="camlDcfg_tailcalls__mutually_recursive_not_in_tail_position0_5_45_code" color="black" fontcolor="black"]
+  }
   5 -> 6 [color="lightgrey" style="solid"]
+
   subgraph cluster_25 {
     label="25"
-    color=mistyrose
-    style=filled
+    style=invis
     4 [label="camlDcfg_tailcalls__calls_mutually_recursive_4_44_code" color="black" fontcolor="black"]
-    4 -> 2 [color="red" style="solid"]
   }
+  4 -> 2 [color="red" style="solid"]
 
   subgraph cluster_26 {
     label="26"
@@ -127,12 +260,16 @@ digraph {
 
   subgraph cluster_27 {
     label="27"
-    color=mistyrose
-    style=filled
+    style=invis
     1 [label="camlDcfg_tailcalls__calls_normal_recursive_1_41_code" color="black" fontcolor="black"]
-    1 -> 0 [color="red" style="solid"]
+  }
+  1 -> 0 [color="red" style="solid"]
+
+  subgraph cluster_28 {
+    label="28"
+    style=invis
+    0 [label="camlDcfg_tailcalls__normal_recursive_0_40_code" color="black" fontcolor="black"]
   }
 
-  0 [label="camlDcfg_tailcalls__normal_recursive_0_40_code" color="black" fontcolor="black"]
 }
 
