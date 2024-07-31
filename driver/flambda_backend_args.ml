@@ -79,6 +79,18 @@ let mk_cfg_zero_alloc_checker f =
 let mk_no_cfg_zero_alloc_checker f =
   "-no-cfg-zero-alloc-checker", Arg.Unit f, " Do not apply zero_alloc checker to CFG"
 
+let mk_cfg_analyze_tailcalls f =
+  "-cfg-analyze-tailcalls", Arg.Unit f, " Run the tailcall graph analyzer on the CFG"
+
+let mk_no_cfg_analyze_tailcalls f =
+  "-no-cfg-analyze-tailcalls", Arg.Unit f, " Do not run the tailcall graph analyzer on the CFG"
+
+let mk_dcfg_tailcalls f =
+  "-dcfg-tailcalls", Arg.Unit f, " Dump the tailcall graph as dot"
+
+let mk_dno_cfg_tailcalls f =
+  "-dno-cfg-tailcalls", Arg.Unit f, " Do not dump the tailcall graph as dot"
+
 let mk_cfg_stack_checks f =
   "-cfg-stack-checks", Arg.Unit f, " Insert the stack checks on the CFG representation"
 
@@ -686,6 +698,11 @@ module type Flambda_backend_options = sig
   val cfg_zero_alloc_checker : unit -> unit
   val no_cfg_zero_alloc_checker : unit -> unit
 
+  val cfg_analyze_tailcalls : unit -> unit
+  val no_cfg_analyze_tailcalls : unit -> unit
+  val dcfg_tailcalls : unit -> unit
+  val dno_cfg_tailcalls : unit -> unit
+
   val cfg_stack_checks : unit -> unit
   val no_cfg_stack_checks : unit -> unit
   val cfg_stack_checks_threshold : int -> unit
@@ -812,6 +829,11 @@ struct
 
     mk_cfg_zero_alloc_checker F.cfg_zero_alloc_checker;
     mk_no_cfg_zero_alloc_checker F.no_cfg_zero_alloc_checker;
+
+    mk_cfg_analyze_tailcalls F.cfg_analyze_tailcalls;
+    mk_no_cfg_analyze_tailcalls F.no_cfg_analyze_tailcalls;
+    mk_dcfg_tailcalls F.dcfg_tailcalls;
+    mk_dno_cfg_tailcalls F.dno_cfg_tailcalls;
 
     mk_cfg_stack_checks F.cfg_stack_checks;
     mk_no_cfg_stack_checks F.no_cfg_stack_checks;
@@ -969,6 +991,11 @@ module Flambda_backend_options_impl = struct
 
   let cfg_zero_alloc_checker = set' Flambda_backend_flags.cfg_zero_alloc_checker
   let no_cfg_zero_alloc_checker = clear' Flambda_backend_flags.cfg_zero_alloc_checker
+
+  let cfg_analyze_tailcalls = set' Flambda_backend_flags.cfg_analyze_tailcalls
+  let no_cfg_analyze_tailcalls = clear' Flambda_backend_flags.cfg_analyze_tailcalls
+  let dcfg_tailcalls = set' Flambda_backend_flags.dcfg_tailcalls
+  let dno_cfg_tailcalls = clear' Flambda_backend_flags.dcfg_tailcalls
 
   let cfg_stack_checks = set' Flambda_backend_flags.cfg_stack_checks
   let no_cfg_stack_checks = clear' Flambda_backend_flags.cfg_stack_checks
@@ -1285,6 +1312,8 @@ module Extra_params = struct
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "cfg-cse-optimize" -> set' Flambda_backend_flags.cfg_cse_optimize
     | "cfg-zero-alloc-checker" -> set' Flambda_backend_flags.cfg_zero_alloc_checker
+    | "cfg-analyze-tailcalls" -> set' Flambda_backend_flags.cfg_analyze_tailcalls
+    | "dcfg-tailcalls" -> set' Flambda_backend_flags.dcfg_tailcalls
     | "cfg-stack-checks" -> set' Flambda_backend_flags.cfg_stack_checks
     | "cfg-stack-checks-threshold" -> set_int' Flambda_backend_flags.cfg_stack_checks_threshold
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths

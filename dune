@@ -84,6 +84,7 @@
   compilenv
   ;; asmcomp/
   afl_instrument
+  analyze_tailcall_graph
   arch
   asmgen
   asmlibrarian

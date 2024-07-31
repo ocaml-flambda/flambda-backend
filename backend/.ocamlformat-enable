@@ -1,3 +1,15 @@
+analyze_tailcall_graph.ml
+analyze_tailcall_graph.mli
+cmm_helpers.ml
+cmm_helpers.mli
+cmm_builtins.ml
+cmm_builtins.mli
+zero_alloc_info.ml
+zero_alloc_info.mli
+zero_alloc_checker.ml
+zero_alloc_checker.mli
+cfg/**/*.ml
+cfg/**/*.mli
 amd64/selection.ml
 amd64/simd*.ml
 amd64/stack_check.ml

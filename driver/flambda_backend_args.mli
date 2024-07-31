@@ -47,6 +47,11 @@ module type Flambda_backend_options = sig
   val cfg_zero_alloc_checker : unit -> unit
   val no_cfg_zero_alloc_checker : unit -> unit
 
+  val cfg_analyze_tailcalls : unit -> unit
+  val no_cfg_analyze_tailcalls : unit -> unit
+  val dcfg_tailcalls : unit -> unit
+  val dno_cfg_tailcalls : unit -> unit
+
   val cfg_stack_checks : unit -> unit
   val no_cfg_stack_checks : unit -> unit
   val cfg_stack_checks_threshold : int -> unit
