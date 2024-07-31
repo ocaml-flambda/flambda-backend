@@ -20,7 +20,7 @@ let is_unit e =
 let is_unit_typ (typ : type_expr) =
   match get_desc typ with
   | Ttuple [] -> true
-  | Tconstr (path, [], _) -> (
+  | Tconstr (path, Unapplied, _) -> (
       match path with Path.Pident id -> name id = "unit" | _ -> false)
   | _ -> false
 
