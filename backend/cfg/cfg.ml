@@ -73,11 +73,9 @@ let rec of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list =
       :: of_cmm_codegen_option tl
     | Check_zero_alloc { strict; loc } ->
       Check_zero_alloc { strict; loc } :: of_cmm_codegen_option tl
-    | Use_linscan_regalloc -> of_cmm_codegen_option tl)
+    | Use_linscan_regalloc -> of_cmm_codegen_option tl
     | Stack_check_move_allowed ->
-      Stack_check_move_allowed :: of_cmm_codegen_option tl
-    | Use_linscan_regalloc ->
-      of_cmm_codegen_option tl)
+      Stack_check_move_allowed :: of_cmm_codegen_option tl)
 
 type t =
   { blocks : basic_block Label.Tbl.t;
