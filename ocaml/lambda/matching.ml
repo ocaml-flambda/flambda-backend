@@ -1026,6 +1026,28 @@ end = struct
     }
 end
 
+type partiality = {
+  current : partial;
+  (** The 'current' information tracks whether the current sub-matrix
+      is Partial or Total, that is, if it may fail to match some possible
+      values and have to generate a jump to some external exit. *)
+
+  global : partial;
+  (** The 'global' information indicates whether the pattern-matching
+      as a whole, at the toplevel, is Partial or Total. This
+      information is decided by the type-checker and passed down to
+      the pattern-matching compiler.
+      When a pattern-matching is globally Total, a jump out of a given
+      submatrix may only target a default submatrix correspond to
+      a further split. When it is Total, some jumps may fail to match
+      any of the following submatrices, and go to the 'final exit'. *)
+}
+
+let pp_partiality ppf {current; global} =
+  Format.fprintf ppf "{ current = %a; global = %a }"
+    pp_partial current
+    pp_partial global
+
 (* Pattern matching before any compilation *)
 
 type ('args, 'row) pattern_matching = {
@@ -2954,19 +2976,19 @@ let complete_pats_constrs = function
 (* a type of per-argument partiality information used by
    [mk_failaction_*] functions to reason statically about which
    partiality information is used for these per-argument functions. *)
-type arg_partial = Arg of partial
+type arg_partiality = Arg of partiality
 
 let comp_exit ctx def =
   match Default_environment.pop def with
   | Some ((_, i), _) -> Lstaticraise (i, []), Jumps.singleton i ctx
   | None -> Default_environment.raise_final_exit def, Jumps.empty Partial
 
-let mk_failaction_neg arg_partial ctx def =
-  match arg_partial with
-  | Arg Partial ->
+let mk_failaction_neg (Arg arg_partial) ctx def =
+  match arg_partial.current with
+  | Partial ->
       let lam, jumps = comp_exit ctx def in
       (Some lam, jumps)
-  | Arg Total -> (None, Jumps.empty Total)
+  | Total -> (None, Jumps.empty Total)
 
 (* In [mk_failaction_pos partial seen ctx defs],
    - [partial] is [Arg Total] if we know the current switch
@@ -3059,13 +3081,13 @@ let mk_failaction_pos arg_partial seen ctx defs =
             fails', jumps'
       | None ->
           match arg_partial with
-          | Arg Total ->
+          | Arg { global = Total; _ } ->
               (* In [Total] mode, if there are no exits left in the
                  environment, we judge that the remaining failing patterns
                  cannot arise. [mk_failaction_neg] has the same
                  logic. *)
               [], Jumps.empty Total
-          | Arg Partial ->
+          | Arg { global = Partial; _ }->
               (* in [Partial] mode, remaining failing patterns
                  go to the final exit. *)
               let final_pats = List.map fst fail_pats_in_ctx in
@@ -3403,7 +3425,7 @@ let combine_variant value_kind loc row arg partial ctx def
       sig_complete
       ||
       match partial with
-      | Arg Total -> true
+      | Arg { current = Total; _ } -> true
       | _ -> false
     then
       (None, Jumps.empty Total)
@@ -3628,7 +3650,7 @@ let rec comp_match_handlers value_kind comp_fun partial ctx first_match next_mat
             else begin
               let partial = match rem with
                 | [] -> partial
-                | _ -> Partial
+                | _ -> { partial with current = Partial }
               in
               match comp_fun partial ctx_i pm with
               | li, total_i ->
@@ -3647,7 +3669,7 @@ let rec comp_match_handlers value_kind comp_fun partial ctx first_match next_mat
             end
           )
       in
-      match comp_fun Partial ctx first_match with
+      match comp_fun { partial with current = Partial } ctx first_match with
       | first_lam, total ->
         c_rec first_lam total rem
       | exception Unused -> (
@@ -3844,7 +3866,7 @@ and compile_match_simplified ~scopes value_kind repr partial ctx
    specialized type [arg_partial] used to make code-generation
    decisions for a given argument switch. *)
 and compute_arg_partial partial = function
-  | Mutable -> Arg Partial
+  | Mutable -> Arg { partial with global = Partial }
   | Immutable -> Arg partial
 
 and mut_of_binding_kind =
@@ -3910,7 +3932,7 @@ and do_compile_matching_pr ~scopes value_kind repr partial ctx x =
   if dbg then Format.eprintf
     "@[<v>MATCH %a\
      @,%a"
-    pp_partial partial
+    pp_partiality partial
     (fun _ -> pretty_precompiled) x;
   if dbg then Format.eprintf "@,@[<v 2>CTX:@,%a@]"
     Context.pp ctx;
@@ -3926,7 +3948,7 @@ and do_compile_matching_pr ~scopes value_kind repr partial ctx x =
   if dbg then Format.eprintf "@]";
   r
 
-and do_compile_matching ~scopes value_kind repr partial ctx pmh =
+and do_compile_matching ~scopes value_kind repr (partial: partiality) ctx pmh =
   match pmh with
   | Pm pm -> (
       let first = pm.args.first in
@@ -4139,7 +4161,10 @@ let toplevel_handler ~scopes ~return_layout loc ~failer partial args cases compi
   let final_exit = next_raise_count () in
   let default = Default_environment.empty ~final_exit in
   let pm = { args; cases; default } in
-  let safe_partial = if !Clflags.safer_matching then Partial else partial in
+  let safe_partial =
+    let partial = if !Clflags.safer_matching then Partial else partial in
+    { global = partial; current = partial }
+  in
   begin match compile_fun safe_partial pm with
   | exception Unused -> assert false
   | (lam, jumps) ->
