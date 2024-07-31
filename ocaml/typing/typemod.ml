@@ -3229,8 +3229,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         let sg, incl_kind =
           extract_sig_functor_open funct_body env smodl.pmod_loc
             modl.mod_type sig_acc
-        in
-        incl_kind, sg
+          in
+          incl_kind, sg
       else
         Tincl_structure, extract_sig_open env smodl.pmod_loc modl.mod_type
     in
