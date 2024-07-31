@@ -164,10 +164,12 @@ module Sig_map = struct
   let find_type name map = String.Map.find_opt name map.types
   let find_module name map = String.Map.find_opt name map.modules
   let find_module_type name map = String.Map.find_opt name map.module_types
+  let find_class_type name map = String.Map.find_opt name map.class_types
 
   let has_type name map = Option.is_some (find_type name map)
   let has_module name map = Option.is_some (find_module name map)
   let has_module_type name map = Option.is_some (find_module_type name map)
+  let has_class_type name map = Option.is_some (find_class_type name map)
 end
 
 type modtype_decl_expected = {
@@ -3607,13 +3609,13 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         let context =
           match sig_map with
           | None -> In_structure None
-          | Some expected_sig ->
+          | Some sig_map ->
             begin match Sig_map.find_module_type pmtd.pmtd_name.txt sig_map with
               | None -> In_structure None
               | Some (_, decl) ->
                   In_structure (Some ({
                     expected = Subst.modtype_declaration Keep subst decl;
-                    sig_map = expected_sig;
+                    sig_map;
                     str_map;
                   }))
             end
