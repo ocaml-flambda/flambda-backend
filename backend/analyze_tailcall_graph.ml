@@ -435,8 +435,6 @@ end = struct
     |> List.iter (fun scc ->
            possibly_overflowing_edges t ~scc
            |> List.iter (fun (e : Edge.with_loc) ->
-                  Format.eprintf "from: %d -> to %d\n\n\n"
-                    (Vertex.id e.edge.from) (Vertex.id e.edge.to_);
                   Location.prerr_warning e.loc
                     Warnings.Inferred_nontail_in_tco'd_cycle))
 
