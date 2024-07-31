@@ -23,6 +23,7 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 (** Tailcall analysis: constructs a call graph whose vertices are functions and whose
     edges are calls in syntactic tail position. Edges are labeled with whether they are
