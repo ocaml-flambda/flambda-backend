@@ -48,8 +48,8 @@ module type Common = sig
 
   type 'd t constraint 'd = 'l * 'r
 
-  (* [allowed] and [disallowed] is from [Solver_intf], see the comments of
-     Allowance in that file. *)
+  (* [allowed] and [disallowed] is from [Solver_intf], see Note [Allowance]
+     in that file. *)
 
   (** Left-only mode *)
   type l = (allowed * disallowed) t
