@@ -13,7 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Allowance
+(* Note [Allowance]
+   ~~~~~~~~~~~~~~~~
 
    Each variable mode has its allowance encoded in its type as [l * r], where
    [l] and [r] could be [allowed] or [disallowed]. The typing of [submode a b]
