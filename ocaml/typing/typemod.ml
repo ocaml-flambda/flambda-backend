@@ -3177,10 +3177,10 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             end
       end
 
-  and add_expected_rec_modules_to_subst ~env ~sig_env expected_sig ident_and_decls subst =
+  and add_expected_rec_modules_to_subst ~env ~sig_env sig_map ident_and_decls subst =
     List.fold_left
       (fun acc (ident, decl) ->
-        add_expected_module_to_subst ~env ~sig_env expected_sig ident decl acc)
+        add_expected_module_to_subst ~env ~sig_env sig_map ident decl acc)
       subst ident_and_decls
 
   and add_expected_modtype_to_subst ~env ~sig_env sig_map ident decl subst =
