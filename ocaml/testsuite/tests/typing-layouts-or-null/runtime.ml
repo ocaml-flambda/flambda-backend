@@ -149,3 +149,10 @@ let () =
   | Null -> ()
   | _ -> assert false
 ;;
+
+let[@warning "-11"] () =
+  match Null with
+  | Null -> ()
+  | Null -> assert false
+  | _ -> assert false
+;;
