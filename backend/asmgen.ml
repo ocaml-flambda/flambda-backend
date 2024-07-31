@@ -337,8 +337,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
               | true ->
                   cfg_with_layout
                   ++ Profile.record ~accumulate:true "analyze_tailcall_graph"
-                       (Analyze_tailcall_graph.Global_state.cfg
-                          ~future_funcnames:funcnames ppf_dump))
+                       (Analyze_tailcall_graph.Global_state.cfg))
           ++ (fun cfg_with_layout ->
               match !Flambda_backend_flags.cfg_cse_optimize with
               | false -> cfg_with_layout

@@ -23,6 +23,7 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 module String = Misc.Stdlib.String
 module Int = Numbers.Int
@@ -34,8 +35,6 @@ module Hashset = struct
 
     val create : int -> t
     val add : t -> elt -> unit
-    val remove : t -> elt -> unit
-    val mem : t -> elt -> bool
     val iter : t -> f:(elt -> unit) -> unit
   end
 
@@ -45,8 +44,6 @@ module Hashset = struct
 
     let create n = T.create n
     let add t k = T.replace t k ()
-    let remove t k = T.remove t k
-    let mem t k = T.mem t k
     let iter t ~f = T.iter (fun e () -> f e) t
   end
 end
@@ -55,58 +52,24 @@ module Graph : sig
   module Vertex : sig
     type t
 
-    val id : t -> int
     val unknown : t
-    val is_unknown : t -> bool
-    val to_dot_id : t -> string
-    val to_dot_label : t -> string
-
-    module Tbl : Hashtbl.S with type key = t
-    module Hashset : Hashset.S with type elt = t
-  end
-
-  module Edge : sig
-    module Label : sig
-      (* For the purpose of analyzing whether TCO inference might break existing
-       code (by causing a stack overflow) we are interested in whether there
-       are any cycles with Explicit_tail_edges and Inferred_nontail_edges.
-       To find these cycles, we plan on finding SCC's for the subgraph
-       consisting of just edges with those labels. *)
-      type t =
-        (* "Explicit" here really means "not inferred." "Explicit" edges are edges
-         that are (very likely) not changing their TCO behavior as a result of
-         adding TCO inference. I.e., before TCO inference, they were tail
-         (nontail) if and only if after TCO inference they are tail (nontail). *)
-        | Explicit_tail_edge
-        | Explicit_nontail_edge
-        (* "Inferred" edges are edges that might possibly change their TCO
-         behavior as a result of adding TCO inference. *)
-        | Inferred_tail_edge
-        | Inferred_nontail_edge
-    end
-
-    type t =
-      { from : Vertex.t
-      ; label : Label.t
-      ; to_ : Vertex.t
-      }
-
-    module Tbl : Hashtbl.S with type key = t
-    module Hashset : Hashset.S with type elt = t
   end
 
   type t
 
   val create : unit -> t
   val reset : t -> unit
-  val successors : t -> Vertex.t -> Edge.Hashset.t
   val find_or_add_vertex : t -> fn_name:string -> Vertex.t
+
+  type actual_position =
+    | Tail
+    | Nontail
 
   val add_edge
     :  t
     -> from:Vertex.t
     -> to_:Vertex.t
-    -> actual_position:[ `Tail | `Nontail ]
+    -> actual_position:actual_position
     -> original_position:Typedtree.position_and_tail_attribute
     -> unit
 
@@ -154,7 +117,6 @@ end = struct
     ;;
 
     module Tbl = Hashtbl.Make (T)
-    module Hashset = Hashset.Make (Tbl)
   end
 
   module Edge = struct
@@ -172,7 +134,11 @@ end = struct
           | Explicit_nontail_edge, Explicit_nontail_edge -> true
           | Inferred_tail_edge, Inferred_tail_edge -> true
           | Inferred_nontail_edge, Inferred_nontail_edge -> true
-          | _ -> false
+          | ( ( Explicit_tail_edge
+              | Explicit_nontail_edge
+              | Inferred_tail_edge
+              | Inferred_nontail_edge )
+            , _ ) -> false
         ;;
 
         let hash t =
@@ -251,14 +217,18 @@ end = struct
     vertex
   ;;
 
+  type actual_position =
+    | Tail
+    | Nontail
+
   let add_edge
     t
     ~(from : Vertex.t)
     ~(to_ : Vertex.t)
-    ~(actual_position : [ `Tail | `Nontail ])
+    ~(actual_position : actual_position)
     ~(original_position : Typedtree.position_and_tail_attribute)
     =
-    let label =
+    let label : Edge.Label.t =
       let impossible_because ~case fmt =
         Misc.fatal_errorf ("case " ^^ case ^^ " impossible because " ^^ fmt)
       in
@@ -269,45 +239,36 @@ end = struct
          analysis less precise -- e.g. tuplify really is a leaf function, so it cannot form
          a cycle in the call graph.
       *)
-      | Unknown_position, `Tail -> `Unknown_tail
-      | Unknown_position, `Nontail -> `Unknown_nontail
+      | Unknown_position, Tail -> Explicit_tail_edge
+      | Unknown_position, Nontail -> Explicit_nontail_edge
       | Not_tail_position Explicit_tail, _ ->
         impossible_because
           "[@tail] not allowed on applications not in tail position"
           ~case:"Not_tail_position Explicit_tail, _"
-      | Tail_position Explicit_tail, `Nontail ->
+      | Tail_position Explicit_tail, Nontail ->
         impossible_because
           "[@tail] was not optimized to a tailcall"
-          ~case:"Tail_position Explicit_tail, `Nontail"
-      | Tail_position Hint_tail, `Nontail ->
+          ~case:"Tail_position Explicit_tail, Nontail"
+      | Tail_position Hint_tail, Nontail ->
         impossible_because
           "[@tail hint] on application in tail position was not optimized to a tailcall"
-          ~case:"Tail_position Hint_tail, `Nontail"
-      | Tail_position Explicit_non_tail, `Tail
-      | Not_tail_position Explicit_non_tail, `Tail ->
+          ~case:"Tail_position Hint_tail, Nontail"
+      | Tail_position Explicit_non_tail, Tail | Not_tail_position Explicit_non_tail, Tail
+        ->
         impossible_because
           "[@nontail] was optimized to a tailcall"
-          ~case:"_ Explicit_non_tail, `Tail"
-      | Tail_position (Explicit_tail | Hint_tail), `Tail -> `Requested_tail
-      | Tail_position Default_tail, `Tail -> `Inferred_tail
-      | Tail_position Explicit_non_tail, `Nontail -> `Requested_nontail
-      | Tail_position Default_tail, `Nontail -> `Inferred_nontail
-      | Not_tail_position Hint_tail, `Tail -> `Requested_tail
-      | Not_tail_position Default_tail, `Tail -> `Became_tail_after_optimizations
-      | Not_tail_position _, `Nontail -> `Not_in_tail_position
-    in
-    let label : Edge.Label.t =
-      match label with
-      | `Unknown_tail -> Explicit_tail_edge
-      | `Unknown_nontail -> Explicit_nontail_edge
-      | `Not_in_tail_position -> Explicit_nontail_edge
-      | `Requested_nontail -> Explicit_nontail_edge
-      | `Requested_tail -> Explicit_tail_edge
-      | `Became_tail_after_optimizations ->
-        (* This is a conservative approximation *)
+          ~case:"_ Explicit_non_tail, Tail"
+      | Tail_position (Explicit_tail | Hint_tail), Tail ->
+        (* Requested tail *) Explicit_tail_edge
+      | Tail_position Default_tail, Tail -> Inferred_tail_edge
+      | Tail_position Explicit_non_tail, Nontail ->
+        (* Requested tail *) Explicit_nontail_edge
+      | Tail_position Default_tail, Nontail -> Inferred_nontail_edge
+      | Not_tail_position Hint_tail, Tail -> (* Requested tail *) Explicit_tail_edge
+      | Not_tail_position Default_tail, Tail ->
+        (* Became tail after optimizations. This is a conservative approximation. *)
         Explicit_tail_edge
-      | `Inferred_tail -> Inferred_tail_edge
-      | `Inferred_nontail -> Inferred_nontail_edge
+      | Not_tail_position _, Nontail -> (* Not in tail position *) Explicit_nontail_edge
     in
     let edge : Edge.t = { from; to_; label } in
     match from with
@@ -363,7 +324,7 @@ end = struct
   ;;
 
   let print_dot t ppf =
-    Format.fprintf ppf "strict digraph {\n";
+    Format.fprintf ppf "digraph {\n";
     Format.fprintf ppf "  rankdir=LR\n";
     Vertex.Tbl.iter
       (fun vtx edges ->
@@ -377,12 +338,11 @@ end
 
 module Global_state = struct
   module Vertex = Graph.Vertex
-  module Edge = Graph.Edge
 
   let graph : Graph.t = Graph.create ()
   let reset_unit_info () = Graph.reset graph
 
-  let cfg fmt ~future_funcnames cfg_with_layout =
+  let cfg cfg_with_layout =
     let cfg = Cfg_with_layout.cfg cfg_with_layout in
     let from = Graph.find_or_add_vertex graph ~fn_name:(Cfg.fun_name cfg) in
     let to_ (op : Cfg.func_call_operation) : Vertex.t =
@@ -394,11 +354,11 @@ module Global_state = struct
       let add_edge = Graph.add_edge graph ~from in
       match block.terminator.desc with
       | Tailcall_self { original_position; _ } ->
-        add_edge ~to_:from ~actual_position:`Tail ~original_position
+        add_edge ~to_:from ~actual_position:Tail ~original_position
       | Tailcall_func { original_position; op } ->
-        add_edge ~to_:(to_ op) ~actual_position:`Tail ~original_position
+        add_edge ~to_:(to_ op) ~actual_position:Tail ~original_position
       | Call { original_position; op; _ } ->
-        add_edge ~to_:(to_ op) ~actual_position:`Nontail ~original_position
+        add_edge ~to_:(to_ op) ~actual_position:Nontail ~original_position
       (* (less-tco) Handle Call_no_return and Prim? *)
       | Call_no_return _
       | Prim _

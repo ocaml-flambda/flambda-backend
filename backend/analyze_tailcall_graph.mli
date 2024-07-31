@@ -36,11 +36,7 @@ module Global_state : sig
 
   (** Analyzes a single function's CFG. This should be called on every function in a
     compilation unit. *)
-  val cfg
-    :  Format.formatter
-    -> future_funcnames:Misc.Stdlib.String.Set.t
-    -> Cfg_with_layout.t
-    -> Cfg_with_layout.t
+  val cfg : Cfg_with_layout.t -> Cfg_with_layout.t
 
   val print_dot : Format.formatter -> unit
 end
