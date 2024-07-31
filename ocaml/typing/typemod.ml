@@ -3019,18 +3019,18 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
   (* Functions to check whether two (module types | modules | types) are "compatible", and
      adding them to a [Subst.t]. See comment in [type_str_item] below on why we need these. *)
 
-  let rec check_expected_typedecl ~env ~sig_env id actual_decl expected_decl =
+  let rec check_expected_typedecl ~env ~sig_env id actual expected =
     (* CR selee: ignore for now, but I suspect we'll need it for mcomp check *)
     ignore sig_env;
 
     (* CR selee: For now, just check their arity *)
-    if expected_decl.type_arity <> actual_decl.type_arity then
-      raise (Error (actual_decl.type_loc, env,
-        Incompatible_type_declaration (id, expected_decl)));
+    if expected.type_arity <> actual.type_arity then
+      raise (Error (actual.type_loc, env,
+        Incompatible_type_declaration (id, expected)));
     ()
 
   and check_expected_modtype
-    ~env ~sig_env subst actual_modtype expected_modtype ~actual_loc ~expected_loc =
+      ~env ~sig_env subst actual expected ~actual_loc ~expected_loc =
     let check_expected_sig_item ~env ~sig_env sig_map subst = function
       | Sig_value _ | Sig_typext _ | Sig_class _ | Sig_class_type _ -> subst
       | Sig_type (ident, decl, _, _) ->
@@ -3041,14 +3041,14 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           add_expected_modtype_to_subst ~env ~sig_env (Some sig_map) ident decl subst
     in
 
-    let check_expected_sig actual_sig expected_sig =
-      let env = Env.add_signature actual_sig env in
-      let sig_env = Env.add_signature expected_sig sig_env in
-      let sig_map = Sig_map.add_signature expected_sig (Sig_map.empty) in
+    let check_expected_sig actual expected =
+      let env = Env.add_signature actual env in
+      let sig_env = Env.add_signature expected sig_env in
+      let sig_map = Sig_map.add_signature expected (Sig_map.empty) in
       let newsubst =
         List.fold_left
           (fun acc item -> check_expected_sig_item ~env ~sig_env sig_map acc item)
-          subst actual_sig
+          subst actual
       in
       ignore newsubst;
     in
@@ -3082,7 +3082,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
       with Fatal_error -> false
     in
 
-    match actual_modtype, expected_modtype with
+    match actual, expected with
       | None, _ | _, None -> ()
       | Some mt1, Some mt2 ->
           begin match mt1, mt2 with
@@ -3093,31 +3093,31 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             | Mty_signature s1, Mty_signature s2 -> check_expected_sig s1 s2
             | Mty_strengthen (mt1, _, _),
               (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _ | Mty_strengthen _) ->
-                check_expected_modtype ~env ~sig_env subst (Some mt1) expected_modtype
+                check_expected_modtype ~env ~sig_env subst (Some mt1) expected
                   ~actual_loc ~expected_loc
             | (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _),
               Mty_strengthen (mt2, _, _) ->
-                check_expected_modtype ~env ~sig_env subst actual_modtype (Some mt2)
+                check_expected_modtype ~env ~sig_env subst actual (Some mt2)
                   ~actual_loc ~expected_loc
             | Mty_ident p1,
               (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _) ->
                 let (mt1, actual_loc) = extract_modtype_loc env From_modtype p1 in
-                check_expected_modtype ~env ~sig_env subst mt1 expected_modtype
+                check_expected_modtype ~env ~sig_env subst mt1 expected
                   ~actual_loc ~expected_loc
             | (Mty_signature _ | Mty_functor _ | Mty_alias _),
               Mty_ident p2 ->
                 let (mt2, expected_loc) = extract_modtype_loc sig_env From_modtype p2 in
-                check_expected_modtype ~env ~sig_env subst actual_modtype mt2
+                check_expected_modtype ~env ~sig_env subst actual mt2
                   ~actual_loc ~expected_loc
             | Mty_alias p1,
               (Mty_signature _ | Mty_functor _ | Mty_alias _) ->
                 let (mt1, actual_loc) = extract_modtype_loc env From_module p1 in
-                check_expected_modtype ~env ~sig_env subst mt1 expected_modtype
+                check_expected_modtype ~env ~sig_env subst mt1 expected
                   ~actual_loc ~expected_loc
             | (Mty_signature _ | Mty_functor _),
               Mty_alias p2 ->
                 let (mt2, expected_loc) = extract_modtype_loc sig_env From_module p2 in
-                check_expected_modtype ~env ~sig_env subst actual_modtype mt2
+                check_expected_modtype ~env ~sig_env subst actual mt2
                   ~actual_loc ~expected_loc
             | Mty_functor (Named (actual_id, mt1), mt2),
               Mty_functor (Named (expected_id, mt3), mt4) ->
