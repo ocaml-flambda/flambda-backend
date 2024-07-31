@@ -32,7 +32,6 @@ let template ~tests = {|(* TEST
 |}^tests
 
 let bigstring_tests_template ~length ~tests = {|
-let try_with f = try Ok (f ()) with err -> Error err
 let length = |}^length^{|
 let reference_str = String.init length (fun i -> i * 7 mod 256 |> char_of_int)
 let create_b () = reference_str |> Bytes.of_string
@@ -54,28 +53,28 @@ end
 
 |}^tests
 
-let external_bindings_template ~container ~sigil ~width ~index ~ref_result
+let external_bindings_template ~container ~sigil ~width ~test_suffix ~index ~ref_result
       ~test_result = {|
 external |}^sigil^{|_reference : |}^container^{| -> int -> |}^ref_result^{|
   = "%caml_|}^container^{|_get|}^width^{|"
 
 external |}^sigil^{|_tested_s : |}^container^{| -> |}^index^{| -> |}^test_result^{|
-  = "%caml_|}^container^{|_get|}^width^{|_indexed_by_|}^index^{|"
+  = "%caml_|}^container^{|_get|}^width^test_suffix^{|_indexed_by_|}^index^{|"
 
 external |}^sigil^{|_tested_u : |}^container^{| -> |}^index^{| -> |}^test_result^{|
-  = "%caml_|}^container^{|_get|}^width^{|u_indexed_by_|}^index^{|"
+  = "%caml_|}^container^{|_get|}^width^{|u|}^test_suffix^{|_indexed_by_|}^index^{|"
 |}
 
-let bigstring_one_test_template ~width ~index ~ref_result ~test_result ~conv_index
-      ~conv_result ~eq ~extra_bounds = {|
+let bigstring_one_test_template ~width ~test_suffix ~index ~ref_result ~test_result
+      ~conv_index ~conv_result ~eq ~extra_bounds = {|
 let of_boxed_index : int -> |}^index^{| = |}^conv_index^{|
 let to_boxed_result : |}^test_result^{| -> |}^ref_result^{| = |}^conv_result^{|
 let eq : |}^ref_result^{| -> |}^ref_result^{| -> bool = |}^eq^{|
 |}
 ^external_bindings_template
-   ~container:"bigstring" ~sigil:"bs" ~width ~index ~ref_result ~test_result
+   ~container:"bigstring" ~sigil:"bs" ~width ~test_suffix ~index ~ref_result ~test_result
 ^external_bindings_template
-   ~container:"bytes" ~sigil:"b" ~width ~index ~ref_result ~test_result
+   ~container:"bytes" ~sigil:"b" ~width ~test_suffix ~index ~ref_result ~test_result
 ^{|
 let check_get_bounds, check_get =
   let create_checkers create reference tested_s tested_u =
@@ -83,29 +82,25 @@ let check_get_bounds, check_get =
     and for_s = create ()
     and for_u = create () in
     let check_get_bounds i =
-      match try_with (fun () -> tested_s for_s i) with
-      | Error (Invalid_argument _) -> ()
-      | _ -> assert false
+      try let _ = tested_s for_s i in assert false with
+      | Invalid_argument _ -> ()
     in
     ( check_get_bounds
     , fun i ->
         let test_i = of_boxed_index i in
-        match try_with (fun () -> reference for_ref i) with
-        | Ok res ->
-          (match
-             ( try_with (fun () -> tested_s for_s test_i)
-             , try_with (fun () -> tested_u for_u test_i) )
-           with
-           | Ok s, Ok u ->
-             assert (eq res (to_boxed_result s));
-             assert (eq res (to_boxed_result u))
-           | _ -> assert false)
-        | Error (Invalid_argument _) -> check_get_bounds (of_boxed_index i)
-        | Error _ ->
-          (match try_with (fun () -> tested_s for_s test_i) with
-           | Error (Invalid_argument _) -> assert false
-           | Error _ -> ()
-           | Ok _ -> assert false) ) in
+        try (
+          let res = reference for_ref i in
+          try (
+            assert (eq res (to_boxed_result (tested_s for_s test_i)));
+            assert (eq res (to_boxed_result (tested_u for_u test_i))))
+          with
+          | _ -> assert false)
+        with
+        | Invalid_argument _ -> check_get_bounds (of_boxed_index i)
+        | _ ->
+          (try let _ = tested_s for_s test_i in assert false with
+           | Invalid_argument _ -> assert false
+           | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
   let cb_for_b, c_for_b =
@@ -125,6 +120,7 @@ done
 let extra_bounds_template ~index = {|
 check_get_bounds (|}^index^{|);;|}
 
+(* Copied from [utils/misc.ml] *)
 module Hlist = struct
   type _ t =
     | [] : unit t
@@ -150,6 +146,7 @@ type index =
 
 type result =
   { width : string
+  ; test_suffix : string
   ; ref : string
   ; test : string
   ; conv : string
@@ -176,21 +173,38 @@ let bigstring_tests =
          }
        ]
      ; [ { width = "16"
+         ; test_suffix = ""
          ; ref = "int"
          ; test = "int"
          ; conv = "fun x -> x"
          ; eq = "Int.equal"
          }
        ; { width = "32"
+         ; test_suffix = ""
          ; ref = "int32"
          ; test = "int32"
          ; conv = "fun x -> x"
          ; eq = "Int32.equal"
          }
        ; { width = "64"
+         ; test_suffix = ""
          ; ref = "int64"
          ; test = "int64"
          ; conv = "fun x -> x"
+         ; eq = "Int64.equal"
+         }
+       ; { width = "32"
+         ; test_suffix = "#"
+         ; ref = "int32"
+         ; test = "int32#"
+         ; conv = "Stdlib_upstream_compatible.Int32_u.to_int32"
+         ; eq = "Int32.equal"
+         }
+       ; { width = "64"
+         ; test_suffix = "#"
+         ; ref = "int64"
+         ; test = "int64#"
+         ; conv = "Stdlib_upstream_compatible.Int64_u.to_int64"
          ; eq = "Int64.equal"
          }
        ]
@@ -199,7 +213,7 @@ let bigstring_tests =
   |> List.map
        (fun
            ([ { type_; conv = conv_index; extra_bounds }
-            ; { width; ref; test; conv = conv_result; eq }
+            ; { width; test_suffix; ref; test; conv = conv_result; eq }
             ] :
              _ Hlist.t)
          ->
@@ -212,6 +226,7 @@ let bigstring_tests =
           in
           bigstring_one_test_template
             ~width
+            ~test_suffix
             ~index:type_
             ~ref_result:ref
             ~test_result:test

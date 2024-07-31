@@ -668,15 +668,15 @@ let primitive ppf = function[@ocaml.warning "+9"]
        array_index_kind index_kind
   | Pbytes_load_32 {unsafe; index_kind; mode; boxed} ->
      fprintf ppf "bytes.%sget32%s%s[indexed by %a]"
-       (if unsafe then "unsafe_" else "") (if boxed then "#" else "")
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
        (alloc_kind mode) array_index_kind index_kind
   | Pbytes_load_f32{unsafe; index_kind; mode; boxed} ->
      fprintf ppf "bytes.%sgetf32%s%s[indexed by %a]"
-       (if unsafe then "unsafe_" else "") (if boxed then "#" else "")
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "")
        (alloc_kind mode) array_index_kind index_kind
   | Pbytes_load_64{unsafe; index_kind; mode; boxed} ->
      fprintf ppf "bytes.%sget64%s%s[indexed by %a]"
-       (if unsafe then "unsafe_" else "") (if boxed then "#" else "")
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "")
        (alloc_kind mode) array_index_kind index_kind
   | Pbytes_load_128 {unsafe; index_kind; mode} ->
      fprintf ppf "bytes.%sunaligned_get128%s[indexed by %a]"
