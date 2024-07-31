@@ -267,7 +267,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let decl =
     { type_params;
       type_arity = arity;
-      type_kind = Type_abstract abstract_reason;
+      type_kind = Type_abstract { reason = abstract_reason; datatype = false };
       type_jkind;
       type_jkind_annotation;
       type_private = sdecl.ptype_private;
@@ -790,7 +790,9 @@ let transl_declaration env sdecl (id, uid) =
   let (tkind, kind, jkind_default) =
     match sdecl.ptype_kind with
       | Ptype_abstract ->
-        Ttype_abstract, Type_abstract Abstract_def, Jkind.Type.Primitive.value ~why:Default_type_jkind |> Jkind.of_type_jkind
+        Ttype_abstract,
+        Type_abstract { reason = Abstract_def; datatype = false },
+        Jkind.Type.Primitive.value ~why:Default_type_jkind |> Jkind.of_type_jkind
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -2007,7 +2009,7 @@ let check_duplicates sdecl_list =
 (* Force recursion to go through id for private types*)
 let name_recursion sdecl id decl =
   match decl with
-  | { type_kind = Type_abstract Abstract_def;
+  | { type_kind = Type_abstract { reason = Abstract_def; datatype = false };
       type_manifest = Some ty;
       type_private = Private; } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
@@ -3082,7 +3084,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       sig_decl.type_jkind,
       sig_decl.type_jkind_annotation
     else
-      Type_abstract Abstract_def, false, sig_decl.type_jkind, None
+      Type_abstract { reason = Abstract_def; datatype = false },
+      false, sig_decl.type_jkind, None
   in
   let new_sig_decl =
     { type_params = params;
@@ -3163,7 +3166,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
 let transl_package_constraint ~loc ty =
   { type_params = [];
     type_arity = 0;
-    type_kind = Type_abstract Abstract_def;
+    type_kind = Type_abstract { reason = Abstract_def; datatype = false };
     type_jkind = Jkind.Primitive.top ~why:Dummy_jkind;
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
@@ -3189,7 +3192,7 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
     let params = List.map Ctype.newvar params in
     { type_params = params;
       type_arity = arity;
-      type_kind = Type_abstract Abstract_def;
+      type_kind = Type_abstract { reason = Abstract_def; datatype = false };
       type_jkind = jkind;
       type_jkind_annotation = jkind_annotation;
       type_private = Public;
