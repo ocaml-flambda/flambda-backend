@@ -104,6 +104,7 @@ type error =
   | Cannot_infer_module_type
   | Unbound_path_in_inferred_type of Btype.path_kind * Path.t
   | Incompatible_type_declaration of Ident.t * type_declaration
+  | Incompatible_functor_declaration of Location.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -3026,7 +3027,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         Incompatible_type_declaration (id, expected_decl)));
     ()
 
-  and check_expected_modtype sig_env env subst expected_modtype actual_modtype =
+  and check_expected_modtype
+      sig_env env subst expected_modtype actual_modtype ~actual_loc ~expected_loc =
     let check_expected_sig_item sig_env env sig_map subst = function
       | Sig_value _ | Sig_typext _ | Sig_class _ | Sig_class_type _ -> subst
       | Sig_type (ident, decl, _, _) ->
@@ -3049,30 +3051,16 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
       ignore newsubst;
     in
 
-    let extract_modtype env context path =
+    let extract_modtype_loc env context path =
       try
         match context with
-          | From_module -> Some ((Env.find_module path env).md_type)
-          | From_modtype -> (Env.find_modtype path env).mtd_type
+          | From_module ->
+              let decl = Env.find_module path env in
+              (Some decl.md_type), decl.md_loc
+          | From_modtype ->
+              let decl = Env.find_modtype path env in
+              decl.mtd_type, decl.mtd_loc
       with Not_found -> Misc.fatal_errorf "Modtype not found in enclosing env: %a" Path.print path
-    in
-
-    let rec extract_signature env modtype =
-      match modtype with
-      | None -> None
-      | Some modtype ->
-        begin match modtype with
-          | Mty_signature sg -> Some sg
-          | Mty_ident path ->
-              let modtype = extract_modtype env From_modtype path in
-              extract_signature env modtype
-          | Mty_alias path ->
-              let modtype = extract_modtype env From_module path in
-              extract_signature env modtype
-          | Mty_functor _ | Mty_strengthen _ ->
-            (* CR selee: Cover more cases *)
-             None
-        end
     in
 
     let same_modtype_path_after_subst p1 p2 =
@@ -3093,16 +3081,68 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
     in
 
     match expected_modtype, actual_modtype with
-      | Some (Mty_ident p1), Some (Mty_ident p2)
-          when same_modtype_path_after_subst p1 p2 -> ()
-      | Some (Mty_alias p1), Some (Mty_alias p2)
-          when same_module_path_after_subst p1 p2 -> ()
-      | _ ->
-          let s1 = extract_signature sig_env expected_modtype in
-          let s2 = extract_signature env actual_modtype in
-          begin match s1, s2 with
-            | Some s1, Some s2 -> check_expected_sig s1 s2
-            | _ -> ()
+      | None, _ | _, None -> ()
+      | Some mt1, Some mt2 ->
+          begin match mt1, mt2 with
+            | Mty_ident p1, Mty_ident p2
+                when same_modtype_path_after_subst p1 p2 -> ()
+            | Mty_alias p1, Mty_alias p2
+                when same_module_path_after_subst p1 p2 -> ()
+            | Mty_signature s1, Mty_signature s2 -> check_expected_sig s1 s2
+            | Mty_strengthen (mt1, _, _),
+              (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _ | Mty_strengthen _) ->
+                check_expected_modtype sig_env env subst (Some mt1) actual_modtype
+                  ~actual_loc ~expected_loc
+            | (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _),
+              Mty_strengthen (mt2, _, _) ->
+                check_expected_modtype sig_env env subst expected_modtype (Some mt2)
+                  ~actual_loc ~expected_loc
+            | Mty_ident p1,
+              (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _) ->
+                let (mt1, expected_loc) = extract_modtype_loc sig_env From_modtype p1 in
+                check_expected_modtype sig_env env subst mt1 actual_modtype
+                  ~actual_loc ~expected_loc
+            | (Mty_signature _ | Mty_functor _ | Mty_alias _),
+              Mty_ident p2 ->
+                let (mt2, actual_loc) = extract_modtype_loc env From_modtype p2 in
+                check_expected_modtype sig_env env subst expected_modtype mt2
+                  ~actual_loc ~expected_loc
+            | Mty_alias p1,
+              (Mty_signature _ | Mty_functor _ | Mty_alias _) ->
+                let (mt1, expected_loc) = extract_modtype_loc sig_env From_module p1 in
+                check_expected_modtype sig_env env subst mt1 actual_modtype
+                  ~actual_loc ~expected_loc
+            | (Mty_signature _ | Mty_functor _),
+              Mty_alias p2 ->
+                let (mt2, actual_loc) = extract_modtype_loc env From_module p2 in
+                check_expected_modtype sig_env env subst expected_modtype mt2
+                  ~actual_loc ~expected_loc
+            | Mty_functor (Named (expected_id, mt1), mt2),
+              Mty_functor (Named (actual_id, mt3), mt4) ->
+                check_expected_modtype sig_env env subst (Some mt1) (Some mt3)
+                  ~actual_loc ~expected_loc;
+                let sig_env =
+                  match expected_id with
+                    | None -> sig_env
+                    | Some expected_id ->
+                        Env.add_module ~arg:true expected_id Mp_present mt1 sig_env
+                  in
+                let env =
+                  match actual_id with
+                    | None -> env
+                    | Some actual_id ->
+                        Env.add_module ~arg:true actual_id Mp_present mt3 env
+                  in
+                check_expected_modtype sig_env env subst (Some mt2) (Some mt4)
+                  ~actual_loc ~expected_loc
+            | Mty_functor (Unit, mt1), Mty_functor (Unit, mt2) ->
+                check_expected_modtype sig_env env subst (Some mt1) (Some mt2)
+                  ~actual_loc ~expected_loc
+            | Mty_functor _,
+              (Mty_functor _ | Mty_signature _)
+            | Mty_signature _, Mty_functor _ ->
+                raise
+                  (Error (actual_loc, env, Incompatible_functor_declaration expected_loc))
           end
 
   and add_expected_type_to_subst sig_env env sig_map ident_and_decls subst =
@@ -3129,7 +3169,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
               | None -> subst
               | Some (sig_ident, sig_decl) ->
                   check_expected_modtype sig_env env subst
-                    (Some sig_decl.md_type) (Some decl.Types.md_type);
+                    (Some sig_decl.md_type) (Some decl.Types.md_type)
+                    ~actual_loc:decl.Types.md_loc ~expected_loc: sig_decl.Types.md_loc;
                   Subst.add_module sig_ident (Pident ident) subst
             end
       end
@@ -3149,8 +3190,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         begin match Sig_map.find_module_type (Ident.name ident) sig_map with
           | None -> subst
           | Some (sig_ident, sig_decl) ->
-              check_expected_modtype sig_env env subst
-                sig_decl.mtd_type decl.Types.mtd_type;
+              check_expected_modtype sig_env env subst sig_decl.mtd_type decl.Types.mtd_type
+                ~actual_loc:decl.Types.mtd_loc ~expected_loc:sig_decl.Types.mtd_loc;
               Subst.add_modtype sig_ident (Mty_ident (Pident ident)) subst
         end
 
@@ -4617,6 +4658,13 @@ let report_error ~loc _env = function
       Location.errorf ~loc ~sub:[expected_error]
         "@[This type declaration is incompatible with the corresponding @ \
         declaration in the signature:@ expected %a.@]" (type_declaration expected_ident) expected_decl
+  | Incompatible_functor_declaration expected_loc ->
+      let expected_error =
+        Location.msg ~loc:expected_loc "Expected declaration here"
+      in
+      Location.errorf ~loc ~sub:[expected_error]
+        "This functor declaration is incompatible with the corresponding @ \
+        declaration in the signature."
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env
