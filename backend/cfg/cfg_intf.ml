@@ -210,10 +210,10 @@ module S = struct
        really an op). *)
     | Tailcall_self of destination with_original_position
     | Tailcall_func of func_call_operation with_original_position
-    (* CR less-tco: Track [@tail] attribute on external calls? *)
+    (* (less-tco) Track [@tail] attribute on external calls? *)
     | Call_no_return of external_call_operation
     | Call of func_call_operation with_label_after_and_original_position
-    (* CR less-tco: Track [@tail] attribute on primitive (external) calls? *)
+    (* (less-tco) Track [@tail] attribute on primitive (external) calls? *)
     | Prim of prim_call_operation with_label_after
     | Specific_can_raise of Arch.specific_operation with_label_after
 end
