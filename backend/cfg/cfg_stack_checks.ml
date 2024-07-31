@@ -47,11 +47,14 @@ let is_nontail_call : Cfg.terminator -> bool =
        though a specific operation may call some C code. *)
     false
 
+type preproc_stack_check_result =
+  { max_frame_size : int;
+    contains_nontail_calls : bool
+  }
+
 (* Returns the stack check info, and the max of seen instruction ids. *)
 let block_preproc_stack_check_result :
-    Cfg.basic_block ->
-    frame_size:int ->
-    Emitaux.preproc_stack_check_result * int =
+    Cfg.basic_block -> frame_size:int -> preproc_stack_check_result * int =
  fun block ~frame_size ->
   let contains_nontail_calls =
     (* XCR mshinwell: move to a method in Cfg somewhere?
@@ -68,6 +71,9 @@ let block_preproc_stack_check_result :
           Int.max max_instr_id instr.id ))
   in
   let max_frame_size = max_frame_size + frame_size in
+  (* CR-someday xclerc for xclerc: compute and use `max_frame_size_with_calls`
+     and `callees`. (note: we currently restrict the use of the CFG variant to
+     `caml_apply`.) *)
   { max_frame_size; contains_nontail_calls }, max_instr_id
 
 type cfg_info =
@@ -227,8 +233,12 @@ let cfg (cfg_with_layout : Cfg_with_layout.t) =
       in
       if not (Label.Set.is_empty blocks_needing_stack_checks)
       then
-        if Label.Tbl.length cfg.blocks
-           < !Flambda_backend_flags.cfg_stack_checks_threshold
+        (* We apply the optimization only if the maximum frame size is slightly
+           below the red zone to account for pushes introduced during emission
+           (e.g. in `emit_stack_realloc`). *)
+        if max_frame_size < 20 * 8
+           && Label.Tbl.length cfg.blocks
+              < !Flambda_backend_flags.cfg_stack_checks_threshold
         then
           insert_stack_checks cfg ~max_frame_size ~blocks_needing_stack_checks
             ~max_instr_id

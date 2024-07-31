@@ -41,7 +41,11 @@ module Int = Numbers.Int
 [@@@ocaml.warning "-66"]
 open! Branch_relaxation
 
+let debug = true
+
 let _label s = D.label ~typ:QWORD s
+
+let after_stack_checks_suffix = "_asc"
 
 (* Override proc.ml *)
 
@@ -194,16 +198,34 @@ let label_name lbl =
 let emit_label lbl =
   label_name (Int.to_string lbl)
 
-let rel_plt (s : Cmm.symbol) =
+(* CR xclerc for xclerc: debug/test *)
+let stack_check_skipped_callees = ref Misc.Stdlib.String.Set.empty
+
+let rel_plt ?(skip_stack_check = false) (s : Cmm.symbol) =
+  let sym_name = s.sym_name in
+  let name_with_suffix s =
+    if skip_stack_check then begin
+      if debug then begin
+        stack_check_skipped_callees :=
+          Misc.Stdlib.String.Set.add sym_name !stack_check_skipped_callees;
+      end;
+      s ^ after_stack_checks_suffix
+    end else
+      s
+  in
   match s.sym_global with
-  | Local -> sym (label_name (emit_symbol s.sym_name))
+  | Local ->
+    let s = label_name (emit_symbol s.sym_name) in
+    sym (name_with_suffix s)
   | Global ->
     if windows && !Clflags.dlcode then mem__imp s.sym_name
-    else
+    else begin
       let s = emit_symbol s.sym_name in
+      let s = name_with_suffix s in
       sym (if use_plt then s ^ "@PLT" else s)
+    end
 
-let emit_call s = I.call (rel_plt s)
+let emit_call ?(skip_stack_check = false) s = I.call (rel_plt ~skip_stack_check s)
 
 let emit_jump s = I.jmp (rel_plt s)
 
@@ -465,6 +487,11 @@ let emit_call_safety_errors () =
   end
 
 (* Stack reallocation *)
+
+let stack_check_skip_callees = ref Misc.Stdlib.String.Set.empty
+
+let stack_check = ref Stack_check_info.No_checks
+
 type stack_realloc = {
   sc_label : Label.t; (* Label of the reallocation code. *)
   sc_return : Label.t; (* Label to return to after reallocation. *)
@@ -474,6 +501,9 @@ type stack_realloc = {
 let stack_realloc = ref ([] : stack_realloc list)
 
 let clear_stack_realloc () =
+  stack_check_skip_callees := Misc.Stdlib.String.Set.empty;
+  stack_check_skipped_callees := Misc.Stdlib.String.Set.empty;
+  stack_check := Stack_check_info.No_checks;
   stack_realloc := []
 
 let emit_stack_realloc () =
@@ -492,7 +522,8 @@ let emit_stack_realloc () =
        I.jmp (label sc_return))
     !stack_realloc
 
-let emit_stack_check ~size_in_bytes ~save_registers =
+(* CR xclerc for xclerc: do we need both `first` and `save_registers`? *)
+let emit_stack_check ~first ~size_in_bytes ~save_registers =
   let overflow = new_label () and ret = new_label () in
   let threshold_offset = Domainstate.stack_ctx_words * 8 + Stack_check.stack_threshold_size in
   if save_registers then I.push r10;
@@ -501,6 +532,19 @@ let emit_stack_check ~size_in_bytes ~save_registers =
   if save_registers then I.pop r10;
   I.jb (label overflow);
   def_label ret;
+  if first then begin
+    (* CR xclerc for xclerc: could be `ret` (if made global) *)
+    let lbl_asc = !function_name ^ after_stack_checks_suffix in
+    D.global (emit_symbol lbl_asc);
+    D.label (emit_symbol lbl_asc);
+    D.label (label_name (emit_symbol lbl_asc));
+    stack_check :=
+      Stack_check_info.Check_as_first_instruction {
+        size_in_bytes;
+        includes = !stack_check_skip_callees |> String.Set.elements;
+      }
+  end else
+    stack_check := Stack_check_info.Check_moved_down;
   stack_realloc := {
     sc_label = overflow;
     sc_return = ret;
@@ -1373,8 +1417,11 @@ let emit_instr ~first ~fallthrough i =
       I.call (arg i 0);
       record_frame i.live (Dbg_other i.dbg)
   | Lop(Icall_imm { func; }) ->
+      let skip_stack_check = Misc.Stdlib.String.Set.mem func.sym_name !stack_check_skip_callees in
+      (* CR mshinwell/xclerc: [Windows-specific] should `add_used_symbol` be called on
+         the other symbol if skipping the check? on both symbols? *)
       add_used_symbol func.sym_name;
-      emit_call func;
+      emit_call ~skip_stack_check func;
       record_frame i.live (Dbg_other i.dbg)
   | Lop(Itailcall_ind) ->
       output_epilogue (fun () -> I.jmp (arg i 0))
@@ -1873,7 +1920,7 @@ let emit_instr ~first ~fallthrough i =
           I.jmp r11
     end
   | Lstackcheck { max_frame_size_bytes; } ->
-    emit_stack_check ~size_in_bytes:max_frame_size_bytes ~save_registers:(not first)
+    emit_stack_check ~first ~size_in_bytes:max_frame_size_bytes ~save_registers:(not first)
 
 let rec emit_all ~first ~fallthrough i =
   match i.desc with
@@ -1940,7 +1987,25 @@ let fundecl fundecl =
   if Config.runtime5 && (not Config.no_stack_checks) && !Clflags.runtime_variant = "d" then begin
     emit_call (Cmm.global_symbol "caml_assert_stack_invariants");
   end;
+  stack_check_skip_callees := fundecl.fun_stack_check_skip_callees;
   emit_all ~first:true ~fallthrough:true fundecl.fun_body;
+  if debug then begin
+    let module String = Misc.Stdlib.String in
+    let print_set prefix set =
+      String.Set.iter (Printf.eprintf "%s %s\n%!" prefix) set
+    in
+    if not (String.Set.equal !stack_check_skip_callees !stack_check_skipped_callees) then begin
+      print_set "skip" !stack_check_skip_callees;
+      print_set "skipped" !stack_check_skipped_callees;
+      print_set "skip only" (String.Set.diff !stack_check_skip_callees !stack_check_skipped_callees);
+      print_set "skipped only" (String.Set.diff !stack_check_skipped_callees !stack_check_skip_callees);
+      assert false
+    end;
+  end;
+  Stack_check_info.set_value
+    (Compilenv.current_unit_infos ()).ui_stack_check_info
+    fundecl.fun_name
+    !stack_check;
   List.iter emit_call_gc !call_gc_sites;
   List.iter emit_local_realloc !local_realloc_sites;
   emit_call_safety_errors ();
@@ -2200,7 +2265,7 @@ let emit_probe_handler_wrapper p =
   let n = k + padding in
   (* Allocate stack space *)
   if Config.runtime5 && (not Config.no_stack_checks) && (n >= Stack_check.stack_threshold_size) then
-    emit_stack_check ~size_in_bytes:n ~save_registers:true;
+    emit_stack_check ~first:true ~size_in_bytes:n ~save_registers:true;
   emit_stack_offset n;
   (* Save all live hard registers *)
   let offset = aux_offset + tmp_offset + loc_offset in

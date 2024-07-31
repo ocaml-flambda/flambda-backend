@@ -83,6 +83,7 @@ type codegen_option =
       { strict : bool;
         loc : Location.t
       }
+  | Stack_check_move_allowed
 
 val of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list
 
@@ -103,7 +104,9 @@ type t =
         (** Precomputed during selection and poll insertion. *)
     fun_num_stack_slots : int array;
         (** Precomputed at register allocation time *)
-    fun_poll : Lambda.poll_attribute (* Whether to insert polling points. *)
+    fun_poll : Lambda.poll_attribute; (* Whether to insert polling points. *)
+    fun_stack_check_skip_callees : Misc.Stdlib.String.Set.t
+        (** Callees for which the stack checks will be skipped *)
   }
 
 val create :

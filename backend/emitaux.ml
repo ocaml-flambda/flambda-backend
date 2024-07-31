@@ -15,6 +15,8 @@
 
 (* Common functions for emitting assembly code *)
 
+[@@@ocaml.warning "+4"]
+
 type error =
   | Stack_frame_too_large of int
   | Stack_frame_way_too_large of int
@@ -491,13 +493,9 @@ module Dwarf_helpers = struct
          || !Dwarf_flags.dwarf_inlined_frames)
       && not disable_dwarf
     in
-    match
-      ( can_emit_dwarf,
-        Target_system.architecture (),
-        Target_system.derived_system () )
-    with
-    | true, (X86_64 | AArch64), _ -> sourcefile_for_dwarf := Some sourcefile
-    | true, _, _ | false, _, _ -> ()
+    match can_emit_dwarf, Target_system.architecture () with
+    | true, (X86_64 | AArch64) -> sourcefile_for_dwarf := Some sourcefile
+    | true, (IA32 | ARM | POWER | Z | Riscv) | false, _ -> ()
 
   let emit_dwarf () =
     Option.iter
@@ -532,34 +530,92 @@ let report_error ppf = function
       "Inconsistent use of ~enabled_at_init in [%%probe %s ..] at %a" name
       Debuginfo.print_compact dbg
 
+module String = Misc.Stdlib.String
+
 type preproc_stack_check_result =
   { max_frame_size : int;
+    (* for the function itself *)
+    max_frame_size_with_calls : int;
+    (* for the function itself *and* the calls to the functions in `callees` *)
+    callees : Misc.Stdlib.String.Set.t;
+    (* direct calls for which stack consumption is known and accounted for in
+       `max_frame_size_with_calls` *)
     contains_nontail_calls : bool
+        (* whether there are non-tail calls to functions not appearing in
+           `callees` *)
   }
 
 let preproc_stack_check ~fun_body ~frame_size ~trap_size =
-  let rec loop (i : Linear.instruction) fs max_fs nontail_flag =
+  let rec loop (i : Linear.instruction) fs ~max_fs ~max_fs_calls ~callees
+      ~nontail_flag =
     match i.desc with
-    | Lend -> { max_frame_size = max_fs; contains_nontail_calls = nontail_flag }
+    | Lend ->
+      { max_frame_size = max_fs;
+        max_frame_size_with_calls = max_fs_calls;
+        callees;
+        contains_nontail_calls = nontail_flag
+      }
     | Ladjust_stack_offset { delta_bytes } ->
       let s = fs + delta_bytes in
-      loop i.next s (max s max_fs) nontail_flag
+      loop i.next s ~max_fs:(max s max_fs) ~max_fs_calls:(max s max_fs_calls)
+        ~callees ~nontail_flag
     | Lpushtrap _ ->
       let s = fs + trap_size in
-      loop i.next s (max s max_fs) nontail_flag
-    | Lpoptrap -> loop i.next (fs - trap_size) max_fs nontail_flag
+      loop i.next s ~max_fs:(max s max_fs) ~max_fs_calls:(max s max_fs_calls)
+        ~callees ~nontail_flag
+    | Lpoptrap ->
+      loop i.next (fs - trap_size) ~max_fs ~max_fs_calls ~callees ~nontail_flag
     | Lop (Istackoffset n) ->
       let s = fs + n in
-      loop i.next s (max s max_fs) nontail_flag
-    | Lop (Icall_ind | Icall_imm _) -> loop i.next fs max_fs true
-    | Lprologue | Lop _ | Lreloadretaddr | Lreturn | Llabel _ | Lbranch _
-    | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lraise _ ->
-      loop i.next fs max_fs nontail_flag
+      loop i.next s ~max_fs:(max s max_fs) ~max_fs_calls:(max s max_fs_calls)
+        ~callees ~nontail_flag
+    | Lop Icall_ind ->
+      (* See note on [Icall_imm] below about frame pointers and SIMD. *)
+      loop i.next fs ~max_fs ~max_fs_calls ~callees ~nontail_flag:true
+    | Lop (Icall_imm { func = { Cmm.sym_name; sym_global = _ } }) -> (
+      match
+        Stack_check_info.get_value Compilenv.cached_stack_check_info sym_name
+      with
+      | None | Some (No_checks | Check_moved_down) ->
+        loop i.next fs ~max_fs ~max_fs_calls ~callees ~nontail_flag:true
+      | Some (Check_as_first_instruction { size_in_bytes }) ->
+        (* There's no need to account for frame pointers because those are
+           accounted for in [Proc.frame_size].
+
+           The stack must be maintained with sufficient alignment for SIMD
+           reload/spill operations, but any such alignment will already have
+           been dealt with by the insertion of [Istackoffset] instructions. *)
+        let return_addr_size = Arch.size_addr in
+        let s = fs + return_addr_size + size_in_bytes in
+        loop i.next fs ~max_fs ~max_fs_calls:(max s max_fs_calls)
+          ~callees:(String.Set.add sym_name callees)
+          ~nontail_flag)
+    | Lprologue
+    (* For [Lprologue] it seems like we might need to account for the stack
+       adjustment induced by pushing the frame pointer, but this is accounted
+       for in [Proc.frame_size], as noted above. *)
+    | Lop
+        ( Imove | Ispill | Ireload | Iconst_int _ | Iconst_float32 _
+        | Iconst_float _ | Iconst_vec128 _ | Iconst_symbol _ | Itailcall_ind
+        | Itailcall_imm _ | Iextcall _ | Iload _
+        | Istore (_, _, _)
+        | Ialloc _ | Iintop _
+        | Iintop_imm (_, _)
+        | Iintop_atomic _
+        | Ifloatop (_, _)
+        | Icsel _ | Ireinterpret_cast _ | Istatic_cast _ | Iopaque | Ispecific _
+        | Ipoll _ | Iname_for_debugger _ | Iprobe _
+        (* CR mshinwell: does Iprobe cause a stack adjustment? *)
+        | Iprobe_is_enabled _ | Ibeginregion | Iendregion | Idls_get )
+    | Lreloadretaddr | Lreturn | Llabel _ | Lbranch _ | Lcondbranch _
+    | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lraise _ ->
+      loop i.next fs ~max_fs ~max_fs_calls ~callees ~nontail_flag
     | Lstackcheck _ ->
       (* should not be already present *)
       assert false
   in
-  loop fun_body frame_size frame_size false
+  loop fun_body frame_size ~max_fs:frame_size ~max_fs_calls:frame_size
+    ~callees:String.Set.empty ~nontail_flag:false
 
 let add_stack_checks_if_needed (fundecl : Linear.fundecl) ~stack_offset
     ~stack_threshold_size ~trap_size =
@@ -570,19 +626,63 @@ let add_stack_checks_if_needed (fundecl : Linear.fundecl) ~stack_offset
       Proc.frame_size ~stack_offset ~num_stack_slots:fundecl.fun_num_stack_slots
         ~contains_calls:fundecl.fun_contains_calls
     in
-    let { max_frame_size; contains_nontail_calls } =
+    let { max_frame_size;
+          max_frame_size_with_calls;
+          callees;
+          contains_nontail_calls
+        } =
       preproc_stack_check ~fun_body:fundecl.fun_body ~frame_size ~trap_size
     in
-    let insert_stack_check =
-      contains_nontail_calls || max_frame_size >= stack_threshold_size
+    assert (max_frame_size_with_calls >= max_frame_size);
+    (* CR xclerc for xclerc: should probably be passed as a parameter. *)
+    let upper_threshold = 4096 in
+    let include_callee_checks_if_under_threshold () =
+      if max_frame_size >= upper_threshold
+         || max_frame_size_with_calls <= upper_threshold
+      then Some (max_frame_size_with_calls, callees)
+      else Some (max_frame_size, String.Set.empty)
     in
-    if insert_stack_check
-    then
+    let insert_stack_check : (int * String.Set.t) option =
+      (* CR xclerc for xclerc: update the comments below to take into account
+         the upper threshold. *)
+      match
+        ( max_frame_size >= stack_threshold_size,
+          max_frame_size_with_calls >= stack_threshold_size,
+          contains_nontail_calls,
+          not (String.Set.is_empty callees) )
+      with
+      | true, _, _, _ | _, _, true, _ ->
+        (* A stack check has to be emitted irrespective of what happens with the
+           [callees], so lifting out other checks is clearly beneficial. *)
+        (* CR mshinwell/xclerc: we could use [max_frame_size] if the first
+           boolean is [true] and the second [false]. *)
+        include_callee_checks_if_under_threshold ()
+      | false, true, false, _ ->
+        (* The stack check threshold will only be crossed if we include all of
+           the stack checks from the [callees]. We adopt the heuristic that in
+           this case it is beneficial to lift out the checks from the
+           [callees]. *)
+        include_callee_checks_if_under_threshold ()
+      | false, false, false, true ->
+        (* In this case the threshold will not be crossed even if we lift out
+           all of the stack checks from the [callees]. Furthermore, since
+           [contains_nontail_calls] is false, we know that there are no non-tail
+           callees which are not included in [callees]. We adopt the heuristic
+           of lifting out the checks from the [callees]. *)
+        Some (max_frame_size_with_calls, callees)
+      | false, false, false, false ->
+        (* In this case no stack check will be inserted. This is sound since we
+           know that there are no non-tail calls at all; and in addition that
+           the threshold is not crossed. *)
+        None
+    in
+    match insert_stack_check with
+    | None -> fundecl
+    | Some (max_frame_size_bytes, callees) ->
       let fun_body =
         Linear.instr_cons
-          (Lstackcheck { max_frame_size_bytes = max_frame_size })
+          (Lstackcheck { max_frame_size_bytes })
           [||] [||] ~available_before:fundecl.fun_body.available_before
           ~available_across:fundecl.fun_body.available_across fundecl.fun_body
       in
-      { fundecl with fun_body }
-    else fundecl
+      { fundecl with fun_body; fun_stack_check_skip_callees = callees }

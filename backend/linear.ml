@@ -65,6 +65,8 @@ type fundecl =
     fun_frame_required: bool;
     fun_prologue_required: bool;
     fun_section_name: string option;
+    fun_stack_check_move_allowed: bool;
+    fun_stack_check_skip_callees : Misc.Stdlib.String.Set.t;
   }
 
 (* Invert a test *)
