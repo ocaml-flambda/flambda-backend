@@ -216,14 +216,13 @@ end = struct
 
   type t =
     { vertex_by_name : Vertex.t String.Tbl.t;
-          (* Stores edges modulo location information: we do this because: 1) it
-             makes the graph smaller when decomposing SCCS and 2) locations are
-             not hashable. *)
+      (* Stores edges modulo location information: this 1) makes the graph
+         smaller when decomposing SCCS and 2) locations are not hashable. *)
       adjacencies_mod_loc : Edge.Hashset.t Vertex.Tbl.t;
-          (* The value of this hashtable is an `Edge.with_loc`, but really it
-             stores an `Edge.with_loc list` because the table keeps previous
-             bindings on add and we don't remove. *)
-      adjacencies : Edge.with_loc Vertex.Tbl.t
+      (* The value type of this hashtable is an `Edge.with_loc`, but really it
+         stores an `Edge.with_loc list` because the table keeps previous
+         bindings on add and we don't remove. *)
+      adjacencies_with_loc : Edge.with_loc Vertex.Tbl.t
     }
 
   let init_unknown_edges t =
@@ -234,7 +233,7 @@ end = struct
     let t =
       { vertex_by_name = String.Tbl.create 100;
         adjacencies_mod_loc = Vertex.Tbl.create 100;
-        adjacencies = Vertex.Tbl.create 100
+        adjacencies_with_loc = Vertex.Tbl.create 100
       }
     in
     init_unknown_edges t;
@@ -243,13 +242,14 @@ end = struct
   let reset t =
     String.Tbl.reset t.vertex_by_name;
     Vertex.Tbl.reset t.adjacencies_mod_loc;
+    Vertex.Tbl.reset t.adjacencies_with_loc;
     init_unknown_edges t
 
   let successors_mod_loc t (v : Vertex.t) : Edge.Hashset.t =
     Vertex.Tbl.find t.adjacencies_mod_loc v
 
   let successors t (v : Vertex.t) : Edge.with_loc list =
-    Vertex.Tbl.find_all t.adjacencies v
+    Vertex.Tbl.find_all t.adjacencies_with_loc v
 
   let find_or_add_vertex t ~(fn_name : string) : Vertex.t =
     let vertex =
@@ -333,7 +333,7 @@ end = struct
       let edges = Vertex.Tbl.find t.adjacencies_mod_loc from in
       Edge.Hashset.add edges edge);
     let with_loc : Edge.with_loc = { edge; loc } in
-    Vertex.Tbl.add t.adjacencies from with_loc
+    Vertex.Tbl.add t.adjacencies_with_loc from with_loc
 
   type vertex_state =
     { preorder : int;
@@ -435,6 +435,8 @@ end = struct
     |> List.iter (fun scc ->
            possibly_overflowing_edges t ~scc
            |> List.iter (fun (e : Edge.with_loc) ->
+                  Format.eprintf "from: %d -> to %d\n\n\n"
+                    (Vertex.id e.edge.from) (Vertex.id e.edge.to_);
                   Location.prerr_warning e.loc
                     Warnings.Inferred_nontail_in_tco'd_cycle))
 
@@ -530,12 +532,14 @@ module Global_state = struct
         let add_edge = Graph.add_edge graph ~from in
         match term.desc with
         | Tailcall_self { original_position; _ } ->
-          add_edge ~to_:from ~actual_position:Tail ~original_position ~loc
+          let to_ = from in
+          add_edge ~to_ ~actual_position:Tail ~original_position ~loc
         | Tailcall_func { original_position; op } ->
-          add_edge ~to_:(to_ op) ~actual_position:Tail ~original_position ~loc
+          let to_ = to_ op in
+          add_edge ~to_ ~actual_position:Tail ~original_position ~loc
         | Call { original_position; op; _ } ->
-          add_edge ~to_:(to_ op) ~actual_position:Nontail ~original_position
-            ~loc
+          let to_ = to_ op in
+          add_edge ~to_ ~actual_position:Nontail ~original_position ~loc
         (* (less-tco) Handle Call_no_return and Prim? *)
         | Call_no_return _ | Prim _ | Never | Always _ | Parity_test _
         | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return | Raise _

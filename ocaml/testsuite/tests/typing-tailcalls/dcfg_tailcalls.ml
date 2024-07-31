@@ -14,6 +14,7 @@
    check-ocamlopt.opt-output;
  }
 *)
+[@@@ocaml.warning "-186"]
 
 let rec normal_recursive n =
   if n > 0 then normal_recursive (n - 2) else ()
