@@ -860,9 +860,6 @@ let mk_dalloc f =
 let mk_dreload f =
   "-dreload", Arg.Unit f, " (undocumented)"
 
-let mk_dscheduling f =
-  "-dscheduling", Arg.Unit f, " (undocumented)"
-
 let mk_dlinear f =
   "-dlinear", Arg.Unit f, " (undocumented)"
 
@@ -1144,7 +1141,6 @@ module type Optcommon_options = sig
   val _dprefer : unit -> unit
   val _dalloc : unit -> unit
   val _dreload : unit -> unit
-  val _dscheduling :  unit -> unit
   val _dlinear :  unit -> unit
   val _dinterval : unit -> unit
   val _dstartup :  unit -> unit
@@ -1582,7 +1578,6 @@ struct
     mk_dprefer F._dprefer;
     mk_dalloc F._dalloc;
     mk_dreload F._dreload;
-    mk_dscheduling F._dscheduling;
     mk_dlinear F._dlinear;
     mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
@@ -1710,7 +1705,6 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dprefer F._dprefer;
     mk_dalloc F._dalloc;
     mk_dreload F._dreload;
-    mk_dscheduling F._dscheduling;
     mk_dlinear F._dlinear;
     mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
@@ -1943,7 +1937,6 @@ module Default = struct
     let _drawclambda = set dump_rawclambda
     let _drawflambda = set dump_rawflambda
     let _dreload = set dump_reload
-    let _dscheduling = set dump_scheduling
     let _dsel = set dump_selection
     let _dspill = set dump_spill
     let _dsplit = set dump_split

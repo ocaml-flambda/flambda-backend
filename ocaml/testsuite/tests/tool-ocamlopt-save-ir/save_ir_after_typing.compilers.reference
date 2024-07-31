@@ -1,1 +1,1 @@
-wrong argument 'typing'; option '-save-ir-after' expects one of: scheduling simplify_cfg selection.
+wrong argument 'typing'; option '-save-ir-after' expects one of: linearization simplify_cfg selection.
