@@ -1,3 +1,5 @@
+analyze_tailcall_graph.ml
+analyze_tailcall_graph.mli
 cmm_helpers.ml
 cmm_helpers.mli
 cmm_builtins.ml
