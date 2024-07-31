@@ -238,8 +238,8 @@ module type Solver_polarized = sig
 
   type changes
 
-  (** A mode with carrier type ['a] and allowance ['d]. See comments of
-  Allowance above.*)
+  (** A mode with carrier type ['a] and allowance ['d]. See
+  Note [Allowance] above.*)
   type ('a, 'd) mode constraint 'd = 'l * 'r
 
   (** The mode type for the opposite polarity. *)
