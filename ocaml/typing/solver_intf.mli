@@ -103,7 +103,7 @@ module type Lattices_mono = sig
   include Lattices
 
   (** Morphism from object of base type ['a] to object of base type ['b] with
-      allowance ['d]. See comments of Allowance above.
+      allowance ['d]. See Note [Allowance] above.
 
       ['d] is ['l] * ['r], where ['l] can be:
       - [allowed], meaning the morphism can be on the left because it has right
