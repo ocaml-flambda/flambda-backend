@@ -1368,6 +1368,7 @@ let update_constructor_representation
       assert_mixed_product_support loc Cstr_tuple ~value_prefix_len;
       Constructor_mixed { value_prefix_len; flat_suffix }
 
+[@@@warning "-74"]
 
 (* This function updates jkind stored in kinds with more accurate jkinds.
    It is called after the circularity checks and the delayed jkind checks
@@ -1435,7 +1436,7 @@ let update_decl_jkind env dpath decl =
         *)
         | { values = false; imms = false; floats = true;
             float64s = true; non_float64_unboxed_fields = false; }
-          [@warning "+9"] ->
+           ->
             let flat_suffix =
               List.map
                 (fun ((repr : Element_repr.t), _lbl) ->
@@ -1492,9 +1493,8 @@ let update_decl_jkind env dpath decl =
         | { values = false; imms = false; floats = false; float64s = true;
             non_float64_unboxed_fields = false } ->
           Record_ufloat
-        | { values = false; imms = false; floats = false; float64s = false;
-            non_float64_unboxed_fields = false }
-          [@warning "+9"] ->
+        | _
+           ->
           Misc.fatal_error "Typedecl.update_record_kind: empty record"
       in
       lbls, rep, jkind

@@ -4171,6 +4171,11 @@ let toplevel_handler ~scopes ~return_layout loc ~failer partial args cases compi
       match Jumps.partial jumps with
       | Total -> lam
       | Partial ->
+          if partial = Total then begin
+            let warning = Warnings.Unexpected_partial_match in
+            if Warnings.is_active warning then
+              Location.prerr_warning loc warning
+          end;
         Lstaticcatch (lam, (final_exit, []),
                       failure_handler ~scopes loc ~failer (),
                       Same_region, return_layout)

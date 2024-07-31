@@ -109,6 +109,7 @@ type t =
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
   | Generative_application_expects_unit     (* 73 *)
+  | Unexpected_partial_match     (* 74 *)
   | Unerasable_position_argument            (* 188 *)
   | Unnecessarily_partial_tuple_pattern     (* 189 *)
   | Probe_name_too_long of string           (* 190 *)
@@ -196,6 +197,7 @@ let number = function
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
   | Generative_application_expects_unit -> 73
+  | Unexpected_partial_match -> 74
   | Unerasable_position_argument -> 188
   | Unnecessarily_partial_tuple_pattern -> 189
   | Probe_name_too_long _ -> 190
@@ -547,6 +549,10 @@ let descriptions = [
     description = "A generative functor is applied to an empty structure \
                    (struct end) rather than to ().";
     since = since 5 1 };
+  { number = 74;
+    names = ["unexpected-partial-match"];
+    description = "A pattern match may be more partial than expected";
+    since = since 5 3 };
   { number = 188;
     names = ["unerasable-position-argument"];
     description = "Unerasable position argument.";
@@ -1174,6 +1180,12 @@ let message = function
   | Generative_application_expects_unit ->
       "A generative functor\n\
        should be applied to '()'; using '(struct end)' is deprecated."
+  | Unexpected_partial_match ->
+        "This pattern-matching appears\n\
+         to be total, but is compiled as partial. \
+         It may generate a Match_failure\n\
+         exception. This typically occurs due to \
+         complex matches on mutable fields."
   | Unerasable_position_argument -> "this position argument cannot be erased."
   | Unnecessarily_partial_tuple_pattern ->
       "This tuple pattern\n\
