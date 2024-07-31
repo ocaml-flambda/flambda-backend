@@ -16,19 +16,29 @@ let transl_mode_annots modes =
         Language_extension.Stable;
       let acc : Alloc.Const.Option.t =
         match txt with
-        (* CR zqian: We should interpret other mode names (global, shared, once)
-           as well. We can't do that yet because of the CR below. *)
         | "local" -> (
           match acc.areality with
           | None -> { acc with areality = Some Local }
+          | Some _ -> raise (Error (loc, Duplicated_mode Areality)))
+        | "global" -> (
+          match acc.areality with
+          | None -> { acc with areality = Some Global }
           | Some _ -> raise (Error (loc, Duplicated_mode Areality)))
         | "unique" -> (
           match acc.uniqueness with
           | None -> { acc with uniqueness = Some Unique }
           | Some _ -> raise (Error (loc, Duplicated_mode Uniqueness)))
+        | "shared" -> (
+          match acc.uniqueness with
+          | None -> { acc with uniqueness = Some Shared }
+          | Some _ -> raise (Error (loc, Duplicated_mode Uniqueness)))
         | "once" -> (
           match acc.linearity with
           | None -> { acc with linearity = Some Once }
+          | Some _ -> raise (Error (loc, Duplicated_mode Linearity)))
+        | "many" -> (
+          match acc.linearity with
+          | None -> { acc with linearity = Some Many }
           | Some _ -> raise (Error (loc, Duplicated_mode Linearity)))
         | "nonportable" -> (
           match acc.portability with
