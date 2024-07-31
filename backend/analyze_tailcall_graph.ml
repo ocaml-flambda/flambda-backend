@@ -119,9 +119,21 @@ end = struct
   module Edge = struct
     module T = struct
       module Label = struct
+        (* For the purpose of analyzing whether TCO inference might break
+           existing code (by causing a stack overflow) we are interested in
+           whether there are any cycles with Explicit_tail_edges and
+           Inferred_nontail_edges. To find these cycles, we plan on finding
+           SCC's for the subgraph consisting of just edges with those labels. *)
         type t =
+          (* "Explicit" here really means "not inferred." "Explicit" edges are
+             edges that are (very likely) not changing their TCO behavior as a
+             result of adding TCO inference. I.e., before TCO inference, they
+             were tail (nontail) if and only if after TCO inference they are
+             tail (nontail). *)
           | Explicit_tail_edge
           | Explicit_nontail_edge
+          (* "Inferred" edges are edges that might possibly change their TCO
+             behavior as a result of adding TCO inference. *)
           | Inferred_tail_edge
           | Inferred_nontail_edge
 
