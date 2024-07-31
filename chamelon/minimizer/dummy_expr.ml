@@ -137,7 +137,7 @@ let rec generate_dummy_expr env etyp =
                 };
               ];
           }
-    | Tconstr (Pident id, [], _) when is_known id -> (
+    | Tconstr (Pident id, Unapplied, _) when is_known id -> (
         match name id with
         | "int" -> Texp_constant (Const_int 0)
         | "char" -> Texp_constant (Const_char '0')
@@ -145,6 +145,7 @@ let rec generate_dummy_expr env etyp =
         | "unit" -> Texp_tuple []
         | _ -> assert false)
     | Tconstr (path, te_list, _) -> (
+        let te_list = AppArgs.to_list te_list in
         let td = find_type path env in
         match td.type_kind with
         | Type_variant (cstr_list, _) ->

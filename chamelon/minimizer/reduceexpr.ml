@@ -33,7 +33,7 @@ let is_simplified e =
 
 let simplify e =
   match get_desc e.exp_type with
-  | Tconstr (path, [], _) -> (
+  | Tconstr (path, Unapplied, _) -> (
       match path with
       | Path.Pident id -> (
           match name id with
