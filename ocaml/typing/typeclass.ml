@@ -1605,7 +1605,7 @@ let temp_abbrev loc id arity uid =
   let ty_td =
       {type_params = !params;
        type_arity = arity;
-       type_kind = Type_abstract Abstract_def;
+       type_kind = Type_abstract { reason = Abstract_def; datatype = false };
        type_jkind = Jkind.Type.Primitive.value ~why:Object |> Jkind.of_type_jkind;
        type_jkind_annotation = None;
        type_private = Public;
@@ -1836,7 +1836,7 @@ let class_infos define_class kind
     {
      type_params = obj_params;
      type_arity = arity;
-     type_kind = Type_abstract Abstract_def;
+     type_kind = Type_abstract { reason = Abstract_def; datatype = false };
      type_jkind = Jkind.Type.Primitive.value ~why:Object |> Jkind.of_type_jkind;
      type_jkind_annotation = None;
      type_private = Public;

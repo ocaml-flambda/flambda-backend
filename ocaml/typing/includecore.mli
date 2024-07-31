@@ -52,6 +52,7 @@ type privacy_mismatch =
 
 type type_kind =
   | Kind_abstract
+  | Kind_abstract_datatype
   | Kind_record
   | Kind_variant
   | Kind_open
