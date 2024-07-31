@@ -97,6 +97,7 @@ module Graph : sig
     to_:Vertex.t ->
     actual_position:actual_position ->
     original_position:Typedtree.position_and_tail_attribute ->
+    loc:Location.t ->
     unit
 
   (* Partitions vertices into hashsets where two vertices are in the same
@@ -104,6 +105,13 @@ module Graph : sig
 
      Explicit_nontail_edges are ignored in this SCC decomposition. *)
   val decompose_tailcall_sccs : t -> Vertex.Hashset.t list
+
+  (* Emits warnings for vertices that have an Inferred_nontail_edge to another
+     vertex in the same SCC. Taking a trip across such an edge may increase
+     stack consumption, which may lead to stack overflow when traversing the
+     cycle. *)
+  val warn_inferred_nontail_in_tco'd_cycle :
+    t -> sccs:Vertex.Hashset.t list -> unit
 
   val print_dot : Format.formatter -> t -> sccs:Vertex.Hashset.t list -> unit
 end = struct
@@ -187,6 +195,11 @@ end = struct
           to_ : Vertex.t
         }
 
+      type with_loc =
+        { edge : t;
+          loc : Location.t
+        }
+
       let equal e1 e2 =
         Vertex.equal e1.from e2.from
         && Label.equal e1.label e2.label
@@ -203,15 +216,24 @@ end = struct
 
   type t =
     { vertex_by_name : Vertex.t String.Tbl.t;
-      adjacencies : Edge.Hashset.t Vertex.Tbl.t
+          (* Stores edges modulo location information: we do this because: 1) it
+             makes the graph smaller when decomposing SCCS and 2) locations are
+             not hashable. *)
+      adjacencies_mod_loc : Edge.Hashset.t Vertex.Tbl.t;
+          (* The value of this hashtable is an `Edge.with_loc`, but really it
+             stores an `Edge.with_loc list` because the table keeps previous
+             bindings on add and we don't remove. *)
+      adjacencies : Edge.with_loc Vertex.Tbl.t
     }
 
   let init_unknown_edges t =
-    Vertex.Tbl.replace t.adjacencies Vertex.unknown (Edge.Hashset.create 100)
+    Vertex.Tbl.replace t.adjacencies_mod_loc Vertex.unknown
+      (Edge.Hashset.create 100)
 
   let create () =
     let t =
       { vertex_by_name = String.Tbl.create 100;
+        adjacencies_mod_loc = Vertex.Tbl.create 100;
         adjacencies = Vertex.Tbl.create 100
       }
     in
@@ -220,11 +242,14 @@ end = struct
 
   let reset t =
     String.Tbl.reset t.vertex_by_name;
-    Vertex.Tbl.reset t.adjacencies;
+    Vertex.Tbl.reset t.adjacencies_mod_loc;
     init_unknown_edges t
 
-  let successors t (v : Vertex.t) : Edge.Hashset.t =
-    Vertex.Tbl.find t.adjacencies v
+  let successors_mod_loc t (v : Vertex.t) : Edge.Hashset.t =
+    Vertex.Tbl.find t.adjacencies_mod_loc v
+
+  let successors t (v : Vertex.t) : Edge.with_loc list =
+    Vertex.Tbl.find_all t.adjacencies v
 
   let find_or_add_vertex t ~(fn_name : string) : Vertex.t =
     let vertex =
@@ -232,16 +257,16 @@ end = struct
       | None ->
         let id = String.Tbl.length t.vertex_by_name in
         let vertex : Vertex.t = Known_fn { id; name = fn_name } in
-        String.Tbl.replace t.vertex_by_name fn_name vertex;
+        String.Tbl.add t.vertex_by_name fn_name vertex;
         (* Add edge from unknown *)
         let unknown = Vertex.unknown in
         let edge_from_unknown : Edge.t =
           { from = unknown; to_ = vertex; label = Explicit_tail_edge }
         in
-        Edge.Hashset.add (successors t unknown) edge_from_unknown;
+        Edge.Hashset.add (successors_mod_loc t unknown) edge_from_unknown;
         (* Initialize vertex's adjacency set *)
         let edges_from_vertex = Edge.Hashset.create 10 in
-        Vertex.Tbl.replace t.adjacencies vertex edges_from_vertex;
+        Vertex.Tbl.add t.adjacencies_mod_loc vertex edges_from_vertex;
         vertex
       | Some vertex -> vertex
     in
@@ -253,7 +278,8 @@ end = struct
 
   let add_edge t ~(from : Vertex.t) ~(to_ : Vertex.t)
       ~(actual_position : actual_position)
-      ~(original_position : Typedtree.position_and_tail_attribute) =
+      ~(original_position : Typedtree.position_and_tail_attribute)
+      ~(loc : Location.t) =
     let label : Edge.Label.t =
       let impossible_because ~case fmt =
         Misc.fatal_errorf ("case " ^^ case ^^ " impossible because " ^^ fmt)
@@ -298,14 +324,16 @@ end = struct
         (* Not in tail position *) Explicit_nontail_edge
     in
     let edge : Edge.t = { from; to_; label } in
-    match from with
+    (match from with
     | Unknown_fn ->
       (* An edge already exists from Unknown_fn (added when the vertex was
          created) *)
       ()
     | Known_fn _ ->
-      let edges = Vertex.Tbl.find t.adjacencies from in
-      Edge.Hashset.add edges edge
+      let edges = Vertex.Tbl.find t.adjacencies_mod_loc from in
+      Edge.Hashset.add edges edge);
+    let with_loc : Edge.with_loc = { edge; loc } in
+    Vertex.Tbl.add t.adjacencies from with_loc
 
   type vertex_state =
     { preorder : int;
@@ -319,7 +347,7 @@ end = struct
   let decompose_tailcall_sccs t =
     (* CR less-tco: Refactor this to be more functional. *)
     let states =
-      t.adjacencies |> Vertex.Tbl.to_seq_keys
+      t.adjacencies_mod_loc |> Vertex.Tbl.to_seq_keys
       |> Seq.map (fun v -> v, Not_visited)
       |> Vertex.Tbl.of_seq
     in
@@ -347,9 +375,9 @@ end = struct
       let state = { preorder = num; lowlink = num } in
       Vertex.Tbl.replace states vertex (Visited state);
       push_vertex vertex;
-      (* Recursively traverse successors and update this vertex's state
+      (* Recursively traverse successors_mod_loc and update this vertex's state
          accordingly. *)
-      Edge.Hashset.iter (successors t vertex) ~f:(fun { label; to_; _ } ->
+      Edge.Hashset.iter (successors_mod_loc t vertex) ~f:(fun { label; to_; _ } ->
           match label with
           | Explicit_nontail_edge ->
             (* Ignore these; before less-tco they already allocate stack space,
@@ -387,20 +415,28 @@ end = struct
         match Vertex.Tbl.find states v with
         | Not_visited -> ignore (visit v)
         | Visited _ -> ())
-      t.adjacencies;
+      t.adjacencies_mod_loc;
     sccs |> Stack.to_seq |> List.of_seq
 
   let possibly_overflowing_edges t ~(scc : Vertex.Hashset.t) =
     Vertex.Hashset.to_seq scc
     |> Seq.concat_map (fun v ->
-           successors t v |> Edge.Hashset.to_seq
-           |> Seq.filter (fun (e : Edge.t) ->
-                  match e.label with
+           successors t v |> List.to_seq
+           |> Seq.filter (fun (e : Edge.with_loc) ->
+                  match e.edge.label with
                   | Explicit_tail_edge | Explicit_nontail_edge
                   | Inferred_tail_edge ->
                     false
-                  | Inferred_nontail_edge -> Vertex.Hashset.mem scc e.to_))
+                  | Inferred_nontail_edge -> Vertex.Hashset.mem scc e.edge.to_))
     |> List.of_seq
+
+  let warn_inferred_nontail_in_tco'd_cycle t ~sccs =
+    sccs
+    |> List.iter (fun scc ->
+           possibly_overflowing_edges t ~scc
+           |> List.iter (fun (e : Edge.with_loc) ->
+                  Location.prerr_warning e.loc
+                    Warnings.Inferred_nontail_in_tco'd_cycle))
 
   let print_vertex_line ~indent ppf kv =
     let color = if Vertex.is_unknown kv then "red" else "black" in
@@ -451,7 +487,7 @@ end = struct
         else if Vertex.Hashset.length scc = 1
         then Format.fprintf ppf "    style=invis\n";
         Vertex.Hashset.iter scc ~f:(fun vtx ->
-            let edges = successors t vtx in
+            let edges = successors_mod_loc t vtx in
             print_vertex_line ~indent ppf vtx;
             Edge.Hashset.iter edges ~f:(fun e ->
                 (* If an edge is in a cluster, dot seems to layout the to_ node
@@ -463,7 +499,7 @@ end = struct
         Format.fprintf ppf "  }\n";
         (* Print cross-SCC edges here. *)
         Vertex.Hashset.iter scc ~f:(fun vtx ->
-            let edges = successors t vtx in
+            let edges = successors_mod_loc t vtx in
             Edge.Hashset.iter edges ~f:(fun e ->
                 if not (Vertex.Hashset.mem scc e.to_)
                 then print_edge_line ~indent:"  " ppf e));
@@ -489,14 +525,17 @@ module Global_state = struct
         Graph.find_or_add_vertex graph ~fn_name:sym_name
     in
     Cfg.iter_blocks cfg ~f:(fun _ block ->
+        let term = block.terminator in
+        let loc = Debuginfo.to_location term.dbg in
         let add_edge = Graph.add_edge graph ~from in
-        match block.terminator.desc with
+        match term.desc with
         | Tailcall_self { original_position; _ } ->
-          add_edge ~to_:from ~actual_position:Tail ~original_position
+          add_edge ~to_:from ~actual_position:Tail ~original_position ~loc
         | Tailcall_func { original_position; op } ->
-          add_edge ~to_:(to_ op) ~actual_position:Tail ~original_position
+          add_edge ~to_:(to_ op) ~actual_position:Tail ~original_position ~loc
         | Call { original_position; op; _ } ->
           add_edge ~to_:(to_ op) ~actual_position:Nontail ~original_position
+            ~loc
         (* (less-tco) Handle Call_no_return and Prim? *)
         | Call_no_return _ | Prim _ | Never | Always _ | Parity_test _
         | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return | Raise _
@@ -507,4 +546,8 @@ module Global_state = struct
   let print_dot ppf =
     let sccs = Graph.decompose_tailcall_sccs graph in
     Graph.print_dot ppf graph ~sccs
+
+  let emit_warnings () =
+    let sccs = Graph.decompose_tailcall_sccs graph in
+    Graph.warn_inferred_nontail_in_tco'd_cycle graph ~sccs
 end

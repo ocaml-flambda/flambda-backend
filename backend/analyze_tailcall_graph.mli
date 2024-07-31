@@ -40,4 +40,6 @@ module Global_state : sig
   val cfg : Cfg_with_layout.t -> Cfg_with_layout.t
 
   val print_dot : Format.formatter -> unit
+
+  val emit_warnings : unit -> unit
 end

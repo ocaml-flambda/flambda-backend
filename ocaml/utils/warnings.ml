@@ -1192,7 +1192,7 @@ let message = function
        should be applied to '()'; using '(struct end)' is deprecated."
   | Inferred_nontail_in_tco'd_cycle ->
       "This function call was inferred as nontail, but it participates\n\
-       in a cycle of tail calls, which may overflow the stack at\n\
+       in a cycle of TCO'd tail calls, which may overflow the stack at\n\
        runtime. Consider marking the function call with [@tail]."
   | Incompatible_with_upstream (Immediate_erasure id)  ->
       Printf.sprintf
