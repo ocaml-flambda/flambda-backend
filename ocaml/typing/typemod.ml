@@ -657,7 +657,7 @@ let merge_constraint initial_env loc sg lid constr =
                 (fun _ -> Btype.newgenvar (Jkind.Primitive.top ~why:Dummy_jkind))
                 sdecl.ptype_params;
             type_arity = arity;
-            type_kind = Type_abstract Abstract_def;
+            type_kind = Type_abstract { reason = Abstract_def; datatype = false };
             type_jkind = Jkind.Type.Primitive.value ~why:(Unknown "merge_constraint") |> Jkind.of_type_jkind;
             type_jkind_annotation = None;
             type_private = Private;

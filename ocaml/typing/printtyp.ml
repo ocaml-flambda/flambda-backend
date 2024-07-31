@@ -2366,7 +2366,7 @@ let dummy =
   {
     type_params = [];
     type_arity = 0;
-    type_kind = Type_abstract Abstract_def;
+    type_kind = Type_abstract { reason = Abstract_def; datatype = false };
     type_jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind;
     type_jkind_annotation = None;
     type_private = Public;
@@ -3060,7 +3060,8 @@ let warn_on_missing_def env ppf t =
   match get_desc t with
   | Tconstr (p,_,_) ->
     begin match Env.find_type p env with
-    | { type_kind = Type_abstract Abstract_rec_check_regularity; _ } ->
+    | { type_kind =
+          Type_abstract { reason = Abstract_rec_check_regularity; datatype = _ }; _ } ->
         fprintf ppf
           "@,@[<hov>Type %a was considered abstract@ when checking\
            @ constraints@ in this@ recursive type definition.@]"
@@ -3070,7 +3071,8 @@ let warn_on_missing_def env ppf t =
           "@,@[<hov>Type %a is abstract because@ no corresponding\
            @ cmi file@ was found@ in path.@]" path p
     | {type_kind =
-       Type_abstract Abstract_def | Type_record _ | Type_variant _ | Type_open }
+          Type_abstract { reason = Abstract_def; _}
+        | Type_record _ | Type_variant _ | Type_open }
       -> ()
     end
   | _ -> ()

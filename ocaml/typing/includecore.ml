@@ -191,12 +191,14 @@ type privacy_mismatch =
 
 type type_kind =
   | Kind_abstract
+  | Kind_abstract_datatype
   | Kind_record
   | Kind_variant
   | Kind_open
 
 let of_kind = function
-  | Type_abstract _ -> Kind_abstract
+  | Type_abstract { reason = _; datatype = false } -> Kind_abstract
+  | Type_abstract { reason = _; datatype = true } -> Kind_abstract_datatype
   | Type_record (_, _) -> Kind_record
   | Type_variant (_, _) -> Kind_variant
   | Type_open -> Kind_open
@@ -506,6 +508,7 @@ let report_kind_mismatch first second ppf (kind1, kind2) =
   let pr fmt = Format.fprintf ppf fmt in
   let kind_to_string = function
   | Kind_abstract -> "abstract"
+  | Kind_abstract_datatype -> "abstract datatype"
   | Kind_record -> "a record"
   | Kind_variant -> "a variant"
   | Kind_open -> "an extensible variant" in
@@ -1045,7 +1048,22 @@ let type_manifest env ty1 params1 ty2 params2 priv2 kind2 =
       | () -> None
     end
 
-let type_declarations ?(equality = false) ~loc env ~mark name
+let factor_datatype env decl =
+  if decl.type_arity = 0 then Some decl else
+  Option.map
+    (fun jkind -> {
+      decl with
+      type_params = [];
+      type_arity = 0;
+      type_jkind = jkind;
+      type_jkind_annotation = None;
+      type_manifest = None;
+      type_variance = [];
+      type_separability = []
+    })
+    (Ctype.jkind_of_decl_unapplied env decl)
+
+let type_declarations' ?(equality = false) ~loc env ~mark name
       decl1 path decl2 =
   Builtin_attributes.check_alerts_inclusion
     ~def:decl1.type_loc
@@ -1150,6 +1168,17 @@ let type_declarations ?(equality = false) ~loc env ~mark name
         imp abstr (imp p2 p1 && imp n2 n1 && imp j2 j1))
       decl2.type_params (List.combine decl1.type_variance decl2.type_variance)
   then None else Some Variance
+
+let type_declarations ?(equality = false) ~loc env ~mark name
+      decl1 path decl2 =
+  (* Check if we are subsuming an abstract type with no manifest *)
+  match factor_datatype env decl1, factor_datatype env decl2,
+        decl2.type_kind, decl2.type_manifest with
+  | Some decl1, Some decl2, Type_abstract _, None ->
+    (* Hide the type parameters and use a higher jkind instead *)
+    type_declarations' ~equality ~loc env ~mark name decl1 path decl2
+  | _ ->
+    type_declarations' ~equality ~loc env ~mark name decl1 path decl2
 
 (* Inclusion between extension constructors *)
 
