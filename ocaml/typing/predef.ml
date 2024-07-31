@@ -342,23 +342,35 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type1 ident_iarray
        ~variance:Variance.covariant
        ~separability:Separability.Ind
+       ~param_jkind:(Jkind.Primitive.any_non_null ~why:Array_type_argument)
   |> add_type ident_bool
        ~kind:(variant [ cstr ident_false []; cstr ident_true []]
                 [| Constructor_uniform_value, [| |];
                    Constructor_uniform_value, [| |] |])
        ~jkind:(Jkind.Primitive.immediate ~why:Enumeration)
-  |> add_type ident_char ~jkind:(Jkind.Primitive.immediate ~why:(Primitive ident_char))
+       ~jkind_annotation:Jkind.Const.Primitive.immediate
+  |> add_type ident_char
+      ~jkind:(Jkind.Primitive.immediate ~why:(Primitive ident_char))
       ~jkind_annotation:Jkind.Const.Primitive.immediate
   |> add_type ident_exn
        ~kind:Type_open
        ~jkind:(Jkind.Primitive.value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
+      ~jkind:(Jkind.Primitive.immutable_data ~why:(Primitive ident_float))
+      ~jkind_annotation:Jkind.Const.Primitive.immutable_data
   |> add_type ident_floatarray
-  |> add_type ident_int ~jkind:(Jkind.Primitive.immediate ~why:(Primitive ident_int))
+      ~jkind:(Jkind.Primitive.mutable_data ~why:(Primitive ident_floatarray))
+      ~jkind_annotation:Jkind.Const.Primitive.mutable_data
+  |> add_type ident_int
+      ~jkind:(Jkind.Primitive.immediate ~why:(Primitive ident_int))
       ~jkind_annotation:Jkind.Const.Primitive.immediate
   |> add_type ident_int32
+      ~jkind:(Jkind.Primitive.immutable_data ~why:(Primitive ident_int32))
+      ~jkind_annotation:Jkind.Const.Primitive.immutable_data
   |> add_type ident_int64
+      ~jkind:(Jkind.Primitive.immutable_data ~why:(Primitive ident_int64))
+      ~jkind_annotation:Jkind.Const.Primitive.immutable_data
   |> add_type1 ident_lazy_t
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -377,6 +389,8 @@ let build_initial_env add_type add_extension empty_env =
            |] )
        ~jkind:(Jkind.Primitive.value ~why:Boxed_variant)
   |> add_type ident_nativeint
+      ~jkind:(Jkind.Primitive.immutable_data ~why:(Primitive ident_nativeint))
+      ~jkind_annotation:Jkind.Const.Primitive.immutable_data
   |> add_type1 ident_option
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -430,11 +444,14 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:(Jkind.add_mode_crossing (Jkind.Primitive.bits64 ~why:(Primitive ident_unboxed_int64)))
        ~jkind_annotation:Jkind.Const.Primitive.bits64
   |> add_type ident_bytes
+      ~jkind:(Jkind.Primitive.mutable_data ~why:(Primitive ident_bytes))
+      ~jkind_annotation:Jkind.Const.Primitive.mutable_data
   |> add_type ident_unit
        ~kind:(variant
                 [cstr ident_void []]
                 [| Constructor_uniform_value, [| |] |])
        ~jkind:(Jkind.Primitive.immediate ~why:Enumeration)
+       ~jkind_annotation:Jkind.Const.Primitive.immediate
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
@@ -472,6 +489,8 @@ let add_small_number_extension_types add_type env =
   let add_type = mk_add_type add_type in
   env
   |> add_type ident_float32
+      ~jkind:(Jkind.Primitive.immutable_data ~why:(Primitive ident_float32))
+      ~jkind_annotation:Jkind.Const.Primitive.immutable_data
   |> add_type ident_unboxed_float32
        ~jkind:(Jkind.Primitive.float32 ~why:(Primitive ident_unboxed_float32))
        ~jkind_annotation:Jkind.Const.Primitive.float32
@@ -495,6 +514,7 @@ let add_or_null add_type env =
           Constructor_uniform_value, [| or_null_argument_jkind |];
       |])
   ~jkind:(Jkind.Primitive.value_or_null ~why:(Primitive ident_or_null))
+  ~jkind_annotation:Jkind.Const.Primitive.value_or_null
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

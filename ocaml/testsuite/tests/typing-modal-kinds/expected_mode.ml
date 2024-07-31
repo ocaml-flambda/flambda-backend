@@ -248,10 +248,7 @@ val hidden_int_duplicate : once_ Hidden_int.t -> Hidden_int.t = <fun>
 let float_duplicate : once_ _ -> float = fun x -> x
 
 [%%expect{|
-Line 1, characters 50-51:
-1 | let float_duplicate : once_ _ -> float = fun x -> x
-                                                      ^
-Error: This value is once but expected to be many.
+val float_duplicate : once_ float -> float = <fun>
 |}]
 
 let float_u_duplicate : once_ _ -> float# = fun x -> x
