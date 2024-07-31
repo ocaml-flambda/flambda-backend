@@ -1837,9 +1837,8 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
         List.init cstr.cstr_arity
           (fun i -> make_field_access Alias ~field:i ~pos:i)
         @ rem
-    | Variant_unboxed -> (arg, Alias, sort, layout) :: rem
-    | Variant_with_null ->
-      Misc.fatal_error "[Variant_with_null] not implemented yet"
+    | Variant_with_null when cstr.cstr_constant -> rem
+    | Variant_unboxed | Variant_with_null -> (arg, Alias, sort, layout) :: rem
     | Variant_extensible ->
         List.init cstr.cstr_arity
           (fun i -> make_field_access Alias ~field:i ~pos:(i+1))
@@ -2953,22 +2952,26 @@ let combine_constant value_kind loc arg cst partial ctx def
 
 let split_cases tag_lambda_list =
   let rec split_rec = function
-    | [] -> ([], [])
+    | [] -> ([], [], [])
     | ({cstr_tag; cstr_repr; cstr_constant}, act) :: rem -> (
-        let consts, nonconsts = split_rec rem in
+        let consts, nonconsts, nulls = split_rec rem in
         match cstr_tag, cstr_repr with
-        | Ordinary _, Variant_unboxed -> (consts, (0, act) :: nonconsts)
+        | Ordinary _, (Variant_unboxed | Variant_with_null) ->
+          (consts, (0, act) :: nonconsts, nulls)
         | Ordinary {runtime_tag}, Variant_boxed _ when cstr_constant ->
-          ((runtime_tag, act) :: consts, nonconsts)
+          ((runtime_tag, act) :: consts, nonconsts, nulls)
         | Ordinary {runtime_tag}, Variant_boxed _ ->
-          (consts, (runtime_tag, act) :: nonconsts)
-        | _, (Variant_extensible | Variant_with_null) -> assert false
-        | Null, _ -> Misc.fatal_error "[Null] constructors not implemented"
+          (consts, (runtime_tag, act) :: nonconsts, nulls)
+        | Null, Variant_with_null ->
+          (consts, nonconsts, act :: nulls)
+        | Null, (Variant_boxed _ | Variant_unboxed) ->
+          assert false
+        | _, Variant_extensible -> assert false
         | Extension _, _ -> assert false
       )
   in
-  let const, nonconst = split_rec tag_lambda_list in
-  (sort_int_lambda_list const, sort_int_lambda_list nonconst)
+  let const, nonconst, null = split_rec tag_lambda_list in
+  (sort_int_lambda_list const, sort_int_lambda_list nonconst, null)
 
 (* The bool tracks whether the constructor is constant, because we don't have a
    constructor_description available for polymorphic variants *)
@@ -3061,7 +3064,7 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
           mk_failaction_pos partial constrs ctx def
       in
       let descr_lambda_list = fails @ descr_lambda_list in
-      let consts, nonconsts = split_cases descr_lambda_list in
+      let consts, nonconsts, nulls = split_cases descr_lambda_list in
       (* Our duty below is to generate code, for matching on a list of
          constructor+action cases, that is good for both bytecode and
          native-code compilation. (Optimizations that only work well
@@ -3085,7 +3088,7 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
          a reason to deviate from the one-instruction policy.
       *)
       let lambda1 =
-        match (fail_opt, same_actions descr_lambda_list) with
+        match (fail_opt, same_actions (consts @ nonconsts)) with
         | None, Some act ->
             (* Identical actions, no failure: 0 control-flow instructions. *)
             act
@@ -3150,6 +3153,14 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
                     hs (Lswitch (arg, sw, loc, value_kind))
               )
           )
+      in
+      let lambda1 =
+        match nulls with
+        | [] -> lambda1
+        | act0 :: [] ->
+          Lifthenelse (Lprim (Pisnull, [ arg ], loc), act0, lambda1, value_kind)
+        | _ :: _ :: _ ->
+          Misc.fatal_error "Multiple null cases in Matching.combine_constructor"
       in
       (lambda1, Jumps.union local_jumps total1)
 
