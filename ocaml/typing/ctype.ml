@@ -1358,7 +1358,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
   {
     type_params = [];
     type_arity = 0;
-    type_kind = Type_abstract Abstract_def;
+    type_kind = Type_abstract { reason = Abstract_def; datatype = false };
     type_jkind = jkind;
     type_jkind_annotation = jkind_annot;
     type_private = Public;
@@ -2125,7 +2125,7 @@ let tvariant_not_immediate row =
 let is_datatype_decl (k : type_decl_kind) =
   match k with
   | Type_record _ | Type_variant _ | Type_open -> true
-  | Type_abstract _ -> false
+  | Type_abstract { reason = _; datatype } -> datatype
 
 let rec jkind_of_decl_unapplied env (decl : type_declaration) =
   (* FIXME jbachurski: Shouldn't we look at type_variance and type_separability here? *)
@@ -6638,7 +6638,8 @@ let nondep_type_decl env mid is_covariant decl =
     let params = List.map (nondep_type_rec env mid) decl.type_params in
     let tk =
       try map_kind (nondep_type_rec env mid) decl.type_kind
-      with Nondep_cannot_erase _ when is_covariant -> Type_abstract Abstract_def
+      with Nondep_cannot_erase _ when is_covariant ->
+        Type_abstract { reason = Abstract_def; datatype = false }
     and tm, priv =
       match decl.type_manifest with
       | None -> None, decl.type_private
