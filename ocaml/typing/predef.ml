@@ -478,6 +478,15 @@ let add_small_number_extension_types add_type env =
 
 let add_or_null add_type env =
   let add_type1 = mk_add_type1 add_type in
+  let kind tvar =
+    let cstrs = [cstr ident_null []; cstr ident_this [unrestricted tvar]] in
+    if !Clflags.native_code && Config.runtime5 then
+      Type_variant (cstrs, Variant_with_null)
+    else
+      variant cstrs
+       [| Constructor_uniform_value, [| |];
+          Constructor_uniform_value, [| or_null_argument_jkind |]; |]
+  in
   env
   |> add_type1 ident_or_null
   ~variance:Variance.covariant
@@ -489,11 +498,7 @@ let add_or_null add_type env =
      For now, we mark the type argument as [Separability.Ind] to permit
      the most argument types, and forbid arrays from accepting [or_null]s.
      In the future, we will track separability in the jkind system. *)
-  ~kind:(fun tvar ->
-    variant [cstr ident_null []; cstr ident_this [unrestricted tvar]]
-      [| Constructor_uniform_value, [| |];
-          Constructor_uniform_value, [| or_null_argument_jkind |];
-      |])
+  ~kind
   ~jkind:(Jkind.Primitive.value_or_null ~why:(Primitive ident_or_null))
 
 let builtin_values =
