@@ -174,8 +174,8 @@ end
 
 type modtype_decl_expected = {
   expected: modtype_declaration;
-  sig_map: Sig_map.t;
   str_map: Sig_map.t;
+  sig_map: Sig_map.t;
 }
 
 type modtype_decl_context =
@@ -1634,8 +1634,8 @@ let mksig desc env loc =
     current structure, then all is well; if it doesn't appear in the signature, then it
     was declared somewhere outside so it can't be unbound. This way, we avoid expensive
     [Env.t] queries.*)
-let check_no_unbound_paths env loc sig_map str_map mty =
-  let check_error path_kind path in_sig in_str =
+let check_no_unbound_paths env loc ~str_map ~sig_map mty =
+  let check_error path_kind path in_str in_sig =
     if in_sig && (not in_str) then
       raise (Error (loc, env, Unbound_path_in_inferred_type (path_kind, path)))
   in
@@ -1643,9 +1643,9 @@ let check_no_unbound_paths env loc sig_map str_map mty =
     match path with
     | Pident id ->
         let name = Ident.name id in
-        let in_sig = Sig_map.has_module name sig_map in
         let in_str = Sig_map.has_module name str_map in
-        check_error initial_kind initial_path in_sig in_str
+        let in_sig = Sig_map.has_module name sig_map in
+        check_error initial_kind initial_path in_str in_sig
     | Pdot (p, _) | Pextra_ty (p, _) -> check_heads initial_kind initial_path p
     | Papply (p1, p2) ->
         check_heads initial_kind initial_path p1;
@@ -1662,19 +1662,19 @@ let check_no_unbound_paths env loc sig_map str_map mty =
                 | Path_value ->
                     Misc.fatal_error "Module type contains reference to a value"
                 | Path_type ->
-                    Sig_map.has_type name sig_map,
-                    Sig_map.has_type name str_map
+                    Sig_map.has_type name str_map,
+                    Sig_map.has_type name sig_map
                 | Path_module ->
-                    Sig_map.has_module name sig_map,
-                    Sig_map.has_module name str_map
+                    Sig_map.has_module name str_map,
+                    Sig_map.has_module name sig_map
                 | Path_modtype ->
-                    Sig_map.has_module_type name sig_map,
-                    Sig_map.has_module_type name str_map
+                    Sig_map.has_module_type name str_map,
+                    Sig_map.has_module_type name sig_map
                 | Path_class ->
                     Misc.fatal_error "Module type contains reference to a class"
                 | Path_classtype ->
-                    Sig_map.has_class_type name sig_map,
-                    Sig_map.has_class_type name str_map
+                    Sig_map.has_class_type name str_map,
+                    Sig_map.has_class_type name sig_map
                 | Path_class_lhs | Path_classtype_lhs ->
                     (true, true)
               end
@@ -2168,8 +2168,8 @@ and transl_modtype_decl_aux ~context env
       begin match context with
         | In_signature -> raise (Error (pmtd_loc, env, Underscore_not_allowed_in_signature))
         | In_structure None -> raise (Error (pmtd_loc, env, Cannot_infer_module_type))
-        | In_structure Some ({ expected = mtd; sig_map; str_map }) ->
-            check_no_unbound_paths env pmtd_loc sig_map str_map mtd.Types.mtd_type;
+        | In_structure Some ({ expected = mtd; str_map; sig_map }) ->
+            check_no_unbound_paths env pmtd_loc ~str_map ~sig_map mtd.Types.mtd_type;
             Tmtd_underscore, mtd.Types.mtd_type
       end
   in
