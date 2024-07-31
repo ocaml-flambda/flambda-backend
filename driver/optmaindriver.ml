@@ -188,7 +188,6 @@ let main unix argv ppf ~flambda2 =
       end;
       Profile.print ppf !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision
     in
-    (* If -dump-into-csv is set, do not dump profile information to .dump file or stdout *)
     if !Clflags.dump_into_csv then
       Compmisc.with_ppf_file ~file_prefix:"profile" ~file_extension:".csv" output_profile_csv
     else
