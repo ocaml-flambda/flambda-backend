@@ -1475,7 +1475,7 @@ end
 Line 5, characters 2-23:
 5 |   module A = struct end
       ^^^^^^^^^^^^^^^^^^^^^
-Error: This functor declaration is incompatible with the corresponding
+Error: This module is incompatible with the corresponding
        declaration in the signature.
 Line 2, characters 2-27:
 2 |   module A : sig type t end

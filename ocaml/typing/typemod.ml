@@ -48,6 +48,12 @@ type functor_dependency_error =
     Functor_applied
   | Functor_included
 
+type modtype_context =
+| From_module
+  (** The module type originated from a module declaration. *)
+  | From_modtype
+  (** The module type originated from a module type declaration. *)
+
 type error =
     Cannot_apply of module_type
   | Not_included of Includemod.explanation
@@ -105,6 +111,7 @@ type error =
   | Unbound_path_in_inferred_type of Btype.path_kind * Path.t
   | Incompatible_type_declaration of Ident.t * type_declaration
   | Incompatible_functor_declaration of Location.t
+  | Incompatible_module_type of modtype_context * Location.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -198,12 +205,6 @@ type modtype_decl_context =
       module types when we see a [module type S = _]). The expected signature would have
       been gone through substitution from the elements in the signature to the elements
       in the struct seen so far.*)
-
-type modtype_context =
-  | From_module
-  (** The module type originated from a module declaration. *)
-  | From_modtype
-  (** The module type originated from a module type declaration. *)
 
 open Typedtree
 
@@ -3042,7 +3043,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
     ()
 
   and check_expected_modtype
-      ~env ~sig_env subst actual expected ~actual_loc ~expected_loc =
+      ~env ~sig_env subst actual expected ~actual_loc ~expected_loc ~context =
     let check_expected_sig_item ~env ~sig_env sig_map subst = function
       | Sig_value _ | Sig_typext _ | Sig_class _ | Sig_class_type _ -> subst
       | Sig_type (ident, decl, _, _) ->
@@ -3059,7 +3060,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
       let str_map = Sig_map.add_signature actual (Sig_map.empty) in
       let sig_map = Sig_map.add_signature expected (Sig_map.empty) in
       if not (Sig_map.subset ~sub:sig_map ~super:str_map) then
-        raise (Error (actual_loc, env, Incompatible_functor_declaration expected_loc));
+        raise (Error (actual_loc, env, Incompatible_module_type (context, expected_loc)));
       let newsubst =
         List.fold_left
           (fun acc item -> check_expected_sig_item ~env ~sig_env sig_map acc item)
@@ -3109,35 +3110,35 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             | Mty_strengthen (mt1, _, _),
               (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _ | Mty_strengthen _) ->
                 check_expected_modtype ~env ~sig_env subst (Some mt1) expected
-                  ~actual_loc ~expected_loc
+                 ~actual_loc ~expected_loc ~context
             | (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _),
               Mty_strengthen (mt2, _, _) ->
                 check_expected_modtype ~env ~sig_env subst actual (Some mt2)
-                  ~actual_loc ~expected_loc
+                  ~actual_loc ~expected_loc ~context
             | Mty_ident p1,
               (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _) ->
                 let (mt1, actual_loc) = extract_modtype_loc env From_modtype p1 in
                 check_expected_modtype ~env ~sig_env subst mt1 expected
-                  ~actual_loc ~expected_loc
+                  ~actual_loc ~expected_loc ~context
             | (Mty_signature _ | Mty_functor _ | Mty_alias _),
               Mty_ident p2 ->
                 let (mt2, expected_loc) = extract_modtype_loc sig_env From_modtype p2 in
                 check_expected_modtype ~env ~sig_env subst actual mt2
-                  ~actual_loc ~expected_loc
+                  ~actual_loc ~expected_loc ~context
             | Mty_alias p1,
               (Mty_signature _ | Mty_functor _ | Mty_alias _) ->
                 let (mt1, actual_loc) = extract_modtype_loc env From_module p1 in
                 check_expected_modtype ~env ~sig_env subst mt1 expected
-                  ~actual_loc ~expected_loc
+                  ~actual_loc ~expected_loc ~context
             | (Mty_signature _ | Mty_functor _),
               Mty_alias p2 ->
                 let (mt2, expected_loc) = extract_modtype_loc sig_env From_module p2 in
                 check_expected_modtype ~env ~sig_env subst actual mt2
-                  ~actual_loc ~expected_loc
+                  ~actual_loc ~expected_loc ~context
             | Mty_functor (Named (actual_id, mt1), mt2),
               Mty_functor (Named (expected_id, mt3), mt4) ->
                 check_expected_modtype ~env ~sig_env subst (Some mt1) (Some mt3)
-                  ~actual_loc ~expected_loc;
+                  ~actual_loc ~expected_loc ~context;
                 let env =
                   match actual_id with
                     | None -> env
@@ -3151,10 +3152,10 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
                         Env.add_module ~arg:true expected_id Mp_present mt3 sig_env
                   in
                 check_expected_modtype ~env ~sig_env subst (Some mt2) (Some mt4)
-                  ~actual_loc ~expected_loc
+                  ~actual_loc ~expected_loc ~context
             | Mty_functor (Unit, mt1), Mty_functor (Unit, mt2) ->
                 check_expected_modtype ~env ~sig_env subst (Some mt1) (Some mt2)
-                  ~actual_loc ~expected_loc
+                  ~actual_loc ~expected_loc ~context
             | Mty_functor _,
               (Mty_functor _ | Mty_signature _)
             | Mty_signature _, Mty_functor _ ->
@@ -3186,7 +3187,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
               | None -> subst
               | Some (sig_ident, sig_decl) ->
                   check_expected_modtype ~env ~sig_env subst
-                    (Some decl.Types.md_type) (Some sig_decl.md_type)
+                    (Some decl.Types.md_type) (Some sig_decl.md_type) ~context:From_module
                     ~actual_loc:decl.Types.md_loc ~expected_loc: sig_decl.Types.md_loc;
                   Subst.add_module sig_ident (Pident ident) subst
             end
@@ -3207,7 +3208,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         begin match Sig_map.find_module_type (Ident.name ident) sig_map with
           | None -> subst
           | Some (sig_ident, sig_decl) ->
-              check_expected_modtype ~env ~sig_env subst decl.Types.mtd_type sig_decl.mtd_type
+              check_expected_modtype ~env ~sig_env subst
+                decl.Types.mtd_type sig_decl.mtd_type ~context:From_modtype
                 ~actual_loc:decl.Types.mtd_loc ~expected_loc:sig_decl.Types.mtd_loc;
               Subst.add_modtype sig_ident (Mty_ident (Pident ident)) subst
         end
@@ -4669,6 +4671,19 @@ let report_error ~loc _env = function
       Location.errorf ~loc ~sub:[expected_error]
         "This functor declaration is incompatible with the corresponding @ \
         declaration in the signature."
+  | Incompatible_module_type (context, expected_loc) ->
+      let context =
+        match context with
+        | From_modtype -> "module type"
+        | From_module -> "module"
+      in
+      let expected_error =
+        Location.msg ~loc:expected_loc "Expected declaration here"
+      in
+      Location.errorf ~loc ~sub:[expected_error]
+        "This %s is incompatible with the corresponding @ \
+        declaration in the signature."
+        context
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env
