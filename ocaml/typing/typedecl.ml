@@ -191,7 +191,6 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
     | Asttypes.Recursive -> true
   in
   if not needed then env else
-<<<<<<< HEAD
   let arity = List.length sdecl.ptype_params in
   let path = Path.Pident id in
 
@@ -254,11 +253,12 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       ~default:(Jkind.Primitive.any ~why:Initial_typedecl_env)
       sdecl
   in
-  let abstract_reason, type_manifest =
+  let abstract_source, type_manifest =
     match sdecl.ptype_manifest, abstract_abbrevs with
-    | (None, _ | Some _, None) -> Abstract_def, Some (Ctype.newvar type_jkind)
+    | None, _             -> Definition, None
+    | Some _, None        -> Definition, Some (Btype.newgenvar type_jkind)
     | Some _, Some reason -> reason, None
-  in
+in
   let type_params =
     List.map (fun (param, _) ->
         let name = get_type_param_name param in
@@ -266,37 +266,14 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
         Btype.newgenvar ?name jkind)
       sdecl.ptype_params
   in
-||||||| 121bedcfd2
-=======
-  let abstract_source, type_manifest =
-    match sdecl.ptype_manifest, abstract_abbrevs with
-    | None, _             -> Definition, None
-    | Some _, None        -> Definition, Some (Btype.newgenvar ())
-    | Some _, Some reason -> reason, None
-  in
->>>>>>> 5.2.0
   let decl =
     { type_params;
       type_arity = arity;
-<<<<<<< HEAD
-      type_kind = Type_abstract abstract_reason;
+      type_kind = Type_abstract abstract_source;
       type_jkind;
       type_jkind_annotation;
-||||||| 121bedcfd2
-      type_kind = Type_abstract;
-=======
-      type_kind = Type_abstract abstract_source;
->>>>>>> 5.2.0
       type_private = sdecl.ptype_private;
-<<<<<<< HEAD
       type_manifest;
-||||||| 121bedcfd2
-      type_manifest =
-        begin match sdecl.ptype_manifest with None -> None
-        | Some _ -> Some(Ctype.newvar ()) end;
-=======
-      type_manifest = type_manifest;
->>>>>>> 5.2.0
       type_variance = Variance.unknown_signature ~injective:false ~arity;
       type_separability = Types.Separability.default_signature ~arity;
       type_is_newtype = false;
@@ -310,7 +287,13 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   in
   add_type ~check:true id decl env
 
-<<<<<<< HEAD
+(* nroberts: The below [update_type] is deleted upstream in
+   https://github.com/ocaml/ocaml/pull/12180 to stop ocamlc from looping on some
+   type constraints. Our internal version records jkind constraints, and so we
+   cannot delete it. We haven't separately implemented a fix for ocamlc looping,
+   so we probably have the same issue described in that PR, but users haven't
+   reported it.
+*)
 (* [update_type] performs step 3 of the process described in the comment in
    [enter_type]: We unify the manifest of each type with the definition of that
    variable in [temp_env], which contains any requirements on the type implied
@@ -340,19 +323,6 @@ let update_type temp_env env id loc =
       with Ctype.Unify err ->
         raise (Error(loc, Type_clash (env, err)))
 
-||||||| 121bedcfd2
-let update_type temp_env env id loc =
-  let path = Path.Pident id in
-  let decl = Env.find_type path temp_env in
-  match decl.type_manifest with None -> ()
-  | Some ty ->
-      let params = List.map (fun _ -> Ctype.newvar ()) decl.type_params in
-      try Ctype.unify env (Ctype.newconstr path params) ty
-      with Ctype.Unify err ->
-        raise (Error(loc, Type_clash (env, err)))
-
-=======
->>>>>>> 5.2.0
 (* Determine if a type's values are represented by floats at run-time. *)
 (* CR layouts v2.5: Should we check for unboxed float here? Is a record with all
    unboxed floats the same as a float record?
@@ -479,18 +449,10 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
          {ld_id = Ident.create_local name.txt;
-<<<<<<< HEAD
           ld_name = name;
           ld_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           ld_mutable = mut;
           ld_modalities = modalities;
-||||||| 121bedcfd2
-          ld_name = name; ld_mutable = mut;
-=======
-          ld_name = name;
-          ld_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-          ld_mutable = mut;
->>>>>>> 5.2.0
           ld_type = cty; ld_loc = loc; ld_attributes = attrs}
       )
   in
@@ -654,58 +616,7 @@ let make_constructor
       tvars, targs, Some tret_type, args, Some ret_type
       end
 
-<<<<<<< HEAD
 let verify_unboxed_attr unboxed_attr sdecl =
-||||||| 121bedcfd2
-let transl_declaration env sdecl (id, uid) =
-  (* Bind type parameters *)
-  Ctype.with_local_level begin fun () ->
-  TyVarEnv.reset();
-  let tparams = make_params env sdecl.ptype_params in
-  let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
-  let cstrs = List.map
-    (fun (sty, sty', loc) ->
-      transl_simple_type env ~closed:false sty,
-      transl_simple_type env ~closed:false sty', loc)
-    sdecl.ptype_cstrs
-  in
-  let unboxed_attr = get_unboxed_from_attributes sdecl in
-=======
-
-let shape_map_labels =
-  List.fold_left (fun map { ld_id; ld_uid; _} ->
-    Shape.Map.add_label map ld_id ld_uid)
-    Shape.Map.empty
-
-let shape_map_cstrs =
-  List.fold_left (fun map { cd_id; cd_uid; cd_args; _ } ->
-    let cstr_shape_map =
-      let label_decls =
-        match cd_args with
-        | Cstr_tuple _ -> []
-        | Cstr_record ldecls -> ldecls
-      in
-      shape_map_labels label_decls
-    in
-    Shape.Map.add_constr map cd_id
-      @@ Shape.str ~uid:cd_uid cstr_shape_map)
-    (Shape.Map.empty)
-
-
-let transl_declaration env sdecl (id, uid) =
-  (* Bind type parameters *)
-  Ctype.with_local_level begin fun () ->
-  TyVarEnv.reset();
-  let tparams = make_params env sdecl.ptype_params in
-  let params = List.map (fun (cty, _) -> cty.ctyp_type) tparams in
-  let cstrs = List.map
-    (fun (sty, sty', loc) ->
-      transl_simple_type env ~closed:false sty,
-      transl_simple_type env ~closed:false sty', loc)
-    sdecl.ptype_cstrs
-  in
-  let unboxed_attr = get_unboxed_from_attributes sdecl in
->>>>>>> 5.2.0
   begin match unboxed_attr with
   | (None | Some false) -> ()
   | Some true ->
@@ -730,6 +641,7 @@ let transl_declaration env sdecl (id, uid) =
             | Pcstr_tuple [_]  ->
                 ()
             | Pcstr_record [] ->
+
                 bad "its constructor has no fields"
             | Pcstr_record (_::_::_) ->
                 bad "its constructor has more than one field"
@@ -840,7 +752,6 @@ let shape_map_cstrs =
       @@ Shape.str ~uid:cd_uid cstr_shape_map)
     (Shape.Map.empty)
 
-
 let transl_declaration env sdecl (id, uid) =
   (* Bind type parameters *)
   Ctype.with_local_level begin fun () ->
@@ -885,14 +796,9 @@ let transl_declaration env sdecl (id, uid) =
   *)
   let (tkind, kind, jkind_default) =
     match sdecl.ptype_kind with
-<<<<<<< HEAD
       | Ptype_abstract ->
-        Ttype_abstract, Type_abstract Abstract_def, Jkind.Primitive.value ~why:Default_type_jkind
-||||||| 121bedcfd2
-      | Ptype_abstract -> Ttype_abstract, Type_abstract
-=======
-      | Ptype_abstract -> Ttype_abstract, Type_abstract Definition
->>>>>>> 5.2.0
+        Ttype_abstract, Type_abstract Definition,
+        Jkind.Primitive.value ~why:Default_type_jkind
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -930,15 +836,8 @@ let transl_declaration env sdecl (id, uid) =
           let tcstr =
             { cd_id = name;
               cd_name = scstr.pcd_name;
-<<<<<<< HEAD
               cd_vars = tvars;
               cd_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-||||||| 121bedcfd2
-              cd_vars = scstr.pcd_vars;
-=======
-              cd_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
-              cd_vars = scstr.pcd_vars;
->>>>>>> 5.2.0
               cd_args = targs;
               cd_res = tret_type;
               cd_loc = scstr.pcd_loc;
@@ -949,16 +848,8 @@ let transl_declaration env sdecl (id, uid) =
               cd_args = args;
               cd_res = ret_type;
               cd_loc = scstr.pcd_loc;
-<<<<<<< HEAD
               cd_attributes = attributes;
               cd_uid = tcstr.cd_uid }
-||||||| 121bedcfd2
-              cd_attributes = scstr.pcd_attributes;
-              cd_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) }
-=======
-              cd_attributes = scstr.pcd_attributes;
-              cd_uid = tcstr.cd_uid }
->>>>>>> 5.2.0
           in
             tcstr, cstr
         in
@@ -1065,7 +956,6 @@ let transl_declaration env sdecl (id, uid) =
       in
       set_private_row env sdecl.ptype_loc p decl
     end;
-<<<<<<< HEAD
     let decl =
       {
         typ_id = id;
@@ -1089,43 +979,6 @@ let transl_declaration env sdecl (id, uid) =
       | Ttype_abstract | Ttype_open -> Shape.leaf uid
     in
     decl, typ_shape
-||||||| 121bedcfd2
-    {
-      typ_id = id;
-      typ_name = sdecl.ptype_name;
-      typ_params = tparams;
-      typ_type = decl;
-      typ_cstrs = cstrs;
-      typ_loc = sdecl.ptype_loc;
-      typ_manifest = tman;
-      typ_kind = tkind;
-      typ_private = sdecl.ptype_private;
-      typ_attributes = sdecl.ptype_attributes;
-    }
-=======
-    let decl =
-      {
-        typ_id = id;
-        typ_name = sdecl.ptype_name;
-        typ_params = tparams;
-        typ_type = decl;
-        typ_cstrs = cstrs;
-        typ_loc = sdecl.ptype_loc;
-        typ_manifest = tman;
-        typ_kind = tkind;
-        typ_private = sdecl.ptype_private;
-        typ_attributes = sdecl.ptype_attributes;
-      }
-    in
-    let typ_shape =
-      let uid = decl.typ_type.type_uid in
-      match decl.typ_kind with
-      | Ttype_variant cstrs -> Shape.str ~uid (shape_map_cstrs cstrs)
-      | Ttype_record labels -> Shape.str ~uid (shape_map_labels labels)
-      | Ttype_abstract | Ttype_open -> Shape.leaf uid
-    in
-    decl, typ_shape
->>>>>>> 5.2.0
   end
 
 (* Generalize a type declaration *)
@@ -1269,7 +1122,7 @@ let check_coherence env loc dpath decl =
   match decl with
     { type_kind = (Type_variant _ | Type_record _| Type_open);
       type_manifest = Some ty } ->
-      if !Clflags.allow_illegal_crossing then begin 
+      if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
         begin match Jkind.sub_with_history jkind' decl.type_jkind with
         | Ok _ -> ()
@@ -2038,13 +1891,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
    (we don't have an example at hand where it is necessary), but we
    are doing it anyway out of caution.
 *)
-<<<<<<< HEAD
-let check_well_founded_decl ~abs_env env loc path decl to_check =
-||||||| 121bedcfd2
-let check_well_founded_decl env loc path decl to_check =
-=======
 let check_well_founded_decl  ~abs_env env loc path decl to_check =
->>>>>>> 5.2.0
   let open Btype in
   (* We iterate on all subexpressions of the declaration to check
      "in depth" that no ill-founded type exists. *)
@@ -2063,13 +1910,7 @@ let check_well_founded_decl  ~abs_env env loc path decl to_check =
     {type_iterators with it_type_expr =
      (fun self ty ->
        if TypeSet.mem ty !checked then () else begin
-<<<<<<< HEAD
-         check_well_founded ~abs_env env loc path to_check visited ty;
-||||||| 121bedcfd2
-         check_well_founded env loc path to_check visited ty;
-=======
          check_well_founded  ~abs_env env loc path to_check visited ty;
->>>>>>> 5.2.0
          checked := TypeSet.add ty !checked;
          self.it_do_type_expr self ty
        end)} in
@@ -2083,15 +1924,8 @@ let check_well_founded_decl  ~abs_env env loc path decl to_check =
    [type 'a t = ... constraint 'a = ...], we require
    that all instances in [...] be equal to the constrained type.
 *)
-<<<<<<< HEAD
-let check_regularity ~abs_env env loc path decl to_check =
-||||||| 121bedcfd2
-
-let check_regularity ~orig_env env loc path decl to_check =
-=======
 
 let check_regularity ~abs_env env loc path decl to_check =
->>>>>>> 5.2.0
   (* to_check is true for potentially mutually recursive paths.
      (path, decl) is the type declaration to be checked. *)
 
@@ -2127,13 +1961,7 @@ let check_regularity ~abs_env env loc path decl to_check =
               let (params, body) =
                 Ctype.instance_parameterized_type params0 body0 in
               begin
-<<<<<<< HEAD
-                try List.iter2 (Ctype.unify abs_env) params args'
-||||||| 121bedcfd2
-                try List.iter2 (Ctype.unify orig_env) params args'
-=======
                 try List.iter2 (Ctype.unify abs_env) args' params
->>>>>>> 5.2.0
                 with Ctype.Unify err ->
                   raise (Error(loc, Constraint_failed (abs_env, err)));
               end;
@@ -2204,13 +2032,7 @@ let check_duplicates sdecl_list =
 (* Force recursion to go through id for private types*)
 let name_recursion sdecl id decl =
   match decl with
-<<<<<<< HEAD
-  | { type_kind = Type_abstract Abstract_def;
-||||||| 121bedcfd2
-  | { type_kind = Type_abstract;
-=======
-  | { type_kind = Type_abstract _;
->>>>>>> 5.2.0
+  | { type_kind = Type_abstract (Definition | Existential _);
       type_manifest = Some ty;
       type_private = Private; } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
@@ -2274,16 +2096,10 @@ let transl_type_decl env rec_flag sdecl_list =
       Uid.mk ~current_unit:(Env.get_unit_name ())
     ) sdecl_list
   in
-<<<<<<< HEAD
-  let tdecls, decls, shapes, new_env, delayed_jkind_checks =
-||||||| 121bedcfd2
-  let tdecls, decls, new_env =
-=======
   (* Translate declarations, using a temporary environment where abbreviations
      expand to a generic type variable. After that, we check the coherence of
      the translated declarations in the resulting new environment. *)
-  let tdecls, decls, shapes, new_env =
->>>>>>> 5.2.0
+  let tdecls, decls, shapes, new_env, delayed_jkind_checks =
     Ctype.with_local_level_iter ~post:generalize_decl begin fun () ->
       (* Enter types. *)
       let temp_env =
@@ -2324,26 +2140,15 @@ let transl_type_decl env rec_flag sdecl_list =
          enviroment. *)
       let tdecls =
         List.map2 transl_declaration sdecl_list (List.map ids_slots ids_list) in
-<<<<<<< HEAD
-      let decls, shapes =
-        List.map (fun (tdecl, shape) -> (tdecl.typ_id, tdecl.typ_type), shape) tdecls
-        |> List.split
-      in
-||||||| 121bedcfd2
-      let decls =
-        List.map (fun tdecl -> (tdecl.typ_id, tdecl.typ_type)) tdecls in
-=======
       let decls, shapes =
         List.map (fun (tdecl, shape) ->
           (tdecl.typ_id, tdecl.typ_type), shape) tdecls
         |> List.split
       in
->>>>>>> 5.2.0
       current_slot := None;
       (* Check for duplicates *)
       check_duplicates sdecl_list;
       (* Build the final env. *)
-<<<<<<< HEAD
       let new_env = add_types_to_env decls shapes env in
       (* Update stubs *)
       let delayed_jkind_checks =
@@ -2357,22 +2162,6 @@ let transl_type_decl env rec_flag sdecl_list =
             ids_list sdecl_list
       in
       ((tdecls, decls, shapes, new_env, delayed_jkind_checks), List.map snd decls)
-||||||| 121bedcfd2
-      let new_env = add_types_to_env decls env in
-      (* Update stubs *)
-      begin match rec_flag with
-      | Asttypes.Nonrecursive -> ()
-      | Asttypes.Recursive ->
-          List.iter2
-            (fun (id, _) sdecl ->
-              update_type temp_env new_env id sdecl.ptype_loc)
-            ids_list sdecl_list
-      end;
-      ((tdecls, decls, new_env), List.map snd decls)
-=======
-      let new_env = add_types_to_env decls shapes env in
-      ((tdecls, decls, shapes, new_env), List.map snd decls)
->>>>>>> 5.2.0
     end
   in
   (* Check for ill-formed abbrevs *)
@@ -2380,17 +2169,6 @@ let transl_type_decl env rec_flag sdecl_list =
     List.map2 (fun (id, _) sdecl -> (id, sdecl.ptype_loc))
       ids_list sdecl_list
   in
-<<<<<<< HEAD
-  (* [check_abbrev_regularity] cannot use the new environment, as this might
-     result in non-termination. Instead we use a completely abstract version
-     of the temporary environment, giving a reason for why abbreviations
-     cannot be expanded (#12334, #12368) *)
-  let abs_env =
-    List.fold_left2
-      (enter_type ~abstract_abbrevs:Abstract_rec_check_regularity rec_flag)
-      env sdecl_list ids_list in
-||||||| 121bedcfd2
-=======
   (* [check_abbrev_regularity] and error messages cannot use the new
      environment, as this might result in non-termination. Instead we use a
      completely abstract version of the temporary environment, giving a reason
@@ -2399,7 +2177,6 @@ let transl_type_decl env rec_flag sdecl_list =
     List.fold_left2
       (enter_type ~abstract_abbrevs:Rec_check_regularity rec_flag)
       env sdecl_list ids_list in
->>>>>>> 5.2.0
   List.iter (fun (id, decl) ->
     check_well_founded_manifest ~abs_env new_env (List.assoc id id_loc_list)
       (Path.Pident id) decl)
@@ -2411,7 +2188,6 @@ let transl_type_decl env rec_flag sdecl_list =
       (Path.Pident id)
       decl to_check)
     decls;
-<<<<<<< HEAD
   List.iter (fun (tdecl, _shape) ->
     check_abbrev_regularity ~abs_env new_env id_loc_list to_check tdecl) tdecls;
   (* Now that we've ruled out ill-formed types, we can perform the delayed
@@ -2454,16 +2230,6 @@ let transl_type_decl env rec_flag sdecl_list =
      do the defaulting first is actually unsound: the unification in
      check_constraints will succeed via mutation, be backtracked, and then
      perhaps a sort variable gets defaulted to value. Bad bad.) *)
-||||||| 121bedcfd2
-  List.iter
-    (check_abbrev_regularity ~orig_env:env new_env id_loc_list to_check) tdecls;
-  (* Check that all type variables are closed *)
-=======
-  List.iter (fun (tdecl, _shape) ->
-    check_abbrev_regularity ~abs_env new_env id_loc_list to_check tdecl)
-    tdecls;
-  (* Check that all type variables are closed *)
->>>>>>> 5.2.0
   List.iter2
     (fun sdecl (tdecl, _shape) ->
       let decl = tdecl.typ_type in
@@ -2491,17 +2257,7 @@ let transl_type_decl env rec_flag sdecl_list =
   (* Check re-exportation, updating [type_jkind] from the manifest *)
   let decls = List.map2 (check_abbrev new_env) sdecl_list decls in
   (* Compute the final environment with variance and immediacy *)
-<<<<<<< HEAD
   let final_env = add_types_to_env decls shapes env in
-||||||| 121bedcfd2
-  let final_env = add_types_to_env decls env in
-  (* Check re-exportation *)
-  List.iter2 (check_abbrev final_env) sdecl_list decls;
-=======
-  let final_env = add_types_to_env decls shapes env in
-  (* Check re-exportation *)
-  List.iter2 (check_abbrev final_env) sdecl_list decls;
->>>>>>> 5.2.0
   (* Keep original declaration *)
   let final_decls =
     List.map2
@@ -3310,18 +3066,10 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let (tman, man) =  match sdecl.ptype_manifest with
       None -> Misc.fatal_error "Typedecl.transl_with_constraint: no manifest"
     | Some sty ->
-<<<<<<< HEAD
       let cty =
         transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty
       in
       cty, cty.ctyp_type
-||||||| 121bedcfd2
-        let cty = transl_simple_type env ~closed:no_row sty in
-        Some cty, Some cty.ctyp_type
-=======
-        let cty = transl_simple_type env ~closed:no_row sty in
-        cty, cty.ctyp_type
->>>>>>> 5.2.0
   in
   (* In the second part, we check the consistency between the two
      declarations and compute a "merged" declaration; we now need to
@@ -3344,15 +3092,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     try Ctype.unify env cty.ctyp_type cty'.ctyp_type
     with Ctype.Unify err ->
       raise(Error(loc, Inconsistent_constraint (env, err)))
-<<<<<<< HEAD
-    ) constraints;
-  let sig_decl_abstract = Btype.type_kind_is_abstract sig_decl in
-||||||| 121bedcfd2
-  ) constraints;
-=======
   ) constraints;
   let sig_decl_abstract = Btype.type_kind_is_abstract sig_decl in
->>>>>>> 5.2.0
   let priv =
     if sdecl.ptype_private = Private then Private else
     if arity_ok && not sig_decl_abstract
@@ -3361,30 +3102,14 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   if arity_ok && not sig_decl_abstract
   && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
-<<<<<<< HEAD
   let type_kind, type_unboxed_default, type_jkind, type_jkind_annotation =
     if arity_ok then
       sig_decl.type_kind,
       sig_decl.type_unboxed_default,
       sig_decl.type_jkind,
       sig_decl.type_jkind_annotation
-||||||| 121bedcfd2
-  let type_kind, type_unboxed_default =
-    if arity_ok && man <> None then
-      sig_decl.type_kind, sig_decl.type_unboxed_default
-=======
-  let type_kind, type_unboxed_default =
-    if arity_ok then
-      sig_decl.type_kind, sig_decl.type_unboxed_default
->>>>>>> 5.2.0
     else
-<<<<<<< HEAD
-      Type_abstract Abstract_def, false, sig_decl.type_jkind, None
-||||||| 121bedcfd2
-      Type_abstract, false
-=======
-      Type_abstract Definition, false
->>>>>>> 5.2.0
+      Type_abstract Definition, false, sig_decl.type_jkind, None
   in
   let new_sig_decl =
     { type_params = params;
@@ -3461,14 +3186,13 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   end
   ~post:(fun ttyp -> generalize_decl ttyp.typ_type)
 
-<<<<<<< HEAD
 (* A simplified version of [transl_with_constraint], for the case of packages.
    Package constraints are much simpler than normal with type constraints (e.g.,
    they can not have parameters and can only update abstract types.) *)
 let transl_package_constraint ~loc ty =
   { type_params = [];
     type_arity = 0;
-    type_kind = Type_abstract Abstract_def;
+    type_kind = Type_abstract Definition;
     type_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
@@ -3487,36 +3211,6 @@ let transl_package_constraint ~loc ty =
     type_has_illegal_crossings = false;
   }
 
-||||||| 121bedcfd2
-=======
-(* A simplified version of [transl_with_constraint], for the case of packages.
-   Package constraints are much simpler than normal with type constraints (e.g.,
-   they can not have parameters and can only update abstract types.) *)
-let transl_package_constraint ~loc env ty =
-  let new_sig_decl =
-    { type_params = [];
-      type_arity = 0;
-      type_kind = Type_abstract Definition;
-      type_private = Public;
-      type_manifest = Some ty;
-      type_variance = [];
-      type_separability = [];
-      type_is_newtype = false;
-      type_expansion_scope = Btype.lowest_level;
-      type_loc = loc;
-      type_attributes = [];
-      type_immediate = Unknown;
-      type_unboxed_default = false;
-      type_uid = Uid.mk ~current_unit:(Env.get_unit_name ())
-    }
-  in
-  let new_type_immediate =
-    (* Typedecl_immediacy.compute_decl never raises *)
-    Typedecl_immediacy.compute_decl env new_sig_decl
-  in
-  { new_sig_decl with type_immediate = new_type_immediate }
-
->>>>>>> 5.2.0
 (* Approximate a type declaration: just make all types abstract *)
 
 let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
@@ -3525,15 +3219,9 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
     let params = List.map Ctype.newvar params in
     { type_params = params;
       type_arity = arity;
-<<<<<<< HEAD
-      type_kind = Type_abstract Abstract_def;
+      type_kind = Type_abstract Definition;
       type_jkind = jkind;
       type_jkind_annotation = jkind_annotation;
-||||||| 121bedcfd2
-      type_kind = Type_abstract;
-=======
-      type_kind = Type_abstract Definition;
->>>>>>> 5.2.0
       type_private = Public;
       type_manifest = None;
       type_variance = Variance.unknown_signature ~injective ~arity;
@@ -3575,19 +3263,9 @@ let check_recmod_typedecl env loc recmod_ids path decl =
   (* recmod_ids is the list of recursively-defined module idents.
      (path, decl) is the type declaration to be checked. *)
   let to_check path = Path.exists_free recmod_ids path in
-<<<<<<< HEAD
-  check_well_founded_decl ~abs_env:env env loc path decl to_check;
-  check_regularity ~abs_env:env env loc path decl to_check;
-  (* additionally check coherece, as one might build an incoherent signature,
-||||||| 121bedcfd2
-  check_well_founded_decl env loc path decl to_check;
-  check_regularity ~orig_env:env env loc path decl to_check;
-  (* additionally check coherece, as one might build an incoherent signature,
-=======
   check_well_founded_decl ~abs_env:env env loc path decl to_check;
   check_regularity ~abs_env:env env loc path decl to_check;
   (* additional coherence check, as one might build an incoherent signature,
->>>>>>> 5.2.0
      and use it to build an incoherent module, cf. #7851 *)
   ignore (check_coherence env loc path decl)
 
@@ -3937,18 +3615,12 @@ let report_error ppf = function
         Style.inline_code "[@@untagged]"
   | Cannot_unbox_or_untag_type Unboxed ->
       fprintf ppf "@[Don't know how to unbox this type.@ \
-<<<<<<< HEAD
-                   Only float, int32, int64, nativeint, vector primitives, and@ \
+                   Only %a, %a, %a, %a, vector primitives, and@ \
                    concrete unboxed types can be marked unboxed.@]"
-||||||| 121bedcfd2
-                   Only float, int32, int64 and nativeint can be unboxed.@]"
-=======
-                   Only %a, %a, %a, and %a can be unboxed.@]"
         Style.inline_code "float"
         Style.inline_code "int32"
         Style.inline_code "int64"
         Style.inline_code "nativeint"
->>>>>>> 5.2.0
   | Cannot_unbox_or_untag_type Untagged ->
       fprintf ppf "@[Don't know how to untag this type. Only %a@ \
                    and other immediate types can be untagged.@]"
@@ -3960,14 +3632,16 @@ let report_error ppf = function
          it should not occur deeply into its type.@]"
         Style.inline_code
         (match kind with Unboxed -> "@unboxed" | Untagged -> "@untagged")
-<<<<<<< HEAD
   | Jkind_mismatch_of_path (dpath,v) ->
     (* the type is always printed just above, so print out just the head of the
        path instead of something like [t/3] *)
-    let offender ppf = fprintf ppf "type %s" (Ident.name (Path.head dpath)) in
+    let offender ppf =
+      fprintf ppf "type %a" Style.inline_code (Ident.name (Path.head dpath))
+    in
     Jkind.Violation.report_with_offender ~offender ppf v
   | Jkind_mismatch_of_type (ty,v) ->
-    let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
+    let offender ppf = fprintf ppf "type %a"
+        (Style.as_inline_code Printtyp.type_expr) ty in
     Jkind.Violation.report_with_offender ~offender ppf v
   | Jkind_sort {kloc; typ; err} ->
     let s =
@@ -3987,7 +3661,8 @@ let report_error ppf = function
       | Cstr_tuple _ | Record _ | Inlined_record _ | External -> dprintf ""
       | External_with_layout_poly -> dprintf
         "@ (locally-scoped type variables with layout 'any' are@ \
-          made representable by [@@layout_poly])"
+          made representable by %a)"
+        Style.inline_code "[@layout_poly]"
     in
     fprintf ppf "@[%s must have a representable layout%t.@ %a@]" s
       extra
@@ -3997,8 +3672,9 @@ let report_error ppf = function
     fprintf ppf "@[Records must contain at least one runtime value.@]"
   | Non_value_in_sig (err, val_name, ty) ->
     let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
-    fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
-      val_name (Jkind.Violation.report_with_offender ~offender) err
+    fprintf ppf "@[This type signature for %a is not a value type.@ %a@]"
+      Style.inline_code val_name
+      (Jkind.Violation.report_with_offender ~offender) err
   | Invalid_jkind_in_block (typ, sort_const, lloc) ->
     let struct_desc =
       match lloc with
@@ -4013,21 +3689,23 @@ let report_error ppf = function
     in
     fprintf ppf
       "@[Type %a has layout %a.@ %s may not yet contain types of this layout.@]"
-      Printtyp.type_expr typ Jkind.Sort.Const.format sort_const struct_desc
+      (Style.as_inline_code Printtyp.type_expr) typ
+      (Style.as_inline_code Jkind.Sort.Const.format) sort_const
+      struct_desc
   | Illegal_mixed_product error -> begin
       match error with
       | Flat_field_expected { boxed_lbl; non_value_lbl } ->
           fprintf ppf
-            "@[Expected all flat fields after non-value field, %s,@]@,@ \
-             @[but found boxed field, %s.@]"
-            (Ident.name non_value_lbl)
-            (Ident.name boxed_lbl)
+            "@[Expected all flat fields after non-value field, %a,@]@,@ \
+             @[but found boxed field, %a.@]"
+            Style.inline_code (Ident.name non_value_lbl)
+            Style.inline_code (Ident.name boxed_lbl)
       | Flat_constructor_arg_expected { boxed_arg; non_value_arg } ->
           fprintf ppf
             "@[Expected all flat constructor arguments after non-value \
              argument, %a,@]@,@ @[but found boxed argument, %a.@]"
-            Printtyp.type_expr non_value_arg
-            Printtyp.type_expr boxed_arg
+            (Style.as_inline_code Printtyp.type_expr) non_value_arg
+            (Style.as_inline_code Printtyp.type_expr) boxed_arg
       | Runtime_support_not_enabled mixed_product_kind ->
           fprintf ppf
             "@[This OCaml runtime doesn't support mixed %s.@]"
@@ -4060,33 +3738,6 @@ let report_error ppf = function
             (Mixed_product_kind.to_plural_string mixed_product_kind)
             hint)
     end
-||||||| 121bedcfd2
-  | Immediacy (Typedecl_immediacy.Bad_immediacy_attribute violation) ->
-      fprintf ppf "@[%a@]" Format.pp_print_text
-        (match violation with
-         | Type_immediacy.Violation.Not_always_immediate ->
-             "Types marked with the immediate attribute must be \
-              non-pointer types like int or bool."
-         | Type_immediacy.Violation.Not_always_immediate_on_64bits ->
-             "Types marked with the immediate64 attribute must be \
-              produced using the Stdlib.Sys.Immediate64.Make functor.")
-=======
-  | Immediacy (Typedecl_immediacy.Bad_immediacy_attribute violation) ->
-      (match violation with
-       | Type_immediacy.Violation.Not_always_immediate ->
-           fprintf ppf
-             "@[Types@ marked@ with@ the@ immediate@ attribute@ must@ be@ \
-              non-pointer@ types@ like@ %a@ or@ %a.@]"
-             Style.inline_code "int"
-             Style.inline_code "bool"
-       | Type_immediacy.Violation.Not_always_immediate_on_64bits ->
-           fprintf ppf
-             "@[Types@ marked@ with@ the@ %a@ attribute@ must@ be@ \
-              produced@ using@ the@ %a@ functor.@]"
-             Style.inline_code "immediate64"
-             Style.inline_code "Stdlib.Sys.Immediate64.Make"
-      )
->>>>>>> 5.2.0
   | Bad_unboxed_attribute msg ->
       fprintf ppf "@[This type cannot be unboxed because@ %s.@]" msg
   | Separability (Typedecl_separability.Non_separable_evar evar) ->
@@ -4116,21 +3767,24 @@ let report_error ppf = function
          which does not have a free row type variable.@]@,\
          @[<hv>@[@{<hint>Hint@}: If you intended to define a private \
          type abbreviation,@ \
-<<<<<<< HEAD
-         write explicitly@]@;<1 2>private %a@]"
-        Printtyp.type_expr ty Printtyp.type_expr ty
+        write explicitly@]@;<1 2>%a@]"
+        (Style.as_inline_code Printtyp.type_expr) ty
+        (Style.as_inline_code pp_private) ty
   | Local_not_enabled ->
       fprintf ppf "@[The local extension is disabled@ \
                    To enable it, pass the '-extension local' flag@]"
   | Unexpected_layout_any_in_primitive name ->
       fprintf ppf
-        "@[The primitive [%s] doesn't work well with type variables of@ \
-           layout any. Consider using [@@layout_poly].@]" name
+        "@[The primitive %a doesn't work well with type variables of@ \
+           layout any. Consider using %a.@]"
+        Style.inline_code name
+        Style.inline_code "[@layout_poly]"
   | Useless_layout_poly ->
       fprintf ppf
-        "@[[@@layout_poly] on this external declaration has no@ \
+        "@[%a on this external declaration has no@ \
            effect. Consider removing it or adding a type@ \
            variable for it to operate on.@]"
+        Style.inline_code "[@layout_poly]"
   | Zero_alloc_attr_unsupported ca ->
       let variety = match ca with
         | Default_zero_alloc  | Check _ -> assert false
@@ -4138,25 +3792,18 @@ let report_error ppf = function
         | Ignore_assert_all -> "ignore"
       in
       fprintf ppf
-        "@[zero_alloc \"%s\" attributes are not supported in signatures@]"
-        variety
+        "@[zero_alloc %a attributes are not supported in signatures@]"
+        Style.inline_code variety
   | Zero_alloc_attr_non_function ->
     fprintf ppf
       "@[In signatures, zero_alloc is only supported on function declarations.\
          @ Found no arrows in this declaration's type.\
-         @ Hint: You can write \"[@zero_alloc arity n]\" to specify the arity\
+         @ Hint: You can write %a to specify the arity\
          @ of an alias (for n > 0).@]"
+      Style.inline_code "[@zero_alloc arity n]"
   | Zero_alloc_attr_bad_user_arity ->
     fprintf ppf
       "@[Invalid zero_alloc attribute: arity must be greater than 0.@]"
-||||||| 121bedcfd2
-         write explicitly@]@;<1 2>private %a@]"
-        Printtyp.type_expr ty Printtyp.type_expr ty
-=======
-         write explicitly@]@;<1 2>%a@]"
-        (Style.as_inline_code Printtyp.type_expr) ty
-        (Style.as_inline_code pp_private) ty
->>>>>>> 5.2.0
 
 let () =
   Location.register_error_of_exn
