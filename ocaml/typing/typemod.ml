@@ -4653,11 +4653,11 @@ let report_error ~loc _env = function
         (Mode.Value.Const.print_axis ax) left
         (Mode.Value.Const.print_axis ax) right
   | Underscore_not_allowed_in_signature ->
-      Location.errorf ~loc
-        "Inference of module types is not allowed within a signature."
+    Location.errorf ~loc
+      "Inference of module types is not allowed within a signature."
   | Cannot_infer_module_type ->
-      Location.errorf ~loc
-        "Cannot infer module type without a corresponding definition."
+    Location.errorf ~loc
+      "Cannot infer module type without a corresponding definition."
   | Unbound_path_in_inferred_type (k, p) ->
       Location.errorf ~loc
         "The inferred module type refers to %a %a, which is unbound here."

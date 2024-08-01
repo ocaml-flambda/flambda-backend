@@ -8,7 +8,7 @@
 
   (* include List
 
-  module type T = _ *)  (* CR selee: For nowe, we don't support includes *)
+  module type T = _ *)  (* CR selee: For now, we don't support includes *)
 
   module M = List
 
