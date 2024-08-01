@@ -391,9 +391,3 @@
     (zero_alloc_utils.mli as compiler-libs/zero_alloc_utils.mli)
 
   ))
-
-(install
- (section lib)
- (package ocaml)
- (files (../lrgrep_parsing/frontend.bc as frontend.bc)
- (../lrgrep_parsing/interpreter.exe as interpreter.exe)))
