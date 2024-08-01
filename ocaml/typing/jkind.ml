@@ -1521,8 +1521,6 @@ module Format_history = struct
       History.immediate64_creation_reason -> _ = function
     | Separability_check ->
       fprintf ppf "the check that a type is definitely not `float`"
-    | Primitive id ->
-      fprintf ppf "it is the primitive immediate64 type %s" (Ident.name id)
 
   let format_value_or_null_creation_reason ppf :
       History.value_or_null_creation_reason -> _ = function
@@ -2010,7 +2008,6 @@ module Debug_printers = struct
   let immediate64_creation_reason ppf : History.immediate64_creation_reason -> _
       = function
     | Separability_check -> fprintf ppf "Separability_check"
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
 
   let value_or_null_creation_reason ppf :
       History.value_or_null_creation_reason -> _ = function

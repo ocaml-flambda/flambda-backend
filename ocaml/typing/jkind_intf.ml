@@ -240,9 +240,7 @@ module History = struct
     | Primitive of Ident.t
     | Immediate_polymorphic_variant
 
-  type immediate64_creation_reason =
-    | Separability_check
-    | Primitive of Ident.t
+  type immediate64_creation_reason = Separability_check
 
   (* CR layouts v5: make new void_creation_reasons *)
   type void_creation_reason = |
