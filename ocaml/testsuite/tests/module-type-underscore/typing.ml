@@ -1503,3 +1503,21 @@ end
 module type S = sig type t end
 module M : sig module N : S type 'a t val foo : N.t -> N.t end
 |}]
+
+module M : sig
+  module F(X:sig end) : sig end
+end = struct
+  module F(X:sig type t end) = struct end
+end
+
+[%%expect {|
+Line 4, characters 2-41:
+4 |   module F(X:sig type t end) = struct end
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This module is incompatible with the corresponding
+       declaration in the signature.
+Line 2, characters 2-31:
+2 |   module F(X:sig end) : sig end
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Expected declaration here
+|}]
