@@ -3137,7 +3137,12 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
                   ~actual_loc ~expected_loc ~context
             | Mty_functor (Named (actual_id, mt1), mt2),
               Mty_functor (Named (expected_id, mt3), mt4) ->
-                check_expected_modtype ~env ~sig_env subst (Some mt1) (Some mt3)
+                (* Swap the two positions, because this position is contravariant and
+                   we'll be checking if the names in [expected] is a subset of the
+                   names in [actual]. *)
+                (* CR selee: Because [subst] is directional, I think we'll lose the
+                   shortcircuiting in this case. *)
+                check_expected_modtype ~env:sig_env ~sig_env:env subst (Some mt3) (Some mt1)
                   ~actual_loc ~expected_loc ~context;
                 let env =
                   match actual_id with
