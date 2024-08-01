@@ -699,6 +699,25 @@ val take_strong_mutable_data : 'a @ portable -> unit = <fun>
 |}]
 
 (* mode crossing on the right *)
+let ref_immutable_data_right x =
+  take_strong_immutable_data (weaken_immutable_data x : float ref);
+[%%expect{|
+Line 2, characters 30-53:
+2 |   take_strong_immutable_data (weaken_immutable_data x : float ref);
+                                  ^^^^^^^^^^^^^^^^^^^^^^^
+Error: This value is once but expected to be many.
+|}]
+
+let ref_immutable_data_left x =
+  let x : float ref = weaken_immutable_data x in
+  take_strong_immutable_data x
+[%%expect{|
+Line 3, characters 29-30:
+3 |   take_strong_immutable_data x
+                                 ^
+Error: This value is once but expected to be many.
+|}]
+
 let float_immutable_data_right x =
   take_strong_immutable_data (weaken_immutable_data x : float);
 [%%expect{|
