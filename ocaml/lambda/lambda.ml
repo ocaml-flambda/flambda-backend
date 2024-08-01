@@ -1768,9 +1768,9 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
      (* Boxes arising from Bigarray access are always Alloc_heap *)
      Some alloc_heap
   | Pstring_load_16 _ | Pbytes_load_16 _ -> None
-  | Pstring_load_32 (_, m) | Pbytes_load_32 { mode = m; _ }
-  | Pstring_load_f32 (_, m) | Pbytes_load_f32 { mode = m; _ }
-  | Pstring_load_64 (_, m) | Pbytes_load_64 { mode = m; _ }
+  | Pstring_load_32 (_, m) | Pbytes_load_32 { mode = m; boxed = true; _ }
+  | Pstring_load_f32 (_, m) | Pbytes_load_f32 { mode = m; boxed = true; _ }
+  | Pstring_load_64 (_, m) | Pbytes_load_64 { mode = m; boxed = true; _ }
   | Pstring_load_128 { mode = m; _ } | Pbytes_load_128 { mode = m; _ }
   | Pfloatarray_load_128 { mode = m; _ }
   | Pfloat_array_load_128 { mode = m; _ }
@@ -1781,6 +1781,9 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Punboxed_int64_array_load_128 { mode = m; _ }
   | Punboxed_nativeint_array_load_128 { mode = m; _ }
   | Pget_header m -> Some m
+  | Pbytes_load_32 { boxed = false; _ }
+  | Pbytes_load_f32 { boxed = false; _ }
+  | Pbytes_load_64 { boxed = false; _ } -> None
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_f32 _
   | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
   | Pbigstring_load_16 _ -> None
@@ -1945,21 +1948,24 @@ let primitive_result_layout (p : primitive) =
   | Pbbswap (bi, _) | Pbox_int (bi, _) ->
       layout_boxedint bi
   | Punbox_int bi -> Punboxed_int bi
-  | Pstring_load_32 _ | Pbytes_load_32 _
+  | Pstring_load_32 _ | Pbytes_load_32 { boxed = true; _ }
   | Pbigstring_load_32 { boxed = true; _ } ->
       layout_boxedint Pint32
-  | Pstring_load_f32 _ | Pbytes_load_f32 _
+  | Pstring_load_f32 _ | Pbytes_load_f32 { boxed = true; _ }
   | Pbigstring_load_f32 { boxed = true; _ } ->
       layout_boxed_float Pfloat32
-  | Pstring_load_64 _ | Pbytes_load_64 _
+  | Pstring_load_64 _ | Pbytes_load_64 { boxed = true; _ }
   | Pbigstring_load_64 { boxed = true; _ } ->
       layout_boxedint Pint64
   | Pstring_load_128 _ | Pbytes_load_128 _
   | Pbigstring_load_128 { boxed = true; _ } ->
       layout_boxed_vector (Pvec128 Int8x16)
-  | Pbigstring_load_32 { boxed = false; _ } -> layout_unboxed_int Pint32
-  | Pbigstring_load_f32 { boxed = false; _ } -> layout_unboxed_float Pfloat32
-  | Pbigstring_load_64 { boxed = false; _ } -> layout_unboxed_int Pint64
+  | Pbigstring_load_32 { boxed = false; _ } 
+  | Pbytes_load_32 { boxed = false; _ } -> layout_unboxed_int Pint32
+  | Pbigstring_load_f32 { boxed = false; _ }
+  | Pbytes_load_f32 { boxed = false; _ } -> layout_unboxed_float Pfloat32
+  | Pbigstring_load_64 { boxed = false; _ }
+  | Pbytes_load_64 { boxed = false; _ } -> layout_unboxed_int Pint64
   | Pbigstring_load_128 { boxed = false; _ } ->
       layout_unboxed_vector (Pvec128 Int8x16)
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _
