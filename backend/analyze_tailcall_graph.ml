@@ -210,6 +210,21 @@ end = struct
     end
 
     include T
+
+    let to_dot_tooltip (with_loc : with_loc) =
+      let label =
+        match with_loc.edge.label with
+        | Explicit_tail_edge -> "explicit tail"
+        | Explicit_nontail_edge -> "explicit nontail"
+        | Inferred_tail_edge -> "inferred tail"
+        | Inferred_nontail_edge -> "inferred nontail"
+      in
+      let escaped_loc : string =
+        Format.asprintf "%a" Location.print_loc with_loc.loc
+        |> String.split_on_char '"' |> String.concat "\\\""
+      in
+      Format.sprintf "%s (%s)" escaped_loc label
+
     module Tbl = Hashtbl.Make (T)
     module Hashset = Hashset.Make (Tbl)
   end
@@ -443,10 +458,19 @@ end = struct
     Format.fprintf ppf "%s%s [label=\"%s\" color=\"%s\" fontcolor=\"%s\"]\n"
       indent (Vertex.to_dot_id kv) (Vertex.to_dot_label kv) color color
 
-  let hide_unknown_edges = true
+  let hide_edges_from_unknown = true
 
-  let print_edge_line ~indent ppf ({ from; to_; label } : Edge.t) =
-    if Vertex.is_unknown from && hide_unknown_edges
+  let hide_explicit_nontail_edges = true
+
+  let print_edge_line ~indent ppf (with_loc : Edge.with_loc) =
+    let Edge.{ from; to_; label } = with_loc.edge in
+    let is_explicit_nontail_edge =
+      match label with
+      | Explicit_nontail_edge -> true
+      | Explicit_tail_edge | Inferred_tail_edge | Inferred_nontail_edge -> false
+    in
+    if (hide_edges_from_unknown && Vertex.is_unknown from)
+       || (hide_explicit_nontail_edges && is_explicit_nontail_edge)
     then ()
     else
       let color =
@@ -466,8 +490,9 @@ end = struct
         | Inferred_tail_edge -> "solid"
         | Inferred_nontail_edge -> "solid"
       in
-      Format.fprintf ppf "%s%s -> %s [color=\"%s\" style=\"%s\"]\n" indent
-        (Vertex.to_dot_id from) (Vertex.to_dot_id to_) color style
+      Format.fprintf ppf "%s%s -> %s [color=\"%s\" style=\"%s\" label=\"%s\"]\n"
+        indent (Vertex.to_dot_id from) (Vertex.to_dot_id to_) color style
+        (Edge.to_dot_tooltip with_loc)
 
   let print_dot ppf t ~sccs =
     Format.fprintf ppf "digraph {\n";
@@ -487,22 +512,26 @@ end = struct
         else if Vertex.Hashset.length scc = 1
         then Format.fprintf ppf "    style=invis\n";
         Vertex.Hashset.iter scc ~f:(fun vtx ->
-            let edges = successors_mod_loc t vtx in
+            let edges = successors t vtx in
             print_vertex_line ~indent ppf vtx;
-            Edge.Hashset.iter edges ~f:(fun e ->
+            List.iter
+              (fun (with_loc : Edge.with_loc) ->
                 (* If an edge is in a cluster, dot seems to layout the to_ node
                    within the same cluster. So only print interior SCC edges
                    here. *)
-                if Vertex.Hashset.mem scc e.to_
-                then print_edge_line ~indent ppf e);
+                if Vertex.Hashset.mem scc with_loc.edge.to_
+                then print_edge_line ~indent ppf with_loc)
+              edges;
             ());
         Format.fprintf ppf "  }\n";
         (* Print cross-SCC edges here. *)
         Vertex.Hashset.iter scc ~f:(fun vtx ->
-            let edges = successors_mod_loc t vtx in
-            Edge.Hashset.iter edges ~f:(fun e ->
-                if not (Vertex.Hashset.mem scc e.to_)
-                then print_edge_line ~indent:"  " ppf e));
+            let edges = successors t vtx in
+            List.iter
+              (fun (with_loc : Edge.with_loc) ->
+                if not (Vertex.Hashset.mem scc with_loc.edge.to_)
+                then print_edge_line ~indent:"  " ppf with_loc)
+              edges);
         Format.fprintf ppf "\n")
       sccs;
     Format.fprintf ppf "}\n\n"
