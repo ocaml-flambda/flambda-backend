@@ -680,9 +680,6 @@ let foo : (string -> string) -> (string -> string) @ unique
 val foo : (string -> string) -> unique_ (string -> string) = <fun>
 |}]
 
-(* CR layouts: maybe use the helper function below to refactor the tests above,
-   as well as [expected_mode.ml]. *)
-
 let weaken_immutable_data : 'a -> 'a @ contended once nonportable =
   fun a -> a
 
