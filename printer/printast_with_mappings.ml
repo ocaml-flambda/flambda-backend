@@ -151,6 +151,20 @@ let arg_label i ppf = function
 let typevars ppf vs =
   List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
 
+let modality i ppf modality =
+  line i ppf "modality %a\n" fmt_string_loc
+    (Location.map (fun (Modality x) -> x) modality)
+
+let modalities i ppf modalities =
+  List.iter (fun m -> modality i ppf m) modalities
+
+let mode i ppf mode =
+  line i ppf "mode %a\n" fmt_string_loc
+    (Location.map (fun (Mode x) -> x) mode)
+
+let modes i ppf modes =
+  List.iter (fun m -> mode i ppf m) modes
+
 let rec core_type i ppf x =
   with_location_mapping ~loc:x.ptyp_loc ppf (fun () ->
   line i ppf "core_type %a\n" fmt_location x.ptyp_loc;
@@ -159,11 +173,13 @@ let rec core_type i ppf x =
   match x.ptyp_desc with
   | Ptyp_any -> line i ppf "Ptyp_any\n";
   | Ptyp_var (s) -> line i ppf "Ptyp_var %s\n" s;
-  | Ptyp_arrow (l, ct1, ct2) ->
+  | Ptyp_arrow (l, ct1, ct2, m1, m2) ->
       line i ppf "Ptyp_arrow\n";
       arg_label i ppf l;
       core_type i ppf ct1;
       core_type i ppf ct2;
+      modes i ppf m1;
+      modes i ppf m2;
   | Ptyp_tuple l ->
       line i ppf "Ptyp_tuple\n";
       list i core_type ppf l;
@@ -252,10 +268,11 @@ and pattern i ppf x =
   | Ppat_lazy p ->
       line i ppf "Ppat_lazy\n";
       pattern i ppf p;
-  | Ppat_constraint (p, ct) ->
+  | Ppat_constraint (p, ct, m) ->
       line i ppf "Ppat_constraint\n";
       pattern i ppf p;
-      core_type i ppf ct;
+      Option.iter (core_type i ppf) ct;
+      modes i ppf m;
   | Ppat_type (li) ->
       line i ppf "Ppat_type\n";
       longident_loc i ppf li
@@ -345,10 +362,11 @@ and expression i ppf x =
       expression i ppf e1;
       expression i ppf e2;
       expression i ppf e3;
-  | Pexp_constraint (e, ct) ->
+  | Pexp_constraint (e, ct, m) ->
       line i ppf "Pexp_constraint\n";
       expression i ppf e;
-      core_type i ppf ct;
+      Option.iter (core_type i ppf) ct;
+      modes i ppf m;
   | Pexp_coerce (e, cto1, cto2) ->
       line i ppf "Pexp_coerce\n";
       expression i ppf e;
@@ -412,10 +430,10 @@ and jkind_annotation i ppf (jkind : jkind_annotation) =
   | Default -> line i ppf "Default\n"
   | Abbreviation jkind ->
       line i ppf "Abbreviation \"%s\"\n" jkind.txt
-  | Mod (jkind, modes) ->
+  | Mod (jkind, m) ->
       line i ppf "Mod\n";
       jkind_annotation (i+1) ppf jkind;
-      mode_expression (i+1) ppf modes
+      modes (i+1) ppf m
   | With (jkind, type_) ->
       line i ppf "With\n";
       jkind_annotation (i+1) ppf jkind;
@@ -460,14 +478,7 @@ and type_constraint i ppf type_constraint =
 
 and function_constraint i ppf { type_constraint = c; mode_annotations } =
   type_constraint i ppf c;
-  mode_expression i ppf mode_annotations
-
-and mode_expression i ppf mode_annotations =
-  match mode_annotations.txt with
-  | [] -> ()
-  | _ :: _ ->
-      line i ppf "mode_annotations %a" fmt_location mode_annotations.loc;
-      list (i+1) string_loc ppf mode_annotations.txt
+  modes i ppf mode_annotations
 
 and value_description i ppf x =
   with_location_mapping ~loc:x.pval_loc ppf (fun () ->
@@ -475,7 +486,8 @@ and value_description i ppf x =
        x.pval_name fmt_location x.pval_loc;
   attributes i ppf x.pval_attributes;
   core_type (i+1) ppf x.pval_type;
-  list (i+1) string ppf x.pval_prim
+  list (i+1) string ppf x.pval_prim;
+  modalities (i+1) ppf x.pval_modalities;
   )
 
 and type_parameter i ppf (x, _variance) = core_type i ppf x
@@ -996,19 +1008,18 @@ and constructor_decl i ppf
 
 and constructor_argument i ppf {pca_modalities; pca_type; pca_loc} =
   line i ppf "%a\n" fmt_location pca_loc;
-  list (i+1) string_loc ppf (
-    List.map (Location.map (fun (Modality x) -> x)) pca_modalities
-  );
+  modalities (i+1) ppf pca_modalities;
   core_type (i+1) ppf pca_type
 
 and constructor_arguments i ppf = function
   | Pcstr_tuple l -> list i constructor_argument ppf l
   | Pcstr_record l -> list i label_decl ppf l
 
-and label_decl i ppf {pld_name; pld_mutable; pld_type; pld_loc; pld_attributes}=
+and label_decl i ppf {pld_name; pld_mutable; pld_type; pld_loc; pld_attributes; pld_modalities}=
   line i ppf "%a\n" fmt_location pld_loc;
   attributes i ppf pld_attributes;
   line (i+1) ppf "%a\n" fmt_mutable_flag pld_mutable;
+  modalities (i+1) ppf pld_modalities;
   line (i+1) ppf "%a" fmt_string_loc pld_name;
   core_type (i+1) ppf pld_type
 
@@ -1029,7 +1040,8 @@ and value_binding i ppf x =
   line i ppf "<def>\n";
   attributes (i+1) ppf x.pvb_attributes;
   pattern (i+1) ppf x.pvb_pat;
-  expression (i+1) ppf x.pvb_expr
+  expression (i+1) ppf x.pvb_expr;
+  modes (i+1) ppf x.pvb_modes
 
 and binding_op i ppf x =
   with_location_mapping ~loc:x.pbop_loc ppf (fun () ->

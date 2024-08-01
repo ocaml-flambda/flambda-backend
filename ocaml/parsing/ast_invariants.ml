@@ -40,6 +40,8 @@ let module_type_substitution_missing_rhs loc =
 let empty_comprehension loc = err loc "Comprehension with no clauses"
 let function_without_value_parameters loc =
   err loc "Functions must have a value parameter."
+let redundant_nested_constraints loc =
+  err loc "Nested pattern constraints must all specify a type"
 
 let simple_longident id =
   let rec is_simple = function
@@ -112,6 +114,16 @@ let iterator =
     | Ppat_construct (id, _) -> simple_longident id
     | Ppat_record (fields, _) ->
       List.iter (fun (id, _) -> simple_longident id) fields
+    | Ppat_constraint (pat', cty, _) ->
+      begin match pat'.ppat_desc with
+      | Ppat_constraint (_, cty', _) ->
+        begin match cty, cty' with
+        | None, Some _ | Some _, None ->
+          redundant_nested_constraints loc
+        | _ -> ()
+        end
+      | _ -> ()
+      end
     | _ -> ()
   in
   let jexpr _self loc (jexp : Jane_syntax.Expression.t) =
@@ -130,7 +142,6 @@ let iterator =
     | Jexp_comprehension _
     | Jexp_immutable_array _
     | Jexp_layout _
-    | Jexp_modes _
       -> ()
   in
   let expr self exp =

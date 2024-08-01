@@ -70,8 +70,8 @@ module Typ :
 
     val any: ?loc:loc -> ?attrs:attrs -> unit -> core_type
     val var: ?loc:loc -> ?attrs:attrs -> string -> core_type
-    val arrow: ?loc:loc -> ?attrs:attrs -> arg_label -> core_type -> core_type
-               -> core_type
+    val arrow: ?loc:loc -> ?attrs:attrs -> arg_label -> core_type -> core_type ->
+      mode with_loc list -> mode with_loc list -> core_type
     val tuple: ?loc:loc -> ?attrs:attrs -> core_type list -> core_type
     val constr: ?loc:loc -> ?attrs:attrs -> lid -> core_type list -> core_type
     val object_: ?loc:loc -> ?attrs:attrs -> object_field list
@@ -117,7 +117,8 @@ module Pat:
                 -> pattern
     val array: ?loc:loc -> ?attrs:attrs -> pattern list -> pattern
     val or_: ?loc:loc -> ?attrs:attrs -> pattern -> pattern -> pattern
-    val constraint_: ?loc:loc -> ?attrs:attrs -> pattern -> core_type -> pattern
+    val constraint_: ?loc:loc -> ?attrs:attrs -> pattern -> core_type option
+                     -> mode with_loc list -> pattern
     val type_: ?loc:loc -> ?attrs:attrs -> lid -> pattern
     val lazy_: ?loc:loc -> ?attrs:attrs -> pattern -> pattern
     val unpack: ?loc:loc -> ?attrs:attrs -> str_opt -> pattern
@@ -165,8 +166,8 @@ module Exp:
               -> direction_flag -> expression -> expression
     val coerce: ?loc:loc -> ?attrs:attrs -> expression -> core_type option
                 -> core_type -> expression
-    val constraint_: ?loc:loc -> ?attrs:attrs -> expression -> core_type
-                     -> expression
+    val constraint_: ?loc:loc -> ?attrs:attrs -> expression -> core_type option
+                     -> mode with_loc list -> expression
     val send: ?loc:loc -> ?attrs:attrs -> expression -> str -> expression
     val new_: ?loc:loc -> ?attrs:attrs -> lid -> expression
     val setinstvar: ?loc:loc -> ?attrs:attrs -> str -> expression -> expression
@@ -375,8 +376,8 @@ module Incl:
 module Vb:
   sig
     val mk: ?loc: loc -> ?attrs:attrs -> ?docs:docs -> ?text:text ->
-      ?value_constraint:value_constraint -> pattern -> expression ->
-      value_binding
+      ?value_constraint:value_constraint -> ?modes:mode with_loc list -> pattern ->
+      expression -> value_binding
   end
 
 

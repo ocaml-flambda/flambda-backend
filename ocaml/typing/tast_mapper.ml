@@ -362,13 +362,12 @@ let function_param sub
   }
 
 let extra sub = function
-  | Texp_constraint cty ->
-    Texp_constraint (sub.typ sub cty)
+  | Texp_constraint (cty, modes) ->
+    Texp_constraint (Option.map (sub.typ sub) cty, modes)
   | Texp_coerce (cty1, cty2) ->
     Texp_coerce (Option.map (sub.typ sub) cty1, sub.typ sub cty2)
   | Texp_newtype _ as d -> d
   | Texp_poly cto -> Texp_poly (Option.map (sub.typ sub) cto)
-  | Texp_mode_coerce modes -> Texp_mode_coerce modes
 
 let function_body sub body =
   match body with
