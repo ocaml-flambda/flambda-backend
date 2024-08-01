@@ -161,15 +161,27 @@ module Sig_map = struct
     in
     List.fold_left add_item map sg
 
+  let find_value name map = String.Map.find_opt name map.values
   let find_type name map = String.Map.find_opt name map.types
   let find_module name map = String.Map.find_opt name map.modules
   let find_module_type name map = String.Map.find_opt name map.module_types
+  let find_class name map = String.Map.find_opt name map.classes
   let find_class_type name map = String.Map.find_opt name map.class_types
 
+  let has_value name map = Option.is_some (find_value name map)
   let has_type name map = Option.is_some (find_type name map)
   let has_module name map = Option.is_some (find_module name map)
   let has_module_type name map = Option.is_some (find_module_type name map)
+  let has_class name map = Option.is_some (find_class name map)
   let has_class_type name map = Option.is_some (find_class_type name map)
+
+  let subset ~sub ~super =
+    String.Map.for_all (fun key _ -> has_value key super) sub.values
+      && String.Map.for_all (fun key _ -> has_type key super) sub.types
+      && String.Map.for_all (fun key _ -> has_module key super) sub.modules
+      && String.Map.for_all (fun key _ -> has_module_type key super) sub.module_types
+      && String.Map.for_all (fun key _ -> has_class key super) sub.classes
+      && String.Map.for_all (fun key _ -> has_class_type key super) sub.class_types
 end
 
 type modtype_decl_expected = {
@@ -3044,7 +3056,10 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
     let check_expected_sig actual expected =
       let env = Env.add_signature actual env in
       let sig_env = Env.add_signature expected sig_env in
+      let str_map = Sig_map.add_signature actual (Sig_map.empty) in
       let sig_map = Sig_map.add_signature expected (Sig_map.empty) in
+      if not (Sig_map.subset ~sub:sig_map ~super:str_map) then
+        raise (Error (actual_loc, env, Incompatible_functor_declaration expected_loc));
       let newsubst =
         List.fold_left
           (fun acc item -> check_expected_sig_item ~env ~sig_env sig_map acc item)
@@ -3196,20 +3211,6 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
                 ~actual_loc:decl.Types.mtd_loc ~expected_loc:sig_decl.Types.mtd_loc;
               Subst.add_modtype sig_ident (Mty_ident (Pident ident)) subst
         end
-
-  and add_expected_include_to_subst ~env ~sig_env sig_map actual_sig subst =
-    let env = Env.add_signature actual_sig env in
-
-    let add_item subst = function
-      | Sig_type (id, decl, _, _) ->
-          add_expected_type_to_subst ~env ~sig_env sig_map [id, decl] subst
-      | Sig_module (id, _, decl, _, _) ->
-          add_expected_module_to_subst ~env ~sig_env sig_map (Some id) decl subst
-      | Sig_modtype (id, decl, _) ->
-          add_expected_modtype_to_subst ~env ~sig_env sig_map id decl subst
-      | Sig_value _ | Sig_typext _ | Sig_class _ | Sig_class_type _ -> subst
-    in
-    List.fold_left add_item subst actual_sig
   in
 
   let sig_env = match expected_sig with
@@ -3252,7 +3253,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
     sg,
     shape,
     new_env,
-    add_expected_include_to_subst ~env ~sig_env sig_map sg subst,
+    (* CR selee: We currently don't support substitution for items in an include. *)
+    subst,
     Sig_map.add_signature sg str_map
   in
 
@@ -3497,7 +3499,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           | None -> shape_map
         in
         let str_map = match id with
-          | Some id -> Sig_map.add_module id md str_map
+          | Some id -> Sig_map.add_module id md str_map;
           | None -> str_map
         in
         Tstr_module {mb_id=id; mb_name=name; mb_uid = md.md_uid;

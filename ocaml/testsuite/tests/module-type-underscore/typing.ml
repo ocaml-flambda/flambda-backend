@@ -1113,6 +1113,8 @@ end = struct
   module type C = _
 end
 
+(* CR selee: For now, we don't support includes. *)
+
 [%%expect {|
 module A :
   sig
@@ -1127,20 +1129,44 @@ module A :
         class type f1 = d
       end
   end
-module M :
-  sig
-    class c : object val mutable v : int end
-    class type d = object val mutable v : int end
-    module type B =
-      sig
-        type t = c -> int
-        class e : c
-        class type e1 = c
-        class f : d
-        class type f1 = d
-      end
-    module type C = B
-  end
+Lines 39-43, characters 6-3:
+39 | ......struct
+40 |   include A
+41 |
+42 |   module type C = _
+43 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           class c : object val mutable v : int end
+           class type d = object val mutable v : int end
+           module type B = A.B
+           module type C = B/2
+         end
+       is not included in
+         sig
+           class c : object val mutable v : int end
+           class type d = object val mutable v : int end
+           module type B =
+             sig
+               type t = c -> int
+               class e : c
+               class type e1 = c
+               class f : d
+               class type f1 = d
+               ...
+             end
+           module type C = B
+         end
+       Module type declarations do not match:
+         module type C = B/2
+       does not match
+         module type C = B/1
+       At position module type C = <here>
+       Module types do not match: B/2 is not equal to B/1
+
+       Lines 10-17, characters 2-5:
+         Definition of module type B/1
 |}]
 
 module A = struct
@@ -1163,17 +1189,32 @@ end = struct
   module type C = _
 end
 
+(* CR selee: For now, we don't support includes. *)
+
 [%%expect {|
 module A : sig module type D = sig type 'a t end module type B = D end
-Line 3, characters 4-13:
-3 |     type 'a t
-        ^^^^^^^^^
-Error: This type declaration is incompatible with the corresponding
-       declaration in the signature: expected type t.
-Line 11, characters 4-10:
-11 |     type t
-         ^^^^^^
-  Expected declaration here
+Lines 15-19, characters 6-3:
+15 | ......struct
+16 |   include A
+17 |
+18 |   module type C = _
+19 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig module type D = A.D module type B = A.B module type C = B/2 end
+       is not included in
+         sig module type B = sig type t end module type C = B end
+       Module type declarations do not match:
+         module type B = A.B
+       does not match
+         module type B = sig type t end
+       At position module type B = <here>
+       Module types do not match: A.B is not equal to sig type t end
+       At position module type B = <here>
+       Type declarations do not match: type 'a t is not included in type t
+       They have different arities.
+       Line 6, characters 2-19:
+         Definition of module type B/1
 |}]
 
 module A = struct
@@ -1192,9 +1233,30 @@ end = struct
   module type C = _
 end
 
+(* CR selee: For now, we don't support includes. *)
+
 [%%expect {|
 module A : sig module type B = sig type t = int end end
-module M : sig module type B = sig type t = int end module type C = B end
+Lines 11-15, characters 6-3:
+11 | ......struct
+12 |   include A
+13 |
+14 |   module type C = _
+15 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig module type B = A.B module type C = B/2 end
+       is not included in
+         sig module type B = sig type t = int end module type C = B end
+       Module type declarations do not match:
+         module type C = B/2
+       does not match
+         module type C = B/1
+       At position module type C = <here>
+       Module types do not match: B/2 is not equal to B/1
+
+       Lines 2-4, characters 2-5:
+         Definition of module type B/1
 |}]
 
 module M : sig
@@ -1409,30 +1471,16 @@ end = struct
   module type S = _
 end
 
-(* CR selee: Currently our boundness check relies on the compatibility check.
-   As this branch doesn't have the compatibility check, it doesn't error properly
-   in this case. This should error properly before inclusion checking *)
 [%%expect {|
-Lines 4-7, characters 6-3:
-4 | ......struct
+Line 5, characters 2-23:
 5 |   module A = struct end
-6 |   module type S = _
-7 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig
-           module A : sig end
-           module type S = sig type t = A.t -> A.t end
-         end
-       is not included in
-         sig
-           module A : sig type t end
-           module type S = sig type t = A.t -> A.t end
-         end
-       In module A:
-       Modules do not match: sig end is not included in sig type t end
-       In module A:
-       The type `t' is required but not provided
+      ^^^^^^^^^^^^^^^^^^^^^
+Error: This functor declaration is incompatible with the corresponding
+       declaration in the signature.
+Line 2, characters 2-27:
+2 |   module A : sig type t end
+      ^^^^^^^^^^^^^^^^^^^^^^^^^
+  Expected declaration here
 |}]
 
 module type S = sig type t end
