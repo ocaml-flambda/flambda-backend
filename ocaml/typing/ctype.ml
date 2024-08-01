@@ -2665,21 +2665,24 @@ let univars_escape env univar_pairs vl ty =
   occur ty
 
 (* Wrapper checking that no variable escapes and updating univar_pairs *)
-let enter_poly env univar_pairs t1 tl1 t2 tl2 f =
+let enter_poly_heterogeneous env1 env2 univar_pairs t1 tl1 t2 tl2 f =
   let old_univars = !univar_pairs in
   let known_univars =
     List.fold_left (fun s (cl,_) -> add_univars s cl)
       TypeSet.empty old_univars
   in
   if List.exists (fun t -> TypeSet.mem t known_univars) tl1 then
-     univars_escape env old_univars tl1 (newty(Tpoly(t2,tl2)));
+    univars_escape env2 old_univars tl1 (newty(Tpoly(t2,tl2)));
   if List.exists (fun t -> TypeSet.mem t known_univars) tl2 then
-    univars_escape env old_univars tl2 (newty(Tpoly(t1,tl1)));
+    univars_escape env1 old_univars tl2 (newty(Tpoly(t1,tl1)));
   let cl1 = List.map (fun t -> t, ref None) tl1
   and cl2 = List.map (fun t -> t, ref None) tl2 in
   univar_pairs := (cl1,cl2) :: (cl2,cl1) :: old_univars;
   Misc.try_finally (fun () -> f t1 t2)
     ~always:(fun () -> univar_pairs := old_univars)
+
+let enter_poly env =
+  enter_poly_heterogeneous env env
 
 let enter_poly_for tr_exn env univar_pairs t1 tl1 t2 tl2 f =
   try
@@ -2899,7 +2902,8 @@ let is_instantiable env ~for_jkind_eqn p =
   with Not_found -> false
 
 
-let compatible_paths p1 p2 =
+let compatible_paths subst p1 p2 =
+  let p2 = Subst.type_path subst p2 in
   let open Predef in
   Path.same p1 p2 ||
   Path.same p1 path_bytes && Path.same p2 path_string ||
@@ -2930,52 +2934,76 @@ let has_jkind_intersection_tk env ty jkind =
    exactly the same.)  This is used to decide whether GADT cases are
    unreachable.  It is broadly part of unification. *)
 
-(* mcomp type_pairs subst env t1 t2 does not raise an
+(* mcomp type_pairs subst env1 env2 t1 t2 does not raise an
    exception if it is possible that t1 and t2 are actually
    equal, assuming the types in type_pairs are equal and
    that the mapping subst holds.
    Assumes that both t1 and t2 do not contain any tvars
    and that both their objects and variants are closed
+
+   [subst] maps paths in t2 to paths in t1, so that
+   same paths can be detected via [Path.same] after
+   substitution in [mcomp_type_decl].meth
+
+   CR selee: Give a more descriptive name for [subst]? But
+   subst_to_t1 might be too verbose/non-general..
  *)
 
-let rec mcomp type_pairs env t1 t2 =
-  let check_jkinds ty jkind =
-    if not (has_jkind_intersection_tk env ty jkind) then raise Incompatible
+let rec mcomp type_pairs subst env1 env2 t1 t2 =
+  let check_jkinds env ty jkind =
+    if not (has_jkind_intersection_tk env ty jkind) then
+      (print_endline "mcomp check_jkinds";
+      raise Incompatible)
   in
   if eq_type t1 t2 then () else
   match (get_desc t1, get_desc t2, t1, t2) with
-  | (Tvar { jkind }, _, _, other)
-  | (_, Tvar { jkind }, other, _) -> check_jkinds other jkind
-  | (Tconstr (p1, [], _), Tconstr (p2, [], _), _, _) when Path.same p1 p2 ->
-      ()
+  | (Tvar { jkind }, _, _, other) -> check_jkinds env2 other jkind
+  | (_, Tvar { jkind }, other, _) -> check_jkinds env1 other jkind
+  | (Tconstr (p1, [], _), Tconstr (p2, [], _), _, _)
+      when Path.same p1 (Subst.type_path subst p2) -> ()
   | _ ->
-      let t1' = expand_head_opt env t1 in
-      let t2' = expand_head_opt env t2 in
+      let t1' = expand_head_opt env1 t1 in
+      let t2' = expand_head_opt env2 t2 in
       (* Expansion may have changed the representative of the types... *)
       if eq_type t1' t2' then () else
       if not (TypePairs.mem type_pairs (t1', t2')) then begin
         TypePairs.add type_pairs (t1', t2');
         match (get_desc t1', get_desc t2', t1', t2') with
-        | (Tvar { jkind }, _, _, other)
-        | (_, Tvar { jkind }, other, _)  -> check_jkinds other jkind
+        | (Tvar { jkind }, _, _, other) -> check_jkinds env2 other jkind
+        | (_, Tvar { jkind }, other, _) -> check_jkinds env1 other jkind
         | (Tarrow ((l1,_,_), t1, u1, _), Tarrow ((l2,_,_), t2, u2, _), _, _)
           when equivalent_with_nolabels l1 l2 ->
-            mcomp type_pairs env t1 t2;
-            mcomp type_pairs env u1 u2;
+            mcomp type_pairs subst env1 env2 t1 t2;
+            mcomp type_pairs subst env1 env2 u1 u2;
         | (Ttuple tl1, Ttuple tl2, _, _) ->
-            mcomp_labeled_list type_pairs env tl1 tl2
+            mcomp_labeled_list type_pairs subst env1 env2 tl1 tl2
         | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _), _, _) ->
-            mcomp_type_decl type_pairs env p1 p2 tl1 tl2
-        | (Tconstr (_, [], _), _, _, _) when has_injective_univars env t2' ->
+            if (Path.name p1) = "Stdlib.ref" && (Path.name p2) = "t" then
+              Format.eprintf "%a\n %a\n" !Btype.print_raw t1' !Btype.print_raw t2';
+            mcomp_type_decl type_pairs subst env1 env2 p1 p2 tl1 tl2
+        | (Tconstr (_, [], _), _, _, _) when has_injective_univars env2 t2' ->
             raise_unexplained_for Unify
-        | (_, Tconstr (_, [], _), _, _) when has_injective_univars env t1' ->
+        | (_, Tconstr (_, [], _), _, _) when has_injective_univars env1 t1' ->
             raise_unexplained_for Unify
-        | (Tconstr (p, _, _), _, _, other) | (_, Tconstr (p, _, _), other, _) ->
+        | (Tconstr (p, _, _), _, _, other) ->
             begin try
-              let decl = Env.find_type p env in
+              let decl = Env.find_type p env1 in
               if non_aliasable p decl || is_datatype decl ||
-                 not (has_jkind_intersection_tk env other decl.type_jkind) then
-                raise Incompatible
+                 not (has_jkind_intersection_tk env2 other decl.type_jkind) then
+                  (print_endline "mcomp Tconstr 1";
+                  raise Incompatible)
+            with Not_found -> ()
+            end
+        | (_, Tconstr (p, _, _), other, _) ->
+            begin try
+              let decl = Env.find_type p env2 in
+              if non_aliasable p decl || is_datatype decl ||
+                not (has_jkind_intersection_tk env1 other decl.type_jkind) then
+                (Format.printf "%b %b %b\n"
+                  (non_aliasable p decl)
+                  (is_datatype decl)
+                  (has_jkind_intersection_tk env1 other decl.type_jkind);
+                print_endline "Tconstr 2"; raise Incompatible)
             with Not_found -> ()
             end
         (*
@@ -2984,57 +3012,59 @@ let rec mcomp type_pairs env t1 t2 =
         *)
         | (Tpackage _, Tpackage _, _, _) -> ()
         | (Tvariant row1, Tvariant row2, _, _) ->
-            mcomp_row type_pairs env row1 row2
+            mcomp_row type_pairs subst env1 env2 row1 row2
         | (Tobject (fi1, _), Tobject (fi2, _), _, _) ->
-            mcomp_fields type_pairs env fi1 fi2
+            mcomp_fields type_pairs subst env1 env2 fi1 fi2
         | (Tfield _, Tfield _, _, _) ->       (* Actually unused *)
-            mcomp_fields type_pairs env t1' t2'
+            mcomp_fields type_pairs subst env1 env2 t1' t2'
         | (Tnil, Tnil, _, _) ->
             ()
         | (Tpoly (t1, []), Tpoly (t2, []), _, _) ->
-            mcomp type_pairs env t1 t2
+            mcomp type_pairs subst env1 env2 t1 t2
         | (Tpoly (t1, tl1), Tpoly (t2, tl2), _, _) ->
             (try
-               enter_poly env univar_pairs
-                 t1 tl1 t2 tl2 (mcomp type_pairs env)
-             with Escape _ -> raise Incompatible)
+               enter_poly_heterogeneous env1 env2 univar_pairs
+                 t1 tl1 t2 tl2 (mcomp type_pairs subst env1 env2)
+             with Escape _ ->       print_endline "mcomp Tpoly";
+             raise Incompatible)
         | (Tunivar {jkind=jkind1}, Tunivar {jkind=jkind2}, _, _) ->
             (try unify_univar t1' t2' jkind1 jkind2 !univar_pairs
-             with Cannot_unify_universal_variables -> raise Incompatible)
+             with Cannot_unify_universal_variables -> print_endline "Tunivar"; raise Incompatible)
         | (_, _, _, _) ->
-            raise Incompatible
+            print_endline "lmao"; raise Incompatible
       end
 
-and mcomp_list type_pairs env tl1 tl2 =
+and mcomp_list type_pairs subst env1 env2 tl1 tl2 =
   if List.length tl1 <> List.length tl2 then
-    raise Incompatible;
-  List.iter2 (mcomp type_pairs env) tl1 tl2
+    (print_endline "mcomp_list";
+    raise Incompatible);
+  List.iter2 (mcomp type_pairs subst env1 env2) tl1 tl2
 
-and mcomp_labeled_list type_pairs env labeled_tl1 labeled_tl2 =
+and mcomp_labeled_list type_pairs subst env1 env2 labeled_tl1 labeled_tl2 =
   if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
     raise Incompatible;
   List.iter2
     (fun (label1, ty1) (label2, ty2) ->
       if not (Option.equal String.equal label1 label2) then
-        raise Incompatible;
-      mcomp type_pairs env ty1 ty2)
+        (print_endline "labeled list"; raise Incompatible);
+      mcomp type_pairs subst env1 env2 ty1 ty2)
     labeled_tl1 labeled_tl2
 
-and mcomp_fields type_pairs env ty1 ty2 =
+and mcomp_fields type_pairs subst env1 env2 ty1 ty2 =
   if not (concrete_object ty1 && concrete_object ty2) then assert false;
   let (fields2, rest2) = flatten_fields ty2 in
   let (fields1, rest1) = flatten_fields ty1 in
   let (pairs, miss1, miss2) = associate_fields fields1 fields2 in
   let has_present =
     List.exists (fun (_, k, _) -> field_kind_repr k = Fpublic) in
-  mcomp type_pairs env rest1 rest2;
+  mcomp type_pairs subst env1 env2 rest1 rest2;
   if has_present miss1  && get_desc (object_row ty2) = Tnil
   || has_present miss2  && get_desc (object_row ty1) = Tnil
-  then raise Incompatible;
+  then (print_endline "mcomp_fields"; raise Incompatible);
   List.iter
     (function (_n, k1, t1, k2, t2) ->
        mcomp_kind k1 k2;
-       mcomp type_pairs env t1 t2)
+       mcomp type_pairs subst env1 env2 t1 t2)
     pairs
 
 and mcomp_kind k1 k2 =
@@ -3042,10 +3072,10 @@ and mcomp_kind k1 k2 =
   let k2 = field_kind_repr k2 in
   match k1, k2 with
     (Fpublic, Fabsent)
-  | (Fabsent, Fpublic) -> raise Incompatible
+  | (Fabsent, Fpublic) -> raise (print_endline "mcomp_kind"; Incompatible)
   | _                  -> ()
 
-and mcomp_row type_pairs env row1 row2 =
+and mcomp_row type_pairs subst env1 env2 row1 row2 =
   let r1, r2, pairs = merge_row_fields (row_fields row1) (row_fields row2) in
   let cannot_erase (_,f) =
     match row_field_repr f with
@@ -3061,107 +3091,115 @@ and mcomp_row type_pairs env row1 row2 =
       | Rpresent (Some _), (Rpresent None | Reither (true, _, _) | Rabsent)
       | (Reither (_, _::_, _) | Rabsent), Rpresent None
       | (Reither (true, _, _) | Rabsent), Rpresent (Some _) ->
-          raise Incompatible
+          print_endline "mcomp_row"; raise Incompatible
       | Rpresent(Some t1), Rpresent(Some t2) ->
-          mcomp type_pairs env t1 t2
+          mcomp type_pairs subst env1 env2 t1 t2
       | Rpresent(Some t1), Reither(false, tl2, _) ->
-          List.iter (mcomp type_pairs env t1) tl2
+          List.iter (mcomp type_pairs subst env1 env2 t1) tl2
       | Reither(false, tl1, _), Rpresent(Some t2) ->
-          List.iter (mcomp type_pairs env t2) tl1
+          List.iter (mcomp type_pairs subst env1 env2 t2) tl1
       | _ -> ())
     pairs
 
-and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
+and mcomp_type_decl type_pairs subst env1 env2 p1 p2 tl1 tl2 =
   try
-    let decl = Env.find_type p1 env in
-    let decl' = Env.find_type p2 env in
+    let decl = Env.find_type p1 env1 in
+    let decl' = Env.find_type p2 env2 in
     let check_jkinds () =
       if not (Jkind.has_intersection decl.type_jkind decl'.type_jkind)
-      then raise Incompatible
+      then (print_endline "mcomp_type_decl"; raise Incompatible)
     in
-    if compatible_paths p1 p2 then begin
+    if compatible_paths subst p1 p2 then begin
       let inj =
-        try List.map Variance.(mem Inj) (Env.find_type p1 env).type_variance
+        try List.map Variance.(mem Inj) (Env.find_type p1 env1).type_variance
         with Not_found -> List.map (fun _ -> false) tl1
       in
       List.iter2
-        (fun i (t1,t2) -> if i then mcomp type_pairs env t1 t2)
+        (fun i (t1,t2) -> if i then mcomp type_pairs subst env1 env2 t1 t2)
         inj (List.combine tl1 tl2)
     end else if non_aliasable p1 decl && non_aliasable p2 decl' then
-      raise Incompatible
+      (Format.eprintf "p1 %b p2 %b\n" (non_aliasable p1 decl) (non_aliasable p2 decl');
+      (Format.eprintf "mcomp_type_decl 2\n"; raise Incompatible))
     else
       match decl.type_kind, decl'.type_kind with
       | Type_record (lst,r), Type_record (lst',r')
         when equal_record_representation r r' ->
-          mcomp_list type_pairs env tl1 tl2;
-          mcomp_record_description type_pairs env lst lst'
+          mcomp_list type_pairs subst env1 env2 tl1 tl2;
+          mcomp_record_description type_pairs subst env1 env2 lst lst'
       | Type_variant (v1,r), Type_variant (v2,r')
         when equal_variant_representation r r' ->
-          mcomp_list type_pairs env tl1 tl2;
-          mcomp_variant_description type_pairs env v1 v2
+          mcomp_list type_pairs subst env1 env2 tl1 tl2;
+          mcomp_variant_description type_pairs subst env1 env2 v1 v2
       | Type_open, Type_open ->
-          mcomp_list type_pairs env tl1 tl2
+          mcomp_list type_pairs subst env1 env2 tl1 tl2
       | Type_abstract _, Type_abstract _ -> check_jkinds ()
       | Type_abstract _, _ when not (non_aliasable p1 decl)-> check_jkinds ()
       | _, Type_abstract _ when not (non_aliasable p2 decl') -> check_jkinds ()
-      | _ -> raise Incompatible
+      | _ -> (
+        Format.eprintf "%a %a\n" Path.print p1 Path.print p2;
+        Format.eprintf "p1 %b p2 %b\n" (non_aliasable p1 decl) (non_aliasable p2 decl');
+        Format.eprintf "mcomp_type_decl 3\n";
+        raise Incompatible)
   with Not_found -> ()
 
-and mcomp_type_option type_pairs env t t' =
+and mcomp_type_option type_pairs subst env1 env2 t t' =
   match t, t' with
     None, None -> ()
-  | Some t, Some t' -> mcomp type_pairs env t t'
-  | _ -> raise Incompatible
+  | Some t, Some t' -> mcomp type_pairs subst env1 env2 t t'
+  | _ -> (print_endline "mcomp_type_option"; raise Incompatible)
 
-and mcomp_variant_description type_pairs env xs ys =
+and mcomp_variant_description type_pairs subst env1 env2 xs ys =
   let rec iter = fun x y ->
     match x, y with
     | c1 :: xs, c2 :: ys   ->
-      mcomp_type_option type_pairs env c1.cd_res c2.cd_res;
+      mcomp_type_option type_pairs subst env1 env2 c1.cd_res c2.cd_res;
       begin match c1.cd_args, c2.cd_args with
-      | Cstr_tuple l1, Cstr_tuple l2 -> mcomp_tuple_description type_pairs env l1 l2
+      | Cstr_tuple l1, Cstr_tuple l2 -> mcomp_tuple_description type_pairs subst env1 env2 l1 l2
       | Cstr_record l1, Cstr_record l2 ->
-          mcomp_record_description type_pairs env l1 l2
-      | _ -> raise Incompatible
+          mcomp_record_description type_pairs subst env1 env2 l1 l2
+      | _ -> (print_endline "mcomp_variant_desc"; raise Incompatible)
       end;
      if Ident.name c1.cd_id = Ident.name c2.cd_id
       then iter xs ys
-      else raise Incompatible
+      else (print_endline "mcomp_variant_desc 2"; raise Incompatible)
     | [],[] -> ()
-    | _ -> raise Incompatible
+    | _ -> (print_endline "mcomp_variant_desc 3"; raise Incompatible)
   in
   iter xs ys
 
-and mcomp_tuple_description type_pairs env =
+and mcomp_tuple_description type_pairs subst env1 env2 =
   let rec iter x y =
     match x, y with
     | {ca_type=ty1; ca_modalities=gf1; _} :: xs, {ca_type=ty2; ca_modalities=gf2} :: ys ->
-      mcomp type_pairs env ty1 ty2;
+      mcomp type_pairs subst env1 env2 ty1 ty2;
       if gf1 = gf2
       then iter xs ys
-      else raise Incompatible
+      else (print_endline "mcomp_tuple_desc"; raise Incompatible)
     | [], [] -> ()
-    | _ -> raise Incompatible
+    | _ -> (print_endline "mcomp_tuple_desc_2"; raise Incompatible)
   in
   iter
 
-and mcomp_record_description type_pairs env =
+and mcomp_record_description type_pairs subst env1 env2 =
   let rec iter x y =
     match x, y with
     | l1 :: xs, l2 :: ys ->
-        mcomp type_pairs env l1.ld_type l2.ld_type;
+        mcomp type_pairs subst env1 env2 l1.ld_type l2.ld_type;
         if Ident.name l1.ld_id = Ident.name l2.ld_id &&
            l1.ld_mutable = l2.ld_mutable &&
            l1.ld_modalities = l2.ld_modalities
         then iter xs ys
-        else raise Incompatible
+        else (print_endline "mcomp_record_desc"; raise Incompatible)
     | [], [] -> ()
-    | _ -> raise Incompatible
+    | _ -> (print_endline "mcomp_record_desc 2"; raise Incompatible)
   in
   iter
 
-let mcomp env t1 t2 =
-  mcomp (TypePairs.create 4) env t1 t2
+let mcomp_heterogeneous subst env1 env2 t1 t2 =
+  mcomp (TypePairs.create 4) subst env1 env2 t1 t2
+
+let mcomp env =
+  mcomp_heterogeneous Subst.identity env env
 
 let mcomp_for tr_exn env t1 t2 =
   try

@@ -1503,3 +1503,345 @@ end
 module type S = sig type t end
 module M : sig module N : S type 'a t val foo : N.t -> N.t end
 |}]
+
+(* CR selee: The [mcomp] check should catch the tests below before the inclusion check *)
+
+module M : sig
+  type t = Foo | Bar
+end = struct
+  type t = { foo: int; bar: string; }
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { foo: int; bar: string; }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { foo : int; bar : string; } end
+       is not included in
+         sig type t = Foo | Bar end
+       Type declarations do not match:
+         type t = { foo : int; bar : string; }
+       is not included in
+         type t = Foo | Bar
+       The first is a record, but the second is a variant.
+|}]
+
+module M : sig
+  type t = Foo | Bar | Baz
+end = struct
+  type t = Foo | Bar
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Foo | Bar
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Foo | Bar end
+       is not included in
+         sig type t = Foo | Bar | Baz end
+       Type declarations do not match:
+         type t = Foo | Bar
+       is not included in
+         type t = Foo | Bar | Baz
+       A constructor, Baz, is missing in the first declaration.
+|}]
+
+module M : sig
+  type t = { foo: int; bar: string; baz: string; }
+end = struct
+  type t = { foo: int; bar: string; }
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { foo: int; bar: string; }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { foo : int; bar : string; } end
+       is not included in
+         sig type t = { foo : int; bar : string; baz : string; } end
+       Type declarations do not match:
+         type t = { foo : int; bar : string; }
+       is not included in
+         type t = { foo : int; bar : string; baz : string; }
+       A field, baz, is missing in the first declaration.
+|}]
+
+module M : sig
+  type t = Foo of int | Bar
+end = struct
+  type t = Foo | Bar
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Foo | Bar
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Foo | Bar end
+       is not included in
+         sig type t = Foo of int | Bar end
+       Type declarations do not match:
+         type t = Foo | Bar
+       is not included in
+         type t = Foo of int | Bar
+       Constructors do not match:
+         Foo
+       is not the same as:
+         Foo of int
+       They have different arities.
+|}]
+
+module M : sig
+  type t = { foo: int; bar: string; baz: string; }
+end = struct
+  type t = { foo: int; bar: string; baz: int; }
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = { foo: int; bar: string; baz: int; }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = { foo : int; bar : string; baz : int; } end
+       is not included in
+         sig type t = { foo : int; bar : string; baz : string; } end
+       Type declarations do not match:
+         type t = { foo : int; bar : string; baz : int; }
+       is not included in
+         type t = { foo : int; bar : string; baz : string; }
+       Fields do not match:
+         baz : int;
+       is not the same as:
+         baz : string;
+       The type int is not equal to the type string
+|}]
+
+module M : sig
+  type t = Foo | Bar | Baz
+end = struct
+  type t = Foo | Bar
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = Foo | Bar
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = Foo | Bar end
+       is not included in
+         sig type t = Foo | Bar | Baz end
+       Type declarations do not match:
+         type t = Foo | Bar
+       is not included in
+         type t = Foo | Bar | Baz
+       A constructor, Baz, is missing in the first declaration.
+|}]
+
+module M : sig
+  type t = int * int * int
+end = struct
+  type t = int * int
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = int * int
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = int * int end
+       is not included in
+         sig type t = int * int * int end
+       Type declarations do not match:
+         type t = int * int
+       is not included in
+         type t = int * int * int
+       The type int * int is not equal to the type int * int * int
+|}]
+
+module M : sig
+  type t = int * string
+end = struct
+  type t = int * int
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = int * int
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = int * int end
+       is not included in
+         sig type t = int * string end
+       Type declarations do not match:
+         type t = int * int
+       is not included in
+         type t = int * string
+       The type int * int is not equal to the type int * string
+       Type int is not equal to type string
+|}]
+
+module M : sig
+  type ('a, 'b) t = Foo of 'a | Bar of 'b
+end = struct
+  type ('a, 'b) t = Foo of 'a | Bar of 'a
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type ('a, 'b) t = Foo of 'a | Bar of 'a
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type ('a, 'b) t = Foo of 'a | Bar of 'a end
+       is not included in
+         sig type ('a, 'b) t = Foo of 'a | Bar of 'b end
+       Type declarations do not match:
+         type ('a, 'b) t = Foo of 'a | Bar of 'a
+       is not included in
+         type ('a, 'b) t = Foo of 'a | Bar of 'b
+       Constructors do not match:
+         Bar of 'a
+       is not the same as:
+         Bar of 'b
+       The type 'a is not equal to the type 'b
+|}]
+
+module M : sig
+  type t = int * int * int
+end = struct
+  type t = int * int
+end
+
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = int * int
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = int * int end
+       is not included in
+         sig type t = int * int * int end
+       Type declarations do not match:
+         type t = int * int
+       is not included in
+         type t = int * int * int
+       The type int * int is not equal to the type int * int * int
+|}]
+
+module M : sig
+  type t1 = int
+  type t2 = string
+  type 'a t = 'a list
+  type t' = t1 t
+end = struct
+  type t1 = int
+  type t2 = string
+  type 'a t = 'a list
+  type t' = t2 t
+end
+
+[%%expect {|
+Lines 6-11, characters 6-3:
+ 6 | ......struct
+ 7 |   type t1 = int
+ 8 |   type t2 = string
+ 9 |   type 'a t = 'a list
+10 |   type t' = t2 t
+11 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           type t1 = int
+           type t2 = string
+           type 'a t = 'a list
+           type t' = t2 t
+         end
+       is not included in
+         sig
+           type t1 = int
+           type t2 = string
+           type 'a t = 'a list
+           type t' = t1 t
+         end
+       Type declarations do not match:
+         type t' = t2 t
+       is not included in
+         type t' = t1 t
+       The type t2 t = t2 list is not equal to the type t1 t = t1 list
+       Type t2 = string is not equal to type t1 = int
+|}]
+
+module M : sig
+  module A : sig
+    type t
+  end
+
+  module B : sig
+    type t = int list
+  end
+end = struct
+  module A = struct
+    type t = string
+  end
+
+  module B = struct
+    type t = A.t list
+  end
+end
+
+[%%expect {|
+Lines 9-17, characters 6-3:
+ 9 | ......struct
+10 |   module A = struct
+11 |     type t = string
+12 |   end
+13 |
+14 |   module B = struct
+15 |     type t = A.t list
+16 |   end
+17 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           module A : sig type t = string end
+           module B : sig type t = A.t list end
+         end
+       is not included in
+         sig
+           module A : sig type t end
+           module B : sig type t = int list end
+         end
+       In module B:
+       Modules do not match:
+         sig type t = A.t list end
+       is not included in
+         sig type t = int list end
+       In module B:
+       Type declarations do not match:
+         type t = A.t list
+       is not included in
+         type t = int list
+       The type A.t list is not equal to the type int list
+       Type A.t = string is not equal to type int
+|}]

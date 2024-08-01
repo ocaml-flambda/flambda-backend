@@ -3032,15 +3032,25 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
   (* Functions to check whether two (module types | modules | types) are "compatible", and
      adding them to a [Subst.t]. See comment in [type_str_item] below on why we need these. *)
 
-  let rec check_expected_typedecl ~env ~sig_env id actual expected =
-    (* CR selee: ignore for now, but I suspect we'll need it for mcomp check *)
-    ignore sig_env;
-
-    (* CR selee: For now, just check their arity *)
-    if expected.type_arity <> actual.type_arity then
+  let rec check_expected_typedecl ~env ~sig_env ~actual_id ~expected_id subst actual expected =
+    let error () =
       raise (Error (actual.type_loc, env,
-        Incompatible_type_declaration (id, expected)));
-    ()
+        Incompatible_type_declaration (actual_id, expected)))
+    in
+    if actual.type_arity <> expected.type_arity then
+      error ()
+    else
+      let actual =
+        Ctype.reify_univars env
+          (Btype.newgenty (Tconstr (Pident actual_id, actual.type_params, ref Mnil)))
+      in
+      let expected =
+        Ctype.reify_univars sig_env
+          (Btype.newgenty (Tconstr (Pident expected_id, expected.type_params, ref Mnil)))
+      in
+      match Ctype.mcomp_heterogeneous subst env sig_env actual expected with
+      | exception (Ctype.Incompatible) -> error ()
+      | () -> ()
 
   and check_expected_modtype
       ~env ~sig_env subst actual expected ~actual_loc ~expected_loc ~context =
@@ -3176,7 +3186,8 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             match Sig_map.find_type (Ident.name id) sig_map with
             | None -> subst
             | Some (sig_ident, sig_decl) ->
-                check_expected_typedecl ~env ~sig_env id decl sig_decl;
+                check_expected_typedecl
+                  ~env ~sig_env ~actual_id:id ~expected_id:sig_ident subst decl sig_decl;
                 Subst.add_type sig_ident (Pident id) subst
           in
           List.fold_left add_to_subst subst ident_and_decls

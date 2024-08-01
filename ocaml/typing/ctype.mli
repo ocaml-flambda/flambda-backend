@@ -520,6 +520,7 @@ val package_subtype :
       Path.t -> (Longident.t * type_expr) list -> bool) ref
 
 (* Raises [Incompatible] *)
+val mcomp_heterogeneous : Subst.t -> Env.t -> Env.t -> type_expr -> type_expr -> unit
 val mcomp : Env.t -> type_expr -> type_expr -> unit
 
 val get_unboxed_type_representation :
