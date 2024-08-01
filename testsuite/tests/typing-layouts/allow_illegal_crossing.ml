@@ -172,14 +172,8 @@ let y : t @@ portable = { a = my_fun }
 [%%expect {|
 type t : value mod portable = { a : string -> string; }
 val my_fun : 'a -> 'a = <fun>
-Line 3, characters 30-36:
-3 | let y : t @@ portable = { a = my_fun }
-                                  ^^^^^^
-Error: This value is nonportable but expected to be portable.
+val y : t = {a = <fun>}
 |}]
-(* CR layouts v2.8: this is unfortunate that this isn't accepted, but it is fine
-   since pushing the annotation to the right hand side resolves the issue, and
-   -allow-illegal-crossing is a short-term solution *)
 
 type t : value mod uncontended = { a : string }
 let make_str () : string = failwith ""

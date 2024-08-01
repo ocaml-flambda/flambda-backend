@@ -110,7 +110,7 @@ let rec add_type bv ty =
   match ty.ptyp_desc with
     Ptyp_any -> ()
   | Ptyp_var _ -> ()
-  | Ptyp_arrow(_, t1, t2) -> add_type bv t1; add_type bv t2
+  | Ptyp_arrow(_, t1, t2, _, _) -> add_type bv t1; add_type bv t2
   | Ptyp_tuple tl -> List.iter (add_type bv) tl
   | Ptyp_constr(c, tl) -> add bv c; List.iter (add_type bv) tl
   | Ptyp_object (fl, _) ->
@@ -227,7 +227,9 @@ let rec add_pattern bv pat =
       List.iter (fun (lbl, p) -> add bv lbl; add_pattern bv p) pl
   | Ppat_array pl -> List.iter (add_pattern bv) pl
   | Ppat_or(p1, p2) -> add_pattern bv p1; add_pattern bv p2
-  | Ppat_constraint(p, ty) -> add_pattern bv p; add_type bv ty
+  | Ppat_constraint(p, ty, _) ->
+      add_pattern bv p;
+      Option.iter (fun ty -> add_type bv ty) ty;
   | Ppat_variant(_, op) -> add_opt add_pattern bv op
   | Ppat_type li -> add bv li
   | Ppat_lazy p -> add_pattern bv p
@@ -285,9 +287,9 @@ let rec add_expr bv exp =
       add_expr bv e1;
       add_opt add_type bv oty2;
       add_type bv ty3
-  | Pexp_constraint(e1, ty2) ->
+  | Pexp_constraint(e1, ty2, _) ->
       add_expr bv e1;
-      add_type bv ty2
+      Option.iter (add_type bv) ty2
   | Pexp_send(e, _m) -> add_expr bv e
   | Pexp_new li -> add bv li
   | Pexp_setinstvar(_v, e) -> add_expr bv e
@@ -335,11 +337,6 @@ and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
   | Jexp_immutable_array x -> add_immutable_array_expr bv x
   | Jexp_layout x -> add_layout_expr bv x
   | Jexp_tuple x -> add_labeled_tuple_expr bv x
-  | Jexp_modes x -> add_modes_expr bv x
-
-and add_modes_expr bv : Jane_syntax.Modes.expression -> _ =
-  function
-  | Coerce (_modes, exp) -> add_expr bv exp
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function

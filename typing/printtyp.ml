@@ -1260,9 +1260,7 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
     | Mod (base, modes) ->
       let base = out_jkind_const_of_user_jkind base in
       let modes =
-        List.map
-          (fun mode -> (mode : Jane_syntax.Mode_expr.Const.t :> string Location.loc).txt)
-          modes.txt
+        List.map (fun {txt = (Parsetree.Mode s); _} -> s) modes
       in
       Ojkind_const_mod (base, modes)
     | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"

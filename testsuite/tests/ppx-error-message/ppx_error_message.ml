@@ -33,10 +33,11 @@ let () =
                 Ast_helper.Exp.attr
                   (Ast_helper.Exp.constraint_
                     (Ast_helper.Exp.variant sorted None)
-                    (Ast_helper.Typ.variant
+                    (Some (Ast_helper.Typ.variant
                       [ Ast_helper.Rf.tag { txt = str; loc } true [] ]
                       Closed
                       None ))
+                    [])
                   (Ast_helper.Attr.mk
                      { txt = "ocaml.error_message"; loc }
                      (PStr

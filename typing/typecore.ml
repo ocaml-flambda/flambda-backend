@@ -235,7 +235,6 @@ type error =
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
-  | Modes_on_pattern
   | Invalid_label_for_src_pos of arg_label
   | Nonoptional_call_pos_label of string
 
@@ -781,7 +780,7 @@ let extract_label_names env ty =
 
 let has_poly_constraint spat =
   match spat.ppat_desc with
-  | Ppat_constraint(_, styp) -> begin
+  | Ppat_constraint(_, Some styp, _) -> begin
       match styp.ptyp_desc with
       | Ptyp_poly _ -> true
       | _ -> false
@@ -830,27 +829,13 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
      won't violate the invariant. *)
   { expected_mode with mode }
 
-(* Value binding elaboration can insert alloc mode attributes on the forged
-   [Pexp_constraint] node. Use this function to detect
-   and remove these inserted attributes.
-*)
-let alloc_mode_from_pexp_constraint_typ_attrs styp =
-  let modes, ptyp_attributes =
-    Jane_syntax.Mode_expr.of_attrs styp.ptyp_attributes
+let mode_annots_from_pat pat =
+  let modes =
+    match pat.ppat_desc with
+    | Ppat_constraint (_, _, modes) -> modes
+    | _ -> []
   in
-  Typemode.transl_alloc_mode modes, { styp with ptyp_attributes }
-
-let alloc_mode_from_ppat_constraint_typ_attrs styp =
-  let modes, ptyp_attributes =
-    Jane_syntax.Mode_expr.of_attrs styp.ptyp_attributes
-  in
-  Typemode.transl_alloc_mode modes, { styp with ptyp_attributes }
-
-let mode_annots_from_pat_attrs pat =
-  let modes, ppat_attributes =
-    Jane_syntax.Mode_expr.of_attrs pat.ppat_attributes
-  in
-  Typemode.transl_mode_annots modes, {pat with ppat_attributes}
+  Typemode.transl_mode_annots modes
 
 let apply_mode_annots ~loc ~env (m : Alloc.Const.Option.t) mode =
   let error axis =
@@ -2294,7 +2279,7 @@ let rec has_literal_pattern p =
   | Ppat_exception p
   | Ppat_variant (_, Some p)
   | Ppat_construct (_, Some (_, p))
-  | Ppat_constraint (p, _)
+  | Ppat_constraint (p, _, _)
   | Ppat_alias (p, _)
   | Ppat_lazy p
   | Ppat_open (_, p) ->
@@ -2456,9 +2441,6 @@ and type_pat_aux
       pat_attributes = sp.ppat_attributes;
       pat_env = !env }
   in
-  match Jane_syntax.Mode_expr.maybe_of_attrs sp.ppat_attributes with
-  | Some modes, _ -> raise (Error (modes.loc, !env, Modes_on_pattern))
-  | None, _ ->
   match Jane_syntax.Pattern.of_ast sp with
   | Some (jpat, attrs) -> begin
       (* Normally this would go to an auxiliary function, but this function
@@ -2594,7 +2576,7 @@ and type_pat_aux
       let sarg', existential_styp =
         match sarg with
           None -> None, None
-        | Some (vl, {ppat_desc = Ppat_constraint (sp, sty)})
+        | Some (vl, {ppat_desc = Ppat_constraint (sp, Some sty, _)})
           when vl <> [] || constr.cstr_arity > 1 ->
             Some sp, Some (vl, sty)
         | Some ([], sp) ->
@@ -2798,15 +2780,20 @@ and type_pat_aux
         pat_type = instance expected_ty;
         pat_attributes = sp.ppat_attributes;
         pat_env = !env }
-  | Ppat_constraint(sp_constrained, sty) ->
+  | Ppat_constraint(sp_constrained, sty, ms) ->
       (* Pretend separate = true *)
-      let cty, ty, expected_ty' =
-        let type_modes, sty = alloc_mode_from_ppat_constraint_typ_attrs sty in
-        solve_Ppat_constraint ~refine tps loc env type_modes sty expected_ty
-      in
-      let p = type_pat ~alloc_mode tps category sp_constrained expected_ty' in
-      let extra = (Tpat_constraint cty, loc, sp_constrained.ppat_attributes) in
-      { p with pat_type = ty; pat_extra = extra::p.pat_extra }
+      begin match sty with
+      | Some sty ->
+        let cty, ty, expected_ty' =
+          let type_modes = Typemode.transl_alloc_mode ms in
+          solve_Ppat_constraint ~refine tps loc env type_modes sty expected_ty
+        in
+        let p = type_pat ~alloc_mode tps category sp_constrained expected_ty' in
+        let extra = (Tpat_constraint cty, loc, sp_constrained.ppat_attributes) in
+        { p with pat_type = ty; pat_extra = extra::p.pat_extra }
+      | None ->
+        type_pat ~alloc_mode tps category sp_constrained expected_ty
+      end
   | Ppat_type lid ->
       let (path, p) = build_or_pat !env loc lid in
       pure category @@ solve_expected
@@ -2975,7 +2962,7 @@ let rec pat_tuple_arity spat =
   | Ppat_unpack _ | Ppat_extension _ -> Not_local_tuple
   | Ppat_or(sp1, sp2) ->
       combine_pat_tuple_arity (pat_tuple_arity sp1) (pat_tuple_arity sp2)
-  | Ppat_constraint(p, _) | Ppat_open(_, p) | Ppat_alias(p, _) -> pat_tuple_arity p
+  | Ppat_constraint(p, _, _) | Ppat_open(_, p) | Ppat_alias(p, _) -> pat_tuple_arity p
 
 and pat_tuple_arity_jane_syntax : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array _) -> Not_local_tuple
@@ -3953,12 +3940,12 @@ let rec approx_type env sty =
   | Some (jty, attrs) -> approx_type_jst env attrs jty
   | None ->
   match sty.ptyp_desc with
-  | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty) ->
+  | Ptyp_arrow (p, ({ ptyp_desc = Ptyp_poly _ } as arg_sty), sty, arg_mode, _) ->
       let p = Typetexp.transl_label p (Some arg_sty) in
       (* CR layouts v5: value requirement here to be relaxed *)
       if is_optional p then newvar Predef.option_argument_jkind
       else begin
-        let arg_mode = Typetexp.get_alloc_mode arg_sty in
+        let arg_mode = Typemode.transl_alloc_mode arg_mode in
         let arg_ty =
           (* Polymorphic types will only unify with types that match all of their
            polymorphic parts, so we need to fully translate the type here
@@ -3970,8 +3957,8 @@ let rec approx_type env sty =
         let mret = Alloc.newvar () in
         newty (Tarrow ((p,marg,mret), arg_ty.ctyp_type, ret, commu_ok))
       end
-  | Ptyp_arrow (p, arg_sty, sty) ->
-      let arg_mode = Typetexp.get_alloc_mode arg_sty in
+  | Ptyp_arrow (p, arg_sty, sty, arg_mode, _) ->
+      let arg_mode = Typemode.transl_alloc_mode arg_mode in
       let p = Typetexp.transl_label p (Some arg_sty) in
       let arg =
         if is_optional p
@@ -4013,8 +4000,8 @@ let type_pattern_approx env spat ty_expected =
   | Some (jpat, _attrs) -> type_pattern_approx_jane_syntax jpat
   | None      ->
   match spat.ppat_desc with
-  | Ppat_constraint(_, ({ptyp_desc=Ptyp_poly _} as sty)) ->
-      let arg_type_mode, sty = alloc_mode_from_ppat_constraint_typ_attrs sty in
+  | Ppat_constraint(_, Some ({ptyp_desc=Ptyp_poly _} as sty), arg_type_mode) ->
+      let arg_type_mode = Typemode.transl_alloc_mode arg_type_mode in
       let ty_pat =
         Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false arg_type_mode sty
       in
@@ -4051,7 +4038,7 @@ let type_approx_fun_one_param
     match spato with
     | None -> None, false
     | Some spat ->
-        let mode_annots, spat = mode_annots_from_pat_attrs spat in
+        let mode_annots = mode_annots_from_pat spat in
         let has_poly = has_poly_constraint spat in
         if has_poly && is_optional label then
           raise(Error(spat.ppat_loc, env, Optional_poly_param));
@@ -4092,7 +4079,7 @@ let rec type_approx env sexp ty_expected =
       (List.map (fun e -> None, e) l)
   | Pexp_ifthenelse (_,e,_) -> type_approx env e ty_expected
   | Pexp_sequence (_,e) -> type_approx env e ty_expected
-  | Pexp_constraint (e, sty) ->
+  | Pexp_constraint (e, Some sty, _) ->
       let ty_expected =
         type_approx_constraint env (Pconstraint sty) ty_expected ~loc
       in
@@ -4120,7 +4107,6 @@ and type_approx_aux_jane_syntax
   | Jexp_layout (Lexp_newtype _) -> ()
   | Jexp_tuple l ->
       type_tuple_approx env loc ty_expected l
-  | Jexp_modes (Coerce (_, e)) -> type_approx env e ty_expected
 
 and type_tuple_approx (env: Env.t) loc ty_expected l =
   let labeled_tys = List.map
@@ -4416,7 +4402,7 @@ let shallow_iter_ppat f p =
   | Ppat_construct (_, Some (_, p))
   | Ppat_exception p | Ppat_alias (p,_)
   | Ppat_open (_,p)
-  | Ppat_constraint (p,_) | Ppat_lazy p -> f p
+  | Ppat_constraint (p,_,_) | Ppat_lazy p -> f p
   | Ppat_record (args, _flag) -> List.iter (fun (_,p) -> f p) args
 
 let exists_ppat f p =
@@ -4565,9 +4551,10 @@ let rec is_inferred sexp =
       ({ pexp_desc = Pexp_extension({ txt }, PStr []) },
         [Nolabel, sbody]) when is_exclave_extension_node txt ->
       is_inferred sbody
-  | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint _
+  | Pexp_ident _ | Pexp_apply _ | Pexp_field _ | Pexp_constraint (_, Some _, _)
   | Pexp_coerce _ | Pexp_send _ | Pexp_new _ -> true
-  | Pexp_sequence (_, e) | Pexp_open (_, e) -> is_inferred e
+  | Pexp_sequence (_, e) | Pexp_open (_, e) | Pexp_constraint (e, None, _) ->
+      is_inferred e
   | Pexp_ifthenelse (_, e1, Some e2) -> is_inferred e1 && is_inferred e2
   | _ -> false
 
@@ -4576,7 +4563,6 @@ and is_inferred_jane_syntax : Jane_syntax.Expression.t -> _ = function
   | Jexp_immutable_array _
   | Jexp_layout (Lexp_constant _ | Lexp_newtype _) -> false
   | Jexp_tuple _ -> false
-  | Jexp_modes (Coerce (_, exp)) -> is_inferred exp
 
 (* check if the type of %apply or %revapply matches the type expected by
    the specialized typing rule for those primitives.
@@ -4864,63 +4850,62 @@ let may_lower_contravariant_then_generalize env exp =
   if maybe_expansive exp then lower_contravariant env exp.exp_type;
   generalize exp.exp_type
 
-(* This added mode attribute is read and removed by
-    [alloc_mode_from_pexp_constraint_typ_attrs] or
-    [alloc_mode_from_ppat_constraint_typ_attrs]. *)
-let add_mode_annot_attrs mode_annot_attr typ =
-  match mode_annot_attr with
-  | None -> typ
-  | Some attr -> { typ with ptyp_attributes = attr :: typ.ptyp_attributes }
-
 (* value binding elaboration *)
 
-let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_attributes=attrs; _ } =
+let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_modes=modes; _ } =
   let open Ast_helper in
-  let mode_annot_attr, _ = Jane_syntax.Mode_expr.extract_attr attrs in
+  let loc =
+    Location.merge (pat.ppat_loc :: expr.pexp_loc :: List.map (fun m -> m.loc) modes)
+  in
+  let maybe_add_modes_constraint expr =
+    match modes with
+    | [] -> expr
+    | _ -> Exp.constraint_ ~loc expr None modes
+  in
   match ct with
-  | None -> expr
+  | None -> maybe_add_modes_constraint expr
   | Some (Pvc_constraint { locally_abstract_univars=[]; typ }) ->
       begin match typ.ptyp_desc with
-      | Ptyp_poly _ -> expr
+      | Ptyp_poly _ -> maybe_add_modes_constraint expr
       | _ ->
-          let loc = { expr.pexp_loc with Location.loc_ghost = true } in
-          Exp.constraint_ ~loc expr (add_mode_annot_attrs mode_annot_attr typ)
+          Exp.constraint_ ~loc expr (Some typ) modes
       end
   | Some (Pvc_coercion { ground; coercion}) ->
-      let loc = { expr.pexp_loc with Location.loc_ghost = true } in
-      Exp.coerce ~loc expr ground coercion
+      Exp.coerce ~loc expr ground coercion |> maybe_add_modes_constraint
   | Some (Pvc_constraint { locally_abstract_univars=vars;typ}) ->
-      let loc_start = pat.ppat_loc.Location.loc_start in
-      let loc = { expr.pexp_loc with loc_start; loc_ghost=true } in
-      let expr = Exp.constraint_ ~loc expr (add_mode_annot_attrs mode_annot_attr typ) in
+      let loc = Location.merge [ loc; pat.ppat_loc ] in
+      let expr = Exp.constraint_ ~loc expr (Some typ) modes in
       List.fold_right (Exp.newtype ~loc) vars expr
 
 let vb_pat_constraint
-      ({pvb_pat=pat; pvb_expr = exp; pvb_attributes = attrs; _ } as vb) =
-  let mode_annot_attr, _ = Jane_syntax.Mode_expr.extract_attr attrs in
+      ({pvb_pat=pat; pvb_expr = exp; pvb_modes = modes; _ } as vb) =
   let spat =
     let open Ast_helper in
+    let loc =
+      Location.merge (pat.ppat_loc :: List.map (fun m -> m.loc) modes)
+    in
+    let maybe_add_modes_constraint expr =
+      match modes with
+      | [] -> expr
+      | _ -> Pat.constraint_ ~loc pat None modes
+    in
     match vb.pvb_constraint, pat.ppat_desc, exp.pexp_desc with
     | Some (Pvc_constraint {locally_abstract_univars=[]; typ}
            | Pvc_coercion { coercion=typ; _ }),
       _, _ ->
-        let typ = add_mode_annot_attrs mode_annot_attr typ in
-        Pat.constraint_ ~loc:{pat.ppat_loc with Location.loc_ghost=true} pat typ
+        Pat.constraint_ ~loc pat (Some typ) modes
     | Some (Pvc_constraint {locally_abstract_univars=vars; typ }), _, _ ->
         let varified = Typ.varify_constructors vars typ in
         let t = Typ.poly ~loc:typ.ptyp_loc vars varified in
-        let loc_end = typ.ptyp_loc.Location.loc_end in
-        let loc =  { pat.ppat_loc with loc_end; loc_ghost=true } in
-        let t = add_mode_annot_attrs mode_annot_attr t in
-        Pat.constraint_ ~loc pat t
-    | None, (Ppat_any | Ppat_constraint _), _ -> pat
+        let loc =  Location.merge [ loc; t.ptyp_loc ] in
+        Pat.constraint_ ~loc pat (Some t) modes
+    | None, (Ppat_any | Ppat_constraint _), _ -> maybe_add_modes_constraint pat
     | None, _, Pexp_coerce (_, _, sty)
-    | None, _, Pexp_constraint (_, sty) when !Clflags.principal ->
+    | None, _, Pexp_constraint (_, Some sty, _) when !Clflags.principal ->
         (* propagate type annotation to pattern,
            to allow it to be generalized in -principal mode *)
-        let sty = add_mode_annot_attrs mode_annot_attr sty in
-        Pat.constraint_ ~loc:{pat.ppat_loc with Location.loc_ghost=true} pat sty
-    | _ -> pat
+        Pat.constraint_ ~loc pat (Some sty) modes
+    | _ -> maybe_add_modes_constraint pat
   in
   vb.pvb_attributes, spat
 
@@ -5777,11 +5762,20 @@ and type_expect_
         exp_type = instance Predef.type_unit;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
-  | Pexp_constraint (sarg, sty) ->
-      let type_mode, sty = alloc_mode_from_pexp_constraint_typ_attrs sty in
-      let (ty, exp_extra) =
-        type_constraint env sty type_mode
+  | Pexp_constraint (sarg, None, modes) ->
+      let modes = Typemode.transl_mode_annots modes in
+      let expected_mode = type_expect_mode ~loc ~env ~modes expected_mode in
+      let exp = type_expect env expected_mode sarg (mk_expected ty_expected ?explanation) in
+      { exp with exp_loc = loc }
+  | Pexp_constraint (sarg, Some sty, modes) ->
+      let modes = Typemode.transl_mode_annots modes in
+      let (ty, extra_cty) =
+        let alloc_mode =
+          Mode.Alloc.Const.Option.value modes ~default:Mode.Alloc.Const.legacy
+        in
+        type_constraint env sty alloc_mode
       in
+      let expected_mode = type_expect_mode ~loc ~env ~modes expected_mode in
       let ty' = instance ty in
       let error_message_attr_opt =
         Builtin_attributes.error_message_attr sexp.pexp_attributes in
@@ -5794,7 +5788,10 @@ and type_expect_
         exp_type = ty';
         exp_attributes = arg.exp_attributes;
         exp_env = env;
-        exp_extra = (exp_extra, loc, sexp.pexp_attributes) :: arg.exp_extra;
+        exp_extra =
+          (Texp_constraint (Some extra_cty, modes),
+           loc,
+           sexp.pexp_attributes) :: arg.exp_extra;
       }
   | Pexp_coerce(sarg, sty, sty') ->
       let arg, ty', exp_extra =
@@ -6412,7 +6409,7 @@ and type_constraint env sty type_mode =
     end
       ~post:(fun cty -> generalize_structure cty.ctyp_type)
   in
-  cty.ctyp_type, Texp_constraint cty
+  cty.ctyp_type, cty
 
 (** Types a body in the scope of a coercion (:>) or a constraint (:), and
     unifies the inferred type with the expected type.
@@ -6431,8 +6428,10 @@ and type_constraint_expect
         type_coerce constraint_arg env expected_mode loc ty_constrain ty_coerce
           type_mode ~loc_arg
     | Pconstraint ty_constrain ->
-        let ty, exp_extra = type_constraint env ty_constrain type_mode in
-        constraint_arg.type_with_constraint env expected_mode ty, ty, exp_extra
+        let ty, extra_cty = type_constraint env ty_constrain type_mode in
+        constraint_arg.type_with_constraint env expected_mode ty,
+        ty,
+        Texp_constraint (Some extra_cty, Mode.Alloc.Const.Option.none)
   in
   unify_exp_types loc env ty (instance ty_expected);
   ret, ty, exp_extra
@@ -6552,7 +6551,7 @@ and type_function
       let typed_arg_label, pat =
         Typetexp.transl_label_from_pat arg_label pat
       in
-      let mode_annots, pat = mode_annots_from_pat_attrs pat in
+      let mode_annots = mode_annots_from_pat pat in
       let has_poly = has_poly_constraint pat in
       if has_poly && is_optional_parsetree arg_label then
         raise(Error(pat.ppat_loc, env, Optional_poly_param));
@@ -6612,9 +6611,9 @@ and type_function
             *)
             let default =
               match pat.ppat_desc with
-              | Ppat_constraint (_, sty) ->
+              | Ppat_constraint (_, Some sty, _) ->
                   let gloc = { default.pexp_loc with loc_ghost = true } in
-                  Ast_helper.Exp.constraint_ default sty ~loc:gloc
+                  Ast_helper.Exp.constraint_ default (Some sty) ~loc:gloc []
               | _ -> default
             in
             (* Defaults are always global. They can be moved out of the
@@ -7632,8 +7631,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
         | Some (( Jexp_tuple _
                 | Jexp_comprehension _
                 | Jexp_immutable_array _
-                | Jexp_layout _
-                | Jexp_modes _ ), _) -> [se]
+                | Jexp_layout _), _) -> [se]
         | None -> match se.pexp_desc with
         | Pexp_tuple sel when
             constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs
@@ -8181,7 +8179,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
     | Some (jexp, _attrs) -> jexp_is_fun jexp
     | None      -> match sexp.pexp_desc with
     | Pexp_function _ -> true
-    | Pexp_constraint (e, _)
+    | Pexp_constraint (e, _, _)
     | Pexp_newtype (_, e) -> sexp_is_fun e
     | _ -> false
   and jexp_is_fun : Jane_syntax.Expression.t -> _ = function
@@ -8190,7 +8188,6 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
     | Jexp_layout (Lexp_constant _) -> false
     | Jexp_layout (Lexp_newtype (_, _, e)) -> sexp_is_fun e
     | Jexp_tuple _ -> false
-    | Jexp_modes (Coerce (_, e)) -> sexp_is_fun e
   in
   let vb_is_fun { pvb_expr = sexp; _ } = sexp_is_fun sexp in
   let entirely_functions = List.for_all vb_is_fun spat_sexp_list in
@@ -8628,15 +8625,14 @@ and type_expect_jane_syntax
   | Jexp_tuple x ->
       type_tuple
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
-  | Jexp_modes x ->
-      type_mode_expr
-        ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
 
-and type_mode_expr
-    ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes
-  : Jane_syntax.Modes.expression -> _ = function
-  | Coerce (m, sbody) ->
-    let modes = Typemode.transl_mode_annots m in
+and type_expect_mode ~loc ~env ~(modes : Alloc.Const.Option.t) expected_mode =
+  match modes = Alloc.Const.Option.none with
+  | true ->
+    (* This is not just a short-circuit, it also prevents [mode_coerce] below from
+       removing [tuple_modes] when there's no mode annotation on the tuple *)
+    expected_mode
+  | false ->
     let min = Alloc.Const.Option.value ~default:Alloc.Const.min modes |> Const.alloc_as_value in
     let max = Alloc.Const.Option.value ~default:Alloc.Const.max modes |> Const.alloc_as_value in
     submode ~loc ~env ~reason:Other (Value.of_const min) expected_mode;
@@ -8646,15 +8642,7 @@ and type_mode_expr
       | Some Local -> mode_strictly_local expected_mode
       | _ -> expected_mode
     in
-    let exp =
-      type_expect env expected_mode sbody (mk_expected ty_expected ?explanation)
-    in
-    {exp with
-     (* CR modes: We should consider not overriding [exp_loc] here -- that would
-        be more consistent to the typing of [Pexp_constraint].
-     *)
-     exp_loc = loc;
-     exp_extra = (Texp_mode_coerce m, loc, attributes) :: exp.exp_extra}
+    expected_mode
 
 and type_n_ary_function
       ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
@@ -10079,9 +10067,6 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
-  | Modes_on_pattern ->
-      Location.errorf ~loc
-        "@[Mode annotations on patterns are not supported yet.@]"
   | Invalid_label_for_src_pos arg_label ->
       Location.errorf ~loc
         "A position argument must not be %s."
