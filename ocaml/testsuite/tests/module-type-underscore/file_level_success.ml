@@ -6,9 +6,9 @@
 
   module type S = _
 
-  include List
+  (* include List
 
-  module type T = _
+  module type T = _ *)  (* CR selee: For nowe, we don't support includes *)
 
   module M = List
 
