@@ -939,6 +939,12 @@ val undo_compress: snapshot -> unit
            not already backtracked to a previous snapshot.
            Does not call [cleanup_abbrev] *)
 
+(* Knot needed to tie a dependency cycle *)
+module Jkind_higher_sort_changes : module type of Jkind_types.Sort.Changes (struct
+  type nonrec type_expr = type_expr
+end)
+val on_higher_sort_changes_available : unit -> unit
+
 (** Functions to use when modifying a type (only Ctype?).
     The old values are logged and reverted on backtracking.
  *)

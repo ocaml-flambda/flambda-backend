@@ -1629,8 +1629,8 @@ let solve_Ppat_array ~refine loc env mutability expected_ty =
     if Types.is_mutable mutability then Predef.type_array
     else Predef.type_iarray
   in
-  let jkind, arg_sort = Jkind.of_new_sort_var ~why:Array_element in
-  let ty_elt = newgenvar jkind in
+  let jkind, arg_sort = Jkind.Type.of_new_sort_var ~why:Array_element in
+  let ty_elt = newgenvar (Jkind.of_type_jkind jkind) in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine
     loc env (type_some_array ty_elt) expected_ty;
@@ -3552,7 +3552,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
               let ty_arg_mono, sort_arg = new_rep_var ~why:Function_argument () in
               let ty_arg = newmono ty_arg_mono in
               let ty_res =
-                newvar (Jkind.of_new_sort ~why:Function_result)
+                newvar (Jkind.Type.of_new_sort ~why:Function_result |> Jkind.of_type_jkind)
               in
               if ret_tvar &&
                  not (is_prim ~name:"%identity" funct) &&
@@ -5647,7 +5647,7 @@ and type_expect_
         in
         match expected_opath, opt_exp_opath with
         | None, None ->
-          newvar (Jkind.of_new_sort ~why:Record_projection), None
+          newvar (Jkind.Type.of_new_sort ~why:Record_projection |> Jkind.of_type_jkind), None
         | Some _, None -> ty_expected, expected_opath
         | Some(_, _, true), Some _ -> ty_expected, expected_opath
         | (None | Some (_, _, false)), Some (_, p', _) ->
@@ -5829,7 +5829,7 @@ and type_expect_
         type_label_access env srecord Env.Mutation lid in
       let ty_record =
         if expected_type = None
-        then newvar (Jkind.of_new_sort ~why:Record_assignment)
+        then newvar (Jkind.Type.of_new_sort ~why:Record_assignment |> Jkind.of_type_jkind)
         else record.exp_type
       in
       let (label_loc, label, newval) =
@@ -6338,11 +6338,11 @@ and type_expect_
           let spat_params, ty_params, param_sort =
             let initial_jkind, initial_sort = match sands with
               | [] ->
-                Jkind.of_new_sort_var ~why:Function_argument
+                Jkind.Type.of_new_sort_var ~why:Function_argument
               (* CR layouts v5: eliminate value requirement for tuple elements *)
-              | _ -> Jkind.Type.Primitive.value ~why:Tuple_element |> Jkind.of_type_jkind, Jkind.Type.Sort.value
+              | _ -> Jkind.Type.Primitive.value ~why:Tuple_element, Jkind.Type.Sort.value
             in
-            loop slet.pbop_pat (newvar initial_jkind) initial_sort sands
+            loop slet.pbop_pat (newvar (Jkind.of_type_jkind initial_jkind)) initial_sort sands
           in
           let ty_func_result, body_sort = new_rep_var ~why:Function_result () in
           let arrow_desc = Nolabel, Alloc.legacy, Alloc.legacy in
@@ -6788,9 +6788,9 @@ and type_function
                 Misc.fatal_error "[default] allowed only with optional argument"
             in
             let default_arg_jkind, default_arg_sort =
-              Jkind.of_new_sort_var ~why:Optional_arg_default
+              Jkind.Type.of_new_sort_var ~why:Optional_arg_default
             in
-            let ty_default_arg = newvar default_arg_jkind in
+            let ty_default_arg = newvar (Jkind.of_type_jkind default_arg_jkind) in
             begin
               try unify env (type_option ty_default_arg) ty_arg_mono
               with Unify _ -> assert false;
@@ -8785,8 +8785,8 @@ and type_generic_array
   in
   check_construct_mutability ~loc ~env mutability argument_mode;
   let argument_mode = mode_modality modalities argument_mode in
-  let jkind, elt_sort = Jkind.of_new_sort_var ~why:Array_element in
-  let ty = newgenvar jkind in
+  let jkind, elt_sort = Jkind.Type.of_new_sort_var ~why:Array_element in
+  let ty = newgenvar (Jkind.of_type_jkind jkind) in
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
@@ -8902,7 +8902,7 @@ and type_n_ary_function
                 | Unification_error trace -> trace
                 | Not_a_function ->
                     let tarrow =
-                      let new_ty_var why = newvar (Jkind.of_new_sort ~why) in
+                      let new_ty_var why = newvar (Jkind.Type.of_new_sort ~why |> Jkind.of_type_jkind) in
                       let new_mode_var () = Mode.Alloc.newvar () in
                       (newty
                          (Tarrow
@@ -9394,8 +9394,8 @@ let type_expression env jkind sexp =
   maybe_check_uniqueness_exp exp; exp
 
 let type_representable_expression ~why env sexp =
-  let jkind, sort = Jkind.of_new_sort_var ~why in
-  let exp = type_expression env jkind sexp in
+  let jkind, sort = Jkind.Type.of_new_sort_var ~why in
+  let exp = type_expression env (Jkind.of_type_jkind jkind) sexp in
   exp, sort
 
 let type_expression env sexp =

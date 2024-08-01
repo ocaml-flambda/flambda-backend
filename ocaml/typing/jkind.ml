@@ -140,6 +140,14 @@ module Type = struct
           | Bits32 -> "bits32"
           | Bits64 -> "bits64"
       end
+
+      module Debug_printers = struct
+        open Format
+
+        let t ppf = function
+          | Any -> fprintf ppf "Any"
+          | Sort s -> fprintf ppf "Sort %a" Sort.Const.Debug_printers.t s
+      end
     end
 
     type t = Sort.t layout
@@ -175,7 +183,7 @@ module Type = struct
 
     let union t1 t2 =
       match t1, t2 with
-      | Sort s1, Sort s2 -> if Sort.equate s1 s2 then t1 else Any
+      | Sort _, Sort _ -> assert false
       | _, Any -> Any
       | Any, _ -> Any
 
@@ -635,6 +643,17 @@ module Type = struct
 
     module Sort = Sort.Const
     module Layout = Layout.Const
+
+    module Debug_printers = struct
+      open Format
+
+      let t ppf { layout; modes_upper_bounds; externality_upper_bound } =
+        fprintf ppf
+          "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
+           %a }"
+          Layout.Debug_printers.t layout Modes.print modes_upper_bounds
+          Externality.print externality_upper_bound
+    end
   end
 
   module Desc = struct
@@ -700,6 +719,8 @@ module Type = struct
       Layout.equate_or_equal ~allow_mutation lay1 lay2
       && Modes.equal modes1 modes2
       && Externality.equal ext1 ext2
+
+    let equate = equate_or_equal ~allow_mutation:true
 
     let sub
         { layout = lay1;
@@ -964,7 +985,7 @@ module Type = struct
   let sort_of_jkind l =
     match get l with
     | Const { layout = Sort s; _ } -> Sort.of_const s
-    | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.sort_of_jkind"
+    | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.Type.sort_of_jkind"
     | Var v -> Sort.of_var v
 
   let get_layout jk : Layout.Const.t option =
@@ -1180,6 +1201,13 @@ module Type = struct
       | Wildcard -> fprintf ppf "Wildcard"
       | Unification_var -> fprintf ppf "Unification_var"
 
+    let higher_concrete_jkind_reason ppf :
+        History.higher_concrete_jkind_reason -> unit = function
+      | Unannotated_type_parameter path ->
+        fprintf ppf "Unannotated_type_parameter %a" !printtyp_path path
+      | Wildcard -> fprintf ppf "Wildcard"
+      | Unification_var -> fprintf ppf "Unification_var"
+
     let creation_reason ppf : History.creation_reason -> unit = function
       | Annotated (ctx, loc) ->
         fprintf ppf "Annotated (%a,%a)" annotation_context ctx
@@ -1209,6 +1237,9 @@ module Type = struct
         fprintf ppf "Concrete_creation %a" concrete_jkind_reason concrete
       | Top_creation top ->
         fprintf ppf "Top_creation %a" top_creation_reason top
+      | Higher_concrete_creation higher_concrete ->
+        fprintf ppf "Higher_concrete_creation %a" higher_concrete_jkind_reason
+          higher_concrete
       | Imported -> fprintf ppf "Imported"
       | Imported_type_argument { parent_path; position; arity } ->
         fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position
@@ -1236,6 +1267,7 @@ module Type = struct
         Jkind_desc.Debug_printers.t jkind !history h
   end
 end
+(* module Type *)
 
 open Jkind_types.Jkind_desc
 
@@ -1247,7 +1279,7 @@ type 'type_expr jkind = 'type_expr Jkind_types.t =
 
 type desc = type_expr Jkind_types.Jkind_desc.t
 
-type nonrec t = type_expr jkind
+type t = type_expr jkind
 
 module History = struct
   let has_imported_history t : bool =
@@ -1259,7 +1291,6 @@ module History = struct
 
   let has_warned (t : t) = t.has_warned
 end
-(* module Type *)
 
 (******************************)
 (* constants *)
@@ -1335,6 +1366,20 @@ module Const = struct
           result = of_user_written_annotation_unchecked_level result
         }
     | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
+
+  module Debug_printers = struct
+    open Format
+
+    let rec t ppf : t -> unit = function
+      | Type ty -> fprintf ppf "Type %a" Type.Const.Debug_printers.t ty
+      | Arrow { args; result } ->
+        fprintf ppf "Arrow { args = [%a];@ result = %a }"
+          (Format.pp_print_list
+             ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+             t)
+          args t result
+      | Top -> Format.fprintf ppf "Top"
+  end
 end
 
 let of_const ~why (c : Const.t) : t =
@@ -1364,10 +1409,218 @@ end
 
 (******************************)
 
+module Sort = struct
+  open Jkind_types.Sort
+
+  type nonrec t = type_expr Jkind_types.Sort.t
+
+  type nonrec desc = type_expr Jkind_types.Sort.desc
+
+  type nonrec var = type_expr Jkind_types.Sort.var
+
+  module Var = struct
+    type t = var
+
+    let name : var -> string =
+      let next_id = ref 1 in
+      let named = ref [] in
+      fun v ->
+        match List.assq_opt v !named with
+        | Some name -> name
+        | None ->
+          let id = !next_id in
+          let name = "'_representable_" ^ Int.to_string id in
+          next_id := id + 1;
+          named := (v, name) :: !named;
+          name
+  end
+
+  (* To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
+  type change = var * desc
+
+  let change_log : (change -> unit) ref = ref (fun _ -> ())
+
+  let set_change_log cl = change_log := cl
+
+  let log_change change = !change_log change
+
+  let undo_change (v, t_op) = v := t_op
+
+  let set : var -> desc -> unit =
+   fun v t_op ->
+    log_change (v, !v);
+    v := t_op
+
+  let of_var v = Var v
+
+  let new_var () = Var (ref Root)
+
+  let new_var_arrow ~arity () =
+    Arrow { args = List.init arity (fun _ -> new_var ()); result = new_var () }
+
+  let rec get : t -> t = function
+    | Const _ as t -> t
+    | Type ty as t -> (
+      match Type.Jkind_desc.get ty with Const c -> Const (Type c) | Var _ -> t)
+    | Arrow { args; result } -> (
+      let ( let* ) = Option.bind in
+      let args = List.map get args in
+      let result = get result in
+      let flat =
+        let to_const = function Const c -> Some c | _ -> None in
+        let* args =
+          List.fold_right
+            (fun arg rest ->
+              let* arg = to_const arg in
+              let* rest = rest in
+              Some (arg :: rest))
+            args (Some [])
+        in
+        let* result = to_const result in
+        Some (Arrow { args; result } : Const.t)
+      in
+      match flat with Some c -> Const c | None -> Arrow { args; result })
+    | Var r as t -> (
+      match !r with
+      | Root -> t
+      | Link s ->
+        let result = get s in
+        if result != s then set r (Link result);
+        result)
+
+  let to_const (t : t) : Const.t option =
+    let t = get t in
+    match t with Const c -> Some c | _ -> None
+
+  let default : Const.t = Type Type.Const.Primitive.value.jkind
+
+  let rec default_to_value_and_get : t -> const = function
+    | Const c -> c
+    | Type ty ->
+      Const.of_type_jkind (Type.Jkind_desc.default_to_value_and_get ty)
+    | Arrow { args; result } ->
+      Arrow
+        { args = List.map default_to_value_and_get args;
+          result = default_to_value_and_get result
+        }
+    | Var r -> (
+      match !r with
+      | Root ->
+        set r (Link (Const default));
+        default
+      | Link s ->
+        let result = default_to_value_and_get s in
+        set r (Link (Const result));
+        (* path compression *)
+        result)
+
+  (***********************)
+  (* equality *)
+
+  let equate_type ty1 s2 =
+    match s2 with
+    | Var v2 ->
+      set v2 (Link (Type ty1));
+      true
+    | Const c2 -> (
+      match c2 with
+      | Type ty2 -> Type.Jkind_desc.equate ty1 (Type.Jkind_desc.of_const ty2)
+      | _ -> false)
+    | Type ty2 -> Type.Jkind_desc.equate ty1 ty2
+    | Arrow _ -> false
+
+  let rec equate_var_const v1 c2 =
+    match !v1 with
+    | Link s1 -> equate_sort_const s1 c2
+    | Root ->
+      set v1 (Link (of_const c2));
+      true
+
+  and equate_var v1 s2 =
+    match s2 with
+    | Const c2 -> equate_var_const v1 c2
+    | Var v2 -> equate_var_var v1 v2
+    | Type ty2 -> equate_type ty2 (Var v1)
+    | Arrow { args = a1; result = r1 } ->
+      List.for_all (equate_var v1) a1 && equate_var v1 r1
+
+  and equate_var_var v1 v2 =
+    if v1 == v2
+    then true
+    else
+      match !v1, !v2 with
+      | Link s1, _ -> equate_var v2 s1
+      | _, Link s2 -> equate_var v1 s2
+      | Root, Root ->
+        set v1 (Link (of_var v2));
+        true
+
+  and equate_sort_const s1 c2 =
+    match s1 with
+    | Const c1 -> Const.equal c1 c2
+    | Var v1 -> equate_var_const v1 c2
+    | Type ty1 -> equate_type ty1 (Const c2)
+    | Arrow { args = a1; result = r1 } ->
+      List.for_all (Fun.flip equate_sort_const c2) a1 && equate_sort_const r1 c2
+
+  let rec equate s1 s2 =
+    match s1 with
+    | Const c1 -> equate_sort_const s2 c1
+    | Var v1 -> equate_var v1 s2
+    | Arrow { args = a1; result = r1 } ->
+      List.for_all (Fun.flip equate s2) a1 && equate r1 s2
+    | Type ty1 -> equate_type ty1 s2
+
+  (*** pretty printing **)
+
+  let rec format ppf = function
+    | Var v -> Format.fprintf ppf "%s" (Var.name v)
+    | Type ty -> Type.Jkind_desc.format ppf ty
+    | Arrow { args; result } ->
+      Format.fprintf ppf "((%a) => %a)"
+        (Format.pp_print_list
+           ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+           format)
+        args format result
+    | Const c -> Const.format ppf c
+
+  (*** debug printing **)
+
+  module Debug_printers = struct
+    open Format
+
+    let rec t ppf = function
+      | Var v -> fprintf ppf "Var %a" var v
+      | Const c -> fprintf ppf "Const %a" Const.Debug_printers.t c
+      | Type ty -> fprintf ppf "Type %a" Type.Jkind_desc.Debug_printers.t ty
+      | Arrow { args; result } ->
+        fprintf ppf "Arrow { args = [%a];@ result = %a }"
+          (Format.pp_print_list
+             ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+             t)
+          args t result
+
+    and desc ppf = function
+      | Root -> fprintf ppf "Root"
+      | Link s -> fprintf ppf "Link (%a)" t s
+
+    and var ppf v = fprintf ppf "{ contents = %a }" desc !v
+  end
+end
+
+(* Tie knots so that [Types] can act on changes *)
+let () =
+  Types.Jkind_higher_sort_changes.set_change_log := Sort.set_change_log;
+  Types.Jkind_higher_sort_changes.undo_change := Sort.undo_change;
+  Types.on_higher_sort_changes_available ()
+
+(******************************)
+
 module Jkind_desc = struct
   type t = desc
 
   let rec to_const : t -> Const.t option = function
+    | Sort s -> Sort.to_const s
     | Type ty -> (
       match Type.Jkind_desc.get ty with
       | Const c -> Some (Type c)
@@ -1383,6 +1636,7 @@ module Jkind_desc = struct
     | Top -> Some Top
 
   let rec default_to_value_and_get : t -> Const.t = function
+    | Sort s -> Sort.default_to_value_and_get s
     | Type ty -> Type (Type.Jkind_desc.default_to_value_and_get ty)
     | Arrow { args; result } ->
       Arrow
@@ -1392,6 +1646,7 @@ module Jkind_desc = struct
     | Top -> Top
 
   let rec format ppf = function
+    | Sort ty -> Sort.format ppf ty
     | Type ty -> Type.Jkind_desc.format ppf ty
     | Arrow { args; result } ->
       Format.fprintf ppf "((%a) => %a)"
@@ -1405,6 +1660,7 @@ module Jkind_desc = struct
     open Format
 
     let rec t ppf = function
+      | Sort s -> fprintf ppf "Sort (%a)" Sort.Debug_printers.t s
       | Type ty -> fprintf ppf "Type %a" Type.Jkind_desc.Debug_printers.t ty
       | Arrow { args; result } ->
         fprintf ppf "Arrow { args = [%a];@ result = %a }"
@@ -1421,9 +1677,14 @@ end
 (* Mostly wrapping implementations for Type jkinds *)
 
 let of_new_sort_var ~why =
-  Type.of_new_sort_var ~why |> fun (a, b) -> of_type_jkind a, b
+  let sort = Sort.new_var () in
+  ( { jkind = Sort sort;
+      history = Creation (Higher_concrete_creation why);
+      has_warned = false
+    },
+    sort )
 
-let of_new_sort ~why = Type.of_new_sort ~why |> of_type_jkind
+let of_new_sort ~why = fst (of_new_sort_var ~why)
 
 let to_const (t : t) = Jkind_desc.to_const t.jkind
 
@@ -1519,6 +1780,7 @@ let[@inline never] to_type_jkind ({ jkind; history; has_warned } : t) : Type.t =
 module Desc = struct
   (** The description of a jkind, used as a return type from [get]. *)
   type nonrec t =
+    | Var of Sort.var
     | Type of Type.t
     | Arrow of t Jkind_types.Arrow.t
     | Top
@@ -1529,35 +1791,37 @@ let default_to_value_and_get (t : t) : Const.t =
 
 let default_to_value t = ignore (default_to_value_and_get t)
 
-let get t : Desc.t =
+let decompose_arrow jkind history f ({ args; result } : _ Jkind_types.Arrow.t) :
+    _ Jkind_types.Arrow.t =
+  { args =
+      List.mapi
+        (fun i arg : t ->
+          { jkind = f arg;
+            history = Projection { reason = Arrow_argument i; jkind; history };
+            has_warned = false
+          })
+        args;
+    result =
+      { jkind = f result;
+        history = Projection { reason = Arrow_result; jkind; history };
+        has_warned = false
+      }
+  }
+
+let rec get t : Desc.t =
   match t.jkind with
+  | Sort s -> (
+    match Sort.get s with
+    | Var v -> Var v
+    | Arrow { args; result } ->
+      Arrow
+        (decompose_arrow t.jkind t.history (fun s -> Sort s) { args; result })
+    | Type ty -> Type { jkind = ty; history = t.history; has_warned = false }
+    | Const c -> get (of_const ~why:Temporary c))
   | Type ty -> Type { jkind = ty; history = t.history; has_warned = false }
   | Arrow { args; result } ->
-    Arrow
-      { args =
-          List.mapi
-            (fun i arg : t ->
-              { jkind = arg;
-                history =
-                  Projection
-                    { reason = Arrow_argument i;
-                      jkind = t.jkind;
-                      history = t.history
-                    };
-                has_warned = false
-              })
-            args;
-        result =
-          { jkind = result;
-            history =
-              Projection
-                { reason = Arrow_result; jkind = t.jkind; history = t.history };
-            has_warned = false
-          }
-      }
+    Arrow (decompose_arrow t.jkind t.history Fun.id { args; result })
   | Top -> Top
-
-let sort_of_jkind = Type.sort_of_jkind
 
 (*********************************)
 (* pretty printing *)
@@ -1796,6 +2060,14 @@ end = struct
     | Type_expression_call ->
       format_any_creation_reason ppf Type_expression_call
 
+  let format_higher_concrete_creation_reason ppf :
+      History.higher_concrete_jkind_reason -> unit = function
+    | Unannotated_type_parameter path ->
+      fprintf ppf "it instantiates an unannotated type parameter of %a"
+        !printtyp_path path
+    | Wildcard -> fprintf ppf "it's a _ in the type"
+    | Unification_var -> fprintf ppf "it's a fresh unification variable"
+
   let format_creation_reason ppf : History.creation_reason -> unit = function
     | Annotated (ctx, _) ->
       fprintf ppf "of the annotation on %a" format_annotation_context ctx
@@ -1815,6 +2087,8 @@ end = struct
     | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
     | Concrete_creation concrete -> format_concrete_jkind_reason ppf concrete
     | Top_creation any -> format_top_creation_reason ppf any
+    | Higher_concrete_creation higher_concrete ->
+      format_higher_concrete_creation_reason ppf higher_concrete
     | Imported ->
       fprintf ppf "of layout requirements from an imported definition"
     | Imported_type_argument { parent_path; position; arity } ->
@@ -2020,11 +2294,29 @@ let equate_or_equal ~allow_mutation (t : t) (t' : t) =
       let arg_eqs = List.map2 go args1 args2 in
       go result1 result2 && List.for_all (fun x -> x) arg_eqs
     | Top, Top -> true
-    | _ -> false
+    | Sort s, Sort s' -> Sort.equate s s'
+    | Sort s, Type ty | Type ty, Sort s -> Sort.equate s (Type ty)
+    | Sort s, Arrow a | Arrow a, Sort s ->
+      ignore a;
+      ignore s;
+      false
+    | Sort _, Top -> false
+    | (Type _ | Arrow _ | Top), _ -> false
   in
   go t.jkind t'.jkind
 
 let equate = equate_or_equal ~allow_mutation:true
+
+let equate_to_arrow ~arity (t : t) =
+  let t' : t =
+    { jkind = Sort (Sort.new_var_arrow ~arity ());
+      history = Creation Temporary;
+      has_warned = false
+    }
+  in
+  if equate t t'
+  then match get t with Arrow (_ as arrow) -> Some arrow | _ -> assert false
+  else None
 
 (* This mirrors the choice for Jkind.Type, following the note:
    (layouts v2.8) allow_mutation is to be set to false *)
@@ -2100,6 +2392,12 @@ let rec intersection_or_error ~reason t t' =
     arrow_connective_or_error ~on_args:(union_or_error ~reason)
       ~on_result:(intersection_or_error ~reason)
       a a'
+  | Var _, _ | _, Var _ ->
+    Format.printf "%a\n &&\n%a\n" Jkind_desc.Debug_printers.t t.jkind
+      Jkind_desc.Debug_printers.t t'.jkind;
+    let r = equate t t' in
+    Format.printf "=> %b\n" r;
+    if r then Ok t else Error (Violation.of_ (No_intersection (t, t')))
   | _ -> Error (Violation.of_ (No_intersection (t, t')))
 
 and union_or_error ~reason t t' =
@@ -2126,6 +2424,9 @@ and union_or_error ~reason t t' =
           history = Creation (Top_creation Dummy_jkind);
           has_warned = false
         })
+  | Var _, Var _ -> assert false
+  | Var _, _ | _, Var _ ->
+    if equate t t' then Ok t else Error (Violation.of_ (No_union (t, t')))
   | _ -> Error (Violation.of_ (No_union (t, t')))
 
 let has_intersection t t' =
@@ -2136,17 +2437,20 @@ let has_intersection t t' =
 
 let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
   match get t, get t' with
-  | Top, Top -> Misc.Le_result.Equal
-  | _, Top -> Misc.Le_result.Less
+  | Top, Top -> Equal
+  | _, Top -> Less
   | Type ty, Type ty' -> Type.check_sub ty ty'
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
     if List.length args1 <> List.length args2
-    then Misc.Le_result.Not_le
+    then Not_le
     else
       Misc.Le_result.combine_list
         (check_sub result1 result2 :: List.map2 check_sub args2 args1)
-  | _ -> Misc.Le_result.Not_le
+  | Var _, _ | _, Var _ ->
+    Format.printf "hello!!!\n";
+    if equate t t' then Equal else Not_le
+  | _ -> Not_le
 
 let sub t t' = Misc.Le_result.is_le (check_sub t t')
 

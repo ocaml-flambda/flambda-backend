@@ -264,6 +264,10 @@ module Type : sig
   (** [default_to_value t] is [ignore (default_to_value_and_get t)] *)
   val default_to_value : t -> unit
 
+  (** Returns the sort corresponding to the jkind.  Call only on representable
+    jkinds - raises on Any. *)
+  val sort_of_jkind : t -> sort
+
   (** [is_void t] is [Void = default_to_value_and_get t].  In particular, it will
       default the jkind to value if needed to make this false. *)
   val is_void_defaulting : t -> bool
@@ -330,6 +334,32 @@ module Primitive : sig
 end
 
 (******************************)
+(* sorts *)
+
+module Sort : sig
+  type t = Types.type_expr Jkind_types.Sort.t
+
+  and desc = Types.type_expr Jkind_types.Sort.desc
+
+  and var = Types.type_expr Jkind_types.Sort.var
+
+  module Var : sig
+    type t = var
+
+    (** These names are generated lazily and only when this function is called,
+      and are not guaranteed to be efficient to create *)
+    val name : t -> string
+  end
+
+  (** To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
+  type change
+
+  val undo_change : change -> unit
+
+  val set_change_log : (change -> unit) -> unit
+end
+
+(******************************)
 (* construction *)
 (* See Jkind.Type for details *)
 
@@ -338,10 +368,10 @@ val to_const : t -> Const.t option
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
 val of_new_sort_var :
-  why:Jkind_intf.History.concrete_jkind_reason -> t * Type.sort
+  why:Jkind_intf.History.higher_concrete_jkind_reason -> t * Sort.t
 
 (** Create a fresh sort variable, packed into a jkind. *)
-val of_new_sort : why:Jkind_intf.History.concrete_jkind_reason -> t
+val of_new_sort : why:Jkind_intf.History.higher_concrete_jkind_reason -> t
 
 val of_const : why:Jkind_intf.History.creation_reason -> Const.t -> t
 
@@ -409,6 +439,7 @@ val of_arrow :
 module Desc : sig
   (** The description of a jkind, used as a return type from [get]. *)
   type nonrec t =
+    | Var of Sort.var
     | Type of Type.t
     | Arrow of t Jkind_types.Arrow.t
     | Top
@@ -420,10 +451,6 @@ val default_to_value_and_get : t -> Const.t
 
 (** [default_to_value t] is [ignore (default_to_value_and_get t)] *)
 val default_to_value : t -> unit
-
-(** Returns the sort corresponding to the jkind.  Call only on representable
-    jkinds - raises on Any. *)
-val sort_of_jkind : Type.t -> Type.sort
 
 (** Extract the [const] from a [Jkind.Type.t], looking through unified
     sort variables. Returns [Var] if the final, non-variable jkind has not
@@ -502,6 +529,9 @@ val equate : t -> t -> bool
 
     CR layouts (v1.5): At the moment, this is actually the same as [equate]! *)
 val equal : t -> t -> bool
+
+(** Attempt to resolve to [Some] arrow, [None] otherwise indicating error *)
+val equate_to_arrow : arity:int -> t -> t Jkind_types.Arrow.t option
 
 (** Checks whether two jkinds have a non-empty intersection. Might mutate
     sort variables. *)

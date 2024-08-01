@@ -85,6 +85,19 @@ module Type = struct
         | Bits64 -> "bits64"
 
       let format ppf const = Format.fprintf ppf "%s" (to_string const)
+
+      module Debug_printers = struct
+        let t ppf const =
+          Format.fprintf ppf "%s"
+            (match const with
+            | Void -> "Void"
+            | Value -> "Value"
+            | Float64 -> "Float64"
+            | Float32 -> "Float32"
+            | Word -> "Word"
+            | Bits32 -> "Bits32"
+            | Bits64 -> "Bits64")
+      end
     end
 
     module Var = struct
@@ -292,16 +305,7 @@ module Type = struct
 
       let rec t ppf = function
         | Var v -> fprintf ppf "Var %a" var v
-        | Const c ->
-          fprintf ppf
-            (match c with
-            | Void -> "Void"
-            | Value -> "Value"
-            | Float64 -> "Float64"
-            | Float32 -> "Float32"
-            | Word -> "Word"
-            | Bits32 -> "Bits32"
-            | Bits64 -> "Bits64")
+        | Const c -> fprintf ppf "Const %a" Const.Debug_printers.t c
 
       and opt_t ppf = function
         | Some s -> fprintf ppf "Some %a" t s
@@ -412,8 +416,46 @@ module Arrow = struct
     }
 end
 
+module Const = struct
+  type 'type_expr t =
+    | Type of 'type_expr Type.Const.t
+    | Arrow of 'type_expr t Arrow.t
+    | Top
+end
+
+type 'type_expr const = 'type_expr Const.t
+
+type 'type_expr annotation = 'type_expr const * Jane_syntax.Jkind.annotation
+
+module Sort = struct
+  type 'type_expr t =
+    | Var of 'type_expr var
+    | Type of Type.Sort.t
+    | Arrow of 'type_expr t Arrow.t
+
+  and 'type_expr desc =
+    | Root
+    | Link of 'type_expr t
+
+  and 'type_expr var = 'type_expr desc ref
+
+  module Changes (M : sig
+    type type_expr
+  end) =
+  struct
+    (* To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
+    type change = M.type_expr var * M.type_expr desc
+
+    let undo_change : (change -> unit) ref = ref (fun _ -> assert false)
+
+    let set_change_log : ((change -> unit) -> unit) ref =
+      ref (fun _ -> assert false)
+  end
+end
+
 module Jkind_desc = struct
   type 'type_expr t =
+    | Sort of 'type_expr Sort.t
     | Type of 'type_expr Type.Jkind_desc.t
     | Arrow of 'type_expr t Arrow.t
     | Top
@@ -432,14 +474,3 @@ type 'type_expr t =
     history : 'type_expr history;
     has_warned : bool
   }
-
-module Const = struct
-  type 'type_expr t =
-    | Type of 'type_expr Type.Const.t
-    | Arrow of 'type_expr t Arrow.t
-    | Top
-end
-
-type 'type_expr const = 'type_expr Const.t
-
-type 'type_expr annotation = 'type_expr const * Jane_syntax.Jkind.annotation

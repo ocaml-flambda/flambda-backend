@@ -251,8 +251,8 @@ let new_scoped_ty scope desc = newty3 ~level:!current_level ~scope desc
 let newvar ?name jkind =
   newty2 ~level:!current_level (Tvar { name; jkind })
 let new_rep_var ?name ~why () =
-  let jkind, sort = Jkind.of_new_sort_var ~why in
-  newvar ?name jkind, sort
+  let jkind, sort = Jkind.Type.of_new_sort_var ~why in
+  newvar ?name (Jkind.of_type_jkind jkind), sort
 let new_type_var ?name type_jkind = newvar ?name (Jkind.of_type_jkind type_jkind)
 let newvar2 ?name level jkind = newty2 ~level (Tvar { name; jkind })
 let new_global_var ?name jkind =
@@ -893,19 +893,19 @@ let app_params_of_decl decl =
   | 0, Type _ -> []
   | 0, Arrow { args; result = _ } ->
     List.map Btype.newgenvar args
-  | _ -> decl.type_params
+  | _, (Var _ | Type _ | Arrow _ | Top) -> decl.type_params
 
 let app_variance_of_decl decl =
   match decl.type_arity, Jkind.get decl.type_jkind with
   | 0, Type _ -> []
   | 0, Arrow { args; result = _ } -> Variance.unknown_signature ~injective:true ~arity:(List.length args)
-  | _ -> decl.type_variance
+  | _, (Var _ | Type _ | Arrow _ | Top) -> decl.type_variance
 
 let app_separability_of_decl decl =
   match decl.type_arity, Jkind.get decl.type_jkind with
   | 0, Type _ -> []
   | 0, Arrow { args; result = _ } -> Separability.default_signature ~arity:(List.length args)
-  | _ -> decl.type_separability
+  | _, (Var _ | Type _ | Arrow _ | Top) -> decl.type_separability
 
 let rec update_level env level expand ty =
   if get_level ty > level then begin
@@ -1693,8 +1693,9 @@ let instance_prim_layout (desc : Primitive.description) ty =
       jkind
     | None ->
       let jkind, sort =
-        Jkind.of_new_sort_var ~why:Layout_poly_in_external
+        Jkind.Type.of_new_sort_var ~why:Layout_poly_in_external
       in
+      let jkind = Jkind.of_type_jkind jkind in
       new_sort_and_jkind := Some (sort, jkind);
       jkind
   in
@@ -2136,15 +2137,21 @@ and type_jkind_for_app app_jkind app_arity tys =
   | _, Top -> Some app_jkind
   | Unapplied, _ when app_arity = 0 -> Some app_jkind
   | Unapplied, _ -> None
+  (* Must not be [Unapplied] *)
   | Applied tys, _ when app_arity > 0 ->
     if List.length tys = app_arity
     then Some app_jkind
     else None
+  (* Must be [app_arity = 0] *)
   | Applied _, Type _ -> None
   | Applied tys, Arrow { args; result } ->
     if List.length tys = List.length args
     then Some result
     else None
+  | Applied tys, Var _ ->
+    match Jkind.equate_to_arrow ~arity:(List.length tys) app_jkind with
+    | Some { args = _; result } -> Some result
+    | None -> None
 
 and type_jkind_for_app_decl env decl tys =
   match jkind_of_decl_unapplied env decl with
@@ -2216,12 +2223,7 @@ let arity_matches_decl env decl t = match t, decl.type_arity with
     | None -> false
     | Some _ -> true
   end
-  | m, 0 -> begin
-    match Jkind.get decl.type_jkind with
-    | Type _ -> false
-    | Arrow { args = kind_args; result = _ } -> List.length kind_args = m
-    | Top -> true
-  end
+  | m, 0 -> Jkind.equate_to_arrow ~arity:m decl.type_jkind |> Option.is_some
   | m, n -> m = n
 
 (**** checking jkind relationships ****)
@@ -2409,6 +2411,8 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
                | _ -> false)
       | Arrow _ -> false
       | Top -> false
+      (* FIXME jbachurski: this could resolve to immediate? *)
+      | Var _ -> false
     in
     if Language_extension.erasable_extensions_only ()
       && is_immediate jkind && not (Jkind.History.has_warned jkind)

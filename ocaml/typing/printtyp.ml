@@ -1278,6 +1278,7 @@ let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Type.Const.to_out_jkind_const jkind)
 
 let rec out_jkind_of_jkind t = match Jkind.get t with
+  | Var v -> Ojkind_var (Jkind.Sort.Var.name v)
   | Type ty -> begin match Jkind.Type.get ty with
     | Const clay -> out_jkind_of_const_jkind clay
     | Var v      -> Ojkind_var (Jkind.Type.Sort.Var.name v)

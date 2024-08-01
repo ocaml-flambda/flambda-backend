@@ -770,6 +770,8 @@ let flat_element_to_lowercase_string = function
 
 (**** Definitions for backtracking ****)
 
+module Jkind_higher_sort_changes = Jkind_types.Sort.Changes(struct type nonrec type_expr = type_expr end)
+
 type change =
     Ctype : type_expr * type_desc -> change
   | Ccompress : type_expr * type_desc * type_desc -> change
@@ -783,6 +785,7 @@ type change =
   | Cuniv : type_expr option ref * type_expr option -> change
   | Cmodes : Mode.changes -> change
   | Csort : Jkind_types.Type.Sort.change -> change
+  | Chighersort : Jkind_higher_sort_changes.change -> change
 
 type changes =
     Change of change * changes ref
@@ -799,6 +802,9 @@ let log_change ch =
 let () =
   Mode.set_append_changes (fun changes -> log_change (Cmodes !changes));
   Jkind_types.Type.Sort.set_change_log (fun change -> log_change (Csort change))
+
+let on_higher_sort_changes_available () =
+  !Jkind_higher_sort_changes.set_change_log (fun change -> log_change (Chighersort change))
 
 (* constructor and accessors for [field_kind] *)
 
@@ -1049,6 +1055,7 @@ let undo_change = function
   | Cuniv  (r, v)    -> r := v
   | Cmodes c          -> Mode.undo_changes c
   | Csort change -> Jkind_types.Type.Sort.undo_change change
+  | Chighersort change -> !Jkind_higher_sort_changes.undo_change change
 
 type snapshot = changes ref * int
 let last_snapshot = Local_store.s_ref 0

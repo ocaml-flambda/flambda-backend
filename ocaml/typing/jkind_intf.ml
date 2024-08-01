@@ -39,6 +39,10 @@ module type Sort = sig
     val equal : t -> t -> bool
 
     val format : Format.formatter -> t -> unit
+
+    module Debug_printers : sig
+      val t : Format.formatter -> t -> unit
+    end
   end
 
   module Var : sig
@@ -253,6 +257,11 @@ module History = struct
 
   type bits64_creation_reason = Primitive of Ident.t
 
+  type higher_concrete_jkind_reason =
+    | Unification_var
+    | Wildcard
+    | Unannotated_type_parameter of Path.t
+
   type top_creation_reason =
     | Missing_cmi of Path.t
     | Initial_typedecl_env
@@ -275,6 +284,7 @@ module History = struct
     | Bits32_creation of bits32_creation_reason
     | Bits64_creation of bits64_creation_reason
     | Concrete_creation of concrete_jkind_reason
+    | Higher_concrete_creation of higher_concrete_jkind_reason
     | Top_creation of top_creation_reason
     | Imported
     | Imported_type_argument of

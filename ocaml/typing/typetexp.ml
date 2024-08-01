@@ -792,15 +792,14 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         styp.ptyp_loc, env,
         Jkind_mismatch_in_application (arg_jkinds, app_jkind, violation))
     in
-    begin match Jkind.get app_jkind with
-    | Arrow { args; result = _ } ->
+    begin match Jkind.equate_to_arrow ~arity:(List.length stl) app_jkind with
+    | Some { args; result = _ } ->
       List.iter2 (fun arg jkind ->
       begin match constrain_type_jkind env arg.ctyp_type jkind with
       | Ok () -> ()
       | Error err -> raise (app_err (Some err))
       end) arg_tys args
-    | Type _  -> raise (app_err None)
-    | Top -> raise (Error (st.ptyp_loc, env, Unknown_jkind_at_application ty.ctyp_type))
+    | None  -> raise (app_err None)
     end;
     let constr =
       newapp ty.ctyp_type (List.map (fun ctyp -> ctyp.ctyp_type) arg_tys) in

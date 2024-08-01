@@ -162,8 +162,41 @@ module Arrow : sig
     }
 end
 
+module Const : sig
+  type 'type_expr t =
+    | Type of 'type_expr Type.Const.t
+    | Arrow of 'type_expr t Arrow.t
+    | Top
+end
+
+type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation
+
+module Sort : sig
+  type 'type_expr t =
+    | Var of 'type_expr var
+    | Type of Type.Sort.t
+    | Arrow of 'type_expr t Arrow.t
+
+  and 'type_expr desc =
+    | Root
+    | Link of 'type_expr t
+
+  and 'type_expr var = 'type_expr desc ref
+
+  module Changes (M : sig
+    type type_expr
+  end) : sig
+    type change = M.type_expr var * M.type_expr desc
+
+    val undo_change : (change -> unit) ref
+
+    val set_change_log : ((change -> unit) -> unit) ref
+  end
+end
+
 module Jkind_desc : sig
   type 'type_expr t =
+    | Sort of 'type_expr Sort.t
     | Type of 'type_expr Type.Jkind_desc.t
     | Arrow of 'type_expr t Arrow.t
     | Top
@@ -182,12 +215,3 @@ type 'type_expr t =
     history : 'type_expr history;
     has_warned : bool
   }
-
-module Const : sig
-  type 'type_expr t =
-    | Type of 'type_expr Type.Const.t
-    | Arrow of 'type_expr t Arrow.t
-    | Top
-end
-
-type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation
