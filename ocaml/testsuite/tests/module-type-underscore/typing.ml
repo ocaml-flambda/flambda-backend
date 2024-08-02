@@ -1027,12 +1027,8 @@ end = struct
   end
 end
 
-(* CR selee: We want to be able to infer this *)
 [%%expect {|
-Line 9, characters 4-21:
-9 |     module type S = _
-        ^^^^^^^^^^^^^^^^^
-Error: Cannot infer module type without a corresponding definition.
+module M : sig module N : sig module type S = sig type t end end end
 |}]
 
 module M : sig
@@ -1520,4 +1516,212 @@ Line 2, characters 2-31:
 2 |   module F(X:sig end) : sig end
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   Expected declaration here
+|}]
+
+module A : sig
+  type t
+  module B : sig
+    module type S = sig type u = t end
+  end
+end = struct
+  module B = struct
+    module type S = _
+  end
+end
+
+[%%expect {|
+Line 8, characters 4-21:
+8 |     module type S = _
+        ^^^^^^^^^^^^^^^^^
+Error: The inferred module type refers to type t, which is unbound here.
+|}]
+
+module A : sig
+  module B : sig
+    module C : sig
+      module D : sig
+        module type S = sig
+          type t
+        end
+      end
+    end
+  end
+end = struct
+  module B = struct
+    module C = struct
+      module D = struct
+        module type S = _
+      end
+    end
+  end
+end
+
+[%%expect {|
+module A :
+  sig
+    module B :
+      sig
+        module C : sig module D : sig module type S = sig type t end end end
+      end
+  end
+|}]
+
+module A : sig
+  module B : sig
+    type t
+    module C : sig
+      module D : sig
+        module type S = sig
+          val foo : t -> t
+        end
+      end
+    end
+  end
+end = struct
+  module B = struct
+    type t
+    module C = struct
+      module D = struct
+        module type S = _
+      end
+    end
+  end
+end
+
+[%%expect {|
+module A :
+  sig
+    module B :
+      sig
+        type t
+        module C :
+          sig module D : sig module type S = sig val foo : t -> t end end end
+      end
+  end
+|}]
+
+module A : sig
+  module B : sig
+    type t
+    module C : sig
+      module D : sig
+        module type S = sig
+          val foo : t -> t
+        end
+      end
+    end
+  end
+end = struct
+  type t
+  module B = struct
+    type t
+    module C = struct
+      module D = struct
+        module type S = _
+      end
+    end
+  end
+end
+
+[%%expect {|
+module A :
+  sig
+    module B :
+      sig
+        type t
+        module C :
+          sig module D : sig module type S = sig val foo : t -> t end end end
+      end
+  end
+|}]
+
+module A : sig
+  type t
+  module B : sig
+    module C : sig
+      module D : sig
+        module type S = sig
+          val foo : t -> t
+        end
+      end
+    end
+  end
+end = struct
+  module B = struct
+    module C = struct
+      module D = struct
+        module type S = _
+      end
+    end
+  end
+  type t
+end
+
+[%%expect {|
+Line 16, characters 8-25:
+16 |         module type S = _
+             ^^^^^^^^^^^^^^^^^
+Error: The inferred module type refers to type t, which is unbound here.
+|}]
+
+
+module M : sig
+  module type S = sig type t end
+
+  module A : sig end
+end = struct
+  module type S = sig type t end
+
+  module A = struct
+    module type S = sig type t' end
+  end
+end
+
+[%%expect {|
+module M : sig module type S = sig type t end module A : sig end end
+|}]
+
+module M : sig
+  module rec A : sig
+    type t
+    module rec B : sig
+      module rec C : sig
+        module type S = sig type u = t end
+      end
+    end
+  end
+end = struct
+  module rec A : sig
+    type t
+    module rec B : sig
+      module rec C : sig
+        module type S = sig type u = t end
+      end
+    end
+  end = struct
+    type t
+    module rec B : sig
+      module rec C : sig
+        module type S = sig type u = t end
+      end
+    end = struct
+      module rec C : sig
+        module type S = sig type u = t end
+      end = struct
+        module type S = _
+      end
+    end
+  end
+end
+
+[%%expect {|
+module M :
+  sig
+    module rec A :
+      sig
+        type t
+        module rec B :
+          sig module rec C : sig module type S = sig type u = t end end end
+      end
+  end
 |}]

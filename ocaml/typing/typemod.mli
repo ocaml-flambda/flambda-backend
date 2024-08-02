@@ -28,12 +28,19 @@ module Signature_names : sig
   val simplify: Env.t -> t -> signature -> signature
 end
 
+module Sig_map : sig
+  type t
+end
+
 val type_module:
         expected_modtype:Types.module_type option ->
-        Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t
+        Env.t -> sig_env:Env.t ->
+        str_map:Sig_map.t option -> sig_map:Sig_map.t option ->
+        Parsetree.module_expr -> Typedtree.module_expr * Shape.t
 val type_structure:
   expected_sig:Types.signature option ->
-  Env.t -> Parsetree.structure ->
+  Env.t -> sig_env:Env.t ->
+  str_map:Sig_map.t option -> sig_map:Sig_map.t option -> Parsetree.structure ->
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
   Env.t
 val type_toplevel_phrase:
