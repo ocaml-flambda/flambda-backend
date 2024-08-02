@@ -261,7 +261,8 @@ let apply_type_function params args body =
       match get_desc ty with
       | Tsubst (ty, _) -> ty
       | Tvariant row ->
-          let t = newgenstub ~scope:(get_scope ty) in
+          let t = newgenstub ~scope:(get_scope ty)
+            (Jkind.Primitive.any ~why:Dummy_jkind) in
           For_copy.redirect_desc copy_scope ty (Tsubst (t, None));
           let more = row_more row in
           assert (get_level more = generic_level);
@@ -304,7 +305,8 @@ let apply_type_function params args body =
           Transient_expr.set_stub_desc t desc';
           t
       | desc ->
-          let t = newgenstub ~scope:(get_scope ty) in
+          let t = newgenstub ~scope:(get_scope ty)
+            (Jkind.Primitive.any ~why:Dummy_jkind) in
           For_copy.redirect_desc copy_scope ty (Tsubst (t, None));
           let desc' = copy_type_desc copy desc in
           Transient_expr.set_stub_desc t desc';
