@@ -48,7 +48,7 @@ let no_local_params__local_returning
   ~x93 ~x94 ~x95 ~x96 ~x97 ~x98 ~x99 ~x100 ~x101 ~x102 ~x103 ~x104
   ~x105 ~x106 ~x107 ~x108 ~x109 ~x110 ~x111 ~x112 ~x113 ~x114 ~x115
   ~x116 ~x117 ~x118 ~x119 ~x120 ~x121 ~x122 ~x123 ~x124 ~x125 ~x126
-  ~x127 ~x128 ~x129 ~x130 ~x131 = local_ (x1, x2)
+  ~x127 ~x128 ~x129 ~x130 ~x131 = exclave_ (x1, x2)
 
 (* first local argument comes after the split point *)
 let local_param_after_split
@@ -76,7 +76,7 @@ let local_param_after_split__local_returning
   ~x93 ~x94 ~x95 ~x96 ~x97 ~x98 ~x99 ~x100 ~x101 ~x102 ~x103 ~x104
   ~x105 ~x106 ~x107 ~x108 ~x109 ~x110 ~x111 ~x112 ~x113 ~x114 ~x115
   ~x116 ~x117 ~x118 ~x119 ~x120 ~x121 ~x122 ~x123 ~x124 ~x125 ~x126
-  ~x127 ~x128 ~x129 ~(local_ x130) ~x131 = local_ (x1, x130)
+  ~x127 ~x128 ~x129 ~(local_ x130) ~x131 = exclave_ (x1, x130)
 
 (* first local argument comes immediately after the split point *)
 let local_param_just_after_split
@@ -106,7 +106,7 @@ let local_param_just_after_split__local_returning
   ~x93 ~x94 ~x95 ~x96 ~x97 ~x98 ~x99 ~x100 ~x101 ~x102 ~x103 ~x104
   ~x105 ~x106 ~x107 ~x108 ~x109 ~x110 ~x111 ~x112 ~x113 ~x114 ~x115
   ~x116 ~x117 ~x118 ~x119 ~x120 ~x121 ~x122 ~x123 ~x124 ~x125 ~x126
-  ~(local_ x127) ~x128 ~x129 ~x130 ~x131 = local_ (x1, x127);;
+  ~(local_ x127) ~x128 ~x129 ~x130 ~x131 = exclave_ (x1, x127);;
 
 (* first local argument comes immediately before the split point *)
 let local_param_just_before_split
@@ -136,7 +136,7 @@ let local_param_just_before_split__local_returning
   ~x93 ~x94 ~x95 ~x96 ~x97 ~x98 ~x99 ~x100 ~x101 ~x102 ~x103 ~x104
   ~x105 ~x106 ~x107 ~x108 ~x109 ~x110 ~x111 ~x112 ~x113 ~x114 ~x115
   ~x116 ~x117 ~x118 ~x119 ~x120 ~x121 ~x122 ~x123 ~x124 ~x125 ~(local_ x126)
-  ~x127 ~x128 ~x129 ~x130 ~x131 = local_ (x1, x126);;
+  ~x127 ~x128 ~x129 ~x130 ~x131 = exclave_ (x1, x126);;
 
 (* first local argument comes well before the split point *)
 let local_param_before_split
@@ -164,7 +164,7 @@ let local_param_before_split__local_returning
   ~x93 ~x94 ~x95 ~x96 ~x97 ~x98 ~x99 ~x100 ~x101 ~x102 ~x103 ~x104
   ~x105 ~x106 ~x107 ~x108 ~x109 ~x110 ~x111 ~x112 ~x113 ~x114 ~x115
   ~x116 ~x117 ~x118 ~x119 ~x120 ~x121 ~x122 ~x123 ~x124 ~x125 ~x126
-  ~x127 ~x128 ~x129 ~x130 ~x131 = local_ (x1, x8);;
+  ~x127 ~x128 ~x129 ~x130 ~x131 = exclave_ (x1, x8);;
 
 (* two split points *)
 let two_splits
@@ -216,7 +216,7 @@ let two_splits__local_returning
   ~x226 ~x227 ~x228 ~x229 ~x230 ~x231 ~x232 ~x233 ~x234 ~x235 ~x236
   ~x237 ~x238 ~x239 ~x240 ~x241 ~x242 ~x243 ~x244 ~x245 ~x246 ~x247
   ~x248 ~x249 ~x250 ~x251 ~x252 ~x253 ~x254 ~x255 ~x256 ~x257 ~x258 =
-    local_ (x1, x258)
+    exclave_ (x1, x258)
 
 (* two split points with a local argument *)
 let two_splits_local_param
@@ -268,10 +268,10 @@ let two_splits_local_param__local_returning
   ~x226 ~x227 ~x228 ~x229 ~x230 ~x231 ~x232 ~x233 ~x234 ~x235 ~x236
   ~x237 ~x238 ~x239 ~x240 ~x241 ~x242 ~x243 ~x244 ~x245 ~x246 ~x247
   ~x248 ~x249 ~x250 ~x251 ~x252 ~x253 ~x254 ~x255 ~x256 ~x257 ~x258 =
-    local_ (x1, x152)
+    exclave_ (x1, x152)
 
 (* The functions themselves are locally allocated *)
-let create_local () = local_
+let create_local () = exclave_
 
   (* No local arguments *)
   let local_ no_local_params
@@ -300,7 +300,7 @@ let create_local () = local_
     ~x93 ~x94 ~x95 ~x96 ~x97 ~x98 ~x99 ~x100 ~x101 ~x102 ~x103 ~x104
     ~x105 ~x106 ~x107 ~x108 ~x109 ~x110 ~x111 ~x112 ~x113 ~x114 ~x115
     ~x116 ~x117 ~x118 ~x119 ~x120 ~x121 ~x122 ~x123 ~x124 ~x125 ~x126
-    ~x127 ~x128 ~x129 ~x130 ~x131 = local_ (x1, x2)
+    ~x127 ~x128 ~x129 ~x130 ~x131 = exclave_ (x1, x2)
   in
 
   (* first local argument comes after the split point *)
@@ -331,7 +331,7 @@ let create_local () = local_
     ~x93 ~x94 ~x95 ~x96 ~x97 ~x98 ~x99 ~x100 ~x101 ~x102 ~x103 ~x104
     ~x105 ~x106 ~x107 ~x108 ~x109 ~x110 ~x111 ~x112 ~x113 ~x114 ~x115
     ~x116 ~x117 ~x118 ~x119 ~x120 ~x121 ~x122 ~x123 ~x124 ~x125 ~x126
-    ~x127 ~x128 ~x129 ~(local_ x130) ~x131 = local_ (x1, x130)
+    ~x127 ~x128 ~x129 ~(local_ x130) ~x131 = exclave_ (x1, x130)
   in
 
   (* first local argument comes immediately after the split point *)
@@ -363,7 +363,7 @@ let create_local () = local_
     ~x93 ~x94 ~x95 ~x96 ~x97 ~x98 ~x99 ~x100 ~x101 ~x102 ~x103 ~x104
     ~x105 ~x106 ~x107 ~x108 ~x109 ~x110 ~x111 ~x112 ~x113 ~x114 ~x115
     ~x116 ~x117 ~x118 ~x119 ~x120 ~x121 ~x122 ~x123 ~x124 ~x125 ~x126
-    ~(local_ x127) ~x128 ~x129 ~x130 ~x131 = local_ (x1, x127)
+    ~(local_ x127) ~x128 ~x129 ~x130 ~x131 = exclave_ (x1, x127)
   in
 
   (* first local argument comes immediately before the split point *)
@@ -395,7 +395,7 @@ let create_local () = local_
     ~x93 ~x94 ~x95 ~x96 ~x97 ~x98 ~x99 ~x100 ~x101 ~x102 ~x103 ~x104
     ~x105 ~x106 ~x107 ~x108 ~x109 ~x110 ~x111 ~x112 ~x113 ~x114 ~x115
     ~x116 ~x117 ~x118 ~x119 ~x120 ~x121 ~x122 ~x123 ~x124 ~x125 ~(local_ x126)
-    ~x127 ~x128 ~x129 ~x130 ~x131 = local_ (x1, x126)
+    ~x127 ~x128 ~x129 ~x130 ~x131 = exclave_ (x1, x126)
   in
 
   (* first local argument comes well before the split point *)
@@ -425,7 +425,7 @@ let create_local () = local_
     ~x93 ~x94 ~x95 ~x96 ~x97 ~x98 ~x99 ~x100 ~x101 ~x102 ~x103 ~x104
     ~x105 ~x106 ~x107 ~x108 ~x109 ~x110 ~x111 ~x112 ~x113 ~x114 ~x115
     ~x116 ~x117 ~x118 ~x119 ~x120 ~x121 ~x122 ~x123 ~x124 ~x125 ~x126
-    ~x127 ~x128 ~x129 ~x130 ~x131 = local_ (x1, x8)
+    ~x127 ~x128 ~x129 ~x130 ~x131 = exclave_ (x1, x8)
   in
 
   (* two split points *)
@@ -479,7 +479,7 @@ let create_local () = local_
     ~x226 ~x227 ~x228 ~x229 ~x230 ~x231 ~x232 ~x233 ~x234 ~x235 ~x236
     ~x237 ~x238 ~x239 ~x240 ~x241 ~x242 ~x243 ~x244 ~x245 ~x246 ~x247
     ~x248 ~x249 ~x250 ~x251 ~x252 ~x253 ~x254 ~x255 ~x256 ~x257 ~x258 =
-      local_ (x1, x258)
+      exclave_ (x1, x258)
   in
 
   (* two split points with a local argument *)
@@ -533,7 +533,7 @@ let create_local () = local_
     ~x226 ~x227 ~x228 ~x229 ~x230 ~x231 ~x232 ~x233 ~x234 ~x235 ~x236
     ~x237 ~x238 ~x239 ~x240 ~x241 ~x242 ~x243 ~x244 ~x245 ~x246 ~x247
     ~x248 ~x249 ~x250 ~x251 ~x252 ~x253 ~x254 ~x255 ~x256 ~x257 ~x258 =
-      local_ (x1, x152)
+      exclave_ (x1, x152)
   in
   ( no_local_params
   , no_local_params__local_returning

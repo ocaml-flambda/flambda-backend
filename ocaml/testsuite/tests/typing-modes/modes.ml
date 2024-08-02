@@ -315,9 +315,9 @@ val foo : ?x:local_ once_ unique_ int -> unit -> unit = <fun>
 
 let foo ?(local_ x : 'a. 'a -> 'a @@ unique once) = ()
 [%%expect{|
-Line 1, characters 17-48:
+Line 1, characters 10-48:
 1 | let foo ?(local_ x : 'a. 'a -> 'a @@ unique once) = ()
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Optional parameters cannot be polymorphic
 |}]
 
@@ -333,31 +333,10 @@ val foo : ?x:local_ once_ unique_ int * int -> unit -> unit = <fun>
 
 let foo ?x:(local_ (x,y) : 'a.'a->'a @@ unique once) () = ()
 [%%expect{|
-Line 1, characters 19-36:
+Line 1, characters 12-51:
 1 | let foo ?x:(local_ (x,y) : 'a.'a->'a @@ unique once) () = ()
-                       ^^^^^^^^^^^^^^^^^
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Optional parameters cannot be polymorphic
-|}]
-
-(* note: Legacy mode syntax is not parsed for patterns *)
-
-(* CR zqian: currently all patterns, except those directly as function
-   arguments, DO NOT pick up modes during type checking. This should be fixed in
-   another PR. Here, we test that they at least parse. *)
-let foo ((x @ unique once), (y@local unique)) = x + y
-[%%expect{|
-Line 1, characters 14-25:
-1 | let foo ((x @ unique once), (y@local unique)) = x + y
-                  ^^^^^^^^^^^
-Error: Mode annotations on patterns are not supported yet.
-|}]
-
-let foo ((x : _ @@ unique once), (y : _ @@ local unique)) = x + y
-[%%expect{|
-Line 1, characters 19-30:
-1 | let foo ((x : _ @@ unique once), (y : _ @@ local unique)) = x + y
-                       ^^^^^^^^^^^
-Error: Mode annotations on patterns are not supported yet.
 |}]
 
 (* let-bound function *)

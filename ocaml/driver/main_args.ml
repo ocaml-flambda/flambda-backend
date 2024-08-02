@@ -686,6 +686,9 @@ let mk_dump_into_file f =
   "-dump-into-file", Arg.Unit f, " dump output like -dlambda into <target>.dump"
 ;;
 
+let mk_dump_into_csv f =
+  "-dump-into-csv", Arg.Unit f, " Dump profile information to CSV file"
+
 let mk_extension f =
   let available_extensions =
     Language_extension.Exist.(List.concat_map to_command_line_strings all)
@@ -856,9 +859,6 @@ let mk_dalloc f =
 
 let mk_dreload f =
   "-dreload", Arg.Unit f, " (undocumented)"
-
-let mk_dscheduling f =
-  "-dscheduling", Arg.Unit f, " (undocumented)"
 
 let mk_dlinear f =
   "-dlinear", Arg.Unit f, " (undocumented)"
@@ -1044,6 +1044,7 @@ module type Compiler_options = sig
   val _dprofile : unit -> unit
   val _dgranularity : string -> unit
   val _dump_into_file : unit -> unit
+  val _dump_into_csv : unit -> unit
   val _dump_dir : string -> unit
 
   val _args: string -> string array
@@ -1140,7 +1141,6 @@ module type Optcommon_options = sig
   val _dprefer : unit -> unit
   val _dalloc : unit -> unit
   val _dreload : unit -> unit
-  val _dscheduling :  unit -> unit
   val _dlinear :  unit -> unit
   val _dinterval : unit -> unit
   val _dstartup :  unit -> unit
@@ -1319,6 +1319,7 @@ struct
     mk_dprofile F._dprofile;
     mk_dgranularity F._dgranularity;
     mk_dump_into_file F._dump_into_file;
+    mk_dump_into_csv F._dump_into_csv;
     mk_dump_dir F._dump_dir;
     mk_debug_ocaml F._debug_ocaml;
 
@@ -1577,7 +1578,6 @@ struct
     mk_dprefer F._dprefer;
     mk_dalloc F._dalloc;
     mk_dreload F._dreload;
-    mk_dscheduling F._dscheduling;
     mk_dlinear F._dlinear;
     mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
@@ -1587,6 +1587,7 @@ struct
     mk_dprofile F._dprofile;
     mk_dgranularity F._dgranularity;
     mk_dump_into_file F._dump_into_file;
+    mk_dump_into_csv F._dump_into_csv;
     mk_dump_dir F._dump_dir;
     mk_dump_pass F._dump_pass;
     mk_debug_ocaml F._debug_ocaml;
@@ -1704,7 +1705,6 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dprefer F._dprefer;
     mk_dalloc F._dalloc;
     mk_dreload F._dreload;
-    mk_dscheduling F._dscheduling;
     mk_dlinear F._dlinear;
     mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
@@ -1937,7 +1937,6 @@ module Default = struct
     let _drawclambda = set dump_rawclambda
     let _drawflambda = set dump_rawflambda
     let _dreload = set dump_reload
-    let _dscheduling = set dump_scheduling
     let _dsel = set dump_selection
     let _dspill = set dump_spill
     let _dsplit = set dump_split
@@ -2031,6 +2030,7 @@ module Default = struct
     let _dcounters () = profile_columns := [`Counters]
     let _dgranularity = Clflags.set_profile_granularity
     let _dump_into_file = set dump_into_file
+    let _dump_into_csv = set dump_into_csv
     let _dump_dir s = dump_dir := Some s
     let _for_pack s = for_package := (Some (String.capitalize_ascii s))
     let _g = set debug

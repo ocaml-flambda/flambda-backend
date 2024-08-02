@@ -373,12 +373,11 @@ and compute_extra_args_for_variant ~pass rewrite_id ~typing_env_at_use
     Tag.Scannable.Map.mapi
       (fun tag_decision (shape, block_fields) ->
         (* See doc/unboxing.md about invalid constants, poison and aliases. *)
-        let poison_const = Const.const_int (Targetint_31_63.of_int 0xbaba) in
         let new_fields_decisions, _ =
           List.fold_left
             (fun (new_decisions, field_nth)
                  ({ epa; decision; kind } : U.field_decision) ->
-              let bak, _const =
+              let bak, poison_const =
                 access_kind_and_dummy_const
                   (Tag.Scannable.to_tag tag_decision)
                   shape block_fields

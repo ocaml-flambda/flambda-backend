@@ -32,27 +32,15 @@
 
 (rule
  (targets
-  float32.ml
-  float32.mli
-  float32_u.ml
-  float32_u.mli
   stdlib_stable.ml
   stdlib_stable.mli)
  (deps
-  amd64/float32.ml
-  amd64/float32.mli
-  amd64/float32_u.ml
-  amd64/float32_u.mli
   amd64/stdlib_stable.ml
   amd64/stdlib_stable.mli)
  (enabled_if
   (= %{architecture} "amd64"))
  (action
   (progn
-   (copy amd64/float32.ml float32.ml)
-   (copy amd64/float32.mli float32.mli)
-   (copy amd64/float32_u.ml float32_u.ml)
-   (copy amd64/float32_u.mli float32_u.mli)
    (copy amd64/stdlib_stable.ml stdlib_stable.ml)
    (copy amd64/stdlib_stable.mli stdlib_stable.mli))))
 

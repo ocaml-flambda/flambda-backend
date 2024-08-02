@@ -387,10 +387,11 @@ and function_body i ppf (body : function_body) =
 
 and expression_extra i ppf x attrs =
   match x with
-  | Texp_constraint ct ->
+  | Texp_constraint (ct, m) ->
       line i ppf "Texp_constraint\n";
       attributes i ppf attrs;
-      core_type i ppf ct;
+      option i core_type ppf ct;
+      alloc_const_option_mode i ppf m;
   | Texp_coerce (cto1, cto2) ->
       line i ppf "Texp_coerce\n";
       attributes i ppf attrs;
@@ -402,14 +403,6 @@ and expression_extra i ppf x attrs =
       option i core_type ppf cto;
   | Texp_newtype (s, lay) ->
       line i ppf "Texp_newtype %a\n" (typevar_jkind ~print_quote:false) (s, lay);
-      attributes i ppf attrs;
-  | Texp_mode_coerce modes ->
-      let modes = (modes :> string Location.loc list Location.loc) in
-      line i ppf "Texp_mode_coerce %s\n"
-        (String.concat ","
-          (List.map
-            (fun loc -> Printf.sprintf "\"%s\"" loc.txt)
-            modes.txt));
       attributes i ppf attrs;
 
 and alloc_mode: type l r. _ -> _ -> (l * r) Mode.Alloc.t -> _
@@ -423,6 +416,9 @@ and locality_mode i ppf m =
 
 and value_mode i ppf m =
   line i ppf "value_mode %a\n" (Mode.Value.print ()) m
+
+and alloc_const_option_mode i ppf m =
+  line i ppf "alloc_const_option_mode %a\n" Mode.Alloc.Const.Option.print m
 
 and expression_alloc_mode i ppf (expr, am) =
   alloc_mode i ppf am;
@@ -446,9 +442,8 @@ and expression i ppf x =
       line i ppf "Texp_let %a\n" fmt_rec_flag rf;
       list i (value_binding rf) ppf l;
       expression i ppf e;
-  | Texp_function { params; body; region; alloc_mode = am } ->
+  | Texp_function { params; body; alloc_mode = am } ->
       line i ppf "Texp_function\n";
-      line i ppf "region %b\n" region;
       alloc_mode i ppf am;
       list i function_param ppf params;
       function_body i ppf body;

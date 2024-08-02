@@ -158,7 +158,6 @@ val dump_interf : bool ref
 val dump_prefer : bool ref
 val dump_regalloc : bool ref
 val dump_reload : bool ref
-val dump_scheduling : bool ref
 val dump_linear : bool ref
 val dump_interval : bool ref
 val debug_ocaml : bool ref
@@ -230,6 +229,7 @@ val dumped_pass : string -> bool
 val set_dumped_pass : string -> bool -> unit
 
 val dump_into_file : bool ref
+val dump_into_csv : bool ref
 val dump_dir : string option ref
 
 (* Support for flags that can also be set from an environment variable *)
@@ -277,7 +277,7 @@ end
 
 module Compiler_pass : sig
   type t = Parsing | Typing | Lambda | Middle_end
-         | Scheduling | Emit | Simplify_cfg | Selection
+         | Linearization | Emit | Simplify_cfg | Selection
   val of_string : string -> t option
   val to_string : t -> string
   val is_compilation_pass : t -> bool

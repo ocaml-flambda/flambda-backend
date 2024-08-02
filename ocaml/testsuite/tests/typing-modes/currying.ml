@@ -340,7 +340,7 @@ Error: This value escapes its region.
 (* The fixed version. Note that in the printed type, local returning is implicit
     *)
 let bug4_fixed : local_ (string -> foo:string -> unit) -> local_ (string -> unit) =
-  fun f -> local_ f ~foo:"hello"
+  fun f -> exclave_ f ~foo:"hello"
 [%%expect{|
 val bug4_fixed : local_ (string -> foo:string -> unit) -> string -> unit =
   <fun>
@@ -458,6 +458,8 @@ val f : ('a -> 'b -> 'c) -> unique_ 'a -> 'b -> 'c = <fun>
 let f (g @ unique) x =
   g x x [@nontail]
 [%%expect{|
+val f : unique_ ('a -> 'a -> 'b) -> ('a -> 'b) = <fun>
+|}, Principal{|
 val f : unique_ ('a -> 'a -> 'b) -> 'a -> 'b = <fun>
 |}]
 

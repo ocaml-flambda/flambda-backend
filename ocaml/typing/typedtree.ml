@@ -122,11 +122,10 @@ and expression =
    }
 
 and exp_extra =
-  | Texp_constraint of core_type
+  | Texp_constraint of core_type option * Mode.Alloc.Const.Option.t
   | Texp_coerce of core_type option * core_type
   | Texp_poly of core_type option
   | Texp_newtype of string * Jkind.annotation option
-  | Texp_mode_coerce of Jane_syntax.Mode_expr.t
 
 and arg_label = Types.arg_label =
   | Nolabel
@@ -142,7 +141,6 @@ and expression_desc =
   | Texp_function of
       { params : function_param list;
         body : function_body;
-        region : bool;
         ret_mode : Mode.Alloc.l;
         ret_sort : Jkind.sort;
         alloc_mode : Mode.Alloc.r;

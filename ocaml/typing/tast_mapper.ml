@@ -362,13 +362,12 @@ let function_param sub
   }
 
 let extra sub = function
-  | Texp_constraint cty ->
-    Texp_constraint (sub.typ sub cty)
+  | Texp_constraint (cty, modes) ->
+    Texp_constraint (Option.map (sub.typ sub) cty, modes)
   | Texp_coerce (cty1, cty2) ->
     Texp_coerce (Option.map (sub.typ sub) cty1, sub.typ sub cty2)
   | Texp_newtype _ as d -> d
   | Texp_poly cto -> Texp_poly (Option.map (sub.typ sub) cto)
-  | Texp_mode_coerce modes -> Texp_mode_coerce modes
 
 let function_body sub body =
   match body with
@@ -437,11 +436,11 @@ let expr sub x =
     | Texp_let (rec_flag, list, exp) ->
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
-    | Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort;
+    | Texp_function { params; body; alloc_mode; ret_mode; ret_sort;
                       zero_alloc } ->
         let params = List.map (function_param sub) params in
         let body = function_body sub body in
-        Texp_function { params; body; alloc_mode; region; ret_mode; ret_sort;
+        Texp_function { params; body; alloc_mode; ret_mode; ret_sort;
                         zero_alloc }
     | Texp_apply (exp, list, pos, am, za) ->
         Texp_apply (

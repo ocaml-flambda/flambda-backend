@@ -507,6 +507,7 @@ let read_one_param ppf position name v =
       | Some pass -> set_save_ir_after pass true
     end
   | "dump-into-file" -> Clflags.dump_into_file := true
+  | "dump-into-csv" -> Clflags.dump_into_csv := true
   | "dump-dir" -> Clflags.dump_dir := Some v
 
   | "extension" -> Language_extension.enable_of_string_exn v

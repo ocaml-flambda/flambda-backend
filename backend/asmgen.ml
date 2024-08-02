@@ -62,7 +62,7 @@ let pass_dump_cfg_if ppf flag message c =
 let start_from_emit = ref true
 
 let should_save_before_emit () =
-  should_save_ir_after Compiler_pass.Scheduling && (not !start_from_emit)
+  should_save_ir_after Compiler_pass.Linearization && (not !start_from_emit)
 
 let should_save_cfg_before_emit () =
   should_save_ir_after Compiler_pass.Simplify_cfg && (not !start_from_emit)
@@ -147,7 +147,7 @@ let write_ir prefix =
       Cfg_format.save filename cfg_unit_info end)
     pass_to_cfg;
   if should_save_before_emit () then begin
-    let filename = Compiler_pass.(to_output_filename Scheduling ~prefix) in
+    let filename = Compiler_pass.(to_output_filename Linearization ~prefix) in
     linear_unit_info.items <- List.rev linear_unit_info.items;
     Linear_format.save filename linear_unit_info
   end;
@@ -158,7 +158,7 @@ let write_ir prefix =
   end
 
 let should_emit () =
-  not (should_stop_after Compiler_pass.Scheduling)
+  not (should_stop_after Compiler_pass.Linearization)
 
 let should_use_linscan fun_codegen_options =
   !use_linscan ||
@@ -434,8 +434,6 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code")
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
-  ++ Profile.record ~accumulate:true "scheduling" Scheduling.fundecl
-  ++ pass_dump_linear_if ppf_dump dump_scheduling "After instruction scheduling"
   ++ Profile.record ~accumulate:true "save_linear" save_linear
   ++ (fun (fd : Linear.fundecl) ->
     match !Flambda_backend_flags.cfg_stack_checks with

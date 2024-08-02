@@ -207,8 +207,8 @@ and expression =
    }
 
 and exp_extra =
-  | Texp_constraint of core_type
-        (** E : T *)
+  | Texp_constraint of core_type option * Mode.Alloc.Const.Option.t
+        (** E : T @@ M *)
   | Texp_coerce of core_type option * core_type
         (** E :> T           [Texp_coerce (None, T)]
             E : T0 :> T      [Texp_coerce (Some T0, T)]
@@ -217,12 +217,6 @@ and exp_extra =
         (** Used for method bodies. *)
   | Texp_newtype of string * Jkind.annotation option
         (** fun (type t : immediate) ->  *)
-  | Texp_mode_coerce of Jane_syntax.Mode_expr.t
-        (** local_ E *)
-
-(* CR modes: Consider fusing [Texp_mode_coerce] and [Texp_constraint] when
-   the syntax changes.
-*)
 
 and arg_label = Types.arg_label =
   | Nolabel
@@ -259,7 +253,6 @@ and expression_desc =
   | Texp_function of
       { params : function_param list;
         body : function_body;
-        region : bool;
         ret_mode : Mode.Alloc.l;
         (* Mode where the function allocates, ie local for a function of
            type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)

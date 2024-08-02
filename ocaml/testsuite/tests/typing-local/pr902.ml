@@ -12,14 +12,14 @@ external is_stack : local_ 'a -> bool = "caml_obj_is_stack"
 
 let f2 p () = p
 
-let f1 () x : (unit -> local_ (int * int)) =
+let f1 () x : (unit -> local_ (int * int)) = exclave_
   (* This local allocation should end up in the caller's region, because
      we should have got here via one of the caml_applyL functions.  If the
      return mode of the second application in the expansion of the
      overapplication below is wrongly Heap, then caml_apply will be used
      instead, which will open its own region for this allocation. *)
   let p = local_ (x, x) in
-  local_ ((opaque_identity f2) p) [@nontail]
+  ((opaque_identity f2) p) [@nontail]
 
 let[@inline never] to_be_overapplied () () = Sys.opaque_identity f1
 

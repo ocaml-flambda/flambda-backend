@@ -271,12 +271,8 @@ Error: This value escapes its region.
 
 let string_duplicate = let once_ x : string = "hello" in Fun.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 1, characters 64-65:
-1 | let string_duplicate = let once_ x : string = "hello" in Fun.id x
-                                                                    ^
-Error: This value is once but expected to be many.
+val string_duplicate : string = "hello"
 |}]
 
 let int_duplicate = let once_ x : int = 5 in Fun.id x
@@ -682,12 +678,8 @@ Line 2, characters 71-72:
 
 |}]
 
-(* CR layouts: this should succeed. *)
 let foo : (string -> string) -> (string -> string) @ unique
   = fun f -> f
 [%%expect{|
-Line 2, characters 13-14:
-2 |   = fun f -> f
-                 ^
-Error: This value is shared but expected to be unique.
+val foo : (string -> string) -> unique_ (string -> string) = <fun>
 |}]

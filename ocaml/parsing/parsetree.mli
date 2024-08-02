@@ -46,6 +46,10 @@ type constant =
 type location_stack = Location.t list
 
 type modality = | Modality of string [@@unboxed]
+type modalities = modality loc list
+
+type mode = | Mode of string [@@unboxed]
+type modes = mode loc list
 
 (** {1 Extension points} *)
 
@@ -89,13 +93,13 @@ and core_type =
 and core_type_desc =
   | Ptyp_any  (** [_] *)
   | Ptyp_var of string  (** A type variable such as ['a] *)
-  | Ptyp_arrow of arg_label * core_type * core_type
-      (** [Ptyp_arrow(lbl, T1, T2)] represents:
-            - [T1 -> T2]    when [lbl] is
+  | Ptyp_arrow of arg_label * core_type * core_type * modes * modes
+      (** [Ptyp_arrow(lbl, T1, T2, M1, M2)] represents:
+            - [T1 @ M1 -> T2 @ M2]    when [lbl] is
                                      {{!arg_label.Nolabel}[Nolabel]},
-            - [~l:T1 -> T2] when [lbl] is
+            - [~l:(T1 @ M1) -> (T2 @ M2)] when [lbl] is
                                      {{!arg_label.Labelled}[Labelled]},
-            - [?l:T1 -> T2] when [lbl] is
+            - [?l:(T1 @ M1) -> (T2 @ M2)] when [lbl] is
                                      {{!arg_label.Optional}[Optional]}.
          *)
   | Ptyp_tuple of (string option * core_type) list
@@ -280,7 +284,11 @@ and pattern_desc =
          *)
   | Ppat_array of pattern list  (** Pattern [[| P1; ...; Pn |]] *)
   | Ppat_or of pattern * pattern  (** Pattern [P1 | P2] *)
-  | Ppat_constraint of pattern * core_type  (** Pattern [(P : T)] *)
+  | Ppat_constraint of pattern * core_type option * modes
+      (** [Ppat_constraint(tyopt, modes)] represents:
+          - [(P : ty @@ modes)] when [tyopt] is [Some ty]
+          - [(P @ modes)] when [tyopt] is [None]
+         *)
   | Ppat_type of Longident.t loc  (** Pattern [#tconst] *)
   | Ppat_lazy of pattern  (** Pattern [lazy P] *)
   | Ppat_unpack of string option loc
@@ -326,33 +334,21 @@ and expression_desc =
             - [let rec P1 = E1 and ... and Pn = EN in E]
                when [flag] is {{!Asttypes.rec_flag.Recursive}[Recursive]}.
          *)
-  | Pexp_function of case list  (** [function P1 -> E1 | ... | Pn -> En] *)
-  | Pexp_fun of arg_label * expression option * pattern * expression
-      (** [Pexp_fun(lbl, exp0, P, E1)] represents:
-            - [fun P -> E1]
-                      when [lbl] is {{!arg_label.Nolabel}[Nolabel]}
-                       and [exp0] is [None]
-            - [fun ~l:P -> E1]
-                      when [lbl] is {{!arg_label.Labelled}[Labelled l]}
-                       and [exp0] is [None]
-            - [fun ?l:P -> E1]
-                      when [lbl] is {{!arg_label.Optional}[Optional l]}
-                       and [exp0] is [None]
-            - [fun ?l:(P = E0) -> E1]
-                      when [lbl] is {{!arg_label.Optional}[Optional l]}
-                       and [exp0] is [Some E0]
+  | Pexp_function of
+      function_param list * function_constraint option * function_body
+  (** [Pexp_function ([P1; ...; Pn], C, body)] represents any construct
+      involving [fun] or [function], including:
+      - [fun P1 ... Pn -> E]
+        when [body = Pfunction_body E]
+      - [fun P1 ... Pn -> function p1 -> e1 | ... | pm -> em]
+        when [body = Pfunction_cases [ p1 -> e1; ...; pm -> em ]]
 
-           Notes:
-           - If [E0] is provided, only
-             {{!arg_label.Optional}[Optional]} is allowed.
-           - [fun P1 P2 .. Pn -> E1] is represented as nested
-             {{!expression_desc.Pexp_fun}[Pexp_fun]}.
-           - [let f P = E] is represented using
-             {{!expression_desc.Pexp_fun}[Pexp_fun]}.
-           - While Position arguments ([lbl:[%call_pos] -> ...]) are parsed as
-             {{!Asttypes.arg_label.Labelled}[Labelled l]}, they are converted to
-             {{!Types.arg_label.Position}[Position l]} arguments for type-checking.
-         *)
+      [C] represents a type constraint or coercion placed immediately before the
+      arrow, e.g. [fun P1 ... Pn : ty -> ...] when [C = Some (Pconstraint ty)].
+
+      A function must have parameters. [Pexp_function (params, _, body)] must
+      have non-empty [params] or a [Pfunction_cases _] body.
+  *)
   | Pexp_apply of expression * (arg_label * expression) list
       (** [Pexp_apply(E0, [(l1, E1) ; ... ; (ln, En)])]
             represents [E0 ~l1:E1 ... ~ln:En]
@@ -412,7 +408,7 @@ and expression_desc =
             - [for i = E1 downto E2 do E3 done]
                  when [direction] is {{!Asttypes.direction_flag.Downto}[Downto]}
          *)
-  | Pexp_constraint of expression * core_type  (** [(E : T)] *)
+  | Pexp_constraint of expression * core_type option * modes  (** [(E : T @@ modes)] *)
   | Pexp_coerce of expression * core_type option * core_type
       (** [Pexp_coerce(E, from, T)] represents
             - [(E :> T)]      when [from] is [None],
@@ -479,13 +475,83 @@ and binding_op =
     pbop_loc : Location.t;
   }
 
+and function_param_desc =
+  | Pparam_val of arg_label * expression option * pattern
+  (** [Pparam_val (lbl, exp0, P)] represents the parameter:
+      - [P]
+        when [lbl] is {{!Asttypes.arg_label.Nolabel}[Nolabel]}
+        and [exp0] is [None]
+      - [~l:P]
+        when [lbl] is {{!Asttypes.arg_label.Labelled}[Labelled l]}
+        and [exp0] is [None]
+      - [?l:P]
+        when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}
+        and [exp0] is [None]
+      - [?l:(P = E0)]
+        when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}
+        and [exp0] is [Some E0]
+
+      Note: If [E0] is provided, only
+      {{!Asttypes.arg_label.Optional}[Optional]} is allowed.
+  *)
+  | Pparam_newtype of string loc * jkind_annotation loc option
+  (** [Pparam_newtype x] represents the parameter [(type x)].
+      [x] carries the location of the identifier, whereas the [pparam_loc]
+      on the enclosing [function_param] node is the location of the [(type x)]
+      as a whole.
+
+      Multiple parameters [(type a b c)] are represented as multiple
+      [Pparam_newtype] nodes, let's say:
+
+      {[ [ { pparam_kind = Pparam_newtype a; pparam_loc = loc1 };
+           { pparam_kind = Pparam_newtype b; pparam_loc = loc2 };
+           { pparam_kind = Pparam_newtype c; pparam_loc = loc3 };
+         ]
+      ]}
+
+      Here, the first loc [loc1] is the location of [(type a b c)], and the
+      subsequent locs [loc2] and [loc3] are the same as [loc1], except marked as
+      ghost locations. The locations on [a], [b], [c], correspond to the
+      variables [a], [b], and [c] in the source code.
+  *)
+
+and function_param =
+  { pparam_loc : Location.t;
+    pparam_desc : function_param_desc;
+  }
+
+and function_body =
+  | Pfunction_body of expression
+  | Pfunction_cases of case list * Location.t * attributes
+  (** In [Pfunction_cases (_, loc, attrs)], the location extends from the
+      start of the [function] keyword to the end of the last case. The compiler
+      will only use typechecking-related attributes from [attrs], e.g. enabling
+      or disabling a warning.
+  *)
+(** See the comment on {{!expression_desc.Pexp_function}[Pexp_function]}. *)
+
+and type_constraint =
+  | Pconstraint of core_type
+  | Pcoerce of core_type option * core_type
+(** See the comment on {{!expression_desc.Pexp_function}[Pexp_function]}. *)
+
+and function_constraint =
+  { mode_annotations : modes;
+    (** The mode annotation placed on a function let-binding when the function
+            has a type constraint on the body, e.g.
+            [let local_ f x : int -> int = ...].
+    *)
+    type_constraint : type_constraint;
+  }
+(** See the comment on {{!expression_desc.Pexp_function}[Pexp_function]}. *)
+
 (** {2 Value descriptions} *)
 
 and value_description =
     {
      pval_name: string loc;
      pval_type: core_type;
-     pval_modalities : modality loc list;
+     pval_modalities : modalities;
      pval_prim: string list;
      pval_attributes: attributes;  (** [... [\@\@id1] [\@\@id2]] *)
      pval_loc: Location.t;
@@ -548,7 +614,7 @@ and label_declaration =
     {
      pld_name: string loc;
      pld_mutable: mutable_flag;
-     pld_modalities: modality loc list;
+     pld_modalities: modalities;
      pld_type: core_type;
      pld_loc: Location.t;
      pld_attributes: attributes;  (** [l : T [\@id1] [\@id2]] *)
@@ -576,7 +642,7 @@ and constructor_declaration =
 
 and constructor_argument =
   {
-    pca_modalities: modality loc list;
+    pca_modalities: modalities;
     pca_type: core_type;
     pca_loc: Location.t;
   }
@@ -1082,6 +1148,7 @@ and value_binding =
     pvb_pat: pattern;
     pvb_expr: expression;
     pvb_constraint: value_constraint option;
+    pvb_modes: modes;
     pvb_attributes: attributes;
     pvb_loc: Location.t;
   }(** [let pat : type_constraint = exp] *)
@@ -1094,6 +1161,15 @@ and module_binding =
      pmb_loc: Location.t;
     }
 (** Values of type [module_binding] represents [module X = ME] *)
+
+and jkind_const_annotation  = string Location.loc
+
+and jkind_annotation =
+  | Default
+  | Abbreviation of jkind_const_annotation
+  | Mod of jkind_annotation * modes
+  | With of jkind_annotation * core_type
+  | Kind_of of core_type
 
 (** {1 Toplevel} *)
 

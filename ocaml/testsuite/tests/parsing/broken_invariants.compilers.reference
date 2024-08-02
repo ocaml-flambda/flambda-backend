@@ -34,4 +34,6 @@ Line 1, characters 9-28:
 1 | let f ([%lt_short_closed_pat]) = ();;
              ^^^^^^^^^^^^^^^^^^^
 Error: broken invariant in parsetree: Closed tuple patterns must have at least 2 components.
+File "_none_", line 1:
+Error: broken invariant in parsetree: Nested pattern constraints must all specify a type
 

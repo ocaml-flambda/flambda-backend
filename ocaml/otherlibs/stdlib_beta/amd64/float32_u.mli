@@ -151,12 +151,14 @@ val to_float : t -> float#
 (** Convert a 32-bit float to a 64-bit float. *)
 
 val of_bits : int32# -> t
-(** Convert a 32-bit float to a 32-bit integer, preserving the value's
-    bit pattern. *)
+(** Convert a 32-bit integer to a 32-bit float, preserving the value's
+    bit pattern.
+    The amd64 flambda-backend compiler translates this call to MOVD. *)
 
 val to_bits : t -> int32#
-(** Convert a 32-bit integer to a 32-bit float, preserving the value's
-    bit pattern. *)
+(** Convert a 32-bit float to a 32-bit integer, preserving the value's
+    bit pattern.
+    The amd64 flambda-backend compiler translates this call to MOVD. *)
 
 val of_string : string -> t
 (** Convert the given string to a float.  The string is read in decimal

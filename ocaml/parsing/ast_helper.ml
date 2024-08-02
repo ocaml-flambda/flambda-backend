@@ -62,7 +62,7 @@ module Typ = struct
 
   let any ?loc ?attrs () = mk ?loc ?attrs Ptyp_any
   let var ?loc ?attrs a = mk ?loc ?attrs (Ptyp_var a)
-  let arrow ?loc ?attrs a b c = mk ?loc ?attrs (Ptyp_arrow (a, b, c))
+  let arrow ?loc ?attrs a b c d e = mk ?loc ?attrs (Ptyp_arrow (a, b, c, d, e))
   let tuple ?loc ?attrs a = mk ?loc ?attrs (Ptyp_tuple a)
   let constr ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_constr (a, b))
   let object_ ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_object (a, b))
@@ -96,8 +96,8 @@ module Typ = struct
         | Ptyp_var x ->
             check_variable var_names t.ptyp_loc x;
             Ptyp_var x
-        | Ptyp_arrow (label,core_type,core_type') ->
-            Ptyp_arrow(label, loop core_type, loop core_type')
+        | Ptyp_arrow (label,core_type,core_type',modes,modes') ->
+            Ptyp_arrow(label, loop core_type, loop core_type', modes, modes')
         | Ptyp_tuple lst ->
             Ptyp_tuple (List.map (fun (label, cty) -> label, loop cty) lst)
         | Ptyp_constr( { txt = Longident.Lident s }, [])
@@ -169,7 +169,7 @@ module Pat = struct
   let record ?loc ?attrs a b = mk ?loc ?attrs (Ppat_record (a, b))
   let array ?loc ?attrs a = mk ?loc ?attrs (Ppat_array a)
   let or_ ?loc ?attrs a b = mk ?loc ?attrs (Ppat_or (a, b))
-  let constraint_ ?loc ?attrs a b = mk ?loc ?attrs (Ppat_constraint (a, b))
+  let constraint_ ?loc ?attrs a b c = mk ?loc ?attrs (Ppat_constraint (a, b, c))
   let type_ ?loc ?attrs a = mk ?loc ?attrs (Ppat_type a)
   let lazy_ ?loc ?attrs a = mk ?loc ?attrs (Ppat_lazy a)
   let unpack ?loc ?attrs a = mk ?loc ?attrs (Ppat_unpack a)
@@ -189,8 +189,7 @@ module Exp = struct
   let ident ?loc ?attrs a = mk ?loc ?attrs (Pexp_ident a)
   let constant ?loc ?attrs a = mk ?loc ?attrs (Pexp_constant a)
   let let_ ?loc ?attrs a b c = mk ?loc ?attrs (Pexp_let (a, b, c))
-  let fun_ ?loc ?attrs a b c d = mk ?loc ?attrs (Pexp_fun (a, b, c, d))
-  let function_ ?loc ?attrs a = mk ?loc ?attrs (Pexp_function a)
+  let function_ ?loc ?attrs a b c = mk ?loc ?attrs (Pexp_function (a, b, c))
   let apply ?loc ?attrs a b = mk ?loc ?attrs (Pexp_apply (a, b))
   let match_ ?loc ?attrs a b = mk ?loc ?attrs (Pexp_match (a, b))
   let try_ ?loc ?attrs a b = mk ?loc ?attrs (Pexp_try (a, b))
@@ -205,7 +204,7 @@ module Exp = struct
   let sequence ?loc ?attrs a b = mk ?loc ?attrs (Pexp_sequence (a, b))
   let while_ ?loc ?attrs a b = mk ?loc ?attrs (Pexp_while (a, b))
   let for_ ?loc ?attrs a b c d e = mk ?loc ?attrs (Pexp_for (a, b, c, d, e))
-  let constraint_ ?loc ?attrs a b = mk ?loc ?attrs (Pexp_constraint (a, b))
+  let constraint_ ?loc ?attrs a b c = mk ?loc ?attrs (Pexp_constraint (a, b, c))
   let coerce ?loc ?attrs a b c = mk ?loc ?attrs (Pexp_coerce (a, b, c))
   let send ?loc ?attrs a b = mk ?loc ?attrs (Pexp_send (a, b))
   let new_ ?loc ?attrs a = mk ?loc ?attrs (Pexp_new a)
@@ -495,11 +494,12 @@ end
 
 module Vb = struct
   let mk ?(loc = !default_loc) ?(attrs = []) ?(docs = empty_docs)
-        ?(text = []) ?value_constraint pat expr =
+        ?(text = []) ?value_constraint ?(modes = []) pat expr =
     {
      pvb_pat = pat;
      pvb_expr = expr;
      pvb_constraint=value_constraint;
+     pvb_modes=modes;
      pvb_attributes =
        add_text_attrs text (add_docs_attrs docs attrs);
      pvb_loc = loc;

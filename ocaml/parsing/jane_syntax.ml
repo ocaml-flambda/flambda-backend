@@ -39,22 +39,10 @@ end = struct
 end
 
 module Of_ast (Ext : Extension) : sig
-  module Desugaring_error : sig
-    type error =
-      | Not_this_embedding of Embedded_name.t
-      | Non_embedding
-  end
-
   type unwrapped := string list * payload * attributes
 
-  (* Find and remove a jane-syntax attribute marker, returning an error
+  (* Find and remove a jane-syntax attribute marker, throwing an exception
      if the attribute name does not have the right format or extension. *)
-  val unwrap_jane_syntax_attributes :
-    attributes -> (unwrapped, Desugaring_error.error) result
-
-  (* The same as [unwrap_jane_syntax_attributes], except throwing
-     an exception instead of returning an error.
-  *)
   val unwrap_jane_syntax_attributes_exn :
     loc:Location.t -> attributes -> unwrapped
 end = struct
@@ -347,152 +335,28 @@ module Arrow_curry = struct
       (PStr [])
 end
 
-module Mode_expr = struct
-  module Const : sig
-    type raw = string
+(* only used for [Jkind] below *)
+module Mode = struct
+  module Protocol = Make_payload_protocol_of_stringable (struct
+    type t = mode
 
-    type t = private raw Location.loc
+    let indefinite_article_and_name = "a", "mode"
 
-    val mk : string -> Location.t -> t
+    let to_string (Mode s) = s
 
-    val list_as_payload : t list -> payload
+    let of_string' s = Mode s
 
-    val list_from_payload : loc:Location.t -> payload -> t list
+    let of_string s = Some (of_string' s)
+  end)
 
-    val ghostify : t -> t
-  end = struct
-    type raw = string
+  let list_as_payload = Protocol.Encode.list_as_payload
 
-    module Protocol = Make_payload_protocol_of_stringable (struct
-      type t = raw
-
-      let indefinite_article_and_name = "a", "mode"
-
-      let to_string s = s
-
-      let of_string' s = s
-
-      let of_string s = Some (of_string' s)
-    end)
-
-    let list_as_payload = Protocol.Encode.list_as_payload
-
-    let list_from_payload = Protocol.Decode.list_from_payload
-
-    type t = raw Location.loc
-
-    let mk txt loc : t = { txt; loc }
-
-    let ghostify { txt; loc } =
-      let loc = { loc with loc_ghost = true } in
-      { txt; loc }
-  end
-
-  type t = Const.t list Location.loc
-
-  let empty = Location.mknoloc []
-
-  let singleton const =
-    let const' = (const : Const.t :> _ Location.loc) in
-    Location.mkloc [const] const'.loc
-
-  let concat mode0 mode1 =
-    let txt = mode0.txt @ mode1.txt in
-    Location.mknoloc txt
-
-  let feature : Feature.t = Language_extension Mode
-
-  let attribute_or_extension_name =
-    Embedded_name.of_feature feature [] |> Embedded_name.to_string
-
-  let attribute_name = attribute_or_extension_name
-
-  let payload_of { txt; _ } =
-    match txt with
-    | [] -> None
-    | _ :: _ as txt -> Some (Const.list_as_payload txt)
-
-  let of_payload ~loc payload =
-    let l = Const.list_from_payload ~loc payload in
-    match l with
-    | [] -> Misc.fatal_error "Payload encoding empty mode expression"
-    | _ :: _ -> Location.mkloc l loc
-
-  let extract_attr attrs =
-    let attrs, rest =
-      List.partition
-        (fun { attr_name; _ } -> attr_name.txt = attribute_name)
-        attrs
-    in
-    match attrs with
-    | [] -> None, rest
-    | [attr] -> Some attr, rest
-    | _ :: _ :: _ -> Misc.fatal_error "More than one mode attribute"
-
-  let of_attr { attr_payload; attr_loc; _ } =
-    of_payload ~loc:attr_loc attr_payload
-
-  let maybe_of_attrs attrs =
-    let attr, rest = extract_attr attrs in
-    let mode = Option.map of_attr attr in
-    mode, rest
-
-  let of_attrs attrs =
-    let mode, rest = maybe_of_attrs attrs in
-    let mode = Option.value mode ~default:empty in
-    mode, rest
-
-  let attr_of modes =
-    match payload_of modes with
-    | None -> None
-    | Some attr_payload ->
-      let attr_name = Location.mknoloc attribute_name in
-      let attr_loc = modes.loc in
-      Some { attr_name; attr_loc; attr_payload }
-
-  let ghostify { txt; loc } =
-    let loc = { loc with loc_ghost = true } in
-    let txt = List.map Const.ghostify txt in
-    { loc; txt }
-end
-
-(** Some mode-related constructs *)
-module Modes = struct
-  let feature : Feature.t = Language_extension Mode
-
-  type nonrec expression = Coerce of Mode_expr.t * expression
-
-  let extension_name = Mode_expr.attribute_or_extension_name
-
-  let of_expr ({ pexp_desc; pexp_attributes; _ } as expr) =
-    match pexp_desc with
-    | Pexp_apply
-        ( { pexp_desc = Pexp_extension ({ txt; _ }, payload); pexp_loc; _ },
-          [(Nolabel, body)] )
-      when txt = extension_name ->
-      let modes = Mode_expr.of_payload ~loc:pexp_loc payload in
-      Coerce (modes, body), pexp_attributes
-    | _ ->
-      Misc.fatal_errorf "Improperly encoded modes expression: %a"
-        (Printast.expression 0) expr
-
-  let expr_of ~loc (Coerce (modes, body)) =
-    match Mode_expr.payload_of modes with
-    | None -> body
-    | Some payload ->
-      let ext =
-        Ast_helper.Exp.extension ~loc:modes.loc
-          (Location.mknoloc extension_name, payload)
-      in
-      Expression.make_entire_jane_syntax ~loc feature (fun () ->
-          Ast_helper.Exp.apply ~loc ext [Nolabel, body])
+  let list_from_payload = Protocol.Decode.list_from_payload
 end
 
 module Jkind = struct
   module Const : sig
-    type raw = string
-
-    type t = private raw loc
+    type t = Parsetree.jkind_const_annotation
 
     val mk : string -> Location.t -> t
 
@@ -521,10 +385,10 @@ module Jkind = struct
     let to_structure_item = Protocol.to_structure_item
   end
 
-  type t =
+  type t = Parsetree.jkind_annotation =
     | Default
     | Abbreviation of Const.t
-    | Mod of t * Mode_expr.t
+    | Mod of t * modes
     | With of t * core_type
     | Kind_of of core_type
 
@@ -582,12 +446,12 @@ module Jkind = struct
     | Default -> struct_item_of_list "default" [] t_loc.loc
     | Abbreviation c ->
       struct_item_of_list "abbrev" [Const.to_structure_item c] t_loc.loc
-    | Mod (t, mode_list) ->
+    | Mod (t, modes) ->
       let mode_list_item =
         struct_item_of_attr
           { attr_name = Location.mknoloc (prefix ^ "mod");
-            attr_payload = Mode_expr.Const.list_as_payload mode_list.txt;
-            attr_loc = mode_list.loc
+            attr_payload = Mode.list_as_payload modes;
+            attr_loc = Location.none
           }
       in
       struct_item_of_list "mod" [to_structure_item t; mode_list_item] t_loc.loc
@@ -606,10 +470,8 @@ module Jkind = struct
     | Some ("mod", [item_of_t; item_of_mode_expr], loc) ->
       bind (of_structure_item item_of_t) (fun { txt = t } ->
           bind (struct_item_to_attr item_of_mode_expr) (fun attr ->
-              let mode_list =
-                Mode_expr.Const.list_from_payload ~loc attr.attr_payload
-              in
-              ret loc (Mod (t, { txt = mode_list; loc = attr.attr_loc }))))
+              let modes = Mode.list_from_payload ~loc attr.attr_payload in
+              ret loc (Mod (t, modes))))
     | Some ("with", [item_of_t; item_of_ty], loc) ->
       bind (of_structure_item item_of_t) (fun { txt = t } ->
           bind (struct_item_to_type item_of_ty) (fun ty ->
@@ -919,485 +781,6 @@ module Immutable_arrays = struct
     match pat.ppat_desc with
     | Ppat_array elts -> Iapat_immutable_array elts, pat.ppat_attributes
     | _ -> failwith "Malformed immutable array pattern"
-end
-
-module N_ary_functions = struct
-  module Ext = struct
-    let feature : Feature.t = Builtin
-  end
-
-  module Ast_of = Ast_of (Expression) (Ext)
-  module Of_ast = Of_ast (Ext)
-  open Ext
-
-  type function_body =
-    | Pfunction_body of expression
-    | Pfunction_cases of case list * Location.t * attributes
-
-  type function_param_desc =
-    | Pparam_val of arg_label * expression option * pattern
-    | Pparam_newtype of string loc * Jkind.annotation option
-
-  type function_param =
-    { pparam_desc : function_param_desc;
-      pparam_loc : Location.t
-    }
-
-  type type_constraint =
-    | Pconstraint of core_type
-    | Pcoerce of core_type option * core_type
-
-  type function_constraint =
-    { mode_annotations : Mode_expr.t;
-      type_constraint : type_constraint
-    }
-
-  type expression =
-    function_param list * function_constraint option * function_body
-
-  (** An attribute of the form [@jane.erasable._builtin.*] that's relevant
-      to n-ary functions. The "*" in the example is what we call the "suffix".
-      See the below BNF for the meaning of the attributes.
-  *)
-  module Attribute_node = struct
-    type after_fun =
-      | Cases
-      | Constraint_then_cases
-
-    type t =
-      | Top_level
-      | Fun_then of after_fun
-      | Mode_constraint of Mode_expr.t
-      | Jkind_annotation of Jkind.annotation
-
-    (* We return an [of_suffix_result] from [of_suffix] rather than having
-       [of_suffix] interpret the payload for two reasons:
-         1. It's nice to keep the string production / matching extremely
-            visually simple so it's easy to check that [to_suffix_and_payload]
-            and [of_suffix] correspond.
-         2. We want to raise a [Desugaring_error.Has_payload] in the case that
-            a [No_payload t] has an improper payload, but this creates a
-            dependency cycle between [Attribute_node] and [Desugaring_error].
-            Moving the interpretation of the payload to the caller of
-            [of_suffix] breaks this cycle.
-    *)
-
-    type of_suffix_result =
-      | No_payload of t
-      | Payload of (payload -> loc:Location.t -> t)
-      | Unknown_suffix
-
-    let to_suffix_and_payload = function
-      | Top_level -> [], None
-      | Fun_then Cases -> ["cases"], None
-      | Fun_then Constraint_then_cases -> ["constraint"; "cases"], None
-      | Mode_constraint modes ->
-        let payload = Mode_expr.payload_of modes in
-        ["mode_constraint"], payload
-      | Jkind_annotation jkind_annotation ->
-        let payload = Jkind_annotation.Encode.as_payload jkind_annotation in
-        ["jkind_annotation"], Some payload
-
-    let of_suffix suffix =
-      match suffix with
-      | [] -> No_payload Top_level
-      | ["cases"] -> No_payload (Fun_then Cases)
-      | ["constraint"; "cases"] -> No_payload (Fun_then Constraint_then_cases)
-      | ["mode_constraint"] ->
-        Payload
-          (fun payload ~loc ->
-            let modes = Mode_expr.of_payload payload ~loc in
-            Mode_constraint modes)
-      | ["jkind_annotation"] ->
-        Payload
-          (fun payload ~loc ->
-            assert_extension_enabled ~loc Layouts
-              (Stable : Language_extension.maturity);
-            let jkind_annotation =
-              Jkind_annotation.Decode.from_payload payload ~loc
-            in
-            Jkind_annotation jkind_annotation)
-      | _ -> Unknown_suffix
-
-    let format ppf t =
-      let suffix, _ = to_suffix_and_payload t in
-      Embedded_name.pp_quoted_name ppf (Embedded_name.of_feature feature suffix)
-  end
-
-  module Desugaring_error = struct
-    type error =
-      | Has_payload of payload
-      | Expected_constraint_or_coerce
-      | Expected_function_cases of Attribute_node.t
-      | Expected_fun_or_newtype of Attribute_node.t
-      | Expected_newtype_with_jkind_annotation of Jkind.annotation
-      | Parameterless_function
-
-    let report_error ~loc = function
-      | Has_payload payload ->
-        Location.errorf ~loc
-          "Syntactic arity attribute has an unexpected payload:@;%a"
-          (Printast.payload 0) payload
-      | Expected_constraint_or_coerce ->
-        Location.errorf ~loc
-          "Expected a Pexp_constraint or Pexp_coerce node at this position."
-      | Expected_function_cases attribute ->
-        Location.errorf ~loc
-          "Expected a Pexp_function node in this position, as the enclosing \
-           Pexp_fun is annotated with %a."
-          Attribute_node.format attribute
-      | Expected_fun_or_newtype attribute ->
-        Location.errorf ~loc
-          "Only Pexp_fun or Pexp_newtype may carry the attribute %a."
-          Attribute_node.format attribute
-      | Expected_newtype_with_jkind_annotation annotation ->
-        Location.errorf ~loc "Only Pexp_newtype may carry the attribute %a."
-          Attribute_node.format (Attribute_node.Jkind_annotation annotation)
-      | Parameterless_function ->
-        Location.errorf ~loc
-          "The expression is a Jane Syntax encoding of a function with no \
-           parameters, which is an invalid expression."
-
-    exception Error of Location.t * error
-
-    let () =
-      Location.register_error_of_exn (function
-        | Error (loc, err) -> Some (report_error ~loc err)
-        | _ -> None)
-
-    let raise_with_loc loc err = raise (Error (loc, err))
-
-    let raise expr err = raise (Error (expr.pexp_loc, err))
-  end
-
-  (* The desugared-to-OCaml version of an n-ary function is described by the
-     following BNF, where [{% '...' | expr %}] refers to the result of
-     [Expression.make_jane_syntax] (via n_ary_function_expr) as described at the
-     top of [jane_syntax_parsing.mli]. Within the '...' string, I use <...>
-     brackets to denote string interpolation.
-
-     {v
-         (* The entry point.
-
-            The encoding only puts attributes on:
-              - [fun] nodes
-              - constraint/coercion nodes, on the rare occasions
-                that a constraint should be interpreted at the [local] mode
-
-            This ensures that we rarely put attributes on the *body* of the
-            function, which means that ppxes that move or transform the body
-            of a function won't make Jane Syntax complain.
-         *)
-         n_ary_function ::=
-           | nested_n_ary_function
-           (* A function need not have [fun] params; it can be a function
-              or a constrained function. These need not have extra attributes,
-              except in the rare case that the function is constrained at the
-              local mode.
-           *)
-           | pexp_function
-           | constraint_with_mode_then(pexp_function)
-
-         nested_n_ary_function ::=
-           | fun_then(nested_n_ary_function)
-           | fun_then(constraint_with_mode_then(expression))
-           | {% '_builtin.cases' | fun_then(pexp_function) }
-           | {% '_builtin.constraint.cases' |
-               fun_then(constraint_with_mode_then(pexp_function)) }
-           | fun_then(expression)
-
-
-         fun_then(body) ::=
-           | 'fun' pattern '->' body (* Pexp_fun *)
-           | 'fun' '(' 'type' ident ')' '->' body (* Pexp_newtype *)
-           |{% '_builtin.jkind_annotation' |
-              'fun' '(' 'type' ident ')' '->' body %} (* Pexp_newtype *)
-
-         pexp_function ::=
-           | 'function' cases
-
-         constraint_then(ast) ::=
-           | ast (':' type)? ':>' type (* Pexp_coerce *)
-           | ast ':' type              (* Pexp_constraint *)
-
-         constraint_with_mode_then(ast) ::=
-           | constraint_then(ast)
-           | {% '_builtin.local_constraint' | constraint_then(ast) %}
-     v}
-  *)
-
-  let expand_n_ary_expr expr =
-    match Of_ast.unwrap_jane_syntax_attributes expr.pexp_attributes with
-    | Error (Not_this_embedding _ | Non_embedding) -> None
-    | Ok (suffix, payload, attributes) ->
-      let attribute_node =
-        match Attribute_node.of_suffix suffix, payload with
-        | No_payload t, PStr [] -> Some t
-        | Payload f, payload -> Some (f payload ~loc:expr.pexp_loc)
-        | No_payload _, payload ->
-          Desugaring_error.raise expr (Has_payload payload)
-        | Unknown_suffix, _ -> None
-      in
-      Option.map (fun x -> x, attributes) attribute_node
-
-  let require_function_cases expr ~arity_attribute =
-    match expr.pexp_desc with
-    | Pexp_function cases -> cases
-    | _ -> Desugaring_error.raise expr (Expected_function_cases arity_attribute)
-
-  let constraint_modes expr : Mode_expr.t =
-    match expand_n_ary_expr expr with
-    | Some (Mode_constraint modes, _) -> modes
-    | _ -> Mode_expr.empty
-
-  let check_constraint expr =
-    match expr.pexp_desc with
-    | Pexp_constraint (e, ty) ->
-      let mode_annotations = constraint_modes expr in
-      Some ({ mode_annotations; type_constraint = Pconstraint ty }, e)
-    | Pexp_coerce (e, ty1, ty2) ->
-      let mode_annotations = constraint_modes expr in
-      Some ({ mode_annotations; type_constraint = Pcoerce (ty1, ty2) }, e)
-    | _ -> None
-
-  let require_constraint expr =
-    match check_constraint expr with
-    | Some constraint_ -> constraint_
-    | None -> Desugaring_error.raise expr Expected_constraint_or_coerce
-
-  let check_param pexp_desc (pexp_loc : Location.t) ~jkind =
-    match pexp_desc, jkind with
-    | Pexp_fun (lbl, def, pat, body), None ->
-      let pparam_loc : Location.t =
-        { loc_ghost = true;
-          loc_start = pexp_loc.loc_start;
-          loc_end = pat.ppat_loc.loc_end
-        }
-      in
-      let pparam_desc = Pparam_val (lbl, def, pat) in
-      Some ({ pparam_desc; pparam_loc }, body)
-    | Pexp_newtype (newtype, body), jkind ->
-      (* This imperfectly estimates where a newtype parameter ends: it uses
-         the end of the type name rather than the closing paren. The closing
-         paren location is not tracked anywhere in the parsetree. We don't
-         think merlin is affected.
-      *)
-      let pparam_loc : Location.t =
-        { loc_ghost = true;
-          loc_start = pexp_loc.loc_start;
-          loc_end = newtype.loc.loc_end
-        }
-      in
-      let pparam_desc = Pparam_newtype (newtype, jkind) in
-      Some ({ pparam_desc; pparam_loc }, body)
-    | _, None -> None
-    | _, Some jkind ->
-      Desugaring_error.raise_with_loc pexp_loc
-        (Expected_newtype_with_jkind_annotation jkind)
-
-  let require_param pexp_desc pexp_loc ~arity_attribute ~jkind =
-    match check_param pexp_desc pexp_loc ~jkind with
-    | Some x -> x
-    | None ->
-      Desugaring_error.raise_with_loc pexp_loc
-        (Expected_fun_or_newtype arity_attribute)
-
-  (* Should only be called on [Pexp_fun] and [Pexp_newtype]. *)
-  let extract_fun_params =
-    let open struct
-      type continue_or_stop =
-        | Continue of Parsetree.expression
-        | Stop of function_constraint option * function_body
-    end in
-    (* Returns: the next parameter, together with whether there are possibly
-       more parameters available ("Continue") or whether all parameters have
-       been consumed ("Stop").
-
-       The returned attributes are the remaining unconsumed attributes on the
-       Pexp_fun or Pexp_newtype node.
-
-       The [jkind] parameter gives the jkind at which to interpret the type
-       introduced by [expr = Pexp_newtype _]. It is only supplied in a recursive
-       call to [extract_next_fun_param] in the event that it sees a
-       [Jkind_annotation] attribute.
-    *)
-    let rec extract_next_fun_param expr ~jkind :
-        (function_param * attributes) option * continue_or_stop =
-      match expand_n_ary_expr expr with
-      | None -> (
-        match check_param expr.pexp_desc expr.pexp_loc ~jkind with
-        | Some (param, body) ->
-          Some (param, expr.pexp_attributes), Continue body
-        | None -> None, Stop (None, Pfunction_body expr))
-      | Some (Top_level, _) -> None, Stop (None, Pfunction_body expr)
-      | Some (Jkind_annotation next_jkind, unconsumed_attributes) ->
-        extract_next_fun_param
-          { expr with pexp_attributes = unconsumed_attributes }
-          ~jkind:(Some next_jkind)
-      | Some (Mode_constraint _, _unconsumed_attributes) ->
-        (* We need not pass through any unconsumed attributes, as
-            [Mode_constraint _] isn't the outermost Jane Syntax node:
-            [extract_fun_params] took in [Pexp_fun] or [Pexp_newtype].
-        *)
-        let function_constraint, body = require_constraint expr in
-        None, Stop (Some function_constraint, Pfunction_body body)
-      | Some ((Fun_then after_fun as arity_attribute), unconsumed_attributes) ->
-        let param, body =
-          require_param expr.pexp_desc expr.pexp_loc ~arity_attribute ~jkind
-        in
-        let continue_or_stop =
-          match after_fun with
-          | Cases ->
-            let cases = require_function_cases body ~arity_attribute in
-            let function_body =
-              Pfunction_cases (cases, body.pexp_loc, body.pexp_attributes)
-            in
-            Stop (None, function_body)
-          | Constraint_then_cases ->
-            let function_constraint, body = require_constraint body in
-            let cases = require_function_cases body ~arity_attribute in
-            let function_body =
-              Pfunction_cases (cases, body.pexp_loc, body.pexp_attributes)
-            in
-            Stop (Some function_constraint, function_body)
-        in
-        Some (param, unconsumed_attributes), continue_or_stop
-    in
-    let rec loop expr ~rev_params =
-      let next_param, continue_or_stop =
-        extract_next_fun_param expr ~jkind:None
-      in
-      let rev_params =
-        match next_param with
-        | None -> rev_params
-        | Some (x, _) -> x :: rev_params
-      in
-      match continue_or_stop with
-      | Continue body -> loop body ~rev_params
-      | Stop (function_constraint, body) ->
-        let params = List.rev rev_params in
-        params, function_constraint, body
-    in
-    fun expr ->
-      (match expr.pexp_desc with
-      | Pexp_newtype _ | Pexp_fun _ -> ()
-      | _ -> Misc.fatal_error "called on something that isn't a newtype or fun");
-      let unconsumed_attributes =
-        match extract_next_fun_param expr ~jkind:None with
-        | Some (_, attributes), _ -> attributes
-        | None, _ -> Desugaring_error.raise expr Parameterless_function
-      in
-      loop expr ~rev_params:[], unconsumed_attributes
-
-  (* Returns remaining unconsumed attributes on outermost expression *)
-  let of_expr =
-    let function_without_additional_params cases constraint_ loc : expression =
-      (* If the outermost node is function cases, we place the
-          attributes on the function node as a whole rather than on the
-          [Pfunction_cases] body.
-      *)
-      [], constraint_, Pfunction_cases (cases, loc, [])
-    in
-    (* Hack: be more permissive toward a way that a ppx can mishandle an
-       attribute, which is to duplicate the top-level Jane Syntax
-       attribute.
-    *)
-    let rec remove_top_level_attributes expr =
-      match expand_n_ary_expr expr with
-      | Some (Top_level, unconsumed_attributes) ->
-        remove_top_level_attributes
-          { expr with pexp_attributes = unconsumed_attributes }
-      | _ -> expr
-    in
-    fun expr ->
-      let expr = remove_top_level_attributes expr in
-      match expr.pexp_desc with
-      | Pexp_fun _ | Pexp_newtype _ -> Some (extract_fun_params expr)
-      | Pexp_function cases ->
-        let n_ary =
-          function_without_additional_params cases None expr.pexp_loc
-        in
-        Some (n_ary, expr.pexp_attributes)
-      | _ -> (
-        match check_constraint expr with
-        | Some (constraint_, { pexp_desc = Pexp_function cases }) ->
-          let n_ary =
-            function_without_additional_params cases (Some constraint_)
-              expr.pexp_loc
-          in
-          Some (n_ary, expr.pexp_attributes)
-        | _ -> None)
-
-  let n_ary_function_expr ext x =
-    let suffix, payload = Attribute_node.to_suffix_and_payload ext in
-    Ast_of.wrap_jane_syntax ?payload suffix x
-
-  let expr_of =
-    let add_param ?after_fun_attribute { pparam_desc; pparam_loc } body =
-      let fun_ =
-        let loc =
-          { !Ast_helper.default_loc with loc_start = pparam_loc.loc_start }
-        in
-        match pparam_desc with
-        | Pparam_val (label, default, pat) ->
-          Ast_helper.Exp.fun_ label default pat body ~loc
-          [@alert "-prefer_jane_syntax"]
-        | Pparam_newtype (newtype, jkind) -> (
-          match jkind with
-          | None -> Ast_helper.Exp.newtype newtype body ~loc
-          | Some jkind ->
-            n_ary_function_expr (Jkind_annotation jkind)
-              (Ast_helper.Exp.newtype newtype body ~loc))
-      in
-      match after_fun_attribute with
-      | None -> fun_
-      | Some after_fun -> n_ary_function_expr (Fun_then after_fun) fun_
-    in
-    fun ~loc (params, constraint_, function_body) ->
-      (* See Note [Wrapping with make_entire_jane_syntax] *)
-      Expression.make_entire_jane_syntax ~loc feature (fun () ->
-          let body =
-            match function_body with
-            | Pfunction_body body -> body
-            | Pfunction_cases (cases, loc, attrs) ->
-              Ast_helper.Exp.function_ cases ~loc ~attrs
-              [@alert "-prefer_jane_syntax"]
-          in
-          let possibly_constrained_body =
-            match constraint_ with
-            | None -> body
-            | Some { mode_annotations; type_constraint } -> (
-              let constrained_body =
-                (* We can't call [Location.ghostify] here, as we need this file
-                   to build with the upstream compiler; see Note [Buildable with
-                   upstream] in jane_syntax.mli for details. *)
-                let loc = { body.pexp_loc with loc_ghost = true } in
-                match type_constraint with
-                | Pconstraint ty -> Ast_helper.Exp.constraint_ body ty ~loc
-                | Pcoerce (ty1, ty2) -> Ast_helper.Exp.coerce body ty1 ty2 ~loc
-              in
-              match mode_annotations.txt with
-              | _ :: _ ->
-                n_ary_function_expr (Mode_constraint mode_annotations)
-                  constrained_body
-              | [] -> constrained_body)
-          in
-          match params with
-          | [] -> possibly_constrained_body
-          | params ->
-            let init_params, last_param = Misc.split_last params in
-            let after_fun_attribute : Attribute_node.after_fun option =
-              match constraint_, function_body with
-              | Some _, Pfunction_cases _ -> Some Constraint_then_cases
-              | None, Pfunction_cases _ -> Some Cases
-              | Some _, Pfunction_body _ -> None
-              | None, Pfunction_body _ -> None
-            in
-            let body_with_last_param =
-              add_param last_param ?after_fun_attribute
-                possibly_constrained_body
-            in
-            List.fold_right add_param init_params body_with_last_param)
 end
 
 (** [include functor] *)
@@ -1949,8 +1332,6 @@ module Expression = struct
     | Jexp_comprehension of Comprehensions.expression
     | Jexp_immutable_array of Immutable_arrays.expression
     | Jexp_layout of Layouts.expression
-    | Jexp_n_ary_function of N_ary_functions.expression
-    | Jexp_modes of Modes.expression
 
   let of_ast_internal (feat : Feature.t) expr =
     match feat with
@@ -1963,13 +1344,6 @@ module Expression = struct
     | Language_extension Layouts ->
       let expr, attrs = Layouts.of_expr expr in
       Some (Jexp_layout expr, attrs)
-    | Builtin -> (
-      match N_ary_functions.of_expr expr with
-      | Some (expr, attrs) -> Some (Jexp_n_ary_function expr, attrs)
-      | None -> None)
-    | Language_extension Mode ->
-      let expr, attrs = Modes.of_expr expr in
-      Some (Jexp_modes expr, attrs)
     | _ -> None
 
   let of_ast = Expression.make_of_ast ~of_ast_internal
@@ -1980,8 +1354,6 @@ module Expression = struct
       | Jexp_comprehension x -> Comprehensions.expr_of ~loc x
       | Jexp_immutable_array x -> Immutable_arrays.expr_of ~loc x
       | Jexp_layout x -> Layouts.expr_of ~loc x
-      | Jexp_n_ary_function x -> N_ary_functions.expr_of ~loc x
-      | Jexp_modes x -> Modes.expr_of ~loc x
     in
     (* Performance hack: save an allocation if [attrs] is empty. *)
     match attrs with

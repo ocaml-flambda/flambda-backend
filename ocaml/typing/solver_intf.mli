@@ -13,6 +13,31 @@
 (*                                                                        *)
 (**************************************************************************)
 
+(* Note [Allowance]
+   ~~~~~~~~~~~~~~~~
+
+   Each variable mode has its allowance encoded in its type as [l * r], where
+   [l] and [r] could be [allowed] or [disallowed]. The typing of [submode a b]
+   requires [a] to have [l = allowed] and [b] to have [r = allowed]. This
+   encoding is useful for two reasons.
+
+   The first is to represent the availability of adjoints. Applying morphism [f]
+   to variable mode [m] gives you a variable mode [f m]. If [f] doesn't have
+   a right adjoint, the solver will not be able to handle [submode] request
+   where [f m] is on the LHS. To statically prevent such invocation of
+   [submode], we should type [f m] as [l=disallowed]. Therefore, we extend the
+   allowance encoding to morphisms to indicate the existence of left/right
+   adjoint. The [f] in the example will have [l=disallowed], and via [apply]
+   will make [f m] to be [l=disallowed] as well.
+
+   In addition, recall that a "lower" mode is stronger than a "higher" mode.
+   Therefore, the user of the solver typically calls [submode a b] where [a] is
+   the _actual_ mode of a value, and [b] the _expected_ mode of the value. The
+   caller can encode the distinction by typing [a] as [left_only] and [b] as
+   [right_only], preventing misuse statically. They might use [Allow_disallow]
+   below to explicitly weaken variable modes for safety.
+*)
+
 type allowed = private Allowed
 
 type disallowed = private Disallowed
@@ -77,7 +102,9 @@ end
 module type Lattices_mono = sig
   include Lattices
 
-  (** Morphism from object of base type ['a] to object of base type ['b].
+  (** Morphism from object of base type ['a] to object of base type ['b] with
+      allowance ['d]. See Note [Allowance] above.
+
       ['d] is ['l] * ['r], where ['l] can be:
       - [allowed], meaning the morphism can be on the left because it has right
         adjoint.
@@ -195,7 +222,8 @@ module type Solver_polarized = sig
   (* These first few types will be replaced with types from
      the Lattices_mono *)
 
-  (** The morphism type from the [Lattices_mono] we're working with *)
+  (** The morphism type from the [Lattices_mono] we're working with. See
+      comments on [Lattices_mono.morph]. *)
   type ('a, 'b, 'd) morph
 
   (** The object type from the [Lattices_mono] we're working with *)
@@ -210,14 +238,8 @@ module type Solver_polarized = sig
 
   type changes
 
-  (** A mode with carrier type ['a] and left/right status ['d] derived from the
-     morphism it contains. See comments for [morph] for the format of ['d].
-
-      A [mode] that is [allowed] on the left means it can appear as the lower
-      mode in a [submode] call. This is useful for a mode that is inferred of an
-      expression.  On the other hand, a [mode] that is [allowed] on the right
-      means it can appear as the upper mode in a [submode] call. This is useful
-      for a mode that is *expected* as the mode of an expression.  *)
+  (** A mode with carrier type ['a] and allowance ['d]. See
+  Note [Allowance] above.*)
   type ('a, 'd) mode constraint 'd = 'l * 'r
 
   (** The mode type for the opposite polarity. *)
