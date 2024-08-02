@@ -125,8 +125,10 @@ Error: Signature mismatch:
          type a : value => any
        is not included in
          type a : value => value
-       The layout of the first is ((value) => any) (...??)
-       But the layout of the first must be a sublayout of ((value) => value) (...??)
+       The layout of the first is ((value) => any), because
+         of the definition of a at line 4, characters 2-23.
+       But the layout of the first must be a sublayout of ((value) => value), because
+         of the definition of a at line 2, characters 2-25.
 |}]
 
 module M : sig
@@ -157,8 +159,10 @@ Error: Signature mismatch:
          type a : value => value
        is not included in
          type a : any => value
-       The layout of the first is ((value) => value) (...??)
-       But the layout of the first must be a sublayout of ((any) => value) (...??)
+       The layout of the first is ((value) => value), because
+         of the definition of a at line 4, characters 2-25.
+       But the layout of the first must be a sublayout of ((any) => value), because
+         of the definition of a at line 2, characters 2-23.
 |}]
 
 module M : sig
@@ -198,6 +202,8 @@ Error: Signature mismatch:
          type a : immediate => value
        is not included in
          type a : value => value
-       The layout of the first is ((immediate) => value) (...??)
-       But the layout of the first must be a sublayout of ((value) => value) (...??)
+       The layout of the first is ((immediate) => value), because
+         of the definition of a at line 4, characters 2-29.
+       But the layout of the first must be a sublayout of ((value) => value), because
+         of the definition of a at line 2, characters 2-25.
 |}]
