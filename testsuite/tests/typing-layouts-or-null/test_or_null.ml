@@ -3,9 +3,7 @@
  expect;
 *)
 
-type ('a : value) t : value_or_null = 'a or_null =
-  | Null
-  | This of 'a
+type ('a : value) t : value_or_null = 'a or_null [@@or_null_reexport]
 
 [%%expect{|
 type 'a t = 'a or_null = Null | This of 'a
@@ -118,7 +116,7 @@ Error: This expression has type 'a t = 'a or_null
        The kind of 'a t is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of 'a t must be a subkind of value
-         because of the definition of t at lines 1-3, characters 0-14.
+         because of the definition of t at line 1, characters 0-69.
 |}]
 
 let should_also_fail = This Null
@@ -132,7 +130,7 @@ Error: This expression has type 'a t = 'a or_null
        The kind of 'a t is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of 'a t must be a subkind of value
-         because of the definition of t at lines 1-3, characters 0-14.
+         because of the definition of t at line 1, characters 0-69.
 |}]
 
 let mk' n = `Foo (This n)

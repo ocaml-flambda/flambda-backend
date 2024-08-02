@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type 'a t : value_or_null = 'a or_null = Null | This of 'a
+type 'a t : value_or_null = 'a or_null [@@or_null_reexport]
 
 let null = Null
 let this v = This v

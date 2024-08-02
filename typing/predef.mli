@@ -99,6 +99,8 @@ val ident_cons : Ident.t
 val ident_none : Ident.t
 val ident_some : Ident.t
 
+val ident_or_null : Ident.t
+
 (* The jkind used for optional function argument types *)
 val option_argument_jkind : Jkind.t
 (* The jkind used for list argument types *)
@@ -127,6 +129,11 @@ val add_small_number_extension_types :
    because we'd like to only do it if layouts are set to [Alpha]. *)
 val add_or_null :
    (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
+
+(* Construct the [type_kind] of [or_null]. For re-exporting [or_null]
+   while users can't define their own types with null constructors. *)
+(* CR layouts v3.5: remove this when users can define null constructors. *)
+val or_null_kind : type_expr -> ('a, constructor_declaration) type_kind
 
 (* To initialize linker tables *)
 
