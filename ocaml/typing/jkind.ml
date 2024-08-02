@@ -1671,7 +1671,7 @@ let of_arrow ~history ~args ~result : t =
 
 module Primitive = struct
   let top ~why =
-    { jkind = Top; history = Creation (Top_creation why); has_warned = false }
+    { desc = Top; history = Creation (Top_creation why); has_warned = false }
 end
 
 (******************************)
@@ -2457,7 +2457,7 @@ let rec intersection_or_error ~reason (t1 : t) (t2 : t) =
     let* args = union_list_or_error ~reason ~violation args1 args2 in
     let* result = intersection_or_error ~reason result1 result2 in
     Ok (of_arrow ~history:(combine_histories reason t1 t2) ~args ~result)
-  | Type _, Arrow _ | Arrow _, Type _ -> Error violation
+  | _, (Arrow _ | Type _) -> Error violation
 
 and union_or_error ~reason (t1 : t) (t2 : t) =
   let ( let* ) = Result.bind in
@@ -2472,10 +2472,15 @@ and union_or_error ~reason (t1 : t) (t2 : t) =
       }
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
-    let* args = intersection_list_or_error ~reason ~violation args1 args2 in
-    let* result = union_or_error ~reason result1 result2 in
-    Ok (of_arrow ~history:(combine_histories reason t1 t2) ~args ~result)
-  | Type _, Arrow _ | Arrow _, Type _ -> Error violation
+    Ok
+      (Result.value
+         ~default:(Primitive.top ~why:Dummy_jkind)
+         (let* args =
+            intersection_list_or_error ~reason ~violation args1 args2
+          in
+          let* result = union_or_error ~reason result1 result2 in
+          Ok (of_arrow ~history:(combine_histories reason t1 t2) ~args ~result)))
+  | _, (Arrow _ | Type _ | Top) -> Error violation
 
 and intersection_list_or_error ~reason ~violation =
   combine_list_or_error ~violation (intersection_or_error ~reason)
