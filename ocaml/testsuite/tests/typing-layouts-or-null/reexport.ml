@@ -284,6 +284,33 @@ Error: In this definition, expected parameter variances are not satisfied.
        but it is injective covariant.
 |}]
 
+(* The type's arity must be exactly the same. *)
+
+type ('a, 'b) t = 'b or_null [@@or_null_reexport]
+
+[%%expect{|
+Line 1, characters 0-49:
+1 | type ('a, 'b) t = 'b or_null [@@or_null_reexport]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This variant or record definition does not match that of type
+         'b or_null
+       They have different arities.
+|}]
+
+(* The type parameter must be actually used. *)
+
+type 'a t = int or_null [@@or_null_reexport]
+[%%expect{|
+Line 1, characters 0-44:
+1 | type 'a t = int or_null [@@or_null_reexport]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This variant or record definition does not match that of type
+         int or_null
+       Their parameters differ:
+       The type int is not equal to the type 'a
+|}]
+
+
 (* [@@or_null_reexport] handles shadowing correctly. *)
 
 type 'a or_null : value = Null | This of 'a
