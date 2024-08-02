@@ -218,3 +218,66 @@ Line 2, characters 0-29:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This is not a datatype, but one was expected.
 |}]
+
+
+module M : sig
+  type ('m : value => value) inj [@@datatype]
+end = struct
+  type ('m : value => value) inj = {
+    inj : 'a. 'a -> 'a 'm;
+  }
+end
+[%%expect{|
+module M : sig type ('m : value => value) inj end
+|}]
+
+module M : sig
+  type inj : (value => value) => value
+end = struct
+  type ('m : value => value) inj = {
+    inj : 'a. 'a -> 'a 'm;
+  }
+end
+[%%expect{|
+module M : sig type inj : (value => value) => value end
+|}]
+
+module M : sig
+  type inj : (value => value) => any
+end = struct
+  type ('m : value => value) inj = {
+    inj : 'a. 'a -> 'a 'm;
+  }
+end
+[%%expect{|
+module M : sig type inj : (value => value) => any end
+|}]
+
+module M : sig
+  type inj : (value => any) => value
+end = struct
+  type ('m : value => value) inj = {
+    inj : 'a. 'a -> 'a 'm;
+  }
+end
+[%%expect{|
+Lines 3-7, characters 6-3:
+3 | ......struct
+4 |   type ('m : value => value) inj = {
+5 |     inj : 'a. 'a -> 'a 'm;
+6 |   }
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type ('m : value => value) inj = { inj : 'a. 'a -> 'a 'm; } end
+       is not included in
+         sig type inj : (value => any) => value end
+       Type declarations do not match:
+         type ('m : value => value) inj = { inj : 'a. 'a -> 'a 'm; }
+       is not included in
+         type inj : (value => any) => value
+       The layout of the first is ((((value) => value)) => value), because
+         of the definition of inj at lines 4-6, characters 2-3.
+       But the layout of the first must be a sublayout of ((((value) => any)) => value), because
+         of the definition of inj at line 2, characters 2-36.
+|}]
