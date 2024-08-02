@@ -3522,7 +3522,7 @@ let cms_register_toplevel_attributes ~sourcefile ~uid ~f ast =
   match attr with
   | None -> ()
   | Some attr ->
-    Cms_format.register_toplevel_attributes (uid : Uid.t)
+    Cms_format.register_toplevel_attributes uid
       ~loc:(Location.in_file sourcefile)
       ~attributes:[ attr ]
 
