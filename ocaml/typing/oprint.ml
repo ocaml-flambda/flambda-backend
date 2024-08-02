@@ -340,7 +340,7 @@ let print_arrow ~is_atom ppf t args result =
 let rec print_out_jkind ppf = function
   | Ojkind_arrow (args, result) ->
     print_arrow
-      ~is_atom:(function Ojkind_user _ -> false | _ -> true)
+      ~is_atom:(function Ojkind_user _ | Ojkind_arrow _ -> false | _ -> true)
       ppf print_out_jkind args result
   | Ojkind_const { base; modal_bounds=[] } ->
     fprintf ppf "%s" base
