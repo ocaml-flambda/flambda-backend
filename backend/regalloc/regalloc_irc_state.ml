@@ -47,6 +47,7 @@ type t =
     move_list : Instruction.Set.t Reg.Tbl.t;
     stack_slots : Regalloc_stack_slots.t;
     mutable next_instruction_id : Instruction.id;
+    mutable round_num : int;
     mutable introduced_temporaries : Reg.Set.t
   }
 
@@ -90,6 +91,7 @@ let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
   let active_moves = InstructionWorkList.make ~original_capacity in
   let adj_set = RegisterStamp.PairSet.make ~num_registers in
   let move_list = Reg.Tbl.create 128 in
+  let round_num = 1 in
   let introduced_temporaries = Reg.Set.empty in
   let initial = Doubly_linked_list.of_list initial in
   { initial;
@@ -109,6 +111,7 @@ let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
     move_list;
     stack_slots;
     next_instruction_id;
+    round_num;
     introduced_temporaries
   }
 
@@ -486,6 +489,10 @@ let[@inline] get_and_incr_instruction_id state =
   let res = state.next_instruction_id in
   state.next_instruction_id <- succ res;
   res
+
+let[@inline] get_round_num state = state.round_num
+
+let[@inline] incr_round_num state = state.round_num <- succ state.round_num
 
 let[@inline] add_introduced_temporaries_one state reg =
   state.introduced_temporaries <- Reg.Set.add reg state.introduced_temporaries

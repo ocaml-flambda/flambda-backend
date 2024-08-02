@@ -200,8 +200,9 @@ let reg_reinit () =
    seems to be fine with 3 *)
 let max_rounds = 50
 
-let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
- fun ~round state cfg_with_infos ->
+let rec main : State.t -> Cfg_with_infos.t -> unit =
+ fun state cfg_with_infos ->
+  let round = State.get_round_num state in
   if round > max_rounds
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
@@ -236,7 +237,8 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
   if not (Reg.Set.is_empty spilled)
   then (
     rewrite state cfg_with_infos ~spilled_nodes:(Reg.Set.elements spilled);
-    main ~round:(succ round) state cfg_with_infos)
+    State.incr_round_num state;
+    main state cfg_with_infos)
 
 let run : Cfg_with_infos.t -> Cfg_with_infos.t =
  fun cfg_with_infos ->
@@ -270,7 +272,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     List.iter spilled_nodes ~f:(fun reg -> reg.Reg.spill <- true);
     rewrite state cfg_with_infos ~spilled_nodes;
     Cfg_with_infos.invalidate_liveness cfg_with_infos);
-  main ~round:1 state cfg_with_infos;
+  main state cfg_with_infos;
   Regalloc_rewrite.postlude
     (module State)
     (module Utils)

@@ -7,7 +7,8 @@ type t =
   { mutable intervals : Interval.t list;
     active : ClassIntervals.t array;
     stack_slots : Regalloc_stack_slots.t;
-    mutable next_instruction_id : Instruction.id
+    mutable next_instruction_id : Instruction.id;
+    mutable round_num : int
   }
 
 let for_fatal t =
@@ -19,7 +20,8 @@ let[@inline] make ~stack_slots ~next_instruction_id =
   let active =
     Array.init Proc.num_register_classes ~f:(fun _ -> ClassIntervals.make ())
   in
-  { intervals; active; stack_slots; next_instruction_id }
+  let round_num = 1 in
+  { intervals; active; stack_slots; next_instruction_id; round_num }
 
 let[@inline] update_intervals state map =
   let active = state.active in
@@ -64,6 +66,10 @@ let[@inline] get_and_incr_instruction_id state =
   let res = state.next_instruction_id in
   state.next_instruction_id <- succ res;
   res
+
+let[@inline] get_round_num state = state.round_num
+
+let[@inline] incr_round_num state = state.round_num <- succ state.round_num
 
 let rec check_ranges (prev : Range.t) (l : Range.t list) : int =
   if prev.begin_ > prev.end_

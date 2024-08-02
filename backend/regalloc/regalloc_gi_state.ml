@@ -8,16 +8,19 @@ type t =
     mutable introduced_temporaries : Reg.Set.t;
     stack_slots : Regalloc_stack_slots.t;
     mutable next_instruction_id : Instruction.id;
+    mutable round_num : Instruction.id;
     initial_temporaries : int
   }
 
 let[@inline] make ~initial_temporaries ~stack_slots ~next_instruction_id =
   let assignments = Reg.Map.empty in
+  let round_num = 1 in
   let introduced_temporaries = Reg.Set.empty in
   { assignments;
     introduced_temporaries;
     stack_slots;
     next_instruction_id;
+    round_num;
     initial_temporaries
   }
 
@@ -53,3 +56,7 @@ let[@inline] get_and_incr_instruction_id state =
   let res = state.next_instruction_id in
   state.next_instruction_id <- succ res;
   res
+
+let[@inline] get_round_num state = state.round_num
+
+let[@inline] incr_round_num state = state.round_num <- succ state.round_num

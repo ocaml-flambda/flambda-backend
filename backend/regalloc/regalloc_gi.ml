@@ -114,8 +114,9 @@ let max_temp_multiplier = 10
 (* CR xclerc for xclerc: the `round` parameter is temporary; this is an hybrid
    version of "greedy" using the `rewrite` function from IRC when it needs to
    spill. *)
-let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
- fun ~round ~flat state cfg_with_infos ->
+let rec main : flat:bool -> State.t -> Cfg_with_infos.t -> unit =
+ fun ~flat state cfg_with_infos ->
+  let round = State.get_round_num state in
   if round > max_rounds
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
@@ -236,7 +237,9 @@ let rec main : round:int -> flat:bool -> State.t -> Cfg_with_infos.t -> unit =
         ~spilled_nodes:(List.map spilled_nodes ~f:fst)
     with
     | false -> if gi_debug then log ~indent:1 "(end of main)"
-    | true -> main ~round:(succ round) ~flat state cfg_with_infos)
+    | true ->
+      State.incr_round_num state;
+      main ~flat state cfg_with_infos)
 
 let run : Cfg_with_infos.t -> Cfg_with_infos.t =
  fun cfg_with_infos ->
@@ -271,7 +274,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     | Hierarchical_uses -> false
     | Random_for_testing -> Spilling_heuristics.random ()
   in
-  main ~round:1 ~flat state cfg_with_infos;
+  main ~flat state cfg_with_infos;
   if gi_debug then log_cfg_with_infos ~indent:1 cfg_with_infos;
   Regalloc_rewrite.postlude
     (module State)
