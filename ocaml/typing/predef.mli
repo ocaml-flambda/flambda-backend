@@ -99,6 +99,8 @@ val ident_cons : Ident.t
 val ident_none : Ident.t
 val ident_some : Ident.t
 
+val ident_or_null : Ident.t
+
 (* The jkind used for optional function argument types *)
 val option_argument_jkind : Jkind.t
 (* The jkind used for list argument types *)

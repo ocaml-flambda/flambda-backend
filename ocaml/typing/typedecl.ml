@@ -730,12 +730,12 @@ let verify_unboxed_attr unboxed_attr sdecl =
 
 
 let shape_map_labels =
-  List.fold_left (fun map { ld_id; ld_uid; _} ->
+  List.fold_left (fun map { Types.ld_id; ld_uid; _} ->
     Shape.Map.add_label map ld_id ld_uid)
     Shape.Map.empty
 
 let shape_map_cstrs =
-  List.fold_left (fun map { cd_id; cd_uid; cd_args; _ } ->
+  List.fold_left (fun map { Types.cd_id; cd_uid; cd_args; _ } ->
     let cstr_shape_map =
       let label_decls =
         match cd_args with
@@ -793,8 +793,36 @@ let transl_declaration env sdecl (id, uid) =
   *)
   let (tkind, kind, jkind_default) =
     match sdecl.ptype_kind with
+      (* CR layouts v3.5: this is a hack to allow re-exporting the definition
+         of ['a or_null], including constructors, even if one can't define
+         ['a or_null] "honestly", with tools available to users.
+
+         Remove when we allow users to define their own null constructors.
+      *)
+      | Ptype_abstract when
+        Builtin_attributes.has_or_null_reexport sdecl_attributes ->
+          let param =
+            (* We require users to define ['a t = 'a or_null]. Manifest
+               must be set to [or_null] so typechecking stays correct. *)
+            let ty = Option.map (Ctype.expand_head env) man in
+            match Option.map get_desc ty with
+            | Some (Tconstr(path, [param], _))
+              when Path.same path Predef.path_or_null -> param
+            | Some _ | None -> raise (Error (sdecl.ptype_loc, Invalid_reexport
+              { definition = path; expected = Predef.path_or_null }))
+          in
+          let type_kind = Predef.or_null_kind param in
+          let jkind =
+            Jkind.Primitive.value_or_null
+              ~why:(Primitive Predef.ident_or_null)
+          in
+          Ttype_abstract, type_kind, jkind
+      | (Ptype_variant _ | Ptype_record _ | Ptype_open) when
+        Builtin_attributes.has_or_null_reexport sdecl_attributes ->
+        raise (Error (sdecl.ptype_loc, Non_abstract_reexport path))
       | Ptype_abstract ->
-        Ttype_abstract, Type_abstract Abstract_def, Jkind.Primitive.value ~why:Default_type_jkind
+        Ttype_abstract, Type_abstract Abstract_def,
+          Jkind.Primitive.value ~why:Default_type_jkind
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -969,10 +997,10 @@ let transl_declaration env sdecl (id, uid) =
     in
     let typ_shape =
       let uid = decl.typ_type.type_uid in
-      match decl.typ_kind with
-      | Ttype_variant cstrs -> Shape.str ~uid (shape_map_cstrs cstrs)
-      | Ttype_record labels -> Shape.str ~uid (shape_map_labels labels)
-      | Ttype_abstract | Ttype_open -> Shape.leaf uid
+      match decl.typ_type.type_kind with
+      | Type_variant (cstrs, _) -> Shape.str ~uid (shape_map_cstrs cstrs)
+      | Type_record (labels, _) -> Shape.str ~uid (shape_map_labels labels)
+      | Type_abstract _ | Type_open -> Shape.leaf uid
     in
     decl, typ_shape
   end
@@ -1046,6 +1074,11 @@ let check_constraints env sdecl (_, decl) =
     sdecl.ptype_params decl.type_params;
   begin match decl.type_kind with
   | Type_abstract _ -> ()
+  (* We skip this check because with [or_null_reexport] the [type_kind]
+     does not match [sdecl.ptype_kind]. This is sound, since re-exporting
+     can't introduce new variables in the kind. *)
+  | Type_variant _ when
+    Builtin_attributes.has_or_null_reexport decl.type_attributes -> ()
   | Type_variant (l, _rep) ->
       let find_pl = function
           Ptype_variant pl -> pl
@@ -1098,40 +1131,6 @@ let check_constraints env sdecl (_, decl) =
       in
       check_constraints_rec env sty.ptyp_loc visited ty
   end
-
-(* CR layouts v3.5: this is a hack to allow re-exporting the definition
-   of ['a or_null], including constructors, even if one can't define
-   ['a or_null] "honestly", with tools available to users.
-
-   Remove when we allow users to define their own null constructors.
-
-   [reexport_special_types] must happen after [check_constraints]
-   because [check_constraints] expects [type_kind] to match
-   the kind in the parsetree.
-*)
-let add_special_type_reexports env loc dpath decl =
-  let or_null_reexport =
-    Builtin_attributes.has_or_null_reexport decl.type_attributes
-  in
-  match or_null_reexport with
-  | false -> decl
-  | true ->
-    match decl.type_kind with
-    | Type_abstract _ ->
-      let param =
-        (* We require users to define ['a t = 'a or_null]. Manifest
-           must be set to [or_null] so typechecking stays correct. *)
-        let ty = Option.map (Ctype.expand_head env) decl.type_manifest in
-        match Option.map get_desc ty with
-        | Some (Tconstr(path, [param], _))
-          when Path.same path Predef.path_or_null -> param
-        | Some _ | None -> raise (Error (loc, Invalid_reexport
-          { definition = dpath; expected = Predef.path_or_null }))
-      in
-      let type_kind = Predef.or_null_kind param in
-      { decl with type_kind }
-    | Type_variant _ | Type_record _ | Type_open ->
-      raise (Error (loc, Non_abstract_reexport dpath))
 
 (* Check that [type_jkind] (where we've stored the jkind annotation, if any)
    corresponds to the manifest (e.g., in the case where [type_jkind] is
@@ -1194,7 +1193,6 @@ let check_kind_coherence env loc dpath decl =
   | _ -> ()
 
 let check_coherence env loc dpath decl =
-  let decl = add_special_type_reexports env loc dpath decl in
   check_kind_coherence env loc dpath decl;
   narrow_to_manifest_jkind env loc decl
 
@@ -1654,6 +1652,15 @@ let update_decl_jkind env dpath decl =
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
+    (* CR layouts v3.0: handle this case in [update_variant_jkind] when
+       [Variant_with_null] introduced.
+
+       No updating required for [or_null_reexport], and we must not
+       incorrectly override the jkind to [non_null].
+    *)
+    | Type_variant _ when
+      Builtin_attributes.has_or_null_reexport decl.type_attributes ->
+      decl, decl.type_jkind
     | Type_variant (cstrs, rep) ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
@@ -2448,8 +2455,8 @@ let transl_extension_constructor ~scope env type_path type_params
       Typedtree.ext_attributes = sext.pext_attributes; }
   in
   let shape =
-    let map =  match ext_cstrs.ext_kind with
-    | Text_decl (_, Cstr_record lbls, _) -> shape_map_labels lbls
+    let map = match args with
+    | Cstr_record lbls -> shape_map_labels lbls
     | _ -> Shape.Map.empty
     in
     Shape.str ~uid:ext_cstrs.ext_type.ext_uid map
@@ -3800,8 +3807,8 @@ let report_error ppf = function
   | Invalid_reexport {definition; expected} ->
     fprintf ppf
       "@[Invalid reexport declaration.\
-         @ Type %s must be defined equal to the primitive type %s.@]"
-      (Path.name definition) (Path.name expected)
+         @ Type %s must be defined equal to the primitive type %a.@]"
+      (Path.name definition) Printtyp.path expected
   | Non_abstract_reexport definition ->
     fprintf ppf
       "@[Invalid reexport declaration.\
