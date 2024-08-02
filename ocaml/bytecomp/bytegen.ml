@@ -446,10 +446,14 @@ let comp_primitive stack_info p sz args =
   | Pstringrefu -> Kgetstringchar
   | Pbytesrefu -> Kgetbyteschar
   | Pbytessetu -> Ksetbyteschar
-  | Pstring_load_16(_) -> Kccall("caml_string_get16", 2)
-  | Pstring_load_32(_) -> Kccall("caml_string_get32", 2)
-  | Pstring_load_f32(_) -> Kccall("caml_string_getf32", 2)
-  | Pstring_load_64(_) -> Kccall("caml_string_get64", 2)
+  | Pstring_load_16 { index_kind; _ } ->
+    Kccall(indexing_primitive index_kind "caml_string_get16", 2)
+  | Pstring_load_32 { index_kind; _ } ->
+    Kccall(indexing_primitive index_kind "caml_string_get32", 2)
+  | Pstring_load_f32 { index_kind; _ } ->
+    Kccall(indexing_primitive index_kind "caml_string_getf32", 2)
+  | Pstring_load_64 { index_kind; _ } ->
+    Kccall(indexing_primitive index_kind "caml_string_get64", 2)
   | Pbytes_set_16(_) -> Kccall("caml_bytes_set16", 3)
   | Pbytes_set_32(_) -> Kccall("caml_bytes_set32", 3)
   | Pbytes_set_f32(_) -> Kccall("caml_bytes_setf32", 3)
