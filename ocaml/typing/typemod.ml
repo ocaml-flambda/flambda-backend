@@ -3508,7 +3508,7 @@ let gen_annot outputprefix sourcefile annots =
     ~sourcefile:(Some sourcefile) ~use_summaries:false annots
 
 let cms_register_toplevel_attributes ~sourcefile ~uid ~f ast =
-  (* Cms files do not store the typetree. This can be a problem for Merlin has
+  (* Cms files do not store the typetree. This can be a problem for Merlin as
     it uses attributes - which is why we manually construct a mapping from uid
     to attributes while typing.
     Generally `Pstr_attribute` and `Psig_attribute` are not needed by Merlin,
@@ -3522,7 +3522,7 @@ let cms_register_toplevel_attributes ~sourcefile ~uid ~f ast =
   match attr with
   | None -> ()
   | Some attr ->
-    Cms_format.register_toplevel_attributes uid
+    Cms_format.register_toplevel_attributes (uid : Uid.t)
       ~loc:(Location.in_file sourcefile)
       ~attributes:[ attr ]
 
@@ -3666,7 +3666,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
             Cmt_format.save_cmt (outputprefix ^ ".cmt") modulename
               annots (Some sourcefile) initial_env None (Some shape);
             Cms_format.save_cms (outputprefix ^ ".cms") modulename
-              annots (Some sourcefile) (Some shape);
+              annots (Some sourcefile) initial_env (Some shape);
             gen_annot outputprefix sourcefile annots);
           { structure = str;
             coercion;
@@ -3716,7 +3716,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
               Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
                 annots (Some sourcefile) initial_env (Some cmi) (Some shape);
               Cms_format.save_cms  (outputprefix ^ ".cms") modulename
-                annots (Some sourcefile) (Some shape);
+                annots (Some sourcefile) initial_env (Some shape);
               gen_annot outputprefix sourcefile annots)
           end;
           { structure = str;
@@ -3737,7 +3737,7 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
           Cmt_format.save_cmt  (outputprefix ^ ".cmt") modulename
             annots (Some sourcefile) initial_env None None;
           Cms_format.save_cms  (outputprefix ^ ".cms") modulename
-            annots (Some sourcefile) None;
+            annots (Some sourcefile) initial_env None;
           gen_annot outputprefix sourcefile annots)
       )
 
@@ -3745,7 +3745,7 @@ let save_signature modname tsg outputprefix source_file initial_env cmi =
   Cmt_format.save_cmt  (outputprefix ^ ".cmti") modname
     (Cmt_format.Interface tsg) (Some source_file) initial_env (Some cmi) None;
   Cms_format.save_cms  (outputprefix ^ ".cmsi") modname
-    (Cmt_format.Interface tsg) (Some source_file) None
+    (Cmt_format.Interface tsg) (Some source_file) initial_env None
 
 let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
   cms_register_toplevel_attributes ~sourcefile ~uid ast
@@ -3863,7 +3863,7 @@ let package_units initial_env objfiles cmifile modulename =
     Cmt_format.save_cmt  (prefix ^ ".cmt") modulename
       (Cmt_format.Packed (sg, objfiles)) None initial_env  None (Some shape);
     Cms_format.save_cms  (prefix ^ ".cms") modulename
-      (Cmt_format.Packed (sg, objfiles)) None (Some shape);
+      (Cmt_format.Packed (sg, objfiles)) None initial_env (Some shape);
     cc
   end else begin
     (* Determine imports *)
@@ -3890,7 +3890,7 @@ let package_units initial_env objfiles cmifile modulename =
         (Cmt_format.Packed (sign, objfiles)) None initial_env
         (Some cmi) (Some shape);
       Cms_format.save_cms (prefix ^ ".cms")  modulename
-        (Cmt_format.Packed (sign, objfiles)) None (Some shape);
+        (Cmt_format.Packed (sign, objfiles)) None initial_env (Some shape);
     end;
     Tcoerce_none
   end
