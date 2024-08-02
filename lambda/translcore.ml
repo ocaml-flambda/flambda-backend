@@ -540,7 +540,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           (* CR layouts v5: This could have void args, but for now we've ruled
              that out by checking that the sort list is empty *)
           Lconst(const_int runtime_tag)
-      | Ordinary _, (Variant_unboxed) ->
+      | Ordinary _, Variant_unboxed ->
           (match ll with [v] -> v | _ -> assert false)
       | Ordinary {runtime_tag}, Variant_boxed _ ->
           let constant =
