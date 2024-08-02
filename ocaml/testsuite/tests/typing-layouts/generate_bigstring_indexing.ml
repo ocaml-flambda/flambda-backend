@@ -35,6 +35,7 @@ let bigstring_tests_template ~length ~tests = {|
 let length = |}^length^{|
 let reference_str = String.init length (fun i -> i * 7 mod 256 |> char_of_int)
 let create_b () = reference_str |> Bytes.of_string
+let create_s () = reference_str
 
 open struct
   open Bigarray
@@ -74,6 +75,8 @@ let eq : |}^ref_result^{| -> |}^ref_result^{| -> bool = |}^eq^{|
 ^external_bindings_template
    ~container:"bigstring" ~sigil:"bs" ~width ~test_suffix ~index ~ref_result ~test_result
 ^external_bindings_template
+   ~container:"string" ~sigil:"s" ~width ~test_suffix ~index ~ref_result ~test_result
+^external_bindings_template
    ~container:"bytes" ~sigil:"b" ~width ~test_suffix ~index ~ref_result ~test_result
 ^{|
 let check_get_bounds, check_get =
@@ -103,10 +106,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do

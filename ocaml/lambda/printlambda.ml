@@ -647,22 +647,25 @@ let primitive ppf = function[@ocaml.warning "+9"]
   | Pbigarrayset(unsafe, _n, kind, layout) ->
       print_bigarray "set" unsafe kind ppf layout
   | Pbigarraydim(n) -> fprintf ppf "Bigarray.dim_%i" n
-  | Pstring_load_16(unsafe) ->
-     if unsafe then fprintf ppf "string.unsafe_get16"
-     else fprintf ppf "string.get16"
-  | Pstring_load_32(unsafe, m) ->
-     if unsafe then fprintf ppf "string.unsafe_get32%s" (alloc_kind m)
-     else fprintf ppf "string.get32%s" (alloc_kind m)
-  | Pstring_load_f32(unsafe, m) ->
-     if unsafe then fprintf ppf "string.unsafe_getf32%s" (alloc_kind m)
-     else fprintf ppf "string.getf32%s" (alloc_kind m)
-  | Pstring_load_64(unsafe, m) ->
-     if unsafe then fprintf ppf "string.unsafe_get64%s" (alloc_kind m)
-     else fprintf ppf "string.get64%s" (alloc_kind m)
-  | Pstring_load_128 {unsafe = true; mode} ->
-     fprintf ppf "string.unsafe_unaligned_get128%s" (alloc_kind mode)
-  | Pstring_load_128 {unsafe = false; mode} ->
-     fprintf ppf "string.unaligned_get128%s" (alloc_kind mode)
+  | Pstring_load_16 {unsafe; index_kind} ->
+     fprintf ppf "string.%sget16[indexed by %a]" (if unsafe then "unsafe_" else "")
+       array_index_kind index_kind
+  | Pstring_load_32 {unsafe; index_kind; mode; boxed} ->
+     fprintf ppf "string.%sget32%s%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+       (alloc_kind mode) array_index_kind index_kind
+  | Pstring_load_f32{unsafe; index_kind; mode; boxed} ->
+     fprintf ppf "string.%sgetf32%s%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "")
+       (alloc_kind mode) array_index_kind index_kind
+  | Pstring_load_64{unsafe; index_kind; mode; boxed} ->
+     fprintf ppf "string.%sget64%s%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "")
+       (alloc_kind mode) array_index_kind index_kind
+  | Pstring_load_128 {unsafe; index_kind; mode} ->
+     fprintf ppf "string.%sunaligned_get128%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (alloc_kind mode) array_index_kind
+       index_kind
   | Pbytes_load_16 {unsafe; index_kind} ->
      fprintf ppf "bytes.%sget16[indexed by %a]" (if unsafe then "unsafe_" else "")
        array_index_kind index_kind

@@ -227,12 +227,12 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
             Pbigstring_load_64 { unsafe; index_kind; mode; boxed } );
         ( Printf.sprintf "%%caml_bigstring_getu128%s%s%s",
           fun ~unsafe ~boxed ~index_kind ->
-            Pbigstring_load_128 { aligned = false; unsafe; index_kind; mode; boxed }
-        );
+            Pbigstring_load_128
+              { aligned = false; unsafe; index_kind; mode; boxed } );
         ( Printf.sprintf "%%caml_bigstring_geta128%s%s%s",
           fun ~unsafe ~boxed ~index_kind ->
-            Pbigstring_load_128 { aligned = true; unsafe; index_kind; mode; boxed }
-        );
+            Pbigstring_load_128
+              { aligned = true; unsafe; index_kind; mode; boxed } );
         ( (fun unsafe _boxed index_kind ->
             Printf.sprintf "%%caml_bytes_get16%s%s" unsafe index_kind),
           fun ~unsafe ~boxed:_ ~index_kind ->
@@ -250,26 +250,23 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
             Printf.sprintf "%%caml_bytes_getu128%s%s" unsafe index_kind),
           fun ~unsafe ~boxed:_ ~index_kind ->
             Pbytes_load_128 { unsafe; index_kind; mode } );
-        ( (fun unsafe _boxed _index_kind ->
-            Printf.sprintf "%%caml_string_get16%s" unsafe),
-          fun ~unsafe ~boxed:_ ~index_kind:_ ->
-            Pstring_load_16 unsafe );
-        ( (fun unsafe _boxed _index_kind ->
-            Printf.sprintf "%%caml_string_get32%s" unsafe),
-          fun ~unsafe ~boxed:_ ~index_kind:_ ->
-            Pstring_load_32 (unsafe, mode) );
-        ( (fun unsafe _boxed _index_kind ->
-            Printf.sprintf "%%caml_string_getf32%s" unsafe),
-          fun ~unsafe ~boxed:_ ~index_kind:_ ->
-            Pstring_load_f32 (unsafe, mode) );
-        ( (fun unsafe _boxed _index_kind ->
-            Printf.sprintf "%%caml_string_get64%s" unsafe),
-          fun ~unsafe ~boxed:_ ~index_kind:_ ->
-            Pstring_load_64 (unsafe, mode) );
-        ( (fun unsafe _boxed _index_kind ->
-            Printf.sprintf "%%caml_string_getu128%s" unsafe),
-          fun ~unsafe ~boxed:_ ~index_kind:_ ->
-            Pstring_load_128 { unsafe; mode } );
+        ( (fun unsafe _boxed index_kind ->
+            Printf.sprintf "%%caml_string_get16%s%s" unsafe index_kind),
+          fun ~unsafe ~boxed:_ ~index_kind ->
+            Pstring_load_16 { unsafe; index_kind } );
+        ( Printf.sprintf "%%caml_string_get32%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pstring_load_32 { unsafe; index_kind; mode; boxed } );
+        ( Printf.sprintf "%%caml_string_getf32%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pstring_load_f32 { unsafe; index_kind; mode; boxed } );
+        ( Printf.sprintf "%%caml_string_get64%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pstring_load_64 { unsafe; index_kind; mode; boxed } );
+        ( (fun unsafe _boxed index_kind ->
+            Printf.sprintf "%%caml_string_getu128%s%s" unsafe index_kind),
+          fun ~unsafe ~boxed:_ ~index_kind ->
+            Pstring_load_128 { unsafe; index_kind; mode } );
       ]
     in
     let unsafes = [ (true, "u"); (false, "") ] in

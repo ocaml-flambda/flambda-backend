@@ -222,11 +222,15 @@ type primitive =
   (* size of the nth dimension of a Bigarray *)
   | Pbigarraydim of int
   (* load/set 16,32,64,128 bits from a string: (unsafe)*)
-  | Pstring_load_16 of bool
-  | Pstring_load_32 of bool * alloc_mode
-  | Pstring_load_f32 of bool * alloc_mode
-  | Pstring_load_64 of bool * alloc_mode
-  | Pstring_load_128 of { unsafe : bool; mode: alloc_mode }
+  | Pstring_load_16 of { unsafe : bool; index_kind : array_index_kind }
+  | Pstring_load_32 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pstring_load_f32 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pstring_load_64 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pstring_load_128 of { unsafe : bool; index_kind : array_index_kind;
+      mode: alloc_mode }
   | Pbytes_load_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbytes_load_32 of { unsafe : bool; index_kind : array_index_kind;
       mode : alloc_mode; boxed : bool }

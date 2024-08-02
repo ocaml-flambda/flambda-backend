@@ -612,10 +612,10 @@ let primitive_can_raise (prim : Lambda.primitive) =
   match prim with
   | Pccall _ | Praise _ | Parrayrefs _ | Parraysets _ | Pmodint _ | Pdivint _
   | Pstringrefs | Pbytesrefs | Pbytessets
-  | Pstring_load_16 false
-  | Pstring_load_32 (false, _)
-  | Pstring_load_f32 (false, _)
-  | Pstring_load_64 (false, _)
+  | Pstring_load_16 { unsafe = false; _ }
+  | Pstring_load_32 { unsafe = false; _ }
+  | Pstring_load_f32 { unsafe = false; _ }
+  | Pstring_load_64 { unsafe = false; _ }
   | Pstring_load_128 { unsafe = false; _ }
   | Pbytes_load_16 { unsafe = false; _ }
   | Pbytes_load_32 { unsafe = false; _ }
@@ -709,10 +709,10 @@ let primitive_can_raise (prim : Lambda.primitive) =
         | Pbigarray_caml_int | Pbigarray_native_int | Pbigarray_complex32
         | Pbigarray_complex64 ),
         (Pbigarray_c_layout | Pbigarray_fortran_layout) )
-  | Pstring_load_16 true
-  | Pstring_load_32 (true, _)
-  | Pstring_load_f32 (true, _)
-  | Pstring_load_64 (true, _)
+  | Pstring_load_16 { unsafe = true; _ }
+  | Pstring_load_32 { unsafe = true; _ }
+  | Pstring_load_f32 { unsafe = true; _ }
+  | Pstring_load_64 { unsafe = true; _ }
   | Pstring_load_128 { unsafe = true; _ }
   | Pbytes_load_16 { unsafe = true; _ }
   | Pbytes_load_32 { unsafe = true; _ }

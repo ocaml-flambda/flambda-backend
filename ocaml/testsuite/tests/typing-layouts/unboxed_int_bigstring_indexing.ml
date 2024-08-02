@@ -33,6 +33,7 @@
 let length = 300
 let reference_str = String.init length (fun i -> i * 7 mod 256 |> char_of_int)
 let create_b () = reference_str |> Bytes.of_string
+let create_s () = reference_str
 
 open struct
   open Bigarray
@@ -62,6 +63,15 @@ external bs_tested_s : bigstring -> nativeint# -> int
 
 external bs_tested_u : bigstring -> nativeint# -> int
   = "%caml_bigstring_get16u_indexed_by_nativeint#"
+
+external s_reference : string -> int -> int
+  = "%caml_string_get16"
+
+external s_tested_s : string -> nativeint# -> int
+  = "%caml_string_get16_indexed_by_nativeint#"
+
+external s_tested_u : string -> nativeint# -> int
+  = "%caml_string_get16u_indexed_by_nativeint#"
 
 external b_reference : bytes -> int -> int
   = "%caml_bytes_get16"
@@ -99,10 +109,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -123,6 +135,15 @@ external bs_tested_s : bigstring -> nativeint# -> int32
 
 external bs_tested_u : bigstring -> nativeint# -> int32
   = "%caml_bigstring_get32u_indexed_by_nativeint#"
+
+external s_reference : string -> int -> int32
+  = "%caml_string_get32"
+
+external s_tested_s : string -> nativeint# -> int32
+  = "%caml_string_get32_indexed_by_nativeint#"
+
+external s_tested_u : string -> nativeint# -> int32
+  = "%caml_string_get32u_indexed_by_nativeint#"
 
 external b_reference : bytes -> int -> int32
   = "%caml_bytes_get32"
@@ -160,10 +181,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -184,6 +207,15 @@ external bs_tested_s : bigstring -> nativeint# -> int64
 
 external bs_tested_u : bigstring -> nativeint# -> int64
   = "%caml_bigstring_get64u_indexed_by_nativeint#"
+
+external s_reference : string -> int -> int64
+  = "%caml_string_get64"
+
+external s_tested_s : string -> nativeint# -> int64
+  = "%caml_string_get64_indexed_by_nativeint#"
+
+external s_tested_u : string -> nativeint# -> int64
+  = "%caml_string_get64u_indexed_by_nativeint#"
 
 external b_reference : bytes -> int -> int64
   = "%caml_bytes_get64"
@@ -221,10 +253,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -245,6 +279,15 @@ external bs_tested_s : bigstring -> nativeint# -> int32#
 
 external bs_tested_u : bigstring -> nativeint# -> int32#
   = "%caml_bigstring_get32u#_indexed_by_nativeint#"
+
+external s_reference : string -> int -> int32
+  = "%caml_string_get32"
+
+external s_tested_s : string -> nativeint# -> int32#
+  = "%caml_string_get32#_indexed_by_nativeint#"
+
+external s_tested_u : string -> nativeint# -> int32#
+  = "%caml_string_get32u#_indexed_by_nativeint#"
 
 external b_reference : bytes -> int -> int32
   = "%caml_bytes_get32"
@@ -282,10 +325,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -306,6 +351,15 @@ external bs_tested_s : bigstring -> nativeint# -> int64#
 
 external bs_tested_u : bigstring -> nativeint# -> int64#
   = "%caml_bigstring_get64u#_indexed_by_nativeint#"
+
+external s_reference : string -> int -> int64
+  = "%caml_string_get64"
+
+external s_tested_s : string -> nativeint# -> int64#
+  = "%caml_string_get64#_indexed_by_nativeint#"
+
+external s_tested_u : string -> nativeint# -> int64#
+  = "%caml_string_get64u#_indexed_by_nativeint#"
 
 external b_reference : bytes -> int -> int64
   = "%caml_bytes_get64"
@@ -343,10 +397,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -367,6 +423,15 @@ external bs_tested_s : bigstring -> int32# -> int
 
 external bs_tested_u : bigstring -> int32# -> int
   = "%caml_bigstring_get16u_indexed_by_int32#"
+
+external s_reference : string -> int -> int
+  = "%caml_string_get16"
+
+external s_tested_s : string -> int32# -> int
+  = "%caml_string_get16_indexed_by_int32#"
+
+external s_tested_u : string -> int32# -> int
+  = "%caml_string_get16u_indexed_by_int32#"
 
 external b_reference : bytes -> int -> int
   = "%caml_bytes_get16"
@@ -404,10 +469,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -431,6 +498,15 @@ external bs_tested_s : bigstring -> int32# -> int32
 
 external bs_tested_u : bigstring -> int32# -> int32
   = "%caml_bigstring_get32u_indexed_by_int32#"
+
+external s_reference : string -> int -> int32
+  = "%caml_string_get32"
+
+external s_tested_s : string -> int32# -> int32
+  = "%caml_string_get32_indexed_by_int32#"
+
+external s_tested_u : string -> int32# -> int32
+  = "%caml_string_get32u_indexed_by_int32#"
 
 external b_reference : bytes -> int -> int32
   = "%caml_bytes_get32"
@@ -468,10 +544,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -495,6 +573,15 @@ external bs_tested_s : bigstring -> int32# -> int64
 
 external bs_tested_u : bigstring -> int32# -> int64
   = "%caml_bigstring_get64u_indexed_by_int32#"
+
+external s_reference : string -> int -> int64
+  = "%caml_string_get64"
+
+external s_tested_s : string -> int32# -> int64
+  = "%caml_string_get64_indexed_by_int32#"
+
+external s_tested_u : string -> int32# -> int64
+  = "%caml_string_get64u_indexed_by_int32#"
 
 external b_reference : bytes -> int -> int64
   = "%caml_bytes_get64"
@@ -532,10 +619,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -559,6 +648,15 @@ external bs_tested_s : bigstring -> int32# -> int32#
 
 external bs_tested_u : bigstring -> int32# -> int32#
   = "%caml_bigstring_get32u#_indexed_by_int32#"
+
+external s_reference : string -> int -> int32
+  = "%caml_string_get32"
+
+external s_tested_s : string -> int32# -> int32#
+  = "%caml_string_get32#_indexed_by_int32#"
+
+external s_tested_u : string -> int32# -> int32#
+  = "%caml_string_get32u#_indexed_by_int32#"
 
 external b_reference : bytes -> int -> int32
   = "%caml_bytes_get32"
@@ -596,10 +694,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -623,6 +723,15 @@ external bs_tested_s : bigstring -> int32# -> int64#
 
 external bs_tested_u : bigstring -> int32# -> int64#
   = "%caml_bigstring_get64u#_indexed_by_int32#"
+
+external s_reference : string -> int -> int64
+  = "%caml_string_get64"
+
+external s_tested_s : string -> int32# -> int64#
+  = "%caml_string_get64#_indexed_by_int32#"
+
+external s_tested_u : string -> int32# -> int64#
+  = "%caml_string_get64u#_indexed_by_int32#"
 
 external b_reference : bytes -> int -> int64
   = "%caml_bytes_get64"
@@ -660,10 +769,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -687,6 +798,15 @@ external bs_tested_s : bigstring -> int64# -> int
 
 external bs_tested_u : bigstring -> int64# -> int
   = "%caml_bigstring_get16u_indexed_by_int64#"
+
+external s_reference : string -> int -> int
+  = "%caml_string_get16"
+
+external s_tested_s : string -> int64# -> int
+  = "%caml_string_get16_indexed_by_int64#"
+
+external s_tested_u : string -> int64# -> int
+  = "%caml_string_get16u_indexed_by_int64#"
 
 external b_reference : bytes -> int -> int
   = "%caml_bytes_get16"
@@ -724,10 +844,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -751,6 +873,15 @@ external bs_tested_s : bigstring -> int64# -> int32
 
 external bs_tested_u : bigstring -> int64# -> int32
   = "%caml_bigstring_get32u_indexed_by_int64#"
+
+external s_reference : string -> int -> int32
+  = "%caml_string_get32"
+
+external s_tested_s : string -> int64# -> int32
+  = "%caml_string_get32_indexed_by_int64#"
+
+external s_tested_u : string -> int64# -> int32
+  = "%caml_string_get32u_indexed_by_int64#"
 
 external b_reference : bytes -> int -> int32
   = "%caml_bytes_get32"
@@ -788,10 +919,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -815,6 +948,15 @@ external bs_tested_s : bigstring -> int64# -> int64
 
 external bs_tested_u : bigstring -> int64# -> int64
   = "%caml_bigstring_get64u_indexed_by_int64#"
+
+external s_reference : string -> int -> int64
+  = "%caml_string_get64"
+
+external s_tested_s : string -> int64# -> int64
+  = "%caml_string_get64_indexed_by_int64#"
+
+external s_tested_u : string -> int64# -> int64
+  = "%caml_string_get64u_indexed_by_int64#"
 
 external b_reference : bytes -> int -> int64
   = "%caml_bytes_get64"
@@ -852,10 +994,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -879,6 +1023,15 @@ external bs_tested_s : bigstring -> int64# -> int32#
 
 external bs_tested_u : bigstring -> int64# -> int32#
   = "%caml_bigstring_get32u#_indexed_by_int64#"
+
+external s_reference : string -> int -> int32
+  = "%caml_string_get32"
+
+external s_tested_s : string -> int64# -> int32#
+  = "%caml_string_get32#_indexed_by_int64#"
+
+external s_tested_u : string -> int64# -> int32#
+  = "%caml_string_get32u#_indexed_by_int64#"
 
 external b_reference : bytes -> int -> int32
   = "%caml_bytes_get32"
@@ -916,10 +1069,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
@@ -943,6 +1098,15 @@ external bs_tested_s : bigstring -> int64# -> int64#
 
 external bs_tested_u : bigstring -> int64# -> int64#
   = "%caml_bigstring_get64u#_indexed_by_int64#"
+
+external s_reference : string -> int -> int64
+  = "%caml_string_get64"
+
+external s_tested_s : string -> int64# -> int64#
+  = "%caml_string_get64#_indexed_by_int64#"
+
+external s_tested_u : string -> int64# -> int64#
+  = "%caml_string_get64u#_indexed_by_int64#"
 
 external b_reference : bytes -> int -> int64
   = "%caml_bytes_get64"
@@ -980,10 +1144,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_reference s_tested_s s_tested_u in
   let cb_for_b, c_for_b =
     create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i) )
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
 ;;
 
 for i = -1 to length + 1 do
