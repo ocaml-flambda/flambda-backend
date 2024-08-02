@@ -929,8 +929,8 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
         when ctxt.semi ->
         paren true (expression reset_ctxt) f x
     | Pexp_newtype (lid, e) ->
-        pp f "@[<2>fun@;(type@;%a)@;->@;%a@]" ident_of_name lid.txt
-          (expression ctxt) e
+        pp f "@[<2>fun@;(type@;%s)@;%a@]" lid.txt
+          (pp_print_pexp_newtype ctxt "->") e
     | Pexp_function (params, c, body) ->
         begin match params, c with
         (* Omit [fun] if there are no params. *)

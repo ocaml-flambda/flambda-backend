@@ -114,7 +114,7 @@ module Typ = struct
            [Jane_syntax.Layouts.Ltyp_alias]), but the code here still has the
            correct behavior. *)
         | Ptyp_alias(core_type, alias) ->
-            check_variable var_names t.ptyp_loc alias.txt;
+            check_variable var_names alias.loc alias.txt;
             Ptyp_alias(loop core_type, alias)
         | Ptyp_variant(row_field_list, flag, lbl_lst_option) ->
             Ptyp_variant(List.map loop_row_field row_field_list,
