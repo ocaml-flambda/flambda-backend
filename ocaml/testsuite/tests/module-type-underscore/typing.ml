@@ -1027,12 +1027,8 @@ end = struct
   end
 end
 
-(* CR selee: We want to be able to infer this *)
 [%%expect {|
-Line 9, characters 4-21:
-9 |     module type S = _
-        ^^^^^^^^^^^^^^^^^
-Error: Cannot infer module type without a corresponding definition.
+module M : sig module N : sig module type S = sig type t end end end
 |}]
 
 module M : sig
