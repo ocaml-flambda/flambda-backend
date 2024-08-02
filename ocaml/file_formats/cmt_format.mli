@@ -120,6 +120,8 @@ val iter_declarations
     -> f:(Shape.Uid.t -> Typedtree.item_declaration -> unit)
     -> unit
 
+val need_to_clear_env : bool
+
 (*
 
   val is_magic_number : string -> bool
