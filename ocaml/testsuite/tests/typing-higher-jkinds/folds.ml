@@ -62,7 +62,7 @@ val id : id applicative = {return = <fun>; lift = <fun>; both = <fun>}
 |}]
 
 
-(* ** *)
+(* Correctness tests *)
 
 let example = Succ (Succ (Zero (([0; 1; 2], [4; -1]), ([6; 3], []))))
 [%%expect{|
@@ -94,17 +94,16 @@ val leftmost : 'a perfect -> 'a id = <fun>
 val result : int list id = {v = [0; 1; 2]}
 |}]
 
-let listing perfect =
-  fold {
-    zero = (fun x -> [x]);
-    succ = List.concat_map (fun (x, y) -> [x; y])
-  } perfect
-let result = leftmost example
+let leaves (perfect : 'a perfect) =
+  fold ({
+    zero = (fun l -> [l]);
+    succ = (fun l -> List.concat_map (fun (x, y) -> [x; y]) l)
+  } : list folder) perfect
+let result = leaves example
+let flat = List.concat result
 
 [%%expect{|
-Line 4, characters 11-49:
-4 |     succ = List.concat_map (fun (x, y) -> [x; y])
-               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This field value has type ('b * 'b) list -> 'b list
-       which is less general than 'a. ('a * 'a) 'c -> 'a 'c
+val leaves : 'a perfect -> 'a list = <fun>
+val result : int list list = [[0; 1; 2]; [4; -1]; [6; 3]; []]
+val flat : int list = [0; 1; 2; 4; -1; 6; 3]
 |}]
