@@ -155,7 +155,7 @@ let view_expr x =
               (List.rev acc,true)
           | {pexp_desc=
              Pexp_construct ({txt=Lident "::";_},
-                             Some ({pexp_desc= Pexp_tuple([e1;e2]);
+                             Some ({pexp_desc= Pexp_tuple([None, e1;None, e2]);
                                     pexp_attributes = []}));
              pexp_attributes = []}
             ->
@@ -466,7 +466,8 @@ and core_type1 ctxt f x =
     match x.ptyp_desc with
     | Ptyp_any -> pp f "_";
     | Ptyp_var s -> tyvar f  s;
-    | Ptyp_tuple l ->  pp f "(%a)" (list (core_type1 ctxt) ~sep:"@;*@;") l
+    | Ptyp_tuple tl ->
+        pp f "(%a)" (list (labeled_core_type1 ctxt) ~sep:"@;*@;") tl
     | Ptyp_constr (li, l) ->
         pp f (* "%a%a@;" *) "%a%a"
           (fun f l -> match l with
@@ -562,7 +563,7 @@ and core_type_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
     pp f "@[<2>%a@;.@;%a@]"
         (list jkind_poly_var ~sep:"@;") bound_vars
         (core_type ctxt) inner_type
-  | Jtyp_tuple _ | Jtyp_layout (Ltyp_var _) ->
+  | Jtyp_layout (Ltyp_var _) ->
     pp f "@[<2>%a@]" (core_type1_jane_syntax ctxt attrs) x
 
 
@@ -572,18 +573,12 @@ and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
     match x with
     | Jtyp_layout (Ltyp_var { name; jkind }) ->
       pp f "(%a@;:@;%a)" tyvar_option name (jkind_annotation ctxt) jkind
-    | Jtyp_tuple x -> core_type1_labeled_tuple ctxt attrs f x
     | Jtyp_layout (Ltyp_alias _ | Ltyp_poly _) ->
       paren true (core_type_jane_syntax ctxt attrs) f x
 
 and tyvar_option f = function
   | None -> pp f "_"
   | Some name -> tyvar f name
-
-and core_type1_labeled_tuple ctxt _attrs f
-      : Jane_syntax.Labeled_tuples.core_type -> _ =
-  fun tl ->
-      pp f "(%a)" (list (labeled_core_type1 ctxt) ~sep:"@;*@;") tl
 
 and labeled_core_type1 ctxt f (label, ty) =
   begin match label with
@@ -631,7 +626,7 @@ and pattern1 ctxt (f:Format.formatter) (x:pattern) : unit =
             Some ([], inner_pat));
        ppat_attributes = []} ->
       begin match Jane_syntax.Pattern.of_ast inner_pat, inner_pat.ppat_desc with
-      | None, Ppat_tuple([pat1; pat2]) ->
+      | None, Ppat_tuple([None, pat1; None, pat2], Closed) ->
         pp f "%a::%a" (simple_pattern ctxt) pat1 pattern_list_helper pat2 (*RA*)
       | _ -> pattern1 ctxt f p
       end
@@ -707,8 +702,14 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
         | _ ->
             pp f "@[<2>{@;%a;_}@]" (list longident_x_pattern ~sep:";@;") l
         end
-    | Ppat_tuple l ->
-        pp f "@[<1>(%a)@]" (list  ~sep:",@;" (pattern1 ctxt))  l (* level1*)
+    | Ppat_tuple (l, closed) ->
+      let closed_flag ppf = function
+        | Closed -> ()
+        | Open -> pp ppf ",@;.."
+      in
+      pp f "@[<1>(%a%a)@]"
+        (list ~sep:",@;" (labeled_pattern1 ctxt)) l
+        closed_flag closed
     | Ppat_constant (c) -> pp f "%a" constant c
     | Ppat_interval (c1, c2) -> pp f "%a..%a" constant c1 constant c2
     | Ppat_variant (l,None) ->  pp f "`%s" l
@@ -738,7 +739,6 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
         | Some (jpat, _attrs) -> begin match jpat with
         | Jpat_immutable_array (Iapat_immutable_array _) -> false
         | Jpat_layout (Lpat_constant _) -> false
-        | Jpat_tuple (_, _) -> true
         end
         | None -> match p.ppat_desc with
         | Ppat_array _ | Ppat_record _
@@ -757,14 +757,6 @@ and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
     | Jpat_immutable_array (Iapat_immutable_array l) ->
         pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
     | Jpat_layout (Lpat_constant c) -> unboxed_constant ctxt f c
-    | Jpat_tuple (l, closed) ->
-        let closed_flag ppf = function
-        | Closed -> ()
-        | Open -> pp ppf ",@;.."
-        in
-        pp f "@[<1>(%a%a)@]"
-          (list ~sep:",@;" (labeled_pattern1 ctxt)) l
-          closed_flag closed
 
 and label_exp ctxt f (l,opt,p) =
   match l with
@@ -1102,8 +1094,7 @@ and simple_expr ctxt f x =
     | Pexp_constant c -> constant f c;
     | Pexp_pack me ->
         pp f "(module@;%a)" (module_expr ctxt) me
-    | Pexp_tuple l ->
-        pp f "@[<hov2>(%a)@]" (list (simple_expr ctxt) ~sep:",@;") l
+    | Pexp_tuple ltexp        -> labeled_tuple_expr ctxt f ltexp
     | Pexp_constraint (e, ct, m) ->
       begin match ct with
       | None ->
@@ -2161,7 +2152,6 @@ and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) ~parens =
   | Jexp_comprehension x -> comprehension_expr ctxt f x
   | Jexp_immutable_array x -> immutable_array_expr ctxt f x
   | Jexp_layout x -> layout_expr ctxt f x ~parens
-  | Jexp_tuple ltexp        -> labeled_tuple_expr ctxt f ltexp
 
 and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
   let punct, comp = match cexp with
@@ -2281,7 +2271,7 @@ and function_params_then_body ctxt f params constraint_ body ~delimiter =
     delimiter
     (function_body (under_functionrhs ctxt)) body
 
-and labeled_tuple_expr ctxt f (x : Jane_syntax.Labeled_tuples.expression) =
+and labeled_tuple_expr ctxt f (x : (string option * expression) list) =
   pp f "@[<hov2>(%a)@]" (list (tuple_component ctxt) ~sep:",@;") x
 
 (******************************************************************************)

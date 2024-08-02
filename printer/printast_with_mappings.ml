@@ -151,6 +151,14 @@ let arg_label i ppf = function
 let typevars ppf vs =
   List.iter (fun x -> fprintf ppf " %a" Pprintast.tyvar x.txt) vs
 
+let tuple_component_label i ppf = function
+  | None -> line i ppf "Label: None\n"
+  | Some s -> line i ppf "Label: Some %s\n" s
+
+let labeled_tuple_element f i ppf (l, ct) =
+  option i string_loc ppf l;
+  f i ppf ct
+
 let modality i ppf modality =
   line i ppf "modality %a\n" fmt_string_loc
     (Location.map (fun (Modality x) -> x) modality)
@@ -182,7 +190,7 @@ let rec core_type i ppf x =
       modes i ppf m2;
   | Ptyp_tuple l ->
       line i ppf "Ptyp_tuple\n";
-      list i core_type ppf l;
+      list i labeled_core_type ppf l;
   | Ptyp_constr (li, l) ->
       line i ppf "Ptyp_constr %a\n" fmt_longident_loc li;
       list i core_type ppf l;
@@ -224,6 +232,10 @@ let rec core_type i ppf x =
       payload i ppf arg
   )
 
+and labeled_core_type i ppf (l, t) =
+  tuple_component_label i ppf l;
+  core_type i ppf t
+
 and package_with i ppf (s, t) =
   line i ppf "with type %a\n" fmt_longident_loc s;
   core_type i ppf t
@@ -242,9 +254,10 @@ and pattern i ppf x =
   | Ppat_constant (c) -> line i ppf "Ppat_constant %a\n" fmt_constant c;
   | Ppat_interval (c1, c2) ->
       line i ppf "Ppat_interval %a..%a\n" fmt_constant c1 fmt_constant c2;
-  | Ppat_tuple (l) ->
+  | Ppat_tuple (l, op) ->
       line i ppf "Ppat_tuple\n";
-      list i pattern ppf l;
+      list i labeled_pattern ppf l;
+      open_closed i ppf op
   | Ppat_construct (li, po) ->
       line i ppf "Ppat_construct %a\n" fmt_longident_loc li;
       option i
@@ -289,6 +302,15 @@ and pattern i ppf x =
       payload i ppf arg
   )
 
+and labeled_pattern i ppf (label, x) =
+  tuple_component_label i ppf label;
+  pattern i ppf x
+
+and open_closed i ppf =
+  function
+  | Open -> string i ppf "Open"
+  | Closed -> string i ppf "Closed"
+
 and expression i ppf x =
   with_location_mapping ~loc:x.pexp_loc ppf (fun () ->
   line i ppf "expression %a\n" fmt_location x.pexp_loc;
@@ -320,7 +342,7 @@ and expression i ppf x =
       list i case ppf l;
   | Pexp_tuple (l) ->
       line i ppf "Pexp_tuple\n";
-      list i expression ppf l;
+      list i labeled_expression ppf l;
   | Pexp_construct (li, eo) ->
       line i ppf "Pexp_construct %a\n" fmt_longident_loc li;
       option i expression ppf eo;
@@ -424,6 +446,11 @@ and expression i ppf x =
   | Pexp_unreachable ->
       line i ppf "Pexp_unreachable"
   )
+
+and labeled_expression i ppf (l, e) =
+  line i ppf "<tuple component>\n";
+  tuple_component_label i ppf l;
+  expression (i+1) ppf e;
 
 and jkind_annotation i ppf (jkind : jkind_annotation) =
   match jkind with
