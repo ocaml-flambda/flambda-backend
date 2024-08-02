@@ -3150,20 +3150,21 @@ and type_structure ?(toplevel = None)
     ()
 
   and check_expected_modtype
-      ~env ~sig_env context direction subst actual expected ~actual_loc ~expected_loc =
+      ~env ~sig_env context direction subst
+      actual expected ~actual_loc ~expected_loc ~check_body =
     let check_expected_sig_item ~env ~sig_env sig_map subst = function
       | Sig_value _ | Sig_typext _ | Sig_class _ | Sig_class_type _ -> subst
       | Sig_type (ident, decl, _, _) ->
           add_expected_type_to_subst ~env ~sig_env (Some sig_map) [ident, decl] subst
       | Sig_module (ident, _, decl, _, _) ->
           add_expected_module_to_subst
-            ~env ~sig_env (Some sig_map) direction (Some ident) decl subst
+            ~env ~sig_env (Some sig_map) direction (Some ident) decl subst ~check_body:true
       | Sig_modtype (ident, decl, _) ->
           add_expected_modtype_to_subst
             ~env ~sig_env (Some sig_map) direction ident decl subst
     in
 
-    let check_expected_sig actual expected =
+    let check_expected_sig actual expected ~check_body =
       let env = Env.add_signature actual env in
       let sig_env = Env.add_signature expected sig_env in
       let str_map = Sig_map.enter_signature actual (Sig_map.empty) in
@@ -3175,12 +3176,13 @@ and type_structure ?(toplevel = None)
       in
       if not is_subset then
         raise (Error (actual_loc, env, Incompatible_module_type (context, expected_loc)));
-      let newsubst =
-        List.fold_left
-          (fun acc item -> check_expected_sig_item ~env ~sig_env sig_map acc item)
-          subst actual
-      in
-      ignore newsubst;
+      if check_body then
+        let newsubst =
+          List.fold_left
+            (fun acc item -> check_expected_sig_item ~env ~sig_env sig_map acc item)
+            subst actual
+        in
+        ignore newsubst;
     in
 
     let extract_modtype_loc env context path =
@@ -3220,40 +3222,40 @@ and type_structure ?(toplevel = None)
                 when same_modtype_path_after_subst p1 p2 -> ()
             | Mty_alias p1, Mty_alias p2
                 when same_module_path_after_subst p1 p2 -> ()
-            | Mty_signature s1, Mty_signature s2 -> check_expected_sig s1 s2
+            | Mty_signature s1, Mty_signature s2 -> check_expected_sig s1 s2 ~check_body
             | Mty_strengthen (mt1, _, _),
               (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _ | Mty_strengthen _) ->
                 check_expected_modtype ~env ~sig_env context direction subst
-                (Some mt1) expected ~actual_loc ~expected_loc
+                (Some mt1) expected ~actual_loc ~expected_loc ~check_body
             | (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _),
               Mty_strengthen (mt2, _, _) ->
                 check_expected_modtype ~env ~sig_env context direction subst
-                  actual (Some mt2) ~actual_loc ~expected_loc
+                  actual (Some mt2) ~actual_loc ~expected_loc ~check_body
             | Mty_ident p1,
               (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _) ->
                 let (mt1, actual_loc) = extract_modtype_loc env From_modtype p1 in
                 check_expected_modtype ~env ~sig_env context direction subst mt1 expected
-                  ~actual_loc ~expected_loc
+                  ~actual_loc ~expected_loc ~check_body
             | (Mty_signature _ | Mty_functor _ | Mty_alias _),
               Mty_ident p2 ->
                 let (mt2, expected_loc) = extract_modtype_loc sig_env From_modtype p2 in
                 check_expected_modtype ~env ~sig_env context direction subst actual mt2
-                  ~actual_loc ~expected_loc
+                  ~actual_loc ~expected_loc ~check_body
             | Mty_alias p1,
               (Mty_signature _ | Mty_functor _ | Mty_alias _) ->
                 let (mt1, actual_loc) = extract_modtype_loc env From_module p1 in
                 check_expected_modtype ~env ~sig_env context direction subst mt1 expected
-                  ~actual_loc ~expected_loc
+                  ~actual_loc ~expected_loc ~check_body
             | (Mty_signature _ | Mty_functor _),
               Mty_alias p2 ->
                 let (mt2, expected_loc) = extract_modtype_loc sig_env From_module p2 in
                 check_expected_modtype ~env ~sig_env context direction subst actual mt2
-                  ~actual_loc ~expected_loc
+                  ~actual_loc ~expected_loc ~check_body
             | Mty_functor (Named (actual_id, mt1), mt2),
               Mty_functor (Named (expected_id, mt3), mt4) ->
                 check_expected_modtype ~env ~sig_env context
                   (flip_inclusion_direction direction)
-                  subst (Some mt1) (Some mt3) ~actual_loc ~expected_loc;
+                  subst (Some mt1) (Some mt3) ~actual_loc ~expected_loc ~check_body:true;
                 let env =
                   match actual_id with
                     | None -> env
@@ -3267,10 +3269,10 @@ and type_structure ?(toplevel = None)
                         Env.add_module ~arg:true expected_id Mp_present mt3 sig_env
                   in
                 check_expected_modtype ~env ~sig_env context direction subst
-                  (Some mt2) (Some mt4) ~actual_loc ~expected_loc
+                  (Some mt2) (Some mt4) ~actual_loc ~expected_loc ~check_body
             | Mty_functor (Unit, mt1), Mty_functor (Unit, mt2) ->
                 check_expected_modtype ~env ~sig_env context direction subst
-                  (Some mt1) (Some mt2) ~actual_loc ~expected_loc
+                  (Some mt1) (Some mt2) ~actual_loc ~expected_loc ~check_body
             | Mty_functor _,
               (Mty_functor _ | Mty_signature _)
             | Mty_signature _, Mty_functor _ ->
@@ -3291,7 +3293,8 @@ and type_structure ?(toplevel = None)
           in
           List.fold_left add_to_subst subst ident_and_decls
 
-  and add_expected_module_to_subst ~env ~sig_env sig_map direction ident decl subst =
+  and add_expected_module_to_subst
+      ~env ~sig_env sig_map direction ident decl subst ~check_body =
     match sig_map with
     | None -> subst
     | Some sig_map ->
@@ -3303,15 +3306,17 @@ and type_structure ?(toplevel = None)
               | Some (sig_ident, sig_decl) ->
                   check_expected_modtype ~env ~sig_env From_module direction subst
                     (Some decl.Types.md_type) (Some sig_decl.md_type)
-                    ~actual_loc:decl.Types.md_loc ~expected_loc: sig_decl.Types.md_loc;
+                    ~actual_loc:decl.Types.md_loc ~expected_loc: sig_decl.Types.md_loc
+                    ~check_body;
                   Subst.add_module sig_ident (Pident ident) subst
             end
       end
 
-  and add_expected_rec_modules_to_subst ~env ~sig_env sig_map direction ident_and_decls subst =
+  and add_expected_rec_modules_to_subst
+      ~env ~sig_env sig_map direction ident_and_decls subst ~check_body =
     List.fold_left
       (fun acc (ident, decl) ->
-        add_expected_module_to_subst ~env ~sig_env sig_map direction ident decl acc)
+        add_expected_module_to_subst ~env ~sig_env sig_map direction ident decl acc ~check_body)
       subst ident_and_decls
 
   and add_expected_modtype_to_subst ~env ~sig_env sig_map direction ident decl subst =
@@ -3323,7 +3328,8 @@ and type_structure ?(toplevel = None)
           | Some (sig_ident, sig_decl) ->
               check_expected_modtype ~env ~sig_env From_modtype direction subst
                 decl.Types.mtd_type sig_decl.mtd_type
-                ~actual_loc:decl.Types.mtd_loc ~expected_loc:sig_decl.Types.mtd_loc;
+                ~actual_loc:decl.Types.mtd_loc ~expected_loc:sig_decl.Types.mtd_loc
+                ~check_body:true;
               Subst.add_modtype sig_ident (Mty_ident (Pident ident)) subst
         end
   in
@@ -3624,7 +3630,11 @@ and type_structure ?(toplevel = None)
         sg,
         shape_map,
         newenv,
-        add_expected_module_to_subst ~env ~sig_env sig_map Covariant id md subst,
+        (* We don't need to check for compatibility here, because we'll do it after
+           recursing back to [type_structure]. If we do the check, the complexity
+           becomes quadratic. *)
+        add_expected_module_to_subst
+          ~env ~sig_env sig_map Covariant id md subst ~check_body:false,
         str_map
     | Pstr_recmodule sbind ->
         let sbind =
@@ -3725,7 +3735,7 @@ and type_structure ?(toplevel = None)
         add_expected_rec_modules_to_subst
           ~env ~sig_env sig_map Covariant
           (List.map (fun (id, decl) -> Some id, decl) ident_and_decls)
-          subst,
+          subst ~check_body:false,
         str_map
     | Pstr_modtype pmtd ->
         let context =
