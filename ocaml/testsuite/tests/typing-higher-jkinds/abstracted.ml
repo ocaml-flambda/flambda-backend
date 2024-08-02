@@ -151,6 +151,64 @@ end
 module M : sig type t : any => value end
 |}]
 
+module M : sig
+  type t : any => value
+end = struct
+  type s : any => value
+  type t : any => value = s
+end
+[%%expect {|
+module M : sig type t : any => value end
+|}]
+
+module M : sig
+  type t : any => value
+end = struct
+  type ('a : any) s [@@datatype]
+  type t : any => value = s
+end
+[%%expect {|
+module M : sig type t : any => value end
+|}]
+
+module M : sig
+  type t : any => value
+end = struct
+  type ('a : any) s
+  type t : any => value = s
+end
+[%%expect {|
+Line 5, characters 26-27:
+5 |   type t : any => value = s
+                              ^
+Error: The type constructor s expects 1 argument(s),
+       but is here applied to 0 argument(s)
+|}]
+
+module M : sig
+  type t : any => value
+end = struct
+  type ('a : any) s
+  type ('a : any) t = 'a s
+end
+[%%expect {|
+Lines 3-6, characters 6-3:
+3 | ......struct
+4 |   type ('a : any) s
+5 |   type ('a : any) t = 'a s
+6 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type ('a : any) s type ('a : any) t = 'a s end
+       is not included in
+         sig type t : any => value end
+       Type declarations do not match:
+         type ('a : any) t = 'a s
+       is not included in
+         type t : any => value
+       They have different arities.
+|}]
+
 type 'a t = 'a * 'a
 type 'a s = 'a t [@@datatype]
 [%%expect {|
