@@ -2032,7 +2032,6 @@ let rec combine_list_or_error ~violation combine ts1 ts2 =
 let rec intersection_or_error ~reason (t1 : t) (t2 : t) =
   let ( let* ) = Result.bind in
   let violation = Violation.of_ (No_intersection (t1, t2)) in
-  let history = combine_histories reason t1 t2 in
   match get t1, get t2 with
   | Type ty1, Type ty2 -> (
     match Type.Jkind_desc.intersection ty1.jkind ty2.jkind with
@@ -2040,33 +2039,32 @@ let rec intersection_or_error ~reason (t1 : t) (t2 : t) =
     | Some jkind ->
       Ok
         { jkind = Type jkind;
-          history;
+          history = combine_histories reason t1 t2;
           has_warned = t1.has_warned || t2.has_warned
         })
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
     let* args = union_list_or_error ~reason ~violation args1 args2 in
     let* result = intersection_or_error ~reason result1 result2 in
-    Ok (of_arrow ~history { args; result })
+    Ok (of_arrow ~history:(combine_histories reason t1 t2) { args; result })
   | Type _, Arrow _ | Arrow _, Type _ -> Error violation
 
 and union_or_error ~reason (t1 : t) (t2 : t) =
   let ( let* ) = Result.bind in
   let violation = Violation.of_ (No_union (t1, t2)) in
-  let history = combine_histories reason t1 t2 in
   match get t1, get t2 with
   | Type ty1, Type ty2 ->
     (* Union is infallible at type jkinds *)
     Ok
       { jkind = Type (Type.Jkind_desc.union ty1.jkind ty2.jkind);
-        history;
+        history = combine_histories reason t1 t2;
         has_warned = ty1.has_warned || ty2.has_warned
       }
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
     let* args = intersection_list_or_error ~reason ~violation args1 args2 in
     let* result = union_or_error ~reason result1 result2 in
-    Ok (of_arrow ~history { args; result })
+    Ok (of_arrow ~history:(combine_histories reason t1 t2) { args; result })
   | Type _, Arrow _ | Arrow _, Type _ -> Error violation
 
 and intersection_list_or_error ~reason ~violation =
