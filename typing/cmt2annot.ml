@@ -23,13 +23,7 @@ let variables_iterator scope =
   let super = default_iterator in
   let pat sub (type k) (p : k general_pattern) =
     begin match p.pat_desc with
-<<<<<<< HEAD
     | Tpat_var (id, _, _, _) | Tpat_alias (_, id, _, _, _) ->
-||||||| 121bedcfd2
-    | Tpat_var (id, _) | Tpat_alias (_, id, _) ->
-=======
-    | Tpat_var (id, _, _) | Tpat_alias (_, id, _, _) ->
->>>>>>> 5.2.0
         Stypes.record (Stypes.An_ident (p.pat_loc,
                                         Ident.name id,
                                         Annot.Idef scope))
@@ -60,20 +54,11 @@ let bind_cases l =
     )
     l
 
-<<<<<<< HEAD
 let bind_function_param loc fp =
   match fp.fp_kind with
   | Tparam_pat pat -> bind_variables loc pat
   | Tparam_optional_default (pat, _, _) -> bind_variables loc pat
 
-||||||| 121bedcfd2
-=======
-let bind_function_param loc fp =
-  match fp.fp_kind with
-  | Tparam_pat pat -> bind_variables loc pat
-  | Tparam_optional_default (pat, _) -> bind_variables loc pat
-
->>>>>>> 5.2.0
 let record_module_binding scope mb =
   Stypes.record (Stypes.An_ident
                    (mb.mb_name.loc,
@@ -119,14 +104,8 @@ let rec iterator ~scope rebuild_env =
         bind_cases f1
     | Texp_try (_, f) ->
         bind_cases f
-<<<<<<< HEAD
     | Texp_function { params; _ } ->
         List.iter (bind_function_param exp.exp_loc) params
-||||||| 121bedcfd2
-=======
-    | Texp_function (params, _) ->
-        List.iter (bind_function_param exp.exp_loc) params
->>>>>>> 5.2.0
     | Texp_letmodule (_, modname, _, _, body ) ->
         Stypes.record (Stypes.An_ident
                          (modname.loc,Option.value ~default:"_" modname.txt,

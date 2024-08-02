@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd $(dirname $0)/../..
+
 set -euo pipefail
 
 make _build/_bootinstall
@@ -28,6 +30,7 @@ dune_targets=$(
 # ocamlcommon mls
 mls=$(
   { echo ocaml/parsing/*.ml
+    echo ocaml/typing/*.ml
   } | tr ' ' '\n'
 )
 echo "$mls"

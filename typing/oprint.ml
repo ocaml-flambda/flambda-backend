@@ -197,13 +197,10 @@ let print_out_string ppf s =
   else
     fprintf ppf "%S" s
 
-<<<<<<< HEAD
 external float32_format : string -> Obj.t -> string = "caml_format_float32"
 
 let float32_to_string f = Stdlib.valid_float_lexem (float32_format "%.9g" f)
 
-||||||| 121bedcfd2
-=======
 let print_constr ppf name =
   match name with
   | Oide_ident {printed_name = ("true" | "false") as c} ->
@@ -212,7 +209,6 @@ let print_constr ppf name =
     fprintf ppf "%s" c
   | _ -> print_ident ppf name
 
->>>>>>> 5.2.0
 let print_out_value ppf tree =
   let rec print_tree_1 ppf =
     function
@@ -269,7 +265,6 @@ let print_out_value ppf tree =
         end
     | Oval_list tl ->
         fprintf ppf "@[<1>[%a]@]" (print_tree_list print_tree_1 ";") tl
-<<<<<<< HEAD
     | Oval_array (tl, am) ->
         let sigil = match am with
           | Mutable   -> '|'
@@ -277,19 +272,8 @@ let print_out_value ppf tree =
         in
         fprintf ppf "@[<2>[%c%a%c]@]"
           sigil (print_tree_list print_tree_1 ";") tl sigil
-    | Oval_constr (name, []) -> print_ident ppf name
-    | Oval_variant (name, None) -> fprintf ppf "`%s" name
-||||||| 121bedcfd2
-    | Oval_array tl ->
-        fprintf ppf "@[<2>[|%a|]@]" (print_tree_list print_tree_1 ";") tl
-    | Oval_constr (name, []) -> print_ident ppf name
-    | Oval_variant (name, None) -> fprintf ppf "`%s" name
-=======
-    | Oval_array tl ->
-        fprintf ppf "@[<2>[|%a|]@]" (print_tree_list print_tree_1 ";") tl
     | Oval_constr (name, []) -> print_constr ppf name
     | Oval_variant (name, None) -> fprintf ppf "`%a" print_lident name
->>>>>>> 5.2.0
     | Oval_stuff s -> pp_print_string ppf s
     | Oval_record fel ->
         fprintf ppf "@[<1>{%a}@]" (cautious (print_fields true)) fel
@@ -365,23 +349,8 @@ let rec print_out_jkind_const ppf (ojkind : Outcometree.out_jkind_const) =
   | Ojkind_const_with _ | Ojkind_const_kind_of _ ->
     failwith "XXX unimplemented jkind syntax"
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-let print_out_jkind ppf = function
-  | Ojkind_const { base; modal_bounds=[] } ->
-    fprintf ppf "%s" base
-  | Ojkind_const { base; modal_bounds=_::_ as modal_bounds } ->
-    print_jkind_with_modes ppf (fun ppf -> fprintf ppf "%s") base modal_bounds
-||||||| 2572783060
-let print_out_jkind ppf = function
-  | Ojkind_const { base; modal_bounds=[] } ->
-    fprintf ppf "%s" base
-  | Ojkind_const { base; modal_bounds=_::_ as modal_bounds } ->
-    print_jkind_with_modes ppf (fun ppf -> fprintf ppf "%s") base modal_bounds
-=======
 let print_out_jkind ppf ojkind =
   match ojkind with
->>>>>>> ocaml-jst/flambda-patches
   | Ojkind_var v -> fprintf ppf "%s" v
   | Ojkind_const jkind -> print_out_jkind_const ppf jkind
 
@@ -465,18 +434,14 @@ let partition_modalities l =
   | Ogf_new m -> Right m
   ) l
 
-let rec print_out_type_0 ppf =
-||||||| 121bedcfd2
-let rec print_out_type ppf =
-=======
-let print_arg_label ppf (lbl : Asttypes.arg_label) =
+let print_arg_label_and_out_type ppf (lbl : arg_label) ty ~print_type =
   match lbl with
-  | Nolabel -> ()
-  | Labelled s -> fprintf ppf "%a:" print_lident s
-  | Optional s -> fprintf ppf "?%a:" print_lident s
+  | Nolabel -> print_type ppf ty
+  | Labelled l -> fprintf ppf "%a:%a" print_lident l print_type ty
+  | Position l -> fprintf ppf "%a:[%%call_pos]" print_lident l
+  | Optional l -> fprintf ppf "?%a:%a" print_lident l print_type ty
 
-let rec print_out_type ppf =
->>>>>>> 5.2.0
+let rec print_out_type_0 ppf =
   function
   | Otyp_alias {non_gen; aliased; alias } ->
     fprintf ppf "@[%a@ as %a@]"
@@ -518,24 +483,7 @@ and print_out_type_1 ppf =
   function
   | Otyp_arrow (lab, am, ty1, rm, ty2) ->
       pp_open_box ppf 0;
-<<<<<<< HEAD
-      let print_type () = print_out_arg am ppf ty1 in
-      (match lab with
-      | Nolabel -> print_type ()
-      | Labelled l ->
-          pp_print_string ppf l; pp_print_char ppf ':'; print_type ()
-      | Position l ->
-          pp_print_string ppf l;
-          pp_print_string ppf ":[%call_pos]"
-      | Optional l ->
-          pp_print_string ppf ("?" ^ l); pp_print_char ppf ':'; print_type ());
-||||||| 121bedcfd2
-      if lab <> "" then (pp_print_string ppf lab; pp_print_char ppf ':');
-      print_out_type_2 ppf ty1;
-=======
-      print_arg_label ppf lab;
-      print_out_type_2 ppf ty1;
->>>>>>> 5.2.0
+      print_arg_label_and_out_type ppf lab ty1 ~print_type:(print_out_arg am);
       pp_print_string ppf " ->";
       pp_print_space ppf ();
       print_out_ret rm ppf ty2;
@@ -666,7 +614,6 @@ and print_typargs ppf =
       pp_print_char ppf ')';
       pp_close_box ppf ();
       pp_print_space ppf ()
-<<<<<<< HEAD
 and print_out_label ppf (name, mut, arg, gbl) =
   (* See the notes [NON-LEGACY MODES] *)
   let mut =
@@ -676,18 +623,10 @@ and print_out_label ppf (name, mut, arg, gbl) =
     | Om_mutable (Some s) -> "mutable(" ^ s ^ ") "
   in
   let m_legacy, m_new = partition_modalities gbl in
-  fprintf ppf "@[<2>%s%a%s :@ %a%a@];"
+  fprintf ppf "@[<2>%s%a%a :@ %a%a@];"
     mut
     print_out_modalities_legacy m_legacy
-    name
-||||||| 121bedcfd2
-and print_out_label ppf (name, mut, arg) =
-  fprintf ppf "@[<2>%s%s :@ %a@];" (if mut then "mutable " else "") name
-=======
-and print_out_label ppf (name, mut, arg) =
-  fprintf ppf "@[<2>%s%a :@ %a@];" (if mut then "mutable " else "")
     print_lident name
->>>>>>> 5.2.0
     print_out_type arg
     print_out_modalities_new m_new
 
@@ -708,15 +647,10 @@ let out_type_args = ref print_typargs
 let print_type_parameter ?(non_gen=false) ppf s =
   if s = "_" then fprintf ppf "_" else ty_var ~non_gen ppf s
 
-<<<<<<< HEAD
 let type_parameter ~in_parens ppf
-      { oparam_name = ty; oparam_variance = var;
-        oparam_injectivity = inj; oparam_jkind = lay } =
-||||||| 121bedcfd2
-let type_parameter ppf (ty, (var, inj)) =
-=======
-let type_parameter ppf {ot_non_gen=non_gen; ot_name=ty; ot_variance=var,inj} =
->>>>>>> 5.2.0
+    {ot_non_gen=non_gen; ot_name=ty; ot_variance=var,inj;
+     ot_jkind=lay; }
+  =
   let open Asttypes in
   let format_string : _ format = "%s%s%a%a" in
   let format_string : _ format = match lay with
@@ -726,14 +660,8 @@ let type_parameter ppf {ot_non_gen=non_gen; ot_name=ty; ot_variance=var,inj} =
   fprintf ppf format_string
     (match var with Covariant -> "+" | Contravariant -> "-" | NoVariance ->  "")
     (match inj with Injective -> "!" | NoInjectivity -> "")
-<<<<<<< HEAD
-    print_type_parameter ty
-    print_out_jkind_annot lay
-||||||| 121bedcfd2
-    print_type_parameter ty
-=======
     (print_type_parameter ~non_gen) ty
->>>>>>> 5.2.0
+    print_out_jkind_annot lay
 
 let print_out_class_params ppf =
   function
@@ -755,25 +683,10 @@ let rec print_out_class_type ppf =
       in
       fprintf ppf "@[%a%a@]" pr_tyl tyl print_ident id
   | Octy_arrow (lab, ty, cty) ->
-<<<<<<< HEAD
       let print_type = print_out_type_2 in
-      let label, print_type = match lab with
-        | Nolabel -> "", print_type
-        | Labelled l -> l ^ ":", print_type
-        | Position l -> l ^ ":", fun ppf _ -> pp_print_string ppf "[%call_pos]"
-        | Optional l -> "?" ^ l ^ ":", print_type
-      in
-      fprintf ppf "@[%s%a ->@ %a@]"
-        label
-        print_type ty
+      fprintf ppf "@[%t ->@ %a@]"
+        (fun ppf -> print_arg_label_and_out_type ppf lab ty ~print_type)
         print_out_class_type cty
-||||||| 121bedcfd2
-      fprintf ppf "@[%s%a ->@ %a@]" (if lab <> "" then lab ^ ":" else "")
-        print_out_type_2 ty print_out_class_type cty
-=======
-      fprintf ppf "@[%a%a ->@ %a@]" print_arg_label lab
-        print_out_type_2 ty print_out_class_type cty
->>>>>>> 5.2.0
   | Octy_signature (self_ty, csil) ->
       let pr_param ppf =
         function
@@ -1003,31 +916,14 @@ and print_out_type_decl kwd ppf td =
   in
   let type_defined ppf =
     match td.otype_params with
-<<<<<<< HEAD
-      [] -> pp_print_string ppf td.otype_name
-    | [param] -> fprintf ppf "@[%a@ %s@]"
-                   (type_parameter ~in_parens:false) param td.otype_name
-||||||| 121bedcfd2
-      [] -> pp_print_string ppf td.otype_name
-    | [param] -> fprintf ppf "@[%a@ %s@]" type_parameter param td.otype_name
-=======
       [] -> print_lident ppf td.otype_name
-    | [param] ->
-        fprintf ppf "@[%a@ %a@]" type_parameter param
-          print_lident td.otype_name
->>>>>>> 5.2.0
+    | [param] -> fprintf ppf "@[%a@ %a@]"
+                   (type_parameter ~in_parens:false) param
+                   print_lident td.otype_name
     | _ ->
-<<<<<<< HEAD
-        fprintf ppf "@[(@[%a)@]@ %s@]"
+        fprintf ppf "@[(@[%a)@]@ %a@]"
           (print_list (type_parameter ~in_parens:true)
              (fun ppf -> fprintf ppf ",@ "))
-||||||| 121bedcfd2
-        fprintf ppf "@[(@[%a)@]@ %s@]"
-          (print_list type_parameter (fun ppf -> fprintf ppf ",@ "))
-=======
-        fprintf ppf "@[(@[%a)@]@ %a@]"
-          (print_list type_parameter (fun ppf -> fprintf ppf ",@ "))
->>>>>>> 5.2.0
           td.otype_params
           print_lident td.otype_name
   in
