@@ -265,9 +265,9 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
       in
       Expr.create_switch switch, Switch_expr.free_names switch
     | Apply apply ->
-      (* CR ncourant: we never rewrite alloc_mode. This is currently ok
-         because we never remove begin- or end-region primitives, but might be
-         needed later if we chose to handle them. *)
+      (* CR ncourant: we never rewrite alloc_mode. This is currently ok because
+         we never remove begin- or end-region primitives, but might be needed
+         later if we chose to handle them. *)
       let call_kind =
         let rewrite_simple = rewrite_simple kinds env in
         match Apply.call_kind apply with
@@ -295,17 +295,19 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
       let exn_continuation =
         Exn_continuation.create
           ~exn_handler:(Exn_continuation.exn_handler exn_continuation)
-          ~extra_args:(List.map (fun (simple, kind) -> rewrite_simple kinds env simple, kind) (Exn_continuation.extra_args exn_continuation))
+          ~extra_args:
+            (List.map
+               (fun (simple, kind) -> rewrite_simple kinds env simple, kind)
+               (Exn_continuation.extra_args exn_continuation))
       in
       let apply =
         Apply.create
-          (* Note here that callee is rewritten with [rewrite_simple_opt], which
-             will put [None] as the callee instead of a dummy value, as a dummy value
-             would then be further used in a later simplify pass to refine the call kind
-             and produce an invalid. *)
+        (* Note here that callee is rewritten with [rewrite_simple_opt], which
+           will put [None] as the callee instead of a dummy value, as a dummy
+           value would then be further used in a later simplify pass to refine
+           the call kind and produce an invalid. *)
           ~callee:(rewrite_simple_opt env (Apply.callee apply))
-          ~continuation:(Apply.continuation apply)
-          exn_continuation
+          ~continuation:(Apply.continuation apply) exn_continuation
           ~args:(List.map (rewrite_simple kinds env) (Apply.args apply))
           ~args_arity:(Apply.args_arity apply)
           ~return_arity:(Apply.return_arity apply) ~call_kind (Apply.dbg apply)
@@ -340,9 +342,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
   match rev_expr with
   | Up -> hole
   | Let let_ -> (
-    let[@local] erase () =
-      rebuild_holed kinds env let_.parent hole
-    in
+    let[@local] erase () = rebuild_holed kinds env let_.parent hole in
     let[@local] default () =
       let subexpr =
         let bp, defining_expr =
@@ -353,7 +353,8 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
               match let_.bound_pattern with
               | Static l -> l
               | Set_of_closures _ | Singleton _ ->
-                (* Bound pattern is static consts, so can't bind something else *)
+                (* Bound pattern is static consts, so can't bind something
+                   else *)
                 assert false
             in
             let bound_and_group =
