@@ -39,7 +39,7 @@ val type_toplevel_phrase:
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
   Env.t
 val type_implementation:
-  Unit_info.t -> Compilation_unit.t -> Compilation_unit.t -> Env.t ->
+  Unit_info.t -> Compilation_unit.t -> Env.t ->
   Parsetree.structure -> Typedtree.implementation
 val type_interface:
   sourcefile:string -> Compilation_unit.t -> Env.t ->

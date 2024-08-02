@@ -120,6 +120,8 @@ val cmx: t -> Artifact.t
 val obj: t -> Artifact.t
 val cmt: t -> Artifact.t
 val cmti: t -> Artifact.t
+val cms: t -> Artifact.t
+val cmsi: t -> Artifact.t
 val annot: t -> Artifact.t
 
 (** The functions below change the type of an artifact by updating the
@@ -128,6 +130,7 @@ val annot: t -> Artifact.t
     to track which artifacts are assumed to be bundled together. *)
 val companion_obj: Artifact.t -> Artifact.t
 val companion_cmt: Artifact.t -> Artifact.t
+val companion_cms: Artifact.t -> Artifact.t
 
 val companion_cmi: Artifact.t -> Artifact.t
 (** Beware that [companion_cmi a] strips all extensions from the
