@@ -1825,7 +1825,7 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
           Pmixedfield (pos, read, shape, Reads_agree)
     in
     let jkind = cstr.cstr_arg_jkinds.(field) in
-    let sort = Jkind.sort_of_jkind jkind in
+    let sort = Jkind.Type.sort_of_jkind jkind in
     let layout = Typeopt.layout_of_sort head.pat_loc sort in
     (Lprim (prim, [ arg ], loc), binding_kind, sort, layout)
   in
@@ -2155,7 +2155,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       jkind_layout_default_to_value_and_check_not_void
         head.pat_loc lbl.lbl_jkind;
       let ptr = Typeopt.maybe_pointer_type head.pat_env lbl.lbl_arg in
-      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
+      let lbl_sort = Jkind.Type.sort_of_jkind lbl.lbl_jkind in
       let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl_sort in
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree

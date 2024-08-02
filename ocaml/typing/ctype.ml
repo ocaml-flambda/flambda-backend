@@ -537,8 +537,8 @@ let remove_mode_and_jkind_variables ty =
     if TypeSet.mem ty !visited then () else begin
       visited := TypeSet.add ty !visited;
       match get_desc ty with
-      | Tvar { jkind } -> Jkind.default_to_value jkind
-      | Tunivar { jkind } -> Jkind.default_to_value jkind
+      | Tvar { jkind } -> Jkind.default_all_sort_variables_to_value jkind
+      | Tunivar { jkind } -> Jkind.default_all_sort_variables_to_value jkind
       | Tarrow ((_,marg,mret),targ,tret,_) ->
          let _ = Alloc.zap_to_legacy marg in
          let _ = Alloc.zap_to_legacy mret in
@@ -2104,8 +2104,8 @@ let rec estimate_type_jkind env ty =
   end
   | Tvariant row ->
       if tvariant_not_immediate row
-      then Jkind (Type.Primitive.value ~why:Polymorphic_variant)
-      else Jkind (Type.Primitive.immediate ~why:Immediate_polymorphic_variant)
+      then Jkind (Type.Primitive.value ~why:Polymorphic_variant |> Jkind.of_type_jkind)
+      else Jkind (Type.Primitive.immediate ~why:Immediate_polymorphic_variant |> Jkind.of_type_jkind)
   | Tvar { jkind } when get_level ty = generic_level ->
     (* Once a Tvar gets generalized with a jkind, it should be considered
        as fixed (similar to the Tunivar case below).
@@ -2338,11 +2338,13 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
     let level = get_level ty in
     if try_mark_node ty then begin
       begin match get_desc ty with
-      | Tvar ({ jkind; _ } as r) ->
+      (* FIXME jbachurski: This just seems to be an interaction with extension levels
+         and histories *)
+      | Tvar ({ jkind = Type jkind; _ } as r) ->
         let new_jkind = immediacy_check jkind in
         let new_jkind = generalization_check level new_jkind in
         set_type_desc ty (Tvar {r with jkind = Jkind.of_type_jkind new_jkind})
-      | Tunivar ({ jkind; _ } as r) ->
+      | Tunivar ({ jkind = Type jkind; _ } as r) ->
         let new_jkind = immediacy_check jkind in
         let new_jkind = generalization_check level new_jkind in
         set_type_desc ty (Tunivar {r with jkind = Jkind.of_type_jkind new_jkind})
@@ -5764,7 +5766,7 @@ let rec build_subtype env (visited : transient_expr list)
               else
                 if co then build_subtype env visited loops posi level t
                 else (newvar (Jkind.Type.Primitive.value
-                                ~why:(Unknown "build_subtype 3")),
+                                ~why:(Unknown "build_subtype 3") |> Jkind.of_type_jkind),
                       Changed))
             decl.type_variance tl
         in

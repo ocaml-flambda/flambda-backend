@@ -1602,10 +1602,12 @@ let update_decl_jkind env dpath decl =
       { decl with type_jkind }, type_jkind
     | Type_record (lbls, rep) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
+      let type_jkind = Jkind.of_type_jkind type_jkind in
       { decl with type_kind = Type_record (lbls, rep); type_jkind },
       type_jkind
     | Type_variant (cstrs, rep) ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
+      let type_jkind = Jkind.of_type_jkind type_jkind in
       { decl with type_kind = Type_variant (cstrs, rep); type_jkind },
       type_jkind
   in

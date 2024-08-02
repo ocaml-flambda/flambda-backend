@@ -1261,27 +1261,46 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
           modes.txt
       in
       Ojkind_user_mod (base, modes)
-    | With _ | Kind_of _ | Arrow _ -> failwith "XXX unimplemented jkind syntax"
+    | Arrow (args, result) ->
+      Ojkind_user_arrow (
+        List.map out_jkind_user_of_user_jkind args,
+        out_jkind_user_of_user_jkind result)
+    | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
   in
   Ojkind_user (out_jkind_user_of_user_jkind jkind.txt)
 
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Type.Const.to_out_jkind_const jkind)
 
+let rec out_jkind_of_jkind ~sort_var_names jkind =
+  match Jkind.get jkind with
+  | Type ty -> begin match Jkind.Type.get ty with
+    | Const clay -> out_jkind_of_const_jkind clay
+    | Var v      -> Ojkind_var (if sort_var_names then Jkind.Type.Sort.Var.name v else "_")
+    end
+  | Arrow { args; result } ->
+    Ojkind_arrow (
+      List.map (out_jkind_of_jkind ~sort_var_names) args,
+      out_jkind_of_jkind ~sort_var_names result)
+
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
-  | Const jkind ->
-    let value_jkind = Jkind.Type.Const.Primitive.value.jkind |> Jkind.Const.of_type_jkind in
-    begin match Jkind.Const.equal jkind value_jkind with
-    | true -> None
-    | false -> Some (out_jkind_of_const_jkind jkind)
+  | Type ty -> begin
+    match Jkind.Type.get ty with
+    | Const jkind -> begin
+      match Jkind.Type.Const.equal jkind Jkind.Type.Const.Primitive.value.jkind with
+      | true -> None
+      | false -> Some (out_jkind_of_const_jkind jkind)
+      end
+    | Var v -> (* This handles (X1). *)
+      if !Clflags.verbose_types
+      then Some (Ojkind_var (Jkind.Type.Sort.Var.name v))
+      else None
     end
-  | Var v -> (* This handles (X1). *)
-    if !Clflags.verbose_types
-    then Some (Ojkind_var (Jkind.Type.Sort.Var.name v))
-    else None
+  (* We ignore the rules above for arrows, which should always be printed *)
+  | _ -> Some (out_jkind_of_jkind ~sort_var_names:!Clflags.verbose_types jkind)
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
@@ -2667,10 +2686,7 @@ let trees_of_type_expansion'
     if var_jkinds then
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
-          let olay = match Jkind.get jkind with
-            | Const clay -> out_jkind_of_const_jkind clay
-            | Var v      -> Ojkind_var (Jkind.Type.Sort.Var.name v)
-          in
+          let olay = out_jkind_of_jkind ~sort_var_names:true jkind in
           Otyp_jkind_annot (out, olay)
       | _ ->
           out

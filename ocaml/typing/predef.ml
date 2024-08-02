@@ -196,7 +196,7 @@ let predef_jkind_annotation primitive =
          Jane_syntax.Jkind.(Abbreviation (Const.mk primitive.name Location.none))
          |> Location.mknoloc
        in
-       primitive.jkind, user_written)
+       Jkind.Const.of_type_jkind primitive.jkind, user_written)
     primitive
 
 let option_argument_type_jkind = Jkind.Type.Primitive.value ~why:(

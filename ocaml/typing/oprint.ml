@@ -328,7 +328,20 @@ let print_jkind_with_modes ppf print_jkind base modes =
           (print_list (fun ppf -> fprintf ppf "%s") (fun ppf -> fprintf ppf "@ "))
           modes
 
-let print_out_jkind ppf = function
+let print_arrow ~is_atom ppf t args result =
+  match args with
+  | [arg] when is_atom arg ->
+    fprintf ppf "%a => %a" t arg t result
+  | _ ->
+    fprintf ppf "(%a) => %a"
+      (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") t) args
+      t result
+
+let rec print_out_jkind ppf = function
+  | Ojkind_arrow (args, result) ->
+    print_arrow
+      ~is_atom:(function Ojkind_user _ | Ojkind_arrow _ -> false | _ -> true)
+      ppf print_out_jkind args result
   | Ojkind_const { base; modal_bounds=[] } ->
     fprintf ppf "%s" base
   | Ojkind_const { base; modal_bounds=_::_ as modal_bounds } ->
@@ -340,6 +353,10 @@ let print_out_jkind ppf = function
       | Ojkind_user_abbreviation abbrev -> fprintf ppf "%s" abbrev
       | Ojkind_user_mod (base, modes) ->
         print_jkind_with_modes ppf print_out_jkind_user base modes
+      | Ojkind_user_arrow (args, result) ->
+        print_arrow
+          ~is_atom:(function Ojkind_user_arrow _ -> false | _ -> true)
+          ppf print_out_jkind_user args result
       | Ojkind_user_with _ | Ojkind_user_kind_of _ ->
         failwith "XXX unimplemented jkind syntax"
     in

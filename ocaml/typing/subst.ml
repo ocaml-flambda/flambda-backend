@@ -102,17 +102,17 @@ let with_additional_action =
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
         let prepare_jkind loc jkind =
-          match Jkind.get jkind with
-          | Const const ->
+          match Jkind.to_const jkind with
+          | Some const ->
             let builtin =
               List.find_opt (fun (builtin, _) ->
                 Jkind.Const.equal const (Jkind.Const.of_type_jkind builtin)) builtins
             in
             begin match builtin with
-            | Some (__, jkind) -> (Jkind.of_type_jkind jkind : jkind)
+            | Some (__, jkind) -> (Type jkind : jkind)
             | None -> Jkind.of_const const ~why:Jkind.Type.History.Imported
             end
-          | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
+          | None -> raise(Error (loc, Unconstrained_jkind_variable))
         in
         Prepare_for_saving prepare_jkind
   in
