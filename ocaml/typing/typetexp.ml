@@ -717,10 +717,11 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
           let l = transl_label l (Some arg) in
+          let jkind = Jkind.of_new_sort ~why:Wildcard in
           let arg_cty =
             if Btype.is_position l then
               ctyp Ttyp_call_pos (newconstr Predef.path_lexing_position [])
-            else transl_type env ~policy ~row_context arg_mode arg
+            else transl_type env ~policy ~jkind_check:(Known jkind) ~row_context arg_mode arg
           in
           let acc_mode = curry_mode acc_mode arg_mode in
           let ret_mode =
@@ -743,7 +744,6 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
             end
           in
           constrain_type_expr_jkind_to_any ~loc:arg_cty.ctyp_loc ~vloc:Fun_arg env arg_cty.ctyp_type;
-          constrain_type_expr_jkind_to_any ~loc:ret_cty.ctyp_loc ~vloc:Fun_ret env ret_cty.ctyp_type;
           let arg_mode = Alloc.of_const arg_mode in
           let ret_mode = Alloc.of_const ret_mode in
           let arrow_desc = (l, arg_mode, ret_mode) in
