@@ -37,7 +37,7 @@ exception Already_bound
    will occur in this case. *)
 type jkind_initialization_choice = Sort | Any
 
-type jkind_check = Unknown | Known of Jkind.t | Arity of int * Jkind.t option
+type jkind_check = Unknown | Exact of Jkind.t | Arity of int * jkind_check
 
 type value_loc =
     Tuple | Poly_variant | Object_field
@@ -436,7 +436,7 @@ end = struct
     add_pre_univar tv policy;
     tv
 
-  let new_jkind ~is_named { jkind_initialization } jkind_check =
+  let rec new_jkind ~is_named policy jkind_check =
     let gen_top  () = Jkind.Primitive.top ~why:(if is_named then Unification_var else Wildcard) in
     let gen_sort () = Jkind.Type.of_new_legacy_sort ~why:(if is_named then Unification_var else Wildcard) |> Jkind.of_type_jkind in
     let intersection_with_new_sort jkind : Jkind.t =
@@ -457,20 +457,22 @@ end = struct
           { args = List.map lower_to_representable args; result }
       | Type _ | Top -> jkind
     in
-    match jkind_check, jkind_initialization with
+    match jkind_check, policy.jkind_initialization with
     | Unknown, Any -> gen_top ()
     | Unknown, Sort -> gen_sort ()
-    | Arity (n, result), _ ->
+    | Arity (n, result_jkind_check), _ ->
+      (* Note that the defaulting on the result remains in covariant position.
+         We'd need to switch variances in the arguments if we recursed there. *)
       Jkind.of_arrow
         ~history:(Creation Defaulted)
         { args = List.init n (fun _ -> gen_sort ());
-          result = match result with Some r -> r | None -> gen_sort () }
-    | Known jkind, Any -> jkind
+          result = new_jkind ~is_named policy result_jkind_check }
+    | Exact jkind, Any -> jkind
     (* If the initialization policy expects representable layouts,
        we lower all covariant (result) positions to representable
        in the expected jkind. The resulting jkind is upper bounded
        by some jkind in the representables sub-lattice. *)
-    | Known jkind, Sort -> lower_to_representable jkind
+    | Exact jkind, Sort -> lower_to_representable jkind
 
   let new_any_var loc env jkind = function
     | { extensibility = Fixed } -> raise(Error(loc, env, No_type_wildcards))
@@ -696,14 +698,6 @@ let transl_bound_vars : (_, _) Either.t -> _ =
   | Right vars_jkinds -> TyVarEnv.make_poly_univars_jkinds
                            ~context:(fun v -> Univar ("'" ^ v)) vars_jkinds
 
-let constrain_type_expr_jkind_to_any ~loc ~vloc env typ =
-  let any = Jkind.Type.Primitive.any ~why:Inside_of_Tarrow |> Jkind.of_type_jkind in
-  match constrain_type_jkind env typ any with
-  | Ok _ -> ()
-  | Error err ->
-    raise (Error(loc, env,
-                Non_sort {vloc; err; typ}))
-
 let rec transl_type env ~policy ?(jkind_check=Unknown) ?(aliased=false) ~row_context mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
     (fun () -> transl_type_aux env ~policy ~jkind_check ~aliased ~row_context mode styp)
@@ -733,15 +727,15 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
   | Ptyp_arrow _ ->
       let args, ret, ret_mode = extract_params styp in
       let rec loop acc_mode args =
+        let jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind in
         match args with
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
           let l = transl_label l (Some arg) in
-          let jkind = Jkind.of_new_sort ~why:Wildcard in
           let arg_cty =
             if Btype.is_position l then
               ctyp Ttyp_call_pos (newconstr Predef.path_lexing_position [])
-            else transl_type env ~policy ~jkind_check:(Known jkind) ~row_context arg_mode arg
+            else transl_type env ~policy ~jkind_check:(Exact jkind) ~row_context arg_mode arg
           in
           let acc_mode = curry_mode acc_mode arg_mode in
           let ret_mode =
@@ -763,7 +757,12 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
                 (newconstr Predef.path_option [Btype.tpoly_get_mono arg_ty])
             end
           in
-          constrain_type_expr_jkind_to_any ~loc:arg_cty.ctyp_loc ~vloc:Fun_arg env arg_cty.ctyp_type;
+          (* TODO jbachurski: [jkind_check] should probably do this by itself,
+             but we do constraining explicitly for now. *)
+          (match constrain_type_jkind env arg_cty.ctyp_type jkind with
+          | Ok _ -> ()
+          | Error err ->
+            raise (Error(arg_cty.ctyp_loc, env, Non_sort {vloc = Fun_arg; typ = arg_cty.ctyp_type; err})));
           let arg_mode = Alloc.of_const arg_mode in
           let ret_mode = Alloc.of_const ret_mode in
           let arrow_desc = (l, arg_mode, ret_mode) in
@@ -771,7 +770,8 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
             newty (Tarrow(arrow_desc, arg_ty, ret_cty.ctyp_type, commu_ok))
           in
           ctyp (Ttyp_arrow (l, arg_cty, ret_cty)) ty
-        | [] -> transl_type env ~policy ~row_context ret_mode ret
+        | [] ->
+          transl_type env ~policy ~jkind_check:(Exact jkind) ~row_context ret_mode ret
       in
       loop mode args
   | Ptyp_tuple stl ->
@@ -816,7 +816,7 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
            | _ -> type_jkind_purely env ty'
            in
            let cty =
-            transl_type env ~policy ~jkind_check:(Known jkind)
+            transl_type env ~policy ~jkind_check:(Exact jkind)
               ~row_context Alloc.Const.legacy sty
            in
            (try unify_param env ty' cty.ctyp_type with Unify err ->
@@ -832,8 +832,7 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
   | Ptyp_app (st, stl) ->
     let ty =
       transl_type env ~policy
-        ~jkind_check:(Arity (
-          List.length stl, match jkind_check with Known k -> Some k | _ -> None))
+        ~jkind_check:(Arity (List.length stl, jkind_check))
         ~row_context Alloc.Const.legacy st in
     let ty_jkind = estimate_type_jkind env ty.ctyp_type in
     let arg_ty_jkinds =
@@ -846,7 +845,7 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
     in
     let arg_tys =
       List.map2 (fun sty jkind ->
-          transl_type env ~policy ~jkind_check:(Known jkind)
+          transl_type env ~policy ~jkind_check:(Exact jkind)
             ~row_context Alloc.Const.legacy sty)
         stl arg_ty_jkinds
     in
