@@ -11,6 +11,7 @@ type t : (value => value, value) => value
 type u : (value, value mod local) => value
 type v : (value) => (value) => value
 type w : value => value => value
+type w' : (value => value) => value
 
 [%%expect{|
 type p : value => value
@@ -21,4 +22,5 @@ type t : (value => value, value) => value
 type u : (value, value mod local) => value
 type v : value => value => value
 type w : value => value => value
+type w' : (value => value) => value
 |}]
