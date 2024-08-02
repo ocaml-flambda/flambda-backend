@@ -280,7 +280,11 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
       (* note: while this magic constant is questionable, it is key to not favor
          the introduced temporaries which, by construct, have very few
          occurrences. *)
-      +. if State.mem_introduced_temporaries state reg then 10_000. else 0.
+      +.
+      if State.mem_introduced_temporaries state reg
+         && State.get_round_num state != 2
+      then 10_000.
+      else 0.
     in
     match State.is_empty_spill_work_list state with
     | true -> fatal "spill_work_list is empty"

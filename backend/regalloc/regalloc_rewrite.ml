@@ -1,6 +1,7 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Regalloc_utils
+open! Cfg
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 module type State = sig
@@ -39,6 +40,35 @@ type direction =
   | Load_after_list of Cfg.basic_instruction_list
   | Store_before_list of Cfg.basic_instruction_list
 
+let coalesce_temp_reloads cfg_with_infos new_temporaries =
+  let coalesce_temp_reloads_per_block _ block =
+    let var_to_temp = Reg.Tbl.create 8 in
+    let subsitution = Reg.Tbl.create 8 in
+    let redundant = ref [] in
+    let update_info_using_inst inst_cell =
+      let inst = DLL.value inst_cell in
+      match inst.desc with
+      | Op Reload -> (
+        let var = inst.arg.(0) in
+        let temp = inst.res.(0) in
+        match Reg.Tbl.find_opt var_to_temp var with
+        | None -> Reg.Tbl.add var_to_temp var temp
+        | Some temp_to_use_for_all ->
+          redundant := inst_cell :: !redundant;
+          Reg.Tbl.add subsitution temp temp_to_use_for_all)
+      | _ -> ()
+    in
+    DLL.iter_cell block.body ~f:update_info_using_inst;
+    List.iter ~f:DLL.delete_curr !redundant;
+    Substitution.apply_block_in_place subsitution block;
+    new_temporaries
+      := List.filter
+           ~f:(fun reg -> not (Reg.Tbl.mem subsitution reg))
+           !new_temporaries
+  in
+  Cfg_with_infos.cfg cfg_with_infos
+  |> Cfg.iter_blocks ~f:coalesce_temp_reloads_per_block
+
 let rewrite_gen :
     type s.
     (module State with type t = s) ->
@@ -50,13 +80,14 @@ let rewrite_gen :
  fun (module State : State with type t = s) (module Utils) state cfg_with_infos
      ~spilled_nodes ->
   if Utils.debug then Utils.log ~indent:1 "rewrite";
+  let should_coalesce_temp_reloads = State.get_round_num state = 1 in
   let block_insertion = ref false in
   let spilled_map : Reg.t Reg.Tbl.t =
     List.fold_left spilled_nodes ~init:(Reg.Tbl.create 17)
       ~f:(fun spilled_map reg ->
         if Utils.debug then assert (Utils.is_spilled reg);
         let spilled = Reg.create reg.Reg.typ in
-        Utils.set_spilled spilled;
+        if not should_coalesce_temp_reloads then Utils.set_spilled spilled;
         (* for printing *)
         if not (Reg.anonymous reg) then spilled.Reg.raw_name <- reg.Reg.raw_name;
         let slot =
@@ -197,6 +228,8 @@ let rewrite_gen :
             Utils.log_body_and_terminator ~indent:3 block.body block.terminator
               liveness;
             Utils.log ~indent:2 "end"));
+  if should_coalesce_temp_reloads
+  then coalesce_temp_reloads cfg_with_infos new_temporaries;
   !new_temporaries, !block_insertion
 
 (* CR-soon xclerc for xclerc: investigate exactly why this threshold is
