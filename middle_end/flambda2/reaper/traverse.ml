@@ -78,9 +78,7 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
       in
       match code_id with
       | Deleted _ -> ()
-      | Code_id code_id -> Acc.add_set_of_closures_dep name code_id acc
-      (* let code_id = Code_id_or_name.code_id code_id in Acc.record_dep ~denv
-         name (Graph.Dep.Contains code_id) acc *))
+      | Code_id code_id -> Acc.add_set_of_closures_dep name code_id acc)
     names_and_function_slots;
   let deps =
     Value_slot.Map.fold
@@ -257,10 +255,10 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
     in
     default_bp acc (Field { relation = Value_slot value_slot; target = block })
   | Binary (Block_load (_access_kind, _mutability), block, field) -> (
-    (* Loads from mutable blocks are tracked here. This is ok as long as stores
-       are properly tracked also. This is a flow-insensitive dependency
-       analysis: this might produce surprising results sometimes. *)
-    (* CR mshinwell: give examples of surprising results *)
+    (* Loads from mutable blocks are also tracked here. This is ok because
+       stores automatically escape the block. CR ncourant: think about whether
+       we can make stores only escape the corresponding fields of the block
+       instead of the whole block. *)
     match known_field_of_block field block with
     | None -> default acc
     | Some (field, block) ->
@@ -321,9 +319,7 @@ and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
     ~set_of_closures:(fun _ ~closure_symbols:_ _ -> ())
     ~block_like:(fun _ _ _ -> ());
   Static_const_group.match_against_bound_static group bound_static ~init:()
-    ~code:(fun () _code_id _code ->
-      (* TODO: (is there anything to do here ? *)
-      ())
+    ~code:(fun () _code_id _code -> ())
     ~deleted_code:(fun () _ -> ())
     ~set_of_closures:(fun () ~closure_symbols set_of_closures ->
       let names_and_function_slots =
@@ -382,7 +378,6 @@ and traverse_let_cont_non_recursive denv acc cont ~body handler =
     acc cont_handler traverse
 
 and traverse_let_cont_recursive denv acc ~invariant_params ~body handlers =
-  (* Warning non tail rec on traverse_cont_handler, probably OK *)
   let invariant_params_vars = Bound_parameters.vars invariant_params in
   let handlers =
     Continuation.Map.map
@@ -447,7 +442,7 @@ and traverse_cont_handler :
 
 and traverse_apply denv acc apply : rev_expr =
   let default_acc acc =
-    (* TODO regions? *)
+    (* CR ncourant: track regions properly *)
     List.iter (fun arg -> Acc.used ~denv arg acc) (Apply.args apply);
     (match Apply.callee apply with
     | None -> ()
@@ -494,8 +489,7 @@ and traverse_apply denv acc apply : rev_expr =
 and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
   match Apply.call_kind apply with
   | Function { function_call = Direct code_id; _ } ->
-    (* TODO think about whether we should propagate that cross module. Probably
-       not *)
+    (* CR ncourant: think about cross-module propagation *)
     if Compilation_unit.is_current (Code_id.get_compilation_unit code_id)
     then (
       let apply_dep =
@@ -508,8 +502,6 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
         }
       in
       Acc.add_apply apply_dep acc;
-      (* TODO regions? *)
-      (* TODO record function use *)
       Acc.called ~denv code_id acc)
     else default_acc acc
   | Function

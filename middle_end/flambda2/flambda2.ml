@@ -187,7 +187,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~keep_symbol_tables
           Simplify.build_simplify_result flambda ~free_names ~final_typing_env
             ~all_code slot_offsets
         in
-        Compiler_hooks.execute Cleaned_flambda2 flambda;
+        Compiler_hooks.execute Reaped_flambda2 flambda;
         flambda, exported_offsets, reachable_names, cmx, all_code
     in
     (match cmx with
