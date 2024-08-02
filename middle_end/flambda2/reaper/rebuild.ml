@@ -185,9 +185,6 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
       bound
   in
   let code_is_used bv =
-    (* let xx = Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var
-       bv)) in Format.eprintf "BV: %a %a@." Bound_var.print bv
-       (Format.pp_print_option Dep_solver.pp_elt) xx; *)
     match
       Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var bv))
     with
@@ -200,20 +197,15 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
       (fun slot _ -> slot_is_used (Value_slot slot))
       value_slots
   in
-  (* let dummy_code_id = Code_id.create ~name:"dummy_code_id"
-     Compilation_unit.dummy in *)
   let open Function_declarations in
   let function_decls =
     List.map2
       (fun bound_var (slot, code_id) ->
-        (* Format.eprintf "%a %a@." Bound_var.print bound_var Function_slot.print *)
-        (*   slot; *)
         let code_id =
           match code_id with
           | Deleted _ -> code_id
           | Code_id code_id ->
             if code_is_used bound_var
-               (* || Code_metadata.stub (env.get_code_metadata code_id) *)
             then Code_id code_id
             else
               let code_metadata = env.get_code_metadata code_id in
@@ -273,15 +265,14 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
       in
       Expr.create_switch switch, Switch_expr.free_names switch
     | Apply apply ->
-      (* TODO rewrite other simples
-
-         mshinwell: I'll move this to a function on Apply and fix it *)
+      (* CR ncourant: we never rewrite alloc_mode. This is currently ok
+         because we never remove begin- or end-region primitives, but might be
+         needed later if we chose to handle them. *)
       let call_kind =
         let rewrite_simple = rewrite_simple kinds env in
         match Apply.call_kind apply with
-        | Function _ as ck -> ck (* todo alloc_mode? *)
+        | Function _ as ck -> ck
         | Method { kind; obj; alloc_mode } ->
-          (* todo alloc_mode? *)
           Call_kind.method_call kind ~obj:(rewrite_simple obj) alloc_mode
         | C_call _ as ck -> ck
         | Effect (Perform { eff }) ->
@@ -300,11 +291,21 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
             (Call_kind.Effect.resume ~stack:(rewrite_simple stack)
                ~f:(rewrite_simple f) ~arg:(rewrite_simple arg))
       in
+      let exn_continuation = Apply.exn_continuation apply in
+      let exn_continuation =
+        Exn_continuation.create
+          ~exn_handler:(Exn_continuation.exn_handler exn_continuation)
+          ~extra_args:(List.map (fun (simple, kind) -> rewrite_simple kinds env simple, kind) (Exn_continuation.extra_args exn_continuation))
+      in
       let apply =
         Apply.create
+          (* Note here that callee is rewritten with [rewrite_simple_opt], which
+             will put [None] as the callee instead of a dummy value, as a dummy value
+             would then be further used in a later simplify pass to refine the call kind
+             and produce an invalid. *)
           ~callee:(rewrite_simple_opt env (Apply.callee apply))
           ~continuation:(Apply.continuation apply)
-          (Apply.exn_continuation apply)
+          exn_continuation
           ~args:(List.map (rewrite_simple kinds env) (Apply.args apply))
           ~args_arity:(Apply.args_arity apply)
           ~return_arity:(Apply.return_arity apply) ~call_kind (Apply.dbg apply)
@@ -340,8 +341,6 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
   | Up -> hole
   | Let let_ -> (
     let[@local] erase () =
-      (* Format.eprintf "Removing %a@." Bound_pattern.print
-         let_.bound_pattern; *)
       rebuild_holed kinds env let_.parent hole
     in
     let[@local] default () =
@@ -353,7 +352,9 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
             let bound_static =
               match let_.bound_pattern with
               | Static l -> l
-              | Set_of_closures _ | Singleton _ -> assert false
+              | Set_of_closures _ | Singleton _ ->
+                (* Bound pattern is static consts, so can't bind something else *)
+                assert false
             in
             let bound_and_group =
               List.filter_map
@@ -366,7 +367,9 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
                       (match e with
                       | Code _ -> ()
                       | Deleted_code -> ()
-                      | Static_const _ -> assert false);
+                      | Static_const _ ->
+                        (* Pattern is [Code _], so can't bind static const *)
+                        assert false);
                       Some (p, Deleted_code))
                   | Block_like sym ->
                     if is_symbol_used env sym then Some arg else None
@@ -419,7 +422,9 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
             let bound =
               match let_.bound_pattern with
               | Set_of_closures s -> s
-              | Static _ | Singleton _ -> assert false
+              | Static _ | Singleton _ ->
+                (* Pattern is a set of closures *)
+                assert false
             in
             let set_of_closures =
               rewrite_set_of_closures bound env value_slots alloc_mode
