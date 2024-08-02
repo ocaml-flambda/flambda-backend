@@ -113,3 +113,30 @@ end
 [%%expect {|
 module M : sig type t : value => value end
 |}]
+
+module M : sig
+  type 'a t [@@datatype]
+end = struct
+  type 'a t = 'a array
+end
+[%%expect {|
+module M : sig type t : value => value end
+|}]
+
+module M : sig
+  type t : value => value
+end = struct
+  type 'a t = 'a array
+end
+[%%expect {|
+module M : sig type t : value => value end
+|}]
+
+module M : sig
+  type t : value => value
+end = struct
+  type t = array
+end
+[%%expect {|
+module M : sig type t : value => value end
+|}]
