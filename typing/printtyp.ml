@@ -1910,30 +1910,40 @@ let tree_of_type_decl id decl =
   in
   let (name, args) = type_defined decl in
   let constraints = tree_of_constraints params in
-  let ty, priv, unboxed =
+  let ty, priv, unboxed, or_null_reexport =
     match decl.type_kind with
     | Type_abstract _ ->
         begin match ty_manifest with
-        | None -> (Otyp_abstract, Public, false)
+        | None -> (Otyp_abstract, Public, false, false)
         | Some ty ->
-            tree_of_typexp Type ty, decl.type_private, false
+            tree_of_typexp Type ty, decl.type_private, false, false
         end
     | Type_variant (cstrs, rep) ->
         let unboxed =
           match rep with
-          | Variant_unboxed  | Variant_with_null -> true
-          | Variant_boxed _ | Variant_extensible-> false
+          | Variant_unboxed -> true
+          | Variant_boxed _ | Variant_extensible | Variant_with_null -> false
+        in
+        (* CR layouts v3.5: remove when [Variant_with_null] is merged into
+           [Variant_unboxed]. *)
+        let or_null_reexport =
+          match rep with
+          | Variant_with_null -> true
+          | Variant_boxed _ | Variant_unboxed | Variant_extensible -> false
         in
         tree_of_manifest (Otyp_sum (List.map tree_of_constructor_in_decl cstrs)),
         decl.type_private,
-        unboxed
+        unboxed,
+        or_null_reexport
     | Type_record(lbls, rep) ->
         tree_of_manifest (Otyp_record (List.map tree_of_label lbls)),
         decl.type_private,
-        (match rep with Record_unboxed -> true | _ -> false)
+        (match rep with Record_unboxed -> true | _ -> false),
+        false
     | Type_open ->
         tree_of_manifest Otyp_open,
         decl.type_private,
+        false,
         false
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
@@ -1961,6 +1971,7 @@ let tree_of_type_decl id decl =
           (fun (_, user_annot) -> out_jkind_of_user_jkind user_annot)
           jkind_annotation;
       otype_unboxed = unboxed;
+      otype_or_null_reexport = or_null_reexport;
       otype_cstrs = constraints }
 
 let add_type_decl_to_preparation id decl =

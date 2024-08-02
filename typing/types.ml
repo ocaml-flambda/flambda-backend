@@ -695,10 +695,9 @@ let may_equal_constr c1 c2 =
 let find_unboxed_type decl =
   match decl.type_kind with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
-  | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, (Variant_unboxed | Variant_with_null)))
-  | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], (Variant_unboxed | Variant_with_null))
-  | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
-                  (Variant_unboxed | Variant_with_null)) ->
+  | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, Variant_unboxed))
+  | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)
+  | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}], Variant_unboxed) ->
     Some arg
   | Type_record (_, ( Record_inlined _ | Record_unboxed
                     | Record_boxed _ | Record_float | Record_ufloat
