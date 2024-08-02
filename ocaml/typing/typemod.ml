@@ -48,6 +48,12 @@ type functor_dependency_error =
     Functor_applied
   | Functor_included
 
+type modtype_context =
+| From_module
+  (** The module type originated from a module declaration. *)
+  | From_modtype
+  (** The module type originated from a module type declaration. *)
+
 type error =
     Cannot_apply of module_type
   | Not_included of Includemod.explanation
@@ -103,6 +109,9 @@ type error =
   | Underscore_not_allowed_in_signature
   | Cannot_infer_module_type
   | Unbound_path_in_inferred_type of Btype.path_kind * Path.t
+  | Incompatible_type_declaration of Ident.t * type_declaration
+  | Incompatible_functor_declaration of Location.t
+  | Incompatible_module_type of modtype_context * Location.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -159,21 +168,33 @@ module Sig_map = struct
     in
     List.fold_left add_item map sg
 
+  let find_value name map = String.Map.find_opt name map.values
   let find_type name map = String.Map.find_opt name map.types
   let find_module name map = String.Map.find_opt name map.modules
   let find_module_type name map = String.Map.find_opt name map.module_types
+  let find_class name map = String.Map.find_opt name map.classes
   let find_class_type name map = String.Map.find_opt name map.class_types
 
+  let has_value name map = Option.is_some (find_value name map)
   let has_type name map = Option.is_some (find_type name map)
   let has_module name map = Option.is_some (find_module name map)
   let has_module_type name map = Option.is_some (find_module_type name map)
+  let has_class name map = Option.is_some (find_class name map)
   let has_class_type name map = Option.is_some (find_class_type name map)
+
+  let subset ~sub ~super =
+    String.Map.for_all (fun key _ -> has_value key super) sub.values
+      && String.Map.for_all (fun key _ -> has_type key super) sub.types
+      && String.Map.for_all (fun key _ -> has_module key super) sub.modules
+      && String.Map.for_all (fun key _ -> has_module_type key super) sub.module_types
+      && String.Map.for_all (fun key _ -> has_class key super) sub.classes
+      && String.Map.for_all (fun key _ -> has_class_type key super) sub.class_types
 end
 
 type modtype_decl_expected = {
   expected: modtype_declaration;
-  sig_map: Sig_map.t;
   str_map: Sig_map.t;
+  sig_map: Sig_map.t;
 }
 
 type modtype_decl_context =
@@ -184,6 +205,19 @@ type modtype_decl_context =
       module types when we see a [module type S = _]). The expected signature would have
       been gone through substitution from the elements in the signature to the elements
       in the struct seen so far.*)
+
+type modtype_inclusion_direction =
+  | Covariant
+  (** The expected modtype should contain a subset of items in the actual modtype.
+      This is the default case - for example, when a module type is declared in the
+      outermost scope of both the .ml and the .mli. *)
+  | Contravariant
+  (** The actual modtype should contain a subset of items in the expected modtype.
+      This happens if we're checking modtypes which are functor arguments. *)
+
+let flip_inclusion_direction = function
+  | Covariant -> Contravariant
+  | Contravariant -> Covariant
 
 open Typedtree
 
@@ -748,9 +782,9 @@ let merge_constraint initial_env loc sg lid constr =
                 (fun (_, (v, i)) ->
                    let (c, n) =
                      match v with
-                     | Covariant -> true, false
-                     | Contravariant -> false, true
-                     | NoVariance -> false, false
+                     | Asttypes.Covariant -> true, false
+                     | Asttypes.Contravariant -> false, true
+                     | Asttypes.NoVariance -> false, false
                    in
                    make_variance (not n) (not c) (i = Injective)
                 )
@@ -1626,8 +1660,8 @@ let mksig desc env loc =
     current structure, then all is well; if it doesn't appear in the signature, then it
     was declared somewhere outside so it can't be unbound. This way, we avoid expensive
     [Env.t] queries.*)
-let check_no_unbound_paths env loc sig_map str_map mty =
-  let check_error path_kind path in_sig in_str =
+let check_no_unbound_paths env loc ~str_map ~sig_map mty =
+  let check_error path_kind path in_str in_sig =
     if in_sig && (not in_str) then
       raise (Error (loc, env, Unbound_path_in_inferred_type (path_kind, path)))
   in
@@ -1635,9 +1669,9 @@ let check_no_unbound_paths env loc sig_map str_map mty =
     match path with
     | Pident id ->
         let name = Ident.name id in
-        let in_sig = Sig_map.has_module name sig_map in
         let in_str = Sig_map.has_module name str_map in
-        check_error initial_kind initial_path in_sig in_str
+        let in_sig = Sig_map.has_module name sig_map in
+        check_error initial_kind initial_path in_str in_sig
     | Pdot (p, _) | Pextra_ty (p, _) -> check_heads initial_kind initial_path p
     | Papply (p1, p2) ->
         check_heads initial_kind initial_path p1;
@@ -1649,29 +1683,29 @@ let check_no_unbound_paths env loc sig_map str_map mty =
         match path with
         | Pident id ->
             let name = Ident.name id in
-            let (in_sig, in_str) =
+            let (in_str, in_sig) =
               begin match path_kind with
                 | Path_value ->
                     Misc.fatal_error "Module type contains reference to a value"
                 | Path_type ->
-                    Sig_map.has_type name sig_map,
-                    Sig_map.has_type name str_map
+                    Sig_map.has_type name str_map,
+                    Sig_map.has_type name sig_map
                 | Path_module ->
-                    Sig_map.has_module name sig_map,
-                    Sig_map.has_module name str_map
+                    Sig_map.has_module name str_map,
+                    Sig_map.has_module name sig_map
                 | Path_modtype ->
-                    Sig_map.has_module_type name sig_map,
-                    Sig_map.has_module_type name str_map
+                    Sig_map.has_module_type name str_map,
+                    Sig_map.has_module_type name sig_map
                 | Path_class ->
                     Misc.fatal_error "Module type contains reference to a class"
                 | Path_classtype ->
-                    Sig_map.has_class_type name sig_map,
-                    Sig_map.has_class_type name str_map
+                    Sig_map.has_class_type name str_map,
+                    Sig_map.has_class_type name sig_map
                 | Path_class_lhs | Path_classtype_lhs ->
                     (true, true)
               end
             in
-            check_error path_kind path in_sig in_str;
+            check_error path_kind path in_str in_sig;
         | Pdot (p, _) | Pextra_ty (p, _) -> check_heads path_kind path p
         | Papply (p1, p2) ->
             check_heads path_kind path p1;
@@ -2160,8 +2194,8 @@ and transl_modtype_decl_aux ~context env
       begin match context with
         | In_signature -> raise (Error (pmtd_loc, env, Underscore_not_allowed_in_signature))
         | In_structure None -> raise (Error (pmtd_loc, env, Cannot_infer_module_type))
-        | In_structure Some ({ expected = mtd; sig_map; str_map }) ->
-            check_no_unbound_paths env pmtd_loc sig_map str_map mtd.Types.mtd_type;
+        | In_structure Some ({ expected = mtd; str_map; sig_map }) ->
+            check_no_unbound_paths env pmtd_loc ~str_map ~sig_map mtd.Types.mtd_type;
             Tmtd_underscore, mtd.Types.mtd_type
       end
   in
@@ -3003,82 +3037,206 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
 
 and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
   let names = Signature_names.create () in
-  let expected_sig =
+
+  let sig_map =
     Option.map(fun sg -> Sig_map.add_signature sg (Sig_map.empty)) expected_sig
   in
 
-  let add_expected_type_to_subst expected_sig idents subst =
-    match expected_sig with
+  (* Functions to check whether two (module types | modules | types) are "compatible", and
+     adding them to a [Subst.t]. See comment in [type_str_item] below on why we need these. *)
+
+  let rec check_expected_typedecl ~env ~sig_env id actual expected =
+    (* CR selee: ignore for now, but I suspect we'll need it for mcomp check *)
+    ignore sig_env;
+
+    (* CR selee: For now, just check their arity *)
+    if expected.type_arity <> actual.type_arity then
+      raise (Error (actual.type_loc, env,
+        Incompatible_type_declaration (id, expected)));
+    ()
+
+  and check_expected_modtype
+      ~env ~sig_env context direction subst actual expected ~actual_loc ~expected_loc =
+    let check_expected_sig_item ~env ~sig_env sig_map subst = function
+      | Sig_value _ | Sig_typext _ | Sig_class _ | Sig_class_type _ -> subst
+      | Sig_type (ident, decl, _, _) ->
+          add_expected_type_to_subst ~env ~sig_env (Some sig_map) [ident, decl] subst
+      | Sig_module (ident, _, decl, _, _) ->
+          add_expected_module_to_subst
+            ~env ~sig_env (Some sig_map) direction (Some ident) decl subst
+      | Sig_modtype (ident, decl, _) ->
+          add_expected_modtype_to_subst
+            ~env ~sig_env (Some sig_map) direction ident decl subst
+    in
+
+    let check_expected_sig actual expected =
+      let env = Env.add_signature actual env in
+      let sig_env = Env.add_signature expected sig_env in
+      let str_map = Sig_map.add_signature actual (Sig_map.empty) in
+      let sig_map = Sig_map.add_signature expected (Sig_map.empty) in
+      let is_subset =
+        match direction with
+        | Covariant -> Sig_map.subset ~sub:sig_map ~super:str_map
+        | Contravariant -> Sig_map.subset ~sub:str_map ~super:sig_map
+      in
+      if not is_subset then
+        raise (Error (actual_loc, env, Incompatible_module_type (context, expected_loc)));
+      let newsubst =
+        List.fold_left
+          (fun acc item -> check_expected_sig_item ~env ~sig_env sig_map acc item)
+          subst actual
+      in
+      ignore newsubst;
+    in
+
+    let extract_modtype_loc env context path =
+      try
+        match context with
+          | From_module ->
+              let decl = Env.find_module path env in
+              (Some decl.md_type), decl.md_loc
+          | From_modtype ->
+              let decl = Env.find_modtype path env in
+              decl.mtd_type, decl.mtd_loc
+      with Not_found -> Misc.fatal_errorf "Modtype not found in enclosing env: %a" Path.print path
+    in
+
+    let same_modtype_path_after_subst p1 p2 =
+      (* When we see two [Path.t]s, first try applying [subst] to the expected path.
+         If the two paths are the same after substitution, we don't need to look into
+         the paths to tell that they're the same. *)
+      try
+        let p1_after_subst = Subst.modtype_path subst p1 in
+        Path.same p1_after_subst p2
+      with Fatal_error -> false
+    in
+
+    let same_module_path_after_subst p1 p2 =
+      try
+        let p1_after_subst = Subst.module_path subst p1 in
+        Path.same p1_after_subst p2
+      with Fatal_error -> false
+    in
+
+    match actual, expected with
+      | None, _ | _, None -> ()
+      | Some mt1, Some mt2 ->
+          begin match mt1, mt2 with
+            | Mty_ident p1, Mty_ident p2
+                when same_modtype_path_after_subst p1 p2 -> ()
+            | Mty_alias p1, Mty_alias p2
+                when same_module_path_after_subst p1 p2 -> ()
+            | Mty_signature s1, Mty_signature s2 -> check_expected_sig s1 s2
+            | Mty_strengthen (mt1, _, _),
+              (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _ | Mty_strengthen _) ->
+                check_expected_modtype ~env ~sig_env context direction subst
+                (Some mt1) expected ~actual_loc ~expected_loc
+            | (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _),
+              Mty_strengthen (mt2, _, _) ->
+                check_expected_modtype ~env ~sig_env context direction subst
+                  actual (Some mt2) ~actual_loc ~expected_loc
+            | Mty_ident p1,
+              (Mty_ident _ | Mty_signature _ | Mty_functor _ | Mty_alias _) ->
+                let (mt1, actual_loc) = extract_modtype_loc env From_modtype p1 in
+                check_expected_modtype ~env ~sig_env context direction subst mt1 expected
+                  ~actual_loc ~expected_loc
+            | (Mty_signature _ | Mty_functor _ | Mty_alias _),
+              Mty_ident p2 ->
+                let (mt2, expected_loc) = extract_modtype_loc sig_env From_modtype p2 in
+                check_expected_modtype ~env ~sig_env context direction subst actual mt2
+                  ~actual_loc ~expected_loc
+            | Mty_alias p1,
+              (Mty_signature _ | Mty_functor _ | Mty_alias _) ->
+                let (mt1, actual_loc) = extract_modtype_loc env From_module p1 in
+                check_expected_modtype ~env ~sig_env context direction subst mt1 expected
+                  ~actual_loc ~expected_loc
+            | (Mty_signature _ | Mty_functor _),
+              Mty_alias p2 ->
+                let (mt2, expected_loc) = extract_modtype_loc sig_env From_module p2 in
+                check_expected_modtype ~env ~sig_env context direction subst actual mt2
+                  ~actual_loc ~expected_loc
+            | Mty_functor (Named (actual_id, mt1), mt2),
+              Mty_functor (Named (expected_id, mt3), mt4) ->
+                check_expected_modtype ~env ~sig_env context
+                  (flip_inclusion_direction direction)
+                  subst (Some mt1) (Some mt3) ~actual_loc ~expected_loc;
+                let env =
+                  match actual_id with
+                    | None -> env
+                    | Some actual_id ->
+                        Env.add_module ~arg:true actual_id Mp_present mt1 env
+                  in
+                let sig_env =
+                  match expected_id with
+                    | None -> sig_env
+                    | Some expected_id ->
+                        Env.add_module ~arg:true expected_id Mp_present mt3 sig_env
+                  in
+                check_expected_modtype ~env ~sig_env context direction subst
+                  (Some mt2) (Some mt4) ~actual_loc ~expected_loc
+            | Mty_functor (Unit, mt1), Mty_functor (Unit, mt2) ->
+                check_expected_modtype ~env ~sig_env context direction subst
+                  (Some mt1) (Some mt2) ~actual_loc ~expected_loc
+            | Mty_functor _,
+              (Mty_functor _ | Mty_signature _)
+            | Mty_signature _, Mty_functor _ ->
+                raise
+                  (Error (actual_loc, env, Incompatible_functor_declaration expected_loc))
+          end
+
+  and add_expected_type_to_subst ~env ~sig_env sig_map ident_and_decls subst =
+    match sig_map with
       | None -> subst
-      | Some expected_sig ->
-          let add_to_subst subst id =
-            match Sig_map.find_type (Ident.name id) expected_sig with
+      | Some sig_map ->
+          let add_to_subst subst (id, decl) =
+            match Sig_map.find_type (Ident.name id) sig_map with
             | None -> subst
-            | Some (sig_ident, _) ->
+            | Some (sig_ident, sig_decl) ->
+                check_expected_typedecl ~env ~sig_env id decl sig_decl;
                 Subst.add_type sig_ident (Pident id) subst
           in
-        List.fold_left add_to_subst subst idents
-  in
+          List.fold_left add_to_subst subst ident_and_decls
 
-  let add_expected_module_to_subst expected_sig ident subst =
-    match expected_sig with
+  and add_expected_module_to_subst ~env ~sig_env sig_map direction ident decl subst =
+    match sig_map with
     | None -> subst
-    | Some expected_sig ->
+    | Some sig_map ->
       begin match ident with
         | None -> subst
         | Some ident ->
-            begin match Sig_map.find_module (Ident.name ident) expected_sig with
+            begin match Sig_map.find_module (Ident.name ident) sig_map with
               | None -> subst
-              | Some (sig_ident, _) ->
+              | Some (sig_ident, sig_decl) ->
+                  check_expected_modtype ~env ~sig_env From_module direction subst
+                    (Some decl.Types.md_type) (Some sig_decl.md_type)
+                    ~actual_loc:decl.Types.md_loc ~expected_loc: sig_decl.Types.md_loc;
                   Subst.add_module sig_ident (Pident ident) subst
             end
       end
-  in
 
-  let add_expected_rec_modules_to_subst expected_sig idents subst =
+  and add_expected_rec_modules_to_subst ~env ~sig_env sig_map direction ident_and_decls subst =
     List.fold_left
-      (fun acc ident ->
-        add_expected_module_to_subst expected_sig ident acc) subst idents
-  in
+      (fun acc (ident, decl) ->
+        add_expected_module_to_subst ~env ~sig_env sig_map direction ident decl acc)
+      subst ident_and_decls
 
-  let add_expected_modtype_to_subst expected_sig ident subst =
-    match expected_sig with
+  and add_expected_modtype_to_subst ~env ~sig_env sig_map direction ident decl subst =
+    match sig_map with
     | None -> subst
-    | Some expected_sig ->
-        begin match Sig_map.find_module_type (Ident.name ident) expected_sig with
+    | Some sig_map ->
+        begin match Sig_map.find_module_type (Ident.name ident) sig_map with
           | None -> subst
-          | Some (sig_ident, _) ->
+          | Some (sig_ident, sig_decl) ->
+              check_expected_modtype ~env ~sig_env From_modtype direction subst
+                decl.Types.mtd_type sig_decl.mtd_type
+                ~actual_loc:decl.Types.mtd_loc ~expected_loc:sig_decl.Types.mtd_loc;
               Subst.add_modtype sig_ident (Mty_ident (Pident ident)) subst
         end
   in
 
-  let add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst =
-    let subst = add_expected_type_to_subst expected_sig ty_ids subst in
-    match expected_sig with
-      | None -> subst
-      | Some expected_sig ->
-          let add_to_subst subst id =
-            match Sig_map.find_class_type (Ident.name id) expected_sig with
-            | None -> subst
-            | Some (sig_ident, _) ->
-                Subst.add_type sig_ident (Pident id) subst
-          in
-        List.fold_left add_to_subst subst clty_ids
-  in
-
-  let add_expected_include_to_subst expected_sig actual_sig subst =
-    let add_item subst = function
-      | Sig_type (id, _, _, _) ->
-          add_expected_type_to_subst expected_sig [id] subst
-      | Sig_module (id, _, _, _, _) ->
-          add_expected_module_to_subst expected_sig (Some id) subst
-      | Sig_modtype (id, _, _) ->
-          add_expected_modtype_to_subst expected_sig id subst
-      | Sig_class_type (id, _, _, _) ->
-          add_expected_class_type_to_subst expected_sig [id] [] subst
-      | Sig_value _ | Sig_typext _ | Sig_class _ -> subst
-    in
-    List.fold_left add_item subst actual_sig
+  let sig_env = match expected_sig with
+    | None -> env
+    | Some expected_sig -> Env.add_signature expected_sig env
   in
 
   let type_str_include ~functor_ ~loc env subst str_map shape_map sincl sig_acc =
@@ -3112,12 +3270,12 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         incl_loc = sincl.pincl_loc;
       }
     in
-    (* CR selee: Properly update [subst] for things that have been included *)
     Tstr_include incl,
     sg,
     shape,
     new_env,
-    add_expected_include_to_subst expected_sig sg subst,
+    (* CR selee: We currently don't support substitution for items in an include. *)
+    subst,
     Sig_map.add_signature sg str_map
   in
 
@@ -3257,14 +3415,14 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           (fun map { typ_id; typ_type; _ } -> Sig_map.add_type typ_id typ_type map)
           str_map decls
         in
-        let idents =
-          List.map (fun { typ_id; _ } -> typ_id) decls
+        let ident_and_decls =
+          List.map (fun { typ_id; typ_type; _ } -> (typ_id, typ_type)) decls
         in
         Tstr_type (rec_flag, decls),
         items,
         shape_map,
         enrich_type_decls anchor decls env newenv,
-        add_expected_type_to_subst expected_sig idents subst,
+        add_expected_type_to_subst ~env ~sig_env sig_map ident_and_decls subst,
         str_map
     | Pstr_typext styext ->
         let (tyext, newenv, shapes) =
@@ -3362,7 +3520,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
           | None -> shape_map
         in
         let str_map = match id with
-          | Some id -> Sig_map.add_module id md str_map
+          | Some id -> Sig_map.add_module id md str_map;
           | None -> str_map
         in
         Tstr_module {mb_id=id; mb_name=name; mb_uid = md.md_uid;
@@ -3371,7 +3529,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         sg,
         shape_map,
         newenv,
-        add_expected_module_to_subst expected_sig id subst,
+        add_expected_module_to_subst ~env ~sig_env sig_map Covariant id md subst,
         str_map
     | Pstr_recmodule sbind ->
         let sbind =
@@ -3447,33 +3605,40 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             Shape.Map.add_module map id shape
           ) shape_map mbs
         in
-        let idents =
-          List.map (fun (id, _, _, _) -> Some id) mbs
+        let ident_and_decls =
+          List.map (fun (id, mb, uid, _shape) ->
+            id, {
+              md_type=mb.mb_expr.mod_type;
+              md_attributes=mb.mb_attributes;
+              md_loc=mb.mb_loc;
+              md_uid = uid;})
+            mbs
+        in
+        let sigs =
+          map_rec
+            (fun rs (id, decl) -> Sig_module(id, Mp_present, decl, rs, Exported))
+            ident_and_decls []
         in
         Tstr_recmodule (List.map (fun (mb, _, _) -> mb) bindings2),
-        map_rec (fun rs (id, mb, uid, _shape) ->
-            Sig_module(id, Mp_present, {
-                md_type=mb.mb_expr.mod_type;
-                md_attributes=mb.mb_attributes;
-                md_loc=mb.mb_loc;
-                md_uid = uid;
-              }, rs, Exported))
-           mbs [],
+        sigs,
         shape_map,
         newenv,
-        add_expected_rec_modules_to_subst expected_sig idents subst,
+        add_expected_rec_modules_to_subst
+          ~env ~sig_env sig_map Covariant
+          (List.map (fun (id, decl) -> Some id, decl) ident_and_decls)
+          subst,
         str_map
     | Pstr_modtype pmtd ->
         let context =
-          match expected_sig with
+          match sig_map with
           | None -> In_structure None
-          | Some expected_sig ->
-            begin match Sig_map.find_module_type pmtd.pmtd_name.txt expected_sig with
+          | Some sig_map ->
+            begin match Sig_map.find_module_type pmtd.pmtd_name.txt sig_map with
               | None -> In_structure None
               | Some (_, decl) ->
                   In_structure (Some ({
                     expected = Subst.modtype_declaration Keep subst decl;
-                    sig_map = expected_sig;
+                    sig_map;
                     str_map;
                   }))
             end
@@ -3487,7 +3652,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
         [Sig_modtype (id, decl, Exported)],
         map,
         newenv,
-        add_expected_modtype_to_subst expected_sig id subst,
+        add_expected_modtype_to_subst ~env ~sig_env sig_map Covariant id decl subst,
         Sig_map.add_module_type id decl str_map
     | Pstr_open sod ->
         let toplevel = Option.is_some toplevel in
@@ -3517,8 +3682,10 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             |> Sig_map.add_type cls.cls_obj_id cls.cls_obj_abbr
           ) str_map classes
         in
-        let clty_ids = List.map (fun cl -> cl.Typeclass.cls_ty_id) classes in
-        let ty_ids = List.map (fun cl -> cl.Typeclass.cls_obj_id) classes in
+        let ty_ids_and_decls =
+          List.map
+            (fun cl -> cl.Typeclass.cls_obj_id, cl.Typeclass.cls_obj_abbr) classes
+        in
         Tstr_class
           (List.map (fun cls ->
                (cls.Typeclass.cls_info,
@@ -3534,7 +3701,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
              classes []),
         shape_map,
         new_env,
-        add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst,
+        add_expected_type_to_subst ~env ~sig_env sig_map ty_ids_and_decls subst,
         str_map
     | Pstr_class_type cl ->
         let (classes, new_env) = Typeclass.class_type_declarations env cl in
@@ -3555,8 +3722,10 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
             |> Sig_map.add_type decl.clsty_obj_id decl.clsty_obj_abbr
           ) str_map classes
         in
-        let clty_ids = List.map (fun cl -> cl.Typeclass.clsty_ty_id) classes in
-        let ty_ids = List.map (fun cl -> cl.Typeclass.clsty_obj_id) classes in
+        let ty_ids_and_decls =
+          List.map
+            (fun cl -> cl.Typeclass.clsty_obj_id, cl.Typeclass.clsty_obj_abbr) classes
+        in
         Tstr_class_type
           (List.map (fun cl ->
                (cl.Typeclass.clsty_ty_id,
@@ -3573,7 +3742,7 @@ and type_structure ?(toplevel = None) ~expected_sig funct_body anchor env sstr =
              classes []),
         shape_map,
         new_env,
-        add_expected_class_type_to_subst expected_sig clty_ids ty_ids subst,
+        add_expected_type_to_subst ~env ~sig_env sig_map ty_ids_and_decls subst,
         str_map
     | Pstr_include sincl ->
         type_str_include ~functor_:false ~loc env subst str_map shape_map sincl sig_acc
@@ -4507,6 +4676,33 @@ let report_error ~loc _env = function
       Location.errorf ~loc
         "The inferred module type refers to %a %a, which is unbound here."
         Btype.print_path_kind k path p
+  | Incompatible_type_declaration (expected_ident, expected_decl) ->
+      let expected_error =
+        Location.msg ~loc:expected_decl.type_loc "Expected declaration here"
+      in
+      Location.errorf ~loc ~sub:[expected_error]
+        "@[This type declaration is incompatible with the corresponding @ \
+        declaration in the signature:@ expected %a.@]" (type_declaration expected_ident) expected_decl
+  | Incompatible_functor_declaration expected_loc ->
+      let expected_error =
+        Location.msg ~loc:expected_loc "Expected declaration here"
+      in
+      Location.errorf ~loc ~sub:[expected_error]
+        "This functor declaration is incompatible with the corresponding @ \
+        declaration in the signature."
+  | Incompatible_module_type (context, expected_loc) ->
+      let context =
+        match context with
+        | From_modtype -> "module type"
+        | From_module -> "module"
+      in
+      let expected_error =
+        Location.msg ~loc:expected_loc "Expected declaration here"
+      in
+      Location.errorf ~loc ~sub:[expected_error]
+        "This %s is incompatible with the corresponding @ \
+        declaration in the signature."
+        context
 
 let report_error env ~loc err =
   Printtyp.wrap_printing_env_error env

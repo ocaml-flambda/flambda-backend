@@ -112,6 +112,12 @@ type functor_dependency_error =
     Functor_applied
   | Functor_included
 
+type modtype_context =
+  | From_module
+    (** The module type originated from a module declaration. *)
+  | From_modtype
+  (** The module type originated from a module type declaration. *)
+
 type error =
     Cannot_apply of module_type
   | Not_included of Includemod.explanation
@@ -167,6 +173,9 @@ type error =
   | Underscore_not_allowed_in_signature
   | Cannot_infer_module_type
   | Unbound_path_in_inferred_type of Btype.path_kind * Path.t
+  | Incompatible_type_declaration of Ident.t * type_declaration
+  | Incompatible_functor_declaration of Location.t
+  | Incompatible_module_type of modtype_context * Location.t
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

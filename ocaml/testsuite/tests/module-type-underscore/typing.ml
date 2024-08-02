@@ -548,7 +548,6 @@ end
 module M : sig module type A module type B = A end
 |}]
 
-
 module M : sig
   type t
 
@@ -567,6 +566,8 @@ module M : sig
     class type e1 = c
     class f : d
     class type f1 = d
+
+    val foo : c -> c
   end
 end = struct
   type t = int
@@ -595,6 +596,7 @@ module M :
         class type e1 = c
         class f : d
         class type f1 = d
+        val foo : c -> c
       end
   end
 |}]
@@ -625,22 +627,48 @@ module M : sig
   module type A
 
   module type B = sig
-    module type A
-    module type C = A
+    module type D
+    module type C = D
   end
 
 end = struct
   module type A
 
-  module type B = _
+  module type B = sig
+    module type D
+    module type C = D
+  end
 end
 
 [%%expect {|
 module M :
   sig
     module type A
-    module type B = sig module type A module type C = A end
+    module type B = sig module type D module type C = D end
   end
+|}]
+
+module M : sig
+  module type A = sig
+    type t
+  end
+
+  module type B = A
+
+  module type C = B
+end = struct
+  module type A = sig
+    type t
+  end
+
+  module type C = A
+
+  module type B = _
+end
+
+[%%expect{|
+module M :
+  sig module type A = sig type t end module type B = A module type C = B end
 |}]
 
 module M : sig
@@ -745,10 +773,16 @@ end = struct
   end
 end
 
-(* CR selee: This needs to be fixed *)
 [%%expect {|
-Uncaught exception: Invalid_argument("List.iter2")
-
+Line 8, characters 2-14:
+8 |   type t = int
+      ^^^^^^^^^^^^
+Error: This type declaration is incompatible with the corresponding
+       declaration in the signature: expected type 'a t.
+Line 2, characters 2-11:
+2 |   type 'a t
+      ^^^^^^^^^
+  Expected declaration here
 |}]
 
 module M : sig
@@ -771,10 +805,129 @@ end = struct
   end
 end
 
-(* CR selee: This needs to be fixed *)
 [%%expect{|
-Uncaught exception: Invalid_argument("List.iter2")
+Line 11, characters 4-16:
+11 |     type t = int
+         ^^^^^^^^^^^^
+Error: This type declaration is incompatible with the corresponding
+       declaration in the signature: expected type 'a t.
+Line 3, characters 4-13:
+3 |     type 'a t
+        ^^^^^^^^^
+  Expected declaration here
+|}]
 
+module M : sig
+  module A : sig
+    module B : sig
+      module C : sig
+        module D : sig
+          type 'a t
+        end
+      end
+    end
+  end
+
+  module type T = sig
+    val foo : int A.B.C.D.t -> int A.B.C.D.t
+  end
+end = struct
+  module A = struct
+    module B = struct
+      module C = struct
+        module D = struct
+          type t = int
+        end
+      end
+    end
+  end
+
+  module type T = _
+
+  module F(X:T) = struct
+    let _ = X.foo 42
+  end
+end
+
+[%%expect {|
+Line 20, characters 10-22:
+20 |           type t = int
+               ^^^^^^^^^^^^
+Error: This type declaration is incompatible with the corresponding
+       declaration in the signature: expected type 'a t.
+Line 6, characters 10-19:
+6 |           type 'a t
+              ^^^^^^^^^
+  Expected declaration here
+|}]
+
+module M : sig
+  module A : sig
+    type ta
+    module B : sig
+      type tb
+      module C : sig
+        type ('a, 'b) tc
+        module D : sig
+          type 'a td = (ta, tb) tc
+        end
+      end
+    end
+  end
+
+  module type T = sig
+    val foo : int A.B.C.D.td -> int A.B.C.D.td
+  end
+end = struct
+  module A = struct
+    type ta
+    module B = struct
+      type tb
+      module C = struct
+        type ('a, 'b) tc
+        module D = struct
+          type td = int
+        end
+      end
+    end
+  end
+
+  module type T = _
+
+  module F(X:T) = struct
+    let _ = X.foo 42
+  end
+end
+
+[%%expect {|
+Line 26, characters 10-23:
+26 |           type td = int
+               ^^^^^^^^^^^^^
+Error: This type declaration is incompatible with the corresponding
+       declaration in the signature: expected type 'a td = (ta, tb) tc.
+Line 9, characters 10-34:
+9 |           type 'a td = (ta, tb) tc
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  Expected declaration here
+|}]
+
+module M : sig
+  module type A = sig
+    type 'a t
+    module type B = sig
+      type nonrec t = int t
+    end
+  end
+end = struct
+  module type A = _
+end
+
+[%%expect {|
+module M :
+  sig
+    module type A =
+      sig type 'a t module type B = sig type nonrec t = int t end end
+  end
 |}]
 
 module M : sig
@@ -882,6 +1035,40 @@ Line 9, characters 4-21:
 Error: Cannot infer module type without a corresponding definition.
 |}]
 
+module M : sig
+  module type A = sig
+    type 'a t
+
+    val foo : int t -> int t
+  end
+
+  module type B = A
+
+  module type C = B
+end = struct
+  module type C = sig
+    type t = int
+
+    val foo : int -> int
+  end
+
+  module type B = _
+
+  module type A = _
+end
+
+[%%expect {|
+Line 13, characters 4-16:
+13 |     type t = int
+         ^^^^^^^^^^^^
+Error: This type declaration is incompatible with the corresponding
+       declaration in the signature: expected type 'a t.
+Line 3, characters 4-13:
+3 |     type 'a t
+        ^^^^^^^^^
+  Expected declaration here
+|}]
+
 module A = struct
   class c = object
     val mutable v = 5
@@ -926,6 +1113,8 @@ end = struct
   module type C = _
 end
 
+(* CR selee: For now, we don't support includes. *)
+
 [%%expect {|
 module A :
   sig
@@ -940,20 +1129,92 @@ module A :
         class type f1 = d
       end
   end
-module M :
-  sig
-    class c : object val mutable v : int end
-    class type d = object val mutable v : int end
-    module type B =
-      sig
-        type t = c -> int
-        class e : c
-        class type e1 = c
-        class f : d
-        class type f1 = d
-      end
-    module type C = B
+Lines 39-43, characters 6-3:
+39 | ......struct
+40 |   include A
+41 |
+42 |   module type C = _
+43 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           class c : object val mutable v : int end
+           class type d = object val mutable v : int end
+           module type B = A.B
+           module type C = B/2
+         end
+       is not included in
+         sig
+           class c : object val mutable v : int end
+           class type d = object val mutable v : int end
+           module type B =
+             sig
+               type t = c -> int
+               class e : c
+               class type e1 = c
+               class f : d
+               class type f1 = d
+               ...
+             end
+           module type C = B
+         end
+       Module type declarations do not match:
+         module type C = B/2
+       does not match
+         module type C = B/1
+       At position module type C = <here>
+       Module types do not match: B/2 is not equal to B/1
+
+       Lines 10-17, characters 2-5:
+         Definition of module type B/1
+|}]
+
+module A = struct
+  module type D = sig
+    type 'a t
   end
+
+  module type B = D
+end
+
+module M : sig
+  module type B = sig
+    type t
+  end
+
+  module type C = B
+end = struct
+  include A
+
+  module type C = _
+end
+
+(* CR selee: For now, we don't support includes. *)
+
+[%%expect {|
+module A : sig module type D = sig type 'a t end module type B = D end
+Lines 15-19, characters 6-3:
+15 | ......struct
+16 |   include A
+17 |
+18 |   module type C = _
+19 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig module type D = A.D module type B = A.B module type C = B/2 end
+       is not included in
+         sig module type B = sig type t end module type C = B end
+       Module type declarations do not match:
+         module type B = A.B
+       does not match
+         module type B = sig type t end
+       At position module type B = <here>
+       Module types do not match: A.B is not equal to sig type t end
+       At position module type B = <here>
+       Type declarations do not match: type 'a t is not included in type t
+       They have different arities.
+       Line 6, characters 2-19:
+         Definition of module type B/1
 |}]
 
 module A = struct
@@ -972,9 +1233,30 @@ end = struct
   module type C = _
 end
 
+(* CR selee: For now, we don't support includes. *)
+
 [%%expect {|
 module A : sig module type B = sig type t = int end end
-module M : sig module type B = sig type t = int end module type C = B end
+Lines 11-15, characters 6-3:
+11 | ......struct
+12 |   include A
+13 |
+14 |   module type C = _
+15 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig module type B = A.B module type C = B/2 end
+       is not included in
+         sig module type B = sig type t = int end module type C = B end
+       Module type declarations do not match:
+         module type C = B/2
+       does not match
+         module type C = B/1
+       At position module type C = <here>
+       Module types do not match: B/2 is not equal to B/1
+
+       Lines 2-4, characters 2-5:
+         Definition of module type B/1
 |}]
 
 module M : sig
@@ -1189,28 +1471,53 @@ end = struct
   module type S = _
 end
 
-(* CR selee: Currently our boundness check relies on the compatibility check.
-   As this branch doesn't have the compatibility check, it doesn't error properly
-   in this case. This should error properly before inclusion checking *)
 [%%expect {|
-Lines 4-7, characters 6-3:
-4 | ......struct
+Line 5, characters 2-23:
 5 |   module A = struct end
-6 |   module type S = _
-7 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig
-           module A : sig end
-           module type S = sig type t = A.t -> A.t end
-         end
-       is not included in
-         sig
-           module A : sig type t end
-           module type S = sig type t = A.t -> A.t end
-         end
-       In module A:
-       Modules do not match: sig end is not included in sig type t end
-       In module A:
-       The type `t' is required but not provided
+      ^^^^^^^^^^^^^^^^^^^^^
+Error: This module is incompatible with the corresponding
+       declaration in the signature.
+Line 2, characters 2-27:
+2 |   module A : sig type t end
+      ^^^^^^^^^^^^^^^^^^^^^^^^^
+  Expected declaration here
+|}]
+
+module type S = sig type t end
+
+module M : sig
+  module N : S
+
+  type 'a t
+
+  val foo : N.t -> N.t
+end = struct
+  module N = struct type t end
+
+  type 'a t
+
+  let foo x = x
+end
+
+[%%expect{|
+module type S = sig type t end
+module M : sig module N : S type 'a t val foo : N.t -> N.t end
+|}]
+
+module M : sig
+  module F(X:sig end) : sig end
+end = struct
+  module F(X:sig type t end) = struct end
+end
+
+[%%expect {|
+Line 4, characters 2-41:
+4 |   module F(X:sig type t end) = struct end
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This module is incompatible with the corresponding
+       declaration in the signature.
+Line 2, characters 2-31:
+2 |   module F(X:sig end) : sig end
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Expected declaration here
 |}]

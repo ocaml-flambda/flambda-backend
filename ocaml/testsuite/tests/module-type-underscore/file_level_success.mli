@@ -1,10 +1,10 @@
 module type S = module type of List
 
-type 'a t = [] | ( :: ) of 'a * 'a t
+(* type 'a t = [] | ( :: ) of 'a * 'a t
 
 module type T = sig
     type nonrec t = int t
-end
+end *)
 
 module M = List
 
