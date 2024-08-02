@@ -1529,18 +1529,9 @@ end = struct
   end
 end
 
-(* CR selee: Boundness check should catch this case *)
 [%%expect {|
-Lines 6-10, characters 6-3:
- 6 | ......struct
- 7 |   module B = struct
- 8 |     module type S = _
- 9 |   end
-10 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig module B : sig module type S = sig type u = t end end end
-       is not included in
-         sig type t module B : sig module type S = sig type u = t end end end
-       The type `t' is required but not provided
+Line 8, characters 4-21:
+8 |     module type S = _
+        ^^^^^^^^^^^^^^^^^
+Error: The inferred module type refers to type t, which is unbound here.
 |}]
