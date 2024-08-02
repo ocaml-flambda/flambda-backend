@@ -163,25 +163,6 @@ let prepare_error err =
       in
       Location.errorf ~loc "invalid package type: %a" invalid ipt
   | Removed_string_set loc ->
-<<<<<<< HEAD
-    Location.errorf ~loc
-      "Syntax error: strings are immutable, there is no assignment \
-       syntax for them.\n\
-       @{<hint>Hint@}: Mutable sequences of bytes are available in \
-       the Bytes module.\n\
-       @{<hint>Hint@}: Did you mean to use 'Bytes.set'?"
-  | Missing_unboxed_literal_suffix loc ->
-    Location.errorf ~loc
-      "Syntax error: Unboxed integer literals require width suffixes."
-
-||||||| 121bedcfd2
-      Location.errorf ~loc
-        "Syntax error: strings are immutable, there is no assignment \
-         syntax for them.\n\
-         @{<hint>Hint@}: Mutable sequences of bytes are available in \
-         the Bytes module.\n\
-         @{<hint>Hint@}: Did you mean to use 'Bytes.set'?"
-=======
       Location.errorf ~loc
         "Syntax error: strings are immutable, there is no assignment \
          syntax for them.\n\
@@ -189,7 +170,10 @@ let prepare_error err =
          the Bytes module.\n\
          @{<hint>Hint@}: Did you mean to use %a?"
         Style.inline_code "Bytes.set"
->>>>>>> 5.2.0
+  | Missing_unboxed_literal_suffix loc ->
+      Location.errorf ~loc
+        "Syntax error: Unboxed integer literals require width suffixes."
+
 let () =
   Location.register_error_of_exn
     (function
