@@ -1663,3 +1663,28 @@ Line 16, characters 8-25:
              ^^^^^^^^^^^^^^^^^
 Error: The inferred module type refers to type t, which is unbound here.
 |}]
+
+
+module M : sig
+  module type S = sig type t end
+
+  module A : sig end
+end = struct
+  module type S = sig type t end
+
+  module A = struct
+    module type S = sig type t' end
+  end
+end
+
+[%%expect {|
+Line 9, characters 4-35:
+9 |     module type S = sig type t' end
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This module type is incompatible with the corresponding
+       declaration in the signature.
+Line 2, characters 2-32:
+2 |   module type S = sig type t end
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  Expected declaration here
+|}]

@@ -2793,7 +2793,7 @@ and type_module_aux
       let mty = transl_modtype env smty in
       let arg, arg_shape =
         type_module ~alias true funct_body anchor
-          env ~sig_env subst ~str_map ~sig_map sarg
+          env ~sig_env:env subst ~str_map:None ~sig_map:None sarg
           ~expected_modtype:(Some mty.mty_type)
       in
       let md, final_shape =
