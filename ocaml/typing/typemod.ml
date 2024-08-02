@@ -3659,9 +3659,12 @@ and type_structure ?(toplevel = None)
                let modl, shape =
                  Builtin_attributes.warning_scope attrs
                    (fun () ->
+                      let expected_modtype =
+                        Some (Subst.modtype Keep subst mty.mty_type)
+                      in
                       type_module true funct_body (anchor_recmodule id) newenv
                         ~sig_env:newenv ~str_map:(Some str_map) ~sig_map
-                        smodl ~expected_modtype:(Some mty.mty_type)
+                        smodl ~expected_modtype
                    )
                in
                let mty' =

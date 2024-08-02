@@ -1680,3 +1680,48 @@ end
 [%%expect {|
 module M : sig module type S = sig type t end module A : sig end end
 |}]
+
+module M : sig
+  module rec A : sig
+    type t
+    module rec B : sig
+      module rec C : sig
+        module type S = sig type u = t end
+      end
+    end
+  end
+end = struct
+  module rec A : sig
+    type t
+    module rec B : sig
+      module rec C : sig
+        module type S = sig type u = t end
+      end
+    end
+  end = struct
+    type t
+    module rec B : sig
+      module rec C : sig
+        module type S = sig type u = t end
+      end
+    end = struct
+      module rec C : sig
+        module type S = sig type u = t end
+      end = struct
+        module type S = _
+      end
+    end
+  end
+end
+
+[%%expect {|
+module M :
+  sig
+    module rec A :
+      sig
+        type t
+        module rec B :
+          sig module rec C : sig module type S = sig type u = t end end end
+      end
+  end
+|}]
