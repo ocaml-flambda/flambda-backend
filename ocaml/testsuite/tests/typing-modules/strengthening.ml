@@ -94,7 +94,7 @@ module Unaliasable = struct
     module F(X:S) = X
     module M = struct end
   end
-
+  
   module X = A.F(A.M)
 end
 [%%expect{|
