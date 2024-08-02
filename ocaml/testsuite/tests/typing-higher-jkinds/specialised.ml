@@ -49,25 +49,70 @@ let foo : type (a : value => value). a t -> int a = function
 val foo : ('a : value => value). 'a t -> int 'a = <fun>
 |}]
 
-type ('m : value => value) functor_instance = {
+type l : value => value = list
+let x: int l = [1]
+[%%expect{|
+type l = list
+val x : int l = <abstr>
+|}]
+
+(* Basic GADTs *)
+
+type ('a : value => value) t =
+  | List : list t
+  | Option : option t
+[%%expect{|
+type ('a : value => value) t = List : list t | Option : option t
+|}]
+
+let foo : type (a : value => value). a t -> int a = function
+  | List -> ([1] : int a)
+  | Option -> Some 2
+[%%expect{|
+val foo : ('a : value => value). 'a t -> int 'a = <fun>
+|}]
+
+type l : value => value = list
+let x: int l = [1]
+[%%expect{|
+type l = list
+val x : int l = <abstr>
+|}]
+
+(* Basic GADTs *)
+
+type ('a : value => value) t =
+  | List : list t
+  | Option : option t
+[%%expect{|
+type ('a : value => value) t = List : list t | Option : option t
+|}]
+
+let foo : type (a : value => value). a t -> int a = function
+  | List -> [1]
+  | Option -> Some 2
+[%%expect{|
+val foo : ('a : value => value). 'a t -> int 'a = <fun>
+|}]
+
+(* Annotations on both [functor_instance] and [funct] are required *)
+
+type ('m : value => value) functor_impl = {
   return : 'a. 'a -> 'a 'm;
   map : 'a 'b. ('a -> 'b) -> ('a 'm -> 'b 'm)
 }
-
 [%%expect{|
-type ('m : value => value) functor_instance = {
+type ('m : value => value) functor_impl = {
   return : 'a. 'a -> 'a 'm;
   map : 'a 'b. ('a -> 'b) -> 'a 'm -> 'b 'm;
 }
 |}]
 
 type 'a id = { id : 'a }
-
-type ('m : value => value) funct =
+type (_ : value => value) funct =
   | Id : id funct
   | List : list funct
-  | Instance : 'm functor_instance -> 'm funct
-
+  | Instance : 'm functor_impl -> 'm funct
 [%%expect{|
 type 'a id = { id : 'a; }
 type ('m : value => value) funct =
@@ -77,7 +122,7 @@ type ('m : value => value) funct =
 |}]
 
 let return : type a (m : value => value). m funct -> a -> a m = fun f x -> match f with
-  | Id -> { id = x }
+  | Id -> ({ id = x })
   | List -> [x]
   | Instance inst -> inst.return x
 
