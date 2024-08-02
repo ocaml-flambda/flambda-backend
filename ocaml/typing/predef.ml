@@ -184,7 +184,6 @@ and ident_cons = ident_create "::"
 and ident_none = ident_create "None"
 and ident_some = ident_create "Some"
 
-<<<<<<< HEAD
 let predef_jkind_annotation primitive =
   Option.map
     (fun (primitive : Jkind.Const.Primitive.t) ->
@@ -208,7 +207,7 @@ let list_argument_jkind = Jkind.Primitive.value ~why:(
 
 let mk_add_type add_type
       ?manifest type_ident
-      ?(kind=Type_abstract Abstract_def)
+      ?(kind=Type_abstract Definition)
       ?(jkind=Jkind.Primitive.value ~why:(Primitive type_ident))
       (* [jkind_annotation] is just used for printing. It's best to
          provide it if the jkind is not implied by the kind of the
@@ -216,13 +215,6 @@ let mk_add_type add_type
       *)
       ?jkind_annotation
       env =
-||||||| 121bedcfd2
-let mk_add_type add_type type_ident
-      ?manifest ?(immediate=Type_immediacy.Unknown) ?(kind=Type_abstract) env =
-=======
-let mk_add_type add_type type_ident ?manifest
-    ?(immediate=Type_immediacy.Unknown) ?(kind=Type_abstract Definition) env =
->>>>>>> 5.2.0
   let decl =
     {type_params = [];
      type_arity = 0;
@@ -249,8 +241,7 @@ let mk_add_type add_type type_ident ?manifest
 let build_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
   and add_type1 type_ident
-<<<<<<< HEAD
-        ?(kind=fun _ -> Type_abstract Abstract_def)
+        ?(kind=fun _ -> Type_abstract Definition)
         ?(jkind=Jkind.Primitive.value ~why:(Primitive type_ident))
         (* See the comment on the [jkind_annotation] argument to [mk_add_type]
         *)
@@ -263,13 +254,6 @@ let build_initial_env add_type add_extension empty_env =
         ))
       ~variance ~separability env =
     let param = newgenvar param_jkind in
-||||||| 121bedcfd2
-      ~variance ~separability ?(kind=fun _ -> Type_abstract) env =
-    let param = newgenvar () in
-=======
-      ~variance ~separability ?(kind=fun _ -> Type_abstract Definition) env =
-    let param = newgenvar () in
->>>>>>> 5.2.0
     let decl =
       {type_params = [param];
        type_arity = 1;

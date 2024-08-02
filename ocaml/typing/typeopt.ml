@@ -248,7 +248,6 @@ let value_kind_of_value_jkind jkind =
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
   | Internal -> Pgenval
 
-<<<<<<< HEAD
 (* [value_kind] has a pre-condition that it is only called on values.  With the
    current set of sort restrictions, there are two reasons this invariant may
    be violated:
@@ -747,14 +746,6 @@ let function_arg_layout env loc sort ty =
   | Some (arg_type, _) -> layout env loc sort arg_type
   | None -> Misc.fatal_error "function_arg_layout called on non-function type"
 
-||||||| 121bedcfd2
-let function_return_value_kind env ty =
-  match is_function_type env ty with
-  | Some (_lhs, rhs) -> value_kind env rhs
-  | None -> Pgenval
-
-=======
->>>>>>> 5.2.0
 (** Whether a forward block is needed for a lazy thunk on a value, i.e.
     if the value can be represented as a float/forward/lazy *)
 let lazy_val_requires_forward env loc ty =
