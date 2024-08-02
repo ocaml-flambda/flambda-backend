@@ -122,3 +122,26 @@ module type M =
     val f : ('a : ((top => value) => top) => value). 'a t -> unit
   end
 |}]
+
+module type M = sig
+  val f : 'a 'b 'c 'd -> unit 'd
+end
+[%%expect {|
+module type M =
+  sig
+    val f :
+      ('d : value => value) ('c : value => value) ('b : value => value) 'a.
+        'a 'b 'c 'd -> unit 'd
+  end
+|}]
+
+module type M = sig
+  val f : 'a ('b ('c 'd)) -> unit
+end
+[%%expect {|
+module type M =
+  sig
+    val f :
+      ('d : value => value => value => value) 'c 'b 'a. 'a 'b 'c 'd -> unit
+  end
+|}]
