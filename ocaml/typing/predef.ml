@@ -340,10 +340,12 @@ let build_initial_env add_type add_extension empty_env =
   empty_env
   (* Predefined types *)
   |> add_type1 ident_array
+       ~kind:(fun _ -> Type_abstract { reason = Abstract_def; datatype = true })
        ~variance:Variance.full
        ~separability:Separability.Ind
        ~param_jkind:(Jkind.Type.Primitive.any_non_null ~why:Array_type_argument)
   |> add_type1 ident_iarray
+       ~kind:(fun _ -> Type_abstract { reason = Abstract_def; datatype = true })
        ~variance:Variance.covariant
        ~separability:Separability.Ind
   |> add_type ident_bool
