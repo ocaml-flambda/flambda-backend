@@ -1678,13 +1678,5 @@ end = struct
 end
 
 [%%expect {|
-Line 9, characters 4-35:
-9 |     module type S = sig type t' end
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This module type is incompatible with the corresponding
-       declaration in the signature.
-Line 2, characters 2-32:
-2 |   module type S = sig type t end
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  Expected declaration here
+module M : sig module type S = sig type t end module A : sig end end
 |}]
