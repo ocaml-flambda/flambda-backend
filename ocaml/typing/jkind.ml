@@ -1218,6 +1218,7 @@ module Type = struct
       | Imported_type_argument { parent_path; position; arity } ->
         fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position
           arity !printtyp_path parent_path
+      | Defaulted -> fprintf ppf "Defaulted"
       | Generalized (id, loc) ->
         fprintf ppf "Generalized (%s, %a)"
           (match id with Some id -> Ident.unique_name id | None -> "")
@@ -1817,6 +1818,7 @@ end = struct
       fprintf ppf "the %stype argument of %a has this layout"
         (format_position ~arity position)
         !printtyp_path parent_path
+    | Defaulted -> fprintf ppf "it was defaulted in inference"
     | Generalized (id, loc) ->
       let format_id ppf = function
         | Some id -> fprintf ppf " of %s" (Ident.name id)
