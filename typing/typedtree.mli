@@ -44,8 +44,6 @@ type constant =
   | Const_unboxed_int64 of int64
   | Const_unboxed_nativeint of nativeint
 
-module Uid = Shape.Uid
-
 (* Value expressions for the core language *)
 
 type partial = Partial | Total
