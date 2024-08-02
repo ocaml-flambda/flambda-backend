@@ -163,6 +163,7 @@ type error =
       ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
+  | Non_datatype
   | Non_value_in_sig of Jkind.Violation.t * string * type_expr
   | Invalid_jkind_in_block of type_expr * Jkind.Type.Sort.const * jkind_sort_loc
   | Illegal_mixed_product of mixed_product_violation
