@@ -1590,7 +1590,7 @@ let update_decl_jkind env dpath decl =
     (* CR layouts: factor out duplication *)
     match cstrs, rep with
     | _, Variant_with_null ->
-      (* CR layouts v3: Fix when we allow users to write their own
+      (* CR layouts v3.5: Fix when we allow users to write their own
          null constructors. *)
       Misc.fatal_error
       "Typedecl.variant_record_kind: unexpected [Variant_with_null]"

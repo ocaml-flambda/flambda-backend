@@ -112,8 +112,9 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
     | Variant_boxed x -> x
     | Variant_unboxed -> [| Constructor_uniform_value, [| decl.type_jkind |] |]
     | Variant_with_null ->
-      (* CR layouts v3: this hardcodes ['a or_null]. Fix when we allow
+      (* CR layouts v3.5: this hardcodes ['a or_null]. Fix when we allow
          users to write their own null constructors. *)
+      (* CR layouts v3.3: generalize to [any_non_null]. *)
       let arg_jkind = Jkind.Primitive.value ~why:(Type_argument {
         parent_path = ty_path;
         position = 1;
