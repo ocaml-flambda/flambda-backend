@@ -1517,3 +1517,30 @@ Line 2, characters 2-31:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   Expected declaration here
 |}]
+
+module A : sig
+  type t
+  module B : sig
+    module type S = sig type u = t end
+  end
+end = struct
+  module B = struct
+    module type S = _
+  end
+end
+
+(* CR selee: Boundness check should catch this case *)
+[%%expect {|
+Lines 6-10, characters 6-3:
+ 6 | ......struct
+ 7 |   module B = struct
+ 8 |     module type S = _
+ 9 |   end
+10 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig module B : sig module type S = sig type u = t end end end
+       is not included in
+         sig type t module B : sig module type S = sig type u = t end end end
+       The type `t' is required but not provided
+|}]
