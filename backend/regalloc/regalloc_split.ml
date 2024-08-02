@@ -161,7 +161,7 @@ let dummy_instr_of_terminator : Cfg.terminator Cfg.instruction -> Instruction.t
     stack_offset = terminator.stack_offset
   }
 
-let rec insert_splills_or_reloads_in_block :
+let rec insert_spills_or_reloads_in_block :
     State.t ->
     make_spill_or_reload:'a make_operation ->
     occur_check:(Instruction.t -> Reg.t -> bool) ->
@@ -209,9 +209,9 @@ let rec insert_splills_or_reloads_in_block :
           live_at_interesting_point
       in
       let cell = move_cell cell in
-      insert_splills_or_reloads_in_block state ~make_spill_or_reload
-        ~occur_check ~insert ~copy_default ~add_default ~move_cell ~block_subst
-        ~stack_subst block cell live_at_interesting_point)
+      insert_spills_or_reloads_in_block state ~make_spill_or_reload ~occur_check
+        ~insert ~copy_default ~add_default ~move_cell ~block_subst ~stack_subst
+        block cell live_at_interesting_point)
 
 (* Inserts the spills in a block, as early as possible (i.e. immediately after
    the register is last set), to reduce live ranges. *)
@@ -224,7 +224,7 @@ let insert_spills_in_block :
     Reg.Set.t ->
     unit =
  fun state ~block_subst ~stack_subst block cell live_at_destruction_point ->
-  insert_splills_or_reloads_in_block state ~make_spill_or_reload:make_spill
+  insert_spills_or_reloads_in_block state ~make_spill_or_reload:make_spill
     ~occur_check:(fun instr reg ->
       (* We assume `new_reg` has no location yet (we are before register
          allocation, but selection uses fixed registers in various places). If
@@ -298,7 +298,7 @@ let insert_reloads_in_block :
     Reg.Set.t ->
     unit =
  fun state ~block_subst ~stack_subst block cell live_at_definition_point ->
-  insert_splills_or_reloads_in_block state ~make_spill_or_reload:make_reload
+  insert_spills_or_reloads_in_block state ~make_spill_or_reload:make_reload
     ~occur_check:(fun instr reg -> occurs_array instr.arg reg)
     ~insert:DLL.insert_before
     ~copy_default:(dummy_instr_of_terminator block.terminator)
