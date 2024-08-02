@@ -2121,7 +2121,7 @@ let tvariant_not_immediate row =
 
 (* Jkinds *)
 
-let is_datatype_decl (k : type_decl_kind) =
+let is_datatype_decl_kind (k : type_decl_kind) =
   match k with
   | Type_record _ | Type_variant _ | Type_open -> true
   | Type_abstract { reason = _; datatype } -> datatype
@@ -2133,7 +2133,7 @@ let rec jkind_of_decl_unapplied env (decl : type_declaration) =
   (* FIXME jbachurski: Shouldn't we look at type_variance and type_separability here? *)
   match decl.type_arity with
   | 0 -> Some decl.type_jkind
-  | _ when is_datatype_decl decl.type_kind ->
+  | _ when is_datatype_decl_kind decl.type_kind ->
     Some (Jkind.of_arrow 
       ~history:decl.type_jkind.history
       ~args:(List.map (type_jkind env) decl.type_params)
