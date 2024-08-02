@@ -476,6 +476,12 @@ let add_small_number_extension_types add_type env =
        ~jkind:(Jkind.Primitive.float32 ~why:(Primitive ident_unboxed_float32))
        ~jkind_annotation:Jkind.Const.Primitive.float32
 
+let or_null_kind tvar =
+  variant [cstr ident_null []; cstr ident_this [unrestricted tvar]]
+  [| Constructor_uniform_value, [| |];
+      Constructor_uniform_value, [| or_null_argument_jkind |];
+  |]
+
 let add_or_null add_type env =
   let add_type1 = mk_add_type1 add_type in
   env
@@ -489,11 +495,7 @@ let add_or_null add_type env =
      For now, we mark the type argument as [Separability.Ind] to permit
      the most argument types, and forbid arrays from accepting [or_null]s.
      In the future, we will track separability in the jkind system. *)
-  ~kind:(fun tvar ->
-    variant [cstr ident_null []; cstr ident_this [unrestricted tvar]]
-      [| Constructor_uniform_value, [| |];
-          Constructor_uniform_value, [| or_null_argument_jkind |];
-      |])
+  ~kind:or_null_kind
   ~jkind:(Jkind.Primitive.value_or_null ~why:(Primitive ident_or_null))
 
 let builtin_values =

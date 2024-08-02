@@ -14,8 +14,8 @@ let _ = Or_null.null
 let _ = Or_null.this 3.14
 
 [%%expect{|
-- : 'a or_null = Null
-- : float or_null = This 3.14
+- : 'a Or_null.t = Or_null.Null
+- : float Or_null.t = Or_null.This 3.14
 |}]
 
 let _ = Or_null.value Null ~default:3
@@ -150,6 +150,6 @@ let _ = Or_null.of_option (Some "test")
 [%%expect{|
 - : 'a option = None
 - : int option = Some 5
-- : 'a or_null = Null
-- : string or_null = This "test"
+- : 'a Or_null.t = Or_null.Null
+- : string Or_null.t = Or_null.This "test"
 |}]
