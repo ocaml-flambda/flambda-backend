@@ -260,6 +260,30 @@ type 'a t1 = 'a or_null = Null | This of 'a
 type 'a t2 = 'a t1 = Null | This of 'a
 |}]
 
+(* Correct injectivity and variance annotations are accepted. *)
+
+type !'a t = 'a or_null [@@or_null_reexport]
+
+type +'a t = 'a or_null [@@or_null_reexport]
+
+[%%expect{|
+type 'a t = 'a or_null = Null | This of 'a
+type 'a t = 'a or_null = Null | This of 'a
+|}]
+
+(* Incorrect variance annotation fails. *)
+
+type -'a t = 'a or_null [@@or_null_reexport]
+
+[%%expect{|
+Line 1, characters 0-44:
+1 | type -'a t = 'a or_null [@@or_null_reexport]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In this definition, expected parameter variances are not satisfied.
+       The 1st type parameter was expected to be contravariant,
+       but it is injective covariant.
+|}]
+
 (* [@@or_null_reexport] handles shadowing correctly. *)
 
 type 'a or_null : value = Null | This of 'a
