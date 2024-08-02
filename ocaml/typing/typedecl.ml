@@ -122,6 +122,7 @@ type error =
       ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
+  | Non_datatype
   | Non_value_in_sig of Jkind.Violation.t * string * type_expr
   | Invalid_jkind_in_block of type_expr * Jkind.Type.Sort.const * jkind_sort_loc
   | Illegal_mixed_product of mixed_product_violation
@@ -790,8 +791,16 @@ let transl_declaration env sdecl (id, uid) =
   let (tkind, kind, jkind_default) =
     match sdecl.ptype_kind with
       | Ptype_abstract ->
+        let has_datatype_attr =
+          List.exists
+            (fun { attr_name = { txt; _ }; _} -> txt = "datatype")
+            sdecl_attributes
+        in
+        if has_datatype_attr && Option.is_some man then
+          raise (Error (sdecl.ptype_loc, Non_datatype))
+        else
         Ttype_abstract,
-        Type_abstract { reason = Abstract_def; datatype = false },
+        Type_abstract { reason = Abstract_def; datatype = has_datatype_attr },
         Jkind.Type.Primitive.value ~why:Default_type_jkind |> Jkind.of_type_jkind
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
@@ -3625,6 +3634,8 @@ let report_error ppf = function
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Jkind_empty_record ->
     fprintf ppf "@[Records must contain at least one runtime value.@]"
+  | Non_datatype ->
+    fprintf ppf "@[This is not a datatype, but one was expected.@]"
   | Non_value_in_sig (err, val_name, ty) ->
     let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"
