@@ -88,10 +88,10 @@ let x = |}^example^{|
 |}
 ^external_bindings_template
    ~container:"bigstring" ~sigil:"bs" ~width ~test_suffix ~index ~ref_result ~test_result
-(* ^external_bindings_template *)
-(*    ~container:"string" ~sigil:"s" ~width ~test_suffix ~index ~ref_result ~test_result *)
-(* ^external_bindings_template *)
-(*    ~container:"bytes" ~sigil:"b" ~width ~test_suffix ~index ~ref_result ~test_result *)
+^external_bindings_template
+   ~container:"string" ~sigil:"s" ~width ~test_suffix ~index ~ref_result ~test_result
+^external_bindings_template
+   ~container:"bytes" ~sigil:"b" ~width ~test_suffix ~index ~ref_result ~test_result
 ^{|
 let check_get_bounds, check_get =
   let create_checkers create reference tested_s tested_u =
@@ -120,12 +120,12 @@ let check_get_bounds, check_get =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_get_reference bs_get_tested_s bs_get_tested_u in
-  (* let cb_for_s, c_for_s = *)
-  (*   create_checkers create_s s_get_reference s_get_tested_s s_get_tested_u in *)
-  (* let cb_for_b, c_for_b = *)
-  (*   create_checkers create_b b_get_reference b_get_tested_s b_get_tested_u in *)
-  ( (fun i -> cb_for_bs i (*; cb_for_s i; cb_for_b i *))
-  , (fun i -> c_for_bs i (*; c_for_b i; c_for_s i *)) )
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_get_reference s_get_tested_s s_get_tested_u in
+  let cb_for_b, c_for_b =
+    create_checkers create_b b_get_reference b_get_tested_s b_get_tested_u in
+  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
+  , (fun i -> c_for_bs i; c_for_s i; c_for_b i) )
 ;;
 
 let check_set_bounds, check_set =
@@ -159,12 +159,12 @@ let check_set_bounds, check_set =
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
     create_checkers create_bs bs_get_reference bs_set_reference bs_set_tested_s bs_set_tested_u in
-  (* let cb_for_s, c_for_s = *)
-  (*   create_checkers create_s s_get_reference s_set_reference s_set_tested_s s_set_tested_u in *)
-  (* let cb_for_b, c_for_b = *)
-  (*   create_checkers create_b b_get_reference b_set_reference b_set_tested_s b_set_tested_u in *)
-  ( (fun i x -> cb_for_bs i x (*; cb_for_s i x; cb_for_b i x *))
-  , (fun i x -> c_for_bs i x (*; c_for_b i x; c_for_s i x *)) )
+  let cb_for_s, c_for_s =
+    create_checkers create_s s_get_reference s_set_reference s_set_tested_s s_set_tested_u in
+  let cb_for_b, c_for_b =
+    create_checkers create_b b_get_reference b_set_reference b_set_tested_s b_set_tested_u in
+  ( (fun i x -> cb_for_bs i x; cb_for_s i x; cb_for_b i x)
+  , (fun i x -> c_for_bs i x; c_for_s i x; c_for_b i x) )
 ;;
 
 for i = -1 to length + 1 do

@@ -272,6 +272,23 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
           fun ~unsafe ~boxed:_ ~index_kind ->
             Pbytes_load_128 { unsafe; index_kind; mode } );
         ( (fun unsafe _boxed index_kind ->
+            Printf.sprintf "%%caml_bytes_set16%s%s" unsafe index_kind),
+          fun ~unsafe ~boxed:_ ~index_kind ->
+            Pbytes_set_16 { unsafe; index_kind } );
+        ( Printf.sprintf "%%caml_bytes_set32%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pbytes_set_32 { unsafe; index_kind; boxed } );
+        ( Printf.sprintf "%%caml_bytes_setf32%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pbytes_set_f32 { unsafe; index_kind; boxed } );
+        ( Printf.sprintf "%%caml_bytes_set64%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pbytes_set_64 { unsafe; index_kind; boxed } );
+        ( Printf.sprintf "%%caml_bytes_setu128%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pbytes_set_128 { unsafe; index_kind; boxed }
+        );
+        ( (fun unsafe _boxed index_kind ->
             Printf.sprintf "%%caml_string_get16%s%s" unsafe index_kind),
           fun ~unsafe ~boxed:_ ~index_kind ->
             Pstring_load_16 { unsafe; index_kind } );
@@ -288,6 +305,23 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
             Printf.sprintf "%%caml_string_getu128%s%s" unsafe index_kind),
           fun ~unsafe ~boxed:_ ~index_kind ->
             Pstring_load_128 { unsafe; index_kind; mode } );
+        ( (fun unsafe _boxed index_kind ->
+            Printf.sprintf "%%caml_string_set16%s%s" unsafe index_kind),
+          fun ~unsafe ~boxed:_ ~index_kind ->
+            Pbytes_set_16 { unsafe; index_kind } );
+        ( Printf.sprintf "%%caml_string_set32%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pbytes_set_32 { unsafe; index_kind; boxed } );
+        ( Printf.sprintf "%%caml_string_setf32%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pbytes_set_f32 { unsafe; index_kind; boxed } );
+        ( Printf.sprintf "%%caml_string_set64%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pbytes_set_64 { unsafe; index_kind; boxed } );
+        ( Printf.sprintf "%%caml_string_setu128%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pbytes_set_128 { unsafe; index_kind; boxed }
+        );
       ]
     in
     let unsafes = [ (true, "u"); (false, "") ] in
@@ -666,30 +700,6 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%caml_ba_dim_1" -> Primitive ((Pbigarraydim(1)), 1)
     | "%caml_ba_dim_2" -> Primitive ((Pbigarraydim(2)), 1)
     | "%caml_ba_dim_3" -> Primitive ((Pbigarraydim(3)), 1)
-    | "%caml_string_set16" -> Primitive ((Pbytes_set_16(false)), 3)
-    | "%caml_string_set16u" -> Primitive ((Pbytes_set_16(true)), 3)
-    | "%caml_string_set32" -> Primitive ((Pbytes_set_32(false)), 3)
-    | "%caml_string_set32u" -> Primitive ((Pbytes_set_32(true)), 3)
-    | "%caml_string_setf32" -> Primitive ((Pbytes_set_f32(false)), 3)
-    | "%caml_string_setf32u" -> Primitive ((Pbytes_set_f32(true)), 3)
-    | "%caml_string_set64" -> Primitive ((Pbytes_set_64(false)), 3)
-    | "%caml_string_set64u" -> Primitive ((Pbytes_set_64(true)), 3)
-    | "%caml_string_setu128" ->
-      Primitive ((Pbytes_set_128 {unsafe = false}), 3)
-    | "%caml_string_setu128u" ->
-      Primitive ((Pbytes_set_128 {unsafe = true}), 3)
-    | "%caml_bytes_set16" -> Primitive ((Pbytes_set_16(false)), 3)
-    | "%caml_bytes_set16u" -> Primitive ((Pbytes_set_16(true)), 3)
-    | "%caml_bytes_set32" -> Primitive ((Pbytes_set_32(false)), 3)
-    | "%caml_bytes_set32u" -> Primitive ((Pbytes_set_32(true)), 3)
-    | "%caml_bytes_setf32" -> Primitive ((Pbytes_set_f32(false)), 3)
-    | "%caml_bytes_setf32u" -> Primitive ((Pbytes_set_f32(true)), 3)
-    | "%caml_bytes_set64" -> Primitive ((Pbytes_set_64(false)), 3)
-    | "%caml_bytes_set64u" -> Primitive ((Pbytes_set_64(true)), 3)
-    | "%caml_bytes_setu128" ->
-      Primitive ((Pbytes_set_128 {unsafe = false}), 3)
-    | "%caml_bytes_setu128u" ->
-      Primitive ((Pbytes_set_128 {unsafe = true}), 3)
     | "%caml_float_array_get128" ->
       Primitive ((Pfloat_array_load_128 {unsafe = false; mode}), 2)
     | "%caml_float_array_get128u" ->

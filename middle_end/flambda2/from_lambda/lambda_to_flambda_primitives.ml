@@ -1325,28 +1325,26 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ string_like_load ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned = false })
         Bytes ~boxed:true (Some mode) str ~index_kind index ~current_region ]
-  | Pbytes_set_16 unsafe, [[bytes]; [index]; [new_value]] ->
+  | Pbytes_set_16 { unsafe; index_kind }, [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixteen Bytes
-        ~boxed:false bytes ~index_kind:Ptagged_int_index (* CR layouts: fix *)
-        index new_value ]
-  | Pbytes_set_32 unsafe, [[bytes]; [index]; [new_value]] ->
-    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Thirty_two Bytes
-        ~boxed:true bytes ~index_kind:Ptagged_int_index (* CR layouts: fix *)
-        index new_value ]
-  | Pbytes_set_f32 unsafe, [[bytes]; [index]; [new_value]] ->
-    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Single Bytes
-        ~boxed:true bytes ~index_kind:Ptagged_int_index (* CR layouts: fix *)
-        index new_value ]
-  | Pbytes_set_64 unsafe, [[bytes]; [index]; [new_value]] ->
-    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixty_four Bytes
-        ~boxed:true bytes ~index_kind:Ptagged_int_index (* CR layouts: fix *)
-        index new_value ]
-  | Pbytes_set_128 { unsafe }, [[bytes]; [index]; [new_value]] ->
+        ~boxed:false bytes ~index_kind index new_value ]
+  | Pbytes_set_32 { unsafe; index_kind; boxed }, [[bytes]; [index]; [new_value]]
+    ->
+    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Thirty_two Bytes ~boxed
+        bytes ~index_kind index new_value ]
+  | Pbytes_set_f32 { unsafe; index_kind; boxed }, [[bytes]; [index]; [new_value]]
+    ->
+    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Single Bytes ~boxed
+        bytes ~index_kind index new_value ]
+  | Pbytes_set_64 { unsafe; index_kind; boxed }, [[bytes]; [index]; [new_value]]
+    ->
+    [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixty_four Bytes ~boxed
+        bytes ~index_kind index new_value ]
+  | Pbytes_set_128 { unsafe; index_kind; boxed }, [[bytes]; [index]; [new_value]]
+    ->
     [ bytes_like_set ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned = false })
-        Bytes ~boxed:true bytes
-        ~index_kind:Ptagged_int_index (* CR layouts: fix *)
-        index new_value ]
+        Bytes ~boxed bytes ~index_kind index new_value ]
   | Pisint { variant_only }, [[arg]] ->
     [tag_int (Unary (Is_int { variant_only }, arg))]
   | Pisout, [[arg1]; [arg2]] ->

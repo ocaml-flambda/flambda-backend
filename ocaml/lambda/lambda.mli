@@ -240,11 +240,15 @@ type primitive =
       mode : alloc_mode; boxed : bool }
   | Pbytes_load_128 of { unsafe : bool; index_kind : array_index_kind;
       mode: alloc_mode }
-  | Pbytes_set_16 of bool
-  | Pbytes_set_32 of bool
-  | Pbytes_set_f32 of bool
-  | Pbytes_set_64 of bool
-  | Pbytes_set_128 of { unsafe : bool }
+  | Pbytes_set_16 of { unsafe : bool; index_kind : array_index_kind }
+  | Pbytes_set_32 of { unsafe : bool; index_kind : array_index_kind;
+      boxed : bool }
+  | Pbytes_set_f32 of { unsafe : bool; index_kind : array_index_kind;
+      boxed : bool }
+  | Pbytes_set_64 of { unsafe : bool; index_kind : array_index_kind;
+      boxed : bool }
+  | Pbytes_set_128 of { unsafe : bool; index_kind : array_index_kind;
+      boxed : bool }
   (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
   | Pbigstring_load_16 of { unsafe : bool; index_kind : array_index_kind }

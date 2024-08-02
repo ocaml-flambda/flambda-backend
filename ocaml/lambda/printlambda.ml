@@ -685,22 +685,25 @@ let primitive ppf = function[@ocaml.warning "+9"]
      fprintf ppf "bytes.%sunaligned_get128%s[indexed by %a]"
        (if unsafe then "unsafe_" else "") (alloc_kind mode) array_index_kind
        index_kind
-  | Pbytes_set_16(unsafe) ->
-     if unsafe then fprintf ppf "bytes.unsafe_set16"
-     else fprintf ppf "bytes.set16"
-  | Pbytes_set_32(unsafe) ->
-     if unsafe then fprintf ppf "bytes.unsafe_set32"
-     else fprintf ppf "bytes.set32"
-  | Pbytes_set_f32(unsafe) ->
-     if unsafe then fprintf ppf "bytes.unsafe_setf32"
-     else fprintf ppf "bytes.setf32"
-  | Pbytes_set_64(unsafe) ->
-     if unsafe then fprintf ppf "bytes.unsafe_set64"
-     else fprintf ppf "bytes.set64"
-  | Pbytes_set_128 {unsafe = true} ->
-     fprintf ppf "bytes.unsafe_unaligned_set128"
-  | Pbytes_set_128 {unsafe = false} ->
-     fprintf ppf "bytes.unaligned_set128"
+  | Pbytes_set_16 {unsafe; index_kind} ->
+     fprintf ppf "bytes.%sset16[indexed by %a]" (if unsafe then "unsafe_" else "")
+       array_index_kind index_kind
+  | Pbytes_set_32 {unsafe; index_kind; boxed} ->
+     fprintf ppf "bytes.%sset32%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+       array_index_kind index_kind
+  | Pbytes_set_f32{unsafe; index_kind; boxed} ->
+     fprintf ppf "bytes.%ssetf32%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "")
+       array_index_kind index_kind
+  | Pbytes_set_64{unsafe; index_kind; boxed} ->
+     fprintf ppf "bytes.%sset64%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "")
+       array_index_kind index_kind
+  | Pbytes_set_128 { unsafe; boxed; index_kind } ->
+     fprintf ppf "bytes.%sunaligned_get128%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "")
+       (if boxed then "" else "#") array_index_kind index_kind
   | Pbigstring_load_16 { unsafe; index_kind } ->
      fprintf ppf "bigarray.array1.%sget16[indexed by %a]"
        (if unsafe then "unsafe_" else "") array_index_kind index_kind

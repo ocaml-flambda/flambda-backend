@@ -622,10 +622,10 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbytes_load_f32 { unsafe = false; _ }
   | Pbytes_load_64 { unsafe = false; _ }
   | Pbytes_load_128 { unsafe = false; _ }
-  | Pbytes_set_16 false
-  | Pbytes_set_32 false
-  | Pbytes_set_f32 false
-  | Pbytes_set_64 false
+  | Pbytes_set_16 { unsafe = false; index_kind = _ }
+  | Pbytes_set_32 { unsafe = false; index_kind = _; boxed = _ }
+  | Pbytes_set_f32 { unsafe = false; index_kind = _; boxed = _ }
+  | Pbytes_set_64 { unsafe = false; index_kind = _; boxed = _ }
   | Pbytes_set_128 { unsafe = false; _ }
   | Pbigstring_load_16 { unsafe = false; index_kind = _ }
   | Pbigstring_load_32 { unsafe = false; index_kind = _; mode = _; boxed = _ }
@@ -719,10 +719,10 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbytes_load_f32 { unsafe = true; _ }
   | Pbytes_load_64 { unsafe = true; _ }
   | Pbytes_load_128 { unsafe = true; _ }
-  | Pbytes_set_16 true
-  | Pbytes_set_32 true
-  | Pbytes_set_f32 true
-  | Pbytes_set_64 true
+  | Pbytes_set_16 { unsafe = true; index_kind = _ }
+  | Pbytes_set_32 { unsafe = true; index_kind = _; boxed = _ }
+  | Pbytes_set_f32 { unsafe = true; index_kind = _; boxed = _ }
+  | Pbytes_set_64 { unsafe = true; index_kind = _; boxed = _ }
   | Pbytes_set_128 { unsafe = true; _ }
   | Pbigstring_load_16 { unsafe = true; index_kind = _ }
   | Pbigstring_load_32 { unsafe = true; index_kind = _; mode = _; boxed = _ }
