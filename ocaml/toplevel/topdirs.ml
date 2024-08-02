@@ -482,7 +482,7 @@ let is_exception_constructor env type_expr =
 
 let is_extension_constructor = function
   | Extension _ -> true
-  | Ordinary _ -> false
+  | Ordinary _ | Null -> false
 
 let () =
   (* This show_prim function will only show constructor types

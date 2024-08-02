@@ -560,6 +560,7 @@ and ('lbl, 'cstr) type_kind =
 and tag = Ordinary of {src_index: int;  (* Unique name (per type) *)
                        runtime_tag: int}    (* The runtime tag *)
         | Extension of Path.t * jkind array
+        | Null (* Null pointer *)
 
 and abstract_reason =
     Abstract_def
@@ -615,6 +616,11 @@ and variant_representation =
      [Constructor_mixed] if the inlined record has any unboxed fields.
   *)
   | Variant_extensible
+  | Variant_with_null
+  (* CR layouts v3.5: A custom variant representation for ['a or_null].
+     Eventually, it should likely be merged into [Variant_unboxed], with
+     [Variant_unboxed] allowing either one ordinary constructor, or one
+     ordinary non-null and one [Null] constructor. *)
 
 and constructor_representation =
   | Constructor_uniform_value

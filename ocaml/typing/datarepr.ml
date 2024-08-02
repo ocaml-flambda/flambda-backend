@@ -111,6 +111,17 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
     | Variant_extensible -> assert false
     | Variant_boxed x -> x
     | Variant_unboxed -> [| Constructor_uniform_value, [| decl.type_jkind |] |]
+    | Variant_with_null ->
+      (* CR layouts v3.5: this hardcodes ['a or_null]. Fix when we allow
+         users to write their own null constructors. *)
+      (* CR layouts v3.3: generalize to [any_non_null]. *)
+      let arg_jkind = Jkind.Primitive.value ~why:(Type_argument {
+        parent_path = ty_path;
+        position = 1;
+        arity = 1})
+      in
+      [| Constructor_uniform_value, [| |]
+       ; Constructor_uniform_value, [| arg_jkind |] |]
   in
   let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
@@ -137,7 +148,11 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       then const_tag, 1 + const_tag, nonconst_tag
       else nonconst_tag, const_tag, 1 + nonconst_tag
     in
-    let cstr_tag = Ordinary {src_index; runtime_tag} in
+    let cstr_tag =
+      match rep, cstr_constant with
+      | Variant_with_null, true -> Null
+      | _, _ ->  Ordinary {src_index; runtime_tag}
+    in
     let cstr_existentials, cstr_args, cstr_inlined =
       (* This is the representation of the inner record, IF there is one *)
       let record_repr = Record_inlined (cstr_tag, cstr_shape, rep) in
@@ -252,7 +267,7 @@ let find_constr ~constant tag cstrs =
       (function
         | ({cstr_tag=Ordinary {runtime_tag=tag'}; cstr_constant},_) ->
           tag' = tag && cstr_constant = constant
-        | ({cstr_tag=Extension _},_) -> false)
+        | ({cstr_tag=(Extension _ | Null)},_) -> false)
       cstrs
   with
   | Not_found -> raise Constr_not_found

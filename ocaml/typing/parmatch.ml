@@ -853,7 +853,7 @@ let should_extend ext env = match ext with
   | (p,_)::_ ->
       let open Patterns.Head in
       begin match p.pat_desc with
-      | Construct {cstr_tag=Ordinary _} ->
+      | Construct {cstr_tag=Ordinary _ | Null} ->
           let path = get_constructor_type_path p.pat_type p.pat_env in
           Path.same path ext
       | Construct {cstr_tag=Extension _} -> false
@@ -2023,7 +2023,7 @@ let extendable_path path =
     Path.same path Predef.path_option)
 
 let rec collect_paths_from_pat r p = match p.pat_desc with
-| Tpat_construct(_, {cstr_tag=Ordinary _}, ps, _) ->
+| Tpat_construct(_, {cstr_tag=Ordinary _ | Null}, ps, _) ->
     let path = get_constructor_type_path p.pat_type p.pat_env in
     List.fold_left
       collect_paths_from_pat

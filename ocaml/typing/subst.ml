@@ -429,7 +429,7 @@ let constructor_declaration copy_scope s c =
 
 (* called only when additional_action is [Prepare_for_saving] *)
 let constructor_tag ~prepare_jkind loc = function
-  | Ordinary _ as tag -> tag
+  | Ordinary _ | Null as tag -> tag
   | Extension (path, lays) ->
       Extension (path, Array.map (prepare_jkind loc) lays)
 
@@ -442,6 +442,7 @@ let variant_representation ~prepare_jkind loc = function
          (fun (cstr, jkinds) -> cstr, Array.map (prepare_jkind loc) jkinds)
          cstrs_and_jkinds)
   | Variant_extensible -> Variant_extensible
+  | Variant_with_null -> Variant_with_null
 
 (* called only when additional_action is [Prepare_for_saving] *)
 let record_representation ~prepare_jkind loc = function

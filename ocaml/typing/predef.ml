@@ -477,6 +477,8 @@ let add_small_number_extension_types add_type env =
        ~jkind_annotation:Jkind.Const.Primitive.float32
 
 let or_null_kind tvar =
+  (* CR layouts v3: use [Variant_with_null] when it's supported
+     in the backend. *)
   variant [cstr ident_null []; cstr ident_this [unrestricted tvar]]
   [| Constructor_uniform_value, [| |];
       Constructor_uniform_value, [| or_null_argument_jkind |];

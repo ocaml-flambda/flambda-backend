@@ -697,7 +697,7 @@ let rec expression : Typedtree.expression -> term_judg =
         | _ -> empty
       in
       let arg_mode i = match desc.cstr_repr with
-        | Variant_unboxed ->
+        | Variant_unboxed | Variant_with_null ->
           Return
         | Variant_boxed _ | Variant_extensible ->
            (match desc.cstr_shape with

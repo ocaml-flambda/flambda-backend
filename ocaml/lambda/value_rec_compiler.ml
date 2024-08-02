@@ -236,7 +236,8 @@ let compute_static_size lam =
                           (Variant_boxed _ | Variant_extensible))
         | Record_mixed shape ->
             Block (Mixed_record (size, Lambda.transl_mixed_product_shape shape))
-        | Record_unboxed | Record_ufloat | Record_inlined (_, _, Variant_unboxed) ->
+        | Record_unboxed | Record_ufloat
+        | Record_inlined (_, _, (Variant_unboxed | Variant_with_null)) ->
             Misc.fatal_error "size_of_primitive"
         end
     | Pmakeblock _ ->
