@@ -3,13 +3,16 @@
  expect;
 *)
 
-(* CR layouts v3: ['a or_null] can't be re-exported normally,
+(* CR layouts v3.5: ['a or_null] can't be re-exported normally,
    because users can't define their own [Null]-like constructors. *)
 module Or_null = struct
   type ('a : value) t : value_or_null = 'a or_null =
     | Null
     | This of 'a
 end
+
+(* CR layouts v3: this error message is not great, but it will be a
+   different error message in the final PR. *)
 
 [%%expect{|
 Lines 2-4, characters 2-16:
@@ -181,8 +184,23 @@ Line 1, characters 0-30:
 1 | type 'a t [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Invalid reexport declaration.
-       Type t must be defined to be equal to or_null
-       with no explicit representation.
+       Type t must be defined equal to the primitive type or_null.
+|}]
+
+(* CR layouts v3: This would be nice to accept, but it's somewhat complicated
+   to implement. So we won't unless we encounter a use-case. *)
+module M : sig
+  type 'a t [@@or_null_reexport]
+end = struct
+  type 'a t = 'a or_null [@@or_null_reexport]
+end
+
+[%%expect{|
+Line 2, characters 2-32:
+2 |   type 'a t [@@or_null_reexport]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Invalid reexport declaration.
+       Type t must be defined equal to the primitive type or_null.
 |}]
 
 (* [@@or_null_reexport] forbids explicit representation. *)
@@ -194,8 +212,7 @@ Line 1, characters 0-63:
 1 | type 'a t = 'a or_null = Null | This of 'a [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Invalid reexport declaration.
-       Type t must be defined to be equal to or_null
-       with no explicit representation.
+       Type t must not define an explicit representation.
 |}]
 
 (* [@@or_null_reexport] requires the type to be equal to ['a null]. *)
@@ -207,8 +224,7 @@ Line 1, characters 0-42:
 1 | type 'a t = 'a option [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Invalid reexport declaration.
-       Type t must be defined to be equal to or_null
-       with no explicit representation.
+       Type t must be defined equal to the primitive type or_null.
 |}]
 
 (* [@@or_null_reexport] behaves sanely in corner cases. *)
@@ -231,4 +247,40 @@ Error: This variant or record definition does not match that of type
          (int * 'a) or_null
        Their parameters differ:
        The type int * 'a is not equal to the type 'a
+|}]
+
+(* [@@or_null_reexport] expands the type on the right. *)
+
+type 'a t1 = 'a or_null [@@or_null_reexport]
+
+type 'a t2 = 'a t1 [@@or_null_reexport]
+
+[%%expect{|
+type 'a t1 = 'a or_null = Null | This of 'a
+type 'a t2 = 'a t1 = Null | This of 'a
+|}]
+
+(* [@@or_null_reexport] handles shadowing correctly. *)
+
+type 'a or_null : value = Null | This of 'a
+
+type 'a t = 'a or_null [@@or_null_reexport]
+
+(* CR layouts v3: this error message is somewhat confusing. *)
+
+[%%expect{|
+type 'a or_null = Null | This of 'a
+Line 3, characters 0-43:
+3 | type 'a t = 'a or_null [@@or_null_reexport]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Invalid reexport declaration.
+       Type t must be defined equal to the primitive type or_null.
+|}]
+
+(* Misplaced attribute warnings are not printed in toplevel. *)
+
+let[@or_null_reexport] foo = 5
+
+[%%expect{|
+val foo : int = 5
 |}]

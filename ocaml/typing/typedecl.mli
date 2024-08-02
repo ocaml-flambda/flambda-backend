@@ -181,6 +181,7 @@ type error =
       { definition: Path.t
       ; expected: Path.t
       }
+  | Non_abstract_reexport of Path.t
 
 exception Error of Location.t * error
 

@@ -128,6 +128,11 @@ val add_small_number_extension_types :
 val add_or_null :
    (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
 
+(* Construct the [type_kind] of [or_null]. For re-exporting [or_null]
+   while users can't define their own types with null constructors. *)
+(* CR layouts v3.5: remove this when users can define null constructors. *)
+val or_null_kind : type_expr -> ('a, constructor_declaration) type_kind
+
 (* To initialize linker tables *)
 
 val builtin_values: (string * Ident.t) list

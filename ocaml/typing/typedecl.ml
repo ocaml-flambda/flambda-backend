@@ -142,6 +142,7 @@ type error =
       { definition: Path.t
       ; expected: Path.t
       }
+  | Non_abstract_reexport of Path.t
 
 open Typedtree
 
@@ -1098,53 +1099,39 @@ let check_constraints env sdecl (_, decl) =
       check_constraints_rec env sty.ptyp_loc visited ty
   end
 
-(* CR layouts v3: this is a hack to allow re-exporting the definition
+(* CR layouts v3.5: this is a hack to allow re-exporting the definition
    of ['a or_null], including constructors, even if one can't define
    ['a or_null] "honestly", with tools available to users.
 
    Remove when we allow users to define their own null constructors.
+
+   [reexport_special_types] must happen after [check_constraints]
+   because [check_constraints] expects [type_kind] to match
+   the kind in the parsetree.
 *)
-let reexport_special_types env loc dpath decl =
+let add_special_type_reexports env loc dpath decl =
   let or_null_reexport =
     Builtin_attributes.has_or_null_reexport decl.type_attributes
   in
   match or_null_reexport with
   | false -> decl
   | true ->
-    let fail () =
-      raise (Error (loc, Invalid_reexport
-        { definition = dpath; expected = Predef.path_or_null }))
-    in
-    match decl.type_kind, decl.type_manifest with
-    (* We require users to define ['a t = 'a or_null]. By assumption,
-       they can't define the valid type kind, so it must be left abstract.
-       Manifest must be set to [or_null] so typechecking stays correct. *)
-    | Type_abstract _, Some ty ->
+    match decl.type_kind with
+    | Type_abstract _ ->
       let param =
-        match get_desc ty with
-        | Tconstr(path, [param], _)
+        (* We require users to define ['a t = 'a or_null]. Manifest
+           must be set to [or_null] so typechecking stays correct. *)
+        let ty = Option.map (Ctype.expand_head env) decl.type_manifest in
+        match Option.map get_desc ty with
+        | Some (Tconstr(path, [param], _))
           when Path.same path Predef.path_or_null -> param
-        | _ -> fail ()
+        | Some _ | None -> raise (Error (loc, Invalid_reexport
+          { definition = dpath; expected = Predef.path_or_null }))
       in
-      let or_null_decl = Env.find_type Predef.path_or_null env in
-      let type_kind =
-        let open Types in
-        match or_null_decl.type_kind with
-        | Type_variant (cstrs, repr) ->
-          let cstrs = List.map (fun cstr ->
-            let cd_args =
-              (* Annoyingly, we must manually set the variable in [This of 'b]
-                 to be equal to the argument in ['a or_null]. *)
-              match cstr.cd_args with
-              | Cstr_tuple [] -> Cstr_tuple []
-              | Cstr_tuple [arg] -> Cstr_tuple [{arg with ca_type = param}]
-              | Cstr_tuple (_ :: _ :: _) | Cstr_record _ -> assert false
-            in { cstr with cd_args }) cstrs
-          in Type_variant (cstrs, repr)
-        | _ -> assert false
-      in
+      let type_kind = Predef.or_null_kind param in
       { decl with type_kind }
-    | _, _ -> fail ()
+    | Type_variant _ | Type_record _ | Type_open ->
+      raise (Error (loc, Non_abstract_reexport dpath))
 
 (* Check that [type_jkind] (where we've stored the jkind annotation, if any)
    corresponds to the manifest (e.g., in the case where [type_jkind] is
@@ -1207,7 +1194,7 @@ let check_kind_coherence env loc dpath decl =
   | _ -> ()
 
 let check_coherence env loc dpath decl =
-  let decl = reexport_special_types env loc dpath decl in
+  let decl = add_special_type_reexports env loc dpath decl in
   check_kind_coherence env loc dpath decl;
   narrow_to_manifest_jkind env loc decl
 
@@ -3813,9 +3800,13 @@ let report_error ppf = function
   | Invalid_reexport {definition; expected} ->
     fprintf ppf
       "@[Invalid reexport declaration.\
-         @ Type %s must be defined to be equal to %s\
-         @ with no explicit representation.@]"
+         @ Type %s must be defined equal to the primitive type %s.@]"
       (Path.name definition) (Path.name expected)
+  | Non_abstract_reexport definition ->
+    fprintf ppf
+      "@[Invalid reexport declaration.\
+         @ Type %s must not define an explicit representation.@]"
+      (Path.name definition)
 
 let () =
   Location.register_error_of_exn
