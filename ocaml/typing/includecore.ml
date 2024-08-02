@@ -583,7 +583,7 @@ let report_kind_mismatch first second ppf (kind1, kind2) =
   let pr fmt = Format.fprintf ppf fmt in
   let kind_to_string = function
   | Kind_abstract -> "abstract"
-  | Kind_abstract_datatype -> "abstract datatype"
+  | Kind_abstract_datatype -> "an abstract datatype"
   | Kind_record -> "a record"
   | Kind_variant -> "a variant"
   | Kind_open -> "an extensible variant" in
@@ -1175,8 +1175,12 @@ let type_declarations' ?(equality = false) ~loc env ~mark name
           | () -> None
   in
   if err <> None then err else
+  if not (Ctype.is_datatype_decl_kind decl1.type_kind)
+     && (Ctype.is_datatype_decl_kind decl2.type_kind)
+  then Some (Kind (of_kind decl1.type_kind, of_kind decl2.type_kind))
+  else
   let err = match (decl1.type_kind, decl2.type_kind) with
-      (_, Type_abstract _) ->
+    | (_, Type_abstract _) ->
        (* Note that [decl2.type_jkind] is an upper bound.
           If it isn't tight, [decl2] must
           have a manifest, which we're already checking for equality
