@@ -29,7 +29,7 @@ type cms_infos = {
   cms_loadpath : Load_path.paths;
   cms_source_digest : Digest.t option;
   cms_initial_env : Env.t;
-  cms_uid_to_loc : string Location.loc Shape.Uid.Tbl.t;
+  cms_uid_to_loc : (Shape.Uid.t * string Location.loc) Array.t;
   cms_uid_to_attributes : Parsetree.attributes Shape.Uid.Tbl.t;
   cms_impl_shape : Shape.t option; (* None for mli *)
   cms_ident_occurrences :
@@ -120,7 +120,7 @@ let save_cms filename modname binary_annots sourcefile initial_env shape =
             cms_source_digest = source_digest;
             cms_initial_env = if Cmt_format.need_to_clear_env
               then Env.keep_only_summary initial_env else initial_env;
-            cms_uid_to_loc;
+            cms_uid_to_loc = cms_uid_to_loc |> Shape.Uid.Tbl.to_list |> Array.of_list;
             cms_uid_to_attributes;
             cms_impl_shape = shape;
             cms_ident_occurrences
