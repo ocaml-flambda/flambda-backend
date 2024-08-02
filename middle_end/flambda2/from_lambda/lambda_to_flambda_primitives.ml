@@ -573,9 +573,10 @@ let get_header obj mode ~current_region =
   wrap (Unary (Get_header, obj))
 
 (* Bytes-like set *)
-let bytes_like_set ~dbg ~unsafe ~access_size ~size_int kind ~boxed bytes index
-    new_value =
+let bytes_like_set ~dbg ~unsafe ~access_size ~size_int kind ~boxed bytes
+    ~index_kind index new_value =
   let unsafe_set =
+    let index = convert_index_to_tagged_int index index_kind in
     let wrap =
       match (access_size : Flambda_primitive.string_accessor_width) with
       | Eight | Sixteen ->
@@ -597,9 +598,8 @@ let bytes_like_set ~dbg ~unsafe ~access_size ~size_int kind ~boxed bytes index
       | Bytes -> checked_string_or_bytes_access Bytes
       | Bigstring -> checked_bigstring_access
     in
-    check_access ~dbg ~size_int ~access_size ~primitive:unsafe_set
-      bytes (* CR layouts: Fix kind *)
-      ~index_kind:Ptagged_int_index index
+    check_access ~dbg ~size_int ~access_size ~primitive:unsafe_set bytes
+      ~index_kind index
 
 (* Array vector load/store *)
 
@@ -1327,20 +1327,26 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         Bytes ~boxed:true (Some mode) str ~index_kind index ~current_region ]
   | Pbytes_set_16 unsafe, [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixteen Bytes
-        ~boxed:false bytes index new_value ]
+        ~boxed:false bytes ~index_kind:Ptagged_int_index (* CR layouts: fix *)
+        index new_value ]
   | Pbytes_set_32 unsafe, [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Thirty_two Bytes
-        ~boxed:true bytes index new_value ]
+        ~boxed:true bytes ~index_kind:Ptagged_int_index (* CR layouts: fix *)
+        index new_value ]
   | Pbytes_set_f32 unsafe, [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Single Bytes
-        ~boxed:true bytes index new_value ]
+        ~boxed:true bytes ~index_kind:Ptagged_int_index (* CR layouts: fix *)
+        index new_value ]
   | Pbytes_set_64 unsafe, [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixty_four Bytes
-        ~boxed:true bytes index new_value ]
+        ~boxed:true bytes ~index_kind:Ptagged_int_index (* CR layouts: fix *)
+        index new_value ]
   | Pbytes_set_128 { unsafe }, [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned = false })
-        Bytes ~boxed:true bytes index new_value ]
+        Bytes ~boxed:true bytes
+        ~index_kind:Ptagged_int_index (* CR layouts: fix *)
+        index new_value ]
   | Pisint { variant_only }, [[arg]] ->
     [tag_int (Unary (Is_int { variant_only }, arg))]
   | Pisout, [[arg1]; [arg2]] ->
@@ -1572,10 +1578,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
               ~new_value)) ]
   | Pbytessetu (* unsafe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set ~unsafe:true ~dbg ~size_int ~access_size:Eight Bytes
-        ~boxed:false bytes index new_value ]
+        ~boxed:false bytes ~index_kind:Ptagged_int_index (* CR layouts: fix *)
+        index new_value ]
   | Pbytessets, [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set ~unsafe:false ~dbg ~size_int ~access_size:Eight Bytes
-        ~boxed:false bytes index new_value ]
+        ~boxed:false bytes ~index_kind:Ptagged_int_index (* CR layouts: fix *)
+        index new_value ]
   | Poffsetref n, [[block]] ->
     let block_access : P.Block_access_kind.t =
       Values
@@ -1730,23 +1738,27 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ~access_size:(One_twenty_eight { aligned })
         Bigstring (Some mode) ~boxed big_str ~index_kind index ~current_region
     ]
-  | Pbigstring_set_16 { unsafe }, [[bigstring]; [index]; [new_value]] ->
+  | Pbigstring_set_16 { unsafe; index_kind }, [[bigstring]; [index]; [new_value]]
+    ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixteen Bigstring
-        ~boxed:false bigstring index new_value ]
-  | Pbigstring_set_32 { unsafe; boxed }, [[bigstring]; [index]; [new_value]] ->
+        ~boxed:false bigstring ~index_kind index new_value ]
+  | ( Pbigstring_set_32 { unsafe; index_kind; boxed },
+      [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Thirty_two Bigstring
-        ~boxed bigstring index new_value ]
-  | Pbigstring_set_f32 { unsafe; boxed }, [[bigstring]; [index]; [new_value]] ->
+        ~boxed bigstring ~index_kind index new_value ]
+  | ( Pbigstring_set_f32 { unsafe; index_kind; boxed },
+      [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Single Bigstring ~boxed
-        bigstring index new_value ]
-  | Pbigstring_set_64 { unsafe; boxed }, [[bigstring]; [index]; [new_value]] ->
+        bigstring ~index_kind index new_value ]
+  | ( Pbigstring_set_64 { unsafe; index_kind; boxed },
+      [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixty_four Bigstring
-        ~boxed bigstring index new_value ]
-  | ( Pbigstring_set_128 { unsafe; aligned; boxed },
+        ~boxed bigstring ~index_kind index new_value ]
+  | ( Pbigstring_set_128 { unsafe; aligned; index_kind; boxed },
       [[bigstring]; [index]; [new_value]] ) ->
     [ bytes_like_set ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned })
-        Bigstring ~boxed bigstring index new_value ]
+        Bigstring ~boxed bigstring ~index_kind index new_value ]
   | Pfloat_array_load_128 { unsafe; mode }, [[array]; [index]] ->
     check_float_array_optimisation_enabled "Pfloat_array_load_128";
     [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode

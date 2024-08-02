@@ -502,7 +502,27 @@ let prim_has_valid_reprs ~loc prim =
       in
       let containers = [ "bigstring"; "bytes"; "string" ] in
       let safes = [ ""; "u" ] in
-      Misc.Hlist.cartesian_product [ containers; widths; safes; indices ]
+      let combiners =
+        [
+          ( Printf.sprintf "%%caml_%s_get%s%s%s%s",
+            fun index_kind width_kind ->
+              [
+                Same_as_ocaml_repr Value;
+                Same_as_ocaml_repr index_kind;
+                Same_as_ocaml_repr width_kind;
+              ] );
+          ( Printf.sprintf "%%caml_%s_set%s%s%s%s",
+            fun index_kind width_kind ->
+              [
+                Same_as_ocaml_repr Value;
+                Same_as_ocaml_repr index_kind;
+                Same_as_ocaml_repr width_kind;
+                Same_as_ocaml_repr Value;
+              ] );
+        ]
+      in
+      Misc.Hlist.cartesian_product
+        [ containers; widths; safes; indices; combiners ]
       |> List.map
            (fun
              ([
@@ -510,20 +530,15 @@ let prim_has_valid_reprs ~loc prim =
                 (width_sigil, unboxed_sigil, width_kind);
                 safe_sigil;
                 (index_sigil, index_kind);
+                (combine_string, combine_repr);
               ] :
                _ Hlist.t)
            ->
              let string =
-               Printf.sprintf "%%caml_%s_get%s%s%s%s" container width_sigil
-                 safe_sigil unboxed_sigil index_sigil
+               combine_string container width_sigil safe_sigil unboxed_sigil
+                 index_sigil
              in
-             let reprs =
-               [
-                 Same_as_ocaml_repr Value;
-                 Same_as_ocaml_repr index_kind;
-                 Same_as_ocaml_repr width_kind;
-               ]
-             in
+             let reprs = combine_repr index_kind width_kind in
              (string, reprs))
       |> List.to_seq
       |> fun seq -> String_map.add_seq seq String_map.empty
@@ -676,43 +691,6 @@ let prim_has_valid_reprs ~loc prim =
     | "%caml_bigstring_getu128u#" ->
     | "%caml_bigstring_geta128#" ->
     | "%caml_bigstring_geta128u#" -> *)
-
-    | "%caml_bigstring_set32#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits32;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_setf32#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Float32;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_set32u#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits32;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_setf32u#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Float32;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_set64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_set64u#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
 
     (* CR layouts: add these when we have unboxed simd layouts *)
     (* | "%caml_bigstring_setu128#" ->

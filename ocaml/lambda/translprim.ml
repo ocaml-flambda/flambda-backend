@@ -234,6 +234,27 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
             Pbigstring_load_128
               { aligned = true; unsafe; index_kind; mode; boxed } );
         ( (fun unsafe _boxed index_kind ->
+            Printf.sprintf "%%caml_bigstring_set16%s%s" unsafe index_kind),
+          fun ~unsafe ~boxed:_ ~index_kind ->
+            Pbigstring_set_16 { unsafe; index_kind } );
+        ( Printf.sprintf "%%caml_bigstring_set32%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pbigstring_set_32 { unsafe; index_kind; boxed } );
+        ( Printf.sprintf "%%caml_bigstring_setf32%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pbigstring_set_f32 { unsafe; index_kind; boxed } );
+        ( Printf.sprintf "%%caml_bigstring_set64%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pbigstring_set_64 { unsafe; index_kind; boxed } );
+        ( Printf.sprintf "%%caml_bigstring_setu128%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pbigstring_set_128 { aligned = false; unsafe; index_kind; boxed }
+        );
+        ( Printf.sprintf "%%caml_bigstring_seta128%s%s%s",
+          fun ~unsafe ~boxed ~index_kind ->
+            Pbigstring_set_128 { aligned = true; unsafe; index_kind; boxed }
+        );
+        ( (fun unsafe _boxed index_kind ->
             Printf.sprintf "%%caml_bytes_get16%s%s" unsafe index_kind),
           fun ~unsafe ~boxed:_ ~index_kind ->
             Pbytes_load_16 { unsafe; index_kind } );
@@ -294,10 +315,21 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
            let string =
              string_gen unsafe_sigil boxed_sigil index_kind_sigil
            in
-           let primitive =
-             primitive_gen ~unsafe ~boxed ~index_kind
+           let primitive = primitive_gen ~unsafe ~boxed ~index_kind in
+           let arity =
+             let is_substring ~substring string =
+               let len = String.length substring in
+               String.to_seq string
+               |> Seq.mapi (fun i _ -> i)
+               |> Seq.filter_map (fun i ->
+                      if i + len < String.length string then
+                        Some (String.sub string i len)
+                      else None)
+               |> Seq.exists (fun sub -> String.equal substring sub)
+             in
+             if is_substring string ~substring:"get" then 2 else 3
            in
-           (string, Primitive (primitive, 2)))
+           (string, Primitive (primitive, arity)))
     |> List.to_seq
     |> fun seq -> String_map.add_seq seq String_map.empty
   in
@@ -658,58 +690,6 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive ((Pbytes_set_128 {unsafe = false}), 3)
     | "%caml_bytes_setu128u" ->
       Primitive ((Pbytes_set_128 {unsafe = true}), 3)
-    | "%caml_bigstring_set16" ->
-      Primitive ((Pbigstring_set_16 { unsafe = false }), 3)
-    | "%caml_bigstring_set16u" ->
-      Primitive ((Pbigstring_set_16 { unsafe = true }), 3)
-    | "%caml_bigstring_set32" ->
-      Primitive ((Pbigstring_set_32 { unsafe = false; boxed = true }), 3)
-    | "%caml_bigstring_set32u" ->
-      Primitive ((Pbigstring_set_32 { unsafe = true; boxed = true }), 3)
-    | "%caml_bigstring_setf32" ->
-      Primitive ((Pbigstring_set_f32 { unsafe = false; boxed = true }), 3)
-    | "%caml_bigstring_setf32u" ->
-      Primitive ((Pbigstring_set_f32 { unsafe = true; boxed = true }), 3)
-    | "%caml_bigstring_set64" ->
-      Primitive ((Pbigstring_set_64 { unsafe = false; boxed = true }), 3)
-    | "%caml_bigstring_set64u" ->
-      Primitive ((Pbigstring_set_64 { unsafe = true; boxed = true }), 3)
-    | "%caml_bigstring_setu128" ->
-      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = false;
-        boxed = true}), 3)
-    | "%caml_bigstring_setu128u" ->
-      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = true;
-        boxed = true}), 3)
-    | "%caml_bigstring_seta128" ->
-      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = false;
-        boxed = true}), 3)
-    | "%caml_bigstring_seta128u" ->
-      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = true;
-        boxed = true}), 3)
-    | "%caml_bigstring_set32#" ->
-      Primitive ((Pbigstring_set_32 { unsafe = false; boxed = false }), 3)
-    | "%caml_bigstring_set32u#" ->
-      Primitive ((Pbigstring_set_32 { unsafe = true; boxed = false }), 3)
-    | "%caml_bigstring_setf32#" ->
-      Primitive ((Pbigstring_set_f32 { unsafe = false; boxed = false }), 3)
-    | "%caml_bigstring_setf32u#" ->
-      Primitive ((Pbigstring_set_f32 { unsafe = true; boxed = false }), 3)
-    | "%caml_bigstring_set64#" ->
-      Primitive ((Pbigstring_set_64 { unsafe = false; boxed = false }), 3)
-    | "%caml_bigstring_set64u#" ->
-      Primitive ((Pbigstring_set_64 { unsafe = true; boxed = false }), 3)
-    | "%caml_bigstring_setu128#" ->
-      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = false;
-        boxed = false}), 3)
-    | "%caml_bigstring_setu128u#" ->
-      Primitive ((Pbigstring_set_128 {aligned = false; unsafe = true;
-        boxed = false}), 3)
-    | "%caml_bigstring_seta128#" ->
-      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = false;
-        boxed = false}), 3)
-    | "%caml_bigstring_seta128u#" ->
-      Primitive ((Pbigstring_set_128 {aligned = true; unsafe = true;
-        boxed = false}), 3)
     | "%caml_float_array_get128" ->
       Primitive ((Pfloat_array_load_128 {unsafe = false; mode}), 2)
     | "%caml_float_array_get128u" ->

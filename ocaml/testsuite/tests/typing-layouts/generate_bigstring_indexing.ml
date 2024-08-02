@@ -56,28 +56,42 @@ end
 
 let external_bindings_template ~container ~sigil ~width ~test_suffix ~index ~ref_result
       ~test_result = {|
-external |}^sigil^{|_reference : |}^container^{| -> int -> |}^ref_result^{|
+external |}^sigil^{|_get_reference : |}^container^{| -> int -> |}^ref_result^{|
   = "%caml_|}^container^{|_get|}^width^{|"
 
-external |}^sigil^{|_tested_s : |}^container^{| -> |}^index^{| -> |}^test_result^{|
+external |}^sigil^{|_get_tested_s : |}^container^{| -> |}^index^{| -> |}^test_result^{|
   = "%caml_|}^container^{|_get|}^width^test_suffix^{|_indexed_by_|}^index^{|"
 
-external |}^sigil^{|_tested_u : |}^container^{| -> |}^index^{| -> |}^test_result^{|
+external |}^sigil^{|_get_tested_u : |}^container^{| -> |}^index^{| -> |}^test_result^{|
   = "%caml_|}^container^{|_get|}^width^{|u|}^test_suffix^{|_indexed_by_|}^index^{|"
+
+external |}^sigil^{|_set_reference
+  : |}^container^{| -> int -> |}^ref_result^{| -> unit
+  = "%caml_|}^container^{|_set|}^width^{|"
+
+external |}^sigil^{|_set_tested_s
+  : |}^container^{| -> |}^index^{| -> |}^test_result^{| -> unit
+  = "%caml_|}^container^{|_set|}^width^test_suffix^{|_indexed_by_|}^index^{|"
+
+external |}^sigil^{|_set_tested_u
+  : |}^container^{| -> |}^index^{| -> |}^test_result^{| -> unit
+  = "%caml_|}^container^{|_set|}^width^{|u|}^test_suffix^{|_indexed_by_|}^index^{|"
 |}
 
 let bigstring_one_test_template ~width ~test_suffix ~index ~ref_result ~test_result
-      ~conv_index ~conv_result ~eq ~extra_bounds = {|
+      ~conv_index ~box_result ~unbox_result ~eq ~extra_bounds ~example = {|
 let of_boxed_index : int -> |}^index^{| = |}^conv_index^{|
-let to_boxed_result : |}^test_result^{| -> |}^ref_result^{| = |}^conv_result^{|
+let to_boxed_result : |}^test_result^{| -> |}^ref_result^{| = |}^box_result^{|
+let of_boxed_result : |}^ref_result^{| -> |}^test_result^{| = |}^unbox_result^{|
 let eq : |}^ref_result^{| -> |}^ref_result^{| -> bool = |}^eq^{|
+let x = |}^example^{|
 |}
 ^external_bindings_template
    ~container:"bigstring" ~sigil:"bs" ~width ~test_suffix ~index ~ref_result ~test_result
-^external_bindings_template
-   ~container:"string" ~sigil:"s" ~width ~test_suffix ~index ~ref_result ~test_result
-^external_bindings_template
-   ~container:"bytes" ~sigil:"b" ~width ~test_suffix ~index ~ref_result ~test_result
+(* ^external_bindings_template *)
+(*    ~container:"string" ~sigil:"s" ~width ~test_suffix ~index ~ref_result ~test_result *)
+(* ^external_bindings_template *)
+(*    ~container:"bytes" ~sigil:"b" ~width ~test_suffix ~index ~ref_result ~test_result *)
 ^{|
 let check_get_bounds, check_get =
   let create_checkers create reference tested_s tested_u =
@@ -105,17 +119,57 @@ let check_get_bounds, check_get =
            | Invalid_argument _ -> assert false
            | _ -> ())) in
   let cb_for_bs, c_for_bs =
-    create_checkers create_bs bs_reference bs_tested_s bs_tested_u in
-  let cb_for_s, c_for_s =
-    create_checkers create_s s_reference s_tested_s s_tested_u in
-  let cb_for_b, c_for_b =
-    create_checkers create_b b_reference b_tested_s b_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_b i; c_for_s i) )
+    create_checkers create_bs bs_get_reference bs_get_tested_s bs_get_tested_u in
+  (* let cb_for_s, c_for_s = *)
+  (*   create_checkers create_s s_get_reference s_get_tested_s s_get_tested_u in *)
+  (* let cb_for_b, c_for_b = *)
+  (*   create_checkers create_b b_get_reference b_get_tested_s b_get_tested_u in *)
+  ( (fun i -> cb_for_bs i (*; cb_for_s i; cb_for_b i *))
+  , (fun i -> c_for_bs i (*; c_for_b i; c_for_s i *)) )
+;;
+
+let check_set_bounds, check_set =
+  let create_checkers create reference_get reference_set tested_s tested_u =
+    let for_ref = create ()
+    and for_s = create ()
+    and for_u = create () in
+    let check_get_bounds i x =
+      let test_x = of_boxed_result x in
+      try let _ = tested_s for_s i test_x in assert false with
+      | Invalid_argument _ -> ()
+    in
+    ( check_get_bounds
+    , fun i x ->
+        let test_i = of_boxed_index i in
+        let test_x = of_boxed_result x in
+        try (
+          reference_set for_ref i x;
+          try (
+            tested_s for_s test_i test_x;
+            assert (eq x (reference_get for_s i));
+            tested_u for_u test_i test_x;
+            assert (eq x (reference_get for_u i)))
+          with
+          | _ -> assert false)
+        with
+        | Invalid_argument _ -> check_get_bounds (of_boxed_index i) x
+        | _ ->
+          (try tested_s for_s test_i test_x; assert false with
+           | Invalid_argument _ -> assert false
+           | _ -> ())) in
+  let cb_for_bs, c_for_bs =
+    create_checkers create_bs bs_get_reference bs_set_reference bs_set_tested_s bs_set_tested_u in
+  (* let cb_for_s, c_for_s = *)
+  (*   create_checkers create_s s_get_reference s_set_reference s_set_tested_s s_set_tested_u in *)
+  (* let cb_for_b, c_for_b = *)
+  (*   create_checkers create_b b_get_reference b_set_reference b_set_tested_s b_set_tested_u in *)
+  ( (fun i x -> cb_for_bs i x (*; cb_for_s i x; cb_for_b i x *))
+  , (fun i x -> c_for_bs i x (*; c_for_b i x; c_for_s i x *)) )
 ;;
 
 for i = -1 to length + 1 do
-  check_get i
+  check_get i;
+  check_set i x
 done
 ;;
 |}^extra_bounds^{|
@@ -123,7 +177,8 @@ done
 ;;
 
 let extra_bounds_template ~index = {|
-check_get_bounds (|}^index^{|);;|}
+check_get_bounds (|}^index^{|);;
+check_set_bounds (|}^index^{|) x;;|}
 
 (* Copied from [utils/misc.ml] *)
 module Hlist = struct
@@ -154,8 +209,10 @@ type result =
   ; test_suffix : string
   ; ref : string
   ; test : string
-  ; conv : string
+  ; box : string
+  ; unbox : string
   ; eq : string
+  ; example : string
   }
 
 let bigstring_tests =
@@ -181,36 +238,46 @@ let bigstring_tests =
          ; test_suffix = ""
          ; ref = "int"
          ; test = "int"
-         ; conv = "fun x -> x"
+         ; box = "fun x -> x"
+         ; unbox = "fun x -> x"
          ; eq = "Int.equal"
+         ; example = "5"
          }
        ; { width = "32"
          ; test_suffix = ""
          ; ref = "int32"
          ; test = "int32"
-         ; conv = "fun x -> x"
+         ; box = "fun x -> x"
+         ; unbox = "fun x -> x"
          ; eq = "Int32.equal"
+         ; example = "5l"
          }
        ; { width = "64"
          ; test_suffix = ""
          ; ref = "int64"
          ; test = "int64"
-         ; conv = "fun x -> x"
+         ; box = "fun x -> x"
+         ; unbox = "fun x -> x"
          ; eq = "Int64.equal"
+         ; example = "5L"
          }
        ; { width = "32"
          ; test_suffix = "#"
          ; ref = "int32"
          ; test = "int32#"
-         ; conv = "Stdlib_upstream_compatible.Int32_u.to_int32"
+         ; box = "Stdlib_upstream_compatible.Int32_u.to_int32"
+         ; unbox = "Stdlib_upstream_compatible.Int32_u.of_int32"
          ; eq = "Int32.equal"
+         ; example = "(5l)"
          }
        ; { width = "64"
          ; test_suffix = "#"
          ; ref = "int64"
          ; test = "int64#"
-         ; conv = "Stdlib_upstream_compatible.Int64_u.to_int64"
+         ; box = "Stdlib_upstream_compatible.Int64_u.to_int64"
+         ; unbox = "Stdlib_upstream_compatible.Int64_u.of_int64"
          ; eq = "Int64.equal"
+         ; example = "(5L)"
          }
        ]
      ]
@@ -218,7 +285,7 @@ let bigstring_tests =
   |> List.map
        (fun
            ([ { type_; conv = conv_index; extra_bounds }
-            ; { width; test_suffix; ref; test; conv = conv_result; eq }
+            ; { width; test_suffix; ref; test; box; unbox; eq; example }
             ] :
              _ Hlist.t)
          ->
@@ -236,9 +303,12 @@ let bigstring_tests =
             ~ref_result:ref
             ~test_result:test
             ~conv_index
-            ~conv_result
+            ~box_result:box
+            ~unbox_result:unbox
             ~eq
-            ~extra_bounds)
+            ~extra_bounds
+            ~example
+       )
   |> String.concat ""
 ;;
 

@@ -271,11 +271,15 @@ type primitive =
       mode : alloc_mode; boxed : bool }
   | Pbigstring_load_128 of { aligned : bool; unsafe : bool; index_kind :
       array_index_kind; mode: alloc_mode; boxed : bool }
-  | Pbigstring_set_16 of { unsafe : bool }
-  | Pbigstring_set_32 of { unsafe : bool; boxed : bool }
-  | Pbigstring_set_f32 of { unsafe : bool; boxed : bool }
-  | Pbigstring_set_64 of { unsafe : bool; boxed : bool }
-  | Pbigstring_set_128 of { aligned : bool; unsafe : bool; boxed : bool }
+  | Pbigstring_set_16 of { unsafe : bool; index_kind : array_index_kind }
+  | Pbigstring_set_32 of { unsafe : bool; index_kind : array_index_kind;
+      boxed : bool }
+  | Pbigstring_set_f32 of { unsafe : bool; index_kind : array_index_kind;
+      boxed : bool }
+  | Pbigstring_set_64 of { unsafe : bool; index_kind : array_index_kind;
+      boxed : bool }
+  | Pbigstring_set_128 of { aligned : bool; unsafe : bool; index_kind :
+      array_index_kind; boxed : bool }
   (* load/set SIMD vectors in GC-managed arrays *)
   | Pfloatarray_load_128 of { unsafe : bool; mode : alloc_mode }
   | Pfloat_array_load_128 of { unsafe : bool; mode : alloc_mode }
