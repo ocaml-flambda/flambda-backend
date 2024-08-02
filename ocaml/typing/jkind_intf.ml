@@ -295,6 +295,7 @@ module History = struct
     | Concrete_creation of concrete_creation_reason
     | Concrete_legacy_creation of concrete_legacy_creation_reason
     | Top_creation of top_creation_reason
+    | Defaulted
     | Imported
     | Imported_type_argument of
         { parent_path : Path.t;
