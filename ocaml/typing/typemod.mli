@@ -34,11 +34,13 @@ end
 
 val type_module:
         expected_modtype:Types.module_type option ->
-        Env.t -> sig_env:Env.t -> sig_map:Sig_map.t option ->
+        Env.t -> sig_env:Env.t -> Subst.t option ->
+        str_map:Sig_map.t option -> sig_map:Sig_map.t option ->
         Parsetree.module_expr -> Typedtree.module_expr * Shape.t
 val type_structure:
   expected_sig:Types.signature option ->
-  Env.t -> sig_env:Env.t -> sig_map:Sig_map.t option -> Parsetree.structure ->
+  Env.t -> sig_env:Env.t -> Subst.t option ->
+  str_map:Sig_map.t option -> sig_map:Sig_map.t option -> Parsetree.structure ->
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
   Env.t
 val type_toplevel_phrase:

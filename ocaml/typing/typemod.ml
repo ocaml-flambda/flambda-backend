@@ -2673,14 +2673,14 @@ let maybe_infer_modalities ~loc ~env ~md_mode ~mode =
   end
 
 let rec type_module ?(alias=false)
-    ~expected_modtype sttn funct_body anchor env ~sig_env ~sig_map smod =
+    ~expected_modtype sttn funct_body anchor env ~sig_env subst ~str_map ~sig_map smod =
   Builtin_attributes.warning_scope smod.pmod_attributes
     (fun () ->
       type_module_aux ~alias ~expected_modtype
-        sttn funct_body anchor env ~sig_env ~sig_map smod)
+        sttn funct_body anchor env ~sig_env subst ~str_map ~sig_map smod)
 
 and type_module_aux
-    ~alias ~expected_modtype sttn funct_body anchor env ~sig_env ~sig_map smod =
+    ~alias ~expected_modtype sttn funct_body anchor env ~sig_env subst ~str_map ~sig_map smod =
   match smod.pmod_desc with
     Pmod_ident lid ->
       let path, mode =
@@ -2733,7 +2733,8 @@ and type_module_aux
           | Mty_signature sg -> Some sg)
         in
       let (str, sg, names, shape, _finalenv) =
-        type_structure funct_body anchor env ~sig_env ~sig_map sstr ~expected_sig in
+        type_structure
+          funct_body anchor env ~sig_env subst ~str_map ~sig_map sstr ~expected_sig in
       let md =
         { mod_desc = Tmod_structure str;
           mod_type = Mty_signature sg;
@@ -2778,8 +2779,8 @@ and type_module_aux
       let newenv = Env.add_escape_lock Module newenv in
       let newenv = Env.add_share_lock Module newenv in
       let body, body_shape =
-        type_module
-          ~expected_modtype:None true funct_body None newenv ~sig_env ~sig_map sbody in
+        type_module ~expected_modtype:None true
+          funct_body None newenv ~sig_env subst ~str_map ~sig_map sbody in
       { mod_desc = Tmod_functor(t_arg, body);
         mod_type = Mty_functor(ty_arg, body.mod_type);
         mod_env = env;
@@ -2791,7 +2792,8 @@ and type_module_aux
   | Pmod_constraint(sarg, smty) ->
       let mty = transl_modtype env smty in
       let arg, arg_shape =
-        type_module ~alias true funct_body anchor env ~sig_env ~sig_map sarg
+        type_module ~alias true funct_body anchor
+          env ~sig_env subst ~str_map ~sig_map sarg
           ~expected_modtype:(Some mty.mty_type)
       in
       let md, final_shape =
@@ -2844,7 +2846,7 @@ and type_application loc strengthen funct_body env smod =
     | Pmod_apply(f, sarg)  ->
         let arg, shape =
           type_module ~expected_modtype:None
-            true funct_body None env ~sig_env:env ~sig_map:None sarg in
+            true funct_body None env ~sig_env:env None ~str_map:None ~sig_map:None sarg in
         let summary = {
           loc = smod.pmod_loc;
           attributes = smod.pmod_attributes;
@@ -2875,7 +2877,7 @@ and type_application loc strengthen funct_body env smod =
     in
     let strengthen = strengthen && List.for_all has_path args in
     type_module ~expected_modtype:None strengthen
-      funct_body None env ~sig_env:env ~sig_map:None sfunct
+      funct_body None env ~sig_env:env ~str_map:None None ~sig_map:None sfunct
   in
   List.fold_left (type_one_application ~ctx:(loc, funct, args) funct_body env)
     (funct, funct_shape) args
@@ -3011,7 +3013,7 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
   | _ ->
     let md, mod_shape =
       type_module ~expected_modtype:None true
-        funct_body None env ~sig_env:env ~sig_map:None od.popen_expr in
+        funct_body None env ~sig_env:env ~str_map:None None ~sig_map:None od.popen_expr in
     let scope = Ctype.create_scope () in
     let sg, newenv =
       Env.enter_signature ~scope ~mod_shape
@@ -3047,7 +3049,7 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
     open_descr, sg, newenv
 
 and type_structure ?(toplevel = None)
-    ~expected_sig funct_body anchor env ~sig_env ~sig_map sstr =
+    ~expected_sig funct_body anchor env ~sig_env subst ~str_map ~sig_map sstr =
   let names = Signature_names.create () in
 
   let sig_map =
@@ -3263,7 +3265,7 @@ and type_structure ?(toplevel = None)
       Builtin_attributes.warning_scope sincl.pincl_attributes
         (fun () ->
           type_module ~expected_modtype:None true
-            funct_body None env ~sig_env:env ~sig_map:None smodl)
+            funct_body None env ~sig_env:env None ~str_map:None ~sig_map:None smodl)
     in
     let scope = Ctype.create_scope () in
     let incl_kind, sg =
@@ -3496,7 +3498,8 @@ and type_structure ?(toplevel = None)
           Builtin_attributes.warning_scope attrs
             (fun () ->
                type_module ~expected_modtype ~alias:true true funct_body
-                 (anchor_submodule name.txt anchor) env ~sig_env ~sig_map smodl
+                 (anchor_submodule name.txt anchor) env ~sig_env (Some subst)
+                 ~str_map:(Some str_map) ~sig_map smodl
             )
         in
         let pres =
@@ -3581,7 +3584,8 @@ and type_structure ?(toplevel = None)
                  Builtin_attributes.warning_scope attrs
                    (fun () ->
                       type_module true funct_body (anchor_recmodule id) newenv
-                        ~sig_env:newenv ~sig_map smodl ~expected_modtype:(Some mty.mty_type)
+                        ~sig_env:newenv ~str_map:(Some str_map) ~sig_map (Some subst)
+                        smodl ~expected_modtype:(Some mty.mty_type)
                    )
                in
                let mty' =
@@ -3789,8 +3793,18 @@ and type_structure ?(toplevel = None)
   in
   let previous_saved_types = Cmt_format.get_saved_types () in
   let run () =
+    let subst =
+      match subst with
+      | None -> Subst.identity
+      | Some subst -> subst
+    in
+    let str_map =
+      match str_map with
+      | None -> Sig_map.empty
+      | Some map -> map
+    in
     let (items, sg, shape_map, final_env, _final_subst, _str_map) =
-      type_struct env Subst.identity Sig_map.empty Shape.Map.empty sstr [] [] toplevel_sig
+      type_struct env subst str_map Shape.Map.empty sstr [] [] toplevel_sig
     in
     let str = { str_items = items; str_type = sg; str_final_env = final_env } in
     Cmt_format.set_saved_types
@@ -3820,7 +3834,7 @@ let type_toplevel_phrase env sig_acc s =
   let (str, sg, to_remove_from_sg, shape, env) =
     type_structure
       ~toplevel:(Some sig_acc) ~expected_sig:None
-      false None env ~sig_env:env ~sig_map:None s in
+      false None env ~sig_env:env None ~str_map:None ~sig_map:None s in
   remove_mode_and_jkind_variables env sg;
   remove_mode_and_jkind_variables_for_toplevel str;
   Typecore.optimise_allocations ();
@@ -3863,7 +3877,8 @@ let type_module_type_of env smod =
             mod_loc = smod.pmod_loc }
     | _ ->
         let me, _shape =
-          type_module ~expected_modtype:None env ~sig_env:env ~sig_map:None smod in
+          type_module ~expected_modtype:None
+            env ~sig_env:env None ~str_map:None ~sig_map:None smod in
         me
   in
   let mty = Mtype.scrape_for_type_of ~remove_aliases env tmty.mod_type in
@@ -3924,7 +3939,8 @@ let type_package env m p fl =
       (* type the module and create a scope in a raised level *)
       Ctype.with_local_level begin fun () ->
         let modl, _mod_shape =
-          type_module ~expected_modtype:None env ~sig_env:env ~sig_map:None m in
+          type_module
+            ~expected_modtype:None env ~sig_env:env None ~str_map:None ~sig_map:None m in
         let scope = Ctype.create_scope () in
         modl, scope
       end
@@ -3996,7 +4012,9 @@ let type_open_descr ?used_slot env od =
 
 let () =
   Typecore.type_module :=
-    (fun env -> type_module_alias ~expected_modtype:None env ~sig_env:env ~sig_map:None);
+    (fun env ->
+      type_module_alias
+        ~expected_modtype:None env ~sig_env:env None ~str_map:None ~sig_map:None);
   Typetexp.transl_modtype_longident := transl_modtype_longident;
   Typetexp.transl_modtype := transl_modtype;
   Typecore.type_open := type_open_ ?toplevel:None;
@@ -4097,7 +4115,8 @@ let type_implementation ~sourcefile outputprefix modulename initial_env ast =
         let (str, sg, names, shape, finalenv) =
           Profile.record_call "infer" (fun () ->
             type_structure
-              ~expected_sig initial_env ~sig_env:initial_env ~sig_map:None ast) in
+              ~expected_sig initial_env ~sig_env:initial_env None
+              ~str_map:None ~sig_map:None ast) in
         let uid = Uid.of_compilation_unit_id modulename in
         let shape = Shape.set_uid_if_none shape uid in
         if !Clflags.binary_annotations_cms then
