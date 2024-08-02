@@ -567,10 +567,14 @@ let comp_primitive stack_info p sz args =
     Kccall(indexing_primitive index_kind "caml_ba_uint8_getf32", 2)
   | Pbigstring_load_64{unsafe=_;mode=_;index_kind} ->
     Kccall(indexing_primitive index_kind "caml_ba_uint8_get64", 2)
-  | Pbigstring_set_16(_) -> Kccall("caml_ba_uint8_set16", 3)
-  | Pbigstring_set_32(_) -> Kccall("caml_ba_uint8_set32", 3)
-  | Pbigstring_set_f32(_) -> Kccall("caml_ba_uint8_setf32", 3)
-  | Pbigstring_set_64(_) -> Kccall("caml_ba_uint8_set64", 3)
+  | Pbigstring_set_16{unsafe=_;index_kind} ->
+    Kccall(indexing_primitive index_kind "caml_ba_uint8_set16", 3)
+  | Pbigstring_set_32{unsafe=_;index_kind} ->
+    Kccall(indexing_primitive index_kind "caml_ba_uint8_set32", 3)
+  | Pbigstring_set_f32{unsafe=_;index_kind} ->
+    Kccall(indexing_primitive index_kind "caml_ba_uint8_setf32", 3)
+  | Pbigstring_set_64{unsafe=_;index_kind} ->
+    Kccall(indexing_primitive index_kind "caml_ba_uint8_set64", 3)
   | Pbswap16 -> Kccall("caml_bswap16", 1)
   | Pbbswap(bi,_) -> comp_bint_primitive bi "bswap" args
   | Pint_as_pointer _ -> Kccall("caml_int_as_pointer", 1)
