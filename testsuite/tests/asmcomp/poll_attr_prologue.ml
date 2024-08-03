@@ -11,7 +11,7 @@
 
 *)
 
-let[@poll error] rec c x l =
+let[@loop never][@poll error] rec c x l =
   match l with
   | [] -> 0
   | _ :: tl -> (c[@tailcall]) (x+1) tl

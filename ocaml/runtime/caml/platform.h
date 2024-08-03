@@ -73,14 +73,17 @@ CAMLextern unsigned caml_plat_spin_wait(unsigned spins,
 #define GENSYM_2(name, l) GENSYM_3(name, l)
 #define GENSYM(name) GENSYM_2(name, __LINE__)
 
-#define SPIN_WAIT                                                       \
+#define SPIN_WAIT0(end_cond)                                            \
   unsigned GENSYM(caml__spins) = 0;                                     \
-  for (; 1; cpu_relax(),                                                \
+  for (; end_cond; cpu_relax(),                                         \
          GENSYM(caml__spins) =                                          \
            CAMLlikely(GENSYM(caml__spins) < Max_spins) ?                \
          GENSYM(caml__spins) + 1 :                                      \
          caml_plat_spin_wait(GENSYM(caml__spins),                       \
                              __FILE__, __LINE__, __func__))
+
+#define SPIN_WAIT SPIN_WAIT0(1)
+#define SPIN_WAIT_BOUNDED(n) SPIN_WAIT0(GENSYM(caml__spins) < (n))
 
 Caml_inline uintnat atomic_load_wait_nonzero(atomic_uintnat* p) {
   SPIN_WAIT {
