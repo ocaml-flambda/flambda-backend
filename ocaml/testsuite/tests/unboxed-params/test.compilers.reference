@@ -1,0 +1,15 @@
+File "test.ml", lines 63-66, characters 20-16:
+63 | ....................(t[@unboxable]) =
+64 |     match t with
+65 |     | A i -> B i
+66 |     | B i -> A i
+Warning 210 [unboxing-impossible]: This [@unboxable] attribute cannot be used.
+The type of this value does not allow unboxing.
+
+File "test.ml", lines 63-66, characters 20-16:
+63 | ....................(t[@unboxable]) =
+64 |     match t with
+65 |     | A i -> B i
+66 |     | B i -> A i
+Warning 210 [unboxing-impossible]: This [@unboxable] attribute cannot be used.
+The type of this value does not allow unboxing.
