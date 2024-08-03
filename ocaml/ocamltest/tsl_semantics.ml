@@ -187,7 +187,6 @@ let actions_in_tests tests =
   let f test action_set =
     Actions.ActionSet.union (actions_in_test test) action_set in
   Tests.TestSet.fold f tests Actions.ActionSet.empty
-<<<<<<< HEAD
 
 let rec split_env l =
   match[@ocaml.warning "-fragile-match"] l with
@@ -293,72 +292,3 @@ let print_tsl_ast ~compact oc ast =
       pr "%sunset %s;\n" indent ls.node;
   in
   print_ast " " ast;
-||||||| 121bedcfd2
-=======
-
-let rec ast_of_tree (Node (env, test, mods, subs)) =
-  let tst = [Test (0, Tsl_ast.make_identifier test.Tests.test_name, mods)] in
-  ast_of_tree_aux env tst subs
-
-and ast_of_tree_aux env tst subs =
-  let env = List.map (fun x -> Environment_statement x) env in
-  match List.map ast_of_tree subs with
-  | [ Ast (stmts, subs) ] -> Ast (env @ tst @ stmts, subs)
-  | asts -> Ast (env @ tst, asts)
-
-let tsl_ast_of_test_trees (env, trees) = ast_of_tree_aux env [] trees
-
-open Printf
-
-let print_tsl_ast ~compact oc ast =
-  let pr fmt (*args*) = fprintf oc fmt (*args*) in
-
-  let rec print_ast indent (Ast (stmts, subs)) =
-    print_statements indent stmts;
-    print_forest indent subs;
-
-  and print_sub indent ast =
-    pr "{\n";
-    print_ast (indent ^ "  ") ast;
-    pr "%s}" indent;
-
-  and print_statements indent stmts =
-    match stmts with
-    | Test (_, name, mods) :: tl ->
-      pr "%s%s" indent name.node;
-      begin match mods with
-      | m :: tl ->
-        pr " with %s" m.node;
-        List.iter (fun m -> pr ", %s" m.node) tl;
-      | [] -> ()
-      end;
-      pr ";\n";
-      if tl <> [] && not compact then pr "\n";
-      print_statements indent tl;
-    | Environment_statement env :: tl->
-      print_env indent env;
-      print_statements indent tl;
-    | [] -> ()
-
-  and print_forest indent subs =
-    if subs <> [] then begin
-      pr "%s" indent;
-      List.iter (print_sub indent) subs;
-      pr "\n";
-    end
-
-  and print_env indent e =
-    match e.node with
-    | Assignment (set, variable, value) ->
-      pr "%s" indent;
-      if set then pr "set ";
-      pr "%s = \"%s\";\n" variable.node value.node;
-    | Append (variable, value) ->
-      pr "%s%s += \"%s\";\n" indent variable.node value.node;
-    | Include ls ->
-      pr "%sinclude %s;\n" indent ls.node;
-    | Unset ls ->
-      pr "%sunset %s;\n" indent ls.node;
-  in
-  print_ast " " ast;
->>>>>>> 5.2.0

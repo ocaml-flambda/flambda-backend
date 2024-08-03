@@ -36,18 +36,11 @@ type tsl_item =
 
 type tsl_block = tsl_item list
 
-<<<<<<< HEAD
-(* New syntax *)
-type t = Ast of tsl_item list * t list
-
-||||||| 121bedcfd2
-=======
 (* New syntax *)
 type t = Ast of tsl_item list * t list
 val split_env :
   tsl_item list -> environment_statement located list * tsl_item list
 
->>>>>>> 5.2.0
 val make_identifier : ?loc:Location.t -> string -> string located
 val make_string : ?loc:Location.t -> string -> string located
 val make_environment_statement :
