@@ -69,15 +69,19 @@ let print_impl_import import =
 let print_line name = printf "\t%s\n" name
 
 let print_global_line glob =
-  (* Type will change soon for parameterised libraries *)
-  printf "\t%a\n" Compilation_unit.Name.output glob
+  printf "\t%a\n" Global_module.Name.output glob
 
 let print_global_as_name_line glob =
   (* Type will change soon for parameterised libraries *)
-  printf "\t%a\n" Compilation_unit.Name.output glob
+  printf "\t%a\n" Global_module.Name.output glob
 
 let print_name_line cu =
-  printf "\t%a\n" Compilation_unit.Name.output (Compilation_unit.name cu)
+  (* Drop the pack prefix for backward compatibility, but keep the instance
+     arguments *)
+  let cu_without_prefix =
+    Compilation_unit.with_for_pack_prefix cu Compilation_unit.Prefix.empty
+  in
+  printf "\t%a\n" Compilation_unit.output cu_without_prefix
 
 let print_required_global id = printf "\t%a\n" Compilation_unit.output id
 

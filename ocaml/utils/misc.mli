@@ -175,6 +175,24 @@ module Stdlib : sig
     (** Returns the longest list that, with respect to the provided equality
         function, is a prefix of both of the given lists.  The input lists,
         each with such longest common prefix removed, are also returned. *)
+
+    val merge_iter
+       : cmp:('a -> 'b -> int)
+      -> left_only:('a -> unit)
+      -> right_only:('b -> unit)
+      -> both:('a -> 'b -> unit)
+      -> 'a t
+      -> 'b t
+      -> unit
+
+    val merge_map
+       : cmp:('a -> 'b -> int)
+      -> left_only:('a -> 'c)
+      -> right_only:('b -> 'c)
+      -> both:('a -> 'b -> 'c)
+      -> 'a t
+      -> 'b t
+      -> 'c t
   end
 
 (** {2 Extensions to the Option module} *)
@@ -637,6 +655,13 @@ val output_of_print :
 val is_print_longer_than: int -> (Format.formatter -> unit) -> bool
 (** Returns [true] if the printed string is longer than the given integer. Stops
     early if so. Spaces and newlines are counted, but indentation is not. *)
+
+val to_string_of_print :
+  (Format.formatter -> 'a -> unit) -> 'a -> string
+(** [to_string_of_print print] produces a string conversion function from a
+    pretty printer. This is similar but preferable to [Format.asprintf "%a"]
+    when the output may be large, since [to_string] functions don't usually
+    return embedded newlines. *)
 
 (** {1 Displaying configuration variables} *)
 

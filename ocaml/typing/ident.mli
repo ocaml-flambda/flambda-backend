@@ -33,9 +33,11 @@ val create_scoped: scope:int -> string -> t
 val create_local: string -> t
 val create_persistent: string -> t
 val create_predef: string -> t
-val create_instance: string -> string list -> t
+val create_instance:
+      string -> (Global_module.Name.t * Global_module.Name.t) list -> t
+val create_global: Global_module.Name.t -> t
 
-val create_local_binding_for_global: string -> t
+val create_local_binding_for_global: Global_module.Name.t -> t
         (** Creates a local identifier intended to bind the value of a global
             that is not a static constant (that is, it is a parameter or depends
             on one). The global is used purely for the mnemonic name for
@@ -69,7 +71,8 @@ val scope: t -> int
 val lowest_scope : int
 val highest_scope: int
 
-val split_instance : t -> (string * string list) option
+val to_global: t -> Global_module.Name.t option
+val to_global_exn: t -> Global_module.Name.t
 
 val reinit: unit -> unit
 
