@@ -343,6 +343,7 @@ type fundecl =
     fun_codegen_options : codegen_option list;
     fun_poll: Lambda.poll_attribute;
     fun_dbg : Debuginfo.t;
+    fun_only_kept_for_zero_alloc : bool;
   }
 
 (** When data items that are less than 64 bits wide occur in blocks, whose

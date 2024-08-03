@@ -427,8 +427,12 @@ let fundecl ppf f =
        fprintf ppf "%a: %a" VP.print id machtype ty)
      cases in
   with_location_mapping ~label:"Function" ~dbg:f.fun_dbg ppf (fun () ->
-  fprintf ppf "@[<1>(function%s%a@ %s@;<1 4>@[<1>(%a)@]@ @[%a@])@]@."
-         (location f.fun_dbg) print_codegen_options f.fun_codegen_options f.fun_name.sym_name
+  fprintf ppf "@[<1>(function%s%a@ %s%s@;<1 4>@[<1>(%a)@]@ @[%a@])@]@."
+         (location f.fun_dbg) print_codegen_options f.fun_codegen_options
+         (if f.fun_only_kept_for_zero_alloc
+          then "<only kept for zero-alloc> "
+          else "")
+         f.fun_name.sym_name
          print_cases f.fun_args sequence f.fun_body)
 
 let data_item ppf = function

@@ -449,7 +449,12 @@ let params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
     Env.get_code_metadata env code_id
     |> Code_metadata.poll_attribute |> Poll_attribute.to_lambda
   in
-  C.fundecl fun_sym fun_params fun_body fun_flags fun_dbg fun_poll, res
+  let only_kept_for_zero_alloc =
+    Code_id.Set.mem code_id (Env.code_ids_kept_for_zero_alloc env)
+  in
+  ( C.fundecl fun_sym fun_params fun_body fun_flags fun_dbg fun_poll
+      ~only_kept_for_zero_alloc,
+    res )
 
 let params_and_body env res code_id p ~fun_dbg ~zero_alloc_attribute
     ~translate_expr =
