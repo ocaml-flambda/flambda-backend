@@ -54,7 +54,6 @@ struct caml_local_arena {
 };
 typedef struct caml_local_arenas {
   int count;
-  intnat saved_sp;
   intnat next_length;
   struct caml_local_arena arenas[Max_local_arenas];
 } caml_local_arenas;
