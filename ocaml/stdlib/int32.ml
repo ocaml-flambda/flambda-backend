@@ -61,16 +61,8 @@ let unsigned_to_int =
   match Sys.word_size with
   | 32 ->
       let max_int = of_int Stdlib.max_int in
-<<<<<<< HEAD
       fun[@inline available] n ->
-        if compare zero n <= 0 && compare n max_int <= 0 then
-||||||| 121bedcfd2
-      fun n ->
-        if compare zero n <= 0 && compare n max_int <= 0 then
-=======
-      fun n ->
         if n >= 0l && n <= max_int then
->>>>>>> 5.2.0
           Some (to_int n)
         else
           None
@@ -87,47 +79,23 @@ let[@inline available] to_string n = format "%d" n
 external of_string : string -> (int32[@unboxed])
   = "caml_int32_of_string" "caml_int32_of_string_unboxed"
 
-<<<<<<< HEAD
 let[@inline available] of_string_opt s =
-  (* TODO: expose a non-raising primitive directly. *)
-||||||| 121bedcfd2
-let of_string_opt s =
-  (* TODO: expose a non-raising primitive directly. *)
-=======
-let of_string_opt s =
->>>>>>> 5.2.0
   try Some (of_string s)
   with Failure _ -> None
 
 type t = int32
 
-<<<<<<< HEAD
 let[@inline available] compare (x: t) (y: t) = Stdlib.compare x y
-let[@inline available] equal (x: t) (y: t) = compare x y = 0
-||||||| 121bedcfd2
-let compare (x: t) (y: t) = Stdlib.compare x y
-let equal (x: t) (y: t) = compare x y = 0
-=======
-let compare (x: t) (y: t) = Stdlib.compare x y
-let equal (x: t) (y: t) = x = y
->>>>>>> 5.2.0
+let[@inline available] equal (x: t) (y: t) = x = y
 
 let[@inline available] unsigned_compare n m =
   compare (sub n min_int) (sub m min_int)
 
-<<<<<<< HEAD
-let[@inline available] min x y : t = if x <= y then x else y
-let[@inline available] max x y : t = if x >= y then x else y
-||||||| 121bedcfd2
-let min x y : t = if x <= y then x else y
-let max x y : t = if x >= y then x else y
-=======
 let unsigned_lt n m =
   sub n min_int < sub m min_int
 
-let min x y : t = if x <= y then x else y
-let max x y : t = if x >= y then x else y
->>>>>>> 5.2.0
+let[@inline available] min x y : t = if x <= y then x else y
+let[@inline available] max x y : t = if x >= y then x else y
 
 (* Unsigned division from signed division of the same bitness.
    See Warren Jr., Henry S. (2013). Hacker's Delight (2 ed.), Sec 9-3.

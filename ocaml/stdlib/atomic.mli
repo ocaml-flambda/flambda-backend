@@ -29,9 +29,9 @@ type !'a t
 (** Create an atomic reference. *)
 val make : 'a -> 'a t
 
-<<<<<<< HEAD
 (** Create an atomic reference that is alone on a cache line. It occupies 4-16x
     the memory of one allocated with [make v].
+
     The primary purpose is to prevent false-sharing and the resulting
     performance degradation. When a CPU performs an atomic operation, it
     temporarily takes ownership of an entire cache line that contains the
@@ -41,25 +41,10 @@ val make : 'a -> 'a t
     reference is experiencing contention, assigning it its own cache line may
     enhance performance.
 
-    CR ocaml 5 all-runtime5: does not support runtime4 *)
+    CR ocaml 5 all-runtime5: does not support runtime4
+
 val make_contended : 'a -> 'a t
 
-||||||| 121bedcfd2
-=======
-(** Create an atomic reference that is alone on a cache line. It occupies 4-16x
-    the memory of one allocated with [make v].
-
-    The primary purpose is to prevent false-sharing and the resulting
-    performance degradation. When a CPU performs an atomic operation, it
-    temporarily takes ownership of an entire cache line that contains the
-    atomic reference. If multiple atomic references share the same cache line,
-    modifying these disjoint memory regions simultaneously becomes impossible,
-    which can create a bottleneck. Hence, as a general guideline, if an atomic
-    reference is experiencing contention, assigning it its own cache line may
-    enhance performance. *)
-val make_contended : 'a -> 'a t
-
->>>>>>> 5.2.0
 (** Get the current value of the atomic reference. *)
 val get : 'a t -> 'a
 

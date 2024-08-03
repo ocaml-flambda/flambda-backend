@@ -101,32 +101,6 @@ val to_channel : out_channel -> 'a -> extern_flags list -> unit
    corresponding closure will create a new reference, different from
    the global one.
 
-<<<<<<< HEAD
-   If [flags] contains [Marshal.Compression], the marshaled data
-   representing value [v] is compressed before being written to
-   channel [chan].  Decompression takes place automatically in
-   the unmarshaling functions {!Stdlib.input_value}, {!Marshal.from_channel},
-   {!Marshal.from_string}, etc.  For large values [v], compression
-   typically reduces the size of marshaled data by a factor 2 to 4,
-   but slows down marshaling and, to a lesser extent, unmarshaling.
-   Compression is not supported on some platforms; in this case,
-   the [Marshal.Compression] flag is silently ignored and uncompressed
-   data is written to channel [chan].
-
-||||||| 121bedcfd2
-   If [flags] contains [Marshal.Compression], the marshaled data
-   representing value [v] is compressed before being written to
-   channel [chan].  Decompression takes place automatically in
-   the unmarshaling functions {!input_value}, {!Marshal.from_channel},
-   {!Marshal.from_string}, etc.  For large values [v], compression
-   typically reduces the size of marshaled data by a factor 2 to 4,
-   but slows down marshaling and, to a lesser extent, unmarshaling.
-   Compression is not supported on some platforms; in this case,
-   the [Marshal.Compression] flag is silently ignored and uncompressed
-   data is written to channel [chan].
-
-=======
->>>>>>> 5.2.0
    If [flags] contains [Marshal.Compat_32], marshaling fails when
    it encounters an integer value outside the range [-2]{^[30]}, [2]{^[30]}[-1]
    of integers that are representable on a 32-bit platform.  This
@@ -217,45 +191,9 @@ val total_size : bytes -> int -> int
 
 (** {1:marshal_concurrency Marshal and domain safety}
 
-<<<<<<< HEAD
-    If [Marshal.compression_supported()] is [true], compressed data
-    is unmarshaled safely by {!Stdlib.input_value}, {!Marshal.from_channel},
-    {!Marshal.from_string} and related functions.  Moreover, the
-    [Marshal.Compression] flag is honored by the {!Marshal.to_channel},
-    {!Marshal.to_string} and related functions, resulting in the
-    production of compressed data.
-
-    If [Marshal.compression_supported()] is [false], compressed data
-    causes {!Stdlib.input_value}, {!Marshal.from_channel},
-    {!Marshal.from_string} and related functions to fail and a
-    [Failure] exception to be raised.  Moreover,
-    {!Marshal.to_channel}, {!Marshal.to_string} and related functions
-    ignore the [Marshal.Compression] flag and produce uncompressed
-    data.
-
-    @since 5.1
-||||||| 121bedcfd2
-    If [Marshal.compression_supported()] is [true], compressed data
-    is unmarshaled safely by {!input_value}, {!Marshal.from_channel},
-    {!Marshal.from_string} and related functions.  Moreover, the
-    [Marshal.Compression] flag is honored by the {!Marshal.to_channel},
-    {!Marshal.to_string} and related functions, resulting in the
-    production of compressed data.
-
-    If [Marshal.compression_supported()] is [false], compressed data
-    causes {!input_value}, {!Marshal.from_channel},
-    {!Marshal.from_string} and related functions to fail and a
-    [Failure] exception to be raised.  Moreover,
-    {!Marshal.to_channel}, {!Marshal.to_string} and related functions
-    ignore the [Marshal.Compression] flag and produce uncompressed
-    data.
-
-    @since 5.1
-=======
     Care must be taken when marshaling a mutable value that may be modified by
     a different domain. Mutating a value that is being marshaled (i.e., turned
     into a sequence of bytes) is a programming error and might result in
     suprising values (when unmarshaling) due to tearing, since marshaling
     involves byte-per-byte copy.
->>>>>>> 5.2.0
 *)
