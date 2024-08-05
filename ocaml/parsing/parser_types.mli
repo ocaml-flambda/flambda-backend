@@ -1,8 +1,7 @@
-(* Tracks types that the parser uses that get exposed when compiling via Menhir. This
-   prevents the compiled parser.mli from having undeclared types, since it doesn't
-   copy the implementation section from parser.mly, causing types declared in
-   parser.mly and then exposed by Menhir in function signatures in parser.mli
-   will be unbound. *)
+(* These are types that are used by the parser. They need to be placed in a separate
+   module (ie., not parser.mly) because adding the --inspection flag, the parser's
+   interface refers to the result type of each parsing rule, so the types need to be
+   available outside of just parser.ml. *)
 
 open Asttypes
 open Parsetree
