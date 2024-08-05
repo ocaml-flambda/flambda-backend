@@ -82,6 +82,7 @@ module type Tbl = sig
   val of_map : 'a Map.Make(T).t -> 'a t
   val memoize : 'a t -> (key -> 'a) -> key -> 'a
   val map : 'a t -> ('a -> 'b) -> 'b t
+  val to_array : 'a t -> (T.t * 'a) array
 end
 
 module Pair (A : Thing) (B : Thing) : Thing with type t = A.t * B.t = struct
@@ -226,6 +227,28 @@ module Make_tbl (T : Thing) = struct
 
   let map t f =
     of_map (T_map.map f (to_map t))
+
+  let to_array t =
+    let build_array key value acc =
+      match acc with
+      | None ->
+        (* acc is None if we're on the first element. If this is the case, allocate the
+          array, duplicating the first value for each entry *)
+        let arr = Array.make (length t) (key, value) in
+        Some (arr, 1)
+      | Some (arr, i) ->
+        (* If acc is Some, then the array has been allocated and we want to write the
+           i-th value *)
+        arr.(i) <- (key, value);
+        Some (arr, i + 1)
+    in
+    let result = fold build_array t None in
+    match result with
+    | Some (arr, _) -> arr
+    | None ->
+      (* The result is None iff the map is empty, in which case we return an empty
+         array *)
+      [||]
 end
 
 module type S = sig
