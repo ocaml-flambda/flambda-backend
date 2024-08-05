@@ -1543,9 +1543,21 @@ let find_module_lazy path env =
 let find_type_expansion path env =
   let decl = find_type path env in
   match decl.type_manifest with
-  | Some body when decl.type_private = Public3
+  | Some body when Btype.lte_public Public3 decl.type_private
               || not (Btype.type_kind_is_abstract decl)
               || Btype.has_constr_row body ->
+      (decl.type_params, body, decl.type_expansion_scope)
+  (* The manifest type of Private abstract data types without
+     private row are still considered unknown to the type system.
+     Hence, this case is caught by the following clause that also handles
+     purely abstract data types without manifest type definition. *)
+  | _ -> raise Not_found
+
+(* Find the manifest type information associated to a type through newtypes *)
+let find_type_expansion_new path env =
+  let decl = find_type path env in
+  match decl.type_manifest with
+  | Some body when Btype.lte_public New3 decl.type_private ->
       (decl.type_params, body, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
      private row are still considered unknown to the type system.
