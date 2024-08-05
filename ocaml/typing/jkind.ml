@@ -674,9 +674,9 @@ module Const = struct
       (jkind : Jane_syntax.Jkind.t) : t =
     match jkind with
     | Abbreviation { txt = name; loc } -> (
-      (* CR layouts 2.8: move this to predef *)
+      (* CR layouts v2.8: move this to predef *)
       match name with
-      (* CR layouts 3.0: remove this hack once non-null jkinds are out of alpha.
+      (* CR layouts v3.0: remove this hack once non-null jkinds are out of alpha.
          It is confusing, but preserves backwards compatibility for arrays. *)
       | "any" when Language_extension.(is_at_least Layouts Alpha) ->
         Builtin.any.jkind
