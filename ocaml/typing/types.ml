@@ -85,7 +85,7 @@ and _ row_field_gen =
 
 and abbrev_memo =
     Mnil
-  | Mcons of private_flag * Path.t * type_expr * type_expr * abbrev_memo
+  | Mcons of private_or_new_flag * Path.t * type_expr * type_expr * abbrev_memo
   | Mlink of abbrev_memo ref
 
 and any = [`some | `none | `var]
@@ -261,7 +261,7 @@ type type_declaration =
     type_kind: type_decl_kind;
     type_jkind: jkind;
     type_jkind_annotation: type_expr Jkind_types.annotation option;
-    type_private: private_flag;
+    type_private: private_or_new_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
     type_separability: Separability.t list;

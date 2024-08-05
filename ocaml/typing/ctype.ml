@@ -1172,7 +1172,7 @@ let rec find_repr p1 =
   function
     Mnil ->
       None
-  | Mcons (Public, p2, ty, _, _) when Path.same p1 p2 ->
+  | Mcons (Public3, p2, ty, _, _) when Path.same p1 p2 ->
       Some ty
   | Mcons (_, _, _, _, rem) ->
       find_repr p1 rem
@@ -1361,7 +1361,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
     type_kind = Type_abstract { reason = Abstract_def; datatype = false };
     type_jkind = jkind;
     type_jkind_annotation = jkind_annot;
-    type_private = Public;
+    type_private = Public3;
     type_manifest = manifest;
     type_variance = [];
     type_separability = [];
@@ -1815,7 +1815,7 @@ let subst env level priv abbrev oty params args body =
 let apply ?(use_current_level = false) env params body args =
   let level = if use_current_level then !current_level else generic_level in
   try
-    subst env level Public (ref Mnil) None params args body
+    subst env level Public3 (ref Mnil) None params args body
   with
     Cannot_subst -> raise Cannot_apply
 
@@ -1926,7 +1926,7 @@ let expand_abbrev_gen kind find_type_expansion env ty =
 
 (* Expand respecting privacy *)
 let expand_abbrev env ty =
-  expand_abbrev_gen Public Env.find_type_expansion env ty
+  expand_abbrev_gen Public3 Env.find_type_expansion env ty
 
 (* Expand once the head of a type *)
 let expand_head_once env ty =
@@ -2025,7 +2025,7 @@ let rec extract_concrete_typedecl env ty =
    the private abbreviation. *)
 
 let expand_abbrev_opt env ty =
-  expand_abbrev_gen Private Env.find_type_expansion_opt env ty
+  expand_abbrev_gen Private3 Env.find_type_expansion_opt env ty
 
 let safe_abbrev_opt env ty =
   let snap = Btype.snapshot () in
@@ -2499,7 +2499,7 @@ let generic_private_abbrev env path =
   try
     match Env.find_type path env with
       {type_kind = Type_abstract _;
-       type_private = Private;
+       type_private = Private3;
        type_manifest = Some body} ->
          get_level body = generic_level
     | _ -> false
@@ -3000,7 +3000,7 @@ let is_instantiable env ~for_jkind_eqn p =
   try
     let decl = Env.find_type p env in
     type_kind_is_abstract decl &&
-    decl.type_private = Public &&
+    decl.type_private = Public3 &&
     decl.type_arity = 0 &&
     decl.type_manifest = None &&
     (for_jkind_eqn || not (non_aliasable p decl))
@@ -3423,7 +3423,7 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
         let lid = concat_longident (Longident.Lident "Pkg") n in
         match Env.find_type_by_name lid env' with
         | (_, {type_arity = 0; type_kind = Type_abstract _;
-               type_private = Public; type_manifest = Some t2}) ->
+               type_private = Public3; type_manifest = Some t2}) ->
             begin match nondep_instance env' lv2 id2 t2 with
             | t -> (n, t) :: complete nl fl2
             | exception Nondep_cannot_erase _ ->
@@ -3433,7 +3433,7 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
                   raise Exit
             end
         | (_, {type_arity = 0; type_kind = Type_abstract _;
-               type_private = Public; type_manifest = None})
+               type_private = Public3; type_manifest = None})
           when allow_absent ->
             complete nl fl2
         | _ -> raise Exit
@@ -5882,7 +5882,7 @@ let rec build_subtype env (visited : transient_expr list)
           let cl_abbr, body = find_cltype_for_path env p in
           let ty =
             try
-              subst env !current_level Public abbrev None
+              subst env !current_level Public3 abbrev None
                 cl_abbr.type_params tl body
             with Cannot_subst -> assert false in
           let ty1, tl1 =
@@ -6648,14 +6648,14 @@ let nondep_type_decl env mid is_covariant decl =
           with Nondep_cannot_erase _ when is_covariant ->
             clear_hash ();
             try Some (nondep_type_rec ~expand_private:true env mid ty),
-                Private
+                Private3
             with Nondep_cannot_erase _ ->
               None, decl.type_private
     in
     clear_hash ();
     let priv =
       match tm with
-      | Some ty when Btype.has_constr_row ty -> Private
+      | Some ty when Btype.has_constr_row ty -> Private3
       | _ -> priv
     in
     { type_params = params;

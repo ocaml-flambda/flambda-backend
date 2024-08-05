@@ -1941,8 +1941,9 @@ and type_declaration ctxt f x =
      but it's been printed by the caller of this method *)
   let priv f =
     match x.ptype_private with
-    | Public -> ()
-    | Private -> pp f "@;private"
+    | Public3 -> ()
+    | New3 -> pp f "@;new"
+    | Private3 -> pp f "@;private"
   in
   let manifest f =
     match x.ptype_manifest with

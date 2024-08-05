@@ -20,6 +20,14 @@ open Asttypes
 open Types
 open Btype
 
+let unwrap_private = function
+  | Private3 -> Private
+  | Public3 -> Public
+  | New3 -> assert false
+let wrap_private = function
+  | Private -> Private3
+  | Public -> Public3
+
 (* Simplified version of Ctype.free_vars *)
 let free_vars ?(param=false) ty =
   let ret = ref TypeSet.empty in
@@ -81,7 +89,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
           type_kind = Type_record (lbls, rep);
           type_jkind = Jkind.of_type_jkind jkind;
           type_jkind_annotation = None;
-          type_private = priv;
+          type_private = wrap_private priv;
           type_manifest = None;
           type_variance = Variance.unknown_signature ~injective:true ~arity;
           type_separability = Types.Separability.default_signature ~arity;
@@ -142,7 +150,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
     let cstr_existentials, cstr_args, cstr_inlined =
       (* This is the representation of the inner record, IF there is one *)
       let record_repr = Record_inlined (cstr_tag, cstr_shape, rep) in
-      constructor_args ~current_unit decl.type_private cd_args cd_res
+      constructor_args ~current_unit (unwrap_private decl.type_private) cd_args cd_res
         Path.(Pextra_ty (ty_path, Pcstr_ty cstr_name)) record_repr
     in
     let cstr =
@@ -159,7 +167,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
         cstr_consts = !num_consts;
         cstr_nonconsts = !num_nonconsts;
         cstr_generalized = cd_res <> None;
-        cstr_private = decl.type_private;
+        cstr_private = unwrap_private decl.type_private;
         cstr_loc = cd_loc;
         cstr_attributes = cd_attributes;
         cstr_inlined;
@@ -271,5 +279,5 @@ let labels_of_type ty_path decl =
   match decl.type_kind with
   | Type_record(labels, rep) ->
       label_descrs (newgenconstr ty_path (AppArgs.of_list decl.type_params))
-        labels rep decl.type_private
+        labels rep (unwrap_private decl.type_private)
   | Type_variant _ | Type_abstract _ | Type_open -> []

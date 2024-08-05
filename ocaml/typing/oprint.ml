@@ -960,9 +960,10 @@ and print_out_type_decl kwd ppf td =
       Otyp_manifest (_, ty) -> ty
     | _ -> td.otype_type
   in
-  let print_private ppf = function
-    Asttypes.Private -> fprintf ppf " private"
-  | Asttypes.Public -> ()
+  let print_private_or_new ppf = function
+    Asttypes.Private3 -> fprintf ppf " private"
+  | Asttypes.New3 -> fprintf ppf " new"
+  | Asttypes.Public3 -> ()
   in
   let print_unboxed ppf =
     if td.otype_unboxed then fprintf ppf " [%@%@unboxed]" else ()
@@ -971,7 +972,7 @@ and print_out_type_decl kwd ppf td =
   | Otyp_abstract -> ()
   | Otyp_record lbls ->
       fprintf ppf " =%a %a"
-        print_private td.otype_private
+      print_private_or_new td.otype_private
         print_record_decl lbls
   | Otyp_sum constrs ->
     let variants fmt constrs =
@@ -979,13 +980,13 @@ and print_out_type_decl kwd ppf td =
         fprintf fmt "%a" (print_list print_out_constr
           (fun ppf -> fprintf ppf "@ | ")) constrs in
     fprintf ppf " =%a@;<1 2>%a"
-      print_private td.otype_private variants constrs
+    print_private_or_new td.otype_private variants constrs
   | Otyp_open ->
       fprintf ppf " =%a .."
-        print_private td.otype_private
+      print_private_or_new td.otype_private
   | ty ->
       fprintf ppf " =%a@;<1 2>%a"
-        print_private td.otype_private
+      print_private_or_new td.otype_private
         !out_type ty
   in
   fprintf ppf "@[<2>@[<hv 2>%t%a%a@]%t%t@]"

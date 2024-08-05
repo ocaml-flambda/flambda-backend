@@ -90,14 +90,14 @@ and strengthen_lazy_sig' ~aliasable sg p =
   | Sig_type(id, decl, rs, vis) :: rem ->
       let newdecl =
         match decl.type_manifest, decl.type_private, decl.type_kind with
-          Some _, Public, _ -> decl
-        | Some _, Private, (Type_record _ | Type_variant _) -> decl
+          Some _, Public3, _ -> decl
+        | Some _, Private3, (Type_record _ | Type_variant _) -> decl
         | _ ->
             let manif =
               Some(Btype.newgenty(Tconstr(Pdot(p, Ident.name id),
                                           AppArgs.of_list decl.type_params, ref Mnil))) in
             if Btype.type_kind_is_abstract decl then
-              { decl with type_private = Public; type_manifest = manif }
+              { decl with type_private = Public3; type_manifest = manif }
             else
               { decl with type_manifest = manif }
       in
@@ -297,15 +297,15 @@ let rec sig_make_manifest sg =
   | Sig_type (id,decl,rs,vis) :: rem ->
     let newdecl =
       match decl.type_manifest, decl.type_private, decl.type_kind with
-        Some _, Public, _ -> decl
-      | Some _, Private, (Type_record _ | Type_variant _) -> decl
+        Some _, Public3, _ -> decl
+      | Some _, Private3, (Type_record _ | Type_variant _) -> decl
       | _ ->
         let manif =
           Some (Btype.newgenty(Tconstr(Pident id, AppArgs.of_list decl.type_params, ref Mnil)))
         in
         match decl.type_kind with
         | Type_abstract _ ->
-          { decl with type_private = Public; type_manifest = manif }
+          { decl with type_private = Public3; type_manifest = manif }
         | (Type_record _ | Type_variant _ | Type_open) ->
           { decl with type_manifest = manif }
     in
@@ -632,7 +632,7 @@ and contains_type_sig env = List.iter (contains_type_item env)
 
 and contains_type_item env = function
     Sig_type (_,({type_manifest = None} |
-                 {type_kind = Type_abstract _; type_private = Private}),_, _)
+                 {type_kind = Type_abstract _; type_private = Private3}),_, _)
   | Sig_modtype _
   | Sig_typext (_, {ext_args = Cstr_record _}, _, _) ->
       (* We consider that extension constructors with an inlined
