@@ -129,3 +129,18 @@ module type M =
     val g : int s r -> int s r
   end
 |}]
+
+type t : value => value
+let f (x : 'a t) = x
+[%%expect {|
+type t : value => value
+val f : ('a : any). 'a t -> 'a t = <fun>
+|}]
+
+(* Not a datatype *)
+type 'a t
+let f (x : 'a t) = x
+[%%expect {|
+type 'a t
+val f : 'a t -> 'a t = <fun>
+|}]
