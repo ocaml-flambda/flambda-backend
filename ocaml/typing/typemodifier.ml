@@ -4,9 +4,9 @@ type modifiers =
     nullability_upper_bound : Jkind_types.Nullability.t option
   }
 
-type _ annot_type =
-  | Modifier : modifiers annot_type
-  | Mode : Mode.Alloc.Const.Option.t annot_type
+type annot_type =
+  | Modifier
+  | Mode
 
 type _ modal_axis =
   | Areality : Mode.Locality.Const.t modal_axis
@@ -19,44 +19,39 @@ type _ nonmodal_axis =
   | Externality : Jkind_types.Externality.t nonmodal_axis
   | Nullability : Jkind_types.Nullability.t nonmodal_axis
 
-type (_, _) axis =
-  | Modal : 'a modal_axis -> ('a, Mode.Alloc.Const.Option.t) axis
-  | Nonmodal : 'a nonmodal_axis -> ('a, modifiers) axis
+type _ axis =
+  | Modal : 'a modal_axis -> 'a axis
+  | Nonmodal : 'a nonmodal_axis -> 'a axis
+
+type axis_pair = Axis_pair : 'a axis * 'a -> axis_pair
 
 type error =
-  | Duplicated_axis : (_, _) axis -> error
-  | Unrecognized_modifier : 'a annot_type * string -> error
+  | Duplicated_axis : _ axis -> error
+  | Unrecognized_modifier : annot_type * string -> error
 
 exception Error of Location.t * error
-
-type axis_pair = Axis_pair : ('a, 'b) axis * 'a -> axis_pair
 
 module Str_map = Map.Make (String)
 
 let modifiers =
   let alist =
-    [ "local", Axis_pair (Modal Areality, Mode.Locality.Const.Local);
-      "global", Axis_pair (Modal Areality, Mode.Locality.Const.Global);
-      "unique", Axis_pair (Modal Uniqueness, Mode.Uniqueness.Const.Unique);
-      "shared", Axis_pair (Modal Uniqueness, Mode.Uniqueness.Const.Shared);
-      "once", Axis_pair (Modal Linearity, Mode.Linearity.Const.Once);
-      "many", Axis_pair (Modal Linearity, Mode.Linearity.Const.Many);
-      ( "nonportable",
-        Axis_pair (Modal Portability, Mode.Portability.Const.Nonportable) );
-      "portable", Axis_pair (Modal Portability, Mode.Portability.Const.Portable);
-      "contended", Axis_pair (Modal Contention, Mode.Contention.Const.Contended);
-      ( "uncontended",
-        Axis_pair (Modal Contention, Mode.Contention.Const.Uncontended) );
-      ( "maybe_null",
-        Axis_pair (Nonmodal Nullability, Jkind_types.Nullability.Maybe_null) );
-      ( "non_null",
-        Axis_pair (Nonmodal Nullability, Jkind_types.Nullability.Non_null) );
-      ( "internal",
-        Axis_pair (Nonmodal Externality, Jkind_types.Externality.Internal) );
-      ( "external64",
-        Axis_pair (Nonmodal Externality, Jkind_types.Externality.External64) );
-      ( "external_",
-        Axis_pair (Nonmodal Externality, Jkind_types.Externality.External) ) ]
+    let open Mode in
+    let open Jkind_types in
+    [ "local", Axis_pair (Modal Areality, Locality.Const.Local);
+      "global", Axis_pair (Modal Areality, Locality.Const.Global);
+      "unique", Axis_pair (Modal Uniqueness, Uniqueness.Const.Unique);
+      "shared", Axis_pair (Modal Uniqueness, Uniqueness.Const.Shared);
+      "once", Axis_pair (Modal Linearity, Linearity.Const.Once);
+      "many", Axis_pair (Modal Linearity, Linearity.Const.Many);
+      "nonportable", Axis_pair (Modal Portability, Portability.Const.Nonportable);
+      "portable", Axis_pair (Modal Portability, Portability.Const.Portable);
+      "contended", Axis_pair (Modal Contention, Contention.Const.Contended);
+      "uncontended", Axis_pair (Modal Contention, Contention.Const.Uncontended);
+      "maybe_null", Axis_pair (Nonmodal Nullability, Nullability.Maybe_null);
+      "non_null", Axis_pair (Nonmodal Nullability, Nullability.Non_null);
+      "internal", Axis_pair (Nonmodal Externality, Externality.Internal);
+      "external64", Axis_pair (Nonmodal Externality, Externality.External64);
+      "external_", Axis_pair (Nonmodal Externality, Externality.External) ]
   in
   let rec loop acc = function
     | [] -> acc
@@ -66,8 +61,8 @@ let modifiers =
 
 (* Raise an error if the user duplicated annotations along an axis, and a warning
    if they used a top. The warning is only output when annot_type is Modifier *)
-let check_annot (type a b c) ~(annot_type : a annot_type) ~(axis : (b, c) axis)
-    ~old ~(new' : b) ~(new_raw : _ Location.loc) =
+let check_annot (type a) ~(annot_type : annot_type) ~(axis : a axis) ~old
+    ~(new' : a) ~(new_raw : _ Location.loc) =
   let is_top =
     match axis, new' with
     | Modal Areality, _ -> Mode.Locality.Const.(le max new')
@@ -94,73 +89,58 @@ let check_annot (type a b c) ~(annot_type : a annot_type) ~(axis : (b, c) axis)
   | None -> ()
   | Some _ -> raise (Error (new_raw.loc, Duplicated_axis axis))
 
-let set_modal_axis (type a) ~annot_type ~(axis : a modal_axis)
-    (acc : Mode.Alloc.Const.Option.t) (modifier : a) raw :
-    Mode.Alloc.Const.Option.t =
+let set_axis (type a) ~annot_type ~(axis : a axis) (acc : modifiers)
+    (modifier : a) raw : modifiers =
   let old : a option =
     match axis with
-    | Areality -> acc.areality
-    | Uniqueness -> acc.uniqueness
-    | Linearity -> acc.linearity
-    | Portability -> acc.portability
-    | Contention -> acc.contention
+    | Modal Areality -> acc.modal_upper_bounds.areality
+    | Modal Uniqueness -> acc.modal_upper_bounds.uniqueness
+    | Modal Linearity -> acc.modal_upper_bounds.linearity
+    | Modal Portability -> acc.modal_upper_bounds.portability
+    | Modal Contention -> acc.modal_upper_bounds.contention
+    | Nonmodal Externality -> acc.externality_upper_bound
+    | Nonmodal Nullability -> acc.nullability_upper_bound
   in
-  check_annot ~annot_type ~axis:(Modal axis) ~old ~new':modifier ~new_raw:raw;
+  check_annot ~annot_type ~axis ~old ~new':modifier ~new_raw:raw;
   match axis with
-  | Areality -> { acc with areality = Some modifier }
-  | Uniqueness -> { acc with uniqueness = Some modifier }
-  | Linearity -> { acc with linearity = Some modifier }
-  | Portability -> { acc with portability = Some modifier }
-  | Contention -> { acc with contention = Some modifier }
+  | Modal axis ->
+    let modal_upper_bounds : Mode.Alloc.Const.Option.t =
+      match axis with
+      | Areality -> { acc.modal_upper_bounds with areality = Some modifier }
+      | Uniqueness -> { acc.modal_upper_bounds with uniqueness = Some modifier }
+      | Linearity -> { acc.modal_upper_bounds with linearity = Some modifier }
+      | Portability ->
+        { acc.modal_upper_bounds with portability = Some modifier }
+      | Contention -> { acc.modal_upper_bounds with contention = Some modifier }
+    in
+    { acc with modal_upper_bounds }
+  | Nonmodal Externality -> { acc with externality_upper_bound = Some modifier }
+  | Nonmodal Nullability -> { acc with nullability_upper_bound = Some modifier }
 
-let set_nonmodal_axis (type a) ~annot_type ~(axis : a nonmodal_axis)
-    (acc : modifiers) (modifier : a) raw : modifiers =
-  let old : a option =
-    match axis with
-    | Externality -> acc.externality_upper_bound
-    | Nullability -> acc.nullability_upper_bound
-  in
-  check_annot ~annot_type ~axis:(Nonmodal axis) ~old ~new':modifier ~new_raw:raw;
-  match axis with
-  | Externality -> { acc with externality_upper_bound = Some modifier }
-  | Nullability -> { acc with nullability_upper_bound = Some modifier }
-
-let transl_annots (type a) (annot_type : a annot_type) annots
-    : a =
-  let rec loop (acc : a) = function
+let transl_annots (annot_type : annot_type) annots =
+  let rec loop acc = function
     | [] -> acc
     | annot :: tl ->
-      let annot : Parsetree.mode Location.loc = annot in
-      let Mode annot_txt = annot.txt in
-      let modifiers : a =
+      let { txt = Mode annot_txt; loc } : Parsetree.mode Location.loc = annot in
+      let modifiers =
         match Str_map.find_opt annot_txt modifiers, annot_type with
-        | Some (Axis_pair (Modal axis, mode)), Mode ->
-          set_modal_axis ~annot_type ~axis acc mode annot
-        | Some (Axis_pair (Modal axis, mode)), Modifier ->
-          { acc with
-            modal_upper_bounds =
-              set_modal_axis ~annot_type ~axis acc.modal_upper_bounds mode annot
-          }
-        | Some (Axis_pair (Nonmodal axis, modifier)), Modifier ->
-          set_nonmodal_axis ~annot_type ~axis acc modifier annot
         | Some (Axis_pair (Nonmodal _, _)), Mode | None, _ ->
           raise
-            (Error (annot.loc, Unrecognized_modifier (annot_type, annot_txt)))
+            (Error (loc, Unrecognized_modifier (annot_type, annot_txt)))
+        | Some (Axis_pair (axis, mode)), _ ->
+          set_axis ~annot_type ~axis acc mode annot
       in
       loop modifiers tl
   in
-  let empty_modifiers : a =
-    match annot_type with
-    | Mode -> Mode.Alloc.Const.Option.none
-    | Modifier ->
-      { modal_upper_bounds = Mode.Alloc.Const.Option.none;
-        externality_upper_bound = None;
-        nullability_upper_bound = None
-      }
+  let empty_modifiers =
+    { modal_upper_bounds = Mode.Alloc.Const.Option.none;
+      externality_upper_bound = None;
+      nullability_upper_bound = None
+    }
   in
   loop empty_modifiers annots
 
-let transl_mode_annots = transl_annots Mode
+let transl_mode_annots annots = (transl_annots Mode annots).modal_upper_bounds
 
 let transl_modifier_annots = transl_annots Modifier
 
