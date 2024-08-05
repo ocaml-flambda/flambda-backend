@@ -25,7 +25,7 @@ type cms_infos = {
   cms_source_digest : string option;
   (* CR: cms_initial_env is likely unnecessary, as the initial_env can be reconstructed
      if we store a few relevant flags. *)
-  cms_initial_env : Env.t;
+  cms_initial_env : Env.t option;
   cms_uid_to_loc : (Shape.Uid.t * string Location.loc) Array.t;
   cms_uid_to_attributes : Parsetree.attributes Shape.Uid.Tbl.t;
   cms_impl_shape : Shape.t option; (* None for mli *)

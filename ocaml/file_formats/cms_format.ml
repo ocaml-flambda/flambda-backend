@@ -27,7 +27,7 @@ type cms_infos = {
   cms_sourcefile : string option;
   cms_builddir : string;
   cms_source_digest : Digest.t option;
-  cms_initial_env : Env.t;
+  cms_initial_env : Env.t option;
   cms_uid_to_loc : (Shape.Uid.t * string Location.loc) Array.t;
   cms_uid_to_attributes : Parsetree.attributes Shape.Uid.Tbl.t;
   cms_impl_shape : Shape.t option; (* None for mli *)
@@ -100,11 +100,14 @@ let save_cms filename modname binary_annots sourcefile initial_env shape =
        ~mode:[Open_binary] filename
        (fun _temp_file_name oc ->
         let source_digest = Option.map Digest.file sourcefile in
-        let cms_ident_occurrences =
+        let cms_ident_occurrences, cms_initial_env =
           if !Clflags.store_occurrences then
-            Cmt_format.index_occurrences binary_annots
+            let cms_ident_occurrences = Cmt_format.index_occurrences binary_annots in
+            let cms_initial_env = if Cmt_format.need_to_clear_env
+              then Env.keep_only_summary initial_env else initial_env in
+            cms_ident_occurrences, Some cms_initial_env
           else
-            [| |]
+            [| |], None
         in
         let cms_uid_to_loc, cms_uid_to_attributes =
           uid_tables_of_binary_annots binary_annots
@@ -116,8 +119,7 @@ let save_cms filename modname binary_annots sourcefile initial_env shape =
             cms_sourcefile = sourcefile;
             cms_builddir = Location.rewrite_absolute_path (Sys.getcwd ());
             cms_source_digest = source_digest;
-            cms_initial_env = if Cmt_format.need_to_clear_env
-              then Env.keep_only_summary initial_env else initial_env;
+            cms_initial_env;
             cms_uid_to_loc = cms_uid_to_loc |> Shape.Uid.Tbl.to_array;
             cms_uid_to_attributes;
             cms_impl_shape = shape;
