@@ -48,6 +48,8 @@ type privacy_mismatch =
   | Private_record_type
   | Private_extensible_variant
   | Private_row_type
+  | Private_new_type
+  | New_type
 
 type type_kind =
   | Kind_abstract
