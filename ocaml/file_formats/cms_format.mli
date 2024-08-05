@@ -22,9 +22,6 @@ type cms_infos = {
   cms_comments : (string * Location.t) list;
   cms_sourcefile : string option;
   cms_builddir : string;
-  (* CR: cms_loadpath is likely unnecessary, as the build system can provide this info.
-     It should be removed in the future. *)
-  cms_loadpath : Load_path.paths;
   cms_source_digest : string option;
   (* CR: cms_initial_env is likely unnecessary, as the initial_env can be reconstructed
      if we store a few relevant flags. *)
