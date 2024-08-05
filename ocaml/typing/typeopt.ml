@@ -398,9 +398,10 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       let decl =
         try Env.find_type p env with Not_found -> raise Missing_cmi_fallback
       in
+      let jkind = Ctype.type_jkind env scty in
       if cannot_proceed () then
         num_nodes_visited,
-        value_kind_of_value_jkind decl.type_jkind
+        value_kind_of_value_jkind jkind
       else
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         (* Default of [Pgenval] is currently safe for the missing cmi fallback
@@ -418,7 +419,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
                          ~num_nodes_visited labels rep)
         | Type_abstract _ ->
           num_nodes_visited,
-          value_kind_of_value_jkind decl.type_jkind
+          value_kind_of_value_jkind jkind
         | Type_open -> num_nodes_visited, Pgenval
     end
   | Ttuple labeled_fields ->
