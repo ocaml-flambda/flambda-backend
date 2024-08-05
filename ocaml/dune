@@ -74,11 +74,11 @@
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (preprocessor_deps parser_types.ml parser_types.mli)
  (preprocess
-  (per_module
-   ((action
-     (progn
-      (system "echo 'module MenhirLib = CamlinternalMenhirLib'")
-      (run cat %{input-file})))
+   (per_module
+     ((action
+       (progn
+         (echo "module MenhirLib = CamlinternalMenhirLib")
+         (run cat %{input-file})))
     parser)))
  (library_flags -linkall)
  (libraries flambda2_floats)
