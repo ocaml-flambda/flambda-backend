@@ -295,9 +295,9 @@ type 'a two = new 'a * 'a
 (* CR jbachurski: How to do the coercions here? *)
 let two = {
   return = (fun (type a) (x : a) -> ((x, x) :> a two));
-  map = (fun (type a b) f (t) ->
-    let (x, y) = ((t : a two) :> (a * a)) in
-    (((f x : b), (f y : b)) :> b two))
+  map = (fun (type a b) (f : a -> b) (t : a two) ->
+    let (x, y) = (t :> (a * a)) in
+    ((f x, f y) :> b two))
 }
 [%%expect{|
 type ('f : value => value) funct = {
