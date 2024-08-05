@@ -1608,7 +1608,7 @@ let temp_abbrev loc id arity uid =
        type_kind = Type_abstract { reason = Abstract_def; datatype = false };
        type_jkind = Jkind.Type.Primitive.value ~why:Object |> Jkind.of_type_jkind;
        type_jkind_annotation = None;
-       type_private = Public;
+       type_private = Public3;
        type_manifest = Some ty;
        type_variance = Variance.unknown_signature ~injective:false ~arity;
        type_separability = Types.Separability.default_signature ~arity;
@@ -1839,7 +1839,7 @@ let class_infos define_class kind
      type_kind = Type_abstract { reason = Abstract_def; datatype = false };
      type_jkind = Jkind.Type.Primitive.value ~why:Object |> Jkind.of_type_jkind;
      type_jkind_annotation = None;
-     type_private = Public;
+     type_private = Public3;
      type_manifest = Some obj_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;
      type_separability = Types.Separability.default_signature ~arity;

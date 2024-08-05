@@ -346,7 +346,7 @@ let is_fixed_type sd =
     None -> false
   | Some sty ->
       sd.ptype_kind = Ptype_abstract &&
-      sd.ptype_private = Private &&
+      sd.ptype_private = Private3 &&
       has_row_var sty
 
 (* Set the row variable to a fixed type in a private row type declaration.
@@ -2020,7 +2020,7 @@ let name_recursion sdecl id decl =
   match decl with
   | { type_kind = Type_abstract { reason = Abstract_def; datatype = false };
       type_manifest = Some ty;
-      type_private = Private; } when is_fixed_type sdecl ->
+      type_private = Private3; } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
     if Ctype.deep_occur ty ty' then
       let td = Tconstr(Path.Pident id, AppArgs.of_list decl.type_params, ref Mnil) in
@@ -2436,7 +2436,7 @@ let transl_type_extension extend env loc styext =
     match type_decl.type_kind with
     | Type_open -> begin
         match type_decl.type_private with
-        | Private when extend -> begin
+        | Private3 when extend -> begin
             match
               List.find
                 (function {pext_kind = Pext_decl _} -> true
@@ -3079,12 +3079,12 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     ) constraints;
   let sig_decl_abstract = Btype.type_kind_is_abstract sig_decl in
   let priv =
-    if sdecl.ptype_private = Private then Private else
+    if sdecl.ptype_private = Private3 then Private3 else
     if arity_ok && not sig_decl_abstract
     then sig_decl.type_private else sdecl.ptype_private
   in
   if arity_ok && not sig_decl_abstract
-  && sdecl.ptype_private = Private then
+  && sdecl.ptype_private = Private3 then
     Location.deprecated loc "spurious use of private";
   let type_kind, type_unboxed_default, type_jkind, type_jkind_annotation =
     if arity_ok then
@@ -3181,7 +3181,7 @@ let transl_package_constraint ~loc ty =
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)
     type_jkind_annotation = None;
-    type_private = Public;
+    type_private = Public3;
     type_manifest = Some ty;
     type_variance = [];
     type_separability = [];
@@ -3204,7 +3204,7 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
       type_kind = Type_abstract { reason = Abstract_def; datatype = false };
       type_jkind = jkind;
       type_jkind_annotation = jkind_annotation;
-      type_private = Public;
+      type_private = Public3;
       type_manifest = None;
       type_variance = Variance.unknown_signature ~injective ~arity;
       type_separability = Types.Separability.default_signature ~arity;

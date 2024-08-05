@@ -226,7 +226,7 @@ let mk_add_type add_type
      type_jkind = Jkind.of_type_jkind jkind;
      type_jkind_annotation = predef_jkind_annotation jkind_annotation;
      type_loc = Location.none;
-     type_private = Asttypes.Public;
+     type_private = Asttypes.Public3;
      type_manifest = manifest;
      type_variance = [];
      type_separability = [];
@@ -264,7 +264,7 @@ let build_initial_env add_type add_extension empty_env =
        type_jkind = Jkind.of_type_jkind jkind;
        type_jkind_annotation = predef_jkind_annotation jkind_annotation;
        type_loc = Location.none;
-       type_private = Asttypes.Public;
+       type_private = Asttypes.Public3;
        type_manifest = None;
        type_variance = [variance];
        type_separability = [separability];

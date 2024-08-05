@@ -1832,11 +1832,11 @@ let tree_of_type_decl id decl =
     let abstr =
       match decl.type_kind with
         Type_abstract _ ->
-          decl.type_manifest = None || decl.type_private = Private
+          decl.type_manifest = None || decl.type_private = Private3
       | Type_record _ ->
-          decl.type_private = Private
+          decl.type_private = Private3
       | Type_variant (tll, _rep) ->
-          decl.type_private = Private ||
+          decl.type_private = Private3 ||
           List.exists (fun cd -> cd.cd_res <> None) tll
       | Type_open ->
           decl.type_manifest = None
@@ -1851,7 +1851,7 @@ let tree_of_type_decl id decl =
               match decl.type_manifest with
               | None -> true
               | Some ty -> (* only abstract or private row types *)
-                  decl.type_private = Private &&
+                  decl.type_private = Private3 &&
                   Btype.is_constr_row ~allow_ident:true (Btype.row_of_type ty)
             and (co, cn) = Variance.get_upper v in
             (if not cn then Covariant else
@@ -1880,7 +1880,7 @@ let tree_of_type_decl id decl =
     match decl.type_kind with
     | Type_abstract _ ->
         begin match ty_manifest with
-        | None -> (Otyp_abstract, Public, false)
+        | None -> (Otyp_abstract, Public3, false)
         | Some ty ->
             tree_of_typexp Type ty, decl.type_private, false
         end
@@ -2357,7 +2357,7 @@ let dummy =
     type_kind = Type_abstract { reason = Abstract_def; datatype = false };
     type_jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind;
     type_jkind_annotation = None;
-    type_private = Public;
+    type_private = Public3;
     type_manifest = None;
     type_variance = [];
     type_separability = [];

@@ -26,6 +26,11 @@ open Local_store
 
 module String = Misc.Stdlib.String
 
+let unwrap_private = function
+  | Private3 -> Private
+  | Public3 -> Public
+  | New3 -> assert false
+
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
 type 'a usage_tbl = ('a -> unit) Types.Uid.Tbl.t
@@ -1534,7 +1539,7 @@ let find_module_lazy path env =
 let find_type_expansion path env =
   let decl = find_type path env in
   match decl.type_manifest with
-  | Some body when decl.type_private = Public
+  | Some body when decl.type_private = Public3
               || not (Btype.type_kind_is_abstract decl)
               || Btype.has_constr_row body ->
       (decl.type_params, body, decl.type_expansion_scope)
@@ -2071,7 +2076,7 @@ and store_constructor ~check type_decl type_id cstr_id cstr env =
                  if not (is_in_signature env) then
                    Location.prerr_warning loc
                      (Warnings.Unused_constructor(name, complaint)))
-              (constructor_usage_complaint ~rebind:false priv used));
+              (constructor_usage_complaint ~rebind:false (unwrap_private priv) used));
     end;
   end);
   Builtin_attributes.mark_alerts_used cstr.cstr_attributes;
@@ -2106,7 +2111,7 @@ and store_label ~check type_decl type_id lbl_id lbl env =
                  if not (is_in_signature env) then
                    Location.prerr_warning
                      loc (Warnings.Unused_field(name, complaint)))
-              (label_usage_complaint priv mut used))
+              (label_usage_complaint (unwrap_private priv) mut used))
   end);
   Builtin_attributes.mark_alerts_used lbl.lbl_attributes;
   { env with

@@ -810,7 +810,7 @@ let package_type_of_module_type pmty =
           err loc "parametrized types are not supported";
         if ptyp.ptype_cstrs <> [] then
           err loc "constrained types are not supported";
-        if ptyp.ptype_private <> Public then
+        if ptyp.ptype_private <> Public3 then
           err loc "private types are not supported";
 
         (* restrictions below are checked by the 'with_constraint' rule *)
@@ -3842,19 +3842,19 @@ generic_type_declaration(flag, kind):
    definition that leads to a smaller grammar (after expansion) and therefore
    a smaller automaton. *)
 nonempty_type_kind:
-  | priv = inline_private_flag
+  | priv = inline_private_or_new_flag
     ty = core_type
       { (Ptype_abstract, priv, Some ty) }
   | oty = type_synonym
-    priv = inline_private_flag
+    priv = inline_private_or_new_flag
     cs = constructor_declarations
       { (Ptype_variant cs, priv, oty) }
   | oty = type_synonym
-    priv = inline_private_flag
+    priv = inline_private_or_new_flag
     DOTDOT
       { (Ptype_open, priv, oty) }
   | oty = type_synonym
-    priv = inline_private_flag
+    priv = inline_private_or_new_flag
     LBRACE ls = label_declarations RBRACE
       { (Ptype_record ls, priv, oty) }
 ;
@@ -3864,7 +3864,7 @@ nonempty_type_kind:
 ;
 type_kind:
     /*empty*/
-      { (Ptype_abstract, Public, None) }
+      { (Ptype_abstract, Public3, None) }
   | EQUAL nonempty_type_kind
       { $2 }
 ;
@@ -4206,8 +4206,8 @@ with_constraint:
       { Pwith_modtypesubst (l, rhs) }
 ;
 with_type_binder:
-    EQUAL          { Public }
-  | EQUAL PRIVATE  { Private }
+    EQUAL          { Public3 }
+  | EQUAL PRIVATE  { Private3 }
 ;
 
 /* Polymorphic types */
@@ -4932,6 +4932,11 @@ private_flag:
 %inline inline_private_flag:
     /* empty */                                 { Public }
   | PRIVATE                                     { Private }
+;
+%inline inline_private_or_new_flag:
+    /* empty */                                 { Public3 }
+  | NEW                                         { New3 }
+  | PRIVATE                                     { Private3 }
 ;
 mutable_flag:
     /* empty */                                 { Immutable }

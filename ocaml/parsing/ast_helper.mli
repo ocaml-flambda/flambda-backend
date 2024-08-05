@@ -220,7 +220,7 @@ module Type:
     val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?text:text ->
       ?params:(core_type * (variance * injectivity)) list ->
       ?cstrs:(core_type * core_type * loc) list ->
-      ?kind:type_kind -> ?priv:private_flag -> ?manifest:core_type -> str ->
+      ?kind:type_kind -> ?priv:private_or_new_flag -> ?manifest:core_type -> str ->
       type_declaration
 
     val constructor: ?loc:loc -> ?attrs:attrs -> ?info:info ->
