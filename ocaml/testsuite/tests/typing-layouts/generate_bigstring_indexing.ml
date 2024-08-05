@@ -219,11 +219,11 @@ let bigstring_tests =
   Hlist.cartesian_product
     ([ [ { type_ = "nativeint#"
          ; conv = "Stdlib_upstream_compatible.Nativeint_u.of_int"
-         ; extra_bounds = []
+         ; extra_bounds = [ "-#1n" ]
          }
        ; { type_ = "int32#"
          ; conv = "Stdlib_upstream_compatible.Int32_u.of_int"
-         ; extra_bounds = [ "-#2147483648l"; "-#2147483647l"; "#2147483647l" ]
+         ; extra_bounds = [ "-#2147483648l"; "-#2147483647l"; "#2147483647l"; "-#1l" ]
          }
        ; { type_ = "int64#"
          ; conv = "Stdlib_upstream_compatible.Int64_u.of_int"
@@ -231,6 +231,7 @@ let bigstring_tests =
              [ "-#9223372036854775808L"
              ; "-#9223372036854775807L"
              ; "#9223372036854775807L"
+             ; "-#1L"
              ]
          }
        ]

@@ -200,6 +200,8 @@ for i = -1 to length + 1 do
 done
 ;;
 
+check_get_bounds (-#1n);;
+check_set_bounds (-#1n) x;;
 
 let of_boxed_index : int -> nativeint# = Stdlib_upstream_compatible.Nativeint_u.of_int
 let to_boxed_result : int32 -> int32 = fun x -> x
@@ -350,6 +352,8 @@ for i = -1 to length + 1 do
 done
 ;;
 
+check_get_bounds (-#1n);;
+check_set_bounds (-#1n) x;;
 
 let of_boxed_index : int -> nativeint# = Stdlib_upstream_compatible.Nativeint_u.of_int
 let to_boxed_result : int64 -> int64 = fun x -> x
@@ -500,6 +504,8 @@ for i = -1 to length + 1 do
 done
 ;;
 
+check_get_bounds (-#1n);;
+check_set_bounds (-#1n) x;;
 
 let of_boxed_index : int -> nativeint# = Stdlib_upstream_compatible.Nativeint_u.of_int
 let to_boxed_result : int32# -> int32 = Stdlib_upstream_compatible.Int32_u.to_int32
@@ -650,6 +656,8 @@ for i = -1 to length + 1 do
 done
 ;;
 
+check_get_bounds (-#1n);;
+check_set_bounds (-#1n) x;;
 
 let of_boxed_index : int -> nativeint# = Stdlib_upstream_compatible.Nativeint_u.of_int
 let to_boxed_result : int64# -> int64 = Stdlib_upstream_compatible.Int64_u.to_int64
@@ -800,6 +808,8 @@ for i = -1 to length + 1 do
 done
 ;;
 
+check_get_bounds (-#1n);;
+check_set_bounds (-#1n) x;;
 
 let of_boxed_index : int -> int32# = Stdlib_upstream_compatible.Int32_u.of_int
 let to_boxed_result : int -> int = fun x -> x
@@ -956,6 +966,8 @@ check_get_bounds (-#2147483647l);;
 check_set_bounds (-#2147483647l) x;;
 check_get_bounds (#2147483647l);;
 check_set_bounds (#2147483647l) x;;
+check_get_bounds (-#1l);;
+check_set_bounds (-#1l) x;;
 
 let of_boxed_index : int -> int32# = Stdlib_upstream_compatible.Int32_u.of_int
 let to_boxed_result : int32 -> int32 = fun x -> x
@@ -1112,6 +1124,8 @@ check_get_bounds (-#2147483647l);;
 check_set_bounds (-#2147483647l) x;;
 check_get_bounds (#2147483647l);;
 check_set_bounds (#2147483647l) x;;
+check_get_bounds (-#1l);;
+check_set_bounds (-#1l) x;;
 
 let of_boxed_index : int -> int32# = Stdlib_upstream_compatible.Int32_u.of_int
 let to_boxed_result : int64 -> int64 = fun x -> x
@@ -1268,6 +1282,8 @@ check_get_bounds (-#2147483647l);;
 check_set_bounds (-#2147483647l) x;;
 check_get_bounds (#2147483647l);;
 check_set_bounds (#2147483647l) x;;
+check_get_bounds (-#1l);;
+check_set_bounds (-#1l) x;;
 
 let of_boxed_index : int -> int32# = Stdlib_upstream_compatible.Int32_u.of_int
 let to_boxed_result : int32# -> int32 = Stdlib_upstream_compatible.Int32_u.to_int32
@@ -1424,6 +1440,8 @@ check_get_bounds (-#2147483647l);;
 check_set_bounds (-#2147483647l) x;;
 check_get_bounds (#2147483647l);;
 check_set_bounds (#2147483647l) x;;
+check_get_bounds (-#1l);;
+check_set_bounds (-#1l) x;;
 
 let of_boxed_index : int -> int32# = Stdlib_upstream_compatible.Int32_u.of_int
 let to_boxed_result : int64# -> int64 = Stdlib_upstream_compatible.Int64_u.to_int64
@@ -1580,6 +1598,8 @@ check_get_bounds (-#2147483647l);;
 check_set_bounds (-#2147483647l) x;;
 check_get_bounds (#2147483647l);;
 check_set_bounds (#2147483647l) x;;
+check_get_bounds (-#1l);;
+check_set_bounds (-#1l) x;;
 
 let of_boxed_index : int -> int64# = Stdlib_upstream_compatible.Int64_u.of_int
 let to_boxed_result : int -> int = fun x -> x
@@ -1736,6 +1756,8 @@ check_get_bounds (-#9223372036854775807L);;
 check_set_bounds (-#9223372036854775807L) x;;
 check_get_bounds (#9223372036854775807L);;
 check_set_bounds (#9223372036854775807L) x;;
+check_get_bounds (-#1L);;
+check_set_bounds (-#1L) x;;
 
 let of_boxed_index : int -> int64# = Stdlib_upstream_compatible.Int64_u.of_int
 let to_boxed_result : int32 -> int32 = fun x -> x
@@ -1892,6 +1914,8 @@ check_get_bounds (-#9223372036854775807L);;
 check_set_bounds (-#9223372036854775807L) x;;
 check_get_bounds (#9223372036854775807L);;
 check_set_bounds (#9223372036854775807L) x;;
+check_get_bounds (-#1L);;
+check_set_bounds (-#1L) x;;
 
 let of_boxed_index : int -> int64# = Stdlib_upstream_compatible.Int64_u.of_int
 let to_boxed_result : int64 -> int64 = fun x -> x
@@ -2048,6 +2072,8 @@ check_get_bounds (-#9223372036854775807L);;
 check_set_bounds (-#9223372036854775807L) x;;
 check_get_bounds (#9223372036854775807L);;
 check_set_bounds (#9223372036854775807L) x;;
+check_get_bounds (-#1L);;
+check_set_bounds (-#1L) x;;
 
 let of_boxed_index : int -> int64# = Stdlib_upstream_compatible.Int64_u.of_int
 let to_boxed_result : int32# -> int32 = Stdlib_upstream_compatible.Int32_u.to_int32
@@ -2204,6 +2230,8 @@ check_get_bounds (-#9223372036854775807L);;
 check_set_bounds (-#9223372036854775807L) x;;
 check_get_bounds (#9223372036854775807L);;
 check_set_bounds (#9223372036854775807L) x;;
+check_get_bounds (-#1L);;
+check_set_bounds (-#1L) x;;
 
 let of_boxed_index : int -> int64# = Stdlib_upstream_compatible.Int64_u.of_int
 let to_boxed_result : int64# -> int64 = Stdlib_upstream_compatible.Int64_u.to_int64
@@ -2360,3 +2388,5 @@ check_get_bounds (-#9223372036854775807L);;
 check_set_bounds (-#9223372036854775807L) x;;
 check_get_bounds (#9223372036854775807L);;
 check_set_bounds (#9223372036854775807L) x;;
+check_get_bounds (-#1L);;
+check_set_bounds (-#1L) x;;
