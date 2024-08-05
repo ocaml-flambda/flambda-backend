@@ -2088,7 +2088,7 @@ let rec intersection_or_error ~reason (t1 : t) (t2 : t) =
     | Some jkind ->
       Ok
         { jkind = Type jkind;
-          history;
+          history = combine_histories reason t1 t2;
           has_warned = t1.has_warned || t2.has_warned
         })
   | ( Arrow { args = args1; result = result1 },
@@ -2106,7 +2106,7 @@ and union_or_error ~reason (t1 : t) (t2 : t) =
     (* Union is infallible at type jkinds *)
     Ok
       { jkind = Type (Type.Jkind_desc.union ty1.jkind ty2.jkind);
-        history;
+        history = combine_histories reason t1 t2;
         has_warned = ty1.has_warned || ty2.has_warned
       }
   | ( Arrow { args = args1; result = result1 },
