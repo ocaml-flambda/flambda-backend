@@ -281,3 +281,36 @@ Error: Signature mismatch:
          type t
        A private newtype would be revealed.
 |}]
+
+
+(* New datatypes *)
+
+type ('f : value => value) funct = {
+  return : 'a. 'a -> 'a 'f;
+  map : 'a 'b. ('a -> 'b) -> ('a 'f -> 'b 'f)
+}
+
+type 'a two = new 'a * 'a
+
+(* CR jbachurski: How to do the coercions here? *)
+let two = {
+  return = (fun (type a) (x : a) -> ((x, x) :> a two));
+  map = (fun (type a b) f (t) ->
+    let (x, y) = ((t : a two) :> (a * a)) in
+    (((f x : b), (f y : b)) :> b two))
+}
+[%%expect{|
+type ('f : value => value) funct = {
+  return : 'a. 'a -> 'a 'f;
+  map : 'a 'b. ('a -> 'b) -> 'a 'f -> 'b 'f;
+}
+type 'a two = new 'a * 'a
+val two : two funct = {return = <fun>; map = <fun>}
+|}]
+
+let x = two.return 2
+let y = two.map (fun x -> x + 1)
+[%%expect{|
+val x : int two = (2, 2)
+val y : int two -> int two = <fun>
+|}]
