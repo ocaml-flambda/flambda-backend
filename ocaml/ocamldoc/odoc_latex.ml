@@ -594,7 +594,7 @@ class latex =
         self#latex_of_type_params fmt2 mod_name t;
         (match t.ty_parameters with [] -> () | _ -> ps fmt2 " ");
         ps fmt2 s_name;
-        let priv = t.ty_private = Asttypes.Private in
+        let priv = t.ty_private = Asttypes.Private3 in
         (
          match t.ty_manifest with
          | Some (Other typ) ->

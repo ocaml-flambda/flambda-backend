@@ -254,6 +254,8 @@ module Type :
   sig
     type private_flag = Odoc_type.private_flag =
       Private | Public
+    type private_or_new_flag = Odoc_type.private_or_new_flag =
+      Private3 | New3 | Public3
 
     (** Description of a record type field. *)
     type record_field = Odoc_type.record_field =
@@ -304,7 +306,7 @@ module Type :
           ty_parameters : (Types.type_expr * Types.Variance.t) list ;
                     (** type parameters: (type, variance) *)
           ty_kind : type_kind; (** Type kind. *)
-          ty_private : private_flag; (** Private or public type. *)
+          ty_private : private_or_new_flag; (** Private, new or public type. *)
           ty_manifest : type_manifest option ;
           mutable ty_loc : location ;
           mutable ty_code : string option;

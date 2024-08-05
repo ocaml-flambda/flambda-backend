@@ -22,6 +22,7 @@
 module Name = Odoc_name
 
 type private_flag = Asttypes.private_flag = Private | Public
+type private_or_new_flag = Asttypes.private_or_new_flag = Private3 | New3 | Public3
 
 type record_field = {
   rf_name : string;
@@ -65,7 +66,7 @@ type t_type = {
   mutable ty_info : Odoc_types.info option;
   ty_parameters : (Types.type_expr * Types.Variance.t) list;
   ty_kind : type_kind;
-  ty_private : private_flag;
+  ty_private : private_or_new_flag;
   ty_manifest : type_manifest option;
   mutable ty_loc : Odoc_types.location;
   mutable ty_code : string option;
