@@ -665,7 +665,7 @@ let extra_rhs_core_type ct ~pos =
   let docs = rhs_info pos in
   { ct with ptyp_attributes = add_info_attrs docs ct.ptyp_attributes }
 
-let mklb first ~loc (p, e, typ, is_pun) attrs =
+let mklb first ~loc (p, e, typ, modes, is_pun) attrs =
   {
     lb_pattern = p;
     lb_expression = e;
