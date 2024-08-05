@@ -2142,7 +2142,7 @@ let rec jkind_of_decl_unapplied env (decl : type_declaration) =
   (* FIXME jbachurski: Shouldn't we look at type_variance and type_separability here? *)
   match decl.type_arity with
   | 0 -> Some decl.type_jkind
-  | _ when is_datatype_decl_kind decl.type_kind ->
+  | _ when is_datatype_decl_kind decl.type_kind || decl.type_private = New3 ->
     Some (Jkind.of_arrow
       ~history:(Projection {
         reason = Unapplied;
