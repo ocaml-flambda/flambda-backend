@@ -193,7 +193,7 @@ and out_type_decl =
   { otype_name: string;
     otype_params: out_type_param list;
     otype_type: out_type;
-    otype_private: Asttypes.private_flag;
+    otype_private: Asttypes.private_or_new_flag;
 
     (* Some <=> we should print this annotation;
        see Note [When to print jkind annotations] in Printtyp, Case (C1) *)

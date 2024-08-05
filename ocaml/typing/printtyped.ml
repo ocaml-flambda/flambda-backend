@@ -118,6 +118,12 @@ let fmt_private_flag f x =
   | Public -> fprintf f "Public"
   | Private -> fprintf f "Private"
 
+let fmt_private_or_new_flag f x =
+  match x with
+  | Public3 -> fprintf f "Public"
+  | New3 -> fprintf f "New"
+  | Private3 -> fprintf f "Private"
+
 let line i f s (*...*) =
   fprintf f "%s" (String.make (2*i) ' ');
   fprintf f s (*...*)
@@ -638,7 +644,7 @@ and type_declaration i ppf x =
   list (i+1) core_type_x_core_type_x_location ppf x.typ_cstrs;
   line i ppf "ptype_kind =\n";
   type_kind (i+1) ppf x.typ_kind;
-  line i ppf "ptype_private = %a\n" fmt_private_flag x.typ_private;
+  line i ppf "ptype_private = %a\n" fmt_private_or_new_flag x.typ_private;
   line i ppf "ptype_manifest =\n";
   option (i+1) core_type ppf x.typ_manifest;
 

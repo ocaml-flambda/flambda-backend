@@ -195,7 +195,7 @@ and fixed_explanation =
 and abbrev_memo =
   | Mnil (** No known abbreviation *)
 
-  | Mcons of private_flag * Path.t * type_expr * type_expr * abbrev_memo
+  | Mcons of private_or_new_flag * Path.t * type_expr * type_expr * abbrev_memo
   (** Found one abbreviation.
       A valid abbreviation should be at least as visible and reachable by the
       same path.
@@ -530,7 +530,7 @@ type type_declaration =
     for an e.g. local abstract type or an inlined record), then this field
     can safely be [None]. It's used only for printing and in untypeast. *)
 
-    type_private: private_flag;
+    type_private: private_or_new_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
     (* covariant, contravariant, weakly contravariant, injective *)
