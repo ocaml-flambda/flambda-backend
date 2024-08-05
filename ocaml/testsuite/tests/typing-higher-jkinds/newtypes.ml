@@ -101,3 +101,183 @@ Line 1, characters 0-25:
     ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Cannot define a non-abstract new type
 |}]
+
+
+(* Inclusion checks *)
+
+module M : sig
+  type t = new int
+end = struct
+  type t = new int
+end
+[%%expect {|
+Line 1:
+Error: In module M:
+       Modules do not match:
+         sig type t = M.t end
+       is not included in
+         sig type t = new int end
+       In module M:
+       Type declarations do not match:
+         type t = M.t
+       is not included in
+         type t = new int
+       The type M.t is not equal to the type int
+|}]
+
+module M : sig
+  type t = new int
+end = struct
+  type t = int
+end
+[%%expect {|
+Line 1:
+Error: In module M:
+       Modules do not match:
+         sig type t = M.t end
+       is not included in
+         sig type t = new int end
+       In module M:
+       Type declarations do not match:
+         type t = M.t
+       is not included in
+         type t = new int
+       The type M.t is not equal to the type int
+|}]
+
+module M : sig
+  type t = new int
+end = struct
+  type t = new int
+end
+[%%expect {|
+Line 1:
+Error: In module M:
+       Modules do not match:
+         sig type t = M.t end
+       is not included in
+         sig type t = new int end
+       In module M:
+       Type declarations do not match:
+         type t = M.t
+       is not included in
+         type t = new int
+       The type M.t is not equal to the type int
+|}]
+
+module M : sig
+  type t = new int
+end = struct
+  type t = private int
+end
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = private int
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = private int end
+       is not included in
+         sig type t = new int end
+       Type declarations do not match:
+         type t = private int
+       is not included in
+         type t = new int
+       A private newtype would be revealed.
+|}]
+
+module M : sig
+  type t = new int
+end = struct
+  type t
+end
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t end
+       is not included in
+         sig type t = new int end
+       Type declarations do not match:
+         type t
+       is not included in
+         type t = new int
+       The type t is not equal to the type int
+|}]
+
+module M : sig
+  type t = int
+end = struct
+  type t = new int
+end
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = new int
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = new int end
+       is not included in
+         sig type t = int end
+       Type declarations do not match:
+         type t = new int
+       is not included in
+         type t = int
+       A private newtype would be revealed.
+|}]
+
+module M : sig
+  type t = new int
+end = struct
+  type t = new int
+end
+[%%expect {|
+Line 1:
+Error: In module M:
+       Modules do not match:
+         sig type t = M.t end
+       is not included in
+         sig type t = new int end
+       In module M:
+       Type declarations do not match:
+         type t = M.t
+       is not included in
+         type t = new int
+       The type M.t is not equal to the type int
+|}]
+
+module M : sig
+  type t = private int
+end = struct
+  type t = new int
+end
+[%%expect {|
+module M : sig type t = private int end
+|}]
+
+module M : sig
+  type t
+end = struct
+  type t = new int
+end
+[%%expect {|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = new int
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = new int end
+       is not included in
+         sig type t end
+       Type declarations do not match:
+         type t = new int
+       is not included in
+         type t
+       A private newtype would be revealed.
+|}]

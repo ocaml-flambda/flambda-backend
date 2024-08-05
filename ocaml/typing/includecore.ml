@@ -254,6 +254,8 @@ type privacy_mismatch =
   | Private_record_type
   | Private_extensible_variant
   | Private_row_type
+  | Private_new_type
+  | New_type
 
 type type_kind =
   | Kind_abstract
@@ -413,6 +415,8 @@ let report_privacy_mismatch ppf err =
     | Private_record_type        -> true,  "record constructor"
     | Private_extensible_variant -> true,  "extensible variant"
     | Private_row_type           -> true,  "row type"
+    | Private_new_type           -> true,  "newtype"
+    | New_type                   -> true,  "newtype"
   in Format.fprintf ppf "%s %s would be revealed."
        (if singular then "A private" else "Private")
        item
@@ -960,7 +964,6 @@ end
 (* Inclusion between "private" annotations *)
 let privacy_mismatch env decl1 decl2 =
   match decl1.type_private, decl2.type_private with
-  (* CR jbachurski: Fill in *)
   | Private3, Public3 -> begin
       match decl1.type_kind, decl2.type_kind with
       | Type_record  _, Type_record  _ -> Some Private_record_type
@@ -987,6 +990,8 @@ let privacy_mismatch env decl1 decl2 =
       | _, _ ->
           None
     end
+  | Private3, New3 -> Some Private_new_type
+  | New3, Public3 -> Some New_type
   | _, _ ->
       None
 
