@@ -2015,6 +2015,17 @@ let rec extract_concrete_typedecl env ty =
   | Tvar _ | Tunivar _ -> May_have_typedecl
   | Tlink _ | Tsubst _ -> assert false
 
+
+let expand_abbrev_new env ty =
+  expand_abbrev_gen New3 Env.find_type_expansion_new env ty
+
+let safe_abbrev_new env ty =
+  let snap = Btype.snapshot () in
+  try ignore (expand_abbrev_new env ty); true
+  with Cannot_expand | Escape _ ->
+    Btype.backtrack snap;
+    false
+
 (* Implementing function [expand_head_opt], the compiler's own version of
    [expand_head] used for type-based optimisations.
    [expand_head_opt] uses [Env.find_type_expansion_opt] to access the
@@ -2499,9 +2510,13 @@ let generic_abbrev env path =
   try
     let (_, body, _) = Env.find_type_expansion path env in
     get_level body = generic_level
-  with
-    Not_found ->
-      false
+  with Not_found -> false
+
+let generic_new_abbrev env path =
+  try
+    let (_, body, _) = Env.find_type_expansion_new path env in
+    get_level body = generic_level
+  with Not_found -> false
 
 let generic_private_abbrev env path =
   try
@@ -6068,11 +6083,11 @@ let rec subtype_rec env trace t1 t2 cstrs =
     | (Tconstr(p1, Unapplied, _), Tconstr(p2, Unapplied, _)) when Path.same p1 p2 ->
         cstrs
     | (Tconstr(p1, _tl1, _abbrev1), _)
-      when generic_abbrev env p1 && safe_abbrev env t1 ->
-        subtype_rec env trace (expand_abbrev env t1) t2 cstrs
+      when generic_new_abbrev env p1 && safe_abbrev_new env t1 ->
+        subtype_rec env trace (expand_abbrev_new env t1) t2 cstrs
     | (_, Tconstr(p2, _tl2, _abbrev2))
-      when generic_abbrev env p2 && safe_abbrev env t2 ->
-        subtype_rec env trace t1 (expand_abbrev env t2) cstrs
+      when generic_new_abbrev env p2 && safe_abbrev_new env t2 ->
+        subtype_rec env trace t1 (expand_abbrev_new env t2) cstrs
     | (Tconstr(p1, tl1, _), Tconstr(p2, tl2, _)) when Path.same p1 p2 ->
         begin try
           let var = Env.find_type p1 env |> app_variance_of_decl in
