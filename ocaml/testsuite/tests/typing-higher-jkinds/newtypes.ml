@@ -67,20 +67,16 @@ Error: This expression cannot be coerced to type 'a l' list; it has type
 
 type 'a t = new { foo : 'a }
 [%%expect {|
-type 'a l = new int * 'a
-Line 2, characters 10-11:
-2 | let x1 = (x :> _ l)
-              ^
-Error: This expression cannot be coerced to type 'a l; it has type int * int
-       but is here used with type 'a l
+Line 1, characters 0-28:
+1 | type 'a t = new { foo : 'a }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Cannot define a non-abstract new type
 |}]
 
 type 'a t = new Foo | Bar
 [%%expect {|
-type 'a l = new int * 'a
-Line 2, characters 10-11:
-2 | let x1 = (x :> _ l)
-              ^
-Error: This expression cannot be coerced to type 'a l; it has type int * int
-       but is here used with type 'a l
+Line 1, characters 0-25:
+1 | type 'a t = new Foo | Bar
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Cannot define a non-abstract new type
 |}]
