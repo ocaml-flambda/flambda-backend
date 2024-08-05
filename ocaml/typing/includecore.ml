@@ -960,7 +960,8 @@ end
 (* Inclusion between "private" annotations *)
 let privacy_mismatch env decl1 decl2 =
   match decl1.type_private, decl2.type_private with
-  | Private, Public -> begin
+  (* CR jbachurski: Fill in *)
+  | Private3, Public3 -> begin
       match decl1.type_kind, decl2.type_kind with
       | Type_record  _, Type_record  _ -> Some Private_record_type
       | Type_variant _, Type_variant _ -> Some Private_variant_type
@@ -1102,7 +1103,7 @@ let type_manifest env ty1 params1 ty2 params2 priv2 kind2 =
   | _ -> begin
       let is_private_abbrev_2 =
         match priv2, kind2 with
-        | Private, Type_abstract _ -> begin
+        | Private3, Type_abstract _ -> begin
             (* Same checks as the [when] guards from above, inverted *)
             match get_desc ty2' with
             | Tvariant row ->
@@ -1195,7 +1196,7 @@ let type_declarations' ?(equality = false) ~loc env ~mark name
             List.iter (Env.mark_constructor_used usage) cstrs
           in
           let usage : Env.constructor_usage =
-            if decl2.type_private = Public then Env.Exported
+            if decl2.type_private = Public3 then Env.Exported
             else Env.Exported_private
           in
           mark usage cstrs1;
@@ -1214,7 +1215,7 @@ let type_declarations' ?(equality = false) ~loc env ~mark name
             List.iter (Env.mark_label_used usage) lbls
           in
           let usage : Env.label_usage =
-            if decl2.type_private = Public then Env.Exported
+            if decl2.type_private = Public3 then Env.Exported
             else Env.Exported_private
           in
           mark usage labels1;
@@ -1230,9 +1231,9 @@ let type_declarations' ?(equality = false) ~loc env ~mark name
   if err <> None then err else
   let abstr = Btype.type_kind_is_abstract decl2 && decl2.type_manifest = None in
   let need_variance =
-    abstr || decl1.type_private = Private || decl1.type_kind = Type_open in
+    abstr || decl1.type_private = Private3 || decl1.type_kind = Type_open in
   if not need_variance then None else
-  let abstr = abstr || decl2.type_private = Private in
+  let abstr = abstr || decl2.type_private = Private3 in
   let opn = decl2.type_kind = Type_open && decl2.type_manifest = None in
   let constrained ty = not (Btype.is_Tvar ty) in
   if List.for_all2

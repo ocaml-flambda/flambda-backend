@@ -925,7 +925,7 @@ and type_declaration =
     typ_type: Types.type_declaration;
     typ_cstrs: (core_type * core_type * Location.t) list;
     typ_kind: type_kind;
-    typ_private: private_flag;
+    typ_private: private_or_new_flag;
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attributes;
