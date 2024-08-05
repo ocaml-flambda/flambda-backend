@@ -120,7 +120,7 @@ let save_cms filename modname binary_annots sourcefile initial_env shape =
             cms_source_digest = source_digest;
             cms_initial_env = if Cmt_format.need_to_clear_env
               then Env.keep_only_summary initial_env else initial_env;
-            cms_uid_to_loc = cms_uid_to_loc |> Shape.Uid.Tbl.to_list |> Array.of_list;
+            cms_uid_to_loc = cms_uid_to_loc |> Shape.Uid.Tbl.to_array;
             cms_uid_to_attributes;
             cms_impl_shape = shape;
             cms_ident_occurrences
