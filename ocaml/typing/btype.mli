@@ -227,6 +227,7 @@ val unmark_class_signature: class_signature -> unit
 
 (**** Memorization of abbreviation expansion ****)
 
+val lte_public : private_or_new_flag -> private_or_new_flag -> bool
 val find_expans: private_or_new_flag -> Path.t -> abbrev_memo -> type_expr option
         (* Look up a memorized abbreviation *)
 val cleanup_abbrev: unit -> unit
