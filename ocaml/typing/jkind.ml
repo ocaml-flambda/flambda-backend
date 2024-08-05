@@ -358,7 +358,7 @@ module Const = struct
       nullability_upper_bound = nullability
     }
 
-  module Primitive = struct
+  module Builtin = struct
     type nonrec t =
       { jkind : t;
         name : string
@@ -580,7 +580,7 @@ module Const = struct
            (Some [])
 
     (** Write [actual] in terms of [base] *)
-    let convert_with_base ~(base : Primitive.t) actual =
+    let convert_with_base ~(base : Builtin.t) actual =
       let matching_layouts =
         Layout.Const.equal base.jkind.layout actual.layout
       in
@@ -612,7 +612,7 @@ module Const = struct
          follow the [mod]. *)
       let simplest =
         (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
-        (if allow_null then Primitive.all else Primitive.all_non_null)
+        (if allow_null then Builtin.all else Builtin.all_non_null)
         |> List.filter_map (fun base -> convert_with_base ~base jkind)
         |> select_simplest
       in
@@ -677,8 +677,8 @@ module Const = struct
     |> !Oprint.out_jkind_const ppf
 
   let of_attribute : Builtin_attributes.jkind_attribute -> t = function
-    | Immediate -> Primitive.immediate.jkind
-    | Immediate64 -> Primitive.immediate64.jkind
+    | Immediate -> Builtin.immediate.jkind
+    | Immediate64 -> Builtin.immediate64.jkind
 
   module ModeParser = struct
     type mode =
@@ -722,19 +722,19 @@ module Const = struct
       (* CR layouts 3.0: remove this hack once non-null jkinds are out of alpha.
          It is confusing, but preserves backwards compatibility for arrays. *)
       | "any" when Language_extension.(is_at_least Layouts Alpha) ->
-        Primitive.any.jkind
-      | "any" -> Primitive.any_non_null.jkind
-      | "any_non_null" -> Primitive.any_non_null.jkind
-      | "value_or_null" -> Primitive.value_or_null.jkind
-      | "value" -> Primitive.value.jkind
-      | "void" -> Primitive.void.jkind
-      | "immediate64" -> Primitive.immediate64.jkind
-      | "immediate" -> Primitive.immediate.jkind
-      | "float64" -> Primitive.float64.jkind
-      | "float32" -> Primitive.float32.jkind
-      | "word" -> Primitive.word.jkind
-      | "bits32" -> Primitive.bits32.jkind
-      | "bits64" -> Primitive.bits64.jkind
+        Builtin.any.jkind
+      | "any" -> Builtin.any_non_null.jkind
+      | "any_non_null" -> Builtin.any_non_null.jkind
+      | "value_or_null" -> Builtin.value_or_null.jkind
+      | "value" -> Builtin.value.jkind
+      | "void" -> Builtin.void.jkind
+      | "immediate64" -> Builtin.immediate64.jkind
+      | "immediate" -> Builtin.immediate.jkind
+      | "float64" -> Builtin.float64.jkind
+      | "float32" -> Builtin.float32.jkind
+      | "word" -> Builtin.word.jkind
+      | "bits32" -> Builtin.bits32.jkind
+      | "bits64" -> Builtin.bits64.jkind
       | _ -> raise ~loc (Unknown_jkind jkind))
     | Mod (jkind, modes) ->
       let base = of_user_written_annotation_unchecked_level jkind in
@@ -940,18 +940,18 @@ module Jkind_desc = struct
       },
       sort )
 
-  module Primitive = struct
+  module Builtin = struct
     let any = max
 
-    let any_non_null = of_const Const.Primitive.any_non_null.jkind
+    let any_non_null = of_const Const.Builtin.any_non_null.jkind
 
-    let value_or_null = of_const Const.Primitive.value_or_null.jkind
+    let value_or_null = of_const Const.Builtin.value_or_null.jkind
 
-    let value = of_const Const.Primitive.value.jkind
+    let value = of_const Const.Builtin.value.jkind
 
-    let void = of_const Const.Primitive.void.jkind
+    let void = of_const Const.Builtin.void.jkind
 
-    let immutable_data = of_const Const.Primitive.immutable_data.jkind
+    let immutable_data = of_const Const.Builtin.immutable_data.jkind
 
     (* [immediate64] describes types that are stored directly (no indirection)
        on 64-bit platforms but indirectly on 32-bit platforms. The key question:
@@ -983,19 +983,19 @@ module Jkind_desc = struct
        argument. But the arguments that we expect here will have no trouble
        meeting the conditions.
     *)
-    let immediate64 = of_const Const.Primitive.immediate64.jkind
+    let immediate64 = of_const Const.Builtin.immediate64.jkind
 
-    let immediate = of_const Const.Primitive.immediate.jkind
+    let immediate = of_const Const.Builtin.immediate.jkind
 
-    let float64 = of_const Const.Primitive.float64.jkind
+    let float64 = of_const Const.Builtin.float64.jkind
 
-    let float32 = of_const Const.Primitive.float32.jkind
+    let float32 = of_const Const.Builtin.float32.jkind
 
-    let word = of_const Const.Primitive.word.jkind
+    let word = of_const Const.Builtin.word.jkind
 
-    let bits32 = of_const Const.Primitive.bits32.jkind
+    let bits32 = of_const Const.Builtin.bits32.jkind
 
-    let bits64 = of_const Const.Primitive.bits64.jkind
+    let bits64 = of_const Const.Builtin.bits64.jkind
   end
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
@@ -1050,7 +1050,7 @@ let fresh_jkind jkind ~why =
 (******************************)
 (* constants *)
 
-module Primitive = struct
+module Builtin = struct
   let any_dummy_jkind =
     { jkind = Jkind_desc.max;
       history = Creation (Any_creation Dummy_jkind);
@@ -1061,53 +1061,53 @@ module Primitive = struct
   let any ~(why : History.any_creation_reason) =
     match why with
     | Dummy_jkind -> any_dummy_jkind (* share this one common case *)
-    | _ -> fresh_jkind Jkind_desc.Primitive.any ~why:(Any_creation why)
+    | _ -> fresh_jkind Jkind_desc.Builtin.any ~why:(Any_creation why)
 
   let any_non_null ~why =
-    fresh_jkind Jkind_desc.Primitive.any_non_null
+    fresh_jkind Jkind_desc.Builtin.any_non_null
       ~why:(Any_non_null_creation why)
 
   let value_v1_safety_check =
-    { jkind = Jkind_desc.Primitive.value_or_null;
+    { jkind = Jkind_desc.Builtin.value_or_null;
       history = Creation (Value_or_null_creation V1_safety_check);
       has_warned = false
     }
 
-  let void ~why = fresh_jkind Jkind_desc.Primitive.void ~why:(Void_creation why)
+  let void ~why = fresh_jkind Jkind_desc.Builtin.void ~why:(Void_creation why)
 
   let value_or_null ~why =
     match (why : History.value_or_null_creation_reason) with
     | V1_safety_check -> value_v1_safety_check
     | _ ->
-      fresh_jkind Jkind_desc.Primitive.value_or_null
+      fresh_jkind Jkind_desc.Builtin.value_or_null
         ~why:(Value_or_null_creation why)
 
   let value ~(why : History.value_creation_reason) =
-    fresh_jkind Jkind_desc.Primitive.value ~why:(Value_creation why)
+    fresh_jkind Jkind_desc.Builtin.value ~why:(Value_creation why)
 
   let immutable_data ~why =
-    fresh_jkind Jkind_desc.Primitive.immutable_data
+    fresh_jkind Jkind_desc.Builtin.immutable_data
       ~why:(Immutable_data_creation why)
 
   let immediate64 ~why =
-    fresh_jkind Jkind_desc.Primitive.immediate64 ~why:(Immediate64_creation why)
+    fresh_jkind Jkind_desc.Builtin.immediate64 ~why:(Immediate64_creation why)
 
   let immediate ~why =
-    fresh_jkind Jkind_desc.Primitive.immediate ~why:(Immediate_creation why)
+    fresh_jkind Jkind_desc.Builtin.immediate ~why:(Immediate_creation why)
 
   let float64 ~why =
-    fresh_jkind Jkind_desc.Primitive.float64 ~why:(Float64_creation why)
+    fresh_jkind Jkind_desc.Builtin.float64 ~why:(Float64_creation why)
 
   let float32 ~why =
-    fresh_jkind Jkind_desc.Primitive.float32 ~why:(Float32_creation why)
+    fresh_jkind Jkind_desc.Builtin.float32 ~why:(Float32_creation why)
 
-  let word ~why = fresh_jkind Jkind_desc.Primitive.word ~why:(Word_creation why)
+  let word ~why = fresh_jkind Jkind_desc.Builtin.word ~why:(Word_creation why)
 
   let bits32 ~why =
-    fresh_jkind Jkind_desc.Primitive.bits32 ~why:(Bits32_creation why)
+    fresh_jkind Jkind_desc.Builtin.bits32 ~why:(Bits32_creation why)
 
   let bits64 ~why =
-    fresh_jkind Jkind_desc.Primitive.bits64 ~why:(Bits64_creation why)
+    fresh_jkind Jkind_desc.Builtin.bits64 ~why:(Bits64_creation why)
 end
 
 let add_mode_crossing t =
@@ -1238,13 +1238,13 @@ let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
 
 let for_boxed_record ~all_void =
   if all_void
-  then Primitive.immediate ~why:Empty_record
-  else Primitive.value ~why:Boxed_record
+  then Builtin.immediate ~why:Empty_record
+  else Builtin.value ~why:Boxed_record
 
 let for_boxed_variant ~all_voids =
   if all_voids
-  then Primitive.immediate ~why:Enumeration
-  else Primitive.value ~why:Boxed_variant
+  then Builtin.immediate ~why:Enumeration
+  else Builtin.value ~why:Boxed_variant
 
 let for_arrow =
   fresh_jkind
@@ -1896,7 +1896,7 @@ let is_void_defaulting = function
 
 (* This doesn't do any mutation because mutating a sort variable can't make it
    any, and modal upper bounds are constant. *)
-let is_max jkind = sub Primitive.any_dummy_jkind jkind
+let is_max jkind = sub Builtin.any_dummy_jkind jkind
 
 let has_layout_any jkind =
   match jkind.jkind.layout with Any -> true | _ -> false

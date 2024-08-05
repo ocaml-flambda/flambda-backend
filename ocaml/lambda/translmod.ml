@@ -300,7 +300,7 @@ let init_shape id modl =
             Tarrow(_,ty_arg,_,_) -> begin
               (* CR layouts: We should allow any representable layout here. It
                  will require reworking [camlinternalMod.init_mod]. *)
-              let jkind = Jkind.Primitive.value ~why:Recmod_fun_arg in
+              let jkind = Jkind.Builtin.value ~why:Recmod_fun_arg in
               let ty_arg = Ctype.correct_levels ty_arg in
               match Ctype.check_type_jkind env ty_arg jkind with
               | Ok _ -> const_int 0 (* camlinternalMod.Function *)

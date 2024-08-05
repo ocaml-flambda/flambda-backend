@@ -186,7 +186,7 @@ module Const : sig
   (** Gets the maximum mode on the externality axis for types of this constant jkind. *)
   val get_externality_upper_bound : t -> Externality.t
 
-  module Primitive : sig
+  module Builtin : sig
     type nonrec t =
       { jkind : t;
         name : string
@@ -239,7 +239,7 @@ module Const : sig
     not mode-cross. *)
     val bits64 : t
 
-    (** A list of all primitive jkinds *)
+    (** A list of all Builtin jkinds *)
     val all : t list
   end
 
@@ -252,7 +252,7 @@ module Const : sig
   end
 end
 
-module Primitive : sig
+module Builtin : sig
   (** This jkind is the top of the jkind lattice. All types have jkind [any].
     But we cannot compile run-time manipulations of values of types with jkind
     [any]. *)
