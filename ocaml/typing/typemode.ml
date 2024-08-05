@@ -2,66 +2,11 @@ open Location
 open Mode
 
 type error =
-  | Duplicated_mode : ('a, 'b) Axis.t -> error
-  | Unrecognized_mode of string
   | Unrecognized_modality of string
 
 exception Error of Location.t * error
 
-let transl_mode_annots modes =
-  let rec loop (acc : Alloc.Const.Option.t) = function
-    | [] -> acc
-    | m :: rest ->
-      let ({ txt = Mode txt; loc }) = (m : Parsetree.mode loc) in
-      Jane_syntax_parsing.assert_extension_enabled ~loc Mode
-        Language_extension.Stable;
-      let acc : Alloc.Const.Option.t =
-        match txt with
-        | "local" -> (
-          match acc.areality with
-          | None -> { acc with areality = Some Local }
-          | Some _ -> raise (Error (loc, Duplicated_mode Areality)))
-        | "global" -> (
-          match acc.areality with
-          | None -> { acc with areality = Some Global }
-          | Some _ -> raise (Error (loc, Duplicated_mode Areality)))
-        | "unique" -> (
-          match acc.uniqueness with
-          | None -> { acc with uniqueness = Some Unique }
-          | Some _ -> raise (Error (loc, Duplicated_mode Uniqueness)))
-        | "shared" -> (
-          match acc.uniqueness with
-          | None -> { acc with uniqueness = Some Shared }
-          | Some _ -> raise (Error (loc, Duplicated_mode Uniqueness)))
-        | "once" -> (
-          match acc.linearity with
-          | None -> { acc with linearity = Some Once }
-          | Some _ -> raise (Error (loc, Duplicated_mode Linearity)))
-        | "many" -> (
-          match acc.linearity with
-          | None -> { acc with linearity = Some Many }
-          | Some _ -> raise (Error (loc, Duplicated_mode Linearity)))
-        | "nonportable" -> (
-          match acc.portability with
-          | None -> { acc with portability = Some Nonportable }
-          | Some _ -> raise (Error (loc, Duplicated_mode Portability)))
-        | "uncontended" -> (
-          match acc.contention with
-          | None -> { acc with contention = Some Uncontended }
-          | Some _ -> raise (Error (loc, Duplicated_mode Contention)))
-        | "portable" -> (
-          match acc.portability with
-          | None -> { acc with portability = Some Portable }
-          | Some _ -> raise (Error (loc, Duplicated_mode Portability)))
-        | "contended" -> (
-          match acc.contention with
-          | None -> { acc with contention = Some Contended }
-          | Some _ -> raise (Error (loc, Duplicated_mode Contention)))
-        | s -> raise (Error (loc, Unrecognized_mode s))
-      in
-      loop acc rest
-  in
-  loop Alloc.Const.Option.none modes
+let transl_mode_annots modes = Typemodifier.transl_mode_annots modes
 
 let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
   let print_to_string_opt print a = Option.map (Format.asprintf "%a" print) a in
@@ -164,14 +109,6 @@ let transl_alloc_mode modes =
 open Format
 
 let report_error ppf = function
-  | Duplicated_mode ax ->
-    let ax =
-      match ax with
-      | Areality -> dprintf "locality"
-      | _ -> dprintf "%a" Axis.print ax
-    in
-    fprintf ppf "The %t axis has already been specified." ax
-  | Unrecognized_mode s -> fprintf ppf "Unrecognized mode name %s." s
   | Unrecognized_modality s -> fprintf ppf "Unrecognized modality %s." s
 
 let mutable_implied_modalities = compose_modalities mutable_implied_modalities

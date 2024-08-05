@@ -240,7 +240,6 @@ module Error = struct
           required_layouts_level : Language_extension.maturity
         }
     | Unknown_jkind of Jane_syntax.Jkind.t
-    | Unknown_mode of Parsetree.mode Location.loc
     | Multiple_jkinds of
         { from_annotation : const;
           from_attribute : const
@@ -636,39 +635,6 @@ module Const = struct
     | Immediate -> Builtin.immediate.jkind
     | Immediate64 -> Builtin.immediate64.jkind
 
-  module Mode_parser = struct
-    type mode =
-      | Areality of Locality.Const.t
-      | Linearity of Linearity.Const.t
-      | Uniqueness of Uniqueness.Const.t
-      | Contention of Contention.Const.t
-      | Portability of Portability.Const.t
-      | Externality of Externality.t
-      | Nullability of Nullability.t
-
-    let parse_mode (unparsed_mode : Parsetree.mode Location.loc) =
-      let { txt = Parsetree.Mode name; loc } = unparsed_mode in
-      match name with
-      | "global" -> Areality Global
-      | "local" -> Areality Local
-      | "many" -> Linearity Many
-      | "once" -> Linearity Once
-      | "unique" -> Uniqueness Unique
-      | "shared" -> Uniqueness Shared
-      | "internal" -> Externality Internal
-      | "external64" -> Externality External64
-      | "external_" -> Externality External
-      | "contended" -> Contention Contended
-      | "uncontended" -> Contention Uncontended
-      | "portable" -> Portability Portable
-      | "nonportable" -> Portability Nonportable
-      | "non_null" -> Nullability Non_null
-      | "maybe_null" -> Nullability Maybe_null
-      | _ -> raise ~loc (Unknown_mode unparsed_mode)
-
-    let parse_modes modes = List.map parse_mode modes
-  end
-
   let rec of_user_written_annotation_unchecked_level
       (jkind : Jane_syntax.Jkind.t) : t =
     match jkind with
@@ -692,72 +658,24 @@ module Const = struct
       | "bits32" -> Builtin.bits32.jkind
       | "bits64" -> Builtin.bits64.jkind
       | _ -> raise ~loc (Unknown_jkind jkind))
-    | Mod (jkind, modes) ->
+    | Mod (jkind, modifiers) ->
       let base = of_user_written_annotation_unchecked_level jkind in
       (* for each mode, lower the corresponding modal bound to be that mode *)
-      let parsed_modes = Mode_parser.parse_modes modes in
-      let meet_mode jkind (mode : Mode_parser.mode) =
-        match mode with
-        | Areality areality ->
-          { jkind with
-            modes_upper_bounds =
-              { jkind.modes_upper_bounds with
-                areality =
-                  Locality.Const.meet jkind.modes_upper_bounds.areality areality
-              }
-          }
-        | Linearity linearity ->
-          { jkind with
-            modes_upper_bounds =
-              Modes.meet jkind.modes_upper_bounds
-                { jkind.modes_upper_bounds with
-                  linearity =
-                    Linearity.Const.meet jkind.modes_upper_bounds.linearity
-                      linearity
-                }
-          }
-        | Uniqueness uniqueness ->
-          { jkind with
-            modes_upper_bounds =
-              Modes.meet jkind.modes_upper_bounds
-                { jkind.modes_upper_bounds with
-                  uniqueness =
-                    Uniqueness.Const.meet jkind.modes_upper_bounds.uniqueness
-                      uniqueness
-                }
-          }
-        | Contention contention ->
-          { jkind with
-            modes_upper_bounds =
-              Modes.meet jkind.modes_upper_bounds
-                { jkind.modes_upper_bounds with
-                  contention =
-                    Contention.Const.meet jkind.modes_upper_bounds.contention
-                      contention
-                }
-          }
-        | Portability portability ->
-          { jkind with
-            modes_upper_bounds =
-              Modes.meet jkind.modes_upper_bounds
-                { jkind.modes_upper_bounds with
-                  portability =
-                    Portability.Const.meet jkind.modes_upper_bounds.portability
-                      portability
-                }
-          }
-        | Externality externality ->
-          { jkind with
-            externality_upper_bound =
-              Externality.meet jkind.externality_upper_bound externality
-          }
-        | Nullability nullability ->
-          { jkind with
-            nullability_upper_bound =
-              Nullability.meet jkind.nullability_upper_bound nullability
-          }
-      in
-      List.fold_left meet_mode base parsed_modes
+      let parsed_modifiers = Typemodifier.transl_modifier_annots modifiers in
+      { layout = base.layout;
+        modes_upper_bounds =
+          Alloc.Const.meet base.modes_upper_bounds
+            (Alloc.Const.Option.value ~default:Alloc.Const.max
+               parsed_modifiers.modal_upper_bounds);
+        nullability_upper_bound =
+          Nullability.meet base.nullability_upper_bound
+            (Option.value ~default:Nullability.max
+               parsed_modifiers.nullability_upper_bound);
+        externality_upper_bound =
+          Externality.meet base.externality_upper_bound
+            (Option.value ~default:Externality.max
+               parsed_modifiers.externality_upper_bound)
+      }
     | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 
   (* The [annotation_context] parameter can be used to allow annotations / kinds
@@ -1916,8 +1834,6 @@ let report_error ~loc : Error.t -> _ = function
          When RAE tried this, some types got printed like [t/2], but the
          [/2] shouldn't be there. Investigate and fix. *)
       "@[<v>Unknown layout %a@]" Pprintast.jkind jkind
-  | Unknown_mode mode ->
-    Location.errorf ~loc "@[<v>Unknown mode %a@]" Pprintast.mode mode
   | Multiple_jkinds { from_annotation; from_attribute } ->
     Location.errorf ~loc
       "@[<v>A type declaration's layout can be given at most once.@;\
