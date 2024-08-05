@@ -2172,12 +2172,12 @@ and estimate_type_jkind env ty =
   | Tconstr(p, tys, _) -> begin
     match type_jkind_for_app_path env p tys with
     | Some jkind -> Jkind jkind
-    | None -> failwith "no jkind for tconstr???"
+    | None -> Misc.fatal_error "Cannot assign jkind to Tconstr"
   end
   | Tapp (ty, tys) -> begin
     match type_jkind_for_app (type_jkind env ty) 0 tys with
     | Some jkind -> Jkind jkind
-    | None -> failwith "no jkind for tapp???"
+    | None -> Misc.fatal_error "Cannot assign jkind to Tapp"
   end
   | Tvariant row ->
       if tvariant_not_immediate row
