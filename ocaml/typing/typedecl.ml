@@ -101,6 +101,7 @@ type error =
   | Missing_native_external
   | Unbound_type_var of type_expr * type_declaration
   | Cannot_extend_private_type of Path.t
+  | Non_abstract_new_type
   | Not_extensible_type of Path.t
   | Extension_mismatch of Path.t * Env.t * Includecore.type_mismatch
   | Rebind_wrong_type of
@@ -782,6 +783,8 @@ let transl_declaration env sdecl (id, uid) =
       let cty = transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty in
       Some cty, Some cty.ctyp_type
   in
+  if sdecl.ptype_private = New3 && sdecl.ptype_kind <> Ptype_abstract then
+    raise (Error (sdecl.ptype_loc, Non_abstract_new_type));
   let any = Jkind.Type.Primitive.any ~why:Initial_typedecl_env in
   (* jkind_default is the jkind to use for now as the type_jkind when there
      is no annotation and no manifest.
@@ -3518,6 +3521,8 @@ let report_error ppf = function
       fprintf ppf "@[%s@ %a@]"
         "Cannot extend private type definition"
         Printtyp.path path
+  | Non_abstract_new_type ->
+      fprintf ppf "Cannot define a non-abstract new type"
   | Not_extensible_type path ->
       fprintf ppf "@[%s@ %a@ %s@]"
         "Type definition"
