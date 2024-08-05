@@ -154,6 +154,10 @@ let string_of_class_params c =
   iter c.Odoc_class.cl_type;
   Buffer.contents b
 
+let bool_of_private3 = function
+  | Asttypes.Private3 -> true
+  | _ -> false
+
 let bool_of_private = function
   | Asttypes.Private -> true
   | _ -> false
@@ -179,7 +183,7 @@ let string_of_record l =
 let string_of_type t =
   let module M = Odoc_type in
    let module P = Printf in
-   let priv = bool_of_private t.M.ty_private in
+   let priv = bool_of_private3 t.M.ty_private in
    let parameters_str =
      String.concat " " (
        List.map (fun (p, v) ->
