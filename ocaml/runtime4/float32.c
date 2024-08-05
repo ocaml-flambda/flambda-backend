@@ -469,42 +469,6 @@ CAMLprim value caml_ba_uint8_getf32(value vb, value vind)
 #endif
 }
 
-CAMLprim value caml_ba_uint8_getf32_indexed_by_int64(value array, value index);
-CAMLprim value caml_ba_uint8_getf32_indexed_by_int32(value array, value index);
-CAMLprim value caml_ba_uint8_getf32_indexed_by_nativeint(value array, value index);
-
-CAMLprim value caml_string_getf32_indexed_by_int64(value array, value index);
-CAMLprim value caml_string_getf32_indexed_by_int32(value array, value index);
-CAMLprim value caml_string_getf32_indexed_by_nativeint(value array, value index);
-
-CAMLprim value caml_bytes_getf32_indexed_by_int64(value array, value index);
-CAMLprim value caml_bytes_getf32_indexed_by_int32(value array, value index);
-CAMLprim value caml_bytes_getf32_indexed_by_nativeint(value array, value index);
-
-#define CAMLprim_indexed_by(name, index_type, val_func)                        \
-  CAMLprim value caml_ba_uint8_getf32_indexed_by_##name(value vb, value vind)  \
-  {                                                                            \
-    index_type idx = val_func(vind);                                           \
-    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();              \
-    return caml_ba_uint8_getf32(vb, Val_long(idx));                            \
-  }                                                                            \
-  CAMLprim value caml_string_getf32_indexed_by_##name(value vb, value vind)    \
-  {                                                                            \
-    index_type idx = val_func(vind);                                           \
-    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();              \
-    return caml_string_getf32(vb, Val_long(idx));                              \
-  }                                                                            \
-  CAMLprim value caml_bytes_getf32_indexed_by_##name(value vb, value vind)     \
-  {                                                                            \
-    index_type idx = val_func(vind);                                           \
-    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();              \
-    return caml_bytes_getf32(vb, Val_long(idx));                               \
-  }
-
-CAMLprim_indexed_by(int64, int64_t, Int64_val)
-CAMLprim_indexed_by(int32, int32_t, Int32_val)
-CAMLprim_indexed_by(nativeint, intnat, Nativeint_val)
-
 CAMLprim value caml_ba_uint8_setf32(value vb, value vind, value newval)
 {
 #ifdef ARCH_BIG_ENDIAN
@@ -518,6 +482,60 @@ CAMLprim value caml_ba_uint8_setf32(value vb, value vind, value newval)
   return Val_unit;
 #endif
 }
+
+CAMLprim value caml_ba_uint8_getf32_indexed_by_int64(value array, value index);
+CAMLprim value caml_ba_uint8_getf32_indexed_by_int32(value array, value index);
+CAMLprim value caml_ba_uint8_getf32_indexed_by_nativeint(value array, value index);
+
+CAMLprim value caml_ba_uint8_setf32_indexed_by_int64(value array, value index,
+                                                     value newval);
+CAMLprim value caml_ba_uint8_setf32_indexed_by_int32(value array, value index,
+                                                     value newval);
+CAMLprim value caml_ba_uint8_setf32_indexed_by_nativeint(value array, value index,
+                                                         value newval);
+
+CAMLprim value caml_string_getf32_indexed_by_int64(value array, value index);
+CAMLprim value caml_string_getf32_indexed_by_int32(value array, value index);
+CAMLprim value caml_string_getf32_indexed_by_nativeint(value array, value index);
+
+CAMLprim value caml_bytes_getf32_indexed_by_int64(value array, value index);
+CAMLprim value caml_bytes_getf32_indexed_by_int32(value array, value index);
+CAMLprim value caml_bytes_getf32_indexed_by_nativeint(value array, value index);
+
+CAMLprim value caml_bytes_setf32_indexed_by_int64(value array, value index,
+                                                  value newval);
+CAMLprim value caml_bytes_setf32_indexed_by_int32(value array, value index,
+                                                  value newval);
+CAMLprim value caml_bytes_setf32_indexed_by_nativeint(value array, value index,
+                                                      value newval);
+
+#define CAMLprim_indexed_by_get(name, container, index_type, val_func)             \
+  CAMLprim value caml_##container##_getf32_indexed_by_##name(value vb, value vind) \
+  {                                                                                \
+    index_type idx = val_func(vind);                                               \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();                  \
+    return caml_##container##_getf32(vb, Val_long(idx));                           \
+  }
+
+#define CAMLprim_indexed_by_set(name, container, index_type, val_func)             \
+  CAMLprim value caml_##container##_setf32_indexed_by_##name(value vb, value vind, \
+                                                             value newval)         \
+  {                                                                                \
+    index_type idx = val_func(vind);                                               \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();                  \
+    return caml_##container##_setf32(vb, Val_long(idx), newval);                   \
+  }
+
+#define CAMLprim_indexed_by(name, index_type, val_func)                            \
+  CAMLprim_indexed_by_get(name, ba_uint8, index_type, val_func)                    \
+  CAMLprim_indexed_by_get(name, string, index_type, val_func)                      \
+  CAMLprim_indexed_by_get(name, bytes, index_type, val_func)                       \
+  CAMLprim_indexed_by_set(name, ba_uint8, index_type, val_func)                    \
+  CAMLprim_indexed_by_set(name, bytes, index_type, val_func)                       \
+
+CAMLprim_indexed_by(int64, int64_t, Int64_val)
+CAMLprim_indexed_by(int32, int32_t, Int32_val)
+CAMLprim_indexed_by(nativeint, intnat, Nativeint_val)
 
 /* Defined in bigarray.c */
 CAMLextern intnat caml_ba_offset(struct caml_ba_array * b, intnat * index);
