@@ -58,6 +58,8 @@
   --unused-token
   GREATERRBRACKET
   --table
+  --fixed-exception
+  --strategy simplified
   --cmly
   --inspection))
 
