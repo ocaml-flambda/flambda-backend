@@ -32,8 +32,8 @@ let is_simplified e =
   | _ -> false
 
 let simplify e =
-  match get_desc e.exp_type with
-  | Tconstr (path, Unapplied, _) -> (
+  match get_desc e.exp_type |> filter_unapplied_constr with
+  | Some path -> (
       match path with
       | Path.Pident id -> (
           match name id with
@@ -48,7 +48,7 @@ let simplify e =
           | "unit" -> { e with exp_desc = mkTexp_tuple [] }
           | _ -> apply_dummy2)
       | _ -> apply_dummy2)
-  | _ -> apply_dummy2
+  | None -> apply_dummy2
 
 let minimize should_remove map cur_name =
   let reduce_def_mapper =
