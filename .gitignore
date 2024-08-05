@@ -46,7 +46,10 @@ autom4te.cache
 _install/
 _coverage/
 _profile/
-
+lrgrep_parsing/
+out/
+test.ml
+run_compiler.sh
 /Makefile.config
 /config.log
 /config.status
