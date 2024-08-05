@@ -1766,7 +1766,7 @@ class html =
       (match t.ty_parameters with [] -> () | _ -> bs b " ");
       bs b (Name.simple t.ty_name);
       bs b "</span> ";
-      let priv = t.ty_private = Asttypes.Private in
+      let priv = t.ty_private = Asttypes.Private3 in
       (
        match t.ty_manifest with
          None -> ()
@@ -2232,7 +2232,7 @@ class html =
         (Naming.type_target
            { ty_name = c.cl_name ;
              ty_info = None ; ty_parameters = [] ;
-             ty_kind = Type_abstract ; ty_private = Asttypes.Public;
+             ty_kind = Type_abstract ; ty_private = Asttypes.Public3;
              ty_manifest = None ;
              ty_loc = Odoc_info.dummy_loc ;
              ty_code = None ;
@@ -2277,7 +2277,7 @@ class html =
         (Naming.type_target
            { ty_name = ct.clt_name ;
              ty_info = None ; ty_parameters = [] ;
-             ty_kind = Type_abstract ; ty_private = Asttypes.Public; ty_manifest = None ;
+             ty_kind = Type_abstract ; ty_private = Asttypes.Public3; ty_manifest = None ;
              ty_loc = Odoc_info.dummy_loc ;
              ty_code = None ;
            }
