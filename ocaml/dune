@@ -72,7 +72,6 @@
    ; remove -w -67 by adding the camlinternalMenhirLib hack like the Makefile
  ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
- (preprocessor_deps parser_types.ml parser_types.mli)
  (preprocess
    (per_module
      ((action
