@@ -1122,6 +1122,8 @@ let type_manifest env ty1 params1 ty2 params2 priv2 kind2 =
       match
         if is_private_abbrev_2 then
           Ctype.equal_private env params1 ty1 params2 ty2
+        else if priv2 = New3 then
+          Ctype.equal_new env params1 ty1 params2 ty2
         else
           Ctype.equal env true (params1 @ [ty1]) (params2 @ [ty2])
       with
