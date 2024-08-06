@@ -108,41 +108,10 @@ Error: Cannot define a non-abstract new type
 module M : sig
   type t = new int
 end = struct
-  type t = new int
-end
-[%%expect {|
-Line 1:
-Error: In module M:
-       Modules do not match:
-         sig type t = M.t end
-       is not included in
-         sig type t = new int end
-       In module M:
-       Type declarations do not match:
-         type t = M.t
-       is not included in
-         type t = new int
-       The type M.t is not equal to the type int
-|}]
-
-module M : sig
-  type t = new int
-end = struct
   type t = int
 end
 [%%expect {|
-Line 1:
-Error: In module M:
-       Modules do not match:
-         sig type t = M.t end
-       is not included in
-         sig type t = new int end
-       In module M:
-       Type declarations do not match:
-         type t = M.t
-       is not included in
-         type t = new int
-       The type M.t is not equal to the type int
+module M : sig type t = new int end
 |}]
 
 module M : sig
@@ -151,18 +120,7 @@ end = struct
   type t = new int
 end
 [%%expect {|
-Line 1:
-Error: In module M:
-       Modules do not match:
-         sig type t = M.t end
-       is not included in
-         sig type t = new int end
-       In module M:
-       Type declarations do not match:
-         type t = M.t
-       is not included in
-         type t = new int
-       The type M.t is not equal to the type int
+module M : sig type t = new int end
 |}]
 
 module M : sig
@@ -232,26 +190,6 @@ Error: Signature mismatch:
 |}]
 
 module M : sig
-  type t = new int
-end = struct
-  type t = new int
-end
-[%%expect {|
-Line 1:
-Error: In module M:
-       Modules do not match:
-         sig type t = M.t end
-       is not included in
-         sig type t = new int end
-       In module M:
-       Type declarations do not match:
-         type t = M.t
-       is not included in
-         type t = new int
-       The type M.t is not equal to the type int
-|}]
-
-module M : sig
   type t = private int
 end = struct
   type t = new int
@@ -313,4 +251,39 @@ let y = two.map (fun x -> x + 1)
 [%%expect{|
 val x : int two = (2, 2)
 val y : int two -> int two = <fun>
+|}]
+
+
+(* Recursive types *)
+
+type t = new t
+[%%expect{|
+Line 1, characters 0-14:
+1 | type t = new t
+    ^^^^^^^^^^^^^^
+Error: The type abbreviation t is cyclic:
+         t = t
+|}]
+
+type t = new s
+and s = new t
+[%%expect{|
+Line 1, characters 0-14:
+1 | type t = new s
+    ^^^^^^^^^^^^^^
+Error: The type abbreviation t is cyclic:
+         t = s,
+         s = t
+|}]
+
+type t = new < m : s >
+and s = new t
+[%%expect{|
+type t = new < m : s >
+and s = new t
+|}]
+
+type t = new < m : t >
+[%%expect{|
+type t = new < m : t >
 |}]
