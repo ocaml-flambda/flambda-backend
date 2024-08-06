@@ -317,6 +317,7 @@ end = struct
     | Visited of vertex_state
 
   let decompose_tailcall_sccs t =
+    (* CR less-tco: Refactor this to be more functional. *)
     let states =
       t.adjacencies |> Vertex.Tbl.to_seq_keys
       |> Seq.map (fun v -> v, Not_visited)
