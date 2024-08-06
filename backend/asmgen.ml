@@ -59,6 +59,11 @@ let pass_dump_cfg_if ppf flag message c =
     fprintf ppf "*** %s@.%a@." message (Cfg_with_layout.dump ~msg:"") c;
   c
 
+let pass_dump_vectorize_if ppf flag message c =
+  if !flag then
+    fprintf ppf "*** %s@.%a@." message (Vectorize.dump ~msg:"") c;
+  c
+
 let start_from_emit = ref true
 
 let should_save_before_emit () =
@@ -339,6 +344,18 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After cfgize"
+          (* Vectorizer goes here *)
+          ++ (fun cfg_with_layout ->
+            match !Flambda_backend_flags.vectorize with
+            | false -> cfg_with_layout
+            | true ->
+              cfg_with_layout
+              ++ Profile.record ~accumulate:true "vectorize"
+                   (Vectorize.cfg)
+              ++ pass_dump_vectorize_if ppf_dump Flambda_backend_flags.dump_vectorize "Vectorization"
+              ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After vectorize")
+              (* Vectorizer ends here*)
           ++ Profile.record ~accumulate:true "cfg_polling" (Cfg_polling.instrument_fundecl ~future_funcnames:funcnames)
           ++ (fun cfg_with_layout ->
               match !Flambda_backend_flags.cfg_zero_alloc_checker with
