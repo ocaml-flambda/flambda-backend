@@ -190,6 +190,6 @@ let main unix argv ppf ~flambda2 =
     in
     if !Clflags.dump_into_csv then
       Compmisc.with_ppf_file ~file_prefix:"profile" ~file_extension:".csv" output_profile_csv
-    else
+    else if !Flambda_backend_flags.gc_timings || !Clflags.profile_columns <> [] then
       Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile" output_profile_standard;
     0
