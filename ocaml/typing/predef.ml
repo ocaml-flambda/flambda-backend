@@ -479,11 +479,23 @@ let add_simd_extension_types add_type env =
   let add_type = mk_add_type add_type in
   env
   |> add_type ident_int8x16
+      ~jkind:(Jkind.Primitive.immutable_data ~why:(Primitive ident_int8x16))
+      ~jkind_annotation:Jkind.Const.Primitive.immutable_data
   |> add_type ident_int16x8
+      ~jkind:(Jkind.Primitive.immutable_data ~why:(Primitive ident_int16x8))
+      ~jkind_annotation:Jkind.Const.Primitive.immutable_data
   |> add_type ident_int32x4
+      ~jkind:(Jkind.Primitive.immutable_data ~why:(Primitive ident_int32x4))
+      ~jkind_annotation:Jkind.Const.Primitive.immutable_data
   |> add_type ident_int64x2
+      ~jkind:(Jkind.Primitive.immutable_data ~why:(Primitive ident_int64x2))
+      ~jkind_annotation:Jkind.Const.Primitive.immutable_data
   |> add_type ident_float32x4
+      ~jkind:(Jkind.Primitive.immutable_data ~why:(Primitive ident_float32x4))
+      ~jkind_annotation:Jkind.Const.Primitive.immutable_data
   |> add_type ident_float64x2
+      ~jkind:(Jkind.Primitive.immutable_data ~why:(Primitive ident_float64x2))
+      ~jkind_annotation:Jkind.Const.Primitive.immutable_data
 
 let add_small_number_extension_types add_type env =
   let add_type = mk_add_type add_type in

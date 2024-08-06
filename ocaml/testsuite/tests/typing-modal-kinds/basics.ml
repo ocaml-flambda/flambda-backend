@@ -754,6 +754,12 @@ let float32_immutable_data_right x =
 val float32_immutable_data_right : float32 -> unit = <fun>
 |}]
 
+let int64x2_immutable_data_right x =
+  take_strong_immutable_data (weaken_immutable_data x : int64x2)
+[%%expect{|
+val int64x2_immutable_data_right : int64x2 -> unit = <fun>
+|}]
+
 let floatarray_mutable_data_right x =
   take_strong_mutable_data (weaken_mutable_data x : floatarray)
 [%%expect{|
@@ -807,6 +813,13 @@ let float32_immutable_data_left x =
   take_strong_immutable_data x
 [%%expect{|
 val float32_immutable_data_left : float32 -> unit = <fun>
+|}]
+
+let int64x2_immutable_data_left x =
+  let x : int64x2 = weaken_immutable_data x in
+  take_strong_immutable_data x
+[%%expect{|
+val int64x2_immutable_data_left : int64x2 -> unit = <fun>
 |}]
 
 let floatarray_mutable_data_left x =
