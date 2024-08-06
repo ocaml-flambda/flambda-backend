@@ -261,6 +261,8 @@ module History = struct
 
   type immutable_data_creation_reason = Primitive of Ident.t
 
+  type mutable_data_creation_reason = Primitive of Ident.t
+
   type float64_creation_reason = Primitive of Ident.t
 
   type float32_creation_reason = Primitive of Ident.t
@@ -282,6 +284,7 @@ module History = struct
     | Any_creation of any_creation_reason
     | Any_non_null_creation of any_non_null_creation_reason
     | Immutable_data_creation of immutable_data_creation_reason
+    | Mutable_data_creation of mutable_data_creation_reason
     | Float64_creation of float64_creation_reason
     | Float32_creation of float32_creation_reason
     | Word_creation of word_creation_reason

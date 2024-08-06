@@ -66,11 +66,11 @@ Line 1, characters 4-33:
 Error: This value is contended but expected to be uncontended.
 |}]
 
-let x @ portable = best_bytes ()
+let x @ portable = fun a -> a
 
 let y @ portable = x
 [%%expect{|
-val x : bytes = Bytes.of_string ""
+val x : 'a -> 'a = <fun>
 Line 3, characters 19-20:
 3 | let y @ portable = x
                        ^

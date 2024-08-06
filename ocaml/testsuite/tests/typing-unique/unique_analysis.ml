@@ -32,17 +32,17 @@ val update : unique_ box -> unique_ box = <fun>
 
 (* testing Texp_ifthenelse  *)
 
-let branching (unique_ x : float) = unique_ if true then x else x
+let branching (unique_ x) = unique_ if true then x else x
 [%%expect{|
-val branching : unique_ float -> float = <fun>
+val branching : unique_ 'a -> 'a = <fun>
 |}]
 
 (* whether we constrain uniqueness or linearity is irrelavant
    for testing uniqueness analysis. Therefore, in the rest we
    will only constrain uniqueness *)
-let branching (once_ x : float) = if true then x else x
+let branching (once_ x) = if true then x else x
 [%%expect{|
-val branching : once_ float -> once_ float = <fun>
+val branching : once_ 'a -> once_ 'a = <fun>
 |}]
 
 let branching b =
@@ -53,15 +53,15 @@ let branching b =
 val branching : bool -> box = <fun>
 |}]
 
-let sequence (unique_ x : float) = unique_ let y = x in (x, y)
+let sequence (unique_ x) = unique_ let y = x in (x, y)
 [%%expect{|
-Line 1, characters 60-61:
-1 | let sequence (unique_ x : float) = unique_ let y = x in (x, y)
-                                                                ^
+Line 1, characters 52-53:
+1 | let sequence (unique_ x) = unique_ let y = x in (x, y)
+                                                        ^
 Error: This value is used here, but it has already been used as unique:
-Line 1, characters 57-58:
-1 | let sequence (unique_ x : float) = unique_ let y = x in (x, y)
-                                                             ^
+Line 1, characters 49-50:
+1 | let sequence (unique_ x) = unique_ let y = x in (x, y)
+                                                     ^
 
 |}]
 
