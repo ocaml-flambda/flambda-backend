@@ -120,6 +120,10 @@ val iter_declarations
     -> f:(Shape.Uid.t -> Typedtree.item_declaration -> unit)
     -> unit
 
+(** Whether only the summary of the environment should be stored. This is based on
+    whether the environment variable OCAML_BINANNOT_WITHENV is set *)
+val need_to_clear_env : bool
+
 (*
 
   val is_magic_number : string -> bool
