@@ -401,7 +401,7 @@ let rewrite :
       (module Utils)
       state cfg_with_infos ~spilled_nodes
   in
-  if new_temporaries <> []
+  if State.get_round_num state = 2 || new_temporaries <> []
   then Cfg_with_infos.invalidate_liveness cfg_with_infos;
   if block_inserted
   then Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos;

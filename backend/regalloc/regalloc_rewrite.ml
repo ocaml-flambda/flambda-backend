@@ -83,10 +83,7 @@ let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
   in
   Cfg_with_infos.cfg cfg_with_infos
   |> Cfg.iter_blocks ~f:coalesce_temp_reloads_per_block;
-  new_temporaries
-    := List.filter
-         ~f:(fun temp -> not (Reg.Tbl.mem removed_temporaries temp))
-         !new_temporaries
+  new_temporaries := []
 
 let rewrite_gen :
     type s.
