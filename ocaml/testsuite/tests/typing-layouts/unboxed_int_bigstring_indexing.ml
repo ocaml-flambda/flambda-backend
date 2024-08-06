@@ -55,7 +55,24 @@ let of_boxed_index : int -> nativeint# = Stdlib_upstream_compatible.Nativeint_u.
 let to_boxed_result : int -> int = fun x -> x
 let of_boxed_result : int -> int = fun x -> x
 let eq : int -> int -> bool = Int.equal
-let x = 5
+
+let rec x = function
+  | i when i <= 0 -> Int.zero
+  | 1 ->
+      (* min int *)
+      Int.(shift_left one) (16 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 16 - 1 in
+      Int.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int.(logxor x (shift_left one (i1 mod 16))) in
+      let x = Int.(logxor x (shift_left one (i2 mod 16))) in
+      let x = Int.(logxor x (shift_left one (i3 mod 16))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int
   = "%caml_bigstring_get16"
@@ -204,18 +221,35 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#1n);;
-check_set_bounds (-#1n) x;;
+check_set_bounds (-#1n) (x 1);;
 
 let of_boxed_index : int -> nativeint# = Stdlib_upstream_compatible.Nativeint_u.of_int
 let to_boxed_result : int32 -> int32 = fun x -> x
 let of_boxed_result : int32 -> int32 = fun x -> x
 let eq : int32 -> int32 -> bool = Int32.equal
-let x = 5l
+
+let rec x = function
+  | i when i <= 0 -> Int32.zero
+  | 1 ->
+      (* min int *)
+      Int32.(shift_left one) (32 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 32 - 1 in
+      Int32.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int32.(logxor x (shift_left one (i1 mod 32))) in
+      let x = Int32.(logxor x (shift_left one (i2 mod 32))) in
+      let x = Int32.(logxor x (shift_left one (i3 mod 32))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int32
   = "%caml_bigstring_get32"
@@ -364,18 +398,35 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#1n);;
-check_set_bounds (-#1n) x;;
+check_set_bounds (-#1n) (x 1);;
 
 let of_boxed_index : int -> nativeint# = Stdlib_upstream_compatible.Nativeint_u.of_int
 let to_boxed_result : int64 -> int64 = fun x -> x
 let of_boxed_result : int64 -> int64 = fun x -> x
 let eq : int64 -> int64 -> bool = Int64.equal
-let x = 5L
+
+let rec x = function
+  | i when i <= 0 -> Int64.zero
+  | 1 ->
+      (* min int *)
+      Int64.(shift_left one) (64 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 64 - 1 in
+      Int64.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int64.(logxor x (shift_left one (i1 mod 64))) in
+      let x = Int64.(logxor x (shift_left one (i2 mod 64))) in
+      let x = Int64.(logxor x (shift_left one (i3 mod 64))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int64
   = "%caml_bigstring_get64"
@@ -524,18 +575,35 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#1n);;
-check_set_bounds (-#1n) x;;
+check_set_bounds (-#1n) (x 1);;
 
 let of_boxed_index : int -> nativeint# = Stdlib_upstream_compatible.Nativeint_u.of_int
 let to_boxed_result : int32# -> int32 = Stdlib_upstream_compatible.Int32_u.to_int32
 let of_boxed_result : int32 -> int32# = Stdlib_upstream_compatible.Int32_u.of_int32
 let eq : int32 -> int32 -> bool = Int32.equal
-let x = (5l)
+
+let rec x = function
+  | i when i <= 0 -> Int32.zero
+  | 1 ->
+      (* min int *)
+      Int32.(shift_left one) (32 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 32 - 1 in
+      Int32.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int32.(logxor x (shift_left one (i1 mod 32))) in
+      let x = Int32.(logxor x (shift_left one (i2 mod 32))) in
+      let x = Int32.(logxor x (shift_left one (i3 mod 32))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int32
   = "%caml_bigstring_get32"
@@ -684,18 +752,35 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#1n);;
-check_set_bounds (-#1n) x;;
+check_set_bounds (-#1n) (x 1);;
 
 let of_boxed_index : int -> nativeint# = Stdlib_upstream_compatible.Nativeint_u.of_int
 let to_boxed_result : int64# -> int64 = Stdlib_upstream_compatible.Int64_u.to_int64
 let of_boxed_result : int64 -> int64# = Stdlib_upstream_compatible.Int64_u.of_int64
 let eq : int64 -> int64 -> bool = Int64.equal
-let x = (5L)
+
+let rec x = function
+  | i when i <= 0 -> Int64.zero
+  | 1 ->
+      (* min int *)
+      Int64.(shift_left one) (64 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 64 - 1 in
+      Int64.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int64.(logxor x (shift_left one (i1 mod 64))) in
+      let x = Int64.(logxor x (shift_left one (i2 mod 64))) in
+      let x = Int64.(logxor x (shift_left one (i3 mod 64))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int64
   = "%caml_bigstring_get64"
@@ -844,18 +929,35 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#1n);;
-check_set_bounds (-#1n) x;;
+check_set_bounds (-#1n) (x 1);;
 
 let of_boxed_index : int -> int32# = Stdlib_upstream_compatible.Int32_u.of_int
 let to_boxed_result : int -> int = fun x -> x
 let of_boxed_result : int -> int = fun x -> x
 let eq : int -> int -> bool = Int.equal
-let x = 5
+
+let rec x = function
+  | i when i <= 0 -> Int.zero
+  | 1 ->
+      (* min int *)
+      Int.(shift_left one) (16 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 16 - 1 in
+      Int.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int.(logxor x (shift_left one (i1 mod 16))) in
+      let x = Int.(logxor x (shift_left one (i2 mod 16))) in
+      let x = Int.(logxor x (shift_left one (i3 mod 16))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int
   = "%caml_bigstring_get16"
@@ -1004,24 +1106,41 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#2147483648l);;
-check_set_bounds (-#2147483648l) x;;
+check_set_bounds (-#2147483648l) (x 1);;
 check_get_bounds (-#2147483647l);;
-check_set_bounds (-#2147483647l) x;;
+check_set_bounds (-#2147483647l) (x 1);;
 check_get_bounds (#2147483647l);;
-check_set_bounds (#2147483647l) x;;
+check_set_bounds (#2147483647l) (x 1);;
 check_get_bounds (-#1l);;
-check_set_bounds (-#1l) x;;
+check_set_bounds (-#1l) (x 1);;
 
 let of_boxed_index : int -> int32# = Stdlib_upstream_compatible.Int32_u.of_int
 let to_boxed_result : int32 -> int32 = fun x -> x
 let of_boxed_result : int32 -> int32 = fun x -> x
 let eq : int32 -> int32 -> bool = Int32.equal
-let x = 5l
+
+let rec x = function
+  | i when i <= 0 -> Int32.zero
+  | 1 ->
+      (* min int *)
+      Int32.(shift_left one) (32 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 32 - 1 in
+      Int32.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int32.(logxor x (shift_left one (i1 mod 32))) in
+      let x = Int32.(logxor x (shift_left one (i2 mod 32))) in
+      let x = Int32.(logxor x (shift_left one (i3 mod 32))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int32
   = "%caml_bigstring_get32"
@@ -1170,24 +1289,41 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#2147483648l);;
-check_set_bounds (-#2147483648l) x;;
+check_set_bounds (-#2147483648l) (x 1);;
 check_get_bounds (-#2147483647l);;
-check_set_bounds (-#2147483647l) x;;
+check_set_bounds (-#2147483647l) (x 1);;
 check_get_bounds (#2147483647l);;
-check_set_bounds (#2147483647l) x;;
+check_set_bounds (#2147483647l) (x 1);;
 check_get_bounds (-#1l);;
-check_set_bounds (-#1l) x;;
+check_set_bounds (-#1l) (x 1);;
 
 let of_boxed_index : int -> int32# = Stdlib_upstream_compatible.Int32_u.of_int
 let to_boxed_result : int64 -> int64 = fun x -> x
 let of_boxed_result : int64 -> int64 = fun x -> x
 let eq : int64 -> int64 -> bool = Int64.equal
-let x = 5L
+
+let rec x = function
+  | i when i <= 0 -> Int64.zero
+  | 1 ->
+      (* min int *)
+      Int64.(shift_left one) (64 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 64 - 1 in
+      Int64.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int64.(logxor x (shift_left one (i1 mod 64))) in
+      let x = Int64.(logxor x (shift_left one (i2 mod 64))) in
+      let x = Int64.(logxor x (shift_left one (i3 mod 64))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int64
   = "%caml_bigstring_get64"
@@ -1336,24 +1472,41 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#2147483648l);;
-check_set_bounds (-#2147483648l) x;;
+check_set_bounds (-#2147483648l) (x 1);;
 check_get_bounds (-#2147483647l);;
-check_set_bounds (-#2147483647l) x;;
+check_set_bounds (-#2147483647l) (x 1);;
 check_get_bounds (#2147483647l);;
-check_set_bounds (#2147483647l) x;;
+check_set_bounds (#2147483647l) (x 1);;
 check_get_bounds (-#1l);;
-check_set_bounds (-#1l) x;;
+check_set_bounds (-#1l) (x 1);;
 
 let of_boxed_index : int -> int32# = Stdlib_upstream_compatible.Int32_u.of_int
 let to_boxed_result : int32# -> int32 = Stdlib_upstream_compatible.Int32_u.to_int32
 let of_boxed_result : int32 -> int32# = Stdlib_upstream_compatible.Int32_u.of_int32
 let eq : int32 -> int32 -> bool = Int32.equal
-let x = (5l)
+
+let rec x = function
+  | i when i <= 0 -> Int32.zero
+  | 1 ->
+      (* min int *)
+      Int32.(shift_left one) (32 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 32 - 1 in
+      Int32.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int32.(logxor x (shift_left one (i1 mod 32))) in
+      let x = Int32.(logxor x (shift_left one (i2 mod 32))) in
+      let x = Int32.(logxor x (shift_left one (i3 mod 32))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int32
   = "%caml_bigstring_get32"
@@ -1502,24 +1655,41 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#2147483648l);;
-check_set_bounds (-#2147483648l) x;;
+check_set_bounds (-#2147483648l) (x 1);;
 check_get_bounds (-#2147483647l);;
-check_set_bounds (-#2147483647l) x;;
+check_set_bounds (-#2147483647l) (x 1);;
 check_get_bounds (#2147483647l);;
-check_set_bounds (#2147483647l) x;;
+check_set_bounds (#2147483647l) (x 1);;
 check_get_bounds (-#1l);;
-check_set_bounds (-#1l) x;;
+check_set_bounds (-#1l) (x 1);;
 
 let of_boxed_index : int -> int32# = Stdlib_upstream_compatible.Int32_u.of_int
 let to_boxed_result : int64# -> int64 = Stdlib_upstream_compatible.Int64_u.to_int64
 let of_boxed_result : int64 -> int64# = Stdlib_upstream_compatible.Int64_u.of_int64
 let eq : int64 -> int64 -> bool = Int64.equal
-let x = (5L)
+
+let rec x = function
+  | i when i <= 0 -> Int64.zero
+  | 1 ->
+      (* min int *)
+      Int64.(shift_left one) (64 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 64 - 1 in
+      Int64.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int64.(logxor x (shift_left one (i1 mod 64))) in
+      let x = Int64.(logxor x (shift_left one (i2 mod 64))) in
+      let x = Int64.(logxor x (shift_left one (i3 mod 64))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int64
   = "%caml_bigstring_get64"
@@ -1668,24 +1838,41 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#2147483648l);;
-check_set_bounds (-#2147483648l) x;;
+check_set_bounds (-#2147483648l) (x 1);;
 check_get_bounds (-#2147483647l);;
-check_set_bounds (-#2147483647l) x;;
+check_set_bounds (-#2147483647l) (x 1);;
 check_get_bounds (#2147483647l);;
-check_set_bounds (#2147483647l) x;;
+check_set_bounds (#2147483647l) (x 1);;
 check_get_bounds (-#1l);;
-check_set_bounds (-#1l) x;;
+check_set_bounds (-#1l) (x 1);;
 
 let of_boxed_index : int -> int64# = Stdlib_upstream_compatible.Int64_u.of_int
 let to_boxed_result : int -> int = fun x -> x
 let of_boxed_result : int -> int = fun x -> x
 let eq : int -> int -> bool = Int.equal
-let x = 5
+
+let rec x = function
+  | i when i <= 0 -> Int.zero
+  | 1 ->
+      (* min int *)
+      Int.(shift_left one) (16 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 16 - 1 in
+      Int.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int.(logxor x (shift_left one (i1 mod 16))) in
+      let x = Int.(logxor x (shift_left one (i2 mod 16))) in
+      let x = Int.(logxor x (shift_left one (i3 mod 16))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int
   = "%caml_bigstring_get16"
@@ -1834,24 +2021,41 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#9223372036854775808L);;
-check_set_bounds (-#9223372036854775808L) x;;
+check_set_bounds (-#9223372036854775808L) (x 1);;
 check_get_bounds (-#9223372036854775807L);;
-check_set_bounds (-#9223372036854775807L) x;;
+check_set_bounds (-#9223372036854775807L) (x 1);;
 check_get_bounds (#9223372036854775807L);;
-check_set_bounds (#9223372036854775807L) x;;
+check_set_bounds (#9223372036854775807L) (x 1);;
 check_get_bounds (-#1L);;
-check_set_bounds (-#1L) x;;
+check_set_bounds (-#1L) (x 1);;
 
 let of_boxed_index : int -> int64# = Stdlib_upstream_compatible.Int64_u.of_int
 let to_boxed_result : int32 -> int32 = fun x -> x
 let of_boxed_result : int32 -> int32 = fun x -> x
 let eq : int32 -> int32 -> bool = Int32.equal
-let x = 5l
+
+let rec x = function
+  | i when i <= 0 -> Int32.zero
+  | 1 ->
+      (* min int *)
+      Int32.(shift_left one) (32 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 32 - 1 in
+      Int32.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int32.(logxor x (shift_left one (i1 mod 32))) in
+      let x = Int32.(logxor x (shift_left one (i2 mod 32))) in
+      let x = Int32.(logxor x (shift_left one (i3 mod 32))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int32
   = "%caml_bigstring_get32"
@@ -2000,24 +2204,41 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#9223372036854775808L);;
-check_set_bounds (-#9223372036854775808L) x;;
+check_set_bounds (-#9223372036854775808L) (x 1);;
 check_get_bounds (-#9223372036854775807L);;
-check_set_bounds (-#9223372036854775807L) x;;
+check_set_bounds (-#9223372036854775807L) (x 1);;
 check_get_bounds (#9223372036854775807L);;
-check_set_bounds (#9223372036854775807L) x;;
+check_set_bounds (#9223372036854775807L) (x 1);;
 check_get_bounds (-#1L);;
-check_set_bounds (-#1L) x;;
+check_set_bounds (-#1L) (x 1);;
 
 let of_boxed_index : int -> int64# = Stdlib_upstream_compatible.Int64_u.of_int
 let to_boxed_result : int64 -> int64 = fun x -> x
 let of_boxed_result : int64 -> int64 = fun x -> x
 let eq : int64 -> int64 -> bool = Int64.equal
-let x = 5L
+
+let rec x = function
+  | i when i <= 0 -> Int64.zero
+  | 1 ->
+      (* min int *)
+      Int64.(shift_left one) (64 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 64 - 1 in
+      Int64.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int64.(logxor x (shift_left one (i1 mod 64))) in
+      let x = Int64.(logxor x (shift_left one (i2 mod 64))) in
+      let x = Int64.(logxor x (shift_left one (i3 mod 64))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int64
   = "%caml_bigstring_get64"
@@ -2166,24 +2387,41 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#9223372036854775808L);;
-check_set_bounds (-#9223372036854775808L) x;;
+check_set_bounds (-#9223372036854775808L) (x 1);;
 check_get_bounds (-#9223372036854775807L);;
-check_set_bounds (-#9223372036854775807L) x;;
+check_set_bounds (-#9223372036854775807L) (x 1);;
 check_get_bounds (#9223372036854775807L);;
-check_set_bounds (#9223372036854775807L) x;;
+check_set_bounds (#9223372036854775807L) (x 1);;
 check_get_bounds (-#1L);;
-check_set_bounds (-#1L) x;;
+check_set_bounds (-#1L) (x 1);;
 
 let of_boxed_index : int -> int64# = Stdlib_upstream_compatible.Int64_u.of_int
 let to_boxed_result : int32# -> int32 = Stdlib_upstream_compatible.Int32_u.to_int32
 let of_boxed_result : int32 -> int32# = Stdlib_upstream_compatible.Int32_u.of_int32
 let eq : int32 -> int32 -> bool = Int32.equal
-let x = (5l)
+
+let rec x = function
+  | i when i <= 0 -> Int32.zero
+  | 1 ->
+      (* min int *)
+      Int32.(shift_left one) (32 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 32 - 1 in
+      Int32.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int32.(logxor x (shift_left one (i1 mod 32))) in
+      let x = Int32.(logxor x (shift_left one (i2 mod 32))) in
+      let x = Int32.(logxor x (shift_left one (i3 mod 32))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int32
   = "%caml_bigstring_get32"
@@ -2332,24 +2570,41 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#9223372036854775808L);;
-check_set_bounds (-#9223372036854775808L) x;;
+check_set_bounds (-#9223372036854775808L) (x 1);;
 check_get_bounds (-#9223372036854775807L);;
-check_set_bounds (-#9223372036854775807L) x;;
+check_set_bounds (-#9223372036854775807L) (x 1);;
 check_get_bounds (#9223372036854775807L);;
-check_set_bounds (#9223372036854775807L) x;;
+check_set_bounds (#9223372036854775807L) (x 1);;
 check_get_bounds (-#1L);;
-check_set_bounds (-#1L) x;;
+check_set_bounds (-#1L) (x 1);;
 
 let of_boxed_index : int -> int64# = Stdlib_upstream_compatible.Int64_u.of_int
 let to_boxed_result : int64# -> int64 = Stdlib_upstream_compatible.Int64_u.to_int64
 let of_boxed_result : int64 -> int64# = Stdlib_upstream_compatible.Int64_u.of_int64
 let eq : int64 -> int64 -> bool = Int64.equal
-let x = (5L)
+
+let rec x = function
+  | i when i <= 0 -> Int64.zero
+  | 1 ->
+      (* min int *)
+      Int64.(shift_left one) (64 - 1)
+  | 2 ->
+      (* max int *)
+      let shift = 64 - 1 in
+      Int64.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = Int64.(logxor x (shift_left one (i1 mod 64))) in
+      let x = Int64.(logxor x (shift_left one (i2 mod 64))) in
+      let x = Int64.(logxor x (shift_left one (i3 mod 64))) in
+      x
 
 external bs_get_reference : bigstring -> int -> int64
   = "%caml_bigstring_get64"
@@ -2498,15 +2753,15 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 
 check_get_bounds (-#9223372036854775808L);;
-check_set_bounds (-#9223372036854775808L) x;;
+check_set_bounds (-#9223372036854775808L) (x 1);;
 check_get_bounds (-#9223372036854775807L);;
-check_set_bounds (-#9223372036854775807L) x;;
+check_set_bounds (-#9223372036854775807L) (x 1);;
 check_get_bounds (#9223372036854775807L);;
-check_set_bounds (#9223372036854775807L) x;;
+check_set_bounds (#9223372036854775807L) (x 1);;
 check_get_bounds (-#1L);;
-check_set_bounds (-#1L) x;;
+check_set_bounds (-#1L) (x 1);;

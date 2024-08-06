@@ -84,8 +84,8 @@ let of_boxed_index : int -> |}^index^{| = |}^conv_index^{|
 let to_boxed_result : |}^test_result^{| -> |}^ref_result^{| = |}^box_result^{|
 let of_boxed_result : |}^ref_result^{| -> |}^test_result^{| = |}^unbox_result^{|
 let eq : |}^ref_result^{| -> |}^ref_result^{| -> bool = |}^eq^{|
-let x = |}^example^{|
 |}
+^example
 ^external_bindings_template
    ~container:"bigstring" ~sigil:"bs" ~width ~test_suffix ~index ~ref_result ~test_result
 ^external_bindings_template
@@ -177,7 +177,7 @@ let check_get_bounds, check_get, check_set_bounds, check_set =
 
 for i = -1 to length + 1 do
   check_get i;
-  check_set i x
+  check_set i (x i)
 done
 ;;
 |}^extra_bounds^{|
@@ -186,7 +186,29 @@ done
 
 let extra_bounds_template ~index = {|
 check_get_bounds (|}^index^{|);;
-check_set_bounds (|}^index^{|) x;;|}
+check_set_bounds (|}^index^{|) (x 1);;|}
+
+(* We can't just look up min/max int in the module because of the [int16] accessors, which
+   use [Int]. *)
+let int_examples_template ~module_ ~width = {|
+let rec x = function
+  | i when i <= 0 -> |}^module_^{|.zero
+  | 1 ->
+      (* min int *)
+      |}^module_^{|.(shift_left one) (|}^width^{| - 1)
+  | 2 ->
+      (* max int *)
+      let shift = |}^width^{| - 1 in
+      |}^module_^{|.(lognot (shift_left (shift_right (lognot zero) shift) shift))
+  | i ->
+      (* flip 3 "random" bits *)
+      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
+      let x = x (i - 1) in
+      let x = |}^module_^{|.(logxor x (shift_left one (i1 mod |}^width^{|))) in
+      let x = |}^module_^{|.(logxor x (shift_left one (i2 mod |}^width^{|))) in
+      let x = |}^module_^{|.(logxor x (shift_left one (i3 mod |}^width^{|))) in
+      x
+|}
 
 (* Copied from [utils/misc.ml] *)
 module Hlist = struct
@@ -219,8 +241,7 @@ type result =
   ; test : string
   ; box : string
   ; unbox : string
-  ; eq : string
-  ; example : string
+  ; module_ : string
   }
 
 let bigstring_tests =
@@ -249,8 +270,7 @@ let bigstring_tests =
          ; test = "int"
          ; box = "fun x -> x"
          ; unbox = "fun x -> x"
-         ; eq = "Int.equal"
-         ; example = "5"
+         ; module_ = "Int"
          }
        ; { width = "32"
          ; test_suffix = ""
@@ -258,8 +278,7 @@ let bigstring_tests =
          ; test = "int32"
          ; box = "fun x -> x"
          ; unbox = "fun x -> x"
-         ; eq = "Int32.equal"
-         ; example = "5l"
+         ; module_ = "Int32"
          }
        ; { width = "64"
          ; test_suffix = ""
@@ -267,8 +286,7 @@ let bigstring_tests =
          ; test = "int64"
          ; box = "fun x -> x"
          ; unbox = "fun x -> x"
-         ; eq = "Int64.equal"
-         ; example = "5L"
+         ; module_ = "Int64"
          }
        ; { width = "32"
          ; test_suffix = "#"
@@ -276,8 +294,7 @@ let bigstring_tests =
          ; test = "int32#"
          ; box = "Stdlib_upstream_compatible.Int32_u.to_int32"
          ; unbox = "Stdlib_upstream_compatible.Int32_u.of_int32"
-         ; eq = "Int32.equal"
-         ; example = "(5l)"
+         ; module_ = "Int32"
          }
        ; { width = "64"
          ; test_suffix = "#"
@@ -285,8 +302,7 @@ let bigstring_tests =
          ; test = "int64#"
          ; box = "Stdlib_upstream_compatible.Int64_u.to_int64"
          ; unbox = "Stdlib_upstream_compatible.Int64_u.of_int64"
-         ; eq = "Int64.equal"
-         ; example = "(5L)"
+         ; module_ = "Int64"
          }
        ]
      ]
@@ -294,7 +310,7 @@ let bigstring_tests =
   |> List.map
        (fun
            ([ { type_; conv = conv_index; extra_bounds }
-            ; { width; test_suffix; ref; test; box; unbox; eq; example }
+            ; { width; test_suffix; ref; test; box; unbox; module_ }
             ] :
              _ Hlist.t)
          ->
@@ -314,9 +330,9 @@ let bigstring_tests =
             ~conv_index
             ~box_result:box
             ~unbox_result:unbox
-            ~eq
+            ~eq:(module_ ^ ".equal")
             ~extra_bounds
-            ~example
+            ~example:(int_examples_template ~module_ ~width)
        )
   |> String.concat ""
 ;;
