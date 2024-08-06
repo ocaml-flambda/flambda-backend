@@ -13,7 +13,7 @@ type t_bits64 : bits64
 type t_any : any
 type t_any_non_null : any_non_null
 type t_value_or_null : value_or_null
-type t_value : value
+type t_value
 type t_bits64 : bits64
 |}]
 
@@ -200,8 +200,7 @@ type t = t_value id_value_or_null
 module M (X : sig type t : value end) : sig type t : value_or_null end = X
 
 [%%expect{|
-module M :
-  functor (X : sig type t : value end) -> sig type t : value_or_null end
+module M : functor (X : sig type t end) -> sig type t : value_or_null end
 |}]
 
 (* [value_or_null] is not a sublayout of [value] *)
@@ -229,11 +228,8 @@ Error: Signature mismatch:
        Modules do not match:
          sig type t = X.t end
        is not included in
-         sig type t : value end
-       Type declarations do not match:
-         type t = X.t
-       is not included in
-         type t : value
+         sig type t end
+       Type declarations do not match: type t = X.t is not included in type t
        The kind of the first is value_or_null
          because of the definition of t at line 1, characters 18-40.
        But the kind of the first must be a subkind of value
@@ -251,8 +247,7 @@ type t = t_value id_any_non_null
 module M (X : sig type t : value end) : sig type t : any_non_null end = X
 
 [%%expect{|
-module M :
-  functor (X : sig type t : value end) -> sig type t : any_non_null end
+module M : functor (X : sig type t end) -> sig type t : any_non_null end
 |}]
 
 (* [value_or_null] is not a sublayout of [any_non_null] *)
@@ -347,11 +342,8 @@ Error: Signature mismatch:
        Modules do not match:
          sig type t = X.t end
        is not included in
-         sig type t : value end
-       Type declarations do not match:
-         type t = X.t
-       is not included in
-         type t : value
+         sig type t end
+       Type declarations do not match: type t = X.t is not included in type t
        The layout of the first is any
          because of the definition of t at line 1, characters 18-39.
        But the layout of the first must be a sublayout of value

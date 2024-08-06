@@ -207,7 +207,7 @@ let f () =
   let _ = (Foo (make_value ()) : t @@ portable uncontended) in
   ()
 [%%expect {|
-type t_value : value
+type t_value
 type t : value mod portable uncontended = Foo of t_value
 val make_value : unit -> t_value = <fun>
 val f : unit -> unit = <fun>

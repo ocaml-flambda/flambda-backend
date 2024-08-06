@@ -638,7 +638,7 @@ type ('a : value) tv : value
 
 [%%expect {|
 type ('a : float64) tf : float64
-type 'a tv : value
+type 'a tv
 |}]
 
 type ('a : any) t_gadt_any =

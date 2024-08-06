@@ -147,6 +147,7 @@ type 'type_expr t =
     has_warned : bool
   }
 
+(** CR layouts v2.8: remove this when prining is improved *)
 module Const : sig
   type 'type_expr t =
     { layout : Layout.Const.t;
@@ -156,4 +157,5 @@ module Const : sig
     }
 end
 
+(** CR layouts v2.8: remove this when prining is improved *)
 type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation

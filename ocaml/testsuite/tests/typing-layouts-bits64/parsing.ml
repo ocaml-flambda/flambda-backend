@@ -35,7 +35,7 @@ Line 1, characters 9-15:
              ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
+         because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
          because the type argument of list has layout value.
 |}];;
@@ -47,7 +47,7 @@ Line 1, characters 11-17:
                ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
+         because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
          because the type argument of list has layout value.
 |}];;
@@ -59,7 +59,7 @@ Line 1, characters 14-20:
                   ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
+         because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
          because the type argument of list has layout value.
 |}];;
@@ -71,7 +71,7 @@ Line 1, characters 13-19:
                  ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
+         because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
          because the type argument of list has layout value.
 |}];;
@@ -93,7 +93,7 @@ Line 1, characters 9-15:
              ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
+         because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -105,7 +105,7 @@ Line 1, characters 11-17:
                ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
+         because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -117,7 +117,7 @@ Line 1, characters 14-20:
                   ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
+         because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -129,7 +129,7 @@ Line 1, characters 13-19:
                  ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
+         because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -144,7 +144,7 @@ Line 1, characters 9-15:
              ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
+         because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -156,7 +156,7 @@ Line 1, characters 11-17:
                ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
+         because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -168,7 +168,7 @@ Line 1, characters 14-20:
                   ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
+         because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -180,7 +180,7 @@ Line 1, characters 13-19:
                  ^^^^^^
 Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
+         because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;

@@ -138,7 +138,7 @@ let match_printer_type ppf desc typename =
         raise Exit
   in
   Ctype.with_local_level ~post:Ctype.generalize (fun () ->
-    let ty_arg = Ctype.newvar (Jkind.Primitive.value ~why:Debug_printer_argument) in
+    let ty_arg = Ctype.newvar (Jkind.Builtin.value ~why:Debug_printer_argument) in
     Ctype.unify !toplevel_env
       (Ctype.newconstr printer_type [ty_arg])
       (Ctype.instance desc.val_type);

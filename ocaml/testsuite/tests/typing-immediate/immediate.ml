@@ -144,7 +144,7 @@ Line 2, characters 2-31:
 2 |   type t = string [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type string is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of type string must be a subkind of immediate
          because of the definition of t at line 2, characters 2-31.
 |}];;
@@ -214,7 +214,7 @@ Error: Signature mismatch:
        is not included in
          type t : immediate
        The kind of the first is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of the first must be a subkind of immediate
          because of the definition of t at line 1, characters 15-35.
 |}];;
@@ -232,7 +232,7 @@ Error: Signature mismatch:
        is not included in
          type t : immediate
        The kind of the first is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of the first must be a subkind of immediate
          because of the definition of t at line 1, characters 20-40.
 |}];;
@@ -249,7 +249,7 @@ Error: Modules do not match: sig type t = string end is not included in
      is not included in
        type t : immediate
      The kind of the first is immutable_data
-       because it is the primitive immutable_data type string.
+       because it is the primitive type string.
      But the kind of the first must be a subkind of immediate
        because of the definition of t at line 1, characters 20-40.
 |}];;
@@ -264,7 +264,7 @@ Line 2, characters 2-26:
 2 |   type t = s [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type s is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of type s must be a subkind of immediate
          because of the definition of t at line 2, characters 2-26.
 |}];;
