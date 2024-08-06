@@ -51,7 +51,7 @@ module Persistent_signature = struct
 
   let load = ref (fun ~allow_hidden ~unit_name ->
     let unit_name = CU.Name.to_string unit_name in
-    match Load_path.find_uncap_with_visibility (unit_name ^ ".cmi") with
+    match Load_path.find_normalized_with_visibility (unit_name ^ ".cmi") with
     | filename, visibility when allow_hidden ->
       Some { filename; cmi = read_cmi_lazy filename; visibility}
     | filename, Visible ->
@@ -634,7 +634,7 @@ let report_error ppf =
       fprintf ppf
         "@[<hov>The file %a@ contains the interface of a parameter.@ \
          %a is not declared as a parameter for the current unit (-parameter %a).@]"
-        Location.print_filename filename
+        (Style.as_inline_code Location.print_filename) filename
         (Style.as_inline_code CU.Name.print) modname
         (Style.as_inline_code CU.Name.print) modname
   | Not_compiled_as_parameter(modname, filename) ->
@@ -642,7 +642,7 @@ let report_error ppf =
         "@[<hov>The module %a@ is specified as a parameter, but %a@ \
          was not compiled with -as-parameter.@]"
         (Style.as_inline_code CU.Name.print) modname
-        Location.print_filename filename
+        (Style.as_inline_code Location.print_filename) filename
   | Direct_reference_from_wrong_package(unit, filename, prefix) ->
       fprintf ppf
         "@[<hov>Invalid reference to %a (in file %s) from %a.@ %s]"

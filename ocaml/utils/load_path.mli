@@ -83,15 +83,16 @@ val find : string -> string
     filename is a basename, i.e. doesn't contain a directory
     separator. *)
 
-val find_uncap : string -> string
-(** Same as [find], but search also for uncapitalized name, i.e.  if
-    name is Foo.ml, allow /path/Foo.ml and /path/foo.ml to match. *)
+val find_normalized : string -> string
+(** Same as [find], but search also for normalized unit name (see
+    {!Misc.normalized_unit_filename}), i.e. if name is [Foo.ml], allow
+    [/path/Foo.ml] and [/path/foo.ml] to match. *)
 
 type visibility = Visible | Hidden
 
-val find_uncap_with_visibility : string -> string * visibility
-(** Same as [find_uncap], but also reports whether the cmi was found in a -I
-    directory (Visible) or a -H directory (Hidden) *)
+val find_normalized_with_visibility : string -> string * visibility
+(** Same as [find_normalized], but also reports whether the cmi was found in a
+    -I directory (Visible) or a -H directory (Hidden) *)
 
 val[@deprecated] add : Dir.t -> unit
 (** Old name for {!append_dir} *)

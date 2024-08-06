@@ -2196,7 +2196,6 @@ and store_extension ~check ~rebind id addr ext shape env =
       cda_shape = shape }
   in
   Builtin_attributes.mark_alerts_used ext.ext_attributes;
-  Builtin_attributes.mark_alerts_used cstr.cstr_attributes;
   Builtin_attributes.mark_warn_on_literal_pattern_used cstr.cstr_attributes;
   Builtin_attributes.warning_scope ext.ext_attributes (fun () ->
   if check && not loc.Location.loc_ghost &&
@@ -4114,7 +4113,8 @@ let report_lookup_error _loc env ppf = function
            "but modules are not module types"
     end
   | Unbound_cltype lid ->
-      fprintf ppf "Unbound class type %a" !print_longident lid;
+      fprintf ppf "Unbound class type %a"
+        (Style.as_inline_code !print_longident) lid;
       spellcheck ppf extract_cltypes env lid
   | Unbound_instance_variable s ->
       fprintf ppf "Unbound instance variable %a" Style.inline_code s;
@@ -4148,7 +4148,8 @@ let report_lookup_error _loc env ppf = function
         (Style.as_inline_code !print_longident) lid
   | Functor_used_as_structure lid ->
       fprintf ppf "@[The module %a is a functor, \
-                   it cannot have any components@]" !print_longident lid
+                   it cannot have any components@]"
+        (Style.as_inline_code !print_longident) lid
   | Abstract_used_as_structure lid ->
       fprintf ppf "@[The module %a is abstract, \
                    it cannot have any components@]"
