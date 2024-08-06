@@ -93,78 +93,86 @@ let x = |}^example^{|
 ^external_bindings_template
    ~container:"bytes" ~sigil:"b" ~width ~test_suffix ~index ~ref_result ~test_result
 ^{|
-let check_get_bounds, check_get =
-  let create_checkers create reference tested_s tested_u =
-    let for_ref = create ()
-    and for_s = create ()
-    and for_u = create () in
+let check_get_bounds, check_get, check_set_bounds, check_set =
+  let create_checkers create reference_get reference_set get_s get_u set_s
+      set_u =
+    let for_ref = create () and for_s = create () and for_u = create () in
     let check_get_bounds i =
-      try let _ = tested_s for_s i in assert false with
-      | Invalid_argument _ -> ()
+      try
+        let _ = get_s for_s i in
+        assert false
+      with Invalid_argument _ -> ()
     in
-    ( check_get_bounds
-    , fun i ->
-        let test_i = of_boxed_index i in
-        try (
-          let res = reference for_ref i in
-          try (
-            assert (eq res (to_boxed_result (tested_s for_s test_i)));
-            assert (eq res (to_boxed_result (tested_u for_u test_i))))
-          with
-          | _ -> assert false)
-        with
-        | Invalid_argument _ -> check_get_bounds (of_boxed_index i)
-        | _ ->
-          (try let _ = tested_s for_s test_i in assert false with
-           | Invalid_argument _ -> assert false
-           | _ -> ())) in
-  let cb_for_bs, c_for_bs =
-    create_checkers create_bs bs_get_reference bs_get_tested_s bs_get_tested_u in
-  let cb_for_s, c_for_s =
-    create_checkers create_s s_get_reference s_get_tested_s s_get_tested_u in
-  let cb_for_b, c_for_b =
-    create_checkers create_b b_get_reference b_get_tested_s b_get_tested_u in
-  ( (fun i -> cb_for_bs i; cb_for_s i; cb_for_b i)
-  , (fun i -> c_for_bs i; c_for_s i; c_for_b i) )
-;;
-
-let check_set_bounds, check_set =
-  let create_checkers create reference_get reference_set tested_s tested_u =
-    let for_ref = create ()
-    and for_s = create ()
-    and for_u = create () in
-    let check_get_bounds i x =
+    let check_set_bounds i x =
       let test_x = of_boxed_result x in
-      try let _ = tested_s for_s i test_x in assert false with
-      | Invalid_argument _ -> ()
+      try
+        let _ = set_s for_s i test_x in
+        assert false
+      with Invalid_argument _ -> ()
     in
-    ( check_get_bounds
-    , fun i x ->
-        let test_i = of_boxed_index i in
-        let test_x = of_boxed_result x in
-        try (
-          reference_set for_ref i x;
-          try (
-            tested_s for_s test_i test_x;
-            assert (eq x (reference_get for_s i));
-            tested_u for_u test_i test_x;
-            assert (eq x (reference_get for_u i)))
+    let check_get i =
+      let test_i = of_boxed_index i in
+      try
+        let res = reference_get for_ref i in
+        try
+          assert (eq res (to_boxed_result (get_s for_s test_i)));
+          assert (eq res (to_boxed_result (get_u for_u test_i)))
+        with _ -> assert false
+      with
+      | Invalid_argument _ -> check_get_bounds (of_boxed_index i)
+      | _ -> (
+          try
+            let _ = get_s for_s test_i in
+            assert false
           with
-          | _ -> assert false)
-        with
-        | Invalid_argument _ -> check_get_bounds (of_boxed_index i) x
-        | _ ->
-          (try tested_s for_s test_i test_x; assert false with
-           | Invalid_argument _ -> assert false
-           | _ -> ())) in
-  let cb_for_bs, c_for_bs =
-    create_checkers create_bs bs_get_reference bs_set_reference bs_set_tested_s bs_set_tested_u in
-  let cb_for_s, c_for_s =
-    create_checkers create_s s_get_reference s_set_reference s_set_tested_s s_set_tested_u in
-  let cb_for_b, c_for_b =
-    create_checkers create_b b_get_reference b_set_reference b_set_tested_s b_set_tested_u in
-  ( (fun i x -> cb_for_bs i x; cb_for_s i x; cb_for_b i x)
-  , (fun i x -> c_for_bs i x; c_for_s i x; c_for_b i x) )
+          | Invalid_argument _ -> assert false
+          | _ -> ())
+    in
+    let check_set i x =
+      let test_i = of_boxed_index i in
+      let test_x = of_boxed_result x in
+      try
+        reference_set for_ref i x;
+        try
+          set_s for_s test_i test_x;
+          assert (eq x (reference_get for_s i));
+          set_u for_u test_i test_x;
+          assert (eq x (reference_get for_u i));
+          (* Check that we didn't ruin adjacent indices *)
+          assert (
+            eq (reference_get for_ref (i - 1)) (reference_get for_s (i - 1)));
+          assert (
+            eq (reference_get for_ref (i + 1)) (reference_get for_s (i + 1)));
+          assert (
+            eq (reference_get for_ref (i - 1)) (reference_get for_u (i - 1)));
+          assert (
+            eq (reference_get for_ref (i + 1)) (reference_get for_u (i + 1)))
+        with _ -> assert false
+      with
+      | Invalid_argument _ -> check_set_bounds (of_boxed_index i) x
+      | _ -> (
+          try
+            set_s for_s test_i test_x;
+            assert false
+          with
+          | Invalid_argument _ -> assert false
+          | _ -> ())
+    in
+    (check_get_bounds, check_get, check_set_bounds, check_set)
+  in
+  let gb_for_bs, g_for_bs, sb_for_bs, s_for_bs =
+    create_checkers create_bs bs_get_reference bs_set_reference
+      bs_get_tested_s bs_get_tested_u bs_set_tested_s bs_set_tested_u in
+  let gb_for_s, g_for_s, sb_for_s, s_for_s =
+    create_checkers create_s s_get_reference s_set_reference
+      s_get_tested_s s_get_tested_u s_set_tested_s s_set_tested_u in
+  let gb_for_b, g_for_b, sb_for_b, s_for_b =
+    create_checkers create_b b_get_reference b_set_reference
+      b_get_tested_s b_get_tested_u b_set_tested_s b_set_tested_u in
+  ( (fun i -> gb_for_bs i; gb_for_s i; gb_for_b i)
+  , (fun i -> g_for_bs i; g_for_s i; g_for_b i)
+  , (fun i x -> sb_for_bs i x; sb_for_s i x; sb_for_b i x)
+  , (fun i x -> s_for_bs i x; s_for_s i x; s_for_b i x) )
 ;;
 
 for i = -1 to length + 1 do
