@@ -16,12 +16,20 @@ let x1 = (x :> int l)
 type 'a l = new int * 'a
 val x1 : int l = (42, 1337)
 |}]
+let x1_ = (x1 :> int * int)
+[%%expect {|
+val x1_ : int * int = (42, 1337)
+|}]
 
 type 'a r = new 'a * int
 let x2 = (x :> int r)
 [%%expect {|
 type 'a r = new 'a * int
 val x2 : int r = (42, 1337)
+|}]
+let x2_ = (x2 :> int * int)
+[%%expect {|
+val x2_ : int * int = (42, 1337)
 |}]
 
 type 'a l' = new 'a l
@@ -30,10 +38,14 @@ let x1' = (x :> int l')
 type 'a l' = new 'a l
 val x1' : int l' = (42, 1337)
 |}]
-
-let x2_ = (x1' :> int r) (* expand on both sides *)
+let x1'_ = (x1' :> int * int)
 [%%expect {|
-val x2_ : int r = (42, 1337)
+val x1'_ : int * int = (42, 1337)
+|}]
+
+let x0 = (x1' :> int r) (* expand on both sides *)
+[%%expect {|
+val x0 : int r = (42, 1337)
 |}]
 
 
@@ -102,8 +114,17 @@ Line 1, characters 0-25:
 Error: Cannot define a non-abstract new type
 |}]
 
+type t = new < foo : t; .. >
+[%%expect {|
+Line 1, characters 0-28:
+1 | type t = new < foo : t; .. >
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: A type variable is unbound in this type declaration.
+       In type < foo : t; .. > as 'a the variable 'a is unbound
+|}]
 
-(* Inclusion checks *)
+
+(* Inclusion checks: new in signatures *)
 
 module M : sig
   type t = new int
@@ -167,6 +188,8 @@ Error: Signature mismatch:
        The type t is not equal to the type int
 |}]
 
+(* Inclusion checks: new in implementations *)
+
 module M : sig
   type t = int
 end = struct
@@ -220,6 +243,52 @@ Error: Signature mismatch:
        A private newtype would be revealed.
 |}]
 
+(* Inclusion checks: indirections *)
+
+module M : sig
+  type t = new int
+end = struct
+  type s = new int
+  type t = s
+end
+[%%expect {|
+module M : sig type t = new int end
+|}]
+
+module M : sig
+  type t = private int
+end = struct
+  type s = new int
+  type t = s
+end
+[%%expect {|
+module M : sig type t = private int end
+|}]
+
+module M : sig
+  type t = new int
+end = struct
+  type s = private int
+  type t = s
+end
+[%%expect {|
+Lines 3-6, characters 6-3:
+3 | ......struct
+4 |   type s = private int
+5 |   type t = s
+6 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type s = private int type t = s end
+       is not included in
+         sig type t = new int end
+       Type declarations do not match:
+         type t = s
+       is not included in
+         type t = new int
+       The type s is not equal to the type int
+|}]
+
 
 (* New datatypes *)
 
@@ -230,7 +299,6 @@ type ('f : value => value) funct = {
 
 type 'a two = new 'a * 'a
 
-(* CR jbachurski: How to do the coercions here? *)
 let two = {
   return = (fun (type a) (x : a) -> ((x, x) :> a two));
   map = (fun (type a b) (f : a -> b) (t : a two) ->
