@@ -483,10 +483,10 @@ let prim_has_valid_reprs ~loc prim =
         [
           ("16", "", Value);
           ("32", "", Value);
+          ("f32", "", Value);
           ("64", "", Value);
           ("a128", "", Value);
           ("u128", "", Value);
-          ("16", "#", Value);
           ("32", "#", Bits32);
           ("f32", "#", Float32);
           ("64", "#", Bits64);

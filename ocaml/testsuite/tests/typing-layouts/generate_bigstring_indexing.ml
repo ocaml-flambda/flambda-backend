@@ -1,6 +1,7 @@
 let template ~tests = {|(* TEST
  flambda2;
  include stdlib_upstream_compatible;
+ include stdlib_stable;
  {
    native;
  }{
@@ -241,8 +242,29 @@ type result =
   ; test : string
   ; box : string
   ; unbox : string
-  ; module_ : string
+  ; eq : string
+  ; example : string
   }
+
+let int_result ~width ~unboxed ~module_ =
+  let type_ = String.lowercase_ascii module_ in
+  let suffix = if unboxed then "#" else "" in
+  { width
+  ; test_suffix = suffix
+  ; ref = type_
+  ; test = type_ ^ suffix
+  ; box =
+      (if unboxed
+       then "Stdlib_upstream_compatible." ^ module_ ^ "_u.to_" ^ type_
+       else "fun x -> x")
+  ; unbox =
+      (if unboxed
+       then "Stdlib_upstream_compatible." ^ module_ ^ "_u.of_" ^ type_
+       else "fun x -> x")
+  ; eq = module_ ^ ".equal"
+  ; example = int_examples_template ~module_ ~width
+  }
+;;
 
 let bigstring_tests =
   Hlist.cartesian_product
@@ -252,7 +274,8 @@ let bigstring_tests =
          }
        ; { type_ = "int32#"
          ; conv = "Stdlib_upstream_compatible.Int32_u.of_int"
-         ; extra_bounds = [ "-#2147483648l"; "-#2147483647l"; "#2147483647l"; "-#1l" ]
+         ; extra_bounds =
+             [ "-#2147483648l"; "-#2147483647l"; "#2147483647l"; "-#1l" ]
          }
        ; { type_ = "int64#"
          ; conv = "Stdlib_upstream_compatible.Int64_u.of_int"
@@ -264,45 +287,30 @@ let bigstring_tests =
              ]
          }
        ]
-     ; [ { width = "16"
+     ; [ int_result ~width:"16" ~unboxed:false ~module_:"Int"
+       ; int_result ~width:"32" ~unboxed:false ~module_:"Int32"
+       ; int_result ~width:"64" ~unboxed:false ~module_:"Int64"
+       ; int_result ~width:"32" ~unboxed:true ~module_:"Int32"
+       ; int_result ~width:"64" ~unboxed:true ~module_:"Int64"
+       ; { width = "f32"
          ; test_suffix = ""
-         ; ref = "int"
-         ; test = "int"
+         ; ref = "float32"
+         ; test = "float32"
          ; box = "fun x -> x"
          ; unbox = "fun x -> x"
-         ; module_ = "Int"
+         ; eq = "Stdlib_stable.Float32.equal"
+         ; example =
+             "let x _ = Stdlib_stable.Float32.of_float 5.0\n"
          }
-       ; { width = "32"
-         ; test_suffix = ""
-         ; ref = "int32"
-         ; test = "int32"
-         ; box = "fun x -> x"
-         ; unbox = "fun x -> x"
-         ; module_ = "Int32"
-         }
-       ; { width = "64"
-         ; test_suffix = ""
-         ; ref = "int64"
-         ; test = "int64"
-         ; box = "fun x -> x"
-         ; unbox = "fun x -> x"
-         ; module_ = "Int64"
-         }
-       ; { width = "32"
+       ; { width = "f32"
          ; test_suffix = "#"
-         ; ref = "int32"
-         ; test = "int32#"
-         ; box = "Stdlib_upstream_compatible.Int32_u.to_int32"
-         ; unbox = "Stdlib_upstream_compatible.Int32_u.of_int32"
-         ; module_ = "Int32"
-         }
-       ; { width = "64"
-         ; test_suffix = "#"
-         ; ref = "int64"
-         ; test = "int64#"
-         ; box = "Stdlib_upstream_compatible.Int64_u.to_int64"
-         ; unbox = "Stdlib_upstream_compatible.Int64_u.of_int64"
-         ; module_ = "Int64"
+         ; ref = "float32"
+         ; test = "float32#"
+         ; box = "Stdlib_stable.Float32_u.to_float32"
+         ; unbox = "Stdlib_stable.Float32_u.of_float32"
+         ; eq = "Stdlib_stable.Float32.equal"
+         ; example =
+             "let x _ = Stdlib_stable.Float32.of_float 5.0\n"
          }
        ]
      ]
@@ -310,7 +318,7 @@ let bigstring_tests =
   |> List.map
        (fun
            ([ { type_; conv = conv_index; extra_bounds }
-            ; { width; test_suffix; ref; test; box; unbox; module_ }
+            ; { width; test_suffix; ref; test; box; unbox; eq; example }
             ] :
              _ Hlist.t)
          ->
@@ -330,10 +338,9 @@ let bigstring_tests =
             ~conv_index
             ~box_result:box
             ~unbox_result:unbox
-            ~eq:(module_ ^ ".equal")
+            ~eq
             ~extra_bounds
-            ~example:(int_examples_template ~module_ ~width)
-       )
+            ~example)
   |> String.concat ""
 ;;
 
