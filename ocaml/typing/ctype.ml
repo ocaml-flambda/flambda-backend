@@ -2209,6 +2209,12 @@ and estimate_type_jkind env ty =
 and type_jkind env ty : Jkind.t =
   jkind_of_result (estimate_type_jkind env (get_unboxed_type_approximation env ty))
 
+let decl_legal_unapplied env decl =
+  jkind_of_decl_unapplied env decl |> Option.is_some
+
+let path_legal_unapplied env p =
+  decl_legal_unapplied env (Env.find_type p env)
+
 let arity_matches_decl env decl t = match t, decl.type_arity with
   | 0, 0 -> true
   | 0, _ -> begin
@@ -3074,7 +3080,7 @@ let rec mcomp type_pairs env t1 t2 =
             mcomp_list type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
         | (Tapp (t, args'), Tconstr (p, args, _), _, _)
         | (Tconstr (p, args, _), Tapp (t, args'), _, _)
-          when jkind_of_decl_unapplied env (Env.find_type p env) |> Option.is_some ->
+          when path_legal_unapplied env p ->
             mcomp type_pairs env t (newconstr p []);
             mcomp_list type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
         | (Tconstr (p, _, _), _, _, other) | (_, Tconstr (p, _, _), other, _) ->
@@ -3722,6 +3728,10 @@ and unify3 env t1 t1' t2 t2' =
           reify env t1';
           record_equation t1' t2';
           add_gadt_equation env path t1'
+      | (Tconstr (p, (Applied _ as args), _), Tconstr (p', (Applied _ as args'), _))
+        when in_pattern_mode () && path_legal_unapplied !env p && path_legal_unapplied !env p' ->
+          unify env (newconstr p []) (newconstr p' []);
+          unify_appargs env args args'
       | (Tconstr (_,_,_), _) | (_, Tconstr (_,_,_)) when in_pattern_mode () ->
           reify env t1';
           reify env t2';
@@ -3734,7 +3744,7 @@ and unify3 env t1 t1' t2 t2' =
           unify_appargs env args args'
       | (Tapp (t, args'), Tconstr (p, args, _))
       | (Tconstr (p, args, _), Tapp (t, args'))
-        when jkind_of_decl_unapplied !env (Env.find_type p !env) |> Option.is_some ->
+        when path_legal_unapplied !env p ->
           unify env t (newconstr p []);
           unify_appargs env args args'
       | (Tobject (fi1, nm1), Tobject (fi2, _)) ->
@@ -4801,10 +4811,13 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
           | (Tapp (t, args), Tapp (t', args')) ->
               moregen inst_nongen variance type_pairs env t t';
               moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
-          | (Tapp (t, args'), Tconstr (p, args, _))
-          | (Tconstr (p, args, _), Tapp (t, args'))
-            when jkind_of_decl_unapplied env (Env.find_type p env) |> Option.is_some ->
+          | (Tapp (t, args), Tconstr (p, args', _))
+            when path_legal_unapplied env p ->
               moregen inst_nongen variance type_pairs env t (newconstr p []);
+              moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
+          | (Tconstr (p, args, _), Tapp (t, args'))
+            when path_legal_unapplied env p ->
+              moregen inst_nongen variance type_pairs env (newconstr p []) t;
               moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
           | (Tvariant row1, Tvariant row2) ->
               moregen_row inst_nongen variance type_pairs env row1 row2
@@ -5229,7 +5242,7 @@ let rec eqtype rename type_pairs subst env t1 t2 =
               eqtype_appargs rename type_pairs subst env args args'
           | (Tapp (t, args'), Tconstr (p, args, _))
           | (Tconstr (p, args, _), Tapp (t, args'))
-            when jkind_of_decl_unapplied env (Env.find_type p env) |> Option.is_some ->
+            when path_legal_unapplied env p ->
               eqtype rename type_pairs subst env t (newconstr p []);
               eqtype_appargs rename type_pairs subst env args args'
           | (Tvariant row1, Tvariant row2) ->
