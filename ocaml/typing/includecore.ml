@@ -333,17 +333,20 @@ let report_type_inequality env ppf err =
     (fun ppf -> Format.fprintf ppf "is not equal to the type")
 
 let report_privacy_mismatch ppf err =
-  let singular, item =
+  let what, item =
     match err with
-    | Private_type_abbreviation  -> true,  "type abbreviation"
-    | Private_variant_type       -> false, "variant constructor(s)"
-    | Private_record_type        -> true,  "record constructor"
-    | Private_extensible_variant -> true,  "extensible variant"
-    | Private_row_type           -> true,  "row type"
-    | Private_new_type           -> true,  "newtype"
-    | New_type                   -> true,  "newtype"
+    | Private_type_abbreviation  -> `OnePrivate,  "type abbreviation"
+    | Private_variant_type       -> `ManyPrivate, "variant constructor(s)"
+    | Private_record_type        -> `OnePrivate,  "record constructor"
+    | Private_extensible_variant -> `OnePrivate,  "extensible variant"
+    | Private_row_type           -> `OnePrivate,  "row type"
+    | Private_new_type           -> `OnePrivate,  "new type"
+    | New_type                   -> `OneNew,  "new type"
   in Format.fprintf ppf "%s %s would be revealed."
-       (if singular then "A private" else "Private")
+       (match what with
+        | `OnePrivate -> "A private"
+        | `ManyPrivate -> "Private"
+        | `OneNew -> "A")
        item
 
 let report_label_mismatch first second env ppf err =
@@ -916,9 +919,12 @@ let privacy_mismatch env decl1 decl2 =
           None
     end
   | Private3, New3 -> Some Private_new_type
-  | New3, Public3 -> Some New_type
-  | _, _ ->
-      None
+  | New3, Public3 -> begin
+    match decl2.type_kind, decl2.type_manifest with
+    | Type_abstract _, None -> None
+    | _ -> Some New_type
+    end
+  | _, _ -> None
 
 let private_variant env row1 params1 row2 params2 =
     let r1, r2, pairs =

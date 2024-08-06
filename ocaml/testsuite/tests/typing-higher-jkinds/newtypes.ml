@@ -163,7 +163,7 @@ Error: Signature mismatch:
          type t = private int
        is not included in
          type t = new int
-       A private newtype would be revealed.
+       A private new type would be revealed.
 |}]
 
 module M : sig
@@ -209,7 +209,7 @@ Error: Signature mismatch:
          type t = new int
        is not included in
          type t = int
-       A private newtype would be revealed.
+       A new type would be revealed.
 |}]
 
 module M : sig
@@ -227,20 +227,7 @@ end = struct
   type t = new int
 end
 [%%expect {|
-Lines 3-5, characters 6-3:
-3 | ......struct
-4 |   type t = new int
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = new int end
-       is not included in
-         sig type t end
-       Type declarations do not match:
-         type t = new int
-       is not included in
-         type t
-       A private newtype would be revealed.
+module M : sig type t end
 |}]
 
 (* Inclusion checks: indirections *)
