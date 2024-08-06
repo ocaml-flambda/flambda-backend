@@ -1,0 +1,112 @@
+; Tests with external assembler
+
+(rule
+ (alias test1)
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets test_runner1.exe)
+ (deps test1.ml)
+ (action
+  (run
+   %{bin:ocamlopt.opt}
+   %{deps}
+   -o
+   test_runner1.exe
+   -S
+   -O3
+   -regalloc
+   cfg
+   -regalloc-param
+   IRC_SPILLING_HEURISTICS:flat-uses
+   -regalloc-param
+   SPLIT_LIVE_RANGES:on
+   -regalloc-param
+   STACK_SLOTS_THRESHOLD:3072
+   -no-vectorize)))
+
+(rule
+ (alias test1_simd)
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets test_runner1_simd.exe test1_simd.cmx.dump)
+ (deps test1_simd.ml stubs.c)
+ (action
+  (run
+   %{bin:ocamlopt.opt}
+   %{deps}
+   -o
+   test_runner1_simd.exe
+   -S
+   -O3
+   -regalloc
+   cfg
+   -regalloc-param
+   IRC_SPILLING_HEURISTICS:flat-uses
+   -regalloc-param
+   SPLIT_LIVE_RANGES:on
+   -regalloc-param
+   STACK_SLOTS_THRESHOLD:3072
+   -dump-into-file
+   -dcfg
+   -no-vectorize
+   -extension
+   simd)))
+
+(rule
+ (alias test1_vectorized)
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets test_runner1_vectorized.exe test1.cmx.dump)
+ (deps test1.ml)
+ (action
+  (run
+   %{bin:ocamlopt.opt}
+   %{deps}
+   -o
+   test_runner1_vectorized.exe
+   -S
+   -O3
+   -regalloc
+   cfg
+   -regalloc-param
+   IRC_SPILLING_HEURISTICS:flat-uses
+   -regalloc-param
+   SPLIT_LIVE_RANGES:on
+   -regalloc-param
+   STACK_SLOTS_THRESHOLD:3072
+   -dump-into-file
+   -dcfg
+   -dvectorize
+   -vectorize)))
+
+(rule
+ (enabled_if
+  (= %{context_name} "main"))
+ (targets test1.out test1_simd.out test1_vectorized.out)
+ (deps test_runner1.exe test_runner1_simd.exe test_runner1_vectorized.exe)
+ (action
+  (progn
+   (with-outputs-to
+    grep_test1_vectorizer_cmx.out
+    (run grep "*** Vectorization" test1.cmx.dump --line-regexp --max-count=1))
+   (with-outputs-to
+    test1.out
+    (run ./test_runner1.exe))
+   (with-outputs-to
+    test1_simd.out
+    (run ./test_runner1_simd.exe))
+   (with-outputs-to
+    test1_vectorized.out
+    (run ./test_runner1_vectorized.exe)))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} "amd64")))
+ (action
+  (progn
+   (diff grep_test1_vectorizer_cmx.expected grep_test1_vectorizer_cmx.out)
+   (diff test1.out test1_simd.out)
+   (diff test1.out test1_vectorized.out))))
