@@ -332,11 +332,12 @@ end = struct
       Vertex.Hashset.remove stack_set popped;
       popped
     in
-    let next_num = ref 0 in
-    let next_num () =
-      let num = !next_num in
-      incr next_num;
-      num
+    let next_num =
+      let num_visited = ref 0 in
+      fun () ->
+        let num = !num_visited in
+        incr num_visited;
+        num
     in
     let sccs = Stack.create () in
     (* Invariant: v must not be visited. *)
@@ -348,26 +349,22 @@ end = struct
       (* Recursively traverse successors and update this vertex's state
          accordingly. *)
       Edge.Hashset.iter (successors t vertex) ~f:(fun { label; to_; _ } ->
-          let should_traverse =
-            match label with
-            | Explicit_nontail_edge -> `Ignore
-            | Explicit_tail_edge | Inferred_tail_edge | Inferred_nontail_edge ->
-              `Traverse
-          in
-          match should_traverse with
-          | `Ignore -> ()
-          | `Traverse -> (
+          match label with
+          | Explicit_nontail_edge ->
+            (* Ignore these; they previously allocated stack space, so are
+               unlikely to be part of some cycle that blows the stack. *)
+            ()
+          | Explicit_tail_edge | Inferred_tail_edge | Inferred_nontail_edge -> (
             let to_state = Vertex.Tbl.find states to_ in
             match to_state with
             | Not_visited ->
               let to_state = visit to_ in
               state.lowlink <- min state.lowlink to_state.lowlink
-            | Visited to_state -> (
-              match Vertex.Hashset.mem stack_set to_ with
-              | false -> () (* Cross-edge; ignore. *)
-              | true ->
+            | Visited to_state ->
+              if Vertex.Hashset.mem stack_set to_
+              then
                 (* Back-edge *)
-                state.lowlink <- min state.lowlink to_state.preorder)));
+                state.lowlink <- min state.lowlink to_state.preorder));
       (* After recursively visiting all successors, if the original vertex is
          the root of the SCC in the DFS tree, pop from the stack to get all the
          vertices in the SCC. *)
@@ -397,13 +394,11 @@ end = struct
     |> Seq.concat_map (fun v ->
            successors t v |> Edge.Hashset.to_seq
            |> Seq.filter (fun (e : Edge.t) ->
-                  Vertex.Hashset.mem scc e.to_
-                  &&
                   match e.label with
                   | Explicit_tail_edge | Explicit_nontail_edge
                   | Inferred_tail_edge ->
                     false
-                  | Inferred_nontail_edge -> true))
+                  | Inferred_nontail_edge -> Vertex.Hashset.mem scc e.to_))
     |> List.of_seq
 
   let print_vertex_line ~indent ppf kv =
