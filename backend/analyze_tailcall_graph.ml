@@ -351,8 +351,8 @@ end = struct
       Edge.Hashset.iter (successors t vertex) ~f:(fun { label; to_; _ } ->
           match label with
           | Explicit_nontail_edge ->
-            (* Ignore these; they previously allocated stack space, so are
-               unlikely to be part of some cycle that blows the stack. *)
+            (* Ignore these; before less-tco they alreeady allocate stack space,
+               so are unlikely to be part of some cycle that blows the stack. *)
             ()
           | Explicit_tail_edge | Inferred_tail_edge | Inferred_nontail_edge -> (
             let to_state = Vertex.Tbl.find states to_ in
