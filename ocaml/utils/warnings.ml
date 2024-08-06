@@ -559,6 +559,10 @@ let descriptions = [
     description = "A generative functor is applied to an empty structure \
                    (struct end) rather than to ().";
     since = since 5 1 };
+  { number = 186;
+    names = ["inferred-nontail-in-tcod-cycle"];
+    description = "Inferred non-tail in TCO'd cycle.";
+    since = since 4 14 };
   { number = 187;
     names = ["incompatible-with-upstream"];
     description = "Extension usage is incompatible with upstream.";

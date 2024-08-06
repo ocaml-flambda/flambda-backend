@@ -1,131 +1,176 @@
-(data global "camlNontail__gc_roots": int 0)
-(data
- int 8960
- global "camlNontail":
- addr G:"camlNontail__f_7"
- addr G:"camlNontail__M95"
- addr G:"camlNontail__foo_8"
- addr G:"camlNontail__bar_9"
- addr G:"camlNontail__baz_10"
- addr G:"camlNontail__inlined_11"
- addr G:"camlNontail__calls_inlined_12"
- addr G:"camlNontail__don't_simplify_calls_inlined_13")
-(data
- int 3063
- global "camlNontail__don't_simplify_calls_inlined_13":
- addr G:"camlNontail__don't_simplify_calls_inlined_6_13_code"
- int 108086391056891909)
-(data
- int 3063
- global "camlNontail__calls_inlined_12":
- addr G:"camlNontail__calls_inlined_5_12_code"
- int 108086391056891909)
-(data
- int 3063
- global "camlNontail__inlined_11":
- addr G:"camlNontail__inlined_4_11_code"
- int 108086391056891909)
-(data
- int 3063
- global "camlNontail__baz_10":
- addr G:"camlNontail__baz_3_10_code"
- int 108086391056891909)
-(data
- int 3063
- global "camlNontail__bar_9":
- addr G:"camlNontail__bar_2_9_code"
- int 108086391056891909)
-(data
- int 3063
- global "camlNontail__foo_8":
- addr G:"camlNontail__foo_1_8_code"
- int 108086391056891909)
-(data int 1792 global "camlNontail__M95": addr G:"camlNontail__f_7")
-(data
- int 3063
- global "camlNontail__f_7":
- addr G:"camlNontail__f_0_7_code"
- int 108086391056891909)
-(data
- int 2044
- global "camlNontail__immstring22":
- string "goodbye"
- skip 0
- byte 0)
-(data
- int 2044
- global "camlNontail__immstring20":
- string "hello"
- skip 2
- byte 2)
-(function{nontail.ml:6,22-45} camlNontail__f_0_7_code (str: val)
- (let
-   (param
-      (extcall "caml_ml_output"{nontail.ml:6,28-45;stdlib.ml:497,2-24;stdlib.ml:374,2-47}
-        (load val (+a G:"camlStdlib__print_endline_137" 16)) str 1
-        (+
-          (<<
-            (let
-              tmp
-                (-
-                  (<<
-                    (>>u (and (load_mut int (+a str -8)) 72057594037927935)
-                      10)
-                    3)
-                  1)
-              (- tmp (load_mut unsigned int8 (+a str tmp))))
-            1)
-          1)
-        int,int,int,int->val)
-    param
-      (extcall "caml_ml_output_char"{nontail.ml:6,28-45;stdlib.ml:497,26-49}
-        (load val (+a G:"camlStdlib__print_endline_137" 16)) 21 int,int->val))
-   (extcall "caml_ml_flush"{nontail.ml:6,28-45;stdlib.ml:497,51-63}
-     (load val (+a G:"camlStdlib__print_endline_137" 16)) int->val)))
+[
+  structure_item (nontail.ml[6,85+0]..nontail.ml[6,85+45])
+    Tstr_value Nonrec
+    [
+      <def>
+          attribute "inline"
+            [
+              structure_item (nontail.ml[6,85+13]..[6,85+18])
+                Pstr_eval
+                expression (nontail.ml[6,85+13]..[6,85+18])
+                  Pexp_ident "never" (nontail.ml[6,85+13]..[6,85+18])
+            ]
+        pattern (nontail.ml[6,85+20]..nontail.ml[6,85+21])
+          Tpat_var "f"
+          value_mode global,many,shared
+        expression (nontail.ml[6,85+22]..nontail.ml[6,85+45]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[6,85+22]..nontail.ml[6,85+25])
+                Tpat_var "str"
+                value_mode global,many,shared
+          ]
+          Tfunction_body
+            expression (nontail.ml[6,85+28]..nontail.ml[6,85+45])
+              Texp_apply
+              apply_mode Nontail
+              original_position Tail_position (Default_tail)
+              locality_mode global
+              expression (nontail.ml[6,85+28]..nontail.ml[6,85+41])
+                Texp_ident "Stdlib!.print_endline"
+              [
+                <arg>
+                  Nolabel
+                  expression (nontail.ml[6,85+42]..nontail.ml[6,85+45])
+                    Texp_ident "str"
+              ]
+    ]
+  structure_item (nontail.ml[8,132+0]..nontail.ml[10,162+3])
+    Tstr_module
+    M
+      module_expr (nontail.ml[8,132+11]..nontail.ml[10,162+3])
+        Tmod_structure
+        [
+          structure_item (nontail.ml[9,150+2]..nontail.ml[9,150+11])
+            Tstr_value Nonrec
+            [
+              <def>
+                pattern (nontail.ml[9,150+6]..nontail.ml[9,150+7])
+                  Tpat_var "f"
+                  value_mode global,many,shared
+                expression (nontail.ml[9,150+10]..nontail.ml[9,150+11])
+                  Texp_ident "f"
+            ]
+        ]
+  structure_item (nontail.ml[14,289+0]..nontail.ml[16,315+13])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[14,289+4]..nontail.ml[14,289+7])
+          Tpat_var "foo"
+          value_mode global,many,shared
+        expression (nontail.ml[14,289+8]..nontail.ml[16,315+13]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[14,289+8]..nontail.ml[14,289+10])
+                Tpat_construct "()"
+                []
+                None
+          ]
+          Tfunction_body
+            expression (nontail.ml[15,302+2]..nontail.ml[16,315+13])
+              Texp_sequence
+              expression (nontail.ml[15,302+2]..nontail.ml[15,302+11])
+                Texp_apply
+                apply_mode Default
+                original_position Not_tail_position (Default_tail)
+                locality_mode global
+                expression (nontail.ml[15,302+2]..nontail.ml[15,302+3])
+                  Texp_ident "f"
+                [
+                  <arg>
+                    Nolabel
+                    expression (nontail.ml[15,302+4]..nontail.ml[15,302+11])
+                      Texp_constant Const_string("hello",(nontail.ml[15,302+5]..nontail.ml[15,302+10]),None)
+                ]
+              value
+              expression (nontail.ml[16,315+2]..nontail.ml[16,315+13])
+                Texp_apply
+                apply_mode Nontail
+                original_position Tail_position (Default_tail)
+                locality_mode global
+                expression (nontail.ml[16,315+2]..nontail.ml[16,315+3])
+                  Texp_ident "f"
+                [
+                  <arg>
+                    Nolabel
+                    expression (nontail.ml[16,315+4]..nontail.ml[16,315+13])
+                      Texp_constant Const_string("goodbye",(nontail.ml[16,315+5]..nontail.ml[16,315+12]),None)
+                ]
+    ]
+  structure_item (nontail.ml[18,330+0]..nontail.ml[20,356+15])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[18,330+4]..nontail.ml[18,330+7])
+          Tpat_var "bar"
+          value_mode global,many,shared
+        expression (nontail.ml[18,330+8]..nontail.ml[20,356+15]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[18,330+8]..nontail.ml[18,330+10])
+                Tpat_construct "()"
+                []
+                None
+          ]
+          Tfunction_body
+            expression (nontail.ml[19,343+2]..nontail.ml[20,356+15])
+              Texp_sequence
+              expression (nontail.ml[19,343+2]..nontail.ml[19,343+11])
+                Texp_apply
+                apply_mode Default
+                original_position Not_tail_position (Default_tail)
+                locality_mode global
+                expression (nontail.ml[19,343+2]..nontail.ml[19,343+3])
+                  Texp_ident "f"
+                [
+                  <arg>
+                    Nolabel
+                    expression (nontail.ml[19,343+4]..nontail.ml[19,343+11])
+                      Texp_constant Const_string("hello",(nontail.ml[19,343+5]..nontail.ml[19,343+10]),None)
+                ]
+              value
+              expression (nontail.ml[20,356+2]..nontail.ml[20,356+15])
+                Texp_apply
+                apply_mode Nontail
+                original_position Tail_position (Default_tail)
+                locality_mode global
+                expression (nontail.ml[20,356+2]..nontail.ml[20,356+5])
+                  Texp_ident "M.f"
+                [
+                  <arg>
+                    Nolabel
+                    expression (nontail.ml[20,356+6]..nontail.ml[20,356+15])
+                      Texp_constant Const_string("goodbye",(nontail.ml[20,356+7]..nontail.ml[20,356+14]),None)
+                ]
+    ]
+]
 
-(function{nontail.ml:14,8-39} camlNontail__foo_1_8_code (param: int)
- (let
-   param
-     (app(opos not_tail default){nontail.ml:15,2-11}
-       G:"camlNontail__f_0_7_code" G:"camlNontail__immstring20" int)
-   (app(opos tail default){nontail.ml:16,2-13} G:"camlNontail__f_0_7_code"
-     G:"camlNontail__immstring22" int)))
-
-(function{nontail.ml:18,8-41} camlNontail__bar_2_9_code (param: int)
- (let
-   param
-     (app(opos not_tail default){nontail.ml:19,2-11}
-       G:"camlNontail__f_0_7_code" G:"camlNontail__immstring20" int)
-   (app(opos tail default){nontail.ml:20,2-15} G:"camlNontail__f_0_7_code"
-     G:"camlNontail__immstring22" int)))
-
-(function{nontail.ml:25,24-55} camlNontail__baz_3_10_code (param: int)
- (let
-   param
-     (app(opos not_tail default){nontail.ml:26,2-11}
-       G:"camlNontail__f_0_7_code" G:"camlNontail__immstring20" int)
-   (app(opos tail default){nontail.ml:27,2-13} G:"camlNontail__f_0_7_code"
-     G:"camlNontail__immstring22" int)))
-
-(function{nontail.ml:29,29-40} camlNontail__inlined_4_11_code (param: int)
- (app(opos tail default){nontail.ml:29,34-40} G:"camlNontail__baz_3_10_code"
-   1 int))
-
-(function{nontail.ml:31,18-50} camlNontail__calls_inlined_5_12_code
-     (param: int)
- (let
-   param
-     (app(opos tail default){nontail.ml:32,2-12;nontail.ml:29,34-40}
-       G:"camlNontail__baz_3_10_code" 1 int)
-   (app(opos tail default){nontail.ml:33,2-13} G:"camlNontail__f_0_7_code"
-     G:"camlNontail__immstring22" int)))
-
-(function{nontail.ml:35,33-48}
- camlNontail__don't_simplify_calls_inlined_6_13_code (param: int)
- (app(opos tail default){nontail.ml:35,38-48;nontail.ml:29,34-40}
-   G:"camlNontail__baz_3_10_code" 1 int))
-
-(function no_cse reduce_code_size linscan camlNontail__entry ()
- (catch (exit 1 G:"camlNontail") with(1 *ret*: val) 1))
-
-(data)
+(let
+  (f =
+     (function {nlocal = 0} str never_inline : int
+       (applynontail (field_imm 45 (global Stdlib!))
+         str Tail_position (Default_tail)))
+   M = (makeblock 0 f)
+   foo =
+     (function {nlocal = 0} param[int] : int
+       (seq (apply f "hello" Not_tail_position (Default_tail))
+         (applynontail f "goodbye" Tail_position (Default_tail))))
+   bar =
+     (function {nlocal = 0} param[int] : int
+       (seq (apply f "hello" Not_tail_position (Default_tail))
+         (applynontail (field_imm 0 M)
+           "goodbye" Tail_position (Default_tail)))))
+  (makeblock 0 f M foo bar))

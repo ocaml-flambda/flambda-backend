@@ -306,7 +306,11 @@ end = struct
          makes our analysis less precise -- e.g. tuplify really is a leaf
          function, so it cannot form a cycle in the call graph. *)
       | Unknown_position, Tail -> Explicit_tail_edge
-      | Unknown_position, Nontail -> Explicit_nontail_edge
+      | Inlined_into_not_tail_position _, Tail ->
+        impossible_because "if this happens we should know about it"
+          ~case:"Inlined_into_not_tail_position _, Tail"
+      | Unknown_position, Nontail | Inlined_into_not_tail_position _, Nontail ->
+        Explicit_nontail_edge
       | Not_tail_position Explicit_tail, _ ->
         impossible_because
           "[@tail] not allowed on applications not in tail position"
@@ -582,3 +586,65 @@ module Global_state = struct
     let sccs = Graph.decompose_tailcall_sccs graph in
     Graph.warn_inferred_nontail_in_tco'd_cycle graph ~sccs
 end
+
+let fixup_inlined_tailcalls (fundecl : Cmm.fundecl) =
+  let rec fix (expr : Cmm.expression) ~(tail_pos_ctx : bool) : Cmm.expression =
+    let possibly_tail = fix ~tail_pos_ctx in
+    let nontail = fix ~tail_pos_ctx:false in
+    match expr with
+    | Cop (op, exprs, dbg) -> (
+      match[@ocaml.warning "-4"] op with
+      | Capply (machtype, region_close, original_position) ->
+        let inlined_position : Lambda.position_and_tail_attribute =
+          match original_position, tail_pos_ctx with
+          | Tail_position _, false ->
+            Inlined_into_not_tail_position { original_position }
+          | _ -> original_position
+        in
+        let apply : Cmm.operation =
+          Capply (machtype, region_close, inlined_position)
+        in
+        let exprs = List.map nontail exprs in
+        Cop (apply, exprs, dbg)
+      | _ -> expr)
+    | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+    | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ ->
+      expr
+    | Clet (var, defn, body) -> Clet (var, nontail defn, possibly_tail body)
+    | Clet_mut (var, machtype, defn, body) ->
+      Clet_mut (var, machtype, nontail defn, possibly_tail body)
+    | Cphantom_let (var, phantom_defn, body) ->
+      Cphantom_let (var, phantom_defn, possibly_tail body)
+    | Cassign (var, defn) -> Cassign (var, nontail defn)
+    | Ctuple exprs -> Ctuple (List.map nontail exprs)
+    | Csequence (first, second) ->
+      Csequence (nontail first, possibly_tail second)
+    | Cifthenelse (cond, cond_dbg, ifso, ifso_dbg, ifnot, ifnot_dbg, kind) ->
+      Cifthenelse
+        ( nontail cond,
+          cond_dbg,
+          possibly_tail ifso,
+          ifso_dbg,
+          possibly_tail ifnot,
+          ifnot_dbg,
+          kind )
+    | Cswitch (expr, table, cases, dbg', kind) ->
+      Cswitch
+        ( expr,
+          table,
+          Array.map (fun (e, dbg) -> possibly_tail e, dbg) cases,
+          dbg',
+          kind )
+    | Ccatch (rec_flag, handlers, body, kind) ->
+      let handlers =
+        List.map
+          (fun (n, ids, handler, dbg, is_cold) ->
+            n, ids, possibly_tail handler, dbg, is_cold)
+          handlers
+      in
+      Ccatch (rec_flag, handlers, possibly_tail body, kind)
+    | Ctrywith (e1, label, id, e2, dbg, kind) ->
+      Ctrywith (possibly_tail e1, label, id, possibly_tail e2, dbg, kind)
+    | Cexit (label, args, traps) -> Cexit (label, List.map nontail args, traps)
+  in
+  { fundecl with fun_body = fix fundecl.fun_body ~tail_pos_ctx:true }

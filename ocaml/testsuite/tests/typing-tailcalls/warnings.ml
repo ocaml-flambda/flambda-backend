@@ -43,7 +43,7 @@ let calls_list_map_not_in_tail_position lst =
 
 let rec cps_style0 n k =
   if n < 0 then k n
-  else 
+  else
     let n = n - 10 in
     cps_style1 n k
 
@@ -55,7 +55,7 @@ and cps_style2 n k =
   let n = n + 5 in
   cps_style0 n k
 
-let call_cps_style k = 
+let call_cps_style k =
   cps_style0
     3
     (* Danger is that the continuation can reference the cps_style0 *)

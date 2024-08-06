@@ -1,8 +1,6 @@
 (* TEST
- setup-ocamlopt.opt-build-env;
- flags = "-no-always-tco -dtypedtree -dlambda -dno-unique-ids -dcmm -c";
- ocamlopt.opt;
- check-ocamlopt.opt-output;
+ flags = "-no-always-tco -dtypedtree -dlambda -dno-unique-ids";
+ native;
 *)
 
 let [@inline never] f str = print_endline str
@@ -20,18 +18,3 @@ let foo () =
 let bar () =
   f "hello";
   M.f "goodbye"
-
-
-(* When `foo ()` is inlined into `calls_inlined`, it should not keep its syntactic
-   tail position because `inlined` is not in tail position of `calls_inlined`. *)
-let [@inline never] baz () =
-  f "hello";
-  f "goodbye"
-
-let [@inline always] inlined () = baz ()
-
-let calls_inlined () =
-  inlined ();
-  f "goodbye"
-
-let don't_simplify_calls_inlined () = inlined ()

@@ -53,6 +53,8 @@ type position_and_tail_attribute =
   | Unknown_position
   | Tail_position of tail_attribute
   | Not_tail_position of tail_attribute
+  | Inlined_into_not_tail_position of
+      { original_position : position_and_tail_attribute }
 
 type value = Value_pattern
 type computation = Computation_pattern

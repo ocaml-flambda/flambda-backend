@@ -43,3 +43,5 @@ module Global_state : sig
 
   val emit_warnings : unit -> unit
 end
+
+val fixup_inlined_tailcalls : Cmm.fundecl -> Cmm.fundecl

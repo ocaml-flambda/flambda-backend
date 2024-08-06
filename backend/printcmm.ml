@@ -199,7 +199,7 @@ let static_cast : Cmm.static_cast -> string = function
   | V128_of_scalar ty -> Printf.sprintf "scalar->%s" (Primitive.vec128_name ty)
 
 (* CR less-tco: Remove tail attribute debug print code *)
-let original_position : Lambda.position_and_tail_attribute -> string =
+let rec original_position : Lambda.position_and_tail_attribute -> string =
   let pattr : Lambda.tail_attribute -> string = function
     | Explicit_tail -> "[@tail]"
     | Hint_tail -> "[@tail hint]"
@@ -210,6 +210,8 @@ let original_position : Lambda.position_and_tail_attribute -> string =
   | Unknown_position -> "(opos unknown)"
   | Tail_position attr -> Printf.sprintf "(opos tail %s)" (pattr attr)
   | Not_tail_position attr -> Printf.sprintf "(opos not_tail %s)" (pattr attr)
+  | Inlined_into_not_tail_position { original_position = opos } ->
+    Printf.sprintf "(opos inlined %s)" (original_position opos)
 
 let operation d = function
   | Capply(_ty, _, sp) -> "app" ^ (original_position sp) ^ location d

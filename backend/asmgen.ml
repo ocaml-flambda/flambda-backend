@@ -274,6 +274,15 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   let register_allocator = register_allocator fd_cmm in
   fd_cmm
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)
+  ++ (fun fd ->
+      match !Flambda_backend_flags.cfg_analyze_tailcalls
+            || !Flambda_backend_flags.dcfg_tailcalls
+      with
+      | false -> fd
+      | true ->
+          fd
+          ++ Profile.record ~accumulate:true "fixup_inlined_tailcalls"
+               (Analyze_tailcall_graph.fixup_inlined_tailcalls))
   ++ Profile.record ~accumulate:true "selection"
        (Selection.fundecl ~future_funcnames:funcnames)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_sel
