@@ -42,6 +42,13 @@ val register_unboxed_product :
   t ->
   unboxed_product:Ident.t ->
   before_unarization:[`Complex] Flambda_arity.Component_for_creation.t ->
+  fields:Ident.t list ->
+  t
+
+val register_unboxed_product_with_kinds :
+  t ->
+  unboxed_product:Ident.t ->
+  before_unarization:[`Complex] Flambda_arity.Component_for_creation.t ->
   fields:(Ident.t * Flambda_kind.With_subkind.t) list ->
   t
 
