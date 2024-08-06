@@ -2027,6 +2027,17 @@ let safe_abbrev_new env ty =
     Btype.backtrack snap;
     false
 
+let try_expand_once_new env ty =
+  match get_desc ty with
+    Tconstr _ -> expand_abbrev_new env ty
+  | _ -> raise Cannot_expand
+
+let try_expand_safe_new env ty =
+  let snap = Btype.snapshot () in
+  try try_expand_once_new env ty
+  with Escape _ ->
+    Btype.backtrack snap; raise Cannot_expand
+
 (* Implementing function [expand_head_opt], the compiler's own version of
    [expand_head] used for type-based optimisations.
    [expand_head_opt] uses [Env.find_type_expansion_opt] to access the
@@ -5466,6 +5477,14 @@ let rec equal_private env params1 ty1 params2 ty2 =
   | exception (Equality _ as err) ->
       match try_expand_safe_opt env (expand_head env ty1) with
       | ty1' -> equal_private env params1 ty1' params2 ty2
+      | exception Cannot_expand -> raise err
+
+let rec equal_new env params1 ty1 params2 ty2 =
+  match equal env true (params1 @ [ty1]) (params2 @ [ty2]) with
+  | () -> ()
+  | exception (Equality _ as err) ->
+      match try_expand_safe_new env (expand_head env ty1) with
+      | ty1' -> equal_new env params1 ty1' params2 ty2
       | exception Cannot_expand -> raise err
 
                           (*************************)

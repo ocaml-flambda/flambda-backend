@@ -402,6 +402,10 @@ val equal_private :
 (* [equal_private env t1 params1 t2 params2] checks that [t1::params1]
    equals [t2::params2] but it is allowed to expand [t1] if it is a
    private abbreviations. *)
+val equal_new :
+        Env.t -> type_expr list -> type_expr ->
+        type_expr list -> type_expr -> unit
+(* like [equal_private], but also expands new types *)
 
 val match_class_declarations:
         Env.t -> type_expr list -> class_type -> type_expr list ->
