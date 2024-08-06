@@ -3073,7 +3073,8 @@ let rec mcomp type_pairs env t1 t2 =
             mcomp type_pairs env t t';
             mcomp_list type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
         | (Tapp (t, args'), Tconstr (p, args, _), _, _)
-        | (Tconstr (p, args, _), Tapp (t, args'), _, _) ->
+        | (Tconstr (p, args, _), Tapp (t, args'), _, _)
+          when jkind_of_decl_unapplied env (Env.find_type p env) |> Option.is_some ->
             mcomp type_pairs env t (newconstr p []);
             mcomp_list type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
         | (Tconstr (p, _, _), _, _, other) | (_, Tconstr (p, _, _), other, _) ->
@@ -3732,7 +3733,8 @@ and unify3 env t1 t1' t2 t2' =
           unify env t t';
           unify_appargs env args args'
       | (Tapp (t, args'), Tconstr (p, args, _))
-      | (Tconstr (p, args, _), Tapp (t, args')) ->
+      | (Tconstr (p, args, _), Tapp (t, args'))
+        when jkind_of_decl_unapplied !env (Env.find_type p !env) |> Option.is_some ->
           unify env t (newconstr p []);
           unify_appargs env args args'
       | (Tobject (fi1, nm1), Tobject (fi2, _)) ->
@@ -4800,7 +4802,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
               moregen inst_nongen variance type_pairs env t t';
               moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
           | (Tapp (t, args'), Tconstr (p, args, _))
-          | (Tconstr (p, args, _), Tapp (t, args')) ->
+          | (Tconstr (p, args, _), Tapp (t, args'))
+            when jkind_of_decl_unapplied env (Env.find_type p env) |> Option.is_some ->
               moregen inst_nongen variance type_pairs env t (newconstr p []);
               moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
           | (Tvariant row1, Tvariant row2) ->
@@ -5225,7 +5228,8 @@ let rec eqtype rename type_pairs subst env t1 t2 =
               eqtype rename type_pairs subst env t t';
               eqtype_appargs rename type_pairs subst env args args'
           | (Tapp (t, args'), Tconstr (p, args, _))
-          | (Tconstr (p, args, _), Tapp (t, args')) ->
+          | (Tconstr (p, args, _), Tapp (t, args'))
+            when jkind_of_decl_unapplied env (Env.find_type p env) |> Option.is_some ->
               eqtype rename type_pairs subst env t (newconstr p []);
               eqtype_appargs rename type_pairs subst env args args'
           | (Tvariant row1, Tvariant row2) ->
