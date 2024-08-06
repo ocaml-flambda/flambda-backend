@@ -97,8 +97,12 @@ extern char_os *caml_secure_getenv(char_os const *var);
    cannot be determined, return -1. */
 extern int caml_num_rows_fd(int fd);
 
-/* Print a timestamp for verbose GC logs */
-extern void caml_print_timestamp(FILE* channel, int formatted);
+/* Print a timestamp for verbose GC logs.
+
+   Arguments as per snprintf: takes a buf and size, returns the length
+   of the formatted string (which may be greater than sz, in which
+   case the string is truncated) */
+extern int caml_format_timestamp(char* buf, size_t sz, int formatted);
 
 /* Memory management platform-specific operations */
 

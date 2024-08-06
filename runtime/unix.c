@@ -464,12 +464,12 @@ int caml_num_rows_fd(int fd)
 #endif
 }
 
-void caml_print_timestamp(FILE* channel, int formatted)
+int caml_format_timestamp(char* buf, size_t sz, int formatted)
 {
   struct timeval tv;
   gettimeofday(&tv, NULL);
   if (!formatted) {
-    fprintf(channel, "%ld.%06d ", (long)tv.tv_sec, (int)tv.tv_usec);
+    return snprintf(buf, sz, "%ld.%06d ", (long)tv.tv_sec, (int)tv.tv_usec);
   } else {
     struct tm tm;
     char tz[64] = "Z";
@@ -480,7 +480,7 @@ void caml_print_timestamp(FILE* channel, int formatted)
       if (tzmin < 0) {tzmin += 60; tzhour--;}
       sprintf(tz, "%+03ld:%02ld", tzhour, tzmin);
     }
-    fprintf(channel,
+    return snprintf(buf, sz,
             "[%04d-%02d-%02d %02d:%02d:%02d.%06d%s] ",
             1900 + tm.tm_year,
             tm.tm_mon + 1,
