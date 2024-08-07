@@ -3,7 +3,9 @@
 (rule
  (alias test1)
  (enabled_if
-  (= %{context_name} "main"))
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
  (targets test_runner1.exe)
  (deps test1.ml)
  (action
@@ -27,7 +29,9 @@
 (rule
  (alias test1_simd)
  (enabled_if
-  (= %{context_name} "main"))
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
  (targets test_runner1_simd.exe test1_simd.cmx.dump)
  (deps test1_simd.ml stubs.c)
  (action
@@ -55,7 +59,9 @@
 (rule
  (alias test1_vectorized)
  (enabled_if
-  (= %{context_name} "main"))
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
  (targets test_runner1_vectorized.exe test1.cmx.dump)
  (deps test1.ml)
  (action
@@ -81,7 +87,9 @@
 
 (rule
  (enabled_if
-  (= %{context_name} "main"))
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
  (targets test1.out test1_simd.out test1_vectorized.out)
  (deps test_runner1.exe test_runner1_simd.exe test_runner1_vectorized.exe)
  (action
@@ -104,7 +112,8 @@
  (enabled_if
   (and
    (= %{context_name} "main")
-   (= %{architecture} "amd64")))
+   (= %{architecture} "amd64")
+   (<> %{system} macosx)))
  (action
   (progn
    (diff grep_test1_vectorizer_cmx.expected grep_test1_vectorizer_cmx.out)
