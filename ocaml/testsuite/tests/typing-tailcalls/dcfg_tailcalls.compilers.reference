@@ -779,9 +779,7 @@ exn-successors:
 
 193:
 n:I/61[%rax] := R:I/0[%rax]
-spilled-n:I/68[s[i:0]] := n:I/61[%rax] (spill)
-over_app_region:I/62[%rbx] := beginregion
-spilled-over_app_region:I/67[s[i:1]] := over_app_region:I/62[%rbx] (spill)
+spilled-n:I/65[s[i:0]] := n:I/61[%rax] (spill)
 R:I/0[%rax] := n:I/61[%rax]
 R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__sum_closure_21_70_code" R:I/0[%rax]
 goto 195
@@ -790,22 +788,20 @@ successors: 195
 exn-successors:
 
 195:
-func:V/63[%rbx] := R:I/0[%rax]
-I/64[%rdi] := int  mut[func:V/63[%rbx]]
-n:I/69[%rax] := spilled-n:I/68[s[i:0]] (reload)
-R:I/0[%rax] := n:I/69[%rax]
-R:I/1[%rbx] := func:V/63[%rbx]
-R:I/0[%rax] := call(opos tail default) I/64[%rdi] R:I/0[%rax] R:I/1[%rbx]
+func:V/62[%rbx] := R:I/0[%rax]
+I/63[%rdi] := int  mut[func:V/62[%rbx]]
+n:I/66[%rax] := spilled-n:I/65[s[i:0]] (reload)
+R:I/0[%rax] := n:I/66[%rax]
+R:I/1[%rbx] := func:V/62[%rbx]
+R:I/0[%rax] := call(opos tail default) I/63[%rdi] R:I/0[%rax] R:I/1[%rbx]
 goto 196
 predecessors: 193
 successors: 196
 exn-successors:
 
 196:
-result0:I/65[%rax] := R:I/0[%rax]
-over_app_region:I/70[%rbx] := spilled-over_app_region:I/67[s[i:1]] (reload)
-endregion over_app_region:I/70[%rbx]
-R:I/0[%rax] := result0:I/65[%rax]
+I/64[%rax] := R:I/0[%rax]
+R:I/0[%rax] := I/64[%rax]
 reload retaddr
 Return R:I/0[%rax]
 predecessors: 195
@@ -1483,7 +1479,7 @@ exn-successors:
 
 278:
 int_option:V/61[%rbx] := R:I/0[%rax]
-I/62[%rax] := "camlDcfg_tailcalls__next1428"
+I/62[%rax] := "camlDcfg_tailcalls__next1411"
 R:I/0[%rax] := I/62[%rax]
 R:I/1[%rbx] := int_option:V/61[%rbx]
 R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__bind_37_85_code" R:I/0[%rax] R:I/1[%rbx]
@@ -1633,7 +1629,7 @@ successors: 298
 exn-successors:
 
 298:
-I/62[%rax] := "camlDcfg_tailcalls__immstring413"
+I/62[%rax] := "camlDcfg_tailcalls__immstring407"
 R:I/0[%rax] := I/62[%rax]
 R:I/0[%rax] := call(opos not_tail default) "camlDcfg_tailcalls__f_40_88_code" R:I/0[%rax]
 goto 300
@@ -1642,7 +1638,7 @@ successors: 300
 exn-successors:
 
 300:
-I/64[%rax] := "camlDcfg_tailcalls__immstring415"
+I/64[%rax] := "camlDcfg_tailcalls__immstring409"
 R:I/0[%rax] := I/64[%rax]
 R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__f_40_88_code" R:I/0[%rax]
 goto 301
@@ -1715,7 +1711,7 @@ successors: 310
 exn-successors:
 
 310:
-I/64[%rax] := "camlDcfg_tailcalls__immstring415"
+I/64[%rax] := "camlDcfg_tailcalls__immstring409"
 R:I/0[%rax] := I/64[%rax]
 R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__f_40_88_code" R:I/0[%rax]
 goto 311
@@ -1741,17 +1737,15 @@ blocks.length=4
 
 1:
 prologue
-goto 314
+goto 320
 predecessors:
-successors: 314
+successors: 320
 exn-successors:
 
-314:
-try_region:I/62[%rax] := beginregion
-spilled-try_region:I/68[s[i:0]] := try_region:I/62[%rax] (spill)
+320:
 push trap L317
-I/63[%rax] := 1
-R:I/0[%rax] := I/63[%rax]
+I/62[%rax] := 1
+R:I/0[%rax] := I/62[%rax]
 R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__baz_41_89_code" R:I/0[%rax]
 goto 322
 predecessors: 1
@@ -1759,23 +1753,21 @@ successors: 322
 exn-successors: 317
 
 322:
-body_result:I/64[%rax] := R:I/0[%rax]
-R:I/0[%rax] := body_result:I/64[%rax]
+body_result:I/63[%rax] := R:I/0[%rax]
+R:I/0[%rax] := body_result:I/63[%rax]
 pop trap
 reload retaddr
 Return R:I/0[%rax]
-predecessors: 314
+predecessors: 320
 successors:
 exn-successors:
 
 317:
-try_region:I/69[%rax] := spilled-try_region:I/68[s[i:0]] (reload)
-endregion try_region:I/69[%rax]
-I/67[%rax] := 1
-R:I/0[%rax] := I/67[%rax]
+I/65[%rax] := 1
+R:I/0[%rax] := I/65[%rax]
 reload retaddr
 Return R:I/0[%rax]
-predecessors: 314
+predecessors: 320
 successors:
 exn-successors:
 
@@ -1835,7 +1827,7 @@ successors: 335 336
 exn-successors:
 
 335:
-I/67[%rax] := "camlDcfg_tailcalls__immstring413"
+I/67[%rax] := "camlDcfg_tailcalls__immstring407"
 I/68[%rax] := I/67[%rax]
 str:V/64[%rax] := I/68[%rax]
 goto 332
@@ -1919,7 +1911,7 @@ successors: 347 348
 exn-successors:
 
 347:
-I/67[%rax] := "camlDcfg_tailcalls__immstring415"
+I/67[%rax] := "camlDcfg_tailcalls__immstring409"
 I/68[%rax] := I/67[%rax]
 str:V/64[%rax] := I/68[%rax]
 goto 344

@@ -16,6 +16,8 @@ digraph {
     34 -> 32 [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 123, characters 2-16 (inferred tail)"]
     35 [label="camlDcfg_tailcalls__call_cps_style_34_82_code" color="black" fontcolor="black"]
     35 -> 32 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", lines 126-129, characters 2-51 (inferred nontail)"]
+    20 [label="camlDcfg_tailcalls__calls_closure_in_tail_position_20_69_code" color="black" fontcolor="black"]
+    20 -> unknown [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 85, characters 2-17 (inferred nontail)"]
     36 [label="camlDcfg_tailcalls__fn[dcfg_tailcalls.ml:129,4--51]_35_83_code" color="black" fontcolor="black"]
     36 -> 32 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 129, characters 29-43 (inferred nontail)"]
     22 [label="camlDcfg_tailcalls__partial_sum_22_22_code" color="black" fontcolor="black"]
@@ -147,23 +149,17 @@ digraph {
   subgraph cluster_17 {
     label="17"
     style=invis
-    20 [label="camlDcfg_tailcalls__calls_closure_in_tail_position_20_69_code" color="black" fontcolor="black"]
+    19 [label="camlDcfg_tailcalls__sum_19_68_code" color="black" fontcolor="black"]
   }
 
   subgraph cluster_18 {
     label="18"
     style=invis
-    19 [label="camlDcfg_tailcalls__sum_19_68_code" color="black" fontcolor="black"]
+    18 [label="camlDcfg_tailcalls__sum_uncurried_18_67_code" color="black" fontcolor="black"]
   }
 
   subgraph cluster_19 {
     label="19"
-    style=invis
-    18 [label="camlDcfg_tailcalls__sum_uncurried_18_67_code" color="black" fontcolor="black"]
-  }
-
-  subgraph cluster_20 {
-    label="20"
     style=invis
     17 [label="camlDcfg_tailcalls__calls_same_caller_multiple_applications_17_66_code" color="black" fontcolor="black"]
   }
@@ -171,109 +167,109 @@ digraph {
   17 -> 16 [color="black" style="solid" label="File \"dcfg_tailcalls.ml\", line 65, characters 9-50 (explicit tail)"]
   17 -> 16 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 67, characters 9-50 (inferred nontail)"]
 
-  subgraph cluster_21 {
-    label="21"
+  subgraph cluster_20 {
+    label="20"
     style=invis
     16 [label="camlDcfg_tailcalls__same_caller_multiple_applications_16_65_code" color="black" fontcolor="black"]
   }
 
-  subgraph cluster_22 {
-    label="22"
+  subgraph cluster_21 {
+    label="21"
     style=invis
     15 [label="camlDcfg_tailcalls__nontail_optimized_to_tail_15_64_code" color="black" fontcolor="black"]
     15 -> 15 [color="black" style="solid" label="File \"dcfg_tailcalls.ml\", line 57, characters 17-50 (explicit tail)"]
   }
 
-  subgraph cluster_23 {
-    label="23"
+  subgraph cluster_22 {
+    label="22"
     style=invis
     14 [label="camlDcfg_tailcalls__explicit_nontail_14_63_code" color="black" fontcolor="black"]
   }
 
-  subgraph cluster_24 {
-    label="24"
+  subgraph cluster_23 {
+    label="23"
     style=invis
     13 [label="camlDcfg_tailcalls__hint_tail_13_62_code" color="black" fontcolor="black"]
     13 -> 13 [color="black" style="solid" label="File \"dcfg_tailcalls.ml\", line 50, characters 16-33 (explicit tail)"]
   }
 
-  subgraph cluster_25 {
-    label="25"
+  subgraph cluster_24 {
+    label="24"
     style=invis
     12 [label="camlDcfg_tailcalls__explicit_tail_12_61_code" color="black" fontcolor="black"]
     12 -> 12 [color="black" style="solid" label="File \"dcfg_tailcalls.ml\", line 47, characters 16-37 (explicit tail)"]
   }
 
-  subgraph cluster_26 {
-    label="26"
+  subgraph cluster_25 {
+    label="25"
     style=invis
     11 [label="camlDcfg_tailcalls__calls_multiple_callers2_11_60_code" color="black" fontcolor="black"]
   }
   11 -> 8 [color="black" style="solid" label="File \"dcfg_tailcalls.ml\", line 43, characters 33-51 (explicit tail)"]
 
-  subgraph cluster_27 {
-    label="27"
+  subgraph cluster_26 {
+    label="26"
     style=invis
     10 [label="camlDcfg_tailcalls__calls_multiple_callers1_10_59_code" color="black" fontcolor="black"]
   }
 
-  subgraph cluster_28 {
-    label="28"
+  subgraph cluster_27 {
+    label="27"
     style=invis
     9 [label="camlDcfg_tailcalls__calls_multiple_callers0_9_58_code" color="black" fontcolor="black"]
   }
   9 -> 8 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 41, characters 33-51 (inferred nontail)"]
 
-  subgraph cluster_29 {
-    label="29"
+  subgraph cluster_28 {
+    label="28"
     style=invis
     8 [label="camlDcfg_tailcalls__multiple_callers_8_57_code" color="black" fontcolor="black"]
   }
 
-  subgraph cluster_30 {
-    label="30"
+  subgraph cluster_29 {
+    label="29"
     style=invis
     7 [label="camlDcfg_tailcalls__calls_mutually_recursive_not_in_tail_position_7_56_code" color="black" fontcolor="black"]
   }
   7 -> 5 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 37, characters 2-44 (inferred nontail)"]
 
-  subgraph cluster_31 {
-    label="31"
+  subgraph cluster_30 {
+    label="30"
     style=invis
     6 [label="camlDcfg_tailcalls__mutally_recursive1_6_55_code" color="black" fontcolor="black"]
   }
   6 -> 5 [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 34, characters 27-75 (inferred tail)"]
 
-  subgraph cluster_32 {
-    label="32"
+  subgraph cluster_31 {
+    label="31"
     style=invis
     5 [label="camlDcfg_tailcalls__mutually_recursive_not_in_tail_position0_5_54_code" color="black" fontcolor="black"]
   }
 
-  subgraph cluster_33 {
-    label="33"
+  subgraph cluster_32 {
+    label="32"
     style=invis
     4 [label="camlDcfg_tailcalls__calls_mutually_recursive_4_53_code" color="black" fontcolor="black"]
   }
   4 -> 2 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 29, characters 34-55 (inferred nontail)"]
 
-  subgraph cluster_34 {
-    label="34"
+  subgraph cluster_33 {
+    label="33"
     2 [label="camlDcfg_tailcalls__mutually_recursive0_2_51_code" color="black" fontcolor="black"]
     2 -> 3 [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 26, characters 16-42 (inferred tail)"]
     3 [label="camlDcfg_tailcalls__mutally_recursive1_3_52_code" color="black" fontcolor="black"]
     3 -> 2 [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 27, characters 27-54 (inferred tail)"]
   }
 
-  subgraph cluster_35 {
-    label="35"
+  subgraph cluster_34 {
+    label="34"
     style=invis
     1 [label="camlDcfg_tailcalls__calls_normal_recursive_1_50_code" color="black" fontcolor="black"]
   }
   1 -> 0 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 22, characters 32-50 (inferred nontail)"]
 
-  subgraph cluster_36 {
-    label="36"
+  subgraph cluster_35 {
+    label="35"
     style=invis
     0 [label="camlDcfg_tailcalls__normal_recursive_0_49_code" color="black" fontcolor="black"]
   }
