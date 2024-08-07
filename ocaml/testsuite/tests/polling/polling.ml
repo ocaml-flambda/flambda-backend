@@ -13,7 +13,7 @@ let[@poll error] loop_alloc x =
 
 let[@poll error] loop_no_alloc x =
   for _ = 0 to x do
-    ()
+    ignore(Sys.opaque_identity(ref 42))
   done
 ;;
 
