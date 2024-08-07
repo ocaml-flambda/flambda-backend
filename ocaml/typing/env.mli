@@ -121,8 +121,12 @@ val shape_of_path:
 val add_functor_arg: Ident.t -> t -> t
 val is_functor_arg: Path.t -> t -> bool
 
-val add_id_defined_by_letrec: Ident.t -> t -> t
-val is_id_defined_by_letrec: Path.t -> t -> bool
+(* We infer tail calls in the following contexts:
+   1. Calls to functions defined by some ancestor letrec, while we are
+      in the bindings of the letrec.
+   2. Calls to functions that were bound directly by a function parameter. *)
+val add_id_that_should_be_tco'd: Ident.t -> t -> t
+val is_id_that_should_be_tco'd: Path.t -> t -> bool
 
 val normalize_module_path: Location.t option -> t -> Path.t -> Path.t
 (* Normalize the path to a concrete module.

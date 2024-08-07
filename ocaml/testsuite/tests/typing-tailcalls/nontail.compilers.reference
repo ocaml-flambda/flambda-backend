@@ -1,160 +1,1197 @@
 [
-  structure_item (nontail.ml[6,85+0]..nontail.ml[6,85+45])
+  structure_item (nontail.ml[10,272+0]..nontail.ml[10,272+45])
     Tstr_value Nonrec
     [
       <def>
           attribute "inline"
             [
-              structure_item (nontail.ml[6,85+13]..[6,85+18])
+              structure_item (nontail.ml[10,272+13]..[10,272+18])
                 Pstr_eval
-                expression (nontail.ml[6,85+13]..[6,85+18])
-                  Pexp_ident "never" (nontail.ml[6,85+13]..[6,85+18])
+                expression (nontail.ml[10,272+13]..[10,272+18])
+                  Pexp_ident "never" (nontail.ml[10,272+13]..[10,272+18])
             ]
-        pattern (nontail.ml[6,85+20]..nontail.ml[6,85+21])
+        pattern (nontail.ml[10,272+20]..nontail.ml[10,272+21])
           Tpat_var "f"
           value_mode global,many,shared
-        expression (nontail.ml[6,85+22]..nontail.ml[6,85+45]) ghost
+        expression (nontail.ml[10,272+22]..nontail.ml[10,272+45]) ghost
           Texp_function
           region true
           alloc_mode global,many,shared
           [
             Nolabel
             Param_pat
-              pattern (nontail.ml[6,85+22]..nontail.ml[6,85+25])
+              pattern (nontail.ml[10,272+22]..nontail.ml[10,272+25])
                 Tpat_var "str"
                 value_mode global,many,shared
           ]
           Tfunction_body
-            expression (nontail.ml[6,85+28]..nontail.ml[6,85+45])
+            expression (nontail.ml[10,272+28]..nontail.ml[10,272+45])
               Texp_apply
               apply_mode Nontail
               original_position Tail_position (Default_tail)
               locality_mode global
-              expression (nontail.ml[6,85+28]..nontail.ml[6,85+41])
+              expression (nontail.ml[10,272+28]..nontail.ml[10,272+41])
                 Texp_ident "Stdlib!.print_endline"
               [
                 <arg>
                   Nolabel
-                  expression (nontail.ml[6,85+42]..nontail.ml[6,85+45])
+                  expression (nontail.ml[10,272+42]..nontail.ml[10,272+45])
                     Texp_ident "str"
               ]
     ]
-  structure_item (nontail.ml[8,132+0]..nontail.ml[10,162+3])
+  structure_item (nontail.ml[12,319+0]..nontail.ml[14,349+3])
     Tstr_module
     M
-      module_expr (nontail.ml[8,132+11]..nontail.ml[10,162+3])
+      module_expr (nontail.ml[12,319+11]..nontail.ml[14,349+3])
         Tmod_structure
         [
-          structure_item (nontail.ml[9,150+2]..nontail.ml[9,150+11])
+          structure_item (nontail.ml[13,337+2]..nontail.ml[13,337+11])
             Tstr_value Nonrec
             [
               <def>
-                pattern (nontail.ml[9,150+6]..nontail.ml[9,150+7])
+                pattern (nontail.ml[13,337+6]..nontail.ml[13,337+7])
                   Tpat_var "f"
                   value_mode global,many,shared
-                expression (nontail.ml[9,150+10]..nontail.ml[9,150+11])
+                expression (nontail.ml[13,337+10]..nontail.ml[13,337+11])
                   Texp_ident "f"
             ]
         ]
-  structure_item (nontail.ml[14,289+0]..nontail.ml[16,315+13])
+  structure_item (nontail.ml[18,476+0]..nontail.ml[20,502+13])
     Tstr_value Nonrec
     [
       <def>
-        pattern (nontail.ml[14,289+4]..nontail.ml[14,289+7])
+        pattern (nontail.ml[18,476+4]..nontail.ml[18,476+7])
           Tpat_var "foo"
           value_mode global,many,shared
-        expression (nontail.ml[14,289+8]..nontail.ml[16,315+13]) ghost
+        expression (nontail.ml[18,476+8]..nontail.ml[20,502+13]) ghost
           Texp_function
           region true
           alloc_mode global,many,shared
           [
             Nolabel
             Param_pat
-              pattern (nontail.ml[14,289+8]..nontail.ml[14,289+10])
+              pattern (nontail.ml[18,476+8]..nontail.ml[18,476+10])
                 Tpat_construct "()"
                 []
                 None
           ]
           Tfunction_body
-            expression (nontail.ml[15,302+2]..nontail.ml[16,315+13])
+            expression (nontail.ml[19,489+2]..nontail.ml[20,502+13])
               Texp_sequence
-              expression (nontail.ml[15,302+2]..nontail.ml[15,302+11])
+              expression (nontail.ml[19,489+2]..nontail.ml[19,489+11])
                 Texp_apply
                 apply_mode Default
                 original_position Not_tail_position (Default_tail)
                 locality_mode global
-                expression (nontail.ml[15,302+2]..nontail.ml[15,302+3])
+                expression (nontail.ml[19,489+2]..nontail.ml[19,489+3])
                   Texp_ident "f"
                 [
                   <arg>
                     Nolabel
-                    expression (nontail.ml[15,302+4]..nontail.ml[15,302+11])
-                      Texp_constant Const_string("hello",(nontail.ml[15,302+5]..nontail.ml[15,302+10]),None)
+                    expression (nontail.ml[19,489+4]..nontail.ml[19,489+11])
+                      Texp_constant Const_string("hello",(nontail.ml[19,489+5]..nontail.ml[19,489+10]),None)
                 ]
               value
-              expression (nontail.ml[16,315+2]..nontail.ml[16,315+13])
+              expression (nontail.ml[20,502+2]..nontail.ml[20,502+13])
                 Texp_apply
                 apply_mode Nontail
                 original_position Tail_position (Default_tail)
                 locality_mode global
-                expression (nontail.ml[16,315+2]..nontail.ml[16,315+3])
+                expression (nontail.ml[20,502+2]..nontail.ml[20,502+3])
                   Texp_ident "f"
                 [
                   <arg>
                     Nolabel
-                    expression (nontail.ml[16,315+4]..nontail.ml[16,315+13])
-                      Texp_constant Const_string("goodbye",(nontail.ml[16,315+5]..nontail.ml[16,315+12]),None)
+                    expression (nontail.ml[20,502+4]..nontail.ml[20,502+13])
+                      Texp_constant Const_string("goodbye",(nontail.ml[20,502+5]..nontail.ml[20,502+12]),None)
                 ]
     ]
-  structure_item (nontail.ml[18,330+0]..nontail.ml[20,356+15])
+  structure_item (nontail.ml[22,517+0]..nontail.ml[24,543+15])
     Tstr_value Nonrec
     [
       <def>
-        pattern (nontail.ml[18,330+4]..nontail.ml[18,330+7])
+        pattern (nontail.ml[22,517+4]..nontail.ml[22,517+7])
           Tpat_var "bar"
           value_mode global,many,shared
-        expression (nontail.ml[18,330+8]..nontail.ml[20,356+15]) ghost
+        expression (nontail.ml[22,517+8]..nontail.ml[24,543+15]) ghost
           Texp_function
           region true
           alloc_mode global,many,shared
           [
             Nolabel
             Param_pat
-              pattern (nontail.ml[18,330+8]..nontail.ml[18,330+10])
+              pattern (nontail.ml[22,517+8]..nontail.ml[22,517+10])
                 Tpat_construct "()"
                 []
                 None
           ]
           Tfunction_body
-            expression (nontail.ml[19,343+2]..nontail.ml[20,356+15])
+            expression (nontail.ml[23,530+2]..nontail.ml[24,543+15])
               Texp_sequence
-              expression (nontail.ml[19,343+2]..nontail.ml[19,343+11])
+              expression (nontail.ml[23,530+2]..nontail.ml[23,530+11])
                 Texp_apply
                 apply_mode Default
                 original_position Not_tail_position (Default_tail)
                 locality_mode global
-                expression (nontail.ml[19,343+2]..nontail.ml[19,343+3])
+                expression (nontail.ml[23,530+2]..nontail.ml[23,530+3])
                   Texp_ident "f"
                 [
                   <arg>
                     Nolabel
-                    expression (nontail.ml[19,343+4]..nontail.ml[19,343+11])
-                      Texp_constant Const_string("hello",(nontail.ml[19,343+5]..nontail.ml[19,343+10]),None)
+                    expression (nontail.ml[23,530+4]..nontail.ml[23,530+11])
+                      Texp_constant Const_string("hello",(nontail.ml[23,530+5]..nontail.ml[23,530+10]),None)
                 ]
               value
-              expression (nontail.ml[20,356+2]..nontail.ml[20,356+15])
+              expression (nontail.ml[24,543+2]..nontail.ml[24,543+15])
                 Texp_apply
                 apply_mode Nontail
                 original_position Tail_position (Default_tail)
                 locality_mode global
-                expression (nontail.ml[20,356+2]..nontail.ml[20,356+5])
+                expression (nontail.ml[24,543+2]..nontail.ml[24,543+5])
                   Texp_ident "M.f"
                 [
                   <arg>
                     Nolabel
-                    expression (nontail.ml[20,356+6]..nontail.ml[20,356+15])
-                      Texp_constant Const_string("goodbye",(nontail.ml[20,356+7]..nontail.ml[20,356+14]),None)
+                    expression (nontail.ml[24,543+6]..nontail.ml[24,543+15])
+                      Texp_constant Const_string("goodbye",(nontail.ml[24,543+7]..nontail.ml[24,543+14]),None)
                 ]
+    ]
+  structure_item (nontail.ml[28,654+0]..nontail.ml[28,654+43])
+    Tstr_type Rec
+    [
+      type_declaration holds_fn (nontail.ml[28,654+0]..nontail.ml[28,654+43])
+        ptype_params =
+          [
+            core_type (nontail.ml[28,654+6]..nontail.ml[28,654+8])
+              Ttyp_var a
+              None
+            core_type (nontail.ml[28,654+10]..nontail.ml[28,654+12])
+              Ttyp_var b
+              None
+          ]
+        ptype_cstrs =
+          []
+        ptype_kind =
+          Ttype_record
+            [
+              (nontail.ml[28,654+27]..nontail.ml[28,654+41])
+                Immutable
+                g                core_type (nontail.ml[28,654+32]..nontail.ml[28,654+40])
+                  Ttyp_poly
+                  core_type (nontail.ml[28,654+32]..nontail.ml[28,654+40])
+                    Ttyp_arrow
+                    Nolabel
+                    core_type (nontail.ml[28,654+32]..nontail.ml[28,654+34])
+                      Ttyp_var a
+                      None
+                    core_type (nontail.ml[28,654+38]..nontail.ml[28,654+40])
+                      Ttyp_var b
+                      None
+            ]
+        ptype_private = Public
+        ptype_manifest =
+          None
+    ]
+  structure_item (nontail.ml[30,699+0]..nontail.ml[31,729+30])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[30,699+4]..nontail.ml[30,699+19])
+          Tpat_var "pipe_struct_let"
+          value_mode global,many,shared
+        expression (nontail.ml[30,699+20]..nontail.ml[31,729+30]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[30,699+20]..nontail.ml[30,699+21])
+                Tpat_var "a"
+                value_mode global,many,shared
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[30,699+22]..nontail.ml[30,699+27])
+                Tpat_var "strct"
+                value_mode global,many,shared
+          ]
+          Tfunction_body
+            expression (nontail.ml[31,729+2]..nontail.ml[31,729+30])
+              Texp_let Nonrec
+              [
+                <def>
+                  pattern (nontail.ml[31,729+6]..nontail.ml[31,729+15])
+                    Tpat_record
+                    [
+                      "g"
+                        pattern (nontail.ml[31,729+12]..nontail.ml[31,729+13])
+                          Tpat_var "g"
+                          value_mode meet_local,once(3b[global,many,local,many]),shared
+                    ]
+                  expression (nontail.ml[31,729+18]..nontail.ml[31,729+23])
+                    Texp_ident "strct"
+              ]
+              expression (nontail.ml[31,729+27]..nontail.ml[31,729+30])
+                Texp_apply
+                apply_mode Nontail
+                original_position Tail_position (Default_tail)
+                locality_mode global
+                expression (nontail.ml[31,729+27]..nontail.ml[31,729+28])
+                  Texp_ident "g"
+                [
+                  <arg>
+                    Nolabel
+                    expression (nontail.ml[31,729+29]..nontail.ml[31,729+30])
+                      Texp_ident "a"
+                ]
+    ]
+  structure_item (nontail.ml[33,761+0]..nontail.ml[34,788+25])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[33,761+4]..nontail.ml[33,761+18])
+          Tpat_var "pipe_tuple_let"
+          value_mode global,many,shared
+        expression (nontail.ml[33,761+19]..nontail.ml[34,788+25]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[33,761+19]..nontail.ml[33,761+20])
+                Tpat_var "a"
+                value_mode global,many,shared
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[33,761+21]..nontail.ml[33,761+24])
+                Tpat_var "tup"
+                value_mode global,many,shared
+          ]
+          Tfunction_body
+            expression (nontail.ml[34,788+2]..nontail.ml[34,788+25])
+              Texp_let Nonrec
+              [
+                <def>
+                  pattern (nontail.ml[34,788+6]..nontail.ml[34,788+12])
+                    Tpat_tuple
+                    [
+                      Label: None
+                      pattern (nontail.ml[34,788+7]..nontail.ml[34,788+8])
+                        Tpat_var "g"
+                        value_mode meet_local,once(4e[global,many,local,many]),shared
+                      Label: None
+                      pattern (nontail.ml[34,788+10]..nontail.ml[34,788+11])
+                        Tpat_any
+                    ]
+                  expression (nontail.ml[34,788+15]..nontail.ml[34,788+18])
+                    Texp_ident "tup"
+              ]
+              expression (nontail.ml[34,788+22]..nontail.ml[34,788+25])
+                Texp_apply
+                apply_mode Nontail
+                original_position Tail_position (Default_tail)
+                locality_mode global
+                expression (nontail.ml[34,788+22]..nontail.ml[34,788+23])
+                  Texp_ident "g"
+                [
+                  <arg>
+                    Nolabel
+                    expression (nontail.ml[34,788+24]..nontail.ml[34,788+25])
+                      Texp_ident "a"
+                ]
+    ]
+  structure_item (nontail.ml[36,815+0]..nontail.ml[38,866+20])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[36,815+4]..nontail.ml[36,815+21])
+          Tpat_var "pipe_struct_match"
+          value_mode global,many,shared
+        expression (nontail.ml[36,815+22]..nontail.ml[38,866+20]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[36,815+22]..nontail.ml[36,815+23])
+                Tpat_var "a"
+                value_mode global,many,shared
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[36,815+24]..nontail.ml[36,815+29])
+                Tpat_var "strct"
+                value_mode global,many,shared
+          ]
+          Tfunction_body
+            expression (nontail.ml[37,847+2]..nontail.ml[38,866+20])
+              Texp_match
+              expression (nontail.ml[37,847+8]..nontail.ml[37,847+13])
+                Texp_ident "strct"
+              value
+              [
+                <case>
+                  pattern (nontail.ml[38,866+4]..nontail.ml[38,866+13])
+                    Tpat_value
+                    pattern (nontail.ml[38,866+4]..nontail.ml[38,866+13])
+                      Tpat_record
+                      [
+                        "g"
+                          pattern (nontail.ml[38,866+10]..nontail.ml[38,866+11])
+                            Tpat_var "g"
+                            value_mode meet_local,once(6a[global,many,local,many]),shared
+                      ]
+                  expression (nontail.ml[38,866+17]..nontail.ml[38,866+20])
+                    Texp_apply
+                    apply_mode Nontail
+                    original_position Tail_position (Default_tail)
+                    locality_mode global
+                    expression (nontail.ml[38,866+17]..nontail.ml[38,866+18])
+                      Texp_ident "g"
+                    [
+                      <arg>
+                        Nolabel
+                        expression (nontail.ml[38,866+19]..nontail.ml[38,866+20])
+                          Texp_ident "a"
+                    ]
+              ]
+    ]
+  structure_item (nontail.ml[40,888+0]..nontail.ml[42,934+17])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[40,888+4]..nontail.ml[40,888+20])
+          Tpat_var "pipe_tuple_match"
+          value_mode global,many,shared
+        expression (nontail.ml[40,888+21]..nontail.ml[42,934+17]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[40,888+21]..nontail.ml[40,888+22])
+                Tpat_var "a"
+                value_mode global,many,shared
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[40,888+23]..nontail.ml[40,888+26])
+                Tpat_var "tup"
+                value_mode global,many,shared
+          ]
+          Tfunction_body
+            expression (nontail.ml[41,917+2]..nontail.ml[42,934+17])
+              Texp_match
+              expression (nontail.ml[41,917+8]..nontail.ml[41,917+11])
+                Texp_ident "tup"
+              value
+              [
+                <case>
+                  pattern (nontail.ml[42,934+4]..nontail.ml[42,934+10])
+                    Tpat_value
+                    pattern (nontail.ml[42,934+4]..nontail.ml[42,934+10])
+                      Tpat_tuple
+                      [
+                        Label: None
+                        pattern (nontail.ml[42,934+5]..nontail.ml[42,934+6])
+                          Tpat_var "g"
+                          value_mode meet_local,once(7d[global,many,local,many]),shared
+                        Label: None
+                        pattern (nontail.ml[42,934+8]..nontail.ml[42,934+9])
+                          Tpat_any
+                      ]
+                  expression (nontail.ml[42,934+14]..nontail.ml[42,934+17])
+                    Texp_apply
+                    apply_mode Nontail
+                    original_position Tail_position (Default_tail)
+                    locality_mode global
+                    expression (nontail.ml[42,934+14]..nontail.ml[42,934+15])
+                      Texp_ident "g"
+                    [
+                      <arg>
+                        Nolabel
+                        expression (nontail.ml[42,934+16]..nontail.ml[42,934+17])
+                          Texp_ident "a"
+                    ]
+              ]
+    ]
+  structure_item (nontail.ml[44,953+0]..nontail.ml[47,1019+16])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[44,953+4]..nontail.ml[44,953+15])
+          Tpat_var "pipe_option"
+          value_mode global,many,shared
+        expression (nontail.ml[44,953+16]..nontail.ml[47,1019+16]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[44,953+16]..nontail.ml[44,953+17])
+                Tpat_var "a"
+                value_mode global,many,shared
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[44,953+18]..nontail.ml[44,953+21])
+                Tpat_var "opt"
+                value_mode global,many,shared
+          ]
+          Tfunction_body
+            expression (nontail.ml[45,977+2]..nontail.ml[47,1019+16])
+              Texp_match
+              expression (nontail.ml[45,977+8]..nontail.ml[45,977+11])
+                Texp_ident "opt"
+              value
+              [
+                <case>
+                  pattern (nontail.ml[46,994+4]..nontail.ml[46,994+10])
+                    Tpat_value
+                    pattern (nontail.ml[46,994+4]..nontail.ml[46,994+10])
+                      Tpat_construct "Some"
+                      [
+                        pattern (nontail.ml[46,994+9]..nontail.ml[46,994+10])
+                          Tpat_var "g"
+                          value_mode meet_local,once(99[global,many,local,many]),shared
+                      ]
+                      None
+                  expression (nontail.ml[46,994+14]..nontail.ml[46,994+24])
+                    Texp_construct "Some"
+                    alloc_mode global,many,shared
+                    [
+                      expression (nontail.ml[46,994+19]..nontail.ml[46,994+24])
+                        Texp_apply
+                        apply_mode Default
+                        original_position Not_tail_position (Default_tail)
+                        locality_mode global
+                        expression (nontail.ml[46,994+20]..nontail.ml[46,994+21])
+                          Texp_ident "g"
+                        [
+                          <arg>
+                            Nolabel
+                            expression (nontail.ml[46,994+22]..nontail.ml[46,994+23])
+                              Texp_ident "a"
+                        ]
+                    ]
+                <case>
+                  pattern (nontail.ml[47,1019+4]..nontail.ml[47,1019+8])
+                    Tpat_value
+                    pattern (nontail.ml[47,1019+4]..nontail.ml[47,1019+8])
+                      Tpat_construct "None"
+                      []
+                      None
+                  expression (nontail.ml[47,1019+12]..nontail.ml[47,1019+16])
+                    Texp_construct "None"
+                    []
+              ]
+    ]
+  structure_item (nontail.ml[49,1037+0]..nontail.ml[52,1133+28])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[49,1037+4]..nontail.ml[49,1037+22])
+          Tpat_var "pipe_option_ifnone"
+          value_mode global,many,shared
+        expression (nontail.ml[49,1037+23]..nontail.ml[52,1133+28]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[49,1037+23]..nontail.ml[49,1037+24])
+                Tpat_var "a"
+                value_mode global,many,shared
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[49,1037+25]..nontail.ml[49,1037+31])
+                Tpat_var "ifnone"
+                value_mode global,many,shared
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[49,1037+32]..nontail.ml[49,1037+35])
+                Tpat_var "opt"
+                value_mode global,many,shared
+          ]
+          Tfunction_body
+            expression (nontail.ml[50,1075+2]..nontail.ml[52,1133+28])
+              Texp_match
+              expression (nontail.ml[50,1075+8]..nontail.ml[50,1075+19])
+                Texp_tuple
+                alloc_mode local,once,shared
+                [
+                  <tuple component>
+                  Label: None
+                    expression (nontail.ml[50,1075+8]..nontail.ml[50,1075+14])
+                      Texp_ident "ifnone"
+                  <tuple component>
+                  Label: None
+                    expression (nontail.ml[50,1075+16]..nontail.ml[50,1075+19])
+                      Texp_ident "opt"
+                ]
+              value
+              [
+                <case>
+                  pattern (nontail.ml[51,1100+4]..nontail.ml[51,1100+18])
+                    Tpat_value
+                    pattern (nontail.ml[51,1100+4]..nontail.ml[51,1100+18])
+                      Tpat_tuple
+                      [
+                        Label: None
+                        pattern (nontail.ml[51,1100+4]..nontail.ml[51,1100+10])
+                          Tpat_var "ifnone"
+                          value_mode meet_local,once(b7[global,many,local,many]),shared
+                        Label: None
+                        pattern (nontail.ml[51,1100+12]..nontail.ml[51,1100+18])
+                          Tpat_construct "Some"
+                          [
+                            pattern (nontail.ml[51,1100+17]..nontail.ml[51,1100+18])
+                              Tpat_var "g"
+                              value_mode meet_local,once(b9[global,many,local,many]),shared
+                          ]
+                          None
+                      ]
+                  expression (nontail.ml[51,1100+22]..nontail.ml[51,1100+32])
+                    Texp_construct "Some"
+                    alloc_mode global,many,shared
+                    [
+                      expression (nontail.ml[51,1100+27]..nontail.ml[51,1100+32])
+                        Texp_apply
+                        apply_mode Default
+                        original_position Not_tail_position (Default_tail)
+                        locality_mode global
+                        expression (nontail.ml[51,1100+28]..nontail.ml[51,1100+29])
+                          Texp_ident "g"
+                        [
+                          <arg>
+                            Nolabel
+                            expression (nontail.ml[51,1100+30]..nontail.ml[51,1100+31])
+                              Texp_ident "a"
+                        ]
+                    ]
+                <case>
+                  pattern (nontail.ml[52,1133+4]..nontail.ml[52,1133+16])
+                    Tpat_value
+                    pattern (nontail.ml[52,1133+4]..nontail.ml[52,1133+16])
+                      Tpat_tuple
+                      [
+                        Label: None
+                        pattern (nontail.ml[52,1133+4]..nontail.ml[52,1133+10])
+                          Tpat_var "ifnone"
+                          value_mode meet_local,once(b7[global,many,local,many]),shared
+                        Label: None
+                        pattern (nontail.ml[52,1133+12]..nontail.ml[52,1133+16])
+                          Tpat_construct "None"
+                          []
+                          None
+                      ]
+                  expression (nontail.ml[52,1133+20]..nontail.ml[52,1133+28])
+                    Texp_apply
+                    apply_mode Nontail
+                    original_position Tail_position (Default_tail)
+                    locality_mode global
+                    expression (nontail.ml[52,1133+20]..nontail.ml[52,1133+26])
+                      Texp_ident "ifnone"
+                    [
+                      <arg>
+                        Nolabel
+                        expression (nontail.ml[52,1133+27]..nontail.ml[52,1133+28])
+                          Texp_ident "a"
+                    ]
+              ]
+    ]
+  structure_item (nontail.ml[56,1234+0]..nontail.ml[59,1294+37])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[56,1234+4]..nontail.ml[56,1234+16])
+          Tpat_var "map_shadowed"
+          value_mode global,many,shared
+        expression (nontail.ml[56,1234+17]..nontail.ml[59,1294+37]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[56,1234+17]..nontail.ml[56,1234+20])
+                Tpat_var "opt"
+                value_mode global,many,join_shared(d2[shared,unique])
+            Labelled "g"
+            Param_pat
+              pattern (nontail.ml[56,1234+22]..nontail.ml[56,1234+23])
+                Tpat_var "g"
+                value_mode map_comonadic(local_to_regional)(d7[global,many,local,once]),join_shared(d8[shared,unique])
+          ]
+          Tfunction_body
+            expression (nontail.ml[57,1260+2]..nontail.ml[59,1294+37])
+              Texp_match
+              expression (nontail.ml[57,1260+8]..nontail.ml[57,1260+11])
+                Texp_ident "opt"
+              value
+              [
+                <case>
+                  pattern (nontail.ml[58,1277+4]..nontail.ml[58,1277+8])
+                    Tpat_value
+                    pattern (nontail.ml[58,1277+4]..nontail.ml[58,1277+8])
+                      Tpat_construct "None"
+                      []
+                      None
+                  expression (nontail.ml[58,1277+12]..nontail.ml[58,1277+16])
+                    Texp_construct "None"
+                    []
+                <case>
+                  pattern (nontail.ml[59,1294+4]..nontail.ml[59,1294+10])
+                    Tpat_value
+                    pattern (nontail.ml[59,1294+4]..nontail.ml[59,1294+10])
+                      Tpat_construct "Some"
+                      [
+                        pattern (nontail.ml[59,1294+9]..nontail.ml[59,1294+10])
+                          Tpat_var "x"
+                          value_mode global,many,shared
+                      ]
+                      None
+                  expression (nontail.ml[59,1294+14]..nontail.ml[59,1294+37])
+                    Texp_let Nonrec
+                    [
+                      <def>
+                        pattern (nontail.ml[59,1294+18]..nontail.ml[59,1294+19])
+                          Tpat_var "g"
+                          value_mode meet_local,once(dd[global,many,local,many]),shared
+                        expression (nontail.ml[59,1294+22]..nontail.ml[59,1294+23])
+                          Texp_ident "f"
+                    ]
+                    expression (nontail.ml[59,1294+27]..nontail.ml[59,1294+37])
+                      Texp_construct "Some"
+                      alloc_mode global,once,shared
+                      [
+                        expression (nontail.ml[59,1294+32]..nontail.ml[59,1294+37])
+                          Texp_apply
+                          apply_mode Default
+                          original_position Not_tail_position (Default_tail)
+                          locality_mode global
+                          expression (nontail.ml[59,1294+33]..nontail.ml[59,1294+34])
+                            Texp_ident "g"
+                          [
+                            <arg>
+                              Nolabel
+                              expression (nontail.ml[59,1294+35]..nontail.ml[59,1294+36])
+                                Texp_ident "x"
+                          ]
+                      ]
+              ]
+    ]
+  structure_item (nontail.ml[61,1333+0]..nontail.ml[64,1401+38])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[61,1333+4]..nontail.ml[61,1333+16])
+          Tpat_var "map_shadowed"
+          value_mode global,many,shared
+        expression (nontail.ml[61,1333+19]..nontail.ml[64,1401+38])
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[61,1333+24]..nontail.ml[61,1333+27])
+                Tpat_var "opt"
+                value_mode global,many,shared
+            Labelled "g"
+            Param_pat
+              pattern (nontail.ml[61,1333+29]..nontail.ml[61,1333+30])
+                Tpat_var "g"
+                value_mode global,many,shared
+          ]
+          Tfunction_body
+            expression (nontail.ml[62,1367+2]..nontail.ml[64,1401+37])
+              Texp_match
+              expression (nontail.ml[62,1367+8]..nontail.ml[62,1367+11])
+                Texp_ident "opt"
+              value
+              [
+                <case>
+                  pattern (nontail.ml[63,1384+4]..nontail.ml[63,1384+8])
+                    Tpat_value
+                    pattern (nontail.ml[63,1384+4]..nontail.ml[63,1384+8])
+                      Tpat_construct "None"
+                      []
+                      None
+                  expression (nontail.ml[63,1384+12]..nontail.ml[63,1384+16])
+                    Texp_construct "None"
+                    []
+                <case>
+                  pattern (nontail.ml[64,1401+4]..nontail.ml[64,1401+10])
+                    Tpat_value
+                    pattern (nontail.ml[64,1401+4]..nontail.ml[64,1401+10])
+                      Tpat_construct "Some"
+                      [
+                        pattern (nontail.ml[64,1401+9]..nontail.ml[64,1401+10])
+                          Tpat_var "x"
+                          value_mode global,many,shared
+                      ]
+                      None
+                  expression (nontail.ml[64,1401+14]..nontail.ml[64,1401+37])
+                    Texp_let Nonrec
+                    [
+                      <def>
+                        pattern (nontail.ml[64,1401+18]..nontail.ml[64,1401+19])
+                          Tpat_var "g"
+                          value_mode meet_local,once(f3[global,many,local,many]),shared
+                        expression (nontail.ml[64,1401+22]..nontail.ml[64,1401+23])
+                          Texp_ident "f"
+                    ]
+                    expression (nontail.ml[64,1401+27]..nontail.ml[64,1401+37])
+                      Texp_construct "Some"
+                      alloc_mode global,many,shared
+                      [
+                        expression (nontail.ml[64,1401+32]..nontail.ml[64,1401+37])
+                          Texp_apply
+                          apply_mode Default
+                          original_position Not_tail_position (Default_tail)
+                          locality_mode global
+                          expression (nontail.ml[64,1401+33]..nontail.ml[64,1401+34])
+                            Texp_ident "g"
+                          [
+                            <arg>
+                              Nolabel
+                              expression (nontail.ml[64,1401+35]..nontail.ml[64,1401+36])
+                                Texp_ident "x"
+                          ]
+                      ]
+              ]
+    ]
+  structure_item (nontail.ml[66,1441+0]..nontail.ml[66,1441+55])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[66,1441+4]..nontail.ml[66,1441+24])
+          Tpat_var "pipe_struct_shadowed"
+          value_mode global,many,shared
+        expression (nontail.ml[66,1441+25]..nontail.ml[66,1441+55]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[66,1441+25]..nontail.ml[66,1441+26])
+                Tpat_var "a"
+                value_mode global,many,shared
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[66,1441+27]..nontail.ml[66,1441+36])
+                Tpat_record
+                [
+                  "g"
+                    pattern (nontail.ml[66,1441+33]..nontail.ml[66,1441+34])
+                      Tpat_var "g"
+                      value_mode global,many,shared
+                ]
+          ]
+          Tfunction_body
+            expression (nontail.ml[66,1441+39]..nontail.ml[66,1441+55])
+              Texp_let Nonrec
+              [
+                <def>
+                  pattern (nontail.ml[66,1441+43]..nontail.ml[66,1441+44])
+                    Tpat_var "g"
+                    value_mode meet_local,once(107[global,many,local,many]),shared
+                  expression (nontail.ml[66,1441+47]..nontail.ml[66,1441+48])
+                    Texp_ident "f"
+              ]
+              expression (nontail.ml[66,1441+52]..nontail.ml[66,1441+55])
+                Texp_apply
+                apply_mode Nontail
+                original_position Tail_position (Default_tail)
+                locality_mode global
+                expression (nontail.ml[66,1441+52]..nontail.ml[66,1441+53])
+                  Texp_ident "g"
+                [
+                  <arg>
+                    Nolabel
+                    expression (nontail.ml[66,1441+54]..nontail.ml[66,1441+55])
+                      Texp_ident "a"
+                ]
+    ]
+  structure_item (nontail.ml[68,1498+0]..nontail.ml[68,1498+51])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[68,1498+4]..nontail.ml[68,1498+23])
+          Tpat_var "pipe_tuple_shadowed"
+          value_mode global,many,shared
+        expression (nontail.ml[68,1498+24]..nontail.ml[68,1498+51]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[68,1498+24]..nontail.ml[68,1498+25])
+                Tpat_var "a"
+                value_mode global,many,shared
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[68,1498+26]..nontail.ml[68,1498+32])
+                Tpat_tuple
+                [
+                  Label: None
+                  pattern (nontail.ml[68,1498+27]..nontail.ml[68,1498+28])
+                    Tpat_var "g"
+                    value_mode global,many,shared
+                  Label: None
+                  pattern (nontail.ml[68,1498+30]..nontail.ml[68,1498+31])
+                    Tpat_any
+                ]
+          ]
+          Tfunction_body
+            expression (nontail.ml[68,1498+35]..nontail.ml[68,1498+51])
+              Texp_let Nonrec
+              [
+                <def>
+                  pattern (nontail.ml[68,1498+39]..nontail.ml[68,1498+40])
+                    Tpat_var "g"
+                    value_mode meet_local,once(11b[global,many,local,many]),shared
+                  expression (nontail.ml[68,1498+43]..nontail.ml[68,1498+44])
+                    Texp_ident "f"
+              ]
+              expression (nontail.ml[68,1498+48]..nontail.ml[68,1498+51])
+                Texp_apply
+                apply_mode Nontail
+                original_position Tail_position (Default_tail)
+                locality_mode global
+                expression (nontail.ml[68,1498+48]..nontail.ml[68,1498+49])
+                  Texp_ident "g"
+                [
+                  <arg>
+                    Nolabel
+                    expression (nontail.ml[68,1498+50]..nontail.ml[68,1498+51])
+                      Texp_ident "a"
+                ]
+    ]
+  structure_item (nontail.ml[70,1551+0]..nontail.ml[71,1595+33])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[70,1551+4]..nontail.ml[70,1551+30])
+          Tpat_var "pipe_struct_match_shadowed"
+          value_mode global,many,shared
+        expression (nontail.ml[70,1551+31]..nontail.ml[71,1595+33]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[70,1551+31]..nontail.ml[70,1551+32])
+                Tpat_var "a"
+                value_mode global,many,shared
+          ]
+          Tfunction_cases (nontail.ml[70,1551+35]..nontail.ml[71,1595+33])
+          alloc_mode global,many,shared
+          value
+            [
+              <case>
+                pattern (nontail.ml[71,1595+4]..nontail.ml[71,1595+13])
+                  Tpat_record
+                  [
+                    "g"
+                      pattern (nontail.ml[71,1595+10]..nontail.ml[71,1595+11])
+                        Tpat_var "g"
+                        value_mode global,many,shared
+                  ]
+                expression (nontail.ml[71,1595+17]..nontail.ml[71,1595+33])
+                  Texp_let Nonrec
+                  [
+                    <def>
+                      pattern (nontail.ml[71,1595+21]..nontail.ml[71,1595+22])
+                        Tpat_var "g"
+                        value_mode meet_local,once(12f[global,many,local,many]),shared
+                      expression (nontail.ml[71,1595+25]..nontail.ml[71,1595+26])
+                        Texp_ident "f"
+                  ]
+                  expression (nontail.ml[71,1595+30]..nontail.ml[71,1595+33])
+                    Texp_apply
+                    apply_mode Nontail
+                    original_position Tail_position (Default_tail)
+                    locality_mode global
+                    expression (nontail.ml[71,1595+30]..nontail.ml[71,1595+31])
+                      Texp_ident "g"
+                    [
+                      <arg>
+                        Nolabel
+                        expression (nontail.ml[71,1595+32]..nontail.ml[71,1595+33])
+                          Texp_ident "a"
+                    ]
+            ]
+    ]
+  structure_item (nontail.ml[73,1630+0]..nontail.ml[74,1673+30])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[73,1630+4]..nontail.ml[73,1630+29])
+          Tpat_var "pipe_tuple_match_shadowed"
+          value_mode global,many,shared
+        expression (nontail.ml[73,1630+30]..nontail.ml[74,1673+30]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[73,1630+30]..nontail.ml[73,1630+31])
+                Tpat_var "a"
+                value_mode global,many,shared
+          ]
+          Tfunction_cases (nontail.ml[73,1630+34]..nontail.ml[74,1673+30])
+          alloc_mode global,many,shared
+          value
+            [
+              <case>
+                pattern (nontail.ml[74,1673+4]..nontail.ml[74,1673+10])
+                  Tpat_tuple
+                  [
+                    Label: None
+                    pattern (nontail.ml[74,1673+5]..nontail.ml[74,1673+6])
+                      Tpat_var "g"
+                      value_mode global,many,shared
+                    Label: None
+                    pattern (nontail.ml[74,1673+8]..nontail.ml[74,1673+9])
+                      Tpat_any
+                  ]
+                expression (nontail.ml[74,1673+14]..nontail.ml[74,1673+30])
+                  Texp_let Nonrec
+                  [
+                    <def>
+                      pattern (nontail.ml[74,1673+18]..nontail.ml[74,1673+19])
+                        Tpat_var "g"
+                        value_mode meet_local,once(143[global,many,local,many]),shared
+                      expression (nontail.ml[74,1673+22]..nontail.ml[74,1673+23])
+                        Texp_ident "f"
+                  ]
+                  expression (nontail.ml[74,1673+27]..nontail.ml[74,1673+30])
+                    Texp_apply
+                    apply_mode Nontail
+                    original_position Tail_position (Default_tail)
+                    locality_mode global
+                    expression (nontail.ml[74,1673+27]..nontail.ml[74,1673+28])
+                      Texp_ident "g"
+                    [
+                      <arg>
+                        Nolabel
+                        expression (nontail.ml[74,1673+29]..nontail.ml[74,1673+30])
+                          Texp_ident "a"
+                    ]
+            ]
+    ]
+  structure_item (nontail.ml[76,1705+0]..nontail.ml[78,1781+16])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[76,1705+4]..nontail.ml[76,1705+24])
+          Tpat_var "pipe_option_shadowed"
+          value_mode global,many,shared
+        expression (nontail.ml[76,1705+25]..nontail.ml[78,1781+16]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[76,1705+25]..nontail.ml[76,1705+26])
+                Tpat_var "a"
+                value_mode global,many,shared
+          ]
+          Tfunction_cases (nontail.ml[76,1705+29]..nontail.ml[78,1781+16])
+          alloc_mode global,many,shared
+          value
+            [
+              <case>
+                pattern (nontail.ml[77,1743+4]..nontail.ml[77,1743+10])
+                  Tpat_construct "Some"
+                  [
+                    pattern (nontail.ml[77,1743+9]..nontail.ml[77,1743+10])
+                      Tpat_var "g"
+                      value_mode global,many,shared
+                  ]
+                  None
+                expression (nontail.ml[77,1743+14]..nontail.ml[77,1743+37])
+                  Texp_let Nonrec
+                  [
+                    <def>
+                      pattern (nontail.ml[77,1743+18]..nontail.ml[77,1743+19])
+                        Tpat_var "g"
+                        value_mode meet_local,once(157[global,many,local,many]),shared
+                      expression (nontail.ml[77,1743+22]..nontail.ml[77,1743+23])
+                        Texp_ident "f"
+                  ]
+                  expression (nontail.ml[77,1743+27]..nontail.ml[77,1743+37])
+                    Texp_construct "Some"
+                    alloc_mode global,many,shared
+                    [
+                      expression (nontail.ml[77,1743+32]..nontail.ml[77,1743+37])
+                        Texp_apply
+                        apply_mode Default
+                        original_position Not_tail_position (Default_tail)
+                        locality_mode global
+                        expression (nontail.ml[77,1743+33]..nontail.ml[77,1743+34])
+                          Texp_ident "g"
+                        [
+                          <arg>
+                            Nolabel
+                            expression (nontail.ml[77,1743+35]..nontail.ml[77,1743+36])
+                              Texp_ident "a"
+                        ]
+                    ]
+              <case>
+                pattern (nontail.ml[78,1781+4]..nontail.ml[78,1781+8])
+                  Tpat_construct "None"
+                  []
+                  None
+                expression (nontail.ml[78,1781+12]..nontail.ml[78,1781+16])
+                  Texp_construct "None"
+                  []
+            ]
+    ]
+  structure_item (nontail.ml[80,1799+0]..nontail.ml[82,1890+70])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (nontail.ml[80,1799+4]..nontail.ml[80,1799+31])
+          Tpat_var "pipe_option_ifnone_shadowed"
+          value_mode global,many,shared
+        expression (nontail.ml[80,1799+32]..nontail.ml[82,1890+70]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (nontail.ml[80,1799+32]..nontail.ml[80,1799+33])
+                Tpat_var "a"
+                value_mode global,many,shared
+          ]
+          Tfunction_cases (nontail.ml[80,1799+36]..nontail.ml[82,1890+70])
+          alloc_mode global,many,shared
+          value
+            [
+              <case>
+                pattern (nontail.ml[81,1844+4]..nontail.ml[81,1844+18])
+                  Tpat_tuple
+                  [
+                    Label: None
+                    pattern (nontail.ml[81,1844+4]..nontail.ml[81,1844+10])
+                      Tpat_var "ifnone"
+                      value_mode global,many,shared
+                    Label: None
+                    pattern (nontail.ml[81,1844+12]..nontail.ml[81,1844+18])
+                      Tpat_construct "Some"
+                      [
+                        pattern (nontail.ml[81,1844+17]..nontail.ml[81,1844+18])
+                          Tpat_var "g"
+                          value_mode global,many,shared
+                      ]
+                      None
+                  ]
+                expression (nontail.ml[81,1844+22]..nontail.ml[81,1844+45])
+                  Texp_let Nonrec
+                  [
+                    <def>
+                      pattern (nontail.ml[81,1844+26]..nontail.ml[81,1844+27])
+                        Tpat_var "g"
+                        value_mode meet_local,once(16b[global,many,local,many]),shared
+                      expression (nontail.ml[81,1844+30]..nontail.ml[81,1844+31])
+                        Texp_ident "f"
+                  ]
+                  expression (nontail.ml[81,1844+35]..nontail.ml[81,1844+45])
+                    Texp_construct "Some"
+                    alloc_mode global,many,shared
+                    [
+                      expression (nontail.ml[81,1844+40]..nontail.ml[81,1844+45])
+                        Texp_apply
+                        apply_mode Default
+                        original_position Not_tail_position (Default_tail)
+                        locality_mode global
+                        expression (nontail.ml[81,1844+41]..nontail.ml[81,1844+42])
+                          Texp_ident "g"
+                        [
+                          <arg>
+                            Nolabel
+                            expression (nontail.ml[81,1844+43]..nontail.ml[81,1844+44])
+                              Texp_ident "a"
+                        ]
+                    ]
+              <case>
+                pattern (nontail.ml[82,1890+4]..nontail.ml[82,1890+16])
+                  Tpat_tuple
+                  [
+                    Label: None
+                    pattern (nontail.ml[82,1890+4]..nontail.ml[82,1890+10])
+                      Tpat_var "ifnone"
+                      value_mode global,many,shared
+                    Label: None
+                    pattern (nontail.ml[82,1890+12]..nontail.ml[82,1890+16])
+                      Tpat_construct "None"
+                      []
+                      None
+                  ]
+                expression (nontail.ml[82,1890+20]..nontail.ml[82,1890+70])
+                  Texp_let Nonrec
+                  [
+                    <def>
+                      pattern (nontail.ml[82,1890+24]..nontail.ml[82,1890+30])
+                        Tpat_var "ifnone"
+                        value_mode meet_local,once(171[global,many,local,many]),shared
+                      expression (nontail.ml[82,1890+33]..nontail.ml[82,1890+58])
+                        Texp_function
+                        region true
+                        alloc_mode local,many,shared
+                        [
+                          Nolabel
+                          Param_pat
+                            pattern (nontail.ml[82,1890+38]..nontail.ml[82,1890+39])
+                              Tpat_var "a"
+                              value_mode map_comonadic(local_to_regional)(175[global,many,local,once]),shared
+                        ]
+                        Tfunction_body
+                          expression (nontail.ml[82,1890+43]..nontail.ml[82,1890+57])
+                            Texp_sequence
+                            expression (nontail.ml[82,1890+43]..nontail.ml[82,1890+51])
+                              Texp_apply
+                              apply_mode Default
+                              original_position Not_tail_position (Default_tail)
+                              locality_mode global
+                              expression (nontail.ml[82,1890+43]..nontail.ml[82,1890+44])
+                                Texp_ident "f"
+                              [
+                                <arg>
+                                  Nolabel
+                                  expression (nontail.ml[82,1890+45]..nontail.ml[82,1890+51])
+                                    Texp_constant Const_string("none",(nontail.ml[82,1890+46]..nontail.ml[82,1890+50]),None)
+                              ]
+                            value
+                            expression (nontail.ml[82,1890+53]..nontail.ml[82,1890+57])
+                              Texp_construct "None"
+                              []
+                  ]
+                  expression (nontail.ml[82,1890+62]..nontail.ml[82,1890+70])
+                    Texp_apply
+                    apply_mode Nontail
+                    original_position Tail_position (Default_tail)
+                    locality_mode global
+                    expression (nontail.ml[82,1890+62]..nontail.ml[82,1890+68])
+                      Texp_ident "ifnone"
+                    [
+                      <arg>
+                        Nolabel
+                        expression (nontail.ml[82,1890+69]..nontail.ml[82,1890+70])
+                          Texp_ident "a"
+                    ]
+            ]
     ]
 ]
 
@@ -172,5 +1209,78 @@
      (function {nlocal = 0} param[int] : int
        (seq (apply f "hello" Not_tail_position (Default_tail))
          (applynontail (field_imm 0 M)
-           "goodbye" Tail_position (Default_tail)))))
-  (makeblock 0 f M foo bar))
+           "goodbye" Tail_position (Default_tail))))
+   pipe_struct_let =
+     (function {nlocal = 0} a strct[(consts ()) (non_consts ([0: *]))]
+       (applynontail (field_imm 0 strct) a Tail_position (Default_tail)))
+   pipe_tuple_let =
+     (function {nlocal = 0} a tup[(consts ()) (non_consts ([0: *, *]))]
+       (applynontail (field_imm 0 tup) a Tail_position (Default_tail)))
+   pipe_struct_match =
+     (function {nlocal = 0} a strct[(consts ()) (non_consts ([0: *]))]
+       (applynontail (field_imm 0 strct) a Tail_position (Default_tail)))
+   pipe_tuple_match =
+     (function {nlocal = 0} a tup[(consts ()) (non_consts ([0: *, *]))]
+       (applynontail (field_imm 0 tup) a Tail_position (Default_tail)))
+   pipe_option =
+     (function {nlocal = 0} a opt[(consts (0)) (non_consts ([0: *]))]
+       [(consts (0)) (non_consts ([0: *]))](if (isint opt) 0
+                                             (makeblock 0
+                                               (apply (field_imm 0 opt)
+                                                 a Not_tail_position (Default_tail)))))
+   pipe_option_ifnone =
+     (function {nlocal = 0} a ifnone opt[(consts (0)) (non_consts ([0: *]))]
+       [(consts (0)) (non_consts ([0: *]))](if (isint opt)
+                                             (applynontail ifnone
+                                               a Tail_position (Default_tail))
+                                             (makeblock 0
+                                               (apply (field_imm 0 opt)
+                                                 a Not_tail_position (Default_tail)))))
+   map_shadowed =
+     (function {nlocal = 2} opt[(consts (0)) (non_consts ([0: *]))] g
+       [(consts (0)) (non_consts ([0: *]))](if (isint opt) 0
+                                             (makeblock 0 (int)
+                                               (apply f
+                                                 (field_imm 0 opt) Not_tail_position (Default_tail)))))
+   map_shadowed =
+     (function {nlocal = 0} opt[(consts (0)) (non_consts ([0: *]))] g
+       [(consts (0)) (non_consts ([0: *]))](if (isint opt) 0
+                                             (makeblock 0 (int)
+                                               (apply f
+                                                 (field_imm 0 opt) Not_tail_position (Default_tail)))))
+   pipe_struct_shadowed =
+     (function {nlocal = 0} a param[(consts ()) (non_consts ([0: *]))] : int
+       (applynontail f a Tail_position (Default_tail)))
+   pipe_tuple_shadowed =
+     (function {nlocal = 0} a param[(consts ()) (non_consts ([0: *, *]))]
+       : int (applynontail f a Tail_position (Default_tail)))
+   pipe_struct_match_shadowed =
+     (function {nlocal = 0} a param[(consts ()) (non_consts ([0: *]))] : int
+       (applynontail f a Tail_position (Default_tail)))
+   pipe_tuple_match_shadowed =
+     (function {nlocal = 0} a param[(consts ()) (non_consts ([0: *, *]))]
+       : int (applynontail f a Tail_position (Default_tail)))
+   pipe_option_shadowed =
+     (function {nlocal = 0} a param[(consts (0)) (non_consts ([0: *]))]
+       [(consts (0)) (non_consts ([0: *]))](if (isint param) 0
+                                             (makeblock 0 (int)
+                                               (apply f
+                                                 a Not_tail_position (Default_tail)))))
+   pipe_option_ifnone_shadowed =
+     (function {nlocal = 0} a
+       param[(consts ())
+             (non_consts ([0: *, [(consts (0)) (non_consts ([0: *]))]]))]
+       [(consts (0)) (non_consts ([0: *]))](region
+                                             (if (isint (field_imm 1 param))
+                                               (seq
+                                                 (apply f
+                                                   "none" Not_tail_position (Default_tail))
+                                                 0)
+                                               (makeblock 0 (int)
+                                                 (apply f
+                                                   a Not_tail_position (Default_tail)))))))
+  (makeblock 0 f M foo bar pipe_struct_let pipe_tuple_let pipe_struct_match
+    pipe_tuple_match pipe_option pipe_option_ifnone map_shadowed
+    pipe_struct_shadowed pipe_tuple_shadowed pipe_struct_match_shadowed
+    pipe_tuple_match_shadowed pipe_option_shadowed
+    pipe_option_ifnone_shadowed))
