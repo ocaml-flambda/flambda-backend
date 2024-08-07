@@ -1223,9 +1223,9 @@ let print_unary_primitive ppf p =
   | Is_boxed_float -> fprintf ppf "Is_boxed_float"
   | Is_flat_float_array -> fprintf ppf "Is_flat_float_array"
   | End_region { ghost } ->
-    Format.fprintf ppf "End_region_%s" (if ghost then "ghost" else "")
+    Format.fprintf ppf "End_region%s" (if ghost then "_ghost" else "")
   | End_try_region { ghost } ->
-    Format.fprintf ppf "End_try_region_%s" (if ghost then "ghost" else "")
+    Format.fprintf ppf "End_try_region%s" (if ghost then "_ghost" else "")
   | Obj_dup -> Format.pp_print_string ppf "Obj_dup"
   | Get_header -> Format.pp_print_string ppf "Get_header"
   | Atomic_load block_access_field_kind ->

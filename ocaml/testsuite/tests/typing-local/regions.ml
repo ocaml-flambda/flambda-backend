@@ -1,5 +1,5 @@
 (* TEST
- modules = "cstubs.c";
+ modules = "cstubs.c int_as_pointer_regions.ml int_as_pointer_regions_classic_mode.ml";
  include ocamlcommon;
  stack-allocation;
  native;
@@ -41,13 +41,6 @@ external follow : int -> ('a [@local_opt]) = "%int_as_pointer"
 
 let ext : int = make_dumb_external_block ()
 
-let[@inline never] int_as_pointer_local x =
-  leak_in_current_region x;
-  (* The region should be preserved by the following call; hence no stack space
-     leaking *)
-  let _ = opaque_identity (follow ext) in
-  ()
-
 let[@inline never] int_as_pointer_global x =
   (* The current function region will be eliminated, because the following two
      function calls don't allocate on the region (superficially). The first call
@@ -60,9 +53,22 @@ let () =
   int_as_pointer_global 42;
   check_not_empty "int_as_pointer (global)"
 
+(* The %int_as_pointer primitive acts on ghost regions in Flambda 2, with
+    stack allocation regions being unaffected.  Since an [Lregion] Lambda
+    construct translates into both a stack allocation region and a ghost
+    region, there will still be a stack allocation region present in the
+    Flambda 2 output unless the optimizer deletes it because it is unused.
+    Such deletion happens in Simplify mode but not in classic mode.
+    We cannot specify optimization levels on a per-function basis at the
+    moment, so we use separate files. *)
+
 let () =
-  int_as_pointer_local 42;
-  check_empty "int_as_pointer (local)"
+  Int_as_pointer_regions.int_as_pointer_local 42;
+  check_not_empty "int_as_pointer (local -O3)"
+
+let () =
+  Int_as_pointer_regions_classic_mode.int_as_pointer_local 42;
+  check_empty "int_as_pointer (local -Oclassic)"
 
 let[@inline never] uses_local x =
   let local_ r = ref x in
