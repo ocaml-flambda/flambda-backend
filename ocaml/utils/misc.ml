@@ -107,6 +107,17 @@ let rec last = function
   | [x] -> Some x
   | _ :: tl -> last tl
 
+module Hlist = struct
+  type _ t = [] : unit t | ( :: ) : 'a * 'b t -> ('a -> 'b) t
+  type _ lt = [] : unit lt | ( :: ) : 'a list * 'b lt -> ('a -> 'b) lt
+
+  let rec cartesian_product : type l. l lt -> l t list = function
+    | [] -> [ [] ]
+    | hd :: tl ->
+        let tl = cartesian_product tl in
+        List.concat_map (fun x1 -> List.map (fun x2 : _ t -> x1 :: x2) tl) hd
+end
+
 module Stdlib = struct
   module List = struct
     include List
