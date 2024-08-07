@@ -117,7 +117,7 @@ type t =
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
   | Generative_application_expects_unit     (* 73 *)
-  | Inferred_nontail_in_tco'd_cycle         (* 186 *)
+  | Inferred_nontail_in_tcod_cycle         (* 186 *)
   | Incompatible_with_upstream of upstream_compat_warning (* 187 *)
   | Unerasable_position_argument            (* 188 *)
   | Unnecessarily_partial_tuple_pattern     (* 189 *)
@@ -206,7 +206,7 @@ let number = function
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
   | Generative_application_expects_unit -> 73
-  | Inferred_nontail_in_tco'd_cycle -> 186
+  | Inferred_nontail_in_tcod_cycle -> 186
   | Incompatible_with_upstream _ -> 187
   | Unerasable_position_argument -> 188
   | Unnecessarily_partial_tuple_pattern -> 189
@@ -1194,7 +1194,7 @@ let message = function
   | Generative_application_expects_unit ->
       "A generative functor\n\
        should be applied to '()'; using '(struct end)' is deprecated."
-  | Inferred_nontail_in_tco'd_cycle ->
+  | Inferred_nontail_in_tcod_cycle ->
       "This function\n\
        call was inferred as nontail, but it may participate in a\n\
        cycle of TCO'd tail calls, which could overflow the stack at\n\

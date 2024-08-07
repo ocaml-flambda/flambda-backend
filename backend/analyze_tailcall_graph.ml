@@ -237,8 +237,14 @@ end = struct
       (* Stores the adjacencies with location information, which may result in
          "duplicate" edges. E.g. if A calls B in tail position multiple times in
          different locations, we will record one edge for each call. (Each call
-         should be treated as distinct when emitting warnings. *)
-      adjacencies_with_loc : Edge.with_loc list Vertex.Tbl.t
+         should be treated as distinct when emitting warnings.
+
+         Edges from Unknown_fn are not stored in here, since we don't want/need
+         to emit warnings for them, and they don't have a location.
+
+         Vertex.Tbl is a multimap, so this is really a map from a vertex to a
+         list of its edges. *)
+      adjacencies_with_loc : Edge.with_loc Vertex.Tbl.t
     }
 
   let init_unknown_edges t =
@@ -265,7 +271,7 @@ end = struct
     Vertex.Tbl.find t.adjacencies_mod_loc v
 
   let successors t (v : Vertex.t) : Edge.with_loc list =
-    Vertex.Tbl.find t.adjacencies_with_loc v
+    Vertex.Tbl.find_all t.adjacencies_with_loc v
 
   let find_or_add_vertex t ~(fn_name : string) : Vertex.t =
     let vertex =
@@ -280,14 +286,10 @@ end = struct
           { from = unknown; to_ = vertex; label = Explicit_tail_edge }
         in
         Edge.Hashset.add (successors_mod_loc t unknown) edge_from_unknown;
-        let with_loc : Edge.with_loc =
-          { edge = edge_from_unknown; loc = Location.none }
-        in
-        Vertex.Tbl.add t.adjacencies_with_loc vertex [with_loc];
-        (* Initialize vertex's adjacency set/list *)
+        (* Initialize vertex's adjacency set. The adjacency list is already
+           initialized because we use Vertex.Tbl as a multimap.*)
         let edges_from_vertex = Edge.Hashset.create 10 in
         Vertex.Tbl.add t.adjacencies_mod_loc vertex edges_from_vertex;
-        Vertex.Tbl.add t.adjacencies_with_loc vertex [];
         vertex
       | Some vertex -> vertex
     in
@@ -351,18 +353,17 @@ end = struct
         (* Not in tail position *) Explicit_nontail_edge
     in
     let edge : Edge.t = { from; to_; label } in
-    (match from with
+    match from with
     | Unknown_fn ->
       (* An edge already exists from Unknown_fn (added when the vertex was
          created) *)
       ()
     | Known_fn _ ->
       let edges = Vertex.Tbl.find t.adjacencies_mod_loc from in
-      Edge.Hashset.add edges edge);
-    let with_loc : Edge.with_loc = { edge; loc } in
-    (* `from`'s adjacency list was initialized in `find_or_add_vertex` *)
-    let existing = Vertex.Tbl.find t.adjacencies_with_loc from in
-    Vertex.Tbl.replace t.adjacencies_with_loc from (with_loc :: existing)
+      Edge.Hashset.add edges edge;
+      let with_loc : Edge.with_loc = { edge; loc } in
+      (* `from`'s adjacency list was initialized in `find_or_add_vertex` *)
+      Vertex.Tbl.add t.adjacencies_with_loc from with_loc
 
   type vertex_state =
     { preorder : int;
@@ -466,7 +467,7 @@ end = struct
            possibly_overflowing_edges t ~scc
            |> List.iter (fun (e : Edge.with_loc) ->
                   Location.prerr_warning e.loc
-                    Warnings.Inferred_nontail_in_tco'd_cycle))
+                    Warnings.Inferred_nontail_in_tcod_cycle))
 
   let print_vertex_line ~indent ppf kv =
     let color = if Vertex.is_unknown kv then "red" else "black" in
