@@ -189,7 +189,7 @@ val pop_region :
 val pop_regions_up_to_context :
   t -> Continuation.t -> Region_stack_element.t option
 
-type region_closure_continuation =
+type region_closure_continuation = private
   { continuation_closing_region : Continuation.t;
     continuation_after_closing_region : Continuation.t
   }
