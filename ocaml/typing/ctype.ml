@@ -1899,6 +1899,13 @@ let expand_abbrev_gen kind find_type_expansion env ty =
           | (params, body, lv) ->
             (* prerr_endline
               ("add a "^string_of_kind kind^" expansion for "^Path.name path);*)
+            let (params, body) = (
+              match args, params with
+              | Applied args, [] ->
+                let params = List.map (fun _ -> Btype.newgenvar (Jkind.Primitive.top ~why:Dummy_jkind)) args in
+                (params, newgenty (Tapp (body, AppArgs.of_list params)))
+              | Unapplied, _ | _, (_ :: _) -> (params, body))
+            in
             let ty' =
               try
                 subst env level kind abbrev (Some ty) params (AppArgs.to_list args) body
@@ -3742,10 +3749,11 @@ and unify3 env t1 t1' t2 t2' =
       | (Tapp (t, args), Tapp (t', args')) ->
           unify env t t';
           unify_appargs env args args'
-      | (Tapp (t, args'), Tconstr (p, args, _))
-      | (Tconstr (p, args, _), Tapp (t, args'))
-        when path_legal_unapplied !env p ->
+      | (Tapp (t, args), Tconstr (p, args', _)) when path_legal_unapplied !env p ->
           unify env t (newconstr p []);
+          unify_appargs env args args'
+      | (Tconstr (p, args, _), Tapp (t, args')) when path_legal_unapplied !env p ->
+          unify env (newconstr p []) t;
           unify_appargs env args args'
       | (Tobject (fi1, nm1), Tobject (fi2, _)) ->
           unify_fields env fi1 fi2;

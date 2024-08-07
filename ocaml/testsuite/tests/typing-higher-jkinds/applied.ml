@@ -135,6 +135,20 @@ type 'a t
 val f : 'a t -> 'a t = <fun>
 |}]
 
+type l : value => value = list
+let x : int l = [0]
+[%%expect {|
+type l = list
+val x : int l = <abstr>
+|}]
+
+type l : value => value = list
+let x : int l = [0]
+[%%expect {|
+type l = list
+val x : int l = <abstr>
+|}]
+
 type ('a : value => value) t = int 'a
 
 module M : sig
