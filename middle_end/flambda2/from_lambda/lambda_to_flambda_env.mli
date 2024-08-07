@@ -102,50 +102,50 @@ val get_mutable_variable_with_kind :
 
 (** About local allocation regions:
 
-      In this pass, we have to transform [Lregion] expressions in Lambda to
-      primitives that mark the opening and closing of stack regions. We need to
-      ensure regions are always closed so as to not leak out of their scope.
-      They must also never be closed twice.
+    In this pass, we have to transform [Lregion] expressions in Lambda to
+    primitives that mark the opening and closing of stack regions. We need to
+    ensure regions are always closed so as to not leak out of their scope.
+    They must also never be closed twice.
 
-      Several nested regions can be closed with one primitive as [End_region id]
-      which will close [id] and every other region opened in its scope. As such,
-      the transformation doesn't need to generate strict pairings of
-      [Begin_region] and [End_region] in every case. We may jump out of the
-      scope of several regions at once, in particular with exception raises from
-      [Lstaticraise].
+    Several nested regions can be closed with one primitive as [End_region id]
+    which will close [id] and every other region opened in its scope. As such,
+    the transformation doesn't need to generate strict pairings of
+    [Begin_region] and [End_region] in every case. We may jump out of the
+    scope of several regions at once, in particular with exception raises from
+    [Lstaticraise].
 
-      Another case requiring attention is function calls in tail position for
-      which we may need to add an [End_region] before the jump.
+    Another case requiring attention is function calls in tail position for
+    which we may need to add an [End_region] before the jump.
 
-      This implementation works as follows.
+    This implementation works as follows.
 
-      For normal control flow, following the block structure of Lambda
-      expressions, we insert a new continuation (called the "region closure
-      continuation") upon encountering [Begin_region]; then at every leaf we
-      cause the control flow to jump via that continuation. The region closure
-      continuation closes the relevant region before jumping to what would have
-      been the "real" continuation of the leaf expressions in question. The
-      insertion of the continuation avoids duplication of the [End_region]
-      constructs. (We only need one [Begin_region] per region, but potentially
-      as many [End_region]s as there are leaves in the subsequent term.)
+    For normal control flow, following the block structure of Lambda
+    expressions, we insert a new continuation (called the "region closure
+    continuation") upon encountering [Begin_region]; then at every leaf we
+    cause the control flow to jump via that continuation. The region closure
+    continuation closes the relevant region before jumping to what would have
+    been the "real" continuation of the leaf expressions in question. The
+    insertion of the continuation avoids duplication of the [End_region]
+    constructs. (We only need one [Begin_region] per region, but potentially
+    as many [End_region]s as there are leaves in the subsequent term.)
 
-      For exceptional control flow, the region closure continuation is not used;
-      instead, a region is opened before the beginning of a Trywith, so that we
-      can use this region to close every subsequent regions opened in its scope
-      at the beginning of the handler.
+    For exceptional control flow, the region closure continuation is not used;
+    instead, a region is opened before the beginning of a Trywith, so that we
+    can use this region to close every subsequent regions opened in its scope
+    at the beginning of the handler.
 
-      Likewise, when regions must be closed explicitly prior to tail calls to
-      avoid leaking memory on the local allocation stack, the closure
-      continuation is also not used in favour of explicit insertion of
-      [End_region] operations.
+    Likewise, when regions must be closed explicitly prior to tail calls to
+    avoid leaking memory on the local allocation stack, the closure
+    continuation is also not used in favour of explicit insertion of
+    [End_region] operations.
 
-      Region closure continuations are created alongside corresponding
-      [Begin_region]s in the [Lregion] cases of [cps_non_tail] and [cps_tail].
-      The decision as to calling a closure continuation or adding explicit
-      [End_region]s is done in [restore_continuation_context] and
-      [wrap_return_continuation]. Exceptional control flow cases are handled by
-      the [compile_staticfail] and [Ltrywith] cases of the main transformation
-      functions. *)
+    Region closure continuations are created alongside corresponding
+    [Begin_region]s in the [Lregion] cases of [cps_non_tail] and [cps_tail].
+    The decision as to calling a closure continuation or adding explicit
+    [End_region]s is done in [restore_continuation_context] and
+    [wrap_return_continuation]. Exceptional control flow cases are handled by
+    the [compile_staticfail] and [Ltrywith] cases of the main transformation
+    functions. *)
 
 val entering_region :
   t ->
