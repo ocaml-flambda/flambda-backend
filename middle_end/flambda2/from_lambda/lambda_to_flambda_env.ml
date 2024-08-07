@@ -56,7 +56,12 @@ end = struct
   include T0
   include Container_types.Make (T0)
 
-  let create ~region ~ghost_region = { region; ghost_region }
+  let create ~region ~ghost_region =
+    if Ident.same region ghost_region
+    then
+      Misc.fatal_errorf "Region and ghost region are the same: %a" Ident.print
+        region;
+    { region; ghost_region }
 
   let region t = t.region
 

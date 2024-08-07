@@ -510,8 +510,6 @@ let restore_continuation_context acc env ccenv cont ~close_current_region_early
     match Env.pop_regions_up_to_context env cont with
     | None -> body acc ccenv cont
     | Some region_stack_elt ->
-      (* XXX mshinwell: maybe add a comment as to why [ghost_region] isn't
-         relevant (reviewer please check this is indeed the case) *)
       let ({ continuation_closing_region; continuation_after_closing_region }
             : Env.region_closure_continuation) =
         Env.region_closure_continuation env region_stack_elt
