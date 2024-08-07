@@ -93,18 +93,28 @@ let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
          !new_temporaries;
   Reg.Tbl.to_seq_keys block_temporaries |> List.of_seq
 
+type _ rewrite_result =
+  | Coalesce_temp_spills_and_reloads
+      : (Reg.t list * Reg.t list * bool) rewrite_result
+  | No_optimization : (Reg.t list * bool) rewrite_result
+
 let rewrite_gen :
-    type s.
+    type a s.
     (module State with type t = s) ->
     (module Utils) ->
     s ->
     Cfg_with_infos.t ->
     spilled_nodes:Reg.t list ->
-    Reg.t list * Reg.t list * bool =
+    optimization:a rewrite_result ->
+    a =
  fun (module State : State with type t = s) (module Utils) state cfg_with_infos
-     ~spilled_nodes ->
+     ~spilled_nodes ~optimization ->
   if Utils.debug then Utils.log ~indent:1 "rewrite";
-  let should_coalesce_temp_spills_and_reloads = State.get_round_num state = 1 in
+  let should_coalesce_temp_spills_and_reloads =
+    match optimization with
+    | Coalesce_temp_spills_and_reloads -> State.get_round_num state = 1
+    | No_optimization -> false
+  in
   let block_insertion = ref false in
   let spilled_map : Reg.t Reg.Tbl.t =
     List.fold_left spilled_nodes ~init:(Reg.Tbl.create 17)
@@ -253,12 +263,15 @@ let rewrite_gen :
         Utils.log_body_and_terminator ~indent:3 block.body block.terminator
           liveness;
         Utils.log ~indent:2 "end"));
-  let block_temporaries =
-    if should_coalesce_temp_spills_and_reloads
-    then coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries
-    else []
-  in
-  !new_temporaries, block_temporaries, !block_insertion
+  match optimization with
+  | Coalesce_temp_spills_and_reloads ->
+    let block_temporaries =
+      if should_coalesce_temp_spills_and_reloads
+      then coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries
+      else []
+    in
+    !new_temporaries, block_temporaries, !block_insertion
+  | No_optimization -> !new_temporaries, !block_insertion
 
 (* CR-soon xclerc for xclerc: investigate exactly why this threshold is
    necessary. *)

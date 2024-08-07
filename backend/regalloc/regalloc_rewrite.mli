@@ -40,13 +40,20 @@ end
    (thus basically corresponding to Upstream's [Reload] pass). The returned
    couple contains the list of introduced temporaries, and a boolean which is
    `true` iff at least one block was inserted. *)
+
+type _ rewrite_result =
+  | Coalesce_temp_spills_and_reloads
+      : (Reg.t list * Reg.t list * bool) rewrite_result
+  | No_optimization : (Reg.t list * bool) rewrite_result
+
 val rewrite_gen :
   (module State with type t = 's) ->
   (module Utils) ->
   's ->
   Cfg_with_infos.t ->
   spilled_nodes:Reg.t list ->
-  Reg.t list * Reg.t list * bool
+  optimization:'a rewrite_result ->
+  'a
 
 (* Runs the first steps common to register allocators, reinitializing registers,
    checking preconditions, and collecting information from the CFG. *)

@@ -396,8 +396,8 @@ let rewrite :
       (module State)
       (module Utils)
       state cfg_with_infos ~spilled_nodes
+      ~optimization:Coalesce_temp_spills_and_reloads
   in
-  State.add_inst_temporaries_list state new_inst_temporaries;
   let new_temporaries = new_inst_temporaries @ new_block_temporaries in
   if new_temporaries <> []
   then (

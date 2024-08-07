@@ -22,11 +22,11 @@ end
 
 let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> bool =
  fun state cfg_with_infos ~spilled_nodes ->
-  let new_temporaries, _, block_inserted =
+  let new_temporaries, block_inserted =
     Regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)
-      state cfg_with_infos ~spilled_nodes
+      state cfg_with_infos ~spilled_nodes ~optimization:No_optimization
   in
   if new_temporaries <> []
   then Cfg_with_infos.invalidate_liveness cfg_with_infos;

@@ -29,6 +29,7 @@ let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> unit =
       (module State)
       (module Utils)
       state cfg_with_infos ~spilled_nodes
+      ~optimization:Coalesce_temp_spills_and_reloads
   in
   Cfg_with_infos.invalidate_liveness cfg_with_infos;
   if block_inserted
