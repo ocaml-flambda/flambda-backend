@@ -145,3 +145,8 @@ module type M =
       ('d : value => value => value => value) 'c 'b 'a. 'a 'b 'c 'd -> unit
   end
 |}]
+
+module type M = sig
+  type t : immediate => value
+  val f : 'a 'm -> 'b 'm -> 'c 'm -> 'd 'm -> 'e 'm -> 'm
+end
