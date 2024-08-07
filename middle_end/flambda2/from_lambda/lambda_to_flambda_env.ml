@@ -19,14 +19,49 @@ type region_closure_continuation =
     continuation_after_closing_region : Continuation.t
   }
 
-type region_stack_element =
-  { region : Ident.t;
-    ghost_region : Ident.t
-  }
+module Region_stack_element : sig
+  type t
 
-let same_region { region = region1; ghost_region = ghost_region1 }
-    { region = region2; ghost_region = ghost_region2 } =
-  Ident.same region1 region2 && Ident.same ghost_region1 ghost_region2
+  val create : region:Ident.t -> ghost_region:Ident.t -> t
+
+  val region : t -> Ident.t
+
+  val ghost_region : t -> Ident.t
+
+  include Container_types.S with type t := t
+end = struct
+  module T0 = struct
+    type t =
+      { region : Ident.t;
+        ghost_region : Ident.t
+      }
+
+    let print ppf t =
+      Format.fprintf ppf "@[<hov 1>((region@ %a)@ (ghost_region@ %a))@]"
+        Ident.print t.region Ident.print t.ghost_region
+
+    let equal { region = region1; ghost_region = ghost_region1 }
+        { region = region2; ghost_region = ghost_region2 } =
+      Ident.same region1 region2 && Ident.same ghost_region1 ghost_region2
+
+    let compare { region = region1; ghost_region = ghost_region1 }
+        { region = region2; ghost_region = ghost_region2 } =
+      let c = Ident.compare region1 region2 in
+      if c <> 0 then c else Ident.compare ghost_region1 ghost_region2
+
+    let hash { region; ghost_region } =
+      Hashtbl.hash (Ident.hash region, Ident.hash ghost_region)
+  end
+
+  include T0
+  include Container_types.Make (T0)
+
+  let create ~region ~ghost_region = { region; ghost_region }
+
+  let region t = t.region
+
+  let ghost_region t = t.ghost_region
+end
 
 type t =
   { current_unit : Compilation_unit.t;
@@ -40,17 +75,17 @@ type t =
     try_stack_at_handler : Continuation.t list Continuation.Map.t;
     static_exn_continuation : Continuation.t Numeric_types.Int.Map.t;
     recursive_static_catches : Numeric_types.Int.Set.t;
-    my_region : Ident.t;
-    my_ghost_region : Ident.t;
-    (* CR-someday ncourant: replace this with [my_region: Ident.t option] *)
-    region_stack : region_stack_element list;
-    region_stack_in_cont_scope : region_stack_element list Continuation.Map.t;
-    region_closure_continuations : region_closure_continuation Ident.Map.t;
+    my_region : Region_stack_element.t;
+    (* CR-someday ncourant/mshinwell: replace this with [my_region:
+       Region_stack_element.t option] *)
+    region_stack : Region_stack_element.t list;
+    region_stack_in_cont_scope : Region_stack_element.t list Continuation.Map.t;
+    region_closure_continuations :
+      region_closure_continuation Region_stack_element.Map.t;
     ident_stamp_upon_starting : int
   }
 
-let create ~current_unit ~return_continuation ~exn_continuation ~my_region
-    ~my_ghost_region =
+let create ~current_unit ~return_continuation ~exn_continuation ~my_region =
   let mutables_needed_by_continuations =
     Continuation.Map.of_list
       [return_continuation, Ident.Set.empty; exn_continuation, Ident.Set.empty]
@@ -66,11 +101,10 @@ let create ~current_unit ~return_continuation ~exn_continuation ~my_region
     static_exn_continuation = Numeric_types.Int.Map.empty;
     recursive_static_catches = Numeric_types.Int.Set.empty;
     my_region;
-    my_ghost_region;
     region_stack = [];
     region_stack_in_cont_scope =
       Continuation.Map.singleton return_continuation [];
-    region_closure_continuations = Ident.Map.empty;
+    region_closure_continuations = Region_stack_element.Map.empty;
     ident_stamp_upon_starting
   }
 
@@ -249,12 +283,12 @@ let get_unboxed_product_fields t id =
   | exception Not_found -> None
   | before_unarization, fields -> Some (before_unarization, fields)
 
-let entering_region t ~region ~ghost_region ~continuation_closing_region
+let entering_region t region_stack_element ~continuation_closing_region
     ~continuation_after_closing_region =
   { t with
-    region_stack = { region; ghost_region } :: t.region_stack;
+    region_stack = region_stack_element :: t.region_stack;
     region_closure_continuations =
-      Ident.Map.add region
+      Region_stack_element.Map.add region_stack_element
         { continuation_closing_region; continuation_after_closing_region }
         t.region_closure_continuations
   }
@@ -270,29 +304,19 @@ let current_region t =
   else
     match t.region_stack with
     | [] -> t.my_region
-    | { region; ghost_region = _ } :: _ -> region
-
-let current_ghost_region t =
-  if not (Flambda_features.stack_allocation_enabled ())
-  then t.my_ghost_region
-  else
-    match t.region_stack with
-    | [] -> t.my_ghost_region
-    | { region = _; ghost_region } :: _ -> ghost_region
+    | region_stack_elt :: _ -> region_stack_elt
 
 let parent_region t =
   if not (Flambda_features.stack_allocation_enabled ())
-  then { region = t.my_region; ghost_region = t.my_ghost_region }
+  then t.my_region
   else
     match t.region_stack with
     | [] ->
       Misc.fatal_error "Cannot determine parent region, region stack is empty"
-    | [_] -> { region = t.my_region; ghost_region = t.my_ghost_region }
+    | [_] -> t.my_region
     | _ :: region :: _ -> region
 
 let my_region t = t.my_region
-
-let my_ghost_region t = t.my_ghost_region
 
 let region_stack t = t.region_stack
 
@@ -307,7 +331,7 @@ let pop_region = function [] -> None | region :: rest -> Some (region, rest)
 
 let pop_one_region t =
   if not (Flambda_features.stack_allocation_enabled ())
-  then t, { region = t.my_region; ghost_region = t.my_ghost_region }
+  then t, t.my_region
   else
     match t.region_stack with
     | [] -> Misc.fatal_error "No regions available to pop"
@@ -322,16 +346,15 @@ let pop_regions_up_to_context t continuation =
     | _initial_stack_top :: _, [] ->
       Misc.fatal_errorf "Unable to restore region stack for %a"
         Continuation.print continuation
-    | ( { region = initial_stack_top; _ } :: _,
-        ({ region; ghost_region = _ } as region_stack_elt) :: regions ) ->
-      if Ident.same initial_stack_top region
+    | initial_stack_top :: _, region_stack_elt :: regions ->
+      if Region_stack_element.equal initial_stack_top region_stack_elt
       then to_pop
       else pop (Some region_stack_elt) regions
   in
   pop None t.region_stack
 
 let region_closure_continuation t id =
-  try Ident.Map.find id t.region_closure_continuations
+  try Region_stack_element.Map.find id t.region_closure_continuations
   with Not_found ->
-    Misc.fatal_errorf "No region closure continuation found for %a" Ident.print
-      id
+    Misc.fatal_errorf "No region closure continuation found for %a"
+      Region_stack_element.print id

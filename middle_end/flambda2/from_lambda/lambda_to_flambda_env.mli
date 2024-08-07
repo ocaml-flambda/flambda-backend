@@ -16,19 +16,23 @@
 
 type t
 
-type region_stack_element = private
-  { region : Ident.t;
-    ghost_region : Ident.t
-  }
+module Region_stack_element : sig
+  type t
 
-val same_region : region_stack_element -> region_stack_element -> bool
+  val create : region:Ident.t -> ghost_region:Ident.t -> t
+
+  val region : t -> Ident.t
+
+  val ghost_region : t -> Ident.t
+
+  val equal : t -> t -> bool
+end
 
 val create :
   current_unit:Compilation_unit.t ->
   return_continuation:Continuation.t ->
   exn_continuation:Continuation.t ->
-  my_region:Ident.t ->
-  my_ghost_region:Ident.t ->
+  my_region:Region_stack_element.t ->
   t
 
 val current_unit : t -> Compilation_unit.t
@@ -145,44 +149,45 @@ val get_mutable_variable_with_kind :
 
 val entering_region :
   t ->
-  region:Ident.t ->
-  ghost_region:Ident.t ->
+  Region_stack_element.t ->
   continuation_closing_region:Continuation.t ->
   continuation_after_closing_region:Continuation.t ->
   t
 
 val leaving_region : t -> t
 
-val current_region : t -> Ident.t
+(** The region stack element corresponding to the [my_region] parameter of
+    the current function, or the toplevel region stack element created by
+    simplify.ml. *)
+val my_region : t -> Region_stack_element.t
 
-val current_ghost_region : t -> Ident.t
+(** The current region stack element, to be used for allocation etc. *)
+val current_region : t -> Region_stack_element.t
 
-val parent_region : t -> region_stack_element
-
-val my_region : t -> Ident.t
-
-val my_ghost_region : t -> Ident.t
+(** The region stack element immediately outside [current_region]. *)
+val parent_region : t -> Region_stack_element.t
 
 (** The innermost (newest) region is first in the list. *)
-val region_stack : t -> region_stack_element list
+val region_stack : t -> Region_stack_element.t list
 
 val region_stack_in_cont_scope :
-  t -> Continuation.t -> region_stack_element list
+  t -> Continuation.t -> Region_stack_element.t list
 
-val pop_one_region : t -> t * region_stack_element
+val pop_one_region : t -> t * Region_stack_element.t
 
 (** Hack for staticfail (which should eventually use
       [pop_regions_up_to_context]) *)
 val pop_region :
-  region_stack_element list ->
-  (region_stack_element * region_stack_element list) option
+  Region_stack_element.t list ->
+  (Region_stack_element.t * Region_stack_element.t list) option
 
 val pop_regions_up_to_context :
-  t -> Continuation.t -> region_stack_element option
+  t -> Continuation.t -> Region_stack_element.t option
 
 type region_closure_continuation =
   { continuation_closing_region : Continuation.t;
     continuation_after_closing_region : Continuation.t
   }
 
-val region_closure_continuation : t -> Ident.t -> region_closure_continuation
+val region_closure_continuation :
+  t -> Region_stack_element.t -> region_closure_continuation
