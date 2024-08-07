@@ -1537,15 +1537,21 @@ and expand_modtype_path env path =
 let find_module_lazy path env =
   find_module_lazy ~alias:false path env
 
+let fixed_visibility_for_expansion decl body =
+  match decl.type_private with
+  | Private3
+    when not (Btype.type_kind_is_abstract decl)
+      || Btype.has_constr_row body
+      -> Public3
+  | _ -> decl.type_private
+
 (* Find the manifest type associated to a type when appropriate:
    - the type should be public or should have a private row,
    - the type should have an associated manifest type. *)
 let find_type_expansion path env =
   let decl = find_type path env in
   match decl.type_manifest with
-  | Some body when Btype.lte_public Public3 decl.type_private
-              || not (Btype.type_kind_is_abstract decl)
-              || Btype.has_constr_row body ->
+  | Some body when Btype.lte_public Public3 (fixed_visibility_for_expansion decl body) ->
       (decl.type_params, body, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
      private row are still considered unknown to the type system.
@@ -1557,7 +1563,7 @@ let find_type_expansion path env =
 let find_type_expansion_new path env =
   let decl = find_type path env in
   match decl.type_manifest with
-  | Some body when Btype.lte_public New3 decl.type_private ->
+  | Some body when Btype.lte_public New3 (fixed_visibility_for_expansion decl body) ->
       (decl.type_params, body, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
      private row are still considered unknown to the type system.
