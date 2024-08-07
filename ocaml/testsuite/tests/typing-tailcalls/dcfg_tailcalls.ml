@@ -1,7 +1,7 @@
 (* TEST
  {
    setup-ocamlopt.opt-build-env;
-   flags = "-no-always-tco -regalloc cfg -regalloc-param IRC_SPILLING_HEURISTICS:flat-uses -dcfg-tailcalls -c";
+   flags = "-no-always-tco -regalloc cfg -regalloc-param IRC_SPILLING_HEURISTICS:flat-uses -dcfg-tailcalls -c -drawflambda";
    compiler_reference2 = "${test_source_directory}/dcfg_tailcalls.dot";
    ocamlopt.opt;
    check-ocamlopt.opt-output;
@@ -160,3 +160,32 @@ let calls_inlined () =
   f "goodbye"
 
 let try_with () = try inlined () with _ -> ()
+
+
+(* Optional arguments are desugared into a call to an "inner" function,
+   which may be inlined into the wrapper. E.g.
+
+    let foo_optional_arg ?(str = "hello") () = f str
+
+   is desugared into
+
+    let foo_optional_arg_inner (str : string) () = f str
+
+    let foo_optional_arg (str : string option) () =
+      let local_ str' =
+        match str with
+        | None -> ()
+        | Some str -> str
+      in
+      foo_optional_arg_inner str
+
+   In the tailcall CFG, we expect to see a call from both foo and
+   foo_optional_arg_inner to f. *)
+
+let foo_optional_arg ?(str = "hello") () =
+  f str
+
+(* In this case we only expect to see a call from
+   foo_optional_arg_inline_never_inner to f. *)
+let[@inline never] foo_optional_arg_inline_never ?(str = "goodbye") () =
+  f str

@@ -297,7 +297,9 @@ end = struct
       ~(loc : Location.t) =
     let label : Edge.Label.t =
       let impossible_because ~case fmt =
-        Misc.fatal_errorf ("case " ^^ case ^^ " impossible because " ^^ fmt)
+        Misc.fatal_errorf
+          ("case " ^^ case ^^ " impossible because " ^^ fmt ^^ "; loc: %a")
+          Location.print_loc loc
       in
       match original_position, actual_position with
       (* CR less-tco: Clarify Unknown_position.
@@ -592,21 +594,21 @@ let fixup_inlined_tailcalls (fundecl : Cmm.fundecl) =
     let possibly_tail = fix ~tail_pos_ctx in
     let nontail = fix ~tail_pos_ctx:false in
     match expr with
-    | Cop (op, exprs, dbg) -> (
-      match[@ocaml.warning "-4"] op with
-      | Capply (machtype, region_close, original_position) ->
-        let inlined_position : Lambda.position_and_tail_attribute =
-          match original_position, tail_pos_ctx with
-          | Tail_position _, false ->
-            Inlined_into_not_tail_position { original_position }
-          | _ -> original_position
-        in
-        let apply : Cmm.operation =
+    | Cop (op, exprs, dbg) ->
+      let op : Cmm.operation =
+        match[@ocaml.warning "-4"] op with
+        | Capply (machtype, region_close, original_position) ->
+          let inlined_position : Lambda.position_and_tail_attribute =
+            match original_position, tail_pos_ctx with
+            | Tail_position _, false ->
+              Inlined_into_not_tail_position { original_position }
+            | _ -> original_position
+          in
           Capply (machtype, region_close, inlined_position)
-        in
-        let exprs = List.map nontail exprs in
-        Cop (apply, exprs, dbg)
-      | _ -> expr)
+        | _ -> op
+      in
+      let exprs = List.map nontail exprs in
+      Cop (op, exprs, dbg)
     | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
     | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ ->
       expr
