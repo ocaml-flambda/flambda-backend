@@ -48,8 +48,8 @@ type t =
     stack_slots : Regalloc_stack_slots.t;
     mutable next_instruction_id : Instruction.id;
     mutable round_num : int;
-    mutable introduced_temporaries : Reg.Set.t;
-    mutable inst_temporaries : Reg.Set.t
+    mutable inst_temporaries : Reg.Set.t;
+    mutable block_temporaries : Reg.Set.t
   }
 
 let max_capacity = 1024
@@ -93,8 +93,8 @@ let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
   let adj_set = RegisterStamp.PairSet.make ~num_registers in
   let move_list = Reg.Tbl.create 128 in
   let round_num = 1 in
-  let introduced_temporaries = Reg.Set.empty in
   let inst_temporaries = Reg.Set.empty in
+  let block_temporaries = Reg.Set.empty in
   let initial = Doubly_linked_list.of_list initial in
   { initial;
     simplify_work_list;
@@ -114,8 +114,8 @@ let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
     stack_slots;
     next_instruction_id;
     round_num;
-    introduced_temporaries;
-    inst_temporaries
+    inst_temporaries;
+    block_temporaries
   }
 
 let[@inline] add_initial_one state reg =
@@ -186,11 +186,7 @@ let[@inline] reset state ~new_temporaries =
   unknown_instruction_work_list state.active_moves;
   InstructionWorkList.clear state.active_moves;
   RegisterStamp.PairSet.clear state.adj_set;
-  Reg.Tbl.clear state.move_list;
-  state.introduced_temporaries
-    <- List.fold_left new_temporaries ~init:state.introduced_temporaries
-         ~f:(fun acc reg -> Reg.Set.add reg acc);
-  state.inst_temporaries <- state.inst_temporaries
+  Reg.Tbl.clear state.move_list
 
 let[@inline] is_precolored _state reg = reg.Reg.irc_work_list = Reg.Precolored
 
@@ -498,25 +494,28 @@ let[@inline] get_round_num state = state.round_num
 
 let[@inline] incr_round_num state = state.round_num <- succ state.round_num
 
-let[@inline] add_introduced_temporaries_one state reg =
-  state.introduced_temporaries <- Reg.Set.add reg state.introduced_temporaries
-
-let[@inline] add_introduced_temporaries_list state regs =
-  state.introduced_temporaries
-    <- List.fold_left regs ~init:state.introduced_temporaries
-         ~f:(fun introduced reg -> Reg.Set.add reg introduced)
-
-let[@inline] mem_introduced_temporaries state reg =
-  Reg.Set.mem reg state.introduced_temporaries
-
-let[@inline] introduced_temporaries state = state.introduced_temporaries
-
 let[@inline] add_inst_temporaries_list state regs =
   state.inst_temporaries
     <- Reg.Set.add_seq (List.to_seq regs) state.inst_temporaries
 
+let[@inline] add_block_temporaries_list state regs =
+  state.block_temporaries
+    <- Reg.Set.add_seq (List.to_seq regs) state.block_temporaries
+
 let[@inline] mem_inst_temporaries state reg =
   Reg.Set.mem reg state.inst_temporaries
+
+let[@inline] mem_block_temporaries state reg =
+  Reg.Set.mem reg state.inst_temporaries
+
+let[@inline] mem_all_introduced_temporaries state reg =
+  mem_inst_temporaries state reg || mem_block_temporaries state reg
+
+let[@inline] all_introduced_temporaries state =
+  Reg.Set.union state.inst_temporaries state.block_temporaries
+
+let[@inline] diff_all_introduced_temporaries state set =
+  Reg.Set.diff set (all_introduced_temporaries state)
 
 let[@inline] check_disjoint sets ~is_disjoint =
   List.iter sets ~f:(fun (name1, set1) ->

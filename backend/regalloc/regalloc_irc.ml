@@ -257,9 +257,9 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
     (* This is the "heuristics" from the IRC paper: pick any candidate, just try
        to avoid any of the temporaries introduces for spilling. *)
     let spill_work_list = State.spill_work_list state in
-    let introduced_temporaries = State.introduced_temporaries state in
     match
-      Reg.Set.choose_opt (Reg.Set.diff spill_work_list introduced_temporaries)
+      Reg.Set.choose_opt
+        (State.diff_all_introduced_temporaries state spill_work_list)
     with
     | Some reg -> reg
     | None -> (
@@ -280,10 +280,7 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
       (* note: while this magic constant is questionable, it is key to not favor
          the introduced temporaries which, by construct, have very few
          occurrences. *)
-      +.
-      if State.mem_inst_temporaries state reg
-      then 10_000.
-      else 0.
+      +. if State.mem_inst_temporaries state reg then 10_000. else 0.
     in
     match State.is_empty_spill_work_list state with
     | true -> fatal "spill_work_list is empty"
@@ -403,7 +400,10 @@ let rewrite :
   State.add_inst_temporaries_list state new_inst_temporaries;
   let new_temporaries = new_inst_temporaries @ new_block_temporaries in
   if new_temporaries <> []
-  then Cfg_with_infos.invalidate_liveness cfg_with_infos;
+  then (
+    Cfg_with_infos.invalidate_liveness cfg_with_infos;
+    State.add_inst_temporaries_list state new_inst_temporaries;
+    State.add_block_temporaries_list state new_block_temporaries);
   if block_inserted
   then Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos;
   match new_temporaries, reset with
@@ -412,7 +412,6 @@ let rewrite :
     State.reset state ~new_temporaries;
     true
   | _ :: _, false ->
-    State.add_introduced_temporaries_list state new_temporaries;
     State.clear_spilled_nodes state;
     State.add_initial_list state new_temporaries;
     true
