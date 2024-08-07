@@ -9,7 +9,7 @@ Error: Function with poll-error attribute contains polling points:
 Lines 2-5, characters 31-6:
 2 | ...............................x =
 3 |   for _ = 0 to x do
-4 |     ()
+4 |     ignore(Sys.opaque_identity 42)
 5 |   done
 Error: Function with poll-error attribute contains polling points (inserted by the compiler)
 	inserted poll
