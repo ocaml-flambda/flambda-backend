@@ -389,8 +389,7 @@ let field_read_semantics ppf sem =
   | Reads_agree -> ()
   | Reads_vary -> fprintf ppf "_mut"
 
-(* CR layouts: Deactivate the warning *)
-let primitive ppf = function[@ocaml.warning "+9"]
+let primitive ppf = function
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
   | Pbytes_of_string -> fprintf ppf "bytes_of_string"
   | Pignore -> fprintf ppf "ignore"

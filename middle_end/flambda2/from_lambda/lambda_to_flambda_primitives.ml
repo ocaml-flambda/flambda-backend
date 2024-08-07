@@ -381,13 +381,6 @@ let checked_alignment ~dbg ~primitive ~conditions : H.expr_primitive =
       dbg
     }
 
-(* CR layouts: Hunt down remaining uses and convert to [check_bound] *)
-let check_bound_tagged tagged_index bound : H.expr_primitive =
-  Binary
-    ( Int_comp (I.Naked_immediate, Yielding_bool (Lt Unsigned)),
-      untag_int tagged_index,
-      bound )
-
 let check_bound ~(index_kind : Lambda.array_index_kind) ~(bound_kind : I_or_f.t)
     index bound : H.expr_primitive =
   let (comp_kind : I.t), index, bound =
@@ -635,13 +628,8 @@ let array_vector_access_validity_condition array ~size_int
            reduced_length_untagged ))
   in
   let check_nativeint = max_with_zero ~size_int reduced_length_nativeint in
-  let check_untagged =
-    H.Prim
-      (Unary
-         ( Num_conv { src = Naked_nativeint; dst = Naked_immediate },
-           check_nativeint ))
-  in
-  check_bound_tagged index check_untagged
+  check_bound ~index_kind:Ptagged_int_index ~bound_kind:Naked_nativeint index
+    check_nativeint
 
 let check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
     : H.expr_primitive =
@@ -731,12 +719,18 @@ let bigarray_indexing layout b args =
     | [] -> assert false
     | [idx] ->
       let bound = bigarray_dim_bound b dim in
-      let check = check_bound_tagged idx bound in
+      let check =
+        check_bound ~index_kind:Ptagged_int_index ~bound_kind:Naked_immediate
+          idx bound
+      in
       [check], idx
     | idx :: r ->
       let checks, rem = aux (dim + delta_dim) delta_dim r in
       let bound = bigarray_dim_bound b dim in
-      let check = check_bound_tagged idx bound in
+      let check =
+        check_bound ~index_kind:Ptagged_int_index ~bound_kind:Naked_immediate
+          idx bound
+      in
       (* CR gbury: because we tag bound, and the tagged multiplication untags
          it, we might be left with a needless zero-extend here. *)
       let tmp =
@@ -1279,20 +1273,20 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbyteslength, [[arg]] -> [tag_int (Unary (String_length Bytes, arg))]
   | Pstringrefu, [[str]; [index]] ->
     [ string_like_load ~unsafe:true ~dbg ~size_int ~access_size:Eight String
-        None ~boxed:false str (* CR layouts: fix kind *)
-        ~index_kind:Ptagged_int_index index ~current_region ]
+        None ~boxed:false str ~index_kind:Ptagged_int_index index
+        ~current_region; ]
   | Pbytesrefu, [[bytes]; [index]] ->
-    [ string_like_load ~unsafe:true ~dbg ~size_int ~access_size:Eight Bytes None
-        ~boxed:false bytes (* CR layouts: fix kind *)
-        ~index_kind:Ptagged_int_index index ~current_region ]
+    [ string_like_load ~unsafe:true ~dbg ~size_int ~access_size:Eight Bytes
+        None ~boxed:false bytes ~index_kind:Ptagged_int_index index
+        ~current_region; ]
   | Pstringrefs, [[str]; [index]] ->
     [ string_like_load ~unsafe:false ~dbg ~size_int ~access_size:Eight String
-        ~boxed:false None str (* CR layouts: fix kind *)
-        ~index_kind:Ptagged_int_index index ~current_region ]
+        ~boxed:false None str ~index_kind:Ptagged_int_index index
+        ~current_region; ]
   | Pbytesrefs, [[bytes]; [index]] ->
     [ string_like_load ~unsafe:false ~dbg ~size_int ~access_size:Eight Bytes
-        ~boxed:false None bytes (* CR layouts: fix kind *)
-        ~index_kind:Ptagged_int_index index ~current_region ]
+        ~boxed:false None bytes ~index_kind:Ptagged_int_index index
+        ~current_region; ]
   | Pstring_load_16 { unsafe; index_kind }, [[str]; [index]] ->
     [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Sixteen String
         ~boxed:false None str ~index_kind index ~current_region ]
@@ -1576,12 +1570,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
               ~new_value)) ]
   | Pbytessetu (* unsafe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set ~unsafe:true ~dbg ~size_int ~access_size:Eight Bytes
-        ~boxed:false bytes ~index_kind:Ptagged_int_index (* CR layouts: fix *)
-        index new_value ]
+        ~boxed:false bytes ~index_kind:Ptagged_int_index index new_value; ]
   | Pbytessets, [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set ~unsafe:false ~dbg ~size_int ~access_size:Eight Bytes
-        ~boxed:false bytes ~index_kind:Ptagged_int_index (* CR layouts: fix *)
-        index new_value ]
+        ~boxed:false bytes ~index_kind:Ptagged_int_index index new_value; ]
   | Poffsetref n, [[block]] ->
     let block_access : P.Block_access_kind.t =
       Values
