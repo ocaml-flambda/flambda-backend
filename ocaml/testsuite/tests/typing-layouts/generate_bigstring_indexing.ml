@@ -1,7 +1,7 @@
 let template ~tests = {|(* TEST
  flambda2;
  include stdlib_upstream_compatible;
- include stdlib_stable;
+ include stdlib_beta;
  {
    native;
  }{
@@ -298,19 +298,19 @@ let bigstring_tests =
          ; test = "float32"
          ; box = "fun x -> x"
          ; unbox = "fun x -> x"
-         ; eq = "Stdlib_stable.Float32.equal"
+         ; eq = "Stdlib_beta.Float32.equal"
          ; example =
-             "let x _ = Stdlib_stable.Float32.of_float 5.0\n"
+             "let x _ = Stdlib_beta.Float32.of_float 5.0\n"
          }
        ; { width = "f32"
          ; test_suffix = "#"
          ; ref = "float32"
          ; test = "float32#"
-         ; box = "Stdlib_stable.Float32_u.to_float32"
-         ; unbox = "Stdlib_stable.Float32_u.of_float32"
-         ; eq = "Stdlib_stable.Float32.equal"
+         ; box = "Stdlib_beta.Float32_u.to_float32"
+         ; unbox = "Stdlib_beta.Float32_u.of_float32"
+         ; eq = "Stdlib_beta.Float32.equal"
          ; example =
-             "let x _ = Stdlib_stable.Float32.of_float 5.0\n"
+             "let x _ = Stdlib_beta.Float32.of_float 5.0\n"
          }
        ]
      ]

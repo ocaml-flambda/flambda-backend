@@ -1,7 +1,7 @@
 (* TEST
  flambda2;
  include stdlib_upstream_compatible;
- include stdlib_stable;
+ include stdlib_beta;
  {
    native;
  }{
@@ -940,8 +940,8 @@ check_set_bounds (-#1n) (x 1);;
 let of_boxed_index : int -> nativeint# = Stdlib_upstream_compatible.Nativeint_u.of_int
 let to_boxed_result : float32 -> float32 = fun x -> x
 let of_boxed_result : float32 -> float32 = fun x -> x
-let eq : float32 -> float32 -> bool = Stdlib_stable.Float32.equal
-let x _ = Stdlib_stable.Float32.of_float 5.0
+let eq : float32 -> float32 -> bool = Stdlib_beta.Float32.equal
+let x _ = Stdlib_beta.Float32.of_float 5.0
 
 external bs_get_reference : bigstring -> int -> float32
   = "%caml_bigstring_getf32"
@@ -1098,10 +1098,10 @@ check_get_bounds (-#1n);;
 check_set_bounds (-#1n) (x 1);;
 
 let of_boxed_index : int -> nativeint# = Stdlib_upstream_compatible.Nativeint_u.of_int
-let to_boxed_result : float32# -> float32 = Stdlib_stable.Float32_u.to_float32
-let of_boxed_result : float32 -> float32# = Stdlib_stable.Float32_u.of_float32
-let eq : float32 -> float32 -> bool = Stdlib_stable.Float32.equal
-let x _ = Stdlib_stable.Float32.of_float 5.0
+let to_boxed_result : float32# -> float32 = Stdlib_beta.Float32_u.to_float32
+let of_boxed_result : float32 -> float32# = Stdlib_beta.Float32_u.of_float32
+let eq : float32 -> float32 -> bool = Stdlib_beta.Float32.equal
+let x _ = Stdlib_beta.Float32.of_float 5.0
 
 external bs_get_reference : bigstring -> int -> float32
   = "%caml_bigstring_getf32"
@@ -2175,8 +2175,8 @@ check_set_bounds (-#1l) (x 1);;
 let of_boxed_index : int -> int32# = Stdlib_upstream_compatible.Int32_u.of_int
 let to_boxed_result : float32 -> float32 = fun x -> x
 let of_boxed_result : float32 -> float32 = fun x -> x
-let eq : float32 -> float32 -> bool = Stdlib_stable.Float32.equal
-let x _ = Stdlib_stable.Float32.of_float 5.0
+let eq : float32 -> float32 -> bool = Stdlib_beta.Float32.equal
+let x _ = Stdlib_beta.Float32.of_float 5.0
 
 external bs_get_reference : bigstring -> int -> float32
   = "%caml_bigstring_getf32"
@@ -2339,10 +2339,10 @@ check_get_bounds (-#1l);;
 check_set_bounds (-#1l) (x 1);;
 
 let of_boxed_index : int -> int32# = Stdlib_upstream_compatible.Int32_u.of_int
-let to_boxed_result : float32# -> float32 = Stdlib_stable.Float32_u.to_float32
-let of_boxed_result : float32 -> float32# = Stdlib_stable.Float32_u.of_float32
-let eq : float32 -> float32 -> bool = Stdlib_stable.Float32.equal
-let x _ = Stdlib_stable.Float32.of_float 5.0
+let to_boxed_result : float32# -> float32 = Stdlib_beta.Float32_u.to_float32
+let of_boxed_result : float32 -> float32# = Stdlib_beta.Float32_u.of_float32
+let eq : float32 -> float32 -> bool = Stdlib_beta.Float32.equal
+let x _ = Stdlib_beta.Float32.of_float 5.0
 
 external bs_get_reference : bigstring -> int -> float32
   = "%caml_bigstring_getf32"
@@ -3422,8 +3422,8 @@ check_set_bounds (-#1L) (x 1);;
 let of_boxed_index : int -> int64# = Stdlib_upstream_compatible.Int64_u.of_int
 let to_boxed_result : float32 -> float32 = fun x -> x
 let of_boxed_result : float32 -> float32 = fun x -> x
-let eq : float32 -> float32 -> bool = Stdlib_stable.Float32.equal
-let x _ = Stdlib_stable.Float32.of_float 5.0
+let eq : float32 -> float32 -> bool = Stdlib_beta.Float32.equal
+let x _ = Stdlib_beta.Float32.of_float 5.0
 
 external bs_get_reference : bigstring -> int -> float32
   = "%caml_bigstring_getf32"
@@ -3586,10 +3586,10 @@ check_get_bounds (-#1L);;
 check_set_bounds (-#1L) (x 1);;
 
 let of_boxed_index : int -> int64# = Stdlib_upstream_compatible.Int64_u.of_int
-let to_boxed_result : float32# -> float32 = Stdlib_stable.Float32_u.to_float32
-let of_boxed_result : float32 -> float32# = Stdlib_stable.Float32_u.of_float32
-let eq : float32 -> float32 -> bool = Stdlib_stable.Float32.equal
-let x _ = Stdlib_stable.Float32.of_float 5.0
+let to_boxed_result : float32# -> float32 = Stdlib_beta.Float32_u.to_float32
+let of_boxed_result : float32 -> float32# = Stdlib_beta.Float32_u.of_float32
+let eq : float32 -> float32 -> bool = Stdlib_beta.Float32.equal
+let x _ = Stdlib_beta.Float32.of_float 5.0
 
 external bs_get_reference : bigstring -> int -> float32
   = "%caml_bigstring_getf32"
