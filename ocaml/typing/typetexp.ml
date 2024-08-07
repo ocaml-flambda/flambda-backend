@@ -751,7 +751,14 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
           in
           ctyp (Ttyp_arrow (l, arg_cty, ret_cty)) ty
         | [] ->
-          transl_type env ~policy ~jkind_check:(Exact jkind) ~row_context ret_mode ret
+          let ret_cty =
+            transl_type env ~policy ~jkind_check:(Exact jkind) ~row_context ret_mode ret
+          in
+          (match constrain_type_jkind env ret_cty.ctyp_type jkind with
+          | Ok _ -> ()
+          | Error err ->
+            raise (Error(ret_cty.ctyp_loc, env, Non_sort {vloc = Fun_ret; typ = ret_cty.ctyp_type; err})));
+          ret_cty
       in
       loop mode args
   | Ptyp_tuple stl ->
