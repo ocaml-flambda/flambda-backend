@@ -1,4 +1,4 @@
-; Tests with external assembler
+; Test1
 
 (rule
  (alias test1)
@@ -119,3 +119,132 @@
    (diff grep_test1_vectorizer_cmx.expected grep_test1_vectorizer_cmx.out)
    (diff test1.out test1_simd.out)
    (diff test1.out test1_vectorized.out))))
+
+; Examples
+
+(rule
+ (alias examples)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets test_runner1.exe)
+ (deps examples.ml)
+ (action
+  (run
+   %{bin:ocamlopt.opt}
+   %{deps}
+   -o
+   test_runner1.exe
+   -S
+   -O3
+   -regalloc
+   cfg
+   -regalloc-param
+   IRC_SPILLING_HEURISTICS:flat-uses
+   -regalloc-param
+   SPLIT_LIVE_RANGES:on
+   -regalloc-param
+   STACK_SLOTS_THRESHOLD:3072
+   -no-vectorize)))
+
+(rule
+ (alias examples_simd)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets test_runner1_simd.exe examples_simd.cmx.dump)
+ (deps examples_simd.ml stubs.c)
+ (action
+  (run
+   %{bin:ocamlopt.opt}
+   %{deps}
+   -o
+   test_runner1_simd.exe
+   -S
+   -O3
+   -regalloc
+   cfg
+   -regalloc-param
+   IRC_SPILLING_HEURISTICS:flat-uses
+   -regalloc-param
+   SPLIT_LIVE_RANGES:on
+   -regalloc-param
+   STACK_SLOTS_THRESHOLD:3072
+   -dump-into-file
+   -dcfg
+   -no-vectorize
+   -extension
+   simd)))
+
+(rule
+ (alias examples_vectorized)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets test_runner1_vectorized.exe examples.cmx.dump)
+ (deps examples.ml)
+ (action
+  (run
+   %{bin:ocamlopt.opt}
+   %{deps}
+   -o
+   test_runner1_vectorized.exe
+   -S
+   -O3
+   -regalloc
+   cfg
+   -regalloc-param
+   IRC_SPILLING_HEURISTICS:flat-uses
+   -regalloc-param
+   SPLIT_LIVE_RANGES:on
+   -regalloc-param
+   STACK_SLOTS_THRESHOLD:3072
+   -dump-into-file
+   -dcfg
+   -dvectorize
+   -vectorize)))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets examples.out examples_simd.out examples_vectorized.out)
+ (deps test_runner1.exe test_runner1_simd.exe test_runner1_vectorized.exe)
+ (action
+  (progn
+   (with-outputs-to
+    grep_examples_vectorizer_cmx.out
+    (run
+     grep
+     "*** Vectorization"
+     examples.cmx.dump
+     --line-regexp
+     --max-count=1))
+   (with-outputs-to
+    examples.out
+    (run ./test_runner1.exe))
+   (with-outputs-to
+    examples_simd.out
+    (run ./test_runner1_simd.exe))
+   (with-outputs-to
+    examples_vectorized.out
+    (run ./test_runner1_vectorized.exe)))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} "amd64")
+   (<> %{system} macosx)))
+ (action
+  (progn
+   (diff
+    grep_examples_vectorizer_cmx.expected
+    grep_examples_vectorizer_cmx.out)
+   (diff examples.out examples_simd.out)
+   (diff examples.out examples_vectorized.out))))
