@@ -46,7 +46,7 @@ val rewrite_gen :
   's ->
   Cfg_with_infos.t ->
   spilled_nodes:Reg.t list ->
-  Reg.t list * bool
+  Reg.t list * Reg.t list * bool
 
 (* Runs the first steps common to register allocators, reinitializing registers,
    checking preconditions, and collecting information from the CFG. *)

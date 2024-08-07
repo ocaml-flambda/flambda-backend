@@ -281,8 +281,7 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
          the introduced temporaries which, by construct, have very few
          occurrences. *)
       +.
-      if State.mem_introduced_temporaries state reg
-         && State.get_round_num state != 2
+      if State.mem_inst_temporaries state reg
       then 10_000.
       else 0.
     in
@@ -395,13 +394,15 @@ let rewrite :
     reset:bool ->
     bool =
  fun state cfg_with_infos ~spilled_nodes ~reset ->
-  let new_temporaries, block_inserted =
+  let new_inst_temporaries, new_block_temporaries, block_inserted =
     Regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)
       state cfg_with_infos ~spilled_nodes
   in
-  if State.get_round_num state = 2 || new_temporaries <> []
+  State.add_inst_temporaries_list state new_inst_temporaries;
+  let new_temporaries = new_inst_temporaries @ new_block_temporaries in
+  if new_temporaries <> []
   then Cfg_with_infos.invalidate_liveness cfg_with_infos;
   if block_inserted
   then Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos;

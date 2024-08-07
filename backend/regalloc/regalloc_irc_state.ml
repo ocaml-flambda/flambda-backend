@@ -48,7 +48,8 @@ type t =
     stack_slots : Regalloc_stack_slots.t;
     mutable next_instruction_id : Instruction.id;
     mutable round_num : int;
-    mutable introduced_temporaries : Reg.Set.t
+    mutable introduced_temporaries : Reg.Set.t;
+    mutable inst_temporaries : Reg.Set.t
   }
 
 let max_capacity = 1024
@@ -93,6 +94,7 @@ let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
   let move_list = Reg.Tbl.create 128 in
   let round_num = 1 in
   let introduced_temporaries = Reg.Set.empty in
+  let inst_temporaries = Reg.Set.empty in
   let initial = Doubly_linked_list.of_list initial in
   { initial;
     simplify_work_list;
@@ -112,7 +114,8 @@ let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
     stack_slots;
     next_instruction_id;
     round_num;
-    introduced_temporaries
+    introduced_temporaries;
+    inst_temporaries
   }
 
 let[@inline] add_initial_one state reg =
@@ -186,7 +189,8 @@ let[@inline] reset state ~new_temporaries =
   Reg.Tbl.clear state.move_list;
   state.introduced_temporaries
     <- List.fold_left new_temporaries ~init:state.introduced_temporaries
-         ~f:(fun acc reg -> Reg.Set.add reg acc)
+         ~f:(fun acc reg -> Reg.Set.add reg acc);
+  state.inst_temporaries <- state.inst_temporaries
 
 let[@inline] is_precolored _state reg = reg.Reg.irc_work_list = Reg.Precolored
 
@@ -506,6 +510,13 @@ let[@inline] mem_introduced_temporaries state reg =
   Reg.Set.mem reg state.introduced_temporaries
 
 let[@inline] introduced_temporaries state = state.introduced_temporaries
+
+let[@inline] add_inst_temporaries_list state regs =
+  state.inst_temporaries
+    <- Reg.Set.add_seq (List.to_seq regs) state.inst_temporaries
+
+let[@inline] mem_inst_temporaries state reg =
+  Reg.Set.mem reg state.inst_temporaries
 
 let[@inline] check_disjoint sets ~is_disjoint =
   List.iter sets ~f:(fun (name1, set1) ->

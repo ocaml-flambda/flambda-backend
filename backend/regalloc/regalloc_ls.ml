@@ -24,7 +24,7 @@ end
 
 let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> unit =
  fun state cfg_with_infos ~spilled_nodes ->
-  let _new_temporaries, block_inserted =
+  let _new_temporaries, _block_temporaries, block_inserted =
     Regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)

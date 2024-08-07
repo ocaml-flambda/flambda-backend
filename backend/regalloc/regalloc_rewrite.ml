@@ -41,9 +41,10 @@ type direction =
   | Store_before_list of Cfg.basic_instruction_list
 
 let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
-  let removed_temporaries = Reg.Tbl.create 128 in
+  let removed_inst_temporaries = Reg.Tbl.create 128 in
+  let block_temporaries = Reg.Tbl.create 128 in
   let coalesce_temp_reloads_per_block _ block =
-    let var_to_temp_for_all = Reg.Tbl.create 8 in
+    let var_to_block_temp = Reg.Tbl.create 8 in
     let replacements = Reg.Tbl.create 8 in
     let last_spill = Reg.Tbl.create 8 in
     let redundant = ref [] in
@@ -57,11 +58,11 @@ let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
       | Op Reload -> (
         let var = inst.arg.(0) in
         let temp = inst.res.(0) in
-        match Reg.Tbl.find_opt var_to_temp_for_all var with
-        | None -> Reg.Tbl.add var_to_temp_for_all var temp
-        | Some temp_for_all ->
+        match Reg.Tbl.find_opt var_to_block_temp var with
+        | None -> Reg.Tbl.add var_to_block_temp var temp
+        | Some block_temp ->
           redundant := inst_cell :: !redundant;
-          replace temp temp_for_all)
+          replace temp block_temp)
       | Op Spill -> (
         let var = inst.res.(0) in
         let temp = inst.arg.(0) in
@@ -69,21 +70,28 @@ let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
         | None -> ()
         | Some prev_inst_cell -> redundant := prev_inst_cell :: !redundant);
         Reg.Tbl.replace last_spill var inst_cell;
-        match Reg.Tbl.find_opt var_to_temp_for_all var with
-        | None -> Reg.Tbl.add var_to_temp_for_all var temp
-        | Some temp_for_all -> replace temp temp_for_all)
+        match Reg.Tbl.find_opt var_to_block_temp var with
+        | None -> Reg.Tbl.add var_to_block_temp var temp
+        | Some block_temp -> replace temp block_temp)
       | _ -> ()
     in
     DLL.iter_cell block.body ~f:update_info_using_inst;
     List.iter ~f:DLL.delete_curr !redundant;
     Substitution.apply_block_in_place replacements block;
     Reg.Tbl.iter
-      (fun temp _ -> Reg.Tbl.replace removed_temporaries temp ())
+      (fun temp block_temp ->
+        Reg.Tbl.replace removed_inst_temporaries temp ();
+        Reg.Tbl.replace removed_inst_temporaries block_temp ();
+        Reg.Tbl.replace block_temporaries block_temp ())
       replacements
   in
   Cfg_with_infos.cfg cfg_with_infos
   |> Cfg.iter_blocks ~f:coalesce_temp_reloads_per_block;
-  new_temporaries := []
+  new_temporaries
+    := List.filter
+         ~f:(fun temp -> not (Reg.Tbl.mem removed_inst_temporaries temp))
+         !new_temporaries;
+  Reg.Tbl.to_seq_keys block_temporaries |> List.of_seq
 
 let rewrite_gen :
     type s.
@@ -92,7 +100,7 @@ let rewrite_gen :
     s ->
     Cfg_with_infos.t ->
     spilled_nodes:Reg.t list ->
-    Reg.t list * bool =
+    Reg.t list * Reg.t list * bool =
  fun (module State : State with type t = s) (module Utils) state cfg_with_infos
      ~spilled_nodes ->
   if Utils.debug then Utils.log ~indent:1 "rewrite";
@@ -245,9 +253,12 @@ let rewrite_gen :
         Utils.log_body_and_terminator ~indent:3 block.body block.terminator
           liveness;
         Utils.log ~indent:2 "end"));
-  if should_coalesce_temp_spills_and_reloads
-  then coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries;
-  !new_temporaries, !block_insertion
+  let block_temporaries =
+    if should_coalesce_temp_spills_and_reloads
+    then coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries
+    else []
+  in
+  !new_temporaries, block_temporaries, !block_insertion
 
 (* CR-soon xclerc for xclerc: investigate exactly why this threshold is
    necessary. *)

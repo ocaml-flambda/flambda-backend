@@ -140,6 +140,10 @@ val add_introduced_temporaries_list : t -> Reg.t list -> unit
 
 val mem_introduced_temporaries : t -> Reg.t -> bool
 
+val add_inst_temporaries_list : t -> Reg.t list -> unit
+
+val mem_inst_temporaries : t -> Reg.t -> bool
+
 val introduced_temporaries : t -> Reg.Set.t
 
 val invariant : t -> unit
