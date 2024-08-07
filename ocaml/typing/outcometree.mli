@@ -113,6 +113,7 @@ type out_jkind_const =
 and out_jkind =
   | Ojkind_const of out_jkind_const
   | Ojkind_var of string
+  | Ojkind_union of string option * string list
   | Ojkind_arrow of out_jkind list * out_jkind
 
 and out_type_param =

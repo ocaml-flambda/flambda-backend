@@ -67,10 +67,10 @@ module Type = struct
   module Layout = struct
     open Jkind_types.Type.Layout
 
-    type nonrec 'sort layout = 'sort layout
-
     module Const = struct
-      type t = Sort.const layout
+      type t = Const.t =
+        | Sort of Sort.const
+        | Any
 
       let max = Any
 
@@ -132,13 +132,51 @@ module Type = struct
       end
     end
 
-    type t = Sort.t layout
+    type nonrec t = t =
+      | Sort of Sort.t
+      | Union of Sort.t list
+      | Any
 
-    let of_const const : t =
+    let of_const (const : Const.t) : t =
       match const with Sort s -> Sort (Const s) | Any -> Any
 
+    let union_with_negative_polarity where =
+      Misc.fatal_errorf "%s: Union of sorts used in a negative position" where
+
+    let union_sort_consts cs : Const.t option =
+      match cs with
+      | [] -> None
+      | c0 :: cs ->
+        if List.for_all (fun c -> Sort.Const.equal c c0) cs
+        then Some (Sort c0)
+        else Some Any
+
+    let repr_union ss =
+      let cs, vs =
+        List.partition_map
+          (fun s ->
+            match Sort.get s with Const s -> Left s | Var v -> Right v)
+          ss
+      in
+      let layout = union_sort_consts cs in
+      layout, vs
+
+    (* Post-condition: If [t] is [Union],
+       it contains at most one [Const] and at least one [Var]. *)
+    let repr t =
+      match t with
+      | Any | Sort _ -> t
+      | Union ss -> (
+        match repr_union ss with
+        | Some Any, _ -> Any
+        | Some (Sort s), [] -> Sort (Sort.of_const s)
+        | _ -> t)
+
     let equate_or_equal ~allow_mutation t1 t2 =
-      match t1, t2 with
+      match repr t1, repr t2 with
+      | _ when t1 == t2 -> true
+      | Union _, _ | _, Union _ ->
+        union_with_negative_polarity "Type.Layout.equate_or_equal"
       | Sort s1, Sort s2 -> (
         match Sort.equate_tracking_mutation s1 s2 with
         | (Equal_mutated_first | Equal_mutated_second) when not allow_mutation
@@ -150,28 +188,34 @@ module Type = struct
       | Any, Any -> true
       | (Any | Sort _), _ -> false
 
-    let sub t1 t2 : Misc.Le_result.t =
-      match t1, t2 with
+    let rec sub t1 t2 : Misc.Le_result.t =
+      match repr t1, repr t2 with
+      | _ when t1 == t2 -> Equal
+      | _, Union _ -> union_with_negative_polarity "Type.Layout.sub"
+      | Union ss1, t2 ->
+        Misc.Le_result.combine_list (List.map (fun s1 -> sub (Sort s1) t2) ss1)
       | Any, Any -> Equal
       | _, Any -> Less
       | Any, _ -> Not_le
       | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Equal else Not_le
 
     let intersection t1 t2 =
-      match t1, t2 with
+      match repr t1, repr t2 with
+      | _ when t1 == t2 -> Some t1
+      | Union _, _ | _, Union _ ->
+        union_with_negative_polarity "Type.Layout.intersection"
       | _, Any -> Some t1
       | Any, _ -> Some t2
       | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Some t1 else None
 
     let union t1 t2 =
-      match t1, t2 with
-      (* TODO jbachurski: As discussed with lwhite,
-         [if Sort.equate s1 s2 then t1 else Any] is not sound
-         and a change to the representation of sorts would be
-         required to compute this accurately. Fail for now. *)
-      | Sort s1, Sort s2 -> if Sort.equate s1 s2 then t1 else Any
+      match repr t1, repr t2 with
       | _, Any -> Any
       | Any, _ -> Any
+      | Sort s1, Sort s2 -> Union [s1; s2]
+      | Union ss1, Sort s2 -> Union (s2 :: ss1)
+      | Sort s1, Union ss2 -> Union (s1 :: ss2)
+      | Union ss1, Union ss2 -> Union (ss1 @ ss2)
 
     let of_new_sort_var () =
       let sort = Sort.new_var () in
@@ -179,12 +223,20 @@ module Type = struct
 
     let format ppf =
       let open Format in
-      function
-      | Any -> fprintf ppf "any"
-      | Sort s -> (
+      let print_sort ppf s =
         match Sort.get s with
         | Const s -> fprintf ppf "%a" Sort.Const.format s
-        | Var v -> fprintf ppf "%s" (Sort.Var.name v))
+        | Var v -> fprintf ppf "%s" (Sort.Var.name v)
+      in
+      function
+      | Any -> fprintf ppf "any"
+      | Sort s -> print_sort ppf s
+      | Union ss ->
+        fprintf ppf "%a"
+          (pp_print_list
+             ~pp_sep:(fun ppf () -> fprintf ppf "%s" " | ")
+             print_sort)
+          ss
 
     module Debug_printers = struct
       open Format
@@ -192,6 +244,12 @@ module Type = struct
       let t ppf = function
         | Any -> fprintf ppf "Any"
         | Sort s -> fprintf ppf "Sort %a" Sort.Debug_printers.t s
+        | Union ss ->
+          fprintf ppf "Union [%a]"
+            (pp_print_list
+               ~pp_sep:(fun ppf () -> fprintf ppf "; ")
+               Sort.Debug_printers.t)
+            ss
     end
   end
 
@@ -815,7 +873,8 @@ module Type = struct
   module Desc = struct
     type t =
       | Const of Const.t
-      | Var of Sort.var (* all modes will be [max] *)
+      | Var of
+          Const.Layout.t option * Sort.var list (* all modes will be [max] *)
 
     (* considers sort variables < Any. Two sort variables are in a [sub]
        relationship only when they are equal.
@@ -825,7 +884,9 @@ module Type = struct
       match d1, d2 with
       | Const c1, Const c2 -> Const.sub c1 c2
       | Var _, Const c when Const.equal Const.max c -> Less
-      | Var v1, Var v2 -> if v1 == v2 then Equal else Not_le
+      | Var (None, [v1]), Var (None, [v2]) -> if v1 == v2 then Equal else Not_le
+      | Var (l1, vs1), Var (l2, vs2) ->
+        if l1 == l2 && vs1 == vs2 then Equal else Not_le
       | Const _, Var _ | Var _, Const _ -> Not_le
   end
 
@@ -860,6 +921,14 @@ module Type = struct
         }
       | Sort s ->
         { layout = Sort (Sort.default_to_value_and_get s);
+          modes_upper_bounds;
+          externality_upper_bound;
+          nullability_upper_bound
+        }
+      | Union ss ->
+        { layout =
+            Layout.union_sort_consts (List.map Sort.default_to_value_and_get ss)
+            |> Option.value ~default:Layout.Const.value;
           modes_upper_bounds;
           externality_upper_bound;
           nullability_upper_bound
@@ -1039,7 +1108,7 @@ module Type = struct
           externality_upper_bound;
           nullability_upper_bound
         } : Desc.t =
-      match layout with
+      match Layout.repr layout with
       | Any ->
         Const
           { layout = Any;
@@ -1056,12 +1125,24 @@ module Type = struct
               externality_upper_bound;
               nullability_upper_bound
             }
-        | Var v -> Var v)
+        | Var v -> Var (None, [v]))
+      | Union ss ->
+        (* [repr] already simplified as much as possible *)
+        let oc, vs = Layout.repr_union ss in
+        Var (oc, vs)
 
     let format ppf t =
+      let print_vars ppf =
+        Format.pp_print_list
+          ~pp_sep:(fun ppf () -> Format.fprintf ppf " | ")
+          (fun ppf v -> Format.fprintf ppf "%s" (Sort.Var.name v))
+          ppf
+      in
       match get t with
       | Const c -> Format.fprintf ppf "%a" Const.format c
-      | Var v -> Format.fprintf ppf "%s" (Sort.Var.name v)
+      | Var (None, vs) -> Format.fprintf ppf "%a" print_vars vs
+      | Var (Some c, vs) ->
+        Format.fprintf ppf "%a | %s" print_vars vs (Const.Layout.to_string c)
 
     module Debug_printers = struct
       open Format
@@ -1247,14 +1328,13 @@ module Type = struct
   let sort_of_jkind l =
     match get l with
     | Const { layout = Sort s; _ } -> Sort.of_const s
-    | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.Type.sort_of_jkind"
-    | Var v -> Sort.of_var v
+    | Const { layout = Any; _ } ->
+      Misc.fatal_error "Jkind.Type.sort_of_jkind: Any"
+    | Var (None, [v]) -> Sort.of_var v
+    | Var _ -> Misc.fatal_error "Jkind.Type.sort_of_jkind: union of Var"
 
   let get_layout jk : Layout.Const.t option =
-    match jk.jkind.layout with
-    | Any -> Some Any
-    | Sort s -> (
-      match Sort.get s with Const s -> Some (Sort s) | Var _ -> None)
+    match get jk with Const jkind -> Some jkind.layout | Var _ -> None
 
   let get_modal_upper_bounds jk = jk.jkind.modes_upper_bounds
 
