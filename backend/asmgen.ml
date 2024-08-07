@@ -339,6 +339,15 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         let cfg =
           fd
           ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After cfgize"
+          ++ (fun cfg_with_layout ->
+            match !Flambda_backend_flags.vectorize with
+            | false -> cfg_with_layout
+            | true ->
+              cfg_with_layout
+              ++ Profile.record ~accumulate:true "vectorize"
+                   (Vectorize.cfg ppf_dump)
+              ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After vectorize")
           ++ Profile.record ~accumulate:true "cfg_polling" (Cfg_polling.instrument_fundecl ~future_funcnames:funcnames)
           ++ (fun cfg_with_layout ->
               match !Flambda_backend_flags.cfg_zero_alloc_checker with
