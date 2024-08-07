@@ -1,38 +1,31 @@
 (* TEST
-  reason = "Leibniz equality is better with partial type application";
-  skip;
   flags = "-extension layouts_alpha";
   expect;
 *)
 
 module Eq : sig
-  type ('a : top, 'b : top) eq
-
-  val refl : unit -> ('a, 'a) eq
-  val subst : ('a : top) ('b : top) ('f : top => value). ('a, 'b) eq -> ('a 'f -> 'b 'f)
+  type eq : value => value => value
+  val refl : 'a ('a eq)
+  val subst : 'b ('a eq) -> 'a 'c -> 'b 'c
 end = struct
-  type ('a : top, 'b : top) eq = { subst : ('f : top => value). 'a 'f -> 'b 'f }
-  let refl () = { subst = (fun x -> x) }
-  let subst eq x = eq.subst x
+  type eq : value => value => value
+  let refl = Obj.magic ()
+  let subst ab a = Obj.magic a
 end
 
 [%%expect{|
 module Eq :
   sig
-    type ('a : top, 'b : top) eq
-    val refl : unit -> ('a, 'a) eq
-    val subst :
-      ('a : top) ('b : top) ('f : top => value).
-        ('a, 'b) eq -> 'a 'f -> 'b 'f
+    type eq : value => value => value
+    val refl : 'a ('a eq)
+    val subst : 'a 'b ('c : value => value). 'b ('a eq) -> 'a 'c -> 'b 'c
   end
 |}]
 
 open Eq
-(* FIXME: this needs both inference and abstract datatypes *)
-let trans : ('a, 'b) eq -> ('b, 'c) eq -> ('a, 'c) eq = fun ab bc -> subst bc ab
 
-(* how does this error?? some intermediate type gets placed in a Tapp, I guess? *)
+let trans ab bc : 'c ('a eq) = subst bc ab
+
 [%%expect{|
-Uncaught exception: Failure("no jkind for tconstr???")
-
+val trans : 'b ('a Eq.eq) -> 'c ('b Eq.eq) -> 'c ('a Eq.eq) = <fun>
 |}]
