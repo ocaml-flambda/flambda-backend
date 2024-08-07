@@ -1,6 +1,6 @@
 (* TEST
  setup-ocamlopt.opt-build-env;
- flags = "-no-always-tco -regalloc cfg -regalloc-param IRC_SPILLING_HEURISTICS:flat-uses -cfg-analyze-tailcalls";
+ flags = "-no-always-tco -regalloc cfg -regalloc-param IRC_SPILLING_HEURISTICS:flat-uses -cfg-analyze-tailcalls -O3";
  ocamlopt.opt;
  check-ocamlopt.opt-output;
 *)
