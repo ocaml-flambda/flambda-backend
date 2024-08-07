@@ -162,32 +162,6 @@ type ('a : value => value) t = int 'a
 module M : sig type a = int list end
 |}]
 
-type ('a : value => value) t = int 'a
-
-module M : sig
-  type a = int list
-end = struct
-  type a = list t
-end
-
-[%%expect{|
-type ('a : value => value) t = int 'a
-module M : sig type a = int list end
-|}]
-
-type ('a : value => value) t = int 'a
-
-module M : sig
-  type a = int list
-end = struct
-  type a = list t
-end
-
-[%%expect{|
-type ('a : value => value) t = int 'a
-module M : sig type a = int list end
-|}]
-
 type 'a t = 'a * 'a
 let id : 'a ('b : value => value). 'a 'b -> 'a 'b = fun x -> x
 [%%expect{|
