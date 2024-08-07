@@ -24,6 +24,14 @@ call was inferred as nontail, but it may participate in a
 cycle of TCO'd tail calls, which could overflow the stack at
 runtime. Consider marking the function call with [@tail].
 
+File "warnings.ml", line 78, characters 2-22:
+78 |   bind next int_option
+       ^^^^^^^^^^^^^^^^^^^^
+Warning 186 [inferred-nontail-in-tcod-cycle]: This function
+call was inferred as nontail, but it may participate in a
+cycle of TCO'd tail calls, which could overflow the stack at
+runtime. Consider marking the function call with [@tail].
+
 File "warnings.ml", line 33, characters 72-78:
 33 |   if n > 0 then mutually_recursive_and_calls_parameter1 ~f (n - 2) else f true
                                                                              ^^^^^^

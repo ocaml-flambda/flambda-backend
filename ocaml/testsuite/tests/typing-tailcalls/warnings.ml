@@ -1,6 +1,6 @@
 (* TEST
  setup-ocamlopt.opt-build-env;
- flags = "-no-always-tco -regalloc cfg -regalloc-param IRC_SPILLING_HEURISTICS:flat-uses -cfg-analyze-tailcalls -O3";
+ flags = "-no-always-tco -regalloc cfg -regalloc-param IRC_SPILLING_HEURISTICS:flat-uses -cfg-analyze-tailcalls";
  ocamlopt.opt;
  check-ocamlopt.opt-output;
 *)
@@ -69,7 +69,7 @@ let [@loop never] rec apply_in_tail_position_in_exclave n =
 
 type int_option = None | Some of int
 
-let bind f = function
+let[@inline never] bind f = function
   | None -> None
   | Some x -> f x
 
