@@ -140,12 +140,17 @@ val get_mutable_variable_with_kind :
     [End_region] operations.
 
     Region closure continuations are created alongside corresponding
-    [Begin_region]s in the [Lregion] cases of [cps_non_tail] and [cps_tail].
+    [Begin_region]s when translating [Lregion] expressions.
     The decision as to calling a closure continuation or adding explicit
     [End_region]s is done in [restore_continuation_context] and
     [wrap_return_continuation]. Exceptional control flow cases are handled by
     the [compile_staticfail] and [Ltrywith] cases of the main transformation
-    functions. *)
+    functions.
+
+    Each [Lregion] actually turns into two Flambda regions: one used for
+    stack allocation and one used for primitives that are constrained by
+    locality (e.g. [Int_as_pointer] at local mode).  The latter kinds of
+    regions are known as ghost regions. *)
 
 val entering_region :
   t ->
