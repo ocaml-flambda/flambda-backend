@@ -78,20 +78,32 @@ void caml_alloc_point_here(void)
 
 atomic_uintnat caml_verb_gc = 0;
 
+static void print_log(char* msg, int newline, va_list ap)
+{
+  char buf[GC_LOG_LENGTH];
+  int pos = 0;
+  if (caml_verb_gc & 0x1000) {
+    pos += caml_format_timestamp(buf, sizeof(buf),
+                                 caml_verb_gc & 0x2000);
+  }
+  pos += snprintf(buf+pos, sizeof(buf)-pos,
+                  "[%02d] ",
+                  (Caml_state_opt != NULL) ? Caml_state_opt->id : -1);
+  pos += vsnprintf(buf+pos, sizeof(buf)-pos, msg, ap);
+  /* truncate if too long */
+  if (pos >= sizeof(buf) - 1) pos = sizeof(buf) - 1;
+  if (newline) buf[pos++] = '\n';
+  fwrite(buf, 1, pos, stderr);
+  fflush(stderr);
+}
+
 void caml_gc_log (char *msg, ...)
 {
   if ((atomic_load_relaxed(&caml_verb_gc) & 0x800) != 0) {
-    char fmtbuf[GC_LOG_LENGTH];
-    va_list args;
-    va_start (args, msg);
-    if (caml_verb_gc & 0x1000) {
-      caml_print_timestamp(stderr, caml_verb_gc & 0x2000);
-    }
-    snprintf(fmtbuf, GC_LOG_LENGTH, "[%02d] %s\n",
-             (Caml_state_opt != NULL) ? Caml_state_opt->id : -1, msg);
-    vfprintf(stderr, fmtbuf, args);
-    va_end (args);
-    fflush(stderr);
+    va_list ap;
+    va_start (ap, msg);
+    print_log(msg, 1, ap);
+    va_end (ap);
   }
 }
 
@@ -100,12 +112,8 @@ void caml_gc_message (int level, char *msg, ...)
   if ((atomic_load_relaxed(&caml_verb_gc) & level) != 0){
     va_list ap;
     va_start(ap, msg);
-    if (caml_verb_gc & 0x1000) {
-      caml_print_timestamp(stderr, caml_verb_gc & 0x2000);
-    }
-    vfprintf (stderr, msg, ap);
+    print_log(msg, 0, ap);
     va_end(ap);
-    fflush (stderr);
   }
 }
 

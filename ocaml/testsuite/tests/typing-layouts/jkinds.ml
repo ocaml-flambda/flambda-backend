@@ -975,7 +975,7 @@ Line 1, characters 0-70:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type t is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of value mod many portable
+       But the kind of type t must be a subkind of mutable_data
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)

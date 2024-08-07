@@ -209,8 +209,11 @@ module Const : sig
     (** This is the jkind of normal ocaml values *)
     val value : t
 
-    (** This is the jkind of normal immutable ocaml values *)
+    (** Immutable values that don't contain functions. *)
     val immutable_data : t
+
+    (** Mutable values that don't contain functions. *)
+    val mutable_data : t
 
     (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)
@@ -270,8 +273,11 @@ module Primitive : sig
 
   (* CR layouts v2.8: remove this in PR #2676 *)
 
-  (** This is the jkind of normal immutable ocaml values *)
+  (** Immutable values that don't contain functions. *)
   val immutable_data : why:History.immutable_data_creation_reason -> t
+
+  (** Mutable values that don't contain functions. *)
+  val mutable_data : why:History.mutable_data_creation_reason -> t
 
   (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)

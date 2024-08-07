@@ -52,6 +52,7 @@ let decide tenv param_type deciders : U.decision option =
 let deciders =
   [ Unboxers.Immediate.decider;
     Unboxers.Float.decider;
+    Unboxers.Float32.decider;
     Unboxers.Int32.decider;
     Unboxers.Int64.decider;
     Unboxers.Nativeint.decider;
