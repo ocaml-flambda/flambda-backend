@@ -347,6 +347,16 @@ let rec print_out_jkind ppf = function
   | Ojkind_const { base; modal_bounds=_::_ as modal_bounds } ->
     print_jkind_with_modes ppf (fun ppf -> fprintf ppf "%s") base modal_bounds
   | Ojkind_var v -> fprintf ppf "%s" v
+  | Ojkind_union (Some c, vs) ->
+    fprintf ppf "%a | %s"
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf " | ")
+        (fun ppf -> fprintf ppf "%s"))
+      vs c
+  | Ojkind_union (None, vs) ->
+    fprintf ppf "%a"
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf " | ")
+        (fun ppf -> fprintf ppf "%s"))
+      vs
   | Ojkind_top -> fprintf ppf "top"
   | Ojkind_user jkind ->
     let rec print_out_jkind_user ppf = function

@@ -1278,11 +1278,21 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Type.Const.to_out_jkind_const jkind)
 
+let verbose_out_jkind_of_var ~sort_var_names oc vs =
+  let of_var v =
+    (if sort_var_names then Jkind.Type.Sort.Var.name v else "_")
+  in
+  match oc, vs with
+  | None, [v] -> Ojkind_var (of_var v)
+  | None, vs -> Ojkind_union (None, List.map of_var vs)
+  | Some c, vs -> Ojkind_union (Some (Jkind.Type.Layout.Const.to_string c), List.map of_var vs)
+
 let rec out_jkind_of_jkind ~sort_var_names t =
   match Jkind.get t with
-  | Type ty -> begin match Jkind.Type.get ty with
+  | Type ty ->
+    begin match Jkind.Type.get ty with
     | Const clay -> out_jkind_of_const_jkind clay
-    | Var v      -> Ojkind_var (if sort_var_names then Jkind.Type.Sort.Var.name v else "_")
+    | Var (oc, vs) -> verbose_out_jkind_of_var ~sort_var_names oc vs
     end
   | Arrow { args; result } ->
     Ojkind_arrow (
@@ -1300,9 +1310,9 @@ let out_jkind_option_of_jkind t = match Jkind.get t with
       | true -> None
       | false -> Some (out_jkind_of_const_jkind jkind)
       end
-    | Var v -> (* This handles (X1). *)
+    | Var (oc, vs) -> (* This handles (X1). *)
       if !Clflags.verbose_types
-      then Some (Ojkind_var (Jkind.Type.Sort.Var.name v))
+      then Some (verbose_out_jkind_of_var ~sort_var_names:true oc vs)
       else None
     end
   (* We ignore the rules above for arrows, which should always be printed *)
