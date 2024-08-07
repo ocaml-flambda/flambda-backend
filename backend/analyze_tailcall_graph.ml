@@ -109,7 +109,7 @@ module Graph : sig
   (* Emits warnings for vertices that have an Inferred_nontail_edge to another
      vertex in the same SCC. Taking a trip across such an edge may increase
      stack consumption, which may lead to stack overflow when traversing the
-     cycle. *)
+     cycle repeatedly. *)
   val warn_inferred_nontail_in_tco'd_cycle :
     t -> sccs:Vertex.Hashset.t list -> unit
 
@@ -234,10 +234,11 @@ end = struct
       (* Stores edges modulo location information: this 1) makes the graph
          smaller when decomposing SCCS and 2) locations are not hashable. *)
       adjacencies_mod_loc : Edge.Hashset.t Vertex.Tbl.t;
-      (* The value type of this hashtable is an `Edge.with_loc`, but really it
-         stores an `Edge.with_loc list` because the table keeps previous
-         bindings on add and we don't remove. *)
-      adjacencies_with_loc : Edge.with_loc Vertex.Tbl.t
+      (* Stores the adjacencies with location information, which may result in
+         "duplicate" edges. E.g. if A calls B in tail position multiple times in
+         different locations, we will record one edge for each call. (Each call
+         should be treated as distinct when emitting warnings. *)
+      adjacencies_with_loc : Edge.with_loc list Vertex.Tbl.t
     }
 
   let init_unknown_edges t =
@@ -264,7 +265,7 @@ end = struct
     Vertex.Tbl.find t.adjacencies_mod_loc v
 
   let successors t (v : Vertex.t) : Edge.with_loc list =
-    Vertex.Tbl.find_all t.adjacencies_with_loc v
+    Vertex.Tbl.find t.adjacencies_with_loc v
 
   let find_or_add_vertex t ~(fn_name : string) : Vertex.t =
     let vertex =
@@ -279,9 +280,14 @@ end = struct
           { from = unknown; to_ = vertex; label = Explicit_tail_edge }
         in
         Edge.Hashset.add (successors_mod_loc t unknown) edge_from_unknown;
-        (* Initialize vertex's adjacency set *)
+        let with_loc : Edge.with_loc =
+          { edge = edge_from_unknown; loc = Location.none }
+        in
+        Vertex.Tbl.add t.adjacencies_with_loc vertex [with_loc];
+        (* Initialize vertex's adjacency set/list *)
         let edges_from_vertex = Edge.Hashset.create 10 in
         Vertex.Tbl.add t.adjacencies_mod_loc vertex edges_from_vertex;
+        Vertex.Tbl.add t.adjacencies_with_loc vertex [];
         vertex
       | Some vertex -> vertex
     in
@@ -298,7 +304,7 @@ end = struct
     let label : Edge.Label.t =
       let impossible_because ~case fmt =
         Misc.fatal_errorf
-          ("case " ^^ case ^^ " impossible because " ^^ fmt ^^ "; loc: %a")
+          ("case " ^^ case ^^ " impossible because " ^^ fmt ^^ "; %a")
           Location.print_loc loc
       in
       match original_position, actual_position with
@@ -354,7 +360,9 @@ end = struct
       let edges = Vertex.Tbl.find t.adjacencies_mod_loc from in
       Edge.Hashset.add edges edge);
     let with_loc : Edge.with_loc = { edge; loc } in
-    Vertex.Tbl.add t.adjacencies_with_loc from with_loc
+    (* `from`'s adjacency list was initialized in `find_or_add_vertex` *)
+    let existing = Vertex.Tbl.find t.adjacencies_with_loc from in
+    Vertex.Tbl.replace t.adjacencies_with_loc from (with_loc :: existing)
 
   type vertex_state =
     { preorder : int;
@@ -398,7 +406,8 @@ end = struct
       push_vertex vertex;
       (* Recursively traverse successors_mod_loc and update this vertex's state
          accordingly. *)
-      Edge.Hashset.iter (successors_mod_loc t vertex) ~f:(fun { label; to_; _ } ->
+      Edge.Hashset.iter (successors_mod_loc t vertex)
+        ~f:(fun { label; to_; _ } ->
           match label with
           | Explicit_nontail_edge ->
             (* Ignore these; before less-tco they already allocate stack space,
@@ -596,6 +605,7 @@ let fixup_inlined_tailcalls (fundecl : Cmm.fundecl) =
     match expr with
     | Cop (op, exprs, dbg) ->
       let op : Cmm.operation =
+        (* Warning 4 is [fragile-match] *)
         match[@ocaml.warning "-4"] op with
         | Capply (machtype, region_close, original_position) ->
           let inlined_position : Lambda.position_and_tail_attribute =
