@@ -546,13 +546,13 @@ let restore_continuation_context_for_switch_arm env cont =
     continuation_closing_region
 
 let apply_cont_with_extra_args acc env ccenv ~dbg cont traps args =
-  let extra_args =
-    List.map
-      (fun var : IR.simple -> Var var)
-      (Env.extra_args_for_continuation env cont)
-  in
   restore_continuation_context acc env ccenv cont
     ~close_current_region_early:false (fun acc ccenv cont ->
+      let extra_args =
+        List.map
+          (fun var : IR.simple -> Var var)
+          (Env.extra_args_for_continuation env cont)
+      in
       CC.close_apply_cont acc ~dbg ccenv cont traps (args @ extra_args))
 
 let wrap_return_continuation acc env ccenv (apply : IR.apply) =
@@ -1774,12 +1774,12 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
         match action with
         | Lvar var ->
           assert (not (Env.is_mutable env var));
+          let k = restore_continuation_context_for_switch_arm env k in
           let extra_args =
             List.map
               (fun arg : IR.simple -> Var arg)
               (Env.extra_args_for_continuation env k)
           in
-          let k = restore_continuation_context_for_switch_arm env k in
           let consts_rev =
             ( arm,
               k,
@@ -1790,12 +1790,12 @@ and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
           in
           consts_rev, wrappers
         | Lconst cst ->
+          let k = restore_continuation_context_for_switch_arm env k in
           let extra_args =
             List.map
               (fun arg : IR.simple -> Var arg)
               (Env.extra_args_for_continuation env k)
           in
-          let k = restore_continuation_context_for_switch_arm env k in
           let consts_rev =
             (arm, k, Debuginfo.none, None, IR.Const cst :: extra_args)
             :: consts_rev
