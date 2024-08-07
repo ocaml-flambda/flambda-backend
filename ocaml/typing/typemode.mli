@@ -12,13 +12,14 @@ val transl_alloc_mode : Parsetree.modes -> Mode.Alloc.Const.t
     requires different levels of maturity. *)
 val transl_modalities :
   maturity:Language_extension.maturity ->
-  has_mutable_implied_modalities:bool ->
+  has_mutable_implied_modalities:(bool, bool) Mode.monadic_comonadic ->
   Parsetree.modalities ->
   Mode.Modality.Value.Const.t
 
 val untransl_modalities :
   loc:Location.t -> Mode.Modality.Value.Const.t -> Parsetree.modalities
 
-val is_mutable_implied_modality : Mode.Modality.t -> bool
+val is_mutable_implied_modality :
+  (Mode.Modality.t -> bool, Mode.Modality.t -> bool) Mode.monadic_comonadic
 
 val mutable_implied_modalities : Mode.Modality.Value.Const.t

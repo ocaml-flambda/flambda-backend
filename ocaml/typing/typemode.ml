@@ -139,20 +139,39 @@ let compose_modalities modalities =
     (fun atom m -> Modality.Value.Const.compose ~then_:atom m)
     modalities Modality.Value.Const.id
 
-let mutable_implied_modalities : Modality.t list =
-  [ Atom (Comonadic Areality, Meet_with Regionality.Const.Global);
-    Atom (Comonadic Linearity, Meet_with Linearity.Const.Many);
-    Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Shared) ]
+(* For now, mutable implies legacy modalities for both comonadic axes and
+   monadic axes. In the future, implications on the comonadic axes will be
+   removed (and can be experimented currently with using
+   @no_mutable_implied_modalities). The implications on the monadic axes will
+   stay. *)
 
-let is_mutable_implied_modality m =
+let mutable_implied_modalities :
+    (Mode.Modality.t list, Mode.Modality.t list) Mode.monadic_comonadic =
+  { monadic =
+      [ Atom (Monadic Uniqueness, Join_with Uniqueness.Const.legacy);
+        Atom (Monadic Contention, Join_with Contention.Const.legacy) ];
+    comonadic =
+      [ Atom (Comonadic Areality, Meet_with Regionality.Const.legacy);
+        Atom (Comonadic Linearity, Meet_with Linearity.Const.legacy);
+        Atom (Comonadic Portability, Meet_with Portability.Const.legacy) ]
+  }
+
+let is_mutable_implied_modality =
   (* polymorphic equality suffices for now. *)
-  List.mem m mutable_implied_modalities
+  { monadic = (fun m -> List.mem m mutable_implied_modalities.monadic);
+    comonadic = (fun m -> List.mem m mutable_implied_modalities.comonadic)
+  }
 
 let transl_modalities ~maturity ~has_mutable_implied_modalities modalities =
   let modalities = List.map (transl_modality ~maturity) modalities in
   let modalities =
-    if has_mutable_implied_modalities
-    then modalities @ mutable_implied_modalities
+    if has_mutable_implied_modalities.monadic
+    then modalities @ mutable_implied_modalities.monadic
+    else modalities
+  in
+  let modalities =
+    if has_mutable_implied_modalities.comonadic
+    then modalities @ mutable_implied_modalities.comonadic
     else modalities
   in
   compose_modalities modalities
@@ -174,7 +193,9 @@ let report_error ppf = function
   | Unrecognized_mode s -> fprintf ppf "Unrecognized mode name %s." s
   | Unrecognized_modality s -> fprintf ppf "Unrecognized modality %s." s
 
-let mutable_implied_modalities = compose_modalities mutable_implied_modalities
+let mutable_implied_modalities =
+  compose_modalities
+    (mutable_implied_modalities.monadic @ mutable_implied_modalities.comonadic)
 
 let () =
   Location.register_error_of_exn (function

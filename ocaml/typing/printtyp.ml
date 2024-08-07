@@ -1322,8 +1322,18 @@ let tree_of_modalities ~has_mutable_implied_modalities t =
   let l = Mode.Modality.Value.Const.to_list t in
   (* CR zqian: decouple mutable and modalities *)
   let l =
-    if has_mutable_implied_modalities then
-      List.filter (fun m -> not @@ Typemode.is_mutable_implied_modality m) l
+    if has_mutable_implied_modalities.monadic then
+      List.filter
+        (fun m -> not @@ Typemode.is_mutable_implied_modality.monadic m)
+      l
+    else
+      l
+  in
+  let l =
+    if has_mutable_implied_modalities.comonadic then
+      List.filter
+        (fun m -> not @@ Typemode.is_mutable_implied_modality.comonadic m)
+      l
     else
       l
   in
@@ -1516,7 +1526,8 @@ and tree_of_labeled_typlist mode tyl =
 
 and tree_of_typ_gf {ca_type=ty; ca_modalities=gf; _} =
   (tree_of_typexp Type Alloc.Const.legacy ty,
-   tree_of_modalities ~has_mutable_implied_modalities:false gf)
+   tree_of_modalities
+    ~has_mutable_implied_modalities:{monadic=false; comonadic=false} gf)
 
 (** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
     is the return mode. This function decides the printed modes on [ty].
@@ -1704,10 +1715,14 @@ let tree_of_label l =
     | Immutable -> Om_immutable
   in
   let has_mutable_implied_modalities =
-    if is_mutable l.ld_mutable then
-      not (Builtin_attributes.has_no_mutable_implied_modalities l.ld_attributes)
-    else
-      false
+    let comonadic =
+      if is_mutable l.ld_mutable then
+        not (Builtin_attributes.has_no_mutable_implied_modalities l.ld_attributes)
+      else
+        false
+    in
+    let monadic = is_mutable l.ld_mutable in
+    {monadic; comonadic}
   in
   let ld_modalities =
     tree_of_modalities ~has_mutable_implied_modalities l.ld_modalities

@@ -433,11 +433,15 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
           | Immutable -> Immutable
           | Mutable -> Mutable Mode.Alloc.Comonadic.Const.legacy
          in
-         let has_mutable_implied_modalities =
-          if Types.is_mutable mut then
-            not (Builtin_attributes.has_no_mutable_implied_modalities attrs)
-          else
-            false
+         let has_mutable_implied_modalities : _ Mode.monadic_comonadic =
+          let comonadic =
+            if Types.is_mutable mut then
+              not (Builtin_attributes.has_no_mutable_implied_modalities attrs)
+            else
+              false
+          in
+          let monadic = Types.is_mutable mut in
+          {monadic; comonadic}
          in
          let modalities =
           Typemode.transl_modalities ~maturity:Stable
@@ -484,7 +488,8 @@ let transl_types_gf ~new_var_jkind ~allow_unboxed
     in
     let gf =
       Typemode.transl_modalities ~maturity:Stable
-        ~has_mutable_implied_modalities:false arg.pca_modalities
+        ~has_mutable_implied_modalities:{monadic=false; comonadic=false}
+        arg.pca_modalities
     in
     {ca_modalities = gf; ca_type = cty; ca_loc = arg.pca_loc}
   in
@@ -2946,7 +2951,7 @@ let transl_value_decl env loc valdecl =
   let modalities =
     valdecl.pval_modalities
     |> Typemode.transl_modalities ~maturity:Alpha
-        ~has_mutable_implied_modalities:false
+        ~has_mutable_implied_modalities:{monadic=false;comonadic=false}
     |> Mode.Modality.Value.of_const
   in
   (* CR layouts v5: relax this to check for representability. *)
