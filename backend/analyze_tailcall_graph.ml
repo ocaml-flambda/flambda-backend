@@ -352,7 +352,7 @@ end = struct
       Edge.Hashset.iter (successors t vertex) ~f:(fun { label; to_; _ } ->
           match label with
           | Explicit_nontail_edge ->
-            (* Ignore these; before less-tco they alreeady allocate stack space,
+            (* Ignore these; before less-tco they already allocate stack space,
                so are unlikely to be part of some cycle that blows the stack. *)
             ()
           | Explicit_tail_edge | Inferred_tail_edge | Inferred_nontail_edge -> (
