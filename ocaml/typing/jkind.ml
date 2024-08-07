@@ -179,8 +179,7 @@ module Type = struct
          [if Sort.equate s1 s2 then t1 else Any] is not sound
          and a change to the representation of sorts would be
          required to compute this accurately. Fail for now. *)
-      | Sort s1, Sort s2 when s1 = s2 -> t1
-      | Sort _, Sort _ -> assert false
+      | Sort s1, Sort s2 -> if Sort.equate s1 s2 then t1 else Any
       | _, Any -> Any
       | Any, _ -> Any
 
