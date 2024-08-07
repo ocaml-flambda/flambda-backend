@@ -522,8 +522,8 @@ let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
 
 let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
   match op with
-  | Begin_region _ (* XXX *) -> Begin_region
-  | Begin_try_region _ (* XXX *) -> Begin_try_region
+  | Begin_region { ghost = _ } -> Begin_region
+  | Begin_try_region { ghost = _ } -> Begin_try_region
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
   | Dls_get ->
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
@@ -536,8 +536,8 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
     Box_number (bk, alloc_mode_for_allocations env alloc)
   | Tag_immediate -> Tag_immediate
   | Get_tag -> Get_tag
-  | End_region _ (* XXX *) -> End_region
-  | End_try_region _ (* XXX *) -> End_try_region
+  | End_region { ghost = _ } -> End_region
+  | End_try_region { ghost = _ } -> End_try_region
   | Int_arith (i, o) -> Int_arith (i, o)
   | Is_flat_float_array -> Is_flat_float_array
   | Is_int _ -> Is_int (* CR vlaviron: discuss *)
@@ -868,7 +868,7 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
                ~my_closure
                ~is_my_closure_used:_
                ~my_region
-               ~my_ghost_region:_ (* XXX *)
+               ~my_ghost_region:_
                ~my_depth
                ~free_names_of_body:_
                :

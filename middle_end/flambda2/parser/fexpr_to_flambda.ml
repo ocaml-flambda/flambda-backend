@@ -392,9 +392,8 @@ let init_or_assign _env (ia : Fexpr.init_or_assign) :
 
 let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
   match nullop with
-  | Begin_region -> Begin_region { ghost = false } (* XXX *)
+  | Begin_region -> Begin_region { ghost = false }
   | Begin_try_region -> Begin_try_region { ghost = false }
-(* XXX *)
 
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with
@@ -405,8 +404,8 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   | Unbox_number bk -> Unbox_number bk
   | Tag_immediate -> Tag_immediate
   | Untag_immediate -> Untag_immediate
-  | End_region -> End_region { ghost = false } (* XXX *)
-  | End_try_region -> End_try_region { ghost = false } (*XXX*)
+  | End_region -> End_region { ghost = false }
+  | End_try_region -> End_try_region { ghost = false }
   | Get_tag -> Get_tag
   | Int_arith (i, o) -> Int_arith (i, o)
   | Is_flat_float_array -> Is_flat_float_array
@@ -886,8 +885,10 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           in
           let my_closure, env = fresh_var env closure_var in
           let my_region, env = fresh_var env region_var in
-          (* XXX mshinwell: needs to be added to Fexpr *)
-          let my_ghost_region, env = fresh_var env region_var in
+          (* CR mshinwell: ghost region handling needs to be added to Fexpr *)
+          let my_ghost_region, env =
+            fresh_var env { txt = "my_ghost_region"; loc = Loc_unknown }
+          in
           let my_depth, env = fresh_var env depth_var in
           let return_continuation, env =
             fresh_cont env ret_cont ~sort:Return
@@ -1111,5 +1112,5 @@ let conv comp_unit (fexpr : Fexpr.flambda_unit) : Flambda_unit.t =
   let body = expr env fexpr.body in
   Flambda_unit.create ~return_continuation ~exn_continuation
     ~toplevel_my_region:toplevel_region
-    ~toplevel_my_ghost_region:toplevel_region (* XXX *)
+    ~toplevel_my_ghost_region:(Variable.create "my_ghost_region")
     ~body ~module_symbol ~used_value_slots:Unknown
