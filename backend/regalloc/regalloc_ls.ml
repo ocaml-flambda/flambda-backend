@@ -24,12 +24,12 @@ end
 
 let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> unit =
  fun state cfg_with_infos ~spilled_nodes ->
-  let _new_temporaries, _block_temporaries, block_inserted =
+  let _new_inst_temporaries, _new_block_temporaries, block_inserted =
     Regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)
       state cfg_with_infos ~spilled_nodes
-      ~optimization:Coalesce_temp_spills_and_reloads
+      ~should_coalesce_temp_spills_and_reloads:(State.get_round_num state = 1)
   in
   Cfg_with_infos.invalidate_liveness cfg_with_infos;
   if block_inserted

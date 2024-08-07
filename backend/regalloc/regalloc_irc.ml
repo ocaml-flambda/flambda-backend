@@ -396,9 +396,9 @@ let rewrite :
       (module State)
       (module Utils)
       state cfg_with_infos ~spilled_nodes
-      ~optimization:Coalesce_temp_spills_and_reloads
+      ~should_coalesce_temp_spills_and_reloads:(State.get_round_num state = 1)
   in
-  let new_temporaries = new_inst_temporaries @ new_block_temporaries in
+  let new_temporaries = new_block_temporaries @ new_inst_temporaries in
   if new_temporaries <> []
   then (
     Cfg_with_infos.invalidate_liveness cfg_with_infos;
