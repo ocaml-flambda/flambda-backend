@@ -674,7 +674,7 @@ let nullary_primitive _env res dbg prim =
   | Begin_region { ghost = false } | Begin_try_region { ghost = false } ->
     None, res, C.beginregion ~dbg
   | Begin_region { ghost = true } | Begin_try_region { ghost = true } ->
-    None, res, C.unit ~dbg
+    None, res, C.int ~dbg 0
   | Enter_inlined_apply _ ->
     Misc.fatal_errorf
       "The primitive [Enter_inlined_apply] should not be translated by \
