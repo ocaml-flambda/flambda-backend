@@ -1,7 +1,7 @@
 (* TEST *)
 
 let f (x : int) y =
-  let h (y : int) =
+  let[@local always] h (y : int) =
     let _ = local_ (x, y) in
     if y < 42 then failwith "foo"
   in
