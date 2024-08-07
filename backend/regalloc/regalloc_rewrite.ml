@@ -121,8 +121,7 @@ let rewrite_gen :
       ~f:(fun spilled_map reg ->
         if Utils.debug then assert (Utils.is_spilled reg);
         let spilled = Reg.create reg.Reg.typ in
-        if not should_coalesce_temp_spills_and_reloads
-        then Utils.set_spilled spilled;
+        Utils.set_spilled spilled;
         (* for printing *)
         if not (Reg.anonymous reg) then spilled.Reg.raw_name <- reg.Reg.raw_name;
         let slot =
