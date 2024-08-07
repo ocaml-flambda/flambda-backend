@@ -1,6 +1,4 @@
 (* TEST
-  reason = "No GADTs with higher kinds";
-  skip;
   flags = "-extension layouts_alpha";
   expect;
 *)
