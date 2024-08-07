@@ -64,6 +64,8 @@ void caml_accum_alloc_stats(
 void caml_collect_alloc_stats_sample(
   caml_domain_state *local,
   struct alloc_stats *sample);
+void caml_collect_alloc_stats_live(
+  struct alloc_stats *live);
 
 struct gc_stats {
   struct alloc_stats alloc_stats;

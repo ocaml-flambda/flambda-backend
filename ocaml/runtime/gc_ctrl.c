@@ -109,17 +109,13 @@ CAMLprim value caml_gc_counters(value v)
   CAMLlocal1 (res);
 
   /* get a copy of these before allocating anything... */
-  double minwords = Caml_state->stat_minor_words
-    + (double) Wsize_bsize ((uintnat)Caml_state->young_end -
-        (uintnat) Caml_state->young_ptr);
-  double prowords = Caml_state->stat_promoted_words;
-  double majwords = Caml_state->stat_major_words +
-                    (double) Caml_state->allocated_words;
+  struct alloc_stats alloc_stats;
+  caml_collect_alloc_stats_live(&alloc_stats);
 
   res = caml_alloc_3(0,
-    caml_copy_double (minwords),
-    caml_copy_double (prowords),
-    caml_copy_double (majwords));
+    caml_copy_double (alloc_stats.minor_words),
+    caml_copy_double (alloc_stats.promoted_words),
+    caml_copy_double (alloc_stats.major_words));
   CAMLreturn (res);
 }
 

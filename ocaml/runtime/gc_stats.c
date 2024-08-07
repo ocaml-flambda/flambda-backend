@@ -67,6 +67,14 @@ void caml_collect_alloc_stats_sample(
   sample->forced_major_collections = local->stat_forced_major_collections;
 }
 
+void caml_collect_alloc_stats_live(
+  struct alloc_stats *live)
+{
+  caml_collect_alloc_stats_sample(Caml_state, live);
+  live->minor_words += (double) (Caml_state->young_end - Caml_state->young_ptr);
+  live->major_words += (double) Caml_state->allocated_words;
+}
+
 void caml_reset_domain_alloc_stats(caml_domain_state *local)
 {
   local->stat_minor_words = 0;
@@ -155,7 +163,7 @@ void caml_compute_gc_stats(struct gc_stats* buf)
     }
     else {
       struct alloc_stats alloc_stats;
-      caml_collect_alloc_stats_sample(Caml_state, &alloc_stats);
+      caml_collect_alloc_stats_live(&alloc_stats);
       caml_accum_alloc_stats(&buf->alloc_stats, &alloc_stats);
       caml_accum_heap_stats(&buf->heap_stats, &s->heap_stats);
       //FIXME use live heap stats instead of sampled heap stats below?
