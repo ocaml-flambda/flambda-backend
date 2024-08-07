@@ -7,11 +7,7 @@ type l : value => value = list
 let x: int l = [1]
 [%%expect{|
 type l = list
-Line 2, characters 15-18:
-2 | let x: int l = [1]
-                   ^^^
-Error: This expression has type 'a list
-       but an expression was expected of type int l
+val x : int l = <abstr>
 |}]
 
 (* Basic GADTs *)
@@ -24,25 +20,17 @@ type ('a : value => value) t = List : list t | Option : option t
 |}]
 
 let foo : type (a : value => value). a t -> int a = function
-  | List -> [1]
+  | List -> ([1] : int a)
   | Option -> Some 2
 [%%expect{|
-Line 2, characters 12-15:
-2 |   | List -> [1]
-                ^^^
-Error: This expression has type 'a list
-       but an expression was expected of type int a
+val foo : ('a : value => value). 'a t -> int 'a = <fun>
 |}]
 
 type l : value => value = list
 let x: int l = [1]
 [%%expect{|
 type l = list
-Line 2, characters 15-18:
-2 | let x: int l = [1]
-                   ^^^
-Error: This expression has type 'a list
-       but an expression was expected of type int l
+val x : int l = <abstr>
 |}]
 
 (* Basic GADTs *)
@@ -58,11 +46,7 @@ let foo : type (a : value => value). a t -> int a = function
   | List -> [1]
   | Option -> Some 2
 [%%expect{|
-Line 2, characters 12-15:
-2 |   | List -> [1]
-                ^^^
-Error: This expression has type 'a list
-       but an expression was expected of type int a
+val foo : ('a : value => value). 'a t -> int 'a = <fun>
 |}]
 
 type ('m : value => value) functor_instance = {
