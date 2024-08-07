@@ -1,19 +1,19 @@
 ; Test1
 
 (rule
- (alias test1)
+ (alias runtest)
  (enabled_if
   (and
    (= %{context_name} "main")
    (<> %{system} macosx)))
- (targets test_runner1.exe)
+ (targets test1_runner.exe)
  (deps test1.ml)
  (action
   (run
    %{bin:ocamlopt.opt}
    %{deps}
    -o
-   test_runner1.exe
+   test1_runner.exe
    -S
    -O3
    -regalloc
@@ -27,19 +27,19 @@
    -no-vectorize)))
 
 (rule
- (alias test1_simd)
+ (alias runtest)
  (enabled_if
   (and
    (= %{context_name} "main")
    (<> %{system} macosx)))
- (targets test_runner1_simd.exe test1_simd.cmx.dump)
+ (targets test1_runner_simd.exe)
  (deps test1_simd.ml stubs.c)
  (action
   (run
    %{bin:ocamlopt.opt}
    %{deps}
    -o
-   test_runner1_simd.exe
+   test1_runner_simd.exe
    -S
    -O3
    -regalloc
@@ -57,19 +57,30 @@
    simd)))
 
 (rule
- (alias test1_vectorized)
+ (alias runtest)
  (enabled_if
   (and
    (= %{context_name} "main")
    (<> %{system} macosx)))
- (targets test_runner1_vectorized.exe test1.cmx.dump)
+ (targets test1_vectorized.ml)
  (deps test1.ml)
+ (action
+  (run cp test1.ml test1_vectorized.ml)))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets test1_runner_vectorized.exe test1_vectorized.cmx.dump)
+ (deps test1_vectorized.ml)
  (action
   (run
    %{bin:ocamlopt.opt}
-   %{deps}
+   test1_vectorized.ml
    -o
-   test_runner1_vectorized.exe
+   test1_runner_vectorized.exe
    -S
    -O3
    -regalloc
@@ -90,22 +101,41 @@
   (and
    (= %{context_name} "main")
    (<> %{system} macosx)))
- (targets test1.out test1_simd.out test1_vectorized.out)
- (deps test_runner1.exe test_runner1_simd.exe test_runner1_vectorized.exe)
+ (deps filter.sh test1_vectorized.cmx.dump)
  (action
-  (progn
-   (with-outputs-to
-    grep_test1_vectorizer_cmx.out
-    (run grep "*** Vectorization" test1.cmx.dump --line-regexp --max-count=1))
-   (with-outputs-to
-    test1.out
-    (run ./test_runner1.exe))
-   (with-outputs-to
-    test1_simd.out
-    (run ./test_runner1_simd.exe))
-   (with-outputs-to
-    test1_vectorized.out
-    (run ./test_runner1_vectorized.exe)))))
+  (with-outputs-to
+   grep_test1_vectorizer_cmx.out
+   (run ./filter.sh test1_vectorized.cmx.dump))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (with-outputs-to
+   test1.out
+   (run ./test1_runner.exe))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (with-outputs-to
+   test1_simd.out
+   (run ./test1_runner_simd.exe))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (with-outputs-to
+   test1_vectorized.out
+   (run ./test1_runner_vectorized.exe))))
 
 (rule
  (alias runtest)
@@ -116,14 +146,15 @@
    (<> %{system} macosx)))
  (action
   (progn
-   (diff grep_vectorizer_cmx.expected grep_test1_vectorizer_cmx.out)
-   (diff test1.out test1_simd.out)
-   (diff test1.out test1_vectorized.out))))
+   (diff grep_test1_vectorizer_cmx.out grep_vectorizer_cmx.expected)
+   (diff test1.out test1.expected)
+   (diff test1_simd.out test1.expected)
+   (diff test1_vectorized.out test1.expected))))
 
 ; Examples
 
 (rule
- (alias examples)
+ (alias runtest)
  (enabled_if
   (and
    (= %{context_name} "main")
@@ -149,12 +180,12 @@
    -no-vectorize)))
 
 (rule
- (alias examples_unrolled)
+ (alias runtest)
  (enabled_if
   (and
    (= %{context_name} "main")
    (<> %{system} macosx)))
- (targets examples_runner_unrolled.exe examples_unrolled.cmx.dump)
+ (targets examples_runner_unrolled.exe)
  (deps examples_unrolled.ml stubs.c)
  (action
   (run
@@ -177,17 +208,28 @@
    -no-vectorize)))
 
 (rule
- (alias examples_vectorized)
+ (alias runtest)
  (enabled_if
   (and
    (= %{context_name} "main")
    (<> %{system} macosx)))
- (targets examples_runner_vectorized.exe examples.cmx.dump)
+ (targets examples_vectorized.ml)
  (deps examples.ml)
+ (action
+  (run cp examples.ml examples_vectorized.ml)))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (targets examples_runner_vectorized.exe examples_vectorized.cmx.dump)
+ (deps examples_vectorized.ml)
  (action
   (run
    %{bin:ocamlopt.opt}
-   %{deps}
+   examples_vectorized.ml
    -o
    examples_runner_vectorized.exe
    -S
@@ -210,30 +252,41 @@
   (and
    (= %{context_name} "main")
    (<> %{system} macosx)))
- (targets examples.out examples_unrolled.out examples_vectorized.out)
- (deps
-  examples_runner.exe
-  examples_runner_unrolled.exe
-  examples_runner_vectorized.exe)
+ (deps filter.sh examples_vectorized.cmx.dump)
  (action
-  (progn
-   (with-outputs-to
-    grep_examples_vectorizer_cmx.out
-    (run
-     grep
-     "*** Vectorization"
-     examples.cmx.dump
-     --line-regexp
-     --max-count=1))
-   (with-outputs-to
-    examples.out
-    (run ./examples_runner.exe))
-   (with-outputs-to
-    examples_unrolled.out
-    (run ./examples_runner_unrolled.exe))
-   (with-outputs-to
-    examples_vectorized.out
-    (run ./examples_runner_vectorized.exe)))))
+  (with-outputs-to
+   grep_examples_vectorizer_cmx.out
+   (run ./filter.sh examples_vectorized.cmx.dump))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (with-outputs-to
+   examples.out
+   (run ./examples_runner.exe))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (with-outputs-to
+   examples_unrolled.out
+   (run ./examples_runner_unrolled.exe))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (<> %{system} macosx)))
+ (action
+  (with-outputs-to
+   examples_vectorized.out
+   (run ./examples_runner_vectorized.exe))))
 
 (rule
  (alias runtest)
@@ -244,6 +297,7 @@
    (<> %{system} macosx)))
  (action
   (progn
-   (diff grep_vectorizer_cmx.expected grep_examples_vectorizer_cmx.out)
-   (diff examples.out examples_unrolled.out)
-   (diff examples.out examples_vectorized.out))))
+   (diff grep_examples_vectorizer_cmx.out grep_vectorizer_cmx.expected)
+   (diff examples.out examples.expected)
+   (diff examples_unrolled.out examples.expected)
+   (diff examples_vectorized.out examples.expected))))

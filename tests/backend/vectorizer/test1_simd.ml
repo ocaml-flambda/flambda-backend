@@ -38,8 +38,6 @@ module Int64x2 = struct
   [@@noalloc] [@@unboxed] [@@builtin]
 
   let[@inline always] set a b =
-    (* movq, + insert -> 3 cycle latency
-      this           -> 2 cycle latency *)
     let a = low_of a in
     let b = low_of b in
     low_64_to_high_64 a b

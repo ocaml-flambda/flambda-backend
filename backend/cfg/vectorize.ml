@@ -1,3 +1,5 @@
+[@@@ocaml.warning "+a-40-41-42"]
+
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let dump ppf cfg_with_layout ~msg =
