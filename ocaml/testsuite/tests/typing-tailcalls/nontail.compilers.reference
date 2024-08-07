@@ -1237,7 +1237,7 @@
                                                (apply (field_imm 0 opt)
                                                  a Not_tail_position (Default_tail)))))
    map_shadowed =
-     (function {nlocal = 2} opt[(consts (0)) (non_consts ([0: *]))] g
+     (function {nlocal = 0} opt[(consts (0)) (non_consts ([0: *]))] g
        [(consts (0)) (non_consts ([0: *]))](if (isint opt) 0
                                              (makeblock 0 (int)
                                                (apply f
@@ -1270,15 +1270,14 @@
      (function {nlocal = 0} a
        param[(consts ())
              (non_consts ([0: *, [(consts (0)) (non_consts ([0: *]))]]))]
-       [(consts (0)) (non_consts ([0: *]))](region
-                                             (if (isint (field_imm 1 param))
-                                               (seq
-                                                 (apply f
-                                                   "none" Not_tail_position (Default_tail))
-                                                 0)
-                                               (makeblock 0 (int)
-                                                 (apply f
-                                                   a Not_tail_position (Default_tail)))))))
+       [(consts (0)) (non_consts ([0: *]))](if (isint (field_imm 1 param))
+                                             (seq
+                                               (apply f
+                                                 "none" Not_tail_position (Default_tail))
+                                               0)
+                                             (makeblock 0 (int)
+                                               (apply f
+                                                 a Not_tail_position (Default_tail))))))
   (makeblock 0 f M foo bar pipe_struct_let pipe_tuple_let pipe_struct_match
     pipe_tuple_match pipe_option pipe_option_ifnone map_shadowed
     pipe_struct_shadowed pipe_tuple_shadowed pipe_struct_match_shadowed
