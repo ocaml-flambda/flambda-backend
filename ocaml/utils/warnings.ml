@@ -1195,9 +1195,10 @@ let message = function
       "A generative functor\n\
        should be applied to '()'; using '(struct end)' is deprecated."
   | Inferred_nontail_in_tco'd_cycle ->
-      "This function call was inferred as nontail, but\n\
-       it may participate in a cycle of TCO'd tail calls, which could overflow\n\
-       the stack at runtime. Consider marking the function call with [@tail]."
+      "This function\n\
+       call was inferred as nontail, but it may participate in a\n\
+       cycle of TCO'd tail calls, which could overflow the stack at\n\
+       runtime. Consider marking the function call with [@tail]."
   | Incompatible_with_upstream (Immediate_erasure id)  ->
       Printf.sprintf
       "Usage of layout immediate/immediate64 in %s \n\
