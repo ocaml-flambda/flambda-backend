@@ -271,7 +271,6 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract of abstract_reason
     Type_abstract of type_origin
   | Type_record of 'lbl list * record_representation
   | Type_variant of 'cstr list * variant_representation
