@@ -8,8 +8,6 @@ module type State = sig
   val stack_slots : t -> Regalloc_stack_slots.t
 
   val get_and_incr_instruction_id : t -> Instruction.id
-
-  val get_round_num : t -> int
 end
 
 module type Utils = sig

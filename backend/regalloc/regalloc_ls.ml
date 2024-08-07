@@ -22,14 +22,20 @@ module Utils = struct
   let set_spilled _reg = ()
 end
 
-let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> unit =
- fun state cfg_with_infos ~spilled_nodes ->
+let rewrite :
+    State.t ->
+    Cfg_with_infos.t ->
+    spilled_nodes:Reg.t list ->
+    should_coalesce_temp_spills_and_reloads:bool ->
+    unit =
+ fun state cfg_with_infos ~spilled_nodes
+     ~should_coalesce_temp_spills_and_reloads ->
   let _new_inst_temporaries, _new_block_temporaries, block_inserted =
     Regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)
       state cfg_with_infos ~spilled_nodes
-      ~should_coalesce_temp_spills_and_reloads:(State.get_round_num state = 1)
+      ~should_coalesce_temp_spills_and_reloads
   in
   Cfg_with_infos.invalidate_liveness cfg_with_infos;
   if block_inserted
@@ -201,9 +207,8 @@ let reg_reinit () =
    seems to be fine with 3 *)
 let max_rounds = 50
 
-let rec main : State.t -> Cfg_with_infos.t -> unit =
- fun state cfg_with_infos ->
-  let round = State.get_round_num state in
+let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
+ fun ~round state cfg_with_infos ->
   if round > max_rounds
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
@@ -237,9 +242,9 @@ let rec main : State.t -> Cfg_with_infos.t -> unit =
   in
   if not (Reg.Set.is_empty spilled)
   then (
-    rewrite state cfg_with_infos ~spilled_nodes:(Reg.Set.elements spilled);
-    State.incr_round_num state;
-    main state cfg_with_infos)
+    rewrite state cfg_with_infos ~spilled_nodes:(Reg.Set.elements spilled)
+      ~should_coalesce_temp_spills_and_reloads:(round = 1);
+    main ~round:(succ round) state cfg_with_infos)
 
 let run : Cfg_with_infos.t -> Cfg_with_infos.t =
  fun cfg_with_infos ->
@@ -271,9 +276,10 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   | [] -> ()
   | _ :: _ as spilled_nodes ->
     List.iter spilled_nodes ~f:(fun reg -> reg.Reg.spill <- true);
-    rewrite state cfg_with_infos ~spilled_nodes;
+    rewrite state cfg_with_infos ~spilled_nodes
+      ~should_coalesce_temp_spills_and_reloads:false;
     Cfg_with_infos.invalidate_liveness cfg_with_infos);
-  main state cfg_with_infos;
+  main ~round:1 state cfg_with_infos;
   Regalloc_rewrite.postlude
     (module State)
     (module Utils)

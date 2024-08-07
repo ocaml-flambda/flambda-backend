@@ -389,14 +389,16 @@ let rewrite :
     Cfg_with_infos.t ->
     spilled_nodes:Reg.t list ->
     reset:bool ->
+    should_coalesce_temp_spills_and_reloads:bool ->
     bool =
- fun state cfg_with_infos ~spilled_nodes ~reset ->
+ fun state cfg_with_infos ~spilled_nodes ~reset
+     ~should_coalesce_temp_spills_and_reloads ->
   let new_inst_temporaries, new_block_temporaries, block_inserted =
     Regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)
       state cfg_with_infos ~spilled_nodes
-      ~should_coalesce_temp_spills_and_reloads:(State.get_round_num state = 1)
+      ~should_coalesce_temp_spills_and_reloads
   in
   let new_temporaries = new_block_temporaries @ new_inst_temporaries in
   if new_temporaries <> []
@@ -420,9 +422,8 @@ let rewrite :
    seems to be fine with 4 *)
 let max_rounds = 50
 
-let rec main : State.t -> Cfg_with_infos.t -> unit =
- fun state cfg_with_infos ->
-  let round = State.get_round_num state in
+let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
+ fun ~round state cfg_with_infos ->
   if round > max_rounds
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
@@ -494,12 +495,14 @@ let rec main : State.t -> Cfg_with_infos.t -> unit =
     then
       List.iter spilled_nodes ~f:(fun reg ->
           log ~indent:1 "/!\\ register %a needs to be spilled" Printmach.reg reg);
-    match rewrite state cfg_with_infos ~spilled_nodes ~reset:true with
+    match
+      rewrite state cfg_with_infos ~spilled_nodes ~reset:true
+        ~should_coalesce_temp_spills_and_reloads:(round = 1)
+    with
     | false -> if irc_debug then log ~indent:1 "(end of main)"
     | true ->
       State.invariant state;
-      State.incr_round_num state;
-      main state cfg_with_infos)
+      main ~round:(succ round) state cfg_with_infos)
 
 let run : Cfg_with_infos.t -> Cfg_with_infos.t =
  fun cfg_with_infos ->
@@ -529,9 +532,12 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     List.iter spilled_nodes ~f:(fun reg -> State.add_spilled_nodes state reg);
     (* note: rewrite will remove the `spilling` registers from the "spilled"
        work list and set the field to unknown. *)
-    let (_ : bool) = rewrite state cfg_with_infos ~spilled_nodes ~reset:false in
+    let (_ : bool) =
+      rewrite state cfg_with_infos ~spilled_nodes ~reset:false
+        ~should_coalesce_temp_spills_and_reloads:false
+    in
     ());
-  main state cfg_with_infos;
+  main ~round:1 state cfg_with_infos;
   if irc_debug then log_cfg_with_infos ~indent:1 cfg_with_infos;
   Regalloc_rewrite.postlude
     (module State)

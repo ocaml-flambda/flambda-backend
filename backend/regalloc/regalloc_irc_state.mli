@@ -130,10 +130,6 @@ val stack_slots : t -> Regalloc_stack_slots.t
 
 val get_and_incr_instruction_id : t -> Instruction.id
 
-val get_round_num : t -> int
-
-val incr_round_num : t -> unit
-
 val add_inst_temporaries_list : t -> Reg.t list -> unit
 
 val add_block_temporaries_list : t -> Reg.t list -> unit
