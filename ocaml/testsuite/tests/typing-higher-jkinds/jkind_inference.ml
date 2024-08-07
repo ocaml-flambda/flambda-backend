@@ -142,7 +142,8 @@ end
 module type M =
   sig
     val f :
-      ('d : value => value => value => value) 'c 'b 'a. 'a 'b 'c 'd -> unit
+      ('d : value => value => value => value) 'c 'b 'a.
+        'a ('b ('c 'd)) -> unit
   end
 |}]
 
