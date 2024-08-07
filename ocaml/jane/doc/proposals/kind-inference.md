@@ -163,7 +163,8 @@ modalities `μ` (where `sup(μ) = ⊤`), `m ⊓ sup(μ) = m`. We thus do not nee
 modalities in internal kinds `κ`. We can thus simplify the definition of `κ` to
 
 ```
-modal_bound_Ξ ::= m_Ξ with [[ σ ]]
+modal_bound_item_Ξ ::= mode m_Ξ | with σ
+modal_bound_Ξ ::= [[ modal_bound_item_Ξ | ⊔ ]]
 κ ::= layout; ⟪modal_bound_Ξ⟫
 ```
 
@@ -178,8 +179,6 @@ is the identity. Put another way, this gets all the types from
 `field_types`, omitting those with a modality along `Ξ`.
 
 We write `Ξ(κ)` to denote the modal_bound in `κ` corresponding to axis `Ξ`,
-`mode(modal_bound)` to denote the mode stored in a modal bound,
-`with_types(modal_bound)` to denote the set of types stored in a modal bound,
 and `lay(κ)` to denote the layout in `κ`.
 
 Typing rules:
@@ -335,77 +334,30 @@ const_layout₁ ≤ lay(κ₂)
 Γ ⊢ layout_of σ₁ ≤ layout_of σ₂
 
 
-Γ ⊢ground_Ξ [[ σ ]] ↠ m_Ξ   (* ground out the `with` types *)
-=========================
+Γ ⊢ modal_bound_item₁_Ξ ≤ modal_bound₂_Ξ
+========================================
 
-∀ i:
-  Γ ⊢ σᵢ : κᵢ
-  mᵢ_Ξ with [[ σᵢⱼ ]] = Ξ(κᵢ)
-  Γ ⊢ground_Ξ [[ σᵢⱼ ]] ↠ mᵢ'_Ξ
-  mᵢ''_Ξ = mᵢ_Ξ ⊔ mᵢ'_Ξ
----------------------------------------------- MG
-Γ ⊢ground_Ξ [[ σᵢ ]] ↠ ⨆ [[ mᵢ''_Ξ ]]
+Γ ⊢ σ : κ {best}   (* another critical use of `best` *)
+Γ ⊢ modal_bound_item₁_Ξ ≤ modal_bound₂_Ξ ⊔ Ξ(κ)
+----------------------------------------------- MB_EXPAND_R
+Γ ⊢ modal_bound_item₁_Ξ ≤ modal_bound₂_Ξ ⊔ with σ
+  (* the [with σ] is nondeterministically chosen; order does not matter *)
 
+m₁_Ξ ≤ m₂_Ξ
+------------------------------------------------ MB_MODE
+Γ ⊢ mode m₁_Ξ ≤ modal_bound₂_Ξ ⊔ [[ mode m₂_Ξ ]]
+  (* [m₂_Ξ] nondeterministically chosen, but the highest mode is a good choice *)
 
-Γ ⊢ modal_bound_Ξ ≤ m_Ξ   (* a modal bound is definitely less than m *)
-=======================
+Γ ⊢ σ₁ = σ₂
+-------------------------------------- MB_WITH
+Γ ⊢ with σ₁ ≤ modal_bound₂_Ξ ⊔ with σ₂
+  (* [with σ₂] nondeterministically chosen *)
 
-m₁ ≤ m₂
-∀ i:
-  Γ ⊢ σᵢ : κᵢ
-  Ξ(κᵢ) ≤ m₂_Ξ
------------------------------ MB_SUB
-Γ ⊢ m₁_Ξ with [[ σᵢ ]] ≤ m₂_Ξ
-
-
-Γ ⊢ modal_bound_Ξ ↝ modal_bound'_Ξ
-===================================
-  (* This defines a non-deterministic reduction relation on modal bounds.
-     We understand the `m_Ξ with σ₀ and [[ σᵢ ]]` notation to mean that
-     we non-deterministically select one σ₀ from the set of with-types;
-     there is no ordering implied here. *)
-  (* Conjecture: this reduction relation is confluent. *)
-
-Γ ⊢ σ₀ : κ₀ {best}     (* another critical use of `best` *)
-m'_Ξ = m_Ξ ⊔ mode(Ξ(κ₀))
----------------------------------- MR_BEST
-Γ ⊢ m_Ξ with σ₀ and [[ σᵢ ]] ↝ m'_Ξ with with_types(Ξ(κ₀)) and [[ σᵢ ]]
-
-σ₀ ∈ [[ σᵢ ]]
------------------------------ MR_DUP
-Γ ⊢ m_Ξ with σ₀ and [[ σᵢ ]] ↝ m_Ξ with [[ σᵢ ]]
-
-Γ ⊢ σ₀ : κ₀
-Γ ⊢ Ξ(κ₀) ≤ m_Ξ
------------------------------------------------- MR_IGNORE
-Γ ⊢ m_Ξ with σ₀ and [[ σᵢ ]] ↝ m_Ξ with [[ σᵢ ]]
-
-(* We write `modal_bound_Ξ ↝ .` to denote that `modal_bound_Ξ` cannot step. *)
-
-
-Γ ⊢ modal_bound_Ξ ⤋ modal_bound'_Ξ
-===================================
-
-Γ ⊢ modal_bound_Ξ ↝* modal_bound'_Ξ
-Γ ⊢ modal_bound_Ξ ↝ .
------------------------------------ MR_REDUCE
-Γ ⊢ modal_bound_Ξ ⤋ modal_bound'_Ξ
-
-
-Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with [[ σ₂ ]]
-===========================================
-
-Γ ⊢ σ₁₀ = σ₂₀
-Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with [[ σ₂ ]]
------------------------------------------------------------ MSUB_MATCH
-Γ ⊢ m₁_Ξ with σ₁₀ and [[ σ₁ ]] ≤ m₂_Ξ with σ₂₀ and [[ σ₂ ]]
-  (* As elsewhere, the `with σ and [[ σ ]]` notation means to
-  non-deterministically select. *)
-
-Γ ⊢ground_Ξ [[ σ₁ ]] ↠ m₁'_Ξ
-(m₁_Ξ ⊔ m₁'_Ξ) ≤ m₂_Ξ
------------------------------ MSUB_BOUND
-Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ
+Γ ⊢ σ₁ : κ
+∀ modal_bound_item_Ξ ∈ Ξ(κ):
+  Γ ⊢ modal_bound_item_Ξ ≤ modal_bound₂_Ξ
+---------------------------- MB_EXPAND_L
+Γ ⊢ with σ₁ ≤ modal_bound₂_Ξ
 
 
 Γ ⊢ κ₁ ≤ κ₂
@@ -413,9 +365,8 @@ m'_Ξ = m_Ξ ⊔ mode(Ξ(κ₀))
 
 Γ ⊢ layout₁ ≤ layout₂
 ∀ Ξ:
-  Γ ⊢ modal_bound₁_Ξ ⤋ m₁_Ξ with [[ σ₁ ]]
-  Γ ⊢ modal_bound₂_Ξ ⤋ m₂_Ξ with [[ σ₂ ]]
-  Γ ⊢ m₁_Ξ with [[ σ₁ ]] ≤ m₂_Ξ with [[ σ₂ ]]
+  ∀ modal_bound_item₁_Ξ ∈ modal_bound₁_Ξ:
+    Γ ⊢ modal_bound_item₁_Ξ ≤ modal_bound₂_Ξ
 --------------------------------------------------------- SUB
 Γ ⊢ layout₁; ⟪modal_bound₁_Ξ⟫ ≤ layout₂; ⟪modal_bound₂_Ξ⟫
 
