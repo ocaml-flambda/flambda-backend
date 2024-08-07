@@ -24,15 +24,15 @@ module Int64x2 = struct
   [@@noalloc] [@@builtin]
 
   external high_64_to_low_64
-    :  t
-    -> t
+    :  onto:t
+    -> from:t
     -> t
     = "ocaml_simd_unreachable" "caml_sse_vec128_high_64_to_low_64"
   [@@noalloc] [@@unboxed] [@@builtin]
 
   external low_64_to_high_64
-    :  t
-    -> t
+    :  onto:t
+    -> from:t
     -> t
     = "ocaml_simd_unreachable" "caml_sse_vec128_low_64_to_high_64"
   [@@noalloc] [@@unboxed] [@@builtin]
@@ -40,12 +40,12 @@ module Int64x2 = struct
   let[@inline always] set a b =
     let a = low_of a in
     let b = low_of b in
-    low_64_to_high_64 a b
+    low_64_to_high_64 ~onto:a ~from:b
   ;;
 
   let of_int64s a b = set (Int64_u.of_int64 a) (Int64_u.of_int64 b)
   let low_int64 t = Int64_u.to_int64(low_to t)
-  let high_int64 t = Int64_u.to_int64(low_to (high_64_to_low_64 t t))
+  let high_int64 t = Int64_u.to_int64(low_to (high_64_to_low_64 ~onto:t ~from:t))
 ;;
 end
 
