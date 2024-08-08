@@ -53,19 +53,13 @@ module M : sig type p end
 type p = t t
 
 [%%expect {|
-Line 1, characters 9-12:
+Line 1, characters 9-10:
 1 | type p = t t
-             ^^^
-Error: Layout mismatch in final type declaration consistency check.
-       This is most often caused by the fact that type inference is not
-       clever enough to propagate layouts through variables in different
-       declarations. It is also not clever enough to produce a good error
-       message, so we'll say this instead:
-         The layout of t is ((value) => value) (...??)
-         But the layout of t must be a sublayout of value, because
-           of the definition of t at line 1, characters 0-23.
-       A good next step is to add a layout annotation on a parameter to
-       the declaration where this error is reported.
+             ^
+Error: This type t should be an instance of type ('a : value)
+       The layout of t is ((value) => value) (...??)
+       But the layout of t must be a sublayout of value, because
+         of the definition of t at line 1, characters 0-23.
 |}]
 
 
@@ -115,19 +109,20 @@ module type M = sig
 end
 
 [%%expect{|
-module type M =
-  sig
-    type r : (value => value) => value
-    type s : value => value
-    val g : int s r -> int s r
-  end
+Line 4, characters 10-15:
+4 |   val g : int s r -> int s r
+              ^^^^^
+Error: This type int s should be an instance of type ('a : value => value)
+       The layout of int s is value, because
+         of the definition of s at line 3, characters 2-25.
+       But the layout of int s must be a sublayout of ((value) => value) (...??)
 |}]
 
 type t : value => value
 let f (x : 'a t) = x
 [%%expect {|
 type t : value => value
-val f : ('a : any). 'a t -> 'a t = <fun>
+val f : 'a t -> 'a t = <fun>
 |}]
 
 (* Not a datatype *)
