@@ -338,6 +338,13 @@ const_layout₁ ≤ lay(κ₂)
 ------------------------------- LSUB_SIGMA_SIGMA
 Γ ⊢ layout_of σ₁ ≤ layout_of σ₂
 
+Γ ⊢ σ₂ : κ₂
+lay(κ₂) is a sort  (* this relies on the discrete nature of the sort lattice *)
+                   (* if the sort lattice becomes non-discrete, use [best] *)
+Γ ⊢ layout_of σ₁ ≤ lay(κ₂)
+------------------------------- LSUB_SIGMA_SORT
+Γ ⊢ layout_of σ₁ ≤ layout_of σ₂
+
 
 Γ ⊢ modal_bound_item₁_Ξ ≤ modal_bound₂_Ξ
 ========================================
