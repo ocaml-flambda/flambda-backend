@@ -1,6 +1,16 @@
 (* TEST
+ setup-ocamlopt.opt-build-env;
  flags = "-no-always-tco -dtypedtree -dlambda -dno-unique-ids";
- native;
+ ocamlopt.opt;
+ {
+   stack-allocation;
+   compiler_reference2 = "${test_source_directory}/nontail.stack.reference";
+   check-ocamlopt.opt-output;
+ }{
+   no-stack-allocation;
+   compiler_reference2 = "${test_source_directory}/nontail.heap.reference";
+   check-ocamlopt.opt-output;
+ }
 *)
 
 (* All the `apply_mode`'s in the generated output are expected to be
