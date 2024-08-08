@@ -492,43 +492,53 @@ let prim_has_valid_reprs ~loc prim =
           ("64", "#", Bits64);
         ]
       in
+      let indices : (_ * Jkind_types.Sort.const) list =
+        [
+          ("", Value);
+          ("_indexed_by_nativeint#", Word);
+          ("_indexed_by_int32#", Bits32);
+          ("_indexed_by_int64#", Bits64);
+        ]
+      in
       let containers = [ "bigstring"; "bytes"; "string" ] in
       let safes = [ ""; "u" ] in
       let combiners =
         [
-          ( Printf.sprintf "%%caml_%s_get%s%s%s",
-            fun width_kind ->
+          ( Printf.sprintf "%%caml_%s_get%s%s%s%s",
+            fun index_kind width_kind ->
               [
                 Same_as_ocaml_repr Value;
-                Same_as_ocaml_repr Value;
+                Same_as_ocaml_repr index_kind;
                 Same_as_ocaml_repr width_kind;
               ] );
-          ( Printf.sprintf "%%caml_%s_set%s%s%s",
-            fun width_kind ->
+          ( Printf.sprintf "%%caml_%s_set%s%s%s%s",
+            fun index_kind width_kind ->
               [
                 Same_as_ocaml_repr Value;
-                Same_as_ocaml_repr Value;
+                Same_as_ocaml_repr index_kind;
                 Same_as_ocaml_repr width_kind;
                 Same_as_ocaml_repr Value;
               ] );
         ]
       in
-      Misc.Hlist.cartesian_product [ containers; widths; safes; combiners ]
+      Misc.Hlist.cartesian_product
+        [ containers; widths; safes; indices; combiners ]
       |> List.map
            (fun
              ([
                 container;
                 (width_sigil, unboxed_sigil, width_kind);
                 safe_sigil;
+                (index_sigil, index_kind);
                 (combine_string, combine_repr);
               ] :
                _ Hlist.t)
            ->
              let string =
                combine_string container width_sigil safe_sigil unboxed_sigil
+                 index_sigil
              in
-
-             let reprs = combine_repr width_kind in
+             let reprs = combine_repr index_kind width_kind in
              (string, reprs))
       |> List.to_seq
       |> fun seq -> String_map.add_seq seq String_map.empty

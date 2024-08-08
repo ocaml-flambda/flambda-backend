@@ -41,14 +41,3 @@ Lines 1-2, characters 0-26:
 2 |   = "%caml_string_geta128"
 Error: Unknown builtin primitive "%caml_string_geta128"
 |}]
-
-external string_get_64_unboxed : string -> int -> int64#
-  = "%caml_string_get64#"
-
-[%%expect
-{|
-Lines 1-2, characters 0-25:
-1 | external string_get_64_unboxed : string -> int -> int64#
-2 |   = "%caml_string_get64#"
-Error: Unknown builtin primitive "%caml_string_get64#"
-|}]
