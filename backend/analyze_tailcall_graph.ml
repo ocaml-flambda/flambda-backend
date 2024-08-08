@@ -211,11 +211,6 @@ end = struct
           to_ : Vertex.t
         }
 
-      type with_loc =
-        { edge : t;
-          loc : Location.t
-        }
-
       let equal e1 e2 =
         Vertex.equal e1.from e2.from
         && Label.equal e1.label e2.label
@@ -235,7 +230,18 @@ end = struct
 
     include T
 
-    let to_dot_tooltip (with_loc : with_loc) =
+    module With_loc = struct
+      type nonrec t =
+        { edge : t;
+          loc : Location.t
+        }
+
+      let compare (e1 : t) (e2 : t) =
+        let c = Location.compare e1.loc e2.loc in
+        if c <> 0 then c else compare e1.edge e2.edge
+    end
+
+    let to_dot_tooltip (with_loc : With_loc.t) =
       let label =
         match with_loc.edge.label with
         | Explicit_tail_edge -> "explicit tail"
@@ -289,14 +295,12 @@ end = struct
 
   (* Prefer sorting lexiographically by location so that warnings are emitted in
      source order, and also so that the dot order is deterministic. *)
-  let successors t (v : Vertex.t) : Edge.with_loc list =
+  let successors t (v : Vertex.t) : Edge.With_loc.t list =
     Vertex.Tbl.find t.adjacencies v
     |> Edge.Tbl.to_seq
-    |> Seq.map (fun (e, loc) : Edge.with_loc -> { edge = e; loc })
+    |> Seq.map (fun (e, loc) : Edge.With_loc.t -> { edge = e; loc })
     |> List.of_seq
-    |> List.sort (fun (e1 : Edge.with_loc) (e2 : Edge.with_loc) ->
-           let c = Location.compare e1.loc e2.loc in
-           if c <> 0 then c else Edge.compare e1.edge e2.edge)
+    |> List.sort Edge.With_loc.compare
 
   let find_or_add_vertex t ~(fn_name : string) : Vertex.t =
     let vertex =
@@ -479,21 +483,21 @@ end = struct
     Vertex.Hashset.to_seq scc |> List.of_seq
     |> List.concat_map (fun v ->
            successors t v
-           |> List.filter (fun (e : Edge.with_loc) ->
+           |> List.filter (fun (e : Edge.With_loc.t) ->
                   match e.edge.label with
                   | Explicit_tail_edge | Explicit_nontail_edge
                   | Unknown_position_tail_edge | Unknown_position_nontail_edge
                   | Inferred_tail_edge ->
                     false
                   | Inferred_nontail_edge -> Vertex.Hashset.mem scc e.edge.to_))
+    |> List.sort Edge.With_loc.compare
 
   let warn_inferred_nontail_in_tco'd_cycle t ~sccs =
     sccs
-    |> List.iter (fun scc ->
-           possibly_newly_overflowing_edges t ~scc
-           |> List.iter (fun (e : Edge.with_loc) ->
-                  Location.prerr_warning e.loc
-                    Warnings.Inferred_nontail_in_tcod_cycle))
+    |> List.concat_map (fun scc -> possibly_newly_overflowing_edges t ~scc)
+    |> List.sort Edge.With_loc.compare
+    |> List.iter (fun (e : Edge.With_loc.t) ->
+           Location.prerr_warning e.loc Warnings.Inferred_nontail_in_tcod_cycle)
 
   let print_vertex_line ~indent ppf kv =
     let color = if Vertex.is_unknown kv then "red" else "black" in
@@ -504,7 +508,7 @@ end = struct
 
   let hide_ignored_nontail_edges = true
 
-  let print_edge_line ~indent ppf (with_loc : Edge.with_loc) =
+  let print_edge_line ~indent ppf (with_loc : Edge.With_loc.t) =
     let Edge.{ from; to_; label } = with_loc.edge in
     let is_ignored_nontail_edge =
       match label with
@@ -561,7 +565,7 @@ end = struct
             let edges = successors t vtx in
             print_vertex_line ~indent ppf vtx;
             List.iter
-              (fun (with_loc : Edge.with_loc) ->
+              (fun (with_loc : Edge.With_loc.t) ->
                 (* If an edge is in a cluster, dot seems to layout the to_ node
                    within the same cluster. So only print interior SCC edges
                    here. *)
@@ -574,7 +578,7 @@ end = struct
         Vertex.Hashset.iter scc ~f:(fun vtx ->
             let edges = successors t vtx in
             List.iter
-              (fun (with_loc : Edge.with_loc) ->
+              (fun (with_loc : Edge.With_loc.t) ->
                 if not (Vertex.Hashset.mem scc with_loc.edge.to_)
                 then print_edge_line ~indent:"  " ppf with_loc)
               edges);
