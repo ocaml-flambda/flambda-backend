@@ -642,6 +642,7 @@ let transl_bound_vars : (_, _) Either.t -> _ =
   | Right vars_jkinds -> TyVarEnv.make_poly_univars_jkinds
                            ~context:(fun v -> Univar ("'" ^ v)) vars_jkinds
 
+(* Forward declaration (set in Typemod.type_open) *)
 let type_open :
   (?used_slot:bool ref -> override_flag -> Env.t -> Location.t ->
    Longident.t loc -> Path.t * Env.t)
