@@ -1302,46 +1302,21 @@ let outcome_label : Types.arg_label -> Outcometree.arg_label = function
   | Optional l -> Optional l
   | Position l -> Position l
 
-let tree_of_modality_new (t : Mode.Modality.t) =
-  if Mode.Modality.is_id t then None
-  else match t with
-  | Atom (Comonadic Areality, Meet_with Global) -> Some "global"
-  | Atom (Comonadic Linearity, Meet_with Many) -> Some "many"
-  | Atom (Monadic Uniqueness, Join_with Shared) -> Some "shared"
-  | Atom (Comonadic Portability, Meet_with Portable) -> Some "portable"
-  | Atom (Monadic Contention, Join_with Contended) -> Some "contended"
-  | e -> Misc.fatal_errorf "Unexpected modality %a" Mode.Modality.print e
+let tree_of_modality_new (t: Parsetree.modality loc) =
+  let Modality s = t.txt in s
 
-let tree_of_modality (t : Mode.Modality.t) =
-  match t with
-  | Atom (Comonadic Areality, Meet_with Global) ->
-      Some (Ogf_legacy Ogf_global)
-  | _ -> Option.map (fun x -> Ogf_new x) (tree_of_modality_new t)
+let tree_of_modality (t: Parsetree.modality loc) =
+  match t.txt with
+  | Modality "global" -> Ogf_legacy Ogf_global
+  | _ -> Ogf_new (tree_of_modality_new t)
 
-let tree_of_modalities ~has_mutable_implied_modalities t =
-  let l = Mode.Modality.Value.Const.to_list t in
-  (* CR zqian: decouple mutable and modalities *)
-  let l =
-    if has_mutable_implied_modalities.monadic then
-      List.filter
-        (fun m -> not @@ Typemode.is_mutable_implied_modality.monadic m)
-      l
-    else
-      l
-  in
-  let l =
-    if has_mutable_implied_modalities.comonadic then
-      List.filter
-        (fun m -> not @@ Typemode.is_mutable_implied_modality.comonadic m)
-      l
-    else
-      l
-  in
-  List.filter_map tree_of_modality l
+let tree_of_modalities mut attrs t =
+  let t = Typemode.untransl_modalities mut attrs t in
+  List.map tree_of_modality t
 
-let tree_of_modalities_new t =
-  let l = Mode.Modality.Value.Const.to_list t in
-  List.filter_map tree_of_modality_new l
+let tree_of_modalities_new mut attrs t =
+  let l = Typemode.untransl_modalities mut attrs t in
+  List.map tree_of_modality_new l
 
 (** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].
 Raise if not found. *)
@@ -1526,8 +1501,7 @@ and tree_of_labeled_typlist mode tyl =
 
 and tree_of_typ_gf {ca_type=ty; ca_modalities=gf; _} =
   (tree_of_typexp Type Alloc.Const.legacy ty,
-   tree_of_modalities
-    ~has_mutable_implied_modalities:{monadic=false; comonadic=false} gf)
+   tree_of_modalities Immutable [] gf)
 
 (** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
     is the return mode. This function decides the printed modes on [ty].
@@ -1606,9 +1580,12 @@ let typexp mode ppf ty =
   !Oprint.out_type ppf (tree_of_typexp mode ty)
 
 let modality ?(id = fun _ppf -> ()) ppf modality =
-  match tree_of_modality modality with
-  | None -> id ppf
-  | Some m -> !Oprint.out_modality ppf m
+  if Mode.Modality.is_id modality then id ppf
+  else
+    modality
+    |> Typemode.untransl_modality
+    |> tree_of_modality
+    |> !Oprint.out_modality ppf
 
 let prepared_type_expr ppf ty = typexp Type ppf ty
 
@@ -1714,18 +1691,8 @@ let tree_of_label l =
         mut
     | Immutable -> Om_immutable
   in
-  let has_mutable_implied_modalities =
-    let comonadic =
-      if is_mutable l.ld_mutable then
-        not (Builtin_attributes.has_no_mutable_implied_modalities l.ld_attributes)
-      else
-        false
-    in
-    let monadic = is_mutable l.ld_mutable in
-    {monadic; comonadic}
-  in
   let ld_modalities =
-    tree_of_modalities ~has_mutable_implied_modalities l.ld_modalities
+    tree_of_modalities l.ld_mutable l.ld_attributes l.ld_modalities
   in
   (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, ld_modalities)
 
@@ -2115,7 +2082,8 @@ let tree_of_value_description id decl =
   let vd =
     { oval_name = id;
       oval_type = Otyp_poly(qtvs, ty);
-      oval_modalities = tree_of_modalities_new moda;
+      oval_modalities =
+        tree_of_modalities_new Immutable decl.val_attributes moda;
       oval_prims = [];
       oval_attributes = attrs
     }

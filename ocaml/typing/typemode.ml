@@ -103,78 +103,73 @@ let transl_modality ~maturity m : Modality.t =
     Atom (Monadic Contention, Join_with Contention.Const.Uncontended)
   | s -> raise (Error (loc, Unrecognized_modality s))
 
-let untransl_modalities ~loc m : Parsetree.modalities =
-  let untransl_atom (a : Modality.t) =
-    let s =
-      match a with
-      | Atom (Comonadic Areality, Meet_with Regionality.Const.Global) ->
-        "global"
-      | Atom (Comonadic Areality, Meet_with Regionality.Const.Local) -> "local"
-      | Atom (Comonadic Linearity, Meet_with Linearity.Const.Many) -> "many"
-      | Atom (Comonadic Linearity, Meet_with Linearity.Const.Once) -> "once"
-      | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Shared) -> "shared"
-      | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Unique) -> "unique"
-      | Atom (Comonadic Portability, Meet_with Portability.Const.Portable) ->
-        "portable"
-      | Atom (Comonadic Portability, Meet_with Portability.Const.Nonportable) ->
-        "nonportable"
-      | Atom (Monadic Contention, Join_with Contention.Const.Contended) ->
-        "contended"
-      | Atom (Monadic Contention, Join_with Contention.Const.Uncontended) ->
-        "uncontended"
-      | _ -> failwith "BUG: impossible modality atom"
-    in
-    { txt = Parsetree.Modality s; loc }
+let untransl_modality (a : Modality.t) : Parsetree.modality loc =
+  let s =
+    match a with
+    | Atom (Comonadic Areality, Meet_with Regionality.Const.Global) -> "global"
+    | Atom (Comonadic Areality, Meet_with Regionality.Const.Local) -> "local"
+    | Atom (Comonadic Linearity, Meet_with Linearity.Const.Many) -> "many"
+    | Atom (Comonadic Linearity, Meet_with Linearity.Const.Once) -> "once"
+    | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Shared) -> "shared"
+    | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Unique) -> "unique"
+    | Atom (Comonadic Portability, Meet_with Portability.Const.Portable) ->
+      "portable"
+    | Atom (Comonadic Portability, Meet_with Portability.Const.Nonportable) ->
+      "nonportable"
+    | Atom (Monadic Contention, Join_with Contention.Const.Contended) ->
+      "contended"
+    | Atom (Monadic Contention, Join_with Contention.Const.Uncontended) ->
+      "uncontended"
+    | _ -> failwith "BUG: impossible modality atom"
   in
-  let is_not_id m = not (Modality.is_id m) in
-  Modality.Value.Const.to_list m
-  |> List.filter is_not_id |> List.map untransl_atom
-
-let compose_modalities modalities =
-  (* The ordering:
-     type r = { x : string @@ foo bar hello }
-     is interpreted as
-     x = foo (bar (hello (r))) *)
-  List.fold_right
-    (fun atom m -> Modality.Value.Const.compose ~then_:atom m)
-    modalities Modality.Value.Const.id
+  { txt = Modality s; loc = Location.none }
 
 (* For now, mutable implies legacy modalities for both comonadic axes and
    monadic axes. In the future, implications on the comonadic axes will be
    removed (and can be experimented currently with using
    @no_mutable_implied_modalities). The implications on the monadic axes will
    stay. *)
+(* CR zqian: decouple mutable and comonadic modalities *)
+let mutable_implied_modalities (mut : Types.mutability) attrs =
+  let comonadic : Modality.t list =
+    [ Atom (Comonadic Areality, Meet_with Regionality.Const.legacy);
+      Atom (Comonadic Linearity, Meet_with Linearity.Const.legacy);
+      Atom (Comonadic Portability, Meet_with Portability.Const.legacy) ]
+  in
+  let monadic : Modality.t list =
+    [ Atom (Monadic Uniqueness, Join_with Uniqueness.Const.legacy);
+      Atom (Monadic Contention, Join_with Contention.Const.legacy) ]
+  in
+  match mut with
+  | Immutable -> []
+  | Mutable _ ->
+    if Builtin_attributes.has_no_mutable_implied_modalities attrs
+    then monadic
+    else monadic @ comonadic
 
-let mutable_implied_modalities :
-    (Mode.Modality.t list, Mode.Modality.t list) Mode.monadic_comonadic =
-  { monadic =
-      [ Atom (Monadic Uniqueness, Join_with Uniqueness.Const.legacy);
-        Atom (Monadic Contention, Join_with Contention.Const.legacy) ];
-    comonadic =
-      [ Atom (Comonadic Areality, Meet_with Regionality.Const.legacy);
-        Atom (Comonadic Linearity, Meet_with Linearity.Const.legacy);
-        Atom (Comonadic Portability, Meet_with Portability.Const.legacy) ]
-  }
-
-let is_mutable_implied_modality =
-  (* polymorphic equality suffices for now. *)
-  { monadic = (fun m -> List.mem m mutable_implied_modalities.monadic);
-    comonadic = (fun m -> List.mem m mutable_implied_modalities.comonadic)
-  }
-
-let transl_modalities ~maturity ~has_mutable_implied_modalities modalities =
+let transl_modalities ~maturity mut attrs modalities =
+  let mut_modalities = mutable_implied_modalities mut attrs in
   let modalities = List.map (transl_modality ~maturity) modalities in
-  let modalities =
-    if has_mutable_implied_modalities.monadic
-    then modalities @ mutable_implied_modalities.monadic
-    else modalities
-  in
-  let modalities =
-    if has_mutable_implied_modalities.comonadic
-    then modalities @ mutable_implied_modalities.comonadic
-    else modalities
-  in
-  compose_modalities modalities
+  (* mut_modalities is applied before explicit modalities *)
+  Modality.Value.Const.id
+  |> List.fold_right
+       (fun atom m -> Modality.Value.Const.compose ~then_:atom m)
+       mut_modalities
+  (* For explicit modalities:
+     type r = { x : string @@ foo bar hello }
+     is interpreted as
+     x = foo (bar (hello (r))) *)
+  |> List.fold_right
+       (fun atom m -> Modality.Value.Const.compose ~then_:atom m)
+       modalities
+
+let untransl_modalities mut attrs t =
+  let l = Modality.Value.Const.to_list t in
+  let l = List.filter (fun a -> not @@ Modality.is_id a) l in
+  let mut_modalities = mutable_implied_modalities mut attrs in
+  (* polymorphic equality suffices for now. *)
+  let l = List.filter (fun x -> not @@ List.mem x mut_modalities) l in
+  List.map untransl_modality l
 
 let transl_alloc_mode modes =
   let opt = transl_mode_annots modes in
@@ -192,10 +187,6 @@ let report_error ppf = function
     fprintf ppf "The %t axis has already been specified." ax
   | Unrecognized_mode s -> fprintf ppf "Unrecognized mode name %s." s
   | Unrecognized_modality s -> fprintf ppf "Unrecognized modality %s." s
-
-let mutable_implied_modalities =
-  compose_modalities
-    (mutable_implied_modalities.monadic @ mutable_implied_modalities.comonadic)
 
 let () =
   Location.register_error_of_exn (function
