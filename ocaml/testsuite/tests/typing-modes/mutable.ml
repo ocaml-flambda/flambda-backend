@@ -90,6 +90,19 @@ let foo r (s @ shared) = r.s <- s
 val foo : 'a r -> 'a -> unit = <fun>
 |}]
 
+let foo (s @ shared) = ({s} : _ @@ unique)
+[%%expect{|
+val foo : 'a -> 'a r = <fun>
+|}]
+
+let foo (r @ unique) = (r.s : _ @@ unique)
+[%%expect{|
+Line 1, characters 24-27:
+1 | let foo (r @ unique) = (r.s : _ @@ unique)
+                            ^^^
+Error: This value is shared but expected to be unique.
+|}]
+
 module M : sig
   type t = { mutable s : string [@no_mutable_implied_modalities] }
 end = struct
