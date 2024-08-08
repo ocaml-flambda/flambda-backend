@@ -234,11 +234,11 @@ let count_duplicate_spills_reloads_in_block (cfg_with_infos : Cfg_with_infos.t) 
     | _ -> acc
   in
   let count_per_block _ (block : Cfg.basic_block) (s, r) =
-    let s, r, _, _ =
+    let dup_spills, dup_reloads, _, _ =
       DLL.fold_left block.body ~f:count_per_inst
         ~init:(s, r, Reg.Set.empty, Reg.Set.empty)
     in
-    s, r
+    dup_spills, dup_reloads
   in
   Cfg_with_infos.fold_blocks cfg_with_infos ~f:count_per_block ~init:(0, 0)
 
