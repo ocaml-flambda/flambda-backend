@@ -5,8 +5,6 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 module Instruction = struct
   module Id = struct
     include Numbers.Int
-
-    let to_string = Int.to_string
   end
 
   type t =
@@ -33,8 +31,8 @@ module Dependency_graph = struct
   module Node = struct
     type t =
       { id : Instruction.Id.t;
-        mutable out_edges : Instruction.Id.Set.t;
-        mutable in_edges : Instruction.Id.Set.t
+        out_edges : Instruction.Id.Set.t;
+        in_edges : Instruction.Id.Set.t
       }
 
     let init id : t =
