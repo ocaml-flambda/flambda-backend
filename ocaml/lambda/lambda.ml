@@ -237,34 +237,53 @@ type primitive =
   (* size of the nth dimension of a Bigarray *)
   | Pbigarraydim of int
   (* load/set 16,32,64,128 bits from a string: (unsafe)*)
-  | Pstring_load_16 of bool
-  | Pstring_load_32 of bool * alloc_mode
-  | Pstring_load_f32 of bool * alloc_mode
-  | Pstring_load_64 of bool * alloc_mode
-  | Pstring_load_128 of { unsafe : bool; mode: alloc_mode }
-  | Pbytes_load_16 of bool
-  | Pbytes_load_32 of bool * alloc_mode
-  | Pbytes_load_f32 of bool * alloc_mode
-  | Pbytes_load_64 of bool * alloc_mode
-  | Pbytes_load_128 of { unsafe : bool; mode: alloc_mode }
-  | Pbytes_set_16 of bool
-  | Pbytes_set_32 of bool
-  | Pbytes_set_f32 of bool
-  | Pbytes_set_64 of bool
-  | Pbytes_set_128 of { unsafe : bool }
+  | Pstring_load_16 of { unsafe : bool; index_kind : array_index_kind }
+  | Pstring_load_32 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pstring_load_f32 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pstring_load_64 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pstring_load_128 of { unsafe : bool; index_kind : array_index_kind;
+      mode: alloc_mode }
+  | Pbytes_load_16 of { unsafe : bool; index_kind : array_index_kind }
+  | Pbytes_load_32 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pbytes_load_f32 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pbytes_load_64 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pbytes_load_128 of { unsafe : bool; index_kind : array_index_kind;
+      mode: alloc_mode }
+  | Pbytes_set_16 of { unsafe : bool; index_kind : array_index_kind }
+  | Pbytes_set_32 of { unsafe : bool; index_kind : array_index_kind;
+      boxed : bool }
+  | Pbytes_set_f32 of { unsafe : bool; index_kind : array_index_kind;
+      boxed : bool }
+  | Pbytes_set_64 of { unsafe : bool; index_kind : array_index_kind;
+      boxed : bool }
+  | Pbytes_set_128 of { unsafe : bool; index_kind : array_index_kind;
+      boxed : bool }
   (* load/set 16,32,64,128 bits from a
      (char, int8_unsigned_elt, c_layout) Bigarray.Array1.t : (unsafe) *)
-  | Pbigstring_load_16 of { unsafe : bool }
-  | Pbigstring_load_32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
-  | Pbigstring_load_f32 of { unsafe : bool; mode: alloc_mode; boxed : bool }
-  | Pbigstring_load_64 of { unsafe : bool; mode: alloc_mode; boxed : bool }
-  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; mode: alloc_mode;
+  | Pbigstring_load_16 of { unsafe : bool; index_kind : array_index_kind }
+  | Pbigstring_load_32 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pbigstring_load_f32 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pbigstring_load_64 of { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
+  | Pbigstring_load_128 of { aligned : bool; unsafe : bool; index_kind :
+      array_index_kind; mode: alloc_mode; boxed : bool }
+  | Pbigstring_set_16 of { unsafe : bool; index_kind : array_index_kind }
+  | Pbigstring_set_32 of { unsafe : bool; index_kind : array_index_kind;
       boxed : bool }
-  | Pbigstring_set_16 of { unsafe : bool }
-  | Pbigstring_set_32 of { unsafe : bool; boxed : bool }
-  | Pbigstring_set_f32 of { unsafe : bool; boxed : bool }
-  | Pbigstring_set_64 of { unsafe : bool; boxed : bool }
-  | Pbigstring_set_128 of { aligned : bool; unsafe : bool; boxed : bool }
+  | Pbigstring_set_f32 of { unsafe : bool; index_kind : array_index_kind;
+      boxed : bool }
+  | Pbigstring_set_64 of { unsafe : bool; index_kind : array_index_kind;
+      boxed : bool }
+  | Pbigstring_set_128 of { aligned : bool; unsafe : bool; index_kind :
+      array_index_kind; boxed : bool }
   (* load/set SIMD vectors in GC-managed arrays *)
   | Pfloatarray_load_128 of { unsafe : bool; mode : alloc_mode }
   | Pfloat_array_load_128 of { unsafe : bool; mode : alloc_mode }
@@ -1761,9 +1780,12 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
      (* Boxes arising from Bigarray access are always Alloc_heap *)
      Some alloc_heap
   | Pstring_load_16 _ | Pbytes_load_16 _ -> None
-  | Pstring_load_32 (_, m) | Pbytes_load_32 (_, m)
-  | Pstring_load_f32 (_, m) | Pbytes_load_f32 (_, m)
-  | Pstring_load_64 (_, m) | Pbytes_load_64 (_, m)
+  | Pstring_load_32 { mode = m; boxed = true; _ }
+  | Pbytes_load_32 { mode = m; boxed = true; _ }
+  | Pstring_load_f32 { mode = m; boxed = true; _ }
+  | Pbytes_load_f32 { mode = m; boxed = true; _ }
+  | Pstring_load_64 { mode = m; boxed = true; _ }
+  | Pbytes_load_64 { mode = m; boxed = true; _ }
   | Pstring_load_128 { mode = m; _ } | Pbytes_load_128 { mode = m; _ }
   | Pfloatarray_load_128 { mode = m; _ }
   | Pfloat_array_load_128 { mode = m; _ }
@@ -1774,6 +1796,12 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Punboxed_int64_array_load_128 { mode = m; _ }
   | Punboxed_nativeint_array_load_128 { mode = m; _ }
   | Pget_header m -> Some m
+  | Pstring_load_32 { boxed = false; _ }
+  | Pstring_load_f32 { boxed = false; _ }
+  | Pstring_load_64 { boxed = false; _ }
+  | Pbytes_load_32 { boxed = false; _ }
+  | Pbytes_load_f32 { boxed = false; _ }
+  | Pbytes_load_64 { boxed = false; _ } -> None
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_f32 _
   | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
   | Pbigstring_load_16 _ -> None
@@ -1938,21 +1966,27 @@ let primitive_result_layout (p : primitive) =
   | Pbbswap (bi, _) | Pbox_int (bi, _) ->
       layout_boxedint bi
   | Punbox_int bi -> Punboxed_int bi
-  | Pstring_load_32 _ | Pbytes_load_32 _
+  | Pstring_load_32 { boxed = true; _ } | Pbytes_load_32 { boxed = true; _ }
   | Pbigstring_load_32 { boxed = true; _ } ->
       layout_boxedint Pint32
-  | Pstring_load_f32 _ | Pbytes_load_f32 _
+  | Pstring_load_f32 { boxed = true; _ } | Pbytes_load_f32 { boxed = true; _ }
   | Pbigstring_load_f32 { boxed = true; _ } ->
       layout_boxed_float Pfloat32
-  | Pstring_load_64 _ | Pbytes_load_64 _
+  | Pstring_load_64 { boxed = true; _ } | Pbytes_load_64 { boxed = true; _ }
   | Pbigstring_load_64 { boxed = true; _ } ->
       layout_boxedint Pint64
   | Pstring_load_128 _ | Pbytes_load_128 _
   | Pbigstring_load_128 { boxed = true; _ } ->
       layout_boxed_vector (Pvec128 Int8x16)
-  | Pbigstring_load_32 { boxed = false; _ } -> layout_unboxed_int Pint32
-  | Pbigstring_load_f32 { boxed = false; _ } -> layout_unboxed_float Pfloat32
-  | Pbigstring_load_64 { boxed = false; _ } -> layout_unboxed_int Pint64
+  | Pbigstring_load_32 { boxed = false; _ } 
+  | Pstring_load_32 { boxed = false; _ }
+  | Pbytes_load_32 { boxed = false; _ } -> layout_unboxed_int Pint32
+  | Pbigstring_load_f32 { boxed = false; _ }
+  | Pstring_load_f32 { boxed = false; _ }
+  | Pbytes_load_f32 { boxed = false; _ } -> layout_unboxed_float Pfloat32
+  | Pbigstring_load_64 { boxed = false; _ }
+  | Pstring_load_64 { boxed = false; _ }
+  | Pbytes_load_64 { boxed = false; _ } -> layout_unboxed_int Pint64
   | Pbigstring_load_128 { boxed = false; _ } ->
       layout_unboxed_vector (Pvec128 Int8x16)
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _
