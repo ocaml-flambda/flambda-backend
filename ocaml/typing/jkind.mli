@@ -145,24 +145,27 @@ end
 (******************************)
 (* constants *)
 
+(* CR layouts v2.8: [Jkind.Const.t] can likely be removed, replacing its current usages
+   with either [Jane_syntax.Jkind.annotation]s or [Jkind.t]s *)
 module Const : sig
-  (** Constant jkinds are used for user-written annotations *)
+  (** Constant jkinds are used for user-written annotations. The "constant" refers to
+      there being no sort varialbe. However, a [Jkind.Const.t] can still be mutated, as
+      it can contain a reference to a [Types.type_expr] *)
   type t = Types.type_expr Jkind_types.Const.t
 
   val to_out_jkind_const : t -> Outcometree.out_jkind_const
 
   val format : Format.formatter -> t -> unit
 
+  (* Compares two [Jkind.Const.t]s, never doing mutation. If there are any `with`
+     constraints on either, this function will return false. *)
   val equal : t -> t -> bool
 
   (** Gets the layout of a constant jkind. Never does mutation. *)
   val get_layout : t -> Layout.Const.t
 
-  (** Gets the maximum modes for types of this constant jkind. *)
-  val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
-
   (** Gets the maximum mode on the externality axis for types of this constant jkind. *)
-  val get_externality_upper_bound : t -> Externality.t
+  val get_conservative_externality_upper_bound : t -> Externality.t
 
   val of_user_written_annotation :
     context:History.annotation_context -> Jane_syntax.Jkind.annotation -> t
@@ -441,7 +444,7 @@ val sub_with_history : t -> t -> (t, Violation.t) result
     mutation. *)
 val is_max : t -> bool
 
-(** Checks to see whether a jkind is has layout. Never does any mutation. *)
+(** Checks to see whether a jkind has layout any. Never does any mutation. *)
 val has_layout_any : t -> bool
 
 (*********************************)

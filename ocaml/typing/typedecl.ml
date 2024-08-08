@@ -1294,7 +1294,7 @@ module Element_repr = struct
       let const_jkind = Jkind.default_to_value_and_get jkind in
       let sort = Jkind.(Layout.Const.get_sort (Const.get_layout const_jkind)) in
       let externality_upper_bound =
-        Jkind.Const.get_externality_upper_bound const_jkind
+        Jkind.Const.get_conservative_externality_upper_bound const_jkind
       in
       match sort, externality_upper_bound with
       (* CR layouts v5.1: We don't allow [External64] in the flat suffix of

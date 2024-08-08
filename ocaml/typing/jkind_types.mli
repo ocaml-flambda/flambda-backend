@@ -120,14 +120,31 @@ module Nullability : sig
     | Maybe_null
 end
 
-module Modes = Mode.Alloc.Const
+module Bound : sig
+  type ('type_expr, 'a) t =
+    { modifier : 'a;
+      contents : 'type_expr list
+    }
+end
+
+module Bounds : sig
+  
+
+  type 'type_expr t =
+    { areality : ('type_expr, Mode.Locality.Const.t) Bound.t;
+      linearity : ('type_expr, Mode.Linearity.Const.t) Bound.t;
+      uniqueness : ('type_expr, Mode.Uniqueness.Const.t) Bound.t;
+      portability : ('type_expr, Mode.Portability.Const.t) Bound.t;
+      contention : ('type_expr, Mode.Contention.Const.t) Bound.t;
+      externality : ('type_expr, Externality.t) Bound.t;
+      nullability : ('type_expr, Nullability.t) Bound.t;
+    }
+end
 
 module Jkind_desc : sig
   type 'type_expr t =
     { layout : Layout.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t;
-      nullability_upper_bound : Nullability.t
+      upper_bounds : 'type_expr Bounds.t
     }
 end
 
@@ -151,9 +168,7 @@ type 'type_expr t =
 module Const : sig
   type 'type_expr t =
     { layout : Layout.Const.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t;
-      nullability_upper_bound : Nullability.t
+      upper_bounds : 'type_expr Bounds.t
     }
 end
 

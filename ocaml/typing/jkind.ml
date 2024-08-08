@@ -250,68 +250,211 @@ end
 
 let raise ~loc err = raise (Error.User_error (loc, err))
 
+module Bound = struct
+  include Jkind_types.Bound
+
+  type 'a t = (type_expr, 'a) Jkind_types.Bound.t
+
+  let simple modifier : _ Bound.t = { modifier; contents = [] }
+end
+
+module type Axis_s = sig
+  type t
+
+  val max : t
+
+  val min : t
+
+  val meet : t -> t -> t
+end
+
+module Axis = struct
+  type 'a axis =
+    | Areality : Mode.Locality.Const.t axis
+    | Linearity : Mode.Linearity.Const.t axis
+    | Uniqueness : Mode.Uniqueness.Const.t axis
+    | Portability : Mode.Portability.Const.t axis
+    | Contention : Mode.Contention.Const.t axis
+    | Externality : Externality.t axis
+    | Nullability : Nullability.t axis
+
+  type 'a t = 'a axis
+
+  let get (type a) : a axis -> (module Axis_s with type t = a) = function
+    | Areality -> (module Mode.Locality.Const : Axis_s with type t = a)
+    | Linearity -> (module Mode.Linearity.Const : Axis_s with type t = a)
+    | Uniqueness -> (module Mode.Uniqueness.Const : Axis_s with type t = a)
+    | Portability -> (module Mode.Portability.Const : Axis_s with type t = a)
+    | Contention -> (module Mode.Contention.Const : Axis_s with type t = a)
+    | Externality -> (module Externality : Axis_s with type t = a)
+    | Nullability -> (module Nullability : Axis_s with type t = a)
+
+  module Collection (T : Misc.T1) = struct
+    type t =
+      { areality : Mode.Locality.Const.t T.t;
+        linearity : Mode.Linearity.Const.t T.t;
+        uniqueness : Mode.Uniqueness.Const.t T.t;
+        portability : Mode.Portability.Const.t T.t;
+        contention : Mode.Contention.Const.t T.t;
+        externality : Externality.t T.t;
+        nullability : Nullability.t T.t
+      }
+  end
+
+  module Collection_unitop (T : Misc.T1) = struct
+    type f = { f : 'a. axis:'a axis -> 'a T.t }
+
+    let map ~f:{ f } () : Collection(T).t =
+      { areality = f ~axis:Areality;
+        linearity = f ~axis:Linearity;
+        uniqueness = f ~axis:Uniqueness;
+        portability = f ~axis:Portability;
+        contention = f ~axis:Contention;
+        externality = f ~axis:Externality;
+        nullability = f ~axis:Nullability
+      }
+  end
+
+  module Collection_uniop (T : Misc.T1) (U : Misc.T1) = struct
+    type f = { f : 'a. axis:'a axis -> 'a T.t -> 'a U.t }
+
+    let map ~f:{ f } (collection : Collection(T).t) : Collection(U).t =
+      { areality = f ~axis:Areality collection.areality;
+        linearity = f ~axis:Linearity collection.linearity;
+        uniqueness = f ~axis:Uniqueness collection.uniqueness;
+        portability = f ~axis:Portability collection.portability;
+        contention = f ~axis:Contention collection.contention;
+        externality = f ~axis:Externality collection.externality;
+        nullability = f ~axis:Nullability collection.nullability
+      }
+  end
+
+  module Collection_binop (T : Misc.T1) (U : Misc.T1) (V : Misc.T1) = struct
+    type f = { f : 'a. axis:'a axis -> 'a T.t -> 'a U.t -> 'a V.t }
+
+    let map ~f:{ f } (collection1 : Collection(T).t)
+        (collection2 : Collection(U).t) : Collection(V).t =
+      { areality = f ~axis:Areality collection1.areality collection2.areality;
+        linearity =
+          f ~axis:Linearity collection1.linearity collection2.linearity;
+        uniqueness =
+          f ~axis:Uniqueness collection1.uniqueness collection2.uniqueness;
+        portability =
+          f ~axis:Portability collection1.portability collection2.portability;
+        contention =
+          f ~axis:Contention collection1.contention collection2.contention;
+        externality =
+          f ~axis:Externality collection1.externality collection2.externality;
+        nullability =
+          f ~axis:Nullability collection1.nullability collection2.nullability
+      }
+  end
+end
+
+module Bounds = struct
+  (* include Jkind_types.Bounds *)
+  include Axis.Collection (Bound)
+
+  let map ~f bounds =
+    let module X = Axis.Collection_uniop (Bound) (Bound) in
+    X.map ~f bounds
+
+  let create ~areality ~linearity ~uniqueness ~portability ~contention
+      ~externality ~nullability =
+    { areality = Bound.simple areality;
+      linearity = Bound.simple linearity;
+      uniqueness = Bound.simple uniqueness;
+      portability = Bound.simple portability;
+      contention = Bound.simple contention;
+      externality = Bound.simple externality;
+      nullability = Bound.simple nullability
+    }
+
+  let min =
+    let module Mapper = Axis.Collection_unitop (Bound) in
+    Mapper.map
+      ~f:
+        { f =
+            (fun ~axis ->
+              let (module A : Axis_s with type t = a) = Axis.get axis in
+              A.min)
+        }
+  (* create ~areality:Mode.Locality.Const.min ~linearity:Mode.Linearity.Const.min
+     ~uniqueness:Mode.Uniqueness.Const.min
+     ~portability:Mode.Portability.Const.min
+     ~contention:Mode.Contention.Const.min ~externality:Externality.min
+     ~nullability:Nullability.min *)
+
+  let max =
+    create ~areality:Mode.Locality.Const.max ~linearity:Mode.Linearity.Const.max
+      ~uniqueness:Mode.Uniqueness.Const.max
+      ~portability:Mode.Portability.Const.max
+      ~contention:Mode.Contention.Const.max ~externality:Externality.max
+      ~nullability:Nullability.max
+
+  let without_type_constraints = function
+    | { areality = { modifier = areality; contents = [] };
+        linearity = { modifier = linearity; contents = [] };
+        uniqueness = { modifier = uniqueness; contents = [] };
+        portability = { modifier = portability; contents = [] };
+        contention = { modifier = contention; contents = [] };
+        externality = { modifier = externality; contents = [] };
+        nullability = { modifier = nullability; contents = [] }
+      } ->
+      let modes : Modes.t =
+        { areality; linearity; uniqueness; portability; contention }
+      in
+      Some (modes, externality, nullability)
+    | _ -> None
+end
+
 module Const = struct
   open Jkind_types.Const
 
   type t = const
 
-  let max =
-    { layout = Layout.Const.max;
-      modes_upper_bounds = Modes.max;
-      externality_upper_bound = Externality.max;
-      nullability_upper_bound = Nullability.max
-    }
+  let max = { layout = Layout.Const.max; upper_bounds = Bounds.max }
 
   let get_layout const = const.layout
 
-  let get_modal_upper_bounds const = const.modes_upper_bounds
+  let get_conservative_externality_upper_bound const =
+    const.upper_bounds.externality.modifier
 
-  let get_externality_upper_bound const = const.externality_upper_bound
+  let equal { layout = lay1; upper_bounds = bounds1 }
+      { layout = lay2; upper_bounds = bounds2 } =
+    match
+      ( Bounds.without_type_constraints bounds1,
+        Bounds.without_type_constraints bounds2 )
+    with
+    | Some (modes1, ext1, null1), Some (modes2, ext2, null2) ->
+      Layout.Const.equal lay1 lay2
+      && Modes.equal modes1 modes2
+      && Externality.equal ext1 ext2
+      && Nullability.equal null1 null2
+    | _ -> false
 
-  let equal
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1;
-        nullability_upper_bound = null1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2;
-        nullability_upper_bound = null2
-      } =
-    Layout.Const.equal lay1 lay2
-    && Modes.equal modes1 modes2
-    && Externality.equal ext1 ext2
-    && Nullability.equal null1 null2
-
-  let sub
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1;
-        nullability_upper_bound = null1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2;
-        nullability_upper_bound = null2
-      } =
-    Misc.Le_result.combine_list
-      [ Layout.Const.sub lay1 lay2;
-        Modes.less_or_equal modes1 modes2;
-        Externality.less_or_equal ext1 ext2;
-        Nullability.less_or_equal null1 null2 ]
+  let sub { layout = lay1; upper_bounds = bounds1 }
+      { layout = lay2; upper_bounds = bounds2 } : Misc.Le_result.t =
+    (* CR: TODO *)
+    match
+      ( Bounds.without_type_constraints bounds1,
+        Bounds.without_type_constraints bounds2 )
+    with
+    | Some (modes1, ext1, null1), Some (modes2, ext2, null2) ->
+      Misc.Le_result.combine_list
+        [ Layout.Const.sub lay1 lay2;
+          Modes.less_or_equal modes1 modes2;
+          Externality.less_or_equal ext1 ext2;
+          Nullability.less_or_equal null1 null2 ]
+    | _ -> Not_le
 
   let of_layout ~mode_crossing ~nullability layout =
-    let modes_upper_bounds, externality_upper_bound =
+    let upper_bounds =
       match mode_crossing with
-      | true -> Modes.min, Externality.min
-      | false -> Modes.max, Externality.max
+      | true -> { Bounds.min with nullability = Bound.simple nullability }
+      | false -> { Bounds.max with nullability = Bound.simple nullability }
     in
-    { layout;
-      modes_upper_bounds;
-      externality_upper_bound;
-      nullability_upper_bound = nullability
-    }
+    { layout; upper_bounds }
 
   module Builtin = struct
     type nonrec t =
@@ -344,15 +487,12 @@ module Const = struct
     let immutable_data =
       { jkind =
           { layout = Sort Value;
-            modes_upper_bounds =
-              { linearity = Linearity.Const.min;
-                contention = Contention.Const.min;
-                portability = Portability.Const.min;
-                uniqueness = Uniqueness.Const.max;
-                areality = Locality.Const.max
-              };
-            externality_upper_bound = Externality.max;
-            nullability_upper_bound = Nullability.Non_null
+            upper_bounds =
+              Bounds.create ~linearity:Linearity.Const.min
+                ~contention:Contention.Const.min
+                ~portability:Portability.Const.min
+                ~uniqueness:Uniqueness.Const.max ~areality:Locality.Const.max
+                ~externality:Externality.max ~nullability:Nullability.Non_null
           };
         name = "immutable_data"
       }
@@ -399,7 +539,13 @@ module Const = struct
        meeting the conditions.
     *)
     let immediate64 =
-      { jkind = { immediate.jkind with externality_upper_bound = External64 };
+      { jkind =
+          { immediate.jkind with
+            upper_bounds =
+              { immediate.jkind.upper_bounds with
+                externality = Bound.simple Externality.External64
+              }
+          };
         name = "immediate64"
       }
 
@@ -488,20 +634,6 @@ module Const = struct
         modal_bounds : string list
       }
 
-    module Bounds = struct
-      type t =
-        { alloc_bounds : Alloc.Const.t;
-          externality_bound : Externality.t;
-          nullability_bound : Nullability.t
-        }
-
-      let of_jkind jkind =
-        { alloc_bounds = jkind.modes_upper_bounds;
-          externality_bound = jkind.externality_upper_bound;
-          nullability_bound = jkind.nullability_upper_bound
-        }
-    end
-
     let get_modal_bound ~le ~print ~base actual =
       match le actual base with
       | true -> (
@@ -512,19 +644,19 @@ module Const = struct
 
     let get_modal_bounds ~(base : Bounds.t) (actual : Bounds.t) =
       [ get_modal_bound ~le:Locality.Const.le ~print:Locality.Const.print
-          ~base:base.alloc_bounds.areality actual.alloc_bounds.areality;
+          ~base:base.areality.modifier actual.areality.modifier;
         get_modal_bound ~le:Uniqueness.Const.le ~print:Uniqueness.Const.print
-          ~base:base.alloc_bounds.uniqueness actual.alloc_bounds.uniqueness;
+          ~base:base.uniqueness.modifier actual.uniqueness.modifier;
         get_modal_bound ~le:Linearity.Const.le ~print:Linearity.Const.print
-          ~base:base.alloc_bounds.linearity actual.alloc_bounds.linearity;
+          ~base:base.linearity.modifier actual.linearity.modifier;
         get_modal_bound ~le:Contention.Const.le ~print:Contention.Const.print
-          ~base:base.alloc_bounds.contention actual.alloc_bounds.contention;
+          ~base:base.contention.modifier actual.contention.modifier;
         get_modal_bound ~le:Portability.Const.le ~print:Portability.Const.print
-          ~base:base.alloc_bounds.portability actual.alloc_bounds.portability;
+          ~base:base.portability.modifier actual.portability.modifier;
         get_modal_bound ~le:Externality.le ~print:Externality.print
-          ~base:base.externality_bound actual.externality_bound;
+          ~base:base.externality.modifier actual.externality.modifier;
         get_modal_bound ~le:Nullability.le ~print:Nullability.print
-          ~base:base.nullability_bound actual.nullability_bound ]
+          ~base:base.nullability.modifier actual.nullability.modifier ]
       |> List.rev
       |> List.fold_left
            (fun acc mode ->
@@ -540,9 +672,7 @@ module Const = struct
         Layout.Const.equal base.jkind.layout actual.layout
       in
       let modal_bounds =
-        get_modal_bounds
-          ~base:(Bounds.of_jkind base.jkind)
-          (Bounds.of_jkind actual)
+        get_modal_bounds ~base:base.jkind.upper_bounds actual.upper_bounds
       in
       match matching_layouts, modal_bounds with
       | true, Some modal_bounds -> Some { base = base.name; modal_bounds }
@@ -584,9 +714,10 @@ module Const = struct
               ~base:
                 { jkind =
                     { layout = jkind.layout;
-                      modes_upper_bounds = Modes.max;
-                      externality_upper_bound = Externality.max;
-                      nullability_upper_bound = Nullability.Non_null
+                      upper_bounds =
+                        { Bounds.max with
+                          nullability = Bound.simple Nullability.Non_null
+                        }
                     };
                   name = Layout.Const.to_string jkind.layout
                 }
@@ -599,12 +730,7 @@ module Const = struct
             let out_jkind_verbose =
               convert_with_base
                 ~base:
-                  { jkind =
-                      { layout = jkind.layout;
-                        modes_upper_bounds = Modes.max;
-                        externality_upper_bound = Externality.max;
-                        nullability_upper_bound = Nullability.max
-                      };
+                  { jkind = { layout = jkind.layout; upper_bounds = Bounds.max };
                     name = Layout.Const.to_string jkind.layout
                   }
                 jkind
@@ -662,11 +788,15 @@ module Const = struct
       let base = of_user_written_annotation_unchecked_level jkind in
       (* for each mode, lower the corresponding modal bound to be that mode *)
       let parsed_modifiers = Typemodifier.transl_modifier_annots modifiers in
+      (* let meet_bounds meet base_bound parsed_modifier max =
+           meet base_bound ()
+         in *)
       { layout = base.layout;
-        modes_upper_bounds =
-          Alloc.Const.meet base.modes_upper_bounds
-            (Alloc.Const.Option.value ~default:Alloc.Const.max
-               parsed_modifiers.modal_upper_bounds);
+        upper_bounds =
+          Bounds.create ~areality:() modes_upper_bounds
+          = Alloc.Const.meet base.modes_upper_bounds
+              (Alloc.Const.Option.value ~default:Alloc.Const.max
+                 parsed_modifiers.modal_upper_bounds);
         nullability_upper_bound =
           Nullability.meet base.nullability_upper_bound
             (Option.value ~default:Nullability.max
