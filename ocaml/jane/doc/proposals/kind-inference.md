@@ -60,8 +60,7 @@ rec {
 
   field_types(sep) ::= [[ field_type | sep ]]
 
-  jkind ::= k | const_layout | kind_of_ τ | jkind mod modes | jkind with field_types(and)
-  (* we may leave out [mod], [with], and [@@] when nothing appears after them *)
+  jkind ::= k | const_layout | jkind mod modes
 
   type_param ::= 'a {{ : jkind }}
 }
@@ -80,8 +79,11 @@ type_kind ::=
   (* choose GADT notation as it subsumes non-GADT notation *)
   | ..
 
+jkind_scheme ::= kind_of_ τ | jkind with field_types(and)
+  (* we may leave out [with] and [@@] when nothing appears after them *)
+
 type_decl ::=
-  type {{ (type_params) }} t {{ : jkind }} {{ = {{ private }} τ }} {{ = type_kind }}
+  type {{ (type_params) }} t {{ : jkind_scheme }} {{ = {{ private }} τ }} {{ = type_kind }}
 
 type_subst ::=
   type {{ (type_params) }} t := τ
@@ -184,8 +186,6 @@ and `lay(κ)` to denote the layout in `κ`.
 Typing rules:
 
 ```
-rec {
-
 Γ ⊢ jkind ↠ κ  (* translate a user-written jkind to an internal κ *)
 =============
 
@@ -196,22 +196,23 @@ k = κ ∈ Γ
 ---------------------------------------- K_LAYOUT
 Γ ⊢ const_layout ↠ const_layout; ⟪⊤_Ξ⟫
 
-Γ ⊢ τ : κ
------------------------------------------- K_OF
-Γ ⊢ kind_of_ τ ↠ layout_of τ; ⟪⊥_Ξ with τ⟫
-
 Γ ⊢ jkind ↠ κ
 ------------------------------------------------- K_MOD
 Γ ⊢ jkind mod modes ↠ lay(κ); ⟪Ξ(κ) ⊓ ⨅ extract(Ξ, modes)⟫
-  (* CR reisenberg: This rule isn't right if κ already has [with] constraints; probably
-     should just forbid that syntactically. Not right: we can't meet out
-     the with-added modes because we don't really know what they are.
-     So we'd have to retain the [mod] clause just like we retain the
-     [with] clause, which is terrible. *)
+
+
+rec {
+
+Γ ⊢ jkind_scheme ↠ κ  (* translate a user-written jkind scheme to an internal κ *)
+====================
+
+Γ ⊢ τ : κ
+------------------------------------------ KS_OF
+Γ ⊢ kind_of_ τ ↠ layout_of τ; ⟪⊥_Ξ with τ⟫
 
 Γ ⊢ jkind ↠ κ
 ∀ σᵢ ∈ field_types, Γ ⊢ σᵢ : κᵢ
----------------------------------------------------------------------- K_WITH
+---------------------------------------------------------------------- KS_WITH
 Γ ⊢ jkind with field_types ↠ lay(κ); ⟪Ξ(κ) with types_for(Ξ, field_types)⟫
 ```
 
