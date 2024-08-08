@@ -2400,8 +2400,7 @@ and type_pat_aux
        combine the two array pattern constructors. *)
     let ty_elt, arg_sort = solve_Ppat_array ~refine loc env mutability expected_ty in
     let modalities =
-      if Types.is_mutable mutability then Typemode.mutable_implied_modalities
-      else Modality.Value.Const.id
+      Typemode.transl_modalities ~maturity:Stable mutability [] []
     in
     check_project_mutability ~loc ~env:!env mutability alloc_mode.mode;
     let alloc_mode = Modality.Value.Const.apply modalities alloc_mode.mode in
@@ -8584,11 +8583,12 @@ and type_generic_array
       sargl
   =
   let alloc_mode, argument_mode = register_allocation expected_mode in
-  let type_, modalities =
-    if Types.is_mutable mutability then
-      Predef.type_array, Typemode.mutable_implied_modalities
-    else
-      Predef.type_iarray, Modality.Value.Const.id
+  let type_ =
+    if Types.is_mutable mutability then Predef.type_array
+    else Predef.type_iarray
+  in
+  let modalities =
+    Typemode.transl_modalities ~maturity:Stable mutability [] []
   in
   check_construct_mutability ~loc ~env mutability argument_mode;
   let argument_mode = mode_modality modalities argument_mode in
