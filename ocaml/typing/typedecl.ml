@@ -256,7 +256,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let abstract_source, type_manifest =
     match sdecl.ptype_manifest, abstract_abbrevs with
     | None, _             -> Definition, None
-    | Some _, None        -> Definition, Some (Btype.newgenvar type_jkind)
+    | Some _, None        -> Definition, Some (Ctype.newvar type_jkind)
     | Some _, Some reason -> reason, None
 in
   let type_params =
@@ -641,7 +641,6 @@ let verify_unboxed_attr unboxed_attr sdecl =
             | Pcstr_tuple [_]  ->
                 ()
             | Pcstr_record [] ->
-
                 bad "its constructor has no fields"
             | Pcstr_record (_::_::_) ->
                 bad "its constructor has more than one field"
@@ -2032,7 +2031,7 @@ let check_duplicates sdecl_list =
 (* Force recursion to go through id for private types*)
 let name_recursion sdecl id decl =
   match decl with
-  | { type_kind = Type_abstract (Definition | Existential _);
+  | { type_kind = Type_abstract _;
       type_manifest = Some ty;
       type_private = Private; } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
