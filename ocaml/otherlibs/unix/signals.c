@@ -75,20 +75,11 @@ CAMLprim value caml_unix_sigprocmask(value vaction, value vset)
   how = sigprocmask_cmd[Int_val(vaction)];
   decode_sigset(vset, &set);
   caml_enter_blocking_section();
-<<<<<<< HEAD
 #ifdef CAML_RUNTIME_5
-  // Differs from upstream at the point we branched, but this PR
-  // changes the behaviour to what we have here:
-  // https://github.com/ocaml/ocaml/pull/12743
   retcode = pthread_sigmask(how, &set, &oldset);
 #else
   retcode = caml_sigmask_hook(how, &set, &oldset);
 #endif
-||||||| 121bedcfd2
-  retcode = sigprocmask(how, &set, &oldset);
-=======
-  retcode = pthread_sigmask(how, &set, &oldset);
->>>>>>> 5.2.0
   caml_leave_blocking_section();
   /* Run any handlers for just-unmasked pending signals */
   caml_process_pending_actions();
