@@ -23,6 +23,8 @@ open Lambda
 open Debuginfo.Scoped_location
 open Translmode
 
+module String_map = Map.Make (String)
+
 type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
@@ -180,6 +182,116 @@ let to_lambda_prim prim ~poly_sort =
     ~native_repr_res
     ~is_layout_poly:prim.prim_is_layout_poly
 
+let indexing_primitives =
+  let types_and_widths =
+    [
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bigstring_get16%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pbigstring_load_16 { unsafe } );
+      ( Printf.sprintf "%%caml_bigstring_get32%s%s",
+        fun ~unsafe ~boxed ~mode -> Pbigstring_load_32 { unsafe; mode; boxed }
+      );
+      ( Printf.sprintf "%%caml_bigstring_getf32%s%s",
+        fun ~unsafe ~boxed ~mode -> Pbigstring_load_f32 { unsafe; mode; boxed }
+      );
+      ( Printf.sprintf "%%caml_bigstring_get64%s%s",
+        fun ~unsafe ~boxed ~mode -> Pbigstring_load_64 { unsafe; mode; boxed }
+      );
+      ( Printf.sprintf "%%caml_bigstring_getu128%s%s",
+        fun ~unsafe ~boxed ~mode ->
+          Pbigstring_load_128 { aligned = false; unsafe; mode; boxed } );
+      ( Printf.sprintf "%%caml_bigstring_geta128%s%s",
+        fun ~unsafe ~boxed ~mode ->
+          Pbigstring_load_128 { aligned = true; unsafe; mode; boxed } );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bigstring_set16%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pbigstring_set_16 { unsafe } );
+      ( Printf.sprintf "%%caml_bigstring_set32%s%s",
+        fun ~unsafe ~boxed ~mode:_ -> Pbigstring_set_32 { unsafe; boxed } );
+      ( Printf.sprintf "%%caml_bigstring_setf32%s%s",
+        fun ~unsafe ~boxed ~mode:_ -> Pbigstring_set_f32 { unsafe; boxed } );
+      ( Printf.sprintf "%%caml_bigstring_set64%s%s",
+        fun ~unsafe ~boxed ~mode:_ -> Pbigstring_set_64 { unsafe; boxed } );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bigstring_setu128%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ ->
+          Pbigstring_set_128 { aligned = false; unsafe; boxed = true } );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bigstring_seta128%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ ->
+          Pbigstring_set_128 { aligned = true; unsafe; boxed = true } );
+      (* Accessing unboxed data from [string]s and [bytes]s is not currently
+         available, so we ignore the [boxed] argument and only bind the boxed
+         versions of the primitives. *)
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bytes_get16%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pbytes_load_16 unsafe );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bytes_get32%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode -> Pbytes_load_32 (unsafe, mode) );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bytes_getf32%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode -> Pbytes_load_f32 (unsafe, mode) );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bytes_get64%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode -> Pbytes_load_64 (unsafe, mode) );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bytes_getu128%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode -> Pbytes_load_128 { unsafe; mode } );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bytes_set16%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pbytes_set_16 unsafe );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bytes_set32%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pbytes_set_32 unsafe );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bytes_setf32%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pbytes_set_f32 unsafe );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bytes_set64%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pbytes_set_64 unsafe );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_bytes_setu128%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pbytes_set_128 { unsafe } );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_string_get16%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pstring_load_16 unsafe );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_string_get32%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode -> Pstring_load_32 (unsafe, mode) );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_string_getf32%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode -> Pstring_load_f32 (unsafe, mode) );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_string_get64%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode -> Pstring_load_64 (unsafe, mode) );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_string_getu128%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode -> Pstring_load_128 { unsafe; mode } );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_string_set16%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pbytes_set_16 unsafe );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_string_set32%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pbytes_set_32 unsafe );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_string_setf32%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pbytes_set_f32 unsafe );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_string_set64%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pbytes_set_64 unsafe );
+      ( (fun unsafe _boxed -> Printf.sprintf "%%caml_string_setu128%s" unsafe),
+        fun ~unsafe ~boxed:_ ~mode:_ -> Pbytes_set_128 { unsafe } );
+    ]
+  in
+  let unsafes = [ (true, "u"); (false, "") ] in
+  let boxeds = [ (true, ""); (false, "#") ] in
+  Misc.Hlist.cartesian_product [ types_and_widths; unsafes; boxeds ]
+  |> List.map
+       (fun
+         ([
+            (string_gen, primitive_gen);
+            (unsafe, unsafe_sigil);
+            (boxed, boxed_sigil);
+          ] :
+           _ Misc.Hlist.t)
+       ->
+         let string = string_gen unsafe_sigil boxed_sigil in
+         let primitive = primitive_gen ~unsafe ~boxed in
+         let arity =
+           let is_substring ~substring string =
+             let len = String.length substring in
+             String.to_seq string
+             |> Seq.mapi (fun i _ -> i)
+             |> Seq.filter_map (fun i ->
+                    if i + len < String.length string then
+                      Some (String.sub string i len)
+                    else None)
+             |> Seq.exists (fun sub -> String.equal substring sub)
+           in
+           if is_substring string ~substring:"get" then 2 else 3
+         in
+         (string, fun ~mode -> Primitive (primitive ~mode, arity)))
+  |> List.to_seq
+  |> fun seq -> String_map.add_seq seq String_map.empty
+
 let lookup_primitive loc ~poly_mode ~poly_sort pos p =
   let runtime5 = Config.runtime5 in
   let mode = to_locality ~poly:poly_mode p.prim_native_repr_res in
@@ -207,145 +319,6 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
        the middle-end. *)
     let (_, repr) = lambda_prim.prim_native_repr_res in
     Lambda.layout_of_extern_repr repr
-  in
-  let module String_map = Map.Make (String) in
-  let indexing_primitives =
-    let types_and_widths =
-      [
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bigstring_get16%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbigstring_load_16 { unsafe } );
-        ( Printf.sprintf "%%caml_bigstring_get32%s%s",
-          fun ~unsafe ~boxed ->
-            Pbigstring_load_32 { unsafe; mode; boxed } );
-        ( Printf.sprintf "%%caml_bigstring_getf32%s%s",
-          fun ~unsafe ~boxed ->
-            Pbigstring_load_f32 { unsafe; mode; boxed } );
-        ( Printf.sprintf "%%caml_bigstring_get64%s%s",
-          fun ~unsafe ~boxed ->
-            Pbigstring_load_64 { unsafe; mode; boxed } );
-        ( Printf.sprintf "%%caml_bigstring_getu128%s%s",
-          fun ~unsafe ~boxed ->
-            Pbigstring_load_128 { aligned = false; unsafe; mode; boxed }
-        );
-        ( Printf.sprintf "%%caml_bigstring_geta128%s%s",
-          fun ~unsafe ~boxed ->
-            Pbigstring_load_128 { aligned = true; unsafe; mode; boxed }
-        );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bigstring_set16%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbigstring_set_16 { unsafe } );
-        ( Printf.sprintf "%%caml_bigstring_set32%s%s",
-          fun ~unsafe ~boxed -> Pbigstring_set_32 { unsafe; boxed } );
-        ( Printf.sprintf "%%caml_bigstring_setf32%s%s",
-          fun ~unsafe ~boxed -> Pbigstring_set_f32 { unsafe; boxed } );
-        ( Printf.sprintf "%%caml_bigstring_set64%s%s",
-          fun ~unsafe ~boxed -> Pbigstring_set_64 { unsafe; boxed } );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bigstring_setu128%s" unsafe),
-          fun ~unsafe ~boxed:_ ->
-            Pbigstring_set_128 { aligned = false; unsafe; boxed = true }
-        );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bigstring_seta128%s" unsafe),
-          fun ~unsafe ~boxed:_ ->
-            Pbigstring_set_128 { aligned = true; unsafe; boxed = true }
-        );
-        (* Accessing unboxed data from [string]s and [bytes]s is not currently
-           available, so we ignore the [boxed] argument and only bind the boxed
-           versions of the primitives. *)
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bytes_get16%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_load_16 unsafe );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bytes_get32%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_load_32 (unsafe, mode) );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bytes_getf32%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_load_f32 (unsafe, mode) );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bytes_get64%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_load_64 (unsafe, mode) );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bytes_getu128%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_load_128 { unsafe; mode } );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bytes_set16%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_set_16 unsafe );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bytes_set32%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_set_32 unsafe );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bytes_setf32%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_set_f32 unsafe );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bytes_set64%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_set_64 unsafe );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_bytes_setu128%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_set_128 { unsafe } );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_string_get16%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pstring_load_16 unsafe );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_string_get32%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pstring_load_32 (unsafe, mode) );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_string_getf32%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pstring_load_f32 (unsafe, mode) );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_string_get64%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pstring_load_64 (unsafe, mode) );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_string_getu128%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pstring_load_128 { unsafe; mode } );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_string_set16%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_set_16 unsafe );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_string_set32%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_set_32 unsafe );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_string_setf32%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_set_f32 unsafe );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_string_set64%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_set_64 unsafe );
-        ( (fun unsafe _boxed ->
-            Printf.sprintf "%%caml_string_setu128%s" unsafe),
-          fun ~unsafe ~boxed:_ -> Pbytes_set_128 { unsafe } );
-      ]
-    in
-    let unsafes = [ (true, "u"); (false, "") ] in
-    let boxeds = [ (true, ""); (false, "#") ] in
-    Misc.Hlist.cartesian_product [ types_and_widths; unsafes; boxeds ]
-    |> List.map
-         (fun
-           ([
-              (string_gen, primitive_gen);
-              (unsafe, unsafe_sigil);
-              (boxed, boxed_sigil);
-            ] :
-             _ Misc.Hlist.t)
-         ->
-           let string = string_gen unsafe_sigil boxed_sigil in
-           let primitive = primitive_gen ~unsafe ~boxed in
-           let arity =
-             let is_substring ~substring string =
-               let len = String.length substring in
-               String.to_seq string
-               |> Seq.mapi (fun i _ -> i)
-               |> Seq.filter_map (fun i ->
-                      if i + len < String.length string then
-                        Some (String.sub string i len)
-                      else None)
-               |> Seq.exists (fun sub -> String.equal substring sub)
-             in
-             if is_substring string ~substring:"get" then 2 else 3
-           in
-           (string, Primitive (primitive, arity)))
-    |> List.to_seq
-    |> fun seq -> String_map.add_seq seq String_map.empty
   in
   let prim = match p.prim_name with
     | "%identity" -> Identity
@@ -796,7 +769,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive(Preinterpret_unboxed_int64_as_tagged_int63, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
       (match String_map.find_opt s indexing_primitives with
-       | Some p -> p
+       | Some prim -> prim ~mode
        | None -> raise (Error (loc, Unknown_builtin_primitive s)))
     | _ -> External lambda_prim
   in
