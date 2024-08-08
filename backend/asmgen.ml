@@ -280,9 +280,8 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
       with
       | false -> fd
       | true ->
-          fd ++ Analyze_tailcall_graph.fixup_inlined_tailcalls)
-          (* ++ Profile.record ~accumulate:true "fixup_inlined_tailcalls" *)
-          (*      Analyze_tailcall_graph.fixup_inlined_tailcalls) *)
+          fd ++ Profile.record ~accumulate:true "fixup_inlined_tailcalls"
+               Analyze_tailcall_graph.fixup_inlined_tailcalls)
   ++ Profile.record ~accumulate:true "selection"
        (Selection.fundecl ~future_funcnames:funcnames)
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Mach_sel
