@@ -433,15 +433,8 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
           | Immutable -> Immutable
           | Mutable -> Mutable Mode.Alloc.Comonadic.Const.legacy
          in
-         let has_mutable_implied_modalities =
-          if Types.is_mutable mut then
-            not (Builtin_attributes.has_no_mutable_implied_modalities attrs)
-          else
-            false
-         in
          let modalities =
-          Typemode.transl_modalities ~maturity:Stable
-            ~has_mutable_implied_modalities modalities
+          Typemode.transl_modalities ~maturity:Stable mut attrs modalities
          in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
@@ -483,8 +476,8 @@ let transl_types_gf ~new_var_jkind ~allow_unboxed
         Mode.Alloc.Const.legacy arg.pca_type
     in
     let gf =
-      Typemode.transl_modalities ~maturity:Stable
-        ~has_mutable_implied_modalities:false arg.pca_modalities
+      Typemode.transl_modalities ~maturity:Stable Immutable []
+        arg.pca_modalities
     in
     {ca_modalities = gf; ca_type = cty; ca_loc = arg.pca_loc}
   in
@@ -2945,8 +2938,8 @@ let transl_value_decl env loc valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
   let modalities =
     valdecl.pval_modalities
-    |> Typemode.transl_modalities ~maturity:Alpha
-        ~has_mutable_implied_modalities:false
+    |> Typemode.transl_modalities ~maturity:Alpha Immutable
+        valdecl.pval_attributes
     |> Mode.Modality.Value.of_const
   in
   (* CR layouts v5: relax this to check for representability. *)

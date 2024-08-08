@@ -9,16 +9,23 @@ val untransl_mode_annots :
 val transl_alloc_mode : Parsetree.modes -> Mode.Alloc.Const.t
 
 (** Interpret mode syntax as modalities. Modalities occuring at different places
-    requires different levels of maturity. *)
+    requires different levels of maturity. Also takes the mutability and
+    attributes on the field and insert mutable-implied modalities accordingly.
+    *)
 val transl_modalities :
   maturity:Language_extension.maturity ->
-  has_mutable_implied_modalities:bool ->
+  Types.mutability ->
+  Parsetree.attributes ->
   Parsetree.modalities ->
   Mode.Modality.Value.Const.t
 
+val untransl_modality : Mode.Modality.t -> Parsetree.modality Location.loc
+
+(** Un-interpret modalities back to parsetree. Takes the mutability and
+    attributes on the field and remove mutable-implied modalities accordingly.
+    *)
 val untransl_modalities :
-  loc:Location.t -> Mode.Modality.Value.Const.t -> Parsetree.modalities
-
-val is_mutable_implied_modality : Mode.Modality.t -> bool
-
-val mutable_implied_modalities : Mode.Modality.Value.Const.t
+  Types.mutability ->
+  Parsetree.attributes ->
+  Mode.Modality.Value.Const.t ->
+  Parsetree.modalities
