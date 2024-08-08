@@ -87,6 +87,12 @@ type for_static_sets =
            [function_slot_offset_for_updates]. *)
   }
 
+(* let fresh = let r = ref 0 in fun () -> incr r; "__fresh__" ^ string_of_int
+   !r *)
+let () = Random.self_init ()
+
+let fresh () = Format.sprintf "__fresh__%Ld" (Random.bits64 ())
+
 module Make_layout_filler (P : sig
   type cmm_term
 
@@ -271,7 +277,7 @@ end = struct
             res,
             Ece.pure,
             updates ))
-      | Deleted { function_slot_size } ->
+      | Deleted { function_slot_size; _ } ->
         if size <> function_slot_size
         then
           Misc.fatal_errorf
@@ -283,11 +289,19 @@ end = struct
             ~arity:(if size = 2 then 1 else 2)
             ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
         in
+        let sym = Cmm.global_symbol (fresh ()) in
+        let name =
+          Compilation_unit.full_path_as_string
+            (Compilation_unit.get_current_exn ())
+        in
+        let s = Cmm_helpers.emit_string_constant sym name [] in
+        let res = To_cmm_result.add_archive_data_items res s in
         let acc =
           match size with
-          | 2 -> P.int ~dbg closure_info :: P.int ~dbg 0n :: acc
+          | 2 -> P.int ~dbg closure_info :: P.term_of_symbol ~dbg sym :: acc
           | 3 ->
-            P.int ~dbg 0n :: P.int ~dbg closure_info :: P.int ~dbg 0n :: acc
+            P.term_of_symbol ~dbg sym :: P.int ~dbg closure_info
+            :: P.term_of_symbol ~dbg sym :: acc
           | _ -> assert false
         in
         ( acc,
@@ -488,20 +502,16 @@ let layout_for_set_of_closures env set =
     (Set_of_closures.value_slots set)
 
 let debuginfo_for_set_of_closures env set =
-  let code_ids_in_set =
+  let dbg =
     Set_of_closures.function_decls set
     |> Function_declarations.funs |> Function_slot.Map.data
-    |> List.filter_map
+    |> List.map
          (fun (code_id : Function_declarations.code_id_in_function_declaration)
          ->
            match code_id with
-           | Deleted _ -> None
-           | Code_id code_id -> Some code_id)
-  in
-  let dbg =
-    List.map
-      (fun code_id -> Env.get_code_metadata env code_id |> Code_metadata.dbg)
-      code_ids_in_set
+           | Deleted { dbg; _ } -> dbg
+           | Code_id code_id ->
+             Code_metadata.dbg (Env.get_code_metadata env code_id))
     |> List.sort Debuginfo.compare
   in
   (* Choose the debuginfo with the earliest source location. *)

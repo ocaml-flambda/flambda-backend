@@ -70,6 +70,8 @@ val const_unit : t
 
 val const_from_descr : Reg_width_const.Descr.t -> t
 
+val const_int_of_kind : Flambda_kind.t -> int -> t
+
 val is_const : t -> bool
 
 val is_symbol : t -> bool
