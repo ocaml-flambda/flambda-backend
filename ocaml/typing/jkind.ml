@@ -170,6 +170,7 @@ module Type = struct
         match repr_union ss with
         | Some Any, _ -> Any
         | Some (Sort s), [] -> Sort (Sort.of_const s)
+        | None, [v] -> Sort (Sort.of_var v)
         | _ -> t)
 
     let equate_or_equal ~allow_mutation t1 t2 =
@@ -210,6 +211,7 @@ module Type = struct
 
     let union t1 t2 =
       match repr t1, repr t2 with
+      | _ when t1 == t2 -> t1
       | _, Any -> Any
       | Any, _ -> Any
       | Sort s1, Sort s2 -> Union [s1; s2]
