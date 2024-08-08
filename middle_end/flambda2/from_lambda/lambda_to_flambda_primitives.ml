@@ -382,7 +382,7 @@ let checked_alignment ~dbg ~primitive ~conditions : H.expr_primitive =
     }
 
 let check_bound ~(index_kind : Lambda.array_index_kind) ~(bound_kind : I_or_f.t)
-    index bound : H.expr_primitive =
+    ~index ~bound : H.expr_primitive =
   let (comp_kind : I.t), index, bound =
     let convert_bound_to dst =
       H.Prim (Unary (Num_conv { src = bound_kind; dst }, bound))
@@ -472,8 +472,9 @@ let actual_max_length_for_string_like_access ~size_int ~access_size length =
 
 let string_like_access_validity_condition ~size_int ~access_size ~length
     ~index_kind index : H.expr_primitive =
-  check_bound ~index_kind ~bound_kind:Naked_immediate index
-    (actual_max_length_for_string_like_access ~size_int ~access_size length)
+  check_bound ~index_kind ~bound_kind:Naked_immediate ~index
+    ~bound:
+      (actual_max_length_for_string_like_access ~size_int ~access_size length)
 
 let string_or_bytes_access_validity_condition ~size_int str kind access_size
     ~index_kind index : H.expr_primitive =
@@ -627,9 +628,9 @@ let array_vector_access_validity_condition array ~size_int
          ( Num_conv { src = Naked_immediate; dst = Naked_nativeint },
            reduced_length_untagged ))
   in
-  let check_nativeint = max_with_zero ~size_int reduced_length_nativeint in
-  check_bound ~index_kind:Ptagged_int_index ~bound_kind:Naked_nativeint index
-    check_nativeint
+  let nativeint_bound = max_with_zero ~size_int reduced_length_nativeint in
+  check_bound ~index_kind:Ptagged_int_index ~bound_kind:Naked_nativeint ~index
+    ~bound:nativeint_bound
 
 let check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
     : H.expr_primitive =
@@ -717,19 +718,19 @@ let bigarray_indexing layout b args =
   let num_dim = List.length args in
   let rec aux dim delta_dim = function
     | [] -> assert false
-    | [idx] ->
+    | [index] ->
       let bound = bigarray_dim_bound b dim in
       let check =
         check_bound ~index_kind:Ptagged_int_index ~bound_kind:Naked_immediate
-          idx bound
+          ~index ~bound
       in
-      [check], idx
-    | idx :: r ->
+      [check], index
+    | index :: r ->
       let checks, rem = aux (dim + delta_dim) delta_dim r in
       let bound = bigarray_dim_bound b dim in
       let check =
         check_bound ~index_kind:Ptagged_int_index ~bound_kind:Naked_immediate
-          idx bound
+          ~index ~bound
       in
       (* CR gbury: because we tag bound, and the tagged multiplication untags
          it, we might be left with a needless zero-extend here. *)
@@ -741,7 +742,7 @@ let bigarray_indexing layout b args =
                Prim (Unary (Tag_immediate, bound)) ))
       in
       let offset =
-        H.Prim (Binary (Int_arith (I.Tagged_immediate, Add), tmp, idx))
+        H.Prim (Binary (Int_arith (I.Tagged_immediate, Add), tmp, index))
       in
       check :: checks, offset
   in
@@ -782,8 +783,8 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
 let array_access_validity_condition array array_kind index
     ~(index_kind : L.array_index_kind) =
   let arr_len_as_tagged_imm = H.Prim (Unary (Array_length array_kind, array)) in
-  [ check_bound ~index_kind ~bound_kind:Tagged_immediate index
-      arr_len_as_tagged_imm ]
+  [ check_bound ~index_kind ~bound_kind:Tagged_immediate ~index
+      ~bound:arr_len_as_tagged_imm ]
 
 let check_array_access ~dbg ~array array_kind ~index ~index_kind primitive :
     H.expr_primitive =
