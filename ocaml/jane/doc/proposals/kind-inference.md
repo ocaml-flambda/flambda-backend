@@ -81,6 +81,10 @@ type_kind ::=
 
 jkind_scheme ::= kind_of_ τ | jkind with field_types(and)
   (* we may leave out [with] and [@@] when nothing appears after them *)
+  (* These are kept separate from plain [jkind]s to aid in inference: we
+     can't have a join on the right of a subjkind check during inference.
+     The treatment below allowing [with] constraints on the right makes
+     sense only during module inclusion, when we are not doing inference. *)
 
 type_decl ::=
   type {{ (type_params) }} t {{ : jkind_scheme }} {{ = {{ private }} τ }} {{ = type_kind }}
