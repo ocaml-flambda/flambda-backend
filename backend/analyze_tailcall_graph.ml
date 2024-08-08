@@ -165,6 +165,13 @@ end = struct
              tail (nontail). *)
           | Explicit_tail_edge
           | Explicit_nontail_edge
+          (* Unknown_position edges are from Unknown_position applications,
+             which are generated when we synthesize function applications
+             internally in the compiler. These are treated the same as Explicit
+             edges in the SCC decomposition and for warnings; for debugging
+             purposes we display them differently in the dot output.*)
+          | Unknown_position_tail_edge
+          | Unknown_position_nontail_edge
           (* "Inferred" edges are edges that might possibly change their TCO
              behavior as a result of adding TCO inference. *)
           | Inferred_tail_edge
@@ -174,10 +181,13 @@ end = struct
           match t1, t2 with
           | Explicit_tail_edge, Explicit_tail_edge -> true
           | Explicit_nontail_edge, Explicit_nontail_edge -> true
+          | Unknown_position_tail_edge, Unknown_position_tail_edge -> true
+          | Unknown_position_nontail_edge, Unknown_position_nontail_edge -> true
           | Inferred_tail_edge, Inferred_tail_edge -> true
           | Inferred_nontail_edge, Inferred_nontail_edge -> true
-          | ( ( Explicit_tail_edge | Explicit_nontail_edge | Inferred_tail_edge
-              | Inferred_nontail_edge ),
+          | ( ( Explicit_tail_edge | Explicit_nontail_edge
+              | Unknown_position_tail_edge | Unknown_position_nontail_edge
+              | Inferred_tail_edge | Inferred_nontail_edge ),
               _ ) ->
             false
 
@@ -185,8 +195,10 @@ end = struct
           match t with
           | Explicit_tail_edge -> 0
           | Explicit_nontail_edge -> 1
-          | Inferred_tail_edge -> 2
-          | Inferred_nontail_edge -> 3
+          | Unknown_position_tail_edge -> 2
+          | Unknown_position_nontail_edge -> 3
+          | Inferred_tail_edge -> 4
+          | Inferred_nontail_edge -> 5
       end
 
       type t =
@@ -216,6 +228,8 @@ end = struct
         match with_loc.edge.label with
         | Explicit_tail_edge -> "explicit tail"
         | Explicit_nontail_edge -> "explicit nontail"
+        | Unknown_position_tail_edge -> "unknown_pos tail"
+        | Unknown_position_nontail_edge -> "unknown_pos nontail"
         | Inferred_tail_edge -> "inferred tail"
         | Inferred_nontail_edge -> "inferred nontail"
       in
@@ -315,12 +329,12 @@ end = struct
          Right now we use it for "fake" applications (like tuplify) which might
          makes our analysis less precise -- e.g. tuplify really is a leaf
          function, so it cannot form a cycle in the call graph. *)
-      | Unknown_position, Tail -> Explicit_tail_edge
+      | Unknown_position, Tail -> Unknown_position_tail_edge
+      | Unknown_position, Nontail -> Unknown_position_nontail_edge
       | Inlined_into_not_tail_position _, Tail ->
         impossible_because "if this happens we should know about it"
           ~case:"Inlined_into_not_tail_position _, Tail"
-      | Unknown_position, Nontail | Inlined_into_not_tail_position _, Nontail ->
-        Explicit_nontail_edge
+      | Inlined_into_not_tail_position _, Nontail -> Explicit_nontail_edge
       | Not_tail_position Explicit_tail, _ ->
         impossible_because
           "[@tail] not allowed on applications not in tail position"
@@ -410,11 +424,12 @@ end = struct
       Edge.Hashset.iter (successors_mod_loc t vertex)
         ~f:(fun { label; to_; _ } ->
           match label with
-          | Explicit_nontail_edge ->
+          | Explicit_nontail_edge | Unknown_position_nontail_edge ->
             (* Ignore these; before less-tco they already allocate stack space,
                so are unlikely to be part of some cycle that blows the stack. *)
             ()
-          | Explicit_tail_edge | Inferred_tail_edge | Inferred_nontail_edge -> (
+          | Explicit_tail_edge | Unknown_position_tail_edge | Inferred_tail_edge
+          | Inferred_nontail_edge -> (
             let to_state = Vertex.Tbl.find states to_ in
             match to_state with
             | Not_visited ->
@@ -449,13 +464,14 @@ end = struct
       t.adjacencies_mod_loc;
     sccs |> Stack.to_seq |> List.of_seq
 
-  let possibly_overflowing_edges t ~(scc : Vertex.Hashset.t) =
+  let possibly_newly_overflowing_edges t ~(scc : Vertex.Hashset.t) =
     Vertex.Hashset.to_seq scc
     |> Seq.concat_map (fun v ->
            successors t v |> List.to_seq
            |> Seq.filter (fun (e : Edge.with_loc) ->
                   match e.edge.label with
                   | Explicit_tail_edge | Explicit_nontail_edge
+                  | Unknown_position_tail_edge | Unknown_position_nontail_edge
                   | Inferred_tail_edge ->
                     false
                   | Inferred_nontail_edge -> Vertex.Hashset.mem scc e.edge.to_))
@@ -464,7 +480,7 @@ end = struct
   let warn_inferred_nontail_in_tco'd_cycle t ~sccs =
     sccs
     |> List.iter (fun scc ->
-           possibly_overflowing_edges t ~scc
+           possibly_newly_overflowing_edges t ~scc
            |> List.iter (fun (e : Edge.with_loc) ->
                   Location.prerr_warning e.loc
                     Warnings.Inferred_nontail_in_tcod_cycle))
@@ -476,33 +492,37 @@ end = struct
 
   let hide_edges_from_unknown = true
 
-  let hide_explicit_nontail_edges = true
+  let hide_ignored_nontail_edges = true
 
   let print_edge_line ~indent ppf (with_loc : Edge.with_loc) =
     let Edge.{ from; to_; label } = with_loc.edge in
-    let is_explicit_nontail_edge =
+    let is_ignored_nontail_edge =
       match label with
-      | Explicit_nontail_edge -> true
-      | Explicit_tail_edge | Inferred_tail_edge | Inferred_nontail_edge -> false
+      | Explicit_nontail_edge | Unknown_position_nontail_edge -> true
+      | Explicit_tail_edge | Unknown_position_tail_edge | Inferred_tail_edge
+      | Inferred_nontail_edge ->
+        false
     in
     if (hide_edges_from_unknown && Vertex.is_unknown from)
-       || (hide_explicit_nontail_edges && is_explicit_nontail_edge)
+       || (hide_ignored_nontail_edges && is_ignored_nontail_edge)
     then ()
     else
       let color =
         match label with
-        | Explicit_tail_edge -> "black"
-        | Explicit_nontail_edge -> "lightgrey"
+        | Explicit_tail_edge | Unknown_position_tail_edge -> "black"
+        | Explicit_nontail_edge | Unknown_position_nontail_edge -> "lightgrey"
         | Inferred_tail_edge -> "blue"
         | Inferred_nontail_edge -> "red"
       in
       let style =
         let maybe_unknown_style () =
-          if Vertex.is_unknown from then "dashed" else "solid"
+          if Vertex.is_unknown from then "dotted" else "solid"
         in
         match label with
         | Explicit_tail_edge -> maybe_unknown_style ()
         | Explicit_nontail_edge -> maybe_unknown_style ()
+        | Unknown_position_tail_edge -> "dashed"
+        | Unknown_position_nontail_edge -> "dashed"
         | Inferred_tail_edge -> "solid"
         | Inferred_nontail_edge -> "solid"
       in
@@ -517,7 +537,7 @@ end = struct
       (fun idx scc ->
         let indent = "    " in
         let has_possibly_overflowing_edges =
-          List.length (possibly_overflowing_edges t ~scc) > 0
+          List.length (possibly_newly_overflowing_edges t ~scc) > 0
         in
         Format.fprintf ppf "  subgraph cluster_%d {\n" idx;
         Format.fprintf ppf "    label=\"%d\"\n" idx;

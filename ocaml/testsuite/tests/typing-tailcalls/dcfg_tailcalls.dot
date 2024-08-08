@@ -11,7 +11,7 @@ digraph {
     33 [label="camlDcfg_tailcalls__cps_style1_32_80_code" color="black" fontcolor="black"]
     33 -> 34 [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 119, characters 2-16 (inferred tail)"]
     49 [label="camlDcfg_tailcalls__foo_optional_arg_inline_never_47_48_code" color="black" fontcolor="black"]
-    49 -> unknown [color="black" style="solid" label="File \"dcfg_tailcalls.ml\", lines 190-191, characters 49-7 (explicit tail)"]
+    49 -> unknown [color="black" style="dashed" label="File \"dcfg_tailcalls.ml\", lines 191-192, characters 49-7 (unknown_pos tail)"]
     34 [label="camlDcfg_tailcalls__cps_style2_33_81_code" color="black" fontcolor="black"]
     34 -> 32 [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 123, characters 2-16 (inferred tail)"]
     35 [label="camlDcfg_tailcalls__call_cps_style_34_82_code" color="black" fontcolor="black"]
@@ -34,7 +34,7 @@ digraph {
     26 -> 25 [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 102, characters 16-66 (inferred tail)"]
     unknown [label="<unknown>" color="red" fontcolor="red"]
     47 [label="camlDcfg_tailcalls__foo_optional_arg_45_46_code" color="black" fontcolor="black"]
-    47 -> unknown [color="black" style="solid" label="File \"dcfg_tailcalls.ml\", lines 185-186, characters 21-7 (explicit tail)"]
+    47 -> unknown [color="black" style="dashed" label="File \"dcfg_tailcalls.ml\", lines 186-187, characters 21-7 (unknown_pos tail)"]
   }
 
   subgraph cluster_1 {
@@ -48,14 +48,14 @@ digraph {
     style=invis
     48 [label="camlDcfg_tailcalls__foo_optional_arg_inline_never_inner_48_94_code" color="black" fontcolor="black"]
   }
-  48 -> 41 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 191, characters 2-7 (inferred nontail)"]
+  48 -> 41 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 192, characters 2-7 (inferred nontail)"]
 
   subgraph cluster_3 {
     label="3"
     style=invis
     46 [label="camlDcfg_tailcalls__foo_optional_arg_inner_46_93_code" color="black" fontcolor="black"]
   }
-  46 -> 41 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 186, characters 2-7 (inferred nontail)"]
+  46 -> 41 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 187, characters 2-7 (inferred nontail)"]
 
   subgraph cluster_4 {
     label="4"

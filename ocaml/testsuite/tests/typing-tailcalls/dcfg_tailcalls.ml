@@ -179,8 +179,9 @@ let try_with () = try inlined () with _ -> ()
       in
       foo_optional_arg_inner str
 
-   In the tailcall CFG, we expect to see a call from both foo and
-   foo_optional_arg_inner to f. *)
+   In the tailcall CFG, we expect to see a call from both
+   foo_optional_arg and foo_optional_arg_inner to f. These show up as
+   dashed edges to <unknown> in the visualization. *)
 
 let foo_optional_arg ?(str = "hello") () =
   f str
