@@ -1277,7 +1277,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ~current_region ]
   | Pbytesrefu, [[bytes]; [index]] ->
     [ string_like_load ~unsafe:true ~dbg ~size_int ~access_size:Eight Bytes None
-        ~boxed:false bytes ~index_kind:Ptagged_int_index index ~current_region ]
+        ~boxed:false bytes ~index_kind:Ptagged_int_index index ~current_region
+    ]
   | Pstringrefs, [[str]; [index]] ->
     [ string_like_load ~unsafe:false ~dbg ~size_int ~access_size:Eight String
         ~boxed:false None str ~index_kind:Ptagged_int_index index
