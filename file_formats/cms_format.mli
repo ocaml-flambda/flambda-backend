@@ -43,10 +43,9 @@ val read : string -> cms_infos
 (** [save_cms filename modname sourcefile shape]
     writes a cms(i) file.  *)
 val save_cms :
-  string ->  (* filename.cms to generate *)
+  Unit_info.Artifact.t ->
   Compilation_unit.t ->  (* module name *)
   Cmt_format.binary_annots ->
-  string option ->  (* source file *)
   Shape.t option ->
   unit
 

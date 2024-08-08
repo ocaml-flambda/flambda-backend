@@ -91,11 +91,13 @@ let uid_tables_of_binary_annots binary_annots =
     );
   cms_uid_to_loc, cms_uid_to_attributes
 
-let save_cms filename modname binary_annots sourcefile shape =
+let save_cms target modname binary_annots shape =
   if (!Clflags.binary_annotations_cms && not !Clflags.print_types) then begin
     Misc.output_to_file_via_temporary
-       ~mode:[Open_binary] filename
+       ~mode:[Open_binary] (Unit_info.Artifact.filename target)
        (fun _temp_file_name oc ->
+
+        let sourcefile = Unit_info.Artifact.source_file target in
         let source_digest = Option.map Digest.file sourcefile in
         let cms_ident_occurrences =
           if !Clflags.store_occurrences then
