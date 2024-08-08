@@ -681,6 +681,13 @@ rec {
 
 ```
 
+# Properties
+
+Lemma (Borrowing is sound): If `Γ ⊢ σ : κ {best}` and `Γ ⊢ κ ≤ any mod global`,
+then `Γ ⊢ κ ≤ any mod unique`.
+
+Proof: TODO.
+
 # Examples
 
 ```
