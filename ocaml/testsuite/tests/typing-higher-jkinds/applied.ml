@@ -57,6 +57,10 @@ Line 1, characters 9-10:
 1 | type p = t t
              ^
 Error: This type t should be an instance of type ('a : value)
+       The layout of t is ((value) => value), because
+         of the definition of t at line 1, characters 0-23.
+       But the layout of t must be a sublayout of value, because
+         of the definition of t at line 1, characters 0-23.
        The kind of t is ((value) => value) (...??)
        But the kind of t must be a subkind of value
          because of the definition of t at line 1, characters 0-23.
@@ -113,6 +117,10 @@ Line 4, characters 10-15:
 4 |   val g : int s r -> int s r
               ^^^^^
 Error: This type int s should be an instance of type ('a : value => value)
+       The layout of int s is value, because
+         of the definition of s at line 3, characters 2-25.
+       But the layout of int s must be a sublayout of ((value) => value), because
+         of the definition of r at line 2, characters 2-36.
        The kind of int s is value
          because of the definition of s at line 3, characters 2-25.
        But the kind of int s must be a subkind of ((value) => value) (...??)
