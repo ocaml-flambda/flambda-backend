@@ -997,6 +997,7 @@ let unboxed_type sloc lident tys =
 %token HASH_SUFFIX            "# "
 %token <string> HASHOP        "##" (* just an example *)
 %token SIG                    "sig"
+%token STACK                  "stack_"
 %token STAR                   "*"
 %token <string * Location.t * string option>
        STRING                 "\"hello\"" (* just an example *)
@@ -1088,7 +1089,7 @@ The precedences must be listed from low to high.
 %nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT HASH_FLOAT INT HASH_INT OBJECT
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
-          LBRACKETPERCENT QUOTED_STRING_EXPR
+          LBRACKETPERCENT QUOTED_STRING_EXPR STACK
 
 
 /* Entry points */
@@ -2817,6 +2818,8 @@ fun_expr:
 %inline expr_:
   | simple_expr nonempty_llist(labeled_simple_expr)
       { mkexp ~loc:$sloc (Pexp_apply($1, $2)) }
+  | STACK simple_expr
+      { mkexp ~loc:$sloc (Pexp_stack $2) }
   | labeled_tuple %prec below_COMMA
       { pexp_ltuple $sloc $1 }
   | mkrhs(constr_longident) simple_expr %prec below_HASH

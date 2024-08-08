@@ -110,6 +110,20 @@ type contention_context =
   | Read_mutable
   | Write_mutable
 
+type unsupported_stack_allocation =
+  | Lazy
+  | Module
+  | Object
+  | List_comprehension
+  | Array_comprehension
+
+let print_unsupported_stack_allocation ppf = function
+  | Lazy -> Format.fprintf ppf "lazy expressions"
+  | Module -> Format.fprintf ppf "modules"
+  | Object -> Format.fprintf ppf "objects"
+  | List_comprehension -> Format.fprintf ppf "list comprehensions"
+  | Array_comprehension -> Format.fprintf ppf "array comprehensions"
+
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
   | Constructor_labeled_arg
@@ -237,6 +251,9 @@ type error =
   | Function_type_not_rep of type_expr * Jkind.Violation.t
   | Invalid_label_for_src_pos of arg_label
   | Nonoptional_call_pos_label of string
+  | Cannot_stack_allocate of Env.closure_context option
+  | Unsupported_stack_allocation of unsupported_stack_allocation
+  | Not_allocation
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -593,7 +610,13 @@ let register_allocation_value_mode mode =
     [expected_mode]. Returns the mode of the allocation, and the expected mode
     of potential subcomponents. *)
 let register_allocation (expected_mode : expected_mode) =
-  let alloc_mode, mode = register_allocation_value_mode expected_mode.mode in
+  let alloc_mode, mode =
+    register_allocation_value_mode expected_mode.mode
+  in
+  let alloc_mode =
+    { mode = alloc_mode;
+      closure_context = expected_mode.closure_context }
+  in
   alloc_mode, mode_default mode
 
 let optimise_allocations () =
@@ -6301,6 +6324,36 @@ and type_expect_
            exp_type = instance ty_expected;
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
+  | Pexp_stack e ->
+      let exp = type_expect env expected_mode e ty_expected_explained in
+      let unsupported category =
+        raise (Error (exp.exp_loc, env, Unsupported_stack_allocation category))
+      in
+      begin match exp.exp_desc with
+      | Texp_function { alloc_mode; _} | Texp_tuple (_, alloc_mode)
+      | Texp_construct (_, _, _, Some alloc_mode)
+      | Texp_variant (_, Some (_, alloc_mode))
+      | Texp_record {alloc_mode = Some alloc_mode; _}
+      | Texp_array (_, _, _, alloc_mode)
+      | Texp_field (_, _, _, Boxing (alloc_mode, _)) ->
+        begin match Locality.submode Locality.local
+          (Alloc.proj (Comonadic Areality) alloc_mode.mode) with
+        | Ok () -> ()
+        | Error _ -> raise (Error (exp.exp_loc, env,
+            Cannot_stack_allocate alloc_mode.closure_context))
+        end
+      | Texp_list_comprehension _ -> unsupported List_comprehension
+      | Texp_array_comprehension _ -> unsupported Array_comprehension
+      | Texp_new _ -> unsupported Object
+      | Texp_override _ -> unsupported Object
+      | Texp_lazy _ -> unsupported Lazy
+      | Texp_object _ -> unsupported Object
+      | Texp_pack _ -> unsupported Module
+      | _ ->
+        raise (Error (exp.exp_loc, env, Not_allocation))
+      end;
+      let exp_extra = (Texp_stack, loc, []) :: exp.exp_extra in
+      {exp with exp_extra}
 
 and expression_constraint pexp =
   { type_without_constraint = (fun env expected_mode ->
@@ -7566,6 +7619,10 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   let arity = List.length sexpl in
   assert (arity >= 2);
   let alloc_mode, argument_mode = register_allocation_value_mode expected_mode.mode in
+  let alloc_mode =
+    { mode = alloc_mode;
+      closure_context = expected_mode.closure_context }
+  in
   (* CR layouts v5: non-values in tuples *)
   let labeled_subtypes =
     List.map (fun (label, _) -> label,
@@ -8749,11 +8806,15 @@ and type_n_ary_function
       | (Check _ | Assume _ | Ignore_assert_all) ->
         Zero_alloc.create_const zero_alloc
     in
+    let alloc_mode =
+      { mode = Mode.Alloc.disallow_left fun_alloc_mode;
+        closure_context = expected_mode.closure_context }
+    in
     re
       { exp_desc =
           Texp_function
             { params; body; ret_sort;
-              alloc_mode = Mode.Alloc.disallow_left fun_alloc_mode; ret_mode;
+              alloc_mode; ret_mode;
               zero_alloc
             };
         exp_loc = loc;
@@ -8859,7 +8920,7 @@ and type_comprehension_expr
       {body = sbody; clauses}, jkind =
     match cexpr with
     | Cexp_list_comprehension comp ->
-        List_comprehension,
+        (List_comprehension : comprehension_type),
         Predef.type_list,
         (fun tcomp -> Texp_list_comprehension tcomp),
         comp,
@@ -8869,7 +8930,7 @@ and type_comprehension_expr
           | Mutable   -> Predef.type_array, Mutable Alloc.Comonadic.Const.legacy
           | Immutable -> Predef.type_iarray, Immutable
         in
-        Array_comprehension mut,
+        (Array_comprehension mut : comprehension_type),
         container_type,
         (fun tcomp ->
           Texp_array_comprehension
@@ -9325,6 +9386,20 @@ let report_type_expected_explanation expl ppf =
       because "a when-clause in a comprehension"
   | Error_message_attr msg ->
       fprintf ppf "@\n@[%s@]" msg
+
+let stack_hint (context : Env.closure_context option) =
+  match context with
+  | Some Return -> []
+  | Some Tailcall_argument ->
+    [ Location.msg
+        "@[Hint: This argument cannot be stack-allocated,@ \
+         because it is an argument in a tail call.@]" ]
+  | Some Tailcall_function ->
+    [ Location.msg
+        "@[Hint: This function cannot be stack-allocated,@ \
+         because it is the function in a tail call.@]" ]
+  | Some Partial_application -> assert false
+  | None -> []
 
 let escaping_hint (failure_reason : Value.error) submode_reason
       (context : Env.closure_context option) =
@@ -10078,6 +10153,14 @@ let report_error ~loc env = function
     Location.errorf ~loc
       "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \
          automatically if ommitted. It cannot be passed with '?'.@]" label
+  | Cannot_stack_allocate closure_context ->
+      let sub = stack_hint closure_context in
+      Location.errorf ~loc ~sub "@[This allocation cannot be on the stack.@]"
+  | Unsupported_stack_allocation category ->
+    Location.errorf ~loc "@[Stack allocating %a is unsupported yet.@]"
+      print_unsupported_stack_allocation category
+  | Not_allocation ->
+      Location.errorf ~loc "This expression is not an allocation site."
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env_error env
