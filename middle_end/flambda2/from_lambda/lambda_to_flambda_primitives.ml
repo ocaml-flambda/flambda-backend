@@ -528,12 +528,13 @@ let checked_bigstring_access ~dbg ~size_int ~access_size ~primitive arg1
           ~index_kind arg2 ]
 
 (* String-like loads *)
-let string_like_load ~dbg ~unsafe ~access_size ~size_int kind mode ~boxed string
-    ~index_kind index ~current_region =
+let string_like_load ~dbg ~unsafe
+    ~(access_size : Flambda_primitive.string_accessor_width) ~size_int kind mode
+    ~boxed string ~index_kind index ~current_region =
   let unsafe_load =
     let index = convert_index_to_tagged_int index index_kind in
     let wrap =
-      match (access_size : Flambda_primitive.string_accessor_width), mode with
+      match access_size, mode with
       | (Eight | Sixteen), None ->
         assert (not boxed);
         tag_int
