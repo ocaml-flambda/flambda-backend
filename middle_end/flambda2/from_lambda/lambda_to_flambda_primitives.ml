@@ -1344,8 +1344,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Thirty_two Bytes ~boxed
         bytes ~index_kind index new_value ]
-  | ( Pbytes_set_f32 { unsafe; index_kind; boxed },
-      [[bytes]; [index]; [new_value]] )
+  | Pbytes_set_f32 { unsafe; index_kind; boxed }, [[bytes]; [index]; [new_value]]
     ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Single Bytes ~boxed
         bytes ~index_kind index new_value ]
@@ -1353,8 +1352,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixty_four Bytes ~boxed
         bytes ~index_kind index new_value ]
-  | ( Pbytes_set_128 { unsafe; index_kind; boxed },
-      [[bytes]; [index]; [new_value]] )
+  | Pbytes_set_128 { unsafe; index_kind; boxed }, [[bytes]; [index]; [new_value]]
     ->
     [ bytes_like_set ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned = false })
@@ -1739,8 +1737,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     ->
     [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Thirty_two Bigstring
         (Some mode) ~boxed big_str ~index_kind index ~current_region ]
-  | ( Pbigstring_load_f32 { unsafe; index_kind; mode; boxed },
-      [[big_str]; [index]] )
+  | Pbigstring_load_f32 { unsafe; index_kind; mode; boxed }, [[big_str]; [index]]
     ->
     [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Single Bigstring
         (Some mode) ~boxed big_str ~index_kind index ~current_region ]
@@ -1754,8 +1751,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ~access_size:(One_twenty_eight { aligned })
         Bigstring (Some mode) ~boxed big_str ~index_kind index ~current_region
     ]
-  | ( Pbigstring_set_16 { unsafe; index_kind },
-      [[bigstring]; [index]; [new_value]] )
+  | Pbigstring_set_16 { unsafe; index_kind }, [[bigstring]; [index]; [new_value]]
     ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixteen Bigstring
         ~boxed:false bigstring ~index_kind index new_value ]
