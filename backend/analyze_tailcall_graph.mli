@@ -46,10 +46,13 @@ end
 
 (* When we inline, we don't merge the position_and_tail_attribute. This means
    that we might report false positives when warning about inferred tails in
-   TCO'd cycles: if A has inferred tails and is called in B in non-tail
-   position, it keeps its inferred tail attribute when inlined into B. Then, we
-   may incorrectly report that B has inferred nontail calls, even if B does not
-   tail-call anything itself.
+   TCO'd cycles: if A calls B in Tail_position Default_tail, and A is inlined
+   into C, the calls to B keep their Tail_position Default_tail. Then, when we
+   see these calls in the backend, they are not tail calls (because they cannot
+   actually be optimized to tail calls because they are not in tail position),
+   and we incorrectly deduce that C has inferred nontail calls. Furthermore, if
+   these (deduced wrong) nontail calls participate in a TCO'd cycle, we will
+   raise supurious inferred-nontail-in-tcod-cycle warnings.
 
    In the future should properly merge the attributes, but a workaround we do
    here is to traverse the CMM to replace position_and_tail_attributes in
