@@ -45,7 +45,6 @@ let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
     let var_to_block_temp = Reg.Tbl.create 8 in
     let replacements = Reg.Tbl.create 8 in
     let last_spill = Reg.Tbl.create 8 in
-    let redundant = ref [] in
     let replace to_replace replace_with =
       if not (Reg.same to_replace replace_with)
       then Reg.Tbl.add replacements to_replace replace_with
@@ -59,14 +58,14 @@ let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
         match Reg.Tbl.find_opt var_to_block_temp var with
         | None -> Reg.Tbl.add var_to_block_temp var temp
         | Some block_temp ->
-          redundant := inst_cell :: !redundant;
+          DLL.delete_curr inst_cell;
           replace temp block_temp)
       | Op Spill -> (
         let var = inst.res.(0) in
         let temp = inst.arg.(0) in
         (match Reg.Tbl.find_opt last_spill var with
         | None -> ()
-        | Some prev_inst_cell -> redundant := prev_inst_cell :: !redundant);
+        | Some prev_inst_cell -> DLL.delete_curr prev_inst_cell);
         Reg.Tbl.replace last_spill var inst_cell;
         match Reg.Tbl.find_opt var_to_block_temp var with
         | None -> Reg.Tbl.add var_to_block_temp var temp
@@ -74,7 +73,6 @@ let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
       | _ -> ()
     in
     DLL.iter_cell block.body ~f:update_info_using_inst;
-    List.iter ~f:DLL.delete_curr !redundant;
     Substitution.apply_block_in_place replacements block;
     Reg.Tbl.iter
       (fun temp block_temp ->
