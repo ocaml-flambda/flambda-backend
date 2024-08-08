@@ -132,6 +132,8 @@ end = struct
 
       let equal t1 t2 = id t1 = id t2
 
+      let compare t1 t2 = Int.compare (id t1) (id t2)
+
       let hash t = Int.hash (id t)
     end
 
@@ -199,6 +201,8 @@ end = struct
           | Unknown_position_nontail_edge -> 3
           | Inferred_tail_edge -> 4
           | Inferred_nontail_edge -> 5
+
+        let compare t1 t2 = hash t1 - hash t2
       end
 
       type t =
@@ -216,6 +220,14 @@ end = struct
         Vertex.equal e1.from e2.from
         && Label.equal e1.label e2.label
         && Vertex.equal e1.to_ e2.to_
+
+      let compare e1 e2 =
+        let c = Vertex.compare e1.from e2.from in
+        if c <> 0
+        then c
+        else
+          let c = Label.compare e1.label e2.label in
+          if c <> 0 then c else Vertex.compare e1.to_ e2.to_
 
       let hash e1 =
         Vertex.hash e1.from + Label.hash e1.label + Vertex.hash e1.to_
@@ -240,36 +252,28 @@ end = struct
       Format.sprintf "%s (%s)" escaped_loc label
 
     module Tbl = Hashtbl.Make (T)
-    module Hashset = Hashset.Make (Tbl)
   end
 
   type t =
     { vertex_by_name : Vertex.t String.Tbl.t;
-      (* Stores edges modulo location information: this 1) makes the graph
-         smaller when decomposing SCCS and 2) locations are not hashable. *)
-      adjacencies_mod_loc : Edge.Hashset.t Vertex.Tbl.t;
-      (* Stores the adjacencies with location information, which may result in
-         "duplicate" edges. E.g. if A calls B in tail position multiple times in
-         different locations, we will record one edge for each call. (Each call
-         should be treated as distinct when emitting warnings.
+      (* This is a table from Vertex.t (a function definition) to a table of
+         edges (keyed by target function and call type) to a list of locations
+         (using Edge.Tbl.t as a multimap).
 
-         Edges from Unknown_fn are not stored in here, since we don't want/need
-         to emit warnings for them, and they don't have a location.
-
-         Vertex.Tbl is a multimap, so this is really a map from a vertex to a
-         list of its edges. *)
-      adjacencies_with_loc : Edge.with_loc Vertex.Tbl.t
+         Each location for an edge corresponds to a distinct callsite inside the
+         function. E.g. if A calls B in tail position multiple times in
+         different locations, we will record one location for each call. We need
+         to treat each call as distinct when emitting warnings. *)
+      adjacencies : Location.t Edge.Tbl.t Vertex.Tbl.t
     }
 
   let init_unknown_edges t =
-    Vertex.Tbl.replace t.adjacencies_mod_loc Vertex.unknown
-      (Edge.Hashset.create 100)
+    Vertex.Tbl.replace t.adjacencies Vertex.unknown (Edge.Tbl.create 100)
 
   let create () =
     let t =
       { vertex_by_name = String.Tbl.create 100;
-        adjacencies_mod_loc = Vertex.Tbl.create 100;
-        adjacencies_with_loc = Vertex.Tbl.create 100
+        adjacencies = Vertex.Tbl.create 100
       }
     in
     init_unknown_edges t;
@@ -277,15 +281,22 @@ end = struct
 
   let reset t =
     String.Tbl.reset t.vertex_by_name;
-    Vertex.Tbl.reset t.adjacencies_mod_loc;
-    Vertex.Tbl.reset t.adjacencies_with_loc;
+    Vertex.Tbl.reset t.adjacencies;
     init_unknown_edges t
 
-  let successors_mod_loc t (v : Vertex.t) : Edge.Hashset.t =
-    Vertex.Tbl.find t.adjacencies_mod_loc v
+  let successors_mod_loc t (v : Vertex.t) : Edge.t Seq.t =
+    Vertex.Tbl.find t.adjacencies v |> Edge.Tbl.to_seq_keys
 
+  (* Prefer sorting lexiographically by location so that warnings are emitted in
+     source order, and also so that the dot order is deterministic. *)
   let successors t (v : Vertex.t) : Edge.with_loc list =
-    Vertex.Tbl.find_all t.adjacencies_with_loc v
+    Vertex.Tbl.find t.adjacencies v
+    |> Edge.Tbl.to_seq
+    |> Seq.map (fun (e, loc) : Edge.with_loc -> { edge = e; loc })
+    |> List.of_seq
+    |> List.sort (fun (e1 : Edge.with_loc) (e2 : Edge.with_loc) ->
+           let c = Location.compare e1.loc e2.loc in
+           if c <> 0 then c else Edge.compare e1.edge e2.edge)
 
   let find_or_add_vertex t ~(fn_name : string) : Vertex.t =
     let vertex =
@@ -299,11 +310,12 @@ end = struct
         let edge_from_unknown : Edge.t =
           { from = unknown; to_ = vertex; label = Explicit_tail_edge }
         in
-        Edge.Hashset.add (successors_mod_loc t unknown) edge_from_unknown;
+        let edges_from_unknown = Vertex.Tbl.find t.adjacencies unknown in
+        Edge.Tbl.add edges_from_unknown edge_from_unknown Location.none;
         (* Initialize vertex's adjacency set. The adjacency list is already
            initialized because we use Vertex.Tbl as a multimap.*)
-        let edges_from_vertex = Edge.Hashset.create 10 in
-        Vertex.Tbl.add t.adjacencies_mod_loc vertex edges_from_vertex;
+        let edges_from_vertex = Edge.Tbl.create 10 in
+        Vertex.Tbl.add t.adjacencies vertex edges_from_vertex;
         vertex
       | Some vertex -> vertex
     in
@@ -373,11 +385,9 @@ end = struct
          created) *)
       ()
     | Known_fn _ ->
-      let edges = Vertex.Tbl.find t.adjacencies_mod_loc from in
-      Edge.Hashset.add edges edge;
-      let with_loc : Edge.with_loc = { edge; loc } in
       (* `from`'s adjacency list was initialized in `find_or_add_vertex` *)
-      Vertex.Tbl.add t.adjacencies_with_loc from with_loc
+      let edges = Vertex.Tbl.find t.adjacencies from in
+      Edge.Tbl.add edges edge loc
 
   type vertex_state =
     { preorder : int;
@@ -391,7 +401,7 @@ end = struct
   let decompose_tailcall_sccs t =
     (* CR less-tco: Refactor this to be more functional. *)
     let states =
-      t.adjacencies_mod_loc |> Vertex.Tbl.to_seq_keys
+      t.adjacencies |> Vertex.Tbl.to_seq_keys
       |> Seq.map (fun v -> v, Not_visited)
       |> Vertex.Tbl.of_seq
     in
@@ -421,8 +431,8 @@ end = struct
       push_vertex vertex;
       (* Recursively traverse successors_mod_loc and update this vertex's state
          accordingly. *)
-      Edge.Hashset.iter (successors_mod_loc t vertex)
-        ~f:(fun { label; to_; _ } ->
+      Seq.iter
+        (fun ({ label; to_; _ } : Edge.t) ->
           match label with
           | Explicit_nontail_edge | Unknown_position_nontail_edge ->
             (* Ignore these; before less-tco they already allocate stack space,
@@ -439,7 +449,8 @@ end = struct
               if Vertex.Hashset.mem stack_set to_
               then
                 (* Back-edge *)
-                state.lowlink <- min state.lowlink to_state.preorder));
+                state.lowlink <- min state.lowlink to_state.preorder))
+        (successors_mod_loc t vertex);
       (* After recursively visiting all successors, if the original vertex is
          the root of the SCC in the DFS tree, pop from the stack to get all the
          vertices in the SCC. *)
@@ -457,25 +468,24 @@ end = struct
       state
     in
     Vertex.Tbl.iter
-      (fun v _edges ->
+      (fun v (_ : Location.t Edge.Tbl.t) ->
         match Vertex.Tbl.find states v with
         | Not_visited -> ignore (visit v)
         | Visited _ -> ())
-      t.adjacencies_mod_loc;
+      t.adjacencies;
     sccs |> Stack.to_seq |> List.of_seq
 
   let possibly_newly_overflowing_edges t ~(scc : Vertex.Hashset.t) =
-    Vertex.Hashset.to_seq scc
-    |> Seq.concat_map (fun v ->
-           successors t v |> List.to_seq
-           |> Seq.filter (fun (e : Edge.with_loc) ->
+    Vertex.Hashset.to_seq scc |> List.of_seq
+    |> List.concat_map (fun v ->
+           successors t v
+           |> List.filter (fun (e : Edge.with_loc) ->
                   match e.edge.label with
                   | Explicit_tail_edge | Explicit_nontail_edge
                   | Unknown_position_tail_edge | Unknown_position_nontail_edge
                   | Inferred_tail_edge ->
                     false
                   | Inferred_nontail_edge -> Vertex.Hashset.mem scc e.edge.to_))
-    |> List.of_seq
 
   let warn_inferred_nontail_in_tco'd_cycle t ~sccs =
     sccs

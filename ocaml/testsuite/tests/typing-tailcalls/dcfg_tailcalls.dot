@@ -6,8 +6,8 @@ digraph {
     color=mistyrose
     style=filled
     32 [label="camlDcfg_tailcalls__cps_style0_31_79_code" color="black" fontcolor="black"]
-    32 -> 33 [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 115, characters 4-18 (inferred tail)"]
     32 -> unknown [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 112, characters 16-19 (inferred nontail)"]
+    32 -> 33 [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 115, characters 4-18 (inferred tail)"]
     33 [label="camlDcfg_tailcalls__cps_style1_32_80_code" color="black" fontcolor="black"]
     33 -> 34 [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 119, characters 2-16 (inferred tail)"]
     49 [label="camlDcfg_tailcalls__foo_optional_arg_inline_never_47_48_code" color="black" fontcolor="black"]
@@ -27,11 +27,11 @@ digraph {
     40 [label="camlDcfg_tailcalls__next_39_87_code" color="black" fontcolor="black"]
     40 -> 39 [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 144, characters 39-66 (inferred tail)"]
     25 [label="camlDcfg_tailcalls__mutually_recursive_and_calls_parameter0_25_73_code" color="black" fontcolor="black"]
-    25 -> unknown [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 100, characters 72-78 (inferred nontail)"]
     25 -> 26 [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 100, characters 16-66 (inferred tail)"]
+    25 -> unknown [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 100, characters 72-78 (inferred nontail)"]
     26 [label="camlDcfg_tailcalls__mutually_recursive_and_calls_parameter1_26_74_code" color="black" fontcolor="black"]
-    26 -> unknown [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 102, characters 72-79 (inferred nontail)"]
     26 -> 25 [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 102, characters 16-66 (inferred tail)"]
+    26 -> unknown [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 102, characters 72-79 (inferred nontail)"]
     unknown [label="<unknown>" color="red" fontcolor="red"]
     47 [label="camlDcfg_tailcalls__foo_optional_arg_45_46_code" color="black" fontcolor="black"]
     47 -> unknown [color="black" style="dashed" label="File \"dcfg_tailcalls.ml\", lines 186-187, characters 21-7 (unknown_pos tail)"]
@@ -167,9 +167,9 @@ digraph {
     style=invis
     17 [label="camlDcfg_tailcalls__calls_same_caller_multiple_applications_17_66_code" color="black" fontcolor="black"]
   }
-  17 -> 16 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 67, characters 9-50 (inferred nontail)"]
-  17 -> 16 [color="black" style="solid" label="File \"dcfg_tailcalls.ml\", line 65, characters 9-50 (explicit tail)"]
   17 -> 16 [color="black" style="solid" label="File \"dcfg_tailcalls.ml\", line 64, characters 9-50 (explicit tail)"]
+  17 -> 16 [color="black" style="solid" label="File \"dcfg_tailcalls.ml\", line 65, characters 9-50 (explicit tail)"]
+  17 -> 16 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 67, characters 9-50 (inferred nontail)"]
 
   subgraph cluster_21 {
     label="21"
