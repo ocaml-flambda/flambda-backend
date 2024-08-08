@@ -499,7 +499,7 @@ let[@inline] mem_inst_temporaries state reg =
   Reg.Set.mem reg state.inst_temporaries
 
 let[@inline] mem_block_temporaries state reg =
-  Reg.Set.mem reg state.inst_temporaries
+  Reg.Set.mem reg state.block_temporaries
 
 let[@inline] mem_all_introduced_temporaries state reg =
   mem_inst_temporaries state reg || mem_block_temporaries state reg
