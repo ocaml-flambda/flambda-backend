@@ -423,6 +423,9 @@ and expression i ppf x =
       payload i ppf arg
   | Pexp_unreachable ->
       line i ppf "Pexp_unreachable"
+  | Pexp_stack e ->
+      line i ppf "Pexp_stack\n";
+      expression i ppf e
   )
 
 and jkind_annotation i ppf (jkind : jkind_annotation) =
