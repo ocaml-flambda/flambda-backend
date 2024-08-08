@@ -73,13 +73,15 @@ let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
       | _ -> ()
     in
     DLL.iter_cell block.body ~f:update_info_using_inst;
-    Substitution.apply_block_in_place replacements block;
-    Reg.Tbl.iter
-      (fun temp block_temp ->
-        Reg.Tbl.replace removed_inst_temporaries temp ();
-        Reg.Tbl.replace removed_inst_temporaries block_temp ();
-        Reg.Tbl.replace block_temporaries block_temp ())
-      replacements
+    if Reg.Tbl.length replacements <> 0
+    then (
+      Substitution.apply_block_in_place replacements block;
+      Reg.Tbl.iter
+        (fun temp block_temp ->
+          Reg.Tbl.replace removed_inst_temporaries temp ();
+          Reg.Tbl.replace removed_inst_temporaries block_temp ();
+          Reg.Tbl.replace block_temporaries block_temp ())
+        replacements)
   in
   Cfg_with_infos.cfg cfg_with_infos
   |> Cfg.iter_blocks ~f:coalesce_temp_spills_and_reloads_per_block;
