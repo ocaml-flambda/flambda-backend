@@ -293,7 +293,7 @@ let compute_static_size lam =
     | Pandint | Porint | Pxorint
     | Plslint | Plsrint | Pasrint
     | Pintcomp _
-    | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+    | Pcompare_ints _ | Pcompare_floats _ | Pcompare_bints _
     | Pintoffloat _ | Pfloatofint _
     | Pnegfloat _ | Pabsfloat _
     | Paddfloat _ | Psubfloat _ | Pmulfloat _ | Pdivfloat _
@@ -375,7 +375,7 @@ let compute_static_size lam =
     | Pufloatfield (_, _)
     | Punboxed_product_field (_, _)
     | Punboxed_float_comp (_, _)
-    | Punboxed_int_comp (_, _)
+    | Punboxed_int_comp _
     | Pstring_load_128 _
     | Pbytes_load_128 _
     | Pbigstring_load_128 _

@@ -383,12 +383,14 @@ let rec_catch_for_for_loop env loc ident start stop
   let stop_ident = Ident.create_local "for_stop" in
   let first_test : L.lambda =
     match dir with
-    | Upto -> Lprim (Pintcomp Cle, [L.Lvar start_ident; L.Lvar stop_ident], loc)
+    | Upto -> Lprim (Pintcomp { comp = Cle; signed =true },
+                     [L.Lvar start_ident; L.Lvar stop_ident], loc)
     | Downto ->
-      Lprim (Pintcomp Cge, [L.Lvar start_ident; L.Lvar stop_ident], loc)
+      Lprim (Pintcomp { comp = Cge; signed = true },
+             [L.Lvar start_ident; L.Lvar stop_ident], loc)
   in
   let subsequent_test : L.lambda =
-    Lprim (Pintcomp Cne, [L.Lvar ident; L.Lvar stop_ident], loc)
+    Lprim (Pintcomp { comp = Cne; signed = true }, [L.Lvar ident; L.Lvar stop_ident], loc)
   in
   let one : L.lambda = Lconst (Const_base (Const_int 1)) in
   let next_value_of_counter =
@@ -671,7 +673,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pmakeufloatblock _ | Pufloatfield _ | Psetufloatfield _ | Psequand | Psequor
   | Pmixedfield _ | Psetmixedfield _ | Pmakemixedblock _ | Pnot | Pnegint
   | Paddint | Psubint | Pmulint | Pandint | Porint | Pxorint | Plslint | Plsrint
-  | Pasrint | Pintcomp _ | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+  | Pasrint | Pintcomp _ | Pcompare_ints _ | Pcompare_floats _ | Pcompare_bints _
   | Poffsetint _ | Poffsetref _ | Pintoffloat _
   | Pfloatofint (_, _)
   | Pfloatoffloat32 _ | Pfloat32offloat _

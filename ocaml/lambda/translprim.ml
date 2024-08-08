@@ -27,6 +27,7 @@ type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
   | Invalid_floatarray_glb
+  | Unsigned_primitive_not_supported of string
 
 exception Error of Location.t * error
 
@@ -60,15 +61,15 @@ type comparison =
   | Compare
 
 type comparison_kind =
-  | Compare_generic
-  | Compare_ints
+  | Compare_generic of { signed : bool }
+  | Compare_ints of { signed : bool }
   | Compare_floats
   | Compare_float32s
   | Compare_strings
   | Compare_bytes
-  | Compare_nativeints
-  | Compare_int32s
-  | Compare_int64s
+  | Compare_nativeints of { signed : bool }
+  | Compare_int32s of { signed : bool }
+  | Compare_int64s of { signed : bool }
 
 type loc_kind =
   | Loc_FILE
@@ -261,12 +262,12 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%lslint" -> Primitive (Plslint, 2)
     | "%lsrint" -> Primitive (Plsrint, 2)
     | "%asrint" -> Primitive (Pasrint, 2)
-    | "%eq" -> Primitive ((Pintcomp Ceq), 2)
-    | "%noteq" -> Primitive ((Pintcomp Cne), 2)
-    | "%ltint" -> Primitive ((Pintcomp Clt), 2)
-    | "%leint" -> Primitive ((Pintcomp Cle), 2)
-    | "%gtint" -> Primitive ((Pintcomp Cgt), 2)
-    | "%geint" -> Primitive ((Pintcomp Cge), 2)
+    | "%eq" -> Primitive ((Pintcomp { comp = Ceq; signed = true }), 2)
+    | "%noteq" -> Primitive ((Pintcomp { comp = Cne; signed = true }), 2)
+    | "%ltint" -> Primitive ((Pintcomp { comp = Clt; signed = true }), 2)
+    | "%leint" -> Primitive ((Pintcomp { comp = Cle; signed = true }), 2)
+    | "%gtint" -> Primitive ((Pintcomp { comp = Cgt; signed = true }), 2)
+    | "%geint" -> Primitive ((Pintcomp { comp = Cge; signed = true }), 2)
     | "%incr" -> Primitive ((Poffsetref(1)), 1)
     | "%decr" -> Primitive ((Poffsetref(-1)), 1)
     | "%floatoffloat32" -> Primitive (Pfloatoffloat32 mode, 1)
@@ -773,13 +774,23 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%send" -> Send (pos, layout)
     | "%sendself" -> Send_self (pos, layout)
     | "%sendcache" -> Send_cache (pos, layout)
-    | "%equal" -> Comparison(Equal, Compare_generic)
-    | "%notequal" -> Comparison(Not_equal, Compare_generic)
-    | "%lessequal" -> Comparison(Less_equal, Compare_generic)
-    | "%lessthan" -> Comparison(Less_than, Compare_generic)
-    | "%greaterequal" -> Comparison(Greater_equal, Compare_generic)
-    | "%greaterthan" -> Comparison(Greater_than, Compare_generic)
-    | "%compare" -> Comparison(Compare, Compare_generic)
+    | "%equal" -> Comparison(Equal, Compare_generic { signed = true })
+    | "%notequal" -> Comparison(Not_equal, Compare_generic { signed = true })
+    | "%lessequal" -> Comparison(Less_equal, Compare_generic { signed = true })
+    | "%lessthan" -> Comparison(Less_than, Compare_generic { signed = true })
+    | "%greaterequal" -> Comparison(Greater_equal, Compare_generic { signed = true })
+    | "%greaterthan" -> Comparison(Greater_than, Compare_generic { signed = true })
+    | "%compare" -> Comparison(Compare, Compare_generic { signed = true })
+    | "%lessequal_unsigned" ->
+      Comparison(Less_equal, Compare_generic { signed = false })
+    | "%lessthan_unsigned" ->
+      Comparison(Less_than, Compare_generic { signed = false })
+    | "%greaterequal_unsigned" ->
+      Comparison(Greater_equal, Compare_generic { signed = false })
+    | "%greaterthan_unsigned" ->
+      Comparison(Greater_than, Compare_generic { signed = false })
+    | "%compare_unsigned" ->
+      Comparison(Compare, Compare_generic { signed = false })
     | "%obj_dup" -> Primitive(Pobj_dup, 1)
     | "%obj_magic" -> Primitive(Pobj_magic layout, 1)
     | "%array_to_iarray" -> Primitive (Parray_to_iarray, 1)
@@ -993,7 +1004,7 @@ let glb_array_set_type loc t1 t2 =
 (* Specialize a primitive from available type information. *)
 (* CR layouts v7: This function had a loc argument added just to support the void
    check error message.  Take it out when we remove that. *)
-let specialize_primitive env loc ty ~has_constant_constructor prim =
+let specialize_primitive env loc ty ~has_constant_constructor ~prim_name prim =
   let param_tys =
     match is_function_type env ty with
     | None -> []
@@ -1090,29 +1101,31 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
         | Some (_p1, rhs) -> maybe_pointer_type env rhs in
       Some (Primitive (Patomic_load {immediate_or_pointer = is_int}, arity))
     end
-  | Comparison(comp, Compare_generic), p1 :: _ ->
+  | Comparison(comp, Compare_generic { signed }), p1 :: _ ->
     if (has_constant_constructor
         && simplify_constant_constructor comp) then begin
-      Some (Comparison(comp, Compare_ints))
+      Some (Comparison(comp, Compare_ints { signed }))
     end else if (is_base_type env p1 Predef.path_int
         || is_base_type env p1 Predef.path_char
         || (maybe_pointer_type env p1 = Immediate)) then begin
-      Some (Comparison(comp, Compare_ints))
-    end else if is_base_type env p1 Predef.path_float then begin
+      Some (Comparison(comp, Compare_ints { signed }))
+    end else if is_base_type env p1 Predef.path_float && signed then begin
       Some (Comparison(comp, Compare_floats))
-    end else if is_base_type env p1 Predef.path_float32 then begin
+    end else if is_base_type env p1 Predef.path_float32 && signed then begin
       Some (Comparison(comp, Compare_float32s))
-    end else if is_base_type env p1 Predef.path_string then begin
+    end else if is_base_type env p1 Predef.path_string && signed then begin
       Some (Comparison(comp, Compare_strings))
-    end else if is_base_type env p1 Predef.path_bytes then begin
+    end else if is_base_type env p1 Predef.path_bytes && signed then begin
       Some (Comparison(comp, Compare_bytes))
     end else if is_base_type env p1 Predef.path_nativeint then begin
-      Some (Comparison(comp, Compare_nativeints))
+      Some (Comparison(comp, Compare_nativeints { signed }))
     end else if is_base_type env p1 Predef.path_int32 then begin
-      Some (Comparison(comp, Compare_int32s))
+      Some (Comparison(comp, Compare_int32s { signed }))
     end else if is_base_type env p1 Predef.path_int64 then begin
-      Some (Comparison(comp, Compare_int64s))
+      Some (Comparison(comp, Compare_int64s { signed }))
     end else begin
+      if not signed then
+        raise(Error(to_location loc, Unsigned_primitive_not_supported prim_name));
       None
     end
   | _ -> None
@@ -1166,69 +1179,96 @@ let caml_bytes_compare =
 
 let comparison_primitive comparison comparison_kind =
   match comparison, comparison_kind with
-  | Equal, Compare_generic -> Pccall caml_equal
-  | Equal, Compare_ints -> Pintcomp Ceq
+  | Equal, Compare_generic { signed = true } -> Pccall caml_equal
+  | Equal, Compare_ints { signed = true } -> Pintcomp { comp = Ceq; signed = true; }
   | Equal, Compare_floats -> Pfloatcomp (Pfloat64, CFeq)
   | Equal, Compare_float32s -> Pfloatcomp (Pfloat32, CFeq)
   | Equal, Compare_strings -> Pccall caml_string_equal
   | Equal, Compare_bytes -> Pccall caml_bytes_equal
-  | Equal, Compare_nativeints -> Pbintcomp(Pnativeint, Ceq)
-  | Equal, Compare_int32s -> Pbintcomp(Pint32, Ceq)
-  | Equal, Compare_int64s -> Pbintcomp(Pint64, Ceq)
-  | Not_equal, Compare_generic -> Pccall caml_notequal
-  | Not_equal, Compare_ints -> Pintcomp Cne
+  | Equal, Compare_nativeints { signed = true } ->
+    Pbintcomp { size = Pnativeint; comp = Ceq; signed = true; }
+  | Equal, Compare_int32s { signed = true } ->
+    Pbintcomp { size = Pint32; comp = Ceq; signed = true; }
+  | Equal, Compare_int64s { signed = true } ->
+    Pbintcomp { size = Pint64; comp = Ceq; signed = true; }
+  | Not_equal, Compare_generic { signed = true } -> Pccall caml_notequal
+  | Not_equal, Compare_ints { signed = true } -> Pintcomp { comp = Cne; signed = true}
   | Not_equal, Compare_floats -> Pfloatcomp (Pfloat64, CFneq)
   | Not_equal, Compare_float32s -> Pfloatcomp (Pfloat32, CFneq)
   | Not_equal, Compare_strings -> Pccall caml_string_notequal
   | Not_equal, Compare_bytes -> Pccall caml_bytes_notequal
-  | Not_equal, Compare_nativeints -> Pbintcomp(Pnativeint, Cne)
-  | Not_equal, Compare_int32s -> Pbintcomp(Pint32, Cne)
-  | Not_equal, Compare_int64s -> Pbintcomp(Pint64, Cne)
-  | Less_equal, Compare_generic -> Pccall caml_lessequal
-  | Less_equal, Compare_ints -> Pintcomp Cle
+  | Not_equal, Compare_nativeints { signed = true } ->
+    Pbintcomp { size = Pnativeint; comp = Cne; signed = true}
+  | Not_equal, Compare_int32s { signed = true } ->
+    Pbintcomp { size = Pint32; comp = Cne; signed = true}
+  | Not_equal, Compare_int64s { signed = true } ->
+    Pbintcomp { size = Pint64; comp = Cne; signed = true }
+  | Less_equal, Compare_generic { signed = true } -> Pccall caml_lessequal
+  | Less_equal, Compare_ints { signed } -> Pintcomp { comp = Cle; signed }
   | Less_equal, Compare_floats -> Pfloatcomp (Pfloat64, CFle)
   | Less_equal, Compare_float32s -> Pfloatcomp (Pfloat32, CFle)
   | Less_equal, Compare_strings -> Pccall caml_string_lessequal
   | Less_equal, Compare_bytes -> Pccall caml_bytes_lessequal
-  | Less_equal, Compare_nativeints -> Pbintcomp(Pnativeint, Cle)
-  | Less_equal, Compare_int32s -> Pbintcomp(Pint32, Cle)
-  | Less_equal, Compare_int64s -> Pbintcomp(Pint64, Cle)
-  | Less_than, Compare_generic -> Pccall caml_lessthan
-  | Less_than, Compare_ints -> Pintcomp Clt
+  | Less_equal, Compare_nativeints { signed } ->
+    Pbintcomp { size = Pnativeint; comp = Cle; signed }
+  | Less_equal, Compare_int32s { signed } ->
+    Pbintcomp { size = Pint32; comp = Cle; signed }
+  | Less_equal, Compare_int64s { signed } ->
+    Pbintcomp { size = Pint64; comp = Cle; signed }
+  | Less_than, Compare_generic { signed = true } -> Pccall caml_lessthan
+  | Less_than, Compare_ints { signed } -> Pintcomp { comp = Clt; signed }
   | Less_than, Compare_floats -> Pfloatcomp (Pfloat64, CFlt)
   | Less_than, Compare_float32s -> Pfloatcomp (Pfloat32, CFlt)
   | Less_than, Compare_strings -> Pccall caml_string_lessthan
   | Less_than, Compare_bytes -> Pccall caml_bytes_lessthan
-  | Less_than, Compare_nativeints -> Pbintcomp(Pnativeint, Clt)
-  | Less_than, Compare_int32s -> Pbintcomp(Pint32, Clt)
-  | Less_than, Compare_int64s -> Pbintcomp(Pint64, Clt)
-  | Greater_equal, Compare_generic -> Pccall caml_greaterequal
-  | Greater_equal, Compare_ints -> Pintcomp Cge
+  | Less_than, Compare_nativeints { signed } ->
+    Pbintcomp { size = Pnativeint; comp = Clt; signed }
+  | Less_than, Compare_int32s { signed } ->
+    Pbintcomp { size = Pint32; comp = Clt; signed }
+  | Less_than, Compare_int64s { signed } ->
+    Pbintcomp { size = Pint64; comp = Clt; signed }
+  | Greater_equal, Compare_generic { signed = true } -> Pccall caml_greaterequal
+  | Greater_equal, Compare_ints { signed } -> Pintcomp { comp = Cge; signed }
   | Greater_equal, Compare_floats -> Pfloatcomp (Pfloat64, CFge)
   | Greater_equal, Compare_float32s -> Pfloatcomp (Pfloat32, CFge)
   | Greater_equal, Compare_strings -> Pccall caml_string_greaterequal
   | Greater_equal, Compare_bytes -> Pccall caml_bytes_greaterequal
-  | Greater_equal, Compare_nativeints -> Pbintcomp(Pnativeint, Cge)
-  | Greater_equal, Compare_int32s -> Pbintcomp(Pint32, Cge)
-  | Greater_equal, Compare_int64s -> Pbintcomp(Pint64, Cge)
-  | Greater_than, Compare_generic -> Pccall caml_greaterthan
-  | Greater_than, Compare_ints -> Pintcomp Cgt
+  | Greater_equal, Compare_nativeints { signed } ->
+    Pbintcomp { size = Pnativeint; comp = Cge; signed }
+  | Greater_equal, Compare_int32s { signed } ->
+    Pbintcomp { size = Pint32; comp = Cge; signed }
+  | Greater_equal, Compare_int64s { signed } ->
+    Pbintcomp { size = Pint64; comp = Cge; signed }
+  | Greater_than, Compare_generic { signed = true } -> Pccall caml_greaterthan
+  | Greater_than, Compare_ints { signed } -> Pintcomp { comp = Cgt; signed }
   | Greater_than, Compare_floats -> Pfloatcomp (Pfloat64, CFgt)
   | Greater_than, Compare_float32s -> Pfloatcomp (Pfloat32, CFgt)
   | Greater_than, Compare_strings -> Pccall caml_string_greaterthan
   | Greater_than, Compare_bytes -> Pccall caml_bytes_greaterthan
-  | Greater_than, Compare_nativeints -> Pbintcomp(Pnativeint, Cgt)
-  | Greater_than, Compare_int32s -> Pbintcomp(Pint32, Cgt)
-  | Greater_than, Compare_int64s -> Pbintcomp(Pint64, Cgt)
-  | Compare, Compare_generic -> Pccall caml_compare
-  | Compare, Compare_ints -> Pcompare_ints
+  | Greater_than, Compare_nativeints { signed } ->
+    Pbintcomp { size = Pnativeint; comp = Cgt; signed }
+  | Greater_than, Compare_int32s { signed } ->
+    Pbintcomp { size = Pint32; comp = Cgt; signed }
+  | Greater_than, Compare_int64s { signed } ->
+    Pbintcomp { size = Pint64; comp = Cgt; signed }
+  | Compare, Compare_generic { signed = true } -> Pccall caml_compare
+  | Compare, Compare_ints { signed }  -> Pcompare_ints { signed }
   | Compare, Compare_floats -> Pcompare_floats Pfloat64
   | Compare, Compare_float32s -> Pcompare_floats Pfloat32
   | Compare, Compare_strings -> Pccall caml_string_compare
   | Compare, Compare_bytes -> Pccall caml_bytes_compare
-  | Compare, Compare_nativeints -> Pcompare_bints Pnativeint
-  | Compare, Compare_int32s -> Pcompare_bints Pint32
-  | Compare, Compare_int64s -> Pcompare_bints Pint64
+  | Compare, Compare_nativeints { signed } ->
+    Pcompare_bints { size = Pnativeint; signed }
+  | Compare, Compare_int32s { signed } ->
+    Pcompare_bints { size = Pint32; signed }
+  | Compare, Compare_int64s { signed } ->
+    Pcompare_bints { size = Pint64; signed }
+  | (Equal | Not_equal | Less_equal | Less_than
+    | Greater_equal | Greater_than | Compare),
+    Compare_generic { signed = false } ->
+    Misc.fatal_error "Unexpected unsigned primitive with generic compare."
+  | (Equal | Not_equal), _ ->
+    Misc.fatal_error "Unexpected unsigned equal not_equal primitive"
 
 let lambda_of_loc kind sloc =
   let loc = to_location sloc in
@@ -1425,7 +1465,8 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
   in
   let has_constant_constructor = false in
   let prim =
-    match specialize_primitive env loc ty ~has_constant_constructor prim with
+    match specialize_primitive env loc ty ~has_constant_constructor
+            ~prim_name:p.prim_name prim with
     | None -> prim
     | Some prim -> prim
   in
@@ -1579,7 +1620,7 @@ let lambda_primitive_needs_event_after = function
   | Psequor | Psequand | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
-  | Pcompare_ints | Pcompare_floats _
+  | Pcompare_ints _ | Pcompare_floats _
   | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
   | Pbytessetu
@@ -1622,7 +1663,8 @@ let transl_primitive_application loc p env ty ~poly_mode ~poly_sort
     | _ -> false
   in
   let prim =
-    match specialize_primitive env loc ty ~has_constant_constructor prim with
+    match specialize_primitive env loc ty ~has_constant_constructor
+            ~prim_name:p.prim_name prim with
     | None -> prim
     | Some prim -> prim
   in
@@ -1651,6 +1693,10 @@ let report_error ppf = function
       fprintf ppf
         "@[Floatarray primitives can't be used on arrays containing@ \
            unboxed types.@]"
+  | Unsigned_primitive_not_supported prim_name ->
+    fprintf ppf "Unsigned comparison primitive is supported only for \
+                 immediate, int64, int32, nativeint: \"%s\"" prim_name
+
 let () =
   Location.register_error_of_exn
     (function

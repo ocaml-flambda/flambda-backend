@@ -122,17 +122,17 @@ module Lambda_utils = struct
 
       let ( / ) = binop (Pdivint Unsafe)
 
-      let ( = ) = binop (Pintcomp Ceq)
+      let ( = ) = binop (Pintcomp { comp = Ceq; signed = true } )
 
-      let ( <> ) = binop (Pintcomp Cne)
+      let ( <> ) = binop (Pintcomp { comp = Cne; signed = true })
 
-      let ( < ) = binop (Pintcomp Clt)
+      let ( < ) = binop (Pintcomp { comp = Clt; signed = true })
 
-      let ( > ) = binop (Pintcomp Cgt)
+      let ( > ) = binop (Pintcomp { comp = Cgt; signed = true })
 
-      let ( <= ) = binop (Pintcomp Cle)
+      let ( <= ) = binop (Pintcomp { comp = Cle; signed = true })
 
-      let ( >= ) = binop (Pintcomp Cge)
+      let ( >= ) = binop (Pintcomp { comp = Cge; signed = true })
 
       let ( && ) = binop Psequor
 
