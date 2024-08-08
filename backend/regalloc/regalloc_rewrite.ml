@@ -38,9 +38,22 @@ type direction =
   | Load_after_list of Cfg.basic_instruction_list
   | Store_before_list of Cfg.basic_instruction_list
 
+(* Applies an optimization on the CFG outputted by [rewrite_gen] having one
+   temporary per variable per block rather than one per use of the variable,
+   reducing the number of spills and reloads needed for variables used multiple
+   times in a block. It iterates over each block and builds a subsitution from
+   the first used temporary for each variable to all the other temporaries used
+   later for that variable, deleting now redundant reload/spill instructions
+   along the way. This currently does not support the case where spilled nodes
+   are used directly in instructions (if allowed by the ISA) without a new
+   temporary being created. This optimization does not use spills introduced in
+   inserted blocks due to spilling in the terminator to remove spills in the
+   original block. Returns the new block temporaries and removes the now block
+   temporaries and the instruction temporaries for now removed instructions from
+   [new_temporaries]. *)
 let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
   let removed_inst_temporaries = Reg.Tbl.create 128 in
-  let block_temporaries = Reg.Tbl.create 128 in
+  let new_block_temporaries = Reg.Tbl.create 128 in
   let coalesce_temp_spills_and_reloads_per_block _ block =
     let var_to_block_temp = Reg.Tbl.create 8 in
     let replacements = Reg.Tbl.create 8 in
@@ -80,7 +93,7 @@ let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
         (fun temp block_temp ->
           Reg.Tbl.replace removed_inst_temporaries temp ();
           Reg.Tbl.replace removed_inst_temporaries block_temp ();
-          Reg.Tbl.replace block_temporaries block_temp ())
+          Reg.Tbl.replace new_block_temporaries block_temp ())
         replacements)
   in
   Cfg_with_infos.cfg cfg_with_infos
@@ -89,7 +102,7 @@ let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
     := List.filter
          ~f:(fun temp -> not (Reg.Tbl.mem removed_inst_temporaries temp))
          !new_temporaries;
-  Reg.Tbl.to_seq_keys block_temporaries |> List.of_seq
+  Reg.Tbl.to_seq_keys new_block_temporaries |> List.of_seq
 
 let rewrite_gen :
     type s.
