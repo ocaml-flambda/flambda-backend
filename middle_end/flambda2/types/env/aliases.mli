@@ -110,6 +110,8 @@ module Alias_set : sig
 
   val empty : t
 
+  val is_empty : t -> bool
+
   val singleton : Simple.t -> t
 
   val get_singleton : t -> Simple.t option
@@ -131,6 +133,14 @@ module Alias_set : sig
 
   val print : Format.formatter -> t -> unit
 end
+
+val add_alias_set :
+  binding_time_resolver:(Name.t -> Binding_time.With_name_mode.t) ->
+  binding_times_and_modes:(_ * Binding_time.With_name_mode.t) Name.Map.t ->
+  t ->
+  Name.t ->
+  Alias_set.t ->
+  t
 
 (** [get_aliases] always returns the supplied element in the result set. *)
 val get_aliases : t -> Simple.t -> Alias_set.t

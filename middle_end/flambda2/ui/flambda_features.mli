@@ -136,6 +136,8 @@ module Expert : sig
   val max_function_simplify_run : unit -> int
 
   val shorten_symbol_names : unit -> bool
+
+  val cont_lifting_budget : unit -> int
 end
 
 val stack_allocation_enabled : unit -> bool

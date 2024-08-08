@@ -246,6 +246,9 @@ module Alias_set = struct
 
   let empty = { const = None; names = Name.Map.empty }
 
+  let is_empty { const; names } =
+    Option.is_none const && Name.Map.is_empty names
+
   let create_aliases_of_element ~element:_ ~canonical_element
       ~coercion_from_canonical_to_element ~alias_names_with_coercions_to_element
       =
@@ -1028,3 +1031,37 @@ let get_canonical_ignoring_name_mode t name =
   | Alias_of_canonical { canonical_element; coercion_to_canonical } ->
     let coercion_from_canonical = Coercion.inverse coercion_to_canonical in
     Simple.apply_coercion_exn canonical_element coercion_from_canonical
+
+let add_alias_set ~binding_time_resolver ~binding_times_and_modes t name aliases
+    =
+  (* CR vlaviron: when we get rid of coercions we should be able to have more
+     efficient implementations *)
+  let canonical = get_canonical_ignoring_name_mode t name in
+  let add_alias (t, canonical_element1) elt =
+    if Simple.equal
+         (Simple.without_coercion canonical_element1)
+         (Simple.without_coercion elt)
+    then t, canonical_element1
+    else
+      match
+        add ~binding_time_resolver ~binding_times_and_modes t
+          ~canonical_element1 ~canonical_element2:elt
+      with
+      | Bottom -> Misc.fatal_error "Discovered Bottom during alias join"
+      | Ok { t; canonical_element; alias_of_demoted_element = _ } ->
+        t, canonical_element
+  in
+  let ({ const; names } : Alias_set.t) = aliases in
+  let acc =
+    match const with
+    | None -> t, canonical
+    | Some c -> add_alias (t, canonical) (Simple.const c)
+  in
+  let t, _ =
+    Name.Map.fold
+      (fun name coercion (t, canonical) ->
+        let elt = get_canonical_ignoring_name_mode t name in
+        add_alias (t, canonical) (Simple.apply_coercion_exn elt coercion))
+      names acc
+  in
+  t
