@@ -214,18 +214,23 @@ let rec regalloc ~ppf_dump round (fd : Mach.fundecl) =
     newfd
   end
 
-let count_duplicate_spills_reloads_in_block (cfg : Cfg_with_infos.t) =
-  let count_per_inst ((s, r, seen_spill, seen_reload) as acc)
+let count_duplicate_spills_reloads_in_block (cfg_with_infos : Cfg_with_infos.t) =
+  let count_per_inst
+      ((dup_spills, dup_reloads, seen_spill_regs, seen_reload_regs) as acc)
       (inst : Cfg.basic Cfg.instruction) =
     match inst.desc with
     | Op Spill ->
       let reg = inst.res.(0) in
-      let new_s = if Reg.Set.mem reg seen_spill then s + 1 else s in
-      new_s, r, Reg.Set.add reg seen_spill, seen_reload
+      let new_dup_spills =
+        dup_spills + if Reg.Set.mem reg seen_spill_regs then 1 else 0
+      in
+      new_dup_spills, dup_reloads, Reg.Set.add reg seen_spill_regs, seen_reload_regs
     | Op Reload ->
       let reg = inst.arg.(0) in
-      let new_r = if Reg.Set.mem reg seen_reload then r + 1 else r in
-      s, new_r, seen_spill, Reg.Set.add reg seen_reload
+      let new_dup_reloads =
+        dup_reloads + if Reg.Set.mem reg seen_reload_regs then 1 else 0
+      in
+      dup_spills, new_dup_reloads, seen_spill_regs, Reg.Set.add reg seen_reload_regs
     | _ -> acc
   in
   let count_per_block _ (block : Cfg.basic_block) (s, r) =
@@ -235,16 +240,16 @@ let count_duplicate_spills_reloads_in_block (cfg : Cfg_with_infos.t) =
     in
     s, r
   in
-  Cfg_with_infos.fold_blocks cfg ~f:count_per_block ~init:(0, 0)
+  Cfg_with_infos.fold_blocks cfg_with_infos ~f:count_per_block ~init:(0, 0)
 
-let count_spills_reloads (cfg : Cfg_with_infos.t) =
+let count_spills_reloads (cfg_with_infos : Cfg_with_infos.t) =
   let f ((spills, reloads) as acc) (instr : Cfg.basic Cfg.instruction) =
   match instr.desc with
   | Op Spill -> (spills + 1, reloads)
   | Op Reload -> (spills, reloads + 1)
   | _ -> acc
   in
-  Cfg_with_infos.fold_body_instructions cfg ~f ~init:(0, 0)
+  Cfg_with_infos.fold_body_instructions cfg_with_infos ~f ~init:(0, 0)
 
 let regalloc_profile =
   let counter_f cfg =
