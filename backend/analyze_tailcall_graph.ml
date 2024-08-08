@@ -640,8 +640,8 @@ let fixup_inlined_tailcalls (fundecl : Cmm.fundecl) =
         match[@ocaml.warning "-4"] op with
         | Capply (machtype, region_close, original_position) ->
           let inlined_position : Lambda.position_and_tail_attribute =
-            match original_position, tail_pos_ctx with
-            | Tail_position _, false ->
+            match original_position with
+            | Tail_position _ when not tail_pos_ctx ->
               Inlined_into_not_tail_position { original_position }
             | _ -> original_position
           in
