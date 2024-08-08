@@ -326,6 +326,7 @@ type expression =
         going through an explicit Push-annotated Cexit will this handler become
         active.  This allows for sharing a single handler in several places, or
         having multiple entry and exit points to a single trywith block. *)
+  | Creturn_addr (** Return address saved in the current call frame *)
 
 type codegen_option =
   | Reduce_code_size

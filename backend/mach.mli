@@ -105,6 +105,7 @@ type operation =
   | Iprobe_is_enabled of { name: string }
   | Ibeginregion | Iendregion
   | Idls_get
+  | Ireturn_addr (** Retrieve the return address from the stack frame *)
 
 type instruction =
   { desc: instruction_desc;

@@ -196,7 +196,7 @@ method! reload_operation op arg res =
   | Icall_ind|Icall_imm _|Ifloatop (_,(Icompf _|Inegf|Iabsf))
   | Itailcall_ind|Itailcall_imm _|Iextcall _|Istackoffset _|Iload _
   | Istore (_, _, _)|Ialloc _|Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _
-  | Iopaque | Ibeginregion | Iendregion | Ipoll _ | Idls_get
+  | Iopaque | Ibeginregion | Iendregion | Ipoll _ | Idls_get | Ireturn_addr
     -> (* Other operations: all args and results in registers,
           except moves and probes. *)
       super#reload_operation op arg res

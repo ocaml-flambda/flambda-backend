@@ -97,6 +97,7 @@ module S = struct
           dbginfo : Debuginfo.alloc_dbginfo;
           mode : Lambda.alloc_mode
         }
+    | Return_addr
 
   type bool_test =
     { ifso : Label.t;  (** if test is true goto [ifso] label *)

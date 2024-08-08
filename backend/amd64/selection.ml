@@ -180,7 +180,7 @@ let pseudoregs_for_operation op arg res =
   | Iconst_symbol _|Icall_ind|Icall_imm _|Itailcall_ind|Itailcall_imm _
   | Iextcall _|Istackoffset _|Iload _ | Istore (_, _, _)|Ialloc _
   | Iname_for_debugger _|Iprobe _|Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion | Ipoll _ | Idls_get
+  | Ibeginregion | Iendregion | Ipoll _ | Idls_get | Ireturn_addr
     -> raise Use_default
 
 let select_locality (l : Cmm.prefetch_temporal_locality_hint)
@@ -275,7 +275,7 @@ method! select_store is_assign addr exp =
   | Cphantom_let (_, _, _) | Cassign (_, _) | Ctuple _ | Cop (_, _, _)
   | Csequence (_, _) | Cifthenelse (_, _, _, _, _, _, _)
   | Cswitch (_, _, _, _, _) | Ccatch (_, _, _, _) | Cexit (_, _, _)
-  | Ctrywith (_, _, _, _, _, _)
+  | Ctrywith (_, _, _, _, _, _) | Creturn_addr
     ->
       super#select_store is_assign addr exp
 

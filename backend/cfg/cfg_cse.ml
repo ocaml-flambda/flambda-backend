@@ -92,6 +92,7 @@ class cse_generic =
       | Probe_is_enabled _ -> Op_other
       | Begin_region | End_region -> Op_other
       | Dls_get -> Op_load Mutable
+      | Return_addr -> Op_other
 
     method is_cheap_operation : Cfg.operation -> bool =
       function Const_int _ -> true | _ -> false

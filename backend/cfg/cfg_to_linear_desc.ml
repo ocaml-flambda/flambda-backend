@@ -46,5 +46,6 @@ let from_basic (basic : basic) : Linear.instruction_desc =
       | Dls_get -> Idls_get
       | Poll -> Ipoll { return_label = None }
       | Alloc { bytes; dbginfo; mode } -> Ialloc { bytes; dbginfo; mode }
+      | Return_addr -> Ireturn_addr
     in
     Lop op

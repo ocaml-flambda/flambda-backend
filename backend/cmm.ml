@@ -319,6 +319,7 @@ type expression =
   | Ctrywith of expression * trywith_shared_label
       * Backend_var.With_provenance.t * expression * Debuginfo.t
       * kind_for_unboxing
+  | Creturn_addr
 
 type codegen_option =
   | Reduce_code_size
@@ -396,7 +397,8 @@ let iter_shallow_tail f = function
   | Cvar _
   | Cassign _
   | Ctuple _
-  | Cop _ ->
+  | Cop _
+  | Creturn_addr  ->
       false
 
 let map_shallow_tail ?kind f = function
@@ -440,7 +442,8 @@ let map_shallow_tail ?kind f = function
   | Cvar _
   | Cassign _
   | Ctuple _
-  | Cop _ as cmm -> cmm
+  | Cop _
+  | Creturn_addr as cmm -> cmm
 
 let map_tail ?kind f =
   let rec loop = function
@@ -452,7 +455,8 @@ let map_tail ?kind f =
     | Cvar _
     | Cassign _
     | Ctuple _
-    | Cop _ as c ->
+    | Cop _
+    | Creturn_addr as c ->
         f c
     | cmm -> map_shallow_tail ?kind loop cmm
   in
@@ -490,7 +494,8 @@ let iter_shallow f = function
   | Cconst_float _
   | Cconst_vec128 _
   | Cconst_symbol _
-  | Cvar _ ->
+  | Cvar _
+  | Creturn_addr ->
       ()
 
 let map_shallow f = function
@@ -528,6 +533,7 @@ let map_shallow f = function
   | Cconst_vec128 _
   | Cconst_symbol _
   | Cvar _
+  | Creturn_addr
     as c ->
       c
 

@@ -361,7 +361,19 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units cached_g
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   let name_list =
     List.flatten (List.map (fun u -> u.defines) units) in
-  List.iter compile_phrase (Cmm_helpers.entry_point name_list);
+  let entry = Cmm_helpers.entry_point name_list in
+  let entry =
+    if Config.tsan then
+      match entry with
+      | [ (Cdata _) as data; Cfunction ({ fun_body; _ } as cf) ] ->
+        [ data;
+          Cmm.Cfunction
+            { cf with fun_body = Thread_sanitizer.wrap_entry_exit fun_body } ]
+      | _ -> assert false
+    else
+      entry
+  in
+  List.iter compile_phrase entry;
   List.iter compile_phrase
     (* Emit the GC roots table, for dynlink. *)
     (Cmm_helpers.emit_gc_roots_table ~symbols:[]
@@ -490,9 +502,10 @@ let call_linker file_list_rev startup_file output_name =
     else file_list_rev
   in
   let files = startup_file :: (List.rev file_list_rev) in
-  let files, c_lib =
+  let files, ldflags =
     if (not !Clflags.output_c_object) || main_dll || main_obj_runtime then
       files @ (List.rev !Clflags.ccobjs) @ runtime_lib (),
+      native_ldflags ^ " " ^
       (if !Clflags.nopervasives || (main_obj_runtime && not main_dll)
        then "" else Config.native_c_libraries)
     else
@@ -503,7 +516,7 @@ let call_linker file_list_rev startup_file output_name =
     else if !Clflags.output_c_object then Ccomp.Partial
     else Ccomp.Exe
   in
-  let exitcode = Ccomp.call_linker mode output_name files c_lib in
+  let exitcode = Ccomp.call_linker mode output_name files ldflags in
   if not (exitcode = 0)
   then raise(Error(Linking_error exitcode))
 

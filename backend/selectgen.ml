@@ -481,6 +481,7 @@ method is_simple_expr = function
   | Cconst_symbol _ -> true
   | Cconst_vec128 _ -> true
   | Cvar _ -> true
+  | Creturn_addr -> true
   | Ctuple el -> List.for_all self#is_simple_expr el
   | Clet(_id, arg, body) | Clet_mut(_id, _, arg, body) ->
     self#is_simple_expr arg && self#is_simple_expr body
@@ -527,7 +528,7 @@ method effects_of exp =
   let module EC = Effect_and_coeffect in
   match exp with
   | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-  | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ -> EC.none
+  | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ | Creturn_addr -> EC.none
   | Ctuple el -> EC.join_list_map el self#effects_of
   | Clet (_id, arg, body) | Clet_mut (_id, _, arg, body) ->
     EC.join (self#effects_of arg) (self#effects_of body)
@@ -862,6 +863,9 @@ method emit_expr_aux (env:environment) exp ~bound_name : Reg.t array option =
          adding this register to the frame table would be redundant *)
       let r = self#regs_for typ_int in
       ret (self#insert_op env (Iconst_symbol n) [||] r)
+  | Creturn_addr ->
+      let r = self#regs_for typ_int in
+      Some(self#insert_op env Ireturn_addr [||] r)
   | Cvar v ->
       begin try
         ret (env_find v env)
@@ -1733,6 +1737,7 @@ method emit_tail (env:environment) exp =
   | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
   | Cconst_symbol _ | Cconst_vec128 _
   | Cvar _
+  | Creturn_addr
   | Cassign _
   | Ctuple _
   | Cexit _ ->
