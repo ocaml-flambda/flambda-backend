@@ -427,7 +427,8 @@ let max_with_zero ~size_int x =
   ret
 
 (* actual (strict) upper bound for an index in a string-like read/write *)
-let actual_max_length_for_string_like_access ~size_int ~access_size length =
+let actual_max_length_for_string_like_access ~size_int
+    ~(access_size : Flambda_primitive.string_accessor_width) length =
   (* offset to subtract from the length depending on the size of the
      read/write *)
   let length_offset_of_size size =
@@ -441,7 +442,7 @@ let actual_max_length_for_string_like_access ~size_int ~access_size length =
     in
     Targetint_31_63.of_int offset
   in
-  match (access_size : Flambda_primitive.string_accessor_width) with
+  match access_size with
   | Eight -> length (* micro-optimization *)
   | Sixteen | Thirty_two | Single | Sixty_four | One_twenty_eight _ ->
     let offset = length_offset_of_size access_size in
