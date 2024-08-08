@@ -426,6 +426,32 @@ m_portability = portable
 Γ ⊢tk .. ↠ δ : value; ⟪⊤_Ξ⟫
 
 
+Γ; tconstr_jkind ⊢tk type_kind ↠ δ  (* process [type_kind] with known jkind [κ] *)
+==================================
+
+∀ j:
+  field_typesⱼ = extract_types(constructor_argsⱼ)
+  ∀ σⱼₖ ∈ field_typesⱼ:
+    Γ ⊢ σⱼₖ : κⱼₖ
+  mⱼ_contention = if mutable ∈ constructor_argsⱼ then contended else uncontended
+  mⱼ_locality, mⱼ_externality = if (∀ k, κⱼₖ = void) ∨ [@@unboxed] then global, external else local, internal
+  mⱼ_uniqueness = if constructor_argsⱼ = record_kind ∧ ¬ [@@unboxed] then shared else unique
+  mⱼ_linearity = many
+  mⱼ_portability = portable
+  κ₀' = κ₀{τsⱼ/[['aᵢ]]}
+  ∀ Ξ:
+    mode m_Ξ ≤ Ξ(κ₀')
+    ∀ σ ∈ types_for(Ξ, field_typesⱼ), with σ ≤ Ξ(κ₀')
+  value ≤ lay(κ₀')
+if [@@unboxed]:
+  n = 1
+  constructor_args₁ has exactly one field
+δ represents the type_kind
+---------------------------------------------------------------------- TK_GADT
+Γ; π [[ 'aᵢ : κᵢ ]]. κ₀ ⊢tk {{ private }} [[ Kⱼ : constructor_argsⱼ -> τsⱼ t ]]ₙ {{ [@@unboxed] }} ↠ δ
+
+(* No other rules necessary: non-variants can go by the normal ⊢tk relation *)
+
 Γ ⊢ δ₁ reexports δ₂
 ===================
 
@@ -514,12 +540,20 @@ t' := λ [[ 'aᵢ : κᵢ ]]. δ' : κ₀'' ∈ Γ
 Γ ⊢ type type_params t = τ = type_kind ↠ Γ'
 
 Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
-Γ, [[ 'aᵢ : κᵢ ]], t : π [[ 'aᵢ : κᵢ ]]. κ₀ ⊢tk type_kind ↠ δ : κ₀'
+Γ, [[ 'aᵢ : κᵢ ]], t : π [[ 'aᵢ : κᵢ ]]. κ₀' ⊢tk type_kind ↠ δ : κ₀'
 Γ' = t := λ [[ 'aᵢ : κᵢ ]]. δ : κ₀'  (* inferred jkind, not user-written one *)
 Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ jkind ↠ κ₀
 Γ, [[ 'aᵢ : κᵢ ]], Γ' ⊢ κ₀' ≤ κ₀
 ----------------------------------------------- D_KINDED_NOMINATIVE
 Γ ⊢ type type_params t : jkind = type_kind ↠ Γ'
+
+(* This rule is to support using type refinements in GADT constructors to infer
+   a lower overall jkind; we can implement it later than the rest of the design *)
+Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
+Γ, [[ 'aᵢ : κᵢ ]] ⊢ jkind ↠ κ₀    (* [t] is *not* in scope here *)
+Γ, [[ 'aᵢ : κᵢ ]], t : π [[ 'aᵢ : κᵢ ]]. κ₀; π [[ 'aᵢ : κᵢ ]]. κ₀ ⊢tk type_kind ↠ δ : κ₀
+----------------------------------------------- D_GADT
+Γ ⊢ type type_params t : jkind = type_kind ↠ Γ, t := λ [[ 'aᵢ : κᵢ ]]. δ : κ₀
 
 Γ ⊢ type_params ↠ [[ 'aᵢ : κᵢ ]]
 τ = [[ 'aᵢ ]] t'
