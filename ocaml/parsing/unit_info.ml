@@ -105,10 +105,13 @@ let cmx f = mk_artifact ".cmx" f
 let obj f = mk_artifact Config.ext_obj f
 let cmt f = mk_artifact ".cmt" f
 let cmti f = mk_artifact ".cmti" f
+let cms f = mk_artifact ".cms" f
+let cmsi f = mk_artifact ".cmsi" f
 let annot f = mk_artifact ".annot" f
 
 let companion_obj f = companion_artifact Config.ext_obj f
 let companion_cmt f = companion_artifact ".cmt" f
+let companion_cms f = companion_artifact ".cms" f
 
 let companion_cmi f =
   let prefix = Misc.chop_extensions f.Artifact.filename in
