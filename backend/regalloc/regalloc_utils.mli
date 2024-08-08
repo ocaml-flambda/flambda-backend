@@ -14,6 +14,8 @@ val bool_of_param : ?guard:bool * string -> string -> bool Lazy.t
 
 val validator_debug : bool Lazy.t
 
+val block_temporaries : bool Lazy.t
+
 type liveness = Cfg_with_infos.liveness
 
 type log_function =

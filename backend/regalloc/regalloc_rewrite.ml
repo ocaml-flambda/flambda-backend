@@ -41,7 +41,7 @@ type direction =
 let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
   let removed_inst_temporaries = Reg.Tbl.create 128 in
   let block_temporaries = Reg.Tbl.create 128 in
-  let coalesce_temp_reloads_per_block _ block =
+  let coalesce_temp_spills_and_reloads_per_block _ block =
     let var_to_block_temp = Reg.Tbl.create 8 in
     let replacements = Reg.Tbl.create 8 in
     let last_spill = Reg.Tbl.create 8 in
@@ -84,7 +84,7 @@ let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
       replacements
   in
   Cfg_with_infos.cfg cfg_with_infos
-  |> Cfg.iter_blocks ~f:coalesce_temp_reloads_per_block;
+  |> Cfg.iter_blocks ~f:coalesce_temp_spills_and_reloads_per_block;
   new_temporaries
     := List.filter
          ~f:(fun temp -> not (Reg.Tbl.mem removed_inst_temporaries temp))
@@ -98,10 +98,13 @@ let rewrite_gen :
     s ->
     Cfg_with_infos.t ->
     spilled_nodes:Reg.t list ->
-    should_coalesce_temp_spills_and_reloads:bool ->
+    block_temporaries:bool ->
     Reg.t list * Reg.t list * bool =
  fun (module State : State with type t = s) (module Utils) state cfg_with_infos
-     ~spilled_nodes ~should_coalesce_temp_spills_and_reloads ->
+     ~spilled_nodes ~block_temporaries ->
+  let should_coalesce_temp_spills_and_reloads =
+    Lazy.force Regalloc_utils.block_temporaries && block_temporaries
+  in
   if Utils.debug then Utils.log ~indent:1 "rewrite";
   let block_insertion = ref false in
   let spilled_map : Reg.t Reg.Tbl.t =
@@ -250,12 +253,12 @@ let rewrite_gen :
         Utils.log_body_and_terminator ~indent:3 block.body block.terminator
           liveness;
         Utils.log ~indent:2 "end"));
-  let block_temporaries =
+  let new_block_temporaries =
     if should_coalesce_temp_spills_and_reloads
     then coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries
     else []
   in
-  !new_temporaries, block_temporaries, !block_insertion
+  !new_temporaries, new_block_temporaries, !block_insertion
 
 (* CR-soon xclerc for xclerc: investigate exactly why this threshold is
    necessary. *)

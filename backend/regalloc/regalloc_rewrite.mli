@@ -40,15 +40,15 @@ end
    created for the use of a spilled node in a single instruction), the list of
    block temporaries (hold the value of a spilled node for a whole CFG block),
    and a boolean which is `true` iff at least one block was inserted. If the
-   [should_coalesce_temp_spills_and_reloads] parameter is set to false, the list
-   of block temporaries will be empty. *)
+   [block_temporaries] parameter is set to false, the list of block temporaries
+   will be empty. *)
 val rewrite_gen :
   (module State with type t = 's) ->
   (module Utils) ->
   's ->
   Cfg_with_infos.t ->
   spilled_nodes:Reg.t list ->
-  should_coalesce_temp_spills_and_reloads:bool ->
+  block_temporaries:bool ->
   Reg.t list * Reg.t list * bool
 
 (* Runs the first steps common to register allocators, reinitializing registers,

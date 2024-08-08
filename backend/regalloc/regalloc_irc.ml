@@ -389,16 +389,14 @@ let rewrite :
     Cfg_with_infos.t ->
     spilled_nodes:Reg.t list ->
     reset:bool ->
-    should_coalesce_temp_spills_and_reloads:bool ->
+    block_temporaries:bool ->
     bool =
- fun state cfg_with_infos ~spilled_nodes ~reset
-     ~should_coalesce_temp_spills_and_reloads ->
+ fun state cfg_with_infos ~spilled_nodes ~reset ~block_temporaries ->
   let new_inst_temporaries, new_block_temporaries, block_inserted =
     Regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)
-      state cfg_with_infos ~spilled_nodes
-      ~should_coalesce_temp_spills_and_reloads
+      state cfg_with_infos ~spilled_nodes ~block_temporaries
   in
   let new_temporaries = new_block_temporaries @ new_inst_temporaries in
   if new_temporaries <> []
@@ -497,7 +495,7 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
           log ~indent:1 "/!\\ register %a needs to be spilled" Printmach.reg reg);
     match
       rewrite state cfg_with_infos ~spilled_nodes ~reset:true
-        ~should_coalesce_temp_spills_and_reloads:(round = 1)
+        ~block_temporaries:(round = 1)
     with
     | false -> if irc_debug then log ~indent:1 "(end of main)"
     | true ->
@@ -534,7 +532,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
        work list and set the field to unknown. *)
     let (_ : bool) =
       rewrite state cfg_with_infos ~spilled_nodes ~reset:false
-        ~should_coalesce_temp_spills_and_reloads:false
+        ~block_temporaries:false
     in
     ());
   main ~round:1 state cfg_with_infos;

@@ -26,8 +26,7 @@ let rewrite : State.t -> Cfg_with_infos.t -> spilled_nodes:Reg.t list -> bool =
     Regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)
-      state cfg_with_infos ~spilled_nodes
-      ~should_coalesce_temp_spills_and_reloads:false
+      state cfg_with_infos ~spilled_nodes ~block_temporaries:false
   in
   assert (new_block_temporaries = []);
   if new_inst_temporaries <> []
