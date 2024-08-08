@@ -732,7 +732,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
       in
-      let params = instance_list decl.type_params in
+      let params = if stl <> [] then instance_list (app_params_of_decl decl) else [] in
       let unify_param =
         match decl.type_manifest with
           None -> unify_var
@@ -740,8 +740,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             if get_level ty = Btype.generic_level then unify_var else unify
       in
       let arity = List.length params in
-      (* If it is applied, then the arities match, so [combine] works out *)
-      if List.length args = List.length params then List.iteri
+      List.iteri
         (fun idx ((sty, cty), ty') ->
            begin match Types.get_desc ty' with
            | Tvar {jkind; _} when Jkind.History.has_imported_history jkind ->
