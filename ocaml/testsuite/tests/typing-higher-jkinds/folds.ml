@@ -95,10 +95,10 @@ val result : int list id = {v = [0; 1; 2]}
 |}]
 
 let leaves (perfect : 'a perfect) =
-  fold ({
+  fold {
     zero = (fun l -> [l]);
     succ = (fun l -> List.concat_map (fun (x, y) -> [x; y]) l)
-  } : list folder) perfect
+  } perfect
 let result = leaves example
 let flat = List.concat result
 
