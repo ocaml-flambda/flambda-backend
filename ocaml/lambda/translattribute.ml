@@ -103,7 +103,7 @@ let parse_inline_attribute attr : inline_attribute =
 let parse_inlined_attribute attr : inlined_attribute =
   match attr with
   | None -> Default_inlined
-  | Some {Parsetree.attr_name = {txt;loc}; attr_payload = payload} ->
+  | Some ({Parsetree.attr_name = {txt;loc}; attr_payload = payload} as attr) ->
     if attr_equals_builtin attr "unrolled" then begin
       (* the 'unrolled' attributes must be used as [@unrolled n]. *)
       let warning txt = Warnings.Attribute_payload
