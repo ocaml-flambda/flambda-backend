@@ -1,5 +1,4 @@
 (* TEST
-<<<<<<< HEAD
  {
    runtime4;
    skip;
@@ -19,13 +18,7 @@
    { bytecode; }
    { native; }
  }
-||||||| 121bedcfd2
-include runtime_events
-=======
- include runtime_events;
->>>>>>> 5.2.0
 *)
-<<<<<<< HEAD
 
 (* Tests that:
  * - the runtime events subsystem works, logging events and passing
@@ -34,10 +27,6 @@ include runtime_events
  * - major and minor collections happen at expected frequencies.
  *)
 
-||||||| 2572783060
-=======
-
->>>>>>> ocaml-jst/flambda-patches
 open Runtime_events
 
 (* Record whether we have seen an EV_RING_START lifecycle event. *)

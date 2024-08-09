@@ -1,8 +1,2 @@
 File "check_for_pack.cmir-linear", line 1:
-<<<<<<< HEAD
-Error: This input file cannot be compiled with -for-pack Foo: it was generated without -for-pack.
-||||||| 121bedcfd2
-Error: This input file cannot be compiled with -for-pack foo: it was generated without -for-pack.
-=======
-Error: This input file cannot be compiled with "-for-pack foo": it was generated without "-for-pack".
->>>>>>> 5.2.0
+Error: This input file cannot be compiled with "-for-pack Foo": it was generated without -for-pack.

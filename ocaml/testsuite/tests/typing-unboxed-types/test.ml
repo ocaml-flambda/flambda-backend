@@ -1,15 +1,9 @@
 (* TEST
-<<<<<<< HEAD
  flags = "-extension layouts_beta";
  expect;
 *)
 (* CR layouts: Using [-extension layouts_beta] here is not backward-compatible.
    We can delete this when internal ticket 1110 is resolved.
-||||||| 121bedcfd2
-   * expect
-=======
- expect;
->>>>>>> 5.2.0
 *)
 
 (* Check the unboxing *)

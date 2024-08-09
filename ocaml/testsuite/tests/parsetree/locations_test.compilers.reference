@@ -239,7 +239,6 @@ Ptop_def
       Pstr_value Nonrec
       [
         <def>
-<<<<<<< HEAD
           pattern (//toplevel//[2,1+4]..[2,1+22]) ghost
             Ppat_constraint
             pattern (//toplevel//[2,1+4]..[2,1+5])
@@ -276,54 +275,6 @@ Ptop_def
                 core_type (//toplevel//[2,1+21]..[2,1+22])
                   Ptyp_constr "a" (//toplevel//[2,1+21]..[2,1+22])
                   []
-||||||| 121bedcfd2
-          pattern (//toplevel//[2,1+4]..[2,1+5])
-            Ppat_var "x" (//toplevel//[2,1+4]..[2,1+5])
-          <type> "a" (//toplevel//[2,1+13]..[2,1+14]).
-          core_type (//toplevel//[2,1+16]..[2,1+22])
-            Ptyp_arrow
-            Nolabel
-            core_type (//toplevel//[2,1+16]..[2,1+17])
-              Ptyp_constr "a" (//toplevel//[2,1+16]..[2,1+17])
-              []
-            core_type (//toplevel//[2,1+21]..[2,1+22])
-              Ptyp_constr "a" (//toplevel//[2,1+21]..[2,1+22])
-              []
-          expression (//toplevel//[2,1+25]..[2,1+35])
-            Pexp_fun
-            Nolabel
-            None
-            pattern (//toplevel//[2,1+29]..[2,1+30])
-              Ppat_var "x" (//toplevel//[2,1+29]..[2,1+30])
-            expression (//toplevel//[2,1+34]..[2,1+35])
-              Pexp_ident "x" (//toplevel//[2,1+34]..[2,1+35])
-=======
-          pattern (//toplevel//[2,1+4]..[2,1+5])
-            Ppat_var "x" (//toplevel//[2,1+4]..[2,1+5])
-          <type> "a" (//toplevel//[2,1+13]..[2,1+14]).
-          core_type (//toplevel//[2,1+16]..[2,1+22])
-            Ptyp_arrow
-            Nolabel
-            core_type (//toplevel//[2,1+16]..[2,1+17])
-              Ptyp_constr "a" (//toplevel//[2,1+16]..[2,1+17])
-              []
-            core_type (//toplevel//[2,1+21]..[2,1+22])
-              Ptyp_constr "a" (//toplevel//[2,1+21]..[2,1+22])
-              []
-          expression (//toplevel//[2,1+25]..[2,1+35])
-            Pexp_function
-            [
-              Pparam_val (//toplevel//[2,1+29]..[2,1+30])
-                Nolabel
-                None
-                pattern (//toplevel//[2,1+29]..[2,1+30])
-                  Ppat_var "x" (//toplevel//[2,1+29]..[2,1+30])
-            ]
-            None
-            Pfunction_body
-              expression (//toplevel//[2,1+34]..[2,1+35])
-                Pexp_ident "x" (//toplevel//[2,1+34]..[2,1+35])
->>>>>>> 5.2.0
       ]
   ]
 
@@ -353,24 +304,10 @@ Ptop_def
                         expression (//toplevel//[3,16+9]..[4,46+14])
                           Pexp_constraint
                           expression (//toplevel//[4,46+4]..[4,46+14])
-<<<<<<< HEAD
                             attribute "jane.erasable._builtin"
                               []
                             Pexp_fun
                             Nolabel
-||||||| 121bedcfd2
-                            Pexp_fun
-                            Nolabel
-=======
-                            Pexp_function
-                            [
-                              Pparam_val (//toplevel//[4,46+8]..[4,46+9])
-                                Nolabel
-                                None
-                                pattern (//toplevel//[4,46+8]..[4,46+9])
-                                  Ppat_var "x" (//toplevel//[4,46+8]..[4,46+9])
-                            ]
->>>>>>> 5.2.0
                             None
                             Pfunction_body
                               expression (//toplevel//[4,46+13]..[4,46+14])
@@ -408,24 +345,10 @@ Ptop_def
           pattern (//toplevel//[4,17+4]..[4,17+5])
             Ppat_var "x" (//toplevel//[4,17+4]..[4,17+5])
           expression (//toplevel//[4,17+6]..[4,17+29]) ghost
-<<<<<<< HEAD
             attribute "jane.erasable._builtin"
               []
             Pexp_fun
             Nolabel
-||||||| 121bedcfd2
-            Pexp_fun
-            Nolabel
-=======
-            Pexp_function
-            [
-              Pparam_val (//toplevel//[4,17+6]..[4,17+14])
-                Nolabel
-                None
-                pattern (//toplevel//[4,17+6]..[4,17+14])
-                  Ppat_var "contents" (//toplevel//[4,17+6]..[4,17+14])
-            ]
->>>>>>> 5.2.0
             None
             Pfunction_body
               expression (//toplevel//[4,17+17]..[4,17+29])
@@ -474,24 +397,10 @@ Ptop_def
           pattern (//toplevel//[2,1+4]..[2,1+5])
             Ppat_var "x" (//toplevel//[2,1+4]..[2,1+5])
           expression (//toplevel//[2,1+6]..[2,1+35]) ghost
-<<<<<<< HEAD
             attribute "jane.erasable._builtin"
               []
             Pexp_fun
             Nolabel
-||||||| 121bedcfd2
-            Pexp_fun
-            Nolabel
-=======
-            Pexp_function
-            [
-              Pparam_val (//toplevel//[2,1+6]..[2,1+14])
-                Nolabel
-                None
-                pattern (//toplevel//[2,1+6]..[2,1+14])
-                  Ppat_var "contents" (//toplevel//[2,1+6]..[2,1+14])
-            ]
->>>>>>> 5.2.0
             None
             Pfunction_body
               expression (//toplevel//[2,1+17]..[2,1+35])
@@ -641,24 +550,10 @@ Ptop_def
                     expression (//toplevel//[3,9+31]..[3,9+46]) ghost
                       Pexp_poly
                       expression (//toplevel//[3,9+31]..[3,9+46]) ghost
-<<<<<<< HEAD
                         attribute "jane.erasable._builtin"
                           []
                         Pexp_fun
                         Nolabel
-||||||| 121bedcfd2
-                        Pexp_fun
-                        Nolabel
-=======
-                        Pexp_function
-                        [
-                          Pparam_val (//toplevel//[3,9+31]..[3,9+34])
-                            Nolabel
-                            None
-                            pattern (//toplevel//[3,9+31]..[3,9+34])
-                              Ppat_var "foo" (//toplevel//[3,9+31]..[3,9+34])
-                        ]
->>>>>>> 5.2.0
                         None
                         Pfunction_body
                           expression (//toplevel//[3,9+37]..[3,9+46])
@@ -771,29 +666,10 @@ Ptop_def
           pattern (//toplevel//[6,56+4]..[6,56+12])
             Ppat_var ".@()" (//toplevel//[6,56+4]..[6,56+12])
           expression (//toplevel//[6,56+13]..[6,56+24]) ghost
-<<<<<<< HEAD
             attribute "jane.erasable._builtin"
               []
             Pexp_fun
             Nolabel
-||||||| 121bedcfd2
-            Pexp_fun
-            Nolabel
-=======
-            Pexp_function
-            [
-              Pparam_val (//toplevel//[6,56+13]..[6,56+14])
-                Nolabel
-                None
-                pattern (//toplevel//[6,56+13]..[6,56+14])
-                  Ppat_var "x" (//toplevel//[6,56+13]..[6,56+14])
-              Pparam_val (//toplevel//[6,56+15]..[6,56+16])
-                Nolabel
-                None
-                pattern (//toplevel//[6,56+15]..[6,56+16])
-                  Ppat_var "y" (//toplevel//[6,56+15]..[6,56+16])
-            ]
->>>>>>> 5.2.0
             None
             Pfunction_body
               expression (//toplevel//[6,56+19]..[6,56+24])
@@ -818,7 +694,6 @@ Ptop_def
           pattern (//toplevel//[7,81+4]..[7,81+14])
             Ppat_var ".@()<-" (//toplevel//[7,81+4]..[7,81+14])
           expression (//toplevel//[7,81+15]..[7,81+32]) ghost
-<<<<<<< HEAD
             attribute "jane.erasable._builtin"
               []
             Pexp_fun
@@ -834,35 +709,6 @@ Ptop_def
                 Ppat_var "y" (//toplevel//[7,81+17]..[7,81+18])
               expression (//toplevel//[7,81+19]..[7,81+32]) ghost
                 Pexp_fun
-||||||| 121bedcfd2
-            Pexp_fun
-            Nolabel
-            None
-            pattern (//toplevel//[7,81+15]..[7,81+16])
-              Ppat_var "x" (//toplevel//[7,81+15]..[7,81+16])
-            expression (//toplevel//[7,81+17]..[7,81+32]) ghost
-              Pexp_fun
-              Nolabel
-              None
-              pattern (//toplevel//[7,81+17]..[7,81+18])
-                Ppat_var "y" (//toplevel//[7,81+17]..[7,81+18])
-              expression (//toplevel//[7,81+19]..[7,81+32]) ghost
-                Pexp_fun
-=======
-            Pexp_function
-            [
-              Pparam_val (//toplevel//[7,81+15]..[7,81+16])
-                Nolabel
-                None
-                pattern (//toplevel//[7,81+15]..[7,81+16])
-                  Ppat_var "x" (//toplevel//[7,81+15]..[7,81+16])
-              Pparam_val (//toplevel//[7,81+17]..[7,81+18])
-                Nolabel
-                None
-                pattern (//toplevel//[7,81+17]..[7,81+18])
-                  Ppat_var "y" (//toplevel//[7,81+17]..[7,81+18])
-              Pparam_val (//toplevel//[7,81+19]..[7,81+20])
->>>>>>> 5.2.0
                 Nolabel
                 None
                 pattern (//toplevel//[7,81+19]..[7,81+20])
@@ -904,29 +750,10 @@ Ptop_def
           pattern (//toplevel//[8,114+4]..[8,114+13])
             Ppat_var ".%.{}" (//toplevel//[8,114+4]..[8,114+13])
           expression (//toplevel//[8,114+14]..[8,114+25]) ghost
-<<<<<<< HEAD
             attribute "jane.erasable._builtin"
               []
             Pexp_fun
             Nolabel
-||||||| 121bedcfd2
-            Pexp_fun
-            Nolabel
-=======
-            Pexp_function
-            [
-              Pparam_val (//toplevel//[8,114+14]..[8,114+15])
-                Nolabel
-                None
-                pattern (//toplevel//[8,114+14]..[8,114+15])
-                  Ppat_var "x" (//toplevel//[8,114+14]..[8,114+15])
-              Pparam_val (//toplevel//[8,114+16]..[8,114+17])
-                Nolabel
-                None
-                pattern (//toplevel//[8,114+16]..[8,114+17])
-                  Ppat_var "y" (//toplevel//[8,114+16]..[8,114+17])
-            ]
->>>>>>> 5.2.0
             None
             Pfunction_body
               expression (//toplevel//[8,114+20]..[8,114+25])
@@ -951,7 +778,6 @@ Ptop_def
           pattern (//toplevel//[9,140+4]..[9,140+15])
             Ppat_var ".%.{}<-" (//toplevel//[9,140+4]..[9,140+15])
           expression (//toplevel//[9,140+16]..[9,140+33]) ghost
-<<<<<<< HEAD
             attribute "jane.erasable._builtin"
               []
             Pexp_fun
@@ -967,35 +793,6 @@ Ptop_def
                 Ppat_var "y" (//toplevel//[9,140+18]..[9,140+19])
               expression (//toplevel//[9,140+20]..[9,140+33]) ghost
                 Pexp_fun
-||||||| 121bedcfd2
-            Pexp_fun
-            Nolabel
-            None
-            pattern (//toplevel//[9,140+16]..[9,140+17])
-              Ppat_var "x" (//toplevel//[9,140+16]..[9,140+17])
-            expression (//toplevel//[9,140+18]..[9,140+33]) ghost
-              Pexp_fun
-              Nolabel
-              None
-              pattern (//toplevel//[9,140+18]..[9,140+19])
-                Ppat_var "y" (//toplevel//[9,140+18]..[9,140+19])
-              expression (//toplevel//[9,140+20]..[9,140+33]) ghost
-                Pexp_fun
-=======
-            Pexp_function
-            [
-              Pparam_val (//toplevel//[9,140+16]..[9,140+17])
-                Nolabel
-                None
-                pattern (//toplevel//[9,140+16]..[9,140+17])
-                  Ppat_var "x" (//toplevel//[9,140+16]..[9,140+17])
-              Pparam_val (//toplevel//[9,140+18]..[9,140+19])
-                Nolabel
-                None
-                pattern (//toplevel//[9,140+18]..[9,140+19])
-                  Ppat_var "y" (//toplevel//[9,140+18]..[9,140+19])
-              Pparam_val (//toplevel//[9,140+20]..[9,140+21])
->>>>>>> 5.2.0
                 Nolabel
                 None
                 pattern (//toplevel//[9,140+20]..[9,140+21])
@@ -1037,29 +834,10 @@ Ptop_def
           pattern (//toplevel//[10,174+4]..[10,174+13])
             Ppat_var ".%.[]" (//toplevel//[10,174+4]..[10,174+13])
           expression (//toplevel//[10,174+14]..[10,174+25]) ghost
-<<<<<<< HEAD
             attribute "jane.erasable._builtin"
               []
             Pexp_fun
             Nolabel
-||||||| 121bedcfd2
-            Pexp_fun
-            Nolabel
-=======
-            Pexp_function
-            [
-              Pparam_val (//toplevel//[10,174+14]..[10,174+15])
-                Nolabel
-                None
-                pattern (//toplevel//[10,174+14]..[10,174+15])
-                  Ppat_var "x" (//toplevel//[10,174+14]..[10,174+15])
-              Pparam_val (//toplevel//[10,174+16]..[10,174+17])
-                Nolabel
-                None
-                pattern (//toplevel//[10,174+16]..[10,174+17])
-                  Ppat_var "y" (//toplevel//[10,174+16]..[10,174+17])
-            ]
->>>>>>> 5.2.0
             None
             Pfunction_body
               expression (//toplevel//[10,174+20]..[10,174+25])
@@ -1084,7 +862,6 @@ Ptop_def
           pattern (//toplevel//[11,200+4]..[11,200+15])
             Ppat_var ".%.[]<-" (//toplevel//[11,200+4]..[11,200+15])
           expression (//toplevel//[11,200+16]..[11,200+33]) ghost
-<<<<<<< HEAD
             attribute "jane.erasable._builtin"
               []
             Pexp_fun
@@ -1100,35 +877,6 @@ Ptop_def
                 Ppat_var "y" (//toplevel//[11,200+18]..[11,200+19])
               expression (//toplevel//[11,200+20]..[11,200+33]) ghost
                 Pexp_fun
-||||||| 121bedcfd2
-            Pexp_fun
-            Nolabel
-            None
-            pattern (//toplevel//[11,200+16]..[11,200+17])
-              Ppat_var "x" (//toplevel//[11,200+16]..[11,200+17])
-            expression (//toplevel//[11,200+18]..[11,200+33]) ghost
-              Pexp_fun
-              Nolabel
-              None
-              pattern (//toplevel//[11,200+18]..[11,200+19])
-                Ppat_var "y" (//toplevel//[11,200+18]..[11,200+19])
-              expression (//toplevel//[11,200+20]..[11,200+33]) ghost
-                Pexp_fun
-=======
-            Pexp_function
-            [
-              Pparam_val (//toplevel//[11,200+16]..[11,200+17])
-                Nolabel
-                None
-                pattern (//toplevel//[11,200+16]..[11,200+17])
-                  Ppat_var "x" (//toplevel//[11,200+16]..[11,200+17])
-              Pparam_val (//toplevel//[11,200+18]..[11,200+19])
-                Nolabel
-                None
-                pattern (//toplevel//[11,200+18]..[11,200+19])
-                  Ppat_var "y" (//toplevel//[11,200+18]..[11,200+19])
-              Pparam_val (//toplevel//[11,200+20]..[11,200+21])
->>>>>>> 5.2.0
                 Nolabel
                 None
                 pattern (//toplevel//[11,200+20]..[11,200+21])
@@ -1548,7 +1296,6 @@ Ptop_def
             pattern (//toplevel//[2,1+4]..[2,1+5])
               Ppat_var "f" (//toplevel//[2,1+4]..[2,1+5])
             expression (//toplevel//[2,1+6]..[2,1+15]) ghost
-<<<<<<< HEAD
               attribute "jane.erasable._builtin"
                 []
               Pexp_fun
@@ -1564,35 +1311,6 @@ Ptop_def
                   Ppat_var "y" (//toplevel//[2,1+8]..[2,1+9])
                 expression (//toplevel//[2,1+10]..[2,1+15]) ghost
                   Pexp_fun
-||||||| 121bedcfd2
-              Pexp_fun
-              Nolabel
-              None
-              pattern (//toplevel//[2,1+6]..[2,1+7])
-                Ppat_var "x" (//toplevel//[2,1+6]..[2,1+7])
-              expression (//toplevel//[2,1+8]..[2,1+15]) ghost
-                Pexp_fun
-                Nolabel
-                None
-                pattern (//toplevel//[2,1+8]..[2,1+9])
-                  Ppat_var "y" (//toplevel//[2,1+8]..[2,1+9])
-                expression (//toplevel//[2,1+10]..[2,1+15]) ghost
-                  Pexp_fun
-=======
-              Pexp_function
-              [
-                Pparam_val (//toplevel//[2,1+6]..[2,1+7])
-                  Nolabel
-                  None
-                  pattern (//toplevel//[2,1+6]..[2,1+7])
-                    Ppat_var "x" (//toplevel//[2,1+6]..[2,1+7])
-                Pparam_val (//toplevel//[2,1+8]..[2,1+9])
-                  Nolabel
-                  None
-                  pattern (//toplevel//[2,1+8]..[2,1+9])
-                    Ppat_var "y" (//toplevel//[2,1+8]..[2,1+9])
-                Pparam_val (//toplevel//[2,1+10]..[2,1+11])
->>>>>>> 5.2.0
                   Nolabel
                   None
                   pattern (//toplevel//[2,1+10]..[2,1+11])
@@ -1667,26 +1385,11 @@ Ptop_def
           pattern (//toplevel//[3,66+4]..[3,66+5])
             Ppat_var "g" (//toplevel//[3,66+4]..[3,66+5])
           expression (//toplevel//[3,66+6]..[5,98+12]) ghost
-<<<<<<< HEAD
             attribute "jane.erasable._builtin"
               []
             Pexp_fun
             Nolabel
-||||||| 121bedcfd2
-            Pexp_fun
-            Nolabel
-=======
-            Pexp_function
-            [
-              Pparam_val (//toplevel//[3,66+6]..[3,66+7])
-                Nolabel
-                None
-                pattern (//toplevel//[3,66+6]..[3,66+7])
-                  Ppat_var "y" (//toplevel//[3,66+6]..[3,66+7])
-            ]
->>>>>>> 5.2.0
             None
-<<<<<<< HEAD
             pattern (//toplevel//[3,66+6]..[3,66+7])
               Ppat_var "y" (//toplevel//[3,66+6]..[3,66+7])
             expression (//toplevel//[4,76+2]..[5,98+12])
@@ -1722,45 +1425,6 @@ Ptop_def
                 Pexp_apply
                 expression (//toplevel//[5,98+2]..[5,98+3])
                   Pexp_ident "f" (//toplevel//[5,98+2]..[5,98+3])
-||||||| 121bedcfd2
-            pattern (//toplevel//[3,66+6]..[3,66+7])
-              Ppat_var "y" (//toplevel//[3,66+6]..[3,66+7])
-            expression (//toplevel//[4,76+2]..[5,98+12])
-              Pexp_let Nonrec
-              [
-                <def>
-                  pattern (//toplevel//[4,76+6]..[4,76+7])
-                    Ppat_var "f" (//toplevel//[4,76+6]..[4,76+7])
-                  expression (//toplevel//[4,76+8]..[4,76+18]) ghost
-                    Pexp_fun
-                    Labelled "y"
-                    None
-                    pattern (//toplevel//[4,76+9]..[4,76+10])
-                      Ppat_var "y" (//toplevel//[4,76+9]..[4,76+10])
-                    expression (//toplevel//[4,76+13]..[4,76+18])
-                      Pexp_apply
-                      expression (//toplevel//[4,76+15]..[4,76+16])
-                        Pexp_ident "+" (//toplevel//[4,76+15]..[4,76+16])
-                      [
-                        <arg>
-                        Nolabel
-                          expression (//toplevel//[4,76+13]..[4,76+14])
-                            Pexp_ident "y" (//toplevel//[4,76+13]..[4,76+14])
-                        <arg>
-                        Nolabel
-                          expression (//toplevel//[4,76+17]..[4,76+18])
-                            Pexp_constant PConst_int (1,None)
-                      ]
-              ]
-              expression (//toplevel//[5,98+2]..[5,98+12])
-                Pexp_apply
-                expression (//toplevel//[5,98+2]..[5,98+3])
-                  Pexp_ident "f" (//toplevel//[5,98+2]..[5,98+3])
-=======
-            Pfunction_body
-              expression (//toplevel//[4,76+2]..[5,98+12])
-                Pexp_let Nonrec
->>>>>>> 5.2.0
                 [
                   <def>
                     pattern (//toplevel//[4,76+6]..[4,76+7])

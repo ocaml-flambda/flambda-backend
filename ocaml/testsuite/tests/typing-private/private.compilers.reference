@@ -123,16 +123,8 @@ Error: Type declarations do not match:
          type !'a t = private < x : int; .. > constraint 'a = 'a t
        is not included in
          type 'a t
-<<<<<<< HEAD
        Their parameters differ:
        The type 'b t as 'b is not equal to the type 'a
-||||||| 121bedcfd2
-       Their parameters differ
-       The type 'b t as 'b is not equal to the type 'a
-=======
-       Their parameters differ
-       The type "'b t as 'b" is not equal to the type "'a"
->>>>>>> 5.2.0
 type 'a t = private 'a constraint 'a = < x : int; .. >
 type t = [ `Closed ]
 type nonrec t = private [> t ]

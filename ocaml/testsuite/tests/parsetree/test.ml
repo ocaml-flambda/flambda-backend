@@ -1,14 +1,6 @@
 (* TEST
-<<<<<<< HEAD
  include ocamlcommon;
  readonly_files = "source.ml source_jane_street.ml";
-||||||| 121bedcfd2
-   include ocamlcommon
-   readonly_files = "source.ml"
-=======
- include ocamlcommon;
- readonly_files = "source.ml";
->>>>>>> 5.2.0
 *)
 
 (* (c) Alain Frisch / Lexifi *)

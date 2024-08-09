@@ -1,21 +1,9 @@
 (* TEST
-<<<<<<< HEAD
  modules = "polling.c";
  compare_programs = "false";
  poll-insertion;
  arch64;
  native;
-||||||| 121bedcfd2
-   modules = "polling.c"
-   compare_programs = "false"
-   * arch64
-   ** native
-=======
- modules = "polling.c";
- compare_programs = "false";
- arch64;
- native;
->>>>>>> 5.2.0
 *)
 
 (* This set of tests examine poll insertion behaviour. We do this by requesting

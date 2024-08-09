@@ -1,18 +1,8 @@
-<<<<<<< HEAD
 (* TEST_BELOW
 (* Blank lines added here to preserve locations. *)
 
 
 
-||||||| 121bedcfd2
-(* TEST
-   flags = "-g"
-   ocamlrunparam += ",b=1"
-=======
-(* TEST_BELOW
-(* Blank lines added here to preserve locations. *)
-
->>>>>>> 5.2.0
 *)
 
 (* A test for stack backtraces *)
@@ -88,7 +78,6 @@ let _ =
   run test_lazy  [| () |];
   run test_lazy  [| () |];
   ()
-<<<<<<< HEAD
 
 (* TEST
  reason = "Backtraces are broken by the use of reraise";
@@ -96,11 +85,3 @@ let _ =
  ocamlrunparam += ",b=1";
  skip;
 *)
-||||||| 121bedcfd2
-=======
-
-(* TEST
- flags = "-g";
- ocamlrunparam += ",b=1";
-*)
->>>>>>> 5.2.0

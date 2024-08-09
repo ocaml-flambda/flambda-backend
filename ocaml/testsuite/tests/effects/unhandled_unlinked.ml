@@ -1,17 +1,12 @@
 (* TEST
-<<<<<<< HEAD
  {
    exit_status = "2";
    skip;
  }{
+   runtime5;
    reason = "CR ocaml 5 effects: re-enable this test";
    skip;
  }
-||||||| 121bedcfd2
-     exit_status= "2"
-=======
- exit_status = "2";
->>>>>>> 5.2.0
 *)
 
 open Effect

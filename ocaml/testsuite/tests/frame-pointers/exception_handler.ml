@@ -1,23 +1,9 @@
 (* TEST
-<<<<<<< HEAD
  runtime5;
  frame_pointers;
  readonly_files = "fp_backtrace.c";
  all_modules = "${readonly_files} exception_handler.ml";
  native;
-||||||| 121bedcfd2
-
-* frame_pointers
-** native
-readonly_files = "fp_backtrace.c"
-all_modules = "${readonly_files} exception_handler.ml"
-
-=======
- frame_pointers;
- readonly_files = "fp_backtrace.c";
- all_modules = "${readonly_files} exception_handler.ml";
- native;
->>>>>>> 5.2.0
 *)
 
 (* Force -O3 to ensure the "_code" symbols are present (see the

@@ -278,7 +278,6 @@ type t = #float;;
 [%%expect {|
 Line 1, characters 9-15:
 1 | type t = #float;;
-<<<<<<< HEAD
              ^^^^^^
 Error: float isn't a class type. Did you mean the unboxed type float#?
 |}]
@@ -293,12 +292,4 @@ Line 2, characters 15-20:
                    ^^^^^
 Error: Unbound class type float
 Hint: Did you mean floot?
-||||||| b26b2bd6c5
-              ^^^^^
-Error: Unbound class type float
-Hint: Did you mean float#?
-=======
-             ^^^^^^
-Error: float isn't a class type. Did you mean the unboxed type float#?
->>>>>>> ocaml-jst/flambda-patches
 |}]
