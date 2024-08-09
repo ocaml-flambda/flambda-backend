@@ -250,7 +250,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let type_jkind, type_jkind_annotation, sdecl_attributes =
     Jkind.of_type_decl_default
       ~context:(Type_declaration path)
-      ~default:(Jkind.Type.Primitive.any ~why:Initial_typedecl_env |> Jkind.of_type_jkind)
+      ~default:(Jkind.Primitive.top ~why:Initial_typedecl_env)
       sdecl
   in
   let abstract_reason, type_manifest =
@@ -908,7 +908,13 @@ let transl_declaration env sdecl (id, uid) =
     *)
       match jkind_from_annotation, man with
       | Some annot, _ -> annot
-      | None, Some _ -> Jkind.Type.Primitive.any ~why:Initial_typedecl_env |> Jkind.of_type_jkind
+      | None, Some _ -> (
+        match kind with 
+        | Type_abstract _ -> 
+          Jkind.Primitive.top ~why:Initial_typedecl_env
+        | Type_record _ | Type_variant _ | Type_open -> 
+          Jkind.Type.Primitive.any ~why:Initial_typedecl_env |> Jkind.of_type_jkind
+      )
       | None, None -> jkind_default
     in
     let arity = List.length params in
@@ -1132,7 +1138,7 @@ let check_kind_coherence env loc dpath decl =
           if not @@ Ctype.arity_matches_decl env decl (AppArgs.length args)
           then Some Includecore.Arity
           else begin
-            match Ctype.equal env false (AppArgs.to_list args) decl.type_params with
+            match Ctype.equal env false (AppArgs.to_list args) (Ctype.app_params_of_decl decl) with
             | exception Ctype.Equality err ->
                 Some (Includecore.Constraint err)
             | () ->
@@ -1874,7 +1880,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
   let args =
     (* The jkinds here shouldn't matter for the purposes of
        [check_well_founded] *)
-  List.map (fun _ -> Ctype.new_type_var (Jkind.Type.Primitive.any ~why:Dummy_jkind))
+  List.map (fun _ -> Ctype.newvar (Jkind.Primitive.top ~why:Dummy_jkind))
       decl.type_params
   in
   let visited = ref TypeMap.empty in
