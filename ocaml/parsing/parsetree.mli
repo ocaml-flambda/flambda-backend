@@ -110,6 +110,9 @@ and core_type_desc =
             - [T tconstr]             when [l=[T]],
             - [(T1, ..., Tn) tconstr] when [l=[T1 ; ... ; Tn]].
          *)
+  | Ptyp_app of core_type * core_type list
+      (** [Ptyp_constr(t, l)] represents the same constructs as [Ptyp_constr],
+          but for cases when [t] may also be a type variable or application. *)
   | Ptyp_object of object_field list * closed_flag
       (** [Ptyp_object([ l1:T1; ...; ln:Tn ], flag)] represents:
             - [< l1:T1; ...; ln:Tn >]     when [flag] is
