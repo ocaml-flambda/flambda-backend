@@ -244,7 +244,7 @@ let compile_program (compiler : Ocaml_compilers.compiler) log env =
     else
       None
   in
-  match cmas_need_dynamic_loading with
+  match[@ocaml.warning "-fragile-match"] cmas_need_dynamic_loading with
     | Some (Error reason) ->
         (Result.fail_with_reason reason, env)
     | _ ->
@@ -335,7 +335,7 @@ let module_has_interface directory module_name =
   Sys.file_exists interface_fullpath
 
 let add_module_interface directory module_description =
-  match module_description with
+  match[@ocaml.warning "-fragile-match"] module_description with
     | (filename, Ocaml_filetypes.Implementation) when
       module_has_interface directory filename ->
         [(filename, Ocaml_filetypes.Interface); module_description]
@@ -980,7 +980,7 @@ let compile_module compiler compilername compileroutput log env
           what (String.concat " " commandline) exit_status) in
       (Result.fail_with_reason reason, env)
     end in
-  match module_filetype with
+  match[@ocaml.warning "-fragile-match"] module_filetype with
     | Ocaml_filetypes.Interface ->
       let interface_name =
         Ocaml_filetypes.make_filename
@@ -1029,7 +1029,8 @@ let run_test_program_in_toplevel (toplevel : Ocaml_toplevels.toplevel) log env =
   let toplevel_supports_dynamic_loading =
     Config.supports_shared_libraries || backend <> Ocaml_backends.Bytecode
   in
-  match cmas_need_dynamic_loading (directories env) libraries with
+  match[@ocaml.warning "-fragile-match"]
+    cmas_need_dynamic_loading (directories env) libraries with
     | Some (Error reason) ->
       (Result.fail_with_reason reason, env)
     | Some (Ok ()) when not toplevel_supports_dynamic_loading ->

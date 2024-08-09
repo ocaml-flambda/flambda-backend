@@ -110,7 +110,7 @@ let make_filename (basename, filetype) =
   let extension = extension_of_filetype filetype in
   basename ^ "." ^ extension
 
-let action_of_filetype = function
+let action_of_filetype = function [@ocaml.warning "-fragile-match"]
   | Implementation -> "Compiling implementation"
   | Interface -> "Compiling interface"
   | C -> "Compiling C source file"

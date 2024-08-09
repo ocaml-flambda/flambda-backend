@@ -98,7 +98,7 @@ let lookup_test located_name =
   | Some test -> test
 
 let test_trees_of_tsl_block tsl_block =
-  let rec env_of_lines = function
+  let rec env_of_lines = function [@ocaml.warning "-fragile-match"]
     | [] -> ([], [])
     | Environment_statement s :: lines ->
       let (env', remaining_lines) = env_of_lines lines in
@@ -135,7 +135,7 @@ let test_trees_of_tsl_block tsl_block =
     (List.rev !trees, !remaining_lines) in
   let (env, rem) = env_of_lines tsl_block in
   let (trees, rem) = trees_of_lines 1 rem in
-  match rem with
+  match[@ocaml.warning "-fragile-match"] rem with
     | [] -> (env, trees)
     | (Environment_statement s)::_ -> unexpected_environment_statement s
     | _ -> assert false
@@ -170,7 +170,7 @@ let rec ast_of_tree (Node (env, test, mods, subs)) =
 
 and ast_of_tree_aux env tst subs =
   let env = List.map (fun x -> Environment_statement x) env in
-  match List.map ast_of_tree subs with
+  match[@ocaml.warning "-fragile-match"] List.map ast_of_tree subs with
   | [ Ast (stmts, subs) ] -> Ast (env @ tst @ stmts, subs)
   | asts -> Ast (env @ tst, asts)
 
