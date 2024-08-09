@@ -276,6 +276,7 @@ module History = struct
     | Bits64_creation of bits64_creation_reason
     | Concrete_creation of concrete_jkind_reason
     | Top_creation of top_creation_reason
+    | Defaulted
     | Imported
     | Imported_type_argument of
         { parent_path : Path.t;
