@@ -27,6 +27,7 @@
    -strict-sequence
    -strict-formats
    -nolabels ; for UnixLabels
+   -thread
    ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags (:standard -linkall))

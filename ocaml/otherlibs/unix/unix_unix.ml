@@ -940,6 +940,25 @@ type popen_process =
 let popen_processes = (Hashtbl.create 7 : (popen_process, int) Hashtbl.t)
 let popen_mutex = Mutex.create ()
 
+module Mutex = struct
+  include Mutex
+
+  (* These aren't available in 4.14, which we still use as the system
+     compiler. *)
+
+  external reraise : exn -> _ = "%reraise"
+
+  let[@inline never] protect m f =
+    lock m;
+    match f() with
+    | x ->
+      unlock m; x
+    | exception e ->
+      (* NOTE: [unlock] does not poll for asynchronous exceptions *)
+      unlock m;
+      reraise e
+end
+
 let open_proc prog args envopt proc input output error =
   let pid =
     create_process_gen prog args envopt input output error in
