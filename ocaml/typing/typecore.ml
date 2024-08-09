@@ -391,7 +391,7 @@ let should_infer_tail env (callee_expr: callee_expr) =
               | true -> `Infer_tail
               | false -> `Don't_infer_tail
             end
-          | _ -> `Infer_tail
+          | _ -> `Infer_tail (* Preserve existing behavior. *)
         end
     end
   end in
