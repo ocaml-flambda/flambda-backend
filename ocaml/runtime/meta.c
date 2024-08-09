@@ -50,69 +50,6 @@ struct bytecode {
 };
 #define Bytecode_val(p) ((struct bytecode*)Data_abstract_val(p))
 
-<<<<<<< HEAD
-/* Convert a bytes array (= LongString.t) to a contiguous buffer.
-   The result is allocated with caml_stat_alloc */
-static char* buffer_of_bytes_array(value ls, asize_t *len)
-{
-  CAMLparam1(ls);
-  CAMLlocal1(s);
-  asize_t off;
-  char *ret;
-  int i;
-
-  *len = 0;
-  mlsize_t ls_size = Wosize_val(ls);
-  for (i = 0; i < ls_size; i++) {
-    s = Field(ls, i);
-    *len += caml_string_length(s);
-  }
-
-  ret = caml_stat_alloc(*len);
-  off = 0;
-  for (i = 0; i < ls_size; i++) {
-    size_t s_len;
-    s = Field(ls, i);
-    s_len = caml_string_length(s);
-    memcpy(ret + off, Bytes_val(s), s_len);
-    off += s_len;
-  }
-
-  CAMLreturnT (char*, ret);
-}
-
-||||||| 121bedcfd2
-/* Convert a bytes array (= LongString.t) to a contiguous buffer.
-   The result is allocated with caml_stat_alloc */
-static char* buffer_of_bytes_array(value ls, asize_t *len)
-{
-  CAMLparam1(ls);
-  CAMLlocal1(s);
-  asize_t off;
-  char *ret;
-  int i;
-
-  *len = 0;
-  for (i = 0; i < Wosize_val(ls); i++) {
-    s = Field(ls, i);
-    *len += caml_string_length(s);
-  }
-
-  ret = caml_stat_alloc(*len);
-  off = 0;
-  for (i = 0; i < Wosize_val(ls); i++) {
-    size_t s_len;
-    s = Field(ls, i);
-    s_len = caml_string_length(s);
-    memcpy(ret + off, Bytes_val(s), s_len);
-    off += s_len;
-  }
-
-  CAMLreturnT (char*, ret);
-}
-
-=======
->>>>>>> 5.2.0
 CAMLprim value caml_reify_bytecode(value ls_prog,
                                    value debuginfo,
                                    value digest_opt)

@@ -38,37 +38,6 @@
 # so force C locale throughout.
 
 export LC_ALL=C
-<<<<<<< HEAD
-(
-  for prim in \
-      alloc array compare extern floats gc_ctrl hash intern interp ints io \
-      lexing md5 meta memprof obj parsing signals str sys callback weak \
-      finalise domain platform fiber memory startup_aux runtime_events sync \
-      dynlink backtrace_byt backtrace afl \
-      bigarray prng float32
-  do
-      sed -n -e 's/^CAMLprim value \([a-z0-9_][a-z0-9_]*\).*/\1/p' \
-        "runtime/$prim.c"
-  done
-  sed -n -e 's/^CAMLprim_int64_[0-9](\([a-z0-9_][a-z0-9_]*\)).*/caml_int64_\1\
-caml_int64_\1_native/p' runtime/ints.c
-) | sort | uniq
-||||||| 121bedcfd2
-(
-  for prim in \
-      alloc array compare extern floats gc_ctrl hash intern interp ints io \
-      lexing md5 meta memprof obj parsing signals str sys callback weak \
-      finalise domain platform fiber memory startup_aux runtime_events sync \
-      dynlink backtrace_byt backtrace afl \
-      bigarray prng
-  do
-      sed -n -e 's/^CAMLprim value \([a-z0-9_][a-z0-9_]*\).*/\1/p' \
-        "runtime/$prim.c"
-  done
-  sed -n -e 's/^CAMLprim_int64_[0-9](\([a-z0-9_][a-z0-9_]*\)).*/caml_int64_\1\
-caml_int64_\1_native/p' runtime/ints.c
-) | sort | uniq
-=======
 
 case $# in
   0) echo "Usage: gen_primitives.sh <primitives file> <.c files>" 1>&2
@@ -88,4 +57,3 @@ if test -f "$primitives" && cmp -s "$tmp_primitives" "$primitives"
 then rm "$tmp_primitives"
 else mv "$tmp_primitives" "$primitives"
 fi
->>>>>>> 5.2.0

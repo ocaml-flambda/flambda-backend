@@ -1305,7 +1305,6 @@ CAMLexport void caml_serialize_block_float_8(void * data, intnat len)
 #endif
 }
 
-<<<<<<< HEAD
 enum reachable_words_node_state {
   /* This node is reachable from at least two distinct roots, so it doesn't
    * have a unique owner and will be ignored in all future traversals. */
@@ -1321,23 +1320,6 @@ enum reachable_words_node_state {
    * starting from a single root. The state is then equal to the identifier of the
    * root that we reached it from */
 };
-||||||| 121bedcfd2
-CAMLprim value caml_obj_reachable_words(value v)
-{
-  intnat size;
-  struct extern_item * sp;
-  uintnat h = 0;
-  uintnat pos = 0;
-  struct caml_extern_state *s = get_extern_state ();
-=======
-CAMLprim value caml_obj_reachable_words(value v)
-{
-  intnat size;
-  struct extern_item * sp;
-  uintnat h = 0;
-  uintnat pos = 0;
-  struct caml_extern_state *s = init_extern_state ();
->>>>>>> 5.2.0
 
 /* CR ocaml 5 domains (mshinwell): think about what to do here */
 /* Not multicore-safe (the [volatile] just lets us use this with the [Field] macro) */
@@ -1478,7 +1460,7 @@ intnat reachable_words_once(struct caml_extern_state *s,
 
 struct caml_extern_state* reachable_words_init(void)
 {
-  struct caml_extern_state *s = get_extern_state ();
+  struct caml_extern_state *s = init_extern_state ();
   s->obj_counter = 0;
   s->extern_flags = 0;
   extern_init_position_table(s);

@@ -25,14 +25,8 @@
         EXTRN  caml_apply3: NEAR
         EXTRN  caml_program: NEAR
         EXTRN  caml_array_bound_error_asm: NEAR
-<<<<<<< HEAD
         EXTRN  caml_array_align_error: NEAR
         EXTRN  caml_stash_backtrace: NEAR
-||||||| 121bedcfd2
-       EXTRN  caml_stash_backtrace: NEAR
-=======
-        EXTRN  caml_stash_backtrace: NEAR
->>>>>>> 5.2.0
 
 ; Load caml/domain_state.tbl (via domain_state.inc, to remove C-style comments)
         domain_curr_field = 0

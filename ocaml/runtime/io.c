@@ -656,16 +656,8 @@ CAMLprim value caml_ml_set_channel_name(value vchannel, value vname)
     channel->name = caml_stat_strdup(String_val(vname));
   else
     channel->name = NULL;
-<<<<<<< HEAD
-  Unlock(channel);
-  CAMLreturn (Val_unit);
-||||||| 121bedcfd2
-  Unlock(channel);
-  return Val_unit;
-=======
   caml_channel_unlock(channel);
   CAMLreturn (Val_unit);
->>>>>>> 5.2.0
 }
 
 struct channel_list {
@@ -756,16 +748,8 @@ CAMLprim value caml_ml_close_channel(value vchannel)
 
     if (result == -1) caml_sys_error (NO_ARG);
   }
-<<<<<<< HEAD
-  Unlock(channel);
-  CAMLreturn (Val_unit);
-||||||| 121bedcfd2
-  Unlock(channel);
-  return Val_unit;
-=======
   caml_channel_unlock(channel);
   CAMLreturn (Val_unit);
->>>>>>> 5.2.0
 }
 
 /* EOVERFLOW is the Unix98 error indicating that a file position or file
@@ -824,18 +808,12 @@ CAMLprim value caml_ml_set_binary_mode(value vchannel, value mode)
     channel->flags |= CHANNEL_TEXT_MODE;
   caml_channel_unlock(channel);
 #endif
-<<<<<<< HEAD
-  CAMLreturn (Val_unit);
-||||||| 121bedcfd2
-  return Val_unit;
-=======
   CAMLreturn (Val_unit);
 }
 
 CAMLprim value caml_ml_is_binary_mode(value vchannel)
 {
   return Val_bool(caml_channel_binary_mode(Channel(vchannel)));
->>>>>>> 5.2.0
 }
 
 /*
@@ -869,16 +847,8 @@ CAMLprim value caml_ml_set_buffered(value vchannel, value mode)
     if (channel->fd != -1)
       caml_flush(channel);
   }
-<<<<<<< HEAD
-  Unlock(channel);
-  CAMLreturn(Val_unit);
-||||||| 121bedcfd2
-  Unlock(channel);
-  return Val_unit;
-=======
   caml_channel_unlock(channel);
   CAMLreturn(Val_unit);
->>>>>>> 5.2.0
 }
 
 CAMLprim value caml_ml_is_buffered(value vchannel)
@@ -994,16 +964,8 @@ CAMLprim value caml_ml_pos_out_64(value vchannel)
   struct channel *channel = Channel(vchannel);
   caml_channel_lock(channel);
   pos = caml_pos_out(channel);
-<<<<<<< HEAD
-  Unlock(channel);
-  CAMLreturn (Val_file_offset(pos));
-||||||| 121bedcfd2
-  Unlock(channel);
-  return Val_file_offset(pos);
-=======
   caml_channel_unlock(channel);
   CAMLreturn (Val_file_offset(pos));
->>>>>>> 5.2.0
 }
 
 CAMLprim value caml_ml_input_char(value vchannel)
@@ -1130,16 +1092,8 @@ CAMLprim value caml_ml_pos_in_64(value vchannel)
   struct channel *channel = Channel(vchannel);
   caml_channel_lock(channel);
   pos = caml_pos_in(channel);
-<<<<<<< HEAD
-  Unlock(channel);
-  CAMLreturn (Val_file_offset(pos));
-||||||| 121bedcfd2
-  Unlock(channel);
-  return Val_file_offset(pos);
-=======
   caml_channel_unlock(channel);
   CAMLreturn (Val_file_offset(pos));
->>>>>>> 5.2.0
 }
 
 CAMLprim value caml_ml_input_scan_line(value vchannel)

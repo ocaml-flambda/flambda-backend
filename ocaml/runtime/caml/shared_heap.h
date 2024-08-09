@@ -27,8 +27,6 @@
 
 CAMLextern atomic_uintnat caml_compactions_count;
 
-CAMLextern atomic_uintnat caml_compactions_count;
-
 struct caml_heap_state;
 struct pool;
 
@@ -91,7 +89,6 @@ Caml_inline int is_marked(value v) {
   return Has_status_val(v, caml_global_heap_state.MARKED);
 }
 
-<<<<<<< HEAD
 Caml_inline int is_not_markable(value v) {
   return Has_status_val(v, NOT_MARKABLE);
 }
@@ -103,13 +100,6 @@ Caml_inline status caml_allocation_status(void) {
     : caml_global_heap_state.UNMARKED;
 }
 
-||||||| 121bedcfd2
-=======
-Caml_inline int is_not_markable(value v) {
-  return Has_status_val(v, NOT_MARKABLE);
-}
-
->>>>>>> 5.2.0
 void caml_redarken_pool(struct pool*, scanning_action, void*);
 
 intnat caml_sweep(struct caml_heap_state*, intnat);

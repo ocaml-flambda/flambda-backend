@@ -118,21 +118,9 @@ CAMLnoret CAMLextern void caml_raise_not_found (void);
 
 CAMLnoret CAMLextern void caml_array_bound_error (void);
 
-<<<<<<< HEAD
-CAMLnoreturn_start
-CAMLextern void caml_array_align_error (void)
-CAMLnoreturn_end;
+CAMLnoret CAMLextern void caml_array_align_error (void);
 
-CAMLnoreturn_start
-CAMLextern void caml_raise_sys_blocked_io (void)
-CAMLnoreturn_end;
-||||||| 121bedcfd2
-CAMLnoreturn_start
-CAMLextern void caml_raise_sys_blocked_io (void)
-CAMLnoreturn_end;
-=======
 CAMLnoret CAMLextern void caml_raise_sys_blocked_io (void);
->>>>>>> 5.2.0
 
 #ifdef __cplusplus
 }

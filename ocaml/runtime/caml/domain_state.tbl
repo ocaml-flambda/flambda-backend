@@ -43,7 +43,6 @@ DOMAIN_STATE(struct stack_info*, current_stack)
 DOMAIN_STATE(void*, exn_handler)
 /* Pointer into the current stack */
 
-<<<<<<< HEAD
 DOMAIN_STATE(char*, async_exn_handler)
 /* Async exception pointer that points into the current stack */
 
@@ -53,12 +52,7 @@ DOMAIN_STATE(intnat, local_sp)
 DOMAIN_STATE(void*, local_top)
 DOMAIN_STATE(intnat, local_limit)
 
-DOMAIN_STATE(int, action_pending)
-||||||| 121bedcfd2
-DOMAIN_STATE(int, action_pending)
-=======
 DOMAIN_STATE(intnat, action_pending)
->>>>>>> 5.2.0
 /* Whether we are due to start the processing of delayable pending
    actions. See runtime/signal.c. Valid values: 0,1. */
 
