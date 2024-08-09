@@ -102,6 +102,13 @@ val split_last: 'a list -> 'a list * 'a
 val last : 'a list -> 'a option
         (** Return the last element of a list if it's nonempty *)
 
+module Hlist : sig
+  type _ t = [] : unit t | ( :: ) : 'a * 'b t -> ('a -> 'b) t
+  type _ lt = [] : unit lt | ( :: ) : 'a list * 'b lt -> ('a -> 'b) lt
+
+  val cartesian_product : 'l lt -> 'l t list
+end
+
 (** {1 Hash table operations} *)
 
 val create_hashtable: int -> ('a * 'b) list -> ('a, 'b) Hashtbl.t
