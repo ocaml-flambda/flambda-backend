@@ -127,7 +127,9 @@ let prim_table =
     "array_load", PRIM_ARRAY_LOAD;
     "array_set", PRIM_ARRAY_SET;
     "begin_region", PRIM_BEGIN_REGION;
+    "begin_ghost_region", PRIM_BEGIN_GHOST_REGION;
     "begin_try_region", PRIM_BEGIN_TRY_REGION;
+    "begin_ghost_try_region", PRIM_BEGIN_GHOST_TRY_REGION;
     "bigstring_load", PRIM_BIGSTRING_LOAD;
     "bigstring_set", PRIM_BIGSTRING_SET;
     "Block", PRIM_BLOCK;
@@ -142,7 +144,9 @@ let prim_table =
     "bytes_load", PRIM_BYTES_LOAD;
     "bytes_set", PRIM_BYTES_SET;
     "end_region", PRIM_END_REGION;
+    "end_ghost_region", PRIM_END_GHOST_REGION;
     "end_try_region", PRIM_END_TRY_REGION;
+    "end_ghost_try_region", PRIM_END_GHOST_TRY_REGION;
     "get_tag", PRIM_GET_TAG;
     "int_arith", PRIM_INT_ARITH;
     "int_comp", PRIM_INT_COMP;

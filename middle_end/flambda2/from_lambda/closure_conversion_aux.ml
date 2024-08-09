@@ -35,17 +35,22 @@ module IR = struct
   type named =
     | Simple of simple
     | Get_tag of Ident.t
-    | Begin_region of { is_try_region : bool }
+    | Begin_region of
+        { ghost : bool;
+          is_try_region : bool
+        }
     | End_region of
         { is_try_region : bool;
-          region : Ident.t
+          region : Ident.t;
+          ghost : bool
         }
     | Prim of
         { prim : Lambda.primitive;
           args : simple list list;
           loc : Lambda.scoped_location;
           exn_continuation : exn_continuation option;
-          region : Ident.t
+          region : Ident.t;
+          ghost_region : Ident.t
         }
 
   type apply_kind =
@@ -67,6 +72,7 @@ module IR = struct
       probe : Lambda.probe;
       mode : Lambda.alloc_mode;
       region : Ident.t;
+      ghost_region : Ident.t;
       args_arity : [`Complex] Flambda_arity.t;
       return_arity : [`Unarized] Flambda_arity.t
     }
@@ -92,14 +98,16 @@ module IR = struct
     | Simple (Var id) -> Ident.print ppf id
     | Simple (Const cst) -> Printlambda.structured_constant ppf cst
     | Get_tag id -> fprintf ppf "@[<2>(Gettag %a)@]" Ident.print id
-    | Begin_region { is_try_region } ->
+    | Begin_region { is_try_region; ghost } ->
       if is_try_region
       then fprintf ppf "Begin_try_region"
-      else fprintf ppf "Begin_region"
-    | End_region { is_try_region; region } ->
+      else fprintf ppf "Begin_region";
+      if ghost then fprintf ppf "_ghost"
+    | End_region { is_try_region; region; ghost } ->
       if is_try_region
       then fprintf ppf "@[<2>(End_try_region@ %a)@]" Ident.print region
-      else fprintf ppf "@[<2>(End_region@ %a)@]" Ident.print region
+      else fprintf ppf "@[<2>(End_region@ %a)@]" Ident.print region;
+      if ghost then fprintf ppf "_ghost"
     | Prim { prim; args; _ } ->
       fprintf ppf "@[<2>(%a %a)@]" Printlambda.primitive prim
         (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf arg ->
@@ -770,6 +778,7 @@ module Function_decls = struct
         return_continuation : Continuation.t;
         exn_continuation : IR.exn_continuation;
         my_region : Ident.t;
+        my_ghost_region : Ident.t;
         body : Acc.t -> Env.t -> Acc.t * Flambda.Import.Expr.t;
         free_idents_of_body : Ident.Set.t;
         attr : Lambda.function_attribute;
@@ -783,9 +792,9 @@ module Function_decls = struct
 
     let create ~let_rec_ident ~function_slot ~kind ~params ~params_arity
         ~removed_params ~return ~calling_convention ~return_continuation
-        ~exn_continuation ~my_region ~body ~(attr : Lambda.function_attribute)
-        ~loc ~free_idents_of_body recursive ~closure_alloc_mode
-        ~first_complex_local_param ~result_mode
+        ~exn_continuation ~my_region ~my_ghost_region ~body
+        ~(attr : Lambda.function_attribute) ~loc ~free_idents_of_body recursive
+        ~closure_alloc_mode ~first_complex_local_param ~result_mode
         ~contains_no_escaping_local_allocs =
       let let_rec_ident =
         match let_rec_ident with
@@ -803,6 +812,7 @@ module Function_decls = struct
         return_continuation;
         exn_continuation;
         my_region;
+        my_ghost_region;
         body;
         free_idents_of_body;
         attr;
@@ -833,6 +843,8 @@ module Function_decls = struct
     let exn_continuation t = t.exn_continuation
 
     let my_region t = t.my_region
+
+    let my_ghost_region t = t.my_ghost_region
 
     let body t = t.body
 

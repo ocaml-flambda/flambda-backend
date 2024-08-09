@@ -928,7 +928,8 @@ let opaque layout arg ~middle_end_only : H.expr_primitive list =
 
 (* Primitive conversion *)
 let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
-    (dbg : Debuginfo.t) ~current_region : H.expr_primitive list =
+    (dbg : Debuginfo.t) ~current_region ~current_ghost_region :
+    H.expr_primitive list =
   let orig_args = args in
   let args =
     List.map (List.map (fun arg : H.simple_or_prim -> Simple arg)) args
@@ -1690,7 +1691,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbbswap (Pnativeint, mode), [[arg]] ->
     [bbswap Naked_nativeint Naked_nativeint mode arg ~current_region]
   | Pint_as_pointer mode, [[arg]] ->
-    let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
+    (* This is not a stack allocation, but nonetheless has a region
+       constraint. *)
+    let mode =
+      Alloc_mode.For_allocations.from_lambda mode
+        ~current_region:current_ghost_region
+    in
     [Unary (Int_as_pointer mode, arg)]
   | Pbigarrayref (unsafe, num_dimensions, kind, layout), args -> (
     let args =
@@ -2079,7 +2085,11 @@ module Expr_with_acc = Closure_conversion_aux.Expr_with_acc
 
 let convert_and_bind acc ~big_endian exn_cont ~register_const0
     (prim : L.primitive) ~(args : Simple.t list list) (dbg : Debuginfo.t)
-    ~current_region (cont : Acc.t -> Flambda.Named.t list -> Expr_with_acc.t) :
-    Expr_with_acc.t =
-  let exprs = convert_lprim ~big_endian prim args dbg ~current_region in
+    ~current_region ~current_ghost_region
+    (cont : Acc.t -> Flambda.Named.t list -> Expr_with_acc.t) : Expr_with_acc.t
+    =
+  let exprs =
+    convert_lprim ~big_endian prim args dbg ~current_region
+      ~current_ghost_region
+  in
   H.bind_recs acc exn_cont ~register_const0 exprs dbg cont

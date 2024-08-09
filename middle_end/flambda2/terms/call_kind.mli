@@ -85,19 +85,19 @@ end
 type t = private
   | Function of
       { function_call : Function_call.t;
-        alloc_mode : Alloc_mode.For_allocations.t
+        alloc_mode : Alloc_mode.For_applications.t
       }
   | Method of
       { kind : Method_kind.t;
         obj : Simple.t;
-        alloc_mode : Alloc_mode.For_allocations.t
+        alloc_mode : Alloc_mode.For_applications.t
       }
   | C_call of
       { needs_caml_c_call : bool;
         is_c_builtin : bool;
         effects : Effects.t;
         coeffects : Coeffects.t;
-        alloc_mode : Alloc_mode.For_allocations.t
+        alloc_mode : Alloc_mode.For_applications.t
       }
   | Effect of Effect.t
 
@@ -105,21 +105,21 @@ include Expr_std.S with type t := t
 
 include Contains_ids.S with type t := t
 
-val direct_function_call : Code_id.t -> Alloc_mode.For_allocations.t -> t
+val direct_function_call : Code_id.t -> Alloc_mode.For_applications.t -> t
 
-val indirect_function_call_unknown_arity : Alloc_mode.For_allocations.t -> t
+val indirect_function_call_unknown_arity : Alloc_mode.For_applications.t -> t
 
-val indirect_function_call_known_arity : Alloc_mode.For_allocations.t -> t
+val indirect_function_call_known_arity : Alloc_mode.For_applications.t -> t
 
 val method_call :
-  Method_kind.t -> obj:Simple.t -> Alloc_mode.For_allocations.t -> t
+  Method_kind.t -> obj:Simple.t -> Alloc_mode.For_applications.t -> t
 
 val c_call :
   needs_caml_c_call:bool ->
   is_c_builtin:bool ->
   effects:Effects.t ->
   coeffects:Coeffects.t ->
-  Alloc_mode.For_allocations.t ->
+  Alloc_mode.For_applications.t ->
   t
 
 val effect : Effect.t -> t

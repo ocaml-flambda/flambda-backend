@@ -8,7 +8,7 @@ in
 let $camlTests15__immstring67 = " \\ \n " in
 let code size(18)
       list_to_array_0 (param : [ 0 | 0 of val * [ 0 | 0 of val * val ] ])
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : any array =
   let prim = %is_int param in
@@ -28,7 +28,7 @@ let code size(18)
          param :
            [ 0 of imm tagged |1 of imm tagged |2 of imm tagged
            |3 of imm tagged ])
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   (let prim = %get_tag param in
@@ -43,7 +43,7 @@ let code size(18)
 in
 let code size(5)
       set_to_x_2 (b, i : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %untag_imm 120 in
@@ -52,7 +52,7 @@ let code size(5)
 in
 let code size(3)
       classical_id_3 (b : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let Pnot = %not b in
@@ -61,7 +61,7 @@ let code size(3)
 in
 let code size(9)
       swapped_4 (param : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %untag_imm 287454020 in
@@ -71,7 +71,7 @@ let code size(9)
 in
 let code size(2)
       negate_5 (x : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let Pnegint = %int_arith ~- x in
@@ -79,7 +79,7 @@ let code size(2)
 in
 let code size(2)
       foo_6 (x : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let Porint = x lor 42 in
