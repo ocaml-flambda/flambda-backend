@@ -26,7 +26,7 @@ open Local_store
 
 module String = Misc.Stdlib.String
 
-let unwrap_private : private_or_new_flag -> private_flag = function
+let unwrap_private : private_flag -> private_not_new_flag = function
   | Private -> Private
   | Public -> Public
   | New -> assert false
@@ -65,7 +65,7 @@ let add_constructor_usage cu usage =
 let constructor_usages () =
   {cu_positive = false; cu_pattern = false; cu_exported_private = false}
 
-let constructor_usage_complaint ~rebind (priv : private_flag) cu
+let constructor_usage_complaint ~rebind (priv : private_not_new_flag) cu
   : Warnings.constructor_usage_warning option =
   match priv, rebind with
   | Asttypes.Private, _ | _, true ->
@@ -109,7 +109,7 @@ let is_mutating_label_usage = function
 let label_usages () =
   {lu_projection = false; lu_mutation = false; lu_construct = false}
 
-let label_usage_complaint (priv : private_flag) mut lu
+let label_usage_complaint (priv : private_not_new_flag) mut lu
   : Warnings.field_usage_warning option =
   match priv, mut with
   | Asttypes.Private, _ ->

@@ -563,13 +563,13 @@ type intermediate_class_field =
         attributes : attribute list; }
   | Virtual_method of
       { label : string loc;
-        priv : private_flag;
+        priv : private_not_new_flag;
         cty : core_type;
         loc : Location.t;
         attributes : attribute list; }
   | Concrete_method of
       { label : string loc;
-        priv : private_flag;
+        priv : private_not_new_flag;
         override : override_flag;
         sdefinition : Parsetree.expression;
         warning_state : Warnings.state;

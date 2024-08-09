@@ -36,8 +36,8 @@ type rec_flag = Nonrecursive | Recursive
 type direction_flag = Upto | Downto
 
 (* Order matters, used in polymorphic comparison *)
-type private_flag = Private | Public
-type private_or_new_flag = Private | New | Public
+type private_not_new_flag = Private | Public
+type private_flag = Private | New | Public
 
 type mutable_flag = Immutable | Mutable
 

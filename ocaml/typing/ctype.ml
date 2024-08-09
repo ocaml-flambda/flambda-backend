@@ -4415,7 +4415,7 @@ let filter_method env name ty =
 
 exception Filter_method_row_failed
 
-let rec filter_method_row env name (priv : private_flag) ty =
+let rec filter_method_row env name (priv : private_not_new_flag) ty =
   let ty = expand_head env ty in
   match get_desc ty with
   | Tvar _ ->
@@ -4485,7 +4485,7 @@ type add_method_failure =
 
 exception Add_method_failed of add_method_failure
 
-let add_method env label (priv : private_flag) virt ty sign =
+let add_method env label (priv : private_not_new_flag) virt ty sign =
   let meths = sign.csig_meths in
   let priv, virt =
     match Meths.find label meths with
@@ -4596,7 +4596,7 @@ let inherit_class_signature ~strict env sign1 sign2 =
   unify_self_types env sign1 sign2;
   Meths.iter
     (fun label (priv, virt, ty) ->
-       let priv : private_flag =
+       let priv : private_not_new_flag =
          match priv with
          | Mpublic -> Public
          | Mprivate kind ->

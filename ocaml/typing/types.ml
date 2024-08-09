@@ -85,7 +85,7 @@ and _ row_field_gen =
 
 and abbrev_memo =
     Mnil
-  | Mcons of private_or_new_flag * Path.t * type_expr * type_expr * abbrev_memo
+  | Mcons of private_flag * Path.t * type_expr * type_expr * abbrev_memo
   | Mlink of abbrev_memo ref
 
 and any = [`some | `none | `var]
@@ -261,7 +261,7 @@ type type_declaration =
     type_kind: type_decl_kind;
     type_jkind: jkind;
     type_jkind_annotation: type_expr Jkind_types.annotation option;
-    type_private: private_or_new_flag;
+    type_private: private_flag;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
     type_separability: Separability.t list;
@@ -362,7 +362,7 @@ type extension_constructor =
     ext_shape: constructor_representation;
     ext_constant: bool;
     ext_ret_type: type_expr option;
-    ext_private: private_flag;
+    ext_private: private_not_new_flag;
     ext_loc: Location.t;
     ext_attributes: Parsetree.attributes;
     ext_uid: Uid.t;
@@ -587,7 +587,7 @@ type constructor_description =
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)
     cstr_generalized: bool;             (* Constrained return type? *)
-    cstr_private: private_flag;         (* Read-only constructor? *)
+    cstr_private: private_not_new_flag;         (* Read-only constructor? *)
     cstr_loc: Location.t;
     cstr_attributes: Parsetree.attributes;
     cstr_inlined: type_declaration option;
@@ -718,7 +718,7 @@ type label_description =
     lbl_num: int;                       (* Position in type *)
     lbl_all: label_description array;   (* All the labels in this type *)
     lbl_repres: record_representation;  (* Representation for outer record *)
-    lbl_private: private_flag;          (* Read-only field? *)
+    lbl_private: private_not_new_flag;          (* Read-only field? *)
     lbl_loc: Location.t;
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;
