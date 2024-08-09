@@ -12,11 +12,6 @@
 ;*                                                                        *
 ;**************************************************************************
 
-(rule
- (deps unix_unix.ml)
- (targets unix.ml)
- (action (copy unix_unix.ml unix.ml)))
-
 (include_subdirs unqualified)
 
 (library
