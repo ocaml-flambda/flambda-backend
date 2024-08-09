@@ -114,12 +114,11 @@ module Dependency_graph = struct
     Cfg.iter_blocks cfg ~f:(fun _ -> handle_block);
     let set_in_edges id (node : Node.t) =
       let set_in_edge from to_ =
-      let old_node = Instruction.Id.Tbl.find dependency_graph to_ in
+        let old_node = Instruction.Id.Tbl.find dependency_graph to_ in
         Instruction.Id.Tbl.replace dependency_graph to_
-        { old_node with
-          in_edges =
-            Instruction.Id.Set.add from old_node.in_edges
-        }
+          { old_node with
+            in_edges = Instruction.Id.Set.add from old_node.in_edges
+          }
       in
       Instruction.Id.Set.iter (set_in_edge id) node.out_edges
     in
