@@ -563,23 +563,23 @@ module Type = struct
     end
 
     let of_user_written_abbreviation ~jkind (const : Jane_syntax.Jkind.Const.t)
-        : t =
+        =
       let { txt = name; loc } =
         (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
       in
       (* CR layouts 2.8: move this to predef *)
       match name with
-      | "any" -> Primitive.any.jkind
-      | "value" -> Primitive.value.jkind
-      | "void" -> Primitive.void.jkind
-      | "immediate64" -> Primitive.immediate64.jkind
-      | "immediate" -> Primitive.immediate.jkind
-      | "float64" -> Primitive.float64.jkind
-      | "float32" -> Primitive.float32.jkind
-      | "word" -> Primitive.word.jkind
-      | "bits32" -> Primitive.bits32.jkind
-      | "bits64" -> Primitive.bits64.jkind
-      | _ -> user_raise ~loc (Unknown_jkind jkind)
+      | "any" -> Ok Primitive.any.jkind
+      | "value" -> Ok Primitive.value.jkind
+      | "void" -> Ok Primitive.void.jkind
+      | "immediate64" -> Ok Primitive.immediate64.jkind
+      | "immediate" -> Ok Primitive.immediate.jkind
+      | "float64" -> Ok Primitive.float64.jkind
+      | "float32" -> Ok Primitive.float32.jkind
+      | "word" -> Ok Primitive.word.jkind
+      | "bits32" -> Ok Primitive.bits32.jkind
+      | "bits64" -> Ok Primitive.bits64.jkind
+      | _ -> Error (loc, (Unknown_jkind jkind : Error.t))
 
     let meet_mode_in_parse jkind (mode : ModeParser.mode) =
       (* for each mode, lower the corresponding modal bound to be that mode *)
@@ -1177,6 +1177,14 @@ module Type = struct
       function
       | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
 
+    let top_creation_reason ppf : History.top_creation_reason -> unit = function
+      | Missing_cmi p -> fprintf ppf "Missing_cmi %a" Path.print p
+      | Initial_typedecl_env -> fprintf ppf "Initial_typedecl_env"
+      | Dummy_jkind -> fprintf ppf "Dummy_jkind"
+      | Type_expression_call -> fprintf ppf "Type_expression_call"
+      | Wildcard -> fprintf ppf "Wildcard"
+      | Unification_var -> fprintf ppf "Unification_var"
+
     let creation_reason ppf : History.creation_reason -> unit = function
       | Annotated (ctx, loc) ->
         fprintf ppf "Annotated (%a,%a)" annotation_context ctx
@@ -1204,6 +1212,8 @@ module Type = struct
         fprintf ppf "Bits64_creation %a" bits64_creation_reason bits64
       | Concrete_creation concrete ->
         fprintf ppf "Concrete_creation %a" concrete_jkind_reason concrete
+      | Top_creation top ->
+        fprintf ppf "Top_creation %a" top_creation_reason top
       | Imported -> fprintf ppf "Imported"
       | Imported_type_argument { parent_path; position; arity } ->
         fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position
@@ -1274,6 +1284,7 @@ module Const = struct
            ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
            format)
         args format result
+    | Top -> Format.fprintf ppf "top"
 
   let rec equal (t : t) (t' : t) =
     match t, t' with
@@ -1281,23 +1292,39 @@ module Const = struct
     | ( Arrow { args = args1; result = result1 },
         Arrow { args = args2; result = result2 } ) ->
       List.for_all2 equal args1 args2 && equal result1 result2
-    | Type _, Arrow _ | Arrow _, Type _ -> false
+    | Top, Top -> true
+    | _, (Arrow _ | Type _ | Top) -> false
 
   let to_type_jkind (t : t) =
     match t with
     | Type ty -> ty
     | Arrow _ ->
       raise (Unexpected_higher_jkind "Coerced arrow to type jkind (const)")
+    | Top -> raise (Unexpected_higher_jkind "Coerced top to type jkind (const)")
 
   let of_attribute : Builtin_attributes.jkind_attribute -> t = function
     | Immediate -> of_type_jkind Type.Const.Primitive.immediate.jkind
     | Immediate64 -> of_type_jkind Type.Const.Primitive.immediate64.jkind
 
+  let of_user_written_abbreviation ~jkind const =
+    let { txt = name; loc = _ } =
+      (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
+    in
+    (* CR layouts 2.8: move this to predef
+       jbachurski: (CC from Type.Const.of_user_written_abbreviation) *)
+    match name with
+    | "top" -> Ok Jkind_types.Const.Top
+    | _ ->
+      Result.map of_type_jkind
+        (Type.Const.of_user_written_abbreviation ~jkind const)
+
   let rec of_user_written_annotation_unchecked_level
       (jkind : Jane_syntax.Jkind.t) : t =
     match jkind with
-    | Abbreviation const ->
-      Type (Type.Const.of_user_written_abbreviation ~jkind const)
+    | Abbreviation const -> (
+      match of_user_written_abbreviation ~jkind const with
+      | Ok k -> k
+      | Error (loc, err) -> user_raise ~loc err)
     | Mod (jkind, modes) ->
       (* TODO jbachurski: We coerce here - in the future, the syntax should not permit
          mod on arrows. Such expressions are not parsed currently. *)
@@ -1321,6 +1348,7 @@ let of_const ~why (c : Const.t) : t =
     | Type ty -> Type (Type.of_const ~why ty).jkind
     | Arrow { args; result } ->
       Arrow { args = List.map go args; result = go result }
+    | Top -> Top
   in
   { jkind = go c; history = Creation why; has_warned = false }
 
@@ -1335,8 +1363,8 @@ let of_arrow ~history ({ args; result } : t Jkind_types.Arrow.t) : t =
   }
 
 module Primitive = struct
-  (* TODO jbachurski: Implement the top element for the jkind lattice *)
-  let top ~why = of_type_jkind (Type.Primitive.any ~why)
+  let top ~why =
+    { jkind = Top; history = Creation (Top_creation why); has_warned = false }
 end
 
 (******************************)
@@ -1357,6 +1385,7 @@ module Jkind_desc = struct
         Some
           (Arrow { args = List.map Option.get args; result = Option.get result })
       else None
+    | Top -> Some Top
 
   let rec format ppf = function
     | Type ty -> Type.Jkind_desc.format ppf ty
@@ -1366,18 +1395,20 @@ module Jkind_desc = struct
            ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
            format)
         args format result
+    | Top -> Format.fprintf ppf "top"
 
   module Debug_printers = struct
     open Format
 
     let rec t ppf = function
-      | Type ty -> Type.Jkind_desc.Debug_printers.t ppf ty
+      | Type ty -> fprintf ppf "Type %a" Type.Jkind_desc.Debug_printers.t ty
       | Arrow { args; result } ->
-        fprintf ppf "{ args = [%a];@ result = %a }"
+        fprintf ppf "Arrow { args = [%a];@ result = %a }"
           (Format.pp_print_list
              ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
              t)
           args t result
+      | Top -> Format.fprintf ppf "Top"
   end
 end
 
@@ -1400,7 +1431,7 @@ let to_const (t : t) = Jkind_desc.to_const t.jkind
 let get_required_layouts_level context (const : Const.t) =
   match const with
   | Type ty -> Type.get_required_layouts_level context ty
-  | Arrow _ -> Language_extension.Alpha
+  | Arrow _ | Top -> Language_extension.Alpha
 
 let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
   let const = Const.of_user_written_annotation_unchecked_level annot in
@@ -1483,6 +1514,7 @@ module Desc = struct
   type nonrec t =
     | Type of Type.t
     | Arrow of t Jkind_types.Arrow.t
+    | Top
 end
 
 let default_all_sort_variables_to_value (t : t) =
@@ -1491,6 +1523,7 @@ let default_all_sort_variables_to_value (t : t) =
     | Arrow { args; result } ->
       List.iter go args;
       go result
+    | Top -> ()
   in
   go t.jkind
 
@@ -1520,6 +1553,7 @@ let get t : Desc.t =
             has_warned = false
           }
       }
+  | Top -> Top
 
 (*********************************)
 (* pretty printing *)
@@ -1747,6 +1781,17 @@ end = struct
     | Primitive id ->
       fprintf ppf "it is the primitive bits64 type %s" (Ident.name id)
 
+  let format_top_creation_reason ppf : History.top_creation_reason -> unit =
+    function
+    | Missing_cmi p -> format_any_creation_reason ppf (Missing_cmi p)
+    | Wildcard -> format_any_creation_reason ppf Wildcard
+    | Unification_var -> format_any_creation_reason ppf Unification_var
+    | Initial_typedecl_env ->
+      format_any_creation_reason ppf Initial_typedecl_env
+    | Dummy_jkind -> format_any_creation_reason ppf Dummy_jkind
+    | Type_expression_call ->
+      format_any_creation_reason ppf Type_expression_call
+
   let format_creation_reason ppf : History.creation_reason -> unit = function
     | Annotated (ctx, _) ->
       fprintf ppf "of the annotation on %a" format_annotation_context ctx
@@ -1765,6 +1810,7 @@ end = struct
     | Bits32_creation bits32 -> format_bits32_creation_reason ppf bits32
     | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
     | Concrete_creation concrete -> format_concrete_jkind_reason ppf concrete
+    | Top_creation any -> format_top_creation_reason ppf any
     | Imported ->
       fprintf ppf "of layout requirements from an imported definition"
     | Imported_type_argument { parent_path; position; arity } ->
@@ -1969,7 +2015,8 @@ let equate_or_equal ~allow_mutation (t : t) (t' : t) =
         Arrow { args = args2; result = result2 } ) ->
       let arg_eqs = List.map2 go args1 args2 in
       go result1 result2 && List.for_all (fun x -> x) arg_eqs
-    | Type _, Arrow _ | Arrow _, Type _ -> false
+    | Top, Top -> true
+    | _, (Arrow _ | Type _ | Top) -> false
   in
   go t.jkind t'.jkind
 
@@ -2033,6 +2080,8 @@ let rec intersection_or_error ~reason (t1 : t) (t2 : t) =
   let ( let* ) = Result.bind in
   let violation = Violation.of_ (No_intersection (t1, t2)) in
   match get t1, get t2 with
+  | _, Top -> Ok t1
+  | Top, _ -> Ok t2
   | Type ty1, Type ty2 -> (
     match Type.Jkind_desc.intersection ty1.jkind ty2.jkind with
     | None -> Error (Violation.of_ (No_intersection (t1, t2)))
@@ -2047,7 +2096,7 @@ let rec intersection_or_error ~reason (t1 : t) (t2 : t) =
     let* args = union_list_or_error ~reason ~violation args1 args2 in
     let* result = intersection_or_error ~reason result1 result2 in
     Ok (of_arrow ~history:(combine_histories reason t1 t2) { args; result })
-  | Type _, Arrow _ | Arrow _, Type _ -> Error violation
+  | _, (Arrow _ | Type _) -> Error violation
 
 and union_or_error ~reason (t1 : t) (t2 : t) =
   let ( let* ) = Result.bind in
@@ -2062,10 +2111,18 @@ and union_or_error ~reason (t1 : t) (t2 : t) =
       }
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
-    let* args = intersection_list_or_error ~reason ~violation args1 args2 in
-    let* result = union_or_error ~reason result1 result2 in
-    Ok (of_arrow ~history:(combine_histories reason t1 t2) { args; result })
-  | Type _, Arrow _ | Arrow _, Type _ -> Error violation
+    Ok
+      (Result.value
+         ~default:(Primitive.top ~why:Dummy_jkind)
+         (let* args =
+            intersection_list_or_error ~reason ~violation args1 args2
+          in
+          let* result = union_or_error ~reason result1 result2 in
+          Ok
+            (of_arrow
+               ~history:(combine_histories reason t1 t2)
+               { args; result })))
+  | _, (Arrow _ | Type _ | Top) -> Ok (Primitive.top ~why:Dummy_jkind)
 
 and intersection_list_or_error ~reason ~violation =
   combine_list_or_error ~violation (intersection_or_error ~reason)
@@ -2081,13 +2138,15 @@ let has_intersection t t' =
 
 let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
   match get t, get t' with
+  | Top, Top -> Misc.Le_result.Equal
+  | _, Top -> Misc.Le_result.Less
   | Type ty, Type ty' -> Type.check_sub ty ty'
   | ( Arrow { args = args1; result = result1 },
       Arrow { args = args2; result = result2 } ) ->
     Misc.Le_result.combine
       (check_sub result1 result2)
       (check_sub_list args2 args1)
-  | Type _, Arrow _ | Arrow _, Type _ -> Misc.Le_result.Not_le
+  | _, (Type _ | Arrow _) -> Misc.Le_result.Not_le
 
 and check_sub_list ts ts' =
   if List.length ts <> List.length ts'
@@ -2106,9 +2165,7 @@ let sub_with_history (t : t) (t' : t) =
 
 (* This doesn't do any mutation because mutating a sort variable can't make it
    any, and modal upper bounds are constant. *)
-(* TODO jbachurski: Until the Top jkind is implemented, no jkind is max *)
-(* let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind *)
-let is_max _jkind = false
+let is_max t = sub (Primitive.top ~why:Dummy_jkind) t
 
 let has_layout_any (t : t) =
   match t.jkind with

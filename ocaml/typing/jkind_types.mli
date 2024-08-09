@@ -166,6 +166,7 @@ module Jkind_desc : sig
   type 'type_expr t =
     | Type of 'type_expr Type.Jkind_desc.t
     | Arrow of 'type_expr t Arrow.t
+    | Top
 end
 
 type 'type_expr history = 'type_expr Jkind_desc.t History.t
@@ -186,6 +187,7 @@ module Const : sig
   type 'type_expr t =
     | Type of 'type_expr Type.Const.t
     | Arrow of 'type_expr t Arrow.t
+    | Top
 end
 
 type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation

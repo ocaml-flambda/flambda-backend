@@ -330,7 +330,7 @@ end
 
 module Primitive : sig
   (** Top element of the jkind lattice, including higher jkinds *)
-  val top : why:Jkind_intf.History.any_creation_reason -> t
+  val top : why:Jkind_intf.History.top_creation_reason -> t
 end
 
 (******************************)
@@ -415,6 +415,7 @@ module Desc : sig
   type nonrec t =
     | Type of Type.t
     | Arrow of t Jkind_types.Arrow.t
+    | Top
 end
 
 (** Defaults all sort variables within the [Jkind.t] to value *)

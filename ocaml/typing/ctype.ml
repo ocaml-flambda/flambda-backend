@@ -2133,6 +2133,7 @@ let rec jkind_of_decl_unapplied env (decl : type_declaration) =
 
 and type_jkind_for_app app_jkind app_arity tys =
   match tys, Jkind.get app_jkind with
+  | _, Top -> Some app_jkind
   | Unapplied, _ when app_arity = 0 -> Some app_jkind
   | Unapplied, _ -> None
   | Applied tys, _ when app_arity > 0 ->
@@ -2219,6 +2220,7 @@ let arity_matches_decl env decl t = match t, decl.type_arity with
     match Jkind.get decl.type_jkind with
     | Type _ -> false
     | Arrow { args = kind_args; result = _ } -> List.length kind_args = m
+    | Top -> true
   end
   | m, n -> m = n
 
@@ -2406,6 +2408,7 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
                | Some (Sort Value) | None -> true
                | _ -> false)
       | Arrow _ -> false
+      | Top -> false
     in
     if Language_extension.erasable_extensions_only ()
       && is_immediate jkind && not (Jkind.History.has_warned jkind)
@@ -5722,6 +5725,11 @@ let build_submode posi m =
   if posi then build_submode_pos (Alloc.allow_left m)
   else build_submode_neg (Alloc.allow_right m)
 
+let subtype_error ~env ~trace ~unification_trace =
+  raise (Subtype (Subtype.error
+                    ~trace:(expand_subtype_trace env (List.rev trace))
+                    ~unification_trace))
+
 (* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and
    [Alloc] get unified *)
 let mode_cross_left env ty mode =
@@ -5730,6 +5738,10 @@ let mode_cross_left env ty mode =
      are bad when checking for principality. Really, I'm surprised that
      the types here aren't principal. In any case, leaving the check out
      now; will return and figure this out later. *)
+  let () = match constrain_type_jkind env ty (Jkind.of_type_jkind (Jkind.Type.Primitive.any ~why:Dummy_jkind)) with
+    | Ok () -> ()
+    | Error _ -> subtype_error ~env ~trace:[] ~unification_trace:[]
+  in
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
   Alloc.meet_const upper_bounds mode
@@ -5739,6 +5751,10 @@ let mode_cross_left env ty mode =
 let mode_cross_right env ty mode =
   (* CR layouts v2.8: This should probably check for principality. See
      similar comment in [mode_cross_left]. *)
+  let () = match constrain_type_jkind env ty (Jkind.of_type_jkind (Jkind.Type.Primitive.any ~why:Dummy_jkind)) with
+    | Ok () -> ()
+    | Error _ -> subtype_error ~env ~trace:[] ~unification_trace:[]
+  in
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
   Alloc.imply upper_bounds mode
@@ -5966,11 +5982,6 @@ let enlarge_type env ty =
 *)
 
 let subtypes = TypePairs.create 17
-
-let subtype_error ~env ~trace ~unification_trace =
-  raise (Subtype (Subtype.error
-                    ~trace:(expand_subtype_trace env (List.rev trace))
-                    ~unification_trace))
 
 let subtype_alloc_mode env trace a1 a2 =
   match Alloc.submode a1 a2 with
