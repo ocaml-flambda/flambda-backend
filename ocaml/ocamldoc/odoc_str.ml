@@ -154,12 +154,12 @@ let string_of_class_params c =
   iter c.Odoc_class.cl_type;
   Buffer.contents b
 
-let bool_of_private3 = function
-  | Asttypes.Private -> true
+let bool_of_private = function
+  | (Asttypes.Private : Asttypes.private_flag) -> true
   | _ -> false
 
-let bool_of_private = function
-  | Asttypes.Private -> true
+let bool_of_private_not_new = function
+  | (Asttypes.Private : Asttypes.private_not_new_flag) -> true
   | _ -> false
 
 let field_doc_str = function
@@ -183,7 +183,7 @@ let string_of_record l =
 let string_of_type t =
   let module M = Odoc_type in
    let module P = Printf in
-   let priv = bool_of_private3 t.M.ty_private in
+   let priv = bool_of_private t.M.ty_private in
    let parameters_str =
      String.concat " " (
        List.map (fun (p, v) ->
@@ -265,7 +265,7 @@ let string_of_type_extension te =
         ))
     ^te.M.te_type_name
     ^" += "
-    ^(if (bool_of_private te.M.te_private) then "private " else "")
+    ^(if (bool_of_private_not_new te.M.te_private) then "private " else "")
     ^"\n"
     ^(String.concat ""
         (List.map

@@ -663,7 +663,7 @@ class texi =
           [ Newline ; minus ; Raw "type " ;
             Raw (self#string_of_type_parameters ty) ;
             Raw (Name.simple ty.ty_name) ] @
-          let priv = ty.ty_private = Asttypes.Private in
+          let priv = ty.ty_private = (Asttypes.Private : Asttypes.private_flag) in
           ( match ty.ty_manifest with
           | None -> []
           | Some (Other typ) ->
@@ -735,7 +735,7 @@ class texi =
                               (List.map Odoc_info.string_of_type_expr l))) ;
               Raw (self#relative_idents m_name te.te_type_name) ;
               Raw (" +=" ^
-                      (if te.te_private = Asttypes.Private
+                      (if te.te_private = (Asttypes.Private : Asttypes.private_not_new_flag)
                        then " private" else "")^"\n") ] @
               (List.flatten
                  (List.map

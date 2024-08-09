@@ -1586,7 +1586,7 @@ class html =
       (match te.te_type_parameters with [] -> () | _ -> bs b " ");
       bs b (self#create_fully_qualified_idents_links m_name te.te_type_name);
       bs b " += ";
-      if te.te_private = Asttypes.Private then bs b "private ";
+      if te.te_private = (Asttypes.Private : Asttypes.private_not_new_flag) then bs b "private ";
       bs b "</code></pre>";
       bs b "<table class=\"typetable\">\n";
       let print_one x =
@@ -1766,7 +1766,7 @@ class html =
       (match t.ty_parameters with [] -> () | _ -> bs b " ");
       bs b (Name.simple t.ty_name);
       bs b "</span> ";
-      let priv = t.ty_private = Asttypes.Private in
+      let priv = t.ty_private = (Asttypes.Private : Asttypes.private_flag) in
       (
        match t.ty_manifest with
          None -> ()

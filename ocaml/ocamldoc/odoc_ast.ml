@@ -547,7 +547,7 @@ module Analyser =
                 val_code = code ;
                 val_loc = { loc_impl = Some loc ; loc_inter = None } ;
               } ;
-              met_private = private_flag = Asttypes.Private ;
+              met_private = private_flag = (Asttypes.Private : Asttypes.private_not_new_flag) ;
               met_virtual = true ;
             }
           in
@@ -588,7 +588,7 @@ module Analyser =
                 val_code = code ;
                 val_loc = { loc_impl = Some loc ; loc_inter = None } ;
               } ;
-              met_private = private_flag = Asttypes.Private ;
+              met_private = private_flag = (Asttypes.Private : Asttypes.private_not_new_flag) ;
               met_virtual = false ;
               }
           in
