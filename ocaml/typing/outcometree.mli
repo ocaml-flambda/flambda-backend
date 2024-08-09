@@ -116,6 +116,7 @@ and out_jkind =
   | Ojkind_user of out_jkind_user
   | Ojkind_const of out_jkind_const
   | Ojkind_var of string
+  | Ojkind_union of string option * string list
   | Ojkind_arrow of out_jkind list * out_jkind
   | Ojkind_top
 

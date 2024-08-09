@@ -9,7 +9,7 @@ module Eq : sig
   type ('a : top, 'b : top) eq
 
   val refl : unit -> ('a, 'a) eq
-  val subst : ('a : top) ('b : top) ('f : top => value). ('a, 'b) eq -> ('a 'f -> 'b 'f)
+  val subst : 'a 'b ('f : top => value). ('a, 'b) eq -> ('a 'f -> 'b 'f)
 end = struct
   type ('a : top, 'b : top) eq = { subst : ('f : top => value). 'a 'f -> 'b 'f }
   let refl () = { subst = (fun x -> x) }

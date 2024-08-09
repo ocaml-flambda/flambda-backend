@@ -102,12 +102,10 @@ module Type : sig
   end
 
   module Layout : sig
-    type 'sort layout =
-      | Sort of 'sort
-      | Any
-
     module Const : sig
-      type t = Sort.const layout
+      type t =
+        | Sort of Sort.const
+        | Any
 
       module Legacy : sig
         type t =
@@ -124,7 +122,10 @@ module Type : sig
       end
     end
 
-    type t = Sort.t layout
+    type t =
+      | Sort of Sort.t
+      | Union of Sort.t list
+      | Any
   end
 
   module Externality : sig
