@@ -5,6 +5,5 @@
  check-ocamlopt.byte-output;
 *)
 
-
-type t : value => value
-type p = int t
+type l : value => value = list
+let x: int l = [1]

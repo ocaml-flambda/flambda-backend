@@ -134,3 +134,84 @@ let f (x : 'a t) = x
 type 'a t
 val f : 'a t -> 'a t = <fun>
 |}]
+
+type l : value => value = list
+let x : int l = [0]
+[%%expect {|
+type l = list
+val x : int l = <abstr>
+|}]
+
+type l : value => value = list
+let x : int l = [0]
+[%%expect {|
+type l = list
+val x : int l = <abstr>
+|}]
+
+type ('a : value => value) t = int 'a
+
+module M : sig
+  type a = int list
+end = struct
+  type a = list t
+end
+
+[%%expect{|
+type ('a : value => value) t = int 'a
+module M : sig type a = int list end
+|}]
+
+type 'a t = 'a * 'a
+let id : 'a ('b : value => value). 'a 'b -> 'a 'b = fun x -> x
+[%%expect{|
+type 'a t = 'a * 'a
+val id : ('b : value => value) 'a. 'a 'b -> 'a 'b = <fun>
+|}]
+
+let y = id ((0, 1) : int t)
+[%%expect{|
+Line 1, characters 11-27:
+1 | let y = id ((0, 1) : int t)
+               ^^^^^^^^^^^^^^^^
+Error: This expression has type int t = int * int
+       but an expression was expected of type 'a 'b
+|}]
+
+let y = id (0, 1)
+[%%expect{|
+Line 1, characters 11-17:
+1 | let y = id (0, 1)
+               ^^^^^^
+Error: This expression has type 'a * 'b
+       but an expression was expected of type 'c 'd
+|}]
+
+module M : sig
+  val id : 'a ('b : value => value). 'a 'b -> 'a 'b
+end = struct
+  let id x = x
+end
+[%%expect{|
+module M : sig val id : ('b : value => value) 'a. 'a 'b -> 'a 'b end
+|}]
+
+module T : sig
+  type 'a t
+  val return : 'a -> 'a t
+end = struct
+  type 'a t = 'a * 'a
+  let return x = (x, x)
+end
+[%%expect{|
+module T : sig type 'a t val return : 'a -> 'a t end
+|}]
+
+let y = M.id (T.return 0)
+[%%expect{|
+Line 1, characters 13-25:
+1 | let y = M.id (T.return 0)
+                 ^^^^^^^^^^^^
+Error: This expression has type int T.t
+       but an expression was expected of type 'a 'b
+|}]

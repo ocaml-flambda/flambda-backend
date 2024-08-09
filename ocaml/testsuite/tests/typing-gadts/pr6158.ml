@@ -21,5 +21,5 @@ Line 6, characters 45-49:
 Error: This pattern matches values of type (int s, int s) eq
        but a pattern was expected which matches values of type
          (int s, int t) eq
-       Type int s is not compatible with type int t
+       Type s is not compatible with type t
 |}];;
