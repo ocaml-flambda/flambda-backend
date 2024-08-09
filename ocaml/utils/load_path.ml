@@ -309,6 +309,6 @@ let find_normalized_with_visibility fn =
         (Misc.find_in_path_normalized (get_hidden_path_list ()) fn, Hidden)
   with Not_found ->
     let fn_uncap = String.uncapitalize_ascii fn in
-    (!auto_include_callback Dir.find_uncap fn_uncap, Visible)
+    (!auto_include_callback Dir.find_normalized fn_uncap, Visible)
 
 let find_normalized fn = fst (find_normalized_with_visibility fn)
