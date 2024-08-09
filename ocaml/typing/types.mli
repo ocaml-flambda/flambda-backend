@@ -975,10 +975,9 @@ module AppArgs : sig
   val of_list : type_expr list -> t
   val to_list : t -> type_expr list
 
+  val length : t -> int
   val map : (type_expr -> type_expr) -> t -> t
   val iter : (type_expr -> unit) -> t -> unit
   val iter2 : ('a -> type_expr -> unit) -> 'a list -> t -> unit
   val fold_left : ('acc -> type_expr -> 'acc) -> 'acc -> t -> 'acc
-
-  val matches_decl : type_declaration -> t -> bool
 end
