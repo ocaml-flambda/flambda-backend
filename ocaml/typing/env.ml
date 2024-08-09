@@ -27,8 +27,8 @@ open Local_store
 module String = Misc.Stdlib.String
 
 let unwrap_private = function
-  | Private3 -> Private
-  | Public3 -> Public
+  | Private3 -> Private2
+  | Public3 -> Public2
   | New3 -> assert false
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
@@ -68,10 +68,10 @@ let constructor_usages () =
 let constructor_usage_complaint ~rebind priv cu
   : Warnings.constructor_usage_warning option =
   match priv, rebind with
-  | Asttypes.Private, _ | _, true ->
+  | Asttypes.Private2, _ | _, true ->
       if cu.cu_positive || cu.cu_pattern || cu.cu_exported_private then None
       else Some Unused
-  | Asttypes.Public, false -> begin
+  | Asttypes.Public2, false -> begin
       match cu.cu_positive, cu.cu_pattern, cu.cu_exported_private with
       | true, _, _ -> None
       | false, false, false -> Some Unused
@@ -112,16 +112,16 @@ let label_usages () =
 let label_usage_complaint priv mut lu
   : Warnings.field_usage_warning option =
   match priv, mut with
-  | Asttypes.Private, _ ->
+  | Asttypes.Private2, _ ->
       if lu.lu_projection then None
       else Some Unused
-  | Asttypes.Public, Types.Immutable -> begin
+  | Asttypes.Public2, Types.Immutable -> begin
       match lu.lu_projection, lu.lu_construct with
       | true, _ -> None
       | false, false -> Some Unused
       | false, true -> Some Not_read
     end
-  | Asttypes.Public, Types.Mutable _ -> begin
+  | Asttypes.Public2, Types.Mutable _ -> begin
       match lu.lu_projection, lu.lu_mutation, lu.lu_construct with
       | true, true, _ -> None
       | false, false, false -> Some Unused

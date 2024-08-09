@@ -21,7 +21,7 @@
 
 module Name = Odoc_name
 
-type private_flag = Asttypes.private_flag = Private | Public
+type private_flag = Asttypes.private_flag = Private2 | Public2
 type private_or_new_flag = Asttypes.private_or_new_flag = Private3 | New3 | Public3
 
 type record_field = {

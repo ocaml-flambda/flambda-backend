@@ -309,7 +309,7 @@ let build_initial_env add_type add_extension empty_env =
         ext_shape = Constructor_uniform_value;
         ext_constant = args = [];
         ext_ret_type = None;
-        ext_private = Asttypes.Public;
+        ext_private = Asttypes.Public2;
         ext_loc = Location.none;
         ext_attributes = [Ast_helper.Attr.mk
                             (Location.mknoloc "ocaml.warn_on_literal_pattern")
