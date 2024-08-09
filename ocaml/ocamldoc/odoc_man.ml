@@ -466,7 +466,7 @@ class man =
       bs b (self#relative_idents m_name te.te_type_name);
       bs b " \n";
       bs b "+=";
-      if te.te_private = Asttypes.Private then bs b " private";
+      if te.te_private = (Asttypes.Private : Asttypes.private_not_new_flag) then bs b " private";
       bs b "\n ";
       List.iter
         (fun x ->
@@ -591,7 +591,7 @@ class man =
       );
       bs b (Name.simple t.ty_name);
       bs b " \n";
-      let priv = t.ty_private = Asttypes.Private in
+      let priv = t.ty_private = (Asttypes.Private : Asttypes.private_flag) in
       (
        match t.ty_manifest with
          None -> ()

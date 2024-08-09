@@ -68,7 +68,7 @@ let constructor_usages () =
 let constructor_usage_complaint ~rebind (priv : private_not_new_flag) cu
   : Warnings.constructor_usage_warning option =
   match priv, rebind with
-  | Asttypes.Private, _ | _, true ->
+  | (Asttypes.Private : Asttypes.private_not_new_flag), _ | _, true ->
       if cu.cu_positive || cu.cu_pattern || cu.cu_exported_private then None
       else Some Unused
   | Asttypes.Public, false -> begin
@@ -112,7 +112,7 @@ let label_usages () =
 let label_usage_complaint (priv : private_not_new_flag) mut lu
   : Warnings.field_usage_warning option =
   match priv, mut with
-  | Asttypes.Private, _ ->
+  | (Asttypes.Private : Asttypes.private_not_new_flag), _ ->
       if lu.lu_projection then None
       else Some Unused
   | Asttypes.Public, Types.Immutable -> begin
