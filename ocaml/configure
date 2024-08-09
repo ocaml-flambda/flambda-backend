@@ -3366,7 +3366,7 @@ OCAML_VERSION_SHORT=5.2
 
 printf "%s\n" "#define MAGIC_NUMBER_PREFIX \"Caml1999\"" >>confdefs.h
 
-printf "%s\n" "#define MAGIC_NUMBER_VERSION \"034\"" >>confdefs.h
+printf "%s\n" "#define MAGIC_NUMBER_VERSION \"550\"" >>confdefs.h
 
 MAGIC_NUMBER_LENGTH=12
 
@@ -3374,25 +3374,25 @@ printf "%s\n" "#define EXEC_MAGIC_LENGTH 12" >>confdefs.h
 
 printf "%s\n" "#define EXEC_FORMAT \"X\"" >>confdefs.h
 
-EXEC_MAGIC_NUMBER=Caml1999X034
+EXEC_MAGIC_NUMBER=Caml1999X550
 
-CMI_MAGIC_NUMBER=Caml1999I034
+CMI_MAGIC_NUMBER=Caml1999I550
 
-CMO_MAGIC_NUMBER=Caml1999O034
+CMO_MAGIC_NUMBER=Caml1999O550
 
-CMA_MAGIC_NUMBER=Caml1999A034
+CMA_MAGIC_NUMBER=Caml1999A550
 
 
 
-AST_IMPL_MAGIC_NUMBER=Caml1999M034
+AST_IMPL_MAGIC_NUMBER=Caml1999M550
 
-AST_INTF_MAGIC_NUMBER=Caml1999N034
+AST_INTF_MAGIC_NUMBER=Caml1999N550
 
-CMXS_MAGIC_NUMBER=Caml1999D034
+CMXS_MAGIC_NUMBER=Caml1999D550
 
-CMT_MAGIC_NUMBER=Caml1999T034
+CMT_MAGIC_NUMBER=Caml1999T550
 
-LINEAR_MAGIC_NUMBER=Caml1999L034
+LINEAR_MAGIC_NUMBER=Caml1999L550
 
 
 
@@ -15091,6 +15091,19 @@ then :
 fi
 
 
+case $host in #(
+  *-*-linux*) :
+    ac_fn_c_check_header_compile "$LINENO" "linux/futex.h" "ac_cv_header_linux_futex_h" "$ac_includes_default"
+if test "x$ac_cv_header_linux_futex_h" = xyes
+then :
+  printf "%s\n" "#define HAS_LINUX_FUTEX_H 1" >>confdefs.h
+
+fi
+ ;; #(
+  *) :
+     ;;
+esac
+
 # Checks for types
 
 ## off_t
@@ -21293,11 +21306,11 @@ fi
 
 if $flambda
 then :
-  CMX_MAGIC_NUMBER=Caml1999y034
-  CMXA_MAGIC_NUMBER=Caml1999z034
+  CMX_MAGIC_NUMBER=Caml1999y550
+  CMXA_MAGIC_NUMBER=Caml1999z550
 else case e in #(
-  e) CMX_MAGIC_NUMBER=Caml1999Y034
-  CMXA_MAGIC_NUMBER=Caml1999Z034 ;;
+  e) CMX_MAGIC_NUMBER=Caml1999Y550
+  CMXA_MAGIC_NUMBER=Caml1999Z550 ;;
 esac
 fi
 
@@ -21524,11 +21537,12 @@ ocamlc_cppflags="$common_cppflags $CPPFLAGS"
 
 case $host in #(
   *-*-mingw32*) :
-    cclibs="$cclibs -lole32 -luuid -lversion" ;; #(
+    cclibs="$cclibs -lole32 -luuid -lversion -lshlwapi -lsynchronization" ;; #(
   *-pc-windows) :
-    # For whatever reason, flexlink includes -ladvapi32 for mingw-w64, but
-    # doesn't include advapi32.lib for MSVC
-    cclibs="$cclibs ole32.lib uuid.lib advapi32.lib version.lib" ;; #(
+    # For whatever reason, flexlink includes -ladvapi32 and -lshell32 for
+    # mingw-w64, but doesn't include advapi32.lib and shell32.lib for MSVC
+    cclibs="$cclibs ole32.lib uuid.lib advapi32.lib shell32.lib version.lib \
+shlwapi.lib synchronization.lib" ;; #(
   *) :
      ;;
 esac
