@@ -4518,7 +4518,7 @@ tuple_type:
    - variant types:                       [`A]
  *)
 atomic_type:
-  | atomic_type_not_quote_gen
+  | atomic_type_not_quote_inline
       { $1 }
   | tvs=typevar_list_with_full_pos
       { app_typevar_list tvs }
@@ -4526,7 +4526,7 @@ atomic_type:
       { mktyp ~loc:$sloc (Ptyp_app (ty, [app_typevar_list tvs])) }
 
 atomic_type_not_quote:
-  | atomic_type_not_quote_gen { $1 }
+  | atomic_type_not_quote_inline { $1 }
 
 %inline applied_type:
   | LPAREN ty=core_type RPAREN
@@ -4536,7 +4536,7 @@ atomic_type_not_quote:
       { Ptyp_var v }
   )   { $1 }
 
-%inline atomic_type_not_quote_gen:
+%inline atomic_type_not_quote_inline:
   | LPAREN ty=core_type RPAREN
       { ty }
   | LPAREN MODULE ext_attributes package_type RPAREN
