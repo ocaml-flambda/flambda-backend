@@ -91,21 +91,21 @@ let report_error loc e =
 type result_summary = No_failure | Some_failure | All_skipped
 let join_result summary result =
   let open Result in
-  match result.status, summary with
+  match[@ocaml.warning "-fragile-match"] result.status, summary with
   | Fail, _
   | _, Some_failure -> Some_failure
   | Skip, All_skipped -> All_skipped
   | _ -> No_failure
 
 let join_summaries sa sb =
-  match sa, sb with
+  match[@ocaml.warning "-fragile-match"] sa, sb with
   | Some_failure, _
   | _, Some_failure -> Some_failure
   | All_skipped, All_skipped -> All_skipped
   | _ -> No_failure
 
 let rec run_test_tree log common_prefix behavior env summ ast =
-  match ast with
+  match[@ocaml.warning "-fragile-match"] ast with
   | Ast (Environment_statement s :: stmts, subs) ->
     begin match interpret_environment_statement env s with
     | env ->
@@ -174,7 +174,7 @@ let test_file test_filename =
   let skip_test = List.mem test_filename !tests_to_skip in
   let tsl_ast = tsl_parse_file_safe test_filename in
   let (rootenv_statements, tsl_ast) = extract_rootenv tsl_ast in
-  let tsl_ast = match tsl_ast with
+  let tsl_ast = match[@ocaml.warning "-fragile-match"] tsl_ast with
     | Ast ([], []) ->
       let default_tests = Tests.default_tests() in
       let make_tree test =
