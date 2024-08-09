@@ -1111,5 +1111,5 @@ let conv comp_unit (fexpr : Fexpr.flambda_unit) : Flambda_unit.t =
   let body = expr env fexpr.body in
   Flambda_unit.create ~return_continuation ~exn_continuation
     ~toplevel_my_region:toplevel_region
-    ~toplevel_my_ghost_region:toplevel_region (* XXX *)
+    ~toplevel_my_ghost_region:(Variable.create "my_ghost_region")
     ~body ~module_symbol ~used_value_slots:Unknown
