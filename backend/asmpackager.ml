@@ -245,6 +245,7 @@ let package_files unix ~ppf_dump initial_env files targetcmx ~flambda2 =
     let for_pack_prefix = CU.Prefix.from_clflags () in
     CU.create for_pack_prefix (CU.Name.of_string targetname)
   in
+  let targetcmi = Unit_info.Artifact.from_filename targetcmi in
   Compilenv.reset comp_unit;
   Misc.try_finally (fun () ->
       let coercion =

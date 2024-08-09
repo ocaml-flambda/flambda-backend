@@ -27,21 +27,20 @@ type info = {
 let with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k =
   Compmisc.init_path ();
   let target = Unit_info.make ~source_file output_prefix in
-  Env.set_unit_name (Unit_info.modname target);
-  let module_name = Compenv.module_of_filename source_file output_prefix in
+  let module_name = Unit_info.modname target in
   let for_pack_prefix = Compilation_unit.Prefix.from_clflags () in
   let compilation_unit =
     Compilation_unit.create for_pack_prefix
       (module_name |> Compilation_unit.Name.of_string)
   in
   Compilation_unit.set_current (Some compilation_unit);
+  Env.set_unit_name (Some compilation_unit);
   let env = Compmisc.initial_env() in
   let dump_file = String.concat "." [output_prefix; dump_ext] in
   Compmisc.with_ppf_dump ~file_prefix:dump_file (fun ppf_dump ->
   k {
     target;
     module_name = compilation_unit;
-    output_prefix;
     env;
     ppf_dump;
     tool_name;
@@ -60,7 +59,8 @@ let typecheck_intf info ast =
   let tsg =
     ast
     |> Typemod.type_interface
-         ~sourcefile:info.source_file info.module_name info.env
+         ~sourcefile:(Unit_info.source_file info.target)
+         info.module_name info.env
     |> print_if info.ppf_dump Clflags.dump_typedtree Printtyped.interface
   in
   let sg = tsg.Typedtree.sig_type in
@@ -76,8 +76,7 @@ let typecheck_intf info ast =
   tsg
 
 let emit_signature info ast tsg =
-  let sg =
-    let name = Compilation_unit.name info.module_name in
+  let sg : Cmi_format.cmi_infos_lazy =
     let kind : Cmi_format.kind =
       if !Clflags.as_parameter then
         Parameter
@@ -92,9 +91,10 @@ let emit_signature info ast tsg =
     in
     let alerts = Builtin_attributes.alerts_of_sig ast in
     Env.save_signature ~alerts tsg.Typedtree.sig_type
+      (Compilation_unit.name info.module_name) kind
       (Unit_info.cmi info.target)
   in
-  Typemod.save_signature info.target tsg info.env sg
+  Typemod.save_signature info.target info.module_name tsg info.env sg
 
 let interface ~hook_parse_tree ~hook_typed_tree info =
   Profile.record_call (Unit_info.source_file info.target) @@ fun () ->
@@ -120,7 +120,7 @@ let parse_impl i =
 let typecheck_impl i parsetree =
   parsetree
   |> Profile.(record typing)
-    (Typemod.type_implementation ~sourcefile:i.target i.env)
+    (Typemod.type_implementation i.target i.module_name i.env)
   |> print_if i.ppf_dump Clflags.dump_typedtree
     Printtyped.implementation_with_coercion
   |> print_if i.ppf_dump Clflags.dump_shape
