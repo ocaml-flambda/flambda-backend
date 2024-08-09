@@ -452,7 +452,7 @@ and class_type_aux env virt self_scope scty =
       let ty = cty.ctyp_type in
       let ty =
         if Btype.is_optional l
-        then Ctype.newty (Tconstr(Predef.path_option,[ty], ref Mnil))
+        then Ctype.newty (Tconstr(Predef.path_option,AppArgs.one ty, ref Mnil))
         else ty in
       let clty = class_type env virt self_scope scty in
       let typ = Cty_arrow (l, ty, clty.cltyp_type) in

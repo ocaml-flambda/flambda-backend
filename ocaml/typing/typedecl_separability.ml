@@ -63,7 +63,7 @@ let structure : type_definition -> type_structure = fun def ->
           match def.type_kind with
           | Type_variant ([{cd_res = Some ret_type}], _) ->
              begin match get_desc ret_type with
-             | Tconstr (_, tyl, _) -> tyl
+             | Tconstr (_, tyl, _) -> AppArgs.to_list tyl
              | _ -> assert false
              end
           | _ -> def.type_params
@@ -151,7 +151,8 @@ let rec immediate_subtypes : type_expr -> type_expr list = fun ty ->
   | Tlink _ | Tsubst _ -> assert false (* impossible due to Ctype.repr *)
   | Tvar _ | Tunivar _ -> []
   | Tpoly (pty, _) -> [pty]
-  | Tconstr (_path, tys, _) -> tys
+  | Tconstr (_path, tys, _) -> AppArgs.to_list tys
+  | Tapp(ty, tys) -> ty :: AppArgs.to_list tys
 
 and immediate_subtypes_object_row acc ty = match get_desc ty with
   | Tnil -> acc
@@ -443,7 +444,8 @@ let check_type
         check_type hyps pty m
     | (Tunivar(_)         , _      ) -> empty
     (* Type constructor case. *)
-    | (Tconstr(path,tys,_), m      ) ->
+    | (Tconstr(_,Unapplied,_), _) -> empty
+    | (Tconstr(path,Applied tys,_), m) ->
         let msig = (Env.find_type path env).type_separability in
         let on_param context (ty, m_param) =
           let hyps = match m_param with
@@ -452,6 +454,7 @@ let check_type
             | Deepsep -> Hyps.poison hyps in
           context ++ check_type hyps ty (compose m m_param) in
         List.fold_left on_param empty (List.combine tys msig)
+    | (Tapp _, _) -> assert false
   in
   check_type Hyps.empty ty m
 

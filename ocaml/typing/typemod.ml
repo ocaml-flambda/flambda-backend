@@ -3393,7 +3393,7 @@ let type_package env m p fl =
                      if decl.type_arity > 0 then begin
                        fl
                      end else begin
-                       let t = Btype.newgenty (Tconstr (path,[],ref Mnil)) in
+                       let t = Btype.newgenty (Tconstr (path,AppArgs.unapp,ref Mnil)) in
                        (lid, t) :: fl
                      end
                end)

@@ -270,7 +270,8 @@ let fold_type_expr f init ty =
       let result = f init ty1 in
       f result ty2
   | Ttuple l            -> List.fold_left f init (List.map snd l)
-  | Tconstr (_, l, _)   -> List.fold_left f init l
+  | Tconstr (_, l, _)   -> AppArgs.fold_left f init l
+  | Tapp (ty, l)        -> AppArgs.fold_left f (f init ty) l
   | Tobject(ty, {contents = Some (_, p)}) ->
       let result = f init ty in
       List.fold_left f result p
@@ -450,7 +451,8 @@ let rec copy_type_desc ?(keep_names=false) f = function
      if keep_names then tv else Tvar { name=None; jkind }
   | Tarrow (p, ty1, ty2, c)-> Tarrow (p, f ty1, f ty2, copy_commu c)
   | Ttuple l            -> Ttuple (List.map (fun (label, t) -> label, f t) l)
-  | Tconstr (p, l, _)   -> Tconstr (p, List.map f l, ref Mnil)
+  | Tconstr (p, l, _)   -> Tconstr (p, AppArgs.map f l, ref Mnil)
+  | Tapp (ty, l)        -> Tapp (f ty, AppArgs.map f l)
   | Tobject(ty, {contents = Some (p, tl)})
                         -> Tobject (f ty, ref (Some(p, List.map f tl)))
   | Tobject (ty, _)     -> Tobject (f ty, ref None)
