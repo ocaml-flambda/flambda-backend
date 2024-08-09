@@ -209,7 +209,7 @@ module Type:
     val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs -> ?text:text ->
       ?params:(core_type * (variance * injectivity)) list ->
       ?cstrs:(core_type * core_type * loc) list ->
-      ?kind:type_kind -> ?priv:private_or_new_flag -> ?manifest:core_type -> str ->
+      ?kind:type_kind -> ?priv:private_flag -> ?manifest:core_type -> str ->
       type_declaration
 
     val constructor: ?loc:loc -> ?attrs:attrs -> ?info:info ->
@@ -230,7 +230,7 @@ module Te:
   sig
     val mk: ?loc:loc -> ?attrs:attrs -> ?docs:docs ->
       ?params:(core_type * (variance * injectivity)) list ->
-      ?priv:private_flag -> lid -> extension_constructor list -> type_extension
+      ?priv:private_not_new_flag -> lid -> extension_constructor list -> type_extension
 
     val mk_exception: ?loc:loc -> ?attrs:attrs -> ?docs:docs ->
       extension_constructor -> type_exception
@@ -408,7 +408,7 @@ module Ctf:
     val inherit_: ?loc:loc -> ?attrs:attrs -> class_type -> class_type_field
     val val_: ?loc:loc -> ?attrs:attrs -> str -> mutable_flag ->
       virtual_flag -> core_type -> class_type_field
-    val method_: ?loc:loc -> ?attrs:attrs -> str -> private_flag ->
+    val method_: ?loc:loc -> ?attrs:attrs -> str -> private_not_new_flag ->
       virtual_flag -> core_type -> class_type_field
     val constraint_: ?loc:loc -> ?attrs:attrs -> core_type -> core_type ->
       class_type_field
@@ -449,7 +449,7 @@ module Cf:
       str option -> class_field
     val val_: ?loc:loc -> ?attrs:attrs -> str -> mutable_flag ->
       class_field_kind -> class_field
-    val method_: ?loc:loc -> ?attrs:attrs -> str -> private_flag ->
+    val method_: ?loc:loc -> ?attrs:attrs -> str -> private_not_new_flag ->
       class_field_kind -> class_field
     val constraint_: ?loc:loc -> ?attrs:attrs -> core_type -> core_type ->
       class_field

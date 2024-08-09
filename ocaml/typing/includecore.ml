@@ -1203,7 +1203,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
 let extension_constructors ~loc env ~mark id ext1 ext2 =
   if mark then begin
     let usage : Env.constructor_usage =
-      if ext2.ext_private = (Public : private_flag) then Env.Exported
+      if ext2.ext_private = (Public : private_not_new_flag) then Env.Exported
       else Env.Exported_private
     in
     Env.mark_extension_used usage ext1

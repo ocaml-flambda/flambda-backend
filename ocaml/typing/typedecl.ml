@@ -2319,7 +2319,7 @@ let transl_extension_constructor_jst env type_path _type_params
       env type_path typext_params loc id (Right vars_jkinds) args res
 
 let transl_extension_constructor ~scope env type_path type_params
-                                 typext_params (priv : private_flag) sext =
+                                 typext_params (priv : private_not_new_flag) sext =
   let id = Ident.create_scoped ~scope sext.pext_name.txt in
   let loc = sext.pext_loc in
   let args, arg_jkinds, shape, constant, ret_type, kind =
@@ -2334,7 +2334,7 @@ let transl_extension_constructor ~scope env type_path type_params
         env type_path typext_params loc id (Left svars) sargs sret_type
     | Pext_rebind lid ->
         let usage : Env.constructor_usage =
-          if priv = (Public : private_flag) then Env.Exported else Env.Exported_private
+          if priv = (Public : private_not_new_flag) then Env.Exported else Env.Exported_private
         in
         let cdescr = Env.lookup_constructor ~loc:lid.loc usage lid.txt env in
         let (args, cstr_res, _ex) =

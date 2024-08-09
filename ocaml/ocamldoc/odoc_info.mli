@@ -188,7 +188,7 @@ module Parameter :
 (** Representation and manipulation of extensions. *)
 module Extension :
   sig
-    type private_flag = Odoc_extension.private_flag =
+    type private_not_new_flag = Odoc_extension.private_not_new_flag =
       Private | Public
 
     (** Used when the extension is a rebind of another extension,
@@ -215,7 +215,7 @@ module Extension :
           mutable te_info : info option ; (** Information found in the optional associated comment. *)
           te_type_name : Name.t ; (** The type of the extension *)
           te_type_parameters : Types.type_expr list;
-          te_private : private_flag ;
+          te_private : private_not_new_flag ;
           mutable te_constructors: t_extension_constructor list;
           mutable te_loc : location ;
           mutable te_code : string option ;
@@ -252,9 +252,9 @@ module Exception :
 (** Representation and manipulation of types.*)
 module Type :
   sig
-    type private_flag = Odoc_type.private_flag =
+    type private_not_new_flag = Odoc_type.private_not_new_flag =
       Private | Public
-    type private_or_new_flag = Odoc_type.private_or_new_flag =
+    type private_flag = Odoc_type.private_flag =
       Private | New | Public
 
     (** Description of a record type field. *)
@@ -306,7 +306,7 @@ module Type :
           ty_parameters : (Types.type_expr * Types.Variance.t) list ;
                     (** type parameters: (type, variance) *)
           ty_kind : type_kind; (** Type kind. *)
-          ty_private : private_or_new_flag; (** Private, new or public type. *)
+          ty_private : private_flag; (** Private, new or public type. *)
           ty_manifest : type_manifest option ;
           mutable ty_loc : location ;
           mutable ty_code : string option;

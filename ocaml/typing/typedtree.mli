@@ -615,7 +615,7 @@ and class_field_desc =
         (string * Ident.t) list
     (* Inherited instance variables and concrete methods *)
   | Tcf_val of string loc * mutable_flag * Ident.t * class_field_kind * bool
-  | Tcf_method of string loc * private_flag * class_field_kind
+  | Tcf_method of string loc * private_not_new_flag * class_field_kind
   | Tcf_constraint of core_type * core_type
   | Tcf_initializer of expression
   | Tcf_attribute of attribute
@@ -923,7 +923,7 @@ and type_declaration =
     typ_type: Types.type_declaration;
     typ_cstrs: (core_type * core_type * Location.t) list;
     typ_kind: type_kind;
-    typ_private: private_or_new_flag;
+    typ_private: private_flag;
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attributes;
@@ -977,7 +977,7 @@ and type_extension =
     tyext_txt: Longident.t loc;
     tyext_params: (core_type * (variance * injectivity)) list;
     tyext_constructors: extension_constructor list;
-    tyext_private: private_flag;
+    tyext_private: private_not_new_flag;
     tyext_loc: Location.t;
     tyext_attributes: attributes;
   }
@@ -1035,7 +1035,7 @@ and class_type_field = {
 and class_type_field_desc =
   | Tctf_inherit of class_type
   | Tctf_val of (string * mutable_flag * virtual_flag * core_type)
-  | Tctf_method of (string * private_flag * virtual_flag * core_type)
+  | Tctf_method of (string * private_not_new_flag * virtual_flag * core_type)
   | Tctf_constraint of (core_type * core_type)
   | Tctf_attribute of attribute
 
