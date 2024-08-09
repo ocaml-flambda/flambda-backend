@@ -515,7 +515,14 @@ end = struct
            Doesn't_use_unknown_edge's before Uses_unknown_edge's, the algorithm
            is essentially BFS in two phases: the first phase searches through
            all paths that do not traverse through the unknown vertex in length
-           order, saving those paths for the second phase. *)
+           order, saving those paths for the second phase.
+
+           We could use a normal queue for the first phase, but we do need to
+           use a priority queue for the second phase. For example, suppose at
+           the end of the first phase, the priority queue looks like [(A, 1),
+           (B, 4)] where all paths go through unknown. We pop A, and find one
+           successor (C, 2). But now pushing (C, 2) at the end of the normal
+           queue would break the sorted queue invariant. *)
         type phase =
           | Doesn't_use_unknown_edge
           | Uses_unknown_edge
