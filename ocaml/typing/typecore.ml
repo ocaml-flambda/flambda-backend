@@ -8684,12 +8684,6 @@ and type_expect_jane_syntax
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
 
 and type_expect_mode ~loc ~env ~(modes : Alloc.Const.Option.t) expected_mode =
-  match modes = Alloc.Const.Option.none with
-  | true ->
-    (* This is not just a short-circuit, it also prevents [mode_coerce] below from
-       removing [tuple_modes] when there's no mode annotation on the tuple *)
-    expected_mode
-  | false ->
     let min = Alloc.Const.Option.value ~default:Alloc.Const.min modes |> Const.alloc_as_value in
     let max = Alloc.Const.Option.value ~default:Alloc.Const.max modes |> Const.alloc_as_value in
     submode ~loc ~env ~reason:Other (Value.of_const min) expected_mode;

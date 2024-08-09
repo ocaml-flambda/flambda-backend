@@ -18,11 +18,7 @@ let f x =
     x
   ;;
 [%%expect{|
-Line 5, characters 4-5:
-5 |     x
-        ^
-Error: This value escapes its region.
-  Hint: Cannot return a local value without an "exclave_" annotation.
+val f : 'a -> 'a option = <fun>
 |}]
 
 let f e0 (e1 @ local) =
