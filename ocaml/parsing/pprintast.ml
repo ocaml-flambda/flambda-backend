@@ -270,9 +270,9 @@ let nonrec_flag f rf =
 let direction_flag f = function
   | Upto -> pp f "to@ "
   | Downto -> pp f "downto@ "
-let private_flag f = function
-  | Public2 -> ()
-  | Private2 -> pp f "private@ "
+let private_flag f : private_flag -> unit = function
+  | Public -> ()
+  | Private -> pp f "private@ "
 
 let iter_loc f ctxt {txt; loc = _} = f ctxt txt
 
@@ -1941,9 +1941,9 @@ and type_declaration ctxt f x =
      but it's been printed by the caller of this method *)
   let priv f =
     match x.ptype_private with
-    | Public3 -> ()
-    | New3 -> pp f "@;new"
-    | Private3 -> pp f "@;private"
+    | Public -> ()
+    | New -> pp f "@;new"
+    | Private -> pp f "@;private"
   in
   let manifest f =
     match x.ptype_manifest with

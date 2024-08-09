@@ -349,7 +349,7 @@ let is_fixed_type sd =
     None -> false
   | Some sty ->
       sd.ptype_kind = Ptype_abstract &&
-      sd.ptype_private = Private3 &&
+      sd.ptype_private = Private &&
       has_row_var sty
 
 (* Set the row variable to a fixed type in a private row type declaration.
@@ -783,7 +783,7 @@ let transl_declaration env sdecl (id, uid) =
       let cty = transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty in
       Some cty, Some cty.ctyp_type
   in
-  if sdecl.ptype_private = New3 && sdecl.ptype_kind <> Ptype_abstract then
+  if sdecl.ptype_private = New && sdecl.ptype_kind <> Ptype_abstract then
     raise (Error (sdecl.ptype_loc, Non_abstract_new_type));
   let any = Jkind.Type.Primitive.any ~why:Initial_typedecl_env in
   (* jkind_default is the jkind to use for now as the type_jkind when there
@@ -2058,7 +2058,7 @@ let name_recursion sdecl id decl =
   match decl with
   | { type_kind = Type_abstract { reason = Abstract_def; datatype = false };
       type_manifest = Some ty;
-      type_private = Private3; } when is_fixed_type sdecl ->
+      type_private = Private; } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
     if Ctype.deep_occur ty ty' then
       let td = Tconstr(Path.Pident id, AppArgs.of_list decl.type_params, ref Mnil) in
@@ -2320,7 +2320,7 @@ let transl_extension_constructor_jst env type_path _type_params
       env type_path typext_params loc id (Right vars_jkinds) args res
 
 let transl_extension_constructor ~scope env type_path type_params
-                                 typext_params priv sext =
+                                 typext_params (priv : private_flag) sext =
   let id = Ident.create_scoped ~scope sext.pext_name.txt in
   let loc = sext.pext_loc in
   let args, arg_jkinds, shape, constant, ret_type, kind =
@@ -2335,7 +2335,7 @@ let transl_extension_constructor ~scope env type_path type_params
         env type_path typext_params loc id (Left svars) sargs sret_type
     | Pext_rebind lid ->
         let usage : Env.constructor_usage =
-          if priv = Public2 then Env.Exported else Env.Exported_private
+          if priv = (Public : private_flag) then Env.Exported else Env.Exported_private
         in
         let cdescr = Env.lookup_constructor ~loc:lid.loc usage lid.txt env in
         let (args, cstr_res, _ex) =
@@ -2390,7 +2390,7 @@ let transl_extension_constructor ~scope env type_path type_params
         (* Disallow rebinding private constructors to non-private *)
         begin
           match cdescr.cstr_private, priv with
-            Private2, Public2 ->
+            Private, Public ->
               raise (Error(lid.loc, Rebind_private lid.txt))
           | _ -> ()
         end;
@@ -2473,7 +2473,7 @@ let transl_type_extension extend env loc styext =
     match type_decl.type_kind with
     | Type_open -> begin
         match type_decl.type_private with
-        | Private3 when extend -> begin
+        | Private when extend -> begin
             match
               List.find
                 (function {pext_kind = Pext_decl _} -> true
@@ -2589,7 +2589,7 @@ let transl_exception env sext =
       (fun () ->
         TyVarEnv.reset();
         transl_extension_constructor ~scope env
-          Predef.path_exn [] [] Asttypes.Public2 sext)
+          Predef.path_exn [] [] Asttypes.Public sext)
       ~post: begin fun (ext, _shape) ->
         Btype.iter_type_expr_cstr_args Ctype.generalize ext.ext_type.ext_args;
         Option.iter Ctype.generalize ext.ext_type.ext_ret_type;
@@ -3113,12 +3113,12 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     ) constraints;
   let sig_decl_abstract = Btype.type_kind_is_abstract sig_decl in
   let priv =
-    if sdecl.ptype_private = Private3 then Private3 else
+    if sdecl.ptype_private = Private then Private else
     if arity_ok && not sig_decl_abstract
     then sig_decl.type_private else sdecl.ptype_private
   in
   if arity_ok && not sig_decl_abstract
-  && sdecl.ptype_private = Private3 then
+  && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
   let type_kind, type_unboxed_default, type_jkind, type_jkind_annotation =
     if arity_ok then
@@ -3217,7 +3217,7 @@ let transl_package_constraint ~loc ty =
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)
     type_jkind_annotation = None;
-    type_private = Public3;
+    type_private = Public;
     type_manifest = Some ty;
     type_variance = [];
     type_separability = [];
@@ -3241,7 +3241,7 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
       type_kind = Type_abstract { reason = Abstract_def; datatype = false };
       type_jkind = jkind;
       type_jkind_annotation = jkind_annotation;
-      type_private = Public3;
+      type_private = Public;
       type_manifest = None;
       type_variance = Variance.unknown_signature ~injective ~arity;
       type_separability = Types.Separability.default_signature ~arity;

@@ -507,9 +507,9 @@ end
 
 let lte_public p1 p2 =  (* Private <= New <= Public *)
   match p1, p2 with
-  | Private3, _ | _, Public3 -> true
-  | New3, New3 -> true
-  | New3, Private3 | Public3, New3 | Public3, Private3 -> false
+  | Private, _ | _, Public -> true
+  | New, New -> true
+  | New, Private | Public, New | Public, Private -> false
 
 let rec find_expans priv p1 = function
     Mnil -> None

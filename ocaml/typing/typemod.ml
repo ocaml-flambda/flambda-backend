@@ -660,7 +660,7 @@ let merge_constraint initial_env loc sg lid constr =
             type_kind = Type_abstract { reason = Abstract_def; datatype = false };
             type_jkind = Jkind.Type.Primitive.value ~why:(Unknown "merge_constraint") |> Jkind.of_type_jkind;
             type_jkind_annotation = None;
-            type_private = Private3;
+            type_private = Private;
             type_manifest = None;
             type_variance =
               List.map
@@ -1737,7 +1737,7 @@ and transl_signature env (sg : Parsetree.signature) =
         in
         List.iter (fun td ->
           if td.typ_kind <> Ttype_abstract || td.typ_manifest = None ||
-             td.typ_private = Private3
+             td.typ_private = Private
           then
             raise (Error (td.typ_loc, env, Invalid_type_subst_rhs));
           let params = td.typ_type.type_params in

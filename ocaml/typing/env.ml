@@ -26,10 +26,10 @@ open Local_store
 
 module String = Misc.Stdlib.String
 
-let unwrap_private = function
-  | Private3 -> Private2
-  | Public3 -> Public2
-  | New3 -> assert false
+let unwrap_private : private_or_new_flag -> private_flag = function
+  | Private -> Private
+  | Public -> Public
+  | New -> assert false
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
@@ -65,13 +65,13 @@ let add_constructor_usage cu usage =
 let constructor_usages () =
   {cu_positive = false; cu_pattern = false; cu_exported_private = false}
 
-let constructor_usage_complaint ~rebind priv cu
+let constructor_usage_complaint ~rebind (priv : private_flag) cu
   : Warnings.constructor_usage_warning option =
   match priv, rebind with
-  | Asttypes.Private2, _ | _, true ->
+  | Asttypes.Private, _ | _, true ->
       if cu.cu_positive || cu.cu_pattern || cu.cu_exported_private then None
       else Some Unused
-  | Asttypes.Public2, false -> begin
+  | Asttypes.Public, false -> begin
       match cu.cu_positive, cu.cu_pattern, cu.cu_exported_private with
       | true, _, _ -> None
       | false, false, false -> Some Unused
@@ -109,19 +109,19 @@ let is_mutating_label_usage = function
 let label_usages () =
   {lu_projection = false; lu_mutation = false; lu_construct = false}
 
-let label_usage_complaint priv mut lu
+let label_usage_complaint (priv : private_flag) mut lu
   : Warnings.field_usage_warning option =
   match priv, mut with
-  | Asttypes.Private2, _ ->
+  | Asttypes.Private, _ ->
       if lu.lu_projection then None
       else Some Unused
-  | Asttypes.Public2, Types.Immutable -> begin
+  | Asttypes.Public, Types.Immutable -> begin
       match lu.lu_projection, lu.lu_construct with
       | true, _ -> None
       | false, false -> Some Unused
       | false, true -> Some Not_read
     end
-  | Asttypes.Public2, Types.Mutable _ -> begin
+  | Asttypes.Public, Types.Mutable _ -> begin
       match lu.lu_projection, lu.lu_mutation, lu.lu_construct with
       | true, true, _ -> None
       | false, false, false -> Some Unused
@@ -1539,10 +1539,10 @@ let find_module_lazy path env =
 
 let fixed_visibility_for_expansion decl body =
   match decl.type_private with
-  | Private3
+  | Private
     when not (Btype.type_kind_is_abstract decl)
       || Btype.has_constr_row body
-      -> Public3
+      -> Public
   | _ -> decl.type_private
 
 (* Find the manifest type associated to a type when appropriate:
@@ -1551,7 +1551,7 @@ let fixed_visibility_for_expansion decl body =
 let find_type_expansion path env =
   let decl = find_type path env in
   match decl.type_manifest with
-  | Some body when Btype.lte_public Public3 (fixed_visibility_for_expansion decl body) ->
+  | Some body when Btype.lte_public Public (fixed_visibility_for_expansion decl body) ->
       (decl.type_params, body, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
      private row are still considered unknown to the type system.
@@ -1563,7 +1563,7 @@ let find_type_expansion path env =
 let find_type_expansion_new path env =
   let decl = find_type path env in
   match decl.type_manifest with
-  | Some body when Btype.lte_public New3 (fixed_visibility_for_expansion decl body) ->
+  | Some body when Btype.lte_public New (fixed_visibility_for_expansion decl body) ->
       (decl.type_params, body, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
      private row are still considered unknown to the type system.
