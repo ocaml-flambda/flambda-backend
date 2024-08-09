@@ -961,9 +961,9 @@ and print_out_type_decl kwd ppf td =
     | _ -> td.otype_type
   in
   let print_private_or_new ppf = function
-    Asttypes.Private3 -> fprintf ppf " private"
-  | Asttypes.New3 -> fprintf ppf " new"
-  | Asttypes.Public3 -> ()
+    Asttypes.Private -> fprintf ppf " private"
+  | Asttypes.New -> fprintf ppf " new"
+  | Asttypes.Public -> ()
   in
   let print_unboxed ppf =
     if td.otype_unboxed then fprintf ppf " [%@%@unboxed]" else ()
@@ -1056,7 +1056,7 @@ and print_out_extension_constructor ppf ext =
   in
   fprintf ppf "@[<hv 2>type %t +=%s@;<1 2>%a@]"
     print_extended_type
-    (if ext.oext_private = Asttypes.Private2 then " private" else "")
+    (if ext.oext_private = (Asttypes.Private : Asttypes.private_flag) then " private" else "")
     print_out_constr
     (constructor_of_extension_constructor ext)
 
@@ -1076,7 +1076,7 @@ and print_out_type_extension ppf te =
   in
   fprintf ppf "@[<hv 2>type %t +=%s@;<1 2>%a@]"
     print_extended_type
-    (if te.otyext_private = Asttypes.Private2 then " private" else "")
+    (if te.otyext_private = (Asttypes.Private : Asttypes.private_flag) then " private" else "")
     (print_list print_out_constr (fun ppf -> fprintf ppf "@ | "))
      te.otyext_constructors
 

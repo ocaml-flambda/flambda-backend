@@ -663,7 +663,7 @@ class texi =
           [ Newline ; minus ; Raw "type " ;
             Raw (self#string_of_type_parameters ty) ;
             Raw (Name.simple ty.ty_name) ] @
-          let priv = ty.ty_private = Asttypes.Private3 in
+          let priv = ty.ty_private = Asttypes.Private in
           ( match ty.ty_manifest with
           | None -> []
           | Some (Other typ) ->

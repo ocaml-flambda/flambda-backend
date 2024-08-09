@@ -110,17 +110,17 @@ let fmt_direction_flag f x =
   | Downto -> fprintf f "Down";
 ;;
 
-let fmt_private_flag f x =
+let fmt_private_flag f (x : private_flag) =
   match x with
-  | Public2 -> fprintf f "Public";
-  | Private2 -> fprintf f "Private";
+  | Public -> fprintf f "Public";
+  | Private -> fprintf f "Private";
 ;;
 
 let fmt_private_or_new_flag f x =
   match x with
-  | Public3 -> fprintf f "Public"
-  | New3 -> fprintf f "New"
-  | Private3 -> fprintf f "Private"
+  | Public -> fprintf f "Public"
+  | New -> fprintf f "New"
+  | Private -> fprintf f "Private"
 
 let line i f s (*...*) =
   fprintf f "%s" (String.make ((2*i) mod 72) ' ');

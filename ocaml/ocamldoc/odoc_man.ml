@@ -591,7 +591,7 @@ class man =
       );
       bs b (Name.simple t.ty_name);
       bs b " \n";
-      let priv = t.ty_private = Asttypes.Private3 in
+      let priv = t.ty_private = Asttypes.Private in
       (
        match t.ty_manifest with
          None -> ()
