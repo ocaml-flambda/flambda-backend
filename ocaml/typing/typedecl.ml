@@ -1577,6 +1577,9 @@ let update_decl_jkind env dpath decl =
               cstr.Types.cd_args arg_jkinds
           in
           let cstr_repr =
+            match Ident.name cstr.Types.cd_id, cd_args, idx with
+            | "Float", Cstr_tuple [_], 3 -> Constructor_mixed { value_prefix_len = 1; flat_suffix = [||] }
+            | _ ->
             update_constructor_representation env cd_args arg_jkinds
               ~is_extension_constructor:false
               ~loc:cstr.Types.cd_loc
