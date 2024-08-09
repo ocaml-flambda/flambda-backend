@@ -130,12 +130,14 @@ val stack_slots : t -> Regalloc_stack_slots.t
 
 val get_and_incr_instruction_id : t -> Instruction.id
 
-val add_introduced_temporaries_one : t -> Reg.t -> unit
+val add_inst_temporaries_list : t -> Reg.t list -> unit
 
-val add_introduced_temporaries_list : t -> Reg.t list -> unit
+val add_block_temporaries_list : t -> Reg.t list -> unit
 
-val mem_introduced_temporaries : t -> Reg.t -> bool
+val mem_inst_temporaries : t -> Reg.t -> bool
 
-val introduced_temporaries : t -> Reg.Set.t
+val mem_all_introduced_temporaries : t -> Reg.t -> bool
+
+val diff_all_introduced_temporaries : t -> Reg.Set.t -> Reg.Set.t
 
 val invariant : t -> unit

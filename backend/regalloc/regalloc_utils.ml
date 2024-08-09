@@ -48,6 +48,8 @@ let bool_of_param ?guard param_name =
 
 let validator_debug = bool_of_param "VALIDATOR_DEBUG"
 
+let block_temporaries = bool_of_param "BLOCK_TEMPORARIES"
+
 type liveness = Cfg_with_infos.liveness
 
 let make_indent n = String.make (2 * n) ' '
