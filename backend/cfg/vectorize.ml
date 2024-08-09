@@ -73,6 +73,7 @@ module Dependency_graph = struct
         ~init
     in
     let add_dependencies_for_one_arg (block : Cfg.basic_block) instruction arg =
+      let visited = ref Label.Set.empty in
       let rec dependencies_in block =
         match latest_res ~current:(Instruction.id instruction) arg block with
         | Some dependency_instruction ->
@@ -80,8 +81,12 @@ module Dependency_graph = struct
         | None ->
           List.fold_left
             (fun old_set label ->
-              Instruction.Id.Set.union old_set
-                (dependencies_in (Label.Tbl.find cfg.blocks label)))
+              if Label.Set.exists (Label.equal label) !visited
+              then old_set
+              else (
+                visited := Label.Set.add label !visited;
+                Instruction.Id.Set.union old_set
+                  (dependencies_in (Label.Tbl.find cfg.blocks label))))
             Instruction.Id.Set.empty
             (Cfg.predecessor_labels block)
       in
@@ -107,6 +112,18 @@ module Dependency_graph = struct
       find_dependencies block (`Terminator block.terminator)
     in
     Cfg.iter_blocks cfg ~f:(fun _ -> handle_block);
+    let set_in_edges id (node : Node.t) =
+      let set_in_edge from to_ =
+      let old_node = Instruction.Id.Tbl.find dependency_graph to_ in
+        Instruction.Id.Tbl.replace dependency_graph to_
+        { old_node with
+          in_edges =
+            Instruction.Id.Set.add from old_node.in_edges
+        }
+      in
+      Instruction.Id.Set.iter (set_in_edge id) node.out_edges
+    in
+    Instruction.Id.Tbl.iter set_in_edges dependency_graph;
     dependency_graph
 end
 
@@ -132,10 +149,10 @@ let dump ppf cfg_with_layout ~(dependency_graph : Dependency_graph.t) ~msg =
     let node = Instruction.Id.Tbl.find dependency_graph id in
     fprintf ppf "\n%d:\n" node.id;
     Cfg.print_instruction ppf instruction;
-    fprintf ppf "Dependencies:\n";
-    Instruction.Id.Set.iter (fprintf ppf "%d\n") node.out_edges;
-    fprintf ppf "Is a dependency of:\n";
-    Instruction.Id.Set.iter (fprintf ppf "%d\n") node.in_edges;
+    fprintf ppf "\nDependencies:\n";
+    Instruction.Id.Set.iter (fprintf ppf "%d ") node.out_edges;
+    fprintf ppf "\nIs a dependency of:\n";
+    Instruction.Id.Set.iter (fprintf ppf "%d ") node.in_edges;
     fprintf ppf "\n"
   in
   Cfg_with_layout.iter_instructions cfg_with_layout
