@@ -556,27 +556,11 @@ Error: Signature mismatch:
          val f : (module s/1) -> unit
        is not included in
          val f : (module s/2) -> unit
-<<<<<<< HEAD
        The type (module s/1) -> unit is not compatible with the type
          (module s/2) -> unit
        Type (module s/1) is not compatible with type (module s/2)
-||||||| 121bedcfd2
-       The type (module s) -> unit is not compatible with the type
-         (module s/2) -> unit
-       Type (module s) is not compatible with type (module s/2)
-=======
-       The type "(module s) -> unit" is not compatible with the type
-         "(module s/2) -> unit"
-       Type "(module s)" is not compatible with type "(module s/2)"
->>>>>>> 5.2.0
        Line 6, characters 4-17:
-<<<<<<< HEAD
          Definition of module type s/1
-||||||| 121bedcfd2
-         Definition of module type s
-=======
-         Definition of module type "s"
->>>>>>> 5.2.0
        Line 2, characters 2-15:
          Definition of module type "s/2"
 |}];;

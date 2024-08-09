@@ -1,16 +1,8 @@
 (* TEST
-<<<<<<< HEAD
  ocamlrunparam += ",s=512";
  reason = "CR ocaml 5 effects: re-enable this test";
  skip;
  native;
-||||||| 121bedcfd2
-   ocamlrunparam += ",s=512"
-   * native
-=======
- ocamlrunparam += ",s=512";
- native;
->>>>>>> 5.2.0
 *)
 
 let count = ref 0

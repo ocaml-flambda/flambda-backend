@@ -1,5 +1,4 @@
 (* TEST
-<<<<<<< HEAD
  include systhreads;
  hassysthreads;
  not-macos;
@@ -9,25 +8,6 @@
  }{
    native;
  }
-||||||| 121bedcfd2
-
-* hassysthreads
-include systhreads
-
-** libunix (* Broken on Windows (missing join?), needs to be fixed *)
-*** bytecode
-*** native
-
-=======
- include systhreads;
- hassysthreads;
- libunix; (* Broken on Windows (missing join?), needs to be fixed *)
- {
-   bytecode;
- }{
-   native;
- }
->>>>>>> 5.2.0
 *)
 
 open Printf

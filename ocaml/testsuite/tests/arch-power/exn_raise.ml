@@ -1,22 +1,8 @@
 (* TEST
-<<<<<<< HEAD
- arch_power;
- native;
- ocamlopt_flags = "-flarge-toc";
- ocamlopt.byte;
- run;
-||||||| 121bedcfd2
-  * arch_power
-  ** native
-  *** ocamlopt.byte
-  ocamlopt_flags = "-flarge-toc"
-  **** run
-=======
  arch_power;
  native;
  ocamlopt.byte;
  run;
->>>>>>> 5.2.0
 *)
 
 (* GPR#8506

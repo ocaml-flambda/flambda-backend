@@ -1,23 +1,9 @@
 (* TEST
-<<<<<<< HEAD
  include config;
  flags = "-w -55";
  ocamlc_flags = "config.cmo";
  ocamlopt_flags = "config.cmx";
  native;
-||||||| 121bedcfd2
-   include config
-   flags = "-w -55"
-   ocamlc_flags = "config.cmo"
-   ocamlopt_flags = "-inline 20 config.cmx"
-   * native
-=======
- include config;
- flags = "-w -55";
- ocamlc_flags = "config.cmo";
- ocamlopt_flags = "-inline 20 config.cmx";
- native;
->>>>>>> 5.2.0
 *)
 
 (* CR-someday mshinwell: enable this for classic mode *)

@@ -1,22 +1,5 @@
 (* TEST
-<<<<<<< HEAD
- include unix;
  modules = "minor_named_.c";
- libunix;
- {
-   bytecode;
- }{
-   native;
- }
-||||||| 121bedcfd2
-   include unix
-   modules = "minor_named_.c"
-   * libunix
-   ** bytecode
-   ** native
-=======
- modules = "minor_named_.c";
->>>>>>> 5.2.0
 *)
 
 (* Tests Callback.register and caml_named_value on a young object *)

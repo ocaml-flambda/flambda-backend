@@ -236,7 +236,7 @@ let eval_expect_file _fname ~file_contents =
         acc &&
         let snap = Btype.snapshot () in
         try
-          Sys.with_async_exns (fun () -> exec_phrase ppf phrase)
+          exec_phrase ppf phrase
         with exn ->
           let bt = Printexc.get_raw_backtrace () in
           begin try Location.report_exception ppf exn
@@ -316,19 +316,6 @@ let process_expect_file fname =
 
 let repo_root = ref None
 let keep_original_error_size = ref false
-let preload_objects = ref []
-let main_file = ref None
-
-let read_anonymous_arg fname =
-  if Filename.check_suffix fname ".cmo"
-          || Filename.check_suffix fname ".cma"
-  then preload_objects := fname :: !preload_objects
-  else
-  match !main_file with
-  | None -> main_file := Some fname
-  | Some _ ->
-    Printf.eprintf "expect_test: multiple input source files\n";
-    exit 2
 
 let main fname =
   if not !keep_original_error_size then
@@ -351,13 +338,6 @@ let main fname =
   end;
   Compmisc.init_path ~auto_include:Load_path.no_auto_include ();
   Toploop.initialize_toplevel_env ();
-  let objects = List.rev (!preload_objects) in
-  List.iter objects ~f:(fun obj_fname ->
-    match Topeval.load_file false Format.err_formatter obj_fname with
-    | true -> ()
-    | false ->
-      Printf.eprintf "expect_test: failed to load object %s\n" obj_fname;
-      exit 2);
   (* We are in interactive mode and should record directive error on stdout *)
   Sys.interactive := true;
   process_expect_file fname;
@@ -368,7 +348,7 @@ module Options = Main_args.Make_bytetop_options (struct
   let _stdin () = (* disabled *) ()
   let _args = Arg.read_arg
   let _args0 = Arg.read_arg0
-  let anonymous s = read_anonymous_arg s
+  let anonymous s = main s
 end);;
 
 let args =
@@ -391,22 +371,9 @@ let () =
     Misc.Style.(setup @@ Some Never)
   in
   try
-<<<<<<< HEAD:testsuite/tools/expect_test.ml
-    Arg.parse args read_anonymous_arg usage;
-    match !main_file with
-    | Some fname -> main fname
-    | None ->
-      Printf.eprintf "expect_test: no input file\n";
-      exit 2
-||||||| 121bedcfd2:testsuite/tools/expect_test.ml
-    Arg.parse args main usage;
-    Printf.eprintf "expect_test: no input file\n";
-    exit 2
-=======
     Arg.parse args main usage;
     Printf.eprintf "expect: no input file\n";
     exit 2
->>>>>>> 5.2.0:testsuite/tools/expect.ml
   with exn ->
     Location.report_exception Format.err_formatter exn;
     exit 2

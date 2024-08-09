@@ -1,13 +1,6 @@
-<<<<<<< HEAD
 (* TEST
  skip;
 *)
-||||||| 121bedcfd2
-(* TEST
- *)
-=======
-(* TEST *)
->>>>>>> 5.2.0
 
 let f x =
   let a0 = ref 1 in

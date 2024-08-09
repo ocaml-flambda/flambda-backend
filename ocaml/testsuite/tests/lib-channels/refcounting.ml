@@ -1,13 +1,7 @@
 (* TEST
-<<<<<<< HEAD
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
  expect;
-||||||| 121bedcfd2
-   * expect
-=======
- expect;
->>>>>>> 5.2.0
 *)
 
 (* Test the behavior of channel refcounting. *)

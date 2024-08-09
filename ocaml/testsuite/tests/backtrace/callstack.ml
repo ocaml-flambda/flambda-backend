@@ -5,6 +5,13 @@
 
 
 
+(* TEST_BELOW
+(* Blank lines added here to preserve locations. *)
+
+
+
+
+
 *)
 
 let[@inline never] f0 () =
@@ -29,7 +36,6 @@ let () =
    the callstack, which breaks the test. *)
 let () = Printf.printf "new thread:\n"
 let () = Thread.join (Thread.create f3 ())
-<<<<<<< HEAD
 
 (* TEST
  flags = "-g";
@@ -42,18 +48,3 @@ let () = Thread.join (Thread.create f3 ())
    bytecode;
  }
 *)
-||||||| 121bedcfd2
-=======
-
-(* TEST
- flags = "-g";
- include systhreads;
- hassysthreads;
- {
-   no-flambda;
-   native;
- }{
-   bytecode;
- }
-*)
->>>>>>> 5.2.0

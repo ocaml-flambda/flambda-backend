@@ -1,13 +1,6 @@
-<<<<<<< HEAD
 (* TEST
  skip;
 *)
-||||||| 121bedcfd2
-(* TEST
-*)
-=======
-(* TEST *)
->>>>>>> 5.2.0
 
 (* Tests RESUMETERM with extra_args != 0 in bytecode,
    by calling a handler with a tail-continue that returns a function *)

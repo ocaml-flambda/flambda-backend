@@ -1,5 +1,4 @@
 (* TEST
-<<<<<<< HEAD
  {
    runtime4;
    skip;
@@ -10,18 +9,6 @@
    instrumented-runtime;
    native;
  }
-||||||| 121bedcfd2
-   include runtime_events
-   flags = "-runtime-variant=i"
-
-   * instrumented-runtime
-   ** native
-=======
- include runtime_events;
- flags = "-runtime-variant=i";
- instrumented-runtime;
- native;
->>>>>>> 5.2.0
 *)
 
 open Runtime_events

@@ -1,14 +1,7 @@
-<<<<<<< HEAD
 (* TEST
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
 *)
-||||||| 121bedcfd2
-(* TEST
-*)
-=======
-(* TEST *)
->>>>>>> 5.2.0
 
 let test_size =
   try int_of_string (Sys.getenv "OCAML_TEST_SIZE")

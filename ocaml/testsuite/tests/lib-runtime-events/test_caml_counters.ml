@@ -1,5 +1,4 @@
 (* TEST
-<<<<<<< HEAD
  {
    runtime4;
    skip;
@@ -9,11 +8,6 @@
    { bytecode; }
    { native; }
  }
-||||||| 121bedcfd2
-include runtime_events
-=======
- include runtime_events;
->>>>>>> 5.2.0
 *)
 open Runtime_events
 

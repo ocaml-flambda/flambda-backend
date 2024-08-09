@@ -1,24 +1,7 @@
 (* TEST
-<<<<<<< HEAD
- include unix;
  modules = "nested_fiber_.c";
  reason = "CR ocaml 5 effects: re-enable this test";
  skip;
- libunix;
- {
-   bytecode;
- }{
-   native;
- }
-||||||| 121bedcfd2
-   include unix
-   modules = "nested_fiber_.c"
-   * libunix
-   ** bytecode
-   ** native
-=======
- modules = "nested_fiber_.c";
->>>>>>> 5.2.0
 *)
 
 external caml_to_c : (unit -> 'a) -> 'a = "caml_to_c"

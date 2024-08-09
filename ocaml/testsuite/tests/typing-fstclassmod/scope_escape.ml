@@ -46,55 +46,9 @@ Lines 2-6, characters 2-22:
 4 |     type t = K.t
 5 |   end : S
 6 |     with type t = K.t)
-<<<<<<< HEAD
-Error: This expression has type (module S with type t = A.t)
-       but an expression was expected of type 'a
-       The type constructor A.t would escape its scope
-||||||| 121bedcfd2
-Error: This expression has type (module S with type t = A.t)
-       but an expression was expected of type 'a
-       The type constructor A.t would escape its scope
-|}, Principal{|
-Lines 8-12, characters 2-6:
- 8 | ..(module struct
- 9 |     type t = unit
-10 |
-11 |     let x = ()
-12 |   end)
-Warning 18 [not-principal]: this module packing is not principal.
-
-Lines 2-6, characters 2-22:
-2 | ..let (module K : S with type t = A.t) = k in
-3 |   (module struct
-4 |     type t = K.t
-5 |   end : S
-6 |     with type t = K.t)
-Error: This expression has type (module S with type t = A.t)
-       but an expression was expected of type 'a
-       The type constructor A.t would escape its scope
-=======
 Error: This expression has type "(module S with type t = A.t)"
        but an expression was expected of type "'a"
        The type constructor "A.t" would escape its scope
-|}, Principal{|
-Lines 8-12, characters 2-6:
- 8 | ..(module struct
- 9 |     type t = unit
-10 |
-11 |     let x = ()
-12 |   end)
-Warning 18 [not-principal]: this module packing is not principal.
-
-Lines 2-6, characters 2-22:
-2 | ..let (module K : S with type t = A.t) = k in
-3 |   (module struct
-4 |     type t = K.t
-5 |   end : S
-6 |     with type t = K.t)
-Error: This expression has type "(module S with type t = A.t)"
-       but an expression was expected of type "'a"
-       The type constructor "A.t" would escape its scope
->>>>>>> 5.2.0
 |}];;
 
 (* The locally abstract type lets us check the module's type
@@ -145,44 +99,6 @@ module type S = sig type t val x : t end
 Line 15, characters 8-10:
 15 |   unify ()
              ^^
-<<<<<<< HEAD
-Error: This expression has type unit but an expression was expected of type
-         M.t
-||||||| 121bedcfd2
-Error: This expression has type unit but an expression was expected of type
-         M.t
-|}, Principal{|
-module type S = sig type t val x : t end
-Lines 8-12, characters 4-8:
- 8 | ....(module struct
- 9 |       type t = unit
-10 |
-11 |       let x = ()
-12 |     end)
-Warning 18 [not-principal]: this module packing is not principal.
-
-Line 15, characters 8-10:
-15 |   unify ()
-             ^^
-Error: This expression has type unit but an expression was expected of type
-         M.t
-=======
 Error: This expression has type "unit" but an expression was expected of type
          "M.t"
-|}, Principal{|
-module type S = sig type t val x : t end
-Lines 8-12, characters 4-8:
- 8 | ....(module struct
- 9 |       type t = unit
-10 |
-11 |       let x = ()
-12 |     end)
-Warning 18 [not-principal]: this module packing is not principal.
-
-Line 15, characters 8-10:
-15 |   unify ()
-             ^^
-Error: This expression has type "unit" but an expression was expected of type
-         "M.t"
->>>>>>> 5.2.0
 |}];;

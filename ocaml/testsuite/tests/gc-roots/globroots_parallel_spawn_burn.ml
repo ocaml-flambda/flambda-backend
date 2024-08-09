@@ -1,16 +1,8 @@
 (* TEST
-<<<<<<< HEAD
  flags += " -w a ";
  modules = "globrootsprim.c globroots.ml";
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
-||||||| 121bedcfd2
-   flags += " -w a "
-   modules = "globrootsprim.c globroots.ml"
-=======
- flags += " -w a ";
- modules = "globrootsprim.c globroots.ml";
->>>>>>> 5.2.0
 *)
 
 open Globroots

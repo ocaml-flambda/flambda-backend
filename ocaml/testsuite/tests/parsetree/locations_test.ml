@@ -132,7 +132,6 @@ let g y =
   let f ~y = y + 1 in
   f ~(y:int)
 ;;
-<<<<<<< HEAD
 
 (* Newtype *)
 let f (type a b c d e) = ()
@@ -148,11 +147,3 @@ let a : type a b c. unit = ()
  flags = "-dparsetree";
  toplevel;
 *)
-||||||| 121bedcfd2
-=======
-
-(* TEST
- flags = "-dparsetree";
- toplevel;
-*)
->>>>>>> 5.2.0

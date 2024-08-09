@@ -7455,14 +7455,6 @@ let goober a = match a with C (type a b) y -> y
 module type s = sig type ('a,'b) t end with type (-!'a, !+'b) t = 'b -> 'a list
 module type s = sig type ('a,'b) t end with type (!-'a, +!'b) t := 'b -> 'a list
 module type s = sig type ('a,'b) t end with type ('a,'b) t := 'b -> 'a list
-<<<<<<< HEAD
-
-(* Coercion in value constraint *)
-
-let x: [`A] :> [> `A | `B ] = `A
-let x :> [> `A | `B ] = `A
-||||||| 121bedcfd2
-=======
 
 (* Coercion in value constraint *)
 
@@ -7493,4 +7485,8 @@ let f = fun x (type \#begin) (type \#end) -> 1
 
 (* check pretty-printing of local module open in core_type *)
 type t = String.( t )
->>>>>>> 5.2.0
+
+(* Coercion in value constraint *)
+
+let x: [`A] :> [> `A | `B ] = `A
+let x :> [> `A | `B ] = `A

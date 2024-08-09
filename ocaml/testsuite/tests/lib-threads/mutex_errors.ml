@@ -1,20 +1,4 @@
 (* TEST
-<<<<<<< HEAD
- include systhreads;
- hassysthreads;
- {
-   bytecode;
- }{
-   native;
- }
-||||||| 121bedcfd2
-
-* hassysthreads
-include systhreads
-** bytecode
-** native
-
-=======
  include systhreads;
  hassysthreads;
  no-tsan; (* tsan detects the mutex errors and fails *)
@@ -23,7 +7,6 @@ include systhreads
  }{
    native;
  }
->>>>>>> 5.2.0
 *)
 
 let log s =

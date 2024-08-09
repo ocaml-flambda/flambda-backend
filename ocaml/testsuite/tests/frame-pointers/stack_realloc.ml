@@ -1,5 +1,4 @@
 (* TEST
-<<<<<<< HEAD
  {
    skip;
  }{
@@ -10,20 +9,6 @@
    all_modules = "${readonly_files} stack_realloc.ml";
    native;
  }
-||||||| 121bedcfd2
-
-* frame_pointers
-** native
-
-readonly_files = "fp_backtrace.c stack_realloc_.c"
-all_modules = "${readonly_files} stack_realloc.ml"
-
-=======
- frame_pointers;
- readonly_files = "fp_backtrace.c stack_realloc_.c";
- all_modules = "${readonly_files} stack_realloc.ml";
- native;
->>>>>>> 5.2.0
 *)
 
 open Effect

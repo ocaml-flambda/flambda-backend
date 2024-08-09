@@ -1,6 +1,8 @@
 (* TEST
  flags = "-nopervasives"; (* can't pass -nostdlib because of objects. *)
  expect;
+ flags = "-nopervasives"; (* can't pass -nostdlib because of objects. *)
+ expect;
 *)
 
 (* Signatures *)
@@ -100,13 +102,7 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
-<<<<<<< HEAD
 Error: Illegal shadowing of included type t/2 by t/1.
-||||||| 121bedcfd2
-Error: Illegal shadowing of included type t/2 by t.
-=======
-Error: Illegal shadowing of included type "t/2" by "t".
->>>>>>> 5.2.0
 Line 2, characters 2-11:
 2 |   include S
       ^^^^^^^^^
@@ -150,13 +146,7 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
-<<<<<<< HEAD
 Error: Illegal shadowing of included module M/2 by M/1.
-||||||| 121bedcfd2
-Error: Illegal shadowing of included module M/2 by M.
-=======
-Error: Illegal shadowing of included module "M/2" by "M".
->>>>>>> 5.2.0
 Line 2, characters 2-11:
 2 |   include S
       ^^^^^^^^^
@@ -201,13 +191,7 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
-<<<<<<< HEAD
 Error: Illegal shadowing of included module type T/2 by T/1.
-||||||| 121bedcfd2
-Error: Illegal shadowing of included module type T/2 by T.
-=======
-Error: Illegal shadowing of included module type "T/2" by "T".
->>>>>>> 5.2.0
 Line 2, characters 2-11:
 2 |   include S
       ^^^^^^^^^
@@ -228,13 +212,7 @@ end
 Line 4, characters 2-11:
 4 |   include S
       ^^^^^^^^^
-<<<<<<< HEAD
 Error: Illegal shadowing of included type ext/2 by ext/1.
-||||||| 121bedcfd2
-Error: Illegal shadowing of included type ext/2 by ext.
-=======
-Error: Illegal shadowing of included type "ext/2" by "ext".
->>>>>>> 5.2.0
 Line 2, characters 2-11:
 2 |   include S
       ^^^^^^^^^
@@ -530,33 +508,15 @@ end
 Line 8, characters 2-8:
 8 |   type t
       ^^^^^^
-<<<<<<< HEAD
 Error: Illegal shadowing of included type t/2 by t/1.
-||||||| 121bedcfd2
-Error: Illegal shadowing of included type t/4 by t.
-=======
-Error: Illegal shadowing of included type "t/4" by "t".
->>>>>>> 5.2.0
 Lines 2-5, characters 2-5:
 2 | ..include struct
 3 |     type t = A
 4 |     let x = A
 5 |   end
-<<<<<<< HEAD
   Type t/2 came from this include.
-||||||| 121bedcfd2
-  Type t/4 came from this include.
-=======
-  Type "t/4" came from this include.
->>>>>>> 5.2.0
 Line 4, characters 8-9:
 4 |     let x = A
             ^
-<<<<<<< HEAD
   The value x has no valid type if t/2 is shadowed.
-||||||| 121bedcfd2
-  The value x has no valid type if t/4 is shadowed.
-=======
-  The value "x" has no valid type if "t/4" is shadowed.
->>>>>>> 5.2.0
 |}]

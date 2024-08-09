@@ -1,18 +1,8 @@
 (* TEST
-<<<<<<< HEAD
- readonly_files = "main.c";
- arguments = "-DUNIT_INT -DFUN=solitaire main.c";
- asmgen;
-||||||| 121bedcfd2
-readonly_files = "main.c"
-arguments = "-DUNIT_INT -DFUN=solitaire main.c"
-* asmgen
-=======
  readonly_files = "main.c";
  arguments = "-DUNIT_INT -DFUN=solitaire main.c";
  no-tsan; (* The asmgen action does not support TSan *)
  asmgen;
->>>>>>> 5.2.0
 *)
 
 (**************************************************************************)

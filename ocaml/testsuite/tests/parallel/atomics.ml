@@ -1,14 +1,7 @@
-<<<<<<< HEAD
 (* TEST
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
 *)
-||||||| 121bedcfd2
-(* TEST
-*)
-=======
-(* TEST *)
->>>>>>> 5.2.0
 
 type u = U of unit
 let () =

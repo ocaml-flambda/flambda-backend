@@ -1,5 +1,4 @@
 (* TEST
-<<<<<<< HEAD
  {
    runtime4;
    skip;
@@ -20,13 +19,6 @@
    { bytecode; }
    { native; }
  }
-||||||| 121bedcfd2
-modules = "stubs.c"
-include runtime_events
-=======
- modules = "stubs.c";
- include runtime_events;
->>>>>>> 5.2.0
 *)
 
 external start_runtime_events : unit -> unit = "start_runtime_events"

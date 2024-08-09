@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 (* TEST_BELOW
 (* Blank lines added here to preserve locations. *)
 
@@ -6,15 +5,6 @@
 
 
 
-||||||| 121bedcfd2
-(* TEST
-   flags = "-g"
-   ocamlrunparam += ",b=1"
-=======
-(* TEST_BELOW
-(* Blank lines added here to preserve locations. *)
-
->>>>>>> 5.2.0
 *)
 
 exception Exn
@@ -60,7 +50,6 @@ let _ =
   run without_reraise;
   run with_reraise;
   run trickier
-<<<<<<< HEAD
 
 (* TEST
  flags = "-g";
@@ -73,11 +62,3 @@ let _ =
    native;
  }
 *)
-||||||| 121bedcfd2
-=======
-
-(* TEST
- flags = "-g";
- ocamlrunparam += ",b=1";
-*)
->>>>>>> 5.2.0

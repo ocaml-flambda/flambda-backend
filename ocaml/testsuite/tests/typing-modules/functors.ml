@@ -524,13 +524,7 @@ Error: This application of the functor "F" is ill-typed.
           is not included in
             b/2
           Line 5, characters 2-15:
-<<<<<<< HEAD
             Definition of module type b/1
-||||||| 121bedcfd2
-            Definition of module type b
-=======
-            Definition of module type "b"
->>>>>>> 5.2.0
           Line 2, characters 0-13:
             Definition of module type "b/2"
        3. Modules do not match: $S3 : sig type w end is not included in y
@@ -551,13 +545,7 @@ Line 6, characters 13-19:
                  ^^^^^^
 Error: Modules do not match: (a/1 with P.X) is not included in a/2
      Line 3, characters 2-15:
-<<<<<<< HEAD
        Definition of module type a/1
-||||||| 121bedcfd2
-       Definition of module type a
-=======
-       Definition of module type "a"
->>>>>>> 5.2.0
      Line 1, characters 0-13:
        Definition of module type "a/2"
 |}]
@@ -597,13 +585,7 @@ Error: Signature mismatch:
           does not include
             a/2
           Line 4, characters 2-15:
-<<<<<<< HEAD
             Definition of module type a/1
-||||||| 121bedcfd2
-            Definition of module type a
-=======
-            Definition of module type "a"
->>>>>>> 5.2.0
           Line 1, characters 0-13:
             Definition of module type "a/2"
 |}]
@@ -622,22 +604,10 @@ Error: Signature mismatch:
          Set.OrderedType
        does not include
          sig end
-<<<<<<< HEAD
        The type `t' is required but not provided
        File "set.mli", line 55, characters 4-10: Expected declaration
        The value `compare' is required but not provided
        File "set.mli", line 58, characters 4-31: Expected declaration
-||||||| 121bedcfd2
-       The type `t' is required but not provided
-       File "set.mli", line 52, characters 4-10: Expected declaration
-       The value `compare' is required but not provided
-       File "set.mli", line 55, characters 4-31: Expected declaration
-=======
-       The type "t" is required but not provided
-       File "set.mli", line 52, characters 4-10: Expected declaration
-       The value "compare" is required but not provided
-       File "set.mli", line 55, characters 4-31: Expected declaration
->>>>>>> 5.2.0
 |}]
 
 (** Deeply nested errors *)
@@ -958,10 +928,21 @@ Error: Signature mismatch:
          sig
            module B :
              sig
-               module C : sig module D : sig module E : sig ... end end end
+               module C :
+                 sig
+                   module D :
+                     sig
+                       module E :
+                         sig
+                           module F :
+                             sig type x end -> sig type y end ->
+                               sig type z end -> sig type w end -> sig end
+                         end
+                     end
+                 end
              end
          end
-       In module "B":
+       In module B:
        Modules do not match:
          sig module C = B.C end
        is not included in

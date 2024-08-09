@@ -1,16 +1,4 @@
-<<<<<<< HEAD
 (* TEST *)
-||||||| 121bedcfd2
-(* TEST
-* skip
-reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634"
-*)
-=======
-(* TEST
- reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634";
- skip;
-*)
->>>>>>> 5.2.0
 
 module MP = Gc.Memprof
 let () = Gc.set { (Gc.get ()) with minor_heap_size = 262144 }
