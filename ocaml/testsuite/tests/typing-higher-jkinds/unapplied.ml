@@ -147,12 +147,14 @@ module type M = sig
   val g : int s r -> int s r
 end
 [%%expect{|
-module type M =
-  sig
-    type r : (value => value) => value
-    type s : value => value
-    val g : int s r -> int s r
-  end
+Line 4, characters 10-15:
+4 |   val g : int s r -> int s r
+              ^^^^^
+Error: This type int s should be an instance of type ('a : value => value)
+       The layout of int s is value, because
+         of the definition of s at line 3, characters 2-25.
+       But the layout of int s must be a sublayout of ((value) => value), because
+         of the definition of r at line 2, characters 2-36.
 |}]
 
 (* FIXME jbachurski: [list] is ill-kinded in application to [s] *)
@@ -162,10 +164,12 @@ module type M = sig
   val g : list s r -> list s r
 end
 [%%expect{|
-module type M =
-  sig
-    type r : (value => value) => value
-    type s : value => value
-    val g : list s r -> list s r
-  end
+Line 4, characters 10-14:
+4 |   val g : list s r -> list s r
+              ^^^^
+Error: This type list should be an instance of type ('a : value)
+       The layout of list is ((value) => value), because
+         it's a boxed variant type.
+       But the layout of list must be a sublayout of value, because
+         of the definition of s at line 3, characters 2-25.
 |}]
