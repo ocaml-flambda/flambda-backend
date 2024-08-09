@@ -26,9 +26,10 @@ module Instruction = struct
     | `Basic instruction -> instruction.res
     | `Terminator instruction -> instruction.res
 
-    let destroyed (instruction : t) : Reg.t Array.t = match instruction with
-      | `Basic instruction -> Proc.destroyed_at_basic instruction.desc
-      | `Terminator instruction -> Proc.destroyed_at_terminator instruction.desc
+  let destroyed (instruction : t) : Reg.t Array.t =
+    match instruction with
+    | `Basic instruction -> Proc.destroyed_at_basic instruction.desc
+    | `Terminator instruction -> Proc.destroyed_at_terminator instruction.desc
 end
 
 module Dependency_graph = struct
@@ -55,7 +56,8 @@ module Dependency_graph = struct
   let from_basic_block (block : Cfg.basic_block) =
     let dependency_graph = init () in
     let is_changed_in instruction reg =
-      Array.exists (Reg.same reg) (Instruction.res instruction) || Array.exists (Reg.same reg) (Instruction.destroyed instruction)
+      Array.exists (Reg.same reg) (Instruction.res instruction)
+      || Array.exists (Reg.same reg) (Instruction.destroyed instruction)
     in
     let latest_change ~(current : Instruction.Id.t) (reg : Reg.t) =
       DLL.fold_right block.body
@@ -112,7 +114,8 @@ module Dependency_graph = struct
         Instruction.Id.Tbl.add_seq dependency_graph
           (Instruction.Id.Tbl.to_seq (from_basic_block block)));
     dependency_graph
-  let dump ppf (t:t) cfg_with_layout =
+
+  let dump ppf (t : t) cfg_with_layout =
     let open Format in
     fprintf ppf "\nDependency graph:\n";
     let print_node (instruction : Instruction.t) =
@@ -129,42 +132,49 @@ module Dependency_graph = struct
     Cfg_with_layout.iter_instructions cfg_with_layout
       ~instruction:(fun instruction -> print_node (`Basic instruction))
       ~terminator:(fun instruction -> print_node (`Terminator instruction))
-
-
 end
-module Adjacent_memory_accesses = struct
-    type t =
-      | Load of Instruction.t list
-      | Store of Instruction.t list
 
-    let from_cfg (cfg : Cfg.t) : t list =
-      let from_block block =
-        ignore block;
-        ignore (Load []);
-        ignore (Store []);
-        []
-      in
-      Cfg.fold_blocks
-        ~f:(fun _ block old_list ->
-          from_block block @ old_list)
-        ~init:[] cfg
-    let dump ppf (t_list:t list) =
-      let open Format in
+module Adjacent_memory_accesses = struct
+  type t =
+    | Load of Instruction.t list
+    | Store of Instruction.t list
+
+  let from_cfg (cfg : Cfg.t) : t list =
+    let from_block block =
+      ignore block;
+      ignore (Load []);
+      ignore (Store []);
+      []
+    in
+    Cfg.fold_blocks
+      ~f:(fun _ block old_list -> from_block block @ old_list)
+      ~init:[] cfg
+
+  let dump ppf (t_list : t list) =
+    let open Format in
     fprintf ppf "\nAdjacent memory accesses:\n";
     let print_element t =
-      let instructions = match t with
-      |Load instructions -> instructions
-      |Store instructions -> instructions in
-    List.iter (fun instruction -> fprintf ppf "\n%d:\n" (Instruction.id instruction);Cfg.print_instruction ppf instruction) instructions in
-    List.iter (fun t ->
+      let instructions =
+        match t with
+        | Load instructions -> instructions
+        | Store instructions -> instructions
+      in
+      List.iter
+        (fun instruction ->
+          fprintf ppf "\n%d:\n" (Instruction.id instruction);
+          Cfg.print_instruction ppf instruction)
+        instructions
+    in
+    List.iter
+      (fun t ->
+        fprintf ppf "\n(\n";
+        print_element t;
+        fprintf ppf "\n)\n")
+      t_list
+end
 
-      fprintf ppf "\n(\n";print_element t;
-      fprintf ppf "\n)\n"
-      ) t_list
-
-
-  end
-let dump ppf cfg_with_layout ~(dependency_graph : Dependency_graph.t) ~(adjacent_memory_accesses : Adjacent_memory_accesses.t list) ~msg =
+let dump ppf cfg_with_layout ~(dependency_graph : Dependency_graph.t)
+    ~(adjacent_memory_accesses : Adjacent_memory_accesses.t list) ~msg =
   let open Format in
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   let layout = Cfg_with_layout.layout cfg_with_layout in
