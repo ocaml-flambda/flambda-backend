@@ -1,43 +1,16 @@
-<<<<<<< HEAD
-(* TEST_BELOW
-(* Blank lines added here to preserve locations. *)
-
-
-
-
-||||||| 121bedcfd2
-(* TEST
-
-flags = "-w +A-60-70"
-
-* setup-ocamlc.byte-build-env
-** ocamlc.byte
-compile_only = "true"
-*** check-ocamlc.byte-output
-
-=======
 (* TEST
  flags = "-w +A-22-27-32-60-67-70-71-72";
  setup-ocamlc.byte-build-env;
  compile_only = "true";
  ocamlc.byte;
  check-ocamlc.byte-output;
->>>>>>> 5.2.0
 *)
 
-<<<<<<< HEAD
 type r0 = {s : string [@no_mutable_implied_modalities]} (* rejected *)
 type r1 = {mutable s : string [@no_mutable_implied_modalities]} (* accepted *)
 
-let h x = x [@inline] (* rejected *)
-let h x = x [@ocaml.inline] (* rejected *)
-||||||| 121bedcfd2
-let h x = x [@inline] (* rejected *)
-let h x = x [@ocaml.inline] (* rejected *)
-=======
 module type TestAlertSig = sig
   type t1 = Foo1 [@alert foo "foo"] (* accepted *)
->>>>>>> 5.2.0
 
   val x : int [@alert foo "foo"] (* rejected *)
 
@@ -54,53 +27,6 @@ module TestAlertStruct = struct
   let y = 10 [@@alert foo "foo"] (* rejected *)
 
   [@@@alert foo "foo"] (* rejected *)
-end
-
-<<<<<<< HEAD
-module J = Set.Make [@@inlined]
-module J' = Set.Make [@@ocaml.inlined]
-
-module type K = sig
-  val a1 : int [@deprecated]   (* rejected *)
-  val a2 : int [@@deprecated]  (* accepted *)
-  [@@@deprecated] (* accepted*)
-end
-
-let [@unrolled 42] rec test_unrolled x = (* rejected *)
-  match x with
-  | 0 -> ()
-  | n -> test_unrolled (n - 1)
-
-let () = (test_unrolled [@unrolled 42]) 10 (* accepted *)
-
-let test_ppwarning = 42 [@@ppwarning "warning"]
-  (* accepted (but issues its own warning *)
-
-type test_literal_pattern =
-  | Lit_pat1 of int [@warn_on_literal_pattern]  (* accepted *)
-  | Lit_pat2 of int [@@warn_on_literal_pattern] (* rejected *)
-
-module type TestImmediate = sig
-  type t1 [@@immediate]    (* accepted *)
-  type t2 [@@@immediate]   (* rejected *)
-  type t3 [@@immediate64]  (* accepted *)
-  type t4 [@@@immediate64] (* rejected *)
-end
-
-module TestImmediate2 = struct
-  let x = (4 [@immediate], 42 [@immediate64]) (* rejected *)
-end
-
-module type TestBoxed = sig
-  type t1 = {x : int} [@@boxed]    (* accepted *)
-  type t2 = {x : int} [@@@boxed]   (* rejected *)
-  type t3 = {x : int} [@@unboxed]  (* accepted *)
-  type t4 = {x : int} [@@@unboxed] (* rejected *)
-  val x : int [@@unboxed]          (* rejected *)
-end
-
-module TestBoxed2 = struct
-  let x = (5 [@unboxed], 42 [@boxed]) (* rejected *)
 end
 
 module type TestPrincipalSig = sig
@@ -200,7 +126,7 @@ module TestAflInstRatioStruct = struct
 end
 
 (* No "accepted" test for curry because the user shouldn't write it *)
-module type TestCurry = sig
+module type TestCurrySig = sig
   type 'a t1 = 'a [@@curry 42] (* rejected *)
 
   type s1 = Foo1 [@curry 42] (* rejected *)
@@ -272,7 +198,7 @@ module TestLocalGlobalStruct = struct
 end
 
 
-module type TestTail = sig
+module type TestTailSig = sig
   type 'a t1 = 'a [@tail] (* rejected *)
   type 'a t1' = 'a [@nontail] (* rejected *)
 
@@ -289,7 +215,7 @@ module type TestTail = sig
   [@@@nontail] (* rejected *)
 end
 
-module TestTail = struct
+module TestTailStruct = struct
   let f (a [@tail]) = a (* rejected *)
   let f' (a [@nontail]) = a (* rejected *)
 
@@ -302,66 +228,6 @@ module TestTail = struct
   let rec k x = k x [@tail] (* accepted *)
   let rec k' x = k' x [@nontail] (* accepted *)
 end
-
-module type TestNoallocSig = sig
-  type 'a t1 = 'a [@@noalloc] (* rejected *)
-  type s1 = Foo1 [@noalloc] (* rejected *)
-  val x : int64 [@@noalloc] (* rejected *)
-
-  external y : (int64 [@noalloc]) -> (int64 [@noalloc]) = "x" (* rejected *)
-  external z : int64 -> int64 = "x" [@@noalloc] (* accepted *)
-end
-
-module TestNoallocStruct = struct
-  type 'a t1 = 'a [@@noalloc] (* rejected *)
-  type s1 = Foo1 [@noalloc] (* rejected *)
-  let x : int64 = 42L [@@noalloc] (* rejected *)
-
-  external y : (int64 [@noalloc]) -> (int64 [@noalloc]) = "x" (* rejected *)
-  external z : int64 -> int64 = "x" [@@noalloc] (* accepted *)
-end
-
-module type TestUntaggedSig = sig
-  type 'a t1 = 'a [@@untagged] (* rejected *)
-  type s1 = Foo1 [@untagged] (* rejected *)
-  val x : int [@@untagged] (* rejected *)
-
-  external y : (int [@untagged]) -> (int [@untagged]) = "x" "y" (* accepted *)
-  external z : int -> int = "x" "y" [@@untagged] (* accepted *)
-end
-
-module TestUntaggedStruct = struct
-  type 'a t1 = 'a [@@untagged] (* rejected *)
-  type s1 = Foo1 [@untagged] (* rejected *)
-  let x : int = 42 [@@untagged] (* rejected *)
-
-  external y : (int [@untagged]) -> (int [@untagged]) = "x" "y" (* accepted *)
-  external z : int -> int = "x" "y" [@@untagged] (* accepted *)
-end
-
-module type TestPollSig = sig
-  type 'a t1 = 'a [@@poll error] (* rejected *)
-  type s1 = Foo1 [@poll error] (* rejected *)
-  val x : int64 [@@poll error] (* rejected *)
-
-  external y : (int64 [@poll error]) -> (int64 [@poll error]) = (* rejected *)
-    "x"
-  external z : int64 -> int64 = "x" [@@poll error] (* rejected *)
-end
-
-module TestPollStruct = struct
-  type 'a t1 = 'a [@@poll error] (* rejected *)
-  type s1 = Foo1 [@poll error] (* rejected *)
-  let x : int64 = 42L [@@poll error] (* rejected *)
-  let [@poll error] f x = x (* accepted *)
-
-  external y : (int64 [@poll error]) -> (int64 [@poll error]) =  (* rejected *)
-    "x"
-  external z : int64 -> int64 = "x" [@@poll error] (* rejected *)
-end
-
-(* Attributes in attributes shouldn't be tracked for w53 *)
-[@@@foo [@@@deprecated]]
 
 module TestNewtypeAttr = struct
   (* Check for handling of attributes on Pexp_newtype *)
@@ -548,17 +414,6 @@ module TestZeroAllocStruct = struct
     let x = 42 in
     fun z -> z + x
 end
-(* TEST
- flags = "-w +A-60-70";
- setup-ocamlc.byte-build-env;
- compile_only = "true";
- ocamlc.byte;
- check-ocamlc.byte-output;
-*)
-||||||| 121bedcfd2
-module J = Set.Make [@@inlined]
-module J' = Set.Make [@@ocaml.inlined]
-=======
 
 module type TestBoxedSig = sig
   type t1 = { x : int [@boxed] } (* rejected *)
@@ -1038,4 +893,3 @@ module TestTailModConsStruct = struct
     "x"
   external z : int64 -> int64 = "x" [@@tail_mod_cons] (* rejected *)
 end
->>>>>>> 5.2.0
