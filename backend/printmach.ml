@@ -156,7 +156,7 @@ let test' ?(print_reg = reg) tst ppf arg =
 let test tst ppf arg = test' tst ppf arg
 
 (* CR less-tco: Remove this tail debug print *)
-let ptail ppf (original_position : Lambda.position_and_tail_attribute) =
+let rec ptail ppf (original_position : Lambda.position_and_tail_attribute) =
   let pattr (tail : Lambda.tail_attribute) =
     match tail with
     | Explicit_tail -> "[@tail]"
@@ -168,6 +168,8 @@ let ptail ppf (original_position : Lambda.position_and_tail_attribute) =
   | Unknown_position -> fprintf ppf "(opos unknown)"
   | Tail_position attr -> fprintf ppf "(opos tail %s)" (pattr attr)
   | Not_tail_position attr -> fprintf ppf "(opos not_tail %s)" (pattr attr)
+  | Inlined_into_not_tail_position { original_position = opos } ->
+    fprintf ppf "(opos inlined %a)" ptail opos
 
 let operation' ?(print_reg = reg) op arg ppf res =
   let reg = print_reg in

@@ -14,7 +14,7 @@ type tail_attribute = Lambda.tail_attribute
 
 type t = Lambda.position_and_tail_attribute
 
-let print ppf (t : t) =
+let rec print ppf (t : t) =
   let pattr ppf (tail_attribute : tail_attribute) =
     let str =
       match tail_attribute with
@@ -30,3 +30,5 @@ let print ppf (t : t) =
   | Tail_position attr -> Format.fprintf ppf "Tail_position (%a)" pattr attr
   | Not_tail_position attr ->
     Format.fprintf ppf "Not_tail_position (%a)" pattr attr
+  | Inlined_into_not_tail_position { original_position = opos } ->
+    Format.fprintf ppf "Inlined_into_not_tail_position (%a)" print opos

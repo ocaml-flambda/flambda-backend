@@ -14,6 +14,7 @@
    check-ocamlopt.opt-output;
  }
 *)
+[@@@ocaml.warning "-186"]
 
 let rec normal_recursive n =
   if n > 0 then normal_recursive (n - 2) else ()
@@ -109,7 +110,7 @@ let calls_list_map_not_in_tail_position lst =
 
 let rec cps_style0 n k =
   if n < 0 then k n
-  else 
+  else
     let n = n - 10 in
     cps_style1 n k
 
@@ -121,7 +122,7 @@ and cps_style2 n k =
   let n = n + 5 in
   cps_style0 n k
 
-let call_cps_style k = 
+let call_cps_style k =
   cps_style0
     3
     (* Danger is that the continuation can reference the cps_style0 *)
@@ -142,3 +143,50 @@ let bind f = function
 let rec monadic_loop int_option =
   let next x = if x < 0 then None else monadic_loop (Some (x - 2)) in
   bind next int_option
+
+
+(* When `foo ()` is inlined into `calls_inlined`, it should not keep its syntactic
+   tail position because `inlined` is not in tail position of `calls_inlined`. *)
+let [@inline never] f str = print_endline str
+
+let [@inline never] baz () =
+  f "hello";
+  f "goodbye"
+
+let [@inline always] inlined () = baz ()
+
+let calls_inlined () =
+  inlined ();
+  f "goodbye"
+
+let try_with () = try inlined () with _ -> ()
+
+
+(* Optional arguments are desugared into a call to an "inner" function,
+   which may be inlined into the wrapper. E.g.
+
+    let foo_optional_arg ?(str = "hello") () = f str
+
+   is desugared into
+
+    let foo_optional_arg_inner (str : string) () = f str
+
+    let foo_optional_arg (str : string option) () =
+      let local_ str' =
+        match str with
+        | None -> ()
+        | Some str -> str
+      in
+      foo_optional_arg_inner str
+
+   In the tailcall CFG, we expect to see a call from both
+   foo_optional_arg and foo_optional_arg_inner to f. These show up as
+   dashed edges to <unknown> in the visualization. *)
+
+let foo_optional_arg ?(str = "hello") () =
+  f str
+
+(* In this case we only expect to see a call from
+   foo_optional_arg_inline_never_inner to f. *)
+let[@inline never] foo_optional_arg_inline_never ?(str = "goodbye") () =
+  f str

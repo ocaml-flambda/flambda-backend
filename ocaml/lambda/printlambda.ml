@@ -1043,7 +1043,7 @@ let apply_tailcall_attribute ppf = function
   | Tailcall_expectation false ->
     fprintf ppf " tailcall(false)"
 
-let apply_original_position ppf (opos : position_and_tail_attribute) =
+let rec apply_original_position ppf (opos : position_and_tail_attribute) =
   let pattr ppf (tail_attribute : tail_attribute) =
     let str =
       match tail_attribute with
@@ -1060,6 +1060,9 @@ let apply_original_position ppf (opos : position_and_tail_attribute) =
     Format.fprintf ppf " Tail_position (%a)" pattr attr
   | Not_tail_position attr ->
     Format.fprintf ppf " Not_tail_position (%a)" pattr attr
+  | Inlined_into_not_tail_position { original_position = opos } ->
+    Format.fprintf ppf " Inlined_into_not_tail_position (%a)"
+      apply_original_position opos
 
 let apply_inlined_attribute ppf = function
   | Default_inlined -> ()
