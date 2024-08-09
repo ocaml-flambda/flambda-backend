@@ -4212,7 +4212,7 @@ with_type_binder:
 
 /* Polymorphic types */
 
-%inline typevar: (* : (position * position) * string * jkind_annotation option *)
+%inline typevar: (* : (position * position) * string with_loc * jkind_annotation option *)
     QUOTE mkrhs(ident)
       { ($sloc, $2, None) }
     | LPAREN QUOTE tyvar=mkrhs(ident) COLON jkind=jkind_annotation RPAREN
