@@ -70,7 +70,7 @@ boot-runtest: boot-compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
 
 runtime-stdlib-without-compiler:
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_runstd) --verbose --only-package=ocaml_runtime_stdlib @install
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
 	rm -rf _build/runtime_stdlib_install
 # Dune 3.11+ clears `_build/install` before building, move the runtime stdlib
 # to a separate directory.
@@ -393,7 +393,7 @@ promote-one-no-rebuild:
 # This target is like a polling version of upstream "make ocamlopt"
 .PHONY: hacking
 hacking: _build/_bootinstall
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build --verbose $(ws_boot) -w $(boot_targets)
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) -w $(boot_targets)
 
 # The `hacking-emacs-poller` and `hacking-emacs-builder` targets make it
 # possible to run the polling build with Emacs's `M-x compile`.  You should run
