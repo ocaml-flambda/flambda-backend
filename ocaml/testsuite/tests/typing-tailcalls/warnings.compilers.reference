@@ -91,8 +91,8 @@ Here is one such cycle:
  -> <unknown target> (explicit tail)
 
 
-File "warnings.ml", line 94, characters 2-11:
-94 |   nibble ()
+File "warnings.ml", line 96, characters 2-11:
+96 |   nibble ()
        ^^^^^^^^^
 Warning 186 [inferred-nontail-in-tcod-cycle]: This function
 call was inferred as nontail, but it participates in a
@@ -101,10 +101,10 @@ runtime. Consider marking the function call with [@tail].
 
 Here is one such cycle:
 
-    file "warnings.ml", line 94, characters 2-11 calls (inferred nontail)
- -> file "warnings.ml", line 88, characters 14-23 calls (explicit tail)
- -> file "warnings.ml", line 86, characters 33-40 calls (explicit tail)
- -> file "warnings.ml", line 85, characters 31-37 calls (explicit tail)
- -> file "warnings.ml", line 84, characters 30-36 calls (explicit tail)
- -> file "warnings.ml", line 83, characters 30-58 calls (explicit tail)
+    file "warnings.ml", line 96, characters 2-11 calls (inferred nontail)
+ -> file "warnings.ml", line 90, characters 14-23 calls (explicit tail)
+ -> file "warnings.ml", line 88, characters 33-40 calls (explicit tail)
+ -> file "warnings.ml", line 87, characters 31-37 calls (explicit tail)
+ -> file "warnings.ml", line 86, characters 30-36 calls (explicit tail)
+ -> file "warnings.ml", line 85, characters 30-58 calls (explicit tail)
 
