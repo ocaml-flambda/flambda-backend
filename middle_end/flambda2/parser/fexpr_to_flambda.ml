@@ -371,8 +371,8 @@ let alloc_mode_for_allocations env (alloc : Fexpr.alloc_mode_for_allocations) =
     let r = find_region env r in
     Alloc_mode.For_allocations.local ~region:r
 
-let alloc_mode_for_applications env
-    (alloc : Fexpr.alloc_mode_for_applications) =
+let alloc_mode_for_applications env (alloc : Fexpr.alloc_mode_for_applications)
+    =
   match alloc with
   | Heap -> Alloc_mode.For_applications.heap
   | Local { region = r; ghost_region = r' } ->
@@ -393,8 +393,8 @@ let init_or_assign _env (ia : Fexpr.init_or_assign) :
 
 let nullop (nullop : Fexpr.nullop) : Flambda_primitive.nullary_primitive =
   match nullop with
-  | Begin_region { ghost } -> Begin_region { ghost } 
-  | Begin_try_region { ghost }-> Begin_try_region { ghost }
+  | Begin_region { ghost } -> Begin_region { ghost }
+  | Begin_try_region { ghost } -> Begin_try_region { ghost }
 
 let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
   match unop with

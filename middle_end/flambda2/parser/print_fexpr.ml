@@ -323,7 +323,8 @@ let alloc_mode_for_applications_opt ppf (alloc : alloc_mode_for_applications)
     ~space =
   match alloc with
   | Heap -> ()
-  | Local { region = r; ghost_region = r' } -> pp_spaced ~space ppf "&%a &%a" region r region r'
+  | Local { region = r; ghost_region = r' } ->
+    pp_spaced ~space ppf "&%a &%a" region r region r'
 
 let init_or_assign ppf ia =
   match ia with
@@ -382,8 +383,10 @@ let nullop ppf (o : nullop) =
   Format.pp_print_string ppf
   @@
   match o with
-  | Begin_region { ghost } -> if ghost then "%begin_ghost_region" else "%begin_region"
-  | Begin_try_region { ghost } -> if ghost then "%begin_ghost_try_region" else "%begin_try_region"
+  | Begin_region { ghost } ->
+    if ghost then "%begin_ghost_region" else "%begin_region"
+  | Begin_try_region { ghost } ->
+    if ghost then "%begin_ghost_try_region" else "%begin_try_region"
 
 let binary_int_arith_op ppf (o : binary_int_arith_op) =
   Format.pp_print_string ppf
@@ -571,8 +574,10 @@ let unop ppf u =
   | Box_number (bk, alloc) ->
     box_or_unbox "Box" bk;
     alloc_mode_for_allocations_opt ppf alloc ~space:Before
-  | End_region { ghost } -> str (if ghost then "%end_ghost_region" else "%end_region")
-  | End_try_region { ghost } -> str (if ghost then "%end_ghost_try_region" else "%end_try_region")
+  | End_region { ghost } ->
+    str (if ghost then "%end_ghost_region" else "%end_region")
+  | End_try_region { ghost } ->
+    str (if ghost then "%end_ghost_try_region" else "%end_try_region")
   | Get_tag -> str "%get_tag"
   | Int_arith (i, o) ->
     Format.fprintf ppf "@[<2>%%int_arith %a%a@]"
@@ -688,7 +693,8 @@ let static_closure_binding ppf (scb : static_closure_binding) =
 
 let call_kind ~space ppf ck =
   match ck with
-  | Function (Indirect alloc) -> alloc_mode_for_applications_opt ppf alloc ~space
+  | Function (Indirect alloc) ->
+    alloc_mode_for_applications_opt ppf alloc ~space
   | Function (Direct { code_id = c; function_slot = cl; alloc }) ->
     pp_spaced ~space ppf "@[direct(%a%a%a)@]" code_id c
       (pp_option ~space:Before (pp_like "@@%a" function_slot))
@@ -902,14 +908,22 @@ and code_binding ppf
     newer_version_of
     (fun ppf is_tupled -> if is_tupled then Format.fprintf ppf "@ tupled@ ")
     is_tupled code_id id;
-  let { params; closure_var; region_var; ghost_region_var; depth_var; ret_cont; exn_cont; body } =
+  let { params;
+        closure_var;
+        region_var;
+        ghost_region_var;
+        depth_var;
+        ret_cont;
+        exn_cont;
+        body
+      } =
     params_and_body
   in
   Format.fprintf ppf
     "%a@]@ @[<hov 2>%a@ %a@ %a %a@]@ @[<hv 2>-> %a@ * %a@]%a%s@]@] =@ %a"
     (kinded_parameters ~space:Before)
-    params variable closure_var variable region_var variable ghost_region_var variable depth_var
-    continuation_id ret_cont continuation_id exn_cont
+    params variable closure_var variable region_var variable ghost_region_var
+    variable depth_var continuation_id ret_cont continuation_id exn_cont
     (pp_option ~space:Before (pp_like ": %a" arity))
     ret_arity
     (match result_mode with Heap -> "" | Local -> " local")

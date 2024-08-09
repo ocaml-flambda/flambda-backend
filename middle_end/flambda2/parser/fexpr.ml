@@ -237,7 +237,10 @@ type alloc_mode_for_allocations =
 
 type alloc_mode_for_applications =
   | Heap
-  | Local of { region : region; ghost_region : region }
+  | Local of
+      { region : region;
+        ghost_region : region
+      }
 
 type alloc_mode_for_assignments =
   | Heap
