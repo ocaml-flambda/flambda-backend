@@ -254,6 +254,8 @@ type privacy_mismatch =
   | Private_record_type
   | Private_extensible_variant
   | Private_row_type
+  | Private_new_type
+  | New_type
 
 type type_kind =
   | Kind_abstract
@@ -406,15 +408,20 @@ let report_type_inequality env ppf err =
     (fun ppf -> Format.fprintf ppf "is not equal to the type")
 
 let report_privacy_mismatch ppf err =
-  let singular, item =
+  let what, item =
     match err with
-    | Private_type_abbreviation  -> true,  "type abbreviation"
-    | Private_variant_type       -> false, "variant constructor(s)"
-    | Private_record_type        -> true,  "record constructor"
-    | Private_extensible_variant -> true,  "extensible variant"
-    | Private_row_type           -> true,  "row type"
+    | Private_type_abbreviation  -> `OnePrivate,  "type abbreviation"
+    | Private_variant_type       -> `ManyPrivate, "variant constructor(s)"
+    | Private_record_type        -> `OnePrivate,  "record constructor"
+    | Private_extensible_variant -> `OnePrivate,  "extensible variant"
+    | Private_row_type           -> `OnePrivate,  "row type"
+    | Private_new_type           -> `OnePrivate,  "new type"
+    | New_type                   -> `OneNew,  "new type"
   in Format.fprintf ppf "%s %s would be revealed."
-       (if singular then "A private" else "Private")
+       (match what with
+        | `OnePrivate -> "A private"
+        | `ManyPrivate -> "Private"
+        | `OneNew -> "A")
        item
 
 let report_label_mismatch first second env ppf err =
@@ -986,8 +993,13 @@ let privacy_mismatch env decl1 decl2 =
       | _, _ ->
           None
     end
-  | _, _ ->
-      None
+  | Private, New -> Some Private_new_type
+  | New, Public -> begin
+    match decl2.type_kind, decl2.type_manifest with
+    | Type_abstract _, None -> None
+    | _ -> Some New_type
+    end
+  | _, _ -> None
 
 let private_variant env row1 params1 row2 params2 =
     let r1, r2, pairs =
@@ -1116,6 +1128,8 @@ let type_manifest env ty1 params1 ty2 params2 priv2 kind2 =
       match
         if is_private_abbrev_2 then
           Ctype.equal_private env params1 ty1 params2 ty2
+        else if priv2 = New then
+          Ctype.equal_new env params1 ty1 params2 ty2
         else
           Ctype.equal env true (params1 @ [ty1]) (params2 @ [ty2])
       with
@@ -1264,7 +1278,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
 let extension_constructors ~loc env ~mark id ext1 ext2 =
   if mark then begin
     let usage : Env.constructor_usage =
-      if ext2.ext_private = Public then Env.Exported
+      if ext2.ext_private = (Public : private_flag) then Env.Exported
       else Env.Exported_private
     in
     Env.mark_extension_used usage ext1

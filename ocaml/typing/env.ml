@@ -26,6 +26,11 @@ open Local_store
 
 module String = Misc.Stdlib.String
 
+let unwrap_private : private_or_new_flag -> private_flag = function
+  | Private -> Private
+  | Public -> Public
+  | New -> assert false
+
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
 type 'a usage_tbl = ('a -> unit) Types.Uid.Tbl.t
@@ -60,7 +65,7 @@ let add_constructor_usage cu usage =
 let constructor_usages () =
   {cu_positive = false; cu_pattern = false; cu_exported_private = false}
 
-let constructor_usage_complaint ~rebind priv cu
+let constructor_usage_complaint ~rebind (priv : private_flag) cu
   : Warnings.constructor_usage_warning option =
   match priv, rebind with
   | Asttypes.Private, _ | _, true ->
@@ -104,7 +109,7 @@ let is_mutating_label_usage = function
 let label_usages () =
   {lu_projection = false; lu_mutation = false; lu_construct = false}
 
-let label_usage_complaint priv mut lu
+let label_usage_complaint (priv : private_flag) mut lu
   : Warnings.field_usage_warning option =
   match priv, mut with
   | Asttypes.Private, _ ->
@@ -1528,15 +1533,33 @@ and expand_modtype_path env path =
 let find_module_lazy path env =
   find_module_lazy ~alias:false path env
 
+let fixed_visibility_for_expansion decl body =
+  match decl.type_private with
+  | Private
+    when not (Btype.type_kind_is_abstract decl)
+      || Btype.has_constr_row body
+      -> Public
+  | _ -> decl.type_private
+
 (* Find the manifest type associated to a type when appropriate:
    - the type should be public or should have a private row,
    - the type should have an associated manifest type. *)
 let find_type_expansion path env =
   let decl = find_type path env in
   match decl.type_manifest with
-  | Some body when decl.type_private = Public
-              || not (Btype.type_kind_is_abstract decl)
-              || Btype.has_constr_row body ->
+  | Some body when Btype.lte_public Public (fixed_visibility_for_expansion decl body) ->
+      (decl.type_params, body, decl.type_expansion_scope)
+  (* The manifest type of Private abstract data types without
+     private row are still considered unknown to the type system.
+     Hence, this case is caught by the following clause that also handles
+     purely abstract data types without manifest type definition. *)
+  | _ -> raise Not_found
+
+(* Find the manifest type information associated to a type through newtypes *)
+let find_type_expansion_new path env =
+  let decl = find_type path env in
+  match decl.type_manifest with
+  | Some body when Btype.lte_public New (fixed_visibility_for_expansion decl body) ->
       (decl.type_params, body, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
      private row are still considered unknown to the type system.
@@ -2071,7 +2094,7 @@ and store_constructor ~check type_decl type_id cstr_id cstr env =
                  if not (is_in_signature env) then
                    Location.prerr_warning loc
                      (Warnings.Unused_constructor(name, complaint)))
-              (constructor_usage_complaint ~rebind:false priv used));
+              (constructor_usage_complaint ~rebind:false (unwrap_private priv) used));
     end;
   end);
   Builtin_attributes.mark_alerts_used cstr.cstr_attributes;
@@ -2106,7 +2129,7 @@ and store_label ~check type_decl type_id lbl_id lbl env =
                  if not (is_in_signature env) then
                    Location.prerr_warning
                      loc (Warnings.Unused_field(name, complaint)))
-              (label_usage_complaint priv mut used))
+              (label_usage_complaint (unwrap_private priv) mut used))
   end);
   Builtin_attributes.mark_alerts_used lbl.lbl_attributes;
   { env with

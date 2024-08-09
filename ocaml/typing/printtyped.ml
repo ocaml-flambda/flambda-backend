@@ -113,9 +113,15 @@ let fmt_direction_flag f x =
   | Upto -> fprintf f "Up"
   | Downto -> fprintf f "Down"
 
-let fmt_private_flag f x =
+let fmt_private_flag f (x : private_flag) =
   match x with
   | Public -> fprintf f "Public"
+  | Private -> fprintf f "Private"
+
+let fmt_private_or_new_flag f x =
+  match x with
+  | Public -> fprintf f "Public"
+  | New -> fprintf f "New"
   | Private -> fprintf f "Private"
 
 let line i f s (*...*) =
@@ -633,7 +639,7 @@ and type_declaration i ppf x =
   list (i+1) core_type_x_core_type_x_location ppf x.typ_cstrs;
   line i ppf "ptype_kind =\n";
   type_kind (i+1) ppf x.typ_kind;
-  line i ppf "ptype_private = %a\n" fmt_private_flag x.typ_private;
+  line i ppf "ptype_private = %a\n" fmt_private_or_new_flag x.typ_private;
   line i ppf "ptype_manifest =\n";
   option (i+1) core_type ppf x.typ_manifest;
 

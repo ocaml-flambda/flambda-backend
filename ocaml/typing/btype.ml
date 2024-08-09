@@ -505,10 +505,11 @@ end
 
 (* Search whether the expansion has been memorized. *)
 
-let lte_public p1 p2 =  (* Private <= Public *)
+let lte_public p1 p2 =  (* Private <= New <= Public *)
   match p1, p2 with
   | Private, _ | _, Public -> true
-  | Public, Private -> false
+  | New, New -> true
+  | New, Private | Public, New | Public, Private -> false
 
 let rec find_expans priv p1 = function
     Mnil -> None

@@ -270,7 +270,7 @@ let nonrec_flag f rf =
 let direction_flag f = function
   | Upto -> pp f "to@ "
   | Downto -> pp f "downto@ "
-let private_flag f = function
+let private_flag f : private_flag -> unit = function
   | Public -> ()
   | Private -> pp f "private@ "
 
@@ -1911,6 +1911,7 @@ and type_declaration ctxt f x =
   let priv f =
     match x.ptype_private with
     | Public -> ()
+    | New -> pp f "@;new"
     | Private -> pp f "@;private"
   in
   let manifest f =

@@ -139,6 +139,7 @@ type error =
   | Missing_native_external
   | Unbound_type_var of type_expr * type_declaration
   | Cannot_extend_private_type of Path.t
+  | Non_abstract_new_type
   | Not_extensible_type of Path.t
   | Extension_mismatch of Path.t * Env.t * Includecore.type_mismatch
   | Rebind_wrong_type of

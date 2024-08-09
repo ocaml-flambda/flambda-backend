@@ -962,8 +962,9 @@ and print_out_type_decl kwd ppf td =
       Otyp_manifest (_, ty) -> ty
     | _ -> td.otype_type
   in
-  let print_private ppf = function
+  let print_private_or_new ppf = function
     Asttypes.Private -> fprintf ppf " private"
+  | Asttypes.New -> fprintf ppf " new"
   | Asttypes.Public -> ()
   in
   let print_unboxed ppf =
@@ -973,7 +974,7 @@ and print_out_type_decl kwd ppf td =
   | Otyp_abstract -> ()
   | Otyp_record lbls ->
       fprintf ppf " =%a %a"
-        print_private td.otype_private
+      print_private_or_new td.otype_private
         print_record_decl lbls
   | Otyp_sum constrs ->
     let variants fmt constrs =
@@ -981,13 +982,13 @@ and print_out_type_decl kwd ppf td =
         fprintf fmt "%a" (print_list print_out_constr
           (fun ppf -> fprintf ppf "@ | ")) constrs in
     fprintf ppf " =%a@;<1 2>%a"
-      print_private td.otype_private variants constrs
+    print_private_or_new td.otype_private variants constrs
   | Otyp_open ->
       fprintf ppf " =%a .."
-        print_private td.otype_private
+      print_private_or_new td.otype_private
   | ty ->
       fprintf ppf " =%a@;<1 2>%a"
-        print_private td.otype_private
+      print_private_or_new td.otype_private
         !out_type ty
   in
   fprintf ppf "@[<2>@[<hv 2>%t%a%a@]%t%t@]"
@@ -1057,7 +1058,7 @@ and print_out_extension_constructor ppf ext =
   in
   fprintf ppf "@[<hv 2>type %t +=%s@;<1 2>%a@]"
     print_extended_type
-    (if ext.oext_private = Asttypes.Private then " private" else "")
+    (if ext.oext_private = (Asttypes.Private : Asttypes.private_flag) then " private" else "")
     print_out_constr
     (constructor_of_extension_constructor ext)
 
@@ -1077,7 +1078,7 @@ and print_out_type_extension ppf te =
   in
   fprintf ppf "@[<hv 2>type %t +=%s@;<1 2>%a@]"
     print_extended_type
-    (if te.otyext_private = Asttypes.Private then " private" else "")
+    (if te.otyext_private = (Asttypes.Private : Asttypes.private_flag) then " private" else "")
     (print_list print_out_constr (fun ppf -> fprintf ppf "@ | "))
      te.otyext_constructors
 

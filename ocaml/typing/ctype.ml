@@ -2015,6 +2015,28 @@ let rec extract_concrete_typedecl env ty =
   | Tvar _ | Tunivar _ -> May_have_typedecl
   | Tlink _ | Tsubst _ -> assert false
 
+
+let expand_abbrev_new env ty =
+  expand_abbrev_gen New Env.find_type_expansion_new env ty
+
+let safe_abbrev_new env ty =
+  let snap = Btype.snapshot () in
+  try ignore (expand_abbrev_new env ty); true
+  with Cannot_expand | Escape _ ->
+    Btype.backtrack snap;
+    false
+
+let try_expand_once_new env ty =
+  match get_desc ty with
+    Tconstr _ -> expand_abbrev_new env ty
+  | _ -> raise Cannot_expand
+
+let try_expand_safe_new env ty =
+  let snap = Btype.snapshot () in
+  try try_expand_once_new env ty
+  with Escape _ ->
+    Btype.backtrack snap; raise Cannot_expand
+
 (* Implementing function [expand_head_opt], the compiler's own version of
    [expand_head] used for type-based optimisations.
    [expand_head_opt] uses [Env.find_type_expansion_opt] to access the
@@ -2132,7 +2154,7 @@ let rec jkind_of_decl_unapplied env (decl : type_declaration) =
   (* FIXME jbachurski: Shouldn't we look at type_variance and type_separability here? *)
   match decl.type_arity with
   | 0 -> Some decl.type_jkind
-  | _ when is_datatype_decl_kind decl.type_kind ->
+  | _ when is_datatype_decl_kind decl.type_kind || decl.type_private = New ->
     Some (Jkind.of_arrow ~history:decl.type_jkind.history
     { args = List.map (type_jkind env) decl.type_params
     ; result = decl.type_jkind })
@@ -2499,9 +2521,13 @@ let generic_abbrev env path =
   try
     let (_, body, _) = Env.find_type_expansion path env in
     get_level body = generic_level
-  with
-    Not_found ->
-      false
+  with Not_found -> false
+
+let generic_new_abbrev env path =
+  try
+    let (_, body, _) = Env.find_type_expansion_new path env in
+    get_level body = generic_level
+  with Not_found -> false
 
 let generic_private_abbrev env path =
   try
@@ -4380,7 +4406,7 @@ let filter_method env name ty =
 
 exception Filter_method_row_failed
 
-let rec filter_method_row env name priv ty =
+let rec filter_method_row env name (priv : private_flag) ty =
   let ty = expand_head env ty in
   match get_desc ty with
   | Tvar _ ->
@@ -4450,7 +4476,7 @@ type add_method_failure =
 
 exception Add_method_failed of add_method_failure
 
-let add_method env label priv virt ty sign =
+let add_method env label (priv : private_flag) virt ty sign =
   let meths = sign.csig_meths in
   let priv, virt =
     match Meths.find label meths with
@@ -4561,7 +4587,7 @@ let inherit_class_signature ~strict env sign1 sign2 =
   unify_self_types env sign1 sign2;
   Meths.iter
     (fun label (priv, virt, ty) ->
-       let priv =
+       let priv : private_flag =
          match priv with
          | Mpublic -> Public
          | Mprivate kind ->
@@ -5447,6 +5473,14 @@ let rec equal_private env params1 ty1 params2 ty2 =
       | ty1' -> equal_private env params1 ty1' params2 ty2
       | exception Cannot_expand -> raise err
 
+let rec equal_new env params1 ty1 params2 ty2 =
+  match equal env true (params1 @ [ty1]) (params2 @ [ty2]) with
+  | () -> ()
+  | exception (Equality _ as err) ->
+      match try_expand_safe_new env (expand_head env ty1) with
+      | ty1' -> equal_new env params1 ty1' params2 ty2
+      | exception Cannot_expand -> raise err
+
                           (*************************)
                           (*  Class type matching  *)
                           (*************************)
@@ -6068,11 +6102,11 @@ let rec subtype_rec env trace t1 t2 cstrs =
     | (Tconstr(p1, Unapplied, _), Tconstr(p2, Unapplied, _)) when Path.same p1 p2 ->
         cstrs
     | (Tconstr(p1, _tl1, _abbrev1), _)
-      when generic_abbrev env p1 && safe_abbrev env t1 ->
-        subtype_rec env trace (expand_abbrev env t1) t2 cstrs
+      when generic_new_abbrev env p1 && safe_abbrev_new env t1 ->
+        subtype_rec env trace (expand_abbrev_new env t1) t2 cstrs
     | (_, Tconstr(p2, _tl2, _abbrev2))
-      when generic_abbrev env p2 && safe_abbrev env t2 ->
-        subtype_rec env trace t1 (expand_abbrev env t2) cstrs
+      when generic_new_abbrev env p2 && safe_abbrev_new env t2 ->
+        subtype_rec env trace t1 (expand_abbrev_new env t2) cstrs
     | (Tconstr(p1, tl1, _), Tconstr(p2, tl2, _)) when Path.same p1 p2 ->
         begin try
           let var = Env.find_type p1 env |> app_variance_of_decl in

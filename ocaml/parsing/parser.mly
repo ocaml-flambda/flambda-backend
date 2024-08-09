@@ -810,7 +810,7 @@ let package_type_of_module_type pmty =
           err loc "parametrized types are not supported";
         if ptyp.ptype_cstrs <> [] then
           err loc "constrained types are not supported";
-        if ptyp.ptype_private <> Public then
+        if ptyp.ptype_private <> (Public : private_or_new_flag) then
           err loc "private types are not supported";
 
         (* restrictions below are checked by the 'with_constraint' rule *)
@@ -3842,19 +3842,19 @@ generic_type_declaration(flag, kind):
    definition that leads to a smaller grammar (after expansion) and therefore
    a smaller automaton. *)
 nonempty_type_kind:
-  | priv = inline_private_flag
+  | priv = inline_private_or_new_flag
     ty = core_type
       { (Ptype_abstract, priv, Some ty) }
   | oty = type_synonym
-    priv = inline_private_flag
+    priv = inline_private_or_new_flag
     cs = constructor_declarations
       { (Ptype_variant cs, priv, oty) }
   | oty = type_synonym
-    priv = inline_private_flag
+    priv = inline_private_or_new_flag
     DOTDOT
       { (Ptype_open, priv, oty) }
   | oty = type_synonym
-    priv = inline_private_flag
+    priv = inline_private_or_new_flag
     LBRACE ls = label_declarations RBRACE
       { (Ptype_record ls, priv, oty) }
 ;
@@ -3864,7 +3864,7 @@ nonempty_type_kind:
 ;
 type_kind:
     /*empty*/
-      { (Ptype_abstract, Public, None) }
+      { (Ptype_abstract, (Public : private_or_new_flag), None) }
   | EQUAL nonempty_type_kind
       { $2 }
 ;
@@ -4206,7 +4206,7 @@ with_constraint:
       { Pwith_modtypesubst (l, rhs) }
 ;
 with_type_binder:
-    EQUAL          { Public }
+    EQUAL          { (Public : private_or_new_flag) }
   | EQUAL PRIVATE  { Private }
 ;
 
@@ -4930,8 +4930,13 @@ private_flag:
     { $1 }
 ;
 %inline inline_private_flag:
-    /* empty */                                 { Public }
-  | PRIVATE                                     { Private }
+    /* empty */                                 { (Public : private_flag) }
+  | PRIVATE                                     { (Private : private_flag) }
+;
+%inline inline_private_or_new_flag:
+    /* empty */                                 { (Public : private_or_new_flag) }
+  | NEW                                         { (New : private_or_new_flag) }
+  | PRIVATE                                     { (Private : private_or_new_flag) }
 ;
 mutable_flag:
     /* empty */                                 { Immutable }
@@ -4965,11 +4970,11 @@ mutable_virtual_flags:
       { Mutable, Virtual }
 ;
 private_virtual_flags:
-    /* empty */  { Public, Concrete }
-  | PRIVATE { Private, Concrete }
-  | VIRTUAL { Public, Virtual }
-  | PRIVATE VIRTUAL { Private, Virtual }
-  | VIRTUAL PRIVATE { Private, Virtual }
+    /* empty */  { (Public : private_flag), Concrete }
+  | PRIVATE { (Private : private_flag), Concrete }
+  | VIRTUAL { (Public : private_flag), Virtual }
+  | PRIVATE VIRTUAL { (Private : private_flag), Virtual }
+  | VIRTUAL PRIVATE { (Private : private_flag), Virtual }
 ;
 (* This nonterminal symbol indicates the definite presence of a VIRTUAL
    keyword and the possible presence of a MUTABLE keyword. *)
@@ -4981,9 +4986,9 @@ virtual_with_mutable_flag:
 (* This nonterminal symbol indicates the definite presence of a VIRTUAL
    keyword and the possible presence of a PRIVATE keyword. *)
 virtual_with_private_flag:
-  | VIRTUAL { Public }
-  | PRIVATE VIRTUAL { Private }
-  | VIRTUAL PRIVATE { Private }
+  | VIRTUAL { (Public : private_flag) }
+  | PRIVATE VIRTUAL { (Private : private_flag) }
+  | VIRTUAL PRIVATE { (Private : private_flag) }
 ;
 %inline no_override_flag:
     /* empty */                                 { Fresh }
