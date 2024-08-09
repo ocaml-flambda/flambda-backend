@@ -578,6 +578,10 @@ type t = {
   modtypes: (empty, modtype_data, modtype_data) IdTbl.t;
   classes: (empty, class_data, class_data) IdTbl.t;
   cltypes: (empty, cltype_data, cltype_data) IdTbl.t;
+  (* `ids_that_should_be_tco'd` stores three sorts of identifiers:
+     1. Function identifiers that are bound in some parent letrec.
+     2. Function identifiers that are bound by a function parameter.
+     3. Modules whose functions (or nested module's functions). *)
   ids_that_should_be_tco'd: unit Ident.tbl;
   functor_args: unit Ident.tbl;
   summary: summary;
