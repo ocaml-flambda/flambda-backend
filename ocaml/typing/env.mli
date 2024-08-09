@@ -128,7 +128,7 @@ val is_functor_arg: Path.t -> t -> bool
    3. Calls to functions that are defined in a functor argument or a
       submodule of a functor argument, EXCEPT if they are external calls.
       The functor argument itself (i.e. the module) should be added to the
-      environment.
+      ids that should be TCO'd.
 *)
 val add_id_that_should_be_tco'd: Ident.t -> t -> t
 val is_id_that_should_be_tco'd: Path.t -> value_kind -> t -> bool

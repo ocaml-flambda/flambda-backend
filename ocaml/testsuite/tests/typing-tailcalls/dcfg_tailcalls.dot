@@ -17,7 +17,7 @@ digraph {
     35 [label="camlDcfg_tailcalls__call_cps_style_34_82_code" color="black" fontcolor="black"]
     35 -> 32 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", lines 127-130, characters 2-51 (inferred nontail)"]
     20 [label="camlDcfg_tailcalls__calls_closure_in_tail_position_20_69_code" color="black" fontcolor="black"]
-    20 -> unknown [color="blue" style="solid" label="File \"dcfg_tailcalls.ml\", line 86, characters 2-19 (inferred tail)"]
+    20 -> unknown [color="black" style="solid" label="File \"dcfg_tailcalls.ml\", line 86, characters 2-19 (explicit tail)"]
     36 [label="camlDcfg_tailcalls__fn[dcfg_tailcalls.ml:130,4--51]_35_83_code" color="black" fontcolor="black"]
     36 -> 32 [color="red" style="solid" label="File \"dcfg_tailcalls.ml\", line 130, characters 29-43 (inferred nontail)"]
     22 [label="camlDcfg_tailcalls__partial_sum_22_22_code" color="black" fontcolor="black"]
