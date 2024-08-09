@@ -2,9 +2,15 @@ File "warnings.ml", line 16, characters 16-24:
 16 |   if n > 0 then next n k else k
                      ^^^^^^^^
 Warning 186 [inferred-nontail-in-tcod-cycle]: This function
-call was inferred as nontail, but it may participate in a
+call was inferred as nontail, but it participates in a
 cycle of TCO'd tail calls, which could overflow the stack at
 runtime. Consider marking the function call with [@tail].
+
+Here is one such cycle:
+
+    file "warnings.ml", line 16, characters 16-24 calls (inferred nontail)
+ -> file "warnings.ml", line 13, characters 4-15 calls (inferred tail)
+
 
 File "warnings.ml", lines 36-39, characters 2-51:
 36 | ..cps_style0
@@ -16,6 +22,13 @@ call was inferred as nontail, but it may participate in a
 cycle of TCO'd tail calls, which could overflow the stack at
 runtime. Consider marking the function call with [@tail].
 
+Here is one such cycle:
+
+    file "warnings.ml", lines 36-39, characters 2-51 calls (inferred nontail)
+ -> file "warnings.ml", line 22, characters 16-19 calls (inferred tail)
+ -> <unknown target> (explicit tail)
+
+
 File "warnings.ml", line 39, characters 29-43:
 39 |     (fun x -> if x > 10 then cps_style0 x k else 0)
                                   ^^^^^^^^^^^^^^
@@ -24,6 +37,13 @@ call was inferred as nontail, but it may participate in a
 cycle of TCO'd tail calls, which could overflow the stack at
 runtime. Consider marking the function call with [@tail].
 
+Here is one such cycle:
+
+    file "warnings.ml", line 39, characters 29-43 calls (inferred nontail)
+ -> file "warnings.ml", line 22, characters 16-19 calls (inferred tail)
+ -> <unknown target> (explicit tail)
+
+
 File "warnings.ml", line 50, characters 2-22:
 50 |   bind next int_option
        ^^^^^^^^^^^^^^^^^^^^
@@ -31,3 +51,60 @@ Warning 186 [inferred-nontail-in-tcod-cycle]: This function
 call was inferred as nontail, but it may participate in a
 cycle of TCO'd tail calls, which could overflow the stack at
 runtime. Consider marking the function call with [@tail].
+
+Here is one such cycle:
+
+    file "warnings.ml", line 50, characters 2-22 calls (inferred nontail)
+ -> file "warnings.ml", line 46, characters 14-17 calls (inferred tail)
+ -> <unknown target> (explicit tail)
+
+
+File "warnings.ml", line 60, characters 2-11:
+60 |   nibble ()
+       ^^^^^^^^^
+Warning 186 [inferred-nontail-in-tcod-cycle]: This function
+call was inferred as nontail, but it participates in a
+cycle of TCO'd tail calls, which could overflow the stack at
+runtime. Consider marking the function call with [@tail].
+
+Here is one such cycle:
+
+    file "warnings.ml", line 60, characters 2-11 calls (inferred nontail)
+ -> file "warnings.ml", line 58, characters 33-42 calls (explicit tail)
+ -> file "warnings.ml", line 57, characters 33-40 calls (explicit tail)
+ -> file "warnings.ml", line 56, characters 31-37 calls (explicit tail)
+ -> file "warnings.ml", line 55, characters 30-36 calls (explicit tail)
+ -> file "warnings.ml", line 54, characters 30-49 calls (explicit tail)
+
+
+File "warnings.ml", line 64, characters 5-15:
+64 |   in unknown ()
+          ^^^^^^^^^^
+Warning 186 [inferred-nontail-in-tcod-cycle]: This function
+call was inferred as nontail, but it may participate in a
+cycle of TCO'd tail calls, which could overflow the stack at
+runtime. Consider marking the function call with [@tail].
+
+Here is one such cycle:
+
+    file "warnings.ml", line 64, characters 5-15 calls (inferred nontail)
+ -> <unknown target> (explicit tail)
+
+
+File "warnings.ml", line 94, characters 2-11:
+94 |   nibble ()
+       ^^^^^^^^^
+Warning 186 [inferred-nontail-in-tcod-cycle]: This function
+call was inferred as nontail, but it participates in a
+cycle of TCO'd tail calls, which could overflow the stack at
+runtime. Consider marking the function call with [@tail].
+
+Here is one such cycle:
+
+    file "warnings.ml", line 94, characters 2-11 calls (inferred nontail)
+ -> file "warnings.ml", line 88, characters 14-23 calls (explicit tail)
+ -> file "warnings.ml", line 86, characters 33-40 calls (explicit tail)
+ -> file "warnings.ml", line 85, characters 31-37 calls (explicit tail)
+ -> file "warnings.ml", line 84, characters 30-36 calls (explicit tail)
+ -> file "warnings.ml", line 83, characters 30-58 calls (explicit tail)
+

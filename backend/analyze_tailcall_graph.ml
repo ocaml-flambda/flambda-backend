@@ -239,6 +239,22 @@ end = struct
       let compare (e1 : t) (e2 : t) =
         let c = Location.compare e1.loc e2.loc in
         if c <> 0 then c else compare e1.edge e2.edge
+
+      let to_error_string t =
+        let call_type =
+          match t.edge.label with
+          | Explicit_tail_edge -> "(explicit tail)"
+          | Explicit_nontail_edge -> "(explicit nontail)"
+          | Unknown_position_tail_edge -> "(synthesized tail)"
+          | Unknown_position_nontail_edge -> "(synthesized nontail)"
+          | Inferred_tail_edge -> "(inferred tail)"
+          | Inferred_nontail_edge -> "(inferred nontail)"
+        in
+        if Vertex.is_unknown t.edge.from
+        then Format.asprintf "<unknown target> %s" call_type
+        else
+          Format.asprintf "%a calls %s" Location.print_loc_in_lowercase t.loc
+            call_type
     end
 
     let to_dot_tooltip (with_loc : With_loc.t) =
@@ -492,12 +508,190 @@ end = struct
                   | Inferred_nontail_edge -> Vertex.Hashset.mem scc e.edge.to_))
     |> List.sort Edge.With_loc.compare
 
+  module Cycle_witness = struct
+    module Tendril : sig
+      module Priority : sig
+        (* Priority is a sort key for Dijkstra's algorithm. Because we order
+           Doesn't_use_unknown_edge's before Uses_unknown_edge's, the algorithm
+           is essentially BFS in two phases: the first phase searches through
+           all paths that do not traverse through the unknown vertex in length
+           order, saving those paths for the second phase. *)
+        type phase =
+          | Doesn't_use_unknown_edge
+          | Uses_unknown_edge
+
+        type t
+
+        val phase : t -> phase
+
+        module Pqueue : Regalloc_gi_utils.Priority_queue with type priority = t
+      end
+
+      type t
+
+      val priority : t -> Priority.t
+
+      val edges : t -> Edge.With_loc.t list
+
+      val tip : t -> Vertex.t
+
+      val singleton : Edge.With_loc.t -> t
+
+      val cons : Edge.With_loc.t -> t -> t
+    end = struct
+      module Priority = struct
+        module T = struct
+          type phase =
+            | Doesn't_use_unknown_edge
+            | Uses_unknown_edge
+
+          (* The invariants in this type are maintained by Tendril.singleton and
+             Tendril.cons. *)
+          type t =
+            { (* Invariant: `t.phase = Uses_unknown_edge` iff for some `e` in
+                 `edges` this priority is associated with, `e.from =
+                 Unknown_fn`. *)
+              phase : phase;
+              (* Invariant: `t.length = List.length edges` *)
+              length : int
+            }
+
+          let phase t = t.phase
+
+          (* Compare candidate paths lexiographically by (phase, length). Order
+             paths that don't use an unknown edge earlier. *)
+          let compare fst snd =
+            let phase_to_ord = function
+              | Doesn't_use_unknown_edge -> 0
+              | Uses_unknown_edge -> 1
+            in
+            let c =
+              Int.compare (phase_to_ord fst.phase) (phase_to_ord snd.phase)
+            in
+            if c <> 0 then c else Int.compare fst.length snd.length
+        end
+
+        include T
+
+        module Pqueue = Regalloc_gi_utils.Make_min_priority_queue (struct
+          include T
+
+          let to_string _ = "dummy unused"
+        end)
+      end
+
+      type t =
+        { priority : Priority.t;
+          edges : Edge.With_loc.t list (* Nonempty list *)
+        }
+
+      let priority (t : t) = t.priority
+
+      let edges (t : t) = t.edges
+
+      let tip (t : t) = (List.hd t.edges).edge.to_
+
+      let singleton (with_loc : Edge.With_loc.t) : t =
+        let phase : Priority.phase =
+          match with_loc.edge.from with
+          | Unknown_fn -> Uses_unknown_edge
+          | Known_fn _ -> Doesn't_use_unknown_edge
+        in
+        { priority = { phase; length = 1 }; edges = [with_loc] }
+
+      let cons (with_loc : Edge.With_loc.t) ({ priority; edges } : t) : t =
+        let phase : Priority.phase =
+          match with_loc.edge.from with
+          | Unknown_fn -> Uses_unknown_edge
+          | Known_fn _ -> priority.phase
+        in
+        { priority = { phase; length = priority.length + 1 };
+          edges = with_loc :: edges
+        }
+    end
+
+    (* Gas is decremented once per edge examined. *)
+    let find_cycle_with_edge graph ~(with_loc : Edge.With_loc.t) ~gas :
+        (Edge.With_loc.t list * bool) option * int =
+      let module Priority = Tendril.Priority in
+      let visited = Vertex.Hashset.create 100 in
+      let enqueue, dequeue =
+        let q : Tendril.t Priority.Pqueue.t =
+          Priority.Pqueue.make ~initial_capacity:100
+        in
+        let enqueue tendril =
+          Priority.Pqueue.add q ~priority:(Tendril.priority tendril)
+            ~data:tendril
+        in
+        let dequeue () =
+          if Priority.Pqueue.is_empty q
+          then None
+          else
+            let elt = Priority.Pqueue.get_and_remove q in
+            Some (elt.priority, elt.data)
+        in
+        enqueue, dequeue
+      in
+      let source = with_loc.edge.from in
+      Vertex.Hashset.add visited source;
+      enqueue (Tendril.singleton with_loc);
+      let rec loop gas =
+        if gas = 0
+        then None, gas
+        else
+          match dequeue () with
+          | None -> None, gas
+          | Some (priority, cur) ->
+            let tip = Tendril.tip cur in
+            if Vertex.equal tip source
+            then
+              let uses_unknown =
+                match Priority.phase priority with
+                | Doesn't_use_unknown_edge -> false
+                | Uses_unknown_edge -> true
+              in
+              Some (List.rev (Tendril.edges cur), uses_unknown), gas
+            else if Vertex.Hashset.mem visited tip
+            then loop gas
+            else (
+              Vertex.Hashset.add visited tip;
+              let gas =
+                successors graph tip
+                |> List.fold_left
+                     (fun gas succ ->
+                       enqueue (Tendril.cons succ cur);
+                       gas - 1)
+                     gas
+              in
+              loop gas)
+      in
+      loop gas
+  end
+
   let warn_inferred_nontail_in_tco'd_cycle t ~sccs =
-    sccs
-    |> List.concat_map (fun scc -> possibly_newly_overflowing_edges t ~scc)
-    |> List.sort Edge.With_loc.compare
-    |> List.iter (fun (e : Edge.With_loc.t) ->
-           Location.prerr_warning e.loc Warnings.Inferred_nontail_in_tcod_cycle)
+    let gas = 100_000 in
+    let gas =
+      sccs
+      |> List.concat_map (fun scc -> possibly_newly_overflowing_edges t ~scc)
+      |> List.sort Edge.With_loc.compare
+      |> List.fold_left
+           (fun gas (e : Edge.With_loc.t) ->
+             let cycle, gas =
+               if gas = 0
+               then None, 0
+               else Cycle_witness.find_cycle_with_edge t ~with_loc:e ~gas
+             in
+             let to_warning_info (cycle, uses_unknown) =
+               let cycle = cycle |> List.map Edge.With_loc.to_error_string in
+               cycle, uses_unknown
+             in
+             let warning_info = cycle |> Option.map to_warning_info in
+             Location.prerr_warning e.loc
+               (Warnings.Inferred_nontail_in_tcod_cycle warning_info);
+             gas)
+           gas
+    in
+    ignore (gas : int)
 
   let print_vertex_line ~indent ppf kv =
     let color = if Vertex.is_unknown kv then "red" else "black" in

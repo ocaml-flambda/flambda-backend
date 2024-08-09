@@ -117,7 +117,7 @@ type t =
   | Unused_tmc_attribute                    (* 71 *)
   | Tmc_breaks_tailcall                     (* 72 *)
   | Generative_application_expects_unit     (* 73 *)
-  | Inferred_nontail_in_tcod_cycle         (* 186 *)
+  | Inferred_nontail_in_tcod_cycle of (string list * bool) option (* 186 *)
   | Incompatible_with_upstream of upstream_compat_warning (* 187 *)
   | Unerasable_position_argument            (* 188 *)
   | Unnecessarily_partial_tuple_pattern     (* 189 *)
@@ -206,7 +206,7 @@ let number = function
   | Unused_tmc_attribute -> 71
   | Tmc_breaks_tailcall -> 72
   | Generative_application_expects_unit -> 73
-  | Inferred_nontail_in_tcod_cycle -> 186
+  | Inferred_nontail_in_tcod_cycle _ -> 186
   | Incompatible_with_upstream _ -> 187
   | Unerasable_position_argument -> 188
   | Unnecessarily_partial_tuple_pattern -> 189
@@ -1194,11 +1194,34 @@ let message = function
   | Generative_application_expects_unit ->
       "A generative functor\n\
        should be applied to '()'; using '(struct end)' is deprecated."
-  | Inferred_nontail_in_tcod_cycle ->
-      "This function\n\
-       call was inferred as nontail, but it may participate in a\n\
-       cycle of TCO'd tail calls, which could overflow the stack at\n\
-       runtime. Consider marking the function call with [@tail]."
+  | Inferred_nontail_in_tcod_cycle info ->
+      let make_warning is_conservative header cycle =
+        let verb = match is_conservative with
+          | true -> "may participate"
+          | false -> "participates"
+        in
+        Printf.sprintf
+          "This function\n\
+           call was inferred as nontail, but it %s in a\n\
+           cycle of TCO'd tail calls, which could overflow the stack at\n\
+           runtime. Consider marking the function call with [@tail].\n\n\
+           %s%s" verb header cycle
+      in
+      (match info with
+      | None ->
+        make_warning true "" "We were unable to find the call cycle due to either a\n\
+                              timeout or a bug in the compiler."
+      | Some (cycle, uses_unknown) ->
+        let cycle =
+          cycle
+          |> List.mapi (fun i str ->
+            let prefix = if i = 0 then "    "
+                                  else " -> "
+            in
+            [prefix; str; "\n"])
+          |> List.concat |> String.concat ""
+        in
+        make_warning uses_unknown "Here is one such cycle:\n\n" cycle)
   | Incompatible_with_upstream (Immediate_erasure id)  ->
       Printf.sprintf
       "Usage of layout immediate/immediate64 in %s \n\
