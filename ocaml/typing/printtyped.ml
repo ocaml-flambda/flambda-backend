@@ -438,6 +438,9 @@ and original_position ppf (t : position_and_tail_attribute) =
     Format.fprintf ppf "Tail_position (%a)" pattr attr
   | Not_tail_position attr ->
     Format.fprintf ppf "Not_tail_position (%a)" pattr attr
+  | Inlined_into_not_tail_position { original_position = opos } ->
+    Format.fprintf ppf "Inlined_into_not_tail_position (%a)"
+      original_position opos
 
 and expression i ppf x =
   line i ppf "expression %a\n" fmt_location x.exp_loc;

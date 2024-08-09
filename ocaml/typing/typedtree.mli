@@ -72,6 +72,25 @@ type position_and_tail_attribute =
   | Tail_position of tail_attribute
   (* (Not_tail_position Explicit_tail) is disallowed. *)
   | Not_tail_position of tail_attribute
+  (* Inlining can break whether a function application was "originally" in
+     tail position, since we do not currently update this attribute when
+     inlining. For example:
+
+     let [@inline always] inlined () = foo ()
+
+     let calls_inlined () =
+       inlined ();  (* THIS LINE *)
+       other ()
+     ;;
+
+     After inlining, the line marked [THIS LINE] will effectively have a
+     [Tail_position Default_tail] foo application which cannot be tail-call
+     optimized because it is not in tail position. This is a V"dangerous"
+     edge that will be added to the tail call graph. If it participates in
+     a cycle of tail-calls, the analysis will falsely report a warning on
+     [inlined ()]. *)
+  | Inlined_into_not_tail_position of
+      { original_position : position_and_tail_attribute }
 
 (** {1 Core language} *)
 

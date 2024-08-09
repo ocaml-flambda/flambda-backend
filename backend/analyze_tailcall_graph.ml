@@ -97,6 +97,7 @@ module Graph : sig
     to_:Vertex.t ->
     actual_position:actual_position ->
     original_position:Typedtree.position_and_tail_attribute ->
+    loc:Location.t ->
     unit
 
   (* Partitions vertices into hashsets where two vertices are in the same
@@ -104,6 +105,13 @@ module Graph : sig
 
      Explicit_nontail_edges are ignored in this SCC decomposition. *)
   val decompose_tailcall_sccs : t -> Vertex.Hashset.t list
+
+  (* Emits warnings for vertices that have an Inferred_nontail_edge to another
+     vertex in the same SCC. Taking a trip across such an edge may increase
+     stack consumption, which may lead to stack overflow when traversing the
+     cycle repeatedly. *)
+  val warn_inferred_nontail_in_tco'd_cycle :
+    t -> sccs:Vertex.Hashset.t list -> unit
 
   val print_dot : Format.formatter -> t -> sccs:Vertex.Hashset.t list -> unit
 end = struct
@@ -123,6 +131,8 @@ end = struct
       let id t = match t with Unknown_fn -> -1 | Known_fn { id; _ } -> id
 
       let equal t1 t2 = id t1 = id t2
+
+      let compare t1 t2 = Int.compare (id t1) (id t2)
 
       let hash t = Int.hash (id t)
     end
@@ -146,9 +156,9 @@ end = struct
       module Label = struct
         (* For the purpose of analyzing whether TCO inference might break
            existing code (by causing a stack overflow) we are interested in
-           whether there are any cycles with Explicit_tail_edges and
-           Inferred_nontail_edges. To find these cycles, we plan on finding
-           SCC's for the subgraph consisting of just edges with those labels. *)
+           whether there are any cycles with *_tail_edges and
+           Inferred_nontail_edges. To find these cycles, we decompose the call
+           graph into SCCs. *)
         type t =
           (* "Explicit" here really means "not inferred." "Explicit" edges are
              edges that are (very likely) not changing their TCO behavior as a
@@ -157,6 +167,13 @@ end = struct
              tail (nontail). *)
           | Explicit_tail_edge
           | Explicit_nontail_edge
+          (* Unknown_position edges are from Unknown_position applications,
+             which are generated when we synthesize function applications
+             internally in the compiler. These are treated the same as Explicit
+             edges in the SCC decomposition and for warnings; for debugging
+             purposes we display them differently in the dot output.*)
+          | Unknown_position_tail_edge
+          | Unknown_position_nontail_edge
           (* "Inferred" edges are edges that might possibly change their TCO
              behavior as a result of adding TCO inference. *)
           | Inferred_tail_edge
@@ -166,10 +183,13 @@ end = struct
           match t1, t2 with
           | Explicit_tail_edge, Explicit_tail_edge -> true
           | Explicit_nontail_edge, Explicit_nontail_edge -> true
+          | Unknown_position_tail_edge, Unknown_position_tail_edge -> true
+          | Unknown_position_nontail_edge, Unknown_position_nontail_edge -> true
           | Inferred_tail_edge, Inferred_tail_edge -> true
           | Inferred_nontail_edge, Inferred_nontail_edge -> true
-          | ( ( Explicit_tail_edge | Explicit_nontail_edge | Inferred_tail_edge
-              | Inferred_nontail_edge ),
+          | ( ( Explicit_tail_edge | Explicit_nontail_edge
+              | Unknown_position_tail_edge | Unknown_position_nontail_edge
+              | Inferred_tail_edge | Inferred_nontail_edge ),
               _ ) ->
             false
 
@@ -177,8 +197,12 @@ end = struct
           match t with
           | Explicit_tail_edge -> 0
           | Explicit_nontail_edge -> 1
-          | Inferred_tail_edge -> 2
-          | Inferred_nontail_edge -> 3
+          | Unknown_position_tail_edge -> 2
+          | Unknown_position_nontail_edge -> 3
+          | Inferred_tail_edge -> 4
+          | Inferred_nontail_edge -> 5
+
+        let compare t1 t2 = hash t1 - hash t2
       end
 
       type t =
@@ -192,22 +216,65 @@ end = struct
         && Label.equal e1.label e2.label
         && Vertex.equal e1.to_ e2.to_
 
+      let compare e1 e2 =
+        let c = Vertex.compare e1.from e2.from in
+        if c <> 0
+        then c
+        else
+          let c = Label.compare e1.label e2.label in
+          if c <> 0 then c else Vertex.compare e1.to_ e2.to_
+
       let hash e1 =
         Vertex.hash e1.from + Label.hash e1.label + Vertex.hash e1.to_
     end
 
     include T
+
+    module With_loc = struct
+      type nonrec t =
+        { edge : t;
+          loc : Location.t
+        }
+
+      let compare (e1 : t) (e2 : t) =
+        let c = Location.compare e1.loc e2.loc in
+        if c <> 0 then c else compare e1.edge e2.edge
+    end
+
+    let to_dot_tooltip (with_loc : With_loc.t) =
+      let label =
+        match with_loc.edge.label with
+        | Explicit_tail_edge -> "explicit tail"
+        | Explicit_nontail_edge -> "explicit nontail"
+        | Unknown_position_tail_edge -> "unknown_pos tail"
+        | Unknown_position_nontail_edge -> "unknown_pos nontail"
+        | Inferred_tail_edge -> "inferred tail"
+        | Inferred_nontail_edge -> "inferred nontail"
+      in
+      let escaped_loc : string =
+        Format.asprintf "%a" Location.print_loc with_loc.loc
+        |> String.split_on_char '"' |> String.concat "\\\""
+      in
+      Format.sprintf "%s (%s)" escaped_loc label
+
     module Tbl = Hashtbl.Make (T)
-    module Hashset = Hashset.Make (Tbl)
   end
 
   type t =
     { vertex_by_name : Vertex.t String.Tbl.t;
-      adjacencies : Edge.Hashset.t Vertex.Tbl.t
+      (* This is a table from Vertex.t (a function definition) to a table of
+         edges (keyed by target function and call type) to a list of locations
+         (using Edge.Tbl.t as a multimap).
+
+         Each location for an edge corresponds to a distinct callsite inside the
+         function. E.g. if A calls B in tail position multiple times in
+         different locations, we will record one location for each call. We need
+         to treat each call as distinct when emitting warnings. *)
+      adjacencies : Location.t Edge.Tbl.t Vertex.Tbl.t
     }
 
   let init_unknown_edges t =
-    Vertex.Tbl.replace t.adjacencies Vertex.unknown (Edge.Hashset.create 100)
+    Vertex.Tbl.replace t.adjacencies Vertex.unknown (Edge.Tbl.create 100)
 
   let create () =
     let t =
@@ -223,8 +290,17 @@ end = struct
     Vertex.Tbl.reset t.adjacencies;
     init_unknown_edges t
 
-  let successors t (v : Vertex.t) : Edge.Hashset.t =
+  let successors_mod_loc t (v : Vertex.t) : Edge.t Seq.t =
+    Vertex.Tbl.find t.adjacencies v |> Edge.Tbl.to_seq_keys
+
+  (* Prefer sorting lexiographically by location so that warnings are emitted in
+     source order, and also so that the dot order is deterministic. *)
+  let successors t (v : Vertex.t) : Edge.With_loc.t list =
     Vertex.Tbl.find t.adjacencies v
+    |> Edge.Tbl.to_seq
+    |> Seq.map (fun (e, loc) : Edge.With_loc.t -> { edge = e; loc })
+    |> List.of_seq
+    |> List.sort Edge.With_loc.compare
 
   let find_or_add_vertex t ~(fn_name : string) : Vertex.t =
     let vertex =
@@ -232,16 +308,18 @@ end = struct
       | None ->
         let id = String.Tbl.length t.vertex_by_name in
         let vertex : Vertex.t = Known_fn { id; name = fn_name } in
-        String.Tbl.replace t.vertex_by_name fn_name vertex;
+        String.Tbl.add t.vertex_by_name fn_name vertex;
         (* Add edge from unknown *)
         let unknown = Vertex.unknown in
         let edge_from_unknown : Edge.t =
           { from = unknown; to_ = vertex; label = Explicit_tail_edge }
         in
-        Edge.Hashset.add (successors t unknown) edge_from_unknown;
-        (* Initialize vertex's adjacency set *)
-        let edges_from_vertex = Edge.Hashset.create 10 in
-        Vertex.Tbl.replace t.adjacencies vertex edges_from_vertex;
+        let edges_from_unknown = Vertex.Tbl.find t.adjacencies unknown in
+        Edge.Tbl.add edges_from_unknown edge_from_unknown Location.none;
+        (* Initialize vertex's adjacency set. The adjacency list is already
+           initialized because we use Vertex.Tbl as a multimap.*)
+        let edges_from_vertex = Edge.Tbl.create 10 in
+        Vertex.Tbl.add t.adjacencies vertex edges_from_vertex;
         vertex
       | Some vertex -> vertex
     in
@@ -253,10 +331,13 @@ end = struct
 
   let add_edge t ~(from : Vertex.t) ~(to_ : Vertex.t)
       ~(actual_position : actual_position)
-      ~(original_position : Typedtree.position_and_tail_attribute) =
+      ~(original_position : Typedtree.position_and_tail_attribute)
+      ~(loc : Location.t) =
     let label : Edge.Label.t =
       let impossible_because ~case fmt =
-        Misc.fatal_errorf ("case " ^^ case ^^ " impossible because " ^^ fmt)
+        Misc.fatal_errorf
+          ("case " ^^ case ^^ " impossible because " ^^ fmt ^^ "; %a")
+          Location.print_loc loc
       in
       match original_position, actual_position with
       (* CR less-tco: Clarify Unknown_position.
@@ -264,8 +345,12 @@ end = struct
          Right now we use it for "fake" applications (like tuplify) which might
          makes our analysis less precise -- e.g. tuplify really is a leaf
          function, so it cannot form a cycle in the call graph. *)
-      | Unknown_position, Tail -> Explicit_tail_edge
-      | Unknown_position, Nontail -> Explicit_nontail_edge
+      | Unknown_position, Tail -> Unknown_position_tail_edge
+      | Unknown_position, Nontail -> Unknown_position_nontail_edge
+      | Inlined_into_not_tail_position _, Tail ->
+        impossible_because "if this happens we should know about it"
+          ~case:"Inlined_into_not_tail_position _, Tail"
+      | Inlined_into_not_tail_position _, Nontail -> Explicit_nontail_edge
       | Not_tail_position Explicit_tail, _ ->
         impossible_because
           "[@tail] not allowed on applications not in tail position"
@@ -304,8 +389,9 @@ end = struct
          created) *)
       ()
     | Known_fn _ ->
+      (* `from`'s adjacency list was initialized in `find_or_add_vertex` *)
       let edges = Vertex.Tbl.find t.adjacencies from in
-      Edge.Hashset.add edges edge
+      Edge.Tbl.add edges edge loc
 
   type vertex_state =
     { preorder : int;
@@ -347,15 +433,17 @@ end = struct
       let state = { preorder = num; lowlink = num } in
       Vertex.Tbl.replace states vertex (Visited state);
       push_vertex vertex;
-      (* Recursively traverse successors and update this vertex's state
+      (* Recursively traverse successors_mod_loc and update this vertex's state
          accordingly. *)
-      Edge.Hashset.iter (successors t vertex) ~f:(fun { label; to_; _ } ->
+      Seq.iter
+        (fun ({ label; to_; _ } : Edge.t) ->
           match label with
-          | Explicit_nontail_edge ->
+          | Explicit_nontail_edge | Unknown_position_nontail_edge ->
             (* Ignore these; before less-tco they already allocate stack space,
                so are unlikely to be part of some cycle that blows the stack. *)
             ()
-          | Explicit_tail_edge | Inferred_tail_edge | Inferred_nontail_edge -> (
+          | Explicit_tail_edge | Unknown_position_tail_edge | Inferred_tail_edge
+          | Inferred_nontail_edge -> (
             let to_state = Vertex.Tbl.find states to_ in
             match to_state with
             | Not_visited ->
@@ -365,7 +453,8 @@ end = struct
               if Vertex.Hashset.mem stack_set to_
               then
                 (* Back-edge *)
-                state.lowlink <- min state.lowlink to_state.preorder));
+                state.lowlink <- min state.lowlink to_state.preorder))
+        (successors_mod_loc t vertex);
       (* After recursively visiting all successors, if the original vertex is
          the root of the SCC in the DFS tree, pop from the stack to get all the
          vertices in the SCC. *)
@@ -383,55 +472,77 @@ end = struct
       state
     in
     Vertex.Tbl.iter
-      (fun v _edges ->
+      (fun v (_ : Location.t Edge.Tbl.t) ->
         match Vertex.Tbl.find states v with
         | Not_visited -> ignore (visit v)
         | Visited _ -> ())
       t.adjacencies;
     sccs |> Stack.to_seq |> List.of_seq
 
-  let possibly_overflowing_edges t ~(scc : Vertex.Hashset.t) =
-    Vertex.Hashset.to_seq scc
-    |> Seq.concat_map (fun v ->
-           successors t v |> Edge.Hashset.to_seq
-           |> Seq.filter (fun (e : Edge.t) ->
-                  match e.label with
+  let possibly_newly_overflowing_edges t ~(scc : Vertex.Hashset.t) =
+    Vertex.Hashset.to_seq scc |> List.of_seq
+    |> List.concat_map (fun v ->
+           successors t v
+           |> List.filter (fun (e : Edge.With_loc.t) ->
+                  match e.edge.label with
                   | Explicit_tail_edge | Explicit_nontail_edge
+                  | Unknown_position_tail_edge | Unknown_position_nontail_edge
                   | Inferred_tail_edge ->
                     false
-                  | Inferred_nontail_edge -> Vertex.Hashset.mem scc e.to_))
-    |> List.of_seq
+                  | Inferred_nontail_edge -> Vertex.Hashset.mem scc e.edge.to_))
+    |> List.sort Edge.With_loc.compare
+
+  let warn_inferred_nontail_in_tco'd_cycle t ~sccs =
+    sccs
+    |> List.concat_map (fun scc -> possibly_newly_overflowing_edges t ~scc)
+    |> List.sort Edge.With_loc.compare
+    |> List.iter (fun (e : Edge.With_loc.t) ->
+           Location.prerr_warning e.loc Warnings.Inferred_nontail_in_tcod_cycle)
 
   let print_vertex_line ~indent ppf kv =
     let color = if Vertex.is_unknown kv then "red" else "black" in
     Format.fprintf ppf "%s%s [label=\"%s\" color=\"%s\" fontcolor=\"%s\"]\n"
       indent (Vertex.to_dot_id kv) (Vertex.to_dot_label kv) color color
 
-  let hide_unknown_edges = true
+  let hide_edges_from_unknown = true
 
-  let print_edge_line ~indent ppf ({ from; to_; label } : Edge.t) =
-    if Vertex.is_unknown from && hide_unknown_edges
+  let hide_ignored_nontail_edges = true
+
+  let print_edge_line ~indent ppf (with_loc : Edge.With_loc.t) =
+    let Edge.{ from; to_; label } = with_loc.edge in
+    let is_ignored_nontail_edge =
+      match label with
+      | Explicit_nontail_edge | Unknown_position_nontail_edge -> true
+      | Explicit_tail_edge | Unknown_position_tail_edge | Inferred_tail_edge
+      | Inferred_nontail_edge ->
+        false
+    in
+    if (hide_edges_from_unknown && Vertex.is_unknown from)
+       || (hide_ignored_nontail_edges && is_ignored_nontail_edge)
     then ()
     else
       let color =
         match label with
-        | Explicit_tail_edge -> "black"
-        | Explicit_nontail_edge -> "lightgrey"
+        | Explicit_tail_edge | Unknown_position_tail_edge -> "black"
+        | Explicit_nontail_edge | Unknown_position_nontail_edge -> "lightgrey"
         | Inferred_tail_edge -> "blue"
         | Inferred_nontail_edge -> "red"
       in
       let style =
         let maybe_unknown_style () =
-          if Vertex.is_unknown from then "dashed" else "solid"
+          if Vertex.is_unknown from then "dotted" else "solid"
         in
         match label with
         | Explicit_tail_edge -> maybe_unknown_style ()
         | Explicit_nontail_edge -> maybe_unknown_style ()
+        | Unknown_position_tail_edge -> "dashed"
+        | Unknown_position_nontail_edge -> "dashed"
         | Inferred_tail_edge -> "solid"
         | Inferred_nontail_edge -> "solid"
       in
-      Format.fprintf ppf "%s%s -> %s [color=\"%s\" style=\"%s\"]\n" indent
-        (Vertex.to_dot_id from) (Vertex.to_dot_id to_) color style
+      Format.fprintf ppf "%s%s -> %s [color=\"%s\" style=\"%s\" label=\"%s\"]\n"
+        indent (Vertex.to_dot_id from) (Vertex.to_dot_id to_) color style
+        (Edge.to_dot_tooltip with_loc)
 
   let print_dot ppf t ~sccs =
     Format.fprintf ppf "digraph {\n";
@@ -440,7 +551,7 @@ end = struct
       (fun idx scc ->
         let indent = "    " in
         let has_possibly_overflowing_edges =
-          List.length (possibly_overflowing_edges t ~scc) > 0
+          List.length (possibly_newly_overflowing_edges t ~scc) > 0
         in
         Format.fprintf ppf "  subgraph cluster_%d {\n" idx;
         Format.fprintf ppf "    label=\"%d\"\n" idx;
@@ -453,20 +564,24 @@ end = struct
         Vertex.Hashset.iter scc ~f:(fun vtx ->
             let edges = successors t vtx in
             print_vertex_line ~indent ppf vtx;
-            Edge.Hashset.iter edges ~f:(fun e ->
+            List.iter
+              (fun (with_loc : Edge.With_loc.t) ->
                 (* If an edge is in a cluster, dot seems to layout the to_ node
                    within the same cluster. So only print interior SCC edges
                    here. *)
-                if Vertex.Hashset.mem scc e.to_
-                then print_edge_line ~indent ppf e);
+                if Vertex.Hashset.mem scc with_loc.edge.to_
+                then print_edge_line ~indent ppf with_loc)
+              edges;
             ());
         Format.fprintf ppf "  }\n";
         (* Print cross-SCC edges here. *)
         Vertex.Hashset.iter scc ~f:(fun vtx ->
             let edges = successors t vtx in
-            Edge.Hashset.iter edges ~f:(fun e ->
-                if not (Vertex.Hashset.mem scc e.to_)
-                then print_edge_line ~indent:"  " ppf e));
+            List.iter
+              (fun (with_loc : Edge.With_loc.t) ->
+                if not (Vertex.Hashset.mem scc with_loc.edge.to_)
+                then print_edge_line ~indent:"  " ppf with_loc)
+              edges);
         Format.fprintf ppf "\n")
       sccs;
     Format.fprintf ppf "}\n\n"
@@ -489,14 +604,19 @@ module Global_state = struct
         Graph.find_or_add_vertex graph ~fn_name:sym_name
     in
     Cfg.iter_blocks cfg ~f:(fun _ block ->
+        let term = block.terminator in
+        let loc = Debuginfo.to_location term.dbg in
         let add_edge = Graph.add_edge graph ~from in
-        match block.terminator.desc with
+        match term.desc with
         | Tailcall_self { original_position; _ } ->
-          add_edge ~to_:from ~actual_position:Tail ~original_position
+          let to_ = from in
+          add_edge ~to_ ~actual_position:Tail ~original_position ~loc
         | Tailcall_func { original_position; op } ->
-          add_edge ~to_:(to_ op) ~actual_position:Tail ~original_position
+          let to_ = to_ op in
+          add_edge ~to_ ~actual_position:Tail ~original_position ~loc
         | Call { original_position; op; _ } ->
-          add_edge ~to_:(to_ op) ~actual_position:Nontail ~original_position
+          let to_ = to_ op in
+          add_edge ~to_ ~actual_position:Nontail ~original_position ~loc
         (* (less-tco) Handle Call_no_return and Prim? *)
         | Call_no_return _ | Prim _ | Never | Always _ | Parity_test _
         | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return | Raise _
@@ -507,4 +627,71 @@ module Global_state = struct
   let print_dot ppf =
     let sccs = Graph.decompose_tailcall_sccs graph in
     Graph.print_dot ppf graph ~sccs
+
+  let emit_warnings () =
+    let sccs = Graph.decompose_tailcall_sccs graph in
+    Graph.warn_inferred_nontail_in_tco'd_cycle graph ~sccs
 end
+
+let fixup_inlined_tailcalls (fundecl : Cmm.fundecl) =
+  let rec fix (expr : Cmm.expression) ~(tail_pos_ctx : bool) : Cmm.expression =
+    let possibly_tail = fix ~tail_pos_ctx in
+    let nontail = fix ~tail_pos_ctx:false in
+    match expr with
+    | Cop (op, exprs, dbg) ->
+      let op : Cmm.operation =
+        (* Warning 4 is [fragile-match] *)
+        match[@ocaml.warning "-4"] op with
+        | Capply (machtype, region_close, original_position) ->
+          let inlined_position : Lambda.position_and_tail_attribute =
+            match original_position with
+            | Tail_position _ when not tail_pos_ctx ->
+              Inlined_into_not_tail_position { original_position }
+            | _ -> original_position
+          in
+          Capply (machtype, region_close, inlined_position)
+        | _ -> op
+      in
+      let exprs = List.map nontail exprs in
+      Cop (op, exprs, dbg)
+    | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
+    | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ ->
+      expr
+    | Clet (var, defn, body) -> Clet (var, nontail defn, possibly_tail body)
+    | Clet_mut (var, machtype, defn, body) ->
+      Clet_mut (var, machtype, nontail defn, possibly_tail body)
+    | Cphantom_let (var, phantom_defn, body) ->
+      Cphantom_let (var, phantom_defn, possibly_tail body)
+    | Cassign (var, defn) -> Cassign (var, nontail defn)
+    | Ctuple exprs -> Ctuple (List.map nontail exprs)
+    | Csequence (first, second) ->
+      Csequence (nontail first, possibly_tail second)
+    | Cifthenelse (cond, cond_dbg, ifso, ifso_dbg, ifnot, ifnot_dbg, kind) ->
+      Cifthenelse
+        ( nontail cond,
+          cond_dbg,
+          possibly_tail ifso,
+          ifso_dbg,
+          possibly_tail ifnot,
+          ifnot_dbg,
+          kind )
+    | Cswitch (expr, table, cases, dbg', kind) ->
+      Cswitch
+        ( expr,
+          table,
+          Array.map (fun (e, dbg) -> possibly_tail e, dbg) cases,
+          dbg',
+          kind )
+    | Ccatch (rec_flag, handlers, body, kind) ->
+      let handlers =
+        List.map
+          (fun (n, ids, handler, dbg, is_cold) ->
+            n, ids, possibly_tail handler, dbg, is_cold)
+          handlers
+      in
+      Ccatch (rec_flag, handlers, possibly_tail body, kind)
+    | Ctrywith (e1, label, id, e2, dbg, kind) ->
+      Ctrywith (possibly_tail e1, label, id, possibly_tail e2, dbg, kind)
+    | Cexit (label, args, traps) -> Cexit (label, List.map nontail args, traps)
+  in
+  { fundecl with fun_body = fix fundecl.fun_body ~tail_pos_ctx:true }
