@@ -166,15 +166,8 @@ let value_description sub x =
   iter_loc sub x.val_name;
   sub.typ sub x.val_desc
 
-<<<<<<< HEAD
 let label_decl sub ({ld_loc; ld_name; ld_type; ld_attributes; ld_modalities = _} as ld) =
   sub.item_declaration sub (Label ld);
-||||||| 121bedcfd2
-let label_decl sub {ld_loc; ld_name; ld_type; ld_attributes; _} =
-=======
-let label_decl sub ({ld_loc; ld_name; ld_type; ld_attributes; _} as ld) =
-  sub.item_declaration sub (Label ld);
->>>>>>> 5.2.0
   sub.location sub ld_loc;
   sub.attributes sub ld_attributes;
   iter_loc sub ld_name;
@@ -261,13 +254,7 @@ let pat
   List.iter (pat_extra sub) extra;
   match pat_desc with
   | Tpat_any  -> ()
-<<<<<<< HEAD
   | Tpat_var (_, s, _, _) -> iter_loc sub s
-||||||| 121bedcfd2
-  | Tpat_var (_, s) -> iter_loc sub s
-=======
-  | Tpat_var (_, s, _) -> iter_loc sub s
->>>>>>> 5.2.0
   | Tpat_constant _ -> ()
   | Tpat_tuple l -> List.iter (fun (_, p) -> sub.pat sub p) l
   | Tpat_construct (lid, _, l, vto) ->
@@ -278,16 +265,8 @@ let pat
   | Tpat_variant (_, po, _) -> Option.iter (sub.pat sub) po
   | Tpat_record (l, _) ->
       List.iter (fun (lid, _, i) -> iter_loc sub lid; sub.pat sub i) l
-<<<<<<< HEAD
   | Tpat_array (_, _, l) -> List.iter (sub.pat sub) l
   | Tpat_alias (p, _, s, _, _) -> sub.pat sub p; iter_loc sub s
-||||||| 121bedcfd2
-  | Tpat_array l -> List.iter (sub.pat sub) l
-  | Tpat_alias (p, _, s) -> sub.pat sub p; iter_loc sub s
-=======
-  | Tpat_array l -> List.iter (sub.pat sub) l
-  | Tpat_alias (p, _, s, _) -> sub.pat sub p; iter_loc sub s
->>>>>>> 5.2.0
   | Tpat_lazy p -> sub.pat sub p
   | Tpat_value p -> sub.pat sub (p :> pattern)
   | Tpat_exception p -> sub.pat sub p
@@ -295,7 +274,6 @@ let pat
       sub.pat sub p1;
       sub.pat sub p2
 
-<<<<<<< HEAD
 let extra sub = function
   | Texp_constraint cty -> sub.typ sub cty
   | Texp_coerce (cty1, cty2) ->
@@ -319,47 +297,20 @@ let function_param sub { fp_loc; fp_kind; fp_newtypes; _ } =
       sub.expr sub default_arg
 
 let function_body sub body =
-  match body with
+  match[@warning "+9"] body with
   | Tfunction_body body ->
       sub.expr sub body
-  | Tfunction_cases { fc_cases; fc_exp_extra; fc_loc; fc_attributes; fc_env } ->
+  | Tfunction_cases
+      { fc_cases; fc_exp_extra; fc_loc; fc_attributes; fc_env;
+        fc_arg_mode = _; fc_arg_sort = _; fc_ret_type = _;
+        fc_partial = _; fc_param = _;
+      } ->
       List.iter (sub.case sub) fc_cases;
       Option.iter (extra sub) fc_exp_extra;
       sub.location sub fc_loc;
       sub.attributes sub fc_attributes;
       sub.env sub fc_env
 
-||||||| 121bedcfd2
-=======
-let extra sub = function
-  | Texp_constraint cty -> sub.typ sub cty
-  | Texp_coerce (cty1, cty2) ->
-    Option.iter (sub.typ sub) cty1;
-    sub.typ sub cty2
-  | Texp_newtype _ -> ()
-  | Texp_poly cto -> Option.iter (sub.typ sub) cto
-
-let function_param sub fp =
-  sub.location sub fp.fp_loc;
-  match fp.fp_kind with
-  | Tparam_pat pat -> sub.pat sub pat
-  | Tparam_optional_default (pat, default_arg) ->
-      sub.pat sub pat;
-      sub.expr sub default_arg
-
-let function_body sub body =
-  match[@warning "+9"] body with
-  | Tfunction_body body ->
-      sub.expr sub body
-  | Tfunction_cases
-      { cases; loc; exp_extra; attributes; partial = _; param = _ }
-    ->
-      List.iter (sub.case sub) cases;
-      sub.location sub loc;
-      Option.iter (extra sub) exp_extra;
-      sub.attributes sub attributes
-
->>>>>>> 5.2.0
 let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   let extra x = extra sub x in
   sub.location sub exp_loc;
@@ -372,21 +323,10 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   | Texp_let (rec_flag, list, exp) ->
       sub.value_bindings sub (rec_flag, list);
       sub.expr sub exp
-<<<<<<< HEAD
   | Texp_function { params; body; _ } ->
       List.iter (function_param sub) params;
       function_body sub body
   | Texp_apply (exp, list, _, _, _) ->
-||||||| 121bedcfd2
-  | Texp_function {cases; _} ->
-     List.iter (sub.case sub) cases
-  | Texp_apply (exp, list) ->
-=======
-  | Texp_function (params, body) ->
-      List.iter (function_param sub) params;
-      function_body sub body
-  | Texp_apply (exp, list) ->
->>>>>>> 5.2.0
       sub.expr sub exp;
       List.iter (function
         | (_, Arg (exp, _)) -> sub.expr sub exp
@@ -708,14 +648,10 @@ let typ sub {ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes; _} =
       List.iter (fun (_, l) -> Option.iter (sub.jkind_annotation sub) l) vars;
       sub.typ sub ct
   | Ttyp_package pack -> sub.package_type sub pack
-<<<<<<< HEAD
-  | Ttyp_call_pos -> ()
-||||||| 121bedcfd2
-=======
   | Ttyp_open (_, mod_ident, t) ->
       iter_loc sub mod_ident;
       sub.typ sub t
->>>>>>> 5.2.0
+  | Ttyp_call_pos -> ()
 
 let class_structure sub {cstr_self; cstr_fields; _} =
   sub.pat sub cstr_self;
@@ -768,16 +704,10 @@ let value_binding sub ({vb_loc; vb_pat; vb_expr; vb_attributes; _} as vb) =
 
 let env _sub _ = ()
 
-<<<<<<< HEAD
 let jkind_annotation sub (_, l) = iter_loc sub l
 
 let item_declaration _sub _ = ()
 
-||||||| 121bedcfd2
-=======
-let item_declaration _sub _ = ()
-
->>>>>>> 5.2.0
 let default_iterator =
   {
     attribute;

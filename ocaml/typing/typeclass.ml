@@ -276,20 +276,6 @@ let type_constraint val_env sty sty' loc =
 let make_method loc cl_num expr =
   let open Ast_helper in
   let mkid s = mkloc s loc in
-<<<<<<< HEAD
-  let pat =
-    Pat.alias ~loc (Pat.var ~loc (mkid "self-*")) (mkid ("self-" ^ cl_num))
-  in
-  Jane_syntax.N_ary_functions.expr_of ~loc:expr.pexp_loc
-    ([ { pparam_desc = Pparam_val (Nolabel, None, pat);
-         pparam_loc = pat.ppat_loc;
-       }
-     ], None, Pfunction_body expr)
-||||||| 121bedcfd2
-  Exp.fun_ ~loc:expr.pexp_loc Nolabel None
-    (Pat.alias ~loc (Pat.var ~loc (mkid "self-*")) (mkid ("self-" ^ cl_num)))
-    expr
-=======
   let pat =
     Pat.alias ~loc (Pat.var ~loc (mkid "self-*")) (mkid ("self-" ^ cl_num))
   in
@@ -299,7 +285,6 @@ let make_method loc cl_num expr =
       }
     ]
     None (Pfunction_body expr)
->>>>>>> 5.2.0
 
 (*******************************)
 
@@ -846,18 +831,8 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
                    Ctype.unify val_env (Ctype.newmono ty') ty;
                    Typecore.type_approx val_env sbody ty'
                | Tpoly (ty1, tl) ->
-<<<<<<< HEAD
-                   let _, ty1' = Ctype.instance_poly false tl ty1 in
-                   Typecore.type_approx val_env sbody ty1'
-||||||| 121bedcfd2
-                   let _, ty1' = Ctype.instance_poly false tl ty1 in
-                   let ty2 = type_approx val_env sbody in
-                   Ctype.unify val_env ty2 ty1'
-=======
                    let _, ty1' = Ctype.instance_poly ~fixed:false tl ty1 in
-                   let ty2 = type_approx val_env sbody in
-                   Ctype.unify val_env ty2 ty1'
->>>>>>> 5.2.0
+                   Typecore.type_approx val_env sbody ty1'
                | _ -> assert false
              with Ctype.Unify err ->
                raise(Error(loc, val_env,
@@ -1293,16 +1268,8 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
         | _ -> true
       in
       let partial =
-<<<<<<< HEAD
         let dummy = Typecore.type_exp val_env (Ast_helper.Exp.unreachable ()) in
         Typecore.check_partial val_env pat.pat_type pat.pat_loc
-||||||| 121bedcfd2
-        let dummy = type_exp val_env (Ast_helper.Exp.unreachable ()) in
-        Typecore.check_partial Modules_rejected val_env pat.pat_type pat.pat_loc
-=======
-        let dummy = type_exp val_env (Ast_helper.Exp.unreachable ()) in
-        Typecore.check_partial val_env pat.pat_type pat.pat_loc
->>>>>>> 5.2.0
           [{c_lhs = pat; c_guard = None; c_rhs = dummy}]
       in
       let val_env' = Env.add_escape_lock Class val_env' in
@@ -1468,7 +1435,6 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
         Typecore.type_let In_class_def val_env rec_flag sdefs in
       let (vals, met_env) =
         List.fold_right
-<<<<<<< HEAD
           (fun (id, modes_and_sorts, _) (vals, met_env) ->
              List.iter
                (fun (loc, mode, sort) ->
@@ -1479,11 +1445,6 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
                                  Non_value_let_binding (Ident.name id, sort)))
                )
                modes_and_sorts;
-||||||| 121bedcfd2
-          (fun (id, _id_loc, _typ) (vals, met_env) ->
-=======
-          (fun (id, _id_loc, _typ, _uid) (vals, met_env) ->
->>>>>>> 5.2.0
              let path = Pident id in
              (* do not mark the value as used *)
              let vd = Env.find_value path val_env
@@ -1521,18 +1482,9 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
           ([], met_env)
       in
       let cl = class_expr cl_num val_env met_env virt self_scope scl' in
-<<<<<<< HEAD
       let defs = match rec_flag with
         | Recursive -> Typecore.annotate_recursive_bindings val_env defs
         | Nonrecursive -> defs
-||||||| 121bedcfd2
-      let () = if rec_flag = Recursive then
-        check_recursive_bindings val_env defs
-=======
-      let defs = match rec_flag with
-        | Recursive -> annotate_recursive_bindings val_env defs
-        | Nonrecursive -> defs
->>>>>>> 5.2.0
       in
       rc {cl_desc = Tcl_let (rec_flag, defs, vals, cl);
           cl_loc = scl.pcl_loc;
@@ -1656,15 +1608,9 @@ let temp_abbrev loc id arity uid =
   let ty_td =
       {type_params = !params;
        type_arity = arity;
-<<<<<<< HEAD
-       type_kind = Type_abstract Abstract_def;
+       type_kind = Type_abstract Definition;
        type_jkind = Jkind.Primitive.value ~why:Object;
        type_jkind_annotation = None;
-||||||| 121bedcfd2
-       type_kind = Type_abstract;
-=======
-       type_kind = Type_abstract Definition;
->>>>>>> 5.2.0
        type_private = Public;
        type_manifest = Some ty;
        type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -1894,15 +1840,9 @@ let class_infos define_class kind
     {
      type_params = obj_params;
      type_arity = arity;
-<<<<<<< HEAD
-     type_kind = Type_abstract Abstract_def;
+     type_kind = Type_abstract Definition;
      type_jkind = Jkind.Primitive.value ~why:Object;
      type_jkind_annotation = None;
-||||||| 121bedcfd2
-     type_kind = Type_abstract;
-=======
-     type_kind = Type_abstract Definition;
->>>>>>> 5.2.0
      type_private = Public;
      type_manifest = Some obj_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;
@@ -2212,14 +2152,7 @@ let approx_class_declarations env sdecls =
 
 open Format
 
-<<<<<<< HEAD
-let non_virtual_string_of_kind (t : kind) =
-  match t with
-||||||| 121bedcfd2
-let non_virtual_string_of_kind = function
-=======
 let non_virtual_string_of_kind : kind -> string = function
->>>>>>> 5.2.0
   | Object -> "object"
   | Class -> "non-virtual class"
   | Class_type -> "non-virtual class type"
@@ -2429,8 +2362,7 @@ let report_error env ppf =
       "@[Cannot close type of object literal:@ %a@,\
        it has been unified with the self type of a class that is not yet@ \
        completely defined.@]"
-<<<<<<< HEAD
-      Printtyp.type_scheme sign.csig_self
+      (Style.as_inline_code Printtyp.type_scheme) sign.csig_self
   | Polymorphic_class_parameter ->
       fprintf ppf
         "Class parameters cannot be polymorphic"
@@ -2447,11 +2379,6 @@ let report_error env ppf =
     fprintf ppf
       "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \
          automatically if ommitted. It cannot be passed with '?'.@]" label
-||||||| 121bedcfd2
-      Printtyp.type_scheme sign.csig_self
-=======
-      (Style.as_inline_code Printtyp.type_scheme) sign.csig_self
->>>>>>> 5.2.0
 
 let report_error env ppf err =
   Printtyp.wrap_printing_env ~error:true

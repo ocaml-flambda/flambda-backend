@@ -31,7 +31,7 @@ module Dir : sig
   val create_libloc : hidden:bool -> libloc:string -> string -> t
 
   val find : t -> string -> string option
-  val find_uncap : t -> string -> string option
+  val find_normalized : t -> string -> string option
 end = struct
   type entry = {
     basename : string;
@@ -56,10 +56,10 @@ end = struct
       else
         None) t.files
 
-  let find_uncap t fn =
-    let fn = String.uncapitalize_ascii fn in
+  let find_normalized t fn =
+    let fn = Misc.normalized_unit_filename fn in
     let search { basename; path } =
-      if String.uncapitalize_ascii basename = fn then
+      if Misc.normalized_unit_filename basename = fn then
         Some path
       else
         None
@@ -149,7 +149,7 @@ end = struct
     List.iter (fun ({ basename = base; path = fn } : Dir.entry) ->
         if Dir.hidden dir then begin
           STbl.replace !hidden_files base fn;
-          STbl.replace !hidden_files_uncap (String.uncapitalize_ascii base) fn
+          STbl.replace !hidden_files_uncap (Misc.normalized_unit_filename base) fn
         end else begin
           STbl.replace !visible_files base fn;
           STbl.replace !visible_files_uncap (String.uncapitalize_ascii base) fn
@@ -166,7 +166,7 @@ end = struct
     List.iter
       (fun ({ basename = base; path = fn }: Dir.entry) ->
          update base fn visible_files hidden_files;
-         let ubase = String.uncapitalize_ascii base in
+         let ubase = Misc.normalized_unit_filename base in
          update ubase fn visible_files_uncap hidden_files_uncap)
       (Dir.files dir)
 
@@ -296,7 +296,7 @@ let find fn =
   with Not_found ->
     !auto_include_callback Dir.find fn
 
-let find_uncap_with_visibility fn =
+let find_normalized_with_visibility fn =
   assert (not Config.merlin || Local_store.is_bound ());
   try
     if is_basename fn && not !Sys.interactive then
@@ -311,4 +311,4 @@ let find_uncap_with_visibility fn =
     let fn_uncap = String.uncapitalize_ascii fn in
     (!auto_include_callback Dir.find_uncap fn_uncap, Visible)
 
-let find_uncap fn = fst (find_uncap_with_visibility fn)
+let find_normalized fn = fst (find_normalized_with_visibility fn)

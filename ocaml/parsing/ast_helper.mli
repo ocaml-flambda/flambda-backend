@@ -139,7 +139,7 @@ module Exp:
     val let_: ?loc:loc -> ?attrs:attrs -> rec_flag -> value_binding list
               -> expression -> expression
     val function_ : ?loc:loc -> ?attrs:attrs -> function_param list
-                   -> type_constraint option -> function_body
+                   -> function_constraint option -> function_body
                    -> expression
     val apply: ?loc:loc -> ?attrs:attrs -> expression
                -> (arg_label * expression) list -> expression

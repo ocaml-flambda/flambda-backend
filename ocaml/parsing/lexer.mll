@@ -587,7 +587,6 @@ rule token = parse
   | "?" (lowercase_latin1 identchar_latin1 * as name) ':'
       { warn_latin1 lexbuf;
         OPTLABEL name }
-<<<<<<< HEAD
   (* Lowercase identifiers are split into 3 cases, and the order matters
      (longest to shortest).
   *)
@@ -599,11 +598,8 @@ rule token = parse
       (* See Note [Lexing hack for float#] *)
       { enqueue_hash_suffix_from_end_of_lexbuf_window lexbuf;
         lookup_keyword name }
-||||||| 121bedcfd2
-=======
   | raw_ident_escape (lowercase identchar * as name)
       { LIDENT name }
->>>>>>> 5.2.0
   | lowercase identchar * as name
       { lookup_keyword name }
   (* Lowercase latin1 identifiers are split into 3 cases, and the order matters

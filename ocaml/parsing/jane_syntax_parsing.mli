@@ -93,9 +93,7 @@
     language extension (separated out by which one) or the collection of all
     built-in features. *)
 module Feature : sig
-  type t =
-    | Language_extension : _ Language_extension.t -> t
-    | Builtin
+  type t = Language_extension : _ Language_extension.t -> t
 
   (** The component of an attribute or extension name that identifies the
       feature. This is third component.

@@ -309,27 +309,10 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
   let check =
     Option.map (fun id -> Type_declaration (id, decl)) check
   in
-<<<<<<< HEAD
-  let abstract = Btype.type_kind_is_abstract decl in
-  if (abstract || decl.type_kind = Type_open)
-       && decl.type_manifest = None then
-||||||| 121bedcfd2
-  if (decl.type_kind = Type_abstract || decl.type_kind = Type_open)
-       && decl.type_manifest = None then
-=======
   let abstract = Btype.type_kind_is_abstract decl in
   if (abstract || decl.type_kind = Type_open) && decl.type_manifest = None then
->>>>>>> 5.2.0
     List.map
-<<<<<<< HEAD
-      (fun (c, n, i) ->
-        make (not n) (not c) (not abstract || i))
-||||||| 121bedcfd2
-      (fun (c, n, i) ->
-        make (not n) (not c) (decl.type_kind <> Type_abstract || i))
-=======
       (fun (c, n, i) -> make (not n) (not c) (not abstract || i))
->>>>>>> 5.2.0
       required
   else begin
     let mn =

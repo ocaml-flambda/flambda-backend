@@ -371,7 +371,6 @@ let pervasives_name namespace name =
           set namespace @@ M.add name (Associated_to_pervasives r) (get namespace);
           r
 
-<<<<<<< HEAD
 (** Lookup for preexisting named item within the current {!printing_env} *)
 let env_ident namespace name =
   if S.mem name !protected then None else
@@ -379,79 +378,6 @@ let env_ident namespace name =
   | Pident id -> Some id
   | _ -> None
   | exception Not_found -> None
-||||||| 121bedcfd2
-let indexed_name namespace id =
-  let find namespace id env = match namespace with
-    | Type -> Env.find_type_index id env
-    | Module -> Env.find_module_index id env
-    | Module_type -> Env.find_modtype_index id env
-    | Class -> Env.find_class_index id env
-    | Class_type-> Env.find_cltype_index id env
-    | Value | Extension_constructor -> None
-  in
-  let index =
-    match M.find_opt (Ident.name id) !bound_in_recursion with
-    | Some rec_bound_id ->
-        (* the identifier name appears in the current group of recursive
-           definition *)
-        if Ident.same rec_bound_id id then
-          Some 0
-        else
-          (* the current recursive definition shadows one more time the
-            previously existing identifier with the same name *)
-          Option.map succ (in_printing_env (find namespace id))
-    | None ->
-        in_printing_env (find namespace id)
-  in
-  let index =
-    (* If [index] is [None] at this point, it might indicate that
-       the identifier id is not defined in the environment, while there
-       are other identifiers in scope that share the same name.
-       Currently, this kind of partially incoherent environment happens
-       within functor error messages where the left and right hand side
-       have a different views of the environment at the source level.
-       Printing the source-level by using a default index of `0`
-       seems like a reasonable compromise in this situation however.*)
-    Option.value index ~default:0
-  in
-  human_id id index
-=======
-let indexed_name namespace id =
-  let find namespace id env = match namespace with
-    | Type -> Env.find_type_index id env
-    | Module -> Env.find_module_index id env
-    | Module_type -> Env.find_modtype_index id env
-    | Class -> Env.find_class_index id env
-    | Class_type-> Env.find_cltype_index id env
-    | Value | Extension_constructor | Constructor | Label -> None
-  in
-  let index =
-    match M.find_opt (Ident.name id) !bound_in_recursion with
-    | Some rec_bound_id ->
-        (* the identifier name appears in the current group of recursive
-           definition *)
-        if Ident.same rec_bound_id id then
-          Some 0
-        else
-          (* the current recursive definition shadows one more time the
-            previously existing identifier with the same name *)
-          Option.map succ (in_printing_env (find namespace id))
-    | None ->
-        in_printing_env (find namespace id)
-  in
-  let index =
-    (* If [index] is [None] at this point, it might indicate that
-       the identifier id is not defined in the environment, while there
-       are other identifiers in scope that share the same name.
-       Currently, this kind of partially incoherent environment happens
-       within functor error messages where the left and right hand side
-       have a different views of the environment at the source level.
-       Printing the source-level by using a default index of `0`
-       seems like a reasonable compromise in this situation however.*)
-    Option.value index ~default:0
-  in
-  human_id id index
->>>>>>> 5.2.0
 
 (** Associate a name to the identifier [id] within [namespace] *)
 let ident_name_simple namespace id =
@@ -555,7 +481,7 @@ let expand_longident_head name =
     Some
       (Ldot
         (Lident (String.sub name 0 i),
-          String.capitalize_ascii
+          Unit_info.modulize
             (String.sub name (i + 2) (String.length name - i - 2))))
 
 (* Simple heuristic to print Foo__bar.* as Foo.Bar.* when Foo.Bar is an alias
@@ -573,25 +499,7 @@ let rec rewrite_double_underscore_paths env p =
     let name = Ident.name id in
     match expand_longident_head name with
     | None -> p
-<<<<<<< HEAD
     | Some better_lid ->
-||||||| 121bedcfd2
-    | Some i ->
-      let better_lid =
-        Ldot
-          (Lident (String.sub name 0 i),
-           String.capitalize_ascii
-             (String.sub name (i + 2) (String.length name - i - 2)))
-      in
-=======
-    | Some i ->
-      let better_lid =
-        Ldot
-          (Lident (String.sub name 0 i),
-           Unit_info.modulize
-             (String.sub name (i + 2) (String.length name - i - 2)))
-      in
->>>>>>> 5.2.0
       match Env.find_module_by_name better_lid env with
       | exception Not_found -> p
       | p', _ ->
@@ -721,19 +629,11 @@ and labeled_type ppf (label, ty) =
   raw_type ppf ty
 
 and raw_type_list tl = raw_list raw_type tl
-<<<<<<< HEAD
 and labeled_type_list tl = raw_list labeled_type tl
 and raw_lid_type_list tl =
   raw_list (fun ppf (lid, typ) ->
              fprintf ppf "(@,%a,@,%a)" longident lid raw_type typ)
     tl
-||||||| 121bedcfd2
-=======
-and raw_lid_type_list tl =
-  raw_list (fun ppf (lid, typ) ->
-             fprintf ppf "(@,%a,@,%a)" longident lid raw_type typ)
-    tl
->>>>>>> 5.2.0
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
       fprintf ppf "Tvar (@,%a,@,%a)" print_name name Jkind.format jkind
@@ -788,15 +688,8 @@ and raw_type_desc ppf = function
           | Some(p,tl) ->
               fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
   | Tpackage (p, fl) ->
-<<<<<<< HEAD
       fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
         raw_lid_type_list fl
-||||||| 121bedcfd2
-      fprintf ppf "@[<hov1>Tpackage(@,%a@,%a)@]" path p
-        raw_type_list (List.map snd fl)
-=======
-    fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p raw_lid_type_list fl
->>>>>>> 5.2.0
 and raw_row_fixed ppf = function
 | None -> fprintf ppf "None"
 | Some Types.Fixed_private -> fprintf ppf "Some Fixed_private"
@@ -1542,14 +1435,8 @@ let rec tree_of_typexp mode alloc_mode ty =
            printing should not mutate states. *)
         let snap = Btype.snapshot () in
         let lab =
-<<<<<<< HEAD
           if !print_labels || is_omittable l then outcome_label l
           else Nolabel
-||||||| 121bedcfd2
-          if !print_labels || is_optional l then string_of_label l else ""
-=======
-          if !print_labels || is_optional l then l else Nolabel
->>>>>>> 5.2.0
         in
         (* [marg] will contain undetermined axes. It would be imprecise if we
            don't print anything for those axes, since user would interpret that
@@ -1576,21 +1463,11 @@ let rec tree_of_typexp mode alloc_mode ty =
         let p', s = best_type_path p in
         let tyl' = apply_subst s tyl in
         if is_nth s && not (tyl'=[])
-<<<<<<< HEAD
         then tree_of_typexp mode Alloc.Const.legacy (List.hd tyl')
-        else Otyp_constr (tree_of_path (Some Type) p', tree_of_typlist mode tyl')
-||||||| 121bedcfd2
-        then tree_of_typexp mode (List.hd tyl')
-        else
-          let tpath = tree_of_best_type_path p p' in
-          Otyp_constr (tpath, tree_of_typlist mode tyl')
-=======
-        then tree_of_typexp mode (List.hd tyl')
         else begin
           Internal_names.add p';
-          Otyp_constr (tree_of_best_type_path p p', tree_of_typlist mode tyl')
+          Otyp_constr (tree_of_path (Some Type) p', tree_of_typlist mode tyl')
         end
->>>>>>> 5.2.0
     | Tvariant row ->
         let Row {fields; name; closed; _} = row_repr row in
         let fields =
@@ -1989,10 +1866,11 @@ let prepare_decl id decl =
 
 let tree_of_type_decl id decl =
   let ty_manifest, params = prepare_decl id decl in
-  let type_param ot_variance =
+  let type_param ot_variance ot_jkind =
     function
-    | Otyp_var (ot_non_gen, ot_name) -> {ot_non_gen; ot_name; ot_variance}
-    | _ -> {ot_non_gen=false; ot_name="?"; ot_variance}
+    | Otyp_var (ot_non_gen, ot_name) ->
+        {ot_non_gen; ot_name; ot_variance; ot_jkind}
+    | _ -> {ot_non_gen=false; ot_name="?"; ot_variance; ot_jkind}
   in
   let type_defined decl =
     let abstr =
@@ -2026,22 +1904,12 @@ let tree_of_type_decl id decl =
           else (NoVariance, NoInjectivity))
         decl.type_params decl.type_variance
     in
-    let mk_param ty (variance, injectivity) =
-      { oparam_name = type_param (tree_of_typexp Type ty);
-        oparam_variance = variance;
-        oparam_injectivity = injectivity;
-        oparam_jkind = param_jkind ty }
+    let mk_param ty variance =
+      let jkind = param_jkind ty in
+      type_param variance jkind (tree_of_typexp Type ty)
     in
     (Ident.name id,
-<<<<<<< HEAD
      List.map2 mk_param params vari)
-||||||| 121bedcfd2
-     List.map2 (fun ty cocn -> type_param (tree_of_typexp Type ty), cocn)
-       params vari)
-=======
-     List.map2 (fun ty cocn -> type_param cocn (tree_of_typexp Type ty))
-       params vari)
->>>>>>> 5.2.0
   in
   let tree_of_manifest ty1 =
     match ty_manifest with
@@ -2405,14 +2273,8 @@ let rec tree_of_class_type mode params =
       Octy_signature (self_ty, List.rev csil)
   | Cty_arrow (l, ty, cty) ->
       let lab =
-<<<<<<< HEAD
         if !print_labels || is_omittable l then outcome_label l
         else Nolabel
-||||||| 121bedcfd2
-        if !print_labels || is_optional l then string_of_label l else ""
-=======
-        if !print_labels || is_optional l then l else Nolabel
->>>>>>> 5.2.0
       in
       let tr =
        if is_optional l then
@@ -2428,37 +2290,15 @@ let class_type ppf cty =
   prepare_class_type [] cty;
   !Oprint.out_class_type ppf (tree_of_class_type Type [] cty)
 
-<<<<<<< HEAD
-let tree_of_class_param param var_inj =
-  let variance, injectivity =
-    if is_Tvar param
-    then Asttypes.(NoVariance, NoInjectivity)
-    else var_inj
-  in
-  { oparam_name = begin match tree_of_typexp Type_scheme param with
-      | Otyp_var (_, s) -> s
-      | _ -> "?"
-    end;
-    oparam_variance = variance;
-    oparam_injectivity = injectivity;
-    (* CR layouts: fix next line when adding support for jkind
-       annotations on class type parameters *)
-    oparam_jkind = param_jkind param }
-||||||| 121bedcfd2
-let tree_of_class_param param variance =
-  (match tree_of_typexp Type_scheme param with
-    Otyp_var (_, s) -> s
-  | _ -> "?"),
-  if is_Tvar param then Asttypes.(NoVariance, NoInjectivity)
-  else variance
-=======
 let tree_of_class_param param variance =
   let ot_variance =
     if is_Tvar param then Asttypes.(NoVariance, NoInjectivity) else variance in
+  (* CR layouts: fix next line when adding support for jkind
+     annotations on class type parameters *)
+  let ot_jkind = param_jkind param in
   match tree_of_typexp Type_scheme param with
-    Otyp_var (ot_non_gen, ot_name) -> {ot_non_gen; ot_name; ot_variance}
-  | _ -> {ot_non_gen=false; ot_name="?"; ot_variance}
->>>>>>> 5.2.0
+    Otyp_var (ot_non_gen, ot_name) -> {ot_non_gen; ot_name; ot_variance; ot_jkind}
+  | _ -> {ot_non_gen=false; ot_name="?"; ot_variance; ot_jkind}
 
 let class_variance =
   let open Variance in let open Asttypes in
@@ -2551,15 +2391,9 @@ let dummy =
   {
     type_params = [];
     type_arity = 0;
-<<<<<<< HEAD
-    type_kind = Type_abstract Abstract_def;
+    type_kind = Type_abstract Definition;
     type_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
     type_jkind_annotation = None;
-||||||| 121bedcfd2
-    type_kind = Type_abstract;
-=======
-    type_kind = Type_abstract Definition;
->>>>>>> 5.2.0
     type_private = Public;
     type_manifest = None;
     type_variance = [];
@@ -3274,36 +3108,9 @@ let explain mis ppf =
 let warn_on_missing_def env ppf t =
   match get_desc t with
   | Tconstr (p,_,_) ->
-<<<<<<< HEAD
-    begin match Env.find_type p env with
-    | { type_kind = Type_abstract Abstract_rec_check_regularity; _ } ->
-||||||| 121bedcfd2
-    begin
-      try
-        ignore(Env.find_type p env : Types.type_declaration)
-      with Not_found ->
-=======
     begin match Env.find_type p env with
     | exception Not_found ->
->>>>>>> 5.2.0
         fprintf ppf
-<<<<<<< HEAD
-          "@,@[<hov>Type %a was considered abstract@ when checking\
-           @ constraints@ in this@ recursive type definition.@]"
-          path p
-    | exception Not_found ->
-        fprintf ppf
-          "@,@[<hov>Type %a is abstract because@ no corresponding\
-           @ cmi file@ was found@ in path.@]" path p
-    | {type_kind =
-       Type_abstract Abstract_def | Type_record _ | Type_variant _ | Type_open }
-      -> ()
-    end
-||||||| 121bedcfd2
-          "@,@[%a is abstract because no corresponding cmi file was found \
-           in path.@]" path p
-    end
-=======
           "@,@[<hov>Type %a is abstract because@ no corresponding\
            @ cmi file@ was found@ in path.@]" (Style.as_inline_code path) p
     | { type_manifest = Some _; _ } -> ()
@@ -3316,7 +3123,6 @@ let warn_on_missing_def env ppf t =
               (Style.as_inline_code path) p
         | Definition | Existential _ -> ()
       end
->>>>>>> 5.2.0
   | _ -> ()
 
 let prepare_expansion_head empty_tr = function

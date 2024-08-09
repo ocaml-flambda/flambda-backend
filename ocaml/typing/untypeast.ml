@@ -13,14 +13,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-<<<<<<< HEAD
-||||||| 121bedcfd2
-open Longident
-=======
 [@@@ocaml.warning "-60"] module Str = Ast_helper.Str (* For ocamldep *)
 [@@@ocaml.warning "+60"]
 
->>>>>>> 5.2.0
 open Asttypes
 open Parsetree
 open Ast_helper
@@ -352,14 +347,8 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
   match pat with
       { pat_extra=[Tpat_unpack, loc, _attrs]; pat_desc = Tpat_any; _ } ->
         Ppat_unpack { txt = None; loc  }
-<<<<<<< HEAD
-    | { pat_extra=[Tpat_unpack, _, _attrs]; pat_desc = Tpat_var (_,name,_,_); _ } ->
-||||||| 121bedcfd2
-    | { pat_extra=[Tpat_unpack, _, _attrs]; pat_desc = Tpat_var (_,name); _ } ->
-=======
     | { pat_extra=[Tpat_unpack, _, _attrs];
-        pat_desc = Tpat_var (_,name, _); _ } ->
->>>>>>> 5.2.0
+        pat_desc = Tpat_var (_,name, _, _); _ } ->
         Ppat_unpack { name with txt = Some name.txt }
     | { pat_extra=[Tpat_type (_path, lid), _, _attrs]; _ } ->
         Ppat_type (map_loc sub lid)
@@ -369,13 +358,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | _ ->
     match pat.pat_desc with
       Tpat_any -> Ppat_any
-<<<<<<< HEAD
     | Tpat_var (id, name,_,_) ->
-||||||| 121bedcfd2
-    | Tpat_var (id, name) ->
-=======
-    | Tpat_var (id, name, _) ->
->>>>>>> 5.2.0
         begin
           match (Ident.name id).[0] with
             'A'..'Z' ->
@@ -388,23 +371,11 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
        The compiler transforms (x:t) into (_ as x : t).
        This avoids transforming a warning 27 into a 26.
      *)
-<<<<<<< HEAD
     | Tpat_alias ({pat_desc = Tpat_any; pat_loc}, _id, name, _uid, _mode)
-||||||| 121bedcfd2
-    | Tpat_alias ({pat_desc = Tpat_any; pat_loc}, _id, name)
-=======
-    | Tpat_alias ({pat_desc = Tpat_any; pat_loc}, _id, name, _)
->>>>>>> 5.2.0
          when pat_loc = pat.pat_loc ->
        Ppat_var name
 
-<<<<<<< HEAD
     | Tpat_alias (pat, _id, name, _uid, _mode) ->
-||||||| 121bedcfd2
-    | Tpat_alias (pat, _id, name) ->
-=======
-    | Tpat_alias (pat, _id, name, _) ->
->>>>>>> 5.2.0
         Ppat_alias (sub.pat sub pat, name)
     | Tpat_constant cst ->
       begin match constant cst with
@@ -573,9 +544,7 @@ let expression sub exp =
         Pexp_let (rec_flag,
           List.map (sub.value_binding sub) list,
           sub.expr sub exp)
-<<<<<<< HEAD
     | Texp_function { params; body } ->
-        let open Jane_syntax.N_ary_functions in
         let body, constraint_ =
           match body with
           | Tfunction_body body ->
@@ -630,76 +599,9 @@ let expression sub exp =
                { pparam_desc; pparam_loc = fp.fp_loc } :: newtypes)
             params
         in
-        Jane_syntax.N_ary_functions.expr_of ~loc (params, constraint_, body)
-        |> add_jane_syntax_attributes
+        Pexp_function (params, constraint_, body)
     | Texp_apply (exp, list, _, _, _) ->
         let list = List.map (fun (arg_label, arg) -> label arg_label, arg) list in
-||||||| 121bedcfd2
-
-    (* Pexp_function can't have a label, so we split in 3 cases. *)
-    (* One case, no guard: It's a fun. *)
-    | Texp_function { arg_label; cases = [{c_lhs=p; c_guard=None; c_rhs=e}];
-          _ } ->
-        Pexp_fun (arg_label, None, sub.pat sub p, sub.expr sub e)
-    (* No label: it's a function. *)
-    | Texp_function { arg_label = Nolabel; cases; _; } ->
-        Pexp_function (List.map (sub.case sub) cases)
-    (* Mix of both, we generate `fun ~label:$name$ -> match $name$ with ...` *)
-    | Texp_function { arg_label = Labelled s | Optional s as label; cases;
-          _ } ->
-        let name = fresh_name s exp.exp_env in
-        Pexp_fun (label, None, Pat.var ~loc {loc;txt = name },
-          Exp.match_ ~loc (Exp.ident ~loc {loc;txt= Lident name})
-                          (List.map (sub.case sub) cases))
-    | Texp_apply (exp, list) ->
-=======
-    | Texp_function (params, body) ->
-        let body, constraint_ =
-          match body with
-          | Tfunction_body body ->
-              (* Unlike function cases, the [exp_extra] is placed on the body
-                 itself. *)
-              Pfunction_body (sub.expr sub body), None
-          | Tfunction_cases { cases; loc; exp_extra; attributes; _ } ->
-              let cases = List.map (sub.case sub) cases in
-              let constraint_ =
-                match exp_extra with
-                | Some (Texp_coerce (ty1, ty2)) ->
-                    Some
-                      (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2))
-                | Some (Texp_constraint ty) ->
-                    Some (Pconstraint (sub.typ sub ty))
-                | Some (Texp_poly _ | Texp_newtype _) | None -> None
-              in
-              Pfunction_cases (cases, loc, attributes), constraint_
-        in
-        let params =
-          List.concat_map
-            (fun fp ->
-               let pat, default_arg =
-                 match fp.fp_kind with
-                 | Tparam_pat pat -> pat, None
-                 | Tparam_optional_default (pat, expr) -> pat, Some expr
-               in
-               let pat = sub.pat sub pat in
-               let default_arg = Option.map (sub.expr sub) default_arg in
-               let newtypes =
-                 List.map
-                   (fun x ->
-                      { pparam_desc = Pparam_newtype x;
-                        pparam_loc = x.loc;
-                      })
-                   fp.fp_newtypes
-               in
-               let pparam_desc =
-                 Pparam_val (fp.fp_arg_label, default_arg, pat)
-               in
-               { pparam_desc; pparam_loc = fp.fp_loc } :: newtypes)
-            params
-        in
-        Pexp_function (params, constraint_, body)
-    | Texp_apply (exp, list) ->
->>>>>>> 5.2.0
         Pexp_apply (sub.expr sub exp,
           List.fold_right (fun (label, arg) list ->
               match arg with
@@ -1151,9 +1053,9 @@ let core_type sub ct =
         Ptyp_class (map_loc sub lid, List.map (sub.typ sub) list)
     | Ttyp_alias (ct, Some s, None) ->
         Ptyp_alias (sub.typ sub ct, s)
-    | Ttyp_alias (ct, s, Some (_, jkind_annotation)) ->
+    | Ttyp_alias (ct, name, Some (_, jkind_annotation)) ->
         Jane_syntax.Layouts.type_of ~loc
-          (Ltyp_alias { aliased_type = sub.typ sub ct; name = s;
+          (Ltyp_alias { aliased_type = sub.typ sub ct; name;
                         jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
     | Ttyp_alias (_, None, None) ->
@@ -1166,25 +1068,15 @@ let core_type sub ct =
           (Ltyp_poly { bound_vars; inner_type = sub.typ sub ct }) |>
         add_jane_syntax_attributes
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
-<<<<<<< HEAD
+    | Ttyp_open (_path, mod_ident, t) -> Ptyp_open (mod_ident, sub.typ sub t)
     | Ttyp_call_pos ->
         Ptyp_extension call_pos_extension
-||||||| 121bedcfd2
-=======
-    | Ttyp_open (_path, mod_ident, t) -> Ptyp_open (mod_ident, sub.typ sub t)
->>>>>>> 5.2.0
   in
   Typ.mk ~loc ~attrs:!attrs desc
 
 let class_structure sub cs =
   let rec remove_self = function
-<<<<<<< HEAD
     | { pat_desc = Tpat_alias (p, id, _s, _uid, _mode) }
-||||||| 121bedcfd2
-    | { pat_desc = Tpat_alias (p, id, _s) }
-=======
-    | { pat_desc = Tpat_alias (p, id, _s, _) }
->>>>>>> 5.2.0
       when string_is_prefix "selfpat-" (Ident.name id) ->
         remove_self p
     | p -> p
@@ -1214,17 +1106,10 @@ let object_field sub {of_loc; of_desc; of_attributes;} =
   Of.mk ~loc ~attrs desc
 
 and is_self_pat = function
-<<<<<<< HEAD
   | { pat_desc = Tpat_alias(_pat, id, _, _uid, _mode) } ->
-||||||| 121bedcfd2
-  | { pat_desc = Tpat_alias(_pat, id, _) } ->
-=======
-  | { pat_desc = Tpat_alias(_pat, id, _, _) } ->
->>>>>>> 5.2.0
       string_is_prefix "self-" (Ident.name id)
   | _ -> false
 
-<<<<<<< HEAD
 (* [Typeclass] adds a [self] parameter to initializers and methods that isn't
    present in the source program.
 *)
@@ -1243,24 +1128,6 @@ let remove_fun_self exp =
        | _, _ -> { exp with exp_desc = Texp_function { fun_ with params } })
   | e -> e
 
-||||||| 121bedcfd2
-=======
-(* [Typeclass] adds a [self] parameter to initializers and methods that isn't
-   present in the source program.
-*)
-let remove_fun_self exp =
-  match exp with
-  | { exp_desc =
-        Texp_function
-          ({fp_arg_label = Nolabel; fp_kind = Tparam_pat pat} :: params, body)
-    }
-    when is_self_pat pat ->
-    (match params, body with
-     | [], Tfunction_body body -> body
-     | _, _ -> { exp with exp_desc = Texp_function (params, body) })
-  | e -> e
-
->>>>>>> 5.2.0
 let class_field sub cf =
   let loc = sub.location sub cf.cf_loc in
   let attrs = sub.attributes sub cf.cf_attributes in

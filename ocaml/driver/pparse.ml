@@ -205,29 +205,11 @@ let file_aux ~tool_name ~sourcefile inputfile (type a) parse_fun invariant_fun
       let lexbuf =
         Fun.protect ~finally:close_ic @@ fun () ->
         seek_in ic 0;
-<<<<<<< HEAD
-        let lexbuf = Lexing.from_channel ic in
-        Location.init lexbuf inputfile;
-        Location.input_lexbuf := Some lexbuf;
-        Profile.record_call "parser" (fun () -> parse_fun lexbuf)
-      end
-    with x ->
-      close_in ic;
-      raise x
-||||||| 121bedcfd2
-        let lexbuf = Lexing.from_channel ic in
-        Location.init lexbuf inputfile;
-        Location.input_lexbuf := Some lexbuf;
-        Profile.record_call "parser" (fun () -> parse_fun lexbuf)
-      end
-    with x -> close_in ic; raise x
-=======
         set_input_lexbuf ic
       in
       Location.init lexbuf sourcefile;
       Profile.record_call "parser" (fun () -> parse_fun lexbuf)
     end
->>>>>>> 5.2.0
   in
   Profile.record_call "-ppx" (fun () ->
       apply_rewriters ~restore:false ~tool_name kind ast

@@ -1,8 +1,10 @@
 #!/bin/bash
 
+cd $(dirname $0)/../..
+
 set -euo pipefail
 
-make -f Makefile.jst _build/_bootinstall
+make _build/_bootinstall
 
 echo "==========="
 echo "Testing mlis"
@@ -13,7 +15,7 @@ mlis=$(
   { # echo driver/{compenv,compmisc,main_args}.mli
     # echo file_formats/{cmi,cmo,cms,cmt}_format.mli
     # echo {utils,typing,lambda}/*.mli
-    echo parsing/*.mli
+    echo ocaml/{parsing,typing,lambda}/*.mli
   } |
     tr ' ' '\n'
 )
@@ -21,7 +23,21 @@ echo "$mlis"
 dune_targets=$(
   for mli in $mlis; do
     cmi=$(basename ${mli%.mli})
-    echo _build/default/.ocamlcommon.objs/byte/$cmi.cmi
+    echo _build/default/ocaml/.ocamlcommon.objs/byte/$cmi.cmi
+  done
+)
+
+# ocamlcommon mls
+mls=$(
+  { echo ocaml/parsing/*.ml
+    echo ocaml/typing/*.ml
+  } | tr ' ' '\n'
+)
+echo "$mls"
+dune_targets=$(
+  for ml in $mls; do
+    cmx=$(basename ${ml%.ml})
+    echo _build/default/ocaml/.ocamlcommon.objs/native/$cmx.cmx
   done
 )
 

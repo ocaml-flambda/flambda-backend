@@ -195,7 +195,6 @@ module Pattern_env : sig
   val copy: ?equations_scope:int -> t -> t
   val set_env: t -> Env.t -> unit
 end
->>>>>>> 5.2.0
 
 type existential_treatment =
   | Keep_existentials_flexible

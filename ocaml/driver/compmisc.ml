@@ -48,24 +48,12 @@ let init_path ?(auto_include=auto_include) ?(dir="") () =
     (if !Clflags.no_cwd then [] else [dir])
     @ List.rev_append visible (Clflags.std_include_dir ())
   in
-<<<<<<< HEAD
   let hidden =
     List.rev_map (Misc.expand_directory Config.standard_library)
       !Clflags.hidden_include_dirs
   in
   Load_path.init ~auto_include ~visible ~hidden;
   Env.reset_cache ~preserve_persistent_env:false
-||||||| 121bedcfd2
-  Load_path.init ~auto_include dirs;
-  Env.reset_cache ()
-=======
-  let hidden =
-    List.rev_map (Misc.expand_directory Config.standard_library)
-      !Clflags.hidden_include_dirs
-  in
-  Load_path.init ~auto_include ~visible ~hidden;
-  Env.reset_cache ()
->>>>>>> 5.2.0
 
 (* Return the initial environment in which compilation proceeds. *)
 
