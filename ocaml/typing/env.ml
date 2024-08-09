@@ -1509,7 +1509,7 @@ let rec is_functor_arg path env =
   | Papply _ -> true
 
 let is_id_that_should_be_tco'd path kind env =
-  let ident =
+  let possible_tco_ident =
     match path with
       Pident id -> Some id  (* Regular function identifier. *)
     | Pdot (left, _) -> begin (* M.N.fn *)
@@ -1526,7 +1526,7 @@ let is_id_that_should_be_tco'd path kind env =
       end
     | Pextra_ty _ | Papply _ -> None
   in
-  match ident with
+  match possible_tco_ident with
     None -> false
   | Some id ->
     Option.is_some (Ident.find_same_opt id env.ids_that_should_be_tco'd)
