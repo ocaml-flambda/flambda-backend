@@ -18,7 +18,7 @@
 module Name = Odoc_name
 
 type private_flag = Asttypes.private_flag =
-    Private | Public
+    Private2 | Public2
 
 type extension_alias = {
     xa_name : Name.t ;

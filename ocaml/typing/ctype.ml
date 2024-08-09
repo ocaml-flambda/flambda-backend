@@ -4421,10 +4421,10 @@ let rec filter_method_row env name priv ty =
       let row = new_type_var2 level (Jkind.Type.Primitive.value ~why:Row_variable) in
       let kind, priv =
         match priv with
-        | Private ->
+        | Private2 ->
             let kind = field_private () in
             kind, Mprivate kind
-        | Public ->
+        | Public2 ->
             field_public, Mpublic
       in
       let ty' = newty2 ~level (Tfield (name, kind, field, row)) in
@@ -4434,10 +4434,10 @@ let rec filter_method_row env name priv ty =
       if n = name then begin
         let priv =
           match priv with
-          | Public ->
+          | Public2 ->
               unify_kind kind field_public;
               Mpublic
-          | Private -> Mprivate kind
+          | Private2 -> Mprivate kind
         in
         priv, ty1, ty2
       end else begin
@@ -4450,8 +4450,8 @@ let rec filter_method_row env name priv ty =
       if name = Btype.dummy_method then raise Filter_method_row_failed
       else begin
         match priv with
-        | Public -> raise Filter_method_row_failed
-        | Private ->
+        | Public2 -> raise Filter_method_row_failed
+        | Private2 ->
           let level = get_level ty in
           let kind = field_absent in
           Mprivate kind, new_type_var2 level (Jkind.Type.Primitive.value ~why:Object_field), ty
@@ -4471,7 +4471,7 @@ let new_class_signature () =
 
 let add_dummy_method env ~scope sign =
   let _, ty, row =
-    filter_method_row env dummy_method Private sign.csig_self_row
+    filter_method_row env dummy_method Private2 sign.csig_self_row
   in
   unify env ty (new_scoped_ty scope (Ttuple []));
   sign.csig_self_row <- row
@@ -4492,14 +4492,14 @@ let add_method env label priv virt ty sign =
           | Mpublic -> Mpublic
           | Mprivate k ->
             match priv with
-            | Public ->
+            | Public2 ->
                 begin match field_kind_repr k with
                 | Fpublic -> ()
                 | Fprivate -> link_kind ~inside:k field_public
                 | Fabsent -> assert false
                 end;
                 Mpublic
-            | Private -> priv'
+            | Private2 -> priv'
         in
         let virt =
           match virt' with
@@ -4595,10 +4595,10 @@ let inherit_class_signature ~strict env sign1 sign2 =
     (fun label (priv, virt, ty) ->
        let priv =
          match priv with
-         | Mpublic -> Public
+         | Mpublic -> Public2
          | Mprivate kind ->
              assert (field_kind_repr kind = Fabsent);
-             Private
+             Private2
        in
        match add_method env label priv virt ty sign1 with
        | () -> ()

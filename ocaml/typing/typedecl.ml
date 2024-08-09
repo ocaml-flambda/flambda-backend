@@ -2334,7 +2334,7 @@ let transl_extension_constructor ~scope env type_path type_params
         env type_path typext_params loc id (Left svars) sargs sret_type
     | Pext_rebind lid ->
         let usage : Env.constructor_usage =
-          if priv = Public then Env.Exported else Env.Exported_private
+          if priv = Public2 then Env.Exported else Env.Exported_private
         in
         let cdescr = Env.lookup_constructor ~loc:lid.loc usage lid.txt env in
         let (args, cstr_res, _ex) =
@@ -2389,7 +2389,7 @@ let transl_extension_constructor ~scope env type_path type_params
         (* Disallow rebinding private constructors to non-private *)
         begin
           match cdescr.cstr_private, priv with
-            Private, Public ->
+            Private2, Public2 ->
               raise (Error(lid.loc, Rebind_private lid.txt))
           | _ -> ()
         end;
@@ -2589,7 +2589,7 @@ let transl_exception env sext =
       (fun () ->
         TyVarEnv.reset();
         transl_extension_constructor ~scope env
-          Predef.path_exn [] [] Asttypes.Public sext)
+          Predef.path_exn [] [] Asttypes.Public2 sext)
       ~post: begin fun (ext, _shape) ->
         Btype.iter_type_expr_cstr_args Ctype.generalize ext.ext_type.ext_args;
         Option.iter Ctype.generalize ext.ext_type.ext_ret_type;

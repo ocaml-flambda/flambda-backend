@@ -271,8 +271,8 @@ let direction_flag f = function
   | Upto -> pp f "to@ "
   | Downto -> pp f "downto@ "
 let private_flag f = function
-  | Public -> ()
-  | Private -> pp f "private@ "
+  | Public2 -> ()
+  | Private2 -> pp f "private@ "
 
 let iter_loc f ctxt {txt; loc = _} = f ctxt txt
 

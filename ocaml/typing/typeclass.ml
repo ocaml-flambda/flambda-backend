@@ -327,7 +327,7 @@ let rec class_type_field env sign self_scope ctf =
         (fun () ->
            let sty = Ast_helper.Typ.force_poly sty in
            match sty.ptyp_desc, priv with
-           | Ptyp_poly ([],sty'), Public ->
+           | Ptyp_poly ([],sty'), Public2 ->
                let expected_ty =
                  Ctype.new_type_var (Jkind.Type.Primitive.value ~why:Object_field)
                in

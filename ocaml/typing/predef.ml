@@ -316,7 +316,7 @@ let mk_add_extension add_extension id args jkinds =
       ext_shape = Constructor_uniform_value;
       ext_constant = args = [];
       ext_ret_type = None;
-      ext_private = Asttypes.Public;
+      ext_private = Asttypes.Public2;
       ext_loc = Location.none;
       ext_attributes = [Ast_helper.Attr.mk
                           (Location.mknoloc "ocaml.warn_on_literal_pattern")

@@ -21,12 +21,12 @@ open Types
 open Btype
 
 let unwrap_private = function
-  | Private3 -> Private
-  | Public3 -> Public
+  | Private3 -> Private2
+  | Public3 -> Public2
   | New3 -> assert false
 let wrap_private = function
-  | Private -> Private3
-  | Public -> Public3
+  | Private2-> Private3
+  | Public2 -> Public3
 
 (* Simplified version of Ctype.free_vars *)
 let free_vars ?(param=false) ty =
@@ -220,7 +220,7 @@ let dummy_label =
     lbl_jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind;
     lbl_num = -1; lbl_pos = -1; lbl_all = [||];
     lbl_repres = Record_unboxed;
-    lbl_private = Public;
+    lbl_private = Public2;
     lbl_loc = Location.none;
     lbl_attributes = [];
     lbl_uid = Uid.internal_not_actually_unique;

@@ -4935,8 +4935,8 @@ private_flag:
     { $1 }
 ;
 %inline inline_private_flag:
-    /* empty */                                 { Public }
-  | PRIVATE                                     { Private }
+    /* empty */                                 { Public2 }
+  | PRIVATE                                     { Private2 }
 ;
 %inline inline_private_or_new_flag:
     /* empty */                                 { Public3 }
@@ -4975,11 +4975,11 @@ mutable_virtual_flags:
       { Mutable, Virtual }
 ;
 private_virtual_flags:
-    /* empty */  { Public, Concrete }
-  | PRIVATE { Private, Concrete }
-  | VIRTUAL { Public, Virtual }
-  | PRIVATE VIRTUAL { Private, Virtual }
-  | VIRTUAL PRIVATE { Private, Virtual }
+    /* empty */  { Public2, Concrete }
+  | PRIVATE { Private2, Concrete }
+  | VIRTUAL { Public2, Virtual }
+  | PRIVATE VIRTUAL { Private2, Virtual }
+  | VIRTUAL PRIVATE { Private2, Virtual }
 ;
 (* This nonterminal symbol indicates the definite presence of a VIRTUAL
    keyword and the possible presence of a MUTABLE keyword. *)
@@ -4991,9 +4991,9 @@ virtual_with_mutable_flag:
 (* This nonterminal symbol indicates the definite presence of a VIRTUAL
    keyword and the possible presence of a PRIVATE keyword. *)
 virtual_with_private_flag:
-  | VIRTUAL { Public }
-  | PRIVATE VIRTUAL { Private }
-  | VIRTUAL PRIVATE { Private }
+  | VIRTUAL { Public2 }
+  | PRIVATE VIRTUAL { Private2 }
+  | VIRTUAL PRIVATE { Private2 }
 ;
 %inline no_override_flag:
     /* empty */                                 { Fresh }
