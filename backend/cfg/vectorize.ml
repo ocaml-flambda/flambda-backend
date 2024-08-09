@@ -25,6 +25,10 @@ module Instruction = struct
     match instruction with
     | `Basic instruction -> instruction.res
     | `Terminator instruction -> instruction.res
+
+    let destroyed (instruction : t) : Reg.t Array.t = match instruction with
+      | `Basic instruction -> Proc.destroyed_at_basic instruction.desc
+      | `Terminator instruction -> Proc.destroyed_at_terminator instruction.desc
 end
 
 module Dependency_graph = struct
@@ -50,23 +54,23 @@ module Dependency_graph = struct
 
   let from_basic_block (block : Cfg.basic_block) =
     let dependency_graph = init () in
-    let is_res_of instruction reg =
-      Array.exists (Reg.same reg) (Instruction.res instruction)
+    let is_changed_in instruction reg =
+      Array.exists (Reg.same reg) (Instruction.res instruction) || Array.exists (Reg.same reg) (Instruction.destroyed instruction)
     in
-    let latest_res ~(current : Instruction.Id.t) (reg : Reg.t) =
+    let latest_change ~(current : Instruction.Id.t) (reg : Reg.t) =
       DLL.fold_right block.body
         ~f:(fun basic_instruction latest ->
           let instruction = `Basic basic_instruction in
           if Instruction.Id.equal current (Instruction.id instruction)
           then None
-          else if is_res_of instruction reg && Option.is_none latest
+          else if is_changed_in instruction reg && Option.is_none latest
           then Some instruction
           else latest)
         ~init:None
     in
     let add_dependency_for_one_arg instruction arg =
       let id = Instruction.id instruction in
-      let dependency = latest_res ~current:id arg in
+      let dependency = latest_change ~current:id arg in
       Option.fold ~none:()
         ~some:(fun instruction ->
           let old_node = Instruction.Id.Tbl.find dependency_graph id in
