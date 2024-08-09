@@ -56,12 +56,15 @@ endef
 .PHONY: boot-compiler boot-runtest runtime-stdlib compiler runtest
 
 boot_targets = \
-  $(boot_ocamlc) \
   $(boot_ocamlopt) \
-  $(boot_ocamlmklib) \
-  $(boot_ocamldep) \
-  $(boot_ocamlobjinfo) \
-  ocaml/ocamltest/ocamltest.byte
+
+;boot_targets = \
+;  $(boot_ocamlc) \
+;  $(boot_ocamlopt) \
+;  $(boot_ocamlmklib) \
+;  $(boot_ocamldep) \
+;  $(boot_ocamlobjinfo) \
+;  ocaml/ocamltest/ocamltest.byte
 
 boot-compiler: _build/_bootinstall
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
@@ -393,7 +396,7 @@ promote-one-no-rebuild:
 # This target is like a polling version of upstream "make ocamlopt"
 .PHONY: hacking
 hacking: _build/_bootinstall
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) -w $(boot_targets)
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) --verbose -w $(boot_targets)
 
 # The `hacking-emacs-poller` and `hacking-emacs-builder` targets make it
 # possible to run the polling build with Emacs's `M-x compile`.  You should run

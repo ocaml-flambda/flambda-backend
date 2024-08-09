@@ -12,11 +12,16 @@
 ;*                                                                        *
 ;**************************************************************************
 
+(copy_files# caml/*.h)
+
 (rule
   (targets sak)
   (deps ../Makefile ../.depend ../Makefile.menhir ../Makefile.best_binaries
     ../stdlib/StdlibModules ../.depend.menhir ../config.status
-    ../Makefile.config sak.c)
+    ../Makefile.common ../Makefile.config_if_required
+    ../Makefile.build_config ../Makefile.config sak.c
+   (glob_files caml/*.h)
+  )
   (action
     (progn
      (bash "rm -f sak")

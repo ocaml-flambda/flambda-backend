@@ -30,7 +30,7 @@
  ; has top-level side effects.
  (flags
   (:standard -linkall -w +a-40-41-42-44-70))
- (libraries ocamlcommon)
+ (libraries ocamlcommon unix threads)
  (modules
   (:standard \ options main))
  (foreign_stubs

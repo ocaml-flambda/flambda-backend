@@ -931,23 +931,18 @@ let system cmd =
   let pid = spawn shell [| shell; "-c"; cmd |] None false [| 0; 1; 2 |] in
   snd(waitpid_non_intr pid)
 
-type popen_process =
-    Process of in_channel * out_channel
-  | Process_in of in_channel
-  | Process_out of out_channel
-  | Process_full of in_channel * out_channel * in_channel
-
-let popen_processes = (Hashtbl.create 7 : (popen_process, int) Hashtbl.t)
-let popen_mutex = Mutex.create ()
-
+(* CR mshinwell: remove once the system compiler is 5.x *)
+(* XXX still broken because the C stubs are missing on 4, one presumes *)
 module Mutex = struct
-  include Mutex
+  type t
+  external create: unit -> t = "caml_ml_mutex_new"
+  external lock: t -> unit = "caml_ml_mutex_lock"
+  external unlock: t -> unit = "caml_ml_mutex_unlock"
 
-  (* These aren't available in 4.14, which we still use as the system
-     compiler. *)
+  (* private re-export *)
+  external reraise : exn -> 'a = "%reraise"
 
-  external reraise : exn -> _ = "%reraise"
-
+  (* cannot inline, otherwise flambda might move code around. *)
   let[@inline never] protect m f =
     lock m;
     match f() with
@@ -958,6 +953,15 @@ module Mutex = struct
       unlock m;
       reraise e
 end
+
+type popen_process =
+    Process of in_channel * out_channel
+  | Process_in of in_channel
+  | Process_out of out_channel
+  | Process_full of in_channel * out_channel * in_channel
+
+let popen_processes = (Hashtbl.create 7 : (popen_process, int) Hashtbl.t)
+let popen_mutex = Mutex.create ()
 
 let open_proc prog args envopt proc input output error =
   let pid =
