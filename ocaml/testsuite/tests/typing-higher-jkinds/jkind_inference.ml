@@ -150,3 +150,15 @@ module type M = sig
   type t : immediate => value
   val f : 'a 'm -> 'b 'm -> 'c 'm -> 'd 'm -> 'e 'm -> 'm
 end
+
+[%%expect{|
+Line 3, characters 55-57:
+3 |   val f : 'a 'm -> 'b 'm -> 'c 'm -> 'd 'm -> 'e 'm -> 'm
+                                                           ^^
+Error: Function return types must have a representable layout.
+       The layout of 'm is (('_representable_layout_6) => '_representable_layout_7), because
+         it was defaulted in inference.
+       But the layout of 'm must overlap with any, because
+         it's assigned a dummy layout that should have been overwritten.
+         Please notify the Jane Street compilers group if you see this output.
+|}]

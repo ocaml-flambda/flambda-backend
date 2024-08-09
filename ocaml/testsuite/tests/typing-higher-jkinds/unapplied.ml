@@ -110,10 +110,10 @@ module type M = sig
   val f : ('a : value => value). 'a -> 'a
 end
 [%%expect {|
-Line 2, characters 33-35:
+Line 2, characters 39-41:
 2 |   val f : ('a : value => value). 'a -> 'a
-                                     ^^
-Error: Function argument types must have a representable layout.
+                                           ^^
+Error: Function return types must have a representable layout.
        The kind of 'a is ((value) => value)
          because of the annotation on the universal variable 'a.
        But the kind of 'a must overlap with any
@@ -152,7 +152,6 @@ module type M =
   end
 |}]
 
-(* FIXME jbachurski: [int s] is ill-kinded in application to [r] *)
 module type M = sig
   type r : (value => value) => value
   type s : value => value
@@ -169,7 +168,6 @@ Error: This type int s should be an instance of type ('a : value => value)
          because of the definition of r at line 2, characters 2-36.
 |}]
 
-(* FIXME jbachurski: [list] is ill-kinded in application to [s] *)
 module type M = sig
   type r : (value => value) => value
   type s : value => value
