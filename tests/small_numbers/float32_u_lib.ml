@@ -855,7 +855,7 @@ module Noalloc = struct
     result
 
   let[@inline] of_int32_preserve_order x =
-    let open Stdlib_beta.Float32 in
+    let open Stdlib_stable.Float32 in
     if Stdlib.( >= ) x 0l then of_bits x else neg (of_bits (Stdlib.Int32.neg x))
   ;;
 
