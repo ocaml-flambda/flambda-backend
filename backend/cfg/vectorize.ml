@@ -28,6 +28,7 @@ module Instruction = struct
 end
 
 module Dependency_graph = struct
+  (* The dependency graph shows dependencies between instructions within the same basic block *)
   module Node = struct
     type t =
       { id : Instruction.Id.t;
@@ -46,22 +47,13 @@ module Dependency_graph = struct
 
   let init () : t = Instruction.Id.Tbl.create 100
 
-  let from_cfg (cfg : Cfg.t) : t =
+  let from_basic_block (block : Cfg.basic_block) =
+
     let dependency_graph = init () in
     let is_res_of instruction reg =
       Array.exists (Reg.same reg) (Instruction.res instruction)
     in
-    let latest_res ~(current : Instruction.Id.t) (reg : Reg.t)
-        (block : Cfg.basic_block) =
-      let terminator_instruction = `Terminator block.terminator in
-      let init =
-        if (not
-              (Instruction.Id.equal current
-                 (Instruction.id terminator_instruction)))
-           && is_res_of terminator_instruction reg
-        then Some terminator_instruction
-        else None
-      in
+    let latest_res ~(current : Instruction.Id.t) (reg : Reg.t) =
       DLL.fold_right block.body
         ~f:(fun basic_instruction latest ->
           let instruction = `Basic basic_instruction in
@@ -70,48 +62,35 @@ module Dependency_graph = struct
           else if is_res_of instruction reg && Option.is_none latest
           then Some instruction
           else latest)
-        ~init
+        ~init:None
     in
-    let add_dependencies_for_one_arg (block : Cfg.basic_block) instruction arg =
-      let visited = ref Label.Set.empty in
-      let rec dependencies_in block =
-        match latest_res ~current:(Instruction.id instruction) arg block with
-        | Some dependency_instruction ->
-          Instruction.Id.Set.of_list [Instruction.id dependency_instruction]
-        | None ->
-          List.fold_left
-            (fun old_set label ->
-              if Label.Set.exists (Label.equal label) !visited
-              then old_set
-              else (
-                visited := Label.Set.add label !visited;
-                Instruction.Id.Set.union old_set
-                  (dependencies_in (Label.Tbl.find cfg.blocks label))))
-            Instruction.Id.Set.empty
-            (Cfg.predecessor_labels block)
-      in
+    let add_dependency_for_one_arg instruction arg =
+
       let id = Instruction.id instruction in
+      let dependency =latest_res ~current:(id) arg
+      in
+      Option.fold ~none:() ~some:
+      (fun instruction ->
       let old_node = Instruction.Id.Tbl.find dependency_graph id in
       Instruction.Id.Tbl.replace dependency_graph id
         { old_node with
           out_edges =
-            Instruction.Id.Set.union (dependencies_in block) old_node.out_edges
-        }
+            Instruction.Id.Set.add (Instruction.id instruction) old_node.out_edges
+        }) dependency
     in
-    let find_dependencies block (instruction : Instruction.t) =
+    let find_dependencies (instruction : Instruction.t) =
       let id = Instruction.id instruction in
       Instruction.Id.Tbl.add dependency_graph id (Node.init id);
       Array.iter
-        (add_dependencies_for_one_arg block instruction)
+        (add_dependency_for_one_arg instruction)
         (Instruction.arg instruction)
     in
-    let handle_block (block : Cfg.basic_block) =
+
       let body = block.body in
       DLL.iter body ~f:(fun instruction ->
-          find_dependencies block (`Basic instruction));
-      find_dependencies block (`Terminator block.terminator)
-    in
-    Cfg.iter_blocks cfg ~f:(fun _ -> handle_block);
+          find_dependencies (`Basic instruction));
+      find_dependencies (`Terminator block.terminator);
+
     let set_in_edges id (node : Node.t) =
       let set_in_edge from to_ =
         let old_node = Instruction.Id.Tbl.find dependency_graph to_ in
@@ -123,6 +102,12 @@ module Dependency_graph = struct
       Instruction.Id.Set.iter (set_in_edge id) node.out_edges
     in
     Instruction.Id.Tbl.iter set_in_edges dependency_graph;
+    dependency_graph
+  ;;
+
+  let from_cfg (cfg : Cfg.t) : t =
+    let dependency_graph = init () in
+    Cfg.iter_blocks cfg ~f:(fun _ block -> Instruction.Id.Tbl.add_seq dependency_graph (Instruction.Id.Tbl.to_seq(from_basic_block block)));
     dependency_graph
 end
 
