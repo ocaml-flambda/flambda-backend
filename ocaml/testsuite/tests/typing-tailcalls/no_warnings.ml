@@ -1,6 +1,6 @@
 (* TEST
  setup-ocamlopt.opt-build-env;
- flags = "-no-always-tco -regalloc cfg -regalloc-param IRC_SPILLING_HEURISTICS:flat-uses -cfg-analyze-tailcalls";
+ flags = "-no-always-tco -regalloc cfg -regalloc-param IRC_SPILLING_HEURISTICS:flat-uses -cfg-analyze-tailcalls -c";
  ocamlopt.opt;
  check-ocamlopt.opt-output;
 *)
@@ -47,3 +47,34 @@ and cps_style2 n k =
 let [@loop never] rec apply_in_tail_position_in_exclave n =
   if n < 0 then n
   else exclave_ apply_in_tail_position_in_exclave (n - 2)
+
+
+(* External calls *)
+external foo_ext : unit -> unit = "foo_ext"
+
+let calls_foo_ext () = foo_ext ()
+
+module Make (M : sig
+    type t
+
+    external to_string : t -> string = "to_string"
+
+    module Nested : sig
+      external of_string : string -> t = "of_string"
+    end
+  end) =
+struct
+  module Test_open_M = struct
+    open M
+    let calls_to_string t = to_string t
+  end
+
+  module Test_open_Nested = struct
+    open M.Nested
+
+    let calls_of_string str = of_string str
+  end
+
+  let to_string t = M.to_string t
+  let of_string str = M.Nested.of_string str
+end

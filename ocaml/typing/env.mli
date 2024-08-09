@@ -126,11 +126,12 @@ val is_functor_arg: Path.t -> t -> bool
       in the bindings of the letrec.
    2. Calls to functions that were bound directly by a function parameter.
    3. Calls to functions that are defined in a functor argument or a
-      submodule of a functor argument. The functor argument itself
-      (i.e. the module) should be added to the environment.
+      submodule of a functor argument, EXCEPT if they are external calls.
+      The functor argument itself (i.e. the module) should be added to the
+      environment.
 *)
 val add_id_that_should_be_tco'd: Ident.t -> t -> t
-val is_id_that_should_be_tco'd: Path.t -> t -> bool
+val is_id_that_should_be_tco'd: Path.t -> value_kind -> t -> bool
 
 val normalize_module_path: Location.t option -> t -> Path.t -> Path.t
 (* Normalize the path to a concrete module.

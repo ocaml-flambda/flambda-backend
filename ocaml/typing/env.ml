@@ -1508,17 +1508,22 @@ let rec is_functor_arg path env =
   | Pdot (p, _) | Pextra_ty (p, _) -> is_functor_arg p env
   | Papply _ -> true
 
-let is_id_that_should_be_tco'd path env =
+let is_id_that_should_be_tco'd path kind env =
   let ident =
     match path with
-      Pident id -> Some id
-    | Pdot (left, _) ->
-      let rec extract_leftmost_module (path : Path.t) =
-        match path with
-        | Pident ident -> Some ident
-        | Pdot (left, _) -> extract_leftmost_module left
-        | Papply _ | Pextra_ty _ -> None
-      in extract_leftmost_module left
+      Pident id -> Some id  (* Regular function identifier. *)
+    | Pdot (left, _) -> begin (* M.N.fn *)
+      match kind with
+      | Val_prim _ -> None (* M.N.fn is an external call *)
+      | _ ->
+        let rec extract_leftmost_module (path : Path.t) =
+          match path with
+          | Pident ident -> Some ident
+          | Pdot (left, _) -> extract_leftmost_module left
+          | Papply _ | Pextra_ty _ -> None
+        in
+        extract_leftmost_module left
+      end
     | Pextra_ty _ | Papply _ -> None
   in
   match ident with

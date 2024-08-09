@@ -386,8 +386,10 @@ let should_infer_tail env (callee_expr: callee_expr) =
       | Apply_expression_callee { pexp_desc; pexp_loc = loc; _ } -> begin
           match pexp_desc with
           | Pexp_ident { txt = ident; _ } -> begin
-              let (path, _, _, _) = Env.lookup_value ~use:false ~loc ident env in
-              match Env.is_id_that_should_be_tco'd path env with
+              let (path, { val_kind; _ }, _, _) =
+                Env.lookup_value ~use:false ~loc ident env
+              in
+              match Env.is_id_that_should_be_tco'd path val_kind env with
               | true -> `Infer_tail
               | false -> `Don't_infer_tail
             end
