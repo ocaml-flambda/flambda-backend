@@ -28,7 +28,8 @@ module Instruction = struct
 end
 
 module Dependency_graph = struct
-  (* The dependency graph shows dependencies between instructions within the same basic block *)
+  (* The dependency graph shows dependencies between instructions within the
+     same basic block *)
   module Node = struct
     type t =
       { id : Instruction.Id.t;
@@ -48,7 +49,6 @@ module Dependency_graph = struct
   let init () : t = Instruction.Id.Tbl.create 100
 
   let from_basic_block (block : Cfg.basic_block) =
-
     let dependency_graph = init () in
     let is_res_of instruction reg =
       Array.exists (Reg.same reg) (Instruction.res instruction)
@@ -65,18 +65,19 @@ module Dependency_graph = struct
         ~init:None
     in
     let add_dependency_for_one_arg instruction arg =
-
       let id = Instruction.id instruction in
-      let dependency =latest_res ~current:(id) arg
-      in
-      Option.fold ~none:() ~some:
-      (fun instruction ->
-      let old_node = Instruction.Id.Tbl.find dependency_graph id in
-      Instruction.Id.Tbl.replace dependency_graph id
-        { old_node with
-          out_edges =
-            Instruction.Id.Set.add (Instruction.id instruction) old_node.out_edges
-        }) dependency
+      let dependency = latest_res ~current:id arg in
+      Option.fold ~none:()
+        ~some:(fun instruction ->
+          let old_node = Instruction.Id.Tbl.find dependency_graph id in
+          Instruction.Id.Tbl.replace dependency_graph id
+            { old_node with
+              out_edges =
+                Instruction.Id.Set.add
+                  (Instruction.id instruction)
+                  old_node.out_edges
+            })
+        dependency
     in
     let find_dependencies (instruction : Instruction.t) =
       let id = Instruction.id instruction in
@@ -85,12 +86,9 @@ module Dependency_graph = struct
         (add_dependency_for_one_arg instruction)
         (Instruction.arg instruction)
     in
-
-      let body = block.body in
-      DLL.iter body ~f:(fun instruction ->
-          find_dependencies (`Basic instruction));
-      find_dependencies (`Terminator block.terminator);
-
+    let body = block.body in
+    DLL.iter body ~f:(fun instruction -> find_dependencies (`Basic instruction));
+    find_dependencies (`Terminator block.terminator);
     let set_in_edges id (node : Node.t) =
       let set_in_edge from to_ =
         let old_node = Instruction.Id.Tbl.find dependency_graph to_ in
@@ -103,11 +101,12 @@ module Dependency_graph = struct
     in
     Instruction.Id.Tbl.iter set_in_edges dependency_graph;
     dependency_graph
-  ;;
 
   let from_cfg (cfg : Cfg.t) : t =
     let dependency_graph = init () in
-    Cfg.iter_blocks cfg ~f:(fun _ block -> Instruction.Id.Tbl.add_seq dependency_graph (Instruction.Id.Tbl.to_seq(from_basic_block block)));
+    Cfg.iter_blocks cfg ~f:(fun _ block ->
+        Instruction.Id.Tbl.add_seq dependency_graph
+          (Instruction.Id.Tbl.to_seq (from_basic_block block)));
     dependency_graph
 end
 
