@@ -79,12 +79,12 @@ module Dictionary = struct
   end
 
   type (_, _ : (value, value) => value) t = 
-    | Isomorphism : ('w : (value, value) => value). 'w Isomorphism.t -> ([> isomorphism ], 'w) t
-    | Field : ('w : (value, value) => value). 'w Field.t -> ([> field ], 'w) t
-    | Getter : ('w : (value, value) => value). 'w Getter.t -> ([> getter ], 'w) t
-    | Mapper : ('w : (value, value) => value). 'w Mapper.t -> ([> mapper ], 'w) t
+    | Isomorphism : 'w Isomorphism.t -> ([> isomorphism ], 'w) t
+    | Field : 'w Field.t -> ([> field ], 'w) t
+    | Getter : 'w Getter.t -> ([> getter ], 'w) t
+    | Mapper : 'w Mapper.t -> ([> mapper ], 'w) t
 
-  type (_ : (value, value) => value)  isomorphism_hack = Isomorphism_hack : ('w : (value, value) => value). ([< isomorphism ], 'w) t -> 'w isomorphism_hack
+  type (_ : (value, value) => value)  isomorphism_hack = Isomorphism_hack : ([< isomorphism ], 'w) t -> 'w isomorphism_hack
   let isomorphism t ~get ~construct =
     let (Isomorphism_hack t) = Isomorphism_hack t in
     match t with
@@ -93,19 +93,19 @@ module Dictionary = struct
     | Getter { f } -> f get
     | Mapper { f } -> f (fun at ~f -> construct (f (get at)))
 
-  type (_ : (value, value) => value) getter_hack = Getter_hack : ('w : (value, value) => value). ([< getter ], 'w) t -> 'w getter_hack
+  type (_ : (value, value) => value) getter_hack = Getter_hack : ([< getter ], 'w) t -> 'w getter_hack
   let getter t get = 
     let (Getter_hack t) = Getter_hack t in
     match t with 
     | Getter { f } -> f get
 
-  type (_ : (value, value) => value) mapper_hack = Mapper_hack : ('w : (value, value) => value). ([< mapper ], 'w) t -> 'w mapper_hack
+  type (_ : (value, value) => value) mapper_hack = Mapper_hack : ([< mapper ], 'w) t -> 'w mapper_hack
   let mapper t =
     let (Mapper_hack (Mapper { f })) = Mapper_hack t in
     f
   ;;
 
-  type (_ : (value, value) => value) field_hack = Field_hack : ('w : (value, value) => value). ([< field ], 'w) t -> 'w field_hack
+  type (_ : (value, value) => value) field_hack = Field_hack : ([< field ], 'w) t -> 'w field_hack
   let field t field_f =
     let (Field_hack t) = Field_hack t in
     match t with
@@ -195,7 +195,7 @@ module Dictionary :
 |}]
 
 module Mapping = struct
-  type ('m, 'w : (value, value) => value) t = T : 'a 'b ('w : (value, value) => value). ('a, 'b) 'w -> ('a -> 'b, 'w) t
+  type (_, _ : (value, value) => value) t = T : 'a 'b ('w : (value, value) => value). ('a, 'b) 'w -> ('a -> 'b, 'w) t
 end
 
 module General = struct
@@ -209,7 +209,7 @@ type ('inner, 'outer, 'kind) t = ('inner -> 'inner, 'outer -> 'outer, 'kind) Gen
 [%%expect{|
 module Mapping :
   sig
-    type ('m, 'w : (value, value) => value) t =
+    type (_, _ : (value, value) => value) t =
         T : 'a 'b ('w : (value, value) => value).
           ('a, 'b) 'w -> ('a -> 'b, 'w) t
   end
