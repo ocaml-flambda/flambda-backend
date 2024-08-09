@@ -434,14 +434,9 @@ and boxed_vector =
 
 and bigarray_kind =
     Pbigarray_unknown
-<<<<<<< HEAD
-  | Pbigarray_float16 | Pbigarray_float32 | Pbigarray_float64
-||||||| 2572783060
-  | Pbigarray_float32 | Pbigarray_float64
-=======
+  | Pbigarray_float16
   | Pbigarray_float32 | Pbigarray_float32_t
   | Pbigarray_float64
->>>>>>> ocaml-jst/flambda-patches
   | Pbigarray_sint8 | Pbigarray_uint8
   | Pbigarray_sint16 | Pbigarray_uint16
   | Pbigarray_int32 | Pbigarray_int64
