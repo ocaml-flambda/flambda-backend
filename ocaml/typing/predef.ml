@@ -211,7 +211,7 @@ let list_argument_jkind : Jkind.t = Jkind.of_type_jkind list_argument_type_jkind
 
 let mk_add_type add_type
       ?manifest type_ident
-      ?(kind=Type_abstract Abstract_def)
+      ?(kind=Type_abstract { reason = Abstract_def; datatype = false })
       ?(jkind=Jkind.Type.Primitive.value ~why:(Primitive type_ident))
       (* [jkind_annotation] is just used for printing. It's best to
          provide it if the jkind is not implied by the kind of the
@@ -244,7 +244,7 @@ let mk_add_type add_type
 let build_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
   and add_type1 type_ident
-        ?(kind=fun _ -> Type_abstract Abstract_def)
+        ?(kind=fun _ -> Type_abstract { reason = Abstract_def; datatype = false })
         ?(jkind=Jkind.Type.Primitive.value ~why:(Primitive type_ident))
         (* See the comment on the [jkind_annotation] argument to [mk_add_type]
         *)
@@ -326,10 +326,12 @@ let build_initial_env add_type add_extension empty_env =
   empty_env
   (* Predefined types *)
   |> add_type1 ident_array
+       ~kind:(fun _ -> Type_abstract { reason = Abstract_def; datatype = true })
        ~variance:Variance.full
        ~separability:Separability.Ind
        ~param_jkind:(Jkind.Type.Primitive.any ~why:Array_type_argument)
   |> add_type1 ident_iarray
+       ~kind:(fun _ -> Type_abstract { reason = Abstract_def; datatype = true })
        ~variance:Variance.covariant
        ~separability:Separability.Ind
   |> add_type ident_bool

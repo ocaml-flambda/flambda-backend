@@ -1358,7 +1358,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
   {
     type_params = [];
     type_arity = 0;
-    type_kind = Type_abstract Abstract_def;
+    type_kind = Type_abstract { reason = Abstract_def; datatype = false };
     type_jkind = jkind;
     type_jkind_annotation = jkind_annot;
     type_private = Public;
@@ -2120,10 +2120,10 @@ let tvariant_not_immediate row =
 
 (* Jkinds *)
 
-let is_datatype_decl (k : type_decl_kind) =
+let is_datatype_decl_kind (k : type_decl_kind) =
   match k with
   | Type_record _ | Type_variant _ | Type_open -> true
-  | Type_abstract _ -> false
+  | Type_abstract { reason = _; datatype } -> datatype
 
 let find_type_opt p env =
   try Some (Env.find_type p env) with Not_found -> None
@@ -2132,7 +2132,7 @@ let rec jkind_of_decl_unapplied env (decl : type_declaration) =
   (* FIXME jbachurski: Shouldn't we look at type_variance and type_separability here? *)
   match decl.type_arity with
   | 0 -> Some decl.type_jkind
-  | _ when is_datatype_decl decl.type_kind ->
+  | _ when is_datatype_decl_kind decl.type_kind ->
     Some (Jkind.of_arrow ~history:decl.type_jkind.history
     { args = List.map (type_jkind env) decl.type_params
     ; result = decl.type_jkind })
@@ -5791,10 +5791,6 @@ let mode_cross_left env ty mode =
      are bad when checking for principality. Really, I'm surprised that
      the types here aren't principal. In any case, leaving the check out
      now; will return and figure this out later. *)
-  let () = match constrain_type_jkind env ty (Jkind.of_type_jkind (Jkind.Type.Primitive.any ~why:Dummy_jkind)) with
-    | Ok () -> ()
-    | Error _ -> subtype_error ~env ~trace:[] ~unification_trace:[]
-  in
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
   Alloc.meet_const upper_bounds mode
@@ -5804,10 +5800,6 @@ let mode_cross_left env ty mode =
 let mode_cross_right env ty mode =
   (* CR layouts v2.8: This should probably check for principality. See
      similar comment in [mode_cross_left]. *)
-  let () = match constrain_type_jkind env ty (Jkind.of_type_jkind (Jkind.Type.Primitive.any ~why:Dummy_jkind)) with
-    | Ok () -> ()
-    | Error _ -> subtype_error ~env ~trace:[] ~unification_trace:[]
-  in
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
   Alloc.imply upper_bounds mode
@@ -6629,7 +6621,8 @@ let nondep_type_decl env mid is_covariant decl =
     let params = List.map (nondep_type_rec env mid) decl.type_params in
     let tk =
       try map_kind (nondep_type_rec env mid) decl.type_kind
-      with Nondep_cannot_erase _ when is_covariant -> Type_abstract Abstract_def
+      with Nondep_cannot_erase _ when is_covariant ->
+        Type_abstract { reason = Abstract_def; datatype = false }
     and tm, priv =
       match decl.type_manifest with
       | None -> None, decl.type_private

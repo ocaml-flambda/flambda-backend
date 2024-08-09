@@ -122,6 +122,7 @@ type error =
       ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
+  | Non_datatype
   | Non_value_in_sig of Jkind.Violation.t * string * type_expr
   | Invalid_jkind_in_block of type_expr * Jkind.Type.Sort.const * jkind_sort_loc
   | Illegal_mixed_product of mixed_product_violation
@@ -267,7 +268,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let decl =
     { type_params;
       type_arity = arity;
-      type_kind = Type_abstract abstract_reason;
+      type_kind = Type_abstract { reason = abstract_reason; datatype = false };
       type_jkind;
       type_jkind_annotation;
       type_private = sdecl.ptype_private;
@@ -790,7 +791,17 @@ let transl_declaration env sdecl (id, uid) =
   let (tkind, kind, jkind_default) =
     match sdecl.ptype_kind with
       | Ptype_abstract ->
-        Ttype_abstract, Type_abstract Abstract_def, Jkind.Type.Primitive.value ~why:Default_type_jkind |> Jkind.of_type_jkind
+        let has_datatype_attr =
+          List.exists
+            (fun { attr_name = { txt; _ }; _} -> txt = "datatype")
+            sdecl_attributes
+        in
+        if has_datatype_attr && Option.is_some man then
+          raise (Error (sdecl.ptype_loc, Non_datatype))
+        else
+        Ttype_abstract,
+        Type_abstract { reason = Abstract_def; datatype = has_datatype_attr },
+        Jkind.Type.Primitive.value ~why:Default_type_jkind |> Jkind.of_type_jkind
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -2013,7 +2024,7 @@ let check_duplicates sdecl_list =
 (* Force recursion to go through id for private types*)
 let name_recursion sdecl id decl =
   match decl with
-  | { type_kind = Type_abstract Abstract_def;
+  | { type_kind = Type_abstract { reason = Abstract_def; datatype = false };
       type_manifest = Some ty;
       type_private = Private; } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
@@ -3088,7 +3099,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       sig_decl.type_jkind,
       sig_decl.type_jkind_annotation
     else
-      Type_abstract Abstract_def, false, sig_decl.type_jkind, None
+      Type_abstract { reason = Abstract_def; datatype = false },
+      false, sig_decl.type_jkind, None
   in
   let new_sig_decl =
     { type_params = params;
@@ -3169,7 +3181,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
 let transl_package_constraint ~loc ty =
   { type_params = [];
     type_arity = 0;
-    type_kind = Type_abstract Abstract_def;
+    type_kind = Type_abstract { reason = Abstract_def; datatype = false };
     type_jkind = Jkind.Primitive.top ~why:Dummy_jkind;
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
@@ -3195,7 +3207,7 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
     let params = List.map Ctype.newvar params in
     { type_params = params;
       type_arity = arity;
-      type_kind = Type_abstract Abstract_def;
+      type_kind = Type_abstract { reason = Abstract_def; datatype = false };
       type_jkind = jkind;
       type_jkind_annotation = jkind_annotation;
       type_private = Public;
@@ -3628,6 +3640,8 @@ let report_error ppf = function
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Jkind_empty_record ->
     fprintf ppf "@[Records must contain at least one runtime value.@]"
+  | Non_datatype ->
+    fprintf ppf "@[This is not a datatype, but one was expected.@]"
   | Non_value_in_sig (err, val_name, ty) ->
     let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
     fprintf ppf "@[This type signature for %s is not a value type.@ %a@]"

@@ -544,6 +544,8 @@ val get_unboxed_type_approximation : Env.t -> type_expr -> type_expr
    void. *)
 val tvariant_not_immediate : row_desc -> bool
 
+val is_datatype_decl_kind : type_decl_kind -> bool
+
 val arity_matches_decl : Env.t -> type_declaration -> int -> bool
 
 (* Extract the jkind of the declared datatype constructor in an unapplied context.
