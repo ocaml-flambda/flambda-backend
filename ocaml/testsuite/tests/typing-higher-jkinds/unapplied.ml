@@ -24,16 +24,27 @@ end
 module M : sig type k end
 |}]
 
-(* FIXME jbachurski: This should work. *)
 type t = list
 [%%expect {|
-Line 1, characters 0-13:
-1 | type t = list
-    ^^^^^^^^^^^^^
-Error: The layout of type list is ((value) => value), because
-         it's a boxed variant type.
-       But the layout of type list must be a sublayout of any, because
-         of the definition of t at line 1, characters 0-13.
+type t = list
+|}]
+
+type l = list
+type l' = l
+type l'' = l'
+[%%expect {|
+type l = list
+type l' = l
+type l'' = l'
+|}]
+
+module M : sig
+  type t = int list
+end = struct
+  type t = int l''
+end
+[%%expect {|
+module M : sig type t = int list end
 |}]
 
 type q = list list
