@@ -17,7 +17,7 @@
 
 # Build the runtime/prims.c file, with proper C declarations of the primitives
 
-set -eu -o pipefail
+set -eu -o pipefail -x
 
 export LC_ALL=C
 
