@@ -13,8 +13,8 @@
  }
 *)
 
-(* Unless otherwise specified in a comment, all the `apply`'s in this
-   function are expected to be `apply` (and NOT `applynontail`). *)
+(* Unless otherwise specified in a comment, all the `apply`'s in the generated
+   lambda are expected to be `apply` (and NOT `applynontail`). *)
 
 (* These calls should be inferred as tail-calls because they call, in tail 
    position, a function defined in some ancestor let rec. *)

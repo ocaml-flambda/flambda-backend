@@ -2453,6 +2453,7 @@ and type_module_aux ~alias sttn funct_body anchor env smod =
               let newenv = Env.add_module_declaration
                 ~shape ~arg:true ~check:true id Mp_present arg_md env
               in
+              let newenv = Env.add_id_that_should_be_tco'd id newenv in
               Some id, newenv, id
           in
           Named (id, param, mty), Types.Named (id, mty.mty_type), newenv,

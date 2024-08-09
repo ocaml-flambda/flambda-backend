@@ -1,0 +1,243 @@
+[
+  structure_item (functor_tail.ml[22,599+0]..functor_tail.ml[47,1090+3])
+    Tstr_module
+    Make
+      module_expr (functor_tail.ml[22,599+12]..functor_tail.ml[47,1090+3])
+        Tmod_functor "M"
+        module_type (functor_tail.ml[22,599+17]..functor_tail.ml[30,731+5])
+          Tmty_signature
+          [
+            signature_item (functor_tail.ml[23,620+4]..functor_tail.ml[23,620+10])
+              Tsig_type Rec
+              [
+                type_declaration t (functor_tail.ml[23,620+4]..functor_tail.ml[23,620+10])
+                  ptype_params =
+                    []
+                  ptype_cstrs =
+                    []
+                  ptype_kind =
+                    Ttype_abstract
+                  ptype_private = Public
+                  ptype_manifest =
+                    None
+              ]
+            signature_item (functor_tail.ml[25,632+4]..functor_tail.ml[25,632+31])
+              Tsig_value
+              value_description to_string (functor_tail.ml[25,632+4]..functor_tail.ml[25,632+31])
+                core_type (functor_tail.ml[25,632+20]..functor_tail.ml[25,632+31])
+                  Ttyp_arrow
+                  Nolabel
+                  core_type (functor_tail.ml[25,632+20]..functor_tail.ml[25,632+21])
+                    Ttyp_constr "t"
+                    []
+                  core_type (functor_tail.ml[25,632+25]..functor_tail.ml[25,632+31])
+                    Ttyp_constr "string!"
+                    []
+                []
+            signature_item (functor_tail.ml[27,665+4]..functor_tail.ml[29,723+7])
+              Tsig_module "Nested"
+              module_type (functor_tail.ml[27,665+20]..functor_tail.ml[29,723+7])
+                Tmty_signature
+                [
+                  signature_item (functor_tail.ml[28,689+6]..functor_tail.ml[28,689+33])
+                    Tsig_value
+                    value_description of_string (functor_tail.ml[28,689+6]..functor_tail.ml[28,689+33])
+                      core_type (functor_tail.ml[28,689+22]..functor_tail.ml[28,689+33])
+                        Ttyp_arrow
+                        Nolabel
+                        core_type (functor_tail.ml[28,689+22]..functor_tail.ml[28,689+28])
+                          Ttyp_constr "string!"
+                          []
+                        core_type (functor_tail.ml[28,689+32]..functor_tail.ml[28,689+33])
+                          Ttyp_constr "t"
+                          []
+                      []
+                ]
+          ]
+        module_expr (functor_tail.ml[31,740+0]..functor_tail.ml[47,1090+3])
+          Tmod_structure
+          [
+            structure_item (functor_tail.ml[32,747+2]..functor_tail.ml[37,899+5])
+              Tstr_module
+              Test_open_M
+                module_expr (functor_tail.ml[32,747+23]..functor_tail.ml[37,899+5])
+                  Tmod_structure
+                  [
+                    structure_item (functor_tail.ml[33,777+4]..functor_tail.ml[33,777+10])
+                      Tstr_open Fresh
+                      module_expr (functor_tail.ml[33,777+9]..functor_tail.ml[33,777+10])
+                        Tmod_ident "M"
+                    structure_item (functor_tail.ml[36,859+4]..functor_tail.ml[36,859+39])
+                      Tstr_value Nonrec
+                      [
+                        <def>
+                          pattern (functor_tail.ml[36,859+8]..functor_tail.ml[36,859+23])
+                            Tpat_var "calls_to_string"
+                            value_mode global,many,shared
+                          expression (functor_tail.ml[36,859+24]..functor_tail.ml[36,859+39]) ghost
+                            Texp_function
+                            region true
+                            alloc_mode global,many,shared
+                            [
+                              Nolabel
+                              Param_pat
+                                pattern (functor_tail.ml[36,859+24]..functor_tail.ml[36,859+25])
+                                  Tpat_var "t"
+                                  value_mode global,many,shared
+                            ]
+                            Tfunction_body
+                              expression (functor_tail.ml[36,859+28]..functor_tail.ml[36,859+39])
+                                Texp_apply
+                                apply_mode Tail
+                                original_position Tail_position (Default_tail)
+                                locality_mode global
+                                expression (functor_tail.ml[36,859+28]..functor_tail.ml[36,859+37])
+                                  Texp_ident "M.to_string"
+                                [
+                                  <arg>
+                                    Nolabel
+                                    expression (functor_tail.ml[36,859+38]..functor_tail.ml[36,859+39])
+                                      Texp_ident "t"
+                                ]
+                      ]
+                  ]
+            structure_item (functor_tail.ml[39,906+2]..functor_tail.ml[43,1004+5])
+              Tstr_module
+              Test_open_Nested
+                module_expr (functor_tail.ml[39,906+28]..functor_tail.ml[43,1004+5])
+                  Tmod_structure
+                  [
+                    structure_item (functor_tail.ml[40,941+4]..functor_tail.ml[40,941+17])
+                      Tstr_open Fresh
+                      module_expr (functor_tail.ml[40,941+9]..functor_tail.ml[40,941+17])
+                        Tmod_ident "M.Nested"
+                    structure_item (functor_tail.ml[42,960+4]..functor_tail.ml[42,960+43])
+                      Tstr_value Nonrec
+                      [
+                        <def>
+                          pattern (functor_tail.ml[42,960+8]..functor_tail.ml[42,960+23])
+                            Tpat_var "calls_of_string"
+                            value_mode global,many,shared
+                          expression (functor_tail.ml[42,960+24]..functor_tail.ml[42,960+43]) ghost
+                            Texp_function
+                            region true
+                            alloc_mode global,many,shared
+                            [
+                              Nolabel
+                              Param_pat
+                                pattern (functor_tail.ml[42,960+24]..functor_tail.ml[42,960+27])
+                                  Tpat_var "str"
+                                  value_mode global,many,shared
+                            ]
+                            Tfunction_body
+                              expression (functor_tail.ml[42,960+30]..functor_tail.ml[42,960+43])
+                                Texp_apply
+                                apply_mode Tail
+                                original_position Tail_position (Default_tail)
+                                locality_mode global
+                                expression (functor_tail.ml[42,960+30]..functor_tail.ml[42,960+39])
+                                  Texp_ident "M.Nested.of_string"
+                                [
+                                  <arg>
+                                    Nolabel
+                                    expression (functor_tail.ml[42,960+40]..functor_tail.ml[42,960+43])
+                                      Texp_ident "str"
+                                ]
+                      ]
+                  ]
+            structure_item (functor_tail.ml[45,1011+2]..functor_tail.ml[45,1011+33])
+              Tstr_value Nonrec
+              [
+                <def>
+                  pattern (functor_tail.ml[45,1011+6]..functor_tail.ml[45,1011+15])
+                    Tpat_var "to_string"
+                    value_mode global,many,shared
+                  expression (functor_tail.ml[45,1011+16]..functor_tail.ml[45,1011+33]) ghost
+                    Texp_function
+                    region true
+                    alloc_mode global,many,shared
+                    [
+                      Nolabel
+                      Param_pat
+                        pattern (functor_tail.ml[45,1011+16]..functor_tail.ml[45,1011+17])
+                          Tpat_var "t"
+                          value_mode global,many,shared
+                    ]
+                    Tfunction_body
+                      expression (functor_tail.ml[45,1011+20]..functor_tail.ml[45,1011+33])
+                        Texp_apply
+                        apply_mode Tail
+                        original_position Tail_position (Default_tail)
+                        locality_mode global
+                        expression (functor_tail.ml[45,1011+20]..functor_tail.ml[45,1011+31])
+                          Texp_ident "M.to_string"
+                        [
+                          <arg>
+                            Nolabel
+                            expression (functor_tail.ml[45,1011+32]..functor_tail.ml[45,1011+33])
+                              Texp_ident "t"
+                        ]
+              ]
+            structure_item (functor_tail.ml[46,1045+2]..functor_tail.ml[46,1045+44])
+              Tstr_value Nonrec
+              [
+                <def>
+                  pattern (functor_tail.ml[46,1045+6]..functor_tail.ml[46,1045+15])
+                    Tpat_var "of_string"
+                    value_mode global,many,shared
+                  expression (functor_tail.ml[46,1045+16]..functor_tail.ml[46,1045+44]) ghost
+                    Texp_function
+                    region true
+                    alloc_mode global,many,shared
+                    [
+                      Nolabel
+                      Param_pat
+                        pattern (functor_tail.ml[46,1045+16]..functor_tail.ml[46,1045+19])
+                          Tpat_var "str"
+                          value_mode global,many,shared
+                    ]
+                    Tfunction_body
+                      expression (functor_tail.ml[46,1045+22]..functor_tail.ml[46,1045+44])
+                        Texp_apply
+                        apply_mode Tail
+                        original_position Tail_position (Default_tail)
+                        locality_mode global
+                        expression (functor_tail.ml[46,1045+22]..functor_tail.ml[46,1045+40])
+                          Texp_ident "M.Nested.of_string"
+                        [
+                          <arg>
+                            Nolabel
+                            expression (functor_tail.ml[46,1045+41]..functor_tail.ml[46,1045+44])
+                              Texp_ident "str"
+                        ]
+              ]
+          ]
+]
+
+(let
+  (Make =
+     (function {nlocal = 0} M is_a_functor ignore assert all zero_alloc
+       never_loop
+       (let
+         (Test_open_M =
+            (let
+              (calls_to_string =
+                 (function {nlocal = 0} t
+                   (apply (field_imm 0 M) t Tail_position (Default_tail))))
+              (makeblock 0 calls_to_string))
+          Test_open_Nested =
+            (let
+              (calls_of_string =
+                 (function {nlocal = 0} str
+                   (apply (field_imm 0 (field_imm 1 M))
+                     str Tail_position (Default_tail))))
+              (makeblock 0 calls_of_string))
+          to_string =
+            (function {nlocal = 0} t
+              (apply (field_imm 0 M) t Tail_position (Default_tail)))
+          of_string =
+            (function {nlocal = 0} str
+              (apply (field_imm 0 (field_imm 1 M))
+                str Tail_position (Default_tail))))
+         (makeblock 0 Test_open_M Test_open_Nested to_string of_string))))
+  (makeblock 0 Make))

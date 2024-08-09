@@ -375,15 +375,15 @@ let position_and_mode_default = {
 }
 
 type callee_expr =
-  | Not_a_function_callee
-  | Function_callee of Parsetree.expression
+  | Not_an_apply_expression
+  | Apply_expression_callee of Parsetree.expression
 
 let should_infer_tail env (callee_expr: callee_expr) =
   let infer = begin
     if !Clflags.always_tco then `Infer_tail else begin
       match callee_expr with
-      | Not_a_function_callee -> `Infer_tail  (* Preserve existing behavior *)
-      | Function_callee { pexp_desc; pexp_loc = loc; _ } -> begin
+      | Not_an_apply_expression -> `Infer_tail  (* Preserve existing behavior *)
+      | Apply_expression_callee { pexp_desc; pexp_loc = loc; _ } -> begin
           match pexp_desc with
           | Pexp_ident { txt = ident; _ } -> begin
               let (path, _, _, _) = Env.lookup_value ~use:false ~loc ident env in
@@ -5399,7 +5399,10 @@ and type_expect_
       end
   | Pexp_apply(sfunct, sargs) ->
       assert (sargs <> []);
-      let pm = position_and_mode env expected_mode sexp ~callee_expr:(Function_callee sfunct) in
+      let pm =
+        position_and_mode env expected_mode sexp
+          ~callee_expr:(Apply_expression_callee sfunct)
+      in
       let funct_mode, funct_expected_mode =
         match pm.apply_position with
         | Tail ->
@@ -5977,7 +5980,10 @@ and type_expect_
         exp_extra = (exp_extra, loc, sexp.pexp_attributes) :: arg.exp_extra;
       }
   | Pexp_send (e, {txt=met}) ->
-      let pm = position_and_mode env expected_mode sexp ~callee_expr:Not_a_function_callee in
+      let pm =
+        position_and_mode env expected_mode sexp
+          ~callee_expr:Not_an_apply_expression
+      in
       let (obj,meth,typ) =
         with_local_level_if_principal
           (fun () -> type_send env loc explanation e met)
@@ -6009,7 +6015,10 @@ and type_expect_
         exp_env = env }
   | Pexp_new cl ->
       let (cl_path, cl_decl) = Env.lookup_class ~loc:cl.loc cl.txt env in
-      let pm = position_and_mode env expected_mode sexp ~callee_expr:Not_a_function_callee in
+      let pm =
+        position_and_mode env expected_mode sexp
+          ~callee_expr:Not_an_apply_expression
+      in
       begin match cl_decl.cty_new with
           None ->
             raise(Error(loc, env, Virtual_class cl.txt))

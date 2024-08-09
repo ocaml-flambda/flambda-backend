@@ -1,6 +1,6 @@
 (* TEST
  setup-ocamlopt.opt-build-env;
- flags = "-no-always-tco -dlambda -dno-unique-ids";
+ flags = "-no-always-tco -dtypedtree -dlambda -dno-unique-ids";
  ocamlopt.opt;
  {
    stack-allocation;
@@ -12,6 +12,12 @@
    check-ocamlopt.opt-output;
  }
 *)
+
+(* All the `apply_mode`'s in the generated typedtree are expected to be
+   `apply_mode Tail.
+
+   All the `apply`'s in the generated lambda are expected to be `apply`
+   (and NOT `applynontail`). *)
 
 module Make (M : sig
     type t
@@ -26,49 +32,17 @@ struct
   module Test_open_M = struct
     open M
 
+    (* This call should show up as `M.to_string` in the parsetree. *)
     let calls_to_string t = to_string t
-
-    (* Test what happens when to_string is rebound to another identifier *)
-    let to_string_rebound t = to_string t
-    let calls_to_string_rebound t = to_string_rebound t
-    let to_string_pointfree_rebound = to_string
-    let calls_to_string_pointfree_rebound t = to_string_rebound t
   end
 
   module Test_open_Nested = struct
     open M.Nested
 
     let calls_of_string str = of_string str
-
-    (* Test what happens when of_string is rebound to another identifier *)
-    let of_string_rebound str = of_string str
-    let calls_of_string_rebound str = of_string_rebound str
-    let of_string_pointfree_rebound = of_string
-    let calls_of_string_pointfree_rebound str = of_string_rebound str
   end
 
-  (* M.to_string tests *)
   let to_string t = M.to_string t
-  let calls_to_string t = to_string t
-  let to_string_pointfree = M.to_string
-  let calls_to_string_pointfree t = to_string_pointfree t
-
-  (* Test what happens when to_string is rebound to another identifier *)
-  let to_string_rebound t = to_string t
-  let calls_to_string_rebound t = to_string_rebound t
-  let to_string_pointfree_rebound = to_string
-  let calls_to_string_pointfree_rebound t = to_string_rebound t
-
-  (* M.nested.of_string tests *)
   let of_string str = M.Nested.of_string str
-  let calls_of_string str = of_string str
-  let of_string_pointfree = M.Nested.of_string
-  let calls_of_string_pointfree str = of_string_pointfree str
-
-  (* Test what happens when of_string is rebound to another identifier *)
-  let of_string_rebound str = of_string str
-  let calls_of_string_rebound str = of_string_rebound str
-  let of_string_pointfree_rebound = of_string
-  let calls_of_string_pointfree_rebound str = of_string_rebound str
 end
 

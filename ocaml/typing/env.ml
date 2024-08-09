@@ -1509,10 +1509,22 @@ let rec is_functor_arg path env =
   | Papply _ -> true
 
 let is_id_that_should_be_tco'd path env =
-  match path with
-    Pident id ->
-      Option.is_some (Ident.find_same_opt id env.ids_that_should_be_tco'd)
-  | Pdot _ | Pextra_ty _ | Papply _ -> false
+  let ident =
+    match path with
+      Pident id -> Some id
+    | Pdot (left, _) ->
+      let rec extract_leftmost_module (path : Path.t) =
+        match path with
+        | Pident ident -> Some ident
+        | Pdot (left, _) -> extract_leftmost_module left
+        | Papply _ | Pextra_ty _ -> None
+      in extract_leftmost_module left
+    | Pextra_ty _ | Papply _ -> None
+  in
+  match ident with
+    None -> false
+  | Some id ->
+    Option.is_some (Ident.find_same_opt id env.ids_that_should_be_tco'd)
 
 (* Copying types associated with values *)
 
