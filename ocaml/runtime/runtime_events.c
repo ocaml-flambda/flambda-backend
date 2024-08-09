@@ -178,7 +178,6 @@ static void runtime_events_teardown_from_stw_single(int remove_file) {
     current_metadata = NULL;
 
     atomic_store_release(&runtime_events_enabled, 0);
-    atomic_store_release(&runtime_events_enabled, 0);
 }
 
 /* Stop-the-world which calls the teardown code */

@@ -511,10 +511,15 @@ static void adopt_orphaned_work (void)
   while (f != NULL) {
     myf = domain_state->final_info;
     CAMLassert (caml_gc_phase == Phase_sweep_and_mark_main);
-    /* Since we are in [Phase_sweep_and_mark_main], the current domain has not
+    /* Since we are in [Phase_main], the current domain has not
        updated its finalisers. */
+    // XXX mshinwell for sdolan: please check this comment and the
+    // assertion I have taken from our side below.  Upstream, the previous
+    // assertion that caml_gc_phase == Phase_sweep_and_mark_main has been
+    // deleted, so I'm unsure what is here is correct.
     CAMLassert (!myf->updated_first);
     CAMLassert (!myf->updated_last);
+    CAMLassert (caml_gc_phase == Phase_sweep_main);
     if (f->todo_head) {
       /* Adopt the finalising set. */
       if (myf->todo_tail == NULL) {
@@ -1363,10 +1368,6 @@ static intnat ephe_sweep (caml_domain_state* domain_state, intnat budget)
   return budget;
 }
 
-struct cycle_callback_params {
-  int force_compaction;
-};
-
 static void start_marking (int participant_count, caml_domain_state** barrier_participants)
 {
   caml_domain_state* domain = Caml_state;
@@ -1419,6 +1420,10 @@ static void start_marking (int participant_count, caml_domain_state** barrier_pa
   if (domain->ephe_info->todo == (value) NULL)
     ephe_todo_list_emptied();
 }
+
+struct cycle_callback_params {
+  int force_compaction;
+};
 
 static void stw_cycle_all_domains(caml_domain_state* domain, void* args,
                                        int participating_count,

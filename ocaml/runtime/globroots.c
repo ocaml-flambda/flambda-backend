@@ -224,6 +224,10 @@ static void compute_index_for_global_root_scan(value* glob_block, int* start,
        may be registered as a global root.  Multiple registrations can cause
        the compactor to traverse the same fields of a block twice, which can
        cause a failure. */
+    // CR mshinwell: This comment may not apply to runtime5, where the
+    // compactor has different behaviour.  (However we still need to cope
+    // with closures being registered as global roots, which flambda2 does
+    // but none of the upstream middle ends.)
     if (Tag_val(*glob_block) == Infix_tag)
       *glob_block -= Infix_offset_val(*glob_block);
 

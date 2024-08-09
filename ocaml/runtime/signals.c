@@ -165,8 +165,12 @@ static int check_pending_actions(caml_domain_state * dom_st);
 CAMLexport void caml_enter_blocking_section(void)
 {
   caml_domain_state * domain = Caml_state;
+  while (1){
+    if (Caml_state->in_minor_collection)
+      caml_fatal_error("caml_enter_blocking_section from inside minor GC");
   while (1) {
     /* Process all pending signals now */
+    // XXX mshinwell for sdolan: please double-check this
     if (check_pending_actions(domain)) {
       /* First reset young_limit, and set action_pending in case there
          are further async callbacks pending beyond OCaml signal

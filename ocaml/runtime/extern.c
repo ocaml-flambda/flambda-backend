@@ -1305,12 +1305,6 @@ CAMLexport void caml_serialize_block_float_8(void * data, intnat len)
 #endif
 }
 
-/* CR ocaml 5 domains (mshinwell): think about what to do here */
-/* Not multicore-safe (the [volatile] just lets us use this with the [Field] macro) */
-static void add_to_long_value(volatile value *v, intnat x) {
-  *v = Val_long(Long_val(*v) + x);
-}
-
 enum reachable_words_node_state {
   /* This node is reachable from at least two distinct roots, so it doesn't
    * have a unique owner and will be ignored in all future traversals. */
@@ -1326,6 +1320,12 @@ enum reachable_words_node_state {
    * starting from a single root. The state is then equal to the identifier of the
    * root that we reached it from */
 };
+
+/* CR ocaml 5 domains (mshinwell): think about what to do here */
+/* Not multicore-safe (the [volatile] just lets us use this with the [Field] macro) */
+static void add_to_long_value(volatile value *v, intnat x) {
+  *v = Val_long(Long_val(*v) + x);
+}
 
 /* Performs traversal through the OCaml object reachability graph to deterime
    how much memory an object has access to.
@@ -1460,7 +1460,7 @@ intnat reachable_words_once(struct caml_extern_state *s,
 
 struct caml_extern_state* reachable_words_init(void)
 {
-  struct caml_extern_state *s = get_extern_state ();
+  struct caml_extern_state *s = init_extern_state ();
   s->obj_counter = 0;
   s->extern_flags = 0;
   extern_init_position_table(s);
