@@ -92,7 +92,7 @@ let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
      processing time because there may be an [@@@flambda_oclassic] or
      [@@@flambda_o3] attribute. *)
   if Flambda_features.classic_mode () then Clflags.use_linscan := true;
-  Misc.Color.setup (Flambda_features.colour ());
+  Misc.Style.setup (Flambda_features.colour ());
   (* CR-someday mshinwell: Note for future WebAssembly work: this thing about
      the length of arrays will need fixing, I don't think it only applies to the
      Cmm translation.
