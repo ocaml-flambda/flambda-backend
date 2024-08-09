@@ -155,7 +155,7 @@ let string_of_class_params c =
   Buffer.contents b
 
 let bool_of_private3 = function
-  | Asttypes.Private3 -> true
+  | Asttypes.Private -> true
   | _ -> false
 
 let bool_of_private = function
