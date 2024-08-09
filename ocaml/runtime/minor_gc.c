@@ -837,7 +837,6 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
   caml_gc_log("running stw empty_minor_heap_domain_clear");
   caml_empty_minor_heap_domain_clear(domain);
 
-
 #ifdef DEBUG
   {
     for (uintnat* p = initial_young_ptr; p < (uintnat*)domain->young_end; ++p)

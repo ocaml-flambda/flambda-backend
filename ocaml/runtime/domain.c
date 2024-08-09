@@ -633,6 +633,7 @@ static void domain_create(uintnat initial_minor_heap_wsize,
 
   /* Tell memprof system about the new domain before either (a) new
    * domain can allocate anything or (b) parent domain can go away. */
+  CAMLassert(domain_state->memprof == NULL);
   caml_memprof_new_domain(parent, domain_state);
   if (!domain_state->memprof) {
     goto init_memprof_failure;
@@ -646,12 +647,11 @@ static void domain_create(uintnat initial_minor_heap_wsize,
   caml_state = domain_state;
 
   domain_state->young_limit = 0;
-  /* Synchronized with [caml_interrupt_all_for_signal], so that the
-     initializing write of young_limit happens before any
-     interrupt. */
-  atomic_store_explicit(&s->interrupt_word, &domain_state->young_limit,
-                        memory_order_release);
 
+  // XXX mshinwell: check if this unique_id line is needed and whether
+  // these two lines should be before caml_memprof_new_domain (as we had on
+  // flambda-backend) or after (as on 5.2, although 5.2 lacks the unique_id
+  // line).
   domain_state->id = d->id;
   domain_state->unique_id = s->unique_id;
 
@@ -670,8 +670,6 @@ static void domain_create(uintnat initial_minor_heap_wsize,
 
   domain_state->dependent_size = 0;
   domain_state->dependent_allocated = 0;
-
-  domain_state->major_work_done_between_slices = 0;
 
   domain_state->major_work_done_between_slices = 0;
 
@@ -776,7 +774,8 @@ static void domain_create(uintnat initial_minor_heap_wsize,
   domain_state->trap_barrier_block = -1;
 #endif
 
-  caml_reset_young_limit(domain_state);
+  // XXX mshinwell: is this line needed?  It was deleted on our side
+  // caml_reset_young_limit(domain_state);
   add_next_to_stw_domains();
   goto domain_init_complete;
 
@@ -1222,6 +1221,10 @@ static void* domain_thread_func(void* v)
 #endif
 
   domain_create(caml_params->init_minor_heap_wsz, p->parent->state);
+
+  if (!domain_self) {
+    caml_fatal_error("Failed to create domain");
+  }
 
   /* this domain is now part of the STW participant set */
   p->newdom = domain_self;
