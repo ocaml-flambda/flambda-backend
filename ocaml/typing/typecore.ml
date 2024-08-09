@@ -1286,7 +1286,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
         List.map (fun (label, p) -> label, build_as_type env p) pl in
       newty (Ttuple labeled_tyl), mode
   | Tpat_construct(_, cstr, pl, vto) ->
-      let priv = (cstr.cstr_private = Private) in
+      let priv = (cstr.cstr_private = Private2) in
       let mode =
         if priv || pl <> [] then mode
         else Value.newvar ()
@@ -1322,7 +1322,7 @@ and build_as_type_aux ~refine ~mode (env : Env.t ref) p =
       ty, mode
   | Tpat_record (lpl,_) ->
       let lbl = snd3 (List.hd lpl) in
-      if lbl.lbl_private = Private then p.pat_type, mode else
+      if lbl.lbl_private = Private2 then p.pat_type, mode else
       (* The jkind here is filled in via unification with [ty_res] in
          [unify_pat]. *)
       (* XXX layouts v2: This should be a sort variable and could be now (but
@@ -7267,7 +7267,7 @@ and type_label_exp create env (arg_mode : expected_mode) loc ty_expected
         end
         ~post:generalize_structure
       in
-      if label.lbl_private = Private then
+      if label.lbl_private = Private2 then
         if create then
           raise (Error(loc, env, Private_type ty_expected))
         else
@@ -7842,7 +7842,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
          type_argument ~recarg env argument_mode e ty t0)
       sargs (List.combine ty_args ty_args0)
   in
-  if constr.cstr_private = Private then
+  if constr.cstr_private = Private2 then
     begin match constr.cstr_repr with
     | Variant_extensible ->
         raise(Error(loc, env, Private_constructor (constr, ty_res)))
@@ -9230,7 +9230,7 @@ and type_send env loc explanation e met =
                   let id = Ident.create_local met in
                   let ty = new_type_var (Jkind.Type.Primitive.value ~why:Object_field) in
                   meths_ref := Meths.add met id !meths_ref;
-                  add_method env met Private Virtual ty sign;
+                  add_method env met Private2 Virtual ty sign;
                   Location.prerr_warning loc
                     (Warnings.Undeclared_virtual_method met);
                   id, ty

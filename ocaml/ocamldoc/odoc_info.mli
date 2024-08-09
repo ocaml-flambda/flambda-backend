@@ -189,7 +189,7 @@ module Parameter :
 module Extension :
   sig
     type private_flag = Odoc_extension.private_flag =
-      Private | Public
+      Private2 | Public2
 
     (** Used when the extension is a rebind of another extension,
        when we have [extension Xt = Target_xt].*)
@@ -253,7 +253,7 @@ module Exception :
 module Type :
   sig
     type private_flag = Odoc_type.private_flag =
-      Private | Public
+      Private2 | Public2
     type private_or_new_flag = Odoc_type.private_or_new_flag =
       Private3 | New3 | Public3
 

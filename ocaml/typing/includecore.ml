@@ -1203,7 +1203,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
 let extension_constructors ~loc env ~mark id ext1 ext2 =
   if mark then begin
     let usage : Env.constructor_usage =
-      if ext2.ext_private = Public then Env.Exported
+      if ext2.ext_private = Public2 then Env.Exported
       else Env.Exported_private
     in
     Env.mark_extension_used usage ext1
@@ -1230,5 +1230,5 @@ let extension_constructors ~loc env ~mark id ext1 ext2 =
     | Some r -> Some (Constructor_mismatch (id, ext1, ext2, r))
     | None ->
       match ext1.ext_private, ext2.ext_private with
-      | Private, Public -> Some Constructor_privacy
+      | Private2, Public2 -> Some Constructor_privacy
       | _, _ -> None
