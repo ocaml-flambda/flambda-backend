@@ -1,6 +1,7 @@
                   startup: OK
   int_as_pointer (global): OK
-   int_as_pointer (local): OK
+int_as_pointer (local -O3): OK
+int_as_pointer (local -Oclassic): OK
             function call: OK
      cleanup upon exclave: OK
         exn function call: OK

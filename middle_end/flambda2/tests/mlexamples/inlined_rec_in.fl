@@ -1,11 +1,11 @@
 let $camlInlined_rec__first_const28 = Block 0 () in
 let code inline(always) size(6)
-      apply_0 (f, i) my_closure my_region my_depth -> k * k1 =
+      apply_0 (f, i) my_closure my_region my_ghost_region my_depth -> k * k1 =
   apply inlined(hint) f (i) -> k * k1
 in
 let code rec size(27)
       fact_1 (n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let next_depth = rec_info (succ my_depth) in

@@ -1,16 +1,16 @@
 let $camlTests8__first_const44 = Block 0 () in
-let code size(1) `anon-fn[tests8.ml:11,43--55]_3` (x) my_closure my_region my_depth
+let code size(1) `anon-fn[tests8.ml:11,43--55]_3` (x) my_closure my_region my_ghost_region my_depth
                    -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   cont k (x)
 in
 let code size(1) `anon-fn[tests8.ml:11,56--71]_2` (param : imm tagged)
-                   my_closure my_region my_depth -> k * k1 =
+                   my_closure my_region my_ghost_region my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   cont k (0)
 in
 let code size(23) `anon-fn[tests8.ml:11,6--74]_1` (param : imm tagged)
-                    my_closure my_region my_depth -> k * k1 =
+                    my_closure my_region my_ghost_region my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let map_foo =
     %project_value_slot `anon-fn[tests8.ml:11,6--74]`.my_closure_0 my_closure
@@ -112,7 +112,7 @@ and code rec size(44) newer_version_of(map_foo_0) map_foo_0_1
                                                     (f,
                                                      seq,
                                                      param : imm tagged)
-                                                    my_closure my_region my_depth -> k
+                                                    my_closure my_region my_ghost_region my_depth -> k
                                                     * k1 =
   apply seq (0) -> k2 * k1
     where k2 (`*match*`) =

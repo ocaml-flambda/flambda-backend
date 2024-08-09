@@ -190,7 +190,9 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_ARRAY_LOAD [@symbol "%array_load"]
 %token PRIM_ARRAY_SET [@symbol "%array_set"]
 %token PRIM_BEGIN_REGION [@symbol "%begin_region"]
+%token PRIM_BEGIN_GHOST_REGION [@symbol "%begin_ghost_region"]
 %token PRIM_BEGIN_TRY_REGION [@symbol "%begin_try_region"]
+%token PRIM_BEGIN_GHOST_TRY_REGION [@symbol "%begin_ghost_try_region"]
 %token PRIM_BIGSTRING_LOAD [@symbol "%bigstring_load"]
 %token PRIM_BIGSTRING_SET [@symbol "%bigstring_set"]
 %token PRIM_BLOCK [@symbol "%Block"]
@@ -205,7 +207,9 @@ let make_boxed_const_int (i, m) : static_data =
 %token PRIM_BYTES_LOAD [@symbol "%bytes_load"]
 %token PRIM_BYTES_SET [@symbol "%bytes_set"]
 %token PRIM_END_REGION [@symbol "%end_region"]
+%token PRIM_END_GHOST_REGION [@symbol "%end_ghost_region"]
 %token PRIM_END_TRY_REGION [@symbol "%end_try_region"]
+%token PRIM_END_GHOST_TRY_REGION [@symbol "%end_ghost_try_region"]
 %token PRIM_GET_TAG [@symbol "%get_tag"]
 %token PRIM_INT_ARITH [@symbol "%int_arith"]
 %token PRIM_INT_COMP [@symbol "%int_comp"]
@@ -235,6 +239,7 @@ let make_boxed_const_int (i, m) : static_data =
 
 %start flambda_unit expect_test_spec
 %type <Fexpr.alloc_mode_for_allocations> alloc_mode_for_allocations_opt
+%type <Fexpr.alloc_mode_for_applications> alloc_mode_for_applications_opt
 %type <Fexpr.array_kind> array_kind
 %type <Fexpr.empty_array_kind> empty_array_kind
 %type <Fexpr.binary_float_arith_op> binary_float_arith_op
@@ -326,6 +331,7 @@ code:
     params = kinded_args;
     closure_var = variable;
     region_var = variable;
+    ghost_region_var = variable;
     depth_var = variable;
     MINUSGREATER; ret_cont = continuation_id;
     exn_cont = exn_continuation_id;
@@ -339,7 +345,7 @@ code:
       in
       let result_mode : alloc_mode_for_assignments = if result_mode then Local else Heap in
       { id; newer_version_of; param_arity = None; ret_arity; recursive; inline;
-        params_and_body = { params; closure_var; region_var; depth_var;
+        params_and_body = { params; closure_var; region_var; ghost_region_var; depth_var;
                             ret_cont; exn_cont; body };
         code_size; is_tupled; loopify; result_mode; } }
 ;
@@ -377,8 +383,10 @@ recursive:
 ;
 
 nullop:
-  | PRIM_BEGIN_REGION { Begin_region }
-  | PRIM_BEGIN_TRY_REGION { Begin_try_region }
+  | PRIM_BEGIN_REGION { Begin_region { ghost = false } }
+  | PRIM_BEGIN_GHOST_REGION { Begin_region { ghost = true } }
+  | PRIM_BEGIN_TRY_REGION { Begin_try_region { ghost = false } }
+  | PRIM_BEGIN_GHOST_TRY_REGION { Begin_try_region { ghost = true } }
 ;
 
 unary_int_arith_op:
@@ -397,8 +405,10 @@ unop:
   | PRIM_BOX_NATIVEINT; alloc = alloc_mode_for_allocations_opt
     { Box_number (Naked_nativeint, alloc) }
   | PRIM_BYTES_LENGTH { String_length Bytes }
-  | PRIM_END_REGION { End_region }
-  | PRIM_END_TRY_REGION { End_try_region }
+  | PRIM_END_REGION { End_region { ghost = false } }
+  | PRIM_END_GHOST_REGION { End_region { ghost = true } }
+  | PRIM_END_TRY_REGION { End_try_region { ghost = false } }
+  | PRIM_END_GHOST_TRY_REGION { End_try_region { ghost = true } }
   | PRIM_GET_TAG { Get_tag }
   | PRIM_IS_FLAT_FLOAT_ARRAY { Is_flat_float_array }
   | PRIM_IS_INT { Is_int }
@@ -516,6 +526,10 @@ init_or_assign:
 alloc_mode_for_allocations_opt:
   | { Heap }
   | AMP; region = region { Local { region } }
+
+alloc_mode_for_applications_opt:
+  | { Heap }
+  | AMP; region = region; AMP; ghost_region = region { Local { region; ghost_region } }
 
 signed_or_unsigned:
   | { Signed }
@@ -814,11 +828,11 @@ apply_expr:
 ;
 
 call_kind:
-  | alloc = alloc_mode_for_allocations_opt; { Function (Indirect alloc) }
+  | alloc = alloc_mode_for_applications_opt; { Function (Indirect alloc) }
   | KWD_DIRECT; LPAREN;
       code_id = code_id;
       function_slot = function_slot_opt;
-      alloc = alloc_mode_for_allocations_opt;
+      alloc = alloc_mode_for_applications_opt;
     RPAREN
     { Function (Direct { code_id; function_slot; alloc }) }
   | KWD_CCALL; noalloc = boption(KWD_NOALLOC)
