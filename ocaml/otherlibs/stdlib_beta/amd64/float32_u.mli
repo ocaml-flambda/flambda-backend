@@ -390,18 +390,19 @@ val max_num : t -> t -> t
     missing values.  If both [x] and [y] are [nan] [nan] is returned.
     Moreover [max_num #-0.s #+0.s = #+0.s] *)
 
-val iround_half_to_even : t -> int64#
+val iround_current : t -> int64#
 (** Rounds a [float32#] to an [int64#] using the current rounding mode. The default
-    rounding mode is "round half to even", and we expect that no program will
-    change the rounding mode.
+    rounding mode on amd64 is "round half to even", and we expect that no
+    program will change the mode. The default mode may differ on other platforms.
     If the argument is NaN or infinite or if the rounded value cannot be
     represented, then the result is unspecified.
     The amd64 flambda-backend compiler translates this call to CVTSS2SI. *)
 
-val round_half_to_even : t -> t
-(** Rounds a [float32#] to an integer [float32#] using the current rounding
-    mode.  The default rounding mode is "round half to even", and we
-    expect that no program will change the rounding mode.
+val round_current : t -> t
+(** Rounds a [float32#] to an integer [float32#] using the current rounding mode.
+    The default rounding mode on amd64 is "round half to even", and we
+    expect that no program will change the mode. The default mode may differ
+    on other platforms.
     The amd64 flambda-backend compiler translates this call to ROUNDSS. *)
 
 val round_down : t -> t
