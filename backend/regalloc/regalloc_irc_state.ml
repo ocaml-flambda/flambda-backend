@@ -132,7 +132,7 @@ let[@inline] add_initial_list state regs =
       reg.Reg.degree <- 0;
       Doubly_linked_list.add_begin state.initial reg)
 
-let[@inline] reset state ~new_temporaries =
+let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
   let unknown_reg_work_list (rwl : RegWorkList.t) : unit =
     RegWorkList.iter rwl ~f:(fun reg -> reg.irc_work_list <- Unknown_list)
   in
@@ -156,7 +156,8 @@ let[@inline] reset state ~new_temporaries =
       reg.Reg.interf <- [];
       assert (reg.Reg.degree = Degree.infinite))
     (all_precolored_regs ());
-  state.initial <- Doubly_linked_list.of_list new_temporaries;
+  state.initial <- Doubly_linked_list.of_list new_inst_temporaries;
+  Doubly_linked_list.add_list state.initial new_block_temporaries;
   Doubly_linked_list.transfer ~from:state.colored_nodes ~to_:state.initial ();
   RegWorkList.iter state.coalesced_nodes ~f:(fun reg ->
       Doubly_linked_list.add_end state.initial reg);

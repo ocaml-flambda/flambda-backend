@@ -16,7 +16,11 @@ val add_initial_one : t -> Reg.t -> unit
 
 val add_initial_list : t -> Reg.t list -> unit
 
-val reset : t -> new_temporaries:Reg.t list -> unit
+val reset :
+  t ->
+  new_inst_temporaries:Reg.t list ->
+  new_block_temporaries:Reg.t list ->
+  unit
 
 val is_precolored : t -> Reg.t -> bool
 

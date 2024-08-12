@@ -398,22 +398,20 @@ let rewrite :
       (module Utils)
       state cfg_with_infos ~spilled_nodes ~block_temporaries
   in
-  let new_temporaries = new_block_temporaries @ new_inst_temporaries in
-  if new_temporaries <> []
-  then (
-    Cfg_with_infos.invalidate_liveness cfg_with_infos;
-    State.add_inst_temporaries_list state new_inst_temporaries;
-    State.add_block_temporaries_list state new_block_temporaries);
   if block_inserted
   then Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos;
-  match new_temporaries, reset with
-  | [], _ -> false
-  | _ :: _, true ->
-    State.reset state ~new_temporaries;
-    true
-  | _ :: _, false ->
-    State.clear_spilled_nodes state;
-    State.add_initial_list state new_temporaries;
+  match new_inst_temporaries, new_block_temporaries with
+  | [], [] -> false
+  | _ ->
+    (Cfg_with_infos.invalidate_liveness cfg_with_infos;
+     State.add_inst_temporaries_list state new_inst_temporaries;
+     State.add_block_temporaries_list state new_block_temporaries;
+     match reset with
+     | true -> State.reset state ~new_inst_temporaries ~new_block_temporaries
+     | false ->
+       State.clear_spilled_nodes state;
+       State.add_initial_list state new_block_temporaries;
+       State.add_initial_list state new_inst_temporaries);
     true
 
 (* CR xclerc for xclerc: could probably be lower; the compiler distribution
