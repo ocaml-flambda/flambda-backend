@@ -13,11 +13,44 @@
 (**************************************************************************)
 
 open Mode
-open Jkind_types.Type
 
 [@@@warning "+9"]
 
+exception Unexpected_higher_jkind of string
+
+(******************************)
+(*** user errors ***)
+
+(* The same errors are reused for both Jkind and Jkind.Type,
+   so we define them early here. *)
+
+type const = Types.type_expr Jkind_types.Const.t
+
+module Error = struct
+  type t =
+    | Insufficient_level of
+        { jkind : const;
+          required_layouts_level : Language_extension.maturity
+        }
+    | Unknown_jkind of Jane_syntax.Jkind.t
+    | Unknown_mode of Jane_syntax.Mode_expr.Const.t
+    | Multiple_jkinds of
+        { from_annotation : const;
+          from_attribute : const
+        }
+
+  exception User_error of Location.t * t
+end
+
+let user_raise ~loc err = raise (Error.User_error (loc, err))
+
+let printtyp_path = ref (fun _ _ -> assert false)
+
+let set_printtyp_path f = printtyp_path := f
+
 module Type = struct
+  open Jkind_types.Type
+
   (* A *sort* is the information the middle/back ends need to be able to
      compile a manipulation (storing, passing, etc) of a runtime value. *)
   module Sort = Jkind_types.Type.Sort
@@ -121,7 +154,7 @@ module Type = struct
         match Sort.equate_tracking_mutation s1 s2 with
         | (Equal_mutated_first | Equal_mutated_second) when not allow_mutation
           ->
-          Misc.fatal_errorf "Jkind.equal: Performed unexpected mutation"
+          Misc.fatal_errorf "Jkind.Type.equal: Performed unexpected mutation"
         | Unequal -> false
         | Equal_no_mutation | Equal_mutated_first | Equal_mutated_second -> true
         )
@@ -140,6 +173,16 @@ module Type = struct
       | _, Any -> Some t1
       | Any, _ -> Some t2
       | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Some t1 else None
+
+    let union t1 t2 =
+      match t1, t2 with
+      (* TODO jbachurski: As discussed with lwhite,
+         [if Sort.equate s1 s2 then t1 else Any] is not sound
+         and a change to the representation of sorts would be
+         required to compute this accurately. Fail for now. *)
+      | Sort _, Sort _ -> assert false
+      | _, Any -> Any
+      | Any, _ -> Any
 
     let of_new_sort_var () =
       let sort = Sort.new_var () in
@@ -191,6 +234,14 @@ module Type = struct
       | External64, (External64 | Internal) | Internal, External64 -> External64
       | Internal, Internal -> Internal
 
+    let join t1 t2 =
+      match t1, t2 with
+      | Internal, (External | External64 | Internal)
+      | (External | External64), Internal ->
+        Internal
+      | External64, (External | External64) | External, External64 -> External64
+      | External, External -> External
+
     let print ppf = function
       | External -> Format.fprintf ppf "external_"
       | External64 -> Format.fprintf ppf "external64"
@@ -224,28 +275,6 @@ module Type = struct
 
   (* forward declare [Const.t] so we can use it for [Error.t] *)
   type const = type_expr Jkind_types.Type.Const.t
-
-  (******************************)
-  (*** user errors ***)
-
-  module Error = struct
-    type t =
-      | Insufficient_level of
-          { jkind : const;
-            required_layouts_level : Language_extension.maturity
-          }
-      | Unknown_jkind of Jane_syntax.Jkind.t
-      | Unknown_mode of Jane_syntax.Mode_expr.Const.t
-      | Multiple_jkinds of
-          { from_annotation : const;
-            from_attribute : const
-          }
-      | Arrow_not_implemented
-
-    exception User_error of Location.t * t
-  end
-
-  let raise ~loc err = raise (Error.User_error (loc, err))
 
   module Const = struct
     open Jkind_types.Type.Const
@@ -513,10 +542,6 @@ module Type = struct
       let layout_str = Layout.Const.Legacy.to_string legacy_layout in
       Format.fprintf ppf "%s" layout_str
 
-    let of_attribute : Builtin_attributes.jkind_attribute -> t = function
-      | Immediate -> Primitive.immediate.jkind
-      | Immediate64 -> Primitive.immediate64.jkind
-
     module ModeParser = struct
       type mode =
         | Areality of Locality.Const.t
@@ -544,97 +569,88 @@ module Type = struct
         | "uncontended" -> Contention Uncontended
         | "portable" -> Portability Portable
         | "nonportable" -> Portability Nonportable
-        | _ -> raise ~loc (Unknown_mode unparsed_mode)
+        | _ -> user_raise ~loc (Unknown_mode unparsed_mode)
 
       let parse_modes
           (Location.{ txt = modes; loc = _ } : Jane_syntax.Mode_expr.t) =
         List.map parse_mode modes
     end
 
-    let rec of_user_written_annotation_unchecked_level ~loc
-        (jkind : Jane_syntax.Jkind.t) : t =
-      match jkind with
-      | Abbreviation const -> (
-        let { txt = name; loc } =
-          (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
-        in
-        (* CR layouts 2.8: move this to predef *)
-        match name with
-        | "any" -> Primitive.any.jkind
-        | "value" -> Primitive.value.jkind
-        | "void" -> Primitive.void.jkind
-        | "immediate64" -> Primitive.immediate64.jkind
-        | "immediate" -> Primitive.immediate.jkind
-        | "float64" -> Primitive.float64.jkind
-        | "float32" -> Primitive.float32.jkind
-        | "word" -> Primitive.word.jkind
-        | "bits32" -> Primitive.bits32.jkind
-        | "bits64" -> Primitive.bits64.jkind
-        | _ -> raise ~loc (Unknown_jkind jkind))
-      | Mod (jkind, modes) ->
-        let base = of_user_written_annotation_unchecked_level ~loc jkind in
-        (* for each mode, lower the corresponding modal bound to be that mode *)
-        let parsed_modes = ModeParser.parse_modes modes in
-        let meet_mode jkind (mode : ModeParser.mode) =
-          match mode with
-          | Areality areality ->
-            { jkind with
-              modes_upper_bounds =
-                { jkind.modes_upper_bounds with
-                  areality =
-                    Locality.Const.meet jkind.modes_upper_bounds.areality
-                      areality
-                }
+    let of_user_written_abbreviation ~jkind (const : Jane_syntax.Jkind.Const.t)
+        : t =
+      let { txt = name; loc } =
+        (const : Jane_syntax.Jkind.Const.t :> _ Location.loc)
+      in
+      (* CR layouts 2.8: move this to predef *)
+      match name with
+      | "any" -> Primitive.any.jkind
+      | "value" -> Primitive.value.jkind
+      | "void" -> Primitive.void.jkind
+      | "immediate64" -> Primitive.immediate64.jkind
+      | "immediate" -> Primitive.immediate.jkind
+      | "float64" -> Primitive.float64.jkind
+      | "float32" -> Primitive.float32.jkind
+      | "word" -> Primitive.word.jkind
+      | "bits32" -> Primitive.bits32.jkind
+      | "bits64" -> Primitive.bits64.jkind
+      | _ -> user_raise ~loc (Unknown_jkind jkind)
+
+    let meet_mode_in_parse jkind (mode : ModeParser.mode) =
+      (* for each mode, lower the corresponding modal bound to be that mode *)
+      match mode with
+      | Areality areality ->
+        { jkind with
+          modes_upper_bounds =
+            { jkind.modes_upper_bounds with
+              areality =
+                Locality.Const.meet jkind.modes_upper_bounds.areality areality
             }
-          | Linearity linearity ->
-            { jkind with
-              modes_upper_bounds =
-                Modes.meet jkind.modes_upper_bounds
-                  { jkind.modes_upper_bounds with
-                    linearity =
-                      Linearity.Const.meet jkind.modes_upper_bounds.linearity
-                        linearity
-                  }
-            }
-          | Uniqueness uniqueness ->
-            { jkind with
-              modes_upper_bounds =
-                Modes.meet jkind.modes_upper_bounds
-                  { jkind.modes_upper_bounds with
-                    uniqueness =
-                      Uniqueness.Const.meet jkind.modes_upper_bounds.uniqueness
-                        uniqueness
-                  }
-            }
-          | Contention contention ->
-            { jkind with
-              modes_upper_bounds =
-                Modes.meet jkind.modes_upper_bounds
-                  { jkind.modes_upper_bounds with
-                    contention =
-                      Contention.Const.meet jkind.modes_upper_bounds.contention
-                        contention
-                  }
-            }
-          | Portability portability ->
-            { jkind with
-              modes_upper_bounds =
-                Modes.meet jkind.modes_upper_bounds
-                  { jkind.modes_upper_bounds with
-                    portability =
-                      Portability.Const.meet
-                        jkind.modes_upper_bounds.portability portability
-                  }
-            }
-          | Externality externality ->
-            { jkind with
-              externality_upper_bound =
-                Externality.meet jkind.externality_upper_bound externality
-            }
-        in
-        List.fold_left meet_mode base parsed_modes
-      | Arrow _ -> raise ~loc Arrow_not_implemented
-      | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
+        }
+      | Linearity linearity ->
+        { jkind with
+          modes_upper_bounds =
+            Modes.meet jkind.modes_upper_bounds
+              { jkind.modes_upper_bounds with
+                linearity =
+                  Linearity.Const.meet jkind.modes_upper_bounds.linearity
+                    linearity
+              }
+        }
+      | Uniqueness uniqueness ->
+        { jkind with
+          modes_upper_bounds =
+            Modes.meet jkind.modes_upper_bounds
+              { jkind.modes_upper_bounds with
+                uniqueness =
+                  Uniqueness.Const.meet jkind.modes_upper_bounds.uniqueness
+                    uniqueness
+              }
+        }
+      | Contention contention ->
+        { jkind with
+          modes_upper_bounds =
+            Modes.meet jkind.modes_upper_bounds
+              { jkind.modes_upper_bounds with
+                contention =
+                  Contention.Const.meet jkind.modes_upper_bounds.contention
+                    contention
+              }
+        }
+      | Portability portability ->
+        { jkind with
+          modes_upper_bounds =
+            Modes.meet jkind.modes_upper_bounds
+              { jkind.modes_upper_bounds with
+                portability =
+                  Portability.Const.meet jkind.modes_upper_bounds.portability
+                    portability
+              }
+        }
+      | Externality externality ->
+        { jkind with
+          externality_upper_bound =
+            Externality.meet jkind.externality_upper_bound externality
+        }
 
     module Sort = Sort.Const
     module Layout = Layout.Const
@@ -729,6 +745,20 @@ module Type = struct
               modes_upper_bounds = Modes.meet modes1 modes2;
               externality_upper_bound = Externality.meet ext1 ext2
             })
+
+    let union
+        { layout = lay1;
+          modes_upper_bounds = modes1;
+          externality_upper_bound = ext1
+        }
+        { layout = lay2;
+          modes_upper_bounds = modes2;
+          externality_upper_bound = ext2
+        } =
+      { layout = Layout.union lay1 lay2;
+        modes_upper_bounds = Modes.join modes1 modes2;
+        externality_upper_bound = Externality.join ext1 ext2
+      }
 
     let of_new_sort_var () =
       let layout, sort = Layout.of_new_sort_var () in
@@ -908,75 +938,6 @@ module Type = struct
       has_warned = false
     }
 
-  let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
-    let const = Const.of_user_written_annotation_unchecked_level ~loc annot in
-    let required_layouts_level = get_required_layouts_level context const in
-    if not (Language_extension.is_at_least Layouts required_layouts_level)
-    then
-      raise ~loc (Insufficient_level { jkind = const; required_layouts_level });
-    const
-
-  let of_annotated_const ~context ~const ~const_loc =
-    of_const ~why:(Annotated (context, const_loc)) const
-
-  let of_annotation ~context (annot : _ Location.loc) =
-    let const = const_of_user_written_annotation ~context annot in
-    let jkind = of_annotated_const ~const ~const_loc:annot.loc ~context in
-    jkind, (const, annot)
-
-  let of_annotation_option_default ~default ~context =
-    Option.fold ~none:(default, None) ~some:(fun annot ->
-        let t, annot = of_annotation ~context annot in
-        t, Some annot)
-
-  let of_attribute ~context
-      (attribute : Builtin_attributes.jkind_attribute Location.loc) =
-    let const = Const.of_attribute attribute.txt in
-    of_annotated_const ~context ~const ~const_loc:attribute.loc, const
-
-  let of_type_decl ~context (decl : Parsetree.type_declaration) =
-    let jkind_of_annotation =
-      Jane_syntax.Layouts.of_type_declaration decl
-      |> Option.map (fun (annot, attrs) ->
-             let t, const = of_annotation ~context annot in
-             t, const, attrs)
-    in
-    let jkind_of_attribute =
-      Builtin_attributes.jkind decl.ptype_attributes
-      |> Option.map (fun attr ->
-             let t, const = of_attribute ~context attr in
-             (* This is a bit of a lie: the "annotation" here is being
-                forged based on the jkind attribute. But: the jkind
-                annotation is just used in printing/untypeast, and the
-                all strings valid to use as a jkind attribute are
-                valid (and equivalent) to write as an annotation, so
-                this lie is harmless.
-             *)
-             let annot =
-               Location.map
-                 (fun attr ->
-                   let name =
-                     Builtin_attributes.jkind_attribute_to_string attr
-                   in
-                   Jane_syntax.Jkind.(
-                     Abbreviation (Const.mk name Location.none)))
-                 attr
-             in
-             t, (const, annot), decl.ptype_attributes)
-    in
-    match jkind_of_annotation, jkind_of_attribute with
-    | None, None -> None
-    | (Some _ as x), None | None, (Some _ as x) -> x
-    | Some (_, (from_annotation, _), _), Some (_, (from_attribute, _), _) ->
-      raise ~loc:decl.ptype_loc
-        (Multiple_jkinds { from_annotation; from_attribute })
-
-  let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration)
-      =
-    match of_type_decl ~context decl with
-    | Some (t, const, attrs) -> t, Some const, attrs
-    | None -> default, None, decl.ptype_attributes
-
   let for_boxed_record ~all_void =
     if all_void
     then Primitive.immediate ~why:Empty_record
@@ -1010,7 +971,7 @@ module Type = struct
   let sort_of_jkind l =
     match get l with
     | Const { layout = Sort s; _ } -> Sort.of_const s
-    | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.sort_of_jkind"
+    | Const { layout = Any; _ } -> Misc.fatal_error "Jkind.Type.sort_of_jkind"
     | Var v -> Sort.of_var v
 
   let get_layout jk : Layout.Const.t option =
@@ -1033,10 +994,6 @@ module Type = struct
     match get jkind with
     | Const c -> Format.fprintf ppf "%a" Const.format c
     | Var v -> Format.fprintf ppf "%s" (Sort.Var.name v)
-
-  let printtyp_path = ref (fun _ _ -> assert false)
-
-  let set_printtyp_path f = printtyp_path := f
 
   module Report_missing_cmi : sig
     (* used both in format_history and in Violation.report_general *)
@@ -1386,104 +1343,6 @@ module Type = struct
   include Format_history
 
   (******************************)
-  (* errors *)
-
-  module Violation = struct
-    open Format
-
-    type violation =
-      | Not_a_subjkind of t * t
-      | No_intersection of t * t
-
-    type nonrec t =
-      { violation : violation;
-        missing_cmi : Path.t option
-      }
-    (* [missing_cmi]: is this error a result of a missing cmi file?
-       This is stored separately from the [violation] because it's
-       used to change the behavior of [value_kind], and we don't
-       want that function to inspect something that is purely about
-       the choice of error message. (Though the [Path.t] payload *is*
-       indeed just about the payload.) *)
-
-    let of_ ?missing_cmi violation = { violation; missing_cmi }
-
-    let is_missing_cmi viol = Option.is_some viol.missing_cmi
-
-    let report_general preamble pp_former former ppf t =
-      let subjkind_format verb l2 =
-        match get l2 with
-        | Var _ -> dprintf "%s representable" verb
-        | Const _ -> dprintf "%s a sublayout of %a" verb format l2
-      in
-      let l1, l2, fmt_l1, fmt_l2, missing_cmi_option =
-        match t with
-        | { violation = Not_a_subjkind (l1, l2); missing_cmi } -> (
-          let missing_cmi =
-            match missing_cmi with
-            | None -> (
-              match l1.history with
-              | Creation (Missing_cmi p) -> Some p
-              | Creation (Any_creation (Missing_cmi p)) -> Some p
-              | _ -> None)
-            | Some _ -> missing_cmi
-          in
-          match missing_cmi with
-          | None ->
-            ( l1,
-              l2,
-              dprintf "layout %a" format l1,
-              subjkind_format "is not" l2,
-              None )
-          | Some p ->
-            ( l1,
-              l2,
-              dprintf "an unknown layout",
-              subjkind_format "might not be" l2,
-              Some p ))
-        | { violation = No_intersection (l1, l2); missing_cmi } ->
-          assert (Option.is_none missing_cmi);
-          ( l1,
-            l2,
-            dprintf "layout %a" format l1,
-            dprintf "does not overlap with %a" format l2,
-            None )
-      in
-      if display_histories
-      then
-        let connective =
-          match t.violation, get l2 with
-          | Not_a_subjkind _, Const _ ->
-            dprintf "be a sublayout of %a" format l2
-          | No_intersection _, Const _ -> dprintf "overlap with %a" format l2
-          | _, Var _ -> dprintf "be representable"
-        in
-        fprintf ppf "@[<v>%a@;%a@]"
-          (format_history
-             ~intro:
-               (dprintf "The layout of %a is %a" pp_former former format l1))
-          l1
-          (format_history
-             ~intro:
-               (dprintf "But the layout of %a must %t" pp_former former
-                  connective))
-          l2
-      else
-        fprintf ppf "@[<hov 2>%s%a has %t,@ which %t.@]" preamble pp_former
-          former fmt_l1 fmt_l2;
-      report_missing_cmi ppf missing_cmi_option
-
-    let pp_t ppf x = fprintf ppf "%t" x
-
-    let report_with_offender ~offender = report_general "" pp_t offender
-
-    let report_with_offender_sort ~offender =
-      report_general "A representable layout was expected, but " pp_t offender
-
-    let report_with_name ~name = report_general "" pp_print_string name
-  end
-
-  (******************************)
   (* relations *)
 
   let equate_or_equal ~allow_mutation
@@ -1495,8 +1354,6 @@ module Type = struct
   let equal = equate_or_equal ~allow_mutation:true
 
   let () = Types.set_jkind_equal equal
-
-  let equate = equate_or_equal ~allow_mutation:true
 
   (* Not all jkind history reasons are created equal. Some are more helpful than others.
       This function encodes that information.
@@ -1531,43 +1388,12 @@ module Type = struct
           rhs_history = rhs.history
         }
 
-  let has_intersection t1 t2 =
-    Option.is_some (Jkind_desc.intersection t1.jkind t2.jkind)
-
-  let intersection_or_error ~reason t1 t2 =
-    match Jkind_desc.intersection t1.jkind t2.jkind with
-    | None -> Error (Violation.of_ (No_intersection (t1, t2)))
-    | Some jkind ->
-      Ok
-        { jkind;
-          history = combine_histories reason t1 t2;
-          has_warned = t1.has_warned || t2.has_warned
-        }
-
   (* this is hammered on; it must be fast! *)
   let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
-
-  let sub sub super = Misc.Le_result.is_le (check_sub sub super)
-
-  let sub_or_error t1 t2 =
-    if sub t1 t2 then Ok () else Error (Violation.of_ (Not_a_subjkind (t1, t2)))
-
-  let sub_with_history sub super =
-    match check_sub sub super with
-    | Less | Equal ->
-      Ok { sub with history = combine_histories Subjkind sub super }
-    | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
 
   let is_void_defaulting = function
     | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
     | _ -> false
-
-  (* This doesn't do any mutation because mutating a sort variable can't make it
-     any, and modal upper bounds are constant. *)
-  let is_max jkind = sub Primitive.any_dummy_jkind jkind
-
-  let has_layout_any jkind =
-    match jkind.jkind.layout with Any -> true | _ -> false
 
   (*********************************)
   (* debugging *)
@@ -1752,12 +1578,497 @@ module Type = struct
       fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
         Jkind_desc.Debug_printers.t jkind history h
   end
+end
+
+type nonrec t = Types.type_expr Jkind_types.t
+
+module History = struct
+  let rec has_imported_history (t : t) : bool =
+    match t with
+    | Type ty -> Type.History.has_imported_history ty
+    | Arrow { args; result } ->
+      List.exists has_imported_history args || has_imported_history result
+
+  let rec update_reason (t : t) reason : t =
+    match t with
+    | Type ty -> Type (Type.History.update_reason ty reason)
+    | Arrow { args; result } ->
+      Arrow
+        { args = List.map (fun t' -> update_reason t' reason) args;
+          result = update_reason result reason
+        }
+end
+(* module Type *)
+
+(******************************)
+(* constants *)
+(* Mostly wrapping implementations for Type jkinds *)
+
+module Const = struct
+  type nonrec t = Types.type_expr Jkind_types.Const.t
+
+  let of_type_jkind ty : t = Type ty
+
+  let rec format ppf (t : t) =
+    match t with
+    | Type t -> Type.Const.format ppf t
+    | Arrow { args; result } ->
+      Format.fprintf ppf "((%a) => %a)"
+        (Format.pp_print_list
+           ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+           format)
+        args format result
+
+  let rec equal (t : t) (t' : t) =
+    match t, t' with
+    | Type s, Type s' -> Type.Const.equal s s'
+    | ( Arrow { args = args1; result = result1 },
+        Arrow { args = args2; result = result2 } ) ->
+      List.for_all2 equal args1 args2 && equal result1 result2
+    | Type _, Arrow _ | Arrow _, Type _ -> false
+
+  let to_type_jkind (t : t) =
+    match t with
+    | Type ty -> ty
+    | Arrow _ ->
+      raise (Unexpected_higher_jkind "Coerced arrow to type jkind (const)")
+
+  let of_attribute : Builtin_attributes.jkind_attribute -> t = function
+    | Immediate -> of_type_jkind Type.Const.Primitive.immediate.jkind
+    | Immediate64 -> of_type_jkind Type.Const.Primitive.immediate64.jkind
+
+  let rec of_user_written_annotation_unchecked_level
+      (jkind : Jane_syntax.Jkind.t) : t =
+    match jkind with
+    | Abbreviation const ->
+      Type (Type.Const.of_user_written_abbreviation ~jkind const)
+    | Mod (jkind, modes) ->
+      (* TODO jbachurski: We coerce here - in the future, the syntax should not permit
+         mod on arrows. Such expressions are not parsed currently. *)
+      let jkind =
+        to_type_jkind (of_user_written_annotation_unchecked_level jkind)
+      in
+      Type
+        (List.fold_left Type.Const.meet_mode_in_parse jkind
+           (Type.Const.ModeParser.parse_modes modes))
+    | Arrow (args, result) ->
+      Arrow
+        { args = List.map of_user_written_annotation_unchecked_level args;
+          result = of_user_written_annotation_unchecked_level result
+        }
+    | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
+end
+
+let rec of_const ~why (t : Const.t) : t =
+  match t with
+  | Type t -> Type (Type.of_const ~why t)
+  | Arrow { args; result } ->
+    Arrow
+      { args = List.map (of_const ~why) args; result = of_const ~why result }
+
+let of_type_jkind t : t = Type t
+
+module Primitive = struct
+  (* TODO jbachurski: Implement the top element for the jkind lattice *)
+  let top ~why = of_type_jkind (Type.Primitive.any ~why)
+end
+
+(******************************)
+(* construction *)
+(* Mostly wrapping implementations for Type jkinds *)
+
+let of_new_sort_var ~why =
+  let t, sort = Type.of_new_sort_var ~why in
+  of_type_jkind t, sort
+
+let of_new_sort ~why = Type.of_new_sort ~why |> of_type_jkind
+
+let rec to_const (t : t) : Const.t option =
+  match t with
+  | Type ty -> (
+    match Type.get ty with Const c -> Some (Type c) | Var _ -> None)
+  | Arrow { args; result } ->
+    let args = List.map to_const args in
+    let result = to_const result in
+    if List.for_all Option.is_some args && Option.is_some result
+    then
+      Some
+        (Arrow { args = List.map Option.get args; result = Option.get result })
+    else None
+
+let get_required_layouts_level context (const : Const.t) =
+  match const with
+  | Type ty -> Type.get_required_layouts_level context ty
+  | Arrow _ -> Language_extension.Alpha
+
+let const_of_user_written_annotation ~context Location.{ loc; txt = annot } =
+  let const = Const.of_user_written_annotation_unchecked_level annot in
+  let required_layouts_level = get_required_layouts_level context const in
+  if not (Language_extension.is_at_least Layouts required_layouts_level)
+  then
+    user_raise ~loc
+      (Insufficient_level { jkind = const; required_layouts_level })
+  else const
+
+type annotation = Const.t * Jane_syntax.Jkind.annotation
+
+let of_annotated_const ~context ~const ~const_loc =
+  of_const ~why:(Annotated (context, const_loc)) const
+
+let of_annotation ~context (annot : _ Location.loc) =
+  let const = const_of_user_written_annotation ~context annot in
+  let jkind = of_annotated_const ~const ~const_loc:annot.loc ~context in
+  jkind, (const, annot)
+
+let of_annotation_option_default ~default ~context =
+  Option.fold ~none:(default, None) ~some:(fun annot ->
+      let t, annot = of_annotation ~context annot in
+      t, Some annot)
+
+let of_attribute ~context
+    (attribute : Builtin_attributes.jkind_attribute Location.loc) =
+  let const = Const.of_attribute attribute.txt in
+  of_annotated_const ~context ~const ~const_loc:attribute.loc, const
+
+let of_type_decl ~context (decl : Parsetree.type_declaration) =
+  let jkind_of_annotation =
+    Jane_syntax.Layouts.of_type_declaration decl
+    |> Option.map (fun (annot, attrs) ->
+           let t, const = of_annotation ~context annot in
+           t, const, attrs)
+  in
+  let jkind_of_attribute =
+    Builtin_attributes.jkind decl.ptype_attributes
+    |> Option.map (fun attr ->
+           let t, const = of_attribute ~context attr in
+           (* This is a bit of a lie: the "annotation" here is being
+              forged based on the jkind attribute. But: the jkind
+              annotation is just used in printing/untypeast, and the
+              all strings valid to use as a jkind attribute are
+              valid (and equivalent) to write as an annotation, so
+              this lie is harmless.
+           *)
+           let annot =
+             Location.map
+               (fun attr ->
+                 let name = Builtin_attributes.jkind_attribute_to_string attr in
+                 Jane_syntax.Jkind.(Abbreviation (Const.mk name Location.none)))
+               attr
+           in
+           t, (const, annot), decl.ptype_attributes)
+  in
+  match jkind_of_annotation, jkind_of_attribute with
+  | None, None -> None
+  | (Some _ as x), None | None, (Some _ as x) -> x
+  | Some (_, (from_annotation, _), _), Some (_, (from_attribute, _), _) ->
+    user_raise ~loc:decl.ptype_loc
+      (Multiple_jkinds { from_annotation; from_attribute })
+
+let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
+  match of_type_decl ~context decl with
+  | Some (t, const, attrs) -> t, Some const, attrs
+  | None -> default, None, decl.ptype_attributes
+
+let[@inline never] to_type_jkind (t : t) =
+  match t with
+  | Type ty -> ty
+  | _ -> raise (Unexpected_higher_jkind "Coerced arrow to type jkind")
+
+(******************************)
+(* elimination and defaulting *)
+
+module Desc = struct
+  (** The description of a jkind, used as a return type from [get]. *)
+  type nonrec t =
+    | Type of Type.t
+    | Arrow of
+        { args : t list;
+          result : t
+        }
+end
+
+let rec default_all_sort_variables_to_value (t : t) =
+  match t with
+  | Type ty -> Type.default_to_value ty
+  | Arrow { args; result } ->
+    List.iter default_all_sort_variables_to_value args;
+    default_all_sort_variables_to_value result
+
+let get (t : t) : Desc.t =
+  match t with
+  | Type ty -> Type ty
+  | Arrow { args; result } -> Desc.Arrow { args; result }
+
+(*********************************)
+(* pretty printing *)
+
+let rec format ppf (jkind : t) =
+  match jkind with
+  | Type ty -> Type.format ppf ty
+  | Arrow { args; result } ->
+    Format.fprintf ppf "((%a) => %a)"
+      (Format.pp_print_list
+         ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
+         format)
+      args format result
+
+let format_history ~intro ppf (t : t) =
+  match t with
+  | Type ty -> Type.format_history ~intro ppf ty
+  | Arrow _ ->
+    (* TODO jbachurski: Implement history formatting for higher jkinds. *)
+    Format.fprintf ppf "%t (...??)" intro
+
+(******************************)
+(* errors *)
+
+module Violation = struct
+  open Format
+
+  type violation =
+    | Not_a_subjkind of t * t
+    | No_intersection of t * t
+    | No_union of t * t
+
+  type nonrec t =
+    { violation : violation;
+      missing_cmi : Path.t option
+    }
+  (* [missing_cmi]: is this error a result of a missing cmi file?
+     This is stored separately from the [violation] because it's
+     used to change the behavior of [value_kind], and we don't
+     want that function to inspect something that is purely about
+     the choice of error message. (Though the [Path.t] payload *is*
+     indeed just about the payload.) *)
+
+  let of_ ?missing_cmi violation = { violation; missing_cmi }
+
+  let rec any_missing_cmi (t : _ Jkind_types.t) =
+    match t with
+    | Type { history; _ } -> (
+      match history with
+      | Creation (Missing_cmi p) -> Some p
+      | Creation (Any_creation (Missing_cmi p)) -> Some p
+      | _ -> None)
+    | Arrow { args; result } -> List.find_map any_missing_cmi (result :: args)
+
+  let is_missing_cmi viol = Option.is_some viol.missing_cmi
+
+  let report_general_type_jkind preamble pp_former former ppf t =
+    let subjkind_format verb l2 =
+      match to_const l2 with
+      | None -> dprintf "%s representable" verb
+      | Some _ -> dprintf "%s a sublayout of %a" verb format l2
+    in
+    let l1, l2, fmt_l1, fmt_l2, missing_cmi_option =
+      match t with
+      | { violation = Not_a_subjkind (l1, l2); missing_cmi } -> (
+        let missing_cmi =
+          match missing_cmi with
+          | None -> any_missing_cmi l1
+          | Some _ -> missing_cmi
+        in
+        match missing_cmi with
+        | None ->
+          ( l1,
+            l2,
+            dprintf "layout %a" format l1,
+            subjkind_format "is not" l2,
+            None )
+        | Some p ->
+          ( l1,
+            l2,
+            dprintf "an unknown layout",
+            subjkind_format "might not be" l2,
+            Some p ))
+      | { violation = No_intersection (l1, l2); missing_cmi } ->
+        assert (Option.is_none missing_cmi);
+        ( l1,
+          l2,
+          dprintf "layout %a" format l1,
+          dprintf "does not overlap with %a" format l2,
+          None )
+      | { violation = No_union (l1, l2); missing_cmi } ->
+        assert (Option.is_none missing_cmi);
+        ( l1,
+          l2,
+          dprintf "layout %a" format l1,
+          dprintf "cannot be summed with %a" format l2,
+          None )
+    in
+    if Type.display_histories
+    then
+      let connective =
+        match t.violation, to_const l2 with
+        | Not_a_subjkind _, Some _ -> dprintf "be a sublayout of %a" format l2
+        | No_intersection _, Some _ -> dprintf "overlap with %a" format l2
+        | No_union _, Some _ -> dprintf "sum with %a" format l2
+        | _, None -> dprintf "be representable"
+      in
+      fprintf ppf "@[<v>%a@;%a@]"
+        (format_history
+           ~intro:(dprintf "The layout of %a is %a" pp_former former format l1))
+        l1
+        (format_history
+           ~intro:
+             (dprintf "But the layout of %a must %t" pp_former former connective))
+        l2
+    else
+      fprintf ppf "@[<hov 2>%s%a has %t,@ which %t.@]" preamble pp_former former
+        fmt_l1 fmt_l2;
+    Type.report_missing_cmi ppf missing_cmi_option
+
+  let report_general preamble pp_former former ppf t =
+    try report_general_type_jkind preamble pp_former former ppf t
+    with Match_failure _ -> fprintf ppf "((arrow violation))"
+
+  let pp_t ppf x = fprintf ppf "%t" x
+
+  let report_with_offender ~offender = report_general "" pp_t offender
+
+  let report_with_offender_sort ~offender =
+    report_general "A representable layout was expected, but " pp_t offender
+
+  let report_with_name ~name = report_general "" pp_print_string name
+end
+
+(******************************)
+(* relations *)
+
+let rec equate_or_equal ~allow_mutation (t : t) (t' : t) =
+  match t, t' with
+  | Type ty, Type ty' -> Type.equate_or_equal ~allow_mutation ty ty'
+  | ( Arrow { args = args1; result = result1 },
+      Arrow { args = args2; result = result2 } ) ->
+    equate_or_equal ~allow_mutation result1 result2
+    && List.for_all2 (equate_or_equal ~allow_mutation) args1 args2
+  | Type _, Arrow _ | Arrow _, Type _ -> false
+
+let equate = equate_or_equal ~allow_mutation:true
+
+(* This mirrors the choice for Jkind.Type, following the note:
+   (layouts v2.8) allow_mutation is to be set to false *)
+let equal = equate_or_equal ~allow_mutation:true
+
+(* TODO jbachurski: This helper is redundant once histories
+   are properly tracked on higher kinds. *)
+let combining_type_jkinds ~reason (ty1 : Type.t) (ty2 : Type.t) jkind : t =
+  Type
+    { jkind;
+      history = Type.combine_histories reason ty1 ty2;
+      has_warned = ty1.has_warned || ty2.has_warned
+    }
+
+let rec combine_list_or_error ~violation combine ts1 ts2 =
+  let ( let* ) = Result.bind in
+  match ts1, ts2 with
+  | [], [] -> Ok []
+  | t1 :: ts1, t2 :: ts2 ->
+    (* TODO jbachurski: Should errors be collected here
+       rather than picking first? *)
+    let* t = combine t1 t2 in
+    let* ts = combine_list_or_error ~violation combine ts1 ts2 in
+    Ok (t :: ts)
+  | [], _ :: _ | _ :: _, [] -> Error violation
+
+let rec intersection_or_error ~reason (t1 : t) (t2 : t) : (t, _) result =
+  let ( let* ) = Result.bind in
+  let violation = Violation.of_ (No_intersection (t1, t2)) in
+  match t1, t2 with
+  | Type ty1, Type ty2 ->
+    Type.Jkind_desc.intersection ty1.jkind ty2.jkind
+    |> Option.map (combining_type_jkinds ~reason ty1 ty2)
+    |> Option.to_result ~none:violation
+  | ( Arrow { args = args1; result = result1 },
+      Arrow { args = args2; result = result2 } ) ->
+    let* args = union_list_or_error ~reason ~violation args1 args2 in
+    let* result = intersection_or_error ~reason result1 result2 in
+    Ok (Arrow { args; result } : t)
+  | Type _, Arrow _ | Arrow _, Type _ -> Error violation
+
+and union_or_error ~reason (t1 : t) (t2 : t) =
+  let ( let* ) = Result.bind in
+  let violation = Violation.of_ (No_union (t1, t2)) in
+  match t1, t2 with
+  | Type ty1, Type ty2 ->
+    (* Union is infallible at type jkinds *)
+    Type.Jkind_desc.union ty1.jkind ty2.jkind
+    |> combining_type_jkinds ~reason ty1 ty2
+    |> Result.ok
+  | ( Arrow { args = args1; result = result1 },
+      Arrow { args = args2; result = result2 } ) ->
+    let* args = intersection_list_or_error ~reason ~violation args1 args2 in
+    let* result = union_or_error ~reason result1 result2 in
+    Ok (Arrow { args; result } : t)
+  | Type _, Arrow _ | Arrow _, Type _ -> Error violation
+
+and intersection_list_or_error ~reason ~violation =
+  combine_list_or_error ~violation (intersection_or_error ~reason)
+
+and union_list_or_error ~reason ~violation =
+  combine_list_or_error ~violation (union_or_error ~reason)
+
+let has_intersection t t' =
+  Result.is_ok
+    (intersection_or_error
+     (* This reason is just used as a dummy for the test *)
+       ~reason:Type.History.Subjkind t t')
+
+let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
+  match t, t' with
+  | Type ty, Type ty' -> Type.check_sub ty ty'
+  | ( Arrow { args = args1; result = result1 },
+      Arrow { args = args2; result = result2 } ) ->
+    Misc.Le_result.combine
+      (check_sub result1 result2)
+      (check_sub_list args2 args1)
+  | Type _, Arrow _ | Arrow _, Type _ -> Misc.Le_result.Not_le
+
+and check_sub_list ts ts' =
+  if List.length ts <> List.length ts'
+  then Misc.Le_result.Not_le
+  else Misc.Le_result.combine_list (List.map2 check_sub ts ts')
+
+let sub t t' = Misc.Le_result.is_le (check_sub t t')
+
+let sub_or_error t t' =
+  if sub t t' then Ok () else Error (Violation.of_ (Not_a_subjkind (t, t')))
+
+let sub_with_history (t : t) (t' : t) =
+  if sub t t'
+  then
+    match t, t' with
+    | Type ty, Type ty' ->
+      Ok (Type { ty with history = Type.combine_histories Subjkind ty ty' } : t)
+    (* FIXME jbachurski: Is there a sensible way to combine histories here? *)
+    | _ -> Ok t
+  else Error (Violation.of_ (Not_a_subjkind (t, t')))
+
+(* This doesn't do any mutation because mutating a sort variable can't make it
+   any, and modal upper bounds are constant. *)
+(* TODO jbachurski: Until the Top jkind is implemented, no jkind is max *)
+(* let is_max jkind = sub (Type Type.Primitive.any_dummy_jkind) jkind *)
+let is_max _jkind = false
+
+let has_layout_any (jkind : t) =
+  match jkind with
+  | Type ty -> ( match ty.jkind.layout with Any -> true | _ -> false)
+  | _ -> false
+
+(*********************************)
+(* debugging *)
+
+module Debug_printers = struct
+  let rec t ppf (jkind : t) : unit =
+    match jkind with
+    | Type ty -> Format.fprintf ppf "Type %a" Type.Debug_printers.t ty
+    | Arrow { args; result } ->
+      Format.fprintf ppf "Arrow { args = [%a];@ result = %a }"
+        (Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf "; ") t)
+        args t result
 
   (*** formatting user errors ***)
   let report_error ~loc : Error.t -> _ = function
-    | Arrow_not_implemented ->
-      Location.errorf ~loc
-        "Arrow jkind (=>) syntax parsed, but annotations are not implemented"
     | Unknown_jkind jkind ->
       Location.errorf ~loc
         (* CR layouts v2.9: use the context to produce a better error message.
@@ -1796,39 +2107,4 @@ module Type = struct
     Location.register_error_of_exn (function
       | Error.User_error (loc, err) -> Some (report_error ~loc err)
       | _ -> None)
-
-  (* CR layouts v2.8: Remove the definitions below by propagating changes
-     outside of this file. *)
-
-  type annotation = Const.t * Jane_syntax.Jkind.annotation
-
-  let default_to_value_and_get t = default_to_value_and_get t
 end
-
-include Type
-module Violation = Type.Violation
-
-module Const = struct
-  include Type.Const
-
-  let of_type_jkind t = t
-end
-
-module Primitive = struct
-  include Type.Primitive
-
-  let top ~(why : Type.History.top_creation_reason) =
-    match why with
-    | Missing_cmi p -> any ~why:(Missing_cmi p)
-    | Initial_typedecl_env -> any ~why:Initial_typedecl_env
-    | Dummy_jkind -> any ~why:Dummy_jkind
-    | Type_expression_call -> any ~why:Type_expression_call
-    | Wildcard -> any ~why:Wildcard
-    | Unification_var -> any ~why:Unification_var
-end
-
-let to_const _ = None
-
-let to_type_jkind t = t
-
-let of_type_jkind t = t

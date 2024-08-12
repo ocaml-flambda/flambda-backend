@@ -397,9 +397,21 @@ module Type = struct
   type 'type_expr annotation = 'type_expr const * Jane_syntax.Jkind.annotation
 end
 
-type 'type_expr t = 'type_expr Type.t
+type 'type_expr t =
+  | Type of 'type_expr Type.t
+  | Arrow of
+      { args : 'type_expr t list;
+        result : 'type_expr t
+      }
 
-module Const = Type.Const
+module Const = struct
+  type 'type_expr t =
+    | Type of 'type_expr Type.Const.t
+    | Arrow of
+        { args : 'type_expr t list;
+          result : 'type_expr t
+        }
+end
 
 type 'type_expr const = 'type_expr Const.t
 

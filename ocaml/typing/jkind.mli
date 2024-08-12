@@ -259,6 +259,10 @@ module Type : sig
   (******************************)
   (* elimination and defaulting *)
 
+  (** Returns the sort corresponding to the jkind.  Call only on representable
+    jkinds - raises on Any. *)
+  val sort_of_jkind : t -> sort
+
   module Desc : sig
     (** The description of a jkind, used as a return type from [get]. *)
     type t =
@@ -345,7 +349,7 @@ end
 
 module Primitive : sig
   (** Top element of the jkind lattice, including higher jkinds *)
-  val top : why:Type.History.top_creation_reason -> t
+  val top : why:Type.History.any_creation_reason -> t
 end
 
 (******************************)
@@ -422,19 +426,16 @@ val of_type_jkind : Type.t -> t
 
 module Desc : sig
   (** The description of a jkind, used as a return type from [get]. *)
-  type nonrec t = Type.Desc.t
+  type nonrec t =
+    | Type of Type.t
+    | Arrow of
+        { args : t list;
+          result : t
+        }
 end
 
-(** [default_to_value_and_get] extracts the jkind as a `const`.  If it's a sort
-    variable, it is set to [value] first. *)
-val default_to_value_and_get : t -> Const.t
-
-(** [default_to_value t] is [ignore (default_to_value_and_get t)] *)
-val default_to_value : t -> unit
-
-(** Returns the sort corresponding to the jkind.  Call only on representable
-    jkinds - raises on Any. *)
-val sort_of_jkind : Type.t -> Type.sort
+(** Defaults all sort variables within the [Jkind.t] to value *)
+val default_all_sort_variables_to_value : t -> unit
 
 (** Extract the [const] from a [Jkind.Type.t], looking through unified
     sort variables. Returns [Var] if the final, non-variable jkind has not
@@ -465,6 +466,7 @@ module Violation : sig
   type violation =
     | Not_a_subjkind of t * t
     | No_intersection of t * t
+    | No_union of t * t
 
   type t
 
