@@ -255,8 +255,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   in
   let abstract_source, type_manifest =
     match sdecl.ptype_manifest, abstract_abbrevs with
-    | None, _             -> Definition, None
-    | Some _, None        -> Definition, Some (Ctype.newvar type_jkind)
+    | None, _ | Some _, None -> Definition, Some (Ctype.newvar type_jkind)
     | Some _, Some reason -> reason, None
 in
   let type_params =
