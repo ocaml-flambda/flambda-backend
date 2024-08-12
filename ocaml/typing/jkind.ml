@@ -2347,7 +2347,7 @@ let score_reason = function
   (* error_message annotated by the user should always take priority *)
   | Creation (Annotated (With_error_message _, _)) -> 1
   (* Concrete creation is quite vague, prefer more specific reasons *)
-  | Creation (Concrete_creation _) -> -1
+  | Creation (Concrete_creation _ | Concrete_legacy_creation _) -> -1
   | _ -> 0
 
 let combine_histories reason lhs rhs =
