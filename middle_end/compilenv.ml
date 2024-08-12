@@ -160,6 +160,7 @@ let get_unit_info comp_unit =
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
             cache_zero_alloc_info ui.ui_zero_alloc_info;
+            Less_tco_info.Global_state.add_to_cache ui.ui_less_tco_info;
             (Some ui, Some crc)
           with Not_found ->
             let warn = Warnings.No_cmx_file (cmx_name |> CU.Name.to_string) in

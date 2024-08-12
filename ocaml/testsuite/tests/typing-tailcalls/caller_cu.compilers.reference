@@ -1,0 +1,13 @@
+File "caller_cu.ml", line 10, characters 20-37:
+10 | let calls_foo n k = Called_cu.foo n k
+                         ^^^^^^^^^^^^^^^^^
+Warning 186 [inferred-nontail-in-tcod-cycle]: This function
+call was inferred as nontail, but it may participate in a
+cycle of TCO'd tail calls, which could overflow the stack at
+runtime. Consider marking the function call with [@tail].
+
+Here is one such cycle:
+
+    file "caller_cu.ml", line 10, characters 20-37: calls (in inferred nontail position)
+ -> <unknown target>
+
