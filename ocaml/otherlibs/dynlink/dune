@@ -105,6 +105,7 @@
     subst
     predef
     datarepr
+    unit_info
     cmi_format
     persistent_env
     env
@@ -207,6 +208,7 @@
 (copy_files ../../typing/subst.ml)
 (copy_files ../../typing/predef.ml)
 (copy_files ../../typing/datarepr.ml)
+(copy_files ../../parsing/unit_info.ml)
 (copy_files ../../typing/typedtree.ml)
 (copy_files ../../file_formats/cmi_format.ml)
 (copy_files ../../typing/persistent_env.ml)
@@ -278,6 +280,7 @@
 (copy_files ../../typing/subst.mli)
 (copy_files ../../typing/predef.mli)
 (copy_files ../../typing/datarepr.mli)
+(copy_files ../../typing/unit_info.mli)
 (copy_files ../../typing/typedtree.mli)
 (copy_files ../../typing/value_rec_types.mli)
 (copy_files ../../file_formats/cmi_format.mli)
@@ -399,6 +402,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Consistbl.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Shape.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Datarepr.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Unit_info.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Persistent_env.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Predef.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Env.cmo
@@ -483,7 +487,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debuginfo.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Consistbl.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Shape.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Datarepr.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Unit_info.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Persistent_env.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Predef.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Env.cmx
