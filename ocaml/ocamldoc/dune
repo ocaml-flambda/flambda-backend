@@ -12,198 +12,199 @@
 ;*                                                                        *
 ;**************************************************************************
 
-(ocamllex  odoc_lexer odoc_ocamlhtml odoc_see_lexer odoc_text_lexer)
-(ocamlyacc odoc_parser odoc_text_parser)
-
-; Need to work out what's going on with odoc_info, which has a .cmxa in
-; the Makefile build.
-
-(library
-  (name odoc_lib)
-  (modes byte native)
-  (wrapped false)
-  (flags (:standard -w -9-32))
-  (modules
-    odoc_analyse
-    odoc_args
-    odoc_ast
-    odoc_class
-    odoc_comments
-    odoc_comments_global
-    odoc_config
-    odoc_cross
-    odoc_dag2html
-    odoc_dep
-    odoc_dot
-    odoc_env
-    odoc_exception
-    odoc_extension
-    odoc_gen
-    odoc_global
-    odoc_html
-    odoc_info
-    odoc_latex
-    odoc_latex_style
-    odoc_lexer
-    odoc_man
-    odoc_merge
-    odoc_messages
-    odoc_misc
-    odoc_module
-    odoc_name
-    odoc_ocamlhtml
-    odoc_parameter
-    odoc_parser
-    odoc_print
-    odoc_scan
-    odoc_search
-    odoc_see_lexer
-    odoc_sig
-    odoc_str
-    odoc_test
-    odoc_texi
-    odoc_text
-    odoc_text_lexer
-    odoc_text_parser
-    odoc_to_text
-    odoc_type
-    odoc_types
-    odoc_value
-  )
-  (libraries dynlink_internal ocamlcommon str unix))
-
-(executable
-  (name odoc_byte)
-  (modes byte)
-  ; See note in the toplevel dune file about this.
-  (flags (:standard -cclib "-L ../runtime4" -cclib -lcamlrun))
-  (modules odoc_byte)
-  (libraries odoc_lib))
-
-(rule
-  (targets odoc_byte.ml)
-  (action (copy odoc.ml %{targets})))
-
-(executable
-  (name odoc_native)
-  (modes native)
-  (modules odoc_native)
-  (libraries odoc_lib dynlink_internal))
-
-(rule
-  (targets odoc_native.ml)
-  (action (copy odoc.ml %{targets})))
-
-(install
-  (files
-    (odoc_byte.bc as ocamldoc.byte)
-    (odoc_native.exe as ocamldoc.opt))
-  (section bin)
-  (package ocaml))
-
+; (ocamllex  odoc_lexer odoc_ocamlhtml odoc_see_lexer odoc_text_lexer)
+; (ocamlyacc odoc_parser odoc_text_parser)
+; 
+; ; Need to work out what's going on with odoc_info, which has a .cmxa in
+; ; the Makefile build.
+; 
+; (library
+;   (name odoc_lib)
+;   (modes byte native)
+;   (wrapped false)
+;   (flags (:standard -w -9-32))
+;   (modules
+;     odoc_analyse
+;     odoc_args
+;     odoc_ast
+;     odoc_class
+;     odoc_comments
+;     odoc_comments_global
+;     odoc_config
+;     odoc_cross
+;     odoc_dag2html
+;     odoc_dep
+;     odoc_dot
+;     odoc_env
+;     odoc_exception
+;     odoc_extension
+;     odoc_gen
+;     odoc_global
+;     odoc_html
+;     odoc_info
+;     odoc_latex
+;     odoc_latex_style
+;     odoc_lexer
+;     odoc_man
+;     odoc_merge
+;     odoc_messages
+;     odoc_misc
+;     odoc_module
+;     odoc_name
+;     odoc_ocamlhtml
+;     odoc_parameter
+;     odoc_parser
+;     odoc_print
+;     odoc_scan
+;     odoc_search
+;     odoc_see_lexer
+;     odoc_sig
+;     odoc_str
+;     odoc_test
+;     odoc_texi
+;     odoc_text
+;     odoc_text_lexer
+;     odoc_text_parser
+;     odoc_to_text
+;     odoc_type
+;     odoc_types
+;     odoc_value
+;   )
+;   (libraries dynlink_internal ocamlcommon str unix))
+; 
+; (executable
+;   (name odoc_byte)
+;   (modes byte)
+;   ; See note in the toplevel dune file about this.
+;   (flags (:standard -cclib "-L ../runtime4" -cclib -lcamlrun))
+;   (modules odoc_byte)
+;   (libraries odoc_lib))
+; 
+; (rule
+;   (targets odoc_byte.ml)
+;   (action (copy odoc.ml %{targets})))
+; 
+; (executable
+;   (name odoc_native)
+;   (modes native)
+;   (modules odoc_native)
+;   (libraries odoc_lib dynlink_internal))
+; 
+; (rule
+;   (targets odoc_native.ml)
+;   (action (copy odoc.ml %{targets})))
+; 
 ; (install
 ;   (files
-; ;    (.odoc_byte.eobjs/byte/odoc.cmi as ocamldoc/odoc.cmi)
-;
-;     (.odoc_lib.objs/byte/odoc_analyse.cmi as ocamldoc/odoc_analyse.cmi)
-;     (.odoc_lib.objs/byte/odoc_args.cmi as ocamldoc/odoc_args.cmi)
-;     (.odoc_lib.objs/byte/odoc_ast.cmi as ocamldoc/odoc_ast.cmi)
-;     (.odoc_lib.objs/byte/odoc_class.cmi as ocamldoc/odoc_class.cmi)
-;     (.odoc_lib.objs/byte/odoc_comments.cmi as ocamldoc/odoc_comments.cmi)
-;     (.odoc_lib.objs/byte/odoc_comments_global.cmi as ocamldoc/odoc_comments_global.cmi)
-;     (.odoc_lib.objs/byte/odoc_config.cmi as ocamldoc/odoc_config.cmi)
-;     (.odoc_lib.objs/byte/odoc_control.cmi as ocamldoc/odoc_control.cmi)
-;     (.odoc_lib.objs/byte/odoc_cross.cmi as ocamldoc/odoc_cross.cmi)
-;     (.odoc_lib.objs/byte/odoc_dag2html.cmi as ocamldoc/odoc_dag2html.cmi)
-;     (.odoc_lib.objs/byte/odoc_dep.cmi as ocamldoc/odoc_dep.cmi)
-;     (.odoc_lib.objs/byte/odoc_dot.cmi as ocamldoc/odoc_dot.cmi)
-;     (.odoc_lib.objs/byte/odoc_env.cmi as ocamldoc/odoc_env.cmi)
-;     (.odoc_lib.objs/byte/odoc_exception.cmi as ocamldoc/odoc_exception.cmi)
-;     (.odoc_lib.objs/byte/odoc_extension.cmi as ocamldoc/odoc_extension.cmi)
-;     (.odoc_lib.objs/byte/odoc_gen.cmi as ocamldoc/odoc_gen.cmi)
-;     (.odoc_lib.objs/byte/odoc_global.cmi as ocamldoc/odoc_global.cmi)
-;     (.odoc_lib.objs/byte/odoc_html.cmi as ocamldoc/odoc_html.cmi)
-;     (.odoc_lib.objs/byte/odoc_info.cmi as ocamldoc/odoc_info.cmi)
-;     (.odoc_lib.objs/byte/odoc_inherit.cmi as ocamldoc/odoc_inherit.cmi)
-;     (.odoc_lib.objs/byte/odoc_latex.cmi as ocamldoc/odoc_latex.cmi)
-;     (.odoc_lib.objs/byte/odoc_latex_style.cmi as ocamldoc/odoc_latex_style.cmi)
-;     (.odoc_lib.objs/byte/odoc_lexer.cmi as ocamldoc/odoc_lexer.cmi)
-;     (.odoc_lib.objs/byte/odoc_man.cmi as ocamldoc/odoc_man.cmi)
-;     (.odoc_lib.objs/byte/odoc_merge.cmi as ocamldoc/odoc_merge.cmi)
-;     (.odoc_lib.objs/byte/odoc_messages.cmi as ocamldoc/odoc_messages.cmi)
-;     (.odoc_lib.objs/byte/odoc_misc.cmi as ocamldoc/odoc_misc.cmi)
-;     (.odoc_lib.objs/byte/odoc_module.cmi as ocamldoc/odoc_module.cmi)
-;     (.odoc_lib.objs/byte/odoc_name.cmi as ocamldoc/odoc_name.cmi)
-;     (.odoc_lib.objs/byte/odoc_ocamlhtml.cmi as ocamldoc/odoc_ocamlhtml.cmi)
-;     (.odoc_lib.objs/byte/odoc_parameter.cmi as ocamldoc/odoc_parameter.cmi)
-;     (.odoc_lib.objs/byte/odoc_parser.cmi as ocamldoc/odoc_parser.cmi)
-;     (.odoc_lib.objs/byte/odoc_print.cmi as ocamldoc/odoc_print.cmi)
-;     (.odoc_lib.objs/byte/odoc_scan.cmi as ocamldoc/odoc_scan.cmi)
-;     (.odoc_lib.objs/byte/odoc_search.cmi as ocamldoc/odoc_search.cmi)
-;     (.odoc_lib.objs/byte/odoc_see_lexer.cmi as ocamldoc/odoc_see_lexer.cmi)
-;     (.odoc_lib.objs/byte/odoc_sig.cmi as ocamldoc/odoc_sig.cmi)
-;     (.odoc_lib.objs/byte/odoc_str.cmi as ocamldoc/odoc_str.cmi)
-;     (.odoc_lib.objs/byte/odoc_test.cmi as ocamldoc/odoc_test.cmi)
-;     (.odoc_lib.objs/byte/odoc_texi.cmi as ocamldoc/odoc_texi.cmi)
-;     (.odoc_lib.objs/byte/odoc_text.cmi as ocamldoc/odoc_text.cmi)
-;     (.odoc_lib.objs/byte/odoc_text_lexer.cmi as ocamldoc/odoc_text_lexer.cmi)
-;     (.odoc_lib.objs/byte/odoc_text_parser.cmi as ocamldoc/odoc_text_parser.cmi)
-;     (.odoc_lib.objs/byte/odoc_to_text.cmi as ocamldoc/odoc_to_text.cmi)
-;     (.odoc_lib.objs/byte/odoc_type.cmi as ocamldoc/odoc_type.cmi)
-;     (.odoc_lib.objs/byte/odoc_types.cmi as ocamldoc/odoc_types.cmi)
-;     (.odoc_lib.objs/byte/odoc_value.cmi as ocamldoc/odoc_value.cmi)
-;
-; ; Can't do this as the .ml file is called odoc_native.ml
-; ;    (.odoc_native.eobjs/native/odoc.cmx as ocamldoc/odoc.cmx)
-;
-;     (.odoc_lib.objs/native/odoc_analyse.cmx as ocamldoc/odoc_analyse.cmx)
-;     (.odoc_lib.objs/native/odoc_args.cmx as ocamldoc/odoc_args.cmx)
-;     (.odoc_lib.objs/native/odoc_ast.cmx as ocamldoc/odoc_ast.cmx)
-;     (.odoc_lib.objs/native/odoc_class.cmx as ocamldoc/odoc_class.cmx)
-;     (.odoc_lib.objs/native/odoc_comments.cmx as ocamldoc/odoc_comments.cmx)
-;     (.odoc_lib.objs/native/odoc_comments_global.cmx as ocamldoc/odoc_comments_global.cmx)
-;     (.odoc_lib.objs/native/odoc_config.cmx as ocamldoc/odoc_config.cmx)
-;     (.odoc_lib.objs/native/odoc_control.cmx as ocamldoc/odoc_control.cmx)
-;     (.odoc_lib.objs/native/odoc_cross.cmx as ocamldoc/odoc_cross.cmx)
-;     (.odoc_lib.objs/native/odoc_dag2html.cmx as ocamldoc/odoc_dag2html.cmx)
-;     (.odoc_lib.objs/native/odoc_dep.cmx as ocamldoc/odoc_dep.cmx)
-;     (.odoc_lib.objs/native/odoc_dot.cmx as ocamldoc/odoc_dot.cmx)
-;     (.odoc_lib.objs/native/odoc_env.cmx as ocamldoc/odoc_env.cmx)
-;     (.odoc_lib.objs/native/odoc_exception.cmx as ocamldoc/odoc_exception.cmx)
-;     (.odoc_lib.objs/native/odoc_extension.cmx as ocamldoc/odoc_extension.cmx)
-;     (.odoc_lib.objs/native/odoc_gen.cmx as ocamldoc/odoc_gen.cmx)
-;     (.odoc_lib.objs/native/odoc_global.cmx as ocamldoc/odoc_global.cmx)
-;     (.odoc_lib.objs/native/odoc_html.cmx as ocamldoc/odoc_html.cmx)
-;     (.odoc_lib.objs/native/odoc_info.cmx as ocamldoc/odoc_info.cmx)
-; ;    (.odoc_lib.objs/native/odoc_info.cmxa as ocamldoc/odoc_info.cmxa)
-;     (.odoc_lib.objs/native/odoc_inherit.cmx as ocamldoc/odoc_inherit.cmx)
-;     (.odoc_lib.objs/native/odoc_latex.cmx as ocamldoc/odoc_latex.cmx)
-;     (.odoc_lib.objs/native/odoc_latex_style.cmx as ocamldoc/odoc_latex_style.cmx)
-;     (.odoc_lib.objs/native/odoc_lexer.cmx as ocamldoc/odoc_lexer.cmx)
-;     (.odoc_lib.objs/native/odoc_man.cmx as ocamldoc/odoc_man.cmx)
-;     (.odoc_lib.objs/native/odoc_merge.cmx as ocamldoc/odoc_merge.cmx)
-;     (.odoc_lib.objs/native/odoc_messages.cmx as ocamldoc/odoc_messages.cmx)
-;     (.odoc_lib.objs/native/odoc_misc.cmx as ocamldoc/odoc_misc.cmx)
-;     (.odoc_lib.objs/native/odoc_module.cmx as ocamldoc/odoc_module.cmx)
-;     (.odoc_lib.objs/native/odoc_name.cmx as ocamldoc/odoc_name.cmx)
-;     (.odoc_lib.objs/native/odoc_ocamlhtml.cmx as ocamldoc/odoc_ocamlhtml.cmx)
-;     (.odoc_lib.objs/native/odoc_parameter.cmx as ocamldoc/odoc_parameter.cmx)
-;     (.odoc_lib.objs/native/odoc_parser.cmx as ocamldoc/odoc_parser.cmx)
-;     (.odoc_lib.objs/native/odoc_print.cmx as ocamldoc/odoc_print.cmx)
-;     (.odoc_lib.objs/native/odoc_scan.cmx as ocamldoc/odoc_scan.cmx)
-;     (.odoc_lib.objs/native/odoc_search.cmx as ocamldoc/odoc_search.cmx)
-;     (.odoc_lib.objs/native/odoc_see_lexer.cmx as ocamldoc/odoc_see_lexer.cmx)
-;     (.odoc_lib.objs/native/odoc_sig.cmx as ocamldoc/odoc_sig.cmx)
-;     (.odoc_lib.objs/native/odoc_str.cmx as ocamldoc/odoc_str.cmx)
-;     (.odoc_lib.objs/native/odoc_texi.cmx as ocamldoc/odoc_texi.cmx)
-;     (.odoc_lib.objs/native/odoc_text.cmx as ocamldoc/odoc_text.cmx)
-;     (.odoc_lib.objs/native/odoc_text_lexer.cmx as ocamldoc/odoc_text_lexer.cmx)
-;     (.odoc_lib.objs/native/odoc_text_parser.cmx as ocamldoc/odoc_text_parser.cmx)
-;     (.odoc_lib.objs/native/odoc_to_text.cmx as ocamldoc/odoc_to_text.cmx)
-;     (.odoc_lib.objs/native/odoc_type.cmx as ocamldoc/odoc_type.cmx)
-;     (.odoc_lib.objs/native/odoc_types.cmx as ocamldoc/odoc_types.cmx)
-;     (.odoc_lib.objs/native/odoc_value.cmx as ocamldoc/odoc_value.cmx)
-;   )
-;   (section lib)
+;     (odoc_byte.bc as ocamldoc.byte)
+;     (odoc_native.exe as ocamldoc.opt))
+;   (section bin)
 ;   (package ocaml))
-;
+; 
+; ; (install
+; ;   (files
+; ; ;    (.odoc_byte.eobjs/byte/odoc.cmi as ocamldoc/odoc.cmi)
+; ;
+; ;     (.odoc_lib.objs/byte/odoc_analyse.cmi as ocamldoc/odoc_analyse.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_args.cmi as ocamldoc/odoc_args.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_ast.cmi as ocamldoc/odoc_ast.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_class.cmi as ocamldoc/odoc_class.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_comments.cmi as ocamldoc/odoc_comments.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_comments_global.cmi as ocamldoc/odoc_comments_global.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_config.cmi as ocamldoc/odoc_config.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_control.cmi as ocamldoc/odoc_control.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_cross.cmi as ocamldoc/odoc_cross.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_dag2html.cmi as ocamldoc/odoc_dag2html.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_dep.cmi as ocamldoc/odoc_dep.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_dot.cmi as ocamldoc/odoc_dot.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_env.cmi as ocamldoc/odoc_env.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_exception.cmi as ocamldoc/odoc_exception.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_extension.cmi as ocamldoc/odoc_extension.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_gen.cmi as ocamldoc/odoc_gen.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_global.cmi as ocamldoc/odoc_global.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_html.cmi as ocamldoc/odoc_html.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_info.cmi as ocamldoc/odoc_info.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_inherit.cmi as ocamldoc/odoc_inherit.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_latex.cmi as ocamldoc/odoc_latex.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_latex_style.cmi as ocamldoc/odoc_latex_style.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_lexer.cmi as ocamldoc/odoc_lexer.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_man.cmi as ocamldoc/odoc_man.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_merge.cmi as ocamldoc/odoc_merge.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_messages.cmi as ocamldoc/odoc_messages.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_misc.cmi as ocamldoc/odoc_misc.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_module.cmi as ocamldoc/odoc_module.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_name.cmi as ocamldoc/odoc_name.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_ocamlhtml.cmi as ocamldoc/odoc_ocamlhtml.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_parameter.cmi as ocamldoc/odoc_parameter.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_parser.cmi as ocamldoc/odoc_parser.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_print.cmi as ocamldoc/odoc_print.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_scan.cmi as ocamldoc/odoc_scan.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_search.cmi as ocamldoc/odoc_search.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_see_lexer.cmi as ocamldoc/odoc_see_lexer.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_sig.cmi as ocamldoc/odoc_sig.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_str.cmi as ocamldoc/odoc_str.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_test.cmi as ocamldoc/odoc_test.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_texi.cmi as ocamldoc/odoc_texi.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_text.cmi as ocamldoc/odoc_text.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_text_lexer.cmi as ocamldoc/odoc_text_lexer.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_text_parser.cmi as ocamldoc/odoc_text_parser.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_to_text.cmi as ocamldoc/odoc_to_text.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_type.cmi as ocamldoc/odoc_type.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_types.cmi as ocamldoc/odoc_types.cmi)
+; ;     (.odoc_lib.objs/byte/odoc_value.cmi as ocamldoc/odoc_value.cmi)
+; ;
+; ; ; Can't do this as the .ml file is called odoc_native.ml
+; ; ;    (.odoc_native.eobjs/native/odoc.cmx as ocamldoc/odoc.cmx)
+; ;
+; ;     (.odoc_lib.objs/native/odoc_analyse.cmx as ocamldoc/odoc_analyse.cmx)
+; ;     (.odoc_lib.objs/native/odoc_args.cmx as ocamldoc/odoc_args.cmx)
+; ;     (.odoc_lib.objs/native/odoc_ast.cmx as ocamldoc/odoc_ast.cmx)
+; ;     (.odoc_lib.objs/native/odoc_class.cmx as ocamldoc/odoc_class.cmx)
+; ;     (.odoc_lib.objs/native/odoc_comments.cmx as ocamldoc/odoc_comments.cmx)
+; ;     (.odoc_lib.objs/native/odoc_comments_global.cmx as ocamldoc/odoc_comments_global.cmx)
+; ;     (.odoc_lib.objs/native/odoc_config.cmx as ocamldoc/odoc_config.cmx)
+; ;     (.odoc_lib.objs/native/odoc_control.cmx as ocamldoc/odoc_control.cmx)
+; ;     (.odoc_lib.objs/native/odoc_cross.cmx as ocamldoc/odoc_cross.cmx)
+; ;     (.odoc_lib.objs/native/odoc_dag2html.cmx as ocamldoc/odoc_dag2html.cmx)
+; ;     (.odoc_lib.objs/native/odoc_dep.cmx as ocamldoc/odoc_dep.cmx)
+; ;     (.odoc_lib.objs/native/odoc_dot.cmx as ocamldoc/odoc_dot.cmx)
+; ;     (.odoc_lib.objs/native/odoc_env.cmx as ocamldoc/odoc_env.cmx)
+; ;     (.odoc_lib.objs/native/odoc_exception.cmx as ocamldoc/odoc_exception.cmx)
+; ;     (.odoc_lib.objs/native/odoc_extension.cmx as ocamldoc/odoc_extension.cmx)
+; ;     (.odoc_lib.objs/native/odoc_gen.cmx as ocamldoc/odoc_gen.cmx)
+; ;     (.odoc_lib.objs/native/odoc_global.cmx as ocamldoc/odoc_global.cmx)
+; ;     (.odoc_lib.objs/native/odoc_html.cmx as ocamldoc/odoc_html.cmx)
+; ;     (.odoc_lib.objs/native/odoc_info.cmx as ocamldoc/odoc_info.cmx)
+; ; ;    (.odoc_lib.objs/native/odoc_info.cmxa as ocamldoc/odoc_info.cmxa)
+; ;     (.odoc_lib.objs/native/odoc_inherit.cmx as ocamldoc/odoc_inherit.cmx)
+; ;     (.odoc_lib.objs/native/odoc_latex.cmx as ocamldoc/odoc_latex.cmx)
+; ;     (.odoc_lib.objs/native/odoc_latex_style.cmx as ocamldoc/odoc_latex_style.cmx)
+; ;     (.odoc_lib.objs/native/odoc_lexer.cmx as ocamldoc/odoc_lexer.cmx)
+; ;     (.odoc_lib.objs/native/odoc_man.cmx as ocamldoc/odoc_man.cmx)
+; ;     (.odoc_lib.objs/native/odoc_merge.cmx as ocamldoc/odoc_merge.cmx)
+; ;     (.odoc_lib.objs/native/odoc_messages.cmx as ocamldoc/odoc_messages.cmx)
+; ;     (.odoc_lib.objs/native/odoc_misc.cmx as ocamldoc/odoc_misc.cmx)
+; ;     (.odoc_lib.objs/native/odoc_module.cmx as ocamldoc/odoc_module.cmx)
+; ;     (.odoc_lib.objs/native/odoc_name.cmx as ocamldoc/odoc_name.cmx)
+; ;     (.odoc_lib.objs/native/odoc_ocamlhtml.cmx as ocamldoc/odoc_ocamlhtml.cmx)
+; ;     (.odoc_lib.objs/native/odoc_parameter.cmx as ocamldoc/odoc_parameter.cmx)
+; ;     (.odoc_lib.objs/native/odoc_parser.cmx as ocamldoc/odoc_parser.cmx)
+; ;     (.odoc_lib.objs/native/odoc_print.cmx as ocamldoc/odoc_print.cmx)
+; ;     (.odoc_lib.objs/native/odoc_scan.cmx as ocamldoc/odoc_scan.cmx)
+; ;     (.odoc_lib.objs/native/odoc_search.cmx as ocamldoc/odoc_search.cmx)
+; ;     (.odoc_lib.objs/native/odoc_see_lexer.cmx as ocamldoc/odoc_see_lexer.cmx)
+; ;     (.odoc_lib.objs/native/odoc_sig.cmx as ocamldoc/odoc_sig.cmx)
+; ;     (.odoc_lib.objs/native/odoc_str.cmx as ocamldoc/odoc_str.cmx)
+; ;     (.odoc_lib.objs/native/odoc_texi.cmx as ocamldoc/odoc_texi.cmx)
+; ;     (.odoc_lib.objs/native/odoc_text.cmx as ocamldoc/odoc_text.cmx)
+; ;     (.odoc_lib.objs/native/odoc_text_lexer.cmx as ocamldoc/odoc_text_lexer.cmx)
+; ;     (.odoc_lib.objs/native/odoc_text_parser.cmx as ocamldoc/odoc_text_parser.cmx)
+; ;     (.odoc_lib.objs/native/odoc_to_text.cmx as ocamldoc/odoc_to_text.cmx)
+; ;     (.odoc_lib.objs/native/odoc_type.cmx as ocamldoc/odoc_type.cmx)
+; ;     (.odoc_lib.objs/native/odoc_types.cmx as ocamldoc/odoc_types.cmx)
+; ;     (.odoc_lib.objs/native/odoc_value.cmx as ocamldoc/odoc_value.cmx)
+; ;   )
+; ;   (section lib)
+; ;   (package ocaml))
+; ;
+; 

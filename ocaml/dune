@@ -184,7 +184,7 @@
  (name world)
  (deps ocamlc_byte.bc
        debugger/ocamldebug.byte
-       ocamldoc/ocamldoc.byte
+;       ocamldoc/ocamldoc.byte
        ocamltest/ocamltest.byte
        toplevel/byte
        toplevel/expunge.exe
