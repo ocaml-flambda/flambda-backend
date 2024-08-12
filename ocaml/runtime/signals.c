@@ -169,7 +169,6 @@ CAMLexport void caml_enter_blocking_section(void)
     if (Caml_state->in_minor_collection)
       caml_fatal_error("caml_enter_blocking_section from inside minor GC");
     /* Process all pending signals now */
-    // XXX mshinwell for sdolan: please double-check this
     if (check_pending_actions(domain)) {
       /* First reset young_limit, and set action_pending in case there
          are further async callbacks pending beyond OCaml signal
