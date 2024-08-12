@@ -61,7 +61,7 @@ boot_targets = \
   $(boot_ocamlmklib) \
   $(boot_ocamldep) \
   $(boot_ocamlobjinfo) \
-  ocaml/ocamltest/ocamltest.byte
+  ocaml/ocamltest/ocamltest.native
 
 boot-compiler: _build/_bootinstall
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) --verbose $(coverage_dune_flags) $(boot_targets)
@@ -89,7 +89,6 @@ runtime-stdlib: boot-compiler
 
 compiler: runtime-stdlib
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) --verbose --only-package=ocaml @install \
-	  $(ocamldir)/ocamltest/ocamltest.byte \
 	  $(ocamldir)/tools/dumpobj.bc
 
 runtest: compiler
@@ -217,6 +216,7 @@ install_for_opam:
 
 main_prefix = _build/install/main
 main_build = _build/main
+boot_build = _build/default
 
 # The following horror will be removed when work to allow the testsuite to
 # run on an installed tree (led by David Allsopp) is completed.
@@ -317,7 +317,7 @@ install_for_test: _install
 	cp $(main_build)/$(ocamldir)/ocamldoc/.odoc_lib.objs/byte/*.cm* _runtest/ocamldoc
 	# ocamltest itself
 	mkdir _runtest/ocamltest
-	cp $(main_build)/$(ocamldir)/ocamltest/ocamltest.byte _runtest/ocamltest/ocamltest
+	cp $(boot_build)/ocaml/ocamltest/ocamltest.native _runtest/ocamltest/ocamltest
 test: install_for_test
 	if [ "$(middle_end)" = "flambda2" ]; then \
 	  for dir in `cd ocaml/testsuite; ls -1 -d tests/*`; do \

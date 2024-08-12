@@ -22,27 +22,6 @@
 
 ;; FIXME: handle UNIX_OR_WIN32 or something similar
 
-(library
- (name ocamltest_core_and_plugin)
- (modes byte)
- (wrapped false)
- ; -linkall so we don't fail to include e.g. ocaml_modifiers.ml, which only
- ; has top-level side effects.
- (flags
-  (:standard -linkall -w +a-40-41-42-44-70))
- (libraries ocamlcommon)
- (ocamlc_flags unix.cma)
- (ocamlopt_flags unix.cmxa)
- (modules
-  (:standard \ options main))
- (foreign_stubs
-  (language c)
-  (names run_unix run_stubs)
-  (flags
-   ((-DCAML_INTERNALS)
-    (:include %{project_root}/oc_cflags.sexp)
-    (:include %{project_root}/oc_cppflags.sexp)))))
-
 (rule
  (targets empty.ml)
  (deps
@@ -52,15 +31,28 @@
 
 (executable
  (name main)
- (modes byte)
+ (modes native)
+ ; -linkall so we don't fail to include e.g. ocaml_modifiers.ml, which only
+ ; has top-level side effects.
  (flags
   (:standard
+   -linkall
    -w
    +a-40-41-42-44-70
    -cclib
    "-I../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
- (modules options main)
- (libraries ocamltest_core_and_plugin))
+ (libraries ocamlcommon)
+ ; This executable is built using the *system* compiler, so we can't use
+ ; our own otherlibs/unix/, and neither can we depend on the "unix" library
+ ; or this same one will be used.
+ (ocamlopt_flags unix.cmxa)
+ (foreign_stubs
+  (language c)
+  (names run_unix run_stubs)
+  (flags
+   ((-DCAML_INTERNALS)
+    (:include %{project_root}/oc_cflags.sexp)
+    (:include %{project_root}/oc_cppflags.sexp)))))
 
 (rule
- (copy main.exe ocamltest.byte))
+ (copy main.exe ocamltest.native))
