@@ -261,34 +261,26 @@ let indexing_primitives =
         fun ~unsafe ~boxed:_ ~mode:_ -> Pbytes_set_128 { unsafe } );
     ]
   in
-  let unsafes = [ (true, "u"); (false, "") ] in
-  let boxeds = [ (true, ""); (false, "#") ] in
-  Misc.Hlist.cartesian_product [ types_and_widths; unsafes; boxeds ]
-  |> List.map
-       (fun
-         ([
-            (string_gen, primitive_gen);
-            (unsafe, unsafe_sigil);
-            (boxed, boxed_sigil);
-          ] :
-           _ Misc.Hlist.t)
-       ->
-         let string = string_gen unsafe_sigil boxed_sigil in
-         let primitive = primitive_gen ~unsafe ~boxed in
-         let arity =
-           let is_substring ~substring string =
-             let len = String.length substring in
-             String.to_seq string
-             |> Seq.mapi (fun i _ -> i)
-             |> Seq.filter_map (fun i ->
-                    if i + len < String.length string then
-                      Some (String.sub string i len)
-                    else None)
-             |> Seq.exists (fun sub -> String.equal substring sub)
-           in
-           if is_substring string ~substring:"get" then 2 else 3
-         in
-         (string, fun ~mode -> Primitive (primitive ~mode, arity)))
+  (let ( let* ) x f = List.concat_map f x in
+   let* string_gen, primitive_gen = types_and_widths in
+   let* unsafe, unsafe_sigil = [ (true, "u"); (false, "") ] in
+   let* boxed, boxed_sigil = [ (true, ""); (false, "#") ] in
+   let string = string_gen unsafe_sigil boxed_sigil in
+   let primitive = primitive_gen ~unsafe ~boxed in
+   let arity =
+     let is_substring ~substring string =
+       let len = String.length substring in
+       String.to_seq string
+       |> Seq.mapi (fun i _ -> i)
+       |> Seq.filter_map (fun i ->
+              if i + len < String.length string then
+                Some (String.sub string i len)
+              else None)
+       |> Seq.exists (fun sub -> String.equal substring sub)
+     in
+     if is_substring string ~substring:"get" then 2 else 3
+   in
+   [ (string, fun ~mode -> Primitive (primitive ~mode, arity)) ])
   |> List.to_seq
   |> fun seq -> String_map.add_seq seq String_map.empty
 

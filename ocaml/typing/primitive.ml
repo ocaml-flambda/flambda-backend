@@ -492,8 +492,6 @@ let prim_has_valid_reprs ~loc prim =
           ("64", "#", Bits64);
         ]
       in
-      let containers = [ "bigstring"; "bytes"; "string" ] in
-      let safes = [ ""; "u" ] in
       let combiners =
         [
           ( Printf.sprintf "%%caml_%s_get%s%s%s",
@@ -513,23 +511,16 @@ let prim_has_valid_reprs ~loc prim =
               ] );
         ]
       in
-      Misc.Hlist.cartesian_product [ containers; widths; safes; combiners ]
-      |> List.map
-           (fun
-             ([
-                container;
-                (width_sigil, unboxed_sigil, width_kind);
-                safe_sigil;
-                (combine_string, combine_repr);
-              ] :
-               _ Hlist.t)
-           ->
-             let string =
-               combine_string container width_sigil safe_sigil unboxed_sigil
-             in
-
-             let reprs = combine_repr width_kind in
-             (string, reprs))
+      (let ( let* ) x f = List.concat_map f x in
+       let* container = [ "bigstring"; "bytes"; "string" ] in
+       let* safe_sigil = [ ""; "u" ] in
+       let* width_sigil, unboxed_sigil, width_kind = widths in
+       let* combine_string, combine_repr = combiners in
+       let string =
+         combine_string container width_sigil safe_sigil unboxed_sigil
+       in
+       let reprs = combine_repr width_kind in
+       [ (string, reprs) ])
       |> List.to_seq
       |> fun seq -> String_map.add_seq seq String_map.empty
     in
