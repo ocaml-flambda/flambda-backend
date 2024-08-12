@@ -931,29 +931,6 @@ let system cmd =
   let pid = spawn shell [| shell; "-c"; cmd |] None false [| 0; 1; 2 |] in
   snd(waitpid_non_intr pid)
 
-(* CR mshinwell: remove once the system compiler is 5.x *)
-(* XXX still broken because the C stubs are missing on 4, one presumes *)
-module Mutex = struct
-  type t
-  external create: unit -> t = "caml_ml_mutex_new"
-  external lock: t -> unit = "caml_ml_mutex_lock"
-  external unlock: t -> unit = "caml_ml_mutex_unlock"
-
-  (* private re-export *)
-  external reraise : exn -> 'a = "%reraise"
-
-  (* cannot inline, otherwise flambda might move code around. *)
-  let[@inline never] protect m f =
-    lock m;
-    match f() with
-    | x ->
-      unlock m; x
-    | exception e ->
-      (* NOTE: [unlock] does not poll for asynchronous exceptions *)
-      unlock m;
-      reraise e
-end
-
 type popen_process =
     Process of in_channel * out_channel
   | Process_in of in_channel
