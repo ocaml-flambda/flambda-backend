@@ -132,8 +132,11 @@
 
 
 #ifdef DEBUG
+#define CHECK_STACK_ALIGNMENT \
+        test $0xf, %rsp; jz 9f; int3; 9:
 #define IF_DEBUG(...) __VA_ARGS__
 #else
+#define CHECK_STACK_ALIGNMENT
 #define IF_DEBUG(...)
 #endif
 
