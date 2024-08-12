@@ -311,10 +311,10 @@ install_for_test: _install
 	ln -s ../_install/bin/ocamlobjinfo.byte _runtest/tools/ocamlobjinfo
 	ln -s ../_install/bin/dumpobj.byte _runtest/tools/dumpobj
         # ocamldoc
-	rm _runtest/ocamldoc
-	mkdir _runtest/ocamldoc
-	ln -s ../../_install/bin/ocamldoc.byte _runtest/ocamldoc/ocamldoc
-	cp $(main_build)/$(ocamldir)/ocamldoc/.odoc_lib.objs/byte/*.cm* _runtest/ocamldoc
+	# rm _runtest/ocamldoc
+	# mkdir _runtest/ocamldoc
+	# ln -s ../../_install/bin/ocamldoc.byte _runtest/ocamldoc/ocamldoc
+	# cp $(main_build)/$(ocamldir)/ocamldoc/.odoc_lib.objs/byte/*.cm* _runtest/ocamldoc
 	# ocamltest itself
 	mkdir _runtest/ocamltest
 	cp $(boot_build)/ocaml/ocamltest/ocamltest.native _runtest/ocamltest/ocamltest
