@@ -41,7 +41,7 @@ val make : 'a -> 'a t
     reference is experiencing contention, assigning it its own cache line may
     enhance performance.
 
-    CR ocaml 5 all-runtime5: does not support runtime4
+    CR ocaml 5 all-runtime5: does not support runtime4 *)
 
 val make_contended : 'a -> 'a t
 

@@ -61,11 +61,6 @@ external rename : string -> string -> unit = "caml_sys_rename"
     moving it between (parent) directories if needed.  If a file named
     [newpath] already exists, its contents will be replaced with those of
     [oldpath].
-(** Rename a file or directory.  [rename oldpath newpath] renames the
-    file or directory called [oldpath], giving it [newpath] as its new name,
-    moving it between (parent) directories if needed.  If a file named
-    [newpath] already exists, its contents will be replaced with those of
-    [oldpath].
     Depending on the operating system, the metadata (permissions,
     owner, etc) of [newpath] can either be preserved or be replaced by
     those of [oldpath].
