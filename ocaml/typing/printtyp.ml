@@ -1265,7 +1265,7 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
           modes.txt
       in
       Ojkind_const_mod (base, modes)
-    | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
+    | With _ | Kind_of _ | Arrow _ -> failwith "XXX unimplemented jkind syntax"
   in
   Ojkind_const (out_jkind_const_of_user_jkind jkind.txt)
 

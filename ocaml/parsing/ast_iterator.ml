@@ -1004,5 +1004,8 @@ let default_iterator =
         | With (t, ty) ->
           this.jkind_annotation this t;
           this.typ this ty
-        | Kind_of ty -> this.typ this ty);
+        | Kind_of ty -> this.typ this ty
+        | Arrow (args, result) ->
+          List.iter (this.jkind_annotation this) args;
+          this.jkind_annotation this result);
   }

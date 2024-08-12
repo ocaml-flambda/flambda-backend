@@ -1146,6 +1146,7 @@ and jkind_annotation =
   | Mod of jkind_annotation * mode_expression
   | With of jkind_annotation * core_type
   | Kind_of of core_type
+  | Arrow of jkind_annotation list * jkind_annotation
 
 and mode_expression = mode_const_expression list Location.loc
 

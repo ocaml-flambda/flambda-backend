@@ -397,6 +397,10 @@ and jkind_annotation i ppf (jkind : jkind_annotation) =
   | Kind_of type_ ->
       line i ppf "Kind_of\n";
       core_type (i+1) ppf type_
+  | Arrow (args, result) ->
+      line i ppf "Arrow\n";
+      list (i+1) jkind_annotation ppf args;
+      jkind_annotation (i+1) ppf result;
 
 and function_param i ppf { pparam_desc = desc; pparam_loc = loc } =
   match desc with
