@@ -12,8 +12,6 @@
 ;*                                                                        *
 ;**************************************************************************
 
-(include_subdirs unqualified)
-
 (library
  (name unix)
  (wrapped false)
@@ -27,13 +25,11 @@
    -strict-sequence
    -strict-formats
    -nolabels ; for UnixLabels
-   -thread
    ))
  (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags (:standard -linkall))
  (modules unix unixLabels)
- (foreign_stubs (language c)
-  (names
+ (foreign_stubs (language c) (names
    accept_unix
    access
    addrofstr
@@ -136,8 +132,7 @@
    wait
    write_unix
    )
-   (flags (-I %{project_root}/ocaml/%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}
-           (:include %{project_root}/oc_cflags.sexp)
+   (flags ((:include %{project_root}/oc_cflags.sexp)
            (:include %{project_root}/sharedlib_cflags.sexp)
            (:include %{project_root}/oc_cppflags.sexp)))
  ))
@@ -161,8 +156,8 @@
     (libunix_stubs.a as unix/libunix_stubs.a)
     (libunix_stubs.a as libunix_stubs_native.a) ; for special_dune compat
     (dllunix_stubs.so as stublibs/dllunix_stubs.so)
-    (caml/socketaddr.h as caml/socketaddr.h)
-    (caml/unixsupport.h as caml/unixsupport.h)
+    (socketaddr.h as caml/socketaddr.h)
+    (unixsupport.h as caml/unixsupport.h)
     (META as unix/META)
   )
   (section lib)

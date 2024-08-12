@@ -64,7 +64,7 @@ boot_targets = \
   ocaml/ocamltest/ocamltest.byte
 
 boot-compiler: _build/_bootinstall
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) --verbose $(coverage_dune_flags) $(boot_targets)
 
 boot-runtest: boot-compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
