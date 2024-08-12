@@ -40,7 +40,7 @@ type direction =
 (* Applies an optimization on the CFG outputted by [rewrite_gen] having one
    temporary per variable per block rather than one per use of the variable,
    reducing the number of spills and reloads needed for variables used multiple
-   times in a block. It iterates over each block and builds a subsitution from
+   times in a block. It iterates over each block and builds a substitution from
    the first used temporary for each variable to all the other temporaries used
    later for that variable, deleting now redundant reload/spill instructions
    along the way. This currently does not support the case where spilled nodes
