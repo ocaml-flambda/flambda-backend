@@ -788,12 +788,12 @@ successors: 195
 exn-successors:
 
 195:
-func:V/62[%rbx] := R:I/0[%rax]
-I/63[%rdi] := int  mut[func:V/62[%rbx]]
+apply_result:V/62[%rbx] := R:I/0[%rax]
+I/63[%rdi] := int  mut[apply_result:V/62[%rbx]]
 n:I/66[%rax] := spilled-n:I/65[s[i:0]] (reload)
 R:I/0[%rax] := n:I/66[%rax]
-R:I/1[%rbx] := func:V/62[%rbx]
-tailcall(opos not_tail default) I/63[%rdi] R:I/0[%rax] R:I/1[%rbx]
+R:I/1[%rbx] := apply_result:V/62[%rbx]
+tailcall(opos tail default) I/63[%rdi] R:I/0[%rax] R:I/1[%rbx]
 predecessors: 193
 successors:
 exn-successors:
@@ -1727,15 +1727,17 @@ blocks.length=4
 
 1:
 prologue
-goto 318
+goto 312
 predecessors:
-successors: 318
+successors: 312
 exn-successors:
 
-318:
+312:
+try_region:I/62[%rax] := beginregion
+spilled-try_region:I/68[s[i:0]] := try_region:I/62[%rax] (spill)
 push trap L315
-I/62[%rax] := 1
-R:I/0[%rax] := I/62[%rax]
+I/63[%rax] := 1
+R:I/0[%rax] := I/63[%rax]
 R:I/0[%rax] := call(opos tail default) "camlDcfg_tailcalls__baz_41_89_code" R:I/0[%rax]
 goto 320
 predecessors: 1
@@ -1743,21 +1745,23 @@ successors: 320
 exn-successors: 315
 
 320:
-body_result:I/63[%rax] := R:I/0[%rax]
-R:I/0[%rax] := body_result:I/63[%rax]
+body_result:I/64[%rax] := R:I/0[%rax]
+R:I/0[%rax] := body_result:I/64[%rax]
 pop trap
 reload retaddr
 Return R:I/0[%rax]
-predecessors: 318
+predecessors: 312
 successors:
 exn-successors:
 
 315:
-I/65[%rax] := 1
-R:I/0[%rax] := I/65[%rax]
+try_region:I/69[%rax] := spilled-try_region:I/68[s[i:0]] (reload)
+endregion try_region:I/69[%rax]
+I/67[%rax] := 1
+R:I/0[%rax] := I/67[%rax]
 reload retaddr
 Return R:I/0[%rax]
-predecessors: 318
+predecessors: 312
 successors:
 exn-successors:
 
