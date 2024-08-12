@@ -61,7 +61,8 @@ let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
       if not (Reg.same to_replace replace_with)
       then Reg.Tbl.add replacements to_replace replace_with
     in
-    let update_info_using_inst (inst_cell : Cfg.basic Cfg.instruction DLL.cell) =
+    let update_info_using_inst (inst_cell : Cfg.basic Cfg.instruction DLL.cell)
+        =
       let inst = DLL.value inst_cell in
       match inst.desc with
       | Op Reload -> (
