@@ -1928,12 +1928,12 @@ module Format_history = struct
     function
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
-    | Initial_typedecl_env ->
-      format_with_notify_js ppf
-        "a dummy kind of any is used to check mutually recursive datatypes"
     | Wildcard -> format_with_notify_js ppf "there's a _ in the type"
     | Unification_var ->
       format_with_notify_js ppf "it's a fresh unification variable"
+    | Initial_typedecl_env ->
+      format_with_notify_js ppf
+        "a dummy kind of any is used to check mutually recursive datatypes"
     | Dummy_jkind ->
       format_with_notify_js ppf
         "it's assigned a dummy kind that should have been overwritten"
@@ -2112,6 +2112,7 @@ module Format_history = struct
   let format_project_reason ppf : History.project_reason -> _ = function
     | Arrow_argument i -> fprintf ppf "in an application at position %d to" i
     | Arrow_result -> fprintf ppf "result of an application to"
+
   (* CR layouts: An older implementation of format_flattened_history existed
       which displays more information not limited to one layout and one creation_reason
       around commit 66a832d70bf61d9af3b0ec6f781dcf0a188b324d in main.
@@ -2119,7 +2120,6 @@ module Format_history = struct
       Consider revisiting that if the current implementation becomes insufficient. *)
 
   let format_flattened_history ~intro ~layout_or_kind ppf t =
-    let jkind_desc = Jkind_desc.get t.jkind in
     fprintf ppf "@[<v 2>%t" intro;
     (* FIXME jbachurski: Application to higher-kinded types should probably
         be described here, but this is a good approximation of existing
@@ -2132,9 +2132,9 @@ module Format_history = struct
     in
     let reason = leaf t.history in
     fprintf ppf "@ because %a" (format_creation_reason ~layout_or_kind) reason;
-    (match reason, jkind_desc with
-    | Concrete_legacy_creation _, Const _ ->
-      fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format jkind_desc
+    (match reason, to_const t with
+    | Concrete_legacy_creation _, Some c ->
+      fprintf ppf ",@ defaulted to %s %a" layout_or_kind Const.format c
     | _ -> ());
     fprintf ppf ".";
     (match t.history with
@@ -2143,6 +2143,8 @@ module Format_history = struct
     | _ -> ());
     fprintf ppf "@]"
 
+  let format_jkind = ref (fun _ _ -> ())
+
   (* this isn't really formatted for user consumption *)
   let format_history_tree ~intro ~layout_or_kind ppf t =
     let rec in_order ppf = function
@@ -2150,7 +2152,9 @@ module Format_history = struct
           { reason; lhs_history; rhs_history; lhs_jkind = _; rhs_jkind = _ } ->
         fprintf ppf "@[<v 2>  %a@]@;%a@ @[<v 2>  %a@]" in_order lhs_history
           format_interact_reason reason in_order rhs_history
-      | Projection _ -> fprintf ppf "(projection...?)"
+      | Projection { reason; jkind; history } ->
+        fprintf ppf "@[<v 2>  %a@]@;%a@ %a" in_order history
+          format_project_reason reason !format_jkind jkind
       | Creation c -> format_creation_reason ppf ~layout_or_kind c
     in
     fprintf ppf "@;%t has this %s history:@;@[<v 2>  %a@]" intro layout_or_kind
@@ -2207,12 +2211,13 @@ module Violation = struct
   let report_general_type_jkind preamble pp_former former ppf t =
     let mismatch_type =
       match t.violation with
-      | Not_a_subjkind (Type k1, Type k2) ->
-        if Misc.Le_result.is_le
-             (Type.Layout.sub k1.jkind.layout k2.jkind.layout)
+      | Not_a_subjkind ({ jkind = Type k1; _ }, { jkind = Type k2; _ }) ->
+        if Misc.Le_result.is_le (Type.Layout.sub k1.layout k2.layout)
         then Mode
         else Layout
-      | No_intersection (Type _, Type _) | No_union (Type _, Type _) -> Layout
+      | No_intersection ({ jkind = Type _; _ }, { jkind = Type _; _ })
+      | No_union ({ jkind = Type _; _ }, { jkind = Type _; _ }) ->
+        Layout
       | Not_a_subjkind _ | No_intersection _ | No_union _ -> Mode
     in
     let layout_or_kind =
@@ -2222,8 +2227,8 @@ module Violation = struct
       match mismatch_type with
       | Mode -> Format.fprintf ppf "@,%a" format jkind
       | Layout -> (
-        match (jkind : _ Jkind_types.t) with
-        | Type ty -> Type.Layout.format ppf ty.jkind.layout
+        match jkind.jkind with
+        | Type ty -> Type.Layout.format ppf ty.layout
         | _ -> Format.fprintf ppf "@,%a" format jkind)
     in
     let subjkind_format verb k2 =
@@ -2310,6 +2315,7 @@ module Violation = struct
 
   let report_with_name ~name = report_general "" pp_print_string name
 end
+
 (******************************)
 (* relations *)
 

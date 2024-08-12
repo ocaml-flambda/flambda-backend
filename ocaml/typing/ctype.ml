@@ -2437,8 +2437,6 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
     let level = get_level ty in
     if try_mark_node ty then begin
       begin match get_desc ty with
-      (* FIXME jbachurski: This just seems to be an interaction with extension levels
-         and histories *)
       | Tvar ({ jkind; _ } as r) ->
         let new_jkind = immediacy_check jkind in
         let new_jkind = generalization_check level new_jkind in
