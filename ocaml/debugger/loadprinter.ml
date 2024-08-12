@@ -77,9 +77,7 @@ let rec eval_address = function
     in
     begin match Dynlink.unsafe_get_global_value ~bytecode_or_asm_symbol with
     | None ->
-      raise (Symtable.Error (Symtable.Undefined_global
-        (Symtable.Global.Glob_compunit (Cmo_format.Compunit
-          bytecode_or_asm_symbol))))
+      raise (Symtable.Error (Symtable.Undefined_global (Glob_compunit cu)))
     | Some obj -> obj
     end
   | Env.Alocal _ -> assert false
