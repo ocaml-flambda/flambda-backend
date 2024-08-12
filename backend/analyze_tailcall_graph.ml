@@ -243,18 +243,18 @@ end = struct
       let to_error_string t =
         let call_type =
           match t.edge.label with
-          | Explicit_tail_edge -> "(explicit tail)"
-          | Explicit_nontail_edge -> "(explicit nontail)"
-          | Unknown_position_tail_edge -> "(synthesized tail)"
-          | Unknown_position_nontail_edge -> "(synthesized nontail)"
-          | Inferred_tail_edge -> "(inferred tail)"
-          | Inferred_nontail_edge -> "(inferred nontail)"
+          | Explicit_tail_edge -> "explicit tail"
+          | Explicit_nontail_edge -> "explicit nontail"
+          | Unknown_position_tail_edge -> "synthesized tail"
+          | Unknown_position_nontail_edge -> "synthesized nontail"
+          | Inferred_tail_edge -> "inferred tail"
+          | Inferred_nontail_edge -> "inferred nontail"
         in
         if Vertex.is_unknown t.edge.from
-        then Format.asprintf "<unknown target> %s" call_type
+        then Format.asprintf "<unknown target>" call_type
         else
-          Format.asprintf "%a calls %s" Location.print_loc_in_lowercase t.loc
-            call_type
+          Format.asprintf "At %a: calls (in %s position)"
+            Location.print_loc_in_lowercase t.loc call_type
     end
 
     let to_dot_tooltip (with_loc : With_loc.t) =
@@ -509,6 +509,11 @@ end = struct
     |> List.sort Edge.With_loc.compare
 
   module Cycle_witness = struct
+    (* Finds a witness/proof of a tco'd cycle containing a specific inferred
+       non-tail edge. The proof prioritizes definite cycles (i.e. cycles that do
+       not involve Unknown_fn), then cycles in increasing order of their length.
+       We find a proof using Dijkstra's and an appropriate priority key. *)
+
     module Tendril : sig
       module Priority : sig
         (* Priority is a sort key for Dijkstra's algorithm. Because we order

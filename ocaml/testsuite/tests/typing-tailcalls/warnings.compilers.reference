@@ -8,8 +8,8 @@ runtime. Consider marking the function call with [@tail].
 
 Here is one such cycle:
 
-    file "warnings.ml", line 16, characters 16-24 calls (inferred nontail)
- -> file "warnings.ml", line 13, characters 4-15 calls (inferred tail)
+    At file "warnings.ml", line 16, characters 16-24; calls (in inferred nontail position)
+ -> At file "warnings.ml", line 13, characters 4-15; calls (in inferred tail position)
 
 
 File "warnings.ml", lines 36-39, characters 2-51:
@@ -24,9 +24,9 @@ runtime. Consider marking the function call with [@tail].
 
 Here is one such cycle:
 
-    file "warnings.ml", lines 36-39, characters 2-51 calls (inferred nontail)
- -> file "warnings.ml", line 22, characters 16-19 calls (inferred tail)
- -> <unknown target> (explicit tail)
+    At file "warnings.ml", lines 36-39, characters 2-51; calls (in inferred nontail position)
+ -> At file "warnings.ml", line 22, characters 16-19; calls (in inferred tail position)
+ -> <unknown target> explicit tail
 
 
 File "warnings.ml", line 39, characters 29-43:
@@ -39,9 +39,9 @@ runtime. Consider marking the function call with [@tail].
 
 Here is one such cycle:
 
-    file "warnings.ml", line 39, characters 29-43 calls (inferred nontail)
- -> file "warnings.ml", line 22, characters 16-19 calls (inferred tail)
- -> <unknown target> (explicit tail)
+    At file "warnings.ml", line 39, characters 29-43; calls (in inferred nontail position)
+ -> At file "warnings.ml", line 22, characters 16-19; calls (in inferred tail position)
+ -> <unknown target> explicit tail
 
 
 File "warnings.ml", line 50, characters 2-22:
@@ -54,9 +54,9 @@ runtime. Consider marking the function call with [@tail].
 
 Here is one such cycle:
 
-    file "warnings.ml", line 50, characters 2-22 calls (inferred nontail)
- -> file "warnings.ml", line 46, characters 14-17 calls (inferred tail)
- -> <unknown target> (explicit tail)
+    At file "warnings.ml", line 50, characters 2-22; calls (in inferred nontail position)
+ -> At file "warnings.ml", line 46, characters 14-17; calls (in inferred tail position)
+ -> <unknown target> explicit tail
 
 
 File "warnings.ml", line 60, characters 2-11:
@@ -69,12 +69,12 @@ runtime. Consider marking the function call with [@tail].
 
 Here is one such cycle:
 
-    file "warnings.ml", line 60, characters 2-11 calls (inferred nontail)
- -> file "warnings.ml", line 58, characters 33-42 calls (explicit tail)
- -> file "warnings.ml", line 57, characters 33-40 calls (explicit tail)
- -> file "warnings.ml", line 56, characters 31-37 calls (explicit tail)
- -> file "warnings.ml", line 55, characters 30-36 calls (explicit tail)
- -> file "warnings.ml", line 54, characters 30-49 calls (explicit tail)
+    At file "warnings.ml", line 60, characters 2-11; calls (in inferred nontail position)
+ -> At file "warnings.ml", line 58, characters 33-42; calls (in explicit tail position)
+ -> At file "warnings.ml", line 57, characters 33-40; calls (in explicit tail position)
+ -> At file "warnings.ml", line 56, characters 31-37; calls (in explicit tail position)
+ -> At file "warnings.ml", line 55, characters 30-36; calls (in explicit tail position)
+ -> At file "warnings.ml", line 54, characters 30-49; calls (in explicit tail position)
 
 
 File "warnings.ml", line 64, characters 5-15:
@@ -87,8 +87,8 @@ runtime. Consider marking the function call with [@tail].
 
 Here is one such cycle:
 
-    file "warnings.ml", line 64, characters 5-15 calls (inferred nontail)
- -> <unknown target> (explicit tail)
+    At file "warnings.ml", line 64, characters 5-15; calls (in inferred nontail position)
+ -> <unknown target> explicit tail
 
 
 File "warnings.ml", line 96, characters 2-11:
@@ -101,10 +101,10 @@ runtime. Consider marking the function call with [@tail].
 
 Here is one such cycle:
 
-    file "warnings.ml", line 96, characters 2-11 calls (inferred nontail)
- -> file "warnings.ml", line 90, characters 14-23 calls (explicit tail)
- -> file "warnings.ml", line 88, characters 33-40 calls (explicit tail)
- -> file "warnings.ml", line 87, characters 31-37 calls (explicit tail)
- -> file "warnings.ml", line 86, characters 30-36 calls (explicit tail)
- -> file "warnings.ml", line 85, characters 30-58 calls (explicit tail)
+    At file "warnings.ml", line 96, characters 2-11; calls (in inferred nontail position)
+ -> At file "warnings.ml", line 90, characters 14-23; calls (in explicit tail position)
+ -> At file "warnings.ml", line 88, characters 33-40; calls (in explicit tail position)
+ -> At file "warnings.ml", line 87, characters 31-37; calls (in explicit tail position)
+ -> At file "warnings.ml", line 86, characters 30-36; calls (in explicit tail position)
+ -> At file "warnings.ml", line 85, characters 30-58; calls (in explicit tail position)
 
