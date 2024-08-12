@@ -1598,7 +1598,7 @@ let update_decl_jkind env dpath decl =
 
   let add_crossings jkind =
     match !Clflags.allow_illegal_crossing with
-    | true -> Jkind.Type.add_portability_and_contention_crossing ~from:decl.type_jkind jkind
+    | true -> Jkind.Type.add_portability_and_contention_crossing ~from:(Jkind.to_type_jkind decl.type_jkind) jkind
     | false -> jkind, false
   in
 
@@ -1610,6 +1610,7 @@ let update_decl_jkind env dpath decl =
     | Type_record (lbls, rep) ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
+      let type_jkind = Jkind.of_type_jkind type_jkind in
       { decl with type_kind = Type_record (lbls, rep);
                   type_jkind;
                   type_has_illegal_crossings },
@@ -1617,6 +1618,7 @@ let update_decl_jkind env dpath decl =
     | Type_variant (cstrs, rep) ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
+      let type_jkind = Jkind.of_type_jkind type_jkind in
       { decl with type_kind = Type_variant (cstrs, rep);
                   type_jkind;
                   type_has_illegal_crossings },

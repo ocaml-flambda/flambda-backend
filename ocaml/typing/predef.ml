@@ -202,22 +202,21 @@ let predef_jkind_annotation primitive =
          Jane_syntax.Jkind.(Abbreviation (Const.mk primitive.name Location.none))
          |> Location.mknoloc
        in
-       primitive.jkind, user_written)
+       Jkind.Const.of_type_jkind primitive.jkind, user_written)
     primitive
 
 let option_argument_type_jkind = Jkind.Type.Primitive.value ~why:(
   Type_argument {parent_path = path_option; position = 1; arity = 1})
 
-let option_argument_jkind : Jkind.t = Jkind.of_type_jkind option_argument_type_jkind
+let option_argument_jkind = Jkind.of_type_jkind option_argument_type_jkind
 
-let list_argument_type_jkind : Jkind.t = Jkind.Type.Primitive.value ~why:(
+let list_argument_type_jkind = Jkind.Type.Primitive.value ~why:(
   Type_argument {parent_path = path_list; position = 1; arity = 1})
 
-let list_argument_jkind : Jkind.t = Jkind.of_type_jkind list_argument_type_jkind
+let list_argument_jkind = Jkind.of_type_jkind list_argument_type_jkind
 
-let or_null_argument_jkind = Jkind.Type.Primitive.value ~why:(
+let or_null_argument_type_jkind = Jkind.Type.Primitive.value ~why:(
   Type_argument {parent_path = path_or_null; position = 1; arity = 1})
-  |> Jkind.of_type_jkind
 
 let mk_add_type add_type
       ?manifest type_ident
@@ -495,7 +494,7 @@ let add_or_null add_type env =
   ~kind:(fun tvar ->
     variant [cstr ident_null []; cstr ident_this [unrestricted tvar]]
       [| Constructor_uniform_value, [| |];
-          Constructor_uniform_value, [| or_null_argument_jkind |];
+          Constructor_uniform_value, [| or_null_argument_type_jkind |];
       |])
   ~jkind:(Jkind.Type.Primitive.value_or_null ~why:(Primitive ident_or_null))
 

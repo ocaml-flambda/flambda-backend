@@ -513,7 +513,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_construct(_, cstr, args, alloc_mode) ->
       let args_with_sorts =
         List.mapi (fun i e ->
-            let sort = Jkind.sort_of_jkind cstr.cstr_arg_jkinds.(i) in
+            let sort = Jkind.Type.sort_of_jkind cstr.cstr_arg_jkinds.(i) in
             e, sort)
           args
       in
@@ -626,7 +626,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
-      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
+      let lbl_sort = Jkind.Type.sort_of_jkind lbl.lbl_jkind in
       check_record_field_sort id.loc lbl_sort;
       begin match lbl.lbl_repres with
           Record_boxed _
@@ -687,7 +687,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
          representability on construction, [sort_of_jkind] will be unsafe here.
          Probably we should add a sort to `Texp_setfield` in the typed tree,
          then. *)
-      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
+      let lbl_sort = Jkind.Type.sort_of_jkind lbl.lbl_jkind in
       check_record_field_sort id.loc lbl_sort;
       let mode =
         Assignment (transl_modify_mode arg_mode)
@@ -1797,7 +1797,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
               representability on construction, [sort_of_layout] will be unsafe
               here.  Probably we should add sorts to record construction in the
               typed tree, then. *)
-           let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
+           let lbl_sort = Jkind.Type.sort_of_jkind lbl.lbl_jkind in
            match definition with
            | Kept (typ, mut, _) ->
                let field_layout = layout env lbl.lbl_loc lbl_sort typ in
@@ -1942,7 +1942,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     let copy_id = Ident.create_local "newrecord" in
     let update_field cont (lbl, definition) =
       (* CR layouts v5: allow more unboxed types here. *)
-      let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
+      let lbl_sort = Jkind.Type.sort_of_jkind lbl.lbl_jkind in
       check_record_field_sort lbl.lbl_loc lbl_sort;
       match definition with
       | Kept _ -> cont

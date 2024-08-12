@@ -108,10 +108,12 @@ type out_jkind_const =
   | Ojkind_const_mod of out_jkind_const * string list
   | Ojkind_const_with of out_jkind_const * out_type
   | Ojkind_const_kind_of of out_type
+  | Ojkind_const_arrow of out_jkind_const list * out_jkind_const
 
 and out_jkind =
   | Ojkind_const of out_jkind_const
   | Ojkind_var of string
+  | Ojkind_arrow of out_jkind list * out_jkind
 
 and out_type_param =
   { oparam_name : string;

@@ -800,8 +800,6 @@ let mode_cross_left env ty mode =
   let mode =
     if not (is_principal ty) then mode else
     let jkind = type_jkind_purely env ty in
-    (* FIXME jbachurski: What should happen for higher jkinds here?
-       Analogous question for other uses of to_type_jkind in this file. *)
     let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
     let upper_bounds = Const.alloc_as_value upper_bounds in
     Value.meet_const upper_bounds mode
@@ -1626,7 +1624,7 @@ let solve_Ppat_array ~refine loc env mutability expected_ty =
     else Predef.type_iarray
   in
   let jkind, arg_sort = Jkind.Type.of_new_legacy_sort_var ~why:Array_element in
-  let ty_elt = newgenvar jkind in
+  let ty_elt = newgenvar (Jkind.of_type_jkind jkind) in
   let expected_ty = generic_instance expected_ty in
   unify_pat_types ~refine
     loc env (type_some_array ty_elt) expected_ty;
@@ -8729,7 +8727,7 @@ and type_generic_array
   check_construct_mutability ~loc ~env mutability argument_mode;
   let argument_mode = mode_modality modalities argument_mode in
   let jkind, elt_sort = Jkind.Type.of_new_legacy_sort_var ~why:Array_element in
-  let ty = newgenvar jkind in
+  let ty = newgenvar (Jkind.of_type_jkind jkind) in
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));

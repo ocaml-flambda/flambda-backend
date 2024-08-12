@@ -323,6 +323,15 @@ let pr_var = Pprintast.tyvar
 let ty_var ~non_gen ppf s =
   pr_var ppf (if non_gen then "_" ^ s else s)
 
+let print_arrow ~is_atom ppf t args result =
+  match args with
+  | [arg] when is_atom arg ->
+    fprintf ppf "%a => %a" t arg t result
+  | _ ->
+    fprintf ppf "(%a) => %a"
+      (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") t) args
+      t result
+
 let rec print_out_jkind_const ppf (ojkind : Outcometree.out_jkind_const) =
   match ojkind with
   | Ojkind_const_default -> fprintf ppf "_"
@@ -333,13 +342,20 @@ let rec print_out_jkind_const ppf (ojkind : Outcometree.out_jkind_const) =
           ~pp_sep:(fun ppf () -> fprintf ppf "@ ")
           (fun ppf -> fprintf ppf "%s"))
       modes
+  | Ojkind_const_arrow (args, result) ->
+    print_arrow
+      ~is_atom:(function Ojkind_const_arrow _ -> false | _ -> true)
+      ppf print_out_jkind_const args result
   | Ojkind_const_with _ | Ojkind_const_kind_of _ ->
     failwith "XXX unimplemented jkind syntax"
 
-let print_out_jkind ppf ojkind =
-  match ojkind with
-  | Ojkind_var v -> fprintf ppf "%s" v
-  | Ojkind_const jkind -> print_out_jkind_const ppf jkind
+let rec print_out_jkind ppf = function
+| Ojkind_const jkind -> print_out_jkind_const ppf jkind
+| Ojkind_var v -> fprintf ppf "%s" v
+  | Ojkind_arrow (args, result) ->
+    print_arrow
+      ~is_atom:(function Ojkind_const (Ojkind_const_arrow _) | Ojkind_arrow _ -> false | _ -> true)
+      ppf print_out_jkind args result
 
 let print_out_jkind_annot ppf = function
   | None -> ()

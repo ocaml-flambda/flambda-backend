@@ -163,8 +163,20 @@ module Type : sig
   type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation
 end
 
-type 'type_expr t = 'type_expr Type.t
+type 'type_expr t =
+  | Type of 'type_expr Type.t
+  | Arrow of
+      { args : 'type_expr t list;
+        result : 'type_expr t
+      }
 
-module Const = Type.Const
+module Const : sig
+  type 'type_expr t =
+    | Type of 'type_expr Type.Const.t
+    | Arrow of
+        { args : 'type_expr t list;
+          result : 'type_expr t
+        }
+end
 
 type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation

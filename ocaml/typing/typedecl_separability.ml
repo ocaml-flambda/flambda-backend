@@ -482,7 +482,7 @@ let msig_of_external_type env decl =
   in
   if Result.is_error (check_jkind (Jkind.Type.Primitive.value_or_null ~why:Separability_check |> Jkind.of_type_jkind))
      || Result.is_ok
-          (check_jkind (Jkind.Type.Primitive.immediate64 ~why:Separability_check))
+          (check_jkind (Jkind.Type.Primitive.immediate64 ~why:Separability_check |> Jkind.of_type_jkind))
   then best_msig decl
   else worst_msig decl
 
