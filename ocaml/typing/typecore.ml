@@ -387,8 +387,7 @@ let should_infer_tail env (callee_expr: callee_expr) =
           match pexp_desc with
           | Pexp_ident { txt = ident; _ } -> begin
               let (path, _, _, _) = Env.lookup_value ~use:false ~loc ident env in
-              (* Calls to functions defined by some ancestor letrec might need TCO. *)
-              match Env.is_id_defined_by_letrec path env with
+              match Env.is_id_that_should_be_tco'd path env with
               | true -> `Infer_tail
               | false -> `Don't_infer_tail
             end
@@ -1128,9 +1127,9 @@ let maybe_add_pattern_variables_ghost loc_let env pv =
        end
     ) pv env
 
-let add_ids_defined_by_letrec env pvs =
+let add_ids_that_should_be_tco'd env pvs =
   List.fold_left
-    (fun env {pv_id; _} -> Env.add_id_defined_by_letrec pv_id env)
+    (fun env {pv_id; _} -> Env.add_id_that_should_be_tco'd pv_id env)
     env pvs
 
 let iter_pattern_variables_type f : pattern_variable list -> unit =
@@ -6793,7 +6792,7 @@ and type_function
         (* Check everything else in the scope of the parameter. *)
         map_half_typed_cases Value env expected_pat_mode
           ty_arg_internal ty_ret pat.ppat_loc
-          ~check_if_total:true
+          ~check_if_total:true ~am_typing_fun_args:true
           (* We don't make use of [case_data] here so we pass unit. *)
           [ { pattern = pat; has_guard = false; needs_refute = false }, () ]
           ~type_body:begin
@@ -7947,10 +7946,12 @@ and map_half_typed_cases
         -> contains_gadt:_ (* whether the pattern contains a GADT *)
         -> ret)
     -> check_if_total:bool
+    -> am_typing_fun_args:bool
     -> ret list * partial
   = fun ?additional_checks_for_split_cases
     category env pat_mode
-    ty_arg ty_res loc caselist ~type_body ~check_if_total ->
+    ty_arg ty_res loc caselist ~type_body ~check_if_total
+    ~am_typing_fun_args ->
   let patterns = List.map (fun ((x : untyped_case), _) -> x.pattern) caselist in
   let contains_polyvars = List.exists contains_polymorphic_variant patterns in
   let erase_either = contains_polyvars && contains_variant_either ty_arg in
@@ -8093,6 +8094,10 @@ and map_half_typed_cases
             ~check:(fun s -> Warnings.Unused_var_strict s)
             ~check_as:(fun s -> Warnings.Unused_var s)
         in
+        let ext_env = if am_typing_fun_args then
+            add_ids_that_should_be_tco'd ext_env pvs
+        else ext_env
+        in
         let ext_env = add_module_variables ext_env mvs in
         let ty_expected =
           if contains_gadt && not !Clflags.principal then
@@ -8181,10 +8186,13 @@ and map_half_typed_cases
 (* Typing of match cases *)
 and type_cases
     : type k . k pattern_category ->
-           _ -> _ -> _ -> _ -> _ -> check_if_total:bool -> _ -> Parsetree.case list ->
-           k case list * partial
+      _ -> _ -> _ -> _ -> _ -> check_if_total:bool
+      -> ?am_typing_fun_args:bool
+      -> _ -> Parsetree.case list
+      -> k case list * partial
   = fun category env pat_mode expr_mode
-        ty_arg ty_res_explained ~check_if_total loc caselist ->
+        ty_arg ty_res_explained ~check_if_total
+        ?(am_typing_fun_args = false) loc caselist ->
   let { ty = ty_res; explanation } = ty_res_explained in
   let caselist =
     List.map (fun case -> Parmatch.untyped_case case, case) caselist
@@ -8194,6 +8202,7 @@ and type_cases
      warnings that can fire in the presence of guards.
   *)
   map_half_typed_cases category env pat_mode ty_arg ty_res loc caselist ~check_if_total
+    ~am_typing_fun_args
     ~type_body:begin
       fun { pc_guard; pc_rhs } pat ~ext_env ~ty_expected ~ty_infer
           ~contains_gadt:_ ->
@@ -8245,7 +8254,7 @@ and type_function_cases_expect
     let cases, partial =
       type_cases Value env
         expected_pat_mode expected_inner_mode ty_arg_mono (mk_expected ty_ret)
-        ~check_if_total:true loc cases
+        ~check_if_total:true ~am_typing_fun_args:true loc cases
     in
     let ty_fun =
       instance
@@ -8605,7 +8614,7 @@ and type_let_def_wrap_warnings
     (* (less-tco) Used to infer whether function applications should be tail-call
        optimized. Tail-position applications of functions defined via letrec should likely
        be tail-call optimized inside the letrec bindings. *)
-      add_ids_defined_by_letrec exp_env pvs
+      add_ids_that_should_be_tco'd exp_env pvs
     end
     else exp_env
   in

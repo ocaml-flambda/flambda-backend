@@ -22,4 +22,49 @@
              (seq (ignore next)
                (if (> n 0)
                  (applynontail next n k Tail_position (Default_tail)) k)))))
-      (makeblock 0 foo bar baz collatz))))
+      (let
+        (map =
+           (function {nlocal = 0} opt[(consts (0)) (non_consts ([0: *]))] g
+             [(consts (0)) (non_consts ([0: *]))](if (isint opt) 0
+                                                   (makeblock 0
+                                                     (apply g
+                                                       (field_imm 0 opt) Not_tail_position (Default_tail)))))
+         map =
+           (function {nlocal = 0} opt[(consts (0)) (non_consts ([0: *]))] g
+             [(consts (0)) (non_consts ([0: *]))](if (isint opt) 0
+                                                   (makeblock 0
+                                                     (apply g
+                                                       (field_imm 0 opt) Not_tail_position (Default_tail)))))
+         pipe_struct =
+           (function {nlocal = 0} a param[(consts ()) (non_consts ([0: *]))]
+             (apply (field_imm 0 param) a Tail_position (Default_tail)))
+         pipe_tuple =
+           (function {nlocal = 0} a
+             param[(consts ()) (non_consts ([0: *, *]))]
+             (apply (field_imm 0 param) a Tail_position (Default_tail)))
+         pipe_struct_match =
+           (function {nlocal = 0} a param[(consts ()) (non_consts ([0: *]))]
+             (apply (field_imm 0 param) a Tail_position (Default_tail)))
+         pipe_tuple_match =
+           (function {nlocal = 0} a
+             param[(consts ()) (non_consts ([0: *, *]))]
+             (apply (field_imm 0 param) a Tail_position (Default_tail)))
+         pipe_option =
+           (function {nlocal = 0} a param[(consts (0)) (non_consts ([0: *]))]
+             [(consts (0)) (non_consts ([0: *]))](if (isint param) 0
+                                                   (makeblock 0
+                                                     (apply
+                                                       (field_imm 0 param)
+                                                       a Not_tail_position (Default_tail)))))
+         pipe_option_ifnone =
+           (function {nlocal = 0} a ifnone
+             param[(consts (0)) (non_consts ([0: *]))]
+             [(consts (0)) (non_consts ([0: *]))](if (isint param)
+                                                   (apply ifnone
+                                                     a Tail_position (Default_tail))
+                                                   (makeblock 0
+                                                     (apply
+                                                       (field_imm 0 param)
+                                                       a Not_tail_position (Default_tail))))))
+        (makeblock 0 foo bar baz collatz map pipe_struct pipe_tuple
+          pipe_struct_match pipe_tuple_match pipe_option pipe_option_ifnone)))))
