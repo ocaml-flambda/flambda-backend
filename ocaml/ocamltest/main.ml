@@ -107,37 +107,53 @@ let join_summaries sa sb =
   | No_failure, (No_failure | All_skipped)
   | All_skipped, No_failure -> No_failure
 
-let rec run_test log common_prefix path behavior = function
-  Node (testenvspec, test, env_modifiers, subtrees) ->
-  let skip_all =
-    match behavior with
-    | Skip_all_tests -> true
-    | Run _ -> false
-  in
-  if not skip_all then
-    Printf.printf "%s %s (%s) %!" common_prefix path test.Tests.test_name;
-  let (msg, children_behavior, result) = match behavior with
-    | Skip_all_tests -> "", Skip_all_tests, Result.skip
-    | Run env ->
-      let testenv0 = interpret_environment_statements env testenvspec in
-      let testenv = List.fold_left apply_modifiers testenv0 env_modifiers in
-      let (result, newenv) = Tests.run log testenv test in
-      let msg = Result.string_of_result result in
-      let children_behavior =
-        if Result.is_pass result then Run newenv else Skip_all_tests in
-      (msg, children_behavior, result) in
-  if not skip_all then Printf.printf "%s\n%!" msg;
-  join_result
-    (run_test_trees log common_prefix path children_behavior subtrees) result
-
-and run_test_trees log common_prefix path behavior trees =
-  List.fold_left join_summaries All_skipped
-    (List.mapi (run_test_i log common_prefix path behavior) trees)
-
-and run_test_i log common_prefix path behavior i test_tree =
-  let path_prefix = if path="" then "" else path ^ "." in
-  let new_path = Printf.sprintf "%s%d" path_prefix (i+1) in
-  run_test log common_prefix new_path behavior test_tree
+let rec run_test_tree log common_prefix behavior env summ ast =
+  match ast with
+  | Ast (Environment_statement s :: stmts, subs) ->
+    begin match interpret_environment_statement env s with
+    | env ->
+      run_test_tree log common_prefix behavior env summ (Ast (stmts, subs))
+    | exception e ->
+      let line = s.loc.Location.loc_start.Lexing.pos_lnum in
+      Printf.printf "%s line %d %!" common_prefix line;
+      Printf.printf "%s\n%!" (report_error s.loc e);
+      Some_failure
+    end
+  | Ast (Test (_, name, mods) :: stmts, subs) ->
+    let skip_all =
+      match behavior with
+      | Skip_all -> true
+      | Run -> false
+    in
+    let locstr =
+      if name.loc = Location.none then
+        "default"
+      else
+        Printf.sprintf "line %d" name.loc.Location.loc_start.Lexing.pos_lnum
+    in
+    if not skip_all then
+      Printf.printf "%s %s (%s) %!" common_prefix locstr name.node;
+    let (msg, children_behavior, newenv, result) =
+      match behavior with
+      | Skip_all -> ("", Skip_all, env, Result.skip)
+      | Run ->
+        begin try
+          let testenv = List.fold_left apply_modifiers env mods in
+          let test = lookup_test name in
+          let (result, newenv) = Tests.run log testenv test in
+          let msg = Result.string_of_result result in
+          let sub_behavior = if Result.is_pass result then Run else Skip_all in
+          (msg, sub_behavior, newenv, result)
+        with e -> (report_error name.loc e, Skip_all, env, Result.fail)
+        end
+    in
+    if not skip_all then Printf.printf "%s\n%!" msg;
+    let newsumm = join_result summ result in
+    let newast = Ast (stmts, subs) in
+    run_test_tree log common_prefix children_behavior newenv newsumm newast
+  | Ast ([], subs) ->
+    List.fold_left join_summaries summ
+      (List.map (run_test_tree log common_prefix behavior env All_skipped) subs)
 
 let get_test_source_directory test_dirname =
   if (Filename.is_relative test_dirname) then
@@ -167,7 +183,7 @@ let test_file test_filename =
   let skip_test = List.mem test_filename !tests_to_skip in
   let tsl_ast = tsl_parse_file_safe test_filename in
   let (rootenv_statements, tsl_ast) = extract_rootenv tsl_ast in
-  let tsl_ast = match tsl_ast with
+  let tsl_ast = match[@ocaml.warning "-fragile-match"] tsl_ast with
     | Ast ([], []) ->
       let default_tests = Tests.default_tests() in
       let make_tree test =

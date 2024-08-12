@@ -110,17 +110,6 @@ let lookup_test located_name =
     end
   | Some test -> test
 
-let lookup_test located_name =
-  let name = located_name.node in
-  match Tests.lookup name with
-  | None ->
-    begin match Actions.lookup name with
-    | None -> no_such_test_or_action located_name
-    | Some action ->
-      Tests.test_of_action action
-    end
-  | Some test -> test
-
 let test_trees_of_tsl_block tsl_block =
   let rec env_of_lines = function [@ocaml.warning "-fragile-match"]
     | [] -> ([], [])
@@ -165,7 +154,7 @@ let test_trees_of_tsl_block tsl_block =
     | _ -> assert false
 
 let test_trees_of_tsl_block tsl_block =
-  let (env, trees) = test_trees_of_tsl_block block in
+  let (env, trees) = test_trees_of_tsl_block tsl_block in
   let does_something =
     List.for_all test_tree_does_something_on_all_branches trees
   in
@@ -209,7 +198,7 @@ let rec ast_of_tree (Node (env, test, mods, subs)) =
 
 and ast_of_tree_aux env tst subs =
   let env = List.map (fun x -> Environment_statement x) env in
-  match List.map ast_of_tree subs with
+  match[@ocaml.warning "-fragile-match"] List.map ast_of_tree subs with
   | [ Ast (stmts, subs) ] -> Ast (env @ tst @ stmts, subs)
   | asts -> Ast (env @ tst, asts)
 
