@@ -446,15 +446,18 @@ end = struct
     let rec lower_to_representable (jkind : Jkind.t) =
       match Jkind.get jkind with
       | Arrow { args; result } ->
-        Jkind.of_arrow ~history:jkind.history
-          { args = List.map co_lower_to_representable args;
-            result = lower_to_representable result }
+        Jkind.of_arrow 
+          ~history:jkind.history
+          ~args:(List.map co_lower_to_representable args)
+          ~result:(lower_to_representable result)
       | Type _ | Top -> {jkind with jkind = (intersection_with_new_sort jkind).jkind }
     and co_lower_to_representable (jkind : Jkind.t) =
       match Jkind.get jkind with
       | Arrow { args; result } ->
-        Jkind.of_arrow ~history:jkind.history
-          { args = List.map lower_to_representable args; result }
+        Jkind.of_arrow 
+          ~history:jkind.history
+          ~args:(List.map lower_to_representable args)
+          ~result
       | Type _ | Top -> jkind
     in
     match jkind_check, policy.jkind_initialization with
@@ -465,8 +468,8 @@ end = struct
          We'd need to switch variances in the arguments if we recursed there. *)
       Jkind.of_arrow
         ~history:(Creation Defaulted)
-        { args = List.init n (fun _ -> gen_sort ());
-          result = new_jkind ~is_named policy result_jkind_check }
+        ~args:(List.init n (fun _ -> gen_sort ()))
+        ~result:(new_jkind ~is_named policy result_jkind_check)
     | Exact jkind, Any -> jkind
     (* If the initialization policy expects representable layouts,
        we lower all covariant (result) positions to representable
