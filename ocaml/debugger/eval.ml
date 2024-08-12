@@ -22,7 +22,8 @@ open Parser_aux
 open Events
 
 type error =
-    Unbound_identifier of Ident.t
+    Unbound_global of Symtable.Global.t
+  | Unbound_identifier of Ident.t
   | Not_initialized_yet of Path.t
   | Unbound_long_identifier of Longident.t
   | Unknown_name of int
@@ -39,25 +40,21 @@ exception Error of error
 
 let abstract_type =
   Btype.newgenty (Tconstr (Pident (Ident.create_local "<abstr>"), [], ref Mnil))
-let get_global_or_predef id =
-  try
-    Debugcom.Remote_value.global (Symtable.get_global_position id)
-  with Symtable.Error _ -> raise(Error(Unbound_identifier id))
 
+let get_global glob =
+  try
+    Debugcom.Remote_value.global (Symtable.get_global_position glob)
+  with Symtable.Error _ ->
+    raise(Error(Unbound_global glob))
+
+(* XXX mshinwell: check for other occurrences of this Aunit/Alocal pattern
+   and make the code look like this *)
 let rec address path event = function
-  | Env.Aunit cu ->
-      get_global_or_predef (cu |> Compilation_unit.to_global_ident_for_bytecode)
+  | Env.Aunit cu -> get_global (Glob_compunit cu)
   | Env.Alocal id ->
-    if Ident.is_predef id then get_global_or_predef id
-    else
     begin
       match Symtable.Global.of_ident id with
-        | Some global ->
-          begin
-            try Debugcom.Remote_value.global (Symtable.get_global_position
-              global)
-            with Symtable.Error _ -> raise(Error(Unbound_identifier id))
-          end
+      | Some global -> get_global global
       | None ->
         let not_found () =
           raise(Error(Unbound_identifier id))
@@ -199,6 +196,9 @@ open Format
 module Style = Misc.Style
 
 let report_error ppf = function
+  | Unbound_global glob ->
+      fprintf ppf "@[Unbound identifier %a@]@."
+        Style.inline_code (Symtable.Global.name glob)
   | Unbound_identifier id ->
       fprintf ppf "@[Unbound identifier %a@]@."
         Style.inline_code (Ident.name id)
