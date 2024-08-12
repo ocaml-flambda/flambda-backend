@@ -764,6 +764,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       let constr =
         newconstr path (List.map (fun ctyp -> ctyp.ctyp_type) args) in
       ctyp (Ttyp_constr (path, lid, args)) constr
+  | Ptyp_app _ -> failwith "General type application is not implemented"
   | Ptyp_object (fields, o) ->
       let ty, fields = transl_fields env ~policy ~row_context o fields in
       ctyp (Ttyp_object (fields, o)) (newobj ty)
