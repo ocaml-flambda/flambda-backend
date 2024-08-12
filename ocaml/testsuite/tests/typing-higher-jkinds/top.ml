@@ -50,10 +50,10 @@ Error: Signature mismatch:
          type t : value => top
        is not included in
          type t : value => value
-       The layout of the first is ((value) => top), because
-         of the definition of t at line 4, characters 2-23.
-       But the layout of the first must be a sublayout of ((value) => value), because
-         of the definition of t at line 2, characters 2-25.
+       The kind of the first is ((value) => top)
+         because of the definition of t at line 4, characters 2-23.
+       But the kind of the first must be a subkind of ((value) => value)
+         because of the definition of t at line 2, characters 2-25.
 |}]
 
 module M : sig
