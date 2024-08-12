@@ -774,8 +774,6 @@ static void domain_create(uintnat initial_minor_heap_wsize,
   domain_state->trap_barrier_block = -1;
 #endif
 
-  // XXX mshinwell: is this line needed?  It was deleted on our side
-  // caml_reset_young_limit(domain_state);
   add_next_to_stw_domains();
   goto domain_init_complete;
 
