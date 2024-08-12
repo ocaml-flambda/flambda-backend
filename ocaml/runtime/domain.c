@@ -648,10 +648,6 @@ static void domain_create(uintnat initial_minor_heap_wsize,
 
   domain_state->young_limit = 0;
 
-  // XXX mshinwell: check if this unique_id line is needed and whether
-  // these two lines should be before caml_memprof_new_domain (as we had on
-  // flambda-backend) or after (as on 5.2, although 5.2 lacks the unique_id
-  // line).
   domain_state->id = d->id;
   domain_state->unique_id = s->unique_id;
 
