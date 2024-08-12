@@ -476,6 +476,7 @@
   .stdlib.objs/native/stdlib__Either.cmx
   .stdlib.objs/native/stdlib__In_channel.cmx
   .stdlib.objs/native/stdlib__Out_channel.cmx
-  (META as stdlib/META))
+  (META as stdlib/META)
+  (runtime.info as runtime-launch-info))
  (section lib)
  (package ocaml_runtime_stdlib))
