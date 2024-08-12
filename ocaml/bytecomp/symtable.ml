@@ -13,8 +13,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "-34-69"] (* see XXX below *)
-
 (* To assign numbers to globals and primitives *)
 
 open Misc
@@ -345,23 +343,17 @@ type bytecode_sections =
     prim: string list;
     dlpt: string list }
 
-(* XXX mshinwell
-external get_bytecode_sections : unit -> bytecode_sections =
-  "caml_dynlink_get_bytecode_sections"
-*)
-
 (* Initialize the linker for toplevel use *)
 
-let init_toplevel () =
-  failwith "This doesn't work yet, the system runtime lacks caml_dynlink_get_bytecode_sections"
-(*
+(* In flambda-backend, [get_bytecode_sections] is passed in, because it is
+   absent from the 4.x runtime as used by the current system compiler. *)
+let init_toplevel ~get_bytecode_sections =
   let sect = get_bytecode_sections () in
   global_table := sect.symb;
   c_prim_table := PrimMap.empty;
   List.iter set_prim_table sect.prim;
   Dll.init_toplevel sect.dlpt;
   sect.crcs
-  *)
 
 (* Find the value of a global identifier *)
 

@@ -303,8 +303,11 @@ and really_load_file recursive ppf name filename ic =
       end
   with Load_failed -> false
 
+external get_bytecode_sections : unit -> Symtable.bytecode_sections =
+  "caml_dynlink_get_bytecode_sections"
+
 let init () =
-  let crc_intfs = Symtable.init_toplevel() in
+  let crc_intfs = Symtable.init_toplevel ~get_bytecode_sections in
   Compmisc.init_path ();
   Env.import_crcs ~source:Sys.executable_name crc_intfs;
   ()

@@ -98,12 +98,15 @@ module Bytecode = struct
   let default_crcs = ref [| |]
   let default_global_map = ref Symtable.empty_global_map
 
+  external get_bytecode_sections : unit -> Symtable.bytecode_sections =
+    "caml_dynlink_get_bytecode_sections"
+
   let init () =
     if !Sys.interactive then begin (* PR#6802 *)
       invalid_arg "The dynlink.cma library cannot be used \
         inside the OCaml toplevel"
     end;
-    default_crcs := Symtable.init_toplevel ();
+    default_crcs := Symtable.init_toplevel ~get_bytecode_sections;
     default_global_map := Symtable.current_state ()
 
   let is_native = false
