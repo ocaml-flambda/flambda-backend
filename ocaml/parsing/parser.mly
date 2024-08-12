@@ -1012,6 +1012,7 @@ let unboxed_type sloc lident tys =
 %token MINUS                  "-"
 %token MINUSDOT               "-."
 %token MINUSGREATER           "->"
+%token EQUALGREATER           "=>"
 %token MOD                    "mod"
 %token MODULE                 "module"
 %token MUTABLE                "mutable"
@@ -1113,6 +1114,7 @@ The precedences must be listed from low to high.
 %right    OR BARBAR                     /* expr (e || e || e) */
 %right    AMPERSAND AMPERAMPER          /* expr (e && e && e) */
 %nonassoc below_EQUAL
+%left     EQUALGREATER                  /* jkind (k => k => k) */
 %left     INFIXOP0 EQUAL LESS GREATER   /* expr (e OP e OP e) */
 %right    ATAT AT INFIXOP1              /* expr (e OP e OP e) */
 %nonassoc below_LBRACKETAT
@@ -3863,8 +3865,15 @@ type_parameters:
       { ps }
 ;
 
-jkind:
-    jkind MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
+jkind_parameters:
+    p = jkind_base
+      { [p] }
+  | LPAREN ps = separated_nonempty_llist(COMMA, jkind) RPAREN (* ( jkind+ )  *)
+      { ps }
+;
+
+jkind_base:
+    jkind_base MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
       let mode_list =
         List.map
           (fun {txt; loc} -> Jane_syntax.Mode_expr.Const.mk txt loc)
@@ -3872,7 +3881,7 @@ jkind:
       in
       Jane_syntax.Jkind.Mod ($1, mkrhs mode_list $loc($3))
     }
-  | jkind WITH core_type {
+  | jkind_base WITH core_type {
       Jane_syntax.Jkind.With ($1, $3)
     }
   | mkrhs(ident) {
@@ -3886,6 +3895,12 @@ jkind:
       Jane_syntax.Jkind.Default
     }
 ;
+
+jkind:
+    args=jkind_parameters EQUALGREATER result=jkind {
+      Jane_syntax.Jkind.Arrow (args, result)
+    }
+  | k=jkind_base { k }
 
 jkind_annotation: (* : jkind_annotation *)
   mkrhs(jkind) { $1 }
@@ -4725,6 +4740,7 @@ operator:
   | STAR           {"*"}
   | PERCENT        {"%"}
   | EQUAL          {"="}
+  | EQUALGREATER  {"=>"}
   | LESS           {"<"}
   | GREATER        {">"}
   | OR            {"or"}
