@@ -1,9 +1,4 @@
-<<<<<<< HEAD
 #2 "otherlibs/dynlink/dynlink.ml"
-||||||| 121bedcfd2
-#3 "otherlibs/dynlink/dynlink.ml"
-=======
->>>>>>> 5.2.0
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -37,49 +32,29 @@ module Bytecode = struct
   module Unit_header = struct
     type t = Cmo_format.compilation_unit_descr
 
-<<<<<<< HEAD
     let name (t : t) = Compilation_unit.full_path_as_string t.cu_name
-||||||| 121bedcfd2
-    let name (t : t) = t.cu_name
-=======
-    let name (t : t) = Symtable.Compunit.name t.cu_name
->>>>>>> 5.2.0
     let crc _t = None
 
     let interface_imports (t : t) =
       List.map convert_cmi_import (Array.to_list t.cu_imports)
 
     let implementation_imports (t : t) =
-<<<<<<< HEAD
       let required_from_unit =
-        t.cu_required_globals
+        t.cu_required_compunits
         |> List.map Compilation_unit.to_global_ident_for_bytecode
       in
       let required =
         required_from_unit
         @ Symtable.required_globals t.cu_reloc
-||||||| 121bedcfd2
-      let required =
-        t.cu_required_globals
-        @ Symtable.required_globals t.cu_reloc
-=======
-      let required =
-        t.cu_required_compunits
-        @ Symtable.required_compunits t.cu_reloc
->>>>>>> 5.2.0
       in
       let required =
         List.filter
-<<<<<<< HEAD
+(* XXX mshinwell: our side was:
           (fun id ->
              not (Ident.is_predef id)
              && not (String.contains (Ident.name id) '.'))
-||||||| 121bedcfd2
-          (fun id ->
-             not (String.contains (Ident.name id) '.'))
-=======
+             *)
           (fun cu -> not (Symtable.Compunit.is_packed cu))
->>>>>>> 5.2.0
           required
       in
       List.map
@@ -119,7 +94,6 @@ module Bytecode = struct
     Compilation_unit.create Compilation_unit.Prefix.empty modname
 
   let fold_initial_units ~init ~f =
-<<<<<<< HEAD
     Array.fold_left (fun acc import ->
         let modname = Import_info.name import in
         let crc = Import_info.crc import in
@@ -127,15 +101,6 @@ module Bytecode = struct
           Compilation_unit.to_global_ident_for_bytecode
             (assume_no_prefix modname)
         in
-||||||| 121bedcfd2
-    List.fold_left (fun acc (comp_unit, interface) ->
-        let id = Ident.create_persistent comp_unit in
-=======
-    List.fold_left (fun acc (compunit, interface) ->
-        let global =
-          Symtable.Global.Glob_compunit (Cmo_format.Compunit compunit)
-        in
->>>>>>> 5.2.0
         let defined =
           Symtable.is_defined_in_global_map !default_global_map global
         in
@@ -144,23 +109,11 @@ module Bytecode = struct
           else None
         in
         let defined_symbols =
-<<<<<<< HEAD
           if defined then [Ident.name id]
-||||||| 121bedcfd2
-          if defined then [comp_unit]
-=======
-          if defined then [compunit]
->>>>>>> 5.2.0
           else []
         in
-<<<<<<< HEAD
         let comp_unit = modname |> Compilation_unit.Name.to_string in
         f acc ~comp_unit ~interface:crc ~implementation ~defined_symbols)
-||||||| 121bedcfd2
-        f acc ~comp_unit ~interface ~implementation ~defined_symbols)
-=======
-        f acc ~compunit ~interface ~implementation ~defined_symbols)
->>>>>>> 5.2.0
       init
       !default_crcs
 
@@ -199,26 +152,14 @@ module Bytecode = struct
           raise (DT.Error (Linking_error (file_name, new_error)))
         end;
         (* PR#5215: identify this code fragment by
-<<<<<<< HEAD
           digest of file contents + unit name.
           Unit name is needed for .cma files, which produce several code
           fragments. *)
+        (* XXX mshinwell: conflict resolution around here needs checking *)
         let digest =
           Digest.string
             (file_digest ^ Compilation_unit.full_path_as_string compunit.cu_name)
         in
-||||||| 121bedcfd2
-           digest of file contents + unit name.
-           Unit name is needed for .cma files, which produce several code
-           fragments. *)
-        let digest = Digest.string (file_digest ^ compunit.cu_name) in
-=======
-           digest of file contents + unit name.
-           Unit name is needed for .cma files, which produce several code
-           fragments. *)
-        let unit_name = Symtable.Compunit.name compunit.cu_name in
-        let digest = Digest.string (file_digest ^ unit_name) in
->>>>>>> 5.2.0
         let events =
           if compunit.cu_debug = 0 then [| |]
           else begin

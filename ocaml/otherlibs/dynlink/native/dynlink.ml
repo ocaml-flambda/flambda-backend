@@ -1,9 +1,4 @@
-<<<<<<< HEAD
 #2 "otherlibs/dynlink/dynlink.ml"
-||||||| 121bedcfd2
-#3 "otherlibs/dynlink/native/dynlink.ml"
-=======
->>>>>>> 5.2.0
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -138,25 +133,7 @@ module Native = struct
     if header.dynu_magic <> Config.cmxs_magic_number then begin
       raise (DT.Error (Not_a_bytecode_file filename))
     end;
-<<<<<<< HEAD
     handle, header.dynu_units
-||||||| 121bedcfd2
-    let syms =
-      "_shared_startup" ::
-      List.concat_map Unit_header.defined_symbols header.dynu_units
-    in
-    ndl_register handle (Array.of_list syms);
-    handle, header.dynu_units
-=======
-    let syms =
-      "_shared_startup" ::
-      List.concat_map Unit_header.defined_symbols header.dynu_units
-    in
-    try
-      ndl_register handle (Array.of_list syms);
-      handle, header.dynu_units
-    with exn -> raise (DT.Error (Cannot_open_dynamic_library exn))
->>>>>>> 5.2.0
 
   let register handle dynu_units ~priv ~filename =
     let syms =
