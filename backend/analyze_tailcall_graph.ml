@@ -794,49 +794,51 @@ end = struct
       sccs;
     Format.fprintf ppf "}\n\n"
 
-  type vertex_visiting =
-    | Visiting
-    | Visited of Less_tco_info.position
-
   let to_less_tco_info t =
-    let visited : vertex_visiting Vertex.Tbl.t = Vertex.Tbl.create 100 in
-    let rec visit (v : Vertex.t) : Less_tco_info.position =
-      match Vertex.Tbl.find_opt visited v with
-      | Some Visiting ->
-        (* Cycle *) Doesn't_contain_indirect_call_in_tail_position
-      | Some (Visited pos) -> pos
-      | None ->
-        Vertex.Tbl.add visited v Visiting;
-        if Vertex.is_unknown v
-        then Contains_indirect_call_in_tail_position
-        else
-          let succs =
-            List.filter_map
-              (fun ({ edge; _ } : Edge.With_loc.t) ->
-                match edge.label with
-                | Explicit_tail_edge -> Some (visit edge.to_)
-                | Explicit_nontail_edge -> None
-                | Unknown_position_tail_edge -> Some (visit edge.to_)
-                | Unknown_position_nontail_edge -> None
-                | Inferred_tail_edge -> Some (visit edge.to_)
-                | Inferred_nontail_edge -> None)
-              (successors t v)
-          in
-          let bot : Less_tco_info.position =
-            Doesn't_contain_indirect_call_in_tail_position
-          in
-          let result = List.fold_left Less_tco_info.join bot succs in
-          Vertex.Tbl.add visited v (Visited result);
-          result
+    let successors_mod_loc_rev : Vertex.t -> Edge.t list =
+      let reversed = Vertex.Tbl.create 100 in
+      Seq.iter
+        (fun v ->
+          Seq.iter
+            (fun (edge : Edge.t) -> Vertex.Tbl.add reversed edge.to_ edge)
+            (successors_mod_loc t v))
+        (Vertex.Tbl.to_seq_keys t.adjacencies);
+      fun v -> Vertex.Tbl.find_all reversed v
     in
+    let reachable_from_unknown_rev : Vertex.Hashset.t =
+      let visited = Vertex.Hashset.create 100 in
+      let rec visit (v : Vertex.t) =
+        match Vertex.Hashset.mem visited v with
+        | true -> ()
+        | false ->
+          Vertex.Hashset.add visited v;
+          List.iter
+            (fun (edge : Edge.t) ->
+              match edge.label with
+              | Explicit_tail_edge | Unknown_position_tail_edge
+              | Inferred_tail_edge ->
+                visit edge.from (* visit from since it is reversed. *)
+              | Explicit_nontail_edge | Unknown_position_nontail_edge
+              | Inferred_nontail_edge ->
+                ())
+            (successors_mod_loc_rev v)
+      in
+      visit Vertex.unknown;
+      visited
+    in
+    let visited = reachable_from_unknown_rev in
     let unit_info =
-      t |> vertices
+      visited |> Vertex.Hashset.to_seq
       |> Seq.fold_left
            (fun info v ->
              match (v : Vertex.t) with
              | Unknown_fn -> info
              | Known_fn { name; _ } ->
-               let pos = visit v in
+               let pos : Less_tco_info.position =
+                 if Vertex.Hashset.mem reachable_from_unknown_rev v
+                 then Contains_indirect_call_in_tail_position
+                 else Doesn't_contain_indirect_call_in_tail_position
+               in
                Less_tco_info.add_exn info ~fn:name ~pos)
            Less_tco_info.empty
     in

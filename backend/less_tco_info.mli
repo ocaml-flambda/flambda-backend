@@ -29,8 +29,6 @@ type position =
   | Doesn't_contain_indirect_call_in_tail_position
   | Contains_indirect_call_in_tail_position
 
-val join : position -> position -> position
-
 type t
 
 val empty : t
@@ -43,6 +41,8 @@ val find : t -> fn:string -> position option
 (* [merge_exn] throws if a duplicate fn is added. *)
 val merge_exn : t -> t -> t
 
+val print : Format.formatter -> t -> unit
+
 module Global_state : sig
   val cached : t ref
 
@@ -50,7 +50,7 @@ module Global_state : sig
 end
 
 module Raw : sig
-  type t
+  type t = (string * position) list
 end
 
 val to_raw : t -> Raw.t
