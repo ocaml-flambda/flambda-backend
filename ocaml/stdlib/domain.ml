@@ -19,34 +19,6 @@
 
 open! Stdlib
 
-module Raw = struct
-  (* Low-level primitives provided by the runtime *)
-  type t = private int
-
-  (* The layouts of [state] and [term_sync] are hard-coded in
-     [runtime/domain.c] *)
-
-  type 'a state =
-    | Running
-    | Finished of ('a, exn) result [@warning "-unused-constructor"]
-
-  type 'a term_sync = {
-    (* protected by [mut] *)
-    mutable state : 'a state [@warning "-unused-field"] ;
-    mut : Mutex.t ;
-    cond : Condition.t ;
-  }
-
-  external spawn : (unit -> 'a) -> 'a term_sync -> t
-    = "caml_domain_spawn"
-  external self : unit -> t
-    = "caml_ml_domain_id" [@@noalloc]
-  external cpu_relax : unit -> unit
-    = "caml_ml_domain_cpu_relax"
-  external get_recommended_domain_count: unit -> int
-    = "caml_recommended_domain_count" [@@noalloc]
-end
-
 [@@@ocaml.flambda_o3]
 
 module Runtime_4 = struct
