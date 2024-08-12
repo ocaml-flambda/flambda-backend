@@ -73,8 +73,7 @@ Error: The type constraints are not consistent.
        The layout of 'a is float64
          because of the definition of t at line 2, characters 2-23.
        But the layout of 'a must overlap with value
-         because it instantiates an unannotated type parameter of t,
-         defaulted to layout value.
+         because the type argument of list has layout value.
 |}];;
 
 module type S1f'' = S1f with type s = t_float64;;

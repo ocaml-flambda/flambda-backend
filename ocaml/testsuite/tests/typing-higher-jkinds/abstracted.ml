@@ -126,20 +126,13 @@ end = struct
   type t : any => value = array
 end
 [%%expect {|
-Lines 3-5, characters 6-3:
-3 | ......struct
+Line 4, characters 2-31:
 4 |   type t : any => value = array
-5 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t = array end
-       is not included in
-         sig type ('a : any) t end
-       Type declarations do not match:
-         type t = array
-       is not included in
-         type ('a : any) t
-       The first is abstract, but the second is an abstract datatype.
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type array is ((any_non_null) => value)
+         because it is the primitive value type array.
+       But the kind of type array must be a subkind of ((any) => value)
+         because of the definition of t at line 4, characters 2-31.
 |}]
 
 module M : sig
@@ -148,7 +141,13 @@ end = struct
   type t : any => value = array
 end
 [%%expect {|
-module M : sig type t : any => value end
+Line 4, characters 2-31:
+4 |   type t : any => value = array
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type array is ((any_non_null) => value)
+         because it is the primitive value type array.
+       But the kind of type array must be a subkind of ((any) => value)
+         because of the definition of t at line 4, characters 2-31.
 |}]
 
 module M : sig
@@ -276,8 +275,9 @@ Error: Signature mismatch:
          type ('m : value => value) inj = { inj : 'a. 'a -> 'a 'm; }
        is not included in
          type inj : (value => any) => value
-       The layout of the first is ((((value) => value)) => value), because
-         of the definition of inj at lines 4-6, characters 2-3.
-       But the layout of the first must be a sublayout of ((((value) => any)) => value), because
-         of the definition of inj at line 2, characters 2-36.
+       The kind of the first is ((((value) => value)) => value)
+         because of the definition of inj at lines 4-6, characters 2-3.
+       But the kind of the first must be a subkind of
+         ((((value) => any)) => value)
+         because of the definition of inj at line 2, characters 2-36.
 |}]
