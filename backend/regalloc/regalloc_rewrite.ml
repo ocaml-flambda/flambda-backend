@@ -50,59 +50,53 @@ type direction =
    original block. Returns the new block temporaries and removes the now block
    temporaries and the instruction temporaries for now removed instructions from
    [new_temporaries]. *)
-let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
+let coalesce_temp_spills_and_reloads (block : Cfg.basic_block)
+    ~new_inst_temporaries ~new_block_temporaries =
   let removed_inst_temporaries = Reg.Tbl.create 128 in
-  let new_block_temporaries = Reg.Tbl.create 128 in
-  let coalesce_temp_spills_and_reloads_per_block _ (block : Cfg.basic_block) =
-    let var_to_block_temp = Reg.Tbl.create 8 in
-    let replacements = Reg.Tbl.create 8 in
-    let last_spill = Reg.Tbl.create 8 in
-    let replace to_replace replace_with =
-      if not (Reg.same to_replace replace_with)
-      then Reg.Tbl.add replacements to_replace replace_with
-    in
-    let update_info_using_inst (inst_cell : Cfg.basic Cfg.instruction DLL.cell)
-        =
-      let inst = DLL.value inst_cell in
-      match inst.desc with
-      | Op Reload -> (
-        let var = inst.arg.(0) in
-        let temp = inst.res.(0) in
-        match Reg.Tbl.find_opt var_to_block_temp var with
-        | None -> Reg.Tbl.add var_to_block_temp var temp
-        | Some block_temp ->
-          DLL.delete_curr inst_cell;
-          replace temp block_temp)
-      | Op Spill -> (
-        let var = inst.res.(0) in
-        let temp = inst.arg.(0) in
-        (match Reg.Tbl.find_opt last_spill var with
-        | None -> ()
-        | Some prev_inst_cell -> DLL.delete_curr prev_inst_cell);
-        Reg.Tbl.replace last_spill var inst_cell;
-        match Reg.Tbl.find_opt var_to_block_temp var with
-        | None -> Reg.Tbl.add var_to_block_temp var temp
-        | Some block_temp -> replace temp block_temp)
-      | _ -> ()
-    in
-    DLL.iter_cell block.body ~f:update_info_using_inst;
-    if Reg.Tbl.length replacements <> 0
-    then (
-      Substitution.apply_block_in_place replacements block;
-      Reg.Tbl.iter
-        (fun temp block_temp ->
-          Reg.Tbl.replace removed_inst_temporaries temp ();
-          Reg.Tbl.replace removed_inst_temporaries block_temp ();
-          Reg.Tbl.replace new_block_temporaries block_temp ())
-        replacements)
+  let var_to_block_temp = Reg.Tbl.create 8 in
+  let replacements = Reg.Tbl.create 8 in
+  let last_spill = Reg.Tbl.create 8 in
+  let replace to_replace replace_with =
+    if not (Reg.same to_replace replace_with)
+    then Reg.Tbl.add replacements to_replace replace_with
   in
-  Cfg_with_infos.cfg cfg_with_infos
-  |> Cfg.iter_blocks ~f:coalesce_temp_spills_and_reloads_per_block;
-  new_temporaries
+  let update_info_using_inst (inst_cell : Cfg.basic Cfg.instruction DLL.cell) =
+    let inst = DLL.value inst_cell in
+    match inst.desc with
+    | Op Reload -> (
+      let var = inst.arg.(0) in
+      let temp = inst.res.(0) in
+      match Reg.Tbl.find_opt var_to_block_temp var with
+      | None -> Reg.Tbl.add var_to_block_temp var temp
+      | Some block_temp ->
+        DLL.delete_curr inst_cell;
+        replace temp block_temp)
+    | Op Spill -> (
+      let var = inst.res.(0) in
+      let temp = inst.arg.(0) in
+      (match Reg.Tbl.find_opt last_spill var with
+      | None -> ()
+      | Some prev_inst_cell -> DLL.delete_curr prev_inst_cell);
+      Reg.Tbl.replace last_spill var inst_cell;
+      match Reg.Tbl.find_opt var_to_block_temp var with
+      | None -> Reg.Tbl.add var_to_block_temp var temp
+      | Some block_temp -> replace temp block_temp)
+    | _ -> ()
+  in
+  DLL.iter_cell block.body ~f:update_info_using_inst;
+  if Reg.Tbl.length replacements <> 0
+  then (
+    Substitution.apply_block_in_place replacements block;
+    Reg.Tbl.iter
+      (fun temp block_temp ->
+        Reg.Tbl.replace removed_inst_temporaries temp ();
+        Reg.Tbl.replace removed_inst_temporaries block_temp ();
+        new_block_temporaries := block_temp :: !new_block_temporaries)
+      replacements);
+  new_inst_temporaries
     := List.filter
          ~f:(fun temp -> not (Reg.Tbl.mem removed_inst_temporaries temp))
-         !new_temporaries;
-  Reg.Tbl.to_seq_keys new_block_temporaries |> List.of_seq
+         !new_inst_temporaries
 
 let rewrite_gen :
     type s.
@@ -139,12 +133,13 @@ let rewrite_gen :
         Reg.Tbl.replace spilled_map reg spilled;
         spilled_map)
   in
-  let new_temporaries : Reg.t list ref = ref [] in
+  let new_inst_temporaries : Reg.t list ref = ref [] in
+  let new_block_temporaries = ref [] in
   let make_new_temporary ~(move : Move.t) (reg : Reg.t) : Reg.t =
     let res =
       make_temporary ~same_class_and_base_name_as:reg ~name_prefix:"temp"
     in
-    new_temporaries := res :: !new_temporaries;
+    new_inst_temporaries := res :: !new_inst_temporaries;
     if Utils.debug
     then
       Utils.log ~indent:2 "adding temporary %a (to %s %a)" Printmach.reg res
@@ -224,6 +219,7 @@ let rewrite_gen :
         Utils.log ~indent:2 "body of #%d, before:" label;
         Utils.log_body_and_terminator ~indent:3 block.body block.terminator
           liveness);
+      let block_rewritten = ref false in
       DLL.iter_cell block.body ~f:(fun cell ->
           let instr = DLL.value cell in
           if instruction_contains_spilled instr
@@ -232,6 +228,7 @@ let rewrite_gen :
                || Regalloc_stack_operands.basic spilled_map instr
                   = May_still_have_spilled_registers
             then (
+              block_rewritten := true;
               let sharing = Reg.Tbl.create 8 in
               rewrite_instruction ~direction:(Load_before_cell cell) ~sharing
                 instr;
@@ -243,6 +240,7 @@ let rewrite_gen :
            || Regalloc_stack_operands.terminator spilled_map block.terminator
               = May_still_have_spilled_registers
         then (
+          block_rewritten := true;
           let sharing = Reg.Tbl.create 8 in
           rewrite_instruction ~direction:(Load_after_list block.body)
             ~sharing:(Reg.Tbl.create 8) block.terminator;
@@ -260,18 +258,17 @@ let rewrite_gen :
                   State.get_and_incr_instruction_id state)
             in
             block_insertion := true);
+      if !block_rewritten && should_coalesce_temp_spills_and_reloads
+      then
+        coalesce_temp_spills_and_reloads block ~new_inst_temporaries
+          ~new_block_temporaries;
       if Utils.debug
       then (
         Utils.log ~indent:2 "and after:";
         Utils.log_body_and_terminator ~indent:3 block.body block.terminator
           liveness;
         Utils.log ~indent:2 "end"));
-  let new_block_temporaries =
-    if should_coalesce_temp_spills_and_reloads
-    then coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries
-    else []
-  in
-  !new_temporaries, new_block_temporaries, !block_insertion
+  !new_inst_temporaries, !new_block_temporaries, !block_insertion
 
 (* CR-soon xclerc for xclerc: investigate exactly why this threshold is
    necessary. *)
