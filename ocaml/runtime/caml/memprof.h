@@ -13,9 +13,6 @@
 /*                                                                        */
 /**************************************************************************/
 
-// XXX mshinwell for sdolan: I just took the flambda-backend/main version
-// of this file.
-
 #ifndef CAML_MEMPROF_H
 #define CAML_MEMPROF_H
 
