@@ -174,8 +174,7 @@ CAMLexport void caml_enter_blocking_section(void)
          are further async callbacks pending beyond OCaml signal
          handlers. */
       caml_handle_gc_interrupt();
-      caml_raise_async_if_exception(caml_process_pending_signals_exn(),
-        "caml_enter_blocking_section");
+      caml_raise_async_if_exception(caml_process_pending_signals_exn(), "");
     }
     caml_enter_blocking_section_hook ();
     /* Check again if a signal arrived in the meanwhile. If none,
