@@ -17,9 +17,6 @@
 
 /* Unix-specific stuff */
 
-// XXX mshinwell for mshinwell: figure out what is going on here
-#include <sys/time.h>
-
 #define _GNU_SOURCE
            /* Helps finding RTLD_DEFAULT in glibc */
            /* also secure_getenv */
@@ -34,6 +31,9 @@
 #include <fcntl.h>
 #include <errno.h>
 #include "caml/config.h"
+#ifdef HAS_GETTIMEOFDAY
+#include <sys/time.h>
+#endif
 #if defined(SUPPORT_DYNAMIC_LINKING) && !defined(BUILDING_LIBCAMLRUNS)
 #define WITH_DYNAMIC_LINKING
 #ifdef __CYGWIN__
