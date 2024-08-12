@@ -607,7 +607,7 @@ static void caml_thread_domain_initialize_hook(void)
   st_initialize();
 
   st_masterlock *default_lock = Default_lock(Caml_state->id);
-  int ret = st_masterlock_init(Thread_lock(Caml_state->id));
+  int ret = st_masterlock_init(default_lock);
   sync_check_error(ret, "caml_thread_domain_initialize_hook");
   struct caml_locking_scheme *ls = Default_locking_scheme(Caml_state->id);
   ls->context = default_lock;
@@ -961,7 +961,7 @@ static void thread_yield(void)
   struct caml_locking_scheme *s;
   s = atomic_load(&Locking_scheme(Caml_state->id));
   if (s->can_skip_yield != NULL && s -> can_skip_yield(s->context))
-    return Val_unit;
+    return;
 
   /* Do all the parts of a blocking section enter&leave except lock
      manipulation, which we will do more efficiently in

@@ -109,7 +109,7 @@ static int st_masterlock_init(st_masterlock * m)
   if (!m->init) {
     rc = pthread_mutex_init(&m->lock, NULL);
     if (rc != 0) goto out_err;
-    rc = custom_condvar_init(&m->is_free, NULL);
+    rc = custom_condvar_init(&m->is_free);
     if (rc != 0) goto out_err2;
     m->init = 1;
   }
