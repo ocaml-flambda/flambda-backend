@@ -13,9 +13,6 @@
 /*                                                                        */
 /**************************************************************************/
 
-// XXX mshinwell for sdolan: I just took the flambda-backend/main version
-// of this file.
-
 #define CAML_INTERNALS
 
 #include <math.h>
