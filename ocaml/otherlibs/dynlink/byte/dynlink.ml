@@ -56,11 +56,13 @@ module Bytecode = struct
           required
       in
       List.map
-        (fun id -> id, None)
+        (fun id -> Ident.name id, None)
         required
 
     let defined_symbols (t : t) =
-      List.map (fun (Cmo_format.Compunit cu) -> cu)
+      List.map (fun cu ->
+          Compilation_unit.to_global_ident_for_bytecode cu
+          |> Ident.name)
         (Symtable.initialized_compunits t.cu_reloc)
 
     let unsafe_module (t : t) = t.cu_primitives <> []
@@ -95,23 +97,21 @@ module Bytecode = struct
     Array.fold_left (fun acc import ->
         let modname = Import_info.name import in
         let crc = Import_info.crc import in
-        let id =
-          Compilation_unit.to_global_ident_for_bytecode
-            (assume_no_prefix modname)
-        in
+        let cu = assume_no_prefix modname in
         let defined =
-          Symtable.is_defined_in_global_map !default_global_map global
+          Symtable.is_defined_in_global_map !default_global_map
+            (Glob_compunit cu)
         in
         let implementation =
           if defined then Some (None, DT.Loaded)
           else None
         in
+        let compunit = modname |> Compilation_unit.Name.to_string in
         let defined_symbols =
-          if defined then [Ident.name id]
+          if defined then [compunit]
           else []
         in
-        let comp_unit = modname |> Compilation_unit.Name.to_string in
-        f acc ~comp_unit ~interface:crc ~implementation ~defined_symbols)
+        f acc ~compunit ~interface:crc ~implementation ~defined_symbols)
       init
       !default_crcs
 
@@ -162,7 +162,12 @@ module Bytecode = struct
           if compunit.cu_debug = 0 then [| |]
           else begin
             seek_in ic compunit.cu_debug;
-            [| (Compression.input_value ic : Instruct.debug_event list) |]
+            [|
+              (* CR ocaml 5 compressed-marshal:
+              (Compression.input_value ic : Instruct.debug_event list)
+              *)
+              (Marshal.from_channel ic : Instruct.debug_event list)
+            |]
           end in
         if priv then Symtable.hide_additions old_state;
         let _, clos = Meta.reify_bytecode code events (Some digest) in
@@ -222,10 +227,11 @@ module Bytecode = struct
   let register _handle _header ~priv:_ ~filename:_ = ()
 
   let unsafe_get_global_value ~bytecode_or_asm_symbol =
-    let global =
-      Symtable.Global.Glob_compunit (Cmo_format.Compunit bytecode_or_asm_symbol)
+    let cu =
+      Compilation_unit.Name.of_string bytecode_or_asm_symbol
+      |> assume_no_prefix
     in
-    match Symtable.get_global_value global with
+    match Symtable.get_global_value (Glob_compunit cu) with
     | exception _ -> None
     | obj -> Some obj
 
