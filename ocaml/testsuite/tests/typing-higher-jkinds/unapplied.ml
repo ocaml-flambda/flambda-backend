@@ -53,10 +53,10 @@ Line 1, characters 9-13:
 1 | type q = list list
              ^^^^
 Error: This type list should be an instance of type ('a : value)
-       The layout of list is ((value) => value), because
-         it's a boxed variant type.
-       But the layout of list must be a sublayout of value, because
-         the type argument of list has layout value.
+       The kind of list is ((value) => value)
+         because it's a boxed variant type.
+       But the kind of list must be a subkind of value
+         because the type argument of list has kind value.
 |}]
 
 module M : sig
@@ -87,10 +87,11 @@ Error: Signature mismatch:
          type t = list
        is not included in
          type t : (value, value) => value
-       The layout of the first is ((value) => value), because
-         it's a boxed variant type.
-       But the layout of the first must be a sublayout of ((value, value) => value), because
-         of the definition of t at line 2, characters 2-34.
+       The kind of the first is ((value) => value)
+         because it's a boxed variant type.
+       But the kind of the first must be a subkind of
+         ((value, value) => value)
+         because of the definition of t at line 2, characters 2-34.
 |}]
 
 type s = t list
@@ -99,10 +100,10 @@ Line 1, characters 9-10:
 1 | type s = t list
              ^
 Error: This type t = list should be an instance of type ('a : value)
-       The layout of t is ((value) => value), because
-         it's a boxed variant type.
-       But the layout of t must be a sublayout of value, because
-         the type argument of list has layout value.
+       The kind of t is ((value) => value)
+         because it's a boxed variant type.
+       But the kind of t must be a subkind of value
+         because the type argument of list has kind value.
 |}]
 
 module type M = sig
@@ -113,11 +114,11 @@ Line 2, characters 33-35:
 2 |   val f : ('a : value => value). 'a -> 'a
                                      ^^
 Error: Function argument types must have a representable layout.
-       The layout of 'a is ((value) => value), because
-         of the annotation on the universal variable 'a.
-       But the layout of 'a must overlap with any, because
-         it's assigned a dummy layout that should have been overwritten.
-         Please notify the Jane Street compilers group if you see this output.
+       The kind of 'a is ((value) => value)
+         because of the annotation on the universal variable 'a.
+       But the kind of 'a must overlap with any
+         because it's assigned a dummy kind that should have been overwritten.
+                 Please notify the Jane Street compilers group if you see this output.
 |}]
 
 type r : (value => value) => value
@@ -162,10 +163,10 @@ Line 4, characters 10-15:
 4 |   val g : int s r -> int s r
               ^^^^^
 Error: This type int s should be an instance of type ('a : value => value)
-       The layout of int s is value, because
-         of the definition of s at line 3, characters 2-25.
-       But the layout of int s must be a sublayout of ((value) => value), because
-         of the definition of r at line 2, characters 2-36.
+       The kind of int s is value
+         because of the definition of s at line 3, characters 2-25.
+       But the kind of int s must be a subkind of ((value) => value)
+         because of the definition of r at line 2, characters 2-36.
 |}]
 
 (* FIXME jbachurski: [list] is ill-kinded in application to [s] *)
@@ -179,8 +180,8 @@ Line 4, characters 10-14:
 4 |   val g : list s r -> list s r
               ^^^^
 Error: This type list should be an instance of type ('a : value)
-       The layout of list is ((value) => value), because
-         it's a boxed variant type.
-       But the layout of list must be a sublayout of value, because
-         of the definition of s at line 3, characters 2-25.
+       The kind of list is ((value) => value)
+         because it's a boxed variant type.
+       But the kind of list must be a subkind of value
+         because of the definition of s at line 3, characters 2-25.
 |}]

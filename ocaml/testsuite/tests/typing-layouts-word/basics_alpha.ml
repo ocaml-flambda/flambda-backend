@@ -282,8 +282,7 @@ Line 1, characters 31-43:
                                    ^^^^^^^^^^^^
 Error: This type signature for x is not a value type.
        The layout of type 'a t_word_id is word
-         because it's a fresh unification variable,
-         defaulted to layout word.
+         because of the definition of t_word_id at line 2, characters 0-31.
        But the layout of type 'a t_word_id must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}];;
