@@ -56,6 +56,7 @@ type unit_infos =
     mutable ui_generic_fns: generic_fns;  (* Generic functions needed *)
     mutable ui_export_info: Flambda2_cmx.Flambda_cmx_format.t option;
     mutable ui_zero_alloc_info: Zero_alloc_info.t;
+    mutable ui_less_tco_info: Less_tco_info.t;
     mutable ui_force_link: bool;          (* Always linked *)
     mutable ui_external_symbols: string list; (* Set of external symbols *)
   }
@@ -68,6 +69,7 @@ type unit_infos_raw =
     uir_generic_fns: generic_fns;
     uir_export_info: Flambda2_cmx.Flambda_cmx_format.raw option;
     uir_zero_alloc_info: Zero_alloc_info.Raw.t;
+    uir_less_tco_info: Less_tco_info.Raw.t;
     uir_force_link: bool;
     uir_section_toc: int array;    (* Byte offsets of sections in .cmx
                                       relative to byte immediately after

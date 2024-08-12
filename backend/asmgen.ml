@@ -506,6 +506,7 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
             Zero_alloc_checker.record_unit_info ppf_dump;
             Compiler_hooks.execute Compiler_hooks.Check_allocations
               Zero_alloc_checker.iter_witnesses;
+            Analyze_tailcall_graph.Global_state.record_unit_info ();
             (if !Flambda_backend_flags.dcfg_tailcalls then
               Analyze_tailcall_graph.Global_state.print_dot ppf_dump);
             (if !Flambda_backend_flags.cfg_analyze_tailcalls then

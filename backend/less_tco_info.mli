@@ -25,38 +25,34 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(** Tailcall analysis: constructs a call graph whose vertices are functions and whose
-    edges are calls in syntactic tail position. Edges are labeled with whether they are
-    explicitly TCO'd ([@tail] or [@tail hint]), implicitly TCO'd, or implicitly not TCO'd.
-    (Whether a function is implicitly TCO'd or not depends on the heuristic we are
-    developing as part of the less-tco project.) *)
+type position =
+  | Doesn't_contain_indirect_call_in_tail_position
+  | Contains_indirect_call_in_tail_position
+
+val join : position -> position -> position
+
+type t
+
+val empty : t
+
+(* Add throws if a duplicate fn is added. *)
+val add_exn : t -> fn:string -> pos:position -> t
+
+val find : t -> fn:string -> position option
+
+(* [merge_exn] throws if a duplicate fn is added. *)
+val merge_exn : t -> t -> t
 
 module Global_state : sig
-  (** Reset the shared state for the compilation unit *)
-  val reset_unit_info : unit -> unit
+  val cached : t ref
 
-  (** Analyzes a single function's CFG. This should be called on every function in a
-    compilation unit. *)
-  val cfg : Cfg_with_layout.t -> Cfg_with_layout.t
-
-  val print_dot : Format.formatter -> unit
-
-  val emit_warnings : unit -> unit
-
-  val record_unit_info : unit -> unit
+  val add_to_cache : t -> unit
 end
 
-(* When we inline, we don't merge the position_and_tail_attribute. This means
-   that we might report false positives when warning about inferred tails in
-   TCO'd cycles: if A calls B in Tail_position Default_tail, and A is inlined
-   into C, the calls to B keep their Tail_position Default_tail. Then, when we
-   see these calls in the backend, they are not tail calls (because they cannot
-   actually be optimized to tail calls because they are not in tail position),
-   and we incorrectly deduce that C has inferred nontail calls. Furthermore, if
-   these (deduced wrong) nontail calls participate in a TCO'd cycle, we will
-   raise supurious inferred-nontail-in-tcod-cycle warnings.
+module Raw : sig
+  type t
+end
 
-   In the future should properly merge the attributes, but a workaround we do
-   here is to traverse the CMM to replace position_and_tail_attributes in
-   non-tail CMM position with an Inlined_into_not_tail_position attribute. *)
-val fixup_inlined_tailcalls : Cmm.fundecl -> Cmm.fundecl
+val to_raw : t -> Raw.t
+
+val of_raw : Raw.t -> t

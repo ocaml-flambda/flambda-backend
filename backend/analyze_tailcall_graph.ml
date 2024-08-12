@@ -114,6 +114,8 @@ module Graph : sig
     t -> sccs:Vertex.Hashset.t list -> unit
 
   val print_dot : Format.formatter -> t -> sccs:Vertex.Hashset.t list -> unit
+
+  val to_less_tco_info : t -> Less_tco_info.t
 end = struct
   module Vertex = struct
     module T = struct
@@ -418,12 +420,12 @@ end = struct
     | Not_visited
     | Visited of vertex_state
 
+  let vertices t = t.adjacencies |> Vertex.Tbl.to_seq_keys
+
   let decompose_tailcall_sccs t =
     (* CR less-tco: Refactor this to be more functional. *)
     let states =
-      t.adjacencies |> Vertex.Tbl.to_seq_keys
-      |> Seq.map (fun v -> v, Not_visited)
-      |> Vertex.Tbl.of_seq
+      t |> vertices |> Seq.map (fun v -> v, Not_visited) |> Vertex.Tbl.of_seq
     in
     (* Invariant: A vertex is in stack iff it is in stack_set. *)
     let stack = Stack.create () and stack_set = Vertex.Hashset.create 10 in
@@ -791,6 +793,54 @@ end = struct
         Format.fprintf ppf "\n")
       sccs;
     Format.fprintf ppf "}\n\n"
+
+  type vertex_visiting =
+    | Visiting
+    | Visited of Less_tco_info.position
+
+  let to_less_tco_info t =
+    let visited : vertex_visiting Vertex.Tbl.t = Vertex.Tbl.create 100 in
+    let rec visit (v : Vertex.t) : Less_tco_info.position =
+      match Vertex.Tbl.find_opt visited v with
+      | Some Visiting ->
+        (* Cycle *) Doesn't_contain_indirect_call_in_tail_position
+      | Some (Visited pos) -> pos
+      | None ->
+        Vertex.Tbl.add visited v Visiting;
+        if Vertex.is_unknown v
+        then Contains_indirect_call_in_tail_position
+        else
+          let succs =
+            List.filter_map
+              (fun ({ edge; _ } : Edge.With_loc.t) ->
+                match edge.label with
+                | Explicit_tail_edge -> Some (visit edge.to_)
+                | Explicit_nontail_edge -> None
+                | Unknown_position_tail_edge -> Some (visit edge.to_)
+                | Unknown_position_nontail_edge -> None
+                | Inferred_tail_edge -> Some (visit edge.to_)
+                | Inferred_nontail_edge -> None)
+              (successors t v)
+          in
+          let bot : Less_tco_info.position =
+            Doesn't_contain_indirect_call_in_tail_position
+          in
+          let result = List.fold_left Less_tco_info.join bot succs in
+          Vertex.Tbl.add visited v (Visited result);
+          result
+    in
+    let unit_info =
+      t |> vertices
+      |> Seq.fold_left
+           (fun info v ->
+             match (v : Vertex.t) with
+             | Unknown_fn -> info
+             | Known_fn { name; _ } ->
+               let pos = visit v in
+               Less_tco_info.add_exn info ~fn:name ~pos)
+           Less_tco_info.empty
+    in
+    unit_info
 end
 
 module Global_state = struct
@@ -837,6 +887,10 @@ module Global_state = struct
   let emit_warnings () =
     let sccs = Graph.decompose_tailcall_sccs graph in
     Graph.warn_inferred_nontail_in_tco'd_cycle graph ~sccs
+
+  let record_unit_info () =
+    let info = Graph.to_less_tco_info graph in
+    (Compilenv.current_unit_infos ()).ui_less_tco_info <- info
 end
 
 let fixup_inlined_tailcalls (fundecl : Cmm.fundecl) =

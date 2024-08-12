@@ -57,6 +57,7 @@ let current_unit =
     ui_generic_fns = { curry_fun = []; apply_fun = []; send_fun = [] };
     ui_force_link = false;
     ui_zero_alloc_info = Zero_alloc_info.create ();
+    ui_less_tco_info = Less_tco_info.empty;
     ui_export_info = None;
     ui_external_symbols = [];
   }
@@ -112,6 +113,7 @@ let read_unit_info filename =
       ui_generic_fns = uir.uir_generic_fns;
       ui_export_info = export_info;
       ui_zero_alloc_info = Zero_alloc_info.of_raw uir.uir_zero_alloc_info;
+      ui_less_tco_info = Less_tco_info.of_raw uir.uir_less_tco_info;
       ui_force_link = uir.uir_force_link;
       ui_external_symbols = uir.uir_external_symbols |> Array.to_list;
     }
@@ -189,6 +191,7 @@ let get_global_export_info id =
 
 let cache_unit_info ui =
   cache_zero_alloc_info ui.ui_zero_alloc_info;
+  Less_tco_info.Global_state.add_to_cache ui.ui_less_tco_info;
   CU.Name.Tbl.add global_infos_table (CU.name ui.ui_unit) (Some ui)
 
 (* Exporting cross-module information *)
@@ -258,6 +261,7 @@ let write_unit_info info filename =
     uir_generic_fns = info.ui_generic_fns;
     uir_export_info = raw_export_info;
     uir_zero_alloc_info = Zero_alloc_info.to_raw info.ui_zero_alloc_info;
+    uir_less_tco_info = Less_tco_info.to_raw info.ui_less_tco_info;
     uir_force_link = info.ui_force_link;
     uir_section_toc = toc;
     uir_sections_length = total_length;
