@@ -215,3 +215,29 @@ Line 1, characters 13-25:
 Error: This expression has type int T.t
        but an expression was expected of type 'a 'b
 |}]
+
+type ('t : value => value) inj = { 
+  return : 'a. 'a -> 'a 't 
+}
+module type I = sig
+  type t : value => value
+  val return : 'a -> 'a t
+end
+let inj (type t : value => value) (module M : I with type t = t) = 
+  { return = (fun a -> M.return a) }
+[%%expect{|
+type ('t : value => value) inj = { return : 'a. 'a -> 'a 't; }
+module type I = sig type t : value => value val return : 'a -> 'a t end
+val inj : ('t : value => value). (module I with type t = 't) -> 't inj =
+  <fun>
+|}]
+
+let list = inj (module struct 
+  type t = list
+  let return x = [x]
+end)
+let x = list.return 42
+[%%expect{|
+val list : list inj = {return = <fun>}
+val x : int list = [42]
+|}]
