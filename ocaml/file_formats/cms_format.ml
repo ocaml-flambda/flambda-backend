@@ -65,9 +65,14 @@ let register_toplevel_attributes uid ~attributes ~loc =
 let uid_tables_of_binary_annots binary_annots =
   let cms_uid_to_loc = Types.Uid.Tbl.create 42 in
   let cms_uid_to_attributes = Types.Uid.Tbl.create 42 in
+  let add tbl uid element =
+    if Types.Uid.Tbl.find_opt tbl uid |> Option.is_some
+    then failwith @@ Format.asprintf "Duplicate shape id: %a" Shape.Uid.print uid;
+    Types.Uid.Tbl.add tbl uid element
+  in
   List.iter (fun (uid, loc, attrs) ->
-    Types.Uid.Tbl.add cms_uid_to_loc uid loc;
-    Types.Uid.Tbl.add cms_uid_to_attributes uid attrs)
+    add cms_uid_to_loc uid loc;
+    add cms_uid_to_attributes uid attrs)
     !toplevel_attributes;
   Cmt_format.iter_declarations binary_annots
     ~f:(fun uid decl ->
@@ -86,8 +91,8 @@ let uid_tables_of_binary_annots binary_annots =
         | Class v -> v.ci_loc, v.ci_attributes
         | Class_type v -> v.ci_loc, v.ci_attributes
       in
-      Types.Uid.Tbl.add cms_uid_to_loc uid loc;
-      Types.Uid.Tbl.add cms_uid_to_attributes uid attrs
+      add cms_uid_to_loc uid loc;
+      add cms_uid_to_attributes uid attrs
     );
   cms_uid_to_loc, cms_uid_to_attributes
 
