@@ -3526,7 +3526,7 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
       let basename = arg_import |> Compilation_unit.Name.to_string in
       let arg_filename =
         try
-          Load_path.find_uncap (basename ^ ".cmi")
+          Load_path.find_normalized (basename ^ ".cmi")
         with Not_found ->
           raise(Error(Location.none, Env.empty,
                       Cannot_find_argument_type arg_module)) in
@@ -3614,7 +3614,7 @@ let type_implementation target modulename initial_env ast =
               let basename = import |> Compilation_unit.Name.to_string in
               let cmi_file =
                 try
-                  Load_path.find_uncap (basename ^ ".cmi")
+                  Load_path.find_normalized (basename ^ ".cmi")
                 with Not_found ->
                   raise(Error(Location.in_file sourcefile, Env.empty,
                         Interface_not_compiled source_intf))
