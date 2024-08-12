@@ -168,7 +168,6 @@ CAMLexport void caml_enter_blocking_section(void)
   while (1){
     if (Caml_state->in_minor_collection)
       caml_fatal_error("caml_enter_blocking_section from inside minor GC");
-  while (1) {
     /* Process all pending signals now */
     // XXX mshinwell for sdolan: please double-check this
     if (check_pending_actions(domain)) {
