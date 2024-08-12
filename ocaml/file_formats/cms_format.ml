@@ -120,7 +120,7 @@ let save_cms filename modname binary_annots sourcefile initial_env shape =
             cms_builddir = Location.rewrite_absolute_path (Sys.getcwd ());
             cms_source_digest = source_digest;
             cms_initial_env;
-            cms_uid_to_loc = cms_uid_to_loc |> Shape.Uid.Tbl.to_array;
+            cms_uid_to_loc = cms_uid_to_loc |> Shape.Uid.Tbl.to_list |> Array.of_list;
             cms_uid_to_attributes;
             cms_impl_shape = shape;
             cms_ident_occurrences

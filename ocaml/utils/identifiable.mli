@@ -97,7 +97,6 @@ module type Tbl = sig
   val of_map : 'a Map.Make(T).t -> 'a t
   val memoize : 'a t -> (key -> 'a) -> key -> 'a
   val map : 'a t -> ('a -> 'b) -> 'b t
-  val to_array : 'a t -> (T.t * 'a) array
 end
 
 module type S = sig
