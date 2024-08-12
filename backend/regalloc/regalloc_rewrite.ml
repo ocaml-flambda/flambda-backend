@@ -224,6 +224,21 @@ let rewrite_gen :
           let instr = DLL.value cell in
           if instruction_contains_spilled instr
           then
+            (* CR-soon mitom: Use stack operands regardless of whether
+               coalescing temporaries when it allows using the memory address of
+               a variable used exactly once in a block directly in an
+               instruction. Currently, if the "block" temporary for this
+               variable is register allocated, an extra spill/reload instruction
+               is added compared to using it directly in the instruction (if
+               possible).
+
+               For variables used 2+ times in the block, short circuiting here
+               is fine. If the block temporary we create gets register
+               allocated, then that is better than using stack operands to use
+               the memory address directly in the instruction. If the block
+               temporary is spilled, stack operands will apply to it in the next
+               round in the same way it would have done to the original
+               variable. *)
             if should_coalesce_temp_spills_and_reloads
                || Regalloc_stack_operands.basic spilled_map instr
                   = May_still_have_spilled_registers
@@ -236,6 +251,8 @@ let rewrite_gen :
                 instr));
       if instruction_contains_spilled block.terminator
       then
+        (* CR-soon mitom: Same issue as short circuiting in basic instruction
+           rewriting *)
         if should_coalesce_temp_spills_and_reloads
            || Regalloc_stack_operands.terminator spilled_map block.terminator
               = May_still_have_spilled_registers
