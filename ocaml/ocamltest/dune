@@ -31,6 +31,8 @@
  (flags
   (:standard -linkall -w +a-40-41-42-44-70))
  (libraries ocamlcommon)
+ (ocamlc_flags unix.cma)
+ (ocamlopt_flags unix.cmxa)
  (modules
   (:standard \ options main))
  (foreign_stubs
