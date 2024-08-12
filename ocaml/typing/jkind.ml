@@ -1781,7 +1781,10 @@ module Desc = struct
   (** The description of a jkind, used as a return type from [get]. *)
   type nonrec t =
     | Type of Type.t
-    | Arrow of t Jkind_types.Arrow.t
+    | Arrow of
+        { args : t list;
+          result : t
+        }
 end
 
 let rec default_all_sort_variables_to_value (t : t) =

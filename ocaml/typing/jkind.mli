@@ -428,7 +428,10 @@ module Desc : sig
   (** The description of a jkind, used as a return type from [get]. *)
   type nonrec t =
     | Type of Type.t
-    | Arrow of t Jkind_types.Arrow.t
+    | Arrow of
+        { args : t list;
+          result : t
+        }
 end
 
 (** Defaults all sort variables within the [Jkind.t] to value *)
