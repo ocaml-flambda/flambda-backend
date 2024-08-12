@@ -27,7 +27,7 @@ type cms_infos = {
      if we store a few relevant flags. *)
   cms_initial_env : Env.t option;
   cms_uid_to_loc : (Shape.Uid.t * string Location.loc) Array.t;
-  cms_uid_to_attributes : Parsetree.attributes Shape.Uid.Tbl.t;
+  cms_uid_to_attributes : (Shape.Uid.t * Parsetree.attributes) Array.t;
   cms_impl_shape : Shape.t option; (* None for mli *)
   cms_ident_occurrences :
     (Longident.t Location.loc * Shape_reduce.result) array
