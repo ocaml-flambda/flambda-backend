@@ -250,7 +250,6 @@ caml_ba_alloc(int flags, int num_dims, void * data, intnat * dim)
   }
   asize = SIZEOF_BA_ARRAY + num_dims * sizeof(intnat);
   res = caml_alloc_custom_mem(&caml_ba_ops, asize, size);
-  // XXX mshinwell for sdolan: please check this conflict carefully
   b = Caml_ba_array_val(res);
   b->data = data;
   b->num_dims = num_dims;
