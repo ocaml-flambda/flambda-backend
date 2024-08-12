@@ -887,31 +887,32 @@ CAMLprim value caml_ba_uint8_set64_indexed_by_int64(value, value, value);
 CAMLprim value caml_ba_uint8_set64_indexed_by_int32(value, value, value);
 CAMLprim value caml_ba_uint8_set64_indexed_by_nativeint(value, value, value);
 
-#define CAMLprim_indexed_by(width, name, index_type, val_func)                 \
-  CAMLprim value caml_ba_uint8_get##width##_indexed_by_##name(value vb,        \
-      value vind)                                                              \
-  {                                                                            \
-    index_type idx = val_func(vind);                                           \
-    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();              \
-    return caml_ba_uint8_get##width(vb, Val_long(idx));                        \
-  }                                                                            \
-  CAMLprim value caml_ba_uint8_set##width##_indexed_by_##name(value vb,        \
-      value vind, value newval)                                                \
-  {                                                                            \
-    index_type idx = val_func(vind);                                           \
-    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();              \
-    return caml_ba_uint8_set##width(vb, Val_long(idx), newval);                \
+#define Bigstring_access_index_by(width, name, index_type, val_func)        \
+  CAMLprim value caml_ba_uint8_get##width##_indexed_by_##name(value vb,     \
+                                                              value vind)   \
+  {                                                                         \
+    index_type idx = val_func(vind);                                        \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();           \
+    return caml_ba_uint8_get##width(vb, Val_long(idx));                     \
+  }                                                                         \
+  CAMLprim value caml_ba_uint8_set##width##_indexed_by_##name(value vb,     \
+                                                              value vind,   \
+                                                              value newval) \
+  {                                                                         \
+    index_type idx = val_func(vind);                                        \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();           \
+    return caml_ba_uint8_set##width(vb, Val_long(idx), newval);             \
   }
 
-CAMLprim_indexed_by(16, int64, int64_t, Int64_val)
-CAMLprim_indexed_by(16, int32, int32_t, Int32_val)
-CAMLprim_indexed_by(16, nativeint, intnat, Nativeint_val)
-CAMLprim_indexed_by(32, int64, int64_t, Int64_val)
-CAMLprim_indexed_by(32, int32, int32_t, Int32_val)
-CAMLprim_indexed_by(32, nativeint, intnat, Nativeint_val)
-CAMLprim_indexed_by(64, int64, int64_t, Int64_val)
-CAMLprim_indexed_by(64, int32, int32_t, Int32_val)
-CAMLprim_indexed_by(64, nativeint, intnat, Nativeint_val)
+Bigstring_access_index_by(16, int64, int64_t, Int64_val)
+Bigstring_access_index_by(16, int32, int32_t, Int32_val)
+Bigstring_access_index_by(16, nativeint, intnat, Nativeint_val)
+Bigstring_access_index_by(32, int64, int64_t, Int64_val)
+Bigstring_access_index_by(32, int32, int32_t, Int32_val)
+Bigstring_access_index_by(32, nativeint, intnat, Nativeint_val)
+Bigstring_access_index_by(64, int64, int64_t, Int64_val)
+Bigstring_access_index_by(64, int32, int32_t, Int32_val)
+Bigstring_access_index_by(64, nativeint, intnat, Nativeint_val)
 
 /* Return the number of dimensions of a big array */
 

@@ -509,33 +509,35 @@ CAMLprim value caml_bytes_setf32_indexed_by_int32(value array, value index,
 CAMLprim value caml_bytes_setf32_indexed_by_nativeint(value array, value index,
                                                       value newval);
 
-#define CAMLprim_indexed_by_get(name, container, index_type, val_func)             \
-  CAMLprim value caml_##container##_getf32_indexed_by_##name(value vb, value vind) \
-  {                                                                                \
-    index_type idx = val_func(vind);                                               \
-    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();                  \
-    return caml_##container##_getf32(vb, Val_long(idx));                           \
+#define Float32_get_index_by(name, container, index_type, val_func)      \
+  CAMLprim value caml_##container##_getf32_indexed_by_##name(value vb,   \
+                                                             value vind) \
+  {                                                                      \
+    index_type idx = val_func(vind);                                     \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();        \
+    return caml_##container##_getf32(vb, Val_long(idx));                 \
   }
 
-#define CAMLprim_indexed_by_set(name, container, index_type, val_func)             \
-  CAMLprim value caml_##container##_setf32_indexed_by_##name(value vb, value vind, \
-                                                             value newval)         \
-  {                                                                                \
-    index_type idx = val_func(vind);                                               \
-    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();                  \
-    return caml_##container##_setf32(vb, Val_long(idx), newval);                   \
+#define Float32_set_index_by(name, container, index_type, val_func)        \
+  CAMLprim value caml_##container##_setf32_indexed_by_##name(value vb,     \
+                                                             value vind,   \
+                                                             value newval) \
+  {                                                                        \
+    index_type idx = val_func(vind);                                       \
+    if (idx != Long_val(Val_long(idx))) caml_array_bound_error();          \
+    return caml_##container##_setf32(vb, Val_long(idx), newval);           \
   }
 
-#define CAMLprim_indexed_by(name, index_type, val_func)                            \
-  CAMLprim_indexed_by_get(name, ba_uint8, index_type, val_func)                    \
-  CAMLprim_indexed_by_get(name, string, index_type, val_func)                      \
-  CAMLprim_indexed_by_get(name, bytes, index_type, val_func)                       \
-  CAMLprim_indexed_by_set(name, ba_uint8, index_type, val_func)                    \
-  CAMLprim_indexed_by_set(name, bytes, index_type, val_func)                       \
+#define Float32_access_index_by(name, index_type, val_func)  \
+  Float32_get_index_by(name, ba_uint8, index_type, val_func) \
+  Float32_get_index_by(name, string, index_type, val_func)   \
+  Float32_get_index_by(name, bytes, index_type, val_func)    \
+  Float32_set_index_by(name, ba_uint8, index_type, val_func) \
+  Float32_set_index_by(name, bytes, index_type, val_func)
 
-CAMLprim_indexed_by(int64, int64_t, Int64_val)
-CAMLprim_indexed_by(int32, int32_t, Int32_val)
-CAMLprim_indexed_by(nativeint, intnat, Nativeint_val)
+Float32_access_index_by(int64, int64_t, Int64_val)
+Float32_access_index_by(int32, int32_t, Int32_val)
+Float32_access_index_by(nativeint, intnat, Nativeint_val)
 
 /* Defined in bigarray.c */
 CAMLextern intnat caml_ba_offset(struct caml_ba_array * b, intnat * index);
