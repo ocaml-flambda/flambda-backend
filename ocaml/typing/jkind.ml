@@ -1631,7 +1631,7 @@ let of_const ~why (c : Const.t) : t =
 let of_type_jkind ({ jkind; history; has_warned } : Type.t) : t =
   { jkind = Type jkind; history; has_warned }
 
-let of_arrow ~history ({ args; result } : t Jkind_types.Arrow.t) : t =
+let of_arrow ~history ~args ~result : t =
   { jkind =
       Arrow { args = List.map (fun t -> t.jkind) args; result = result.jkind };
     history;
@@ -2399,7 +2399,7 @@ let rec intersection_or_error ~reason (t1 : t) (t2 : t) =
       Arrow { args = args2; result = result2 } ) ->
     let* args = union_list_or_error ~reason ~violation args1 args2 in
     let* result = intersection_or_error ~reason result1 result2 in
-    Ok (of_arrow ~history:(combine_histories reason t1 t2) { args; result })
+    Ok (of_arrow ~history:(combine_histories reason t1 t2) ~args ~result)
   | Type _, Arrow _ | Arrow _, Type _ -> Error violation
 
 and union_or_error ~reason (t1 : t) (t2 : t) =
@@ -2417,7 +2417,7 @@ and union_or_error ~reason (t1 : t) (t2 : t) =
       Arrow { args = args2; result = result2 } ) ->
     let* args = intersection_list_or_error ~reason ~violation args1 args2 in
     let* result = union_or_error ~reason result1 result2 in
-    Ok (of_arrow ~history:(combine_histories reason t1 t2) { args; result })
+    Ok (of_arrow ~history:(combine_histories reason t1 t2) ~args ~result)
   | Type _, Arrow _ | Arrow _, Type _ -> Error violation
 
 and intersection_list_or_error ~reason ~violation =

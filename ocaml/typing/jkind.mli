@@ -443,7 +443,7 @@ val of_type_jkind : Type.t -> t
 
 (** Construct the jkind from an arrow with a given history *)
 val of_arrow :
-  history:Types.type_expr Jkind_types.history -> t Jkind_types.Arrow.t -> t
+  history:Types.type_expr Jkind_types.history -> args:t list -> result:t -> t
 
 (******************************)
 (* elimination and defaulting *)
