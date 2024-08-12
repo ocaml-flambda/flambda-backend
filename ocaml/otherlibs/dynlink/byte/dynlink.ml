@@ -45,20 +45,18 @@ module Bytecode = struct
       in
       let required =
         required_from_unit
-        @ Symtable.required_globals t.cu_reloc
+        @ List.map Compilation_unit.to_global_ident_for_bytecode
+            (Symtable.required_compunits t.cu_reloc)
       in
       let required =
         List.filter
-(* XXX mshinwell: our side was:
           (fun id ->
              not (Ident.is_predef id)
              && not (String.contains (Ident.name id) '.'))
-             *)
-          (fun cu -> not (Symtable.Compunit.is_packed cu))
           required
       in
       List.map
-        (fun (Cmo_format.Compunit cu) -> cu, None)
+        (fun id -> id, None)
         required
 
     let defined_symbols (t : t) =
