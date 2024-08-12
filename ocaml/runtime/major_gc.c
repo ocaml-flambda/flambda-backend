@@ -511,15 +511,10 @@ static void adopt_orphaned_work (void)
   while (f != NULL) {
     myf = domain_state->final_info;
     CAMLassert (caml_gc_phase == Phase_sweep_and_mark_main);
-    /* Since we are in [Phase_main], the current domain has not
+    /* Since we are in [Phase_sweep_and_mark_main], the current domain has not
        updated its finalisers. */
-    // XXX mshinwell for sdolan: please check this comment and the
-    // assertion I have taken from our side below.  Upstream, the previous
-    // assertion that caml_gc_phase == Phase_sweep_and_mark_main has been
-    // deleted, so I'm unsure what is here is correct.
     CAMLassert (!myf->updated_first);
     CAMLassert (!myf->updated_last);
-    CAMLassert (caml_gc_phase == Phase_sweep_main);
     if (f->todo_head) {
       /* Adopt the finalising set. */
       if (myf->todo_tail == NULL) {
