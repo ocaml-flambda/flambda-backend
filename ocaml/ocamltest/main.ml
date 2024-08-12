@@ -20,9 +20,35 @@ open Tsl_ast
 open Tsl_semantics
 
 type behavior =
+<<<<<<< HEAD
+  | Skip_all_tests
+  | Run of Environments.t
+
+||||||| 121bedcfd2
+  | Skip_all_tests
+  | Run of Environments.t
+
+(*
+let first_token filename =
+  let input_channel = open_in filename in
+  let lexbuf = Lexing.from_channel input_channel in
+  Location.init lexbuf filename;
+  let token =
+    try Tsl_lexer.token lexbuf with e -> close_in input_channel; raise e
+  in close_in input_channel; token
+
+let is_test filename =
+  match first_token filename with
+    | exception _ -> false
+    | Tsl_parser.TSL_BEGIN_C_STYLE | TSL_BEGIN_OCAML_STYLE -> true
+    | _ -> false
+*)
+
+=======
   | Skip_all
   | Run
 
+>>>>>>> 5.2.0
 (* this primitive announce should be used for tests
    that were aborted on system error before ocamltest
    could parse them *)
@@ -30,6 +56,13 @@ let announce_test_error test_filename error =
   Printf.printf " ... testing '%s' => unexpected error (%s)\n%!"
     (Filename.basename test_filename) error
 
+<<<<<<< HEAD
+exception Syntax_error of Lexing.position
+
+let tsl_parse_file test_filename =
+||||||| 121bedcfd2
+let tsl_block_of_file test_filename =
+=======
 let print_exn loc e =
   let open Printf in
   let locstring =
@@ -59,6 +92,7 @@ let print_exn loc e =
 exception Syntax_error of Lexing.position
 
 let tsl_parse_file test_filename =
+>>>>>>> 5.2.0
   let input_channel = open_in test_filename in
   let lexbuf = Lexing.from_channel input_channel in
   Location.init lexbuf test_filename;
@@ -91,21 +125,25 @@ let report_error loc e =
 type result_summary = No_failure | Some_failure | All_skipped
 let join_result summary result =
   let open Result in
-  match[@ocaml.warning "-fragile-match"] result.status, summary with
+  match result.status, summary with
   | Fail, _
-  | _, Some_failure -> Some_failure
-  | Skip, All_skipped -> All_skipped
-  | _ -> No_failure
+  | (Pass | Skip | Predicate _), Some_failure -> Some_failure
+  | (Skip | Predicate false), All_skipped -> All_skipped
+  | Pass, All_skipped -> No_failure
+  | Predicate true, All_skipped -> No_failure
+  | (Pass | Skip | Predicate _), No_failure -> No_failure
 
 let join_summaries sa sb =
-  match[@ocaml.warning "-fragile-match"] sa, sb with
-  | Some_failure, _
-  | _, Some_failure -> Some_failure
+  match sa, sb with
+  | Some_failure, (No_failure | Some_failure | All_skipped)
+  | (No_failure | All_skipped), Some_failure -> Some_failure
   | All_skipped, All_skipped -> All_skipped
-  | _ -> No_failure
+  | No_failure, (No_failure | All_skipped)
+  | All_skipped, No_failure -> No_failure
 
+<<<<<<< HEAD
 let rec run_test_tree log common_prefix behavior env summ ast =
-  match[@ocaml.warning "-fragile-match"] ast with
+  match ast with
   | Ast (Environment_statement s :: stmts, subs) ->
     begin match interpret_environment_statement env s with
     | env ->
@@ -145,6 +183,65 @@ let rec run_test_tree log common_prefix behavior env summ ast =
   | Ast ([], subs) ->
     List.fold_left join_summaries summ
       (List.map (run_test_tree log common_prefix behavior env All_skipped) subs)
+||||||| 2572783060
+let rec run_test log common_prefix path behavior = function
+  Node (testenvspec, test, env_modifiers, subtrees) ->
+  Printf.printf "%s %s (%s) %!" common_prefix path test.Tests.test_name;
+  let (msg, children_behavior, result) = match behavior with
+    | Skip_all_tests -> "=> n/a", Skip_all_tests, Result.skip
+    | Run env ->
+      let testenv0 = interpret_environment_statements env testenvspec in
+      let testenv = List.fold_left apply_modifiers testenv0 env_modifiers in
+      let (result, newenv) = Tests.run log testenv test in
+      let msg = Result.string_of_result result in
+      let children_behavior =
+        if Result.is_pass result then Run newenv else Skip_all_tests in
+      (msg, children_behavior, result) in
+  Printf.printf "%s\n%!" msg;
+  join_result
+    (run_test_trees log common_prefix path children_behavior subtrees) result
+
+and run_test_trees log common_prefix path behavior trees =
+  List.fold_left join_summaries All_skipped
+    (List.mapi (run_test_i log common_prefix path behavior) trees)
+
+and run_test_i log common_prefix path behavior i test_tree =
+  let path_prefix = if path="" then "" else path ^ "." in
+  let new_path = Printf.sprintf "%s%d" path_prefix (i+1) in
+  run_test log common_prefix new_path behavior test_tree
+=======
+let rec run_test log common_prefix path behavior = function
+  Node (testenvspec, test, env_modifiers, subtrees) ->
+  let skip_all =
+    match behavior with
+    | Skip_all_tests -> true
+    | Run _ -> false
+  in
+  if not skip_all then
+    Printf.printf "%s %s (%s) %!" common_prefix path test.Tests.test_name;
+  let (msg, children_behavior, result) = match behavior with
+    | Skip_all_tests -> "", Skip_all_tests, Result.skip
+    | Run env ->
+      let testenv0 = interpret_environment_statements env testenvspec in
+      let testenv = List.fold_left apply_modifiers testenv0 env_modifiers in
+      let (result, newenv) = Tests.run log testenv test in
+      let msg = Result.string_of_result result in
+      let children_behavior =
+        if Result.is_pass result then Run newenv else Skip_all_tests in
+      (msg, children_behavior, result) in
+  if not skip_all then Printf.printf "%s\n%!" msg;
+  join_result
+    (run_test_trees log common_prefix path children_behavior subtrees) result
+
+and run_test_trees log common_prefix path behavior trees =
+  List.fold_left join_summaries All_skipped
+    (List.mapi (run_test_i log common_prefix path behavior) trees)
+
+and run_test_i log common_prefix path behavior i test_tree =
+  let path_prefix = if path="" then "" else path ^ "." in
+  let new_path = Printf.sprintf "%s%d" path_prefix (i+1) in
+  run_test log common_prefix new_path behavior test_tree
+>>>>>>> ocaml-jst/flambda-patches
 
 let get_test_source_directory test_dirname =
   if (Filename.is_relative test_dirname) then
@@ -172,10 +269,22 @@ let extract_rootenv (Ast (stmts, subs)) =
 let test_file test_filename =
   let start = if Options.show_timings then Unix.gettimeofday () else 0.0 in
   let skip_test = List.mem test_filename !tests_to_skip in
+<<<<<<< HEAD
+  let tsl_ast = tsl_parse_file_safe test_filename in
+  let (rootenv_statements, test_trees) = test_trees_of_tsl_ast tsl_ast in
+  let test_trees = match test_trees with
+    | [] ->
+||||||| 121bedcfd2
+  let tsl_block = tsl_block_of_file_safe test_filename in
+  let (rootenv_statements, test_trees) = test_trees_of_tsl_block tsl_block in
+  let test_trees = match test_trees with
+    | [] ->
+=======
   let tsl_ast = tsl_parse_file_safe test_filename in
   let (rootenv_statements, tsl_ast) = extract_rootenv tsl_ast in
-  let tsl_ast = match[@ocaml.warning "-fragile-match"] tsl_ast with
+  let tsl_ast = match tsl_ast with
     | Ast ([], []) ->
+>>>>>>> 5.2.0
       let default_tests = Tests.default_tests() in
       let make_tree test =
         let id = make_identifier test.Tests.test_name in

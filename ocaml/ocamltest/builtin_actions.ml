@@ -26,6 +26,7 @@ let reason_with_fallback env fallback =
 let pass = make
   ~name:"pass"
   ~description:"Always succeed"
+  ~does_something:true
   (fun _log env ->
     let reason = reason_with_fallback env "the pass action always succeeds" in
     let result = Result.pass_with_reason reason in
@@ -34,14 +35,16 @@ let pass = make
 let skip = make
   ~name:"skip"
   ~description:"Always skip the test"
+  ~does_something:true
   (fun _log env ->
-    let reason = reason_with_fallback env "the skip action always skips" in
+    let reason = reason_with_fallback env "explicit 'skip' in the test" in
     let result = Result.skip_with_reason reason in
     (result, env))
 
 let fail = make
   ~name:"fail"
   ~description:"Always fail"
+  ~does_something:true
   (fun _log env ->
     let reason = reason_with_fallback env "the fail action always fails" in
     let result = Result.fail_with_reason reason in
@@ -50,6 +53,9 @@ let fail = make
 let cd = make
   ~name:"cd"
   ~description:"Change working directory"
+  ~does_something:true
+  (* CR mshinwell: This should be [does_something:false], but see
+     tests/lib-dynlink-pr4839/test.ml *)
   (fun _log env ->
     let cwd = Environments.safe_lookup Builtin_variables.cwd env in
     begin
@@ -64,41 +70,47 @@ let cd = make
 let dumpenv = make
   ~name:"dumpenv"
   ~description:"Dump the environment"
+  ~does_something:false
   (fun log env ->
     Environments.dump log env; (Result.pass, env))
 
 let hasunix = make
   ~name:"hasunix"
   ~description:"Pass if the unix library is available"
-  (Actions_helpers.pass_or_skip (Ocamltest_config.libunix <> None)
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.libunix <> None)
     "unix library available"
     "unix library not available")
 
 let libunix = make
   ~name:"libunix"
   ~description:"Pass if libunix is available"
-  (Actions_helpers.pass_or_skip (Ocamltest_config.libunix = Some true)
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.libunix = Some true)
     "libunix available"
     "libunix not available")
 
 let libwin32unix = make
   ~name:"libwin32unix"
   ~description:"Pass if the win32 variant of the unix library is available"
-  (Actions_helpers.pass_or_skip (Ocamltest_config.libunix = Some false)
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.libunix = Some false)
     "win32 variant of the unix library available"
     "win32 variant of the unix library not available")
 
 let hassysthreads = make
   ~name:"hassysthreads"
   ~description:"Pass if the systhreads library is available"
-  (Actions_helpers.pass_or_skip Ocamltest_config.systhreads
+  ~does_something:false
+  (Actions_helpers.predicate Ocamltest_config.systhreads
     "systhreads library available"
     "systhreads library not available")
 
 let hasstr = make
   ~name:"hasstr"
   ~description:"Pass if the str library is available"
-  (Actions_helpers.pass_or_skip Ocamltest_config.str
+  ~does_something:false
+  (Actions_helpers.predicate Ocamltest_config.str
     "str library available"
     "str library not available")
 
@@ -109,14 +121,16 @@ let get_OS () = Sys.safe_getenv "OS"
 let windows = make
   ~name:"windows"
   ~description:"Pass if running on Windows"
-  (Actions_helpers.pass_or_skip (get_OS () = windows_OS)
+  ~does_something:false
+  (Actions_helpers.predicate (get_OS () = windows_OS)
     "running on Windows"
     "not running on Windows")
 
 let not_windows = make
   ~name:"not-windows"
   ~description:"Pass if not running on Windows"
-  (Actions_helpers.pass_or_skip (get_OS () <> windows_OS)
+  ~does_something:false
+  (Actions_helpers.predicate (get_OS () <> windows_OS)
     "not running on Windows"
     "running on Windows")
 
@@ -128,14 +142,16 @@ let is_bsd_system s =
 let bsd = make
   ~name:"bsd"
   ~description:"Pass if running on a BSD system"
-  (Actions_helpers.pass_or_skip (is_bsd_system Ocamltest_config.system)
+  ~does_something:false
+  (Actions_helpers.predicate (is_bsd_system Ocamltest_config.system)
     "on a BSD system"
     "not on a BSD system")
 
 let not_bsd = make
   ~name:"not-bsd"
   ~description:"Pass if not running on a BSD system"
-  (Actions_helpers.pass_or_skip (not (is_bsd_system Ocamltest_config.system))
+  ~does_something:false
+  (Actions_helpers.predicate (not (is_bsd_system Ocamltest_config.system))
     "not on a BSD system"
     "on a BSD system")
 
@@ -144,80 +160,110 @@ let macos_system = "macosx"
 let macos = make
   ~name:"macos"
   ~description:"Pass if running on a MacOS system"
-  (Actions_helpers.pass_or_skip (Ocamltest_config.system = macos_system)
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.system = macos_system)
     "on a MacOS system"
     "not on a MacOS system")
 
 let not_macos = make
   ~name:"not-macos"
   ~description:"Pass if not running on a MacOS system"
-  (Actions_helpers.pass_or_skip (not (Ocamltest_config.system = macos_system))
+  ~does_something:false
+  (Actions_helpers.predicate (not (Ocamltest_config.system = macos_system))
     "not on a MacOS system"
     "on a MacOS system")
 
 let arch32 = make
   ~name:"arch32"
   ~description:"Pass if running on a 32-bit architecture"
-  (Actions_helpers.pass_or_skip (Sys.word_size = 32)
+  ~does_something:false
+  (Actions_helpers.predicate (Sys.word_size = 32)
     "32-bit architecture"
     "non-32-bit architecture")
 
 let arch64 = make
   ~name:"arch64"
   ~description:"Pass if running on a 64-bit architecture"
-  (Actions_helpers.pass_or_skip (Sys.word_size = 64)
+  ~does_something:false
+  (Actions_helpers.predicate (Sys.word_size = 64)
     "64-bit architecture"
     "non-64-bit architecture")
 
 let arch_arm = make
   ~name:"arch_arm"
   ~description:"Pass if target is an ARM architecture"
-  (Actions_helpers.pass_or_skip (String.equal Ocamltest_config.arch "arm")
+  ~does_something:false
+  (Actions_helpers.predicate (String.equal Ocamltest_config.arch "arm")
      "Target is ARM architecture"
      "Target is not ARM architecture")
 
 let arch_arm64 = make
   ~name:"arch_arm64"
   ~description:"Pass if target is an ARM64 architecture"
-  (Actions_helpers.pass_or_skip (String.equal Ocamltest_config.arch "arm64")
+  ~does_something:false
+  (Actions_helpers.predicate (String.equal Ocamltest_config.arch "arm64")
      "Target is ARM64 architecture"
      "Target is not ARM64 architecture")
 
  let arch_amd64 = make
   ~name:"arch_amd64"
   ~description:"Pass if target is an AMD64 architecture"
-  (Actions_helpers.pass_or_skip (String.equal Ocamltest_config.arch "amd64")
+  ~does_something:false
+  (Actions_helpers.predicate (String.equal Ocamltest_config.arch "amd64")
      "Target is AMD64 architecture"
      "Target is not AMD64 architecture")
 
  let arch_i386 = make
   ~name:"arch_i386"
   ~description:"Pass if target is an i386 architecture"
-  (Actions_helpers.pass_or_skip (String.equal Ocamltest_config.arch "i386")
+  ~does_something:false
+  (Actions_helpers.predicate (String.equal Ocamltest_config.arch "i386")
      "Target is i386 architecture"
      "Target is not i386 architecture")
 
 let arch_power = make
   ~name:"arch_power"
   ~description:"Pass if target is a POWER architecture"
-  (Actions_helpers.pass_or_skip (String.equal Ocamltest_config.arch "power")
+  ~does_something:false
+  (Actions_helpers.predicate (String.equal Ocamltest_config.arch "power")
     "Target is POWER architecture"
     "Target is not POWER architecture")
 
 let function_sections = make
   ~name:"function_sections"
   ~description:"Pass if target supports function sections"
-  (Actions_helpers.pass_or_skip (Ocamltest_config.function_sections)
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.function_sections)
      "Target supports function sections"
      "Target does not support function sections")
 
 let frame_pointers = make
   ~name:"frame_pointers"
   ~description:"Pass if frame pointers are available"
-  (Actions_helpers.pass_or_skip (Ocamltest_config.frame_pointers)
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.frame_pointers)
      "frame-pointers available"
      "frame-pointers not available")
 
+<<<<<<< HEAD
+let probes = make
+  ~name:"probes"
+  ~description:"Pass if probes are available"
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.probes)
+     "Target supports probes"
+     "Target does not support probes")
+
+let naked_pointers = make
+  ~name:"naked_pointers"
+  ~description:"[BACKPORT] Pass if the runtime system supports naked pointers"
+  ~does_something:false
+  (Actions_helpers.predicate (Ocamltest_config.naked_pointers)
+     "Runtime system supports naked pointers"
+     "Runtime system does not support naked pointers")
+
+||||||| 121bedcfd2
+=======
 let tsan = make
   ~name:"tsan"
   ~description:"Pass if thread sanitizer is supported"
@@ -232,51 +278,44 @@ let no_tsan = make
      "tsan not available"
      "tsan available")
 
-let probes = make
-  ~name:"probes"
-  ~description:"Pass if probes are available"
-  (Actions_helpers.pass_or_skip (Ocamltest_config.probes)
-     "Target supports probes"
-     "Target does not support probes")
-
-let naked_pointers = make
-  ~name:"naked_pointers"
-  ~description:"[BACKPORT] Pass if the runtime system supports naked pointers"
-  (Actions_helpers.pass_or_skip (Ocamltest_config.naked_pointers)
-     "Runtime system supports naked pointers"
-     "Runtime system does not support naked pointers")
-
+>>>>>>> 5.2.0
 let has_symlink = make
   ~name:"has_symlink"
   ~description:"Pass if symbolic links are available"
-  (Actions_helpers.pass_or_skip (Unix.has_symlink () )
+  ~does_something:false
+  (Actions_helpers.predicate (Unix.has_symlink () )
     "symlinks available"
     "symlinks not available")
 
 let setup_build_env = make
   ~name:"setup-build-env"
   ~description:"Create a dedicated directory for the test and populates it"
+  ~does_something:false
   (Actions_helpers.setup_build_env true [])
 
 let setup_simple_build_env = make
   ~name:"setup-simple-build-env"
   ~description:"Do not create a dedicated directory, but only sets the \
     test_build_directory variable"
+  ~does_something:false
   (Actions_helpers.setup_simple_build_env true [])
 
 let run = make
   ~name:"run"
   ~description:"Run the program"
+  ~does_something:true
   Actions_helpers.run_program
 
 let script = make
   ~name:"script"
   ~description:"Run the script specified by the script variable"
+  ~does_something:true
   Actions_helpers.run_script
 
 let check_program_output = make
   ~name:"check-program-output"
   ~description:"Compare the output of the program with its reference"
+  ~does_something:true
   (Actions_helpers.check_output "program"
     Builtin_variables.output
     Builtin_variables.reference)
@@ -306,6 +345,7 @@ let file_exists = make
   ~name:"file-exists"
   ~description:"Pass if there is a file at the path contained in variable \
     `file`"
+  ~does_something:true
   file_exists_action
 
 let copy_action log env =
@@ -334,7 +374,9 @@ let copy_action log env =
       List.iter f (String.words src);
       (Result.pass, env)
 
-let copy = make ~name:"copy" ~description:"Copy a file" copy_action
+let copy =
+  make ~name:"copy" ~description:"Copy a file"
+    ~does_something:false copy_action
 
 let initialize_test_exit_status_variables _log env =
   Environments.add_bindings
@@ -383,8 +425,12 @@ let _ =
     naked_pointers;
     file_exists;
     copy;
-    tsan;
-    no_tsan;
+<<<<<<< HEAD
     probes;
     naked_pointers
+||||||| 121bedcfd2
+=======
+    tsan;
+    no_tsan;
+>>>>>>> 5.2.0
   ]

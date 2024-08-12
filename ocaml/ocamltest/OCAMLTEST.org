@@ -581,9 +581,19 @@ namely:
 *)
 #+end_src
 
+<<<<<<< HEAD:ocamltest/ocamltest.org
+The braces make explicit the scope of variable assignments: an
+assignement modifies a variable for the rest of its block and for all
+sub-blocks (unless overridden at some point).
+||||||| 121bedcfd2:ocamltest/ocamltest.org
+The fact that the language is inspired by org-mode should also be
+helpful in understanding the scope of variable assignments. Roughly
+speaking:
+=======
 The braces make explicit the scope of variable assignments: an
 assignment modifies a variable for the rest of its block and for all
 sub-blocks (unless overridden at some point).
+>>>>>>> 5.2.0:ocamltest/OCAMLTEST.org
 
 For instance, given the following blocks:
 #+begin_src
