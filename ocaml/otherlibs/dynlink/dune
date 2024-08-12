@@ -36,6 +36,19 @@
  (modules dynlink_internal_native)
  (libraries dynlink_compilerlibs dynlink_internal_common))
 
+(rule
+  (targets parser.ml)
+  (deps ../../parser.ml)
+  (action
+    (bash "echo \"module MenhirLib = CamlinternalMenhirLib\" > parser.ml && cat ../../parser.ml >> parser.ml"
+    )
+  ))
+
+(rule
+  (targets camlinternalMenhirLib.ml)
+  (deps ../../parsing/camlinternalMenhirLib.ml)
+  (action (copy %{deps} %{targets})))
+ 
 (library
   (name dynlink_compilerlibs)
   (wrapped true)
@@ -73,6 +86,9 @@
     location
     longident
     docstrings
+    lexer
+    camlinternalMenhirLib
+    parser
     printast
     pprintast
     syntaxerr
@@ -181,6 +197,8 @@
 (copy_files ../../parsing/location.ml)
 (copy_files ../../parsing/longident.ml)
 (copy_files ../../parsing/docstrings.ml)
+(copy_files ../../parsing/lexer.ml)
+(copy_files ../../parsing/parser.ml)
 (copy_files ../../parsing/printast.ml)
 (copy_files ../../parsing/pprintast.ml)
 (copy_files ../../parsing/syntaxerr.ml)
@@ -253,6 +271,7 @@
 (copy_files ../../parsing/location.mli)
 (copy_files ../../parsing/longident.mli)
 (copy_files ../../parsing/docstrings.mli)
+(copy_files ../../parsing/lexer.mli)
 (copy_files ../../parsing/printast.mli)
 (copy_files ../../parsing/pprintast.mli)
 (copy_files ../../parsing/syntaxerr.mli)
@@ -372,6 +391,8 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Symbol.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Path.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Docstrings.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lexer.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Parser.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Printast.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Syntaxerr.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lazy_backtrack.cmo
@@ -460,6 +481,8 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lazy_backtrack.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Zero_alloc_utils.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lexer.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Parser.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Printast.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx
