@@ -56,15 +56,12 @@ endef
 .PHONY: boot-compiler boot-runtest runtime-stdlib compiler runtest
 
 boot_targets = \
+  $(boot_ocamlc) \
   $(boot_ocamlopt) \
-
-;boot_targets = \
-;  $(boot_ocamlc) \
-;  $(boot_ocamlopt) \
-;  $(boot_ocamlmklib) \
-;  $(boot_ocamldep) \
-;  $(boot_ocamlobjinfo) \
-;  ocaml/ocamltest/ocamltest.byte
+  $(boot_ocamlmklib) \
+  $(boot_ocamldep) \
+  $(boot_ocamlobjinfo) \
+  ocaml/ocamltest/ocamltest.byte
 
 boot-compiler: _build/_bootinstall
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
@@ -82,7 +79,7 @@ runtime-stdlib-without-compiler:
 	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink.cmxa
 
 runtime-stdlib: boot-compiler
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_runstd) --verbose --only-package=ocaml_runtime_stdlib @install
 	rm -rf _build/runtime_stdlib_install
 # Dune 3.11+ clears `_build/install` before building, move the runtime stdlib
 # to a separate directory.
