@@ -45,21 +45,11 @@ let get_global_or_predef id =
   with Symtable.Error _ -> raise(Error(Unbound_identifier id))
 
 let rec address path event = function
-<<<<<<< HEAD
   | Env.Aunit cu ->
       get_global_or_predef (cu |> Compilation_unit.to_global_ident_for_bytecode)
   | Env.Alocal id ->
-      if Ident.is_predef id then get_global_or_predef id
-      else
-||||||| 121bedcfd2
-  | Env.Aident id ->
-      if Ident.global id then
-        try
-          Debugcom.Remote_value.global (Symtable.get_global_position id)
-        with Symtable.Error _ -> raise(Error(Unbound_identifier id))
-      else
-=======
-  | Env.Aident id ->
+    if Ident.is_predef id then get_global_or_predef id
+    else
     begin
       match Symtable.Global.of_ident id with
         | Some global ->
@@ -72,7 +62,6 @@ let rec address path event = function
         let not_found () =
           raise(Error(Unbound_identifier id))
         in
->>>>>>> 5.2.0
         begin match event with
           Some {ev_ev = ev} ->
             begin try
