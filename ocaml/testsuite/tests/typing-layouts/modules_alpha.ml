@@ -40,8 +40,7 @@ Error: The type constraints are not consistent.
        The layout of 'a is void
          because of the definition of t at line 10, characters 2-20.
        But the layout of 'a must overlap with value
-         because it instantiates an unannotated type parameter of t,
-         defaulted to layout value.
+         because the type argument of list has layout value.
 |}];;
 
 module type S1'' = S1 with type s = t_void;;
@@ -231,8 +230,7 @@ Line 2, characters 26-28:
                               ^^
 Error: This type ('a : void) should be an instance of type ('b : value)
        The layout of 'a is void
-         because it instantiates an unannotated type parameter of t,
-         defaulted to layout void.
+         because of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value
          because the type argument of list has layout value.
 |}];;

@@ -75,10 +75,10 @@ Line 6, characters 15-17:
                    ^^
 Error: This type ('m : '_representable_layout_1)
        should be an instance of type ('a : value => value)
-       The layout of 'm is '_representable_layout_1, because
-         it's a fresh unification variable.
-       But the layout of 'm must overlap with ((value) => value), because
-         of the definition of functor_instance at lines 1-4, characters 0-1.
+       The kind of 'm is '_representable_layout_1
+         because it's a fresh unification variable.
+       But the kind of 'm must overlap with ((value) => value)
+         because of the definition of functor_instance at lines 1-4, characters 0-1.
 |}]
 
 let return : type a (m : value => value). m funct -> a -> a m = fun f x -> match f with
