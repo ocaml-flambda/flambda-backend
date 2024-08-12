@@ -35,11 +35,6 @@ type tsl_item =
 
 type tsl_block = tsl_item list
 
-<<<<<<< HEAD
-type t = Ast of tsl_item list * t list
-
-||||||| 121bedcfd2
-=======
 type t = Ast of tsl_item list * t list
 
 let rec split_env l =
@@ -48,7 +43,6 @@ let rec split_env l =
     let (env2, rest) = split_env tl in (env :: env2, rest)
   | _ -> ([], l)
 
->>>>>>> 5.2.0
 let make ?(loc = Location.none) foo = { node = foo; loc = loc }
 
 let make_identifier = make

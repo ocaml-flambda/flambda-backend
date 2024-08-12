@@ -37,35 +37,14 @@ val test_trees_of_tsl_block :
   Tsl_ast.tsl_item list ->
   Tsl_ast.environment_statement located list * test_tree list
 
-<<<<<<< HEAD
-val test_trees_of_tsl_ast :
-  Tsl_ast.t ->
-  Tsl_ast.environment_statement located list * test_tree list
-
 val tsl_ast_of_test_trees :
   Tsl_ast.environment_statement located list * test_tree list ->
   Tsl_ast.t
-
-val tests_in_tree : test_tree -> Tests.TestSet.t
-||||||| 121bedcfd2
-val tests_in_tree : test_tree -> Tests.TestSet.t
-=======
-val tsl_ast_of_test_trees :
-  Tsl_ast.environment_statement located list * test_tree list ->
-  Tsl_ast.t
->>>>>>> 5.2.0
 
 val tests_in_tree : Tsl_ast.t -> Tests.TestSet.t
 
 val actions_in_test : Tests.t -> Actions.ActionSet.t
 
 val actions_in_tests : Tests.TestSet.t -> Actions.ActionSet.t
-<<<<<<< HEAD
-
 
 val print_tsl_ast : compact:bool -> out_channel -> Tsl_ast.t -> unit
-||||||| 121bedcfd2
-=======
-
-val print_tsl_ast : compact:bool -> out_channel -> Tsl_ast.t -> unit
->>>>>>> 5.2.0
