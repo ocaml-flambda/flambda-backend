@@ -1,7 +1,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Regalloc_utils
-open! Cfg
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 module type State = sig
@@ -54,7 +53,7 @@ type direction =
 let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
   let removed_inst_temporaries = Reg.Tbl.create 128 in
   let new_block_temporaries = Reg.Tbl.create 128 in
-  let coalesce_temp_spills_and_reloads_per_block _ block =
+  let coalesce_temp_spills_and_reloads_per_block _ (block : Cfg.basic_block) =
     let var_to_block_temp = Reg.Tbl.create 8 in
     let replacements = Reg.Tbl.create 8 in
     let last_spill = Reg.Tbl.create 8 in
@@ -62,7 +61,7 @@ let coalesce_temp_spills_and_reloads cfg_with_infos new_temporaries =
       if not (Reg.same to_replace replace_with)
       then Reg.Tbl.add replacements to_replace replace_with
     in
-    let update_info_using_inst inst_cell =
+    let update_info_using_inst (inst_cell : Cfg.basic Cfg.instruction DLL.cell) =
       let inst = DLL.value inst_cell in
       match inst.desc with
       | Op Reload -> (
