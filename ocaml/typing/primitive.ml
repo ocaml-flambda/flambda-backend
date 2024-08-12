@@ -18,6 +18,8 @@
 open Misc
 open Parsetree
 
+module String = Misc.Stdlib.String
+
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
 type vec128_type = Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2
@@ -477,7 +479,6 @@ end
 let prim_has_valid_reprs ~loc prim =
   let open Repr_check in
   let check =
-    let module String_map = Map.Make (String) in
     let stringlike_indexing_primitives =
       let widths : (_ * _ * Jkind_types.Sort.const) list =
         [
@@ -522,7 +523,7 @@ let prim_has_valid_reprs ~loc prim =
        let reprs = combine_repr width_kind in
        [ (string, reprs) ])
       |> List.to_seq
-      |> fun seq -> String_map.add_seq seq String_map.empty
+      |> fun seq -> String.Map.add_seq seq String.Map.empty
     in
     match prim.prim_name with
     | "%identity"
@@ -679,7 +680,7 @@ let prim_has_valid_reprs ~loc prim =
     | "%caml_bigstring_seta128#" ->
     | "%caml_bigstring_seta128u#" -> *)
     | name -> (
-        match String_map.find_opt name stringlike_indexing_primitives with
+        match String.Map.find_opt name stringlike_indexing_primitives with
         | Some reprs -> exactly reprs
         | None ->
             if is_builtin_prim_name name then no_non_value_repr

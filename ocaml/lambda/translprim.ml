@@ -23,7 +23,7 @@ open Lambda
 open Debuginfo.Scoped_location
 open Translmode
 
-module String_map = Map.Make (String)
+module String = Misc.Stdlib.String
 
 type error =
   | Unknown_builtin_primitive of string
@@ -267,22 +267,10 @@ let indexing_primitives =
    let* boxed, boxed_sigil = [ (true, ""); (false, "#") ] in
    let string = string_gen unsafe_sigil boxed_sigil in
    let primitive = primitive_gen ~unsafe ~boxed in
-   let arity =
-     let is_substring ~substring string =
-       let len = String.length substring in
-       String.to_seq string
-       |> Seq.mapi (fun i _ -> i)
-       |> Seq.filter_map (fun i ->
-              if i + len < String.length string then
-                Some (String.sub string i len)
-              else None)
-       |> Seq.exists (fun sub -> String.equal substring sub)
-     in
-     if is_substring string ~substring:"get" then 2 else 3
-   in
+   let arity = if String.is_substring string ~substring:"get" then 2 else 3 in
    [ (string, fun ~mode -> Primitive (primitive ~mode, arity)) ])
   |> List.to_seq
-  |> fun seq -> String_map.add_seq seq String_map.empty
+  |> fun seq -> String.Map.add_seq seq String.Map.empty
 
 let lookup_primitive loc ~poly_mode ~poly_sort pos p =
   let runtime5 = Config.runtime5 in
@@ -760,7 +748,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
       Primitive(Preinterpret_unboxed_int64_as_tagged_int63, 1)
     | s when String.length s > 0 && s.[0] = '%' ->
-      (match String_map.find_opt s indexing_primitives with
+      (match String.Map.find_opt s indexing_primitives with
        | Some prim -> prim ~mode
        | None -> raise (Error (loc, Unknown_builtin_primitive s)))
     | _ -> External lambda_prim

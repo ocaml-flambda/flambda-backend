@@ -251,6 +251,8 @@ module Stdlib : sig
 
     val starts_with : prefix:string -> string -> bool
     val ends_with : suffix:string -> string -> bool
+
+    val is_substring : string -> substring:string -> bool
   end
 
   module Int : sig

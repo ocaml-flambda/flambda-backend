@@ -381,12 +381,24 @@ let checked_alignment ~dbg ~primitive ~conditions : H.expr_primitive =
       dbg
     }
 
-let check_bound ~(index_kind : Lambda.array_index_kind) ~(bound_kind : I_or_f.t)
+let check_bound ~(index_kind : Lambda.array_index_kind) ~(bound_kind : I.t)
     ~index ~bound : H.expr_primitive =
   let (comp_kind : I.t), index, bound =
     let convert_bound_to dst =
-      H.Prim (Unary (Num_conv { src = bound_kind; dst }, bound))
+      H.Prim
+        (Unary (Num_conv { src = I_or_f.of_standard_int bound_kind; dst }, bound))
     in
+    (* The reason why we convert the bound instead of the index value is because
+       of edge cases around large negative numbers.
+
+       Given [-9223372036854775807] as a [Naked_int64] index, its bit
+       representation is
+       [0b1000000000000000000000000000000000000000000000000000000000000001]. If
+       we convert that into a [Tagged_immediate], it becomes [0b11] and the
+       bounds check would pass in cases that we should reject.
+
+       This also has the added benefit of producing better assembly code.
+       Usually saving one instruction compared to tagging the index value. *)
     match index_kind with
     | Ptagged_int_index ->
       I.Naked_immediate, untag_int index, convert_bound_to Naked_immediate
@@ -529,8 +541,9 @@ let checked_bigstring_access ~dbg ~size_int ~access_size ~primitive arg1
 
 (* String-like loads *)
 let string_like_load ~dbg ~unsafe
-    ~(access_size : Flambda_primitive.string_accessor_width) ~size_int kind mode
-    ~boxed string ~index_kind index ~current_region =
+    ~(access_size : Flambda_primitive.string_accessor_width) ~size_int
+    (kind : P.string_like_value) mode ~boxed string ~index_kind index
+    ~current_region =
   let unsafe_load =
     let index = convert_index_to_tagged_int index index_kind in
     let wrap =
@@ -556,7 +569,7 @@ let string_like_load ~dbg ~unsafe
   then unsafe_load
   else
     let check_access =
-      match (kind : P.string_like_value) with
+      match kind with
       | String -> checked_string_or_bytes_access String
       | Bytes -> checked_string_or_bytes_access Bytes
       | Bigstring -> checked_bigstring_access
@@ -569,12 +582,13 @@ let get_header obj mode ~current_region =
   wrap (Unary (Get_header, obj))
 
 (* Bytes-like set *)
-let bytes_like_set ~dbg ~unsafe ~access_size ~size_int kind ~boxed bytes
-    ~index_kind index new_value =
+let bytes_like_set ~dbg ~unsafe
+    ~(access_size : Flambda_primitive.string_accessor_width) ~size_int
+    (kind : P.bytes_like_value) ~boxed bytes ~index_kind index new_value =
   let unsafe_set =
     let index = convert_index_to_tagged_int index index_kind in
     let wrap =
-      match (access_size : Flambda_primitive.string_accessor_width) with
+      match access_size with
       | Eight | Sixteen ->
         assert (not boxed);
         untag_int
@@ -590,7 +604,7 @@ let bytes_like_set ~dbg ~unsafe ~access_size ~size_int kind ~boxed bytes
   then unsafe_set
   else
     let check_access =
-      match (kind : P.bytes_like_value) with
+      match kind with
       | Bytes -> checked_string_or_bytes_access Bytes
       | Bigstring -> checked_bigstring_access
     in
