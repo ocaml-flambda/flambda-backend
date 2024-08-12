@@ -82,7 +82,8 @@ let [@inline never] sum a b c = a + b + c
 
 let calls_closure_in_tail_position n =
   let [@inline never] sum_closure k = sum k k in
-  sum_closure n n
+  ignore sum_closure;
+  (sum_closure n) n
 
 
 (* Test helper recursion *)

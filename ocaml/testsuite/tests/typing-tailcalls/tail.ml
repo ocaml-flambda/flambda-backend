@@ -13,6 +13,9 @@
  }
 *)
 
+(* Unless otherwise specified in a comment, all the `apply`'s in this
+   function are expected to be `apply` (and NOT `applynontail`). *)
+
 (* These calls should be inferred as tail-calls because they call, in tail 
    position, a function defined in some ancestor let rec. *)
 let rec foo n =
@@ -24,7 +27,8 @@ and baz n = bar (n + 1)
 
 (* (less-tco) The current heuristic used in -no-always-tco (incorrectly) does not
    infer tailcalls for the tail-position application of `next n k`.
-   This is bad, since it blows the stack. *)
+   This is bad, since it blows the stack. We should consider fixing this so
+   that `next n k` is inferred as a tail-call. *)
 let rec collatz n k =
   let[@inline never] next n k =
     let n = n - 1
@@ -36,3 +40,37 @@ let rec collatz n k =
      in the lambda output. `ignore` is a workaround. *)
   ignore next;
   if n > 0 then next n k else k
+
+
+(* Function arguments should be inferred as tail calls. *)
+let map opt ~g =
+  match opt with
+  | None -> None
+  | Some x -> Some (g x)
+
+let map = (fun opt ~g ->
+  match opt with
+  | None -> None
+  | Some x -> Some (g x))
+
+type ('a, 'b) holds_fn = { g : ('a -> 'b) }
+
+let pipe_struct a { g = g } = g a
+
+let pipe_tuple a (g, _) = g a
+
+
+(* Same with function arguments matched with `function`. *)
+let pipe_struct_match a = function
+  | { g = g } -> g a
+
+let pipe_tuple_match a = function
+  | (g, _) -> g a
+
+let pipe_option a = function
+  | Some g -> Some (g a)
+  | None -> None
+
+let pipe_option_ifnone a ifnone = function
+  | Some g -> Some (g a)
+  | None -> ifnone a
