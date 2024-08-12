@@ -632,6 +632,9 @@ let typ sub {ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes; _} =
   | Ttyp_constr (_, lid, list) ->
       iter_loc sub lid;
       List.iter (sub.typ sub) list
+  | Ttyp_app (ct, list) ->
+      sub.typ sub ct;
+      List.iter (sub.typ sub) list
   | Ttyp_object (list, _) -> List.iter (sub.object_field sub) list
   | Ttyp_class (_, lid, list) ->
       iter_loc sub lid;
