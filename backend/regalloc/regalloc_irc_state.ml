@@ -504,11 +504,8 @@ let[@inline] mem_block_temporaries state reg =
 let[@inline] mem_all_introduced_temporaries state reg =
   mem_inst_temporaries state reg || mem_block_temporaries state reg
 
-let[@inline] all_introduced_temporaries state =
-  Reg.Set.union state.inst_temporaries state.block_temporaries
-
 let[@inline] diff_all_introduced_temporaries state set =
-  Reg.Set.diff set (all_introduced_temporaries state)
+  Reg.Set.diff (Reg.Set.diff set state.inst_temporaries) state.block_temporaries
 
 let[@inline] check_disjoint sets ~is_disjoint =
   List.iter sets ~f:(fun (name1, set1) ->
