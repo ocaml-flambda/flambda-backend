@@ -88,7 +88,7 @@ runtime-stdlib: boot-compiler
 	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink.cmxa
 
 compiler: runtime-stdlib
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) --only-package=ocaml @install \
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) --verbose --only-package=ocaml @install \
 	  $(ocamldir)/ocamltest/ocamltest.byte \
 	  $(ocamldir)/tools/dumpobj.bc
 
