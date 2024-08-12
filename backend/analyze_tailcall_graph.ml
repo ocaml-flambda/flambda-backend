@@ -251,9 +251,9 @@ end = struct
           | Inferred_nontail_edge -> "inferred nontail"
         in
         if Vertex.is_unknown t.edge.from
-        then Format.asprintf "<unknown target>" call_type
+        then Format.asprintf "<unknown target>"
         else
-          Format.asprintf "At %a: calls (in %s position)"
+          Format.asprintf "%a: calls (in %s position)"
             Location.print_loc_in_lowercase t.loc call_type
     end
 
