@@ -52,6 +52,9 @@ type direction =
    [new_temporaries]. *)
 let coalesce_temp_spills_and_reloads (block : Cfg.basic_block)
     ~new_inst_temporaries ~new_block_temporaries =
+  (* CR-soon mitom: Avoid cases where optimisation worsens spills and reloads
+     due to assigning block temporaries for spilled registers that have live
+     ranges interfering with things that have already been register allocated *)
   let removed_inst_temporaries = Reg.Tbl.create 128 in
   let var_to_block_temp = Reg.Tbl.create 8 in
   let replacements = Reg.Tbl.create 8 in
