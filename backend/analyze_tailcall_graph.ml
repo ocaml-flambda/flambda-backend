@@ -648,7 +648,7 @@ end = struct
       Vertex.Hashset.add visited source;
       enqueue (Tendril.singleton with_loc);
       let rec loop () =
-        if !gas < 0
+        if !gas <= 0
         then None
         else
           match dequeue () with
