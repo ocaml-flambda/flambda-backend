@@ -723,8 +723,6 @@ static void thread_detach_from_runtime(void)
      [thread_detach_from_runtime]. There is always one more thread in
      the chain at this point in time. */
   CAMLassert(th->next != th);
-  /* Tell memprof that this thread is terminating */
-  caml_memprof_delete_thread(Active_thread->memprof);
   /* Signal that the thread has terminated */
   caml_threadstatus_terminate(Terminated(th->descr));
   /* Remove signal stack */
@@ -732,7 +730,7 @@ static void thread_detach_from_runtime(void)
   caml_free_signal_stack(th->signal_stack);
   /* The following also sets Active_thread to a sane value in case the
      backup thread does a GC before the domain lock is acquired
-     again. */
+     again.  It also removes the thread from memprof. */
   caml_thread_remove_and_free(th);
   /* Forget the now-freed thread info */
   st_tls_set(caml_thread_key, NULL);
