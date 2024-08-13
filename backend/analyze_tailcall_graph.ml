@@ -699,7 +699,8 @@ end = struct
         in
         let enqueue tendril =
           Priority.Pqueue.add q ~priority:(Tendril.priority tendril)
-            ~data:tendril
+            ~data:tendril;
+          decr gas
         in
         let dequeue () =
           if Priority.Pqueue.is_empty q
