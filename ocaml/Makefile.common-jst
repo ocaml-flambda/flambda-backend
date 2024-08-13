@@ -230,7 +230,7 @@ install_for_test: _install
 	 # replace backend-specific testsuite/tools with their new versions
 	rm _runtest/testsuite/tools/*
 	cp -a testsuite/tools/* _runtest/testsuite/tools/
-	(cd _runtest/testsuite/tools && ln -s expect.exe expect)
+	cp $(main_build)/testsuite/tools/expect.exe _runtest/testsuite/tools/expect
 	 # replace backend-specific testsuite/tests/asmcomp with their new versions
 	rm _runtest/testsuite/tests/asmcomp/*
 	cp -a testsuite/tests/asmcomp/* _runtest/testsuite/tests/asmcomp/
