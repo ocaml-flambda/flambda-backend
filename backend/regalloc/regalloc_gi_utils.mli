@@ -103,6 +103,9 @@ end
 module Make_max_priority_queue (Priority : Order) :
   Priority_queue with type priority = Priority.t
 
+module Make_min_priority_queue (Priority : Order) :
+  Priority_queue with type priority = Priority.t
+
 val iter_cfg_layout : Cfg_with_layout.t -> f:(Cfg.basic_block -> unit) -> unit
 
 val iter_instructions_layout :
