@@ -8,7 +8,10 @@
 *)
 
 (* This test verifies that external_ and external64 prevent calls to caml_modify when
-   appropriate.
+   appropriate. This is done by utilizing the --wrap argument to the C compiler, which
+   allows us to wrap caml_modify and caml_modify_local. replace_caml_modify.c defines
+   these wrappers, which track whether caml_modify/caml_modify_local has been called.
+
    Note: caml_modify is always called in bytecode, so this test is only performed on
    native *)
 
@@ -92,7 +95,10 @@ let () =
   let is_64_bit =
     match Sys.word_size with
     | 64 -> true
-    | 32 -> false
+    | 32 ->
+      (* This case is never excersized because native tests are never run on a 32-bit
+         system *)
+      false
     | _ -> failwith "Expected word size of 32 or 64"
   in
   let expect_caml_modify_call = not is_64_bit in
