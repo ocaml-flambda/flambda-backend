@@ -147,33 +147,13 @@ Error: This alias is bound to type "int list"
          because it's a boxed variant type.
        But the kind of int list must be a subkind of immediate
          because of the annotation on the type variable 'a.
-|}, Principal{|
-Line 148, characters 21-23:
-148 | let x : int list as ('a : immediate) = [3;4;5]
-                           ^^
-Error: This alias is bound to type "int list"
-       but is used as an instance of type "('a : immediate)"
-       The kind of int list is value
-         because it's a boxed variant type.
-       But the kind of int list must be a subkind of immediate
-         because of the annotation on the type variable 'a.
 |}]
 (* CR layouts: error message could be phrased better *)
 
 let x : int list as ('a : value mod global) = [3;4;5]
 [%%expect {|
-Line 153, characters 21-23:
-153 | let x : int list as ('a : value mod global) = [3;4;5]
-                           ^^
-Error: This alias is bound to type "int list"
-       but is used as an instance of type "('a : value mod global)"
-       The kind of int list is value
-         because it's a boxed variant type.
-       But the kind of int list must be a subkind of value mod global
-         because of the annotation on the type variable 'a.
-|}, Principal{|
-Line 173, characters 21-23:
-173 | let x : int list as ('a : value mod global) = [3;4;5]
+Line 163, characters 21-23:
+163 | let x : int list as ('a : value mod global) = [3;4;5]
                            ^^
 Error: This alias is bound to type "int list"
        but is used as an instance of type "('a : value mod global)"

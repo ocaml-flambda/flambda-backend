@@ -94,16 +94,6 @@ Error: This alias is bound to type "'a -> int"
          because it's a function type.
        But the layout of 'a -> int must be a sublayout of void
          because of the annotation on the type variable 'b.
-|}, Principal{|
-Line 132, characters 23-25:
-132 | type t = 'a -> int as ('b : void)
-                             ^^
-Error: This alias is bound to type "'a -> int"
-       but is used as an instance of type "('b : void)"
-       The layout of 'a -> int is value
-         because it's a function type.
-       But the layout of 'a -> int must be a sublayout of void
-         because of the annotation on the type variable 'b.
 |}]
 
 (* Type_wildcard *)
