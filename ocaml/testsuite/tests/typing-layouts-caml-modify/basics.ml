@@ -92,6 +92,32 @@ let () =
   test ~expect_caml_modify_call (fun () -> f External_variant.make);
   test ~expect_caml_modify_call (fun () -> f (Unboxed 10))
 
+(* Inlining a function that takes internal values should result in no caml_modify call
+   for external values *)
+let () =
+  let[@inline always] f (type t) (x : t) =
+    let foo = Array.make 1 x in
+    foo.(0) <- x
+  in
+  let expect_caml_modify_call = true in
+  (* CR layouts v2.8: should have no caml_modify call *)
+  test ~expect_caml_modify_call (fun () -> f 10);
+  test ~expect_caml_modify_call (fun () -> f "hello");
+  (* CR layouts v2.8: should have no caml_modify call *)
+  test ~expect_caml_modify_call (fun () -> f true);
+  test ~expect_caml_modify_call (fun () -> f { boxed = 10 });
+  test ~expect_caml_modify_call (fun () -> f { boxed = "hello" });
+  (* CR layouts v2.8: should have no caml_modify call *)
+  test ~expect_caml_modify_call (fun () -> f { unboxed = 10 });
+  test ~expect_caml_modify_call (fun () -> f { unboxed = "hello" });
+  (* CR layouts v2.8: should have no caml_modify call *)
+  test ~expect_caml_modify_call (fun () -> f External_variant.make);
+  test ~expect_caml_modify_call (fun () -> f (Boxed 10));
+  test ~expect_caml_modify_call (fun () -> f (Boxed "hello"));
+  (* CR layouts v2.8: should have no caml_modify call *)
+  test ~expect_caml_modify_call (fun () -> f (Unboxed 10));
+  test ~expect_caml_modify_call (fun () -> f (Unboxed "hello"))
+
 (* External64 values result in no caml_modify calls iff the system is 64 bit *)
 let () =
   let f (type (t : value mod external_)) (x : t) =
