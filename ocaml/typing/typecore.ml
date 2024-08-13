@@ -375,18 +375,15 @@ type expected_mode =
     sensible, but not very useful as it will fail all expressions. *)
 
     tuple_modes : Value.r list option;
-    (** No invariant between this and [mode]. It is UNSOUND to ignore this field.
-        If this is [Some [x0; x1; ..]]:
+    (** No invariant between this and [mode]. It is UNSOUND to ignore this
+        field. If this is [Some [x0; x1; ..]]:
 
-        - If we are type checking [Pexp_tuple [e0; e1; ..]], then we check
-          [e0 <= x0] and [e1 <= x1] and so on. Moreover, we check
-          [regional_to_local(join(e0, e1, ..)) <= mode].
+        - For a general expression [e], we check [e <= x0] and [e <= x1] and so
+          on; we also check [e <= mode].
 
-        - If we are type checking "non-concrete" [Pexp_constraint] etc, this
-          field must be preserved.
-
-        - If we are type checking other expression [e], then we check [e <= x0]
-          and [e <= x1] and so on. Moreover, [e <= mode]. *)
+        - Specifically for [Pexp_tuple [e0; e1; ..]], a finer-grained check is
+          performed instead: we check [e0 <= x0] and [e1 <= x1] and so on; we
+          also check [regional_to_local(join(e0, e1, ..)) <= mode]. *)
   }
 
 type position_and_mode = {
