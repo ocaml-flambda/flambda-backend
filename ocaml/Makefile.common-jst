@@ -228,7 +228,7 @@ install_for_test: _install
 	ln -s ../_install _runtest/_install
 	$(cpl) -a $(ocamldir)/testsuite _runtest/testsuite
 	 # replace backend-specific testsuite/tools with their new versions
-	rm _runtest/testsuite/tools/*
+	rm -f _runtest/testsuite/tools/*
 	cp -a testsuite/tools/* _runtest/testsuite/tools/
 	cp $(main_build)/testsuite/tools/expect.exe _runtest/testsuite/tools/expect
 	chmod 644 _runtest/testsuite/tools/expect
