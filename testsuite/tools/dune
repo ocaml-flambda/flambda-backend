@@ -1,0 +1,5 @@
+(executable
+ (name expect)
+ (modes byte)
+ (libraries ocamlcommon ocamltoplevel)
+ (modules expect))
