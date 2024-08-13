@@ -389,9 +389,9 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Import_info.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Linkage_name.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Symbol.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Path.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Docstrings.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lexer.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Path.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Parser.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Printast.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Syntaxerr.cmo
@@ -477,11 +477,11 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Import_info.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Linkage_name.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Symbol.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lexer.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Path.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lazy_backtrack.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Zero_alloc_utils.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lexer.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Parser.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Printast.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
