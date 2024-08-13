@@ -78,7 +78,7 @@ let foo (s @ portable) = ({s} : _ @@ portable)
 Line 1, characters 26-29:
 1 | let foo (s @ portable) = ({s} : _ @@ portable)
                               ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (* For monadic axes, mutable defaults to mutable(min). So currently we can't
@@ -88,7 +88,7 @@ let foo (r @ uncontended) (s @ contended) = r.s <- s
 Line 1, characters 51-52:
 1 | let foo (r @ uncontended) (s @ contended) = r.s <- s
                                                        ^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 module M : sig
@@ -111,9 +111,9 @@ Error: Signature mismatch:
        is not included in
          type t = { mutable s : string; }
        Fields do not match:
-         mutable s : string;
+         "mutable s : string;"
        is not the same as:
-         mutable s : string;
+         "mutable s : string;"
        The second is empty and the first is shared.
 |}]
 
@@ -137,9 +137,9 @@ Error: Signature mismatch:
        is not included in
          type t = { mutable s : string; }
        Fields do not match:
-         mutable s : string;
+         "mutable s : string;"
        is not the same as:
-         mutable s : string;
+         "mutable s : string;"
        The second is global_ and the first is not.
 |}]
 
@@ -155,7 +155,7 @@ type r = { f : string -> string; mutable a : int; }
 Lines 5-6, characters 2-12:
 5 | ..{ f = (fun x -> x);
 6 |     a = 42 }
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 type r =
@@ -171,5 +171,5 @@ type r = { f : string -> string; mutable g : string -> string @@ portable; }
 Lines 5-6, characters 2-20:
 5 | ..{ f = (fun x -> x);
 6 |     g = fun x -> x }
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]

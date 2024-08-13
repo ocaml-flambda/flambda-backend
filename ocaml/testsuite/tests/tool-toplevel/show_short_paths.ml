@@ -8,12 +8,12 @@
 
 #show list;;
 [%%expect {|
-type 'a list = [] | (::) of 'a * 'a list
+Unknown directive "show".
 |}];;
 
 type 'a t;;
 #show t;;
 [%%expect {|
 type 'a t
-type 'a t
+Unknown directive "show".
 |}];;

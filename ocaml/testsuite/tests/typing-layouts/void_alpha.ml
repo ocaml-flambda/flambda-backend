@@ -260,7 +260,7 @@ let _ = assert (List.for_all2 (=) !r [2;1]);;
 Line 2, characters 39-41:
 2 | let magic_B : void_variant = Obj.magic MB
                                            ^^
-Error: Unbound constructor MB
+Error: Unbound constructor "MB"
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -281,7 +281,7 @@ let _ = assert (List.for_all2 (=) !r [3;2;1]);;
 Line 2, characters 39-41:
 2 | let magic_C : void_variant = Obj.magic MC
                                            ^^
-Error: Unbound constructor MC
+Error: Unbound constructor "MC"
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -302,7 +302,7 @@ let _ = assert (List.for_all2 (=) !r [10;9;8;7;6;5;4;3;2;1]);;
 Line 2, characters 40-42:
 2 | let magic_D : void_variant = Obj.magic (MD {x' = 3; z' = 42})
                                             ^^
-Error: Unbound constructor MD
+Error: Unbound constructor "MD"
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -328,8 +328,8 @@ let x : t_void = assert false;;
 Line 1, characters 4-5:
 1 | let x : t_void = assert false;;
         ^
-Error: Types of top-level module bindings must have layout value, but
-       the type of x has layout void.
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "x" has layout "void".
 |}];;
 
 module M3_1 = struct
@@ -339,8 +339,8 @@ end;;
 Line 2, characters 6-7:
 2 |   let x : t_void = assert false;;
           ^
-Error: Types of top-level module bindings must have layout value, but
-       the type of x has layout void.
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "x" has layout "void".
 |}];;
 
 module M3_2 = struct
@@ -353,7 +353,7 @@ end;;
 Line 3, characters 10-17:
 3 |     match magic_B with
               ^^^^^^^
-Error: Unbound value magic_B
+Error: Unbound value "magic_B"
 |}];;
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -375,7 +375,7 @@ end;;
 Line 2, characters 12-14:
 2 |   let {x} = b'
                 ^^
-Error: Unbound value b'
+Error: Unbound value "b'"
 |}];;
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -401,7 +401,7 @@ let _ = assert (List.for_all2 (=) !r [2;1]);;
 Line 5, characters 20-27:
 5 |     match cons_r 1; magic_B with
                         ^^^^^^^
-Error: Unbound value magic_B
+Error: Unbound value "magic_B"
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -570,8 +570,8 @@ let _ = assert (List.for_all2 (=) !r [9;8;7;6;5;4;3;2;1]);;
 Line 16, characters 10-13:
 16 |     match vh2 with
                ^^^
-Error: Unbound value vh2
-Hint: Did you mean vh1?
+Error: Unbound value "vh2"
+Hint: Did you mean "vh1"?
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -734,7 +734,7 @@ let _ = assert (List.for_all2 (=) l [3;2;1]);;
 Line 5, characters 11-13:
 5 |     (match vh with
                ^^
-Error: Unbound value vh
+Error: Unbound value "vh"
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -859,7 +859,7 @@ let () = assert (List.for_all2 (=) !r [4;3;2;1]);;
 Line 3, characters 13-18:
 3 | let (x, _) = test8 (fun () -> cons_r 2; raise (Test8 (3,vh)))
                  ^^^^^
-Error: Unbound value test8
+Error: Unbound value "test8"
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after

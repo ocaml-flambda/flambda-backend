@@ -57,8 +57,8 @@ let x3_1 : t_bits32 = assert false;;
 Line 1, characters 4-8:
 1 | let x3_1 : t_bits32 = assert false;;
         ^^^^
-Error: Types of top-level module bindings must have layout value, but
-       the type of x3_1 has layout bits32.
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "x3_1" has layout "bits32".
 |}];;
 
 let x3_2 : 'a t_bits32_id = assert false;;
@@ -66,8 +66,8 @@ let x3_2 : 'a t_bits32_id = assert false;;
 Line 1, characters 4-8:
 1 | let x3_2 : 'a t_bits32_id = assert false;;
         ^^^^
-Error: Types of top-level module bindings must have layout value, but
-       the type of x3_2 has layout bits32.
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "x3_2" has layout "bits32".
 |}];;
 
 let x3_3 : int32# = assert false;;
@@ -75,8 +75,8 @@ let x3_3 : int32# = assert false;;
 Line 1, characters 4-8:
 1 | let x3_3 : int32# = assert false;;
         ^^^^
-Error: Types of top-level module bindings must have layout value, but
-       the type of x3_3 has layout bits32.
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "x3_3" has layout "bits32".
 |}];;
 
 module M3_4 = struct
@@ -86,8 +86,8 @@ end
 Line 2, characters 6-7:
 2 |   let x : t_bits32 = assert false
           ^
-Error: Types of top-level module bindings must have layout value, but
-       the type of x has layout bits32.
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "x" has layout "bits32".
 |}];;
 
 module M3_5 = struct
@@ -99,8 +99,8 @@ end
 Line 4, characters 6-7:
 4 |   let y = f (assert false)
           ^
-Error: Types of top-level module bindings must have layout value, but
-       the type of y has layout bits32.
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "y" has layout "bits32".
 |}];;
 
 (*************************************)
@@ -111,8 +111,8 @@ let f4_1 (x : t_bits32) = x, false;;
 Line 1, characters 26-27:
 1 | let f4_1 (x : t_bits32) = x, false;;
                               ^
-Error: This expression has type t_bits32
-       but an expression was expected of type ('a : value_or_null)
+Error: This expression has type "t_bits32"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of t_bits32 must be a sublayout of value
@@ -124,8 +124,8 @@ let f4_2 (x : 'a t_bits32_id) = x, false;;
 Line 1, characters 32-33:
 1 | let f4_2 (x : 'a t_bits32_id) = x, false;;
                                     ^
-Error: This expression has type 'a t_bits32_id = ('a : bits32)
-       but an expression was expected of type ('b : value_or_null)
+Error: This expression has type "'a t_bits32_id" = "('a : bits32)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_bits32_id is bits32
          because of the definition of t_bits32_id at line 2, characters 0-35.
        But the layout of 'a t_bits32_id must overlap with value
@@ -137,8 +137,8 @@ let f4_3 (x : int32#) = x, false;;
 Line 1, characters 24-25:
 1 | let f4_3 (x : int32#) = x, false;;
                             ^
-Error: This expression has type int32# but an expression was expected of type
-         ('a : value_or_null)
+Error: This expression has type "int32#" but an expression was expected of type
+         "('a : value_or_null)"
        The layout of int32# is bits32
          because it is the primitive bits32 type int32#.
        But the layout of int32# must be a sublayout of value
@@ -151,9 +151,9 @@ Line 1, characters 12-20:
 1 | type t4_4 = t_bits32 * string;;
                 ^^^^^^^^
 Error: Tuple element types must have layout value.
-       The layout of t_bits32 is bits32
+       The layout of "t_bits32" is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
-       But the layout of t_bits32 must be a sublayout of value
+       But the layout of "t_bits32" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 
@@ -163,9 +163,9 @@ Line 1, characters 18-24:
 1 | type t4_5 = int * int32#;;
                       ^^^^^^
 Error: Tuple element types must have layout value.
-       The layout of int32# is bits32
+       The layout of "int32#" is bits32
          because it is the primitive bits32 type int32#.
-       But the layout of int32# must be a sublayout of value
+       But the layout of "int32#" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 
@@ -174,8 +174,8 @@ type ('a : bits32) t4_6 = 'a * 'a
 Line 1, characters 26-28:
 1 | type ('a : bits32) t4_6 = 'a * 'a
                               ^^
-Error: This type ('a : value_or_null) should be an instance of type
-         ('a0 : bits32)
+Error: This type "('a : value_or_null)" should be an instance of type
+         "('a0 : bits32)"
        The layout of 'a is bits32
          because of the annotation on 'a in the declaration of the type t4_6.
        But the layout of 'a must overlap with value
@@ -188,7 +188,7 @@ type ('a : bits32, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
 Line 1, characters 31-33:
 1 | type ('a : bits32, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
                                    ^^
-Error: This type ('b : value) should be an instance of type ('a : bits32)
+Error: This type "('b : value)" should be an instance of type "('a : bits32)"
        The layout of 'a is bits32
          because of the annotation on 'a in the declaration of the type t4_7.
        But the layout of 'a must overlap with value
@@ -220,7 +220,7 @@ type t5_3 = { x : t_bits32 } [@@unboxed];;
 Line 1, characters 14-26:
 1 | type t5_3 = { x : t_bits32 } [@@unboxed];;
                   ^^^^^^^^^^^^
-Error: Type t_bits32 has layout bits32.
+Error: Type "t_bits32" has layout "bits32".
        Unboxed records may not yet contain types of this layout.
 |}];;
 
@@ -249,8 +249,8 @@ type 'a t_disallowed = A of t_bits32 * 'a
 Line 1, characters 23-41:
 1 | type 'a t_disallowed = A of t_bits32 * 'a
                            ^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       t_bits32, but found boxed argument, 'a.
+Error: Expected all flat constructor arguments after non-value argument, "
+       t_bits32", but found boxed argument, "'a".
 |}]
 
 type t5_6 = A of t_bits32 [@@unboxed];;
@@ -258,7 +258,7 @@ type t5_6 = A of t_bits32 [@@unboxed];;
 Line 1, characters 12-25:
 1 | type t5_6 = A of t_bits32 [@@unboxed];;
                 ^^^^^^^^^^^^^
-Error: Type t_bits32 has layout bits32.
+Error: Type "t_bits32" has layout "bits32".
        Unboxed variants may not yet contain types of this layout.
 |}];;
 
@@ -271,7 +271,7 @@ let f6 (m : (module S6_1)) = let module M6 = (val m) in M6.x;;
 Line 1, characters 31-39:
 1 | module type S6_1 = sig val x : t_bits32 end
                                    ^^^^^^^^
-Error: This type signature for x is not a value type.
+Error: This type signature for "x" is not a value type.
        The layout of type t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of type t_bits32 must be a sublayout of value
@@ -283,7 +283,7 @@ module type S6_2 = sig val x : 'a t_bits32_id end
 Line 1, characters 31-45:
 1 | module type S6_2 = sig val x : 'a t_bits32_id end
                                    ^^^^^^^^^^^^^^
-Error: This type signature for x is not a value type.
+Error: This type signature for "x" is not a value type.
        The layout of type 'a t_bits32_id is bits32
          because of the definition of t_bits32_id at line 2, characters 0-35.
        But the layout of type 'a t_bits32_id must be a sublayout of value
@@ -295,7 +295,7 @@ module type S6_3 = sig val x : int32# end
 Line 1, characters 31-37:
 1 | module type S6_3 = sig val x : int32# end
                                    ^^^^^^
-Error: This type signature for x is not a value type.
+Error: This type signature for "x" is not a value type.
        The layout of type int32# is bits32
          because it is the primitive bits32 type int32#.
        But the layout of type int32# must be a sublayout of value
@@ -310,8 +310,8 @@ let f7_1 (x : t_bits32) = `A x;;
 Line 1, characters 29-30:
 1 | let f7_1 (x : t_bits32) = `A x;;
                                  ^
-Error: This expression has type t_bits32
-       but an expression was expected of type ('a : value_or_null)
+Error: This expression has type "t_bits32"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of t_bits32 must be a sublayout of value
@@ -323,8 +323,8 @@ let f7_2 (x : 'a t_bits32_id) = `A x;;
 Line 1, characters 35-36:
 1 | let f7_2 (x : 'a t_bits32_id) = `A x;;
                                        ^
-Error: This expression has type 'a t_bits32_id = ('a : bits32)
-       but an expression was expected of type ('b : value_or_null)
+Error: This expression has type "'a t_bits32_id" = "('a : bits32)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_bits32_id is bits32
          because of the definition of t_bits32_id at line 2, characters 0-35.
        But the layout of 'a t_bits32_id must overlap with value
@@ -336,8 +336,8 @@ let f7_3 (x : int32#) = `A x;;
 Line 1, characters 27-28:
 1 | let f7_3 (x : int32#) = `A x;;
                                ^
-Error: This expression has type int32# but an expression was expected of type
-         ('a : value_or_null)
+Error: This expression has type "int32#" but an expression was expected of type
+         "('a : value_or_null)"
        The layout of int32# is bits32
          because it is the primitive bits32 type int32#.
        But the layout of int32# must be a sublayout of value
@@ -350,9 +350,9 @@ Line 1, characters 20-28:
 1 | type f7_4 = [ `A of t_bits32 ];;
                         ^^^^^^^^
 Error: Polymorphic variant constructor argument types must have layout value.
-       The layout of t_bits32 is bits32
+       The layout of "t_bits32" is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
-       But the layout of t_bits32 must be a sublayout of value
+       But the layout of "t_bits32" must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -361,8 +361,8 @@ type ('a : bits32) f7_5 = [ `A of 'a ];;
 Line 1, characters 34-36:
 1 | type ('a : bits32) f7_5 = [ `A of 'a ];;
                                       ^^
-Error: This type ('a : value_or_null) should be an instance of type
-         ('a0 : bits32)
+Error: This type "('a : value_or_null)" should be an instance of type
+         "('a0 : bits32)"
        The layout of 'a is bits32
          because of the annotation on 'a in the declaration of the type f7_5.
        But the layout of 'a must overlap with value
@@ -389,8 +389,8 @@ let x8_1 = id_value (make_t_bits32 ());;
 Line 1, characters 20-38:
 1 | let x8_1 = id_value (make_t_bits32 ());;
                         ^^^^^^^^^^^^^^^^^^
-Error: This expression has type t_bits32
-       but an expression was expected of type ('a : value_or_null)
+Error: This expression has type "t_bits32"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of t_bits32 must be a sublayout of value
@@ -402,8 +402,8 @@ let x8_2 = id_value (make_t_bits32_id ());;
 Line 1, characters 20-41:
 1 | let x8_2 = id_value (make_t_bits32_id ());;
                         ^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type 'a t_bits32_id = ('a : bits32)
-       but an expression was expected of type ('b : value_or_null)
+Error: This expression has type "'a t_bits32_id" = "('a : bits32)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_bits32_id is bits32
          because of the definition of make_t_bits32_id at line 2, characters 21-55.
        But the layout of 'a t_bits32_id must overlap with value
@@ -415,8 +415,8 @@ let x8_3 = id_value (make_int32u ());;
 Line 1, characters 20-36:
 1 | let x8_3 = id_value (make_int32u ());;
                         ^^^^^^^^^^^^^^^^
-Error: This expression has type int32# but an expression was expected of type
-         ('a : value_or_null)
+Error: This expression has type "int32#" but an expression was expected of type
+         "('a : value_or_null)"
        The layout of int32# is bits32
          because it is the primitive bits32 type int32#.
        But the layout of int32# must be a sublayout of value
@@ -487,18 +487,12 @@ external f10_8 : (int32 [@unboxed]) -> int32# = "foo" "bar"
 
 external f10_9 : (int32#[@untagged]) -> bool -> string  = "foo" "bar";;
 [%%expect{|
-Line 1, characters 18-24:
-1 | external f10_9 : (int32#[@untagged]) -> bool -> string  = "foo" "bar";;
-                      ^^^^^^
-Error: Don't know how to untag this type. Only int can be untagged.
+external f10_9 : (int32# [@untagged]) -> bool -> string = "foo" "bar"
 |}];;
 
 external f10_10 : string -> (int32#[@untagged])  = "foo" "bar";;
 [%%expect{|
-Line 1, characters 29-35:
-1 | external f10_10 : string -> (int32#[@untagged])  = "foo" "bar";;
-                                 ^^^^^^
-Error: Don't know how to untag this type. Only int can be untagged.
+external f10_10 : string -> (int32# [@untagged]) = "foo" "bar"
 |}];;
 
 (*************************************************)
@@ -545,8 +539,8 @@ type 'a t11_2 += C : 'a * 'b -> 'a t11_2
 Line 1, characters 17-40:
 1 | type 'a t11_2 += C : 'a * 'b -> 'a t11_2
                      ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument, 'a,
-       but found boxed argument, 'b.
+Error: Expected all flat constructor arguments after non-value argument, "'a",
+       but found boxed argument, "'b".
 |}]
 
 (***************************************)
@@ -559,9 +553,9 @@ Line 1, characters 15-27:
 1 | type t12_1 = < x : t_bits32 >;;
                    ^^^^^^^^^^^^
 Error: Object field types must have layout value.
-       The layout of t_bits32 is bits32
+       The layout of "t_bits32" is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
-       But the layout of t_bits32 must be a sublayout of value
+       But the layout of "t_bits32" must be a sublayout of value
          because it's the type of an object field.
 |}];;
 
@@ -570,7 +564,7 @@ type ('a : bits32) t12_2 = < x : 'a >;;
 Line 1, characters 33-35:
 1 | type ('a : bits32) t12_2 = < x : 'a >;;
                                      ^^
-Error: This type ('a : value) should be an instance of type ('a0 : bits32)
+Error: This type "('a : value)" should be an instance of type "('a0 : bits32)"
        The layout of 'a is bits32
          because of the annotation on 'a in the declaration of the type t12_2.
        But the layout of 'a must overlap with value
@@ -582,8 +576,8 @@ class c12_3 = object method x : t_bits32 = assert false end;;
 Line 1, characters 21-55:
 1 | class c12_3 = object method x : t_bits32 = assert false end;;
                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The method x has type t_bits32 but is expected to have type
-         ('a : value)
+Error: The method "x" has type "t_bits32" but is expected to have type
+         "('a : value)"
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of t_bits32 must be a sublayout of value
@@ -597,7 +591,7 @@ end;;
 Line 2, characters 13-15:
 2 |   method x : 'a t_bits32_id -> 'a t_bits32_id = assert false
                  ^^
-Error: This type ('a : bits32) should be an instance of type ('a0 : value)
+Error: This type "('a : bits32)" should be an instance of type "('a0 : value)"
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with bits32
@@ -621,7 +615,7 @@ class type c12_6 = object method x : int32# end;;
 Line 1, characters 26-43:
 1 | class type c12_6 = object method x : int32# end;;
                               ^^^^^^^^^^^^^^^^^
-Error: The method x has type int32# but is expected to have type ('a : value)
+Error: The method "x" has type "int32#" but is expected to have type "('a : value)"
        The layout of int32# is bits32
          because it is the primitive bits32 type int32#.
        But the layout of int32# must be a sublayout of value
@@ -647,7 +641,7 @@ end
 Line 2, characters 10-12:
 2 |   val x : 'a t_bits32_id -> 'a t_bits32_id
               ^^
-Error: This type ('a : bits32) should be an instance of type ('a0 : value)
+Error: This type "('a : bits32)" should be an instance of type "('a0 : value)"
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with bits32
@@ -685,8 +679,8 @@ end;;
 Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
-Error: This expression has type ('a : value)
-       but an expression was expected of type t_bits32
+Error: This expression has type "('a : value)"
+       but an expression was expected of type "t_bits32"
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of t_bits32 must be a sublayout of value
@@ -703,7 +697,7 @@ end;;
 Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
-Error: m1 must have a type of layout value because it is captured by an object.
+Error: "m1" must have a type of layout value because it is captured by an object.
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of t_bits32 must be a sublayout of value
@@ -721,8 +715,8 @@ let f13_1 (x : t_bits32) = x = x;;
 Line 1, characters 27-28:
 1 | let f13_1 (x : t_bits32) = x = x;;
                                ^
-Error: This expression has type t_bits32
-       but an expression was expected of type ('a : value)
+Error: This expression has type "t_bits32"
+       but an expression was expected of type "('a : value)"
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of t_bits32 must be a sublayout of value
@@ -734,8 +728,8 @@ let f13_2 (x : t_bits32) = compare x x;;
 Line 1, characters 35-36:
 1 | let f13_2 (x : t_bits32) = compare x x;;
                                        ^
-Error: This expression has type t_bits32
-       but an expression was expected of type ('a : value)
+Error: This expression has type "t_bits32"
+       but an expression was expected of type "('a : value)"
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of t_bits32 must be a sublayout of value
@@ -747,8 +741,8 @@ let f13_3 (x : t_bits32) = Marshal.to_bytes x;;
 Line 1, characters 44-45:
 1 | let f13_3 (x : t_bits32) = Marshal.to_bytes x;;
                                                 ^
-Error: This expression has type t_bits32
-       but an expression was expected of type ('a : value)
+Error: This expression has type "t_bits32"
+       but an expression was expected of type "('a : value)"
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of t_bits32 must be a sublayout of value
@@ -760,8 +754,8 @@ let f13_4 (x : t_bits32) = Hashtbl.hash x;;
 Line 1, characters 40-41:
 1 | let f13_4 (x : t_bits32) = Hashtbl.hash x;;
                                             ^
-Error: This expression has type t_bits32
-       but an expression was expected of type ('a : value)
+Error: This expression has type "t_bits32"
+       but an expression was expected of type "('a : value)"
        The layout of t_bits32 is bits32
          because of the definition of t_bits32 at line 1, characters 0-22.
        But the layout of t_bits32 must be a sublayout of value

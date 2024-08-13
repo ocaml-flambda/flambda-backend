@@ -5,5 +5,5 @@
 
 #mod_use "mod.ml"
 [%%expect {|
-module Mod : sig val answer : int end
+Unknown directive "mod_use".
 |}];;

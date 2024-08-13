@@ -1034,8 +1034,8 @@ and  ('a2, 'b2) ty2 = 'b2 -> unit
 Lines 1-2, characters 0-51:
 1 | type ('a1, 'b1) ty1 = 'a1 -> unit
 2 |   constraint 'a1 = [> `V1 of ('a1, 'b1) ty2 as 'b1]
-Error: The definition of ty1 contains a cycle:
-         ([> `V1 of 'a ] as 'b, 'a) ty2 as 'a contains 'a
+Error: The definition of "ty1" contains a cycle:
+         "([> `V1 of 'a ] as 'b, 'a) ty2 as 'a" contains "'a"
 |}];;
 
 (* PR#8359: expanding may change original in Ctype.unify2 *)
@@ -1542,23 +1542,22 @@ let (n : < m : 'a. [< `Foo of int] -> 'a >) =
 Line 2, characters 2-72:
 2 |   object method m : 'x. [< `Foo of 'x] -> 'x = fun x -> assert false end;;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type < m : 'b 'x. ([< `Foo of 'x ] as 'b) -> 'x >
+Error: This expression has type "< m : 'b 'x. ([< `Foo of 'x ] as 'b) -> 'x >"
        but an expression was expected of type
-         < m : 'a. [< `Foo of int ] -> 'a >
-       Types for tag `Foo are incompatible
+         "< m : 'a. [< `Foo of int ] -> 'a >"
+       Types for tag "`Foo" are incompatible
 |}];;
 (* fail *)
 let (n : 'b -> < m : 'a . ([< `Foo of int] as 'b) -> 'a >) = fun x ->
   object method m : 'x. [< `Foo of 'x] -> 'x = fun x -> assert false end;;
 [%%expect {|
 Line 2, characters 2-72:
-Line 2, characters 2-72:
 2 |   object method m : 'x. [< `Foo of 'x] -> 'x = fun x -> assert false end;;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type < m : 'b 'x. ([< `Foo of 'x ] as 'b) -> 'x >
+Error: This expression has type "< m : 'b 'x. ([< `Foo of 'x ] as 'b) -> 'x >"
        but an expression was expected of type
-         < m : 'a. [< `Foo of int ] -> 'a >
-       Types for tag `Foo are incompatible
+         "< m : 'a. [< `Foo of int ] -> 'a >"
+       Types for tag "`Foo" are incompatible
 |}];;
 (* ok *)
 let f (n : < m : 'a 'r. [< `Foo of 'a & int | `Bar] as 'r >) =
@@ -1586,9 +1585,6 @@ Error: This expression has type
 let f (n : < m : 'a. [< `Foo of 'a & int | `Bar] >) =
   (n : < m : 'b. [< `Foo of 'b & int | `Bar] >)
 [%%expect{|
-val f :
-  < m : 'c 'a. [< `Bar | `Foo of 'a & int ] as 'c > ->
-  < m : 'd 'b. [< `Bar | `Foo of 'b & int ] as 'd > = <fun>
 val f :
   < m : 'c 'a. [< `Bar | `Foo of 'a & int ] as 'c > ->
   < m : 'd 'b. [< `Bar | `Foo of 'b & int ] as 'd > = <fun>
@@ -2091,10 +2087,10 @@ let fail: 'a . 'a -> [> `X of 'a ] -> 'a = fun x y ->
 Line 3, characters 4-6:
 3 |   | `Y -> x
         ^^
-Error: This pattern matches values of type [? `Y ]
-       but a pattern was expected which matches values of type [> `X of 'a ]
-       The second variant type is bound to the universal type variable 'b,
-       it may not allow the tag(s) `Y
+Error: This pattern matches values of type "[? `Y ]"
+       but a pattern was expected which matches values of type "[> `X of 'a ]"
+       The second variant type is bound to the universal type variable "'b",
+       it may not allow the tag(s) "`Y"
 |}]
 
 let fail_example_corrected: 'a . 'a -> [< `X of 'a | `Y ] -> 'a = fun x y ->
@@ -2120,8 +2116,8 @@ let explicitly_quantified_row: 'a 'r. (<x:'a; ..> as 'r) -> 'a = fun o -> o#y ()
 Line 1, characters 65-85:
 1 | let explicitly_quantified_row: 'a 'r. (<x:'a; ..> as 'r) -> 'a = fun o -> o#y (); o#x
                                                                      ^^^^^^^^^^^^^^^^^^^^
-Error: This definition has type 'b. < x : 'b; y : unit -> 'c; .. > -> 'b
-       which is less general than 'a 'd. (< x : 'a; .. > as 'd) -> 'a
+Error: This definition has type "'b. < x : 'b; y : unit -> 'c; .. > -> 'b"
+       which is less general than "'a 'd. (< x : 'a; .. > as 'd) -> 'a"
 |}]
 
 
@@ -2140,11 +2136,11 @@ Error: Some type variables are unbound in this type:
              method m :
                < n : 'irr. ('irr -> unit) * (< x : 'a; y : 'b; .. > -> 'a) >
            end
-       The method m has type
-         'b.
+       The method "m" has type
+         "'b.
            < n : 'irr.
-                   ('irr -> unit) * ((< x : 'a; y : 'b; .. > as 'c) -> 'a) >
-       where 'c is unbound
+                   ('irr -> unit) * ((< x : 'a; y : 'b; .. > as 'c) -> 'a) >"
+       where "'c" is unbound
 |}]
 
 
@@ -2191,10 +2187,10 @@ let fail: 'a . 'a -> [> `X of 'a ] -> 'a = fun x y ->
 Line 3, characters 4-6:
 3 |   | `Y -> x
         ^^
-Error: This pattern matches values of type [? `Y ]
-       but a pattern was expected which matches values of type [> `X of 'a ]
-       The second variant type is bound to the universal type variable 'b,
-       it may not allow the tag(s) `Y
+Error: This pattern matches values of type "[? `Y ]"
+       but a pattern was expected which matches values of type "[> `X of 'a ]"
+       The second variant type is bound to the universal type variable "'b",
+       it may not allow the tag(s) "`Y"
 |}]
 
 let fail_example_corrected: 'a . 'a -> [< `X of 'a | `Y ] -> 'a = fun x y ->
@@ -2220,8 +2216,8 @@ let explicitly_quantified_row: 'a 'r. (<x:'a; ..> as 'r) -> 'a = fun o -> o#y ()
 Line 1, characters 65-85:
 1 | let explicitly_quantified_row: 'a 'r. (<x:'a; ..> as 'r) -> 'a = fun o -> o#y (); o#x
                                                                      ^^^^^^^^^^^^^^^^^^^^
-Error: This definition has type 'b. < x : 'b; y : unit -> 'c; .. > -> 'b
-       which is less general than 'a 'd. (< x : 'a; .. > as 'd) -> 'a
+Error: This definition has type "'b. < x : 'b; y : unit -> 'c; .. > -> 'b"
+       which is less general than "'a 'd. (< x : 'a; .. > as 'd) -> 'a"
 |}]
 
 
@@ -2240,9 +2236,9 @@ Error: Some type variables are unbound in this type:
              method m :
                < n : 'irr. ('irr -> unit) * (< x : 'a; y : 'b; .. > -> 'a) >
            end
-       The method m has type
-         'b.
+       The method "m" has type
+         "'b.
            < n : 'irr.
-                   ('irr -> unit) * ((< x : 'a; y : 'b; .. > as 'c) -> 'a) >
-       where 'c is unbound
+                   ('irr -> unit) * ((< x : 'a; y : 'b; .. > as 'c) -> 'a) >"
+       where "'c" is unbound
 |}]

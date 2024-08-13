@@ -118,11 +118,11 @@ val x : int = 5
 
 let x : int as ('a : float64) = 5;;
 [%%expect {|
-Line 1, characters 8-29:
-1 | let x : int as ('a : float64) = 5;;
-            ^^^^^^^^^^^^^^^^^^^^^
-Error: This alias is bound to type int but is used as an instance of type
-         ('a : float64)
+Line 119, characters 16-18:
+119 | let x : int as ('a : float64) = 5;;
+                      ^^
+Error: This alias is bound to type "int" but is used as an instance of type
+         "('a : float64)"
        The layout of int is value
          because it is the primitive immediate type int.
        But the layout of int must be a sublayout of float64
@@ -138,11 +138,21 @@ val x : int list = [3; 4; 5]
 let x : int list as ('a : immediate) = [3;4;5]
 ;;
 [%%expect {|
-Line 1, characters 8-36:
-1 | let x : int list as ('a : immediate) = [3;4;5]
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This alias is bound to type int list
-       but is used as an instance of type ('a : immediate)
+Line 138, characters 21-23:
+138 | let x : int list as ('a : immediate) = [3;4;5]
+                           ^^
+Error: This alias is bound to type "int list"
+       but is used as an instance of type "('a : immediate)"
+       The kind of int list is value
+         because it's a boxed variant type.
+       But the kind of int list must be a subkind of immediate
+         because of the annotation on the type variable 'a.
+|}, Principal{|
+Line 148, characters 21-23:
+148 | let x : int list as ('a : immediate) = [3;4;5]
+                           ^^
+Error: This alias is bound to type "int list"
+       but is used as an instance of type "('a : immediate)"
        The kind of int list is value
          because it's a boxed variant type.
        But the kind of int list must be a subkind of immediate
@@ -152,11 +162,21 @@ Error: This alias is bound to type int list
 
 let x : int list as ('a : value mod global) = [3;4;5]
 [%%expect {|
-Line 1, characters 8-43:
-1 | let x : int list as ('a : value mod global) = [3;4;5]
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This alias is bound to type int list
-       but is used as an instance of type ('a : value mod global)
+Line 153, characters 21-23:
+153 | let x : int list as ('a : value mod global) = [3;4;5]
+                           ^^
+Error: This alias is bound to type "int list"
+       but is used as an instance of type "('a : value mod global)"
+       The kind of int list is value
+         because it's a boxed variant type.
+       But the kind of int list must be a subkind of value mod global
+         because of the annotation on the type variable 'a.
+|}, Principal{|
+Line 173, characters 21-23:
+173 | let x : int list as ('a : value mod global) = [3;4;5]
+                           ^^
+Error: This alias is bound to type "int list"
+       but is used as an instance of type "('a : value mod global)"
        The kind of int list is value
          because it's a boxed variant type.
        But the kind of int list must be a subkind of value mod global
@@ -285,7 +305,7 @@ type t = string t2_imm
 Line 1, characters 9-15:
 1 | type t = string t2_imm
              ^^^^^^
-Error: This type string should be an instance of type ('a : immediate)
+Error: This type "string" should be an instance of type "('a : immediate)"
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of immediate
@@ -298,7 +318,7 @@ type t = string t2_global
 Line 1, characters 9-15:
 1 | type t = string t2_global
              ^^^^^^
-Error: This type string should be an instance of type ('a : value mod global)
+Error: This type "string" should be an instance of type "('a : value mod global)"
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of value mod global
@@ -313,8 +333,8 @@ type u : word
 Line 2, characters 9-10:
 2 | type t = u t2_complex
              ^
-Error: This type u should be an instance of type
-         ('a : word mod many external_)
+Error: This type "u" should be an instance of type
+         "('a : word mod many external_)"
        The kind of u is word
          because of the definition of u at line 1, characters 0-13.
        But the kind of u must be a subkind of word mod many external_
@@ -484,8 +504,8 @@ let f : ('a : any). 'a -> 'a = fun x -> x
 Line 1, characters 31-41:
 1 | let f : ('a : any). 'a -> 'a = fun x -> x
                                    ^^^^^^^^^^
-Error: This definition has type 'b -> 'b which is less general than
-         ('a : any). 'a -> 'a
+Error: This definition has type "'b -> 'b" which is less general than
+         "('a : any). 'a -> 'a"
        The layout of 'a is any
          because of the annotation on the universal variable 'a.
        But the layout of 'a must be representable
@@ -540,8 +560,8 @@ let f { field } = field "hello"
 Line 1, characters 24-31:
 1 | let f { field } = field "hello"
                             ^^^^^^^
-Error: This expression has type string but an expression was expected of type
-         ('a : immediate)
+Error: This expression has type "string" but an expression was expected of type
+         "('a : immediate)"
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of immediate
@@ -554,8 +574,8 @@ let f { fieldg } = fieldg "hello"
 Line 1, characters 26-33:
 1 | let f { fieldg } = fieldg "hello"
                               ^^^^^^^
-Error: This expression has type string but an expression was expected of type
-         ('a : value mod global)
+Error: This expression has type "string" but an expression was expected of type
+         "('a : value mod global)"
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of value mod global
@@ -568,8 +588,8 @@ let f { fieldc } = fieldc "hello"
 Line 1, characters 26-33:
 1 | let f { fieldc } = fieldc "hello"
                               ^^^^^^^
-Error: This expression has type string but an expression was expected of type
-         ('a : word mod many external_)
+Error: This expression has type "string" but an expression was expected of type
+         "('a : word mod many external_)"
        The layout of string is value
          because it is the primitive value type string.
        But the layout of string must be a sublayout of word
@@ -606,8 +626,8 @@ type r_value = { field : 'a. 'a -> 'a; }
 Line 2, characters 18-55:
 2 | let r = { field = fun (type a : immediate) (x : a) -> x }
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This field value has type 'b -> 'b which is less general than
-         'a. 'a -> 'a
+Error: This field value has type "'b -> 'b" which is less general than
+         "'a. 'a -> 'a"
        The kind of 'a is value
          because of the definition of r_value at line 1, characters 0-39.
        But the kind of 'a must be a subkind of immediate
@@ -620,8 +640,8 @@ let r = { field = fun (type a : value mod global) (x : a) -> x }
 Line 1, characters 18-62:
 1 | let r = { field = fun (type a : value mod global) (x : a) -> x }
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This field value has type 'b -> 'b which is less general than
-         'a. 'a -> 'a
+Error: This field value has type "'b -> 'b" which is less general than
+         "'a. 'a -> 'a"
        The kind of 'a is value
          because of the definition of r_value at line 1, characters 0-39.
        But the kind of 'a must be a subkind of value mod global
@@ -739,9 +759,9 @@ let f = fun (type (a : any)) (x : a) -> x
 Line 1, characters 29-36:
 1 | let f = fun (type (a : any)) (x : a) -> x
                                  ^^^^^^^
-Error: This pattern matches values of type a
+Error: This pattern matches values of type "a"
        but a pattern was expected which matches values of type
-         ('a : '_representable_layout_1)
+         "('a : '_representable_layout_1)"
        The layout of a is any
          because of the annotation on the abstract type declaration for a.
        But the layout of a must be representable
@@ -866,8 +886,8 @@ end
 Line 2, characters 24-26:
 2 |   val f : ('a : value). 'a t2_complex -> 'a t2_complex
                             ^^
-Error: This type ('a : value) should be an instance of type
-         ('b : word mod many external_)
+Error: This type "('a : value)" should be an instance of type
+         "('b : word mod many external_)"
        The layout of 'a is value
          because of the annotation on the universal variable 'a.
        But the layout of 'a must overlap with word
@@ -964,8 +984,8 @@ let f (x : ('a : immediate). 'a -> 'a) = x "string"
 Line 1, characters 43-51:
 1 | let f (x : ('a : immediate). 'a -> 'a) = x "string"
                                                ^^^^^^^^
-Error: This expression has type string but an expression was expected of type
-         ('a : immediate)
+Error: This expression has type "string" but an expression was expected of type
+         "('a : immediate)"
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of immediate
@@ -978,8 +998,8 @@ let f (x : ('a : value mod global). 'a -> 'a) = x "string"
 Line 1, characters 50-58:
 1 | let f (x : ('a : value mod global). 'a -> 'a) = x "string"
                                                       ^^^^^^^^
-Error: This expression has type string but an expression was expected of type
-         ('a : value mod global)
+Error: This expression has type "string" but an expression was expected of type
+         "('a : value mod global)"
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of value mod global
@@ -1011,9 +1031,9 @@ type t : value mod global = { x : int}
 Line 1, characters 0-38:
 1 | type t : value mod global = { x : int}
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of value mod global
+       But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: This should be accepted, because t should be inferred to be
@@ -1024,9 +1044,9 @@ type t : any mod portable = { x : float }
 Line 1, characters 0-41:
 1 | type t : any mod portable = { x : float }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of any mod portable
+       But the kind of type "t" must be a subkind of any mod portable
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: This should be accepted, because t should be inferred to be
@@ -1059,9 +1079,9 @@ type t : value mod global = { x : t_value }
 Line 1, characters 0-43:
 1 | type t : value mod global = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of value mod global
+       But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1070,9 +1090,9 @@ type t : value mod unique = { x : t_value }
 Line 1, characters 0-43:
 1 | type t : value mod unique = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of value mod unique
+       But the kind of type "t" must be a subkind of value mod unique
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1081,9 +1101,9 @@ type t : value mod many = { x : t_value }
 Line 1, characters 0-41:
 1 | type t : value mod many = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of value mod many
+       But the kind of type "t" must be a subkind of value mod many
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1092,9 +1112,9 @@ type t : value mod portable = { x : t_value }
 Line 1, characters 0-45:
 1 | type t : value mod portable = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of value mod portable
+       But the kind of type "t" must be a subkind of value mod portable
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1103,9 +1123,9 @@ type t : value mod uncontended = { x : t_value }
 Line 1, characters 0-48:
 1 | type t : value mod uncontended = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of value mod uncontended
+       But the kind of type "t" must be a subkind of value mod uncontended
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1114,9 +1134,9 @@ type t : value mod external_ = { x : t_value }
 Line 1, characters 0-46:
 1 | type t : value mod external_ = { x : t_value }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of value mod external_
+       But the kind of type "t" must be a subkind of value mod external_
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1140,9 +1160,9 @@ type t : value mod global = Foo of int
 Line 1, characters 0-38:
 1 | type t : value mod global = Foo of int
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed variant type.
-       But the kind of type t must be a subkind of value mod global
+       But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1151,9 +1171,9 @@ type t : any mod portable = Foo of float
 Line 1, characters 0-40:
 1 | type t : any mod portable = Foo of float
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed variant type.
-       But the kind of type t must be a subkind of any mod portable
+       But the kind of type "t" must be a subkind of any mod portable
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1206,9 +1226,9 @@ type t : value mod global = Foo of t_value
 Line 1, characters 0-42:
 1 | type t : value mod global = Foo of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed variant type.
-       But the kind of type t must be a subkind of value mod global
+       But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1217,9 +1237,9 @@ type t : value mod unique = Foo of t_value
 Line 1, characters 0-42:
 1 | type t : value mod unique = Foo of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed variant type.
-       But the kind of type t must be a subkind of value mod unique
+       But the kind of type "t" must be a subkind of value mod unique
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1228,9 +1248,9 @@ type t : value mod many = Foo of t_value
 Line 1, characters 0-40:
 1 | type t : value mod many = Foo of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed variant type.
-       But the kind of type t must be a subkind of value mod many
+       But the kind of type "t" must be a subkind of value mod many
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1239,9 +1259,9 @@ type t : value mod portable = Foo of t_value
 Line 1, characters 0-44:
 1 | type t : value mod portable = Foo of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed variant type.
-       But the kind of type t must be a subkind of value mod portable
+       But the kind of type "t" must be a subkind of value mod portable
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1250,9 +1270,9 @@ type t : value mod uncontended = Foo of t_value
 Line 1, characters 0-47:
 1 | type t : value mod uncontended = Foo of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed variant type.
-       But the kind of type t must be a subkind of value mod uncontended
+       But the kind of type "t" must be a subkind of value mod uncontended
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1261,9 +1281,9 @@ type t : value mod external_ = Foo of t_value
 Line 1, characters 0-45:
 1 | type t : value mod external_ = Foo of t_value
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed variant type.
-       But the kind of type t must be a subkind of value mod external_
+       But the kind of type "t" must be a subkind of value mod external_
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -1327,9 +1347,9 @@ type t : float64 mod global portable
 Line 2, characters 0-47:
 2 | type u : bits64 mod global portable = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type t is float64
+Error: The layout of type "t" is float64
          because of the definition of t at line 1, characters 0-36.
-       But the layout of type t must be a sublayout of bits64
+       But the layout of type "t" must be a sublayout of bits64
          because of the definition of u at line 2, characters 0-47.
 |}]
 
@@ -1340,9 +1360,9 @@ type t : word
 Line 2, characters 0-36:
 2 | type u : word mod global = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is word
+Error: The kind of type "t" is word
          because of the definition of t at line 1, characters 0-13.
-       But the kind of type t must be a subkind of word mod global
+       But the kind of type "t" must be a subkind of word mod global
          because of the definition of u at line 2, characters 0-36.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
@@ -1355,9 +1375,9 @@ type t : word
 Line 2, characters 0-36:
 2 | type u : word mod unique = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is word
+Error: The kind of type "t" is word
          because of the definition of t at line 1, characters 0-13.
-       But the kind of type t must be a subkind of word mod unique
+       But the kind of type "t" must be a subkind of word mod unique
          because of the definition of u at line 2, characters 0-36.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
@@ -1370,9 +1390,9 @@ type t : word
 Line 2, characters 0-34:
 2 | type u : word mod many = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is word
+Error: The kind of type "t" is word
          because of the definition of t at line 1, characters 0-13.
-       But the kind of type t must be a subkind of word mod many
+       But the kind of type "t" must be a subkind of word mod many
          because of the definition of u at line 2, characters 0-34.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
@@ -1385,9 +1405,9 @@ type t : word
 Line 2, characters 0-38:
 2 | type u : word mod portable = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is word
+Error: The kind of type "t" is word
          because of the definition of t at line 1, characters 0-13.
-       But the kind of type t must be a subkind of word mod portable
+       But the kind of type "t" must be a subkind of word mod portable
          because of the definition of u at line 2, characters 0-38.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
@@ -1400,9 +1420,9 @@ type t : word
 Line 2, characters 0-41:
 2 | type u : word mod uncontended = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is word
+Error: The kind of type "t" is word
          because of the definition of t at line 1, characters 0-13.
-       But the kind of type t must be a subkind of word mod uncontended
+       But the kind of type "t" must be a subkind of word mod uncontended
          because of the definition of u at line 2, characters 0-41.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
@@ -1415,9 +1435,9 @@ type t : word
 Line 2, characters 0-39:
 2 | type u : word mod external_ = private t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is word
+Error: The kind of type "t" is word
          because of the definition of t at line 1, characters 0-13.
-       But the kind of type t must be a subkind of word mod external_
+       But the kind of type "t" must be a subkind of word mod external_
          because of the definition of u at line 2, characters 0-39.
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
@@ -1615,8 +1635,8 @@ let f_val : ('a : value). 'a -> 'a = fun x -> f_imm x
 Line 1, characters 37-53:
 1 | let f_val : ('a : value). 'a -> 'a = fun x -> f_imm x
                                          ^^^^^^^^^^^^^^^^
-Error: This definition has type 'b -> 'b which is less general than
-         'a. 'a -> 'a
+Error: This definition has type "'b -> 'b" which is less general than
+         "'a. 'a -> 'a"
        The kind of 'a is value
          because of the annotation on the universal variable 'a.
        But the kind of 'a must be a subkind of immediate

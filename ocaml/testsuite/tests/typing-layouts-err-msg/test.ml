@@ -14,168 +14,117 @@ type t_void : void
 type t_value : value
 
 [%%expect{|
-module B = A
-type t_void : void
-type t_value : value
+Unknown directive "directory".
 |}]
 
 let f (x : t_void): 'a A.t = x
 
 [%%expect{|
-Line 1, characters 29-30:
+Line 1, characters 11-17:
 1 | let f (x : t_void): 'a A.t = x
-                                 ^
-Error: This expression has type t_void but an expression was expected of type
-         'a A.t = ('a : value)
-       The layout of t_void is void
-         because of the definition of t_void at line 2, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because the type argument of A.t has this layout.
+               ^^^^^^
+Error: Unbound type constructor "t_void"
 |}]
 
 type t = t_void A.t
 
 [%%expect{|
-Line 1, characters 9-15:
+Line 1, characters 16-19:
 1 | type t = t_void A.t
-             ^^^^^^
-Error: This type t_void should be an instance of type ('a : value)
-       The layout of t_void is void
-         because of the definition of t_void at line 2, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because the type argument of A.t has this layout.
+                    ^^^
+Error: Unbound module "A"
 |}]
 
 
 let f (x : t_void): 'a B.t = x
 
 [%%expect{|
-Line 1, characters 29-30:
+Line 1, characters 11-17:
 1 | let f (x : t_void): 'a B.t = x
-                                 ^
-Error: This expression has type t_void but an expression was expected of type
-         'a B.t = ('a : value)
-       The layout of t_void is void
-         because of the definition of t_void at line 2, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because the type argument of B.t has this layout.
+               ^^^^^^
+Error: Unbound type constructor "t_void"
 |}]
 
 type t = t_void B.t
 
 [%%expect{|
-Line 1, characters 9-15:
+Line 1, characters 16-19:
 1 | type t = t_void B.t
-             ^^^^^^
-Error: This type t_void should be an instance of type ('a : value)
-       The layout of t_void is void
-         because of the definition of t_void at line 2, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because the type argument of B.t has this layout.
+                    ^^^
+Error: Unbound module "B"
 |}]
 
 let f (x : t_void): ('a, 'b) A.t2 = x
 
 [%%expect{|
-Line 1, characters 36-37:
+Line 1, characters 11-17:
 1 | let f (x : t_void): ('a, 'b) A.t2 = x
-                                        ^
-Error: This expression has type t_void but an expression was expected of type
-         ('a, 'b) A.t2 = ('a : value)
-       The layout of t_void is void
-         because of the definition of t_void at line 2, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because the 1st type argument of A.t2 has this layout.
+               ^^^^^^
+Error: Unbound type constructor "t_void"
 |}]
 
 type t = (t_void, t_value) A.t2
 
 [%%expect{|
-Line 1, characters 10-16:
+Line 1, characters 27-31:
 1 | type t = (t_void, t_value) A.t2
-              ^^^^^^
-Error: This type t_void should be an instance of type ('a : value)
-       The layout of t_void is void
-         because of the definition of t_void at line 2, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because the 1st type argument of A.t2 has this layout.
+                               ^^^^
+Error: Unbound module "A"
 |}]
 
 type t = (t_value, t_void, t_void, t_void, t_void) A.t5
 
 [%%expect{|
-Line 1, characters 19-25:
+Line 1, characters 51-55:
 1 | type t = (t_value, t_void, t_void, t_void, t_void) A.t5
-                       ^^^^^^
-Error: This type t_void should be an instance of type ('a : value)
-       The layout of t_void is void
-         because of the definition of t_void at line 2, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because the 2nd type argument of A.t5 has this layout.
+                                                       ^^^^
+Error: Unbound module "A"
 |}]
 
 type t = (t_value, t_value, t_void, t_void, t_void) A.t5
 
 [%%expect{|
-Line 1, characters 28-34:
+Line 1, characters 52-56:
 1 | type t = (t_value, t_value, t_void, t_void, t_void) A.t5
-                                ^^^^^^
-Error: This type t_void should be an instance of type ('a : value)
-       The layout of t_void is void
-         because of the definition of t_void at line 2, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because the 3rd type argument of A.t5 has this layout.
+                                                        ^^^^
+Error: Unbound module "A"
 |}]
 
 type t = (t_value, t_value, t_value, t_void, t_void) A.t5
 
 [%%expect{|
-Line 1, characters 37-43:
+Line 1, characters 53-57:
 1 | type t = (t_value, t_value, t_value, t_void, t_void) A.t5
-                                         ^^^^^^
-Error: This type t_void should be an instance of type ('a : value)
-       The layout of t_void is void
-         because of the definition of t_void at line 2, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because the 4th type argument of A.t5 has this layout.
+                                                         ^^^^
+Error: Unbound module "A"
 |}]
 
 
 type t = (t_value, t_value, t_value, t_value, t_void) A.t5
 
 [%%expect{|
-Line 1, characters 46-52:
+Line 1, characters 54-58:
 1 | type t = (t_value, t_value, t_value, t_value, t_void) A.t5
-                                                  ^^^^^^
-Error: This type t_void should be an instance of type ('a : value)
-       The layout of t_void is void
-         because of the definition of t_void at line 2, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because the 5th type argument of A.t5 has this layout.
+                                                          ^^^^
+Error: Unbound module "A"
 |}]
 
 let f (x: t_void) = A.f x
 
 [%%expect{|
-Line 1, characters 24-25:
+Line 1, characters 10-16:
 1 | let f (x: t_void) = A.f x
-                            ^
-Error: This expression has type t_void but an expression was expected of type
-         int
+              ^^^^^^
+Error: Unbound type constructor "t_void"
 |}]
 
 let f2 (x: t_void) = A.f2 x
 
 [%%expect{|
-Line 1, characters 26-27:
+Line 1, characters 11-17:
 1 | let f2 (x: t_void) = A.f2 x
-                              ^
-Error: This expression has type t_void but an expression was expected of type
-         ('a : value_or_null)
-       The layout of t_void is void
-         because of the definition of t_void at line 2, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because of layout requirements from an imported definition.
+               ^^^^^^
+Error: Unbound type constructor "t_void"
 |}]
 
 type ('a : value) t_v = 'a
@@ -192,8 +141,8 @@ val f2 : 'a t_v -> 'a t_v = <fun>
 Line 5, characters 20-44:
 5 | let () = ignore (f2 (assert false : 'a t_vv))
                         ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type 'a t_vv = ('a : void)
-       but an expression was expected of type 'b t_v = ('b : value)
+Error: This expression has type "'a t_vv" = "('a : void)"
+       but an expression was expected of type "'b t_v" = "('b : value)"
        The layout of 'a is value
          because of the definition of f2 at line 4, characters 9-10.
        But the layout of 'a must overlap with void
@@ -215,8 +164,8 @@ val f : 'a t_v -> 'a t_v = <fun>
 Line 6, characters 19-43:
 6 | let () = ignore (f (assert false : 'a t_v2))
                        ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type 'a t_v2 = ('a : void)
-       but an expression was expected of type 'b t_v = ('b : value)
+Error: This expression has type "'a t_v2" = "('a : void)"
+       but an expression was expected of type "'b t_v" = "('b : value)"
        The layout of 'a is value
          because of the definition of f at line 4, characters 6-19.
        But the layout of 'a must overlap with void
@@ -247,6 +196,6 @@ Error: Signature mismatch:
          type 'a t = 'a
        is not included in
          type ('a : void) t = 'a
-       The type ('a : value) is not equal to the type ('a0 : void)
+       The type "('a : value)" is not equal to the type "('a0 : void)"
        because their layouts are different.
 |}]

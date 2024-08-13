@@ -35,7 +35,7 @@ run {| fun x y z -> function w -> x y z w |};;
 run {| fun x y z -> (function w -> x y z w) |};;
 
 [%%expect{|
-val run : string -> string = <fun>
+- : string = "fun x y z -> (function | w -> x y z w)"
 |}];;
 
 run {| match None with Some (Some _) -> () | _ -> () |};;

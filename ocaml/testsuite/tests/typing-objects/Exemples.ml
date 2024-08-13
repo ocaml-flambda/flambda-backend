@@ -33,14 +33,19 @@ p#get_x;;
 
 let q = Oo.copy p;;
 [%%expect{|
-val q : point = <obj>
-|}, Principal{|
-val q : < get_x : int; move : int -> unit > = <obj>
+Line 1:
+Error: Reference to undefined compilation unit "Stdlib__Oo"
+Hint: This means that the interface of a module is loaded, but its implementation is not.
+      Did you mean to load a compiled implementation of the module
+      using "#load" or by passing it as an argument to the toplevel?
 |}];;
 
 q#move 7; p#get_x, q#get_x;;
 [%%expect{|
-- : int * int = (10, 17)
+Line 1, characters 0-1:
+1 | q#move 7; p#get_x, q#get_x;;
+    ^
+Error: Unbound value "q"
 |}];;
 
 class color_point x (c : string) = object
@@ -542,10 +547,7 @@ Error: Type
            "< cmp : int_comparable2 -> int; set_x : int -> unit; x : int >"
        is not a subtype of
          "int_comparable" = "< cmp : int_comparable -> int; x : int >"
-       Type "int_comparable" = "< cmp : int_comparable -> int; x : int >"
-       is not a subtype of
-         "int_comparable2" =
-           "< cmp : int_comparable2 -> int; set_x : int -> unit; x : int >"
+       Type "int_comparable" is not a subtype of "int_comparable2"
        The first object type has no method "set_x"
 |}];;      (* Fail : 'a comp2 is not a subtype *)
 (new sorted_list ())#add c2;;

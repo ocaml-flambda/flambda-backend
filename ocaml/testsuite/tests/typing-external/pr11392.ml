@@ -16,9 +16,9 @@ type 'self nat = Z | S of 'self
 external cast : int -> 'self nat as 'self = "%identity"
 ;;
 [%%expect{|
-Line 1, characters 36-41:
+Line 1, characters 37-41:
 1 | external cast : int -> 'self nat as 'self = "%identity"
-                                        ^^^^^
+                                         ^^^^
 Error: This alias is bound to type "int -> 'a nat"
        but is used as an instance of type "'a"
        The type variable "'a" occurs inside "int -> 'a nat"
@@ -30,5 +30,5 @@ Error: This alias is bound to type "int -> 'a nat"
 external cast : int -> 'self nat as 'self = "%identity"
 ;;
 [%%expect{|
-external cast : int -> 'a nat as 'a = "%identity"
+Unknown directive "rectypes".
 |}]

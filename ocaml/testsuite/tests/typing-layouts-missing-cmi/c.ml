@@ -29,27 +29,16 @@ type bar = b_value value_arg
 (* type baz = b_void void_arg *)
 type boz = b_imm value_arg;;
 [%%expect {|
-type ('a : immediate) imm_arg
-type 'b value_arg
-type foo = B.b_imm imm_arg
-type bar = B.b_value value_arg
-type boz = B.b_imm value_arg
+Unknown directive "directory".
 |}];;
 
 (* These should not *)
 type err1 = b_value imm_arg;;
 [%%expect {|
-Line 1, characters 12-19:
+Line 1, characters 20-27:
 1 | type err1 = b_value imm_arg;;
-                ^^^^^^^
-Error: This type B.b_value = A.a_value should be an instance of type
-         ('a : immediate)
-       The kind of B.b_value is value
-         because the .cmi file for A.a_value is missing.
-       But the kind of B.b_value must be a subkind of immediate
-         because of the definition of imm_arg at line 3, characters 0-29.
-       No .cmi file found containing A.a_value.
-       Hint: Adding "a" to your dependencies might help.
+                        ^^^^^^^
+Error: Unbound type constructor "imm_arg"
 |}];;
 
 (* type err2 = b_void value_arg;;

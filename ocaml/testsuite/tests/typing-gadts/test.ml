@@ -813,11 +813,11 @@ Lines 1-2, characters 4-15:
 1 | ....f : type a b. (a,b) eq -> [< `A of a | `B] -> [< `A of b | `B] =
 2 |   fun Eq o -> o..............
 Error: This definition has type
-         'c 'd. ('d, 'd) eq -> ([< `A of 'd | `B ] as 'c) -> 'c
+         "'c 'd. ('d, 'd) eq -> ([< `A of 'd | `B ] as 'c) -> 'c"
        which is less general than
-         'e 'f 'a 'b.
+         "'e 'f 'a 'b.
            ('a, 'b) eq ->
-           ([< `A of 'a | `B ] as 'f) -> ([< `A of 'b | `B ] as 'e)
+           ([< `A of 'a | `B ] as 'f) -> ([< `A of 'b | `B ] as 'e)"
 |}];;
 
 let f : type a b. (a,b) eq -> [`A of a | `B] -> [`A of b | `B] =
@@ -848,8 +848,8 @@ Lines 1-5, characters 4-5:
 Error: This expression has type
          "('a, 'b) eq -> [ `A of 'a | `B ] -> [ `A of 'b | `B ]"
        but an expression was expected of type
-         ('a, 'b) eq -> [> `A of 'a | `B ] -> [ `A of 'b | `B ]
-       The second variant type is bound to the universal type variable 'c,
+         "('a, 'b) eq -> [> `A of 'a | `B ] -> [ `A of 'b | `B ]"
+       The second variant type is bound to the universal type variable "'c",
        it cannot be closed
 |}, Principal{|
 Line 4, characters 49-50:

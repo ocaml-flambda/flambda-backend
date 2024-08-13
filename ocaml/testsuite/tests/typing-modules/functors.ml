@@ -524,7 +524,7 @@ Error: This application of the functor "F" is ill-typed.
           is not included in
             b/2
           Line 5, characters 2-15:
-            Definition of module type b/1
+            Definition of module type "b/1"
           Line 2, characters 0-13:
             Definition of module type "b/2"
        3. Modules do not match: $S3 : sig type w end is not included in y
@@ -545,7 +545,7 @@ Line 6, characters 13-19:
                  ^^^^^^
 Error: Modules do not match: (a/1 with P.X) is not included in a/2
      Line 3, characters 2-15:
-       Definition of module type a/1
+       Definition of module type "a/1"
      Line 1, characters 0-13:
        Definition of module type "a/2"
 |}]
@@ -585,7 +585,7 @@ Error: Signature mismatch:
           does not include
             a/2
           Line 4, characters 2-15:
-            Definition of module type a/1
+            Definition of module type "a/1"
           Line 1, characters 0-13:
             Definition of module type "a/2"
 |}]
@@ -604,9 +604,9 @@ Error: Signature mismatch:
          Set.OrderedType
        does not include
          sig end
-       The type `t' is required but not provided
+       The type "t" is required but not provided
        File "set.mli", line 55, characters 4-10: Expected declaration
-       The value `compare' is required but not provided
+       The value "compare" is required but not provided
        File "set.mli", line 58, characters 4-31: Expected declaration
 |}]
 
@@ -928,21 +928,10 @@ Error: Signature mismatch:
          sig
            module B :
              sig
-               module C :
-                 sig
-                   module D :
-                     sig
-                       module E :
-                         sig
-                           module F :
-                             sig type x end -> sig type y end ->
-                               sig type z end -> sig type w end -> sig end
-                         end
-                     end
-                 end
+               module C : sig module D : sig module E : sig ... end end end
              end
          end
-       In module B:
+       In module "B":
        Modules do not match:
          sig module C = B.C end
        is not included in
@@ -1839,7 +1828,7 @@ Error: This application of the functor "F" is ill-typed.
             type 'a t
           They have different arities.
           Lines 9-12, characters 0-3:
-            Definition of module A/1
+            Definition of module "A/1"
        2. Modules do not match:
             $S2 : sig val f : 'a -> 'a end
           is not included in
@@ -1987,7 +1976,7 @@ Error: This application of the functor "H" is ill-typed.
           Type declarations do not match: type t is not included in type 'a t
           They have different arities.
           Line 5, characters 0-32:
-            Definition of module X/1
+            Definition of module "X/1"
        2. Modules do not match:
             $S2 : sig val f : 'a -> 'a end
           is not included in
@@ -2076,7 +2065,7 @@ Error: The functor application "Set.Make(Set)(A)" is ill-typed.
          functor (Ord : Set.OrderedType) -> ...
        1. The following extra argument is provided Set : (module Set)
        2. Modules do not match:
-            A : sig type a = A.a end
+            A : sig module type S = A.S module M = A.M end
           is not included in
             Set.OrderedType
 |}]

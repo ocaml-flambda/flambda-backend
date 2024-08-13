@@ -21,7 +21,7 @@ let foo (r @ contended) = r.a <- 42
 Line 1, characters 26-27:
 1 | let foo (r @ contended) = r.a <- 42
                               ^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
   Hint: In order to write into the mutable fields,
   this record needs to be uncontended.
 |}]
@@ -31,7 +31,7 @@ let foo (r @ contended) = r.a
 Line 1, characters 26-27:
 1 | let foo (r @ contended) = r.a
                               ^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
   Hint: In order to read from the mutable fields,
   this record needs to be uncontended.
 |}]
@@ -46,7 +46,7 @@ let foo (r @ contended) = {r with b = best_bytes ()}
 Line 1, characters 27-28:
 1 | let foo (r @ contended) = {r with b = best_bytes ()}
                                ^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
   Hint: In order to read from the mutable fields,
   this record needs to be uncontended.
 |}]
@@ -63,7 +63,7 @@ let r @ contended = best_bytes ()
 Line 1, characters 4-33:
 1 | let r @ contended = best_bytes ()
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 let x @ portable = best_bytes ()
@@ -74,7 +74,7 @@ val x : bytes = Bytes.of_string ""
 Line 3, characters 19-20:
 3 | let y @ portable = x
                        ^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (* Closing over writing mutable field gives nonportable *)
@@ -87,7 +87,7 @@ let foo () =
 Line 4, characters 23-26:
 4 |     let _ @ portable = bar in
                            ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (* Closing over reading mutable field gives nonportable *)
@@ -100,7 +100,7 @@ let foo () =
 Line 4, characters 23-26:
 4 |     let _ @ portable = bar in
                            ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (* Closing over reading immutable field is OK *)
@@ -116,7 +116,7 @@ let foo () =
 Line 2, characters 23-61:
 2 |     let r @ portable = {a = best_bytes (); b = best_bytes ()} in
                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 
@@ -127,14 +127,14 @@ let foo (r @ contended) = Array.set r 42 (best_bytes ())
 Line 1, characters 36-37:
 1 | let foo (r @ contended) = Array.set r 42 (best_bytes ())
                                         ^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 let foo (r @ contended) = Array.get r 42
 [%%expect{|
 Line 1, characters 36-37:
 1 | let foo (r @ contended) = Array.get r 42
                                         ^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 let foo (r @ contended) =
     match r with
@@ -143,7 +143,7 @@ let foo (r @ contended) =
 Line 3, characters 6-16:
 3 |     | [| x; y |] -> ()
           ^^^^^^^^^^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
   Hint: In order to read from the mutable fields,
   this record needs to be uncontended.
 |}]
@@ -159,7 +159,7 @@ let foo () =
 Line 4, characters 23-26:
 4 |     let _ @ portable = bar in
                            ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (* Closing over read gives nonportable *)
@@ -172,7 +172,7 @@ let foo () =
 Line 4, characters 23-26:
 4 |     let _ @ portable = bar in
                            ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 
@@ -202,7 +202,7 @@ let foo () =
 Line 4, characters 23-26:
 4 |     let _ @ portable = bar in
                            ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 let foo : 'a @ nonportable contended -> ('a -> 'a) @ portable = fun a b -> best_bytes ()
@@ -210,8 +210,8 @@ let foo : 'a @ nonportable contended -> ('a -> 'a) @ portable = fun a b -> best_
 Line 1, characters 64-88:
 1 | let foo : 'a @ nonportable contended -> ('a -> 'a) @ portable = fun a b -> best_bytes ()
                                                                     ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function when partially applied returns a value which is nonportable,
-       but expected to be portable.
+Error: This function when partially applied returns a value which is "nonportable",
+       but expected to be "portable".
 |}]
 
 let foo : 'a @ uncontended portable -> (string -> string) @ portable = fun a b -> best_bytes ()
@@ -219,8 +219,8 @@ let foo : 'a @ uncontended portable -> (string -> string) @ portable = fun a b -
 Line 1, characters 82-95:
 1 | let foo : 'a @ uncontended portable -> (string -> string) @ portable = fun a b -> best_bytes ()
                                                                                       ^^^^^^^^^^^^^
-Error: This expression has type bytes but an expression was expected of type
-         string
+Error: This expression has type "bytes" but an expression was expected of type
+         "string"
 |}]
 
 let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
@@ -229,7 +229,7 @@ let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportabl
 Line 1, characters 4-118:
 1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
@@ -237,7 +237,7 @@ let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontende
 Line 1, characters 104-114:
 1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
                                                                                                             ^^^^^^^^^^
-Error: The value best_bytes is nonportable, so cannot be used inside a closure that is portable.
+Error: The value "best_bytes" is nonportable, so cannot be used inside a closure that is portable.
 |}]
 
 (* immediates crosses portability and contention *)
@@ -260,7 +260,7 @@ module Iarray = Stdlib_stable.Iarray
 Line 3, characters 37-38:
 3 | let foo (r @ contended) = Iarray.get r 42
                                          ^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 (* CR zqian: add portable/uncontended modality and test. *)

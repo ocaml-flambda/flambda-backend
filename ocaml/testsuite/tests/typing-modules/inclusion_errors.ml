@@ -556,11 +556,11 @@ Error: Signature mismatch:
          val f : (module s/1) -> unit
        is not included in
          val f : (module s/2) -> unit
-       The type (module s/1) -> unit is not compatible with the type
-         (module s/2) -> unit
-       Type (module s/1) is not compatible with type (module s/2)
+       The type "(module s/1) -> unit" is not compatible with the type
+         "(module s/2) -> unit"
+       Type "(module s/1)" is not compatible with type "(module s/2)"
        Line 6, characters 4-17:
-         Definition of module type s/1
+         Definition of module type "s/1"
        Line 2, characters 2-15:
          Definition of module type "s/2"
 |}];;

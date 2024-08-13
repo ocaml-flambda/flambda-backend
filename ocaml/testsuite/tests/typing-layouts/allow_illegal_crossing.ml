@@ -37,9 +37,9 @@ end
 Line 3, characters 2-44:
 3 |   type b : value mod uncontended = private a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 2, characters 2-8.
-       But the kind of type a must be a subkind of value mod uncontended
+       But the kind of type "a" must be a subkind of value mod uncontended
          because of the definition of b at line 3, characters 2-44.
 |}]
 
@@ -175,7 +175,7 @@ val my_str : string = ""
 Line 3, characters 30-36:
 3 | let y : t @@ portable = { a = my_str }
                                   ^^^^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 (* CR layouts v2.8: this is unfortunate that this isn't accepted, but it is fine
    since pushing the annotation to the right hand side resolves the issue, and
@@ -228,7 +228,7 @@ val my_str : string = ""
 Line 3, characters 15-21:
 3 | let y = ({ a = my_str } : _ @@ portable)
                    ^^^^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 (* CR layouts v2.8: this is unfortunate that this isn't accepted, but it is fine
    since adding the type to the annotation resolves the issue, and
@@ -274,7 +274,7 @@ let x : Value.t @@ portable uncontended = Value.value
 Line 1, characters 42-53:
 1 | let x : Value.t @@ portable uncontended = Value.value
                                               ^^^^^^^^^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 (********************************************************)
 (* Test 3: types cannot cross other axes when annotated *)
@@ -286,9 +286,9 @@ type a
 Line 2, characters 0-37:
 2 | type b : value mod global = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-6.
-       But the kind of type a must be a subkind of value mod global
+       But the kind of type "a" must be a subkind of value mod global
          because of the definition of b at line 2, characters 0-37.
 |}]
 
@@ -299,9 +299,9 @@ type a
 Line 2, characters 0-35:
 2 | type b : value mod many = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-6.
-       But the kind of type a must be a subkind of value mod many
+       But the kind of type "a" must be a subkind of value mod many
          because of the definition of b at line 2, characters 0-35.
 |}]
 
@@ -312,9 +312,9 @@ type a
 Line 2, characters 0-37:
 2 | type b : value mod unique = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-6.
-       But the kind of type a must be a subkind of value mod unique
+       But the kind of type "a" must be a subkind of value mod unique
          because of the definition of b at line 2, characters 0-37.
 |}]
 
@@ -325,9 +325,9 @@ type a
 Line 2, characters 0-30:
 2 | type b : immediate = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-6.
-       But the kind of type a must be a subkind of immediate
+       But the kind of type "a" must be a subkind of immediate
          because of the definition of b at line 2, characters 0-30.
 |}]
 
@@ -339,9 +339,9 @@ end
 Line 3, characters 2-39:
 3 |   type b : value mod global = private a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a/2 is value
+Error: The kind of type "a/2" is value
          because of the definition of a at line 2, characters 2-8.
-       But the kind of type a/2 must be a subkind of value mod global
+       But the kind of type "a/2" must be a subkind of value mod global
          because of the definition of b at line 3, characters 2-39.
 |}]
 
@@ -354,9 +354,9 @@ end
 Line 4, characters 2-42:
 4 |   type t : value mod many = private string
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type string is value
+Error: The kind of type "string" is value
          because it is the primitive value type string.
-       But the kind of type string must be a subkind of value mod many
+       But the kind of type "string" must be a subkind of value mod many
          because of the definition of t at line 4, characters 2-42.
 |}]
 
@@ -365,9 +365,9 @@ type t : value mod external_ = private string
 Line 1, characters 0-45:
 1 | type t : value mod external_ = private string
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type string is value
+Error: The kind of type "string" is value
          because it is the primitive value type string.
-       But the kind of type string must be a subkind of value mod external_
+       But the kind of type "string" must be a subkind of value mod external_
          because of the definition of t at line 1, characters 0-45.
 |}]
 
@@ -376,9 +376,9 @@ type t : value mod global = { a : int; b : int }
 Line 1, characters 0-48:
 1 | type t : value mod global = { a : int; b : int }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of value mod global
+       But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -387,9 +387,9 @@ type ('a, 'b) t : value mod many = { a : 'a; b : 'b }
 Line 1, characters 0-53:
 1 | type ('a, 'b) t : value mod many = { a : 'a; b : 'b }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of value mod many
+       But the kind of type "t" must be a subkind of value mod many
          because of the annotation on the declaration of the type t.
 |}]
 
@@ -399,9 +399,9 @@ and b
 Line 1, characters 0-37:
 1 | type a : value mod unique = private b
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type b is value
+Error: The kind of type "b" is value
          because an abstract type has the value kind by default.
-       But the kind of type b must be a subkind of value mod unique
+       But the kind of type "b" must be a subkind of value mod unique
          because of the definition of a at line 1, characters 0-37.
 |}]
 
@@ -411,9 +411,9 @@ and b : value mod global = private a
 Line 2, characters 0-36:
 2 | and b : value mod global = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a/3 is value
+Error: The kind of type "a/3" is value
          because an abstract type has the value kind by default.
-       But the kind of type a/3 must be a subkind of value mod global
+       But the kind of type "a/3" must be a subkind of value mod global
          because of the definition of b at line 2, characters 0-36.
 |}]
 
@@ -431,9 +431,9 @@ end
 Line 4, characters 2-44:
 4 |   type t : value mod external_ = private B.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type B.t is value
+Error: The kind of type "B.t" is value
          because of the definition of t at line 7, characters 2-8.
-       But the kind of type B.t must be a subkind of value mod external_
+       But the kind of type "B.t" must be a subkind of value mod external_
          because of the definition of t at line 4, characters 2-44.
 |}]
 
@@ -451,9 +451,9 @@ end
 Line 9, characters 2-39:
 9 |   type t : value mod many = private A.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type A.t is value
+Error: The kind of type "A.t" is value
          because of the definition of t at line 2, characters 2-8.
-       But the kind of type A.t must be a subkind of value mod many
+       But the kind of type "A.t" must be a subkind of value mod many
          because of the definition of t at line 9, characters 2-39.
 |}]
 
@@ -496,7 +496,7 @@ end
 Line 6, characters 11-12:
 6 |   type v = t u
                ^
-Error: This type t should be an instance of type ('a : value mod portable)
+Error: This type "t" should be an instance of type "('a : value mod portable)"
        The kind of t is value
          because of the definition of t at line 4, characters 2-25.
        But the kind of t must be a subkind of value mod portable
@@ -513,8 +513,8 @@ end
 Line 5, characters 42-57:
 5 |   let x : _ as (_ : value mod portable) = { a = "hello" }
                                               ^^^^^^^^^^^^^^^
-Error: This expression has type t but an expression was expected of type
-         ('a : value mod portable)
+Error: This expression has type "t" but an expression was expected of type
+         "('a : value mod portable)"
        The kind of t is value
          because of the definition of t at line 4, characters 2-25.
        But the kind of t must be a subkind of value mod portable
@@ -528,9 +528,9 @@ type a
 Line 2, characters 0-31:
 2 | type b : value mod portable = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-6.
-       But the kind of type a must be a subkind of value mod portable
+       But the kind of type "a" must be a subkind of value mod portable
          because of the definition of b at line 2, characters 0-31.
 |}]
 
@@ -541,9 +541,9 @@ type a = { foo : int; bar : string; }
 Line 2, characters 0-29:
 2 | type b : any mod portable = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-36.
-       But the kind of type a must be a subkind of any mod portable
+       But the kind of type "a" must be a subkind of any mod portable
          because of the definition of b at line 2, characters 0-29.
 |}]
 
@@ -554,9 +554,9 @@ type a = Foo of int | Bar of string
 Line 2, characters 0-32:
 2 | type b : any mod uncontended = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-35.
-       But the kind of type a must be a subkind of any mod uncontended
+       But the kind of type "a" must be a subkind of any mod uncontended
          because of the definition of b at line 2, characters 0-32.
 |}]
 
@@ -570,9 +570,9 @@ type t : value mod portable = Foo.t
 Line 4, characters 2-38:
 4 |   type t : value mod portable = string
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type string is value
+Error: The kind of type "string" is value
          because it is the primitive value type string.
-       But the kind of type string must be a subkind of value mod portable
+       But the kind of type "string" must be a subkind of value mod portable
          because of the definition of t at line 4, characters 2-38.
 |}]
 
@@ -583,9 +583,9 @@ type a = { foo : string; }
 Line 2, characters 0-50:
 2 | type b : value mod portable = a = { foo : string }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-25.
-       But the kind of type a must be a subkind of value mod portable
+       But the kind of type "a" must be a subkind of value mod portable
          because of the definition of b at line 2, characters 0-50.
 |}]
 
@@ -596,9 +596,9 @@ type a = private { foo : string; }
 Line 2, characters 0-61:
 2 | type b : value mod uncontended = a = private { foo : string }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-33.
-       But the kind of type a must be a subkind of value mod uncontended
+       But the kind of type "a" must be a subkind of value mod uncontended
          because of the definition of b at line 2, characters 0-61.
 |}]
 
@@ -609,9 +609,9 @@ type a = Foo of string | Bar
 Line 2, characters 0-56:
 2 | type b : value mod uncontended = a = Foo of string | Bar
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-28.
-       But the kind of type a must be a subkind of value mod uncontended
+       But the kind of type "a" must be a subkind of value mod uncontended
          because of the definition of b at line 2, characters 0-56.
 |}]
 
@@ -622,9 +622,9 @@ type a = private Foo of string | Bar
 Line 2, characters 0-61:
 2 | type b : value mod portable = a = private Foo of string | Bar
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-36.
-       But the kind of type a must be a subkind of value mod portable
+       But the kind of type "a" must be a subkind of value mod portable
          because of the definition of b at line 2, characters 0-61.
 |}]
 
@@ -635,8 +635,8 @@ type ('a : value mod uncontended) of_uncontended
 Line 2, characters 9-15:
 2 | type t = string of_uncontended
              ^^^^^^
-Error: This type string should be an instance of type
-         ('a : value mod uncontended)
+Error: This type "string" should be an instance of type
+         "('a : value mod uncontended)"
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of value mod uncontended
@@ -652,7 +652,7 @@ type t = { foo : int; }
 Line 3, characters 9-10:
 3 | type u = t of_portable
              ^
-Error: This type t should be an instance of type ('a : value mod portable)
+Error: This type "t" should be an instance of type "('a : value mod portable)"
        The kind of t is value
          because of the definition of t at line 2, characters 0-22.
        But the kind of t must be a subkind of value mod portable
@@ -666,8 +666,8 @@ val f : ('a : value mod portable). 'a -> 'a = <fun>
 Line 2, characters 10-17:
 2 | let _ = f "hello"
               ^^^^^^^
-Error: This expression has type string but an expression was expected of type
-         ('a : value mod portable)
+Error: This expression has type "string" but an expression was expected of type
+         "('a : value mod portable)"
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of value mod portable
@@ -681,8 +681,8 @@ val f : ('a : value mod uncontended). 'a -> 'a = <fun>
 Line 2, characters 10-17:
 2 | let _ = f "hello"
               ^^^^^^^
-Error: This expression has type string but an expression was expected of type
-         ('a : value mod uncontended)
+Error: This expression has type "string" but an expression was expected of type
+         "('a : value mod uncontended)"
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of value mod uncontended
@@ -705,8 +705,8 @@ let x : _ as (_ : value mod portable) = "hello world"
 Line 1, characters 40-53:
 1 | let x : _ as (_ : value mod portable) = "hello world"
                                             ^^^^^^^^^^^^^
-Error: This expression has type string but an expression was expected of type
-         ('a : value mod portable)
+Error: This expression has type "string" but an expression was expected of type
+         "('a : value mod portable)"
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of value mod portable
@@ -720,8 +720,8 @@ type t = { str : string; }
 Line 2, characters 45-68:
 2 | let f _ : _ as (_ : value mod uncontended) = { str = "hello world" }
                                                  ^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type t but an expression was expected of type
-         ('a : value mod uncontended)
+Error: This expression has type "t" but an expression was expected of type
+         "('a : value mod uncontended)"
        The kind of t is value
          because of the definition of t at line 1, characters 0-25.
        But the kind of t must be a subkind of value mod uncontended
@@ -735,8 +735,8 @@ type t = Foo of string
 Line 2, characters 55-72:
 2 | let f : ('a : value mod portable). 'a -> 'a = fun _ -> Foo "hello world"
                                                            ^^^^^^^^^^^^^^^^^
-Error: This expression has type t but an expression was expected of type
-         ('a : value mod portable)
+Error: This expression has type "t" but an expression was expected of type
+         "('a : value mod portable)"
        The kind of t is value
          because of the definition of t at line 1, characters 0-22.
        But the kind of t must be a subkind of value mod portable
@@ -750,8 +750,8 @@ type t = string
 Line 2, characters 39-58:
 2 | let x : ('a : value mod uncontended) = ("hello world" : t)
                                            ^^^^^^^^^^^^^^^^^^^
-Error: This expression has type t = string
-       but an expression was expected of type ('a : value mod uncontended)
+Error: This expression has type "t" = "string"
+       but an expression was expected of type "('a : value mod uncontended)"
        The kind of t is value
          because it is the primitive value type string.
        But the kind of t must be a subkind of value mod uncontended
@@ -768,9 +768,9 @@ type a : word
 Line 2, characters 0-31:
 2 | type b : value mod portable = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type a is word
+Error: The layout of type "a" is word
          because of the definition of a at line 1, characters 0-13.
-       But the layout of type a must be a sublayout of value
+       But the layout of type "a" must be a sublayout of value
          because of the definition of b at line 2, characters 0-31.
 |}]
 
@@ -781,9 +781,9 @@ type a : bits64
 Line 2, characters 0-36:
 2 | type b : float32 mod uncontended = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type a is bits64
+Error: The layout of type "a" is bits64
          because of the definition of a at line 1, characters 0-15.
-       But the layout of type a must be a sublayout of float32
+       But the layout of type "a" must be a sublayout of float32
          because of the definition of b at line 2, characters 0-36.
 |}]
 
@@ -794,9 +794,9 @@ type a : any
 Line 2, characters 0-34:
 2 | type b : value mod uncontended = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type a is any
+Error: The layout of type "a" is any
          because of the definition of a at line 1, characters 0-12.
-       But the layout of type a must be a sublayout of value
+       But the layout of type "a" must be a sublayout of value
          because of the definition of b at line 2, characters 0-34.
 |}]
 
@@ -810,9 +810,9 @@ type a
 Line 2, characters 0-31:
 2 | type b : value mod portable = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-6.
-       But the kind of type a must be a subkind of value mod portable
+       But the kind of type "a" must be a subkind of value mod portable
          because of the definition of b at line 2, characters 0-31.
 |}]
 
@@ -823,9 +823,9 @@ type a
 Line 2, characters 0-34:
 2 | type b : value mod uncontended = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-6.
-       But the kind of type a must be a subkind of value mod uncontended
+       But the kind of type "a" must be a subkind of value mod uncontended
          because of the definition of b at line 2, characters 0-34.
 |}]
 
@@ -836,9 +836,9 @@ type a
 Line 2, characters 0-39:
 2 | type b : value mod portable = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-6.
-       But the kind of type a must be a subkind of value mod portable
+       But the kind of type "a" must be a subkind of value mod portable
          because of the definition of b at line 2, characters 0-39.
 |}]
 
@@ -849,9 +849,9 @@ type a
 Line 2, characters 0-42:
 2 | type b : value mod uncontended = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value
+Error: The kind of type "a" is value
          because of the definition of a at line 1, characters 0-6.
-       But the kind of type a must be a subkind of value mod uncontended
+       But the kind of type "a" must be a subkind of value mod uncontended
          because of the definition of b at line 2, characters 0-42.
 |}]
 
@@ -862,9 +862,9 @@ type a : word
 Line 2, characters 0-49:
 2 | type b : any mod uncontended portable = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is word
+Error: The kind of type "a" is word
          because of the definition of a at line 1, characters 0-13.
-       But the kind of type a must be a subkind of
+       But the kind of type "a" must be a subkind of
          any mod uncontended portable
          because of the definition of b at line 2, characters 0-49.
 |}]
@@ -876,9 +876,9 @@ type a : value mod global many unique external_
 Line 2, characters 0-30:
 2 | type b : immediate = private a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is value mod global unique many external_
+Error: The kind of type "a" is value mod global unique many external_
          because of the definition of a at line 1, characters 0-47.
-       But the kind of type a must be a subkind of immediate
+       But the kind of type "a" must be a subkind of immediate
          because of the definition of b at line 2, characters 0-30.
 |}]
 
@@ -891,9 +891,9 @@ end
 Line 4, characters 2-46:
 4 |   type t : value mod portable = private string
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type string is value
+Error: The kind of type "string" is value
          because it is the primitive value type string.
-       But the kind of type string must be a subkind of value mod portable
+       But the kind of type "string" must be a subkind of value mod portable
          because of the definition of t at line 4, characters 2-46.
 |}]
 
@@ -903,9 +903,9 @@ and b
 Line 1, characters 0-51:
 1 | type a : value mod portable uncontended = private b
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type b is value
+Error: The kind of type "b" is value
          because an abstract type has the value kind by default.
-       But the kind of type b must be a subkind of
+       But the kind of type "b" must be a subkind of
          value mod uncontended portable
          because of the definition of a at line 1, characters 0-51.
 |}]
@@ -916,9 +916,9 @@ and b : value mod portable uncontended = a
 Line 2, characters 0-42:
 2 | and b : value mod portable uncontended = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a/2 is value
+Error: The kind of type "a/2" is value
          because an abstract type has the value kind by default.
-       But the kind of type a/2 must be a subkind of
+       But the kind of type "a/2" must be a subkind of
          value mod uncontended portable
          because of the definition of b at line 2, characters 0-42.
 |}]
@@ -937,9 +937,9 @@ end
 Line 4, characters 2-47:
 4 |   type t : value mod portable uncontended = B.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type B.t is value
+Error: The kind of type "B.t" is value
          because of the definition of t at line 7, characters 2-8.
-       But the kind of type B.t must be a subkind of
+       But the kind of type "B.t" must be a subkind of
          value mod uncontended portable
          because of the definition of t at line 4, characters 2-47.
 |}]
@@ -958,9 +958,9 @@ end
 Line 9, characters 2-55:
 9 |   type t : value mod portable uncontended = private A.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type A.t is value
+Error: The kind of type "A.t" is value
          because of the definition of t at line 2, characters 2-8.
-       But the kind of type A.t must be a subkind of
+       But the kind of type "A.t" must be a subkind of
          value mod uncontended portable
          because of the definition of t at line 9, characters 2-55.
 |}]

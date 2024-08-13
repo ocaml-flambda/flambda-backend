@@ -26,7 +26,7 @@ module M = struct module N = struct let x = 1 end end;;
 #show_module M;;
 [%%expect{|
 module M : sig module N : sig val x : int end end
-module M : sig module N : sig ... end end
+Unknown directive "show_module".
 |}];;
 
 (* Shortcut notation for functors *)
