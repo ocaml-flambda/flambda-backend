@@ -183,6 +183,8 @@ module Nullability = struct
 
   let max = Maybe_null
 
+  let min = Non_null
+
   let equal n1 n2 =
     match n1, n2 with
     | Non_null, Non_null -> true
@@ -830,6 +832,9 @@ module Jkind_desc = struct
       externality_upper_bound = Externality.min
     }
 
+  let add_nullability_crossing t =
+    { t with nullability_upper_bound = Nullability.min }
+
   let add_portability_and_contention_crossing ~from t =
     let new_portability =
       Portability.Const.meet t.modes_upper_bounds.portability
@@ -920,61 +925,13 @@ module Jkind_desc = struct
   module Builtin = struct
     let any = max
 
-    let any_non_null = of_const Const.Builtin.any_non_null.jkind
-
     let value_or_null = of_const Const.Builtin.value_or_null.jkind
 
     let value = of_const Const.Builtin.value.jkind
 
     let void = of_const Const.Builtin.void.jkind
 
-    let immutable_data = of_const Const.Builtin.immutable_data.jkind
-
-    let mutable_data = of_const Const.Builtin.mutable_data.jkind
-
-    (* [immediate64] describes types that are stored directly (no indirection)
-       on 64-bit platforms but indirectly on 32-bit platforms. The key question:
-       along which modes should a [immediate64] cross? As of today, all of them,
-       but the reasoning for each is independent and somewhat subtle:
-
-       * Locality: This is fine, because we do not have stack-allocation on
-       32-bit platforms. Thus mode-crossing is sound at any type on 32-bit,
-       including immediate64 types.
-
-       * Linearity: This is fine, because linearity matters only for function
-       types, and an immediate64 cannot be a function type and cannot store
-       one either.
-
-       * Uniqueness: This is fine, because uniqueness matters only for
-       in-place update, and no record supporting in-place update is an
-       immediate64. ([@@unboxed] records do not support in-place update.)
-
-       * Portability: This is fine, because portability matters only for function
-       types, and an immediate64 cannot be a function type and cannot store
-       one either.
-
-       * Contention: This is fine, because contention matters only for
-       types with mutable fields, and an immediate64 does not have immutable
-       fields.
-
-       In practice, the functor that creates immediate64s,
-       [Stdlib.Sys.Immediate64.Make], will require these conditions on its
-       argument. But the arguments that we expect here will have no trouble
-       meeting the conditions.
-    *)
-    let immediate64 = of_const Const.Builtin.immediate64.jkind
-
     let immediate = of_const Const.Builtin.immediate.jkind
-
-    let float64 = of_const Const.Builtin.float64.jkind
-
-    let float32 = of_const Const.Builtin.float32.jkind
-
-    let word = of_const Const.Builtin.word.jkind
-
-    let bits32 = of_const Const.Builtin.bits32.jkind
-
-    let bits64 = of_const Const.Builtin.bits64.jkind
   end
 
   (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
@@ -1042,10 +999,6 @@ module Builtin = struct
     | Dummy_jkind -> any_dummy_jkind (* share this one common case *)
     | _ -> fresh_jkind Jkind_desc.Builtin.any ~why:(Any_creation why)
 
-  let any_non_null ~why =
-    fresh_jkind Jkind_desc.Builtin.any_non_null
-      ~why:(Any_non_null_creation why)
-
   let value_v1_safety_check =
     { jkind = Jkind_desc.Builtin.value_or_null;
       history = Creation (Value_or_null_creation V1_safety_check);
@@ -1064,37 +1017,15 @@ module Builtin = struct
   let value ~(why : History.value_creation_reason) =
     fresh_jkind Jkind_desc.Builtin.value ~why:(Value_creation why)
 
-  let immutable_data ~why =
-    fresh_jkind Jkind_desc.Builtin.immutable_data
-      ~why:(Immutable_data_creation why)
-
-  let mutable_data ~why =
-    fresh_jkind Jkind_desc.Builtin.mutable_data
-      ~why:(Mutable_data_creation why)
-
-  let immediate64 ~why =
-    fresh_jkind Jkind_desc.Builtin.immediate64 ~why:(Immediate64_creation why)
-
   let immediate ~why =
     fresh_jkind Jkind_desc.Builtin.immediate ~why:(Immediate_creation why)
-
-  let float64 ~why =
-    fresh_jkind Jkind_desc.Builtin.float64 ~why:(Float64_creation why)
-
-  let float32 ~why =
-    fresh_jkind Jkind_desc.Builtin.float32 ~why:(Float32_creation why)
-
-  let word ~why = fresh_jkind Jkind_desc.Builtin.word ~why:(Word_creation why)
-
-  let bits32 ~why =
-    fresh_jkind Jkind_desc.Builtin.bits32 ~why:(Bits32_creation why)
-
-  let bits64 ~why =
-    fresh_jkind Jkind_desc.Builtin.bits64 ~why:(Bits64_creation why)
 end
 
 let add_mode_crossing t =
   { t with jkind = Jkind_desc.add_mode_crossing t.jkind }
+
+let add_nullability_crossing t =
+  { t with jkind = Jkind_desc.add_nullability_crossing t.jkind }
 
 let add_portability_and_contention_crossing ~from t =
   let jkind, added_crossings =
@@ -1452,9 +1383,6 @@ module Format_history = struct
       format_with_notify_js ppf
         "there's a call to [type_expression] via the ocaml API"
     | Inside_of_Tarrow -> fprintf ppf "argument or result of a function type"
-
-  let format_any_non_null_creation_reason ppf :
-      History.any_non_null_creation_reason -> unit = function
     | Array_type_argument ->
       fprintf ppf "it's the type argument to the array type"
 
@@ -1470,11 +1398,6 @@ module Format_history = struct
     | Immediate_polymorphic_variant ->
       fprintf ppf
         "it's an enumeration variant type (all constructors are constant)"
-
-  let format_immediate64_creation_reason ppf :
-      History.immediate64_creation_reason -> _ = function
-    | Separability_check ->
-      fprintf ppf "the check that a type is definitely not `float`"
 
   let format_value_or_null_creation_reason ppf :
       History.value_or_null_creation_reason -> _ = function
@@ -1547,41 +1470,6 @@ module Format_history = struct
         "unknown @[(please alert the Jane Street@;\
          compilers team with this message: %s)@]" s
 
-  let format_immutable_data_creation_reason ppf :
-      History.immutable_data_creation_reason -> _ = function
-    | Primitive id ->
-      fprintf ppf "it is the primitive immutable_data type %s" (Ident.name id)
-
-  let format_mutable_data_creation_reason ppf :
-      History.mutable_data_creation_reason -> _ = function
-    | Primitive id ->
-      fprintf ppf "it is the primitive mutable_data type %s" (Ident.name id)
-
-  let format_float64_creation_reason ppf : History.float64_creation_reason -> _
-      = function
-    | Primitive id ->
-      fprintf ppf "it is the primitive float64 type %s" (Ident.name id)
-
-  let format_float32_creation_reason ppf : History.float32_creation_reason -> _
-      = function
-    | Primitive id ->
-      fprintf ppf "it is the primitive float32 type %s" (Ident.name id)
-
-  let format_word_creation_reason ppf : History.word_creation_reason -> _ =
-    function
-    | Primitive id ->
-      fprintf ppf "it is the primitive word type %s" (Ident.name id)
-
-  let format_bits32_creation_reason ppf : History.bits32_creation_reason -> _ =
-    function
-    | Primitive id ->
-      fprintf ppf "it is the primitive bits32 type %s" (Ident.name id)
-
-  let format_bits64_creation_reason ppf : History.bits64_creation_reason -> _ =
-    function
-    | Primitive id ->
-      fprintf ppf "it is the primitive bits64 type %s" (Ident.name id)
-
   let format_creation_reason ppf ~layout_or_kind :
       History.creation_reason -> unit = function
     | Annotated (ctx, _) ->
@@ -1589,28 +1477,17 @@ module Format_history = struct
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
     | Any_creation any -> format_any_creation_reason ppf any
-    | Any_non_null_creation any -> format_any_non_null_creation_reason ppf any
     | Immediate_creation immediate ->
       format_immediate_creation_reason ppf immediate
-    | Immediate64_creation immediate64 ->
-      format_immediate64_creation_reason ppf immediate64
     | Void_creation _ -> .
     | Value_or_null_creation value ->
       format_value_or_null_creation_reason ppf value
     | Value_creation value ->
       format_value_creation_reason ppf ~layout_or_kind value
-    | Immutable_data_creation imm_data ->
-      format_immutable_data_creation_reason ppf imm_data
-    | Mutable_data_creation mut_data ->
-      format_mutable_data_creation_reason ppf mut_data
-    | Float64_creation float -> format_float64_creation_reason ppf float
-    | Float32_creation float -> format_float32_creation_reason ppf float
-    | Word_creation word -> format_word_creation_reason ppf word
-    | Bits32_creation bits32 -> format_bits32_creation_reason ppf bits32
-    | Bits64_creation bits64 -> format_bits64_creation_reason ppf bits64
     | Concrete_creation concrete -> format_concrete_creation_reason ppf concrete
     | Concrete_legacy_creation concrete ->
       format_concrete_legacy_creation_reason ppf concrete
+    | Primitive id -> fprintf ppf "it is the primitive type %s" (Ident.name id)
     | Imported ->
       fprintf ppf "of %s requirements from an imported definition"
         layout_or_kind
@@ -1946,9 +1823,6 @@ module Debug_printers = struct
     | Unification_var -> fprintf ppf "Unification_var"
     | Type_expression_call -> fprintf ppf "Type_expression_call"
     | Inside_of_Tarrow -> fprintf ppf "Inside_of_Tarrow"
-
-  let any_non_null_creation_reason ppf :
-      History.any_non_null_creation_reason -> unit = function
     | Array_type_argument -> fprintf ppf "Array_type_argument"
 
   let immediate_creation_reason ppf : History.immediate_creation_reason -> _ =
@@ -1958,10 +1832,6 @@ module Debug_printers = struct
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
     | Immediate_polymorphic_variant ->
       fprintf ppf "Immediate_polymorphic_variant"
-
-  let immediate64_creation_reason ppf : History.immediate64_creation_reason -> _
-      = function
-    | Separability_check -> fprintf ppf "Separability_check"
 
   let value_or_null_creation_reason ppf :
       History.value_or_null_creation_reason -> _ = function
@@ -2005,73 +1875,27 @@ module Debug_printers = struct
     | Recmod_fun_arg -> fprintf ppf "Recmod_fun_arg"
     | Unknown s -> fprintf ppf "Unknown %s" s
 
-  let immutable_data_creation_reason ppf :
-      History.immutable_data_creation_reason -> _ = function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-
-  let mutable_data_creation_reason ppf :
-      History.mutable_data_creation_reason -> _ = function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-
-  let float64_creation_reason ppf : History.float64_creation_reason -> _ =
-    function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-
-  let float32_creation_reason ppf : History.float32_creation_reason -> _ =
-    function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-
-  let word_creation_reason ppf : History.word_creation_reason -> _ = function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-
-  let bits32_creation_reason ppf : History.bits32_creation_reason -> _ =
-    function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-
-  let bits64_creation_reason ppf : History.bits64_creation_reason -> _ =
-    function
-    | Primitive id -> fprintf ppf "Primitive %s" (Ident.unique_name id)
-
   let creation_reason ppf : History.creation_reason -> unit = function
     | Annotated (ctx, loc) ->
       fprintf ppf "Annotated (%a,%a)" annotation_context ctx Location.print_loc
         loc
     | Missing_cmi p -> fprintf ppf "Missing_cmi %a" !printtyp_path p
     | Any_creation any -> fprintf ppf "Any_creation %a" any_creation_reason any
-    | Any_non_null_creation any ->
-      fprintf ppf "Any_non_null_creation %a" any_non_null_creation_reason any
     | Immediate_creation immediate ->
       fprintf ppf "Immediate_creation %a" immediate_creation_reason immediate
-    | Immediate64_creation immediate64 ->
-      fprintf ppf "Immediate64_creation %a" immediate64_creation_reason
-        immediate64
     | Value_or_null_creation value ->
       fprintf ppf "Value_or_null_creation %a" value_or_null_creation_reason
         value
     | Value_creation value ->
       fprintf ppf "Value_creation %a" value_creation_reason value
     | Void_creation _ -> .
-    | Immutable_data_creation immutable_data ->
-      fprintf ppf "Immutable_data_creation %a" immutable_data_creation_reason
-        immutable_data
-    | Mutable_data_creation mutable_data ->
-      fprintf ppf "Mutable_data_creation %a" mutable_data_creation_reason
-        mutable_data
-    | Float64_creation float ->
-      fprintf ppf "Float64_creation %a" float64_creation_reason float
-    | Float32_creation float ->
-      fprintf ppf "Float32_creation %a" float32_creation_reason float
-    | Word_creation word ->
-      fprintf ppf "Word_creation %a" word_creation_reason word
-    | Bits32_creation bits32 ->
-      fprintf ppf "Bits32_creation %a" bits32_creation_reason bits32
-    | Bits64_creation bits64 ->
-      fprintf ppf "Bits64_creation %a" bits64_creation_reason bits64
     | Concrete_creation concrete ->
       fprintf ppf "Concrete_creation %a" concrete_creation_reason concrete
     | Concrete_legacy_creation concrete ->
       fprintf ppf "Concrete_legacy_creation %a" concrete_legacy_creation_reason
         concrete
+    | Primitive id ->
+      fprintf ppf "Primitive %s" (Ident.name id)
     | Imported -> fprintf ppf "Imported"
     | Imported_type_argument { parent_path; position; arity } ->
       fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position

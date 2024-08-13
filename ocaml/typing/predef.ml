@@ -338,11 +338,13 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type1 ident_array
        ~variance:Variance.full
        ~separability:Separability.Ind
-       ~param_jkind:(Jkind.Builtin.any_non_null ~why:Array_type_argument)
+       ~param_jkind:(Jkind.add_nullability_crossing
+                      (Jkind.Builtin.any ~why:Array_type_argument))
   |> add_type1 ident_iarray
        ~variance:Variance.covariant
        ~separability:Separability.Ind
-       ~param_jkind:(Jkind.Builtin.any_non_null ~why:Array_type_argument)
+       ~param_jkind:(Jkind.add_nullability_crossing
+                      (Jkind.Builtin.any ~why:Array_type_argument))
   |> add_type ident_bool
        ~kind:(variant [ cstr ident_false []; cstr ident_true []]
                 [| Constructor_uniform_value, [| |];
@@ -355,16 +357,19 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:(Jkind.Builtin.value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
-      ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_float))
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_float)
+                Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type ident_floatarray
   |> add_type ident_int ~jkind:(Jkind.Builtin.immediate ~why:(Primitive ident_int))
       ~jkind_annotation:Jkind.Const.Builtin.immediate
   |> add_type ident_int32
-      ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_int32))
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_int32)
+                Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type ident_int64
-      ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_int64))
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_int64)
+                Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type1 ident_lazy_t
        ~variance:Variance.covariant
@@ -384,7 +389,8 @@ let build_initial_env add_type add_extension empty_env =
            |] )
        ~jkind:(Jkind.Builtin.value ~why:Boxed_variant)
   |> add_type ident_nativeint
-      ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_nativeint))
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_nativeint)
+                Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type1 ident_option
        ~variance:Variance.covariant
@@ -424,22 +430,33 @@ let build_initial_env add_type add_extension empty_env =
        )
        ~jkind:(Jkind.Builtin.value ~why:Boxed_record)
   |> add_type ident_string
-       ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_string))
-       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
+       ~jkind:(Jkind.of_const ~why:(Primitive ident_string)
+                Jkind.Const.Builtin.immutable_data.jkind)
+       ~jkind_annotation:Jkind.Const.Builtin.word
   |> add_type ident_unboxed_float
-       ~jkind:(Jkind.Builtin.float64 ~why:(Primitive ident_unboxed_float))
+       ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float) Jkind.Const.Builtin.float64.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.float64
   |> add_type ident_unboxed_nativeint
-       ~jkind:(Jkind.add_mode_crossing (Jkind.Builtin.word ~why:(Primitive ident_unboxed_nativeint)))
+       ~jkind:
+         (Jkind.add_mode_crossing
+           (Jkind.of_const ~why:(Primitive ident_unboxed_nativeint)
+               Jkind.Const.Builtin.word.jkind))
        ~jkind_annotation:Jkind.Const.Builtin.word
   |> add_type ident_unboxed_int32
-       ~jkind:(Jkind.add_mode_crossing (Jkind.Builtin.bits32 ~why:(Primitive ident_unboxed_int32)))
+       ~jkind:
+         (Jkind.add_mode_crossing
+           (Jkind.of_const ~why:(Primitive ident_unboxed_int32)
+               Jkind.Const.Builtin.bits32.jkind))
        ~jkind_annotation:Jkind.Const.Builtin.bits32
   |> add_type ident_unboxed_int64
-       ~jkind:(Jkind.add_mode_crossing (Jkind.Builtin.bits64 ~why:(Primitive ident_unboxed_int64)))
+       ~jkind:
+         (Jkind.add_mode_crossing
+           (Jkind.of_const ~why:(Primitive ident_unboxed_int64)
+               Jkind.Const.Builtin.bits64.jkind))
        ~jkind_annotation:Jkind.Const.Builtin.bits64
   |> add_type ident_bytes
-      ~jkind:(Jkind.Builtin.mutable_data ~why:(Primitive ident_bytes))
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_bytes)
+               Jkind.Const.Builtin.mutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.mutable_data
   |> add_type ident_unit
        ~kind:(variant
@@ -473,32 +490,40 @@ let add_simd_extension_types add_type env =
   let add_type = mk_add_type add_type in
   env
   |> add_type ident_int8x16
-      ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_int8x16))
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_int8x16)
+                Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type ident_int16x8
-      ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_int16x8))
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_int16x8)
+                Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type ident_int32x4
-      ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_int32x4))
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_int32x4)
+                Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type ident_int64x2
-      ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_int64x2))
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_int64x2)
+                Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type ident_float32x4
-      ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_float32x4))
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_float32x4)
+                Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type ident_float64x2
-      ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_float64x2))
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_float64x2)
+                Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
 
 let add_small_number_extension_types add_type env =
   let add_type = mk_add_type add_type in
   env
   |> add_type ident_float32
-      ~jkind:(Jkind.Builtin.immutable_data ~why:(Primitive ident_float32))
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_float32)
+                Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type ident_unboxed_float32
-       ~jkind:(Jkind.Builtin.float32 ~why:(Primitive ident_unboxed_float32))
+       ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float32)
+          Jkind.Const.Builtin.float32.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.float32
 
 let or_null_kind tvar =
