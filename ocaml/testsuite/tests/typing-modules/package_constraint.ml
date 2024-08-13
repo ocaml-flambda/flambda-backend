@@ -2,6 +2,12 @@
  expect;
 *)
 
+(* A type with kind value, used for the below tests *)
+type t_value
+[%%expect {|
+type t_value
+|}]
+
 (* You may constrain abstract types in packages. *)
 module type S = sig
   type t
@@ -43,21 +49,33 @@ module type S = sig
 end
 
 type m1 = (module S with type t = int)
-type m2 = (module S with type t = string);;
+type m2 = (module S with type t = t_value);;
 [%%expect{|
 module type S = sig type t : immediate end
 type m1 = (module S with type t = int)
+<<<<<<< HEAD
 Line 6, characters 10-41:
 6 | type m2 = (module S with type t = string);;
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: In this "with" constraint, the new definition of "t"
+||||||| a198127529
+Line 6, characters 10-41:
+6 | type m2 = (module S with type t = string);;
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In this `with' constraint, the new definition of t
+=======
+Line 6, characters 10-42:
+6 | type m2 = (module S with type t = t_value);;
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In this `with' constraint, the new definition of t
+>>>>>>> flambda-backend/main
        does not match its original definition in the constrained signature:
        Type declarations do not match:
-         type t = string
+         type t = t_value
        is not included in
          type t : immediate
        The kind of the first is value
-         because it is the primitive value type string.
+         because of the definition of t_value at line 1, characters 0-12.
        But the kind of the first must be a subkind of immediate
          because of the definition of t at line 2, characters 2-22.
 |}];;
@@ -67,14 +85,28 @@ module type S = sig
   type t = int
 end
 
-type m = (module S with type t = string);;
+type m = (module S with type t = t_value);;
 [%%expect{|
 module type S = sig type t = int end
+<<<<<<< HEAD
 Line 5, characters 9-40:
 5 | type m = (module S with type t = string);;
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: In the constrained signature, type "t" is defined to be "int".
        Package "with" constraints may only be used on abstract types.
+||||||| a198127529
+Line 5, characters 9-40:
+5 | type m = (module S with type t = string);;
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In the constrained signature, type t is defined to be int.
+       Package `with' constraints may only be used on abstract types.
+=======
+Line 5, characters 9-41:
+5 | type m = (module S with type t = t_value);;
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: In the constrained signature, type t is defined to be int.
+       Package `with' constraints may only be used on abstract types.
+>>>>>>> flambda-backend/main
 |}];;
 
 (* Even if your constraint would be satisfied. *)
@@ -133,15 +165,15 @@ module type S = sig
 end
 
 type t1 = (module S with type t = t2)
-and t2 = string;;
+and t2 = t_value;;
 [%%expect{|
 module type S = sig type t : immediate end
-Line 6, characters 0-15:
-6 | and t2 = string;;
-    ^^^^^^^^^^^^^^^
+Line 6, characters 0-16:
+6 | and t2 = t_value;;
+    ^^^^^^^^^^^^^^^^
 Error:
        The kind of t2 is value
-         because it is the primitive value type string.
+         because of the definition of t_value at line 1, characters 0-12.
        But the kind of t2 must be a subkind of immediate
          because of the definition of t at line 2, characters 2-22.
 |}];;
@@ -180,7 +212,7 @@ module type S = sig
   type t [@@immediate]
 end
 
-type t1 = (module S with type t = string t2)
+type t1 = (module S with type t = t_value t2)
 and 'a t2 = 'a;;
 [%%expect{|
 module type S = sig type t : immediate end
@@ -318,11 +350,12 @@ end
 type 'a t = (module S with type t = 'a)
 
 type t1 = int t
-type t2 = string t
+type t2 = t_value t
 [%%expect{|
 module type S = sig type t : immediate end
 type ('a : immediate) t = (module S with type t = 'a)
 type t1 = int t
+<<<<<<< HEAD
 Line 8, characters 10-16:
 8 | type t2 = string t
               ^^^^^^
@@ -330,5 +363,22 @@ Error: This type "string" should be an instance of type "('a : immediate)"
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of immediate
+||||||| a198127529
+Line 8, characters 10-16:
+8 | type t2 = string t
+              ^^^^^^
+Error: This type string should be an instance of type ('a : immediate)
+       The kind of string is value
+         because it is the primitive value type string.
+       But the kind of string must be a subkind of immediate
+=======
+Line 8, characters 10-17:
+8 | type t2 = t_value t
+              ^^^^^^^
+Error: This type t_value should be an instance of type ('a : immediate)
+       The kind of t_value is value
+         because of the definition of t_value at line 1, characters 0-12.
+       But the kind of t_value must be a subkind of immediate
+>>>>>>> flambda-backend/main
          because of the definition of t at line 5, characters 0-39.
 |}];;

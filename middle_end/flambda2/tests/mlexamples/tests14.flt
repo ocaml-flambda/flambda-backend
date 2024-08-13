@@ -1,12 +1,12 @@
 let $camlTests14__first_const55 = Block 0 () in
 let code size(5)
-      set_0 (t) my_closure my_region my_depth -> k * k1 : imm tagged =
+      set_0 (t) my_closure my_region my_ghost_region my_depth -> k * k1 : imm tagged =
   let Psetfield = %block_set imm t.(0) <- 42 in
   cont k (Psetfield)
 in
 let code size(6)
       nth_char_1 (s, n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %string_load 8 (s, n) in
@@ -15,7 +15,7 @@ let code size(6)
 in
 let code size(30)
       needs_try_region_2 (param : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   (let try_region = %begin_try_region in
@@ -40,7 +40,7 @@ let code size(30)
 in
 let code size(26)
       gadt_match_3 (x : [ 0 |1 | 0 of imm tagged ], n)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1 =
   (let prim = %is_int x in
    let is_scrutinee_int = %Tag_imm prim in
@@ -78,14 +78,14 @@ let code nth_char_1 deleted in
 let code needs_try_region_2 deleted in
 let code gadt_match_3 deleted in
 let code loopify(never) size(5) newer_version_of(set_0)
-      set_0_1 (t) my_closure my_region my_depth -> k * k1 : imm tagged =
+      set_0_1 (t) my_closure my_region my_ghost_region my_depth -> k * k1 : imm tagged =
   let Psetfield = %block_set imm t.(0) <- 42 in
   cont k (0)
 in
 let $camlTests14__set_4 = closure set_0_1 @set in
 let code loopify(never) size(6) newer_version_of(nth_char_1)
       nth_char_1_1 (s, n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %string_load 8 (s, n) in
@@ -95,7 +95,7 @@ in
 let $camlTests14__nth_char_5 = closure nth_char_1_1 @nth_char in
 let code loopify(never) size(1) newer_version_of(needs_try_region_2)
       needs_try_region_2_1 (param : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let Popaque = %Opaque 42 in
@@ -106,7 +106,7 @@ let $camlTests14__needs_try_region_6 =
 in
 let code loopify(never) size(23) newer_version_of(gadt_match_3)
       gadt_match_3_1 (x : [ 0 |1 | 0 of imm tagged ], n)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1 =
   (let prim = %is_int x in
    switch prim

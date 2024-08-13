@@ -176,7 +176,13 @@ type ('a : bits64) t4_6 = 'a * 'a
 Line 1, characters 26-28:
 1 | type ('a : bits64) t4_6 = 'a * 'a
                               ^^
+<<<<<<< HEAD
 Error: This type "('a : value)" should be an instance of type "('a0 : bits64)"
+||||||| a198127529
+Error: This type ('a : value) should be an instance of type ('a0 : bits64)
+=======
+Error: Tuple element types must have layout value.
+>>>>>>> flambda-backend/main
        The layout of 'a is bits64
          because of the annotation on 'a in the declaration of the type t4_6.
        But the layout of 'a must overlap with value
@@ -186,15 +192,22 @@ Error: This type "('a : value)" should be an instance of type "('a0 : bits64)"
 (* check for layout propagation *)
 type ('a : bits64, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
 [%%expect{|
-Line 1, characters 31-33:
+Line 1, characters 45-47:
 1 | type ('a : bits64, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
+<<<<<<< HEAD
                                    ^^
 Error: This type "('b : value)" should be an instance of type "('a : bits64)"
+||||||| a198127529
+                                   ^^
+Error: This type ('b : value) should be an instance of type ('a : bits64)
+=======
+                                                 ^^
+Error: Tuple element types must have layout value.
+>>>>>>> flambda-backend/main
        The layout of 'a is bits64
          because of the annotation on 'a in the declaration of the type t4_7.
        But the layout of 'a must overlap with value
-         because it instantiates an unannotated type parameter of t4_7,
-         defaulted to layout value.
+         because it's the type of a tuple element.
 |}]
 
 (****************************************************)
@@ -371,7 +384,13 @@ type ('a : bits64) f7_5 = [ `A of 'a ];;
 Line 1, characters 34-36:
 1 | type ('a : bits64) f7_5 = [ `A of 'a ];;
                                       ^^
+<<<<<<< HEAD
 Error: This type "('a : value)" should be an instance of type "('a0 : bits64)"
+||||||| a198127529
+Error: This type ('a : value) should be an instance of type ('a0 : bits64)
+=======
+Error: Polymorphic variant constructor argument types must have layout value.
+>>>>>>> flambda-backend/main
        The layout of 'a is bits64
          because of the annotation on 'a in the declaration of the type f7_5.
        But the layout of 'a must overlap with value
@@ -572,10 +591,18 @@ Error: Object field types must have layout value.
 
 type ('a : bits64) t12_2 = < x : 'a >;;
 [%%expect{|
-Line 1, characters 33-35:
+Line 1, characters 29-35:
 1 | type ('a : bits64) t12_2 = < x : 'a >;;
+<<<<<<< HEAD
                                      ^^
 Error: This type "('a : value)" should be an instance of type "('a0 : bits64)"
+||||||| a198127529
+                                     ^^
+Error: This type ('a : value) should be an instance of type ('a0 : bits64)
+=======
+                                 ^^^^^^
+Error: Object field types must have layout value.
+>>>>>>> flambda-backend/main
        The layout of 'a is bits64
          because of the annotation on 'a in the declaration of the type t12_2.
        But the layout of 'a must overlap with value
@@ -602,7 +629,13 @@ end;;
 Line 2, characters 13-15:
 2 |   method x : 'a t_bits64_id -> 'a t_bits64_id = assert false
                  ^^
+<<<<<<< HEAD
 Error: This type "('a : bits64)" should be an instance of type "('a0 : value)"
+||||||| a198127529
+Error: This type ('a : bits64) should be an instance of type ('a0 : value)
+=======
+Error: This type ('a : value) should be an instance of type ('b : bits64)
+>>>>>>> flambda-backend/main
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with bits64
@@ -652,7 +685,13 @@ end
 Line 2, characters 10-12:
 2 |   val x : 'a t_bits64_id -> 'a t_bits64_id
               ^^
+<<<<<<< HEAD
 Error: This type "('a : bits64)" should be an instance of type "('a0 : value)"
+||||||| a198127529
+Error: This type ('a : bits64) should be an instance of type ('a0 : value)
+=======
+Error: This type ('a : value) should be an instance of type ('b : bits64)
+>>>>>>> flambda-backend/main
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with bits64

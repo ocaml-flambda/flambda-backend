@@ -503,9 +503,19 @@ let string_id (x : string imm_id) = x;;
 Line 1, characters 19-25:
 1 | let string_id (x : string imm_id) = x;;
                        ^^^^^^
+<<<<<<< HEAD
 Error: This type "string" should be an instance of type "('a : immediate)"
        The kind of string is value
          because it is the primitive value type string.
+||||||| a198127529
+Error: This type string should be an instance of type ('a : immediate)
+       The kind of string is value
+         because it is the primitive value type string.
+=======
+Error: This type string should be an instance of type ('a : immediate)
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> flambda-backend/main
        But the kind of string must be a subkind of immediate
          because of the definition of imm_id at line 1, characters 0-33.
 |}];;
@@ -525,10 +535,22 @@ let not_helloworld = id_for_imms "hello world";;
 Line 1, characters 33-46:
 1 | let not_helloworld = id_for_imms "hello world";;
                                      ^^^^^^^^^^^^^
+<<<<<<< HEAD
 Error: This expression has type "string" but an expression was expected of type
          "'a imm_id" = "('a : immediate)"
        The kind of string is value
          because it is the primitive value type string.
+||||||| a198127529
+Error: This expression has type string but an expression was expected of type
+         'a imm_id = ('a : immediate)
+       The kind of string is value
+         because it is the primitive value type string.
+=======
+Error: This expression has type string but an expression was expected of type
+         'a imm_id = ('a : immediate)
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> flambda-backend/main
        But the kind of string must be a subkind of immediate
          because of the definition of id_for_imms at line 1, characters 16-35.
 |}]
@@ -542,9 +564,19 @@ and s4 = string t4;;
 Line 2, characters 9-15:
 2 | and s4 = string t4;;
              ^^^^^^
+<<<<<<< HEAD
 Error: This type "string" should be an instance of type "('a : immediate)"
        The kind of string is value
          because it is the primitive value type string.
+||||||| a198127529
+Error: This type string should be an instance of type ('a : immediate)
+       The kind of string is value
+         because it is the primitive value type string.
+=======
+Error: This type string should be an instance of type ('a : immediate)
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> flambda-backend/main
        But the kind of string must be a subkind of immediate
          because of the annotation on 'a in the declaration of the type t4.
 |}];;
@@ -556,9 +588,19 @@ and ('a : immediate) t4;;
 Line 1, characters 10-16:
 1 | type s4 = string t4
               ^^^^^^
+<<<<<<< HEAD
 Error: This type "string" should be an instance of type "('a : immediate)"
        The kind of string is value
          because it is the primitive value type string.
+||||||| a198127529
+Error: This type string should be an instance of type ('a : immediate)
+       The kind of string is value
+         because it is the primitive value type string.
+=======
+Error: This type string should be an instance of type ('a : immediate)
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> flambda-backend/main
        But the kind of string must be a subkind of immediate
          because of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -590,8 +632,8 @@ Line 3, characters 0-15:
 3 | and s5 = string;;
     ^^^^^^^^^^^^^^^
 Error:
-       The kind of s5 is value
-         because it is the primitive value type string.
+       The kind of s5 is immutable_data
+         because it is the primitive immutable_data type string.
        But the kind of s5 must be a subkind of immediate
          because of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -914,9 +956,19 @@ Error: Signature mismatch:
          val x : ('a : immediate). 'a
        is not included in
          val x : string
+<<<<<<< HEAD
        The type "('a : immediate)" is not compatible with the type "string"
        The kind of string is value
          because it is the primitive value type string.
+||||||| a198127529
+       The type ('a : immediate) is not compatible with the type string
+       The kind of string is value
+         because it is the primitive value type string.
+=======
+       The type ('a : immediate) is not compatible with the type string
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> flambda-backend/main
        But the kind of string must be a subkind of immediate
          because of the definition of x at line 8, characters 10-26.
 |}];;
@@ -954,10 +1006,22 @@ Error: Signature mismatch:
          val x : ('a : immediate). 'a t
        is not included in
          val x : string
+<<<<<<< HEAD
        The type "'a t" = "('a : immediate)" is not compatible with the type
          "string"
        The kind of string is value
          because it is the primitive value type string.
+||||||| a198127529
+       The type 'a t = ('a : immediate) is not compatible with the type
+         string
+       The kind of string is value
+         because it is the primitive value type string.
+=======
+       The type 'a t = ('a : immediate) is not compatible with the type
+         string
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> flambda-backend/main
        But the kind of string must be a subkind of immediate
          because of the definition of x at line 8, characters 10-26.
 |}]
@@ -1142,7 +1206,13 @@ end
 Line 6, characters 24-26:
 6 |       val virtual baz : 'a t
                             ^^
+<<<<<<< HEAD
 Error: This type "('a : float64)" should be an instance of type "('a0 : value)"
+||||||| a198127529
+Error: This type ('a : float64) should be an instance of type ('a0 : value)
+=======
+Error: This type ('a : value) should be an instance of type ('b : float64)
+>>>>>>> flambda-backend/main
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64
@@ -1161,7 +1231,13 @@ end;;
 Line 6, characters 26-28:
 6 |       method void_id (a : 'a t) : 'a t = a
                               ^^
+<<<<<<< HEAD
 Error: This type "('a : float64)" should be an instance of type "('a0 : value)"
+||||||| a198127529
+Error: This type ('a : float64) should be an instance of type ('a0 : value)
+=======
+Error: This type ('a : value) should be an instance of type ('b : float64)
+>>>>>>> flambda-backend/main
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64
@@ -1181,7 +1257,13 @@ end;;
 Line 5, characters 4-6:
 5 |     'a t ->
         ^^
+<<<<<<< HEAD
 Error: This type "('a : float64)" should be an instance of type "('a0 : value)"
+||||||| a198127529
+Error: This type ('a : float64) should be an instance of type ('a0 : value)
+=======
+Error: This type ('a : value) should be an instance of type ('b : float64)
+>>>>>>> flambda-backend/main
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64
@@ -1777,7 +1859,13 @@ let f #poly_var = "hello"
 Line 1, characters 44-46:
 1 | type ('a : float64) poly_var = [`A of int * 'a | `B]
                                                 ^^
+<<<<<<< HEAD
 Error: This type "('a : value)" should be an instance of type "('a0 : float64)"
+||||||| a198127529
+Error: This type ('a : value) should be an instance of type ('a0 : float64)
+=======
+Error: Tuple element types must have layout value.
+>>>>>>> flambda-backend/main
        The layout of 'a is float64
          because of the annotation on 'a in the declaration of the type
                                       poly_var.
@@ -1884,7 +1972,7 @@ Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
 Error:
-       The kind of 'a -> 'b is value
+       The kind of 'a -> 'b is value mod unique uncontended
          because it's a function type.
        But the kind of 'a -> 'b must be a subkind of immediate
          because of the definition of t35 at line 1, characters 0-30.

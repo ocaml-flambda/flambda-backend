@@ -331,8 +331,8 @@ let nullary_prim_size prim =
   | Invalid _ -> 0
   | Optimised_out _ -> 0
   | Probe_is_enabled { name = _ } -> 4
-  | Begin_region -> 1
-  | Begin_try_region -> 1
+  | Begin_region { ghost } -> if ghost then 0 else 1
+  | Begin_try_region { ghost } -> if ghost then 0 else 1
   | Enter_inlined_apply _ -> 0
   | Dls_get -> 1
 
@@ -374,7 +374,7 @@ let unary_prim_size prim =
   | Project_value_slot _ -> 1 (* load *)
   | Is_boxed_float -> 4 (* tag load + comparison *)
   | Is_flat_float_array -> 4 (* tag load + comparison *)
-  | End_region | End_try_region -> 1
+  | End_region { ghost } | End_try_region { ghost } -> if ghost then 0 else 1
   | Obj_dup -> needs_caml_c_call_extcall_size + 1
   | Get_header -> 2
   | Atomic_load _ -> 1

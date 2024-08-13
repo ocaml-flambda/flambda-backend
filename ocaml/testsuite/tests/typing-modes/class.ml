@@ -61,7 +61,7 @@ Error: This value escapes its region.
 
 (* instance variables are available as legacy to methods *)
 class cla = object
-    val x = ("world" : _ @@ portable)
+    val x = (fun y -> y : _ @@ portable)
 
     method foo = portable_use x
 end
@@ -114,15 +114,15 @@ Error: This value is "nonportable" but expected to be "portable".
 
 (* for methods, arguments can be of any modes *)
 class cla = object
-    method foo (x : string) = portable_use x
+    method foo (x : unit -> unit) = portable_use x
 end
 [%%expect{|
-class cla : object method foo : string @ portable -> unit end
+class cla : object method foo : (unit -> unit) @ portable -> unit end
 |}]
 
 (* the argument mode is soundly required during application *)
 let foo () =
-    let x @ nonportable = "hello" in
+    let x @ nonportable = fun x -> x in
     let o = new cla in
     o#foo x
 [%%expect{|

@@ -160,7 +160,7 @@ Line 1, characters 40-45:
 Error: This expression has type "string" but an expression was expected of type
          "('a : void)"
        The layout of string is value
-         because it is the primitive value type string.
+         because it is the primitive immutable_data type string.
        But the layout of string must be a sublayout of void
          because of the annotation on the type variable 'a.
 |}];;
@@ -346,7 +346,13 @@ end
 Line 6, characters 24-26:
 6 |       val virtual baz : 'a t
                             ^^
+<<<<<<< HEAD
 Error: This type "('a : void)" should be an instance of type "('a0 : value)"
+||||||| a198127529
+Error: This type ('a : void) should be an instance of type ('a0 : value)
+=======
+Error: This type ('a : value) should be an instance of type ('b : void)
+>>>>>>> flambda-backend/main
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with void

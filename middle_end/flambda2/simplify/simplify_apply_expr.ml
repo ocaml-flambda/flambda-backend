@@ -427,10 +427,10 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
          application must have a closure allocated on the heap as well, even
          though it was with a local alloc_mode. *)
       Ok
-        ( Alloc_mode.For_allocations.heap,
+        ( Alloc_mode.For_applications.heap,
           first_complex_local_param - num_non_unarized_args )
     else
-      match (apply_alloc_mode : Alloc_mode.For_allocations.t) with
+      match (apply_alloc_mode : Alloc_mode.For_applications.t) with
       | Heap -> (* This can happen in dead GADT match cases. *) Bottom
       | Local _ -> Ok (apply_alloc_mode, 0)
   in
@@ -443,7 +443,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       | Heap_or_local -> ()
       | Heap -> ()
       | Local -> (
-        match (new_closure_alloc_mode : Alloc_mode.For_allocations.t) with
+        match (new_closure_alloc_mode : Alloc_mode.For_applications.t) with
         | Local _ -> ()
         | Heap ->
           Misc.fatal_errorf
@@ -523,13 +523,14 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         in
         let my_closure = Variable.create "my_closure" in
         let my_region = Variable.create "my_region" in
+        let my_ghost_region = Variable.create "my_ghost_region" in
         let my_depth = Variable.create "my_depth" in
         let exn_continuation =
           Apply.exn_continuation apply |> Exn_continuation.without_extra_args
         in
         let apply_alloc_mode =
-          Alloc_mode.For_allocations.from_lambda result_mode
-            ~current_region:my_region
+          Alloc_mode.For_applications.from_lambda result_mode
+            ~current_region:my_region ~current_ghost_region:my_ghost_region
         in
         let call_kind =
           Call_kind.direct_function_call callee's_code_id apply_alloc_mode
@@ -599,8 +600,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           (* Note that [exn_continuation] has no extra args -- see above. *)
           Function_params_and_body.create ~return_continuation
             ~exn_continuation:(Exn_continuation.exn_handler exn_continuation)
-            remaining_params ~body ~my_closure ~my_region ~my_depth
-            ~free_names_of_body:Unknown
+            remaining_params ~body ~my_closure ~my_region ~my_ghost_region
+            ~my_depth ~free_names_of_body:Unknown
         in
         let name =
           Function_slot.to_string callee's_function_slot ^ "_partial"
@@ -658,6 +659,12 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
                 Some (value_slot, value))
             applied_values
           |> Value_slot.Map.of_list
+        in
+        let new_closure_alloc_mode =
+          match (new_closure_alloc_mode : Alloc_mode.For_applications.t) with
+          | Heap -> Alloc_mode.For_allocations.heap
+          | Local { region; ghost_region = _ } ->
+            Alloc_mode.For_allocations.local ~region
         in
         ( Set_of_closures.create ~value_slots new_closure_alloc_mode
             function_decls,

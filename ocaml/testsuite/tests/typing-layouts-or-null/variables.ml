@@ -397,3 +397,17 @@ Error: This type "t_value_or_null dummy" should be an instance of type "'a dummy
        But the kind of t_value_or_null must be a subkind of value
          because of the definition of constrained' at lines 1-2, characters 0-44.
 |}]
+
+(* Copied from the tree, should work. *)
+let should_work s =
+  let (a, b) =
+    Marshal.from_string s 0 in
+  ( object
+      method a = a
+      method b = b
+    end
+  )
+
+[%%expect{|
+val should_work : string -> < a : 'a; b : 'b > = <fun>
+|}]

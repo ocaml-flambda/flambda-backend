@@ -398,6 +398,14 @@ module Standard_int_or_float = struct
     | Naked_int64
     | Naked_nativeint
 
+  let of_standard_int (t : Standard_int.t) : t =
+    match t with
+    | Tagged_immediate -> Tagged_immediate
+    | Naked_immediate -> Naked_immediate
+    | Naked_int32 -> Naked_int32
+    | Naked_int64 -> Naked_int64
+    | Naked_nativeint -> Naked_nativeint
+
   let to_kind t : kind =
     match t with
     | Tagged_immediate -> Value

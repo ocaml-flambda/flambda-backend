@@ -32,17 +32,17 @@ val update : unique_ box -> unique_ box = <fun>
 
 (* testing Texp_ifthenelse  *)
 
-let branching (unique_ x : float) = unique_ if true then x else x
+let branching (unique_ x) = unique_ if true then x else x
 [%%expect{|
-val branching : unique_ float -> float = <fun>
+val branching : unique_ 'a -> 'a = <fun>
 |}]
 
 (* whether we constrain uniqueness or linearity is irrelavant
    for testing uniqueness analysis. Therefore, in the rest we
    will only constrain uniqueness *)
-let branching (once_ x : float) = if true then x else x
+let branching (once_ x) = if true then x else x
 [%%expect{|
-val branching : once_ float -> once_ float = <fun>
+val branching : once_ 'a -> once_ 'a = <fun>
 |}]
 
 let branching b =
@@ -53,15 +53,15 @@ let branching b =
 val branching : bool -> box = <fun>
 |}]
 
-let sequence (unique_ x : float) = unique_ let y = x in (x, y)
+let sequence (unique_ x) = unique_ let y = x in (x, y)
 [%%expect{|
-Line 1, characters 60-61:
-1 | let sequence (unique_ x : float) = unique_ let y = x in (x, y)
-                                                                ^
+Line 1, characters 52-53:
+1 | let sequence (unique_ x) = unique_ let y = x in (x, y)
+                                                        ^
 Error: This value is used here, but it has already been used as unique:
-Line 1, characters 57-58:
-1 | let sequence (unique_ x : float) = unique_ let y = x in (x, y)
-                                                             ^
+Line 1, characters 49-50:
+1 | let sequence (unique_ x) = unique_ let y = x in (x, y)
+                                                     ^
 
 |}]
 
@@ -555,14 +555,26 @@ let foo () =
 val foo : unit -> unit = <fun>
 |}]
 
+(* This will be used by below tests *)
+module Value : sig
+  type t
+  val mk : unit -> t @ unique
+end = struct
+  type t = unit
+  let mk : unit -> t @ unique = fun () -> ()
+end
+[%%expect {|
+module Value : sig type t val mk : unit -> unique_ t end
+|}]
+
 (* Testing modalities in records *)
-type r_shared = {x : string; y : string @@ shared many}
+type r_shared = {x : Value.t; y : Value.t @@ shared many}
 [%%expect{|
-type r_shared = { x : string; y : string @@ many shared; }
+type r_shared = { x : Value.t; y : Value.t @@ many shared; }
 |}]
 
 let foo () =
-  let r = {x = "hello"; y = "world"} in
+  let r = {x = Value.mk (); y = Value.mk ()} in
   ignore (shared_id r.y);
   (* the following is allowed, because using r uniquely implies using r.x
      shared *)
@@ -573,7 +585,7 @@ val foo : unit -> unit = <fun>
 
  (* Similarly for linearity *)
 let foo () =
-  let r = once_ {x = "hello"; y = "world"} in
+  let r = once_ {x = Value.mk (); y = Value.mk ()} in
   ignore_once r.y;
   ignore_once r;
 [%%expect{|
@@ -581,7 +593,7 @@ val foo : unit -> unit = <fun>
 |}]
 
 let foo () =
-  let r = once_ {x = "hello"; y = "world"} in
+  let r = once_ {x = Value.mk (); y = Value.mk ()} in
   ignore_once r.x;
   ignore_once r;
 [%%expect{|
@@ -597,7 +609,7 @@ Line 3, characters 14-17:
 |}]
 
 let foo () =
-  let r = {x = "hello"; y = "world"} in
+  let r = {x = Value.mk (); y = Value.mk ()} in
   ignore (shared_id r.x);
   (* doesn't work for normal fields *)
   ignore (unique_id r)
@@ -615,8 +627,8 @@ Line 3, characters 20-23:
 
 (* testing record update in the presense of modalities *)
 let foo () =
-  let r = {x = "hello"; y = "world"} in
-  ignore (unique_ {r with x = "hello agin"});
+  let r = {x = Value.mk (); y = Value.mk ()} in
+  ignore (unique_ {r with x = Value.mk ()});
   (* r.y has been used shared; in the following we will use r as unique *)
   ignore (unique_id r)
 [%%expect{|
@@ -624,8 +636,8 @@ val foo : unit -> unit = <fun>
 |}]
 
 let foo () =
-  let r = {x = "hello"; y = "world"} in
-  ignore (unique_ {r with y = "world again"});
+  let r = {x = Value.mk (); y = Value.mk ()} in
+  ignore (unique_ {r with y = Value.mk ()});
   (* r.x has been used unique; in the following we will use r as unique *)
   ignore (unique_id r)
 [%%expect{|
@@ -635,19 +647,19 @@ Line 5, characters 20-21:
 Error: This value is used here,
        but part of it has already been used as unique:
 Line 3, characters 19-20:
-3 |   ignore (unique_ {r with y = "world again"});
+3 |   ignore (unique_ {r with y = Value.mk ()});
                        ^
 
 |}]
 
 (* testing modalities in constructors *)
-type r_shared = R_shared of string * string @@ shared many
+type r_shared = R_shared of Value.t * Value.t @@ shared many
 [%%expect{|
-type r_shared = R_shared of string * string @@ many shared
+type r_shared = R_shared of Value.t * Value.t @@ many shared
 |}]
 
 let foo () =
-  let r = R_shared ("hello", "world") in
+  let r = R_shared (Value.mk (), Value.mk ()) in
   let R_shared (_, y) = r in
   ignore (shared_id y);
   (* the following is allowed, because using r uniquely implies using r.x
@@ -659,7 +671,7 @@ val foo : unit -> unit = <fun>
 
  (* Similarly for linearity *)
 let foo () =
-  let r = once_ (R_shared ("hello", "world")) in
+  let r = once_ (R_shared (Value.mk (), Value.mk ())) in
   let R_shared (_, y) = r in
   ignore_once y;
   ignore_once r;
@@ -668,7 +680,7 @@ val foo : unit -> unit = <fun>
 |}]
 
 let foo () =
-  let r = once_ (R_shared ("hello", "world")) in
+  let r = once_ (R_shared (Value.mk (), Value.mk ())) in
   let R_shared (x, _) = r in
   ignore_once x;
   ignore_once r;
@@ -685,7 +697,7 @@ Line 4, characters 14-15:
 |}]
 
 let foo () =
-  let r = R_shared ("hello", "world") in
+  let r = R_shared (Value.mk (), Value.mk ()) in
   let R_shared (x, _) = r in
   ignore (shared_id x);
   (* doesn't work for normal fields *)

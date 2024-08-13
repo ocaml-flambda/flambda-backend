@@ -138,6 +138,11 @@ type error =
   | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute
   | Zero_alloc_attr_non_function
   | Zero_alloc_attr_bad_user_arity
+  | Invalid_reexport of
+      { definition: Path.t
+      ; expected: Path.t
+      }
+  | Non_abstract_reexport of Path.t
 
 open Typedtree
 
@@ -435,15 +440,8 @@ let transl_labels ~new_var_jkind ~allow_unboxed env univars closed lbls kloc =
           | Immutable -> Immutable
           | Mutable -> Mutable Mode.Alloc.Comonadic.Const.legacy
          in
-         let has_mutable_implied_modalities =
-          if Types.is_mutable mut then
-            not (Builtin_attributes.has_no_mutable_implied_modalities attrs)
-          else
-            false
-         in
          let modalities =
-          Typemode.transl_modalities ~maturity:Stable
-            ~has_mutable_implied_modalities modalities
+          Typemode.transl_modalities ~maturity:Stable mut attrs modalities
          in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
@@ -485,8 +483,8 @@ let transl_types_gf ~new_var_jkind ~allow_unboxed
         Mode.Alloc.Const.legacy arg.pca_type
     in
     let gf =
-      Typemode.transl_modalities ~maturity:Stable
-        ~has_mutable_implied_modalities:false arg.pca_modalities
+      Typemode.transl_modalities ~maturity:Stable Immutable []
+        arg.pca_modalities
     in
     {ca_modalities = gf; ca_type = cty; ca_loc = arg.pca_loc}
   in
@@ -732,12 +730,12 @@ let verify_unboxed_attr unboxed_attr sdecl =
 
 
 let shape_map_labels =
-  List.fold_left (fun map { ld_id; ld_uid; _} ->
+  List.fold_left (fun map { Types.ld_id; ld_uid; _} ->
     Shape.Map.add_label map ld_id ld_uid)
     Shape.Map.empty
 
 let shape_map_cstrs =
-  List.fold_left (fun map { cd_id; cd_uid; cd_args; _ } ->
+  List.fold_left (fun map { Types.cd_id; cd_uid; cd_args; _ } ->
     let cstr_shape_map =
       let label_decls =
         match cd_args with
@@ -794,9 +792,43 @@ let transl_declaration env sdecl (id, uid) =
   *)
   let (tkind, kind, jkind_default) =
     match sdecl.ptype_kind with
+      (* CR layouts v3.5: this is a hack to allow re-exporting the definition
+         of ['a or_null], including constructors, even if one can't define
+         ['a or_null] "honestly", with tools available to users.
+
+         Remove when we allow users to define their own null constructors.
+      *)
+      | Ptype_abstract when
+        Builtin_attributes.has_or_null_reexport sdecl_attributes ->
+          let param =
+            (* We require users to define ['a t = 'a or_null]. Manifest
+               must be set to [or_null] so typechecking stays correct. *)
+            let ty = Option.map (Ctype.expand_head env) man in
+            match Option.map get_desc ty with
+            | Some (Tconstr(path, [param], _))
+              when Path.same path Predef.path_or_null -> param
+            | Some _ | None -> raise (Error (sdecl.ptype_loc, Invalid_reexport
+              { definition = path; expected = Predef.path_or_null }))
+          in
+          let type_kind = Predef.or_null_kind param in
+          let jkind =
+            Jkind.Primitive.value_or_null
+              ~why:(Primitive Predef.ident_or_null)
+          in
+          Ttype_abstract, type_kind, jkind
+      | (Ptype_variant _ | Ptype_record _ | Ptype_open) when
+        Builtin_attributes.has_or_null_reexport sdecl_attributes ->
+        raise (Error (sdecl.ptype_loc, Non_abstract_reexport path))
       | Ptype_abstract ->
+<<<<<<< HEAD
         Ttype_abstract, Type_abstract Definition,
         Jkind.Primitive.value ~why:Default_type_jkind
+||||||| a198127529
+        Ttype_abstract, Type_abstract Abstract_def, Jkind.Primitive.value ~why:Default_type_jkind
+=======
+        Ttype_abstract, Type_abstract Abstract_def,
+          Jkind.Primitive.value ~why:Default_type_jkind
+>>>>>>> flambda-backend/main
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -971,10 +1003,10 @@ let transl_declaration env sdecl (id, uid) =
     in
     let typ_shape =
       let uid = decl.typ_type.type_uid in
-      match decl.typ_kind with
-      | Ttype_variant cstrs -> Shape.str ~uid (shape_map_cstrs cstrs)
-      | Ttype_record labels -> Shape.str ~uid (shape_map_labels labels)
-      | Ttype_abstract | Ttype_open -> Shape.leaf uid
+      match decl.typ_type.type_kind with
+      | Type_variant (cstrs, _) -> Shape.str ~uid (shape_map_cstrs cstrs)
+      | Type_record (labels, _) -> Shape.str ~uid (shape_map_labels labels)
+      | Type_abstract _ | Type_open -> Shape.leaf uid
     in
     decl, typ_shape
   end
@@ -1048,6 +1080,11 @@ let check_constraints env sdecl (_, decl) =
     sdecl.ptype_params decl.type_params;
   begin match decl.type_kind with
   | Type_abstract _ -> ()
+  (* We skip this check because with [or_null_reexport] the [type_kind]
+     does not match [sdecl.ptype_kind]. This is sound, since re-exporting
+     can't introduce new variables in the kind. *)
+  | Type_variant _ when
+    Builtin_attributes.has_or_null_reexport decl.type_attributes -> ()
   | Type_variant (l, _rep) ->
       let find_pl = function
           Ptype_variant pl -> pl
@@ -1101,10 +1138,24 @@ let check_constraints env sdecl (_, decl) =
       check_constraints_rec env sty.ptyp_loc visited ty
   end
 
-(*
-   Check that the type expression (if present) is compatible with the kind.
+(* Check that [type_jkind] (where we've stored the jkind annotation, if any)
+   corresponds to the manifest (e.g., in the case where [type_jkind] is
+   immediate, we should check the manifest is immediate). Also, update the
+   resulting jkind to match the manifest. *)
+let narrow_to_manifest_jkind env loc decl =
+  match decl.type_manifest with
+  | None -> decl
+  | Some ty ->
+    let jkind' = Ctype.type_jkind_purely env ty in
+    match Jkind.sub_with_history jkind' decl.type_jkind with
+    | Ok jkind' -> { decl with type_jkind = jkind' }
+    | Error v ->
+      raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
+
+(* Check that the type expression (if present) is compatible with the kind.
    If both a variant/record definition and a type equation are given,
    need to check that the equation refers to a type of the same kind
+<<<<<<< HEAD
    with the same constructors and labels.
 
    If the kind is [Type_abstract], we need to check that [type_jkind] (where
@@ -1120,6 +1171,29 @@ let check_coherence env loc dpath decl =
   match decl with
     { type_kind = (Type_variant _ | Type_record _| Type_open);
       type_manifest = Some ty } ->
+||||||| a198127529
+   with the same constructors and labels.
+
+   If the kind is [Type_abstract], we need to check that [type_jkind] (where
+   we've stored the jkind annotation, if any) corresponds to the manifest
+   (e.g., in the case where [type_jkind] is immediate, we should check the
+   manifest is immediate).  It would also be nice to store the best possible
+   jkind for this type in the kind, to avoid expansions later.  So, we do the
+   relatively expensive thing of computing the best possible jkind for the
+   manifest, checking that it's a subjkind of [type_jkind], and then replacing
+   [type_jkind] with what we computed.
+*)
+let check_coherence env loc dpath decl =
+  match decl with
+    { type_kind = (Type_variant _ | Type_record _| Type_open);
+      type_manifest = Some ty } ->
+      if !Clflags.allow_illegal_crossing then begin 
+=======
+   with the same constructors and labels. *)
+let check_kind_coherence env loc dpath decl =
+  match decl.type_kind, decl.type_manifest with
+  | (Type_variant _ | Type_record _ | Type_open), Some ty ->
+>>>>>>> flambda-backend/main
       if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
         begin match Jkind.sub_with_history jkind' decl.type_jkind with
@@ -1128,45 +1202,40 @@ let check_coherence env loc dpath decl =
           raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
         end
       end;
-      begin match get_desc ty with
-        Tconstr(path, args, _) ->
-          begin try
-            let decl' = Env.find_type path env in
-            let err =
-              if List.length args <> List.length decl.type_params
-              then Some Includecore.Arity
-              else begin
-                match Ctype.equal env false args decl.type_params with
-                | exception Ctype.Equality err ->
-                    Some (Includecore.Constraint err)
-                | () ->
-                    Includecore.type_declarations ~loc ~equality:true env
-                      ~mark:true
-                      (Path.last path)
-                      decl'
-                      dpath
-                      (Subst.type_declaration
-                         (Subst.add_type_path dpath path Subst.identity) decl)
-              end
-            in
-            if err <> None then
-              raise(Error(loc, Definition_mismatch (ty, env, err)))
-            else
-              decl
-          with Not_found ->
-            raise(Error(loc, Unavailable_type_constructor path))
+    begin match get_desc ty with
+    | Tconstr(path, args, _) ->
+      begin
+      try
+        let decl' = Env.find_type path env in
+        let err =
+          if List.length args <> List.length decl.type_params
+          then Some Includecore.Arity
+          else begin
+            match Ctype.equal env false args decl.type_params with
+            | exception Ctype.Equality err ->
+                Some (Includecore.Constraint err)
+            | () ->
+                Includecore.type_declarations ~loc ~equality:true env
+                  ~mark:true
+                  (Path.last path)
+                  decl'
+                  dpath
+                  (Subst.type_declaration
+                     (Subst.add_type_path dpath path Subst.identity) decl)
           end
-      | _ -> raise(Error(loc, Definition_mismatch (ty, env, None)))
+        in
+        if err <> None then
+          raise (Error(loc, Definition_mismatch (ty, env, err)))
+      with Not_found ->
+        raise(Error(loc, Unavailable_type_constructor path))
       end
-  | { type_kind = Type_abstract _;
-      type_manifest = Some ty } ->
-    let jkind' = Ctype.type_jkind_purely env ty in
-    begin match Jkind.sub_with_history jkind' decl.type_jkind with
-    | Ok jkind' -> { decl with type_jkind = jkind' }
-    | Error v ->
-      raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
+    | _ -> ()
     end
-  | { type_manifest = None } -> decl
+  | _ -> ()
+
+let check_coherence env loc dpath decl =
+  check_kind_coherence env loc dpath decl;
+  narrow_to_manifest_jkind env loc decl
 
 let check_abbrev env sdecl (id, decl) =
   (id, check_coherence env sdecl.ptype_loc (Path.Pident id) decl)
@@ -1624,6 +1693,15 @@ let update_decl_jkind env dpath decl =
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
+    (* CR layouts v3.0: handle this case in [update_variant_jkind] when
+       [Variant_with_null] introduced.
+
+       No updating required for [or_null_reexport], and we must not
+       incorrectly override the jkind to [non_null].
+    *)
+    | Type_variant _ when
+      Builtin_attributes.has_or_null_reexport decl.type_attributes ->
+      decl, decl.type_jkind
     | Type_variant (cstrs, rep) ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
@@ -2424,8 +2502,8 @@ let transl_extension_constructor ~scope env type_path type_params
       Typedtree.ext_attributes = sext.pext_attributes; }
   in
   let shape =
-    let map =  match ext_cstrs.ext_kind with
-    | Text_decl (_, Cstr_record lbls, _) -> shape_map_labels lbls
+    let map = match args with
+    | Cstr_record lbls -> shape_map_labels lbls
     | _ -> Shape.Map.empty
     in
     Shape.str ~uid:ext_cstrs.ext_type.ext_uid map
@@ -2786,7 +2864,7 @@ let rec parse_native_repr_attributes env core_type ty rmode
   with
   | Ptyp_arrow _, Tarrow _, Native_repr_attr_present kind  ->
     raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type kind))
-  | Ptyp_arrow (_, ct1, ct2), Tarrow ((_,marg,mret), t1, t2, _), _
+  | Ptyp_arrow (_, ct1, ct2, _, _), Tarrow ((_,marg,mret), t1, t2, _), _
     when not (Builtin_attributes.has_curry core_type.ptyp_attributes) ->
     let t1, _ = Btype.tpoly_get_poly t1 in
     let repr_arg =
@@ -2915,8 +2993,8 @@ let transl_value_decl env loc valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
   let modalities =
     valdecl.pval_modalities
-    |> Typemode.transl_modalities ~maturity:Alpha
-        ~has_mutable_implied_modalities:false
+    |> Typemode.transl_modalities ~maturity:Alpha Immutable
+        valdecl.pval_attributes
     |> Mode.Modality.Value.of_const
   in
   (* CR layouts v5: relax this to check for representability. *)
@@ -3802,6 +3880,16 @@ let report_error ppf = function
   | Zero_alloc_attr_bad_user_arity ->
     fprintf ppf
       "@[Invalid zero_alloc attribute: arity must be greater than 0.@]"
+  | Invalid_reexport {definition; expected} ->
+    fprintf ppf
+      "@[Invalid reexport declaration.\
+         @ Type %s must be defined equal to the primitive type %a.@]"
+      (Path.name definition) Printtyp.path expected
+  | Non_abstract_reexport definition ->
+    fprintf ppf
+      "@[Invalid reexport declaration.\
+         @ Type %s must not define an explicit representation.@]"
+      (Path.name definition)
 
 let () =
   Location.register_error_of_exn

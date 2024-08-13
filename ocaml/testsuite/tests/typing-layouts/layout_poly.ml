@@ -86,7 +86,7 @@ Line 4, characters 63-68:
 Error: This expression has type "string" but an expression was expected of type
          "('a : float64)"
        The layout of string is value
-         because it is the primitive value type string.
+         because it is the primitive immutable_data type string.
        But the layout of string must be a sublayout of float64
          because of the definition of id' at line 2, characters 10-18.
 |}]
@@ -310,7 +310,7 @@ Line 1, characters 36-41:
 Error: This expression has type "string" but an expression was expected of type
          "('a : float64)"
        The layout of string is value
-         because it is the primitive value type string.
+         because it is the primitive immutable_data type string.
        But the layout of string must be a sublayout of float64
          because of the definition of id at line 2, characters 2-35.
 |}]

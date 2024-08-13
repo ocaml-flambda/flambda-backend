@@ -4,7 +4,7 @@
 
 (* Tests for the float32 otherlib  *)
 
-module F32 = Stdlib_stable.Float32
+module F32 = Stdlib_beta.Float32
 
 module CF32 = struct
   type t = float32
@@ -249,9 +249,9 @@ let () =
   CF32.check_float32s (fun f _ ->
     bit_eq (F32.round_up f) (CF32.ceil f);
     bit_eq (F32.round_down f) (CF32.floor f);
-    bit_eq (F32.round_half_to_even f) (CF32.round_current f);
+    bit_eq (F32.round_current f) (CF32.round_current f);
     (* Returns int64, so can compare directly. *)
-    assert ((F32.iround_half_to_even f) = (CF32.iround_current f));
+    assert ((F32.iround_current f) = (CF32.iround_current f));
   )
 ;;
 

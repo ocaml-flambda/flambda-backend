@@ -1,6 +1,6 @@
 let $camlUnroll5__first_const39 = Block 0 () in
 let code rec loopify(never) size(23)
-      foo_0 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
+      foo_0 (x : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let Popaque = %Opaque 1 in
   (let untagged = %untag_imm Popaque in
@@ -17,17 +17,17 @@ let code rec loopify(never) size(23)
         my_closure ~ depth my_depth -> next_depth (Psubint) -> k * k1
 in
 let code size(5)
-      test1_1 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
+      test1_1 (x : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let foo = %project_value_slot test1.foo my_closure in
   apply direct(foo_0) foo (x) -> k * k1
 in
 let code size(5)
-      test2_2 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
+      test2_2 (x : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let foo = %project_value_slot test2.foo_1 my_closure in
   apply direct(foo_0) unroll(1) foo (x) -> k * k1
 in
 let code size(5)
-      test3_3 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
+      test3_3 (x : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let foo = %project_value_slot test3.foo_2 my_closure in
   apply direct(foo_0) unroll(3) foo (x) -> k * k1
 in
@@ -50,7 +50,7 @@ let code test1_1 deleted in
 let code test2_2 deleted in
 let code test3_3 deleted in
 let code rec loopify(never) size(80) newer_version_of(foo_0)
-      foo_0_1 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
+      foo_0_1 (x : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let Popaque = %Opaque 1 in
   (let untagged = %untag_imm Popaque in
    switch untagged
@@ -111,12 +111,12 @@ and $camlUnroll5__foo_4 =
   closure foo_0_1 @foo
 in
 let code loopify(never) size(4) newer_version_of(test1_1)
-      test1_1_1 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
+      test1_1_1 (x : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
   apply direct(foo_0_1) $camlUnroll5__foo_4 (x) -> k * k1
 in
 let $camlUnroll5__test1_5 = closure test1_1_1 @test1 in
 let code loopify(never) size(80) newer_version_of(test2_2)
-      test2_2_1 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
+      test2_2_1 (x : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let Popaque = %Opaque 1 in
   (let untagged = %untag_imm Popaque in
    switch untagged
@@ -176,7 +176,7 @@ let code loopify(never) size(80) newer_version_of(test2_2)
 in
 let $camlUnroll5__test2_6 = closure test2_2_1 @test2 in
 let code loopify(never) size(232) newer_version_of(test3_3)
-      test3_3_1 (x : imm tagged) my_closure my_region my_depth -> k * k1 =
+      test3_3_1 (x : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let Popaque = %Opaque 1 in
   (let untagged = %untag_imm Popaque in
    switch untagged

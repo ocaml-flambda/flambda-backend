@@ -285,9 +285,19 @@ type t = string t2_imm
 Line 1, characters 9-15:
 1 | type t = string t2_imm
              ^^^^^^
+<<<<<<< HEAD
 Error: This type "string" should be an instance of type "('a : immediate)"
        The kind of string is value
          because it is the primitive value type string.
+||||||| a198127529
+Error: This type string should be an instance of type ('a : immediate)
+       The kind of string is value
+         because it is the primitive value type string.
+=======
+Error: This type string should be an instance of type ('a : immediate)
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> flambda-backend/main
        But the kind of string must be a subkind of immediate
          because of the definition of t2_imm at line 1, characters 0-28.
 |}]
@@ -298,9 +308,19 @@ type t = string t2_global
 Line 1, characters 9-15:
 1 | type t = string t2_global
              ^^^^^^
+<<<<<<< HEAD
 Error: This type "string" should be an instance of type "('a : value mod global)"
        The kind of string is value
          because it is the primitive value type string.
+||||||| a198127529
+Error: This type string should be an instance of type ('a : value mod global)
+       The kind of string is value
+         because it is the primitive value type string.
+=======
+Error: This type string should be an instance of type ('a : value mod global)
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> flambda-backend/main
        But the kind of string must be a subkind of value mod global
          because of the definition of t2_global at line 8, characters 0-38.
 |}]
@@ -540,10 +560,22 @@ let f { field } = field "hello"
 Line 1, characters 24-31:
 1 | let f { field } = field "hello"
                             ^^^^^^^
+<<<<<<< HEAD
 Error: This expression has type "string" but an expression was expected of type
          "('a : immediate)"
        The kind of string is value
          because it is the primitive value type string.
+||||||| a198127529
+Error: This expression has type string but an expression was expected of type
+         ('a : immediate)
+       The kind of string is value
+         because it is the primitive value type string.
+=======
+Error: This expression has type string but an expression was expected of type
+         ('a : immediate)
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> flambda-backend/main
        But the kind of string must be a subkind of immediate
          because of the definition of r at line 1, characters 0-47.
 |}]
@@ -554,10 +586,22 @@ let f { fieldg } = fieldg "hello"
 Line 1, characters 26-33:
 1 | let f { fieldg } = fieldg "hello"
                               ^^^^^^^
+<<<<<<< HEAD
 Error: This expression has type "string" but an expression was expected of type
          "('a : value mod global)"
        The kind of string is value
          because it is the primitive value type string.
+||||||| a198127529
+Error: This expression has type string but an expression was expected of type
+         ('a : value mod global)
+       The kind of string is value
+         because it is the primitive value type string.
+=======
+Error: This expression has type string but an expression was expected of type
+         ('a : value mod global)
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> flambda-backend/main
        But the kind of string must be a subkind of value mod global
          because of the definition of rg at line 1, characters 0-56.
 |}]
@@ -571,7 +615,7 @@ Line 1, characters 26-33:
 Error: This expression has type "string" but an expression was expected of type
          "('a : word mod many external_)"
        The layout of string is value
-         because it is the primitive value type string.
+         because it is the primitive immutable_data type string.
        But the layout of string must be a sublayout of word
          because of the definition of rc at line 1, characters 0-70.
 |}]
@@ -964,10 +1008,22 @@ let f (x : ('a : immediate). 'a -> 'a) = x "string"
 Line 1, characters 43-51:
 1 | let f (x : ('a : immediate). 'a -> 'a) = x "string"
                                                ^^^^^^^^
+<<<<<<< HEAD
 Error: This expression has type "string" but an expression was expected of type
          "('a : immediate)"
        The kind of string is value
          because it is the primitive value type string.
+||||||| a198127529
+Error: This expression has type string but an expression was expected of type
+         ('a : immediate)
+       The kind of string is value
+         because it is the primitive value type string.
+=======
+Error: This expression has type string but an expression was expected of type
+         ('a : immediate)
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> flambda-backend/main
        But the kind of string must be a subkind of immediate
          because of the annotation on the universal variable 'a.
 |}]
@@ -978,10 +1034,22 @@ let f (x : ('a : value mod global). 'a -> 'a) = x "string"
 Line 1, characters 50-58:
 1 | let f (x : ('a : value mod global). 'a -> 'a) = x "string"
                                                       ^^^^^^^^
+<<<<<<< HEAD
 Error: This expression has type "string" but an expression was expected of type
          "('a : value mod global)"
        The kind of string is value
          because it is the primitive value type string.
+||||||| a198127529
+Error: This expression has type string but an expression was expected of type
+         ('a : value mod global)
+       The kind of string is value
+         because it is the primitive value type string.
+=======
+Error: This expression has type string but an expression was expected of type
+         ('a : value mod global)
+       The kind of string is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> flambda-backend/main
        But the kind of string must be a subkind of value mod global
          because of the annotation on the universal variable 'a.
 |}]

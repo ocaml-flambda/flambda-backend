@@ -166,20 +166,30 @@ val my_str : string = ""
 val y : t = {a = ""}
 |}]
 
-type t : value mod portable = { a : string }
-let my_str : string @@ nonportable = ""
-let y : t @@ portable = { a = my_str }
+type t : value mod portable = { a : string -> string }
+let my_fun @ nonportable = fun x -> x
+let y : t @@ portable = { a = my_fun }
 [%%expect {|
+<<<<<<< HEAD
 type t : value mod portable = { a : string; }
 val my_str : string = ""
 Line 3, characters 30-36:
 3 | let y : t @@ portable = { a = my_str }
                                   ^^^^^^
 Error: This value is "nonportable" but expected to be "portable".
+||||||| a198127529
+type t : value mod portable = { a : string; }
+val my_str : string = ""
+Line 3, characters 30-36:
+3 | let y : t @@ portable = { a = my_str }
+                                  ^^^^^^
+Error: This value is nonportable but expected to be portable.
+=======
+type t : value mod portable = { a : string -> string; }
+val my_fun : 'a -> 'a = <fun>
+val y : t = {a = <fun>}
+>>>>>>> flambda-backend/main
 |}]
-(* CR layouts v2.8: this is unfortunate that this isn't accepted, but it is fine
-   since pushing the annotation to the right hand side resolves the issue, and
-   -allow-illegal-crossing is a short-term solution *)
 
 type t : value mod uncontended = { a : string }
 let make_str () : string = failwith ""
@@ -219,14 +229,14 @@ val make_value : unit -> t_value = <fun>
 val f : unit -> unit = <fun>
 |}]
 
-type t : value mod portable = { a : string }
-let my_str : string @@ nonportable = ""
-let y = ({ a = my_str } : _ @@ portable)
+type t : value mod portable = { a : string -> string }
+let my_fun : _ @@ nonportable = fun x -> x
+let y = ({ a = my_fun } : _ @@ portable)
 [%%expect {|
-type t : value mod portable = { a : string; }
-val my_str : string = ""
+type t : value mod portable = { a : string -> string; }
+val my_fun : 'a -> 'a = <fun>
 Line 3, characters 15-21:
-3 | let y = ({ a = my_str } : _ @@ portable)
+3 | let y = ({ a = my_fun } : _ @@ portable)
                    ^^^^^^
 Error: This value is "nonportable" but expected to be "portable".
 |}]
@@ -348,9 +358,10 @@ Error: The kind of type "a/2" is value
 module A : sig
   type t
 end = struct
-  type t : value mod many = private string
+  type t : value mod many = private t_value
 end
 [%%expect {|
+<<<<<<< HEAD
 Line 4, characters 2-42:
 4 |   type t : value mod many = private string
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -358,10 +369,28 @@ Error: The kind of type "string" is value
          because it is the primitive value type string.
        But the kind of type "string" must be a subkind of value mod many
          because of the definition of t at line 4, characters 2-42.
+||||||| a198127529
+Line 4, characters 2-42:
+4 |   type t : value mod many = private string
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type string is value
+         because it is the primitive value type string.
+       But the kind of type string must be a subkind of value mod many
+         because of the definition of t at line 4, characters 2-42.
+=======
+Line 4, characters 2-43:
+4 |   type t : value mod many = private t_value
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type t_value is value
+         because of the definition of t_value at line 1, characters 0-20.
+       But the kind of type t_value must be a subkind of value mod many
+         because of the definition of t at line 4, characters 2-43.
+>>>>>>> flambda-backend/main
 |}]
 
-type t : value mod external_ = private string
+type t : value mod external_ = private t_value
 [%%expect {|
+<<<<<<< HEAD
 Line 1, characters 0-45:
 1 | type t : value mod external_ = private string
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -369,6 +398,23 @@ Error: The kind of type "string" is value
          because it is the primitive value type string.
        But the kind of type "string" must be a subkind of value mod external_
          because of the definition of t at line 1, characters 0-45.
+||||||| a198127529
+Line 1, characters 0-45:
+1 | type t : value mod external_ = private string
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type string is value
+         because it is the primitive value type string.
+       But the kind of type string must be a subkind of value mod external_
+         because of the definition of t at line 1, characters 0-45.
+=======
+Line 1, characters 0-46:
+1 | type t : value mod external_ = private t_value
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type t_value is value
+         because of the definition of t_value at line 1, characters 0-20.
+       But the kind of type t_value must be a subkind of value mod external_
+         because of the definition of t at line 1, characters 0-46.
+>>>>>>> flambda-backend/main
 |}]
 
 type t : value mod global = { a : int; b : int }
@@ -567,6 +613,7 @@ end = struct
 end
 type t : value mod portable = Foo.t
 [%%expect {|
+<<<<<<< HEAD
 Line 4, characters 2-38:
 4 |   type t : value mod portable = string
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -574,6 +621,24 @@ Error: The kind of type "string" is value
          because it is the primitive value type string.
        But the kind of type "string" must be a subkind of value mod portable
          because of the definition of t at line 4, characters 2-38.
+||||||| a198127529
+Line 4, characters 2-38:
+4 |   type t : value mod portable = string
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type string is value
+         because it is the primitive value type string.
+       But the kind of type string must be a subkind of value mod portable
+         because of the definition of t at line 4, characters 2-38.
+=======
+module Foo : sig type t end
+Line 6, characters 0-35:
+6 | type t : value mod portable = Foo.t
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type Foo.t is value
+         because of the definition of t at line 2, characters 2-8.
+       But the kind of type Foo.t must be a subkind of value mod portable
+         because of the definition of t at line 6, characters 0-35.
+>>>>>>> flambda-backend/main
 |}]
 
 type a = { foo : string }
@@ -629,9 +694,10 @@ Error: The kind of type "a" is value
 |}]
 
 type ('a : value mod uncontended) of_uncontended
-type t = string of_uncontended
+type t = t_value of_uncontended
 [%%expect {|
 type ('a : value mod uncontended) of_uncontended
+<<<<<<< HEAD
 Line 2, characters 9-15:
 2 | type t = string of_uncontended
              ^^^^^^
@@ -640,6 +706,25 @@ Error: This type "string" should be an instance of type
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of value mod uncontended
+||||||| a198127529
+Line 2, characters 9-15:
+2 | type t = string of_uncontended
+             ^^^^^^
+Error: This type string should be an instance of type
+         ('a : value mod uncontended)
+       The kind of string is value
+         because it is the primitive value type string.
+       But the kind of string must be a subkind of value mod uncontended
+=======
+Line 2, characters 9-16:
+2 | type t = t_value of_uncontended
+             ^^^^^^^
+Error: This type t_value should be an instance of type
+         ('a : value mod uncontended)
+       The kind of t_value is value
+         because of the definition of t_value at line 1, characters 0-20.
+       But the kind of t_value must be a subkind of value mod uncontended
+>>>>>>> flambda-backend/main
          because of the definition of of_uncontended at line 1, characters 0-48.
 |}]
 
@@ -660,9 +745,10 @@ Error: This type "t" should be an instance of type "('a : value mod portable)"
 |}]
 
 let f : ('a : value mod portable). 'a -> 'a = fun x -> x
-let _ = f "hello"
+let _ = f (fun x -> x)
 [%%expect {|
 val f : ('a : value mod portable). 'a -> 'a = <fun>
+<<<<<<< HEAD
 Line 2, characters 10-17:
 2 | let _ = f "hello"
               ^^^^^^^
@@ -671,13 +757,32 @@ Error: This expression has type "string" but an expression was expected of type
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of value mod portable
+||||||| a198127529
+Line 2, characters 10-17:
+2 | let _ = f "hello"
+              ^^^^^^^
+Error: This expression has type string but an expression was expected of type
+         ('a : value mod portable)
+       The kind of string is value
+         because it is the primitive value type string.
+       But the kind of string must be a subkind of value mod portable
+=======
+Line 2, characters 10-22:
+2 | let _ = f (fun x -> x)
+              ^^^^^^^^^^^^
+Error:
+       The kind of 'a -> 'b is value mod unique uncontended
+         because it's a function type.
+       But the kind of 'a -> 'b must be a subkind of value mod portable
+>>>>>>> flambda-backend/main
          because of the definition of f at line 1, characters 4-5.
 |}]
 
 let f : ('a : value mod uncontended). 'a -> 'a = fun x -> x
-let _ = f "hello"
+let _ = f (ref 10)
 [%%expect {|
 val f : ('a : value mod uncontended). 'a -> 'a = <fun>
+<<<<<<< HEAD
 Line 2, characters 10-17:
 2 | let _ = f "hello"
               ^^^^^^^
@@ -686,6 +791,25 @@ Error: This expression has type "string" but an expression was expected of type
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of value mod uncontended
+||||||| a198127529
+Line 2, characters 10-17:
+2 | let _ = f "hello"
+              ^^^^^^^
+Error: This expression has type string but an expression was expected of type
+         ('a : value mod uncontended)
+       The kind of string is value
+         because it is the primitive value type string.
+       But the kind of string must be a subkind of value mod uncontended
+=======
+Line 2, characters 10-18:
+2 | let _ = f (ref 10)
+              ^^^^^^^^
+Error: This expression has type int ref
+       but an expression was expected of type ('a : value mod uncontended)
+       The kind of int ref is value
+         because of kind requirements from an imported definition.
+       But the kind of int ref must be a subkind of value mod uncontended
+>>>>>>> flambda-backend/main
          because of the definition of f at line 1, characters 4-5.
 |}]
 
@@ -700,8 +824,16 @@ val f : ('a : value mod uncontended portable). 'a -> 'a = <fun>
 (*****************************************)
 (* Test 5: values cannot illegally cross *)
 
-let x : _ as (_ : value mod portable) = "hello world"
+(* Used for below testing *)
+module Value : sig
+  type t
+  val mk : t
+end = struct
+  type t = unit
+  let mk = ()
+end
 [%%expect {|
+<<<<<<< HEAD
 Line 1, characters 40-53:
 1 | let x : _ as (_ : value mod portable) = "hello world"
                                             ^^^^^^^^^^^^^
@@ -710,50 +842,122 @@ Error: This expression has type "string" but an expression was expected of type
        The kind of string is value
          because it is the primitive value type string.
        But the kind of string must be a subkind of value mod portable
+||||||| a198127529
+Line 1, characters 40-53:
+1 | let x : _ as (_ : value mod portable) = "hello world"
+                                            ^^^^^^^^^^^^^
+Error: This expression has type string but an expression was expected of type
+         ('a : value mod portable)
+       The kind of string is value
+         because it is the primitive value type string.
+       But the kind of string must be a subkind of value mod portable
+=======
+module Value : sig type t val mk : t end
+|}]
+
+let x : _ as (_ : value mod portable) = Value.mk
+[%%expect {|
+Line 1, characters 40-48:
+1 | let x : _ as (_ : value mod portable) = Value.mk
+                                            ^^^^^^^^
+Error: This expression has type Value.t
+       but an expression was expected of type ('a : value mod portable)
+       The kind of Value.t is value
+         because of the definition of t at line 2, characters 2-8.
+       But the kind of Value.t must be a subkind of value mod portable
+>>>>>>> flambda-backend/main
          because of the annotation on the wildcard _ at line 1, characters 18-36.
 |}]
 
-type t = { str : string }
-let f _ : _ as (_ : value mod uncontended) = { str = "hello world" }
+type t = { v : Value.t }
+let f _ : _ as (_ : value mod uncontended) = { v = Value.mk }
 [%%expect {|
+<<<<<<< HEAD
 type t = { str : string; }
 Line 2, characters 45-68:
 2 | let f _ : _ as (_ : value mod uncontended) = { str = "hello world" }
                                                  ^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "t" but an expression was expected of type
          "('a : value mod uncontended)"
+||||||| a198127529
+type t = { str : string; }
+Line 2, characters 45-68:
+2 | let f _ : _ as (_ : value mod uncontended) = { str = "hello world" }
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type t but an expression was expected of type
+         ('a : value mod uncontended)
+=======
+type t = { v : Value.t; }
+Line 2, characters 45-61:
+2 | let f _ : _ as (_ : value mod uncontended) = { v = Value.mk }
+                                                 ^^^^^^^^^^^^^^^^
+Error: This expression has type t but an expression was expected of type
+         ('a : value mod uncontended)
+>>>>>>> flambda-backend/main
        The kind of t is value
-         because of the definition of t at line 1, characters 0-25.
+         because of the definition of t at line 1, characters 0-24.
        But the kind of t must be a subkind of value mod uncontended
          because of the annotation on the wildcard _ at line 2, characters 20-41.
 |}]
 
-type t = Foo of string
-let f : ('a : value mod portable). 'a -> 'a = fun _ -> Foo "hello world"
+type t = Foo of Value.t
+let f : ('a : value mod portable). 'a -> 'a = fun _ -> Foo Value.mk
 [%%expect {|
+<<<<<<< HEAD
 type t = Foo of string
 Line 2, characters 55-72:
 2 | let f : ('a : value mod portable). 'a -> 'a = fun _ -> Foo "hello world"
                                                            ^^^^^^^^^^^^^^^^^
 Error: This expression has type "t" but an expression was expected of type
          "('a : value mod portable)"
+||||||| a198127529
+type t = Foo of string
+Line 2, characters 55-72:
+2 | let f : ('a : value mod portable). 'a -> 'a = fun _ -> Foo "hello world"
+                                                           ^^^^^^^^^^^^^^^^^
+Error: This expression has type t but an expression was expected of type
+         ('a : value mod portable)
+=======
+type t = Foo of Value.t
+Line 2, characters 55-67:
+2 | let f : ('a : value mod portable). 'a -> 'a = fun _ -> Foo Value.mk
+                                                           ^^^^^^^^^^^^
+Error: This expression has type t but an expression was expected of type
+         ('a : value mod portable)
+>>>>>>> flambda-backend/main
        The kind of t is value
-         because of the definition of t at line 1, characters 0-22.
+         because of the definition of t at line 1, characters 0-23.
        But the kind of t must be a subkind of value mod portable
          because of the annotation on the universal variable 'a.
 |}]
 
-type t = string
-let x : ('a : value mod uncontended) = ("hello world" : t)
+type t = Value.t
+let x : ('a : value mod uncontended) = (Value.mk : t)
 [%%expect {|
+<<<<<<< HEAD
 type t = string
 Line 2, characters 39-58:
 2 | let x : ('a : value mod uncontended) = ("hello world" : t)
                                            ^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "t" = "string"
        but an expression was expected of type "('a : value mod uncontended)"
+||||||| a198127529
+type t = string
+Line 2, characters 39-58:
+2 | let x : ('a : value mod uncontended) = ("hello world" : t)
+                                           ^^^^^^^^^^^^^^^^^^^
+Error: This expression has type t = string
+       but an expression was expected of type ('a : value mod uncontended)
+=======
+type t = Value.t
+Line 2, characters 39-53:
+2 | let x : ('a : value mod uncontended) = (Value.mk : t)
+                                           ^^^^^^^^^^^^^^
+Error: This expression has type t = Value.t
+       but an expression was expected of type ('a : value mod uncontended)
+>>>>>>> flambda-backend/main
        The kind of t is value
-         because it is the primitive value type string.
+         because of the definition of t at line 2, characters 2-8.
        But the kind of t must be a subkind of value mod uncontended
          because of the annotation on the type variable 'a.
 |}]
@@ -885,9 +1089,10 @@ Error: The kind of type "a" is value mod global unique many external_
 module A : sig
   type t
 end = struct
-  type t : value mod portable = private string
+  type t : value mod portable = private t_value
 end
 [%%expect {|
+<<<<<<< HEAD
 Line 4, characters 2-46:
 4 |   type t : value mod portable = private string
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -895,6 +1100,23 @@ Error: The kind of type "string" is value
          because it is the primitive value type string.
        But the kind of type "string" must be a subkind of value mod portable
          because of the definition of t at line 4, characters 2-46.
+||||||| a198127529
+Line 4, characters 2-46:
+4 |   type t : value mod portable = private string
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type string is value
+         because it is the primitive value type string.
+       But the kind of type string must be a subkind of value mod portable
+         because of the definition of t at line 4, characters 2-46.
+=======
+Line 4, characters 2-47:
+4 |   type t : value mod portable = private t_value
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type t_value is value
+         because of the definition of t_value at line 1, characters 0-20.
+       But the kind of type t_value must be a subkind of value mod portable
+         because of the definition of t at line 4, characters 2-47.
+>>>>>>> flambda-backend/main
 |}]
 
 type a : value mod portable uncontended = private b

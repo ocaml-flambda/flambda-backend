@@ -174,8 +174,15 @@ type ('a : word) t4_6 = 'a * 'a
 Line 1, characters 24-26:
 1 | type ('a : word) t4_6 = 'a * 'a
                             ^^
+<<<<<<< HEAD
 Error: This type "('a : value_or_null)" should be an instance of type
          "('a0 : word)"
+||||||| a198127529
+Error: This type ('a : value_or_null) should be an instance of type
+         ('a0 : word)
+=======
+Error: Tuple element types must have layout value.
+>>>>>>> flambda-backend/main
        The layout of 'a is word
          because of the annotation on 'a in the declaration of the type t4_6.
        But the layout of 'a must overlap with value
@@ -185,15 +192,22 @@ Error: This type "('a : value_or_null)" should be an instance of type
 (* check for layout propagation *)
 type ('a : word, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
 [%%expect{|
-Line 1, characters 29-31:
+Line 1, characters 43-45:
 1 | type ('a : word, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
+<<<<<<< HEAD
                                  ^^
 Error: This type "('b : value)" should be an instance of type "('a : word)"
+||||||| a198127529
+                                 ^^
+Error: This type ('b : value) should be an instance of type ('a : word)
+=======
+                                               ^^
+Error: Tuple element types must have layout value.
+>>>>>>> flambda-backend/main
        The layout of 'a is word
          because of the annotation on 'a in the declaration of the type t4_7.
        But the layout of 'a must overlap with value
-         because it instantiates an unannotated type parameter of t4_7,
-         defaulted to layout value.
+         because it's the type of a tuple element.
 |}]
 
 (****************************************************)
@@ -360,8 +374,15 @@ type ('a : word) f7_5 = [ `A of 'a ];;
 Line 1, characters 32-34:
 1 | type ('a : word) f7_5 = [ `A of 'a ];;
                                     ^^
+<<<<<<< HEAD
 Error: This type "('a : value_or_null)" should be an instance of type
          "('a0 : word)"
+||||||| a198127529
+Error: This type ('a : value_or_null) should be an instance of type
+         ('a0 : word)
+=======
+Error: Polymorphic variant constructor argument types must have layout value.
+>>>>>>> flambda-backend/main
        The layout of 'a is word
          because of the annotation on 'a in the declaration of the type f7_5.
        But the layout of 'a must overlap with value
@@ -561,10 +582,18 @@ Error: Object field types must have layout value.
 
 type ('a : word) t12_2 = < x : 'a >;;
 [%%expect{|
-Line 1, characters 31-33:
+Line 1, characters 27-33:
 1 | type ('a : word) t12_2 = < x : 'a >;;
+<<<<<<< HEAD
                                    ^^
 Error: This type "('a : value)" should be an instance of type "('a0 : word)"
+||||||| a198127529
+                                   ^^
+Error: This type ('a : value) should be an instance of type ('a0 : word)
+=======
+                               ^^^^^^
+Error: Object field types must have layout value.
+>>>>>>> flambda-backend/main
        The layout of 'a is word
          because of the annotation on 'a in the declaration of the type t12_2.
        But the layout of 'a must overlap with value
@@ -590,7 +619,13 @@ end;;
 Line 2, characters 13-15:
 2 |   method x : 'a t_word_id -> 'a t_word_id = assert false
                  ^^
+<<<<<<< HEAD
 Error: This type "('a : word)" should be an instance of type "('a0 : value)"
+||||||| a198127529
+Error: This type ('a : word) should be an instance of type ('a0 : value)
+=======
+Error: This type ('a : value) should be an instance of type ('b : word)
+>>>>>>> flambda-backend/main
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with word
@@ -641,7 +676,13 @@ end
 Line 2, characters 10-12:
 2 |   val x : 'a t_word_id -> 'a t_word_id
               ^^
+<<<<<<< HEAD
 Error: This type "('a : word)" should be an instance of type "('a0 : value)"
+||||||| a198127529
+Error: This type ('a : word) should be an instance of type ('a0 : value)
+=======
+Error: This type ('a : value) should be an instance of type ('b : word)
+>>>>>>> flambda-backend/main
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with word
@@ -679,8 +720,16 @@ end;;
 Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
+<<<<<<< HEAD
 Error: This expression has type "('a : value)"
        but an expression was expected of type "t_word"
+||||||| a198127529
+Error: This expression has type ('a : value)
+       but an expression was expected of type t_word
+=======
+Error: This expression has type ('a : value_or_null)
+       but an expression was expected of type t_word
+>>>>>>> flambda-backend/main
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
        But the layout of t_word must be a sublayout of value

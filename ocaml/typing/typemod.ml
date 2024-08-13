@@ -89,6 +89,7 @@ type error =
   | Unpackable_local_modtype_subst of Path.t
   | With_cannot_remove_packed_modtype of Path.t * module_type
   | Toplevel_nonvalue of string * Jkind.sort
+  | Toplevel_unnamed_nonvalue of Jkind.sort
   | Strengthening_mismatch of Longident.t * Includemod.explanation
   | Cannot_pack_parameter
   | Compiling_as_parameterised_parameter
@@ -804,7 +805,7 @@ let merge_constraint initial_env loc sg lid constr =
         let mty = Mtype.scrape_for_type_of ~remove_aliases sig_env mty in
         let mty =
           remove_modality_and_zero_alloc_variables_mty sig_env
-            ~zap_modality:Mode.Modality.Value.zap_to_floor mty
+            ~zap_modality:Mode.Modality.Value.zap_to_id mty
         in
         let md'' = { md' with md_type = mty } in
         let newmd = Mtype.strengthen_decl ~aliasable:false md'' path in
@@ -828,6 +829,13 @@ let merge_constraint initial_env loc sg lid constr =
         let sig_env = Env.add_signature sg_for_env outer_sig_env in
         let sg = extract_sig sig_env loc md.md_type in
         let ((path, _, tcstr), newsg) = merge_signature sig_env sg namelist in
+        let newsg =
+          if destructive_substitution then
+            remove_modality_and_zero_alloc_variables_sg sig_env
+              ~zap_modality:Mode.Modality.Value.zap_to_id newsg
+          else
+            newsg
+        in
         let path = path_concat id path in
         real_ids := path :: !real_ids;
         let item =
@@ -2874,6 +2882,18 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         Misc.fatal_error "kind_abbrev not supported!"
   in
 
+  let force_toplevel =
+    (* A couple special cases are needed for the toplevel:
+
+       - Expressions bound by '_' still escape in the toplevel, because they may
+         be printed even though they are not named, and therefore can't be local
+       - Those expressions and also all [Pstr_eval]s must have types of layout
+         value for the same reason (see the special case in
+         [Opttoploop.execute_phrase]).
+    *)
+    Option.is_some toplevel
+  in
+
   let type_str_item
         env shape_map ({pstr_loc = loc; pstr_desc = desc} as item) sig_acc =
     let md_mode = Mode.Value.legacy in
@@ -2882,27 +2902,41 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     | None ->
     match desc with
     | Pstr_eval (sexpr, attrs) ->
-        (* We restrict [Tstr_eval] expressions to representable jkinds to
-           support the native toplevel.  See the special handling of [Tstr_eval]
-           near the top of [execute_phrase] in [opttoploop.ml]. *)
         let expr, sort =
+          (* We could consider allowing [any] here when not in the toplevel,
+             though for now the sort is used in the void safety check. *)
           Builtin_attributes.warning_scope attrs
             (fun () -> Typecore.type_representable_expression
                          ~why:Structure_item_expression env sexpr)
         in
+        if force_toplevel then
+          (* See comment on [force_toplevel]. *)
+          begin match Jkind.Sort.default_to_value_and_get sort with
+          | Value -> ()
+          | Void | Float64 | Float32 | Word | Bits32 | Bits64 ->
+            raise (Error (sexpr.pexp_loc, env, Toplevel_unnamed_nonvalue sort))
+          end;
         Tstr_eval (expr, sort, attrs), [], shape_map, env
-    | Pstr_value(rec_flag, sdefs) ->
-        let force_toplevel =
-          (* Values bound by '_' still escape in the toplevel, because
-             they may be printed even though they are not named *)
-          Option.is_some toplevel
-        in
+    | Pstr_value (rec_flag, sdefs) ->
         let (defs, newenv) =
           Typecore.type_binding env rec_flag ~force_toplevel sdefs in
         let defs = match rec_flag with
           | Recursive -> Typecore.annotate_recursive_bindings env defs
           | Nonrecursive -> defs
         in
+        if force_toplevel then
+          (* See comment on [force_toplevel] *)
+          List.iter (fun vb ->
+            match vb.vb_pat.pat_desc with
+            | Tpat_any ->
+              begin match Jkind.Sort.default_to_value_and_get vb.vb_sort with
+              | Value -> ()
+              | Void | Float64 | Float32 | Word | Bits32 | Bits64 ->
+                raise (Error (vb.vb_loc, env,
+                              Toplevel_unnamed_nonvalue vb.vb_sort))
+              end
+            | _ -> ()
+          ) defs;
         (* Note: Env.find_value does not trigger the value_used event. Values
            will be marked as being used during the signature inclusion test. *)
         let items, shape_map =
@@ -4129,11 +4163,24 @@ let report_error ~loc _env = function
         Misc.print_see_manual manual_ref
   | Toplevel_nonvalue (id, sort) ->
       Location.errorf ~loc
+<<<<<<< HEAD
         "@[Types of top-level module bindings must have layout %a, but@ \
          the type of %a has layout@ %a.@]"
         Style.inline_code "value"
         Style.inline_code id
         (Style.as_inline_code Jkind.Sort.format) sort
+||||||| a198127529
+        "@[Types of top-level module bindings must have layout value, but@ \
+         the type of %s has layout@ %a.@]" id Jkind.Sort.format sort
+=======
+        "@[Types of top-level module bindings must have layout value, but@ \
+         the type of %s has layout@ %a.@]" id Jkind.Sort.format sort
+  | Toplevel_unnamed_nonvalue sort ->
+      Location.errorf ~loc
+        "@[Types of unnamed expressions must have layout value when using@ \
+           the toplevel, but this expression has layout@ %a.@]"
+        Jkind.Sort.format sort
+>>>>>>> flambda-backend/main
  | Strengthening_mismatch(lid, explanation) ->
       let main = Includemod_errorprinter.err_msgs explanation in
       Location.errorf ~loc

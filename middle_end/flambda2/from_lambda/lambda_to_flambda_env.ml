@@ -19,9 +19,54 @@ type region_closure_continuation =
     continuation_after_closing_region : Continuation.t
   }
 
-type region_stack_element = Ident.t
+module Region_stack_element : sig
+  type t
 
-let same_region = Ident.same
+  val create : region:Ident.t -> ghost_region:Ident.t -> t
+
+  val region : t -> Ident.t
+
+  val ghost_region : t -> Ident.t
+
+  include Container_types.S with type t := t
+end = struct
+  module T0 = struct
+    type t =
+      { region : Ident.t;
+        ghost_region : Ident.t
+      }
+
+    let print ppf t =
+      Format.fprintf ppf "@[<hov 1>((region@ %a)@ (ghost_region@ %a))@]"
+        Ident.print t.region Ident.print t.ghost_region
+
+    let equal { region = region1; ghost_region = ghost_region1 }
+        { region = region2; ghost_region = ghost_region2 } =
+      Ident.same region1 region2 && Ident.same ghost_region1 ghost_region2
+
+    let compare { region = region1; ghost_region = ghost_region1 }
+        { region = region2; ghost_region = ghost_region2 } =
+      let c = Ident.compare region1 region2 in
+      if c <> 0 then c else Ident.compare ghost_region1 ghost_region2
+
+    let hash { region; ghost_region } =
+      Hashtbl.hash (Ident.hash region, Ident.hash ghost_region)
+  end
+
+  include T0
+  include Container_types.Make (T0)
+
+  let create ~region ~ghost_region =
+    if Ident.same region ghost_region
+    then
+      Misc.fatal_errorf "Region and ghost region are the same: %a" Ident.print
+        region;
+    { region; ghost_region }
+
+  let region t = t.region
+
+  let ghost_region t = t.ghost_region
+end
 
 type t =
   { current_unit : Compilation_unit.t;
@@ -29,20 +74,19 @@ type t =
       (Ident.t * Flambda_kind.With_subkind.t) Ident.Map.t;
     mutables_needed_by_continuations : Ident.Set.t Continuation.Map.t;
     unboxed_product_components_in_scope :
-      ([`Complex] Flambda_arity.Component_for_creation.t
-      * (Ident.t * Flambda_kind.With_subkind.t) array)
+      ([`Complex] Flambda_arity.Component_for_creation.t * Ident.t list)
       Ident.Map.t;
-    unboxed_product_components_needed_by_continuations :
-      Ident.Set.t Continuation.Map.t;
     try_stack : Continuation.t list;
     try_stack_at_handler : Continuation.t list Continuation.Map.t;
     static_exn_continuation : Continuation.t Numeric_types.Int.Map.t;
     recursive_static_catches : Numeric_types.Int.Set.t;
-    my_region : Ident.t;
-    (* CR-someday ncourant: replace this with [my_region: Ident.t option] *)
-    region_stack : region_stack_element list;
-    region_stack_in_cont_scope : region_stack_element list Continuation.Map.t;
-    region_closure_continuations : region_closure_continuation Ident.Map.t;
+    my_region : Region_stack_element.t;
+    (* CR-someday ncourant/mshinwell: replace this with [my_region:
+       Region_stack_element.t option] *)
+    region_stack : Region_stack_element.t list;
+    region_stack_in_cont_scope : Region_stack_element.t list Continuation.Map.t;
+    region_closure_continuations :
+      region_closure_continuation Region_stack_element.Map.t;
     ident_stamp_upon_starting : int
   }
 
@@ -53,15 +97,10 @@ let create ~current_unit ~return_continuation ~exn_continuation ~my_region =
   in
   let id = Ident.create_local "unused" in
   let ident_stamp_upon_starting = Ident.stamp id in
-  let unboxed_product_components_needed_by_continuations =
-    Continuation.Map.of_list
-      [return_continuation, Ident.Set.empty; exn_continuation, Ident.Set.empty]
-  in
   { current_unit;
     current_values_of_mutables_in_scope = Ident.Map.empty;
     mutables_needed_by_continuations;
     unboxed_product_components_in_scope = Ident.Map.empty;
-    unboxed_product_components_needed_by_continuations;
     try_stack = [];
     try_stack_at_handler = Continuation.Map.empty;
     static_exn_continuation = Numeric_types.Int.Map.empty;
@@ -70,7 +109,7 @@ let create ~current_unit ~return_continuation ~exn_continuation ~my_region =
     region_stack = [];
     region_stack_in_cont_scope =
       Continuation.Map.singleton return_continuation [];
-    region_closure_continuations = Ident.Map.empty;
+    region_closure_continuations = Region_stack_element.Map.empty;
     ident_stamp_upon_starting
   }
 
@@ -108,12 +147,14 @@ let register_unboxed_product t ~unboxed_product ~before_unarization ~fields =
   { t with
     unboxed_product_components_in_scope =
       Ident.Map.add unboxed_product
-        (before_unarization, Array.of_list fields)
+        (before_unarization, fields)
         t.unboxed_product_components_in_scope
   }
 
-let unboxed_product_components_in_scope t =
-  Ident.Map.keys t.unboxed_product_components_in_scope
+let register_unboxed_product_with_kinds t ~unboxed_product ~before_unarization
+    ~fields =
+  register_unboxed_product t ~unboxed_product ~before_unarization
+    ~fields:(List.map fst fields)
 
 type add_continuation_result =
   { body_env : t;
@@ -139,17 +180,11 @@ let add_continuation t cont ~push_to_try_stack ~pop_region
       Continuation.Map.add cont (mutables_in_scope t)
         t.mutables_needed_by_continuations
     in
-    let unboxed_product_components_needed_by_continuations =
-      Continuation.Map.add cont
-        (unboxed_product_components_in_scope t)
-        t.unboxed_product_components_needed_by_continuations
-    in
     let try_stack =
       if push_to_try_stack then cont :: t.try_stack else t.try_stack
     in
     { t with
       mutables_needed_by_continuations;
-      unboxed_product_components_needed_by_continuations;
       try_stack;
       region_stack_in_cont_scope
     }
@@ -158,15 +193,6 @@ let add_continuation t cont ~push_to_try_stack ~pop_region
     Ident.Map.mapi
       (fun mut_var (_outer_value, kind) -> Ident.rename mut_var, kind)
       t.current_values_of_mutables_in_scope
-  in
-  let unboxed_product_components_in_scope =
-    Ident.Map.map
-      (fun (before_unarization, fields) ->
-        let fields =
-          Array.map (fun (field, layout) -> Ident.rename field, layout) fields
-        in
-        before_unarization, fields)
-      t.unboxed_product_components_in_scope
   in
   let handler_env =
     let handler_env =
@@ -179,18 +205,12 @@ let add_continuation t cont ~push_to_try_stack ~pop_region
     in
     { handler_env with
       current_values_of_mutables_in_scope;
-      unboxed_product_components_in_scope;
       region_stack_in_cont_scope;
       region_stack
     }
   in
-  let extra_params_for_unboxed_products =
-    Ident.Map.data handler_env.unboxed_product_components_in_scope
-    |> List.map snd |> List.map Array.to_list |> List.concat
-  in
   let extra_params =
     Ident.Map.data handler_env.current_values_of_mutables_in_scope
-    @ extra_params_for_unboxed_products
   in
   { body_env; handler_env; extra_params }
 
@@ -241,41 +261,18 @@ let get_try_stack_at_handler t continuation =
   | stack -> stack
 
 let extra_args_for_continuation_with_kinds t cont =
-  let for_mutables =
-    match Continuation.Map.find cont t.mutables_needed_by_continuations with
-    | exception Not_found ->
-      Misc.fatal_errorf "Unbound continuation %a" Continuation.print cont
-    | mutables ->
-      let mutables = Ident.Set.elements mutables in
-      List.map
-        (fun mut ->
-          match Ident.Map.find mut t.current_values_of_mutables_in_scope with
-          | exception Not_found ->
-            Misc.fatal_errorf "No current value for %a" Ident.print mut
-          | current_value, kind -> current_value, kind)
-        mutables
-  in
-  let for_unboxed_products =
-    match
-      Continuation.Map.find cont
-        t.unboxed_product_components_needed_by_continuations
-    with
-    | exception Not_found ->
-      Misc.fatal_errorf "Unbound continuation %a" Continuation.print cont
-    | unboxed_products_to_fields ->
-      let unboxed_products = Ident.Set.elements unboxed_products_to_fields in
-      List.concat_map
-        (fun unboxed_product ->
-          match
-            Ident.Map.find unboxed_product t.unboxed_product_components_in_scope
-          with
-          | exception Not_found ->
-            Misc.fatal_errorf "No field list registered for unboxed product %a"
-              Ident.print unboxed_product
-          | _, fields -> Array.to_list fields)
-        unboxed_products
-  in
-  for_mutables @ for_unboxed_products
+  match Continuation.Map.find cont t.mutables_needed_by_continuations with
+  | exception Not_found ->
+    Misc.fatal_errorf "Unbound continuation %a" Continuation.print cont
+  | mutables ->
+    let mutables = Ident.Set.elements mutables in
+    List.map
+      (fun mut ->
+        match Ident.Map.find mut t.current_values_of_mutables_in_scope with
+        | exception Not_found ->
+          Misc.fatal_errorf "No current value for %a" Ident.print mut
+        | current_value, kind -> current_value, kind)
+      mutables
 
 let extra_args_for_continuation t cont =
   List.map fst (extra_args_for_continuation_with_kinds t cont)
@@ -289,15 +286,14 @@ let get_mutable_variable_with_kind t id =
 let get_unboxed_product_fields t id =
   match Ident.Map.find id t.unboxed_product_components_in_scope with
   | exception Not_found -> None
-  | before_unarization, fields ->
-    Some (before_unarization, List.map fst (Array.to_list fields))
+  | before_unarization, fields -> Some (before_unarization, fields)
 
-let entering_region t id ~continuation_closing_region
+let entering_region t region_stack_element ~continuation_closing_region
     ~continuation_after_closing_region =
   { t with
-    region_stack = id :: t.region_stack;
+    region_stack = region_stack_element :: t.region_stack;
     region_closure_continuations =
-      Ident.Map.add id
+      Region_stack_element.Map.add region_stack_element
         { continuation_closing_region; continuation_after_closing_region }
         t.region_closure_continuations
   }
@@ -310,7 +306,10 @@ let leaving_region t =
 let current_region t =
   if not (Flambda_features.stack_allocation_enabled ())
   then t.my_region
-  else match t.region_stack with [] -> t.my_region | region :: _ -> region
+  else
+    match t.region_stack with
+    | [] -> t.my_region
+    | region_stack_elt :: _ -> region_stack_elt
 
 let parent_region t =
   if not (Flambda_features.stack_allocation_enabled ())
@@ -348,19 +347,19 @@ let pop_regions_up_to_context t continuation =
   let rec pop to_pop region_stack =
     match initial_stack_context, region_stack with
     | [], [] -> to_pop
-    | [], region :: regions -> pop (Some region) regions
+    | [], region_stack_elt :: regions -> pop (Some region_stack_elt) regions
     | _initial_stack_top :: _, [] ->
       Misc.fatal_errorf "Unable to restore region stack for %a"
         Continuation.print continuation
-    | initial_stack_top :: _, region :: regions ->
-      if Ident.same initial_stack_top region
+    | initial_stack_top :: _, region_stack_elt :: regions ->
+      if Region_stack_element.equal initial_stack_top region_stack_elt
       then to_pop
-      else pop (Some region) regions
+      else pop (Some region_stack_elt) regions
   in
   pop None t.region_stack
 
 let region_closure_continuation t id =
-  try Ident.Map.find id t.region_closure_continuations
+  try Region_stack_element.Map.find id t.region_closure_continuations
   with Not_found ->
-    Misc.fatal_errorf "No region closure continuation found for %a" Ident.print
-      id
+    Misc.fatal_errorf "No region closure continuation found for %a"
+      Region_stack_element.print id

@@ -3,8 +3,8 @@
  expect;
 *)
 
-let foo _t (type a) = local_ 1
-let bar _t (type a : value) = local_ 2
+let foo _t (type a) = exclave_ 1
+let bar _t (type a : value) = exclave_ 2
 
 [%%expect{|
 val foo : 'a -> local_ int = <fun>

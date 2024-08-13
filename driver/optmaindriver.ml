@@ -90,7 +90,7 @@ let main unix argv ppf ~flambda2 =
       | None ->
           Compenv.fatal "Please specify at most one of -pack, -a, -shared, -c, \
                          -output-obj";
-      | Some ((P.Parsing | P.Typing | P.Lambda | P.Middle_end | P.Scheduling
+      | Some ((P.Parsing | P.Typing | P.Lambda | P.Middle_end | P.Linearization
               | P.Simplify_cfg | P.Emit | P.Selection) as p) ->
         assert (P.is_compilation_pass p);
         Printf.ksprintf Compenv.fatal
@@ -154,33 +154,42 @@ let main unix argv ppf ~flambda2 =
     Location.report_exception ppf x;
     2
   | () ->
-    if !Flambda_backend_flags.gc_timings then begin
-      let minor = Gc_timings.gc_minor_ns () in
-      let major = Gc_timings.gc_major_ns () in
-      let stats = Gc.quick_stat () in
-      let secs x = x *. 1e-9 in
-      let precision = !Clflags.timings_precision in
-      let w2b n = n * (Sys.word_size / 8) in
-      let fw2b x = w2b (Float.to_int x) in
-      Format.fprintf Format.std_formatter "%0.*fs gc\n" precision (secs (minor +. major));
-      Format.fprintf Format.std_formatter "  %0.*fs minor\n" precision (secs minor);
-      Format.fprintf Format.std_formatter "  %0.*fs major\n" precision (secs major);
-      Format.fprintf Format.std_formatter "- heap\n";
-      (* Having minor + major + promoted = total alloc make more sense for
-         hierarchical stats. *)
-      Format.fprintf Format.std_formatter "  %ib alloc\n"
-        (fw2b stats.minor_words + (fw2b stats.major_words - fw2b stats.promoted_words));
-      Format.fprintf Format.std_formatter "    %ib minor\n"
-        (fw2b stats.minor_words - fw2b stats.promoted_words);
-      Format.fprintf Format.std_formatter "    %ib major\n"
-        (fw2b stats.major_words - fw2b stats.promoted_words);
-      Format.fprintf Format.std_formatter "    %ib promoted\n"
-        (fw2b stats.promoted_words);
-      Format.fprintf Format.std_formatter "  %ib top\n" (w2b stats.top_heap_words);
-      Format.fprintf Format.std_formatter "  %i collections\n"
-        (stats.minor_collections + stats.major_collections);
-      Format.fprintf Format.std_formatter "    %i minor\n" stats.minor_collections;
-      Format.fprintf Format.std_formatter "    %i major\n" stats.major_collections;
-    end;
-    Profile.print Format.std_formatter !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision;
+    let output_profile_csv ppf_file = Profile.output_to_csv
+      ppf_file !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision
+    in
+    let output_profile_standard ppf =
+      if !Flambda_backend_flags.gc_timings then begin
+        let minor = Gc_timings.gc_minor_ns () in
+        let major = Gc_timings.gc_major_ns () in
+        let stats = Gc.quick_stat () in
+        let secs x = x *. 1e-9 in
+        let precision = !Clflags.timings_precision in
+        let w2b n = n * (Sys.word_size / 8) in
+        let fw2b x = w2b (Float.to_int x) in
+        Format.fprintf ppf "%0.*fs gc\n" precision (secs (minor +. major));
+        Format.fprintf ppf "  %0.*fs minor\n" precision (secs minor);
+        Format.fprintf ppf "  %0.*fs major\n" precision (secs major);
+        Format.fprintf ppf "- heap\n";
+        (* Having minor + major + promoted = total alloc make more sense for
+          hierarchical stats. *)
+        Format.fprintf ppf "  %ib alloc\n"
+          (fw2b stats.minor_words + (fw2b stats.major_words - fw2b stats.promoted_words));
+        Format.fprintf ppf "    %ib minor\n"
+          (fw2b stats.minor_words - fw2b stats.promoted_words);
+        Format.fprintf ppf "    %ib major\n"
+          (fw2b stats.major_words - fw2b stats.promoted_words);
+        Format.fprintf ppf "    %ib promoted\n"
+          (fw2b stats.promoted_words);
+        Format.fprintf ppf "  %ib top\n" (w2b stats.top_heap_words);
+        Format.fprintf ppf "  %i collections\n"
+          (stats.minor_collections + stats.major_collections);
+        Format.fprintf ppf "    %i minor\n" stats.minor_collections;
+        Format.fprintf ppf "    %i major\n" stats.major_collections;
+      end;
+      Profile.print ppf !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision
+    in
+    if !Clflags.dump_into_csv then
+      Compmisc.with_ppf_file ~file_prefix:"profile" ~file_extension:".csv" output_profile_csv
+    else if !Flambda_backend_flags.gc_timings || !Clflags.profile_columns <> [] then
+      Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile" output_profile_standard;
     0

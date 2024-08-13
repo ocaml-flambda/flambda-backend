@@ -42,12 +42,26 @@
 ;(copy_files# middle_end/flambda/base_types/*.ml{,i})
 
 (menhir
-  (modules parser)
-  (flags
-    --lalr --explain --dump --require-aliases --strict
-    --unused-token COMMENT --unused-token DOCSTRING --unused-token EOL --unused-token GREATERRBRACKET
-    --fixed-exception --table
-    --strategy simplified))
+ (modules parser)
+ (flags
+  --lalr
+  --explain
+  --dump
+  --require-aliases
+  --strict
+  --unused-token
+  COMMENT
+  --unused-token
+  DOCSTRING
+  --unused-token
+  EOL
+  --unused-token
+  GREATERRBRACKET
+  --table
+  --fixed-exception
+  --strategy simplified
+  --cmly
+  --inspection))
 
 (library
  (name ocamlcommon)
@@ -85,7 +99,7 @@
    location longident docstrings printast syntaxerr ast_helper
    camlinternalMenhirLib ast_iterator parser lexer parse pprintast ast_mapper
    attr_helper builtin_attributes ast_invariants depend jane_syntax_parsing
-   jane_syntax ; manual update: mli only files asttypes parsetree
+   jane_syntax parser_types ; manual update: mli only files asttypes parsetree
 
    ;; TYPING
    ident path jkind primitive shape shape_reduce zero_alloc types btype oprint subst
