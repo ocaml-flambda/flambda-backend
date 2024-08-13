@@ -152,8 +152,8 @@ Error: This alias is bound to type "int list"
 
 let x : int list as ('a : value mod global) = [3;4;5]
 [%%expect {|
-Line 163, characters 21-23:
-163 | let x : int list as ('a : value mod global) = [3;4;5]
+Line 153, characters 21-23:
+153 | let x : int list as ('a : value mod global) = [3;4;5]
                            ^^
 Error: This alias is bound to type "int list"
        but is used as an instance of type "('a : value mod global)"
