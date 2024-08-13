@@ -49,7 +49,13 @@ let () =
 
 type 'a boxed_variant = Boxed of 'a
 type 'a unboxed_variant = Unboxed of 'a [@@unboxed]
-type external_variant : value mod external_ = External
+module External_variant : sig
+  type t : value mod external_
+  val make : t
+end = struct
+  type t = External
+  let make = External
+end
 type 'a unboxed_record = { unboxed : 'a } [@@unboxed]
 type 'a internal_record = { boxed : 'a }
 
@@ -67,7 +73,7 @@ let () =
   test ~expect_caml_modify_call (fun () -> f { boxed = "hello" });
   test ~expect_caml_modify_call (fun () -> f { unboxed = 10 });
   test ~expect_caml_modify_call (fun () -> f { unboxed = "hello" });
-  test ~expect_caml_modify_call (fun () -> f External);
+  test ~expect_caml_modify_call (fun () -> f External_variant.make);
   test ~expect_caml_modify_call (fun () -> f (Boxed 10));
   test ~expect_caml_modify_call (fun () -> f (Boxed "hello"));
   test ~expect_caml_modify_call (fun () -> f (Unboxed 10));
@@ -83,7 +89,7 @@ let () =
   test ~expect_caml_modify_call (fun () -> f 10);
   test ~expect_caml_modify_call (fun () -> f true);
   test ~expect_caml_modify_call (fun () -> f { unboxed = 10 });
-  test ~expect_caml_modify_call (fun () -> f External);
+  test ~expect_caml_modify_call (fun () -> f External_variant.make);
   test ~expect_caml_modify_call (fun () -> f (Unboxed 10))
 
 (* External64 values result in no caml_modify calls iff the system is 64 bit *)
@@ -105,5 +111,5 @@ let () =
   test ~expect_caml_modify_call (fun () -> f 10);
   test ~expect_caml_modify_call (fun () -> f true);
   test ~expect_caml_modify_call (fun () -> f { unboxed = 10 });
-  test ~expect_caml_modify_call (fun () -> f External);
+  test ~expect_caml_modify_call (fun () -> f External_variant.make);
   test ~expect_caml_modify_call (fun () -> f (Unboxed 10))
