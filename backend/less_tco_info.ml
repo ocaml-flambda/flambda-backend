@@ -25,10 +25,9 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(* Isomorphic to bool *)
 type position =
-  | Doesn't_contain_indirect_call_in_tail_position (* false *)
-  | Contains_indirect_call_in_tail_position (* true *)
+  | Doesn't_contain_indirect_call_in_tail_position
+  | Contains_indirect_call_in_tail_position
 
 module String = Misc.Stdlib.String
 
