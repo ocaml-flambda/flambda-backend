@@ -37,45 +37,6 @@
 
 
 
-(* TEST_BELOW
-(* Blank lines added here to preserve locations. *)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 *)
 
 (* Check that a module in the main program whose initializer has not
