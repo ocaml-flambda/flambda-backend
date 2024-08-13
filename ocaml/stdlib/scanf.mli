@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Stdlib
-
 (** Formatted input functions. *)
 
 [@@@ocaml.warning "+A-e"]
@@ -91,6 +89,8 @@ open! Stdlib
 [@@@alert unsynchronized_access
     "Unsynchronized accesses to Scanning.in_channel are a programming error."
 ]
+
+open! Stdlib
 
  (**
       Unsynchronized accesses to a {!Scanning.in_channel} may lead to an
