@@ -480,9 +480,10 @@ let dump ppf cfg_with_layout ~(dependency_graph : Dependency_graph.t)
 let cfg ppf_dump cl =
   let cfg = Cfg_with_layout.cfg cl in
   let dependency_graph = Dependency_graph.from_cfg cfg in
+  let adjacent_memory_accesses = Adjacent_memory_accesses.from_cfg cfg in
   if !Flambda_backend_flags.dump_cfg
   then
     Format.fprintf ppf_dump "*** Vectorization@.%a@."
-      (dump ~dependency_graph ~msg:"")
+      (dump ~dependency_graph ~adjacent_memory_accesses ~msg:"")
       cl;
   cl
