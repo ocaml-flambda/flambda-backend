@@ -1513,7 +1513,7 @@ let run_ocamldoc =
     (Result.fail_with_reason reason, env)
   end
 
-let _ =
+let init () =
   Environments.register_initializer Environments.Post
     "find_source_modules" find_source_modules;
   Environments.register_initializer Environments.Pre

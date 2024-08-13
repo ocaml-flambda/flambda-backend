@@ -334,6 +334,14 @@ let list_tests dir =
   sort_strings !res
 
 let () =
+  Actions.init ();
+  Builtin_actions.init ();
+  Builtin_variables.init ();
+  Ocaml_actions.init ();
+  Ocaml_modifiers.init ();
+  Ocaml_tests.init ();
+  Ocaml_variables.init ();
+  Strace.init ();
   init_tests_to_skip()
 
 let () =

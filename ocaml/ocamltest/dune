@@ -32,11 +32,8 @@
 (executable
  (name main)
  (modes native)
- ; -linkall so we don't fail to include e.g. ocaml_modifiers.ml, which only
- ; has top-level side effects.
  (flags
   (:standard
-   -linkall
    -w
    +a-40-41-42-44-70
    -cclib

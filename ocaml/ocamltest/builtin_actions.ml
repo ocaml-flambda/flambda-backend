@@ -384,7 +384,7 @@ let initialize_test_exit_status_variables _log env =
     Builtin_variables.test_skip, "125";
   ] env
 
-let _ =
+let init () =
   Environments.register_initializer Environments.Post
     "test_exit_status_variables" initialize_test_exit_status_variables;
   List.iter register
