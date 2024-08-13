@@ -35,9 +35,7 @@
 (rule
  (alias runtest)
  (enabled_if
-  (and
-   (= %{context_name} "main")
-   (= %{architecture} "amd64")))
+  (= %{context_name} "main"))
  (action
   (progn
    (diff empty.expected float32_builtin.out)
@@ -105,9 +103,7 @@
 (rule
  (alias runtest)
  (enabled_if
-  (and
-   (= %{context_name} "main")
-   (= %{architecture} "amd64")))
+  (= %{context_name} "main"))
  (action
   (progn
    (diff empty.expected float32_builtin_bytecode.out)
@@ -168,9 +164,7 @@
 (rule
  (alias runtest)
  (enabled_if
-  (and
-   (= %{context_name} "main")
-   (= %{architecture} "amd64")))
+  (= %{context_name} "main"))
  (action
   (progn
    (diff empty.expected float32_builtin_nodynlink.out)
@@ -234,7 +228,6 @@
  (enabled_if
   (and
    (= %{context_name} "main")
-   (= %{architecture} "amd64")
    (<> %{system} macosx)))
  (action
   (progn

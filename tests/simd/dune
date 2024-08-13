@@ -52,7 +52,7 @@
  (enabled_if
   (and
    (= %{context_name} "main")
-   (= %{architecture} "amd64")))
+   (= %{architecture} amd64)))
  (action
   (progn
    (diff empty.expected basic.out)
@@ -133,7 +133,7 @@
  (enabled_if
   (and
    (= %{context_name} "main")
-   (= %{architecture} "amd64")))
+   (= %{architecture} amd64)))
  (action
   (progn
    (diff empty.expected basic_nodynlink.out)
@@ -232,7 +232,6 @@
  (enabled_if
   (and
    (= %{context_name} "main")
-   (= %{architecture} "amd64")
    (<> %{system} macosx)))
  (action
   (progn
