@@ -94,7 +94,7 @@ compiler: runtime-stdlib
           --only-package=ocaml @install \
           testsuite/tools/expect.exe \
           testsuite/tools/codegen_main.exe \
-          testsuite/tools/asmgen_arm64.o \
+          testsuite/tools/asmgen_$(ARCH).o \
           ocaml/testsuite/lib/lib.cma \
           ocaml/testsuite/lib/testing.cma \
           $(ocamldir)/tools/dumpobj.bc
