@@ -29,7 +29,7 @@ type cms_infos = {
   cms_source_digest : Digest.t option;
   cms_initial_env : Env.t option;
   cms_uid_to_loc : (Shape.Uid.t * string Location.loc) Array.t;
-  cms_uid_to_attributes : (Shape.Uid.t * Parsetree.attributes) Array.t;
+  cms_uid_to_attributes : Parsetree.attributes Shape.Uid.Tbl.t;
   cms_impl_shape : Shape.t option; (* None for mli *)
   cms_ident_occurrences :
     (Longident.t Location.loc * Shape_reduce.result) array
@@ -65,21 +65,11 @@ let register_toplevel_attributes uid ~attributes ~loc =
   toplevel_attributes := (uid, loc, attributes) :: !toplevel_attributes
 
 let uid_tables_of_binary_annots binary_annots =
-  (* We use an array rather than a hashtable, map, or list for better memory efficiency.*)
-  (* Compute the size of the arrays *)
-  let declaration_count = ref 0 in
-  Cmt_format.iter_declarations binary_annots
-    ~f:(fun _ _ -> declaration_count := !declaration_count + 1);
-  let items_count = List.length !toplevel_attributes + !declaration_count in
-  (* Allocate the arrays, filling them with a nonsense value. *)
-  let cms_uid_to_loc = Array.make items_count (Shape.Uid.internal_not_actually_unique, Location.{txt=""; loc=none}) in
-  let cms_uid_to_attributes = Array.make items_count (Shape.Uid.internal_not_actually_unique, []) in
-  (* Fill in the arrays. *)
-  let i = ref 0 in
+  let cms_uid_to_loc = Types.Uid.Tbl.create 42 in
+  let cms_uid_to_attributes = Types.Uid.Tbl.create 42 in
   List.iter (fun (uid, loc, attrs) ->
-    Array.set cms_uid_to_loc !i (uid, loc);
-    Array.set cms_uid_to_attributes !i (uid, attrs);
-    i := !i + 1;)
+    Types.Uid.Tbl.add cms_uid_to_loc uid loc;
+    Types.Uid.Tbl.add cms_uid_to_attributes uid attrs)
     !toplevel_attributes;
   Cmt_format.iter_declarations binary_annots
     ~f:(fun uid decl ->
@@ -99,9 +89,8 @@ let uid_tables_of_binary_annots binary_annots =
         | Class v -> v.ci_attributes
         | Class_type v -> v.ci_attributes
       in
-      Array.set cms_uid_to_loc !i (uid, loc);
-      Array.set cms_uid_to_attributes !i (uid, attrs);
-      i := !i + 1
+      Types.Uid.Tbl.add cms_uid_to_loc uid loc;
+      Types.Uid.Tbl.add cms_uid_to_attributes uid attrs
     );
   cms_uid_to_loc, cms_uid_to_attributes
 
@@ -131,7 +120,7 @@ let save_cms filename modname binary_annots sourcefile initial_env shape =
             cms_builddir = Location.rewrite_absolute_path (Sys.getcwd ());
             cms_source_digest = source_digest;
             cms_initial_env;
-            cms_uid_to_loc;
+            cms_uid_to_loc = cms_uid_to_loc |> Shape.Uid.Tbl.to_list |> Array.of_list;
             cms_uid_to_attributes;
             cms_impl_shape = shape;
             cms_ident_occurrences
