@@ -1,9 +1,11 @@
 (library
  (wrapped false)
+ (modes byte native)
  (name lib)
  (modules lib))
 
 (library
  (wrapped false)
+ (modes byte native)
  (name testing)
  (modules testing))

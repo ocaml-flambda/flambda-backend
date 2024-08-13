@@ -95,8 +95,8 @@ compiler: runtime-stdlib
           testsuite/tools/expect.exe \
           testsuite/tools/codegen_main.exe \
           testsuite/tools/asmgen_$(ARCH).o \
-          ocaml/testsuite/lib/lib.cma \
-          ocaml/testsuite/lib/testing.cma \
+          ocaml/testsuite/lib/lib.cm{,x}a \
+          ocaml/testsuite/lib/testing.cm{,x}a \
           $(ocamldir)/tools/dumpobj.bc
 
 runtest: compiler
@@ -244,9 +244,17 @@ install_for_test: _install
 	chmod 755 _runtest/testsuite/tools/codegen
 	cp $(main_build)/testsuite/tools/asmgen_*.o \
           _runtest/testsuite/tools/
+	cp $(main_build)/ocaml/testsuite/lib/lib.{a,cmxa,cma} \
+          _runtest/testsuite/lib/
 	cp $(main_build)/ocaml/testsuite/lib/.lib.objs/byte/lib.cm* \
           _runtest/testsuite/lib/
-	cp $(main_build)/ocaml/testsuite/lib/testing.cm* \
+	cp $(main_build)/ocaml/testsuite/lib/.lib.objs/native/lib.cm* \
+          _runtest/testsuite/lib/
+	cp $(main_build)/ocaml/testsuite/lib/testing.{a,cmxa,cma} \
+          _runtest/testsuite/lib/
+	cp $(main_build)/ocaml/testsuite/lib/.testing.objs/byte/testing.cm* \
+          _runtest/testsuite/lib/
+	cp $(main_build)/ocaml/testsuite/lib/.testing.objs/native/testing.cm* \
           _runtest/testsuite/lib/
 	 # replace backend-specific testsuite/tests/asmcomp with their new versions
 	rm _runtest/testsuite/tests/asmcomp/*
