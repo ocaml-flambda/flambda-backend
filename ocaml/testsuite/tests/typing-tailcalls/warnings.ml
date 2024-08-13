@@ -48,3 +48,49 @@ let[@inline never] bind f = function
 let rec monadic_loop int_option =
   let next x = if x < 0 then None else monadic_loop (Some (x - 2)) in
   bind next int_option
+
+
+let rec long_known_cycle () =
+  let[@inline never] bar () = long_known_cycle () [@tail] in
+  let[@inline never] baz () = bar () [@tail] in
+  let[@inline never] quux () = baz () [@tail] in
+  let[@inline never] wibble () = quux () [@tail] in
+  let[@inline never] nibble () = wibble () [@tail] in
+  ignore bar; ignore baz; ignore quux; ignore wibble; ignore nibble;
+  nibble ()
+
+let short_unknown_cycle () =
+  let unknown = (Sys.opaque_identity (fun () -> ()))
+  in unknown ()
+
+(* The warning should prefer a longer cycle that has no unknown
+   vertex than a shorter one that has an unknown vertex. Two candidate
+   cycles here are:
+
+   unknown () -> nibble () -> unknown ()
+                 ^^^^^^^^^
+
+      prefer_long_known_cycle b ()
+   -> nibble ()
+      ^^^^^^^^^
+   -> wibble ()
+   -> quux ()
+   -> baz ()
+   -> bar ()
+   -> prefer_long_known_cycle b ()
+
+   We would like to display the second cycle.
+*)
+let rec prefer_long_known_cycle b () =
+  let[@inline never] bar () = prefer_long_known_cycle b () [@tail] in
+  let[@inline never] baz () = bar () [@tail] in
+  let[@inline never] quux () = baz () [@tail] in
+  let[@inline never] wibble () = quux () [@tail] in
+  let[@inline never] nibble () =
+    if b then wibble () [@tail]
+    else
+      let unknown = (Sys.opaque_identity (fun () -> ()))
+      in unknown () [@tail]
+  in
+  ignore bar; ignore baz; ignore quux; ignore wibble; ignore nibble;
+  nibble ()

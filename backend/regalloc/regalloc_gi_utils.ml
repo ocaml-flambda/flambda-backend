@@ -330,6 +330,15 @@ module Make_max_priority_queue (Priority : Order) :
     done
 end
 
+module Make_min_priority_queue (Priority : Order) :
+  Priority_queue with type priority = Priority.t = struct
+  include Make_max_priority_queue (struct
+    include Priority
+
+    let compare t1 t2 = ~-(Priority.compare t1 t2)
+  end)
+end
+
 let iter_cfg_layout : Cfg_with_layout.t -> f:(Cfg.basic_block -> unit) -> unit =
  fun cfg_with_layout ~f ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
