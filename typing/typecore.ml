@@ -374,8 +374,16 @@ type expected_mode =
     field and [mode]: this field being [true] while [mode] being [global] is
     sensible, but not very useful as it will fail all expressions. *)
 
-    tuple_modes : Value.r list;
-    (** For t in tuple_modes, t <= regional_to_global mode *)
+    tuple_modes : Value.r list option;
+    (** No invariant between this and [mode]. It is UNSOUND to ignore this
+        field. If this is [Some [x0; x1; ..]]:
+
+        - For a general expression [e], we check [e <= x0] and [e <= x1] and so
+          on; we also check [e <= mode].
+
+        - Specifically for [Pexp_tuple [e0; e1; ..]], a finer-grained check is
+          performed instead: we check [e0 <= x0] and [e1 <= x1] and so on; we
+          also check [regional_to_local(join(e0, e1, ..)) <= mode]. *)
   }
 
 type position_and_mode = {
@@ -437,23 +445,34 @@ let meet_regional mode =
   let mode = Value.disallow_left mode in
   Value.meet [mode; (Value.max_with (Comonadic Areality) Regionality.regional)]
 
-let value_regional_to_local mode =
-  mode
-  |> value_to_alloc_r2l
-  |> alloc_as_value
-
 let mode_default mode =
   { position = RNontail;
     closure_context = None;
     contention_context = None;
     mode = Value.disallow_left mode;
     strictly_local = false;
-    tuple_modes = [] }
+    tuple_modes = None }
 
 let mode_legacy = mode_default Value.legacy
 
+let as_single_mode {mode; tuple_modes; _} =
+  match tuple_modes with
+  | Some l -> Value.meet (mode :: l)
+  | None -> mode
+
+let get_single_mode_exn {mode; tuple_modes; _} =
+  match tuple_modes with
+  | Some _ -> Misc.fatal_error "tuple_modes should be None"
+  | None -> mode
+
+let mode_morph f expected_mode =
+  let mode = as_single_mode expected_mode in
+  let mode = f mode in
+  let tuple_modes = None in
+  {expected_mode with mode; tuple_modes}
+
 let mode_modality modality expected_mode =
-  expected_mode.mode
+  get_single_mode_exn expected_mode
   |> Modality.Value.Const.apply modality
   |> mode_default
 
@@ -487,7 +506,7 @@ let mode_max_with_position position =
 let mode_exclave expected_mode =
   let mode =
     Value.join_with (Comonadic Areality)
-      Regionality.Const.Local expected_mode.mode
+      Regionality.Const.Local (as_single_mode expected_mode)
   in
   { (mode_default mode)
     with strictly_local = true
@@ -499,8 +518,7 @@ let mode_strictly_local expected_mode =
   }
 
 let mode_coerce mode expected_mode =
-  let mode = Value.meet [expected_mode.mode; mode] in
-  { expected_mode with mode; tuple_modes = [] }
+  mode_morph (fun m -> Value.meet [m; mode]) expected_mode
 
 let mode_tailcall_function mode =
   { (mode_default mode) with
@@ -510,19 +528,19 @@ let mode_tailcall_argument mode =
   { (mode_default mode) with
     closure_context = Some Tailcall_argument }
 
-
 let mode_partial_application expected_mode =
-  let mode = alloc_as_value (value_to_alloc_r2g expected_mode.mode) in
+  let expected_mode =
+    mode_morph (fun mode -> alloc_as_value (value_to_alloc_r2g mode))
+      expected_mode
+  in
   { expected_mode with
-    mode;
     closure_context = Some Partial_application }
-
 
 let mode_trywith expected_mode =
   { expected_mode with position = RNontail }
 
 let mode_tuple mode tuple_modes =
-  let tuple_modes = Value.List.disallow_left tuple_modes in
+  let tuple_modes = Some (Value.List.disallow_left tuple_modes) in
   { (mode_default mode) with
     tuple_modes }
 
@@ -556,11 +574,7 @@ let mode_argument ~funct ~index ~position_and_mode ~partial_app marg =
 (* expected_mode.closure_context explains why expected_mode.mode is low;
    shared_context explains why mode.uniqueness is high *)
 let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
-  let res =
-    match expected_mode.tuple_modes with
-    | [] -> Value.submode mode expected_mode.mode
-    | ts -> Value.submode mode (Value.meet ts)
-  in
+  let res = Value.submode mode (as_single_mode expected_mode) in
   match res with
   | Ok () -> ()
   | Error failure_reason ->
@@ -582,14 +596,19 @@ let escape ~loc ~env ~reason m =
 
 type expected_pat_mode =
   { mode : Value.l;
-    tuple_modes : Value.l list; }
+    (** The mode of the current pattern. *)
+
+    tuple_modes : Value.l list option;
+    (** If the current pattern is [Ppat_tuple], the sub-patterns will have these
+        modes. It is sound to ignore this field and get weaker modes. *)
+    }
 
 let simple_pat_mode mode =
-  { mode = Value.disallow_right mode; tuple_modes = [] }
+  { mode = Value.disallow_right mode; tuple_modes = None }
 
 let tuple_pat_mode mode tuple_modes =
   let mode = Value.disallow_right mode in
-  let tuple_modes = Value.List.disallow_right tuple_modes in
+  let tuple_modes = Some (Value.List.disallow_right tuple_modes) in
   { mode; tuple_modes }
 
 let allocations : Alloc.r list ref = Local_store.s_ref []
@@ -611,7 +630,7 @@ let register_allocation_value_mode mode =
     of potential subcomponents. *)
 let register_allocation (expected_mode : expected_mode) =
   let alloc_mode, mode =
-    register_allocation_value_mode expected_mode.mode
+    register_allocation_value_mode (get_single_mode_exn expected_mode)
   in
   let alloc_mode =
     { mode = alloc_mode;
@@ -845,12 +864,7 @@ let expect_mode_cross env ty (expected_mode : expected_mode) =
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let upper_bounds = Const.alloc_as_value upper_bounds in
-  let mode = Value.imply upper_bounds expected_mode.mode in
-  (* - [strict_local] doesn't need to be updated, because it's only relavant for
-     functions, which don't cross locality.
-     - [mode_tuples] doesn't need to be updated, because [mode] being higher
-     won't violate the invariant. *)
-  { expected_mode with mode }
+  mode_morph (Value.imply upper_bounds) expected_mode
 
 let mode_annots_from_pat pat =
   let modes =
@@ -1444,10 +1458,10 @@ let reorder_pat loc env patl closed labeled_tl expected_ty =
 let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
   let arity = List.length args in
   let arg_modes =
-    if List.compare_length_with alloc_mode.tuple_modes arity = 0 then
-      alloc_mode.tuple_modes
-    else
-      List.init arity (fun _ -> alloc_mode.mode)
+    match alloc_mode.tuple_modes with
+    (* CR zqian: improve the modes of opened labeled tuple pattern. *)
+    | Some l when List.compare_length_with l arity = 0 -> l
+    | _ -> List.init arity (fun _ -> alloc_mode.mode)
   in
   let ann =
     (* CR layouts v5: restriction to value here to be relaxed. *)
@@ -4738,7 +4752,7 @@ let split_function_ty
          to be made global if its inner function is global. As a result, a
          function deserves a separate allocation mode.
       *)
-      let mode, _ = Value.newvar_below expected_mode.mode in
+      let mode, _ = Value.newvar_below (get_single_mode_exn expected_mode) in
       fst (register_allocation_value_mode mode)
   in
   if expected_mode.strictly_local then
@@ -4943,9 +4957,7 @@ let pat_modes ~force_toplevel rec_mode_var (attrs, spat) =
             simple_pat_mode mode, mode_default mode
         | Local_tuple arity ->
             let modes = List.init arity (fun _ -> Value.newvar ()) in
-            let mode =
-              value_regional_to_local (fst (Value.newvar_above (Value.join modes)))
-            in
+            let mode = Value.newvar () in
             tuple_pat_mode mode modes, mode_tuple mode modes
       end
     | Some mode ->
@@ -5060,10 +5072,12 @@ and type_expect_
               Env.find_value_by_name (Longident.Lident ("self-" ^ cl_num)) env
             in
             Texp_ident(path, lid, desc, kind,
-              unique_use ~loc ~env actual_mode.mode expected_mode.mode)
+              unique_use ~loc ~env actual_mode.mode
+                (get_single_mode_exn expected_mode))
         | _ ->
             Texp_ident(path, lid, desc, kind,
-              unique_use ~loc ~env actual_mode.mode expected_mode.mode)
+              unique_use ~loc ~env actual_mode.mode
+                (as_single_mode expected_mode))
       in
       let exp = rue {
         exp_desc; exp_loc = loc; exp_extra = [];
@@ -5337,8 +5351,7 @@ and type_expect_
           simple_pat_mode mode, mode_default mode
         | Local_tuple arity ->
           let modes = List.init arity (fun _ -> Value.newvar ()) in
-          let mode, _ = Value.newvar_above (Value.join modes) in
-          let mode = value_regional_to_local mode in
+          let mode = Value.newvar () in
           tuple_pat_mode mode modes, mode_tuple mode modes
       in
       let arg, sort =
@@ -5580,7 +5593,8 @@ and type_expect_
                   in
                   submode ~loc ~env mode argument_mode;
                   Kept (ty_arg1, lbl.lbl_mut,
-                        unique_use ~loc ~env mode argument_mode.mode)
+                        unique_use ~loc ~env mode
+                          (get_single_mode_exn argument_mode))
                 end
             in
             let label_definitions = Array.map unify_kept lbl.lbl_all in
@@ -5642,12 +5656,14 @@ and type_expect_
           let alloc_mode, argument_mode = register_allocation expected_mode in
           let mode = mode_cross_left env Predef.type_unboxed_float mode in
           submode ~loc ~env mode argument_mode;
-          let uu = unique_use ~loc ~env mode argument_mode.mode in
+          let uu =
+            unique_use ~loc ~env mode (get_single_mode_exn argument_mode)
+          in
           Boxing (alloc_mode, uu)
         | false ->
           let mode = mode_cross_left env ty_arg mode in
           submode ~loc ~env mode expected_mode;
-          let uu = unique_use ~loc ~env mode expected_mode.mode in
+          let uu = unique_use ~loc ~env mode (as_single_mode expected_mode) in
           Non_boxing uu
       in
       rue {
@@ -7297,7 +7313,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
     Some (safe_expect, lv) ->
       (* apply omittable arguments when expected type is "" *)
       (* we must be very careful about not breaking the semantics *)
-      let exp_mode, _ = Value.newvar_below mode.mode in
+      let exp_mode, _ = Value.newvar_below (as_single_mode mode) in
       let texp =
         with_local_level_if_principal ~post:generalize_structure_exp
           (fun () -> type_exp env {mode with mode = Value.disallow_left exp_mode} sarg)
@@ -7633,9 +7649,13 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
   let argument_modes =
-    if List.compare_length_with expected_mode.tuple_modes arity = 0 then
-      expected_mode.tuple_modes
-    else List.init arity (fun _ -> argument_mode)
+    match expected_mode.tuple_modes with
+    (* CR zqian: improve the modes of opened labeled tuple pattern. *)
+    | Some tuple_modes when List.compare_length_with tuple_modes arity = 0 ->
+        List.map (fun mode -> Value.meet [mode; argument_mode])
+          tuple_modes
+    | _ ->
+        List.init arity (fun _ -> argument_mode)
   in
   let types_and_modes = List.combine labeled_subtypes argument_modes in
   let expl =
@@ -8684,12 +8704,6 @@ and type_expect_jane_syntax
         ~loc ~env ~expected_mode ~ty_expected ~explanation ~attributes x
 
 and type_expect_mode ~loc ~env ~(modes : Alloc.Const.Option.t) expected_mode =
-  match modes = Alloc.Const.Option.none with
-  | true ->
-    (* This is not just a short-circuit, it also prevents [mode_coerce] below from
-       removing [tuple_modes] when there's no mode annotation on the tuple *)
-    expected_mode
-  | false ->
     let min = Alloc.Const.Option.value ~default:Alloc.Const.min modes |> Const.alloc_as_value in
     let max = Alloc.Const.Option.value ~default:Alloc.Const.max modes |> Const.alloc_as_value in
     submode ~loc ~env ~reason:Other (Value.of_const min) expected_mode;
