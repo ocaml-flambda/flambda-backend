@@ -14,8 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Stdlib
-
 (** Extensible buffers.
 
    This module implements buffers that automatically expand
@@ -40,6 +38,8 @@ open! Stdlib
 [@@@alert unsynchronized_access
     "Unsynchronized accesses to buffers are a programming error."
 ]
+
+open! Stdlib
 
  (**
     Unsynchronized accesses to a buffer may lead to an invalid buffer state.
