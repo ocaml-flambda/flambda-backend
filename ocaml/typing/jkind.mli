@@ -55,7 +55,7 @@ module Nullability : sig
     | Non_null (* proven to not have NULL values *)
     | Maybe_null (* may have NULL values *)
 
-    include module type of Jkind_types.Nullability with type t := t
+  include module type of Jkind_types.Nullability with type t := t
 end
 
 module Sort : Jkind_intf.Sort with type const = Jkind_types.Sort.const
@@ -163,6 +163,8 @@ module Const : sig
   val of_user_written_annotation :
     context:History.annotation_context -> Jane_syntax.Jkind.annotation -> t
 
+  (* CR layouts: Remove this once we have a better story for printing with jkind
+     abbreviations. *)
   module Builtin : sig
     type nonrec t =
       { jkind : t;
