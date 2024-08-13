@@ -680,11 +680,10 @@ end = struct
              then None
              else Cycle_witness.find_cycle_with_edge t ~with_loc:e ~gas
            in
-           let to_warning_info
-               (cycle, (uses_unknown : Cycle_witness.Tendril.Priority.phase)) =
+           let to_warning_info (cycle, uses_unknown) =
              let cycle = cycle |> List.map Edge.With_loc.to_error_string in
              let uses_unknown =
-               match uses_unknown with
+               match (uses_unknown : Cycle_witness.Tendril.Priority.phase) with
                | Uses_unknown_edge -> true
                | Doesn't_use_unknown_edge -> false
              in
