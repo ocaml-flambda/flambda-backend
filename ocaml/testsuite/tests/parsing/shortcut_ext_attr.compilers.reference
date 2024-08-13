@@ -73,10 +73,14 @@
                             expression (shortcut_ext_attr.ml[14,294+3]..[14,294+24])
                               attribute "foo"
                                 []
-                              attribute "jane.erasable._builtin"
-                                []
-                              Pexp_fun
-                              Nolabel
+                              Pexp_function
+                              [
+                                Pparam_val (shortcut_ext_attr.ml[14,294+17]..[14,294+18])
+                                  Nolabel
+                                  None
+                                  pattern (shortcut_ext_attr.ml[14,294+17]..[14,294+18])
+                                    Ppat_var "x" (shortcut_ext_attr.ml[14,294+17]..[14,294+18])
+                              ]
                               None
                               Pfunction_body
                                 expression (shortcut_ext_attr.ml[14,294+22]..[14,294+24])
@@ -92,8 +96,6 @@
                               Pstr_eval
                               expression (shortcut_ext_attr.ml[15,322+3]..[15,322+29])
                                 attribute "foo"
-                                  []
-                                attribute "jane.erasable._builtin"
                                   []
                                 Pexp_function
                                 []
