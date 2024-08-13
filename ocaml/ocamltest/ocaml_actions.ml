@@ -812,7 +812,7 @@ let run_expect_once input_file principal log env =
   let principal_flag = if principal then "-principal" else "" in
   let commandline =
   [
-    Ocaml_commands.ocamlrun_expect;
+    Ocaml_commands.expect;
     expect_flags;
     Ocaml_flags.toplevel_default_flags;
     Ocaml_flags.stdlib;
