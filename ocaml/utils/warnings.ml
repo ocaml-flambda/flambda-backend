@@ -585,7 +585,7 @@ let descriptions = [
     since = since 4 14 };
   { number = 211;
     names = ["mod-by-top"];
-    description = "Modifying by the top element of an axis is a no-op.";
+    description = "Including the top-most element of an axis in a kind's modifiers is a no-op.";
     since = since 4 14 };
 ]
 
@@ -1225,7 +1225,7 @@ let message = function
          The type of this value does not allow unboxing."
   | Mod_by_top modifier ->
       Printf.sprintf
-        "The modifier %s is a top.\n\
+        "%s is the top-most modifier.\n\
          Modifying by a top element is a no-op."
         modifier
 ;;
