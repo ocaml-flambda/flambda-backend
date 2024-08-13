@@ -194,15 +194,15 @@ let[@inline always] min_num x y = of_float32 (Float32.min_num (to_float32 x) (to
 
 let[@inline always] max_num x y = of_float32 (Float32.max_num (to_float32 x) (to_float32 y))
 
-let iround_half_to_even x = unbox_int64 (Float32.iround_half_to_even (to_float32 x))
+let[@inline always] iround_current x = unbox_int64 (Float32.iround_current (to_float32 x))
 
-let round_half_to_even x = of_float32 (Float32.round_half_to_even (to_float32 x))
+let[@inline always] round_current x = of_float32 (Float32.round_current (to_float32 x))
 
-let round_down x = of_float32 (Float32.round_down (to_float32 x))
+let[@inline always] round_down x = of_float32 (Float32.round_down (to_float32 x))
 
-let round_up x = of_float32 (Float32.round_up (to_float32 x))
+let[@inline always] round_up x = of_float32 (Float32.round_up (to_float32 x))
 
-let round_towards_zero x = of_float32 (Float32.round_towards_zero (to_float32 x))
+let[@inline always] round_towards_zero x = of_float32 (Float32.round_towards_zero (to_float32 x))
 
 module Bytes = struct
   let get bytes ~pos = of_float32 (Float32.Bytes.get bytes ~pos)
