@@ -41,5 +41,5 @@ let ocamlrun_ocamlobjinfo =
 let ocamlrun_ocamlmklib =
   ocamlrun Ocaml_files.ocamlmklib
 
-let ocamlrun_codegen =
-  ocamlrun Ocaml_files.codegen
+let codegen =
+  Ocaml_files.codegen

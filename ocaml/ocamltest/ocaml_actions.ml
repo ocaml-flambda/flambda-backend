@@ -732,7 +732,7 @@ let run_codegen log env =
   let env = Environments.add Builtin_variables.output output env in
   let commandline =
   [
-    Ocaml_commands.ocamlrun_codegen;
+    Ocaml_commands.codegen;
     flags env;
     "-S " ^ testfile
   ] in
