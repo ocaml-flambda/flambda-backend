@@ -624,7 +624,7 @@ end = struct
 
     (* Gas is decremented once per edge examined. *)
     let find_cycle_with_edge graph ~(with_loc : Edge.With_loc.t) ~gas :
-        (Edge.With_loc.t list * bool) option * int =
+        (Edge.With_loc.t list * Tendril.Priority.phase) option =
       let module Priority = Tendril.Priority in
       let visited = Vertex.Hashset.create 100 in
       let enqueue, dequeue =
@@ -640,70 +640,58 @@ end = struct
           then None
           else
             let elt = Priority.Pqueue.get_and_remove q in
-            Some (elt.priority, elt.data)
+            Some elt.data
         in
         enqueue, dequeue
       in
       let source = with_loc.edge.from in
       Vertex.Hashset.add visited source;
       enqueue (Tendril.singleton with_loc);
-      let rec loop gas =
-        if gas = 0
-        then None, gas
+      let rec loop () =
+        if !gas <= 0
+        then None
         else
           match dequeue () with
-          | None -> None, gas
-          | Some (priority, cur) ->
+          | None -> None
+          | Some cur ->
+            let priority = Tendril.priority cur in
             let tip = Tendril.tip cur in
             if Vertex.equal tip source
-            then
-              let uses_unknown =
-                match Priority.phase priority with
-                | Doesn't_use_unknown_edge -> false
-                | Uses_unknown_edge -> true
-              in
-              Some (List.rev (Tendril.edges cur), uses_unknown), gas
+            then Some (List.rev (Tendril.edges cur), Priority.phase priority)
             else if Vertex.Hashset.mem visited tip
-            then loop gas
+            then loop ()
             else (
               Vertex.Hashset.add visited tip;
-              let gas =
-                successors graph tip
-                |> List.fold_left
-                     (fun gas succ ->
-                       enqueue (Tendril.cons succ cur);
-                       gas - 1)
-                     gas
-              in
-              loop gas)
+              successors graph tip
+              |> List.iter (fun succ -> enqueue (Tendril.cons succ cur));
+              loop ())
       in
-      loop gas
+      loop ()
   end
 
   let warn_inferred_nontail_in_tco'd_cycle t ~sccs =
-    let gas = 100_000 in
-    let gas =
-      sccs
-      |> List.concat_map (fun scc -> possibly_newly_overflowing_edges t ~scc)
-      |> List.sort Edge.With_loc.compare
-      |> List.fold_left
-           (fun gas (e : Edge.With_loc.t) ->
-             let cycle, gas =
-               if gas = 0
-               then None, 0
-               else Cycle_witness.find_cycle_with_edge t ~with_loc:e ~gas
+    let gas = ref 100_000 in
+    sccs
+    |> List.concat_map (fun scc -> possibly_newly_overflowing_edges t ~scc)
+    |> List.sort Edge.With_loc.compare
+    |> List.iter (fun (e : Edge.With_loc.t) ->
+           let cycle =
+             if !gas <= 0
+             then None
+             else Cycle_witness.find_cycle_with_edge t ~with_loc:e ~gas
+           in
+           let to_warning_info (cycle, uses_unknown) =
+             let cycle = cycle |> List.map Edge.With_loc.to_error_string in
+             let uses_unknown =
+               match (uses_unknown : Cycle_witness.Tendril.Priority.phase) with
+               | Uses_unknown_edge -> true
+               | Doesn't_use_unknown_edge -> false
              in
-             let to_warning_info (cycle, uses_unknown) =
-               let cycle = cycle |> List.map Edge.With_loc.to_error_string in
-               cycle, uses_unknown
-             in
-             let warning_info = cycle |> Option.map to_warning_info in
-             Location.prerr_warning e.loc
-               (Warnings.Inferred_nontail_in_tcod_cycle warning_info);
-             gas)
-           gas
-    in
-    ignore (gas : int)
+             cycle, uses_unknown
+           in
+           let warning_info = cycle |> Option.map to_warning_info in
+           Location.prerr_warning e.loc
+             (Warnings.Inferred_nontail_in_tcod_cycle warning_info))
 
   let print_vertex_line ~indent ppf kv =
     let color = if Vertex.is_unknown kv then "red" else "black" in
