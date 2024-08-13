@@ -83,16 +83,16 @@ let modifiers =
 (* Raise an error if the user duplicated annotations along an axis, and a warning
    if they used a top. The warning is only output when annot_type is Modifier *)
 let check_annot (type a) ~(annot_type : annot_type) ~(axis : a axis) ~old
-    ~(new_ : a) ~(new_raw : _ Location.loc) =
+    ~(new_ : a Location.loc) =
   let is_top =
     match axis, new_ with
-    | Modal Areality, _ -> Mode.Locality.Const.(le max new_)
-    | Modal Linearity, _ -> Mode.Linearity.Const.(le max new_)
-    | Modal Uniqueness, _ -> Mode.Uniqueness.Const.(le max new_)
-    | Modal Portability, _ -> Mode.Portability.Const.(le max new_)
-    | Modal Contention, _ -> Mode.Contention.Const.(le max new_)
-    | Nonmodal Externality, _ -> Jkind_types.Externality.(le max new_)
-    | Nonmodal Nullability, _ -> Jkind_types.Nullability.(le max new_)
+    | Modal Areality, _ -> Mode.Locality.Const.(le max new_.txt)
+    | Modal Linearity, _ -> Mode.Linearity.Const.(le max new_.txt)
+    | Modal Uniqueness, _ -> Mode.Uniqueness.Const.(le max new_.txt)
+    | Modal Portability, _ -> Mode.Portability.Const.(le max new_.txt)
+    | Modal Contention, _ -> Mode.Contention.Const.(le max new_.txt)
+    | Nonmodal Externality, _ -> Jkind_types.Externality.(le max new_.txt)
+    | Nonmodal Nullability, _ -> Jkind_types.Nullability.(le max new_.txt)
   in
   (match annot_type with
   | Modifier ->
@@ -106,10 +106,10 @@ let check_annot (type a) ~(annot_type : annot_type) ~(axis : a axis) ~old
   | Mode -> ());
   match old with
   | None -> ()
-  | Some _ -> raise (Error (new_raw.loc, Duplicated_axis axis))
+  | Some _ -> raise (Error (new_.loc, Duplicated_axis axis))
 
 let set_axis (type a) ~annot_type ~(axis : a axis) (acc : modifiers)
-    (modifier : a) raw : modifiers =
+    (modifier : a Location.loc) : modifiers =
   let old : a option =
     match axis with
     | Modal Areality -> acc.modal_upper_bounds.areality
@@ -120,21 +120,21 @@ let set_axis (type a) ~annot_type ~(axis : a axis) (acc : modifiers)
     | Nonmodal Externality -> acc.externality_upper_bound
     | Nonmodal Nullability -> acc.nullability_upper_bound
   in
-  check_annot ~annot_type ~axis ~old ~new_:modifier ~new_raw:raw;
+  check_annot ~annot_type ~axis ~old ~new_:modifier;
   match axis with
   | Modal axis ->
     let modal_upper_bounds : Mode.Alloc.Const.Option.t =
       match axis with
-      | Areality -> { acc.modal_upper_bounds with areality = Some modifier }
-      | Uniqueness -> { acc.modal_upper_bounds with uniqueness = Some modifier }
-      | Linearity -> { acc.modal_upper_bounds with linearity = Some modifier }
+      | Areality -> { acc.modal_upper_bounds with areality = Some modifier.txt }
+      | Uniqueness -> { acc.modal_upper_bounds with uniqueness = Some modifier.txt }
+      | Linearity -> { acc.modal_upper_bounds with linearity = Some modifier.txt }
       | Portability ->
-        { acc.modal_upper_bounds with portability = Some modifier }
-      | Contention -> { acc.modal_upper_bounds with contention = Some modifier }
+        { acc.modal_upper_bounds with portability = Some modifier.txt }
+      | Contention -> { acc.modal_upper_bounds with contention = Some modifier.txt }
     in
     { acc with modal_upper_bounds }
-  | Nonmodal Externality -> { acc with externality_upper_bound = Some modifier }
-  | Nonmodal Nullability -> { acc with nullability_upper_bound = Some modifier }
+  | Nonmodal Externality -> { acc with externality_upper_bound = Some modifier.txt }
+  | Nonmodal Nullability -> { acc with nullability_upper_bound = Some modifier.txt }
 
 let transl_annots (annot_type : annot_type) annots =
   let transl_annot modifiers_so_far annot =
@@ -144,7 +144,8 @@ let transl_annots (annot_type : annot_type) annots =
       | Some (Axis_pair (Nonmodal _, _)), Mode | None, _ ->
         raise (Error (loc, Unrecognized_modifier (annot_type, annot_txt)))
       | Some (Axis_pair (axis, mode)), _ ->
-        set_axis ~annot_type ~axis modifiers_so_far mode annot
+        set_axis ~annot_type ~axis modifiers_so_far
+          { txt = mode; loc = loc }
     in
     modifiers
   in
