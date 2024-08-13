@@ -1,0 +1,4 @@
+(library
+ (wrapped false)
+ (name lib)
+ (modules lib))

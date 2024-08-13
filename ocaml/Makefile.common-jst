@@ -90,6 +90,7 @@ runtime-stdlib: boot-compiler
 compiler: runtime-stdlib
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) --verbose \
           --only-package=ocaml @install testsuite/tools/expect.exe \
+          ocaml/testsuite/lib/lib.cma \
           $(ocamldir)/tools/dumpobj.bc
 
 runtest: compiler
@@ -232,6 +233,8 @@ install_for_test: _install
 	cp -a testsuite/tools/* _runtest/testsuite/tools/
 	cp $(main_build)/testsuite/tools/expect.exe _runtest/testsuite/tools/expect
 	chmod 755 _runtest/testsuite/tools/expect
+	cp $(main_build)/ocaml/testsuite/lib/.lib.objs/byte/lib.cmo \
+          _runtest/testsuite/lib/
 	 # replace backend-specific testsuite/tests/asmcomp with their new versions
 	rm _runtest/testsuite/tests/asmcomp/*
 	cp -a testsuite/tests/asmcomp/* _runtest/testsuite/tests/asmcomp/
