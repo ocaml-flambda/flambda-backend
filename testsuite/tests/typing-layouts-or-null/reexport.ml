@@ -134,7 +134,7 @@ type ('a : float64) t = 'a or_null [@@or_null_reexport]
 Line 1, characters 24-26:
 1 | type ('a : float64) t = 'a or_null [@@or_null_reexport]
                             ^^
-Error: This type ('a : value) should be an instance of type ('a0 : float64)
+Error: This type ('a : float64) should be an instance of type ('b : value)
        The layout of 'a is float64
          because of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value
