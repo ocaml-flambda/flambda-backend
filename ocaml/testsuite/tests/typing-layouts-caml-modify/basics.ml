@@ -51,7 +51,7 @@ type 'a boxed_variant = Boxed of 'a
 type 'a unboxed_variant = Unboxed of 'a [@@unboxed]
 type external_variant : value mod external_ = External
 type 'a unboxed_record = { unboxed : 'a } [@@unboxed]
-type 'a external_record = { boxed : 'a }
+type 'a internal_record = { boxed : 'a }
 
 (* Internal values result in caml_modify calls *)
 let () =
