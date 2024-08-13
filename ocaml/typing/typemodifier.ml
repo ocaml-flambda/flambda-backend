@@ -1,3 +1,16 @@
+(**************************************************************************)
+(*                                                                        *)
+(*                                 OCaml                                  *)
+(*                                                                        *)
+(*                  Liam Stevenson, Jane Street, New York                 *)
+(*                                                                        *)
+(*   Copyright 2024 Jane Street Group LLC                                 *)
+(*                                                                        *)
+(*   All rights reserved.  This file is distributed under the terms of    *)
+(*   the GNU Lesser General Public License version 2.1, with the          *)
+(*   special exception on linking described in the file LICENSE.          *)
+(*                                                                        *)
+(**************************************************************************)
 type modifiers =
   { modal_upper_bounds : Mode.Alloc.Const.Option.t;
     externality_upper_bound : Jkind_types.Externality.t option;
