@@ -5,7 +5,8 @@ type error = Unrecognized_modality of string
 
 exception Error of Location.t * error
 
-let transl_mode_annots modes = Typemodifier.transl_mode_annots modes
+let transl_mode_annots modes =
+  Typemodifier.transl_mode_annots ~required_mode_maturity:Stable modes
 
 let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
   let print_to_string_opt print a = Option.map (Format.asprintf "%a" print) a in

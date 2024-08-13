@@ -126,26 +126,34 @@ let set_axis (type a) ~annot_type ~(axis : a axis) (acc : modifiers)
     let modal_upper_bounds : Mode.Alloc.Const.Option.t =
       match axis with
       | Areality -> { acc.modal_upper_bounds with areality = Some modifier.txt }
-      | Uniqueness -> { acc.modal_upper_bounds with uniqueness = Some modifier.txt }
-      | Linearity -> { acc.modal_upper_bounds with linearity = Some modifier.txt }
+      | Uniqueness ->
+        { acc.modal_upper_bounds with uniqueness = Some modifier.txt }
+      | Linearity ->
+        { acc.modal_upper_bounds with linearity = Some modifier.txt }
       | Portability ->
         { acc.modal_upper_bounds with portability = Some modifier.txt }
-      | Contention -> { acc.modal_upper_bounds with contention = Some modifier.txt }
+      | Contention ->
+        { acc.modal_upper_bounds with contention = Some modifier.txt }
     in
     { acc with modal_upper_bounds }
-  | Nonmodal Externality -> { acc with externality_upper_bound = Some modifier.txt }
-  | Nonmodal Nullability -> { acc with nullability_upper_bound = Some modifier.txt }
+  | Nonmodal Externality ->
+    { acc with externality_upper_bound = Some modifier.txt }
+  | Nonmodal Nullability ->
+    { acc with nullability_upper_bound = Some modifier.txt }
 
-let transl_annots (annot_type : annot_type) annots =
+let transl_annots ~annot_type ~required_mode_maturity annots =
   let transl_annot modifiers_so_far annot =
     let ({ txt = Mode annot_txt; loc } : Parsetree.mode Location.loc) = annot in
+    Option.iter
+      (fun maturity ->
+        Jane_syntax_parsing.assert_extension_enabled ~loc Mode maturity)
+      required_mode_maturity;
     let modifiers =
       match Str_map.find_opt annot_txt modifiers, annot_type with
       | Some (Axis_pair (Nonmodal _, _)), Mode | None, _ ->
         raise (Error (loc, Unrecognized_modifier (annot_type, annot_txt)))
       | Some (Axis_pair (axis, mode)), _ ->
-        set_axis ~annot_type ~axis modifiers_so_far
-          { txt = mode; loc = loc }
+        set_axis ~annot_type ~axis modifiers_so_far { txt = mode; loc }
     in
     modifiers
   in
@@ -157,8 +165,10 @@ let transl_annots (annot_type : annot_type) annots =
   in
   List.fold_left transl_annot empty_modifiers annots
 
-let transl_mode_annots annots =
-  let modifiers = transl_annots Mode annots in
+let transl_mode_annots ?required_mode_maturity annots =
+  let modifiers =
+    transl_annots ~annot_type:Mode ~required_mode_maturity annots
+  in
   let assert_empty axis bound =
     if Option.is_some bound
     then
@@ -174,7 +184,8 @@ let transl_mode_annots annots =
   assert_empty Nullability modifiers.nullability_upper_bound;
   modifiers.modal_upper_bounds
 
-let transl_modifier_annots = transl_annots Modifier
+let transl_modifier_annots annots =
+  transl_annots ~annot_type:Modifier ~required_mode_maturity:None annots
 
 (* Error reporting *)
 

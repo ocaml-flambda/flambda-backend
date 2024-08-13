@@ -19,9 +19,10 @@ type modifiers =
 
 (** Interpret a list of modes *)
 val transl_mode_annots :
-  Parsetree.modes -> Mode.Alloc.Const.Option.t
+  ?required_mode_maturity:Language_extension.maturity ->
+  Parsetree.modes ->
+  Mode.Alloc.Const.Option.t
 
 (** Interpret a list of modifiers.
     A "modifier" is any keyword coming after a `mod` in a jkind *)
-val transl_modifier_annots :
-  Parsetree.modes -> modifiers
+val transl_modifier_annots : Parsetree.modes -> modifiers
