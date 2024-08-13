@@ -132,8 +132,11 @@
 
 
 #ifdef DEBUG
+#define CHECK_STACK_ALIGNMENT \
+        test $0xf, %rsp; jz 9f; int3; 9:
 #define IF_DEBUG(...) __VA_ARGS__
 #else
+#define CHECK_STACK_ALIGNMENT
 #define IF_DEBUG(...)
 #endif
 
@@ -149,7 +152,6 @@
 #define Handler_parent          24
 
 /* struct c_stack_link */
-<<<<<<< HEAD
 #if defined(SYS_mingw64) || defined (SYS_cygwin)
 #define Cstack_stack             32
 #define Cstack_sp                40
@@ -165,23 +167,6 @@
 /* 8 bytes are left empty to ensure the stack is 16-aligned */
 #define SIZEOF_C_STACK_LINK      40
 #endif
-||||||| 121bedcfd2
-#define Cstack_stack             0
-#define Cstack_sp                8
-#define Cstack_prev             16
-=======
-#if defined(SYS_mingw64) || defined (SYS_cygwin)
-#define Cstack_stack            32
-#define Cstack_sp               40
-#define Cstack_prev             48
-#define SIZEOF_C_STACK_LINK     56
-#else
-#define Cstack_stack             0
-#define Cstack_sp                8
-#define Cstack_prev             16
-#define SIZEOF_C_STACK_LINK     24
-#endif
->>>>>>> 5.2.0
 
 /******************************************************************************/
 /* DWARF */
@@ -437,26 +422,7 @@
 
 #endif
 
-<<<<<<< HEAD
 #define C_call(target) CHECK_STACK_ALIGNMENT; call target
-||||||| 121bedcfd2
-#if defined(SYS_mingw64) || defined (SYS_cygwin)
-   /* Calls from OCaml to C must reserve 32 bytes of extra stack space */
-#  define PREPARE_FOR_C_CALL subq $32, %rsp; CFI_ADJUST(32)
-#  define CLEANUP_AFTER_C_CALL addq $32, %rsp; CFI_ADJUST(-32)
-   /* Stack probing mustn't be larger than the page size */
-#  define STACK_PROBE_SIZE 4096
-#else
-#  define PREPARE_FOR_C_CALL
-#  define CLEANUP_AFTER_C_CALL
-#  define STACK_PROBE_SIZE 4096
-#endif
-
-#define C_call(target) \
-  PREPARE_FOR_C_CALL; CHECK_STACK_ALIGNMENT; call target; CLEANUP_AFTER_C_CALL
-=======
-#define C_call(target) call target
->>>>>>> 5.2.0
 
 /******************************************************************************/
 /* Registers holding arguments of C functions. */
@@ -582,6 +548,8 @@ G(caml_system__code_begin):
         movupd       (14*16 + 13*8)(%r15),%xmm14;      \
         movupd       (15*16 + 13*8)(%r15),%xmm15;      \
         movq    Caml_state(young_ptr), %r15
+
+// CR mshinwell: the below probably needs fixing for SIMD
 
 /* Save non-callee saved registers that may be in use to a free gc_regs
    bucket, except for %xmm8 to %xmm15 as they are not used to pass
@@ -971,11 +939,6 @@ LBL(108):
         movq    %r10, Caml_state(async_exn_handler)
         movq    Cstack_prev(%rsp), %r10
         movq    %r10, Caml_state(c_stack)
-<<<<<<< HEAD
-        addq    $SIZEOF_C_STACK_LINK, %rsp; CFI_ADJUST(-SIZEOF_C_STACK_LINK)
-||||||| 121bedcfd2
-        addq    $24, %rsp; CFI_ADJUST(-24)
-=======
         addq    $SIZEOF_C_STACK_LINK, %rsp; CFI_ADJUST(-SIZEOF_C_STACK_LINK)
 #if defined(WITH_THREAD_SANITIZER)
     /* We can't use the TSAN_EXIT_FUNCTION macro as it assumes an OCaml stack,
@@ -986,7 +949,6 @@ LBL(108):
         C_call  (GCALL(__tsan_func_exit))
         popq    %rax; CFI_ADJUST(-8)
 #endif
->>>>>>> 5.2.0
     /* Restore callee-save registers. */
         POP_CALLEE_SAVE_REGS
     /* Return to caller. */
@@ -1021,41 +983,17 @@ LBL(117):
         movq    %rsp, %r13        /* Save OCaml stack pointer */
         movq    %rax, %r12        /* Save exception bucket */
         movq    Caml_state(c_stack), %rsp
-<<<<<<< HEAD
         movq    %rax, C_ARG_1     /* arg 1: exception bucket */
-        movq    %r10, C_ARG_2     /* arg 2: passed rsp */
+        movq    %r13, C_ARG_2     /* arg 2: passed rsp */
         movq    Caml_state(exn_handler), C_ARG_3
                                   /* arg 3: sp of handler */
         C_call  (GCALL(caml_stash_backtrace_wrapper))
-||||||| 121bedcfd2
-        movq    %rax, C_ARG_1     /* arg 1: exception bucket */
-#ifdef WITH_FRAME_POINTERS
-        movq    8(%r10), C_ARG_2   /* arg 2: pc of raise */
-        leaq    16(%r10), C_ARG_3  /* arg 3: sp at raise */
-#else
-        movq    (%r10), C_ARG_2   /* arg 2: pc of raise */
-        leaq    8(%r10), C_ARG_3  /* arg 3: sp at raise */
-#endif
-        movq    Caml_state(exn_handler), C_ARG_4
-                                  /* arg 4: sp of handler */
-        C_call  (GCALL(caml_stash_backtrace))
-=======
-        movq    %rax, C_ARG_1                    /* arg 1: exception bucket */
-        movq    STACK_RETADDR(%r13), C_ARG_2     /* arg 2: pc of raise */
-        leaq    STACK_ARG_1(%r13), C_ARG_3       /* arg 3: sp at raise */
-        movq    Caml_state(exn_handler), C_ARG_4 /* arg 4: sp of handler */
-        C_call  (GCALL(caml_stash_backtrace))
->>>>>>> 5.2.0
         movq    %r12, %rax        /* Recover exception bucket */
         RESTORE_EXN_HANDLER_OCAML
         ret
 CFI_ENDPROC
 ENDFUNCTION(G(caml_raise_exn))
 
-<<<<<<< HEAD
-
-||||||| 121bedcfd2
-=======
 #if defined(WITH_THREAD_SANITIZER)
 /* When TSan support is enabled, this routine should be called just before
    raising an exception. It calls __tsan_func_exit for every OCaml frame about
@@ -1077,7 +1015,6 @@ CFI_ENDPROC
 ENDFUNCTION(G(caml_tsan_exit_on_raise_asm))
 #endif
 
->>>>>>> 5.2.0
 FUNCTION(G(caml_reraise_exn))
 CFI_STARTPROC
         ENTER_FUNCTION
