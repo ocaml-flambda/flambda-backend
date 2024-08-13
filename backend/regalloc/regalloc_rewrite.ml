@@ -43,13 +43,20 @@ type direction =
    times in a block. It iterates over each block and builds a substitution from
    the first used temporary for each variable to all the other temporaries used
    later for that variable, deleting now redundant reload/spill instructions
-   along the way. This currently does not support the case where spilled nodes
-   are used directly in instructions (if allowed by the ISA) without a new
-   temporary being created. This optimization does not use spills introduced in
-   inserted blocks due to spilling in the terminator to remove spills in the
-   original block. Returns the new block temporaries and removes the now block
-   temporaries and the instruction temporaries for now removed instructions from
-   [new_temporaries]. *)
+   along the way.
+
+   This optimization is unsound when spilled nodes are used directly in
+   instructions (if allowed by the ISA) without a new temporary being created
+   (hence stack operands are not used in [rewrite_gen] if this optimization is
+   enabled). Spills in blocks inserted by [rewrite_gen] (due to spills in block
+   terminators) do not share temporaries with the body of the original block and
+   are hence not considered in this optimization.
+
+   No new temporaries are created by this optimization. Some temporaries are
+   promoted to block temporaries (and so moved from the list of new instruction
+   temporaries to the list of new block temporaries). Instruction temporaries
+   that are now redundant (due to being replaced by block temporaries) are
+   removed from the list of new instruction temporaries. *)
 let coalesce_temp_spills_and_reloads (block : Cfg.basic_block)
     ~new_inst_temporaries ~new_block_temporaries =
   (* CR-soon mitom: Avoid cases where optimisation worsens spills and reloads
