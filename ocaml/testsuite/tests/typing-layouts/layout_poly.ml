@@ -77,6 +77,8 @@ module M = struct
   let () = Format.printf "%f %s\n" (F.to_float (id' #1.)) (id' "abc")
 end
 
+(* CR layouts v2.8: The jkind in the error message is wrong. It should really be
+   ('a : layout float64) *)
 [%%expect{|
 Line 4, characters 63-68:
 4 |   let () = Format.printf "%f %s\n" (F.to_float (id' #1.)) (id' "abc")
@@ -534,6 +536,8 @@ Error: Attribute [@layout_poly] can only be used on built-in primitives.
 external[@layout_poly] id : ('a : any) ('b : any). 'a -> 'b = "%identity"
 let f (x: float#): int64# = id x
 
+(* CR layouts v2.8: The jkind in the error message is wrong. It should really be
+   ('a : layout float64) *)
 [%%expect{|
 external id : ('a : any) ('b : any). 'a -> 'b = "%identity" [@@layout_poly]
 Line 2, characters 28-32:

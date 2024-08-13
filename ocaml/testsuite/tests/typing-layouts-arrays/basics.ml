@@ -271,6 +271,8 @@ module M6_2 = struct
   let f2 idx : int32# = get arr idx
 end
 
+(* CR layouts v2.8: The jkind in the error message is wrong. It should really be
+   ('a : layout float64) *)
 [%%expect{|
 Line 9, characters 24-35:
 9 |   let f2 idx : int32# = get arr idx
