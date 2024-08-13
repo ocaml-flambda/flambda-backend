@@ -78,7 +78,6 @@ let typecheck_intf info ast =
 
 let emit_signature info alerts tsg =
   let sg =
-    let name = Compilation_unit.name info.module_name in
     let kind : Cmi_format.kind =
       if !Clflags.as_parameter then
         Parameter
