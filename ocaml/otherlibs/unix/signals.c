@@ -76,9 +76,6 @@ CAMLprim value caml_unix_sigprocmask(value vaction, value vset)
   decode_sigset(vset, &set);
   caml_enter_blocking_section();
 #ifdef CAML_RUNTIME_5
-  // Differs from upstream at the point we branched, but this PR
-  // changes the behaviour to what we have here:
-  // https://github.com/ocaml/ocaml/pull/12743
   retcode = pthread_sigmask(how, &set, &oldset);
 #else
   retcode = caml_sigmask_hook(how, &set, &oldset);

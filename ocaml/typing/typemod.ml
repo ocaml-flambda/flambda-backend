@@ -1649,7 +1649,7 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
 
 
 
-and transl_signature ?(toplevel = false) env sg =
+and transl_signature env sg =
   let names = Signature_names.create () in
 
   let transl_include ~functor_ ~loc env sig_acc sincl =
@@ -1958,8 +1958,6 @@ and transl_signature ?(toplevel = false) env sg =
         typedtree, tsg, newenv
     | Psig_attribute attr ->
         Builtin_attributes.parse_standard_interface_attributes attr;
-        if toplevel || not (Warnings.is_active (Misplaced_attribute ""))
-        then Builtin_attributes.mark_alert_used attr;
         mksig (Tsig_attribute attr) env loc, [], env
     | Psig_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
@@ -3691,8 +3689,8 @@ let type_implementation target modulename initial_env ast =
              declarations like "let x = true;; let x = 1;;", because in this
              case, the inferred signature contains only the last declaration. *)
           let shape = Shape_reduce.local_reduce Env.empty shape in
+          let alerts = Builtin_attributes.alerts_of_str ~mark:true ast in
           if not !Clflags.dont_write_files then begin
-            let alerts = Builtin_attributes.alerts_of_str ast in
             let name = Compilation_unit.name modulename in
             let kind =
               Cmi_format.Normal { cmi_impl = modulename; cmi_arg_for = arg_type }
@@ -3751,7 +3749,7 @@ let type_interface ~sourcefile modulename env ast =
     let uid = Shape.Uid.of_compilation_unit_id modulename in
     cms_register_toplevel_signature_attributes ~uid ~sourcefile ast
   end;
-  let sg = transl_signature ~toplevel:true env ast in
+  let sg = transl_signature env ast in
   let arg_type =
     !Clflags.as_argument_for
     |> Option.map Compilation_unit.Name.of_string
@@ -3759,9 +3757,6 @@ let type_interface ~sourcefile modulename env ast =
   ignore (check_argument_type_if_given env sourcefile sg.sig_type arg_type
           : Typedtree.argument_interface option);
   sg
-
-let transl_signature env ast =
-  transl_signature ~toplevel:false env ast
 
 (* "Packaging" of several compilation units into one unit
    having them as sub-modules.  *)
