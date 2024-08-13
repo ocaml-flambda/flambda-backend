@@ -247,7 +247,7 @@ end
 (** Take an existing [t] and add an ability to mode-cross along all the axes. *)
 val add_mode_crossing : t -> t
 
-(** Take an existing [t] and add an ability to mode-cross across the nullability axis. *)
+(** Take an existing [t] and add an ability to cross across the nullability axis. *)
 val add_nullability_crossing : t -> t
 
 (** Take an existing [t] and add an ability to mode-cross along the portability and
