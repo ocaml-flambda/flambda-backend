@@ -333,15 +333,16 @@ let operation_allocates = function
   | Ibswap _ -> false
 
 (* See `amd64/arch.ml`. *)
-
-let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode)
+      (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Iindexed _, Iindexed _ -> 0
   | Iindexed _ , _ -> -1
   | _, Iindexed _ -> 1
   | Ibased (var1, _), Ibased (var2, _) -> String.compare var1 var2
 
-let compare_addressing_mode_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let compare_addressing_mode_displ (addressing_mode_1: addressing_mode)
+      (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Iindexed n1, Iindexed n2 -> Some (Int.compare n1 n2)
   | Ibased (var1, n1), Ibased (var2, n2) ->
@@ -349,16 +350,19 @@ let compare_addressing_mode_displ (addressing_mode_1: addressing_mode) (addressi
   | Iindexed _ , _ -> None
   | Ibased _ , _ -> None
 
-let addressing_offset_in_bytes (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) = None
+let addressing_offset_in_bytes (addressing_mode_1: addressing_mode)
+      (addressing_mode_2 : addressing_mode) =
+  None   (* conservative *)
 
 let can_cross_loads_or_stores (specific_operation : specific_operation) =
   match specific_operation with
   | Ifar_poll _ | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf | Imuladdf
   | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ ->
-    true
+    false   (* conservative *)
 
-let may_break_alloc_freshness (specific_operation : specific_operation) =
-  match specific_operation with
+let preserves_alloc_freshness (op : specific_operation) =
+  match op with
   | Ifar_poll _ | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf | Imuladdf
   | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ ->
-    false
+    false   (* conservative *)
+

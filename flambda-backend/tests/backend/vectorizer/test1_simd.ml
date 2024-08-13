@@ -3,7 +3,11 @@ module Int64_u = struct
 
   external to_int64 : t -> (int64[@local_opt]) = "%box_int64" [@@warning "-187"]
 
+  let to_int x = to_int64 x |> Int64.to_int
+
   external of_int64 : (int64[@local_opt]) -> t = "%unbox_int64" [@@warning "-187"]
+
+  let of_int x = Int64.of_int x |> of_int64
 end
 
 module Int64x2 = struct
@@ -43,18 +47,41 @@ module Int64x2 = struct
     low_64_to_high_64 ~onto:a ~from:b
   ;;
 
-  let of_int64s a b = set (Int64_u.of_int64 a) (Int64_u.of_int64 b)
-  let low_int64 t = Int64_u.to_int64(low_to t)
-  let high_int64 t = Int64_u.to_int64(low_to (high_64_to_low_64 ~onto:t ~from:t))
+  let of_ints a b = set (Int64_u.of_int a) (Int64_u.of_int b)
+
+  let low_int t = Int64_u.to_int(low_to t)
+
+  let high_int t = Int64_u.to_int(low_to (high_64_to_low_64 ~onto:t ~from:t))
 ;;
 end
 
-let add_pairs (a0, a1 : int64 * int64) (b0, b1 : int64 * int64) =
-  let sum_vector = (Int64x2.add (Int64x2.of_int64s a0 a1) (Int64x2.of_int64s b0 b1)) in
-  (Int64x2.low_int64 sum_vector, Int64x2.high_int64 sum_vector)
-;;
+type t2 = {  d0 : int ;  d1: int }
+
+let add_pairs_immutable_record (a : t2) (b: t2) : t2 =
+  let sum_vector = (Int64x2.add (Int64x2.of_ints a.d0 a.d1) (Int64x2.of_ints b.d0 b.d1)) in
+  { d0 = Int64x2.low_int sum_vector;
+    d1 = Int64x2.high_int sum_vector }
+
+
+type t4 = {  d0 : int ; d1: int ; d2 : int ; d3: int }
+
+let add_fours_immutable_record (a : t4) (b: t4) : t4 =
+  let sum_vector0 = (Int64x2.add (Int64x2.of_ints a.d0 a.d1) (Int64x2.of_ints b.d0 b.d1)) in
+  let sum_vector1 = (Int64x2.add (Int64x2.of_ints a.d2 a.d3) (Int64x2.of_ints b.d2 b.d3)) in
+  { d0 = Int64x2.low_int sum_vector0;
+    d1 = Int64x2.high_int sum_vector0;
+    d2 = Int64x2.low_int sum_vector1;
+    d3 = Int64x2.high_int sum_vector1 }
+
+let add_int_tuples (a0, a1 : int * int) (b0, b1 : int * int) =
+  let sum_vector = (Int64x2.add (Int64x2.of_ints a0 a1) (Int64x2.of_ints b0 b1)) in
+  (Int64x2.low_int sum_vector, Int64x2.high_int sum_vector)
 
 let () =
-  let sum0, sum1 = add_pairs (0L, 1L) (2L, 3L) in
-  Printf.printf "%Lx %Lx\n" sum0 sum1
+  let sum_t2 = add_pairs_immutable_record { d0 = 8 ; d1 = 96 } { d0 = 80 ; d1 = 14 } in
+  Printf.printf "sum_t2: { d0 = %d ; d1 = %d }\n" sum_t2.d0 sum_t2.d1;
+  let sum_t4 = add_fours_immutable_record { d0 = 9 ; d1 = 12 ; d2 = 16 ; d3 = 98 } { d0 = 25 ; d1 = 85 ; d2 = 72 ; d3 = 48 } in
+  Printf.printf "sum_t4: { d0 = %d ; d1 = %d ; d2 = %d ; d3 = %d }\n" sum_t4.d0 sum_t4.d1 sum_t4.d2 sum_t4.d3;
+  let sum0, sum1 = add_int_tuples (48, 31) (4, 71) in
+  Printf.printf "sum0: %d sum1: %d\n" sum0 sum1
 ;;

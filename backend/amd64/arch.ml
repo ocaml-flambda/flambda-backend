@@ -454,7 +454,9 @@ let compare_addressing_mode_displ (addressing_mode_1: addressing_mode) (addressi
   | Iscaled _, _ -> None
   | Iindexed2scaled _, _ -> None
 
-let addressing_offset_in_bytes (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let addressing_offset_in_bytes
+      (addressing_mode_1: addressing_mode)
+      (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
     match global1, global2 with
@@ -475,19 +477,15 @@ let addressing_offset_in_bytes (addressing_mode_1: addressing_mode) (addressing_
   | Iscaled _, _ -> None
   | Iindexed2scaled _, _ -> None
 
-  let can_cross_loads_or_stores (specific_operation : specific_operation) =
-    match specific_operation with
-    | Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Isimd _ | Icldemote _
-    | Iprefetch _ ->
-      false
-    | Ibswap _ | Isextend32 | Izextend32 | Irdtsc  | Irdpmc | Ilfence | Isfence | Imfence
-    | Ipause ->
-      true
+let can_cross_loads_or_stores (specific_operation : specific_operation) =
+  match specific_operation with
+  | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Isimd _ | Iprefetch _ | Irdtsc
+  | Irdpmc | Ilfence | Isfence | Imfence | Ipause -> false
+  | Ilea _ | Ibswap _ | Isextend32 | Izextend32 -> true
 
-  let may_break_alloc_freshness (specific_operation : specific_operation) =
-    match specific_operation with
-    | Isimd _ -> true
-    | Ilea  _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Isextend32
-    | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Icldemote _
-    | Iprefetch _ ->
-      false
+let preserves_alloc_freshness (op : specific_operation) =
+  match op with
+  | Ilea  _ | Istore_int _ | Ioffset_loc _ | Ibswap _ | Isextend32
+  | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Iprefetch _ ->
+    true
+  | Ifloatarithmem _ | Isimd _ -> false
