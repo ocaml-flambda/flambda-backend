@@ -96,6 +96,7 @@ compiler: runtime-stdlib
           testsuite/tools/codegen_main.exe \
           testsuite/tools/asmgen_arm64.o \
           ocaml/testsuite/lib/lib.cma \
+          ocaml/testsuite/lib/testing.cma \
           $(ocamldir)/tools/dumpobj.bc
 
 runtest: compiler
@@ -243,7 +244,9 @@ install_for_test: _install
 	chmod 755 _runtest/testsuite/tools/codegen
 	cp $(main_build)/testsuite/tools/asmgen_*.o \
           _runtest/testsuite/tools/
-	cp $(main_build)/ocaml/testsuite/lib/.lib.objs/byte/lib.cmo \
+	cp $(main_build)/ocaml/testsuite/lib/.lib.objs/byte/lib.cm* \
+          _runtest/testsuite/lib/
+	cp $(main_build)/ocaml/testsuite/lib/testing.cm* \
           _runtest/testsuite/lib/
 	 # replace backend-specific testsuite/tests/asmcomp with their new versions
 	rm _runtest/testsuite/tests/asmcomp/*

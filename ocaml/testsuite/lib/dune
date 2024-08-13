@@ -2,3 +2,8 @@
  (wrapped false)
  (name lib)
  (modules lib))
+
+(library
+ (wrapped false)
+ (name testing)
+ (modules testing))
