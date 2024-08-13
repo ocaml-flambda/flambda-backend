@@ -54,14 +54,8 @@ static value Val_handle(void* handle) {
 }
 
 static void *getsym(void *handle, const char *module, const char *name){
-<<<<<<< HEAD
-  char *fullname = caml_stat_strconcat(3, module, ".", name);
-||||||| 121bedcfd2
-  char *fullname = caml_stat_strconcat(4, "caml", module, ".", name);
-=======
   char *fullname;
-  fullname = caml_stat_strconcat(4, "caml", module, CAML_SYM_SEPARATOR, name);
->>>>>>> 5.2.0
+  fullname = caml_stat_strconcat(3, module, CAML_SYM_SEPARATOR, name);
   void *sym;
   sym = caml_dlsym (handle, fullname);
   /*  printf("%s => %lx\n", fullname, (uintnat) sym); */

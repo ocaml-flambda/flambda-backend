@@ -155,19 +155,10 @@ static_assert(
 
 /* control of STW interrupts */
 struct interruptor {
-<<<<<<< HEAD
-  /* The outermost atomic is for synchronization with
-     caml_interrupt_all_for_signal. The innermost atomic is also for
-     cross-domain communication.*/
-  _Atomic(atomic_uintnat *) interrupt_word;
-||||||| 121bedcfd2
-  atomic_uintnat* interrupt_word;
-=======
   /* The outermost atomic is for synchronization with
      caml_interrupt_all_signal_safe. The innermost atomic is also for
      cross-domain communication.*/
   _Atomic(atomic_uintnat *) interrupt_word;
->>>>>>> 5.2.0
   caml_plat_mutex lock;
   caml_plat_cond cond;
 
@@ -323,12 +314,6 @@ CAMLexport caml_domain_state* caml_get_domain_state(void)
 
 Caml_inline void interrupt_domain(struct interruptor* s)
 {
-<<<<<<< HEAD
-  atomic_uintnat * interrupt_word = atomic_load_relaxed(&s->interrupt_word);
-  atomic_store_release(interrupt_word, (uintnat)(-1));
-||||||| 121bedcfd2
-  atomic_store_rel(s->interrupt_word, (uintnat)(-1));
-=======
   atomic_uintnat * interrupt_word = atomic_load_relaxed(&s->interrupt_word);
   atomic_store_release(interrupt_word, UINTNAT_MAX);
 }
@@ -336,7 +321,6 @@ Caml_inline void interrupt_domain(struct interruptor* s)
 Caml_inline void interrupt_domain_local(caml_domain_state* dom_st)
 {
   atomic_store_relaxed(&dom_st->young_limit, UINTNAT_MAX);
->>>>>>> 5.2.0
 }
 
 int caml_incoming_interrupts_queued(void)
@@ -495,14 +479,8 @@ static void free_minor_heap(void) {
   domain_state->young_end     = NULL;
   domain_state->young_ptr     = NULL;
   domain_state->young_trigger = NULL;
-<<<<<<< HEAD
   domain_state->memprof_young_trigger = NULL;
   atomic_store_release(&domain_state->young_limit,
-||||||| 121bedcfd2
-  atomic_store_rel(&domain_state->young_limit,
-=======
-  atomic_store_release(&domain_state->young_limit,
->>>>>>> 5.2.0
                    (uintnat) domain_state->young_start);
 }
 
@@ -544,12 +522,7 @@ static int allocate_minor_heap(asize_t wsize) {
    * major slice is scheduled. */
   domain_state->young_trigger = domain_state->young_start
          + (domain_state->young_end - domain_state->young_start) / 2;
-<<<<<<< HEAD
   caml_memprof_set_trigger(domain_state);
-||||||| 121bedcfd2
-=======
-  caml_memprof_renew_minor_sample(domain_state);
->>>>>>> 5.2.0
   caml_reset_young_limit(domain_state);
 
   check_minor_heap();
@@ -638,46 +611,12 @@ static void domain_create(uintnat initial_minor_heap_wsize,
     domain_state = d->state;
   }
 
-<<<<<<< HEAD
-  s->unique_id = fresh_domain_unique_id();
-  s->running = 1;
-  atomic_fetch_add(&caml_num_domains_running, 1);
-||||||| 121bedcfd2
-  caml_state = domain_state;
-
-  s->unique_id = fresh_domain_unique_id();
-  s->interrupt_word = &domain_state->young_limit;
-  s->running = 1;
-  atomic_fetch_add(&caml_num_domains_running, 1);
-=======
-  /* Note: until we take d->domain_lock, the domain_state may still be
-   * shared with a domain which is terminating (see
-   * domain_terminate). */
->>>>>>> 5.2.0
-
   /* Note: until we take d->domain_lock, the domain_state may still be
    * shared with a domain which is terminating (see
    * domain_terminate). */
 
   caml_plat_lock(&d->domain_lock);
 
-<<<<<<< HEAD
-  /* Set domain_self if we have successfully allocated the
-   * caml_domain_state. Otherwise domain_self will be NULL and it's up
-   * to the caller to deal with that. */
-
-  domain_self = d;
-  caml_state = domain_state;
-
-  domain_state->young_limit = 0;
-  /* Synchronized with [caml_interrupt_all_for_signal], so that the
-     initializing write of young_limit happens before any
-     interrupt. */
-  atomic_store_explicit(&s->interrupt_word, &domain_state->young_limit,
-                        memory_order_release);
-
-||||||| 121bedcfd2
-=======
   /* Set domain_self if we have successfully allocated the
    * caml_domain_state. Otherwise domain_self will be NULL and it's up
    * to the caller to deal with that. */
@@ -694,14 +633,22 @@ static void domain_create(uintnat initial_minor_heap_wsize,
 
   /* Tell memprof system about the new domain before either (a) new
    * domain can allocate anything or (b) parent domain can go away. */
+  CAMLassert(domain_state->memprof == NULL);
   caml_memprof_new_domain(parent, domain_state);
   if (!domain_state->memprof) {
     goto init_memprof_failure;
   }
 
->>>>>>> 5.2.0
+  /* Set domain_self if we have successfully allocated the
+   * caml_domain_state. Otherwise domain_self will be NULL and it's up
+   * to the caller to deal with that. */
+
+  domain_self = d;
+  caml_state = domain_state;
+
+  domain_state->young_limit = 0;
+
   domain_state->id = d->id;
-<<<<<<< HEAD
   domain_state->unique_id = s->unique_id;
 
   /* Tell memprof system about the new domain before either (a) new
@@ -713,12 +660,6 @@ static void domain_create(uintnat initial_minor_heap_wsize,
   }
 
   CAMLassert(!s->interrupt_pending);
-||||||| 121bedcfd2
-  domain_state->unique_id = d->interruptor.unique_id;
-  CAMLassert(!d->interruptor.interrupt_pending);
-=======
-  CAMLassert(!s->interrupt_pending);
->>>>>>> 5.2.0
 
   domain_state->extra_heap_resources = 0.0;
   domain_state->extra_heap_resources_minor = 0.0;
@@ -829,15 +770,7 @@ static void domain_create(uintnat initial_minor_heap_wsize,
   domain_state->trap_barrier_block = -1;
 #endif
 
-<<<<<<< HEAD
-  add_to_stw_domains(domain_self);
-||||||| 121bedcfd2
-  caml_reset_young_limit(domain_state);
-  add_to_stw_domains(domain_self);
-=======
-  caml_reset_young_limit(domain_state);
   add_next_to_stw_domains();
->>>>>>> 5.2.0
   goto domain_init_complete;
 
 alloc_main_stack_failure:
@@ -1173,13 +1106,7 @@ static void install_backup_thread (dom_internal* di)
     CAMLassert (msg == BT_INIT || /* Using fresh domain */
                 msg == BT_TERMINATE); /* Reusing domain */
 
-<<<<<<< HEAD
-    while (atomic_load_acquire(&di->backup_thread_msg) != BT_INIT) {
-||||||| 121bedcfd2
-    while (atomic_load_acq(&di->backup_thread_msg) != BT_INIT) {
-=======
     while (msg != BT_INIT) {
->>>>>>> 5.2.0
       /* Give a chance for backup thread on this domain to terminate */
       caml_plat_unlock (&di->domain_lock);
       cpu_relax ();
@@ -1287,19 +1214,12 @@ static void* domain_thread_func(void* v)
   }
 #endif
 
-<<<<<<< HEAD
   domain_create(caml_params->init_minor_heap_wsz, p->parent->state);
 
   if (!domain_self) {
     caml_fatal_error("Failed to create domain");
   }
 
-||||||| 121bedcfd2
-  domain_create(caml_params->init_minor_heap_wsz);
-=======
-  domain_create(caml_params->init_minor_heap_wsz, p->parent->state);
-
->>>>>>> 5.2.0
   /* this domain is now part of the STW participant set */
   p->newdom = domain_self;
 
@@ -1718,7 +1638,6 @@ int caml_try_run_on_all_domains(
                                                  leader_setup, 0, 0);
 }
 
-<<<<<<< HEAD
 int caml_try_run_on_all_domains_async(
   void (*handler)(caml_domain_state*, void*, int, caml_domain_state**),
   void* data,
@@ -1731,46 +1650,6 @@ int caml_try_run_on_all_domains_async(
                                                  leader_setup, 0, 0);
 }
 
-void caml_interrupt_self(void)
-{
-  interrupt_domain(&domain_self->interruptor);
-||||||| 121bedcfd2
-void caml_interrupt_self(void) {
-  interrupt_domain(&domain_self->interruptor);
-=======
-int caml_try_run_on_all_domains_async(
-  void (*handler)(caml_domain_state*, void*, int, caml_domain_state**),
-  void* data,
-  void (*leader_setup)(caml_domain_state*))
-{
-  return
-      caml_try_run_on_all_domains_with_spin_work(0,
-                                                 handler,
-                                                 data,
-                                                 leader_setup, 0, 0);
->>>>>>> 5.2.0
-}
-
-<<<<<<< HEAD
-/* async-signal-safe */
-void caml_interrupt_all_for_signal(void)
-{
-  for (dom_internal *d = all_domains; d < &all_domains[Max_domains]; d++) {
-    /* [all_domains] is an array of values. So we can access
-       [interrupt_word] directly without synchronisation other than
-       with other people who access the same [interrupt_word].*/
-    atomic_uintnat * interrupt_word =
-      atomic_load_explicit(&d->interruptor.interrupt_word,
-                           memory_order_acquire);
-    /* Early exit: if the current domain was never initialized, then
-       neither have been any of the remaining ones. */
-    if (interrupt_word == NULL) return;
-    interrupt_domain(&d->interruptor);
-  }
-}
-
-||||||| 121bedcfd2
-=======
 void caml_interrupt_self(void)
 {
   interrupt_domain_local(Caml_state);
@@ -1797,7 +1676,6 @@ void caml_interrupt_all_signal_safe(void)
    young_limit to -1 for immediate interruption) through which
    [young_limit] can be modified. We take care here of possible
    races. */
->>>>>>> 5.2.0
 void caml_reset_young_limit(caml_domain_state * dom_st)
 {
   /* An interrupt might have been queued in the meanwhile; the
@@ -1809,39 +1687,16 @@ void caml_reset_young_limit(caml_domain_state * dom_st)
               (uintnat)dom_st->memprof_young_trigger);
   CAMLassert ((uintnat)dom_st->young_ptr >=
               (uintnat)dom_st->young_trigger);
-  /* An interrupt might have been queued in the meanwhile; this
-     achieves the proper synchronisation. */
-<<<<<<< HEAD
-  atomic_exchange(&dom_st->young_limit, (uintnat)trigger);
-
-||||||| 121bedcfd2
-  atomic_exchange(&dom_st->young_limit, (uintnat)dom_st->young_trigger);
-=======
   atomic_exchange(&dom_st->young_limit, (uintnat)trigger);
 
   /* For non-delayable asynchronous actions, we immediately interrupt
      the domain again. */
->>>>>>> 5.2.0
   dom_internal * d = &all_domains[dom_st->id];
   if (atomic_load_relaxed(&d->interruptor.interrupt_pending)
       || dom_st->requested_minor_gc
       || dom_st->requested_major_slice
-<<<<<<< HEAD
-      || dom_st->major_slice_epoch < atomic_load (&caml_major_slice_epoch)
-      || atomic_load_relaxed(&dom_st->requested_external_interrupt)
-      || dom_st->action_pending) {
-    atomic_store_release(&dom_st->young_limit, (uintnat)-1);
-    CAMLassert(caml_check_gc_interrupt(dom_st));
-||||||| 121bedcfd2
-      || dom_st->major_slice_epoch < atomic_load (&caml_major_slice_epoch)
-      || atomic_load_relaxed(&dom_st->requested_external_interrupt)
-      || dom_st->action_pending) {
-    atomic_store_rel(&dom_st->young_limit, (uintnat)-1);
-    CAMLassert(caml_check_gc_interrupt(dom_st));
-=======
       || dom_st->major_slice_epoch < atomic_load (&caml_major_slice_epoch)) {
     interrupt_domain_local(dom_st);
->>>>>>> 5.2.0
   }
   /* We might be here due to a recently-recorded signal or forced
      systhread switching, so we need to remember that we must run
@@ -1875,19 +1730,6 @@ Caml_inline void advance_global_major_slice_epoch (caml_domain_state* d)
   }
 }
 
-<<<<<<< HEAD
-static void global_major_slice_callback (caml_domain_state *domain,
-                                         void *unused,
-                                         int participating_count,
-                                         caml_domain_state **participating)
-{
-  domain->requested_major_slice = 1;
-  /* Nothing else to do, as [stw_hander] will call [caml_poll_gc_work]
-     right after the callback. */
-}
-
-||||||| 121bedcfd2
-=======
 static void stw_global_major_slice(
   caml_domain_state *domain,
   void *unused,
@@ -1899,7 +1741,6 @@ static void stw_global_major_slice(
      right after the callback. */
 }
 
->>>>>>> 5.2.0
 void caml_poll_gc_work(void)
 {
   CAMLalloc_point_here;
@@ -1946,10 +1787,9 @@ void caml_poll_gc_work(void)
     CAML_EV_END(EV_MAJOR);
   }
 
-<<<<<<< HEAD
   if (d->requested_global_major_slice) {
     if (caml_try_run_on_all_domains_async(
-          &global_major_slice_callback, NULL, NULL)){
+          &stw_global_major_slice, NULL, NULL)){
       d->requested_global_major_slice = 0;
     }
     /* If caml_try_run_on_all_domains_async fails, we'll try again next time
@@ -1961,26 +1801,7 @@ void caml_poll_gc_work(void)
   if (atomic_load_acquire(&d->requested_external_interrupt)) {
     /* This function might allocate (e.g. upon a systhreads yield). */
     caml_domain_external_interrupt_hook();
-||||||| 121bedcfd2
-  if (atomic_load_acq(&d->requested_external_interrupt)) {
-    caml_domain_external_interrupt_hook();
-=======
-  if (d->requested_global_major_slice) {
-    if (caml_try_run_on_all_domains_async(
-          &stw_global_major_slice, NULL, NULL)){
-      d->requested_global_major_slice = 0;
-    }
-    /* If caml_try_run_on_all_domains_async fails, we'll try again next time
-       caml_poll_gc_work is called. */
->>>>>>> 5.2.0
   }
-<<<<<<< HEAD
-||||||| 121bedcfd2
-  caml_reset_young_limit(d);
-=======
-
-  caml_reset_young_limit(d);
->>>>>>> 5.2.0
 }
 
 void caml_handle_gc_interrupt(void)
@@ -2078,42 +1899,7 @@ static inline int domain_terminating(dom_internal *d) {
 
 int caml_domain_terminating (caml_domain_state *dom_st)
 {
-<<<<<<< HEAD
-  struct caml_final_info* f = domain_state->final_info;
-
-  if (f->todo_head != NULL || f->first.size != 0 || f->last.size != 0) {
-    /* have some final structures */
-    if (caml_gc_phase != Phase_sweep_main &&
-        caml_gc_phase != Phase_sweep_and_mark_main) {
-      /* Force a major GC cycle to simplify constraints for
-       * handing over finalisers. */
-      caml_finish_major_cycle(0);
-      CAMLassert(caml_gc_phase == Phase_sweep_main);
-    }
-    caml_add_orphaned_finalisers (f);
-    /* Create a dummy final info */
-    domain_state->final_info = caml_alloc_final_info();
-  }
-  caml_final_domain_terminate(domain_state);
-||||||| 121bedcfd2
-  struct caml_final_info* f = domain_state->final_info;
-
-  if (f->todo_head != NULL || f->first.size != 0 || f->last.size != 0) {
-    /* have some final structures */
-    if (caml_gc_phase != Phase_sweep_and_mark_main) {
-      /* Force a major GC cycle to simplify constraints for
-       * handing over finalisers. */
-      caml_finish_major_cycle();
-      CAMLassert(caml_gc_phase == Phase_sweep_and_mark_main);
-    }
-    caml_add_orphaned_finalisers (f);
-    /* Create a dummy final info */
-    domain_state->final_info = caml_alloc_final_info();
-  }
-  caml_final_domain_terminate(domain_state);
-=======
   return domain_terminating(&all_domains[dom_st->id]);
->>>>>>> 5.2.0
 }
 
 int caml_domain_is_terminating (void)

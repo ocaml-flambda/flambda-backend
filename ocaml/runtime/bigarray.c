@@ -225,13 +225,7 @@ CAMLexport value
 caml_ba_alloc(int flags, int num_dims, void * data, intnat * dim)
 {
   uintnat num_elts, asize, size;
-<<<<<<< HEAD
   int i;
-||||||| 121bedcfd2
-  int i, is_managed;
-=======
-  int i, uses_resources;
->>>>>>> 5.2.0
   value res;
   struct caml_ba_array * b;
   intnat dimcopy[CAML_BA_MAX_NUM_DIMS];
@@ -255,17 +249,7 @@ caml_ba_alloc(int flags, int num_dims, void * data, intnat * dim)
     flags |= CAML_BA_MANAGED;
   }
   asize = SIZEOF_BA_ARRAY + num_dims * sizeof(intnat);
-<<<<<<< HEAD
   res = caml_alloc_custom_mem(&caml_ba_ops, asize, size);
-||||||| 121bedcfd2
-  is_managed = ((flags & CAML_BA_MANAGED_MASK) == CAML_BA_MANAGED);
-  res = caml_alloc_custom_mem(&caml_ba_ops, asize, is_managed ? size : 0);
-=======
-  uses_resources =
-    ((flags & CAML_BA_MANAGED_MASK) == CAML_BA_MANAGED)
-    && !(flags & CAML_BA_SUBARRAY);
-  res = caml_alloc_custom_mem(&caml_ba_ops, asize, uses_resources ? size : 0);
->>>>>>> 5.2.0
   b = Caml_ba_array_val(res);
   b->data = data;
   b->num_dims = num_dims;

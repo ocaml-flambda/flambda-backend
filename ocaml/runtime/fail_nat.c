@@ -74,38 +74,15 @@ static void unwind_local_roots(char *limit_of_current_c_stack_chunk)
 void caml_raise(value v)
 {
   Caml_check_caml_state();
-<<<<<<< HEAD
   char* limit_of_current_c_stack_chunk;
 
-  Unlock_exn();
-
-||||||| 121bedcfd2
-  char* exception_pointer;
-
-  Unlock_exn();
-
-=======
-  char* exception_pointer;
->>>>>>> 5.2.0
   CAMLassert(!Is_exception_result(v));
 
-<<<<<<< HEAD
+  caml_channel_cleanup_on_raise();
+
   /* Run callbacks here, so that a signal handler that arrived during
      a blocking call has a chance to interrupt the raising of EINTR */
   v = caml_process_pending_actions_with_root(v);
-||||||| 121bedcfd2
-  // avoid calling caml_raise recursively
-  v = caml_process_pending_actions_with_root_exn(v);
-  if (Is_exception_result(v))
-    v = Extract_exception(v);
-=======
-  caml_channel_cleanup_on_raise();
-
-  // avoid calling caml_raise recursively
-  v = caml_process_pending_actions_with_root_exn(v);
-  if (Is_exception_result(v))
-    v = Extract_exception(v);
->>>>>>> 5.2.0
 
   limit_of_current_c_stack_chunk = (char*)Caml_state->c_stack;
 
@@ -114,25 +91,12 @@ void caml_raise(value v)
     caml_fatal_uncaught_exception(v);
   }
 
-<<<<<<< HEAD
   unwind_local_roots(limit_of_current_c_stack_chunk);
-||||||| 121bedcfd2
-  while (Caml_state->local_roots != NULL &&
-         (char *) Caml_state->local_roots < exception_pointer) {
-    Caml_state->local_roots = Caml_state->local_roots->next;
-  }
-
-=======
-  while (Caml_state->local_roots != NULL &&
-         (char *) Caml_state->local_roots < exception_pointer) {
-    Caml_state->local_roots = Caml_state->local_roots->next;
-  }
 
 #if defined(WITH_THREAD_SANITIZER)
   caml_tsan_exit_on_raise_c(exception_pointer);
 #endif
 
->>>>>>> 5.2.0
   caml_raise_exception(Caml_state, v);
 }
 
@@ -143,7 +107,7 @@ CAMLno_asan void caml_raise_async(value v)
   Caml_check_caml_state();
   char* limit_of_current_c_stack_chunk;
 
-  Unlock_exn();
+  caml_channel_cleanup_on_raise();
 
   CAMLassert(!Is_exception_result(v));
 

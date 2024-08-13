@@ -764,14 +764,11 @@ CAMLprim value caml_sys_isatty(value chan)
 
   return ret;
 }
-<<<<<<< HEAD
 
 CAMLprim value caml_sys_const_naked_pointers_checked(value unit)
 {
   return Val_false;
 }
-||||||| 121bedcfd2
-=======
 
 /* On Windows, returns a string list of directories to search for configuration
    files. On Unix, this list is more easily computed in OCaml, so the list
@@ -784,4 +781,3 @@ CAMLprim value caml_xdg_defaults(value unit)
   return Val_emptylist;
 #endif
 }
->>>>>>> 5.2.0
