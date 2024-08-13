@@ -47,9 +47,7 @@ module Externality : sig
     | External64 (* not managed by the garbage collector on 64-bit systems *)
     | Internal (* managed by the garbage collector *)
 
-  val le : t -> t -> bool
-
-  val print : Format.formatter -> t -> unit
+  include module type of Jkind_types.Externality with type t := t
 end
 
 module Nullability : sig
@@ -57,9 +55,7 @@ module Nullability : sig
     | Non_null (* proven to not have NULL values *)
     | Maybe_null (* may have NULL values *)
 
-  val le : t -> t -> bool
-
-  val print : Format.formatter -> t -> unit
+    include module type of Jkind_types.Nullability with type t := t
 end
 
 module Sort : Jkind_intf.Sort with type const = Jkind_types.Sort.const

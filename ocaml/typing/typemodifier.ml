@@ -46,6 +46,16 @@ exception Error of Location.t * error
 
 module Str_map = Map.Make (String)
 
+let axis_name (type a) (axis : a axis) =
+  match axis with
+  | Modal Areality -> "locality"
+  | Modal Linearity -> "linearity"
+  | Modal Uniqueness -> "uniqueness"
+  | Modal Portability -> "portability"
+  | Modal Contention -> "contention"
+  | Nonmodal Externality -> "externality"
+  | Nonmodal Nullability -> "nullability"
+
 let modifiers =
   let alist =
     let open Mode in
@@ -66,27 +76,23 @@ let modifiers =
       "external64", Axis_pair (Nonmodal Externality, Externality.External64);
       "external_", Axis_pair (Nonmodal Externality, Externality.External) ]
   in
-  let rec loop acc = function
-    | [] -> acc
-    | (name, axis_pair) :: tl -> loop (Str_map.add name axis_pair acc) tl
-  in
-  loop Str_map.empty alist
+  List.fold_left
+    (fun acc (name, axis_pair) -> Str_map.add name axis_pair acc)
+    Str_map.empty alist
 
 (* Raise an error if the user duplicated annotations along an axis, and a warning
    if they used a top. The warning is only output when annot_type is Modifier *)
 let check_annot (type a) ~(annot_type : annot_type) ~(axis : a axis) ~old
-    ~(new' : a) ~(new_raw : _ Location.loc) =
+    ~(new_ : a) ~(new_raw : _ Location.loc) =
   let is_top =
-    match axis, new' with
-    | Modal Areality, _ -> Mode.Locality.Const.(le max new')
-    | Modal Linearity, _ -> Mode.Linearity.Const.(le max new')
-    | Modal Uniqueness, _ -> Mode.Uniqueness.Const.(le max new')
-    | Modal Portability, _ -> Mode.Portability.Const.(le max new')
-    | Modal Contention, _ -> Mode.Contention.Const.(le max new')
-    | Nonmodal Nullability, Maybe_null | Nonmodal Externality, Internal -> true
-    | Nonmodal Nullability, Non_null
-    | Nonmodal Externality, (External | External64) ->
-      false
+    match axis, new_ with
+    | Modal Areality, _ -> Mode.Locality.Const.(le max new_)
+    | Modal Linearity, _ -> Mode.Linearity.Const.(le max new_)
+    | Modal Uniqueness, _ -> Mode.Uniqueness.Const.(le max new_)
+    | Modal Portability, _ -> Mode.Portability.Const.(le max new_)
+    | Modal Contention, _ -> Mode.Contention.Const.(le max new_)
+    | Nonmodal Externality, _ -> Jkind_types.Externality.(le max new_)
+    | Nonmodal Nullability, _ -> Jkind_types.Nullability.(le max new_)
   in
   (match annot_type with
   | Modifier ->
@@ -114,7 +120,7 @@ let set_axis (type a) ~annot_type ~(axis : a axis) (acc : modifiers)
     | Nonmodal Externality -> acc.externality_upper_bound
     | Nonmodal Nullability -> acc.nullability_upper_bound
   in
-  check_annot ~annot_type ~axis ~old ~new':modifier ~new_raw:raw;
+  check_annot ~annot_type ~axis ~old ~new_:modifier ~new_raw:raw;
   match axis with
   | Modal axis ->
     let modal_upper_bounds : Mode.Alloc.Const.Option.t =
@@ -131,19 +137,16 @@ let set_axis (type a) ~annot_type ~(axis : a axis) (acc : modifiers)
   | Nonmodal Nullability -> { acc with nullability_upper_bound = Some modifier }
 
 let transl_annots (annot_type : annot_type) annots =
-  let rec loop acc = function
-    | [] -> acc
-    | annot :: tl ->
-      let { txt = Mode annot_txt; loc } : Parsetree.mode Location.loc = annot in
-      let modifiers =
-        match Str_map.find_opt annot_txt modifiers, annot_type with
-        | Some (Axis_pair (Nonmodal _, _)), Mode | None, _ ->
-          raise
-            (Error (loc, Unrecognized_modifier (annot_type, annot_txt)))
-        | Some (Axis_pair (axis, mode)), _ ->
-          set_axis ~annot_type ~axis acc mode annot
-      in
-      loop modifiers tl
+  let transl_annot modifiers_so_far annot =
+    let ({ txt = Mode annot_txt; loc } : Parsetree.mode Location.loc) = annot in
+    let modifiers =
+      match Str_map.find_opt annot_txt modifiers, annot_type with
+      | Some (Axis_pair (Nonmodal _, _)), Mode | None, _ ->
+        raise (Error (loc, Unrecognized_modifier (annot_type, annot_txt)))
+      | Some (Axis_pair (axis, mode)), _ ->
+        set_axis ~annot_type ~axis modifiers_so_far mode annot
+    in
+    modifiers
   in
   let empty_modifiers =
     { modal_upper_bounds = Mode.Alloc.Const.Option.none;
@@ -151,9 +154,24 @@ let transl_annots (annot_type : annot_type) annots =
       nullability_upper_bound = None
     }
   in
-  loop empty_modifiers annots
+  List.fold_left transl_annot empty_modifiers annots
 
-let transl_mode_annots annots = (transl_annots Mode annots).modal_upper_bounds
+let transl_mode_annots annots =
+  let modifiers = transl_annots Mode annots in
+  let assert_empty axis bound =
+    if Option.is_some bound
+    then
+      let error_message =
+        Format.asprintf
+          "Expected empty nonmodal modifiers when translating modes, but got \
+           one along %s axis"
+          (axis_name (Nonmodal axis))
+      in
+      Misc.fatal_error error_message
+  in
+  assert_empty Externality modifiers.externality_upper_bound;
+  assert_empty Nullability modifiers.nullability_upper_bound;
+  modifiers.modal_upper_bounds
 
 let transl_modifier_annots = transl_annots Modifier
 
@@ -163,17 +181,7 @@ let report_error ppf =
   let open Format in
   function
   | Duplicated_axis axis ->
-    let ax =
-      match axis with
-      | Modal Areality -> dprintf "locality"
-      | Modal Linearity -> dprintf "linearity"
-      | Modal Uniqueness -> dprintf "uniqueness"
-      | Modal Portability -> dprintf "portability"
-      | Modal Contention -> dprintf "contention"
-      | Nonmodal Externality -> dprintf "externality"
-      | Nonmodal Nullability -> dprintf "nullability"
-    in
-    fprintf ppf "The %t axis has already been specified." ax
+    fprintf ppf "The %s axis has already been specified." (axis_name axis)
   | Unrecognized_modifier (annot_type, modifier) ->
     let annot_type_str =
       match annot_type with Modifier -> "modifier" | Mode -> "mode"

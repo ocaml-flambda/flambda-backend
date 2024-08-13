@@ -125,82 +125,8 @@ module Layout = struct
   end
 end
 
-module Externality = struct
-  type t = Jkind_types.Externality.t =
-    | External
-    | External64
-    | Internal
-
-  let max = Internal
-
-  let min = External
-
-  let equal e1 e2 =
-    match e1, e2 with
-    | External, External -> true
-    | External64, External64 -> true
-    | Internal, Internal -> true
-    | (External | External64 | Internal), _ -> false
-
-  let less_or_equal t1 t2 : Misc.Le_result.t =
-    match t1, t2 with
-    | External, External -> Equal
-    | External, (External64 | Internal) -> Less
-    | External64, External -> Not_le
-    | External64, External64 -> Equal
-    | External64, Internal -> Less
-    | Internal, (External | External64) -> Not_le
-    | Internal, Internal -> Equal
-
-  let le t1 t2 = Misc.Le_result.is_le (less_or_equal t1 t2)
-
-  let meet t1 t2 =
-    match t1, t2 with
-    | External, (External | External64 | Internal)
-    | (External64 | Internal), External ->
-      External
-    | External64, (External64 | Internal) | Internal, External64 -> External64
-    | Internal, Internal -> Internal
-
-  let print ppf = function
-    | External -> Format.fprintf ppf "external_"
-    | External64 -> Format.fprintf ppf "external64"
-    | Internal -> Format.fprintf ppf "internal"
-end
-
-module Nullability = struct
-  type t = Jkind_types.Nullability.t =
-    | Non_null
-    | Maybe_null
-
-  let max = Maybe_null
-
-  let min = Non_null
-
-  let equal n1 n2 =
-    match n1, n2 with
-    | Non_null, Non_null -> true
-    | Maybe_null, Maybe_null -> true
-    | (Non_null | Maybe_null), _ -> false
-
-  let less_or_equal n1 n2 : Misc.Le_result.t =
-    match n1, n2 with
-    | Non_null, Non_null -> Equal
-    | Non_null, Maybe_null -> Less
-    | Maybe_null, Non_null -> Not_le
-    | Maybe_null, Maybe_null -> Equal
-
-  let le n1 n2 = Misc.Le_result.is_le (less_or_equal n1 n2)
-
-  let meet n1 n2 =
-    match n1, n2 with
-    | Non_null, (Non_null | Maybe_null) | Maybe_null, Non_null -> Non_null
-    | Maybe_null, Maybe_null -> Maybe_null
-
-  let print ppf = function
-    | Non_null -> Format.fprintf ppf "non_null"
-    | Maybe_null -> Format.fprintf ppf "maybe_null"
-end
+module Externality = Jkind_types.Externality
+module Nullability = Jkind_types.Nullability
 
 module Modes = struct
   include Alloc.Const
