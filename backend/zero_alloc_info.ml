@@ -33,9 +33,9 @@ module Raw = struct
     List.fold_left (fun acc (k, v) -> String.Map.add k v acc) String.Map.empty e
 
   let print t =
-    let print (name, v) = Printf.eprintf "\t\t%s = %#x\n" name v in
+    let print (name, v) = Printf.printf "\t\t%s = %#x\n" name v in
     (* CR gyorsh: move encode/decode here somehow for noalloc *)
-    Printf.eprintf "Function summaries for static checks:\n";
+    Printf.printf "Function summaries for static checks:\n";
     List.iter print t
 
   let print = function None -> () | Some t -> print t

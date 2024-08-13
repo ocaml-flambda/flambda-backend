@@ -1,6 +1,6 @@
-File "caller_cu.ml", line 10, characters 20-37:
-10 | let calls_foo n k = Called_cu.foo n k
-                         ^^^^^^^^^^^^^^^^^
+File "caller_cu.ml", line 14, characters 2-63:
+14 |   Called_cu.tailcalls_arg ~fn:(fun _ -> calls_tailcalls_arg ())
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Warning 186 [inferred-nontail-in-tcod-cycle]: This function
 call was inferred as nontail, but it may participate in a
 cycle of TCO'd tail calls, which could overflow the stack at
@@ -8,6 +8,7 @@ runtime. Consider marking the function call with [@tail].
 
 Here is one such cycle:
 
-    file "caller_cu.ml", line 10, characters 20-37: calls (in inferred nontail position)
+    file "caller_cu.ml", line 14, characters 2-63: calls (in inferred nontail position)
+ -> [camlCalled_cu__tailcalls_arg_0_2_code], which (possibly transitively) tailcalls <unknown target>
  -> <unknown target>
 

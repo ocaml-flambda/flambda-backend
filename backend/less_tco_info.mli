@@ -47,6 +47,8 @@ module Global_state : sig
   val cached : t ref
 
   val add_to_cache : t -> unit
+
+  val find : fn:string -> position option
 end
 
 module Raw : sig

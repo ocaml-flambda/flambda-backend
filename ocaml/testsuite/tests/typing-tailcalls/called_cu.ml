@@ -1,5 +1,6 @@
-let[@inline never] add a b c d e f g h i j k l m n o p =
-  a + b + c + d + e + f + g + h +
-  i + j + k + l + m + n + o + p
+(* This file is part of the caller_cu test. *)
 
-let[@inline never] foo k = add 1 k
+let[@inline never] tailcalls_arg ~fn = fn 1
+
+let[@inline never] doesn't_tailcall_arg ~fn = fn 2; ()
+

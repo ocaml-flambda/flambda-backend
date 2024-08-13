@@ -186,7 +186,7 @@ let build_package_cmx members cmxfile =
   let ui_less_tco_info =
     List.fold_left (fun info ui_unit ->
       Less_tco_info.merge_exn info ui_unit.ui_less_tco_info)
-      Less_tco_info.empty 
+      Less_tco_info.empty
       units
   in
   let modname = Compilation_unit.name ui.ui_unit in

@@ -71,6 +71,37 @@ module Hashset = struct
 end
 
 module Graph : sig
+  module Edge : sig
+    module Label : sig
+      (* For the purpose of analyzing whether TCO inference might break existing
+         code (by causing a stack overflow) we are interested in whether there
+         are any cycles with *_tail_edges and Inferred_nontail_edges. To find
+         these cycles, we decompose the call graph into SCCs. *)
+      type t =
+        (* "Explicit" here really means "not inferred." "Explicit" edges are
+           edges that are (very likely) not changing their TCO behavior as a
+           result of adding TCO inference. I.e., before TCO inference, they were
+           tail (nontail) if and only if after TCO inference they are tail
+           (nontail). *)
+        | Explicit_tail_edge
+        | Explicit_nontail_edge
+        (* Unknown_position edges are from Unknown_position applications, which
+           are generated when we synthesize function applications internally in
+           the compiler. These are treated the same as Explicit edges in the SCC
+           decomposition and for warnings; for debugging purposes we display
+           them differently in the dot output.*)
+        | Unknown_position_tail_edge
+        | Unknown_position_nontail_edge
+        (* Dangerous_cross_cu_edges are calls to functions defined in a
+           different compilation unit which tailcall an unknown function. *)
+        | Dangerous_cross_cu_edge
+        (* "Inferred" edges are edges that might possibly change their TCO
+           behavior as a result of adding TCO inference. *)
+        | Inferred_tail_edge
+        | Inferred_nontail_edge
+    end
+  end
+
   module Vertex : sig
     type t
 
@@ -90,6 +121,14 @@ module Graph : sig
   type actual_position =
     | Tail
     | Nontail
+
+  val add_edge_with_label :
+    t ->
+    from:Vertex.t ->
+    to_:Vertex.t ->
+    label:Edge.Label.t ->
+    loc:Location.t ->
+    unit
 
   val add_edge :
     t ->
@@ -176,10 +215,19 @@ end = struct
              purposes we display them differently in the dot output.*)
           | Unknown_position_tail_edge
           | Unknown_position_nontail_edge
+          (* Dangerous_cross_cu_edges are "phantom" calls to <unknown> for
+             functions defined in a different different compilation unit which
+             (transitively) tailcall indirectly. *)
+          | Dangerous_cross_cu_edge
           (* "Inferred" edges are edges that might possibly change their TCO
              behavior as a result of adding TCO inference. *)
           | Inferred_tail_edge
           | Inferred_nontail_edge
+
+        (* Warning -4 is fragile-match *)
+        let[@ocaml.warning "-4"] is_dangerous_cross_cu_edge = function
+          | Dangerous_cross_cu_edge -> true
+          | _ -> false
 
         let equal t1 t2 =
           match t1, t2 with
@@ -187,11 +235,13 @@ end = struct
           | Explicit_nontail_edge, Explicit_nontail_edge -> true
           | Unknown_position_tail_edge, Unknown_position_tail_edge -> true
           | Unknown_position_nontail_edge, Unknown_position_nontail_edge -> true
+          | Dangerous_cross_cu_edge, Dangerous_cross_cu_edge -> true
           | Inferred_tail_edge, Inferred_tail_edge -> true
           | Inferred_nontail_edge, Inferred_nontail_edge -> true
           | ( ( Explicit_tail_edge | Explicit_nontail_edge
               | Unknown_position_tail_edge | Unknown_position_nontail_edge
-              | Inferred_tail_edge | Inferred_nontail_edge ),
+              | Dangerous_cross_cu_edge | Inferred_tail_edge
+              | Inferred_nontail_edge ),
               _ ) ->
             false
 
@@ -201,8 +251,9 @@ end = struct
           | Explicit_nontail_edge -> 1
           | Unknown_position_tail_edge -> 2
           | Unknown_position_nontail_edge -> 3
-          | Inferred_tail_edge -> 4
-          | Inferred_nontail_edge -> 5
+          | Dangerous_cross_cu_edge -> 4
+          | Inferred_tail_edge -> 5
+          | Inferred_nontail_edge -> 6
 
         let compare t1 t2 = hash t1 - hash t2
       end
@@ -249,11 +300,19 @@ end = struct
           | Explicit_nontail_edge -> "explicit nontail"
           | Unknown_position_tail_edge -> "synthesized tail"
           | Unknown_position_nontail_edge -> "synthesized nontail"
+          | Dangerous_cross_cu_edge -> "cross CU tail"
           | Inferred_tail_edge -> "inferred tail"
           | Inferred_nontail_edge -> "inferred nontail"
         in
         if Vertex.is_unknown t.edge.from
         then Format.asprintf "<unknown target>"
+        else if Label.is_dangerous_cross_cu_edge t.edge.label
+        then
+          Format.asprintf
+            "[%s], which (possibly transitively) tailcalls <unknown target>"
+            (match t.edge.from with
+            | Unknown_fn -> "<unknown fn>"
+            | Known_fn { name; _ } -> name)
         else
           Format.asprintf "%a: calls (in %s position)"
             Location.print_loc_in_lowercase t.loc call_type
@@ -266,6 +325,7 @@ end = struct
         | Explicit_nontail_edge -> "explicit nontail"
         | Unknown_position_tail_edge -> "unknown_pos tail"
         | Unknown_position_nontail_edge -> "unknown_pos nontail"
+        | Dangerous_cross_cu_edge -> "dangerous cross cu"
         | Inferred_tail_edge -> "inferred tail"
         | Inferred_nontail_edge -> "inferred nontail"
       in
@@ -347,6 +407,18 @@ end = struct
     | Tail
     | Nontail
 
+  let add_edge_with_label t ~(from : Vertex.t) ~(to_ : Vertex.t) ~label ~loc =
+    let edge : Edge.t = { from; to_; label } in
+    match from with
+    | Unknown_fn ->
+      (* An edge already exists from Unknown_fn (added when the vertex was
+         created) *)
+      ()
+    | Known_fn _ ->
+      (* `from`'s adjacency list was initialized in `find_or_add_vertex` *)
+      let edges = Vertex.Tbl.find t.adjacencies from in
+      Edge.Tbl.add edges edge loc
+
   let add_edge t ~(from : Vertex.t) ~(to_ : Vertex.t)
       ~(actual_position : actual_position)
       ~(original_position : Typedtree.position_and_tail_attribute)
@@ -400,16 +472,7 @@ end = struct
       | Not_tail_position _, Nontail ->
         (* Not in tail position *) Explicit_nontail_edge
     in
-    let edge : Edge.t = { from; to_; label } in
-    match from with
-    | Unknown_fn ->
-      (* An edge already exists from Unknown_fn (added when the vertex was
-         created) *)
-      ()
-    | Known_fn _ ->
-      (* `from`'s adjacency list was initialized in `find_or_add_vertex` *)
-      let edges = Vertex.Tbl.find t.adjacencies from in
-      Edge.Tbl.add edges edge loc
+    add_edge_with_label t ~from ~to_ ~label ~loc
 
   type vertex_state =
     { preorder : int;
@@ -460,8 +523,9 @@ end = struct
             (* Ignore these; before less-tco they already allocate stack space,
                so are unlikely to be part of some cycle that blows the stack. *)
             ()
-          | Explicit_tail_edge | Unknown_position_tail_edge | Inferred_tail_edge
-          | Inferred_nontail_edge -> (
+          | Explicit_tail_edge | Unknown_position_tail_edge
+          | Dangerous_cross_cu_edge | Inferred_tail_edge | Inferred_nontail_edge
+            -> (
             let to_state = Vertex.Tbl.find states to_ in
             match to_state with
             | Not_visited ->
@@ -505,7 +569,7 @@ end = struct
                   match e.edge.label with
                   | Explicit_tail_edge | Explicit_nontail_edge
                   | Unknown_position_tail_edge | Unknown_position_nontail_edge
-                  | Inferred_tail_edge ->
+                  | Dangerous_cross_cu_edge | Inferred_tail_edge ->
                     false
                   | Inferred_nontail_edge -> Vertex.Hashset.mem scc e.edge.to_))
     |> List.sort Edge.With_loc.compare
@@ -721,8 +785,8 @@ end = struct
     let is_ignored_nontail_edge =
       match label with
       | Explicit_nontail_edge | Unknown_position_nontail_edge -> true
-      | Explicit_tail_edge | Unknown_position_tail_edge | Inferred_tail_edge
-      | Inferred_nontail_edge ->
+      | Explicit_tail_edge | Unknown_position_tail_edge
+      | Dangerous_cross_cu_edge | Inferred_tail_edge | Inferred_nontail_edge ->
         false
     in
     if (hide_edges_from_unknown && Vertex.is_unknown from)
@@ -731,7 +795,9 @@ end = struct
     else
       let color =
         match label with
-        | Explicit_tail_edge | Unknown_position_tail_edge -> "black"
+        | Explicit_tail_edge | Unknown_position_tail_edge
+        | Dangerous_cross_cu_edge ->
+          "black"
         | Explicit_nontail_edge | Unknown_position_nontail_edge -> "lightgrey"
         | Inferred_tail_edge -> "blue"
         | Inferred_nontail_edge -> "red"
@@ -745,6 +811,7 @@ end = struct
         | Explicit_nontail_edge -> maybe_unknown_style ()
         | Unknown_position_tail_edge -> "dashed"
         | Unknown_position_nontail_edge -> "dashed"
+        | Dangerous_cross_cu_edge -> "dashed"
         | Inferred_tail_edge -> "solid"
         | Inferred_nontail_edge -> "solid"
       in
@@ -819,7 +886,7 @@ end = struct
               | Inferred_tail_edge ->
                 visit edge.from (* visit from since it is reversed. *)
               | Explicit_nontail_edge | Unknown_position_nontail_edge
-              | Inferred_nontail_edge ->
+              | Dangerous_cross_cu_edge | Inferred_nontail_edge ->
                 ())
             (successors_mod_loc_rev v)
       in
@@ -850,17 +917,35 @@ module Global_state = struct
 
   let graph : Graph.t = Graph.create ()
 
-  let reset_unit_info () = Graph.reset graph
+  let seen_functions : unit String.Tbl.t = String.Tbl.create 100
 
-  let cfg cfg_with_layout =
+  let reset_unit_info () =
+    Graph.reset graph;
+    String.Tbl.reset seen_functions
+
+  let is_in_current_compilation_unit ~fn_name ~future_funcnames =
+    String.Tbl.mem seen_functions fn_name
+    || String.Set.mem fn_name future_funcnames
+
+  let cfg ~future_funcnames cfg_with_layout =
     let cfg = Cfg_with_layout.cfg cfg_with_layout in
-    let from = Graph.find_or_add_vertex graph ~fn_name:(Cfg.fun_name cfg) in
+    let cur_fn_name = Cfg.fun_name cfg in
+    let from = Graph.find_or_add_vertex graph ~fn_name:cur_fn_name in
     let to_ (op : Cfg.func_call_operation) : Vertex.t =
       match op with
       | Indirect -> Vertex.unknown
-      | Direct { sym_name; _ } ->
-        Graph.find_or_add_vertex graph ~fn_name:sym_name
+      | Direct { sym_name = fn_name; _ } ->
+        let vertex = Graph.find_or_add_vertex graph ~fn_name in
+        (if not (is_in_current_compilation_unit ~fn_name ~future_funcnames)
+        then
+          match Less_tco_info.Global_state.find ~fn:fn_name with
+          | None | Some Doesn't_contain_indirect_call_in_tail_position -> ()
+          | Some Contains_indirect_call_in_tail_position ->
+            Graph.add_edge_with_label graph ~from:vertex ~to_:Vertex.unknown
+              ~label:Dangerous_cross_cu_edge ~loc:Location.none);
+        vertex
     in
+    String.Tbl.add seen_functions cur_fn_name ();
     Cfg.iter_blocks cfg ~f:(fun _ block ->
         let term = block.terminator in
         let loc = Debuginfo.to_location term.dbg in

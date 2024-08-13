@@ -78,3 +78,12 @@ struct
   let to_string t = M.to_string t
   let of_string str = M.Nested.of_string str
 end
+
+
+(* With no optimization passes, this currently (falsely) warns that there is a
+   cycle, since the partial application of `add` generates a closure which is
+   called indirectly. Under higher optimization levels, the compiler is able
+   to remove this indirect call. *)
+let[@inline never] add a b = a + b
+
+let foo k = add 1

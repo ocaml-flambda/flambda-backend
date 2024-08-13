@@ -62,6 +62,8 @@ module Global_state = struct
   let cached = ref empty
 
   let add_to_cache t = cached := merge_exn !cached t
+
+  let find ~fn = find !cached ~fn
 end
 
 module Raw = struct
