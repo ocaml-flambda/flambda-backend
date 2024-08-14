@@ -259,15 +259,18 @@ let unpack_modality_annot :
 
 let transl_modality_annots ?required_mode_maturity annots =
   let unpacked_annots = List.map unpack_modality_annot annots in
-  let modalities = transl_modelike_annots ~annot_type:Modality ~required_mode_maturity
-    unpacked_annots in
-  let unpack_locs loc_list = List.map (fun ({txt; loc=_} : _ Location.loc) -> txt) loc_list in
-  {
-    areality = unpack_locs modalities.areality_locs;
+  let modalities =
+    transl_modelike_annots ~annot_type:Modality ~required_mode_maturity
+      unpacked_annots
+  in
+  let unpack_locs loc_list =
+    List.map (fun ({ txt; loc = _ } : _ Location.loc) -> txt) loc_list
+  in
+  { areality = unpack_locs modalities.areality_locs;
     uniqueness = unpack_locs modalities.uniqueness_locs;
     linearity = unpack_locs modalities.linearity_locs;
     portability = unpack_locs modalities.portability_locs;
-    contention = unpack_locs modalities.contention_locs;
+    contention = unpack_locs modalities.contention_locs
   }
 
 let transl_mode_annots ?required_mode_maturity annots =

@@ -613,12 +613,10 @@ module Const = struct
                parsed_modifiers.modes);
         nullability_upper_bound =
           Nullability.meet base.nullability_upper_bound
-            (Option.value ~default:Nullability.max
-               parsed_modifiers.nullability);
+            (Option.value ~default:Nullability.max parsed_modifiers.nullability);
         externality_upper_bound =
           Externality.meet base.externality_upper_bound
-            (Option.value ~default:Externality.max
-               parsed_modifiers.externality)
+            (Option.value ~default:Externality.max parsed_modifiers.externality)
       }
     | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 
