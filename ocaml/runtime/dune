@@ -58,6 +58,7 @@
    (progn
      (run %{dep:gen_primitives.sh} primitives %{deps})
      (run rm -f prims.c)
+     ; XXX mshinwell: looks like there might be a race here
      (with-stdout-to prims.c (run %{dep:gen_primsc.sh} primitives %{deps})))))
 
 (rule
