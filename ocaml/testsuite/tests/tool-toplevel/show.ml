@@ -11,7 +11,9 @@ class o : object val x : int end
 |}];;
 #show o;;
 [%%expect{|
-Unknown directive "show".
+type o = <  >
+class o : object val x : int end
+class type o = object val x : int end
 |}];;
 class type t = object val x : int end;;
 [%%expect{|
@@ -19,12 +21,13 @@ class type t = object val x : int end
 |}];;
 #show t;;
 [%%expect{|
-Unknown directive "show".
+type t = <  >
+class type t = object val x : int end
 |}];;
 
 #show Foo;;
 [%%expect {|
-Unknown directive "show".
+Unknown element.
 |}];;
 
 module type S = sig type t val x : t end;;
@@ -37,37 +40,55 @@ module M : S
 
 #show M;;
 [%%expect {|
-Unknown directive "show".
+module M : S
 |}];;
 
 #show S;;
 [%%expect {|
-Unknown directive "show".
+module type S = sig type t val x : t end
 |}];;
 
 #show Invalid_argument;;
 [%%expect {|
-Unknown directive "show".
+exception Invalid_argument of string
 |}];;
 
 #show Some;;
 [%%expect {|
-Unknown directive "show".
+type 'a option = None | Some of 'a
 |}];;
 
 #show option;;
 [%%expect {|
-Unknown directive "show".
+type 'a option = None | Some of 'a
 |}];;
 
 #show Open_binary;;
 [%%expect {|
-Unknown directive "show".
+type Stdlib.open_flag =
+    Open_rdonly
+  | Open_wronly
+  | Open_append
+  | Open_creat
+  | Open_trunc
+  | Open_excl
+  | Open_binary
+  | Open_text
+  | Open_nonblock
 |}];;
 
 #show open_flag;;
 [%%expect {|
-Unknown directive "show".
+type open_flag =
+    Open_rdonly
+  | Open_wronly
+  | Open_append
+  | Open_creat
+  | Open_trunc
+  | Open_excl
+  | Open_binary
+  | Open_text
+  | Open_nonblock
 |}];;
 
 type extensible = ..;;
@@ -79,17 +100,17 @@ type extensible += A | B of int
 
 #show A;;
 [%%expect {|
-Unknown directive "show".
+type extensible += A
 |}];;
 
 #show B;;
 [%%expect {|
-Unknown directive "show".
+type extensible += B of int
 |}];;
 
 #show extensible;;
 [%%expect {|
-Unknown directive "show".
+type extensible = ..
 |}];;
 
 type 'a t = ..;;
@@ -101,7 +122,7 @@ type _ t += A : int t
 
 #show A;;
 [%%expect{|
-Unknown directive "show".
+type 'a t += A : int t
 |}];;
 
 
@@ -110,7 +131,7 @@ Unknown directive "show".
 (* regression tests for #11533 *)
 #show Set.OrderedType;;
 [%%expect {|
-Unknown directive "show".
+module type OrderedType = sig type t val compare : t -> t -> int end
 |}];;
 
 (* extra tests after #11533
@@ -137,10 +158,18 @@ module type OT = Set.OrderedType
 
 #show U;;
 [%%expect {|
-Unknown directive "show".
+module U = Unit
+module U :
+  sig
+    type t = unit = ()
+    val equal : t -> t -> bool
+    val compare : t -> t -> int
+    val to_string : t -> string
+  end
 |}];;
 
 #show OT;;
 [%%expect {|
-Unknown directive "show".
+module type OT = Set.OrderedType
+module type OT = sig type t val compare : t -> t -> int end
 |}];;
