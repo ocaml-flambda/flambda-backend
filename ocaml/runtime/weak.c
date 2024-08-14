@@ -59,16 +59,8 @@ CAMLprim value caml_ephe_create (value len)
     caml_invalid_argument ("Weak.create");
   res = caml_alloc_shr (size, Abstract_tag);
 
-  /* The new ephemeron needs to be added to:
-       live, if marking has started, to be marked next cycle
-       todo, if marking has not started, to be marked this cycle */
-  if (caml_marking_started()) {
-    Ephe_link(res) = domain_state->ephe_info->live;
-    domain_state->ephe_info->live = res;
-  } else {
-    Ephe_link(res) = domain_state->ephe_info->todo;
-    domain_state->ephe_info->todo = res;
-  }
+  Ephe_link(res) = domain_state->ephe_info->live;
+  domain_state->ephe_info->live = res;
   for (i = CAML_EPHE_DATA_OFFSET; i < size; i++)
     Field(res, i) = caml_ephe_none;
   /* run memprof callbacks */
