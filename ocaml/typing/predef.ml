@@ -361,6 +361,9 @@ let build_initial_env add_type add_extension empty_env =
                 Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type ident_floatarray
+      ~jkind:(Jkind.of_const ~why:(Primitive ident_floatarray)
+               Jkind.Const.Builtin.mutable_data.jkind)
+      ~jkind_annotation:Jkind.Const.Builtin.mutable_data
   |> add_type ident_int ~jkind:(Jkind.Builtin.immediate ~why:(Primitive ident_int))
       ~jkind_annotation:Jkind.Const.Builtin.immediate
   |> add_type ident_int32
