@@ -140,7 +140,7 @@ Line 1, characters 24-25:
 Error: This expression has type float# but an expression was expected of type
          ('a : value)
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -164,7 +164,7 @@ Line 1, characters 18-24:
                       ^^^^^^
 Error: Tuple element types must have layout value.
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -333,7 +333,7 @@ Line 1, characters 31-37:
                                    ^^^^^^
 Error: This type signature for x is not a value type.
        The layout of type float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of type float# must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}];;
@@ -375,7 +375,7 @@ Line 1, characters 27-28:
 Error: This expression has type float# but an expression was expected of type
          ('a : value)
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -453,7 +453,7 @@ Line 1, characters 20-36:
 Error: This expression has type float# but an expression was expected of type
          ('a : value)
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because of the definition of id_value at line 5, characters 13-18.
 |}];;
@@ -688,7 +688,7 @@ Line 1, characters 26-43:
                               ^^^^^^^^^^^^^^^^^
 Error: The method x has type float# but is expected to have type ('a : value)
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because it's the type of an object field.
 |}];;
@@ -700,7 +700,7 @@ Line 1, characters 26-40:
                               ^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
        The layout of x is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of x must be a sublayout of value
          because it's the type of an instance variable.
 |}];;
