@@ -499,12 +499,18 @@ module Adjacent_memory_accesses = struct
       store_runs : Address.t list list
     }
 
-  let from_block (block : Cfg.basic_block) : t =
+  let get_sorted_addresses (block : Cfg.basic_block)
+      (address_from_instruction : Cfg.basic Cfg.instruction -> Address.t option)
+      =
     let body = DLL.to_list block.body in
-    let loads = List.filter_map Address.create_loads body in
-    let stores = List.filter_map Address.create_stores body in
-    let find_runs addresses : Address.t list list =
-      let sorted_addresses = List.sort Address.compare addresses in
+    let addresses = List.filter_map address_from_instruction body in
+    List.sort Address.compare addresses
+
+  let from_block (block : Cfg.basic_block) : t =
+    let find_runs address_from_instruction =
+      let sorted_addresses =
+        get_sorted_addresses block address_from_instruction
+      in
       let address_runs =
         List.fold_right
           (fun (address : Address.t) runs ->
@@ -524,8 +530,8 @@ module Adjacent_memory_accesses = struct
       in
       address_runs_longer_than_1
     in
-    let load_runs = find_runs loads in
-    let store_runs = find_runs stores in
+    let load_runs = find_runs Address.create_loads in
+    let store_runs = find_runs Address.create_stores in
     { load_runs; store_runs }
 
   let from_cfg (cfg : Cfg.t) : t Label.Tbl.t =
@@ -557,6 +563,40 @@ module Adjacent_memory_accesses = struct
         Label.Tbl.find block_to_runs label |> print_block)
 end
 
+module Seed = struct
+  type t = Adjacent_memory_accesses.Address.t list
+
+  let from_block block =
+    ignore block;
+    []
+
+  let from_cfg (cfg : Cfg.t) : t list Label.Tbl.t =
+    Label.Tbl.map cfg.blocks from_block
+
+  let dump ppf (block_to_seeds : t list Label.Tbl.t)
+      (cfg_with_layout : Cfg_with_layout.t) =
+    let open Format in
+    let print_seed seed =
+      List.iter
+        (fun (address : Adjacent_memory_accesses.Address.t) ->
+          Adjacent_memory_accesses.Address.dump ppf address)
+        seed
+    in
+    let print_seed seeds =
+      List.iter
+        (fun seed ->
+          fprintf ppf "\n(";
+          print_seed seed;
+          fprintf ppf "\n)\n")
+        seeds
+    in
+    fprintf ppf "\nseeds in each basic block of %s:\n"
+      (Cfg_with_layout.cfg cfg_with_layout |> Cfg.fun_name);
+    DLL.iter (Cfg_with_layout.layout cfg_with_layout) ~f:(fun label ->
+        fprintf ppf "\nBlock %d:\n" label;
+        Label.Tbl.find block_to_seeds label |> print_seed)
+end
+
 let dump ppf cfg_with_layout ~msg =
   let open Format in
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
@@ -583,5 +623,8 @@ let cfg ppf_dump cl =
   let adjacent_memory_accesses = Adjacent_memory_accesses.from_cfg cfg in
   if !Flambda_backend_flags.dump_vectorize
   then Adjacent_memory_accesses.dump ppf_dump adjacent_memory_accesses cl;
+  let seeds = Seed.from_cfg cfg in
+  if !Flambda_backend_flags.dump_vectorize
+  then Seed.dump ppf_dump seeds cl;
   if !Flambda_backend_flags.dump_vectorize then dump ppf_dump ~msg:"" cl;
   cl
