@@ -440,8 +440,8 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
-        ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
-  ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code")
+        ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run))
+  ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ Profile.record ~accumulate:true "save_linear" save_linear
   ++ (fun (fd : Linear.fundecl) ->
