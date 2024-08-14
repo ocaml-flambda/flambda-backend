@@ -66,7 +66,7 @@ type error =
   | Unbound_type_variable of string * string list
   | No_type_wildcards
   | Undefined_type_constructor of Path.t
-  | Type_arity_mismatch of Longident.t * int * int
+  | Type_arity_mismatch of type_expr * int * int
   | Bound_type_variable of string
   | Recursive_type
   | Unbound_row_variable of Longident.t
@@ -780,7 +780,7 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
       in
       if not @@ Ctype.arity_matches_decl env decl (List.length stl) then
         raise(Error(styp.ptyp_loc, env,
-                    Type_arity_mismatch(lid.txt, decl.type_arity,
+                    Type_arity_mismatch(newconstr path [], decl.type_arity,
                                         List.length stl)));
       let params = if stl <> [] then instance_list (app_params_of_decl decl) else [] in
       let unify_param =
@@ -830,11 +830,13 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
     let ty_jkind = estimate_type_jkind env ty.ctyp_type in
     let arg_ty_jkinds =
       match Jkind.get ty_jkind with
-      | Arrow { args; result = _ } -> args
-      | Type _ -> raise (Error (
-        styp.ptyp_loc, env,
-        Bad_jkind_for_application (ty.ctyp_type, ty_jkind)))
-      | Top -> raise (Error (st.ptyp_loc, env, Bad_jkind_for_application (ty.ctyp_type, ty_jkind)))
+      | Arrow { args; result = _ } when List.length stl = List.length args -> args
+      | Arrow { args; result = _ } ->
+        raise (Error (
+          styp.ptyp_loc, env,
+          Type_arity_mismatch (ty.ctyp_type, List.length args, List.length stl)))
+      | Type _ | Top -> 
+        raise (Error (st.ptyp_loc, env, Bad_jkind_for_application (ty.ctyp_type, ty_jkind)))
     in
     let arg_tys =
       List.map2 (fun sty jkind ->
@@ -880,7 +882,7 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
       in
       if List.length stl <> decl.type_arity then
         raise(Error(styp.ptyp_loc, env,
-                    Type_arity_mismatch(lid.txt, decl.type_arity,
+                    Type_arity_mismatch(newconstr path [], decl.type_arity,
                                         List.length stl)));
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
@@ -1482,11 +1484,11 @@ let report_error env ppf = function
   | Undefined_type_constructor p ->
     fprintf ppf "The type constructor@ %a@ is not yet completely defined"
       path p
-  | Type_arity_mismatch(lid, expected, provided) ->
+  | Type_arity_mismatch(ty, expected, provided) ->
     fprintf ppf
       "@[The type constructor %a@ expects %i argument(s),@ \
         but is here applied to %i argument(s)@]"
-      longident lid expected provided
+      type_expr ty expected provided
   | Bound_type_variable name ->
     fprintf ppf "Already bound type parameter %a" Pprintast.tyvar name
   | Recursive_type ->

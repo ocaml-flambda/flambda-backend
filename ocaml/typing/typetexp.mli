@@ -142,7 +142,7 @@ type error =
   | Unbound_type_variable of string * string list
   | No_type_wildcards
   | Undefined_type_constructor of Path.t
-  | Type_arity_mismatch of Longident.t * int * int
+  | Type_arity_mismatch of type_expr * int * int
   | Bound_type_variable of string
   | Recursive_type
   | Unbound_row_variable of Longident.t
