@@ -820,15 +820,8 @@ let transl_declaration env sdecl (id, uid) =
         Builtin_attributes.has_or_null_reexport sdecl_attributes ->
         raise (Error (sdecl.ptype_loc, Non_abstract_reexport path))
       | Ptype_abstract ->
-<<<<<<< HEAD
         Ttype_abstract, Type_abstract Definition,
         Jkind.Primitive.value ~why:Default_type_jkind
-||||||| a198127529
-        Ttype_abstract, Type_abstract Abstract_def, Jkind.Primitive.value ~why:Default_type_jkind
-=======
-        Ttype_abstract, Type_abstract Abstract_def,
-          Jkind.Primitive.value ~why:Default_type_jkind
->>>>>>> flambda-backend/main
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -1155,45 +1148,10 @@ let narrow_to_manifest_jkind env loc decl =
 (* Check that the type expression (if present) is compatible with the kind.
    If both a variant/record definition and a type equation are given,
    need to check that the equation refers to a type of the same kind
-<<<<<<< HEAD
-   with the same constructors and labels.
-
-   If the kind is [Type_abstract], we need to check that [type_jkind] (where
-   we've stored the jkind annotation, if any) corresponds to the manifest
-   (e.g., in the case where [type_jkind] is immediate, we should check the
-   manifest is immediate).  It would also be nice to store the best possible
-   jkind for this type in the kind, to avoid expansions later.  So, we do the
-   relatively expensive thing of computing the best possible jkind for the
-   manifest, checking that it's a subjkind of [type_jkind], and then replacing
-   [type_jkind] with what we computed.
-*)
-let check_coherence env loc dpath decl =
-  match decl with
-    { type_kind = (Type_variant _ | Type_record _| Type_open);
-      type_manifest = Some ty } ->
-||||||| a198127529
-   with the same constructors and labels.
-
-   If the kind is [Type_abstract], we need to check that [type_jkind] (where
-   we've stored the jkind annotation, if any) corresponds to the manifest
-   (e.g., in the case where [type_jkind] is immediate, we should check the
-   manifest is immediate).  It would also be nice to store the best possible
-   jkind for this type in the kind, to avoid expansions later.  So, we do the
-   relatively expensive thing of computing the best possible jkind for the
-   manifest, checking that it's a subjkind of [type_jkind], and then replacing
-   [type_jkind] with what we computed.
-*)
-let check_coherence env loc dpath decl =
-  match decl with
-    { type_kind = (Type_variant _ | Type_record _| Type_open);
-      type_manifest = Some ty } ->
-      if !Clflags.allow_illegal_crossing then begin 
-=======
    with the same constructors and labels. *)
 let check_kind_coherence env loc dpath decl =
   match decl.type_kind, decl.type_manifest with
   | (Type_variant _ | Type_record _ | Type_open), Some ty ->
->>>>>>> flambda-backend/main
       if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
         begin match Jkind.sub_with_history jkind' decl.type_jkind with

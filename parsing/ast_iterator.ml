@@ -516,78 +516,6 @@ module E = struct
       iter_loc_txt sub sub.jkind_annotation jkind;
       sub.expr sub inner_expr
 
-<<<<<<< HEAD
-||||||| a198127529
-  let iter_function_param sub : N_ary.function_param -> _ =
-    fun { pparam_loc = loc; pparam_desc = desc } ->
-      sub.location sub loc;
-      match desc with
-      | Pparam_val (_label, def, pat) ->
-          iter_opt (sub.expr sub) def;
-          sub.pat sub pat
-      | Pparam_newtype (newtype, jkind) ->
-          iter_loc sub newtype;
-          iter_opt (iter_loc_txt sub sub.jkind_annotation) jkind
-
-  let iter_function_constraint sub : N_ary.function_constraint -> _ =
-    (* Enable warning 9 to ensure that the record pattern doesn't miss any
-       field. *)
-    fun[@ocaml.warning "+9"] { mode_annotations; type_constraint } ->
-      sub.modes sub mode_annotations;
-      match type_constraint with
-      | Pconstraint ty ->
-          sub.typ sub ty
-      | Pcoerce (ty1, ty2) ->
-          Option.iter (sub.typ sub) ty1;
-          sub.typ sub ty2
-
-  let iter_function_body sub : N_ary.function_body -> _ = function
-    | Pfunction_body expr ->
-        sub.expr sub expr
-    | Pfunction_cases (cases, loc, attrs) ->
-        sub.cases sub cases;
-        sub.location sub loc;
-        sub.attributes sub attrs
-
-  let iter_n_ary_function sub : N_ary.expression -> _ =
-    fun (params, constraint_, body) ->
-      List.iter (iter_function_param sub) params;
-      Option.iter (iter_function_constraint sub) constraint_;
-      iter_function_body sub body
-
-=======
-  let iter_function_param sub : function_param -> _ =
-    fun { pparam_loc = loc; pparam_desc = desc } ->
-      sub.location sub loc;
-      match desc with
-      | Pparam_val (_label, def, pat) ->
-          iter_opt (sub.expr sub) def;
-          sub.pat sub pat
-      | Pparam_newtype (newtype, jkind) ->
-          iter_loc sub newtype;
-          iter_opt (iter_loc_txt sub sub.jkind_annotation) jkind
-
-  let iter_function_constraint sub : function_constraint -> _ =
-    (* Enable warning 9 to ensure that the record pattern doesn't miss any
-       field. *)
-    fun[@ocaml.warning "+9"] { mode_annotations; type_constraint } ->
-      sub.modes sub mode_annotations;
-      match type_constraint with
-      | Pconstraint ty ->
-          sub.typ sub ty
-      | Pcoerce (ty1, ty2) ->
-          Option.iter (sub.typ sub) ty1;
-          sub.typ sub ty2
-
-  let iter_function_body sub : function_body -> _ = function
-    | Pfunction_body expr ->
-        sub.expr sub expr
-    | Pfunction_cases (cases, loc, attrs) ->
-        sub.cases sub cases;
-        sub.location sub loc;
-        sub.attributes sub attrs
-
->>>>>>> flambda-backend/main
   let iter_labeled_tuple sub : LT.expression -> _ = function
     | el -> List.iter (iter_snd (sub.expr sub)) el
 
@@ -645,17 +573,7 @@ module E = struct
         sub.expr sub e
     | Pexp_function (params, constraint_, body) ->
         List.iter (iter_function_param sub) params;
-<<<<<<< HEAD
         iter_opt (iter_function_constraint sub) constraint_;
-||||||| a198127529
-    | Pexp_fun (_lab, def, p, e) ->
-        iter_opt (sub.expr sub) def;
-        sub.pat sub p;
-        sub.expr sub e
-    | Pexp_function pel -> sub.cases sub pel
-=======
-        Option.iter (iter_function_constraint sub) constraint_;
->>>>>>> flambda-backend/main
         iter_function_body sub body
     | Pexp_apply (e, l) ->
         sub.expr sub e; List.iter (iter_snd (sub.expr sub)) l

@@ -39,18 +39,9 @@ let module_type_substitution_missing_rhs loc =
   err loc "Module type substitution with no right hand side"
 let empty_comprehension loc = err loc "Comprehension with no clauses"
 let function_without_value_parameters loc =
-<<<<<<< HEAD
-  err loc "Function without any value parameters"
-||||||| a198127529
-let no_val_params loc = err loc "Functions must have a value parameter."
-
-let non_jane_syntax_function loc =
-  err loc "Functions must be constructed using Jane Street syntax."
-=======
   err loc "Functions must have a value parameter."
 let redundant_nested_constraints loc =
   err loc "Nested pattern constraints must all specify a type"
->>>>>>> flambda-backend/main
 
 let simple_longident id =
   let rec is_simple = function
@@ -179,22 +170,11 @@ let iterator =
       List.iter (fun (id, _) -> simple_longident id) fields
     | Pexp_function (params, _, Pfunction_body _) ->
         if
-<<<<<<< HEAD
           List.for_all
             (function
               | { pparam_desc = Pparam_newtype _ } -> true
               | { pparam_desc = Pparam_val _ } -> false)
             params
-||||||| a198127529
-    | Pexp_fun _ | Pexp_function _ -> non_jane_syntax_function loc
-=======
-          not (
-            List.exists
-              (function
-                | { pparam_desc = Pparam_val _ } -> true
-                | { pparam_desc = Pparam_newtype _ } -> false)
-              params)
->>>>>>> flambda-backend/main
         then function_without_value_parameters loc
     | _ -> ()
   in

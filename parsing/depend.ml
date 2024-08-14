@@ -407,11 +407,7 @@ and add_function_constraint bv { mode_annotations = _; type_constraint } =
   | Pcoerce (ty1, ty2) ->
       add_opt add_type bv ty1;
       add_type bv ty2
-<<<<<<< HEAD
 
-||||||| a198127529
-=======
->>>>>>> flambda-backend/main
 and add_cases bv cases =
   List.iter (add_case bv) cases
 
