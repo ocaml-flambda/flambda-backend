@@ -84,7 +84,7 @@ module Asttypes = struct
     | (Downto, Downto) -> true
     | (_, _) -> false
 
-  let eq_private_not_new_flag : (private_not_new_flag * private_not_new_flag) -> 'result =
+  let eq_private_flag : (private_flag * private_flag) -> 'result =
     function
     | (Private, Private) -> true
     | (Public, Public) -> true
@@ -451,13 +451,13 @@ and eq_class_field_desc :
   | (Pcf_virt a0, Pcf_virt b0) ->
       (fun ((a0, a1, a2), (b0, b1, b2)) ->
          ((Asttypes.eq_loc eq_string (a0, b0)) &&
-            (Asttypes.eq_private_not_new_flag (a1, b1)))
+            (Asttypes.eq_private_flag (a1, b1)))
            && (eq_core_type (a2, b2)))
         (a0, b0)
   | (Pcf_meth a0, Pcf_meth b0) ->
       (fun ((a0, a1, a2, a3), (b0, b1, b2, b3)) ->
          (((Asttypes.eq_loc eq_string (a0, b0)) &&
-             (Asttypes.eq_private_not_new_flag (a1, b1)))
+             (Asttypes.eq_private_flag (a1, b1)))
             && (Asttypes.eq_override_flag (a2, b2)))
            && (eq_expression (a3, b3)))
         (a0, b0)
@@ -532,12 +532,12 @@ and eq_class_type_field_desc :
         (a0, b0)
   | (Pctf_virt a0, Pctf_virt b0) ->
       (fun ((a0, a1, a2), (b0, b1, b2)) ->
-         ((eq_string (a0, b0)) && (Asttypes.eq_private_not_new_flag (a1, b1)))
+         ((eq_string (a0, b0)) && (Asttypes.eq_private_flag (a1, b1)))
            && (eq_core_type (a2, b2)))
         (a0, b0)
   | (Pctf_meth a0, Pctf_meth b0) ->
       (fun ((a0, a1, a2), (b0, b1, b2)) ->
-         ((eq_string (a0, b0)) && (Asttypes.eq_private_not_new_flag (a1, b1)))
+         ((eq_string (a0, b0)) && (Asttypes.eq_private_flag (a1, b1)))
            && (eq_core_type (a2, b2)))
         (a0, b0)
   | (Pctf_cstr a0, Pctf_cstr b0) ->
@@ -631,7 +631,7 @@ and eq_type_declaration :
                    && (Location.eq_t (a2, b2)))
               (a1, b1)))
           && (eq_type_kind (a2, b2)))
-         && (Asttypes.eq_private_not_new_flag (a3, b3)))
+         && (Asttypes.eq_private_flag (a3, b3)))
         && (eq_option eq_core_type (a4, b4)))
        &&
        (eq_list

@@ -1172,7 +1172,7 @@ let rec find_repr p1 =
   function
     Mnil ->
       None
-  | Mcons (Public, p2, ty, _, _) when Path.same p1 p2 ->
+  | Mcons (Type_public, p2, ty, _, _) when Path.same p1 p2 ->
       Some ty
   | Mcons (_, _, _, _, rem) ->
       find_repr p1 rem
@@ -1361,7 +1361,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
     type_kind = Type_abstract { reason = Abstract_def; datatype = false };
     type_jkind = jkind;
     type_jkind_annotation = jkind_annot;
-    type_private = Public;
+    type_private = Type_public;
     type_manifest = manifest;
     type_variance = [];
     type_separability = [];
@@ -1815,7 +1815,7 @@ let subst env level priv abbrev oty params args body =
 let apply ?(use_current_level = false) env params body args =
   let level = if use_current_level then !current_level else generic_level in
   try
-    subst env level Public (ref Mnil) None params args body
+    subst env level Type_public (ref Mnil) None params args body
   with
     Cannot_subst -> raise Cannot_apply
 
@@ -1926,7 +1926,7 @@ let expand_abbrev_gen kind find_type_expansion env ty =
 
 (* Expand respecting privacy *)
 let expand_abbrev env ty =
-  expand_abbrev_gen Public Env.find_type_expansion env ty
+  expand_abbrev_gen Type_public Env.find_type_expansion env ty
 
 (* Expand once the head of a type *)
 let expand_head_once env ty =
@@ -2019,7 +2019,7 @@ let rec extract_concrete_typedecl env ty =
 
 
 let expand_abbrev_new env ty =
-  expand_abbrev_gen New Env.find_type_expansion_new env ty
+  expand_abbrev_gen Type_new Env.find_type_expansion_new env ty
 
 let safe_abbrev_new env ty =
   let snap = Btype.snapshot () in
@@ -2047,7 +2047,7 @@ let try_expand_safe_new env ty =
    the private abbreviation. *)
 
 let expand_abbrev_opt env ty =
-  expand_abbrev_gen Private Env.find_type_expansion_opt env ty
+  expand_abbrev_gen Type_private Env.find_type_expansion_opt env ty
 
 let safe_abbrev_opt env ty =
   let snap = Btype.snapshot () in
@@ -2153,7 +2153,7 @@ let rec jkind_of_decl_unapplied env (decl : type_declaration) =
   (* FIXME jbachurski: Shouldn't we look at type_variance and type_separability here? *)
   match decl.type_arity with
   | 0 -> Some decl.type_jkind
-  | _ when is_datatype_decl_kind decl.type_kind || decl.type_private = New ->
+  | _ when is_datatype_decl_kind decl.type_kind || decl.type_private = Type_new ->
     Some (Jkind.of_arrow
       ~history:(Projection {
         reason = Unapplied;
@@ -2525,7 +2525,7 @@ let generic_private_abbrev env path =
   try
     match Env.find_type path env with
       {type_kind = Type_abstract _;
-       type_private = Private;
+       type_private = Type_private;
        type_manifest = Some body} ->
          get_level body = generic_level
     | _ -> false
@@ -3026,7 +3026,7 @@ let is_instantiable env ~for_jkind_eqn p =
   try
     let decl = Env.find_type p env in
     type_kind_is_abstract decl &&
-    decl.type_private = Public &&
+    decl.type_private = Type_public &&
     decl.type_arity = 0 &&
     decl.type_manifest = None &&
     (for_jkind_eqn || not (non_aliasable p decl))
@@ -3449,7 +3449,7 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
         let lid = concat_longident (Longident.Lident "Pkg") n in
         match Env.find_type_by_name lid env' with
         | (_, {type_arity = 0; type_kind = Type_abstract _;
-               type_private = Public; type_manifest = Some t2}) ->
+               type_private = Type_public; type_manifest = Some t2}) ->
             begin match nondep_instance env' lv2 id2 t2 with
             | t -> (n, t) :: complete nl fl2
             | exception Nondep_cannot_erase _ ->
@@ -3459,7 +3459,7 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
                   raise Exit
             end
         | (_, {type_arity = 0; type_kind = Type_abstract _;
-               type_private = Public; type_manifest = None})
+               type_private = Type_public; type_manifest = None})
           when allow_absent ->
             complete nl fl2
         | _ -> raise Exit
@@ -4415,7 +4415,7 @@ let filter_method env name ty =
 
 exception Filter_method_row_failed
 
-let rec filter_method_row env name (priv : private_not_new_flag) ty =
+let rec filter_method_row env name (priv : private_flag) ty =
   let ty = expand_head env ty in
   match get_desc ty with
   | Tvar _ ->
@@ -4485,7 +4485,7 @@ type add_method_failure =
 
 exception Add_method_failed of add_method_failure
 
-let add_method env label (priv : private_not_new_flag) virt ty sign =
+let add_method env label (priv : private_flag) virt ty sign =
   let meths = sign.csig_meths in
   let priv, virt =
     match Meths.find label meths with
@@ -4596,7 +4596,7 @@ let inherit_class_signature ~strict env sign1 sign2 =
   unify_self_types env sign1 sign2;
   Meths.iter
     (fun label (priv, virt, ty) ->
-       let priv : private_not_new_flag =
+       let priv : private_flag =
          match priv with
          | Mpublic -> Public
          | Mprivate kind ->
@@ -5916,7 +5916,7 @@ let rec build_subtype env (visited : transient_expr list)
           let cl_abbr, body = find_cltype_for_path env p in
           let ty =
             try
-              subst env !current_level Public abbrev None
+              subst env !current_level Type_public abbrev None
                 cl_abbr.type_params tl body
             with Cannot_subst -> assert false in
           let ty1, tl1 =
@@ -6682,14 +6682,14 @@ let nondep_type_decl env mid is_covariant decl =
           with Nondep_cannot_erase _ when is_covariant ->
             clear_hash ();
             try Some (nondep_type_rec ~expand_private:true env mid ty),
-                Private
+                Type_private
             with Nondep_cannot_erase _ ->
               None, decl.type_private
     in
     clear_hash ();
     let priv =
       match tm with
-      | Some ty when Btype.has_constr_row ty -> Private
+      | Some ty when Btype.has_constr_row ty -> Type_private
       | _ -> priv
     in
     { type_params = params;

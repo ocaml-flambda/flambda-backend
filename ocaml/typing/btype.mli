@@ -227,8 +227,8 @@ val unmark_class_signature: class_signature -> unit
 
 (**** Memorization of abbreviation expansion ****)
 
-val lte_public : private_flag -> private_flag -> bool
-val find_expans: private_flag -> Path.t -> abbrev_memo -> type_expr option
+val lte_public : type_privacy -> type_privacy -> bool
+val find_expans: type_privacy -> Path.t -> abbrev_memo -> type_expr option
         (* Look up a memorized abbreviation *)
 val cleanup_abbrev: unit -> unit
         (* Flush the cache of abbreviation expansions.
@@ -236,7 +236,7 @@ val cleanup_abbrev: unit -> unit
            function MUST be called just before. *)
 val memorize_abbrev:
         abbrev_memo ref ->
-        private_flag -> Path.t -> type_expr -> type_expr -> unit
+        type_privacy -> Path.t -> type_expr -> type_expr -> unit
         (* Add an expansion in the cache *)
 val forget_abbrev:
         abbrev_memo ref -> Path.t -> unit

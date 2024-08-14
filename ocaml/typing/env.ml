@@ -26,10 +26,10 @@ open Local_store
 
 module String = Misc.Stdlib.String
 
-let unwrap_private : private_flag -> private_not_new_flag = function
-  | Private -> Private
-  | Public -> Public
-  | New -> assert false
+let unwrap_private : type_privacy -> private_flag = function
+  | Type_private -> Private
+  | Type_public -> Public
+  | Type_new -> assert false
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
@@ -65,10 +65,10 @@ let add_constructor_usage cu usage =
 let constructor_usages () =
   {cu_positive = false; cu_pattern = false; cu_exported_private = false}
 
-let constructor_usage_complaint ~rebind (priv : private_not_new_flag) cu
+let constructor_usage_complaint ~rebind priv cu
   : Warnings.constructor_usage_warning option =
   match priv, rebind with
-  | (Asttypes.Private : Asttypes.private_not_new_flag), _ | _, true ->
+  | Asttypes.Private, _ | _, true ->
       if cu.cu_positive || cu.cu_pattern || cu.cu_exported_private then None
       else Some Unused
   | Asttypes.Public, false -> begin
@@ -109,10 +109,10 @@ let is_mutating_label_usage = function
 let label_usages () =
   {lu_projection = false; lu_mutation = false; lu_construct = false}
 
-let label_usage_complaint (priv : private_not_new_flag) mut lu
+let label_usage_complaint priv mut lu
   : Warnings.field_usage_warning option =
   match priv, mut with
-  | (Asttypes.Private : Asttypes.private_not_new_flag), _ ->
+  | Asttypes.Private, _ ->
       if lu.lu_projection then None
       else Some Unused
   | Asttypes.Public, Types.Immutable -> begin
@@ -1539,10 +1539,10 @@ let find_module_lazy path env =
 
 let fixed_visibility_for_expansion decl body =
   match decl.type_private with
-  | Private
+  | Type_private
     when not (Btype.type_kind_is_abstract decl)
       || Btype.has_constr_row body
-      -> Public
+      -> Type_public
   | _ -> decl.type_private
 
 (* Find the manifest type associated to a type when appropriate:
@@ -1551,7 +1551,7 @@ let fixed_visibility_for_expansion decl body =
 let find_type_expansion path env =
   let decl = find_type path env in
   match decl.type_manifest with
-  | Some body when Btype.lte_public Public (fixed_visibility_for_expansion decl body) ->
+  | Some body when Btype.lte_public Type_public (fixed_visibility_for_expansion decl body) ->
       (decl.type_params, body, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
      private row are still considered unknown to the type system.
@@ -1563,7 +1563,7 @@ let find_type_expansion path env =
 let find_type_expansion_new path env =
   let decl = find_type path env in
   match decl.type_manifest with
-  | Some body when Btype.lte_public New (fixed_visibility_for_expansion decl body) ->
+  | Some body when Btype.lte_public Type_new (fixed_visibility_for_expansion decl body) ->
       (decl.type_params, body, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
      private row are still considered unknown to the type system.

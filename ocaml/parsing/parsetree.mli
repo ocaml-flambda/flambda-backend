@@ -553,7 +553,7 @@ and type_declaration =
      ptype_cstrs: (core_type * core_type * Location.t) list;
       (** [... constraint T1=T1'  ... constraint Tn=Tn'] *)
      ptype_kind: type_kind;
-     ptype_private: private_flag;  (** for [= private ...] *)
+     ptype_private: type_privacy;  (** for [= private ...] *)
      ptype_manifest: core_type option;  (** represents [= T] *)
      ptype_attributes: attributes;  (** [... [\@\@id1] [\@\@id2]] *)
      ptype_loc: Location.t;
@@ -583,6 +583,8 @@ and type_declaration =
               when [type_kind] is {{!type_kind.Ptype_open}[Ptype_open]},
                and [manifest]  is [None].
 *)
+
+and type_privacy = Ppriv_private | Ppriv_new | Ppriv_public
 
 and type_kind =
   | Ptype_abstract
@@ -649,7 +651,7 @@ and type_extension =
      ptyext_path: Longident.t loc;
      ptyext_params: (core_type * (variance * injectivity)) list;
      ptyext_constructors: extension_constructor list;
-     ptyext_private: private_not_new_flag;
+     ptyext_private: private_flag;
      ptyext_loc: Location.t;
      ptyext_attributes: attributes;  (** ... [\@\@id1] [\@\@id2] *)
     }
@@ -747,7 +749,7 @@ and class_type_field_desc =
   | Pctf_inherit of class_type  (** [inherit CT] *)
   | Pctf_val of (label loc * mutable_flag * virtual_flag * core_type)
       (** [val x: T] *)
-  | Pctf_method of (label loc * private_not_new_flag * virtual_flag * core_type)
+  | Pctf_method of (label loc * private_flag * virtual_flag * core_type)
       (** [method x: T]
 
             Note: [T] can be a {{!core_type_desc.Ptyp_poly}[Ptyp_poly]}.
@@ -873,7 +875,7 @@ and class_field_desc =
        when [flag] is {{!Asttypes.mutable_flag.Mutable}[Mutable]}
         and [kind] is {{!class_field_kind.Cfk_virtual}[Cfk_virtual(T)]}
   *)
-  | Pcf_method of (label loc * private_not_new_flag * class_field_kind)
+  | Pcf_method of (label loc * private_flag * class_field_kind)
       (** - [method x = E]
                         ([E] can be a {{!expression_desc.Pexp_poly}[Pexp_poly]})
             - [method virtual x: T]

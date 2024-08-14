@@ -85,7 +85,7 @@ and _ row_field_gen =
 
 and abbrev_memo =
     Mnil
-  | Mcons of private_flag * Path.t * type_expr * type_expr * abbrev_memo
+  | Mcons of type_privacy * Path.t * type_expr * type_expr * abbrev_memo
   | Mlink of abbrev_memo ref
 
 and any = [`some | `none | `var]
@@ -101,6 +101,8 @@ and _ commutable_gen =
     Cok      : [> `some] commutable_gen
   | Cunknown : [> `none] commutable_gen
   | Cvar : {mutable commu: any commutable_gen} -> [> `var] commutable_gen
+
+and type_privacy = Type_private | Type_new | Type_public
 
 and type_jkind = type_expr Jkind_types.type_jkind
 and jkind = type_expr Jkind_types.t
@@ -261,7 +263,7 @@ type type_declaration =
     type_kind: type_decl_kind;
     type_jkind: jkind;
     type_jkind_annotation: type_expr Jkind_types.annotation option;
-    type_private: private_flag;
+    type_private: type_privacy;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
     type_separability: Separability.t list;
@@ -362,16 +364,11 @@ type extension_constructor =
     ext_shape: constructor_representation;
     ext_constant: bool;
     ext_ret_type: type_expr option;
-    ext_private: private_not_new_flag;
+    ext_private: private_flag;
     ext_loc: Location.t;
     ext_attributes: Parsetree.attributes;
     ext_uid: Uid.t;
   }
-
-and type_transparence =
-    Type_public      (* unrestricted expansion *)
-  | Type_new         (* "new" type *)
-  | Type_private     (* private type *)
 
 let tys_of_constr_args = function
   | Cstr_tuple tl -> List.map (fun ca -> ca.ca_type) tl
@@ -587,7 +584,7 @@ type constructor_description =
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)
     cstr_generalized: bool;             (* Constrained return type? *)
-    cstr_private: private_not_new_flag;         (* Read-only constructor? *)
+    cstr_private: private_flag;         (* Read-only constructor? *)
     cstr_loc: Location.t;
     cstr_attributes: Parsetree.attributes;
     cstr_inlined: type_declaration option;
@@ -682,6 +679,16 @@ let may_equal_constr c1 c2 =
      | tag1, tag2 ->
          equal_tag tag1 tag2)
 
+let of_parsetree_type_privacy : Parsetree.type_privacy -> type_privacy = function
+  | Ppriv_public -> Type_public
+  | Ppriv_new -> Type_new
+  | Ppriv_private -> Type_private
+
+let to_parsetree_type_privacy : type_privacy -> Parsetree.type_privacy = function
+| Type_public -> Ppriv_public
+| Type_new -> Ppriv_new
+| Type_private -> Ppriv_private
+
 let find_unboxed_type decl =
   match decl.type_kind with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
@@ -718,7 +725,7 @@ type label_description =
     lbl_num: int;                       (* Position in type *)
     lbl_all: label_description array;   (* All the labels in this type *)
     lbl_repres: record_representation;  (* Representation for outer record *)
-    lbl_private: private_not_new_flag;          (* Read-only field? *)
+    lbl_private: private_flag;          (* Read-only field? *)
     lbl_loc: Location.t;
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;

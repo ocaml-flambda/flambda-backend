@@ -155,11 +155,11 @@ let string_of_class_params c =
   Buffer.contents b
 
 let bool_of_private = function
-  | (Asttypes.Private : Asttypes.private_flag) -> true
+  | Parsetree.Ppriv_private -> true
   | _ -> false
 
 let bool_of_private_not_new = function
-  | (Asttypes.Private : Asttypes.private_not_new_flag) -> true
+  | Asttypes.Private -> true
   | _ -> false
 
 let field_doc_str = function

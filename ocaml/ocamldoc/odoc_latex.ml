@@ -594,7 +594,7 @@ class latex =
         self#latex_of_type_params fmt2 mod_name t;
         (match t.ty_parameters with [] -> () | _ -> ps fmt2 " ");
         ps fmt2 s_name;
-        let priv = t.ty_private = (Asttypes.Private : Asttypes.private_flag) in
+        let priv = t.ty_private = Ppriv_private in
         (
          match t.ty_manifest with
          | Some (Other typ) ->
@@ -681,7 +681,7 @@ class latex =
                 ps fmt2 ") "
         );
         ps fmt2 (self#relative_idents mod_name te.te_type_name);
-        p fmt2 " +=%s" (if te.te_private = (Asttypes.Private : Asttypes.private_not_new_flag) then " private" else "") ;
+        p fmt2 " +=%s" (if te.te_private = Asttypes.Private then " private" else "") ;
         let s_type3 = flush2 () in
         let defs =
           (List.flatten

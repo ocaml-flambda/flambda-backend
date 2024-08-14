@@ -21,8 +21,8 @@
 
 module Name = Odoc_name
 
-type private_not_new_flag = Asttypes.private_not_new_flag = Private | Public
-type private_flag = Asttypes.private_flag = Private | New | Public
+type private_flag = Asttypes.private_flag = Private | Public
+type type_privacy = Parsetree.type_privacy = Ppriv_private | Ppriv_new | Ppriv_public
 
 type record_field = {
   rf_name : string;
@@ -66,7 +66,7 @@ type t_type = {
   mutable ty_info : Odoc_types.info option;
   ty_parameters : (Types.type_expr * Types.Variance.t) list;
   ty_kind : type_kind;
-  ty_private : private_flag;
+  ty_private : type_privacy;
   ty_manifest : type_manifest option;
   mutable ty_loc : Odoc_types.location;
   mutable ty_code : string option;

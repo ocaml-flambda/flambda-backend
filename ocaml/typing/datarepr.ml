@@ -20,13 +20,13 @@ open Asttypes
 open Types
 open Btype
 
-let unwrap_private : private_flag -> private_not_new_flag = function
-  | Private -> Private
-  | Public -> Public
-  | New -> assert false
-let wrap_private : private_not_new_flag -> private_flag = function
-  | Private-> Private
-  | Public -> Public
+let unwrap_private = function
+  | Type_private -> Private
+  | Type_public -> Public
+  | Type_new -> assert false
+let wrap_private = function
+  | Private -> Type_private
+  | Public -> Type_public
 
 (* Simplified version of Ctype.free_vars *)
 let free_vars ?(param=false) ty =

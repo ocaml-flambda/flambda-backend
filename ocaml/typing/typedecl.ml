@@ -273,7 +273,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       type_kind = Type_abstract { reason = abstract_reason; datatype = false };
       type_jkind;
       type_jkind_annotation;
-      type_private = sdecl.ptype_private;
+      type_private = Types.of_parsetree_type_privacy sdecl.ptype_private;
       type_manifest;
       type_variance = Variance.unknown_signature ~injective:false ~arity;
       type_separability = Types.Separability.default_signature ~arity;
@@ -349,7 +349,7 @@ let is_fixed_type sd =
     None -> false
   | Some sty ->
       sd.ptype_kind = Ptype_abstract &&
-      sd.ptype_private = Private &&
+      sd.ptype_private = Ppriv_private &&
       has_row_var sty
 
 (* Set the row variable to a fixed type in a private row type declaration.
@@ -783,7 +783,7 @@ let transl_declaration env sdecl (id, uid) =
       let cty = transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty in
       Some cty, Some cty.ctyp_type
   in
-  if sdecl.ptype_private = New && sdecl.ptype_kind <> Ptype_abstract then
+  if sdecl.ptype_private = Ppriv_new && sdecl.ptype_kind <> Ptype_abstract then
     raise (Error (sdecl.ptype_loc, Non_abstract_new_type));
   let any = Jkind.Type.Primitive.any ~why:Initial_typedecl_env in
   (* jkind_default is the jkind to use for now as the type_jkind when there
@@ -938,7 +938,7 @@ let transl_declaration env sdecl (id, uid) =
         type_kind = kind;
         type_jkind = jkind;
         type_jkind_annotation = jkind_annotation;
-        type_private = sdecl.ptype_private;
+        type_private = Types.of_parsetree_type_privacy sdecl.ptype_private;
         type_manifest = man;
         type_variance = Variance.unknown_signature ~injective:false ~arity;
         type_separability = Types.Separability.default_signature ~arity;
@@ -977,7 +977,7 @@ let transl_declaration env sdecl (id, uid) =
         typ_loc = sdecl.ptype_loc;
         typ_manifest = tman;
         typ_kind = tkind;
-        typ_private = sdecl.ptype_private;
+        typ_private = Typedtree.of_parsetree_type_privacy sdecl.ptype_private;
         typ_attributes = sdecl.ptype_attributes;
         typ_jkind_annotation = Option.map snd jkind_annotation;
       }
@@ -2058,7 +2058,7 @@ let name_recursion sdecl id decl =
   match decl with
   | { type_kind = Type_abstract { reason = Abstract_def; datatype = false };
       type_manifest = Some ty;
-      type_private = Private; } when is_fixed_type sdecl ->
+      type_private = Type_private; } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
     if Ctype.deep_occur ty ty' then
       let td = Tconstr(Path.Pident id, AppArgs.of_list decl.type_params, ref Mnil) in
@@ -2320,7 +2320,7 @@ let transl_extension_constructor_jst env type_path _type_params
       env type_path typext_params loc id (Right vars_jkinds) args res
 
 let transl_extension_constructor ~scope env type_path type_params
-                                 typext_params (priv : private_not_new_flag) sext =
+                                 typext_params (priv : private_flag) sext =
   let id = Ident.create_scoped ~scope sext.pext_name.txt in
   let loc = sext.pext_loc in
   let args, arg_jkinds, shape, constant, ret_type, kind =
@@ -2335,7 +2335,7 @@ let transl_extension_constructor ~scope env type_path type_params
         env type_path typext_params loc id (Left svars) sargs sret_type
     | Pext_rebind lid ->
         let usage : Env.constructor_usage =
-          if priv = (Public : private_not_new_flag) then Env.Exported else Env.Exported_private
+          if priv = Public then Env.Exported else Env.Exported_private
         in
         let cdescr = Env.lookup_constructor ~loc:lid.loc usage lid.txt env in
         let (args, cstr_res, _ex) =
@@ -2473,7 +2473,7 @@ let transl_type_extension extend env loc styext =
     match type_decl.type_kind with
     | Type_open -> begin
         match type_decl.type_private with
-        | Private when extend -> begin
+        | Type_private when extend -> begin
             match
               List.find
                 (function {pext_kind = Pext_decl _} -> true
@@ -3113,12 +3113,12 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     ) constraints;
   let sig_decl_abstract = Btype.type_kind_is_abstract sig_decl in
   let priv =
-    if sdecl.ptype_private = Private then Private else
+    if sdecl.ptype_private = Ppriv_private then Type_private else
     if arity_ok && not sig_decl_abstract
-    then sig_decl.type_private else sdecl.ptype_private
+    then sig_decl.type_private else Types.of_parsetree_type_privacy sdecl.ptype_private
   in
   if arity_ok && not sig_decl_abstract
-  && sdecl.ptype_private = Private then
+  && sdecl.ptype_private = Ppriv_private then
     Location.deprecated loc "spurious use of private";
   let type_kind, type_unboxed_default, type_jkind, type_jkind_annotation =
     if arity_ok then
@@ -3198,7 +3198,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     typ_loc = loc;
     typ_manifest = Some tman;
     typ_kind = Ttype_abstract;
-    typ_private = sdecl.ptype_private;
+    typ_private = Typedtree.of_parsetree_type_privacy sdecl.ptype_private;
     typ_attributes = sdecl.ptype_attributes;
     typ_jkind_annotation = Option.map snd type_jkind_annotation;
   }
@@ -3217,7 +3217,7 @@ let transl_package_constraint ~loc ty =
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)
     type_jkind_annotation = None;
-    type_private = Public;
+    type_private = Type_public;
     type_manifest = Some ty;
     type_variance = [];
     type_separability = [];
@@ -3241,7 +3241,7 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
       type_kind = Type_abstract { reason = Abstract_def; datatype = false };
       type_jkind = jkind;
       type_jkind_annotation = jkind_annotation;
-      type_private = Public;
+      type_private = Type_public;
       type_manifest = None;
       type_variance = Variance.unknown_signature ~injective ~arity;
       type_separability = Types.Separability.default_signature ~arity;
