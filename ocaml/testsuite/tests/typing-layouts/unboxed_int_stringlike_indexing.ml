@@ -145,6 +145,7 @@ module Tester (Primitives : sig
   ;;
 
   let test length =
+    Random.init 1234;
     let check_get_bounds, check_get, check_set_bounds, check_set =
       make_tester_functions length
     in
@@ -165,4344 +166,4263 @@ end
 
 open struct
 
-type boxed_index = nativeint
-type boxed_data = int
+  type boxed_index = nativeint
+  type boxed_data = int
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int.zero
-  | 1 ->
-      (* min int *)
-      Int.(shift_left one) (16 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 16 - 1 in
-      Int.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int.(logxor x (shift_left one (i1 mod 16))) in
-      let x = Int.(logxor x (shift_left one (i2 mod 16))) in
-      let x = Int.(logxor x (shift_left one (i3 mod 16))) in
-      x
-in x
-
-let to_index = Nativeint.of_int
-let data_equal = Int.equal
-let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
-let unbox_data = fun x -> x
-let box_data = fun x -> x
-let extra_bounds_checks = [ -1n ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int.zero
+      | 1 -> (Int.(shift_left one) (16 - 1))
+      | 2 -> 
+        (let shift = 16 - 1 in
+        Int.(lognot (shift_left (shift_right (lognot zero) shift) shift)))
+      | _ -> Random.int_in_range ~min:Int.zero ~max:(Int.(shift_left one) (16 - 1))
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Nativeint.of_int
+  let data_equal = Int.equal
+  let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
+  let unbox_data = fun x -> x
+  let box_data = fun x -> x
+  let extra_bounds_checks = [ -1n ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int
-      = "%caml_string_get16"
 
-    external get_safe
-      :  string
-      -> nativeint#
-      -> int
-      = "%caml_string_get16_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> nativeint#
-      -> int
-      = "%caml_string_get16u_indexed_by_nativeint#"
+      external get_reference
+        : string
+        -> int
+        -> int
+        = "%caml_string_get16"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> nativeint#
+        -> int
+        = "%caml_string_get16_indexed_by_nativeint#"
 
-    external set_reference
-      : string
-      -> int
-      -> int
-      -> unit
-      = "%caml_string_set16"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> nativeint#
-      -> int
-      -> unit
-      = "%caml_string_set16_indexed_by_nativeint#"
+      external get_unsafe
+        :  string
+        -> nativeint#
+        -> int
+        = "%caml_string_get16u_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> nativeint#
-      -> int
-      -> unit
-      = "%caml_string_set16u_indexed_by_nativeint#"
+      external set_reference
+        : string
+        -> int
+        -> int
+        -> unit
+        = "%caml_string_set16"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> nativeint#
+        -> int
+        -> unit
+        = "%caml_string_set16_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> nativeint#
+        -> int
+        -> unit
+        = "%caml_string_set16u_indexed_by_nativeint#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int
-      = "%caml_bytes_get16"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> nativeint#
-      -> int
-      = "%caml_bytes_get16_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> nativeint#
-      -> int
-      = "%caml_bytes_get16u_indexed_by_nativeint#"
+      external get_reference
+        : bytes
+        -> int
+        -> int
+        = "%caml_bytes_get16"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> nativeint#
+        -> int
+        = "%caml_bytes_get16_indexed_by_nativeint#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int
-      -> unit
-      = "%caml_bytes_set16"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> nativeint#
-      -> int
-      -> unit
-      = "%caml_bytes_set16_indexed_by_nativeint#"
+      external get_unsafe
+        :  bytes
+        -> nativeint#
+        -> int
+        = "%caml_bytes_get16u_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> nativeint#
-      -> int
-      -> unit
-      = "%caml_bytes_set16u_indexed_by_nativeint#"
+      external set_reference
+        : bytes
+        -> int
+        -> int
+        -> unit
+        = "%caml_bytes_set16"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> nativeint#
+        -> int
+        -> unit
+        = "%caml_bytes_set16_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> nativeint#
+        -> int
+        -> unit
+        = "%caml_bytes_set16u_indexed_by_nativeint#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int
-      = "%caml_bigstring_get16"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> nativeint#
-      -> int
-      = "%caml_bigstring_get16_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> nativeint#
-      -> int
-      = "%caml_bigstring_get16u_indexed_by_nativeint#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int
+        = "%caml_bigstring_get16"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> nativeint#
+        -> int
+        = "%caml_bigstring_get16_indexed_by_nativeint#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int
-      -> unit
-      = "%caml_bigstring_set16"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> nativeint#
-      -> int
-      -> unit
-      = "%caml_bigstring_set16_indexed_by_nativeint#"
+      external get_unsafe
+        :  bigstring
+        -> nativeint#
+        -> int
+        = "%caml_bigstring_get16u_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> nativeint#
-      -> int
-      -> unit
-      = "%caml_bigstring_set16u_indexed_by_nativeint#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int
+        -> unit
+        = "%caml_bigstring_set16"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> nativeint#
+        -> int
+        -> unit
+        = "%caml_bigstring_set16_indexed_by_nativeint#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> nativeint#
+        -> int
+        -> unit
+        = "%caml_bigstring_set16u_indexed_by_nativeint#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = nativeint
-type boxed_data = int32
+  type boxed_index = nativeint
+  type boxed_data = int32
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int32.zero
-  | 1 ->
-      (* min int *)
-      Int32.(shift_left one) (32 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 32 - 1 in
-      Int32.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int32.(logxor x (shift_left one (i1 mod 32))) in
-      let x = Int32.(logxor x (shift_left one (i2 mod 32))) in
-      let x = Int32.(logxor x (shift_left one (i3 mod 32))) in
-      x
-in x
-
-let to_index = Nativeint.of_int
-let data_equal = Int32.equal
-let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
-let unbox_data = fun x -> x
-let box_data = fun x -> x
-let extra_bounds_checks = [ -1n ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int32.zero
+      | 1 -> Int32.min_int
+      | 2 -> Int32.max_int
+      | _ -> Random.int32_in_range ~min:Int32.min_int ~max:Int32.max_int
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Nativeint.of_int
+  let data_equal = Int32.equal
+  let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
+  let unbox_data = fun x -> x
+  let box_data = fun x -> x
+  let extra_bounds_checks = [ -1n ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int32
-      = "%caml_string_get32"
 
-    external get_safe
-      :  string
-      -> nativeint#
-      -> int32
-      = "%caml_string_get32_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> nativeint#
-      -> int32
-      = "%caml_string_get32u_indexed_by_nativeint#"
+      external get_reference
+        : string
+        -> int
+        -> int32
+        = "%caml_string_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> nativeint#
+        -> int32
+        = "%caml_string_get32_indexed_by_nativeint#"
 
-    external set_reference
-      : string
-      -> int
-      -> int32
-      -> unit
-      = "%caml_string_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> nativeint#
-      -> int32
-      -> unit
-      = "%caml_string_set32_indexed_by_nativeint#"
+      external get_unsafe
+        :  string
+        -> nativeint#
+        -> int32
+        = "%caml_string_get32u_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> nativeint#
-      -> int32
-      -> unit
-      = "%caml_string_set32u_indexed_by_nativeint#"
+      external set_reference
+        : string
+        -> int
+        -> int32
+        -> unit
+        = "%caml_string_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> nativeint#
+        -> int32
+        -> unit
+        = "%caml_string_set32_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> nativeint#
+        -> int32
+        -> unit
+        = "%caml_string_set32u_indexed_by_nativeint#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int32
-      = "%caml_bytes_get32"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> nativeint#
-      -> int32
-      = "%caml_bytes_get32_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> nativeint#
-      -> int32
-      = "%caml_bytes_get32u_indexed_by_nativeint#"
+      external get_reference
+        : bytes
+        -> int
+        -> int32
+        = "%caml_bytes_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> nativeint#
+        -> int32
+        = "%caml_bytes_get32_indexed_by_nativeint#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int32
-      -> unit
-      = "%caml_bytes_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> nativeint#
-      -> int32
-      -> unit
-      = "%caml_bytes_set32_indexed_by_nativeint#"
+      external get_unsafe
+        :  bytes
+        -> nativeint#
+        -> int32
+        = "%caml_bytes_get32u_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> nativeint#
-      -> int32
-      -> unit
-      = "%caml_bytes_set32u_indexed_by_nativeint#"
+      external set_reference
+        : bytes
+        -> int
+        -> int32
+        -> unit
+        = "%caml_bytes_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> nativeint#
+        -> int32
+        -> unit
+        = "%caml_bytes_set32_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> nativeint#
+        -> int32
+        -> unit
+        = "%caml_bytes_set32u_indexed_by_nativeint#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int32
-      = "%caml_bigstring_get32"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> nativeint#
-      -> int32
-      = "%caml_bigstring_get32_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> nativeint#
-      -> int32
-      = "%caml_bigstring_get32u_indexed_by_nativeint#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int32
+        = "%caml_bigstring_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> nativeint#
+        -> int32
+        = "%caml_bigstring_get32_indexed_by_nativeint#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int32
-      -> unit
-      = "%caml_bigstring_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> nativeint#
-      -> int32
-      -> unit
-      = "%caml_bigstring_set32_indexed_by_nativeint#"
+      external get_unsafe
+        :  bigstring
+        -> nativeint#
+        -> int32
+        = "%caml_bigstring_get32u_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> nativeint#
-      -> int32
-      -> unit
-      = "%caml_bigstring_set32u_indexed_by_nativeint#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int32
+        -> unit
+        = "%caml_bigstring_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> nativeint#
+        -> int32
+        -> unit
+        = "%caml_bigstring_set32_indexed_by_nativeint#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> nativeint#
+        -> int32
+        -> unit
+        = "%caml_bigstring_set32u_indexed_by_nativeint#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = nativeint
-type boxed_data = int64
+  type boxed_index = nativeint
+  type boxed_data = int64
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int64.zero
-  | 1 ->
-      (* min int *)
-      Int64.(shift_left one) (64 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 64 - 1 in
-      Int64.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int64.(logxor x (shift_left one (i1 mod 64))) in
-      let x = Int64.(logxor x (shift_left one (i2 mod 64))) in
-      let x = Int64.(logxor x (shift_left one (i3 mod 64))) in
-      x
-in x
-
-let to_index = Nativeint.of_int
-let data_equal = Int64.equal
-let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
-let unbox_data = fun x -> x
-let box_data = fun x -> x
-let extra_bounds_checks = [ -1n ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int64.zero
+      | 1 -> Int64.min_int
+      | 2 -> Int64.max_int
+      | _ -> Random.int64_in_range ~min:Int64.min_int ~max:Int64.max_int
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Nativeint.of_int
+  let data_equal = Int64.equal
+  let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
+  let unbox_data = fun x -> x
+  let box_data = fun x -> x
+  let extra_bounds_checks = [ -1n ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int64
-      = "%caml_string_get64"
 
-    external get_safe
-      :  string
-      -> nativeint#
-      -> int64
-      = "%caml_string_get64_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> nativeint#
-      -> int64
-      = "%caml_string_get64u_indexed_by_nativeint#"
+      external get_reference
+        : string
+        -> int
+        -> int64
+        = "%caml_string_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> nativeint#
+        -> int64
+        = "%caml_string_get64_indexed_by_nativeint#"
 
-    external set_reference
-      : string
-      -> int
-      -> int64
-      -> unit
-      = "%caml_string_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> nativeint#
-      -> int64
-      -> unit
-      = "%caml_string_set64_indexed_by_nativeint#"
+      external get_unsafe
+        :  string
+        -> nativeint#
+        -> int64
+        = "%caml_string_get64u_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> nativeint#
-      -> int64
-      -> unit
-      = "%caml_string_set64u_indexed_by_nativeint#"
+      external set_reference
+        : string
+        -> int
+        -> int64
+        -> unit
+        = "%caml_string_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> nativeint#
+        -> int64
+        -> unit
+        = "%caml_string_set64_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> nativeint#
+        -> int64
+        -> unit
+        = "%caml_string_set64u_indexed_by_nativeint#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int64
-      = "%caml_bytes_get64"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> nativeint#
-      -> int64
-      = "%caml_bytes_get64_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> nativeint#
-      -> int64
-      = "%caml_bytes_get64u_indexed_by_nativeint#"
+      external get_reference
+        : bytes
+        -> int
+        -> int64
+        = "%caml_bytes_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> nativeint#
+        -> int64
+        = "%caml_bytes_get64_indexed_by_nativeint#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int64
-      -> unit
-      = "%caml_bytes_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> nativeint#
-      -> int64
-      -> unit
-      = "%caml_bytes_set64_indexed_by_nativeint#"
+      external get_unsafe
+        :  bytes
+        -> nativeint#
+        -> int64
+        = "%caml_bytes_get64u_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> nativeint#
-      -> int64
-      -> unit
-      = "%caml_bytes_set64u_indexed_by_nativeint#"
+      external set_reference
+        : bytes
+        -> int
+        -> int64
+        -> unit
+        = "%caml_bytes_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> nativeint#
+        -> int64
+        -> unit
+        = "%caml_bytes_set64_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> nativeint#
+        -> int64
+        -> unit
+        = "%caml_bytes_set64u_indexed_by_nativeint#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int64
-      = "%caml_bigstring_get64"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> nativeint#
-      -> int64
-      = "%caml_bigstring_get64_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> nativeint#
-      -> int64
-      = "%caml_bigstring_get64u_indexed_by_nativeint#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int64
+        = "%caml_bigstring_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> nativeint#
+        -> int64
+        = "%caml_bigstring_get64_indexed_by_nativeint#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int64
-      -> unit
-      = "%caml_bigstring_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> nativeint#
-      -> int64
-      -> unit
-      = "%caml_bigstring_set64_indexed_by_nativeint#"
+      external get_unsafe
+        :  bigstring
+        -> nativeint#
+        -> int64
+        = "%caml_bigstring_get64u_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> nativeint#
-      -> int64
-      -> unit
-      = "%caml_bigstring_set64u_indexed_by_nativeint#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int64
+        -> unit
+        = "%caml_bigstring_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> nativeint#
+        -> int64
+        -> unit
+        = "%caml_bigstring_set64_indexed_by_nativeint#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> nativeint#
+        -> int64
+        -> unit
+        = "%caml_bigstring_set64u_indexed_by_nativeint#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = nativeint
-type boxed_data = int32
+  type boxed_index = nativeint
+  type boxed_data = int32
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int32.zero
-  | 1 ->
-      (* min int *)
-      Int32.(shift_left one) (32 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 32 - 1 in
-      Int32.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int32.(logxor x (shift_left one (i1 mod 32))) in
-      let x = Int32.(logxor x (shift_left one (i2 mod 32))) in
-      let x = Int32.(logxor x (shift_left one (i3 mod 32))) in
-      x
-in x
-
-let to_index = Nativeint.of_int
-let data_equal = Int32.equal
-let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
-let unbox_data = Stdlib_upstream_compatible.Int32_u.of_int32
-let box_data = Stdlib_upstream_compatible.Int32_u.to_int32
-let extra_bounds_checks = [ -1n ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int32.zero
+      | 1 -> Int32.min_int
+      | 2 -> Int32.max_int
+      | _ -> Random.int32_in_range ~min:Int32.min_int ~max:Int32.max_int
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Nativeint.of_int
+  let data_equal = Int32.equal
+  let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
+  let unbox_data = Stdlib_upstream_compatible.Int32_u.of_int32
+  let box_data = Stdlib_upstream_compatible.Int32_u.to_int32
+  let extra_bounds_checks = [ -1n ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int32
-      = "%caml_string_get32"
 
-    external get_safe
-      :  string
-      -> nativeint#
-      -> int32#
-      = "%caml_string_get32#_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> nativeint#
-      -> int32#
-      = "%caml_string_get32u#_indexed_by_nativeint#"
+      external get_reference
+        : string
+        -> int
+        -> int32
+        = "%caml_string_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> nativeint#
+        -> int32#
+        = "%caml_string_get32#_indexed_by_nativeint#"
 
-    external set_reference
-      : string
-      -> int
-      -> int32
-      -> unit
-      = "%caml_string_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> nativeint#
-      -> int32#
-      -> unit
-      = "%caml_string_set32#_indexed_by_nativeint#"
+      external get_unsafe
+        :  string
+        -> nativeint#
+        -> int32#
+        = "%caml_string_get32u#_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> nativeint#
-      -> int32#
-      -> unit
-      = "%caml_string_set32u#_indexed_by_nativeint#"
+      external set_reference
+        : string
+        -> int
+        -> int32
+        -> unit
+        = "%caml_string_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> nativeint#
+        -> int32#
+        -> unit
+        = "%caml_string_set32#_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> nativeint#
+        -> int32#
+        -> unit
+        = "%caml_string_set32u#_indexed_by_nativeint#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int32
-      = "%caml_bytes_get32"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> nativeint#
-      -> int32#
-      = "%caml_bytes_get32#_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> nativeint#
-      -> int32#
-      = "%caml_bytes_get32u#_indexed_by_nativeint#"
+      external get_reference
+        : bytes
+        -> int
+        -> int32
+        = "%caml_bytes_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> nativeint#
+        -> int32#
+        = "%caml_bytes_get32#_indexed_by_nativeint#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int32
-      -> unit
-      = "%caml_bytes_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> nativeint#
-      -> int32#
-      -> unit
-      = "%caml_bytes_set32#_indexed_by_nativeint#"
+      external get_unsafe
+        :  bytes
+        -> nativeint#
+        -> int32#
+        = "%caml_bytes_get32u#_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> nativeint#
-      -> int32#
-      -> unit
-      = "%caml_bytes_set32u#_indexed_by_nativeint#"
+      external set_reference
+        : bytes
+        -> int
+        -> int32
+        -> unit
+        = "%caml_bytes_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> nativeint#
+        -> int32#
+        -> unit
+        = "%caml_bytes_set32#_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> nativeint#
+        -> int32#
+        -> unit
+        = "%caml_bytes_set32u#_indexed_by_nativeint#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int32
-      = "%caml_bigstring_get32"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> nativeint#
-      -> int32#
-      = "%caml_bigstring_get32#_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> nativeint#
-      -> int32#
-      = "%caml_bigstring_get32u#_indexed_by_nativeint#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int32
+        = "%caml_bigstring_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> nativeint#
+        -> int32#
+        = "%caml_bigstring_get32#_indexed_by_nativeint#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int32
-      -> unit
-      = "%caml_bigstring_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> nativeint#
-      -> int32#
-      -> unit
-      = "%caml_bigstring_set32#_indexed_by_nativeint#"
+      external get_unsafe
+        :  bigstring
+        -> nativeint#
+        -> int32#
+        = "%caml_bigstring_get32u#_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> nativeint#
-      -> int32#
-      -> unit
-      = "%caml_bigstring_set32u#_indexed_by_nativeint#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int32
+        -> unit
+        = "%caml_bigstring_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> nativeint#
+        -> int32#
+        -> unit
+        = "%caml_bigstring_set32#_indexed_by_nativeint#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> nativeint#
+        -> int32#
+        -> unit
+        = "%caml_bigstring_set32u#_indexed_by_nativeint#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = nativeint
-type boxed_data = int64
+  type boxed_index = nativeint
+  type boxed_data = int64
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int64.zero
-  | 1 ->
-      (* min int *)
-      Int64.(shift_left one) (64 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 64 - 1 in
-      Int64.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int64.(logxor x (shift_left one (i1 mod 64))) in
-      let x = Int64.(logxor x (shift_left one (i2 mod 64))) in
-      let x = Int64.(logxor x (shift_left one (i3 mod 64))) in
-      x
-in x
-
-let to_index = Nativeint.of_int
-let data_equal = Int64.equal
-let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
-let unbox_data = Stdlib_upstream_compatible.Int64_u.of_int64
-let box_data = Stdlib_upstream_compatible.Int64_u.to_int64
-let extra_bounds_checks = [ -1n ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int64.zero
+      | 1 -> Int64.min_int
+      | 2 -> Int64.max_int
+      | _ -> Random.int64_in_range ~min:Int64.min_int ~max:Int64.max_int
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Nativeint.of_int
+  let data_equal = Int64.equal
+  let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
+  let unbox_data = Stdlib_upstream_compatible.Int64_u.of_int64
+  let box_data = Stdlib_upstream_compatible.Int64_u.to_int64
+  let extra_bounds_checks = [ -1n ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int64
-      = "%caml_string_get64"
 
-    external get_safe
-      :  string
-      -> nativeint#
-      -> int64#
-      = "%caml_string_get64#_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> nativeint#
-      -> int64#
-      = "%caml_string_get64u#_indexed_by_nativeint#"
+      external get_reference
+        : string
+        -> int
+        -> int64
+        = "%caml_string_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> nativeint#
+        -> int64#
+        = "%caml_string_get64#_indexed_by_nativeint#"
 
-    external set_reference
-      : string
-      -> int
-      -> int64
-      -> unit
-      = "%caml_string_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> nativeint#
-      -> int64#
-      -> unit
-      = "%caml_string_set64#_indexed_by_nativeint#"
+      external get_unsafe
+        :  string
+        -> nativeint#
+        -> int64#
+        = "%caml_string_get64u#_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> nativeint#
-      -> int64#
-      -> unit
-      = "%caml_string_set64u#_indexed_by_nativeint#"
+      external set_reference
+        : string
+        -> int
+        -> int64
+        -> unit
+        = "%caml_string_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> nativeint#
+        -> int64#
+        -> unit
+        = "%caml_string_set64#_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> nativeint#
+        -> int64#
+        -> unit
+        = "%caml_string_set64u#_indexed_by_nativeint#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int64
-      = "%caml_bytes_get64"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> nativeint#
-      -> int64#
-      = "%caml_bytes_get64#_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> nativeint#
-      -> int64#
-      = "%caml_bytes_get64u#_indexed_by_nativeint#"
+      external get_reference
+        : bytes
+        -> int
+        -> int64
+        = "%caml_bytes_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> nativeint#
+        -> int64#
+        = "%caml_bytes_get64#_indexed_by_nativeint#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int64
-      -> unit
-      = "%caml_bytes_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> nativeint#
-      -> int64#
-      -> unit
-      = "%caml_bytes_set64#_indexed_by_nativeint#"
+      external get_unsafe
+        :  bytes
+        -> nativeint#
+        -> int64#
+        = "%caml_bytes_get64u#_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> nativeint#
-      -> int64#
-      -> unit
-      = "%caml_bytes_set64u#_indexed_by_nativeint#"
+      external set_reference
+        : bytes
+        -> int
+        -> int64
+        -> unit
+        = "%caml_bytes_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> nativeint#
+        -> int64#
+        -> unit
+        = "%caml_bytes_set64#_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> nativeint#
+        -> int64#
+        -> unit
+        = "%caml_bytes_set64u#_indexed_by_nativeint#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int64
-      = "%caml_bigstring_get64"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> nativeint#
-      -> int64#
-      = "%caml_bigstring_get64#_indexed_by_nativeint#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> nativeint#
-      -> int64#
-      = "%caml_bigstring_get64u#_indexed_by_nativeint#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int64
+        = "%caml_bigstring_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> nativeint#
+        -> int64#
+        = "%caml_bigstring_get64#_indexed_by_nativeint#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int64
-      -> unit
-      = "%caml_bigstring_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> nativeint#
-      -> int64#
-      -> unit
-      = "%caml_bigstring_set64#_indexed_by_nativeint#"
+      external get_unsafe
+        :  bigstring
+        -> nativeint#
+        -> int64#
+        = "%caml_bigstring_get64u#_indexed_by_nativeint#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> nativeint#
-      -> int64#
-      -> unit
-      = "%caml_bigstring_set64u#_indexed_by_nativeint#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int64
+        -> unit
+        = "%caml_bigstring_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> nativeint#
+        -> int64#
+        -> unit
+        = "%caml_bigstring_set64#_indexed_by_nativeint#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> nativeint#
+        -> int64#
+        -> unit
+        = "%caml_bigstring_set64u#_indexed_by_nativeint#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = nativeint
-type boxed_data = float32
+  type boxed_index = nativeint
+  type boxed_data = float32
 
-let generate_data = fun _ -> Stdlib_beta.Float32.of_float 5.0
+  let generate_data = 
+  fun _ ->
+    let f =
+      let f = Random.float Float.max_float in
+      if Random.bool () then Float.neg f else f
+    in
+    Stdlib_beta.Float32.of_float f
 
-let to_index = Nativeint.of_int
-let data_equal = Stdlib_beta.Float32.equal
-let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
-let unbox_data = fun x -> x
-let box_data = fun x -> x
-let extra_bounds_checks = [ -1n ]
+  let to_index = Nativeint.of_int
+  let data_equal = Stdlib_beta.Float32.equal
+  let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
+  let unbox_data = fun x -> x
+  let box_data = fun x -> x
+  let extra_bounds_checks = [ -1n ]
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    external get_reference
-      : string
-      -> int
-      -> float32
-      = "%caml_string_getf32"
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  string
-      -> nativeint#
-      -> float32
-      = "%caml_string_getf32_indexed_by_nativeint#"
+      external get_reference
+        : string
+        -> int
+        -> float32
+        = "%caml_string_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  string
+        -> nativeint#
+        -> float32
+        = "%caml_string_getf32_indexed_by_nativeint#"
 
-    external get_unsafe
-      :  string
-      -> nativeint#
-      -> float32
-      = "%caml_string_getf32u_indexed_by_nativeint#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  string
+        -> nativeint#
+        -> float32
+        = "%caml_string_getf32u_indexed_by_nativeint#"
 
-    external set_reference
-      : string
-      -> int
-      -> float32
-      -> unit
-      = "%caml_string_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> nativeint#
-      -> float32
-      -> unit
-      = "%caml_string_setf32_indexed_by_nativeint#"
+      external set_reference
+        : string
+        -> int
+        -> float32
+        -> unit
+        = "%caml_string_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  string
+        -> nativeint#
+        -> float32
+        -> unit
+        = "%caml_string_setf32_indexed_by_nativeint#"
 
-    external set_unsafe
-      :  string
-      -> nativeint#
-      -> float32
-      -> unit
-      = "%caml_string_setf32u_indexed_by_nativeint#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  string
+        -> nativeint#
+        -> float32
+        -> unit
+        = "%caml_string_setf32u_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    external get_reference
-      : bytes
-      -> int
-      -> float32
-      = "%caml_bytes_getf32"
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  bytes
-      -> nativeint#
-      -> float32
-      = "%caml_bytes_getf32_indexed_by_nativeint#"
+      external get_reference
+        : bytes
+        -> int
+        -> float32
+        = "%caml_bytes_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> nativeint#
+        -> float32
+        = "%caml_bytes_getf32_indexed_by_nativeint#"
 
-    external get_unsafe
-      :  bytes
-      -> nativeint#
-      -> float32
-      = "%caml_bytes_getf32u_indexed_by_nativeint#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  bytes
+        -> nativeint#
+        -> float32
+        = "%caml_bytes_getf32u_indexed_by_nativeint#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> float32
-      -> unit
-      = "%caml_bytes_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> nativeint#
-      -> float32
-      -> unit
-      = "%caml_bytes_setf32_indexed_by_nativeint#"
+      external set_reference
+        : bytes
+        -> int
+        -> float32
+        -> unit
+        = "%caml_bytes_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  bytes
+        -> nativeint#
+        -> float32
+        -> unit
+        = "%caml_bytes_setf32_indexed_by_nativeint#"
 
-    external set_unsafe
-      :  bytes
-      -> nativeint#
-      -> float32
-      -> unit
-      = "%caml_bytes_setf32u_indexed_by_nativeint#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  bytes
+        -> nativeint#
+        -> float32
+        -> unit
+        = "%caml_bytes_setf32u_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    external get_reference
-      : bigstring
-      -> int
-      -> float32
-      = "%caml_bigstring_getf32"
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  bigstring
-      -> nativeint#
-      -> float32
-      = "%caml_bigstring_getf32_indexed_by_nativeint#"
+      external get_reference
+        : bigstring
+        -> int
+        -> float32
+        = "%caml_bigstring_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> nativeint#
+        -> float32
+        = "%caml_bigstring_getf32_indexed_by_nativeint#"
 
-    external get_unsafe
-      :  bigstring
-      -> nativeint#
-      -> float32
-      = "%caml_bigstring_getf32u_indexed_by_nativeint#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  bigstring
+        -> nativeint#
+        -> float32
+        = "%caml_bigstring_getf32u_indexed_by_nativeint#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> float32
-      -> unit
-      = "%caml_bigstring_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> nativeint#
-      -> float32
-      -> unit
-      = "%caml_bigstring_setf32_indexed_by_nativeint#"
+      external set_reference
+        : bigstring
+        -> int
+        -> float32
+        -> unit
+        = "%caml_bigstring_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  bigstring
+        -> nativeint#
+        -> float32
+        -> unit
+        = "%caml_bigstring_setf32_indexed_by_nativeint#"
 
-    external set_unsafe
-      :  bigstring
-      -> nativeint#
-      -> float32
-      -> unit
-      = "%caml_bigstring_setf32u_indexed_by_nativeint#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  bigstring
+        -> nativeint#
+        -> float32
+        -> unit
+        = "%caml_bigstring_setf32u_indexed_by_nativeint#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = nativeint
-type boxed_data = float32
+  type boxed_index = nativeint
+  type boxed_data = float32
 
-let generate_data = fun _ -> Stdlib_beta.Float32.of_float 5.0
+  let generate_data = 
+  fun _ ->
+    let f =
+      let f = Random.float Float.max_float in
+      if Random.bool () then Float.neg f else f
+    in
+    Stdlib_beta.Float32.of_float f
 
-let to_index = Nativeint.of_int
-let data_equal = Stdlib_beta.Float32.equal
-let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
-let unbox_data = Stdlib_beta.Float32_u.of_float32
-let box_data = Stdlib_beta.Float32_u.to_float32
-let extra_bounds_checks = [ -1n ]
+  let to_index = Nativeint.of_int
+  let data_equal = Stdlib_beta.Float32.equal
+  let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
+  let unbox_data = Stdlib_beta.Float32_u.of_float32
+  let box_data = Stdlib_beta.Float32_u.to_float32
+  let extra_bounds_checks = [ -1n ]
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    external get_reference
-      : string
-      -> int
-      -> float32
-      = "%caml_string_getf32"
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  string
-      -> nativeint#
-      -> float32#
-      = "%caml_string_getf32#_indexed_by_nativeint#"
+      external get_reference
+        : string
+        -> int
+        -> float32
+        = "%caml_string_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  string
+        -> nativeint#
+        -> float32#
+        = "%caml_string_getf32#_indexed_by_nativeint#"
 
-    external get_unsafe
-      :  string
-      -> nativeint#
-      -> float32#
-      = "%caml_string_getf32u#_indexed_by_nativeint#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  string
+        -> nativeint#
+        -> float32#
+        = "%caml_string_getf32u#_indexed_by_nativeint#"
 
-    external set_reference
-      : string
-      -> int
-      -> float32
-      -> unit
-      = "%caml_string_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> nativeint#
-      -> float32#
-      -> unit
-      = "%caml_string_setf32#_indexed_by_nativeint#"
+      external set_reference
+        : string
+        -> int
+        -> float32
+        -> unit
+        = "%caml_string_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  string
+        -> nativeint#
+        -> float32#
+        -> unit
+        = "%caml_string_setf32#_indexed_by_nativeint#"
 
-    external set_unsafe
-      :  string
-      -> nativeint#
-      -> float32#
-      -> unit
-      = "%caml_string_setf32u#_indexed_by_nativeint#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  string
+        -> nativeint#
+        -> float32#
+        -> unit
+        = "%caml_string_setf32u#_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    external get_reference
-      : bytes
-      -> int
-      -> float32
-      = "%caml_bytes_getf32"
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  bytes
-      -> nativeint#
-      -> float32#
-      = "%caml_bytes_getf32#_indexed_by_nativeint#"
+      external get_reference
+        : bytes
+        -> int
+        -> float32
+        = "%caml_bytes_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> nativeint#
+        -> float32#
+        = "%caml_bytes_getf32#_indexed_by_nativeint#"
 
-    external get_unsafe
-      :  bytes
-      -> nativeint#
-      -> float32#
-      = "%caml_bytes_getf32u#_indexed_by_nativeint#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  bytes
+        -> nativeint#
+        -> float32#
+        = "%caml_bytes_getf32u#_indexed_by_nativeint#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> float32
-      -> unit
-      = "%caml_bytes_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> nativeint#
-      -> float32#
-      -> unit
-      = "%caml_bytes_setf32#_indexed_by_nativeint#"
+      external set_reference
+        : bytes
+        -> int
+        -> float32
+        -> unit
+        = "%caml_bytes_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  bytes
+        -> nativeint#
+        -> float32#
+        -> unit
+        = "%caml_bytes_setf32#_indexed_by_nativeint#"
 
-    external set_unsafe
-      :  bytes
-      -> nativeint#
-      -> float32#
-      -> unit
-      = "%caml_bytes_setf32u#_indexed_by_nativeint#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  bytes
+        -> nativeint#
+        -> float32#
+        -> unit
+        = "%caml_bytes_setf32u#_indexed_by_nativeint#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    external get_reference
-      : bigstring
-      -> int
-      -> float32
-      = "%caml_bigstring_getf32"
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  bigstring
-      -> nativeint#
-      -> float32#
-      = "%caml_bigstring_getf32#_indexed_by_nativeint#"
+      external get_reference
+        : bigstring
+        -> int
+        -> float32
+        = "%caml_bigstring_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> nativeint#
+        -> float32#
+        = "%caml_bigstring_getf32#_indexed_by_nativeint#"
 
-    external get_unsafe
-      :  bigstring
-      -> nativeint#
-      -> float32#
-      = "%caml_bigstring_getf32u#_indexed_by_nativeint#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  bigstring
+        -> nativeint#
+        -> float32#
+        = "%caml_bigstring_getf32u#_indexed_by_nativeint#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> float32
-      -> unit
-      = "%caml_bigstring_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> nativeint#
-      -> float32#
-      -> unit
-      = "%caml_bigstring_setf32#_indexed_by_nativeint#"
+      external set_reference
+        : bigstring
+        -> int
+        -> float32
+        -> unit
+        = "%caml_bigstring_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  bigstring
+        -> nativeint#
+        -> float32#
+        -> unit
+        = "%caml_bigstring_setf32#_indexed_by_nativeint#"
 
-    external set_unsafe
-      :  bigstring
-      -> nativeint#
-      -> float32#
-      -> unit
-      = "%caml_bigstring_setf32u#_indexed_by_nativeint#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  bigstring
+        -> nativeint#
+        -> float32#
+        -> unit
+        = "%caml_bigstring_setf32u#_indexed_by_nativeint#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int32
-type boxed_data = int
+  type boxed_index = int32
+  type boxed_data = int
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int.zero
-  | 1 ->
-      (* min int *)
-      Int.(shift_left one) (16 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 16 - 1 in
-      Int.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int.(logxor x (shift_left one (i1 mod 16))) in
-      let x = Int.(logxor x (shift_left one (i2 mod 16))) in
-      let x = Int.(logxor x (shift_left one (i3 mod 16))) in
-      x
-in x
-
-let to_index = Int32.of_int
-let data_equal = Int.equal
-let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
-let unbox_data = fun x -> x
-let box_data = fun x -> x
-let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int.zero
+      | 1 -> (Int.(shift_left one) (16 - 1))
+      | 2 -> 
+        (let shift = 16 - 1 in
+        Int.(lognot (shift_left (shift_right (lognot zero) shift) shift)))
+      | _ -> Random.int_in_range ~min:Int.zero ~max:(Int.(shift_left one) (16 - 1))
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Int32.of_int
+  let data_equal = Int.equal
+  let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
+  let unbox_data = fun x -> x
+  let box_data = fun x -> x
+  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int
-      = "%caml_string_get16"
 
-    external get_safe
-      :  string
-      -> int32#
-      -> int
-      = "%caml_string_get16_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> int32#
-      -> int
-      = "%caml_string_get16u_indexed_by_int32#"
+      external get_reference
+        : string
+        -> int
+        -> int
+        = "%caml_string_get16"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int32#
+        -> int
+        = "%caml_string_get16_indexed_by_int32#"
 
-    external set_reference
-      : string
-      -> int
-      -> int
-      -> unit
-      = "%caml_string_set16"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int32#
-      -> int
-      -> unit
-      = "%caml_string_set16_indexed_by_int32#"
+      external get_unsafe
+        :  string
+        -> int32#
+        -> int
+        = "%caml_string_get16u_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> int32#
-      -> int
-      -> unit
-      = "%caml_string_set16u_indexed_by_int32#"
+      external set_reference
+        : string
+        -> int
+        -> int
+        -> unit
+        = "%caml_string_set16"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> int32#
+        -> int
+        -> unit
+        = "%caml_string_set16_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> int32#
+        -> int
+        -> unit
+        = "%caml_string_set16u_indexed_by_int32#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int
-      = "%caml_bytes_get16"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> int32#
-      -> int
-      = "%caml_bytes_get16_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> int32#
-      -> int
-      = "%caml_bytes_get16u_indexed_by_int32#"
+      external get_reference
+        : bytes
+        -> int
+        -> int
+        = "%caml_bytes_get16"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int32#
+        -> int
+        = "%caml_bytes_get16_indexed_by_int32#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int
-      -> unit
-      = "%caml_bytes_set16"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int32#
-      -> int
-      -> unit
-      = "%caml_bytes_set16_indexed_by_int32#"
+      external get_unsafe
+        :  bytes
+        -> int32#
+        -> int
+        = "%caml_bytes_get16u_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> int32#
-      -> int
-      -> unit
-      = "%caml_bytes_set16u_indexed_by_int32#"
+      external set_reference
+        : bytes
+        -> int
+        -> int
+        -> unit
+        = "%caml_bytes_set16"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> int32#
+        -> int
+        -> unit
+        = "%caml_bytes_set16_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> int32#
+        -> int
+        -> unit
+        = "%caml_bytes_set16u_indexed_by_int32#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int
-      = "%caml_bigstring_get16"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> int32#
-      -> int
-      = "%caml_bigstring_get16_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> int32#
-      -> int
-      = "%caml_bigstring_get16u_indexed_by_int32#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int
+        = "%caml_bigstring_get16"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int32#
+        -> int
+        = "%caml_bigstring_get16_indexed_by_int32#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int
-      -> unit
-      = "%caml_bigstring_set16"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int32#
-      -> int
-      -> unit
-      = "%caml_bigstring_set16_indexed_by_int32#"
+      external get_unsafe
+        :  bigstring
+        -> int32#
+        -> int
+        = "%caml_bigstring_get16u_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> int32#
-      -> int
-      -> unit
-      = "%caml_bigstring_set16u_indexed_by_int32#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int
+        -> unit
+        = "%caml_bigstring_set16"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> int32#
+        -> int
+        -> unit
+        = "%caml_bigstring_set16_indexed_by_int32#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> int32#
+        -> int
+        -> unit
+        = "%caml_bigstring_set16u_indexed_by_int32#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int32
-type boxed_data = int32
+  type boxed_index = int32
+  type boxed_data = int32
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int32.zero
-  | 1 ->
-      (* min int *)
-      Int32.(shift_left one) (32 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 32 - 1 in
-      Int32.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int32.(logxor x (shift_left one (i1 mod 32))) in
-      let x = Int32.(logxor x (shift_left one (i2 mod 32))) in
-      let x = Int32.(logxor x (shift_left one (i3 mod 32))) in
-      x
-in x
-
-let to_index = Int32.of_int
-let data_equal = Int32.equal
-let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
-let unbox_data = fun x -> x
-let box_data = fun x -> x
-let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int32.zero
+      | 1 -> Int32.min_int
+      | 2 -> Int32.max_int
+      | _ -> Random.int32_in_range ~min:Int32.min_int ~max:Int32.max_int
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Int32.of_int
+  let data_equal = Int32.equal
+  let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
+  let unbox_data = fun x -> x
+  let box_data = fun x -> x
+  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int32
-      = "%caml_string_get32"
 
-    external get_safe
-      :  string
-      -> int32#
-      -> int32
-      = "%caml_string_get32_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> int32#
-      -> int32
-      = "%caml_string_get32u_indexed_by_int32#"
+      external get_reference
+        : string
+        -> int
+        -> int32
+        = "%caml_string_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int32#
+        -> int32
+        = "%caml_string_get32_indexed_by_int32#"
 
-    external set_reference
-      : string
-      -> int
-      -> int32
-      -> unit
-      = "%caml_string_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int32#
-      -> int32
-      -> unit
-      = "%caml_string_set32_indexed_by_int32#"
+      external get_unsafe
+        :  string
+        -> int32#
+        -> int32
+        = "%caml_string_get32u_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> int32#
-      -> int32
-      -> unit
-      = "%caml_string_set32u_indexed_by_int32#"
+      external set_reference
+        : string
+        -> int
+        -> int32
+        -> unit
+        = "%caml_string_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> int32#
+        -> int32
+        -> unit
+        = "%caml_string_set32_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> int32#
+        -> int32
+        -> unit
+        = "%caml_string_set32u_indexed_by_int32#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int32
-      = "%caml_bytes_get32"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> int32#
-      -> int32
-      = "%caml_bytes_get32_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> int32#
-      -> int32
-      = "%caml_bytes_get32u_indexed_by_int32#"
+      external get_reference
+        : bytes
+        -> int
+        -> int32
+        = "%caml_bytes_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int32#
+        -> int32
+        = "%caml_bytes_get32_indexed_by_int32#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int32
-      -> unit
-      = "%caml_bytes_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int32#
-      -> int32
-      -> unit
-      = "%caml_bytes_set32_indexed_by_int32#"
+      external get_unsafe
+        :  bytes
+        -> int32#
+        -> int32
+        = "%caml_bytes_get32u_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> int32#
-      -> int32
-      -> unit
-      = "%caml_bytes_set32u_indexed_by_int32#"
+      external set_reference
+        : bytes
+        -> int
+        -> int32
+        -> unit
+        = "%caml_bytes_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> int32#
+        -> int32
+        -> unit
+        = "%caml_bytes_set32_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> int32#
+        -> int32
+        -> unit
+        = "%caml_bytes_set32u_indexed_by_int32#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int32
-      = "%caml_bigstring_get32"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> int32#
-      -> int32
-      = "%caml_bigstring_get32_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> int32#
-      -> int32
-      = "%caml_bigstring_get32u_indexed_by_int32#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int32
+        = "%caml_bigstring_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int32#
+        -> int32
+        = "%caml_bigstring_get32_indexed_by_int32#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int32
-      -> unit
-      = "%caml_bigstring_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int32#
-      -> int32
-      -> unit
-      = "%caml_bigstring_set32_indexed_by_int32#"
+      external get_unsafe
+        :  bigstring
+        -> int32#
+        -> int32
+        = "%caml_bigstring_get32u_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> int32#
-      -> int32
-      -> unit
-      = "%caml_bigstring_set32u_indexed_by_int32#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int32
+        -> unit
+        = "%caml_bigstring_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> int32#
+        -> int32
+        -> unit
+        = "%caml_bigstring_set32_indexed_by_int32#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> int32#
+        -> int32
+        -> unit
+        = "%caml_bigstring_set32u_indexed_by_int32#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int32
-type boxed_data = int64
+  type boxed_index = int32
+  type boxed_data = int64
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int64.zero
-  | 1 ->
-      (* min int *)
-      Int64.(shift_left one) (64 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 64 - 1 in
-      Int64.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int64.(logxor x (shift_left one (i1 mod 64))) in
-      let x = Int64.(logxor x (shift_left one (i2 mod 64))) in
-      let x = Int64.(logxor x (shift_left one (i3 mod 64))) in
-      x
-in x
-
-let to_index = Int32.of_int
-let data_equal = Int64.equal
-let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
-let unbox_data = fun x -> x
-let box_data = fun x -> x
-let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int64.zero
+      | 1 -> Int64.min_int
+      | 2 -> Int64.max_int
+      | _ -> Random.int64_in_range ~min:Int64.min_int ~max:Int64.max_int
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Int32.of_int
+  let data_equal = Int64.equal
+  let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
+  let unbox_data = fun x -> x
+  let box_data = fun x -> x
+  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int64
-      = "%caml_string_get64"
 
-    external get_safe
-      :  string
-      -> int32#
-      -> int64
-      = "%caml_string_get64_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> int32#
-      -> int64
-      = "%caml_string_get64u_indexed_by_int32#"
+      external get_reference
+        : string
+        -> int
+        -> int64
+        = "%caml_string_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int32#
+        -> int64
+        = "%caml_string_get64_indexed_by_int32#"
 
-    external set_reference
-      : string
-      -> int
-      -> int64
-      -> unit
-      = "%caml_string_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int32#
-      -> int64
-      -> unit
-      = "%caml_string_set64_indexed_by_int32#"
+      external get_unsafe
+        :  string
+        -> int32#
+        -> int64
+        = "%caml_string_get64u_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> int32#
-      -> int64
-      -> unit
-      = "%caml_string_set64u_indexed_by_int32#"
+      external set_reference
+        : string
+        -> int
+        -> int64
+        -> unit
+        = "%caml_string_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> int32#
+        -> int64
+        -> unit
+        = "%caml_string_set64_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> int32#
+        -> int64
+        -> unit
+        = "%caml_string_set64u_indexed_by_int32#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int64
-      = "%caml_bytes_get64"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> int32#
-      -> int64
-      = "%caml_bytes_get64_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> int32#
-      -> int64
-      = "%caml_bytes_get64u_indexed_by_int32#"
+      external get_reference
+        : bytes
+        -> int
+        -> int64
+        = "%caml_bytes_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int32#
+        -> int64
+        = "%caml_bytes_get64_indexed_by_int32#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int64
-      -> unit
-      = "%caml_bytes_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int32#
-      -> int64
-      -> unit
-      = "%caml_bytes_set64_indexed_by_int32#"
+      external get_unsafe
+        :  bytes
+        -> int32#
+        -> int64
+        = "%caml_bytes_get64u_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> int32#
-      -> int64
-      -> unit
-      = "%caml_bytes_set64u_indexed_by_int32#"
+      external set_reference
+        : bytes
+        -> int
+        -> int64
+        -> unit
+        = "%caml_bytes_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> int32#
+        -> int64
+        -> unit
+        = "%caml_bytes_set64_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> int32#
+        -> int64
+        -> unit
+        = "%caml_bytes_set64u_indexed_by_int32#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int64
-      = "%caml_bigstring_get64"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> int32#
-      -> int64
-      = "%caml_bigstring_get64_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> int32#
-      -> int64
-      = "%caml_bigstring_get64u_indexed_by_int32#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int64
+        = "%caml_bigstring_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int32#
+        -> int64
+        = "%caml_bigstring_get64_indexed_by_int32#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int64
-      -> unit
-      = "%caml_bigstring_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int32#
-      -> int64
-      -> unit
-      = "%caml_bigstring_set64_indexed_by_int32#"
+      external get_unsafe
+        :  bigstring
+        -> int32#
+        -> int64
+        = "%caml_bigstring_get64u_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> int32#
-      -> int64
-      -> unit
-      = "%caml_bigstring_set64u_indexed_by_int32#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int64
+        -> unit
+        = "%caml_bigstring_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> int32#
+        -> int64
+        -> unit
+        = "%caml_bigstring_set64_indexed_by_int32#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> int32#
+        -> int64
+        -> unit
+        = "%caml_bigstring_set64u_indexed_by_int32#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int32
-type boxed_data = int32
+  type boxed_index = int32
+  type boxed_data = int32
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int32.zero
-  | 1 ->
-      (* min int *)
-      Int32.(shift_left one) (32 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 32 - 1 in
-      Int32.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int32.(logxor x (shift_left one (i1 mod 32))) in
-      let x = Int32.(logxor x (shift_left one (i2 mod 32))) in
-      let x = Int32.(logxor x (shift_left one (i3 mod 32))) in
-      x
-in x
-
-let to_index = Int32.of_int
-let data_equal = Int32.equal
-let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
-let unbox_data = Stdlib_upstream_compatible.Int32_u.of_int32
-let box_data = Stdlib_upstream_compatible.Int32_u.to_int32
-let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int32.zero
+      | 1 -> Int32.min_int
+      | 2 -> Int32.max_int
+      | _ -> Random.int32_in_range ~min:Int32.min_int ~max:Int32.max_int
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Int32.of_int
+  let data_equal = Int32.equal
+  let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
+  let unbox_data = Stdlib_upstream_compatible.Int32_u.of_int32
+  let box_data = Stdlib_upstream_compatible.Int32_u.to_int32
+  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int32
-      = "%caml_string_get32"
 
-    external get_safe
-      :  string
-      -> int32#
-      -> int32#
-      = "%caml_string_get32#_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> int32#
-      -> int32#
-      = "%caml_string_get32u#_indexed_by_int32#"
+      external get_reference
+        : string
+        -> int
+        -> int32
+        = "%caml_string_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int32#
+        -> int32#
+        = "%caml_string_get32#_indexed_by_int32#"
 
-    external set_reference
-      : string
-      -> int
-      -> int32
-      -> unit
-      = "%caml_string_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int32#
-      -> int32#
-      -> unit
-      = "%caml_string_set32#_indexed_by_int32#"
+      external get_unsafe
+        :  string
+        -> int32#
+        -> int32#
+        = "%caml_string_get32u#_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> int32#
-      -> int32#
-      -> unit
-      = "%caml_string_set32u#_indexed_by_int32#"
+      external set_reference
+        : string
+        -> int
+        -> int32
+        -> unit
+        = "%caml_string_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> int32#
+        -> int32#
+        -> unit
+        = "%caml_string_set32#_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> int32#
+        -> int32#
+        -> unit
+        = "%caml_string_set32u#_indexed_by_int32#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int32
-      = "%caml_bytes_get32"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> int32#
-      -> int32#
-      = "%caml_bytes_get32#_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> int32#
-      -> int32#
-      = "%caml_bytes_get32u#_indexed_by_int32#"
+      external get_reference
+        : bytes
+        -> int
+        -> int32
+        = "%caml_bytes_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int32#
+        -> int32#
+        = "%caml_bytes_get32#_indexed_by_int32#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int32
-      -> unit
-      = "%caml_bytes_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int32#
-      -> int32#
-      -> unit
-      = "%caml_bytes_set32#_indexed_by_int32#"
+      external get_unsafe
+        :  bytes
+        -> int32#
+        -> int32#
+        = "%caml_bytes_get32u#_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> int32#
-      -> int32#
-      -> unit
-      = "%caml_bytes_set32u#_indexed_by_int32#"
+      external set_reference
+        : bytes
+        -> int
+        -> int32
+        -> unit
+        = "%caml_bytes_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> int32#
+        -> int32#
+        -> unit
+        = "%caml_bytes_set32#_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> int32#
+        -> int32#
+        -> unit
+        = "%caml_bytes_set32u#_indexed_by_int32#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int32
-      = "%caml_bigstring_get32"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> int32#
-      -> int32#
-      = "%caml_bigstring_get32#_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> int32#
-      -> int32#
-      = "%caml_bigstring_get32u#_indexed_by_int32#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int32
+        = "%caml_bigstring_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int32#
+        -> int32#
+        = "%caml_bigstring_get32#_indexed_by_int32#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int32
-      -> unit
-      = "%caml_bigstring_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int32#
-      -> int32#
-      -> unit
-      = "%caml_bigstring_set32#_indexed_by_int32#"
+      external get_unsafe
+        :  bigstring
+        -> int32#
+        -> int32#
+        = "%caml_bigstring_get32u#_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> int32#
-      -> int32#
-      -> unit
-      = "%caml_bigstring_set32u#_indexed_by_int32#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int32
+        -> unit
+        = "%caml_bigstring_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> int32#
+        -> int32#
+        -> unit
+        = "%caml_bigstring_set32#_indexed_by_int32#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> int32#
+        -> int32#
+        -> unit
+        = "%caml_bigstring_set32u#_indexed_by_int32#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int32
-type boxed_data = int64
+  type boxed_index = int32
+  type boxed_data = int64
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int64.zero
-  | 1 ->
-      (* min int *)
-      Int64.(shift_left one) (64 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 64 - 1 in
-      Int64.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int64.(logxor x (shift_left one (i1 mod 64))) in
-      let x = Int64.(logxor x (shift_left one (i2 mod 64))) in
-      let x = Int64.(logxor x (shift_left one (i3 mod 64))) in
-      x
-in x
-
-let to_index = Int32.of_int
-let data_equal = Int64.equal
-let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
-let unbox_data = Stdlib_upstream_compatible.Int64_u.of_int64
-let box_data = Stdlib_upstream_compatible.Int64_u.to_int64
-let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int64.zero
+      | 1 -> Int64.min_int
+      | 2 -> Int64.max_int
+      | _ -> Random.int64_in_range ~min:Int64.min_int ~max:Int64.max_int
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Int32.of_int
+  let data_equal = Int64.equal
+  let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
+  let unbox_data = Stdlib_upstream_compatible.Int64_u.of_int64
+  let box_data = Stdlib_upstream_compatible.Int64_u.to_int64
+  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int64
-      = "%caml_string_get64"
 
-    external get_safe
-      :  string
-      -> int32#
-      -> int64#
-      = "%caml_string_get64#_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> int32#
-      -> int64#
-      = "%caml_string_get64u#_indexed_by_int32#"
+      external get_reference
+        : string
+        -> int
+        -> int64
+        = "%caml_string_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int32#
+        -> int64#
+        = "%caml_string_get64#_indexed_by_int32#"
 
-    external set_reference
-      : string
-      -> int
-      -> int64
-      -> unit
-      = "%caml_string_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int32#
-      -> int64#
-      -> unit
-      = "%caml_string_set64#_indexed_by_int32#"
+      external get_unsafe
+        :  string
+        -> int32#
+        -> int64#
+        = "%caml_string_get64u#_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> int32#
-      -> int64#
-      -> unit
-      = "%caml_string_set64u#_indexed_by_int32#"
+      external set_reference
+        : string
+        -> int
+        -> int64
+        -> unit
+        = "%caml_string_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> int32#
+        -> int64#
+        -> unit
+        = "%caml_string_set64#_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> int32#
+        -> int64#
+        -> unit
+        = "%caml_string_set64u#_indexed_by_int32#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int64
-      = "%caml_bytes_get64"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> int32#
-      -> int64#
-      = "%caml_bytes_get64#_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> int32#
-      -> int64#
-      = "%caml_bytes_get64u#_indexed_by_int32#"
+      external get_reference
+        : bytes
+        -> int
+        -> int64
+        = "%caml_bytes_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int32#
+        -> int64#
+        = "%caml_bytes_get64#_indexed_by_int32#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int64
-      -> unit
-      = "%caml_bytes_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int32#
-      -> int64#
-      -> unit
-      = "%caml_bytes_set64#_indexed_by_int32#"
+      external get_unsafe
+        :  bytes
+        -> int32#
+        -> int64#
+        = "%caml_bytes_get64u#_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> int32#
-      -> int64#
-      -> unit
-      = "%caml_bytes_set64u#_indexed_by_int32#"
+      external set_reference
+        : bytes
+        -> int
+        -> int64
+        -> unit
+        = "%caml_bytes_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> int32#
+        -> int64#
+        -> unit
+        = "%caml_bytes_set64#_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> int32#
+        -> int64#
+        -> unit
+        = "%caml_bytes_set64u#_indexed_by_int32#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int64
-      = "%caml_bigstring_get64"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> int32#
-      -> int64#
-      = "%caml_bigstring_get64#_indexed_by_int32#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> int32#
-      -> int64#
-      = "%caml_bigstring_get64u#_indexed_by_int32#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int64
+        = "%caml_bigstring_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int32#
+        -> int64#
+        = "%caml_bigstring_get64#_indexed_by_int32#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int64
-      -> unit
-      = "%caml_bigstring_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int32#
-      -> int64#
-      -> unit
-      = "%caml_bigstring_set64#_indexed_by_int32#"
+      external get_unsafe
+        :  bigstring
+        -> int32#
+        -> int64#
+        = "%caml_bigstring_get64u#_indexed_by_int32#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> int32#
-      -> int64#
-      -> unit
-      = "%caml_bigstring_set64u#_indexed_by_int32#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int64
+        -> unit
+        = "%caml_bigstring_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> int32#
+        -> int64#
+        -> unit
+        = "%caml_bigstring_set64#_indexed_by_int32#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> int32#
+        -> int64#
+        -> unit
+        = "%caml_bigstring_set64u#_indexed_by_int32#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int32
-type boxed_data = float32
+  type boxed_index = int32
+  type boxed_data = float32
 
-let generate_data = fun _ -> Stdlib_beta.Float32.of_float 5.0
+  let generate_data = 
+  fun _ ->
+    let f =
+      let f = Random.float Float.max_float in
+      if Random.bool () then Float.neg f else f
+    in
+    Stdlib_beta.Float32.of_float f
 
-let to_index = Int32.of_int
-let data_equal = Stdlib_beta.Float32.equal
-let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
-let unbox_data = fun x -> x
-let box_data = fun x -> x
-let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
+  let to_index = Int32.of_int
+  let data_equal = Stdlib_beta.Float32.equal
+  let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
+  let unbox_data = fun x -> x
+  let box_data = fun x -> x
+  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    external get_reference
-      : string
-      -> int
-      -> float32
-      = "%caml_string_getf32"
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  string
-      -> int32#
-      -> float32
-      = "%caml_string_getf32_indexed_by_int32#"
+      external get_reference
+        : string
+        -> int
+        -> float32
+        = "%caml_string_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int32#
+        -> float32
+        = "%caml_string_getf32_indexed_by_int32#"
 
-    external get_unsafe
-      :  string
-      -> int32#
-      -> float32
-      = "%caml_string_getf32u_indexed_by_int32#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  string
+        -> int32#
+        -> float32
+        = "%caml_string_getf32u_indexed_by_int32#"
 
-    external set_reference
-      : string
-      -> int
-      -> float32
-      -> unit
-      = "%caml_string_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int32#
-      -> float32
-      -> unit
-      = "%caml_string_setf32_indexed_by_int32#"
+      external set_reference
+        : string
+        -> int
+        -> float32
+        -> unit
+        = "%caml_string_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  string
+        -> int32#
+        -> float32
+        -> unit
+        = "%caml_string_setf32_indexed_by_int32#"
 
-    external set_unsafe
-      :  string
-      -> int32#
-      -> float32
-      -> unit
-      = "%caml_string_setf32u_indexed_by_int32#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  string
+        -> int32#
+        -> float32
+        -> unit
+        = "%caml_string_setf32u_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    external get_reference
-      : bytes
-      -> int
-      -> float32
-      = "%caml_bytes_getf32"
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  bytes
-      -> int32#
-      -> float32
-      = "%caml_bytes_getf32_indexed_by_int32#"
+      external get_reference
+        : bytes
+        -> int
+        -> float32
+        = "%caml_bytes_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int32#
+        -> float32
+        = "%caml_bytes_getf32_indexed_by_int32#"
 
-    external get_unsafe
-      :  bytes
-      -> int32#
-      -> float32
-      = "%caml_bytes_getf32u_indexed_by_int32#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  bytes
+        -> int32#
+        -> float32
+        = "%caml_bytes_getf32u_indexed_by_int32#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> float32
-      -> unit
-      = "%caml_bytes_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int32#
-      -> float32
-      -> unit
-      = "%caml_bytes_setf32_indexed_by_int32#"
+      external set_reference
+        : bytes
+        -> int
+        -> float32
+        -> unit
+        = "%caml_bytes_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  bytes
+        -> int32#
+        -> float32
+        -> unit
+        = "%caml_bytes_setf32_indexed_by_int32#"
 
-    external set_unsafe
-      :  bytes
-      -> int32#
-      -> float32
-      -> unit
-      = "%caml_bytes_setf32u_indexed_by_int32#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  bytes
+        -> int32#
+        -> float32
+        -> unit
+        = "%caml_bytes_setf32u_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    external get_reference
-      : bigstring
-      -> int
-      -> float32
-      = "%caml_bigstring_getf32"
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  bigstring
-      -> int32#
-      -> float32
-      = "%caml_bigstring_getf32_indexed_by_int32#"
+      external get_reference
+        : bigstring
+        -> int
+        -> float32
+        = "%caml_bigstring_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int32#
+        -> float32
+        = "%caml_bigstring_getf32_indexed_by_int32#"
 
-    external get_unsafe
-      :  bigstring
-      -> int32#
-      -> float32
-      = "%caml_bigstring_getf32u_indexed_by_int32#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  bigstring
+        -> int32#
+        -> float32
+        = "%caml_bigstring_getf32u_indexed_by_int32#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> float32
-      -> unit
-      = "%caml_bigstring_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int32#
-      -> float32
-      -> unit
-      = "%caml_bigstring_setf32_indexed_by_int32#"
+      external set_reference
+        : bigstring
+        -> int
+        -> float32
+        -> unit
+        = "%caml_bigstring_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  bigstring
+        -> int32#
+        -> float32
+        -> unit
+        = "%caml_bigstring_setf32_indexed_by_int32#"
 
-    external set_unsafe
-      :  bigstring
-      -> int32#
-      -> float32
-      -> unit
-      = "%caml_bigstring_setf32u_indexed_by_int32#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  bigstring
+        -> int32#
+        -> float32
+        -> unit
+        = "%caml_bigstring_setf32u_indexed_by_int32#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int32
-type boxed_data = float32
+  type boxed_index = int32
+  type boxed_data = float32
 
-let generate_data = fun _ -> Stdlib_beta.Float32.of_float 5.0
+  let generate_data = 
+  fun _ ->
+    let f =
+      let f = Random.float Float.max_float in
+      if Random.bool () then Float.neg f else f
+    in
+    Stdlib_beta.Float32.of_float f
 
-let to_index = Int32.of_int
-let data_equal = Stdlib_beta.Float32.equal
-let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
-let unbox_data = Stdlib_beta.Float32_u.of_float32
-let box_data = Stdlib_beta.Float32_u.to_float32
-let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
+  let to_index = Int32.of_int
+  let data_equal = Stdlib_beta.Float32.equal
+  let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
+  let unbox_data = Stdlib_beta.Float32_u.of_float32
+  let box_data = Stdlib_beta.Float32_u.to_float32
+  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    external get_reference
-      : string
-      -> int
-      -> float32
-      = "%caml_string_getf32"
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  string
-      -> int32#
-      -> float32#
-      = "%caml_string_getf32#_indexed_by_int32#"
+      external get_reference
+        : string
+        -> int
+        -> float32
+        = "%caml_string_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int32#
+        -> float32#
+        = "%caml_string_getf32#_indexed_by_int32#"
 
-    external get_unsafe
-      :  string
-      -> int32#
-      -> float32#
-      = "%caml_string_getf32u#_indexed_by_int32#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  string
+        -> int32#
+        -> float32#
+        = "%caml_string_getf32u#_indexed_by_int32#"
 
-    external set_reference
-      : string
-      -> int
-      -> float32
-      -> unit
-      = "%caml_string_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int32#
-      -> float32#
-      -> unit
-      = "%caml_string_setf32#_indexed_by_int32#"
+      external set_reference
+        : string
+        -> int
+        -> float32
+        -> unit
+        = "%caml_string_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  string
+        -> int32#
+        -> float32#
+        -> unit
+        = "%caml_string_setf32#_indexed_by_int32#"
 
-    external set_unsafe
-      :  string
-      -> int32#
-      -> float32#
-      -> unit
-      = "%caml_string_setf32u#_indexed_by_int32#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  string
+        -> int32#
+        -> float32#
+        -> unit
+        = "%caml_string_setf32u#_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    external get_reference
-      : bytes
-      -> int
-      -> float32
-      = "%caml_bytes_getf32"
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  bytes
-      -> int32#
-      -> float32#
-      = "%caml_bytes_getf32#_indexed_by_int32#"
+      external get_reference
+        : bytes
+        -> int
+        -> float32
+        = "%caml_bytes_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int32#
+        -> float32#
+        = "%caml_bytes_getf32#_indexed_by_int32#"
 
-    external get_unsafe
-      :  bytes
-      -> int32#
-      -> float32#
-      = "%caml_bytes_getf32u#_indexed_by_int32#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  bytes
+        -> int32#
+        -> float32#
+        = "%caml_bytes_getf32u#_indexed_by_int32#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> float32
-      -> unit
-      = "%caml_bytes_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int32#
-      -> float32#
-      -> unit
-      = "%caml_bytes_setf32#_indexed_by_int32#"
+      external set_reference
+        : bytes
+        -> int
+        -> float32
+        -> unit
+        = "%caml_bytes_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  bytes
+        -> int32#
+        -> float32#
+        -> unit
+        = "%caml_bytes_setf32#_indexed_by_int32#"
 
-    external set_unsafe
-      :  bytes
-      -> int32#
-      -> float32#
-      -> unit
-      = "%caml_bytes_setf32u#_indexed_by_int32#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  bytes
+        -> int32#
+        -> float32#
+        -> unit
+        = "%caml_bytes_setf32u#_indexed_by_int32#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    external get_reference
-      : bigstring
-      -> int
-      -> float32
-      = "%caml_bigstring_getf32"
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  bigstring
-      -> int32#
-      -> float32#
-      = "%caml_bigstring_getf32#_indexed_by_int32#"
+      external get_reference
+        : bigstring
+        -> int
+        -> float32
+        = "%caml_bigstring_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int32#
+        -> float32#
+        = "%caml_bigstring_getf32#_indexed_by_int32#"
 
-    external get_unsafe
-      :  bigstring
-      -> int32#
-      -> float32#
-      = "%caml_bigstring_getf32u#_indexed_by_int32#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  bigstring
+        -> int32#
+        -> float32#
+        = "%caml_bigstring_getf32u#_indexed_by_int32#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> float32
-      -> unit
-      = "%caml_bigstring_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int32#
-      -> float32#
-      -> unit
-      = "%caml_bigstring_setf32#_indexed_by_int32#"
+      external set_reference
+        : bigstring
+        -> int
+        -> float32
+        -> unit
+        = "%caml_bigstring_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  bigstring
+        -> int32#
+        -> float32#
+        -> unit
+        = "%caml_bigstring_setf32#_indexed_by_int32#"
 
-    external set_unsafe
-      :  bigstring
-      -> int32#
-      -> float32#
-      -> unit
-      = "%caml_bigstring_setf32u#_indexed_by_int32#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  bigstring
+        -> int32#
+        -> float32#
+        -> unit
+        = "%caml_bigstring_setf32u#_indexed_by_int32#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int64
-type boxed_data = int
+  type boxed_index = int64
+  type boxed_data = int
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int.zero
-  | 1 ->
-      (* min int *)
-      Int.(shift_left one) (16 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 16 - 1 in
-      Int.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int.(logxor x (shift_left one (i1 mod 16))) in
-      let x = Int.(logxor x (shift_left one (i2 mod 16))) in
-      let x = Int.(logxor x (shift_left one (i3 mod 16))) in
-      x
-in x
-
-let to_index = Int64.of_int
-let data_equal = Int.equal
-let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
-let unbox_data = fun x -> x
-let box_data = fun x -> x
-let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int.zero
+      | 1 -> (Int.(shift_left one) (16 - 1))
+      | 2 -> 
+        (let shift = 16 - 1 in
+        Int.(lognot (shift_left (shift_right (lognot zero) shift) shift)))
+      | _ -> Random.int_in_range ~min:Int.zero ~max:(Int.(shift_left one) (16 - 1))
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Int64.of_int
+  let data_equal = Int.equal
+  let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
+  let unbox_data = fun x -> x
+  let box_data = fun x -> x
+  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int
-      = "%caml_string_get16"
 
-    external get_safe
-      :  string
-      -> int64#
-      -> int
-      = "%caml_string_get16_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> int64#
-      -> int
-      = "%caml_string_get16u_indexed_by_int64#"
+      external get_reference
+        : string
+        -> int
+        -> int
+        = "%caml_string_get16"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int64#
+        -> int
+        = "%caml_string_get16_indexed_by_int64#"
 
-    external set_reference
-      : string
-      -> int
-      -> int
-      -> unit
-      = "%caml_string_set16"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int64#
-      -> int
-      -> unit
-      = "%caml_string_set16_indexed_by_int64#"
+      external get_unsafe
+        :  string
+        -> int64#
+        -> int
+        = "%caml_string_get16u_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> int64#
-      -> int
-      -> unit
-      = "%caml_string_set16u_indexed_by_int64#"
+      external set_reference
+        : string
+        -> int
+        -> int
+        -> unit
+        = "%caml_string_set16"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> int64#
+        -> int
+        -> unit
+        = "%caml_string_set16_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> int64#
+        -> int
+        -> unit
+        = "%caml_string_set16u_indexed_by_int64#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int
-      = "%caml_bytes_get16"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> int64#
-      -> int
-      = "%caml_bytes_get16_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> int64#
-      -> int
-      = "%caml_bytes_get16u_indexed_by_int64#"
+      external get_reference
+        : bytes
+        -> int
+        -> int
+        = "%caml_bytes_get16"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int64#
+        -> int
+        = "%caml_bytes_get16_indexed_by_int64#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int
-      -> unit
-      = "%caml_bytes_set16"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int64#
-      -> int
-      -> unit
-      = "%caml_bytes_set16_indexed_by_int64#"
+      external get_unsafe
+        :  bytes
+        -> int64#
+        -> int
+        = "%caml_bytes_get16u_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> int64#
-      -> int
-      -> unit
-      = "%caml_bytes_set16u_indexed_by_int64#"
+      external set_reference
+        : bytes
+        -> int
+        -> int
+        -> unit
+        = "%caml_bytes_set16"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> int64#
+        -> int
+        -> unit
+        = "%caml_bytes_set16_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> int64#
+        -> int
+        -> unit
+        = "%caml_bytes_set16u_indexed_by_int64#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int
-      = "%caml_bigstring_get16"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> int64#
-      -> int
-      = "%caml_bigstring_get16_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> int64#
-      -> int
-      = "%caml_bigstring_get16u_indexed_by_int64#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int
+        = "%caml_bigstring_get16"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int64#
+        -> int
+        = "%caml_bigstring_get16_indexed_by_int64#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int
-      -> unit
-      = "%caml_bigstring_set16"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int64#
-      -> int
-      -> unit
-      = "%caml_bigstring_set16_indexed_by_int64#"
+      external get_unsafe
+        :  bigstring
+        -> int64#
+        -> int
+        = "%caml_bigstring_get16u_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> int64#
-      -> int
-      -> unit
-      = "%caml_bigstring_set16u_indexed_by_int64#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int
+        -> unit
+        = "%caml_bigstring_set16"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> int64#
+        -> int
+        -> unit
+        = "%caml_bigstring_set16_indexed_by_int64#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> int64#
+        -> int
+        -> unit
+        = "%caml_bigstring_set16u_indexed_by_int64#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int64
-type boxed_data = int32
+  type boxed_index = int64
+  type boxed_data = int32
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int32.zero
-  | 1 ->
-      (* min int *)
-      Int32.(shift_left one) (32 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 32 - 1 in
-      Int32.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int32.(logxor x (shift_left one (i1 mod 32))) in
-      let x = Int32.(logxor x (shift_left one (i2 mod 32))) in
-      let x = Int32.(logxor x (shift_left one (i3 mod 32))) in
-      x
-in x
-
-let to_index = Int64.of_int
-let data_equal = Int32.equal
-let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
-let unbox_data = fun x -> x
-let box_data = fun x -> x
-let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int32.zero
+      | 1 -> Int32.min_int
+      | 2 -> Int32.max_int
+      | _ -> Random.int32_in_range ~min:Int32.min_int ~max:Int32.max_int
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Int64.of_int
+  let data_equal = Int32.equal
+  let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
+  let unbox_data = fun x -> x
+  let box_data = fun x -> x
+  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int32
-      = "%caml_string_get32"
 
-    external get_safe
-      :  string
-      -> int64#
-      -> int32
-      = "%caml_string_get32_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> int64#
-      -> int32
-      = "%caml_string_get32u_indexed_by_int64#"
+      external get_reference
+        : string
+        -> int
+        -> int32
+        = "%caml_string_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int64#
+        -> int32
+        = "%caml_string_get32_indexed_by_int64#"
 
-    external set_reference
-      : string
-      -> int
-      -> int32
-      -> unit
-      = "%caml_string_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int64#
-      -> int32
-      -> unit
-      = "%caml_string_set32_indexed_by_int64#"
+      external get_unsafe
+        :  string
+        -> int64#
+        -> int32
+        = "%caml_string_get32u_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> int64#
-      -> int32
-      -> unit
-      = "%caml_string_set32u_indexed_by_int64#"
+      external set_reference
+        : string
+        -> int
+        -> int32
+        -> unit
+        = "%caml_string_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> int64#
+        -> int32
+        -> unit
+        = "%caml_string_set32_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> int64#
+        -> int32
+        -> unit
+        = "%caml_string_set32u_indexed_by_int64#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int32
-      = "%caml_bytes_get32"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> int64#
-      -> int32
-      = "%caml_bytes_get32_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> int64#
-      -> int32
-      = "%caml_bytes_get32u_indexed_by_int64#"
+      external get_reference
+        : bytes
+        -> int
+        -> int32
+        = "%caml_bytes_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int64#
+        -> int32
+        = "%caml_bytes_get32_indexed_by_int64#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int32
-      -> unit
-      = "%caml_bytes_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int64#
-      -> int32
-      -> unit
-      = "%caml_bytes_set32_indexed_by_int64#"
+      external get_unsafe
+        :  bytes
+        -> int64#
+        -> int32
+        = "%caml_bytes_get32u_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> int64#
-      -> int32
-      -> unit
-      = "%caml_bytes_set32u_indexed_by_int64#"
+      external set_reference
+        : bytes
+        -> int
+        -> int32
+        -> unit
+        = "%caml_bytes_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> int64#
+        -> int32
+        -> unit
+        = "%caml_bytes_set32_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> int64#
+        -> int32
+        -> unit
+        = "%caml_bytes_set32u_indexed_by_int64#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int32
-      = "%caml_bigstring_get32"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> int64#
-      -> int32
-      = "%caml_bigstring_get32_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> int64#
-      -> int32
-      = "%caml_bigstring_get32u_indexed_by_int64#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int32
+        = "%caml_bigstring_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int64#
+        -> int32
+        = "%caml_bigstring_get32_indexed_by_int64#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int32
-      -> unit
-      = "%caml_bigstring_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int64#
-      -> int32
-      -> unit
-      = "%caml_bigstring_set32_indexed_by_int64#"
+      external get_unsafe
+        :  bigstring
+        -> int64#
+        -> int32
+        = "%caml_bigstring_get32u_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> int64#
-      -> int32
-      -> unit
-      = "%caml_bigstring_set32u_indexed_by_int64#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int32
+        -> unit
+        = "%caml_bigstring_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> int64#
+        -> int32
+        -> unit
+        = "%caml_bigstring_set32_indexed_by_int64#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> int64#
+        -> int32
+        -> unit
+        = "%caml_bigstring_set32u_indexed_by_int64#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int64
-type boxed_data = int64
+  type boxed_index = int64
+  type boxed_data = int64
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int64.zero
-  | 1 ->
-      (* min int *)
-      Int64.(shift_left one) (64 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 64 - 1 in
-      Int64.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int64.(logxor x (shift_left one (i1 mod 64))) in
-      let x = Int64.(logxor x (shift_left one (i2 mod 64))) in
-      let x = Int64.(logxor x (shift_left one (i3 mod 64))) in
-      x
-in x
-
-let to_index = Int64.of_int
-let data_equal = Int64.equal
-let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
-let unbox_data = fun x -> x
-let box_data = fun x -> x
-let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int64.zero
+      | 1 -> Int64.min_int
+      | 2 -> Int64.max_int
+      | _ -> Random.int64_in_range ~min:Int64.min_int ~max:Int64.max_int
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Int64.of_int
+  let data_equal = Int64.equal
+  let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
+  let unbox_data = fun x -> x
+  let box_data = fun x -> x
+  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int64
-      = "%caml_string_get64"
 
-    external get_safe
-      :  string
-      -> int64#
-      -> int64
-      = "%caml_string_get64_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> int64#
-      -> int64
-      = "%caml_string_get64u_indexed_by_int64#"
+      external get_reference
+        : string
+        -> int
+        -> int64
+        = "%caml_string_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int64#
+        -> int64
+        = "%caml_string_get64_indexed_by_int64#"
 
-    external set_reference
-      : string
-      -> int
-      -> int64
-      -> unit
-      = "%caml_string_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int64#
-      -> int64
-      -> unit
-      = "%caml_string_set64_indexed_by_int64#"
+      external get_unsafe
+        :  string
+        -> int64#
+        -> int64
+        = "%caml_string_get64u_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> int64#
-      -> int64
-      -> unit
-      = "%caml_string_set64u_indexed_by_int64#"
+      external set_reference
+        : string
+        -> int
+        -> int64
+        -> unit
+        = "%caml_string_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> int64#
+        -> int64
+        -> unit
+        = "%caml_string_set64_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> int64#
+        -> int64
+        -> unit
+        = "%caml_string_set64u_indexed_by_int64#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int64
-      = "%caml_bytes_get64"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> int64#
-      -> int64
-      = "%caml_bytes_get64_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> int64#
-      -> int64
-      = "%caml_bytes_get64u_indexed_by_int64#"
+      external get_reference
+        : bytes
+        -> int
+        -> int64
+        = "%caml_bytes_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int64#
+        -> int64
+        = "%caml_bytes_get64_indexed_by_int64#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int64
-      -> unit
-      = "%caml_bytes_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int64#
-      -> int64
-      -> unit
-      = "%caml_bytes_set64_indexed_by_int64#"
+      external get_unsafe
+        :  bytes
+        -> int64#
+        -> int64
+        = "%caml_bytes_get64u_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> int64#
-      -> int64
-      -> unit
-      = "%caml_bytes_set64u_indexed_by_int64#"
+      external set_reference
+        : bytes
+        -> int
+        -> int64
+        -> unit
+        = "%caml_bytes_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> int64#
+        -> int64
+        -> unit
+        = "%caml_bytes_set64_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> int64#
+        -> int64
+        -> unit
+        = "%caml_bytes_set64u_indexed_by_int64#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int64
-      = "%caml_bigstring_get64"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> int64#
-      -> int64
-      = "%caml_bigstring_get64_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> int64#
-      -> int64
-      = "%caml_bigstring_get64u_indexed_by_int64#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int64
+        = "%caml_bigstring_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int64#
+        -> int64
+        = "%caml_bigstring_get64_indexed_by_int64#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int64
-      -> unit
-      = "%caml_bigstring_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int64#
-      -> int64
-      -> unit
-      = "%caml_bigstring_set64_indexed_by_int64#"
+      external get_unsafe
+        :  bigstring
+        -> int64#
+        -> int64
+        = "%caml_bigstring_get64u_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> int64#
-      -> int64
-      -> unit
-      = "%caml_bigstring_set64u_indexed_by_int64#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int64
+        -> unit
+        = "%caml_bigstring_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> int64#
+        -> int64
+        -> unit
+        = "%caml_bigstring_set64_indexed_by_int64#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> int64#
+        -> int64
+        -> unit
+        = "%caml_bigstring_set64u_indexed_by_int64#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int64
-type boxed_data = int32
+  type boxed_index = int64
+  type boxed_data = int32
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int32.zero
-  | 1 ->
-      (* min int *)
-      Int32.(shift_left one) (32 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 32 - 1 in
-      Int32.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int32.(logxor x (shift_left one (i1 mod 32))) in
-      let x = Int32.(logxor x (shift_left one (i2 mod 32))) in
-      let x = Int32.(logxor x (shift_left one (i3 mod 32))) in
-      x
-in x
-
-let to_index = Int64.of_int
-let data_equal = Int32.equal
-let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
-let unbox_data = Stdlib_upstream_compatible.Int32_u.of_int32
-let box_data = Stdlib_upstream_compatible.Int32_u.to_int32
-let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int32.zero
+      | 1 -> Int32.min_int
+      | 2 -> Int32.max_int
+      | _ -> Random.int32_in_range ~min:Int32.min_int ~max:Int32.max_int
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Int64.of_int
+  let data_equal = Int32.equal
+  let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
+  let unbox_data = Stdlib_upstream_compatible.Int32_u.of_int32
+  let box_data = Stdlib_upstream_compatible.Int32_u.to_int32
+  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int32
-      = "%caml_string_get32"
 
-    external get_safe
-      :  string
-      -> int64#
-      -> int32#
-      = "%caml_string_get32#_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> int64#
-      -> int32#
-      = "%caml_string_get32u#_indexed_by_int64#"
+      external get_reference
+        : string
+        -> int
+        -> int32
+        = "%caml_string_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int64#
+        -> int32#
+        = "%caml_string_get32#_indexed_by_int64#"
 
-    external set_reference
-      : string
-      -> int
-      -> int32
-      -> unit
-      = "%caml_string_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int64#
-      -> int32#
-      -> unit
-      = "%caml_string_set32#_indexed_by_int64#"
+      external get_unsafe
+        :  string
+        -> int64#
+        -> int32#
+        = "%caml_string_get32u#_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> int64#
-      -> int32#
-      -> unit
-      = "%caml_string_set32u#_indexed_by_int64#"
+      external set_reference
+        : string
+        -> int
+        -> int32
+        -> unit
+        = "%caml_string_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> int64#
+        -> int32#
+        -> unit
+        = "%caml_string_set32#_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> int64#
+        -> int32#
+        -> unit
+        = "%caml_string_set32u#_indexed_by_int64#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int32
-      = "%caml_bytes_get32"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> int64#
-      -> int32#
-      = "%caml_bytes_get32#_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> int64#
-      -> int32#
-      = "%caml_bytes_get32u#_indexed_by_int64#"
+      external get_reference
+        : bytes
+        -> int
+        -> int32
+        = "%caml_bytes_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int64#
+        -> int32#
+        = "%caml_bytes_get32#_indexed_by_int64#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int32
-      -> unit
-      = "%caml_bytes_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int64#
-      -> int32#
-      -> unit
-      = "%caml_bytes_set32#_indexed_by_int64#"
+      external get_unsafe
+        :  bytes
+        -> int64#
+        -> int32#
+        = "%caml_bytes_get32u#_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> int64#
-      -> int32#
-      -> unit
-      = "%caml_bytes_set32u#_indexed_by_int64#"
+      external set_reference
+        : bytes
+        -> int
+        -> int32
+        -> unit
+        = "%caml_bytes_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> int64#
+        -> int32#
+        -> unit
+        = "%caml_bytes_set32#_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> int64#
+        -> int32#
+        -> unit
+        = "%caml_bytes_set32u#_indexed_by_int64#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int32
-      = "%caml_bigstring_get32"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> int64#
-      -> int32#
-      = "%caml_bigstring_get32#_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> int64#
-      -> int32#
-      = "%caml_bigstring_get32u#_indexed_by_int64#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int32
+        = "%caml_bigstring_get32"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int64#
+        -> int32#
+        = "%caml_bigstring_get32#_indexed_by_int64#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int32
-      -> unit
-      = "%caml_bigstring_set32"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int64#
-      -> int32#
-      -> unit
-      = "%caml_bigstring_set32#_indexed_by_int64#"
+      external get_unsafe
+        :  bigstring
+        -> int64#
+        -> int32#
+        = "%caml_bigstring_get32u#_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> int64#
-      -> int32#
-      -> unit
-      = "%caml_bigstring_set32u#_indexed_by_int64#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int32
+        -> unit
+        = "%caml_bigstring_set32"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> int64#
+        -> int32#
+        -> unit
+        = "%caml_bigstring_set32#_indexed_by_int64#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> int64#
+        -> int32#
+        -> unit
+        = "%caml_bigstring_set32u#_indexed_by_int64#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int64
-type boxed_data = int64
+  type boxed_index = int64
+  type boxed_data = int64
 
-let generate_data = 
-let rec x = function
-  | i when i <= 0 -> Int64.zero
-  | 1 ->
-      (* min int *)
-      Int64.(shift_left one) (64 - 1)
-  | 2 ->
-      (* max int *)
-      let shift = 64 - 1 in
-      Int64.(lognot (shift_left (shift_right (lognot zero) shift) shift))
-  | i ->
-      (* flip 3 "random" bits *)
-      let i1 = 3 * i and i2 = 7 * i and i3 = 11 * i in
-      let x = x (i - 1) in
-      let x = Int64.(logxor x (shift_left one (i1 mod 64))) in
-      let x = Int64.(logxor x (shift_left one (i2 mod 64))) in
-      let x = Int64.(logxor x (shift_left one (i3 mod 64))) in
-      x
-in x
-
-let to_index = Int64.of_int
-let data_equal = Int64.equal
-let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
-let unbox_data = Stdlib_upstream_compatible.Int64_u.of_int64
-let box_data = Stdlib_upstream_compatible.Int64_u.to_int64
-let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
+  let generate_data = 
+    fun i ->
+      match i mod 4 with
+      | 0 -> Int64.zero
+      | 1 -> Int64.min_int
+      | 2 -> Int64.max_int
+      | _ -> Random.int64_in_range ~min:Int64.min_int ~max:Int64.max_int
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
+  let to_index = Int64.of_int
+  let data_equal = Int64.equal
+  let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
+  let unbox_data = Stdlib_upstream_compatible.Int64_u.of_int64
+  let box_data = Stdlib_upstream_compatible.Int64_u.to_int64
+  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
 
-    external get_reference
-      : string
-      -> int
-      -> int64
-      = "%caml_string_get64"
 
-    external get_safe
-      :  string
-      -> int64#
-      -> int64#
-      = "%caml_string_get64#_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  string
-      -> int64#
-      -> int64#
-      = "%caml_string_get64u#_indexed_by_int64#"
+      external get_reference
+        : string
+        -> int
+        -> int64
+        = "%caml_string_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int64#
+        -> int64#
+        = "%caml_string_get64#_indexed_by_int64#"
 
-    external set_reference
-      : string
-      -> int
-      -> int64
-      -> unit
-      = "%caml_string_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int64#
-      -> int64#
-      -> unit
-      = "%caml_string_set64#_indexed_by_int64#"
+      external get_unsafe
+        :  string
+        -> int64#
+        -> int64#
+        = "%caml_string_get64u#_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  string
-      -> int64#
-      -> int64#
-      -> unit
-      = "%caml_string_set64u#_indexed_by_int64#"
+      external set_reference
+        : string
+        -> int
+        -> int64
+        -> unit
+        = "%caml_string_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  string
+        -> int64#
+        -> int64#
+        -> unit
+        = "%caml_string_set64#_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  string
+        -> int64#
+        -> int64#
+        -> unit
+        = "%caml_string_set64u#_indexed_by_int64#"
 
-    external get_reference
-      : bytes
-      -> int
-      -> int64
-      = "%caml_bytes_get64"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bytes
-      -> int64#
-      -> int64#
-      = "%caml_bytes_get64#_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bytes
-      -> int64#
-      -> int64#
-      = "%caml_bytes_get64u#_indexed_by_int64#"
+      external get_reference
+        : bytes
+        -> int
+        -> int64
+        = "%caml_bytes_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int64#
+        -> int64#
+        = "%caml_bytes_get64#_indexed_by_int64#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> int64
-      -> unit
-      = "%caml_bytes_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int64#
-      -> int64#
-      -> unit
-      = "%caml_bytes_set64#_indexed_by_int64#"
+      external get_unsafe
+        :  bytes
+        -> int64#
+        -> int64#
+        = "%caml_bytes_get64u#_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bytes
-      -> int64#
-      -> int64#
-      -> unit
-      = "%caml_bytes_set64u#_indexed_by_int64#"
+      external set_reference
+        : bytes
+        -> int
+        -> int64
+        -> unit
+        = "%caml_bytes_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bytes
+        -> int64#
+        -> int64#
+        -> unit
+        = "%caml_bytes_set64#_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+      external set_unsafe
+        :  bytes
+        -> int64#
+        -> int64#
+        -> unit
+        = "%caml_bytes_set64u#_indexed_by_int64#"
 
-    external get_reference
-      : bigstring
-      -> int
-      -> int64
-      = "%caml_bigstring_get64"
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    external get_safe
-      :  bigstring
-      -> int64#
-      -> int64#
-      = "%caml_bigstring_get64#_indexed_by_int64#"
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_unsafe
-      :  bigstring
-      -> int64#
-      -> int64#
-      = "%caml_bigstring_get64u#_indexed_by_int64#"
+      external get_reference
+        : bigstring
+        -> int
+        -> int64
+        = "%caml_bigstring_get64"
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int64#
+        -> int64#
+        = "%caml_bigstring_get64#_indexed_by_int64#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> int64
-      -> unit
-      = "%caml_bigstring_set64"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int64#
-      -> int64#
-      -> unit
-      = "%caml_bigstring_set64#_indexed_by_int64#"
+      external get_unsafe
+        :  bigstring
+        -> int64#
+        -> int64#
+        = "%caml_bigstring_get64u#_indexed_by_int64#"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_unsafe
-      :  bigstring
-      -> int64#
-      -> int64#
-      -> unit
-      = "%caml_bigstring_set64u#_indexed_by_int64#"
+      external set_reference
+        : bigstring
+        -> int
+        -> int64
+        -> unit
+        = "%caml_bigstring_set64"
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_safe
+        :  bigstring
+        -> int64#
+        -> int64#
+        -> unit
+        = "%caml_bigstring_set64#_indexed_by_int64#"
+
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+
+      external set_unsafe
+        :  bigstring
+        -> int64#
+        -> int64#
+        -> unit
+        = "%caml_bigstring_set64u#_indexed_by_int64#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int64
-type boxed_data = float32
+  type boxed_index = int64
+  type boxed_data = float32
 
-let generate_data = fun _ -> Stdlib_beta.Float32.of_float 5.0
+  let generate_data = 
+  fun _ ->
+    let f =
+      let f = Random.float Float.max_float in
+      if Random.bool () then Float.neg f else f
+    in
+    Stdlib_beta.Float32.of_float f
 
-let to_index = Int64.of_int
-let data_equal = Stdlib_beta.Float32.equal
-let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
-let unbox_data = fun x -> x
-let box_data = fun x -> x
-let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
+  let to_index = Int64.of_int
+  let data_equal = Stdlib_beta.Float32.equal
+  let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
+  let unbox_data = fun x -> x
+  let box_data = fun x -> x
+  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    external get_reference
-      : string
-      -> int
-      -> float32
-      = "%caml_string_getf32"
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  string
-      -> int64#
-      -> float32
-      = "%caml_string_getf32_indexed_by_int64#"
+      external get_reference
+        : string
+        -> int
+        -> float32
+        = "%caml_string_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int64#
+        -> float32
+        = "%caml_string_getf32_indexed_by_int64#"
 
-    external get_unsafe
-      :  string
-      -> int64#
-      -> float32
-      = "%caml_string_getf32u_indexed_by_int64#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  string
+        -> int64#
+        -> float32
+        = "%caml_string_getf32u_indexed_by_int64#"
 
-    external set_reference
-      : string
-      -> int
-      -> float32
-      -> unit
-      = "%caml_string_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int64#
-      -> float32
-      -> unit
-      = "%caml_string_setf32_indexed_by_int64#"
+      external set_reference
+        : string
+        -> int
+        -> float32
+        -> unit
+        = "%caml_string_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  string
+        -> int64#
+        -> float32
+        -> unit
+        = "%caml_string_setf32_indexed_by_int64#"
 
-    external set_unsafe
-      :  string
-      -> int64#
-      -> float32
-      -> unit
-      = "%caml_string_setf32u_indexed_by_int64#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  string
+        -> int64#
+        -> float32
+        -> unit
+        = "%caml_string_setf32u_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    external get_reference
-      : bytes
-      -> int
-      -> float32
-      = "%caml_bytes_getf32"
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  bytes
-      -> int64#
-      -> float32
-      = "%caml_bytes_getf32_indexed_by_int64#"
+      external get_reference
+        : bytes
+        -> int
+        -> float32
+        = "%caml_bytes_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int64#
+        -> float32
+        = "%caml_bytes_getf32_indexed_by_int64#"
 
-    external get_unsafe
-      :  bytes
-      -> int64#
-      -> float32
-      = "%caml_bytes_getf32u_indexed_by_int64#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  bytes
+        -> int64#
+        -> float32
+        = "%caml_bytes_getf32u_indexed_by_int64#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> float32
-      -> unit
-      = "%caml_bytes_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int64#
-      -> float32
-      -> unit
-      = "%caml_bytes_setf32_indexed_by_int64#"
+      external set_reference
+        : bytes
+        -> int
+        -> float32
+        -> unit
+        = "%caml_bytes_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  bytes
+        -> int64#
+        -> float32
+        -> unit
+        = "%caml_bytes_setf32_indexed_by_int64#"
 
-    external set_unsafe
-      :  bytes
-      -> int64#
-      -> float32
-      -> unit
-      = "%caml_bytes_setf32u_indexed_by_int64#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  bytes
+        -> int64#
+        -> float32
+        -> unit
+        = "%caml_bytes_setf32u_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    external get_reference
-      : bigstring
-      -> int
-      -> float32
-      = "%caml_bigstring_getf32"
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  bigstring
-      -> int64#
-      -> float32
-      = "%caml_bigstring_getf32_indexed_by_int64#"
+      external get_reference
+        : bigstring
+        -> int
+        -> float32
+        = "%caml_bigstring_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int64#
+        -> float32
+        = "%caml_bigstring_getf32_indexed_by_int64#"
 
-    external get_unsafe
-      :  bigstring
-      -> int64#
-      -> float32
-      = "%caml_bigstring_getf32u_indexed_by_int64#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  bigstring
+        -> int64#
+        -> float32
+        = "%caml_bigstring_getf32u_indexed_by_int64#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> float32
-      -> unit
-      = "%caml_bigstring_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int64#
-      -> float32
-      -> unit
-      = "%caml_bigstring_setf32_indexed_by_int64#"
+      external set_reference
+        : bigstring
+        -> int
+        -> float32
+        -> unit
+        = "%caml_bigstring_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  bigstring
+        -> int64#
+        -> float32
+        -> unit
+        = "%caml_bigstring_setf32_indexed_by_int64#"
 
-    external set_unsafe
-      :  bigstring
-      -> int64#
-      -> float32
-      -> unit
-      = "%caml_bigstring_setf32u_indexed_by_int64#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  bigstring
+        -> int64#
+        -> float32
+        -> unit
+        = "%caml_bigstring_setf32u_indexed_by_int64#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
 
 open struct
 
-type boxed_index = int64
-type boxed_data = float32
+  type boxed_index = int64
+  type boxed_data = float32
 
-let generate_data = fun _ -> Stdlib_beta.Float32.of_float 5.0
+  let generate_data = 
+  fun _ ->
+    let f =
+      let f = Random.float Float.max_float in
+      if Random.bool () then Float.neg f else f
+    in
+    Stdlib_beta.Float32.of_float f
 
-let to_index = Int64.of_int
-let data_equal = Stdlib_beta.Float32.equal
-let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
-let unbox_data = Stdlib_beta.Float32_u.of_float32
-let box_data = Stdlib_beta.Float32_u.to_float32
-let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
+  let to_index = Int64.of_int
+  let data_equal = Stdlib_beta.Float32.equal
+  let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
+  let unbox_data = Stdlib_beta.Float32_u.of_float32
+  let box_data = Stdlib_beta.Float32_u.to_float32
+  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
 
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = string
 
-    let create = create_s
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = string
 
-    external get_reference
-      : string
-      -> int
-      -> float32
-      = "%caml_string_getf32"
+      let create = create_s
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  string
-      -> int64#
-      -> float32#
-      = "%caml_string_getf32#_indexed_by_int64#"
+      external get_reference
+        : string
+        -> int
+        -> float32
+        = "%caml_string_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  string
+        -> int64#
+        -> float32#
+        = "%caml_string_getf32#_indexed_by_int64#"
 
-    external get_unsafe
-      :  string
-      -> int64#
-      -> float32#
-      = "%caml_string_getf32u#_indexed_by_int64#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  string
+        -> int64#
+        -> float32#
+        = "%caml_string_getf32u#_indexed_by_int64#"
 
-    external set_reference
-      : string
-      -> int
-      -> float32
-      -> unit
-      = "%caml_string_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  string
-      -> int64#
-      -> float32#
-      -> unit
-      = "%caml_string_setf32#_indexed_by_int64#"
+      external set_reference
+        : string
+        -> int
+        -> float32
+        -> unit
+        = "%caml_string_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  string
+        -> int64#
+        -> float32#
+        -> unit
+        = "%caml_string_setf32#_indexed_by_int64#"
 
-    external set_unsafe
-      :  string
-      -> int64#
-      -> float32#
-      -> unit
-      = "%caml_string_setf32u#_indexed_by_int64#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  string
+        -> int64#
+        -> float32#
+        -> unit
+        = "%caml_string_setf32u#_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bytes
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    let create = create_b
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bytes
 
-    external get_reference
-      : bytes
-      -> int
-      -> float32
-      = "%caml_bytes_getf32"
+      let create = create_b
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  bytes
-      -> int64#
-      -> float32#
-      = "%caml_bytes_getf32#_indexed_by_int64#"
+      external get_reference
+        : bytes
+        -> int
+        -> float32
+        = "%caml_bytes_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  bytes
+        -> int64#
+        -> float32#
+        = "%caml_bytes_getf32#_indexed_by_int64#"
 
-    external get_unsafe
-      :  bytes
-      -> int64#
-      -> float32#
-      = "%caml_bytes_getf32u#_indexed_by_int64#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  bytes
+        -> int64#
+        -> float32#
+        = "%caml_bytes_getf32u#_indexed_by_int64#"
 
-    external set_reference
-      : bytes
-      -> int
-      -> float32
-      -> unit
-      = "%caml_bytes_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  bytes
-      -> int64#
-      -> float32#
-      -> unit
-      = "%caml_bytes_setf32#_indexed_by_int64#"
+      external set_reference
+        : bytes
+        -> int
+        -> float32
+        -> unit
+        = "%caml_bytes_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  bytes
+        -> int64#
+        -> float32#
+        -> unit
+        = "%caml_bytes_setf32#_indexed_by_int64#"
 
-    external set_unsafe
-      :  bytes
-      -> int64#
-      -> float32#
-      -> unit
-      = "%caml_bytes_setf32u#_indexed_by_int64#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  bytes
+        -> int64#
+        -> float32#
+        -> unit
+        = "%caml_bytes_setf32u#_indexed_by_int64#"
 
-module _ = Tester (struct
-    type nonrec boxed_index = boxed_index
-    type nonrec boxed_data = boxed_data
-    type container = bigstring
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
 
-    let create = create_bs
-    let generate_data = generate_data
-    let to_index = to_index
-    let data_equal = data_equal
-    let extra_bounds_checks = extra_bounds_checks
+  module _ = Tester (struct
+      type nonrec boxed_index = boxed_index
+      type nonrec boxed_data = boxed_data
+      type container = bigstring
 
-    external get_reference
-      : bigstring
-      -> int
-      -> float32
-      = "%caml_bigstring_getf32"
+      let create = create_bs
+      let generate_data = generate_data
+      let to_index = to_index
+      let data_equal = data_equal
+      let extra_bounds_checks = extra_bounds_checks
 
-    external get_safe
-      :  bigstring
-      -> int64#
-      -> float32#
-      = "%caml_bigstring_getf32#_indexed_by_int64#"
+      external get_reference
+        : bigstring
+        -> int
+        -> float32
+        = "%caml_bigstring_getf32"
 
-    let get_safe b i = box_data (get_safe b (unbox_index i))
+      external get_safe
+        :  bigstring
+        -> int64#
+        -> float32#
+        = "%caml_bigstring_getf32#_indexed_by_int64#"
 
-    external get_unsafe
-      :  bigstring
-      -> int64#
-      -> float32#
-      = "%caml_bigstring_getf32u#_indexed_by_int64#"
+      let get_safe b i = box_data (get_safe b (unbox_index i))
 
-    let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
+      external get_unsafe
+        :  bigstring
+        -> int64#
+        -> float32#
+        = "%caml_bigstring_getf32u#_indexed_by_int64#"
 
-    external set_reference
-      : bigstring
-      -> int
-      -> float32
-      -> unit
-      = "%caml_bigstring_setf32"
+      let get_unsafe b i = box_data (get_unsafe b (unbox_index i))
 
-    external set_safe
-      :  bigstring
-      -> int64#
-      -> float32#
-      -> unit
-      = "%caml_bigstring_setf32#_indexed_by_int64#"
+      external set_reference
+        : bigstring
+        -> int
+        -> float32
+        -> unit
+        = "%caml_bigstring_setf32"
 
-    let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
+      external set_safe
+        :  bigstring
+        -> int64#
+        -> float32#
+        -> unit
+        = "%caml_bigstring_setf32#_indexed_by_int64#"
 
-    external set_unsafe
-      :  bigstring
-      -> int64#
-      -> float32#
-      -> unit
-      = "%caml_bigstring_setf32u#_indexed_by_int64#"
+      let set_safe b i d = set_safe b (unbox_index i) (unbox_data d)
 
-    let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
-  end)
+      external set_unsafe
+        :  bigstring
+        -> int64#
+        -> float32#
+        -> unit
+        = "%caml_bigstring_setf32u#_indexed_by_int64#"
+
+      let set_unsafe b i d = set_unsafe b (unbox_index i) (unbox_data d)
+    end)
+
 
 end
