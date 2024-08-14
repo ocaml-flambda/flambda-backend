@@ -1456,7 +1456,7 @@ module Analyser =
             in
             (maybe_more, new_env2, [ Element_module_type mt ])
 
-        | Parsetree.Psig_include incl ->
+        | Parsetree.Psig_include (incl, _) ->
             analyse_signature_item_desc_include ~env ~comment_opt incl
 
         | Parsetree.Psig_class class_description_list ->

@@ -805,7 +805,7 @@ let signature_item sub item =
     | Tsig_open od ->
         Psig_open (sub.open_description sub od)
     | Tsig_include incl ->
-        Psig_include (sub.include_description sub incl)
+        Psig_include (sub.include_description sub incl, [])
     | Tsig_class list ->
         Psig_class (List.map (sub.class_description sub) list)
     | Tsig_class_type list ->

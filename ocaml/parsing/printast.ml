@@ -801,10 +801,11 @@ and signature_item i ppf x =
       line i ppf "Psig_open %a %a\n" fmt_override_flag od.popen_override
         fmt_longident_loc od.popen_expr;
       attributes i ppf od.popen_attributes
-  | Psig_include incl ->
+  | Psig_include (incl, m) ->
       line i ppf "Psig_include\n";
       include_kind i ppf incl.pincl_kind;
       module_type i ppf incl.pincl_mod;
+      modalities i ppf m;
       attributes i ppf incl.pincl_attributes
   | Psig_class (l) ->
       line i ppf "Psig_class\n";
