@@ -32,7 +32,6 @@ struct
   module Test_open_M = struct
     open M
 
-    (* This call should show up as `M.to_string` in the parsetree. *)
     let calls_to_string t = to_string t
   end
 
