@@ -92,8 +92,9 @@ module Graph : sig
            them differently in the dot output.*)
         | Unknown_position_tail_edge
         | Unknown_position_nontail_edge
-        (* Dangerous_cross_cu_edges are calls to functions defined in a
-           different compilation unit which tailcall an unknown function. *)
+        (* Dangerous_cross_cu_edges are "phantom" calls to <unknown> for
+           functions defined in a different different compilation unit which
+           (transitively) tailcall indirectly. *)
         | Dangerous_cross_cu_edge
         (* "Inferred" edges are edges that might possibly change their TCO
            behavior as a result of adding TCO inference. *)
@@ -195,32 +196,12 @@ end = struct
   module Edge = struct
     module T = struct
       module Label = struct
-        (* For the purpose of analyzing whether TCO inference might break
-           existing code (by causing a stack overflow) we are interested in
-           whether there are any cycles with *_tail_edges and
-           Inferred_nontail_edges. To find these cycles, we decompose the call
-           graph into SCCs. *)
         type t =
-          (* "Explicit" here really means "not inferred." "Explicit" edges are
-             edges that are (very likely) not changing their TCO behavior as a
-             result of adding TCO inference. I.e., before TCO inference, they
-             were tail (nontail) if and only if after TCO inference they are
-             tail (nontail). *)
           | Explicit_tail_edge
           | Explicit_nontail_edge
-          (* Unknown_position edges are from Unknown_position applications,
-             which are generated when we synthesize function applications
-             internally in the compiler. These are treated the same as Explicit
-             edges in the SCC decomposition and for warnings; for debugging
-             purposes we display them differently in the dot output.*)
           | Unknown_position_tail_edge
           | Unknown_position_nontail_edge
-          (* Dangerous_cross_cu_edges are "phantom" calls to <unknown> for
-             functions defined in a different different compilation unit which
-             (transitively) tailcall indirectly. *)
           | Dangerous_cross_cu_edge
-          (* "Inferred" edges are edges that might possibly change their TCO
-             behavior as a result of adding TCO inference. *)
           | Inferred_tail_edge
           | Inferred_nontail_edge
 
