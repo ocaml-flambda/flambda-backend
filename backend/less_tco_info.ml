@@ -25,41 +25,50 @@
  **********************************************************************************)
 [@@@ocaml.warning "+a-30-40-41-42"]
 
-(** Tailcall analysis: constructs a call graph whose vertices are functions and whose
-    edges are calls in syntactic tail position. Edges are labeled with whether they are
-    explicitly TCO'd ([@tail] or [@tail hint]), implicitly TCO'd, or implicitly not TCO'd.
-    (Whether a function is implicitly TCO'd or not depends on the heuristic we are
-    developing as part of the less-tco project.) *)
+type position =
+  | Doesn't_contain_indirect_call_in_tail_position
+  | Contains_indirect_call_in_tail_position
 
-module Global_state : sig
-  (** Reset the shared state for the compilation unit *)
-  val reset_unit_info : unit -> unit
+module String = Misc.Stdlib.String
 
-  (** Analyzes a single function's CFG. This should be called on every function in a
-    compilation unit. *)
-  val cfg :
-    future_funcnames:Misc.Stdlib.String.Set.t ->
-    Cfg_with_layout.t ->
-    Cfg_with_layout.t
+type t = position String.Map.t
 
-  val print_dot : Format.formatter -> unit
+let empty = String.Map.empty
 
-  val emit_warnings : unit -> unit
+let add_exn t ~fn ~pos =
+  String.Map.update fn
+    (fun old ->
+      match old with
+      | None -> Some pos
+      | Some _ -> Misc.fatal_errorf "tried to add fn %s again" fn)
+    t
 
-  val record_unit_info : unit -> unit
+let find t ~fn = String.Map.find_opt fn t
+
+let print ppf t =
+  t
+  |> String.Map.iter (fun fn pos ->
+         Format.fprintf ppf "%s: %s\n" fn
+           (match pos with
+           | Doesn't_contain_indirect_call_in_tail_position -> "safe"
+           | Contains_indirect_call_in_tail_position -> "unsafe"))
+
+let merge_exn t1 t2 =
+  let f key _ _ = Misc.fatal_errorf "key %s exists in both maps" key in
+  String.Map.union f t1 t2
+
+module Global_state = struct
+  let cached = ref empty
+
+  let add_to_cache t = cached := merge_exn !cached t
+
+  let find ~fn = find !cached ~fn
 end
 
-(* When we inline, we don't merge the position_and_tail_attribute. This means
-   that we might report false positives when warning about inferred tails in
-   TCO'd cycles: if A calls B in Tail_position Default_tail, and A is inlined
-   into C, the calls to B keep their Tail_position Default_tail. Then, when we
-   see these calls in the backend, they are not tail calls (because they cannot
-   actually be optimized to tail calls because they are not in tail position),
-   and we incorrectly deduce that C has inferred nontail calls. Furthermore, if
-   these (deduced wrong) nontail calls participate in a TCO'd cycle, we will
-   raise supurious inferred-nontail-in-tcod-cycle warnings.
+module Raw = struct
+  type t = (string * position) list
+end
 
-   In the future should properly merge the attributes, but a workaround we do
-   here is to traverse the CMM to replace position_and_tail_attributes in
-   non-tail CMM position with an Inlined_into_not_tail_position attribute. *)
-val fixup_inlined_tailcalls : Cmm.fundecl -> Cmm.fundecl
+let to_raw (t : t) : Raw.t = String.Map.bindings t
+
+let of_raw (t : Raw.t) : t = t |> List.to_seq |> String.Map.of_seq

@@ -345,7 +345,7 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
               | true ->
                   cfg_with_layout
                   ++ Profile.record ~accumulate:true "analyze_tailcall_graph"
-                       Analyze_tailcall_graph.Global_state.cfg)
+                       (Analyze_tailcall_graph.Global_state.cfg ~future_funcnames:funcnames))
           ++ (fun cfg_with_layout ->
               match !Flambda_backend_flags.cfg_cse_optimize with
               | false -> cfg_with_layout
@@ -508,8 +508,9 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename ~may_reduc
               Zero_alloc_checker.iter_witnesses;
             (if !Flambda_backend_flags.dcfg_tailcalls then
               Analyze_tailcall_graph.Global_state.print_dot ppf_dump);
-            (if !Flambda_backend_flags.cfg_analyze_tailcalls then
-              Analyze_tailcall_graph.Global_state.emit_warnings ());
+            (if !Flambda_backend_flags.cfg_analyze_tailcalls then (
+               Analyze_tailcall_graph.Global_state.emit_warnings ();
+               Analyze_tailcall_graph.Global_state.record_unit_info ()));
             write_ir output_prefix)
          ~always:(fun () ->
              if create_asm then close_out !Emitaux.output_channel)

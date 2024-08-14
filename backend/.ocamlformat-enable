@@ -4,6 +4,8 @@ cmm_helpers.ml
 cmm_helpers.mli
 cmm_builtins.ml
 cmm_builtins.mli
+less_tco_info.ml
+less_tco_info.mli
 zero_alloc_info.ml
 zero_alloc_info.mli
 zero_alloc_checker.ml
