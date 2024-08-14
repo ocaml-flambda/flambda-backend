@@ -1,6 +1,7 @@
 (* TEST
  modules = "replace_caml_modify.c";
  {
+   not-macos;
    flags = "-cclib -Xlinker -cclib --wrap -cclib -Xlinker -cclib caml_modify
             -cclib -Xlinker -cclib --wrap -cclib -Xlinker -cclib caml_modify_local";
    native;
