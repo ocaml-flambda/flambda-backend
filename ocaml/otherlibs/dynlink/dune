@@ -91,6 +91,7 @@
   docstrings
   lexer
   camlinternalMenhirLib
+  parser_types
   parser
   printast
   pprintast
@@ -230,6 +231,8 @@
 (copy_files ../../parsing/docstrings.ml)
 
 (copy_files ../../parsing/lexer.ml)
+
+(copy_files ../../parsing/parser_types.ml)
 
 (copy_files ../../parsing/parser.ml)
 
@@ -376,6 +379,8 @@
 (copy_files ../../parsing/docstrings.mli)
 
 (copy_files ../../parsing/lexer.mli)
+
+(copy_files ../../parsing/parser_types.mli)
 
 (copy_files ../../parsing/printast.mli)
 
@@ -580,6 +585,7 @@
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Datarepr.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Unit_info.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__CamlinternalMenhirLib.cmo
+  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Parser_types.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Parser.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Persistent_env.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Predef.cmo
@@ -671,6 +677,7 @@
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Datarepr.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Unit_info.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__CamlinternalMenhirLib.cmx
+  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Parser_types.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Parser.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Persistent_env.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Predef.cmx
