@@ -119,6 +119,7 @@ jobs:
               ocaml/testsuite/tests/typing-tailcalls/propagate_original_position.ml
               ocaml/testsuite/tests/typing-tailcalls/dcfg_tailcalls.ml
               ocaml/testsuite/tests/typing-tailcalls/caller_cu.ml
+              ocaml/testsuite/tests/typing-tailcalls/no_warnings.ml
 
           # CR ccasinghino: We encountered build errors (missing autoconf, and
           # then other errors) when `macos-latest` started referring to version

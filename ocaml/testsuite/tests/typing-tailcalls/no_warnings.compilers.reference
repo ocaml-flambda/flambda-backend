@@ -1,5 +1,5 @@
-File "no_warnings.ml", line 89, characters 12-17:
-89 | let foo k = add 1
+File "no_warnings.ml", line 93, characters 12-17:
+93 | let foo k = add 1
                  ^^^^^
 Warning 186 [inferred-nontail-in-tcod-cycle]: This function
 call was inferred as nontail, but it may participate in a
@@ -8,6 +8,6 @@ runtime. Consider marking the function call with [@tail].
 
 Here is one such cycle:
 
-    file "no_warnings.ml", line 89, characters 12-17: calls (in inferred nontail position)
+    file "no_warnings.ml", line 93, characters 12-17: calls (in inferred nontail position)
  -> <unknown target>
 
