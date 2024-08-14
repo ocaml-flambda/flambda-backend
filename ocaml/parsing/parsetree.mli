@@ -513,52 +513,6 @@ and function_param_desc =
       - [?l:(P = E0)]
         when [lbl] is {{!Asttypes.arg_label.Optional}[Optional l]}
         and [exp0] is [Some E0]
-<<<<<<< HEAD
-      Note: If [E0] is provided, only
-      {{!Asttypes.arg_label.Optional}[Optional]} is allowed.
-  *)
-  | Pparam_newtype of string loc * jkind_annotation loc option
-  (** [Pparam_newtype x] represents the parameter [(type x)].
-      [x] carries the location of the identifier, whereas the [pparam_loc]
-      on the enclosing [function_param] node is the location of the [(type x)]
-      as a whole.
-      Multiple parameters [(type a b c)] are represented as multiple
-      [Pparam_newtype] nodes, let's say:
-      {[ [ { pparam_kind = Pparam_newtype a; pparam_loc = loc1 };
-           { pparam_kind = Pparam_newtype b; pparam_loc = loc2 };
-           { pparam_kind = Pparam_newtype c; pparam_loc = loc3 };
-         ]
-      ]}
-      Here, the first loc [loc1] is the location of [(type a b c)], and the
-      subsequent locs [loc2] and [loc3] are the same as [loc1], except marked as
-      ghost locations. The locations on [a], [b], [c], correspond to the
-      variables [a], [b], and [c] in the source code.
-  *)
-
-and function_param =
-  { pparam_loc : Location.t;
-    pparam_desc : function_param_desc;
-  }
-
-and function_body =
-  | Pfunction_body of expression
-  | Pfunction_cases of case list * Location.t * attributes
-  (** In [Pfunction_cases (_, loc, attrs)], the location extends from the
-      start of the [function] keyword to the end of the last case. The compiler
-      will only use typechecking-related attributes from [attrs], e.g. enabling
-      or disabling a warning.
-  *)
-(** See the comment on {{!expression_desc.Pexp_function}[Pexp_function]}. *)
-
-and type_constraint =
-  | Pconstraint of core_type
-  | Pcoerce of core_type option * core_type
-(** See the comment on {{!expression_desc.Pexp_function}[Pexp_function]}. *)
-
-and function_constraint =
-  { mode_annotations : mode_expression;
-||||||| a198127529
-=======
 
       Note: If [E0] is provided, only
       {{!Asttypes.arg_label.Optional}[Optional]} is allowed.
@@ -606,7 +560,6 @@ and type_constraint =
 
 and function_constraint =
   { mode_annotations : modes;
->>>>>>> flambda-backend/main
     (** The mode annotation placed on a function let-binding when the function
             has a type constraint on the body, e.g.
             [let local_ f x : int -> int = ...].
@@ -1237,20 +1190,9 @@ and jkind_const_annotation  = string Location.loc
 and jkind_annotation =
   | Default
   | Abbreviation of jkind_const_annotation
-<<<<<<< HEAD
-  | Mod of jkind_annotation * mode_expression
-  | With of jkind_annotation * core_type
-  | Kind_of of core_type
-
-and mode_expression = mode_const_expression list Location.loc
-
-and mode_const_expression = string Location.loc
-||||||| a198127529
-=======
   | Mod of jkind_annotation * modes
   | With of jkind_annotation * core_type
   | Kind_of of core_type
->>>>>>> flambda-backend/main
 
 (** {1 Toplevel} *)
 

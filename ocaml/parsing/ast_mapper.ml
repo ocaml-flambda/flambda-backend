@@ -613,38 +613,6 @@ module E = struct
       type_constraint = map_type_constraint sub type_constraint;
     }
 
-  let map_function_param sub { pparam_loc = loc; pparam_desc = desc } =
-    let loc = sub.location sub loc in
-    let desc =
-      match desc with
-      | Pparam_val (label, def, pat) ->
-          Pparam_val (label, Option.map (sub.expr sub) def, sub.pat sub pat)
-      | Pparam_newtype (newtype, jkind) ->
-          Pparam_newtype
-            ( map_loc sub newtype
-            , map_opt (map_loc_txt sub sub.jkind_annotation) jkind
-            )
-    in
-    { pparam_loc = loc; pparam_desc = desc }
-
-  let map_function_body sub body =
-    match body with
-    | Pfunction_body exp -> Pfunction_body (sub.expr sub exp)
-    | Pfunction_cases (cases, loc, attrs) ->
-        Pfunction_cases
-          (sub.cases sub cases, sub.location sub loc, sub.attributes sub attrs)
-
-  let map_type_constraint sub constraint_ =
-    match constraint_ with
-    | Pconstraint ty -> Pconstraint (sub.typ sub ty)
-    | Pcoerce (ty1, ty2) ->
-        Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2)
-
-  let map_function_constraint sub { mode_annotations; type_constraint } =
-    { mode_annotations = sub.modes sub mode_annotations;
-      type_constraint = map_type_constraint sub type_constraint;
-    }
-
   let map_iterator sub : C.iterator -> C.iterator = function
     | Range { start; stop; direction } ->
       Range { start = sub.expr sub start;
@@ -1160,16 +1128,10 @@ let default_mapper =
     typ_jane_syntax = T.map_jst;
 
     modes = (fun this m ->
-<<<<<<< HEAD
-      let open Jane_syntax.Mode_expr in
-      let map_const sub : Const.t -> Const.t =
-        fun m ->
-          let {txt; loc} =
-            map_loc sub (m : Const.t :> _ Location.loc)
-          in
-          Const.mk txt loc
-      in
-      map_loc_txt this (fun sub -> List.map (map_const sub)) m);
+      List.map (map_loc this) m);
+
+    modalities = (fun this m ->
+      List.map (map_loc this) m);
 
     directive_argument =
       (fun this a ->
@@ -1186,22 +1148,6 @@ let default_mapper =
       (fun this -> function
          | Ptop_def s -> Ptop_def (this.structure this s)
          | Ptop_dir d -> Ptop_dir (this.toplevel_directive this d) );
-||||||| a198127529
-      let open Jane_syntax.Mode_expr in
-      let map_const sub : Const.t -> Const.t =
-        fun m ->
-          let {txt; loc} =
-            map_loc sub (m : Const.t :> _ Location.loc)
-          in
-          Const.mk txt loc
-      in
-      map_loc_txt this (fun sub -> List.map (map_const sub)) m);
-=======
-      List.map (map_loc this) m);
-
-    modalities = (fun this m ->
-      List.map (map_loc this) m);
->>>>>>> flambda-backend/main
   }
 
 let extension_of_error {kind; main; sub} =

@@ -460,68 +460,6 @@ and function_constraint i ppf { type_constraint = c; mode_annotations } =
   type_constraint i ppf c;
   modes i ppf mode_annotations
 
-and jkind_annotation i ppf (jkind : jkind_annotation) =
-  match jkind with
-  | Default -> line i ppf "Default\n"
-  | Abbreviation jkind ->
-      line i ppf "Abbreviation \"%s\"\n" jkind.txt
-  | Mod (jkind, modes) ->
-      line i ppf "Mod\n";
-      jkind_annotation (i+1) ppf jkind;
-      mode_expression (i+1) ppf modes
-  | With (jkind, type_) ->
-      line i ppf "With\n";
-      jkind_annotation (i+1) ppf jkind;
-      core_type (i+1) ppf type_
-  | Kind_of type_ ->
-      line i ppf "Kind_of\n";
-      core_type (i+1) ppf type_
-
-and function_param i ppf { pparam_desc = desc; pparam_loc = loc } =
-  match desc with
-  | Pparam_val (l, eo, p) ->
-      line i ppf "Pparam_val %a\n" fmt_location loc;
-      arg_label (i+1) ppf l;
-      option (i+1) expression ppf eo;
-      pattern (i+1) ppf p
-  | Pparam_newtype (ty, jkind) ->
-      line i ppf "Pparam_newtype \"%s\" %a\n" ty.txt fmt_location loc;
-      option (i+1)
-        (fun i ppf jkind -> jkind_annotation i ppf jkind.txt)
-        ppf
-        jkind
-
-and function_body i ppf body =
-  match body with
-  | Pfunction_body e ->
-      line i ppf "Pfunction_body\n";
-      expression (i+1) ppf e
-  | Pfunction_cases (cases, loc, attrs) ->
-      line i ppf "Pfunction_cases %a\n" fmt_location loc;
-      attributes (i+1) ppf attrs;
-      list (i+1) case ppf cases
-
-and type_constraint i ppf type_constraint =
-  match type_constraint with
-  | Pconstraint ty ->
-      line i ppf "Pconstraint\n";
-      core_type (i+1) ppf ty
-  | Pcoerce (ty1, ty2) ->
-      line i ppf "Pcoerce\n";
-      option (i+1) core_type ppf ty1;
-      core_type (i+1) ppf ty2
-
-and function_constraint i ppf { type_constraint = c; mode_annotations } =
-  type_constraint i ppf c;
-  mode_expression i ppf mode_annotations
-
-and mode_expression i ppf mode_annotations =
-  match mode_annotations.txt with
-  | [] -> ()
-  | _ :: _ ->
-      line i ppf "mode_annotations %a" fmt_location mode_annotations.loc;
-      list (i+1) string_loc ppf mode_annotations.txt
-
 and value_description i ppf x =
   line i ppf "value_description %a %a\n" fmt_string_loc
        x.pval_name fmt_location x.pval_loc;

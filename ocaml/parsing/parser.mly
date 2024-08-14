@@ -33,14 +33,7 @@ open Parsetree
 open Ast_helper
 open Docstrings
 open Docstrings.WithMenhir
-<<<<<<< HEAD
-module Mode = Jane_syntax.Mode_expr
-||||||| a198127529
-module N_ary = Jane_syntax.N_ary_functions
-module Mode = Jane_syntax.Mode_expr
-=======
 open Parser_types
->>>>>>> flambda-backend/main
 
 let mkloc = Location.mkloc
 let mknoloc = Location.mknoloc
@@ -158,23 +151,6 @@ let mkuplus ~oploc name arg =
   | _ ->
       Pexp_apply(mkoperator ~loc:oploc ("~" ^ name), [Nolabel, arg]), []
 
-<<<<<<< HEAD
-let mkexp_with_modes ?(ghost=false) ~loc modes exp =
-  let loc =
-    if ghost then ghost_loc loc else make_loc loc
-  in
-  Jane_syntax.Modes.expr_of ~loc (Coerce (modes, exp))
-||||||| a198127529
-let mk_attr ~loc name payload =
-  Builtin_attributes.(register_attr Parser name);
-  Attr.mk ~loc name payload
-
-let mkexp_with_modes ?(ghost=false) ~loc modes exp =
-  let loc =
-    if ghost then ghost_loc loc else make_loc loc
-  in
-  Jane_syntax.Modes.expr_of ~loc (Coerce (modes, exp))
-=======
 let mk_attr ~loc name payload =
   Builtin_attributes.(register_attr Parser name);
   Attr.mk ~loc name payload
@@ -201,7 +177,6 @@ let mkpat_with_modes ~loc ~pat ~cty ~modes =
     | None, [] -> pat
     | cty, modes -> mkpat ~loc (Ppat_constraint (pat, cty, modes))
     end
->>>>>>> flambda-backend/main
 
 let ghpat_with_modes ~loc ~pat ~cty ~modes =
   let pat = mkpat_with_modes ~loc ~pat ~cty ~modes in
@@ -257,10 +232,6 @@ let maybe_curry_typ typ loc =
       else mktyp_curry typ (make_loc loc)
   | _ -> typ
 
-let mk_attr ~loc name payload =
-  Builtin_attributes.(register_attr Parser name);
-  Attr.mk ~loc name payload
-
 (* TODO define an abstraction boundary between locations-as-pairs
    and locations-as-Location.t; it should be clear when we move from
    one world to the other *)
@@ -303,26 +274,6 @@ let rec mktailpat nilloc = let open Location in function
 let mkstrexp e attrs =
   { pstr_desc = Pstr_eval (e, attrs); pstr_loc = e.pexp_loc }
 
-<<<<<<< HEAD
-let mkexp_desc_type_constraint e t =
-  match t with
-  | Pconstraint t -> Pexp_constraint(e, t)
-  | Pcoerce(t1, t2)  -> Pexp_coerce(e, t1, t2)
-
-let mkexp_type_constraint ?(ghost=false) ~loc e t =
-  let desc = mkexp_desc_type_constraint e t in
-  if ghost then ghexp ~loc desc
-  else mkexp ~loc desc
-||||||| a198127529
-let mkexp_type_constraint ?(ghost=false) ~loc e t =
-  let desc =
-    match t with
-  | N_ary.Pconstraint t -> Pexp_constraint(e, t)
-  | N_ary.Pcoerce(t1, t2)  -> Pexp_coerce(e, t1, t2)
-  in
-  if ghost then ghexp ~loc desc
-  else mkexp ~loc desc
-=======
 let mkexp_type_constraint ?(ghost=false) ~loc ~modes e t =
   match t with
   | Pconstraint t ->
@@ -331,7 +282,6 @@ let mkexp_type_constraint ?(ghost=false) ~loc ~modes e t =
   | Pcoerce(t1, t2)  ->
      let mk = if ghost then ghexp else mkexp ?attrs:None in
      mk ~loc (Pexp_coerce(e, t1, t2))
->>>>>>> flambda-backend/main
 
 let mkexp_opt_type_constraint ~loc ~modes e = function
   | None -> e
@@ -830,13 +780,7 @@ let mkfunction ~loc ~attrs params body_constraint body =
        we create nested newtype nodes. *)
       match all_params_as_newtypes params with
       | None ->
-<<<<<<< HEAD
-         mkexp_attrs (Pexp_function (params, body_constraint, body)) attrs ~loc
-||||||| a198127529
-      | None -> n_ary_function (params, body_constraint, body) ~loc ~attrs
-=======
           mkexp_attrs (Pexp_function (params, body_constraint, body)) attrs ~loc
->>>>>>> flambda-backend/main
       | Some newtypes ->
           wrap_exp_attrs
             ~loc
@@ -2584,14 +2528,7 @@ class_type_declarations:
            Pfunction_cases attributes for enabling/disabling warnings in
            typechecking. For standalone function cases, we want the compiler to
            respect, e.g., [@inline] attributes.
-<<<<<<< HEAD
-        *)
-||||||| a198127529
-        mkfunction [] None (Pfunction_cases (cases, loc, []))
-          ~loc:$sloc ~attrs:$2
-=======
          *)
->>>>>>> flambda-backend/main
         mkfunction [] None (Pfunction_cases (cases, loc, [])) ~attrs:$2
           ~loc:$sloc
       }
