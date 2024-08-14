@@ -625,31 +625,15 @@ static void domain_create(uintnat initial_minor_heap_wsize,
   caml_state = domain_state;
 
   domain_state->young_limit = 0;
+
+  domain_state->id = d->id;
+  domain_state->unique_id = s->unique_id;
+
   /* Synchronized with [caml_interrupt_all_signal_safe], so that the
      initializing write of young_limit happens before any
      interrupt. */
   atomic_store_explicit(&s->interrupt_word, &domain_state->young_limit,
                         memory_order_release);
-
-  /* Tell memprof system about the new domain before either (a) new
-   * domain can allocate anything or (b) parent domain can go away. */
-  CAMLassert(domain_state->memprof == NULL);
-  caml_memprof_new_domain(parent, domain_state);
-  if (!domain_state->memprof) {
-    goto init_memprof_failure;
-  }
-
-  /* Set domain_self if we have successfully allocated the
-   * caml_domain_state. Otherwise domain_self will be NULL and it's up
-   * to the caller to deal with that. */
-
-  domain_self = d;
-  caml_state = domain_state;
-
-  domain_state->young_limit = 0;
-
-  domain_state->id = d->id;
-  domain_state->unique_id = s->unique_id;
 
   /* Tell memprof system about the new domain before either (a) new
    * domain can allocate anything or (b) parent domain can go away. */
@@ -770,6 +754,7 @@ static void domain_create(uintnat initial_minor_heap_wsize,
   domain_state->trap_barrier_block = -1;
 #endif
 
+  caml_reset_young_limit(domain_state);
   add_next_to_stw_domains();
   goto domain_init_complete;
 
@@ -1687,6 +1672,8 @@ void caml_reset_young_limit(caml_domain_state * dom_st)
               (uintnat)dom_st->memprof_young_trigger);
   CAMLassert ((uintnat)dom_st->young_ptr >=
               (uintnat)dom_st->young_trigger);
+  /* An interrupt might have been queued in the meanwhile; this
+     achieves the proper synchronisation. */
   atomic_exchange(&dom_st->young_limit, (uintnat)trigger);
 
   /* For non-delayable asynchronous actions, we immediately interrupt
@@ -1797,11 +1784,6 @@ void caml_poll_gc_work(void)
   }
 
   caml_reset_young_limit(d);
-
-  if (atomic_load_acquire(&d->requested_external_interrupt)) {
-    /* This function might allocate (e.g. upon a systhreads yield). */
-    caml_domain_external_interrupt_hook();
-  }
 }
 
 void caml_handle_gc_interrupt(void)
