@@ -547,7 +547,7 @@ module Analyser =
                 val_code = code ;
                 val_loc = { loc_impl = Some loc ; loc_inter = None } ;
               } ;
-              met_private = private_flag = (Asttypes.Private : Asttypes.private_not_new_flag) ;
+              met_private = private_flag = Asttypes.Private ;
               met_virtual = true ;
             }
           in
@@ -588,7 +588,7 @@ module Analyser =
                 val_code = code ;
                 val_loc = { loc_impl = Some loc ; loc_inter = None } ;
               } ;
-              met_private = private_flag = (Asttypes.Private : Asttypes.private_not_new_flag) ;
+              met_private = private_flag = Asttypes.Private ;
               met_virtual = false ;
               }
           in
@@ -1189,7 +1189,7 @@ module Analyser =
                        tt_type_decl.Types.type_params
                        tt_type_decl.Types.type_variance ;
                       ty_kind = kind ;
-                      ty_private = tt_type_decl.Types.type_private;
+                      ty_private = Types.to_parsetree_type_privacy tt_type_decl.Types.type_private;
                       ty_manifest =
                         (match tt_type_decl.Types.type_manifest with
                            None -> None

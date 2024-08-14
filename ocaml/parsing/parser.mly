@@ -807,7 +807,7 @@ let package_type_of_module_type pmty =
           err loc "parametrized types are not supported";
         if ptyp.ptype_cstrs <> [] then
           err loc "constrained types are not supported";
-        if ptyp.ptype_private <> (Public : private_flag) then
+        if ptyp.ptype_private <> Ppriv_public then
           err loc "private types are not supported";
 
         (* restrictions below are checked by the 'with_constraint' rule *)
@@ -3847,19 +3847,19 @@ generic_type_declaration(flag, kind):
    definition that leads to a smaller grammar (after expansion) and therefore
    a smaller automaton. *)
 nonempty_type_kind:
-  | priv = inline_private_flag
+  | priv = inline_type_privacy
     ty = core_type
       { (Ptype_abstract, priv, Some ty) }
   | oty = type_synonym
-    priv = inline_private_flag
+    priv = inline_type_privacy
     cs = constructor_declarations
       { (Ptype_variant cs, priv, oty) }
   | oty = type_synonym
-    priv = inline_private_flag
+    priv = inline_type_privacy
     DOTDOT
       { (Ptype_open, priv, oty) }
   | oty = type_synonym
-    priv = inline_private_flag
+    priv = inline_type_privacy
     LBRACE ls = label_declarations RBRACE
       { (Ptype_record ls, priv, oty) }
 ;
@@ -3869,7 +3869,7 @@ nonempty_type_kind:
 ;
 type_kind:
     /*empty*/
-      { (Ptype_abstract, (Public : private_flag), None) }
+      { (Ptype_abstract, Ppriv_public, None) }
   | EQUAL nonempty_type_kind
       { $2 }
 ;
@@ -4211,8 +4211,8 @@ with_constraint:
       { Pwith_modtypesubst (l, rhs) }
 ;
 with_type_binder:
-    EQUAL          { (Public : private_flag) }
-  | EQUAL PRIVATE  { Private }
+    EQUAL          { Ppriv_public }
+  | EQUAL PRIVATE  { Ppriv_private }
 ;
 
 /* Polymorphic types */
@@ -4931,17 +4931,17 @@ direction_flag:
   | DOWNTO                                      { Downto }
 ;
 private_flag:
-  inline_private_not_new_flag
+  inline_private_flag
     { $1 }
 ;
-%inline inline_private_not_new_flag:
-    /* empty */                                 { (Public : private_not_new_flag) }
-  | PRIVATE                                     { (Private : private_not_new_flag) }
-;
 %inline inline_private_flag:
-    /* empty */                                 { (Public : private_flag) }
-  | NEW                                         { (New : private_flag) }
-  | PRIVATE                                     { (Private : private_flag) }
+    /* empty */                                 { Public }
+  | PRIVATE                                     { Private }
+;
+%inline inline_type_privacy:
+    /* empty */                                 { Ppriv_public }
+  | NEW                                         { Ppriv_new }
+  | PRIVATE                                     { Ppriv_private }
 ;
 mutable_flag:
     /* empty */                                 { Immutable }
@@ -4975,11 +4975,11 @@ mutable_virtual_flags:
       { Mutable, Virtual }
 ;
 private_virtual_flags:
-    /* empty */  { (Public : private_not_new_flag), Concrete }
-  | PRIVATE { (Private : private_not_new_flag), Concrete }
-  | VIRTUAL { (Public : private_not_new_flag), Virtual }
-  | PRIVATE VIRTUAL { (Private : private_not_new_flag), Virtual }
-  | VIRTUAL PRIVATE { (Private : private_not_new_flag), Virtual }
+    /* empty */  { Public, Concrete }
+  | PRIVATE { Private, Concrete }
+  | VIRTUAL { Public, Virtual }
+  | PRIVATE VIRTUAL { Private, Virtual }
+  | VIRTUAL PRIVATE { Private, Virtual }
 ;
 (* This nonterminal symbol indicates the definite presence of a VIRTUAL
    keyword and the possible presence of a MUTABLE keyword. *)
@@ -4991,9 +4991,9 @@ virtual_with_mutable_flag:
 (* This nonterminal symbol indicates the definite presence of a VIRTUAL
    keyword and the possible presence of a PRIVATE keyword. *)
 virtual_with_private_flag:
-  | VIRTUAL { (Public : private_not_new_flag) }
-  | PRIVATE VIRTUAL { (Private : private_not_new_flag) }
-  | VIRTUAL PRIVATE { (Private : private_not_new_flag) }
+  | VIRTUAL { Public }
+  | PRIVATE VIRTUAL { Private }
+  | VIRTUAL PRIVATE { Private }
 ;
 %inline no_override_flag:
     /* empty */                                 { Fresh }

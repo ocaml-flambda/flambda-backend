@@ -236,6 +236,12 @@ let type_parameter sub (ct, v) = (sub.typ sub ct, v)
 let type_declaration sub decl =
   let loc = sub.location sub decl.typ_loc in
   let attrs = sub.attributes sub decl.typ_attributes in
+  let priv = 
+    match decl.typ_private with
+    | Ttype_private -> Ppriv_private
+    | Ttype_new -> Ppriv_new
+    | Ttype_public -> Ppriv_public
+  in
   Jane_syntax.Layouts.type_declaration_of
     ~loc ~attrs
     ~params:(List.map (type_parameter sub) decl.typ_params)
@@ -245,7 +251,7 @@ let type_declaration sub decl =
            (sub.typ sub ct1, sub.typ sub ct2, sub.location sub loc))
         decl.typ_cstrs)
     ~kind:(sub.type_kind sub decl.typ_kind)
-    ~priv:decl.typ_private
+    ~priv
     ~manifest:(Option.map (sub.typ sub) decl.typ_manifest)
     ~docs:Docstrings.empty_docs
     ~text:None

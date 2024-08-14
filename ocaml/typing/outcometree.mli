@@ -194,7 +194,7 @@ and out_type_decl =
   { otype_name: string;
     otype_params: out_type_param list;
     otype_type: out_type;
-    otype_private: Asttypes.private_flag;
+    otype_private: Parsetree.type_privacy;
 
     (* Some <=> we should print this annotation;
        see Note [When to print jkind annotations] in Printtyp, Case (C1) *)
@@ -208,12 +208,12 @@ and out_extension_constructor =
     oext_type_params: string list;
     oext_args: (out_type * out_modality list) list;
     oext_ret_type: (out_vars_jkinds * out_type) option;
-    oext_private: Asttypes.private_not_new_flag }
+    oext_private: Asttypes.private_flag }
 and out_type_extension =
   { otyext_name: string;
     otyext_params: string list;
     otyext_constructors: out_constructor list;
-    otyext_private: Asttypes.private_not_new_flag }
+    otyext_private: Asttypes.private_flag }
 and out_val_decl =
   { oval_name: string;
     oval_type: out_type;

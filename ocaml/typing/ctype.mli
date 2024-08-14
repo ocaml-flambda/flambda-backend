@@ -432,7 +432,7 @@ type add_method_failure =
 exception Add_method_failed of add_method_failure
 
 val add_method : Env.t ->
-  label -> private_not_new_flag -> virtual_flag -> type_expr -> class_signature -> unit
+  label -> private_flag -> virtual_flag -> type_expr -> class_signature -> unit
 
 type add_instance_variable_failure =
   | Mutability_mismatch of mutable_flag

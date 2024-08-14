@@ -237,9 +237,9 @@ let compute_variance_type env ~check (required, loc) decl tyl =
       (* Use required variance where relevant *)
       let concr = not (Btype.type_kind_is_abstract decl) in
       let (p, n) =
-        if tr = Private || not (Btype.is_Tvar ty) then (p, n) (* set *)
+        if tr = Type_private || not (Btype.is_Tvar ty) then (p, n) (* set *)
         else (false, false) (* only check *)
-      and i = concr  || i && tr = Private in
+      and i = concr  || i && tr = Type_private in
       let v = union v (make p n i) in
       if not concr || Btype.is_Tvar ty then v else
       union v
@@ -267,7 +267,7 @@ let compute_variance_gadt env ~check (required, loc as rloc) decl
     (tl, ret_type_opt) =
   match ret_type_opt with
   | None ->
-      compute_variance_type env ~check rloc {decl with type_private = Private}
+      compute_variance_type env ~check rloc {decl with type_private = Type_private}
         (for_constr tl)
   | Some ret_type ->
       match get_desc ret_type with
@@ -287,7 +287,7 @@ let compute_variance_gadt env ~check (required, loc as rloc) decl
               ([], fvl) tyl required
           in
           compute_variance_type env ~check rloc
-            {decl with type_params = tyl; type_private = Private}
+            {decl with type_params = tyl; type_private = Type_private}
             (for_constr tl)
       | _ -> assert false
 
@@ -340,7 +340,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
               List.map
                 (fun ty ->
                    compute_variance_type env ~check rloc
-                     {decl with type_private = Private}
+                     {decl with type_private = Type_private}
                      (add_false [ ty ])
                 )
                 (Option.to_list decl.type_manifest)

@@ -270,7 +270,7 @@ let nonrec_flag f rf =
 let direction_flag f = function
   | Upto -> pp f "to@ "
   | Downto -> pp f "downto@ "
-let private_not_new_flag f : private_not_new_flag -> unit = function
+let private_flag f : private_flag -> unit = function
   | Public -> ()
   | Private -> pp f "private@ "
 
@@ -1153,7 +1153,7 @@ and class_type_field ctxt f x =
         (item_attributes ctxt) x.pctf_attributes
   | Pctf_method (s, pf, vf, ct) ->
       pp f "@[<2>method %a %a%s :@;%a@]%a"
-        private_not_new_flag pf virtual_flag vf s.txt (core_type ctxt) ct
+        private_flag pf virtual_flag vf s.txt (core_type ctxt) ct
         (item_attributes ctxt) x.pctf_attributes
   | Pctf_constraint (ct1, ct2) ->
       pp f "@[<2>constraint@ %a@ =@ %a@]%a"
@@ -1230,7 +1230,7 @@ and class_field ctxt f x =
         (item_attributes ctxt) x.pcf_attributes
   | Pcf_method (s, pf, Cfk_virtual ct) ->
       pp f "@[<2>method virtual %a %s :@;%a@]%a"
-        private_not_new_flag pf s.txt
+        private_flag pf s.txt
         (core_type ctxt) ct
         (item_attributes ctxt) x.pcf_attributes
   | Pcf_val (s, mf, Cfk_virtual ct) ->
@@ -1254,7 +1254,7 @@ and class_field ctxt f x =
       in
       pp f "@[<2>method%s %a%a@]%a"
         (override ovf)
-        private_not_new_flag pf
+        private_flag pf
         (fun f -> function
            | {pexp_desc=Pexp_poly (e, Some ct); pexp_attributes=[]; _} ->
                pp f "%s :@;%a=@;%a"
@@ -1941,9 +1941,9 @@ and type_declaration ctxt f x =
      but it's been printed by the caller of this method *)
   let priv f =
     match x.ptype_private with
-    | Public -> ()
-    | New -> pp f "@;new"
-    | Private -> pp f "@;private"
+    | Ppriv_public -> ()
+    | Ppriv_new -> pp f "@;new"
+    | Ppriv_private -> pp f "@;private"
   in
   let manifest f =
     match x.ptype_manifest with
@@ -2000,7 +2000,7 @@ and type_extension ctxt f x =
            pp f "%a@;" (list (type_param ctxt) ~first:"(" ~last:")" ~sep:",") l)
     x.ptyext_params
     longident_loc x.ptyext_path
-    private_not_new_flag x.ptyext_private (* Cf: #7200 *)
+    private_flag x.ptyext_private (* Cf: #7200 *)
     (list ~sep:"" extension_constructor)
     x.ptyext_constructors
     (item_attributes ctxt) x.ptyext_attributes

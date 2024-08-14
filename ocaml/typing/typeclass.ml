@@ -563,13 +563,13 @@ type intermediate_class_field =
         attributes : attribute list; }
   | Virtual_method of
       { label : string loc;
-        priv : private_not_new_flag;
+        priv : private_flag;
         cty : core_type;
         loc : Location.t;
         attributes : attribute list; }
   | Concrete_method of
       { label : string loc;
-        priv : private_not_new_flag;
+        priv : private_flag;
         override : override_flag;
         sdefinition : Parsetree.expression;
         warning_state : Warnings.state;
@@ -1609,7 +1609,7 @@ let temp_abbrev loc id arity uid =
        type_kind = Type_abstract { reason = Abstract_def; datatype = false };
        type_jkind = Jkind.Type.Primitive.value ~why:Object |> Jkind.of_type_jkind;
        type_jkind_annotation = None;
-       type_private = Public;
+       type_private = Type_public;
        type_manifest = Some ty;
        type_variance = Variance.unknown_signature ~injective:false ~arity;
        type_separability = Types.Separability.default_signature ~arity;
@@ -1841,7 +1841,7 @@ let class_infos define_class kind
      type_kind = Type_abstract { reason = Abstract_def; datatype = false };
      type_jkind = Jkind.Type.Primitive.value ~why:Object |> Jkind.of_type_jkind;
      type_jkind_annotation = None;
-     type_private = Public;
+     type_private = Type_public;
      type_manifest = Some obj_ty;
      type_variance = Variance.unknown_signature ~injective:false ~arity;
      type_separability = Types.Separability.default_signature ~arity;

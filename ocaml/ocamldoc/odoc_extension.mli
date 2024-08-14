@@ -17,7 +17,7 @@
 
 module Name = Odoc_name
 
-type private_not_new_flag = Asttypes.private_not_new_flag = Private | Public
+type private_flag = Asttypes.private_flag = Private | Public
 
 type extension_alias = {
   xa_name : Name.t;
@@ -36,7 +36,7 @@ and t_type_extension = {
   mutable te_info : Odoc_types.info option;
   te_type_name : Name.t;
   te_type_parameters : Types.type_expr list;
-  te_private : private_not_new_flag;
+  te_private : private_flag;
   mutable te_constructors : t_extension_constructor list;
   mutable te_loc : Odoc_types.location;
   mutable te_code : string option;

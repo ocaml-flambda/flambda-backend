@@ -615,7 +615,7 @@ and class_field_desc =
         (string * Ident.t) list
     (* Inherited instance variables and concrete methods *)
   | Tcf_val of string loc * mutable_flag * Ident.t * class_field_kind * bool
-  | Tcf_method of string loc * private_not_new_flag * class_field_kind
+  | Tcf_method of string loc * private_flag * class_field_kind
   | Tcf_constraint of core_type * core_type
   | Tcf_initializer of expression
   | Tcf_attribute of attribute
@@ -923,12 +923,17 @@ and type_declaration =
     typ_type: Types.type_declaration;
     typ_cstrs: (core_type * core_type * Location.t) list;
     typ_kind: type_kind;
-    typ_private: private_flag;
+    typ_private: type_privacy;
     typ_manifest: core_type option;
     typ_loc: Location.t;
     typ_attributes: attributes;
     typ_jkind_annotation: Jane_syntax.Jkind.annotation option;
    }
+
+and type_privacy =
+    Ttype_private
+  | Ttype_new
+  | Ttype_public
 
 and type_kind =
     Ttype_abstract
@@ -977,7 +982,7 @@ and type_extension =
     tyext_txt: Longident.t loc;
     tyext_params: (core_type * (variance * injectivity)) list;
     tyext_constructors: extension_constructor list;
-    tyext_private: private_not_new_flag;
+    tyext_private: private_flag;
     tyext_loc: Location.t;
     tyext_attributes: attributes;
   }
@@ -1035,7 +1040,7 @@ and class_type_field = {
 and class_type_field_desc =
   | Tctf_inherit of class_type
   | Tctf_val of (string * mutable_flag * virtual_flag * core_type)
-  | Tctf_method of (string * private_not_new_flag * virtual_flag * core_type)
+  | Tctf_method of (string * private_flag * virtual_flag * core_type)
   | Tctf_constraint of (core_type * core_type)
   | Tctf_attribute of attribute
 
@@ -1110,6 +1115,8 @@ type item_declaration =
     declarations in signatures and their definitions in implementations. *)
 
 (* Auxiliary functions over the a.s.t. *)
+
+val of_parsetree_type_privacy : Parsetree.type_privacy -> type_privacy
 
 (** [as_computation_pattern p] is a computation pattern with description
     [Tpat_value p], which enforces a correct placement of pat_attributes

@@ -195,7 +195,7 @@ and fixed_explanation =
 and abbrev_memo =
   | Mnil (** No known abbreviation *)
 
-  | Mcons of private_flag * Path.t * type_expr * type_expr * abbrev_memo
+  | Mcons of type_privacy * Path.t * type_expr * type_expr * abbrev_memo
   (** Found one abbreviation.
       A valid abbreviation should be at least as visible and reachable by the
       same path.
@@ -225,6 +225,8 @@ and abbrev_memo =
     in an order different from other calls.
     This is only allowed when the real type is known.
 *)
+
+and type_privacy = Type_private | Type_new | Type_public
 
 (** Jkinds classify types. *)
 (* CR layouts v2.8: Say more here. *)
@@ -530,7 +532,7 @@ type type_declaration =
     for an e.g. local abstract type or an inlined record), then this field
     can safely be [None]. It's used only for printing and in untypeast. *)
 
-    type_private: private_flag;
+    type_private: type_privacy;
     type_manifest: type_expr option;
     type_variance: Variance.t list;
     (* covariant, contravariant, weakly contravariant, injective *)
@@ -670,6 +672,9 @@ and constructor_arguments =
 
 val tys_of_constr_args : constructor_arguments -> type_expr list
 
+val of_parsetree_type_privacy : Parsetree.type_privacy -> type_privacy
+val to_parsetree_type_privacy : type_privacy -> Parsetree.type_privacy
+
 (* Returns the inner type, if unboxed. *)
 val find_unboxed_type : type_declaration -> type_expr option
 
@@ -682,16 +687,11 @@ type extension_constructor =
     ext_shape: constructor_representation;
     ext_constant: bool;
     ext_ret_type: type_expr option;
-    ext_private: private_not_new_flag;
+    ext_private: private_flag;
     ext_loc: Location.t;
     ext_attributes: Parsetree.attributes;
     ext_uid: Uid.t;
   }
-
-and type_transparence =
-    Type_public      (* unrestricted expansion *)
-  | Type_new         (* "new" type *)
-  | Type_private     (* private type *)
 
 (* Type expressions for the class language *)
 
@@ -855,7 +855,7 @@ type constructor_description =
     cstr_consts: int;                   (* Number of constant constructors *)
     cstr_nonconsts: int;                (* Number of non-const constructors *)
     cstr_generalized: bool;             (* Constrained return type? *)
-    cstr_private: private_not_new_flag;         (* Read-only constructor? *)
+    cstr_private: private_flag;         (* Read-only constructor? *)
     cstr_loc: Location.t;
     cstr_attributes: Parsetree.attributes;
     cstr_inlined: type_declaration option;
@@ -890,7 +890,7 @@ type label_description =
     lbl_num: int;                       (* Position in the type *)
     lbl_all: label_description array;   (* All the labels in this type *)
     lbl_repres: record_representation;  (* Representation for outer record *)
-    lbl_private: private_not_new_flag;          (* Read-only field? *)
+    lbl_private: private_flag;          (* Read-only field? *)
     lbl_loc: Location.t;
     lbl_attributes: Parsetree.attributes;
     lbl_uid: Uid.t;

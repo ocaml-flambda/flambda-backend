@@ -113,16 +113,16 @@ let fmt_direction_flag f x =
   | Upto -> fprintf f "Up"
   | Downto -> fprintf f "Down"
 
-let fmt_private_not_new_flag f (x : private_not_new_flag) =
+let fmt_private_flag f (x : private_flag) =
   match x with
   | Public -> fprintf f "Public"
   | Private -> fprintf f "Private"
 
-let fmt_private_flag f x =
+let fmt_type_privacy f x =
   match x with
-  | Public -> fprintf f "Public"
-  | New -> fprintf f "New"
-  | Private -> fprintf f "Private"
+  | Ttype_public -> fprintf f "Public"
+  | Ttype_new -> fprintf f "New"
+  | Ttype_private -> fprintf f "Private"
 
 let line i f s (*...*) =
   fprintf f "%s" (String.make (2*i) ' ');
@@ -644,7 +644,7 @@ and type_declaration i ppf x =
   list (i+1) core_type_x_core_type_x_location ppf x.typ_cstrs;
   line i ppf "ptype_kind =\n";
   type_kind (i+1) ppf x.typ_kind;
-  line i ppf "ptype_private = %a\n" fmt_private_flag x.typ_private;
+  line i ppf "ptype_private = %a\n" fmt_type_privacy x.typ_private;
   line i ppf "ptype_manifest =\n";
   option (i+1) core_type ppf x.typ_manifest;
 
@@ -670,7 +670,7 @@ and type_extension i ppf x =
   list (i+1) type_parameter ppf x.tyext_params;
   line i ppf "ptyext_constructors =\n";
   list (i+1) extension_constructor ppf x.tyext_constructors;
-  line i ppf "ptyext_private = %a\n" fmt_private_not_new_flag x.tyext_private;
+  line i ppf "ptyext_private = %a\n" fmt_private_flag x.tyext_private;
 
 and type_exception i ppf x =
   line i ppf "type_exception\n";
@@ -739,7 +739,7 @@ and class_type_field i ppf x =
            fmt_virtual_flag vf;
       core_type (i+1) ppf ct;
   | Tctf_method (s, pf, vf, ct) ->
-      line i ppf "Tctf_method \"%s\" %a %a\n" s fmt_private_not_new_flag pf
+      line i ppf "Tctf_method \"%s\" %a %a\n" s fmt_private_flag pf
            fmt_virtual_flag vf;
       core_type (i+1) ppf ct;
   | Tctf_constraint (ct1, ct2) ->
@@ -824,7 +824,7 @@ and class_field i ppf x =
       line i ppf "Tcf_val \"%s\" %a\n" s.txt fmt_mutable_flag mf;
       class_field_kind (i+1) ppf k
   | Tcf_method (s, pf, k) ->
-      line i ppf "Tcf_method \"%s\" %a\n" s.txt fmt_private_not_new_flag pf;
+      line i ppf "Tcf_method \"%s\" %a\n" s.txt fmt_private_flag pf;
       class_field_kind (i+1) ppf k
   | Tcf_constraint (ct1, ct2) ->
       line i ppf "Tcf_constraint\n";
