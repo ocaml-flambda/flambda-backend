@@ -300,7 +300,7 @@ let report_error ppf =
       | Mode_like Mode -> "mode"
       | Mode_like Modality -> "modality"
     in
-    fprintf ppf "Unrecognized %s name %s." annot_type_str modifier
+    fprintf ppf "Unrecognized %s %s." annot_type_str modifier
 
 let () =
   Location.register_error_of_exn (function
