@@ -1,10 +1,6 @@
 open Location
 open Mode
 
-type error = Unrecognized_modality of string
-
-exception Error of Location.t * error
-
 let transl_mode_annots modes =
   Typemodifier.transl_mode_annots ~required_mode_maturity:Stable modes
 
@@ -26,27 +22,6 @@ let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
   List.filter_map
     (fun x -> Option.map (fun s -> { txt = Parsetree.Mode s; loc }) x)
     [areality; uniqueness; linearity; portability; contention]
-
-let transl_modality ~maturity m : Modality.t =
-  let { txt; loc } = m in
-  let (Parsetree.Modality s) = txt in
-  Jane_syntax_parsing.assert_extension_enabled ~loc Mode maturity;
-  match s with
-  | "global" -> Atom (Comonadic Areality, Meet_with Regionality.Const.Global)
-  | "local" -> Atom (Comonadic Areality, Meet_with Regionality.Const.Local)
-  | "many" -> Atom (Comonadic Linearity, Meet_with Linearity.Const.Many)
-  | "once" -> Atom (Comonadic Linearity, Meet_with Linearity.Const.Once)
-  | "shared" -> Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Shared)
-  | "unique" -> Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Unique)
-  | "portable" ->
-    Atom (Comonadic Portability, Meet_with Portability.Const.Portable)
-  | "nonportable" ->
-    Atom (Comonadic Portability, Meet_with Portability.Const.Nonportable)
-  | "contended" ->
-    Atom (Monadic Contention, Join_with Contention.Const.Contended)
-  | "uncontended" ->
-    Atom (Monadic Contention, Join_with Contention.Const.Uncontended)
-  | s -> raise (Error (loc, Unrecognized_modality s))
 
 let untransl_modality (a : Modality.t) : Parsetree.modality loc =
   let s =
@@ -92,9 +67,31 @@ let mutable_implied_modalities (mut : Types.mutability) attrs =
     then monadic
     else monadic @ comonadic
 
+let locality_to_regionality : Mode.Locality.Const.t -> Mode.Regionality.Const.t
+    = function
+  | Local -> Local
+  | Global -> Global
+
 let transl_modalities ~maturity mut attrs modalities =
   let mut_modalities = mutable_implied_modalities mut attrs in
-  let modalities = List.map (transl_modality ~maturity) modalities in
+  let modalities_as_modes =
+    Typemodifier.transl_modality_annots ~required_mode_maturity:maturity
+      modalities
+  in
+  let modalities_for_monadic_axis axis =
+    List.map (fun mode -> Modality.Atom (Monadic axis, Join_with mode))
+  in
+  let modalities_for_comonadic_axis axis =
+    List.map (fun mode -> Modality.Atom (Comonadic axis, Meet_with mode))
+  in
+  let modalities =
+    modalities_for_comonadic_axis Areality
+      (List.map locality_to_regionality modalities_as_modes.areality)
+    @ modalities_for_comonadic_axis Linearity modalities_as_modes.linearity
+    @ modalities_for_monadic_axis Uniqueness modalities_as_modes.uniqueness
+    @ modalities_for_comonadic_axis Portability modalities_as_modes.portability
+    @ modalities_for_monadic_axis Contention modalities_as_modes.contention
+  in
   (* mut_modalities is applied before explicit modalities *)
   Modality.Value.Const.id
   |> List.fold_right
@@ -119,13 +116,3 @@ let untransl_modalities mut attrs t =
 let transl_alloc_mode modes =
   let opt = transl_mode_annots modes in
   Alloc.Const.Option.value opt ~default:Alloc.Const.legacy
-
-open Format
-
-let report_error ppf = function
-  | Unrecognized_modality s -> fprintf ppf "Unrecognized modality %s." s
-
-let () =
-  Location.register_error_of_exn (function
-    | Error (loc, err) -> Some (Location.error_of_printer ~loc report_error err)
-    | _ -> None)
