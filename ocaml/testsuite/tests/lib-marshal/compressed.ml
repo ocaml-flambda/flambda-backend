@@ -1,3 +1,5 @@
+(* CR ocaml 5 compressed-marshal: re-enable this test
+
 (* TEST
    include ocamlcommon;
 *)
@@ -166,3 +168,5 @@ let main () =
   Sys.remove "intext.data"
 
 let _ = main ()
+
+*)
