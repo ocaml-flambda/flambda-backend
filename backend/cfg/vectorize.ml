@@ -20,9 +20,9 @@ module Instruction : sig
 
   val id : t -> Id.t
 
-  val args : t -> Reg.t Array.t
+  val arguments : t -> Reg.t Array.t
 
-  val ress : t -> Reg.t Array.t
+  val results : t -> Reg.t Array.t
 
   val destroyed : t -> Reg.t Array.t
 
@@ -44,12 +44,12 @@ end = struct
     | Basic instruction -> instruction.id
     | Terminator instruction -> instruction.id
 
-  let args (instruction : t) : Reg.t Array.t =
+  let arguments (instruction : t) : Reg.t Array.t =
     match instruction with
     | Basic instruction -> instruction.arg
     | Terminator instruction -> instruction.arg
 
-  let ress (instruction : t) : Reg.t Array.t =
+  let results (instruction : t) : Reg.t Array.t =
     match instruction with
     | Basic instruction -> instruction.res
     | Terminator instruction -> instruction.res
@@ -90,12 +90,12 @@ end = struct
 
   let init () : t = Instruction.Id.Tbl.create 100
 
-  let from_basic_block (block : Cfg.basic_block) =
-    let dependency_graph = init () in
+  let from_basic_block (block : Cfg.basic_block) ~(dependency_graph : t) =
     let is_changed_in instruction reg =
-      Array.exists (Reg.same reg) (Instruction.ress instruction)
+      Array.exists (Reg.same reg) (Instruction.results instruction)
       || Array.exists (Reg.same reg) (Instruction.destroyed instruction)
     in
+    (* CR-soon tip: break it into 2 parts to find the instruction we want then go up from there. (currently it loops from the end and changes the answer back to None when it encounters the same instruction) *)
     let latest_change ~(current : Instruction.Id.t) (reg : Reg.t) =
       DLL.fold_right block.body
         ~f:(fun basic_instruction latest ->
@@ -127,29 +127,28 @@ end = struct
       Instruction.Id.Tbl.add dependency_graph id (Node.init id);
       Array.iter
         (add_dependency_for_one_arg instruction)
-        (Instruction.args instruction)
+        (Instruction.arguments instruction)
     in
     let body = block.body in
     DLL.iter body ~f:(fun instruction -> find_dependencies (Basic instruction));
     find_dependencies (Terminator block.terminator);
-    let set_is_dependency_of id (node : Node.t) =
-      let set_is_dependency_of_one from to_ =
-        let old_node = Instruction.Id.Tbl.find dependency_graph to_ in
-        Instruction.Id.Tbl.replace dependency_graph to_
+    let set_is_dependency_of (instruction : Instruction.t) =
+      let id = Instruction.id instruction in
+      let node = Instruction.Id.Tbl.find dependency_graph id in
+      let set_is_dependency_of_one id dependency =
+        let old_node = Instruction.Id.Tbl.find dependency_graph dependency in
+        Instruction.Id.Tbl.replace dependency_graph dependency
           { old_node with
-            is_dependency_of = Instruction.Id.Set.add from old_node.is_dependency_of
+            is_dependency_of = Instruction.Id.Set.add id old_node.is_dependency_of
           }
       in
       Instruction.Id.Set.iter (set_is_dependency_of_one id) node.depends_on
     in
-    Instruction.Id.Tbl.iter set_is_dependency_of dependency_graph;
-    dependency_graph
+    DLL.iter body ~f:(fun instruction -> set_is_dependency_of (Basic instruction))
 
   let from_cfg (cfg : Cfg.t) : t =
     let dependency_graph = init () in
-    Cfg.iter_blocks cfg ~f:(fun _ block ->
-        Instruction.Id.Tbl.add_seq dependency_graph
-          (Instruction.Id.Tbl.to_seq (from_basic_block block)));
+    Cfg.iter_blocks cfg ~f:(fun _ block -> from_basic_block block ~dependency_graph);
     dependency_graph
 
   let dump ppf (t : t) cfg_with_layout =
@@ -171,7 +170,7 @@ end = struct
       ~terminator:(fun instruction -> print_node (Terminator instruction))
 end
 
-let dump ppf cfg_with_layout ~(dependency_graph : Dependency_graph.t) ~msg =
+let dump ppf cfg_with_layout ~msg =
   let open Format in
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   fprintf ppf "\nvectorization extra information for %s\n" msg;
@@ -185,14 +184,17 @@ let dump ppf cfg_with_layout ~(dependency_graph : Dependency_graph.t) ~msg =
   fprintf ppf "terminator instruction count=%d\n" block_count;
   fprintf ppf "body and terminator instruction count=%d\n"
     (body_instruction_count + block_count);
-  Dependency_graph.dump ppf dependency_graph cfg_with_layout;
   fprintf ppf "@."
 
 let cfg ppf_dump cl =
+  if !Flambda_backend_flags.dump_vectorize
+    then Format.fprintf ppf_dump "*** Vectorization@.";
   let cfg = Cfg_with_layout.cfg cl in
   let dependency_graph = Dependency_graph.from_cfg cfg in
-  if !Flambda_backend_flags.dump_cfg
+  if !Flambda_backend_flags.dump_vectorize
+    then Dependency_graph.dump ppf_dump dependency_graph cl;
+  if !Flambda_backend_flags.dump_vectorize
   then
-      dump ppf_dump ~dependency_graph ~msg:""
+      dump ppf_dump ~msg:""
       cl;
   cl
