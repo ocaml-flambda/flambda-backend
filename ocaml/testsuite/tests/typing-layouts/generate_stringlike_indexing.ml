@@ -199,8 +199,7 @@ let data_equal = |}^data_equal^{|
 let unbox_index = |}^unbox_index^{|
 let unbox_data = |}^unbox_data^{|
 let box_data = |}^box_data^{|
-let extra_bounds_checks = |}^extra_bounds^{|
-|}
+let extra_bounds_checks = |}^extra_bounds
 
 let one_test_template
   ~index
@@ -311,6 +310,10 @@ fun _ ->
   Stdlib_beta.Float32.of_float f
 |}
 
+let int_extra_bounds_template ~module_ =
+  module_ ^ {|.[ min_int; max_int; add min_int one; sub zero one ]|}
+;;
+
 type index =
   { boxed_type : string
   ; tested_type : string
@@ -360,21 +363,19 @@ let indices =
     ; tested_type = "nativeint#"
     ; of_int = "Nativeint.of_int"
     ; unbox = "Stdlib_upstream_compatible.Nativeint_u.of_nativeint"
-    ; extra_bounds = "[ -1n ]"
+    ; extra_bounds = int_extra_bounds_template ~module_:"Nativeint"
     }
   ; { boxed_type = "int32"
     ; tested_type = "int32#"
     ; of_int = "Int32.of_int"
     ; unbox = "Stdlib_upstream_compatible.Int32_u.of_int32"
-    ; extra_bounds = "[ -2147483648l; -2147483647l; 2147483647l; -1l ]"
+    ; extra_bounds = int_extra_bounds_template ~module_:"Int32"
     }
   ; { boxed_type = "int64"
     ; tested_type = "int64#"
     ; of_int = "Int64.of_int"
     ; unbox = "Stdlib_upstream_compatible.Int64_u.of_int64"
-    ; extra_bounds =
-        "[ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; \
-         -1L ]"
+    ; extra_bounds = int_extra_bounds_template ~module_:"Int64"
     }
   ]
 ;;

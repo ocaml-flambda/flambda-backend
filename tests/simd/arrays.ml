@@ -26,11 +26,21 @@ let eq lv hv l h =
   if h <> hv then Printf.printf "%016Lx <> %016Lx\n" hv h
 ;;
 
+let assert_raises_out_of_bounds thunk =
+  try
+    thunk ();
+    assert false
+  with
+  | Invalid_argument s when s = "index out of bounds" -> ()
+  | _ -> assert false
+;;
+
 module Bytes (Primitives : sig
   val get_int8x16_unaligned : bytes -> int -> int8x16
   val get_int8x16_unaligned_unsafe : bytes -> int -> int8x16
   val set_int8x16_unaligned : bytes -> int -> int8x16 -> unit
   val set_int8x16_unaligned_unsafe : bytes -> int -> int8x16 -> unit
+  val extra_checks : bytes -> unit
 end) =
 struct
   open Primitives
@@ -99,6 +109,10 @@ struct
       with | Invalid_argument s when s = "index out of bounds" -> ()
     done;
   ;;
+
+  (* Extra checks *)
+
+  let () = extra_checks data
 end
 
 module _ = Bytes(struct
@@ -107,47 +121,95 @@ module _ = Bytes(struct
 
   external set_int8x16_unaligned : bytes -> int -> int8x16 -> unit = "%caml_bytes_setu128"
   external set_int8x16_unaligned_unsafe : bytes -> int -> int8x16 -> unit = "%caml_bytes_setu128u"
+
+  let extra_checks bytes =
+    List.iter
+      (fun index ->
+        assert_raises_out_of_bounds (fun () ->
+          let _ = get_int8x16_unaligned bytes index in
+          ());
+        assert_raises_out_of_bounds (fun () ->
+          set_int8x16_unaligned bytes index (int8x16_of_int64s 1L 2L)))
+      Int.[ min_int; add min_int one; sub zero one; max_int ]
+  ;;
 end)
 
 module _ = Bytes(struct
-  external get_int8x16_unaligned : bytes -> int32# -> int8x16 = "%caml_bytes_getu128_indexed_by_int32#"
-  let get_int8x16_unaligned b i = get_int8x16_unaligned b (Stdlib_upstream_compatible.Int32_u.of_int i)
-  external get_int8x16_unaligned_unsafe : bytes -> int32# -> int8x16 = "%caml_bytes_getu128u_indexed_by_int32#"
-  let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Int32_u.of_int i)
+  external get_int8x16_unaligned_prim : bytes -> int32# -> int8x16 = "%caml_bytes_getu128_indexed_by_int32#"
+  let get_int8x16_unaligned b i = get_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Int32_u.of_int i)
+  external get_int8x16_unaligned_unsafe_prim : bytes -> int32# -> int8x16 = "%caml_bytes_getu128u_indexed_by_int32#"
+  let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Int32_u.of_int i)
 
-  external set_int8x16_unaligned : bytes -> int32# -> int8x16 -> unit = "%caml_bytes_setu128_indexed_by_int32#"
-  let set_int8x16_unaligned b i v = set_int8x16_unaligned b (Stdlib_upstream_compatible.Int32_u.of_int i) v
-  external set_int8x16_unaligned_unsafe : bytes -> int32# -> int8x16 -> unit = "%caml_bytes_setu128u_indexed_by_int32#"
-  let set_int8x16_unaligned_unsafe b i v = set_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Int32_u.of_int i) v
+  external set_int8x16_unaligned_prim : bytes -> int32# -> int8x16 -> unit = "%caml_bytes_setu128_indexed_by_int32#"
+  let set_int8x16_unaligned b i v = set_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Int32_u.of_int i) v
+  external set_int8x16_unaligned_unsafe_prim : bytes -> int32# -> int8x16 -> unit = "%caml_bytes_setu128u_indexed_by_int32#"
+  let set_int8x16_unaligned_unsafe b i v = set_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Int32_u.of_int i) v
+
+  let extra_checks bytes =
+    List.iter
+      (fun index ->
+        let index = Stdlib_upstream_compatible.Int32_u.of_int32 index in
+        assert_raises_out_of_bounds (fun () ->
+          let _ = get_int8x16_unaligned_prim bytes index in
+          ());
+        assert_raises_out_of_bounds (fun () ->
+          set_int8x16_unaligned_prim bytes index (int8x16_of_int64s 1L 2L)))
+      Int32.[ min_int; add min_int one; sub zero one; max_int ]
+  ;;
 end)
 
 module _ = Bytes(struct
-  external get_int8x16_unaligned : bytes -> int64# -> int8x16 = "%caml_bytes_getu128_indexed_by_int64#"
-  let get_int8x16_unaligned b i = get_int8x16_unaligned b (Stdlib_upstream_compatible.Int64_u.of_int i)
-  external get_int8x16_unaligned_unsafe : bytes -> int64# -> int8x16 = "%caml_bytes_getu128u_indexed_by_int64#"
-  let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Int64_u.of_int i)
+  external get_int8x16_unaligned_prim : bytes -> int64# -> int8x16 = "%caml_bytes_getu128_indexed_by_int64#"
+  let get_int8x16_unaligned b i = get_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Int64_u.of_int i)
+  external get_int8x16_unaligned_unsafe_prim : bytes -> int64# -> int8x16 = "%caml_bytes_getu128u_indexed_by_int64#"
+  let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Int64_u.of_int i)
 
-  external set_int8x16_unaligned : bytes -> int64# -> int8x16 -> unit = "%caml_bytes_setu128_indexed_by_int64#"
-  let set_int8x16_unaligned b i v = set_int8x16_unaligned b (Stdlib_upstream_compatible.Int64_u.of_int i) v
-  external set_int8x16_unaligned_unsafe : bytes -> int64# -> int8x16 -> unit = "%caml_bytes_setu128u_indexed_by_int64#"
-  let set_int8x16_unaligned_unsafe b i v = set_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Int64_u.of_int i) v
+  external set_int8x16_unaligned_prim : bytes -> int64# -> int8x16 -> unit = "%caml_bytes_setu128_indexed_by_int64#"
+  let set_int8x16_unaligned b i v = set_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Int64_u.of_int i) v
+  external set_int8x16_unaligned_unsafe_prim : bytes -> int64# -> int8x16 -> unit = "%caml_bytes_setu128u_indexed_by_int64#"
+  let set_int8x16_unaligned_unsafe b i v = set_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Int64_u.of_int i) v
+
+  let extra_checks bytes =
+    List.iter
+      (fun index ->
+        let index = Stdlib_upstream_compatible.Int64_u.of_int64 index in
+        assert_raises_out_of_bounds (fun () ->
+          let _ = get_int8x16_unaligned_prim bytes index in
+          ());
+        assert_raises_out_of_bounds (fun () ->
+          set_int8x16_unaligned_prim bytes index (int8x16_of_int64s 1L 2L)))
+      Int64.[ min_int; add min_int one; sub zero one; max_int ]
+  ;;
 end)
 
 module _ = Bytes(struct
-  external get_int8x16_unaligned : bytes -> nativeint# -> int8x16 = "%caml_bytes_getu128_indexed_by_nativeint#"
-  let get_int8x16_unaligned b i = get_int8x16_unaligned b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
-  external get_int8x16_unaligned_unsafe : bytes -> nativeint# -> int8x16 = "%caml_bytes_getu128u_indexed_by_nativeint#"
-  let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
+  external get_int8x16_unaligned_prim : bytes -> nativeint# -> int8x16 = "%caml_bytes_getu128_indexed_by_nativeint#"
+  let get_int8x16_unaligned b i = get_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
+  external get_int8x16_unaligned_unsafe_prim : bytes -> nativeint# -> int8x16 = "%caml_bytes_getu128u_indexed_by_nativeint#"
+  let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
 
-  external set_int8x16_unaligned : bytes -> nativeint# -> int8x16 -> unit = "%caml_bytes_setu128_indexed_by_nativeint#"
-  let set_int8x16_unaligned b i v = set_int8x16_unaligned b (Stdlib_upstream_compatible.Nativeint_u.of_int i) v
-  external set_int8x16_unaligned_unsafe : bytes -> nativeint# -> int8x16 -> unit = "%caml_bytes_setu128u_indexed_by_nativeint#"
-  let set_int8x16_unaligned_unsafe b i v = set_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Nativeint_u.of_int i) v
+  external set_int8x16_unaligned_prim : bytes -> nativeint# -> int8x16 -> unit = "%caml_bytes_setu128_indexed_by_nativeint#"
+  let set_int8x16_unaligned b i v = set_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i) v
+  external set_int8x16_unaligned_unsafe_prim : bytes -> nativeint# -> int8x16 -> unit = "%caml_bytes_setu128u_indexed_by_nativeint#"
+  let set_int8x16_unaligned_unsafe b i v = set_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i) v
+
+  let extra_checks bytes =
+    List.iter
+      (fun index ->
+        let index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint index in
+        assert_raises_out_of_bounds (fun () ->
+          let _ = get_int8x16_unaligned_prim bytes index in
+          ());
+        assert_raises_out_of_bounds (fun () ->
+          set_int8x16_unaligned_prim bytes index (int8x16_of_int64s 1L 2L)))
+      Nativeint.[ min_int; add min_int one; sub zero one; max_int ]
+  ;;
 end)
 
 module String_ (Primitives : sig
   val get_int8x16_unaligned : string -> int -> int8x16
   val get_int8x16_unaligned_unsafe : string -> int -> int8x16
+  val extra_checks : string -> unit
 end) =
 struct
   open Primitives
@@ -178,32 +240,75 @@ struct
       with | Invalid_argument s when s = "index out of bounds" -> ()
     done;
   ;;
+
+  (* Extra checks *)
+
+  let () = extra_checks data
 end
 
 module _ = String_(struct
   external get_int8x16_unaligned : string -> int -> int8x16 = "%caml_string_getu128"
   external get_int8x16_unaligned_unsafe : string -> int -> int8x16 = "%caml_string_getu128u"
+
+  let extra_checks string =
+    List.iter
+      (fun index ->
+        assert_raises_out_of_bounds (fun () ->
+          let _ = get_int8x16_unaligned string index in
+          ()))
+      Int.[ min_int; add min_int one; sub zero one; max_int ]
+  ;;
 end)
 
 module _ = String_(struct
-  external get_int8x16_unaligned : string -> int32# -> int8x16 = "%caml_string_getu128_indexed_by_int32#"
-  let get_int8x16_unaligned b i = get_int8x16_unaligned b (Stdlib_upstream_compatible.Int32_u.of_int i)
-  external get_int8x16_unaligned_unsafe : string -> int32# -> int8x16 = "%caml_string_getu128u_indexed_by_int32#"
-  let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Int32_u.of_int i)
+  external get_int8x16_unaligned_prim : string -> int32# -> int8x16 = "%caml_string_getu128_indexed_by_int32#"
+  let get_int8x16_unaligned b i = get_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Int32_u.of_int i)
+  external get_int8x16_unaligned_unsafe_prim : string -> int32# -> int8x16 = "%caml_string_getu128u_indexed_by_int32#"
+  let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Int32_u.of_int i)
+
+  let extra_checks string =
+    List.iter
+      (fun index ->
+        let index = Stdlib_upstream_compatible.Int32_u.of_int32 index in
+        assert_raises_out_of_bounds (fun () ->
+          let _ = get_int8x16_unaligned_prim string index in
+          ()))
+      Int32.[ min_int; add min_int one; sub zero one; max_int ]
+  ;;
 end)
 
 module _ = String_(struct
-  external get_int8x16_unaligned : string -> int64# -> int8x16 = "%caml_string_getu128_indexed_by_int64#"
-  let get_int8x16_unaligned b i = get_int8x16_unaligned b (Stdlib_upstream_compatible.Int64_u.of_int i)
-  external get_int8x16_unaligned_unsafe : string -> int64# -> int8x16 = "%caml_string_getu128u_indexed_by_int64#"
-  let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Int64_u.of_int i)
+  external get_int8x16_unaligned_prim : string -> int64# -> int8x16 = "%caml_string_getu128_indexed_by_int64#"
+  let get_int8x16_unaligned b i = get_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Int64_u.of_int i)
+  external get_int8x16_unaligned_unsafe_prim : string -> int64# -> int8x16 = "%caml_string_getu128u_indexed_by_int64#"
+  let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Int64_u.of_int i)
+
+  let extra_checks string =
+    List.iter
+      (fun index ->
+        let index = Stdlib_upstream_compatible.Int64_u.of_int64 index in
+        assert_raises_out_of_bounds (fun () ->
+          let _ = get_int8x16_unaligned_prim string index in
+          ()))
+      Int64.[ min_int; add min_int one; sub zero one; max_int ]
+  ;;
 end)
 
 module _ = String_(struct
-  external get_int8x16_unaligned : string -> nativeint# -> int8x16 = "%caml_string_getu128_indexed_by_nativeint#"
-  let get_int8x16_unaligned b i = get_int8x16_unaligned b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
-  external get_int8x16_unaligned_unsafe : string -> nativeint# -> int8x16 = "%caml_string_getu128u_indexed_by_nativeint#"
-  let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
+  external get_int8x16_unaligned_prim : string -> nativeint# -> int8x16 = "%caml_string_getu128_indexed_by_nativeint#"
+  let get_int8x16_unaligned b i = get_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
+  external get_int8x16_unaligned_unsafe_prim : string -> nativeint# -> int8x16 = "%caml_string_getu128u_indexed_by_nativeint#"
+  let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
+
+  let extra_checks string =
+    List.iter
+      (fun index ->
+        let index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint index in
+        assert_raises_out_of_bounds (fun () ->
+          let _ = get_int8x16_unaligned_prim string index in
+          ()))
+      Nativeint.[ min_int; add min_int one; sub zero one; max_int ]
+  ;;
 end)
 
 open struct
@@ -220,6 +325,8 @@ open struct
     val set_int8x16_unaligned_unsafe : bigstring -> int -> int8x16 -> unit
     val set_int8x16_aligned : bigstring -> int -> int8x16 -> unit
     val set_int8x16_aligned_unsafe : bigstring -> int -> int8x16 -> unit
+
+    val extra_checks : bigstring -> unit
   end) =
   struct
     open Primitives
@@ -339,6 +446,10 @@ open struct
         with | Invalid_argument s when s = "index out of bounds" -> ()
       done;
     ;;
+
+    (* Extra checks *)
+
+    let () = extra_checks data
   end
 
   module _ = Bigstring(struct
@@ -351,72 +462,135 @@ open struct
     external set_int8x16_unaligned_unsafe : bigstring -> int -> int8x16 -> unit = "%caml_bigstring_setu128u"
     external set_int8x16_aligned : bigstring -> int -> int8x16 -> unit = "%caml_bigstring_seta128"
     external set_int8x16_aligned_unsafe : bigstring -> int -> int8x16 -> unit = "%caml_bigstring_seta128u"
+
+    let extra_checks bigstring =
+      List.iter
+        (fun index ->
+          assert_raises_out_of_bounds (fun () ->
+            let _ = get_int8x16_unaligned bigstring index in
+            ());
+          assert_raises_out_of_bounds (fun () ->
+            set_int8x16_unaligned bigstring index (int8x16_of_int64s 1L 2L));
+          assert_raises_out_of_bounds (fun () ->
+            let _ = get_int8x16_aligned bigstring index in
+            ());
+          assert_raises_out_of_bounds (fun () ->
+            set_int8x16_aligned bigstring index (int8x16_of_int64s 1L 2L)))
+        Int.[ min_int; add min_int one; sub zero one; max_int ]
+    ;;
   end)
 
   module _ = Bigstring(struct
-    external get_int8x16_unaligned : bigstring -> int32# -> int8x16 = "%caml_bigstring_getu128_indexed_by_int32#"
-    let get_int8x16_unaligned b i = get_int8x16_unaligned b (Stdlib_upstream_compatible.Int32_u.of_int i)
-    external get_int8x16_unaligned_unsafe : bigstring -> int32# -> int8x16 = "%caml_bigstring_getu128u_indexed_by_int32#"
-    let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Int32_u.of_int i)
-    external get_int8x16_aligned : bigstring -> int32# -> int8x16 = "%caml_bigstring_geta128_indexed_by_int32#"
-    let get_int8x16_aligned b i = get_int8x16_aligned b (Stdlib_upstream_compatible.Int32_u.of_int i)
-    external get_int8x16_aligned_unsafe : bigstring -> int32# -> int8x16 = "%caml_bigstring_geta128u_indexed_by_int32#"
-    let get_int8x16_aligned_unsafe b i = get_int8x16_aligned_unsafe b (Stdlib_upstream_compatible.Int32_u.of_int i)
+    external get_int8x16_unaligned_prim : bigstring -> int32# -> int8x16 = "%caml_bigstring_getu128_indexed_by_int32#"
+    let get_int8x16_unaligned b i = get_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Int32_u.of_int i)
+    external get_int8x16_unaligned_unsafe_prim : bigstring -> int32# -> int8x16 = "%caml_bigstring_getu128u_indexed_by_int32#"
+    let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Int32_u.of_int i)
+    external get_int8x16_aligned_prim : bigstring -> int32# -> int8x16 = "%caml_bigstring_geta128_indexed_by_int32#"
+    let get_int8x16_aligned b i = get_int8x16_aligned_prim b (Stdlib_upstream_compatible.Int32_u.of_int i)
+    external get_int8x16_aligned_unsafe_prim : bigstring -> int32# -> int8x16 = "%caml_bigstring_geta128u_indexed_by_int32#"
+    let get_int8x16_aligned_unsafe b i = get_int8x16_aligned_unsafe_prim b (Stdlib_upstream_compatible.Int32_u.of_int i)
 
-    external set_int8x16_unaligned : bigstring -> int32# -> int8x16 -> unit = "%caml_bigstring_setu128_indexed_by_int32#"
-    let set_int8x16_unaligned b i v = set_int8x16_unaligned b (Stdlib_upstream_compatible.Int32_u.of_int i) v
-    external set_int8x16_unaligned_unsafe : bigstring -> int32# -> int8x16 -> unit = "%caml_bigstring_setu128u_indexed_by_int32#"
-    let set_int8x16_unaligned_unsafe b i v = set_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Int32_u.of_int i) v
-    external set_int8x16_aligned : bigstring -> int32# -> int8x16 -> unit = "%caml_bigstring_seta128_indexed_by_int32#"
-    let set_int8x16_aligned b i v = set_int8x16_aligned b (Stdlib_upstream_compatible.Int32_u.of_int i) v
-    external set_int8x16_aligned_unsafe : bigstring -> int32# -> int8x16 -> unit = "%caml_bigstring_seta128u_indexed_by_int32#"
-    let set_int8x16_aligned_unsafe b i v = set_int8x16_aligned_unsafe b (Stdlib_upstream_compatible.Int32_u.of_int i) v
+    external set_int8x16_unaligned_prim : bigstring -> int32# -> int8x16 -> unit = "%caml_bigstring_setu128_indexed_by_int32#"
+    let set_int8x16_unaligned b i v = set_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Int32_u.of_int i) v
+    external set_int8x16_unaligned_unsafe_prim : bigstring -> int32# -> int8x16 -> unit = "%caml_bigstring_setu128u_indexed_by_int32#"
+    let set_int8x16_unaligned_unsafe b i v = set_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Int32_u.of_int i) v
+    external set_int8x16_aligned_prim : bigstring -> int32# -> int8x16 -> unit = "%caml_bigstring_seta128_indexed_by_int32#"
+    let set_int8x16_aligned b i v = set_int8x16_aligned_prim b (Stdlib_upstream_compatible.Int32_u.of_int i) v
+    external set_int8x16_aligned_unsafe_prim : bigstring -> int32# -> int8x16 -> unit = "%caml_bigstring_seta128u_indexed_by_int32#"
+    let set_int8x16_aligned_unsafe b i v = set_int8x16_aligned_unsafe_prim b (Stdlib_upstream_compatible.Int32_u.of_int i) v
+
+    let extra_checks bigstring =
+      List.iter
+        (fun index ->
+          let index = Stdlib_upstream_compatible.Int32_u.of_int32 index in
+          assert_raises_out_of_bounds (fun () ->
+            let _ = get_int8x16_unaligned_prim bigstring index in
+            ());
+          assert_raises_out_of_bounds (fun () ->
+            set_int8x16_unaligned_prim bigstring index (int8x16_of_int64s 1L 2L));
+          assert_raises_out_of_bounds (fun () ->
+            let _ = get_int8x16_aligned_prim bigstring index in
+            ());
+          assert_raises_out_of_bounds (fun () ->
+            set_int8x16_aligned_prim bigstring index (int8x16_of_int64s 1L 2L)))
+        Int32.[ min_int; add min_int one; sub zero one; max_int ]
+    ;;
   end)
 
   module _ = Bigstring(struct
-    external get_int8x16_unaligned : bigstring -> int64# -> int8x16 = "%caml_bigstring_getu128_indexed_by_int64#"
-    let get_int8x16_unaligned b i = get_int8x16_unaligned b (Stdlib_upstream_compatible.Int64_u.of_int i)
-    external get_int8x16_unaligned_unsafe : bigstring -> int64# -> int8x16 = "%caml_bigstring_getu128u_indexed_by_int64#"
-    let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Int64_u.of_int i)
-    external get_int8x16_aligned : bigstring -> int64# -> int8x16 = "%caml_bigstring_geta128_indexed_by_int64#"
-    let get_int8x16_aligned b i = get_int8x16_aligned b (Stdlib_upstream_compatible.Int64_u.of_int i)
-    external get_int8x16_aligned_unsafe : bigstring -> int64# -> int8x16 = "%caml_bigstring_geta128u_indexed_by_int64#"
-    let get_int8x16_aligned_unsafe b i = get_int8x16_aligned_unsafe b (Stdlib_upstream_compatible.Int64_u.of_int i)
+    external get_int8x16_unaligned_prim : bigstring -> int64# -> int8x16 = "%caml_bigstring_getu128_indexed_by_int64#"
+    let get_int8x16_unaligned b i = get_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Int64_u.of_int i)
+    external get_int8x16_unaligned_unsafe_prim : bigstring -> int64# -> int8x16 = "%caml_bigstring_getu128u_indexed_by_int64#"
+    let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Int64_u.of_int i)
+    external get_int8x16_aligned_prim : bigstring -> int64# -> int8x16 = "%caml_bigstring_geta128_indexed_by_int64#"
+    let get_int8x16_aligned b i = get_int8x16_aligned_prim b (Stdlib_upstream_compatible.Int64_u.of_int i)
+    external get_int8x16_aligned_unsafe_prim : bigstring -> int64# -> int8x16 = "%caml_bigstring_geta128u_indexed_by_int64#"
+    let get_int8x16_aligned_unsafe b i = get_int8x16_aligned_unsafe_prim b (Stdlib_upstream_compatible.Int64_u.of_int i)
 
-    external set_int8x16_unaligned : bigstring -> int64# -> int8x16 -> unit = "%caml_bigstring_setu128_indexed_by_int64#"
-    let set_int8x16_unaligned b i v = set_int8x16_unaligned b (Stdlib_upstream_compatible.Int64_u.of_int i) v
-    external set_int8x16_unaligned_unsafe : bigstring -> int64# -> int8x16 -> unit = "%caml_bigstring_setu128u_indexed_by_int64#"
-    let set_int8x16_unaligned_unsafe b i v = set_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Int64_u.of_int i) v
-    external set_int8x16_aligned : bigstring -> int64# -> int8x16 -> unit = "%caml_bigstring_seta128_indexed_by_int64#"
-    let set_int8x16_aligned b i v = set_int8x16_aligned b (Stdlib_upstream_compatible.Int64_u.of_int i) v
-    external set_int8x16_aligned_unsafe : bigstring -> int64# -> int8x16 -> unit = "%caml_bigstring_seta128u_indexed_by_int64#"
-    let set_int8x16_aligned_unsafe b i v = set_int8x16_aligned_unsafe b (Stdlib_upstream_compatible.Int64_u.of_int i) v
+    external set_int8x16_unaligned_prim : bigstring -> int64# -> int8x16 -> unit = "%caml_bigstring_setu128_indexed_by_int64#"
+    let set_int8x16_unaligned b i v = set_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Int64_u.of_int i) v
+    external set_int8x16_unaligned_unsafe_prim : bigstring -> int64# -> int8x16 -> unit = "%caml_bigstring_setu128u_indexed_by_int64#"
+    let set_int8x16_unaligned_unsafe b i v = set_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Int64_u.of_int i) v
+    external set_int8x16_aligned_prim : bigstring -> int64# -> int8x16 -> unit = "%caml_bigstring_seta128_indexed_by_int64#"
+    let set_int8x16_aligned b i v = set_int8x16_aligned_prim b (Stdlib_upstream_compatible.Int64_u.of_int i) v
+    external set_int8x16_aligned_unsafe_prim : bigstring -> int64# -> int8x16 -> unit = "%caml_bigstring_seta128u_indexed_by_int64#"
+    let set_int8x16_aligned_unsafe b i v = set_int8x16_aligned_unsafe_prim b (Stdlib_upstream_compatible.Int64_u.of_int i) v
+
+    let extra_checks bigstring =
+      List.iter
+        (fun index ->
+          let index = Stdlib_upstream_compatible.Int64_u.of_int64 index in
+          assert_raises_out_of_bounds (fun () ->
+            let _ = get_int8x16_unaligned_prim bigstring index in
+            ());
+          assert_raises_out_of_bounds (fun () ->
+            set_int8x16_unaligned_prim bigstring index (int8x16_of_int64s 1L 2L));
+          assert_raises_out_of_bounds (fun () ->
+            let _ = get_int8x16_aligned_prim bigstring index in
+            ());
+          assert_raises_out_of_bounds (fun () ->
+            set_int8x16_aligned_prim bigstring index (int8x16_of_int64s 1L 2L)))
+        Int64.[ min_int; add min_int one; sub zero one; max_int ]
+    ;;
   end)
 
   module _ = Bigstring(struct
-    external get_int8x16_unaligned : bigstring -> nativeint# -> int8x16 = "%caml_bigstring_getu128_indexed_by_nativeint#"
-    let get_int8x16_unaligned b i = get_int8x16_unaligned b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
-    external get_int8x16_unaligned_unsafe : bigstring -> nativeint# -> int8x16 = "%caml_bigstring_getu128u_indexed_by_nativeint#"
-    let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
-    external get_int8x16_aligned : bigstring -> nativeint# -> int8x16 = "%caml_bigstring_geta128_indexed_by_nativeint#"
-    let get_int8x16_aligned b i = get_int8x16_aligned b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
-    external get_int8x16_aligned_unsafe : bigstring -> nativeint# -> int8x16 = "%caml_bigstring_geta128u_indexed_by_nativeint#"
-    let get_int8x16_aligned_unsafe b i = get_int8x16_aligned_unsafe b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
+    external get_int8x16_unaligned_prim : bigstring -> nativeint# -> int8x16 = "%caml_bigstring_getu128_indexed_by_nativeint#"
+    let get_int8x16_unaligned b i = get_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
+    external get_int8x16_unaligned_unsafe_prim : bigstring -> nativeint# -> int8x16 = "%caml_bigstring_getu128u_indexed_by_nativeint#"
+    let get_int8x16_unaligned_unsafe b i = get_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
+    external get_int8x16_aligned_prim : bigstring -> nativeint# -> int8x16 = "%caml_bigstring_geta128_indexed_by_nativeint#"
+    let get_int8x16_aligned b i = get_int8x16_aligned_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
+    external get_int8x16_aligned_unsafe_prim : bigstring -> nativeint# -> int8x16 = "%caml_bigstring_geta128u_indexed_by_nativeint#"
+    let get_int8x16_aligned_unsafe b i = get_int8x16_aligned_unsafe_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i)
 
-    external set_int8x16_unaligned : bigstring -> nativeint# -> int8x16 -> unit = "%caml_bigstring_setu128_indexed_by_nativeint#"
-    let set_int8x16_unaligned b i v = set_int8x16_unaligned b (Stdlib_upstream_compatible.Nativeint_u.of_int i) v
-    external set_int8x16_unaligned_unsafe : bigstring -> nativeint# -> int8x16 -> unit = "%caml_bigstring_setu128u_indexed_by_nativeint#"
-    let set_int8x16_unaligned_unsafe b i v = set_int8x16_unaligned_unsafe b (Stdlib_upstream_compatible.Nativeint_u.of_int i) v
-    external set_int8x16_aligned : bigstring -> nativeint# -> int8x16 -> unit = "%caml_bigstring_seta128_indexed_by_nativeint#"
-    let set_int8x16_aligned b i v = set_int8x16_aligned b (Stdlib_upstream_compatible.Nativeint_u.of_int i) v
-    external set_int8x16_aligned_unsafe : bigstring -> nativeint# -> int8x16 -> unit = "%caml_bigstring_seta128u_indexed_by_nativeint#"
-    let set_int8x16_aligned_unsafe b i v = set_int8x16_aligned_unsafe b (Stdlib_upstream_compatible.Nativeint_u.of_int i) v
+    external set_int8x16_unaligned_prim : bigstring -> nativeint# -> int8x16 -> unit = "%caml_bigstring_setu128_indexed_by_nativeint#"
+    let set_int8x16_unaligned b i v = set_int8x16_unaligned_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i) v
+    external set_int8x16_unaligned_unsafe_prim : bigstring -> nativeint# -> int8x16 -> unit = "%caml_bigstring_setu128u_indexed_by_nativeint#"
+    let set_int8x16_unaligned_unsafe b i v = set_int8x16_unaligned_unsafe_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i) v
+    external set_int8x16_aligned_prim : bigstring -> nativeint# -> int8x16 -> unit = "%caml_bigstring_seta128_indexed_by_nativeint#"
+    let set_int8x16_aligned b i v = set_int8x16_aligned_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i) v
+    external set_int8x16_aligned_unsafe_prim : bigstring -> nativeint# -> int8x16 -> unit = "%caml_bigstring_seta128u_indexed_by_nativeint#"
+    let set_int8x16_aligned_unsafe b i v = set_int8x16_aligned_unsafe_prim b (Stdlib_upstream_compatible.Nativeint_u.of_int i) v
+
+    let extra_checks bigstring =
+      List.iter
+        (fun index ->
+          let index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint index in
+          assert_raises_out_of_bounds (fun () ->
+            let _ = get_int8x16_unaligned_prim bigstring index in
+            ());
+          assert_raises_out_of_bounds (fun () ->
+            set_int8x16_unaligned_prim bigstring index (int8x16_of_int64s 1L 2L));
+          assert_raises_out_of_bounds (fun () ->
+            let _ = get_int8x16_aligned_prim bigstring index in
+            ());
+          assert_raises_out_of_bounds (fun () ->
+            set_int8x16_aligned_prim bigstring index (int8x16_of_int64s 1L 2L)))
+        Nativeint.[ min_int; add min_int one; sub zero one; max_int ]
+    ;;
   end)
 end
-
-(* CR layouts: Test more edge-cases for unboxed indices *)
-
-(* CR layouts: Consider generating bindings? *)
 
 module Float_arrays = struct
 

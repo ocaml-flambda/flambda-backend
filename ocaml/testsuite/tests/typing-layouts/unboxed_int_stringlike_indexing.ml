@@ -185,8 +185,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
   let unbox_data = fun x -> x
   let box_data = fun x -> x
-  let extra_bounds_checks = [ -1n ]
-
+  let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -388,8 +387,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
   let unbox_data = fun x -> x
   let box_data = fun x -> x
-  let extra_bounds_checks = [ -1n ]
-
+  let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -591,8 +589,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
   let unbox_data = fun x -> x
   let box_data = fun x -> x
-  let extra_bounds_checks = [ -1n ]
-
+  let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -794,8 +791,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
   let unbox_data = Stdlib_upstream_compatible.Int32_u.of_int32
   let box_data = Stdlib_upstream_compatible.Int32_u.to_int32
-  let extra_bounds_checks = [ -1n ]
-
+  let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -997,8 +993,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
   let unbox_data = Stdlib_upstream_compatible.Int64_u.of_int64
   let box_data = Stdlib_upstream_compatible.Int64_u.to_int64
-  let extra_bounds_checks = [ -1n ]
-
+  let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -1199,8 +1194,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
   let unbox_data = fun x -> x
   let box_data = fun x -> x
-  let extra_bounds_checks = [ -1n ]
-
+  let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -1401,8 +1395,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
   let unbox_data = Stdlib_beta.Float32_u.of_float32
   let box_data = Stdlib_beta.Float32_u.to_float32
-  let extra_bounds_checks = [ -1n ]
-
+  let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -1606,8 +1599,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
   let unbox_data = fun x -> x
   let box_data = fun x -> x
-  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
-
+  let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -1809,8 +1801,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
   let unbox_data = fun x -> x
   let box_data = fun x -> x
-  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
-
+  let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -2012,8 +2003,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
   let unbox_data = fun x -> x
   let box_data = fun x -> x
-  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
-
+  let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -2215,8 +2205,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
   let unbox_data = Stdlib_upstream_compatible.Int32_u.of_int32
   let box_data = Stdlib_upstream_compatible.Int32_u.to_int32
-  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
-
+  let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -2418,8 +2407,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
   let unbox_data = Stdlib_upstream_compatible.Int64_u.of_int64
   let box_data = Stdlib_upstream_compatible.Int64_u.to_int64
-  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
-
+  let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -2620,8 +2608,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
   let unbox_data = fun x -> x
   let box_data = fun x -> x
-  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
-
+  let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -2822,8 +2809,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
   let unbox_data = Stdlib_beta.Float32_u.of_float32
   let box_data = Stdlib_beta.Float32_u.to_float32
-  let extra_bounds_checks = [ -2147483648l; -2147483647l; 2147483647l; -1l ]
-
+  let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -3027,8 +3013,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
   let unbox_data = fun x -> x
   let box_data = fun x -> x
-  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
-
+  let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -3230,8 +3215,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
   let unbox_data = fun x -> x
   let box_data = fun x -> x
-  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
-
+  let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -3433,8 +3417,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
   let unbox_data = fun x -> x
   let box_data = fun x -> x
-  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
-
+  let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -3636,8 +3619,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
   let unbox_data = Stdlib_upstream_compatible.Int32_u.of_int32
   let box_data = Stdlib_upstream_compatible.Int32_u.to_int32
-  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
-
+  let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -3839,8 +3821,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
   let unbox_data = Stdlib_upstream_compatible.Int64_u.of_int64
   let box_data = Stdlib_upstream_compatible.Int64_u.to_int64
-  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
-
+  let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -4041,8 +4022,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
   let unbox_data = fun x -> x
   let box_data = fun x -> x
-  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
-
+  let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
@@ -4243,8 +4223,7 @@ open struct
   let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
   let unbox_data = Stdlib_beta.Float32_u.of_float32
   let box_data = Stdlib_beta.Float32_u.to_float32
-  let extra_bounds_checks = [ -9223372036854775808L; -9223372036854775807L; 9223372036854775807L; -1L ]
-
+  let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
   module _ = Tester (struct
