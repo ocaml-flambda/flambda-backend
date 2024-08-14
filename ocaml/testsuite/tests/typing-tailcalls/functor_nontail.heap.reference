@@ -1,0 +1,289 @@
+[
+  structure_item (functor_nontail.ml[21,587+0]..functor_nontail.ml[51,1341+3])
+    Tstr_module
+    Make
+      module_expr (functor_nontail.ml[21,587+12]..functor_nontail.ml[51,1341+3])
+        Tmod_functor "M"
+        module_type (functor_nontail.ml[21,587+17]..functor_nontail.ml[29,719+5])
+          Tmty_signature
+          [
+            signature_item (functor_nontail.ml[22,608+4]..functor_nontail.ml[22,608+10])
+              Tsig_type Rec
+              [
+                type_declaration t (functor_nontail.ml[22,608+4]..functor_nontail.ml[22,608+10])
+                  ptype_params =
+                    []
+                  ptype_cstrs =
+                    []
+                  ptype_kind =
+                    Ttype_abstract
+                  ptype_private = Public
+                  ptype_manifest =
+                    None
+              ]
+            signature_item (functor_nontail.ml[24,620+4]..functor_nontail.ml[24,620+31])
+              Tsig_value
+              value_description to_string (functor_nontail.ml[24,620+4]..functor_nontail.ml[24,620+31])
+                core_type (functor_nontail.ml[24,620+20]..functor_nontail.ml[24,620+31])
+                  Ttyp_arrow
+                  Nolabel
+                  core_type (functor_nontail.ml[24,620+20]..functor_nontail.ml[24,620+21])
+                    Ttyp_constr "t"
+                    []
+                  core_type (functor_nontail.ml[24,620+25]..functor_nontail.ml[24,620+31])
+                    Ttyp_constr "string!"
+                    []
+                []
+            signature_item (functor_nontail.ml[26,653+4]..functor_nontail.ml[28,711+7])
+              Tsig_module "Nested"
+              module_type (functor_nontail.ml[26,653+20]..functor_nontail.ml[28,711+7])
+                Tmty_signature
+                [
+                  signature_item (functor_nontail.ml[27,677+6]..functor_nontail.ml[27,677+33])
+                    Tsig_value
+                    value_description of_string (functor_nontail.ml[27,677+6]..functor_nontail.ml[27,677+33])
+                      core_type (functor_nontail.ml[27,677+22]..functor_nontail.ml[27,677+33])
+                        Ttyp_arrow
+                        Nolabel
+                        core_type (functor_nontail.ml[27,677+22]..functor_nontail.ml[27,677+28])
+                          Ttyp_constr "string!"
+                          []
+                        core_type (functor_nontail.ml[27,677+32]..functor_nontail.ml[27,677+33])
+                          Ttyp_constr "t"
+                          []
+                      []
+                ]
+          ]
+        module_expr (functor_nontail.ml[30,728+0]..functor_nontail.ml[51,1341+3])
+          Tmod_structure
+          [
+            structure_item (functor_nontail.ml[31,735+2]..functor_nontail.ml[37,979+5])
+              Tstr_module
+              Test_open_M
+                module_expr (functor_nontail.ml[31,735+23]..functor_nontail.ml[37,979+5])
+                  Tmod_structure
+                  [
+                    structure_item (functor_nontail.ml[32,765+4]..functor_nontail.ml[32,765+10])
+                      Tstr_open Fresh
+                      module_expr (functor_nontail.ml[32,765+9]..functor_nontail.ml[32,765+10])
+                        Tmod_ident "M"
+                    structure_item (functor_nontail.ml[35,885+4]..functor_nontail.ml[35,885+37])
+                      Tstr_value Nonrec
+                      [
+                        <def>
+                          pattern (functor_nontail.ml[35,885+8]..functor_nontail.ml[35,885+25])
+                            Tpat_var "to_string_rebound"
+                            value_mode global,many,shared
+                          expression (functor_nontail.ml[35,885+28]..functor_nontail.ml[35,885+37])
+                            Texp_ident "M.to_string"
+                      ]
+                    structure_item (functor_nontail.ml[36,923+4]..functor_nontail.ml[36,923+55])
+                      Tstr_value Nonrec
+                      [
+                        <def>
+                          pattern (functor_nontail.ml[36,923+8]..functor_nontail.ml[36,923+31])
+                            Tpat_var "calls_to_string_rebound"
+                            value_mode global,many,shared
+                          expression (functor_nontail.ml[36,923+32]..functor_nontail.ml[36,923+55]) ghost
+                            Texp_function
+                            region true
+                            alloc_mode global,many,shared
+                            [
+                              Nolabel
+                              Param_pat
+                                pattern (functor_nontail.ml[36,923+32]..functor_nontail.ml[36,923+33])
+                                  Tpat_var "t"
+                                  value_mode global,many,shared
+                            ]
+                            Tfunction_body
+                              expression (functor_nontail.ml[36,923+36]..functor_nontail.ml[36,923+55])
+                                Texp_apply
+                                apply_mode Nontail
+                                original_position Tail_position (Default_tail)
+                                locality_mode global
+                                expression (functor_nontail.ml[36,923+36]..functor_nontail.ml[36,923+53])
+                                  Texp_ident "to_string_rebound"
+                                [
+                                  <arg>
+                                    Nolabel
+                                    expression (functor_nontail.ml[36,923+54]..functor_nontail.ml[36,923+55])
+                                      Texp_ident "t"
+                                ]
+                      ]
+                  ]
+            structure_item (functor_nontail.ml[39,986+2]..functor_nontail.ml[44,1138+5])
+              Tstr_module
+              Test_open_Nested
+                module_expr (functor_nontail.ml[39,986+28]..functor_nontail.ml[44,1138+5])
+                  Tmod_structure
+                  [
+                    structure_item (functor_nontail.ml[40,1021+4]..functor_nontail.ml[40,1021+17])
+                      Tstr_open Fresh
+                      module_expr (functor_nontail.ml[40,1021+9]..functor_nontail.ml[40,1021+17])
+                        Tmod_ident "M.Nested"
+                    structure_item (functor_nontail.ml[42,1040+4]..functor_nontail.ml[42,1040+37])
+                      Tstr_value Nonrec
+                      [
+                        <def>
+                          pattern (functor_nontail.ml[42,1040+8]..functor_nontail.ml[42,1040+25])
+                            Tpat_var "of_string_rebound"
+                            value_mode global,many,shared
+                          expression (functor_nontail.ml[42,1040+28]..functor_nontail.ml[42,1040+37])
+                            Texp_ident "M.Nested.of_string"
+                      ]
+                    structure_item (functor_nontail.ml[43,1078+4]..functor_nontail.ml[43,1078+59])
+                      Tstr_value Nonrec
+                      [
+                        <def>
+                          pattern (functor_nontail.ml[43,1078+8]..functor_nontail.ml[43,1078+31])
+                            Tpat_var "calls_of_string_rebound"
+                            value_mode global,many,shared
+                          expression (functor_nontail.ml[43,1078+32]..functor_nontail.ml[43,1078+59]) ghost
+                            Texp_function
+                            region true
+                            alloc_mode global,many,shared
+                            [
+                              Nolabel
+                              Param_pat
+                                pattern (functor_nontail.ml[43,1078+32]..functor_nontail.ml[43,1078+35])
+                                  Tpat_var "str"
+                                  value_mode global,many,shared
+                            ]
+                            Tfunction_body
+                              expression (functor_nontail.ml[43,1078+38]..functor_nontail.ml[43,1078+59])
+                                Texp_apply
+                                apply_mode Nontail
+                                original_position Tail_position (Default_tail)
+                                locality_mode global
+                                expression (functor_nontail.ml[43,1078+38]..functor_nontail.ml[43,1078+55])
+                                  Texp_ident "of_string_rebound"
+                                [
+                                  <arg>
+                                    Nolabel
+                                    expression (functor_nontail.ml[43,1078+56]..functor_nontail.ml[43,1078+59])
+                                      Texp_ident "str"
+                                ]
+                      ]
+                  ]
+            structure_item (functor_nontail.ml[46,1145+2]..functor_nontail.ml[46,1145+37])
+              Tstr_value Nonrec
+              [
+                <def>
+                  pattern (functor_nontail.ml[46,1145+6]..functor_nontail.ml[46,1145+23])
+                    Tpat_var "to_string_rebound"
+                    value_mode global,many,shared
+                  expression (functor_nontail.ml[46,1145+26]..functor_nontail.ml[46,1145+37])
+                    Texp_ident "M.to_string"
+              ]
+            structure_item (functor_nontail.ml[47,1183+2]..functor_nontail.ml[47,1183+53])
+              Tstr_value Nonrec
+              [
+                <def>
+                  pattern (functor_nontail.ml[47,1183+6]..functor_nontail.ml[47,1183+29])
+                    Tpat_var "calls_to_string_rebound"
+                    value_mode global,many,shared
+                  expression (functor_nontail.ml[47,1183+30]..functor_nontail.ml[47,1183+53]) ghost
+                    Texp_function
+                    region true
+                    alloc_mode global,many,shared
+                    [
+                      Nolabel
+                      Param_pat
+                        pattern (functor_nontail.ml[47,1183+30]..functor_nontail.ml[47,1183+31])
+                          Tpat_var "t"
+                          value_mode global,many,shared
+                    ]
+                    Tfunction_body
+                      expression (functor_nontail.ml[47,1183+34]..functor_nontail.ml[47,1183+53])
+                        Texp_apply
+                        apply_mode Nontail
+                        original_position Tail_position (Default_tail)
+                        locality_mode global
+                        expression (functor_nontail.ml[47,1183+34]..functor_nontail.ml[47,1183+51])
+                          Texp_ident "to_string_rebound"
+                        [
+                          <arg>
+                            Nolabel
+                            expression (functor_nontail.ml[47,1183+52]..functor_nontail.ml[47,1183+53])
+                              Texp_ident "t"
+                        ]
+              ]
+            structure_item (functor_nontail.ml[49,1238+2]..functor_nontail.ml[49,1238+44])
+              Tstr_value Nonrec
+              [
+                <def>
+                  pattern (functor_nontail.ml[49,1238+6]..functor_nontail.ml[49,1238+23])
+                    Tpat_var "of_string_rebound"
+                    value_mode global,many,shared
+                  expression (functor_nontail.ml[49,1238+26]..functor_nontail.ml[49,1238+44])
+                    Texp_ident "M.Nested.of_string"
+              ]
+            structure_item (functor_nontail.ml[50,1283+2]..functor_nontail.ml[50,1283+57])
+              Tstr_value Nonrec
+              [
+                <def>
+                  pattern (functor_nontail.ml[50,1283+6]..functor_nontail.ml[50,1283+29])
+                    Tpat_var "calls_of_string_rebound"
+                    value_mode global,many,shared
+                  expression (functor_nontail.ml[50,1283+30]..functor_nontail.ml[50,1283+57]) ghost
+                    Texp_function
+                    region true
+                    alloc_mode global,many,shared
+                    [
+                      Nolabel
+                      Param_pat
+                        pattern (functor_nontail.ml[50,1283+30]..functor_nontail.ml[50,1283+33])
+                          Tpat_var "str"
+                          value_mode global,many,shared
+                    ]
+                    Tfunction_body
+                      expression (functor_nontail.ml[50,1283+36]..functor_nontail.ml[50,1283+57])
+                        Texp_apply
+                        apply_mode Nontail
+                        original_position Tail_position (Default_tail)
+                        locality_mode global
+                        expression (functor_nontail.ml[50,1283+36]..functor_nontail.ml[50,1283+53])
+                          Texp_ident "of_string_rebound"
+                        [
+                          <arg>
+                            Nolabel
+                            expression (functor_nontail.ml[50,1283+54]..functor_nontail.ml[50,1283+57])
+                              Texp_ident "str"
+                        ]
+              ]
+          ]
+]
+
+(let
+  (Make =
+     (function {nlocal = 0} M is_a_functor ignore assert all zero_alloc
+       never_loop
+       (let
+         (Test_open_M =
+            (let
+              (to_string_rebound = (field_imm 0 M)
+               calls_to_string_rebound =
+                 (function {nlocal = 0} t
+                   (applynontail to_string_rebound
+                     t Tail_position (Default_tail))))
+              (makeblock 0 to_string_rebound calls_to_string_rebound))
+          Test_open_Nested =
+            (let
+              (of_string_rebound = (field_imm 0 (field_imm 1 M))
+               calls_of_string_rebound =
+                 (function {nlocal = 0} str
+                   (applynontail of_string_rebound
+                     str Tail_position (Default_tail))))
+              (makeblock 0 of_string_rebound calls_of_string_rebound))
+          to_string_rebound = (field_imm 0 M)
+          calls_to_string_rebound =
+            (function {nlocal = 0} t
+              (applynontail to_string_rebound t Tail_position (Default_tail)))
+          of_string_rebound = (field_imm 0 (field_imm 1 M))
+          calls_of_string_rebound =
+            (function {nlocal = 0} str
+              (applynontail of_string_rebound
+                str Tail_position (Default_tail))))
+         (makeblock 0 Test_open_M Test_open_Nested to_string_rebound
+           calls_to_string_rebound of_string_rebound calls_of_string_rebound))))
+  (makeblock 0 Make))

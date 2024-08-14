@@ -1,0 +1,287 @@
+[
+  structure_item (externals.ml[9,188+0]..externals.ml[9,188+43])
+    Tstr_primitive
+    value_description foo_ext (externals.ml[9,188+0]..externals.ml[9,188+43])
+      core_type (externals.ml[9,188+19]..externals.ml[9,188+31])
+        Ttyp_arrow
+        Nolabel
+        core_type (externals.ml[9,188+19]..externals.ml[9,188+23])
+          Ttyp_constr "unit!"
+          []
+        core_type (externals.ml[9,188+27]..externals.ml[9,188+31])
+          Ttyp_constr "unit!"
+          []
+      [
+        "foo_ext"
+      ]
+  structure_item (externals.ml[11,233+0]..externals.ml[11,233+33])
+    Tstr_value Nonrec
+    [
+      <def>
+        pattern (externals.ml[11,233+4]..externals.ml[11,233+17])
+          Tpat_var "calls_foo_ext"
+          value_mode global,many,shared
+        expression (externals.ml[11,233+18]..externals.ml[11,233+33]) ghost
+          Texp_function
+          region true
+          alloc_mode global,many,shared
+          [
+            Nolabel
+            Param_pat
+              pattern (externals.ml[11,233+18]..externals.ml[11,233+20])
+                Tpat_construct "()"
+                []
+                None
+          ]
+          Tfunction_body
+            expression (externals.ml[11,233+23]..externals.ml[11,233+33])
+              Texp_apply
+              apply_mode Nontail
+              original_position Tail_position (Default_tail)
+              locality_mode global
+              expression (externals.ml[11,233+23]..externals.ml[11,233+30])
+                Texp_ident "foo_ext"
+              [
+                <arg>
+                  Nolabel
+                  expression (externals.ml[11,233+31]..externals.ml[11,233+33])
+                    Texp_construct "()"
+                    []
+              ]
+    ]
+  structure_item (externals.ml[13,268+0]..externals.ml[36,726+3])
+    Tstr_module
+    Make
+      module_expr (externals.ml[13,268+12]..externals.ml[36,726+3])
+        Tmod_functor "M"
+        module_type (externals.ml[13,268+17]..externals.ml[21,438+5])
+          Tmty_signature
+          [
+            signature_item (externals.ml[14,289+4]..externals.ml[14,289+10])
+              Tsig_type Rec
+              [
+                type_declaration t (externals.ml[14,289+4]..externals.ml[14,289+10])
+                  ptype_params =
+                    []
+                  ptype_cstrs =
+                    []
+                  ptype_kind =
+                    Ttype_abstract
+                  ptype_private = Public
+                  ptype_manifest =
+                    None
+              ]
+            signature_item (externals.ml[16,301+4]..externals.ml[16,301+50])
+              Tsig_value
+              value_description to_string (externals.ml[16,301+4]..externals.ml[16,301+50])
+                core_type (externals.ml[16,301+25]..externals.ml[16,301+36])
+                  Ttyp_arrow
+                  Nolabel
+                  core_type (externals.ml[16,301+25]..externals.ml[16,301+26])
+                    Ttyp_constr "t"
+                    []
+                  core_type (externals.ml[16,301+30]..externals.ml[16,301+36])
+                    Ttyp_constr "string!"
+                    []
+                [
+                  "to_string"
+                ]
+            signature_item (externals.ml[18,353+4]..externals.ml[20,430+7])
+              Tsig_module "Nested"
+              module_type (externals.ml[18,353+20]..externals.ml[20,430+7])
+                Tmty_signature
+                [
+                  signature_item (externals.ml[19,377+6]..externals.ml[19,377+52])
+                    Tsig_value
+                    value_description of_string (externals.ml[19,377+6]..externals.ml[19,377+52])
+                      core_type (externals.ml[19,377+27]..externals.ml[19,377+38])
+                        Ttyp_arrow
+                        Nolabel
+                        core_type (externals.ml[19,377+27]..externals.ml[19,377+33])
+                          Ttyp_constr "string!"
+                          []
+                        core_type (externals.ml[19,377+37]..externals.ml[19,377+38])
+                          Ttyp_constr "t"
+                          []
+                      [
+                        "of_string"
+                      ]
+                ]
+          ]
+        module_expr (externals.ml[22,447+0]..externals.ml[36,726+3])
+          Tmod_structure
+          [
+            structure_item (externals.ml[23,454+2]..externals.ml[26,535+5])
+              Tstr_module
+              Test_open_M
+                module_expr (externals.ml[23,454+23]..externals.ml[26,535+5])
+                  Tmod_structure
+                  [
+                    structure_item (externals.ml[24,484+4]..externals.ml[24,484+10])
+                      Tstr_open Fresh
+                      module_expr (externals.ml[24,484+9]..externals.ml[24,484+10])
+                        Tmod_ident "M"
+                    structure_item (externals.ml[25,495+4]..externals.ml[25,495+39])
+                      Tstr_value Nonrec
+                      [
+                        <def>
+                          pattern (externals.ml[25,495+8]..externals.ml[25,495+23])
+                            Tpat_var "calls_to_string"
+                            value_mode global,many,shared
+                          expression (externals.ml[25,495+24]..externals.ml[25,495+39]) ghost
+                            Texp_function
+                            region true
+                            alloc_mode global,many,shared
+                            [
+                              Nolabel
+                              Param_pat
+                                pattern (externals.ml[25,495+24]..externals.ml[25,495+25])
+                                  Tpat_var "t"
+                                  value_mode global,many,shared
+                            ]
+                            Tfunction_body
+                              expression (externals.ml[25,495+28]..externals.ml[25,495+39])
+                                Texp_apply
+                                apply_mode Nontail
+                                original_position Tail_position (Default_tail)
+                                locality_mode global
+                                expression (externals.ml[25,495+28]..externals.ml[25,495+37])
+                                  Texp_ident "M.to_string"
+                                [
+                                  <arg>
+                                    Nolabel
+                                    expression (externals.ml[25,495+38]..externals.ml[25,495+39])
+                                      Texp_ident "t"
+                                ]
+                      ]
+                  ]
+            structure_item (externals.ml[28,542+2]..externals.ml[32,640+5])
+              Tstr_module
+              Test_open_Nested
+                module_expr (externals.ml[28,542+28]..externals.ml[32,640+5])
+                  Tmod_structure
+                  [
+                    structure_item (externals.ml[29,577+4]..externals.ml[29,577+17])
+                      Tstr_open Fresh
+                      module_expr (externals.ml[29,577+9]..externals.ml[29,577+17])
+                        Tmod_ident "M.Nested"
+                    structure_item (externals.ml[31,596+4]..externals.ml[31,596+43])
+                      Tstr_value Nonrec
+                      [
+                        <def>
+                          pattern (externals.ml[31,596+8]..externals.ml[31,596+23])
+                            Tpat_var "calls_of_string"
+                            value_mode global,many,shared
+                          expression (externals.ml[31,596+24]..externals.ml[31,596+43]) ghost
+                            Texp_function
+                            region true
+                            alloc_mode global,many,shared
+                            [
+                              Nolabel
+                              Param_pat
+                                pattern (externals.ml[31,596+24]..externals.ml[31,596+27])
+                                  Tpat_var "str"
+                                  value_mode global,many,shared
+                            ]
+                            Tfunction_body
+                              expression (externals.ml[31,596+30]..externals.ml[31,596+43])
+                                Texp_apply
+                                apply_mode Nontail
+                                original_position Tail_position (Default_tail)
+                                locality_mode global
+                                expression (externals.ml[31,596+30]..externals.ml[31,596+39])
+                                  Texp_ident "M.Nested.of_string"
+                                [
+                                  <arg>
+                                    Nolabel
+                                    expression (externals.ml[31,596+40]..externals.ml[31,596+43])
+                                      Texp_ident "str"
+                                ]
+                      ]
+                  ]
+            structure_item (externals.ml[34,647+2]..externals.ml[34,647+33])
+              Tstr_value Nonrec
+              [
+                <def>
+                  pattern (externals.ml[34,647+6]..externals.ml[34,647+15])
+                    Tpat_var "to_string"
+                    value_mode global,many,shared
+                  expression (externals.ml[34,647+16]..externals.ml[34,647+33]) ghost
+                    Texp_function
+                    region true
+                    alloc_mode global,many,shared
+                    [
+                      Nolabel
+                      Param_pat
+                        pattern (externals.ml[34,647+16]..externals.ml[34,647+17])
+                          Tpat_var "t"
+                          value_mode global,many,shared
+                    ]
+                    Tfunction_body
+                      expression (externals.ml[34,647+20]..externals.ml[34,647+33])
+                        Texp_apply
+                        apply_mode Nontail
+                        original_position Tail_position (Default_tail)
+                        locality_mode global
+                        expression (externals.ml[34,647+20]..externals.ml[34,647+31])
+                          Texp_ident "M.to_string"
+                        [
+                          <arg>
+                            Nolabel
+                            expression (externals.ml[34,647+32]..externals.ml[34,647+33])
+                              Texp_ident "t"
+                        ]
+              ]
+            structure_item (externals.ml[35,681+2]..externals.ml[35,681+44])
+              Tstr_value Nonrec
+              [
+                <def>
+                  pattern (externals.ml[35,681+6]..externals.ml[35,681+15])
+                    Tpat_var "of_string"
+                    value_mode global,many,shared
+                  expression (externals.ml[35,681+16]..externals.ml[35,681+44]) ghost
+                    Texp_function
+                    region true
+                    alloc_mode global,many,shared
+                    [
+                      Nolabel
+                      Param_pat
+                        pattern (externals.ml[35,681+16]..externals.ml[35,681+19])
+                          Tpat_var "str"
+                          value_mode global,many,shared
+                    ]
+                    Tfunction_body
+                      expression (externals.ml[35,681+22]..externals.ml[35,681+44])
+                        Texp_apply
+                        apply_mode Nontail
+                        original_position Tail_position (Default_tail)
+                        locality_mode global
+                        expression (externals.ml[35,681+22]..externals.ml[35,681+40])
+                          Texp_ident "M.Nested.of_string"
+                        [
+                          <arg>
+                            Nolabel
+                            expression (externals.ml[35,681+41]..externals.ml[35,681+44])
+                              Texp_ident "str"
+                        ]
+              ]
+          ]
+]
+
+(let
+  (calls_foo_ext = (function {nlocal = 0} param[int] : int (foo_ext 0))
+   Make =
+     (function {nlocal = 0} M is_a_functor ignore assert all zero_alloc
+       never_loop
+       (let
+         (Test_open_M =
+            (let (calls_to_string = (function {nlocal = 0} t (to_string t)))
+              (makeblock 0 calls_to_string))
+          Test_open_Nested =
+            (let
+              (calls_of_string = (function {nlocal = 0} str (of_string str)))
+              (makeblock 0 calls_of_string))
+          to_string = (function {nlocal = 0} t (to_string t))
+          of_string = (function {nlocal = 0} str (of_string str)))
+         (makeblock 0 Test_open_M Test_open_Nested to_string of_string))))
+  (makeblock 0 calls_foo_ext Make))

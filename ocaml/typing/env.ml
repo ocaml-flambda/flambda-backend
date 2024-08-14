@@ -578,6 +578,10 @@ type t = {
   modtypes: (empty, modtype_data, modtype_data) IdTbl.t;
   classes: (empty, class_data, class_data) IdTbl.t;
   cltypes: (empty, cltype_data, cltype_data) IdTbl.t;
+  (* `ids_that_should_be_tco'd` stores three sorts of identifiers:
+     1. Function identifiers that are bound in some parent letrec.
+     2. Function identifiers that are bound by a function parameter.
+     3. Modules whose functions (or nested module's functions). *)
   ids_that_should_be_tco'd: unit Ident.tbl;
   functor_args: unit Ident.tbl;
   summary: summary;
@@ -1504,11 +1508,28 @@ let rec is_functor_arg path env =
   | Pdot (p, _) | Pextra_ty (p, _) -> is_functor_arg p env
   | Papply _ -> true
 
-let is_id_that_should_be_tco'd path env =
-  match path with
-    Pident id ->
-      Option.is_some (Ident.find_same_opt id env.ids_that_should_be_tco'd)
-  | Pdot _ | Pextra_ty _ | Papply _ -> false
+let is_id_that_should_be_tco'd path kind env =
+  let possible_tco_ident =
+    match path with
+      Pident id -> Some id  (* Regular function identifier. *)
+    | Pdot (left, _) -> begin (* M.N.fn *)
+      match kind with
+      | Val_prim _ -> None (* M.N.fn is an external call *)
+      | _ ->
+        let rec extract_leftmost_module (path : Path.t) =
+          match path with
+          | Pident ident -> Some ident
+          | Pdot (left, _) -> extract_leftmost_module left
+          | Papply _ | Pextra_ty _ -> None
+        in
+        extract_leftmost_module left
+      end
+    | Pextra_ty _ | Papply _ -> None
+  in
+  match possible_tco_ident with
+    None -> false
+  | Some id ->
+    Option.is_some (Ident.find_same_opt id env.ids_that_should_be_tco'd)
 
 (* Copying types associated with values *)
 
