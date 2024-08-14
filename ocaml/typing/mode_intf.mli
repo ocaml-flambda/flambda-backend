@@ -491,6 +491,9 @@ module type S = sig
         (** [compose m t] returns the modality that is [m] after [t]. *)
         val compose : then_:atom -> t -> t
 
+        (** [concat t0 t1] returns the modality that is [t0] after [t1]. *)
+        val concat : then_:t -> t -> t
+
         (** [singleton m] returns the modality containing only [m]. *)
         val singleton : atom -> t
 
