@@ -2317,8 +2317,6 @@ let add_value_lazy ?check ?shape ~mode id desc env =
   store_value ?check ~mode id addr desc shape env
 
 let add_type ~check ?shape id info env =
-  (* CR layouts: there should be a safety check for extension universe when the type's
-     kind allows mode crossing *)
   let shape = shape_or_leaf info.type_uid shape in
   store_type ~check id info shape env
 
@@ -2377,8 +2375,6 @@ let add_module ?arg ?shape id presence mty env =
   add_module_declaration ~check:false ?arg ?shape id presence (md mty) env
 
 let add_local_type path info env =
-  (* CR layouts: there should be a safety check for extension universe when the type's
-     kind allows mode crossing *)
   { env with
     local_constraints = Path.Map.add path info env.local_constraints }
 
@@ -3100,7 +3096,7 @@ let unboxed_type ~errors ~env ~loc ~lid ty =
        can be assigned more specific jkinds), we actually want to work on these generic types
        here. After all, it's the value in the environment that is getting captured by the object,
        not a specific instance of that variable. *)
-    match !constrain_type_jkind env ty Jkind.Primitive.(value_or_null ~why:Captured_in_object) with
+    match !constrain_type_jkind env ty Jkind.Builtin.(value_or_null ~why:Captured_in_object) with
     | Ok () -> ()
     | Result.Error err ->
       may_lookup_error errors loc env (Non_value_used_in_object (lid, ty, err))
