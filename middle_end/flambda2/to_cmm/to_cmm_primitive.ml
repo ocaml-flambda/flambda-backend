@@ -281,7 +281,8 @@ let bigarray_store ~dbg kind ~bigarray ~index ~new_value =
   bigarray_load_or_store ~dbg kind ~bigarray ~index
     (C.bigarray_store ~new_value)
 
-(* String and bytes access. For these functions, [index] is an untagged integer. *)
+(* String and bytes access. For these functions, [index] is an untagged
+   integer. *)
 
 let string_like_load_aux ~dbg width ~str ~index =
   match (width : P.string_accessor_width) with
