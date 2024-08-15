@@ -358,6 +358,15 @@ let convert_index_to_tagged_int index (index_kind : Lambda.array_index_kind) =
              },
            index ))
 
+let convert_index_to_untagged_int index
+    (index_kind : Lambda.array_index_kind) =
+  let src : I_or_f.t =
+    match index_kind with
+    | Ptagged_int_index -> Tagged_immediate
+    | Punboxed_int_index bint -> standard_int_or_float_of_boxed_integer bint
+  in
+  H.Prim (Unary (Num_conv { src; dst = Naked_immediate }, index))
+
 let check_non_negative_imm imm prim_name =
   if not (Targetint_31_63.is_non_negative imm)
   then
@@ -545,7 +554,7 @@ let string_like_load ~dbg ~unsafe
     (kind : P.string_like_value) mode ~boxed string ~index_kind index
     ~current_region =
   let unsafe_load =
-    let index = convert_index_to_tagged_int index index_kind in
+    let index = convert_index_to_untagged_int index index_kind in
     let wrap =
       match access_size, mode with
       | (Eight | Sixteen), None ->
@@ -586,7 +595,7 @@ let bytes_like_set ~dbg ~unsafe
     ~(access_size : Flambda_primitive.string_accessor_width) ~size_int
     (kind : P.bytes_like_value) ~boxed bytes ~index_kind index new_value =
   let unsafe_set =
-    let index = convert_index_to_tagged_int index index_kind in
+    let index = convert_index_to_untagged_int index index_kind in
     let wrap =
       match access_size with
       | Eight | Sixteen ->
