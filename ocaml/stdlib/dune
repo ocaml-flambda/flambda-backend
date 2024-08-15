@@ -115,6 +115,8 @@
   digest.mli
   domain.ml
   domain.mli
+  dynarray.ml
+  dynarray.mli
   either.ml
   either.mli
   ephemeron.ml
@@ -254,6 +256,9 @@
   .stdlib.objs/byte/stdlib__Domain.cmi
   .stdlib.objs/byte/stdlib__Domain.cmt
   .stdlib.objs/byte/stdlib__Domain.cmti
+  .stdlib.objs/byte/stdlib__Dynarray.cmi
+  .stdlib.objs/byte/stdlib__Dynarray.cmt
+  .stdlib.objs/byte/stdlib__Dynarray.cmti
   .stdlib.objs/byte/stdlib__Either.cmi
   .stdlib.objs/byte/stdlib__Either.cmt
   .stdlib.objs/byte/stdlib__Either.cmti
@@ -475,6 +480,7 @@
   .stdlib.objs/native/stdlib__BytesLabels.cmx
   .stdlib.objs/native/stdlib__Digest.cmx
   .stdlib.objs/native/stdlib__Domain.cmx
+  .stdlib.objs/native/stdlib__Dynarray.cmx
   .stdlib.objs/native/stdlib__Atomic.cmx
   .stdlib.objs/native/stdlib__Effect.cmx
   .stdlib.objs/native/stdlib__Either.cmx
