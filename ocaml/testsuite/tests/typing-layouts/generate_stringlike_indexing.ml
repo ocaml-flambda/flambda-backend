@@ -8,7 +8,7 @@ let indent spaces string =
 let template ~tests = {|(* TEST
  flambda2;
  include stdlib_upstream_compatible;
- include stdlib_beta;
+ include stdlib_stable;
  {
    native;
  }{
@@ -307,7 +307,7 @@ fun _ ->
     let f = Random.float Float.max_float in
     if Random.bool () then Float.neg f else f
   in
-  Stdlib_beta.Float32.of_float f
+  Stdlib_stable.Float32.of_float f
 |}
 
 let int_extra_bounds_template ~module_ =
@@ -398,7 +398,7 @@ let datas =
       tested_type = "float32";
       box = "fun x -> x";
       unbox = "fun x -> x";
-      eq = "Stdlib_beta.Float32.equal";
+      eq = "Stdlib_stable.Float32.equal";
       example = float_examples;
     }
   ; {
@@ -406,9 +406,9 @@ let datas =
       unboxed_sigil = "#";
       boxed_type = "float32";
       tested_type = "float32#";
-      box = "Stdlib_beta.Float32_u.to_float32";
-      unbox = "Stdlib_beta.Float32_u.of_float32";
-      eq = "Stdlib_beta.Float32.equal";
+      box = "Stdlib_stable.Float32_u.to_float32";
+      unbox = "Stdlib_stable.Float32_u.of_float32";
+      eq = "Stdlib_stable.Float32.equal";
       example = float_examples;
     };
   ]

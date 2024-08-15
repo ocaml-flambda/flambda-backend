@@ -1,7 +1,7 @@
 (* TEST
  flambda2;
  include stdlib_upstream_compatible;
- include stdlib_beta;
+ include stdlib_stable;
  {
    native;
  }{
@@ -1187,10 +1187,10 @@ open struct
       let f = Random.float Float.max_float in
       if Random.bool () then Float.neg f else f
     in
-    Stdlib_beta.Float32.of_float f
+    Stdlib_stable.Float32.of_float f
 
   let to_index = Nativeint.of_int
-  let data_equal = Stdlib_beta.Float32.equal
+  let data_equal = Stdlib_stable.Float32.equal
   let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
   let unbox_data = fun x -> x
   let box_data = fun x -> x
@@ -1388,13 +1388,13 @@ open struct
       let f = Random.float Float.max_float in
       if Random.bool () then Float.neg f else f
     in
-    Stdlib_beta.Float32.of_float f
+    Stdlib_stable.Float32.of_float f
 
   let to_index = Nativeint.of_int
-  let data_equal = Stdlib_beta.Float32.equal
+  let data_equal = Stdlib_stable.Float32.equal
   let unbox_index = Stdlib_upstream_compatible.Nativeint_u.of_nativeint
-  let unbox_data = Stdlib_beta.Float32_u.of_float32
-  let box_data = Stdlib_beta.Float32_u.to_float32
+  let unbox_data = Stdlib_stable.Float32_u.of_float32
+  let box_data = Stdlib_stable.Float32_u.to_float32
   let extra_bounds_checks = Nativeint.[ min_int; max_int; add min_int one; sub zero one ]
 
 
@@ -2601,10 +2601,10 @@ open struct
       let f = Random.float Float.max_float in
       if Random.bool () then Float.neg f else f
     in
-    Stdlib_beta.Float32.of_float f
+    Stdlib_stable.Float32.of_float f
 
   let to_index = Int32.of_int
-  let data_equal = Stdlib_beta.Float32.equal
+  let data_equal = Stdlib_stable.Float32.equal
   let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
   let unbox_data = fun x -> x
   let box_data = fun x -> x
@@ -2802,13 +2802,13 @@ open struct
       let f = Random.float Float.max_float in
       if Random.bool () then Float.neg f else f
     in
-    Stdlib_beta.Float32.of_float f
+    Stdlib_stable.Float32.of_float f
 
   let to_index = Int32.of_int
-  let data_equal = Stdlib_beta.Float32.equal
+  let data_equal = Stdlib_stable.Float32.equal
   let unbox_index = Stdlib_upstream_compatible.Int32_u.of_int32
-  let unbox_data = Stdlib_beta.Float32_u.of_float32
-  let box_data = Stdlib_beta.Float32_u.to_float32
+  let unbox_data = Stdlib_stable.Float32_u.of_float32
+  let box_data = Stdlib_stable.Float32_u.to_float32
   let extra_bounds_checks = Int32.[ min_int; max_int; add min_int one; sub zero one ]
 
 
@@ -4015,10 +4015,10 @@ open struct
       let f = Random.float Float.max_float in
       if Random.bool () then Float.neg f else f
     in
-    Stdlib_beta.Float32.of_float f
+    Stdlib_stable.Float32.of_float f
 
   let to_index = Int64.of_int
-  let data_equal = Stdlib_beta.Float32.equal
+  let data_equal = Stdlib_stable.Float32.equal
   let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
   let unbox_data = fun x -> x
   let box_data = fun x -> x
@@ -4216,13 +4216,13 @@ open struct
       let f = Random.float Float.max_float in
       if Random.bool () then Float.neg f else f
     in
-    Stdlib_beta.Float32.of_float f
+    Stdlib_stable.Float32.of_float f
 
   let to_index = Int64.of_int
-  let data_equal = Stdlib_beta.Float32.equal
+  let data_equal = Stdlib_stable.Float32.equal
   let unbox_index = Stdlib_upstream_compatible.Int64_u.of_int64
-  let unbox_data = Stdlib_beta.Float32_u.of_float32
-  let box_data = Stdlib_beta.Float32_u.to_float32
+  let unbox_data = Stdlib_stable.Float32_u.of_float32
+  let box_data = Stdlib_stable.Float32_u.to_float32
   let extra_bounds_checks = Int64.[ min_int; max_int; add min_int one; sub zero one ]
 
 
