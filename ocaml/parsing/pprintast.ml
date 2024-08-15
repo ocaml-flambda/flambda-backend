@@ -911,6 +911,50 @@ and sugar_expr ctxt f e =
     end
   | _ -> false
 
+and function_param ctxt f { pparam_desc; pparam_loc = _ } =
+  match pparam_desc with
+  | Pparam_val (a, b, c) -> label_exp ctxt f (a, b, c)
+  | Pparam_newtype (ty, None) -> pp f "(type %s)" ty.txt
+  | Pparam_newtype (ty, Some annot) ->
+      pp f "(type %s : %a)" ty.txt (jkind_annotation ctxt) annot
+
+and function_body ctxt f x =
+  match x with
+  | Pfunction_body body -> expression ctxt f body
+  | Pfunction_cases (cases, _, attrs) ->
+    pp f "@[<hv>function%a%a@]"
+      (item_attributes ctxt) attrs
+      (case_list ctxt) cases
+
+and function_constraint ctxt f x =
+  (* We don't currently print [x.alloc_mode]; this would need
+     to go on the enclosing [let] binding.
+  *)
+  (* Enable warning 9 to ensure that the record pattern doesn't miss any field.
+  *)
+  match[@ocaml.warning "+9"] x with
+  | { type_constraint = Pconstraint ty; mode_annotations } ->
+    let _, modes = split_out_legacy_modes mode_annotations in
+    pp f ":@;%a%a" (core_type ctxt) ty optional_atat_modes modes
+  | { type_constraint = Pcoerce (ty1, ty2); mode_annotations } ->
+    let _, modes = split_out_legacy_modes mode_annotations in
+    pp f "%a:>@;%a%a"
+      (option ~first:":@;" (core_type ctxt)) ty1
+      (core_type ctxt) ty2
+      optional_atat_modes modes
+
+and function_params_then_body ctxt f params constraint_ body ~delimiter =
+  let pp_params f =
+    match params with
+    | [] -> ()
+    | _ :: _ -> pp f "%a@;" (list (function_param ctxt) ~sep:"@ ") params
+  in
+  pp f "%t%a%s@;%a"
+    pp_params
+    (option (function_constraint ctxt) ~first:"@;") constraint_
+    delimiter
+    (function_body (under_functionrhs ctxt)) body
+
 (* Postcondition: If [x] has any non-Jane Syntax attributes, the output will
    be self-delimiting. (I.e., it will be wrapped in parens.)
 
@@ -2279,50 +2323,6 @@ and unboxed_constant _ctxt f (x : Jane_syntax.Layouts.constant)
   | Integer (x, suffix) ->
     paren (first_is '-' x) (fun f (x, suffix) -> pp f "%s%c" x suffix) f
       (Misc.format_as_unboxed_literal x, suffix)
-
-and function_param ctxt f { pparam_desc; pparam_loc = _ } =
-  match pparam_desc with
-  | Pparam_val (a, b, c) -> label_exp ctxt f (a, b, c)
-  | Pparam_newtype (ty, None) -> pp f "(type %s)" ty.txt
-  | Pparam_newtype (ty, Some annot) ->
-      pp f "(type %s : %a)" ty.txt (jkind_annotation ctxt) annot
-
-and function_body ctxt f x =
-  match x with
-  | Pfunction_body body -> expression ctxt f body
-  | Pfunction_cases (cases, _, attrs) ->
-    pp f "@[<hv>function%a%a@]"
-      (item_attributes ctxt) attrs
-      (case_list ctxt) cases
-
-and function_constraint ctxt f x =
-  (* We don't currently print [x.alloc_mode]; this would need
-     to go on the enclosing [let] binding.
-  *)
-  (* Enable warning 9 to ensure that the record pattern doesn't miss any field.
-  *)
-  match[@ocaml.warning "+9"] x with
-  | { type_constraint = Pconstraint ty; mode_annotations } ->
-    let _, modes = split_out_legacy_modes mode_annotations in
-    pp f ":@;%a%a" (core_type ctxt) ty optional_atat_modes modes
-  | { type_constraint = Pcoerce (ty1, ty2); mode_annotations } ->
-    let _, modes = split_out_legacy_modes mode_annotations in
-    pp f "%a:>@;%a%a"
-      (option ~first:":@;" (core_type ctxt)) ty1
-      (core_type ctxt) ty2
-      optional_atat_modes modes
-
-and function_params_then_body ctxt f params constraint_ body ~delimiter =
-  let pp_params f =
-    match params with
-    | [] -> ()
-    | _ :: _ -> pp f "%a@;" (list (function_param ctxt) ~sep:"@ ") params
-  in
-  pp f "%t%a%s@;%a"
-    pp_params
-    (option (function_constraint ctxt) ~first:"@;") constraint_
-    delimiter
-    (function_body (under_functionrhs ctxt)) body
 
 and labeled_tuple_expr ctxt f (x : Jane_syntax.Labeled_tuples.expression) =
   pp f "@[<hov2>(%a)@]" (list (tuple_component ctxt) ~sep:",@;") x
