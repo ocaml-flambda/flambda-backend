@@ -131,6 +131,7 @@ module Example = struct
                          ; ptype_loc = loc
                          }
   let tyvar            = "no_tyvars_require_extensions"
+  let tyvar_of_name    = "no_tyvars_require_extensions"
   let jkind            = Jane_syntax.Jkind.(
                             With (
                               Abbreviation
@@ -220,6 +221,8 @@ end = struct
   let modal_kind_struct = test "modal_kind_struct" module_expr Example.modal_kind_struct
   let modal_kind_sig = test "modal_kind_sig" module_type Example.modal_kind_sig
 
+  let tyvar_of_name =
+    test_string_of "tyvar_of_name" tyvar_of_name Example.tyvar_of_name
   let tyvar = test "tyvar" tyvar Example.tyvar
   let jkind = test "jkind" jkind Example.jkind
   let mode = test "mode" mode Example.mode

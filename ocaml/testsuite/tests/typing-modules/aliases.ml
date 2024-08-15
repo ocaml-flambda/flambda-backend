@@ -239,11 +239,28 @@ module type Complex =
     val log : t -> t
     val pow : t -> t -> t
   end
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Complex"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+module M : sig module C : Complex end
+module C = Complex
+- : float = 1.
+type t = Complex.t = { re : float; im : float; }
+val zero : t = {re = 0.; im = 0.}
+val one : t = {re = 1.; im = 0.}
+val i : t = {re = 0.; im = 1.}
+val neg : t -> t = <fun>
+val conj : t -> t = <fun>
+val add : t -> t -> t = <fun>
+val sub : t -> t -> t = <fun>
+val mul : t -> t -> t = <fun>
+val inv : t -> t = <fun>
+val div : t -> t -> t = <fun>
+val sqrt : t -> t = <fun>
+val norm2 : t -> float = <fun>
+val norm : t -> float = <fun>
+val arg : t -> float = <fun>
+val polar : float -> float -> t = <fun>
+val exp : t -> t = <fun>
+val log : t -> t = <fun>
+val pow : t -> t -> t = <fun>
 |}];;
 
 module F(X:sig module C = Char end) = struct module C = X.C end;;

@@ -16,23 +16,6 @@
  arguments = "input.ml";
  run;
  check-program-output;
- readonly_files = "foo.ml gen_cached_cmi.ml input.ml";
- setup-ocamlc.byte-build-env;
- module = "foo.ml";
- ocamlc.byte;
- ocaml_script_as_argument = "true";
- test_file = "gen_cached_cmi.ml";
- arguments = "cached_cmi.ml";
- ocaml with ocamlcommon;
- module = "";
- program = "${test_build_directory}/main.exe";
- libraries += "ocamlbytecomp ocamltoplevel";
- all_modules = "foo.cmo cached_cmi.ml main.ml";
- ocamlc.byte;
- set OCAMLLIB = "${ocamlsrcdir}/stdlib";
- arguments = "input.ml";
- run;
- check-program-output;
 *)
 
 let () =
@@ -64,7 +47,7 @@ let () =
       in
       Some { Persistent_signature.
              filename   = Sys.executable_name
-           ; cmi        = Marshal.from_string Cached_cmi.foo 0
+           ; cmi        = cmi
            ; visibility = Visible
            }
     | _ -> old_loader ~allow_hidden ~unit_name);

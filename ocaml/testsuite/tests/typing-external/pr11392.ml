@@ -30,5 +30,5 @@ Error: This alias is bound to type "int -> 'a nat"
 external cast : int -> 'self nat as 'self = "%identity"
 ;;
 [%%expect{|
-Unknown directive "rectypes".
+external cast : int -> 'a nat as 'a = "%identity"
 |}]

@@ -6,85 +6,49 @@ open Either;;
 
 [left 1; right true];;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : (int, bool) Either.t list = [Left 1; Right true]
 |}];;
 
 List.map is_left [left 1; right true];;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : bool list = [true; false]
 |}];;
 
 List.map is_right [left 1; right true];;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : bool list = [false; true]
 |}];;
 
 [find_left (Left 1); find_left (Right 1)];;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : int option list = [Some 1; None]
 |}];;
 
 [find_right (Left 1); find_right (Right 1)];;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : int option list = [None; Some 1]
 |}];;
 
 [map_left succ (Left 1); map_left succ (Right true)];;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : (int, bool) Either.t list = [Left 2; Right true]
 |}];;
 
 [map_right succ (Left ()); map_right succ (Right 2)];;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : (unit, int) Either.t list = [Left (); Right 3]
 |}];;
 
 [map ~left:succ ~right:not (Left 1);
  map ~left:succ ~right:not (Right true)];;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : (int, bool) Either.t list = [Left 2; Right false]
 |}];;
 
 [fold ~left:succ ~right:int_of_string (Left 1);
  fold ~left:succ ~right:int_of_string (Right "2")];;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : int list = [2; 2]
 |}];;
 
 let li = ref [] in
@@ -93,11 +57,7 @@ iter ~left:(add Fun.id) ~right:(add string_of_int) (Left "foo");
 iter ~left:(add Fun.id) ~right:(add string_of_int) (Right 2);
 List.rev !li;;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : string list = ["foo"; "2"]
 |}];;
 
 (
@@ -107,21 +67,13 @@ Hint: This means that the interface of a module is loaded, but its implementatio
   for_all ~left:((=) 1) ~right:((=) "foo") (Right "bar")
 );;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : bool * bool * bool * bool = (true, true, false, false)
 |}];;
 
 equal ~left:(=) ~right:(=) (Left 1) (Left 1),
 equal ~left:(=) ~right:(=) (Right true) (Right true);;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : bool * bool = (true, true)
 |}];;
 
 (equal ~left:(=) ~right:(=) (Left 1) (Left 2),
@@ -129,21 +81,13 @@ Hint: This means that the interface of a module is loaded, but its implementatio
  equal ~left:(=) ~right:(=) (Left 1) (Right true),
  equal ~left:(=) ~right:(=) (Right 1) (Left true));;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : bool * bool * bool * bool = (false, false, false, false)
 |}];;
 
 equal ~left:(fun _ _ -> false) ~right:(=) (Left 1) (Left 1),
 equal ~left:(=) ~right:(fun _ _ -> false) (Right true) (Right true);;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : bool * bool = (false, false)
 |}];;
 
 let cmp = Stdlib.compare in
@@ -160,9 +104,6 @@ let cmp = Stdlib.compare in
   compare ~left:cmp ~right:cmp (Right 1) (Left true))
 );;
 [%%expect {|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Either"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+- : (int * int * int) * (int * int * int) * (int * int) =
+((-1, 0, 1), (-1, 0, 1), (-1, 1))
 |}];;

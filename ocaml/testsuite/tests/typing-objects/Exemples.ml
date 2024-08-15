@@ -33,19 +33,14 @@ p#get_x;;
 
 let q = Oo.copy p;;
 [%%expect{|
-Line 1:
-Error: Reference to undefined compilation unit "Stdlib__Oo"
-Hint: This means that the interface of a module is loaded, but its implementation is not.
-      Did you mean to load a compiled implementation of the module
-      using "#load" or by passing it as an argument to the toplevel?
+val q : point = <obj>
+|}, Principal{|
+val q : < get_x : int; move : int -> unit > = <obj>
 |}];;
 
 q#move 7; p#get_x, q#get_x;;
 [%%expect{|
-Line 1, characters 0-1:
-1 | q#move 7; p#get_x, q#get_x;;
-    ^
-Error: Unbound value "q"
+- : int * int = (10, 17)
 |}];;
 
 class color_point x (c : string) = object

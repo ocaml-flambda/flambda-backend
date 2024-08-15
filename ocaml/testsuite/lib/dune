@@ -8,4 +8,5 @@
  (wrapped false)
  (modes byte native)
  (name testing)
+ (flags -linkall)
  (modules testing))

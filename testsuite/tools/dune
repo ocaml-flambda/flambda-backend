@@ -2,6 +2,7 @@
  (name expect)
  (modes byte)
  (libraries ocamlcommon ocamltoplevel)
+ (flags -linkall)
  (modules expect))
 
 (ocamllex

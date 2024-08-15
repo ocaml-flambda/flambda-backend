@@ -5,43 +5,39 @@
 
 #use "contexts_1.ml";;
 [%%expect {|
-Unknown directive "use".
+type u = { a : bool; mutable b : (bool, int) Either.t; }
+val example_1 : unit -> (bool, int) Result.t = <fun>
 |}]
 
 let _ = example_1 ();;
 (* <unknown constructor> means that we got an 'unsound boolean',
    which is neither 'true' nor 'false'. There was a bug here! *)
 [%%expect {|
-Line 1, characters 8-17:
-1 | let _ = example_1 ();;
-            ^^^^^^^^^
-Error: Unbound value "example_1"
+- : (bool, int) Result.t = Result.Ok <unknown constructor>
 |}]
 
 #use "contexts_2.ml";;
 [%%expect {|
-Unknown directive "use".
+type 'a myref = { mutable mut : 'a; }
+type u = { a : bool; b : (bool, int) Either.t myref; }
+val example_2 : unit -> (bool, int) Result.t = <fun>
 |}];;
 
 let _ = example_2 ();;
 (* Also a bug! *)
 [%%expect {|
-Line 1, characters 8-17:
-1 | let _ = example_2 ();;
-            ^^^^^^^^^
-Error: Unbound value "example_2"
+- : (bool, int) Result.t = Result.Ok <unknown constructor>
 |}]
 
 #use "contexts_3.ml";;
 [%%expect {|
-Unknown directive "use".
+type 'a myref = { mutable mut : 'a; }
+type u = (bool * (bool, int) Either.t) myref
+val example_3 : unit -> (bool, int) Result.t = <fun>
 |}];;
 
 let _ = example_3 ();;
 (* This one works correctly. *)
 [%%expect {|
-Line 1, characters 8-17:
-1 | let _ = example_3 ();;
-            ^^^^^^^^^
-Error: Unbound value "example_3"
+- : (bool, int) Result.t = Result.Ok true
 |}]

@@ -51,7 +51,10 @@ Foo ();;
 
 [%%expect{|
 type t = Foo of unit | Bar
-Unknown directive "warnings".
+Line 6, characters 0-3:
+6 | Foo ();;
+    ^^^
+Error (alert deprecated): Foo
 |}];;
 function
 Foo _ -> () | Bar -> ();;
@@ -60,9 +63,7 @@ Foo _ -> () | Bar -> ();;
 Line 2, characters 0-3:
 2 | Foo _ -> () | Bar -> ();;
     ^^^
-Alert deprecated: Foo
-
-- : t -> unit = <fun>
+Error (alert deprecated): Foo
 |}];;
 
 
@@ -82,7 +83,10 @@ end);;
 (* here we expect the error location to be
    on "open List" as whole rather than "List" *)
 [%%expect{|
-Unknown directive "warnings".
+Line 2, characters 0-9:
+2 | open List
+    ^^^^^^^^^
+Error (warning 33 [unused-open]): unused open Stdlib.List.
 |}];;
 
 type unknown += Foo;;
