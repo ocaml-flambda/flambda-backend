@@ -280,6 +280,10 @@ let mkexp_type_constraint ?(ghost=false) ~loc ~modes e t =
      let mk = if ghost then ghexp_with_modes else mkexp_with_modes in
      mk ~loc ~exp:e ~cty:(Some t) ~modes
   | Pcoerce(t1, t2)  ->
+     (* CR: This implementation is pretty sad.  The Pcoerce case just drops
+        ~modes.  It should always be empty here, but the code structure doesn't
+        make that clear.  Probably we should move the modes to the payload of
+        Pconstraint, which may also simplify some other things. *)
      let mk = if ghost then ghexp else mkexp ?attrs:None in
      mk ~loc (Pexp_coerce(e, t1, t2))
 

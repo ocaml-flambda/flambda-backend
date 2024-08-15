@@ -4905,10 +4905,10 @@ let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_modes=
       end
   | Some (Pvc_coercion { ground; coercion}) ->
       Exp.coerce ~loc expr ground coercion |> maybe_add_modes_constraint
-  | Some (Pvc_constraint { locally_abstract_univars=vars;typ}) ->
+  | Some (Pvc_constraint { locally_abstract_univars;typ}) ->
       let loc = Location.merge [ loc; pat.ppat_loc ] in
       let expr = Exp.constraint_ ~loc expr (Some typ) modes in
-      List.fold_right (Exp.newtype ~loc) vars expr
+      List.fold_right (Exp.newtype ~loc) locally_abstract_univars expr
 
 let vb_pat_constraint
       ({pvb_pat=pat; pvb_expr = exp; pvb_modes = modes; _ } as vb) =
