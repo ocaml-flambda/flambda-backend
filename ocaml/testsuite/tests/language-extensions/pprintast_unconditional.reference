@@ -91,6 +91,8 @@ modal_kind_sig:
     kind_abbrev_ data = value mod sync many
   end
 
+tyvar_of_name: 'no_tyvars_require_extensions
+
 tyvar: 'no_tyvars_require_extensions
 
 jkind: value with local_ ('a : value) -> unit
@@ -191,6 +193,8 @@ modal_kind_sig:
     kind_abbrev_ immutable = value mod uncontended
     kind_abbrev_ data = value mod sync many
   end
+
+tyvar_of_name: 'no_tyvars_require_extensions
 
 tyvar: 'no_tyvars_require_extensions
 
