@@ -96,7 +96,9 @@ m4_define([OCAML__RELEASE_EXTRA],
 # - A 1-byte kind, specifying the file type (exeecutable, cmi, cmo, etc.)
 # - A 3-bytes version number
 
-m4_define([MAGIC_NUMBER__PREFIX], [Caml1999])
+# XXX mshinwell: discuss what we should use.
+# Has to be changed in misc.ml too
+m4_define([MAGIC_NUMBER__PREFIX], [Caml2024])
 m4_define([MAGIC_NUMBER__VERSION], [550])
 
 # The following macro is used to define all our magic numbers

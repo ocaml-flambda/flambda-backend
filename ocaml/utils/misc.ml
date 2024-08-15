@@ -1261,50 +1261,50 @@ module Magic_number = struct
   type raw_kind = string
 
   let parse_kind : raw_kind -> kind option = function
-    | "Caml1999X" -> Some Exec
-    | "Caml1999I" -> Some Cmi
-    | "Caml1999O" -> Some Cmo
-    | "Caml1999A" -> Some Cma
-    | "Caml2021y" -> Some (Cmx {flambda = true})
-    | "Caml2021Y" -> Some (Cmx {flambda = false})
-    | "Caml2021z" -> Some (Cmxa {flambda = true})
-    | "Caml2021Z" -> Some (Cmxa {flambda = false})
+    | "Caml2024X" -> Some Exec
+    | "Caml2024I" -> Some Cmi
+    | "Caml2024O" -> Some Cmo
+    | "Caml2024A" -> Some Cma
+    | "Caml2024y" -> Some (Cmx {flambda = true})
+    | "Caml2024Y" -> Some (Cmx {flambda = false})
+    | "Caml2024z" -> Some (Cmxa {flambda = true})
+    | "Caml2024Z" -> Some (Cmxa {flambda = false})
 
-    (* Caml2007D and Caml2012T were used instead of the common Caml1999 prefix
+    (* Caml2007D and Caml2012T were used instead of the common Caml2024 prefix
        between the introduction of those magic numbers and October 2017
        (8ba70ff194b66c0a50ffb97d41fe9c4bdf9362d6).
 
        We accept them here, but will always produce/show kind prefixes
-       that follow the current convention, Caml1999{D,T}. *)
-    | "Caml2007D" | "Caml1999D" -> Some Cmxs
-    | "Caml2012T" | "Caml1999T" -> Some Cmt
-    | "Caml1999S" -> Some Cms
+       that follow the current convention, Caml2024{D,T}. *)
+    | "Caml2007D" | "Caml2024D" -> Some Cmxs
+    | "Caml2012T" | "Caml2024T" -> Some Cmt
+    | "Caml2024S" -> Some Cms
 
-    | "Caml1999M" -> Some Ast_impl
-    | "Caml1999N" -> Some Ast_intf
+    | "Caml2024M" -> Some Ast_impl
+    | "Caml2024N" -> Some Ast_intf
     | _ -> None
 
   (* note: over time the magic kind number has changed for certain kinds;
      this function returns them as they are produced by the current compiler,
      but [parse_kind] accepts older formats as well. *)
   let raw_kind : kind -> raw = function
-    | Exec -> "Caml1999X"
-    | Cmi -> "Caml1999I"
-    | Cmo -> "Caml1999O"
-    | Cma -> "Caml1999A"
+    | Exec -> "Caml2024X"
+    | Cmi -> "Caml2024I"
+    | Cmo -> "Caml2024O"
+    | Cma -> "Caml2024A"
     | Cmx config ->
        if config.flambda
-       then "Caml2021y"
-       else "Caml2021Y"
+       then "Caml2024y"
+       else "Caml2024Y"
     | Cmxa config ->
        if config.flambda
-       then "Caml2021z"
-       else "Caml2021Z"
-    | Cmxs -> "Caml1999D"
-    | Cmt -> "Caml1999T"
-    | Cms -> "Caml1999S"
-    | Ast_impl -> "Caml1999M"
-    | Ast_intf -> "Caml1999N"
+       then "Caml2024z"
+       else "Caml2024Z"
+    | Cmxs -> "Caml2024D"
+    | Cmt -> "Caml2024T"
+    | Cms -> "Caml2024S"
+    | Ast_impl -> "Caml2024M"
+    | Ast_intf -> "Caml2024N"
 
   let string_of_kind : kind -> string = function
     | Exec -> "exec"

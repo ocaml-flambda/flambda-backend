@@ -15,11 +15,11 @@ fi
 # a whole line
 
 $sed -i \
-  -e 's/^#define EXEC_MAGIC "Caml1999X\([0-9][0-9][0-9]\)"/echo "#define EXEC_MAGIC \\"Caml1999X$((\1 + 1))\\""/ge' \
+  -e 's/^#define EXEC_MAGIC "Caml2024X\([0-9][0-9][0-9]\)"/echo "#define EXEC_MAGIC \\"Caml2024X$((\1 + 1))\\""/ge' \
   ocaml/runtime/caml/exec.h
 
 $sed -i \
-  -e 's/^#define EXEC_MAGIC "Caml1999X\([0-9][0-9][0-9]\)"/echo "#define EXEC_MAGIC \\"Caml1999X$((\1 + 1))\\""/ge' \
+  -e 's/^#define EXEC_MAGIC "Caml2024X\([0-9][0-9][0-9]\)"/echo "#define EXEC_MAGIC \\"Caml2024X$((\1 + 1))\\""/ge' \
   ocaml/runtime4/caml/exec.h
 
 $sed -i \
