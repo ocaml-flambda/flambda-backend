@@ -248,19 +248,7 @@ val hidden_int_duplicate : once_ Hidden_int.t -> Hidden_int.t = <fun>
 let float_duplicate : once_ _ -> float = fun x -> x
 
 [%%expect{|
-<<<<<<< HEAD
-Line 1, characters 50-51:
-1 | let float_duplicate : once_ _ -> float = fun x -> x
-                                                      ^
-Error: This value is "once" but expected to be "many".
-||||||| a198127529
-Line 1, characters 50-51:
-1 | let float_duplicate : once_ _ -> float = fun x -> x
-                                                      ^
-Error: This value is once but expected to be many.
-=======
 val float_duplicate : once_ float -> float = <fun>
->>>>>>> flambda-backend/main
 |}]
 
 let float_u_duplicate : once_ _ -> float# = fun x -> x
@@ -418,22 +406,10 @@ Error: This value is "shared" but expected to be "unique".
 let hidden_function_unshare : _ -> unique_ (int, int) Hidden_function.t = fun x -> x
 
 [%%expect{|
-<<<<<<< HEAD
-Line 1, characters 60-61:
-1 | let function_unshare : _ -> unique_ (int -> int) = fun x -> x
-                                                                ^
-Error: This value is "shared" but expected to be "unique".
-||||||| a198127529
-Line 1, characters 60-61:
-1 | let function_unshare : _ -> unique_ (int -> int) = fun x -> x
-                                                                ^
-Error: This value is shared but expected to be unique.
-=======
 Line 1, characters 83-84:
 1 | let hidden_function_unshare : _ -> unique_ (int, int) Hidden_function.t = fun x -> x
                                                                                        ^
-Error: This value is shared but expected to be unique.
->>>>>>> flambda-backend/main
+Error: This value is "shared" but expected to be "unique".
 |}]
 
 let function_list_unshare : _ -> unique_ (int -> int) list =

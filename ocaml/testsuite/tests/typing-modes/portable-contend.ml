@@ -208,36 +208,21 @@ Error: This value is "nonportable" but expected to be "portable".
 (* closing over nonportable gives nonportable *)
 let foo : 'a @ nonportable contended -> (unit -> unit) @ portable = fun a () -> ()
 [%%expect{|
-<<<<<<< HEAD
-Line 1, characters 64-88:
-1 | let foo : 'a @ nonportable contended -> ('a -> 'a) @ portable = fun a b -> best_bytes ()
-                                                                    ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function when partially applied returns a value which is "nonportable",
-       but expected to be "portable".
-||||||| a198127529
-Line 1, characters 64-88:
-1 | let foo : 'a @ nonportable contended -> ('a -> 'a) @ portable = fun a b -> best_bytes ()
-                                                                    ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This function when partially applied returns a value which is nonportable,
-       but expected to be portable.
-=======
 Line 1, characters 68-82:
 1 | let foo : 'a @ nonportable contended -> (unit -> unit) @ portable = fun a () -> ()
                                                                         ^^^^^^^^^^^^^^
-Error: This function when partially applied returns a value which is nonportable,
-       but expected to be portable.
->>>>>>> flambda-backend/main
+Error: This function when partially applied returns a value which is "nonportable",
+       but expected to be "portable".
 |}]
 
 (* closing over uncontended gives nonportable *)
 let foo : 'a @ uncontended portable -> (unit -> unit) @ portable = fun a () -> ()
 [%%expect{|
-<<<<<<< HEAD
-Line 1, characters 82-95:
-1 | let foo : 'a @ uncontended portable -> (string -> string) @ portable = fun a b -> best_bytes ()
-                                                                                      ^^^^^^^^^^^^^
-Error: This expression has type "bytes" but an expression was expected of type
-         "string"
+Line 1, characters 67-81:
+1 | let foo : 'a @ uncontended portable -> (unit -> unit) @ portable = fun a () -> ()
+                                                                       ^^^^^^^^^^^^^^
+Error: This function when partially applied returns a value which is "nonportable",
+       but expected to be "portable".
 |}]
 
 let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
@@ -255,12 +240,6 @@ Line 1, characters 104-114:
 1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
                                                                                                             ^^^^^^^^^^
 Error: The value "best_bytes" is nonportable, so cannot be used inside a closure that is portable.
-||||||| a198127529
-Line 1, characters 82-95:
-1 | let foo : 'a @ uncontended portable -> (string -> string) @ portable = fun a b -> best_bytes ()
-                                                                                      ^^^^^^^^^^^^^
-Error: This expression has type bytes but an expression was expected of type
-         string
 |}]
 
 let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
@@ -269,7 +248,7 @@ let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportabl
 Line 1, characters 4-118:
 1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
@@ -277,14 +256,7 @@ let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontende
 Line 1, characters 104-114:
 1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
                                                                                                             ^^^^^^^^^^
-Error: The value best_bytes is nonportable, so cannot be used inside a closure that is portable.
-=======
-Line 1, characters 67-81:
-1 | let foo : 'a @ uncontended portable -> (unit -> unit) @ portable = fun a () -> ()
-                                                                       ^^^^^^^^^^^^^^
-Error: This function when partially applied returns a value which is nonportable,
-       but expected to be portable.
->>>>>>> flambda-backend/main
+Error: The value "best_bytes" is nonportable, so cannot be used inside a closure that is portable.
 |}]
 
 (* immediates crosses portability and contention *)

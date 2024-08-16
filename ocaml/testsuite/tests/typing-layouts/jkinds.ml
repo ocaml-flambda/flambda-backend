@@ -480,22 +480,10 @@ type ('a : value mod unique) t = { unique_field : 'a; }
 Line 2, characters 25-33:
 2 | let x = { unique_field = "string" }
                              ^^^^^^^^
-<<<<<<< HEAD
 Error: This expression has type "string" but an expression was expected of type
          "('a : value mod unique)"
-       The kind of string is value
-         because it is the primitive value type string.
-||||||| a198127529
-Error: This expression has type string but an expression was expected of type
-         ('a : value mod unique)
-       The kind of string is value
-         because it is the primitive value type string.
-=======
-Error: This expression has type string but an expression was expected of type
-         ('a : value mod unique)
        The kind of string is immutable_data
          because it is the primitive immutable_data type string.
->>>>>>> flambda-backend/main
        But the kind of string must be a subkind of value mod unique
          because of the definition of t at line 1, characters 0-54.
 |}]
@@ -799,15 +787,7 @@ Line 2, characters 0-77:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is value
          because it's a boxed record type.
-<<<<<<< HEAD
-       But the kind of type "t" must be a subkind of
-         value mod many uncontended portable
-||||||| a198127529
-       But the kind of type t must be a subkind of
-         value mod many uncontended portable
-=======
-       But the kind of type t must be a subkind of immutable_data
->>>>>>> flambda-backend/main
+       But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: This should be accepted *)
@@ -995,13 +975,7 @@ Line 1, characters 0-70:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "t" is value
          because it's a boxed record type.
-<<<<<<< HEAD
-       But the kind of type "t" must be a subkind of value mod many portable
-||||||| a198127529
-       But the kind of type t must be a subkind of value mod many portable
-=======
-       But the kind of type t must be a subkind of mutable_data
->>>>>>> flambda-backend/main
+       But the kind of type "t" must be a subkind of mutable_data
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1153,28 +1127,12 @@ type t : value mod external_ = Foo of int [@@unboxed]
 
 type t : any mod portable = Foo of t_value [@@unboxed]
 [%%expect {|
-<<<<<<< HEAD
-Line 1, characters 0-53:
-1 | type t : any mod portable = Foo of string [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value
-         because it is the primitive value type string.
-       But the kind of type "t" must be a subkind of any mod portable
-||||||| a198127529
-Line 1, characters 0-53:
-1 | type t : any mod portable = Foo of string [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
-         because it is the primitive value type string.
-       But the kind of type t must be a subkind of any mod portable
-=======
 Line 1, characters 0-54:
 1 | type t : any mod portable = Foo of t_value [@@unboxed]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type t is value
+Error: The kind of type "t" is value
          because of the definition of t_value at line 1, characters 0-20.
-       But the kind of type t must be a subkind of any mod portable
->>>>>>> flambda-backend/main
+       But the kind of type "t" must be a subkind of any mod portable
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted portability *)
@@ -1191,16 +1149,8 @@ Lines 1-2, characters 0-67:
 Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
          defaulted to kind value.
-<<<<<<< HEAD
        But the kind of type "t" must be a subkind of
-         value mod global unique many uncontended portable
-||||||| a198127529
-       But the kind of type t must be a subkind of
-         value mod global unique many uncontended portable
-=======
-       But the kind of type t must be a subkind of
          immutable_data mod global unique
->>>>>>> flambda-backend/main
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1214,16 +1164,8 @@ Lines 1-2, characters 0-66:
 Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
          defaulted to kind value.
-<<<<<<< HEAD
        But the kind of type "t" must be a subkind of
-         value mod global unique many uncontended portable
-||||||| a198127529
-       But the kind of type t must be a subkind of
-         value mod global unique many uncontended portable
-=======
-       But the kind of type t must be a subkind of
          immutable_data mod global unique
->>>>>>> flambda-backend/main
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1330,28 +1272,12 @@ type ('a : bits32) t = ('a : word)
 [%%expect {|
 Line 1, characters 29-33:
 1 | type ('a : bits32) t = ('a : word)
-<<<<<<< HEAD
-                           ^^^^^^^^^^^
-Error: This type "('a : word)" should be an instance of type "('a0 : bits32)"
-       The layout of 'a is bits32
-         because of the annotation on 'a in the declaration of the type t.
-       But the layout of 'a must overlap with word
-         because of the annotation on the type variable 'a.
-||||||| a198127529
-                           ^^^^^^^^^^^
-Error: This type ('a : word) should be an instance of type ('a0 : bits32)
-       The layout of 'a is bits32
-         because of the annotation on 'a in the declaration of the type t.
-       But the layout of 'a must overlap with word
-         because of the annotation on the type variable 'a.
-=======
                                  ^^^^
 Error: Bad layout annotation:
-         The layout of 'a is bits32
+         The layout of "'a" is bits32
            because of the annotation on 'a in the declaration of the type t.
-         But the layout of 'a must overlap with word
+         But the layout of "'a" must overlap with word
            because of the annotation on the type variable 'a.
->>>>>>> flambda-backend/main
 |}]
 
 let f : ('a : any mod global unique) -> ('a: any mod uncontended) = fun x -> x

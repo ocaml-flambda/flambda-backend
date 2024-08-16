@@ -186,22 +186,10 @@ module type T2' = sig type ('a : immediate) t = 'a s2' end
 Line 5, characters 25-30:
 5 |   let f () : 'a X.t = `B "bad"
                              ^^^^^
-<<<<<<< HEAD
 Error: This expression has type "string" but an expression was expected of type
          "('a : immediate)"
-       The kind of string is value
-         because it is the primitive value type string.
-||||||| a198127529
-Error: This expression has type string but an expression was expected of type
-         ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
-=======
-Error: This expression has type string but an expression was expected of type
-         ('a : immediate)
        The kind of string is immutable_data
          because it is the primitive immutable_data type string.
->>>>>>> flambda-backend/main
        But the kind of string must be a subkind of immediate
          because of the definition of t at line 2, characters 2-25.
 |}]
@@ -460,22 +448,10 @@ val x3 : int list = [42]
 Line 14, characters 17-23:
 14 | let x3' = M3_1.f "test";;
                       ^^^^^^
-<<<<<<< HEAD
 Error: This expression has type "string" but an expression was expected of type
          "('a : immediate)"
-       The kind of string is value
-         because it is the primitive value type string.
-||||||| a198127529
-Error: This expression has type string but an expression was expected of type
-         ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
-=======
-Error: This expression has type string but an expression was expected of type
-         ('a : immediate)
        The kind of string is immutable_data
          because it is the primitive immutable_data type string.
->>>>>>> flambda-backend/main
        But the kind of string must be a subkind of immediate
          because of the definition of f at line 3, characters 2-20.
 |}]
@@ -490,19 +466,9 @@ module type S3_2 = sig type t : immediate end
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
-<<<<<<< HEAD
-Error: The kind of type "string" is value
-         because it is the primitive value type string.
-       But the kind of type "string" must be a subkind of immediate
-||||||| a198127529
-Error: The kind of type string is value
-         because it is the primitive value type string.
-       But the kind of type string must be a subkind of immediate
-=======
-Error: The kind of type string is immutable_data
+Error: The kind of type "string" is immutable_data
          because it is the primitive immutable_data type string.
-       But the kind of type string must be a subkind of immediate
->>>>>>> flambda-backend/main
+       But the kind of type "string" must be a subkind of immediate
          because of the definition of t at line 2, characters 2-20.
 |}]
 

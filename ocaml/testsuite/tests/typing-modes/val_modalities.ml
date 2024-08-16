@@ -451,12 +451,12 @@ Error: Signature mismatch:
            module type S_plain =
              sig module M : sig val f : int -> int @@ portable end end
          end
-       In module Plain:
+       In module "Plain":
        Modules do not match:
          sig val f : int -> int @@ global many end
        is not included in
          sig val f : int -> int @@ portable end
-       In module Plain:
+       In module "Plain":
        Values do not match:
          val f : int -> int @@ global many
        is not included in

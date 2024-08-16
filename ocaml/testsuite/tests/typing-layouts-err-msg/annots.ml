@@ -32,13 +32,7 @@ type ('a : void) t = 'a value
 Line 1, characters 21-23:
 1 | type ('a : void) t = 'a value
                          ^^
-<<<<<<< HEAD
-Error: This type "('a : value)" should be an instance of type "('a0 : void)"
-||||||| a198127529
-Error: This type ('a : value) should be an instance of type ('a0 : void)
-=======
-Error: This type ('a : void) should be an instance of type ('b : value)
->>>>>>> flambda-backend/main
+Error: This type "('a : void)" should be an instance of type "('b : value)"
        The layout of 'a is void
          because of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value
@@ -91,9 +85,19 @@ Error: This type "('a : void)" should be an instance of type "('b : value)"
 type t = 'a -> int as ('b : void)
 
 [%%expect{|
-Line 85, characters 23-25:
-85 | type t = 'a -> int as ('b : void)
+Line 91, characters 23-25:
+91 | type t = 'a -> int as ('b : void)
                             ^^
+Error: This alias is bound to type "'a -> int"
+       but is used as an instance of type "('b : void)"
+       The layout of 'a -> int is value
+         because it's a function type.
+       But the layout of 'a -> int must be a sublayout of void
+         because of the annotation on the type variable 'b.
+|}, Principal{|
+Line 100, characters 23-25:
+100 | type t = 'a -> int as ('b : void)
+                             ^^
 Error: This alias is bound to type "'a -> int"
        but is used as an instance of type "('b : void)"
        The layout of 'a -> int is value

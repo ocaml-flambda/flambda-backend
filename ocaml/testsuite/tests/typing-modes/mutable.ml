@@ -87,17 +87,6 @@ Error: This value is "nonportable" but expected to be "portable".
    [unique]. *)
 let foo r (s @ shared) = r.s <- s
 [%%expect{|
-<<<<<<< HEAD
-Line 1, characters 51-52:
-1 | let foo (r @ uncontended) (s @ contended) = r.s <- s
-                                                       ^
-Error: This value is "contended" but expected to be "uncontended".
-||||||| a198127529
-Line 1, characters 51-52:
-1 | let foo (r @ uncontended) (s @ contended) = r.s <- s
-                                                       ^
-Error: This value is contended but expected to be uncontended.
-=======
 val foo : 'a r -> 'a -> unit = <fun>
 |}]
 
@@ -111,8 +100,7 @@ let foo (r @ unique) = (r.s : _ @@ unique)
 Line 1, characters 24-27:
 1 | let foo (r @ unique) = (r.s : _ @@ unique)
                             ^^^
-Error: This value is shared but expected to be unique.
->>>>>>> flambda-backend/main
+Error: This value is "shared" but expected to be "unique".
 |}]
 
 module M : sig
@@ -137,16 +125,8 @@ Error: Signature mismatch:
        Fields do not match:
          "mutable s : string;"
        is not the same as:
-<<<<<<< HEAD
          "mutable s : string;"
-       The second is empty and the first is shared.
-||||||| a198127529
-         mutable s : string;
-       The second is empty and the first is shared.
-=======
-         mutable s : string;
        The first is global_ and the second is not.
->>>>>>> flambda-backend/main
 |}]
 
 module M : sig

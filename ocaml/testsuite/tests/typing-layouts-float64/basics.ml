@@ -174,16 +174,10 @@ type ('a : float64) t4_6 = 'a * 'a
 Line 1, characters 27-29:
 1 | type ('a : float64) t4_6 = 'a * 'a
                                ^^
-<<<<<<< HEAD
-Error: This type "('a : value)" should be an instance of type "('a0 : float64)"
-||||||| a198127529
-Error: This type ('a : value) should be an instance of type ('a0 : float64)
-=======
 Error: Tuple element types must have layout value.
->>>>>>> flambda-backend/main
-       The layout of 'a is float64
+       The layout of "'a" is float64
          because of the annotation on 'a in the declaration of the type t4_6.
-       But the layout of 'a must overlap with value
+       But the layout of "'a" must overlap with value
          because it's the type of a tuple element.
 |}];;
 
@@ -192,19 +186,11 @@ type ('a : float64, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
 [%%expect{|
 Line 1, characters 46-48:
 1 | type ('a : float64, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
-<<<<<<< HEAD
-                                    ^^
-Error: This type "('b : value)" should be an instance of type "('a : float64)"
-||||||| a198127529
-                                    ^^
-Error: This type ('b : value) should be an instance of type ('a : float64)
-=======
                                                   ^^
 Error: Tuple element types must have layout value.
->>>>>>> flambda-backend/main
-       The layout of 'a is float64
+       The layout of "'a" is float64
          because of the annotation on 'a in the declaration of the type t4_7.
-       But the layout of 'a must overlap with value
+       But the layout of "'a" must overlap with value
          because it's the type of a tuple element.
 |}]
 
@@ -411,16 +397,10 @@ type ('a : float64) f7_5 = [ `A of 'a ];;
 Line 1, characters 35-37:
 1 | type ('a : float64) f7_5 = [ `A of 'a ];;
                                        ^^
-<<<<<<< HEAD
-Error: This type "('a : value)" should be an instance of type "('a0 : float64)"
-||||||| a198127529
-Error: This type ('a : value) should be an instance of type ('a0 : float64)
-=======
 Error: Polymorphic variant constructor argument types must have layout value.
->>>>>>> flambda-backend/main
-       The layout of 'a is float64
+       The layout of "'a" is float64
          because of the annotation on 'a in the declaration of the type f7_5.
-       But the layout of 'a must overlap with value
+       But the layout of "'a" must overlap with value
          because it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -648,19 +628,11 @@ type ('a : float64) t12_2 = < x : 'a >;;
 [%%expect{|
 Line 1, characters 30-36:
 1 | type ('a : float64) t12_2 = < x : 'a >;;
-<<<<<<< HEAD
-                                      ^^
-Error: This type "('a : value)" should be an instance of type "('a0 : float64)"
-||||||| a198127529
-                                      ^^
-Error: This type ('a : value) should be an instance of type ('a0 : float64)
-=======
                                   ^^^^^^
 Error: Object field types must have layout value.
->>>>>>> flambda-backend/main
-       The layout of 'a is float64
+       The layout of "'a" is float64
          because of the annotation on 'a in the declaration of the type t12_2.
-       But the layout of 'a must overlap with value
+       But the layout of "'a" must overlap with value
          because it's the type of an object field.
 |}]
 
@@ -684,13 +656,7 @@ end;;
 Line 2, characters 13-15:
 2 |   method x : 'a t_float64_id -> 'a t_float64_id = assert false
                  ^^
-<<<<<<< HEAD
-Error: This type "('a : float64)" should be an instance of type "('a0 : value)"
-||||||| a198127529
-Error: This type ('a : float64) should be an instance of type ('a0 : value)
-=======
-Error: This type ('a : value) should be an instance of type ('b : float64)
->>>>>>> flambda-backend/main
+Error: This type "('a : value)" should be an instance of type "('b : float64)"
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64
@@ -740,13 +706,7 @@ end
 Line 2, characters 10-12:
 2 |   val x : 'a t_float64_id -> 'a t_float64_id
               ^^
-<<<<<<< HEAD
-Error: This type "('a : float64)" should be an instance of type "('a0 : value)"
-||||||| a198127529
-Error: This type ('a : float64) should be an instance of type ('a0 : value)
-=======
-Error: This type ('a : value) should be an instance of type ('b : float64)
->>>>>>> flambda-backend/main
+Error: This type "('a : value)" should be an instance of type "('b : float64)"
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64

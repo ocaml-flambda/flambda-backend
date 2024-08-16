@@ -53,22 +53,10 @@ type m2 = (module S with type t = t_value);;
 [%%expect{|
 module type S = sig type t : immediate end
 type m1 = (module S with type t = int)
-<<<<<<< HEAD
-Line 6, characters 10-41:
-6 | type m2 = (module S with type t = string);;
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this "with" constraint, the new definition of "t"
-||||||| a198127529
-Line 6, characters 10-41:
-6 | type m2 = (module S with type t = string);;
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this `with' constraint, the new definition of t
-=======
 Line 6, characters 10-42:
 6 | type m2 = (module S with type t = t_value);;
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this `with' constraint, the new definition of t
->>>>>>> flambda-backend/main
+Error: In this "with" constraint, the new definition of "t"
        does not match its original definition in the constrained signature:
        Type declarations do not match:
          type t = t_value
@@ -88,25 +76,11 @@ end
 type m = (module S with type t = t_value);;
 [%%expect{|
 module type S = sig type t = int end
-<<<<<<< HEAD
-Line 5, characters 9-40:
-5 | type m = (module S with type t = string);;
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In the constrained signature, type "t" is defined to be "int".
-       Package "with" constraints may only be used on abstract types.
-||||||| a198127529
-Line 5, characters 9-40:
-5 | type m = (module S with type t = string);;
-             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In the constrained signature, type t is defined to be int.
-       Package `with' constraints may only be used on abstract types.
-=======
 Line 5, characters 9-41:
 5 | type m = (module S with type t = t_value);;
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In the constrained signature, type t is defined to be int.
-       Package `with' constraints may only be used on abstract types.
->>>>>>> flambda-backend/main
+Error: In the constrained signature, type "t" is defined to be "int".
+       Package "with" constraints may only be used on abstract types.
 |}];;
 
 (* Even if your constraint would be satisfied. *)
@@ -355,30 +329,12 @@ type t2 = t_value t
 module type S = sig type t : immediate end
 type ('a : immediate) t = (module S with type t = 'a)
 type t1 = int t
-<<<<<<< HEAD
-Line 8, characters 10-16:
-8 | type t2 = string t
-              ^^^^^^
-Error: This type "string" should be an instance of type "('a : immediate)"
-       The kind of string is value
-         because it is the primitive value type string.
-       But the kind of string must be a subkind of immediate
-||||||| a198127529
-Line 8, characters 10-16:
-8 | type t2 = string t
-              ^^^^^^
-Error: This type string should be an instance of type ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
-       But the kind of string must be a subkind of immediate
-=======
 Line 8, characters 10-17:
 8 | type t2 = t_value t
               ^^^^^^^
-Error: This type t_value should be an instance of type ('a : immediate)
+Error: This type "t_value" should be an instance of type "('a : immediate)"
        The kind of t_value is value
          because of the definition of t_value at line 1, characters 0-12.
        But the kind of t_value must be a subkind of immediate
->>>>>>> flambda-backend/main
          because of the definition of t at line 5, characters 0-39.
 |}];;

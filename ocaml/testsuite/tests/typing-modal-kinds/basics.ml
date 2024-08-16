@@ -272,19 +272,7 @@ Error: This value escapes its region.
 let string_duplicate = let once_ x : string = "hello" in Fun.id x
 
 [%%expect{|
-<<<<<<< HEAD
-Line 1, characters 64-65:
-1 | let string_duplicate = let once_ x : string = "hello" in Fun.id x
-                                                                    ^
-Error: This value is "once" but expected to be "many".
-||||||| a198127529
-Line 1, characters 64-65:
-1 | let string_duplicate = let once_ x : string = "hello" in Fun.id x
-                                                                    ^
-Error: This value is once but expected to be many.
-=======
 val string_duplicate : string = "hello"
->>>>>>> flambda-backend/main
 |}]
 
 let int_duplicate = let once_ x : int = 5 in Fun.id x
@@ -358,19 +346,7 @@ Error: This value is "once" but expected to be "many".
 let float_duplicate = let once_ x : float = 3.14 in Fun.id x
 
 [%%expect{|
-<<<<<<< HEAD
-Line 1, characters 59-60:
-1 | let float_duplicate = let once_ x : float = 3.14 in Fun.id x
-                                                               ^
-Error: This value is "once" but expected to be "many".
-||||||| a198127529
-Line 1, characters 59-60:
-1 | let float_duplicate = let once_ x : float = 3.14 in Fun.id x
-                                                               ^
-Error: This value is once but expected to be many.
-=======
 val float_duplicate : float = 3.14
->>>>>>> flambda-backend/main
 |}]
 
 let float_u_duplicate () = let once_ x : float# = #3.14 in Float_u.id x
@@ -701,17 +677,6 @@ Line 2, characters 71-72:
 let foo : (string -> string) -> (string -> string) @ unique
   = fun f -> f
 [%%expect{|
-<<<<<<< HEAD
-Line 2, characters 13-14:
-2 |   = fun f -> f
-                 ^
-Error: This value is "shared" but expected to be "unique".
-||||||| a198127529
-Line 2, characters 13-14:
-2 |   = fun f -> f
-                 ^
-Error: This value is shared but expected to be unique.
-=======
 val foo : (string -> string) -> unique_ (string -> string) = <fun>
 |}]
 
@@ -740,7 +705,7 @@ let ref_immutable_data_right x =
 Line 2, characters 30-53:
 2 |   take_strong_immutable_data (weaken_immutable_data x : float ref);
                                   ^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let ref_immutable_data_left x =
@@ -750,7 +715,7 @@ let ref_immutable_data_left x =
 Line 3, characters 29-30:
 3 |   take_strong_immutable_data x
                                  ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let float_immutable_data_right x =
@@ -869,5 +834,4 @@ let bytes_mutable_data_left x =
   take_strong_mutable_data x
 [%%expect{|
 val bytes_mutable_data_left : bytes -> unit = <fun>
->>>>>>> flambda-backend/main
 |}]

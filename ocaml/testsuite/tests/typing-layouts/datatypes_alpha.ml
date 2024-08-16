@@ -323,22 +323,10 @@ val f6 : t6 -> float = <fun>
 Line 8, characters 32-36:
 8 |   let { fld6 = fld6 } = x in S6 fld6;;
                                     ^^^^
-<<<<<<< HEAD
 Error: This expression has type "float" but an expression was expected of type
          "('a : immediate)"
-       The kind of float is value
-         because it is the primitive value type float.
-||||||| a198127529
-Error: This expression has type float but an expression was expected of type
-         ('a : immediate)
-       The kind of float is value
-         because it is the primitive value type float.
-=======
-Error: This expression has type float but an expression was expected of type
-         ('a : immediate)
        The kind of float is immutable_data
          because it is the primitive immutable_data type float.
->>>>>>> flambda-backend/main
        But the kind of float must be a subkind of immediate
          because of the definition of s6 at line 2, characters 0-35.
 |}];;
