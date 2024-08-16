@@ -455,6 +455,7 @@ G(caml_system__code_begin):
 
 FUNCTION(caml_call_realloc_stack)
         CFI_STARTPROC
+        CFI_SIGNAL_FRAME
     /* Save return address and frame pointer */
         CFI_OFFSET(29, -16)
         CFI_OFFSET(30, -8)
@@ -479,11 +480,12 @@ FUNCTION(caml_call_realloc_stack)
         ADDRGLOBAL(x0, caml_exn_Stack_overflow)
         b       G(caml_raise_async)
         CFI_ENDPROC
-        END_FUNCTION(caml_call_realloc_stack)
+END_FUNCTION(caml_call_realloc_stack)
 
 FUNCTION(caml_call_gc)
         CFI_STARTPROC
 L(caml_call_gc):
+        CFI_SIGNAL_FRAME
     /* Save return address and frame pointer */
         CFI_OFFSET(29, -16)
         CFI_OFFSET(30, -8)
@@ -503,7 +505,7 @@ L(caml_call_gc):
         ldp     x29, x30, [sp], 16
         ret
         CFI_ENDPROC
-        END_FUNCTION(caml_call_gc)
+END_FUNCTION(caml_call_gc)
 
 FUNCTION(caml_alloc1)
         CFI_STARTPROC
@@ -513,7 +515,7 @@ FUNCTION(caml_alloc1)
         b.lo    L(caml_call_gc)
         ret
         CFI_ENDPROC
-        END_FUNCTION(caml_alloc1)
+END_FUNCTION(caml_alloc1)
 
 FUNCTION(caml_alloc2)
         CFI_STARTPROC
@@ -523,7 +525,7 @@ FUNCTION(caml_alloc2)
         b.lo    L(caml_call_gc)
         ret
         CFI_ENDPROC
-        END_FUNCTION(caml_alloc2)
+END_FUNCTION(caml_alloc2)
 
 FUNCTION(caml_alloc3)
         CFI_STARTPROC
@@ -533,7 +535,7 @@ FUNCTION(caml_alloc3)
         b.lo    L(caml_call_gc)
         ret
         CFI_ENDPROC
-        END_FUNCTION(caml_alloc3)
+END_FUNCTION(caml_alloc3)
 
 FUNCTION(caml_allocN)
         CFI_STARTPROC
@@ -543,7 +545,7 @@ FUNCTION(caml_allocN)
         b.lo    L(caml_call_gc)
         ret
         CFI_ENDPROC
-        END_FUNCTION(caml_allocN)
+END_FUNCTION(caml_allocN)
 
 /* Reallocate the locals stack.  This is like caml_call_gc, above. */
 FUNCTION(caml_call_local_realloc)
@@ -582,6 +584,7 @@ L(caml_call_local_realloc):
 
 FUNCTION(caml_c_call)
         CFI_STARTPROC
+        CFI_SIGNAL_FRAME
         CFI_OFFSET(29, -16)
         CFI_OFFSET(30, -8)
         stp     x29, x30, [sp, -16]!
@@ -625,6 +628,7 @@ END_FUNCTION(caml_c_call)
 
 FUNCTION(caml_c_call_stack_args)
         CFI_STARTPROC
+        CFI_SIGNAL_FRAME
     /* Arguments:
         C arguments  : x0 to x7, d0 to d7
         C function   : ADDITIONAL_ARG
@@ -811,7 +815,7 @@ L(return_result):
     /* Return to C caller */
         ret
         CFI_ENDPROC
-        END_FUNCTION(caml_start_program)
+END_FUNCTION(caml_start_program)
 
 /* The trap handler */
 
@@ -863,7 +867,7 @@ L(caml_reraise_exn_stash):
         mov     x0, x19
         b       1b
         CFI_ENDPROC
-        END_FUNCTION(caml_raise_exn)
+END_FUNCTION(caml_raise_exn)
 
 FUNCTION(caml_reraise_exn)
         CFI_STARTPROC
@@ -871,7 +875,7 @@ FUNCTION(caml_reraise_exn)
         cbnz    TMP, L(caml_reraise_exn_stash)
         JUMP_TO_TRAP_PTR
         CFI_ENDPROC
-        END_FUNCTION(caml_reraise_exn)
+END_FUNCTION(caml_reraise_exn)
 
 #if defined(WITH_THREAD_SANITIZER)
 /* When TSan support is enabled, this routine should be called just before
@@ -887,7 +891,7 @@ FUNCTION(caml_tsan_exit_on_raise_asm)
         TSAN_C_CALL G(caml_tsan_exit_on_raise)
         ret
         CFI_ENDPROC
-        END_FUNCTION(caml_tsan_exit_on_raise_asm)
+END_FUNCTION(caml_tsan_exit_on_raise_asm)
 #endif
 
 /* Raise an exception from C */
@@ -925,7 +929,7 @@ FUNCTION(caml_raise_exception)
         ldp     x29, x30, [sp], 16
         b       G(caml_raise_exn)
         CFI_ENDPROC
-        END_FUNCTION(caml_raise_exception)
+END_FUNCTION(caml_raise_exception)
 
 /* Callback from C to OCaml */
 
@@ -952,7 +956,7 @@ FUNCTION(caml_callback_asm)
         ldr     TMP2, [x1]       /* code pointer */
         b       L(jump_to_caml)
         CFI_ENDPROC
-        END_FUNCTION(caml_callback_asm)
+END_FUNCTION(caml_callback_asm)
 
 FUNCTION(caml_callback2_asm)
         CFI_STARTPROC
@@ -978,7 +982,7 @@ FUNCTION(caml_callback2_asm)
         ADDRGLOBAL(TMP2, caml_apply2)
         b       L(jump_to_caml)
         CFI_ENDPROC
-        END_FUNCTION(caml_callback2_asm)
+END_FUNCTION(caml_callback2_asm)
 
 FUNCTION(caml_callback3_asm)
         CFI_STARTPROC
@@ -1005,7 +1009,7 @@ FUNCTION(caml_callback3_asm)
         ADDRGLOBAL(TMP2, caml_apply3)
         b       L(jump_to_caml)
         CFI_ENDPROC
-        END_FUNCTION(caml_callback3_asm)
+END_FUNCTION(caml_callback3_asm)
 
 /* Fibers */
 
@@ -1112,7 +1116,7 @@ L(do_perform):
         ADDRGLOBAL(ADDITIONAL_ARG, caml_raise_unhandled_effect)
         b       G(caml_c_call)
         CFI_ENDPROC
-        END_FUNCTION(caml_perform)
+END_FUNCTION(caml_perform)
 
 FUNCTION(caml_reperform)
         CFI_STARTPROC
@@ -1125,10 +1129,10 @@ FUNCTION(caml_reperform)
         add     x3, x2, 1 /* x3 (last_fiber) := Val_ptr(old stack) */
         b       L(do_perform)
         CFI_ENDPROC
-        END_FUNCTION(caml_reperform)
+END_FUNCTION(caml_reperform)
 
 FUNCTION(caml_resume)
-CFI_STARTPROC
+        CFI_STARTPROC
     /*  x0: new fiber
         x1: fun
         x2: arg
@@ -1176,12 +1180,12 @@ CFI_STARTPROC
 1:      ADDRGLOBAL(ADDITIONAL_ARG, caml_raise_continuation_already_resumed)
         b       G(caml_c_call)
         CFI_ENDPROC
-        END_FUNCTION(caml_resume)
+END_FUNCTION(caml_resume)
 
 /* Run a function on a new stack, then either
    return the value or invoke exception handler */
 FUNCTION(caml_runstack)
-CFI_STARTPROC
+        CFI_STARTPROC
 #if defined(WITH_THREAD_SANITIZER)
     /* Save non-callee-saved registers x0, x1 and x2 */
         stp     x0, x1, [sp, -16]!
@@ -1195,6 +1199,7 @@ CFI_STARTPROC
         ldp     x0, x1, [sp], 16
         CFI_ADJUST(-16)
 #endif
+        CFI_SIGNAL_FRAME
     /*  x0: fiber
         x1: fun
         x2: arg */
@@ -1278,7 +1283,7 @@ L(fiber_exn_handler):
         ldr     x19, Handler_exception(x8)
         b       1b
         CFI_ENDPROC
-        END_FUNCTION(caml_runstack)
+END_FUNCTION(caml_runstack)
 
 FUNCTION(caml_ml_array_bound_error)
         CFI_STARTPROC
@@ -1287,7 +1292,7 @@ FUNCTION(caml_ml_array_bound_error)
     /* Call that function */
         b       G(caml_c_call)
         CFI_ENDPROC
-        END_FUNCTION(caml_ml_array_bound_error)
+END_FUNCTION(caml_ml_array_bound_error)
 
          TEXT_SECTION(caml_system__code_end)
         .globl  G(caml_system__code_end)
