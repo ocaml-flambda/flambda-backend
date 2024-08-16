@@ -1,10 +1,10 @@
 (* TEST
  native-compiler;
  setup-ocamlopt.byte-build-env;
- flags = "-save-ir-after linearization -S";
+ flags = "-save-ir-after scheduling -S";
  ocamlopt.byte;
  check-ocamlopt.byte-output;
- script = "sh ${test_source_directory}/save_ir_after_linearization.sh";
+ script = "sh ${test_source_directory}/save_ir_after_scheduling.sh";
  script;
 *)
 
