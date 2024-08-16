@@ -965,7 +965,7 @@ static void orphans_abandon(memprof_domain_t domain)
     ot = ot->next;
   }
 
-  caml_plat_lock(&orphans_lock);
+  caml_plat_lock_blocking(&orphans_lock);
   ot->next = orphans;
   orphans = domain->orphans;
   atomic_store_release(&orphans_present, 1);
@@ -986,8 +986,7 @@ static void orphans_adopt(memprof_domain_t domain)
     p = &(*p)->next;
   }
 
-  // XXX mshinwell: was caml_plat_lock_blocking in PR13299
-  caml_plat_lock(&orphans_lock);
+  caml_plat_lock_blocking(&orphans_lock);
   if (orphans) {
     *p = orphans;
     orphans = NULL;
