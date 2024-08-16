@@ -186,7 +186,7 @@ void caml_plat_futex_init(caml_plat_futex* ftx, caml_plat_futex_value value) {
 
 void caml_plat_futex_free(caml_plat_futex* ftx) {
   caml_plat_mutex_free(&ftx->mutex);
-  check_err("cond_destroy", pthread_cond_destroy(&ftx->cond));
+  caml_plat_cond_free(&ftx->cond);
 }
 
 #else /* ! CAML_PLAT_FUTEX_FALLBACK */
