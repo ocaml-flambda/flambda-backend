@@ -39,7 +39,7 @@ Line 1, characters 9-17:
              ^^^^^^^^
 Error: This type "float32#" should be an instance of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because the type argument of list has layout value.
 |}];;
@@ -51,7 +51,7 @@ Line 1, characters 11-19:
                ^^^^^^^^
 Error: This type "float32#" should be an instance of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because the type argument of list has layout value.
 |}];;
@@ -63,7 +63,7 @@ Line 1, characters 14-22:
                   ^^^^^^^^
 Error: This type "float32#" should be an instance of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because the type argument of list has layout value.
 |}];;
@@ -75,7 +75,7 @@ Line 1, characters 13-21:
                  ^^^^^^^^
 Error: This type "float32#" should be an instance of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because the type argument of list has layout value.
 |}];;
@@ -97,7 +97,7 @@ Line 1, characters 9-17:
              ^^^^^^^^
 Error: This type "float32#" should be an instance of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -109,7 +109,7 @@ Line 1, characters 11-19:
                ^^^^^^^^
 Error: This type "float32#" should be an instance of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -121,7 +121,7 @@ Line 1, characters 14-22:
                   ^^^^^^^^
 Error: This type "float32#" should be an instance of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -133,7 +133,7 @@ Line 1, characters 13-21:
                  ^^^^^^^^
 Error: This type "float32#" should be an instance of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -148,7 +148,7 @@ Line 1, characters 9-17:
              ^^^^^^^^
 Error: This type "float32#" should be an instance of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -160,7 +160,7 @@ Line 1, characters 11-19:
                ^^^^^^^^
 Error: This type "float32#" should be an instance of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -172,7 +172,7 @@ Line 1, characters 14-22:
                   ^^^^^^^^
 Error: This type "float32#" should be an instance of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -184,7 +184,7 @@ Line 1, characters 13-21:
                  ^^^^^^^^
 Error: This type "float32#" should be an instance of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;

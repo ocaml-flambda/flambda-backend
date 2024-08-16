@@ -15,7 +15,7 @@ type t_value : value
 type t_immediate : immediate;;
 type t_any : any;;
 [%%expect {|
-type t_value : value
+type t_value
 type t_immediate : immediate
 type t_any : any
 |}];;
@@ -340,7 +340,7 @@ Line 8, characters 32-36:
 Error: This expression has type "float" but an expression was expected of type
          "('a : immediate)"
        The kind of float is immutable_data
-         because it is the primitive immutable_data type float.
+         because it is the primitive type float.
        But the kind of float must be a subkind of immediate
          because of the definition of s6 at line 2, characters 0-35.
 |}];;
@@ -449,8 +449,7 @@ type t3 = t_any M.t2
 type t4 = t_any M.t2 M.t1
 
 [%%expect {|
-module M :
-  sig type 'a t1 : value constraint 'a = 'b t2 and (!'c : any) t2 end
+module M : sig type 'a t1 constraint 'a = 'b t2 and (!'c : any) t2 end
 type t3 = t_any M.t2
 Line 10, characters 10-20:
 10 | type t4 = t_any M.t2 M.t1
@@ -474,8 +473,7 @@ type t3 = t_any M.t2
 type t4 = t_any M.t2 M.t1
 
 [%%expect {|
-module M :
-  sig type (!'c : any) t2 and 'a t1 : value constraint 'a = 'b t2 end
+module M : sig type (!'c : any) t2 and 'a t1 constraint 'a = 'b t2 end
 type t3 = t_any M.t2
 Line 10, characters 10-20:
 10 | type t4 = t_any M.t2 M.t1
@@ -499,8 +497,7 @@ type t3 = t_any M.t2
 type t4 = t_any M.t2 M.t1
 
 [%%expect {|
-module M :
-  sig type (!'c : any) t2 type 'a t1 : value constraint 'a = 'b t2 end
+module M : sig type (!'c : any) t2 type 'a t1 constraint 'a = 'b t2 end
 type t3 = t_any M.t2
 Line 10, characters 10-20:
 10 | type t4 = t_any M.t2 M.t1

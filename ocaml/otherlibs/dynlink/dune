@@ -117,6 +117,7 @@
   zero_alloc
   types
   oprint
+  typemodifier
   jkind
   value_rec_types
   btype
@@ -259,6 +260,8 @@
 (copy_files ../../typing/ident.ml)
 
 (copy_files ../../typing/path.ml)
+
+(copy_files ../../typing/typemodifier.ml)
 
 (copy_files ../../typing/jkind.ml)
 
@@ -411,6 +414,8 @@
 (copy_files ../../typing/jkind_intf.mli)
 
 (copy_files ../../typing/jkind_types.mli)
+
+(copy_files ../../typing/typemodifier.mli)
 
 (copy_files ../../typing/oprint.mli)
 
@@ -574,6 +579,7 @@
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Attr_helper.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Primitive.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Oprint.cmo
+  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Typemodifier.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
@@ -666,6 +672,7 @@
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Attr_helper.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Primitive.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Oprint.cmx
+  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Typemodifier.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx

@@ -44,12 +44,10 @@ module Style = Misc.Style
    printed. Specifically, we print the user-written jkind in any of these
    cases:
 
-   (C1.1) The type declaration is abstract and has no manifest (i.e.,
-   it's written without any [=]-signs).
+   (C1.1) The type declaration is abstract, has no manifest (i.e.,
+   it's written without any [=]-signs), and the annotation is not equivalent to value.
 
    In this case, there is no way to know the jkind without the annotation.
-   It is possible we might print a redundant [ : value ] annotation, but if the
-   user included this, they are probably happy to have it be printed, too.
 
    (C1.2) The type is [@@unboxed]. If an [@@unboxed] type is recursive, it can
    be impossible to deduce the jkind.  We thus defer to the user in determining
@@ -1335,10 +1333,10 @@ let out_jkind_of_const_jkind jkind =
 let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
   | Const jkind ->
-    let is_value = Jkind.Const.equal jkind Jkind.Const.Primitive.value.jkind
+    let is_value = Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
       (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
       || (not Language_extension.(is_at_least Layouts Alpha)
-          && Jkind.Const.equal jkind Jkind.Const.Primitive.value_or_null.jkind)
+          && Jkind.Const.equal jkind Jkind.Const.Builtin.value_or_null.jkind)
     in
     begin match is_value with
     | true -> None
@@ -1926,8 +1924,13 @@ let tree_of_type_decl id decl =
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
-  let jkind_annotation = match ty, unboxed, decl.type_has_illegal_crossings with
-    | (Otyp_abstract, _, _) | (_, true, _) | (_, _, true) ->
+  let is_value =
+    match decl.type_jkind_annotation with
+    | Some (jkind, _) -> Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
+    | None -> false
+  in
+  let jkind_annotation = match ty, unboxed, is_value, decl.type_has_illegal_crossings with
+    | (Otyp_abstract, _, false, _) | (_, true, _, _) | (_, _, _, true) ->
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
            user-written annotation. *)
@@ -2373,7 +2376,7 @@ let dummy =
     type_params = [];
     type_arity = 0;
     type_kind = Type_abstract Definition;
-    type_jkind = Jkind.Primitive.any ~why:Dummy_jkind;
+    type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
     type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;
@@ -2837,7 +2840,7 @@ let hide_variant_name t =
         (Tvariant
            (create_row ~fields ~fixed ~closed ~name:None
               ~more:(newvar2 (get_level more)
-                       (Jkind.Primitive.value ~why:Row_variable))))
+                       (Jkind.Builtin.value ~why:Row_variable))))
   | _ -> t
 
 let prepare_expansion Errortrace.{ty; expanded} =

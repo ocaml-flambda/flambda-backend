@@ -156,9 +156,11 @@ let add_end t value =
       t.last <- value_node;
       t.length <- succ len)
 
+let add_list t l = List.iter (fun x -> add_end t x) l
+
 let of_list l =
   let res = make_empty () in
-  List.iter (fun x -> add_end res x) l;
+  add_list res l;
   res
 
 let is_empty t = Int.equal t.length 0

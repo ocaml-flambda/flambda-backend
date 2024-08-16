@@ -142,7 +142,7 @@ Line 1, characters 28-29:
 Error: This expression has type "nativeint#"
        but an expression was expected of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -165,9 +165,19 @@ Line 1, characters 18-28:
 1 | type t4_5 = int * nativeint#;;
                       ^^^^^^^^^^
 Error: Tuple element types must have layout value.
+<<<<<<< HEAD
        The layout of "nativeint#" is word
          because it is the primitive word type nativeint#.
        But the layout of "nativeint#" must be a sublayout of value
+||||||| 57461473bf
+       The layout of nativeint# is word
+         because it is the primitive word type nativeint#.
+       But the layout of nativeint# must be a sublayout of value
+=======
+       The layout of nativeint# is word
+         because it is the primitive type nativeint#.
+       But the layout of nativeint# must be a sublayout of value
+>>>>>>> flambda-backend/main
          because it's the type of a tuple element.
 |}];;
 
@@ -305,7 +315,7 @@ Line 1, characters 31-41:
                                    ^^^^^^^^^^
 Error: This type signature for "x" is not a value type.
        The layout of type nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of type nativeint# must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}];;
@@ -347,7 +357,7 @@ Line 1, characters 31-32:
 Error: This expression has type "nativeint#"
        but an expression was expected of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -425,7 +435,7 @@ Line 1, characters 20-40:
 Error: This expression has type "nativeint#"
        but an expression was expected of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because of the definition of id_value at line 5, characters 13-18.
 |}];;
@@ -625,7 +635,7 @@ Line 1, characters 26-47:
 Error: The method "x" has type "nativeint#" but is expected to have type
          "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because it's the type of an object field.
 |}];;
@@ -637,7 +647,7 @@ Line 1, characters 26-44:
                               ^^^^^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
        The layout of x is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of x must be a sublayout of value
          because it's the type of an instance variable.
 |}];;

@@ -657,11 +657,11 @@ let merge_constraint initial_env loc sg lid constr =
               (* jkind any is fine on the params because they get thrown away
                  below *)
               List.map
-                (fun _ -> Btype.newgenvar (Jkind.Primitive.any ~why:Dummy_jkind))
+                (fun _ -> Btype.newgenvar (Jkind.Builtin.any ~why:Dummy_jkind))
                 sdecl.ptype_params;
             type_arity = arity;
             type_kind = Type_abstract Definition;
-            type_jkind = Jkind.Primitive.value ~why:(Unknown "merge_constraint");
+            type_jkind = Jkind.Builtin.value ~why:(Unknown "merge_constraint");
             type_jkind_annotation = None;
             type_private = Private;
             type_manifest = None;
@@ -3472,7 +3472,7 @@ let type_package env m p fl =
   List.iter
     (fun (n, ty) ->
       try Ctype.unify env ty
-            (Ctype.newvar (Jkind.Primitive.any ~why:Dummy_jkind))
+            (Ctype.newvar (Jkind.Builtin.any ~why:Dummy_jkind))
       with Ctype.Unify _ ->
         raise (Error(modl.mod_loc, env, Scoping_pack (n,ty))))
     fl';
@@ -3521,7 +3521,7 @@ let gen_annot target annots =
     annots
 
 let cms_register_toplevel_attributes ~sourcefile ~uid ~f ast =
-  (* Cms files do not store the typetree. This can be a problem for Merlin has
+  (* Cms files do not store the typetree. This can be a problem for Merlin as
     it uses attributes - which is why we manually construct a mapping from uid
     to attributes while typing.
     Generally `Pstr_attribute` and `Psig_attribute` are not needed by Merlin,
@@ -3585,7 +3585,7 @@ let type_implementation target modulename initial_env ast =
     Cmt_format.save_cmt (Unit_info.cmt target) modulename
       annots initial_env cmi shape;
     Cms_format.save_cms (Unit_info.cms target) modulename
-      annots shape;
+      annots initial_env shape;
     gen_annot target annots;
   in
   Cmt_format.clear ();
@@ -3760,7 +3760,7 @@ let save_signature target modname tsg initial_env cmi =
   Cmt_format.save_cmt (Unit_info.cmti target) modname
     (Cmt_format.Interface tsg) initial_env (Some cmi) None;
   Cms_format.save_cms  (Unit_info.cmsi target) modname
-    (Cmt_format.Interface tsg) None
+    (Cmt_format.Interface tsg) initial_env None
 
 let cms_register_toplevel_signature_attributes ~sourcefile ~uid ast =
   cms_register_toplevel_attributes ~sourcefile ~uid ast
@@ -3880,7 +3880,7 @@ let package_units initial_env objfiles target_cmi modulename =
     Cmt_format.save_cmt  (Unit_info.companion_cmt target_cmi) modulename
       (Cmt_format.Packed (sg, objfiles)) initial_env  None (Some shape);
     Cms_format.save_cms  (Unit_info.companion_cms target_cmi) modulename
-      (Cmt_format.Packed (sg, objfiles)) (Some shape);
+      (Cmt_format.Packed (sg, objfiles)) initial_env (Some shape);
     cc
   end else begin
     (* Determine imports *)
@@ -3906,7 +3906,7 @@ let package_units initial_env objfiles target_cmi modulename =
       Cmt_format.save_cmt (Unit_info.companion_cmt target_cmi)  modulename
         (Cmt_format.Packed (sign, objfiles)) initial_env (Some cmi) (Some shape);
       Cms_format.save_cms (Unit_info.companion_cms target_cmi)  modulename
-        (Cmt_format.Packed (sign, objfiles)) (Some shape);
+        (Cmt_format.Packed (sign, objfiles)) initial_env (Some shape);
     end;
     Tcoerce_none
   end

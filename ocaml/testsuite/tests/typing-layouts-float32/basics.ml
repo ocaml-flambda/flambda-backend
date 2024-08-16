@@ -140,7 +140,7 @@ Line 1, characters 26-27:
 Error: This expression has type "float32#"
        but an expression was expected of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -163,9 +163,19 @@ Line 1, characters 18-26:
 1 | type t4_5 = int * float32#;;
                       ^^^^^^^^
 Error: Tuple element types must have layout value.
+<<<<<<< HEAD
        The layout of "float32#" is float32
          because it is the primitive float32 type float32#.
        But the layout of "float32#" must be a sublayout of value
+||||||| 57461473bf
+       The layout of float32# is float32
+         because it is the primitive float32 type float32#.
+       But the layout of float32# must be a sublayout of value
+=======
+       The layout of float32# is float32
+         because it is the primitive type float32#.
+       But the layout of float32# must be a sublayout of value
+>>>>>>> flambda-backend/main
          because it's the type of a tuple element.
 |}];;
 
@@ -328,7 +338,7 @@ Line 1, characters 31-39:
                                    ^^^^^^^^
 Error: This type signature for "x" is not a value type.
        The layout of type float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of type float32# must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}];;
@@ -370,7 +380,7 @@ Line 1, characters 29-30:
 Error: This expression has type "float32#"
        but an expression was expected of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -448,7 +458,7 @@ Line 1, characters 20-36:
 Error: This expression has type "float32#"
        but an expression was expected of type "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because of the definition of id_value at line 5, characters 13-18.
 |}];;
@@ -674,7 +684,7 @@ Line 1, characters 26-45:
 Error: The method "x" has type "float32#" but is expected to have type
          "('a : value)"
        The layout of float32# is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value
          because it's the type of an object field.
 |}];;
@@ -686,7 +696,7 @@ Line 1, characters 26-42:
                               ^^^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
        The layout of x is float32
-         because it is the primitive float32 type float32#.
+         because it is the primitive type float32#.
        But the layout of x must be a sublayout of value
          because it's the type of an instance variable.
 |}];;

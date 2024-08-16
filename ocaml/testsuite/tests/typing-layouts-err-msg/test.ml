@@ -16,7 +16,7 @@ type t_value : value
 [%%expect{|
 module B = A
 type t_void : void
-type t_value : value
+type t_value
 |}]
 
 let f (x : t_void): 'a A.t = x

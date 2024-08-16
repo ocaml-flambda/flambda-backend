@@ -227,7 +227,7 @@ let attributes i ppf l =
   ) l
 
 let jkind_annotation i ppf (jkind, _) =
-  line i ppf "%a" Jkind.Const.format jkind
+  line i ppf "%a" Jkind.Debug_printers.Const.t jkind
 
 let zero_alloc_assume i ppf : Zero_alloc.assume -> unit = function
     { strict; never_returns_normally; never_raises; arity; loc = _ } ->
