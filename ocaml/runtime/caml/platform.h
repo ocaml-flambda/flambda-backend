@@ -25,7 +25,6 @@
 #include <string.h>
 #include "config.h"
 #include "mlvalues.h"
-#include "sync.h"
 #include "sys.h"
 
 #if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
