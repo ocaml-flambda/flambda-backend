@@ -853,10 +853,11 @@ type nullary_primitive =
   | Begin_try_region of { ghost : bool }
   | Enter_inlined_apply of { dbg : Inlined_debuginfo.t }
   | Dls_get
+  | Poll
 
 let nullary_primitive_eligible_for_cse = function
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-  | Begin_try_region _ | Enter_inlined_apply _ | Dls_get ->
+  | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ->
     false
 
 let compare_nullary_primitive p1 p2 =
@@ -872,23 +873,26 @@ let compare_nullary_primitive p1 p2 =
   | Enter_inlined_apply { dbg = dbg1 }, Enter_inlined_apply { dbg = dbg2 } ->
     Inlined_debuginfo.compare dbg1 dbg2
   | Dls_get, Dls_get -> 0
+  | Poll, Poll -> 0
   | ( Invalid _,
       ( Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get ) ) ->
+      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ) ) ->
     -1
   | ( Optimised_out _,
       ( Probe_is_enabled _ | Begin_region _ | Begin_try_region _
-      | Enter_inlined_apply _ | Dls_get ) ) ->
+      | Enter_inlined_apply _ | Dls_get | Poll ) ) ->
     -1
   | Optimised_out _, Invalid _ -> 1
   | ( Probe_is_enabled _,
-      (Begin_region _ | Begin_try_region _ | Enter_inlined_apply _ | Dls_get) )
-    ->
+      ( Begin_region _ | Begin_try_region _ | Enter_inlined_apply _ | Dls_get
+      | Poll ) ) ->
     -1
   | Probe_is_enabled _, (Invalid _ | Optimised_out _) -> 1
-  | Begin_region _, (Begin_try_region _ | Enter_inlined_apply _ | Dls_get) -> -1
+  | Begin_region _, (Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll)
+    ->
+    -1
   | Begin_region _, (Invalid _ | Optimised_out _ | Probe_is_enabled _) -> 1
-  | Begin_try_region _, (Enter_inlined_apply _ | Dls_get) -> -1
+  | Begin_try_region _, (Enter_inlined_apply _ | Dls_get | Poll) -> -1
   | ( Begin_try_region _,
       (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _) ) ->
     1
@@ -896,10 +900,15 @@ let compare_nullary_primitive p1 p2 =
       ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
       | Begin_try_region _ ) ) ->
     1
-  | Enter_inlined_apply _, Dls_get -> -1
+  | Enter_inlined_apply _, (Dls_get | Poll) -> -1
   | ( Dls_get,
       ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
       | Begin_try_region _ | Enter_inlined_apply _ ) ) ->
+    1
+  | Dls_get, Poll -> -1
+  | ( Poll,
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
+      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get ) ) ->
     1
 
 let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
@@ -922,6 +931,7 @@ let print_nullary_primitive ppf p =
     Format.fprintf ppf "@[<hov 1>(Enter_inlined_apply@ %a)@]"
       Inlined_debuginfo.print dbg
   | Dls_get -> Format.pp_print_string ppf "Dls_get"
+  | Poll -> Format.pp_print_string ppf "Poll"
 
 let result_kind_of_nullary_primitive p : result_kind =
   match p with
@@ -932,6 +942,7 @@ let result_kind_of_nullary_primitive p : result_kind =
   | Begin_try_region _ -> Singleton K.region
   | Enter_inlined_apply _ -> Unit
   | Dls_get -> Singleton K.value
+  | Poll -> Unit
 
 let coeffects_of_mode : Alloc_mode.For_allocations.t -> Coeffects.t = function
   | Local _ -> Coeffects.Has_coeffects
@@ -955,11 +966,12 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
        get deleted during lambda_to_flambda. *)
     Arbitrary_effects, Has_coeffects, Strict
   | Dls_get -> No_effects, Has_coeffects, Strict
+  | Poll -> Arbitrary_effects, Has_coeffects, Strict
 
 let nullary_classify_for_printing p =
   match p with
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-  | Begin_try_region _ | Enter_inlined_apply _ | Dls_get ->
+  | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ->
     Neither
 
 module Reinterpret_64_bit_word = struct
@@ -2112,7 +2124,7 @@ let free_names t =
   match t with
   | Nullary
       ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get ) ->
+      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ) ->
     Name_occurrences.empty
   | Unary (prim, x0) ->
     Name_occurrences.union
@@ -2139,7 +2151,7 @@ let apply_renaming t renaming =
   match t with
   | Nullary
       ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get ) ->
+      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ) ->
     t
   | Unary (prim, x0) ->
     let prim' = apply_renaming_unary_primitive prim renaming in
@@ -2169,7 +2181,7 @@ let ids_for_export t =
   match t with
   | Nullary
       ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get ) ->
+      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ) ->
     Ids_for_export.empty
   | Unary (prim, x0) ->
     Ids_for_export.union
