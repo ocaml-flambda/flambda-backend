@@ -808,12 +808,7 @@ module type S = sig
 end
 ;;
 [%%expect {|
-Line 2, characters 10-36:
-2 |   val f : 'a. 'a t2_imm -> 'a t2_imm
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was defaulted to have layout value.
-       But it was inferred to have layout immediate, because
-         of the definition of t2_imm at line 1, characters 0-28.
+module type S = sig val f : ('a : immediate). 'a t2_imm -> 'a t2_imm end
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)
@@ -821,12 +816,7 @@ Error: The universal type variable 'a was defaulted to have layout value.
 let f : 'a. 'a t2_imm -> 'a t2_imm = fun x -> x
 
 [%%expect {|
-Line 1, characters 8-34:
-1 | let f : 'a. 'a t2_imm -> 'a t2_imm = fun x -> x
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was defaulted to have layout value.
-       But it was inferred to have layout immediate, because
-         of the definition of t2_imm at line 1, characters 0-28.
+val f : ('a : immediate). 'a t2_imm -> 'a t2_imm = <fun>
 |}]
 (* CR layouts v2.8: Bad error message. The error message should be about a kind or mode
    mismatch, not a layout mismatch. *)

@@ -55,10 +55,7 @@ type cannot_quantify_reason =
    it is original as compared to the inferred jkind after processing
    the body of the type *)
 type jkind_info =
-  { original_jkind : jkind;
-    jkind_annot : Jkind.annotation option;
-    defaulted : bool;
-  }
+  { of_annot : (jkind * Jkind.annotation) option }
 
 type error =
   | Unbound_type_variable of string * string list
@@ -78,7 +75,7 @@ type error =
   | Invalid_variable_name of string
   | Cannot_quantify of string * cannot_quantify_reason
   | Bad_univar_jkind of
-      { name : string; jkind_info : jkind_info; inferred_jkind : jkind }
+      { name : string; declared_jkind : jkind; inferred_jkind : jkind }
   | Multiple_constraints_on_type of Longident.t
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
@@ -269,7 +266,7 @@ end = struct
       ~finally:(fun () -> univars := old_univars)
 
   let ttyp_poly_arg (poly_univars : poly_univars) = List.map
-      (fun (name, pending_univar) -> name, pending_univar.jkind_info.jkind_annot)
+      (fun (name, pending_univar) -> name, Option.map snd pending_univar.jkind_info.of_annot)
       poly_univars
 
   let mk_pending_univar name jkind jkind_info =
@@ -280,15 +277,13 @@ end = struct
     let original_jkind, jkind_annot =
       Jkind.of_annotation ~context:(context name) jkind
     in
-    let jkind_info =
-      { original_jkind; jkind_annot = Some jkind_annot; defaulted = false }
-    in
+    let jkind_info = { of_annot = Some(original_jkind, jkind_annot) } in
     name, mk_pending_univar name original_jkind jkind_info
 
   let mk_poly_univars_tuple_without_jkind var =
     let name = var.txt in
     let original_jkind = Jkind.Primitive.value ~why:Univar in
-    let jkind_info = { original_jkind; jkind_annot = None; defaulted = true } in
+    let jkind_info = { of_annot = None } in
     name, mk_pending_univar name original_jkind jkind_info
 
   let make_poly_univars vars =
@@ -320,18 +315,21 @@ end = struct
       let cant_quantify reason =
         raise (Error (loc, env, Cannot_quantify(name, reason)))
       in
-      begin match get_desc v with
-      | Tvar { jkind } when
-          not (Jkind.equate jkind jkind_info.original_jkind) ->
+      begin match get_desc v, jkind_info.of_annot with
+      (* Must agree exactly with annotation, if one exists *)
+      (* FIXME jbachurski: Should we check that if no annotation is present, 
+         the inferred jkind (in covariant positions) is representable? *)
+      | Tvar { jkind }, Some (declared_jkind, _) 
+          when not (Jkind.equate jkind declared_jkind) ->
         let reason =
-          Bad_univar_jkind { name; jkind_info; inferred_jkind = jkind }
+          Bad_univar_jkind { name; declared_jkind; inferred_jkind = jkind }
         in
         raise (Error (loc, env, reason))
-      | Tvar _ when get_level v <> Btype.generic_level ->
+      | Tvar _, _ when get_level v <> Btype.generic_level ->
           cant_quantify Scope_escape
-      | Tvar { name; jkind } ->
+      | Tvar { name; jkind }, _ ->
          set_type_desc v (Tunivar { name; jkind })
-      | Tunivar _ ->
+      | Tunivar _, _ ->
          cant_quantify Univar
       | _ ->
          cant_quantify (Unified v)
@@ -1454,12 +1452,11 @@ let report_error env ppf = function
         fprintf ppf "it escapes its scope"
       end;
       fprintf ppf ".@]";
-  | Bad_univar_jkind { name; jkind_info; inferred_jkind } ->
+  | Bad_univar_jkind { name; declared_jkind; inferred_jkind } ->
       fprintf ppf
-        "@[<hov>The universal type variable %a was %s to have layout %a.@;%a@]"
+        "@[<hov>The universal type variable %a was declared to have layout %a.@;%a@]"
         Pprintast.tyvar name
-        (if jkind_info.defaulted then "defaulted" else "declared")
-        Jkind.format jkind_info.original_jkind
+        Jkind.format declared_jkind
         (Jkind.format_history ~intro:(
           dprintf "But it was inferred to have %t"
             (fun ppf -> match Jkind.get inferred_jkind with
