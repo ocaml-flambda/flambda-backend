@@ -136,7 +136,7 @@ typedef pthread_cond_t custom_condvar;
 typedef pthread_mutex_t caml_plat_mutex;
 #define CAML_PLAT_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
 CAMLextern void caml_plat_mutex_init(caml_plat_mutex*);
-Caml_inline void caml_plat_lock(caml_plat_mutex*); /* blocking */
+Caml_inline void caml_plat_lock_blocking(caml_plat_mutex*);
 Caml_inline void caml_plat_lock_non_blocking(caml_plat_mutex*);
 Caml_inline int caml_plat_try_lock(caml_plat_mutex*);
 void caml_plat_assert_locked(caml_plat_mutex*);
@@ -180,7 +180,7 @@ CAMLextern CAMLthread_local int caml_lockdepth;
 #define DEBUG_UNLOCK(m)
 #endif
 
-Caml_inline void caml_plat_lock(caml_plat_mutex* m)
+Caml_inline void caml_plat_lock_blocking(caml_plat_mutex* m)
 {
   check_err("lock", pthread_mutex_lock(m));
   DEBUG_LOCK(m);
