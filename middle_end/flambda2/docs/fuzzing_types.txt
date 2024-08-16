@@ -1,0 +1,28 @@
+Notes on fuzzing for the Flambda 2 types
+
+The aim is to be able to fuzz some of the algorithms in types/, most notably meet and join.
+
+Two main challenges are expected:
+- Generating input environments (and types)
+- Checking the outputs with respect to the semantics of the operations
+
+Generating inputs can probably follow the same ideas as fuzzers for compilers, or even
+theorem provers.
+
+For checking the outputs, it looks like the most realistic solution is to write
+a function to translate an environment into an SMT formula. Then, checking if one
+environment A is a correct approximation of another environment B can be done by cheking
+B ⊆ A, or in SMT terms ¬(SMT(B)) ∨ SMT(A).
+Then we can express the following properties:
+- Soundness of join: C = join A B => A ⊆ C ∧ B ⊆ C
+- Soundness of meet: C = meet A B => A ∩ B ⊆ C
+- No loss of precision on meet: C = meet A B => C ⊆ A ∧ C ⊆ B
+
+Additional notes:
+Generating good inputs for the meet might be tricky to avoid having Bottom results all the time.
+An idea would be to start from a model (a value for each variable) and add type constraints
+until the only solution is the model. These constraints are then split in two, eventually moved
+under extensions, and we call meet on these two environments and check that the result is
+coherent with the model.
+
+The SMT conversion would also serve as specification of the environments.
