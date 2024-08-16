@@ -31,7 +31,7 @@ Caml_inline int caml_marking_started(void) {
   return caml_gc_phase != Phase_sweep_main;
 }
 
-intnat caml_opportunistic_major_work_available (void);
+intnat caml_opportunistic_major_work_available (caml_domain_state*);
 void caml_opportunistic_major_collection_slice (intnat);
 /* auto-triggered slice from within the GC */
 #define AUTO_TRIGGERED_MAJOR_SLICE -1
