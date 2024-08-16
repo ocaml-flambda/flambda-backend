@@ -2,7 +2,7 @@
 
 set -e
 
-cmir=save_ir_after_linearization.cmir-linear
+cmir=save_ir_after_scheduling.cmir-linear
 
 # Check that cmir is generated
 if [ -e "$cmir" ] ; then
