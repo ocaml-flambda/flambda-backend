@@ -93,7 +93,7 @@ so as a preprocessing phase rather than during allocation per se:
   round;
 - worse, an allocator such as IRC will decide that the location of the
   register is on the stack (and insert reloads and spills as described
-  above in the "Rewrite" section) while by introducing new names after
+  above in [Rewrite](#rewrite)) while by introducing new names after
   destruction points we are splitting the live ranges, making the problem
   easier to solve and allowing the allocator to make finer-grained
   decisions.
