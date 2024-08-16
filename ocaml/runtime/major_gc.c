@@ -1400,10 +1400,8 @@ static void start_marking (int participant_count, caml_domain_state** barrier_pa
   CAML_EV_END(EV_MAJOR_MARK_ROOTS);
 
   CAML_EV_BEGIN(EV_MAJOR_MEMPROF_ROOTS);
-  int is_main_domain =
-    barrier_participants == NULL || barrier_participants[0] == domain;
   caml_memprof_scan_roots(caml_darken, darken_scanning_flags, domain,
-                          domain, false, is_main_domain);
+                          domain, false);
   CAML_EV_END(EV_MAJOR_MEMPROF_ROOTS);
 
   caml_gc_log("Marking started, %ld entries on mark stack",
@@ -1441,7 +1439,7 @@ static void stw_cycle_all_domains(caml_domain_state* domain, void* args,
    * mysteriously put all domains back into mark/sweep.
    */
   CAML_EV_BEGIN(EV_MAJOR_MEMPROF_CLEAN);
-  caml_memprof_after_major_gc(domain, domain == participating[0]);
+  caml_memprof_after_major_gc(domain);
   CAML_EV_END(EV_MAJOR_MEMPROF_CLEAN);
 
   CAML_EV_BEGIN(EV_MAJOR_GC_CYCLE_DOMAINS);
