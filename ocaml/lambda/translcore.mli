@@ -49,7 +49,7 @@ type error =
   | Unreachable_reached
   | Bad_probe_layout of Ident.t
   | Illegal_void_record_field
-  | Illegal_product_record_field of Jkind.Sort.const
+  | Illegal_product_record_field of Jkind.Sort.Const.t
   | Void_sort of Types.type_expr
 
 exception Error of Location.t * error

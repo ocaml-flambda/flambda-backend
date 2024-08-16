@@ -31,7 +31,7 @@ type error =
   | Unreachable_reached
   | Bad_probe_layout of Ident.t
   | Illegal_void_record_field
-  | Illegal_product_record_field of Jkind.Sort.const
+  | Illegal_product_record_field of Jkind.Sort.Const.t
   | Void_sort of type_expr
 
 exception Error of Location.t * error
@@ -56,9 +56,9 @@ let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
 
 let check_record_field_sort loc sort =
   match Jkind.Sort.default_to_value_and_get sort with
-  | Const_base (Value | Float64 | Float32 | Bits32 | Bits64 | Word) -> ()
-  | Const_base Void -> raise (Error (loc, Illegal_void_record_field))
-  | Const_product _ as c -> raise (Error (loc, Illegal_product_record_field c))
+  | Base (Value | Float64 | Float32 | Bits32 | Bits64 | Word) -> ()
+  | Base Void -> raise (Error (loc, Illegal_void_record_field))
+  | Product _ as c -> raise (Error (loc, Illegal_product_record_field c))
 
 (* Forward declaration -- to be filled in by Translmod.transl_module *)
 let transl_module =

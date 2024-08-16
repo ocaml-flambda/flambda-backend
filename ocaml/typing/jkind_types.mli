@@ -58,10 +58,6 @@ module Sort : sig
 
   val equal_base : base -> base -> bool
 
-  type const =
-    | Const_base of base
-    | Const_product of const list
-
   type t =
     | Var of var
     | Base of base
@@ -70,11 +66,7 @@ module Sort : sig
   and var
 
   include
-    Jkind_intf.Sort
-      with type t := t
-       and type var := var
-       and type base := base
-       and type const := const
+    Jkind_intf.Sort with type t := t and type var := var and type base := base
 
   val set_change_log : (change -> unit) -> unit
 
@@ -93,9 +85,12 @@ module Sort : sig
 end
 
 module Layout : sig
-  type 'sort layout =
-    | Sort of 'sort
-    | Product of 'sort layout list
+  (** Note that products have two possible encodings: as [Product ...] or as
+      [Sort (Product ...]. This duplication is hard to eliminate because of the
+      possibility that a sort variable may be instantiated by a product sort. *)
+  type t =
+    | Sort of Sort.t
+    | Product of t list
     | Any
 
   module Const : sig
@@ -122,8 +117,6 @@ module Layout : sig
         | Product of t list
     end
   end
-
-  type t = Sort.t layout
 end
 
 module Modes = Mode.Alloc.Const

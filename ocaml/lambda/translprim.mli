@@ -64,7 +64,7 @@ type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
   | Invalid_floatarray_glb
-  | Unexpected_product_in_prim of Jkind.Sort.const
+  | Unexpected_product_in_prim of Jkind.Sort.Const.t
 
 exception Error of Location.t * error
 

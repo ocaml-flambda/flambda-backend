@@ -717,10 +717,10 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
   | Ptyp_unboxed_tuple stl ->
     Jane_syntax_parsing.assert_extension_enabled ~loc Layouts
       Language_extension.Beta;
-    (* XXX modes *)
     let tl =
       List.map
-        (fun (label, t) -> label, transl_type env ~policy ~row_context mode t)
+        (fun (label, t) ->
+           label, transl_type env ~policy ~row_context Alloc.Const.legacy t)
         stl
     in
     let ctyp_type =

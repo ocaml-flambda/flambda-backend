@@ -126,7 +126,7 @@ type error =
       }
   | Jkind_empty_record
   | Non_value_in_sig of Jkind.Violation.t * string * type_expr
-  | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
+  | Invalid_jkind_in_block of type_expr * Jkind.Sort.Const.t * jkind_sort_loc
   | Illegal_mixed_product of mixed_product_violation
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
@@ -410,9 +410,9 @@ let check_representable ~why ~allow_unboxed env loc kloc typ =
   | Ok s -> begin
     if not allow_unboxed then
       match Jkind.Sort.default_to_value_and_get s with
-      | Const_base (Void | Value) -> ()
-      | Const_base (Float64 | Float32 | Word | Bits32 | Bits64)
-      | Const_product _ as const ->
+      | Base (Void | Value) -> ()
+      | Base (Float64 | Float32 | Word | Bits32 | Bits64)
+      | Product _ as const ->
         raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
   | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
@@ -1294,9 +1294,9 @@ module Element_repr = struct
       let base = match sort with
         | None ->
             Misc.fatal_error "Element_repr.classify: unexpected abstract layout"
-        | Some (Const_product _ as c) ->
+        | Some (Product _ as c) ->
             raise (Error (loc, Invalid_jkind_in_block (ty, c, kloc)))
-        | Some (Const_base b) -> b
+        | Some (Base b) -> b
       in
       match base, externality_upper_bound with
       (* CR layouts v5.1: We don't allow [External64] in the flat suffix of
@@ -1338,7 +1338,7 @@ module Element_repr = struct
        updating some assumptions in lambda, e.g. the translation
        of [value_prefix_len]. *)
     | Element_without_runtime_component { loc; ty } ->
-        raise (Error (loc, Invalid_jkind_in_block (ty, Const_base Void,
+        raise (Error (loc, Invalid_jkind_in_block (ty, Base Void,
                                                    Mixed_product)))
     | Float_element | Value_element -> None
 
@@ -1381,7 +1381,7 @@ module Element_repr = struct
               | None -> None
               | Some _ ->
                   raise (Error (loc,
-                    Invalid_jkind_in_block (ty, Const_base Void,
+                    Invalid_jkind_in_block (ty, Base Void,
                                             Mixed_product)))
             end
     in
@@ -1528,7 +1528,7 @@ let update_decl_jkind env dpath decl =
                   | Unboxed_element Float64 -> Float64
                   | Element_without_runtime_component { ty; loc } ->
                       raise (Error (loc,
-                        Invalid_jkind_in_block (ty, Const_base Void,
+                        Invalid_jkind_in_block (ty, Base Void,
                                                 Mixed_product)))
                   | Unboxed_element _ | Imm_element | Value_element ->
                       Misc.fatal_error "Expected only floats and float64s")
@@ -2733,7 +2733,7 @@ let type_sort_external ~is_layout_poly ~why env loc typ =
     in
     raise(Error (loc, Jkind_sort {kloc; typ; err}))
 
-type sort_or_poly = Sort of Jkind.Sort.const | Poly
+type sort_or_poly = Sort of Jkind.Sort.Const.t | Poly
 
 let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   error_if_has_deep_native_repr_attributes core_type;
@@ -2761,9 +2761,9 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
         sort_or_poly with
   | Native_repr_attr_absent, Poly ->
     Repr_poly
-  | Native_repr_attr_absent, Sort (Const_base Value) ->
+  | Native_repr_attr_absent, Sort (Base Value) ->
     Same_as_ocaml_repr Value
-  | Native_repr_attr_absent, (Sort (Const_base sort)) ->
+  | Native_repr_attr_absent, (Sort (Base sort)) ->
     (if Language_extension.erasable_extensions_only ()
     then
       (* Non-value sorts without [@unboxed] are not erasable. *)
@@ -2772,16 +2772,16 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
         (Warnings.Incompatible_with_upstream
               (Warnings.Unboxed_attribute layout)));
     Same_as_ocaml_repr sort
-  | Native_repr_attr_absent, (Sort (Const_product _)) ->
+  | Native_repr_attr_absent, (Sort (Product _)) ->
     raise (Error (core_type.ptyp_loc, Unboxed_product_in_external))
-  | Native_repr_attr_present kind, (Poly | Sort (Const_base Value))
+  | Native_repr_attr_present kind, (Poly | Sort (Base Value))
   | Native_repr_attr_present (Untagged as kind), Sort _ ->
     begin match native_repr_of_type env kind ty with
     | None ->
       raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type kind))
     | Some repr -> repr
     end
-  | Native_repr_attr_present Unboxed, (Sort (Const_base sort)) ->
+  | Native_repr_attr_present Unboxed, (Sort (Base sort)) ->
     (* We allow [@unboxed] on non-value sorts.
 
        This is to enable upstream-compatibility. We want the code to
@@ -2811,7 +2811,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
         (Warnings.Incompatible_with_upstream
               (Warnings.Non_value_sort layout)));
     Same_as_ocaml_repr sort
-  | Native_repr_attr_present Unboxed, (Sort (Const_product _)) ->
+  | Native_repr_attr_present Unboxed, (Sort (Product _)) ->
     raise (Error (core_type.ptyp_loc, Unboxed_product_in_external))
 
 let prim_const_mode m =

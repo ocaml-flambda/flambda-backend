@@ -68,3 +68,9 @@ Test 8, reverse (inlined): 5, 4.40, 3.30, 2.20, 1
 Test 8, reverse (not inlined): 5, 4.40, 3.30, 2.20, 1
 Test 8, extract y (inlined): 5
 Test 8, extract y (not inlined): 5
+Test 9, #(2,1): #(2,1)
+Test 9, #(4,3): #(4,3)
+Test 9, #(84,42): #(84,42)
+Test 10, #(1,0): #(1,0)
+Test 10, #(5,3): #(5,3)
+Test 10, #(144,89): #(144,89)

@@ -34,6 +34,8 @@ type type_expr = Types.type_expr
 module Layout = struct
   open Jkind_types.Layout
 
+  type nonrec t = t
+
   module Const = struct
     type t = Const.t =
       | Any
@@ -88,10 +90,10 @@ module Layout = struct
 
     let rec get_sort : t -> Sort.Const.t option = function
       | Any -> None
-      | Base b -> Some (Const_base b)
+      | Base b -> Some (Base b)
       | Product ts ->
         Option.map
-          (fun x -> Sort.Const_product x)
+          (fun x -> Sort.Const.Product x)
           (Misc.Stdlib.List.map_option get_sort ts)
 
     let rec of_sort s =
@@ -122,12 +124,10 @@ module Layout = struct
       let t ppf t = fprintf ppf "%s" (to_string t)
     end
 
-    let rec of_sort_const : Sort.const -> t = function
-      | Const_base b -> Base b
-      | Const_product consts -> Product (List.map of_sort_const consts)
+    let rec of_sort_const : Sort.Const.t -> t = function
+      | Base b -> Base b
+      | Product consts -> Product (List.map of_sort_const consts)
   end
-
-  type t = Sort.t layout
 
   module Debug_printers = struct
     open Format
@@ -708,7 +708,7 @@ module Const = struct
     in
     let layouts, mode_ub, ext_ub, null_ub =
       List.fold_left folder
-        ([], Modes.min, Externality.min, Nullability.max)
+        ([], Modes.min, Externality.min, Nullability.min)
         jkinds
     in
     { layout = Product (List.rev layouts);
@@ -954,7 +954,7 @@ module Jkind_desc = struct
   end
 
   let product jkinds =
-    (* CR layouts 7.1: Here we throw away the history of the component
+    (* CR layouts v7.1: Here we throw away the history of the component
        jkinds. This is not great. We should, as part of a broader pass on error
        messages around product kinds, zip them up into some kind of product
        history. *)
@@ -975,7 +975,7 @@ module Jkind_desc = struct
     in
     let layouts, mode_ub, ext_ub, null_ub =
       List.fold_left folder
-        ([], Modes.min, Externality.min, Nullability.max)
+        ([], Modes.min, Externality.min, Nullability.min)
         jkinds
     in
     { layout = Product (List.rev layouts);
@@ -984,7 +984,7 @@ module Jkind_desc = struct
       nullability_upper_bound = null_ub
     }
 
-  (* Post-condition: If the result is [Var v], then [!v] is [None]. *)
+  (* Post-condition: If the result contains [Var v], then [!v] is [None]. *)
   let rec get_sort modes_upper_bounds externality_upper_bound
       nullability_upper_bound s : Desc.t =
     match Sort.get s with

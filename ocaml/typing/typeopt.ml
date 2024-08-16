@@ -28,8 +28,8 @@ type error =
   | Non_value_sort_unknown_ty of Jkind.Sort.t
   | Small_number_sort_without_extension of Jkind.Sort.t * type_expr option
   | Not_a_sort of type_expr * Jkind.Violation.t
-  | Unsupported_sort of Jkind.Sort.const
-  | Unsupported_product_in_structure of Jkind.Sort.const
+  | Unsupported_sort of Jkind.Sort.Const.t
+  | Unsupported_product_in_structure of Jkind.Sort.Const.t
 
 exception Error of Location.t * error
 
@@ -126,7 +126,7 @@ type classification =
 let classify env loc ty sort : classification =
   let ty = scrape_ty env ty in
   match Jkind.(Sort.default_to_value_and_get sort) with
-  | Const_base Value -> begin
+  | Base Value -> begin
   if is_always_gc_ignorable env ty then Int
   else match get_desc ty with
   | Tvar _ | Tunivar _ ->
@@ -160,14 +160,14 @@ let classify env loc ty sort : classification =
   | Tlink _ | Tsubst _ | Tpoly _ | Tfield _ | Tunboxed_tuple _ ->
       assert false
   end
-  | Const_base Float64 -> Unboxed_float Pfloat64
-  | Const_base Float32 -> Unboxed_float Pfloat32
-  | Const_base Bits32 -> Unboxed_int Pint32
-  | Const_base Bits64 -> Unboxed_int Pint64
-  | Const_base Word -> Unboxed_int Pnativeint
-  | Const_base Void as c ->
+  | Base Float64 -> Unboxed_float Pfloat64
+  | Base Float32 -> Unboxed_float Pfloat32
+  | Base Bits32 -> Unboxed_int Pint32
+  | Base Bits64 -> Unboxed_int Pint64
+  | Base Word -> Unboxed_int Pnativeint
+  | Base Void as c ->
     raise (Error (loc, Unsupported_sort c))
-  | Const_product _ as c ->
+  | Product _ as c ->
     raise (Error (loc, Unsupported_product_in_structure c))
 
 let array_type_kind ~elt_sort env loc ty =
@@ -700,27 +700,27 @@ let value_kind env loc ty =
   | Missing_cmi_fallback -> raise (Error (loc, Non_value_layout (ty, None)))
 
 let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
-  : Jkind.Sort.const -> _ = function
-  | Const_base Value -> Lambda.Pvalue (Lazy.force value_kind)
-  | Const_base Float64 when Language_extension.(is_at_least Layouts Stable) ->
+  : Jkind.Sort.Const.t -> _ = function
+  | Base Value -> Lambda.Pvalue (Lazy.force value_kind)
+  | Base Float64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_float Pfloat64
-  | Const_base Word when Language_extension.(is_at_least Layouts Stable) ->
+  | Base Word when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pnativeint
-  | Const_base Bits32 when Language_extension.(is_at_least Layouts Stable) ->
+  | Base Bits32 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pint32
-  | Const_base Bits64 when Language_extension.(is_at_least Layouts Stable) ->
+  | Base Bits64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pint64
-  | Const_base Float32 when Language_extension.(is_at_least Layouts Stable) &&
+  | Base Float32 when Language_extension.(is_at_least Layouts Stable) &&
                             Language_extension.(is_enabled Small_numbers) ->
     Lambda.Punboxed_float Pfloat32
-  | Const_product consts when Language_extension.(is_at_least Layouts Beta) ->
+  | Product consts when Language_extension.(is_at_least Layouts Beta) ->
     (* CR layouts 7.1: assess whether it is important for performance to support
        deep value_kinds here *)
     Lambda.Punboxed_product
       (List.map (layout_of_const_sort_generic ~value_kind:(lazy Pgenval) ~error)
          consts)
-  | ((  Const_base (Void | Float32 | Float64 | Word | Bits32 | Bits64)
-      | Const_product _) as const) ->
+  | ((  Base (Void | Float32 | Float64 | Word | Bits32 | Bits64)
+      | Product _) as const) ->
     error const
 
 let layout env loc sort ty =
@@ -728,17 +728,17 @@ let layout env loc sort ty =
     (Jkind.Sort.default_to_value_and_get sort)
     ~value_kind:(lazy (value_kind env loc ty))
     ~error:(function
-      | Const_base Value -> assert false
-      | Const_base Void ->
+      | Base Value -> assert false
+      | Base Void ->
         raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
-      | Const_base Float32 as const ->
+      | Base Float32 as const ->
         raise (Error (loc, Small_number_sort_without_extension
                              (Jkind.Sort.of_const const, Some ty)))
-      | Const_base (Float64 | Word | Bits32 | Bits64) as const ->
+      | Base (Float64 | Word | Bits32 | Bits64) as const ->
         raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const,
                                                    Stable,
                                                    Some ty)))
-      | Const_product _ as const ->
+      | Product _ as const ->
         raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const,
                                                    Beta,
                                                    Some ty)))
@@ -749,23 +749,23 @@ let layout_of_sort loc sort =
     (Jkind.Sort.default_to_value_and_get sort)
     ~value_kind:(lazy Pgenval)
     ~error:(function
-    | Const_base Value -> assert false
-    | Const_base Void ->
+    | Base Value -> assert false
+    | Base Void ->
       raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
-    | Const_base Float32 as const ->
+    | Base Float32 as const ->
       raise (Error (loc, Small_number_sort_without_extension
                            (Jkind.Sort.of_const const, None)))
-    | Const_base (Float64 | Word | Bits32 | Bits64) as const ->
+    | Base (Float64 | Word | Bits32 | Bits64) as const ->
       raise (Error (loc, Sort_without_extension
                            (Jkind.Sort.of_const const, Stable, None)))
-    | Const_product _ as const ->
+    | Product _ as const ->
       raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const,
                                                  Beta,
                                                  None))))
 
 let layout_of_base_sort b =
   layout_of_const_sort_generic
-    (Const_base b)
+    (Base b)
     ~value_kind:(lazy Pgenval)
     ~error:(fun const ->
       Misc.fatal_errorf "layout_of_const_sort: %a encountered"

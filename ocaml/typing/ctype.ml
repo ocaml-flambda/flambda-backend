@@ -2128,13 +2128,14 @@ let rec estimate_type_jkind_head env ty =
   | Tpoly (ty, _) -> estimate_type_jkind_head env ty
   | Tpackage _ -> Jkind (Builtin.value ~why:First_class_module)
 
-(* We parameterize [estimate_type_jkind] and [jkind_of_result] by a function
+(* We parameterize [estimate_type_jkind] and [jkind_of_jkind_head] by a function
    [expand_components] because some callers want expansion of types and others
    don't. *)
 let rec estimate_type_jkind env ~expand_components ty =
-  jkind_of_result env ~expand_components (estimate_type_jkind_head env ty)
+  jkind_of_jkind_head env ~expand_components (estimate_type_jkind_head env ty)
 
-and jkind_of_result env ~expand_components jkind_head =
+(* See [estimate_type_jkind] above for explanation of [expand_components]. *)
+and jkind_of_jkind_head env ~expand_components jkind_head =
   match jkind_head with
   | Jkind l -> l
   | TyVar (_, l) -> l
@@ -2237,10 +2238,16 @@ let type_jkind_sub env ty jkind =
       in
       match jkinds with
       | None ->
+        (* The upper bound is not a product, but the type is.  This may be
+           OK if the upper bound has layout any. *)
         let estimate =
-          jkind_of_result env ~expand_components:(fun x -> x) product
+          jkind_of_jkind_head env ~expand_components:(fun x -> x) product
         in
-        estimate, Failure { estimate; bound = jkind; ty }
+        let result =
+          if Jkind.sub estimate jkind then Success else
+            Failure { estimate; bound = jkind; ty }
+        in
+        estimate, result
       | Some jkinds ->
         (* Note: here we "duplicate" the fuel, which may seem like
            cheating. Fuel counts expansions, and its purpose is to guard against
@@ -2249,14 +2256,15 @@ let type_jkind_sub env ty jkind =
         let results = List.map2 (check_one fuel) component_types jkinds in
         process_product_results fuel [] [] results
 
-  (* Here, [results] is a list of results from attempting to constrain a product
-     jkind - one for each component. Failures may have occurred just because we
-     haven't expanded the component type enough yet, so we expand and check it
-     again.
+  (* Here, we are recusing down [results] is a list of the (unprocessed) results
+     from attempting to constrain a product jkind. There is one for each
+     component, and we process them individually into the accumulators [vars]
+     and [jkind_ests]. Those collect the [Type_vars] from the component checks
+     and the jkind estimate of each component, respectively
 
-     [vars] and [jkind_ests] are accumulators, collecting the [Type_vars] from
-     the component checks and the jkind estimate of each component.
-  *)
+     [Failure]s in results may have occurred just because we haven't expanded
+     the component type enough yet, so we expand and check it again. *)
+
   and process_product_results fuel vars jkind_ests results =
     match results with
     | [] ->

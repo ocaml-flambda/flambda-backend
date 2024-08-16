@@ -22,10 +22,6 @@ module Sort = struct
     | Bits32
     | Bits64
 
-  type const =
-    | Const_base of base
-    | Const_product of const list
-
   type t =
     | Var of var
     | Base of base
@@ -33,7 +29,7 @@ module Sort = struct
 
   and var =
     { mutable contents : t option;
-      uid : int
+      uid : int (* For debugging / printing only *)
     }
 
   let equal_base b1 b2 =
@@ -58,20 +54,20 @@ module Sort = struct
     | Bits64 -> "bits64"
 
   module Const = struct
-    type t = const =
-      | Const_base of base
-      | Const_product of const list
+    type t =
+      | Base of base
+      | Product of t list
 
     let rec equal c1 c2 =
       match c1, c2 with
-      | Const_base b1, Const_base b2 -> equal_base b1 b2
-      | Const_product cs1, Const_product cs2 -> List.equal equal cs1 cs2
-      | (Const_base _ | Const_product _), _ -> false
+      | Base b1, Base b2 -> equal_base b1 b2
+      | Product cs1, Product cs2 -> List.equal equal cs1 cs2
+      | (Base _ | Product _), _ -> false
 
     let format ppf c =
       let rec pp_element ~nested ppf = function
-        | Const_base b -> Format.fprintf ppf "%s" (to_string_base b)
-        | Const_product cs ->
+        | Base b -> Format.fprintf ppf "%s" (to_string_base b)
+        | Product cs ->
           let pp_sep ppf () = Format.fprintf ppf "@ & " in
           Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf cs
       in
@@ -80,7 +76,7 @@ module Sort = struct
     module Debug_printers = struct
       let t ppf c =
         let rec pp_element ~nested ppf = function
-          | Const_base b ->
+          | Base b ->
             Format.fprintf ppf "%s"
               (match b with
               | Void -> "Void"
@@ -90,7 +86,7 @@ module Sort = struct
               | Word -> "Word"
               | Bits32 -> "Bits32"
               | Bits64 -> "Bits64")
-          | Const_product cs ->
+          | Product cs ->
             let pp_sep ppf () = Format.fprintf ppf "@ , " in
             Format.fprintf ppf "Product [%a]"
               (Misc.pp_nested_list ~nested ~pp_element ~pp_sep)
@@ -180,34 +176,9 @@ module Sort = struct
         | Bits32 -> bits32
         | Bits64 -> bits64
 
-      let rec of_const = function
-        | Const_base b -> of_base b
-        | Const_product cs -> Product (List.map of_const cs)
-    end
-
-    module Const = struct
-      let value = Const_base Value
-
-      let void = Const_base Void
-
-      let float64 = Const_base Float64
-
-      let float32 = Const_base Float32
-
-      let word = Const_base Word
-
-      let bits32 = Const_base Bits32
-
-      let bits64 = Const_base Bits64
-
-      let of_base : base -> const = function
-        | Value -> value
-        | Void -> void
-        | Float64 -> float64
-        | Float32 -> float32
-        | Word -> word
-        | Bits32 -> bits32
-        | Bits64 -> bits64
+      let rec of_const : Const.t -> t = function
+        | Base b -> of_base b
+        | Product cs -> Product (List.map of_const cs)
     end
 
     module T_option = struct
@@ -234,12 +205,39 @@ module Sort = struct
         | Bits32 -> bits32
         | Bits64 -> bits64
 
-      let rec of_const = function
-        | Const_base b -> of_base b
-        | Const_product cs ->
+      let rec of_const : Const.t -> t option = function
+        | Base b -> of_base b
+        | Product cs ->
           Option.map
             (fun x -> Product x)
             (Misc.Stdlib.List.map_option of_const cs)
+    end
+
+    module Const = struct
+      open Const
+
+      let value = Base Value
+
+      let void = Base Void
+
+      let float64 = Base Float64
+
+      let float32 = Base Float32
+
+      let word = Base Word
+
+      let bits32 = Base Bits32
+
+      let bits64 = Base Bits64
+
+      let of_base : base -> Const.t = function
+        | Value -> value
+        | Void -> void
+        | Float64 -> float64
+        | Float32 -> float32
+        | Word -> word
+        | Bits32 -> bits32
+        | Bits64 -> bits64
     end
   end
 
@@ -266,9 +264,9 @@ module Sort = struct
         (* path compression *)
         result)
 
-  let rec default_to_value_and_get : t -> const = function
+  let rec default_to_value_and_get : t -> Const.t = function
     | Base b -> Static.Const.of_base b
-    | Product ts -> Const_product (List.map default_to_value_and_get ts)
+    | Product ts -> Product (List.map default_to_value_and_get ts)
     | Var r -> (
       match r.contents with
       | None ->
@@ -395,9 +393,9 @@ module Sort = struct
   let is_void_defaulting t =
     (* CR layouts v5: this should probably default to void now *)
     match default_to_value_and_get t with
-    | Const_base Void -> true
-    | Const_base (Value | Float64 | Float32 | Word | Bits32 | Bits64) -> false
-    | Const_product _ -> false
+    | Base Void -> true
+    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64) -> false
+    | Product _ -> false
 
   (*** pretty printing ***)
 
@@ -460,9 +458,9 @@ module Sort = struct
 end
 
 module Layout = struct
-  type 'sort layout =
-    | Sort of 'sort
-    | Product of 'sort layout list
+  type t =
+    | Sort of Sort.t
+    | Product of t list
     | Any
 
   module Const = struct
@@ -488,8 +486,6 @@ module Layout = struct
         | Product of t list
     end
   end
-
-  type t = Sort.t layout
 end
 
 module Modes = Mode.Alloc.Const

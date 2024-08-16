@@ -345,6 +345,8 @@ module Compat
       const_compare c1 c2 = 0
   | Tpat_tuple labeled_ps, Tpat_tuple labeled_qs ->
       tuple_compat labeled_ps labeled_qs
+  | Tpat_unboxed_tuple labeled_ps, Tpat_unboxed_tuple labeled_qs ->
+      unboxed_tuple_compat labeled_ps labeled_qs
   | Tpat_lazy p, Tpat_lazy q -> compat p q
   | Tpat_record (l1,_),Tpat_record (l2,_) ->
       let ps,qs = records_args l1 l2 in
@@ -372,6 +374,13 @@ module Compat
       && compat p q && tuple_compat labeled_ps labeled_qs
   | _,_    -> false
 
+  and unboxed_tuple_compat labeled_ps labeled_qs =
+    match labeled_ps,labeled_qs with
+    | [], [] -> true
+    | (p_label, p, _)::labeled_ps, (q_label, q, _)::labeled_qs ->
+        Option.equal String.equal p_label q_label
+        && compat p q && unboxed_tuple_compat labeled_ps labeled_qs
+    | _,_    -> false
 end
 
 module SyntacticCompat =
@@ -549,6 +558,14 @@ let do_set_args ~erase_mutable q r = match q with
     make_pat
       (Tpat_tuple
         (List.map2 (fun (lbl, _) arg -> lbl, arg) omegas args))
+      q.pat_type q.pat_env::rest
+| {pat_desc = Tpat_unboxed_tuple omegas} ->
+    let args,rest =
+      read_args (List.map (fun (_, pat, _) -> pat) omegas) r
+    in
+    make_pat
+      (Tpat_unboxed_tuple
+        (List.map2 (fun (lbl, _, sort) arg -> lbl, arg, sort) omegas args))
       q.pat_type q.pat_env::rest
 | {pat_desc = Tpat_record (omegas,closed)} ->
     let args,rest = read_args omegas r in
@@ -1793,6 +1810,8 @@ let rec le_pat p q =
   | Tpat_variant(_,_,_), Tpat_variant(_,_,_) -> false
   | Tpat_tuple(labeled_ps), Tpat_tuple(labeled_qs) ->
       le_tuple_pats labeled_ps labeled_qs
+  | Tpat_unboxed_tuple(labeled_ps), Tpat_unboxed_tuple(labeled_qs) ->
+      le_unboxed_tuple_pats labeled_ps labeled_qs
   | Tpat_lazy p, Tpat_lazy q -> le_pat p q
   | Tpat_record (l1,_), Tpat_record (l2,_) ->
       let ps,qs = records_args l1 l2 in
@@ -1812,6 +1831,13 @@ and le_tuple_pats labeled_ps labeled_qs =
     (p_label, p)::labeled_ps, (q_label, q)::labeled_qs ->
       Option.equal String.equal p_label q_label
       && le_pat p q && le_tuple_pats labeled_ps labeled_qs
+  | _, _ -> true
+
+and le_unboxed_tuple_pats labeled_ps labeled_qs =
+  match labeled_ps, labeled_qs with
+    (p_label, p, _)::labeled_ps, (q_label, q, _)::labeled_qs ->
+      Option.equal String.equal p_label q_label
+      && le_pat p q && le_unboxed_tuple_pats labeled_ps labeled_qs
   | _, _ -> true
 
 let get_mins le ps =
@@ -1839,6 +1865,9 @@ let rec lub p q = match p.pat_desc,q.pat_desc with
 | Tpat_tuple ps, Tpat_tuple qs ->
     let rs = tuple_lubs ps qs in
     make_pat (Tpat_tuple rs) p.pat_type p.pat_env
+| Tpat_unboxed_tuple ps, Tpat_unboxed_tuple qs ->
+    let rs = unboxed_tuple_lubs ps qs in
+    make_pat (Tpat_unboxed_tuple rs) p.pat_type p.pat_env
 | Tpat_lazy p, Tpat_lazy q ->
     let r = lub p q in
     make_pat (Tpat_lazy r) p.pat_type p.pat_env
@@ -1894,6 +1923,13 @@ and tuple_lubs ps qs = match ps,qs with
 | (p_label, p)::ps, (q_label, q)::qs
       when Option.equal String.equal p_label q_label ->
     (p_label, lub p q) :: tuple_lubs ps qs
+| _,_ -> raise Empty
+
+and unboxed_tuple_lubs ps qs = match ps,qs with
+| [], [] -> []
+| (p_label, p, sort)::ps, (q_label, q, _)::qs
+      when Option.equal String.equal p_label q_label ->
+    (p_label, lub p q, sort) :: unboxed_tuple_lubs ps qs
 | _,_ -> raise Empty
 
 and lubs ps qs = match ps,qs with

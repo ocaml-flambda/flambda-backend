@@ -1487,7 +1487,6 @@ let solve_Ppat_unboxed_tuple ~refine ~alloc_mode loc env args expected_ty =
   let arg_modes =
     match alloc_mode.tuple_modes with
     (* CR zqian: improve the modes of opened labeled tuple pattern. *)
-    (* XXX modes *)
     | Some l when List.compare_length_with l arity = 0 -> l
     | _ -> List.init arity (fun _ -> alloc_mode.mode)
   in
@@ -3065,7 +3064,6 @@ let rec pat_tuple_arity spat =
   | None      ->
   match spat.ppat_desc with
   | Ppat_tuple args -> Local_tuple (List.length args)
-  (* XXX modes *)
   | Ppat_unboxed_tuple (args,_c) -> Local_tuple (List.length args)
   | Ppat_any | Ppat_exception _ | Ppat_var _ -> Maybe_local_tuple
   | Ppat_constant _
@@ -4515,12 +4513,12 @@ let contains_variant_either ty =
   try loop ty; unmark_type ty; false
   with Exit -> unmark_type ty; true
 
-let shallow_iter_labeled_tuple f lst = List.iter (fun (_,p) -> f p) lst
+let shallow_iter_ppat_labeled_tuple f lst = List.iter (fun (_,p) -> f p) lst
 
 let shallow_iter_ppat_jane_syntax f : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pats) -> List.iter f pats
   | Jpat_layout (Lpat_constant _) -> ()
-  | Jpat_tuple (lst, _) -> shallow_iter_labeled_tuple f lst
+  | Jpat_tuple (lst, _) -> shallow_iter_ppat_labeled_tuple f lst
 
 let shallow_iter_ppat f p =
   match Jane_syntax.Pattern.of_ast p with
@@ -4535,7 +4533,7 @@ let shallow_iter_ppat f p =
   | Ppat_or (p1,p2) -> f p1; f p2
   | Ppat_variant (_, arg) -> Option.iter f arg
   | Ppat_tuple lst -> List.iter f lst
-  | Ppat_unboxed_tuple (lst, _) -> shallow_iter_labeled_tuple f lst
+  | Ppat_unboxed_tuple (lst, _) -> shallow_iter_ppat_labeled_tuple f lst
   | Ppat_construct (_, Some (_, p))
   | Ppat_exception p | Ppat_alias (p,_)
   | Ppat_open (_,p)
@@ -7762,7 +7760,15 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
     | Some tuple_modes when List.compare_length_with tuple_modes arity = 0 ->
         List.map (fun mode -> Value.meet [mode; argument_mode])
           tuple_modes
-    | _ ->
+    | Some tuple_modes ->
+        (* If the pattern and the expression have different tuple length, it
+          should be an type error. Here, we give the sound mode anyway. *)
+        let tuple_modes =
+          List.map (fun mode -> snd (register_allocation_value_mode mode)) tuple_modes
+        in
+        let argument_mode = Value.meet (argument_mode :: tuple_modes) in
+        List.init arity (fun _ -> argument_mode)
+    | None ->
         List.init arity (fun _ -> argument_mode)
   in
   let types_and_modes = List.combine labeled_subtypes argument_modes in
@@ -7788,6 +7794,7 @@ and type_unboxed_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
     Language_extension.Beta;
   let arity = List.length sexpl in
   assert (arity >= 2);
+  let argument_mode = expected_mode.mode in
   (* elements must be representable *)
   let labels_types_and_sorts =
     List.map (fun (label, _) ->
@@ -7803,13 +7810,18 @@ and type_unboxed_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
     unify_exp_types loc env to_unify (generic_instance ty_expected));
 
   let argument_modes =
-    (* XXX modes *)
     match expected_mode.tuple_modes with
     (* CR zqian: improve the modes of opened labeled tuple pattern. *)
     | Some tuple_modes when List.compare_length_with tuple_modes arity = 0 ->
-        tuple_modes
-    | _ ->
-        List.init arity (fun _ -> expected_mode.mode)
+        List.map (fun mode -> Value.meet [mode; argument_mode])
+          tuple_modes
+    | Some tuple_modes ->
+        (* If the pattern and the expression have different tuple length, it
+          should be an type error. Here, we give the sound mode anyway. *)
+        let argument_mode = Value.meet (argument_mode :: tuple_modes) in
+        List.init arity (fun _ -> argument_mode)
+    | None ->
+        List.init arity (fun _ -> argument_mode)
   in
   let types_sorts_and_modes =
     List.combine labels_types_and_sorts argument_modes
@@ -7831,7 +7843,6 @@ and type_unboxed_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
                (List.map (fun (label, e, _) -> label, e.exp_type) expl));
     exp_attributes = attributes;
     exp_env = env }
-
 
 and type_construct env (expected_mode : expected_mode) loc lid sarg
       ty_expected_explained attrs =

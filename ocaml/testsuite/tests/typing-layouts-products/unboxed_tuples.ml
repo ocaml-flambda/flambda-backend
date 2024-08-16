@@ -25,11 +25,23 @@
  } {
    flags = "-extension layouts_alpha";
    native;
+ } {
+   flags = "-extension layouts_alpha -Oclassic";
+   native;
+ } {
+   flags = "-extension layouts_alpha -O3";
+   native;
  }{
    flags = "-extension layouts_alpha";
    bytecode;
  }{
    flags = "-extension layouts_beta";
+   native;
+ }{
+   flags = "-extension layouts_beta -Oclassic";
+   native;
+ }{
+   flags = "-extension layouts_beta -O3";
    native;
  }{
    flags = "-extension layouts_beta";
@@ -65,7 +77,7 @@ let test1 () =
     ((mult_float_by_int [@inlined]) #(pi,2));
   print_floatu "Test 1, twice pi not inlined"
     ((mult_float_by_int [@inlined never]) #(pi,2));
-  print_ints "Test 1, 14/3 inlined" ((div_mod [@inlined]) 14 3);
+  print_ints "Test 1, 14/3 inlined" ((div_mod [@inlined hint]) 14 3);
   print_ints "Test 1, 14/3 not inlined" ((div_mod [@inlined never]) 14 3);
   let #(a,#(b,c)) =
     (add_some_stuff [@inlined]) #(1,2,#(3,4)) #(5,#(6,#(7,8,9)))
@@ -152,7 +164,7 @@ let[@inline never] f3 bounds steps_init () =
   in
   go 0
 
-(* many args - even args are floats, odd args are unboxed tuples *)
+(* many args - odd args are floats, even args are unboxed tuples *)
 let[@inline_never] f3_manyargs x0 x1 x2 x3 x4 x5 x6 x7 x8 x9 steps () =
   let #(start_k, end_k) = x0 in
   let[@inline never] rec go k =
@@ -376,4 +388,59 @@ let _ =
   Printf.printf "Test 8, extract y (inlined): %d\n" (Int64_u.to_int a);
   let a = (extract_y[@inlined never]) t in
   Printf.printf "Test 8, extract y (not inlined): %d\n" (Int64_u.to_int a)
+
+(**********************************)
+(* Test 9: Continuations / @local *)
+
+let _ =
+  let[@local] swap #(x, y) = #(y, x) in
+  let[@inline never] g i p1 p2 =
+    let z =
+      if i < 0 then
+        swap p1
+      else if i = 0 then
+        swap p2
+      else
+        swap #(42, 84)
+    in z
+  in
+  print_ints "Test 9, #(2,1)" (g (-1) #(1,2) #(3,4));
+
+  let[@local] swap #(x, y) = #(y, x) in
+  let[@inline never] g i p1 p2 =
+    let z =
+      if i < 0 then
+        swap p1
+      else if i = 0 then
+        swap p2
+      else
+        swap #(42, 84)
+    in z
+  in
+  print_ints "Test 9, #(4,3)" (g 0 #(1,2) #(3,4));
+
+  let[@local] swap #(x, y) = #(y, x) in
+  let[@inline never] g i p1 p2 =
+    let z =
+      if i < 0 then
+        swap p1
+      else if i = 0 then
+        swap p2
+      else
+        swap #(42, 84)
+    in z
+  in
+  print_ints "Test 9, #(84,42)" (g 1 #(1,2) #(3,4))
+
+(**************************)
+(* Test 10: Loopification *)
+
+let[@loop] rec fib n #(x, y) =
+  if y > n then #(y, x) else
+    fib n #(y, x + y)
+
+let _ =
+  print_ints "Test 10, #(1,0)" (fib 0 #(0,1));
+  print_ints "Test 10, #(5,3)" (fib 4 #(0,1));
+  print_ints "Test 10, #(144,89)" (fib 100 #(0,1))
 

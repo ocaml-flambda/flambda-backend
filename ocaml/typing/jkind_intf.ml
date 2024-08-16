@@ -33,14 +33,10 @@ module type Sort = sig
   (** A sort variable that can be unified during type-checking. *)
   type var
 
-  type const =
-    | Const_base of base
-    | Const_product of const list
-
   module Const : sig
-    type t = const =
-      | Const_base of base
-      | Const_product of t list
+    type t =
+      | Base of base
+      | Product of t list
 
     val equal : t -> t -> bool
 

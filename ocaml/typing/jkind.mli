@@ -454,7 +454,9 @@ val is_max : t -> bool
 val has_layout_any : t -> bool
 
 (** Checks whether a jkind's layout is an n-ary product, and returns the jkinds
-    of the components if so.  May update sort variables to make this true. *)
+    of the components if so (with each component inheriting the non-layout kind
+    pieces from the original input kind). May update sort variables to make the
+    layout a product. *)
 val is_nary_product : int -> t -> t list option
 
 (*********************************)

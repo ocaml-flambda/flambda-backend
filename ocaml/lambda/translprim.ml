@@ -29,7 +29,7 @@ type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
   | Invalid_floatarray_glb
-  | Unexpected_product_in_prim of Jkind.Sort.const
+  | Unexpected_product_in_prim of Jkind.Sort.Const.t
 
 exception Error of Location.t * error
 
@@ -150,8 +150,8 @@ let extern_repr_of_native_repr:
   = fun ~loc ~poly_sort r -> match r, poly_sort with
   | Repr_poly, Some s ->
     begin match Jkind.Sort.default_to_value_and_get s with
-    | Const_base b -> Same_as_ocaml_repr b
-    | Const_product _ as c -> raise (Error (loc, Unexpected_product_in_prim c))
+    | Base b -> Same_as_ocaml_repr b
+    | Product _ as c -> raise (Error (loc, Unexpected_product_in_prim c))
     end
   | Repr_poly, None -> Misc.fatal_error "Unexpected Repr_poly"
   | Same_as_ocaml_repr s, _ -> Same_as_ocaml_repr s
