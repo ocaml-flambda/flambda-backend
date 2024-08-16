@@ -8,5 +8,8 @@
                 "smmintrin.h": "c",
                 "tmmintrin.h": "c",
                 "pmmintrin.h": "c"
-        }
+        },
+        "[ocaml]": {
+                "editor.defaultFormatter": "ocamllabs.ocaml-platform",
+        },
 }
