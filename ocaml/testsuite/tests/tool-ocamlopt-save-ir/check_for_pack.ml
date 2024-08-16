@@ -1,7 +1,7 @@
 (* TEST
  native-compiler;
  setup-ocamlopt.byte-build-env;
- flags = "-save-ir-after linearization";
+ flags = "-save-ir-after scheduling";
  ocamlopt_byte_exit_status = "0";
  ocamlopt.byte;
  script = "touch empty.ml";

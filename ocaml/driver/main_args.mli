@@ -241,6 +241,7 @@ module type Optcommon_options = sig
   val _dprefer : unit -> unit
   val _dalloc : unit -> unit
   val _dreload : unit -> unit
+  val _dscheduling :  unit -> unit
   val _dlinear :  unit -> unit
   val _dinterval : unit -> unit
   val _dstartup :  unit -> unit
