@@ -112,38 +112,34 @@ void caml_plat_mutex_free(caml_plat_mutex* m)
 
 static void caml_plat_cond_init_aux(caml_plat_cond *cond)
 {
-  custom_condvar_init(&cond->cond);
+  custom_condvar_init(cond);
 }
 
 /* Condition variables */
-void caml_plat_cond_init(caml_plat_cond* cond, caml_plat_mutex* m)
+void caml_plat_cond_init(caml_plat_cond* cond)
 {
   caml_plat_cond_init_aux(cond);
-  cond->mutex = m;
 }
 
-void caml_plat_wait(caml_plat_cond* cond)
+void caml_plat_wait(caml_plat_cond* cond, caml_plat_mutex* mut)
 {
-  caml_plat_assert_locked(cond->mutex);
-  check_err("wait", custom_condvar_wait(&cond->cond, cond->mutex));
+  caml_plat_assert_locked(mut);
+  check_err("wait", custom_condvar_wait(cond, mut));
 }
 
 void caml_plat_broadcast(caml_plat_cond* cond)
 {
-  caml_plat_assert_locked(cond->mutex);
-  check_err("cond_broadcast", custom_condvar_broadcast(&cond->cond));
+  check_err("cond_broadcast", custom_condvar_broadcast(cond));
 }
 
 void caml_plat_signal(caml_plat_cond* cond)
 {
-  caml_plat_assert_locked(cond->mutex);
-  check_err("cond_signal", custom_condvar_signal(&cond->cond));
+  check_err("cond_signal", custom_condvar_signal(cond));
 }
 
 void caml_plat_cond_free(caml_plat_cond* cond)
 {
-  check_err("cond_free", custom_condvar_destroy(&cond->cond));
-  cond->mutex=0;
+  check_err("cond_free", custom_condvar_destroy(cond));
 }
 
 
