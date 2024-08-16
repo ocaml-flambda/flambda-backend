@@ -978,23 +978,17 @@ let map_ext fn exts =
   | d1 :: dl -> fn Text_first d1 :: List.map (fn Text_next) dl
 
 let apply_modalities_signature modalities sg =
-  match modalities with
-  | [] -> sg
-  | _ :: _ ->
-    let modalities =
-      Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
-    in
-    List.map (function
-    | Sig_value (id, vd, vis) ->
-        let val_modalities =
-          vd.val_modalities
-          |> Mode.Modality.Value.to_const_exn
-          |> (fun then_ -> Mode.Modality.Value.Const.concat ~then_ modalities)
-          |> Mode.Modality.Value.of_const
-        in
-        let vd = {vd with val_modalities} in
-        Sig_value (id, vd, vis)
-    | item -> item) sg
+  List.map (function
+  | Sig_value (id, vd, vis) ->
+      let val_modalities =
+        vd.val_modalities
+        |> Mode.Modality.Value.to_const_exn
+        |> (fun then_ -> Mode.Modality.Value.Const.concat ~then_ modalities)
+        |> Mode.Modality.Value.of_const
+      in
+      let vd = {vd with val_modalities} in
+      Sig_value (id, vd, vis)
+  | item -> item) sg
 
 (* Auxiliary for translating recursively-defined module types.
    Return a module type that approximates the shape of the given module
@@ -1179,10 +1173,11 @@ and approx_sig env ssg =
           | Structure ->
               let mty = approx_modtype env mod_ in
               let scope = Ctype.create_scope () in
-              let sg =
-                extract_sig env loc mty
-                |> apply_modalities_signature moda
+              let sg = extract_sig env loc mty in
+              let modalities =
+                Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
               in
+              let sg = apply_modalities_signature modalities sg in
               let sg, newenv = Env.enter_signature ~scope sg env in
               sg @ approx_sig newenv srem
           end
@@ -1698,6 +1693,9 @@ and transl_signature env (sg : Parsetree.signature) =
       | Structure ->
         Tincl_structure, extract_sig env smty.pmty_loc mty
     in
+    let modalities =
+      Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+    in
     let sg = apply_modalities_signature modalities sg in
     let sg, newenv = Env.enter_signature ~scope sg env in
     Signature_group.iter
@@ -1711,7 +1709,7 @@ and transl_signature env (sg : Parsetree.signature) =
         incl_loc = sincl.pincl_loc;
       }
     in
-    mksig (Tsig_include incl) env loc, sg, newenv
+    mksig (Tsig_include (incl, modalities)) env loc, sg, newenv
   in
 
   let transl_sig_item_jst ~loc:_ _env _sig_acc : Jane_syntax.Signature_item.t -> _ =

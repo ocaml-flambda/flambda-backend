@@ -804,8 +804,9 @@ let signature_item sub item =
         Psig_modtypesubst (sub.module_type_declaration sub mtd)
     | Tsig_open od ->
         Psig_open (sub.open_description sub od)
-    | Tsig_include incl ->
-        Psig_include (sub.include_description sub incl, [])
+    | Tsig_include (incl, moda) ->
+        let pmoda = Typemode.untransl_modalities Immutable [] moda in
+        Psig_include (sub.include_description sub incl, pmoda)
     | Tsig_class list ->
         Psig_class (List.map (sub.class_description sub) list)
     | Tsig_class_type list ->
