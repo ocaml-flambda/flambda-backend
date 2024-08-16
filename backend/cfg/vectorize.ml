@@ -31,6 +31,8 @@ module Instruction : sig
   val destroyed : t -> Reg.t Array.t
 
   val print : Format.formatter -> t -> unit
+
+  val print_reg : Format.formatter -> Reg.t -> unit
 end = struct
   module Id = struct
     include Numbers.Int
@@ -66,6 +68,9 @@ end = struct
     match instruction with
     | Basic i -> Cfg.print_basic ppf i
     | Terminator i -> Cfg.print_terminator ppf i
+
+  let print_reg ppf (reg : Reg.t) =
+    Format.fprintf ppf "%d,\"%s\"" reg.stamp (Reg.name reg)
 end
 
 module Dependency_graph : sig
@@ -211,8 +216,8 @@ end = struct
           ~some:(sprintf "instruction %d" << Instruction.Id.to_int)
           reg_node.depends_on
       in
-      fprintf ppf "\nargument %d (reg %d) depends on %s\n" arg_i
-        reg_node.reg.stamp dependency
+      fprintf ppf "\nargument %d (reg %a) depends on %s\n" arg_i
+        Instruction.print_reg reg_node.reg dependency
     in
     let print_node (instruction : Instruction.t) =
       let id = Instruction.id instruction in
@@ -318,32 +323,29 @@ module Adjacent_memory_accesses = struct
       let open Format in
       let addr = t.addressing_mode in
       let arg = args t in
-      let printreg ppf (reg : Reg.t) =
-        fprintf ppf "%d,\"%s\"" reg.stamp (Reg.name reg)
-      in
       match addr with
       | Ibased (s, _glob, n) -> fprintf ppf "ibased \"%s\" + %i" s n
       | Iindexed n ->
         let idx = Printf.sprintf " + %i" n in
-        fprintf ppf "iindexed %a%s" printreg arg.(0) idx
+        fprintf ppf "iindexed %a%s" Instruction.print_reg arg.(0) idx
       | Iindexed2 n ->
         let idx = Printf.sprintf " + %i" n in
-        fprintf ppf "iindexed2 %a + %a%s" printreg arg.(0) printreg arg.(1) idx
+        fprintf ppf "iindexed2 %a + %a%s" Instruction.print_reg arg.(0)
+          Instruction.print_reg arg.(1) idx
       | Iscaled (scale, n) ->
         let idx = Printf.sprintf " + %i" n in
-        fprintf ppf "iscaled %a  * %i%s" printreg arg.(0) scale idx
+        fprintf ppf "iscaled %a  * %i%s" Instruction.print_reg arg.(0) scale idx
       | Iindexed2scaled (scale, n) ->
         let idx = Printf.sprintf " + %i" n in
-        fprintf ppf "iindexed2scaled %a + %a * %i%s" printreg arg.(0) printreg
-          arg.(1) scale idx
+        fprintf ppf "iindexed2scaled %a + %a * %i%s" Instruction.print_reg
+          arg.(0) Instruction.print_reg arg.(1) scale idx
 
     let dump ppf (t : t) =
       let open Format in
       let instruction = t.instruction in
       fprintf ppf "\nInstruction %d: %a (%a, %a)"
         (Instruction.id instruction |> Instruction.Id.to_int)
-        Instruction.print instruction print_memory_chunk t print_addressing
-        t
+        Instruction.print instruction print_memory_chunk t print_addressing t
 
     let compare (t1 : t) (t2 : t) =
       let addressing_mode_1 = t1.addressing_mode in
@@ -412,7 +414,9 @@ module Adjacent_memory_accesses = struct
           else arg0_compare
       in
       if compare_addressing_modes = 0
-      then (Instruction.id t1.instruction |> Instruction.Id.to_int) - (Instruction.id t2.instruction |> Instruction.Id.to_int)
+      then
+        (Instruction.id t1.instruction |> Instruction.Id.to_int)
+        - (Instruction.id t2.instruction |> Instruction.Id.to_int)
       else compare_addressing_modes
 
     let offset_of (t1 : t) (t2 : t) =
@@ -624,7 +628,6 @@ let cfg ppf_dump cl =
   if !Flambda_backend_flags.dump_vectorize
   then Adjacent_memory_accesses.dump ppf_dump adjacent_memory_accesses cl;
   let seeds = Seed.from_cfg cfg in
-  if !Flambda_backend_flags.dump_vectorize
-  then Seed.dump ppf_dump seeds cl;
+  if !Flambda_backend_flags.dump_vectorize then Seed.dump ppf_dump seeds cl;
   if !Flambda_backend_flags.dump_vectorize then dump ppf_dump ~msg:"" cl;
   cl
