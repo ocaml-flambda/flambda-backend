@@ -17,6 +17,7 @@
 
 #include "caml/gc_stats.h"
 #include "caml/minor_gc.h"
+#include "caml/platform.h"
 #include "caml/shared_heap.h"
 
 Caml_inline intnat intnat_max(intnat a, intnat b) {
@@ -82,7 +83,7 @@ static caml_plat_mutex orphan_lock = CAML_PLAT_MUTEX_INITIALIZER;
 static struct alloc_stats orphaned_alloc_stats = {0,};
 
 void caml_accum_orphan_alloc_stats(struct alloc_stats *acc) {
-  caml_plat_lock(&orphan_lock);
+  caml_plat_lock_blocking(&orphan_lock);
   caml_accum_alloc_stats(acc, &orphaned_alloc_stats);
   caml_plat_unlock(&orphan_lock);
 }
@@ -95,7 +96,7 @@ void caml_orphan_alloc_stats(caml_domain_state *domain) {
   caml_reset_domain_alloc_stats(domain);
 
   /* push them into the orphan stats */
-  caml_plat_lock(&orphan_lock);
+  caml_plat_lock_blocking(&orphan_lock);
   caml_accum_alloc_stats(&orphaned_alloc_stats, &alloc_stats);
   caml_plat_unlock(&orphan_lock);
 }

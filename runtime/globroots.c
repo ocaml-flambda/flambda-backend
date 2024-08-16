@@ -19,6 +19,7 @@
 
 #include "caml/mlvalues.h"
 #include "caml/memory.h"
+#include "caml/platform.h"
 #include "caml/roots.h"
 #include "caml/globroots.h"
 #include "caml/skiplist.h"
@@ -52,14 +53,14 @@ struct skiplist caml_global_roots_old = SKIPLIST_STATIC_INITIALIZER;
 
 Caml_inline void caml_insert_global_root(struct skiplist * list, value * r)
 {
-  caml_plat_lock(&roots_mutex);
+  caml_plat_lock_blocking(&roots_mutex);
   caml_skiplist_insert(list, (uintnat) r, 0);
   caml_plat_unlock(&roots_mutex);
 }
 
 Caml_inline void caml_delete_global_root(struct skiplist * list, value * r)
 {
-  caml_plat_lock(&roots_mutex);
+  caml_plat_lock_blocking(&roots_mutex);
   caml_skiplist_remove(list, (uintnat) r);
   caml_plat_unlock(&roots_mutex);
 }
@@ -201,7 +202,7 @@ static void caml_register_dyn_global(void *v) {
 
 void caml_register_dyn_globals(void **globals, int nglobals) {
   int i;
-  caml_plat_lock(&roots_mutex);
+  caml_plat_lock_blocking(&roots_mutex);
   for (i = 0; i < nglobals; i++)
     caml_register_dyn_global(globals[i]);
   caml_plat_unlock(&roots_mutex);
@@ -254,7 +255,7 @@ static void scan_native_globals(scanning_action f, void* fdata)
   int start, stop;
   link* lnk;
 
-  caml_plat_lock(&roots_mutex);
+  caml_plat_lock_blocking(&roots_mutex);
   dyn_globals = caml_dyn_globals;
   caml_plat_unlock(&roots_mutex);
 
@@ -295,7 +296,7 @@ Caml_inline void caml_iterate_global_roots(scanning_action f,
 
 /* Scan all global roots */
 void caml_scan_global_roots(scanning_action f, void* fdata) {
-  caml_plat_lock(&roots_mutex);
+  caml_plat_lock_blocking(&roots_mutex);
   caml_iterate_global_roots(f, &caml_global_roots, fdata);
   caml_iterate_global_roots(f, &caml_global_roots_young, fdata);
   caml_iterate_global_roots(f, &caml_global_roots_old, fdata);
@@ -309,7 +310,7 @@ void caml_scan_global_roots(scanning_action f, void* fdata) {
 /* Scan global roots for a minor collection */
 void caml_scan_global_young_roots(scanning_action f, void* fdata)
 {
-  caml_plat_lock(&roots_mutex);
+  caml_plat_lock_blocking(&roots_mutex);
 
   caml_iterate_global_roots(f, &caml_global_roots, fdata);
   caml_iterate_global_roots(f, &caml_global_roots_young, fdata);
