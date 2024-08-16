@@ -2,9 +2,10 @@
 # Build rules common to ocaml-jst and flambda-backend
 #
 
-ws_boot   = --root=. --workspace=duneconf/boot.ws
-ws_runstd = --root=. --workspace=duneconf/runtime_stdlib.ws
-ws_main   = --root=. --workspace=duneconf/main.ws
+ws_boot     = --root=. --workspace=duneconf/boot.ws
+ws_runstd   = --root=. --workspace=duneconf/runtime_stdlib.ws
+ws_compiler = --root=. --workspace=duneconf/compiler.ws
+ws_main     = --root=. --workspace=duneconf/main.ws
 
 ifeq ($(coverage),yes)
   coverage_dune_flags=--instrument-with bisect_ppx
@@ -38,7 +39,7 @@ define dune_runtime_stdlib_context
     (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
 endef
 
-define dune_main_context
+define dune_compiler_context
 (lang dune 2.8)
 (context (default
   (name main)
@@ -51,9 +52,21 @@ define dune_main_context
     (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
 endef
 
+define dune_main_context
+(lang dune 2.8)
+(context (default
+  (name main)
+  (profile $(main_build_profile))
+  (paths
+    (PATH ("$(CURDIR)/_build/compiler_install/bin" :standard))
+    (OCAMLLIB ("$(CURDIR)/_build/runtime_stdlib_install/lib/ocaml_runtime_stdlib")))
+  (env (_
+    (flags (:standard -warn-error +A))
+    (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
+endef
 
-.DEFAULT_GOAL := compiler
-.PHONY: boot-compiler boot-runtest runtime-stdlib compiler runtest
+.DEFAULT_GOAL := main
+.PHONY: boot-compiler boot-runtest runtime-stdlib compiler main runtest
 
 boot_targets = \
   $(boot_ocamlc) \
@@ -76,9 +89,22 @@ runtime-stdlib: boot-compiler
 # to a separate directory.
 	$(cpl) -R _build/install/runtime_stdlib _build/runtime_stdlib_install
 # Dune does not believe the compiler can make .cmxs unless the following file exists.
-	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink.cmxa
+# Create [dynlink.cmxa] for 4.14 and [dynlink/dynlink.cmxa] for 5.0
+	mkdir -p _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink
+	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/{,dynlink/}dynlink.cmxa
 
 compiler: runtime-stdlib
+# Build the same target as in [boot-compiler], but with our runtime stdlib.
+# Uses the [main] context to avoid duplicating work.
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_compiler) $(boot_targets)
+
+main: compiler _build/compiler_install
+# Build the rest of the installation using the compiler from the [main] context.
+# The [boot-compiler] is not sufficient, since it marshals bytecode constants
+# incorrectly, using the upstream stdlib. This miscompiles code using new constants
+# like null pointers or float32 values.
+# However, otherwise [boot-compiler] produces identical artifacts to [compiler],
+# and it's safe-ish to reuse the [main] context again.
 	RUNTIME_DIR=$(RUNTIME_DIR) SYSTEM=$(SYSTEM) MODEL=$(MODEL) \
           ASPP="$(ASPP)" ASPPFLAGS="$(ASPPFLAGS)" \
           $(dune) build $(ws_main) \
@@ -90,7 +116,7 @@ compiler: runtime-stdlib
           testsuite/lib/testing.cm{,x}a \
           $(ocamldir)/tools/dumpobj.bc
 
-runtest: compiler
+runtest: main
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) runtest $(ws_main)
 
 
@@ -98,6 +124,7 @@ runtest: compiler
 # environment var trickery to get a multiline string into a file
 duneconf/boot.ws: export contents = $(dune_boot_context)
 duneconf/runtime_stdlib.ws: export contents = $(dune_runtime_stdlib_context)
+duneconf/compiler.ws: export contents = $(dune_compiler_context)
 duneconf/main.ws: export contents = $(dune_main_context)
 duneconf/%.ws:
 	echo "$$contents" > $@
@@ -117,6 +144,7 @@ $(ocamldir)/duneconf/dirs-to-ignore.inc:
 dune_config_targets = \
   duneconf/boot.ws \
   duneconf/runtime_stdlib.ws \
+  duneconf/compiler.ws \
   duneconf/main.ws \
   $(ocamldir)/duneconf/dirs-to-ignore.inc \
   $(ocamldir)/duneconf/jst-extra.inc \
@@ -162,6 +190,21 @@ _build/_bootinstall: Makefile.config $(dune_config_targets)
 	  ln -sf "$$prog.opt" "_build/_bootinstall/bin/$$prog"; \
 	done
 
+_build/compiler_install: _build/_bootinstall
+# Same as _bootinstall, but uses the final compiler
+	rm -rf _build/compiler_install
+	mkdir -p _build/compiler_install/{bin,lib/ocaml}
+	cp Makefile.config $(dune_config_targets) _build/compiler_install/lib/ocaml
+	ln -sf ../../main/$(boot_ocamlopt) _build/compiler_install/bin/ocamlopt.opt
+	ln -sf ../../main/$(boot_ocamlc) _build/compiler_install/bin/ocamlc.opt
+	ln -sf ../../main/$(boot_ocamlmklib) _build/compiler_install/bin/ocamlmklib.opt
+	ln -sf ../../main/$(boot_ocamldep) _build/compiler_install/bin/ocamldep.opt
+	ln -sf ../../main/$(boot_ocamlobjinfo) _build/compiler_install/bin/ocamlobjinfo.opt
+	ln -sf "`which ocamllex`" _build/compiler_install/bin/ocamllex.opt
+	for prog in ocamlopt ocamlc ocamllex ocamldep ocamlmklib; do \
+	  ln -sf "$$prog.opt" "_build/compiler_install/bin/$$prog"; \
+	done
+
 # save a bit of disk space in build trees by using cp -l on Linux
 # (not available on e.g. OS X)
 cpl=$(if $(filter linux,$(SYSTEM)),cp -l,cp -L)
@@ -172,14 +215,14 @@ cpl=$(if $(filter linux,$(SYSTEM)),cp -l,cp -L)
 # the final install path may be on a different filesystem (and hence be
 # slow and/or unable to make hardlinks)
 .PHONY: _install install install_for_opam
-_install: compiler
+_install: main
 	rm -rf _install
 	mkdir -p _install/{bin,lib/ocaml}
 	$(cpl) _build/runtime_stdlib_install/bin/* _install/bin/
 	$(cpl) _build/install/main/bin/* _install/bin/
 	( cd _install/bin; for i in *.opt; do ln -s $$i $${i%.opt}; done )
 	$(cpl) -R _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/* _install/lib/ocaml/
-	rm -f _install/lib/ocaml/{META,dune-package,Makefile.config,dynlink.cmxa}
+	rm -f _install/lib/ocaml/{META,dune-package,Makefile.config,dynlink.cmxa,dynlink/dynlink.cmxa}
 	$(cpl) -R _build/install/main/lib/ocaml/* _install/lib/ocaml/
 	if [ "x$(legacy_layout)" == "xyes" ] ; \
 	then \
