@@ -10,18 +10,18 @@ type ('a : value => value) t = unit 'a
 
 type 'a t = unit 'a
 [%%expect {|
-Line 1, characters 12-19:
+Line 1, characters 17-19:
 1 | type 'a t = unit 'a
-                ^^^^^^^
+                     ^^
 Error: The type expression ('a : '_representable_layout_1)
          is applied as a type constructor, but it is not of a higher jkind.
 |}]
 
 type ('a, 'm) t = 'a 'm
 [%%expect {|
-Line 1, characters 18-23:
+Line 1, characters 21-23:
 1 | type ('a, 'm) t = 'a 'm
-                      ^^^^^
+                         ^^
 Error: The type expression ('m : '_representable_layout_2)
          is applied as a type constructor, but it is not of a higher jkind.
 |}]
@@ -59,9 +59,9 @@ module type M = sig
   val f : 'a 'b -> int 'a -> list 'b
 end
 [%%expect {|
-Line 2, characters 19-25:
+Line 2, characters 23-25:
 2 |   val f : 'a 'b -> int 'a -> list 'b
-                       ^^^^^^
+                           ^^
 Error: The type expression ('a : '_representable_layout_3)
          is applied as a type constructor, but it is not of a higher jkind.
 |}]
