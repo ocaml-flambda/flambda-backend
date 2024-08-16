@@ -54,17 +54,6 @@ Caml_inline void cpu_relax(void) {
 #endif
 }
 
-/* Loads and stores with acquire, release and relaxed semantics */
-
-#define atomic_load_acquire(p)                    \
-  atomic_load_explicit((p), memory_order_acquire)
-#define atomic_load_relaxed(p)                    \
-  atomic_load_explicit((p), memory_order_relaxed)
-#define atomic_store_release(p, v)                      \
-  atomic_store_explicit((p), (v), memory_order_release)
-#define atomic_store_relaxed(p, v)                      \
-  atomic_store_explicit((p), (v), memory_order_relaxed)
-
 /* Spin-wait loops */
 
 #define Max_spins 1000
@@ -101,6 +90,20 @@ Caml_inline uintnat atomic_fetch_add_verify_ge0(atomic_uintnat* p, uintnat v) {
   return result;
 }
 
+/* If we're using glibc, use a custom condition variable implementation to
+   avoid this bug: https://sourceware.org/bugzilla/show_bug.cgi?id=25847
+
+   For now we only have this on linux because it directly uses the linux futex
+   syscalls. */
+#if defined(__linux__) && defined(__GNU_LIBRARY__) && defined(__GLIBC__) && defined(__GLIBC_MINOR__)
+typedef struct {
+  volatile unsigned counter;
+} custom_condvar;
+#define CUSTOM_COND_INITIALIZER {0}
+#else
+typedef pthread_cond_t custom_condvar;
+#define CUSTOM_COND_INITIALIZER PTHREAD_COND_INITIALIZER
+#endif
 
 typedef pthread_mutex_t caml_plat_mutex;
 #define CAML_PLAT_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER

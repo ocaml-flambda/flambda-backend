@@ -8,6 +8,7 @@
                 "smmintrin.h": "c",
                 "tmmintrin.h": "c",
                 "pmmintrin.h": "c",
-                "*.tbl": "c"
+                "*.tbl": "c",
+                "platform.h": "c"
         }
 }
