@@ -117,7 +117,7 @@ void caml_plat_assert_all_locks_unlocked(void);
 Caml_inline void caml_plat_unlock(caml_plat_mutex*);
 void caml_plat_mutex_free(caml_plat_mutex*);
 typedef custom_condvar caml_plat_cond;
-#define CAML_PLAT_COND_INITIALIZER PTHREAD_COND_INITIALIZER
+#define CAML_PLAT_COND_INITIALIZER CUSTOM_COND_INITIALIZER
 void caml_plat_cond_init(caml_plat_cond*);
 void caml_plat_wait(caml_plat_cond*, caml_plat_mutex*); /* blocking */
 void caml_plat_broadcast(caml_plat_cond*);
