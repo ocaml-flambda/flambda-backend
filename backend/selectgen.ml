@@ -193,6 +193,7 @@ let oper_result_type = function
   | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
   | Copaque -> typ_val
+  | Cpoll -> typ_void
   | Cbeginregion ->
     (* This must not be typ_val; the begin-region operation returns a
        naked pointer into the local allocation stack. *)
@@ -495,7 +496,8 @@ method is_simple_expr = function
         (* The following may have side effects *)
       | Capply _ | Cextcall _ | Calloc _ | Cstore _
       | Craise _ | Catomic _
-      | Cprobe _ | Cprobe_is_enabled _ | Copaque -> false
+      | Cprobe _ | Cprobe_is_enabled _ | Copaque
+      | Cpoll -> false
       | Cprefetch _ | Cbeginregion | Cendregion -> false (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor
@@ -542,7 +544,7 @@ method effects_of exp =
       match op with
       | Cextcall { effects = e; coeffects = ce; } ->
         EC.create (select_effects e) (select_coeffects ce)
-      | Capply _ | Cprobe _ | Copaque -> EC.arbitrary
+      | Capply _ | Cprobe _ | Copaque | Cpoll -> EC.arbitrary
       | Calloc Alloc_heap -> EC.none
       | Calloc Alloc_local -> EC.coeffect_only Coeffect.Arbitrary
       | Cstore _ -> EC.effect_only Effect.Arbitrary
@@ -655,6 +657,7 @@ method select_operation op args _dbg =
         (* Inversion addr/datum in Istore *)
       end
   | (Cdls_get, _) -> Idls_get, args
+  | (Cpoll, _) -> (Ipoll { return_label = None }), args
   | (Calloc mode, _) -> (Ialloc {bytes = 0; dbginfo = []; mode}), args
   | (Caddi, _) -> self#select_arith_comm Iadd args
   | (Csubi, _) -> self#select_arith Isub args

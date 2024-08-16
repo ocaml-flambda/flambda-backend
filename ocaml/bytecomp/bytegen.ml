@@ -195,7 +195,7 @@ let preserve_tailcall_for_prim = function
   | Pctconst _ | Pbswap16 | Pbbswap _ | Pint_as_pointer _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _
   | Pdls_get | Preinterpret_tagged_int63_as_unboxed_int64
-  | Preinterpret_unboxed_int64_as_tagged_int63 ->
+  | Preinterpret_unboxed_int64_as_tagged_int63 | Ppoll ->
       false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -603,6 +603,7 @@ let comp_primitive stack_info p sz args =
   | Patomic_cas -> Kccall("caml_atomic_cas", 3)
   | Patomic_fetch_add -> Kccall("caml_atomic_fetch_add", 2)
   | Pdls_get -> Kccall("caml_domain_dls_get", 1)
+  | Ppoll -> Kccall("caml_process_pending_actions_with_root", 1)
   | Pstring_load_128 _ | Pbytes_load_128 _ | Pbytes_set_128 _
   | Pbigstring_load_128 _ | Pbigstring_set_128 _
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _ | Pint_array_load_128 _

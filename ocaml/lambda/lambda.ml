@@ -313,6 +313,8 @@ type primitive =
   | Pget_header of alloc_mode
   (* Fetching domain-local state *)
   | Pdls_get
+  (* Poll for runtime actions *)
+  | Ppoll
 
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.const
@@ -1808,8 +1810,9 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pobj_magic _ -> None
   | Punbox_float _ | Punbox_int _ -> None
   | Pbox_float (_, m) | Pbox_int (_, m) -> Some m
-  | Prunstack | Presume | Pperform | Preperform ->
+  | Prunstack | Presume | Pperform | Preperform
     (* CR mshinwell: check *)
+  | Ppoll ->
     Some alloc_heap
   | Patomic_load _
   | Patomic_exchange
@@ -2011,6 +2014,7 @@ let primitive_result_layout (p : primitive) =
   | Patomic_cas
   | Patomic_fetch_add
   | Pdls_get -> layout_any_value
+  | Ppoll -> layout_unit
   | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int
 

@@ -818,6 +818,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       if runtime5 then Primitive (Presume, 3) else Unsupported Presume
 >>>>>>> ocaml-jst/flambda-patches
     | "%dls_get" -> Primitive (Pdls_get, 1)
+    | "%poll" -> Primitive (Ppoll, 1)
     | "%unbox_nativeint" -> Primitive(Punbox_int Pnativeint, 1)
     | "%box_nativeint" -> Primitive(Pbox_int (Pnativeint, mode), 1)
     | "%unbox_int32" -> Primitive(Punbox_int Pint32, 1)
@@ -1577,7 +1578,7 @@ let lambda_primitive_needs_event_after = function
   | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
   | Punboxed_nativeint_array_set_128 _
   | Prunstack | Pperform | Preperform | Presume
-  | Pbbswap _ | Pobj_dup | Pget_header _ -> true
+  | Pbbswap _ | Ppoll | Pobj_dup | Pget_header _ -> true
   (* [Preinterpret_tagged_int63_as_unboxed_int64] has to allocate in
      bytecode, because int64# is actually represented as a boxed value. *)
   | Preinterpret_tagged_int63_as_unboxed_int64 -> true

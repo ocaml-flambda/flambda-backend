@@ -1136,3 +1136,5 @@ val setfield_unboxed_float32 : ternary_primitive
 val setfield_unboxed_int64_or_nativeint : ternary_primitive
 
 val dls_get : dbg:Debuginfo.t -> expression
+
+val poll : dbg:Debuginfo.t -> expression

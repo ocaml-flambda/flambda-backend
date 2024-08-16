@@ -4234,3 +4234,5 @@ let reperform ~dbg ~eff ~cont ~last_fiber =
         cont;
         last_fiber ],
       dbg )
+
+let poll ~dbg = return_unit dbg (Cop (Cpoll, [], dbg))

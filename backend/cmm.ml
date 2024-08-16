@@ -267,6 +267,7 @@ type operation =
   | Cbeginregion | Cendregion
   | Ctuple_field of int * machtype array
   | Cdls_get
+  | Cpoll
 
 type kind_for_unboxing =
   | Any

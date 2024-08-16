@@ -313,6 +313,10 @@ type primitive =
      if the value is locally allocated *)
   (* Fetching domain-local state *)
   | Pdls_get
+  (* Poll for runtime actions. May run pending actions such as signal
+     handlers, finalizers, memprof callbacks, etc, as well as GCs and
+     GC slices, so should not be moved or optimised away. *)
+  | Ppoll
 
 (** This is the same as [Primitive.native_repr] but with [Repr_poly]
     compiled away. *)
