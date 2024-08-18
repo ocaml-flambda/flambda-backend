@@ -294,10 +294,15 @@ let _ =
   let[@warning "-10"] rec x = [| x |]; #42.0 in
   ();;
 [%%expect{|
-Line 2, characters 30-44:
+Line 2, characters 39-44:
 2 |   let[@warning "-10"] rec x = [| x |]; #42.0 in
-                                  ^^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+                                           ^^^^^
+Error: This expression has type float# but an expression was expected of type
+         ('a : value)
+       The layout of float# is float64
+         because it is the primitive type float#.
+       But the layout of float# must be a sublayout of value
+         because it's the type of the recursive variable x.
 |}]
 
 let _ =
@@ -305,10 +310,15 @@ let _ =
   ();;
 
 [%%expect{|
-Line 2, characters 30-43:
+Line 2, characters 39-43:
 2 |   let[@warning "-10"] rec x = [| x |]; #42l in
-                                  ^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+                                           ^^^^
+Error: This expression has type int32# but an expression was expected of type
+         ('a : value)
+       The layout of int32# is bits32
+         because it is the primitive type int32#.
+       But the layout of int32# must be a sublayout of value
+         because it's the type of the recursive variable x.
 |}]
 
 let _ =
@@ -316,10 +326,15 @@ let _ =
   ();;
 
 [%%expect{|
-Line 2, characters 30-43:
+Line 2, characters 39-43:
 2 |   let[@warning "-10"] rec x = [| x |]; #42L in
-                                  ^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+                                           ^^^^
+Error: This expression has type int64# but an expression was expected of type
+         ('a : value)
+       The layout of int64# is bits64
+         because it is the primitive type int64#.
+       But the layout of int64# must be a sublayout of value
+         because it's the type of the recursive variable x.
 |}]
 
 let _ =
@@ -327,10 +342,15 @@ let _ =
   ();;
 
 [%%expect{|
-Line 2, characters 30-43:
+Line 2, characters 39-43:
 2 |   let[@warning "-10"] rec x = [| x |]; #42n in
-                                  ^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+                                           ^^^^
+Error: This expression has type nativeint#
+       but an expression was expected of type ('a : value)
+       The layout of nativeint# is word
+         because it is the primitive type nativeint#.
+       But the layout of nativeint# must be a sublayout of value
+         because it's the type of the recursive variable x.
 |}]
 
 let _ =
@@ -338,8 +358,13 @@ let _ =
   ();;
 
 [%%expect{|
-Line 2, characters 30-45:
+Line 2, characters 39-45:
 2 |   let[@warning "-10"] rec x = [| x |]; #42.0s in
-                                  ^^^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+                                           ^^^^^^
+Error: This expression has type float32#
+       but an expression was expected of type ('a : value)
+       The layout of float32# is float32
+         because it is the primitive type float32#.
+       But the layout of float32# must be a sublayout of value
+         because it's the type of the recursive variable x.
 |}]
