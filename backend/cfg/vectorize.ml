@@ -1,7 +1,7 @@
 [@@@ocaml.warning "+a-40-41-42"]
 
-(* Finds adjacent memory chunks and tries to use vector operations if
-   possible *)
+(* Finds independent scalar operations within the same basic block and tries to use vector operations if possible *)
+(* CR-soon tip: add documentation *)
 
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
@@ -244,7 +244,7 @@ end = struct
 end
 
 module Adjacent_memory_accesses = struct
-  module Address = struct
+  module Memory_operation = struct
     type op =
       | Load
       | Store
@@ -406,16 +406,16 @@ module Adjacent_memory_accesses = struct
   end
 
   type t =
-    { load_runs : Address.t list list;
-      store_runs : Address.t list list
+    { load_runs : Memory_operation.t list list;
+      store_runs : Memory_operation.t list list
     }
 
   let get_sorted_addresses (block : Cfg.basic_block)
-      (address_from_instruction : Cfg.basic Cfg.instruction -> Address.t option)
+      (address_from_instruction : Cfg.basic Cfg.instruction -> Memory_operation.t option)
       =
     let body = DLL.to_list block.body in
     let addresses = List.filter_map address_from_instruction body in
-    List.sort Address.compare addresses
+    List.sort Memory_operation.compare addresses
 
   let from_block (block : Cfg.basic_block) : t =
     let find_runs address_from_instruction =
@@ -424,12 +424,12 @@ module Adjacent_memory_accesses = struct
       in
       let address_runs =
         List.fold_right
-          (fun (address : Address.t) runs ->
+          (fun (address : Memory_operation.t) runs ->
             match runs with
             | runs_hd :: runs_tl -> (
               match runs_hd with
               | run_hd :: _ ->
-                if Address.is_adjacent address run_hd
+                if Memory_operation.is_adjacent address run_hd
                 then (address :: runs_hd) :: runs_tl
                 else [address] :: runs
               | [] -> assert false)
@@ -441,8 +441,8 @@ module Adjacent_memory_accesses = struct
       in
       address_runs_longer_than_1
     in
-    let load_runs = find_runs Address.create_loads in
-    let store_runs = find_runs Address.create_stores in
+    let load_runs = find_runs Memory_operation.create_loads in
+    let store_runs = find_runs Memory_operation.create_stores in
     { load_runs; store_runs }
 
   let from_cfg (cfg : Cfg.t) : t Label.Tbl.t =
@@ -452,7 +452,7 @@ module Adjacent_memory_accesses = struct
       (cfg_with_layout : Cfg_with_layout.t) =
     let open Format in
     let print_run run =
-      List.iter (fun (address : Address.t) -> Address.dump ppf address) run
+      List.iter (fun (address : Memory_operation.t) -> Memory_operation.dump ppf address) run
     in
     let print_runs message runs =
       fprintf ppf message;
@@ -475,7 +475,7 @@ module Adjacent_memory_accesses = struct
 end
 
 module Seed = struct
-  type t = Adjacent_memory_accesses.Address.t list
+  type t = Adjacent_memory_accesses.Memory_operation.t list
 
   let from_block block =
     ignore block;
@@ -489,8 +489,8 @@ module Seed = struct
     let open Format in
     let print_seed seed =
       List.iter
-        (fun (address : Adjacent_memory_accesses.Address.t) ->
-          Adjacent_memory_accesses.Address.dump ppf address)
+        (fun (address : Adjacent_memory_accesses.Memory_operation.t) ->
+          Adjacent_memory_accesses.Memory_operation.dump ppf address)
         seed
     in
     let print_seed seeds =
