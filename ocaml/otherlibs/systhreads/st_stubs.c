@@ -894,8 +894,6 @@ CAMLexport int caml_c_thread_register(void)
   /* We can now allocate the thread descriptor on the major heap */
   th->descr = caml_thread_new_descriptor(Val_unit);  /* no closure */
 
-  // XXX recheck conflicts in this area
-
   /* Release the domain lock the regular way. Note: we cannot receive
      an exception here. */
   caml_enter_blocking_section_no_pending();
