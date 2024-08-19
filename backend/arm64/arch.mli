@@ -115,3 +115,9 @@ val operation_allocates : specific_operation -> bool
 (* Specific operations that can raise *)
 
 val operation_can_raise : specific_operation -> bool
+
+val compare : addressing_mode -> addressing_mode -> int
+
+val scale_compare : addressing_mode -> addressing_mode -> int option
+
+val displ_compare : addressing_mode -> addressing_mode -> int option

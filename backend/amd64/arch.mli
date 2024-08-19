@@ -138,3 +138,9 @@ val operation_allocates : specific_operation -> bool
 
 val float_cond_and_need_swap
   :  Lambda.float_comparison -> X86_ast.float_condition * bool
+
+val compare : addressing_mode -> addressing_mode -> int
+
+val scale_compare : addressing_mode -> addressing_mode -> int option
+
+val displ_compare : addressing_mode -> addressing_mode -> int option
