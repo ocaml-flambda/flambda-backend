@@ -196,7 +196,6 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
     | Asttypes.Recursive -> true
   in
   if not needed then env else
-  let arity = List.length sdecl.ptype_params in
   let path = Path.Pident id in
 
   (* There is some trickiness going on here with the jkind.  It expands on an
@@ -272,7 +271,6 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   in
   let decl =
     { type_params_ = create_type_params_of_unknowns ~injective:false type_params;
-      type_arity = arity;
       type_kind = Type_abstract abstract_reason;
       type_jkind;
       type_jkind_annotation;
@@ -935,10 +933,8 @@ let transl_declaration env sdecl (id, uid) =
       | None, Some _ -> Jkind.Builtin.any ~why:Initial_typedecl_env
       | None, None -> jkind_default
     in
-    let arity = List.length params in
     let decl =
       { type_params_ = create_type_params_of_unknowns ~injective:false params;
-        type_arity = arity;
         type_kind = kind;
         type_jkind = jkind;
         type_jkind_annotation = jkind_annotation;
@@ -2495,7 +2491,7 @@ let transl_type_extension extend env loc styext =
              (get_type_variance type_decl)
   in
   let err =
-    if type_decl.type_arity <> List.length styext.ptyext_params then
+    if get_type_arity type_decl <> List.length styext.ptyext_params then
       Some Includecore.Arity
     else
       if List.for_all2
@@ -3095,7 +3091,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
      there. *)
   let env = sig_env in
   let sig_decl = Ctype.instance_declaration sig_decl in
-  let arity_ok = arity = sig_decl.type_arity in
+  let arity_ok = (arity = get_type_arity sig_decl) in
   if arity_ok then
     List.iter2 (fun (cty, _) tparam ->
       try Ctype.unify_var env cty.ctyp_type tparam
@@ -3130,7 +3126,6 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   in
   let new_sig_decl =
     { type_params_ = create_type_params_of_unknowns ~injective:false params;
-      type_arity = arity;
       type_kind;
       type_jkind;
       type_jkind_annotation;
@@ -3172,7 +3167,6 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
        of bug caused by the previous approach, see #9607 *)
     {
       type_params_ = new_type_params_;
-      type_arity = new_sig_decl.type_arity;
       type_kind = new_sig_decl.type_kind;
       type_jkind = new_sig_decl.type_jkind;
       type_jkind_annotation = new_sig_decl.type_jkind_annotation;
@@ -3207,7 +3201,6 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
    they can not have parameters and can only update abstract types.) *)
 let transl_package_constraint ~loc ty =
   { type_params_ = [];
-    type_arity = 0;
     type_kind = Type_abstract Abstract_def;
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
     (* There is no reason to calculate an accurate jkind here.  This typedecl
@@ -3228,11 +3221,9 @@ let transl_package_constraint ~loc ty =
 (* Approximate a type declaration: just make all types abstract *)
 
 let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
-  let arity = List.length params in
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
     let params = List.map Ctype.newvar params in
     { type_params_ = create_type_params_of_unknowns ~injective params;
-      type_arity = arity;
       type_kind = Type_abstract Abstract_def;
       type_jkind = jkind;
       type_jkind_annotation = jkind_annotation;

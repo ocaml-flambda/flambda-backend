@@ -251,7 +251,6 @@ end
 
 type type_declaration =
   { type_params_: type_param list;
-    type_arity: int;
     type_kind: type_decl_kind;
     type_jkind: jkind;
     type_jkind_annotation: type_expr Jkind_types.annotation option;
@@ -388,6 +387,8 @@ let create_type_params_of_unknowns ~injective type_params =
     type_params
     (Variance.unknown_signature ~injective ~arity)
     (Separability.default_signature ~arity)
+
+let get_type_arity decl = List.length decl.type_params_
 
 let get_type_params decl = List.map (fun { param_expr } -> param_expr) decl.type_params_
 let set_type_params decl param_exprs =

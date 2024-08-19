@@ -2318,7 +2318,6 @@ let wrap_env fenv ftree arg =
 let dummy =
   {
     type_params_ = [];
-    type_arity = 0;
     type_kind = Type_abstract Abstract_def;
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
     type_jkind_annotation = None;

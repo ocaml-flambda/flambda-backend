@@ -673,7 +673,6 @@ let merge_constraint initial_env loc sg lid constr =
           in
           let type_separability = Types.Separability.default_signature ~arity in
           { type_params_ = create_type_params type_params type_variance type_separability;
-            type_arity = arity;
             type_kind = Type_abstract Abstract_def;
             type_jkind = Jkind.Builtin.value ~why:(Unknown "merge_constraint");
             type_jkind_annotation = None;
@@ -3447,7 +3446,7 @@ let type_package env m p fl =
                  match Env.find_type path env with
                  | exception Not_found -> fl
                  | decl ->
-                     if decl.type_arity > 0 then begin
+                     if get_type_arity decl > 0 then begin
                        fl
                      end else begin
                        let t = Btype.newgenty (Tconstr (path,[],ref Mnil)) in

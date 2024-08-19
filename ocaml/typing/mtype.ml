@@ -516,7 +516,7 @@ let enrich_typedecl env p id decl =
         (* Type which was not present in the signature, so we don't have
            anything to do. *)
     | orig_decl ->
-        if decl.type_arity <> orig_decl.type_arity then
+        if get_type_arity decl <> get_type_arity orig_decl then
           decl
         else begin
           let orig_ty =

@@ -69,7 +69,6 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
           (newgenty (Ttuple (List.map (fun ty -> None, ty) tyl)))
       in
       let type_params = TypeSet.elements arg_vars_set in
-      let arity = List.length type_params in
       let is_void_label lbl = Jkind.is_void_defaulting lbl.ld_jkind in
       let jkind =
         Jkind.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
@@ -77,7 +76,6 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       let tdecl =
         {
           type_params_ = create_type_params_of_unknowns ~injective:true type_params;
-          type_arity = arity;
           type_kind = Type_record (lbls, rep);
           type_jkind = jkind;
           type_jkind_annotation = None;
