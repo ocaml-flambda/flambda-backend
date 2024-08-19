@@ -38,6 +38,19 @@
  (modules dynlink_internal_native)
  (libraries dynlink_compilerlibs dynlink_internal_common))
 
+(rule
+ (targets parser.ml)
+ (deps ../../parser.ml)
+ (action
+  (bash
+   "echo \"module MenhirLib = CamlinternalMenhirLib\" > parser.ml && cat ../../parser.ml >> parser.ml")))
+
+(rule
+ (targets camlinternalMenhirLib.ml)
+ (deps ../../parsing/camlinternalMenhirLib.ml)
+ (action
+  (copy %{deps} %{targets})))
+
 (library
  (name dynlink_compilerlibs)
  (wrapped true)
@@ -76,6 +89,10 @@
   location
   longident
   docstrings
+  lexer
+  camlinternalMenhirLib
+  parser_types
+  parser
   printast
   pprintast
   syntaxerr
@@ -100,6 +117,7 @@
   zero_alloc
   types
   oprint
+  typemodifier
   jkind
   value_rec_types
   btype
@@ -108,6 +126,7 @@
   subst
   predef
   datarepr
+  unit_info
   cmi_format
   persistent_env
   env
@@ -212,6 +231,12 @@
 
 (copy_files ../../parsing/docstrings.ml)
 
+(copy_files ../../parsing/lexer.ml)
+
+(copy_files ../../parsing/parser_types.ml)
+
+(copy_files ../../parsing/parser.ml)
+
 (copy_files ../../parsing/printast.ml)
 
 (copy_files ../../parsing/pprintast.ml)
@@ -235,6 +260,8 @@
 (copy_files ../../typing/ident.ml)
 
 (copy_files ../../typing/path.ml)
+
+(copy_files ../../typing/typemodifier.ml)
 
 (copy_files ../../typing/jkind.ml)
 
@@ -265,6 +292,8 @@
 (copy_files ../../typing/predef.ml)
 
 (copy_files ../../typing/datarepr.ml)
+
+(copy_files ../../parsing/unit_info.ml)
 
 (copy_files ../../typing/typedtree.ml)
 
@@ -352,6 +381,10 @@
 
 (copy_files ../../parsing/docstrings.mli)
 
+(copy_files ../../parsing/lexer.mli)
+
+(copy_files ../../parsing/parser_types.mli)
+
 (copy_files ../../parsing/printast.mli)
 
 (copy_files ../../parsing/pprintast.mli)
@@ -382,6 +415,8 @@
 
 (copy_files ../../typing/jkind_types.mli)
 
+(copy_files ../../typing/typemodifier.mli)
+
 (copy_files ../../typing/oprint.mli)
 
 (copy_files ../../typing/primitive.mli)
@@ -405,6 +440,8 @@
 (copy_files ../../typing/predef.mli)
 
 (copy_files ../../typing/datarepr.mli)
+
+(copy_files ../../typing/unit_info.mli)
 
 (copy_files ../../typing/typedtree.mli)
 
@@ -505,8 +542,8 @@
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Arg_helper.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Identifiable.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Numbers.cmo
-  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Profile.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Clflags.cmo
+  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Profile.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Debug.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension_kernel.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Language_extension.cmo
@@ -518,8 +555,9 @@
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Import_info.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Linkage_name.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Symbol.cmo
-  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Path.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Docstrings.cmo
+  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lexer.cmo
+  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Path.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Printast.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Syntaxerr.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Lazy_backtrack.cmo
@@ -541,6 +579,7 @@
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Attr_helper.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Primitive.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Oprint.cmo
+  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Typemodifier.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
@@ -550,6 +589,10 @@
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Consistbl.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Shape.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Datarepr.cmo
+  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Unit_info.cmo
+  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__CamlinternalMenhirLib.cmo
+  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Parser_types.cmo
+  .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Parser.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Persistent_env.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Predef.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Env.cmo
@@ -592,8 +635,8 @@
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Arg_helper.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Identifiable.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Numbers.cmx
-  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Profile.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Clflags.cmx
+  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Profile.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Debug.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension_kernel.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Language_extension.cmx
@@ -605,10 +648,11 @@
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Import_info.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Linkage_name.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Symbol.cmx
+  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
+  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lexer.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Path.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Lazy_backtrack.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Zero_alloc_utils.cmx
-  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Docstrings.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Printast.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Syntaxerr.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Ast_helper.cmx
@@ -628,6 +672,7 @@
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Attr_helper.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Primitive.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Oprint.cmx
+  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Typemodifier.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx
@@ -637,6 +682,10 @@
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Consistbl.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Shape.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Datarepr.cmx
+  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Unit_info.cmx
+  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__CamlinternalMenhirLib.cmx
+  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Parser_types.cmx
+  .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Parser.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Persistent_env.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Predef.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Env.cmx
