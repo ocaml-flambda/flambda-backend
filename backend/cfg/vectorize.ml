@@ -169,7 +169,7 @@ module Adjacent_memory_accesses = struct
 
     let compare_addressing_modes_and_arguments (t1 : t) (t2 : t) =
       let addressing_mode_comparison =
-        Arch.compare t1.addressing_mode t2.addressing_mode
+        Arch.addressing_compare t1.addressing_mode t2.addressing_mode
       in
       if addressing_mode_comparison = 0
       then
@@ -179,7 +179,7 @@ module Adjacent_memory_accesses = struct
           Array.combine arguments_1 arguments_2
           |> Array.fold_left
                (fun result ((arg1, arg2) : Reg.t * Reg.t) ->
-                 if result = 0 then arg1.stamp - arg2.stamp else result)
+                 if result = 0 then Reg.compare arg1 arg2 else result)
                0
         in
         arguments_comparison
@@ -192,22 +192,27 @@ module Adjacent_memory_accesses = struct
       if addressing_mode_and_arguments_comparison = 0
       then
         let scale_comparison =
-          match Arch.scale_compare t1.addressing_mode t2.addressing_mode with
+          match
+            Arch.addressing_scale_compare t1.addressing_mode t2.addressing_mode
+          with
           | Some scale -> scale
           | None -> assert false
         in
         if scale_comparison = 0
         then
-          let offset_comparison =
-            match Arch.displ_compare t1.addressing_mode t2.addressing_mode with
+          let displ_comparison =
+            match
+              Arch.addressing_displ_compare t1.addressing_mode
+                t2.addressing_mode
+            with
             | Some offset -> offset
             | None -> assert false
           in
-          if offset_comparison = 0
+          if displ_comparison = 0
           then
             (Instruction.id t1.instruction |> Instruction.Id.to_int)
             - (Instruction.id t2.instruction |> Instruction.Id.to_int)
-          else offset_comparison
+          else displ_comparison
         else scale_comparison
       else addressing_mode_and_arguments_comparison
 
@@ -215,12 +220,9 @@ module Adjacent_memory_accesses = struct
       let addressing_mode_and_arguments_comparison =
         compare_addressing_modes_and_arguments t1 t2
       in
-      let displ_comparison =
-        if addressing_mode_and_arguments_comparison = 0
-        then Arch.displ_compare t1.addressing_mode t2.addressing_mode
-        else None
-      in
-      Option.map Int.neg displ_comparison
+      if addressing_mode_and_arguments_comparison = 0
+      then Arch.addressing_offset t1.addressing_mode t2.addressing_mode
+      else None
 
     let is_adjacent (t1 : t) (t2 : t) =
       let res =

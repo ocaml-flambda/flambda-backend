@@ -116,8 +116,12 @@ val operation_allocates : specific_operation -> bool
 
 val operation_can_raise : specific_operation -> bool
 
-val compare : addressing_mode -> addressing_mode -> int
+(* addressing mode functions, for avoiding compilation errors when using them in amd64 *)
 
-val scale_compare : addressing_mode -> addressing_mode -> int option
+val addressing_compare : addressing_mode -> addressing_mode -> int
 
-val displ_compare : addressing_mode -> addressing_mode -> int option
+val addressing_scale_compare : addressing_mode -> addressing_mode -> int option
+
+val addressing_displ_compare : addressing_mode -> addressing_mode -> int option
+
+val addressing_offset : addressing_mode -> addressing_mode -> int option

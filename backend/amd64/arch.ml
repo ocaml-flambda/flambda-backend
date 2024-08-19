@@ -406,7 +406,7 @@ let equal_specific_operation left right =
 
 (* addressing mode functions *)
 
-let compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let addressing_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
     match global1, global2 with
@@ -415,7 +415,7 @@ let compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing
       then -1
       else if symbol1 > symbol2
       then 1
-      else n1 - n2
+      else 0
     | Global, Local -> -1
     | Local, Global -> 1)
   | Ibased _, _ -> -1
@@ -431,7 +431,7 @@ let compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing
   | _, Iscaled _ -> 1
   | Iindexed2scaled _, Iindexed2scaled _ -> 0
 
-let scale_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let addressing_scale_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
     match global1, global2 with
@@ -441,30 +441,51 @@ let scale_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addr
   | Iindexed n1, Iindexed n2 -> Some 0
   | Iindexed2 n1, Iindexed2 n2 -> Some 0
   | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
-    Some (scale1 - scale2)
+    Some (Int.compare scale1 scale2)
   | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
-    Some (scale1 - scale2)
+    Some (Int.compare scale1 scale2)
   | Ibased _, _ -> None
   | Iindexed _, _ -> None
   | Iindexed2 _, _ -> None
   | Iscaled _, _ -> None
   | Iindexed2scaled _, _ -> None
 
-let displ_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let addressing_displ_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
     match global1, global2 with
     | Global, Global | Local, Local ->
-      if symbol1 = symbol2 then Some (n1 - n2) else None
+      if symbol1 = symbol2 then Some (Int.compare n1 n2) else None
     | Global, Local | Local, Global -> None)
-  | Iindexed n1, Iindexed n2 -> Some (n1 - n2)
-  | Iindexed2 n1, Iindexed2 n2 -> Some (n1 - n2)
+  | Iindexed n1, Iindexed n2 -> Some (Int.compare n1 n2)
+  | Iindexed2 n1, Iindexed2 n2 -> Some (Int.compare n1 n2)
   | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
       let scale_compare = scale1 - scale2 in
-      if scale_compare = 0 then Some (n1 - n2) else None
+      if scale_compare = 0 then Some (Int.compare n1 n2) else None
   | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
       let scale_compare = scale1 - scale2 in
-      if scale_compare = 0 then Some (n1 - n2) else None
+      if scale_compare = 0 then Some (Int.compare n1 n2) else None
+  | Ibased _, _ -> None
+  | Iindexed _, _ -> None
+  | Iindexed2 _, _ -> None
+  | Iscaled _, _ -> None
+  | Iindexed2scaled _, _ -> None
+
+let addressing_offset (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  match addressing_mode_1, addressing_mode_2 with
+  | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
+    match global1, global2 with
+    | Global, Global | Local, Local ->
+      if symbol1 = symbol2 then Some (n2 - n1) else None
+    | Global, Local | Local, Global -> None)
+  | Iindexed n1, Iindexed n2 -> Some (n2 - n1)
+  | Iindexed2 n1, Iindexed2 n2 -> Some (n2 - n1)
+  | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
+      let scale_compare = scale1 - scale2 in
+      if scale_compare = 0 then Some (n2 - n1) else None
+  | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
+      let scale_compare = scale1 - scale2 in
+      if scale_compare = 0 then Some (n2 - n1) else None
   | Ibased _, _ -> None
   | Iindexed _, _ -> None
   | Iindexed2 _, _ -> None
