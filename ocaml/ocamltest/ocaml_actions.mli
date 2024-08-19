@@ -57,3 +57,5 @@ val no_afl_instrument : Actions.t
 val codegen : Actions.t
 
 val cc : Actions.t
+
+val init : unit -> unit

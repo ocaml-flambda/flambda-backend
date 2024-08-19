@@ -732,7 +732,7 @@ let run_codegen log env =
   let env = Environments.add Builtin_variables.output output env in
   let commandline =
   [
-    Ocaml_commands.ocamlrun_codegen;
+    Ocaml_commands.codegen;
     flags env;
     "-S " ^ testfile
   ] in
@@ -812,7 +812,7 @@ let run_expect_once input_file principal log env =
   let principal_flag = if principal then "-principal" else "" in
   let commandline =
   [
-    Ocaml_commands.ocamlrun_expect;
+    Ocaml_commands.expect;
     expect_flags;
     Ocaml_flags.toplevel_default_flags;
     Ocaml_flags.stdlib;
@@ -1513,7 +1513,7 @@ let run_ocamldoc =
     (Result.fail_with_reason reason, env)
   end
 
-let _ =
+let init () =
   Environments.register_initializer Environments.Post
     "find_source_modules" find_source_modules;
   Environments.register_initializer Environments.Pre

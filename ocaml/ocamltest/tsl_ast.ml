@@ -38,7 +38,7 @@ type tsl_block = tsl_item list
 type t = Ast of tsl_item list * t list
 
 let rec split_env l =
-  match l with
+  match[@ocaml.warning "-fragile-match"] l with
   | Environment_statement env :: tl ->
     let (env2, rest) = split_env tl in (env :: env2, rest)
   | _ -> ([], l)

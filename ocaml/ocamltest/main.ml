@@ -93,16 +93,19 @@ let join_result summary result =
   let open Result in
   match result.status, summary with
   | Fail, _
-  | _, Some_failure -> Some_failure
-  | Skip, All_skipped -> All_skipped
-  | _ -> No_failure
+  | (Pass | Skip | Predicate _), Some_failure -> Some_failure
+  | (Skip | Predicate false), All_skipped -> All_skipped
+  | Pass, All_skipped -> No_failure
+  | Predicate true, All_skipped -> No_failure
+  | (Pass | Skip | Predicate _), No_failure -> No_failure
 
 let join_summaries sa sb =
   match sa, sb with
-  | Some_failure, _
-  | _, Some_failure -> Some_failure
+  | Some_failure, (No_failure | Some_failure | All_skipped)
+  | (No_failure | All_skipped), Some_failure -> Some_failure
   | All_skipped, All_skipped -> All_skipped
-  | _ -> No_failure
+  | No_failure, (No_failure | All_skipped)
+  | All_skipped, No_failure -> No_failure
 
 let rec run_test_tree log common_prefix behavior env summ ast =
   match ast with
@@ -117,16 +120,22 @@ let rec run_test_tree log common_prefix behavior env summ ast =
       Some_failure
     end
   | Ast (Test (_, name, mods) :: stmts, subs) ->
+    let skip_all =
+      match behavior with
+      | Skip_all -> true
+      | Run -> false
+    in
     let locstr =
       if name.loc = Location.none then
         "default"
       else
         Printf.sprintf "line %d" name.loc.Location.loc_start.Lexing.pos_lnum
     in
-    Printf.printf "%s %s (%s) %!" common_prefix locstr name.node;
+    if not skip_all then
+      Printf.printf "%s %s (%s) %!" common_prefix locstr name.node;
     let (msg, children_behavior, newenv, result) =
       match behavior with
-      | Skip_all -> ("=> n/a", Skip_all, env, Result.skip)
+      | Skip_all -> ("", Skip_all, env, Result.skip)
       | Run ->
         begin try
           let testenv = List.fold_left apply_modifiers env mods in
@@ -138,7 +147,7 @@ let rec run_test_tree log common_prefix behavior env summ ast =
         with e -> (report_error name.loc e, Skip_all, env, Result.fail)
         end
     in
-    Printf.printf "%s\n%!" msg;
+    if not skip_all then Printf.printf "%s\n%!" msg;
     let newsumm = join_result summ result in
     let newast = Ast (stmts, subs) in
     run_test_tree log common_prefix children_behavior newenv newsumm newast
@@ -174,7 +183,7 @@ let test_file test_filename =
   let skip_test = List.mem test_filename !tests_to_skip in
   let tsl_ast = tsl_parse_file_safe test_filename in
   let (rootenv_statements, tsl_ast) = extract_rootenv tsl_ast in
-  let tsl_ast = match tsl_ast with
+  let tsl_ast = match[@ocaml.warning "-fragile-match"] tsl_ast with
     | Ast ([], []) ->
       let default_tests = Tests.default_tests() in
       let make_tree test =
@@ -325,6 +334,14 @@ let list_tests dir =
   sort_strings !res
 
 let () =
+  Actions.init ();
+  Builtin_actions.init ();
+  Builtin_variables.init ();
+  Ocaml_actions.init ();
+  Ocaml_modifiers.init ();
+  Ocaml_tests.init ();
+  Ocaml_variables.init ();
+  Strace.init ();
   init_tests_to_skip()
 
 let () =
