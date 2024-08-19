@@ -334,10 +334,6 @@ let operation_allocates = function
 
 (* addressing mode functions, for avoiding compilation errors when using them in amd64 *)
 
-type addressing_mode =
-  | Iindexed of int                     (* reg + displ *)
-  | Ibased of string * int              (* global var + displ *)
-
 let compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Iindexed _, Iindexed _ -> 0
