@@ -498,7 +498,7 @@ end
 (* Type definitions *)
 
 type type_declaration =
-  { type_params: type_expr list;
+  { type_params_: type_param list;
     type_arity: int;
     type_kind: type_decl_kind;
 
@@ -522,9 +522,6 @@ type type_declaration =
 
     type_private: private_flag;
     type_manifest: type_expr option;
-    type_variance: Variance.t list;
-    (* covariant, contravariant, weakly contravariant, injective *)
-    type_separability: Separability.t list;
     type_is_newtype: bool;
     type_expansion_scope: int;
     type_loc: Location.t;
@@ -536,6 +533,13 @@ type type_declaration =
     (* true iff the type definition has illegal crossings of the portability and
        contention axes *)
     (* CR layouts v2.8: remove type_has_illegal_crossings *)
+  }
+
+and type_param =
+  { param_expr: type_expr;
+    variance: Variance.t;
+    (* covariant, contravariant, weakly contravariant, injective *)
+    separability: Separability.t;
   }
 
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
@@ -682,6 +686,21 @@ and type_transparence =
     Type_public      (* unrestricted expansion *)
   | Type_new         (* "new" type *)
   | Type_private     (* private type *)
+
+(* Legacy properties *)
+(* FIXME jbachurski: All of these should be removed by the time this PR is done. *)
+
+val create_type_params : type_expr list -> Variance.t list -> Separability.t list -> type_param list
+val create_type_params_of_unknowns : injective:bool -> type_expr list -> type_param list
+
+val get_type_params : type_declaration -> type_expr list
+val set_type_params : type_declaration -> type_expr list -> type_declaration
+
+val get_type_variance : type_declaration -> Variance.t list
+val set_type_variance : type_declaration -> Variance.t list -> type_declaration
+
+val get_type_separability : type_declaration -> Separability.t list
+val set_type_separability : type_declaration -> Separability.t list -> type_declaration
 
 (* Type expressions for the class language *)
 

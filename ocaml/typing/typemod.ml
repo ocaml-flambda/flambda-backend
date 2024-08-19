@@ -651,32 +651,34 @@ let merge_constraint initial_env loc sg lid constr =
       when Ident.name id = s && Typedecl.is_fixed_type sdecl ->
         let decl_row =
           let arity = List.length sdecl.ptype_params in
-          { type_params =
-              (* jkind any is fine on the params because they get thrown away
-                 below *)
-              List.map
-                (fun _ -> Btype.newgenvar (Jkind.Builtin.any ~why:Dummy_jkind))
-                sdecl.ptype_params;
+          let type_params =
+            (* jkind any is fine on the params because they get thrown away
+                below *)
+            List.map
+              (fun _ -> Btype.newgenvar (Jkind.Builtin.any ~why:Dummy_jkind))
+              sdecl.ptype_params;
+          in
+          let type_variance =
+            List.map
+              (fun (_, (v, i)) ->
+                 let (c, n) =
+                   match v with
+                   | Covariant -> true, false
+                   | Contravariant -> false, true
+                   | NoVariance -> false, false
+                 in
+                 make_variance (not n) (not c) (i = Injective)
+              )
+              sdecl.ptype_params
+          in
+          let type_separability = Types.Separability.default_signature ~arity in
+          { type_params_ = create_type_params type_params type_variance type_separability;
             type_arity = arity;
             type_kind = Type_abstract Abstract_def;
             type_jkind = Jkind.Builtin.value ~why:(Unknown "merge_constraint");
             type_jkind_annotation = None;
             type_private = Private;
             type_manifest = None;
-            type_variance =
-              List.map
-                (fun (_, (v, i)) ->
-                   let (c, n) =
-                     match v with
-                     | Covariant -> true, false
-                     | Contravariant -> false, true
-                     | NoVariance -> false, false
-                   in
-                   make_variance (not n) (not c) (i = Injective)
-                )
-                sdecl.ptype_params;
-            type_separability =
-              Types.Separability.default_signature ~arity;
             type_loc = sdecl.ptype_loc;
             type_is_newtype = false;
             type_expansion_scope = Btype.lowest_level;
@@ -697,7 +699,7 @@ let merge_constraint initial_env loc sg lid constr =
         let before_ghosts, row_id, after_ghosts = split_row_id s ghosts in
         check_type_decl outer_sig_env sg_for_env sdecl.ptype_loc
           id row_id newdecl decl;
-        let decl_row = {decl_row with type_params = newdecl.type_params} in
+        let decl_row = {decl_row with type_params_ = newdecl.type_params_} in
         let rs' = if rs = Trec_first then Trec_not else rs in
         let ghosts =
           List.rev_append before_ghosts
@@ -878,7 +880,7 @@ let merge_constraint initial_env loc sg lid constr =
               fun s path -> Subst.add_type_path path replacement s
           | None ->
               let body = Option.get tdecl.typ_type.type_manifest in
-              let params = tdecl.typ_type.type_params in
+              let params = get_type_params tdecl.typ_type in
               if params_are_constrained params
               then raise(Error(loc, initial_env,
                               With_cannot_remove_constrained_type));
@@ -1741,7 +1743,7 @@ and transl_signature env (sg : Parsetree.signature) =
              td.typ_private = Private
           then
             raise (Error (td.typ_loc, env, Invalid_type_subst_rhs));
-          let params = td.typ_type.type_params in
+          let params = get_type_params td.typ_type in
           if params_are_constrained params
           then raise(Error(loc, env, With_cannot_remove_constrained_type));
           let info =
@@ -2332,7 +2334,7 @@ let check_recmodule_inclusion env bindings =
 let rec package_constraints_sig env loc sg constrs =
   List.map
     (function
-      | Sig_type (id, ({type_params=[]} as td), rs, priv)
+      | Sig_type (id, ({type_params_=[]} as td), rs, priv)
         when List.mem_assoc [Ident.name id] constrs ->
           let ty = List.assoc [Ident.name id] constrs in
           Sig_type (id, {td with type_manifest = Some ty}, rs, priv)

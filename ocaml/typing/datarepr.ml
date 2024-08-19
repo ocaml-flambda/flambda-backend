@@ -76,15 +76,13 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       in
       let tdecl =
         {
-          type_params;
+          type_params_ = create_type_params_of_unknowns ~injective:true type_params;
           type_arity = arity;
           type_kind = Type_record (lbls, rep);
           type_jkind = jkind;
           type_jkind_annotation = None;
           type_private = priv;
           type_manifest = None;
-          type_variance = Variance.unknown_signature ~injective:true ~arity;
-          type_separability = Types.Separability.default_signature ~arity;
           type_is_newtype = false;
           type_expansion_scope = Btype.lowest_level;
           type_loc = Location.none;
@@ -105,7 +103,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       Some tdecl
 
 let constructor_descrs ~current_unit ty_path decl cstrs rep =
-  let ty_res = newgenconstr ty_path decl.type_params in
+  let ty_res = newgenconstr ty_path (get_type_params decl) in
   let cstr_shapes_and_arg_jkinds =
     match rep with
     | Variant_extensible -> assert false
@@ -269,6 +267,6 @@ let constructors_of_type ~current_unit ty_path decl =
 let labels_of_type ty_path decl =
   match decl.type_kind with
   | Type_record(labels, rep) ->
-      label_descrs (newgenconstr ty_path decl.type_params)
+      label_descrs (newgenconstr ty_path (get_type_params decl))
         labels rep decl.type_private
   | Type_variant _ | Type_abstract _ | Type_open -> []

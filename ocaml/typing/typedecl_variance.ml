@@ -73,7 +73,7 @@ let compute_variance env visited vari ty =
             let decl = Env.find_type path env in
             List.iter2
               (fun ty v -> compute_variance_rec (compose vari v) ty)
-              tl decl.type_variance
+              tl (get_type_variance decl)
           with Not_found ->
             List.iter (compute_variance_rec unknown) tl
         end
@@ -122,7 +122,7 @@ let compute_variance_type env ~check (required, loc) decl tyl =
       required
   in
   (* Prepare *)
-  let params = decl.type_params in
+  let params = (get_type_params decl) in
   let tvl = ref TypeMap.empty in
   (* Compute occurrences in the body *)
   let open Variance in
@@ -283,7 +283,7 @@ let compute_variance_gadt env ~check (required, loc as rloc) decl
               ([], fvl) tyl required
           in
           compute_variance_type env ~check rloc
-            {decl with type_params = tyl; type_private = Private}
+            {(set_type_params decl tyl) with type_private = Private}
             (for_constr tl)
       | _ -> assert false
 
@@ -293,7 +293,7 @@ let compute_variance_extension env decl ext rloc =
   in
   let ext = ext.Typedtree.ext_type in
   compute_variance_gadt env ~check rloc
-    {decl with type_params = ext.ext_type_params}
+    (set_type_params decl ext.ext_type_params)
     (ext.ext_args, ext.ext_ret_type)
 
 let compute_variance_gadt_constructor env ~check rloc decl tl =
@@ -384,11 +384,10 @@ let property : (prop, req) Typedecl_properties.property =
   let merge ~prop ~new_prop =
     List.map2 Variance.union prop new_prop in
   let default decl =
-    List.map (fun _ -> Variance.null) decl.type_params in
+    List.map (fun _ -> Variance.null) (get_type_params decl) in
   let compute env decl req =
     compute_decl env ~check:None decl req in
-  let update_decl decl variance =
-    { decl with type_variance = variance } in
+  let update_decl = set_type_variance in
   let check env id decl req =
     if is_hash id then () else check_decl env id decl req in
   {
@@ -431,10 +430,10 @@ let update_class_decls env cldecls =
     Typedecl_properties.compute_property property env decls required in
   List.map2
     (fun (_,decl) (_, _, clty, cltydef, _) ->
-      let variance = decl.type_variance in
+      let variance = (get_type_variance decl) in
       (decl, {clty with cty_variance = variance},
        {cltydef with
         clty_variance = variance;
-        clty_hash_type = {cltydef.clty_hash_type with type_variance = variance}
+        clty_hash_type = set_type_variance cltydef.clty_hash_type variance
        }))
     decls cldecls

@@ -1063,18 +1063,18 @@ let type_declarations ?(equality = false) ~loc env ~mark name
   let err = match (decl1.type_manifest, decl2.type_manifest) with
       (_, None) ->
         begin
-          match Ctype.equal env true decl1.type_params decl2.type_params with
+          match Ctype.equal env true (get_type_params decl1) (get_type_params decl2) with
           | exception Ctype.Equality err -> Some (Constraint err)
           | () -> None
         end
     | (Some ty1, Some ty2) ->
-         type_manifest env ty1 decl1.type_params ty2 decl2.type_params
+         type_manifest env ty1 (get_type_params decl1) ty2 (get_type_params decl2)
            decl2.type_private decl2.type_kind
     | (None, Some ty2) ->
         let ty1 =
-          Btype.newgenty (Tconstr(path, decl2.type_params, ref Mnil))
+          Btype.newgenty (Tconstr(path, (get_type_params decl2), ref Mnil))
         in
-        match Ctype.equal env true decl1.type_params decl2.type_params with
+        match Ctype.equal env true (get_type_params decl1) (get_type_params decl2) with
         | exception Ctype.Equality err -> Some (Constraint err)
         | () ->
           match Ctype.equal env false [ty1] [ty2] with
@@ -1105,8 +1105,8 @@ let type_declarations ?(equality = false) ~loc env ~mark name
           if equality then mark Env.Exported cstrs2
         end;
         Variant_diffing.compare_with_representation ~loc env
-          decl1.type_params
-          decl2.type_params
+          (get_type_params decl1)
+          (get_type_params decl2)
           cstrs1
           cstrs2
           rep1
@@ -1124,7 +1124,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
           if equality then mark Env.Exported labels2
         end;
         Record_diffing.compare_with_representation ~loc env
-          decl1.type_params decl2.type_params
+          (get_type_params decl1) (get_type_params decl2)
           labels1 labels2
           rep1 rep2
     | (Type_open, Type_open) -> None
@@ -1148,7 +1148,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
          else true) &&
         let (p1,n1,j1) = get_lower v1 and (p2,n2,j2) = get_lower v2 in
         imp abstr (imp p2 p1 && imp n2 n1 && imp j2 j1))
-      decl2.type_params (List.combine decl1.type_variance decl2.type_variance)
+      (get_type_params decl2) (List.combine (get_type_variance decl1) (get_type_variance decl2))
   then None else Some Variance
 
 (* Inclusion between extension constructors *)

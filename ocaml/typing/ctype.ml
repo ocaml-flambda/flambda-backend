@@ -629,8 +629,8 @@ let closed_parameterized_type params ty =
 
 let closed_type_decl decl =
   try
-    List.iter mark_type decl.type_params;
-    List.iter remove_mode_and_jkind_variables decl.type_params;
+    List.iter mark_type (get_type_params decl);
+    List.iter remove_mode_and_jkind_variables (get_type_params decl);
     begin match decl.type_kind with
       Type_abstract _ ->
         ()
@@ -895,7 +895,7 @@ let rec update_level env level expand ty =
         end
     | Tconstr(p, (_ :: _ as tl), _) ->
         let variance =
-          try (Env.find_type p env).type_variance
+          try get_type_variance (Env.find_type p env)
           with Not_found -> List.map (fun _ -> Variance.unknown) tl in
         let needs_expand =
           expand ||
@@ -974,7 +974,7 @@ let rec lower_contravariant env var_level visited contra ty =
        let variance, maybe_expand =
          try
            let typ = Env.find_type path env in
-           typ.type_variance,
+           get_type_variance typ,
            type_kind_is_abstract typ
           with Not_found ->
             (* See testsuite/tests/typing-missing-cmi-2 for an example *)
@@ -1329,15 +1329,13 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
     | Some (ty, scope) -> Some ty, scope
   in
   {
-    type_params = [];
+    type_params_ = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
     type_jkind = jkind;
     type_jkind_annotation = jkind_annot;
     type_private = Public;
     type_manifest = manifest;
-    type_variance = [];
-    type_separability = [];
     type_is_newtype = true;
     type_expansion_scope = expansion_scope;
     type_loc = loc;
@@ -1421,9 +1419,10 @@ let map_kind f = function
 
 let instance_declaration decl =
   For_copy.with_scope (fun copy_scope ->
-    {decl with type_params = List.map (copy copy_scope) decl.type_params;
-     type_manifest = Option.map (copy copy_scope) decl.type_manifest;
-     type_kind = map_kind (copy copy_scope) decl.type_kind;
+    {(set_type_params decl (List.map (copy copy_scope) (get_type_params decl)))
+     with
+      type_manifest = Option.map (copy copy_scope) decl.type_manifest;
+      type_kind = map_kind (copy copy_scope) decl.type_kind;
     }
   )
 
@@ -2035,7 +2034,7 @@ let unbox_once env ty =
       | None -> Final_result ty
       | Some ty2 ->
         let ty2 = match get_desc ty2 with Tpoly (t, _) -> t | _ -> ty2 in
-        Stepped (apply env decl.type_params ty2 args)
+        Stepped (apply env (get_type_params decl) ty2 args)
       end
     end
   | Tpoly (ty, _) -> Stepped ty
@@ -2494,7 +2493,7 @@ let rec local_non_recursive_abbrev ~allow_rec strict visited env p ty =
             (try_expand_head try_expand_safe_opt env ty)
         with Cannot_expand ->
           let params =
-            try (Env.find_type p' env).type_params
+            try (Env.find_type p' env |> get_type_params)
             with Not_found -> args
           in
           List.iter2
@@ -2604,7 +2603,7 @@ let occur_univar ?(inj_only=false) env ty =
                    object and variant types too. *)
                 if Variance.(if inj_only then mem Inj v else not (eq v null))
                 then occur_rec bound t)
-              tl td.type_variance
+              tl (get_type_variance td)
           with Not_found ->
             if not inj_only then List.iter (occur_rec bound) tl
           end
@@ -2660,7 +2659,7 @@ let univars_escape env univar_pairs vl ty =
             List.iter2
               (* see occur_univar *)
               (fun t v -> if not Variance.(eq v null) then occur t)
-              tl td.type_variance
+              tl (get_type_variance td)
           with Not_found ->
             List.iter occur tl
           end
@@ -3087,7 +3086,7 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
     in
     if compatible_paths p1 p2 then begin
       let inj =
-        try List.map Variance.(mem Inj) (Env.find_type p1 env).type_variance
+        try List.map Variance.(mem Inj) (Env.find_type p1 env |> get_type_variance)
         with Not_found -> List.map (fun _ -> false) tl1
       in
       List.iter2
@@ -3580,7 +3579,7 @@ and unify3 env t1 t1' t2 t2' =
           else
             let inj =
               try List.map Variance.(mem Inj)
-                    (Env.find_type p1 !env).type_variance
+                    (Env.find_type p1 !env |> get_type_variance)
               with Not_found -> List.map (fun _ -> false) tl1
             in
             List.iter2
@@ -4671,7 +4670,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
                 match Env.find_type p1 env with
                 | decl ->
                     moregen_param_list inst_nongen variance type_pairs env
-                      decl.type_variance tl1 tl2
+                      (get_type_variance decl) tl1 tl2
                 | exception Not_found ->
                     moregen_list inst_nongen Invariant type_pairs env tl1 tl2
             end
@@ -5710,7 +5709,7 @@ let rec build_subtype env (visited : transient_expr list)
           let ty =
             try
               subst env !current_level Public abbrev None
-                cl_abbr.type_params tl body
+                (get_type_params cl_abbr) tl body
             with Cannot_subst -> assert false in
           let ty1, tl1 =
             match get_desc ty with
@@ -5769,7 +5768,7 @@ let rec build_subtype env (visited : transient_expr list)
                 else (newvar (Jkind.Builtin.value
                                 ~why:(Unknown "build_subtype 3")),
                       Changed))
-            decl.type_variance tl
+            (get_type_variance decl) tl
         in
         let c = collect tl' in
         if c > Unchanged then (newconstr p (List.map fst tl'), c)
@@ -5942,7 +5941,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
                     t2 t1
                     cstrs
                 else cstrs)
-            cstrs decl.type_variance (List.combine tl1 tl2)
+            cstrs (get_type_variance decl) (List.combine tl1 tl2)
         with Not_found ->
           (trace, t1, t2, !univar_pairs)::cstrs
         end
@@ -6461,7 +6460,7 @@ let () = nondep_type' := nondep_type
 (* Preserve sharing inside type declarations. *)
 let nondep_type_decl env mid is_covariant decl =
   try
-    let params = List.map (nondep_type_rec env mid) decl.type_params in
+    let params = List.map (nondep_type_rec env mid) (get_type_params decl) in
     let tk =
       try map_kind (nondep_type_rec env mid) decl.type_kind
       with Nondep_cannot_erase _ when is_covariant -> Type_abstract Abstract_def
@@ -6483,15 +6482,14 @@ let nondep_type_decl env mid is_covariant decl =
       | Some ty when Btype.has_constr_row ty -> Private
       | _ -> priv
     in
-    { type_params = params;
+    { type_params_ =
+        create_type_params params (get_type_variance decl) (get_type_separability decl);
       type_arity = decl.type_arity;
       type_kind = tk;
       type_jkind = decl.type_jkind;
       type_jkind_annotation = decl.type_jkind_annotation;
       type_manifest = tm;
       type_private = priv;
-      type_variance = decl.type_variance;
-      type_separability = decl.type_separability;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = decl.type_loc;

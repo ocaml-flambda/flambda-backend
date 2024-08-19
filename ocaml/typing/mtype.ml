@@ -95,7 +95,7 @@ and strengthen_lazy_sig' ~aliasable sg p =
         | _ ->
             let manif =
               Some(Btype.newgenty(Tconstr(Pdot(p, Ident.name id),
-                                          decl.type_params, ref Mnil))) in
+                                          (get_type_params decl), ref Mnil))) in
             if Btype.type_kind_is_abstract decl then
               { decl with type_private = Public; type_manifest = manif }
             else
@@ -301,7 +301,7 @@ let rec sig_make_manifest sg =
       | Some _, Private, (Type_record _ | Type_variant _) -> decl
       | _ ->
         let manif =
-          Some (Btype.newgenty(Tconstr(Pident id, decl.type_params, ref Mnil)))
+          Some (Btype.newgenty(Tconstr(Pident id, get_type_params decl, ref Mnil)))
         in
         match decl.type_kind with
         | Type_abstract _ ->
@@ -521,11 +521,11 @@ let enrich_typedecl env p id decl =
         else begin
           let orig_ty =
             Ctype.reify_univars env
-              (Btype.newgenty(Tconstr(p, orig_decl.type_params, ref Mnil)))
+              (Btype.newgenty(Tconstr(p, get_type_params orig_decl, ref Mnil)))
           in
           let new_ty =
             Ctype.reify_univars env
-              (Btype.newgenty(Tconstr(Pident id, decl.type_params, ref Mnil)))
+              (Btype.newgenty(Tconstr(Pident id, get_type_params decl, ref Mnil)))
           in
           let env = Env.add_type ~check:false id decl env in
           match Ctype.mcomp env orig_ty new_ty with
@@ -536,7 +536,7 @@ let enrich_typedecl env p id decl =
                  different, which we didn't. *)
           | () ->
               let orig_ty =
-                Btype.newgenty(Tconstr(p, decl.type_params, ref Mnil))
+                Btype.newgenty(Tconstr(p, get_type_params decl, ref Mnil))
               in
               {decl with type_manifest = Some orig_ty}
         end

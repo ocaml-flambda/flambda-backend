@@ -719,7 +719,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       let stl =
         match stl with
         | [ {ptyp_desc=Ptyp_any} as t ] when decl.type_arity > 1 ->
-            List.map (fun _ -> t) decl.type_params
+            List.map (fun _ -> t) (get_type_params decl)
         | _ -> stl
       in
       if List.length stl <> decl.type_arity then
@@ -729,7 +729,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
       in
-      let params = instance_list decl.type_params in
+      let params = instance_list (get_type_params decl) in
       let unify_param =
         match decl.type_manifest with
           None -> unify_var
@@ -791,7 +791,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
       in
       let body = Option.get decl.type_manifest in
-      let (params, body) = instance_parameterized_type decl.type_params body in
+      let (params, body) = instance_parameterized_type (get_type_params decl) body in
       List.iter2
         (fun (sty, cty) ty' ->
            try unify_var env ty' cty.ctyp_type with Unify err ->
