@@ -30,7 +30,7 @@
    ]}
 *)
 
-[@@@ocaml.warning "-40-69"]
+[@@@ocaml.warning "-40"]
 
 open StdLabels
 
