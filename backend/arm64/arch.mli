@@ -120,8 +120,6 @@ val operation_can_raise : specific_operation -> bool
 
 val addressing_compare : addressing_mode -> addressing_mode -> int
 
-val addressing_scale_compare : addressing_mode -> addressing_mode -> int option
-
 val addressing_displ_compare : addressing_mode -> addressing_mode -> int option
 
 val addressing_offset : addressing_mode -> addressing_mode -> int option

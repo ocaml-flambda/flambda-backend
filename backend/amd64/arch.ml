@@ -426,29 +426,11 @@ let addressing_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 :
   | Iindexed2 _, Iindexed2 _ -> 0
   | Iindexed2 _, _ -> -1
   | _, Iindexed2 _ -> 1
-  | Iscaled _, Iscaled _ -> 0
+  | Iscaled (scale1, _), Iscaled (scale2, _) -> Int.compare scale1 scale2
   | Iscaled _, _ -> -1
   | _, Iscaled _ -> 1
-  | Iindexed2scaled _, Iindexed2scaled _ -> 0
-
-let addressing_scale_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
-  match addressing_mode_1, addressing_mode_2 with
-  | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
-    match global1, global2 with
-    | Global, Global | Local, Local ->
-      if symbol1 = symbol2 then Some 0 else None
-    | Global, Local | Local, Global -> None)
-  | Iindexed n1, Iindexed n2 -> Some 0
-  | Iindexed2 n1, Iindexed2 n2 -> Some 0
-  | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
-    Some (Int.compare scale1 scale2)
-  | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
-    Some (Int.compare scale1 scale2)
-  | Ibased _, _ -> None
-  | Iindexed _, _ -> None
-  | Iindexed2 _, _ -> None
-  | Iscaled _, _ -> None
-  | Iindexed2scaled _, _ -> None
+  | Iindexed2scaled (scale1, _), Iindexed2scaled (scale2, _) ->
+    Int.compare scale1 scale2
 
 let addressing_displ_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
