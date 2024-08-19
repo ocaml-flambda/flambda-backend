@@ -3327,7 +3327,6 @@ then :
   enableval=$enable_runtime5;
 fi
 
-enable_runtime5=yes
 if test x"$enable_runtime5" = xyes
 then :
   runtime_suffix=

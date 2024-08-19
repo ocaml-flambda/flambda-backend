@@ -101,7 +101,6 @@ AC_CONFIG_AUX_DIR([build-aux])
 AC_ARG_ENABLE([runtime5],
   [AS_HELP_STRING([--enable-runtime5],
     [Use the OCaml 5 runtime])])
-enable_runtime5=yes
 AS_IF([test x"$enable_runtime5" = xyes],
       [runtime_suffix=],
       [runtime_suffix=4])
