@@ -499,7 +499,6 @@ end
 
 type type_declaration =
   { type_params_: type_param list;
-    type_arity: int;
     type_kind: type_decl_kind;
 
     type_jkind: jkind;
@@ -692,6 +691,8 @@ and type_transparence =
 
 val create_type_params : type_expr list -> Variance.t list -> Separability.t list -> type_param list
 val create_type_params_of_unknowns : injective:bool -> type_expr list -> type_param list
+
+val get_type_arity : type_declaration -> int
 
 val get_type_params : type_declaration -> type_expr list
 val set_type_params : type_declaration -> type_expr list -> type_declaration

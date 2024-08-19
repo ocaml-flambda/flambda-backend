@@ -226,7 +226,6 @@ let mk_add_type add_type
       env =
   let decl =
     {type_params_ = [];
-     type_arity = 0;
      type_kind = kind;
      type_jkind = jkind;
      type_jkind_annotation = predef_jkind_annotation jkind_annotation;
@@ -258,8 +257,7 @@ let mk_add_type1 add_type type_ident
     ~variance ~separability env =
   let param = newgenvar param_jkind in
   let decl =
-    {type_params_ = [{ param_expr = param; variance; separability }];
-      type_arity = 1;
+    { type_params_ = [{ param_expr = param; variance; separability }];
       type_kind = kind param;
       type_jkind = jkind;
       type_jkind_annotation = predef_jkind_annotation jkind_annotation;

@@ -718,13 +718,13 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       let (path, decl) = Env.lookup_type ~loc:lid.loc lid.txt env in
       let stl =
         match stl with
-        | [ {ptyp_desc=Ptyp_any} as t ] when decl.type_arity > 1 ->
+        | [ {ptyp_desc=Ptyp_any} as t ] when get_type_arity decl > 1 ->
             List.map (fun _ -> t) (get_type_params decl)
         | _ -> stl
       in
-      if List.length stl <> decl.type_arity then
+      if List.length stl <> get_type_arity decl then
         raise(Error(styp.ptyp_loc, env,
-                    Type_arity_mismatch(lid.txt, decl.type_arity,
+                    Type_arity_mismatch(lid.txt, get_type_arity decl,
                                         List.length stl)));
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
@@ -783,9 +783,9 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             | (_ : _ * _) ->
                 raise (Error (styp.ptyp_loc, env, Did_you_mean_unboxed lid.txt))
       in
-      if List.length stl <> decl.type_arity then
+      if List.length stl <> get_type_arity decl then
         raise(Error(styp.ptyp_loc, env,
-                    Type_arity_mismatch(lid.txt, decl.type_arity,
+                    Type_arity_mismatch(lid.txt, get_type_arity decl,
                                         List.length stl)));
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl

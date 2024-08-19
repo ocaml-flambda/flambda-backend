@@ -1330,7 +1330,6 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
   in
   {
     type_params_ = [];
-    type_arity = 0;
     type_kind = Type_abstract Abstract_def;
     type_jkind = jkind;
     type_jkind_annotation = jkind_annot;
@@ -2898,7 +2897,7 @@ let is_instantiable env ~for_jkind_eqn p =
     let decl = Env.find_type p env in
     type_kind_is_abstract decl &&
     decl.type_private = Public &&
-    decl.type_arity = 0 &&
+    get_type_arity decl = 0 &&
     decl.type_manifest = None &&
     (for_jkind_eqn || not (non_aliasable p decl))
   with Not_found -> false
@@ -3302,7 +3301,7 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
     | (n, _) :: nl, _ ->
         let lid = concat_longident (Longident.Lident "Pkg") n in
         match Env.find_type_by_name lid env' with
-        | (_, {type_arity = 0; type_kind = Type_abstract _;
+        | (_, {type_params_ = []; type_kind = Type_abstract _;
                type_private = Public; type_manifest = Some t2}) ->
             begin match nondep_instance env' lv2 id2 t2 with
             | t -> (n, t) :: complete nl fl2
@@ -3312,7 +3311,7 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
                 else
                   raise Exit
             end
-        | (_, {type_arity = 0; type_kind = Type_abstract _;
+        | (_, {type_params_ = []; type_kind = Type_abstract _;
                type_private = Public; type_manifest = None})
           when allow_absent ->
             complete nl fl2
@@ -6484,7 +6483,6 @@ let nondep_type_decl env mid is_covariant decl =
     in
     { type_params_ =
         create_type_params params (get_type_variance decl) (get_type_separability decl);
-      type_arity = decl.type_arity;
       type_kind = tk;
       type_jkind = decl.type_jkind;
       type_jkind_annotation = decl.type_jkind_annotation;

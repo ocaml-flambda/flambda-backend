@@ -1053,7 +1053,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
     loc
     decl1.type_attributes decl2.type_attributes
     name;
-  if decl1.type_arity <> decl2.type_arity then Some Arity else
+  if get_type_arity decl1 <> get_type_arity decl2 then Some Arity else
   let err =
     match privacy_mismatch env decl1 decl2 with
     | Some err -> Some (Privacy err)

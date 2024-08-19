@@ -457,7 +457,6 @@ let record_representation ~prepare_jkind loc = function
 let type_declaration' copy_scope s decl =
   { type_params_ =
       (set_type_params decl (List.map (typexp copy_scope s decl.type_loc) (get_type_params decl))).type_params_;
-    type_arity = decl.type_arity;
     type_kind =
       begin match decl.type_kind with
         Type_abstract r -> Type_abstract r
