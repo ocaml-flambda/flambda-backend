@@ -1,5 +1,4 @@
 (* TEST
-<<<<<<< HEAD
  {
    runtime4;
    skip;
@@ -15,23 +14,6 @@
    }
  }
 *)
-||||||| 121bedcfd2
-   include runtime_events
-   include unix
-   * libunix
-   ** bytecode
-   ** native *)
-=======
- include runtime_events;
- include unix;
- libunix;
- {
-   bytecode;
- }{
-   native;
- }
-*)
->>>>>>> 5.2.0
 
 let got_start = ref false
 let got_fork_child = ref false

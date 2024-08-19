@@ -21,7 +21,7 @@ type ('a : void) t1;;
 module type S1' = S1 with type 'a t = t_void t1 and type s = t_void t1;;
 [%%expect {|
 type t_any : any
-type t_value : value
+type t_value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_void : void
@@ -36,7 +36,7 @@ Line 1, characters 32-34:
 1 | module type S1'' = S1 with type 'a t = 'a list;;
                                     ^^
 Error: The type constraints are not consistent.
-       Type ('a : value) is not compatible with type ('b : void)
+       Type "('a : value)" is not compatible with type "('b : void)"
        The layout of 'a is void
          because of the definition of t at line 10, characters 2-20.
        But the layout of 'a must overlap with value
@@ -49,9 +49,9 @@ module type S1'' = S1 with type s = t_void;;
 Line 1, characters 27-42:
 1 | module type S1'' = S1 with type s = t_void;;
                                ^^^^^^^^^^^^^^^
-Error: The layout of type t_void is void
+Error: The layout of type "t_void" is void
          because of the definition of t_void at line 5, characters 0-19.
-       But the layout of type t_void must be a sublayout of value
+       But the layout of type "t_void" must be a sublayout of value
          because of the definition of s at line 11, characters 2-8.
 |}]
 
@@ -91,7 +91,7 @@ Error: Signature mismatch:
          type 'a t = 'a list
        is not included in
          type ('a : immediate) t = 'a list
-       The type ('a : value) is not equal to the type ('a0 : immediate)
+       The type "('a : value)" is not equal to the type "('a0 : immediate)"
        because their layouts are different.
 |}]
 
@@ -131,10 +131,10 @@ module type T2' = sig type ('a : immediate) t = 'a s2' end
 Line 5, characters 25-30:
 5 |   let f () : 'a X.t = `B "bad"
                              ^^^^^
-Error: This expression has type string but an expression was expected of type
-         ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
+Error: This expression has type "string" but an expression was expected of type
+         "('a : immediate)"
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of t at line 2, characters 2-25.
 |}]
@@ -191,9 +191,9 @@ end;;
 Line 2, characters 2-29:
 2 |   type t : immediate = Bar3.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type Bar3.t is value
+Error: The kind of type "Bar3.t" is value
          because of the annotation on the declaration of the type t.
-       But the kind of type Bar3.t must be a subkind of immediate
+       But the kind of type "Bar3.t" must be a subkind of immediate
          because of the definition of t at line 2, characters 2-29.
 |}];;
 
@@ -228,7 +228,7 @@ end;;
 Line 2, characters 26-28:
 2 |   type 'a t = 'a Bar3.t * 'a list
                               ^^
-Error: This type ('a : void) should be an instance of type ('b : value)
+Error: This type "('a : void)" should be an instance of type "('b : value)"
        The layout of 'a is void
          because of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value
@@ -259,7 +259,7 @@ type t3 : void
 Line 12, characters 11-17:
 12 |   type s = Foo3.t t
                 ^^^^^^
-Error: This type Foo3.t should be an instance of type ('a : void)
+Error: This type "Foo3.t" should be an instance of type "('a : void)"
        The layout of Foo3.t is value
          because an abstract type has the value layout by default.
        But the layout of Foo3.t must be a sublayout of void
@@ -312,7 +312,7 @@ type t4' = M4.s t4_void;;
 Line 1, characters 11-15:
 1 | type t4' = M4.s t4_void;;
                ^^^^
-Error: This type M4.s should be an instance of type ('a : void)
+Error: This type "M4.s" should be an instance of type "('a : void)"
        The layout of M4.s is value
          because of the definition of s at line 2, characters 2-21.
        But the layout of M4.s must be a sublayout of void
@@ -342,7 +342,7 @@ type t4 = M4'.s t4_void;;
 Line 1, characters 10-15:
 1 | type t4 = M4'.s t4_void;;
               ^^^^^
-Error: This type M4'.s should be an instance of type ('a : void)
+Error: This type "M4'.s" should be an instance of type "('a : void)"
        The layout of M4'.s is value
          because of the definition of s at line 2, characters 2-45.
        But the layout of M4'.s must be a sublayout of void
@@ -374,10 +374,10 @@ val x3 : int list = [42]
 Line 14, characters 17-23:
 14 | let x3' = M3_1.f "test";;
                       ^^^^^^
-Error: This expression has type string but an expression was expected of type
-         ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
+Error: This expression has type "string" but an expression was expected of type
+         "('a : immediate)"
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of f at line 3, characters 2-20.
 |}]
@@ -392,9 +392,9 @@ module type S3_2 = sig type t : immediate end
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
-Error: The kind of type string is value
-         because it is the primitive value type string.
-       But the kind of type string must be a subkind of immediate
+Error: The kind of type "string" is immutable_data
+         because it is the primitive type string.
+       But the kind of type "string" must be a subkind of immediate
          because of the definition of t at line 2, characters 2-20.
 |}]
 
@@ -412,7 +412,7 @@ module type S6_1 = sig type t : void end
 Line 6, characters 10-41:
 6 |   val m : (module S6_1 with type t = int)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this `with' constraint, the new definition of t
+Error: In this "with" constraint, the new definition of "t"
        does not match its original definition in the constrained signature:
        Type declarations do not match:
          type t = int
@@ -432,16 +432,16 @@ module type S6_4 = sig
   val m : (module S6_3 with type t = t_void)
 end;;
 [%%expect{|
-module type S6_3 = sig type t : value end
+module type S6_3 = sig type t end
 Line 6, characters 10-44:
 6 |   val m : (module S6_3 with type t = t_void)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this `with' constraint, the new definition of t
+Error: In this "with" constraint, the new definition of "t"
        does not match its original definition in the constrained signature:
        Type declarations do not match:
          type t = t_void
        is not included in
-         type t : value
+         type t
        The layout of the first is void
          because of the definition of t_void at line 5, characters 0-19.
        But the layout of the first must be a sublayout of value
@@ -460,14 +460,14 @@ module type S6_5 = sig type t : immediate end
 Line 6, characters 10-44:
 6 |   val m : (module S6_5 with type t = string)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this `with' constraint, the new definition of t
+Error: In this "with" constraint, the new definition of "t"
        does not match its original definition in the constrained signature:
        Type declarations do not match:
          type t = string
        is not included in
          type t : immediate
-       The kind of the first is value
-         because it is the primitive value type string.
+       The kind of the first is immutable_data
+         because it is the primitive type string.
        But the kind of the first must be a subkind of immediate
          because of the definition of t at line 2, characters 2-20.
 |}];;
@@ -480,7 +480,7 @@ end
 Line 3, characters 10-39:
 3 |   val m : (module S6_5 with type t = s)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this `with' constraint, the new definition of t
+Error: In this "with" constraint, the new definition of "t"
        does not match its original definition in the constrained signature:
        Type declarations do not match:
          type t = s
@@ -523,7 +523,7 @@ end
 Line 1, characters 28-33:
 1 | module type S = sig val x : t_any end
                                 ^^^^^
-Error: This type signature for x is not a value type.
+Error: This type signature for "x" is not a value type.
        The layout of type t_any is any
          because of the definition of t_any at line 1, characters 0-18.
        But the layout of type t_any must be a sublayout of value
@@ -549,7 +549,7 @@ Error: Cannot safely evaluate the definition of the following cycle
 Line 2, characters 2-34:
 2 |   val f : ('a : float64). 'a -> 'a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  Module M defines a function whose first argument is not a value, f .
+  Module "M" defines a function whose first argument is not a value, "f" .
 |}]
 
 (*******************************)

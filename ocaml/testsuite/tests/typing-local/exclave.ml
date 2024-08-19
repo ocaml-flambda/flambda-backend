@@ -73,7 +73,7 @@ let foo x =
 Line 3, characters 16-17:
 3 |   exclave_ Some y
                     ^
-Error: The value y is local, so it cannot be used inside an exclave_
+Error: The value "y" is local, so it cannot be used inside an exclave_
 |}]
 
 let foo x =
@@ -95,7 +95,7 @@ let foo () =
   done
 
 [%%expect{|
-val foo : unit -> unit = <fun>
+val foo : unit -> 'a = <fun>
 |}]
 
 (* we also require tail position *)
@@ -185,7 +185,7 @@ val bar : 'a -> string = <fun>
 (* Ensure that Alias bindings are not substituted by Simplif (PR1448) *)
 type 'a glob = Glob of global_ 'a
 
-let[@inline never] return_local a = local_ (Glob a)
+let[@inline never] return_local a = exclave_ (Glob a)
 
 let f () =
   let (Glob x) = return_local 1 in
@@ -242,6 +242,6 @@ let f : local_ string -> string =
 Line 2, characters 11-21:
 2 |   fun x -> exclave_ s
                ^^^^^^^^^^
-Error: This expression was expected to be not local, but is an exclave expression,
-       which must be local.
+Error: This expression is local because it is an exclave,
+       but was expected otherwise.
 |}]

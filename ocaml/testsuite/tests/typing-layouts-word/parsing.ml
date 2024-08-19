@@ -33,9 +33,9 @@ type t = nativeint# list;;
 Line 1, characters 9-19:
 1 | type t = nativeint# list;;
              ^^^^^^^^^^
-Error: This type nativeint# should be an instance of type ('a : value)
+Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because the type argument of list has layout value.
 |}];;
@@ -45,9 +45,9 @@ let f (_ : nativeint# list) = ();;
 Line 1, characters 11-21:
 1 | let f (_ : nativeint# list) = ();;
                ^^^^^^^^^^
-Error: This type nativeint# should be an instance of type ('a : value)
+Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because the type argument of list has layout value.
 |}];;
@@ -57,9 +57,9 @@ type t = C of nativeint# list;;
 Line 1, characters 14-24:
 1 | type t = C of nativeint# list;;
                   ^^^^^^^^^^
-Error: This type nativeint# should be an instance of type ('a : value)
+Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because the type argument of list has layout value.
 |}];;
@@ -69,9 +69,9 @@ type t = C : nativeint# list -> t;;
 Line 1, characters 13-23:
 1 | type t = C : nativeint# list -> t;;
                  ^^^^^^^^^^
-Error: This type nativeint# should be an instance of type ('a : value)
+Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because the type argument of list has layout value.
 |}];;
@@ -91,9 +91,9 @@ type t = nativeint#c;;
 Line 1, characters 9-19:
 1 | type t = nativeint#c;;
              ^^^^^^^^^^
-Error: This type nativeint# should be an instance of type ('a : value)
+Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -103,9 +103,9 @@ let f (_ : nativeint#c) = ();;
 Line 1, characters 11-21:
 1 | let f (_ : nativeint#c) = ();;
                ^^^^^^^^^^
-Error: This type nativeint# should be an instance of type ('a : value)
+Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -115,9 +115,9 @@ type t = C of nativeint#c;;
 Line 1, characters 14-24:
 1 | type t = C of nativeint#c;;
                   ^^^^^^^^^^
-Error: This type nativeint# should be an instance of type ('a : value)
+Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -127,9 +127,9 @@ type t = C : nativeint#c -> t;;
 Line 1, characters 13-23:
 1 | type t = C : nativeint#c -> t;;
                  ^^^^^^^^^^
-Error: This type nativeint# should be an instance of type ('a : value)
+Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -142,9 +142,9 @@ type t = nativeint# c;;
 Line 1, characters 9-19:
 1 | type t = nativeint# c;;
              ^^^^^^^^^^
-Error: This type nativeint# should be an instance of type ('a : value)
+Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -154,9 +154,9 @@ let f (_ : nativeint# c) = ();;
 Line 1, characters 11-21:
 1 | let f (_ : nativeint# c) = ();;
                ^^^^^^^^^^
-Error: This type nativeint# should be an instance of type ('a : value)
+Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -166,9 +166,9 @@ type t = C of nativeint# c;;
 Line 1, characters 14-24:
 1 | type t = C of nativeint# c;;
                   ^^^^^^^^^^
-Error: This type nativeint# should be an instance of type ('a : value)
+Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -178,9 +178,9 @@ type t = C : nativeint# c -> t;;
 Line 1, characters 13-23:
 1 | type t = C : nativeint# c -> t;;
                  ^^^^^^^^^^
-Error: This type nativeint# should be an instance of type ('a : value)
+Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
+         because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -198,7 +198,7 @@ Line 1, characters 0-21:
 1 | type t = nativeint #c;;
     ^^^^^^^^^^^^^^^^^^^^^
 Error: A type variable is unbound in this type declaration.
-       In type nativeint #c as 'a the variable 'a is unbound
+       In type "nativeint #c as 'a" the variable "'a" is unbound
 |}];;
 type t = C of nativeint #c;;
 [%%expect {|
@@ -206,7 +206,7 @@ Line 1, characters 0-26:
 1 | type t = C of nativeint #c;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: A type variable is unbound in this type declaration.
-       In case C of (nativeint #c as 'a) the variable 'a is unbound
+       In case "C of (nativeint #c as 'a)" the variable "'a" is unbound
 |}];;
 type 'a t = (nativeint #c as 'a);;
 let f (_ : nativeint #c) = ();;
@@ -233,7 +233,7 @@ Line 1, characters 0-22:
 1 | type t = nativeint # c;;
     ^^^^^^^^^^^^^^^^^^^^^^
 Error: A type variable is unbound in this type declaration.
-       In type nativeint #c as 'a the variable 'a is unbound
+       In type "nativeint #c as 'a" the variable "'a" is unbound
 |}];;
 type t = C of nativeint # c;;
 [%%expect {|
@@ -241,7 +241,7 @@ Line 1, characters 0-27:
 1 | type t = C of nativeint # c;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: A type variable is unbound in this type declaration.
-       In case C of (nativeint #c as 'a) the variable 'a is unbound
+       In case "C of (nativeint #c as 'a)" the variable "'a" is unbound
 |}];;
 
 type 'a t = (nativeint # c as 'a);;
@@ -263,7 +263,7 @@ type t = int nativeint#;;
 Line 1, characters 9-23:
 1 | type t = int nativeint#;;
              ^^^^^^^^^^^^^^
-Error: The type constructor nativeint# expects 0 argument(s),
+Error: The type constructor "nativeint#" expects 0 argument(s),
        but is here applied to 1 argument(s)
 |}];;
 
@@ -272,6 +272,6 @@ type t = (int, int) nativeint#;;
 Line 1, characters 9-30:
 1 | type t = (int, int) nativeint#;;
              ^^^^^^^^^^^^^^^^^^^^^
-Error: The type constructor nativeint# expects 0 argument(s),
+Error: The type constructor "nativeint#" expects 0 argument(s),
        but is here applied to 2 argument(s)
 |}];;

@@ -1,22 +1,5 @@
 (* TEST
-<<<<<<< HEAD
- include unix;
  modules = "test1_.c";
- libunix;
- {
-   bytecode;
- }{
-   native;
- }
-||||||| 121bedcfd2
-   include unix
-   modules = "test1_.c"
-   * libunix
-   ** bytecode
-   ** native
-=======
- modules = "test1_.c";
->>>>>>> 5.2.0
 *)
 
 (**************************************************************************)
@@ -27,6 +10,9 @@ external mycallback3 : ('a -> 'b -> 'c -> 'd) -> 'a -> 'b -> 'c -> 'd
     = "mycallback3"
 external mycallback4 :
     ('a -> 'b -> 'c -> 'd -> 'e) -> 'a -> 'b -> 'c -> 'd -> 'e = "mycallback4"
+
+let rec growstack n =
+  if n <= 0 then 0 else 1 + growstack (n - 1)
 
 let rec tak (x, y, z as _tuple) =
   if x > y then tak(tak (x-1, y, z), tak (y-1, z, x), tak (z-1, x, y))
@@ -63,3 +49,5 @@ let _ =
   print_int(trapexit ()); print_newline();
   print_string(tripwire mypushroot); print_newline();
   print_string(tripwire mycamlparam); print_newline();
+  begin try ignore (mycallback1 growstack 1_000); raise Exit
+  with Exit -> () end

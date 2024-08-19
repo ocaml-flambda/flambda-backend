@@ -164,7 +164,7 @@ let f: local_ _ -> int lazy_t =
 Line 2, characters 16-17:
 2 |   fun n -> lazy n
                     ^
-Error: The value n is local, so cannot be used inside a lazy expression.
+Error: The value "n" is local, so cannot be used inside a lazy expression.
 |}]
 
 (* record field crosses mode at projection  *)
@@ -223,7 +223,7 @@ Error: This value escapes its region.
 
 (* the result of function application crosses mode *)
 let f : _ -> local_ _ =
-  fun () -> local_ 42
+  fun () -> exclave_ 42
 [%%expect{|
 val f : unit -> local_ int = <fun>
 |}]
@@ -235,7 +235,7 @@ val g : unit -> int = <fun>
 |}]
 
 let f : _ -> local_ _ =
-  fun () -> local_ "hello"
+  fun () -> exclave_ "hello"
 [%%expect{|
 val f : unit -> local_ string = <fun>
 |}]
@@ -370,7 +370,7 @@ let foo : int -> int = fun x -> x
 val foo : int -> int = <fun>
 |}]
 
-let foo' : int -> local_ int = fun x -> local_ x
+let foo' : int -> local_ int = fun x -> exclave_ x
 [%%expect{|
 val foo' : int -> local_ int = <fun>
 |}]
@@ -388,8 +388,8 @@ let _ = bar foo
 Line 1, characters 12-15:
 1 | let _ = bar foo
                 ^^^
-Error: This expression has type int -> int
-       but an expression was expected of type local_ int -> int
+Error: This expression has type "int -> int"
+       but an expression was expected of type "local_ int -> int"
 |}]
 
 let _ = bar (foo :> local_ int -> int)
@@ -408,7 +408,7 @@ let _ = bar (foo : int -> int :> local_ _ -> _)
 Line 1, characters 12-47:
 1 | let _ = bar (foo : int -> int :> local_ _ -> _)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type int -> int is not a subtype of local_ 'a -> 'b
+Error: Type "int -> int" is not a subtype of "local_ 'a -> 'b"
 |}]
 
 
@@ -430,8 +430,8 @@ let foo_ = (foo : [`A | `B of string] -> unit :> local_ [`B of string] -> unit)
 Line 1, characters 11-79:
 1 | let foo_ = (foo : [`A | `B of string] -> unit :> local_ [`B of string] -> unit)
                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type [ `A | `B of string ] -> unit is not a subtype of
-         local_ [ `B of string ] -> unit
+Error: Type "[ `A | `B of string ] -> unit" is not a subtype of
+         "local_ [ `B of string ] -> unit"
 |}]
 
 (* You can't erase the info that a function might allocate in parent region *)
@@ -440,7 +440,7 @@ let _ = bar (foo' :> local_ int -> int)
 Line 1, characters 12-39:
 1 | let _ = bar (foo' :> local_ int -> int)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type int -> local_ int is not a subtype of local_ int -> int
+Error: Type "int -> local_ int" is not a subtype of "local_ int -> int"
 |}]
 
 (* Testing mode crossing in [enlarge_type] *)

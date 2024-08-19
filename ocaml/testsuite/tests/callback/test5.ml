@@ -1,22 +1,5 @@
 (* TEST
-<<<<<<< HEAD
- include unix;
  modules = "test5_.c";
- libunix;
- {
-   bytecode;
- }{
-   native;
- }
-||||||| 121bedcfd2
-   include unix
-   modules = "test5_.c"
-   * libunix
-   ** bytecode
-   ** native
-=======
- modules = "test5_.c";
->>>>>>> 5.2.0
 *)
 
 (* Tests nested calls from C (main C) to OCaml (main OCaml) to C (caml_to_c) to

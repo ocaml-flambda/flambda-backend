@@ -1,21 +1,38 @@
 ##### All extensions enabled
 --------------------------------
 
-modality_record: struct type t = {
-                          global_ x: string ;
-                          global_ y: int } end
+modality_record:
+  struct
+    type t =
+      {
+      global_ x: string ;
+      global_ y:
+        int @@ local many once shared unique portable nonportable contended uncontended
+        ;
+      z: bool @@ unique }
+  end
 
 modality_cstrarg:
   struct
     type t =
-      | Foo of global_ string * global_ string 
+      | Foo of global_ string * global_ string @@ portable *
+      string @@ portable 
     type u =
       | Foo: global_ string * global_ string -> u 
   end
 
 modality_val: sig val t : string -> local_ string @@ foo bar end
 
-local_exp: let x = foo (local_ x) in local_ y
+local_exp: let x = foo (local_ x) in (local_ y)
+
+stack_exp:
+  let x = stack_ 42 in
+  let y = stack_ (f x) in let z = foo (stack_ 42) in foo (stack_ (f x))
+
+fun_with_modes_on_arg:
+  let f (local_ a) ~b:(local_ b) ?c:(local_ c) ?d:(local_ d= 1) ~e:(local_ e)
+    ?f:(local_ f= 2) () = () in
+  f
 
 longident: No.Longidents.Require.extensions
 
@@ -90,6 +107,8 @@ modal_kind_sig:
     kind_abbrev_ immutable = value mod uncontended
     kind_abbrev_ data = value mod sync many
   end
+
+tyvar_of_name: 'no_tyvars_require_extensions
 
 tyvar: 'no_tyvars_require_extensions
 
@@ -102,21 +121,38 @@ mode: global
 ##### Extensions disallowed
 --------------------------------
 
-modality_record: struct type t = {
-                          global_ x: string ;
-                          global_ y: int } end
+modality_record:
+  struct
+    type t =
+      {
+      global_ x: string ;
+      global_ y:
+        int @@ local many once shared unique portable nonportable contended uncontended
+        ;
+      z: bool @@ unique }
+  end
 
 modality_cstrarg:
   struct
     type t =
-      | Foo of global_ string * global_ string 
+      | Foo of global_ string * global_ string @@ portable *
+      string @@ portable 
     type u =
       | Foo: global_ string * global_ string -> u 
   end
 
 modality_val: sig val t : string -> local_ string @@ foo bar end
 
-local_exp: let x = foo (local_ x) in local_ y
+local_exp: let x = foo (local_ x) in (local_ y)
+
+stack_exp:
+  let x = stack_ 42 in
+  let y = stack_ (f x) in let z = foo (stack_ 42) in foo (stack_ (f x))
+
+fun_with_modes_on_arg:
+  let f (local_ a) ~b:(local_ b) ?c:(local_ c) ?d:(local_ d= 1) ~e:(local_ e)
+    ?f:(local_ f= 2) () = () in
+  f
 
 longident: No.Longidents.Require.extensions
 
@@ -191,6 +227,8 @@ modal_kind_sig:
     kind_abbrev_ immutable = value mod uncontended
     kind_abbrev_ data = value mod sync many
   end
+
+tyvar_of_name: 'no_tyvars_require_extensions
 
 tyvar: 'no_tyvars_require_extensions
 

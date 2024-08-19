@@ -65,19 +65,9 @@ Line 1, characters 0-41:
 1 | type ('a,'b) ct = (int,'b) def = X of int;;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This variant or record definition does not match that of type
-<<<<<<< HEAD
-         (int, [> `A ]) def
-       Their parameters differ:
-       The type int is not equal to the type 'a
-||||||| 121bedcfd2
-         (int, [> `A ]) def
-       Their parameters differ
-       The type int is not equal to the type 'a
-=======
          "(int, [> `A ]) def"
-       Their parameters differ
+       Their parameters differ:
        The type "int" is not equal to the type "'a"
->>>>>>> 5.2.0
 |}]
 
 type ('a,'b) kind = ('a, 'b) def = {a:int} constraint 'b = [> `A];;

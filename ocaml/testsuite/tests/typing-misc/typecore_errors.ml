@@ -1,5 +1,6 @@
 (* TEST
  expect;
+ expect;
 *)
 
 
@@ -76,38 +77,18 @@ let rec f x = ( (), () : _ -> _ -> _ )
 [%%expect{|
 Line 3, characters 16-22:
 3 | let rec f x = ( (), () : _ -> _ -> _ )
-<<<<<<< HEAD
                     ^^^^^^
-Error: This expression has type 'a * 'b
-       but an expression was expected of type 'c -> 'd -> 'e
-||||||| 121bedcfd2
-                  ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type 'a * 'b
-       but an expression was expected of type 'c -> 'd -> 'e
-=======
-                  ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "'a * 'b"
        but an expression was expected of type "'c -> 'd -> 'e"
->>>>>>> 5.2.0
 |}]
 
 let rec g x = ( ((), ()) : _ -> _ :> _ )
 [%%expect{|
 Line 1, characters 16-24:
 1 | let rec g x = ( ((), ()) : _ -> _ :> _ )
-<<<<<<< HEAD
                     ^^^^^^^^
-Error: This expression has type 'a * 'b
-       but an expression was expected of type 'c -> 'd
-||||||| 121bedcfd2
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type 'a * 'b
-       but an expression was expected of type 'c -> 'd
-=======
-                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "'a * 'b"
        but an expression was expected of type "'c -> 'd"
->>>>>>> 5.2.0
 |}]
 
 

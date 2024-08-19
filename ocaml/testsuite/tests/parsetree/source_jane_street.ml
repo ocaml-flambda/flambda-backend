@@ -77,7 +77,8 @@ type ('a : immediate) for_layouts = 'a;;
 
 (* parameters *)
 let f (local_ unique_ x) ~(local_ once_ y) ~z:(unique_ once_ z)
-  ?foo:(local_ unique_ once_ w = 1) () = ();;
+      ?foo:(local_ unique_ once_ w = 1)
+      ?bar:(local_ w : int = 1) () = ();;
 
 (* bindings *)
 let g () =
@@ -93,15 +94,10 @@ let g () =
   ();;
 
 (* expressions *)
-let g () = local_ unique_
+let g () = exclave_ unique_
   let f = unique_ once_ () in
-  let f x y = once_ local_ (x + y) in
+  let f x y = exclave_ once_ (x + y) in
   local_ unique_ once_ ();;
-
-(* exclaves *)
-let f () = exclave_
-  let f x y = exclave_ (x + y) in
-  ()
 
 (* types *)
 type record =

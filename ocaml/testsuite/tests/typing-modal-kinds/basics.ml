@@ -271,12 +271,8 @@ Error: This value escapes its region.
 
 let string_duplicate = let once_ x : string = "hello" in Fun.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 1, characters 64-65:
-1 | let string_duplicate = let once_ x : string = "hello" in Fun.id x
-                                                                    ^
-Error: This value is once but expected to be many.
+val string_duplicate : string = "hello"
 |}]
 
 let int_duplicate = let once_ x : int = 5 in Fun.id x
@@ -292,7 +288,7 @@ let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
 Line 1, characters 79-80:
 1 | let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
                                                                                    ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
@@ -302,7 +298,7 @@ let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
 Line 1, characters 66-67:
 1 | let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
                                                                       ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let hidden_string_duplicate =
@@ -312,7 +308,7 @@ let hidden_string_duplicate =
 Line 2, characters 71-72:
 2 |   let once_ x : Hidden_string.t = Hidden_string.hide "hello" in Fun.id x
                                                                            ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let hidden_int_duplicate =
@@ -331,7 +327,7 @@ let hidden_string_list_duplicate =
 Line 4, characters 12-13:
 4 |   in Fun.id x
                 ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let hidden_int_list_duplicate =
@@ -344,17 +340,13 @@ let hidden_int_list_duplicate =
 Line 4, characters 12-13:
 4 |   in Fun.id x
                 ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let float_duplicate = let once_ x : float = 3.14 in Fun.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 1, characters 59-60:
-1 | let float_duplicate = let once_ x : float = 3.14 in Fun.id x
-                                                               ^
-Error: This value is once but expected to be many.
+val float_duplicate : float = 3.14
 |}]
 
 let float_u_duplicate () = let once_ x : float# = #3.14 in Float_u.id x
@@ -383,7 +375,7 @@ let hidden_int64_u_duplicate () =
 Line 2, characters 75-76:
 2 |   let once_ x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in Int64_u.id x
                                                                                ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let float_u_record_duplicate =
@@ -394,7 +386,7 @@ let float_u_record_duplicate =
 Line 2, characters 69-70:
 2 |   let once_ x : float_u_record = { x = #3.14; y = #2.718 } in Fun.id x
                                                                          ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let float_u_record_list_duplicate =
@@ -405,7 +397,7 @@ let float_u_record_list_duplicate =
 Line 2, characters 51-52:
 2 |   let once_ x : float_u_record list = [] in Fun.id x
                                                        ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
@@ -414,7 +406,7 @@ let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
 Line 1, characters 73-74:
 1 | let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
                                                                              ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let function_list_duplicate =
@@ -424,7 +416,7 @@ let function_list_duplicate =
 Line 2, characters 77-78:
 2 |   let once_ x : (int -> int) list = [(fun y -> y); fun z -> z + 1] in Fun.id x
                                                                                  ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let unique (unique_ x) = x
@@ -495,7 +487,7 @@ let hidden_string_unshare =
 Line 2, characters 75-76:
 2 |   let x : Hidden_string.t = Hidden_string.hide "hello" in ignore x; unique x
                                                                                ^
-Error: This value is shared but expected to be unique.
+Error: This value is "shared" but expected to be "unique".
 |}]
 
 let hidden_int_unshare =
@@ -522,7 +514,7 @@ let hidden_string_list_unshare =
 Line 4, characters 22-23:
 4 |   in ignore x; unique x
                           ^
-Error: This value is shared but expected to be unique.
+Error: This value is "shared" but expected to be "unique".
 |}]
 
 let hidden_int_list_unshare =
@@ -623,7 +615,7 @@ let hidden_int64_u_unshare () =
 Line 3, characters 35-36:
 3 |   Int64_u.ignore x; Int64_u.unique x
                                        ^
-Error: This value is shared but expected to be unique.
+Error: This value is "shared" but expected to be "unique".
 |}]
 
 let float_u_record_unshare =
@@ -682,12 +674,164 @@ Line 2, characters 71-72:
 
 |}]
 
-(* CR layouts: this should succeed. *)
 let foo : (string -> string) -> (string -> string) @ unique
   = fun f -> f
 [%%expect{|
-Line 2, characters 13-14:
-2 |   = fun f -> f
-                 ^
-Error: This value is shared but expected to be unique.
+val foo : (string -> string) -> unique_ (string -> string) = <fun>
+|}]
+
+let weaken_immutable_data : 'a -> 'a @ contended once nonportable =
+  fun a -> a
+
+let take_strong_immutable_data (x @ uncontended many portable) = ()
+[%%expect{|
+val weaken_immutable_data : 'a -> once_ 'a @ contended = <fun>
+val take_strong_immutable_data : 'a @ portable -> unit = <fun>
+|}]
+
+let weaken_mutable_data : 'a -> 'a @ once nonportable =
+  fun a -> a
+
+let take_strong_mutable_data (x @ many portable) = ()
+[%%expect{|
+val weaken_mutable_data : 'a -> once_ 'a = <fun>
+val take_strong_mutable_data : 'a @ portable -> unit = <fun>
+|}]
+
+(* mode crossing on the right *)
+let ref_immutable_data_right x =
+  take_strong_immutable_data (weaken_immutable_data x : float ref);
+[%%expect{|
+Line 2, characters 30-53:
+2 |   take_strong_immutable_data (weaken_immutable_data x : float ref);
+                                  ^^^^^^^^^^^^^^^^^^^^^^^
+Error: This value is "once" but expected to be "many".
+|}]
+
+let ref_immutable_data_left x =
+  let x : float ref = weaken_immutable_data x in
+  take_strong_immutable_data x
+[%%expect{|
+Line 3, characters 29-30:
+3 |   take_strong_immutable_data x
+                                 ^
+Error: This value is "once" but expected to be "many".
+|}]
+
+let float_immutable_data_right x =
+  take_strong_immutable_data (weaken_immutable_data x : float);
+[%%expect{|
+val float_immutable_data_right : float -> unit = <fun>
+|}]
+
+let int32_immutable_data_right x =
+  take_strong_immutable_data (weaken_immutable_data x : int32)
+[%%expect{|
+val int32_immutable_data_right : int32 -> unit = <fun>
+|}]
+
+let int64_immutable_data_right x =
+  take_strong_immutable_data (weaken_immutable_data x : int64)
+[%%expect{|
+val int64_immutable_data_right : int64 -> unit = <fun>
+|}]
+
+let nativeint_immutable_data_right x =
+  take_strong_immutable_data (weaken_immutable_data x : nativeint)
+[%%expect{|
+val nativeint_immutable_data_right : nativeint -> unit = <fun>
+|}]
+
+let string_immutable_data_right x =
+  take_strong_immutable_data (weaken_immutable_data x : string)
+[%%expect{|
+val string_immutable_data_right : string -> unit = <fun>
+|}]
+
+let float32_immutable_data_right x =
+  take_strong_immutable_data (weaken_immutable_data x : float32)
+[%%expect{|
+val float32_immutable_data_right : float32 -> unit = <fun>
+|}]
+
+let int64x2_immutable_data_right x =
+  take_strong_immutable_data (weaken_immutable_data x : int64x2)
+[%%expect{|
+val int64x2_immutable_data_right : int64x2 -> unit = <fun>
+|}]
+
+let floatarray_mutable_data_right x =
+  take_strong_mutable_data (weaken_mutable_data x : floatarray)
+[%%expect{|
+val floatarray_mutable_data_right : floatarray -> unit = <fun>
+|}]
+
+let bytes_mutable_data_right x =
+  take_strong_mutable_data (weaken_mutable_data x : bytes)
+[%%expect{|
+val bytes_mutable_data_right : bytes -> unit = <fun>
+|}]
+
+(* mode crossing on the left *)
+let float_immutable_data_left x =
+  let x : float = weaken_immutable_data x in
+  take_strong_immutable_data x
+[%%expect{|
+val float_immutable_data_left : float -> unit = <fun>
+|}]
+
+let int32_immutable_data_left x =
+  let x : int32 = weaken_immutable_data x in
+  take_strong_immutable_data x
+[%%expect{|
+val int32_immutable_data_left : int32 -> unit = <fun>
+|}]
+
+let int64_immutable_data_left x =
+  let x : int64 = weaken_immutable_data x in
+  take_strong_immutable_data x
+[%%expect{|
+val int64_immutable_data_left : int64 -> unit = <fun>
+|}]
+
+let nativeint_immutable_data_left x =
+  let x : nativeint = weaken_immutable_data x in
+  take_strong_immutable_data x
+[%%expect{|
+val nativeint_immutable_data_left : nativeint -> unit = <fun>
+|}]
+
+let string_immutable_data_left x =
+  let x : string = weaken_immutable_data x in
+  take_strong_immutable_data x
+[%%expect{|
+val string_immutable_data_left : string -> unit = <fun>
+|}]
+
+let float32_immutable_data_left x =
+  let x : float32 = weaken_immutable_data x in
+  take_strong_immutable_data x
+[%%expect{|
+val float32_immutable_data_left : float32 -> unit = <fun>
+|}]
+
+let int64x2_immutable_data_left x =
+  let x : int64x2 = weaken_immutable_data x in
+  take_strong_immutable_data x
+[%%expect{|
+val int64x2_immutable_data_left : int64x2 -> unit = <fun>
+|}]
+
+let floatarray_mutable_data_left x =
+  let x : floatarray = weaken_mutable_data x in
+  take_strong_mutable_data x
+[%%expect{|
+val floatarray_mutable_data_left : floatarray -> unit = <fun>
+|}]
+
+let bytes_mutable_data_left x =
+  let x : bytes = weaken_mutable_data x in
+  take_strong_mutable_data x
+[%%expect{|
+val bytes_mutable_data_left : bytes -> unit = <fun>
 |}]

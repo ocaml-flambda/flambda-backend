@@ -1,0 +1,6 @@
+Line 14, characters 0-5:
+14 | #3.14;;
+     ^^^^^
+Error: Types of unnamed expressions must have layout value when using
+       the toplevel, but this expression has layout "float64".
+

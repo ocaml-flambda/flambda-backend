@@ -20,11 +20,14 @@ module Example = struct
 
   let modality_record  = parse module_expr
     "struct \
-      type t = {global_ x : string; global_ y : int} \
+      type t = {global_ x : string;
+                global_ y : int @@ local many once shared unique portable nonportable
+                                   contended uncontended;
+                z : bool @@ unique} \
      end"
   let modality_cstrarg = parse module_expr
     "struct \
-      type t = Foo of global_ string * global_ string \
+      type t = Foo of global_ string * global_ string @@ portable * string @@ portable \
       type u = Foo : global_ string * global_ string -> u \
      end"
 
@@ -34,6 +37,15 @@ module Example = struct
      end"
 
   let local_exp = parse expression "let x = foo (local_ x) in local_ y"
+  let stack_exp = parse expression
+    "let x = stack_ 42 in \
+     let y = stack_ (f x) in \
+     let z = foo (stack_ 42) in \
+     foo (stack_ (f x))"
+  let fun_with_modes_on_arg = parse expression
+    "let f (a @ local) ~(b @ local) ?(c @ local) \
+          ?(d @ local = 1) ~e:(e @ local) ?f:(f @ local = 2) \
+           () = () in f"
 
   let modal_kind_struct =
     parse module_expr "struct \
@@ -103,6 +115,7 @@ module Example = struct
                          ; pvb_attributes = []
                          ; pvb_loc = loc
                          ; pvb_constraint = None
+                         ; pvb_modes = []
                          }
   let payload          = PStr structure
   let class_signature  = { pcsig_self = core_type
@@ -118,6 +131,7 @@ module Example = struct
                          ; ptype_loc = loc
                          }
   let tyvar            = "no_tyvars_require_extensions"
+  let tyvar_of_name    = "no_tyvars_require_extensions"
   let jkind            = Jane_syntax.Jkind.(
                             With (
                               Abbreviation
@@ -125,7 +139,7 @@ module Example = struct
                               core_type
                             ))
 
-  let mode = Jane_syntax.Mode_expr.Const.mk "global" loc
+  let mode = { Location.txt = (Parsetree.Mode "global"); loc }
 end
 
 let print_test_header name =
@@ -178,6 +192,8 @@ end = struct
   let modality_val = test "modality_val" module_type Example.modality_val
 
   let local_exp = test "local_exp" expression Example.local_exp
+  let stack_exp = test "stack_exp" expression Example.stack_exp
+  let fun_with_modes_on_arg = test "fun_with_modes_on_arg" expression Example.fun_with_modes_on_arg
 
   let longident = test "longident" longident Example.longident
   let expression = test "expression" expression Example.expression
@@ -205,6 +221,8 @@ end = struct
   let modal_kind_struct = test "modal_kind_struct" module_expr Example.modal_kind_struct
   let modal_kind_sig = test "modal_kind_sig" module_type Example.modal_kind_sig
 
+  let tyvar_of_name =
+    test_string_of "tyvar_of_name" tyvar_of_name Example.tyvar_of_name
   let tyvar = test "tyvar" tyvar Example.tyvar
   let jkind = test "jkind" jkind Example.jkind
   let mode = test "mode" mode Example.mode

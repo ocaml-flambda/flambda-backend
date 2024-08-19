@@ -1,67 +1,3 @@
-<<<<<<< HEAD
-(* TEST
-<<<<<<< HEAD
- flags = "-g";
- {
-   reference = "${test_source_directory}/callstacks.flat-float-array.reference";
-   flat-float-array;
- }{
-   reference = "${test_source_directory}/callstacks.no-flat-float-array.reference";
-   no-flat-float-array;
- }
-||||||| 121bedcfd2
-   flags = "-g -w -5"
-
-   * flat-float-array
-     reference = "${test_source_directory}/callstacks.flat-float-array.reference"
-   * skip
-   reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634"
-   ** native
-   ** bytecode
-
-   * no-flat-float-array
-     reference = "${test_source_directory}/callstacks.no-flat-float-array.reference"
-   * skip
-   reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634"
-   ** native
-   ** bytecode
-=======
- flags = "-g -w -5";
- {
-   reference = "${test_source_directory}/callstacks.flat-float-array.reference";
-   flat-float-array;
- }{
-   reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634";
-   skip;
-   {
-     native;
-   }{
-     bytecode;
-   }
- }{
-   reference = "${test_source_directory}/callstacks.no-flat-float-array.reference";
-   no-flat-float-array;
- }{
-   reason = "port stat-mem-prof : https://github.com/ocaml/ocaml/pull/8634";
-   skip;
-   {
-     native;
-   }{
-     bytecode;
-   }
- }
->>>>>>> 5.2.0
-||||||| 2572783060
-(* TEST
- flags = "-g";
- {
-   reference = "${test_source_directory}/callstacks.flat-float-array.reference";
-   flat-float-array;
- }{
-   reference = "${test_source_directory}/callstacks.no-flat-float-array.reference";
-   no-flat-float-array;
- }
-=======
 (* TEST_BELOW
    Blank lines added to preserve locations
 
@@ -75,7 +11,6 @@
 
 
 
->>>>>>> ocaml-jst/flambda-patches
 *)
 
 module MP = Gc.Memprof

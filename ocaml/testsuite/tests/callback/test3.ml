@@ -1,20 +1,4 @@
 (* TEST
-<<<<<<< HEAD
- include unix;
- modules = "test3_.c";
- libunix;
- {
-   bytecode;
- }{
-   native;
- }
-||||||| 121bedcfd2
-   include unix
-   modules = "test3_.c"
-   * libunix
-   ** bytecode
-   ** native
-=======
  modules = "test3_.c";
  no-tsan; (* TSan does not support call stacks bigger than 64k frames *)
  {
@@ -22,7 +6,6 @@
  }{
    native;
  }
->>>>>>> 5.2.0
 *)
 
 (* Tests nested calls from C (main C) to OCaml (main OCaml) to C (caml_to_c) to

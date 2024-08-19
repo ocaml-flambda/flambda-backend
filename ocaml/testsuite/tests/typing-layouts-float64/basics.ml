@@ -57,8 +57,8 @@ let x3_1 : t_float64 = assert false;;
 Line 1, characters 4-8:
 1 | let x3_1 : t_float64 = assert false;;
         ^^^^
-Error: Types of top-level module bindings must have layout value, but
-       the type of x3_1 has layout float64.
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "x3_1" has layout "float64".
 |}];;
 
 let x3_2 : 'a t_float64_id = assert false;;
@@ -66,8 +66,8 @@ let x3_2 : 'a t_float64_id = assert false;;
 Line 1, characters 4-8:
 1 | let x3_2 : 'a t_float64_id = assert false;;
         ^^^^
-Error: Types of top-level module bindings must have layout value, but
-       the type of x3_2 has layout float64.
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "x3_2" has layout "float64".
 |}];;
 
 let x3_3 : float# = assert false;;
@@ -75,8 +75,8 @@ let x3_3 : float# = assert false;;
 Line 1, characters 4-8:
 1 | let x3_3 : float# = assert false;;
         ^^^^
-Error: Types of top-level module bindings must have layout value, but
-       the type of x3_3 has layout float64.
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "x3_3" has layout "float64".
 |}];;
 
 module M3_4 = struct
@@ -86,8 +86,8 @@ end
 Line 2, characters 6-7:
 2 |   let x : t_float64 = assert false
           ^
-Error: Types of top-level module bindings must have layout value, but
-       the type of x has layout float64.
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "x" has layout "float64".
 |}];;
 
 module M3_5 = struct
@@ -99,8 +99,8 @@ end
 Line 4, characters 6-7:
 4 |   let y = f (assert false)
           ^
-Error: Types of top-level module bindings must have layout value, but
-       the type of y has layout float64.
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "y" has layout "float64".
 |}];;
 
 (*************************************)
@@ -111,8 +111,8 @@ let f4_1 (x : t_float64) = x, false;;
 Line 1, characters 27-28:
 1 | let f4_1 (x : t_float64) = x, false;;
                                ^
-Error: This expression has type t_float64
-       but an expression was expected of type ('a : value)
+Error: This expression has type "t_float64"
+       but an expression was expected of type "('a : value)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -124,8 +124,8 @@ let f4_2 (x : 'a t_float64_id) = x, false;;
 Line 1, characters 33-34:
 1 | let f4_2 (x : 'a t_float64_id) = x, false;;
                                      ^
-Error: This expression has type 'a t_float64_id = ('a : float64)
-       but an expression was expected of type ('b : value)
+Error: This expression has type "'a t_float64_id" = "('a : float64)"
+       but an expression was expected of type "('b : value)"
        The layout of 'a t_float64_id is float64
          because of the definition of t_float64_id at line 2, characters 0-37.
        But the layout of 'a t_float64_id must overlap with value
@@ -137,10 +137,10 @@ let f4_3 (x : float#) = x, false;;
 Line 1, characters 24-25:
 1 | let f4_3 (x : float#) = x, false;;
                             ^
-Error: This expression has type float# but an expression was expected of type
-         ('a : value)
+Error: This expression has type "float#" but an expression was expected of type
+         "('a : value)"
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -151,9 +151,9 @@ Line 1, characters 12-21:
 1 | type t4_4 = t_float64 * string;;
                 ^^^^^^^^^
 Error: Tuple element types must have layout value.
-       The layout of t_float64 is float64
+       The layout of "t_float64" is float64
          because of the definition of t_float64 at line 1, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value
+       But the layout of "t_float64" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 
@@ -163,9 +163,9 @@ Line 1, characters 18-24:
 1 | type t4_5 = int * float#;;
                       ^^^^^^
 Error: Tuple element types must have layout value.
-       The layout of float# is float64
-         because it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value
+       The layout of "float#" is float64
+         because it is the primitive type float#.
+       But the layout of "float#" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 
@@ -174,25 +174,24 @@ type ('a : float64) t4_6 = 'a * 'a
 Line 1, characters 27-29:
 1 | type ('a : float64) t4_6 = 'a * 'a
                                ^^
-Error: This type ('a : value) should be an instance of type ('a0 : float64)
-       The layout of 'a is float64
+Error: Tuple element types must have layout value.
+       The layout of "'a" is float64
          because of the annotation on 'a in the declaration of the type t4_6.
-       But the layout of 'a must overlap with value
+       But the layout of "'a" must overlap with value
          because it's the type of a tuple element.
 |}];;
 
 (* check for layout propagation *)
 type ('a : float64, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
 [%%expect{|
-Line 1, characters 32-34:
+Line 1, characters 46-48:
 1 | type ('a : float64, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
-                                    ^^
-Error: This type ('b : value) should be an instance of type ('a : float64)
-       The layout of 'a is float64
+                                                  ^^
+Error: Tuple element types must have layout value.
+       The layout of "'a" is float64
          because of the annotation on 'a in the declaration of the type t4_7.
-       But the layout of 'a must overlap with value
-         because it instantiates an unannotated type parameter of t4_7,
-         defaulted to layout value.
+       But the layout of "'a" must overlap with value
+         because it's the type of a tuple element.
 |}]
 
 (*****************************************)
@@ -213,7 +212,7 @@ type t5_3 = { x : t_float64 } [@@unboxed];;
 Line 1, characters 14-27:
 1 | type t5_3 = { x : t_float64 } [@@unboxed];;
                   ^^^^^^^^^^^^^
-Error: Type t_float64 has layout float64.
+Error: Type "t_float64" has layout "float64".
        Unboxed records may not yet contain types of this layout.
 |}];;
 
@@ -236,7 +235,7 @@ type t5_6 = A of t_float64 [@@unboxed];;
 Line 1, characters 12-26:
 1 | type t5_6 = A of t_float64 [@@unboxed];;
                 ^^^^^^^^^^^^^^
-Error: Type t_float64 has layout float64.
+Error: Type "t_float64" has layout "float64".
        Unboxed variants may not yet contain types of this layout.
 |}];;
 
@@ -245,7 +244,7 @@ type t5_6_1 = A of { x : t_float64 } [@@unboxed];;
 Line 1, characters 21-34:
 1 | type t5_6_1 = A of { x : t_float64 } [@@unboxed];;
                          ^^^^^^^^^^^^^
-Error: Type t_float64 has layout float64.
+Error: Type "t_float64" has layout "float64".
        Unboxed inlined records may not yet contain types of this layout.
 |}];;
 
@@ -308,7 +307,7 @@ let f6 (m : (module S6_1)) = let module M6 = (val m) in M6.x;;
 Line 1, characters 31-40:
 1 | module type S6_1 = sig val x : t_float64 end
                                    ^^^^^^^^^
-Error: This type signature for x is not a value type.
+Error: This type signature for "x" is not a value type.
        The layout of type t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of type t_float64 must be a sublayout of value
@@ -320,7 +319,7 @@ module type S6_2 = sig val x : 'a t_float64_id end
 Line 1, characters 31-46:
 1 | module type S6_2 = sig val x : 'a t_float64_id end
                                    ^^^^^^^^^^^^^^^
-Error: This type signature for x is not a value type.
+Error: This type signature for "x" is not a value type.
        The layout of type 'a t_float64_id is float64
          because of the definition of t_float64_id at line 2, characters 0-37.
        But the layout of type 'a t_float64_id must be a sublayout of value
@@ -332,9 +331,9 @@ module type S6_3 = sig val x : float# end
 Line 1, characters 31-37:
 1 | module type S6_3 = sig val x : float# end
                                    ^^^^^^
-Error: This type signature for x is not a value type.
+Error: This type signature for "x" is not a value type.
        The layout of type float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of type float# must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}];;
@@ -347,8 +346,8 @@ let f7_1 (x : t_float64) = `A x;;
 Line 1, characters 30-31:
 1 | let f7_1 (x : t_float64) = `A x;;
                                   ^
-Error: This expression has type t_float64
-       but an expression was expected of type ('a : value)
+Error: This expression has type "t_float64"
+       but an expression was expected of type "('a : value)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -360,8 +359,8 @@ let f7_2 (x : 'a t_float64_id) = `A x;;
 Line 1, characters 36-37:
 1 | let f7_2 (x : 'a t_float64_id) = `A x;;
                                         ^
-Error: This expression has type 'a t_float64_id = ('a : float64)
-       but an expression was expected of type ('b : value)
+Error: This expression has type "'a t_float64_id" = "('a : float64)"
+       but an expression was expected of type "('b : value)"
        The layout of 'a t_float64_id is float64
          because of the definition of t_float64_id at line 2, characters 0-37.
        But the layout of 'a t_float64_id must overlap with value
@@ -373,10 +372,10 @@ let f7_3 (x : float#) = `A x;;
 Line 1, characters 27-28:
 1 | let f7_3 (x : float#) = `A x;;
                                ^
-Error: This expression has type float# but an expression was expected of type
-         ('a : value)
+Error: This expression has type "float#" but an expression was expected of type
+         "('a : value)"
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -387,9 +386,9 @@ Line 1, characters 20-29:
 1 | type f7_4 = [ `A of t_float64 ];;
                         ^^^^^^^^^
 Error: Polymorphic variant constructor argument types must have layout value.
-       The layout of t_float64 is float64
+       The layout of "t_float64" is float64
          because of the definition of t_float64 at line 1, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value
+       But the layout of "t_float64" must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -398,10 +397,10 @@ type ('a : float64) f7_5 = [ `A of 'a ];;
 Line 1, characters 35-37:
 1 | type ('a : float64) f7_5 = [ `A of 'a ];;
                                        ^^
-Error: This type ('a : value) should be an instance of type ('a0 : float64)
-       The layout of 'a is float64
+Error: Polymorphic variant constructor argument types must have layout value.
+       The layout of "'a" is float64
          because of the annotation on 'a in the declaration of the type f7_5.
-       But the layout of 'a must overlap with value
+       But the layout of "'a" must overlap with value
          because it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -425,8 +424,8 @@ let x8_1 = id_value (make_t_float64 ());;
 Line 1, characters 20-39:
 1 | let x8_1 = id_value (make_t_float64 ());;
                         ^^^^^^^^^^^^^^^^^^^
-Error: This expression has type t_float64
-       but an expression was expected of type ('a : value)
+Error: This expression has type "t_float64"
+       but an expression was expected of type "('a : value)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -438,8 +437,8 @@ let x8_2 = id_value (make_t_float64_id ());;
 Line 1, characters 20-42:
 1 | let x8_2 = id_value (make_t_float64_id ());;
                         ^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type 'a t_float64_id = ('a : float64)
-       but an expression was expected of type ('b : value)
+Error: This expression has type "'a t_float64_id" = "('a : float64)"
+       but an expression was expected of type "('b : value)"
        The layout of 'a t_float64_id is float64
          because of the definition of make_t_float64_id at line 2, characters 22-57.
        But the layout of 'a t_float64_id must overlap with value
@@ -451,10 +450,10 @@ let x8_3 = id_value (make_floatu ());;
 Line 1, characters 20-36:
 1 | let x8_3 = id_value (make_floatu ());;
                         ^^^^^^^^^^^^^^^^
-Error: This expression has type float# but an expression was expected of type
-         ('a : value)
+Error: This expression has type "float#" but an expression was expected of type
+         "('a : value)"
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because of the definition of id_value at line 5, characters 13-18.
 |}];;
@@ -550,18 +549,12 @@ external f10_8 : (float [@unboxed]) -> float# = "foo" "bar"
 
 external f10_9 : (float#[@untagged]) -> bool -> string  = "foo" "bar";;
 [%%expect{|
-Line 1, characters 18-24:
-1 | external f10_9 : (float#[@untagged]) -> bool -> string  = "foo" "bar";;
-                      ^^^^^^
-Error: Don't know how to untag this type. Only int can be untagged.
+external f10_9 : (float# [@untagged]) -> bool -> string = "foo" "bar"
 |}];;
 
 external f10_10 : string -> (float#[@untagged])  = "foo" "bar";;
 [%%expect{|
-Line 1, characters 29-35:
-1 | external f10_10 : string -> (float#[@untagged])  = "foo" "bar";;
-                                 ^^^^^^
-Error: Don't know how to untag this type. Only int can be untagged.
+external f10_10 : string -> (float# [@untagged]) = "foo" "bar"
 |}];;
 
 (**************************************************)
@@ -611,8 +604,8 @@ type t11_1 += C of t_float64 * string;;
 Line 1, characters 14-37:
 1 | type t11_1 += C of t_float64 * string;;
                   ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument,
-       t_float64, but found boxed argument, string.
+Error: Expected all flat constructor arguments after non-value argument, "
+       t_float64", but found boxed argument, "string".
 |}]
 
 (***************************************)
@@ -625,21 +618,21 @@ Line 1, characters 15-28:
 1 | type t12_1 = < x : t_float64 >;;
                    ^^^^^^^^^^^^^
 Error: Object field types must have layout value.
-       The layout of t_float64 is float64
+       The layout of "t_float64" is float64
          because of the definition of t_float64 at line 1, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value
+       But the layout of "t_float64" must be a sublayout of value
          because it's the type of an object field.
 |}];;
 
 type ('a : float64) t12_2 = < x : 'a >;;
 [%%expect{|
-Line 1, characters 34-36:
+Line 1, characters 30-36:
 1 | type ('a : float64) t12_2 = < x : 'a >;;
-                                      ^^
-Error: This type ('a : value) should be an instance of type ('a0 : float64)
-       The layout of 'a is float64
+                                  ^^^^^^
+Error: Object field types must have layout value.
+       The layout of "'a" is float64
          because of the annotation on 'a in the declaration of the type t12_2.
-       But the layout of 'a must overlap with value
+       But the layout of "'a" must overlap with value
          because it's the type of an object field.
 |}]
 
@@ -648,8 +641,8 @@ class c12_3 = object method x : t_float64 = assert false end;;
 Line 1, characters 21-56:
 1 | class c12_3 = object method x : t_float64 = assert false end;;
                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The method x has type t_float64 but is expected to have type
-         ('a : value)
+Error: The method "x" has type "t_float64" but is expected to have type
+         "('a : value)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -663,7 +656,7 @@ end;;
 Line 2, characters 13-15:
 2 |   method x : 'a t_float64_id -> 'a t_float64_id = assert false
                  ^^
-Error: This type ('a : float64) should be an instance of type ('a0 : value)
+Error: This type "('a : value)" should be an instance of type "('b : float64)"
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64
@@ -687,9 +680,9 @@ class type c12_6 = object method x : float# end;;
 Line 1, characters 26-43:
 1 | class type c12_6 = object method x : float# end;;
                               ^^^^^^^^^^^^^^^^^
-Error: The method x has type float# but is expected to have type ('a : value)
+Error: The method "x" has type "float#" but is expected to have type "('a : value)"
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because it's the type of an object field.
 |}];;
@@ -701,7 +694,7 @@ Line 1, characters 26-40:
                               ^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
        The layout of x is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of x must be a sublayout of value
          because it's the type of an instance variable.
 |}];;
@@ -713,7 +706,7 @@ end
 Line 2, characters 10-12:
 2 |   val x : 'a t_float64_id -> 'a t_float64_id
               ^^
-Error: This type ('a : float64) should be an instance of type ('a0 : value)
+Error: This type "('a : value)" should be an instance of type "('b : float64)"
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64
@@ -751,8 +744,8 @@ end;;
 Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
-Error: This expression has type ('a : value)
-       but an expression was expected of type t_float64
+Error: This expression has type "('a : value)"
+       but an expression was expected of type "t_float64"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -769,7 +762,7 @@ end;;
 Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
-Error: m1 must have a type of layout value because it is captured by an object.
+Error: "m1" must have a type of layout value because it is captured by an object.
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -787,8 +780,8 @@ let f13_1 (x : t_float64) = x = x;;
 Line 1, characters 28-29:
 1 | let f13_1 (x : t_float64) = x = x;;
                                 ^
-Error: This expression has type t_float64
-       but an expression was expected of type ('a : value)
+Error: This expression has type "t_float64"
+       but an expression was expected of type "('a : value)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -800,8 +793,8 @@ let f13_2 (x : t_float64) = compare x x;;
 Line 1, characters 36-37:
 1 | let f13_2 (x : t_float64) = compare x x;;
                                         ^
-Error: This expression has type t_float64
-       but an expression was expected of type ('a : value)
+Error: This expression has type "t_float64"
+       but an expression was expected of type "('a : value)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -813,8 +806,8 @@ let f13_3 (x : t_float64) = Marshal.to_bytes x;;
 Line 1, characters 45-46:
 1 | let f13_3 (x : t_float64) = Marshal.to_bytes x;;
                                                  ^
-Error: This expression has type t_float64
-       but an expression was expected of type ('a : value)
+Error: This expression has type "t_float64"
+       but an expression was expected of type "('a : value)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -826,8 +819,8 @@ let f13_4 (x : t_float64) = Hashtbl.hash x;;
 Line 1, characters 41-42:
 1 | let f13_4 (x : t_float64) = Hashtbl.hash x;;
                                              ^
-Error: This expression has type t_float64
-       but an expression was expected of type ('a : value)
+Error: This expression has type "t_float64"
+       but an expression was expected of type "('a : value)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value

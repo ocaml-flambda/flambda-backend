@@ -1,5 +1,4 @@
 (* TEST
-<<<<<<< HEAD
  {
    runtime4;
    skip;
@@ -15,24 +14,6 @@
      native;
    }
  }
-||||||| 121bedcfd2
-   include runtime_events
-   include unix
-   set OCAML_RUNTIME_EVENTS_PRESERVE = "1"
-   * libunix
-   ** bytecode
-   ** native
-=======
- include runtime_events;
- include unix;
- set OCAML_RUNTIME_EVENTS_PRESERVE = "1";
- libunix;
- {
-   bytecode;
- }{
-   native;
- }
->>>>>>> 5.2.0
 *)
 open Runtime_events
 

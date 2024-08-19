@@ -73,15 +73,6 @@
                             expression (shortcut_ext_attr.ml[14,294+3]..[14,294+24])
                               attribute "foo"
                                 []
-<<<<<<< HEAD
-                              attribute "jane.erasable._builtin"
-                                []
-                              Pexp_fun
-                              Nolabel
-||||||| 121bedcfd2
-                              Pexp_fun
-                              Nolabel
-=======
                               Pexp_function
                               [
                                 Pparam_val (shortcut_ext_attr.ml[14,294+17]..[14,294+18])
@@ -90,7 +81,6 @@
                                   pattern (shortcut_ext_attr.ml[14,294+17]..[14,294+18])
                                     Ppat_var "x" (shortcut_ext_attr.ml[14,294+17]..[14,294+18])
                               ]
->>>>>>> 5.2.0
                               None
                               Pfunction_body
                                 expression (shortcut_ext_attr.ml[14,294+22]..[14,294+24])
@@ -106,8 +96,6 @@
                               Pstr_eval
                               expression (shortcut_ext_attr.ml[15,322+3]..[15,322+29])
                                 attribute "foo"
-                                  []
-                                attribute "jane.erasable._builtin"
                                   []
                                 Pexp_function
                                 []
@@ -700,7 +688,6 @@
             []
           core_type (shortcut_ext_attr.ml[85,1728+23]..[85,1728+24])
             Ptyp_any
-          []
           [
             ""
           ]
@@ -804,7 +791,6 @@
                     Ptyp_constr "t" (shortcut_ext_attr.ml[98,1965+20]..[98,1965+21])
                     []
                   []
-                  []
             ]
           signature_item (shortcut_ext_attr.ml[99,1987+2]..[99,1987+31]) ghost
             Psig_extension "foo"
@@ -817,7 +803,6 @@
                   core_type (shortcut_ext_attr.ml[99,1987+25]..[99,1987+26])
                     Ptyp_constr "t" (shortcut_ext_attr.ml[99,1987+25]..[99,1987+26])
                     []
-                  []
                   [
                     ""
                   ]

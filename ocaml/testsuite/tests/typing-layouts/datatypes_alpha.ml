@@ -24,7 +24,7 @@ type t1_mixed3 = T1_mixed3 of t_value * t_immediate
 [%%expect {|
 type t_void : void
 type t_any : any
-type t_value : value
+type t_value
 type t_immediate : immediate
 type t1_void = T1_void of t_void
 type t1_value = T1_value of t_value
@@ -323,10 +323,10 @@ val f6 : t6 -> float = <fun>
 Line 8, characters 32-36:
 8 |   let { fld6 = fld6 } = x in S6 fld6;;
                                     ^^^^
-Error: This expression has type float but an expression was expected of type
-         ('a : immediate)
-       The kind of float is value
-         because it is the primitive value type float.
+Error: This expression has type "float" but an expression was expected of type
+         "('a : immediate)"
+       The kind of float is immutable_data
+         because it is the primitive type float.
        But the kind of float must be a subkind of immediate
          because of the definition of s6 at line 2, characters 0-35.
 |}];;
@@ -429,7 +429,7 @@ Error: Layout mismatch in final type declaration consistency check.
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
          The layout of float# is float64
-           because it is the primitive float64 type float#.
+           because it is the primitive type float#.
          But the layout of float# must be a sublayout of void
            because of the annotation on the universal variable 'b.
        A good next step is to add a layout annotation on a parameter to

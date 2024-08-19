@@ -39,7 +39,6 @@ let () =
   (* M is unused, but no warning was emitted before 4.10. *)
   let module M = struct end in
   ()
-<<<<<<< HEAD
 
 (* Nominal type comparisons *)
 
@@ -66,14 +65,3 @@ end
  ocamlc.byte;
  check-ocamlc.byte-output;
 *)
-||||||| 121bedcfd2
-=======
-
-(* TEST
- flags = "-w +A-67";
- setup-ocamlc.byte-build-env;
- compile_only = "true";
- ocamlc.byte;
- check-ocamlc.byte-output;
-*)
->>>>>>> 5.2.0

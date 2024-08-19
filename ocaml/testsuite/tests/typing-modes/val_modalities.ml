@@ -54,7 +54,7 @@ end
 Line 2, characters 15-16:
 2 |     let local_ x = "hello"
                    ^
-Error: This value is local, but expected to be global because it is inside a module.
+Error: This value is "local", but expected to be "global" because it is inside a module.
 |}]
 
 (* Monadic axes don't have such constraint *)
@@ -71,12 +71,12 @@ module M : sig val x : string @@ global many portable contended end
 *)
 module Module_type_of_comonadic = struct
     module M = struct
-        let x @ portable = "hello"
+        let x @ portable = fun x -> x
     end
     (* for comonadic axes, we default to id = meet_with_max, which is the
     weakest. The original modality is not mutated. *)
     module M' : module type of M = struct
-        let x @ portable = "hello"
+        let x @ portable = fun x -> x
     end
     let _ = portable_use M.x (* The original modality stays portable *)
     let _ = portable_use M'.x
@@ -85,7 +85,7 @@ end
 Line 11, characters 25-29:
 11 |     let _ = portable_use M'.x
                               ^^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 module Module_type_of_monadic = struct
@@ -150,12 +150,12 @@ Error: Signature mismatch:
            val x : string @@ contended
            module N : sig val y : string end
          end
-       In module N:
+       In module "N":
        Modules do not match:
          sig val y : string @@ global many portable contended end
        is not included in
          sig val y : string end
-       In module N:
+       In module "N":
        Values do not match:
          val y : string @@ global many portable contended
        is not included in
@@ -170,18 +170,18 @@ Error: Signature mismatch:
    flexible. *)
 module Without_inclusion = struct
     module M = struct
-        let x @ portable = "hello"
+        let x @ portable = fun x -> x
     end
     let () = portable_use M.x
 end
 [%%expect{|
 module Without_inclusion :
-  sig module M : sig val x : string @@ global many portable end end
+  sig module M : sig val x : 'a -> 'a @@ global many portable end end
 |}]
 
 module Without_inclusion = struct
     module M = struct
-        let x @ nonportable = "hello"
+        let x @ nonportable = fun x -> x
     end
     let () = portable_use M.x
 end
@@ -189,7 +189,7 @@ end
 Line 5, characters 26-29:
 5 |     let () = portable_use M.x
                               ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 module Inclusion_fail = struct
@@ -218,9 +218,9 @@ Error: Signature mismatch:
 
 module Inclusion_weakens_monadic = struct
     module M : sig
-        val x : string @@ contended
+        val x : int ref @@ contended
     end = struct
-        let x @ uncontended = "hello"
+        let x @ uncontended = ref 10
     end
     let _ = uncontended_use M.x
 end
@@ -228,14 +228,14 @@ end
 Line 7, characters 28-31:
 7 |     let _ = uncontended_use M.x
                                 ^^^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 module Inclusion_weakens_comonadic = struct
   module M : sig
-      val x : string @@ nonportable
+      val x : 'a -> 'a @@ nonportable
   end = struct
-      let x @ portable = "hello"
+      let x @ portable = fun x -> x
   end
   let _ = portable_use M.x
 end
@@ -243,19 +243,19 @@ end
 Line 7, characters 23-26:
 7 |   let _ = portable_use M.x
                            ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 module Inclusion_match = struct
     module M : sig
-        val x : string @@ uncontended
+        val x : int ref @@ uncontended
     end = struct
-        let x @ uncontended = "hello"
+        let x @ uncontended = ref 10
     end
     let () = uncontended_use M.x
 end
 [%%expect{|
-module Inclusion_match : sig module M : sig val x : string end end
+module Inclusion_match : sig module M : sig val x : int ref end end
 |}]
 
 (* [foo] closes over [M.x] instead of [M]. This is better ergonomics. *)
@@ -275,9 +275,21 @@ module Close_over_value :
   end
 |}]
 
+(* CR mode-crossing: This is used for the below test in place of a mutable record. *)
+module M : sig
+  type t
+  val mk : t @@ portable
+end = struct
+  type t = unit
+  let mk = ()
+end
+[%%expect {|
+module M : sig type t val mk : t @@ portable end
+|}]
+
 module Close_over_value_monadic = struct
   module M = struct
-    let r @ uncontended = "hello"
+    let r @ uncontended = M.mk
   end
   let (foo @ portable) () =
     let uncontended_use (_ @ uncontended) = () in
@@ -287,7 +299,7 @@ end
 Line 7, characters 20-23:
 7 |     uncontended_use M.r
                         ^^^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 module Close_over_value_comonadic = struct
@@ -302,7 +314,7 @@ end
 Line 6, characters 12-15:
 6 |     let _ = M.x in
                 ^^^
-Error: The value M.x is nonportable, so cannot be used inside a closure that is portable.
+Error: The value "M.x" is nonportable, so cannot be used inside a closure that is portable.
 |}]
 
 (* Modalities on primitives are supported. They are simpler than real values,
@@ -359,5 +371,95 @@ module M : sig external length : string -> int = "%string_length" end
 Line 7, characters 21-29:
 7 | let _ = portable_use M.length
                          ^^^^^^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
+|}]
+
+(* The example below demonstrates the need to zap modalities from [with module]
+   constraints.  A similar example appears in the zero_alloc tests, because
+   [zero_alloc] variables must be treated similarly. *)
+module type S = sig
+  module M : sig
+    val f : int -> int
+  end
+end
+
+module N : sig
+  module Plain : sig
+    val f : int -> int
+  end
+
+  module type S_plain = S with module M = Plain
+end = struct
+  module Plain = struct
+    let f x = x+1
+  end
+
+  module type S_plain = S with module M = Plain
+end
+[%%expect{|
+module type S = sig module M : sig val f : int -> int end end
+module N :
+  sig
+    module Plain : sig val f : int -> int end
+    module type S_plain = sig module M : sig val f : int -> int end end
+  end
+|}]
+
+(* This revised version of that example does not typecheck. It would be nice if
+   it did, but to make it do so seems hard. In the case of zero_alloc we can fix
+   this with a zero_alloc annotation in the structure, but there is currently no
+   equivalent for that with modalities. *)
+module type S = sig
+  module M : sig
+    val f : int -> int
+  end
+end
+
+module N : sig
+  module Plain : sig
+    val f : int -> int @@ portable
+  end
+
+  module type S_plain = S with module M = Plain
+end = struct
+  module Plain = struct
+    let f x = x+1
+  end
+
+  module type S_plain = S with module M = Plain
+end
+[%%expect{|
+module type S = sig module M : sig val f : int -> int end end
+Lines 13-19, characters 6-3:
+13 | ......struct
+14 |   module Plain = struct
+15 |     let f x = x+1
+16 |   end
+17 |
+18 |   module type S_plain = S with module M = Plain
+19 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           module Plain : sig val f : int -> int @@ global many end
+           module type S_plain =
+             sig module M : sig val f : int -> int end end
+         end
+       is not included in
+         sig
+           module Plain : sig val f : int -> int @@ portable end
+           module type S_plain =
+             sig module M : sig val f : int -> int @@ portable end end
+         end
+       In module "Plain":
+       Modules do not match:
+         sig val f : int -> int @@ global many end
+       is not included in
+         sig val f : int -> int @@ portable end
+       In module "Plain":
+       Values do not match:
+         val f : int -> int @@ global many
+       is not included in
+         val f : int -> int @@ portable
+       The second is portable and the first is not.
 |}]

@@ -27,10 +27,20 @@ end = struct
   let hide x = x
 end
 
+module Hidden_function : sig
+  type (-'a, +'b) t
+  val hide : ('a -> 'b) -> ('a, 'b) t
+end = struct
+  type ('a, 'b) t = 'a -> 'b
+  let hide x = x
+end
+
 [%%expect{|
 module Hidden_string : sig type t val hide : string -> t end
 module Hidden_int : sig type t : immediate val hide : int -> t end
 module Hidden_float_u : sig type t : float64 val hide : float# -> t end
+module Hidden_function :
+  sig type (-'a, +'b) t val hide : ('a -> 'b) -> ('a, 'b) t end
 |}]
 
 module Float_u : sig
@@ -183,13 +193,15 @@ Line 2, characters 11-12:
 Error: This value escapes its region.
 |}]
 
-let string_duplicate : once_ _ -> string = fun x -> x
+type t_value
+let value_duplicate : once_ _ -> t_value = fun x -> x
 
 [%%expect{|
-Line 1, characters 52-53:
-1 | let string_duplicate : once_ _ -> string = fun x -> x
+type t_value
+Line 2, characters 52-53:
+2 | let value_duplicate : once_ _ -> t_value = fun x -> x
                                                         ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let int_duplicate : once_ _ -> int = fun x -> x
@@ -198,13 +210,13 @@ let int_duplicate : once_ _ -> int = fun x -> x
 val int_duplicate : once_ int -> int = <fun>
 |}]
 
-let string_list_duplicate : once_ _ -> string list = fun x -> x
+let value_list_duplicate : once_ _ -> t_value list = fun x -> x
 
 [%%expect{|
 Line 1, characters 62-63:
-1 | let string_list_duplicate : once_ _ -> string list = fun x -> x
+1 | let value_list_duplicate : once_ _ -> t_value list = fun x -> x
                                                                   ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let int_list_duplicate : once_ _ -> int list = fun x -> x
@@ -213,7 +225,7 @@ let int_list_duplicate : once_ _ -> int list = fun x -> x
 Line 1, characters 56-57:
 1 | let int_list_duplicate : once_ _ -> int list = fun x -> x
                                                             ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let hidden_string_duplicate : once_ _ -> Hidden_string.t =
@@ -223,7 +235,7 @@ let hidden_string_duplicate : once_ _ -> Hidden_string.t =
 Line 2, characters 11-12:
 2 |   fun x -> x
                ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let hidden_int_duplicate : once_ _ -> Hidden_int.t =
@@ -236,10 +248,7 @@ val hidden_int_duplicate : once_ Hidden_int.t -> Hidden_int.t = <fun>
 let float_duplicate : once_ _ -> float = fun x -> x
 
 [%%expect{|
-Line 1, characters 50-51:
-1 | let float_duplicate : once_ _ -> float = fun x -> x
-                                                      ^
-Error: This value is once but expected to be many.
+val float_duplicate : once_ float -> float = <fun>
 |}]
 
 let float_u_duplicate : once_ _ -> float# = fun x -> x
@@ -262,7 +271,7 @@ let float_u_record_duplicate : once_ _ -> float_u_record =
 Line 2, characters 11-12:
 2 |   fun x -> x
                ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let float_u_record_list_duplicate :
@@ -273,7 +282,7 @@ let float_u_record_list_duplicate :
 Line 3, characters 11-12:
 3 |   fun x -> x
                ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let function_duplicate : once_ _ -> (int -> int) = fun x -> x
@@ -282,7 +291,7 @@ let function_duplicate : once_ _ -> (int -> int) = fun x -> x
 Line 1, characters 60-61:
 1 | let function_duplicate : once_ _ -> (int -> int) = fun x -> x
                                                                 ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let function_list_duplicate : once_ _ -> (int -> int) list =
@@ -292,7 +301,7 @@ let function_list_duplicate : once_ _ -> (int -> int) list =
 Line 2, characters 11-12:
 2 |   fun x -> x
                ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let string_unshare : _ -> unique_ string = fun x -> x
@@ -301,7 +310,7 @@ let string_unshare : _ -> unique_ string = fun x -> x
 Line 1, characters 52-53:
 1 | let string_unshare : _ -> unique_ string = fun x -> x
                                                         ^
-Error: This value is shared but expected to be unique.
+Error: This value is "shared" but expected to be "unique".
 |}]
 
 let int_unshare : _ -> unique_ int = fun x -> x
@@ -316,7 +325,7 @@ let string_list_unshare : _ -> unique_ string list = fun x -> x
 Line 1, characters 62-63:
 1 | let string_list_unshare : _ -> unique_ string list = fun x -> x
                                                                   ^
-Error: This value is shared but expected to be unique.
+Error: This value is "shared" but expected to be "unique".
 |}]
 
 let int_list_unshare : _ -> unique_ int list = fun x -> x
@@ -325,7 +334,13 @@ let int_list_unshare : _ -> unique_ int list = fun x -> x
 Line 1, characters 56-57:
 1 | let int_list_unshare : _ -> unique_ int list = fun x -> x
                                                             ^
-Error: This value is shared but expected to be unique.
+Error: This value is "shared" but expected to be "unique".
+|}]
+
+let function_unshare : _ -> unique_ (int -> int) = fun x -> x
+
+[%%expect{|
+val function_unshare : (int -> int) -> unique_ (int -> int) = <fun>
 |}]
 
 let hidden_string_unshare : _ -> unique_ Hidden_string.t =
@@ -335,7 +350,7 @@ let hidden_string_unshare : _ -> unique_ Hidden_string.t =
 Line 2, characters 11-12:
 2 |   fun x -> x
                ^
-Error: This value is shared but expected to be unique.
+Error: This value is "shared" but expected to be "unique".
 |}]
 
 let hidden_int_unshare : _ -> unique_ Hidden_int.t =
@@ -351,7 +366,7 @@ let float_unshare : _ -> unique_ float = fun x -> x
 Line 1, characters 50-51:
 1 | let float_unshare : _ -> unique_ float = fun x -> x
                                                       ^
-Error: This value is shared but expected to be unique.
+Error: This value is "shared" but expected to be "unique".
 |}]
 
 let float_u_unshare : _ -> unique_ float# = fun x -> x
@@ -374,7 +389,7 @@ let float_u_record_unshare : _ -> unique_ float_u_record =
 Line 2, characters 11-12:
 2 |   fun x -> x
                ^
-Error: This value is shared but expected to be unique.
+Error: This value is "shared" but expected to be "unique".
 |}]
 
 let float_u_record_list_unshare :
@@ -385,16 +400,16 @@ let float_u_record_list_unshare :
 Line 3, characters 11-12:
 3 |   fun x -> x
                ^
-Error: This value is shared but expected to be unique.
+Error: This value is "shared" but expected to be "unique".
 |}]
 
-let function_unshare : _ -> unique_ (int -> int) = fun x -> x
+let hidden_function_unshare : _ -> unique_ (int, int) Hidden_function.t = fun x -> x
 
 [%%expect{|
-Line 1, characters 60-61:
-1 | let function_unshare : _ -> unique_ (int -> int) = fun x -> x
-                                                                ^
-Error: This value is shared but expected to be unique.
+Line 1, characters 83-84:
+1 | let hidden_function_unshare : _ -> unique_ (int, int) Hidden_function.t = fun x -> x
+                                                                                       ^
+Error: This value is "shared" but expected to be "unique".
 |}]
 
 let function_list_unshare : _ -> unique_ (int -> int) list =
@@ -404,5 +419,5 @@ let function_list_unshare : _ -> unique_ (int -> int) list =
 Line 2, characters 11-12:
 2 |   fun x -> x
                ^
-Error: This value is shared but expected to be unique.
+Error: This value is "shared" but expected to be "unique".
 |}]

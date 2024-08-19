@@ -83,10 +83,10 @@ let f (x : float# array) = x.(0)
 Line 1, characters 27-28:
 1 | let f (x : float# array) = x.(0)
                                ^
-Error: This expression has type float# array
-       but an expression was expected of type 'a array
+Error: This expression has type "float# array"
+       but an expression was expected of type "'a array"
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because of layout requirements from an imported definition.
 |}];;
@@ -96,10 +96,10 @@ let f (x : float# array) = Array.length x
 Line 1, characters 40-41:
 1 | let f (x : float# array) = Array.length x
                                             ^
-Error: This expression has type float# array
-       but an expression was expected of type 'a array
+Error: This expression has type "float# array"
+       but an expression was expected of type "'a array"
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because of layout requirements from an imported definition.
 |}];;
@@ -250,10 +250,10 @@ end
 Line 11, characters 79-82:
 11 |   let _ =  assert (Stdlib_upstream_compatible.Int64_u.equal #42L (get_third [| #0L; #1L; #42L |]))
                                                                                     ^^^
-Error: This expression has type int64# but an expression was expected of type
-         ('a : bits32)
+Error: This expression has type "int64#" but an expression was expected of type
+         "('a : bits32)"
        The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
+         because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of bits32
          because of the definition of get_third at lines 4-7, characters 16-23.
 |}]
@@ -275,10 +275,10 @@ end
 Line 9, characters 24-35:
 9 |   let f2 idx : int32# = get arr idx
                             ^^^^^^^^^^^
-Error: This expression has type ('a : float64)
-       but an expression was expected of type int32#
+Error: This expression has type "('a : float64)"
+       but an expression was expected of type "int32#"
        The layout of int32# is bits32
-         because it is the primitive bits32 type int32#.
+         because it is the primitive type int32#.
        But the layout of int32# must be a sublayout of float64
          because of the definition of arr at line 6, characters 12-16.
 |}]
@@ -295,7 +295,7 @@ let _ =
 Line 2, characters 30-44:
 2 |   let[@warning "-10"] rec x = [| x |]; #42.0 in
                                   ^^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+Error: This kind of expression is not allowed as right-hand side of "let rec"
 |}]
 
 let _ =
@@ -306,7 +306,7 @@ let _ =
 Line 2, characters 30-43:
 2 |   let[@warning "-10"] rec x = [| x |]; #42l in
                                   ^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+Error: This kind of expression is not allowed as right-hand side of "let rec"
 |}]
 
 let _ =
@@ -317,7 +317,7 @@ let _ =
 Line 2, characters 30-43:
 2 |   let[@warning "-10"] rec x = [| x |]; #42L in
                                   ^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+Error: This kind of expression is not allowed as right-hand side of "let rec"
 |}]
 
 let _ =
@@ -328,7 +328,7 @@ let _ =
 Line 2, characters 30-43:
 2 |   let[@warning "-10"] rec x = [| x |]; #42n in
                                   ^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+Error: This kind of expression is not allowed as right-hand side of "let rec"
 |}]
 
 let _ =
@@ -339,5 +339,5 @@ let _ =
 Line 2, characters 30-45:
 2 |   let[@warning "-10"] rec x = [| x |]; #42.0s in
                                   ^^^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+Error: This kind of expression is not allowed as right-hand side of "let rec"
 |}]
