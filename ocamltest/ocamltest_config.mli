@@ -145,13 +145,9 @@ val poll_insertion : bool
 
 val frame_pointers : bool
 (** Whether frame-pointers have been enabled at configure time *)
-<<<<<<< HEAD
 
 val naked_pointers : bool
 (** Whether the runtime system supports naked pointers outside the heap *)
-||||||| 121bedcfd2
-=======
 
 val tsan : bool
 (** Whether ThreadSanitizer support has been enabled at configure time *)
->>>>>>> 5.2.0

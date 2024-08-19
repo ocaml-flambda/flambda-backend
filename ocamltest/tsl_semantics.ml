@@ -110,17 +110,6 @@ let lookup_test located_name =
     end
   | Some test -> test
 
-let lookup_test located_name =
-  let name = located_name.node in
-  match Tests.lookup name with
-  | None ->
-    begin match Actions.lookup name with
-    | None -> no_such_test_or_action located_name
-    | Some action ->
-      Tests.test_of_action action
-    end
-  | Some test -> test
-
 let test_trees_of_tsl_block tsl_block =
   let rec env_of_lines = function [@ocaml.warning "-fragile-match"]
     | [] -> ([], [])
@@ -164,6 +153,21 @@ let test_trees_of_tsl_block tsl_block =
     | (Environment_statement s)::_ -> unexpected_environment_statement s
     | _ -> assert false
 
+let test_trees_of_tsl_block tsl_block =
+  let (env, trees) = test_trees_of_tsl_block tsl_block in
+  let does_something =
+    List.for_all test_tree_does_something_on_all_branches trees
+  in
+  if does_something then env, trees
+  else
+    let tree =
+      match trees with
+      | [] -> []
+      | Node (_, _, name, _) :: _ ->
+        [Node ([], Tests.does_nothing, name, [])]
+    in
+    env, tree
+
 let tests_in_stmt set stmt =
   match stmt with
   | Environment_statement _ -> set
@@ -187,46 +191,6 @@ let actions_in_tests tests =
   let f test action_set =
     Actions.ActionSet.union (actions_in_test test) action_set in
   Tests.TestSet.fold f tests Actions.ActionSet.empty
-<<<<<<< HEAD
-
-let rec split_env l =
-  match[@ocaml.warning "-fragile-match"] l with
-  | Environment_statement env :: tl ->
-    let (env2, rest) = split_env tl in (env :: env2, rest)
-  | _ -> ([], l)
-
-let rec test_trees_of_tsl_ast (Ast (seq, subs)) =
-  let (env, rest) = split_env seq in
-  let trees =
-    match rest with
-    | [] -> List.map test_tree_of_tsl_ast subs
-    | [ Test (_, name, mods) ] ->
-      [Node ([], lookup_test name, mods, List.map test_tree_of_tsl_ast subs)]
-    | Test (_, name, mods) :: seq1 ->
-      let sub = test_tree_of_tsl_ast (Ast (seq1, subs)) in
-      [Node ([], lookup_test name, mods, [sub])]
-    | Environment_statement _ :: _ -> assert false
-  in (env, trees)
-
-and test_tree_of_tsl_ast ast =
-  match[@ocaml.warning "-fragile-match"] test_trees_of_tsl_ast ast with
-  | (env, [Node (env1, t, m, s)]) -> Node (env @ env1, t, m, s)
-  | (env, trees) -> Node (env, Tests.null, [], trees)
-
-let test_trees_of_tsl_ast ast =
-  let (env, trees) = test_trees_of_tsl_ast ast in
-  let does_something =
-    List.for_all test_tree_does_something_on_all_branches trees
-  in
-  if does_something then env, trees
-  else
-    let tree =
-      match trees with
-      | [] -> []
-      | Node (_, _, name, _) :: _ ->
-        [Node ([], Tests.does_nothing, name, [])]
-    in
-    env, tree
 
 let rec ast_of_tree (Node (env, test, mods, subs)) =
   let tst = [Test (0, Tsl_ast.make_identifier test.Tests.test_name, mods)] in
@@ -255,7 +219,7 @@ let print_tsl_ast ~compact oc ast =
     pr "%s}" indent;
 
   and print_statements indent stmts =
-    match stmts with
+    match[@ocaml.warning "-fragile-match"] stmts with
     | Test (_, name, mods) :: tl ->
       pr "%s%s" indent name.node;
       begin match mods with
@@ -293,72 +257,3 @@ let print_tsl_ast ~compact oc ast =
       pr "%sunset %s;\n" indent ls.node;
   in
   print_ast " " ast;
-||||||| 121bedcfd2
-=======
-
-let rec ast_of_tree (Node (env, test, mods, subs)) =
-  let tst = [Test (0, Tsl_ast.make_identifier test.Tests.test_name, mods)] in
-  ast_of_tree_aux env tst subs
-
-and ast_of_tree_aux env tst subs =
-  let env = List.map (fun x -> Environment_statement x) env in
-  match List.map ast_of_tree subs with
-  | [ Ast (stmts, subs) ] -> Ast (env @ tst @ stmts, subs)
-  | asts -> Ast (env @ tst, asts)
-
-let tsl_ast_of_test_trees (env, trees) = ast_of_tree_aux env [] trees
-
-open Printf
-
-let print_tsl_ast ~compact oc ast =
-  let pr fmt (*args*) = fprintf oc fmt (*args*) in
-
-  let rec print_ast indent (Ast (stmts, subs)) =
-    print_statements indent stmts;
-    print_forest indent subs;
-
-  and print_sub indent ast =
-    pr "{\n";
-    print_ast (indent ^ "  ") ast;
-    pr "%s}" indent;
-
-  and print_statements indent stmts =
-    match stmts with
-    | Test (_, name, mods) :: tl ->
-      pr "%s%s" indent name.node;
-      begin match mods with
-      | m :: tl ->
-        pr " with %s" m.node;
-        List.iter (fun m -> pr ", %s" m.node) tl;
-      | [] -> ()
-      end;
-      pr ";\n";
-      if tl <> [] && not compact then pr "\n";
-      print_statements indent tl;
-    | Environment_statement env :: tl->
-      print_env indent env;
-      print_statements indent tl;
-    | [] -> ()
-
-  and print_forest indent subs =
-    if subs <> [] then begin
-      pr "%s" indent;
-      List.iter (print_sub indent) subs;
-      pr "\n";
-    end
-
-  and print_env indent e =
-    match e.node with
-    | Assignment (set, variable, value) ->
-      pr "%s" indent;
-      if set then pr "set ";
-      pr "%s = \"%s\";\n" variable.node value.node;
-    | Append (variable, value) ->
-      pr "%s%s += \"%s\";\n" indent variable.node value.node;
-    | Include ls ->
-      pr "%sinclude %s;\n" indent ls.node;
-    | Unset ls ->
-      pr "%sunset %s;\n" indent ls.node;
-  in
-  print_ast " " ast;
->>>>>>> 5.2.0
