@@ -334,14 +334,14 @@ let operation_allocates = function
 
 (* addressing mode functions, for avoiding compilation errors when using them in amd64 *)
 
-let compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let addressing_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Iindexed _, Iindexed _ -> 0
   | Iindexed _ , _ -> -1
   | _, Iindexed _ -> 1
   | Ibased (var1, _), Ibased (var2, _) -> String.compare var1 var2
 
-let scale_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let addressing_scale_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Iindexed _, Iindexed _ -> Some 0
   | Ibased (var1, _), Ibased (var2, _) -> if String.compare var1 var2 = 0 then Some 0 else None
@@ -349,9 +349,11 @@ let scale_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addr
   | Ibased _ , _ -> None
 
 
-let displ_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let addressing_displ_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
-  | Iindexed n1, Iindexed n2 -> Some (n1 - n2)
-  | Ibased (var1, n1), Ibased (var2, n2) -> if String.compare var1 var2 = 0 then Some (n1 - n2) else None
+  | Iindexed n1, Iindexed n2 -> Some (Int.compare n1 n2)
+  | Ibased (var1, n1), Ibased (var2, n2) -> if String.compare var1 var2 = 0 then Some (Int.compare n1 n2) else None
   | Iindexed _ , _ -> None
   | Ibased _ , _ -> None
+
+let addressing_offset (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) = None
