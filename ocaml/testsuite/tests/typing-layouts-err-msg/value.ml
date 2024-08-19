@@ -260,7 +260,7 @@ Error: This expression has type (module X_int)
 (* Univar *)
 let f: 'a. 'a -> ('b : void) = fun x -> x
 [%%expect{|
-Line 1, characters 40-41:
+Line 1, characters 31-41:
 1 | let f: 'a. 'a -> ('b : void) = fun x -> x
                                             ^
 Error: This expression has type ('a : value)

@@ -295,7 +295,7 @@ end = struct
 
   let mk_poly_univars_tuple_without_jkind var =
     let name = var.txt in
-    let original_jkind = Jkind.Builtin.value ~why:Univar in
+    let original_jkind = new_jkind' ~is_named:true Sort in
     let jkind_info = { of_annot = None } in
     name, mk_pending_univar name original_jkind jkind_info
 
@@ -341,6 +341,7 @@ end = struct
       | Tvar _, _ when get_level v <> Btype.generic_level ->
           cant_quantify Scope_escape
       | Tvar { name; jkind }, _ ->
+         (* Jkind.default_to_value jkind; *)
          set_type_desc v (Tunivar { name; jkind })
       | Tunivar _, _ ->
          cant_quantify Univar

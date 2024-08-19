@@ -687,7 +687,7 @@ val ignore_repr6' : 'a -> unit = <fun>
 |}];;
 
 type ('a : any) t6 = 'a
-let ignore_any_but_repr : 'a . 'a -> unit = 
+let ignore_any_but_repr : 'a . 'a -> unit =
   let id (x : ('a : any)) = x in
   fun x -> ignore (id x)
 [%%expect{|
@@ -696,20 +696,12 @@ val ignore_any_but_repr : 'a -> unit = <fun>
 |}];;
 
 type ('a : word) word6 = 'a
-let ignore_word_but_repr : 'a . 'a -> unit = 
+let ignore_word_but_repr : 'a . 'a -> unit =
   let id (x : 'a word6) = x in
-  fun x -> ignore (id x)
+  fun x -> let _ = id x in ()
 [%%expect{|
 type ('a : word) word6 = 'a
-Line 4, characters 22-23:
-4 |   fun x -> ignore (id x)
-                          ^
-Error: This expression has type ('a : value)
-       but an expression was expected of type 'a0 word6 = ('a0 : word)
-       The layout of 'a word6 is word, because
-         of the definition of word6 at line 1, characters 0-27.
-       But the layout of 'a word6 must overlap with value, because
-         it is or unifies with an unannotated universal variable.
+val ignore_word_but_repr : ('a : word). 'a -> unit = <fun>
 |}];;
 
 (* CR layouts v1.5: add more tests here once you can annotate these types with
@@ -2333,7 +2325,8 @@ Line 5, characters 32-33:
 5 |   : < foo : 'a . 'a foo bar > = x
                                     ^
 Error: This expression has type < foo : ('a : float64). 'a foo bar >
-       but an expression was expected of type < foo : 'a. 'a foo bar >
+       but an expression was expected of type
+         < foo : ('a : float64). 'a foo bar >
        Type 'a foo = 'a is not compatible with type 'a0 foo = 'a0
        Types for method foo are incompatible
 |}]
