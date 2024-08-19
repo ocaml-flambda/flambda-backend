@@ -70,7 +70,7 @@ end = struct
     | Terminator i -> Cfg.print_terminator ppf i
 
   let print_reg ppf (reg : Reg.t) =
-    Format.fprintf ppf "%d,\"%s\"" reg.stamp (Reg.name reg)
+    Format.fprintf ppf "reg (%d,\"%s\")" reg.stamp (Reg.name reg)
 end
 
 module Dependency_graph : sig
@@ -216,7 +216,7 @@ end = struct
           ~some:(sprintf "instruction %d" << Instruction.Id.to_int)
           reg_node.depends_on
       in
-      fprintf ppf "\nargument %d (reg %a) depends on %s\n" arg_i
+      fprintf ppf "\nargument %d, %a depends on %s\n" arg_i
         Instruction.print_reg reg_node.reg dependency
     in
     let print_node (instruction : Instruction.t) =
@@ -294,11 +294,19 @@ module Adjacent_memory_accesses = struct
           None)
       | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> None
 
-    let args (t : t) =
-      let args = Instruction.arguments t.instruction in
+    let arguments (t : t) =
+      let arguments = Instruction.arguments t.instruction in
       match t.op with
-      | Load -> args
-      | Store -> Array.sub args 1 (Array.length args - 1)
+      | Load -> arguments
+      | Store -> Array.sub arguments 1 (Array.length arguments - 1)
+
+    let width_of (memory_chunk : Cmm.memory_chunk) =
+      match memory_chunk with
+      | Byte_unsigned | Byte_signed -> 1
+      | Sixteen_unsigned | Sixteen_signed -> 2
+      | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> 4
+      | Word_int | Word_val | Double -> 8
+      | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 16
 
     let print_memory_chunk ppf (t : t) =
       let open Format in
@@ -317,172 +325,71 @@ module Adjacent_memory_accesses = struct
         | Onetwentyeight_unaligned -> "Onetwentyeight_unaligned"
         | Onetwentyeight_aligned -> "Onetwentyeight_aligned"
       in
-      fprintf ppf "%s" str
-
-    let print_addressing ppf (t : t) =
-      let open Format in
-      let addr = t.addressing_mode in
-      let arg = args t in
-      match addr with
-      | Ibased (s, _glob, n) -> fprintf ppf "ibased \"%s\" + %i" s n
-      | Iindexed n ->
-        let idx = Printf.sprintf " + %i" n in
-        fprintf ppf "iindexed %a%s" Instruction.print_reg arg.(0) idx
-      | Iindexed2 n ->
-        let idx = Printf.sprintf " + %i" n in
-        fprintf ppf "iindexed2 %a + %a%s" Instruction.print_reg arg.(0)
-          Instruction.print_reg arg.(1) idx
-      | Iscaled (scale, n) ->
-        let idx = Printf.sprintf " + %i" n in
-        fprintf ppf "iscaled %a  * %i%s" Instruction.print_reg arg.(0) scale idx
-      | Iindexed2scaled (scale, n) ->
-        let idx = Printf.sprintf " + %i" n in
-        fprintf ppf "iindexed2scaled %a + %a * %i%s" Instruction.print_reg
-          arg.(0) Instruction.print_reg arg.(1) scale idx
+      fprintf ppf "%s (length %d)" str (width_of t.memory_chunk)
 
     let dump ppf (t : t) =
       let open Format in
       let instruction = t.instruction in
       fprintf ppf "\nInstruction %d: %a (%a, %a)"
         (Instruction.id instruction |> Instruction.Id.to_int)
-        Instruction.print instruction print_memory_chunk t print_addressing t
+        Instruction.print instruction print_memory_chunk t
+        (Arch.print_addressing Instruction.print_reg t.addressing_mode)
+        (arguments t)
+
+    let compare_addressing_modes_and_arguments (t1 : t) (t2 : t) =
+      let addressing_mode_comparison =
+        Arch.compare t1.addressing_mode t2.addressing_mode
+      in
+      if addressing_mode_comparison = 0
+      then
+        let arguments_comparison =
+          let arguments_1 = arguments t1 in
+          let arguments_2 = arguments t2 in
+          Array.combine arguments_1 arguments_2
+          |> Array.fold_left
+               (fun result ((arg1, arg2) : Reg.t * Reg.t) ->
+                 if result = 0 then arg1.stamp - arg2.stamp else result)
+               0
+        in
+        arguments_comparison
+      else addressing_mode_comparison
 
     let compare (t1 : t) (t2 : t) =
-      let addressing_mode_1 = t1.addressing_mode in
-      let addressing_mode_2 = t2.addressing_mode in
-      let args_1 = args t1 in
-      let args_2 = args t2 in
-      let compare_addressing_modes =
-        match addressing_mode_1, addressing_mode_2 with
-        | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
-          match global1, global2 with
-          | Global, Global | Local, Local ->
-            if symbol1 < symbol2
-            then -1
-            else if symbol1 > symbol2
-            then 1
-            else n1 - n2
-          | Global, Local -> -1
-          | Local, Global -> 1)
-        | Ibased _, _ -> -1
-        | _, Ibased _ -> 1
-        | Iindexed n1, Iindexed n2 ->
-          let arg0_1 = Array.get args_1 0 in
-          let arg0_2 = Array.get args_2 0 in
-          let arg0_compare = arg0_1.stamp - arg0_2.stamp in
-          if arg0_compare = 0 then n1 - n2 else arg0_compare
-        | Iindexed _, _ -> -1
-        | _, Iindexed _ -> 1
-        | Iindexed2 n1, Iindexed2 n2 ->
-          let arg0_1 = Array.get args_1 0 in
-          let arg0_2 = Array.get args_2 0 in
-          let arg0_compare = arg0_1.stamp - arg0_2.stamp in
-          if arg0_compare = 0
-          then
-            let arg1_1 = Array.get args_1 1 in
-            let arg1_2 = Array.get args_2 1 in
-            let arg1_compare = arg1_1.stamp - arg1_2.stamp in
-            if arg1_compare = 0 then n1 - n2 else arg1_compare
-          else arg0_compare
-        | Iindexed2 _, _ -> -1
-        | _, Iindexed2 _ -> 1
-        | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
-          let arg0_1 = Array.get args_1 0 in
-          let arg0_2 = Array.get args_2 0 in
-          let arg0_compare = arg0_1.stamp - arg0_2.stamp in
-          if arg0_compare = 0
-          then
-            let scale_compare = scale1 - scale2 in
-            if scale_compare = 0 then n1 - n2 else scale_compare
-          else arg0_compare
-        | Iscaled _, _ -> -1
-        | _, Iscaled _ -> 1
-        | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
-          let arg0_1 = Array.get args_1 0 in
-          let arg0_2 = Array.get args_2 0 in
-          let arg0_compare = arg0_1.stamp - arg0_2.stamp in
-          if arg0_compare = 0
-          then
-            let arg1_1 = Array.get args_1 1 in
-            let arg1_2 = Array.get args_2 1 in
-            let arg1_compare = arg1_1.stamp - arg1_2.stamp in
-            if arg1_compare = 0
-            then
-              let scale_compare = scale1 - scale2 in
-              if scale_compare = 0 then n1 - n2 else scale_compare
-            else arg1_compare
-          else arg0_compare
+      let addressing_mode_and_arguments_comparison =
+        compare_addressing_modes_and_arguments t1 t2
       in
-      if compare_addressing_modes = 0
+      if addressing_mode_and_arguments_comparison = 0
       then
-        (Instruction.id t1.instruction |> Instruction.Id.to_int)
-        - (Instruction.id t2.instruction |> Instruction.Id.to_int)
-      else compare_addressing_modes
+        let scale_comparison =
+          match Arch.scale_compare t1.addressing_mode t2.addressing_mode with
+          | Some scale -> scale
+          | None -> assert false
+        in
+        if scale_comparison = 0
+        then
+          let offset_comparison =
+            match Arch.displ_compare t1.addressing_mode t2.addressing_mode with
+            | Some offset -> offset
+            | None -> assert false
+          in
+          if offset_comparison = 0
+          then
+            (Instruction.id t1.instruction |> Instruction.Id.to_int)
+            - (Instruction.id t2.instruction |> Instruction.Id.to_int)
+          else offset_comparison
+        else scale_comparison
+      else addressing_mode_and_arguments_comparison
 
     let offset_of (t1 : t) (t2 : t) =
-      let addressing_mode_1 = t1.addressing_mode in
-      let addressing_mode_2 = t2.addressing_mode in
-      let args_1 = args t1 in
-      let args_2 = args t2 in
-      match addressing_mode_1, addressing_mode_2 with
-      | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
-        match global1, global2 with
-        | Global, Global | Local, Local ->
-          if symbol1 = symbol2 then Some (n2 - n1) else None
-        | Global, Local | Local, Global -> None)
-      | Iindexed n1, Iindexed n2 ->
-        let arg0_1 = Array.get args_1 0 in
-        let arg0_2 = Array.get args_2 0 in
-        let arg0_compare = arg0_1.stamp - arg0_2.stamp in
-        if arg0_compare = 0 then Some (n2 - n1) else None
-      | Iindexed2 n1, Iindexed2 n2 ->
-        let arg0_1 = Array.get args_1 0 in
-        let arg0_2 = Array.get args_2 0 in
-        let arg0_compare = arg0_1.stamp - arg0_2.stamp in
-        if arg0_compare = 0
-        then
-          let arg1_1 = Array.get args_1 1 in
-          let arg1_2 = Array.get args_2 1 in
-          let arg1_compare = arg1_1.stamp - arg1_2.stamp in
-          if arg1_compare = 0 then Some (n2 - n1) else None
+      let addressing_mode_and_arguments_comparison =
+        compare_addressing_modes_and_arguments t1 t2
+      in
+      let displ_comparison =
+        if addressing_mode_and_arguments_comparison = 0
+        then Arch.displ_compare t1.addressing_mode t2.addressing_mode
         else None
-      | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
-        let arg0_1 = Array.get args_1 0 in
-        let arg0_2 = Array.get args_2 0 in
-        let arg0_compare = arg0_1.stamp - arg0_2.stamp in
-        if arg0_compare = 0
-        then
-          let scale_compare = scale1 - scale2 in
-          if scale_compare = 0 then Some (n2 - n1) else None
-        else None
-      | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
-        let arg0_1 = Array.get args_1 0 in
-        let arg0_2 = Array.get args_2 0 in
-        let arg0_compare = arg0_1.stamp - arg0_2.stamp in
-        if arg0_compare = 0
-        then
-          let arg1_1 = Array.get args_1 1 in
-          let arg1_2 = Array.get args_2 1 in
-          let arg1_compare = arg1_1.stamp - arg1_2.stamp in
-          if arg1_compare = 0
-          then
-            let scale_compare = scale1 - scale2 in
-            if scale_compare = 0 then Some (n2 - n1) else None
-          else None
-        else None
-      | Ibased _, _ -> None
-      | Iindexed _, _ -> None
-      | Iindexed2 _, _ -> None
-      | Iscaled _, _ -> None
-      | Iindexed2scaled _, _ -> None
-
-    let width_of (memory_chunk : Cmm.memory_chunk) =
-      match memory_chunk with
-      | Byte_unsigned | Byte_signed -> 1
-      | Sixteen_unsigned | Sixteen_signed -> 2
-      | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> 4
-      | Word_int | Word_val | Double -> 8
-      | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 16
+      in
+      Option.map Int.neg displ_comparison
 
     let is_adjacent (t1 : t) (t2 : t) =
       let res =

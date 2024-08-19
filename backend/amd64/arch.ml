@@ -403,3 +403,70 @@ let equal_specific_operation left right =
      Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
      Ipause | Isimd _ | Iprefetch _), _ ->
     false
+
+(* addressing mode functions *)
+
+let compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  match addressing_mode_1, addressing_mode_2 with
+  | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
+    match global1, global2 with
+    | Global, Global | Local, Local ->
+      if symbol1 < symbol2
+      then -1
+      else if symbol1 > symbol2
+      then 1
+      else n1 - n2
+    | Global, Local -> -1
+    | Local, Global -> 1)
+  | Ibased _, _ -> -1
+  | _, Ibased _ -> 1
+  | Iindexed _, Iindexed _ -> 0
+  | Iindexed _, _ -> -1
+  | _, Iindexed _ -> 1
+  | Iindexed2 _, Iindexed2 _ -> 0
+  | Iindexed2 _, _ -> -1
+  | _, Iindexed2 _ -> 1
+  | Iscaled _, Iscaled _ -> 0
+  | Iscaled _, _ -> -1
+  | _, Iscaled _ -> 1
+  | Iindexed2scaled _, Iindexed2scaled _ -> 0
+
+let scale_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  match addressing_mode_1, addressing_mode_2 with
+  | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
+    match global1, global2 with
+    | Global, Global | Local, Local ->
+      if symbol1 = symbol2 then Some 0 else None
+    | Global, Local | Local, Global -> None)
+  | Iindexed n1, Iindexed n2 -> Some 0
+  | Iindexed2 n1, Iindexed2 n2 -> Some 0
+  | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
+    Some (scale1 - scale2)
+  | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
+    Some (scale1 - scale2)
+  | Ibased _, _ -> None
+  | Iindexed _, _ -> None
+  | Iindexed2 _, _ -> None
+  | Iscaled _, _ -> None
+  | Iindexed2scaled _, _ -> None
+
+let displ_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  match addressing_mode_1, addressing_mode_2 with
+  | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
+    match global1, global2 with
+    | Global, Global | Local, Local ->
+      if symbol1 = symbol2 then Some (n1 - n2) else None
+    | Global, Local | Local, Global -> None)
+  | Iindexed n1, Iindexed n2 -> Some (n1 - n2)
+  | Iindexed2 n1, Iindexed2 n2 -> Some (n1 - n2)
+  | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
+      let scale_compare = scale1 - scale2 in
+      if scale_compare = 0 then Some (n1 - n2) else None
+  | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
+      let scale_compare = scale1 - scale2 in
+      if scale_compare = 0 then Some (n1 - n2) else None
+  | Ibased _, _ -> None
+  | Iindexed _, _ -> None
+  | Iindexed2 _, _ -> None
+  | Iscaled _, _ -> None
+  | Iindexed2scaled _, _ -> None
