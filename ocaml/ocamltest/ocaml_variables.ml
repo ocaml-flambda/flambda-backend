@@ -247,7 +247,8 @@ let use_runtime =
   Variables.make ("use_runtime",
     "Whether the -use-runtime option should be used" )
 
-let _ = List.iter register_variable
+let init () =
+  List.iter register_variable
   [
     all_modules;
     arch;
