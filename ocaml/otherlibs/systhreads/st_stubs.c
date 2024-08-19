@@ -50,17 +50,8 @@
 
 #include "../../runtime/sync_posix.h"
 
-<<<<<<< HEAD
 #define CAMLextern_libthreads
 #include "threads.h"
-||||||| 121bedcfd2
-/* threads.h is *not* included since it contains the _external_ declarations for
-   the caml_c_thread_register and caml_c_thread_unregister functions. */
-=======
-/* "caml/threads.h" is *not* included since it contains the _external_
-   declarations for the caml_c_thread_register and caml_c_thread_unregister
-   functions. */
->>>>>>> 5.2.0
 
 /* Max computation time before rescheduling, in milliseconds */
 #define Thread_timeout 50
@@ -116,14 +107,9 @@ struct caml_thread_struct {
   value * gc_regs;           /* saved value of Caml_state->gc_regs */
   value * gc_regs_buckets;   /* saved value of Caml_state->gc_regs_buckets */
   void * exn_handler;        /* saved value of Caml_state->exn_handler */
-<<<<<<< HEAD
   char * async_exn_handler;  /* saved value of Caml_state->async_exn_handler */
   memprof_thread_t memprof;  /* memprof's internal thread data structure */
-||||||| 121bedcfd2
-=======
-  memprof_thread_t memprof;  /* memprof's internal thread data structure */
   void * signal_stack;       /* this thread's signal stack */
->>>>>>> 5.2.0
 
 #ifndef NATIVE_CODE
   intnat trap_sp_off;      /* saved value of Caml_state->trap_sp_off */
@@ -221,7 +207,11 @@ static int default_can_skip_yield(st_masterlock *m)
 static void default_reinitialize_after_fork(st_masterlock *m)
 {
   m->init = 0; /* force initialization */
-  st_masterlock_init(m);
+  /* Note: initializing an already-initialized mutex and cond variable
+     is UB (especially mutexes that are locked). This is best
+     effort. */
+  if (st_masterlock_init(m) != 0)
+    caml_fatal_error("Unix.fork: failed to reinitialize master lock");
 }
 
 /* Hook for scanning the stacks of the other threads */
@@ -314,7 +304,6 @@ static void restore_runtime_state(caml_thread_t th)
   Caml_state->external_raise = th->external_raise;
   Caml_state->external_raise_async = th->external_raise_async;
 #endif
-<<<<<<< HEAD
   caml_memprof_enter_thread(th->memprof);
 }
 
@@ -339,10 +328,6 @@ CAMLexport void caml_switch_runtime_locking_scheme(struct caml_locking_scheme* n
 CAMLexport struct caml_locking_scheme* caml_get_default_locking_scheme(void)
 {
   return Default_locking_scheme(Caml_state->id);
-||||||| 121bedcfd2
-=======
-  caml_memprof_enter_thread(th->memprof);
->>>>>>> 5.2.0
 }
 
 CAMLprim value caml_thread_cleanup(value unit);
@@ -395,19 +380,9 @@ static int get_pthreads_stack_size(void)
    is not inserted in the list of threads. */
 static caml_thread_t caml_thread_new_info(void)
 {
-<<<<<<< HEAD
-  caml_thread_t th;
-  caml_domain_state *domain_state;
-  uintnat stack_wsize = caml_get_init_stack_wsize(get_pthreads_stack_size());
-||||||| 121bedcfd2
-  caml_thread_t th;
-  caml_domain_state *domain_state;
-  uintnat stack_wsize = caml_get_init_stack_wsize();
-=======
   caml_thread_t th = NULL;
   caml_domain_state *domain_state = Caml_state;
-  uintnat stack_wsize = caml_get_init_stack_wsize();
->>>>>>> 5.2.0
+  uintnat stack_wsize = caml_get_init_stack_wsize(get_pthreads_stack_size());
 
   th = (caml_thread_t)caml_stat_alloc_noexc(sizeof(struct caml_thread_struct));
   if (th == NULL) return NULL;
@@ -445,13 +420,8 @@ static caml_thread_t caml_thread_new_info(void)
   th->external_raise = NULL;
   th->external_raise_async = NULL;
 #endif
-<<<<<<< HEAD
 
   th->memprof = caml_memprof_new_thread(domain_state);
-||||||| 121bedcfd2
-
-=======
->>>>>>> 5.2.0
   return th;
 
  out_err2:
@@ -548,10 +518,6 @@ static void caml_thread_remove_and_free(caml_thread_t th)
 
 static void caml_thread_reinitialize(void)
 {
-<<<<<<< HEAD
-  struct channel * chan;
-||||||| 121bedcfd2
-=======
   /* caml_thread_reinitialize is called as part of the
      caml_atfork_hook, and therefore this function is executed right
      after a fork.
@@ -567,13 +533,11 @@ static void caml_thread_reinitialize(void)
   */
 
   struct channel * chan;
->>>>>>> 5.2.0
   caml_thread_t th, next;
 
   th = Active_thread->next;
   while (th != Active_thread) {
     next = th->next;
-    caml_memprof_delete_thread(th->memprof);
     caml_thread_free_info(th);
     th = next;
   }
@@ -587,8 +551,7 @@ static void caml_thread_reinitialize(void)
 
   /* The lock needs to be initialized again. This process will also be
      the effective owner of the lock. So there is no need to run
-<<<<<<< HEAD
-     s->lock (busy = 1) */
+     st_masterlock_acquire (busy = 1) */
   struct caml_locking_scheme *s = atomic_load(&Locking_scheme(Caml_state->id));
   s->reinitialize_after_fork(s->context);
 
@@ -601,30 +564,6 @@ static void caml_thread_reinitialize(void)
        chan = chan->next) {
     caml_plat_mutex_init(&chan->mutex);
   }
-||||||| 121bedcfd2
-     st_masterlock_acquire (busy = 1) */
-  st_masterlock *m = Thread_lock(Caml_state->id);
-  m->init = 0; /* force initialization */
-  st_masterlock_init(m);
-=======
-     st_masterlock_acquire (busy = 1) */
-  st_masterlock *m = Thread_lock(Caml_state->id);
-  m->init = 0; /* force reinitialization */
-  /* Note: initializing an already-initialized mutex and cond variable
-     is UB (especially mutexes that are locked). This is best
-     effort. */
-  if (st_masterlock_init(m) != 0)
-    caml_fatal_error("Unix.fork: failed to reinitialize master lock");
-
-  /* Reinitialize IO mutexes, in case the fork happened while another thread
-     had locked the channel. If so, we're likely in an inconsistent state,
-     but we may be able to proceed anyway. */
-  for (chan = caml_all_opened_channels;
-       chan != NULL;
-       chan = chan->next) {
-    caml_plat_mutex_init(&chan->mutex);
-  }
->>>>>>> 5.2.0
 }
 
 CAMLprim value caml_thread_join(value th);
@@ -667,9 +606,9 @@ static void caml_thread_domain_initialize_hook(void)
   /* OS-specific initialization */
   st_initialize();
 
-<<<<<<< HEAD
   st_masterlock *default_lock = Default_lock(Caml_state->id);
-  st_masterlock_init(default_lock);
+  int ret = st_masterlock_init(default_lock);
+  sync_check_error(ret, "caml_thread_domain_initialize_hook");
   struct caml_locking_scheme *ls = Default_locking_scheme(Caml_state->id);
   ls->context = default_lock;
   ls->lock = (void (*)(void*))&st_masterlock_acquire;
@@ -681,12 +620,6 @@ static void caml_thread_domain_initialize_hook(void)
   ls->yield = (void (*)(void*))&st_thread_yield;
 
   Locking_scheme(Caml_state->id) = ls;
-||||||| 121bedcfd2
-  st_masterlock_init(Thread_lock(Caml_state->id));
-=======
-  int ret = st_masterlock_init(Thread_lock(Caml_state->id));
-  sync_check_error(ret, "caml_thread_domain_initialize_hook");
->>>>>>> 5.2.0
 
   new_thread =
     (caml_thread_t) caml_stat_alloc(sizeof(struct caml_thread_struct));
@@ -757,44 +690,23 @@ CAMLprim value caml_thread_initialize(value unit)
   return Val_unit;
 }
 
-<<<<<<< HEAD
 static void stop_tick_thread(void)
 {
-  if (!Tick_thread_running) return;
-  atomic_store_release(&Tick_thread_stop, 1);
-  st_thread_join(Tick_thread_id);
-  atomic_store_release(&Tick_thread_stop, 0);
-  Tick_thread_running = 0;
-}
-
-||||||| 121bedcfd2
-=======
-/* Cleanup the thread machinery when the runtime is shut down. Joining the tick
-   thread take 25ms on average / 50ms in the worst case, so we don't do it on
-   program exit. (FIXME: not implemented in OCaml 5 yet) */
-
->>>>>>> 5.2.0
-CAMLprim value caml_thread_cleanup(value unit)
-{
-<<<<<<< HEAD
-  stop_tick_thread();
-||||||| 121bedcfd2
-  if (Tick_thread_running){
-    atomic_store_rel(&Tick_thread_stop, 1);
-    st_thread_join(Tick_thread_id);
-    atomic_store_rel(&Tick_thread_stop, 0);
-    Tick_thread_running = 0;
-  }
-
-=======
   if (Tick_thread_running){
     atomic_store_release(&Tick_thread_stop, 1);
     st_thread_join(Tick_thread_id);
     atomic_store_release(&Tick_thread_stop, 0);
     Tick_thread_running = 0;
   }
+}
 
->>>>>>> 5.2.0
+/* Cleanup the thread machinery when the runtime is shut down. Joining the tick
+   thread take 25ms on average / 50ms in the worst case, so we don't do it on
+   program exit. (FIXME: not implemented in OCaml 5 yet) */
+
+CAMLprim value caml_thread_cleanup(value unit)
+{
+  stop_tick_thread();
   return Val_unit;
 }
 
@@ -807,27 +719,6 @@ static void thread_detach_from_runtime(void)
      This_thread data to make sure that the cleanup logic
      below uses accurate information. */
   save_runtime_state();
-<<<<<<< HEAD
-
-  /* The main domain thread does not go through [caml_thread_stop]. There is
-     always one more thread in the chain at this point in time. */
-  CAMLassert(Active_thread->next != Active_thread);
-
-  /* Tell memprof that this thread is terminating */
-  caml_memprof_delete_thread(Active_thread->memprof);
-
-  /* Signal that the thread has terminated */
-  caml_threadstatus_terminate(Terminated(Active_thread->descr));
-
-||||||| 121bedcfd2
-
-  /* The main domain thread does not go through [caml_thread_stop]. There is
-     always one more thread in the chain at this point in time. */
-  CAMLassert(Active_thread->next != Active_thread);
-
-  caml_threadstatus_terminate(Terminated(Active_thread->descr));
-
-=======
   /* The main domain thread does not go through
      [thread_detach_from_runtime]. There is always one more thread in
      the chain at this point in time. */
@@ -837,10 +728,9 @@ static void thread_detach_from_runtime(void)
   /* Remove signal stack */
   CAMLassert(th->signal_stack != NULL);
   caml_free_signal_stack(th->signal_stack);
->>>>>>> 5.2.0
   /* The following also sets Active_thread to a sane value in case the
      backup thread does a GC before the domain lock is acquired
-     again. */
+     again.  It also removes the thread from memprof. */
   caml_thread_remove_and_free(th);
   /* Forget the now-freed thread info */
   st_tls_set(caml_thread_key, NULL);
@@ -867,19 +757,11 @@ static void * caml_thread_start(void * v)
 
   /* Acquire lock of domain */
   caml_init_domain_self(dom_id);
-<<<<<<< HEAD
 
-  st_tls_set(caml_thread_key, th);
   struct caml_locking_scheme *s = atomic_load(&Locking_scheme(dom_id));
   if (s -> thread_start != NULL)
     s->thread_start(s->context, Thread_type_caml);
 
-||||||| 121bedcfd2
-
-  st_tls_set(caml_thread_key, th);
-
-=======
->>>>>>> 5.2.0
   thread_lock_acquire(dom_id);
 
   thread_init_current(th);
@@ -887,18 +769,12 @@ static void * caml_thread_start(void * v)
   clos = Start_closure(Active_thread->descr);
   caml_modify(&(Start_closure(Active_thread->descr)), Val_unit);
   caml_callback_exn(clos, Val_unit);
-<<<<<<< HEAD
-  caml_thread_stop();
+
+  thread_detach_from_runtime();
   s = atomic_load(&Locking_scheme(dom_id));
   if (s->thread_stop != NULL)
     s->thread_stop(s->context, Thread_type_caml);
-  caml_free_signal_stack(signal_stack);
-||||||| 121bedcfd2
-  caml_thread_stop();
-  caml_free_signal_stack(signal_stack);
-=======
-  thread_detach_from_runtime();
->>>>>>> 5.2.0
+
   return 0;
 }
 
@@ -979,19 +855,6 @@ CAMLprim value caml_thread_new(value clos)
     sync_check_error(err, "Thread.create");
   }
 
-<<<<<<< HEAD
-  if (!Tick_thread_disabled) {
-    err = start_tick_thread();
-    sync_check_error(err, "Thread.create");
-  }
-||||||| 121bedcfd2
-  if (! Tick_thread_running) {
-    err = create_tick_thread();
-    sync_check_error(err, "Thread.create");
-    Tick_thread_running = 1;
-  }
-=======
->>>>>>> 5.2.0
   CAMLreturn(th->descr);
 }
 
@@ -1007,16 +870,12 @@ CAMLexport int caml_c_thread_register(void)
   /* Already registered? */
   if (This_thread != NULL) return 0;
 
-<<<<<<< HEAD
+  /* At this point we should not hold any domain lock */
+  CAMLassert(Caml_state_opt == NULL);
+
   struct caml_locking_scheme *s = atomic_load(&Locking_scheme(Dom_c_threads));
   if (s->thread_start != NULL)
     s->thread_start(s->context, Thread_type_c_registered);
-
-||||||| 121bedcfd2
-=======
-  /* At this point we should not hold any domain lock */
->>>>>>> 5.2.0
-  CAMLassert(Caml_state_opt == NULL);
 
   /* Acquire lock of domain */
   caml_init_domain_self(Dom_c_threads);
@@ -1029,81 +888,14 @@ CAMLexport int caml_c_thread_register(void)
   /* Set a thread info block */
   caml_thread_t th = thread_alloc_and_add();
   /* If it fails, we release the lock and return an error. */
-<<<<<<< HEAD
   if (th == NULL) goto out_err;
   thread_init_current(th);
   /* We can now allocate the thread descriptor on the major heap */
-||||||| 2572783060
-  if (th == NULL) {
-    thread_lock_release(Dom_c_threads);
-    return 0;
-  }
-  /* Add thread info block to the list of threads */
-  if (Active_thread == NULL) {
-    th->next = th;
-    th->prev = th;
-    Active_thread = th;
-  } else {
-    th->next = Active_thread->next;
-    th->prev = Active_thread;
-    Active_thread->next->prev = th;
-    Active_thread->next = th;
-  }
-  /* Associate the thread descriptor with the thread */
-  st_tls_set(caml_thread_key, (void *) th);
-  /* Allocate the thread descriptor on the heap */
-=======
-  if (th == NULL) {
-    thread_lock_release(Dom_c_threads);
-    return 0;
-  }
-  /* Add thread info block to the list of threads */
-  if (Active_thread == NULL) {
-    th->next = th;
-    th->prev = th;
-    Active_thread = th;
-  } else {
-    th->next = Active_thread->next;
-    th->prev = Active_thread;
-    Active_thread->next->prev = th;
-    Active_thread->next = th;
-  }
-  /* Associate the thread descriptor with the thread */
-  st_tls_set(caml_thread_key, (void *) th);
-
-  /* Prepare Caml_state for allocation etc., so its various members correspond
-     to those for the newly-registered thread */
-  restore_runtime_state(th);
-
-  /* Allocate the thread descriptor on the heap */
->>>>>>> ocaml-jst/flambda-patches
   th->descr = caml_thread_new_descriptor(Val_unit);  /* no closure */
 
-<<<<<<< HEAD
-  if (!Tick_thread_disabled) {
-    st_retcode err = start_tick_thread();
-    sync_check_error(err, "caml_register_c_thread");
-  }
-
-  /* Save any modifications to Caml_state back to the thread descriptor */
-  save_runtime_state();
-
-  /* Release the master lock */
-  thread_lock_release(Dom_c_threads);
-||||||| 121bedcfd2
-  if (! Tick_thread_running) {
-    st_retcode err = create_tick_thread();
-    sync_check_error(err, "caml_register_c_thread");
-    Tick_thread_running = 1;
-  }
-
-  /* Release the master lock */
-  thread_lock_release(Dom_c_threads);
-=======
   /* Release the domain lock the regular way. Note: we cannot receive
      an exception here. */
   caml_enter_blocking_section_no_pending();
->>>>>>> 5.2.0
   return 1;
 
 out_err:
@@ -1118,36 +910,6 @@ out_err:
 /* the thread lock is not held when entering */
 CAMLexport int caml_c_thread_unregister(void)
 {
-<<<<<<< HEAD
-  caml_thread_t th = This_thread;
-
-  /* If this thread is not set, then it was not registered */
-  if (th == NULL) return 0;
-  /* Wait until the runtime is available */
-  thread_lock_acquire(Dom_c_threads);
-  /*  Forget the thread descriptor */
-  st_tls_set(caml_thread_key, NULL);
-  /* Remove thread info block from list of threads, and free it */
-  caml_thread_remove_and_free(th);
-  /* Release the runtime */
-  thread_lock_release(Dom_c_threads);
-  struct caml_locking_scheme *s = atomic_load(&Locking_scheme(Dom_c_threads));
-  if (s->thread_stop != NULL)
-    s->thread_stop(s->context, Thread_type_c_registered);
-||||||| 121bedcfd2
-  caml_thread_t th = This_thread;
-
-  /* If this thread is not set, then it was not registered */
-  if (th == NULL) return 0;
-  /* Wait until the runtime is available */
-  thread_lock_acquire(Dom_c_threads);
-  /*  Forget the thread descriptor */
-  st_tls_set(caml_thread_key, NULL);
-  /* Remove thread info block from list of threads, and free it */
-  caml_thread_remove_and_free(th);
-  /* Release the runtime */
-  thread_lock_release(Dom_c_threads);
-=======
   /* If [This_thread] is not set, then the thread was not registered */
   if (This_thread == NULL) return 0;
   /* Acquire the domain lock the regular way */
@@ -1155,7 +917,9 @@ CAMLexport int caml_c_thread_unregister(void)
   /* Detach thread from the OCaml runtime; note that this resets
      [Caml_state_opt] and [This_thread]. */
   thread_detach_from_runtime();
->>>>>>> 5.2.0
+  struct caml_locking_scheme *s = atomic_load(&Locking_scheme(Dom_c_threads));
+  if (s->thread_stop != NULL)
+    s->thread_stop(s->context, Thread_type_c_registered);
   return 1;
 }
 
@@ -1190,20 +954,10 @@ CAMLprim value caml_thread_uncaught_exception(value exn)
 
 static void thread_yield(void)
 {
-<<<<<<< HEAD
   struct caml_locking_scheme *s;
   s = atomic_load(&Locking_scheme(Caml_state->id));
   if (s->can_skip_yield != NULL && s -> can_skip_yield(s->context))
-    return Val_unit;
-||||||| 121bedcfd2
-  st_masterlock *m = Thread_lock(Caml_state->id);
-  if (st_masterlock_waiters(m) == 0)
-    return Val_unit;
-=======
-  st_masterlock *m = Thread_lock(Caml_state->id);
-  if (st_masterlock_waiters(m) == 0)
     return;
->>>>>>> 5.2.0
 
   /* Do all the parts of a blocking section enter&leave except lock
      manipulation, which we will do more efficiently in
@@ -1213,15 +967,6 @@ static void thread_yield(void)
      not contain anything interesting, do not bother saving errno.)
   */
 
-<<<<<<< HEAD
-  (void) caml_raise_async_if_exception(caml_process_pending_signals_exn (), "");
-
-  // s may have changed in caml_process_pending_signals_exn
-  s = atomic_load(&Locking_scheme(Caml_state->id));
-||||||| 121bedcfd2
-  caml_raise_if_exception(caml_process_pending_signals_exn());
-=======
->>>>>>> 5.2.0
   save_runtime_state();
   s->yield(s->context);
   if (atomic_load(&Locking_scheme(Caml_state->id)) != s) {
@@ -1230,12 +975,6 @@ static void thread_yield(void)
     thread_lock_acquire(Caml_state->id);
   }
   restore_runtime_state(This_thread);
-<<<<<<< HEAD
-  (void) caml_raise_async_if_exception(caml_process_pending_signals_exn (), "");
-||||||| 121bedcfd2
-  caml_raise_if_exception(caml_process_pending_signals_exn());
-=======
->>>>>>> 5.2.0
 
   /* Switching threads might have unmasked some signal. */
   if (caml_check_pending_signals())

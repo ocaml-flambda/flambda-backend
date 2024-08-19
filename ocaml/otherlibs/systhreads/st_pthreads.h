@@ -107,31 +107,15 @@ static int st_masterlock_init(st_masterlock * m)
 {
   int rc;
   if (!m->init) {
-<<<<<<< HEAD
-    // FIXME: check errors
-    pthread_mutex_init(&m->lock, NULL);
-    custom_condvar_init(&m->is_free);
-||||||| 121bedcfd2
-    // FIXME: check errors
-    pthread_mutex_init(&m->lock, NULL);
-    pthread_cond_init(&m->is_free, NULL);
-=======
     rc = pthread_mutex_init(&m->lock, NULL);
     if (rc != 0) goto out_err;
-    rc = pthread_cond_init(&m->is_free, NULL);
+    rc = custom_condvar_init(&m->is_free);
     if (rc != 0) goto out_err2;
->>>>>>> 5.2.0
     m->init = 1;
   }
   m->busy = 1;
-<<<<<<< HEAD
-  atomic_store_release(&m->waiters, 0);
-||||||| 121bedcfd2
-  atomic_store_rel(&m->waiters, 0);
-=======
   atomic_store_release(&m->waiters, 0);
   return 0;
->>>>>>> 5.2.0
 
  out_err2:
   pthread_mutex_destroy(&m->lock);
