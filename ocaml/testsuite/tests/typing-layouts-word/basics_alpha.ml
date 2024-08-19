@@ -163,19 +163,9 @@ Line 1, characters 18-28:
 1 | type t4_5 = int * nativeint#;;
                       ^^^^^^^^^^
 Error: Tuple element types must have layout value.
-<<<<<<< HEAD
        The layout of "nativeint#" is word
-         because it is the primitive word type nativeint#.
-       But the layout of "nativeint#" must be a sublayout of value
-||||||| 57461473bf
-       The layout of nativeint# is word
-         because it is the primitive word type nativeint#.
-       But the layout of nativeint# must be a sublayout of value
-=======
-       The layout of nativeint# is word
          because it is the primitive type nativeint#.
-       But the layout of nativeint# must be a sublayout of value
->>>>>>> flambda-backend/main
+       But the layout of "nativeint#" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 

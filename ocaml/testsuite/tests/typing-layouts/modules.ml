@@ -466,19 +466,9 @@ module type S3_2 = sig type t : immediate end
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
-<<<<<<< HEAD
 Error: The kind of type "string" is immutable_data
-         because it is the primitive immutable_data type string.
-       But the kind of type "string" must be a subkind of immediate
-||||||| 57461473bf
-Error: The kind of type string is immutable_data
-         because it is the primitive immutable_data type string.
-       But the kind of type string must be a subkind of immediate
-=======
-Error: The kind of type string is immutable_data
          because it is the primitive type string.
-       But the kind of type string must be a subkind of immediate
->>>>>>> flambda-backend/main
+       But the kind of type "string" must be a subkind of immediate
          because of the definition of t at line 2, characters 2-20.
 |}]
 

@@ -165,19 +165,9 @@ Line 1, characters 18-24:
 1 | type t4_5 = int * int32#;;
                       ^^^^^^
 Error: Tuple element types must have layout value.
-<<<<<<< HEAD
        The layout of "int32#" is bits32
-         because it is the primitive bits32 type int32#.
-       But the layout of "int32#" must be a sublayout of value
-||||||| 57461473bf
-       The layout of int32# is bits32
-         because it is the primitive bits32 type int32#.
-       But the layout of int32# must be a sublayout of value
-=======
-       The layout of int32# is bits32
          because it is the primitive type int32#.
-       But the layout of int32# must be a sublayout of value
->>>>>>> flambda-backend/main
+       But the layout of "int32#" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 

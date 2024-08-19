@@ -143,19 +143,9 @@ end;;
 Line 2, characters 2-31:
 2 |   type t = string [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-<<<<<<< HEAD
 Error: The kind of type "string" is immutable_data
-         because it is the primitive immutable_data type string.
-       But the kind of type "string" must be a subkind of immediate
-||||||| 57461473bf
-Error: The kind of type string is immutable_data
-         because it is the primitive immutable_data type string.
-       But the kind of type string must be a subkind of immediate
-=======
-Error: The kind of type string is immutable_data
          because it is the primitive type string.
-       But the kind of type string must be a subkind of immediate
->>>>>>> flambda-backend/main
+       But the kind of type "string" must be a subkind of immediate
          because of the definition of t at line 2, characters 2-31.
 |}];;
 (* CR layouts v2.9: The "of the definition of t ..." part is not great and it
@@ -273,19 +263,9 @@ end;;
 Line 2, characters 2-26:
 2 |   type t = s [@@immediate]
       ^^^^^^^^^^^^^^^^^^^^^^^^
-<<<<<<< HEAD
 Error: The kind of type "s" is immutable_data
-         because it is the primitive immutable_data type string.
-       But the kind of type "s" must be a subkind of immediate
-||||||| 57461473bf
-Error: The kind of type s is immutable_data
-         because it is the primitive immutable_data type string.
-       But the kind of type s must be a subkind of immediate
-=======
-Error: The kind of type s is immutable_data
          because it is the primitive type string.
-       But the kind of type s must be a subkind of immediate
->>>>>>> flambda-backend/main
+       But the kind of type "s" must be a subkind of immediate
          because of the definition of t at line 2, characters 2-26.
 |}];;
 

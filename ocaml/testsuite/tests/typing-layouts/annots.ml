@@ -193,8 +193,8 @@ val x : int = 5
 
 let x : int as ('a : float64) = 5;;
 [%%expect {|
-Line 119, characters 16-18:
-119 | let x : int as ('a : float64) = 5;;
+Line 194, characters 16-18:
+194 | let x : int as ('a : float64) = 5;;
                       ^^
 Error: This alias is bound to type "int" but is used as an instance of type
          "('a : float64)"
@@ -213,8 +213,18 @@ val x : int list = [3; 4; 5]
 let x : int list as ('a : immediate) = [3;4;5]
 ;;
 [%%expect {|
-Line 138, characters 21-23:
-138 | let x : int list as ('a : immediate) = [3;4;5]
+Line 213, characters 21-23:
+213 | let x : int list as ('a : immediate) = [3;4;5]
+                           ^^
+Error: This alias is bound to type "int list"
+       but is used as an instance of type "('a : immediate)"
+       The kind of int list is value
+         because it's a boxed variant type.
+       But the kind of int list must be a subkind of immediate
+         because of the annotation on the type variable 'a.
+|}, Principal{|
+Line 223, characters 21-23:
+223 | let x : int list as ('a : immediate) = [3;4;5]
                            ^^
 Error: This alias is bound to type "int list"
        but is used as an instance of type "('a : immediate)"
@@ -227,8 +237,18 @@ Error: This alias is bound to type "int list"
 
 let x : int list as ('a : value mod global) = [3;4;5]
 [%%expect {|
-Line 153, characters 21-23:
-153 | let x : int list as ('a : value mod global) = [3;4;5]
+Line 228, characters 21-23:
+228 | let x : int list as ('a : value mod global) = [3;4;5]
+                           ^^
+Error: This alias is bound to type "int list"
+       but is used as an instance of type "('a : value mod global)"
+       The kind of int list is value
+         because it's a boxed variant type.
+       But the kind of int list must be a subkind of value mod global
+         because of the annotation on the type variable 'a.
+|}, Principal{|
+Line 248, characters 21-23:
+248 | let x : int list as ('a : value mod global) = [3;4;5]
                            ^^
 Error: This alias is bound to type "int list"
        but is used as an instance of type "('a : value mod global)"

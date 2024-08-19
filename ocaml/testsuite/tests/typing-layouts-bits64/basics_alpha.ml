@@ -163,19 +163,9 @@ Line 1, characters 18-24:
 1 | type t4_5 = int * int64#;;
                       ^^^^^^
 Error: Tuple element types must have layout value.
-<<<<<<< HEAD
        The layout of "int64#" is bits64
-         because it is the primitive bits64 type int64#.
-       But the layout of "int64#" must be a sublayout of value
-||||||| 57461473bf
-       The layout of int64# is bits64
-         because it is the primitive bits64 type int64#.
-       But the layout of int64# must be a sublayout of value
-=======
-       The layout of int64# is bits64
          because it is the primitive type int64#.
-       But the layout of int64# must be a sublayout of value
->>>>>>> flambda-backend/main
+       But the layout of "int64#" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 
