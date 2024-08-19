@@ -420,8 +420,6 @@ static caml_thread_t caml_thread_new_info(void)
   th->external_raise = NULL;
   th->external_raise_async = NULL;
 #endif
-
-  th->memprof = caml_memprof_new_thread(domain_state);
   return th;
 
  out_err2:
