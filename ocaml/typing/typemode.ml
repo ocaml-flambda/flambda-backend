@@ -1,8 +1,122 @@
 open Location
 open Mode
+open Jkind_axis
 
-let transl_mode_annots modes =
-  Typemodifier.transl_mode_annots ~required_mode_maturity:Stable modes
+type modal = |
+
+type modal_or_nonmodal = |
+
+type modelike_annot_type =
+  | Mode
+  | Modality
+
+type 'm annot_type =
+  | Modifier : modal_or_nonmodal annot_type
+  | Mode_like : modelike_annot_type -> modal annot_type
+
+type 'm axis_pair =
+  | Modal_axis_pair : 'a Axis.Modal.t * 'a -> modal axis_pair
+  | Any_axis_pair : 'a Axis.t * 'a -> modal_or_nonmodal axis_pair
+
+type error =
+  | Duplicated_axis : _ Axis.t -> error
+  | Unrecognized_modifier : _ annot_type * string -> error
+
+exception Error of Location.t * error
+
+module Str_map = Map.Make (String)
+
+let modifiers =
+  let alist =
+    let open Mode in
+    [ "local", Any_axis_pair (Modal Locality, Locality.Const.Local);
+      "global", Any_axis_pair (Modal Locality, Locality.Const.Global);
+      "unique", Any_axis_pair (Modal Uniqueness, Uniqueness.Const.Unique);
+      "shared", Any_axis_pair (Modal Uniqueness, Uniqueness.Const.Shared);
+      "once", Any_axis_pair (Modal Linearity, Linearity.Const.Once);
+      "many", Any_axis_pair (Modal Linearity, Linearity.Const.Many);
+      ( "nonportable",
+        Any_axis_pair (Modal Portability, Portability.Const.Nonportable) );
+      "portable", Any_axis_pair (Modal Portability, Portability.Const.Portable);
+      "contended", Any_axis_pair (Modal Contention, Contention.Const.Contended);
+      ( "uncontended",
+        Any_axis_pair (Modal Contention, Contention.Const.Uncontended) );
+      "maybe_null", Any_axis_pair (Nonmodal Nullability, Nullability.Maybe_null);
+      "non_null", Any_axis_pair (Nonmodal Nullability, Nullability.Non_null);
+      "internal", Any_axis_pair (Nonmodal Externality, Externality.Internal);
+      "external64", Any_axis_pair (Nonmodal Externality, Externality.External64);
+      "external_", Any_axis_pair (Nonmodal Externality, Externality.External) ]
+  in
+  List.fold_left
+    (fun acc (name, axis_pair) -> Str_map.add name axis_pair acc)
+    Str_map.empty alist
+
+let transl_annot (type m) ~(annot_type : m annot_type) ~required_mode_maturity
+    annot : m axis_pair =
+  Option.iter
+    (fun maturity ->
+      Jane_syntax_parsing.assert_extension_enabled ~loc:annot.loc Mode maturity)
+    required_mode_maturity;
+  match Str_map.find_opt annot.txt modifiers, annot_type with
+  | Some (Any_axis_pair (Nonmodal _, _)), Mode_like (Mode | Modality) | None, _
+    ->
+    raise (Error (annot.loc, Unrecognized_modifier (annot_type, annot.txt)))
+  | Some (Any_axis_pair (Modal axis, mode)), Mode_like (Mode | Modality) ->
+    Modal_axis_pair (axis, mode)
+  | Some pair, Modifier -> pair
+
+let unpack_mode_annot { txt = Parsetree.Mode s; loc } = { txt = s; loc }
+
+module Opt_axis_collection = Axis_collection (Option)
+
+let transl_modifier_annots annots =
+  let step modifiers_so_far annot =
+    let (Any_axis_pair (type a) ((axis, mode) : a Axis.t * a)) =
+      transl_annot ~annot_type:Modifier ~required_mode_maturity:None
+      @@ unpack_mode_annot annot
+    in
+    let (module A : Axis_s with type t = a) = Axis.get axis in
+    let is_top = A.le A.max mode in
+    if is_top
+    then
+      (* CR layouts v2.8: This warning is disabled for now because transl_type_decl
+         results in 3 calls to transl_annots per user-written annotation. This results
+         in the warning being reported 3 times. *)
+      (* Location.prerr_warning new_raw.loc (Warnings.Mod_by_top new_raw.txt) *)
+      ();
+    let is_dup =
+      Option.is_some (Opt_axis_collection.get ~axis modifiers_so_far)
+    in
+    if is_dup then raise (Error (annot.loc, Duplicated_axis axis));
+    Opt_axis_collection.set ~axis modifiers_so_far (Some mode)
+  in
+  let empty_modifiers =
+    Opt_axis_collection.create { f = (fun ~axis:_ -> None) }
+  in
+  List.fold_left step empty_modifiers annots
+
+let transl_mode_annots annots : Alloc.Const.Option.t =
+  let step modifiers_so_far annot =
+    let (Modal_axis_pair (type a) ((axis, mode) : a Axis.Modal.t * a)) =
+      transl_annot ~annot_type:(Mode_like Mode)
+        ~required_mode_maturity:(Some Stable)
+      @@ unpack_mode_annot annot
+    in
+    let axis = Axis.Modal axis in
+    if Option.is_some (Opt_axis_collection.get ~axis modifiers_so_far)
+    then raise (Error (annot.loc, Duplicated_axis axis));
+    Opt_axis_collection.set ~axis modifiers_so_far (Some mode)
+  in
+  let empty_modifiers =
+    Opt_axis_collection.create { f = (fun ~axis:_ -> None) }
+  in
+  let modes = List.fold_left step empty_modifiers annots in
+  { areality = modes.locality;
+    linearity = modes.linearity;
+    uniqueness = modes.uniqueness;
+    portability = modes.portability;
+    contention = modes.contention
+  }
 
 let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
   let print_to_string_opt print a = Option.map (Format.asprintf "%a" print) a in
@@ -72,26 +186,26 @@ let locality_to_regionality : Mode.Locality.Const.t -> Mode.Regionality.Const.t
   | Local -> Local
   | Global -> Global
 
+let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
+  let axis_pair =
+    transl_annot ~annot_type:(Mode_like Modality)
+      ~required_mode_maturity:(Some maturity) { txt = modality; loc }
+  in
+  match axis_pair with
+  | Modal_axis_pair (Locality, mode) ->
+    Modality.Atom (Comonadic Areality, Meet_with (locality_to_regionality mode))
+  | Modal_axis_pair (Linearity, mode) ->
+    Modality.Atom (Comonadic Linearity, Meet_with mode)
+  | Modal_axis_pair (Uniqueness, mode) ->
+    Modality.Atom (Monadic Uniqueness, Join_with mode)
+  | Modal_axis_pair (Portability, mode) ->
+    Modality.Atom (Comonadic Portability, Meet_with mode)
+  | Modal_axis_pair (Contention, mode) ->
+    Modality.Atom (Monadic Contention, Join_with mode)
+
 let transl_modalities ~maturity mut attrs modalities =
   let mut_modalities = mutable_implied_modalities mut attrs in
-  let modalities_as_modes =
-    Typemodifier.transl_modality_annots ~required_mode_maturity:maturity
-      modalities
-  in
-  let modalities_for_monadic_axis axis =
-    List.map (fun mode -> Modality.Atom (Monadic axis, Join_with mode))
-  in
-  let modalities_for_comonadic_axis axis =
-    List.map (fun mode -> Modality.Atom (Comonadic axis, Meet_with mode))
-  in
-  let modalities =
-    modalities_for_comonadic_axis Areality
-      (List.map locality_to_regionality modalities_as_modes.areality)
-    @ modalities_for_comonadic_axis Linearity modalities_as_modes.linearity
-    @ modalities_for_monadic_axis Uniqueness modalities_as_modes.uniqueness
-    @ modalities_for_comonadic_axis Portability modalities_as_modes.portability
-    @ modalities_for_monadic_axis Contention modalities_as_modes.contention
-  in
+  let modalities = List.map (transl_modality ~maturity) modalities in
   (* mut_modalities is applied before explicit modalities *)
   Modality.Value.Const.id
   |> List.fold_right
@@ -116,3 +230,24 @@ let untransl_modalities mut attrs t =
 let transl_alloc_mode modes =
   let opt = transl_mode_annots modes in
   Alloc.Const.Option.value opt ~default:Alloc.Const.legacy
+
+(* Error reporting *)
+
+let report_error ppf =
+  let open Format in
+  function
+  | Duplicated_axis axis ->
+    fprintf ppf "The %s axis has already been specified." (Axis.name axis)
+  | Unrecognized_modifier (annot_type, modifier) ->
+    let annot_type_str =
+      match annot_type with
+      | Modifier -> "modifier"
+      | Mode_like Mode -> "mode"
+      | Mode_like Modality -> "modality"
+    in
+    fprintf ppf "Unrecognized %s %s." annot_type_str modifier
+
+let () =
+  Location.register_error_of_exn (function
+    | Error (loc, err) -> Some (Location.error_of_printer ~loc report_error err)
+    | _ -> None)

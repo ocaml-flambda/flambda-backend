@@ -125,8 +125,8 @@ module Layout = struct
   end
 end
 
-module Externality = Jkind_types.Externality
-module Nullability = Jkind_types.Nullability
+module Externality = Jkind_axis.Externality
+module Nullability = Jkind_axis.Nullability
 
 module Modes = struct
   include Alloc.Const
@@ -605,12 +605,19 @@ module Const = struct
     | Mod (jkind, modifiers) ->
       let base = of_user_written_annotation_unchecked_level jkind in
       (* for each mode, lower the corresponding modal bound to be that mode *)
-      let parsed_modifiers = Typemodifier.transl_modifier_annots modifiers in
+      let parsed_modifiers = Typemode.transl_modifier_annots modifiers in
+      let parsed_modes : Alloc.Const.Option.t =
+        { areality = parsed_modifiers.locality;
+          linearity = parsed_modifiers.linearity;
+          uniqueness = parsed_modifiers.uniqueness;
+          portability = parsed_modifiers.portability;
+          contention = parsed_modifiers.contention
+        }
+      in
       { layout = base.layout;
         modes_upper_bounds =
           Alloc.Const.meet base.modes_upper_bounds
-            (Alloc.Const.Option.value ~default:Alloc.Const.max
-               parsed_modifiers.modes);
+            (Alloc.Const.Option.value ~default:Alloc.Const.max parsed_modes);
         nullability_upper_bound =
           Nullability.meet base.nullability_upper_bound
             (Option.value ~default:Nullability.max parsed_modifiers.nullability);
