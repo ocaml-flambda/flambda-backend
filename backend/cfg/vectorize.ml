@@ -79,14 +79,12 @@ module Adjacent_memory_accesses : sig
     type op =
       | Load
       | Store
-    type t=
-    { op : op;
-      memory_chunk : Cmm.memory_chunk;
-      addressing_mode : Arch.addressing_mode;
-      instruction : Instruction.t
-    }
+
+    type t
 
     val create : Instruction.t -> t option
+
+    val can_swap_adjacent : Cfg.basic_block -> t -> t -> bool
 
     val dump : Format.formatter -> t -> unit
   end
@@ -168,7 +166,7 @@ end = struct
           None)
       | Terminator _ -> None
 
-    let arguments (t : t) =
+    let memory_arguments (t : t) =
       let arguments = Instruction.arguments t.instruction in
       match t.op with
       | Load -> arguments
@@ -208,25 +206,24 @@ end = struct
         (Instruction.id instruction |> Instruction.Id.to_int)
         Instruction.print instruction print_memory_chunk t
         (Arch.print_addressing Instruction.print_reg t.addressing_mode)
-        (arguments t)
+        (memory_arguments t)
 
-        let compare_arguments (t1 : t) (t2 : t) =
-          let arguments_1 = arguments t1 in
-              let arguments_2 = arguments t2 in
-              Array.combine arguments_1 arguments_2
-              |> Array.fold_left
-                   (fun result ((arg1, arg2) : Reg.t * Reg.t) ->
-                     if result = 0 then Reg.compare arg1 arg2 else result)
-                   0
+    let compare_arguments (t1 : t) (t2 : t) =
+      let arguments_1 = memory_arguments t1 in
+      let arguments_2 = memory_arguments t2 in
+      Array.combine arguments_1 arguments_2
+      |> Array.fold_left
+           (fun result ((arg1, arg2) : Reg.t * Reg.t) ->
+             if result = 0 then Reg.compare arg1 arg2 else result)
+           0
+
     let compare_addressing_modes_and_arguments (t1 : t) (t2 : t) =
       let addressing_mode_comparison =
         Arch.addressing_compare t1.addressing_mode t2.addressing_mode
       in
       if addressing_mode_comparison = 0
       then
-        let arguments_comparison =
-          compare_arguments t1 t2
-        in
+        let arguments_comparison = compare_arguments t1 t2 in
         arguments_comparison
       else addressing_mode_comparison
 
@@ -236,19 +233,18 @@ end = struct
       in
       if addressing_mode_and_arguments_comparison = 0
       then
-          let displ_comparison =
-            match
-              Arch.addressing_displ_compare t1.addressing_mode
-                t2.addressing_mode
-            with
-            | Some offset -> offset
-            | None -> assert false
-          in
-          if displ_comparison = 0
-          then
-            (Instruction.id t1.instruction |> Instruction.Id.to_int)
-            - (Instruction.id t2.instruction |> Instruction.Id.to_int)
-          else displ_comparison
+        let displ_comparison =
+          match
+            Arch.addressing_displ_compare t1.addressing_mode t2.addressing_mode
+          with
+          | Some offset -> offset
+          | None -> assert false
+        in
+        if displ_comparison = 0
+        then
+          (Instruction.id t1.instruction |> Instruction.Id.to_int)
+          - (Instruction.id t2.instruction |> Instruction.Id.to_int)
+        else displ_comparison
       else addressing_mode_and_arguments_comparison
 
     let offset_of (t1 : t) (t2 : t) =
@@ -271,6 +267,29 @@ end = struct
         else false
       in
       res
+
+    let can_swap_adjacent block (memory_operation_1 : t)
+        (memory_operation_2 : t) =
+      match memory_operation_1.op, memory_operation_2.op with
+      | Load, Load -> true
+      | Load, Store | Store, Load | Store, Store ->
+        if compare_addressing_modes_and_arguments memory_operation_1
+             memory_operation_2
+           = 0
+        then
+          let check_direct_separation left_memory_operation
+              right_memory_operation =
+            match offset_of left_memory_operation right_memory_operation with
+            | None -> false
+            | Some offset ->
+              offset > (left_memory_operation.memory_chunk |> width_of)
+          in
+          check_direct_separation memory_operation_1 memory_operation_2
+          || check_direct_separation memory_operation_2 memory_operation_1
+        else
+          let arguments_1 = memory_arguments memory_operation_1
+          and arguments_2 = memory_arguments memory_operation_1 in
+          false
   end
 
   type t =
@@ -518,14 +537,7 @@ end
 module Seed = struct
   type t = Adjacent_memory_accesses.Memory_operation.t list
 
-  let can_swap_adjacent_memory_operations
-      (memory_operation_1 : Adjacent_memory_accesses.Memory_operation.t)
-      (memory_operation_2 : Adjacent_memory_accesses.Memory_operation.t) =
-    match memory_operation_1.op, memory_operation_2.op with
-    | Load, Load -> true
-    |Load, Store |Store,Load|Store,Store -> false (* do something *)
-
-  let can_swap_adjacent first_instruction second_instruction =
+  let can_swap_adjacent block instruction_1 instruction_2 =
     let reg_array_to_set = Reg.Set.of_list << Array.to_list in
     let argument_set = reg_array_to_set << Instruction.arguments
     and affected_set instruction =
@@ -533,23 +545,23 @@ module Seed = struct
         (Instruction.results instruction |> reg_array_to_set)
         (Instruction.destroyed instruction |> reg_array_to_set)
     in
-    let first_arguments = argument_set first_instruction
-    and first_affected = affected_set first_instruction
-    and second_arguments = argument_set second_instruction
-    and second_affected = affected_set second_instruction in
-    if Reg.Set.disjoint first_affected second_affected
-       && Reg.Set.disjoint first_arguments second_affected
-       && Reg.Set.disjoint first_affected second_arguments
+    let arguments_1 = argument_set instruction_2
+    and affected_1 = affected_set instruction_1
+    and arguments_2 = argument_set instruction_2
+    and second_affected = affected_set instruction_2 in
+    if Reg.Set.disjoint affected_1 second_affected
+       && Reg.Set.disjoint arguments_1 second_affected
+       && Reg.Set.disjoint affected_1 arguments_2
     then
-      let first_memory_operation =
-        Adjacent_memory_accesses.Memory_operation.create first_instruction
-      and second_memory_operation =
-        Adjacent_memory_accesses.Memory_operation.create second_instruction
+      let memory_operation_1 =
+        Adjacent_memory_accesses.Memory_operation.create instruction_1
+      and memory_operation_2 =
+        Adjacent_memory_accesses.Memory_operation.create instruction_2
       in
-      match first_memory_operation, second_memory_operation with
-      | Some first_memory_operation, Some second_memory_operation ->
-        can_swap_adjacent_memory_operations first_memory_operation
-          second_memory_operation
+      match memory_operation_1, memory_operation_2 with
+      | Some memory_operation_1, Some memory_operation_2 ->
+        Adjacent_memory_accesses.Memory_operation.can_swap_adjacent block
+          memory_operation_1 memory_operation_2
       | None, _ -> true
       | _, None -> true
     else false
