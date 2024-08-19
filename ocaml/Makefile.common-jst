@@ -93,12 +93,12 @@ runtime-stdlib: boot-compiler
 	mkdir -p _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink
 	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/{,dynlink/}dynlink.cmxa
 
-compiler: runtime-stdlib
+compiler: _build/compiler_install runtime-stdlib
 # Build the same target as in [boot-compiler], but with our runtime stdlib.
 # Uses the [main] context to avoid duplicating work.
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_compiler) $(boot_targets)
 
-main: compiler _build/compiler_install
+main: compiler
 # Build the rest of the installation using the compiler from the [main] context.
 # The [boot-compiler] is not sufficient, since it marshals bytecode constants
 # incorrectly, using the upstream stdlib. This miscompiles code using new constants
