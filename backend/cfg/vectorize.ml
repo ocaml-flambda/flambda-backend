@@ -74,7 +74,29 @@ end = struct
     Format.fprintf ppf "reg (%d,\"%s\")" reg.stamp (Reg.name reg)
 end
 
-module Adjacent_memory_accesses = struct
+module Adjacent_memory_accesses : sig
+  module Memory_operation : sig
+    type op =
+      | Load
+      | Store
+    type t=
+    { op : op;
+      memory_chunk : Cmm.memory_chunk;
+      addressing_mode : Arch.addressing_mode;
+      instruction : Instruction.t
+    }
+
+    val create : Instruction.t -> t option
+
+    val dump : Format.formatter -> t -> unit
+  end
+
+  type t
+
+  val from_cfg : Cfg.t -> t Label.Tbl.t
+
+  val dump : Format.formatter -> t Label.Tbl.t -> Cfg_with_layout.t -> unit
+end = struct
   module Memory_operation = struct
     type op =
       | Load
@@ -87,8 +109,7 @@ module Adjacent_memory_accesses = struct
         instruction : Instruction.t
       }
 
-    let create_loads (basic_instruction : Cfg.basic Cfg.instruction) : t option
-        =
+    let create_load (basic_instruction : Cfg.basic Cfg.instruction) : t option =
       let desc = basic_instruction.desc in
       let instruction = Instruction.Basic basic_instruction in
       match desc with
@@ -106,7 +127,7 @@ module Adjacent_memory_accesses = struct
           None)
       | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> None
 
-    let create_stores (basic_instruction : Cfg.basic Cfg.instruction) : t option
+    let create_store (basic_instruction : Cfg.basic Cfg.instruction) : t option
         =
       let desc = basic_instruction.desc in
       let instruction = Instruction.Basic basic_instruction in
@@ -124,6 +145,28 @@ module Adjacent_memory_accesses = struct
         | Poll | Alloc _ ->
           None)
       | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> None
+
+    let create (instruction : Instruction.t) : t option =
+      match instruction with
+      | Basic basic_instruction -> (
+        let desc = basic_instruction.desc in
+        match desc with
+        | Op op -> (
+          match op with
+          | Load { memory_chunk; addressing_mode; _ } ->
+            Some { op = Load; memory_chunk; addressing_mode; instruction }
+          | Store (memory_chunk, addressing_mode, _) ->
+            Some { op = Store; memory_chunk; addressing_mode; instruction }
+          | Move | Reinterpret_cast _ | Static_cast _ | Spill | Reload
+          | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+          | Const_vec128 _ | Stackoffset _ | Intop _ | Intop_imm _
+          | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _ | Opaque
+          | Begin_region | End_region | Specific _ | Name_for_debugger _
+          | Dls_get | Poll | Alloc _ ->
+            None)
+        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+          None)
+      | Terminator _ -> None
 
     let arguments (t : t) =
       let arguments = Instruction.arguments t.instruction in
@@ -167,6 +210,14 @@ module Adjacent_memory_accesses = struct
         (Arch.print_addressing Instruction.print_reg t.addressing_mode)
         (arguments t)
 
+        let compare_arguments (t1 : t) (t2 : t) =
+          let arguments_1 = arguments t1 in
+              let arguments_2 = arguments t2 in
+              Array.combine arguments_1 arguments_2
+              |> Array.fold_left
+                   (fun result ((arg1, arg2) : Reg.t * Reg.t) ->
+                     if result = 0 then Reg.compare arg1 arg2 else result)
+                   0
     let compare_addressing_modes_and_arguments (t1 : t) (t2 : t) =
       let addressing_mode_comparison =
         Arch.addressing_compare t1.addressing_mode t2.addressing_mode
@@ -174,13 +225,7 @@ module Adjacent_memory_accesses = struct
       if addressing_mode_comparison = 0
       then
         let arguments_comparison =
-          let arguments_1 = arguments t1 in
-          let arguments_2 = arguments t2 in
-          Array.combine arguments_1 arguments_2
-          |> Array.fold_left
-               (fun result ((arg1, arg2) : Reg.t * Reg.t) ->
-                 if result = 0 then Reg.compare arg1 arg2 else result)
-               0
+          compare_arguments t1 t2
         in
         arguments_comparison
       else addressing_mode_comparison
@@ -191,15 +236,6 @@ module Adjacent_memory_accesses = struct
       in
       if addressing_mode_and_arguments_comparison = 0
       then
-        let scale_comparison =
-          match
-            Arch.addressing_scale_compare t1.addressing_mode t2.addressing_mode
-          with
-          | Some scale -> scale
-          | None -> assert false
-        in
-        if scale_comparison = 0
-        then
           let displ_comparison =
             match
               Arch.addressing_displ_compare t1.addressing_mode
@@ -213,7 +249,6 @@ module Adjacent_memory_accesses = struct
             (Instruction.id t1.instruction |> Instruction.Id.to_int)
             - (Instruction.id t2.instruction |> Instruction.Id.to_int)
           else displ_comparison
-        else scale_comparison
       else addressing_mode_and_arguments_comparison
 
     let offset_of (t1 : t) (t2 : t) =
@@ -274,8 +309,8 @@ module Adjacent_memory_accesses = struct
       in
       address_runs_longer_than_1
     in
-    let load_runs = find_runs Memory_operation.create_loads in
-    let store_runs = find_runs Memory_operation.create_stores in
+    let load_runs = find_runs Memory_operation.create_load in
+    let store_runs = find_runs Memory_operation.create_store in
     { load_runs; store_runs }
 
   let from_cfg (cfg : Cfg.t) : t Label.Tbl.t =
@@ -483,8 +518,45 @@ end
 module Seed = struct
   type t = Adjacent_memory_accesses.Memory_operation.t list
 
+  let can_swap_adjacent_memory_operations
+      (memory_operation_1 : Adjacent_memory_accesses.Memory_operation.t)
+      (memory_operation_2 : Adjacent_memory_accesses.Memory_operation.t) =
+    match memory_operation_1.op, memory_operation_2.op with
+    | Load, Load -> true
+    |Load, Store |Store,Load|Store,Store -> false (* do something *)
+
+  let can_swap_adjacent first_instruction second_instruction =
+    let reg_array_to_set = Reg.Set.of_list << Array.to_list in
+    let argument_set = reg_array_to_set << Instruction.arguments
+    and affected_set instruction =
+      Reg.Set.union
+        (Instruction.results instruction |> reg_array_to_set)
+        (Instruction.destroyed instruction |> reg_array_to_set)
+    in
+    let first_arguments = argument_set first_instruction
+    and first_affected = affected_set first_instruction
+    and second_arguments = argument_set second_instruction
+    and second_affected = affected_set second_instruction in
+    if Reg.Set.disjoint first_affected second_affected
+       && Reg.Set.disjoint first_arguments second_affected
+       && Reg.Set.disjoint first_affected second_arguments
+    then
+      let first_memory_operation =
+        Adjacent_memory_accesses.Memory_operation.create first_instruction
+      and second_memory_operation =
+        Adjacent_memory_accesses.Memory_operation.create second_instruction
+      in
+      match first_memory_operation, second_memory_operation with
+      | Some first_memory_operation, Some second_memory_operation ->
+        can_swap_adjacent_memory_operations first_memory_operation
+          second_memory_operation
+      | None, _ -> true
+      | _, None -> true
+    else false
+
   let from_block block =
     ignore block;
+    ignore can_swap_adjacent;
     []
 
   let from_cfg (cfg : Cfg.t) : t list Label.Tbl.t =
@@ -514,6 +586,9 @@ module Seed = struct
         Label.Tbl.find block_to_seeds label |> print_seed)
 end
 
+let count_body_instructions cfg =
+  Cfg.fold_body_instructions cfg ~f:(fun sum _ -> sum + 1) ~init:0
+
 let dump ppf cfg_with_layout ~msg =
   let open Format in
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
@@ -521,9 +596,7 @@ let dump ppf cfg_with_layout ~msg =
   fprintf ppf "%s\n" (Cfg.fun_name cfg);
   let block_count = Label.Tbl.length cfg.blocks in
   fprintf ppf "blocks.length=%d\n" block_count;
-  let body_instruction_count =
-    Cfg.fold_body_instructions cfg ~f:(fun sum _ -> sum + 1) ~init:0
-  in
+  let body_instruction_count = count_body_instructions cfg in
   fprintf ppf "body instruction count=%d\n" body_instruction_count;
   fprintf ppf "terminator instruction count=%d\n" block_count;
   fprintf ppf "body and terminator instruction count=%d\n"
@@ -534,13 +607,19 @@ let cfg ppf_dump cl =
   if !Flambda_backend_flags.dump_vectorize
   then Format.fprintf ppf_dump "*** Vectorization@.";
   let cfg = Cfg_with_layout.cfg cl in
-  let dependency_graph = Dependency_graph.from_cfg cfg in
-  if !Flambda_backend_flags.dump_vectorize
-  then Dependency_graph.dump ppf_dump dependency_graph cl;
-  let adjacent_memory_accesses = Adjacent_memory_accesses.from_cfg cfg in
-  if !Flambda_backend_flags.dump_vectorize
-  then Adjacent_memory_accesses.dump ppf_dump adjacent_memory_accesses cl;
-  let seeds = Seed.from_cfg cfg in
-  if !Flambda_backend_flags.dump_vectorize then Seed.dump ppf_dump seeds cl;
+  let body_instruction_count = count_body_instructions cfg in
+  (if body_instruction_count > 1000
+  then
+    Format.fprintf ppf_dump
+      "more than 1000 instructions in basic block, cannot vectorize"
+  else
+    let dependency_graph = Dependency_graph.from_cfg cfg in
+    if !Flambda_backend_flags.dump_vectorize
+    then Dependency_graph.dump ppf_dump dependency_graph cl;
+    let adjacent_memory_accesses = Adjacent_memory_accesses.from_cfg cfg in
+    if !Flambda_backend_flags.dump_vectorize
+    then Adjacent_memory_accesses.dump ppf_dump adjacent_memory_accesses cl;
+    let seeds = Seed.from_cfg cfg in
+    if !Flambda_backend_flags.dump_vectorize then Seed.dump ppf_dump seeds cl);
   if !Flambda_backend_flags.dump_vectorize then dump ppf_dump ~msg:"" cl;
   cl
