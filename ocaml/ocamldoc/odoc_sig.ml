@@ -1115,8 +1115,8 @@ module Analyser =
                       ty_info = assoc_com ;
                       ty_parameters =
                         List.map2 (fun p v -> Odoc_env.subst_type env p,v)
-                        sig_type_decl.Types.type_params
-                        sig_type_decl.Types.type_variance;
+                        (Types.get_type_params sig_type_decl)
+                        (Types.get_type_variance sig_type_decl);
                       ty_kind = type_kind;
                       ty_private = sig_type_decl.Types.type_private;
                       ty_manifest =
@@ -1198,8 +1198,8 @@ module Analyser =
                       ty_info = assoc_com ;
                       ty_parameters =
                         List.map2 (fun p v -> Odoc_env.subst_type env p,v)
-                        sig_type_decl.Types.type_params
-                        sig_type_decl.Types.type_variance;
+                        (Types.get_type_params sig_type_decl)
+                        (Types.get_type_variance sig_type_decl);
                       ty_kind = type_kind;
                       ty_private = sig_type_decl.Types.type_private;
                       ty_manifest =

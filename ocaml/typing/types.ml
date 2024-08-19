@@ -250,15 +250,13 @@ end
 (* Type definitions *)
 
 type type_declaration =
-  { type_params: type_expr list;
+  { type_params_: type_param list;
     type_arity: int;
     type_kind: type_decl_kind;
     type_jkind: jkind;
     type_jkind_annotation: type_expr Jkind_types.annotation option;
     type_private: private_flag;
     type_manifest: type_expr option;
-    type_variance: Variance.t list;
-    type_separability: Separability.t list;
     type_is_newtype: bool;
     type_expansion_scope: int;
     type_loc: Location.t;
@@ -267,6 +265,12 @@ type type_declaration =
     type_uid: Uid.t;
     type_has_illegal_crossings: bool;
  }
+
+and type_param =
+  { param_expr: type_expr;
+    variance: Variance.t;
+    separability: Separability.t;
+  }
 
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
@@ -370,6 +374,41 @@ and type_transparence =
 let tys_of_constr_args = function
   | Cstr_tuple tl -> List.map (fun ca -> ca.ca_type) tl
   | Cstr_record lbls -> List.map (fun l -> l.ld_type) lbls
+
+(* Legacy properties *)
+
+let create_type_params type_params type_variance type_separability =
+  List.map2
+    (fun param_expr (variance, separability) ->
+      { param_expr; variance; separability })
+    type_params (List.combine type_variance type_separability)
+let create_type_params_of_unknowns ~injective type_params =
+  let arity = List.length type_params in
+  create_type_params
+    type_params
+    (Variance.unknown_signature ~injective ~arity)
+    (Separability.default_signature ~arity)
+
+let get_type_params decl = List.map (fun { param_expr } -> param_expr) decl.type_params_
+let set_type_params decl param_exprs =
+  { decl with type_params_ =
+      List.map2
+        (fun param param_expr -> { param with param_expr })
+        decl.type_params_ param_exprs }
+
+let get_type_variance decl = List.map (fun { variance } -> variance) decl.type_params_
+let set_type_variance decl variances =
+  { decl with type_params_ =
+      List.map2
+        (fun param variance -> { param with variance })
+        decl.type_params_ variances }
+
+let get_type_separability decl = List.map (fun { separability } -> separability) decl.type_params_
+let set_type_separability decl separabilities =
+  { decl with type_params_ =
+      List.map2
+        (fun param separability -> { param with separability })
+        decl.type_params_ separabilities }
 
 (* Type expressions for the class language *)
 

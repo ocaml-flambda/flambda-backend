@@ -66,7 +66,7 @@ let structure : type_definition -> type_structure = fun def ->
              | Tconstr (_, tyl, _) -> tyl
              | _ -> assert false
              end
-          | _ -> def.type_params
+          | _ -> get_type_params def
         in
         Unboxed { argument_type = ty; result_type_parameter_instances = params }
       end
@@ -444,7 +444,7 @@ let check_type
     | (Tunivar(_)         , _      ) -> empty
     (* Type constructor case. *)
     | (Tconstr(path,tys,_), m      ) ->
-        let msig = (Env.find_type path env).type_separability in
+        let msig = get_type_separability (Env.find_type path env) in
         let on_param context (ty, m_param) =
           let hyps = match m_param with
             | Ind -> Hyps.guard hyps
@@ -455,8 +455,8 @@ let check_type
   in
   check_type Hyps.empty ty m
 
-let best_msig decl = List.map (fun _ -> Ind) decl.type_params
-let worst_msig decl = List.map (fun _ -> Deepsep) decl.type_params
+let best_msig decl = List.map (fun _ -> Ind) (get_type_params decl)
+let worst_msig decl = List.map (fun _ -> Deepsep) (get_type_params decl)
 
 (** [msig_of_external_type decl] infers the mode signature of an
     abstract/external type. We must assume the worst, namely that this
@@ -623,7 +623,7 @@ let check_def
       msig_of_external_type env def
   | Synonym type_expr ->
       check_type env type_expr Sep
-      |> msig_of_context ~decl_loc:def.type_loc ~parameters:def.type_params
+      |> msig_of_context ~decl_loc:def.type_loc ~parameters:(get_type_params def)
   | Open | Algebraic ->
       best_msig def
   | Unboxed constructor ->
@@ -670,7 +670,7 @@ let property : (prop, unit) Typedecl_properties.property =
     new_prop in
   let default decl = best_msig decl in
   let compute env decl () = compute_decl env decl in
-  let update_decl decl type_separability = { decl with type_separability } in
+  let update_decl = set_type_separability in
   let check _env _id _decl () = () in (* FIXME run final check? *)
   { eq; merge; default; compute; update_decl; check; }
 

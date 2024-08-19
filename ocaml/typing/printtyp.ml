@@ -1730,7 +1730,7 @@ let tree_of_constructor_in_decl cd =
   | Some _ -> Names.with_local_names (fun () -> tree_of_single_constructor cd)
 
 let prepare_decl id decl =
-  let params = filter_params decl.type_params in
+  let params = filter_params (get_type_params decl) in
   begin match decl.type_manifest with
   | Some ty ->
       let vars = free_variables ty in
@@ -1816,7 +1816,7 @@ let tree_of_type_decl id decl =
              if not co then Contravariant else NoVariance),
             (if inj then Injective else NoInjectivity)
           else (NoVariance, NoInjectivity))
-        decl.type_params decl.type_variance
+        (get_type_params decl) (get_type_variance decl)
     in
     let mk_param ty (variance, injectivity) =
       { oparam_name = type_param (tree_of_typexp Type ty);
@@ -2317,15 +2317,13 @@ let wrap_env fenv ftree arg =
 
 let dummy =
   {
-    type_params = [];
+    type_params_ = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
     type_jkind_annotation = None;
     type_private = Public;
     type_manifest = None;
-    type_variance = [];
-    type_separability = [];
     type_is_newtype = false;
     type_expansion_scope = Btype.lowest_level;
     type_loc = Location.none;

@@ -455,7 +455,8 @@ let record_representation ~prepare_jkind loc = function
   | (Record_float | Record_ufloat | Record_mixed _) as rep -> rep
 
 let type_declaration' copy_scope s decl =
-  { type_params = List.map (typexp copy_scope s decl.type_loc) decl.type_params;
+  { type_params_ =
+      (set_type_params decl (List.map (typexp copy_scope s decl.type_loc) (get_type_params decl))).type_params_;
     type_arity = decl.type_arity;
     type_kind =
       begin match decl.type_kind with
@@ -495,8 +496,6 @@ let type_declaration' copy_scope s decl =
     (* CR layouts v10: Apply the substitution here, too *)
     type_jkind_annotation = decl.type_jkind_annotation;
     type_private = decl.type_private;
-    type_variance = decl.type_variance;
-    type_separability = decl.type_separability;
     type_is_newtype = false;
     type_expansion_scope = Btype.lowest_level;
     type_loc = loc s decl.type_loc;

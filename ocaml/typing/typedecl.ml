@@ -271,15 +271,13 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       sdecl.ptype_params
   in
   let decl =
-    { type_params;
+    { type_params_ = create_type_params_of_unknowns ~injective:false type_params;
       type_arity = arity;
       type_kind = Type_abstract abstract_reason;
       type_jkind;
       type_jkind_annotation;
       type_private = sdecl.ptype_private;
       type_manifest;
-      type_variance = Variance.unknown_signature ~injective:false ~arity;
-      type_separability = Types.Separability.default_signature ~arity;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = sdecl.ptype_loc;
@@ -316,7 +314,7 @@ let update_type temp_env env id loc =
   | Some ty ->
       try
         Ctype.(unify_delaying_jkind_checks env
-                 (newconstr path decl.type_params) ty)
+                 (newconstr path (get_type_params decl)) ty)
       with Ctype.Unify err ->
         raise (Error(loc, Type_clash (env, err)))
 
@@ -386,7 +384,7 @@ let set_private_row env loc p decl =
         r
     | _ -> assert false
   in
-  set_type_desc rv (Tconstr (p, decl.type_params, ref Mnil))
+  set_type_desc rv (Tconstr (p, get_type_params decl, ref Mnil))
 
 (* Makes sure a type is representable. When called with a type variable, will
    lower [any] to a sort variable if [allow_unboxed = true], and to [value]
@@ -939,15 +937,13 @@ let transl_declaration env sdecl (id, uid) =
     in
     let arity = List.length params in
     let decl =
-      { type_params = params;
+      { type_params_ = create_type_params_of_unknowns ~injective:false params;
         type_arity = arity;
         type_kind = kind;
         type_jkind = jkind;
         type_jkind_annotation = jkind_annotation;
         type_private = sdecl.ptype_private;
         type_manifest = man;
-        type_variance = Variance.unknown_signature ~injective:false ~arity;
-        type_separability = Types.Separability.default_signature ~arity;
         type_is_newtype = false;
         type_expansion_scope = Btype.lowest_level;
         type_loc = sdecl.ptype_loc;
@@ -1001,7 +997,7 @@ let transl_declaration env sdecl (id, uid) =
 (* Generalize a type declaration *)
 
 let generalize_decl decl =
-  List.iter Ctype.generalize decl.type_params;
+  List.iter Ctype.generalize (get_type_params decl);
   Btype.iter_type_expr_kind Ctype.generalize decl.type_kind;
   begin match decl.type_manifest with
   | None    -> ()
@@ -1022,7 +1018,7 @@ let rec check_constraints_rec env loc visited ty =
         try Env.find_type path env
         with Not_found ->
           raise (Error(loc, Unavailable_type_constructor path)) in
-      let ty' = Ctype.newconstr path (Ctype.instance_list decl.type_params) in
+      let ty' = Ctype.newconstr path (Ctype.instance_list (get_type_params decl)) in
       begin
         (* We don't expand the error trace because that produces types that
            *already* violate the constraints -- we need to report a problem with
@@ -1064,7 +1060,7 @@ let check_constraints env sdecl (_, decl) =
   let visited = ref TypeSet.empty in
   List.iter2
     (fun (sty, _) ty -> check_constraints_rec env sty.ptyp_loc visited ty)
-    sdecl.ptype_params decl.type_params;
+    sdecl.ptype_params (get_type_params decl);
   begin match decl.type_kind with
   | Type_abstract _ -> ()
   (* We skip this check because with [or_null_reexport] the [type_kind]
@@ -1160,10 +1156,10 @@ let check_kind_coherence env loc dpath decl =
       try
         let decl' = Env.find_type path env in
         let err =
-          if List.length args <> List.length decl.type_params
+          if List.length args <> List.length (get_type_params decl)
           then Some Includecore.Arity
           else begin
-            match Ctype.equal env false args decl.type_params with
+            match Ctype.equal env false args (get_type_params decl) with
             | exception Ctype.Equality err ->
                 Some (Includecore.Constraint err)
             | () ->
@@ -1680,7 +1676,7 @@ let update_decls_jkind_reason decls =
         Ctype.check_and_update_generalized_ty_jkind
           ~name:id ~loc:decl.type_loc
        in
-       List.iter update_generalized decl.type_params;
+       List.iter update_generalized (get_type_params decl);
        Btype.iter_type_expr_kind update_generalized decl.type_kind;
        Option.iter update_generalized decl.type_manifest;
        let reason = Jkind.History.Generalized (Some id, decl.type_loc) in
@@ -1898,7 +1894,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
     (* The jkinds here shouldn't matter for the purposes of
        [check_well_founded] *)
     List.map (fun _ -> Ctype.newvar (Jkind.Builtin.any ~why:Dummy_jkind))
-      decl.type_params
+      (get_type_params decl)
   in
   let visited = ref TypeMap.empty in
   check_well_founded ~abs_env env loc path (Path.same path) visited
@@ -1956,7 +1952,7 @@ let check_regularity ~abs_env env loc path decl to_check =
   (* to_check is true for potentially mutually recursive paths.
      (path, decl) is the type declaration to be checked. *)
 
-  if decl.type_params = [] then () else
+  if (get_type_params decl) = [] then () else
 
   let visited = ref TypeSet.empty in
 
@@ -2014,7 +2010,7 @@ let check_regularity ~abs_env env loc path decl to_check =
     (fun body ->
       let (args, body) =
         Ctype.instance_parameterized_type
-          ~keep_names:true decl.type_params body in
+          ~keep_names:true (get_type_params decl) body in
       List.iter (check_regular path args [] []) args;
       check_regular path args [] [] body)
     decl.type_manifest
@@ -2063,7 +2059,7 @@ let name_recursion sdecl id decl =
       type_private = Private; } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
     if Ctype.deep_occur ty ty' then
-      let td = Tconstr(Path.Pident id, decl.type_params, ref Mnil) in
+      let td = Tconstr(Path.Pident id, get_type_params decl, ref Mnil) in
       link_type ty (newty2 ~level:(get_level ty) td);
       {decl with type_manifest = Some ty'}
     else decl
@@ -2375,7 +2371,7 @@ let transl_extension_constructor ~scope env type_path type_params
         end;
         (* Ensure that constructor's type matches the type being extended *)
         let cstr_type_path = Btype.cstr_type_path cdescr in
-        let cstr_type_params = (Env.find_type cstr_type_path env).type_params in
+        let cstr_type_params = Env.find_type cstr_type_path env |> get_type_params in
         let cstr_types =
           (Btype.newgenty
              (Tconstr(cstr_type_path, cstr_type_params, ref Mnil)))
@@ -2412,8 +2408,8 @@ let transl_extension_constructor ~scope env type_path type_params
                 | _ -> assert false
               in
               let decl = Ctype.instance_declaration decl in
-              assert (List.length decl.type_params = List.length tl);
-              List.iter2 (Ctype.unify env) decl.type_params tl;
+              assert (List.length (get_type_params decl) = List.length tl);
+              List.iter2 (Ctype.unify env) (get_type_params decl) tl;
               let lbls =
                 match decl.type_kind with
                 | Type_record (lbls, Record_inlined _) -> lbls
@@ -2496,7 +2492,7 @@ let transl_type_extension extend env loc styext =
     List.map (fun v ->
                 let (co, cn) = Variance.get_upper v in
                   (not cn, not co, false))
-             type_decl.type_variance
+             (get_type_variance type_decl)
   in
   let err =
     if type_decl.type_arity <> List.length styext.ptyext_params then
@@ -2521,11 +2517,11 @@ let transl_type_extension extend env loc styext =
       let ttype_params = make_params env type_path styext.ptyext_params in
       let type_params = List.map (fun (cty, _) -> cty.ctyp_type) ttype_params in
       List.iter2 (Ctype.unify_var env)
-        (Ctype.instance_list type_decl.type_params)
+        (Ctype.instance_list (get_type_params type_decl))
         type_params;
       let constructors =
         List.map (transl_extension_constructor ~scope env type_path
-                    type_decl.type_params type_params styext.ptyext_private)
+                    (get_type_params type_decl) type_params styext.ptyext_private)
           styext.ptyext_constructors
       in
       (ttype_params, type_params, constructors)
@@ -3105,7 +3101,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       try Ctype.unify_var env cty.ctyp_type tparam
       with Ctype.Unify err ->
         raise(Error(cty.ctyp_loc, Inconsistent_constraint (env, err)))
-    ) tparams sig_decl.type_params;
+    ) tparams (get_type_params sig_decl);
   List.iter (fun (cty, cty', loc) ->
     (* Note: constraints must also be enforced in [sig_env] because
        they may contain parameter variables from [tparams]
@@ -3133,15 +3129,13 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       Type_abstract Abstract_def, false, sig_decl.type_jkind, None
   in
   let new_sig_decl =
-    { type_params = params;
+    { type_params_ = create_type_params_of_unknowns ~injective:false params;
       type_arity = arity;
       type_kind;
       type_jkind;
       type_jkind_annotation;
       type_private = priv;
       type_manifest = Some man;
-      type_variance = [];
-      type_separability = Types.Separability.default_signature ~arity;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = loc;
@@ -3167,13 +3161,17 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     try Typedecl_separability.compute_decl env new_sig_decl
     with Typedecl_separability.Error (loc, err) ->
       raise (Error (loc, Separability err)) in
+  let new_type_params_ =
+    create_type_params
+      (get_type_params new_sig_decl) new_type_variance new_type_separability
+  in
   let new_sig_decl =
     (* we intentionally write this without a fragile { decl with ... }
        to ensure that people adding new fields to type declarations
        consider whether they need to recompute it here; for an example
        of bug caused by the previous approach, see #9607 *)
     {
-      type_params = new_sig_decl.type_params;
+      type_params_ = new_type_params_;
       type_arity = new_sig_decl.type_arity;
       type_kind = new_sig_decl.type_kind;
       type_jkind = new_sig_decl.type_jkind;
@@ -3186,9 +3184,6 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_loc = new_sig_decl.type_loc;
       type_attributes = new_sig_decl.type_attributes;
       type_uid = new_sig_decl.type_uid;
-
-      type_variance = new_type_variance;
-      type_separability = new_type_separability;
       type_has_illegal_crossings = false;
     } in
   {
@@ -3211,7 +3206,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
    Package constraints are much simpler than normal with type constraints (e.g.,
    they can not have parameters and can only update abstract types.) *)
 let transl_package_constraint ~loc ty =
-  { type_params = [];
+  { type_params_ = [];
     type_arity = 0;
     type_kind = Type_abstract Abstract_def;
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
@@ -3221,8 +3216,6 @@ let transl_package_constraint ~loc ty =
     type_jkind_annotation = None;
     type_private = Public;
     type_manifest = Some ty;
-    type_variance = [];
-    type_separability = [];
     type_is_newtype = false;
     type_expansion_scope = Btype.lowest_level;
     type_loc = loc;
@@ -3238,15 +3231,13 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
   let arity = List.length params in
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
     let params = List.map Ctype.newvar params in
-    { type_params = params;
+    { type_params_ = create_type_params_of_unknowns ~injective params;
       type_arity = arity;
       type_kind = Type_abstract Abstract_def;
       type_jkind = jkind;
       type_jkind_annotation = jkind_annotation;
       type_private = Public;
       type_manifest = None;
-      type_variance = Variance.unknown_signature ~injective ~arity;
-      type_separability = Types.Separability.default_signature ~arity;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = Location.none;

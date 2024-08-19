@@ -230,7 +230,7 @@ let set_static_row_name decl path =
       match get_desc ty with
         Tvariant row when static_row row ->
           let row =
-            set_row_name row (Some (path, decl.type_params)) in
+            set_row_name row (Some (path, get_type_params decl)) in
           set_type_desc ty (Tvariant row)
       | _ -> ()
 
@@ -355,7 +355,7 @@ let type_iterators =
   and it_value_description it vd =
     it.it_type_expr it vd.val_type
   and it_type_declaration it td =
-    List.iter (it.it_type_expr it) td.type_params;
+    List.iter (it.it_type_expr it) (get_type_params td);
     Option.iter (it.it_type_expr it) td.type_manifest;
     it.it_type_kind it td.type_kind
   and it_extension_constructor it td =

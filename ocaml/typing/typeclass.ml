@@ -1605,15 +1605,13 @@ let temp_abbrev loc id arity uid =
   done;
   let ty = Ctype.newobj (Ctype.newvar (Jkind.Builtin.value ~why:Object)) in
   let ty_td =
-      {type_params = !params;
+      {type_params_ = create_type_params_of_unknowns ~injective:true !params;
        type_arity = arity;
        type_kind = Type_abstract Abstract_def;
        type_jkind = Jkind.Builtin.value ~why:Object;
        type_jkind_annotation = None;
        type_private = Public;
        type_manifest = Some ty;
-       type_variance = Variance.unknown_signature ~injective:false ~arity;
-       type_separability = Types.Separability.default_signature ~arity;
        type_is_newtype = false;
        type_expansion_scope = Btype.lowest_level;
        type_loc = loc;
@@ -1837,15 +1835,13 @@ let class_infos define_class kind
   let obj_abbr =
     let arity = List.length obj_params in
     {
-     type_params = obj_params;
+     type_params_ = create_type_params_of_unknowns ~injective:false obj_params;
      type_arity = arity;
      type_kind = Type_abstract Abstract_def;
      type_jkind = Jkind.Builtin.value ~why:Object;
      type_jkind_annotation = None;
      type_private = Public;
      type_manifest = Some obj_ty;
-     type_variance = Variance.unknown_signature ~injective:false ~arity;
-     type_separability = Types.Separability.default_signature ~arity;
      type_is_newtype = false;
      type_expansion_scope = Btype.lowest_level;
      type_loc = cl.pci_loc;
@@ -1859,12 +1855,7 @@ let class_infos define_class kind
     Ctype.instance_parameterized_type params (Btype.self_type typ)
   in
   Ctype.set_object_name obj_id cl_params cl_ty;
-  let cl_abbr =
-    { cl_td with
-     type_params = cl_params;
-     type_manifest = Some cl_ty;
-    }
-  in
+  let cl_abbr = { (set_type_params cl_td cl_params) with type_manifest = Some cl_ty } in
   let cltydef =
     {clty_params = params'; clty_type = Btype.class_body typ';
      clty_variance = cty_variance;
@@ -1892,9 +1883,9 @@ let final_decl env define_class
   List.iter Ctype.generalize clty.cty_params;
   Ctype.generalize_class_type clty.cty_type;
   Option.iter  Ctype.generalize clty.cty_new;
-  List.iter Ctype.generalize obj_abbr.type_params;
+  List.iter Ctype.generalize (get_type_params obj_abbr);
   Option.iter  Ctype.generalize obj_abbr.type_manifest;
-  List.iter Ctype.generalize cl_abbr.type_params;
+  List.iter Ctype.generalize (get_type_params cl_abbr);
   Option.iter  Ctype.generalize cl_abbr.type_manifest;
 
   Ctype.nongen_vars_in_class_declaration clty
@@ -1979,9 +1970,9 @@ let check_coercions env { id; id_loc; clty; ty_id; cltydef; obj_id; obj_abbr;
         match cl_abbr.type_manifest, obj_abbr.type_manifest with
           Some cl_ab, Some obj_ab ->
             let cl_params, cl_ty =
-              Ctype.instance_parameterized_type cl_abbr.type_params cl_ab
+              Ctype.instance_parameterized_type (get_type_params cl_abbr) cl_ab
             and obj_params, obj_ty =
-              Ctype.instance_parameterized_type obj_abbr.type_params obj_ab
+              Ctype.instance_parameterized_type (get_type_params obj_abbr) obj_ab
             in
             List.iter2 (Ctype.unify env) cl_params obj_params;
             cl_ty, obj_ty

@@ -225,7 +225,7 @@ let mk_add_type add_type
       ?jkind_annotation
       env =
   let decl =
-    {type_params = [];
+    {type_params_ = [];
      type_arity = 0;
      type_kind = kind;
      type_jkind = jkind;
@@ -233,8 +233,6 @@ let mk_add_type add_type
      type_loc = Location.none;
      type_private = Asttypes.Public;
      type_manifest = manifest;
-     type_variance = [];
-     type_separability = [];
      type_is_newtype = false;
      type_expansion_scope = lowest_level;
      type_attributes = [];
@@ -260,7 +258,7 @@ let mk_add_type1 add_type type_ident
     ~variance ~separability env =
   let param = newgenvar param_jkind in
   let decl =
-    {type_params = [param];
+    {type_params_ = [{ param_expr = param; variance; separability }];
       type_arity = 1;
       type_kind = kind param;
       type_jkind = jkind;
@@ -268,8 +266,6 @@ let mk_add_type1 add_type type_ident
       type_loc = Location.none;
       type_private = Asttypes.Public;
       type_manifest = None;
-      type_variance = [variance];
-      type_separability = [separability];
       type_is_newtype = false;
       type_expansion_scope = lowest_level;
       type_attributes = [];
