@@ -234,6 +234,15 @@ end = struct
     TyVarMap.fold add_name !type_variables []
 
   (*****)
+  let new_jkind' ~is_named = function
+    (* CR layouts v3.0: while [Any] case allows nullable jkinds, [Sort] does not.
+      From testing, we need all callsites that use [Sort] to be non-null to
+      preserve backwards compatibility. But we also need [Any] callsites
+      to accept nullable jkinds to allow cases like [type ('a : value_or_null) t = 'a]. *)
+    | Any -> Jkind.Builtin.any ~why:(if is_named then Unification_var else Wildcard)
+    | Sort -> Jkind.of_new_legacy_sort ~why:(if is_named then Unification_var else Wildcard)
+
+  (*****)
   (* These are variables we expect to become univars (they were introduced with
      e.g. ['a .]), but we need to make sure they don't unify first.  Why not
      just birth them as univars? Because they might successfully unify with a
@@ -430,14 +439,8 @@ end = struct
     add_pre_univar tv policy;
     tv
 
-  let new_jkind ~is_named { jkind_initialization } =
-    match jkind_initialization with
-    (* CR layouts v3.0: while [Any] case allows nullable jkinds, [Sort] does not.
-       From testing, we need all callsites that use [Sort] to be non-null to
-       preserve backwards compatibility. But we also need [Any] callsites
-       to accept nullable jkinds to allow cases like [type ('a : value_or_null) t = 'a]. *)
-    | Any -> Jkind.Builtin.any ~why:(if is_named then Unification_var else Wildcard)
-    | Sort -> Jkind.of_new_legacy_sort ~why:(if is_named then Unification_var else Wildcard)
+  let new_jkind  ~is_named { jkind_initialization } =
+      new_jkind' ~is_named   jkind_initialization
 
   let new_any_var loc env jkind = function
     | { extensibility = Fixed } -> raise(Error(loc, env, No_type_wildcards))
