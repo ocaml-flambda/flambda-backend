@@ -538,7 +538,6 @@ static void caml_thread_reinitialize(void)
   th = Active_thread->next;
   while (th != Active_thread) {
     next = th->next;
-    caml_memprof_delete_thread(th->memprof);
     caml_thread_free_info(th);
     th = next;
   }
