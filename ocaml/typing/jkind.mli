@@ -253,6 +253,11 @@ val add_mode_crossing : t -> t
 (** Take an existing [t] and add an ability to cross across the nullability axis. *)
 val add_nullability_crossing : t -> t
 
+(** Take an existing [t] and add baggage (a [with constraint]) to its bounds. If
+    [deep_only] is [true] (which is the default), the baggage is only added along deep
+    axes. *)
+val add_baggage : ?deep_only:bool -> baggage:Types.type_expr -> t -> t
+
 (** Take an existing [t] and add an ability to mode-cross along the portability and
     contention axes, if [from] crosses the respective axes. Return the new jkind,
     along with a boolean of whether illegal crossing was added *)

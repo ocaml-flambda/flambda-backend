@@ -309,6 +309,18 @@ module Bounds = struct
     in
     Axis.all |> List.map compare_along_axis |> Misc.Le_result.combine_list
 
+  let add_baggage ~deep_only ~baggage bounds =
+    (* Add the type as a baggage type along all deep axes *)
+    map
+      { f =
+          (fun ~axis (bound : _ Bound.t) : _ Bound.t ->
+            match deep_only, Axis.is_deep axis with
+            | false, _ | _, true ->
+              { bound with baggage = baggage :: bound.baggage }
+            | true, false -> bound)
+      }
+      bounds
+
   module Debug_printers = struct
     open Format
 
@@ -739,18 +751,10 @@ module Const = struct
     | With (base, type_) ->
       let base = of_user_written_annotation_unchecked_level ~transl_type base in
       let type_ = transl_type type_ in
-      let upper_bounds =
-        (* Add the type as a baggage type along all deep axes *)
-        Bounds.map
-          { f =
-              (fun ~axis (bound : _ Bound.t) : _ Bound.t ->
-                match Axis.is_deep axis with
-                | true -> { bound with baggage = type_ :: bound.baggage }
-                | false -> bound)
-          }
-          base.upper_bounds
-      in
-      { layout = base.layout; upper_bounds }
+      { layout = base.layout;
+        upper_bounds =
+          Bounds.add_baggage ~deep_only:true ~baggage:type_ base.upper_bounds
+      }
     | Default | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 
   (* The [annotation_context] parameter can be used to allow annotations / kinds
@@ -846,6 +850,11 @@ module Jkind_desc = struct
         Axis.[Pack (Modal Portability); Pack (Modal Contention)]
     in
     { from with upper_bounds = new_uppder_bounds }, added_crossings
+
+  let add_baggage ~deep_only ~baggage t =
+    { t with
+      upper_bounds = Bounds.add_baggage ~deep_only ~baggage t.upper_bounds
+    }
 
   let max = of_const Const.max
 
@@ -981,6 +990,9 @@ let add_mode_crossing t =
 
 let add_nullability_crossing t =
   { t with jkind = Jkind_desc.add_nullability_crossing t.jkind }
+
+let add_baggage ?(deep_only = true) ~baggage t =
+  { t with jkind = Jkind_desc.add_baggage ~deep_only ~baggage t.jkind }
 
 let add_portability_and_contention_crossing ~from t =
   let jkind, added_crossings =

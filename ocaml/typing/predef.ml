@@ -247,10 +247,9 @@ let mk_add_type add_type
 
 let mk_add_type1 add_type type_ident
       ?(kind=fun _ -> Type_abstract Definition)
-      ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
+      ?(jkind=fun _ -> Jkind.Builtin.value ~why:(Primitive type_ident))
       (* See the comment on the [jkind_annotation] argument to [mk_add_type]
       *)
-      ?jkind_annotation
       ?(param_jkind=Jkind.Builtin.value ~why:(
         Type_argument {
           parent_path = Path.Pident type_ident;
@@ -263,8 +262,8 @@ let mk_add_type1 add_type type_ident
     {type_params = [param];
       type_arity = 1;
       type_kind = kind param;
-      type_jkind = jkind;
-      type_jkind_annotation = predef_jkind_annotation jkind_annotation;
+      type_jkind = jkind param;
+      type_jkind_annotation = None;
       type_loc = Location.none;
       type_private = Asttypes.Public;
       type_manifest = None;
@@ -390,7 +389,9 @@ let build_initial_env add_type add_extension empty_env =
                    Jkind.Builtin.value ~why:Boxed_variant;
                 |];
            |] )
-       ~jkind:(Jkind.Builtin.value ~why:Boxed_variant)
+       ~jkind:(fun param ->
+          Jkind.add_baggage ~baggage:param (Jkind.of_const ~why:(Primitive ident_list)
+            Jkind.Const.Builtin.immutable_data.jkind))
   |> add_type ident_nativeint
       ~jkind:(Jkind.of_const ~why:(Primitive ident_nativeint)
                 Jkind.Const.Builtin.immutable_data.jkind)
@@ -403,7 +404,9 @@ let build_initial_env add_type add_extension empty_env =
            [| Constructor_uniform_value, [| |];
               Constructor_uniform_value, [| option_argument_jkind |];
            |])
-       ~jkind:(Jkind.Builtin.value ~why:Boxed_variant)
+       ~jkind:(fun param ->
+          Jkind.add_baggage ~baggage:param (Jkind.of_const ~why:(Primitive ident_option)
+            Jkind.Const.Builtin.immutable_data.jkind))
   |> add_type ident_lexing_position
        ~kind:(
          let lbl (field, field_type, jkind) =
@@ -552,7 +555,7 @@ let add_or_null add_type env =
      the most argument types, and forbid arrays from accepting [or_null]s.
      In the future, we will track separability in the jkind system. *)
   ~kind:or_null_kind
-  ~jkind:(Jkind.Builtin.value_or_null ~why:(Primitive ident_or_null))
+  ~jkind:(fun _ -> Jkind.Builtin.value_or_null ~why:(Primitive ident_or_null))
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns
