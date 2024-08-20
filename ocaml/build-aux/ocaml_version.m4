@@ -98,7 +98,7 @@ m4_define([OCAML__RELEASE_EXTRA],
 
 # XXX mshinwell: discuss what we should use.
 # Has to be changed in misc.ml too
-m4_define([MAGIC_NUMBER__PREFIX], [Caml2024])
+m4_define([MAGIC_NUMBER__PREFIX], [Caml1999])
 m4_define([MAGIC_NUMBER__VERSION], [550])
 
 # The following macro is used to define all our magic numbers

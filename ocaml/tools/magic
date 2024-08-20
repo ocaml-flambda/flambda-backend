@@ -2,7 +2,7 @@
 # database so that the file(1) command recognizes OCaml compiled files.
 # Contributed by Sven Luther.
 0       string  Caml1999        OCaml
-0       string  Caml2024        OCaml
+0       string  Caml1999        OCaml
 >8      string  X               bytecode executable
 >8      string  I               interface data (.cmi)
 >8      string  O               bytecode object data (.cmo)
