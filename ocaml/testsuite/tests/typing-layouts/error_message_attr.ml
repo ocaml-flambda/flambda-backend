@@ -126,20 +126,9 @@ module type a = sig
   val f : t -> (t as ('a : value)[@error_message "Custom message"])
 end
 [%%expect{|
-Line 126, characters 22-24:
-126 |   val f : t -> (t as ('a : value)[@error_message "Custom message"])
-                            ^^
-Error: This alias is bound to type t but is used as an instance of type
-         ('a : value)
-       The layout of t is float64
-         because of the definition of t at line 2, characters 2-18.
-       But the layout of t must be a sublayout of value
-         because of the annotation on the type variable 'a.
-         Custom message
-|}, Principal{|
-Line 200, characters 22-24:
-200 |   val f : t -> (t as ('a : value)[@error_message "Custom message"])
-                            ^^
+Line 3, characters 22-24:
+3 |   val f : t -> (t as ('a : value)[@error_message "Custom message"])
+                          ^^
 Error: This alias is bound to type t but is used as an instance of type
          ('a : value)
        The layout of t is float64
