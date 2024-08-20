@@ -165,6 +165,10 @@ let mode i ppf mode =
 let modes i ppf modes =
   List.iter (fun m -> mode i ppf m) modes
 
+let include_kind i ppf = function
+  | Structure -> line i ppf "Structure\n"
+  | Functor -> line i ppf "Functor\n"
+
 let rec core_type i ppf x =
   with_location_mapping ~loc:x.ptyp_loc ppf (fun () ->
   line i ppf "core_type %a\n" fmt_location x.ptyp_loc;
@@ -847,6 +851,7 @@ and signature_item i ppf x =
       attributes i ppf od.popen_attributes
   | Psig_include incl ->
       line i ppf "Psig_include\n";
+      include_kind i ppf incl.pincl_kind;
       module_type i ppf incl.pincl_mod;
       attributes i ppf incl.pincl_attributes
   | Psig_class (l) ->
@@ -976,6 +981,7 @@ and structure_item i ppf x =
       list i class_type_declaration ppf l;
   | Pstr_include incl ->
       line i ppf "Pstr_include";
+      include_kind i ppf incl.pincl_kind;
       attributes i ppf incl.pincl_attributes;
       module_expr i ppf incl.pincl_mod
   | Pstr_extension ((s, arg), attrs) ->
