@@ -73,7 +73,7 @@ let foo x =
 Line 3, characters 16-17:
 3 |   exclave_ Some y
                     ^
-Error: The value "y" is local, so it cannot be used inside an exclave_
+Error: The value y is local, so it cannot be used inside an exclave_
 |}]
 
 let foo x =

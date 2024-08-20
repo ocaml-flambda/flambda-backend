@@ -251,8 +251,8 @@ Warning 26 [unused-var]: unused variable a.
 Line 1, characters 13-16:
 1 | [:x for x in 100:];;
                  ^^^
-Error: This expression has type "int" but an expression was expected of type
-         "'a iarray"
+Error: This expression has type int but an expression was expected of type
+         'a iarray
        because it is in a for-in iterator in an immutable array comprehension
 |}];;
 
@@ -264,14 +264,14 @@ Error: This expression has type "int" but an expression was expected of type
 Line 1, characters 13-15:
 1 | [:x for x in []:];;
                  ^^
-Error: This expression has type "'a list"
-       but an expression was expected of type "'b iarray"
+Error: This expression has type 'a list
+       but an expression was expected of type 'b iarray
 |}, Principal{|
 Line 1, characters 13-15:
 1 | [:x for x in []:];;
                  ^^
-Error: This expression has type "'a list"
-       but an expression was expected of type "'b iarray"
+Error: This expression has type 'a list
+       but an expression was expected of type 'b iarray
        because it is in a for-in iterator in an immutable array comprehension
 |}];;
 
@@ -283,8 +283,8 @@ let empty = [] in
 Line 2, characters 13-18:
 2 | [:x for x in empty:];;
                  ^^^^^
-Error: This expression has type "'a list"
-       but an expression was expected of type "'b iarray"
+Error: This expression has type 'a list
+       but an expression was expected of type 'b iarray
        because it is in a for-in iterator in an immutable array comprehension
 |}];;
 
@@ -293,8 +293,8 @@ List.length [:i for i = 0 to 3:];;
 Line 1, characters 12-32:
 1 | List.length [:i for i = 0 to 3:];;
                 ^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "'a iarray"
-       but an expression was expected of type "'b list"
+Error: This expression has type 'a iarray
+       but an expression was expected of type 'b list
 |}];;
 
 [:x for x in [||]:];;
@@ -302,8 +302,8 @@ Error: This expression has type "'a iarray"
 Line 1, characters 13-17:
 1 | [:x for x in [||]:];;
                  ^^^^
-Error: This expression has type "'a array"
-       but an expression was expected of type "'b iarray"
+Error: This expression has type 'a array
+       but an expression was expected of type 'b iarray
        because it is in a for-in iterator in an immutable array comprehension
 |}];;
 
@@ -313,8 +313,8 @@ let empty = [||] in
 Line 2, characters 13-18:
 2 | [:x for x in empty:];;
                  ^^^^^
-Error: This expression has type "'a array"
-       but an expression was expected of type "'b iarray"
+Error: This expression has type 'a array
+       but an expression was expected of type 'b iarray
        because it is in a for-in iterator in an immutable array comprehension
 |}];;
 
@@ -323,8 +323,8 @@ Array.length [:i for i = 0 to 3:];;
 Line 1, characters 13-33:
 1 | Array.length [:i for i = 0 to 3:];;
                  ^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "'a iarray"
-       but an expression was expected of type "'b array"
+Error: This expression has type 'a iarray
+       but an expression was expected of type 'b array
 |}];;
 
 (* No mixing immutable arrays with anything else; we check these here so we
@@ -336,8 +336,8 @@ Error: This expression has type "'a iarray"
 Line 1, characters 12-16:
 1 | [x for x in [::]];;
                 ^^^^
-Error: This expression has type "'a iarray"
-       but an expression was expected of type "'b list"
+Error: This expression has type 'a iarray
+       but an expression was expected of type 'b list
        because it is in a for-in iterator in a list comprehension
 |}];;
 
@@ -349,8 +349,8 @@ let empty = [::] in
 Line 2, characters 12-17:
 2 | [x for x in empty];;
                 ^^^^^
-Error: This expression has type "'a iarray"
-       but an expression was expected of type "'b list"
+Error: This expression has type 'a iarray
+       but an expression was expected of type 'b list
        because it is in a for-in iterator in a list comprehension
 |}];;
 
@@ -359,8 +359,8 @@ Iarray.length [i for i = 0 to 3];;
 Line 1, characters 14-32:
 1 | Iarray.length [i for i = 0 to 3];;
                   ^^^^^^^^^^^^^^^^^^
-Error: This expression has type "'a list"
-       but an expression was expected of type "'b iarray"
+Error: This expression has type 'a list
+       but an expression was expected of type 'b iarray
 |}];;
 
 [|x for x in [::]|];;
@@ -368,8 +368,8 @@ Error: This expression has type "'a list"
 Line 1, characters 13-17:
 1 | [|x for x in [::]|];;
                  ^^^^
-Error: This expression has type "'a iarray"
-       but an expression was expected of type "'b array"
+Error: This expression has type 'a iarray
+       but an expression was expected of type 'b array
        because it is in a for-in iterator in an array comprehension
 |}];;
 
@@ -381,8 +381,8 @@ let empty = [::] in
 Line 2, characters 13-18:
 2 | [|x for x in empty|];;
                  ^^^^^
-Error: This expression has type "'a iarray"
-       but an expression was expected of type "'b array"
+Error: This expression has type 'a iarray
+       but an expression was expected of type 'b array
        because it is in a for-in iterator in an array comprehension
 |}];;
 
@@ -391,8 +391,8 @@ Iarray.length [i for i = 0 to 3];;
 Line 1, characters 14-32:
 1 | Iarray.length [i for i = 0 to 3];;
                   ^^^^^^^^^^^^^^^^^^
-Error: This expression has type "'a list"
-       but an expression was expected of type "'b iarray"
+Error: This expression has type 'a list
+       but an expression was expected of type 'b iarray
 |}];;
 
 (* to/downto are only for ints *)
@@ -402,8 +402,8 @@ Error: This expression has type "'a list"
 Line 1, characters 12-15:
 1 | [:x for x = 1.5 to 4.2:];;
                 ^^^
-Error: This expression has type "float" but an expression was expected of type
-         "int"
+Error: This expression has type float but an expression was expected of type
+         int
        because it is in a range-based for iterator start index in a comprehension
 |}];;
 
@@ -412,8 +412,8 @@ Error: This expression has type "float" but an expression was expected of type
 Line 1, characters 12-15:
 1 | [:x for x = 4.2 downto 1.5:];;
                 ^^^
-Error: This expression has type "float" but an expression was expected of type
-         "int"
+Error: This expression has type float but an expression was expected of type
+         int
        because it is in a range-based for iterator start index in a comprehension
 |}];;
 
@@ -476,7 +476,7 @@ Error: Modules are not allowed in this pattern.
 Line 1, characters 0-39:
 1 | [:i for i = 1 to 3 and i = 3 downto 1:];;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Variable "i" is bound several times in this matching
+Error: Variable i is bound several times in this matching
 |}];;
 
 (* Variables bind from left to right, not right to left *)
@@ -486,8 +486,8 @@ Error: Variable "i" is bound several times in this matching
 Line 1, characters 26-31:
 1 | [:outer,inner for outer = inner to 3 for inner = 1 to 3:];;
                               ^^^^^
-Error: Unbound value "inner"
-Hint: Did you mean "incr"?
+Error: Unbound value inner
+Hint: Did you mean incr?
 |}];;
 
 (* The element type is handled correctly *)
@@ -497,8 +497,8 @@ Iarray.append [:true:] [:i for i = 0 to 10:];;
 Line 1, characters 25-26:
 1 | Iarray.append [:true:] [:i for i = 0 to 10:];;
                              ^
-Error: This expression has type "int" but an expression was expected of type
-         "bool"
+Error: This expression has type int but an expression was expected of type
+         bool
 |}];;
 
 (******************************************************************************)
@@ -522,7 +522,7 @@ val x : M.t iarray = [:M.A; M.A; M.A:]
 Line 1, characters 2-3:
 1 | [:A for _ = 1 to 3:];;
       ^
-Error: Unbound constructor "A"
+Error: Unbound constructor A
 |}];;
 
 Iarray.append [:M.B:] [:A for _ = 1 to 3:];;

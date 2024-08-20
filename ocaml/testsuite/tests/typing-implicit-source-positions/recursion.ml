@@ -44,6 +44,6 @@ let rec g ~(call_pos:[%call_pos]) i =
 Line 3, characters 19-20:
 3 |   else g ~call_pos:y (i - 1)
                        ^
-Error: This expression has type "t" but an expression was expected of type
-         "lexing_position"
+Error: This expression has type t but an expression was expected of type
+         lexing_position
 |}]

@@ -34,7 +34,7 @@ Error: Signature mismatch:
          end
        is not included in
          S
-       In module "B":
+       In module B:
        Modules do not match:
          sig
            type a = B.a
@@ -68,7 +68,7 @@ Lines 1-7, characters 15-3:
 7 | end
 Error: Signature mismatch:
        ...
-       In module "B":
+       In module B:
        Modules do not match:
          sig
            type a = B.a
@@ -135,7 +135,7 @@ Error: Signature mismatch:
            end
        does not match
          module type B = sig module C = A end
-       At position "module type B = <here>"
+       At position module type B = <here>
        Module types do not match:
          sig
            module C :
@@ -143,7 +143,7 @@ Error: Signature mismatch:
          end
        is not equal to
          sig module C = A end
-       At position "module type B = sig module C : <here> end"
+       At position module type B = sig module C : <here> end
        Modules do not match:
          sig
            type a = C.a
@@ -183,7 +183,7 @@ Error: Signature mismatch:
        ...
        ...
        ...
-       At position "module type B = sig module C : <here> end"
+       At position module type B = sig module C : <here> end
        Modules do not match:
          sig
            type a = C.a

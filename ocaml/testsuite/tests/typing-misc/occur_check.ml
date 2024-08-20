@@ -11,9 +11,9 @@ type 'a t = 'a
 Line 2, characters 42-43:
 2 | let f (g : 'a list -> 'a t -> 'a) s = g s s;;
                                               ^
-Error: This expression has type "'a list"
-       but an expression was expected of type "'a t" = "'a"
-       The type variable "'a" occurs inside "'a list"
+Error: This expression has type 'a list
+       but an expression was expected of type 'a t = 'a
+       The type variable 'a occurs inside 'a list
 |}];;
 
 let f (g : 'a * 'b -> 'a t -> 'a) s = g s s;;
@@ -21,9 +21,9 @@ let f (g : 'a * 'b -> 'a t -> 'a) s = g s s;;
 Line 1, characters 42-43:
 1 | let f (g : 'a * 'b -> 'a t -> 'a) s = g s s;;
                                               ^
-Error: This expression has type "'a * 'b"
-       but an expression was expected of type "'a t" = "'a"
-       The type variable "'a" occurs inside "'a * 'b"
+Error: This expression has type 'a * 'b
+       but an expression was expected of type 'a t = 'a
+       The type variable 'a occurs inside 'a * 'b
 |}];;
 
 (* #12971 *)
@@ -65,14 +65,14 @@ type 'a t = T of 'a
 Line 4, characters 2-22:
 4 |   Seq.cons Seq.empty x
       ^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "'a Seq.t Seq.t" = "unit -> 'a Seq.t Seq.node"
+Error: This expression has type 'a Seq.t Seq.t = unit -> 'a Seq.t Seq.node
        but an expression was expected of type
-         "(unit -> 'a Seq.t Seq.node) Seq.t" =
-           "unit -> (unit -> 'a Seq.t Seq.node) Seq.node"
-       Type "'a Seq.t" = "unit -> 'a Seq.node" is not compatible with type
-         "unit -> 'a Seq.t Seq.node"
-       Type "'a" is not compatible with type "'a Seq.t" = "unit -> 'a Seq.node"
-       The type variable "'a" occurs inside "'a Seq.t"
+         (unit -> 'a Seq.t Seq.node) Seq.t =
+           unit -> (unit -> 'a Seq.t Seq.node) Seq.node
+       Type 'a Seq.t = unit -> 'a Seq.node is not compatible with type
+         unit -> 'a Seq.t Seq.node
+       Type 'a is not compatible with type 'a Seq.t = unit -> 'a Seq.node
+       The type variable 'a occurs inside 'a Seq.t
 |}];;
 
 let strange x = Seq.[cons x empty; cons empty x];;
@@ -80,23 +80,23 @@ let strange x = Seq.[cons x empty; cons empty x];;
 Line 1, characters 35-47:
 1 | let strange x = Seq.[cons x empty; cons empty x];;
                                        ^^^^^^^^^^^^
-Error: This expression has type "'a Seq.t Seq.t" = "unit -> 'a Seq.t Seq.node"
+Error: This expression has type 'a Seq.t Seq.t = unit -> 'a Seq.t Seq.node
        but an expression was expected of type
-         "unit -> (unit -> 'a Seq.t Seq.node) Seq.node"
-       Type "'a Seq.t" = "unit -> 'a Seq.node" is not compatible with type
-         "unit -> 'a Seq.t Seq.node"
-       Type "'a" is not compatible with type "'a Seq.t" = "unit -> 'a Seq.node"
-       The type variable "'a" occurs inside "'a Seq.t"
+         unit -> (unit -> 'a Seq.t Seq.node) Seq.node
+       Type 'a Seq.t = unit -> 'a Seq.node is not compatible with type
+         unit -> 'a Seq.t Seq.node
+       Type 'a is not compatible with type 'a Seq.t = unit -> 'a Seq.node
+       The type variable 'a occurs inside 'a Seq.t
 |}, Principal{|
 Line 1, characters 35-47:
 1 | let strange x = Seq.[cons x empty; cons empty x];;
                                        ^^^^^^^^^^^^
-Error: This expression has type "'a Seq.t Seq.t" = "unit -> 'a Seq.t Seq.node"
+Error: This expression has type 'a Seq.t Seq.t = unit -> 'a Seq.t Seq.node
        but an expression was expected of type
-         "(unit -> 'a Seq.t Seq.node) Seq.t" =
-           "unit -> (unit -> 'a Seq.t Seq.node) Seq.node"
-       Type "'a Seq.t" = "unit -> 'a Seq.node" is not compatible with type
-         "unit -> 'a Seq.t Seq.node"
-       Type "'a" is not compatible with type "'a Seq.t" = "unit -> 'a Seq.node"
-       The type variable "'a" occurs inside "'a Seq.t"
+         (unit -> 'a Seq.t Seq.node) Seq.t =
+           unit -> (unit -> 'a Seq.t Seq.node) Seq.node
+       Type 'a Seq.t = unit -> 'a Seq.node is not compatible with type
+         unit -> 'a Seq.t Seq.node
+       Type 'a is not compatible with type 'a Seq.t = unit -> 'a Seq.node
+       The type variable 'a occurs inside 'a Seq.t
 |}];;

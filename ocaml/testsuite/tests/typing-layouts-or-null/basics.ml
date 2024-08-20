@@ -24,9 +24,9 @@ let f (x : t_any_non_null) = x
 Line 1, characters 6-26:
 1 | let f (x : t_any_non_null) = x
           ^^^^^^^^^^^^^^^^^^^^
-Error: This pattern matches values of type "t_any_non_null"
+Error: This pattern matches values of type t_any_non_null
        but a pattern was expected which matches values of type
-         "('a : '_representable_layout_1)"
+         ('a : '_representable_layout_1)
        The layout of t_any_non_null is any
          because of the definition of t_any_non_null at line 2, characters 0-34.
        But the layout of t_any_non_null must be representable
@@ -54,7 +54,7 @@ end
 Line 2, characters 10-24:
 2 |   val x : t_any_non_null
               ^^^^^^^^^^^^^^
-Error: This type signature for "x" is not a value type.
+Error: This type signature for x is not a value type.
        The layout of type t_any_non_null is any
          because of the definition of t_any_non_null at line 2, characters 0-34.
        But the layout of type t_any_non_null must be a sublayout of value
@@ -78,8 +78,8 @@ end
 Line 2, characters 13-19:
 2 |   let g () = X.g ()
                  ^^^^^^
-Error: This expression has type "t_any_non_null"
-       but an expression was expected of type "('a : '_representable_layout_2)"
+Error: This expression has type t_any_non_null
+       but an expression was expected of type ('a : '_representable_layout_2)
        The layout of t_any_non_null is any
          because of the definition of t_any_non_null at line 2, characters 0-34.
        But the layout of t_any_non_null must be representable
@@ -161,7 +161,7 @@ type t = t_any id_any_non_null
 Line 1, characters 9-14:
 1 | type t = t_any id_any_non_null
              ^^^^^
-Error: This type "t_any" should be an instance of type "('a : any_non_null)"
+Error: This type t_any should be an instance of type ('a : any_non_null)
        The kind of t_any is any
          because of the definition of t_any at line 1, characters 0-16.
        But the kind of t_any must be a subkind of any_non_null
@@ -211,7 +211,7 @@ type t = t_value_or_null id_value
 Line 1, characters 9-24:
 1 | type t = t_value_or_null id_value
              ^^^^^^^^^^^^^^^
-Error: This type "t_value_or_null" should be an instance of type "('a : value)"
+Error: This type t_value_or_null should be an instance of type ('a : value)
        The kind of t_value_or_null is value_or_null
          because of the definition of t_value_or_null at line 3, characters 0-36.
        But the kind of t_value_or_null must be a subkind of value
@@ -258,8 +258,8 @@ type t = t_value_or_null id_any_non_null
 Line 1, characters 9-24:
 1 | type t = t_value_or_null id_any_non_null
              ^^^^^^^^^^^^^^^
-Error: This type "t_value_or_null" should be an instance of type
-         "('a : any_non_null)"
+Error: This type t_value_or_null should be an instance of type
+         ('a : any_non_null)
        The kind of t_value_or_null is value_or_null
          because of the definition of t_value_or_null at line 3, characters 0-36.
        But the kind of t_value_or_null must be a subkind of any_non_null
@@ -325,7 +325,7 @@ type t = t_any_non_null id_value
 Line 1, characters 9-23:
 1 | type t = t_any_non_null id_value
              ^^^^^^^^^^^^^^
-Error: This type "t_any_non_null" should be an instance of type "('a : value)"
+Error: This type t_any_non_null should be an instance of type ('a : value)
        The layout of t_any_non_null is any
          because of the definition of t_any_non_null at line 2, characters 0-34.
        But the layout of t_any_non_null must be a sublayout of value
@@ -358,8 +358,8 @@ type t = t_any_non_null id_value_or_null
 Line 1, characters 9-23:
 1 | type t = t_any_non_null id_value_or_null
              ^^^^^^^^^^^^^^
-Error: This type "t_any_non_null" should be an instance of type
-         "('a : value_or_null)"
+Error: This type t_any_non_null should be an instance of type
+         ('a : value_or_null)
        The layout of t_any_non_null is any
          because of the definition of t_any_non_null at line 2, characters 0-34.
        But the layout of t_any_non_null must be a sublayout of value
@@ -395,7 +395,7 @@ type t = t_any_non_null id_bits64
 Line 1, characters 9-23:
 1 | type t = t_any_non_null id_bits64
              ^^^^^^^^^^^^^^
-Error: This type "t_any_non_null" should be an instance of type "('a : bits64)"
+Error: This type t_any_non_null should be an instance of type ('a : bits64)
        The layout of t_any_non_null is any
          because of the definition of t_any_non_null at line 2, characters 0-34.
        But the layout of t_any_non_null must be a sublayout of bits64
@@ -443,7 +443,7 @@ type should_fail = t_value_or_null t1
 Line 1, characters 19-34:
 1 | type should_fail = t_value_or_null t1
                        ^^^^^^^^^^^^^^^
-Error: This type "t_value_or_null" should be an instance of type "('a : value)"
+Error: This type t_value_or_null should be an instance of type ('a : value)
        The kind of t_value_or_null is value_or_null
          because of the definition of t_value_or_null at line 3, characters 0-36.
        But the kind of t_value_or_null must be a subkind of value
@@ -456,7 +456,7 @@ type should_fail = t_any_non_null t1
 Line 1, characters 19-33:
 1 | type should_fail = t_any_non_null t1
                        ^^^^^^^^^^^^^^
-Error: This type "t_any_non_null" should be an instance of type "('a : value)"
+Error: This type t_any_non_null should be an instance of type ('a : value)
        The layout of t_any_non_null is any
          because of the definition of t_any_non_null at line 2, characters 0-34.
        But the layout of t_any_non_null must be a sublayout of value

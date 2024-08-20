@@ -1,8 +1,8 @@
 File "gadt_existential.ml", line 13, characters 61-62:
 13 | let f = function Dyn (type a) (w, x : a ty * a) -> ignore (f x)
                                                                   ^
-Error: This expression has type "a" but an expression was expected of type
-         "'a t" = "('a : void)"
+Error: This expression has type a but an expression was expected of type
+         'a t = ('a : void)
        The layout of a is value
          because it's an unannotated existential type variable.
        But the layout of a must be a sublayout of void

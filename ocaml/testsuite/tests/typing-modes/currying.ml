@@ -62,7 +62,7 @@ let ill_typed () = g 1 2 3 4 5
 Line 1, characters 19-30:
 1 | let ill_typed () = g 1 2 3 4 5
                        ^^^^^^^^^^^
-Error: The function "g" has type local_ 'a -> int -> (local_ 'b -> int -> int)
+Error: The function g has type local_ 'a -> int -> (local_ 'b -> int -> int)
        It is applied to too many arguments
 Line 1, characters 29-30:
 1 | let ill_typed () = g 1 2 3 4 5
@@ -275,7 +275,7 @@ let bug3 () =
 Line 3, characters 63-64:
 3 |     fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> print_string a
                                                                    ^
-Error: The value "a" is local, so cannot be used inside a closure that might escape.
+Error: The value a is local, so cannot be used inside a closure that might escape.
 |}]
 let overapp ~(local_ a) ~b = (); fun ~c ~d -> ()
 

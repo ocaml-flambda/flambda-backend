@@ -33,7 +33,7 @@ type t = int64# list;;
 Line 1, characters 9-15:
 1 | type t = int64# list;;
              ^^^^^^
-Error: This type "int64#" should be an instance of type "('a : value)"
+Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
@@ -45,7 +45,7 @@ let f (_ : int64# list) = ();;
 Line 1, characters 11-17:
 1 | let f (_ : int64# list) = ();;
                ^^^^^^
-Error: This type "int64#" should be an instance of type "('a : value)"
+Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
@@ -57,7 +57,7 @@ type t = C of int64# list;;
 Line 1, characters 14-20:
 1 | type t = C of int64# list;;
                   ^^^^^^
-Error: This type "int64#" should be an instance of type "('a : value)"
+Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
@@ -69,7 +69,7 @@ type t = C : int64# list -> t;;
 Line 1, characters 13-19:
 1 | type t = C : int64# list -> t;;
                  ^^^^^^
-Error: This type "int64#" should be an instance of type "('a : value)"
+Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
@@ -91,7 +91,7 @@ type t = int64#c;;
 Line 1, characters 9-15:
 1 | type t = int64#c;;
              ^^^^^^
-Error: This type "int64#" should be an instance of type "('a : value)"
+Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
@@ -103,7 +103,7 @@ let f (_ : int64#c) = ();;
 Line 1, characters 11-17:
 1 | let f (_ : int64#c) = ();;
                ^^^^^^
-Error: This type "int64#" should be an instance of type "('a : value)"
+Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
@@ -115,7 +115,7 @@ type t = C of int64#c;;
 Line 1, characters 14-20:
 1 | type t = C of int64#c;;
                   ^^^^^^
-Error: This type "int64#" should be an instance of type "('a : value)"
+Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
@@ -127,7 +127,7 @@ type t = C : int64#c -> t;;
 Line 1, characters 13-19:
 1 | type t = C : int64#c -> t;;
                  ^^^^^^
-Error: This type "int64#" should be an instance of type "('a : value)"
+Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
@@ -142,7 +142,7 @@ type t = int64# c;;
 Line 1, characters 9-15:
 1 | type t = int64# c;;
              ^^^^^^
-Error: This type "int64#" should be an instance of type "('a : value)"
+Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
@@ -154,7 +154,7 @@ let f (_ : int64# c) = ();;
 Line 1, characters 11-17:
 1 | let f (_ : int64# c) = ();;
                ^^^^^^
-Error: This type "int64#" should be an instance of type "('a : value)"
+Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
@@ -166,7 +166,7 @@ type t = C of int64# c;;
 Line 1, characters 14-20:
 1 | type t = C of int64# c;;
                   ^^^^^^
-Error: This type "int64#" should be an instance of type "('a : value)"
+Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
@@ -178,7 +178,7 @@ type t = C : int64# c -> t;;
 Line 1, characters 13-19:
 1 | type t = C : int64# c -> t;;
                  ^^^^^^
-Error: This type "int64#" should be an instance of type "('a : value)"
+Error: This type int64# should be an instance of type ('a : value)
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
@@ -198,7 +198,7 @@ Line 1, characters 0-17:
 1 | type t = int64 #c;;
     ^^^^^^^^^^^^^^^^^
 Error: A type variable is unbound in this type declaration.
-       In type "int64 #c as 'a" the variable "'a" is unbound
+       In type int64 #c as 'a the variable 'a is unbound
 |}];;
 type t = C of int64 #c;;
 [%%expect {|
@@ -206,7 +206,7 @@ Line 1, characters 0-22:
 1 | type t = C of int64 #c;;
     ^^^^^^^^^^^^^^^^^^^^^^
 Error: A type variable is unbound in this type declaration.
-       In case "C of (int64 #c as 'a)" the variable "'a" is unbound
+       In case C of (int64 #c as 'a) the variable 'a is unbound
 |}];;
 type 'a t = (int64 #c as 'a);;
 let f (_ : int64 #c) = ();;
@@ -233,7 +233,7 @@ Line 1, characters 0-18:
 1 | type t = int64 # c;;
     ^^^^^^^^^^^^^^^^^^
 Error: A type variable is unbound in this type declaration.
-       In type "int64 #c as 'a" the variable "'a" is unbound
+       In type int64 #c as 'a the variable 'a is unbound
 |}];;
 type t = C of int64 # c;;
 [%%expect {|
@@ -241,7 +241,7 @@ Line 1, characters 0-23:
 1 | type t = C of int64 # c;;
     ^^^^^^^^^^^^^^^^^^^^^^^
 Error: A type variable is unbound in this type declaration.
-       In case "C of (int64 #c as 'a)" the variable "'a" is unbound
+       In case C of (int64 #c as 'a) the variable 'a is unbound
 |}];;
 
 type 'a t = (int64 # c as 'a);;
@@ -263,7 +263,7 @@ type t = int int64#;;
 Line 1, characters 9-19:
 1 | type t = int int64#;;
              ^^^^^^^^^^
-Error: The type constructor "int64#" expects 0 argument(s),
+Error: The type constructor int64# expects 0 argument(s),
        but is here applied to 1 argument(s)
 |}];;
 
@@ -272,6 +272,6 @@ type t = (int, int) int64#;;
 Line 1, characters 9-26:
 1 | type t = (int, int) int64#;;
              ^^^^^^^^^^^^^^^^^
-Error: The type constructor "int64#" expects 0 argument(s),
+Error: The type constructor int64# expects 0 argument(s),
        but is here applied to 2 argument(s)
 |}];;

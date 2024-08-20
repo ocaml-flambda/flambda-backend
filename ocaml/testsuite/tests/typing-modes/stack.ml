@@ -213,7 +213,7 @@ class foo : 'a -> object  end
 Line 3, characters 23-26:
 3 | let f () = stack_ (new cla)
                            ^^^
-Error: Unbound class "cla"
+Error: Unbound class cla
 |}]
 
 class foo cla = object method bar = stack_ {< >} end

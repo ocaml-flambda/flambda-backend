@@ -73,8 +73,8 @@ let _ = k ~a:Lexing.dummy_pos ~a:0 ();;
 Line 1, characters 13-29:
 1 | let _ = k ~a:Lexing.dummy_pos ~a:0 ();;
                  ^^^^^^^^^^^^^^^^
-Error: This expression has type "Lexing.position" = "lexing_position"
-       but an expression was expected of type "int"
+Error: This expression has type Lexing.position = lexing_position
+       but an expression was expected of type int
 |}]
 
 let _ = k ~a:0 ~a:Lexing.dummy_pos ();;
@@ -90,8 +90,8 @@ Line 1, characters 57-103:
 1 | let m : a:[%call_pos] -> b:[%call_pos] -> unit -> unit = fun ~(b:[%call_pos]) ~(a:[%call_pos]) () -> ()
                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This function should have type
-         "a:[%call_pos] -> b:[%call_pos] -> unit -> unit"
-       but its first argument is "~(b:[%call_pos])" instead of "~(a:[%call_pos])"
+         a:[%call_pos] -> b:[%call_pos] -> unit -> unit
+       but its first argument is ~(b:[%call_pos]) instead of ~(a:[%call_pos])
 |}]
 
 (* Object system *)

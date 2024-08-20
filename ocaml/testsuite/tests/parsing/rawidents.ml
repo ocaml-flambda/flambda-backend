@@ -36,7 +36,7 @@ Error: Signature mismatch:
          type \#and = string
        is not included in
          type \#and = int
-       The type "string" is not equal to the type "int"
+       The type string is not equal to the type int
 |}]
 
 let x = (`\#let `\#and : [ `\#let of [ `\#and ] ])
@@ -61,7 +61,7 @@ type t = '\#let
 Line 1, characters 9-15:
 1 | type t = '\#let
              ^^^^^^
-Error: The type variable "'\#let" is unbound in this type declaration.
+Error: The type variable '\#let is unbound in this type declaration.
 |}]
 
 type \#mutable = { mutable \#mutable : \#mutable }
@@ -83,7 +83,7 @@ let x = (++);;
 Line 1, characters 8-12:
 1 | let x = (++);;
             ^^^^
-Error: Unbound value "(++)"
+Error: Unbound value (++)
 |}]
 
 let x = \#let;;
@@ -91,7 +91,7 @@ let x = \#let;;
 Line 1, characters 8-13:
 1 | let x = \#let;;
             ^^^^^
-Error: Unbound value "\#let"
+Error: Unbound value \#let
 |}]
 
 let f ~\#let ?\#and () = 1

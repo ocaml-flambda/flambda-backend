@@ -85,8 +85,8 @@ let foo = ("hello" @ local)
 Line 1, characters 11-18:
 1 | let foo = ("hello" @ local)
                ^^^^^^^
-Error: This expression has type "string" but an expression was expected of type
-         "'a list"
+Error: This expression has type string but an expression was expected of type
+         'a list
 |}]
 
 (* CR zqian: Support the following in the future. Currently skipped for

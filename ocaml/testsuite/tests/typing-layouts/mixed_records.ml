@@ -42,8 +42,8 @@ type t =
 Line 3, characters 4-14:
 3 |     b : float;
         ^^^^^^^^^^
-Error: Expected all flat fields after non-value field, "a",
-       but found boxed field, "b".
+Error: Expected all flat fields after non-value field, a,
+       but found boxed field, b.
 |}];;
 
 (* [float] appearing as a non-flat field in the value prefix. *)
@@ -69,8 +69,8 @@ type t =
 Line 4, characters 4-14:
 4 |     c : float;
         ^^^^^^^^^^
-Error: Expected all flat fields after non-value field, "b",
-       but found boxed field, "c".
+Error: Expected all flat fields after non-value field, b,
+       but found boxed field, c.
 |}];;
 
 (* String can't appear in the flat suffix *)
@@ -83,8 +83,8 @@ type t =
 Line 3, characters 4-15:
 3 |     b : string;
         ^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, "a",
-       but found boxed field, "b".
+Error: Expected all flat fields after non-value field, a,
+       but found boxed field, b.
 |}];;
 
 (* [f3] can be flat because all other fields are float/float#,
@@ -111,8 +111,8 @@ type t =
 Line 4, characters 4-16:
 4 |     f3 : string;
         ^^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, "f1",
-       but found boxed field, "f3".
+Error: Expected all flat fields after non-value field, f1,
+       but found boxed field, f3.
 |}];;
 
 (* The int [c] can appear in the flat suffix. *)

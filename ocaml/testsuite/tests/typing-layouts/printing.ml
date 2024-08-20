@@ -23,7 +23,7 @@ Error: Signature mismatch:
          val f : ('a : '_representable_layout_1). unit -> 'a -> unit
        is not included in
          val f : int -> bool -> char
-       The type "unit -> 'a -> unit" is not compatible with the type
-         "int -> bool -> char"
-       Type "unit" is not compatible with type "int"
+       The type unit -> 'a -> unit is not compatible with the type
+         int -> bool -> char
+       Type unit is not compatible with type int
 |}]

@@ -43,7 +43,7 @@ end
 Line 2, characters 2-40:
 2 |   val[@zero_alloc assume] f : int -> int
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: zero_alloc "assume" attributes are not supported in signatures
+Error: zero_alloc assume attributes are not supported in signatures
 |}]
 
 module type S_payloads_ignore = sig
@@ -53,7 +53,7 @@ end
 Line 2, characters 2-40:
 2 |   val[@zero_alloc ignore] f : int -> int
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: zero_alloc "ignore" attributes are not supported in signatures
+Error: zero_alloc ignore attributes are not supported in signatures
 |}]
 
 (******************************)
@@ -444,7 +444,7 @@ Line 2, characters 2-26:
       ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: In signatures, zero_alloc is only supported on function declarations.
        Found no arrows in this declaration's type.
-       Hint: You can write "[@zero_alloc arity n]" to specify the arity
+       Hint: You can write [@zero_alloc arity n] to specify the arity
        of an alias (for n > 0).
 |}]
 
@@ -458,7 +458,7 @@ Line 3, characters 2-24:
       ^^^^^^^^^^^^^^^^^^^^^^
 Error: In signatures, zero_alloc is only supported on function declarations.
        Found no arrows in this declaration's type.
-       Hint: You can write "[@zero_alloc arity n]" to specify the arity
+       Hint: You can write [@zero_alloc arity n] to specify the arity
        of an alias (for n > 0).
 |}]
 
@@ -473,7 +473,7 @@ Line 4, characters 2-24:
       ^^^^^^^^^^^^^^^^^^^^^^
 Error: In signatures, zero_alloc is only supported on function declarations.
        Found no arrows in this declaration's type.
-       Hint: You can write "[@zero_alloc arity n]" to specify the arity
+       Hint: You can write [@zero_alloc arity n] to specify the arity
        of an alias (for n > 0).
 |}]
 
@@ -487,7 +487,7 @@ Line 3, characters 2-32:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: In signatures, zero_alloc is only supported on function declarations.
        Found no arrows in this declaration's type.
-       Hint: You can write "[@zero_alloc arity n]" to specify the arity
+       Hint: You can write [@zero_alloc arity n] to specify the arity
        of an alias (for n > 0).
 |}]
 
@@ -567,7 +567,7 @@ Line 2, characters 2-33:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: In signatures, zero_alloc is only supported on function declarations.
        Found no arrows in this declaration's type.
-       Hint: You can write "[@zero_alloc arity n]" to specify the arity
+       Hint: You can write [@zero_alloc arity n] to specify the arity
        of an alias (for n > 0).
 |}]
 
@@ -1279,17 +1279,17 @@ Error: Signature mismatch:
          module type S_plain2 =
            sig module M2 : sig val f : int -> int [@@zero_alloc] end end
        The first module type is not included in the second
-       At position "module type S_plain2 = <here>"
+       At position module type S_plain2 = <here>
        Module types do not match:
          sig module M2 : sig val f : int -> int end end
        is not equal to
          sig module M2 : sig val f : int -> int [@@zero_alloc] end end
-       At position "module type S_plain2 = sig module M2 : <here> end"
+       At position module type S_plain2 = sig module M2 : <here> end
        Modules do not match:
          sig val f : int -> int end
        is not included in
          sig val f : int -> int [@@zero_alloc] end
-       At position "module type S_plain2 = sig module M2 : <here> end"
+       At position module type S_plain2 = sig module M2 : <here> end
        Values do not match:
          val f : int -> int
        is not included in

@@ -33,8 +33,8 @@ print_endline (ok ());;
 Line 1, characters 14-21:
 1 | print_endline (ok ());;
                   ^^^^^^^
-Error: This expression has type "'a -> 'b"
-       but an expression was expected of type "string"
+Error: This expression has type 'a -> 'b
+       but an expression was expected of type string
   Hint: This function application is partial,
   maybe some arguments are missing.
 |}];;
@@ -49,11 +49,11 @@ Line 2, characters 2-67:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The syntactic arity of the function doesn't match the type constraint:
        This function has 3 syntactic arguments, but its type is constrained to
-         "?opt:(a, int -> int) eq -> unit -> a".
+         ?opt:(a, int -> int) eq -> unit -> a.
         Hint: consider splitting the function definition into
-          "fun ... gadt_pat -> fun ..."
-          where "gadt_pat" is the pattern with the GADT constructor that
-          introduces the local type equation on "a".
+          fun ... gadt_pat -> fun ...
+          where gadt_pat is the pattern with the GADT constructor that
+          introduces the local type equation on a.
 |}];;
 
 (* Workaround 1: no GADT in default argument pattern *)
@@ -116,11 +116,11 @@ Line 2, characters 2-49:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The syntactic arity of the function doesn't match the type constraint:
        This function has 2 syntactic arguments, but its type is constrained to
-         "(a, int -> int) eq_or_not -> a".
+         (a, int -> int) eq_or_not -> a.
         Hint: consider splitting the function definition into
-          "fun ... gadt_pat -> fun ..."
-          where "gadt_pat" is the pattern with the GADT constructor that
-          introduces the local type equation on "a".
+          fun ... gadt_pat -> fun ...
+          where gadt_pat is the pattern with the GADT constructor that
+          introduces the local type equation on a.
 |}];;
 
 
@@ -142,11 +142,11 @@ Line 2, characters 2-26:
       ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The syntactic arity of the function doesn't match the type constraint:
        This function has 2 syntactic arguments, but its type is constrained to
-         "(a, int -> int) eq lazy_t -> a".
+         (a, int -> int) eq lazy_t -> a.
         Hint: consider splitting the function definition into
-          "fun ... gadt_pat -> fun ..."
-          where "gadt_pat" is the pattern with the GADT constructor that
-          introduces the local type equation on "a".
+          fun ... gadt_pat -> fun ...
+          where gadt_pat is the pattern with the GADT constructor that
+          introduces the local type equation on a.
 |}];;
 
 
@@ -161,9 +161,9 @@ Line 2, characters 2-15:
       ^^^^^^^^^^^^^
 Error: The syntactic arity of the function doesn't match the type constraint:
        This function has 2 syntactic arguments, but its type is constrained to
-         "(a, int -> int) eq -> a".
+         (a, int -> int) eq -> a.
         Hint: consider splitting the function definition into
-          "fun ... gadt_pat -> fun ..."
-          where "gadt_pat" is the pattern with the GADT constructor that
-          introduces the local type equation on "a".
+          fun ... gadt_pat -> fun ...
+          where gadt_pat is the pattern with the GADT constructor that
+          introduces the local type equation on a.
 |}];;

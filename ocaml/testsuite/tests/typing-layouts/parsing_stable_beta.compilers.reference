@@ -13,12 +13,12 @@ type t = float#
 Line 2, characters 9-13:
 2 | type t = int#;;
              ^^^^
-Error: Unbound type constructor "int#"
-Hint: Did you mean "int"?
+Error: Unbound type constructor int#
+Hint: Did you mean int?
 Line 2, characters 9-17:
 2 | type t = Float.t#;;
              ^^^^^^^^
-Error: Unbound type constructor "Float.t#"
+Error: Unbound type constructor Float.t#
 type ('a : any, 'b : any, 'c : any) t
 type ('a : float64) s1 = ('a, int, bool) t
 val f : ('a : any) 'b. ('a, 'b, bool) t -> int = <fun>

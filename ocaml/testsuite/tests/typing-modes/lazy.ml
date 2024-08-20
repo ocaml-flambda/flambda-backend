@@ -10,7 +10,7 @@ let u =
 Line 2, characters 24-36:
 2 |     let _x @ portable = lazy "hello" in
                             ^^^^^^^^^^^^
-Error: This value is "nonportable" but expected to be "portable".
+Error: This value is nonportable but expected to be portable.
 |}]
 
 (* lazy body is legacy *)

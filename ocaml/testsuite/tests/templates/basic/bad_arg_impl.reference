@@ -5,8 +5,8 @@ Error: The argument module bad_arg_impl.ml
          val append : unit -> unit -> [> `Banana ]
        is not included in
          val append : t -> t -> t
-       The type "unit -> unit -> [> `Banana ]" is not compatible with the type
-         "t -> t -> t"
-       Type "[> `Banana ]" is not compatible with type "t" = "unit"
+       The type unit -> unit -> [> `Banana ] is not compatible with the type
+         t -> t -> t
+       Type [> `Banana ] is not compatible with type t = unit
        File "monoid.mli", line 4, characters 0-24: Expected declaration
        File "bad_arg_impl.ml", line 4, characters 4-10: Actual declaration

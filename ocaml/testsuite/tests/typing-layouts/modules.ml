@@ -69,7 +69,7 @@ Line 1, characters 34-36:
 1 | module type S1f'' = S1f with type 'a t = 'a list;;
                                       ^^
 Error: The type constraints are not consistent.
-       Type "('a : value)" is not compatible with type "('b : float64)"
+       Type ('a : value) is not compatible with type ('b : float64)
        The layout of 'a is float64
          because of the definition of t at line 2, characters 2-23.
        But the layout of 'a must overlap with value
@@ -82,9 +82,9 @@ module type S1f'' = S1f with type s = t_float64;;
 Line 1, characters 29-47:
 1 | module type S1f'' = S1f with type s = t_float64;;
                                  ^^^^^^^^^^^^^^^^^^
-Error: The layout of type "t_float64" is float64
+Error: The layout of type t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
-       But the layout of type "t_float64" must be a sublayout of value
+       But the layout of type t_float64 must be a sublayout of value
          because of the definition of s at line 3, characters 2-8.
 |}]
 
@@ -124,7 +124,7 @@ Error: Signature mismatch:
          type 'a t = 'a list
        is not included in
          type ('a : immediate) t = 'a list
-       The type "('a : value)" is not equal to the type "('a0 : immediate)"
+       The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.
 |}]
 
@@ -146,7 +146,7 @@ Error: Signature mismatch:
        is not included in
          type ('a : immediate) t
        Their parameters differ:
-       The type "('a : value)" is not equal to the type "('a0 : immediate)"
+       The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.
 |}]
 
@@ -186,8 +186,8 @@ module type T2' = sig type ('a : immediate) t = 'a s2' end
 Line 5, characters 25-30:
 5 |   let f () : 'a X.t = `B "bad"
                              ^^^^^
-Error: This expression has type "string" but an expression was expected of type
-         "('a : immediate)"
+Error: This expression has type string but an expression was expected of type
+         ('a : immediate)
        The kind of string is immutable_data
          because it is the primitive type string.
        But the kind of string must be a subkind of immediate
@@ -265,9 +265,9 @@ end;;
 Line 2, characters 2-29:
 2 |   type t : immediate = Bar3.t
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "Bar3.t" is value
+Error: The kind of type Bar3.t is value
          because of the annotation on the declaration of the type t.
-       But the kind of type "Bar3.t" must be a subkind of immediate
+       But the kind of type Bar3.t must be a subkind of immediate
          because of the definition of t at line 2, characters 2-29.
 |}];;
 
@@ -302,7 +302,7 @@ end;;
 Line 2, characters 27-29:
 2 |   type 'a t = 'a Bar3f.t * 'a list
                                ^^
-Error: This type "('a : float64)" should be an instance of type "('b : value)"
+Error: This type ('a : float64) should be an instance of type ('b : value)
        The layout of 'a is float64
          because of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value
@@ -330,7 +330,7 @@ type t3f : float64
 Line 12, characters 11-18:
 12 |   type s = Foo3f.t t
                 ^^^^^^^
-Error: This type "Foo3f.t" should be an instance of type "('a : float64)"
+Error: This type Foo3f.t should be an instance of type ('a : float64)
        The layout of Foo3f.t is value
          because an abstract type has the value layout by default.
        But the layout of Foo3f.t must be a sublayout of float64
@@ -385,7 +385,7 @@ type ('a : float64) t4_float64
 Line 2, characters 12-16:
 2 | type t4f' = M4.s t4_float64;;
                 ^^^^
-Error: This type "M4.s" should be an instance of type "('a : float64)"
+Error: This type M4.s should be an instance of type ('a : float64)
        The layout of M4.s is value
          because of the definition of s at line 2, characters 2-21.
        But the layout of M4.s must be a sublayout of float64
@@ -415,7 +415,7 @@ type t4 = M4'.s t4_float64;;
 Line 1, characters 10-15:
 1 | type t4 = M4'.s t4_float64;;
               ^^^^^
-Error: This type "M4'.s" should be an instance of type "('a : float64)"
+Error: This type M4'.s should be an instance of type ('a : float64)
        The layout of M4'.s is value
          because of the definition of s at line 2, characters 2-45.
        But the layout of M4'.s must be a sublayout of float64
@@ -448,8 +448,8 @@ val x3 : int list = [42]
 Line 14, characters 17-23:
 14 | let x3' = M3_1.f "test";;
                       ^^^^^^
-Error: This expression has type "string" but an expression was expected of type
-         "('a : immediate)"
+Error: This expression has type string but an expression was expected of type
+         ('a : immediate)
        The kind of string is immutable_data
          because it is the primitive type string.
        But the kind of string must be a subkind of immediate
@@ -466,9 +466,9 @@ module type S3_2 = sig type t : immediate end
 Line 5, characters 30-46:
 5 | module type S3_2' = S3_2 with type t := string;;
                                   ^^^^^^^^^^^^^^^^
-Error: The kind of type "string" is immutable_data
+Error: The kind of type string is immutable_data
          because it is the primitive type string.
-       But the kind of type "string" must be a subkind of immediate
+       But the kind of type string must be a subkind of immediate
          because of the definition of t at line 2, characters 2-20.
 |}]
 
@@ -499,7 +499,7 @@ module type S6_1f = sig type t : float64 end
 Line 6, characters 10-42:
 6 |   val m : (module S6_1f with type t = int)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this "with" constraint, the new definition of "t"
+Error: In this with constraint, the new definition of t
        does not match its original definition in the constrained signature:
        Type declarations do not match:
          type t = int
@@ -523,7 +523,7 @@ module type S6_3 = sig type t end
 Line 6, characters 10-47:
 6 |   val m : (module S6_3 with type t = t_float64)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this "with" constraint, the new definition of "t"
+Error: In this with constraint, the new definition of t
        does not match its original definition in the constrained signature:
        Type declarations do not match:
          type t = t_float64
@@ -547,7 +547,7 @@ module type S6_5 = sig type t : immediate end
 Line 6, characters 10-44:
 6 |   val m : (module S6_5 with type t = string)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this "with" constraint, the new definition of "t"
+Error: In this with constraint, the new definition of t
        does not match its original definition in the constrained signature:
        Type declarations do not match:
          type t = string
@@ -567,7 +567,7 @@ end
 Line 3, characters 10-39:
 3 |   val m : (module S6_5 with type t = s)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this "with" constraint, the new definition of "t"
+Error: In this with constraint, the new definition of t
        does not match its original definition in the constrained signature:
        Type declarations do not match:
          type t = s
@@ -610,7 +610,7 @@ end
 Line 1, characters 28-33:
 1 | module type S = sig val x : t_any end
                                 ^^^^^
-Error: This type signature for "x" is not a value type.
+Error: This type signature for x is not a value type.
        The layout of type t_any is any
          because of the definition of t_any at line 5, characters 0-18.
        But the layout of type t_any must be a sublayout of value
@@ -636,7 +636,7 @@ Error: Cannot safely evaluate the definition of the following cycle
 Line 2, characters 2-34:
 2 |   val f : ('a : float64). 'a -> 'a
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  Module "M" defines a function whose first argument is not a value, "f" .
+  Module M defines a function whose first argument is not a value, f .
 |}]
 
 (*******************************)

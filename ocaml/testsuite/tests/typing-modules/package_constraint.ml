@@ -56,7 +56,7 @@ type m1 = (module S with type t = int)
 Line 6, characters 10-42:
 6 | type m2 = (module S with type t = t_value);;
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this "with" constraint, the new definition of "t"
+Error: In this with constraint, the new definition of t
        does not match its original definition in the constrained signature:
        Type declarations do not match:
          type t = t_value
@@ -79,8 +79,8 @@ module type S = sig type t = int end
 Line 5, characters 9-41:
 5 | type m = (module S with type t = t_value);;
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In the constrained signature, type "t" is defined to be "int".
-       Package "with" constraints may only be used on abstract types.
+Error: In the constrained signature, type t is defined to be int.
+       Package with constraints may only be used on abstract types.
 |}];;
 
 (* Even if your constraint would be satisfied. *)
@@ -95,8 +95,8 @@ module type S = sig type t = int end
 Line 5, characters 9-37:
 5 | type m = (module S with type t = int);;
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In the constrained signature, type "t" is defined to be "int".
-       Package "with" constraints may only be used on abstract types.
+Error: In the constrained signature, type t is defined to be int.
+       Package with constraints may only be used on abstract types.
 |}];;
 
 (* And even if the manifest is not obvious in the original definition. *)
@@ -115,8 +115,8 @@ module type S = sig module P = M end
 Line 9, characters 9-39:
 9 | type m = (module S with type P.t = int);;
              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In the constrained signature, type "P.t" is defined to be "M.t".
-       Package "with" constraints may only be used on abstract types.
+Error: In the constrained signature, type P.t is defined to be M.t.
+       Package with constraints may only be used on abstract types.
 |}];;
 
 (* If writing a package constraint in a mutually recursive group of type decls,
@@ -267,8 +267,8 @@ module type Test =
 Line 13, characters 12-54:
 13 | type fail = (module Private_row with type t = [ `A ] )
                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In the constrained signature, type "t" is defined to be "[< `A | `B ]".
-       Package "with" constraints may only be used on abstract types.
+Error: In the constrained signature, type t is defined to be [< `A | `B ].
+       Package with constraints may only be used on abstract types.
 |}]
 
 (* More row type examples to consider, if we ever start allowing package type
@@ -283,8 +283,8 @@ module type Private_row = sig type t = private [< `A ] end
 Line 5, characters 10-51:
 5 | type t1 = (module Private_row with type t = [ `A ])
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In the constrained signature, type "t" is defined to be "[< `A ]".
-       Package "with" constraints may only be used on abstract types.
+Error: In the constrained signature, type t is defined to be [< `A ].
+       Package with constraints may only be used on abstract types.
 |}]
 
 type t2 = (module Private_row with type t = [< `A ])
@@ -292,8 +292,8 @@ type t2 = (module Private_row with type t = [< `A ])
 Line 1, characters 10-52:
 1 | type t2 = (module Private_row with type t = [< `A ])
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In the constrained signature, type "t" is defined to be "[< `A ]".
-       Package "with" constraints may only be used on abstract types.
+Error: In the constrained signature, type t is defined to be [< `A ].
+       Package with constraints may only be used on abstract types.
 |}]
 
 type 'a t3 = (module Private_row with type t = [< `A ]) as 'a
@@ -301,8 +301,8 @@ type 'a t3 = (module Private_row with type t = [< `A ]) as 'a
 Line 1, characters 13-55:
 1 | type 'a t3 = (module Private_row with type t = [< `A ]) as 'a
                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In the constrained signature, type "t" is defined to be "[< `A ]".
-       Package "with" constraints may only be used on abstract types.
+Error: In the constrained signature, type t is defined to be [< `A ].
+       Package with constraints may only be used on abstract types.
 |}]
 
 type 'a t4 = (module Private_row with type t = [< `A ] as 'a)
@@ -310,8 +310,8 @@ type 'a t4 = (module Private_row with type t = [< `A ] as 'a)
 Line 1, characters 13-61:
 1 | type 'a t4 = (module Private_row with type t = [< `A ] as 'a)
                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In the constrained signature, type "t" is defined to be "[< `A ]".
-       Package "with" constraints may only be used on abstract types.
+Error: In the constrained signature, type t is defined to be [< `A ].
+       Package with constraints may only be used on abstract types.
 |}]
 
 (* In cases where the package constraint involves a type variable from the
@@ -332,7 +332,7 @@ type t1 = int t
 Line 8, characters 10-17:
 8 | type t2 = t_value t
               ^^^^^^^
-Error: This type "t_value" should be an instance of type "('a : immediate)"
+Error: This type t_value should be an instance of type ('a : immediate)
        The kind of t_value is value
          because of the definition of t_value at line 1, characters 0-12.
        But the kind of t_value must be a subkind of immediate

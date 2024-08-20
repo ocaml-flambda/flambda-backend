@@ -1,9 +1,9 @@
 File "test.ml", line 20, characters 21-46:
 20 |   let () = [%sorted "not_in_alphabetical_order"]
                           ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "[> `___aaabcdeehiillnnooprrtt ]"
+Error: This expression has type [> `___aaabcdeehiillnnooprrtt ]
        but an expression was expected of type
-         "[ `not_in_alphabetical_order ]"
+         [ `not_in_alphabetical_order ]
        The not_in_alphabetical_order string is not in alphabetical order.
        The second variant type does not allow tag(s)
-       "`___aaabcdeehiillnnooprrtt"
+       `___aaabcdeehiillnnooprrtt

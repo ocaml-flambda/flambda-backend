@@ -1,8 +1,8 @@
 File "main.ml", line 1, characters 8-11:
 1 | let _ = A.a = B.b
             ^^^
-Error: This expression has type "M.a" but an expression was expected of type
-         "('a : value)"
+Error: This expression has type M.a but an expression was expected of type
+         ('a : value)
        The layout of M.a is any
          because the .cmi file for M.a is missing.
        But the layout of M.a must be a sublayout of value

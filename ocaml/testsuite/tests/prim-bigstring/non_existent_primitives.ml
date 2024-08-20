@@ -39,5 +39,5 @@ external string_get_128_aligned : string -> int -> int8x16
 Lines 1-2, characters 0-26:
 1 | external string_get_128_aligned : string -> int -> int8x16
 2 |   = "%caml_string_geta128"
-Error: Unknown builtin primitive "%caml_string_geta128"
+Error: Unknown builtin primitive %caml_string_geta128
 |}]

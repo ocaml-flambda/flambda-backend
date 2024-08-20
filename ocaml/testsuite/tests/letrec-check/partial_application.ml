@@ -13,7 +13,7 @@ let rec x = f ~x;;
 Line 1, characters 12-16:
 1 | let rec x = f ~x;;
                 ^^^^
-Error: This kind of expression is not allowed as right-hand side of "let rec"
+Error: This kind of expression is not allowed as right-hand side of let rec
 |}];;
 
 (* Passing self after an omitted argument: allowed *)
@@ -28,7 +28,7 @@ let rec x = f ~x ~z:0;;
 Line 1, characters 12-21:
 1 | let rec x = f ~x ~z:0;;
                 ^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of "let rec"
+Error: This kind of expression is not allowed as right-hand side of let rec
 |}];;
 
 (* Calling self: allowed if the first argument is omitted *)
@@ -50,5 +50,5 @@ val g :
 Line 3, characters 2-37:
 3 |   g ~given:(f ~omitted_g:() ~given:0);;
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of "let rec"
+Error: This kind of expression is not allowed as right-hand side of let rec
 |}];;

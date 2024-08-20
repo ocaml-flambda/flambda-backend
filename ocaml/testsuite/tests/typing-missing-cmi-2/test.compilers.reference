@@ -1,8 +1,8 @@
 File "baz.ml", line 1, characters 8-18:
 1 | let x = Bar.foo ()
             ^^^^^^^^^^
-Error: This expression has type "'a Foo.t"
-       but an expression was expected of type "('b : '_representable_layout_1)"
+Error: This expression has type 'a Foo.t
+       but an expression was expected of type ('b : '_representable_layout_1)
        The layout of 'a Foo.t is any
          because the .cmi file for Foo.t is missing.
        But the layout of 'a Foo.t must be representable

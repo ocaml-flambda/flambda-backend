@@ -30,7 +30,7 @@ end
 Line 4, characters 13-21:
 4 |   module N : T with M
                  ^^^^^^^^
-Error: In this strengthened module type, the type of "M"
+Error: In this strengthened module type, the type of M
        does not match the underlying type
        Modules do not match: sig end is not included in T
 |}]
@@ -58,13 +58,13 @@ end
 Line 4, characters 13-39:
 4 |   module N : T with M with type t = int
                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this "with" constraint, the new definition of "t"
+Error: In this with constraint, the new definition of t
        does not match its original definition in the constrained signature:
        Type declarations do not match:
          type t = int
        is not included in
          type t = M.t
-       The type "int" is not equal to the type "M.t"
+       The type int is not equal to the type M.t
 |}]
 
 module Must_be_subtype = struct
@@ -75,13 +75,13 @@ end
 Line 3, characters 18-48:
 3 |   module type S = sig type t1 type t2 end with M
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this strengthened module type, the type of "M"
+Error: In this strengthened module type, the type of M
        does not match the underlying type
        Modules do not match:
          sig type t1 end
        is not included in
          sig type t1 type t2 end
-       The type "t2" is required but not provided
+       The type t2 is required but not provided
 |}]
 
 module Unaliasable = struct
@@ -251,13 +251,13 @@ Error: Signature mismatch:
          sig module N : sig module A : sig type t = X.A.t end end end
        is not included in
          sig module N : sig module A = X.A end end
-       In module "N":
+       In module N:
        Modules do not match:
          sig module A = N.A end
        is not included in
          sig module A = X.A end
-       In module "N.A":
-       Module "X.A" cannot be aliased
+       In module N.A:
+       Module X.A cannot be aliased
 |}]
 
 module Destructive_with3 = struct
@@ -282,8 +282,8 @@ Error: Signature mismatch:
          sig module N : (S with X) end
        is not included in
          sig module N : (S with X) end
-       In module "N":
-       Module "X" cannot be aliased
+       In module N:
+       Module X cannot be aliased
 |}]
 
 module Remove_aliases = struct

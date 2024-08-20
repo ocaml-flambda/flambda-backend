@@ -98,7 +98,7 @@ type nested = int or_null or_null
 Line 1, characters 14-25:
 1 | type nested = int or_null or_null
                   ^^^^^^^^^^^
-Error: This type "int or_null" should be an instance of type "('a : value)"
+Error: This type int or_null should be an instance of type ('a : value)
        The kind of int or_null is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of int or_null must be a subkind of value
@@ -111,8 +111,8 @@ let should_fail = This (This 5)
 Line 1, characters 23-31:
 1 | let should_fail = This (This 5)
                            ^^^^^^^^
-Error: This expression has type "'a t" = "'a or_null"
-       but an expression was expected of type "('b : value)"
+Error: This expression has type 'a t = 'a or_null
+       but an expression was expected of type ('b : value)
        The kind of 'a t is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of 'a t must be a subkind of value
@@ -125,8 +125,8 @@ let should_also_fail = This Null
 Line 1, characters 28-32:
 1 | let should_also_fail = This Null
                                 ^^^^
-Error: This expression has type "'a t" = "'a or_null"
-       but an expression was expected of type "('b : value)"
+Error: This expression has type 'a t = 'a or_null
+       but an expression was expected of type ('b : value)
        The kind of 'a t is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of 'a t must be a subkind of value
@@ -190,8 +190,8 @@ let should_fail = [| Null; This 5 |]
 Line 1, characters 21-25:
 1 | let should_fail = [| Null; This 5 |]
                          ^^^^
-Error: This expression has type "'a t" = "'a or_null"
-       but an expression was expected of type "('b : value)"
+Error: This expression has type 'a t = 'a or_null
+       but an expression was expected of type ('b : value)
        The kind of 'a t is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of 'a t must be a subkind of value
@@ -205,8 +205,8 @@ type should_fail = float or_null array
 Line 1, characters 19-32:
 1 | type should_fail = float or_null array
                        ^^^^^^^^^^^^^
-Error: This type "float or_null" should be an instance of type
-         "('a : any_non_null)"
+Error: This type float or_null should be an instance of type
+         ('a : any_non_null)
        The kind of float or_null is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of float or_null must be a subkind of any_non_null
@@ -221,8 +221,8 @@ let null_list = [ Null; This 5 ]
 Line 1, characters 18-22:
 1 | let null_list = [ Null; This 5 ]
                       ^^^^
-Error: This expression has type "'a t" = "'a or_null"
-       but an expression was expected of type "('b : value)"
+Error: This expression has type 'a t = 'a or_null
+       but an expression was expected of type ('b : value)
        The kind of 'a t is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of 'a t must be a subkind of value
@@ -235,7 +235,7 @@ type null_list = float or_null list
 Line 1, characters 17-30:
 1 | type null_list = float or_null list
                      ^^^^^^^^^^^^^
-Error: This type "float or_null" should be an instance of type "('a : value)"
+Error: This type float or_null should be an instance of type ('a : value)
        The kind of float or_null is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of float or_null must be a subkind of value
@@ -250,8 +250,8 @@ let should_fail = [: Null; This 5 :]
 Line 1, characters 21-25:
 1 | let should_fail = [: Null; This 5 :]
                          ^^^^
-Error: This expression has type "'a t" = "'a or_null"
-       but an expression was expected of type "('b : value)"
+Error: This expression has type 'a t = 'a or_null
+       but an expression was expected of type ('b : value)
        The kind of 'a t is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of 'a t must be a subkind of value
@@ -265,8 +265,8 @@ type should_fail = float or_null array
 Line 1, characters 19-32:
 1 | type should_fail = float or_null array
                        ^^^^^^^^^^^^^
-Error: This type "float or_null" should be an instance of type
-         "('a : any_non_null)"
+Error: This type float or_null should be an instance of type
+         ('a : any_non_null)
        The kind of float or_null is value_or_null
          because it is the primitive value_or_null type or_null.
        But the kind of float or_null must be a subkind of any_non_null
@@ -281,9 +281,9 @@ Line 1, characters 26-42:
 1 | type object_with_null = < x : int or_null; .. >
                               ^^^^^^^^^^^^^^^^
 Error: Object field types must have layout value.
-       The kind of "int or_null" is value_or_null
+       The kind of int or_null is value_or_null
          because it is the primitive value_or_null type or_null.
-       But the kind of "int or_null" must be a subkind of value
+       But the kind of int or_null must be a subkind of value
          because it's the type of an object field.
 |}]
 

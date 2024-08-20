@@ -21,8 +21,8 @@ Lines 6-9, characters 2-22:
 7 |     type t = M.t
 8 |   end : S
 9 |     with type t = M.t)
-Error: This expression has type "(module S with type t = M.t)"
-       but an expression was expected of type "(module S)"
+Error: This expression has type (module S with type t = M.t)
+       but an expression was expected of type (module S)
 |}];;
 
 let rec k =
@@ -46,9 +46,9 @@ Lines 2-6, characters 2-22:
 4 |     type t = K.t
 5 |   end : S
 6 |     with type t = K.t)
-Error: This expression has type "(module S with type t = A.t)"
-       but an expression was expected of type "'a"
-       The type constructor "A.t" would escape its scope
+Error: This expression has type (module S with type t = A.t)
+       but an expression was expected of type 'a
+       The type constructor A.t would escape its scope
 |}];;
 
 (* The locally abstract type lets us check the module's type
@@ -99,6 +99,6 @@ module type S = sig type t val x : t end
 Line 15, characters 8-10:
 15 |   unify ()
              ^^
-Error: This expression has type "unit" but an expression was expected of type
-         "M.t"
+Error: This expression has type unit but an expression was expected of type
+         M.t
 |}];;
