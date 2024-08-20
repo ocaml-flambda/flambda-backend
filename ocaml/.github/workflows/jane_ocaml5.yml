@@ -10,7 +10,7 @@ jobs:
         id: cache
         with:
           path: ${{ github.workspace }}/ocaml-414/_install
-          key: ocaml-414-dune-361-menhir-20210419--v1
+          key: ocaml-414-dune-361-menhir-20231231--v1
 
       - name: Checkout OCaml 4.14
         uses: actions/checkout@master
@@ -50,7 +50,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         with:
           repository: 'LexiFi/menhir'
-          ref: '20210419'
+          ref: '20231231'
           path: 'menhir'
 
       - name: Build menhir

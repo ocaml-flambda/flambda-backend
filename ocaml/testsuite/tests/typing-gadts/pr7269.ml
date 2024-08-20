@@ -80,5 +80,5 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 `Conj _
 
-Exception: Match_failure ("", 13, 21).
+Exception: Match_failure ("", 13, 25).
 |}];;

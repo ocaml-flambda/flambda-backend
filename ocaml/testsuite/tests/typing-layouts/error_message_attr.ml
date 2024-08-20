@@ -26,7 +26,7 @@ Line 1, characters 51-52:
 Error: This expression has type float# but an expression was expected of type
          ('a : value)
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because of the annotation on the wildcard _ at line 1, characters 20-31.
 |}]
@@ -45,7 +45,7 @@ Line 1, characters 53-54:
 Error: This expression has type float# but an expression was expected of type
          ('a : value)
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because of the annotation on the wildcard _ at line 1, characters 20-31.
 |}]
@@ -59,7 +59,7 @@ Line 1, characters 68-69:
 Error: This expression has type float# but an expression was expected of type
          ('a : value)
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because of the annotation on the wildcard _ at line 1, characters 20-31.
          Custom message
@@ -75,7 +75,7 @@ Line 3, characters 19-20:
 Error: This expression has type ('a : value)
        but an expression was expected of type Float_u.t = float#
        The layout of Float_u.t is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of Float_u.t must be a sublayout of value
          because of the annotation on the wildcard _ at line 2, characters 15-26.
          Custom message
@@ -232,8 +232,8 @@ Line 1, characters 22-23:
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
        custom message
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the annotation on the wildcard _ at line 1, characters 26-41.
 |}]

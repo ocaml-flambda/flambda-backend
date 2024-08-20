@@ -814,8 +814,8 @@ let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     | Duplicate_block { kind } -> simplify_duplicate_block ~kind
     | Opaque_identity { middle_end_only = _; kind } ->
       simplify_opaque_identity ~kind
-    | End_region -> simplify_end_region
-    | End_try_region -> simplify_end_try_region
+    | End_region { ghost = _ } -> simplify_end_region
+    | End_try_region { ghost = _ } -> simplify_end_try_region
     | Obj_dup -> simplify_obj_dup dbg
     | Get_header -> simplify_get_header ~original_prim
     | Atomic_load block_access_field_kind ->

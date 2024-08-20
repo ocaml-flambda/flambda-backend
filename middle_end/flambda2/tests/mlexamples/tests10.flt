@@ -1,5 +1,5 @@
 let $camlTests10__first_const11 = Block 0 () in
-let code rec size(8) f_0 (param : imm tagged) my_closure my_region my_depth -> k * k1
+let code rec size(8) f_0 (param : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1
                        : block =
   let next_depth = rec_info (succ my_depth) in
   let Pmakeblock =
@@ -21,7 +21,7 @@ let code rec size(8) f_0 deleted : imm tagged -> block in
 let $camlTests10__f_1 =
   closure f_0_1 @f
 and code rec size(8) newer_version_of(f_0) f_0_1 (param : imm tagged)
-                                             my_closure my_region my_depth -> k * k1
+                                             my_closure my_region my_ghost_region my_depth -> k * k1
                                              : block =
   let Pmakeblock =
     %Block 0

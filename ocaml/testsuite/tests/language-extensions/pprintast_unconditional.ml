@@ -37,6 +37,15 @@ module Example = struct
      end"
 
   let local_exp = parse expression "let x = foo (local_ x) in local_ y"
+  let stack_exp = parse expression
+    "let x = stack_ 42 in \
+     let y = stack_ (f x) in \
+     let z = foo (stack_ 42) in \
+     foo (stack_ (f x))"
+  let fun_with_modes_on_arg = parse expression
+    "let f (a @ local) ~(b @ local) ?(c @ local) \
+          ?(d @ local = 1) ~e:(e @ local) ?f:(f @ local = 2) \
+           () = () in f"
 
   let modal_kind_struct =
     parse module_expr "struct \
@@ -106,6 +115,7 @@ module Example = struct
                          ; pvb_attributes = []
                          ; pvb_loc = loc
                          ; pvb_constraint = None
+                         ; pvb_modes = []
                          }
   let payload          = PStr structure
   let class_signature  = { pcsig_self = core_type
@@ -128,7 +138,7 @@ module Example = struct
                               core_type
                             ))
 
-  let mode = Jane_syntax.Mode_expr.Const.mk "global" loc
+  let mode = { Location.txt = (Parsetree.Mode "global"); loc }
 end
 
 let print_test_header name =
@@ -181,6 +191,8 @@ end = struct
   let modality_val = test "modality_val" module_type Example.modality_val
 
   let local_exp = test "local_exp" expression Example.local_exp
+  let stack_exp = test "stack_exp" expression Example.stack_exp
+  let fun_with_modes_on_arg = test "fun_with_modes_on_arg" expression Example.fun_with_modes_on_arg
 
   let longident = test "longident" longident Example.longident
   let expression = test "expression" expression Example.expression

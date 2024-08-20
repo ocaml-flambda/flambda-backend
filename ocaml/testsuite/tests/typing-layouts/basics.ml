@@ -15,7 +15,7 @@ type t_float64 : float64;;
 type t_any   : any;;
 
 [%%expect{|
-type t_value : value
+type t_value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
@@ -264,7 +264,7 @@ Error: This expression has type ('a : value)
        but an expression was expected of type
          Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-55.
 |}]
@@ -299,7 +299,7 @@ Error: This expression has type ('a : value)
        but an expression was expected of type
          Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-50.
 |}]
@@ -318,7 +318,7 @@ Error: This expression has type ('a : value)
        but an expression was expected of type
          Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-70.
 |}]
@@ -337,7 +337,7 @@ Error: This expression has type ('a : value)
        but an expression was expected of type
          Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-65.
 |}]
@@ -504,8 +504,8 @@ Line 1, characters 19-25:
 1 | let string_id (x : string imm_id) = x;;
                        ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of imm_id at line 1, characters 0-33.
 |}];;
@@ -527,8 +527,8 @@ Line 1, characters 33-46:
                                      ^^^^^^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          'a imm_id = ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of id_for_imms at line 1, characters 16-35.
 |}]
@@ -543,8 +543,8 @@ Line 2, characters 9-15:
 2 | and s4 = string t4;;
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the annotation on 'a in the declaration of the type t4.
 |}];;
@@ -557,8 +557,8 @@ Line 1, characters 10-16:
 1 | type s4 = string t4
               ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -590,8 +590,8 @@ Line 3, characters 0-15:
 3 | and s5 = string;;
     ^^^^^^^^^^^^^^^
 Error:
-       The kind of s5 is value
-         because it is the primitive value type string.
+       The kind of s5 is immutable_data
+         because it is the primitive type string.
        But the kind of s5 must be a subkind of immediate
          because of the annotation on 'a in the declaration of the type t4.
 |}]
@@ -730,7 +730,7 @@ Error: This expression has type ('a : value)
        but an expression was expected of type
          Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -827,7 +827,7 @@ Line 6, characters 21-22:
 Error: This expression has type ('a : value)
        but an expression was expected of type float#
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -915,8 +915,8 @@ Error: Signature mismatch:
        is not included in
          val x : string
        The type ('a : immediate) is not compatible with the type string
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of x at line 8, characters 10-26.
 |}];;
@@ -956,8 +956,8 @@ Error: Signature mismatch:
          val x : string
        The type 'a t = ('a : immediate) is not compatible with the type
          string
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of x at line 8, characters 10-26.
 |}]
@@ -1142,7 +1142,7 @@ end
 Line 6, characters 24-26:
 6 |       val virtual baz : 'a t
                             ^^
-Error: This type ('a : float64) should be an instance of type ('a0 : value)
+Error: This type ('a : value) should be an instance of type ('b : float64)
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64
@@ -1161,7 +1161,7 @@ end;;
 Line 6, characters 26-28:
 6 |       method void_id (a : 'a t) : 'a t = a
                               ^^
-Error: This type ('a : float64) should be an instance of type ('a0 : value)
+Error: This type ('a : value) should be an instance of type ('b : float64)
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64
@@ -1181,7 +1181,7 @@ end;;
 Line 5, characters 4-6:
 5 |     'a t ->
         ^^
-Error: This type ('a : float64) should be an instance of type ('a0 : value)
+Error: This type ('a : value) should be an instance of type ('b : float64)
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64
@@ -1777,7 +1777,7 @@ let f #poly_var = "hello"
 Line 1, characters 44-46:
 1 | type ('a : float64) poly_var = [`A of int * 'a | `B]
                                                 ^^
-Error: This type ('a : value) should be an instance of type ('a0 : float64)
+Error: Tuple element types must have layout value.
        The layout of 'a is float64
          because of the annotation on 'a in the declaration of the type
                                       poly_var.
@@ -1884,7 +1884,7 @@ Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
 Error:
-       The kind of 'a -> 'b is value
+       The kind of 'a -> 'b is value mod unique uncontended
          because it's a function type.
        But the kind of 'a -> 'b must be a subkind of immediate
          because of the definition of t35 at line 1, characters 0-30.
@@ -2629,7 +2629,7 @@ end
 
 (* CR layouts v2.9: This message is rubbish. *)
 [%%expect{|
-module M2 : sig type t : value end
+module M2 : sig type t end
 Line 11, characters 6-10:
 11 |     | Refl -> 42
            ^^^^
@@ -2772,7 +2772,7 @@ end
 
 [%%expect{|
 type (!'a : any) inj
-module type S = sig type 'a value : value type 'a bits64 : bits64 end
+module type S = sig type 'a value type 'a bits64 : bits64 end
 type ('a : any) s = 'a
 module F :
   functor (X : S) ->
@@ -2802,4 +2802,22 @@ Line 5, characters 13-14:
                  ^
 Error: This match case could not be refuted.
        Here is an example of a value that would reach it: Refl
+|}]
+
+(********************************************************)
+(* Test 45: let rec pattern variables have layout value *)
+
+let three =
+  let rec x = #3.4 in
+  Stdlib_upstream_compatible.Float_u.to_int x
+[%%expect{|
+Line 2, characters 14-18:
+2 |   let rec x = #3.4 in
+                  ^^^^
+Error: This expression has type float# but an expression was expected of type
+         ('a : value)
+       The layout of float# is float64
+         because it is the primitive type float#.
+       But the layout of float# must be a sublayout of value
+         because it's the type of the recursive variable x.
 |}]

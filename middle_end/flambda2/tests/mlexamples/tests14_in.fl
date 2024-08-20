@@ -1,12 +1,12 @@
 let $camlTests14__first_const55 = Block 0 () in
 let code size(5)
-      set_0 (t) my_closure my_region my_depth -> k * k1 : imm tagged =
+      set_0 (t) my_closure my_region my_ghost_region my_depth -> k * k1 : imm tagged =
   let Psetfield = %block_set imm t.(0) <- 42 in
   cont k (Psetfield)
 in
 let code size(6)
       nth_char_1 (s, n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %string_load 8 (s, n) in
@@ -15,7 +15,7 @@ let code size(6)
 in
 let code size(30)
       needs_try_region_2 (param : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   (let try_region = %begin_try_region in
@@ -40,7 +40,7 @@ let code size(30)
 in
 let code size(26)
       gadt_match_3 (x : [ 0 |1 | 0 of imm tagged ], n)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1 =
   (let prim = %is_int x in
    let is_scrutinee_int = %Tag_imm prim in

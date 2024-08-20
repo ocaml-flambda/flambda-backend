@@ -136,6 +136,7 @@ let classify env loc ty sort : classification =
       else if Path.same p Predef.path_string
            || Path.same p Predef.path_bytes
            || Path.same p Predef.path_array
+           || Path.same p Predef.path_iarray
            || Path.same p Predef.path_nativeint
            || Path.same p Predef.path_float32
            || Path.same p Predef.path_int32
@@ -237,15 +238,17 @@ let bigarray_type_kind_and_layout env typ =
 
 let value_kind_of_value_jkind jkind =
   let const_jkind = Jkind.default_to_value_and_get jkind in
+  let layout = Jkind.Const.get_layout const_jkind in
   let externality_upper_bound =
     Jkind.Const.get_externality_upper_bound const_jkind
   in
-  (* CR: assert the sort is a value *)
-  match externality_upper_bound with
-  | External -> Pintval
-  | External64 ->
+  match layout, externality_upper_bound with
+  | Sort Value, External -> Pintval
+  | Sort Value, External64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
-  | Internal -> Pgenval
+  | Sort Value, Internal -> Pgenval
+  | (Any | Sort (Void | Float64 | Float32 | Word | Bits32 | Bits64)) , _ ->
+    Misc.fatal_error "expected a layout of value"
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
    current set of sort restrictions, there are two reasons this invariant may
@@ -347,13 +350,13 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
 
        This should be understood, but for now the simple fall back thing is
        sufficient.  *)
-    match Ctype.check_type_jkind env scty (Jkind.Primitive.value_or_null ~why:V1_safety_check)
+    match Ctype.check_type_jkind env scty (Jkind.Builtin.value_or_null ~why:V1_safety_check)
     with
     | Ok _ -> ()
     | Error _ ->
       match
         Ctype.(check_type_jkind env
-                 (correct_levels ty) (Jkind.Primitive.value_or_null ~why:V1_safety_check))
+                 (correct_levels ty) (Jkind.Builtin.value_or_null ~why:V1_safety_check))
       with
       | Ok _ -> ()
       | Error violation ->

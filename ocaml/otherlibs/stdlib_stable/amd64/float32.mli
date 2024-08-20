@@ -199,14 +199,14 @@ external to_int64 : (t[@local_opt]) -> int64
 external of_bits : (int32[@local_opt]) -> t
   = "caml_float32_of_bits_bytecode" "caml_float32_of_bits"
   [@@unboxed] [@@noalloc] [@@builtin]
-(** Convert a 32-bit float to a 32-bit integer, preserving the value's
+(** Convert a 32-bit integer to a 32-bit float, preserving the value's
     bit pattern.
     The amd64 flambda-backend compiler translates this call to MOVD. *)
 
 external to_bits : (t[@local_opt]) -> int32
   = "caml_float32_to_bits_bytecode" "caml_float32_to_bits"
   [@@unboxed] [@@noalloc] [@@builtin]
-(** Convert a 32-bit integer to a 32-bit float, preserving the value's
+(** Convert a 32-bit float to a 32-bit integer, preserving the value's
     bit pattern.
     The amd64 flambda-backend compiler translates this call to MOVD. *)
 
@@ -494,20 +494,21 @@ val min_max_num : t -> t -> t * t
    efficient.  Note that in particular [min_max_num x nan = (x, x)]
    and [min_max_num nan y = (y, y)]. *)
 
-external iround_half_to_even : t -> int64
+external iround_current : t -> int64
   = "caml_sse_cast_float32_int64_bytecode" "caml_sse_cast_float32_int64"
   [@@noalloc] [@@unboxed] [@@builtin]
 (** Rounds a [float32] to an [int64] using the current rounding mode. The default
-    rounding mode is "round half to even", and we expect that no program will
-    change the rounding mode.
+    rounding mode on amd64 is "round half to even", and we expect that no
+    program will change the mode. The default mode may differ on other platforms.
     If the argument is NaN or infinite or if the rounded value cannot be
     represented, then the result is unspecified.
     The amd64 flambda-backend compiler translates this call to CVTSS2SI. *)
 
-val round_half_to_even : t -> t
-(** Rounds a [float32] to an integer [float32] using the current rounding
-    mode.  The default rounding mode is "round half to even", and we
-    expect that no program will change the rounding mode.
+val round_current : t -> t
+(** Rounds a [float32] to an integer [float32] using the current rounding mode.
+    The default rounding mode on amd64 is "round half to even", and we
+    expect that no program will change the mode. The default mode may differ
+    on other platforms.
     The amd64 flambda-backend compiler translates this call to ROUNDSS. *)
 
 val round_down : t -> t

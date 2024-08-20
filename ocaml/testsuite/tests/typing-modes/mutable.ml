@@ -5,19 +5,19 @@
 
 (* This file tests the typing around mutable() logic. *)
 
-(* By default, mutable implies [global many shared] modalities *)
+(* By default, mutable implies all legacy modalities *)
 type r = {mutable s : string}
-let foo (local_ s) = local_ {s}
+let foo (local_ s) = exclave_ {s}
 [%%expect{|
 type r = { mutable s : string; }
-Line 2, characters 29-30:
-2 | let foo (local_ s) = local_ {s}
-                                 ^
+Line 2, characters 31-32:
+2 | let foo (local_ s) = exclave_ {s}
+                                   ^
 Error: This value escapes its region.
 |}]
 
-(* [@no_mutable_implied_modalities] disables those implied modalities, and
-   allows us to test [mutable] alone *)
+(* [@no_mutable_implied_modalities] disables those implied modalities on the
+   comonadic axes, and allows us to test [mutable] alone *)
 
 (* Note the attribute is not printed back, which might be confusing.
    Considering this is a short-term workaround, let's not worry too much. *)
@@ -27,7 +27,7 @@ type 'a r = { mutable s : 'a; }
 |}]
 
 (* We can now construct a local record using a local field. *)
-let foo (local_ s) = local_ {s}
+let foo (local_ s) = exclave_ {s}
 [%%expect{|
 val foo : local_ 'a -> local_ 'a r = <fun>
 |}]
@@ -63,11 +63,11 @@ type r' = {mutable s' : string @@ global [@no_mutable_implied_modalities]}
 type r' = { mutable global_ s' : string; }
 |}]
 
-let foo (local_ s') = local_ {s'}
+let foo (local_ s') = exclave_ {s'}
 [%%expect{|
-Line 1, characters 30-32:
-1 | let foo (local_ s') = local_ {s'}
-                                  ^^
+Line 1, characters 32-34:
+1 | let foo (local_ s') = exclave_ {s'}
+                                    ^^
 Error: This value escapes its region.
 |}]
 
@@ -81,14 +81,26 @@ Line 1, characters 26-29:
 Error: This value is nonportable but expected to be portable.
 |}]
 
-(* For monadic axes, mutable defaults to mutable(min). So currently we can't
-   write a [contended] value to a mutable field. *)
-let foo (r @ uncontended) (s @ contended) = r.s <- s
+(* This attribute doesn't disable implied modalities on monadic axes. For
+   example, there is a [shared] modality on the [s] field, which allows the
+   following to type check. Otherwise, new values in mutation are required to be
+   [unique]. *)
+let foo r (s @ shared) = r.s <- s
 [%%expect{|
-Line 1, characters 51-52:
-1 | let foo (r @ uncontended) (s @ contended) = r.s <- s
-                                                       ^
-Error: This value is contended but expected to be uncontended.
+val foo : 'a r -> 'a -> unit = <fun>
+|}]
+
+let foo (s @ shared) = ({s} : _ @@ unique)
+[%%expect{|
+val foo : 'a -> 'a r = <fun>
+|}]
+
+let foo (r @ unique) = (r.s : _ @@ unique)
+[%%expect{|
+Line 1, characters 24-27:
+1 | let foo (r @ unique) = (r.s : _ @@ unique)
+                            ^^^
+Error: This value is shared but expected to be unique.
 |}]
 
 module M : sig
@@ -114,7 +126,7 @@ Error: Signature mismatch:
          mutable s : string;
        is not the same as:
          mutable s : string;
-       The second is empty and the first is shared.
+       The first is global_ and the second is not.
 |}]
 
 module M : sig

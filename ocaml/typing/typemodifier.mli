@@ -2,28 +2,27 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*             Xavier Leroy, projet Cristal, INRIA Rocquencourt           *)
+(*                  Liam Stevenson, Jane Street, New York                 *)
 (*                                                                        *)
-(*   Copyright 2000 Institut National de Recherche en Informatique et     *)
-(*     en Automatique.                                                    *)
+(*   Copyright 2024 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+type modifiers =
+  { modal_upper_bounds : Mode.Alloc.Const.Option.t;
+    externality_upper_bound : Jkind_types.Externality.t option;
+    nullability_upper_bound : Jkind_types.Nullability.t option
+  }
 
-(* The "open!" directive below is necessary because, although
-   this module does not actually depend on Schedgen in this backend, the
-   dependency exists in other backends and our build system requires
-   that all the backends have the same dependencies.
-   We thus have to use "open!" and disable the corresponding warning
-   only for this compilation unit.
-*)
+(** Interpret a list of modes *)
+val transl_mode_annots :
+  ?required_mode_maturity:Language_extension.maturity ->
+  Parsetree.modes ->
+  Mode.Alloc.Const.Option.t
 
-open! Schedgen [@@warning "-66"]
-
-(* Scheduling is turned off because the processor schedules dynamically
-   much better than what we could do. *)
-
-let fundecl f = f
+(** Interpret a list of modifiers.
+    A "modifier" is any keyword coming after a `mod` in a jkind *)
+val transl_modifier_annots : Parsetree.modes -> modifiers

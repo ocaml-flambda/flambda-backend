@@ -110,6 +110,7 @@ let builtin_attrs =
   ; "error_message"; "ocaml.error_message"
   ; "layout_poly"; "ocaml.layout_poly"
   ; "no_mutable_implied_modalities"; "ocaml.no_mutable_implied_modalities"
+  ; "or_null_reexport"; "ocaml.or_null_reexport"
   ]
 
 (* nroberts: When we upstream the builtin-attribute whitelisting, we shouldn't
@@ -647,6 +648,9 @@ let has_layout_poly attrs =
 let has_curry attrs =
   has_attribute
     [Jane_syntax.Arrow_curry.curry_attr_name; "ocaml.curry"; "curry"] attrs
+
+let has_or_null_reexport attrs =
+  has_attribute ["ocaml.or_null_reexport"; "or_null_reexport"] attrs
 
 let tailcall attr =
   let has_nontail = has_attribute ["ocaml.nontail"; "nontail"] attr in

@@ -15,7 +15,7 @@ type t_float64 : float64
 type t_any : any;;
 
 [%%expect{|
-type t_value : value
+type t_value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
@@ -64,16 +64,16 @@ type t_value_mod_external64 : value mod external64
 
 [%%expect{|
 type t_value_mod_global : value mod global
-type t_value_mod_local : value mod local
+type t_value_mod_local
 type t_value_mod_many : value mod many
-type t_value_mod_once : value mod once
+type t_value_mod_once
 type t_value_mod_unique : value mod unique
-type t_value_mod_shared : value mod shared
-type t_value_mod_internal : value mod internal
-type t_value_mod_contended : value mod contended
+type t_value_mod_shared
+type t_value_mod_internal
+type t_value_mod_contended
 type t_value_mod_uncontended : value mod uncontended
 type t_value_mod_portable : value mod portable
-type t_value_mod_nonportable : value mod nonportable
+type t_value_mod_nonportable
 type t_value_mod_external : value mod external_
 type t_value_mod_external64 : value mod external64
 |}]
@@ -81,24 +81,99 @@ type t_value_mod_external64 : value mod external64
 type t1 : float32 mod internal shared many local
 type t2 : bits64 mod once external64 unique
 type t3 : immediate mod local unique
-type t4 : value mod local local
-type t5 : float64 mod global global
-type t6 : bits32 mod local global
-type t7 : bits64 mod global local
-type t8 : value mod global local many once unique shared internal uncontended contended
-                    portable nonportable external64 external_
 
-[%%expect{|
+[%%expect {|
 type t1 : float32 mod internal shared many local
 type t2 : bits64 mod once external64 unique
 type t3 : immediate mod local unique
+|}]
+
 type t4 : value mod local local
+[%%expect {|
+Line 1, characters 26-31:
+1 | type t4 : value mod local local
+                              ^^^^^
+Error: The locality axis has already been specified.
+|}]
+
 type t5 : float64 mod global global
+[%%expect {|
+Line 1, characters 29-35:
+1 | type t5 : float64 mod global global
+                                 ^^^^^^
+Error: The locality axis has already been specified.
+|}]
+
 type t6 : bits32 mod local global
+[%%expect {|
+Line 1, characters 27-33:
+1 | type t6 : bits32 mod local global
+                               ^^^^^^
+Error: The locality axis has already been specified.
+|}]
+
 type t7 : bits64 mod global local
-type t8
-  : value mod global local many once unique shared internal uncontended
-              contended portable nonportable external64 external_
+[%%expect {|
+Line 1, characters 28-33:
+1 | type t7 : bits64 mod global local
+                                ^^^^^
+Error: The locality axis has already been specified.
+|}]
+
+type t8 : value mod local many unique uncontended nonportable external64 local
+[%%expect {|
+Line 1, characters 73-78:
+1 | type t8 : value mod local many unique uncontended nonportable external64 local
+                                                                             ^^^^^
+Error: The locality axis has already been specified.
+|}]
+
+type t9 : value mod once many
+[%%expect {|
+Line 1, characters 25-29:
+1 | type t9 : value mod once many
+                             ^^^^
+Error: The linearity axis has already been specified.
+|}]
+
+type t10 : value mod contended uncontended
+[%%expect {|
+Line 1, characters 31-42:
+1 | type t10 : value mod contended uncontended
+                                   ^^^^^^^^^^^
+Error: The contention axis has already been specified.
+|}]
+
+type t11 : value mod portable nonportable
+[%%expect {|
+Line 1, characters 30-41:
+1 | type t11 : value mod portable nonportable
+                                  ^^^^^^^^^^^
+Error: The portability axis has already been specified.
+|}]
+
+type t12 : value mod external64 external_
+[%%expect {|
+Line 1, characters 32-41:
+1 | type t12 : value mod external64 external_
+                                    ^^^^^^^^^
+Error: The externality axis has already been specified.
+|}]
+
+type t13 : value mod maybe_null non_null
+[%%expect {|
+Line 1, characters 32-40:
+1 | type t13 : value mod maybe_null non_null
+                                    ^^^^^^^^
+Error: The nullability axis has already been specified.
+|}]
+
+type t14 : value mod unique shared
+[%%expect {|
+Line 1, characters 28-34:
+1 | type t14 : value mod unique shared
+                                ^^^^^^
+Error: The uniqueness axis has already been specified.
 |}]
 
 (***************************************)
@@ -286,8 +361,8 @@ Line 1, characters 9-15:
 1 | type t = string t2_imm
              ^^^^^^
 Error: This type string should be an instance of type ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of t2_imm at line 1, characters 0-28.
 |}]
@@ -299,8 +374,8 @@ Line 1, characters 9-15:
 1 | type t = string t2_global
              ^^^^^^
 Error: This type string should be an instance of type ('a : value mod global)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of value mod global
          because of the definition of t2_global at line 8, characters 0-38.
 |}]
@@ -542,8 +617,8 @@ Line 1, characters 24-31:
                             ^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the definition of r at line 1, characters 0-47.
 |}]
@@ -556,8 +631,8 @@ Line 1, characters 26-33:
                               ^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : value mod global)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of value mod global
          because of the definition of rg at line 1, characters 0-56.
 |}]
@@ -571,7 +646,7 @@ Line 1, characters 26-33:
 Error: This expression has type string but an expression was expected of type
          ('a : word mod many external_)
        The layout of string is value
-         because it is the primitive value type string.
+         because it is the primitive type string.
        But the layout of string must be a sublayout of word
          because of the definition of rc at line 1, characters 0-70.
 |}]
@@ -966,8 +1041,8 @@ Line 1, characters 43-51:
                                                ^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : immediate)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of immediate
          because of the annotation on the universal variable 'a.
 |}]
@@ -980,8 +1055,8 @@ Line 1, characters 50-58:
                                                       ^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : value mod global)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of value mod global
          because of the annotation on the universal variable 'a.
 |}]
@@ -991,7 +1066,7 @@ Error: This expression has type string but an expression was expected of type
 
 type t_value : value
 [%%expect {|
-type t_value : value
+type t_value
 |}]
 
 type t = { x : int }

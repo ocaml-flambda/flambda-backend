@@ -177,6 +177,11 @@ type error =
   | Zero_alloc_attr_unsupported of Builtin_attributes.zero_alloc_attribute
   | Zero_alloc_attr_non_function
   | Zero_alloc_attr_bad_user_arity
+  | Invalid_reexport of
+      { definition: Path.t
+      ; expected: Path.t
+      }
+  | Non_abstract_reexport of Path.t
 
 exception Error of Location.t * error
 

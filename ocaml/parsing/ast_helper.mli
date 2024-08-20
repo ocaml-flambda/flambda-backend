@@ -70,8 +70,8 @@ module Typ :
 
     val any: ?loc:loc -> ?attrs:attrs -> unit -> core_type
     val var: ?loc:loc -> ?attrs:attrs -> string -> core_type
-    val arrow: ?loc:loc -> ?attrs:attrs -> arg_label -> core_type -> core_type
-               -> core_type
+    val arrow: ?loc:loc -> ?attrs:attrs -> arg_label -> core_type -> core_type ->
+      mode with_loc list -> mode with_loc list -> core_type
     val tuple: ?loc:loc -> ?attrs:attrs -> core_type list -> core_type
     val constr: ?loc:loc -> ?attrs:attrs -> lid -> core_type list -> core_type
     val object_: ?loc:loc -> ?attrs:attrs -> object_field list
@@ -117,7 +117,8 @@ module Pat:
                 -> pattern
     val array: ?loc:loc -> ?attrs:attrs -> pattern list -> pattern
     val or_: ?loc:loc -> ?attrs:attrs -> pattern -> pattern -> pattern
-    val constraint_: ?loc:loc -> ?attrs:attrs -> pattern -> core_type -> pattern
+    val constraint_: ?loc:loc -> ?attrs:attrs -> pattern -> core_type option
+                     -> mode with_loc list -> pattern
     val type_: ?loc:loc -> ?attrs:attrs -> lid -> pattern
     val lazy_: ?loc:loc -> ?attrs:attrs -> pattern -> pattern
     val unpack: ?loc:loc -> ?attrs:attrs -> str_opt -> pattern
@@ -136,20 +137,9 @@ module Exp:
     val constant: ?loc:loc -> ?attrs:attrs -> constant -> expression
     val let_: ?loc:loc -> ?attrs:attrs -> rec_flag -> value_binding list
               -> expression -> expression
-
-    (* We can delete these "prefer_jane_syntax" nudges once we merge
-       syntactic arity from upstream OCaml.
-    *)
-
-    val fun_: ?loc:loc -> ?attrs:attrs -> arg_label -> expression option
-              -> pattern -> expression -> expression
-    [@@alert
-      prefer_jane_syntax "Prefer Jane Syntax for constructing functions"]
-
-    val function_: ?loc:loc -> ?attrs:attrs -> case list -> expression
-    [@@alert
-      prefer_jane_syntax "Prefer Jane Syntax for constructing functions"]
-
+    val function_ : ?loc:loc -> ?attrs:attrs -> function_param list
+                   -> function_constraint option -> function_body
+                   -> expression
     val apply: ?loc:loc -> ?attrs:attrs -> expression
                -> (arg_label * expression) list -> expression
     val match_: ?loc:loc -> ?attrs:attrs -> expression -> case list
@@ -176,8 +166,8 @@ module Exp:
               -> direction_flag -> expression -> expression
     val coerce: ?loc:loc -> ?attrs:attrs -> expression -> core_type option
                 -> core_type -> expression
-    val constraint_: ?loc:loc -> ?attrs:attrs -> expression -> core_type
-                     -> expression
+    val constraint_: ?loc:loc -> ?attrs:attrs -> expression -> core_type option
+                     -> mode with_loc list -> expression
     val send: ?loc:loc -> ?attrs:attrs -> expression -> str -> expression
     val new_: ?loc:loc -> ?attrs:attrs -> lid -> expression
     val setinstvar: ?loc:loc -> ?attrs:attrs -> str -> expression -> expression
@@ -201,6 +191,7 @@ module Exp:
                -> binding_op list -> expression -> expression
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> expression
     val unreachable: ?loc:loc -> ?attrs:attrs -> unit -> expression
+    val stack : ?loc:loc -> ?attrs:attrs -> expression -> expression
 
     val case: pattern -> ?guard:expression -> expression -> case
     val binding_op: str -> pattern -> expression -> loc -> binding_op
@@ -386,8 +377,8 @@ module Incl:
 module Vb:
   sig
     val mk: ?loc: loc -> ?attrs:attrs -> ?docs:docs -> ?text:text ->
-      ?value_constraint:value_constraint -> pattern -> expression ->
-      value_binding
+      ?value_constraint:value_constraint -> ?modes:mode with_loc list -> pattern ->
+      expression -> value_binding
   end
 
 

@@ -527,8 +527,18 @@ let mk_dtimings_precision f =
       Clflags.default_timings_precision
 ;;
 
+let mk_dcounters f =
+  "-dcounters", Arg.Unit f, " Print counter information for each pass";
+;;
+
 let mk_dprofile f =
   "-dprofile", Arg.Unit f, Profile.options_doc
+
+let mk_dgranularity f =
+  "-dgranularity",
+  Arg.Symbol (["file"; "func"], f),
+  " Specify granularity level for profile information (-dtimings, -dcounters, -dprofile)";
+;;
 
 let mk_unbox_closures f =
   "-unbox-closures", Arg.Unit f,
@@ -676,6 +686,9 @@ let mk_dump_into_file f =
   "-dump-into-file", Arg.Unit f, " dump output like -dlambda into <target>.dump"
 ;;
 
+let mk_dump_into_csv f =
+  "-dump-into-csv", Arg.Unit f, " Dump profile information to profile.csv"
+
 let mk_extension f =
   let available_extensions =
     Language_extension.Exist.(List.concat_map to_command_line_strings all)
@@ -734,7 +747,8 @@ let mk_allow_illegal_crossing f =
 
 let mk_dump_dir f =
   "-dump-dir", Arg.String f,
-  "<dir> dump output like -dlambda into <dir>/<target>.dump"
+  "redirects any file(s) that would be outputted as a result of other flags\n\
+  \    to selected directory (adding stamp to ensure uniqueness in directory)"
 ;;
 
 let mk_dparsetree f =
@@ -1030,8 +1044,11 @@ module type Compiler_options = sig
   val _match_context_rows : int -> unit
   val _dtimings : unit -> unit
   val _dtimings_precision : int -> unit
+  val _dcounters : unit -> unit
   val _dprofile : unit -> unit
+  val _dgranularity : string -> unit
   val _dump_into_file : unit -> unit
+  val _dump_into_csv : unit -> unit
   val _dump_dir : string -> unit
 
   val _args: string -> string array
@@ -1303,8 +1320,11 @@ struct
     mk_dcamlprimc F._dcamlprimc;
     mk_dtimings F._dtimings;
     mk_dtimings_precision F._dtimings_precision;
+    mk_dcounters F._dcounters;
     mk_dprofile F._dprofile;
+    mk_dgranularity F._dgranularity;
     mk_dump_into_file F._dump_into_file;
+    mk_dump_into_csv F._dump_into_csv;
     mk_dump_dir F._dump_dir;
     mk_debug_ocaml F._debug_ocaml;
 
@@ -1569,8 +1589,11 @@ struct
     mk_dstartup F._dstartup;
     mk_dtimings F._dtimings;
     mk_dtimings_precision F._dtimings_precision;
+    mk_dcounters F._dcounters;
     mk_dprofile F._dprofile;
+    mk_dgranularity F._dgranularity;
     mk_dump_into_file F._dump_into_file;
+    mk_dump_into_csv F._dump_into_csv;
     mk_dump_dir F._dump_dir;
     mk_dump_pass F._dump_pass;
     mk_debug_ocaml F._debug_ocaml;
@@ -2012,7 +2035,10 @@ module Default = struct
     let _dprofile () = profile_columns := Profile.all_columns
     let _dtimings () = profile_columns := [`Time]
     let _dtimings_precision n = timings_precision := n
+    let _dcounters () = profile_columns := [`Counters]
+    let _dgranularity = Clflags.set_profile_granularity
     let _dump_into_file = set dump_into_file
+    let _dump_into_csv = set dump_into_csv
     let _dump_dir s = dump_dir := Some s
     let _for_pack s = for_package := (Some (String.capitalize_ascii s))
     let _g = set debug

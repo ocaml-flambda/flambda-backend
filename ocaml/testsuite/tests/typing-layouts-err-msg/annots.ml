@@ -32,7 +32,7 @@ type ('a : void) t = 'a value
 Line 1, characters 21-23:
 1 | type ('a : void) t = 'a value
                          ^^
-Error: This type ('a : value) should be an instance of type ('a0 : void)
+Error: This type ('a : void) should be an instance of type ('b : value)
        The layout of 'a is void
          because of the annotation on 'a in the declaration of the type t.
        But the layout of 'a must overlap with value

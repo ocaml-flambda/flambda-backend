@@ -1,16 +1,16 @@
 let $camlTests12__first_const61 = Block 0 () in
 let code size(1) `anon-fn[tests12.ml:15,52--67]_2` (param : imm tagged)
-                   my_closure my_region my_depth -> k * k1 =
+                   my_closure my_region my_ghost_region my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   cont k (0)
 in
-let code size(1) `anon-fn[tests12.ml:15,39--51]_3` (x) my_closure my_region my_depth
+let code size(1) `anon-fn[tests12.ml:15,39--51]_3` (x) my_closure my_region my_ghost_region my_depth
                    -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   cont k (x)
 in
 let code size(23) `anon-fn[tests12.ml:15,2--70]_1` (param : imm tagged)
-                    my_closure my_region my_depth -> k * k1 =
+                    my_closure my_region my_ghost_region my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let map_foo =
     %project_value_slot `anon-fn[tests12.ml:15,2--70]`.map_foo_0 my_closure
@@ -28,7 +28,7 @@ let code size(23) `anon-fn[tests12.ml:15,2--70]_1` (param : imm tagged)
     (`anon-fn[tests12.ml:15,39--51]`, `anon-fn[tests12.ml:15,52--67]`, 0)
     -> k * k1
 in
-let code inline(always) size(32) bar_0 (map_foo) my_closure my_region my_depth -> k
+let code inline(always) size(32) bar_0 (map_foo) my_closure my_region my_ghost_region my_depth -> k
                                    * k1 =
   let next_depth = rec_info (succ my_depth) in
   let `anon-fn[tests12.ml:15,2--70]` =
@@ -115,7 +115,7 @@ let $`camlTests12__anon-fn[tests12.ml:15,52--67]_6` =
     @`anon-fn[tests12.ml:15,52--67]`
 in
 let code size(1) newer_version_of(`anon-fn[tests12.ml:15,39--51]_3`) 
-  `anon-fn[tests12.ml:15,39--51]_3_1` (x) my_closure my_region my_depth -> k * k1 =
+  `anon-fn[tests12.ml:15,39--51]_3_1` (x) my_closure my_region my_ghost_region my_depth -> k * k1 =
   cont k (x)
 in
 let $`camlTests12__anon-fn[tests12.ml:15,39--51]_7` =
@@ -152,7 +152,7 @@ let $camlTests12__bar_5 = closure bar_0_1 @bar in
 let $camlTests12__map_foo_8 =
   closure map_foo_4_1 @map_foo
 and code size(4) newer_version_of(`anon-fn[tests12.ml:15,2--70]_1_1`) 
-  `anon-fn[tests12.ml:15,2--70]_1_2` (param : imm tagged) my_closure my_region my_depth
+  `anon-fn[tests12.ml:15,2--70]_1_2` (param : imm tagged) my_closure my_region my_ghost_region my_depth
     -> k * k1 =
   apply direct(map_foo_4_1 @map_foo) inline(never) inlining_state(depth(1))
     $camlTests12__map_foo_8
@@ -161,7 +161,7 @@ and code size(4) newer_version_of(`anon-fn[tests12.ml:15,2--70]_1_1`)
      0)
     -> k * k1
 and code size(4) newer_version_of(`anon-fn[tests12.ml:15,2--70]_1_1`) 
-  `anon-fn[tests12.ml:15,2--70]_1_3` (param : imm tagged) my_closure my_region my_depth
+  `anon-fn[tests12.ml:15,2--70]_1_3` (param : imm tagged) my_closure my_region my_ghost_region my_depth
     -> k * k1 =
   apply direct(map_foo_4_1 @map_foo) inline(never) inlining_state(depth(1))
     $camlTests12__map_foo_8
@@ -173,7 +173,7 @@ and code rec size(73) newer_version_of(map_foo_4) map_foo_4_1
                                                     (f,
                                                      seq,
                                                      param : imm tagged)
-                                                    my_closure my_region my_depth -> k
+                                                    my_closure my_region my_ghost_region my_depth -> k
                                                     * k1 =
   apply seq (0) -> k2 * k1
     where k2 (`*match*`) =

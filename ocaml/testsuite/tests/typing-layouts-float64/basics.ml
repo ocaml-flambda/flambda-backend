@@ -140,7 +140,7 @@ Line 1, characters 24-25:
 Error: This expression has type float# but an expression was expected of type
          ('a : value)
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -164,7 +164,7 @@ Line 1, characters 18-24:
                       ^^^^^^
 Error: Tuple element types must have layout value.
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -174,7 +174,7 @@ type ('a : float64) t4_6 = 'a * 'a
 Line 1, characters 27-29:
 1 | type ('a : float64) t4_6 = 'a * 'a
                                ^^
-Error: This type ('a : value) should be an instance of type ('a0 : float64)
+Error: Tuple element types must have layout value.
        The layout of 'a is float64
          because of the annotation on 'a in the declaration of the type t4_6.
        But the layout of 'a must overlap with value
@@ -184,15 +184,14 @@ Error: This type ('a : value) should be an instance of type ('a0 : float64)
 (* check for layout propagation *)
 type ('a : float64, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
 [%%expect{|
-Line 1, characters 32-34:
+Line 1, characters 46-48:
 1 | type ('a : float64, 'b) t4_7 = ('a as 'b) -> ('b * 'b);;
-                                    ^^
-Error: This type ('b : value) should be an instance of type ('a : float64)
+                                                  ^^
+Error: Tuple element types must have layout value.
        The layout of 'a is float64
          because of the annotation on 'a in the declaration of the type t4_7.
        But the layout of 'a must overlap with value
-         because it instantiates an unannotated type parameter of t4_7,
-         defaulted to layout value.
+         because it's the type of a tuple element.
 |}]
 
 (*****************************************)
@@ -334,7 +333,7 @@ Line 1, characters 31-37:
                                    ^^^^^^
 Error: This type signature for x is not a value type.
        The layout of type float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of type float# must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}];;
@@ -376,7 +375,7 @@ Line 1, characters 27-28:
 Error: This expression has type float# but an expression was expected of type
          ('a : value)
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -398,7 +397,7 @@ type ('a : float64) f7_5 = [ `A of 'a ];;
 Line 1, characters 35-37:
 1 | type ('a : float64) f7_5 = [ `A of 'a ];;
                                        ^^
-Error: This type ('a : value) should be an instance of type ('a0 : float64)
+Error: Polymorphic variant constructor argument types must have layout value.
        The layout of 'a is float64
          because of the annotation on 'a in the declaration of the type f7_5.
        But the layout of 'a must overlap with value
@@ -454,7 +453,7 @@ Line 1, characters 20-36:
 Error: This expression has type float# but an expression was expected of type
          ('a : value)
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because of the definition of id_value at line 5, characters 13-18.
 |}];;
@@ -633,10 +632,10 @@ Error: Object field types must have layout value.
 
 type ('a : float64) t12_2 = < x : 'a >;;
 [%%expect{|
-Line 1, characters 34-36:
+Line 1, characters 30-36:
 1 | type ('a : float64) t12_2 = < x : 'a >;;
-                                      ^^
-Error: This type ('a : value) should be an instance of type ('a0 : float64)
+                                  ^^^^^^
+Error: Object field types must have layout value.
        The layout of 'a is float64
          because of the annotation on 'a in the declaration of the type t12_2.
        But the layout of 'a must overlap with value
@@ -663,7 +662,7 @@ end;;
 Line 2, characters 13-15:
 2 |   method x : 'a t_float64_id -> 'a t_float64_id = assert false
                  ^^
-Error: This type ('a : float64) should be an instance of type ('a0 : value)
+Error: This type ('a : value) should be an instance of type ('b : float64)
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64
@@ -689,7 +688,7 @@ Line 1, characters 26-43:
                               ^^^^^^^^^^^^^^^^^
 Error: The method x has type float# but is expected to have type ('a : value)
        The layout of float# is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
          because it's the type of an object field.
 |}];;
@@ -701,7 +700,7 @@ Line 1, characters 26-40:
                               ^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
        The layout of x is float64
-         because it is the primitive float64 type float#.
+         because it is the primitive type float#.
        But the layout of x must be a sublayout of value
          because it's the type of an instance variable.
 |}];;
@@ -713,7 +712,7 @@ end
 Line 2, characters 10-12:
 2 |   val x : 'a t_float64_id -> 'a t_float64_id
               ^^
-Error: This type ('a : float64) should be an instance of type ('a0 : value)
+Error: This type ('a : value) should be an instance of type ('b : float64)
        The layout of 'a is value
          because it's a type argument to a class constructor.
        But the layout of 'a must overlap with float64

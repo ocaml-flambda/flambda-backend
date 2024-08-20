@@ -1,7 +1,7 @@
 let $camlTests0__first_const19 = Block 0 () in
 let code size(30)
       f_0 (param : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   (let prim = %is_int 0 in

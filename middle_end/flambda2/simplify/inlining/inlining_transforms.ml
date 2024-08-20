@@ -21,8 +21,9 @@ module FT = Flambda2_types.Function_type
 module VB = Bound_var
 
 let make_inlined_body ~callee ~called_code_id ~unroll_to ~params ~args
-    ~my_closure ~my_region ~my_depth ~rec_info ~body ~exn_continuation
-    ~return_continuation ~apply_exn_continuation ~apply_return_continuation =
+    ~my_closure ~my_region ~my_ghost_region ~my_depth ~rec_info ~body
+    ~exn_continuation ~return_continuation ~apply_exn_continuation
+    ~apply_return_continuation =
   let callee, rec_info =
     match callee with
     | None ->
@@ -69,9 +70,10 @@ let make_inlined_body ~callee ~called_code_id ~unroll_to ~params ~args
     |> Expr.create_let
   in
   Inlining_helpers.make_inlined_body ~callee ~called_code_id ~params ~args
-    ~my_closure ~my_region ~my_depth ~rec_info ~body ~exn_continuation
-    ~return_continuation ~apply_exn_continuation ~apply_return_continuation
-    ~bind_params ~bind_depth ~apply_renaming:Expr.apply_renaming
+    ~my_closure ~my_region ~my_ghost_region ~my_depth ~rec_info ~body
+    ~exn_continuation ~return_continuation ~apply_exn_continuation
+    ~apply_return_continuation ~bind_params ~bind_depth
+    ~apply_renaming:Expr.apply_renaming
 
 let wrap_inlined_body_for_exn_extra_args ~extra_args ~apply_exn_continuation
     ~apply_return_continuation ~result_arity ~make_inlined_body =
@@ -140,6 +142,7 @@ let inline dacc ~apply ~unroll_to ~was_inline_always function_decl =
            ~my_closure
            ~is_my_closure_used:_
            ~my_region
+           ~my_ghost_region
            ~my_depth
            ~free_names_of_body:_
          ->
@@ -147,8 +150,8 @@ let inline dacc ~apply ~unroll_to ~was_inline_always function_decl =
           make_inlined_body ~callee ~called_code_id:(Code.code_id code)
             ~region_inlined_into ~unroll_to
             ~params:(Bound_parameters.to_list params)
-            ~args ~my_closure ~my_region ~my_depth ~rec_info ~body
-            ~exn_continuation ~return_continuation
+            ~args ~my_closure ~my_region ~my_ghost_region ~my_depth ~rec_info
+            ~body ~exn_continuation ~return_continuation
         in
         let expr =
           match Exn_continuation.extra_args apply_exn_continuation with

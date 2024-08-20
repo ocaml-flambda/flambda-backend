@@ -421,6 +421,16 @@ module Stdlib = struct
         else if unsafe_get s (diff + i) <> unsafe_get suffix i then false
         else aux (i + 1)
       in diff >= 0 && aux 0
+
+    let is_substring string ~substring =
+      let len = String.length substring in
+      String.to_seq string
+      |> Seq.mapi (fun i _ -> i)
+      |> Seq.filter_map (fun i ->
+             if i + len < String.length string then
+               Some (String.sub string i len)
+             else None)
+      |> Seq.exists (fun sub -> String.equal substring sub)
   end
 
   module Int = struct

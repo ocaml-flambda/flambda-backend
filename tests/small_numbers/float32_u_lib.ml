@@ -242,9 +242,9 @@ let () =
     let u = F32.of_float32 f in
     bit_eq (F32.round_up u) (CF32.ceil f);
     bit_eq (F32.round_down u) (CF32.floor f);
-    bit_eq (F32.round_half_to_even u) (CF32.round_current f);
+    bit_eq (F32.round_current u) (CF32.round_current f);
     (* Returns int64, so can compare directly. *)
-    assert (box_int64 (F32.iround_half_to_even u) = (CF32.iround_current f));
+    assert (box_int64 (F32.iround_current u) = (CF32.iround_current f));
   )
 ;;
 
@@ -841,3 +841,30 @@ module Bigarray = struct
   end
 end
 
+module Noalloc = struct
+
+  let don't_allocate f : 'a =
+    (* NB: right-to-left evaluation order gets this right *)
+    let baseline_allocation = Gc.allocated_bytes() -. Gc.allocated_bytes() in
+    let before = Gc.allocated_bytes () in
+    let result = (f[@inlined never]) () in
+    let after = Gc.allocated_bytes () in
+    (match Sys.backend_type with
+    | Native ->  assert ((after -. before) = baseline_allocation)
+    | _ -> ());
+    result
+
+  let[@inline] of_int32_preserve_order x =
+    let open Stdlib_stable.Float32 in
+    if Stdlib.( >= ) x 0l then of_bits x else neg (of_bits (Stdlib.Int32.neg x))
+  ;;
+
+  let[@inline] of_int32_preserve_order i : float32# =
+    F32.of_float32 ((of_int32_preserve_order [@inlined hint]) i)
+  ;;
+
+  let _ =
+    don't_allocate (fun () -> of_int32_preserve_order (Sys.opaque_identity 0l))
+  ;;
+
+end

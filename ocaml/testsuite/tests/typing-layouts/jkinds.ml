@@ -96,14 +96,14 @@ Uncaught exception: Misc.Fatal_error
 type a : value
 type b : value = a
 [%%expect{|
-type a : value
+type a
 type b = a
 |}]
 
 type a : value
 type b : any = a
 [%%expect{|
-type a : value
+type a
 type b = a
 |}]
 
@@ -163,7 +163,7 @@ Error: The layout of type a is float32
 type a : value mod local
 type b : value mod local = a
 [%%expect{|
-type a : value mod local
+type a
 type b = a
 |}]
 
@@ -184,7 +184,7 @@ type b = a
 type a : value mod local
 type b : value mod global = a
 [%%expect{|
-type a : value mod local
+type a
 Line 2, characters 0-29:
 2 | type b : value mod global = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -255,9 +255,9 @@ type b : value mod local shared once contended nonportable internal = a
 type c : value mod local shared once contended nonportable internal
 type d : value = c
 [%%expect{|
-type a : value
+type a
 type b = a
-type c : value mod local shared once contended nonportable internal
+type c
 type d = c
 |}]
 
@@ -404,7 +404,7 @@ val f : nativeint# -> unit = <fun>
 
 type t_value : value
 [%%expect {|
-type t_value : value
+type t_value
 |}]
 
 type t : any mod global = t_value
@@ -482,8 +482,8 @@ Line 2, characters 25-33:
                              ^^^^^^^^
 Error: This expression has type string but an expression was expected of type
          ('a : value mod unique)
-       The kind of string is value
-         because it is the primitive value type string.
+       The kind of string is immutable_data
+         because it is the primitive type string.
        But the kind of string must be a subkind of value mod unique
          because of the definition of t at line 1, characters 0-54.
 |}]
@@ -558,7 +558,7 @@ end
 type t : immediate = A.t
 
 [%%expect {|
-module A : sig type t : value end
+module A : sig type t end
 Line 7, characters 0-24:
 7 | type t : immediate = A.t
     ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -787,8 +787,7 @@ Line 2, characters 0-77:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type t is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of
-         value mod many uncontended portable
+       But the kind of type t must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: This should be accepted *)
@@ -891,7 +890,7 @@ type ('a : immediate) t : immediate = { x : 'a; } [@@unboxed]
 
 type u : value
 [%%expect {|
-type u : value
+type u
 |}]
 
 type t : any mod global = { x : u } [@@unboxed]
@@ -976,7 +975,7 @@ Line 1, characters 0-70:
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type t is value
          because it's a boxed record type.
-       But the kind of type t must be a subkind of value mod many portable
+       But the kind of type t must be a subkind of mutable_data
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1126,13 +1125,13 @@ type t : value mod uncontended = Foo of int [@@unboxed]
 type t : value mod external_ = Foo of int [@@unboxed]
 |}]
 
-type t : any mod portable = Foo of string [@@unboxed]
+type t : any mod portable = Foo of t_value [@@unboxed]
 [%%expect {|
-Line 1, characters 0-53:
-1 | type t : any mod portable = Foo of string [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-54:
+1 | type t : any mod portable = Foo of t_value [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type t is value
-         because it is the primitive value type string.
+         because of the definition of t_value at line 1, characters 0-20.
        But the kind of type t must be a subkind of any mod portable
          because of the annotation on the declaration of the type t.
 |}]
@@ -1151,7 +1150,7 @@ Error: The kind of type t is value
          because it instantiates an unannotated type parameter of t,
          defaulted to kind value.
        But the kind of type t must be a subkind of
-         value mod global unique many uncontended portable
+         immutable_data mod global unique
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1166,7 +1165,7 @@ Error: The kind of type t is value
          because it instantiates an unannotated type parameter of t,
          defaulted to kind value.
        But the kind of type t must be a subkind of
-         value mod global unique many uncontended portable
+         immutable_data mod global unique
          because of the annotation on the declaration of the type t.
 |}]
 (* CR layouts v2.8: this should be accepted *)
@@ -1271,14 +1270,14 @@ type ('a : bits32 mod global unique) t = 'a
 
 type ('a : bits32) t = ('a : word)
 [%%expect {|
-Line 1, characters 23-34:
+Line 1, characters 29-33:
 1 | type ('a : bits32) t = ('a : word)
-                           ^^^^^^^^^^^
-Error: This type ('a : word) should be an instance of type ('a0 : bits32)
-       The layout of 'a is bits32
-         because of the annotation on 'a in the declaration of the type t.
-       But the layout of 'a must overlap with word
-         because of the annotation on the type variable 'a.
+                                 ^^^^
+Error: Bad layout annotation:
+         The layout of 'a is bits32
+           because of the annotation on 'a in the declaration of the type t.
+         But the layout of 'a must overlap with word
+           because of the annotation on the type variable 'a.
 |}]
 
 let f : ('a : any mod global unique) -> ('a: any mod uncontended) = fun x -> x

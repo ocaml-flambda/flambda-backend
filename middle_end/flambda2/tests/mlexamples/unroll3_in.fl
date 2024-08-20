@@ -1,7 +1,7 @@
 let $camlUnroll3__first_const32 = Block 0 () in
 let code rec size(22)
       even_0 (n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let next_depth = rec_info (succ my_depth) in
@@ -20,7 +20,7 @@ let code rec size(22)
           -> k * k1
 and code rec size(22)
       odd_1 (n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let next_depth = rec_info (succ my_depth) in

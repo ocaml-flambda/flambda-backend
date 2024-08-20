@@ -1,13 +1,13 @@
 let code apply_0 deleted in
 let code fact_1 deleted in
 let code inline(always) loopify(never) size(6) newer_version_of(apply_0)
-      apply_0_1 (f, i) my_closure my_region my_depth -> k * k1 =
+      apply_0_1 (f, i) my_closure my_region my_ghost_region my_depth -> k * k1 =
   apply inlined(hint) f (i) -> k * k1
 in
 let $camlInlined_rec__apply_2 = closure apply_0_1 @`apply` in
 let code rec loopify(never) size(42) newer_version_of(fact_1)
       fact_1_1 (n : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %phys_ne (n, 0) in

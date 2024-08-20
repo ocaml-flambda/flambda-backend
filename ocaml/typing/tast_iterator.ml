@@ -275,13 +275,13 @@ let pat
       sub.pat sub p2
 
 let extra sub = function
-  | Texp_constraint cty -> sub.typ sub cty
+  | Texp_constraint (cty, _modes) -> Option.iter (sub.typ sub) cty
   | Texp_coerce (cty1, cty2) ->
       Option.iter (sub.typ sub) cty1;
       sub.typ sub cty2
   | Texp_newtype _ -> ()
   | Texp_poly cto -> Option.iter (sub.typ sub) cto
-  | Texp_mode_coerce _ -> ()
+  | Texp_stack -> ()
 
 let function_param sub { fp_loc; fp_kind; fp_newtypes; _ } =
   sub.location sub fp_loc;
