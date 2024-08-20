@@ -331,12 +331,12 @@
      (run make -s OCAMLYACC_INCLUDE_PATH=%{ocaml_where}))
     (copy yacc/ocamlyacc ocamlyacc)))))
 
-;(install
-;  (files
-;    ocamlyacc
-;  )
-;  (section bin)
-;  (package ocaml))
+(install
+  (files
+    ocamlyacc
+  )
+  (section bin)
+  (package ocaml))
 
 (alias
  (name world)

@@ -16,6 +16,18 @@
 #ifndef YACC_DEFS_H
 #define YACC_DEFS_H
 
+/* CR mshinwell: When the build compiler is OCaml 5, remove this. */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202300L    \
+    || defined(__cplusplus) && __cplusplus >= 201103L
+  #define CAMLnoret [[noreturn]]
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+  #define CAMLnoret _Noreturn
+#elif defined(__GNUC__)
+  #define CAMLnoret  __attribute__ ((noreturn))
+#else
+  #define CAMLnoret
+#endif
+#pragma GCC diagnostic ignored "-Wstrict-prototypes"
 
 /* Based on public-domain code from Berkeley Yacc */
 
