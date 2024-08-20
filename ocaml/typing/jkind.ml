@@ -667,7 +667,7 @@ module Const = struct
     | Immediate -> Builtin.immediate.jkind
     | Immediate64 -> Builtin.immediate64.jkind
 
-  let rec of_user_written_annotation_unchecked_level
+  let rec of_user_written_annotation_unchecked_level ~transl_type
       (jkind : Jane_syntax.Jkind.t) : t =
     match jkind with
     | Abbreviation { txt = name; loc } -> (
@@ -691,7 +691,7 @@ module Const = struct
       | "bits64" -> Builtin.bits64.jkind
       | _ -> raise ~loc (Unknown_jkind jkind))
     | Mod (base, modifiers) ->
-      let base = of_user_written_annotation_unchecked_level base in
+      let base = of_user_written_annotation_unchecked_level ~transl_type base in
       (* for each mode, lower the corresponding modal bound to be that mode *)
       let parsed_modifiers = Typemode.transl_modifier_annots modifiers in
       let upper_bounds =
@@ -714,15 +714,13 @@ module Const = struct
           }
       in
       { layout = base.layout; upper_bounds }
-    | With (base, _type) ->
-      let base = of_user_written_annotation_unchecked_level base in
+    | With (base, type_) ->
+      let base = of_user_written_annotation_unchecked_level ~transl_type base in
       let upper_bounds =
         Bounds.map
           { f =
               (fun (type a) ~axis:_ (bound : a Bound.t) : a Bound.t ->
-                { bound with
-                  baggage = assert false (* transl type *) :: bound.baggage
-                })
+                { bound with baggage = transl_type type_ :: bound.baggage })
           }
           base.upper_bounds
       in
@@ -745,7 +743,11 @@ module Const = struct
     | Sort Void, _ | Sort Value, Maybe_null -> Alpha
 
   let of_user_written_annotation ~context Location.{ loc; txt = annot } =
-    let const = of_user_written_annotation_unchecked_level annot in
+    let const =
+      of_user_written_annotation_unchecked_level
+        ~transl_type:(fun _ -> failwith "XXX: with syntax unimplemented")
+        annot
+    in
     let required_layouts_level = get_required_layouts_level context const in
     if not (Language_extension.is_at_least Layouts required_layouts_level)
     then
