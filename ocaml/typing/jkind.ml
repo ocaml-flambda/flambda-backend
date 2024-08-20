@@ -830,16 +830,17 @@ module Jkind_desc = struct
 
   let max = of_const Const.max
 
-  let equate_or_equal ~allow_mutation { layout = lay1; upper_bounds = bounds1 }
+  let equate_or_equal ~allow_mutation ~type_equal
+      { layout = lay1; upper_bounds = bounds1 }
       { layout = lay2; upper_bounds = bounds2 } =
     let layout_equal = Layout.equate_or_equal ~allow_mutation lay1 lay2 in
     let is_bound_equal_on_axis (Axis.Pack (type a) (axis : a Axis.t)) =
       let (module A : Axis_s with type t = a) = Axis.get axis in
       let bound1 = Bounds.get ~axis bounds1 in
       let bound2 = Bounds.get ~axis bounds2 in
-      (* CR: TODO do something smarter than requiring baggage to be empty *)
-      Misc.Stdlib.List.is_empty bound1.baggage
-      && Misc.Stdlib.List.is_empty bound2.baggage
+      (* CR layouts v2.8: do something better than requiring the baggage types to be
+         exactly the same and in the same order *)
+      List.equal type_equal bound1.baggage bound2.baggage
       && A.equal bound1.modifier bound2.modifier
     in
     let bounds_equal = List.for_all is_bound_equal_on_axis Axis.all in
@@ -1628,10 +1629,10 @@ end
 (******************************)
 (* relations *)
 
-let equate_or_equal ~allow_mutation
+let equate_or_equal ~allow_mutation ~type_equal
     { jkind = jkind1; history = _; has_warned = _ }
     { jkind = jkind2; history = _; has_warned = _ } =
-  Jkind_desc.equate_or_equal ~allow_mutation jkind1 jkind2
+  Jkind_desc.equate_or_equal ~allow_mutation ~type_equal jkind1 jkind2
 
 (* CR layouts v2.8: Switch this back to ~allow_mutation:false *)
 let equal = equate_or_equal ~allow_mutation:true

@@ -226,7 +226,8 @@ and jkind = type_expr Jkind_types.t
    function. *)
 (** INTERNAL USE ONLY
     jkind.ml should call this with the definition of Jkind.equal *)
-val set_jkind_equal : (jkind -> jkind -> bool) -> unit
+val set_jkind_equal :
+  (type_equal:(type_expr -> type_expr -> bool) -> jkind -> jkind -> bool) -> unit
 
 val is_commu_ok: commutable -> bool
 val commu_ok: commutable

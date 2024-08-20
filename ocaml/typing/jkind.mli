@@ -411,14 +411,16 @@ val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
 (** This checks for equality, and sets any variables to make two jkinds
     equal, if possible. e.g. [equate] on a var and [value] will set the
     variable to be [value] *)
-val equate : t -> t -> bool
+val equate :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) -> t -> t -> bool
 
 (** This checks for equality, but has the invariant that it can only be called
     when there is no need for unification; e.g. [equal] on a var and [value]
     will crash.
 
     CR layouts (v1.5): At the moment, this is actually the same as [equate]! *)
-val equal : t -> t -> bool
+val equal :
+  type_equal:(Types.type_expr -> Types.type_expr -> bool) -> t -> t -> bool
 
 (** Checks whether two jkinds have a non-empty intersection. Might mutate
     sort variables. *)

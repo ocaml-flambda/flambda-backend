@@ -103,7 +103,7 @@ and jkind = type_expr Jkind_types.t
    here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
    function. *)
 (** Corresponds to [Jkind.equal] *)
-let jkind_equal = ref (fun _ _ ->
+let jkind_equal = ref (fun ~type_equal:_ _ _ ->
     failwith "jkind_equal should be set by jkind.ml")
 let set_jkind_equal f = jkind_equal := f
 
@@ -635,40 +635,6 @@ let equal_constructor_representation r1 r2 = r1 == r2 || match r1, r2 with
       equal_mixed_product_shape mx1 mx2
   | (Constructor_mixed _ | Constructor_uniform_value), _ -> false
 
-let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
-  | Variant_unboxed, Variant_unboxed ->
-      true
-  | Variant_boxed cstrs_and_jkinds1, Variant_boxed cstrs_and_jkinds2 ->
-      Misc.Stdlib.Array.equal (fun (cstr1, jkinds1) (cstr2, jkinds2) ->
-          equal_constructor_representation cstr1 cstr2
-          && Misc.Stdlib.Array.equal !jkind_equal jkinds1 jkinds2)
-        cstrs_and_jkinds1
-        cstrs_and_jkinds2
-  | Variant_extensible, Variant_extensible ->
-      true
-  | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
-      false
-
-let equal_record_representation r1 r2 = match r1, r2 with
-  | Record_unboxed, Record_unboxed ->
-      true
-  | Record_inlined (tag1, cr1, vr1), Record_inlined (tag2, cr2, vr2) ->
-      (* Equality of tag and variant representation imply equality of
-         constructor representation. *)
-      ignore (cr1 : constructor_representation);
-      ignore (cr2 : constructor_representation);
-      equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
-  | Record_boxed lays1, Record_boxed lays2 ->
-      Misc.Stdlib.Array.equal !jkind_equal lays1 lays2
-  | Record_float, Record_float ->
-      true
-  | Record_ufloat, Record_ufloat ->
-      true
-  | Record_mixed mx1, Record_mixed mx2 -> equal_mixed_product_shape mx1 mx2
-  | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float
-    | Record_ufloat | Record_mixed _), _ ->
-      false
-
 let may_equal_constr c1 c2 =
   c1.cstr_arity = c2.cstr_arity
   && (match c1.cstr_tag,c2.cstr_tag with
@@ -898,6 +864,40 @@ end
 
 let eq_type t1 t2 = t1 == t2 || repr t1 == repr t2
 let compare_type t1 t2 = compare (get_id t1) (get_id t2)
+
+let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
+  | Variant_unboxed, Variant_unboxed ->
+      true
+  | Variant_boxed cstrs_and_jkinds1, Variant_boxed cstrs_and_jkinds2 ->
+      Misc.Stdlib.Array.equal (fun (cstr1, jkinds1) (cstr2, jkinds2) ->
+          equal_constructor_representation cstr1 cstr2
+          && Misc.Stdlib.Array.equal (!jkind_equal ~type_equal:eq_type) jkinds1 jkinds2)
+        cstrs_and_jkinds1
+        cstrs_and_jkinds2
+  | Variant_extensible, Variant_extensible ->
+      true
+  | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
+      false
+
+let equal_record_representation r1 r2 = match r1, r2 with
+  | Record_unboxed, Record_unboxed ->
+      true
+  | Record_inlined (tag1, cr1, vr1), Record_inlined (tag2, cr2, vr2) ->
+      (* Equality of tag and variant representation imply equality of
+         constructor representation. *)
+      ignore (cr1 : constructor_representation);
+      ignore (cr2 : constructor_representation);
+      equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
+  | Record_boxed lays1, Record_boxed lays2 ->
+      Misc.Stdlib.Array.equal (!jkind_equal ~type_equal:eq_type) lays1 lays2
+  | Record_float, Record_float ->
+      true
+  | Record_ufloat, Record_ufloat ->
+      true
+  | Record_mixed mx1, Record_mixed mx2 -> equal_mixed_product_shape mx1 mx2
+  | (Record_unboxed | Record_inlined _ | Record_boxed _ | Record_float
+    | Record_ufloat | Record_mixed _), _ ->
+      false
 
 (* Constructor and accessors for [row_desc] *)
 

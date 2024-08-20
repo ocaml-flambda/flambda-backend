@@ -325,9 +325,10 @@ end = struct
       let cant_quantify reason =
         raise (Error (loc, env, Cannot_quantify(name, reason)))
       in
+      let type_equal ty1 ty2 = Ctype.is_equal env false [ty1] [ty2] in
       begin match get_desc v with
       | Tvar { jkind } when
-          not (Jkind.equate jkind jkind_info.original_jkind) ->
+          not (Jkind.equate ~type_equal jkind jkind_info.original_jkind) ->
         let reason =
           Bad_univar_jkind { name; jkind_info; inferred_jkind = jkind }
         in

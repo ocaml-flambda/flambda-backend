@@ -2570,7 +2570,8 @@ let local_non_recursive_abbrev uenv p ty =
    They carry redundant information but are added to save two calls to
    [get_desc] which are usually performed already at the call site. *)
 let unify_univar t1 t2 jkind1 jkind2 pairs =
-  if not (Jkind.equal jkind1 jkind2) then raise Cannot_unify_universal_variables;
+  if not (Jkind.equal ~type_equal:eq_type jkind1 jkind2)
+    then raise Cannot_unify_universal_variables;
   let rec inner t1 t2 = function
     (cl1, cl2) :: rem ->
       let find_univ t cl =
@@ -3247,7 +3248,7 @@ let add_jkind_equation ~reason uenv destination jkind1 =
         begin
           try
             let decl = Env.find_type p env in
-            if not (Jkind.equal jkind decl.type_jkind)
+            if not (Jkind.equal ~type_equal:eq_type jkind decl.type_jkind)
             then
               let refined_decl = { decl with type_jkind = jkind } in
               set_env uenv (Env.add_local_constraint p refined_decl env);
@@ -5061,7 +5062,7 @@ let all_distinct_vars_with_original_jkinds env vars_jkinds =
          tys := TypeSet.add ty !tys;
          match get_desc ty with
          | Tvar { jkind = inferred_jkind } ->
-           if Jkind.equate inferred_jkind original_jkind
+           if Jkind.equate ~type_equal:eq_type inferred_jkind original_jkind
            then All_good
            else Jkind_mismatch { original_jkind; inferred_jkind; ty }
          | _ -> Unification_failure
@@ -5114,7 +5115,7 @@ let eqtype_subst type_pairs subst t1 l1 t2 l2 =
       !subst
   then ()
   else begin
-    if not (Jkind.equal l1 l2)
+    if not (Jkind.equal ~type_equal:eq_type l1 l2)
       then raise_for Equality (Unequal_var_jkinds (t1, l1, t2, l2));
     subst := (t1, t2) :: !subst;
     TypePairs.add type_pairs (t1, t2)
