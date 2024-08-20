@@ -16,7 +16,9 @@
 #ifndef YACC_DEFS_H
 #define YACC_DEFS_H
 
-/* CR mshinwell: When the build compiler is OCaml 5, remove this. */
+/* CR mshinwell: When the build compiler is OCaml 5, remove this.
+   Alternatively fix the dune build so that ocamlyacc is only built in the
+   "main" build context. */
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202300L    \
     || defined(__cplusplus) && __cplusplus >= 201103L
   #define CAMLnoret [[noreturn]]
