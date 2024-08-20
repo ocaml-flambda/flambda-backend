@@ -563,6 +563,10 @@ val type_jkind : Env.t -> type_expr -> jkind
    expansion. *)
 val type_jkind_purely : Env.t -> type_expr -> jkind
 
+(* Get the jkind of a type, dropping any changes to types caused by
+   expansion. Returns None if the type is not known principally *)
+val type_jkind_purely_if_principal : Env.t -> type_expr -> jkind option
+
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
 val type_sort :
@@ -639,7 +643,7 @@ val check_type_externality : Env.t -> type_expr -> Jkind.Externality.t -> bool
 
    *)
 val check_and_update_generalized_ty_jkind :
-  ?name:Ident.t -> loc:Location.t -> type_expr -> unit
+  ?name:Ident.t -> loc:Location.t -> Env.t -> type_expr -> unit
 
 (* False if running in principal mode and the type is not principal.
    True otherwise. *)

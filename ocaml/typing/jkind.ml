@@ -1098,17 +1098,60 @@ let get_layout jk : Layout.Const.t option =
   | Sort s -> (
     match Sort.get s with Const s -> Some (Sort s) | Var _ -> None)
 
-let reduce jk =
-  (* CR: TODO actually handle with constraints *)
-  Bounds.without_type_constraints jk.jkind.upper_bounds |> Option.get
+module Reduced_bound = struct
+  type (_, 'a) t = 'a
+end
 
-let get_modal_upper_bounds jk =
-  let modes, _, _ = reduce jk in
-  modes
+module Reduced_bounds = Axis_collection (Reduced_bound)
 
-let get_externality_upper_bound jk =
-  let _, externality, _ = reduce jk in
-  externality
+let reduce_bound (type a) ~axis ~jkind_of_type bound =
+  (* CR layouts v2.8: this function will loop forever if the baggage types loop, such as
+     in:
+
+     type a : data with b
+     and b : data with a
+
+     At the moment, it is impossible to make such defintions, so this is fine. *)
+  let (module A : Axis_s with type t = a) = Axis.get axis in
+  let rec loop : _ Bound.t -> _ = function
+    | { modifier; baggage = [] } -> modifier
+    | { modifier; baggage = _ } when A.le A.max modifier ->
+      (* modifier is top so there's no sense in chasing down remaining baggage *)
+      modifier
+    | { modifier; baggage = hd :: tl } -> (
+      match jkind_of_type hd with
+      | Some hd_jkind ->
+        let hd_bound = Bounds.get ~axis hd_jkind.jkind.upper_bounds in
+        loop
+          { modifier = A.join modifier hd_bound.modifier;
+            baggage = hd_bound.baggage @ tl
+          }
+      | None ->
+        (* hd is not principally known, so we treat it as having the max bound *)
+        A.max)
+  in
+  loop bound
+
+let reduce_bounds ~jkind_of_type jk =
+  Reduced_bounds.create
+    { f =
+        (fun ~axis ->
+          reduce_bound ~axis ~jkind_of_type
+            (Bounds.get ~axis jk.jkind.upper_bounds))
+    }
+
+let get_modal_upper_bounds ~jkind_of_type jk : Alloc.Const.t =
+  let reduced_bounds = reduce_bounds ~jkind_of_type jk in
+  { areality = reduced_bounds.locality;
+    linearity = reduced_bounds.linearity;
+    uniqueness = reduced_bounds.uniqueness;
+    portability = reduced_bounds.portability;
+    contention = reduced_bounds.contention
+  }
+
+let get_externality_upper_bound ~jkind_of_type jk =
+  reduce_bound ~axis:(Nonmodal Externality) ~jkind_of_type
+    jk.jkind.upper_bounds.externality
 
 let set_externality_upper_bound jk externality_upper_bound =
   { jk with

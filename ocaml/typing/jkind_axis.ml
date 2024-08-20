@@ -49,6 +49,14 @@ module Externality = struct
     | External64, (External64 | Internal) | Internal, External64 -> External64
     | Internal, Internal -> Internal
 
+  let join t1 t2 =
+    match t1, t2 with
+    | Internal, (Internal | External64 | External)
+    | (External64 | External), Internal ->
+      Internal
+    | External64, (External64 | External) | External, External64 -> External64
+    | External, External -> External
+
   let print ppf = function
     | External -> Format.fprintf ppf "external_"
     | External64 -> Format.fprintf ppf "external64"
@@ -84,6 +92,11 @@ module Nullability = struct
     | Non_null, (Non_null | Maybe_null) | Maybe_null, Non_null -> Non_null
     | Maybe_null, Maybe_null -> Maybe_null
 
+  let join n1 n2 =
+    match n1, n2 with
+    | Maybe_null, (Maybe_null | Non_null) | Non_null, Maybe_null -> Maybe_null
+    | Non_null, Non_null -> Non_null
+
   let print ppf = function
     | Non_null -> Format.fprintf ppf "non_null"
     | Maybe_null -> Format.fprintf ppf "maybe_null"
@@ -103,6 +116,8 @@ module type Axis_s = sig
   val le : t -> t -> bool
 
   val meet : t -> t -> t
+
+  val join : t -> t -> t
 
   val print : Format.formatter -> t -> unit
 end

@@ -375,10 +375,14 @@ val sort_of_jkind : t -> sort
 val get_layout : t -> Layout.Const.t option
 
 (** Gets the maximum modes for types of this jkind. *)
-val get_modal_upper_bounds : t -> Mode.Alloc.Const.t
+val get_modal_upper_bounds :
+  jkind_of_type:(Types.type_expr -> t option) -> t -> Mode.Alloc.Const.t
 
-(** Gets the maximum mode on the externality axis for types of this jkind. *)
-val get_externality_upper_bound : t -> Externality.t
+(** Gets the maximum mode on the externality axis for types of this jkind.
+    [jkind_of_type] fetches the jkind of the given type. If the type is not principally
+    known, it returns [None]. *)
+val get_externality_upper_bound :
+  jkind_of_type:(Types.type_expr -> t option) -> t -> Externality.t
 
 (** Computes a jkind that is the same as the input but with an updated maximum
     mode for the externality axis *)
