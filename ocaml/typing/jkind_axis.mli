@@ -114,9 +114,3 @@ module Axis_collection (T : Misc.T2) : sig
   (** Create an axis collection by applying the function on each axis *)
   val create : 'type_expr Create_f.t -> 'type_expr t
 end
-
-module Option2 : sig
-  type (_, 'a) t = 'a option
-end
-
-module Opt_axis_collection : module type of Axis_collection (Option2)

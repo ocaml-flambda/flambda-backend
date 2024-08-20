@@ -171,6 +171,7 @@ module Error = struct
         { from_annotation : const;
           from_attribute : const
         }
+    | Modded_bound_with_baggage_constraints : 'a Axis.t -> t
 
   exception User_error of Location.t * t
 end
@@ -336,7 +337,7 @@ module Const = struct
           Modes.less_or_equal modes1 modes2;
           Externality.less_or_equal ext1 ext2;
           Nullability.less_or_equal null1 null2 ]
-    | _ -> Not_le
+    | None, _ | _, None -> Not_le
 
   let of_layout ~mode_crossing ~nullability layout =
     let upper_bounds =
@@ -697,20 +698,22 @@ module Const = struct
       let upper_bounds =
         Bounds.create
           { f =
-              (fun (type a) ~(axis : a Axis.t) ->
+              (fun (type a) ~(axis : a Axis.t) : _ Bound.t ->
                 let (module A : Axis_s with type t = a) = Axis.get axis in
                 let parsed_modifier =
-                  Opt_axis_collection.get ~axis parsed_modifiers
+                  Typemode.Transled_modifiers.get ~axis parsed_modifiers
                 in
-                let base_modifier =
-                  match Bounds.get ~axis base.upper_bounds with
-                  | { modifier; baggage = [] } -> modifier
-                  | { modifier = _; baggage = _ :: _ } ->
-                    assert false (* CR: TODO good error message *)
-                in
-                Bound.simple
-                @@ A.meet base_modifier
-                     (Option.value ~default:A.max parsed_modifier))
+                let base_bound = Bounds.get ~axis base.upper_bounds in
+                match parsed_modifier, base_bound with
+                | None, base_bound -> base_bound
+                | ( Some parsed_modifier,
+                    { modifier = base_modifier; baggage = [] } ) ->
+                  { modifier = A.meet base_modifier parsed_modifier.txt;
+                    baggage = []
+                  }
+                | Some parsed_modifier, { modifier = _; baggage = _ :: _ } ->
+                  raise ~loc:parsed_modifier.loc
+                    (Modded_bound_with_baggage_constraints axis))
           }
       in
       { layout = base.layout; upper_bounds }
@@ -745,7 +748,10 @@ module Const = struct
   let of_user_written_annotation ~context Location.{ loc; txt = annot } =
     let const =
       of_user_written_annotation_unchecked_level
-        ~transl_type:(fun _ -> failwith "XXX: with syntax unimplemented")
+        ~transl_type:(fun _ ->
+          (* A prerequisite for translating types here is de-duplicating calls to this
+             function within typedecl *)
+          failwith "XXX: with syntax unimplemented")
         annot
     in
     let required_layouts_level = get_required_layouts_level context const in
@@ -1865,6 +1871,11 @@ let report_error ~loc : Error.t -> _ = function
          layouts extension.@;\
          %t@]"
         Const.format_no_hiding jkind hint)
+  | Modded_bound_with_baggage_constraints axis ->
+    Location.errorf ~loc
+      "Attempted to 'mod' a kind along the %s axis, which has already been \
+       constrained with a 'with' constraint."
+      (Axis.name axis)
 
 let () =
   Location.register_error_of_exn (function

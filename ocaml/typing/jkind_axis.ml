@@ -223,9 +223,3 @@ module Axis_collection (T : Misc.T2) = struct
       nullability = f ~axis:Axis.(Nonmodal Nullability)
     }
 end
-
-module Option2 = struct
-  type (_, 'a) t = 'a option
-end
-
-module Opt_axis_collection = Axis_collection (Option2)
