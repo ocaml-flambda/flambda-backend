@@ -226,8 +226,6 @@ let attributes i ppf l =
     Printast.payload (i + 1) ppf a.Parsetree.attr_payload
   ) l
 
-let jkind_annotation i ppf (jkind, _) =
-  line i ppf "%a" Jkind.Debug_printers.Const.t jkind
 
 let zero_alloc_assume i ppf : Zero_alloc.assume -> unit = function
     { strict; never_returns_normally; never_raises; arity; loc = _ } ->
@@ -237,7 +235,10 @@ let zero_alloc_assume i ppf : Zero_alloc.assume -> unit = function
       (if never_returns_normally then " never_returns_normally" else "")
       (if never_raises then " never_raises" else "")
 
-let rec core_type i ppf x =
+let rec jkind_annotation i ppf (jkind, _) =
+  line i ppf "%a" (Jkind.Debug_printers.Const.t (fun _ -> failwith "TODO: pass debug printer")) jkind
+
+and core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ctyp_loc;
   attributes i ppf x.ctyp_attributes;
   let i = i+1 in

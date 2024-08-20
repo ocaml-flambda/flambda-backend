@@ -176,18 +176,18 @@ module Axis = struct
 end
 
 (* Sadly this needs to be functorized since we don't have higher-kinded types *)
-module Axis_collection (T : Misc.T1) = struct
-  type t =
-    { locality : Mode.Locality.Const.t T.t;
-      linearity : Mode.Linearity.Const.t T.t;
-      uniqueness : Mode.Uniqueness.Const.t T.t;
-      portability : Mode.Portability.Const.t T.t;
-      contention : Mode.Contention.Const.t T.t;
-      externality : Externality.t T.t;
-      nullability : Nullability.t T.t
+module Axis_collection (T : Misc.T2) = struct
+  type 'type_expr t =
+    { locality : ('type_expr, Mode.Locality.Const.t) T.t;
+      linearity : ('type_expr, Mode.Linearity.Const.t) T.t;
+      uniqueness : ('type_expr, Mode.Uniqueness.Const.t) T.t;
+      portability : ('type_expr, Mode.Portability.Const.t) T.t;
+      contention : ('type_expr, Mode.Contention.Const.t) T.t;
+      externality : ('type_expr, Externality.t) T.t;
+      nullability : ('type_expr, Nullability.t) T.t
     }
 
-  let get (type a) ~(axis : a Axis.t) values : a T.t =
+  let get (type a) ~(axis : a Axis.t) values : (_, a) T.t =
     match axis with
     | Modal Locality -> values.locality
     | Modal Linearity -> values.linearity
@@ -197,7 +197,7 @@ module Axis_collection (T : Misc.T1) = struct
     | Nonmodal Externality -> values.externality
     | Nonmodal Nullability -> values.nullability
 
-  let set (type a) ~(axis : a Axis.t) values (value : a T.t) =
+  let set (type a) ~(axis : a Axis.t) values (value : (_, a) T.t) =
     match axis with
     | Modal Locality -> { values with locality = value }
     | Modal Linearity -> { values with linearity = value }
@@ -210,10 +210,10 @@ module Axis_collection (T : Misc.T1) = struct
   (* Since we don't have polymorphic parameters, use a record to pass the polymorphic
      function *)
   module Create_f = struct
-    type t = { f : 'a. axis:'a Axis.t -> 'a T.t }
+    type 'type_expr t = { f : 'a. axis:'a Axis.t -> ('type_expr, 'a) T.t }
   end
 
-  let create ({ f } : Create_f.t) =
+  let create ({ f } : _ Create_f.t) =
     { locality = f ~axis:Axis.(Modal Locality);
       linearity = f ~axis:Axis.(Modal Linearity);
       uniqueness = f ~axis:Axis.(Modal Uniqueness);
@@ -223,3 +223,9 @@ module Axis_collection (T : Misc.T1) = struct
       nullability = f ~axis:Axis.(Nonmodal Nullability)
     }
 end
+
+module Option2 = struct
+  type (_, 'a) t = 'a option
+end
+
+module Opt_axis_collection = Axis_collection (Option2)

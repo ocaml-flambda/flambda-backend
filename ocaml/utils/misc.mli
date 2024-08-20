@@ -124,6 +124,9 @@ module Stdlib : sig
     (** Returns [true] if and only if the given lists have the same length and
         content with respect to the given equality function. *)
 
+    val is_empty : 'a list -> bool
+    (** Returns [true] if and only if the given list has length 0 *)
+
     val some_if_all_elements_are_some : 'a option t -> 'a t option
     (** If all elements of the given list are [Some _] then [Some xs]
         is returned with the [xs] being the contents of those [Some]s, with

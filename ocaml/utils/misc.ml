@@ -129,6 +129,10 @@ module Stdlib = struct
       | (hd1 :: tl1, hd2 :: tl2) -> eq hd1 hd2 && equal eq tl1 tl2
       | (_, _) -> false
 
+    let is_empty = function
+      | [] -> true
+      | _ :: _ -> false
+
     let map2_prefix f l1 l2 =
       let rec aux acc l1 l2 =
         match l1, l2 with

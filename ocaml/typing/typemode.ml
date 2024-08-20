@@ -68,8 +68,6 @@ let transl_annot (type m) ~(annot_type : m annot_type) ~required_mode_maturity
 
 let unpack_mode_annot { txt = Parsetree.Mode s; loc } = { txt = s; loc }
 
-module Opt_axis_collection = Axis_collection (Option)
-
 let transl_modifier_annots annots =
   let step modifiers_so_far annot =
     let (Any_axis_pair (type a) ((axis, mode) : a Axis.t * a)) =

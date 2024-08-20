@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Jkind_axis
+
 module Sort = struct
   type const =
     | Void
@@ -350,14 +352,19 @@ module Layout = struct
   type t = Sort.t layout
 end
 
-module Modes = Mode.Alloc.Const
+module Bound = struct
+  type ('type_expr, 'a) t =
+    { modifier : 'a;
+      baggage : 'type_expr list
+    }
+end
+
+module Bounds = Axis_collection(Bound)
 
 module Jkind_desc = struct
   type 'type_expr t =
     { layout : Layout.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
+      upper_bounds : 'type_expr Bounds.t
     }
 end
 
@@ -386,9 +393,7 @@ type 'type_expr t =
 module Const = struct
   type 'type_expr t =
     { layout : Layout.Const.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
+      upper_bounds : 'type_expr Bounds.t
     }
 end
 

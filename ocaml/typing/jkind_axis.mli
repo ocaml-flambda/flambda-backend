@@ -86,26 +86,37 @@ end
 
 (** A collection with one item for each jkind axis.
     [T] parametizes what element is being held for each axis. *)
-module Axis_collection (T : Misc.T1) : sig
-  type t =
-    { locality : Mode.Locality.Const.t T.t;
-      linearity : Mode.Linearity.Const.t T.t;
-      uniqueness : Mode.Uniqueness.Const.t T.t;
-      portability : Mode.Portability.Const.t T.t;
-      contention : Mode.Contention.Const.t T.t;
-      externality : Externality.t T.t;
-      nullability : Nullability.t T.t
+module Axis_collection (T : Misc.T2) : sig
+  (** [t] is parameterized over `type_expr to enable usages in [jkind_types.mli].
+      It is tempting to make those usages instead push the [`type_expr] into the functor
+      arg [T], but this leads to issues at usages of [Jkind.t] in [types.mli] due to
+      recursive definitions. *)
+  type 'type_expr t =
+    { locality : ('type_expr, Mode.Locality.Const.t) T.t;
+      linearity : ('type_expr, Mode.Linearity.Const.t) T.t;
+      uniqueness : ('type_expr, Mode.Uniqueness.Const.t) T.t;
+      portability : ('type_expr, Mode.Portability.Const.t) T.t;
+      contention : ('type_expr, Mode.Contention.Const.t) T.t;
+      externality : ('type_expr, Externality.t) T.t;
+      nullability : ('type_expr, Nullability.t) T.t
     }
 
-  val get : axis:'a Axis.t -> t -> 'a T.t
+  val get : axis:'a Axis.t -> 'type_expr t -> ('type_expr, 'a) T.t
 
-  val set : axis:'a Axis.t -> t -> 'a T.t -> t
+  val set :
+    axis:'a Axis.t -> 'type_expr t -> ('type_expr, 'a) T.t -> 'type_expr t
 
   module Create_f : sig
     (** This record type is used to pass a polymorphic function to [create] *)
-    type t = { f : 'a. axis:'a Axis.t -> 'a T.t }
+    type 'type_expr t = { f : 'a. axis:'a Axis.t -> ('type_expr, 'a) T.t }
   end
 
   (** Create an axis collection by applying the function on each axis *)
-  val create : Create_f.t -> t
+  val create : 'type_expr Create_f.t -> 'type_expr t
 end
+
+module Option2 : sig
+  type (_, 'a) t = 'a option
+end
+
+module Opt_axis_collection : module type of Axis_collection (Option2)

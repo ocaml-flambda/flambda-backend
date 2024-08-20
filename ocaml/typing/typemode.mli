@@ -30,7 +30,8 @@ val untransl_modalities :
   Mode.Modality.Value.Const.t ->
   Parsetree.modalities
 
+
 (** Interpret a list of modifiers.
     A "modifier" is any keyword coming after a `mod` in a jkind *)
 val transl_modifier_annots :
-  Parsetree.modes -> Jkind_axis.Axis_collection(Option).t
+  Parsetree.modes -> _ Jkind_axis.Opt_axis_collection.t

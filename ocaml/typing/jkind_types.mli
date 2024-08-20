@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open Jkind_axis
+
 (** You should use the types defined in [Jkind] (which redefines the
    types in this file) rather than using this file directly, unless you
    are in [Types] or [Primitive]. *)
@@ -107,14 +109,19 @@ module Layout : sig
   type t = Sort.t layout
 end
 
-module Modes = Mode.Alloc.Const
+module Bound : sig
+  type ('type_expr, 'a) t =
+    { modifier : 'a;
+      baggage : 'type_expr list
+    }
+end
+
+module Bounds : module type of Axis_collection(Bound)
 
 module Jkind_desc : sig
   type 'type_expr t =
     { layout : Layout.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
+      upper_bounds : 'type_expr Bounds.t
     }
 end
 
@@ -138,9 +145,7 @@ type 'type_expr t =
 module Const : sig
   type 'type_expr t =
     { layout : Layout.Const.t;
-      modes_upper_bounds : Modes.t;
-      externality_upper_bound : Jkind_axis.Externality.t;
-      nullability_upper_bound : Jkind_axis.Nullability.t
+      upper_bounds : 'type_expr Bounds.t
     }
 end
 
