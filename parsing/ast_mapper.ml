@@ -177,6 +177,7 @@ module T = struct
       Ltyp_poly { bound_vars; inner_type }
     | Ltyp_alias { aliased_type; name; jkind } ->
       let aliased_type = sub.typ sub aliased_type in
+      let name = map_opt (map_loc sub) name in
       let jkind = map_loc_txt sub sub.jkind_annotation jkind in
       Ltyp_alias { aliased_type; name; jkind }
 

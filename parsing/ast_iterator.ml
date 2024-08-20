@@ -140,8 +140,9 @@ module T = struct
     | Ltyp_poly { bound_vars; inner_type } ->
       List.iter (bound_var sub) bound_vars;
       sub.typ sub inner_type
-    | Ltyp_alias { aliased_type; name = _; jkind } ->
+    | Ltyp_alias { aliased_type; name; jkind } ->
       sub.typ sub aliased_type;
+      iter_opt (iter_loc sub) name;
       iter_loc_txt sub sub.jkind_annotation jkind
 
   let iter_jst_labeled_tuple sub : LT.core_type -> _ = function
