@@ -431,12 +431,21 @@ end = struct
     let dump ppf (t : t) =
       let open Format in
       let instruction = t.instruction in
-      let print_set ppf set = Instruction.Id.Set.iter (fun id -> fprintf ppf "%d "(Instruction.Id.to_int id)) set in
-      fprintf ppf "\nInstruction %d: %a (%a, %a)\n dependent allocs: %a\n unsure_allocs: %a"
+      let print_set ppf set =
+        Instruction.Id.Set.iter
+          (fun id -> fprintf ppf "%d " (Instruction.Id.to_int id))
+          set
+      in
+      fprintf ppf
+        "\n\
+         Instruction %d: %a (%a, %a)\n\
+        \ dependent allocs: %a\n\
+        \ unsure_allocs: %a"
         (Instruction.id instruction |> Instruction.Id.to_int)
         Instruction.print instruction print_memory_chunk t
         (Arch.print_addressing Instruction.print_reg t.addressing_mode)
-        (memory_arguments t) print_set t.dependent_allocs print_set t.unsure_allocs
+        (memory_arguments t) print_set t.dependent_allocs print_set
+        t.unsure_allocs
 
     let compare_arguments (t1 : t) (t2 : t) =
       let arguments_1 = memory_arguments t1 in
