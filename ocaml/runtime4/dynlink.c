@@ -38,7 +38,6 @@
 #include "caml/intext.h"
 #include "caml/prims.h"
 #include "caml/startup.h"
-#include "caml/reverse.h"
 #include "caml/sys.h"
 
 #include "build_config.h"
@@ -48,7 +47,7 @@
 /* The table of primitives */
 struct ext_table caml_prim_table;
 
-/* The names of primitives (for instrtrace.c) */
+/* The names of primitives */
 struct ext_table caml_prim_name_table;
 
 /* The table of shared libraries currently opened */
@@ -167,7 +166,6 @@ void caml_build_primitive_table(char_os * lib_path,
                                 char_os * libs,
                                 char * req_prims)
 {
-  char_os * tofree1, * tofree2;
   char_os * p;
   char * q;
 
@@ -175,13 +173,16 @@ void caml_build_primitive_table(char_os * lib_path,
      - directories specified on the command line with the -I option
      - directories specified in the CAML_LD_LIBRARY_PATH
      - directories specified in the executable
-     - directories specified in the file <stdlib>/ld.conf */
-  tofree1 = caml_decompose_path(&caml_shared_libs_path,
-                                caml_secure_getenv(T("CAML_LD_LIBRARY_PATH")));
+     - directories specified in the file <stdlib>/ld.conf
+
+     caml_shared_libs_path and caml_prim_name_table are not freed afterwards:
+     they may later be used by caml_dynlink_get_bytecode_sections. */
+  caml_decompose_path(&caml_shared_libs_path,
+                      caml_secure_getenv(T("CAML_LD_LIBRARY_PATH")));
   if (lib_path != NULL)
     for (p = lib_path; *p != 0; p += strlen_os(p) + 1)
       caml_ext_table_add(&caml_shared_libs_path, p);
-  tofree2 = caml_parse_ld_conf();
+  caml_parse_ld_conf();
   /* Open the shared libraries */
   caml_ext_table_init(&shared_libs, 8);
   if (libs != NULL)
@@ -190,17 +191,14 @@ void caml_build_primitive_table(char_os * lib_path,
   /* Build the primitive table */
   caml_ext_table_init(&caml_prim_table, 0x180);
   caml_ext_table_init(&caml_prim_name_table, 0x180);
-  for (q = req_prims; *q != 0; q += strlen(q) + 1) {
-    c_primitive prim = lookup_primitive(q);
-    if (prim == NULL)
-          caml_fatal_error("unknown C primitive `%s'", q);
-    caml_ext_table_add(&caml_prim_table, (void *) prim);
-    caml_ext_table_add(&caml_prim_name_table, caml_stat_strdup(q));
-  }
-  /* Clean up */
-  caml_stat_free(tofree1);
-  caml_stat_free(tofree2);
-  caml_ext_table_free(&caml_shared_libs_path, 0);
+  if (req_prims != NULL)
+    for (q = req_prims; *q != 0; q += strlen(q) + 1) {
+      c_primitive prim = lookup_primitive(q);
+      if (prim == NULL)
+            caml_fatal_error("unknown C primitive `%s'", q);
+      caml_ext_table_add(&caml_prim_table, (void *) prim);
+      caml_ext_table_add(&caml_prim_name_table, caml_stat_strdup(q));
+    }
 }
 
 /* Build the table of primitives as a copy of the builtin primitive table.
@@ -209,8 +207,7 @@ void caml_build_primitive_table(char_os * lib_path,
 void caml_build_primitive_table_builtin(void)
 {
   int i;
-  caml_ext_table_init(&caml_prim_table, 0x180);
-  caml_ext_table_init(&caml_prim_name_table, 0x180);
+  caml_build_primitive_table(NULL, NULL, NULL);
   for (i = 0; caml_builtin_cprim[i] != 0; i++) {
     caml_ext_table_add(&caml_prim_table, (void *) caml_builtin_cprim[i]);
     caml_ext_table_add(&caml_prim_name_table,
@@ -236,34 +233,6 @@ static value caml_alloc_2 (tag_t tag, value a, value b)
   Field(v, 0) = a;
   Field(v, 1) = b;
   return v;
-}
-
-static void fixup_endianness_trailer(uint32_t * p)
-{
-#ifndef ARCH_BIG_ENDIAN
-  Reverse_32(p, p);
-#endif
-}
-
-static char magicstr[EXEC_MAGIC_LENGTH+1];
-
-int caml_read_trailer(int fd, struct exec_trailer *trail)
-{
-  if (lseek(fd, (long) -TRAILER_SIZE, SEEK_END) == -1)
-    return BAD_BYTECODE;
-  if (read(fd, (char *) trail, TRAILER_SIZE) < TRAILER_SIZE)
-    return BAD_BYTECODE;
-  fixup_endianness_trailer(&trail->num_sections);
-  memcpy(magicstr, trail->magic, EXEC_MAGIC_LENGTH);
-  magicstr[EXEC_MAGIC_LENGTH] = 0;
-
-  if (0 /* r5: caml_params->print_magic */) {
-    printf("%s\n", magicstr);
-    exit(0);
-  }
-  return
-    (strncmp(trail->magic, EXEC_MAGIC, sizeof(trail->magic)) == 0)
-      ? 0 : WRONG_MAGIC;
 }
 
 CAMLprim value caml_dynlink_get_bytecode_sections(value unit)
