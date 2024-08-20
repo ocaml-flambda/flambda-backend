@@ -105,7 +105,9 @@ let with_additional_action =
           match Jkind.get jkind with
           | Const const ->
             let builtin =
-              List.find_opt (fun (builtin, _) -> Jkind.Const.equal const builtin) builtins
+              List.find_opt
+                (fun (builtin, _) -> Jkind.Const.equal_and_no_baggage const builtin)
+                builtins
             in
             begin match builtin with
             | Some (__, jkind) -> jkind

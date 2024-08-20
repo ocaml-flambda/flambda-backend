@@ -155,7 +155,7 @@ module Const : sig
 
   (* Compares two [Jkind.Const.t]s, never doing mutation. If there are any `with`
      constraints on either, this function will return false. *)
-  val equal : t -> t -> bool
+  val equal_and_no_baggage : t -> t -> bool
 
   (** Gets the layout of a constant jkind. Never does mutation. *)
   val get_layout : t -> Layout.Const.t

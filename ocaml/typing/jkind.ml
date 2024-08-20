@@ -311,7 +311,7 @@ module Const = struct
   let get_conservative_externality_upper_bound const =
     const.upper_bounds.externality.modifier
 
-  let equal { layout = lay1; upper_bounds = bounds1 }
+  let equal_and_no_baggage { layout = lay1; upper_bounds = bounds1 }
       { layout = lay2; upper_bounds = bounds2 } =
     match
       ( Bounds.without_type_constraints bounds1,
@@ -782,7 +782,7 @@ module Desc = struct
   let sub d1 d2 : Misc.Le_result.t =
     match d1, d2 with
     | Const c1, Const c2 -> Const.sub c1 c2
-    | Var _, Const c when Const.equal Const.max c -> Less
+    | Var _, Const c when Const.equal_and_no_baggage Const.max c -> Less
     | Var v1, Var v2 -> if v1 == v2 then Equal else Not_le
     | Const _, Var _ | Var _, Const _ -> Not_le
 end
