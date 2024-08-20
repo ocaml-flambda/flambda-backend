@@ -84,6 +84,8 @@ module Axis : sig
   val all : packed list
 
   val name : _ t -> string
+
+  val is_deep : _ t -> bool
 end
 
 (** A collection with one item for each jkind axis.

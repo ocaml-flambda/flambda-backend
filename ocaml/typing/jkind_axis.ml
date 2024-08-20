@@ -188,6 +188,15 @@ module Axis = struct
     | Modal Contention -> "contention"
     | Nonmodal Externality -> "externality"
     | Nonmodal Nullability -> "nullability"
+
+  let is_deep (type a) : a t -> bool = function
+    | Modal Locality -> true
+    | Modal Linearity -> true
+    | Modal Uniqueness -> true
+    | Modal Portability -> true
+    | Modal Contention -> true
+    | Nonmodal Externality -> true
+    | Nonmodal Nullability -> false
 end
 
 (* Sadly this needs to be functorized since we don't have higher-kinded types *)

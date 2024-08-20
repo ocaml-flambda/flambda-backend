@@ -719,11 +719,15 @@ module Const = struct
       { layout = base.layout; upper_bounds }
     | With (base, type_) ->
       let base = of_user_written_annotation_unchecked_level ~transl_type base in
+      let type_ = transl_type type_ in
       let upper_bounds =
+        (* Add the type as a baggage type along all deep axes *)
         Bounds.map
           { f =
-              (fun (type a) ~axis:_ (bound : a Bound.t) : a Bound.t ->
-                { bound with baggage = transl_type type_ :: bound.baggage })
+              (fun ~axis (bound : _ Bound.t) : _ Bound.t ->
+                match Axis.is_deep axis with
+                | true -> { bound with baggage = type_ :: bound.baggage }
+                | false -> bound)
           }
           base.upper_bounds
       in
