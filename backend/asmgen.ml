@@ -511,10 +511,11 @@ let compile_phrases ~ppf_dump ps =
           if !dump_cmm then fprintf ppf_dump "%a@." Printcmm.phrase p;
           match p with
           | Cfunction fd ->
-            (* Only profile if function level granularity selected*)
+            (* Only profile if selected granularity is either function or block level *)
             let profile_wrapper = match !profile_granularity with
-            | Function_level -> Profile.record ~accumulate:true fd.fun_name.sym_name
-            | File_level -> fun x -> x
+            | Function_level | Block_level ->
+                Profile.record ~accumulate:true fd.fun_name.sym_name
+            | File_level-> fun x -> x
             in profile_wrapper (compile_fundecl ~ppf_dump ~funcnames) fd;
             compile ~funcnames:(String.Set.remove fd.fun_name.sym_name funcnames) ps
           | Cdata dl ->
