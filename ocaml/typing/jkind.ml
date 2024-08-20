@@ -742,7 +742,6 @@ module Const = struct
   (* CR layouts: When everything is stable, remove this function. *)
   let get_required_layouts_level (_context : History.annotation_context)
       (jkind : t) : Language_extension.maturity =
-    (* CR: TODO is this right? *)
     match jkind.layout, jkind.upper_bounds.nullability.modifier with
     | (Sort (Float64 | Float32 | Word | Bits32 | Bits64) | Any), _
     | Sort Value, Non_null ->
