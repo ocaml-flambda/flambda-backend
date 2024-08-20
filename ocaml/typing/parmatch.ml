@@ -885,7 +885,7 @@ let pat_of_constrs ex_pat cstrs =
 
 let pats_of_type env ty =
   match Ctype.extract_concrete_typedecl env ty with
-  | Typedecl (_, path, {type_kind = Type_variant _ | Type_record _}) ->
+  | Typedecl (_, path, {type_kind_ = Datatype (Datatype_variant _ | Datatype_record _)}) ->
       begin match Env.find_type_descrs path env with
       | Type_variant (cstrs,_) when List.length cstrs <= 1 ||
         (* Only explode when all constructors are GADTs *)
@@ -907,12 +907,12 @@ let pats_of_type env ty =
             ty env]
       | _ -> [omega]
       end
-  | Typedecl (_, _, {type_kind = Type_abstract _ | Type_open})
+  | Typedecl (_, _, {type_kind_ = _})
   | May_have_typedecl -> [omega]
 
 let get_variant_constructors env ty =
   match Ctype.extract_concrete_typedecl env ty with
-  | Typedecl (_, path, {type_kind = Type_variant _}) ->
+  | Typedecl (_, path, {type_kind_ = Datatype (Datatype_variant _)}) ->
       begin match Env.find_type_descrs path env with
       | Type_variant (cstrs,_) -> cstrs
       | _ -> fatal_error "Parmatch.get_variant_constructors"

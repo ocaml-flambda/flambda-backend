@@ -215,8 +215,8 @@ let or_null_argument_jkind = Jkind.Builtin.value ~why:(
   Type_argument {parent_path = path_or_null; position = 1; arity = 1})
 
 let mk_add_type add_type
-      ?manifest type_ident
-      ?(kind=Type_abstract Abstract_def)
+      type_ident
+      ?(kind=Type (Type_abstr { reason = Abstract_def }))
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* [jkind_annotation] is just used for printing. It's best to
          provide it if the jkind is not implied by the kind of the
@@ -226,12 +226,11 @@ let mk_add_type add_type
       env =
   let decl =
     {type_params_ = [];
-     type_kind = kind;
+     type_kind_ = kind;
      type_jkind = jkind;
      type_jkind_annotation = predef_jkind_annotation jkind_annotation;
      type_loc = Location.none;
-     type_private = Asttypes.Public;
-     type_manifest = manifest;
+     type_manifest = None;
      type_is_newtype = false;
      type_expansion_scope = lowest_level;
      type_attributes = [];
@@ -243,7 +242,7 @@ let mk_add_type add_type
   add_type type_ident decl env
 
 let mk_add_type1 add_type type_ident
-      ?(kind=fun _ -> Type_abstract Abstract_def)
+      ?(kind=fun _ -> Type (Type_abstr { reason = Abstract_def }))
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* See the comment on the [jkind_annotation] argument to [mk_add_type]
       *)
@@ -258,11 +257,10 @@ let mk_add_type1 add_type type_ident
   let param = newgenvar param_jkind in
   let decl =
     { type_params_ = [{ param_expr = param; variance; separability }];
-      type_kind = kind param;
+      type_kind_ = kind param;
       type_jkind = jkind;
       type_jkind_annotation = predef_jkind_annotation jkind_annotation;
       type_loc = Location.none;
-      type_private = Asttypes.Public;
       type_manifest = None;
       type_is_newtype = false;
       type_expansion_scope = lowest_level;
@@ -314,7 +312,9 @@ let mk_add_extension add_extension id args jkinds =
       ext_uid = Uid.of_predef_id id;
     }
 
-let variant constrs jkinds = Type_variant (constrs, Variant_boxed jkinds)
+let variant constrs jkinds = Datatype (Datatype_variant { priv = Public; constrs; repr = Variant_boxed jkinds })
+
+let open_variant = Datatype (Datatype_open { priv = Public })
 
 let unrestricted tvar =
   {ca_type=tvar;
@@ -347,7 +347,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type ident_char ~jkind:(Jkind.Builtin.immediate ~why:(Primitive ident_char))
       ~jkind_annotation:Jkind.Const.Builtin.immediate
   |> add_type ident_exn
-       ~kind:Type_open
+       ~kind:open_variant
        ~jkind:(Jkind.Builtin.value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
@@ -420,10 +420,11 @@ let build_initial_env add_type add_extension empty_env =
            ("pos_bol", type_int, immediate);
            ("pos_cnum", type_int, immediate) ]
          in
-         Type_record (
-           labels,
-           (Record_boxed (List.map (fun label -> label.ld_jkind) labels |> Array.of_list))
-         )
+         Datatype (Datatype_record {
+           priv = Public;
+           labels;
+           repr = Record_boxed (List.map (fun label -> label.ld_jkind) labels |> Array.of_list)
+         })
        )
        ~jkind:(Jkind.Builtin.value ~why:Boxed_record)
   |> add_type ident_string

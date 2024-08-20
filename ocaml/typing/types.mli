@@ -499,7 +499,7 @@ end
 
 type type_declaration =
   { type_params_: type_param list;
-    type_kind: type_decl_kind;
+    type_kind_: type_decl_kind_;
 
     type_jkind: jkind;
     (* for an abstract decl kind or for [@@unboxed] types: this is the stored
@@ -519,7 +519,6 @@ type type_declaration =
     for an e.g. local abstract type or an inlined record), then this field
     can safely be [None]. It's used only for printing and in untypeast. *)
 
-    type_private: private_flag;
     type_manifest: type_expr option;
     type_is_newtype: bool;
     type_expansion_scope: int;
@@ -548,6 +547,20 @@ and ('lbl, 'cstr) type_kind =
   | Type_record of 'lbl list  * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
+
+and type_decl_kind_ =
+  | Datatype of datatype_kind
+  | Type of type_equation
+
+and datatype_kind =
+  | Datatype_record of { priv: private_flag; labels: label_declaration list; repr: record_representation }
+  | Datatype_variant of { priv: private_flag; constrs: constructor_declaration list; repr: variant_representation }
+  | Datatype_open of { priv: private_flag }
+
+and type_equation =
+  | Type_abstr of { reason: abstract_reason }
+  | Type_private_abbrev of { expansion: type_expr }
+  | Type_abbrev of { expansion: type_expr }
 
 (* CR layouts: after removing the void translation from lambda, we could get rid of
    this src_index / runtime_tag distinction.  But I am leaving it in because it
@@ -702,6 +715,11 @@ val set_type_variance : type_declaration -> Variance.t list -> type_declaration
 
 val get_type_separability : type_declaration -> Separability.t list
 val set_type_separability : type_declaration -> Separability.t list -> type_declaration
+
+val abstract_type_kind : private_flag -> type_expr option -> type_decl_kind_
+val get_type_kind : type_declaration -> type_decl_kind
+
+val get_type_private : type_declaration -> private_flag
 
 (* Type expressions for the class language *)
 

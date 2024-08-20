@@ -455,35 +455,40 @@ let record_representation ~prepare_jkind loc = function
   | (Record_float | Record_ufloat | Record_mixed _) as rep -> rep
 
 let type_declaration' copy_scope s decl =
+  let typexp = typexp copy_scope s decl.type_loc in
   { type_params_ =
-      (set_type_params decl (List.map (typexp copy_scope s decl.type_loc) (get_type_params decl))).type_params_;
-    type_kind =
-      begin match decl.type_kind with
-        Type_abstract r -> Type_abstract r
-      | Type_variant (cstrs, rep) ->
+      (set_type_params decl (List.map typexp (get_type_params decl))).type_params_;
+    type_kind_ =
+      begin match decl.type_kind_ with
+      | Type (Type_abstr _) as k -> k
+      | Type (Type_abbrev { expansion }) ->
+          Type (Type_abbrev { expansion = typexp expansion } )
+      | Type (Type_private_abbrev { expansion }) ->
+          Type (Type_private_abbrev { expansion = typexp expansion } )
+      | Datatype (Datatype_variant { priv; constrs = cstrs; repr = rep } ) ->
           let rep =
             match s.additional_action with
             | No_action | Duplicate_variables -> rep
             | Prepare_for_saving prepare_jkind ->
                 variant_representation ~prepare_jkind decl.type_loc rep
           in
-          Type_variant (List.map (constructor_declaration copy_scope s) cstrs,
-                        rep)
-      | Type_record(lbls, rep) ->
+          Datatype (Datatype_variant
+            { priv; constrs = List.map (constructor_declaration copy_scope s) cstrs; repr = rep })
+      | Datatype (Datatype_record { priv; labels = lbls; repr = rep }) ->
           let rep =
             match s.additional_action with
             | No_action | Duplicate_variables -> rep
             | Prepare_for_saving prepare_jkind ->
                 record_representation ~prepare_jkind decl.type_loc rep
           in
-          Type_record (List.map (label_declaration copy_scope s) lbls, rep)
-      | Type_open -> Type_open
+          Datatype (Datatype_record { priv; labels = List.map (label_declaration copy_scope s) lbls; repr = rep })
+      | Datatype (Datatype_open _) as k -> k
       end;
     type_manifest =
       begin
         match decl.type_manifest with
           None -> None
-        | Some ty -> Some(typexp copy_scope s decl.type_loc ty)
+        | Some ty -> Some (typexp ty)
       end;
     type_jkind =
       begin
@@ -494,7 +499,6 @@ let type_declaration' copy_scope s decl =
       end;
     (* CR layouts v10: Apply the substitution here, too *)
     type_jkind_annotation = decl.type_jkind_annotation;
-    type_private = decl.type_private;
     type_is_newtype = false;
     type_expansion_scope = Btype.lowest_level;
     type_loc = loc s decl.type_loc;

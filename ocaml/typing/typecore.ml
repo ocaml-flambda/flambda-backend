@@ -796,8 +796,8 @@ let extract_concrete_typedecl_protected env ty =
 
 let extract_concrete_record env ty =
   match extract_concrete_typedecl_protected env ty with
-  | Typedecl(p0, p, {type_kind=Type_record (fields, repres)}) ->
-    Record_type (p0, p, fields, repres)
+  | Typedecl(p0, p, {type_kind_=Datatype (Datatype_record { priv = _; labels; repr })}) ->
+    Record_type (p0, p, labels, repr)
   | Has_no_typedecl | Typedecl(_, _, _) -> Not_a_record_type
   | May_have_typedecl -> Maybe_a_record_type
 
@@ -808,9 +808,9 @@ type variant_extraction_result =
 
 let extract_concrete_variant env ty =
   match extract_concrete_typedecl_protected env ty with
-  | Typedecl(p0, p, {type_kind=Type_variant (cstrs, _)}) ->
-    Variant_type (p0, p, cstrs)
-  | Typedecl(p0, p, {type_kind=Type_open}) ->
+  | Typedecl(p0, p, {type_kind_=Datatype (Datatype_variant { priv = _; constrs; repr = _ })}) ->
+    Variant_type (p0, p, constrs)
+  | Typedecl(p0, p, {type_kind_=Datatype (Datatype_open _priv)}) ->
     Variant_type (p0, p, [])
   | Has_no_typedecl | Typedecl(_, _, _) -> Not_a_variant_type
   | May_have_typedecl -> Maybe_a_variant_type
@@ -2248,7 +2248,7 @@ module Constructor = NameChoice (struct
     match Env.lookup_all_constructors_from_type ~loc usage path env with
     | _ :: _ as x -> x
     | [] ->
-        match (Env.find_type path env).type_kind with
+        match Env.find_type path env |> get_type_kind with
         | Type_open ->
             (* Extension constructors cannot be found by looking at the type
                declaration.

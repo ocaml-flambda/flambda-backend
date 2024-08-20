@@ -398,7 +398,7 @@ let in_pervasives p =
   with Not_found -> false
 
 let is_datatype decl=
-  match decl.type_kind with
+  match get_type_kind decl with
     Type_record _ | Type_variant _ | Type_open -> true
   | Type_abstract _ -> false
 
@@ -631,7 +631,7 @@ let closed_type_decl decl =
   try
     List.iter mark_type (get_type_params decl);
     List.iter remove_mode_and_jkind_variables (get_type_params decl);
-    begin match decl.type_kind with
+    begin match get_type_kind decl with
       Type_abstract _ ->
         ()
     | Type_variant (v, _rep) ->
@@ -1330,10 +1330,9 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
   in
   {
     type_params_ = [];
-    type_kind = Type_abstract Abstract_def;
+    type_kind_ = abstract_type_kind Public manifest;
     type_jkind = jkind;
     type_jkind_annotation = jkind_annot;
-    type_private = Public;
     type_manifest = manifest;
     type_is_newtype = true;
     type_expansion_scope = expansion_scope;
@@ -1398,30 +1397,37 @@ let instance_parameterized_type ?keep_names sch_args sch =
 
 (* [map_kind f kind] maps [f] over all the types in [kind]. [f] must preserve jkinds *)
 let map_kind f = function
-  | (Type_abstract _ | Type_open) as k -> k
-  | Type_variant (cl, rep) ->
-      Type_variant (
-        List.map
+  | Type (Type_abstr _) as k -> k
+  | Type (Type_abbrev { expansion }) -> Type (Type_abbrev { expansion = f expansion })
+  | Type (Type_private_abbrev { expansion }) ->
+    Type (Type_private_abbrev { expansion = f expansion })
+  | Datatype (Datatype_variant { priv; constrs; repr } ) ->
+      Datatype (Datatype_variant {
+        priv;
+        constrs = List.map
           (fun c ->
              {c with
               cd_args = map_type_expr_cstr_args f c.cd_args;
               cd_res = Option.map f c.cd_res
              })
-          cl, rep)
-  | Type_record (fl, rr) ->
-      Type_record (
-        List.map
+          constrs;
+        repr })
+  | Datatype (Datatype_record { priv; labels; repr }) ->
+      Datatype (Datatype_record {
+        priv;
+        labels = List.map
           (fun l ->
              {l with ld_type = f l.ld_type}
-          ) fl, rr)
-
+          ) labels;
+        repr })
+  | Datatype (Datatype_open { priv = _ }) as k -> k
 
 let instance_declaration decl =
   For_copy.with_scope (fun copy_scope ->
     {(set_type_params decl (List.map (copy copy_scope) (get_type_params decl)))
      with
       type_manifest = Option.map (copy copy_scope) decl.type_manifest;
-      type_kind = map_kind (copy copy_scope) decl.type_kind;
+      type_kind_ = map_kind (copy copy_scope) decl.type_kind_;
     }
   )
 
@@ -2400,10 +2406,8 @@ let generic_abbrev env path =
 let generic_private_abbrev env path =
   try
     match Env.find_type path env with
-      {type_kind = Type_abstract _;
-       type_private = Private;
-       type_manifest = Some body} ->
-         get_level body = generic_level
+      {type_kind_ = Type (Type_private_abbrev { expansion })} ->
+         get_level expansion = generic_level
     | _ -> false
   with Not_found -> false
 
@@ -2896,7 +2900,7 @@ let is_instantiable env ~for_jkind_eqn p =
   try
     let decl = Env.find_type p env in
     type_kind_is_abstract decl &&
-    decl.type_private = Public &&
+    get_type_private decl = Public &&
     get_type_arity decl = 0 &&
     decl.type_manifest = None &&
     (for_jkind_eqn || not (non_aliasable p decl))
@@ -3094,7 +3098,7 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
     end else if non_aliasable p1 decl && non_aliasable p2 decl' then
       raise Incompatible
     else
-      match decl.type_kind, decl'.type_kind with
+      match get_type_kind decl, get_type_kind decl' with
       | Type_record (lst,r), Type_record (lst',r')
         when equal_record_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
@@ -3301,8 +3305,7 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
     | (n, _) :: nl, _ ->
         let lid = concat_longident (Longident.Lident "Pkg") n in
         match Env.find_type_by_name lid env' with
-        | (_, {type_params_ = []; type_kind = Type_abstract _;
-               type_private = Public; type_manifest = Some t2}) ->
+        | (_, {type_params_ = []; type_kind_ = Type (Type_abbrev { expansion = t2 })}) ->
             begin match nondep_instance env' lv2 id2 t2 with
             | t -> (n, t) :: complete nl fl2
             | exception Nondep_cannot_erase _ ->
@@ -3311,8 +3314,7 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
                 else
                   raise Exit
             end
-        | (_, {type_params_ = []; type_kind = Type_abstract _;
-               type_private = Public; type_manifest = None})
+        | (_, {type_params_ = []; type_kind_ = Type (Type_abstr _)})
           when allow_absent ->
             complete nl fl2
         | _ -> raise Exit
@@ -6458,36 +6460,34 @@ let () = nondep_type' := nondep_type
 
 (* Preserve sharing inside type declarations. *)
 let nondep_type_decl env mid is_covariant decl =
+  let nondep_type_rec ?expand_private = nondep_type_rec ?expand_private env mid in
   try
-    let params = List.map (nondep_type_rec env mid) (get_type_params decl) in
-    let tk =
-      try map_kind (nondep_type_rec env mid) decl.type_kind
-      with Nondep_cannot_erase _ when is_covariant -> Type_abstract Abstract_def
-    and tm, priv =
-      match decl.type_manifest with
-      | None -> None, decl.type_private
-      | Some ty ->
-          try Some (nondep_type_rec env mid ty), decl.type_private
-          with Nondep_cannot_erase _ when is_covariant ->
-            clear_hash ();
-            try Some (nondep_type_rec ~expand_private:true env mid ty),
-                Private
-            with Nondep_cannot_erase _ ->
-              None, decl.type_private
-    in
-    clear_hash ();
-    let priv =
-      match tm with
-      | Some ty when Btype.has_constr_row ty -> Private
-      | _ -> priv
+    let params = List.map nondep_type_rec (get_type_params decl) in
+    (* CR jbachurski: This is probably difficult to get right. *)
+    let type_kind_ = match decl.type_kind_ with
+    | Type (Type_abstr _) as k -> k
+    | Type (Type_abbrev { expansion }) as k -> (
+      try map_kind nondep_type_rec k
+      with Nondep_cannot_erase _ when is_covariant ->
+        clear_hash ();
+        try Type (Type_private_abbrev { expansion = nondep_type_rec ~expand_private:true expansion })
+        with Nondep_cannot_erase _ -> Type (Type_abstr { reason = Abstract_def }))
+    | Type (Type_private_abbrev _) as k -> (
+      try map_kind (nondep_type_rec ~expand_private:true) k
+      with Nondep_cannot_erase _ -> Type (Type_abstr { reason = Abstract_def }))
+    | Datatype (Datatype_record _ | Datatype_variant _) as k -> (
+      try map_kind nondep_type_rec k
+      with Nondep_cannot_erase _ when is_covariant -> Type (Type_abstr { reason = Abstract_def }))
+    | Datatype (Datatype_open _) as k -> k
     in
     { type_params_ =
         create_type_params params (get_type_variance decl) (get_type_separability decl);
-      type_kind = tk;
+      type_kind_;
       type_jkind = decl.type_jkind;
       type_jkind_annotation = decl.type_jkind_annotation;
-      type_manifest = tm;
-      type_private = priv;
+      type_manifest = (match type_kind_ with
+        | Type (Type_abbrev { expansion } | Type_private_abbrev { expansion }) -> Some expansion
+        | _ -> None);
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = decl.type_loc;

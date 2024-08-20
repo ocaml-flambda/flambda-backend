@@ -251,10 +251,9 @@ end
 
 type type_declaration =
   { type_params_: type_param list;
-    type_kind: type_decl_kind;
+    type_kind_: type_decl_kind_;
     type_jkind: jkind;
     type_jkind_annotation: type_expr Jkind_types.annotation option;
-    type_private: private_flag;
     type_manifest: type_expr option;
     type_is_newtype: bool;
     type_expansion_scope: int;
@@ -278,6 +277,20 @@ and ('lbl, 'cstr) type_kind =
   | Type_record of 'lbl list * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
+
+and type_decl_kind_ =
+  | Datatype of datatype_kind
+  | Type of type_equation
+
+and datatype_kind =
+  | Datatype_record of { priv: private_flag; labels: label_declaration list; repr: record_representation }
+  | Datatype_variant of { priv: private_flag; constrs: constructor_declaration list; repr: variant_representation }
+  | Datatype_open of { priv: private_flag }
+
+and type_equation =
+  | Type_abstr of { reason: abstract_reason }
+  | Type_private_abbrev of { expansion: type_expr }
+  | Type_abbrev of { expansion: type_expr }
 
 and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
                        runtime_tag: int}   (* The runtime tag *)
@@ -410,6 +423,28 @@ let set_type_separability decl separabilities =
       List.map2
         (fun param separability -> { param with separability })
         decl.type_params_ separabilities }
+
+let abstract_type_kind priv manifest = match priv, manifest with
+  | Public, Some expansion -> Type (Type_abbrev { expansion })
+  | Private, Some expansion -> Type (Type_private_abbrev { expansion })
+  | Public, None -> Type (Type_abstr { reason = Abstract_def })
+  | Private, None -> assert false
+
+let get_type_kind decl = match decl.type_kind_ with
+  | Type (Type_abstr { reason }) -> Type_abstract reason
+  | Type (Type_private_abbrev { expansion = _ }) -> Type_abstract Abstract_def
+  | Type (Type_abbrev { expansion = _ }) -> Type_abstract Abstract_def
+  | Datatype (Datatype_record { priv = _; labels; repr }) -> Type_record (labels, repr)
+  | Datatype (Datatype_variant { priv = _; constrs; repr }) -> Type_variant (constrs, repr)
+  | Datatype (Datatype_open { priv = _ }) -> Type_open
+
+let get_type_private decl = match decl.type_kind_ with
+  | Type (Type_abstr { reason = _ }) -> Public
+  | Type (Type_abbrev { expansion = _ }) -> Public
+  | Type (Type_private_abbrev { expansion = _ }) -> Private
+  | Datatype (Datatype_record { priv; labels = _; repr = _ }) -> priv
+  | Datatype (Datatype_variant { priv; constrs = _; repr = _ }) -> priv
+  | Datatype (Datatype_open { priv }) -> priv
 
 (* Type expressions for the class language *)
 
@@ -717,7 +752,7 @@ let may_equal_constr c1 c2 =
          equal_tag tag1 tag2)
 
 let find_unboxed_type decl =
-  match decl.type_kind with
+  match get_type_kind decl with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
   | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, Variant_unboxed))
   | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)

@@ -1248,7 +1248,7 @@ let type_of_cstr path = function
       let labels =
         List.map snd (Datarepr.labels_of_type path decl)
       in
-      begin match decl.type_kind with
+      begin match get_type_kind decl with
       | Type_record (_, repr) ->
         {
           tda_declaration = decl;
@@ -1538,7 +1538,7 @@ let find_module_lazy path env =
 let find_type_expansion path env =
   let decl = find_type path env in
   match decl.type_manifest with
-  | Some body when decl.type_private = Public
+  | Some body when get_type_private decl = Public
               || not (Btype.type_kind_is_abstract decl)
               || Btype.has_constr_row body ->
       (get_type_params decl, body, decl.type_expansion_scope)
@@ -1866,7 +1866,7 @@ let rec components_of_module_maker
             Btype.set_static_row_name final_decl
               (Subst.type_path sub (Path.Pident id));
             let descrs =
-              match decl.type_kind with
+              match get_type_kind decl with
               | Type_variant (_,repr) ->
                   let cstrs = List.map snd
                     (Datarepr.constructors_of_type path final_decl
@@ -2061,7 +2061,7 @@ and store_constructor ~check type_decl type_id cstr_id cstr env =
     let name = cstr.cstr_name in
     let loc = cstr.cstr_loc in
     let k = cstr.cstr_uid in
-    let priv = type_decl.type_private in
+    let priv = get_type_private type_decl in
     if not (Types.Uid.Tbl.mem !used_constructors k) then begin
       let used = constructor_usages () in
       Types.Uid.Tbl.add !used_constructors k
@@ -2093,7 +2093,7 @@ and store_label ~check type_decl type_id lbl_id lbl env =
      && Warnings.is_active (Warnings.Unused_field ("", Unused))
   then begin
     let ty_name = Ident.name type_id in
-    let priv = type_decl.type_private in
+    let priv = get_type_private type_decl in
     let name = lbl.lbl_name in
     let loc = lbl.lbl_loc in
     let mut = lbl.lbl_mut in
@@ -2125,7 +2125,7 @@ and store_type ~check id info shape env =
       !type_declarations;
   let descrs, env =
     let path = Pident id in
-    match info.type_kind with
+    match get_type_kind info with
     | Type_variant (_,repr) ->
         let constructors = Datarepr.constructors_of_type path info
                             ~current_unit:(get_unit_name ())

@@ -1765,7 +1765,7 @@ let prepare_decl id decl =
         prepare_type ty;
         Some ty
   in
-  begin match decl.type_kind with
+  begin match get_type_kind decl with
   | Type_abstract _ -> ()
   | Type_variant (cstrs, _rep) ->
       List.iter
@@ -1788,13 +1788,13 @@ let tree_of_type_decl id decl =
   in
   let type_defined decl =
     let abstr =
-      match decl.type_kind with
+      match get_type_kind decl with
         Type_abstract _ ->
-          decl.type_manifest = None || decl.type_private = Private
+          decl.type_manifest = None || get_type_private decl = Private
       | Type_record _ ->
-          decl.type_private = Private
+          get_type_private decl = Private
       | Type_variant (tll, _rep) ->
-          decl.type_private = Private ||
+          get_type_private decl = Private ||
           List.exists (fun cd -> cd.cd_res <> None) tll
       | Type_open ->
           decl.type_manifest = None
@@ -1809,7 +1809,7 @@ let tree_of_type_decl id decl =
               match decl.type_manifest with
               | None -> true
               | Some ty -> (* only abstract or private row types *)
-                  decl.type_private = Private &&
+                  get_type_private decl = Private &&
                   Btype.is_constr_row ~allow_ident:true (Btype.row_of_type ty)
             and (co, cn) = Variance.get_upper v in
             (if not cn then Covariant else
@@ -1835,12 +1835,12 @@ let tree_of_type_decl id decl =
   let (name, args) = type_defined decl in
   let constraints = tree_of_constraints params in
   let ty, priv, unboxed =
-    match decl.type_kind with
+    match get_type_kind decl with
     | Type_abstract _ ->
         begin match ty_manifest with
         | None -> (Otyp_abstract, Public, false)
         | Some ty ->
-            tree_of_typexp Type ty, decl.type_private, false
+            tree_of_typexp Type ty, get_type_private decl, false
         end
     | Type_variant (cstrs, rep) ->
         let unboxed =
@@ -1849,15 +1849,15 @@ let tree_of_type_decl id decl =
           | Variant_boxed _ | Variant_extensible -> false
         in
         tree_of_manifest (Otyp_sum (List.map tree_of_constructor_in_decl cstrs)),
-        decl.type_private,
+        get_type_private decl,
         unboxed
     | Type_record(lbls, rep) ->
         tree_of_manifest (Otyp_record (List.map tree_of_label lbls)),
-        decl.type_private,
+        get_type_private decl,
         (match rep with Record_unboxed -> true | _ -> false)
     | Type_open ->
         tree_of_manifest Otyp_open,
-        decl.type_private,
+        get_type_private decl,
         false
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
@@ -2318,10 +2318,9 @@ let wrap_env fenv ftree arg =
 let dummy =
   {
     type_params_ = [];
-    type_kind = Type_abstract Abstract_def;
+    type_kind_ = Type (Type_abstr { reason = Abstract_def });
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
     type_jkind_annotation = None;
-    type_private = Public;
     type_manifest = None;
     type_is_newtype = false;
     type_expansion_scope = Btype.lowest_level;
@@ -3011,7 +3010,7 @@ let warn_on_missing_def env ppf t =
   match get_desc t with
   | Tconstr (p,_,_) ->
     begin match Env.find_type p env with
-    | { type_kind = Type_abstract Abstract_rec_check_regularity; _ } ->
+    | { type_kind_ = Type (Type_abstr { reason = Abstract_rec_check_regularity }); _ } ->
         fprintf ppf
           "@,@[<hov>Type %a was considered abstract@ when checking\
            @ constraints@ in this@ recursive type definition.@]"
@@ -3020,9 +3019,7 @@ let warn_on_missing_def env ppf t =
         fprintf ppf
           "@,@[<hov>Type %a is abstract because@ no corresponding\
            @ cmi file@ was found@ in path.@]" path p
-    | {type_kind =
-       Type_abstract Abstract_def | Type_record _ | Type_variant _ | Type_open }
-      -> ()
+    | _ -> ()
     end
   | _ -> ()
 

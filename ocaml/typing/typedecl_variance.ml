@@ -230,7 +230,7 @@ let compute_variance_type env ~check (required, loc) decl tyl =
   List.map2
     (fun ty (p, n, i) ->
       let v = get_variance ty tvl in
-      let tr = decl.type_private in
+      let tr = get_type_private decl in
       (* Use required variance where relevant *)
       let concr = not (Btype.type_kind_is_abstract decl) in
       let (p, n) =
@@ -260,11 +260,20 @@ let for_constr = function
           (Types.is_mutable ld_mutable, ld_type))
         l
 
+let with_private_constructors decl =
+  { decl with type_kind_ =
+      match decl.type_kind_ with
+      | Datatype (Datatype_variant t) ->
+        Datatype (Datatype_variant { t with priv = Private })
+      | Datatype (Datatype_open { priv = _ }) ->
+        Datatype (Datatype_open { priv = Private })
+      | _ -> assert false }
+
 let compute_variance_gadt env ~check (required, loc as rloc) decl
     (tl, ret_type_opt) =
   match ret_type_opt with
   | None ->
-      compute_variance_type env ~check rloc {decl with type_private = Private}
+      compute_variance_type env ~check rloc (with_private_constructors decl)
         (for_constr tl)
   | Some ret_type ->
       match get_desc ret_type with
@@ -283,7 +292,7 @@ let compute_variance_gadt env ~check (required, loc as rloc) decl
               ([], fvl) tyl required
           in
           compute_variance_type env ~check rloc
-            {(set_type_params decl tyl) with type_private = Private}
+            (set_type_params decl tyl |> with_private_constructors)
             (for_constr tl)
       | _ -> assert false
 
@@ -310,7 +319,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
     Option.map (fun id -> Type_declaration (id, decl)) check
   in
   let abstract = Btype.type_kind_is_abstract decl in
-  if (abstract || decl.type_kind = Type_open)
+  if (abstract || get_type_kind decl = Type_open)
        && decl.type_manifest = None then
     List.map
       (fun (c, n, i) ->
@@ -323,7 +332,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
       | Some ty -> [ false, ty ]
     in
     let vari =
-      match decl.type_kind with
+      match get_type_kind decl with
         Type_abstract _ | Type_open ->
           compute_variance_type env ~check rloc decl mn
       | Type_variant (tll,_rep) ->
@@ -336,7 +345,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
               List.map
                 (fun ty ->
                    compute_variance_type env ~check rloc
-                     {decl with type_private = Private}
+                     (with_private_constructors decl)
                      (add_false [ ty ])
                 )
                 (Option.to_list decl.type_manifest)

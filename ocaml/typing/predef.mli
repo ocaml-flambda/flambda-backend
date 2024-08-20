@@ -133,7 +133,7 @@ val add_or_null :
 (* Construct the [type_kind] of [or_null]. For re-exporting [or_null]
    while users can't define their own types with null constructors. *)
 (* CR layouts v3.5: remove this when users can define null constructors. *)
-val or_null_kind : type_expr -> ('a, constructor_declaration) type_kind
+val or_null_kind : type_expr -> type_decl_kind_
 
 (* To initialize linker tables *)
 

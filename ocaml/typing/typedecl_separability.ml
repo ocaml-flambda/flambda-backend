@@ -48,7 +48,7 @@ type type_structure =
   | Unboxed of argument_to_unbox
 
 let structure : type_definition -> type_structure = fun def ->
-  match def.type_kind with
+  match get_type_kind def with
   | Type_open -> Open
   | Type_abstract _ ->
       begin match def.type_manifest with
@@ -60,7 +60,7 @@ let structure : type_definition -> type_structure = fun def ->
       | None -> Algebraic
       | Some ty ->
         let params =
-          match def.type_kind with
+          match get_type_kind def with
           | Type_variant ([{cd_res = Some ret_type}], _) ->
              begin match get_desc ret_type with
              | Tconstr (_, tyl, _) -> tyl

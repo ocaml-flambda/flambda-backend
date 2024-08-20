@@ -59,11 +59,11 @@ let constructor_existentials cd_args cd_res =
   in
   (tyl, existentials)
 
-let constructor_args ~current_unit priv cd_args cd_res path rep =
+let constructor_args ~current_unit priv cd_args cd_res path repr =
   let tyl, existentials = constructor_existentials cd_args cd_res in
   match cd_args with
   | Cstr_tuple l -> existentials, l, None
-  | Cstr_record lbls ->
+  | Cstr_record labels ->
       let arg_vars_set =
         free_vars ~param:true
           (newgenty (Ttuple (List.map (fun ty -> None, ty) tyl)))
@@ -71,15 +71,14 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       let type_params = TypeSet.elements arg_vars_set in
       let is_void_label lbl = Jkind.is_void_defaulting lbl.ld_jkind in
       let jkind =
-        Jkind.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
+        Jkind.for_boxed_record ~all_void:(List.for_all is_void_label labels)
       in
       let tdecl =
         {
           type_params_ = create_type_params_of_unknowns ~injective:true type_params;
-          type_kind = Type_record (lbls, rep);
+          type_kind_ = Datatype (Datatype_record { priv; labels; repr } );
           type_jkind = jkind;
           type_jkind_annotation = None;
-          type_private = priv;
           type_manifest = None;
           type_is_newtype = false;
           type_expansion_scope = Btype.lowest_level;
@@ -137,7 +136,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
     let cstr_existentials, cstr_args, cstr_inlined =
       (* This is the representation of the inner record, IF there is one *)
       let record_repr = Record_inlined (cstr_tag, cstr_shape, rep) in
-      constructor_args ~current_unit decl.type_private cd_args cd_res
+      constructor_args ~current_unit (get_type_private decl) cd_args cd_res
         Path.(Pextra_ty (ty_path, Pcstr_ty cstr_name)) record_repr
     in
     let cstr =
@@ -154,7 +153,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
         cstr_consts = !num_consts;
         cstr_nonconsts = !num_nonconsts;
         cstr_generalized = cd_res <> None;
-        cstr_private = decl.type_private;
+        cstr_private = get_type_private decl;
         cstr_loc = cd_loc;
         cstr_attributes = cd_attributes;
         cstr_inlined;
@@ -257,14 +256,14 @@ let find_constr_by_tag ~constant tag cstrlist =
   fst (find_constr ~constant tag cstrlist)
 
 let constructors_of_type ~current_unit ty_path decl =
-  match decl.type_kind with
+  match get_type_kind decl with
   | Type_variant (cstrs,rep) ->
      constructor_descrs ~current_unit ty_path decl cstrs rep
   | Type_record _ | Type_abstract _ | Type_open -> []
 
 let labels_of_type ty_path decl =
-  match decl.type_kind with
+  match get_type_kind decl with
   | Type_record(labels, rep) ->
       label_descrs (newgenconstr ty_path (get_type_params decl))
-        labels rep decl.type_private
+        labels rep (get_type_private decl)
   | Type_variant _ | Type_abstract _ | Type_open -> []

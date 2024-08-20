@@ -15,12 +15,29 @@
 
 (* Operations on module types *)
 
-open Asttypes
 open Path
 open Types
 
 let freshen ~scope mty =
   Subst.modtype (Rescope scope) Subst.identity mty
+
+
+(* [type t = ...] => [type t = M.t = ...], where p = [M], id = [t], and decl = [...] *)
+let type_with_manifest_of_module path decl =
+  match decl.type_kind_ with
+  | Type (Type_abbrev { expansion = _ }) -> decl
+  | Type (Type_abstr { reason = _ } | Type_private_abbrev { expansion = _ }) ->
+    let expansion =
+      Btype.newgenty (Tconstr(path, get_type_params decl, ref Mnil))
+    in
+    { decl with
+        type_kind_ = Type (Type_abbrev { expansion });
+        type_manifest = Some expansion }
+  | Datatype _ ->
+    let type_manifest =
+      Some (Btype.newgenty (Tconstr(path, get_type_params decl, ref Mnil)))
+    in
+    { decl with type_manifest }
 
 (* Strengthen a type as far as possible without unfolding abbreviations,
   pushing strengthening into signatures and functors. Return None if we
@@ -84,24 +101,11 @@ and strengthen_lazy_sig' ~aliasable sg p =
     [] -> []
   | (Sig_value(_, _, _) as sigelt) :: rem ->
       sigelt :: strengthen_lazy_sig' ~aliasable rem p
-  | Sig_type(id, {type_kind=Type_abstract _}, _, _) :: rem
+  | Sig_type(id, { type_kind_ = Type (Type_abstr { reason = _ }) }, _, _) :: rem
     when Btype.is_row_name (Ident.name id) ->
       strengthen_lazy_sig' ~aliasable rem p
-  | Sig_type(id, decl, rs, vis) :: rem ->
-      let newdecl =
-        match decl.type_manifest, decl.type_private, decl.type_kind with
-          Some _, Public, _ -> decl
-        | Some _, Private, (Type_record _ | Type_variant _) -> decl
-        | _ ->
-            let manif =
-              Some(Btype.newgenty(Tconstr(Pdot(p, Ident.name id),
-                                          (get_type_params decl), ref Mnil))) in
-            if Btype.type_kind_is_abstract decl then
-              { decl with type_private = Public; type_manifest = manif }
-            else
-              { decl with type_manifest = manif }
-      in
-      Sig_type(id, newdecl, rs, vis) ::
+  | Sig_type (id, decl, rs, vis) :: rem ->
+      Sig_type(id, type_with_manifest_of_module (Pdot (p, Ident.name id)) decl, rs, vis) ::
         strengthen_lazy_sig' ~aliasable rem p
   | (Sig_typext _ as sigelt) :: rem ->
       sigelt :: strengthen_lazy_sig' ~aliasable rem p
@@ -295,21 +299,8 @@ let rec sig_make_manifest sg =
   | (Sig_value _ | Sig_class _ | Sig_class_type _) as t :: rem ->
     t :: sig_make_manifest rem
   | Sig_type (id,decl,rs,vis) :: rem ->
-    let newdecl =
-      match decl.type_manifest, decl.type_private, decl.type_kind with
-        Some _, Public, _ -> decl
-      | Some _, Private, (Type_record _ | Type_variant _) -> decl
-      | _ ->
-        let manif =
-          Some (Btype.newgenty(Tconstr(Pident id, get_type_params decl, ref Mnil)))
-        in
-        match decl.type_kind with
-        | Type_abstract _ ->
-          { decl with type_private = Public; type_manifest = manif }
-        | (Type_record _ | Type_variant _ | Type_open) ->
-          { decl with type_manifest = manif }
-    in
-    Sig_type(Ident.rename id, newdecl, rs, vis) :: sig_make_manifest rem
+    Sig_type(Ident.rename id, type_with_manifest_of_module (Pident id) decl, rs, vis)
+      :: sig_make_manifest rem
   | Sig_typext _ as sigelt :: rem ->
     sigelt :: sig_make_manifest rem
   | Sig_module(id, pres, md, rs, vis) :: rem ->
@@ -631,8 +622,8 @@ let rec contains_type env mty =
 and contains_type_sig env = List.iter (contains_type_item env)
 
 and contains_type_item env = function
-    Sig_type (_,({type_manifest = None} |
-                 {type_kind = Type_abstract _; type_private = Private}),_, _)
+    (* Every kind except Type_abbrev *)
+    Sig_type (_, ({type_kind_ = Type (Type_abstr _ | Type_private_abbrev _) | Datatype _}), _, _)
   | Sig_modtype _
   | Sig_typext (_, {ext_args = Cstr_record _}, _, _) ->
       (* We consider that extension constructors with an inlined

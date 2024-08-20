@@ -672,11 +672,12 @@ let merge_constraint initial_env loc sg lid constr =
               sdecl.ptype_params
           in
           let type_separability = Types.Separability.default_signature ~arity in
+          (* CR jbachurski: do private abstract types without manifests even exist? *)
+          (* CR jbachurski: This is where private row types are introduced. *)
           { type_params_ = create_type_params type_params type_variance type_separability;
-            type_kind = Type_abstract Abstract_def;
+            type_kind_ = Type (Type_abstr { reason = Abstract_def });
             type_jkind = Jkind.Builtin.value ~why:(Unknown "merge_constraint");
             type_jkind_annotation = None;
-            type_private = Private;
             type_manifest = None;
             type_loc = sdecl.ptype_loc;
             type_is_newtype = false;
