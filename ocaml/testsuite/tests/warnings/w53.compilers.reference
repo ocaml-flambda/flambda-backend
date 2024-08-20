@@ -304,92 +304,92 @@ File "w53.ml", line 167, characters 39-48:
 Warning 53 [misplaced-attribute]: the "local_opt" attribute cannot appear in this context
 
 File "w53.ml", line 172, characters 20-25:
-172 |   type 'a t1 = 'a [@local]
+172 |   type 'a t1 = 'a [@local] (* rejected *)
                           ^^^^^
 Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
 
 File "w53.ml", line 173, characters 21-27:
-173 |   type 'a t1' = 'a [@global]
+173 |   type 'a t1' = 'a [@global] (* rejected *)
                            ^^^^^^
 Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
 
 File "w53.ml", line 175, characters 24-29:
-175 |   type t2 = { x : int [@local] }
+175 |   type t2 = { x : int [@local] } (* rejected *)
                               ^^^^^
 Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
 
 File "w53.ml", line 176, characters 25-31:
-176 |   type t2' = { x : int [@global] }
+176 |   type t2' = { x : int [@global] } (* rejected *)
                                ^^^^^^
 Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
 
 File "w53.ml", line 178, characters 27-32:
-178 |   val x : 'a list -> ('a [@local]) list
+178 |   val x : 'a list -> ('a [@local]) list (* rejected *)
                                  ^^^^^
 Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
 
 File "w53.ml", line 179, characters 28-34:
-179 |   val x' : 'a list -> ('a [@global]) list
+179 |   val x' : 'a list -> ('a [@global]) list (* rejected *)
                                   ^^^^^^
 Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
 
 File "w53.ml", line 181, characters 32-37:
-181 |   val y : 'a -> f:(('a -> 'b) [@local]) -> 'b
+181 |   val y : 'a -> f:(('a -> 'b) [@local]) -> 'b (* rejected *)
                                       ^^^^^
 Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
 
 File "w53.ml", line 182, characters 33-39:
-182 |   val y' : 'a -> f:(('a -> 'b) [@global]) -> 'b
+182 |   val y' : 'a -> f:(('a -> 'b) [@global]) -> 'b (* rejected *)
                                        ^^^^^^
 Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
 
 File "w53.ml", line 184, characters 16-21:
-184 |   val z : 'a [@@local]
+184 |   val z : 'a [@@local] (* rejected *)
                       ^^^^^
 Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
 
 File "w53.ml", line 185, characters 17-23:
-185 |   val z' : 'a [@@global]
+185 |   val z' : 'a [@@global] (* rejected *)
                        ^^^^^^
 Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
 
 File "w53.ml", line 187, characters 17-22:
-187 |   val w : 'a [@@@local]
+187 |   val w : 'a [@@@local] (* rejected *)
                        ^^^^^
 Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
 
 File "w53.ml", line 188, characters 18-24:
-188 |   val w' : 'a [@@@global]
+188 |   val w' : 'a [@@@global] (* rejected *)
                         ^^^^^^
 Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
 
 File "w53.ml", line 193, characters 20-25:
-193 |   type 'a t1 = 'a [@local]
+193 |   type 'a t1 = 'a [@local] (* rejected *)
                           ^^^^^
 Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
 
 File "w53.ml", line 194, characters 21-27:
-194 |   type 'a t1' = 'a [@global]
+194 |   type 'a t1' = 'a [@global] (* rejected *)
                            ^^^^^^
 Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
 
 File "w53.ml", line 196, characters 24-29:
-196 |   type t2 = { x : int [@local] }
+196 |   type t2 = { x : int [@local] } (* rejected *)
                               ^^^^^
 Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
 
 File "w53.ml", line 197, characters 25-31:
-197 |   type t2' = { x : int [@global] }
+197 |   type t2' = { x : int [@global] } (* rejected *)
                                ^^^^^^
 Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
 
 File "w53.ml", line 199, characters 13-18:
-199 |   let f (a [@local]) = a
+199 |   let f (a [@local]) = a (* rejected *)
                    ^^^^^
 Warning 53 [misplaced-attribute]: the "local" attribute cannot appear in this context
 
 File "w53.ml", line 200, characters 13-19:
-200 |   let g (a [@global]) = a
+200 |   let g (a [@global]) = a (* rejected *)
                    ^^^^^^
 Warning 53 [misplaced-attribute]: the "global" attribute cannot appear in this context
 

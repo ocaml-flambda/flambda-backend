@@ -169,35 +169,35 @@ end
 
 module type TestLocalGlobalSig = sig
   (* All will be rejected, as we no longer support mode attributes *)
-  type 'a t1 = 'a [@local]
-  type 'a t1' = 'a [@global]
+  type 'a t1 = 'a [@local] (* rejected *)
+  type 'a t1' = 'a [@global] (* rejected *)
 
-  type t2 = { x : int [@local] }
-  type t2' = { x : int [@global] }
+  type t2 = { x : int [@local] } (* rejected *)
+  type t2' = { x : int [@global] } (* rejected *)
 
-  val x : 'a list -> ('a [@local]) list
-  val x' : 'a list -> ('a [@global]) list
+  val x : 'a list -> ('a [@local]) list (* rejected *)
+  val x' : 'a list -> ('a [@global]) list (* rejected *)
 
-  val y : 'a -> f:(('a -> 'b) [@local]) -> 'b
-  val y' : 'a -> f:(('a -> 'b) [@global]) -> 'b
+  val y : 'a -> f:(('a -> 'b) [@local]) -> 'b (* rejected *)
+  val y' : 'a -> f:(('a -> 'b) [@global]) -> 'b (* rejected *)
 
-  val z : 'a [@@local]
-  val z' : 'a [@@global]
+  val z : 'a [@@local] (* rejected *)
+  val z' : 'a [@@global] (* rejected *)
 
-  val w : 'a [@@@local]
-  val w' : 'a [@@@global]
+  val w : 'a [@@@local] (* rejected *)
+  val w' : 'a [@@@global] (* rejected *)
 end
 
 module TestLocalGlobalStruct = struct
   (* All will be rejected, as we no longer support mode attributes *)
-  type 'a t1 = 'a [@local]
-  type 'a t1' = 'a [@global]
+  type 'a t1 = 'a [@local] (* rejected *)
+  type 'a t1' = 'a [@global] (* rejected *)
 
-  type t2 = { x : int [@local] }
-  type t2' = { x : int [@global] }
+  type t2 = { x : int [@local] } (* rejected *)
+  type t2' = { x : int [@global] } (* rejected *)
 
-  let f (a [@local]) = a
-  let g (a [@global]) = a
+  let f (a [@local]) = a (* rejected *)
+  let g (a [@global]) = a (* rejected *)
 end
 
 
