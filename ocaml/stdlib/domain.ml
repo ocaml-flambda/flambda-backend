@@ -21,6 +21,8 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
+external runtime5 : unit -> bool = "%runtime5"
+
 module Runtime_4 = struct
   module DLS = struct
 
@@ -221,6 +223,10 @@ module Runtime_5 = struct
     (* If necessary, grow the current domain's local state array such that [idx]
     * is a valid index in the array. *)
     let rec maybe_grow idx =
+      (* CR ocaml 5 all-runtime5: remove this hack which is here to stop
+        the backend seeing the dls_get operation and failing on runtime4 *)
+      if not (runtime5 ()) then assert false else
+      (* end of hack *)
       let st = get_dls_state () in
       let sz = Array.length st in
       if idx < sz then st
@@ -434,8 +440,6 @@ end
 
 let runtime_4_impl = (module Runtime_4 : S')
 let runtime_5_impl = (module Runtime_5 : S')
-
-external runtime5 : unit -> bool = "%runtime5"
 
 let impl = if runtime5 () then runtime_5_impl else runtime_4_impl
 

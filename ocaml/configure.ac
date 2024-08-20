@@ -2304,6 +2304,10 @@ AC_CHECK_HEADER([spawn.h],
   [AC_CHECK_FUNC([posix_spawn],
     [AC_CHECK_FUNC([posix_spawnp], [AC_DEFINE([HAS_POSIX_SPAWN])])])])
 
+## ffs or _BitScanForward
+# CR mshinwell all-runtime5: remove ffs check, it's only needed for runtime4
+AC_CHECK_FUNC([ffs], [AC_DEFINE([HAS_FFS])])
+
 AC_PATH_TOOL([PKG_CONFIG], [pkg-config], [false])
 
 ## pthread_getaffinity_np, args differ from GNU and BSD

@@ -35,6 +35,11 @@
 #include "caml/osdeps.h"
 #include "caml/prims.h"
 #include "caml/signals.h"
+#include "caml/intext.h"
+#include "caml/prims.h"
+#include "caml/startup.h"
+#include "caml/reverse.h"
+#include "caml/sys.h"
 
 #include "build_config.h"
 
@@ -43,10 +48,8 @@
 /* The table of primitives */
 struct ext_table caml_prim_table;
 
-#ifdef DEBUG
 /* The names of primitives (for instrtrace.c) */
 struct ext_table caml_prim_name_table;
-#endif
 
 /* The table of shared libraries currently opened */
 static struct ext_table shared_libs;
@@ -186,17 +189,13 @@ void caml_build_primitive_table(char_os * lib_path,
       open_shared_lib(p);
   /* Build the primitive table */
   caml_ext_table_init(&caml_prim_table, 0x180);
-#ifdef DEBUG
   caml_ext_table_init(&caml_prim_name_table, 0x180);
-#endif
   for (q = req_prims; *q != 0; q += strlen(q) + 1) {
     c_primitive prim = lookup_primitive(q);
     if (prim == NULL)
           caml_fatal_error("unknown C primitive `%s'", q);
     caml_ext_table_add(&caml_prim_table, (void *) prim);
-#ifdef DEBUG
     caml_ext_table_add(&caml_prim_name_table, caml_stat_strdup(q));
-#endif
   }
   /* Clean up */
   caml_stat_free(tofree1);
@@ -211,15 +210,11 @@ void caml_build_primitive_table_builtin(void)
 {
   int i;
   caml_ext_table_init(&caml_prim_table, 0x180);
-#ifdef DEBUG
   caml_ext_table_init(&caml_prim_name_table, 0x180);
-#endif
   for (i = 0; caml_builtin_cprim[i] != 0; i++) {
     caml_ext_table_add(&caml_prim_table, (void *) caml_builtin_cprim[i]);
-#ifdef DEBUG
     caml_ext_table_add(&caml_prim_name_table,
                        caml_stat_strdup(caml_names_of_builtin_cprim[i]));
-#endif
   }
 }
 
@@ -228,6 +223,124 @@ void caml_free_shared_libs(void)
   while (shared_libs.size > 0)
     caml_dlclose(shared_libs.contents[--shared_libs.size]);
 }
+
+/* The following is verbatim from runtime5, except for caml_alloc_2 and
+   the O_BINARY definition, and the "r5"-commented parts. */
+
+/* flambda-backend runtime4 will never support Windows */
+#define O_BINARY 0
+
+static value caml_alloc_2 (tag_t tag, value a, value b)
+{
+  value v = caml_alloc_small(2, tag);
+  Field(v, 0) = a;
+  Field(v, 1) = b;
+  return v;
+}
+
+static void fixup_endianness_trailer(uint32_t * p)
+{
+#ifndef ARCH_BIG_ENDIAN
+  Reverse_32(p, p);
+#endif
+}
+
+static char magicstr[EXEC_MAGIC_LENGTH+1];
+
+int caml_read_trailer(int fd, struct exec_trailer *trail)
+{
+  if (lseek(fd, (long) -TRAILER_SIZE, SEEK_END) == -1)
+    return BAD_BYTECODE;
+  if (read(fd, (char *) trail, TRAILER_SIZE) < TRAILER_SIZE)
+    return BAD_BYTECODE;
+  fixup_endianness_trailer(&trail->num_sections);
+  memcpy(magicstr, trail->magic, EXEC_MAGIC_LENGTH);
+  magicstr[EXEC_MAGIC_LENGTH] = 0;
+
+  if (0 /* r5: caml_params->print_magic */) {
+    printf("%s\n", magicstr);
+    exit(0);
+  }
+  return
+    (strncmp(trail->magic, EXEC_MAGIC, sizeof(trail->magic)) == 0)
+      ? 0 : WRONG_MAGIC;
+}
+
+CAMLprim value caml_dynlink_get_bytecode_sections(value unit)
+{
+  CAMLparam1(unit);
+  CAMLlocal4(ret, tbl, list, str);
+  int i, j;
+  ret = caml_alloc(4, 0);
+
+  if (/* r5: caml_params->section_table */ caml_section_table != NULL) {
+    /* cf. Symtable.bytecode_sections */
+    const char* sec_names[] = {"SYMB", "CRCS"};
+    tbl = caml_input_value_from_block(/* r5: caml_params->section_table */ caml_section_table,
+                                      /* r5: caml_params->section_table_size */ caml_section_table_size);
+    for (i = 0; i < sizeof(sec_names)/sizeof(sec_names[0]); i++) {
+      for (j = 0; j < Wosize_val(tbl); j++) {
+        value kv = Field(tbl, j);
+        if (!strcmp(sec_names[i], String_val(Field(kv, 0))))
+          Store_field(ret, i, Field(kv, 1));
+      }
+    }
+  } else {
+    struct exec_trailer trail;
+    int fd, err;
+    char *sect;
+    int32_t len;
+
+    fd = open_os(/* r5: caml_params->exe_name */ caml_exe_name, O_RDONLY | O_BINARY);
+    if (fd < 0)
+      caml_failwith("Dynlink: Failed to re-open bytecode executable");
+
+    err = caml_read_trailer(fd, &trail);
+    if (err != 0)
+      caml_failwith("Dynlink: Failed to re-read bytecode trailer");
+
+    caml_read_section_descriptors(fd, &trail);
+
+    len = caml_seek_optional_section(fd, &trail, "SYMB");
+    sect = caml_stat_alloc(len);
+    if (read(fd, sect, len) != len)
+      caml_failwith("Dynlink: error reading SYMB");
+    Store_field(ret, 0,
+      caml_input_value_from_block(sect, len));
+    caml_stat_free(sect);
+
+    len = caml_seek_optional_section(fd, &trail, "CRCS");
+    if (len > 0) {
+      sect = caml_stat_alloc(len);
+      if (read(fd, sect, len) != len)
+        caml_failwith("Dynlink: error reading CRCS");
+      Store_field(ret, 1,
+        caml_input_value_from_block(sect, len));
+      caml_stat_free(sect);
+    }
+
+    caml_stat_free(trail.section);
+    close(fd);
+  }
+
+  list = Val_emptylist;
+  for (i = caml_prim_name_table.size - 1; i >= 0; i--) {
+    str = caml_copy_string(caml_prim_name_table.contents[i]);
+    list = caml_alloc_2(Tag_cons, str, list);
+  }
+  Store_field(ret, 2, list);
+
+  list = Val_emptylist;
+  for (i = caml_shared_libs_path.size - 1; i >= 0; i--) {
+    str = caml_copy_string_of_os(caml_shared_libs_path.contents[i]);
+    list = caml_alloc_2(Tag_cons, str, list);
+  }
+  Store_field(ret, 3, list);
+
+  CAMLreturn (ret);
+}
+
+/* End of runtime5 section */
 
 #endif /* NATIVE_CODE */
 
@@ -307,6 +420,12 @@ value caml_dynlink_add_primitive(value handle)
 value caml_dynlink_get_current_libs(value unit)
 {
   caml_invalid_argument("dynlink_get_current_libs");
+  return Val_unit; /* not reached */
+}
+
+value caml_dynlink_get_bytecode_sections(value unit)
+{
+  caml_invalid_argument("dynlink_get_bytecode_sections");
   return Val_unit; /* not reached */
 }
 

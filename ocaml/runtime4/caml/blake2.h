@@ -2,9 +2,9 @@
 /*                                                                        */
 /*                                 OCaml                                  */
 /*                                                                        */
-/*             Xavier Leroy, projet Cristal, INRIA Rocquencourt           */
+/*           Xavier Leroy, Collège de France and Inria Paris              */
 /*                                                                        */
-/*   Copyright 1996 Institut National de Recherche en Informatique et     */
+/*   Copyright 2022 Institut National de Recherche en Informatique et     */
 /*     en Automatique.                                                    */
 /*                                                                        */
 /*   All rights reserved.  This file is distributed under the terms of    */
@@ -13,26 +13,34 @@
 /*                                                                        */
 /**************************************************************************/
 
-/* Interface with C primitives. */
+/* BLAKE2 message digest */
 
-#ifndef CAML_PRIMS_H
-#define CAML_PRIMS_H
+#ifndef CAML_BLAKE2_H
+#define CAML_BLAKE2_H
 
 #ifdef CAML_INTERNALS
 
-typedef value (*c_primitive)();
+#include "misc.h"
 
-extern c_primitive caml_builtin_cprim[];
-extern char * caml_names_of_builtin_cprim[];
+#define BLAKE2_BLOCKSIZE 128
 
-extern struct ext_table caml_prim_table;
-extern struct ext_table caml_prim_name_table;
+struct BLAKE2_context {
+  uint64_t h[8];
+  uint64_t len[2];
+  size_t numbytes;
+  unsigned char buffer[BLAKE2_BLOCKSIZE];
+};
 
-#define Primitive(n) ((c_primitive)(caml_prim_table.contents[n]))
-
-extern char * caml_section_table;
-extern asize_t caml_section_table_size;
+CAMLextern void
+caml_BLAKE2Init(struct BLAKE2_context * context,
+                size_t hashlen, size_t keylen, const unsigned char * key);
+CAMLextern void
+caml_BLAKE2Update(struct BLAKE2_context * context,
+                  const unsigned char * data, size_t len);
+CAMLextern void
+caml_BLAKE2Final(struct BLAKE2_context * context,
+                 size_t hashlen, unsigned char * hash);
 
 #endif /* CAML_INTERNALS */
 
-#endif /* CAML_PRIMS_H */
+#endif /* CAML_BLAKE2_H */
