@@ -34,6 +34,9 @@ module Instruction : sig
   val print : Format.formatter -> t -> unit
 
   val print_reg : Format.formatter -> Reg.t -> unit
+
+  val is_store : t -> bool
+  val is_alloc : t -> bool
 end = struct
   module Id = struct
     include Numbers.Int
@@ -72,6 +75,42 @@ end = struct
 
   let print_reg ppf (reg : Reg.t) =
     Format.fprintf ppf "reg (%d,\"%s\")" reg.stamp (Reg.name reg)
+    let is_store (instruction : t) =
+      match instruction with
+      | Basic basic_instruction -> (
+        let desc = basic_instruction.desc in
+        match desc with
+        | Op op -> (
+          match op with
+          | Store _ -> true
+          | Load _ |Alloc _| Move | Reinterpret_cast _ | Static_cast _ | Spill
+          | Reload | Const_int _ | Const_float32 _ | Const_float _
+          | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Intop _
+          | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
+          | Opaque | Begin_region | End_region | Specific _ | Name_for_debugger _
+          | Dls_get | Poll ->
+            false)
+        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
+        )
+      | Terminator _ -> false
+  let is_alloc (instruction : t) =
+    match instruction with
+    | Basic basic_instruction -> (
+      let desc = basic_instruction.desc in
+      match desc with
+      | Op op -> (
+        match op with
+        | Alloc _ -> true
+        | Load _ | Store _ | Move | Reinterpret_cast _ | Static_cast _ | Spill
+        | Reload | Const_int _ | Const_float32 _ | Const_float _
+        | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Intop _
+        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
+        | Opaque | Begin_region | End_region | Specific _ | Name_for_debugger _
+        | Dls_get | Poll ->
+          false)
+      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
+      )
+    | Terminator _ -> false
 end
 
 module Dependency_graph : sig
@@ -79,25 +118,29 @@ module Dependency_graph : sig
      same basic block *)
   type t
 
-  val from_cfg : Cfg.t -> t
+  val from_block : Cfg.basic_block -> t
 
-  val dump : Format.formatter -> t -> Cfg_with_layout.t -> unit
+  val get_all_dependencies_of_arg :
+    t -> Instruction.Id.t -> arg_i:int -> Instruction.Id.Set.t
+
+  val dump : Format.formatter -> t -> Cfg.basic_block -> unit
 end = struct
   module Node = struct
     module Reg_node = struct
       type t =
         { reg : Reg.t;
-          depends_on : Instruction.Id.t option
+          direct_dependency : Instruction.Id.t option
         }
 
-      let init reg : t = { reg; depends_on = None }
+      let init reg : t = { reg; direct_dependency = None }
     end
 
     type t =
       { instruction : Instruction.t;
         reg_nodes : Reg_node.t array;
-        depends_on : Instruction.Id.Set.t;
-        is_dependency_of : Instruction.Id.Set.t
+        direct_dependencies : Instruction.Id.Set.t;
+        all_dependencies : Instruction.Id.Set.t;
+        is_direct_dependency_of : Instruction.Id.Set.t
       }
 
     let init instruction : t =
@@ -106,8 +149,9 @@ end = struct
         reg_nodes =
           Array.init (Array.length arguments) (fun i ->
               arguments.(i) |> Reg_node.init);
-        depends_on = Instruction.Id.Set.empty;
-        is_dependency_of = Instruction.Id.Set.empty
+        direct_dependencies = Instruction.Id.Set.empty;
+        all_dependencies = Instruction.Id.Set.empty;
+        is_direct_dependency_of = Instruction.Id.Set.empty
       }
   end
 
@@ -121,24 +165,44 @@ end = struct
 
   let init () : t = Instruction.Id.Tbl.create 100
 
-  let from_basic_block (block : Cfg.basic_block) ~(dependency_graph : t) =
+  let get_all_dependencies dependency_graph id =
+    let (node : Node.t) = Instruction.Id.Tbl.find dependency_graph id in
+    node.all_dependencies
+
+  let get_all_dependencies_of_arg dependency_graph id ~arg_i =
+    let (node : Node.t) = Instruction.Id.Tbl.find dependency_graph id in
+    match node.reg_nodes.(arg_i).direct_dependency with
+    | None -> Instruction.Id.Set.empty
+    | Some direct_dependency ->
+      get_all_dependencies dependency_graph direct_dependency
+      |> Instruction.Id.Set.add direct_dependency
+
+  let from_block (block : Cfg.basic_block) =
+    let dependency_graph = init () in
     let is_changed_in instruction reg =
       Array.exists (Reg.same reg) (Instruction.results instruction)
       || Array.exists (Reg.same reg) (Instruction.destroyed instruction)
     in
-    (* CR-soon tip: break it into 2 parts to find the instruction we want then
-       go up from there. (currently it loops from the end and changes the answer
-       back to None when it encounters the same instruction) *)
     let latest_change ~(current : Instruction.Id.t) (reg : Reg.t) =
-      DLL.fold_right block.body
-        ~f:(fun basic_instruction latest ->
-          let instruction = Instruction.Basic basic_instruction in
-          if Instruction.Id.equal current (Instruction.id instruction)
-          then None
-          else if Option.is_none latest && is_changed_in instruction reg
+      let starting_cell =
+        match
+          DLL.find_cell_opt block.body ~f:(fun instruction ->
+              Basic instruction |> Instruction.id
+              |> Instruction.Id.equal current)
+        with
+        | None -> DLL.last_cell block.body
+        | Some current_cell -> DLL.prev current_cell
+      in
+      let rec find_latest_change cell_option =
+        match cell_option with
+        | None -> None
+        | Some cell ->
+          let instruction = Instruction.Basic (DLL.value cell) in
+          if is_changed_in instruction reg
           then Some instruction
-          else latest)
-        ~init:None
+          else find_latest_change (DLL.prev cell)
+      in
+      find_latest_change starting_cell
     in
     let add_arg_dependency instruction arg_i arg =
       let id = Instruction.id instruction in
@@ -147,7 +211,7 @@ end = struct
       let reg_node = node.reg_nodes.(arg_i) in
       node.reg_nodes.(arg_i)
         <- { reg_node with
-             depends_on =
+             direct_dependency =
                Option.fold ~none:None
                  ~some:(Option.some << Instruction.id)
                  dependency
@@ -165,18 +229,26 @@ end = struct
       let arg_indices =
         Instruction.arguments instruction |> Array.mapi (fun arg_i _ -> arg_i)
       in
-      let instruction_dependencies =
+      let direct_dependencies =
         Array.fold_left
           (fun dependencies arg_i ->
             Option.fold ~none:dependencies
               ~some:(fun dependency ->
                 Instruction.Id.Set.add dependency dependencies)
-              (find dependency_graph id).reg_nodes.(arg_i).depends_on)
+              (find dependency_graph id).reg_nodes.(arg_i).direct_dependency)
           Instruction.Id.Set.empty arg_indices
+      in
+      let all_dependencies =
+        Instruction.Id.Set.fold
+          (fun new_id old_indirect_dependencies ->
+            let node = Instruction.Id.Tbl.find dependency_graph new_id in
+            Instruction.Id.Set.union node.direct_dependencies
+              old_indirect_dependencies)
+          direct_dependencies direct_dependencies
       in
       let node = find dependency_graph id in
       replace dependency_graph id
-        { node with depends_on = instruction_dependencies }
+        { node with direct_dependencies; all_dependencies }
     in
     let add_all_dependencies () =
       DLL.iter block.body ~f:(fun instruction ->
@@ -187,35 +259,32 @@ end = struct
       let dependency = find dependency_graph dependency_id in
       replace dependency_graph dependency_id
         { dependency with
-          is_dependency_of =
-            Instruction.Id.Set.add instruction_id dependency.is_dependency_of
+          is_direct_dependency_of =
+            Instruction.Id.Set.add instruction_id
+              dependency.is_direct_dependency_of
         }
     in
     let set_is_dependency_of_plural (instruction : Instruction.t) =
       let id = Instruction.id instruction in
       let node = find dependency_graph id in
-      Instruction.Id.Set.iter (set_is_dependency_of id) node.depends_on
+      Instruction.Id.Set.iter (set_is_dependency_of id) node.direct_dependencies
     in
     let set_all_is_dependency_of () =
       DLL.iter block.body ~f:(fun instruction ->
-          set_is_dependency_of_plural (Basic instruction))
+          set_is_dependency_of_plural (Basic instruction));
+      set_is_dependency_of_plural (Terminator block.terminator)
     in
     add_all_dependencies ();
-    set_all_is_dependency_of ()
-
-  let from_cfg (cfg : Cfg.t) : t =
-    let dependency_graph = init () in
-    Cfg.iter_blocks cfg ~f:(fun _ block ->
-        from_basic_block block ~dependency_graph);
+    set_all_is_dependency_of ();
     dependency_graph
 
-  let dump ppf (t : t) cfg_with_layout =
+  let dump ppf (t : t) (block : Cfg.basic_block) =
     let open Format in
     let print_reg_node arg_i (reg_node : Node.Reg_node.t) =
       let dependency =
         Option.fold ~none:"none"
           ~some:(sprintf "instruction %d" << Instruction.Id.to_int)
-          reg_node.depends_on
+          reg_node.direct_dependency
       in
       fprintf ppf "\nargument %d, %a depends on %s\n" arg_i
         Instruction.print_reg reg_node.reg dependency
@@ -230,40 +299,43 @@ end = struct
       fprintf ppf "\ndepends on:\n";
       Instruction.Id.Set.iter
         (fprintf ppf "%d " << Instruction.Id.to_int)
-        node.depends_on;
+        node.direct_dependencies;
+      fprintf ppf "\nindirectly depends on:\n";
+      Instruction.Id.Set.iter
+        (fprintf ppf "%d " << Instruction.Id.to_int)
+        node.all_dependencies;
       fprintf ppf "\nis a dependency of:\n";
       Instruction.Id.Set.iter
         (fprintf ppf "%d " << Instruction.Id.to_int)
-        node.is_dependency_of;
+        node.is_direct_dependency_of;
       fprintf ppf "\narg dependencies:\n";
       fprintf ppf "\n"
     in
     fprintf ppf "\ndependency graph:\n";
-    Cfg_with_layout.iter_instructions cfg_with_layout
-      ~instruction:(fun instruction -> print_node (Basic instruction))
-      ~terminator:(fun instruction -> print_node (Terminator instruction))
+    DLL.iter block.body ~f:(fun instruction -> print_node (Basic instruction));
+    print_node (Terminator block.terminator)
 end
 
-module Adjacent_memory_accesses : sig
+module Memory_accesses : sig
   module Memory_operation : sig
-    type op =
-      | Load
-      | Store
-
     type t
+val instruction : t -> Instruction.t
 
-    val create : Instruction.t -> t option
-
-    val can_swap_adjacent : Cfg.basic_block -> t -> t -> bool
+    val is_adjacent : t -> t -> bool
 
     val dump : Format.formatter -> t -> unit
   end
 
   type t
 
-  val from_cfg : Cfg.t -> t Label.Tbl.t
 
-  val dump : Format.formatter -> t Label.Tbl.t -> Cfg_with_layout.t -> unit
+  val stores : t -> Instruction.Id.t list
+val get_memory_operation_exn : t -> Instruction.Id.t -> Memory_operation.t
+  val from_block : Cfg.basic_block -> t
+
+  val can_cross : t -> Instruction.t -> Instruction.t -> bool
+
+  val dump : Format.formatter -> t -> unit
 end = struct
   module Memory_operation = struct
     type op =
@@ -274,47 +346,12 @@ end = struct
       { op : op;
         memory_chunk : Cmm.memory_chunk;
         addressing_mode : Arch.addressing_mode;
-        instruction : Instruction.t
+        instruction : Instruction.t;
+        dependent_allocs : Instruction.Id.Set.t;
+        unsure_allocs : Instruction.Id.Set.t
       }
-
-    let create_load (basic_instruction : Cfg.basic Cfg.instruction) : t option =
-      let desc = basic_instruction.desc in
-      let instruction = Instruction.Basic basic_instruction in
-      match desc with
-      | Op op -> (
-        match op with
-        | Load { memory_chunk; addressing_mode; _ } ->
-          Some { op = Load; memory_chunk; addressing_mode; instruction }
-        | Store _ -> None
-        | Move | Reinterpret_cast _ | Static_cast _ | Spill | Reload
-        | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
-        | Const_vec128 _ | Stackoffset _ | Intop _ | Intop_imm _
-        | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _ | Opaque
-        | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
-        | Poll | Alloc _ ->
-          None)
-      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> None
-
-    let create_store (basic_instruction : Cfg.basic Cfg.instruction) : t option
-        =
-      let desc = basic_instruction.desc in
-      let instruction = Instruction.Basic basic_instruction in
-      match desc with
-      | Op op -> (
-        match op with
-        | Load _ -> None
-        | Store (memory_chunk, addressing_mode, _) ->
-          Some { op = Store; memory_chunk; addressing_mode; instruction }
-        | Move | Reinterpret_cast _ | Static_cast _ | Spill | Reload
-        | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
-        | Const_vec128 _ | Stackoffset _ | Intop _ | Intop_imm _
-        | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _ | Opaque
-        | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
-        | Poll | Alloc _ ->
-          None)
-      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> None
-
-    let create (instruction : Instruction.t) : t option =
+let instruction t = t.instruction
+    let init (instruction : Instruction.t) : t option =
       match instruction with
       | Basic basic_instruction -> (
         let desc = basic_instruction.desc in
@@ -322,9 +359,23 @@ end = struct
         | Op op -> (
           match op with
           | Load { memory_chunk; addressing_mode; _ } ->
-            Some { op = Load; memory_chunk; addressing_mode; instruction }
+            Some
+              { op = Load;
+                memory_chunk;
+                addressing_mode;
+                instruction;
+                dependent_allocs = Instruction.Id.Set.empty;
+                unsure_allocs = Instruction.Id.Set.empty
+              }
           | Store (memory_chunk, addressing_mode, _) ->
-            Some { op = Store; memory_chunk; addressing_mode; instruction }
+            Some
+              { op = Store;
+                memory_chunk;
+                addressing_mode;
+                instruction;
+                dependent_allocs = Instruction.Id.Set.empty;
+                unsure_allocs = Instruction.Id.Set.empty
+              }
           | Move | Reinterpret_cast _ | Static_cast _ | Spill | Reload
           | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
           | Const_vec128 _ | Stackoffset _ | Intop _ | Intop_imm _
@@ -397,7 +448,7 @@ end = struct
         arguments_comparison
       else addressing_mode_comparison
 
-    let compare (t1 : t) (t2 : t) =
+    let _compare (t1 : t) (t2 : t) =
       let addressing_mode_and_arguments_comparison =
         compare_addressing_modes_and_arguments t1 t2
       in
@@ -437,107 +488,160 @@ end = struct
         else false
       in
       res
+  end
 
-    let can_swap_adjacent block (memory_operation_1 : t)
-        (memory_operation_2 : t) =
+  type t =
+    { loads : Instruction.Id.t list;
+      stores : Instruction.Id.t list;
+      memory_operations : Memory_operation.t Instruction.Id.Tbl.t
+    }
+
+
+  let stores t = t.stores
+let get_memory_operation_exn t id =Instruction.Id.Tbl.find t.memory_operations id
+  let from_block (block : Cfg.basic_block) : t =
+    (* A heuristic to avoid treating the same allocation that is stored and
+       loaded as different, has room for improvement *)
+    let dependency_graph = Dependency_graph.from_block block in
+    let id_to_instructions =
+      DLL.to_list block.body
+      |> List.map (fun basic_instruction ->
+             let instruction = Instruction.Basic basic_instruction in
+             Instruction.id instruction, instruction)
+      |> Instruction.Id.Tbl.of_list
+    in
+    let memory_operations = Instruction.Id.Tbl.create 100 in
+    let loads, stores, _, _, _ =
+      DLL.fold_left block.body
+        ~f:
+          (fun (loads, stores, fresh_allocs, stored_allocs, unsure_allocs)
+               basic_instruction ->
+          let instruction = Instruction.Basic basic_instruction in
+          let id = Instruction.id instruction in
+          if Instruction.is_alloc instruction
+          then
+            ( loads,
+              stores,
+              Instruction.Id.Set.add id fresh_allocs,
+              stored_allocs,
+              unsure_allocs )
+          else
+            let memory_operation = Memory_operation.init instruction in
+            match memory_operation with
+            | None -> loads, stores, fresh_allocs, stored_allocs, unsure_allocs
+            | Some memory_operation -> (
+              let get_dependent_allocs_of_arg arg_i =
+                Dependency_graph.get_all_dependencies_of_arg dependency_graph id
+                  ~arg_i
+                |> Instruction.Id.Set.filter
+                     (Instruction.is_alloc
+                     << Instruction.Id.Tbl.find id_to_instructions)
+              in
+              let start_id =
+                match memory_operation.op with Load -> 0 | Store -> 1
+              in
+              let dependent_allocs, _ =
+                Array.fold_left
+                  (fun (dependent_allocs, arg_i) _ ->
+                    ( get_dependent_allocs_of_arg arg_i
+                      |> Instruction.Id.Set.union dependent_allocs,
+                      arg_i + 1 ))
+                  (Instruction.Id.Set.empty, start_id)
+                  (Memory_operation.memory_arguments memory_operation)
+              in
+              match memory_operation.op with
+              | Load ->
+                Instruction.Id.Tbl.add memory_operations id
+                  { memory_operation with dependent_allocs; unsure_allocs };
+                ( id :: loads,
+                  stores,
+                  fresh_allocs,
+                  Instruction.Id.Set.empty,
+                  Instruction.Id.Set.union stored_allocs unsure_allocs )
+              | Store ->
+                Instruction.Id.Tbl.add memory_operations id
+                  { memory_operation with dependent_allocs; unsure_allocs };
+                let new_stored_allocs =
+                  Instruction.Id.Set.diff
+                    (get_dependent_allocs_of_arg 0)
+                    unsure_allocs
+                in
+                ( loads,
+                  id :: stores,
+                  Instruction.Id.Set.diff fresh_allocs new_stored_allocs,
+                  Instruction.Id.Set.union stored_allocs new_stored_allocs,
+                  unsure_allocs )))
+        ~init:
+          ( [],
+            [],
+            Instruction.Id.Set.empty,
+            Instruction.Id.Set.empty,
+            Instruction.Id.Set.empty )
+    in
+    { loads; stores; memory_operations }
+
+  let can_cross (t : t) (instruction_1 : Instruction.t)
+      (instruction_2 : Instruction.t) =
+    let get_memory_operation instruction =
+      Instruction.Id.Tbl.find_opt t.memory_operations
+        (Instruction.id instruction)
+    in
+    match
+      get_memory_operation instruction_1, get_memory_operation instruction_2
+    with
+    | None, _ -> true
+    | _, None -> true
+    | Some memory_operation_1, Some memory_operation_2 -> (
       match memory_operation_1.op, memory_operation_2.op with
       | Load, Load -> true
       | Load, Store | Store, Load | Store, Store ->
-        if compare_addressing_modes_and_arguments memory_operation_1
-             memory_operation_2
+        if Memory_operation.compare_addressing_modes_and_arguments
+             memory_operation_1 memory_operation_2
            = 0
         then
           let check_direct_separation left_memory_operation
               right_memory_operation =
-            match offset_of left_memory_operation right_memory_operation with
+            match
+              Memory_operation.offset_of left_memory_operation
+                right_memory_operation
+            with
             | None -> false
             | Some offset ->
-              offset > (left_memory_operation.memory_chunk |> width_of)
+              offset
+              > (left_memory_operation.Memory_operation.memory_chunk
+               |> Memory_operation.width_of)
           in
           check_direct_separation memory_operation_1 memory_operation_2
           || check_direct_separation memory_operation_2 memory_operation_1
         else
-          let arguments_1 = memory_arguments memory_operation_1
-          and arguments_2 = memory_arguments memory_operation_1 in
-          false
-  end
+          Instruction.Id.Set.is_empty
+            (Instruction.Id.Set.diff memory_operation_1.dependent_allocs
+               (Instruction.Id.Set.union memory_operation_2.dependent_allocs
+                  memory_operation_2.unsure_allocs))
+          || Instruction.Id.Set.is_empty
+               (Instruction.Id.Set.diff memory_operation_2.dependent_allocs
+                  (Instruction.Id.Set.union memory_operation_1.dependent_allocs
+                     memory_operation_1.unsure_allocs)))
 
-  type t =
-    { load_runs : Memory_operation.t list list;
-      store_runs : Memory_operation.t list list
-    }
-
-  let get_sorted_addresses (block : Cfg.basic_block)
-      (address_from_instruction :
-        Cfg.basic Cfg.instruction -> Memory_operation.t option) =
-    let body = DLL.to_list block.body in
-    let addresses = List.filter_map address_from_instruction body in
-    List.sort Memory_operation.compare addresses
-
-  let from_block (block : Cfg.basic_block) : t =
-    let find_runs address_from_instruction =
-      let sorted_addresses =
-        get_sorted_addresses block address_from_instruction
-      in
-      let address_runs =
-        List.fold_right
-          (fun (address : Memory_operation.t) runs ->
-            match runs with
-            | runs_hd :: runs_tl -> (
-              match runs_hd with
-              | run_hd :: _ ->
-                if Memory_operation.is_adjacent address run_hd
-                then (address :: runs_hd) :: runs_tl
-                else [address] :: runs
-              | [] -> assert false)
-            | [] -> [[address]])
-          sorted_addresses []
-      in
-      let address_runs_longer_than_1 =
-        List.filter (fun run -> List.length run > 1) address_runs
-      in
-      address_runs_longer_than_1
-    in
-    let load_runs = find_runs Memory_operation.create_load in
-    let store_runs = find_runs Memory_operation.create_store in
-    { load_runs; store_runs }
-
-  let from_cfg (cfg : Cfg.t) : t Label.Tbl.t =
-    Label.Tbl.map cfg.blocks from_block
-
-  let dump ppf (block_to_runs : t Label.Tbl.t)
-      (cfg_with_layout : Cfg_with_layout.t) =
+  let dump ppf ({ loads; stores; memory_operations } : t) =
     let open Format in
-    let print_run run =
+    let print_list list =
       List.iter
-        (fun (address : Memory_operation.t) ->
+        (fun id ->
+          let address = Instruction.Id.Tbl.find memory_operations id in
           Memory_operation.dump ppf address)
-        run
+        list
     in
-    let print_runs message runs =
-      fprintf ppf message;
-      List.iter
-        (fun run ->
-          fprintf ppf "\n(";
-          print_run run;
-          fprintf ppf "\n)\n")
-        runs
-    in
-    let print_block { load_runs; store_runs } =
-      print_runs "\nAdjacent memory accesses for load:\n" load_runs;
-      print_runs "\nAdjacent memory accesses for store:\n" store_runs
-    in
-    fprintf ppf "\nadjacent memory accesses in each basic block of %s:\n"
-      (Cfg_with_layout.cfg cfg_with_layout |> Cfg.fun_name);
-    DLL.iter (Cfg_with_layout.layout cfg_with_layout) ~f:(fun label ->
-        fprintf ppf "\nBlock %d:\n" label;
-        Label.Tbl.find block_to_runs label |> print_block)
+    fprintf ppf "\nmemory accesses (loads):\n";
+    print_list loads;
+    fprintf ppf "\nmemory accesses (stores):\n";
+    print_list stores
 end
 
 module Seed = struct
-  type t = Adjacent_memory_accesses.Memory_operation.t list
+  type t = Memory_accesses.Memory_operation.t list
 
-  let can_swap_adjacent block instruction_1 instruction_2 =
+  let can_cross memory_accesses instruction_1 instruction_2 =
     let reg_array_to_set = Reg.Set.of_list << Array.to_list in
     let argument_set = reg_array_to_set << Instruction.arguments
     and affected_set instruction =
@@ -552,38 +656,43 @@ module Seed = struct
     if Reg.Set.disjoint affected_1 second_affected
        && Reg.Set.disjoint arguments_1 second_affected
        && Reg.Set.disjoint affected_1 arguments_2
-    then
-      let memory_operation_1 =
-        Adjacent_memory_accesses.Memory_operation.create instruction_1
-      and memory_operation_2 =
-        Adjacent_memory_accesses.Memory_operation.create instruction_2
-      in
-      match memory_operation_1, memory_operation_2 with
-      | Some memory_operation_1, Some memory_operation_2 ->
-        Adjacent_memory_accesses.Memory_operation.can_swap_adjacent block
-          memory_operation_1 memory_operation_2
-      | None, _ -> true
-      | _, None -> true
+    then Memory_accesses.can_cross memory_accesses instruction_1 instruction_2
     else false
 
-  let from_block block =
-    ignore block;
-    ignore can_swap_adjacent;
-    []
+  let from_block (block : Cfg.basic_block) : t list =
+    let memory_accesses = Memory_accesses.from_block block in
+    let stores = Memory_accesses.stores memory_accesses in
+    List.map (fun store_id ->
+      let starting_cell =match DLL.find_cell_opt block.body ~f:(fun instruction ->
+              Basic instruction |> Instruction.id
+              |> Instruction.Id.equal store_id)
 
-  let from_cfg (cfg : Cfg.t) : t list Label.Tbl.t =
-    Label.Tbl.map cfg.blocks from_block
+        with
+        | Some current_cell -> DLL.next current_cell
+        | None -> assert false
+      in
+      let can_cross_chunk seed instruction =
+        List.fold_left (fun can memory_operation -> can && can_cross memory_accesses (Memory_accesses.Memory_operation.instruction memory_operation) instruction) true seed in
+        let rec find_seed seed cell_option =
+          match cell_option with
+          | None -> seed
+          | Some cell ->
+            let instruction = Instruction.Basic (DLL.value cell) in
+            if Instruction.is_store instruction then ( let new_store = Instruction.id instruction |> Memory_accesses.get_memory_operation_exn memory_accesses in
+              if Memory_accesses.Memory_operation.is_adjacent (List.hd seed) (new_store) then find_seed (new_store :: seed) (DLL.next cell) else seed)else (if can_cross_chunk seed instruction then find_seed (seed) (DLL.next cell) else seed)
+        in
+        find_seed [Memory_accesses.get_memory_operation_exn memory_accesses store_id] starting_cell |> List.rev
+      ) stores
 
-  let dump ppf (block_to_seeds : t list Label.Tbl.t)
-      (cfg_with_layout : Cfg_with_layout.t) =
+  let dump ppf (seeds : t list) =
     let open Format in
     let print_seed seed =
       List.iter
-        (fun (address : Adjacent_memory_accesses.Memory_operation.t) ->
-          Adjacent_memory_accesses.Memory_operation.dump ppf address)
+        (fun (address : Memory_accesses.Memory_operation.t) ->
+          Memory_accesses.Memory_operation.dump ppf address)
         seed
     in
-    let print_seed seeds =
+    let print_seeds seeds =
       List.iter
         (fun seed ->
           fprintf ppf "\n(";
@@ -591,15 +700,9 @@ module Seed = struct
           fprintf ppf "\n)\n")
         seeds
     in
-    fprintf ppf "\nseeds in each basic block of %s:\n"
-      (Cfg_with_layout.cfg cfg_with_layout |> Cfg.fun_name);
-    DLL.iter (Cfg_with_layout.layout cfg_with_layout) ~f:(fun label ->
-        fprintf ppf "\nBlock %d:\n" label;
-        Label.Tbl.find block_to_seeds label |> print_seed)
+    fprintf ppf "\nseeds:\n";
+    print_seeds seeds
 end
-
-let count_body_instructions cfg =
-  Cfg.fold_body_instructions cfg ~f:(fun sum _ -> sum + 1) ~init:0
 
 let dump ppf cfg_with_layout ~msg =
   let open Format in
@@ -608,7 +711,9 @@ let dump ppf cfg_with_layout ~msg =
   fprintf ppf "%s\n" (Cfg.fun_name cfg);
   let block_count = Label.Tbl.length cfg.blocks in
   fprintf ppf "blocks.length=%d\n" block_count;
-  let body_instruction_count = count_body_instructions cfg in
+  let body_instruction_count =
+    Cfg.fold_body_instructions cfg ~f:(fun sum _ -> sum + 1) ~init:0
+  in
   fprintf ppf "body instruction count=%d\n" body_instruction_count;
   fprintf ppf "terminator instruction count=%d\n" block_count;
   fprintf ppf "body and terminator instruction count=%d\n"
@@ -619,19 +724,24 @@ let cfg ppf_dump cl =
   if !Flambda_backend_flags.dump_vectorize
   then Format.fprintf ppf_dump "*** Vectorization@.";
   let cfg = Cfg_with_layout.cfg cl in
-  let body_instruction_count = count_body_instructions cfg in
-  (if body_instruction_count > 1000
-  then
-    Format.fprintf ppf_dump
-      "more than 1000 instructions in basic block, cannot vectorize"
-  else
-    let dependency_graph = Dependency_graph.from_cfg cfg in
-    if !Flambda_backend_flags.dump_vectorize
-    then Dependency_graph.dump ppf_dump dependency_graph cl;
-    let adjacent_memory_accesses = Adjacent_memory_accesses.from_cfg cfg in
-    if !Flambda_backend_flags.dump_vectorize
-    then Adjacent_memory_accesses.dump ppf_dump adjacent_memory_accesses cl;
-    let seeds = Seed.from_cfg cfg in
-    if !Flambda_backend_flags.dump_vectorize then Seed.dump ppf_dump seeds cl);
+  let layout = Cfg_with_layout.layout cl in
+  DLL.iter layout ~f:(fun label ->
+      let block = Cfg.get_block_exn cfg label in
+      let instruction_count = DLL.length block.body in
+      Format.fprintf ppf_dump "\nBlock %d (%d basic instructions):\n" label
+        instruction_count;
+      if instruction_count > 1000
+      then
+        Format.fprintf ppf_dump
+          "more than 1000 instructions in basic block, cannot vectorize\n"
+      else
+        let dependency_graph = Dependency_graph.from_block block in
+        if !Flambda_backend_flags.dump_vectorize
+        then Dependency_graph.dump ppf_dump dependency_graph block;
+        let memory_accesses = Memory_accesses.from_block block in
+        if !Flambda_backend_flags.dump_vectorize
+        then Memory_accesses.dump ppf_dump memory_accesses;
+        let seeds = Seed.from_block block in
+        if !Flambda_backend_flags.dump_vectorize then Seed.dump ppf_dump seeds);
   if !Flambda_backend_flags.dump_vectorize then dump ppf_dump ~msg:"" cl;
   cl
