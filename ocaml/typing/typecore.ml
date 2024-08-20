@@ -468,7 +468,7 @@ let get_single_mode_exn {mode; tuple_modes; _} =
 
 let mode_morph f expected_mode =
   let mode = as_single_mode expected_mode in
-  let mode = f mode in
+  let mode = f mode |> Mode.Value.disallow_left in
   let tuple_modes = None in
   {expected_mode with mode; tuple_modes}
 
@@ -7317,7 +7317,13 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       let exp_mode, _ = Value.newvar_below (as_single_mode mode) in
       let texp =
         with_local_level_if_principal ~post:generalize_structure_exp
-          (fun () -> type_exp env {mode with mode = Value.disallow_left exp_mode} sarg)
+          (fun () ->
+            let expected_mode =
+              mode
+              |> mode_morph (fun _mode -> exp_mode)
+              |> expect_mode_cross env ty_expected'
+            in
+            type_exp env expected_mode sarg)
       in
       let rec make_args args ty_fun =
         match get_desc (expand_head env ty_fun) with
