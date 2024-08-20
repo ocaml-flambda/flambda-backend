@@ -4,8 +4,9 @@
 
 set -e -u -o pipefail
 
-dump_dir="`pwd`/_profile"
-summary_path="`pwd`/summary.csv"
+root="`pwd`"
+dump_dir="$root/_profile"
+summary_path="$root/summary.csv"
 
 if [ -d "$dump_dir" ] && [ "$(ls -A "$dump_dir")" ]; then
   echo "$dump_dir is not empty."
@@ -37,7 +38,14 @@ build_compiler() {
   make install
 }
 
+temp_dir="`mktemp -d`"
+trap "rm -rf $temp_dir" EXIT
+git clone $root $temp_dir
+
+cd $temp_dir
 build_compiler
+
+cd $root
 python3 ./scripts/combine-profile-information.py "$dump_dir" -o "$summary_path"
 
 rm "$dump_dir/"*.csv
