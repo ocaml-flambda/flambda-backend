@@ -214,7 +214,11 @@ let rec regalloc ~ppf_dump round (fd : Mach.fundecl) =
     newfd
   end
 
-let count_duplicate_spills_reloads_in_block (cfg : Cfg.t) =
+let (++) x f = f x
+
+let id x = x
+
+let count_duplicate_spills_reloads_in_block (block : Cfg.basic_block) =
   let count_per_inst
       ((dup_spills, dup_reloads, seen_spill_regs, seen_reload_regs) as acc)
       (inst : Cfg.basic Cfg.instruction) =
@@ -233,43 +237,61 @@ let count_duplicate_spills_reloads_in_block (cfg : Cfg.t) =
       dup_spills, new_dup_reloads, seen_spill_regs, Reg.Set.add reg seen_reload_regs
     | _ -> acc
   in
-  let count_per_block _ (block : Cfg.basic_block) (dup_spills, dup_reloads) =
-    let dup_spills, dup_reloads, _, _ =
-      DLL.fold_left block.body ~f:count_per_inst
-        ~init:(dup_spills, dup_reloads, Reg.Set.empty, Reg.Set.empty)
-    in
-    dup_spills, dup_reloads
+  let dup_spills, dup_reloads, _, _ =
+    DLL.fold_left block.body ~f:count_per_inst
+      ~init:(0, 0, Reg.Set.empty, Reg.Set.empty)
   in
-  Cfg.fold_blocks cfg ~f:count_per_block ~init:(0, 0)
+  dup_spills, dup_reloads
 
-let count_spills_reloads (cfg: Cfg.t) =
+let count_spills_reloads (block : Cfg.basic_block) =
   let f ((spills, reloads) as acc) (instr : Cfg.basic Cfg.instruction) =
-  match instr.desc with
-  | Op Spill -> (spills + 1, reloads)
-  | Op Reload -> (spills, reloads + 1)
-  | _ -> acc
+    match instr.desc with
+    | Op Spill -> spills + 1, reloads
+    | Op Reload -> spills, reloads + 1
+    | _ -> acc
   in
-  Cfg.fold_body_instructions cfg ~f ~init:(0, 0)
+  DLL.fold_left ~f ~init:(0, 0) block.body
 
-let cfg_counters cfg =
-  let dup_spills, dup_reloads = count_duplicate_spills_reloads_in_block cfg in
-  let spills, reloads = count_spills_reloads cfg in
+let cfg_block_counters block =
+  let dup_spills, dup_reloads = count_duplicate_spills_reloads_in_block block in
+  let spills, reloads = count_spills_reloads block in
   Profile.Counters.create ()
   |> Profile.Counters.set "block_duplicate_spill" dup_spills
   |> Profile.Counters.set "block_duplicate_reload" dup_reloads
   |> Profile.Counters.set "spill" spills
   |> Profile.Counters.set "reload" reloads
 
+let whole_cfg_counters _ = Profile.Counters.create ()
+
 let cfg_profile to_cfg =
-  Profile.record_with_counters ~counter_f:(fun x -> x |> to_cfg |> cfg_counters)
+  let total_counters = ref (Profile.Counters.create ()) in
+  let block_f label block =
+    match !Clflags.profile_granularity with
+    | Block_level ->
+      let (_ : Cfg.basic_block) =
+        Profile.record_with_counters ~accumulate:true
+          ~counter_f:cfg_block_counters
+          (Format.sprintf "block .%d" label)
+          id block
+      in
+      ()
+    | File_level | Function_level ->
+      (* Manual counter accumulation to circumvent needing to register block as pass *)
+      total_counters
+        := Profile.Counters.union !total_counters (cfg_block_counters block)
+  in
+  let counter_f x =
+    let cfg = to_cfg x in
+    Cfg.iter_blocks cfg ~f:block_f;
+    Profile.Counters.union !total_counters (whole_cfg_counters cfg)
+  in
+  Profile.record_with_counters ~counter_f
 
 let cfg_with_layout_profile ?accumulate pass f x =
   cfg_profile Cfg_with_layout.cfg ?accumulate pass f x
 
 let cfg_with_infos_profile ?accumulate pass f x =
   cfg_profile Cfg_with_infos.cfg ?accumulate pass f x
-
-let (++) x f = f x
 
 let ocamlcfg_verbose =
   match Sys.getenv_opt "OCAMLCFG_VERBOSE" with
@@ -515,7 +537,7 @@ let compile_phrases ~ppf_dump ps =
             let profile_wrapper = match !profile_granularity with
             | Function_level | Block_level ->
                 Profile.record ~accumulate:true fd.fun_name.sym_name
-            | File_level-> fun x -> x
+            | File_level -> id
             in profile_wrapper (compile_fundecl ~ppf_dump ~funcnames) fd;
             compile ~funcnames:(String.Set.remove fd.fun_name.sym_name funcnames) ps
           | Cdata dl ->
