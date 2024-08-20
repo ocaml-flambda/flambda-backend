@@ -86,7 +86,7 @@ let print_cmo_infos cu =
   print_string "Interfaces imported:\n";
   Array.iter print_intf_import cu.cu_imports;
   print_string "Required globals:\n";
-  List.iter print_required_global cu.cu_required_globals;
+  List.iter print_required_global cu.cu_required_compunits;
   printf "Uses unsafe features: ";
   (match cu.cu_primitives with
   | [] -> printf "no\n"
@@ -227,7 +227,8 @@ let print_general_infos print_name name crc defines iter_cmi iter_cmx =
 
 let print_global_table table =
   printf "Globals defined:\n";
-  Symtable.iter_global_map (fun id _ -> print_line (Ident.name id)) table
+  Symtable.iter_global_map (fun id _ -> print_line (Symtable.Global.name id))
+    table
 
 open Cmx_format
 open Cmxs_format
