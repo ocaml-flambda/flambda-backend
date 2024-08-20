@@ -747,7 +747,7 @@ let mk_allow_illegal_crossing f =
 
 let mk_dump_dir f =
   "-dump-dir", Arg.String f,
-  "redirects any file(s) that would be outputted as a result of other flags
+  "redirects any file(s) that would be outputted as a result of other flags\n\
   \    to selected directory (adding stamp to ensure uniqueness in directory)"
 ;;
 
