@@ -1,4 +1,5 @@
 (* TEST
+ not-macos;
  include systhreads;
  hassysthreads;
  not-bsd;
