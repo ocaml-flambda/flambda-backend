@@ -2171,7 +2171,7 @@ let type_jkind_sub env ty jkind =
   let shallow_check ty =
     match estimate_type_jkind env ty with
     | Jkind ty_jkind ->
-      if Jkind.sub ty_jkind jkind then Success else Failure ty_jkind
+      if Jkind.sub ~type_equal:Types.eq_type ty_jkind jkind then Success else Failure ty_jkind
     | TyVar (ty_jkind, ty) -> Type_var (ty_jkind, ty)
   in
   (* The "fuel" argument here is used because we're duplicating the loop of
@@ -2197,7 +2197,7 @@ let type_jkind_sub env ty jkind =
           try (Env.find_type p env).type_jkind
           with Not_found -> Jkind.Builtin.any ~why:(Missing_cmi p)
         in
-        if Jkind.sub jkind_bound jkind
+        if Jkind.sub ~type_equal:Types.eq_type jkind_bound jkind
         then Success
         else if fuel < 0 then Failure jkind_bound
         else begin match unbox_once env ty with
@@ -2223,7 +2223,7 @@ let constrain_type_jkind ~fixed env ty jkind =
   match type_jkind_sub env ty jkind with
   | Success -> Ok ()
   | Type_var (ty_jkind, ty) ->
-    if fixed then Jkind.sub_or_error ty_jkind jkind else
+    if fixed then Jkind.sub_or_error ~type_equal:Types.eq_type ty_jkind jkind else
     let jkind_inter =
       Jkind.intersection_or_error ~reason:Tyvar_refinement_intersection
         ty_jkind jkind
@@ -2260,7 +2260,7 @@ let check_type_externality env ty ext =
   | Error _ -> false
 
 let check_decl_jkind env decl jkind =
-  match Jkind.sub_or_error decl.type_jkind jkind with
+  match Jkind.sub_or_error ~type_equal:Types.eq_type decl.type_jkind jkind with
   | Ok () as ok -> ok
   | Error _ as err ->
       match decl.type_manifest with
@@ -2268,7 +2268,7 @@ let check_decl_jkind env decl jkind =
       | Some ty -> check_type_jkind env ty jkind
 
 let constrain_decl_jkind env decl jkind =
-  match Jkind.sub_or_error decl.type_jkind jkind with
+  match Jkind.sub_or_error ~type_equal:Types.eq_type decl.type_jkind jkind with
   | Ok () as ok -> ok
   | Error _ as err ->
       match decl.type_manifest with

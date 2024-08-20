@@ -1140,7 +1140,8 @@ let narrow_to_manifest_jkind env loc decl =
   | None -> decl
   | Some ty ->
     let jkind' = Ctype.type_jkind_purely env ty in
-    match Jkind.sub_with_history jkind' decl.type_jkind with
+    let type_equal ty1 ty2 = Ctype.is_equal env false [ty1] [ty2] in
+    match Jkind.sub_with_history ~type_equal jkind' decl.type_jkind with
     | Ok jkind' -> { decl with type_jkind = jkind' }
     | Error v ->
       raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
@@ -1154,7 +1155,8 @@ let check_kind_coherence env loc dpath decl =
   | (Type_variant _ | Type_record _ | Type_open), Some ty ->
       if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
-        begin match Jkind.sub_with_history jkind' decl.type_jkind with
+        let type_equal ty1 ty2 = Ctype.is_equal env false [ty1] [ty2] in
+        begin match Jkind.sub_with_history ~type_equal jkind' decl.type_jkind with
         | Ok _ -> ()
         | Error v ->
           raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
@@ -1672,11 +1674,11 @@ let update_decl_jkind env dpath decl =
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in decl.type_jkind *)
   if new_jkind != decl.type_jkind then
-    begin match Jkind.sub_or_error new_jkind decl.type_jkind with
+    (let type_equal ty1 ty2 = Ctype.is_equal env false [ty1] [ty2] in
+    match Jkind.sub_or_error ~type_equal new_jkind decl.type_jkind with
     | Ok () -> ()
     | Error err ->
-      raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))
-    end;
+      raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err))));
   new_decl
 
 let update_decls_jkind_reason env decls =
