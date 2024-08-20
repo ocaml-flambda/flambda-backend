@@ -316,7 +316,8 @@ end = struct
     in
     fprintf ppf "\ndependency graph:\n";
     DLL.iter block.body ~f:(fun instruction -> print_node (Basic instruction));
-    print_node (Terminator block.terminator)
+    print_node (Terminator block.terminator);
+    fprintf ppf "\n"
 end
 
 module Memory_accesses : sig
@@ -430,11 +431,12 @@ end = struct
     let dump ppf (t : t) =
       let open Format in
       let instruction = t.instruction in
-      fprintf ppf "\nInstruction %d: %a (%a, %a)"
+      let print_set ppf set = Instruction.Id.Set.iter (fun id -> fprintf ppf "%d "(Instruction.Id.to_int id)) set in
+      fprintf ppf "\nInstruction %d: %a (%a, %a)\n dependent allocs: %a\n unsure_allocs: %a"
         (Instruction.id instruction |> Instruction.Id.to_int)
         Instruction.print instruction print_memory_chunk t
         (Arch.print_addressing Instruction.print_reg t.addressing_mode)
-        (memory_arguments t)
+        (memory_arguments t) print_set t.dependent_allocs print_set t.unsure_allocs
 
     let compare_arguments (t1 : t) (t2 : t) =
       let arguments_1 = memory_arguments t1 in
@@ -587,7 +589,7 @@ end = struct
             Instruction.Id.Set.empty,
             Instruction.Id.Set.empty )
     in
-    { loads; stores; memory_operations }
+    { loads = List.rev loads; stores = List.rev stores; memory_operations }
 
   let can_cross (t : t) (instruction_1 : Instruction.t)
       (instruction_2 : Instruction.t) =
@@ -644,7 +646,8 @@ end = struct
     fprintf ppf "\nmemory accesses (loads):\n";
     print_list loads;
     fprintf ppf "\nmemory accesses (stores):\n";
-    print_list stores
+    print_list stores;
+    fprintf ppf "\n"
 end
 
 module Seed = struct
@@ -658,12 +661,12 @@ module Seed = struct
         (Instruction.results instruction |> reg_array_to_set)
         (Instruction.destroyed instruction |> reg_array_to_set)
     in
-    let arguments_1 = argument_set instruction_2
+    let arguments_1 = argument_set instruction_1
     and affected_1 = affected_set instruction_1
     and arguments_2 = argument_set instruction_2
-    and second_affected = affected_set instruction_2 in
-    if Reg.Set.disjoint affected_1 second_affected
-       && Reg.Set.disjoint arguments_1 second_affected
+    and affected_2 = affected_set instruction_2 in
+    if Reg.Set.disjoint affected_1 affected_2
+       && Reg.Set.disjoint arguments_1 affected_2
        && Reg.Set.disjoint affected_1 arguments_2
     then Memory_accesses.can_cross memory_accesses instruction_1 instruction_2
     else false
@@ -728,13 +731,14 @@ module Seed = struct
     let print_seeds seeds =
       List.iter
         (fun seed ->
-          fprintf ppf "\n(";
+          fprintf ppf "(";
           print_seed seed;
           fprintf ppf "\n)\n")
         seeds
     in
     fprintf ppf "\nseeds:\n";
-    print_seeds seeds
+    print_seeds seeds;
+    fprintf ppf "\n"
 end
 
 let dump ppf cfg_with_layout ~msg =
