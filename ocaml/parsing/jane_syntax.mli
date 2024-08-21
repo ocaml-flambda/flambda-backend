@@ -186,19 +186,6 @@ module Labeled_tuples : sig
   val pat_of : loc:Location.t -> pattern -> Parsetree.pattern
 end
 
-(** The ASTs for [include functor].  When we merge this upstream, we'll merge
-    these into the existing [P{sig,str}_include] constructors (similar to what
-    we did with [T{sig,str}_include], but without depending on typechecking). *)
-module Include_functor : sig
-  type signature_item = Ifsig_include_functor of Parsetree.include_description
-
-  type structure_item = Ifstr_include_functor of Parsetree.include_declaration
-
-  val sig_item_of : loc:Location.t -> signature_item -> Parsetree.signature_item
-
-  val str_item_of : loc:Location.t -> structure_item -> Parsetree.structure_item
-end
-
 (** The ASTs for module type strengthening. *)
 module Strengthen : sig
   type module_type =
@@ -491,18 +478,14 @@ end
 
 (** Novel syntax in signature items *)
 module Signature_item : sig
-  type t =
-    | Jsig_include_functor of Include_functor.signature_item
-    | Jsig_layout of Layouts.signature_item
+  type t = Jsig_layout of Layouts.signature_item
 
   include AST with type t := t and type ast := Parsetree.signature_item
 end
 
 (** Novel syntax in structure items *)
 module Structure_item : sig
-  type t =
-    | Jstr_include_functor of Include_functor.structure_item
-    | Jstr_layout of Layouts.structure_item
+  type t = Jstr_layout of Layouts.structure_item
 
   include AST with type t := t and type ast := Parsetree.structure_item
 end

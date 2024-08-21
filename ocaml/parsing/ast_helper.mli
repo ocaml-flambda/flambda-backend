@@ -370,7 +370,8 @@ module Opn:
 (** Includes *)
 module Incl:
   sig
-    val mk: ?loc: loc -> ?attrs:attrs -> ?docs:docs -> 'a -> 'a include_infos
+    val mk: ?loc: loc -> ?attrs:attrs -> ?docs:docs -> ?kind:include_kind -> 'a
+      -> 'a include_infos
   end
 
 (** Value bindings *)

@@ -51,6 +51,8 @@ type modalities = modality loc list
 type mode = | Mode of string [@@unboxed]
 type modes = mode loc list
 
+type include_kind = Structure | Functor
+
 (** {1 Extension points} *)
 
 type attribute = {
@@ -1026,6 +1028,7 @@ and open_declaration = module_expr open_infos
 
 and 'a include_infos =
     {
+     pincl_kind : include_kind;
      pincl_mod: 'a;
      pincl_loc: Location.t;
      pincl_attributes: attributes;
