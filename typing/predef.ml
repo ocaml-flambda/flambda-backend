@@ -421,7 +421,8 @@ let build_initial_env add_type add_extension empty_env =
          in
          let immediate = Jkind.Builtin.value ~why:(Primitive ident_int) in
          let labels = List.map lbl [
-           ("pos_fname", type_string, Jkind.Builtin.value ~why:(Primitive ident_string));
+           ("pos_fname", type_string, (Jkind.of_const ~why:(Primitive ident_string)
+                                          Jkind.Const.Builtin.immutable_data.jkind));
            ("pos_lnum", type_int, immediate);
            ("pos_bol", type_int, immediate);
            ("pos_cnum", type_int, immediate) ]
@@ -431,7 +432,9 @@ let build_initial_env add_type add_extension empty_env =
            (Record_boxed (List.map (fun label -> label.ld_jkind) labels |> Array.of_list))
          )
        )
-       ~jkind:(Jkind.Builtin.value ~why:Boxed_record)
+       ~jkind:(Jkind.of_const ~why:(Primitive ident_lexing_position)
+                Jkind.Const.Builtin.immutable_data.jkind)
+       ~jkind_annotation:Jkind.Const.Builtin.word
   |> add_type ident_string
        ~jkind:(Jkind.of_const ~why:(Primitive ident_string)
                 Jkind.Const.Builtin.immutable_data.jkind)
