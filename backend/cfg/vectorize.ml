@@ -8,6 +8,8 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let ( << ) f g x = f (g x)
 
+let vector_width_in_bytes = 16
+
 module Instruction : sig
   (* CR-someday tip: consider moving this to cfg or at least have something
      similar there *)
@@ -35,9 +37,13 @@ module Instruction : sig
 
   val print_reg : Format.formatter -> Reg.t -> unit
 
+  val is_load : t -> bool
+
   val is_store : t -> bool
 
   val is_alloc : t -> bool
+
+  val may_be_blocker : t -> bool
 end = struct
   module Id = struct
     include Numbers.Int
@@ -77,6 +83,25 @@ end = struct
   let print_reg ppf (reg : Reg.t) =
     Format.fprintf ppf "reg (%d,\"%s\")" reg.stamp (Reg.name reg)
 
+  let is_load (instruction : t) =
+    match instruction with
+    | Basic basic_instruction -> (
+      let desc = basic_instruction.desc in
+      match desc with
+      | Op op -> (
+        match op with
+        | Load _ -> true
+        | Store _ | Alloc _ | Move | Reinterpret_cast _ | Static_cast _ | Spill
+        | Reload | Const_int _ | Const_float32 _ | Const_float _
+        | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Intop _
+        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
+        | Opaque | Begin_region | End_region | Specific _ | Name_for_debugger _
+        | Dls_get | Poll ->
+          false)
+      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
+      )
+    | Terminator _ -> false
+
   let is_store (instruction : t) =
     match instruction with
     | Basic basic_instruction -> (
@@ -110,6 +135,28 @@ end = struct
         | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
         | Opaque | Begin_region | End_region | Specific _ | Name_for_debugger _
         | Dls_get | Poll ->
+          false)
+      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
+      )
+    | Terminator _ -> false
+
+  let may_be_blocker (instruction : t) =
+    (* CR-someday tip: these instructions may or may not cause issues for going
+       across a load or a store, for simplicity's sake, let's not let them cross
+       for now, but can add better handling in the future *)
+    match instruction with
+    | Basic basic_instruction -> (
+      let desc = basic_instruction.desc in
+      match desc with
+      | Op op -> (
+        match op with
+        | Alloc _ | Poll | Opaque | Begin_region | End_region | Specific _ ->
+          true
+        | Load _ | Store _ | Move | Reinterpret_cast _ | Static_cast _ | Spill
+        | Reload | Const_int _ | Const_float32 _ | Const_float _
+        | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Intop _
+        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
+        | Name_for_debugger _ | Dls_get ->
           false)
       | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
       )
@@ -328,6 +375,8 @@ module Memory_accesses : sig
 
     val is_adjacent : t -> t -> bool
 
+    val width : t -> int
+
     val dump : Format.formatter -> t -> unit
   end
 
@@ -408,6 +457,8 @@ end = struct
       | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> 4
       | Word_int | Word_val | Double -> 8
       | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 16
+
+    let width (t : t) = width_of t.memory_chunk
 
     let print_memory_chunk ppf (t : t) =
       let open Format in
@@ -609,8 +660,17 @@ end = struct
     match
       get_memory_operation instruction_1, get_memory_operation instruction_2
     with
-    | None, _ -> true
-    | _, None -> true
+    | None, _ | _, None ->
+      let is_load_store instruction =
+        Instruction.is_load instruction || Instruction.is_store instruction
+      in
+      not
+        (Instruction.may_be_blocker instruction_1
+         && Instruction.may_be_blocker instruction_2
+        || is_load_store instruction_1
+           && Instruction.may_be_blocker instruction_2
+        || Instruction.may_be_blocker instruction_1
+           && is_load_store instruction_2)
     | Some memory_operation_1, Some memory_operation_2 -> (
       match memory_operation_1.op, memory_operation_2.op with
       | Load, Load -> true
@@ -683,7 +743,7 @@ module Seed = struct
   let from_block (block : Cfg.basic_block) : t list =
     let memory_accesses = Memory_accesses.from_block block in
     let stores = Memory_accesses.stores memory_accesses in
-    List.map
+    List.filter_map
       (fun store_id ->
         let starting_cell =
           match
@@ -693,6 +753,13 @@ module Seed = struct
           with
           | Some current_cell -> DLL.next current_cell
           | None -> assert false
+        in
+        let starting_memory_operation =
+          Memory_accesses.get_memory_operation_exn memory_accesses store_id
+        in
+        let items_in_vector =
+          vector_width_in_bytes
+          / Memory_accesses.Memory_operation.width starting_memory_operation
         in
         let can_cross_chunk seed instruction =
           List.fold_left
@@ -704,29 +771,32 @@ module Seed = struct
                    instruction)
             true seed
         in
-        let rec find_seed seed cell_option =
-          match cell_option with
-          | None -> seed
-          | Some cell ->
-            let instruction = Instruction.Basic (DLL.value cell) in
-            if Instruction.is_store instruction
-            then
-              let new_store =
-                Instruction.id instruction
-                |> Memory_accesses.get_memory_operation_exn memory_accesses
-              in
-              if Memory_accesses.Memory_operation.is_adjacent (List.hd seed)
-                   new_store
-              then find_seed (new_store :: seed) (DLL.next cell)
-              else seed
-            else if can_cross_chunk seed instruction
-            then find_seed seed (DLL.next cell)
-            else seed
+        let rec find_seed n seed cell_option =
+          if n = 0
+          then Some seed
+          else
+            match cell_option with
+            | None -> None
+            | Some cell ->
+              let instruction = Instruction.Basic (DLL.value cell) in
+              if Instruction.is_store instruction
+              then
+                let new_store =
+                  Instruction.id instruction
+                  |> Memory_accesses.get_memory_operation_exn memory_accesses
+                in
+                if Memory_accesses.Memory_operation.is_adjacent (List.hd seed)
+                     new_store
+                then find_seed (n - 1) (new_store :: seed) (DLL.next cell)
+                else None
+              else if can_cross_chunk seed instruction
+              then find_seed n seed (DLL.next cell)
+              else None
         in
-        find_seed
-          [Memory_accesses.get_memory_operation_exn memory_accesses store_id]
+        find_seed (items_in_vector - 1)
+          [starting_memory_operation]
           starting_cell
-        |> List.rev)
+        |> Option.map List.rev)
       stores
 
   let dump ppf (seeds : t list) =
