@@ -251,11 +251,11 @@ end
 
 type type_declaration =
   { type_params_: type_param list;
-    type_kind: type_decl_kind;
+    type_kind_: type_decl_kind;
     type_jkind: jkind;
     type_jkind_annotation: type_expr Jkind_types.annotation option;
     type_private: private_flag;
-    type_manifest: type_expr option;
+    type_manifest_: type_expr option;
     type_is_newtype: bool;
     type_expansion_scope: int;
     type_loc: Location.t;
@@ -375,6 +375,10 @@ let tys_of_constr_args = function
   | Cstr_record lbls -> List.map (fun l -> l.ld_type) lbls
 
 (* Legacy properties *)
+
+let get_type_kind decl = decl.type_kind_
+
+let get_type_manifest decl = decl.type_manifest_
 
 let create_type_params type_params type_variance type_separability =
   List.map2
@@ -717,7 +721,7 @@ let may_equal_constr c1 c2 =
          equal_tag tag1 tag2)
 
 let find_unboxed_type decl =
-  match decl.type_kind with
+  match get_type_kind decl with
     Type_record ([{ld_type = arg; _}], Record_unboxed)
   | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, Variant_unboxed))
   | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)

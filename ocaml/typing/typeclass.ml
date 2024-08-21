@@ -1606,11 +1606,11 @@ let temp_abbrev loc id arity uid =
   let ty = Ctype.newobj (Ctype.newvar (Jkind.Builtin.value ~why:Object)) in
   let ty_td =
       {type_params_ = create_type_params_of_unknowns ~injective:true !params;
-       type_kind = Type_abstract Abstract_def;
+       type_kind_ = Type_abstract Abstract_def;
        type_jkind = Jkind.Builtin.value ~why:Object;
        type_jkind_annotation = None;
        type_private = Public;
-       type_manifest = Some ty;
+       type_manifest_ = Some ty;
        type_is_newtype = false;
        type_expansion_scope = Btype.lowest_level;
        type_loc = loc;
@@ -1834,11 +1834,11 @@ let class_infos define_class kind
   let obj_abbr =
     {
      type_params_ = create_type_params_of_unknowns ~injective:false obj_params;
-     type_kind = Type_abstract Abstract_def;
+     type_kind_ = Type_abstract Abstract_def;
      type_jkind = Jkind.Builtin.value ~why:Object;
      type_jkind_annotation = None;
      type_private = Public;
-     type_manifest = Some obj_ty;
+     type_manifest_ = Some obj_ty;
      type_is_newtype = false;
      type_expansion_scope = Btype.lowest_level;
      type_loc = cl.pci_loc;
@@ -1852,7 +1852,7 @@ let class_infos define_class kind
     Ctype.instance_parameterized_type params (Btype.self_type typ)
   in
   Ctype.set_object_name obj_id cl_params cl_ty;
-  let cl_abbr = { (set_type_params cl_td cl_params) with type_manifest = Some cl_ty } in
+  let cl_abbr = { (set_type_params cl_td cl_params) with type_manifest_ = Some cl_ty } in
   let cltydef =
     {clty_params = params'; clty_type = Btype.class_body typ';
      clty_variance = cty_variance;
@@ -1881,9 +1881,9 @@ let final_decl env define_class
   Ctype.generalize_class_type clty.cty_type;
   Option.iter  Ctype.generalize clty.cty_new;
   List.iter Ctype.generalize (get_type_params obj_abbr);
-  Option.iter  Ctype.generalize obj_abbr.type_manifest;
+  Option.iter  Ctype.generalize (get_type_manifest obj_abbr);
   List.iter Ctype.generalize (get_type_params cl_abbr);
-  Option.iter  Ctype.generalize cl_abbr.type_manifest;
+  Option.iter  Ctype.generalize (get_type_manifest cl_abbr);
 
   Ctype.nongen_vars_in_class_declaration clty
   |> Option.iter (fun vars ->
@@ -1964,7 +1964,7 @@ let check_coercions env { id; id_loc; clty; ty_id; cltydef; obj_id; obj_abbr;
   begin match coe with [] -> ()
   | loc :: _ ->
       let cl_ty, obj_ty =
-        match cl_abbr.type_manifest, obj_abbr.type_manifest with
+        match get_type_manifest cl_abbr, get_type_manifest obj_abbr with
           Some cl_ab, Some obj_ab ->
             let cl_params, cl_ty =
               Ctype.instance_parameterized_type (get_type_params cl_abbr) cl_ab

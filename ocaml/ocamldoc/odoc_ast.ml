@@ -1174,7 +1174,7 @@ module Analyser =
                   in
                   let kind = Sig.get_type_kind
                     env name_comment_list
-                    tt_type_decl.Types.type_kind
+                    (Types.get_type_kind tt_type_decl)
                   in
                   let t =
                     {
@@ -1187,7 +1187,7 @@ module Analyser =
                       ty_kind = kind ;
                       ty_private = tt_type_decl.Types.type_private;
                       ty_manifest =
-                        (match tt_type_decl.Types.type_manifest with
+                        (match Types.get_type_manifest tt_type_decl with
                            None -> None
                          | Some t ->
                            Some (Sig.manifest_structure env name_comment_list t));

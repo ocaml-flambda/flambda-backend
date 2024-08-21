@@ -364,7 +364,7 @@ let pair_components subst sig1_comps sig2 =
       let (id2, _loc, name2) = item_ident_name item2 in
       let name2, report =
         match item2, name2 with
-          Sig_type (_, {type_manifest=None}, _, _), {name=s; kind=Field_type}
+          Sig_type (_, {type_manifest_=None}, _, _), {name=s; kind=Field_type}
           when Btype.is_row_name s ->
             (* Do not report in case of failure,
                as the main type will generate an error *)

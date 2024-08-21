@@ -128,7 +128,7 @@ let is_Tunivar ty = match get_desc ty with Tunivar _ -> true | _ -> false
 let is_Tconstr ty = match get_desc ty with Tconstr _ -> true | _ -> false
 let is_Tpoly ty = match get_desc ty with Tpoly _ -> true | _ -> false
 let type_kind_is_abstract decl =
-  match decl.type_kind with Type_abstract _ -> true | _ -> false
+  match get_type_kind decl with Type_abstract _ -> true | _ -> false
 
 let dummy_method = "*dummy method*"
 
@@ -224,7 +224,7 @@ let is_constr_row ~allow_ident t =
 (* TODO: where should this really be *)
 (* Set row_name in Env, cf. GPR#1204/1329 *)
 let set_static_row_name decl path =
-  match decl.type_manifest with
+  match get_type_manifest decl with
     None -> ()
   | Some ty ->
       match get_desc ty with
@@ -356,8 +356,8 @@ let type_iterators =
     it.it_type_expr it vd.val_type
   and it_type_declaration it td =
     List.iter (it.it_type_expr it) (get_type_params td);
-    Option.iter (it.it_type_expr it) td.type_manifest;
-    it.it_type_kind it td.type_kind
+    Option.iter (it.it_type_expr it) (get_type_manifest td);
+    it.it_type_kind it (get_type_kind td)
   and it_extension_constructor it td =
     it.it_path td.ext_type_path;
     List.iter (it.it_type_expr it) td.ext_type_params;

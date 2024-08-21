@@ -883,13 +883,13 @@ end
 let privacy_mismatch env decl1 decl2 =
   match decl1.type_private, decl2.type_private with
   | Private, Public -> begin
-      match decl1.type_kind, decl2.type_kind with
+      match get_type_kind decl1, get_type_kind decl2 with
       | Type_record  _, Type_record  _ -> Some Private_record_type
       | Type_variant _, Type_variant _ -> Some Private_variant_type
       | Type_open,      Type_open      -> Some Private_extensible_variant
       | Type_abstract _, Type_abstract _
-        when Option.is_some decl2.type_manifest -> begin
-          match decl1.type_manifest with
+        when Option.is_some (get_type_manifest decl2) -> begin
+          match get_type_manifest decl1 with
           | Some ty1 -> begin
             let ty1 = Ctype.expand_head env ty1 in
             match get_desc ty1 with
@@ -1060,7 +1060,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
     | None -> None
   in
   if err <> None then err else
-  let err = match (decl1.type_manifest, decl2.type_manifest) with
+  let err = match (get_type_manifest decl1, get_type_manifest decl2) with
       (_, None) ->
         begin
           match Ctype.equal env true (get_type_params decl1) (get_type_params decl2) with
@@ -1069,7 +1069,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
         end
     | (Some ty1, Some ty2) ->
          type_manifest env ty1 (get_type_params decl1) ty2 (get_type_params decl2)
-           decl2.type_private decl2.type_kind
+           decl2.type_private (get_type_kind decl2)
     | (None, Some ty2) ->
         let ty1 =
           Btype.newgenty (Tconstr(path, (get_type_params decl2), ref Mnil))
@@ -1082,7 +1082,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
           | () -> None
   in
   if err <> None then err else
-  let err = match (decl1.type_kind, decl2.type_kind) with
+  let err = match (get_type_kind decl1, get_type_kind decl2) with
       (_, Type_abstract _) ->
        (* Note that [decl2.type_jkind] is an upper bound.
           If it isn't tight, [decl2] must
@@ -1128,15 +1128,15 @@ let type_declarations ?(equality = false) ~loc env ~mark name
           labels1 labels2
           rep1 rep2
     | (Type_open, Type_open) -> None
-    | (_, _) -> Some (Kind (of_kind decl1.type_kind, of_kind decl2.type_kind))
+    | (_, _) -> Some (Kind (of_kind (get_type_kind decl1), of_kind (get_type_kind decl2)))
   in
   if err <> None then err else
-  let abstr = Btype.type_kind_is_abstract decl2 && decl2.type_manifest = None in
+  let abstr = Btype.type_kind_is_abstract decl2 && get_type_manifest decl2 = None in
   let need_variance =
-    abstr || decl1.type_private = Private || decl1.type_kind = Type_open in
+    abstr || decl1.type_private = Private || get_type_kind decl1 = Type_open in
   if not need_variance then None else
   let abstr = abstr || decl2.type_private = Private in
-  let opn = decl2.type_kind = Type_open && decl2.type_manifest = None in
+  let opn = get_type_kind decl2 = Type_open && get_type_manifest decl2 = None in
   let constrained ty = not (Btype.is_Tvar ty) in
   if List.for_all2
       (fun ty (v1,v2) ->

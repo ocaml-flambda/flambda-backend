@@ -398,7 +398,7 @@ let in_pervasives p =
   with Not_found -> false
 
 let is_datatype decl=
-  match decl.type_kind with
+  match get_type_kind decl with
     Type_record _ | Type_variant _ | Type_open -> true
   | Type_abstract _ -> false
 
@@ -631,7 +631,7 @@ let closed_type_decl decl =
   try
     List.iter mark_type (get_type_params decl);
     List.iter remove_mode_and_jkind_variables (get_type_params decl);
-    begin match decl.type_kind with
+    begin match get_type_kind decl with
       Type_abstract _ ->
         ()
     | Type_variant (v, _rep) ->
@@ -656,7 +656,7 @@ let closed_type_decl decl =
         List.iter (fun l -> closed_type l.ld_type) r
     | Type_open -> ()
     end;
-    begin match decl.type_manifest with
+    begin match get_type_manifest decl with
       None    -> ()
     | Some ty -> closed_type ty
     end;
@@ -1330,11 +1330,11 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
   in
   {
     type_params_ = [];
-    type_kind = Type_abstract Abstract_def;
+    type_kind_ = Type_abstract Abstract_def;
     type_jkind = jkind;
     type_jkind_annotation = jkind_annot;
     type_private = Public;
-    type_manifest = manifest;
+    type_manifest_ = manifest;
     type_is_newtype = true;
     type_expansion_scope = expansion_scope;
     type_loc = loc;
@@ -1420,8 +1420,8 @@ let instance_declaration decl =
   For_copy.with_scope (fun copy_scope ->
     {(set_type_params decl (List.map (copy copy_scope) (get_type_params decl)))
      with
-      type_manifest = Option.map (copy copy_scope) decl.type_manifest;
-      type_kind = map_kind (copy copy_scope) decl.type_kind;
+      type_manifest_ = Option.map (copy copy_scope) (get_type_manifest decl);
+      type_kind_ = map_kind (copy copy_scope) (get_type_kind decl);
     }
   )
 
@@ -2231,7 +2231,7 @@ let check_decl_jkind env decl jkind =
   match Jkind.sub_or_error decl.type_jkind jkind with
   | Ok () as ok -> ok
   | Error _ as err ->
-      match decl.type_manifest with
+      match get_type_manifest decl with
       | None -> err
       | Some ty -> check_type_jkind env ty jkind
 
@@ -2239,7 +2239,7 @@ let constrain_decl_jkind env decl jkind =
   match Jkind.sub_or_error decl.type_jkind jkind with
   | Ok () as ok -> ok
   | Error _ as err ->
-      match decl.type_manifest with
+      match get_type_manifest decl with
       | None -> err
       | Some ty -> constrain_type_jkind env ty jkind
 
@@ -2400,9 +2400,9 @@ let generic_abbrev env path =
 let generic_private_abbrev env path =
   try
     match Env.find_type path env with
-      {type_kind = Type_abstract _;
+      {type_kind_ = Type_abstract _;
        type_private = Private;
-       type_manifest = Some body} ->
+       type_manifest_ = Some body} ->
          get_level body = generic_level
     | _ -> false
   with Not_found -> false
@@ -2410,7 +2410,7 @@ let generic_private_abbrev env path =
 let is_contractive env p =
   try
     let decl = Env.find_type p env in
-    in_pervasives p && decl.type_manifest = None || is_datatype decl
+    in_pervasives p && get_type_manifest decl = None || is_datatype decl
   with Not_found -> false
 
 
@@ -2861,8 +2861,11 @@ let reify env t =
 
 let find_expansion_scope env path =
   match Env.find_type path env with
-  | { type_manifest = None ; _ } | exception Not_found -> generic_level
-  | decl -> decl.type_expansion_scope
+  | decl ->
+    if Option.is_some (get_type_manifest decl)
+    then decl.type_expansion_scope
+    else generic_level
+  | exception Not_found -> generic_level
 
 let non_aliasable p decl =
   (* in_pervasives p ||  (subsumed by in_current_module) *)
@@ -2898,7 +2901,7 @@ let is_instantiable env ~for_jkind_eqn p =
     type_kind_is_abstract decl &&
     decl.type_private = Public &&
     get_type_arity decl = 0 &&
-    decl.type_manifest = None &&
+    get_type_manifest decl = None &&
     (for_jkind_eqn || not (non_aliasable p decl))
   with Not_found -> false
 
@@ -3094,7 +3097,7 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
     end else if non_aliasable p1 decl && non_aliasable p2 decl' then
       raise Incompatible
     else
-      match decl.type_kind, decl'.type_kind with
+      match get_type_kind decl, get_type_kind decl' with
       | Type_record (lst,r), Type_record (lst',r')
         when equal_record_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
@@ -3300,9 +3303,15 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
         nt2 :: complete (if n = n2 then nl else fl1) ntl'
     | (n, _) :: nl, _ ->
         let lid = concat_longident (Longident.Lident "Pkg") n in
-        match Env.find_type_by_name lid env' with
-        | (_, {type_params_ = []; type_kind = Type_abstract _;
-               type_private = Public; type_manifest = Some t2}) ->
+        let go decl =
+          if   decl.type_params_ = []
+            && Btype.type_kind_is_abstract decl
+            && decl.type_private = Public
+          then Ok (get_type_manifest decl)
+          else Error ()
+        in
+        match Env.find_type_by_name lid env' |> snd |> go with
+        | Ok (Some t2) ->
             begin match nondep_instance env' lv2 id2 t2 with
             | t -> (n, t) :: complete nl fl2
             | exception Nondep_cannot_erase _ ->
@@ -3311,13 +3320,11 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
                 else
                   raise Exit
             end
-        | (_, {type_params_ = []; type_kind = Type_abstract _;
-               type_private = Public; type_manifest = None})
+        | Ok None
           when allow_absent ->
             complete nl fl2
         | _ -> raise Exit
-        | exception Not_found when allow_absent->
-            complete nl fl2
+        | exception Not_found when allow_absent -> complete nl fl2
   in
   match complete fl1 fl2 with
   | res -> res
@@ -5596,7 +5603,7 @@ let memq_warn t visited =
 
 let find_cltype_for_path env p =
   let cl_abbr = Env.find_hash_type p env in
-  match cl_abbr.type_manifest with
+  match get_type_manifest cl_abbr with
     Some ty ->
       begin match get_desc ty with
         Tobject(_,{contents=Some(p',_)}) when Path.same p p' -> cl_abbr, ty
@@ -6461,10 +6468,10 @@ let nondep_type_decl env mid is_covariant decl =
   try
     let params = List.map (nondep_type_rec env mid) (get_type_params decl) in
     let tk =
-      try map_kind (nondep_type_rec env mid) decl.type_kind
+      try map_kind (nondep_type_rec env mid) (get_type_kind decl)
       with Nondep_cannot_erase _ when is_covariant -> Type_abstract Abstract_def
     and tm, priv =
-      match decl.type_manifest with
+      match get_type_manifest decl with
       | None -> None, decl.type_private
       | Some ty ->
           try Some (nondep_type_rec env mid ty), decl.type_private
@@ -6483,10 +6490,10 @@ let nondep_type_decl env mid is_covariant decl =
     in
     { type_params_ =
         create_type_params params (get_type_variance decl) (get_type_separability decl);
-      type_kind = tk;
+      type_kind_ = tk;
       type_jkind = decl.type_jkind;
       type_jkind_annotation = decl.type_jkind_annotation;
-      type_manifest = tm;
+      type_manifest_ = tm;
       type_private = priv;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;

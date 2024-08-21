@@ -457,8 +457,8 @@ let record_representation ~prepare_jkind loc = function
 let type_declaration' copy_scope s decl =
   { type_params_ =
       (set_type_params decl (List.map (typexp copy_scope s decl.type_loc) (get_type_params decl))).type_params_;
-    type_kind =
-      begin match decl.type_kind with
+    type_kind_ =
+      begin match get_type_kind decl with
         Type_abstract r -> Type_abstract r
       | Type_variant (cstrs, rep) ->
           let rep =
@@ -479,9 +479,9 @@ let type_declaration' copy_scope s decl =
           Type_record (List.map (label_declaration copy_scope s) lbls, rep)
       | Type_open -> Type_open
       end;
-    type_manifest =
+    type_manifest_ =
       begin
-        match decl.type_manifest with
+        match get_type_manifest decl with
           None -> None
         | Some ty -> Some(typexp copy_scope s decl.type_loc ty)
       end;

@@ -143,7 +143,7 @@ let classify env loc ty sort : classification =
            || Path.same p Predef.path_int64 then Addr
       else begin
         try
-          match (Env.find_type p env).type_kind with
+          match Env.find_type p env |> get_type_kind with
           | Type_abstract _ ->
               Any
           | Type_record _ | Type_variant _ | Type_open ->
@@ -409,7 +409,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
         (* Default of [Pgenval] is currently safe for the missing cmi fallback
            in the case of @@unboxed variant and records, due to the precondition
            of [value_kind]. *)
-        match decl.type_kind with
+        match get_type_kind decl with
         | Type_variant (cstrs, rep) ->
           fallback_if_missing_cmi ~default:(num_nodes_visited, Pgenval)
             (fun () -> value_kind_variant env ~loc ~visited ~depth

@@ -396,13 +396,13 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
           | Tconstr(path, ty_list, _) -> begin
               try
                 let decl = Env.find_type path env in
-                match decl with
-                | {type_kind = Type_abstract _; type_manifest = None} ->
+                match get_type_kind decl, get_type_manifest decl with
+                | Type_abstract _, None ->
                     Oval_stuff "<abstr>"
-                | {type_kind = Type_abstract _; type_manifest = Some body} ->
+                | Type_abstract _, Some body ->
                     tree_of_val depth obj
                       (instantiate_type env (get_type_params decl) ty_list body)
-                | {type_kind = Type_variant (constr_list,rep)} ->
+                | Type_variant (constr_list,rep), _ ->
                   (* Here we work backwards from the actual runtime value to
                      find the appropriate `constructor_declaration` in
                      `constr_list`.  `Datarepr.find_constr_by_tag` does most
@@ -479,7 +479,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                                         (Out_name.create (Ident.name cd_id)),
                                       [ r ])
                     end
-                | {type_kind = Type_record(lbl_list, rep)} ->
+                | Type_record(lbl_list, rep), _ ->
                     begin match check_depth depth obj ty with
                       Some x -> x
                     | None ->
@@ -515,7 +515,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           env path (get_type_params decl) ty_list
                           lbl_list pos obj rep
                     end
-                | {type_kind = Type_open} ->
+                | Type_open, _ ->
                     tree_of_extension path ty_list depth obj
               with
                 Not_found ->                (* raised by Env.find_type *)

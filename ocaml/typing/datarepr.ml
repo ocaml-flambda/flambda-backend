@@ -76,11 +76,11 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       let tdecl =
         {
           type_params_ = create_type_params_of_unknowns ~injective:true type_params;
-          type_kind = Type_record (lbls, rep);
+          type_kind_ = Type_record (lbls, rep);
           type_jkind = jkind;
           type_jkind_annotation = None;
           type_private = priv;
-          type_manifest = None;
+          type_manifest_ = None;
           type_is_newtype = false;
           type_expansion_scope = Btype.lowest_level;
           type_loc = Location.none;
@@ -257,13 +257,13 @@ let find_constr_by_tag ~constant tag cstrlist =
   fst (find_constr ~constant tag cstrlist)
 
 let constructors_of_type ~current_unit ty_path decl =
-  match decl.type_kind with
+  match get_type_kind decl with
   | Type_variant (cstrs,rep) ->
      constructor_descrs ~current_unit ty_path decl cstrs rep
   | Type_record _ | Type_abstract _ | Type_open -> []
 
 let labels_of_type ty_path decl =
-  match decl.type_kind with
+  match get_type_kind decl with
   | Type_record(labels, rep) ->
       label_descrs (newgenconstr ty_path (get_type_params decl))
         labels rep decl.type_private

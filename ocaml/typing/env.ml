@@ -1248,7 +1248,7 @@ let type_of_cstr path = function
       let labels =
         List.map snd (Datarepr.labels_of_type path decl)
       in
-      begin match decl.type_kind with
+      begin match get_type_kind decl with
       | Type_record (_, repr) ->
         {
           tda_declaration = decl;
@@ -1537,7 +1537,7 @@ let find_module_lazy path env =
    - the type should have an associated manifest type. *)
 let find_type_expansion path env =
   let decl = find_type path env in
-  match decl.type_manifest with
+  match get_type_manifest decl with
   | Some body when decl.type_private = Public
               || not (Btype.type_kind_is_abstract decl)
               || Btype.has_constr_row body ->
@@ -1554,7 +1554,7 @@ let find_type_expansion path env =
    is revealed for the sake of compiler's type-based optimisations. *)
 let find_type_expansion_opt path env =
   let decl = find_type path env in
-  match decl.type_manifest with
+  match get_type_manifest decl with
   (* The manifest type of Private abstract data types can still get
      an approximation using their manifest type. *)
   | Some body ->
@@ -1866,7 +1866,7 @@ let rec components_of_module_maker
             Btype.set_static_row_name final_decl
               (Subst.type_path sub (Path.Pident id));
             let descrs =
-              match decl.type_kind with
+              match get_type_kind decl with
               | Type_variant (_,repr) ->
                   let cstrs = List.map snd
                     (Datarepr.constructors_of_type path final_decl
@@ -2125,7 +2125,7 @@ and store_type ~check id info shape env =
       !type_declarations;
   let descrs, env =
     let path = Pident id in
-    match info.type_kind with
+    match get_type_kind info with
     | Type_variant (_,repr) ->
         let constructors = Datarepr.constructors_of_type path info
                             ~current_unit:(get_unit_name ())

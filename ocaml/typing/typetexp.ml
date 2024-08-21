@@ -731,7 +731,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       in
       let params = instance_list (get_type_params decl) in
       let unify_param =
-        match decl.type_manifest with
+        match get_type_manifest decl with
           None -> unify_var
         | Some ty ->
             if get_level ty = Btype.generic_level then unify_var else unify
@@ -790,7 +790,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
       in
-      let body = Option.get decl.type_manifest in
+      let body = get_type_manifest decl |> Option.get in
       let (params, body) = instance_parameterized_type (get_type_params decl) body in
       List.iter2
         (fun (sty, cty) ty' ->

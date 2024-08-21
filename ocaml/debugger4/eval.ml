@@ -152,7 +152,7 @@ let rec expression event env = function
       begin match get_desc (Ctype.expand_head_opt env ty) with
         Tconstr(path, _, _) ->
           let tydesc = Env.find_type path env in
-          begin match tydesc.type_kind with
+          begin match get_type_kind tydesc with
             Type_record(lbl_list, _repr) ->
               let (pos, ty_res) =
                 find_label lbl env ty path tydesc 0 lbl_list in

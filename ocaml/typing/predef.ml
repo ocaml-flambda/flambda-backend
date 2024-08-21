@@ -226,12 +226,12 @@ let mk_add_type add_type
       env =
   let decl =
     {type_params_ = [];
-     type_kind = kind;
+     type_kind_ = kind;
      type_jkind = jkind;
      type_jkind_annotation = predef_jkind_annotation jkind_annotation;
      type_loc = Location.none;
      type_private = Asttypes.Public;
-     type_manifest = manifest;
+     type_manifest_ = manifest;
      type_is_newtype = false;
      type_expansion_scope = lowest_level;
      type_attributes = [];
@@ -258,12 +258,12 @@ let mk_add_type1 add_type type_ident
   let param = newgenvar param_jkind in
   let decl =
     { type_params_ = [{ param_expr = param; variance; separability }];
-      type_kind = kind param;
+      type_kind_ = kind param;
       type_jkind = jkind;
       type_jkind_annotation = predef_jkind_annotation jkind_annotation;
       type_loc = Location.none;
       type_private = Asttypes.Public;
-      type_manifest = None;
+      type_manifest_ = None;
       type_is_newtype = false;
       type_expansion_scope = lowest_level;
       type_attributes = [];

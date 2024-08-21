@@ -673,11 +673,11 @@ let merge_constraint initial_env loc sg lid constr =
           in
           let type_separability = Types.Separability.default_signature ~arity in
           { type_params_ = create_type_params type_params type_variance type_separability;
-            type_kind = Type_abstract Abstract_def;
+            type_kind_ = Type_abstract Abstract_def;
             type_jkind = Jkind.Builtin.value ~why:(Unknown "merge_constraint");
             type_jkind_annotation = None;
             type_private = Private;
-            type_manifest = None;
+            type_manifest_ = None;
             type_loc = sdecl.ptype_loc;
             type_is_newtype = false;
             type_expansion_scope = Btype.lowest_level;
@@ -731,7 +731,7 @@ let merge_constraint initial_env loc sg lid constr =
         end
     | Sig_type(id, sig_decl, rs, priv), [s], With_type_package cty
       when Ident.name id = s ->
-        begin match sig_decl.type_manifest with
+        begin match get_type_manifest sig_decl with
         | None -> ()
         | Some ty ->
           raise (Error(loc, outer_sig_env, With_package_manifest (lid.txt, ty)))
@@ -761,7 +761,7 @@ let merge_constraint initial_env loc sg lid constr =
           raise Includemod.(Error(initial_env, err))
         end;
         check_type_decl outer_sig_env sg_for_env loc id None tdecl sig_decl;
-        let tdecl = { tdecl with type_manifest = None } in
+        let tdecl = { tdecl with type_manifest_ = None } in
         return ~ghosts ~replace_by:(Some(Sig_type(id, tdecl, rs, priv)))
           (Pident id, lid, None)
     | Sig_modtype(id, mtd, priv), [s],
@@ -878,7 +878,7 @@ let merge_constraint initial_env loc sg lid constr =
               in
               fun s path -> Subst.add_type_path path replacement s
           | None ->
-              let body = Option.get tdecl.typ_type.type_manifest in
+              let body = get_type_manifest tdecl.typ_type |> Option.get in
               let params = get_type_params tdecl.typ_type in
               if params_are_constrained params
               then raise(Error(loc, initial_env,
@@ -1762,7 +1762,7 @@ and transl_signature env (sg : Parsetree.signature) =
               let subst =
                 Subst.add_type_function (Pident td.typ_id)
                   ~params
-                  ~body:(Option.get td.typ_type.type_manifest)
+                  ~body:(get_type_manifest td.typ_type |> Option.get)
                   Subst.identity
               in
               Some (`Substituted_away subst)
@@ -2349,7 +2349,7 @@ let rec package_constraints_sig env loc sg constrs =
       | Sig_type (id, ({type_params_=[]} as td), rs, priv)
         when List.mem_assoc [Ident.name id] constrs ->
           let ty = List.assoc [Ident.name id] constrs in
-          Sig_type (id, {td with type_manifest = Some ty}, rs, priv)
+          Sig_type (id, {td with type_manifest_ = Some ty}, rs, priv)
       | Sig_module (id, pres, md, rs, priv) ->
           let rec aux = function
             | (m :: ((_ :: _) as l), t) :: rest when m = Ident.name id ->

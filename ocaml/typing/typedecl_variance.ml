@@ -310,20 +310,20 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
     Option.map (fun id -> Type_declaration (id, decl)) check
   in
   let abstract = Btype.type_kind_is_abstract decl in
-  if (abstract || decl.type_kind = Type_open)
-       && decl.type_manifest = None then
+  if (abstract || get_type_kind decl = Type_open)
+       && get_type_manifest decl = None then
     List.map
       (fun (c, n, i) ->
         make (not n) (not c) (not abstract || i))
       required
   else begin
     let mn =
-      match decl.type_manifest with
+      match get_type_manifest decl with
         None -> []
       | Some ty -> [ false, ty ]
     in
     let vari =
-      match decl.type_kind with
+      match get_type_kind decl with
         Type_abstract _ | Type_open ->
           compute_variance_type env ~check rloc decl mn
       | Type_variant (tll,_rep) ->
@@ -339,7 +339,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
                      {decl with type_private = Private}
                      (add_false [ ty ])
                 )
-                (Option.to_list decl.type_manifest)
+                (Option.to_list (get_type_manifest decl))
             in
             let constructor_variance =
               List.map

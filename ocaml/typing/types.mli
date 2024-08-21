@@ -499,7 +499,7 @@ end
 
 type type_declaration =
   { type_params_: type_param list;
-    type_kind: type_decl_kind;
+    type_kind_: type_decl_kind;
 
     type_jkind: jkind;
     (* for an abstract decl kind or for [@@unboxed] types: this is the stored
@@ -520,7 +520,7 @@ type type_declaration =
     can safely be [None]. It's used only for printing and in untypeast. *)
 
     type_private: private_flag;
-    type_manifest: type_expr option;
+    type_manifest_: type_expr option;
     type_is_newtype: bool;
     type_expansion_scope: int;
     type_loc: Location.t;
@@ -688,6 +688,10 @@ and type_transparence =
 
 (* Legacy properties *)
 (* FIXME jbachurski: All of these should be removed by the time this PR is done. *)
+
+val get_type_kind : type_declaration -> type_decl_kind
+
+val get_type_manifest : type_declaration -> type_expr option
 
 val create_type_params : type_expr list -> Variance.t list -> Separability.t list -> type_param list
 val create_type_params_of_unknowns : injective:bool -> type_expr list -> type_param list

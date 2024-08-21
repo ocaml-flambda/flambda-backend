@@ -1099,7 +1099,7 @@ module Analyser =
                       raise (Failure (Odoc_messages.type_not_found current_module_name name.txt))
                   in
                   (* get the type kind with the associated comments *)
-                  let type_kind = get_type_kind env name_comment_list sig_type_decl.Types.type_kind in
+                  let type_kind = get_type_kind env name_comment_list (Types.get_type_kind sig_type_decl) in
                   let loc_start = Loc.start type_decl.Parsetree.ptype_loc in
                   let new_end = Loc.end_ type_decl.Parsetree.ptype_loc
                                 + maybe_more in
@@ -1120,7 +1120,7 @@ module Analyser =
                       ty_kind = type_kind;
                       ty_private = sig_type_decl.Types.type_private;
                       ty_manifest =
-                        begin match sig_type_decl.Types.type_manifest with
+                        begin match Types.get_type_manifest sig_type_decl with
                         | None   -> None
                         | Some t ->
                           Some (manifest_structure env name_comment_list t)
@@ -1187,7 +1187,7 @@ module Analyser =
                       raise (Failure (Odoc_messages.type_not_found current_module_name name.txt))
                   in
                   (* get the type kind with the associated comments *)
-                  let type_kind = get_type_kind env name_comment_list sig_type_decl.Types.type_kind in
+                  let type_kind = get_type_kind env name_comment_list (Types.get_type_kind sig_type_decl) in
                   let loc_start = Loc.start type_decl.Parsetree.ptype_loc in
                   let new_end = Loc.end_ type_decl.Parsetree.ptype_loc
                                 + maybe_more in
@@ -1203,7 +1203,7 @@ module Analyser =
                       ty_kind = type_kind;
                       ty_private = sig_type_decl.Types.type_private;
                       ty_manifest =
-                        begin match sig_type_decl.Types.type_manifest with
+                        begin match Types.get_type_manifest sig_type_decl with
                         | None   -> None
                         | Some t ->
                           Some (manifest_structure env name_comment_list t)
