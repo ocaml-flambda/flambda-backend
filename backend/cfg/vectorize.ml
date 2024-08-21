@@ -25,6 +25,10 @@ module Instruction : sig
     | Basic of Cfg.basic Cfg.instruction
     | Terminator of Cfg.terminator Cfg.instruction
 
+  type op
+
+  val string_of_op : op -> string
+
   val id : t -> Id.t
 
   val arguments : t -> Reg.t Array.t
@@ -52,6 +56,86 @@ end = struct
   type t =
     | Basic of Cfg.basic Cfg.instruction
     | Terminator of Cfg.terminator Cfg.instruction
+
+  type op =
+    | Move
+    | Const_int of nativeint
+    | Load of
+        { memory_chunk : Cmm.memory_chunk;
+          addressing_mode : Arch.addressing_mode;
+          mutability : Mach.mutable_flag;
+          is_atomic : bool
+        }
+    | Store of Cmm.memory_chunk * Arch.addressing_mode * bool
+    | Intop of Mach.integer_operation
+    | Intop_imm of Mach.integer_operation * int
+    | Unsupported
+
+  let _op (instruction : t) : op =
+    match instruction with
+    | Basic basic_instruction -> (
+      let desc = basic_instruction.desc in
+      match desc with
+      | Op op -> (
+        match op with
+        | Move -> Move
+        | Const_int x -> Const_int x
+        | Load { memory_chunk; addressing_mode; mutability; is_atomic } ->
+          Load { memory_chunk; addressing_mode; mutability; is_atomic }
+        | Store (x1, x2, x3) -> Store (x1, x2, x3)
+        | Intop x -> Intop x
+        | Intop_imm (x1, x2) -> Intop_imm (x1, x2)
+        | Alloc _ | Reinterpret_cast _ | Static_cast _ | Spill | Reload
+        | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
+        | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _
+        | Probe_is_enabled _ | Opaque | Begin_region | End_region | Specific _
+        | Name_for_debugger _ | Dls_get | Poll ->
+          Unsupported)
+      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+        Unsupported)
+    | Terminator _ -> Unsupported
+
+  let string_of_op op =
+    let open Format in
+    let string_of_intcomp (intcomp : Cmm.integer_comparison) =
+      match intcomp with
+      | Ceq -> "ceq"
+      | Cne -> "cne"
+      | Clt -> "clt"
+      | Cgt -> "cgt"
+      | Cle -> "cle"
+      | Cge -> "cge"
+    in
+    let string_of_intop (intop : Mach.integer_operation) =
+      match intop with
+      | Iadd -> "iadd"
+      | Isub -> "isub"
+      | Imul -> "imul"
+      | Imulh { signed } -> sprintf "imulh %b" signed
+      | Idiv -> "idiv"
+      | Imod -> "imod"
+      | Iand -> "iand"
+      | Ior -> "ior"
+      | Ixor -> "ixor"
+      | Ilsl -> "ilsl"
+      | Ilsr -> "ilsr"
+      | Iasr -> "iasr"
+      | Iclz { arg_is_non_zero } -> sprintf "iclz %b" arg_is_non_zero
+      | Ictz { arg_is_non_zero } -> sprintf "ictz %b" arg_is_non_zero
+      | Ipopcnt -> "ipopcnt"
+      | Icomp (Isigned intcomp) ->
+        sprintf "icomp isigned %s" (string_of_intcomp intcomp)
+      | Icomp (Iunsigned intcomp) ->
+        sprintf "icomp iunsigned %s" (string_of_intcomp intcomp)
+    in
+    match op with
+    | Move -> "move"
+    | Const_int x -> sprintf "const_int %d" (Nativeint.to_int x)
+    | Load _ -> "load"
+    | Store _ -> "store"
+    | Intop intop -> sprintf "intop %s" (string_of_intop intop)
+    | Intop_imm (intop, x) -> sprintf "intop %s %d" (string_of_intop intop) x
+    | Unsupported -> "unsupported"
 
   let id (instruction : t) : Id.t =
     match instruction with
@@ -811,6 +895,77 @@ end = struct
     fprintf ppf "\n"
 end
 
+module Computation_tree : sig
+  type t
+
+  val from_block : Cfg.basic_block -> t list
+
+  val dump : Format.formatter -> t list -> Cfg.basic_block -> unit
+end = struct
+  module Node = struct
+    type t =
+      { instruction_type : Instruction.op;
+        instructions : Instruction.Id.t list;
+        dependencies : Instruction.Id.Set.t;
+        is_dependency_of : Instruction.Id.Set.t
+      }
+  end
+
+  type t = Node.t Instruction.Id.Tbl.t
+  (* key is instruction id of last instruction in the node *)
+
+  let init () : t = Instruction.Id.Tbl.create 100
+
+  let from_seed block seed =
+    let computation_tree = init () in
+    ignore block;
+    ignore seed;
+    computation_tree
+
+  let from_block (block : Cfg.basic_block) : t list =
+    let seeds = Seed.from_block block in
+    List.map (from_seed block) seeds
+
+  let dump ppf (trees : t list) (block : Cfg.basic_block) =
+    let open Format in
+    let print_tree tree =
+      let print_node id =
+        match Instruction.Id.Tbl.find_opt tree id with
+        | None -> ()
+        | Some (node : Node.t) ->
+          fprintf ppf "\nNode ending at instruction %d:\n"
+            (Instruction.Id.to_int id);
+          fprintf ppf "\nOperation: %s\n"
+            (Instruction.string_of_op node.instruction_type);
+          fprintf ppf "\ninstructions:\n";
+          List.iter
+            (fprintf ppf "%d " << Instruction.Id.to_int)
+            node.instructions;
+          fprintf ppf "\ndependencies:\n";
+          Instruction.Id.Set.iter
+            (fprintf ppf "%d " << Instruction.Id.to_int)
+            node.dependencies;
+          fprintf ppf "\nis dependency of:\n";
+          Instruction.Id.Set.iter
+            (fprintf ppf "%d " << Instruction.Id.to_int)
+            node.is_dependency_of
+      in
+      DLL.iter block.body ~f:(fun instruction ->
+          print_node (Basic instruction |> Instruction.id))
+    in
+    let print_trees trees =
+      List.iter
+        (fun tree ->
+          fprintf ppf "(";
+          print_tree tree;
+          fprintf ppf "\n)\n")
+        trees
+    in
+    fprintf ppf "\ncomputation trees:\n";
+    print_trees trees;
+    fprintf ppf "\n"
+end
+
 let dump ppf cfg_with_layout ~msg =
   let open Format in
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
@@ -849,6 +1004,9 @@ let cfg ppf_dump cl =
         if !Flambda_backend_flags.dump_vectorize
         then Memory_accesses.dump ppf_dump memory_accesses;
         let seeds = Seed.from_block block in
-        if !Flambda_backend_flags.dump_vectorize then Seed.dump ppf_dump seeds);
+        if !Flambda_backend_flags.dump_vectorize then Seed.dump ppf_dump seeds;
+        let trees = Computation_tree.from_block block in
+        if !Flambda_backend_flags.dump_vectorize
+        then Computation_tree.dump ppf_dump trees block);
   if !Flambda_backend_flags.dump_vectorize then dump ppf_dump ~msg:"" cl;
   cl
