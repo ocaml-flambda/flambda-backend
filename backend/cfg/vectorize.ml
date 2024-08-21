@@ -150,12 +150,13 @@ end = struct
       match desc with
       | Op op -> (
         match op with
-        | Alloc _ | Poll | Opaque | Begin_region | End_region | Specific _ ->
+        | Intop_atomic _ | Alloc _ | Poll | Opaque | Begin_region | End_region
+        | Specific _ ->
           true
         | Load _ | Store _ | Move | Reinterpret_cast _ | Static_cast _ | Spill
         | Reload | Const_int _ | Const_float32 _ | Const_float _
         | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Intop _
-        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
+        | Intop_imm _ | Floatop _ | Csel _ | Probe_is_enabled _
         | Name_for_debugger _ | Dls_get ->
           false)
       | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
