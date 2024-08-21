@@ -1,5 +1,6 @@
 (* TEST
  flags = "-dlambda";
+ stack-allocation;
  expect;
 *)
 
