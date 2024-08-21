@@ -797,17 +797,6 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%atomic_exchange" -> Primitive (Patomic_exchange, 2)
     | "%atomic_cas" -> Primitive (Patomic_cas, 3)
     | "%atomic_fetch_add" -> Primitive (Patomic_fetch_add, 2)
-<<<<<<< HEAD
-    | "%runstack" -> Primitive (Prunstack, 3)
-    | "%reperform" -> Primitive (Preperform, 3)
-    | "%perform" -> Primitive (Pperform, 1)
-    | "%resume" -> Primitive (Presume, 4)
-||||||| 2572783060
-    | "%runstack" -> Primitive (Prunstack, 3)
-    | "%reperform" -> Primitive (Preperform, 3)
-    | "%perform" -> Primitive (Pperform, 1)
-    | "%resume" -> Primitive (Presume, 3)
-=======
     | "%runstack" ->
       if runtime5 then Primitive (Prunstack, 3) else Unsupported Prunstack
     | "%reperform" ->
@@ -815,8 +804,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%perform" ->
       if runtime5 then Primitive (Pperform, 1) else Unsupported Pperform
     | "%resume" ->
-      if runtime5 then Primitive (Presume, 3) else Unsupported Presume
->>>>>>> ocaml-jst/flambda-patches
+      if runtime5 then Primitive (Presume, 4) else Unsupported Presume
     | "%dls_get" -> Primitive (Pdls_get, 1)
     | "%poll" -> Primitive (Ppoll, 1)
     | "%unbox_nativeint" -> Primitive(Punbox_int Pnativeint, 1)
