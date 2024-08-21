@@ -2804,3 +2804,21 @@ Line 5, characters 13-14:
 Error: This match case could not be refuted.
        Here is an example of a value that would reach it: "Refl"
 |}]
+
+(********************************************************)
+(* Test 45: let rec pattern variables have layout value *)
+
+let three =
+  let rec x = #3.4 in
+  Stdlib_upstream_compatible.Float_u.to_int x
+[%%expect{|
+Line 2, characters 14-18:
+2 |   let rec x = #3.4 in
+                  ^^^^
+Error: This expression has type float# but an expression was expected of type
+         ('a : value)
+       The layout of float# is float64
+         because it is the primitive type float#.
+       But the layout of float# must be a sublayout of value
+         because it's the type of the recursive variable x.
+|}]

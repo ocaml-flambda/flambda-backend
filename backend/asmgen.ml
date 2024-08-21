@@ -63,7 +63,7 @@ let pass_dump_cfg_if ppf flag message c =
 let start_from_emit = ref true
 
 let should_save_before_emit () =
-  should_save_ir_after Compiler_pass.Linearization && (not !start_from_emit)
+  should_save_ir_after Compiler_pass.Scheduling && (not !start_from_emit)
 
 let should_save_cfg_before_emit () =
   should_save_ir_after Compiler_pass.Simplify_cfg && (not !start_from_emit)
@@ -148,7 +148,7 @@ let write_ir prefix =
       Cfg_format.save filename cfg_unit_info end)
     pass_to_cfg;
   if should_save_before_emit () then begin
-    let filename = Compiler_pass.(to_output_filename Linearization ~prefix) in
+    let filename = Compiler_pass.(to_output_filename Scheduling ~prefix) in
     linear_unit_info.items <- List.rev linear_unit_info.items;
     Linear_format.save filename linear_unit_info
   end;
@@ -159,7 +159,7 @@ let write_ir prefix =
   end
 
 let should_emit () =
-  not (should_stop_after Compiler_pass.Linearization)
+  not (should_stop_after Compiler_pass.Scheduling)
 
 let should_use_linscan fun_codegen_options =
   !use_linscan ||
@@ -214,7 +214,7 @@ let rec regalloc ~ppf_dump round (fd : Mach.fundecl) =
     newfd
   end
 
-let count_duplicate_spills_reloads_in_block (cfg_with_infos : Cfg_with_infos.t) =
+let count_duplicate_spills_reloads_in_block (cfg : Cfg.t) =
   let count_per_inst
       ((dup_spills, dup_reloads, seen_spill_regs, seen_reload_regs) as acc)
       (inst : Cfg.basic Cfg.instruction) =
@@ -240,28 +240,34 @@ let count_duplicate_spills_reloads_in_block (cfg_with_infos : Cfg_with_infos.t) 
     in
     dup_spills, dup_reloads
   in
-  Cfg_with_infos.fold_blocks cfg_with_infos ~f:count_per_block ~init:(0, 0)
+  Cfg.fold_blocks cfg ~f:count_per_block ~init:(0, 0)
 
-let count_spills_reloads (cfg_with_infos : Cfg_with_infos.t) =
+let count_spills_reloads (cfg: Cfg.t) =
   let f ((spills, reloads) as acc) (instr : Cfg.basic Cfg.instruction) =
   match instr.desc with
   | Op Spill -> (spills + 1, reloads)
   | Op Reload -> (spills, reloads + 1)
   | _ -> acc
   in
-  Cfg_with_infos.fold_body_instructions cfg_with_infos ~f ~init:(0, 0)
+  Cfg.fold_body_instructions cfg ~f ~init:(0, 0)
 
-let regalloc_profile =
-  let counter_f cfg =
-    let dup_spills, dup_reloads = count_duplicate_spills_reloads_in_block cfg in
-    let spills, reloads = count_spills_reloads cfg in
-    Profile.Counters.create ()
-    |> Profile.Counters.set "block_duplicate_spill" dup_spills
-    |> Profile.Counters.set "block_duplicate_reload" dup_reloads
-    |> Profile.Counters.set "spill" spills
-    |> Profile.Counters.set "reload" reloads
-  in
-  Profile.record_with_counters ~accumulate:true ~counter_f
+let cfg_counters cfg =
+  let dup_spills, dup_reloads = count_duplicate_spills_reloads_in_block cfg in
+  let spills, reloads = count_spills_reloads cfg in
+  Profile.Counters.create ()
+  |> Profile.Counters.set "block_duplicate_spill" dup_spills
+  |> Profile.Counters.set "block_duplicate_reload" dup_reloads
+  |> Profile.Counters.set "spill" spills
+  |> Profile.Counters.set "reload" reloads
+
+let cfg_profile to_cfg =
+  Profile.record_with_counters ~counter_f:(fun x -> x |> to_cfg |> cfg_counters)
+
+let cfg_with_layout_profile ?accumulate pass f x =
+  cfg_profile Cfg_with_layout.cfg ?accumulate pass f x
+
+let cfg_with_infos_profile ?accumulate pass f x =
+  cfg_profile Cfg_with_infos.cfg ?accumulate pass f x
 
 let (++) x f = f x
 
@@ -373,62 +379,62 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
       ++ Profile.record ~accumulate:true "cfg" (fun fd ->
         let cfg =
           fd
-          ++ Profile.record ~accumulate:true "cfgize" cfgize
+          ++ cfg_with_layout_profile ~accumulate:true "cfgize" cfgize
           ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After cfgize"
           ++ (fun cfg_with_layout ->
             match !Flambda_backend_flags.vectorize with
             | false -> cfg_with_layout
             | true ->
               cfg_with_layout
-              ++ Profile.record ~accumulate:true "vectorize"
+              ++ cfg_with_layout_profile ~accumulate:true "vectorize"
                    (Vectorize.cfg ppf_dump)
               ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg "After vectorize")
-          ++ Profile.record ~accumulate:true "cfg_polling" (Cfg_polling.instrument_fundecl ~future_funcnames:funcnames)
+          ++ cfg_with_layout_profile ~accumulate:true "cfg_polling" (Cfg_polling.instrument_fundecl ~future_funcnames:funcnames)
           ++ (fun cfg_with_layout ->
               match !Flambda_backend_flags.cfg_zero_alloc_checker with
               | false -> cfg_with_layout
               | true ->
                 cfg_with_layout
-                ++ Profile.record ~accumulate:true "cfg_zero_alloc_checker"
+                ++ cfg_with_layout_profile ~accumulate:true "cfg_zero_alloc_checker"
                      (Zero_alloc_checker.cfg ~future_funcnames:funcnames ppf_dump))
           ++ (fun cfg_with_layout ->
               match !Flambda_backend_flags.cfg_cse_optimize with
               | false -> cfg_with_layout
               | true ->
                 cfg_with_layout
-                ++ Profile.record ~accumulate:true "cfg_comballoc" Cfg_comballoc.run
+                ++ cfg_with_layout_profile ~accumulate:true "cfg_comballoc" Cfg_comballoc.run
                 ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_combine
-                ++ Profile.record ~accumulate:true "cfg_cse" CSE.cfg_with_layout
+                ++ cfg_with_layout_profile ~accumulate:true "cfg_cse" CSE.cfg_with_layout
                 ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_cse)
           ++ Cfg_with_infos.make
-          ++ Profile.record ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
+          ++ cfg_with_infos_profile ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
         in
         let cfg_description =
             Regalloc_validate.Description.create (Cfg_with_infos.cfg_with_layout cfg)
         in
         cfg
         ++ begin match regalloc with
-          | GI -> regalloc_profile "cfg_gi" Regalloc_gi.run
-          | IRC -> regalloc_profile "cfg_irc" Regalloc_irc.run
-          | LS -> regalloc_profile "cfg_ls" Regalloc_ls.run
+          | GI -> cfg_with_infos_profile ~accumulate:true "cfg_gi" Regalloc_gi.run
+          | IRC -> cfg_with_infos_profile ~accumulate:true "cfg_irc" Regalloc_irc.run
+          | LS -> cfg_with_infos_profile ~accumulate:true "cfg_ls" Regalloc_ls.run
           | Upstream -> assert false
         end
         ++ Cfg_with_infos.cfg_with_layout
-        ++ Profile.record ~accumulate:true "cfg_validate_description"
+        ++ cfg_with_layout_profile ~accumulate:true "cfg_validate_description"
              (Regalloc_validate.run cfg_description)
-        ++ Profile.record ~accumulate:true "cfg_simplify" Regalloc_utils.simplify_cfg
+        ++ cfg_with_layout_profile ~accumulate:true "cfg_simplify" Regalloc_utils.simplify_cfg
         (* CR-someday gtulbalecu: The peephole optimizations must not affect liveness,
            otherwise we would have to recompute it here. Recomputing it here breaks the CI
            because the liveness_analysis algorithm does not work properly after register
            allocation. *)
-        ++ Profile.record ~accumulate:true "peephole_optimize_cfg"
+        ++ cfg_with_layout_profile ~accumulate:true "peephole_optimize_cfg"
              Peephole_optimize.peephole_optimize_cfg
         ++ (fun (cfg_with_layout : Cfg_with_layout.t) ->
           match !Flambda_backend_flags.cfg_stack_checks with
           | false -> cfg_with_layout
           | true -> Cfg_stack_checks.cfg cfg_with_layout)
-        ++ Profile.record ~accumulate:true "save_cfg" save_cfg
-        ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
+        ++ cfg_with_layout_profile ~accumulate:true "save_cfg" save_cfg
+        ++ cfg_with_layout_profile ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
         ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
     | Upstream ->

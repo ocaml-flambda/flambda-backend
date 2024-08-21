@@ -835,3 +835,21 @@ let bytes_mutable_data_left x =
 [%%expect{|
 val bytes_mutable_data_left : bytes -> unit = <fun>
 |}]
+
+let use_uncontended_arrow : ('a -> 'a) @ uncontended -> unit = fun _ -> ()
+[%%expect{|
+val use_uncontended_arrow : ('a : any). ('a -> 'a) -> unit = <fun>
+|}]
+
+let arrow_as_argument (f @ contended) = use_uncontended_arrow f
+[%%expect{|
+val arrow_as_argument : ('a : any). ('a -> 'a) @ contended -> unit = <fun>
+|}]
+
+(* f is added to environment as uncontended *)
+let arrow_left () =
+  let (f @ contended) () = () in
+  f
+[%%expect{|
+val arrow_left : unit -> unit -> unit = <fun>
+|}]
