@@ -33,13 +33,7 @@ let ocamlc_cppflags = {@QS@|@ocamlc_cppflags@|@QS@}
           the two drivers should be identical. *)
 let ocamlopt_cflags = {@QS@|@ocamlc_cflags@|@QS@}
 let ocamlopt_cppflags = {@QS@|@ocamlc_cppflags@|@QS@}
-<<<<<<< HEAD
 let bytecomp_c_libraries = {@QS@|@cclibs@|@QS@}
-||||||| 121bedcfd2
-let bytecomp_c_libraries = {@QS@|@bytecclibs@|@QS@}
-=======
-let bytecomp_c_libraries = {@QS@|@zstd_libs@ @cclibs@|@QS@}
->>>>>>> 5.2.0
 (* bytecomp_c_compiler and native_c_compiler have been supported for a
    long time and are retained for backwards compatibility.
    For programs that don't need compatibility with older OCaml releases
@@ -50,14 +44,8 @@ let bytecomp_c_compiler =
   c_compiler ^ " " ^ ocamlc_cflags ^ " " ^ ocamlc_cppflags
 let native_c_compiler =
   c_compiler ^ " " ^ ocamlopt_cflags ^ " " ^ ocamlopt_cppflags
-<<<<<<< HEAD
-let native_c_libraries = {@QS@|@cclibs@|@QS@}
-||||||| 121bedcfd2
-let native_c_libraries = {@QS@|@nativecclibs@|@QS@}
-=======
 let native_c_libraries = {@QS@|@cclibs@|@QS@}
 let native_ldflags = {@QS@|@native_ldflags@|@QS@}
->>>>>>> 5.2.0
 let native_pack_linker = {@QS@|@PACKLD@|@QS@}
 let default_rpath = {@QS@|@rpath@|@QS@}
 let mksharedlibrpath = {@QS@|@mksharedlibrpath@|@QS@}
@@ -108,7 +96,6 @@ let systhread_supported = @systhread_support@
 let flexdll_dirs = [@flexdll_dir@]
 
 let ar_supports_response_files = @ar_supports_response_files@
-<<<<<<< HEAD
 
 let naked_pointers = "@naked_pointers@" = "true"
 let runtime5 = "@enable_runtime5@" = "yes"
@@ -118,8 +105,4 @@ let reserved_header_bits =
 
 let no_stack_checks = "@enable_stack_checks@" <> "yes"
 
-||||||| 121bedcfd2
-=======
-
 let tsan = @tsan@
->>>>>>> 5.2.0
