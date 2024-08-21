@@ -65,10 +65,3 @@ let f (x [@foo]) : unit -> unit [@foo] = function [@foo]
  ocamlc.byte;
  check-ocamlc.byte-output;
 *)
-
-(* TEST
- flags = "-dparsetree";
- setup-ocamlc.byte-build-env;
- ocamlc.byte;
- check-ocamlc.byte-output;
-*)
