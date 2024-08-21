@@ -270,7 +270,7 @@ let cfg_profile to_cfg =
       let (_ : Cfg.basic_block) =
         Profile.record_with_counters ~accumulate:true
           ~counter_f:cfg_block_counters
-          (Format.sprintf "block .%d" label)
+          (Format.sprintf "block %d" label)
           Fun.id block
       in
       ()
