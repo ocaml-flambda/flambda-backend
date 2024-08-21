@@ -1345,7 +1345,9 @@ $(RUNTIME_DIR)/ld.conf: $(ROOTDIR)/Makefile.config
 $(RUNTIME_DIR)/primitives: $(RUNTIME_DIR)/gen_primitives.sh $(runtime_BYTECODE_C_SOURCES)
 	$(V_GEN)$(RUNTIME_DIR)/gen_primitives.sh $@ $(runtime_BYTECODE_C_SOURCES)
 
+# XXX mshinwell: find out why this rule is running
 $(RUNTIME_DIR)/prims.c: $(RUNTIME_DIR)/gen_primsc.sh $(RUNTIME_DIR)/primitives
+	rm -f $@
 	$(V_GEN)$(RUNTIME_DIR)/gen_primsc.sh \
                     $(RUNTIME_DIR)/primitives $(runtime_BYTECODE_C_SOURCES) \
                     > $@
