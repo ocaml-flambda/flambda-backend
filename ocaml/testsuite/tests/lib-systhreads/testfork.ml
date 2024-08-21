@@ -1,5 +1,4 @@
 (* TEST
- not-macos;
  include systhreads;
  hassysthreads;
  not-bsd;
@@ -37,7 +36,9 @@ let main () =
       exit 0
   | pid ->
       print_string "In parent..."; print_newline();
-      Thread.delay 0.4;
+      let pid', stat = Unix.waitpid [WUNTRACED] pid in
+      assert (pid = pid');
+      assert (stat = WEXITED 0);
       print_string "Parent is exiting."; print_newline();
       exit 0
 
