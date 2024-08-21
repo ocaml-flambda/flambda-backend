@@ -129,8 +129,8 @@ end
 Line 3, characters 22-24:
 3 |   val f : t -> (t as ('a : value)[@error_message "Custom message"])
                           ^^
-Error: This alias is bound to type t but is used as an instance of type
-         ('a : value)
+Error: This alias is bound to type "t" but is used as an instance of type
+         "('a : value)"
        The layout of t is float64
          because of the definition of t at line 2, characters 2-18.
        But the layout of t must be a sublayout of value
