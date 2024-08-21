@@ -1415,15 +1415,15 @@ let map_kind f = function
              {l with ld_type = f l.ld_type}
           ) fl, rr)
 
+let map_decl f decl =
+  {(set_type_params decl (List.map f (get_type_params decl)))
+     with
+      type_manifest_ = Option.map f (get_type_manifest decl);
+      type_kind_ = map_kind f (get_type_kind decl);
+  }
 
 let instance_declaration decl =
-  For_copy.with_scope (fun copy_scope ->
-    {(set_type_params decl (List.map (copy copy_scope) (get_type_params decl)))
-     with
-      type_manifest_ = Option.map (copy copy_scope) (get_type_manifest decl);
-      type_kind_ = map_kind (copy copy_scope) (get_type_kind decl);
-    }
-  )
+  For_copy.with_scope (fun copy_scope -> map_decl (copy copy_scope) decl)
 
 let generic_instance_declaration decl =
   let old = !current_level in

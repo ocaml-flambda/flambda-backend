@@ -1824,16 +1824,13 @@ let type_comprehension_for_range_iterator_index ~loc ~env ~param tps =
 (* Type paths *)
 
 let rec expand_path env p =
-  let decl =
-    try Some (Env.find_type p env) with Not_found -> None
-  in
-  match decl with
-    Some {type_manifest_ = Some ty} ->
+  match Env.find_type p env |> get_type_manifest with
+  | Some ty ->
       begin match get_desc ty with
         Tconstr(p,_,_) -> expand_path env p
       | _ -> assert false
       end
-  | _ ->
+  | None | exception Not_found ->
       let p' = Env.normalize_type_path None env p in
       if Path.same p p' then p else expand_path env p'
 

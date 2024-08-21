@@ -22,6 +22,18 @@ open Types
 let freshen ~scope mty =
   Subst.modtype (Rescope scope) Subst.identity mty
 
+let strengthen_decl_with_manifest path decl =
+  match get_type_manifest decl, get_type_private decl, get_type_kind decl with
+  Some _, Public, _ -> decl
+| Some _, Private, (Type_record _ | Type_variant _) -> decl
+| _ ->
+    let manif =
+      Some(Btype.newgenty(Tconstr(path, (get_type_params decl), ref Mnil))) in
+    if Btype.type_kind_is_abstract decl then
+      { decl with type_private_ = Public; type_manifest_ = manif }
+    else
+      { decl with type_manifest_ = manif }
+
 (* Strengthen a type as far as possible without unfolding abbreviations,
   pushing strengthening into signatures and functors. Return None if we
   couldn't push it inwards (or eliminate it) and an Mty_strengthen node
@@ -88,21 +100,8 @@ and strengthen_lazy_sig' ~aliasable sg p =
     when Btype.is_row_name (Ident.name id) ->
       strengthen_lazy_sig' ~aliasable rem p
   | Sig_type(id, decl, rs, vis) :: rem ->
-      let newdecl =
-        match get_type_manifest decl, get_type_private decl, get_type_kind decl with
-          Some _, Public, _ -> decl
-        | Some _, Private, (Type_record _ | Type_variant _) -> decl
-        | _ ->
-            let manif =
-              Some(Btype.newgenty(Tconstr(Pdot(p, Ident.name id),
-                                          (get_type_params decl), ref Mnil))) in
-            if Btype.type_kind_is_abstract decl then
-              { decl with type_private_ = Public; type_manifest_ = manif }
-            else
-              { decl with type_manifest_ = manif }
-      in
-      Sig_type(id, newdecl, rs, vis) ::
-        strengthen_lazy_sig' ~aliasable rem p
+      Sig_type(id, strengthen_decl_with_manifest (Pdot (p, Ident.name id)) decl, rs, vis)
+        :: strengthen_lazy_sig' ~aliasable rem p
   | (Sig_typext _ as sigelt) :: rem ->
       sigelt :: strengthen_lazy_sig' ~aliasable rem p
   | Sig_module(id, pres, md, rs, vis) :: rem ->
@@ -295,21 +294,8 @@ let rec sig_make_manifest sg =
   | (Sig_value _ | Sig_class _ | Sig_class_type _) as t :: rem ->
     t :: sig_make_manifest rem
   | Sig_type (id,decl,rs,vis) :: rem ->
-    let newdecl =
-      match get_type_manifest decl, get_type_private decl, get_type_kind decl with
-        Some _, Public, _ -> decl
-      | Some _, Private, (Type_record _ | Type_variant _) -> decl
-      | _ ->
-        let manif =
-          Some (Btype.newgenty(Tconstr(Pident id, get_type_params decl, ref Mnil)))
-        in
-        match get_type_kind decl with
-        | Type_abstract _ ->
-          { decl with type_private_ = Public; type_manifest_ = manif }
-        | (Type_record _ | Type_variant _ | Type_open) ->
-          { decl with type_manifest_ = manif }
-    in
-    Sig_type(Ident.rename id, newdecl, rs, vis) :: sig_make_manifest rem
+    Sig_type (Ident.rename id, strengthen_decl_with_manifest (Pident id) decl, rs, vis)
+      :: sig_make_manifest rem
   | Sig_typext _ as sigelt :: rem ->
     sigelt :: sig_make_manifest rem
   | Sig_module(id, pres, md, rs, vis) :: rem ->
