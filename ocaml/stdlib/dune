@@ -26,7 +26,9 @@
    -bin-annot
    -nostdlib
    -safe-string
-   -strict-formats))
+   -strict-formats
+   -allow-illegal-crossing
+   -extension-universe alpha))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (preprocess
