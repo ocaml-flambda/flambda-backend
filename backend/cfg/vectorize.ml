@@ -699,7 +699,13 @@ end = struct
     fprintf ppf "\n"
 end
 
-module Seed = struct
+module Seed : sig
+  type t
+
+  val from_block : Cfg.basic_block -> t list
+
+  val dump : Format.formatter -> t list -> unit
+end = struct
   type t = Memory_accesses.Memory_operation.t list
 
   let can_cross memory_accesses instruction_1 instruction_2 =
