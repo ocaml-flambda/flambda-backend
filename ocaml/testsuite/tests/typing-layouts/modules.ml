@@ -731,3 +731,65 @@ module type S = sig type t : any end
 module C : S
 val x : (module S with type t = C.t) = <module>
 |}]
+
+(*************************************************)
+(* Test 12: equations on layout of packaged type *)
+
+module Repr32 = Stdlib.Sys.Immediate64.Make (Int) (Int32)
+
+module type S = sig
+  type t = Repr32.t
+end
+
+module Choice1 = struct
+  type t = int
+end
+module Choice2 = struct
+  type t = int32
+end
+
+[%%expect{|
+module Repr32 :
+  sig
+    type t = Sys.Immediate64.Make(Int)(Int32).t
+    type 'a repr =
+      'a Sys.Immediate64.Make(Int)(Int32).repr =
+        Immediate : Int.t repr
+      | Non_immediate : Int32.t repr
+    val repr : t repr
+  end
+module type S = sig type t = Repr32.t end
+module Choice1 : sig type t = int end
+module Choice2 : sig type t = int32 end
+|}]
+
+(* Failure: attempt to package without the needed
+   equation.
+*)
+
+let m : (module S) = (module Choice2)
+
+[%%expect{|
+Line 1, characters 29-36:
+1 | let m : (module S) = (module Choice2)
+                                 ^^^^^^^
+Error: Signature mismatch:
+       Modules do not match: sig type t = int32 end is not included in S
+       Type declarations do not match:
+         type t = int32
+       is not included in
+         type t = Repr32.t
+       The type "int32" is not equal to the type
+         "Repr32.t" = "Sys.Immediate64.Make(Int)(Int32).t"
+|}]
+
+(* Pass: package with needed equation. *)
+
+let m : (module S) =
+  match Repr32.repr with
+  | Immediate -> (module Choice1)
+  | Non_immediate -> (module Choice2)
+
+[%%expect{|
+val m : (module S) = <module>
+|}]
