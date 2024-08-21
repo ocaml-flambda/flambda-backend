@@ -837,7 +837,7 @@ let include_infos f sub incl =
     | Tincl_structure -> Structure
     | Tincl_functor _ | Tincl_gen_functor _ -> Functor
   in
-  Incl.mk ~loc ~attrs kind (f sub incl.incl_mod)
+  Incl.mk ~loc ~attrs ~kind (f sub incl.incl_mod)
 
 let include_declaration sub = include_infos sub.module_expr sub
 let include_description sub = include_infos sub.module_type sub

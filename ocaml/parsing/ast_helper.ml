@@ -483,7 +483,8 @@ module Opn = struct
 end
 
 module Incl = struct
-  let mk ?(loc = !default_loc) ?(attrs = []) ?(docs = empty_docs) kind mexpr =
+  let mk ?(loc = !default_loc) ?(attrs = []) ?(docs = empty_docs)
+    ?(kind = Structure) mexpr =
     {
      pincl_kind = kind;
      pincl_mod = mexpr;
