@@ -574,6 +574,7 @@ let comp_primitive stack_info p sz args =
   | Patomic_cas -> Kccall("caml_atomic_cas", 3)
   | Patomic_fetch_add -> Kccall("caml_atomic_fetch_add", 2)
   | Pdls_get -> Kccall("caml_domain_dls_get", 1)
+  | Pisnull -> Kccall("caml_is_null", 1)
   | Pstring_load_128 _ | Pbytes_load_128 _ | Pbytes_set_128 _
   | Pbigstring_load_128 _ | Pbigstring_set_128 _
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _ | Pint_array_load_128 _
@@ -615,7 +616,6 @@ let comp_primitive stack_info p sz args =
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
   | Pmake_unboxed_product _ | Punboxed_product_field _
-  | Pisnull
     ->
       fatal_error "Bytegen.comp_primitive"
 

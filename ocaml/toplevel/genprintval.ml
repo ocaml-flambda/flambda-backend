@@ -75,6 +75,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
 
     type t = O.t
 
+    external is_null : O.t -> bool = "caml_is_null"
+
     module ObjTbl = Hashtbl.Make(struct
         type t = O.t
         let equal = (==)
@@ -94,7 +96,9 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         let list = ref [] in
         for i = start_offset to O.size obj - 1 do
           let arg = O.field obj i in
-          if not (O.is_block arg) then
+          if is_null arg then
+            list := Oval_constr (Oide_ident (Out_name.create "<null>"), []) :: !list
+          else if not (O.is_block arg) then
             list := Oval_int (O.obj arg : int) :: !list
                (* Note: this could be a char or a constant constructor... *)
           else if O.tag arg = Obj.string_tag then
@@ -269,7 +273,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       let nested_values = ObjTbl.create 8 in
       let nest_gen err f depth obj ty =
         let repr = obj in
-        if not (O.is_block repr) then
+        if is_null repr || not (O.is_block repr) then
           f depth obj ty
         else
           if ObjTbl.mem nested_values repr then
@@ -300,14 +304,14 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               Oval_tuple (tree_of_labeled_val_list 0 depth obj labeled_tys)
           | Tconstr(path, [ty_arg], _)
             when Path.same path Predef.path_list ->
-              if O.is_block obj then
+              if not (is_null obj) && O.is_block obj then
                 match check_depth depth obj ty with
                   Some x -> x
                 | None ->
                     let rec tree_of_conses tree_list depth obj ty_arg =
                       if !printer_steps < 0 || depth < 0 then
                         Oval_ellipsis :: tree_list
-                      else if O.is_block obj then
+                      else if not (is_null obj) && O.is_block obj then
                         let tree =
                           nest tree_of_val (depth - 1) (O.field obj 0) ty_arg
                         in
@@ -419,9 +423,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                         ~loc:Location.none Positive path env
                     in
                     let constant, tag =
-                      if O.is_block obj
-                      then false, O.tag obj
-                      else true, O.obj obj
+                      if is_null obj then
+                        true, -1
+                      else if O.is_block obj then
+                        false, O.tag obj
+                      else
+                        true, O.obj obj
                     in
                     let {cstr_uid;cstr_arg_jkinds} =
                       Datarepr.find_constr_by_tag ~constant tag cstrs
@@ -445,10 +452,9 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                     let unbx =
                       match rep with
                       | Variant_unboxed -> true
+                      | Variant_with_null when constant -> false
+                      | Variant_with_null -> true
                       | Variant_boxed _ | Variant_extensible -> false
-                      | Variant_with_null ->
-                        Misc.fatal_error "[Variant_with_null] not implemented\
-                          in bytecode"
                     in
                     begin
                       match cd_args with
