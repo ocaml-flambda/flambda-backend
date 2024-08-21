@@ -214,10 +214,6 @@ let rec regalloc ~ppf_dump round (fd : Mach.fundecl) =
     newfd
   end
 
-let (++) x f = f x
-
-let id x = x
-
 let count_duplicate_spills_reloads_in_block (block : Cfg.basic_block) =
   let count_per_inst
       ((dup_spills, dup_reloads, seen_spill_regs, seen_reload_regs) as acc)
@@ -275,7 +271,7 @@ let cfg_profile to_cfg =
         Profile.record_with_counters ~accumulate:true
           ~counter_f:cfg_block_counters
           (Format.sprintf "block .%d" label)
-          id block
+          Fun.id block
       in
       ()
     | File_level | Function_level ->
@@ -295,6 +291,8 @@ let cfg_with_layout_profile ?accumulate pass f x =
 
 let cfg_with_infos_profile ?accumulate pass f x =
   cfg_profile Cfg_with_infos.cfg ?accumulate pass f x
+
+let (++) x f = f x
 
 let ocamlcfg_verbose =
   match Sys.getenv_opt "OCAMLCFG_VERBOSE" with
@@ -540,7 +538,7 @@ let compile_phrases ~ppf_dump ps =
             let profile_wrapper = match !profile_granularity with
             | Function_level | Block_level ->
                 Profile.record ~accumulate:true fd.fun_name.sym_name
-            | File_level -> id
+            | File_level -> Fun.id
             in profile_wrapper (compile_fundecl ~ppf_dump ~funcnames) fd;
             compile ~funcnames:(String.Set.remove fd.fun_name.sym_name funcnames) ps
           | Cdata dl ->
