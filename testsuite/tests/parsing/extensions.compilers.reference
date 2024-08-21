@@ -252,6 +252,7 @@
           [
             signature_item (extensions.ml[23,534+11]..[23,534+36])
               Psig_include
+              Structure
               module_type (extensions.ml[23,534+19]..[23,534+36])
                 Pmty_with
                 module_type (extensions.ml[23,534+19]..[23,534+20])
