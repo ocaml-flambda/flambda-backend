@@ -1609,7 +1609,7 @@ let temp_abbrev loc id arity uid =
        type_kind_ = Type_abstract Abstract_def;
        type_jkind = Jkind.Builtin.value ~why:Object;
        type_jkind_annotation = None;
-       type_private = Public;
+       type_private_ = Public;
        type_manifest_ = Some ty;
        type_is_newtype = false;
        type_expansion_scope = Btype.lowest_level;
@@ -1837,7 +1837,7 @@ let class_infos define_class kind
      type_kind_ = Type_abstract Abstract_def;
      type_jkind = Jkind.Builtin.value ~why:Object;
      type_jkind_annotation = None;
-     type_private = Public;
+     type_private_ = Public;
      type_manifest_ = Some obj_ty;
      type_is_newtype = false;
      type_expansion_scope = Btype.lowest_level;

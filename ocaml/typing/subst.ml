@@ -494,7 +494,7 @@ let type_declaration' copy_scope s decl =
       end;
     (* CR layouts v10: Apply the substitution here, too *)
     type_jkind_annotation = decl.type_jkind_annotation;
-    type_private = decl.type_private;
+    type_private_ = get_type_private decl;
     type_is_newtype = false;
     type_expansion_scope = Btype.lowest_level;
     type_loc = loc s decl.type_loc;

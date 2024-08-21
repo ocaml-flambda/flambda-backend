@@ -274,7 +274,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       type_kind_ = Type_abstract abstract_reason;
       type_jkind;
       type_jkind_annotation;
-      type_private = sdecl.ptype_private;
+      type_private_ = sdecl.ptype_private;
       type_manifest_;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
@@ -938,7 +938,7 @@ let transl_declaration env sdecl (id, uid) =
         type_kind_ = kind;
         type_jkind = jkind;
         type_jkind_annotation = jkind_annotation;
-        type_private = sdecl.ptype_private;
+        type_private_ = sdecl.ptype_private;
         type_manifest_ = man;
         type_is_newtype = false;
         type_expansion_scope = Btype.lowest_level;
@@ -2049,10 +2049,8 @@ let check_duplicates sdecl_list =
 
 (* Force recursion to go through id for private types*)
 let name_recursion sdecl id decl =
-  match decl with
-  | { type_kind_ = Type_abstract Abstract_def;
-      type_manifest_ = Some ty;
-      type_private = Private; } when is_fixed_type sdecl ->
+  match get_type_kind decl, get_type_manifest decl, get_type_private decl with
+  | Type_abstract Abstract_def, Some ty, Private when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
     if Ctype.deep_occur ty ty' then
       let td = Tconstr(Path.Pident id, get_type_params decl, ref Mnil) in
@@ -2467,7 +2465,7 @@ let transl_type_extension extend env loc styext =
   begin
     match get_type_kind type_decl with
     | Type_open -> begin
-        match type_decl.type_private with
+        match get_type_private type_decl with
         | Private when extend -> begin
             match
               List.find
@@ -3110,7 +3108,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let priv =
     if sdecl.ptype_private = Private then Private else
     if arity_ok && not sig_decl_abstract
-    then sig_decl.type_private else sdecl.ptype_private
+    then get_type_private sig_decl else sdecl.ptype_private
   in
   if arity_ok && not sig_decl_abstract
   && sdecl.ptype_private = Private then
@@ -3129,7 +3127,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_kind_;
       type_jkind;
       type_jkind_annotation;
-      type_private = priv;
+      type_private_ = priv;
       type_manifest_ = Some man;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
@@ -3170,7 +3168,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       type_kind_ = get_type_kind new_sig_decl;
       type_jkind = new_sig_decl.type_jkind;
       type_jkind_annotation = new_sig_decl.type_jkind_annotation;
-      type_private = new_sig_decl.type_private;
+      type_private_ = get_type_private new_sig_decl;
       type_manifest_ = new_sig_decl.type_manifest_;
       type_unboxed_default = new_sig_decl.type_unboxed_default;
       type_is_newtype = new_sig_decl.type_is_newtype;
@@ -3207,7 +3205,7 @@ let transl_package_constraint ~loc ty =
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)
     type_jkind_annotation = None;
-    type_private = Public;
+    type_private_ = Public;
     type_manifest_ = Some ty;
     type_is_newtype = false;
     type_expansion_scope = Btype.lowest_level;
@@ -3227,7 +3225,7 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
       type_kind_ = Type_abstract Abstract_def;
       type_jkind = jkind;
       type_jkind_annotation = jkind_annotation;
-      type_private = Public;
+      type_private_ = Public;
       type_manifest_ = None;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;

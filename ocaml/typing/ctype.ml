@@ -1333,7 +1333,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
     type_kind_ = Type_abstract Abstract_def;
     type_jkind = jkind;
     type_jkind_annotation = jkind_annot;
-    type_private = Public;
+    type_private_ = Public;
     type_manifest_ = manifest;
     type_is_newtype = true;
     type_expansion_scope = expansion_scope;
@@ -2399,10 +2399,9 @@ let generic_abbrev env path =
 
 let generic_private_abbrev env path =
   try
-    match Env.find_type path env with
-      {type_kind_ = Type_abstract _;
-       type_private = Private;
-       type_manifest_ = Some body} ->
+    let decl = Env.find_type path env in
+    match get_type_kind decl, get_type_private decl, get_type_manifest decl with
+    | Type_abstract _, Private, Some body ->
          get_level body = generic_level
     | _ -> false
   with Not_found -> false
@@ -2899,7 +2898,7 @@ let is_instantiable env ~for_jkind_eqn p =
   try
     let decl = Env.find_type p env in
     type_kind_is_abstract decl &&
-    decl.type_private = Public &&
+    get_type_private decl = Public &&
     get_type_arity decl = 0 &&
     get_type_manifest decl = None &&
     (for_jkind_eqn || not (non_aliasable p decl))
@@ -3306,7 +3305,7 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
         let go decl =
           if   decl.type_params_ = []
             && Btype.type_kind_is_abstract decl
-            && decl.type_private = Public
+            && get_type_private decl = Public
           then Ok (get_type_manifest decl)
           else Error ()
         in
@@ -6472,15 +6471,15 @@ let nondep_type_decl env mid is_covariant decl =
       with Nondep_cannot_erase _ when is_covariant -> Type_abstract Abstract_def
     and tm, priv =
       match get_type_manifest decl with
-      | None -> None, decl.type_private
+      | None -> None, get_type_private decl
       | Some ty ->
-          try Some (nondep_type_rec env mid ty), decl.type_private
+          try Some (nondep_type_rec env mid ty), get_type_private decl
           with Nondep_cannot_erase _ when is_covariant ->
             clear_hash ();
             try Some (nondep_type_rec ~expand_private:true env mid ty),
                 Private
             with Nondep_cannot_erase _ ->
-              None, decl.type_private
+              None, get_type_private decl
     in
     clear_hash ();
     let priv =
@@ -6494,7 +6493,7 @@ let nondep_type_decl env mid is_covariant decl =
       type_jkind = decl.type_jkind;
       type_jkind_annotation = decl.type_jkind_annotation;
       type_manifest_ = tm;
-      type_private = priv;
+      type_private_ = priv;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = decl.type_loc;

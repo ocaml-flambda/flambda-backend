@@ -254,7 +254,7 @@ type type_declaration =
     type_kind_: type_decl_kind;
     type_jkind: jkind;
     type_jkind_annotation: type_expr Jkind_types.annotation option;
-    type_private: private_flag;
+    type_private_: private_flag;
     type_manifest_: type_expr option;
     type_is_newtype: bool;
     type_expansion_scope: int;
@@ -379,6 +379,8 @@ let tys_of_constr_args = function
 let get_type_kind decl = decl.type_kind_
 
 let get_type_manifest decl = decl.type_manifest_
+
+let get_type_private decl = decl.type_private_
 
 let create_type_params type_params type_variance type_separability =
   List.map2

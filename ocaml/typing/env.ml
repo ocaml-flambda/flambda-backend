@@ -1538,7 +1538,7 @@ let find_module_lazy path env =
 let find_type_expansion path env =
   let decl = find_type path env in
   match get_type_manifest decl with
-  | Some body when decl.type_private = Public
+  | Some body when get_type_private decl = Public
               || not (Btype.type_kind_is_abstract decl)
               || Btype.has_constr_row body ->
       (get_type_params decl, body, decl.type_expansion_scope)
@@ -2061,7 +2061,7 @@ and store_constructor ~check type_decl type_id cstr_id cstr env =
     let name = cstr.cstr_name in
     let loc = cstr.cstr_loc in
     let k = cstr.cstr_uid in
-    let priv = type_decl.type_private in
+    let priv = get_type_private type_decl in
     if not (Types.Uid.Tbl.mem !used_constructors k) then begin
       let used = constructor_usages () in
       Types.Uid.Tbl.add !used_constructors k
@@ -2093,7 +2093,7 @@ and store_label ~check type_decl type_id lbl_id lbl env =
      && Warnings.is_active (Warnings.Unused_field ("", Unused))
   then begin
     let ty_name = Ident.name type_id in
-    let priv = type_decl.type_private in
+    let priv = get_type_private type_decl in
     let name = lbl.lbl_name in
     let loc = lbl.lbl_loc in
     let mut = lbl.lbl_mut in

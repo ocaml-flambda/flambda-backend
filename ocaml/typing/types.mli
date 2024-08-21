@@ -519,7 +519,7 @@ type type_declaration =
     for an e.g. local abstract type or an inlined record), then this field
     can safely be [None]. It's used only for printing and in untypeast. *)
 
-    type_private: private_flag;
+    type_private_: private_flag;
     type_manifest_: type_expr option;
     type_is_newtype: bool;
     type_expansion_scope: int;
@@ -692,6 +692,8 @@ and type_transparence =
 val get_type_kind : type_declaration -> type_decl_kind
 
 val get_type_manifest : type_declaration -> type_expr option
+
+val get_type_private : type_declaration -> private_flag
 
 val create_type_params : type_expr list -> Variance.t list -> Separability.t list -> type_param list
 val create_type_params_of_unknowns : injective:bool -> type_expr list -> type_param list

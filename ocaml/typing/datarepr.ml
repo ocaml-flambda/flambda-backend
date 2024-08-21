@@ -79,7 +79,7 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
           type_kind_ = Type_record (lbls, rep);
           type_jkind = jkind;
           type_jkind_annotation = None;
-          type_private = priv;
+          type_private_ = priv;
           type_manifest_ = None;
           type_is_newtype = false;
           type_expansion_scope = Btype.lowest_level;
@@ -137,7 +137,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
     let cstr_existentials, cstr_args, cstr_inlined =
       (* This is the representation of the inner record, IF there is one *)
       let record_repr = Record_inlined (cstr_tag, cstr_shape, rep) in
-      constructor_args ~current_unit decl.type_private cd_args cd_res
+      constructor_args ~current_unit (get_type_private decl) cd_args cd_res
         Path.(Pextra_ty (ty_path, Pcstr_ty cstr_name)) record_repr
     in
     let cstr =
@@ -154,7 +154,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
         cstr_consts = !num_consts;
         cstr_nonconsts = !num_nonconsts;
         cstr_generalized = cd_res <> None;
-        cstr_private = decl.type_private;
+        cstr_private = get_type_private decl;
         cstr_loc = cd_loc;
         cstr_attributes = cd_attributes;
         cstr_inlined;
@@ -266,5 +266,5 @@ let labels_of_type ty_path decl =
   match get_type_kind decl with
   | Type_record(labels, rep) ->
       label_descrs (newgenconstr ty_path (get_type_params decl))
-        labels rep decl.type_private
+        labels rep (get_type_private decl)
   | Type_variant _ | Type_abstract _ | Type_open -> []
