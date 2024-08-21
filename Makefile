@@ -37,7 +37,7 @@ minimizer-upstream:
 .PHONY: minimizer
 minimizer: _build/_bootinstall
 	cp chamelon/dune.jst chamelon/dune
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) @chamelon/all
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) @chamelon/all
 
 .PHONY: hacking-runtest
 hacking-runtest: _build/_bootinstall
