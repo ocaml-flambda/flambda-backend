@@ -337,8 +337,8 @@ end = struct
           ~some:(sprintf "instruction %d" << Instruction.Id.to_int)
           reg_node.direct_dependency
       in
-      fprintf ppf "\nargument %d, %a depends on %s\n" arg_i
-        Instruction.print_reg reg_node.reg dependency
+      fprintf ppf "argument %d, %a depends on %s\n" arg_i Instruction.print_reg
+        reg_node.reg dependency
     in
     let print_node (instruction : Instruction.t) =
       let id = Instruction.id instruction in
@@ -346,20 +346,20 @@ end = struct
       fprintf ppf "\n%d:\n"
         (Instruction.id node.instruction |> Instruction.Id.to_int);
       Instruction.print ppf instruction;
-      Array.iteri print_reg_node node.reg_nodes;
-      fprintf ppf "\ndepends on:\n";
+      fprintf ppf "\ndirect dependencies:\n";
       Instruction.Id.Set.iter
         (fprintf ppf "%d " << Instruction.Id.to_int)
         node.direct_dependencies;
-      fprintf ppf "\nindirectly depends on:\n";
+      fprintf ppf "\nall dependencies:\n";
       Instruction.Id.Set.iter
         (fprintf ppf "%d " << Instruction.Id.to_int)
         node.all_dependencies;
-      fprintf ppf "\nis a dependency of:\n";
+      fprintf ppf "\nis direct dependency of:\n";
       Instruction.Id.Set.iter
         (fprintf ppf "%d " << Instruction.Id.to_int)
         node.is_direct_dependency_of;
       fprintf ppf "\narg dependencies:\n";
+      Array.iteri print_reg_node node.reg_nodes;
       fprintf ppf "\n"
     in
     fprintf ppf "\ndependency graph:\n";
