@@ -517,26 +517,6 @@ end = struct
         arguments_comparison
       else addressing_mode_comparison
 
-    let _compare (t1 : t) (t2 : t) =
-      let addressing_mode_and_arguments_comparison =
-        compare_addressing_modes_and_arguments t1 t2
-      in
-      if addressing_mode_and_arguments_comparison = 0
-      then
-        let displ_comparison =
-          match
-            Arch.addressing_displ_compare t1.addressing_mode t2.addressing_mode
-          with
-          | Some offset -> offset
-          | None -> assert false
-        in
-        if displ_comparison = 0
-        then
-          (Instruction.id t1.instruction |> Instruction.Id.to_int)
-          - (Instruction.id t2.instruction |> Instruction.Id.to_int)
-        else displ_comparison
-      else addressing_mode_and_arguments_comparison
-
     let offset_of (t1 : t) (t2 : t) =
       let addressing_mode_and_arguments_comparison =
         compare_addressing_modes_and_arguments t1 t2
