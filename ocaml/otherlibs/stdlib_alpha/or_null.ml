@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type 'a t : value_or_null = 'a or_null [@@or_null_reexport]
+(* type 'a t : value_or_null = 'a or_null [@@or_null_reexport]
 
 let null = Null
 let this v = This v
@@ -42,4 +42,4 @@ let to_result ~null = function Null -> Error null | This v -> Ok v
 let to_list = function Null -> [] | This v -> [ v ]
 let to_seq = function Null -> Seq.empty | This v -> Seq.return v
 let to_option = function Null -> None | This v -> Some v
-let of_option = function None -> Null | Some v -> This v
+let of_option = function None -> Null | Some v -> This v *)

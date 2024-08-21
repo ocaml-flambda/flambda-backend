@@ -104,11 +104,11 @@ let _ = fun a b -> match a, b with
 [%%expect {|
 (function {nlocal = 0} a/291[int] b/292
   [(consts ()) (non_consts ([0: [int], *]))](let
-                                              (p/293 =a[(consts ())
+                                              (p/294 =a[(consts ())
                                                         (non_consts (
                                                         [0: [int], *]))]
                                                  (makeblock 0 a/291 b/292))
-                                              p/293))
+                                              p/294))
 (function {nlocal = 0} a/291[int] b/292
   [(consts ()) (non_consts ([0: [int], *]))](makeblock 0 a/291 b/292))
 - : bool -> 'a -> bool * 'a = <fun>
@@ -140,11 +140,11 @@ let _ = fun a b -> match a, b with
   [(consts ())
    (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], *]))]]))]
   (let
-    (x/303 =a[int] a/301
-     p/304 =a[(consts ()) (non_consts ([0: [int], *]))]
+    (x/305 =a[int] a/301
+     p/306 =a[(consts ()) (non_consts ([0: [int], *]))]
        (makeblock 0 a/301 b/302))
-    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], *]))]) x/303
-      p/304)))
+    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], *]))]) x/305
+      p/306)))
 (function {nlocal = 0} a/301[int] b/302
   [(consts ())
    (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], *]))]]))]

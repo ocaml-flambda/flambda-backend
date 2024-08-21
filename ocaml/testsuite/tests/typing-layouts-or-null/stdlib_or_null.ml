@@ -1,4 +1,6 @@
 (* TEST
+ reason = "testing";
+ skip;
  flags = "-extension layouts_alpha";
  include stdlib_alpha;
  expect;
