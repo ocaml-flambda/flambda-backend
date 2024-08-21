@@ -78,6 +78,15 @@ runtime-stdlib: boot-compiler
 # Dune does not believe the compiler can make .cmxs unless the following file exists.
 	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink.cmxa
 
+runtime-stdlib-hacking: boot-compiler
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build -w $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
+	rm -rf _build/runtime_stdlib_install
+# Dune 3.11+ clears `_build/install` before building, move the runtime stdlib
+# to a separate directory.
+	$(cpl) -R _build/install/runtime_stdlib _build/runtime_stdlib_install
+# Dune does not believe the compiler can make .cmxs unless the following file exists.
+	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink.cmxa
+
 compiler: runtime-stdlib
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) --only-package=ocaml @install \
 	  $(ocamldir)/ocamltest/ocamltest.byte \
