@@ -2668,10 +2668,21 @@ let is_upstream_compatible_non_value_unbox env ty =
   | _ ->
     false
 
-let native_repr_of_type env kind ty =
+type sort_or_poly = Sort of Jkind.Sort.const | Poly
+
+let native_repr_of_type env kind ty sort_or_poly =
   match kind, get_desc (Ctype.expand_head_opt env ty) with
   | Untagged, Tconstr (_, _, _) when
-         Typeopt.maybe_pointer_type env ty = Lambda.Immediate ->
+         Typeopt.maybe_pointer_type env ty = Lambda.Immediate
+      (* Only allow [@untagged] on immediate values. [maybe_pointer_type]
+         currently returns [Immediate] on unboxed number types, which
+         do not support [@untagged].
+      *)
+      && match sort_or_poly with
+         | Poly -> false
+         | Sort Value -> true
+         | Sort _ -> false
+    ->
     Some Untagged_immediate
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float ->
     Some (Unboxed_float Pfloat64)
@@ -2732,8 +2743,6 @@ let type_sort_external ~is_layout_poly ~why env loc typ =
     in
     raise(Error (loc, Jkind_sort {kloc; typ; err}))
 
-type sort_or_poly = Sort of Jkind.Sort.const | Poly
-
 let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   error_if_has_deep_native_repr_attributes core_type;
   let sort_or_poly =
@@ -2773,7 +2782,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
     Same_as_ocaml_repr sort
   | Native_repr_attr_present kind, (Poly | Sort Value)
   | Native_repr_attr_present (Untagged as kind), Sort _ ->
-    begin match native_repr_of_type env kind ty with
+    begin match native_repr_of_type env kind ty sort_or_poly with
     | None ->
       raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type kind))
     | Some repr -> repr

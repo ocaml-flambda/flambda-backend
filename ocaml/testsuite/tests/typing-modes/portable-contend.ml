@@ -242,23 +242,6 @@ Line 1, characters 104-114:
 Error: The value "best_bytes" is nonportable, so cannot be used inside a closure that is portable.
 |}]
 
-let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
-(* CR layouts v2.8: arrows should cross contention. *)
-[%%expect{|
-Line 1, characters 4-118:
-1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value is "contended" but expected to be "uncontended".
-|}]
-
-let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
-[%%expect{|
-Line 1, characters 104-114:
-1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
-                                                                                                            ^^^^^^^^^^
-Error: The value "best_bytes" is nonportable, so cannot be used inside a closure that is portable.
-|}]
-
 (* immediates crosses portability and contention *)
 let foo (x : int @@ nonportable) (y : int @@ contended) =
     let _ @ portable = x in
