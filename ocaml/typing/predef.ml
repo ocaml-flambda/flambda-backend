@@ -480,7 +480,7 @@ let add_or_null add_type env =
   let add_type1 = mk_add_type1 add_type in
   let kind tvar =
     let cstrs = [cstr ident_null []; cstr ident_this [unrestricted tvar]] in
-    if !Clflags.native_code && Config.runtime5 then
+    if Config.runtime5 then
       Type_variant (cstrs, Variant_with_null)
     else
       variant cstrs

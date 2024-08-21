@@ -16,10 +16,10 @@ Lines 2-4, characters 2-16:
 2 | ..type ('a : value) t : value_or_null = 'a or_null =
 3 |     | Null
 4 |     | This of 'a
-Error: The kind of type 'a or_null is value_or_null
-         because it is the primitive value_or_null type or_null.
-       But the kind of type 'a or_null must be a subkind of value
-         because of the definition of t at lines 2-4, characters 2-16.
+Error: This variant or record definition does not match that of type
+         'a or_null
+       Their internal representations differ:
+       the original definition has a null constructor.
 |}]
 
 module Or_null = struct
@@ -59,7 +59,10 @@ let n = Or_null.Null
 let t v = Or_null.This v
 
 [%%expect{|
-module Or_null : sig type 'a t = 'a or_null = Null | This of 'a end
+module Or_null :
+  sig
+    type 'a t = 'a or_null : value_or_null = Null | This of 'a [@@unboxed]
+  end
 val n : 'a Or_null.t = Or_null.Null
 val t : 'a -> 'a Or_null.t = <fun>
 |}]
@@ -87,7 +90,8 @@ end
 let fail = Or_null.This (Or_null.This 5)
 
 [%%expect{|
-module Or_null : sig type 'a t = 'a or_null = Null | This of 'a end
+module Or_null :
+  sig type 'a t = 'a or_null = Null | This of 'a [@@unboxed] end
 Line 4, characters 24-40:
 4 | let fail = Or_null.This (Or_null.This 5)
                             ^^^^^^^^^^^^^^^^
@@ -147,7 +151,8 @@ end
 let fail = Or_null.This (Or_null.This 5)
 
 [%%expect{|
-module Or_null : sig type 'a t = 'a or_null = Null | This of 'a end
+module Or_null :
+  sig type 'a t = 'a or_null = Null | This of 'a [@@unboxed] end
 Line 4, characters 24-40:
 4 | let fail = Or_null.This (Or_null.This 5)
                             ^^^^^^^^^^^^^^^^
@@ -217,7 +222,7 @@ type 'a t = 'a or_null [@@or_null_reexport]
 and t' = int or_null
 
 [%%expect{|
-type 'a t = 'a or_null = Null | This of 'a
+type 'a t = 'a or_null = Null | This of 'a [@@unboxed]
 and t' = int or_null
 |}]
 

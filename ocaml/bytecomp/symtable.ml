@@ -147,6 +147,7 @@ let output_primitive_table outchan =
 (* We cannot use the [float32] type in the compiler, so we represent it as an
    opaque [Obj.t]. This is sufficient for interfacing with the runtime. *)
 external float32_of_string : string -> Obj.t = "caml_float32_of_string"
+external int_as_pointer : int -> Obj.t = "%int_as_pointer"
 
 let rec transl_const = function
     Const_base(Const_int i) -> Obj.repr i
@@ -181,8 +182,7 @@ let rec transl_const = function
       List.iteri (fun i f -> Array.Floatarray.set res i (float_of_string f))
         fields;
       Obj.repr res
-  | Const_null ->
-      Misc.fatal_error "[Const_null] not implemented in bytecode."
+  | Const_null -> int_as_pointer 0
 
 (* Initialization for batch linking *)
 

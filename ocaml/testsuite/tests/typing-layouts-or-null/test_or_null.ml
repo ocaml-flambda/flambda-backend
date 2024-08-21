@@ -6,7 +6,7 @@
 type ('a : value) t : value_or_null = 'a or_null [@@or_null_reexport]
 
 [%%expect{|
-type 'a t = 'a or_null = Null | This of 'a
+type 'a t = 'a or_null : value_or_null = Null | This of 'a [@@unboxed]
 |}]
 
 let to_option (x : 'a or_null) =
@@ -30,7 +30,7 @@ val of_option : 'a option -> 'a t = <fun>
 let pi = This 3.14
 
 [%%expect{|
-val pi : float t = This 3.14
+val pi : float t = <unknown constructor>
 |}]
 
 let pi' =
@@ -38,7 +38,7 @@ let pi' =
   value
 
 [%%expect{|
-val pi' : float t = This 3.14
+val pi' : float t = <unknown constructor>
 |}]
 
 type myrec = { x : int; y : int or_null }
@@ -77,13 +77,13 @@ let test =
   a'.y
 
 [%%expect{|
-val test : int or_null = <unknown constructor>
+val test : int or_null = Null
 |}]
 
 let mytup = (4, This 5)
 
 [%%expect{|
-val mytup : int * int t = (4, This 5)
+val mytup : int * int t = (4, <unknown constructor>)
 |}]
 
 type mytup' = int * int t
