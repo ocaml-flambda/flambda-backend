@@ -131,6 +131,7 @@ void fp_backtrace(value argv0)
     if (funcname.rm_so == -1)
       goto skip;
 
+#if 0
     /* Trim numeric suffix from caml functions */
     regmatch_t functrimmed = trim_func_name(symbol, &funcname);
 
@@ -138,6 +139,9 @@ void fp_backtrace(value argv0)
        name */
     const regmatch_t* match = (functrimmed.rm_so != -1) ?
       &functrimmed : &funcname;
+#endif
+    // For flambda-backend just use the full symbol, this will do for now.
+    const regmatch_t* match = &funcname;
 
     print_symbol(symbol, match);
 
