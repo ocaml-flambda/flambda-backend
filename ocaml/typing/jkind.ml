@@ -64,6 +64,7 @@ module Layout = struct
       | Sort Word -> "word"
       | Sort Bits32 -> "bits32"
       | Sort Bits64 -> "bits64"
+      | Sort Vec128 -> "vec128"
 
     module Debug_printers = struct
       open Format
@@ -383,6 +384,13 @@ module Const = struct
         name = "bits64"
       }
 
+    (* CR layouts v3: change to [Maybe_null] when separability is implemented. *)
+    let vec128 =
+      { jkind =
+          of_layout (Sort Vec128) ~mode_crossing:false ~nullability:Non_null;
+        name = "vec128"
+      }
+
     let all =
       [ any;
         any_non_null;
@@ -631,7 +639,7 @@ module Const = struct
   let get_required_layouts_level (_context : History.annotation_context)
       (jkind : t) : Language_extension.maturity =
     match jkind.layout, jkind.nullability_upper_bound with
-    | (Sort (Float64 | Float32 | Word | Bits32 | Bits64) | Any), _
+    | (Sort (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) | Any), _
     | Sort Value, Non_null ->
       Stable
     | Sort Void, _ | Sort Value, Maybe_null -> Alpha

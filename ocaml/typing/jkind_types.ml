@@ -21,6 +21,7 @@ module Sort = struct
     | Word
     | Bits32
     | Bits64
+    | Vec128
 
   type t =
     | Var of var
@@ -39,9 +40,12 @@ module Sort = struct
       | Float32, Float32
       | Word, Word
       | Bits32, Bits32
-      | Bits64, Bits64 ->
+      | Bits64, Bits64
+      | Vec128, Vec128 ->
         true
-      | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64), _ -> false
+      | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128), _
+        ->
+        false
 
     let to_string = function
       | Value -> "value"
@@ -51,6 +55,7 @@ module Sort = struct
       | Word -> "word"
       | Bits32 -> "bits32"
       | Bits64 -> "bits64"
+      | Vec128 -> "vec128"
 
     let format ppf const = Format.fprintf ppf "%s" (to_string const)
 
@@ -66,7 +71,8 @@ module Sort = struct
           | Float32 -> "Float32"
           | Word -> "Word"
           | Bits32 -> "Bits32"
-          | Bits64 -> "Bits64")
+          | Bits64 -> "Bits64"
+          | Vec128 -> "Vec128")
     end
   end
 
@@ -119,6 +125,8 @@ module Sort = struct
 
   let bits64 = Const Bits64
 
+  let vec128 = Const Vec128
+
   let some_value = Some (Const Value)
 
   let of_const = function
@@ -129,6 +137,7 @@ module Sort = struct
     | Word -> word
     | Bits32 -> bits32
     | Bits64 -> bits64
+    | Vec128 -> vec128
 
   let of_var v = Var v
 
@@ -160,6 +169,8 @@ module Sort = struct
 
   let memoized_bits64 : t option = Some (Const Bits64)
 
+  let memoized_vec128 : t option = Some (Const Vec128)
+
   let[@inline] get_memoized = function
     | Value -> memoized_value
     | Void -> memoized_void
@@ -168,6 +179,7 @@ module Sort = struct
     | Word -> memoized_word
     | Bits32 -> memoized_bits32
     | Bits64 -> memoized_bits64
+    | Vec128 -> memoized_vec128
 
   let rec default_to_value_and_get : t -> const = function
     | Const c -> c
@@ -206,9 +218,11 @@ module Sort = struct
     | Float32, Float32
     | Word, Word
     | Bits32, Bits32
-    | Bits64, Bits64 ->
+    | Bits64, Bits64
+    | Vec128, Vec128 ->
       Equal_no_mutation
-    | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64), _ -> Unequal
+    | (Void | Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128), _ ->
+      Unequal
 
   let rec equate_var_const v1 c2 =
     match !v1 with
@@ -258,7 +272,8 @@ module Sort = struct
         set v some_value;
         false
       | Some s -> is_void_defaulting s)
-    | Const (Value | Float64 | Float32 | Word | Bits32 | Bits64) -> false
+    | Const (Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) ->
+      false
 
   (*** pretty printing ***)
 

@@ -55,7 +55,7 @@ let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
 
 let check_record_field_sort loc sort =
   match Jkind.Sort.default_to_value_and_get sort with
-  | Value | Float64 | Float32 | Bits32 | Bits64 | Word -> ()
+  | Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> ()
   | Void -> raise (Error (loc, Illegal_void_record_field))
 
 (* Forward declaration -- to be filled in by Translmod.transl_module *)

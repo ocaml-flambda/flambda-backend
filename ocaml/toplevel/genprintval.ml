@@ -260,7 +260,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       | Sort Value -> Print_as_value
       | Sort Void -> Print_as "<void>"
       | Any -> Print_as "<any>"
-      | Sort (Float64 | Float32 | Bits32 | Bits64 | Word) -> Print_as "<abstr>"
+      | Sort (Float64 | Float32 | Bits32 | Bits64 | Word | Vec128) -> Print_as "<abstr>"
 
     let outval_of_value max_steps max_depth check_depth env obj ty =
 

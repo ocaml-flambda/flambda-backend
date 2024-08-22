@@ -410,7 +410,7 @@ let check_representable ~why ~allow_unboxed env loc kloc typ =
     if not allow_unboxed then
       match Jkind.Sort.default_to_value_and_get s with
       | Void | Value -> ()
-      | Float64 | Float32 | Word | Bits32 | Bits64 as const ->
+      | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128 as const ->
         raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
   | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
@@ -1314,6 +1314,9 @@ module Element_repr = struct
       | Some Word, _ -> Unboxed_element Word
       | Some Bits32, _ -> Unboxed_element Bits32
       | Some Bits64, _ -> Unboxed_element Bits64
+      | Some Vec128, _ ->
+          (* CR mslater: unboxed vector fields *)
+          Misc.fatal_error "Unboxed vector fields are not yet supported"
       | Some Void, _ -> Element_without_runtime_component { loc; ty }
       | None, _ ->
           Misc.fatal_error "Element_repr.classify: unexpected abstract layout"

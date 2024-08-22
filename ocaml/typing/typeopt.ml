@@ -27,6 +27,7 @@ type error =
       Jkind.Sort.t * Language_extension.maturity * type_expr option
   | Non_value_sort_unknown_ty of Jkind.Sort.t
   | Small_number_sort_without_extension of Jkind.Sort.t * type_expr option
+  | Simd_sort_without_extension of Jkind.Sort.t * type_expr option
   | Not_a_sort of type_expr * Jkind.Violation.t
   | Unsupported_sort of Jkind.Sort.const
 
@@ -116,6 +117,7 @@ type classification =
   | Float
   | Unboxed_float of unboxed_float
   | Unboxed_int of unboxed_integer
+  | Unboxed_vector of unboxed_vector
   | Lazy
   | Addr  (* anything except a float or a lazy *)
   | Any
@@ -164,6 +166,7 @@ let classify env loc ty sort : classification =
   | Bits32 -> Unboxed_int Pint32
   | Bits64 -> Unboxed_int Pint64
   | Word -> Unboxed_int Pnativeint
+  | Vec128 -> Unboxed_vector Pvec128
   | Void ->
     raise (Error (loc, Unsupported_sort Void))
 
@@ -184,6 +187,9 @@ let array_type_kind ~elt_sort env loc ty =
       | Int -> Pintarray
       | Unboxed_float f -> Punboxedfloatarray f
       | Unboxed_int i -> Punboxedintarray i
+      | Unboxed_vector _ ->
+        (* CR mslater: unboxed vector arrays *)
+        Misc.fatal_error "Array of unboxed vectors is not yet supported."
       end
   | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
       Pfloatarray
@@ -247,7 +253,7 @@ let value_kind_of_value_jkind jkind =
   | Sort Value, External64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
   | Sort Value, Internal -> Pgenval
-  | (Any | Sort (Void | Float64 | Float32 | Word | Bits32 | Bits64)) , _ ->
+  | (Any | Sort (Void | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128)) , _ ->
     Misc.fatal_error "expected a layout of value"
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
@@ -698,7 +704,10 @@ let[@inline always] layout_of_const_sort_generic ~value_kind ~error
   | Float32 when Language_extension.(is_at_least Layouts Stable) &&
                  Language_extension.(is_enabled Small_numbers) ->
     Lambda.Punboxed_float Pfloat32
-  | (Void | Float64 | Float32 | Word | Bits32 | Bits64 as const) ->
+  | Vec128 when Language_extension.(is_at_least Layouts Stable) &&
+                Language_extension.(is_enabled SIMD) ->
+    Lambda.Punboxed_vector Pvec128
+  | (Void | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128 as const) ->
     error const
 
 let layout env loc sort ty =
@@ -710,6 +719,8 @@ let layout env loc sort ty =
       | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
       | (Float32 as const) ->
         raise (Error (loc, Small_number_sort_without_extension (Jkind.Sort.of_const const, Some ty)))
+      | (Vec128 as const) ->
+        raise (Error (loc, Simd_sort_without_extension (Jkind.Sort.of_const const, Some ty)))
       | (Float64 | Word | Bits32 | Bits64 as const) ->
         raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, Some ty))))
 
@@ -722,6 +733,8 @@ let layout_of_sort loc sort =
     | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
     | (Float32 as const) ->
       raise (Error (loc, Small_number_sort_without_extension (Jkind.Sort.of_const const, None)))
+    | (Vec128 as const) ->
+      raise (Error (loc, Simd_sort_without_extension (Jkind.Sort.of_const const, None)))
     | (Float64 | Word | Bits32 | Bits64 as const) ->
       raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, None))))
 
@@ -758,7 +771,7 @@ let lazy_val_requires_forward env loc ty =
      Blocks with forward_tag can get scanned by the gc thus can't
      store unboxed values. Not boxing is also incorrect since the lazy
      type has layout [value] which is different from these unboxed layouts. *)
-  | Unboxed_float _ | Unboxed_int _ ->
+  | Unboxed_float _ | Unboxed_int _ | Unboxed_vector _ ->
     Misc.fatal_error "Unboxed value encountered inside lazy expression"
   | Float -> Config.flat_float_array
   | Addr | Int -> false
@@ -863,7 +876,27 @@ let report_error ppf = function
               Language_extension.(is_enabled Small_numbers) with
         | false, true -> " layouts", "is", "this flag"
         | true, false -> " small_numbers", "is", "this flag"
-        | false, false -> "s layouts and small numbers", "are", "these flags"
+        | false, false -> "s layouts and small_numbers", "are", "these flags"
+        | true, true -> assert false
+      in
+      fprintf ppf
+        ",@ but this requires the extension%s, which %s not enabled.@ \
+         If you intended to use this layout, please add %s to your \
+         build file.@ \
+         Otherwise, please report this error to the Jane Street compilers team."
+        extension verb flags
+  | Simd_sort_without_extension (sort, ty) ->
+      fprintf ppf "Non-value layout %a detected" Jkind.Sort.format sort;
+      begin match ty with
+      | None -> ()
+      | Some ty -> fprintf ppf " as sort for type@ %a" Printtyp.type_expr ty
+      end;
+      let extension, verb, flags =
+        match Language_extension.(is_at_least Layouts Stable),
+              Language_extension.(is_enabled SIMD) with
+        | false, true -> " layouts", "is", "this flag"
+        | true, false -> " simd", "is", "this flag"
+        | false, false -> "s layouts and simd", "are", "these flags"
         | true, true -> assert false
       in
       fprintf ppf

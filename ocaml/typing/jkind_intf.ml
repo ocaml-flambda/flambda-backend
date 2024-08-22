@@ -29,6 +29,7 @@ module type Sort = sig
     | Word  (** Unboxed native-size integers *)
     | Bits32  (** Unboxed 32-bit integers *)
     | Bits64  (** Unboxed 64-bit integers *)
+    | Vec128  (** Unboxed 128-bit simd vectors *)
 
   (** A sort variable that can be unified during type-checking. *)
   type var

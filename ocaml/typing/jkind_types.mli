@@ -53,6 +53,7 @@ module Sort : sig
     | Word
     | Bits32
     | Bits64
+    | Vec128
 
   type t =
     | Var of var

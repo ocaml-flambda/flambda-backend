@@ -864,11 +864,10 @@ let layout_string = Pvalue Pgenval
 let layout_unboxed_int ubi = Punboxed_int ubi
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
 
-let layout_unboxed_vector (v : Primitive.boxed_vector) =
-  match v with
+let layout_unboxed_vector = function
   | Pvec128 -> Punboxed_vector Pvec128
 
-let layout_boxed_vector : Primitive.boxed_vector -> layout = function
+let layout_boxed_vector = function
   | Pvec128 -> Pvalue (Pboxedvectorval Pvec128)
 
 let layout_lazy = Pvalue Pgenval
@@ -1833,6 +1832,7 @@ let layout_of_extern_repr : extern_repr -> _ = function
     | Word -> layout_unboxed_nativeint
     | Bits32 -> layout_unboxed_int32
     | Bits64 -> layout_unboxed_int64
+    | Vec128 -> layout_unboxed_vector Pvec128
     | Void -> assert false
     end
 
