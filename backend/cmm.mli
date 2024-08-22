@@ -162,6 +162,14 @@ type float_width =
   | Float64
   | Float32
 
+type vec128_type =
+  | Int8x16
+  | Int16x8
+  | Int32x4
+  | Int64x2
+  | Float32x4
+  | Float64x2
+
 type memory_chunk =
     Byte_unsigned
   | Byte_signed
@@ -199,8 +207,8 @@ type static_cast =
   | Int_of_float of float_width
   | Float_of_float32
   | Float32_of_float
-  | V128_of_scalar of Primitive.vec128_type
-  | Scalar_of_v128 of Primitive.vec128_type
+  | V128_of_scalar of vec128_type
+  | Scalar_of_v128 of vec128_type
 
 type operation =
     Capply of machtype * Lambda.region_close

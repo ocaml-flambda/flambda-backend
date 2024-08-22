@@ -582,7 +582,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       Some (P.Box_number (Naked_nativeint, alloc_mode))
     | _, Unboxed_integer Pint32 -> Some (P.Box_number (Naked_int32, alloc_mode))
     | _, Unboxed_integer Pint64 -> Some (P.Box_number (Naked_int64, alloc_mode))
-    | _, Unboxed_vector (Pvec128 _) ->
+    | _, Unboxed_vector Pvec128 ->
       Some (P.Box_number (Naked_vec128, alloc_mode))
     | _, Untagged_int -> Some P.Tag_immediate
   in
@@ -611,7 +611,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | Unboxed_integer Pint32 -> K.naked_int32
     | Unboxed_integer Pint64 -> K.naked_int64
     | Untagged_int -> K.naked_immediate
-    | Unboxed_vector (Pvec128 _) -> K.naked_vec128
+    | Unboxed_vector Pvec128 -> K.naked_vec128
   in
   let param_arity =
     List.map kind_of_primitive_extern_repr prim_native_repr_args
@@ -703,7 +703,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           | _, Unboxed_integer Pint32 -> Some (P.Unbox_number Naked_int32)
           | _, Unboxed_integer Pint64 -> Some (P.Unbox_number Naked_int64)
           | _, Untagged_int -> Some P.Untag_immediate
-          | _, Unboxed_vector (Pvec128 _) -> Some (P.Unbox_number Naked_vec128)
+          | _, Unboxed_vector Pvec128 -> Some (P.Unbox_number Naked_vec128)
         in
         match unbox_arg with
         | None -> fun args acc -> call (arg :: args) acc

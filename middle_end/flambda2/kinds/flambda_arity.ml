@@ -78,7 +78,7 @@ module Component_for_creation = struct
     | Punboxed_int Pint32 -> Singleton KS.naked_int32
     | Punboxed_int Pint64 -> Singleton KS.naked_int64
     | Punboxed_int Pnativeint -> Singleton KS.naked_nativeint
-    | Punboxed_vector (Pvec128 _) -> Singleton KS.naked_vec128
+    | Punboxed_vector Pvec128 -> Singleton KS.naked_vec128
     | Punboxed_product layouts -> Unboxed_product (List.map from_lambda layouts)
     | Ptop | Pbottom ->
       Misc.fatal_errorf

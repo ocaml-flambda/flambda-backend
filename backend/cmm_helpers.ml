@@ -1505,7 +1505,7 @@ module Extended_machtype = struct
       Misc.fatal_error "No unique Extended_machtype for layout [Pbottom]"
     | Punboxed_float Pfloat64 -> typ_float
     | Punboxed_float Pfloat32 -> typ_float32
-    | Punboxed_vector (Pvec128 _) -> typ_vec128
+    | Punboxed_vector Pvec128 -> typ_vec128
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int

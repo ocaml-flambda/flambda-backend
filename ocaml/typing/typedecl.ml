@@ -2671,17 +2671,17 @@ let native_repr_of_type env kind ty =
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_nativeint ->
     Some (Unboxed_integer Pnativeint)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8x16 ->
-    Some (Unboxed_vector (Pvec128 Int8x16))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16x8 ->
-    Some (Unboxed_vector (Pvec128 Int16x8))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32x4 ->
-    Some (Unboxed_vector (Pvec128 Int32x4))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64x2 ->
-    Some (Unboxed_vector (Pvec128 Int64x2))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32x4 ->
-    Some (Unboxed_vector (Pvec128 Float32x4))
+    Some (Unboxed_vector Pvec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float64x2 ->
-    Some (Unboxed_vector (Pvec128 Float64x2))
+    Some (Unboxed_vector Pvec128)
   | _ ->
     None
 
