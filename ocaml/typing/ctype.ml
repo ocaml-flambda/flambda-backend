@@ -2091,6 +2091,17 @@ let tvariant_not_immediate row =
       | _ -> false)
     (row_fields row)
 
+let app_args_match_decl decl t =
+  match t, decl.type_arity with
+  | Unapplied, 0 -> true
+  | Unapplied, _ -> false
+  | Applied args, 0 -> begin
+    match decl.type_jkind with
+    | Type _ -> false
+    | Arrow { args = kind_args; result = _ } -> List.length kind_args = List.length args
+  end
+  | Applied args, n -> List.length args = n
+
 (* We assume here that [get_unboxed_type_representation] has already been
    called, if the type is a Tconstr.  This allows for some optimization by
    callers (e.g., skip expanding if the kind tells them enough).

@@ -986,6 +986,4 @@ module AppArgs : sig
   val iter : (type_expr -> unit) -> t -> unit
   val iter_with_list : ('a -> type_expr -> unit) -> 'a list -> t -> unit
   val fold_left : ('acc -> type_expr -> 'acc) -> 'acc -> t -> 'acc
-
-  val matches_decl : type_declaration -> t -> bool
 end

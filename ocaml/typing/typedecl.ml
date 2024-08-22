@@ -1129,7 +1129,7 @@ let check_kind_coherence env loc dpath decl =
       try
         let decl' = Env.find_type path env in
         let err =
-          if not @@ AppArgs.matches_decl decl args
+          if not @@ Ctype.app_args_match_decl decl args
           then Some Includecore.Arity
           else begin
             match Ctype.equal env false (AppArgs.to_list args) decl.type_params with
@@ -2389,7 +2389,7 @@ let transl_extension_constructor ~scope env type_path type_params
                 | _ -> assert false
               in
               let decl = Ctype.instance_declaration decl in
-              assert (AppArgs.matches_decl decl tl);
+              assert (Ctype.app_args_match_decl decl tl);
               AppArgs.iter_with_list (Ctype.unify env) decl.type_params tl;
               let lbls =
                 match decl.type_kind with
