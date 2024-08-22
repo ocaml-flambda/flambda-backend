@@ -3740,7 +3740,10 @@ and unify_list env tl1 tl2 =
   List.iter2 (unify env) tl1 tl2
 
 and unify_appargs env tl1 tl2 =
-  unify_list env (AppArgs.to_list tl1) (AppArgs.to_list tl2)
+  match tl1, tl2 with
+  | Unapplied, Unapplied -> ()
+  | Applied tl1, Applied tl2 -> unify_list env tl1 tl2
+  | _ -> raise_unexplained_for Unify
 
 and unify_labeled_list env labeled_tl1 labeled_tl2 =
   if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
@@ -5165,7 +5168,10 @@ and eqtype_list rename type_pairs subst env tl1 tl2 =
   List.iter2 (eqtype rename type_pairs subst env) tl1 tl2
 
 and eqtype_appargs rename type_pairs subst env tl1 tl2 =
-  eqtype_list rename type_pairs subst env (AppArgs.to_list tl1) (AppArgs.to_list tl2)
+  match tl1, tl2 with
+  | Unapplied, Unapplied -> ()
+  | Applied tl1, Applied tl2 -> eqtype_list rename type_pairs subst env tl1 tl2
+  | _ -> raise_unexplained_for Unify
 
 and eqtype_labeled_list rename type_pairs subst env labeled_tl1 labeled_tl2 =
   if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
