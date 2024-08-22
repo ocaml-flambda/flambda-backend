@@ -1,10 +1,11 @@
 #!/bin/sh
 
-# To be run from the root of the Flambda backend repo
-
 set -e -u -o pipefail
 
-root="`pwd`"
+# Works regardless of where script run from
+scripts_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+
+root=$scripts_dir/..
 dump_dir="$root/_profile"
 summary_path="$root/summary.csv"
 
@@ -38,9 +39,9 @@ build_compiler() {
   make install
 }
 
-temp_dir="`mktemp -d`"
+temp_dir=$(mktemp -d -p $root/.. -t tmp.XXXXXXX)
 trap "rm -rf $temp_dir" EXIT
-git clone $root $temp_dir
+cp -r --reflink=auto $root $temp_dir
 
 cd $temp_dir
 build_compiler
