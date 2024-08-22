@@ -334,14 +334,14 @@ let operation_allocates = function
 
 (* addressing mode functions, for avoiding compilation errors when using them in amd64 *)
 
-let addressing_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Iindexed _, Iindexed _ -> 0
   | Iindexed _ , _ -> -1
   | _, Iindexed _ -> 1
   | Ibased (var1, _), Ibased (var2, _) -> String.compare var1 var2
 
-let addressing_displ_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let compare_addressing_mode_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Iindexed n1, Iindexed n2 -> Some (Int.compare n1 n2)
   | Ibased (var1, n1), Ibased (var2, n2) -> if String.compare var1 var2 = 0 then Some (Int.compare n1 n2) else None
