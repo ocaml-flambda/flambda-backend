@@ -431,5 +431,5 @@ let rec replace_id_in_path path to_rep : Path.t =
   | Pdot (p, str) -> Pdot (replace_id_in_path p to_rep, str)
   | Pextra_ty (p, extra_ty) -> Pextra_ty (replace_id_in_path p to_rep, extra_ty)
 
-let filter_unapplied_constr desc =
+let unwrap_path_if_unapplied_constr desc =
   match desc with Tconstr (p, Unapplied, _) -> Some p | _ -> None

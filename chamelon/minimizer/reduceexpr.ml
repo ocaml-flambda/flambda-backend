@@ -32,7 +32,7 @@ let is_simplified e =
   | _ -> false
 
 let simplify e =
-  match get_desc e.exp_type |> filter_unapplied_constr with
+  match get_desc e.exp_type |> unwrap_path_if_unapplied_constr with
   | Some path -> (
       match path with
       | Path.Pident id -> (

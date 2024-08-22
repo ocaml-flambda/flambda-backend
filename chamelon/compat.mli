@@ -178,4 +178,4 @@ val mk_value_description :
 
 val print_path : Path.t -> string
 val replace_id_in_path : Path.t -> Ident.t -> Path.t
-val filter_unapplied_constr : type_desc -> Path.t option
+val unwrap_path_if_unapplied_constr : type_desc -> Path.t option

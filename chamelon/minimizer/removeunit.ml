@@ -21,7 +21,7 @@ let is_unit_typ (typ : type_expr) =
   match get_desc typ with
   | Ttuple [] -> true
   | desc -> (
-      match filter_unapplied_constr desc with
+      match unwrap_path_if_unapplied_constr desc with
       | Some path -> (
           match path with Path.Pident id -> name id = "unit" | _ -> false)
       | None -> false)

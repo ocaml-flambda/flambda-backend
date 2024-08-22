@@ -283,5 +283,5 @@ let rec replace_id_in_path path to_rep : Path.t =
       Papply (replace_id_in_path p1 to_rep, replace_id_in_path p2 to_rep)
   | Pdot (p, str) -> Pdot (replace_id_in_path p to_rep, str)
 
-let filter_unapplied_constr desc =
+let unwrap_path_if_unapplied_constr desc =
   match desc with Tconstr (p, [], _) -> Some p | _ -> None
