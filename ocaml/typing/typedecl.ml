@@ -737,6 +737,17 @@ let shape_map_cstrs =
       @@ Shape.str ~uid:cd_uid cstr_shape_map)
     (Shape.Map.empty)
 
+let get_path_manifest ~loc env arity ty =
+  begin match get_desc ty with
+  | Tconstr(path, args, _) ->
+    if List.length args <> arity
+    then raise (Error (loc, Definition_mismatch (ty, env, Some Includecore.Arity)))
+    else Some path
+  | _ -> raise (Error (loc, Definition_mismatch (ty, env, None)))
+  end
+
+let check_path_manifest ~loc env arity ty =
+  ignore (get_path_manifest ~loc env arity ty)
 
 let transl_declaration env sdecl (id, uid) =
   (* Bind type parameters *)
@@ -775,6 +786,12 @@ let transl_declaration env sdecl (id, uid) =
       let cty = transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty in
       Some cty, Some cty.ctyp_type
   in
+  let type_params_ = create_type_params_of_unknowns ~injective:false params in
+  let check_has_path_manifest () = match man with
+    | Some ty ->
+      check_path_manifest ~loc:sdecl.ptype_loc env (List.length type_params_) ty
+    | None -> ()
+  in
   let any = Jkind.Builtin.any ~why:Initial_typedecl_env in
   (* jkind_default is the jkind to use for now as the type_jkind when there
      is no annotation and no manifest.
@@ -808,6 +825,7 @@ let transl_declaration env sdecl (id, uid) =
           Ttype_abstract, type_kind, jkind
       | (Ptype_variant _ | Ptype_record _ | Ptype_open) when
         Builtin_attributes.has_or_null_reexport sdecl_attributes ->
+        check_has_path_manifest ();
         raise (Error (sdecl.ptype_loc, Non_abstract_reexport path))
       | Ptype_abstract ->
         Ttype_abstract, Type_abstract Abstract_def,
@@ -894,6 +912,7 @@ let transl_declaration env sdecl (id, uid) =
             ),
             Jkind.Builtin.value ~why:Boxed_variant
         in
+          check_has_path_manifest ();
           Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
       | Ptype_record lbls ->
           let lbls, lbls' =
@@ -913,8 +932,10 @@ let transl_declaration env sdecl (id, uid) =
               Record_boxed (Array.make (List.length lbls) any),
               Jkind.Builtin.value ~why:Boxed_record
           in
+          check_has_path_manifest ();
           Ttype_record lbls, Type_record(lbls', rep), jkind
       | Ptype_open ->
+        check_has_path_manifest ();
         Ttype_open, Type_open, Jkind.Builtin.value ~why:Extensible_variant
       in
     let jkind =
@@ -934,7 +955,7 @@ let transl_declaration env sdecl (id, uid) =
       | None, None -> jkind_default
     in
     let decl =
-      { type_params_ = create_type_params_of_unknowns ~injective:false params;
+      { type_params_;
         type_kind_ = kind;
         type_jkind = jkind;
         type_jkind_annotation = jkind_annotation;
@@ -1146,18 +1167,16 @@ let check_kind_coherence env loc dpath decl =
           raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
         end
       end;
-    begin match get_desc ty with
-    | Tconstr(path, args, _) ->
-      begin
-      try
-        let decl' = Env.find_type path env in
-        let err =
-          if List.length args <> List.length (get_type_params decl)
-          then Some Includecore.Arity
-          else begin
+      check_path_manifest ~loc env (List.length decl.type_params_) ty;
+      begin match get_desc ty with
+      | Tconstr(path, args, _) ->
+        begin
+        try
+          let decl' = Env.find_type path env in
+          let err =
             match Ctype.equal env false args (get_type_params decl) with
             | exception Ctype.Equality err ->
-                Some (Includecore.Constraint err)
+              Some (Includecore.Constraint err)
             | () ->
                 Includecore.type_declarations ~loc ~equality:true env
                   ~mark:true
