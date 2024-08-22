@@ -974,7 +974,9 @@ val set_commu_ok: commutable -> unit
 
 (*  *)
 module AppArgs : sig
-  type t = app_args
+  type t = app_args = private
+    | Unapplied
+    | Applied of type_expr list
 
   val unapp : t
   val one : type_expr -> t

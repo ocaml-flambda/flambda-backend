@@ -1218,7 +1218,9 @@ let undo_compress (changes, _old) =
 (* Application arguments for [Tconstr] *)
 
 module AppArgs = struct
-  type t = app_args
+  type t = app_args =
+    | Unapplied
+    | Applied of type_expr list
 
   let one e = Applied [e]
   let unapp = Unapplied
