@@ -95,6 +95,43 @@ end = struct
         Unsupported)
     | Terminator _ -> Unsupported
 
+  let op_equal op1 op2 =
+    let open Format in
+    let intop_equal = Mach.equal_integer_operation in
+    match op1, op2 with
+    | Move, Move -> true
+    | Const_int _, Const_int _ -> true
+    | ( Load
+          { memory_chunk = memory_chunk1;
+            addressing_mode = addressing_mode1;
+            mutability = mutability1;
+            is_atomic = is_atomic1
+          },
+        Load
+          { memory_chunk = memory_chunk2;
+            addressing_mode = addressing_mode2;
+            mutability = mutability2;
+            is_atomic = is_atomic2
+          } ) ->
+      Cmm.equal_memory_chunk memory_chunk1 memory_chunk2
+      && Arch.addressing_compare addressing_mode1 addressing_mode2 = 0
+      && mutability1 = mutability2 && is_atomic1 = is_atomic2
+    | ( Store (memory_chunk1, addressing_mode1, is_assignment1),
+        Store (memory_chunk2, addressing_mode2, is_assignment2) ) ->
+      Cmm.equal_memory_chunk memory_chunk1 memory_chunk2
+      && Arch.addressing_compare addressing_mode1 addressing_mode2 = 0
+      && is_assignment1 = is_assignment2
+    | Intop intop1, Intop intop2 -> intop_equal intop1 intop2
+    | Intop_imm (intop1, _), Intop_imm (intop2, _) -> intop_equal intop1 intop2
+    | Move, _
+    | Const_int _, _
+    | Load _, _
+    | Store _, _
+    | Intop _, _
+    | Intop_imm _, _
+    | Unsupported, _ ->
+      false
+
   let string_of_op op =
     let open Format in
     let string_of_intcomp (intcomp : Cmm.integer_comparison) =
@@ -906,7 +943,7 @@ end = struct
     type t =
       { instruction_type : Instruction.op;
         instructions : Instruction.Id.t list;
-        dependencies : Instruction.Id.Set.t;
+        dependencies : Instruction.Id.t array;
         is_dependency_of : Instruction.Id.Set.t
       }
   end
@@ -942,7 +979,7 @@ end = struct
             (fprintf ppf "%d " << Instruction.Id.to_int)
             node.instructions;
           fprintf ppf "\ndependencies:\n";
-          Instruction.Id.Set.iter
+          Array.iter
             (fprintf ppf "%d " << Instruction.Id.to_int)
             node.dependencies;
           fprintf ppf "\nis dependency of:\n";
