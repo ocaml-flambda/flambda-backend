@@ -237,9 +237,9 @@ let wrap_trace_gadt_instances env f x =
 let simple_abbrevs = ref Mnil
 
 let proper_abbrevs tl abbrev =
-  if tl <> [] || !trace_gadt_instances || !Clflags.principal
-  then abbrev
-  else simple_abbrevs
+  match tl with
+  | Unapplied when !trace_gadt_instances || !Clflags.principal -> abbrev
+  | _ -> simple_abbrevs
 
 (**** Some type creators ****)
 
@@ -1204,7 +1204,7 @@ let rec copy ?partial ?keep_names copy_scope ty =
     let desc' =
       match desc with
       | Tconstr (p, tl, _) ->
-          let abbrevs = proper_abbrevs (AppArgs.to_list tl) !abbreviations in
+          let abbrevs = proper_abbrevs tl !abbreviations in
           begin match find_repr p !abbrevs with
             Some ty when not (eq_type ty t) ->
               Tlink ty
@@ -1741,7 +1741,7 @@ let subst env level priv abbrev oty params args body =
     | Some ty ->
         match get_desc ty with
           Tconstr (path, tl, _) ->
-            let abbrev = proper_abbrevs (AppArgs.to_list tl) abbrev in
+            let abbrev = proper_abbrevs tl abbrev in
             memorize_abbrev abbrev priv path ty body0;
             fun () -> forget_abbrev abbrev path
         | _ -> assert false
@@ -1846,7 +1846,7 @@ let expand_abbrev_gen kind find_type_expansion env ty =
     Tconstr (path, args, abbrev) ->
       let level = get_level ty in
       let scope = get_scope ty in
-      let lookup_abbrev = proper_abbrevs (AppArgs.to_list args) abbrev in
+      let lookup_abbrev = proper_abbrevs args abbrev in
       begin match find_expans kind path !lookup_abbrev with
         Some ty' ->
           (* prerr_endline
