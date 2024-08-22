@@ -1249,17 +1249,18 @@ module AppArgs = struct
   | Unapplied -> init
   | Applied args -> List.fold_left f init args
 
-  let matches_decl decl t = match t, decl.type_arity with
-  | Unapplied, 0 -> true
-  | Unapplied, _ -> begin
-    match jkind_of_decl_unapplied decl with
-    | None -> false
-    | Some _ -> true
-  end
-  | Applied args, 0 -> begin
-    match decl.type_jkind with
-    | Type _ -> false
-    | Arrow { args = kind_args; result = _ } -> List.length kind_args = List.length args
-  end
-  | Applied args, n -> List.length args = n
+  let matches_decl decl t =
+    match t, decl.type_arity with
+    | Unapplied, 0 -> true
+    | Unapplied, _ -> begin
+      match jkind_of_decl_unapplied decl with
+      | None -> false
+      | Some _ -> true
+    end
+    | Applied args, 0 -> begin
+      match decl.type_jkind with
+      | Type _ -> false
+      | Arrow { args = kind_args; result = _ } -> List.length kind_args = List.length args
+    end
+    | Applied args, n -> List.length args = n
 end
