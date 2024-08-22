@@ -537,12 +537,20 @@ end = struct
     Instruction.Id.Tbl.find t.memory_operations id
 
   let from_block (block : Cfg.basic_block) : t =
-    (* A heuristic to avoid treating the same allocation that is stored and
-       loaded as different, has room for improvement *)
-    (* For each store instruction, it tries to form a seed with the closest
-       stores after it, it will go down the DLL of instructions and tries to
-       move the store instructions across the non-store instructions until all
-       the store instructions are together *)
+    (* A heuristic to avoid treating the same "fresh" allocation which address
+       stored and loaded into a different register as different, has room for
+       improvement. Assumption: if x depends on a fresh allocation, and it is
+       certain that y does not depend on that fresh allocation, then they point
+       to disjoint addresses *)
+    (* At each load or store instruction, it keeps track of all allocs up to
+       this point in this basic block and puts them in one of 3 categories:
+       [fresh_allocs]: nothing that depends on the address of the fresh alloc
+       has been saved as a value; [stored_allocs]: something that depends on the
+       address of the fresh alloc has been saved as a value, but nothing has
+       been loaded till this point; [unsure_allocs]: something that depends on
+       the address of the fresh alloc has been saved as a value, and something
+       has been loaded till this point. For each memory operation, we will save
+       its dependent allocs and unsure allocs *)
     let dependency_graph = Dependency_graph.from_block block in
     let id_to_instructions =
       DLL.to_list block.body
@@ -591,6 +599,9 @@ end = struct
                   (Memory_operation.memory_arguments memory_operation)
               in
               match memory_operation.op with
+              (* CR-soon tip: right now, none of the [Specific] operations will
+                 mess with alloc freshness, but that may change, so still have
+                 to add a function to arch.ml to verify that it is ok *)
               | Load ->
                 Instruction.Id.Tbl.add memory_operations id
                   { memory_operation with dependent_allocs; unsure_allocs };
@@ -717,6 +728,10 @@ end = struct
     else false
 
   let from_block (block : Cfg.basic_block) : t list =
+    (* For each store instruction, it tries to form a seed with the closest
+       stores after it, it will go down the DLL of instructions and tries to
+       move the store instructions across the non-store instructions until all
+       the store instructions are together *)
     let memory_accesses = Memory_accesses.from_block block in
     let stores = Memory_accesses.stores memory_accesses in
     List.filter_map
