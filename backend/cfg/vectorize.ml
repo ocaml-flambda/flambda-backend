@@ -115,12 +115,12 @@ end = struct
             is_atomic = is_atomic2
           } ) ->
       Cmm.equal_memory_chunk memory_chunk1 memory_chunk2
-      && Arch.addressing_compare addressing_mode1 addressing_mode2 = 0
+      && Arch.compare_addressing_mode_without_displ addressing_mode1 addressing_mode2 = 0
       && mutability1 = mutability2 && is_atomic1 = is_atomic2
     | ( Store (memory_chunk1, addressing_mode1, is_assignment1),
         Store (memory_chunk2, addressing_mode2, is_assignment2) ) ->
       Cmm.equal_memory_chunk memory_chunk1 memory_chunk2
-      && Arch.addressing_compare addressing_mode1 addressing_mode2 = 0
+      && Arch.compare_addressing_mode_without_displ addressing_mode1 addressing_mode2 = 0
       && is_assignment1 = is_assignment2
     | Intop intop1, Intop intop2 -> intop_equal intop1 intop2
     | Intop_imm (intop1, _), Intop_imm (intop2, _) -> intop_equal intop1 intop2
