@@ -475,6 +475,8 @@ let prim_has_valid_reprs ~loc prim =
           ("32", "#", Bits32);
           ("f32", "#", Float32);
           ("64", "#", Bits64);
+          ("a128", "#", Vec128);
+          ("u128", "#", Vec128);
         ]
       in
       let indices : (_ * Jkind_types.Sort.const) list =
@@ -662,17 +664,6 @@ let prim_has_valid_reprs ~loc prim =
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
       exactly [Same_as_ocaml_repr Bits64; Same_as_ocaml_repr Value]
 
-    (* CR layouts: add these when we have unboxed simd layouts *)
-    (* | "%caml_bigstring_getu128#" ->
-    | "%caml_bigstring_getu128u#" ->
-    | "%caml_bigstring_geta128#" ->
-    | "%caml_bigstring_geta128u#" -> *)
-
-    (* CR layouts: add these when we have unboxed simd layouts *)
-    (* | "%caml_bigstring_setu128#" ->
-    | "%caml_bigstring_setu128u#" ->
-    | "%caml_bigstring_seta128#" ->
-    | "%caml_bigstring_seta128u#" -> *)
     | name -> (
         match String.Map.find_opt name stringlike_indexing_primitives with
         | Some reprs -> exactly reprs

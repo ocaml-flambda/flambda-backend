@@ -230,7 +230,8 @@ type primitive =
   | Pstring_load_64 of { unsafe : bool; index_kind : array_index_kind;
       mode : alloc_mode; boxed : bool }
   | Pstring_load_128 of
-      { unsafe : bool; index_kind : array_index_kind; mode : alloc_mode }
+      { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
   | Pbytes_load_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbytes_load_32 of { unsafe : bool; index_kind : array_index_kind;
       mode : alloc_mode; boxed : bool }
@@ -239,7 +240,8 @@ type primitive =
   | Pbytes_load_64 of { unsafe : bool; index_kind : array_index_kind;
       mode : alloc_mode; boxed : bool }
   | Pbytes_load_128 of
-      { unsafe : bool; index_kind : array_index_kind; mode : alloc_mode }
+      { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
   | Pbytes_set_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbytes_set_32 of { unsafe : bool; index_kind : array_index_kind;
       boxed : bool }

@@ -245,7 +245,8 @@ type primitive =
   | Pstring_load_64 of { unsafe : bool; index_kind : array_index_kind;
       mode : alloc_mode; boxed : bool }
   | Pstring_load_128 of
-      { unsafe : bool; index_kind : array_index_kind; mode : alloc_mode }
+      { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed: bool }
   | Pbytes_load_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbytes_load_32 of { unsafe : bool; index_kind : array_index_kind;
       mode : alloc_mode; boxed : bool }
@@ -254,7 +255,8 @@ type primitive =
   | Pbytes_load_64 of { unsafe : bool; index_kind : array_index_kind;
       mode : alloc_mode; boxed : bool }
   | Pbytes_load_128 of
-      { unsafe : bool; index_kind : array_index_kind; mode : alloc_mode }
+      { unsafe : bool; index_kind : array_index_kind;
+      mode : alloc_mode; boxed : bool }
   | Pbytes_set_16 of { unsafe : bool; index_kind : array_index_kind }
   | Pbytes_set_32 of { unsafe : bool; index_kind : array_index_kind;
       boxed : bool }
@@ -1929,7 +1931,7 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_64 { boxed = true; _ } | Pbytes_load_64 { boxed = true; _ }
   | Pbigstring_load_64 { boxed = true; _ } ->
       layout_boxedint Pint64
-  | Pstring_load_128 _ | Pbytes_load_128 _
+  | Pstring_load_128 { boxed = true; _ } | Pbytes_load_128 { boxed = true; _ }
   | Pbigstring_load_128 { boxed = true; _ } ->
       layout_boxed_vector Pvec128
   | Pbigstring_load_32 { boxed = false; _ }
@@ -1941,7 +1943,9 @@ let primitive_result_layout (p : primitive) =
   | Pbigstring_load_64 { boxed = false; _ }
   | Pstring_load_64 { boxed = false; _ }
   | Pbytes_load_64 { boxed = false; _ } -> layout_unboxed_int Pint64
-  | Pbigstring_load_128 { boxed = false; _ } -> layout_unboxed_vector Pvec128
+  | Pstring_load_128 { boxed = false; _ } | Pbytes_load_128 { boxed = false; _ }
+  | Pbigstring_load_128 { boxed = false; _ } ->
+      layout_unboxed_vector Pvec128
   | Pfloatarray_load_128 _ | Pfloat_array_load_128 _
   | Punboxed_float_array_load_128 _ -> layout_boxed_vector Pvec128
   | Punboxed_float32_array_load_128 _ -> layout_boxed_vector Pvec128

@@ -1329,14 +1329,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pbytes_load_64 { unsafe; index_kind; mode; boxed }, [[bytes]; [index]] ->
     [ string_like_load ~unsafe ~dbg ~size_int ~access_size:Sixty_four Bytes
         ~boxed (Some mode) bytes ~index_kind index ~current_region ]
-  | Pstring_load_128 { unsafe; index_kind; mode }, [[str]; [index]] ->
+  | Pstring_load_128 { unsafe; index_kind; mode; boxed }, [[str]; [index]] ->
     [ string_like_load ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned = false })
-        String ~boxed:true (Some mode) str ~index_kind index ~current_region ]
-  | Pbytes_load_128 { unsafe; index_kind; mode }, [[str]; [index]] ->
+        String ~boxed (Some mode) str ~index_kind index ~current_region ]
+  | Pbytes_load_128 { unsafe; index_kind; mode; boxed }, [[str]; [index]] ->
     [ string_like_load ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned = false })
-        Bytes ~boxed:true (Some mode) str ~index_kind index ~current_region ]
+        Bytes ~boxed (Some mode) str ~index_kind index ~current_region ]
   | Pbytes_set_16 { unsafe; index_kind }, [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set ~unsafe ~dbg ~size_int ~access_size:Sixteen Bytes
         ~boxed:false bytes ~index_kind index new_value ]

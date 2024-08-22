@@ -238,10 +238,9 @@ let indexing_primitives =
       ( Printf.sprintf "%%caml_bytes_get64%s%s%s",
         fun ~unsafe ~boxed ~index_kind ~mode ->
           Pbytes_load_64 { unsafe; index_kind; mode; boxed } );
-      ( (fun unsafe _boxed index_kind ->
-          Printf.sprintf "%%caml_bytes_getu128%s%s" unsafe index_kind),
-        fun ~unsafe ~boxed:_ ~index_kind ~mode ->
-          Pbytes_load_128 { unsafe; index_kind; mode } );
+      ( Printf.sprintf "%%caml_bytes_getu128%s%s%s",
+        fun ~unsafe ~boxed ~index_kind ~mode ->
+          Pbytes_load_128 { unsafe; index_kind; mode; boxed } );
       ( (fun unsafe _boxed index_kind ->
           Printf.sprintf "%%caml_bytes_set16%s%s" unsafe index_kind),
         fun ~unsafe ~boxed:_ ~index_kind ~mode:_ ->
@@ -271,10 +270,9 @@ let indexing_primitives =
       ( Printf.sprintf "%%caml_string_get64%s%s%s",
         fun ~unsafe ~boxed ~index_kind ~mode ->
           Pstring_load_64 { unsafe; index_kind; mode; boxed } );
-      ( (fun unsafe _boxed index_kind ->
-          Printf.sprintf "%%caml_string_getu128%s%s" unsafe index_kind),
-        fun ~unsafe ~boxed:_ ~index_kind ~mode ->
-          Pstring_load_128 { unsafe; index_kind; mode } );
+      ( Printf.sprintf "%%caml_string_getu128%s%s%s",
+        fun ~unsafe ~boxed ~index_kind ~mode ->
+          Pstring_load_128 { unsafe; index_kind; mode; boxed } );
       ( (fun unsafe _boxed index_kind ->
           Printf.sprintf "%%caml_string_set16%s%s" unsafe index_kind),
         fun ~unsafe ~boxed:_ ~index_kind ~mode:_ ->
