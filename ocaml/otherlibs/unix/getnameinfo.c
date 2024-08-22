@@ -44,7 +44,8 @@ CAMLprim value caml_unix_getnameinfo(value vaddr, value vopts)
   int opts, retcode;
 
   caml_unix_get_sockaddr(vaddr, &addr, &addr_len);
-  opts = caml_convert_flag_list(vopts, getnameinfo_flag_table);
+  // CR ocaml 5 all-runtime5: remove cast
+  opts = caml_convert_flag_list(vopts, (int*) getnameinfo_flag_table);
   caml_enter_blocking_section();
   retcode =
     getnameinfo((const struct sockaddr *) &addr.s_gen, addr_len,
