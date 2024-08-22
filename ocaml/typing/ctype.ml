@@ -238,8 +238,8 @@ let simple_abbrevs = ref Mnil
 
 let proper_abbrevs tl abbrev =
   match tl with
-  | Unapplied when !trace_gadt_instances || !Clflags.principal -> abbrev
-  | _ -> simple_abbrevs
+  | Unapplied -> abbrev
+  | _ -> if !trace_gadt_instances || !Clflags.principal then abbrev else simple_abbrevs
 
 (**** Some type creators ****)
 
