@@ -664,6 +664,41 @@ let prim_has_valid_reprs ~loc prim =
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
       exactly [Same_as_ocaml_repr Bits64; Same_as_ocaml_repr Value]
 
+    | "%caml_float_array_get128#"
+    | "%caml_float_array_get128u#"
+    | "%caml_floatarray_get128#"
+    | "%caml_floatarray_get128u#"
+    | "%caml_unboxed_float_array_get128#"
+    | "%caml_unboxed_float_array_get128u#"
+    | "%caml_unboxed_float32_array_get128#"
+    | "%caml_unboxed_float32_array_get128u#"
+    | "%caml_int_array_get128#"
+    | "%caml_int_array_get128u#"
+    | "%caml_unboxed_int64_array_get128#"
+    | "%caml_unboxed_int64_array_get128u#"
+    | "%caml_unboxed_int32_array_get128#"
+    | "%caml_unboxed_int32_array_get128u#"
+    | "%caml_unboxed_nativeint_array_get128#"
+    | "%caml_unboxed_nativeint_array_get128u#" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Value; Same_as_ocaml_repr Vec128]
+    | "%caml_float_array_set128#"
+    | "%caml_float_array_set128u#"
+    | "%caml_floatarray_set128#"
+    | "%caml_floatarray_set128u#"
+    | "%caml_unboxed_float_array_set128#"
+    | "%caml_unboxed_float_array_set128u#"
+    | "%caml_unboxed_float32_array_set128#"
+    | "%caml_unboxed_float32_array_set128u#"
+    | "%caml_int_array_set128#"
+    | "%caml_int_array_set128u#"
+    | "%caml_unboxed_int64_array_set128#"
+    | "%caml_unboxed_int64_array_set128u#"
+    | "%caml_unboxed_int32_array_set128#"
+    | "%caml_unboxed_int32_array_set128u#"
+    | "%caml_unboxed_nativeint_array_set128#"
+    | "%caml_unboxed_nativeint_array_set128u#" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Value; Same_as_ocaml_repr Vec128; Same_as_ocaml_repr Value]
+
     | name -> (
         match String.Map.find_opt name stringlike_indexing_primitives with
         | Some reprs -> exactly reprs

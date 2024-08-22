@@ -655,21 +655,24 @@ let check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
       [array_vector_access_validity_condition ~size_int array array_kind index]
     ~dbg
 
-let array_like_load_128 ~dbg ~size_int ~unsafe ~mode ~current_region array_kind
-    array index =
+let array_like_load_128 ~dbg ~size_int ~unsafe ~mode ~boxed ~current_region
+    array_kind array index =
   let primitive =
-    box_vec128 mode ~current_region
-      (H.Binary (Array_load (array_kind, Vec128, Mutable), array, index))
+    H.Binary (Array_load (array_kind, Vec128, Mutable), array, index)
+  in
+  let primitive =
+    if boxed then box_vec128 mode ~current_region primitive else primitive
   in
   if unsafe
   then primitive
   else
     check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
 
-let array_like_set_128 ~dbg ~size_int ~unsafe array_kind array index new_value =
+let array_like_set_128 ~dbg ~size_int ~unsafe ~boxed array_kind array index
+    new_value =
+  let new_value = if boxed then unbox_vec128 new_value else new_value in
   let primitive =
-    H.Ternary
-      (Array_set (array_kind, Vec128), array, index, unbox_vec128 new_value)
+    H.Ternary (Array_set (array_kind, Vec128), array, index, new_value)
   in
   if unsafe
   then primitive
@@ -1772,64 +1775,70 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ bytes_like_set ~unsafe ~dbg ~size_int
         ~access_size:(One_twenty_eight { aligned })
         Bigstring ~boxed bigstring ~index_kind index new_value ]
-  | Pfloat_array_load_128 { unsafe; mode }, [[array]; [index]] ->
+  | Pfloat_array_load_128 { unsafe; mode; boxed }, [[array]; [index]] ->
     check_float_array_optimisation_enabled "Pfloat_array_load_128";
-    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
         Naked_floats array index ]
-  | Pfloatarray_load_128 { unsafe; mode }, [[array]; [index]]
-  | Punboxed_float_array_load_128 { unsafe; mode }, [[array]; [index]] ->
-    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
+  | Pfloatarray_load_128 { unsafe; mode; boxed }, [[array]; [index]]
+  | Punboxed_float_array_load_128 { unsafe; mode; boxed }, [[array]; [index]] ->
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
         Naked_floats array index ]
-  | Punboxed_float32_array_load_128 { unsafe; mode }, [[array]; [index]] ->
-    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
+  | Punboxed_float32_array_load_128 { unsafe; mode; boxed }, [[array]; [index]]
+    ->
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
         Naked_float32s array index ]
-  | Pint_array_load_128 { unsafe; mode }, [[array]; [index]] ->
+  | Pint_array_load_128 { unsafe; mode; boxed }, [[array]; [index]] ->
     if Targetint.size <> 64
     then Misc.fatal_error "[Pint_array_load_128]: immediates must be 64 bits.";
-    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
         Immediates array index ]
-  | Punboxed_int64_array_load_128 { unsafe; mode }, [[array]; [index]] ->
-    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
+  | Punboxed_int64_array_load_128 { unsafe; mode; boxed }, [[array]; [index]] ->
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
         Naked_int64s array index ]
-  | Punboxed_nativeint_array_load_128 { unsafe; mode }, [[array]; [index]] ->
+  | Punboxed_nativeint_array_load_128 { unsafe; mode; boxed }, [[array]; [index]]
+    ->
     if Targetint.size <> 64
     then
       Misc.fatal_error
         "[Punboxed_nativeint_array_load_128]: nativeint must be 64 bits.";
-    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
         Naked_nativeints array index ]
-  | Punboxed_int32_array_load_128 { unsafe; mode }, [[array]; [index]] ->
-    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode
+  | Punboxed_int32_array_load_128 { unsafe; mode; boxed }, [[array]; [index]] ->
+    [ array_like_load_128 ~dbg ~size_int ~current_region ~unsafe ~mode ~boxed
         Naked_int32s array index ]
-  | Pfloat_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
+  | Pfloat_array_set_128 { unsafe; boxed }, [[array]; [index]; [new_value]] ->
     check_float_array_optimisation_enabled "Pfloat_array_set_128";
-    [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_floats array index
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Naked_floats array index
         new_value ]
-  | Pfloatarray_set_128 { unsafe }, [[array]; [index]; [new_value]]
-  | Punboxed_float_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
-    [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_floats array index
+  | Pfloatarray_set_128 { unsafe; boxed }, [[array]; [index]; [new_value]]
+  | ( Punboxed_float_array_set_128 { unsafe; boxed },
+      [[array]; [index]; [new_value]] ) ->
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Naked_floats array index
         new_value ]
-  | Punboxed_float32_array_set_128 { unsafe }, [[array]; [index]; [new_value]]
-    ->
-    [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_float32s array index
-        new_value ]
-  | Pint_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
+  | ( Punboxed_float32_array_set_128 { unsafe; boxed },
+      [[array]; [index]; [new_value]] ) ->
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Naked_float32s array
+        index new_value ]
+  | Pint_array_set_128 { unsafe; boxed }, [[array]; [index]; [new_value]] ->
     if Targetint.size <> 64
     then Misc.fatal_error "[Pint_array_set_128]: immediates must be 64 bits.";
-    [array_like_set_128 ~dbg ~size_int ~unsafe Immediates array index new_value]
-  | Punboxed_int64_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
-    [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_int64s array index
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Immediates array index
         new_value ]
-  | Punboxed_nativeint_array_set_128 { unsafe }, [[array]; [index]; [new_value]]
-    ->
+  | ( Punboxed_int64_array_set_128 { unsafe; boxed },
+      [[array]; [index]; [new_value]] ) ->
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Naked_int64s array index
+        new_value ]
+  | ( Punboxed_nativeint_array_set_128 { unsafe; boxed },
+      [[array]; [index]; [new_value]] ) ->
     if Targetint.size <> 64
     then
       Misc.fatal_error
         "[Punboxed_nativeint_array_set_128]: nativeint must be 64 bits.";
-    [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_nativeints array index
-        new_value ]
-  | Punboxed_int32_array_set_128 { unsafe }, [[array]; [index]; [new_value]] ->
-    [ array_like_set_128 ~dbg ~size_int ~unsafe Naked_int32s array index
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Naked_nativeints array
+        index new_value ]
+  | ( Punboxed_int32_array_set_128 { unsafe; boxed },
+      [[array]; [index]; [new_value]] ) ->
+    [ array_like_set_128 ~dbg ~size_int ~unsafe ~boxed Naked_int32s array index
         new_value ]
   | Pcompare_ints, [[i1]; [i2]] ->
     [ tag_int
