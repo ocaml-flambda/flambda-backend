@@ -27,6 +27,8 @@ module Instruction : sig
 
   type op
 
+  val op_equal : op -> op -> bool
+
   val string_of_op : op -> string
 
   val id : t -> Id.t
@@ -96,7 +98,6 @@ end = struct
     | Terminator _ -> Unsupported
 
   let op_equal op1 op2 =
-    let open Format in
     let intop_equal = Mach.equal_integer_operation in
     match op1, op2 with
     | Move, Move -> true
@@ -957,6 +958,7 @@ end = struct
     let computation_tree = init () in
     ignore block;
     ignore seed;
+    ignore Instruction.op_equal;
     computation_tree
 
   let from_block (block : Cfg.basic_block) : t list =
