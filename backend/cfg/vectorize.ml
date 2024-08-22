@@ -35,8 +35,6 @@ module Instruction : sig
 
   val print : Format.formatter -> t -> unit
 
-  val print_reg : Format.formatter -> Reg.t -> unit
-
   val is_load : t -> bool
 
   val is_store : t -> bool
@@ -79,9 +77,6 @@ end = struct
     match instruction with
     | Basic i -> Cfg.print_basic ppf i
     | Terminator i -> Cfg.print_terminator ppf i
-
-  let print_reg ppf (reg : Reg.t) =
-    Format.fprintf ppf "reg (%d,\"%s\")" reg.stamp (Reg.name reg)
 
   let is_load (instruction : t) =
     match instruction with
@@ -181,6 +176,8 @@ end = struct
       type t =
         { reg : Reg.t;
           direct_dependency : Instruction.Id.t option
+              (* the most recent instruction in this basic block that may change
+                 the value of the argument *)
         }
 
       let init reg : t = { reg; direct_dependency = None }
@@ -190,8 +187,13 @@ end = struct
       { instruction : Instruction.t;
         reg_nodes : Reg_node.t array;
         direct_dependencies : Instruction.Id.Set.t;
+            (* direct dependencies of all arguments of this instruction *)
         all_dependencies : Instruction.Id.Set.t;
+            (* direct dependencies of this instruction and all dependencies of
+               each direct dependency of this instruction *)
         is_direct_dependency_of : Instruction.Id.Set.t
+            (* all instructions that have this instruction as a direct
+               dependency *)
       }
 
     let init instruction : t =
@@ -337,7 +339,7 @@ end = struct
           ~some:(sprintf "instruction %d" << Instruction.Id.to_int)
           reg_node.direct_dependency
       in
-      fprintf ppf "argument %d, %a depends on %s\n" arg_i Instruction.print_reg
+      fprintf ppf "argument %d, %a depends on %s\n" arg_i Printmach.reg
         reg_node.reg dependency
     in
     let print_node (instruction : Instruction.t) =
@@ -434,12 +436,16 @@ end = struct
                 dependent_allocs = Instruction.Id.Set.empty;
                 unsure_allocs = Instruction.Id.Set.empty
               }
+          | Specific _ ->
+            None
+            (* CR-someday tip: may need to rewrite a lot of code to handle loads
+               and stores inside [Specific] in the future *)
           | Move | Reinterpret_cast _ | Static_cast _ | Spill | Reload
           | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
           | Const_vec128 _ | Stackoffset _ | Intop _ | Intop_imm _
           | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _ | Opaque
-          | Begin_region | End_region | Specific _ | Name_for_debugger _
-          | Dls_get | Poll | Alloc _ ->
+          | Begin_region | End_region | Name_for_debugger _ | Dls_get | Poll
+          | Alloc _ ->
             None)
         | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
           None)
@@ -451,34 +457,12 @@ end = struct
       | Load -> arguments
       | Store -> Array.sub arguments 1 (Array.length arguments - 1)
 
-    let width_of (memory_chunk : Cmm.memory_chunk) =
-      match memory_chunk with
-      | Byte_unsigned | Byte_signed -> 1
-      | Sixteen_unsigned | Sixteen_signed -> 2
-      | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> 4
-      | Word_int | Word_val | Double -> 8
-      | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 16
-
-    let width (t : t) = width_of t.memory_chunk
+    let width (t : t) = Cmm.width_of t.memory_chunk
 
     let print_memory_chunk ppf (t : t) =
-      let open Format in
-      let str =
-        match t.memory_chunk with
-        | Byte_unsigned -> "Byte_unsigned"
-        | Byte_signed -> "Byte_signed"
-        | Sixteen_unsigned -> "Sixteen_unsigned"
-        | Sixteen_signed -> "Sixteen_signed"
-        | Thirtytwo_unsigned -> "Thirtytwo_unsigned"
-        | Thirtytwo_signed -> "Thirtytwo_signed"
-        | Single _ -> "Single"
-        | Word_int -> "Word_int"
-        | Word_val -> "Word_val"
-        | Double -> "Double"
-        | Onetwentyeight_unaligned -> "Onetwentyeight_unaligned"
-        | Onetwentyeight_aligned -> "Onetwentyeight_aligned"
-      in
-      fprintf ppf "%s (length %d)" str (width_of t.memory_chunk)
+      Format.fprintf ppf "%s (length %d)"
+        (Printcmm.chunk t.memory_chunk)
+        (Cmm.width_of t.memory_chunk)
 
     let dump ppf (t : t) =
       let open Format in
@@ -495,7 +479,7 @@ end = struct
         \ unsure_allocs: %a"
         (Instruction.id instruction |> Instruction.Id.to_int)
         Instruction.print instruction print_memory_chunk t
-        (Arch.print_addressing Instruction.print_reg t.addressing_mode)
+        (Arch.print_addressing Printmach.reg t.addressing_mode)
         (memory_arguments t) print_set t.dependent_allocs print_set
         t.unsure_allocs
 
@@ -510,7 +494,8 @@ end = struct
 
     let compare_addressing_modes_and_arguments (t1 : t) (t2 : t) =
       let addressing_mode_comparison =
-        Arch.addressing_compare t1.addressing_mode t2.addressing_mode
+        Arch.compare_addressing_mode_without_displ t1.addressing_mode
+          t2.addressing_mode
       in
       if addressing_mode_comparison = 0
       then
@@ -530,7 +515,7 @@ end = struct
       let res =
         if Cmm.equal_memory_chunk t1.memory_chunk t2.memory_chunk
         then
-          let width = width_of t1.memory_chunk in
+          let width = Cmm.width_of t1.memory_chunk in
           let offset_option = offset_of t1 t2 in
           match offset_option with
           | None -> false
@@ -554,6 +539,10 @@ end = struct
   let from_block (block : Cfg.basic_block) : t =
     (* A heuristic to avoid treating the same allocation that is stored and
        loaded as different, has room for improvement *)
+    (* For each store instruction, it tries to form a seed with the closest
+       stores after it, it will go down the DLL of instructions and tries to
+       move the store instructions across the non-store instructions until all
+       the store instructions are together *)
     let dependency_graph = Dependency_graph.from_block block in
     let id_to_instructions =
       DLL.to_list block.body
@@ -589,7 +578,7 @@ end = struct
                      (Instruction.is_alloc
                      << Instruction.Id.Tbl.find id_to_instructions)
               in
-              let start_id =
+              let start_index =
                 match memory_operation.op with Load -> 0 | Store -> 1
               in
               let dependent_allocs, _ =
@@ -598,7 +587,7 @@ end = struct
                     ( get_dependent_allocs_of_arg arg_i
                       |> Instruction.Id.Set.union dependent_allocs,
                       arg_i + 1 ))
-                  (Instruction.Id.Set.empty, start_id)
+                  (Instruction.Id.Set.empty, start_index)
                   (Memory_operation.memory_arguments memory_operation)
               in
               match memory_operation.op with
@@ -670,7 +659,7 @@ end = struct
             | Some offset ->
               offset
               > (left_memory_operation.Memory_operation.memory_chunk
-               |> Memory_operation.width_of)
+               |> Cmm.width_of)
           in
           check_direct_separation memory_operation_1 memory_operation_2
           || check_direct_separation memory_operation_2 memory_operation_1

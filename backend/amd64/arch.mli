@@ -141,8 +141,8 @@ val float_cond_and_need_swap
 
 (* addressing mode functions *)
 
-val addressing_compare : addressing_mode -> addressing_mode -> int
+val compare_addressing_mode_without_displ : addressing_mode -> addressing_mode -> int
 
-val addressing_displ_compare : addressing_mode -> addressing_mode -> int option
+val compare_addressing_mode_displ : addressing_mode -> addressing_mode -> int option
 
 val addressing_offset : addressing_mode -> addressing_mode -> int option

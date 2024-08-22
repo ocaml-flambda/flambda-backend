@@ -118,8 +118,8 @@ val operation_can_raise : specific_operation -> bool
 
 (* addressing mode functions, for avoiding compilation errors when using them in amd64 *)
 
-val addressing_compare : addressing_mode -> addressing_mode -> int
+val compare_addressing_mode_without_displ : addressing_mode -> addressing_mode -> int
 
-val addressing_displ_compare : addressing_mode -> addressing_mode -> int option
+val compare_addressing_mode_displ : addressing_mode -> addressing_mode -> int option
 
 val addressing_offset : addressing_mode -> addressing_mode -> int option

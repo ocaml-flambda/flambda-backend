@@ -406,16 +406,13 @@ let equal_specific_operation left right =
 
 (* addressing mode functions *)
 
-let addressing_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  (* Ignores displ when comparing to show that it is possible to calculate the offset *)
   match addressing_mode_1, addressing_mode_2 with
-  | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
+  | Ibased (symbol1, global1, _), Ibased (symbol2, global2, _) -> (
     match global1, global2 with
     | Global, Global | Local, Local ->
-      if symbol1 < symbol2
-      then -1
-      else if symbol1 > symbol2
-      then 1
-      else 0
+      String.compare symbol1 symbol2
     | Global, Local -> -1
     | Local, Global -> 1)
   | Ibased _, _ -> -1
@@ -432,7 +429,7 @@ let addressing_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 :
   | Iindexed2scaled (scale1, _), Iindexed2scaled (scale2, _) ->
     Int.compare scale1 scale2
 
-let addressing_displ_compare (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let compare_addressing_mode_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
     match global1, global2 with
