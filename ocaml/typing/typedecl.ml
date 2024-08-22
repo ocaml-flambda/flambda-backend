@@ -2389,7 +2389,6 @@ let transl_extension_constructor ~scope env type_path type_params
                 | _ -> assert false
               in
               let decl = Ctype.instance_declaration decl in
-              assert (Ctype.app_args_match_decl decl tl);
               AppArgs.iter_with_list (Ctype.unify env) decl.type_params tl;
               let lbls =
                 match decl.type_kind with
