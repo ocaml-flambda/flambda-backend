@@ -27,7 +27,11 @@ module Instruction : sig
 
   type op
 
-  val op_equal : op -> op -> bool
+  val op : t -> op
+
+  val supported : t -> bool
+
+  val have_equal_op : t -> t -> bool
 
   val string_of_op : op -> string
 
@@ -73,7 +77,7 @@ end = struct
     | Intop_imm of Mach.integer_operation * int
     | Unsupported
 
-  let _op (instruction : t) : op =
+  let op (instruction : t) : op =
     match instruction with
     | Basic basic_instruction -> (
       let desc = basic_instruction.desc in
@@ -115,12 +119,16 @@ end = struct
             is_atomic = is_atomic2
           } ) ->
       Cmm.equal_memory_chunk memory_chunk1 memory_chunk2
-      && Arch.compare_addressing_mode_without_displ addressing_mode1 addressing_mode2 = 0
+      && Arch.compare_addressing_mode_without_displ addressing_mode1
+           addressing_mode2
+         = 0
       && mutability1 = mutability2 && is_atomic1 = is_atomic2
     | ( Store (memory_chunk1, addressing_mode1, is_assignment1),
         Store (memory_chunk2, addressing_mode2, is_assignment2) ) ->
       Cmm.equal_memory_chunk memory_chunk1 memory_chunk2
-      && Arch.compare_addressing_mode_without_displ addressing_mode1 addressing_mode2 = 0
+      && Arch.compare_addressing_mode_without_displ addressing_mode1
+           addressing_mode2
+         = 0
       && is_assignment1 = is_assignment2
     | Intop intop1, Intop intop2 -> intop_equal intop1 intop2
     | Intop_imm (intop1, _), Intop_imm (intop2, _) -> intop_equal intop1 intop2
@@ -132,6 +140,11 @@ end = struct
     | Intop_imm _, _
     | Unsupported, _ ->
       false
+
+  let supported instruction = op instruction |> op_equal Unsupported |> not
+
+  let have_equal_op instruction1 instruction2 =
+    op_equal (op instruction1) (op instruction2)
 
   let string_of_op op =
     let open Format in
@@ -290,6 +303,9 @@ module Dependency_graph : sig
 
   val from_block : Cfg.basic_block -> t
 
+  val get_arg_dependency :
+    t -> Instruction.Id.t -> arg_i:int -> Instruction.Id.t option
+
   val get_all_dependencies_of_arg :
     t -> Instruction.Id.t -> arg_i:int -> Instruction.Id.Set.t
 
@@ -342,13 +358,17 @@ end = struct
 
   let init () : t = Instruction.Id.Tbl.create 100
 
+  let get_arg_dependency dependency_graph id ~arg_i =
+    let (node : Node.t) = Instruction.Id.Tbl.find dependency_graph id in
+    node.reg_nodes.(arg_i).direct_dependency
+
   let get_all_dependencies dependency_graph id =
     let (node : Node.t) = Instruction.Id.Tbl.find dependency_graph id in
     node.all_dependencies
 
   let get_all_dependencies_of_arg dependency_graph id ~arg_i =
-    let (node : Node.t) = Instruction.Id.Tbl.find dependency_graph id in
-    match node.reg_nodes.(arg_i).direct_dependency with
+    let arg_dependency = get_arg_dependency dependency_graph id ~arg_i in
+    match arg_dependency with
     | None -> Instruction.Id.Set.empty
     | Some direct_dependency ->
       get_all_dependencies dependency_graph direct_dependency
@@ -637,7 +657,7 @@ end = struct
 
     let is_adjacent (t1 : t) (t2 : t) =
       let res =
-        if Cmm.equal_memory_chunk t1.memory_chunk t2.memory_chunk
+        if Instruction.have_equal_op t1.instruction t2.instruction
         then
           let width = Cmm.width_of t1.memory_chunk in
           let offset_option = offset_of t1 t2 in
@@ -823,7 +843,7 @@ end = struct
 end
 
 module Seed : sig
-  type t
+  type t = Memory_accesses.Memory_operation.t list (* a seed is a group of *)
 
   val from_block : Cfg.basic_block -> t list
 
@@ -908,8 +928,7 @@ end = struct
         in
         find_seed (items_in_vector - 1)
           [starting_memory_operation]
-          starting_cell
-        |> Option.map List.rev)
+          starting_cell)
       stores
 
   let dump ppf (seeds : t list) =
@@ -944,53 +963,142 @@ end = struct
     type t =
       { instruction_type : Instruction.op;
         instructions : Instruction.Id.t list;
-        dependencies : Instruction.Id.t array;
+        dependencies : Instruction.Id.t option array;
+            (* Only counts dependencies within the same computation tree *)
         is_dependency_of : Instruction.Id.Set.t
+      }
+
+    let init last_instruction instructions =
+      { instruction_type = Instruction.op last_instruction;
+        instructions;
+        dependencies =
+          Array.make
+            (Instruction.arguments last_instruction |> Array.length)
+            None;
+        is_dependency_of = Instruction.Id.Set.empty
       }
   end
 
   type t = Node.t Instruction.Id.Tbl.t
-  (* key is instruction id of last instruction in the node *)
+  (* key is the id of the instruction where the node will be inserted, which is
+     the last instruction in the node for now *)
 
   let init () : t = Instruction.Id.Tbl.create 100
 
-  let from_seed block seed =
+  let from_seed (block : Cfg.basic_block) seed =
+    let id_to_instructions =
+      DLL.to_list block.body
+      |> List.map (fun basic_instruction ->
+             let instruction = Instruction.Basic basic_instruction in
+             Instruction.id instruction, instruction)
+      |> Instruction.Id.Tbl.of_list
+    in
+    let dependency_graph = Dependency_graph.from_block block in
+    let find_instruction = Instruction.Id.Tbl.find id_to_instructions in
+    let root =
+      List.map
+        (Instruction.id << Memory_accesses.Memory_operation.instruction)
+        seed
+    in
     let computation_tree = init () in
-    ignore block;
-    ignore seed;
-    ignore Instruction.op_equal;
-    computation_tree
+    let rec build instructions : Instruction.Id.t option =
+      let last_instruction = List.hd instructions |> find_instruction in
+      let is_supported_isomorphic_instructions =
+        let rec check hd1 tl1 =
+          match tl1 with
+          | [] -> true
+          | hd2 :: tl2 ->
+            if Instruction.have_equal_op (find_instruction hd1)
+                 (find_instruction hd2)
+            then check hd2 tl2
+            else false
+        in
+        Instruction.supported last_instruction
+        && check (List.hd instructions) (List.tl instructions)
+      in
+      let all_option list =
+        List.fold_right
+          (fun item result ->
+            match item, result with
+            | Some item, Some result -> Some (item :: result)
+            | _ -> None)
+          list (Some [])
+      in
+      if is_supported_isomorphic_instructions
+      then (
+        let key = List.hd instructions in
+        let node : Node.t = Node.init last_instruction instructions in
+        match Instruction.Id.Tbl.find_opt computation_tree key with
+        | Some (old_node : Node.t) ->
+          if List.equal Instruction.Id.equal node.instructions
+               old_node.instructions
+          then Some key
+          else
+            None
+            (* The last instruction of the node is already in another node, if
+               the other node is different from this node, we won't vectorize
+               this for simplicity's sake *)
+        | None ->
+          Instruction.Id.Tbl.add computation_tree key node;
+          let dependencies =
+            Array.mapi
+              (fun arg_i _ ->
+                match
+                  List.map
+                    (Dependency_graph.get_arg_dependency dependency_graph ~arg_i)
+                    instructions
+                  |> all_option
+                with
+                | None -> None
+                | Some new_instructions -> build new_instructions)
+              (last_instruction |> Instruction.arguments)
+          in
+          Instruction.Id.Tbl.replace computation_tree key
+            { node with dependencies };
+          Some key)
+      else None
+    in
+    match build root with
+    | None -> None
+    | Some _ ->
+      let is_valid computation_tree =
+        ignore computation_tree;
+        true (* do something about the DLL *)
+      in
+      if is_valid computation_tree then Some computation_tree else None
 
   let from_block (block : Cfg.basic_block) : t list =
     let seeds = Seed.from_block block in
-    List.map (from_seed block) seeds
+    List.filter_map (from_seed block) seeds
 
   let dump ppf (trees : t list) (block : Cfg.basic_block) =
     let open Format in
+    let string_of dependency_option =
+      Option.fold ~none:"none"
+        ~some:(sprintf "%d" << Instruction.Id.to_int)
+        dependency_option
+    in
+    let print_node id node_option =
+      match node_option with
+      | None -> ()
+      | Some (node : Node.t) ->
+        fprintf ppf "\nNode key: %d\n" (Instruction.Id.to_int id);
+        fprintf ppf "\nOperation: %s\n"
+          (Instruction.string_of_op node.instruction_type);
+        fprintf ppf "\ninstructions:\n";
+        List.iter (fprintf ppf "%d " << Instruction.Id.to_int) node.instructions;
+        fprintf ppf "\ndependencies:\n";
+        Array.iter (fprintf ppf "%s " << string_of) node.dependencies;
+        fprintf ppf "\nis dependency of:\n";
+        Instruction.Id.Set.iter
+          (fprintf ppf "%d " << Instruction.Id.to_int)
+          node.is_dependency_of;
+        fprintf ppf "\n"
+    in
     let print_tree tree =
-      let print_node id =
-        match Instruction.Id.Tbl.find_opt tree id with
-        | None -> ()
-        | Some (node : Node.t) ->
-          fprintf ppf "\nNode ending at instruction %d:\n"
-            (Instruction.Id.to_int id);
-          fprintf ppf "\nOperation: %s\n"
-            (Instruction.string_of_op node.instruction_type);
-          fprintf ppf "\ninstructions:\n";
-          List.iter
-            (fprintf ppf "%d " << Instruction.Id.to_int)
-            node.instructions;
-          fprintf ppf "\ndependencies:\n";
-          Array.iter
-            (fprintf ppf "%d " << Instruction.Id.to_int)
-            node.dependencies;
-          fprintf ppf "\nis dependency of:\n";
-          Instruction.Id.Set.iter
-            (fprintf ppf "%d " << Instruction.Id.to_int)
-            node.is_dependency_of
-      in
       DLL.iter block.body ~f:(fun instruction ->
-          print_node (Basic instruction |> Instruction.id))
+          let id = Basic instruction |> Instruction.id in
+          Instruction.Id.Tbl.find_opt tree id |> print_node id)
     in
     let print_trees trees =
       List.iter
