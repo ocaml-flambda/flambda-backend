@@ -739,6 +739,7 @@ let compose l1 = function
   | Nth n  -> Nth (List.nth l1 n)
 
 let apply_subst s1 tyl =
+  let tyl = AppArgs.to_list tyl in
   if tyl = [] then []
   (* cf. PR#7543: Typemod.type_package doesn't respect type constructor arity *)
   else
@@ -982,7 +983,6 @@ let nameable_row row =
 let printer_iter_type_expr f ty =
   match get_desc ty with
   | Tconstr(p, tyl, _) ->
-      let tyl = AppArgs.to_list tyl in
       let (_p', s) = best_type_path p in
       List.iter f (apply_subst s tyl)
   | Tvariant row -> begin
@@ -1430,7 +1430,7 @@ let rec tree_of_typexp mode alloc_mode ty =
         Otyp_tuple (tree_of_labeled_typlist mode labeled_tyl)
     | Tconstr(p, tyl, _abbrev) ->
         let p', s = best_type_path p in
-        let tyl' = apply_subst s (AppArgs.to_list tyl) in
+        let tyl' = apply_subst s tyl in
         if is_nth s && not (tyl'=[])
         then tree_of_typexp mode Alloc.Const.legacy (List.hd tyl')
         else Otyp_constr (tree_of_path (Some Type) p', tree_of_typlist mode tyl')
@@ -1456,7 +1456,7 @@ let rec tree_of_typexp mode alloc_mode ty =
         | Some(p, tyl) when nameable_row row ->
             let (p', s) = best_type_path p in
             let id = tree_of_path (Some Type) p' in
-            let args = tree_of_typlist mode (apply_subst s (AppArgs.to_list tyl)) in
+            let args = tree_of_typlist mode (apply_subst s tyl) in
             let out_variant =
               if is_nth s then List.hd args else Otyp_constr (id, args) in
             if closed && all_present then
@@ -2689,8 +2689,6 @@ let same_path t t' =
   match get_desc t, get_desc t' with
     Tconstr(p,tl,_), Tconstr(p',tl',_) ->
       let (p1, s1) = best_type_path p and (p2, s2)  = best_type_path p' in
-      let tl = AppArgs.to_list tl in
-      let tl' = AppArgs.to_list tl' in
       begin match s1, s2 with
         Nth n1, Nth n2 when n1 = n2 -> true
       | (Id | Map _), (Id | Map _) when Path.same p1 p2 ->
