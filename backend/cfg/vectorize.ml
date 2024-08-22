@@ -35,13 +35,13 @@ module Instruction : sig
 
   val print : Format.formatter -> t -> unit
 
-  val is_load : t -> bool
-
   val is_store : t -> bool
 
   val is_alloc : t -> bool
 
-  val may_be_blocker : t -> bool
+  val can_cross_loads_or_stores : t -> bool
+
+  val may_break_alloc_freshness : t -> bool
 end = struct
   module Id = struct
     include Numbers.Int
@@ -77,25 +77,6 @@ end = struct
     match instruction with
     | Basic i -> Cfg.print_basic ppf i
     | Terminator i -> Cfg.print_terminator ppf i
-
-  let is_load (instruction : t) =
-    match instruction with
-    | Basic basic_instruction -> (
-      let desc = basic_instruction.desc in
-      match desc with
-      | Op op -> (
-        match op with
-        | Load _ -> true
-        | Store _ | Alloc _ | Move | Reinterpret_cast _ | Static_cast _ | Spill
-        | Reload | Const_int _ | Const_float32 _ | Const_float _
-        | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Intop _
-        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
-        | Opaque | Begin_region | End_region | Specific _ | Name_for_debugger _
-        | Dls_get | Poll ->
-          false)
-      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
-      )
-    | Terminator _ -> false
 
   let is_store (instruction : t) =
     match instruction with
@@ -135,24 +116,45 @@ end = struct
       )
     | Terminator _ -> false
 
-  let may_be_blocker (instruction : t) =
-    (* CR-someday tip: these instructions may or may not cause issues for going
-       across a load or a store, for simplicity's sake, let's not let them cross
-       for now, but can add better handling in the future *)
+  let can_cross_loads_or_stores (instruction : t) =
+    (* CR-someday tip: some instructions may or may not cause issues for going
+       across a load or a store, for simplicity's sake, let's just return false
+       and not let them go across for now, but better handling can be added in
+       the future *)
     match instruction with
     | Basic basic_instruction -> (
       let desc = basic_instruction.desc in
       match desc with
       | Op op -> (
         match op with
-        | Intop_atomic _ | Alloc _ | Poll | Opaque | Begin_region | End_region
-        | Specific _ ->
-          true
-        | Load _ | Store _ | Move | Reinterpret_cast _ | Static_cast _ | Spill
-        | Reload | Const_int _ | Const_float32 _ | Const_float _
-        | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Intop _
-        | Intop_imm _ | Floatop _ | Csel _ | Probe_is_enabled _
-        | Name_for_debugger _ | Dls_get ->
+        | Load _ | Store _ | Intop_atomic _ | Alloc _ | Poll | Opaque
+        | Begin_region | End_region ->
+          false
+        | Specific specific_operation ->
+          Arch.can_cross_loads_or_stores specific_operation
+        | Move | Reinterpret_cast _ | Static_cast _ | Spill | Reload
+        | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+        | Const_vec128 _ | Stackoffset _ | Intop _ | Intop_imm _ | Floatop _
+        | Csel _ | Probe_is_enabled _ | Name_for_debugger _ | Dls_get ->
+          true)
+      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> true)
+    | Terminator _ -> false
+
+  let may_break_alloc_freshness (instruction : t) =
+    match instruction with
+    | Basic basic_instruction -> (
+      let desc = basic_instruction.desc in
+      match desc with
+      | Op op -> (
+        match op with
+        | Load _ | Store _ -> true
+        | Specific specific_operation ->
+          Arch.may_break_alloc_freshness specific_operation
+        | Alloc _ | Move | Reinterpret_cast _ | Static_cast _ | Spill | Reload
+        | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+        | Const_vec128 _ | Stackoffset _ | Intop _ | Intop_imm _
+        | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _ | Opaque
+        | Begin_region | End_region | Name_for_debugger _ | Dls_get | Poll ->
           false)
       | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
       )
@@ -577,7 +579,16 @@ end = struct
           else
             let memory_operation = Memory_operation.init instruction in
             match memory_operation with
-            | None -> loads, stores, fresh_allocs, stored_allocs, unsure_allocs
+            | None ->
+              if Instruction.may_break_alloc_freshness instruction
+              then
+                ( loads,
+                  stores,
+                  Instruction.Id.Set.empty,
+                  Instruction.Id.Set.empty,
+                  Instruction.Id.Set.union fresh_allocs stored_allocs
+                  |> Instruction.Id.Set.union unsure_allocs )
+              else loads, stores, fresh_allocs, stored_allocs, unsure_allocs
             | Some memory_operation -> (
               let get_dependent_allocs_of_arg arg_i =
                 Dependency_graph.get_all_dependencies_of_arg dependency_graph id
@@ -599,9 +610,6 @@ end = struct
                   (Memory_operation.memory_arguments memory_operation)
               in
               match memory_operation.op with
-              (* CR-soon tip: right now, none of the [Specific] operations will
-                 mess with alloc freshness, but that may change, so still have
-                 to add a function to arch.ml to verify that it is ok *)
               | Load ->
                 Instruction.Id.Tbl.add memory_operations id
                   { memory_operation with dependent_allocs; unsure_allocs };
@@ -642,16 +650,8 @@ end = struct
       get_memory_operation instruction_1, get_memory_operation instruction_2
     with
     | None, _ | _, None ->
-      let is_load_store instruction =
-        Instruction.is_load instruction || Instruction.is_store instruction
-      in
-      not
-        (Instruction.may_be_blocker instruction_1
-         && Instruction.may_be_blocker instruction_2
-        || is_load_store instruction_1
-           && Instruction.may_be_blocker instruction_2
-        || Instruction.may_be_blocker instruction_1
-           && is_load_store instruction_2)
+      Instruction.can_cross_loads_or_stores instruction_1
+      || Instruction.can_cross_loads_or_stores instruction_2
     | Some memory_operation_1, Some memory_operation_2 -> (
       match memory_operation_1.op, memory_operation_2.op with
       | Load, Load -> true

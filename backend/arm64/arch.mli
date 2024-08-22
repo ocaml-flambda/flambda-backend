@@ -123,3 +123,7 @@ val compare_addressing_mode_without_displ : addressing_mode -> addressing_mode -
 val compare_addressing_mode_displ : addressing_mode -> addressing_mode -> int option
 
 val addressing_offset : addressing_mode -> addressing_mode -> int option
+
+val can_cross_loads_or_stores : specific_operation -> bool
+
+val may_break_alloc_freshness : specific_operation -> bool
