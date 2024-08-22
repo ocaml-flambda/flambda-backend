@@ -2124,10 +2124,7 @@ let rec estimate_type_jkind env ty =
     match tys, jkind_of_result app_jkind with
     | Unapplied, _ -> app_jkind
     | Applied _, Type _ -> assert false
-    | Applied tys, Arrow { args; result } ->
-      if List.length tys = List.length args
-      then Jkind result
-      else assert false
+    | Applied _, Arrow { args = _; result } -> Jkind result
   end
   | Tvariant row ->
       if tvariant_not_immediate row
