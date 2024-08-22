@@ -1,3 +1,5 @@
+asmgen.ml
+asmgen.mli
 cmm_helpers.ml
 cmm_helpers.mli
 cmm_builtins.ml
