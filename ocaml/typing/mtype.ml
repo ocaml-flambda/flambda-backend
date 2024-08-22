@@ -27,12 +27,13 @@ let strengthen_decl_with_manifest path decl =
   Some _, Public, _ -> decl
 | Some _, Private, (Type_record _ | Type_variant _) -> decl
 | _ ->
-    let manif =
-      Some(Btype.newgenty(Tconstr(path, (get_type_params decl), ref Mnil))) in
-    if Btype.type_kind_is_abstract decl then
-      { decl with type_private_ = Public; type_manifest_ = manif }
-    else
-      { decl with type_manifest_ = manif }
+    { decl with type_noun =
+      match decl.type_noun with
+      | Equation _ ->
+        Equation { eq = Type_abbrev {
+          expansion = Btype.newgenty (Tconstr(path, (get_type_params decl), ref Mnil))
+        } }
+      | Datatype { manifest = _; noun } -> Datatype { manifest = Some path; noun } }
 
 (* Strengthen a type as far as possible without unfolding abbreviations,
   pushing strengthening into signatures and functors. Return None if we
@@ -96,7 +97,7 @@ and strengthen_lazy_sig' ~aliasable sg p =
     [] -> []
   | (Sig_value(_, _, _) as sigelt) :: rem ->
       sigelt :: strengthen_lazy_sig' ~aliasable rem p
-  | Sig_type(id, {type_kind_=Type_abstract _}, _, _) :: rem
+  | Sig_type(id, {type_noun=Equation _}, _, _) :: rem
     when Btype.is_row_name (Ident.name id) ->
       strengthen_lazy_sig' ~aliasable rem p
   | Sig_type(id, decl, rs, vis) :: rem ->
@@ -524,7 +525,7 @@ let enrich_typedecl env p id decl =
               let orig_ty =
                 Btype.newgenty(Tconstr(p, get_type_params decl, ref Mnil))
               in
-              {decl with type_manifest_ = Some orig_ty}
+              with_manifest decl orig_ty
         end
 
 let rec enrich_modtype env p mty =
@@ -617,8 +618,10 @@ let rec contains_type env mty =
 and contains_type_sig env = List.iter (contains_type_item env)
 
 and contains_type_item env = function
-    Sig_type (_,({type_manifest_ = None} |
-                 {type_kind_ = Type_abstract _; type_private_ = Private}),_, _)
+  | Sig_type (_, decl, _, _) when get_type_manifest decl = None ->
+      raise Exit
+  | Sig_type (_, decl, _, _) when Btype.type_kind_is_abstract decl && get_type_private decl = Private ->
+      raise Exit
   | Sig_modtype _
   | Sig_typext (_, {ext_args = Cstr_record _}, _, _) ->
       (* We consider that extension constructors with an inlined

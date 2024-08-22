@@ -243,10 +243,9 @@ type 'a t = 'b or_null constraint 'b = int * 'a [@@or_null_reexport]
 Line 1, characters 0-68:
 1 | type 'a t = 'b or_null constraint 'b = int * 'a [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type
-         (int * 'a) or_null
-       Their parameters differ:
-       The type int * 'a is not equal to the type 'a
+Error: This variant or record definition
+       uses a manifest with a mismatched parameter list to the one defined
+         defined ('a), manifest has ('b)
 |}]
 
 (* [@@or_null_reexport] expands the type on the right. *)
@@ -304,10 +303,9 @@ type 'a t = int or_null [@@or_null_reexport]
 Line 1, characters 0-44:
 1 | type 'a t = int or_null [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type
-         int or_null
-       Their parameters differ:
-       The type int is not equal to the type 'a
+Error: This variant or record definition
+       uses a manifest with a mismatched parameter list to the one defined
+         defined ('a), manifest has (int)
 |}]
 
 

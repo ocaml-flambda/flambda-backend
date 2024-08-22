@@ -127,6 +127,7 @@ type error =
   | Recursive_abbrev of string * Env.t * reaching_type_path
   | Cycle_in_def of string * Env.t * reaching_type_path
   | Definition_mismatch of type_expr * Env.t * Includecore.type_mismatch option
+  | Datatype_manifest_mismatch of { def: type_expr list; use: type_expr list }
   | Constraint_failed of Env.t * Errortrace.unification_error
   | Inconsistent_constraint of Env.t * Errortrace.unification_error
   | Type_clash of Env.t * Errortrace.unification_error

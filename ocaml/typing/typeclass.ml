@@ -1606,11 +1606,9 @@ let temp_abbrev loc id arity uid =
   let ty = Ctype.newobj (Ctype.newvar (Jkind.Builtin.value ~why:Object)) in
   let ty_td =
       {type_params_ = create_type_params_of_unknowns ~injective:true !params;
-       type_kind_ = Type_abstract Abstract_def;
+       type_noun = create_type_equation_in_noun Public (Some ty);
        type_jkind = Jkind.Builtin.value ~why:Object;
        type_jkind_annotation = None;
-       type_private_ = Public;
-       type_manifest_ = Some ty;
        type_is_newtype = false;
        type_expansion_scope = Btype.lowest_level;
        type_loc = loc;
@@ -1834,11 +1832,9 @@ let class_infos define_class kind
   let obj_abbr =
     {
      type_params_ = create_type_params_of_unknowns ~injective:false obj_params;
-     type_kind_ = Type_abstract Abstract_def;
+     type_noun = create_type_equation_in_noun Public (Some obj_ty);
      type_jkind = Jkind.Builtin.value ~why:Object;
      type_jkind_annotation = None;
-     type_private_ = Public;
-     type_manifest_ = Some obj_ty;
      type_is_newtype = false;
      type_expansion_scope = Btype.lowest_level;
      type_loc = cl.pci_loc;
@@ -1852,7 +1848,7 @@ let class_infos define_class kind
     Ctype.instance_parameterized_type params (Btype.self_type typ)
   in
   Ctype.set_object_name obj_id cl_params cl_ty;
-  let cl_abbr = { (set_type_params cl_td cl_params) with type_manifest_ = Some cl_ty } in
+  let cl_abbr = with_manifest (set_type_params cl_td cl_params) cl_ty in
   let cltydef =
     {clty_params = params'; clty_type = Btype.class_body typ';
      clty_variance = cty_variance;

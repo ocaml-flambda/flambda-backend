@@ -88,6 +88,7 @@ type error =
   | Recursive_abbrev of string * Env.t * reaching_type_path
   | Cycle_in_def of string * Env.t * reaching_type_path
   | Definition_mismatch of type_expr * Env.t * Includecore.type_mismatch option
+  | Datatype_manifest_mismatch of { def: type_expr list; use: type_expr list }
   | Constraint_failed of Env.t * Errortrace.unification_error
   | Inconsistent_constraint of Env.t * Errortrace.unification_error
   | Type_clash of Env.t * Errortrace.unification_error
@@ -257,10 +258,12 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       ~default:(Jkind.Builtin.any ~why:Initial_typedecl_env)
       sdecl
   in
-  let abstract_reason, type_manifest_ =
-    match sdecl.ptype_manifest, abstract_abbrevs with
-    | (None, _ | Some _, None) -> Abstract_def, Some (Ctype.newvar type_jkind)
-    | Some _, Some reason -> reason, None
+  let type_noun =
+    match sdecl.ptype_manifest, abstract_abbrevs, sdecl.ptype_private with
+    | None, _, priv | Some _, None, priv ->
+      create_type_equation_in_noun priv (Some (Ctype.newvar type_jkind))
+    (* CR jbachurski: This can hit private, apparently? *)
+    | Some _, Some reason, (Public | Private) -> Equation { eq = Type_abstr { reason } }
   in
   let type_params =
     List.map (fun (param, _) ->
@@ -271,11 +274,9 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   in
   let decl =
     { type_params_ = create_type_params_of_unknowns ~injective:false type_params;
-      type_kind_ = Type_abstract abstract_reason;
+      type_noun;
       type_jkind;
       type_jkind_annotation;
-      type_private_ = sdecl.ptype_private;
-      type_manifest_;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = sdecl.ptype_loc;
@@ -737,12 +738,14 @@ let shape_map_cstrs =
       @@ Shape.str ~uid:cd_uid cstr_shape_map)
     (Shape.Map.empty)
 
-let get_path_manifest ~loc env arity ty =
+let get_path_manifest ~loc env params ty =
   begin match get_desc ty with
   | Tconstr(path, args, _) ->
-    if List.length args <> arity
+    if List.length args <> List.length params
     then raise (Error (loc, Definition_mismatch (ty, env, Some Includecore.Arity)))
-    else Some path
+    else if not (List.for_all2 eq_type args params)
+    then raise (Error (loc, Datatype_manifest_mismatch { use = args; def = params }))
+    else path
   | _ -> raise (Error (loc, Definition_mismatch (ty, env, None)))
   end
 
@@ -786,18 +789,21 @@ let transl_declaration env sdecl (id, uid) =
       let cty = transl_simple_type ~new_var_jkind:Any env ~closed:no_row Mode.Alloc.Const.legacy sty in
       Some cty, Some cty.ctyp_type
   in
-  let type_params_ = create_type_params_of_unknowns ~injective:false params in
-  let check_has_path_manifest () = match man with
-    | Some ty ->
-      check_path_manifest ~loc:sdecl.ptype_loc env (List.length type_params_) ty
-    | None -> ()
-  in
   let any = Jkind.Builtin.any ~why:Initial_typedecl_env in
+  let get_man_path_manifest () =
+    match man with
+    | Some man ->
+      let man = Ctype.instance man in Ctype.generalize man;
+      let params = Ctype.instance_list params in List.iter Ctype.generalize params;
+      Some (get_path_manifest ~loc:sdecl.ptype_loc env params man)
+    | _ -> None
+  in
+  let priv = sdecl.ptype_private in
   (* jkind_default is the jkind to use for now as the type_jkind when there
      is no annotation and no manifest.
      See Note [Default jkinds in transl_declaration].
   *)
-  let (tkind, kind, jkind_default) =
+  let (tkind, (kind : type_noun), jkind_default) =
     match sdecl.ptype_kind with
       (* CR layouts v3.5: this is a hack to allow re-exporting the definition
          of ['a or_null], including constructors, even if one can't define
@@ -817,7 +823,8 @@ let transl_declaration env sdecl (id, uid) =
             | Some _ | None -> raise (Error (sdecl.ptype_loc, Invalid_reexport
               { definition = path; expected = Predef.path_or_null }))
           in
-          let type_kind = Predef.or_null_kind param in
+          (* CR jbachurski: [or_null] hack! *)
+          let type_kind = Predef.or_null_kind ?manifest:(get_man_path_manifest ()) param in
           let jkind =
             Jkind.Builtin.value_or_null
               ~why:(Primitive Predef.ident_or_null)
@@ -825,10 +832,10 @@ let transl_declaration env sdecl (id, uid) =
           Ttype_abstract, type_kind, jkind
       | (Ptype_variant _ | Ptype_record _ | Ptype_open) when
         Builtin_attributes.has_or_null_reexport sdecl_attributes ->
-        check_has_path_manifest ();
         raise (Error (sdecl.ptype_loc, Non_abstract_reexport path))
       | Ptype_abstract ->
-        Ttype_abstract, Type_abstract Abstract_def,
+          Ttype_abstract,
+          create_type_equation_in_noun priv man,
           Jkind.Builtin.value ~why:Default_type_jkind
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
@@ -912,8 +919,11 @@ let transl_declaration env sdecl (id, uid) =
             ),
             Jkind.Builtin.value ~why:Boxed_variant
         in
-          check_has_path_manifest ();
-          Ttype_variant tcstrs, Type_variant (cstrs, rep), jkind
+          Ttype_variant tcstrs,
+          Datatype {
+            manifest = get_man_path_manifest ();
+            noun = Datatype_variant { priv; cstrs; rep } },
+          jkind
       | Ptype_record lbls ->
           let lbls, lbls' =
             (* CR layouts: we forbid [@@unboxed] records from being
@@ -932,11 +942,18 @@ let transl_declaration env sdecl (id, uid) =
               Record_boxed (Array.make (List.length lbls) any),
               Jkind.Builtin.value ~why:Boxed_record
           in
-          check_has_path_manifest ();
-          Ttype_record lbls, Type_record(lbls', rep), jkind
+          Ttype_record lbls,
+          Datatype {
+            manifest = get_man_path_manifest ();
+            noun = Datatype_record { priv; lbls = lbls'; rep } },
+          jkind
       | Ptype_open ->
-        check_has_path_manifest ();
-        Ttype_open, Type_open, Jkind.Builtin.value ~why:Extensible_variant
+          Ttype_open,
+          Datatype {
+            manifest = get_man_path_manifest ();
+            noun = Datatype_open { priv }
+          },
+          Jkind.Builtin.value ~why:Extensible_variant
       in
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
@@ -955,12 +972,10 @@ let transl_declaration env sdecl (id, uid) =
       | None, None -> jkind_default
     in
     let decl =
-      { type_params_;
-        type_kind_ = kind;
+      { type_params_ = create_type_params_of_unknowns ~injective:false params;
+        type_noun = kind;
         type_jkind = jkind;
         type_jkind_annotation = jkind_annotation;
-        type_private_ = sdecl.ptype_private;
-        type_manifest_ = man;
         type_is_newtype = false;
         type_expansion_scope = Btype.lowest_level;
         type_loc = sdecl.ptype_loc;
@@ -1167,32 +1182,27 @@ let check_kind_coherence env loc dpath decl =
           raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
         end
       end;
-      check_path_manifest ~loc env (List.length decl.type_params_) ty;
+      check_path_manifest ~loc env (get_type_params decl) ty;
       begin match get_desc ty with
-      | Tconstr(path, args, _) ->
+      | Tconstr(path, _, _) ->
         begin
         try
           let decl' = Env.find_type path env in
           let err =
-            match Ctype.equal env false args (get_type_params decl) with
-            | exception Ctype.Equality err ->
-              Some (Includecore.Constraint err)
-            | () ->
-                Includecore.type_declarations ~loc ~equality:true env
-                  ~mark:true
-                  (Path.last path)
-                  decl'
-                  dpath
-                  (Subst.type_declaration
-                     (Subst.add_type_path dpath path Subst.identity) decl)
-          end
-        in
-        if err <> None then
-          raise (Error(loc, Definition_mismatch (ty, env, err)))
-      with Not_found ->
-        raise(Error(loc, Unavailable_type_constructor path))
-      end
-    | _ -> raise (Error(loc, Definition_mismatch (ty, env, None)))
+              Includecore.type_declarations ~loc ~equality:true env
+                ~mark:true
+                (Path.last path)
+                decl'
+                dpath
+                (Subst.type_declaration
+                   (Subst.add_type_path dpath path Subst.identity) decl)
+          in
+          if err <> None then
+            raise (Error (loc, Definition_mismatch (ty, env, err)))
+        with Not_found ->
+          raise (Error (loc, Unavailable_type_constructor path))
+        end
+      | _ -> raise (Error (loc, Definition_mismatch (ty, env, None)))
     end
   | _ -> ()
 
@@ -1644,15 +1654,15 @@ let update_decl_jkind env dpath decl =
     | false -> jkind, false
   in
 
-  let new_decl, new_jkind = match get_type_kind decl with
-    | Type_abstract _ -> decl, decl.type_jkind
-    | Type_open ->
+  let new_decl, new_jkind = match decl.type_noun with
+    | Equation _ -> decl, decl.type_jkind
+    | Datatype { manifest = _; noun = Datatype_open { priv = _ } } ->
       let type_jkind = Jkind.Builtin.value ~why:Extensible_variant in
       { decl with type_jkind }, type_jkind
-    | Type_record (lbls, rep) ->
+    | Datatype { manifest; noun = Datatype_record { priv; lbls; rep } } ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
-      { decl with type_kind_ = Type_record (lbls, rep);
+      { decl with type_noun = Datatype { manifest; noun = Datatype_record { priv; lbls; rep } };
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
@@ -1662,13 +1672,13 @@ let update_decl_jkind env dpath decl =
        No updating required for [or_null_reexport], and we must not
        incorrectly override the jkind to [non_null].
     *)
-    | Type_variant _ when
+    | Datatype { manifest = _; noun = Datatype_variant { priv = _; cstrs = _; rep = _ } } when
       Builtin_attributes.has_or_null_reexport decl.type_attributes ->
       decl, decl.type_jkind
-    | Type_variant (cstrs, rep) ->
+    | Datatype { manifest; noun = Datatype_variant { priv; cstrs; rep } } ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
-      { decl with type_kind_ = Type_variant (cstrs, rep);
+      { decl with type_noun = Datatype { manifest; noun = Datatype_variant { priv; cstrs; rep } };
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
@@ -2074,7 +2084,7 @@ let name_recursion sdecl id decl =
     if Ctype.deep_occur ty ty' then
       let td = Tconstr(Path.Pident id, get_type_params decl, ref Mnil) in
       link_type ty (newty2 ~level:(get_level ty) td);
-      {decl with type_manifest_ = Some ty'}
+      with_manifest decl ty'
     else decl
   | _ -> decl
 
@@ -3124,6 +3134,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       raise(Error(loc, Inconsistent_constraint (env, err)))
     ) constraints;
   let sig_decl_abstract = Btype.type_kind_is_abstract sig_decl in
+  (* CR jbachurski: This privacy setting is subtle *)
   let priv =
     if sdecl.ptype_private = Private then Private else
     if arity_ok && not sig_decl_abstract
@@ -3132,22 +3143,26 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   if arity_ok && not sig_decl_abstract
   && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
-  let type_kind_, type_unboxed_default, type_jkind, type_jkind_annotation =
+  let type_noun, type_unboxed_default, type_jkind, type_jkind_annotation =
     if arity_ok then
-      get_type_kind sig_decl,
+      let sig_decl = with_manifest sig_decl man in
+      let sig_decl =
+        match priv with
+        | Private -> privatise_manifest sig_decl
+        | Public -> publicise_manifest sig_decl
+      in
+      sig_decl.type_noun,
       sig_decl.type_unboxed_default,
       sig_decl.type_jkind,
       sig_decl.type_jkind_annotation
     else
-      Type_abstract Abstract_def, false, sig_decl.type_jkind, None
+      create_type_equation_in_noun priv (Some man), false, sig_decl.type_jkind, None
   in
   let new_sig_decl =
     { type_params_ = create_type_params_of_unknowns ~injective:false params;
-      type_kind_;
+      type_noun;
       type_jkind;
       type_jkind_annotation;
-      type_private_ = priv;
-      type_manifest_ = Some man;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = loc;
@@ -3184,11 +3199,9 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
        of bug caused by the previous approach, see #9607 *)
     {
       type_params_ = new_type_params_;
-      type_kind_ = get_type_kind new_sig_decl;
+      type_noun = new_sig_decl.type_noun;
       type_jkind = new_sig_decl.type_jkind;
       type_jkind_annotation = new_sig_decl.type_jkind_annotation;
-      type_private_ = get_type_private new_sig_decl;
-      type_manifest_ = new_sig_decl.type_manifest_;
       type_unboxed_default = new_sig_decl.type_unboxed_default;
       type_is_newtype = new_sig_decl.type_is_newtype;
       type_expansion_scope = new_sig_decl.type_expansion_scope;
@@ -3218,14 +3231,12 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
    they can not have parameters and can only update abstract types.) *)
 let transl_package_constraint ~loc ty =
   { type_params_ = [];
-    type_kind_ = Type_abstract Abstract_def;
+    type_noun = create_type_equation_in_noun Public (Some ty);
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)
     type_jkind_annotation = None;
-    type_private_ = Public;
-    type_manifest_ = Some ty;
     type_is_newtype = false;
     type_expansion_scope = Btype.lowest_level;
     type_loc = loc;
@@ -3241,11 +3252,9 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
     let params = List.map Ctype.newvar params in
     { type_params_ = create_type_params_of_unknowns ~injective params;
-      type_kind_ = Type_abstract Abstract_def;
+      type_noun = create_type_equation_in_noun Public None;
       type_jkind = jkind;
       type_jkind_annotation = jkind_annotation;
-      type_private_ = Public;
-      type_manifest_ = None;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = Location.none;
@@ -3434,6 +3443,12 @@ let report_error ppf = function
         (Includecore.report_type_mismatch
            "the original" "this" "definition" env)
         err
+  | Datatype_manifest_mismatch { def; use } ->
+      fprintf ppf "@[<v>@[<hov>%s@ %s@;<1 2>defined (%a), manifest has (%a)@]@]"
+        "This variant or record definition"
+        "uses a manifest with a mismatched parameter list to the one defined"
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") Printtyp.type_expr) def
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") Printtyp.type_expr) use
   | Constraint_failed (env, err) ->
       let get_jkind_error : _ Errortrace.elt -> _ = function
       | Bad_jkind (ty, violation) | Bad_jkind_sort (ty, violation) ->

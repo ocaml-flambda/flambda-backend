@@ -264,7 +264,7 @@ let compute_variance_gadt env ~check (required, loc as rloc) decl
     (tl, ret_type_opt) =
   match ret_type_opt with
   | None ->
-      compute_variance_type env ~check rloc {decl with type_private_ = Private}
+      compute_variance_type env ~check rloc (privatise_manifest decl)
         (for_constr tl)
   | Some ret_type ->
       match get_desc ret_type with
@@ -283,7 +283,7 @@ let compute_variance_gadt env ~check (required, loc as rloc) decl
               ([], fvl) tyl required
           in
           compute_variance_type env ~check rloc
-            {(set_type_params decl tyl) with type_private_ = Private}
+            (set_type_params decl tyl |> privatise_manifest)
             (for_constr tl)
       | _ -> assert false
 
@@ -336,7 +336,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
               List.map
                 (fun ty ->
                    compute_variance_type env ~check rloc
-                     {decl with type_private_ = Private}
+                     (privatise_manifest decl)
                      (add_false [ ty ])
                 )
                 (Option.to_list (get_type_manifest decl))

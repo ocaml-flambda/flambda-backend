@@ -215,8 +215,8 @@ let or_null_argument_jkind = Jkind.Builtin.value ~why:(
   Type_argument {parent_path = path_or_null; position = 1; arity = 1})
 
 let mk_add_type add_type
-      ?manifest type_ident
-      ?(kind=Type_abstract Abstract_def)
+      type_ident
+      ?(kind=create_type_equation_in_noun Public None)
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* [jkind_annotation] is just used for printing. It's best to
          provide it if the jkind is not implied by the kind of the
@@ -226,12 +226,10 @@ let mk_add_type add_type
       env =
   let decl =
     {type_params_ = [];
-     type_kind_ = kind;
+     type_noun = kind;
      type_jkind = jkind;
      type_jkind_annotation = predef_jkind_annotation jkind_annotation;
      type_loc = Location.none;
-     type_private_ = Asttypes.Public;
-     type_manifest_ = manifest;
      type_is_newtype = false;
      type_expansion_scope = lowest_level;
      type_attributes = [];
@@ -243,7 +241,7 @@ let mk_add_type add_type
   add_type type_ident decl env
 
 let mk_add_type1 add_type type_ident
-      ?(kind=fun _ -> Type_abstract Abstract_def)
+      ?(kind=fun _ -> create_type_equation_in_noun Public None)
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* See the comment on the [jkind_annotation] argument to [mk_add_type]
       *)
@@ -258,12 +256,10 @@ let mk_add_type1 add_type type_ident
   let param = newgenvar param_jkind in
   let decl =
     { type_params_ = [{ param_expr = param; variance; separability }];
-      type_kind_ = kind param;
+      type_noun = kind param;
       type_jkind = jkind;
       type_jkind_annotation = predef_jkind_annotation jkind_annotation;
       type_loc = Location.none;
-      type_private_ = Asttypes.Public;
-      type_manifest_ = None;
       type_is_newtype = false;
       type_expansion_scope = lowest_level;
       type_attributes = [];
@@ -314,7 +310,14 @@ let mk_add_extension add_extension id args jkinds =
       ext_uid = Uid.of_predef_id id;
     }
 
-let variant constrs jkinds = Type_variant (constrs, Variant_boxed jkinds)
+let variant ?manifest cstrs jkinds =
+  Datatype {
+    manifest;
+    noun = Datatype_variant { priv = Public; cstrs; rep = Variant_boxed jkinds }
+  }
+
+let open_variant =
+  Datatype { manifest = None; noun = Datatype_open { priv = Public } }
 
 let unrestricted tvar =
   {ca_type=tvar;
@@ -347,7 +350,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type ident_char ~jkind:(Jkind.Builtin.immediate ~why:(Primitive ident_char))
       ~jkind_annotation:Jkind.Const.Builtin.immediate
   |> add_type ident_exn
-       ~kind:Type_open
+       ~kind:open_variant
        ~jkind:(Jkind.Builtin.value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
@@ -414,18 +417,21 @@ let build_initial_env add_type add_extension empty_env =
              }
          in
          let immediate = Jkind.Builtin.value ~why:(Primitive ident_int) in
-         let labels = List.map lbl [
+         let lbls = List.map lbl [
            ("pos_fname", type_string, (Jkind.of_const ~why:(Primitive ident_string)
                                           Jkind.Const.Builtin.immutable_data.jkind));
            ("pos_lnum", type_int, immediate);
            ("pos_bol", type_int, immediate);
            ("pos_cnum", type_int, immediate) ]
          in
-         Type_record (
-           labels,
-           (Record_boxed (List.map (fun label -> label.ld_jkind) labels |> Array.of_list))
-         )
-       )
+         Datatype {
+          manifest = None;
+          noun = Datatype_record {
+           priv = Public;
+           lbls;
+           rep = Record_boxed (List.map (fun label -> label.ld_jkind) lbls |> Array.of_list)
+          }
+         })
        ~jkind:(Jkind.of_const ~why:(Primitive ident_lexing_position)
                 Jkind.Const.Builtin.immutable_data.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.word
@@ -526,8 +532,8 @@ let add_small_number_extension_types add_type env =
           Jkind.Const.Builtin.float32.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.float32
 
-let or_null_kind tvar =
-  variant [cstr ident_null []; cstr ident_this [unrestricted tvar]]
+let or_null_kind ?manifest tvar =
+  variant ?manifest [cstr ident_null []; cstr ident_this [unrestricted tvar]]
   [| Constructor_uniform_value, [| |];
       Constructor_uniform_value, [| or_null_argument_jkind |];
   |]

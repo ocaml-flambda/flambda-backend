@@ -115,10 +115,9 @@ type ('a, 'b) bar = ('a, 'a) foo = ..
 Line 1, characters 0-37:
 1 | type ('a, 'b) bar = ('a, 'a) foo = ..
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type
-         ('a, 'a) foo
-       Their parameters differ:
-       The type 'a is not equal to the type 'b
+Error: This variant or record definition
+       uses a manifest with a mismatched parameter list to the one defined
+         defined ('a, 'b), manifest has ('a, 'a)
 |}]
 
 (* Check that signatures can hide exstensibility *)

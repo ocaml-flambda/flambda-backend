@@ -1330,11 +1330,9 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
   in
   {
     type_params_ = [];
-    type_kind_ = Type_abstract Abstract_def;
+    type_noun = create_type_equation_in_noun Public manifest;
     type_jkind = jkind;
     type_jkind_annotation = jkind_annot;
-    type_private_ = Public;
-    type_manifest_ = manifest;
     type_is_newtype = true;
     type_expansion_scope = expansion_scope;
     type_loc = loc;
@@ -1397,30 +1395,44 @@ let instance_parameterized_type ?keep_names sch_args sch =
   )
 
 (* [map_kind f kind] maps [f] over all the types in [kind]. [f] must preserve jkinds *)
-let map_kind f = function
-  | (Type_abstract _ | Type_open) as k -> k
-  | Type_variant (cl, rep) ->
-      Type_variant (
-        List.map
-          (fun c ->
-             {c with
-              cd_args = map_type_expr_cstr_args f c.cd_args;
-              cd_res = Option.map f c.cd_res
-             })
-          cl, rep)
-  | Type_record (fl, rr) ->
-      Type_record (
-        List.map
-          (fun l ->
-             {l with ld_type = f l.ld_type}
-          ) fl, rr)
+let map_kind f : type_noun -> type_noun = function
+  | Equation { eq } ->
+    Equation {
+      eq = match eq with
+      | Type_abstr { reason } -> Type_abstr { reason }
+      | Type_abbrev { expansion } -> Type_abbrev { expansion = f expansion }
+      | Type_private_abbrev { expansion } -> Type_private_abbrev { expansion = f expansion }
+    }
+  | Datatype { manifest; noun } ->
+    Datatype {
+      manifest;
+      noun = match noun with
+      | Datatype_variant { priv; cstrs; rep } ->
+        Datatype_variant {
+          priv; rep;
+          cstrs = List.map
+            (fun c ->
+              { c with
+                cd_args = map_type_expr_cstr_args f c.cd_args;
+                cd_res = Option.map f c.cd_res })
+            cstrs
+        }
+      | Datatype_record { priv; lbls; rep } ->
+        Datatype_record {
+          priv; rep;
+          lbls = List.map (fun l -> {l with ld_type = f l.ld_type}) lbls
+        }
+      | Datatype_open { priv } -> Datatype_open { priv }
+    }
+
 
 let map_decl f decl =
-  {(set_type_params decl (List.map f (get_type_params decl)))
-     with
-      type_manifest_ = Option.map f (get_type_manifest decl);
-      type_kind_ = map_kind f (get_type_kind decl);
-  }
+  { decl with
+    type_params_ = List.map (
+      fun { param_expr; variance; separability } ->
+        { param_expr = f param_expr; variance; separability })
+      decl.type_params_;
+    type_noun = map_kind f decl.type_noun }
 
 let instance_declaration decl =
   For_copy.with_scope (fun copy_scope -> map_decl (copy copy_scope) decl)
@@ -6466,34 +6478,42 @@ let () = nondep_type' := nondep_type
 let nondep_type_decl env mid is_covariant decl =
   try
     let params = List.map (nondep_type_rec env mid) (get_type_params decl) in
-    let tk =
-      try map_kind (nondep_type_rec env mid) (get_type_kind decl)
-      with Nondep_cannot_erase _ when is_covariant -> Type_abstract Abstract_def
-    and tm, priv =
-      match get_type_manifest decl with
-      | None -> None, get_type_private decl
-      | Some ty ->
-          try Some (nondep_type_rec env mid ty), get_type_private decl
-          with Nondep_cannot_erase _ when is_covariant ->
+    (* CR jbachurski: Tricky! *)
+    let expand_public_or_then_private priv ty =
+      (* If [priv] is [Private] and we obtain [Some] manifest, it's also [Private] *)
+      try Some (nondep_type_rec env mid ty), priv
+      with Nondep_cannot_erase _ when is_covariant ->
             clear_hash ();
             try Some (nondep_type_rec ~expand_private:true env mid ty),
                 Private
-            with Nondep_cannot_erase _ ->
-              None, get_type_private decl
+            with Nondep_cannot_erase _ -> None, Public
+    in
+    let type_noun =
+      try match decl.type_noun with
+      (* Datatypes only have path manifests, so nothing to expand there *)
+      | Datatype _ -> map_kind (nondep_type_rec env mid) decl.type_noun
+      | Equation { eq = Type_abstr { reason = _ } } -> decl.type_noun
+      | Equation { eq = Type_abbrev { expansion } } ->
+        let manifest, priv = expand_public_or_then_private Public expansion in
+        (* This case only matters if the abbreviation wasn't already private *)
+        let priv =
+          match manifest with
+          | Some ty when Btype.has_constr_row ty -> Private
+          | _ -> priv
+        in
+        create_type_equation_in_noun priv manifest
+      | Equation { eq = Type_private_abbrev { expansion } } ->
+        let manifest, priv = expand_public_or_then_private Private expansion in
+        create_type_equation_in_noun priv manifest
+      (* If any uncaught expansions fail, fallback to an abstract type *)
+      with Nondep_cannot_erase _ when is_covariant -> create_type_equation_in_noun Public None
     in
     clear_hash ();
-    let priv =
-      match tm with
-      | Some ty when Btype.has_constr_row ty -> Private
-      | _ -> priv
-    in
     { type_params_ =
         create_type_params params (get_type_variance decl) (get_type_separability decl);
-      type_kind_ = tk;
+      type_noun;
       type_jkind = decl.type_jkind;
       type_jkind_annotation = decl.type_jkind_annotation;
-      type_manifest_ = tm;
-      type_private_ = priv;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = decl.type_loc;

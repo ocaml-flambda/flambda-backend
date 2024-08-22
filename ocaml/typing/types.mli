@@ -499,7 +499,7 @@ end
 
 type type_declaration =
   { type_params_: type_param list;
-    type_kind_: type_decl_kind;
+    type_noun: type_noun;
 
     type_jkind: jkind;
     (* for an abstract decl kind or for [@@unboxed] types: this is the stored
@@ -519,8 +519,6 @@ type type_declaration =
     for an e.g. local abstract type or an inlined record), then this field
     can safely be [None]. It's used only for printing and in untypeast. *)
 
-    type_private_: private_flag;
-    type_manifest_: type_expr option;
     type_is_newtype: bool;
     type_expansion_scope: int;
     type_loc: Location.t;
@@ -540,6 +538,20 @@ and type_param =
     (* covariant, contravariant, weakly contravariant, injective *)
     separability: Separability.t;
   }
+
+and type_noun =
+  | Datatype of { manifest: Path.t option; noun: datatype_noun}
+  | Equation of { eq: type_equation }
+
+and datatype_noun =
+  | Datatype_record of { priv: private_flag; lbls: label_declaration list; rep: record_representation}
+  | Datatype_variant of { priv: private_flag; cstrs: constructor_declaration list; rep: variant_representation }
+  | Datatype_open of { priv: private_flag }
+
+and type_equation =
+  | Type_abstr of { reason: abstract_reason }
+  | Type_abbrev of { expansion: type_expr }
+  | Type_private_abbrev of { expansion: type_expr }
 
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
@@ -689,11 +701,7 @@ and type_transparence =
 (* Legacy properties *)
 (* FIXME jbachurski: All of these should be removed by the time this PR is done. *)
 
-val get_type_kind : type_declaration -> type_decl_kind
-
-val get_type_manifest : type_declaration -> type_expr option
-
-val get_type_private : type_declaration -> private_flag
+val newgenty_ref : (type_desc -> type_expr) ref
 
 val create_type_params : type_expr list -> Variance.t list -> Separability.t list -> type_param list
 val create_type_params_of_unknowns : injective:bool -> type_expr list -> type_param list
@@ -708,6 +716,22 @@ val set_type_variance : type_declaration -> Variance.t list -> type_declaration
 
 val get_type_separability : type_declaration -> Separability.t list
 val set_type_separability : type_declaration -> Separability.t list -> type_declaration
+
+val create_type_equation : private_flag -> type_expr option -> type_equation
+val create_type_equation_in_noun : private_flag -> type_expr option -> type_noun
+
+val get_type_kind : type_declaration -> type_decl_kind
+val get_type_private : type_declaration -> private_flag
+
+val hide_manifest : type_declaration -> type_declaration
+val noun_with_manifest : type_noun -> type_expr -> type_noun
+val with_manifest : type_declaration -> type_expr -> type_declaration
+val publicise_manifest : type_declaration -> type_declaration
+val noun_publicise_manifest : type_noun -> type_noun
+val privatise_manifest : type_declaration -> type_declaration
+val noun_privatise_manifest : type_noun -> type_noun
+val get_type_manifest : type_declaration -> type_expr option
+
 
 (* Type expressions for the class language *)
 

@@ -673,11 +673,11 @@ let merge_constraint initial_env loc sg lid constr =
           in
           let type_separability = Types.Separability.default_signature ~arity in
           { type_params_ = create_type_params type_params type_variance type_separability;
-            type_kind_ = Type_abstract Abstract_def;
+            (* CR jbachurski: This is the abstract type created for the private row.
+               Notice it used to be created as [Private], but will now be observed as [Public]. *)
+            type_noun = create_type_equation_in_noun Private None;
             type_jkind = Jkind.Builtin.value ~why:(Unknown "merge_constraint");
             type_jkind_annotation = None;
-            type_private_ = Private;
-            type_manifest_ = None;
             type_loc = sdecl.ptype_loc;
             type_is_newtype = false;
             type_expansion_scope = Btype.lowest_level;
@@ -761,8 +761,7 @@ let merge_constraint initial_env loc sg lid constr =
           raise Includemod.(Error(initial_env, err))
         end;
         check_type_decl outer_sig_env sg_for_env loc id None tdecl sig_decl;
-        let tdecl = { tdecl with type_manifest_ = None } in
-        return ~ghosts ~replace_by:(Some(Sig_type(id, tdecl, rs, priv)))
+        return ~ghosts ~replace_by:(Some(Sig_type(id, hide_manifest tdecl, rs, priv)))
           (Pident id, lid, None)
     | Sig_modtype(id, mtd, priv), [s],
       (With_modtype mty | With_modtypesubst mty)
@@ -2349,7 +2348,7 @@ let rec package_constraints_sig env loc sg constrs =
       | Sig_type (id, ({type_params_=[]} as td), rs, priv)
         when List.mem_assoc [Ident.name id] constrs ->
           let ty = List.assoc [Ident.name id] constrs in
-          Sig_type (id, {td with type_manifest_ = Some ty}, rs, priv)
+          Sig_type (id, with_manifest td ty, rs, priv)
       | Sig_module (id, pres, md, rs, priv) ->
           let rec aux = function
             | (m :: ((_ :: _) as l), t) :: rest when m = Ident.name id ->

@@ -2318,11 +2318,9 @@ let wrap_env fenv ftree arg =
 let dummy =
   {
     type_params_ = [];
-    type_kind_ = Type_abstract Abstract_def;
+    type_noun = create_type_equation_in_noun Public None;
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
     type_jkind_annotation = None;
-    type_private_ = Public;
-    type_manifest_ = None;
     type_is_newtype = false;
     type_expansion_scope = Btype.lowest_level;
     type_loc = Location.none;
