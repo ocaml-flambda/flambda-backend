@@ -378,7 +378,9 @@ module MT = struct
         List.iter (sub.module_declaration sub) l
     | Psig_modtype x | Psig_modtypesubst x -> sub.module_type_declaration sub x
     | Psig_open x -> sub.open_description sub x
-    | Psig_include x -> sub.include_description sub x
+    | Psig_include (x, moda) ->
+        sub.include_description sub x;
+        sub.modalities sub moda
     | Psig_class l -> List.iter (sub.class_description sub) l
     | Psig_class_type l ->
         List.iter (sub.class_type_declaration sub) l

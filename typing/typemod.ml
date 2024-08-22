@@ -977,6 +977,19 @@ let map_ext fn exts =
   | [] -> []
   | d1 :: dl -> fn Text_first d1 :: List.map (fn Text_next) dl
 
+let apply_modalities_signature modalities sg =
+  List.map (function
+  | Sig_value (id, vd, vis) ->
+      let val_modalities =
+        vd.val_modalities
+        |> Mode.Modality.Value.to_const_exn
+        |> (fun then_ -> Mode.Modality.Value.Const.concat ~then_ modalities)
+        |> Mode.Modality.Value.of_const
+      in
+      let vd = {vd with val_modalities} in
+      Sig_value (id, vd, vis)
+  | item -> item) sg
+
 (* Auxiliary for translating recursively-defined module types.
    Return a module type that approximates the shape of the given module
    type AST.  Retain only module, type, and module type
@@ -1152,7 +1165,7 @@ and approx_sig env ssg =
       | Psig_open sod ->
           let _, env = type_open_descr env sod in
           approx_sig env srem
-      | Psig_include {pincl_loc=loc; pincl_mod=mod_; pincl_kind=kind; _} ->
+      | Psig_include ({pincl_loc=loc; pincl_mod=mod_; pincl_kind=kind; _}, moda) ->
           begin match kind with
           | Functor ->
               Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
@@ -1160,8 +1173,12 @@ and approx_sig env ssg =
           | Structure ->
               let mty = approx_modtype env mod_ in
               let scope = Ctype.create_scope () in
-              let sg, newenv = Env.enter_signature ~scope
-                  (extract_sig env loc mty) env in
+              let sg = extract_sig env loc mty in
+              let modalities =
+                Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
+              in
+              let sg = apply_modalities_signature modalities sg in
+              let sg, newenv = Env.enter_signature ~scope sg env in
               sg @ approx_sig newenv srem
           end
       | Psig_class sdecls | Psig_class_type sdecls ->
@@ -1657,7 +1674,7 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
 and transl_signature env (sg : Parsetree.signature) =
   let names = Signature_names.create () in
 
-  let transl_include ~loc env sig_acc sincl =
+  let transl_include ~loc env sig_acc sincl modalities =
     let smty = sincl.pincl_mod in
     let tmty =
       Builtin_attributes.warning_scope sincl.pincl_attributes
@@ -1676,6 +1693,10 @@ and transl_signature env (sg : Parsetree.signature) =
       | Structure ->
         Tincl_structure, extract_sig env smty.pmty_loc mty
     in
+    let modalities =
+      Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+    in
+    let sg = apply_modalities_signature modalities sg in
     let sg, newenv = Env.enter_signature ~scope sg env in
     Signature_group.iter
       (Signature_names.check_sig_item names loc)
@@ -1688,7 +1709,7 @@ and transl_signature env (sg : Parsetree.signature) =
         incl_loc = sincl.pincl_loc;
       }
     in
-    mksig (Tsig_include incl) env loc, sg, newenv
+    mksig (Tsig_include (incl, modalities)) env loc, sg, newenv
   in
 
   let transl_sig_item_jst ~loc:_ _env _sig_acc : Jane_syntax.Signature_item.t -> _ =
@@ -1905,8 +1926,8 @@ and transl_signature env (sg : Parsetree.signature) =
     | Psig_open sod ->
         let (od, newenv) = type_open_descr env sod in
         mksig (Tsig_open od) env loc, [], newenv
-    | Psig_include sincl ->
-        transl_include ~loc env sig_acc sincl
+    | Psig_include (sincl, modalities) ->
+        transl_include ~loc env sig_acc sincl modalities
     | Psig_class cl ->
         let (classes, newenv) = Typeclass.class_descriptions env cl in
         List.iter (fun cls ->

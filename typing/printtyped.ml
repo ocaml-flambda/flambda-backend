@@ -919,7 +919,7 @@ and signature_item i ppf x =
         fmt_override_flag od.open_override
         fmt_path (fst od.open_expr);
       attributes i ppf od.open_attributes
-  | Tsig_include incl ->
+  | Tsig_include (incl, _) ->
       line i ppf "Tsig_include\n";
       attributes i ppf incl.incl_attributes;
       module_type i ppf incl.incl_mod

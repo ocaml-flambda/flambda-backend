@@ -1378,6 +1378,10 @@ and include_ : 'a. ctxt -> formatter ->
       (contents ctxt) incl.pincl_mod
       (item_attributes ctxt) incl.pincl_attributes
 
+and sig_include ctxt f incl moda =
+  include_ ctxt f ~contents:module_type incl;
+  optional_atat_modalities f moda
+
 and kind_abbrev ctxt f name jkind =
   pp f "@[<hov2>kind_abbrev_@ %a@ =@ %a@]"
     string_loc name
@@ -1534,8 +1538,8 @@ and signature_item ctxt f x : unit =
         (override od.popen_override)
         longident_loc od.popen_expr
         (item_attributes ctxt) od.popen_attributes
-  | Psig_include incl ->
-      include_ ctxt f ~contents:module_type incl
+  | Psig_include (incl, modalities) ->
+      sig_include ctxt f incl modalities
   | Psig_modtype {pmtd_name=s; pmtd_type=md; pmtd_attributes=attrs} ->
       pp f "@[<hov2>module@ type@ %s%a@]%a"
         s.txt

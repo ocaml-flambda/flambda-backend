@@ -488,8 +488,11 @@ module type S = sig
         (** Apply a modality on mode. *)
         val apply : t -> ('l * 'r) Value.t -> ('l * 'r) Value.t
 
-        (** [compose m t] returns the modality that is [m] after [t]. *)
+        (** [compose ~then_ t] returns the modality that is [then_] after [t]. *)
         val compose : then_:atom -> t -> t
+
+        (** [concat ~then t] returns the modality that is [then_] after [t]. *)
+        val concat : then_:t -> t -> t
 
         (** [singleton m] returns the modality containing only [m]. *)
         val singleton : atom -> t

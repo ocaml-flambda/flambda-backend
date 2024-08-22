@@ -674,15 +674,16 @@ module Signature_item0 = Make_with_extension_node (struct
   let match_extension_use sigi =
     match sigi.psig_desc with
     | Psig_include
-        { pincl_mod =
-            { pmty_desc =
-                Pmty_signature
-                  [{ psig_desc = Psig_extension (ext, []); _ }; sigi];
-              _
-            };
-          pincl_kind = Structure;
-          _
-        } ->
+        ( { pincl_mod =
+              { pmty_desc =
+                  Pmty_signature
+                    [{ psig_desc = Psig_extension (ext, []); _ }; sigi];
+                _
+              };
+            pincl_kind = Structure;
+            _
+          },
+          [] ) ->
       Some (ext, sigi)
     | _ -> None
 end)
