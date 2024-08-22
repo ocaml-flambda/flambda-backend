@@ -2516,7 +2516,7 @@ let rec local_non_recursive_abbrev ~allow_rec strict visited env p ty =
             try (Env.find_type p' env).type_params
             with Not_found -> AppArgs.to_list args
           in
-          AppArgs.iter2
+          AppArgs.iter_with_list
             (fun tv ty ->
               let strict = strict || not (is_Tvar tv) in
               local_non_recursive_abbrev ~allow_rec strict visited env p ty)
@@ -2676,7 +2676,7 @@ let univars_escape env univar_pairs vl ty =
       | Tconstr (p, tl, _) ->
           begin try
             let td = Env.find_type p env in
-            AppArgs.iter2
+            AppArgs.iter_with_list
               (* see occur_univar *)
               (fun v t -> if not Variance.(eq v null) then occur t)
               td.type_variance tl

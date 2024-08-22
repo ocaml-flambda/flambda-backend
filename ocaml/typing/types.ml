@@ -1241,7 +1241,7 @@ module AppArgs = struct
   | Unapplied -> ()
   | Applied args -> List.iter f args
 
-  let iter2 f xs = function
+  let iter_with_list f xs = function
   | Unapplied -> ()
   | Applied args -> List.iter2 f xs args
 

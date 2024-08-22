@@ -1965,7 +1965,7 @@ let check_regularity ~abs_env env loc path decl to_check =
               let (params, body) =
                 Ctype.instance_parameterized_type params0 body0 in
               begin
-                try AppArgs.iter2 (Ctype.unify abs_env) params args'
+                try AppArgs.iter_with_list (Ctype.unify abs_env) params args'
                 with Ctype.Unify err ->
                   raise (Error(loc, Constraint_failed (abs_env, err)));
               end;
@@ -2390,7 +2390,7 @@ let transl_extension_constructor ~scope env type_path type_params
               in
               let decl = Ctype.instance_declaration decl in
               assert (AppArgs.matches_decl decl tl);
-              AppArgs.iter2 (Ctype.unify env) decl.type_params tl;
+              AppArgs.iter_with_list (Ctype.unify env) decl.type_params tl;
               let lbls =
                 match decl.type_kind with
                 | Type_record (lbls, Record_inlined _) -> lbls
