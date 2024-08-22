@@ -629,6 +629,7 @@ and labeled_type ppf (label, ty) =
   raw_type ppf ty
 
 and raw_type_list tl = raw_list raw_type tl
+and raw_app_args ppf tl = raw_type_list ppf (AppArgs.to_list tl)
 and labeled_type_list tl = raw_list labeled_type tl
 and raw_lid_type_list tl =
   raw_list (fun ppf (lid, typ) ->
@@ -648,18 +649,18 @@ and raw_type_desc ppf = function
       fprintf ppf "@[<1>Ttuple@,%a@]" labeled_type_list tl
   | Tconstr (p, tl, abbrev) ->
       fprintf ppf "@[<hov1>Tconstr(@,%a,@,%a,@,%a)@]" path p
-        raw_type_list (AppArgs.to_list tl)
+        raw_app_args tl
         (raw_list path) (list_of_memo !abbrev)
   | Tapp (t, tl) ->
       fprintf ppf "@[<hov1>Tapp(@,%a,@,%a)@]"
         raw_type t
-        raw_type_list (AppArgs.to_list tl)
+        raw_app_args tl
   | Tobject (t, nm) ->
       fprintf ppf "@[<hov1>Tobject(@,%a,@,@[<1>ref%t@])@]" raw_type t
         (fun ppf ->
           match !nm with None -> fprintf ppf " None"
           | Some(p,tl) ->
-              fprintf ppf "(Some(@,%a,@,%a))" path p raw_type_list tl)
+              fprintf ppf "(Some(@,%a,@,%a))" path p raw_app_args tl)
   | Tfield (f, k, t1, t2) ->
       fprintf ppf "@[<hov1>Tfield(@,%s,@,%s,@,%a,@;<0 -1>%a)@]" f
         (string_of_field_kind k)
@@ -690,7 +691,7 @@ and raw_type_desc ppf = function
         (fun ppf ->
           match name with None -> fprintf ppf "None"
           | Some(p,tl) ->
-              fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
+              fprintf ppf "Some(@,%a,@,%a)" path p raw_app_args tl)
   | Tpackage (p, fl) ->
       fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
         raw_lid_type_list fl
@@ -987,7 +988,7 @@ let printer_iter_type_expr f ty =
   | Tvariant row -> begin
       match row_name row with
       | Some(_p, tyl) when nameable_row row ->
-          List.iter f tyl
+          AppArgs.iter f tyl
       | _ ->
           iter_row f row
     end
@@ -1001,7 +1002,7 @@ let printer_iter_type_expr f ty =
                  f ty)
             fields
       | Some (_, l) ->
-          List.iter f (List.tl l)
+          List.iter f (AppArgs.to_list l |> List.tl)
     end
   | Tfield(_, kind, ty1, ty2) ->
       if field_kind_repr kind = Fpublic then
@@ -1299,7 +1300,7 @@ let out_jkind_option_of_jkind jkind =
   match Jkind.get jkind with
   | Type ty -> begin
     match Jkind.Type.get ty with
-    | Const jkind -> 
+    | Const jkind ->
       let value_jkind = Jkind.Type.Const.Primitive.value.jkind in
       let value_or_null_jkind = Jkind.Type.Const.Primitive.value_or_null.jkind in
       let is_value = Jkind.Type.Const.equal jkind value_jkind
@@ -1455,7 +1456,7 @@ let rec tree_of_typexp mode alloc_mode ty =
         | Some(p, tyl) when nameable_row row ->
             let (p', s) = best_type_path p in
             let id = tree_of_path (Some Type) p' in
-            let args = tree_of_typlist mode (apply_subst s tyl) in
+            let args = tree_of_typlist mode (apply_subst s (AppArgs.to_list tyl)) in
             let out_variant =
               if is_nth s then List.hd args else Otyp_constr (id, args) in
             if closed && all_present then
@@ -1599,7 +1600,7 @@ and tree_of_typobject mode fi nm =
         tree_of_typfields mode rest sorted_fields in
       let (fields, open_row) = pr_fields fi in
       Otyp_object {fields; open_row}
-  | Some (p, _ty :: tyl) ->
+  | Some (p, Applied (_ty :: tyl)) ->
       let args = tree_of_typlist mode tyl in
       let (p', s) = best_type_path p in
       assert (s = Id);

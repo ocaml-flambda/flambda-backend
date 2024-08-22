@@ -322,7 +322,7 @@ let rec typexp copy_scope s ty =
             | Some (p, tl) ->
                 if to_subst_by_type_function s p
                 then None
-                else Some (type_path s p, List.map (typexp copy_scope s) tl)
+                else Some (type_path s p, AppArgs.map (typexp copy_scope s) tl)
           in
           Tobject (t1', ref name')
       | Tvariant row ->

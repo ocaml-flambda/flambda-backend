@@ -136,7 +136,7 @@ let rec immediate_subtypes : type_expr -> type_expr list = fun ty ->
       let class_subtys =
         match !class_ty with
         | None        -> []
-        | Some(_,tys) -> tys
+        | Some(_,tys) -> AppArgs.to_list tys
       in
       immediate_subtypes_object_row class_subtys row
   | Tvariant(row) ->

@@ -487,7 +487,7 @@ let set_object_name id params ty =
   match get_desc ty with
   | Tobject (fi, nm) ->
       let rv = fields_row_variable fi in
-      set_name nm (Some (Path.Pident id, rv::params))
+      set_name nm (Some (Path.Pident id, AppArgs.of_list (rv :: params)))
   | Tconstr (_, _, _) -> ()
   | _ -> fatal_error "Ctype.set_object_name"
 
@@ -2411,7 +2411,7 @@ let full_expand ~may_forget_scope env ty =
     else expand_head env ty
   in
   match get_desc ty with
-    Tobject (fi, {contents = Some (_, v::_)}) when is_Tvar v ->
+    Tobject (fi, {contents = Some (_, Applied (v::_))}) when is_Tvar v ->
       newty2 ~level:(get_level ty) (Tobject (fi, ref None))
   | _ ->
       ty
@@ -3665,7 +3665,7 @@ and unify3 env t1 t1' t2 t2' =
           (* Type [t2'] may have been instantiated by [unify_fields] *)
           (* XXX One should do some kind of unification... *)
           begin match get_desc t2' with
-            Tobject (_, {contents = Some (_, va::_)}) when
+            Tobject (_, {contents = Some (_, Applied (va::_))}) when
               (match get_desc va with
                 Tvar _|Tunivar _|Tnil -> true | _ -> false) -> ()
           | Tobject (_, nm2) -> set_name nm2 !nm1
@@ -5763,7 +5763,7 @@ let rec build_subtype env (visited : transient_expr list)
           (* Fix PR#4505: do not set ty to Tvar when it appears in tl1,
              as this occurrence might break the occur check.
              XXX not clear whether this correct anyway... *)
-          if deep_occur_list ty tl1 then raise Not_found;
+          if deep_occur_list ty (AppArgs.to_list tl1) then raise Not_found;
           set_type_desc ty
             (Tvar { name = None;
                     jkind = Jkind.Type.Primitive.value
@@ -6366,7 +6366,7 @@ let rec normalize_type_rec visited ty =
     | Tobject (fi, nm) ->
         begin match !nm with
         | None -> ()
-        | Some (n, v :: l) ->
+        | Some (n, Applied (v :: l)) ->
             if deep_occur_list ty l then
               (* The abbreviation may be hiding something, so remove it *)
               set_name nm None
@@ -6458,7 +6458,7 @@ let rec nondep_type_rec ?(expand_private=false) env ids ty =
                         None -> None
                       | Some (p, tl) ->
                           if Path.exists_free ids p then None
-                          else Some (p, List.map (nondep_type_rec env ids) tl)))
+                          else Some (p, AppArgs.map (nondep_type_rec env ids) tl)))
       | Tvariant row ->
           let more = row_more row in
           (* We must keep sharing according to the row variable *)

@@ -1684,9 +1684,9 @@ let build_or_pat env loc lid =
       Jkind.Type.Primitive.value
       ~why:(Type_argument {parent_path = path; position = i+1; arity})
     )
-  ) decl.type_params in
+  ) decl.type_params |> AppArgs.of_list in
   let row0 =
-    let ty = expand_head env (newty(Tconstr(path, AppArgs.of_list tyl, ref Mnil))) in
+    let ty = expand_head env (newty(Tconstr(path, tyl, ref Mnil))) in
     match get_desc ty with
       Tvariant row when static_row row -> row
     | _ -> raise(Error(lid.loc, env, Not_a_polymorphic_variant_type lid.txt))

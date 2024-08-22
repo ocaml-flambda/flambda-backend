@@ -230,7 +230,7 @@ let set_static_row_name decl path =
       match get_desc ty with
         Tvariant row when static_row row ->
           let row =
-            set_row_name row (Some (path, decl.type_params)) in
+            set_row_name row (Some (path, AppArgs.of_list decl.type_params)) in
           set_type_desc ty (Tvariant row)
       | _ -> ()
 
@@ -253,7 +253,7 @@ let fold_row f init row =
   match get_desc (row_more row) with
   | Tvar _ | Tunivar _ | Tsubst _ | Tconstr _ | Tnil ->
     begin match
-      Option.map (fun (_,l) -> List.fold_left f result l) (row_name row)
+      Option.map (fun (_,l) -> AppArgs.fold_left f result l) (row_name row)
     with
     | None -> result
     | Some result -> result
@@ -274,7 +274,7 @@ let fold_type_expr f init ty =
   | Tapp (ty, l)        -> AppArgs.fold_left f (f init ty) l
   | Tobject(ty, {contents = Some (_, p)}) ->
       let result = f init ty in
-      List.fold_left f result p
+      AppArgs.fold_left f result p
   | Tobject (ty, _)     -> f init ty
   | Tvariant row        ->
       let result = fold_row f init row in
@@ -440,7 +440,7 @@ let copy_row f fixed row keep more =
   let name =
     match orig_name with
     | None -> None
-    | Some (path, tl) -> Some (path, List.map f tl) in
+    | Some (path, tl) -> Some (path, AppArgs.map f tl) in
   let fixed = if fixed then orig_fixed else None in
   create_row ~fields ~more ~fixed ~closed ~name
 
@@ -454,7 +454,7 @@ let rec copy_type_desc ?(keep_names=false) f = function
   | Tconstr (p, l, _)   -> Tconstr (p, AppArgs.map f l, ref Mnil)
   | Tapp (ty, l)        -> Tapp (f ty, AppArgs.map f l)
   | Tobject(ty, {contents = Some (p, tl)})
-                        -> Tobject (f ty, ref (Some(p, List.map f tl)))
+                        -> Tobject (f ty, ref (Some(p, AppArgs.map f tl)))
   | Tobject (ty, _)     -> Tobject (f ty, ref None)
   | Tvariant _          -> assert false (* too ambiguous *)
   | Tfield (p, k, ty1, ty2) ->

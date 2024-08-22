@@ -41,7 +41,7 @@ and type_desc =
   | Ttuple of (string option * type_expr) list
   | Tconstr of Path.t * app_args * abbrev_memo ref
   | Tapp of type_expr * app_args
-  | Tobject of type_expr * (Path.t * type_expr list) option ref
+  | Tobject of type_expr * (Path.t * app_args) option ref
   | Tfield of string * field_kind * type_expr * type_expr
   | Tnil
   | Tlink of type_expr
@@ -69,7 +69,7 @@ and row_desc =
       row_more: type_expr;
       row_closed: bool;
       row_fixed: fixed_explanation option;
-      row_name: (Path.t * type_expr list) option }
+      row_name: (Path.t * app_args) option }
 and fixed_explanation =
   | Univar of type_expr | Fixed_private | Reified of Path.t | Rigid
 and row_field = [`some] row_field_gen
@@ -781,7 +781,7 @@ type change =
   | Clevel : type_expr * int -> change
   | Cscope : type_expr * int -> change
   | Cname :
-      (Path.t * type_expr list) option ref * (Path.t * type_expr list) option -> change
+      (Path.t * app_args) option ref * (Path.t * app_args) option -> change
   | Crow : [`none|`some] row_field_gen ref -> change
   | Ckind : [`var] field_kind_gen -> change
   | Ccommu : [`var] commutable_gen -> change
@@ -947,7 +947,7 @@ type row_desc_repr =
              more:type_expr;
              closed:bool;
              fixed:fixed_explanation option;
-             name:(Path.t * type_expr list) option }
+             name:(Path.t * app_args) option }
 
 let row_repr row =
   let fields = row_fields row in
