@@ -238,7 +238,7 @@ let simple_abbrevs = ref Mnil
 
 let proper_abbrevs tl abbrev =
   match tl with
-  | Unapplied -> abbrev
+  | Applied _ -> abbrev
   | _ -> if !trace_gadt_instances || !Clflags.principal then abbrev else simple_abbrevs
 
 (**** Some type creators ****)
@@ -5171,7 +5171,7 @@ and eqtype_appargs rename type_pairs subst env tl1 tl2 =
   match tl1, tl2 with
   | Unapplied, Unapplied -> ()
   | Applied tl1, Applied tl2 -> eqtype_list rename type_pairs subst env tl1 tl2
-  | _ -> raise_unexplained_for Unify
+  | _ -> raise_unexplained_for Equality
 
 and eqtype_labeled_list rename type_pairs subst env labeled_tl1 labeled_tl2 =
   if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
