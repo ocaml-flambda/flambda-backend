@@ -284,7 +284,7 @@ module Sig = struct
   let modtype ?loc a = mk ?loc (Psig_modtype a)
   let modtype_subst ?loc a = mk ?loc (Psig_modtypesubst a)
   let open_ ?loc a = mk ?loc (Psig_open a)
-  let include_ ?loc a = mk ?loc (Psig_include a)
+  let include_ ?loc ?(modalities = []) a = mk ?loc (Psig_include (a, modalities))
   let class_ ?loc a = mk ?loc (Psig_class a)
   let class_type ?loc a = mk ?loc (Psig_class_type a)
   let extension ?loc ?(attrs = []) a = mk ?loc (Psig_extension (a, attrs))

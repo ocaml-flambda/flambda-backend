@@ -961,7 +961,7 @@ and signature_item_desc =
   | Psig_modtypesubst of module_type_declaration
       (** [module type S :=  ...]  *)
   | Psig_open of open_description  (** [open X] *)
-  | Psig_include of include_description  (** [include MT] *)
+  | Psig_include of include_description * modalities (** [include MT] *)
   | Psig_class of class_description list
       (** [class c1 : ... and ... and cn : ...] *)
   | Psig_class_type of class_type_declaration list

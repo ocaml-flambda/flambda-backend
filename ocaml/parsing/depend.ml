@@ -569,7 +569,7 @@ and add_sig_item (bv, m) item =
       (bv, m)
   | Psig_open od ->
       (open_description bv od, m)
-  | Psig_include incl ->
+  | Psig_include (incl, _) ->
       add_include_description (bv, m) incl
   | Psig_class cdl ->
       List.iter (add_class_description bv) cdl; (bv, m)

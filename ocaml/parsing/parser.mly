@@ -1998,9 +1998,9 @@ signature_item:
         { let (ext, l) = $1 in (Psig_class_type l, ext) }
     )
     { $1 }
-  | include_statement(module_type)
+  | include_statement(module_type) modalities = optional_atat_modalities_expr
       { let incl, ext = $1 in
-        let item = mksig ~loc:$sloc (Psig_include incl) in
+        let item = mksig ~loc:$sloc (Psig_include (incl, modalities)) in
         wrap_sig_ext ~loc:$sloc item ext
       }
   | kind_abbreviation_decl

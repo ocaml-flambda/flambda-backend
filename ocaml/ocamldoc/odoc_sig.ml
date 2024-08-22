@@ -576,10 +576,10 @@ module Analyser =
         | Parsetree.Psig_typext _
         | Parsetree.Psig_exception _
         | Parsetree.Psig_open _
-        | Parsetree.Psig_include {pincl_kind=Structure;_}
+        | Parsetree.Psig_include ({pincl_kind=Structure;_}, _)
         | Parsetree.Psig_class _
         | Parsetree.Psig_class_type _ as tp -> take_item tp
-        | Parsetree.Psig_include {pincl_kind=Functor;_}
+        | Parsetree.Psig_include ({pincl_kind=Functor;_}, _)
         | Parsetree.Psig_typesubst _ -> acc
         | Parsetree.Psig_type (rf, types) ->
           (match List.filter (fun td -> not (is_erased td.Parsetree.ptype_name.txt erased)) types with
@@ -1456,7 +1456,7 @@ module Analyser =
             in
             (maybe_more, new_env2, [ Element_module_type mt ])
 
-        | Parsetree.Psig_include incl ->
+        | Parsetree.Psig_include (incl, _) ->
             analyse_signature_item_desc_include ~env ~comment_opt incl
 
         | Parsetree.Psig_class class_description_list ->
