@@ -137,25 +137,27 @@ let rec generate_dummy_expr env etyp =
                 };
               ];
           }
-    | Tconstr (Pident id, Unapplied, _) when is_known id -> (
-        match name id with
-        | "int" -> Texp_constant (Const_int 0)
-        | "char" -> Texp_constant (Const_char '0')
-        | "string" -> Texp_constant (Const_string ("", Location.none, None))
-        | "unit" -> Texp_tuple []
-        | _ -> assert false)
-    | Tconstr (path, te_list, _) -> (
-        let te_list = AppArgs.to_list te_list in
-        let td = find_type path env in
-        match td.type_kind with
-        | Type_variant (cstr_list, _) ->
-            let cons = find_simpler_cons path cstr_list in
-            let cons_descr = find_ident_constructor cons.cd_id env in
-            Texp_construct
-              ( { txt = Lident (Ident.name cons.cd_id); loc = Location.none },
-                cons_descr,
-                List.map (generate_dummy_expr env) te_list )
-        | _ -> failwith "todo")
+    | Tconstr (path, te_list, _) as constr -> (
+        match unwrap_path_if_unapplied_constr constr with
+        | Some (Pident id) when is_known id -> (
+            match name id with
+            | "int" -> Texp_constant (Const_int 0)
+            | "char" -> Texp_constant (Const_char '0')
+            | "string" -> Texp_constant (Const_string ("", Location.none, None))
+            | "unit" -> Texp_tuple []
+            | _ -> assert false)
+        | _ -> (
+            let te_list = AppArgs.to_list te_list in
+            let td = find_type path env in
+            match td.type_kind with
+            | Type_variant (cstr_list, _) ->
+                let cons = find_simpler_cons path cstr_list in
+                let cons_descr = find_ident_constructor cons.cd_id env in
+                Texp_construct
+                  ( { txt = Lident (Ident.name cons.cd_id); loc = Location.none },
+                    cons_descr,
+                    List.map (generate_dummy_expr env) te_list )
+            | _ -> failwith "todo"))
     | Tobject _ -> assert false
     | Tfield _ -> assert false
     | Tnil -> failwith "tnil"
