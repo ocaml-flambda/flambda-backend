@@ -522,6 +522,13 @@ let mode_strictly_local expected_mode =
 let mode_coerce mode expected_mode =
   mode_morph (fun m -> Value.meet [m; mode]) expected_mode
 
+let mode_lazy expected_mode =
+  let expected_mode =
+    mode_coerce (Value.max_with (Comonadic Areality) Regionality.global)
+      expected_mode
+  in
+  {expected_mode with locality_context = Some Lazy }
+
 let mode_tailcall_function mode =
   { (mode_default mode) with
     locality_context = Some Tailcall_function }
@@ -613,6 +620,12 @@ let tuple_pat_mode mode tuple_modes =
   let tuple_modes = Some (Value.List.disallow_right tuple_modes) in
   { mode; tuple_modes }
 
+let global_pat_mode {mode; _}=
+  let mode =
+    Value.meet_with (Comonadic Areality) Regionality.Const.Global mode
+  in
+  simple_pat_mode mode
+
 let allocations : Alloc.r list ref = Local_store.s_ref []
 
 let reset_allocations () = allocations := []
@@ -634,7 +647,7 @@ let register_allocation (expected_mode : expected_mode) =
   let alloc_mode, mode =
     register_allocation_value_mode (as_single_mode expected_mode)
   in
-  let alloc_mode =
+  let alloc_mode : alloc_mode =
     { mode = alloc_mode;
       locality_context = expected_mode.locality_context }
   in
@@ -2884,7 +2897,8 @@ and type_pat_aux
            pat_env = !!penv }
   | Ppat_lazy sp1 ->
       let nv = solve_Ppat_lazy ~refine:false loc penv expected_ty in
-      let p1 = type_pat tps Value sp1 nv in
+      let alloc_mode = global_pat_mode alloc_mode in
+      let p1 = type_pat ~alloc_mode tps Value sp1 nv in
       rvp {
         pat_desc = Tpat_lazy p1;
         pat_loc = loc; pat_extra=[];
@@ -4912,7 +4926,7 @@ let split_function_ty
     | true ->
         let env =
           Env.add_closure_lock
-            ?locality_context:expected_mode.locality_context
+            (Function expected_mode.locality_context)
             (alloc_as_value alloc_mode).comonadic
             env
         in
@@ -6176,14 +6190,14 @@ and type_expect_
         exp_env = env;
       }
   | Pexp_lazy e ->
-      submode ~loc ~env Value.legacy expected_mode;
+      let expected_mode = mode_lazy expected_mode in
       let ty = newgenvar (Jkind.Builtin.value ~why:Lazy_expression) in
       let to_unify = Predef.type_lazy_t ty in
       with_explanation (fun () ->
         unify_exp_types loc env to_unify (generic_instance ty_expected));
-      let env = Env.add_escape_lock Lazy env in
-      let env = Env.add_share_lock Lazy env in
-      let arg = type_expect env mode_legacy e (mk_expected ty) in
+      let closure_mode = (as_single_mode expected_mode).comonadic in
+      let env = Env.add_closure_lock Lazy closure_mode env in
+      let arg = type_expect env expected_mode e (mk_expected ty) in
       re {
         exp_desc = Texp_lazy arg;
         exp_loc = loc; exp_extra = [];
@@ -9651,6 +9665,10 @@ let stack_hint (context : Env.locality_context option) =
     [ Location.msg
         "@[Hint: This function cannot be stack-allocated,@ \
          because it is the function in a tail call.@]" ]
+  | Some Lazy ->
+    [ Location.msg
+        "@[Hint: This expression cannot be stack-allocated,@ \
+         because it is the result of a lazy expression.@]" ]
   | Some Partial_application -> assert false
   | None -> []
 
@@ -9678,6 +9696,9 @@ let escaping_hint (failure_reason : Value.error) submode_reason
     | _, Partial_application ->
       [ Location.msg
           "@[Hint: It is captured by a partial application.@]" ]
+    | _, Lazy ->
+      [ Location.msg
+          "@[Hint: It is the result of a lazy expression.@]" ]
     end
   | _, _ -> []
   end

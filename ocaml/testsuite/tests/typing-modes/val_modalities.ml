@@ -314,7 +314,7 @@ end
 Line 6, characters 12-15:
 6 |     let _ = M.x in
                 ^^^
-Error: The value "M.x" is nonportable, so cannot be used inside a closure that is portable.
+Error: The value "M.x" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 (* Modalities on primitives are supported. They are simpler than real values,
