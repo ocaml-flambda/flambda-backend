@@ -309,6 +309,8 @@ type primitive =
   | Pbox_float of boxed_float * alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
+  | Punbox_vector of boxed_vector
+  | Pbox_vector of boxed_vector * alloc_mode
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Preinterpret_tagged_int63_as_unboxed_int64
     (** At present [Preinterpret_unboxed_int64_as_tagged_int63] and

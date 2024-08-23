@@ -112,6 +112,7 @@ let preserve_tailcall_for_prim = function
   | Pobj_magic _
   | Prunstack | Pperform | Presume | Preperform
   | Pbox_float (_, _) | Punbox_float _
+  | Pbox_vector (_, _) | Punbox_vector _
   | Pbox_int _ | Punbox_int _ ->
       true
   | Pbytes_to_string | Pbytes_of_string
@@ -602,8 +603,9 @@ let comp_primitive stack_info p sz args =
   | Pfloatarray_set_128 _ | Pfloat_array_set_128 _ | Pint_array_set_128 _
   | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
   | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
-  | Punboxed_nativeint_array_set_128 _ ->
-    fatal_error "128-bit load/store is not supported in bytecode mode."
+  | Punboxed_nativeint_array_set_128 _
+  | Pbox_vector _ | Punbox_vector _ ->
+    fatal_error "SIMD is not supported in bytecode mode."
   | Preinterpret_tagged_int63_as_unboxed_int64 ->
     if not (Target_system.is_64_bit ())
     then
