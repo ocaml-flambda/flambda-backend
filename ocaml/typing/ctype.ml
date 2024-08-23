@@ -552,6 +552,10 @@ let remove_mode_and_jkind_variables ty =
 type variable_kind = Row_variable | Type_variable
 exception Non_closed of type_expr * variable_kind
 
+let is_generic_expansion : Env.type_expansion -> bool = function
+  | Exp_expr body -> get_level body = generic_level
+  | Exp_path _ -> true
+
 (* [free_vars] collects the variables of the input type expression. It
    is used for several different things in the type-checker, with the
    following bells and whistles:
@@ -578,8 +582,8 @@ let free_vars ?env tys =
           let acc =
             match Env.find_type_expansion path env with
             | exception Not_found -> acc
-            | (_, body, _) ->
-                if get_level body = generic_level then acc
+            | (_, exp, _) ->
+                if is_generic_expansion exp then acc
                 else (ty, kind) :: acc
           in
           List.fold_left (fv ~kind:Type_variable) acc tl
@@ -1879,9 +1883,14 @@ let expand_abbrev_gen kind find_type_expansion env ty =
             let path' = Env.normalize_type_path None env path in
             if Path.same path path' then raise Cannot_expand
             else newty2 ~level (Tconstr (path', args, abbrev))
-          | (params, body, lv) ->
+          | (params, (expansion : Env.type_expansion), lv) ->
             (* prerr_endline
               ("add a "^string_of_kind kind^" expansion for "^Path.name path);*)
+            let body =
+              match expansion with
+              | Exp_expr body -> body
+              | Exp_path path -> newgenty (Tconstr (path, params, ref Mnil))
+            in
             let ty' =
               try
                 subst env level kind abbrev (Some ty) params args body
@@ -2402,8 +2411,8 @@ let full_expand ~may_forget_scope env ty =
 *)
 let generic_abbrev env path =
   try
-    let (_, body, _) = Env.find_type_expansion path env in
-    get_level body = generic_level
+    let (_, exp, _) = Env.find_type_expansion path env in
+    is_generic_expansion exp
   with
     Not_found ->
       false

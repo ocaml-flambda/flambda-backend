@@ -2003,9 +2003,9 @@ let check_regularity ~abs_env env loc path decl to_check =
                  (otherwise we could loop if [path'] is itself
                  a non-regular abbreviation). *)
           else if to_check path' && not (List.mem path' prev_exp) then begin
-            try
               (* Attempt expansion *)
-              let (params0, body0, _) = Env.find_type_expansion path' env in
+            match Env.find_type_expansion path' env with
+            | (params0, Exp_expr body0, _) ->
               let (params, body) =
                 Ctype.instance_parameterized_type params0 body0 in
               begin
@@ -2016,7 +2016,7 @@ let check_regularity ~abs_env env loc path decl to_check =
               check_regular path' args
                 (path' :: prev_exp) (Expands_to (ty,body) :: trace)
                 body
-            with Not_found -> ()
+             | (_, Exp_path _, _) | exception Not_found -> ()
           end;
           List.iter (check_subtype cpath args prev_exp trace ty) args'
       | Tpoly (ty, tl) ->

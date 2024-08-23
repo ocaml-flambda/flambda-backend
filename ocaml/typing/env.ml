@@ -728,6 +728,10 @@ let empty_structure =
     comp_classes = NameMap.empty;
     comp_cltypes = NameMap.empty }
 
+type type_expansion =
+  | Exp_expr of type_expr
+  | Exp_path of Path.t
+
 type unbound_value_hint =
   | No_hint
   | Missing_rec of Location.t
@@ -1537,11 +1541,12 @@ let find_module_lazy path env =
    - the type should have an associated manifest type. *)
 let find_type_expansion path env =
   let decl = find_type path env in
-  match get_type_manifest decl with
-  | Some body when get_type_private decl = Public
-              || not (Btype.type_kind_is_abstract decl)
-              || Btype.has_constr_row body ->
-      (get_type_params decl, body, decl.type_expansion_scope)
+  match decl.type_noun with
+  | Equation { eq = Type_abbrev { priv; expansion } }
+    when priv = Public || Btype.has_constr_row expansion ->
+      (get_type_params decl, Exp_expr expansion, decl.type_expansion_scope)
+  | Datatype { manifest = Some path; noun = _ } ->
+      (get_type_params decl, Exp_path path, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
      private row are still considered unknown to the type system.
      Hence, this case is caught by the following clause that also handles
@@ -1554,11 +1559,13 @@ let find_type_expansion path env =
    is revealed for the sake of compiler's type-based optimisations. *)
 let find_type_expansion_opt path env =
   let decl = find_type path env in
-  match get_type_manifest decl with
+  match decl.type_noun with
   (* The manifest type of Private abstract data types can still get
      an approximation using their manifest type. *)
-  | Some body ->
-      (get_type_params decl, body, decl.type_expansion_scope)
+  | Equation { eq = Type_abbrev { priv = _; expansion } } ->
+      (get_type_params decl, Exp_expr expansion, decl.type_expansion_scope)
+  | Datatype { manifest = Some path; noun = _ } ->
+      (get_type_params decl, Exp_path path, decl.type_expansion_scope)
   | _ -> raise Not_found
 
 let find_modtype_expansion_lazy path env =

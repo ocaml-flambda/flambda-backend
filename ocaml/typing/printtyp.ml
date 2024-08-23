@@ -775,8 +775,9 @@ let rec uniq = function
   | a :: l -> not (List.memq (a : int) l) && uniq l
 
 let rec normalize_type_path ?(cache=false) env p =
-  try
-    let (params, ty, _) = Env.find_type_expansion p env in
+  try match Env.find_type_expansion p env with
+  | (params, Exp_expr ty, _) ->
+    begin
     match get_desc ty with
       Tconstr (p1, tyl, _) ->
         if List.length params = List.length tyl
@@ -790,9 +791,11 @@ let rec normalize_type_path ?(cache=false) env p =
           (p2, compose l1 s2)
     | _ ->
         (p, Nth (index params ty))
-  with
-    Not_found ->
-      (Env.normalize_type_path None env p, Id)
+    end
+  | (_, Exp_path p1, _) ->
+    normalize_type_path ~cache env p1
+  with Not_found ->
+    (Env.normalize_type_path None env p, Id)
 
 let same_printing_env env =
   let used_pers = Env.used_persistent () in
