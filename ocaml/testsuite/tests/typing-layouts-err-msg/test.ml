@@ -247,6 +247,7 @@ Error: Signature mismatch:
          type 'a t = 'a
        is not included in
          type ('a : void) t = 'a
+       Their parameters differ:
        The type ('a : value) is not equal to the type ('a0 : void)
        because their layouts are different.
 |}]

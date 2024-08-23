@@ -426,6 +426,7 @@ Error: Signature mismatch:
          type 'a t = 'a constraint 'a = [> `A of int ]
        is not included in
          type 'a t = 'a constraint 'a = [> `A of int | `B of int ]
+       Their parameters differ:
        The type [> `A of int ] is not equal to the type
          [> `A of int | `B of int ]
        The first variant type does not allow tag(s) `B
@@ -450,6 +451,7 @@ Error: Signature mismatch:
          type 'a t = 'a constraint 'a = [> `A of int | `C of float ]
        is not included in
          type 'a t = 'a constraint 'a = [> `A of int ]
+       Their parameters differ:
        The type [> `A of int | `C of float ] is not equal to the type
          [> `A of int ]
        The second variant type does not allow tag(s) `C

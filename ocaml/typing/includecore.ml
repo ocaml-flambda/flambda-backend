@@ -880,33 +880,45 @@ module Variant_diffing = struct
 end
 
 (* Inclusion between "private" annotations *)
-let privacy_mismatch env decl1 decl2 =
-  match get_type_private decl1, get_type_private decl2 with
-  | Private, Public -> begin
-      match get_type_kind decl1, get_type_kind decl2 with
-      | Type_record  _, Type_record  _ -> Some Private_record_type
-      | Type_variant _, Type_variant _ -> Some Private_variant_type
-      | Type_open,      Type_open      -> Some Private_extensible_variant
-      | Type_abstract _, Type_abstract _
-        when Option.is_some (get_type_manifest decl2) -> begin
-          match get_type_manifest decl1 with
-          | Some ty1 -> begin
+let exposes_repr priv1 priv2 = match priv1, priv2 with
+  | Private, Public -> true
+  | Public, Public | Public, Private | Private, Private -> false
+
+let privacy_mismatch env noun1 noun2 =
+  let if_exposes_repr priv1 priv2 x =
+    if exposes_repr priv1 priv2 then Some x else None
+  in
+  match noun1, noun2 with
+  | Datatype { manifest = _; noun = n1}, Datatype { manifest = _; noun = n2 } -> begin
+    match n1, n2 with
+    | Datatype_record { priv = priv1; _ }, Datatype_record { priv = priv2; _ }
+      -> if_exposes_repr priv1 priv2 Private_record_type
+    | Datatype_variant { priv = priv1; _ }, Datatype_variant { priv = priv2; _ }
+      -> if_exposes_repr priv1 priv2 Private_variant_type
+    | Datatype_open { priv = priv1; _ }, Datatype_open { priv = priv2; _}
+      -> if_exposes_repr priv1 priv2 Private_extensible_variant
+    | _, _ -> None
+    end
+  | Equation { eq = eq1 }, Equation { eq = eq2 } -> begin
+    match eq1, eq2 with
+    | _, Type_abstr _ -> None
+    | Type_abstr _, Type_abbrev _ -> None
+    | Type_abbrev { priv = priv1; expansion = ty1 }, Type_abbrev { priv = priv2; expansion = _ } ->
+        match priv1, priv2 with
+        | Private, Public -> begin
+            (* CR jbachurski: Messing with private rows *)
             let ty1 = Ctype.expand_head env ty1 in
             match get_desc ty1 with
             | Tvariant row when Btype.is_constr_row ~allow_ident:true
                                   (row_more row) ->
                 Some Private_row_type
             | Tobject (fi, _) when Btype.is_constr_row ~allow_ident:true
-                                     (snd (Ctype.flatten_fields fi)) ->
+                                    (snd (Ctype.flatten_fields fi)) ->
                 Some Private_row_type
             | _ ->
                 Some Private_type_abbreviation
-            end
-          | None ->
-              None
-        end
-      | _, _ ->
-          None
+          end
+        | Public, Private | Public, Public | Private, Private -> None
     end
   | _, _ ->
       None
@@ -1002,7 +1014,7 @@ let private_object env fields1 params1 fields2 params2 =
     | () -> None
   end
 
-let type_manifest env ty1 params1 ty2 params2 priv2 kind2 =
+let type_manifest env ty1 params1 ty2 params2 priv2 =
   let ty1' = Ctype.expand_head env ty1 and ty2' = Ctype.expand_head env ty2 in
   match get_desc ty1', get_desc ty2' with
   | Tvariant row1, Tvariant row2
@@ -1023,8 +1035,8 @@ let type_manifest env ty1 params1 ty2 params2 priv2 kind2 =
     end
   | _ -> begin
       let is_private_abbrev_2 =
-        match priv2, kind2 with
-        | Private, Type_abstract _ -> begin
+        match priv2 with
+        | Private -> begin
             (* Same checks as the [when] guards from above, inverted *)
             match get_desc ty2' with
             | Tvariant row ->
@@ -1033,7 +1045,7 @@ let type_manifest env ty1 params1 ty2 params2 priv2 kind2 =
                 not (is_absrow env (snd (Ctype.flatten_fields fi)))
             | _ -> true
           end
-        | _, _ -> false
+        | Public -> false
       in
       match
         if is_private_abbrev_2 then
@@ -1045,6 +1057,94 @@ let type_manifest env ty1 params1 ty2 params2 priv2 kind2 =
       | () -> None
     end
 
+let noun_mismatch ~equality ~mark ~loc env check_jkinds params1 noun1 path params2 noun2 =
+  if List.length params1 <> List.length params2 then Some Arity else
+  let err =
+    match privacy_mismatch env noun1 noun2 with
+    | Some err -> Some (Privacy err)
+    | None -> None
+  in
+  if err <> None then err else
+  let err =
+    match Ctype.equal env true params1 params2 with
+    | exception Ctype.Equality err -> Some (Constraint err)
+    | () -> None
+  in
+  if err <> None then err else
+  let kind1, kind2 = get_type_kind_of_noun noun1, get_type_kind_of_noun noun2 in
+  let check_new_manifest ty2 =
+    let ty1 =
+      Btype.newgenty (Tconstr(path, params2, ref Mnil))
+    in
+    match Ctype.equal env false [ty1] [ty2] with
+    | exception Ctype.Equality err -> Some (Manifest err)
+    | () -> None
+  in
+  match noun1, noun2 with
+  | Equation { eq = eq1 }, Equation { eq = eq2 } -> begin
+    match eq1, eq2 with
+    | _, Type_abstr { reason = _} ->
+        check_jkinds ()
+    | Type_abbrev { priv = _; expansion = ty1 }, Type_abbrev { priv; expansion = ty2 } ->
+        type_manifest env ty1 params1 ty2 params2 priv
+    | Type_abstr { reason = _ }, Type_abbrev { priv = _; expansion = ty2 } ->
+        check_new_manifest ty2
+    end
+  | Datatype _, Equation { eq = Type_abbrev { priv = _; expansion = ty2 }} ->
+    let err = check_new_manifest ty2 in
+    if err <> None then err else check_jkinds ()
+  | Datatype _, Equation { eq = Type_abstr { reason = _ }} ->
+    check_jkinds ()
+  | Datatype { manifest = _; noun = n1 }, Datatype { manifest = m2; noun = n2 } -> begin
+    let err =
+      Option.map
+        (fun p -> check_new_manifest (Btype.newgenty (Tconstr(p, params2, ref Mnil))))
+        m2
+      |> Option.join
+    in
+    if err <> None then err else
+    match n1, n2 with
+    | Datatype_variant { priv = _; cstrs = cstrs1; rep = rep1 }, Datatype_variant { priv; cstrs = cstrs2; rep = rep2 } ->
+        if mark then begin
+          let mark usage cstrs =
+            List.iter (Env.mark_constructor_used usage) cstrs
+          in
+          let usage : Env.constructor_usage =
+            match priv with
+            | Public -> Env.Exported
+            | Private -> Env.Exported_private
+          in
+          mark usage cstrs1;
+          if equality then mark Env.Exported cstrs2
+        end;
+        Variant_diffing.compare_with_representation ~loc env
+          params1 params2
+          cstrs1 cstrs2
+          rep1 rep2
+    | Datatype_record { priv = _; lbls = labels1; rep = rep1 }, Datatype_record { priv; lbls = labels2; rep = rep2 } ->
+        if mark then begin
+          let mark usage lbls =
+            List.iter (Env.mark_label_used usage) lbls
+          in
+          let usage : Env.label_usage =
+            match priv with
+            | Public -> Env.Exported
+            | Private -> Env.Exported_private
+          in
+          mark usage labels1;
+          if equality then mark Env.Exported labels2
+        end;
+        Record_diffing.compare_with_representation ~loc env
+          params1 params2
+          labels1 labels2
+          rep1 rep2
+    | Datatype_open { priv = _ }, Datatype_open { priv = _ } -> None
+    | _, _ -> Some (Kind (of_kind kind1, of_kind kind2))
+    end
+
+  | Equation _, Datatype _ -> Some (Kind (of_kind kind1, of_kind kind2))
+
+
 let type_declarations ?(equality = false) ~loc env ~mark name
       decl1 path decl2 =
   Builtin_attributes.check_alerts_inclusion
@@ -1053,82 +1153,19 @@ let type_declarations ?(equality = false) ~loc env ~mark name
     loc
     decl1.type_attributes decl2.type_attributes
     name;
-  if get_type_arity decl1 <> get_type_arity decl2 then Some Arity else
+  (* Note that [decl2.type_jkind] is an upper bound.
+     If it isn't tight, [decl2] must
+     have a manifest, which we check for equality.
+     Similarly, [decl1]'s kind may conservatively approximate its
+     jkind, but [check_decl_jkind] will expand its manifest.  *)
+  let check_jkinds () =
+    match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
+    | Ok _ -> None
+    | Error v -> Some (Jkind v)
+  in
   let err =
-    match privacy_mismatch env decl1 decl2 with
-    | Some err -> Some (Privacy err)
-    | None -> None
-  in
-  if err <> None then err else
-  let err = match (get_type_manifest decl1, get_type_manifest decl2) with
-      (_, None) ->
-        begin
-          match Ctype.equal env true (get_type_params decl1) (get_type_params decl2) with
-          | exception Ctype.Equality err -> Some (Constraint err)
-          | () -> None
-        end
-    | (Some ty1, Some ty2) ->
-         type_manifest env ty1 (get_type_params decl1) ty2 (get_type_params decl2)
-           (get_type_private decl2) (get_type_kind decl2)
-    | (None, Some ty2) ->
-        let ty1 =
-          Btype.newgenty (Tconstr(path, (get_type_params decl2), ref Mnil))
-        in
-        match Ctype.equal env true (get_type_params decl1) (get_type_params decl2) with
-        | exception Ctype.Equality err -> Some (Constraint err)
-        | () ->
-          match Ctype.equal env false [ty1] [ty2] with
-          | exception Ctype.Equality err -> Some (Manifest err)
-          | () -> None
-  in
-  if err <> None then err else
-  let err = match (get_type_kind decl1, get_type_kind decl2) with
-      (_, Type_abstract _) ->
-       (* Note that [decl2.type_jkind] is an upper bound.
-          If it isn't tight, [decl2] must
-          have a manifest, which we're already checking for equality
-          above. Similarly, [decl1]'s kind may conservatively approximate its
-          jkind, but [check_decl_jkind] will expand its manifest.  *)
-        (match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
-         | Ok _ -> None
-         | Error v -> Some (Jkind v))
-    | (Type_variant (cstrs1, rep1), Type_variant (cstrs2, rep2)) ->
-        if mark then begin
-          let mark usage cstrs =
-            List.iter (Env.mark_constructor_used usage) cstrs
-          in
-          let usage : Env.constructor_usage =
-            if get_type_private decl2 = Public then Env.Exported
-            else Env.Exported_private
-          in
-          mark usage cstrs1;
-          if equality then mark Env.Exported cstrs2
-        end;
-        Variant_diffing.compare_with_representation ~loc env
-          (get_type_params decl1)
-          (get_type_params decl2)
-          cstrs1
-          cstrs2
-          rep1
-          rep2
-    | (Type_record(labels1,rep1), Type_record(labels2,rep2)) ->
-        if mark then begin
-          let mark usage lbls =
-            List.iter (Env.mark_label_used usage) lbls
-          in
-          let usage : Env.label_usage =
-            if get_type_private decl2 = Public then Env.Exported
-            else Env.Exported_private
-          in
-          mark usage labels1;
-          if equality then mark Env.Exported labels2
-        end;
-        Record_diffing.compare_with_representation ~loc env
-          (get_type_params decl1) (get_type_params decl2)
-          labels1 labels2
-          rep1 rep2
-    | (Type_open, Type_open) -> None
-    | (_, _) -> Some (Kind (of_kind (get_type_kind decl1), of_kind (get_type_kind decl2)))
+    noun_mismatch ~equality ~mark ~loc env check_jkinds
+      (get_type_params decl1) decl1.type_noun path (get_type_params decl2) decl2.type_noun
   in
   if err <> None then err else
   let abstr = Btype.type_kind_is_abstract decl2 && get_type_manifest decl2 = None in

@@ -436,13 +436,14 @@ let set_type_separability decl separabilities =
         (fun param separability -> { param with separability })
         decl.type_params_ separabilities }
 
-let get_type_kind decl =
-  match decl.type_noun with
+let get_type_kind_of_noun = function
   | Datatype { manifest = _; noun = Datatype_record { priv = _; lbls; rep } } -> Type_record (lbls, rep)
   | Datatype { manifest = _; noun = Datatype_variant { priv = _; cstrs; rep } } -> Type_variant (cstrs, rep)
   | Datatype { manifest = _; noun = Datatype_open _ } -> Type_open
   | Equation { eq = Type_abstr { reason } } -> Type_abstract reason
   | Equation { eq = Type_abbrev _ } -> Type_abstract Abstract_def
+
+let get_type_kind decl = get_type_kind_of_noun decl.type_noun
 
 let get_type_private decl =
   match decl.type_noun with

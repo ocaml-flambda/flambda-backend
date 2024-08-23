@@ -722,6 +722,7 @@ val set_type_separability : type_declaration -> Separability.t list -> type_decl
 val create_type_equation : private_flag -> type_expr option -> type_equation
 val create_type_equation_in_noun : private_flag -> type_expr option -> type_noun
 
+val get_type_kind_of_noun : type_noun -> type_decl_kind
 val get_type_kind : type_declaration -> type_decl_kind
 val get_type_private : type_declaration -> private_flag
 

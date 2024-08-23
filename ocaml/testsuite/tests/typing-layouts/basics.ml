@@ -2078,6 +2078,7 @@ Error: Signature mismatch:
          type 'a t = 'a
        is not included in
          type ('a : any) t = 'a
+       Their parameters differ:
        The type ('a : value) is not equal to the type ('a0 : any)
        because their layouts are different.
 |}]
@@ -2102,6 +2103,7 @@ Error: Signature mismatch:
          type 'a t = 'a -> 'a
        is not included in
          type ('a : any) t = 'a -> 'a
+       Their parameters differ:
        The type ('a : value) is not equal to the type ('a0 : any)
        because their layouts are different.
 |}]
