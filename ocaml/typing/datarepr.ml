@@ -98,13 +98,13 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       ],
       Some tdecl
 
-let constructor_descrs ~current_unit ty_path decl cstrs rep =
-  let ty_res = newgenconstr ty_path (get_type_params decl) in
+let constructor_descrs ~current_unit ty_path params priv cstrs rep jkind =
+  let ty_res = newgenconstr ty_path params in
   let cstr_shapes_and_arg_jkinds =
     match rep with
     | Variant_extensible -> assert false
     | Variant_boxed x -> x
-    | Variant_unboxed -> [| Constructor_uniform_value, [| decl.type_jkind |] |]
+    | Variant_unboxed -> [| Constructor_uniform_value, [| jkind |] |]
   in
   let all_void jkinds = Array.for_all Jkind.is_void_defaulting jkinds in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
@@ -135,7 +135,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
     let cstr_existentials, cstr_args, cstr_inlined =
       (* This is the representation of the inner record, IF there is one *)
       let record_repr = Record_inlined (cstr_tag, cstr_shape, rep) in
-      constructor_args ~current_unit (get_type_private decl) cd_args cd_res
+      constructor_args ~current_unit priv cd_args cd_res
         Path.(Pextra_ty (ty_path, Pcstr_ty cstr_name)) record_repr
     in
     let cstr =
@@ -152,7 +152,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
         cstr_consts = !num_consts;
         cstr_nonconsts = !num_nonconsts;
         cstr_generalized = cd_res <> None;
-        cstr_private = get_type_private decl;
+        cstr_private = priv;
         cstr_loc = cd_loc;
         cstr_attributes = cd_attributes;
         cstr_inlined;
@@ -255,14 +255,16 @@ let find_constr_by_tag ~constant tag cstrlist =
   fst (find_constr ~constant tag cstrlist)
 
 let constructors_of_type ~current_unit ty_path decl =
-  match get_type_kind decl with
-  | Type_variant (cstrs,rep) ->
-     constructor_descrs ~current_unit ty_path decl cstrs rep
-  | Type_record _ | Type_abstract _ | Type_open -> []
+  match decl.type_noun with
+  | Datatype { params; noun = Datatype_variant { priv; cstrs; rep } } ->
+    let params = List.map (fun p -> p.param_expr) params in
+     constructor_descrs ~current_unit ty_path params priv cstrs rep decl.type_jkind
+  | _ -> []
 
 let labels_of_type ty_path decl =
-  match get_type_kind decl with
-  | Type_record(labels, rep) ->
-      label_descrs (newgenconstr ty_path (get_type_params decl))
-        labels rep (get_type_private decl)
-  | Type_variant _ | Type_abstract _ | Type_open -> []
+  match decl.type_noun with
+  | Datatype { params; noun = Datatype_record { priv; lbls; rep } }  ->
+      let params = List.map (fun p -> p.param_expr) params in
+      label_descrs (newgenconstr ty_path params)
+        lbls rep priv
+  | _ -> []

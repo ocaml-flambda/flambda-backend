@@ -2059,16 +2059,15 @@ and store_value ?check ~mode id addr decl shape env =
     summary =
       Env_value(env.summary, id, Subst.Lazy.force_value_description decl, mode) }
 
-and store_constructor ~check type_decl type_id cstr_id cstr env =
+and store_constructor ~check priv type_loc type_id cstr_id cstr env =
   Builtin_attributes.warning_scope cstr.cstr_attributes (fun () ->
-  if check && not type_decl.type_loc.Location.loc_ghost
+  if check && not type_loc.Location.loc_ghost
      && Warnings.is_active (Warnings.Unused_constructor ("", Unused))
   then begin
     let ty_name = Ident.name type_id in
     let name = cstr.cstr_name in
     let loc = cstr.cstr_loc in
     let k = cstr.cstr_uid in
-    let priv = get_type_private type_decl in
     if not (Types.Uid.Tbl.mem !used_constructors k) then begin
       let used = constructor_usages () in
       Types.Uid.Tbl.add !used_constructors k
@@ -2094,13 +2093,12 @@ and store_constructor ~check type_decl type_id cstr_id cstr env =
         { cda_description = cstr; cda_address = None; cda_shape } env.constrs;
   }
 
-and store_label ~check type_decl type_id lbl_id lbl env =
+and store_label ~check priv type_loc type_id lbl_id lbl env =
   Builtin_attributes.warning_scope lbl.lbl_attributes (fun () ->
-  if check && not type_decl.type_loc.Location.loc_ghost
+  if check && not type_loc.Location.loc_ghost
      && Warnings.is_active (Warnings.Unused_field ("", Unused))
   then begin
     let ty_name = Ident.name type_id in
-    let priv = get_type_private type_decl in
     let name = lbl.lbl_name in
     let loc = lbl.lbl_loc in
     let mut = lbl.lbl_mut in
@@ -2132,25 +2130,26 @@ and store_type ~check id info shape env =
       !type_declarations;
   let descrs, env =
     let path = Pident id in
-    match get_type_kind info with
-    | Type_variant (_,repr) ->
+    match info.type_noun with
+    | Datatype { noun = Datatype_variant { priv; rep } }  ->
         let constructors = Datarepr.constructors_of_type path info
                             ~current_unit:(get_unit_name ())
         in
-        Type_variant (List.map snd constructors, repr),
+        Type_variant (List.map snd constructors, rep),
         List.fold_left
           (fun env (cstr_id, cstr) ->
-            store_constructor ~check info id cstr_id cstr env)
+            store_constructor ~check priv info.type_loc id cstr_id cstr env)
           env constructors
-    | Type_record (_, repr) ->
+    | Datatype { noun = Datatype_record { priv; rep } } ->
         let labels = Datarepr.labels_of_type path info in
-        Type_record (List.map snd labels, repr),
+        Type_record (List.map snd labels, rep),
         List.fold_left
           (fun env (lbl_id, lbl) ->
-            store_label ~check info id lbl_id lbl env)
+            store_label ~check priv info.type_loc id lbl_id lbl env)
           env labels
-    | Type_abstract r -> Type_abstract r, env
-    | Type_open -> Type_open, env
+    | Datatype { noun = Datatype_open _ } -> Type_open, env
+    | Equation { eq = Type_abstr { reason } } -> Type_abstract reason, env
+    | Equation { eq = Type_abbrev _ } -> Type_abstract Abstract_def, env
   in
   let tda =
     { tda_declaration = info;
