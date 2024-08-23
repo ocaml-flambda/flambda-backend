@@ -29,7 +29,7 @@ module Instruction : sig
 
   val op : t -> op
 
-  val supported : t -> bool
+  val is_supported_isomorphic_instructions : t list -> bool
 
   val have_equal_op : t -> t -> bool
 
@@ -45,6 +45,8 @@ module Instruction : sig
 
   val print : Format.formatter -> t -> unit
 
+  val is_load : t -> bool
+
   val is_store : t -> bool
 
   val is_alloc : t -> bool
@@ -52,6 +54,12 @@ module Instruction : sig
   val can_cross_loads_or_stores : t -> bool
 
   val may_break_alloc_freshness : t -> bool
+
+  val body_of : Cfg.basic_block -> t DLL.t
+
+  val tbl_of : Cfg.basic_block -> t Id.Tbl.t
+
+  val find_last_instruction : t DLL.t -> Id.t list -> t
 end = struct
   module Id = struct
     include Numbers.Int
@@ -188,6 +196,16 @@ end = struct
     | Intop_imm (intop, x) -> sprintf "intop %s %d" (string_of_intop intop) x
     | Unsupported -> "unsupported"
 
+  let is_supported_isomorphic_instructions instructions =
+    let rec check hd1 tl1 =
+      match tl1 with
+      | [] -> true
+      | hd2 :: tl2 -> if have_equal_op hd1 hd2 then check hd2 tl2 else false
+    in
+    match instructions with
+    | [] -> assert false
+    | hd :: tl -> supported hd && check hd tl
+
   let id (instruction : t) : Id.t =
     match instruction with
     | Basic instruction -> instruction.id
@@ -212,6 +230,25 @@ end = struct
     match instruction with
     | Basic i -> Cfg.print_basic ppf i
     | Terminator i -> Cfg.print_terminator ppf i
+
+  let is_load (instruction : t) =
+    match instruction with
+    | Basic basic_instruction -> (
+      let desc = basic_instruction.desc in
+      match desc with
+      | Op op -> (
+        match op with
+        | Load _ -> true
+        | Store _ | Alloc _ | Move | Reinterpret_cast _ | Static_cast _ | Spill
+        | Reload | Const_int _ | Const_float32 _ | Const_float _
+        | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Intop _
+        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
+        | Opaque | Begin_region | End_region | Specific _ | Name_for_debugger _
+        | Dls_get | Poll ->
+          false)
+      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
+      )
+    | Terminator _ -> false
 
   let is_store (instruction : t) =
     match instruction with
@@ -294,6 +331,31 @@ end = struct
       | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
       )
     | Terminator _ -> false
+
+  let body_of (block : Cfg.basic_block) =
+    DLL.to_list block.body
+    |> List.map (fun basic_instruction -> Basic basic_instruction)
+    |> DLL.of_list
+
+  let tbl_of block =
+    body_of block |> DLL.to_list
+    |> List.map (fun instruction -> id instruction, instruction)
+    |> Id.Tbl.of_list
+
+  let find_last_instruction body instructions =
+    let starting_cell = DLL.last_cell body in
+    let instruction_set = Id.Set.of_list instructions in
+    let rec find_last cell_option =
+      match cell_option with
+      | None -> assert false
+      | Some cell ->
+        let current_instruction = DLL.value cell in
+        let current_instruction_id = id current_instruction in
+        if Id.Set.exists (Id.equal current_instruction_id) instruction_set
+        then current_instruction
+        else find_last (DLL.prev cell)
+    in
+    find_last starting_cell
 end
 
 module Dependency_graph : sig
@@ -341,7 +403,7 @@ end = struct
       { instruction;
         reg_nodes =
           Array.init (Array.length arguments) (fun i ->
-              arguments.(i) |> Reg_node.init);
+              Reg_node.init arguments.(i));
         direct_dependencies = Instruction.Id.Set.empty;
         all_dependencies = Instruction.Id.Set.empty;
         is_direct_dependency_of = Instruction.Id.Set.empty
@@ -381,20 +443,20 @@ end = struct
       || Array.exists (Reg.same reg) (Instruction.destroyed instruction)
     in
     let latest_change ~(current : Instruction.Id.t) (reg : Reg.t) =
+      let body = Instruction.body_of block in
       let starting_cell =
         match
-          DLL.find_cell_opt block.body ~f:(fun instruction ->
-              Basic instruction |> Instruction.id
-              |> Instruction.Id.equal current)
+          DLL.find_cell_opt body ~f:(fun instruction ->
+              Instruction.id instruction |> Instruction.Id.equal current)
         with
-        | None -> DLL.last_cell block.body
+        | None -> DLL.last_cell body
         | Some current_cell -> DLL.prev current_cell
       in
       let rec find_latest_change cell_option =
         match cell_option with
         | None -> None
         | Some cell ->
-          let instruction = Instruction.Basic (DLL.value cell) in
+          let instruction = DLL.value cell in
           if is_changed_in instruction reg
           then Some instruction
           else find_latest_change (DLL.prev cell)
@@ -520,8 +582,6 @@ module Memory_accesses : sig
 
     val instruction : t -> Instruction.t
 
-    val is_adjacent : t -> t -> bool
-
     val width : t -> int
 
     val dump : Format.formatter -> t -> unit
@@ -535,7 +595,12 @@ module Memory_accesses : sig
 
   val from_block : Cfg.basic_block -> t
 
-  val can_cross : t -> Instruction.t -> Instruction.t -> bool
+  val all_adjacent : t -> Instruction.Id.t list -> bool
+
+  val inter_independent : t -> Instruction.t list -> bool
+
+  val can_group :
+    ?remove:bool -> t -> Instruction.t DLL.t -> Instruction.Id.t list -> bool
 
   val dump : Format.formatter -> t -> unit
 end = struct
@@ -696,20 +761,14 @@ end = struct
        has been loaded till this point. For each memory operation, we will save
        its dependent allocs and unsure allocs *)
     let dependency_graph = Dependency_graph.from_block block in
-    let id_to_instructions =
-      DLL.to_list block.body
-      |> List.map (fun basic_instruction ->
-             let instruction = Instruction.Basic basic_instruction in
-             Instruction.id instruction, instruction)
-      |> Instruction.Id.Tbl.of_list
-    in
+    let body = Instruction.body_of block in
+    let id_to_instructions = Instruction.tbl_of block in
     let memory_operations = Instruction.Id.Tbl.create 100 in
     let loads, stores, _, _, _ =
-      DLL.fold_left block.body
+      DLL.fold_left body
         ~f:
           (fun (loads, stores, fresh_allocs, stored_allocs, unsure_allocs)
-               basic_instruction ->
-          let instruction = Instruction.Basic basic_instruction in
+               instruction ->
           let id = Instruction.id instruction in
           if Instruction.is_alloc instruction
           then
@@ -782,49 +841,127 @@ end = struct
     in
     { loads = List.rev loads; stores = List.rev stores; memory_operations }
 
-  let can_cross (t : t) (instruction_1 : Instruction.t)
-      (instruction_2 : Instruction.t) =
-    let get_memory_operation instruction =
-      Instruction.Id.Tbl.find_opt t.memory_operations
-        (Instruction.id instruction)
+  let can_cross t instruction_1 instruction_2 =
+    let reg_array_to_set = Reg.Set.of_list << Array.to_list in
+    let argument_set = reg_array_to_set << Instruction.arguments
+    and affected_set instruction =
+      Reg.Set.union
+        (Instruction.results instruction |> reg_array_to_set)
+        (Instruction.destroyed instruction |> reg_array_to_set)
     in
-    match
-      get_memory_operation instruction_1, get_memory_operation instruction_2
-    with
-    | None, _ | _, None ->
-      Instruction.can_cross_loads_or_stores instruction_1
-      || Instruction.can_cross_loads_or_stores instruction_2
-    | Some memory_operation_1, Some memory_operation_2 -> (
-      match memory_operation_1.op, memory_operation_2.op with
-      | Load, Load -> true
-      | Load, Store | Store, Load | Store, Store ->
-        if Memory_operation.compare_addressing_modes_and_arguments
-             memory_operation_1 memory_operation_2
-           = 0
-        then
-          let check_direct_separation left_memory_operation
-              right_memory_operation =
-            match
-              Memory_operation.offset_of left_memory_operation
-                right_memory_operation
-            with
-            | None -> false
-            | Some offset ->
-              offset
-              > (left_memory_operation.Memory_operation.memory_chunk
-               |> Cmm.width_of)
-          in
-          check_direct_separation memory_operation_1 memory_operation_2
-          || check_direct_separation memory_operation_2 memory_operation_1
-        else
-          Instruction.Id.Set.is_empty
-            (Instruction.Id.Set.diff memory_operation_1.dependent_allocs
-               (Instruction.Id.Set.union memory_operation_2.dependent_allocs
-                  memory_operation_2.unsure_allocs))
-          || Instruction.Id.Set.is_empty
-               (Instruction.Id.Set.diff memory_operation_2.dependent_allocs
-                  (Instruction.Id.Set.union memory_operation_1.dependent_allocs
-                     memory_operation_1.unsure_allocs)))
+    let arguments_1 = argument_set instruction_1
+    and affected_1 = affected_set instruction_1
+    and arguments_2 = argument_set instruction_2
+    and affected_2 = affected_set instruction_2 in
+    if Reg.Set.disjoint affected_1 affected_2
+       && Reg.Set.disjoint arguments_1 affected_2
+       && Reg.Set.disjoint affected_1 arguments_2
+    then
+      let get_memory_operation instruction =
+        Instruction.Id.Tbl.find_opt t.memory_operations
+          (Instruction.id instruction)
+      in
+      match
+        get_memory_operation instruction_1, get_memory_operation instruction_2
+      with
+      | None, _ | _, None ->
+        Instruction.can_cross_loads_or_stores instruction_1
+        || Instruction.can_cross_loads_or_stores instruction_2
+      | Some memory_operation_1, Some memory_operation_2 -> (
+        match memory_operation_1.op, memory_operation_2.op with
+        | Load, Load -> true
+        | Load, Store | Store, Load | Store, Store ->
+          if Memory_operation.compare_addressing_modes_and_arguments
+               memory_operation_1 memory_operation_2
+             = 0
+          then
+            let check_direct_separation left_memory_operation
+                right_memory_operation =
+              match
+                Memory_operation.offset_of left_memory_operation
+                  right_memory_operation
+              with
+              | None -> false
+              | Some offset ->
+                offset
+                > Cmm.width_of
+                    left_memory_operation.Memory_operation.memory_chunk
+            in
+            check_direct_separation memory_operation_1 memory_operation_2
+            || check_direct_separation memory_operation_2 memory_operation_1
+          else
+            Instruction.Id.Set.is_empty
+              (Instruction.Id.Set.diff memory_operation_1.dependent_allocs
+                 (Instruction.Id.Set.union memory_operation_2.dependent_allocs
+                    memory_operation_2.unsure_allocs))
+            |> not
+            || Instruction.Id.Set.is_empty
+                 (Instruction.Id.Set.diff memory_operation_2.dependent_allocs
+                    (Instruction.Id.Set.union
+                       memory_operation_1.dependent_allocs
+                       memory_operation_1.unsure_allocs))
+               |> not)
+    else false
+
+  let can_cross_lists t instructions1 instructions2 =
+    let can_cross_list instruction1 =
+      List.fold_left
+        (fun can instruction2 -> can && can_cross t instruction1 instruction2)
+        true instructions2
+    in
+    List.fold_left
+      (fun can instruction1 -> can && can_cross_list instruction1)
+      true instructions1
+
+  let all_adjacent t instructions =
+    let rec check_adjacent hd1 tl1 =
+      match tl1 with
+      | [] -> true
+      | hd2 :: tl2 ->
+        if Memory_operation.is_adjacent
+             (get_memory_operation_exn t hd1)
+             (get_memory_operation_exn t hd2)
+        then check_adjacent hd2 tl2
+        else false
+    in
+    check_adjacent (List.hd instructions) (List.tl instructions)
+
+  let inter_independent t instructions =
+    let rec check instructions =
+      match instructions with
+      | [] -> true
+      | hd :: tl -> if can_cross_lists t [hd] tl then check tl else false
+    in
+    check instructions
+  (* all pairs of instruction in the group are inter-independent *)
+
+  let can_group ?(remove = false) t body instructions =
+    (* instructions can be made to be adjacent *)
+    let starting_cell = DLL.hd_cell body in
+    let rec can_be_together instruction_set group cell_option =
+      if Instruction.Id.Set.is_empty instruction_set
+      then true
+      else
+        match cell_option with
+        | None -> false
+        | Some cell ->
+          let current_instruction = DLL.value cell in
+          let current_instruction_id = Instruction.id current_instruction in
+          let next = DLL.next cell in
+          if Instruction.Id.Set.exists
+               (Instruction.Id.equal current_instruction_id)
+               instruction_set
+          then (
+            if remove then DLL.delete_curr cell;
+            can_be_together
+              (Instruction.Id.Set.remove current_instruction_id instruction_set)
+              (current_instruction :: group)
+              next)
+          else if can_cross_lists t group [current_instruction]
+          then can_be_together instruction_set group next
+          else false
+    in
+    can_be_together (Instruction.Id.Set.of_list instructions) [] starting_cell
 
   let dump ppf ({ loads; stores; memory_operations } : t) =
     let open Format in
@@ -851,41 +988,31 @@ module Seed : sig
 end = struct
   type t = Memory_accesses.Memory_operation.t list
 
-  let can_cross memory_accesses instruction_1 instruction_2 =
-    let reg_array_to_set = Reg.Set.of_list << Array.to_list in
-    let argument_set = reg_array_to_set << Instruction.arguments
-    and affected_set instruction =
-      Reg.Set.union
-        (Instruction.results instruction |> reg_array_to_set)
-        (Instruction.destroyed instruction |> reg_array_to_set)
-    in
-    let arguments_1 = argument_set instruction_1
-    and affected_1 = affected_set instruction_1
-    and arguments_2 = argument_set instruction_2
-    and affected_2 = affected_set instruction_2 in
-    if Reg.Set.disjoint affected_1 affected_2
-       && Reg.Set.disjoint arguments_1 affected_2
-       && Reg.Set.disjoint affected_1 arguments_2
-    then Memory_accesses.can_cross memory_accesses instruction_1 instruction_2
-    else false
-
   let from_block (block : Cfg.basic_block) : t list =
     (* For each store instruction, it tries to form a seed with the closest
        stores after it, it will go down the DLL of instructions and tries to
        move the store instructions across the non-store instructions until all
        the store instructions are together *)
+    let body = Instruction.body_of block in
     let memory_accesses = Memory_accesses.from_block block in
-    let stores = Memory_accesses.stores memory_accesses in
+    let all_stores = Memory_accesses.stores memory_accesses in
     List.filter_map
       (fun store_id ->
         let starting_cell =
-          match
-            DLL.find_cell_opt block.body ~f:(fun instruction ->
-                Basic instruction |> Instruction.id
-                |> Instruction.Id.equal store_id)
-          with
-          | Some current_cell -> DLL.next current_cell
-          | None -> assert false
+          DLL.find_cell_opt body ~f:(fun instruction ->
+              Instruction.id instruction |> Instruction.Id.equal store_id)
+        in
+        let rec find_stores n stores cell_option =
+          if n = 0
+          then Some (List.rev stores)
+          else
+            match cell_option with
+            | None -> None
+            | Some cell ->
+              let instruction = DLL.value cell in
+              if Instruction.is_store instruction
+              then find_stores (n - 1) (instruction :: stores) (DLL.next cell)
+              else find_stores n stores (DLL.next cell)
         in
         let starting_memory_operation =
           Memory_accesses.get_memory_operation_exn memory_accesses store_id
@@ -894,42 +1021,21 @@ end = struct
           vector_width_in_bytes
           / Memory_accesses.Memory_operation.width starting_memory_operation
         in
-        let can_cross_chunk seed instruction =
-          List.fold_left
-            (fun can memory_operation ->
-              can
-              && can_cross memory_accesses
-                   (Memory_accesses.Memory_operation.instruction
-                      memory_operation)
-                   instruction)
-            true seed
-        in
-        let rec find_seed n seed cell_option =
-          if n = 0
-          then Some seed
-          else
-            match cell_option with
-            | None -> None
-            | Some cell ->
-              let instruction = Instruction.Basic (DLL.value cell) in
-              if Instruction.is_store instruction
-              then
-                let new_store =
-                  Instruction.id instruction
-                  |> Memory_accesses.get_memory_operation_exn memory_accesses
-                in
-                if Memory_accesses.Memory_operation.is_adjacent (List.hd seed)
-                     new_store
-                then find_seed (n - 1) (new_store :: seed) (DLL.next cell)
-                else None
-              else if can_cross_chunk seed instruction
-              then find_seed n seed (DLL.next cell)
-              else None
-        in
-        find_seed (items_in_vector - 1)
-          [starting_memory_operation]
-          starting_cell)
-      stores
+        let store_group = find_stores items_in_vector [] starting_cell in
+        match store_group with
+        | None -> None
+        | Some stores ->
+          let store_ids = List.map Instruction.id stores in
+          if Memory_accesses.all_adjacent memory_accesses store_ids
+             && Memory_accesses.can_group memory_accesses body store_ids
+          then
+            Some
+              (List.map
+                 (fun id ->
+                   Memory_accesses.get_memory_operation_exn memory_accesses id)
+                 store_ids)
+          else None)
+      all_stores
 
   let dump ppf (seeds : t list) =
     let open Format in
@@ -968,32 +1074,26 @@ end = struct
         is_dependency_of : Instruction.Id.Set.t
       }
 
-    let init last_instruction instructions =
-      { instruction_type = Instruction.op last_instruction;
-        instructions;
+    let init instruction instruction_ids =
+      { instruction_type = Instruction.op instruction;
+        instructions = instruction_ids;
         dependencies =
-          Array.make
-            (Instruction.arguments last_instruction |> Array.length)
-            None;
+          Array.make (Instruction.arguments instruction |> Array.length) None;
         is_dependency_of = Instruction.Id.Set.empty
       }
   end
 
   type t = Node.t Instruction.Id.Tbl.t
   (* key is the id of the instruction where the node will be inserted, which is
-     the last instruction in the node for now *)
+     the last instruction in the node for now, we can change that later *)
 
   let init () : t = Instruction.Id.Tbl.create 100
 
   let from_seed (block : Cfg.basic_block) seed =
-    let id_to_instructions =
-      DLL.to_list block.body
-      |> List.map (fun basic_instruction ->
-             let instruction = Instruction.Basic basic_instruction in
-             Instruction.id instruction, instruction)
-      |> Instruction.Id.Tbl.of_list
-    in
+    let body = Instruction.body_of block in
+    let id_to_instructions = Instruction.tbl_of block in
     let dependency_graph = Dependency_graph.from_block block in
+    let memory_accesses = Memory_accesses.from_block block in
     let find_instruction = Instruction.Id.Tbl.find id_to_instructions in
     let root =
       List.map
@@ -1001,20 +1101,10 @@ end = struct
         seed
     in
     let computation_tree = init () in
-    let rec build instructions : Instruction.Id.t option =
-      let last_instruction = List.hd instructions |> find_instruction in
-      let is_supported_isomorphic_instructions =
-        let rec check hd1 tl1 =
-          match tl1 with
-          | [] -> true
-          | hd2 :: tl2 ->
-            if Instruction.have_equal_op (find_instruction hd1)
-                 (find_instruction hd2)
-            then check hd2 tl2
-            else false
-        in
-        Instruction.supported last_instruction
-        && check (List.hd instructions) (List.tl instructions)
+    let rec build instruction_ids : Instruction.Id.t option =
+      let instructions = List.map find_instruction instruction_ids in
+      let last_instruction =
+        Instruction.find_last_instruction body instruction_ids
       in
       let all_option list =
         List.fold_right
@@ -1024,11 +1114,13 @@ end = struct
             | _ -> None)
           list (Some [])
       in
-      if is_supported_isomorphic_instructions
-      then (
-        let key = List.hd instructions in
-        let node : Node.t = Node.init last_instruction instructions in
+      if Instruction.is_supported_isomorphic_instructions instructions |> not
+      then None
+      else
+        let key = Instruction.id last_instruction in
+        let node : Node.t = Node.init last_instruction instruction_ids in
         match Instruction.Id.Tbl.find_opt computation_tree key with
+        (* is there another node with the same key already in the tree *)
         | Some (old_node : Node.t) ->
           if List.equal Instruction.Id.equal node.instructions
                old_node.instructions
@@ -1039,32 +1131,62 @@ end = struct
                the other node is different from this node, we won't vectorize
                this for simplicity's sake *)
         | None ->
-          Instruction.Id.Tbl.add computation_tree key node;
-          let dependencies =
-            Array.mapi
-              (fun arg_i _ ->
-                match
-                  List.map
-                    (Dependency_graph.get_arg_dependency dependency_graph ~arg_i)
-                    instructions
-                  |> all_option
-                with
-                | None -> None
-                | Some new_instructions -> build new_instructions)
-              (last_instruction |> Instruction.arguments)
-          in
-          Instruction.Id.Tbl.replace computation_tree key
-            { node with dependencies };
-          Some key)
-      else None
+          if Instruction.is_load last_instruction
+          then
+            if Memory_accesses.all_adjacent memory_accesses instruction_ids
+               && Memory_accesses.inter_independent memory_accesses instructions
+            then (
+              Instruction.Id.Tbl.add computation_tree key node;
+              Some key)
+            else None
+          else if Instruction.is_store last_instruction
+                  && Memory_accesses.all_adjacent memory_accesses
+                       instruction_ids
+                  || (not (Instruction.is_store last_instruction))
+                     && Memory_accesses.inter_independent memory_accesses
+                          instructions
+          then (
+            Instruction.Id.Tbl.add computation_tree key node;
+            let build_dependencies () =
+              Array.mapi
+                (fun arg_i _ ->
+                  match
+                    List.map
+                      (Dependency_graph.get_arg_dependency dependency_graph
+                         ~arg_i)
+                      instruction_ids
+                    |> all_option
+                  with
+                  | None -> None
+                  | Some new_instructions -> build new_instructions)
+                (Instruction.arguments last_instruction)
+            in
+            Instruction.Id.Tbl.replace computation_tree key
+              { node with dependencies = build_dependencies () };
+            Some key)
+          else None
+    in
+    let is_valid computation_tree =
+      let check cell =
+        match
+          DLL.value cell |> Instruction.id
+          |> Instruction.Id.Tbl.find_opt computation_tree
+        with
+        | None -> true
+        | Some (node : Node.t) ->
+          Memory_accesses.can_group ~remove:true memory_accesses body
+            node.instructions
+      in
+      let rec validate cell_option =
+        match cell_option with
+        | None -> true
+        | Some cell -> if check cell then validate (DLL.prev cell) else false
+      in
+      DLL.last_cell body |> validate
     in
     match build root with
     | None -> None
     | Some _ ->
-      let is_valid computation_tree =
-        ignore computation_tree;
-        true (* do something about the DLL *)
-      in
       if is_valid computation_tree then Some computation_tree else None
 
   let from_block (block : Cfg.basic_block) : t list =
@@ -1105,7 +1227,7 @@ end = struct
         (fun tree ->
           fprintf ppf "(";
           print_tree tree;
-          fprintf ppf "\n)\n")
+          fprintf ppf ")\n\n")
         trees
     in
     fprintf ppf "\ncomputation trees:\n";
