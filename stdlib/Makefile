@@ -34,18 +34,6 @@ include $(ROOTDIR)/Makefile.common
 # ../runtime/ocamlrun.
 USE_BOOT_OCAMLC ?=
 
-<<<<<<< HEAD
-COMPILER=$(ROOTDIR)/ocamlc$(EXE)
-CAMLC=$(OCAMLRUN) $(COMPILER)
-COMPFLAGS=-strict-sequence -absname -w +a-4-9-41-42-44-45-48-66-70 \
-          -g -warn-error +A -bin-annot -nostdlib -principal \
-          -nopervasives -no-alias-deps
-||||||| 121bedcfd2
-COMPILER=$(ROOTDIR)/ocamlc$(EXE)
-CAMLC=$(OCAMLRUN) $(COMPILER)
-COMPFLAGS=-strict-sequence -absname -w +a-4-9-41-42-44-45-48 \
-          -g -warn-error +A -bin-annot -nostdlib -principal
-=======
 ifeq "$(USE_BOOT_OCAMLC)" ""
 CAMLC = $(OCAMLRUN) $(ROOTDIR)/ocamlc$(EXE)
 else
@@ -53,7 +41,6 @@ CAMLC = $(BOOT_OCAMLC)
 endif
 COMPFLAGS = -strict-sequence -absname -w +a-4-9-41-42-44-45-48 \
             -g -warn-error +A -bin-annot -nostdlib -principal
->>>>>>> 5.2.0
 ifeq "$(FLAMBDA)" "true"
 OPTCOMPFLAGS += -O3
 endif
@@ -206,3 +193,17 @@ depend:
 	-e 's/^(${STDLIB_NAMESPACE_MODULES})(\.[^i]*)(i?) :/\1\2\3 : \1.ml\3/' \
 	-e 's#(^| )(${STDLIB_NAMESPACE_MODULES})[.]#\1stdlib__\u\2.#' \
 	> .$@
+
+# The following are for compatibility with runtime4
+
+camlheader:
+	touch camlheader
+
+camlheaderd:
+	touch camlheaderd
+
+camlheaderi:
+	touch camlheaderi
+
+camlheader_ur:
+	touch camlheader_ur
