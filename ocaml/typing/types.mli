@@ -697,6 +697,9 @@ and type_transparence =
   | Type_new         (* "new" type *)
   | Type_private     (* private type *)
 
+val expansion_of_public_abbrev : type_declaration -> type_expr
+val non_trivial_expansion : type_declaration -> type_expr option
+
 (* Legacy properties *)
 (* FIXME jbachurski: All of these should be removed by the time this PR is done. *)
 

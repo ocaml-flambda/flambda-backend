@@ -314,7 +314,7 @@ type type_iterators =
     it_functor_param: type_iterators -> functor_parameter -> unit;
     it_module_type: type_iterators -> module_type -> unit;
     it_class_type: type_iterators -> class_type -> unit;
-    it_type_kind: type_iterators -> type_decl_kind -> unit;
+    it_type_noun: type_iterators -> type_noun -> unit;
     it_do_type_expr: type_iterators -> type_expr -> unit;
     it_type_expr: type_iterators -> type_expr -> unit;
     it_path: Path.t -> unit; }
@@ -328,20 +328,26 @@ let map_type_expr_cstr_args f = function
   | Cstr_record lbls ->
       Cstr_record (List.map (fun d -> {d with ld_type=f d.ld_type}) lbls)
 
-let iter_type_expr_kind f = function
-  | Type_abstract _ -> ()
-  | Type_variant (cstrs, _) ->
+let iter_noun expr path = function
+  | Datatype { manifest; noun } -> begin
+    Option.iter path manifest;
+    match noun with
+    | Datatype_variant { priv = _; cstrs; rep = _ } ->
       List.iter
         (fun cd ->
-           iter_type_expr_cstr_args f cd.cd_args;
-           Option.iter f cd.cd_res
+          iter_type_expr_cstr_args expr cd.cd_args;
+          Option.iter expr cd.cd_res
         )
         cstrs
-  | Type_record(lbls, _) ->
-      List.iter (fun d -> f d.ld_type) lbls
-  | Type_open ->
-      ()
+    | Datatype_record { priv = _; lbls; rep = _ } ->
+      List.iter (fun d -> expr d.ld_type) lbls
+    | Datatype_open { priv = _ } -> ()
+    end
+  | Equation { eq = Type_abstr { reason = _ }} -> ()
+  | Equation { eq = Type_abbrev { priv = _; expansion }} ->
+    expr expansion
 
+let iter_type_expr_noun f = iter_noun f (fun _ -> ())
 
 let type_iterators =
   let it_signature it =
@@ -357,9 +363,8 @@ let type_iterators =
   and it_value_description it vd =
     it.it_type_expr it vd.val_type
   and it_type_declaration it td =
-    List.iter (it.it_type_expr it) (get_type_params td);
-    Option.iter (it.it_type_expr it) (get_type_manifest td);
-    it.it_type_kind it (get_type_kind td)
+    List.iter (fun { param_expr; _ } -> it.it_type_expr it param_expr) td.type_params_;
+    it.it_type_noun it td.type_noun
   and it_extension_constructor it td =
     it.it_path td.ext_type_path;
     List.iter (it.it_type_expr it) td.ext_type_params;
@@ -404,8 +409,8 @@ let type_iterators =
     | Cty_arrow  (_, ty, cty) ->
         it.it_type_expr it ty;
         it.it_class_type it cty
-  and it_type_kind it kind =
-    iter_type_expr_kind (it.it_type_expr it) kind
+  and it_type_noun it noun =
+    iter_noun (it.it_type_expr it) it.it_path noun
   and it_do_type_expr it ty =
     iter_type_expr (it.it_type_expr it) ty;
     match get_desc ty with
@@ -419,7 +424,7 @@ let type_iterators =
   and it_path _p = ()
   in
   { it_path; it_type_expr = it_do_type_expr; it_do_type_expr;
-    it_type_kind; it_class_type; it_functor_param; it_module_type;
+    it_type_noun; it_class_type; it_functor_param; it_module_type;
     it_signature; it_class_type_declaration; it_class_declaration;
     it_modtype_declaration; it_module_declaration; it_extension_constructor;
     it_type_declaration; it_value_description; it_signature_item; }

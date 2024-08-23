@@ -385,6 +385,20 @@ let tys_of_constr_args = function
   | Cstr_tuple tl -> List.map (fun ca -> ca.ca_type) tl
   | Cstr_record lbls -> List.map (fun l -> l.ld_type) lbls
 
+
+let expansion_of_public_abbrev decl =
+  match decl.type_noun with
+  | Equation { eq = Type_abbrev { priv = Public; expansion }} -> expansion
+  | _ -> Misc.fatal_errorf "A public type abbreviation was expected"
+
+let non_trivial_expansion decl =
+  match decl.type_noun with
+  | Equation { eq = Type_abbrev { priv = _; expansion }} -> Some expansion
+  | Equation { eq = Type_abstr { reason = _ }}
+  | Datatype { manifest = _;
+               noun = Datatype_open _ | Datatype_record _ | Datatype_variant _ }
+    -> None
+
 (* Legacy properties *)
 
 let create_type_params type_params type_variance type_separability =

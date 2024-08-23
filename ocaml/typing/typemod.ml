@@ -877,7 +877,7 @@ let merge_constraint initial_env loc sg lid constr =
               in
               fun s path -> Subst.add_type_path path replacement s
           | None ->
-              let body = get_type_manifest tdecl.typ_type |> Option.get in
+              let body = expansion_of_public_abbrev tdecl.typ_type in
               let params = get_type_params tdecl.typ_type in
               if params_are_constrained params
               then raise(Error(loc, initial_env,
@@ -1761,7 +1761,7 @@ and transl_signature env (sg : Parsetree.signature) =
               let subst =
                 Subst.add_type_function (Pident td.typ_id)
                   ~params
-                  ~body:(get_type_manifest td.typ_type |> Option.get)
+                  ~body:(expansion_of_public_abbrev td.typ_type)
                   Subst.identity
               in
               Some (`Substituted_away subst)

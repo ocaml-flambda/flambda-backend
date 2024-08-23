@@ -1030,11 +1030,7 @@ let transl_declaration env sdecl (id, uid) =
 
 let generalize_decl decl =
   List.iter Ctype.generalize (get_type_params decl);
-  Btype.iter_type_expr_kind Ctype.generalize (get_type_kind decl);
-  begin match get_type_manifest decl with
-  | None    -> ()
-  | Some ty -> Ctype.generalize ty
-  end
+  Btype.iter_type_expr_noun Ctype.generalize decl.type_noun
 
 (* Check that all constraints are enforced *)
 
@@ -1702,8 +1698,7 @@ let update_decls_jkind_reason decls =
           ~name:id ~loc:decl.type_loc
        in
        List.iter update_generalized (get_type_params decl);
-       Btype.iter_type_expr_kind update_generalized (get_type_kind decl);
-       Option.iter update_generalized (get_type_manifest decl);
+       Btype.iter_type_expr_noun update_generalized decl.type_noun;
        let reason = Jkind.History.Generalized (Some id, decl.type_loc) in
        let new_decl = {decl with type_jkind =
                                    Jkind.History.update_reason decl.type_jkind reason} in
