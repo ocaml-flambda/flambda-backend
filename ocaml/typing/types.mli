@@ -498,8 +498,7 @@ end
 (* Type definitions *)
 
 type type_declaration =
-  { type_params_: type_param list;
-    type_noun: type_noun;
+  { type_noun: type_noun;
 
     type_jkind: jkind;
     (* for an abstract decl kind or for [@@unboxed] types: this is the stored
@@ -540,8 +539,8 @@ and type_param =
   }
 
 and type_noun =
-  | Datatype of { manifest: Path.t option; noun: datatype_noun}
-  | Equation of { eq: type_equation }
+  | Datatype of { params: type_param list; manifest: Path.t option; noun: datatype_noun}
+  | Equation of { params: type_param list; eq: type_equation }
 
 and datatype_noun =
   | Datatype_record of { priv: private_flag; lbls: label_declaration list; rep: record_representation}
@@ -708,6 +707,9 @@ val newgenty_ref : (type_desc -> type_expr) ref
 val create_type_params : type_expr list -> Variance.t list -> Separability.t list -> type_param list
 val create_type_params_of_unknowns : injective:bool -> type_expr list -> type_param list
 
+val map_param_exprs : (type_expr -> type_expr) -> type_param list -> type_param list
+val set_type_params_ : type_declaration -> type_param list -> type_declaration
+
 val get_type_arity : type_declaration -> int
 
 val get_type_params : type_declaration -> type_expr list
@@ -720,7 +722,7 @@ val get_type_separability : type_declaration -> Separability.t list
 val set_type_separability : type_declaration -> Separability.t list -> type_declaration
 
 val create_type_equation : private_flag -> type_expr option -> type_equation
-val create_type_equation_in_noun : private_flag -> type_expr option -> type_noun
+val create_type_equation_in_noun : type_param list -> private_flag -> type_expr option -> type_noun
 
 val get_type_kind_of_noun : type_noun -> type_decl_kind
 val get_type_kind : type_declaration -> type_decl_kind

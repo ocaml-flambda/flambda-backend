@@ -455,16 +455,18 @@ let record_representation ~prepare_jkind loc = function
   | (Record_float | Record_ufloat | Record_mixed _) as rep -> rep
 
 let type_declaration' copy_scope s decl =
-  { type_params_ =
-      (set_type_params decl (List.map (typexp copy_scope s decl.type_loc) (get_type_params decl))).type_params_;
-    type_noun =
+  { type_noun =
       begin match decl.type_noun with
-      | Equation { eq = Type_abstr { reason } } ->
-        Equation { eq = Type_abstr { reason } }
-      | Equation { eq = Type_abbrev { priv; expansion } } ->
-        let expansion = typexp copy_scope s decl.type_loc expansion in
-        Equation { eq = Type_abbrev { priv; expansion } }
-      | Datatype { manifest; noun } -> Datatype {
+      | Equation { params; eq } ->
+        Equation {
+          params = map_param_exprs (typexp copy_scope s decl.type_loc) params;
+          eq = match eq with
+          | Type_abstr { reason } -> Type_abstr { reason }
+          | Type_abbrev { priv; expansion } ->
+            Type_abbrev { priv; expansion = typexp copy_scope s decl.type_loc expansion }
+        }
+      | Datatype { params; manifest; noun } -> Datatype {
+        params = map_param_exprs (typexp copy_scope s decl.type_loc) params;
         manifest = Option.map (type_path s) manifest;
         noun = match noun with
         | Datatype_variant { priv; cstrs; rep } ->

@@ -250,8 +250,7 @@ end
 (* Type definitions *)
 
 type type_declaration =
-  { type_params_: type_param list;
-    type_noun: type_noun;
+  { type_noun: type_noun;
     type_jkind: jkind;
     type_jkind_annotation: type_expr Jkind_types.annotation option;
     type_is_newtype: bool;
@@ -270,8 +269,8 @@ and type_param =
   }
 
 and type_noun =
-  | Datatype of { manifest: Path.t option; noun: datatype_noun}
-  | Equation of { eq: type_equation }
+  | Datatype of { params: type_param list; manifest: Path.t option; noun: datatype_noun}
+  | Equation of { params: type_param list; eq: type_equation }
 
 and datatype_noun =
   | Datatype_record of { priv: private_flag; lbls: label_declaration list; rep: record_representation}
@@ -413,28 +412,38 @@ let create_type_params_of_unknowns ~injective type_params =
     (Variance.unknown_signature ~injective ~arity)
     (Separability.default_signature ~arity)
 
-let get_type_arity decl = List.length decl.type_params_
+let map_param_exprs f = List.map (fun p -> { p with param_expr = f p.param_expr })
 
-let get_type_params decl = List.map (fun { param_expr } -> param_expr) decl.type_params_
+let get_type_arity decl =
+  match decl.type_noun with
+  | Datatype { params; _ } | Equation { params; _ } -> List.length params
+
+let get_type_params_ decl =
+  match decl.type_noun with
+  | Datatype { params; _ } | Equation { params; _ } -> params
+
+let get_type_params decl = List.map (fun { param_expr } -> param_expr) (get_type_params_ decl)
+let map_type_params_ decl f =
+  { decl with type_noun =
+      match decl.type_noun with
+      | Equation e -> Equation { e with params = f e.params }
+      | Datatype d -> Datatype { d with params = f d.params } }
+
+let set_type_params_ decl t = map_type_params_ decl (fun _ -> t)
+
 let set_type_params decl param_exprs =
-  { decl with type_params_ =
-      List.map2
-        (fun param param_expr -> { param with param_expr })
-        decl.type_params_ param_exprs }
+  map_type_params_ decl
+    (List.map2 (fun param_expr param -> { param with param_expr }) param_exprs)
 
-let get_type_variance decl = List.map (fun { variance } -> variance) decl.type_params_
+let get_type_variance decl = List.map (fun { variance } -> variance) (get_type_params_ decl)
 let set_type_variance decl variances =
-  { decl with type_params_ =
-      List.map2
-        (fun param variance -> { param with variance })
-        decl.type_params_ variances }
+  map_type_params_ decl
+    (List.map2 (fun variance param -> { param with variance }) variances)
 
-let get_type_separability decl = List.map (fun { separability } -> separability) decl.type_params_
+let get_type_separability decl = List.map (fun { separability } -> separability) (get_type_params_ decl)
 let set_type_separability decl separabilities =
-  { decl with type_params_ =
-      List.map2
-        (fun param separability -> { param with separability })
-        decl.type_params_ separabilities }
+  map_type_params_ decl
+    (List.map2 (fun separability param -> { param with separability }) separabilities)
 
 let get_type_kind_of_noun = function
   | Datatype { manifest = _; noun = Datatype_record { priv = _; lbls; rep } } -> Type_record (lbls, rep)
@@ -447,68 +456,67 @@ let get_type_kind decl = get_type_kind_of_noun decl.type_noun
 
 let get_type_private decl =
   match decl.type_noun with
-  | Datatype { manifest = _; noun = Datatype_record { priv; _ } } -> priv
-  | Datatype { manifest = _; noun = Datatype_variant { priv; _ } } -> priv
-  | Datatype { manifest = _; noun = Datatype_open { priv; _ } } -> priv
-  | Equation { eq = Type_abstr { reason = _ } } -> Public
-  | Equation { eq = Type_abbrev { priv; expansion = _ } } -> priv
+  | Datatype { params = _; manifest = _; noun = Datatype_record { priv; _ } } -> priv
+  | Datatype { params = _; manifest = _; noun = Datatype_variant { priv; _ } } -> priv
+  | Datatype { params = _; manifest = _; noun = Datatype_open { priv; _ } } -> priv
+  | Equation { params = _; eq = Type_abstr { reason = _ } } -> Public
+  | Equation { params = _; eq = Type_abbrev { priv; expansion = _ } } -> priv
 
 let hide_manifest decl =
   { decl with type_noun = match decl.type_noun with
-    | Datatype { manifest = _; noun } -> Datatype { manifest = None; noun }
-    | Equation { eq = Type_abstr { reason } } ->
-      Equation { eq = Type_abstr { reason } }
-    | Equation { eq = Type_abbrev _ } ->
-      Equation { eq = Type_abstr { reason = Abstract_def } }
+    | Datatype { params; manifest = _; noun } -> Datatype { params; manifest = None; noun }
+    | Equation { params; eq = Type_abstr { reason } } ->
+      Equation { params; eq = Type_abstr { reason } }
+    | Equation { params; eq = Type_abbrev _ } ->
+      Equation { params; eq = Type_abstr { reason = Abstract_def } }
   }
 
 let get_desc_ref = ref (fun _ -> assert false)
 let noun_with_manifest type_noun expansion =
   match type_noun with
-  | Datatype { manifest = _; noun } ->
+  | Datatype { params; manifest = _; noun } ->
     let manifest =
       match !get_desc_ref expansion with
       | Tconstr (path, _, _ ) -> Some path
       | _ -> assert false
     in
-    Datatype { manifest; noun }
-  | Equation { eq = Type_abstr { reason = _ } } ->
-    Equation { eq = Type_abbrev { priv = Public; expansion } }
-  | Equation { eq = Type_abbrev { priv; expansion = _ } } ->
-    Equation { eq = Type_abbrev { priv; expansion } }
+    Datatype { params; manifest; noun }
+  | Equation { params; eq = Type_abstr { reason = _ } } ->
+    Equation { params; eq = Type_abbrev { priv = Public; expansion } }
+  | Equation { params; eq = Type_abbrev { priv; expansion = _ } } ->
+    Equation { params; eq = Type_abbrev { priv; expansion } }
 
 let with_manifest decl expansion =
   { decl with type_noun = noun_with_manifest decl.type_noun expansion }
 
 let noun_publicise_manifest = function
-  | Datatype { manifest; noun } ->
-    Datatype { manifest;
+  | Datatype { params; manifest; noun } ->
+    Datatype { params; manifest;
       noun = match noun with
       | Datatype_record ({ priv = _; _ } as n) -> Datatype_record { n with priv = Public }
       | Datatype_variant ({ priv = _; _ } as n) -> Datatype_variant { n with priv = Public }
       | Datatype_open { priv = _ } -> Datatype_open { priv = Public }
     }
-  | Equation { eq = Type_abstr { reason } } ->
-    Equation { eq = Type_abstr { reason } }
-  | Equation { eq = Type_abbrev { priv = _; expansion } } ->
-    Equation { eq = Type_abbrev { priv = Public; expansion } }
+  | Equation { params; eq = Type_abstr { reason } } ->
+    Equation { params; eq = Type_abstr { reason } }
+  | Equation { params; eq = Type_abbrev { priv = _; expansion } } ->
+    Equation { params; eq = Type_abbrev { priv = Public; expansion } }
 
 let publicise_manifest decl =
   { decl with type_noun = noun_publicise_manifest decl.type_noun }
 
 let noun_privatise_manifest = function
-  | Datatype { manifest; noun } ->
-    Datatype { manifest;
+  | Datatype { params; manifest; noun } ->
+    Datatype { params; manifest;
       noun = match noun with
       | Datatype_record ({ priv = _; _ } as n) -> Datatype_record { n with priv = Private }
       | Datatype_variant ({ priv = _; _ } as n) -> Datatype_variant { n with priv = Private }
       | Datatype_open { priv = _ } -> Datatype_open { priv = Private }
     }
-  | Equation { eq = Type_abstr { reason = _ } } ->
+  | Equation { params = _; eq = Type_abstr { reason = _ } } ->
     assert false
-    (* Equation { eq = Type_abstr { reason } } *)
-  | Equation { eq = Type_abbrev { priv = _; expansion } } ->
-    Equation { eq = Type_abbrev { priv = Private; expansion } }
+  | Equation { params; eq = Type_abbrev { priv = _; expansion } } ->
+    Equation { params; eq = Type_abbrev { priv = Private; expansion } }
 
 let privatise_manifest decl =
   { decl with type_noun = noun_privatise_manifest decl.type_noun }
@@ -516,11 +524,11 @@ let privatise_manifest decl =
 let newgenty_ref = ref (fun _ -> assert false)
 let get_type_manifest decl =
   match decl.type_noun with
-  | Datatype { manifest = None; noun = _ } -> None
-  | Datatype { manifest = Some path; noun = _ } ->
+  | Datatype { params = _; manifest = None; noun = _ } -> None
+  | Datatype { params = _; manifest = Some path; noun = _ } ->
     Some (!newgenty_ref (Tconstr (path, get_type_params decl, ref Mnil)))
-  | Equation { eq = Type_abstr { reason = _ } } -> None
-  | Equation { eq = Type_abbrev { priv = _; expansion } } -> Some expansion
+  | Equation { params = _; eq = Type_abstr { reason = _ } } -> None
+  | Equation { params = _; eq = Type_abbrev { priv = _; expansion } } -> Some expansion
 
 let create_type_equation priv manifest =
   match priv, manifest with
@@ -531,8 +539,8 @@ let create_type_equation priv manifest =
      are observed by [get_type_private] as public. *)
   | (Public | Private), None -> Type_abstr { reason = Abstract_def }
 
-let create_type_equation_in_noun priv manifest =
-  Equation { eq = create_type_equation priv manifest }
+let create_type_equation_in_noun params priv manifest =
+  Equation { params; eq = create_type_equation priv manifest }
 
 (* Type expressions for the class language *)
 

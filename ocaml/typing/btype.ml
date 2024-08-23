@@ -329,7 +329,8 @@ let map_type_expr_cstr_args f = function
       Cstr_record (List.map (fun d -> {d with ld_type=f d.ld_type}) lbls)
 
 let iter_noun expr path = function
-  | Datatype { manifest; noun } -> begin
+  | Datatype { params; manifest; noun } -> begin
+    List.iter (fun { param_expr; _ } -> expr param_expr) params;
     Option.iter path manifest;
     match noun with
     | Datatype_variant { priv = _; cstrs; rep = _ } ->
@@ -343,8 +344,10 @@ let iter_noun expr path = function
       List.iter (fun d -> expr d.ld_type) lbls
     | Datatype_open { priv = _ } -> ()
     end
-  | Equation { eq = Type_abstr { reason = _ }} -> ()
-  | Equation { eq = Type_abbrev { priv = _; expansion }} ->
+  | Equation { params; eq = Type_abstr { reason = _ }} ->
+    List.iter (fun { param_expr; _ } -> expr param_expr) params;
+  | Equation { params; eq = Type_abbrev { priv = _; expansion }} ->
+    List.iter (fun { param_expr; _ } -> expr param_expr) params;
     expr expansion
 
 let iter_type_expr_noun f = iter_noun f (fun _ -> ())
@@ -363,7 +366,6 @@ let type_iterators =
   and it_value_description it vd =
     it.it_type_expr it vd.val_type
   and it_type_declaration it td =
-    List.iter (fun { param_expr; _ } -> it.it_type_expr it param_expr) td.type_params_;
     it.it_type_noun it td.type_noun
   and it_extension_constructor it td =
     it.it_path td.ext_type_path;

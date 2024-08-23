@@ -2320,8 +2320,7 @@ let wrap_env fenv ftree arg =
 
 let dummy =
   {
-    type_params_ = [];
-    type_noun = create_type_equation_in_noun Public None;
+    type_noun = create_type_equation_in_noun [] Public None;
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
     type_jkind_annotation = None;
     type_is_newtype = false;

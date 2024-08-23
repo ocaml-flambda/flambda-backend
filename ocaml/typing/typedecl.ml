@@ -258,13 +258,6 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
       ~default:(Jkind.Builtin.any ~why:Initial_typedecl_env)
       sdecl
   in
-  let type_noun =
-    match sdecl.ptype_manifest, abstract_abbrevs, sdecl.ptype_private with
-    | None, _, priv | Some _, None, priv ->
-      create_type_equation_in_noun priv (Some (Ctype.newvar type_jkind))
-    (* CR jbachurski: This can hit private, apparently? *)
-    | Some _, Some reason, (Public | Private) -> Equation { eq = Type_abstr { reason } }
-  in
   let type_params =
     List.map (fun (param, _) ->
         let name = get_type_param_name param in
@@ -272,9 +265,16 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
         Btype.newgenvar ?name jkind)
       sdecl.ptype_params
   in
+  let type_params_ = create_type_params_of_unknowns ~injective:false type_params in
+  let type_noun =
+    match sdecl.ptype_manifest, abstract_abbrevs, sdecl.ptype_private with
+    | None, _, priv | Some _, None, priv ->
+      create_type_equation_in_noun type_params_ priv (Some (Ctype.newvar type_jkind))
+    (* CR jbachurski: This can hit private, apparently? *)
+    | Some _, Some reason, (Public | Private) -> Equation { params = type_params_; eq = Type_abstr { reason } }
+  in
   let decl =
-    { type_params_ = create_type_params_of_unknowns ~injective:false type_params;
-      type_noun;
+    { type_noun;
       type_jkind;
       type_jkind_annotation;
       type_is_newtype = false;
@@ -799,6 +799,7 @@ let transl_declaration env sdecl (id, uid) =
     | _ -> None
   in
   let priv = sdecl.ptype_private in
+  let type_params_ = create_type_params_of_unknowns ~injective:false params in
   (* jkind_default is the jkind to use for now as the type_jkind when there
      is no annotation and no manifest.
      See Note [Default jkinds in transl_declaration].
@@ -835,7 +836,7 @@ let transl_declaration env sdecl (id, uid) =
         raise (Error (sdecl.ptype_loc, Non_abstract_reexport path))
       | Ptype_abstract ->
           Ttype_abstract,
-          create_type_equation_in_noun priv man,
+          create_type_equation_in_noun type_params_ priv man,
           Jkind.Builtin.value ~why:Default_type_jkind
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
@@ -921,6 +922,7 @@ let transl_declaration env sdecl (id, uid) =
         in
           Ttype_variant tcstrs,
           Datatype {
+            params = type_params_;
             manifest = get_man_path_manifest ();
             noun = Datatype_variant { priv; cstrs; rep } },
           jkind
@@ -944,12 +946,14 @@ let transl_declaration env sdecl (id, uid) =
           in
           Ttype_record lbls,
           Datatype {
+            params = type_params_;
             manifest = get_man_path_manifest ();
             noun = Datatype_record { priv; lbls = lbls'; rep } },
           jkind
       | Ptype_open ->
           Ttype_open,
           Datatype {
+            params = type_params_;
             manifest = get_man_path_manifest ();
             noun = Datatype_open { priv }
           },
@@ -972,8 +976,7 @@ let transl_declaration env sdecl (id, uid) =
       | None, None -> jkind_default
     in
     let decl =
-      { type_params_ = create_type_params_of_unknowns ~injective:false params;
-        type_noun = kind;
+      { type_noun = kind;
         type_jkind = jkind;
         type_jkind_annotation = jkind_annotation;
         type_is_newtype = false;
@@ -1652,13 +1655,14 @@ let update_decl_jkind env dpath decl =
 
   let new_decl, new_jkind = match decl.type_noun with
     | Equation _ -> decl, decl.type_jkind
-    | Datatype { manifest = _; noun = Datatype_open { priv = _ } } ->
+    | Datatype { params = _; manifest = _; noun = Datatype_open { priv = _ } } ->
       let type_jkind = Jkind.Builtin.value ~why:Extensible_variant in
       { decl with type_jkind }, type_jkind
-    | Datatype { manifest; noun = Datatype_record { priv; lbls; rep } } ->
+    | Datatype { params; manifest; noun = Datatype_record { priv; lbls; rep } } ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
-      { decl with type_noun = Datatype { manifest; noun = Datatype_record { priv; lbls; rep } };
+      { decl with type_noun =
+                    Datatype { params; manifest; noun = Datatype_record { priv; lbls; rep } };
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
@@ -1668,13 +1672,14 @@ let update_decl_jkind env dpath decl =
        No updating required for [or_null_reexport], and we must not
        incorrectly override the jkind to [non_null].
     *)
-    | Datatype { manifest = _; noun = Datatype_variant { priv = _; cstrs = _; rep = _ } } when
+    | Datatype { params = _; manifest = _; noun = Datatype_variant { priv = _; cstrs = _; rep = _ } } when
       Builtin_attributes.has_or_null_reexport decl.type_attributes ->
       decl, decl.type_jkind
-    | Datatype { manifest; noun = Datatype_variant { priv; cstrs; rep } } ->
+    | Datatype { params; manifest; noun = Datatype_variant { priv; cstrs; rep } } ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
-      { decl with type_noun = Datatype { manifest; noun = Datatype_variant { priv; cstrs; rep } };
+      { decl with type_noun =
+                    Datatype { params; manifest; noun = Datatype_variant { priv; cstrs; rep } };
                   type_jkind;
                   type_has_illegal_crossings },
       type_jkind
@@ -3132,9 +3137,11 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   if arity_ok && not sig_decl_abstract
   && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
+  let type_params_ = create_type_params_of_unknowns ~injective:false params in
   let type_noun =
+    let sig_decl = set_type_params_ sig_decl type_params_ in
     match sig_decl.type_noun, sdecl.ptype_private with
-    | _ when not arity_ok -> create_type_equation_in_noun sdecl.ptype_private (Some man)
+    | _ when not arity_ok -> create_type_equation_in_noun type_params_ sdecl.ptype_private (Some man)
     | _, Private -> noun_privatise_manifest (noun_with_manifest sig_decl.type_noun man)
     | Datatype _, Public -> noun_with_manifest sig_decl.type_noun man
     | Equation _, Public -> noun_publicise_manifest (noun_with_manifest sig_decl.type_noun man)
@@ -3146,8 +3153,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       false, sig_decl.type_jkind, None
   in
   let new_sig_decl =
-    { type_params_ = create_type_params_of_unknowns ~injective:false params;
-      type_noun;
+    { type_noun;
       type_jkind;
       type_jkind_annotation;
       type_is_newtype = false;
@@ -3185,8 +3191,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
        consider whether they need to recompute it here; for an example
        of bug caused by the previous approach, see #9607 *)
     {
-      type_params_ = new_type_params_;
-      type_noun = new_sig_decl.type_noun;
+      type_noun = (set_type_params_ new_sig_decl new_type_params_).type_noun;
       type_jkind = new_sig_decl.type_jkind;
       type_jkind_annotation = new_sig_decl.type_jkind_annotation;
       type_unboxed_default = new_sig_decl.type_unboxed_default;
@@ -3217,8 +3222,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
    Package constraints are much simpler than normal with type constraints (e.g.,
    they can not have parameters and can only update abstract types.) *)
 let transl_package_constraint ~loc ty =
-  { type_params_ = [];
-    type_noun = create_type_equation_in_noun Public (Some ty);
+  { type_noun = create_type_equation_in_noun [] Public (Some ty);
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
@@ -3238,8 +3242,8 @@ let transl_package_constraint ~loc ty =
 let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
     let params = List.map Ctype.newvar params in
-    { type_params_ = create_type_params_of_unknowns ~injective params;
-      type_noun = create_type_equation_in_noun Public None;
+    let type_params_ = create_type_params_of_unknowns ~injective params in
+    { type_noun = create_type_equation_in_noun type_params_ Public None;
       type_jkind = jkind;
       type_jkind_annotation = jkind_annotation;
       type_is_newtype = false;

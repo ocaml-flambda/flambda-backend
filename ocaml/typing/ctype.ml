@@ -1333,8 +1333,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
     | Some (ty, scope) -> Some ty, scope
   in
   {
-    type_params_ = [];
-    type_noun = create_type_equation_in_noun Public manifest;
+    type_noun = create_type_equation_in_noun [] Public manifest;
     type_jkind = jkind;
     type_jkind_annotation = jkind_annot;
     type_is_newtype = true;
@@ -1400,14 +1399,23 @@ let instance_parameterized_type ?keep_names sch_args sch =
 
 (* [map_kind f kind] maps [f] over all the types in [kind]. [f] must preserve jkinds *)
 let map_kind f : type_noun -> type_noun = function
-  | Equation { eq } ->
+  | Equation { params; eq } ->
     Equation {
+      params = List.map (
+        fun { param_expr; variance; separability } ->
+          { param_expr = f param_expr; variance; separability })
+        params;
       eq = match eq with
       | Type_abstr { reason } -> Type_abstr { reason }
       | Type_abbrev { priv; expansion } -> Type_abbrev { priv; expansion = f expansion }
     }
-  | Datatype { manifest; noun } ->
+  | Datatype { params; manifest; noun } ->
     Datatype {
+      params =
+        List.map (
+          fun { param_expr; variance; separability } ->
+            { param_expr = f param_expr; variance; separability })
+          params;
       manifest;
       noun = match noun with
       | Datatype_variant { priv; cstrs; rep } ->
@@ -1429,13 +1437,7 @@ let map_kind f : type_noun -> type_noun = function
     }
 
 
-let map_decl f decl =
-  { decl with
-    type_params_ = List.map (
-      fun { param_expr; variance; separability } ->
-        { param_expr = f param_expr; variance; separability })
-      decl.type_params_;
-    type_noun = map_kind f decl.type_noun }
+let map_decl f decl = { decl with type_noun = map_kind f decl.type_noun }
 
 let instance_declaration decl =
   For_copy.with_scope (fun copy_scope -> map_decl (copy copy_scope) decl)
@@ -2917,8 +2919,8 @@ let non_aliasable p decl =
 let is_instantiable env ~for_jkind_eqn p =
   try
     let decl = Env.find_type p env in
-    match decl.type_noun, decl.type_params_ with
-    | Equation { eq = Type_abstr { reason = _ } }, []
+    match decl.type_noun with
+    | Equation { params = []; eq = Type_abstr { reason = _ } }
       when for_jkind_eqn || not (non_aliasable p decl) -> true
     | _ -> false
   with Not_found -> false
@@ -3322,9 +3324,9 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
     | (n, _) :: nl, _ ->
         let lid = concat_longident (Longident.Lident "Pkg") n in
         let go decl =
-          match decl.type_noun, decl.type_params_ with
-          | Equation { eq = Type_abbrev { priv = Public; expansion } }, [] -> Ok (Some expansion)
-          | Equation { eq = Type_abstr { reason = _ } }, [] -> Ok None
+          match decl.type_noun with
+          | Equation { params = []; eq = Type_abbrev { priv = Public; expansion } } -> Ok (Some expansion)
+          | Equation { params = []; eq = Type_abstr { reason = _ } } -> Ok None
           | _ -> Error ()
         in
         match Env.find_type_by_name lid env' |> snd |> go with
@@ -6494,6 +6496,9 @@ let nondep_type_decl env mid is_covariant decl =
                 Private
             with Nondep_cannot_erase _ -> None, Public
     in
+    let type_params_ =
+      create_type_params params (get_type_variance decl) (get_type_separability decl)
+    in
     let type_noun =
       try match decl.type_noun with
       (* Datatypes only have path manifests, so nothing to expand there *)
@@ -6507,14 +6512,12 @@ let nondep_type_decl env mid is_covariant decl =
           | Some ty when Btype.has_constr_row ty -> Private
           | _ -> priv
         in
-        create_type_equation_in_noun priv manifest
+        create_type_equation_in_noun type_params_ priv manifest
       (* If any uncaught expansions fail, fallback to an abstract type *)
-      with Nondep_cannot_erase _ when is_covariant -> create_type_equation_in_noun Public None
+      with Nondep_cannot_erase _ when is_covariant -> create_type_equation_in_noun type_params_ Public None
     in
     clear_hash ();
-    { type_params_ =
-        create_type_params params (get_type_variance decl) (get_type_separability decl);
-      type_noun;
+    { type_noun;
       type_jkind = decl.type_jkind;
       type_jkind_annotation = decl.type_jkind_annotation;
       type_is_newtype = false;

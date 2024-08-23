@@ -216,7 +216,7 @@ let or_null_argument_jkind = Jkind.Builtin.value ~why:(
 
 let mk_add_type add_type
       type_ident
-      ?(kind=create_type_equation_in_noun Public None)
+      ?(kind=create_type_equation_in_noun [] Public None)
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* [jkind_annotation] is just used for printing. It's best to
          provide it if the jkind is not implied by the kind of the
@@ -225,8 +225,7 @@ let mk_add_type add_type
       ?jkind_annotation
       env =
   let decl =
-    {type_params_ = [];
-     type_noun = kind;
+    {type_noun = kind;
      type_jkind = jkind;
      type_jkind_annotation = predef_jkind_annotation jkind_annotation;
      type_loc = Location.none;
@@ -241,7 +240,7 @@ let mk_add_type add_type
   add_type type_ident decl env
 
 let mk_add_type1 add_type type_ident
-      ?(kind=fun _ -> create_type_equation_in_noun Public None)
+      ~kind
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* See the comment on the [jkind_annotation] argument to [mk_add_type]
       *)
@@ -252,11 +251,10 @@ let mk_add_type1 add_type type_ident
           position = 1;
           arity = 1}
       ))
-    ~variance ~separability env =
+      env =
   let param = newgenvar param_jkind in
   let decl =
-    { type_params_ = [{ param_expr = param; variance; separability }];
-      type_noun = kind param;
+    { type_noun = kind param;
       type_jkind = jkind;
       type_jkind_annotation = predef_jkind_annotation jkind_annotation;
       type_loc = Location.none;
@@ -310,14 +308,14 @@ let mk_add_extension add_extension id args jkinds =
       ext_uid = Uid.of_predef_id id;
     }
 
-let variant ?manifest cstrs jkinds =
+let variant ?manifest params cstrs jkinds =
   Datatype {
-    manifest;
+    params; manifest;
     noun = Datatype_variant { priv = Public; cstrs; rep = Variant_boxed jkinds }
   }
 
-let open_variant =
-  Datatype { manifest = None; noun = Datatype_open { priv = Public } }
+let open_variant params =
+  Datatype { params; manifest = None; noun = Datatype_open { priv = Public } }
 
 let unrestricted tvar =
   {ca_type=tvar;
@@ -330,27 +328,29 @@ let build_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
   and add_type1 = mk_add_type1 add_type
   and add_extension = mk_add_extension add_extension in
+  let of_varsep variance separability param =
+    create_type_equation_in_noun
+      [{ param_expr = param; variance; separability }] Public None
+  in
   empty_env
   (* Predefined types *)
   |> add_type1 ident_array
-       ~variance:Variance.full
-       ~separability:Separability.Ind
+       ~kind:(of_varsep Variance.full Separability.Ind)
        ~param_jkind:(Jkind.add_nullability_crossing
                       (Jkind.Builtin.any ~why:Array_type_argument))
   |> add_type1 ident_iarray
-       ~variance:Variance.covariant
-       ~separability:Separability.Ind
+       ~kind:(of_varsep Variance.covariant Separability.Ind)
        ~param_jkind:(Jkind.add_nullability_crossing
                       (Jkind.Builtin.any ~why:Array_type_argument))
   |> add_type ident_bool
-       ~kind:(variant [ cstr ident_false []; cstr ident_true []]
+       ~kind:(variant [] [ cstr ident_false []; cstr ident_true []]
                 [| Constructor_uniform_value, [| |];
                    Constructor_uniform_value, [| |] |])
        ~jkind:(Jkind.Builtin.immediate ~why:Enumeration)
   |> add_type ident_char ~jkind:(Jkind.Builtin.immediate ~why:(Primitive ident_char))
       ~jkind_annotation:Jkind.Const.Builtin.immediate
   |> add_type ident_exn
-       ~kind:open_variant
+       ~kind:(open_variant [])
        ~jkind:(Jkind.Builtin.value ~why:Extensible_variant)
   |> add_type ident_extension_constructor
   |> add_type ident_float
@@ -372,15 +372,14 @@ let build_initial_env add_type add_extension empty_env =
                 Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type1 ident_lazy_t
-       ~variance:Variance.covariant
-       ~separability:Separability.Ind
+      ~kind:(of_varsep Variance.covariant Separability.Ind)
   |> add_type1 ident_list
-       ~variance:Variance.covariant
-       ~separability:Separability.Ind
-       ~kind:(fun tvar ->
-         variant [cstr ident_nil [];
-                  cstr ident_cons [unrestricted tvar;
-                                   type_list tvar |> unrestricted]]
+      ~kind:(fun tvar ->
+         variant
+           [{ param_expr = tvar; variance = Variance.covariant; separability =  Separability.Ind }]
+           [cstr ident_nil [];
+            cstr ident_cons [unrestricted tvar;
+                             type_list tvar |> unrestricted]]
            [| Constructor_uniform_value, [| |];
               Constructor_uniform_value,
                 [| list_argument_jkind;
@@ -393,10 +392,10 @@ let build_initial_env add_type add_extension empty_env =
                 Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
   |> add_type1 ident_option
-       ~variance:Variance.covariant
-       ~separability:Separability.Ind
        ~kind:(fun tvar ->
-         variant [cstr ident_none []; cstr ident_some [unrestricted tvar]]
+         variant
+           [{ param_expr = tvar; variance = Variance.covariant; separability =  Separability.Ind }]
+           [cstr ident_none []; cstr ident_some [unrestricted tvar]]
            [| Constructor_uniform_value, [| |];
               Constructor_uniform_value, [| option_argument_jkind |];
            |])
@@ -425,6 +424,7 @@ let build_initial_env add_type add_extension empty_env =
            ("pos_cnum", type_int, immediate) ]
          in
          Datatype {
+          params = [];
           manifest = None;
           noun = Datatype_record {
            priv = Public;
@@ -466,6 +466,7 @@ let build_initial_env add_type add_extension empty_env =
       ~jkind_annotation:Jkind.Const.Builtin.mutable_data
   |> add_type ident_unit
        ~kind:(variant
+                []
                 [cstr ident_void []]
                 [| Constructor_uniform_value, [| |] |])
        ~jkind:(Jkind.Builtin.immediate ~why:Enumeration)
@@ -533,17 +534,17 @@ let add_small_number_extension_types add_type env =
        ~jkind_annotation:Jkind.Const.Builtin.float32
 
 let or_null_kind ?manifest tvar =
-  variant ?manifest [cstr ident_null []; cstr ident_this [unrestricted tvar]]
-  [| Constructor_uniform_value, [| |];
-      Constructor_uniform_value, [| or_null_argument_jkind |];
-  |]
+  variant ?manifest
+    [{ param_expr = tvar; variance = Variance.covariant; separability =  Separability.Ind }]
+    [cstr ident_null []; cstr ident_this [unrestricted tvar]]
+    [| Constructor_uniform_value, [| |];
+        Constructor_uniform_value, [| or_null_argument_jkind |];
+    |]
 
 let add_or_null add_type env =
   let add_type1 = mk_add_type1 add_type in
   env
   |> add_type1 ident_or_null
-  ~variance:Variance.covariant
-  ~separability:Separability.Ind
   (* CR layouts v3: [or_null] is separable only if the argument type
      is non-float. The current separability system can't track that.
      We also want to allow [float or_null] despite it being non-separable.

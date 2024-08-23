@@ -73,10 +73,10 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       let jkind =
         Jkind.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
       in
+      let params = create_type_params_of_unknowns ~injective:true type_params in
       let tdecl =
         {
-          type_params_ = create_type_params_of_unknowns ~injective:true type_params;
-          type_noun = Datatype { manifest = None; noun = Datatype_record { priv; lbls; rep } };
+          type_noun = Datatype { params; manifest = None; noun = Datatype_record { priv; lbls; rep } };
           type_jkind = jkind;
           type_jkind_annotation = None;
           type_is_newtype = false;

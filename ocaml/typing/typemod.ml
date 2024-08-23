@@ -672,10 +672,10 @@ let merge_constraint initial_env loc sg lid constr =
               sdecl.ptype_params
           in
           let type_separability = Types.Separability.default_signature ~arity in
-          { type_params_ = create_type_params type_params type_variance type_separability;
-            (* CR jbachurski: This is the abstract type created for the private row.
+          let type_params_ = create_type_params type_params type_variance type_separability in
+          { (* CR jbachurski: This is the abstract type created for the private row.
                Notice it used to be created as [Private], but will now be observed as [Public]. *)
-            type_noun = create_type_equation_in_noun Private None;
+            type_noun = create_type_equation_in_noun type_params_ Private None;
             type_jkind = Jkind.Builtin.value ~why:(Unknown "merge_constraint");
             type_jkind_annotation = None;
             type_loc = sdecl.ptype_loc;
@@ -698,7 +698,7 @@ let merge_constraint initial_env loc sg lid constr =
         let before_ghosts, row_id, after_ghosts = split_row_id s ghosts in
         check_type_decl outer_sig_env sg_for_env sdecl.ptype_loc
           id row_id newdecl decl;
-        let decl_row = {decl_row with type_params_ = newdecl.type_params_} in
+        let decl_row = set_type_params decl_row (get_type_params newdecl) in
         let rs' = if rs = Trec_first then Trec_not else rs in
         let ghosts =
           List.rev_append before_ghosts
@@ -2345,7 +2345,8 @@ let check_recmodule_inclusion env bindings =
 let rec package_constraints_sig env loc sg constrs =
   List.map
     (function
-      | Sig_type (id, ({type_params_=[]} as td), rs, priv)
+      | Sig_type (id, ({type_noun = Equation{params=[]; _}
+                                  | Datatype{params=[]; _}; _} as td), rs, priv)
         when List.mem_assoc [Ident.name id] constrs ->
           let ty = List.assoc [Ident.name id] constrs in
           Sig_type (id, with_manifest td ty, rs, priv)
