@@ -14,15 +14,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-<<<<<<< HEAD
 open! Stdlib
 
-(** MD5 message digest.
-||||||| 121bedcfd2
-(** MD5 message digest.
-=======
 (** Message digest.
->>>>>>> 5.2.0
 
    This module provides functions to compute 'digests', also known as
    'hashes', of arbitrary-length strings or files.

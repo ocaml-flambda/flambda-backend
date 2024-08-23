@@ -101,17 +101,8 @@ STDLIB_MODULE_BASENAMES = \
   stringLabels \
   moreLabels \
   stdLabels \
-<<<<<<< HEAD
-  in_channel \
-  out_channel \
+  effect \
   camlinternalComprehension
-||||||| 121bedcfd2
-  in_channel \
-  out_channel \
-  effect
-=======
-  effect
->>>>>>> 5.2.0
 
 STDLIB_PREFIXED_MODULES = \
   $(filter-out stdlib camlinternal%, $(STDLIB_MODULE_BASENAMES))

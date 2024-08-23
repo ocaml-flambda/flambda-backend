@@ -362,7 +362,6 @@ exception Break
 
 val catch_break : bool -> unit
 (** [catch_break] governs whether interactive interrupt (ctrl-C)
-<<<<<<< HEAD
     terminates the program or raises the [Break] exception.
     Call [catch_break true] to enable raising [Break],
     and [catch_break false] to let the system
@@ -371,7 +370,12 @@ val catch_break : bool -> unit
     By default, having done [catch_break true], [Break] will be delivered to
     the toplevel uncaught exception handler.  To deliver it elsewhere, use
     [with_async_exns], below.
-*)
+
+    Inside multi-threaded programs, the [Break] exception will arise in
+    any one of the active threads, and will keep arising on further
+    interactive interrupt until all threads are terminated. Use
+    signal masks from [Thread.sigmask] to direct the interrupt towards a
+    specific thread. *)
 
 val with_async_exns : (unit -> 'a) -> 'a
 (** [with_async_exns f] runs [f] and returns its result, in addition to
@@ -382,23 +386,6 @@ val with_async_exns : (unit -> 'a) -> 'a
     The asynchronous exception handler context is per-domain, not per-fiber:
     delimited continuations do not capture it.
 *)
-||||||| 121bedcfd2
-   terminates the program or raises the [Break] exception.
-   Call [catch_break true] to enable raising [Break],
-   and [catch_break false] to let the system
-   terminate the program on user interrupt. *)
-=======
-   terminates the program or raises the [Break] exception.
-   Call [catch_break true] to enable raising [Break],
-   and [catch_break false] to let the system
-   terminate the program on user interrupt.
-
-   Inside multi-threaded programs, the [Break] exception will arise in
-   any one of the active threads, and will keep arising on further
-   interactive interrupt until all threads are terminated. Use
-   signal masks from [Thread.sigmask] to direct the interrupt towards a
-   specific thread. *)
->>>>>>> 5.2.0
 
 
 val ocaml_version : string

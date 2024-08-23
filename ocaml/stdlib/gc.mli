@@ -95,22 +95,9 @@ type stat =
 
     stack_size: int;
     (** Current size of the stack, in words.
-<<<<<<< HEAD
-
-        This metrics will not be available in the OCaml 5 runtime: the field
-        value will always be [0].
-
-||||||| 121bedcfd2
-=======
         This metrics is currently not available in OCaml 5: the field value is
         always [0].
->>>>>>> 5.2.0
         @since 3.12 *)
-    (* CR ocaml 5 all-runtime5: Update the above comment to what it is upstream:
-
-       This metrics is currently not available in OCaml 5: the field value is
-       always [0].
-    *)
 
     forced_major_collections: int;
     (** Number of forced full major collections completed since the program
@@ -125,6 +112,8 @@ type stat =
    the word size (4 on a 32-bit machine, 8 on a 64-bit machine) to get
    the number of bytes.
 *)
+
+(* CR ocaml 5 all-runtime5: pretty much revert this file to upstream *)
 
 type control =
   { minor_heap_size : int;
@@ -173,6 +162,8 @@ type control =
        compaction is triggered at the end of each major GC cycle
        (this setting is intended for testing purposes only).
        If [max_overhead >= 1000000], compaction is never triggered.
+       On runtime4, if compaction is permanently disabled, it is strongly
+       suggested to set [allocation_policy] to 2.
        Default: 500. *)
 
     stack_limit : int;
@@ -182,15 +173,51 @@ type control =
     allocation_policy : int;
     (** The policy used for allocating in the major heap.
 
-        This option is ignored in OCaml 5.x.
+        This option is ignored when using runtime5.
 
-        Prior to OCaml 5.0, possible values were 0, 1 and 2.
+        Prior to runtime5, possible values were 0, 1 and 2.
 
         - 0 was the next-fit policy
 
         - 1 was the first-fit policy (since OCaml 3.11)
 
         - 2 was the best-fit policy (since OCaml 4.10)
+
+        More details for runtime4: -------------------------------------
+
+        Possible values are 0, 1 and 2.
+
+        - 0 is the next-fit policy, which is usually fast but can
+          result in fragmentation, increasing memory consumption.
+
+        - 1 is the first-fit policy, which avoids fragmentation but
+          has corner cases (in certain realistic workloads) where it
+          is sensibly slower.
+
+        - 2 is the best-fit policy, which is fast and avoids
+          fragmentation. In our experiments it is faster and uses less
+          memory than both next-fit and first-fit.
+          (since OCaml 4.10)
+
+        The default is best-fit.
+
+        On one example that was known to be bad for next-fit and first-fit,
+        next-fit takes 28s using 855Mio of memory,
+        first-fit takes 47s using 566Mio of memory,
+        best-fit takes 27s using 545Mio of memory.
+
+        Note: If you change to next-fit, you may need to reduce
+        the [space_overhead] setting, for example using [80] instead
+        of the default [120] which is tuned for best-fit. Otherwise,
+        your program will need more memory.
+
+        Note: changing the allocation policy at run-time forces
+        a heap compaction, which is a lengthy operation unless the
+        heap is small (e.g. at the start of the program).
+
+        Default: 2.
+
+        ----------------------------------------------------------------
 
         @since 3.11 *)
 
@@ -225,12 +252,24 @@ type control =
         @since 4.08 *)
 
     custom_minor_max_size : int;
-    (** Maximum amount of out-of-heap memory for each custom value
+    (** For runtime4:
+        Maximum amount of out-of-heap memory for each custom value
+        allocated in the minor heap. When a custom value is allocated
+        on the minor heap and holds more than this many bytes, only
+        this value is counted against [custom_minor_ratio] and the
+        rest is directly counted against [custom_major_ratio].
+        Note: this only applies to values allocated with
+        [caml_alloc_custom_mem] (e.g. bigarrays).
+        Default: 8192 bytes.
+
+        For runtime5:
+        Maximum amount of out-of-heap memory for each custom value
         allocated in the minor heap. Custom values that hold more
         than this many bytes are allocated on the major heap.
         Note: this only applies to values allocated with
         [caml_alloc_custom_mem] (e.g. bigarrays).
         Default: 70000 bytes.
+
         @since 4.08 *)
   }
 (** The GC parameters are given as a [control] record.  Note that
@@ -440,10 +479,10 @@ val delete_alarm : alarm -> unit
 (** [delete_alarm a] will stop the calls to the function associated
    to [a]. Calling [delete_alarm a] again has no effect. *)
 
-external eventlog_pause : unit -> unit = "caml_eventlog_pause"
+val eventlog_pause : unit -> unit
 [@@ocaml.deprecated "Use Runtime_events.pause instead."]
 
-external eventlog_resume : unit -> unit = "caml_eventlog_resume"
+val eventlog_resume : unit -> unit
 [@@ocaml.deprecated "Use Runtime_events.resume instead."]
 
 (** [Memprof] is a profiling engine which randomly samples allocated
@@ -463,7 +502,12 @@ external eventlog_resume : unit -> unit = "caml_eventlog_resume"
    profiler as an OCaml library.
 
    Note: this API is EXPERIMENTAL. It may change without prior
-   notice. *)
+   notice.
+
+   (The docs in the comments here relate to runtime5; runtime4 should be
+    similar in most regards.)
+
+   *)
 module Memprof :
   sig
     type t
@@ -478,14 +522,8 @@ module Memprof :
         (** The size of the block, in words, excluding the header. *)
 
         source : allocation_source;
-<<<<<<< HEAD
-        (** The cause of the allocation. *)
-||||||| 121bedcfd2
-        (** The type of the allocation. *)
-=======
         (** The cause of the allocation; [Marshal] cannot be produced
           since OCaml 5. *)
->>>>>>> 5.2.0
 
         callstack : Printexc.raw_backtrace
         (** The callstack for the allocation. *)
@@ -525,24 +563,11 @@ module Memprof :
     (** Start a profile with the given parameters. Raises an exception
        if a profile is already sampling in the current domain.
 
-<<<<<<< HEAD
        Sampling begins immediately. The parameter [sampling_rate] is
        the sampling rate in samples per word (including headers).
        Usually, with cheap callbacks, a rate of 1e-4 has no visible
        effect on performance, and 1e-3 causes the program to run a few
-       percent slower. 0.0 <= sampling_rate <= 1.0.
-||||||| 121bedcfd2
-       The parameter [sampling_rate] is the sampling rate in samples
-       per word (including headers). Usually, with cheap callbacks, a
-       rate of 1e-4 has no visible effect on performance, and 1e-3
-       causes the program to run a few percent slower
-=======
-       Sampling begins immediately. The parameter [sampling_rate] is
-       the sampling rate in samples per word (including headers).
-       Usually, with cheap callbacks, a rate of 1e-4 has no visible
-       effect on performance, and 1e-3 causes the program to run a few
-       percent slower.
->>>>>>> 5.2.0
+       percent slower.  0.0 <= sampling_rate <= 1.0
 
        The parameter [callstack_size] is the length of the callstack
        recorded at every sample. Its default is [max_int].
@@ -550,57 +575,13 @@ module Memprof :
        The parameter [tracker] determines how to track sampled blocks
        over their lifetime in the minor and major heap.
 
-<<<<<<< HEAD
-       Sampling and running callbacks are temporarily disabled on the
-       current thread when calling a callback, so callbacks do not
-       need to be re-entrant if the program is single-threaded and
-       single-domain. However, if threads or multiple domains are
-       used, it is possible that several callbacks will run in
-       parallel. In this case, callback functions must be re-entrant.
-||||||| 121bedcfd2
-       Sampling is temporarily disabled when calling a callback
-       for the current thread. So they do not need to be re-entrant if
-       the program is single-threaded. However, if threads are used,
-       it is possible that a context switch occurs during a callback,
-       in this case the callback functions must be re-entrant.
-=======
        Sampling is temporarily disabled on the current thread when
        calling a callback, so callbacks do not need to be re-entrant
        if the program is single-threaded and single-domain. However,
        if threads or multiple domains are used, it is possible that
        several callbacks will run in parallel. In this case, callback
        functions must be re-entrant.
->>>>>>> 5.2.0
 
-<<<<<<< HEAD
-       Note that a callback may be postponed slightly after the actual
-       event. The callstack passed to an allocation callback always
-       accurately reflects the allocation, but the program state may
-       have evolved between the allocation and the call to the
-       callback.
-
-       If a new thread or domain is created when the current domain is
-       sampling for a profile, the child thread or domain joins that
-       profile (using the same [sampling_rate], [callstack_size], and
-       [tracker] callbacks).
-
-       An allocation callback is always run by the thread which
-       allocated the block. If the thread exits or the profile is
-       stopped before the callback is called, the allocation callback
-       is not called and the block is not tracked.
-
-       Each subsequent callback is generally run by the domain which
-       allocated the block. If the domain terminates or the profile is
-       stopped before the callback is called, the callback may be run
-       by a different domain.
-
-       Different domains may sample for different profiles
-       simultaneously.  *)
-||||||| 121bedcfd2
-       Note that the callback can be postponed slightly after the
-       actual event. The callstack passed to the callback is always
-       accurate, but the program state may have evolved. *)
-=======
        Note that a callback may be postponed slightly after the actual
        event. The callstack passed to an allocation callback always
        accurately reflects the allocation, but the program state may
@@ -623,23 +604,14 @@ module Memprof :
 
        Different domains may run different profiles simultaneously.
        *)
->>>>>>> 5.2.0
 
     val stop : unit -> unit
     (** Stop sampling for the current profile. Fails if no profile is
        sampling in the current domain. Stops sampling in all threads
        and domains sharing the profile.
 
-<<<<<<< HEAD
-       Promotion and deallocation callbacks from a profile may run
-       after [stop] is called, until [discard] is applied to the
-       profile.
-||||||| 121bedcfd2
-        This function does not allocate memory.
-=======
        Callbacks from a profile may run after [stop] is called, until
        [discard] is applied to the profile.
->>>>>>> 5.2.0
 
        A profile is implicitly stopped (but not discarded) if all
        domains and threads sampling for it are terminated.
