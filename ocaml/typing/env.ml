@@ -301,7 +301,7 @@ module TycompTbl =
 
 type empty = |
 
-type closure_context =
+type locality_context =
   | Tailcall_function
   | Tailcall_argument
   | Partial_application
@@ -328,7 +328,7 @@ type shared_context =
 type lock =
   | Escape_lock of escaping_context
   | Share_lock of shared_context
-  | Closure_lock of closure_context option * Mode.Value.Comonadic.r
+  | Closure_lock of locality_context option * Mode.Value.Comonadic.r
   | Region_lock
   | Exclave_lock
   | Unboxed_lock (* to prevent capture of terms with non-value types *)
@@ -756,7 +756,7 @@ type lookup_error =
   | Local_value_escaping of lock_item * Longident.t * escaping_context
   | Once_value_used_in of lock_item * Longident.t * shared_context
   | Value_used_in_closure of lock_item * Longident.t *
-      Mode.Value.Comonadic.error * closure_context option
+      Mode.Value.Comonadic.error * locality_context option
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
@@ -2455,9 +2455,9 @@ let add_share_lock shared_context env =
   let lock = Share_lock shared_context in
   add_lock lock env
 
-let add_closure_lock ?closure_context comonadic env =
+let add_closure_lock ?locality_context comonadic env =
   let lock = Closure_lock
-    (closure_context,
+    (locality_context,
      Mode.Value.Comonadic.disallow_left comonadic)
   in
   add_lock lock env
@@ -3055,14 +3055,14 @@ let share_mode ~errors ~env ~loc ~item ~lid vmode shared_context =
     {mode; context = Some shared_context}
 
 let closure_mode ~errors ~env ~loc ~item ~lid
-  ({mode = {Mode.monadic; comonadic}; _} as vmode) closure_context comonadic0 =
+  ({mode = {Mode.monadic; comonadic}; _} as vmode) locality_context comonadic0 =
   begin
     match
       Mode.Value.Comonadic.submode comonadic comonadic0
     with
     | Error e ->
         may_lookup_error errors loc env
-          (Value_used_in_closure (item, lid, e, closure_context))
+          (Value_used_in_closure (item, lid, e, locality_context))
     | Ok () -> ()
   end;
   let monadic =
@@ -3121,8 +3121,8 @@ let walk_locks ~errors ~loc ~env ~item ~lid mode ty locks =
           escape_mode ~errors ~env ~loc ~item ~lid vmode escaping_context
       | Share_lock shared_context ->
           share_mode ~errors ~env ~loc ~item ~lid vmode shared_context
-      | Closure_lock (closure_context, comonadic) ->
-          closure_mode ~errors ~env ~loc ~item ~lid vmode closure_context comonadic
+      | Closure_lock (locality_context, comonadic) ->
+          closure_mode ~errors ~env ~loc ~item ~lid vmode locality_context comonadic
       | Exclave_lock ->
           exclave_mode ~errors ~env ~loc ~item ~lid vmode
       | Unboxed_lock ->

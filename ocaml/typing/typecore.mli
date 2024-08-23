@@ -293,7 +293,7 @@ type error =
   | Expr_not_a_record_type of type_expr
   | Submode_failed of
       Mode.Value.error * submode_reason *
-      Env.closure_context option *
+      Env.locality_context option *
       contention_context option *
       Env.shared_context option
   | Curried_application_complete of
@@ -311,7 +311,7 @@ type error =
   | Function_type_not_rep of type_expr * Jkind.Violation.t
   | Invalid_label_for_src_pos of arg_label
   | Nonoptional_call_pos_label of string
-  | Cannot_stack_allocate of Env.closure_context option
+  | Cannot_stack_allocate of Env.locality_context option
   | Unsupported_stack_allocation of unsupported_stack_allocation
   | Not_allocation
 
