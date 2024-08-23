@@ -6296,8 +6296,6 @@ and type_expect_
     | Error () -> raise (Error (loc, env, Probe_format))
     | Ok { name; name_loc; enabled_at_init; arg; } ->
         check_probe_name name name_loc env;
-        let env = Env.add_escape_lock Probe env in
-        let env = Env.add_share_lock Probe env in
         Env.add_probe name;
         let exp = type_expect env mode_legacy arg
                     (mk_expected Predef.type_unit) in
