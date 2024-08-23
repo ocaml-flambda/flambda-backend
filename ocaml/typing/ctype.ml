@@ -1400,8 +1400,7 @@ let map_kind f : type_noun -> type_noun = function
     Equation {
       eq = match eq with
       | Type_abstr { reason } -> Type_abstr { reason }
-      | Type_abbrev { expansion } -> Type_abbrev { expansion = f expansion }
-      | Type_private_abbrev { expansion } -> Type_private_abbrev { expansion = f expansion }
+      | Type_abbrev { priv; expansion } -> Type_abbrev { priv; expansion = f expansion }
     }
   | Datatype { manifest; noun } ->
     Datatype {
@@ -6493,17 +6492,14 @@ let nondep_type_decl env mid is_covariant decl =
       (* Datatypes only have path manifests, so nothing to expand there *)
       | Datatype _ -> map_kind (nondep_type_rec env mid) decl.type_noun
       | Equation { eq = Type_abstr { reason = _ } } -> decl.type_noun
-      | Equation { eq = Type_abbrev { expansion } } ->
-        let manifest, priv = expand_public_or_then_private Public expansion in
+      | Equation { eq = Type_abbrev { priv; expansion } } ->
+        let manifest, priv = expand_public_or_then_private priv expansion in
         (* This case only matters if the abbreviation wasn't already private *)
         let priv =
           match manifest with
           | Some ty when Btype.has_constr_row ty -> Private
           | _ -> priv
         in
-        create_type_equation_in_noun priv manifest
-      | Equation { eq = Type_private_abbrev { expansion } } ->
-        let manifest, priv = expand_public_or_then_private Private expansion in
         create_type_equation_in_noun priv manifest
       (* If any uncaught expansions fail, fallback to an abstract type *)
       with Nondep_cannot_erase _ when is_covariant -> create_type_equation_in_noun Public None

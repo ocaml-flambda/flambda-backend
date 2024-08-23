@@ -461,12 +461,9 @@ let type_declaration' copy_scope s decl =
       begin match decl.type_noun with
       | Equation { eq = Type_abstr { reason } } ->
         Equation { eq = Type_abstr { reason } }
-      | Equation { eq = Type_abbrev { expansion } } ->
+      | Equation { eq = Type_abbrev { priv; expansion } } ->
         let expansion = typexp copy_scope s decl.type_loc expansion in
-        Equation { eq = Type_abbrev { expansion } }
-      | Equation { eq = Type_private_abbrev { expansion } } ->
-        let expansion = typexp copy_scope s decl.type_loc expansion in
-        Equation { eq = Type_private_abbrev { expansion } }
+        Equation { eq = Type_abbrev { priv; expansion } }
       | Datatype { manifest; noun } -> Datatype {
         manifest = Option.map (type_path s) manifest;
         noun = match noun with

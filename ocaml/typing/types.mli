@@ -550,8 +550,7 @@ and datatype_noun =
 
 and type_equation =
   | Type_abstr of { reason: abstract_reason }
-  | Type_abbrev of { expansion: type_expr }
-  | Type_private_abbrev of { expansion: type_expr }
+  | Type_abbrev of { priv: private_flag; expansion: type_expr }
 
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 

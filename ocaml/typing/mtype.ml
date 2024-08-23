@@ -31,6 +31,7 @@ let strengthen_decl_with_manifest path decl =
       match decl.type_noun with
       | Equation _ ->
         Equation { eq = Type_abbrev {
+          priv = Public;
           expansion = Btype.newgenty (Tconstr(path, (get_type_params decl), ref Mnil))
         } }
       | Datatype { manifest = _; noun } -> Datatype { manifest = Some path; noun } }

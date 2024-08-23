@@ -280,8 +280,7 @@ and datatype_noun =
 
 and type_equation =
   | Type_abstr of { reason: abstract_reason }
-  | Type_abbrev of { expansion: type_expr }
-  | Type_private_abbrev of { expansion: type_expr }
+  | Type_abbrev of { priv: private_flag; expansion: type_expr }
 
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
@@ -430,7 +429,6 @@ let get_type_kind decl =
   | Datatype { manifest = _; noun = Datatype_open _ } -> Type_open
   | Equation { eq = Type_abstr { reason } } -> Type_abstract reason
   | Equation { eq = Type_abbrev _ } -> Type_abstract Abstract_def
-  | Equation { eq = Type_private_abbrev _ } -> Type_abstract Abstract_def
 
 let get_type_private decl =
   match decl.type_noun with
@@ -438,15 +436,14 @@ let get_type_private decl =
   | Datatype { manifest = _; noun = Datatype_variant { priv; _ } } -> priv
   | Datatype { manifest = _; noun = Datatype_open { priv; _ } } -> priv
   | Equation { eq = Type_abstr { reason = _ } } -> Public
-  | Equation { eq = Type_abbrev { expansion = _ } } -> Public
-  | Equation { eq = Type_private_abbrev { expansion = _ } } -> Private
+  | Equation { eq = Type_abbrev { priv; expansion = _ } } -> priv
 
 let hide_manifest decl =
   { decl with type_noun = match decl.type_noun with
     | Datatype { manifest = _; noun } -> Datatype { manifest = None; noun }
     | Equation { eq = Type_abstr { reason } } ->
       Equation { eq = Type_abstr { reason } }
-    | Equation { eq = (Type_abbrev _ | Type_private_abbrev _)} ->
+    | Equation { eq = Type_abbrev _ } ->
       Equation { eq = Type_abstr { reason = Abstract_def } }
   }
 
@@ -460,11 +457,10 @@ let noun_with_manifest type_noun expansion =
       | _ -> assert false
     in
     Datatype { manifest; noun }
-  | Equation { eq = Type_abstr { reason = _ } }
-  | Equation { eq = Type_abbrev { expansion = _ } } ->
-    Equation { eq = Type_abbrev { expansion } }
-  | Equation { eq = Type_private_abbrev { expansion = _ } } ->
-    Equation { eq = Type_private_abbrev { expansion } }
+  | Equation { eq = Type_abstr { reason = _ } } ->
+    Equation { eq = Type_abbrev { priv = Public; expansion } }
+  | Equation { eq = Type_abbrev { priv; expansion = _ } } ->
+    Equation { eq = Type_abbrev { priv; expansion } }
 
 let with_manifest decl expansion =
   { decl with type_noun = noun_with_manifest decl.type_noun expansion }
@@ -479,9 +475,8 @@ let noun_publicise_manifest = function
     }
   | Equation { eq = Type_abstr { reason } } ->
     Equation { eq = Type_abstr { reason } }
-  | Equation { eq = Type_abbrev { expansion } }
-  | Equation { eq = Type_private_abbrev { expansion } } ->
-    Equation { eq = Type_abbrev { expansion } }
+  | Equation { eq = Type_abbrev { priv = _; expansion } } ->
+    Equation { eq = Type_abbrev { priv = Public; expansion } }
 
 let publicise_manifest decl =
   { decl with type_noun = noun_publicise_manifest decl.type_noun }
@@ -497,9 +492,8 @@ let noun_privatise_manifest = function
   | Equation { eq = Type_abstr { reason = _ } } ->
     assert false
     (* Equation { eq = Type_abstr { reason } } *)
-  | Equation { eq = Type_abbrev { expansion } }
-  | Equation { eq = Type_private_abbrev { expansion } } ->
-    Equation { eq = Type_private_abbrev { expansion } }
+  | Equation { eq = Type_abbrev { priv = _; expansion } } ->
+    Equation { eq = Type_abbrev { priv = Private; expansion } }
 
 let privatise_manifest decl =
   { decl with type_noun = noun_privatise_manifest decl.type_noun }
@@ -511,13 +505,11 @@ let get_type_manifest decl =
   | Datatype { manifest = Some path; noun = _ } ->
     Some (!newgenty_ref (Tconstr (path, get_type_params decl, ref Mnil)))
   | Equation { eq = Type_abstr { reason = _ } } -> None
-  | Equation { eq = Type_abbrev { expansion } } -> Some expansion
-  | Equation { eq = Type_private_abbrev { expansion } } -> Some expansion
+  | Equation { eq = Type_abbrev { priv = _; expansion } } -> Some expansion
 
 let create_type_equation priv manifest =
   match priv, manifest with
-  | Public, Some expansion -> Type_abbrev { expansion }
-  | Private, Some expansion -> Type_private_abbrev { expansion }
+  | priv, Some expansion -> Type_abbrev { priv; expansion }
   (* CR jbachurski: 'Private' abstract types don't really exist,
      but are sometimes created.
      Invariant broken: Private abstract types with no manifest
