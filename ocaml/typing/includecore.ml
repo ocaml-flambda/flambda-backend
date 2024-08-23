@@ -1168,12 +1168,30 @@ let type_declarations ?(equality = false) ~loc env ~mark name
       (get_type_params decl1) decl1.type_noun path (get_type_params decl2) decl2.type_noun
   in
   if err <> None then err else
-  let abstr = Btype.type_kind_is_abstract decl2 && get_type_manifest decl2 = None in
+  let abstr =
+    match decl2.type_noun with
+    | Equation { eq = Type_abstr _ } -> true
+    | _ -> false
+  in
   let need_variance =
-    abstr || get_type_private decl1 = Private || get_type_kind decl1 = Type_open in
+    abstr ||
+    match decl1.type_noun with
+    | Equation { eq = Type_abbrev { priv = Private; _ }}
+    | Datatype { noun = Datatype_open _ } -> true
+    | _ -> false
+  in
   if not need_variance then None else
-  let abstr = abstr || get_type_private decl2 = Private in
-  let opn = get_type_kind decl2 = Type_open && get_type_manifest decl2 = None in
+  let abstr =
+    abstr ||
+    match decl2.type_noun with
+    | Equation { eq = Type_abbrev { priv = Private; _ }} -> true
+    | _ -> false
+  in
+  let opn =
+    match decl2.type_noun with
+    | Datatype { manifest = None; noun = Datatype_open _ } -> true
+    | _ -> false
+  in
   let constrained ty = not (Btype.is_Tvar ty) in
   if List.for_all2
       (fun ty (v1,v2) ->
