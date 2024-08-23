@@ -41,7 +41,7 @@
 /* This depends on the layout of the header.  See [mlvalues.h]. */
 #define Make_header(wosize, tag, color)                                       \
       (/*CAMLassert ((wosize) <= Max_wosize),*/                               \
-       ((header_t) (((header_t) (wosize) << 10)                               \
+       ((header_t) (((header_t) (wosize) << (10+PROFINFO_WIDTH))              \
                     + (color)                                                 \
                     + (tag_t) (tag)))                                         \
       )

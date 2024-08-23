@@ -101,10 +101,10 @@ bits  31    10 9     8 7   0
 
 For 64-bit architectures:
 
-     +----------+--------+-------+-----+
-     | reserved | wosize | color | tag |
-     +----------+--------+-------+-----+
-bits  63    64-R 63-R  10 9     8 7   0
+     +--------+----------+-------+-----+
+     | wosize | reserved | color | tag |
+     +--------+----------+-------+-----+
+bits  63       R+10    10 9     8 7   0
 
 where 0 <= R <= 31 is HEADER_RESERVED_BITS. R is always
 set to 8 for the flambda-backend compiler in order to support
@@ -125,14 +125,16 @@ mixed blocks. In the upstream compiler, R is set with the
 
 #define HEADER_WOSIZE_BITS (HEADER_BITS - HEADER_TAG_BITS \
                             - HEADER_COLOR_BITS - HEADER_RESERVED_BITS)
-#define HEADER_WOSIZE_SHIFT (HEADER_COLOR_SHIFT  + HEADER_COLOR_BITS)
+#define HEADER_WOSIZE_SHIFT (HEADER_COLOR_SHIFT  + HEADER_COLOR_BITS + HEADER_RESERVED_BITS)
 #define HEADER_WOSIZE_MASK (((1ull << HEADER_WOSIZE_BITS) - 1ull) \
                              << HEADER_WOSIZE_SHIFT)
 
 #define Tag_hd(hd) ((tag_t) ((hd) & HEADER_TAG_MASK))
 #define Hd_with_tag(hd, tag) (((hd) &~ HEADER_TAG_MASK) | (tag))
-#define Allocated_wosize_hd(hd) ((mlsize_t) (((hd) & HEADER_WOSIZE_MASK) \
-                                     >> HEADER_WOSIZE_SHIFT))
+
+/* By construction, there's nothing above wosize in header, so we don't need to
+   mask, only shift. */
+#define Allocated_wosize_hd(hd) ((mlsize_t) ((hd) >> HEADER_WOSIZE_SHIFT))
 
 /* A "clean" header, without reserved or color bits. */
 #define Cleanhd_hd(hd) (((header_t)(hd)) & \
@@ -141,7 +143,12 @@ mixed blocks. In the upstream compiler, R is set with the
 #if HEADER_RESERVED_BITS > 0
 
 #define HEADER_RESERVED_SHIFT (HEADER_BITS - HEADER_RESERVED_BITS)
-#define Reserved_hd(hd)   (((header_t) (hd)) >> HEADER_RESERVED_SHIFT)
+#define HEADER_RESERVED_MASK  (((1ull << HEADER_RESERVED_BITS) - 1ull) \
+                             << HEADER_RESERVED_SHIFT)
+
+#define Reserved_hd(hd)   ((((header_t) (hd)) >> HEADER_RESERVED_SHIFT) \
+                             & HEADER_RESERVED_MASK)
+
 #define Hd_reserved(res)  ((header_t)(res) << HEADER_RESERVED_SHIFT)
 
 #else /* HEADER_RESERVED_BITS is 0 */
