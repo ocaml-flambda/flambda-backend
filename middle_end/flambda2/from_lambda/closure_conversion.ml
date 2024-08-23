@@ -1001,8 +1001,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
       | Punboxed_nativeint_array_set_128 _ | Pctconst _ | Pbswap16 | Pbbswap _
       | Pint_as_pointer _ | Popaque _ | Pprobe_is_enabled _ | Pobj_dup
-      | Pobj_magic _ | Punbox_float _
-      | Pbox_float (_, _)
+      | Pobj_magic _ | Punbox_float _ | Pbox_float (_, _)
+      | Punbox_vector _ | Pbox_vector (_, _)
       | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
       | Punboxed_product_field _ | Pget_header _ | Prunstack | Pperform
       | Presume | Preperform | Patomic_exchange | Patomic_cas

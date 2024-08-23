@@ -326,6 +326,8 @@ type primitive =
   | Pbox_float of boxed_float * alloc_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * alloc_mode
+  | Punbox_vector of boxed_vector
+  | Pbox_vector of boxed_vector * alloc_mode
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Preinterpret_tagged_int63_as_unboxed_int64
   (* Jane Street extensions *)
@@ -1782,8 +1784,8 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pprobe_is_enabled _ -> None
   | Pobj_dup -> Some alloc_heap
   | Pobj_magic _ -> None
-  | Punbox_float _ | Punbox_int _ -> None
-  | Pbox_float (_, m) | Pbox_int (_, m) -> Some m
+  | Punbox_float _ | Punbox_int _ | Punbox_vector _ -> None
+  | Pbox_float (_, m) | Pbox_int (_, m) | Pbox_vector (_, m) -> Some m
   | Prunstack | Presume | Pperform | Preperform ->
     (* CR mshinwell: check *)
     Some alloc_heap
@@ -1893,6 +1895,8 @@ let primitive_result_layout (p : primitive) =
   | Pbox_float (f, _) -> layout_boxed_float f
   | Pufloatfield _ -> Punboxed_float Pfloat64
   | Punbox_float float_kind -> Punboxed_float float_kind
+  | Pbox_vector (v, _) -> layout_boxed_vector v
+  | Punbox_vector v -> Punboxed_vector v
   | Pmixedfield (_, kind, _, _) -> layout_of_mixed_field kind
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom

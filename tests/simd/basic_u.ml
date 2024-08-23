@@ -2,6 +2,31 @@ open Stdlib
 
 [@@@ocaml.warning "-unused-type-declaration"]
 
+external box_int64x2 : int64x2# -> int64x2 = "%box_vec128"
+external unbox_int64x2 : int64x2 -> int64x2# = "%unbox_vec128"
+external int64x2_of_int64s : int64 -> int64 -> int64x2 = "" "vec128_of_int64s" [@@noalloc] [@@unboxed]
+external int64x2_low_int64 : int64x2 -> int64 = "" "vec128_low_int64" [@@noalloc] [@@unboxed]
+external int64x2_high_int64 : int64x2 -> int64 = "" "vec128_high_int64" [@@noalloc] [@@unboxed]
+
+let eq l r = if l <> r then Printf.printf "%Ld <> %Ld\n" l r
+
+let[@inline never] check v l h =
+  let vl, vh = int64x2_low_int64 v, int64x2_high_int64 v in
+  eq vl l;
+  eq vh h
+;;
+
+(* Unbox/Box *)
+let () =
+  let[@inline never] opaque_identity v = v in
+  let v = unbox_int64x2 (int64x2_of_int64s 1L 2L) in
+  let v = opaque_identity v in
+  let v = box_int64x2 v in
+  check v 1L 2L
+;;
+
+(* Unboxed *)
+
 type int8x16 = int8x16#
 type int16x8 = int16x8#
 type int32x4 = int32x4#
@@ -19,6 +44,14 @@ let[@inline never] check v l h =
   let vl, vh = int64x2_low_int64 v, int64x2_high_int64 v in
   eq vl l;
   eq vh h
+;;
+
+(* Box/Unbox *)
+let () =
+  let v = box_int64x2 (int64x2_of_int64s 1L 2L) in
+  let v = Sys.opaque_identity v in
+  let v = unbox_int64x2 v in
+  check v 1L 2L
 ;;
 
 let[@inline never] combine v0 v1 =

@@ -814,6 +814,9 @@ let primitive ppf = function
   | Punbox_int bi -> fprintf ppf "unbox_%s" (boxed_integer_name bi)
   | Pbox_int (bi, m) ->
       fprintf ppf "box_%s%s" (boxed_integer_name bi) (alloc_kind m)
+  | Punbox_vector bi -> fprintf ppf "unbox_%s" (boxed_vector_name bi)
+  | Pbox_vector (bi, m) ->
+      fprintf ppf "box_%s%s" (boxed_vector_name bi) (alloc_kind m)
 
   | Parray_to_iarray -> fprintf ppf "array_to_iarray"
   | Parray_of_iarray -> fprintf ppf "array_of_iarray"
@@ -984,6 +987,8 @@ let name_of_primitive = function
   | Pbox_float (_, _) -> "Pbox_float"
   | Punbox_int _ -> "Punbox_int"
   | Pbox_int _ -> "Pbox_int"
+  | Punbox_vector _ -> "Punbox_vector"
+  | Pbox_vector _ -> "Pbox_vector"
   | Parray_of_iarray -> "Parray_of_iarray"
   | Parray_to_iarray -> "Parray_to_iarray"
   | Pget_header _ -> "Pget_header"

@@ -658,6 +658,10 @@ let prim_has_valid_reprs ~loc prim =
       exactly [Same_as_ocaml_repr Bits64; Same_as_ocaml_repr Value]
     | "%unbox_int64" ->
       exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Bits64]
+    | "%box_vec128" ->
+      exactly [Same_as_ocaml_repr Vec128; Same_as_ocaml_repr Value]
+    | "%unbox_vec128" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Vec128]
 
     | "%reinterpret_tagged_int63_as_unboxed_int64" ->
       exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Bits64]
