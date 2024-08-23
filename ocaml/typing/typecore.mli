@@ -185,6 +185,7 @@ val self_coercion : (Path.t * Location.t list ref) list ref
 type contention_context =
   | Read_mutable
   | Write_mutable
+  | Force_lazy
 
 type unsupported_stack_allocation =
   | Lazy

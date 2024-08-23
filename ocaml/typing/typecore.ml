@@ -114,6 +114,7 @@ type submode_reason =
 type contention_context =
   | Read_mutable
   | Write_mutable
+  | Force_lazy
 
 type unsupported_stack_allocation =
   | Lazy
@@ -939,6 +940,16 @@ let mode_mutate_mutable =
   in
   { (mode_default mode) with
     contention_context = Some Write_mutable }
+
+(** The [expected_mode] of the lazy expression when forcing it. *)
+let mode_force_lazy =
+  let mode =
+    Contention.Const.Uncontended
+    |> Contention.of_const
+    |> Value.max_with (Monadic Contention)
+  in
+  { (mode_default mode) with
+    contention_context = Some Force_lazy }
 
 let check_project_mutability ~loc ~env mutability mode =
   if Types.is_mutable mutability then
@@ -2896,6 +2907,7 @@ and type_pat_aux
            pat_attributes = sp.ppat_attributes;
            pat_env = !!penv }
   | Ppat_lazy sp1 ->
+      submode ~loc ~env:!env alloc_mode.mode mode_force_lazy;
       let nv = solve_Ppat_lazy ~refine:false loc penv expected_ty in
       let alloc_mode = global_pat_mode alloc_mode in
       let p1 = type_pat ~alloc_mode tps Value sp1 nv in
@@ -9753,6 +9765,10 @@ let contention_hint _fail_reason _submode_reason context =
       [Location.msg
         "@[Hint: In order to write into the mutable fields,@ \
         this record needs to be uncontended.@]"]
+  | Some Force_lazy ->
+      [Location.msg
+        "@[Hint: In order to force the lazy expression,@ \
+        the lazy needs to be uncontended.@]"]
   | None -> []
 
 let report_type_expected_explanation_opt expl ppf =

@@ -100,4 +100,18 @@ Line 3, characters 29-30:
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
+(* forcing a lazy is not concurrency-safe; therefore, we require uncontended
+   access *)
+let foo (x @ contended) =
+    match x with
+    | lazy _ -> ()
+[%%expect{|
+Line 3, characters 6-12:
+3 |     | lazy _ -> ()
+          ^^^^^^
+Error: This value is contended but expected to be uncontended.
+  Hint: In order to force the lazy expression,
+  the lazy needs to be uncontended.
+|}]
+
 (* stdlib's [Lazy.force] is a special case of lazy pattern *)
