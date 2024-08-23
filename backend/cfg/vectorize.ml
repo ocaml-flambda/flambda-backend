@@ -25,15 +25,11 @@ module Instruction : sig
     | Basic of Cfg.basic Cfg.instruction
     | Terminator of Cfg.terminator Cfg.instruction
 
-  type op
-
-  val op : t -> op
+  val op : t -> Cfg.operation option
 
   val is_supported_isomorphic_instructions : t list -> bool
 
-  val have_equal_op : t -> t -> bool
-
-  val string_of_op : op -> string
+  val have_isomorphic_op : t -> t -> bool
 
   val id : t -> Id.t
 
@@ -53,7 +49,7 @@ module Instruction : sig
 
   val can_cross_loads_or_stores : t -> bool
 
-  val may_break_alloc_freshness : t -> bool
+  val preserves_alloc_freshness : t -> bool
 
   val body_of : Cfg.basic_block -> t DLL.t
 
@@ -71,49 +67,41 @@ end = struct
     | Basic of Cfg.basic Cfg.instruction
     | Terminator of Cfg.terminator Cfg.instruction
 
-  type op =
-    | Move
-    | Const_int of nativeint
-    | Load of
-        { memory_chunk : Cmm.memory_chunk;
-          addressing_mode : Arch.addressing_mode;
-          mutability : Mach.mutable_flag;
-          is_atomic : bool
-        }
-    | Store of Cmm.memory_chunk * Arch.addressing_mode * bool
-    | Intop of Mach.integer_operation
-    | Intop_imm of Mach.integer_operation * int
-    | Unsupported
-
-  let op (instruction : t) : op =
+  let op (instruction : t) : Cfg.operation option =
     match instruction with
     | Basic basic_instruction -> (
       let desc = basic_instruction.desc in
       match desc with
-      | Op op -> (
-        match op with
-        | Move -> Move
-        | Const_int x -> Const_int x
-        | Load { memory_chunk; addressing_mode; mutability; is_atomic } ->
-          Load { memory_chunk; addressing_mode; mutability; is_atomic }
-        | Store (x1, x2, x3) -> Store (x1, x2, x3)
-        | Intop x -> Intop x
-        | Intop_imm (x1, x2) -> Intop_imm (x1, x2)
-        | Alloc _ | Reinterpret_cast _ | Static_cast _ | Spill | Reload
-        | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
-        | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _
-        | Probe_is_enabled _ | Opaque | Begin_region | End_region | Specific _
-        | Name_for_debugger _ | Dls_get | Poll ->
-          Unsupported)
-      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
-        Unsupported)
-    | Terminator _ -> Unsupported
+      | Op op -> Some op
+      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> None)
+    | Terminator _ -> None
 
-  let op_equal op1 op2 =
-    let intop_equal = Mach.equal_integer_operation in
+  let supported instruction =
+    match op instruction with
+    | None -> false
+    | Some op -> (
+      match op with
+      | Move | Const_int _ | Load _ | Store _ | Intop _ | Intop_imm _ -> true
+      | Specific specific_operation ->
+        Arch.supports_vectorize specific_operation
+      | Alloc _ | Reinterpret_cast _ | Static_cast _ | Spill | Reload
+      | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
+      | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
+      | Opaque | Begin_region | End_region | Name_for_debugger _ | Dls_get
+      | Poll ->
+        false)
+
+  let op_isomorphic (op1 : Cfg.operation) (op2 : Cfg.operation) =
     match op1, op2 with
-    | Move, Move -> true
-    | Const_int _, Const_int _ -> true
+    | Move, Move
+    | Spill, Spill
+    | Reload, Reload
+    | Const_int _, Const_int _
+    | Const_float32 _, Const_float32 _
+    | Const_float _, Const_float _
+    | Const_symbol _, Const_symbol _
+    | Const_vec128 _, Const_vec128 _ ->
+      true
     | ( Load
           { memory_chunk = memory_chunk1;
             addressing_mode = addressing_mode1;
@@ -138,69 +126,57 @@ end = struct
            addressing_mode2
          = 0
       && is_assignment1 = is_assignment2
-    | Intop intop1, Intop intop2 -> intop_equal intop1 intop2
-    | Intop_imm (intop1, _), Intop_imm (intop2, _) -> intop_equal intop1 intop2
+    | Intop intop1, Intop intop2 -> Mach.equal_integer_operation intop1 intop2
+    | Intop_imm (intop1, _), Intop_imm (intop2, _) ->
+      Mach.equal_integer_operation intop1 intop2
+    | Floatop (width1, floatop1), Floatop (width2, floatop2) ->
+      Mach.equal_float_width width1 width2
+      && Mach.equal_float_operation floatop1 floatop2
+    | Specific specific_operation1, Specific specific_operation2 ->
+      Arch.equal_specific_operation specific_operation1 specific_operation2
+      (* CR-soon tip: [Arch.equal_specific_operation] may return false even if
+         some operations are isomorphic (ie. when they have different
+         constants) *)
     | Move, _
+    | Spill, _
+    | Reload, _
     | Const_int _, _
+    | Const_float32 _, _
+    | Const_float _, _
+    | Const_symbol _, _
+    | Const_vec128 _, _
+    | Stackoffset _, _
     | Load _, _
     | Store _, _
     | Intop _, _
     | Intop_imm _, _
-    | Unsupported, _ ->
+    | Intop_atomic _, _
+    | Floatop _, _
+    | Csel _, _
+    | Reinterpret_cast _, _
+    | Static_cast _, _
+    | Probe_is_enabled _, _
+    | Opaque, _
+    | Begin_region, _
+    | End_region, _
+    | Specific _, _
+    | Name_for_debugger _, _
+    | Dls_get, _
+    | Poll, _
+    | Alloc _, _ ->
       false
 
-  let supported instruction = op instruction |> op_equal Unsupported |> not
-
-  let have_equal_op instruction1 instruction2 =
-    op_equal (op instruction1) (op instruction2)
-
-  let string_of_op op =
-    let open Format in
-    let string_of_intcomp (intcomp : Cmm.integer_comparison) =
-      match intcomp with
-      | Ceq -> "ceq"
-      | Cne -> "cne"
-      | Clt -> "clt"
-      | Cgt -> "cgt"
-      | Cle -> "cle"
-      | Cge -> "cge"
-    in
-    let string_of_intop (intop : Mach.integer_operation) =
-      match intop with
-      | Iadd -> "iadd"
-      | Isub -> "isub"
-      | Imul -> "imul"
-      | Imulh { signed } -> sprintf "imulh %b" signed
-      | Idiv -> "idiv"
-      | Imod -> "imod"
-      | Iand -> "iand"
-      | Ior -> "ior"
-      | Ixor -> "ixor"
-      | Ilsl -> "ilsl"
-      | Ilsr -> "ilsr"
-      | Iasr -> "iasr"
-      | Iclz { arg_is_non_zero } -> sprintf "iclz %b" arg_is_non_zero
-      | Ictz { arg_is_non_zero } -> sprintf "ictz %b" arg_is_non_zero
-      | Ipopcnt -> "ipopcnt"
-      | Icomp (Isigned intcomp) ->
-        sprintf "icomp isigned %s" (string_of_intcomp intcomp)
-      | Icomp (Iunsigned intcomp) ->
-        sprintf "icomp iunsigned %s" (string_of_intcomp intcomp)
-    in
-    match op with
-    | Move -> "move"
-    | Const_int x -> sprintf "const_int %d" (Nativeint.to_int x)
-    | Load _ -> "load"
-    | Store _ -> "store"
-    | Intop intop -> sprintf "intop %s" (string_of_intop intop)
-    | Intop_imm (intop, x) -> sprintf "intop %s %d" (string_of_intop intop) x
-    | Unsupported -> "unsupported"
+  let have_isomorphic_op instruction1 instruction2 =
+    match op instruction1, op instruction2 with
+    | Some op1, Some op2 -> op_isomorphic op1 op2
+    | _ -> false
 
   let is_supported_isomorphic_instructions instructions =
     let rec check hd1 tl1 =
       match tl1 with
       | [] -> true
-      | hd2 :: tl2 -> if have_equal_op hd1 hd2 then check hd2 tl2 else false
+      | hd2 :: tl2 ->
+        if have_isomorphic_op hd1 hd2 then check hd2 tl2 else false
     in
     match instructions with
     | [] -> assert false
@@ -312,24 +288,23 @@ end = struct
       | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> true)
     | Terminator _ -> false
 
-  let may_break_alloc_freshness (instruction : t) =
+  let preserves_alloc_freshness (instruction : t) =
     match instruction with
     | Basic basic_instruction -> (
       let desc = basic_instruction.desc in
       match desc with
       | Op op -> (
         match op with
-        | Load _ | Store _ -> true
+        | Load _ | Store _ -> false
         | Specific specific_operation ->
-          Arch.may_break_alloc_freshness specific_operation
+          Arch.preserves_alloc_freshness specific_operation
         | Alloc _ | Move | Reinterpret_cast _ | Static_cast _ | Spill | Reload
         | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
         | Const_vec128 _ | Stackoffset _ | Intop _ | Intop_imm _
         | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _ | Opaque
         | Begin_region | End_region | Name_for_debugger _ | Dls_get | Poll ->
-          false)
-      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> false
-      )
+          true)
+      | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> true)
     | Terminator _ -> false
 
   let body_of (block : Cfg.basic_block) =
@@ -722,7 +697,7 @@ end = struct
 
     let is_adjacent (t1 : t) (t2 : t) =
       let res =
-        if Instruction.have_equal_op t1.instruction t2.instruction
+        if Instruction.have_isomorphic_op t1.instruction t2.instruction
         then
           let width = Cmm.width_of t1.memory_chunk in
           let offset_option = offset_of t1 t2 in
@@ -781,15 +756,15 @@ end = struct
             let memory_operation = Memory_operation.init instruction in
             match memory_operation with
             | None ->
-              if Instruction.may_break_alloc_freshness instruction
-              then
+              if Instruction.preserves_alloc_freshness instruction
+              then loads, stores, fresh_allocs, stored_allocs, unsure_allocs
+              else
                 ( loads,
                   stores,
                   Instruction.Id.Set.empty,
                   Instruction.Id.Set.empty,
                   Instruction.Id.Set.union fresh_allocs stored_allocs
                   |> Instruction.Id.Set.union unsure_allocs )
-              else loads, stores, fresh_allocs, stored_allocs, unsure_allocs
             | Some memory_operation -> (
               let get_dependent_allocs_of_arg arg_i =
                 Dependency_graph.get_all_dependencies_of_arg dependency_graph id
@@ -980,7 +955,9 @@ end = struct
 end
 
 module Seed : sig
-  type t = Memory_accesses.Memory_operation.t list (* a seed is a group of *)
+  type t = Memory_accesses.Memory_operation.t list
+  (* a seed is a group of stores instructions to adjacent memory addresses that
+     can be made to be adjacent in the list of instructions *)
 
   val from_block : Cfg.basic_block -> t list
 
@@ -1067,7 +1044,7 @@ module Computation_tree : sig
 end = struct
   module Node = struct
     type t =
-      { instruction_type : Instruction.op;
+      { operation : Cfg.operation;
         instructions : Instruction.Id.t list;
         dependencies : Instruction.Id.t option array;
             (* Only counts dependencies within the same computation tree *)
@@ -1075,12 +1052,15 @@ end = struct
       }
 
     let init instruction instruction_ids =
-      { instruction_type = Instruction.op instruction;
-        instructions = instruction_ids;
-        dependencies =
-          Array.make (Instruction.arguments instruction |> Array.length) None;
-        is_dependency_of = Instruction.Id.Set.empty
-      }
+      match Instruction.op instruction with
+      | None -> assert false
+      | Some operation ->
+        { operation;
+          instructions = instruction_ids;
+          dependencies =
+            Array.make (Instruction.arguments instruction |> Array.length) None;
+          is_dependency_of = Instruction.Id.Set.empty
+        }
   end
 
   type t = Node.t Instruction.Id.Tbl.t
@@ -1205,8 +1185,7 @@ end = struct
       | None -> ()
       | Some (node : Node.t) ->
         fprintf ppf "\nNode key: %d\n" (Instruction.Id.to_int id);
-        fprintf ppf "\nOperation: %s\n"
-          (Instruction.string_of_op node.instruction_type);
+        fprintf ppf "\nOperation: %a\n" Cfg.dump_basic (Cfg.Op node.operation);
         fprintf ppf "\ninstructions:\n";
         List.iter (fprintf ppf "%d " << Instruction.Id.to_int) node.instructions;
         fprintf ppf "\ndependencies:\n";

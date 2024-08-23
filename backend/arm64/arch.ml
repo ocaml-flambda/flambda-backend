@@ -357,8 +357,14 @@ let can_cross_loads_or_stores (specific_operation : specific_operation) =
   | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ ->
     true
 
-let may_break_alloc_freshness (specific_operation : specific_operation) =
-  match specific_operation with
+let preserves_alloc_freshness (op : specific_operation) =
+  match op with
+  | Ifar_poll _ | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf | Imuladdf
+  | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ ->
+    true
+
+let supports_vectorize (op : specific_operation) =
+  match op with
   | Ifar_poll _ | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf | Imuladdf
   | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ ->
     false

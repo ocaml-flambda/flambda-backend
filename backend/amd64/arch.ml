@@ -471,17 +471,24 @@ let addressing_offset (addressing_mode_1: addressing_mode) (addressing_mode_2 : 
   | Iscaled _, _ -> None
   | Iindexed2scaled _, _ -> None
 
-  let can_cross_loads_or_stores (specific_operation : specific_operation) =
-    match specific_operation with
-    | Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Isimd _ | Iprefetch _ ->
-      false
-    | Ibswap _ | Isextend32 | Izextend32 | Irdtsc  | Irdpmc | Ilfence | Isfence | Imfence
-    | Ipause ->
-      true
+let can_cross_loads_or_stores (specific_operation : specific_operation) =
+  match specific_operation with
+  | Istore_int _ | Ioffset_loc _ | Isimd _ | Iprefetch _ | Irdtsc | Irdpmc | Ilfence
+  | Isfence | Imfence | Ipause -> false
+  | Ilea _ | Ibswap _ | Isextend32 | Izextend32 -> true
+  | Ifloatarithmem _ -> false (* not sure about this *)
 
-  let may_break_alloc_freshness (specific_operation : specific_operation) =
-    match specific_operation with
-    | Isimd _ -> true
-    | Ilea  _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Isextend32
-    | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Iprefetch _ ->
-      false
+let preserves_alloc_freshness (op : specific_operation) =
+  match op with
+  | Ilea  _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Isextend32
+  | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Iprefetch _ ->
+    true
+  | Isimd op -> false
+
+let supports_vectorize (op : specific_operation) =
+  match op with
+  | Ilea _ -> true
+  | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ ->
+    false (* may add support in the future*)
+  | Ibswap _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence
+  | Ipause | Isimd _ | Iprefetch _ -> false
