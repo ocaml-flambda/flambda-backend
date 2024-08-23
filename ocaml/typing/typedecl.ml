@@ -3134,29 +3134,21 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       raise(Error(loc, Inconsistent_constraint (env, err)))
     ) constraints;
   let sig_decl_abstract = Btype.type_kind_is_abstract sig_decl in
-  (* CR jbachurski: This privacy setting is subtle *)
-  let priv =
-    if sdecl.ptype_private = Private then Private else
-    if arity_ok && not sig_decl_abstract
-    then get_type_private sig_decl else sdecl.ptype_private
-  in
   if arity_ok && not sig_decl_abstract
   && sdecl.ptype_private = Private then
     Location.deprecated loc "spurious use of private";
-  let type_noun, type_unboxed_default, type_jkind, type_jkind_annotation =
+  let type_noun =
+    match sig_decl.type_noun, sdecl.ptype_private with
+    | _ when not arity_ok -> create_type_equation_in_noun sdecl.ptype_private (Some man)
+    | _, Private -> noun_privatise_manifest (noun_with_manifest sig_decl.type_noun man)
+    | Datatype _, Public -> noun_with_manifest sig_decl.type_noun man
+    | Equation _, Public -> noun_publicise_manifest (noun_with_manifest sig_decl.type_noun man)
+  in
+  let type_unboxed_default, type_jkind, type_jkind_annotation =
     if arity_ok then
-      let sig_decl = with_manifest sig_decl man in
-      let sig_decl =
-        match priv with
-        | Private -> privatise_manifest sig_decl
-        | Public -> publicise_manifest sig_decl
-      in
-      sig_decl.type_noun,
-      sig_decl.type_unboxed_default,
-      sig_decl.type_jkind,
-      sig_decl.type_jkind_annotation
+      sig_decl.type_unboxed_default, sig_decl.type_jkind, sig_decl.type_jkind_annotation
     else
-      create_type_equation_in_noun priv (Some man), false, sig_decl.type_jkind, None
+      false, sig_decl.type_jkind, None
   in
   let new_sig_decl =
     { type_params_ = create_type_params_of_unknowns ~injective:false params;
