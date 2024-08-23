@@ -2073,8 +2073,8 @@ let check_duplicates sdecl_list =
 
 (* Force recursion to go through id for private types*)
 let name_recursion sdecl id decl =
-  match get_type_kind decl, get_type_manifest decl, get_type_private decl with
-  | Type_abstract Abstract_def, Some ty, Private when is_fixed_type sdecl ->
+  match decl.type_noun with
+  | Equation { eq = Type_abbrev { priv = Private; expansion = ty } } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
     if Ctype.deep_occur ty ty' then
       let td = Tconstr(Path.Pident id, get_type_params decl, ref Mnil) in
@@ -2487,9 +2487,9 @@ let transl_type_extension extend env loc styext =
     Env.lookup_type ~loc:lid.loc lid.txt env
   in
   begin
-    match get_type_kind type_decl with
-    | Type_open -> begin
-        match get_type_private type_decl with
+    match type_decl.type_noun with
+    | Datatype { manifest = _; noun = Datatype_open { priv } } -> begin
+        match priv with
         | Private when extend -> begin
             match
               List.find
@@ -2501,7 +2501,7 @@ let transl_type_extension extend env loc styext =
                 raise (Error(pext_loc, Cannot_extend_private_type type_path))
             | exception Not_found -> ()
           end
-        | _ -> ()
+        | Public | Private -> ()
       end
     | _ ->
         raise (Error(loc, Not_extensible_type type_path))

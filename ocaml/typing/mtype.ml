@@ -22,19 +22,21 @@ open Types
 let freshen ~scope mty =
   Subst.modtype (Rescope scope) Subst.identity mty
 
-let strengthen_decl_with_manifest path decl =
-  match get_type_manifest decl, get_type_private decl, get_type_kind decl with
-  Some _, Public, _ -> decl
-| Some _, Private, (Type_record _ | Type_variant _) -> decl
-| _ ->
-    { decl with type_noun =
-      match decl.type_noun with
-      | Equation _ ->
-        Equation { eq = Type_abbrev {
+let strengthen_noun_with_manifest path params = function
+  | Equation { eq = Type_abstr { reason = _ }
+                  | Type_abbrev { priv = Private; expansion = _ }} ->
+      Equation { eq = Type_abbrev {
           priv = Public;
-          expansion = Btype.newgenty (Tconstr(path, (get_type_params decl), ref Mnil))
+          expansion = Btype.newgenty (Tconstr(path, params, ref Mnil))
         } }
-      | Datatype { manifest = _; noun } -> Datatype { manifest = Some path; noun } }
+  | Datatype { manifest = None; noun } ->
+      Datatype { manifest = Some path; noun }
+  | ( Equation { eq = Type_abbrev { priv = Public; expansion = _ } }
+    | Datatype { manifest = Some _; noun = _ } ) as noun -> noun
+
+let strengthen_decl_with_manifest path decl =
+  { decl with type_noun =
+      strengthen_noun_with_manifest path (get_type_params decl) decl.type_noun }
 
 (* Strengthen a type as far as possible without unfolding abbreviations,
   pushing strengthening into signatures and functors. Return None if we
@@ -619,9 +621,10 @@ let rec contains_type env mty =
 and contains_type_sig env = List.iter (contains_type_item env)
 
 and contains_type_item env = function
-  | Sig_type (_, decl, _, _) when get_type_manifest decl = None ->
-      raise Exit
-  | Sig_type (_, decl, _, _) when Btype.type_kind_is_abstract decl && get_type_private decl = Private ->
+  | Sig_type (_, { type_noun
+                    = Datatype { manifest = None; noun = _ }
+                    | Equation { eq = Type_abstr { reason = _ }
+                                    | Type_abbrev { priv = Private; _ } } }, _, _) ->
       raise Exit
   | Sig_modtype _
   | Sig_typext (_, {ext_args = Cstr_record _}, _, _) ->
