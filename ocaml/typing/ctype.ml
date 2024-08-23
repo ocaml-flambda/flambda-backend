@@ -2411,9 +2411,9 @@ let generic_abbrev env path =
 let generic_private_abbrev env path =
   try
     let decl = Env.find_type path env in
-    match get_type_kind decl, get_type_private decl, get_type_manifest decl with
-    | Type_abstract _, Private, Some body ->
-         get_level body = generic_level
+    match decl.type_noun with
+    | Equation { eq = Type_abbrev { priv = Private; expansion } } ->
+         get_level expansion = generic_level
     | _ -> false
   with Not_found -> false
 
@@ -2908,11 +2908,10 @@ let non_aliasable p decl =
 let is_instantiable env ~for_jkind_eqn p =
   try
     let decl = Env.find_type p env in
-    type_kind_is_abstract decl &&
-    get_type_private decl = Public &&
-    get_type_arity decl = 0 &&
-    get_type_manifest decl = None &&
-    (for_jkind_eqn || not (non_aliasable p decl))
+    match decl.type_noun, decl.type_params_ with
+    | Equation { eq = Type_abstr { reason = _ } }, []
+      when for_jkind_eqn || not (non_aliasable p decl) -> true
+    | _ -> false
   with Not_found -> false
 
 
@@ -3314,11 +3313,10 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
     | (n, _) :: nl, _ ->
         let lid = concat_longident (Longident.Lident "Pkg") n in
         let go decl =
-          if   decl.type_params_ = []
-            && Btype.type_kind_is_abstract decl
-            && get_type_private decl = Public
-          then Ok (get_type_manifest decl)
-          else Error ()
+          match decl.type_noun, decl.type_params_ with
+          | Equation { eq = Type_abbrev { priv = Public; expansion } }, [] -> Ok (Some expansion)
+          | Equation { eq = Type_abstr { reason = _ } }, [] -> Ok None
+          | _ -> Error ()
         in
         match Env.find_type_by_name lid env' |> snd |> go with
         | Ok (Some t2) ->
