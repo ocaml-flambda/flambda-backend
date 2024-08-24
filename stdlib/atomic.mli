@@ -52,8 +52,7 @@ external make_contended : ('a : value_or_null).
 val get : ('a : value_or_null). 'a t @ local -> 'a
 
 (** Set a new value for the atomic reference. *)
-external set : ('a : value_or_null).
-  'a t @ local -> 'a -> unit = "%atomic_set"
+val set : ('a : value_or_null). 'a t @ local -> 'a -> unit
 
 (** Set a new value for the atomic reference, and return the current value. *)
 external exchange : ('a : value_or_null).
@@ -124,6 +123,45 @@ module Contended : sig
   external compare_exchange
     : ('a : value_or_null mod contended portable).
     'a t @ contended local -> 'a -> 'a -> 'a = "%atomic_compare_exchange"
+end
+
+(** Atomic "locations", such as record fields. *)
+module Loc : sig
+  (** This module exposes a dedicated type ['a Atomic.Loc.t] for
+      atomic locations (storing a value of type ['a]) inside objects
+      that may not be atomic references. It is used in particular for
+      atomic record fields: if a record [r] has an atomic field [f] of
+      type [foo], then [[%atomic.loc r.f]] has type [foo Atomic.Loc.t].
+
+      The API below mirrors the API to access {{!t}atomic references},
+      see the documentation above for more information. *)
+  type ('a : value_or_null) t = 'a atomic_loc
+
+  external get : ('a : value_or_null). 'a t @ local -> 'a = "%atomic_load_loc"
+  external exchange : ('a : value_or_null). 'a t @ local -> 'a -> 'a = "%atomic_exchange_loc"
+  external compare_and_set : ('a : value_or_null). 'a t @ local -> 'a -> 'a -> bool = "%atomic_cas_loc"
+  external fetch_and_add : ('a : value_or_null). int t @ contended local -> int -> int = "%atomic_fetch_add_loc"
+
+  val set : ('a : value_or_null). 'a t @ local -> 'a -> unit
+  val incr : int t @ contended local -> unit
+  val decr : int t @ contended local -> unit
+
+  module Contended : sig
+    external get
+      : ('a : value_or_null mod contended).
+          'a t @ contended local -> 'a @@ portable
+      = "%atomic_load_loc"
+
+    external exchange
+      : ('a : value_or_null mod contended portable).
+          'a t @ contended local -> 'a -> 'a @@ portable
+      = "%atomic_exchange_loc"
+
+    external compare_and_set
+      : ('a : value_or_null mod portable).
+          'a t @ contended local -> 'a -> 'a -> bool @@ portable
+      = "%atomic_cas_loc"
+  end
 end
 
 (** {1:examples Examples}

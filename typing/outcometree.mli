@@ -137,9 +137,9 @@ and out_type =
   | Otyp_constr of out_ident * out_type list
   | Otyp_manifest of out_type * out_type
   | Otyp_object of { fields: (string * out_type) list; open_row:bool}
-  | Otyp_record of (string * out_mutability * out_type * out_modality list) list
+  | Otyp_record of (string * out_mutability * Asttypes.atomic_flag * out_type * out_modality list) list
   | Otyp_record_unboxed_product of
-      (string * out_mutability * out_type * out_modality list) list
+      (string * out_mutability * Asttypes.atomic_flag * out_type * out_modality list) list
   (* INVARIANT: [out_mutability] is included for uniformity with [Otyp_record],
      but it is always [Omm_immutable] *)
   | Otyp_stuff of string

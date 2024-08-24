@@ -345,3 +345,5 @@ type tracing_probe =
 *)
 val get_tracing_probe_payload :
   Parsetree.payload -> (tracing_probe, unit) result
+
+val has_atomic: Parsetree.attributes -> bool

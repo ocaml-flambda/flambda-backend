@@ -239,7 +239,8 @@ let dummy_label (type rep) (record_form : rep record_form)
   | Unboxed_product -> Record_unboxed_product
   in
   { lbl_name = ""; lbl_res = none; lbl_arg = none;
-    lbl_mut = Immutable; lbl_modalities = Mode.Modality.Value.Const.id;
+    lbl_mut = Immutable; lbl_atomic = Nonatomic;
+    lbl_modalities = Mode.Modality.Value.Const.id;
     lbl_sort = Jkind.Sort.Const.void;
     lbl_num = -1; lbl_pos = -1; lbl_all = [||];
     lbl_repres = repres;
@@ -261,6 +262,7 @@ let label_descrs record_form ty_res lbls repres priv =
             lbl_arg = l.ld_type;
             lbl_mut = l.ld_mutable;
             lbl_modalities = l.ld_modalities;
+            lbl_atomic = l.ld_atomic;
             lbl_sort = l.ld_sort;
             lbl_pos = if is_void then lbl_pos_void else pos;
             lbl_num = num;

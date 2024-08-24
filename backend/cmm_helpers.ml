@@ -1422,6 +1422,9 @@ let unboxed_vec128_array_length arr dbg =
   in
   tag_int (lsr_int res (int ~dbg 1) dbg) dbg
 
+let field_address_computed ptr ofs dbg =
+  array_indexing log2_size_addr ptr ofs dbg
+
 let addr_array_ref arr ofs dbg =
   Cop (mk_load_mut Word_val, [array_indexing log2_size_addr arr ofs dbg], dbg)
 

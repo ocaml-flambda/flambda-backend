@@ -191,6 +191,7 @@ let classify_expression : Typedtree.expression -> sd =
 
     | Texp_variant _
     | Texp_tuple _
+    | Texp_atomic_loc _
     | Texp_extension_constructor _
     | Texp_constant _
     | Texp_src_pos ->
@@ -717,6 +718,8 @@ let rec expression : Typedtree.expression -> term_judg =
       list expression (List.map snd exprs) << Guard
     | Texp_unboxed_tuple exprs ->
       list expression (List.map (fun (_, e, _) -> e) exprs) << Return
+    | Texp_atomic_loc (expr, _, _, _) ->
+      expression expr << Guard
     | Texp_array (_, elt_sort, exprs, _) ->
       let elt_sort = Jkind.Sort.default_for_transl_and_get elt_sort in
       list expression exprs << array_mode exp elt_sort

@@ -398,6 +398,9 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
           | Texp_comp_when exp ->
             sub.expr sub exp)
         comp_clauses
+  | Texp_atomic_loc (exp, lid, _, _) ->
+      iter_loc sub lid;
+      sub.expr sub exp
   | Texp_ifthenelse (exp1, exp2, expo) ->
       sub.expr sub exp1;
       sub.expr sub exp2;

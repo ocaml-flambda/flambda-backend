@@ -18,7 +18,7 @@ open Outcometree
 
 val out_ident : (formatter -> out_ident -> unit) ref
 val out_value : (formatter -> out_value -> unit) ref
-val out_label : (formatter -> string * out_mutability * out_type
+val out_label : (formatter -> string * out_mutability * Asttypes.atomic_flag * out_type
   * out_modality list -> unit) ref
 val out_modality : (formatter -> out_modality -> unit) ref
 val out_jkind_const : (formatter -> out_jkind_const -> unit) ref

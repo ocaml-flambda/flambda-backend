@@ -1850,7 +1850,7 @@ let tree_of_label l =
     | Immutable -> Om_immutable
   in
   let ld_modalities = tree_of_modalities l.ld_mutable l.ld_modalities in
-  (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, ld_modalities)
+  (Ident.name l.ld_id, mut, l.ld_atomic, tree_of_typexp Type l.ld_type, ld_modalities)
 
 let tree_of_constructor_arguments = function
   | Cstr_tuple l -> List.map tree_of_typ_gf l

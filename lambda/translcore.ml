@@ -637,6 +637,22 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         {fields; representation; extended_expression } ->
       transl_record_unboxed_product ~scopes e.exp_loc e.exp_env
         fields representation extended_expression
+  | Texp_atomic_loc (arg, _, lbl, alloc_mode) ->
+      let shape = Some [
+        (Typeopt.value_kind arg.exp_env arg.exp_loc arg.exp_type);
+        { raw_kind = Pintval ; nullable = Non_nullable }
+      ] in
+      let (arg, lbl) = transl_atomic_loc ~scopes sort arg lbl in
+      let loc = of_location ~scopes e.exp_loc in
+      Lprim (Pmakeblock (0, Immutable, shape, transl_alloc_mode alloc_mode), [arg; lbl], loc)
+  | Texp_field (arg, arg_sort, _id, ({ lbl_atomic = Atomic; _ } as lbl), _boxing, _ubr) ->
+      let arg_sort = Jkind.Sort.default_for_transl_and_get arg_sort in
+      let arg, lbl = transl_atomic_loc ~scopes arg_sort arg lbl in
+      let loc = of_location ~scopes e.exp_loc in
+      (* CR aspsmith: sem? *)
+      Lprim (Patomic_load { immediate_or_pointer =
+                              (* CR aspsmith fix  *)
+                              Pointer }, [arg; lbl], loc)
   | Texp_field(arg, arg_sort, id, lbl, float, ubr) ->
       let arg_sort = Jkind.Sort.default_for_transl_and_get arg_sort in
       let targ = transl_exp ~scopes arg_sort arg in
@@ -766,9 +782,26 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
            above. *)
         Jkind.Sort.Const.for_boxed_record
       in
-      Lprim(access, [transl_exp ~scopes sort_arg arg;
-                     transl_exp ~scopes lbl.lbl_sort newval],
-            of_location ~scopes e.exp_loc)
+      begin match lbl.lbl_atomic with
+      (* CR aspsmith: cleanup, avoid dupe work *)
+      | Atomic ->
+        let prim =
+          Lambda.simple_prim_on_values
+            ~name:"caml_atomic_exchange_field" ~arity:3 ~alloc:false
+        in
+        let arg, lbl = transl_atomic_loc ~scopes sort_arg arg lbl in
+        let newval = transl_exp ~scopes sort newval in
+        let loc = of_location ~scopes e.exp_loc in
+        Lprim (
+          Pignore,
+          [Lprim (Pccall prim, [arg; lbl; newval], loc)],
+          loc
+        )
+      | Nonatomic ->
+        Lprim(access, [transl_exp ~scopes sort_arg arg;
+                       transl_exp ~scopes lbl.lbl_sort newval],
+              of_location ~scopes e.exp_loc)
+      end
   | Texp_array (amut, element_sort, expr_list, alloc_mode) ->
       let mode = transl_alloc_mode alloc_mode in
       let element_sort = Jkind.Sort.default_for_transl_and_get element_sort in
@@ -2159,6 +2192,23 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
         Llet(Strict, Lambda.layout_block, init_id, init_id_duid,
              transl_exp ~scopes init_expr_sort init_expr, lam)
     end
+
+and transl_atomic_loc ~scopes sort arg lbl =
+  let arg = transl_exp ~scopes sort arg in
+  begin match lbl.lbl_repres with
+  | Record_boxed _ | Record_inlined _ -> ()
+  | Record_float | Record_ufloat ->
+    fatal_error
+      "Translcore.transl_atomic_loc: atomic field in float record"
+  | Record_unboxed ->
+    fatal_error
+      "Translcore.transl_atomic_loc: atomic field in unboxed record"
+  | Record_mixed _ ->
+    fatal_error
+      "Translcore.transl_atomic_loc: atomic field in mixed record"
+  end;
+  let lbl = Lconst (Const_base (Const_int (lbl.lbl_pos))) in
+  (arg, lbl)
 
 and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
   match repres with

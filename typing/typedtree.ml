@@ -245,6 +245,8 @@ and expression_desc =
       representation : Types.record_unboxed_product_representation;
       extended_expression : (expression * Jkind.sort) option;
     }
+  | Texp_atomic_loc of expression * Longident.t loc *
+        label_description * alloc_mode (* CR aspsmith: Unique_barrier.t ? *)
   | Texp_field of
       expression * Jkind.sort * Longident.t loc * label_description *
         texp_field_boxing * Unique_barrier.t
@@ -788,6 +790,7 @@ and label_declaration =
      ld_uid: Uid.t;
      ld_mutable: mutability;
      ld_modalities: Modality.Value.Const.t;
+     ld_atomic: atomic_flag;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attribute list;

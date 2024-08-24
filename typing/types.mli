@@ -893,6 +893,7 @@ and label_declaration =
     ld_id: Ident.t;
     ld_mutable: mutability;
     ld_modalities: Mode.Modality.Value.Const.t;
+    ld_atomic: atomic_flag;
     ld_type: type_expr;
     ld_sort: Jkind_types.Sort.Const.t;
     ld_loc: Location.t;
@@ -1138,6 +1139,7 @@ type 'a gen_label_description =
     lbl_res: type_expr;                 (* Type of the result *)
     lbl_arg: type_expr;                 (* Type of the argument *)
     lbl_mut: mutability;                (* Is this a mutable field? *)
+    lbl_atomic: atomic_flag;            (* Is this an atomic field? *)
     lbl_modalities: Mode.Modality.Value.Const.t;
                                         (* Modalities on the field *)
     lbl_sort: Jkind_types.Sort.Const.t; (* Sort of the argument *)

@@ -871,29 +871,29 @@ let primitive ppf = function
   | Patomic_load {immediate_or_pointer} ->
       (match immediate_or_pointer with
         | Immediate -> fprintf ppf "atomic_load_imm"
-        | Pointer -> fprintf ppf "atomic_load_ptr")
+        | Pointer -> fprintf ppf "atomic_load_field_ptr")
   | Patomic_set {immediate_or_pointer} ->
       (match immediate_or_pointer with
         | Immediate -> fprintf ppf "atomic_set_imm"
-        | Pointer -> fprintf ppf "atomic_set_ptr")
+        | Pointer -> fprintf ppf "atomic_set_field_ptr")
   | Patomic_exchange {immediate_or_pointer} ->
       (match immediate_or_pointer with
         | Immediate -> fprintf ppf "atomic_exchange_imm"
-        | Pointer -> fprintf ppf "atomic_exchange_ptr")
+        | Pointer -> fprintf ppf "atomic_exchange_field_ptr")
   | Patomic_compare_exchange {immediate_or_pointer} ->
       (match immediate_or_pointer with
         | Immediate -> fprintf ppf "atomic_compare_exchange_imm"
-        | Pointer -> fprintf ppf "atomic_compare_exchange_ptr")
+        | Pointer -> fprintf ppf "atomic_compare_exchange_field_ptr")
   | Patomic_compare_set {immediate_or_pointer} ->
       (match immediate_or_pointer with
         | Immediate -> fprintf ppf "atomic_compare_set_imm"
-        | Pointer -> fprintf ppf "atomic_compare_set_ptr")
-  | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add"
-  | Patomic_add -> fprintf ppf "atomic_add"
-  | Patomic_sub -> fprintf ppf "atomic_sub"
-  | Patomic_land -> fprintf ppf "atomic_land"
-  | Patomic_lor -> fprintf ppf "atomic_lor"
-  | Patomic_lxor -> fprintf ppf "atomic_lxor"
+        | Pointer -> fprintf ppf "atomic_compare_set_field_ptr")
+  | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add_field"
+  | Patomic_add -> fprintf ppf "atomic_add_field"
+  | Patomic_sub -> fprintf ppf "atomic_sub_field"
+  | Patomic_land -> fprintf ppf "atomic_land_field"
+  | Patomic_lor -> fprintf ppf "atomic_lor_field"
+  | Patomic_lxor -> fprintf ppf "atomic_lxor_field"
   | Popaque _ -> fprintf ppf "opaque"
   | Pdls_get -> fprintf ppf "dls_get"
   | Ppoll -> fprintf ppf "poll"

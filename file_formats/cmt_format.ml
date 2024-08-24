@@ -219,6 +219,8 @@ let iter_on_occurrences
           add_label ~namespace:Label exp_env lid label_desc
       | Texp_unboxed_field (_, _, lid, label_desc, _) ->
           add_label ~namespace:Unboxed_label exp_env lid label_desc
+      | Texp_atomic_loc (_, lid, label_desc, _) ->
+          add_label ~namespace:Label exp_env lid label_desc
       | Texp_new (path, lid, _, _) ->
           f ~namespace:Class exp_env path lid
       | Texp_record { fields; _ } ->

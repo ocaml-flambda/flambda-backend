@@ -667,13 +667,13 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
     | Parray_of_iarray -> unary (Ccall "caml_array_of_iarray")
     | Pget_header _ -> unary (Ccall "caml_get_header")
     | Pobj_dup -> unary (Ccall "caml_obj_dup")
-    | Patomic_load _ -> unary (Ccall "caml_atomic_load")
+    | Patomic_load _ -> binary (Ccall "caml_atomic_load_field")
     | Patomic_set _ | Patomic_exchange _ ->
       binary (Ccall "caml_atomic_exchange")
     | Patomic_compare_exchange _ ->
       ternary (Ccall "caml_atomic_compare_exchange")
     | Patomic_compare_set _ -> ternary (Ccall "caml_atomic_cas")
-    | Patomic_fetch_add -> binary (Ccall "caml_atomic_fetch_add")
+    | Patomic_fetch_add -> ternary (Ccall "caml_atomic_fetch_add_field")
     | Patomic_add -> binary (Ccall "caml_atomic_add")
     | Patomic_sub -> binary (Ccall "caml_atomic_sub")
     | Patomic_land -> binary (Ccall "caml_atomic_land")

@@ -2279,6 +2279,9 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
   | Texp_field _ ->
     let value, uf = check_uniqueness_exp_as_value ienv exp in
     UF.seq uf (Value.mark_maybe_unique value)
+  | Texp_atomic_loc _ ->
+    let value, uf = check_uniqueness_exp_as_value ienv exp in
+    UF.seq uf (Value.mark_maybe_unique value)
   | Texp_unboxed_field (_, _, _, _, _) ->
     let value, uf = check_uniqueness_exp_as_value ienv exp in
     UF.seq uf (Value.mark_maybe_unique value)

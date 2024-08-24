@@ -50,6 +50,7 @@ and ident_string = ident_create "string"
 and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
 and ident_lexing_position = ident_create "lexing_position"
+and ident_atomic_loc = ident_create "atomic_loc"
 
 and ident_or_null = ident_create "or_null"
 
@@ -82,6 +83,7 @@ and path_string = Pident ident_string
 and path_extension_constructor = Pident ident_extension_constructor
 and path_floatarray = Pident ident_floatarray
 and path_lexing_position = Pident ident_lexing_position
+and path_atomic_loc = Pident ident_atomic_loc
 
 and path_or_null = Pident ident_or_null
 
@@ -149,6 +151,8 @@ and type_unboxed_int32x4 = newgenty (Tconstr(path_unboxed_int32x4, [], ref Mnil)
 and type_unboxed_int64x2 = newgenty (Tconstr(path_unboxed_int64x2, [], ref Mnil))
 and type_unboxed_float32x4 = newgenty (Tconstr(path_unboxed_float32x4, [], ref Mnil))
 and type_unboxed_float64x2 = newgenty (Tconstr(path_unboxed_float64x2, [], ref Mnil))
+
+and type_atomic_loc t = newgenty (Tconstr(path_atomic_loc, [t], ref Mnil))
 
 let ident_match_failure = ident_create "Match_failure"
 and ident_out_of_memory = ident_create "Out_of_memory"
@@ -452,6 +456,17 @@ let build_initial_env add_type add_extension empty_env =
          Jkind.add_with_bounds
            ~modality:Mode.Modality.Value.Const.id
            ~type_expr:param)
+  |> add_type1 ident_atomic_loc
+       ~variance:Variance.full
+       ~separability:Separability.Ind
+       ~param_jkind:(Jkind.Builtin.value_or_null ~why:(
+         Type_argument { parent_path = path_atomic_loc; position = 1; arity = 1 }
+       ))
+       ~jkind:(fun param ->
+         Jkind.Builtin.mutable_data ~why:(Primitive ident_atomic_loc)
+         |> Jkind.add_with_bounds
+              ~modality:Mode.Modality.Value.Const.id
+              ~type_expr:param)
   |> add_type_with_jkind ident_lexing_position
        ~kind:(
          let lbl (field, field_type) =
@@ -459,6 +474,7 @@ let build_initial_env add_type add_extension empty_env =
              {
                ld_id=id;
                ld_mutable=Immutable;
+               ld_atomic=Nonatomic;
                ld_modalities=Mode.Modality.Value.Const.id;
                ld_type=field_type;
                ld_sort=Jkind.Sort.Const.value;

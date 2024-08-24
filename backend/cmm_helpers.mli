@@ -203,6 +203,12 @@ val get_field_computed :
   Debuginfo.t ->
   expression
 
+(** [field_address_computed ptr ofs dbg] returns an expression for the address
+    at offset [ofs] (in machine words) of the block pointed to by [ptr].
+    The resulting expression is a derived pointer of type [Addr]. *)
+val field_address_computed :
+  expression -> expression -> Debuginfo.t -> expression
+
 (** Load a block's header *)
 val get_header : expression -> Debuginfo.t -> expression
 
