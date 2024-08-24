@@ -154,9 +154,9 @@ let value_descriptions ~loc env name
              let ty2, mode_l2, mode_y2, _ = Ctype.instance_prim p2 vd2.val_type in
              Option.iter (Mode.Locality.equate_exn loc) mode_l2;
              Option.iter (Mode.Yielding.equate_exn yield) mode_y2;
-             try 
+             try
                Ctype.moregeneral env true ty1 ty2
-             with Ctype.Moregen err -> 
+             with Ctype.Moregen err ->
                raise (Dont_match (Type err))
            ) yielding
          ) locality;
@@ -240,6 +240,7 @@ type label_mismatch =
   | Type of Errortrace.equality_error
   | Mutability of position
   | Modality of Modality.Value.equate_error
+  | Atomicity of position
 
 type record_change =
   (Types.label_declaration, Types.label_declaration, label_mismatch)
@@ -400,6 +401,10 @@ let report_label_mismatch first second env ppf err =
       report_type_inequality env ppf err
   | Mutability ord ->
       Format.fprintf ppf "%s is mutable and %s is not."
+        (String.capitalize_ascii (choose ord first second))
+        (choose_other ord first second)
+  | Atomicity ord ->
+      Format.fprintf ppf "%s is atomic and %s is not."
         (String.capitalize_ascii (choose ord first second))
         (choose_other ord first second)
   | Modality err_ -> report_modality_equate_error first second ppf err_
@@ -685,38 +690,45 @@ module Record_diffing = struct
   let compare_labels env params1 params2
         (ld1 : Types.label_declaration)
         (ld2 : Types.label_declaration) =
-        let mut =
-          match ld1.ld_mutable, ld2.ld_mutable with
-          | Immutable, Immutable -> None
-          | Mutable _, Immutable -> Some First
-          | Immutable, Mutable _ -> Some Second
-          | Mutable m1, Mutable m2 ->
-            let open Mode.Alloc.Comonadic.Const in
-            (if not (Misc.Le_result.equal ~le m1 legacy) then
-              Misc.fatal_errorf "Unexpected mutable(%a)" print m1);
-            (if not (Misc.Le_result.equal ~le m2 legacy) then
-              Misc.fatal_errorf "Unexpected mutable(%a)" print m2);
-            None
-        in
-        begin match mut with
-        | Some mut -> Some (Mutability mut)
-        | None ->
-          match
-            Modality.Value.Const.equate ld1.ld_modalities ld2.ld_modalities
-          with
-          | Ok () ->
-            let tl1 = params1 @ [ld1.ld_type] in
-            let tl2 = params2 @ [ld2.ld_type] in
-            begin
+    let mut =
+      match ld1.ld_mutable, ld2.ld_mutable with
+      | Immutable, Immutable -> None
+      | Mutable _, Immutable -> Some First
+      | Immutable, Mutable _ -> Some Second
+      | Mutable m1, Mutable m2 ->
+        let open Mode.Alloc.Comonadic.Const in
+        (if not (Misc.Le_result.equal ~le m1 legacy) then
+           Misc.fatal_errorf "Unexpected mutable(%a)" print m1);
+        (if not (Misc.Le_result.equal ~le m2 legacy) then
+           Misc.fatal_errorf "Unexpected mutable(%a)" print m2);
+        None
+    in
+    begin match mut with
+    | Some mut -> Some (Mutability mut)
+    | None ->
+      begin match ld1.ld_atomic, ld2.ld_atomic with
+      | Atomic, Nonatomic -> Some (Atomicity First)
+      | Nonatomic, Atomic -> Some (Atomicity Second)
+      | Atomic, Atomic
+      | Nonatomic, Nonatomic ->
+        begin match
+          Modality.Value.Const.equate ld1.ld_modalities ld2.ld_modalities
+        with
+        | Ok () ->
+          let tl1 = params1 @ [ld1.ld_type] in
+          let tl2 = params2 @ [ld2.ld_type] in
+          begin
             (* Allow renaming: this gets called for inline records in GADT
                constructors that may have existentials. *)
             match Ctype.equal env true tl1 tl2 with
             | exception Ctype.Equality err ->
-                Some (Type err : label_mismatch)
+              Some (Type err : label_mismatch)
             | () -> None
-            end
-          | Error e -> Some (Modality e : label_mismatch)
+          end
+        | Error e -> Some (Modality e : label_mismatch)
         end
+      end
+    end
 
   let rec equal ~loc env params1 params2
       (labels1 : Types.label_declaration list)
@@ -1370,7 +1382,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
   let mark_and_compare_records record_form labels1 rep1 labels2 rep2 =
     if mark then begin
       let mark usage lbls =
-        List.iter (Env.mark_label_used usage) lbls
+        List.iter (fun lbl -> Env.mark_label_used usage lbl.Types.ld_uid) lbls
       in
       let usage : Env.label_usage =
         if decl2.type_private = Public then Env.Exported
@@ -1404,7 +1416,9 @@ let type_declarations ?(equality = false) ~loc env ~mark name
     | (Type_variant (cstrs1, rep1, umc1), Type_variant (cstrs2, rep2, umc2)) -> begin
         if mark then begin
           let mark usage cstrs =
-            List.iter (Env.mark_constructor_used usage) cstrs
+            List.iter (fun cstr ->
+              Env.mark_constructor_used usage cstr.Types.cd_uid
+            ) cstrs
           in
           let usage : Env.constructor_usage =
             if decl2.type_private = Public then Env.Exported
@@ -1483,7 +1497,7 @@ let extension_constructors ~loc env ~mark id ext1 ext2 =
       if ext2.ext_private = Public then Env.Exported
       else Env.Exported_private
     in
-    Env.mark_extension_used usage ext1
+    Env.mark_extension_used usage ext1.ext_uid
   end;
   let ty1 =
     Btype.newgenty (Tconstr(ext1.ext_type_path, ext1.ext_type_params, ref Mnil))

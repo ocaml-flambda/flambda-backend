@@ -239,6 +239,9 @@ type error =
   | Probe_name_undefined of string
   | Probe_is_enabled_format
   | Extension_not_enabled : _ Language_extension.t -> error
+  | Invalid_atomic_loc_payload
+  | Label_not_atomic of Longident.t
+  | Atomic_in_pattern of Longident.t
   | Literal_overflow of string
   | Unknown_literal of string * char
   | Float32_literal of string
@@ -2614,6 +2617,17 @@ let as_comp_pattern
 let components_have_label (labeled_components : (string option * 'a) list) =
   List.exists (function Some _, _ -> true | _ -> false) labeled_components
 
+let forbid_atomic_field_patterns loc penv (label_lid, label, pat) =
+  (* Pattern-matching under atomic record fields is not allowed. We
+     still allow wildcard patterns, so that it is valid to list all
+     record fields exhaustively. *)
+  let wildcard pat = match pat.pat_desc with
+    | Tpat_any -> true
+    | _ -> false
+  in
+  if label.lbl_atomic = Atomic && not (wildcard pat) then
+    raise (Error (loc, !!penv, Atomic_in_pattern label_lid.txt))
+
 (** [type_pat] propagates the expected type, and
     unification may update the typing environment. *)
 let rec type_pat
@@ -2784,6 +2798,7 @@ and type_pat_aux
       let make_record_pat
             (lbl_pat_list : (_ * rep gen_label_description * _) list) =
         check_recordpat_labels loc lbl_pat_list closed record_form;
+        List.iter (forbid_atomic_field_patterns loc penv) lbl_pat_list;
         let pat_desc = match record_form with
           | Legacy -> Tpat_record (lbl_pat_list, closed)
           | Unboxed_product ->
@@ -4233,6 +4248,7 @@ let rec is_nonexpansive exp =
            | Kept _ -> true)
         fields
       && is_nonexpansive_opt (Option.map fst extended_expression)
+  | Texp_atomic_loc(exp, _, _, _) -> is_nonexpansive exp
   | Texp_field(exp, _, _, _, _, _) -> is_nonexpansive exp
   | Texp_unboxed_field(exp, _, _, _, _) -> is_nonexpansive exp
   | Texp_ifthenelse(_cond, ifso, ifnot) ->
@@ -4732,6 +4748,7 @@ let check_partial_application ~statement exp =
             | Texp_ident _ | Texp_constant _ | Texp_tuple _
             | Texp_unboxed_tuple _
             | Texp_construct _ | Texp_variant _ | Texp_record _
+            | Texp_atomic_loc _
             | Texp_record_unboxed_product _ | Texp_unboxed_field _
             | Texp_overwrite _ | Texp_hole _
             | Texp_field _ | Texp_setfield _ | Texp_array _
@@ -6104,21 +6121,9 @@ and type_expect_
       Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
       type_expect_record ~overwrite Unboxed_product lid_sexp_list opt_sexp
   | Pexp_field(srecord, lid) ->
-      let (record, record_sort, rmode, label, _) =
-        type_label_access Legacy env srecord Env.Projection lid
+      let record, record_sort, label, ty_arg, mode =
+        solve_Pexp_field ~label_usage:Env.Projection env sexp.pexp_desc srecord lid
       in
-      let ty_arg =
-        with_local_level_if_principal begin fun () ->
-          (* [ty_arg] is the type of field, [ty_res] is the type of record, they
-           could share type variables, which are now instantiated *)
-          let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
-          (* we now link the two record types *)
-          unify_exp env record ty_res;
-          ty_arg
-        end ~post:generalize_structure
-      in
-      check_project_mutability ~loc:record.exp_loc ~env label.lbl_mut rmode;
-      let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
       let boxing : texp_field_boxing =
         let is_float_boxing =
           match label.lbl_repres with
@@ -6854,6 +6859,32 @@ and type_expect_
     end
   | Pexp_extension ({ txt = "src_pos"; _ }, _) ->
       rue (src_pos loc sexp.pexp_attributes env)
+  | Pexp_extension ({ txt = ( "ocaml.atomic.loc"
+                            | "atomic.loc"); _ },
+                    payload) ->
+      begin match payload with
+      | PStr [ { pstr_desc =
+                  Pstr_eval (
+                    { pexp_desc = Pexp_field (srecord, lid); _ } as sexp, _
+                  )
+               } ] ->
+          let record, _record_sort, label, ty_arg, mode =
+            solve_Pexp_field ~label_usage:Env.Mutation env sexp.pexp_desc srecord lid
+          in
+          Env.mark_label_used Env.Projection label.lbl_uid;
+          if label.lbl_atomic = Nonatomic then
+            raise (Error (loc, env, Label_not_atomic lid.txt)) ;
+          let alloc_mode, argument_mode = register_allocation expected_mode in
+          submode ~loc ~env mode argument_mode;
+          rue {
+            exp_desc = Texp_atomic_loc (record, lid, label, alloc_mode);
+            exp_loc = loc; exp_extra = [];
+            exp_type = instance (Predef.type_atomic_loc ty_arg);
+            exp_attributes = sexp.pexp_attributes;
+            exp_env = env }
+      | _ ->
+          raise (Error (loc, env, Invalid_atomic_loc_payload))
+      end
   | Pexp_extension ext ->
     raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
@@ -7618,6 +7649,24 @@ and type_label_access
     wrap_disambiguate "This expression has" (mk_expected ty_exp)
       (label_disambiguate record_form usage lid env expected_type) labels in
   (record, record_sort, Mode.Value.disallow_right mode, label, expected_type)
+
+and solve_Pexp_field ~label_usage env sdesc_for_hint srecord lid =
+  let (record, record_sort, rmode, label, _) =
+    type_label_access Legacy env srecord label_usage lid
+  in
+  let ty_arg =
+    with_local_level_if_principal begin fun () ->
+      (* [ty_arg] is the type of field, [ty_res] is the type of record, they
+         could share type variables, which are now instantiated *)
+      let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
+      (* we now link the two record types *)
+      unify_exp ~sdesc_for_hint env record ty_res;
+      ty_arg
+    end ~post:generalize_structure
+  in
+  check_project_mutability ~loc:record.exp_loc ~env label.lbl_mut rmode;
+  let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
+  record, record_sort, label, ty_arg, mode
 
 (* Typing format strings for printing or reading.
    These formats are used by functions in modules Printf, Format, and Scanf.
@@ -10883,6 +10932,20 @@ let report_error ~loc env =
     let name = Language_extension.to_string ext in
     Location.errorf ~loc
         "Extension %s must be enabled to use this feature." name
+  | Invalid_atomic_loc_payload ->
+      Location.errorf ~loc
+        "Invalid %a payload, a record field access is expected."
+        Style.inline_code "[%atomic.loc]"
+  | Label_not_atomic lid ->
+      Location.errorf ~loc "The record field %a is not atomic"
+        (Style.as_inline_code longident) lid
+  | Atomic_in_pattern lid ->
+      Location.errorf ~loc
+        "Atomic fields (here %a) are forbidden in patterns,@ \
+         as it is difficult to reason about when the atomic read@ \
+         will happen during pattern matching:@ the field may be read@ \
+         zero, one or several times depending on the patterns around it."
+        (Style.as_inline_code longident) lid
   | Literal_overflow ty ->
       Location.errorf ~loc
         "Integer literal exceeds the range of representable integers of type %a"

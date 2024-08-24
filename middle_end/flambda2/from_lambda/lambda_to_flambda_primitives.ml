@@ -2459,10 +2459,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [tag_int (Nullary (Probe_is_enabled { name }))]
   | Pobj_dup, [[v]] -> [Unary (Obj_dup, v)]
   | Pget_header m, [[obj]] -> [get_header obj m ~current_region]
-  | Patomic_load { immediate_or_pointer }, [[atomic]] ->
-    [ Unary
+  | Patomic_load { immediate_or_pointer }, [[atomic]; [field]] ->
+    [ Binary
         ( Atomic_load (convert_block_access_field_kind immediate_or_pointer),
-          atomic ) ]
+          atomic,
+          field ) ]
   | Patomic_set { immediate_or_pointer }, [[atomic]; [new_value]] ->
     [ Binary
         ( Atomic_set (convert_block_access_field_kind immediate_or_pointer),
@@ -2595,7 +2596,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
       | Patomic_exchange _ | Patomic_set _ | Patomic_fetch_add | Patomic_add
-      | Patomic_sub | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _ ),
+      | Patomic_sub | Patomic_land | Patomic_lor | Patomic_lxor | Patomic_load _
+      | Ppoke _),
       ( []
       | [_]
       | _ :: _ :: _ :: _

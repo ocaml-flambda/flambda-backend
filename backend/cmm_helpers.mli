@@ -165,6 +165,9 @@ val return_unit : Debuginfo.t -> expression -> expression
 (** Non-atomic load of a mutable field *)
 val mk_load_mut : memory_chunk -> operation
 
+(** Atomic load. All atomic fields are mutable. *)
+val mk_load_atomic : memory_chunk -> operation
+
 (** [strided_field_address ptr ~index ~stride dbg] returns an expression for the
     address of the [index]th field of the block pointed to by [ptr]. The field
     width is determined by [stride]. *)
@@ -202,6 +205,12 @@ val get_field_computed :
   index:expression ->
   Debuginfo.t ->
   expression
+
+(** [field_address_computed ptr ofs dbg] returns an expression for the address
+    at offset [ofs] (in machine words) of the block pointed to by [ptr].
+    The resulting expression is a derived pointer of type [Addr]. *)
+val field_address_computed :
+  expression -> expression -> Debuginfo.t -> expression
 
 (** Load a block's header *)
 val get_header : expression -> Debuginfo.t -> expression

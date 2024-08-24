@@ -445,9 +445,6 @@ type unary_primitive =
           ocamlopt-generated code. Tag reads that are allowed to be lazy tags
           (by the type system) should always go through caml_obj_tag, which is
           opaque to the compiler. *)
-  | Atomic_load of Block_access_field_kind.t
-  (* CR mshinwell: consider putting atomicity onto [Peek] and [Poke] then
-     deleting [Atomic_load] *)
   | Peek of Flambda_kind.Standard_int_or_float.t
   | Make_lazy of Lazy_block_tag.t
 
@@ -515,6 +512,9 @@ type binary_primitive =
   | Float_arith of float_bitwidth * binary_float_arith_op
   | Float_comp of float_bitwidth * unit comparison_behaviour
   | Bigarray_get_alignment of int
+  | Atomic_load of Block_access_field_kind.t
+  (* CR mshinwell: consider putting atomicity onto [Peek] and [Poke] then
+     deleting [Atomic_load] *)
   | Atomic_set of Block_access_field_kind.t
   | Atomic_exchange of Block_access_field_kind.t
   | Atomic_int_arith of binary_int_atomic_op

@@ -432,7 +432,12 @@ module Analyser =
         Object_type (List.map f @@ fst @@ Ctype.flatten_fields fields)
       | _ -> Other (Odoc_env.subst_type env type_expr)
 
-    let get_field env name_comment_list {Types.ld_id=field_name;ld_mutable=mutable_flag;ld_type=type_expr;ld_attributes} =
+    let get_field env name_comment_list
+        {Types.ld_id=field_name;
+         ld_mutable=mutable_flag;
+         ld_atomic=atomic_flag;
+         ld_type=type_expr;
+         ld_attributes} =
       let field_name = Ident.name field_name in
       let comment_opt =
         try List.assoc field_name name_comment_list
@@ -442,6 +447,7 @@ module Analyser =
       {
         rf_name = field_name ;
         rf_mutable = Types.is_mutable mutable_flag;
+        rf_atomic = atomic_flag = Atomic ;
         rf_type = Odoc_env.subst_type env type_expr ;
         rf_text = comment_opt
       }
@@ -493,9 +499,9 @@ module Analyser =
     let get_cstr_args env pos_end =
       let tuple ct = Odoc_env.subst_type env ct.Typedtree.ctyp_type in
       let record comments
-          { Typedtree.ld_id; ld_mutable; ld_type; ld_loc; ld_attributes } =
+          { Typedtree.ld_id; ld_mutable; ld_atomic; ld_type; ld_loc; ld_attributes } =
         get_field env comments @@
-        {Types.ld_id; ld_mutable; ld_modalities = Mode.Modality.Value.Const.id;
+        {Types.ld_id; ld_mutable; ld_atomic; ld_modalities = Mode.Modality.Value.Const.id;
          ld_sort=Jkind.Sort.Const.void (* ignored *);
          ld_type=ld_type.Typedtree.ctyp_type;
          ld_loc; ld_attributes; ld_uid=Types.Uid.internal_not_actually_unique} in

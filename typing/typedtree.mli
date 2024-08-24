@@ -444,6 +444,8 @@ and expression_desc =
               { fields = [| l1, Kept t1; l2 Override P2 |]; representation;
                 extended_expression = Some E0 }
           *)
+  | Texp_atomic_loc of expression * Longident.t loc *
+        Types.label_description * alloc_mode (* CR aspsmith: Unique_barrier.t ? *)
   | Texp_field of expression * Jkind.sort * Longident.t loc *
       Types.label_description * texp_field_boxing * Unique_barrier.t
     (** - The sort is the sort of the whole record (which may be non-value if
@@ -1064,6 +1066,7 @@ and label_declaration =
      ld_uid: Uid.t;
      ld_mutable: Types.mutability;
      ld_modalities: Mode.Modality.Value.Const.t;
+     ld_atomic: atomic_flag;
      ld_type: core_type;
      ld_loc: Location.t;
      ld_attributes: attributes;

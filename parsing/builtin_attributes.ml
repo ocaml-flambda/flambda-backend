@@ -69,6 +69,7 @@ let warn_unused () =
    misplaced attribute warnings. *)
 let builtin_attrs =
   [ "inline"
+  ; "atomic"
   ; "inlined"
   ; "specialise"
   ; "specialised"
@@ -1107,3 +1108,5 @@ let get_tracing_probe_payload (payload : Parsetree.payload) =
     | _ -> Error ()
   in
   Ok { name; name_loc; enabled_at_init; arg }
+
+let has_atomic attrs = has_attribute "atomic" attrs

@@ -375,7 +375,7 @@ let unary_prim_size prim =
   | End_region { ghost } | End_try_region { ghost } -> if ghost then 0 else 1
   | Obj_dup -> needs_caml_c_call_extcall_size + 1
   | Get_header -> 2
-  | Atomic_load _ | Peek _ -> 1
+  | Peek _ -> 1
   | Make_lazy _ -> alloc_size + 1
 
 let binary_prim_size prim =
@@ -399,6 +399,7 @@ let binary_prim_size prim =
   | Float_comp (_width, Yielding_int_like_compare_functions ()) -> 8
   | Bigarray_get_alignment _ -> 3 (* load data + add index + and *)
   | Atomic_int_arith _ -> 1
+  | Atomic_load _ -> 1
   | Atomic_set Immediate -> 1
   | Atomic_exchange Immediate -> 1
   | Atomic_exchange Any_value | Atomic_set Any_value ->

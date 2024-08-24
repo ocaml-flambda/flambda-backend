@@ -114,6 +114,18 @@ type loc_kind =
   | Loc_POS
   | Loc_FUNCTION
 
+type atomic_kind =
+  | Ref   (* operation on an atomic reference (takes only a pointer) *)
+  | Field (* operation on an atomic field (takes a pointer and an offset) *)
+  | Loc   (* operation on a first-class field (takes a (pointer, offset) pair *)
+
+type atomic_op =
+  | Load
+  | Exchange
+  | Cas
+  | Faa
+(* CR aspsmith: Fixme *)
+
 type prim =
   | Primitive of Lambda.primitive * int
   | External of Lambda.external_call_description
@@ -130,6 +142,7 @@ type prim =
   | Identity
   | Apply of Lambda.region_close * Lambda.layout
   | Revapply of Lambda.region_close * Lambda.layout
+  | Atomic of atomic_op * atomic_kind
   | Peek of Lambda.peek_or_poke option
   | Poke of Lambda.peek_or_poke option
     (* For [Peek] and [Poke] the [option] is [None] until the primitive
@@ -897,8 +910,17 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%unbox_vec128" -> Primitive(Punbox_vector Boxed_vec128, 1)
     | "%box_vec128" -> Primitive(Pbox_vector (Boxed_vec128, mode), 1)
     | "%get_header" -> Primitive (Pget_header mode, 1)
+    | "%atomic_load_field" -> Atomic(Load, Field)
+    | "%atomic_exchange_field" -> Atomic(Exchange, Field)
+    | "%atomic_cas_field" ->  Atomic(Cas, Field)
+    | "%atomic_fetch_add_field" -> Atomic(Faa, Field)
+    | "%atomic_load_loc" -> Atomic(Load, Loc)
+    | "%atomic_exchange_loc" -> Atomic(Exchange, Loc)
+    | "%atomic_cas_loc" -> Atomic(Cas, Loc)
+    | "%atomic_fetch_add_loc" -> Atomic(Faa, Loc)
     | "%atomic_load" ->
-        Primitive ((Patomic_load {immediate_or_pointer=Pointer}), 1)
+        (* Primitive ((Patomic_load {immediate_or_pointer=Pointer}), 1) *)
+        Atomic(Load, Ref)
     | "%atomic_set" ->
         Primitive (Patomic_set {immediate_or_pointer=Pointer}, 2)
     | "%atomic_exchange" ->
@@ -907,7 +929,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         Primitive (Patomic_compare_exchange {immediate_or_pointer=Pointer}, 3)
     | "%atomic_cas" ->
         Primitive (Patomic_compare_set {immediate_or_pointer=Pointer}, 3)
-    | "%atomic_fetch_add" -> Primitive (Patomic_fetch_add, 2)
+    | "%atomic_fetch_add" -> Atomic(Faa, Ref)
     | "%atomic_add" -> Primitive (Patomic_add, 2)
     | "%atomic_sub" -> Primitive (Patomic_sub, 2)
     | "%atomic_land" -> Primitive (Patomic_land, 2)
@@ -1624,6 +1646,80 @@ let lambda_of_loc kind sloc =
                        ~include_zero_alloc:false sloc in
     Lconst (Const_immstring scope_name)
 
+let atomic_arity op (kind : atomic_kind) =
+  let arity_of_op =
+    match op with
+    | Load -> 1
+    | Exchange -> 2
+    | Cas -> 3
+    | Faa -> 2
+  in
+  let extra_kind_arity =
+    match kind with
+    | Ref | Loc -> 0
+    | Field -> 1
+  in
+  arity_of_op + extra_kind_arity
+
+let lambda_of_atomic prim_name loc op (kind : atomic_kind) args =
+  if List.length args <> atomic_arity op kind then
+    raise (Error (to_location loc, Wrong_arity_builtin_primitive prim_name)) ;
+  let split = function
+    | [] ->
+        (* split is only called when [arity >= 1] *)
+        assert false
+    | first :: rest ->
+        first, rest
+  in
+  let prim =
+    (* CR aspsmith: immediate_or_pointer? *)
+    match op with
+    | Load -> Patomic_load { immediate_or_pointer = Pointer }
+    | Exchange -> Patomic_exchange { immediate_or_pointer = Pointer }
+    | Cas -> Patomic_compare_set { immediate_or_pointer = Pointer }
+    | Faa -> Patomic_fetch_add
+  in
+  match kind with
+  | Ref ->
+      (* the primitive application
+           [Lprim(%atomic_exchange, [ref; v])]
+         becomes
+           [Lprim(caml_atomic_exchange_field, [ref; 0; v])]
+      *)
+      let ref_arg, rest = split args in
+      let args = ref_arg :: Lconst (Lambda.const_int 0) :: rest in
+      Lprim (prim, args, loc)
+  | Field ->
+      (* the primitive application
+           [Lprim(%atomic_exchange_field, [ptr; ofs; v])]
+         becomes
+           [Lprim(caml_atomic_exchange_field, [ptr; ofs; v])] *)
+      Lprim (prim, args, loc)
+  | Loc ->
+      (* the primitive application
+           [Lprim(%atomic_exchange_loc, [(ptr, ofs); v])]
+         becomes
+           [Lprim(caml_atomic_exchange_field, [ptr; ofs; v])]
+         and in the general case of a non-tuple expression <loc>
+           [Lprim(%atomic_exchange_loc, [loc; v])]
+         becomes
+           [Llet(p, loc,
+              Lprim(caml_atomic_exchange_field, [Field(p, 0); Field(p, 1); v]))]
+      *)
+      let loc_arg, rest = split args in
+      match loc_arg with
+      | Lprim (Pmakeblock _, [ptr; ofs], _argloc) ->
+          let args = ptr :: ofs :: rest in
+          Lprim (prim, args, loc)
+      | _ ->
+          let varg = Ident.create_local "atomic_arg" in
+          let ptr = Lprim (Pfield (0, Pointer, Reads_agree), [Lvar varg], loc) in
+          let ofs =
+            Lprim (Pfield (1, Immediate, Reads_agree), [Lvar varg], loc)
+          in
+          let args = ptr :: ofs :: rest in
+          Llet (Strict, Lambda.layout_block, varg, Lambda.debug_uid_none, loc_arg, Lprim (prim, args, loc))
+
 let caml_restore_raw_backtrace =
   Lambda.simple_prim_on_values ~name:"caml_restore_raw_backtrace" ~arity:2
     ~alloc:false
@@ -1737,6 +1833,8 @@ let lambda_of_prim prim_name prim loc args arg_exps =
           [exn; Lconst (Const_immstring msg)],
           loc)],
         loc)
+  | Atomic (op, kind), args ->
+      lambda_of_atomic prim_name loc op kind args
   | (Raise _ | Raise_with_backtrace
     | Lazy_force _ | Loc _ | Primitive _ | Sys_argv | Comparison _
     | Send _ | Send_self _ | Send_cache _ | Frame_pointers | Identity
@@ -1774,6 +1872,7 @@ let check_primitive_arity loc p =
     | Frame_pointers -> p.prim_arity = 0
     | Identity | Peek _ -> p.prim_arity = 1
     | Apply _ | Revapply _ | Poke _ -> p.prim_arity = 2
+    | Atomic (op, kind) -> p.prim_arity = atomic_arity op kind
     | Unsupported _ -> true
   in
   if not ok then raise(Error(loc, Wrong_arity_builtin_primitive p.prim_name))
@@ -1976,7 +2075,7 @@ let primitive_needs_event_after = function
   | Lazy_force _ | Send _ | Send_self _ | Send_cache _
   | Apply _ | Revapply _ -> true
   | Raise _ | Raise_with_backtrace | Loc _ | Frame_pointers | Identity
-  | Peek _ | Poke _ | Unsupported _ -> false
+  | Peek _ | Poke _ | Atomic (_, _) | Unsupported _ -> false
 
 let transl_primitive_application loc p env ty ~poly_mode ~stack ~poly_sort
     path exp args arg_exps pos =

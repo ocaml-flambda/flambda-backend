@@ -141,6 +141,7 @@ type error =
   | Unsafe_mode_crossing_on_invalid_type_kind
   | Illegal_baggage of jkind_l
   | No_unboxed_version of Path.t
+  | Atomic_field_must_be_mutable of string
 
 open Typedtree
 
@@ -494,11 +495,19 @@ let transl_labels (type rep) ~(record_form : rep record_form) ~new_var_jkind
          in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
+         let is_atomic = Builtin_attributes.has_atomic attrs in
+         begin match is_atomic, mut with
+         | true, Mutable _
+         | false, _  -> ()
+         | true, Immutable ->
+           raise (Error (loc, Atomic_field_must_be_mutable name.txt));
+         end;
          {ld_id = Ident.create_local name.txt;
           ld_name = name;
           ld_uid = Uid.mk ~current_unit:(Env.get_unit_name ());
           ld_mutable = mut;
           ld_modalities = modalities;
+          ld_atomic = if is_atomic then Atomic else Nonatomic;
           ld_type = cty; ld_loc = loc; ld_attributes = attrs}
       )
   in
@@ -513,6 +522,7 @@ let transl_labels (type rep) ~(record_form : rep record_form) ~new_var_jkind
          {Types.ld_id = ld.ld_id;
           ld_mutable = ld.ld_mutable;
           ld_modalities = ld.ld_modalities;
+          ld_atomic = ld.ld_atomic;
           ld_sort = Jkind.Sort.Const.void;
             (* Updated by [update_label_sorts] *)
           ld_type = ty;
@@ -651,7 +661,7 @@ let verify_unboxed_attr unboxed_attr sdecl =
         | [] -> bad "it has no fields"
         | _::_::_ -> bad "it has more than one field"
         | [{pld_mutable = Mutable}] -> bad "it is mutable"
-        | [{pld_mutable = Immutable}] -> ()
+        | [{pld_mutable = Immutable; _}] -> ()
       end
     | Ptype_record_unboxed_product _ ->
         bad "[@@unboxed] may not be used on unboxed records"
@@ -1164,6 +1174,7 @@ let derive_unboxed_version env path_in_group_has_unboxed_version decl =
         (fun (ld : Types.label_declaration) ->
             { Types.ld_id = Ident.create_local (Ident.name ld.ld_id);
             ld_mutable = Immutable;
+              ld_atomic = Nonatomic;
             ld_modalities = ld.ld_modalities;
               (* Inherit modalities from the boxed version. Note that these
                   are affected by the mutability of the boxed label, even
@@ -4694,6 +4705,10 @@ let report_error ppf = function
   | No_unboxed_version p ->
       fprintf ppf "@[The type %a@ has no unboxed version.@]"
         (Style.as_inline_code Printtyp.path) p
+  | Atomic_field_must_be_mutable name ->
+      fprintf ppf
+        "@[The label %a must be mutable to be declared atomic.@]"
+        Style.inline_code name
 
 let () =
   Location.register_error_of_exn

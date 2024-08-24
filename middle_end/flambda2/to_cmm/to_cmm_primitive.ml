@@ -972,8 +972,6 @@ let unary_primitive env res dbg f arg =
   | End_region { ghost = true } | End_try_region { ghost = true } ->
     None, res, C.unit ~dbg
   | Get_header -> None, res, C.get_header arg dbg
-  | Atomic_load block_access_kind ->
-    None, res, C.atomic_load ~dbg (imm_or_ptr block_access_kind) arg
   | Peek kind ->
     let memory_chunk =
       K.Standard_int_or_float.to_kind_with_subkind kind
@@ -1009,6 +1007,8 @@ let binary_primitive env dbg f x y =
   | Bigarray_get_alignment align -> C.bigstring_get_alignment x y align dbg
   | Atomic_exchange block_access_kind ->
     C.atomic_exchange ~dbg (imm_or_ptr block_access_kind) x ~new_value:y
+  | Atomic_load block_access_kind ->
+    C.atomic_load ~dbg (imm_or_ptr block_access_kind) x ~field:y
   | Atomic_set block_access_kind ->
     C.atomic_exchange ~dbg (imm_or_ptr block_access_kind) x ~new_value:y
     |> C.return_unit dbg

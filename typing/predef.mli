@@ -59,6 +59,8 @@ val type_unboxed_int64x2: type_expr
 val type_unboxed_float32x4: type_expr
 val type_unboxed_float64x2: type_expr
 
+val type_atomic_loc: type_expr -> type_expr
+
 val path_int: Path.t
 val path_char: Path.t
 val path_string: Path.t
