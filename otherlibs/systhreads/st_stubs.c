@@ -684,6 +684,7 @@ static void caml_thread_domain_initialize_hook(void)
   new_thread->backtrace_last_exn = Val_unit;
   new_thread->memprof = caml_memprof_main_thread(Caml_state);
   new_thread->is_main = 1;
+  new_thread->signal_stack = NULL;
 
   st_tls_set(caml_thread_key, new_thread);
 
