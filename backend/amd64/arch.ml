@@ -473,8 +473,8 @@ let addressing_offset (addressing_mode_1: addressing_mode) (addressing_mode_2 : 
 
 let can_cross_loads_or_stores (specific_operation : specific_operation) =
   match specific_operation with
-  | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Isimd _ | Iprefetch _ | Irdtsc | Irdpmc | Ilfence
-  | Isfence | Imfence | Ipause -> false
+  | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Isimd _ | Iprefetch _ | Irdtsc
+  | Irdpmc | Ilfence | Isfence | Imfence | Ipause -> false
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32 -> true
 
 let preserves_alloc_freshness (op : specific_operation) =
