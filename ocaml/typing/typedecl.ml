@@ -3055,6 +3055,11 @@ let transl_value_decl env loc valdecl =
   Builtin_attributes.warning_scope valdecl.pval_attributes
     (fun () -> transl_value_decl env loc valdecl)
 
+let to_private_datatype = function
+  | Datatype_variant d -> Datatype_variant { d with priv = Private }
+  | Datatype_record d -> Datatype_record { d with priv = Private }
+  | Datatype_open _ -> Datatype_open { priv = Private }
+
 (* Translate a "with" constraint -- much simplified version of
    transl_type_decl. For a constraint [Sig with t = sdecl],
    there are two declarations of interest in two environments:
@@ -3132,11 +3137,22 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let type_params_ = create_type_params_of_unknowns ~injective:false params in
   let type_noun =
     let sig_decl = set_type_params_ sig_decl type_params_ in
-    match sig_decl.type_noun, sdecl.ptype_private with
-    | _ when not arity_ok -> create_type_equation_noun type_params_ sdecl.ptype_private (Some man)
-    | _, Private -> noun_privatise_manifest (noun_with_manifest sig_decl.type_noun man)
-    | Datatype _, Public -> noun_with_manifest sig_decl.type_noun man
-    | Equation _, Public -> noun_publicise_manifest (noun_with_manifest sig_decl.type_noun man)
+    match sig_decl.type_noun, sdecl.ptype_private, arity_ok with
+    | _, priv, false -> create_type_equation_noun type_params_ priv (Some man)
+    | Equation { params; eq = Type_abstr { reason = _ } }, priv, true ->
+        Equation { params; eq = Type_abbrev { priv; expansion = man } }
+    | Equation { params; eq = Type_abbrev { priv = _; expansion = _ } }, priv, true ->
+        Equation { params; eq = Type_abbrev { priv; expansion = man } }
+    | Datatype { params; noun; manifest = _ }, priv, true ->
+        let param_exprs = List.map (fun p -> p.param_expr) params in
+        Datatype {
+          params;
+          noun = (
+            match priv with
+            | Private -> to_private_datatype noun
+            | Public -> noun);
+          manifest = Some (get_path_manifest ~loc env param_exprs man)
+        }
   in
   let type_unboxed_default, type_jkind, type_jkind_annotation =
     if arity_ok then

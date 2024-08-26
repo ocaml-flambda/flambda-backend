@@ -433,15 +433,6 @@ let set_type_separability decl separabilities =
   map_type_params_ decl
     (List.map2 (fun separability param -> { param with separability }) separabilities)
 
-let hide_manifest decl =
-  { decl with type_noun = match decl.type_noun with
-    | Datatype { params; manifest = _; noun } -> Datatype { params; manifest = None; noun }
-    | Equation { params; eq = Type_abstr { reason } } ->
-      Equation { params; eq = Type_abstr { reason } }
-    | Equation { params; eq = Type_abbrev _ } ->
-      Equation { params; eq = Type_abstr { reason = abstract_reason_of_abbrev } }
-  }
-
 let get_desc_ref = ref (fun _ -> assert false)
 let noun_with_manifest type_noun expansion =
   match type_noun with
@@ -459,38 +450,6 @@ let noun_with_manifest type_noun expansion =
 
 let with_manifest decl expansion =
   { decl with type_noun = noun_with_manifest decl.type_noun expansion }
-
-let noun_publicise_manifest = function
-  | Datatype { params; manifest; noun } ->
-    Datatype { params; manifest;
-      noun = match noun with
-      | Datatype_record ({ priv = _; _ } as n) -> Datatype_record { n with priv = Public }
-      | Datatype_variant ({ priv = _; _ } as n) -> Datatype_variant { n with priv = Public }
-      | Datatype_open { priv = _ } -> Datatype_open { priv = Public }
-    }
-  | Equation { params; eq = Type_abstr { reason } } ->
-    Equation { params; eq = Type_abstr { reason } }
-  | Equation { params; eq = Type_abbrev { priv = _; expansion } } ->
-    Equation { params; eq = Type_abbrev { priv = Public; expansion } }
-
-let publicise_manifest decl =
-  { decl with type_noun = noun_publicise_manifest decl.type_noun }
-
-let noun_privatise_manifest = function
-  | Datatype { params; manifest; noun } ->
-    Datatype { params; manifest;
-      noun = match noun with
-      | Datatype_record ({ priv = _; _ } as n) -> Datatype_record { n with priv = Private }
-      | Datatype_variant ({ priv = _; _ } as n) -> Datatype_variant { n with priv = Private }
-      | Datatype_open { priv = _ } -> Datatype_open { priv = Private }
-    }
-  | Equation { params = _; eq = Type_abstr { reason = _ } } ->
-    assert false
-  | Equation { params; eq = Type_abbrev { priv = _; expansion } } ->
-    Equation { params; eq = Type_abbrev { priv = Private; expansion } }
-
-let privatise_manifest decl =
-  { decl with type_noun = noun_privatise_manifest decl.type_noun }
 
 let newgenty_ref = ref (fun _ -> assert false)
 let get_type_manifest decl =

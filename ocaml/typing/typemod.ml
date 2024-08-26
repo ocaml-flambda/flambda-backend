@@ -625,7 +625,16 @@ type with_info =
 let expansion_of_public_abbrev decl =
   match decl.type_noun with
   | Equation { eq = Type_abbrev { priv = Public; expansion }} -> expansion
-  | _ -> Misc.fatal_errorf "A public type abbreviation was expected"
+  | _ -> Misc.fatal_error
+          "Typemod.expansion_of_public_abbrev: A public type abbreviation was expected"
+
+let abstract_of_public_abbrev decl =
+  match decl.type_noun with
+  | Equation { params; eq = Type_abbrev { priv = Public } } ->
+    { decl with type_noun = Equation {
+      params; eq = Type_abstr { reason = abstract_reason_of_abbrev } } }
+  | _ -> Misc.fatal_error
+          "Typemod.abstract_of_public_abbrev: A public type abbreviation was expected"
 
 let merge_constraint initial_env loc sg lid constr =
   let destructive_substitution =
@@ -766,7 +775,7 @@ let merge_constraint initial_env loc sg lid constr =
           raise Includemod.(Error(initial_env, err))
         end;
         check_type_decl outer_sig_env sg_for_env loc id None tdecl sig_decl;
-        return ~ghosts ~replace_by:(Some(Sig_type(id, hide_manifest tdecl, rs, priv)))
+        return ~ghosts ~replace_by:(Some(Sig_type(id, abstract_of_public_abbrev tdecl, rs, priv)))
           (Pident id, lid, None)
     | Sig_modtype(id, mtd, priv), [s],
       (With_modtype mty | With_modtypesubst mty)
