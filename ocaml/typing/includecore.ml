@@ -195,11 +195,11 @@ type type_kind =
   | Kind_variant
   | Kind_open
 
-let of_kind = function
-  | Type_abstract _ -> Kind_abstract
-  | Type_record (_, _) -> Kind_record
-  | Type_variant (_, _) -> Kind_variant
-  | Type_open -> Kind_open
+let of_noun = function
+  | Equation _ -> Kind_abstract
+  | Datatype { noun = Datatype_record _ } -> Kind_record
+  | Datatype { noun = Datatype_variant _ } -> Kind_variant
+  | Datatype { noun = Datatype_open _ } -> Kind_open
 
 type kind_mismatch = type_kind * type_kind
 
@@ -1071,7 +1071,6 @@ let noun_mismatch ~equality ~mark ~loc env check_jkinds params1 noun1 path param
     | () -> None
   in
   if err <> None then err else
-  let kind1, kind2 = get_type_kind_of_noun noun1, get_type_kind_of_noun noun2 in
   let check_new_manifest ty2 =
     let ty1 =
       Btype.newgenty (Tconstr(path, params2, ref Mnil))
@@ -1139,10 +1138,10 @@ let noun_mismatch ~equality ~mark ~loc env check_jkinds params1 noun1 path param
           labels1 labels2
           rep1 rep2
     | Datatype_open { priv = _ }, Datatype_open { priv = _ } -> None
-    | _, _ -> Some (Kind (of_kind kind1, of_kind kind2))
+    | _, _ -> Some (Kind (of_noun noun1, of_noun noun2))
     end
 
-  | Equation _, Datatype _ -> Some (Kind (of_kind kind1, of_kind kind2))
+  | Equation _, Datatype _ -> Some (Kind (of_noun noun1, of_noun noun2))
 
 
 let type_declarations ?(equality = false) ~loc env ~mark name

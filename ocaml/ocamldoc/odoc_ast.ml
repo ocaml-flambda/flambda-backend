@@ -1173,8 +1173,7 @@ module Analyser =
                     Odoc_sig.analyze_alerts com_opt type_decl.Parsetree.ptype_attributes
                   in
                   let kind = Sig.get_type_kind
-                    env name_comment_list
-                    (Types.get_type_kind tt_type_decl)
+                    env name_comment_list tt_type_decl.type_noun
                   in
                   let t =
                     {

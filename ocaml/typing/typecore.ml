@@ -2252,8 +2252,8 @@ module Constructor = NameChoice (struct
     match Env.lookup_all_constructors_from_type ~loc usage path env with
     | _ :: _ as x -> x
     | [] ->
-        match Env.find_type path env |> get_type_kind with
-        | Type_open ->
+        match (Env.find_type path env).type_noun with
+        | Datatype { noun = Datatype_open _ } ->
             (* Extension constructors cannot be found by looking at the type
                declaration.
                We scan the whole environment to get an accurate spellchecking

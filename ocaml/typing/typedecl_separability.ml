@@ -48,20 +48,17 @@ type type_structure =
   | Unboxed of argument_to_unbox
 
 let structure : type_definition -> type_structure = fun def ->
-  match get_type_kind def with
-  | Type_open -> Open
-  | Type_abstract _ ->
-      begin match get_type_manifest def with
-      | None -> Abstract
-      | Some type_expr -> Synonym type_expr
-      end
-  | Type_record _ | Type_variant _ ->
+  match def.type_noun with
+  | Datatype { noun = Datatype_open _ } -> Open
+  | Equation { eq = Type_abstr _ } -> Abstract
+  | Equation { eq = Type_abbrev { expansion = type_expr }} -> Synonym type_expr
+  | Datatype { noun = Datatype_record _ | Datatype_variant _ } ->
       begin match find_unboxed_type def with
       | None -> Algebraic
       | Some ty ->
         let params =
-          match get_type_kind def with
-          | Type_variant ([{cd_res = Some ret_type}], _) ->
+          match def.type_noun with
+          | Datatype { noun = Datatype_variant { cstrs = [{cd_res = Some ret_type}] } } ->
              begin match get_desc ret_type with
              | Tconstr (_, tyl, _) -> tyl
              | _ -> assert false

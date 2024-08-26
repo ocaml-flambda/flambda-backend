@@ -622,6 +622,11 @@ type with_info =
     (* Package with type constraints only use this last case.  Normal module
        with constraints never use it. *)
 
+let expansion_of_public_abbrev decl =
+  match decl.type_noun with
+  | Equation { eq = Type_abbrev { priv = Public; expansion }} -> expansion
+  | _ -> Misc.fatal_errorf "A public type abbreviation was expected"
+
 let merge_constraint initial_env loc sg lid constr =
   let destructive_substitution =
     match constr with

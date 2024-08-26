@@ -319,23 +319,23 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
     Option.map (fun id -> Type_declaration (id, decl)) check
   in
   let abstract = Btype.type_kind_is_abstract decl in
-  if (abstract || get_type_kind decl = Type_open)
-       && get_type_manifest decl = None then
+  match decl.type_noun with
+  | Equation { eq = Type_abstr _ } | Datatype { noun = Datatype_open _ } ->
     List.map
       (fun (c, n, i) ->
         make (not n) (not c) (not abstract || i))
       required
-  else begin
+  | _ -> begin
     let mn =
       match get_type_manifest decl with
         None -> []
       | Some ty -> [ false, ty ]
     in
     let vari =
-      match get_type_kind decl with
-        Type_abstract _ | Type_open ->
+      match decl.type_noun with
+      | Equation _ | Datatype { noun = Datatype_open _ } ->
           compute_variance_type env ~check rloc decl mn
-      | Type_variant (tll,_rep) ->
+      | Datatype { noun = Datatype_variant { cstrs = tll } } ->
           if List.for_all (fun c -> c.Types.cd_res = None) tll then
             compute_variance_type env ~check rloc decl
               (mn @ List.flatten (List.map (fun c -> for_constr c.Types.cd_args)
@@ -360,7 +360,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
                 List.fold_left (List.map2 Variance.union) vari rem
             | _ -> assert false
           end
-      | Type_record (ftl, _) ->
+      | Datatype { noun = Datatype_record { lbls = ftl } } ->
           compute_variance_type env ~check rloc decl
             (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
                  (Types.is_mutable ld_mutable, ld_type)) ftl)

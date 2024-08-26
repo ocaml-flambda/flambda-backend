@@ -130,7 +130,7 @@ let is_Tunivar ty = match get_desc ty with Tunivar _ -> true | _ -> false
 let is_Tconstr ty = match get_desc ty with Tconstr _ -> true | _ -> false
 let is_Tpoly ty = match get_desc ty with Tpoly _ -> true | _ -> false
 let type_kind_is_abstract decl =
-  match get_type_kind decl with Type_abstract _ -> true | _ -> false
+  match decl.type_noun with Equation _ -> true | Datatype _ -> false
 
 let dummy_method = "*dummy method*"
 

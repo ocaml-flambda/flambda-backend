@@ -384,19 +384,7 @@ let tys_of_constr_args = function
   | Cstr_tuple tl -> List.map (fun ca -> ca.ca_type) tl
   | Cstr_record lbls -> List.map (fun l -> l.ld_type) lbls
 
-
-let expansion_of_public_abbrev decl =
-  match decl.type_noun with
-  | Equation { eq = Type_abbrev { priv = Public; expansion }} -> expansion
-  | _ -> Misc.fatal_errorf "A public type abbreviation was expected"
-
-let non_trivial_expansion decl =
-  match decl.type_noun with
-  | Equation { eq = Type_abbrev { priv = _; expansion }} -> Some expansion
-  | Equation { eq = Type_abstr { reason = _ }}
-  | Datatype { manifest = _;
-               noun = Datatype_open _ | Datatype_record _ | Datatype_variant _ }
-    -> None
+let abstract_reason_of_abbrev = Abstract_def
 
 (* Legacy properties *)
 
@@ -445,22 +433,13 @@ let set_type_separability decl separabilities =
   map_type_params_ decl
     (List.map2 (fun separability param -> { param with separability }) separabilities)
 
-let get_type_kind_of_noun = function
-  | Datatype { manifest = _; noun = Datatype_record { priv = _; lbls; rep } } -> Type_record (lbls, rep)
-  | Datatype { manifest = _; noun = Datatype_variant { priv = _; cstrs; rep } } -> Type_variant (cstrs, rep)
-  | Datatype { manifest = _; noun = Datatype_open _ } -> Type_open
-  | Equation { eq = Type_abstr { reason } } -> Type_abstract reason
-  | Equation { eq = Type_abbrev _ } -> Type_abstract Abstract_def
-
-let get_type_kind decl = get_type_kind_of_noun decl.type_noun
-
 let hide_manifest decl =
   { decl with type_noun = match decl.type_noun with
     | Datatype { params; manifest = _; noun } -> Datatype { params; manifest = None; noun }
     | Equation { params; eq = Type_abstr { reason } } ->
       Equation { params; eq = Type_abstr { reason } }
     | Equation { params; eq = Type_abbrev _ } ->
-      Equation { params; eq = Type_abstr { reason = Abstract_def } }
+      Equation { params; eq = Type_abstr { reason = abstract_reason_of_abbrev } }
   }
 
 let get_desc_ref = ref (fun _ -> assert false)
@@ -527,7 +506,7 @@ let create_type_equation priv manifest =
   | priv, Some expansion -> Type_abbrev { priv; expansion }
   (* CR jbachurski: 'Private' abstract types don't really exist,
      but are sometimes created. *)
-  | (Public | Private), None -> Type_abstr { reason = Abstract_def }
+  | (Public | Private), None -> Type_abstr { reason = abstract_reason_of_abbrev }
 
 let create_type_equation_in_noun params priv manifest =
   Equation { params; eq = create_type_equation priv manifest }
@@ -838,20 +817,26 @@ let may_equal_constr c1 c2 =
          equal_tag tag1 tag2)
 
 let find_unboxed_type decl =
-  match get_type_kind decl with
-    Type_record ([{ld_type = arg; _}], Record_unboxed)
-  | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, Variant_unboxed))
-  | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)
-  | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
-                  Variant_unboxed) ->
+  match decl.type_noun with
+  | Datatype { noun =
+    Datatype_record { lbls = [{ld_type = arg; _}];
+                      rep = Record_unboxed } |
+    Datatype_record { lbls = [{ld_type = arg; _}];
+                      rep = Record_inlined (_, _, Variant_unboxed) } |
+    Datatype_variant { cstrs = [{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}];
+                       rep = Variant_unboxed } |
+    Datatype_variant { cstrs = [{cd_args = Cstr_record [{ld_type = arg; _}]; _}];
+                       rep = Variant_unboxed }
+  } ->
     Some arg
-  | Type_record (_, ( Record_inlined _ | Record_unboxed
-                    | Record_boxed _ | Record_float | Record_ufloat
-                    | Record_mixed _))
-  | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
-                     | Variant_extensible ))
-  | Type_abstract _ | Type_open ->
-    None
+  | Datatype { noun =
+    Datatype_record { rep =
+      ( Record_inlined _ | Record_unboxed | Record_boxed _
+      | Record_float | Record_ufloat | Record_mixed _) } |
+    Datatype_variant { rep =
+      Variant_boxed _ | Variant_unboxed | Variant_extensible } |
+    Datatype_open _
+  } | Equation _ -> None
 
 let item_visibility = function
   | Sig_value (_, _, vis)

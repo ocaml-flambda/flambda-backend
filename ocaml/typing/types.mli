@@ -696,8 +696,7 @@ and type_transparence =
   | Type_new         (* "new" type *)
   | Type_private     (* private type *)
 
-val expansion_of_public_abbrev : type_declaration -> type_expr
-val non_trivial_expansion : type_declaration -> type_expr option
+val abstract_reason_of_abbrev : abstract_reason
 
 (* Legacy properties *)
 (* FIXME jbachurski: All of these should be removed by the time this PR is done. *)
@@ -707,7 +706,7 @@ val newgenty_ref : (type_desc -> type_expr) ref
 val create_type_params : type_expr list -> Variance.t list -> Separability.t list -> type_param list
 val create_type_params_of_unknowns : injective:bool -> type_expr list -> type_param list
 
-val map_param_exprs : (type_expr -> type_expr) -> type_param list -> type_param list
+val map_param_exprs : (type_expr -> type_expr) -> (type_param list -> type_param list)
 val set_type_params_ : type_declaration -> type_param list -> type_declaration
 
 val get_type_arity : type_declaration -> int
@@ -721,11 +720,8 @@ val set_type_variance : type_declaration -> Variance.t list -> type_declaration
 val get_type_separability : type_declaration -> Separability.t list
 val set_type_separability : type_declaration -> Separability.t list -> type_declaration
 
-val create_type_equation : private_flag -> type_expr option -> type_equation
 val create_type_equation_in_noun : type_param list -> private_flag -> type_expr option -> type_noun
-
-val get_type_kind_of_noun : type_noun -> type_decl_kind
-val get_type_kind : type_declaration -> type_decl_kind
+val create_type_equation : private_flag -> type_expr option -> type_equation
 
 val hide_manifest : type_declaration -> type_declaration
 val noun_with_manifest : type_noun -> type_expr -> type_noun

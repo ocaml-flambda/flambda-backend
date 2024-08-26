@@ -445,11 +445,10 @@ module Analyser =
         rf_text = comment_opt
       }
 
-    let get_type_kind env name_comment_list type_kind =
-      match type_kind with
-        Types.Type_abstract _ ->
+    let get_type_kind env name_comment_list : Types.type_noun -> Odoc_type.type_kind = function
+      | Types.Equation _ ->
           Odoc_type.Type_abstract
-      | Types.Type_variant (l,_) ->
+      | Types.Datatype { noun = Datatype_variant { cstrs = l } } ->
           let f {Types.cd_id=constructor_name;cd_args;cd_res=ret_type;cd_attributes} =
             let constructor_name = Ident.name constructor_name in
             let comment_opt =
@@ -480,10 +479,10 @@ module Analyser =
           in
           Odoc_type.Type_variant (List.map f l)
 
-      | Types.Type_record (l, _) ->
+      | Types.Datatype { noun = Datatype_record { lbls = l } } ->
           Odoc_type.Type_record (List.map (get_field env name_comment_list) l)
 
-      | Types.Type_open ->
+      | Types.Datatype { noun = Datatype_open _ } ->
           Odoc_type.Type_open
 
 
@@ -1099,7 +1098,7 @@ module Analyser =
                       raise (Failure (Odoc_messages.type_not_found current_module_name name.txt))
                   in
                   (* get the type kind with the associated comments *)
-                  let type_kind = get_type_kind env name_comment_list (Types.get_type_kind sig_type_decl) in
+                  let type_kind = get_type_kind env name_comment_list sig_type_decl.type_noun in
                   let loc_start = Loc.start type_decl.Parsetree.ptype_loc in
                   let new_end = Loc.end_ type_decl.Parsetree.ptype_loc
                                 + maybe_more in
@@ -1187,7 +1186,7 @@ module Analyser =
                       raise (Failure (Odoc_messages.type_not_found current_module_name name.txt))
                   in
                   (* get the type kind with the associated comments *)
-                  let type_kind = get_type_kind env name_comment_list (Types.get_type_kind sig_type_decl) in
+                  let type_kind = get_type_kind env name_comment_list sig_type_decl.type_noun in
                   let loc_start = Loc.start type_decl.Parsetree.ptype_loc in
                   let new_end = Loc.end_ type_decl.Parsetree.ptype_loc
                                 + maybe_more in

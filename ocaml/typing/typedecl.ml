@@ -749,9 +749,6 @@ let get_path_manifest ~loc env params ty =
   | _ -> raise (Error (loc, Definition_mismatch (ty, env, None)))
   end
 
-let check_path_manifest ~loc env arity ty =
-  ignore (get_path_manifest ~loc env arity ty)
-
 let transl_declaration env sdecl (id, uid) =
   (* Bind type parameters *)
   Ctype.with_local_level begin fun () ->
@@ -1021,10 +1018,10 @@ let transl_declaration env sdecl (id, uid) =
     in
     let typ_shape =
       let uid = decl.typ_type.type_uid in
-      match get_type_kind decl.typ_type with
-      | Type_variant (cstrs, _) -> Shape.str ~uid (shape_map_cstrs cstrs)
-      | Type_record (labels, _) -> Shape.str ~uid (shape_map_labels labels)
-      | Type_abstract _ | Type_open -> Shape.leaf uid
+      match decl.typ_type.type_noun with
+      | Datatype { noun = Datatype_variant { cstrs } } -> Shape.str ~uid (shape_map_cstrs cstrs)
+      | Datatype { noun = Datatype_record { lbls } } -> Shape.str ~uid (shape_map_labels lbls)
+      | Equation _ | Datatype { noun = Datatype_open _ } -> Shape.leaf uid
     in
     decl, typ_shape
   end
@@ -1092,14 +1089,14 @@ let check_constraints env sdecl (_, decl) =
   List.iter2
     (fun (sty, _) ty -> check_constraints_rec env sty.ptyp_loc visited ty)
     sdecl.ptype_params (get_type_params decl);
-  begin match get_type_kind decl with
-  | Type_abstract _ -> ()
+  begin match decl.type_noun with
+  | Equation _ -> ()
   (* We skip this check because with [or_null_reexport] the [type_kind]
      does not match [sdecl.ptype_kind]. This is sound, since re-exporting
      can't introduce new variables in the kind. *)
-  | Type_variant _ when
+  | Datatype { noun = Datatype_variant _ } when
     Builtin_attributes.has_or_null_reexport decl.type_attributes -> ()
-  | Type_variant (l, _rep) ->
+  | Datatype { noun = Datatype_variant { cstrs = l } } ->
       let find_pl = function
           Ptype_variant pl -> pl
         | Ptype_record _ | Ptype_abstract | Ptype_open -> assert false
@@ -1134,14 +1131,14 @@ let check_constraints env sdecl (_, decl) =
           | _ ->
               () )
         l
-  | Type_record (l, _) ->
+  | Datatype { noun = Datatype_record { lbls = l } } ->
       let find_pl = function
           Ptype_record pl -> pl
         | Ptype_variant _ | Ptype_abstract | Ptype_open -> assert false
       in
       let pl = find_pl sdecl.ptype_kind in
       check_constraints_labels env visited l pl
-  | Type_open -> ()
+  | Datatype { noun = Datatype_open _ } -> ()
   end;
   begin match get_type_manifest decl with
   | None -> ()
@@ -1171,8 +1168,9 @@ let narrow_to_manifest_jkind env loc decl =
    need to check that the equation refers to a type of the same kind
    with the same constructors and labels. *)
 let check_kind_coherence env loc dpath decl =
-  match get_type_kind decl, get_type_manifest decl with
-  | (Type_variant _ | Type_record _ | Type_open), Some ty ->
+  match decl.type_noun with
+  | Datatype { manifest = Some path } ->
+      let ty = Btype.newgenty (Tconstr (path, get_type_params decl, ref Mnil)) in
       if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
         begin match Jkind.sub_with_history jkind' decl.type_jkind with
@@ -1181,28 +1179,22 @@ let check_kind_coherence env loc dpath decl =
           raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
         end
       end;
-      check_path_manifest ~loc env (get_type_params decl) ty;
-      begin match get_desc ty with
-      | Tconstr(path, _, _) ->
-        begin
-        try
-          let decl' = Env.find_type path env in
-          let err =
-              Includecore.type_declarations ~loc ~equality:true env
-                ~mark:true
-                (Path.last path)
-                decl'
-                dpath
-                (Subst.type_declaration
-                   (Subst.add_type_path dpath path Subst.identity) decl)
-          in
-          if err <> None then
-            raise (Error (loc, Definition_mismatch (ty, env, err)))
-        with Not_found ->
-          raise (Error (loc, Unavailable_type_constructor path))
-        end
-      | _ -> raise (Error (loc, Definition_mismatch (ty, env, None)))
-    end
+      begin try
+        let decl' = Env.find_type path env in
+        let err =
+          Includecore.type_declarations ~loc ~equality:true env
+            ~mark:true
+            (Path.last path)
+            decl'
+            dpath
+            (Subst.type_declaration
+                (Subst.add_type_path dpath path Subst.identity) decl)
+        in
+        if err <> None then
+          raise (Error(loc, Definition_mismatch (ty, env, err)))
+      with Not_found ->
+        raise(Error(loc, Unavailable_type_constructor path))
+      end
   | _ -> ()
 
 let check_coherence env loc dpath decl =
@@ -2434,8 +2426,8 @@ let transl_extension_constructor ~scope env type_path type_params
               assert (List.length (get_type_params decl) = List.length tl);
               List.iter2 (Ctype.unify env) (get_type_params decl) tl;
               let lbls =
-                match get_type_kind decl with
-                | Type_record (lbls, Record_inlined _) -> lbls
+                match decl.type_noun with
+                | Datatype { noun = Datatype_record { lbls; rep = Record_inlined _ } } -> lbls
                 | _ -> assert false
               in
               Types.Cstr_record lbls
@@ -3501,8 +3493,8 @@ let report_error ppf = function
                    for native-code compilation@]"
   | Unbound_type_var (ty, decl) ->
       fprintf ppf "@[A type variable is unbound in this type declaration";
-      begin match get_type_kind decl, get_type_manifest decl with
-      | Type_variant (tl, _rep), _ ->
+      begin match decl.type_noun with
+      | Datatype { noun = Datatype_variant { cstrs = tl } } ->
           explain_unbound_gen ppf ty tl (fun c ->
               let tl = tys_of_constr_args c.Types.cd_args in
               Btype.newgenty (Ttuple (List.map (fun t -> None, t) tl))
@@ -3511,10 +3503,10 @@ let report_error ppf = function
               fprintf ppf
                 "%a of %a" Printtyp.ident c.Types.cd_id
                 Printtyp.constructor_arguments c.Types.cd_args)
-      | Type_record (tl, _), _ ->
+      | Datatype { noun = Datatype_record { lbls = tl } } ->
           explain_unbound ppf ty tl (fun l -> l.Types.ld_type)
             "field" (fun l -> Ident.name l.Types.ld_id ^ ": ")
-      | Type_abstract _, Some ty' ->
+      | Equation { eq = Type_abbrev { expansion = ty' } } ->
           explain_unbound_single ppf ty ty'
       | _ -> ()
       end;

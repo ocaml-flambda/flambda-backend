@@ -143,10 +143,10 @@ let classify env loc ty sort : classification =
            || Path.same p Predef.path_int64 then Addr
       else begin
         try
-          match Env.find_type p env |> get_type_kind with
-          | Type_abstract _ ->
+          match (Env.find_type p env).type_noun with
+          | Equation _ ->
               Any
-          | Type_record _ | Type_variant _ | Type_open ->
+          | Datatype _ ->
               Addr
         with Not_found ->
           (* This can happen due to e.g. missing -I options,
@@ -409,20 +409,20 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
         (* Default of [Pgenval] is currently safe for the missing cmi fallback
            in the case of @@unboxed variant and records, due to the precondition
            of [value_kind]. *)
-        match get_type_kind decl with
-        | Type_variant (cstrs, rep) ->
+        match decl.type_noun with
+        | Datatype { noun = Datatype_variant { cstrs; rep } } ->
           fallback_if_missing_cmi ~default:(num_nodes_visited, Pgenval)
             (fun () -> value_kind_variant env ~loc ~visited ~depth
                          ~num_nodes_visited cstrs rep)
-        | Type_record (labels, rep) ->
+        | Datatype { noun = Datatype_record { lbls = labels; rep } } ->
           let depth = depth + 1 in
           fallback_if_missing_cmi ~default:(num_nodes_visited, Pgenval)
             (fun () -> value_kind_record env ~loc ~visited ~depth
                          ~num_nodes_visited labels rep)
-        | Type_abstract _ ->
+        | Equation _ ->
           num_nodes_visited,
           value_kind_of_value_jkind decl.type_jkind
-        | Type_open -> num_nodes_visited, Pgenval
+        | Datatype { noun = Datatype_open _ } -> num_nodes_visited, Pgenval
     end
   | Ttuple labeled_fields ->
     if cannot_proceed () then

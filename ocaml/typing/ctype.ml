@@ -398,9 +398,7 @@ let in_pervasives p =
   with Not_found -> false
 
 let is_datatype decl=
-  match get_type_kind decl with
-    Type_record _ | Type_variant _ | Type_open -> true
-  | Type_abstract _ -> false
+  match decl.type_noun with Datatype _ -> true | Equation _ -> false
 
 
                   (**********************************************)
@@ -635,10 +633,10 @@ let closed_type_decl decl =
   try
     List.iter mark_type (get_type_params decl);
     List.iter remove_mode_and_jkind_variables (get_type_params decl);
-    begin match get_type_kind decl with
-      Type_abstract _ ->
+    begin match decl.type_noun with
+    | Equation _ ->
         ()
-    | Type_variant (v, _rep) ->
+    | Datatype { noun = Datatype_variant { cstrs = v } } ->
         List.iter
           (fun {cd_args; cd_res; _} ->
             match cd_res with
@@ -656,9 +654,9 @@ let closed_type_decl decl =
             | None -> List.iter closed_type (tys_of_constr_args cd_args)
           )
           v
-    | Type_record(r, _rep) ->
+    | Datatype { noun = Datatype_record { lbls = r } } ->
         List.iter (fun l -> closed_type l.ld_type) r
-    | Type_open -> ()
+    | Datatype { noun = Datatype_open _ } -> ()
     end;
     begin match get_type_manifest decl with
       None    -> ()
@@ -3117,20 +3115,23 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
     end else if non_aliasable p1 decl && non_aliasable p2 decl' then
       raise Incompatible
     else
-      match get_type_kind decl, get_type_kind decl' with
-      | Type_record (lst,r), Type_record (lst',r')
+      match decl.type_noun, decl'.type_noun with
+      | Datatype { noun = Datatype_record { lbls = lst; rep = r } },
+        Datatype { noun = Datatype_record { lbls = lst'; rep = r' } }
         when equal_record_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
           mcomp_record_description type_pairs env lst lst'
-      | Type_variant (v1,r), Type_variant (v2,r')
+      | Datatype { noun = Datatype_variant { cstrs = v1; rep = r } },
+        Datatype { noun = Datatype_variant { cstrs = v2; rep = r' } }
         when equal_variant_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
           mcomp_variant_description type_pairs env v1 v2
-      | Type_open, Type_open ->
+      | Datatype { noun = Datatype_open _ },
+        Datatype { noun = Datatype_open _ } ->
           mcomp_list type_pairs env tl1 tl2
-      | Type_abstract _, Type_abstract _ -> check_jkinds ()
-      | Type_abstract _, _ when not (non_aliasable p1 decl)-> check_jkinds ()
-      | _, Type_abstract _ when not (non_aliasable p2 decl') -> check_jkinds ()
+      | Equation _, Equation _ -> check_jkinds ()
+      | Equation _, _ when not (non_aliasable p1 decl) -> check_jkinds ()
+      | _, Equation _ when not (non_aliasable p2 decl') -> check_jkinds ()
       | _ -> raise Incompatible
   with Not_found -> ()
 

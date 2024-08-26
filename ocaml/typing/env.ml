@@ -1252,8 +1252,8 @@ let type_of_cstr path = function
       let labels =
         List.map snd (Datarepr.labels_of_type path decl)
       in
-      begin match get_type_kind decl with
-      | Type_record (_, repr) ->
+      begin match decl.type_noun with
+      | Datatype { noun = Datatype_record { rep = repr } } ->
         {
           tda_declaration = decl;
           tda_descriptions = Type_record (labels, repr);
@@ -1873,8 +1873,8 @@ let rec components_of_module_maker
             Btype.set_static_row_name final_decl
               (Subst.type_path sub (Path.Pident id));
             let descrs =
-              match get_type_kind decl with
-              | Type_variant (_,repr) ->
+              match decl.type_noun with
+              | Datatype { noun = Datatype_variant { rep = repr }} ->
                   let cstrs = List.map snd
                     (Datarepr.constructors_of_type path final_decl
                         ~current_unit:(get_unit_name ()))
@@ -1891,7 +1891,7 @@ let rec components_of_module_maker
                         add_to_tbl descr.cstr_name cda c.comp_constrs
                     ) cstrs;
                  Type_variant (cstrs, repr)
-              | Type_record (_, repr) ->
+              | Datatype { noun = Datatype_record { rep = repr }} ->
                   let lbls = List.map snd
                     (Datarepr.labels_of_type path final_decl)
                   in
@@ -1901,8 +1901,9 @@ let rec components_of_module_maker
                         add_to_tbl descr.lbl_name descr c.comp_labels)
                     lbls;
                   Type_record (lbls, repr)
-              | Type_abstract r -> Type_abstract r
-              | Type_open -> Type_open
+              | Equation { eq = Type_abstr { reason } } -> Type_abstract reason
+              | Equation { eq = Type_abbrev _ } -> Type_abstract abstract_reason_of_abbrev
+              | Datatype { noun = Datatype_open _ } -> Type_open
             in
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
             let tda =
@@ -2149,7 +2150,7 @@ and store_type ~check id info shape env =
           env labels
     | Datatype { noun = Datatype_open _ } -> Type_open, env
     | Equation { eq = Type_abstr { reason } } -> Type_abstract reason, env
-    | Equation { eq = Type_abbrev _ } -> Type_abstract Abstract_def, env
+    | Equation { eq = Type_abbrev _ } -> Type_abstract abstract_reason_of_abbrev, env
   in
   let tda =
     { tda_declaration = info;
