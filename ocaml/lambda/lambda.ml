@@ -1743,22 +1743,33 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pbytes_load_f32 { mode = m; boxed = true; _ }
   | Pstring_load_64 { mode = m; boxed = true; _ }
   | Pbytes_load_64 { mode = m; boxed = true; _ }
-  | Pstring_load_128 { mode = m; _ } | Pbytes_load_128 { mode = m; _ }
-  | Pfloatarray_load_128 { mode = m; _ }
-  | Pfloat_array_load_128 { mode = m; _ }
-  | Pint_array_load_128 { mode = m; _ }
-  | Punboxed_float_array_load_128 { mode = m; _ }
-  | Punboxed_float32_array_load_128 { mode = m; _ }
-  | Punboxed_int32_array_load_128 { mode = m; _ }
-  | Punboxed_int64_array_load_128 { mode = m; _ }
-  | Punboxed_nativeint_array_load_128 { mode = m; _ }
+  | Pstring_load_128 { mode = m; boxed = true; _ }
+  | Pbytes_load_128 { mode = m; boxed = true; _ }
+  | Pfloatarray_load_128 { mode = m; boxed = true; _ }
+  | Pfloat_array_load_128 { mode = m; boxed = true; _ }
+  | Pint_array_load_128 { mode = m; boxed = true; _ }
+  | Punboxed_float_array_load_128 { mode = m; boxed = true; _ }
+  | Punboxed_float32_array_load_128 { mode = m; boxed = true; _ }
+  | Punboxed_int32_array_load_128 { mode = m; boxed = true; _ }
+  | Punboxed_int64_array_load_128 { mode = m; boxed = true; _ }
+  | Punboxed_nativeint_array_load_128 { mode = m; boxed = true; _ }
   | Pget_header m -> Some m
   | Pstring_load_32 { boxed = false; _ }
   | Pstring_load_f32 { boxed = false; _ }
   | Pstring_load_64 { boxed = false; _ }
+  | Pstring_load_128 { boxed = false; _ }
   | Pbytes_load_32 { boxed = false; _ }
   | Pbytes_load_f32 { boxed = false; _ }
-  | Pbytes_load_64 { boxed = false; _ } -> None
+  | Pbytes_load_64 { boxed = false; _ }
+  | Pbytes_load_128 { boxed = false; _ }
+  | Pfloatarray_load_128 { boxed = false; _ }
+  | Pfloat_array_load_128 { boxed = false; _ }
+  | Pint_array_load_128 { boxed = false; _ }
+  | Punboxed_float_array_load_128 { boxed = false; _ }
+  | Punboxed_float32_array_load_128 { boxed = false; _ }
+  | Punboxed_int32_array_load_128 { boxed = false; _ }
+  | Punboxed_int64_array_load_128 { boxed = false; _ }
+  | Punboxed_nativeint_array_load_128 { boxed = false; _ } -> None
   | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_f32 _
   | Pbytes_set_64 _ | Pbytes_set_128 _ -> None
   | Pbigstring_load_16 _ -> None

@@ -657,16 +657,16 @@ let primitive ppf = function
        (alloc_kind mode) array_index_kind index_kind
   | Pstring_load_f32{unsafe; index_kind; mode; boxed} ->
      fprintf ppf "string.%sgetf32%s%s[indexed by %a]"
-       (if unsafe then "unsafe_" else "") (if boxed then "" else "")
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
        (alloc_kind mode) array_index_kind index_kind
   | Pstring_load_64{unsafe; index_kind; mode; boxed} ->
      fprintf ppf "string.%sget64%s%s[indexed by %a]"
-       (if unsafe then "unsafe_" else "") (if boxed then "" else "")
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
        (alloc_kind mode) array_index_kind index_kind
-  | Pstring_load_128 {unsafe; index_kind; mode} ->
-     fprintf ppf "string.%sunaligned_get128%s[indexed by %a]"
-       (if unsafe then "unsafe_" else "") (alloc_kind mode) array_index_kind
-       index_kind
+  | Pstring_load_128 {unsafe; index_kind; mode; boxed} ->
+     fprintf ppf "string.%sunaligned_get128%s%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+       (alloc_kind mode) array_index_kind index_kind
   | Pbytes_load_16 {unsafe; index_kind} ->
      fprintf ppf "bytes.%sget16[indexed by %a]" (if unsafe then "unsafe_" else "")
        array_index_kind index_kind
@@ -676,16 +676,16 @@ let primitive ppf = function
        (alloc_kind mode) array_index_kind index_kind
   | Pbytes_load_f32{unsafe; index_kind; mode; boxed} ->
      fprintf ppf "bytes.%sgetf32%s%s[indexed by %a]"
-       (if unsafe then "unsafe_" else "") (if boxed then "" else "")
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
        (alloc_kind mode) array_index_kind index_kind
   | Pbytes_load_64{unsafe; index_kind; mode; boxed} ->
      fprintf ppf "bytes.%sget64%s%s[indexed by %a]"
-       (if unsafe then "unsafe_" else "") (if boxed then "" else "")
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
        (alloc_kind mode) array_index_kind index_kind
-  | Pbytes_load_128 {unsafe; index_kind; mode} ->
-     fprintf ppf "bytes.%sunaligned_get128%s[indexed by %a]"
-       (if unsafe then "unsafe_" else "") (alloc_kind mode) array_index_kind
-       index_kind
+  | Pbytes_load_128 {unsafe; index_kind; mode; boxed} ->
+     fprintf ppf "bytes.%sunaligned_get128%s%s[indexed by %a]"
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+       (alloc_kind mode) array_index_kind index_kind
   | Pbytes_set_16 {unsafe; index_kind} ->
      fprintf ppf "bytes.%sset16[indexed by %a]" (if unsafe then "unsafe_" else "")
        array_index_kind index_kind
@@ -695,11 +695,11 @@ let primitive ppf = function
        array_index_kind index_kind
   | Pbytes_set_f32{unsafe; index_kind; boxed} ->
      fprintf ppf "bytes.%ssetf32%s[indexed by %a]"
-       (if unsafe then "unsafe_" else "") (if boxed then "" else "")
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
        array_index_kind index_kind
   | Pbytes_set_64{unsafe; index_kind; boxed} ->
      fprintf ppf "bytes.%sset64%s[indexed by %a]"
-       (if unsafe then "unsafe_" else "") (if boxed then "" else "")
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
        array_index_kind index_kind
   | Pbytes_set_128 { unsafe; boxed; index_kind } ->
      fprintf ppf "bytes.%sunaligned_get128%s[indexed by %a]"
@@ -745,54 +745,54 @@ let primitive ppf = function
        (if unsafe then "unsafe_" else "")
        (if aligned then "aligned_" else "unaligned_")
        (if boxed then "" else "#") array_index_kind index_kind
-  | Pfloatarray_load_128 {unsafe; mode} ->
-     if unsafe then fprintf ppf "floatarray.unsafe_get128%s" (alloc_kind mode)
-     else fprintf ppf "floatarray.get128%s" (alloc_kind mode)
-  | Pfloat_array_load_128 {unsafe; mode} ->
-     if unsafe then fprintf ppf "float_array.unsafe_get128%s" (alloc_kind mode)
-     else fprintf ppf "float_array.get128%s" (alloc_kind mode)
-  | Pint_array_load_128 {unsafe; mode} ->
-     if unsafe then fprintf ppf "int_array.unsafe_get128%s" (alloc_kind mode)
-     else fprintf ppf "int_array.get128%s" (alloc_kind mode)
-  | Punboxed_float_array_load_128 {unsafe; mode} ->
-     if unsafe then fprintf ppf "unboxed_float_array.unsafe_get128%s" (alloc_kind mode)
-     else fprintf ppf "unboxed_float_array.get128%s" (alloc_kind mode)
-  | Punboxed_float32_array_load_128 {unsafe; mode} ->
-     if unsafe then fprintf ppf "unboxed_float32_array.unsafe_get128%s" (alloc_kind mode)
-     else fprintf ppf "unboxed_float32_array.get128%s" (alloc_kind mode)
-  | Punboxed_int32_array_load_128 {unsafe; mode} ->
-     if unsafe then fprintf ppf "unboxed_int32_array.unsafe_get128%s" (alloc_kind mode)
-     else fprintf ppf "unboxed_int32_array.get128%s" (alloc_kind mode)
-  | Punboxed_int64_array_load_128 {unsafe; mode} ->
-     if unsafe then fprintf ppf "unboxed_int64_array.unsafe_get128%s" (alloc_kind mode)
-     else fprintf ppf "unboxed_int64_array.get128%s" (alloc_kind mode)
-  | Punboxed_nativeint_array_load_128 {unsafe; mode} ->
-     if unsafe then fprintf ppf "unboxed_nativeint_array.unsafe_get128%s" (alloc_kind mode)
-     else fprintf ppf "unboxed_nativeint_array.get128%s" (alloc_kind mode)
-  | Pfloatarray_set_128 {unsafe} ->
-     if unsafe then fprintf ppf "floatarray.unsafe_set128"
-     else fprintf ppf "floatarray.set128"
-  | Pfloat_array_set_128 {unsafe} ->
-     if unsafe then fprintf ppf "float_array.unsafe_set128"
-     else fprintf ppf "float_array.set128"
-  | Pint_array_set_128 {unsafe} ->
-     if unsafe then fprintf ppf "int_array.unsafe_set128"
-     else fprintf ppf "int_array.set128"
-  | Punboxed_float_array_set_128 {unsafe} ->
-     if unsafe then fprintf ppf "unboxed_float_array.unsafe_set128"
-     else fprintf ppf "unboxed_float_array.set128"
-  | Punboxed_float32_array_set_128 {unsafe} ->
-     if unsafe then fprintf ppf "unboxed_float32_array.unsafe_set128"
-     else fprintf ppf "unboxed_float32_array.set128"
-  | Punboxed_int32_array_set_128 {unsafe} ->
-     if unsafe then fprintf ppf "unboxed_int32_array.unsafe_set128"
-     else fprintf ppf "unboxed_int32_array.set128"
-  | Punboxed_int64_array_set_128 {unsafe} ->
-     if unsafe then fprintf ppf "unboxed_int64_array.unsafe_set128"
-     else fprintf ppf "unboxed_int64_array.set128"
-  | Punboxed_nativeint_array_set_128 {unsafe} ->
-     if unsafe then fprintf ppf "unboxed_nativeint_array.unsafe_set128"
-     else fprintf ppf "unboxed_nativeint_array.set128"
+  | Pfloatarray_load_128 {unsafe; mode; boxed} ->
+     fprintf ppf "floatarray.%sget128%s%s"
+       (if unsafe then "unsafe_" else "") (if boxed then "" else "#") (alloc_kind mode)
+  | Pfloat_array_load_128 {unsafe; mode; boxed} ->
+     fprintf ppf "float_array.%sget128%s%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#") (alloc_kind mode)
+  | Pint_array_load_128 {unsafe; mode; boxed} ->
+     fprintf ppf "int_array.%sget128%s%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#") (alloc_kind mode)
+  | Punboxed_float_array_load_128 {unsafe; mode; boxed} ->
+     fprintf ppf "unboxed_float_array.%sget128%s%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#") (alloc_kind mode)
+  | Punboxed_float32_array_load_128 {unsafe; mode; boxed} ->
+     fprintf ppf "unboxed_float32_array.%sget128%s%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#") (alloc_kind mode)
+  | Punboxed_int32_array_load_128 {unsafe; mode; boxed} ->
+     fprintf ppf "unboxed_int32_array.%sget128%s%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#") (alloc_kind mode)
+  | Punboxed_int64_array_load_128 {unsafe; mode; boxed} ->
+     fprintf ppf "unboxed_int64_array.%sget128%s%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#") (alloc_kind mode)
+  | Punboxed_nativeint_array_load_128 {unsafe; mode; boxed} ->
+     fprintf ppf "unboxed_nativeint_array.%sget128%s%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#") (alloc_kind mode)
+  | Pfloatarray_set_128 {unsafe; boxed} ->
+     fprintf ppf "floatarray.%sset128%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+  | Pfloat_array_set_128 {unsafe; boxed} ->
+     fprintf ppf "float_array.%sset128%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+  | Pint_array_set_128 {unsafe; boxed} ->
+     fprintf ppf "int_array.%sset128%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+  | Punboxed_float_array_set_128 {unsafe; boxed} ->
+     fprintf ppf "unboxed_float_array.%sset128%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+  | Punboxed_float32_array_set_128 {unsafe; boxed} ->
+     fprintf ppf "unboxed_float32_array.%sset128%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+  | Punboxed_int32_array_set_128 {unsafe; boxed} ->
+     fprintf ppf "unboxed_int32_array.%sset128%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+  | Punboxed_int64_array_set_128 {unsafe; boxed} ->
+     fprintf ppf "unboxed_int64_array.%sset128%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
+  | Punboxed_nativeint_array_set_128 {unsafe; boxed} ->
+     fprintf ppf "unboxed_nativeint_array.%sset128%s"
+      (if unsafe then "unsafe_" else "") (if boxed then "" else "#")
   | Pbswap16 -> fprintf ppf "bswap16"
   | Pbbswap(bi,m) -> print_boxed_integer "bswap" ppf bi m
   | Pint_as_pointer m -> fprintf ppf "int_as_pointer%s" (alloc_kind m)
