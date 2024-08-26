@@ -1030,7 +1030,18 @@ end = struct
 end
 
 module Computation_tree : sig
+  module Node : sig
+    type t =
+      { operation : Cfg.operation;
+        instructions : Instruction.Id.t list;
+        dependencies : Instruction.Id.t array;
+        is_dependency_of : Instruction.Id.Set.t
+      }
+  end
+
   type t
+
+  val iter : (Instruction.Id.t -> Node.t -> unit) -> t -> unit
 
   val from_block : Cfg.basic_block -> Cfg_with_infos.t -> t list
 
@@ -1061,6 +1072,8 @@ end = struct
      is the last instruction in the node for now, we can change that later *)
 
   let init () : t = Instruction.Id.Tbl.create 100
+
+  let iter = Instruction.Id.Tbl.iter
 
   let from_seed (block : Cfg.basic_block) cfg_with_infos seed =
     let body = Instruction.body_of block in
@@ -1311,6 +1324,16 @@ end = struct
     fprintf ppf "\n"
 end
 
+let vectorize (block : Cfg.basic_block) cfg_with_infos =
+  let vectorize_node key node =
+    ignore key;
+    ignore node
+  in
+  let vectorize_tree ct = Computation_tree.iter vectorize_node ct in
+  match Computation_tree.from_block block cfg_with_infos with
+  | [] -> ()
+  | ct :: _ -> vectorize_tree ct
+
 let dump ppf cfg_with_layout ~msg =
   let open Format in
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
@@ -1353,6 +1376,7 @@ let cfg ppf_dump cl =
         if !Flambda_backend_flags.dump_vectorize then Seed.dump ppf_dump seeds;
         let trees = Computation_tree.from_block block cfg_with_infos in
         if !Flambda_backend_flags.dump_vectorize
-        then Computation_tree.dump ppf_dump trees block);
-  if !Flambda_backend_flags.dump_vectorize then dump ppf_dump ~msg:"" cl;
+        then Computation_tree.dump ppf_dump trees block;
+        vectorize block cfg_with_infos;
+        if !Flambda_backend_flags.dump_vectorize then dump ppf_dump ~msg:"" cl);
   cl
