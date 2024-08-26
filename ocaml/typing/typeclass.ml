@@ -1606,8 +1606,9 @@ let temp_abbrev loc id arity uid =
   let ty = Ctype.newobj (Ctype.newvar (Jkind.Builtin.value ~why:Object)) in
   let type_params = create_type_params_of_unknowns ~injective:true !params in
   let ty_td =
-      {type_noun = create_type_equation_noun type_params Public (Some ty);
-       type_jkind = Jkind.Builtin.value ~why:Object;
+      {type_noun =
+        create_type_equation_noun
+          type_params (Jkind.Builtin.value ~why:Object) Public (Some ty);
        type_jkind_annotation = None;
        type_is_newtype = false;
        type_expansion_scope = Btype.lowest_level;
@@ -1832,8 +1833,9 @@ let class_infos define_class kind
   let type_params = create_type_params_of_unknowns ~injective:false obj_params in
   let obj_abbr =
     {
-     type_noun = create_type_equation_noun type_params Public (Some obj_ty);
-     type_jkind = Jkind.Builtin.value ~why:Object;
+     type_noun =
+      create_type_equation_noun
+        type_params (Jkind.Builtin.value ~why:Object) Public (Some obj_ty);
      type_jkind_annotation = None;
      type_is_newtype = false;
      type_expansion_scope = Btype.lowest_level;

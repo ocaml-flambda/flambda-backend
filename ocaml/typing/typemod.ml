@@ -630,9 +630,9 @@ let expansion_of_public_abbrev decl =
 
 let abstract_of_public_abbrev decl =
   match decl.type_noun with
-  | Equation { params; eq = Type_abbrev { priv = Public } } ->
+  | Equation ({ eq = Type_abbrev { priv = Public } } as e) ->
     { decl with type_noun = Equation {
-      params; eq = Type_abstr { reason = abstract_reason_of_abbrev } } }
+        e with eq = Type_abstr { reason = abstract_reason_of_abbrev } } }
   | _ -> Misc.fatal_error
           "Typemod.abstract_of_public_abbrev: A public type abbreviation was expected"
 
@@ -689,8 +689,10 @@ let merge_constraint initial_env loc sg lid constr =
           let type_params = create_type_params type_params type_variance type_separability in
           { (* CR jbachurski: This is the abstract type created for the private row.
                Notice it used to be created as [Private], but will now be observed as [Public]. *)
-            type_noun = create_type_equation_noun type_params Private None;
-            type_jkind = Jkind.Builtin.value ~why:(Unknown "merge_constraint");
+            type_noun =
+              create_type_equation_noun
+                type_params (Jkind.Builtin.value ~why:(Unknown "merge_constraint"))
+                Private None;
             type_jkind_annotation = None;
             type_loc = sdecl.ptype_loc;
             type_is_newtype = false;
@@ -759,7 +761,7 @@ let merge_constraint initial_env loc sg lid constr =
            which we need here to deal with type variables in package constraints
            (see tests in [typing-modules/package_constraint.ml]).  *)
         begin match
-          Ctype.constrain_decl_jkind initial_env tdecl sig_decl.type_jkind
+          Ctype.constrain_decl_jkind initial_env tdecl (get_type_jkind sig_decl)
         with
         | Ok _-> ()
         | Error v ->

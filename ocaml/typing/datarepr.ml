@@ -70,14 +70,15 @@ let constructor_args ~current_unit priv cd_args cd_res path rep =
       in
       let type_params = TypeSet.elements arg_vars_set in
       let is_void_label lbl = Jkind.is_void_defaulting lbl.ld_jkind in
-      let jkind =
+      let ret_jkind =
         Jkind.for_boxed_record ~all_void:(List.for_all is_void_label lbls)
       in
       let params = create_type_params_of_unknowns ~injective:true type_params in
       let tdecl =
         {
-          type_noun = Datatype { params; manifest = None; noun = Datatype_record { priv; lbls; rep } };
-          type_jkind = jkind;
+          type_noun = Datatype {
+            params; ret_jkind; manifest = None;
+            noun = Datatype_record { priv; lbls; rep } };
           type_jkind_annotation = None;
           type_is_newtype = false;
           type_expansion_scope = Btype.lowest_level;
@@ -258,7 +259,7 @@ let constructors_of_type ~current_unit ty_path decl =
   match decl.type_noun with
   | Datatype { params; noun = Datatype_variant { priv; cstrs; rep } } ->
     let params = List.map (fun p -> p.param_expr) params in
-     constructor_descrs ~current_unit ty_path params priv cstrs rep decl.type_jkind
+     constructor_descrs ~current_unit ty_path params priv cstrs rep (get_type_jkind decl)
   | _ -> []
 
 let labels_of_type ty_path decl =

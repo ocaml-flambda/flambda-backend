@@ -1158,7 +1158,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
      Similarly, [decl1]'s kind may conservatively approximate its
      jkind, but [check_decl_jkind] will expand its manifest.  *)
   let check_jkinds () =
-    match Ctype.check_decl_jkind env decl1 decl2.type_jkind with
+    match Ctype.check_decl_jkind env decl1 (get_type_jkind decl2) with
     | Ok _ -> None
     | Error v -> Some (Jkind v)
   in

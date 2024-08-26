@@ -1331,8 +1331,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
     | Some (ty, scope) -> Some ty, scope
   in
   {
-    type_noun = create_type_equation_noun [] Public manifest;
-    type_jkind = jkind;
+    type_noun = create_type_equation_noun [] jkind Public manifest;
     type_jkind_annotation = jkind_annot;
     type_is_newtype = true;
     type_expansion_scope = expansion_scope;
@@ -1397,23 +1396,25 @@ let instance_parameterized_type ?keep_names sch_args sch =
 
 (* [map_kind f kind] maps [f] over all the types in [kind]. [f] must preserve jkinds *)
 let map_kind f : type_noun -> type_noun = function
-  | Equation { params; eq } ->
+  | Equation { params; ret_jkind; eq } ->
     Equation {
       params = List.map (
         fun { param_expr; variance; separability } ->
           { param_expr = f param_expr; variance; separability })
         params;
+      ret_jkind;
       eq = match eq with
       | Type_abstr { reason } -> Type_abstr { reason }
       | Type_abbrev { priv; expansion } -> Type_abbrev { priv; expansion = f expansion }
     }
-  | Datatype { params; manifest; noun } ->
+  | Datatype { params; ret_jkind; manifest; noun } ->
     Datatype {
       params =
         List.map (
           fun { param_expr; variance; separability } ->
             { param_expr = f param_expr; variance; separability })
           params;
+      ret_jkind;
       manifest;
       noun = match noun with
       | Datatype_variant { priv; cstrs; rep } ->
@@ -2115,7 +2116,7 @@ let rec estimate_type_jkind env ty =
   match get_desc ty with
   | Tconstr(p, _, _) -> begin
     try
-      Jkind (Env.find_type p env).type_jkind
+      Jkind (Env.find_type p env |> get_type_jkind)
     with
       Not_found -> Jkind (Builtin.any ~why:(Missing_cmi p))
   end
@@ -2182,7 +2183,7 @@ let type_jkind_sub env ty jkind =
     match get_desc ty with
     | Tconstr(p, _args, _abbrev) ->
         let jkind_bound =
-          try (Env.find_type p env).type_jkind
+          try (Env.find_type p env |> get_type_jkind)
           with Not_found -> Jkind.Builtin.any ~why:(Missing_cmi p)
         in
         if Jkind.sub jkind_bound jkind
@@ -2248,7 +2249,7 @@ let check_type_externality env ty ext =
   | Error _ -> false
 
 let check_decl_jkind env decl jkind =
-  match Jkind.sub_or_error decl.type_jkind jkind with
+  match Jkind.sub_or_error (get_type_jkind decl) jkind with
   | Ok () as ok -> ok
   | Error _ as err ->
       match get_type_manifest decl with
@@ -2256,7 +2257,7 @@ let check_decl_jkind env decl jkind =
       | Some ty -> check_type_jkind env ty jkind
 
 let constrain_decl_jkind env decl jkind =
-  match Jkind.sub_or_error decl.type_jkind jkind with
+  match Jkind.sub_or_error (get_type_jkind decl) jkind with
   | Ok () as ok -> ok
   | Error _ as err ->
       match get_type_manifest decl with
@@ -2999,7 +3000,7 @@ let rec mcomp type_pairs env t1 t2 =
             begin try
               let decl = Env.find_type p env in
               if non_aliasable p decl || is_datatype decl ||
-                 not (has_jkind_intersection_tk env other decl.type_jkind) then
+                 not (has_jkind_intersection_tk env other (get_type_jkind decl)) then
                 raise Incompatible
             with Not_found -> ()
             end
@@ -3101,7 +3102,7 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
     let decl = Env.find_type p1 env in
     let decl' = Env.find_type p2 env in
     let check_jkinds () =
-      if not (Jkind.has_intersection decl.type_jkind decl'.type_jkind)
+      if not (Jkind.has_intersection (get_type_jkind decl) (get_type_jkind decl'))
       then raise Incompatible
     in
     if compatible_paths p1 p2 then begin
@@ -3216,7 +3217,7 @@ let jkind_of_abstract_type_declaration env p =
        nice to eliminate the duplication, but is seems tricky to do so without
        complicating unify3. *)
     let typ = Env.find_type p env in
-    typ.type_jkind, typ.type_jkind_annotation
+    (get_type_jkind typ), typ.type_jkind_annotation
   with
     Not_found -> assert false
 
@@ -3233,9 +3234,9 @@ let add_jkind_equation ~reason env destination jkind1 =
         begin
           try
             let decl = Env.find_type p !env in
-            if not (Jkind.equal jkind decl.type_jkind)
+            if not (Jkind.equal jkind (get_type_jkind decl))
             then
-              let refined_decl = { decl with type_jkind = jkind } in
+              let refined_decl = set_type_jkind jkind decl in
               env := Env.add_local_type p refined_decl !env
           with
             Not_found -> ()
@@ -6504,7 +6505,7 @@ let nondep_type_decl env mid is_covariant decl =
       (* Datatypes only have path manifests, so nothing to expand there *)
       | Datatype _ -> map_kind (nondep_type_rec env mid) decl.type_noun
       | Equation { eq = Type_abstr { reason = _ } } -> decl.type_noun
-      | Equation { eq = Type_abbrev { priv; expansion } } ->
+      | Equation { ret_jkind; eq = Type_abbrev { priv; expansion } } ->
         let manifest, priv = expand_public_or_then_private priv expansion in
         (* This case only matters if the abbreviation wasn't already private *)
         let priv =
@@ -6512,13 +6513,13 @@ let nondep_type_decl env mid is_covariant decl =
           | Some ty when Btype.has_constr_row ty -> Private
           | _ -> priv
         in
-        create_type_equation_noun type_params priv manifest
+        create_type_equation_noun type_params ret_jkind priv manifest
       (* If any uncaught expansions fail, fallback to an abstract type *)
-      with Nondep_cannot_erase _ when is_covariant -> create_type_equation_noun type_params Public None
+      with Nondep_cannot_erase _ when is_covariant ->
+        create_type_equation_noun type_params (get_type_jkind decl) Public None
     in
     clear_hash ();
     { type_noun;
-      type_jkind = decl.type_jkind;
       type_jkind_annotation = decl.type_jkind_annotation;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;

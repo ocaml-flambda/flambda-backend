@@ -23,19 +23,19 @@ let freshen ~scope mty =
   Subst.modtype (Rescope scope) Subst.identity mty
 
 let strengthen_noun_with_manifest path = function
-  | Equation { params;
-               eq = Type_abstr { reason = _ }
-                  | Type_abbrev { priv = Private; expansion = _ } } ->
+  | Equation ({ params;
+                eq = Type_abstr { reason = _ }
+                   | Type_abbrev { priv = Private; expansion = _ } } as e) ->
       let param_exprs = List.map (fun { param_expr } -> param_expr ) params in
       Equation {
-        params;
+        e with
         eq = Type_abbrev {
           priv = Public;
           expansion = Btype.newgenty (Tconstr(path, param_exprs, ref Mnil))
         }
       }
-  | Datatype { params; manifest = None; noun } ->
-      Datatype { params; manifest = Some path; noun }
+  | Datatype ({ manifest = None } as d) ->
+      Datatype { d with manifest = Some path }
   | ( Equation { params = _; eq = Type_abbrev { priv = Public; expansion = _ } }
     | Datatype { params = _; manifest = Some _; noun = _ } ) as noun -> noun
 

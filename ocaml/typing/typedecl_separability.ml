@@ -479,7 +479,7 @@ let msig_of_external_type env decl =
                         (Jkind.Builtin.value_or_null ~why:Separability_check))
   in
   let is_external =
-    match Jkind.get_externality_upper_bound decl.type_jkind with
+    match Jkind.get_externality_upper_bound (get_type_jkind decl) with
     | Internal -> false
     | External | External64 -> true
   in

@@ -455,18 +455,26 @@ let record_representation ~prepare_jkind loc = function
   | (Record_float | Record_ufloat | Record_mixed _) as rep -> rep
 
 let type_declaration' copy_scope s decl =
+  let prep_ret_jkind jkind =
+    match s.additional_action with
+    | Prepare_for_saving prepare_jkind ->
+        prepare_jkind decl.type_loc jkind
+    | Duplicate_variables | No_action -> jkind
+  in
   { type_noun =
       begin match decl.type_noun with
-      | Equation { params; eq } ->
+      | Equation { params; ret_jkind; eq } ->
         Equation {
           params = map_param_exprs (typexp copy_scope s decl.type_loc) params;
+          ret_jkind = prep_ret_jkind ret_jkind;
           eq = match eq with
           | Type_abstr { reason } -> Type_abstr { reason }
           | Type_abbrev { priv; expansion } ->
             Type_abbrev { priv; expansion = typexp copy_scope s decl.type_loc expansion }
         }
-      | Datatype { params; manifest; noun } -> Datatype {
+      | Datatype { params; ret_jkind; manifest; noun } -> Datatype {
         params = map_param_exprs (typexp copy_scope s decl.type_loc) params;
+        ret_jkind = prep_ret_jkind ret_jkind;
         manifest = Option.map (type_path s) manifest;
         noun = match noun with
         | Datatype_variant { priv; cstrs; rep } ->
@@ -489,13 +497,6 @@ let type_declaration' copy_scope s decl =
           Datatype_record { priv; lbls; rep }
         | Datatype_open { priv } -> Datatype_open { priv }
         }
-      end;
-    type_jkind =
-      begin
-        match s.additional_action with
-        | Prepare_for_saving prepare_jkind ->
-            prepare_jkind decl.type_loc decl.type_jkind
-        | Duplicate_variables | No_action -> decl.type_jkind
       end;
     (* CR layouts v10: Apply the substitution here, too *)
     type_jkind_annotation = decl.type_jkind_annotation;

@@ -214,10 +214,19 @@ let list_argument_jkind = Jkind.Builtin.value ~why:(
 let or_null_argument_jkind = Jkind.Builtin.value ~why:(
   Type_argument {parent_path = path_or_null; position = 1; arity = 1})
 
+let default_abstr ret_jkind = create_type_equation_noun [] ret_jkind Public None
+let default_ret_jkind type_ident = Jkind.Builtin.value ~why:(Primitive type_ident)
+let default_param_jkind type_ident =
+  Jkind.Builtin.value ~why:(
+    Type_argument {
+      parent_path = Path.Pident type_ident;
+      position = 1;
+      arity = 1}
+  )
+
 let mk_add_type add_type
       type_ident
-      ?(kind=create_type_equation_noun [] Public None)
-      ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
+      ?(kind=default_abstr (default_ret_jkind type_ident))
       (* [jkind_annotation] is just used for printing. It's best to
          provide it if the jkind is not implied by the kind of the
          type, as then the type, if printed, will be clearer.
@@ -226,7 +235,6 @@ let mk_add_type add_type
       env =
   let decl =
     {type_noun = kind;
-     type_jkind = jkind;
      type_jkind_annotation = predef_jkind_annotation jkind_annotation;
      type_loc = Location.none;
      type_is_newtype = false;
@@ -241,21 +249,14 @@ let mk_add_type add_type
 
 let mk_add_type1 add_type type_ident
       ~kind
-      ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* See the comment on the [jkind_annotation] argument to [mk_add_type]
       *)
       ?jkind_annotation
-      ?(param_jkind=Jkind.Builtin.value ~why:(
-        Type_argument {
-          parent_path = Path.Pident type_ident;
-          position = 1;
-          arity = 1}
-      ))
+      ?(param_jkind=default_param_jkind type_ident)
       env =
   let param = newgenvar param_jkind in
   let decl =
     { type_noun = kind param;
-      type_jkind = jkind;
       type_jkind_annotation = predef_jkind_annotation jkind_annotation;
       type_loc = Location.none;
       type_is_newtype = false;
@@ -308,14 +309,14 @@ let mk_add_extension add_extension id args jkinds =
       ext_uid = Uid.of_predef_id id;
     }
 
-let variant ?manifest params cstrs jkinds =
+let variant ?manifest params ret_jkind cstrs jkinds =
   Datatype {
-    params; manifest;
+    params; manifest; ret_jkind;
     noun = Datatype_variant { priv = Public; cstrs; rep = Variant_boxed jkinds }
   }
 
-let open_variant params =
-  Datatype { params; manifest = None; noun = Datatype_open { priv = Public } }
+let open_variant params ret_jkind =
+  Datatype { params; ret_jkind; manifest = None; noun = Datatype_open { priv = Public } }
 
 let unrestricted tvar =
   {ca_type=tvar;
@@ -328,55 +329,69 @@ let build_initial_env add_type add_extension empty_env =
   let add_type = mk_add_type add_type
   and add_type1 = mk_add_type1 add_type
   and add_extension = mk_add_extension add_extension in
-  let of_varsep variance separability param =
-    create_type_equation_noun
-      [{ param_expr = param; variance; separability }] Public None
+  let add_type' ~jkind =
+    add_type ~kind:(default_abstr jkind)
+  in
+  let add_type1' type_ident ~variance ~separability
+        ?(param_jkind = default_param_jkind type_ident) =
+    add_type1 type_ident
+      ~kind:(
+        fun param ->
+          create_type_equation_noun
+            [{ param_expr = param; variance; separability }]
+            (Jkind.Builtin.value ~why:(Primitive type_ident))
+            Public None)
+      ~param_jkind
   in
   empty_env
   (* Predefined types *)
-  |> add_type1 ident_array
-       ~kind:(of_varsep Variance.full Separability.Ind)
+  |> add_type1' ident_array
+       ~variance:Variance.full
+       ~separability:Separability.Ind
        ~param_jkind:(Jkind.add_nullability_crossing
                       (Jkind.Builtin.any ~why:Array_type_argument))
-  |> add_type1 ident_iarray
-       ~kind:(of_varsep Variance.covariant Separability.Ind)
+  |> add_type1' ident_iarray
+       ~variance:Variance.covariant
+       ~separability:Separability.Ind
        ~param_jkind:(Jkind.add_nullability_crossing
                       (Jkind.Builtin.any ~why:Array_type_argument))
   |> add_type ident_bool
-       ~kind:(variant [] [ cstr ident_false []; cstr ident_true []]
+       ~kind:(variant [] (Jkind.Builtin.immediate ~why:Enumeration)
+                [ cstr ident_false []; cstr ident_true []]
                 [| Constructor_uniform_value, [| |];
                    Constructor_uniform_value, [| |] |])
-       ~jkind:(Jkind.Builtin.immediate ~why:Enumeration)
-  |> add_type ident_char ~jkind:(Jkind.Builtin.immediate ~why:(Primitive ident_char))
+  |> add_type' ident_char ~jkind:(Jkind.Builtin.immediate ~why:(Primitive ident_char))
       ~jkind_annotation:Jkind.Const.Builtin.immediate
   |> add_type ident_exn
-       ~kind:(open_variant [])
-       ~jkind:(Jkind.Builtin.value ~why:Extensible_variant)
+       ~kind:(open_variant [] (Jkind.Builtin.value ~why:Extensible_variant))
   |> add_type ident_extension_constructor
-  |> add_type ident_float
+  |> add_type' ident_float
       ~jkind:(Jkind.of_const ~why:(Primitive ident_float)
                 Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_floatarray
+  |> add_type' ident_floatarray
       ~jkind:(Jkind.of_const ~why:(Primitive ident_floatarray)
                Jkind.Const.Builtin.mutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.mutable_data
-  |> add_type ident_int ~jkind:(Jkind.Builtin.immediate ~why:(Primitive ident_int))
+  |> add_type' ident_int
+      ~jkind:(Jkind.Builtin.immediate ~why:(Primitive ident_int))
       ~jkind_annotation:Jkind.Const.Builtin.immediate
-  |> add_type ident_int32
+  |> add_type' ident_int32
       ~jkind:(Jkind.of_const ~why:(Primitive ident_int32)
                 Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
-  |> add_type ident_int64
+  |> add_type' ident_int64
       ~jkind:(Jkind.of_const ~why:(Primitive ident_int64)
                 Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
-  |> add_type1 ident_lazy_t
-      ~kind:(of_varsep Variance.covariant Separability.Ind)
+  |> add_type1' ident_lazy_t
+      ~variance:Variance.covariant
+      ~separability:Separability.Ind
   |> add_type1 ident_list
       ~kind:(fun tvar ->
          variant
            [{ param_expr = tvar; variance = Variance.covariant; separability =  Separability.Ind }]
+           (Jkind.Builtin.value ~why:Boxed_variant)
            [cstr ident_nil [];
             cstr ident_cons [unrestricted tvar;
                              type_list tvar |> unrestricted]]
@@ -386,8 +401,7 @@ let build_initial_env add_type add_extension empty_env =
                    Jkind.Builtin.value ~why:Boxed_variant;
                 |];
            |] )
-       ~jkind:(Jkind.Builtin.value ~why:Boxed_variant)
-  |> add_type ident_nativeint
+  |> add_type' ident_nativeint
       ~jkind:(Jkind.of_const ~why:(Primitive ident_nativeint)
                 Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
@@ -395,11 +409,11 @@ let build_initial_env add_type add_extension empty_env =
        ~kind:(fun tvar ->
          variant
            [{ param_expr = tvar; variance = Variance.covariant; separability =  Separability.Ind }]
+           (Jkind.Builtin.value ~why:Boxed_variant)
            [cstr ident_none []; cstr ident_some [unrestricted tvar]]
            [| Constructor_uniform_value, [| |];
               Constructor_uniform_value, [| option_argument_jkind |];
            |])
-       ~jkind:(Jkind.Builtin.value ~why:Boxed_variant)
   |> add_type ident_lexing_position
        ~kind:(
          let lbl (field, field_type, jkind) =
@@ -425,6 +439,9 @@ let build_initial_env add_type add_extension empty_env =
          in
          Datatype {
           params = [];
+          ret_jkind = (
+            Jkind.of_const ~why:(Primitive ident_lexing_position)
+              Jkind.Const.Builtin.immutable_data.jkind);
           manifest = None;
           noun = Datatype_record {
            priv = Public;
@@ -432,44 +449,41 @@ let build_initial_env add_type add_extension empty_env =
            rep = Record_boxed (List.map (fun label -> label.ld_jkind) lbls |> Array.of_list)
           }
          })
-       ~jkind:(Jkind.of_const ~why:(Primitive ident_lexing_position)
-                Jkind.Const.Builtin.immutable_data.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.word
-  |> add_type ident_string
+  |> add_type' ident_string
        ~jkind:(Jkind.of_const ~why:(Primitive ident_string)
                 Jkind.Const.Builtin.immutable_data.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.word
-  |> add_type ident_unboxed_float
+  |> add_type' ident_unboxed_float
        ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_float) Jkind.Const.Builtin.float64.jkind)
        ~jkind_annotation:Jkind.Const.Builtin.float64
-  |> add_type ident_unboxed_nativeint
+  |> add_type' ident_unboxed_nativeint
        ~jkind:
          (Jkind.add_mode_crossing
            (Jkind.of_const ~why:(Primitive ident_unboxed_nativeint)
                Jkind.Const.Builtin.word.jkind))
        ~jkind_annotation:Jkind.Const.Builtin.word
-  |> add_type ident_unboxed_int32
+  |> add_type' ident_unboxed_int32
        ~jkind:
          (Jkind.add_mode_crossing
            (Jkind.of_const ~why:(Primitive ident_unboxed_int32)
                Jkind.Const.Builtin.bits32.jkind))
        ~jkind_annotation:Jkind.Const.Builtin.bits32
-  |> add_type ident_unboxed_int64
+  |> add_type' ident_unboxed_int64
        ~jkind:
          (Jkind.add_mode_crossing
            (Jkind.of_const ~why:(Primitive ident_unboxed_int64)
                Jkind.Const.Builtin.bits64.jkind))
        ~jkind_annotation:Jkind.Const.Builtin.bits64
-  |> add_type ident_bytes
+  |> add_type' ident_bytes
       ~jkind:(Jkind.of_const ~why:(Primitive ident_bytes)
                Jkind.Const.Builtin.mutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.mutable_data
   |> add_type ident_unit
        ~kind:(variant
-                []
+                [] (Jkind.Builtin.immediate ~why:Enumeration)
                 [cstr ident_void []]
                 [| Constructor_uniform_value, [| |] |])
-       ~jkind:(Jkind.Builtin.immediate ~why:Enumeration)
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
@@ -494,7 +508,7 @@ let build_initial_env add_type add_extension empty_env =
        [| Jkind.Builtin.value ~why:Tuple |]
 
 let add_simd_extension_types add_type env =
-  let add_type = mk_add_type add_type in
+  let add_type ~jkind = mk_add_type add_type ~kind:(default_abstr jkind) in
   env
   |> add_type ident_int8x16
       ~jkind:(Jkind.of_const ~why:(Primitive ident_int8x16)
@@ -522,7 +536,7 @@ let add_simd_extension_types add_type env =
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
 
 let add_small_number_extension_types add_type env =
-  let add_type = mk_add_type add_type in
+  let add_type ~jkind = mk_add_type add_type ~kind:(default_abstr jkind) in
   env
   |> add_type ident_float32
       ~jkind:(Jkind.of_const ~why:(Primitive ident_float32)
@@ -535,7 +549,8 @@ let add_small_number_extension_types add_type env =
 
 let or_null_kind ?manifest tvar =
   variant ?manifest
-    [{ param_expr = tvar; variance = Variance.covariant; separability =  Separability.Ind }]
+    [{ param_expr = tvar; variance = Variance.covariant; separability = Separability.Ind }]
+    (Jkind.Builtin.value_or_null ~why:(Primitive ident_or_null))
     [cstr ident_null []; cstr ident_this [unrestricted tvar]]
     [| Constructor_uniform_value, [| |];
         Constructor_uniform_value, [| or_null_argument_jkind |];
@@ -553,7 +568,6 @@ let add_or_null add_type env =
      the most argument types, and forbid arrays from accepting [or_null]s.
      In the future, we will track separability in the jkind system. *)
   ~kind:or_null_kind
-  ~jkind:(Jkind.Builtin.value_or_null ~why:(Primitive ident_or_null))
 
 let builtin_values =
   List.map (fun id -> (Ident.name id, id)) all_predef_exns

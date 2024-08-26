@@ -251,7 +251,6 @@ end
 
 type type_declaration =
   { type_noun: type_noun;
-    type_jkind: jkind;
     type_jkind_annotation: type_expr Jkind_types.annotation option;
     type_is_newtype: bool;
     type_expansion_scope: int;
@@ -268,9 +267,12 @@ and type_param =
     separability: Separability.t;
   }
 
+(* [ret_jkind] stands for the fact the jkind is only valid when the type constructor
+   is fully applied. Once datatypes are higher-kinded, this field shall store the
+   kind of the type itself! *)
 and type_noun =
-  | Datatype of { params: type_param list; manifest: Path.t option; noun: datatype_noun}
-  | Equation of { params: type_param list; eq: type_equation }
+  | Datatype of { params: type_param list; ret_jkind: jkind; manifest: Path.t option; noun: datatype_noun}
+  | Equation of { params: type_param list; ret_jkind: jkind; eq: type_equation }
 
 and datatype_noun =
   | Datatype_record of { priv: private_flag; lbls: label_declaration list; rep: record_representation}
@@ -388,6 +390,16 @@ let abstract_reason_of_abbrev = Abstract_def
 
 (* Legacy properties *)
 
+let get_type_jkind decl =
+  match decl.type_noun with
+  | Datatype { ret_jkind }
+  | Equation { ret_jkind } -> ret_jkind
+
+let set_type_jkind ret_jkind decl =
+  match decl.type_noun with
+  | Datatype d -> { decl with type_noun = Datatype { d with ret_jkind } }
+  | Equation e -> { decl with type_noun = Equation { e with ret_jkind } }
+
 let create_type_params type_params type_variance type_separability =
   List.map2
     (fun param_expr (variance, separability) ->
@@ -439,17 +451,17 @@ let zip_params_with_applied tys decl =
 let get_desc_ref = ref (fun _ -> assert false)
 let noun_with_expansion type_noun expansion =
   match type_noun with
-  | Datatype { params; manifest = _; noun } ->
+  | Datatype d ->
     let manifest =
       match !get_desc_ref expansion with
       | Tconstr (path, _, _ ) -> Some path
       | _ -> assert false
     in
-    Datatype { params; manifest; noun }
-  | Equation { params; eq = Type_abstr { reason = _ } } ->
-    Equation { params; eq = Type_abbrev { priv = Public; expansion } }
-  | Equation { params; eq = Type_abbrev { priv; expansion = _ } } ->
-    Equation { params; eq = Type_abbrev { priv; expansion } }
+    Datatype { d with manifest }
+  | Equation ({ eq = Type_abstr { reason = _ } } as e) ->
+    Equation { e with eq = Type_abbrev { priv = Public; expansion } }
+  | Equation ({ eq = Type_abbrev { priv; expansion = _ } } as e) ->
+    Equation { e with eq = Type_abbrev { priv; expansion } }
 
 let with_expansion decl expansion =
   { decl with type_noun = noun_with_expansion decl.type_noun expansion }
@@ -457,16 +469,16 @@ let with_expansion decl expansion =
 let newgenty_ref = ref (fun _ -> assert false)
 let noun_with_manifest type_noun manifest =
   match type_noun with
-  | Datatype { params; manifest = _; noun } ->
-    Datatype { params; manifest = Some manifest; noun }
-  | Equation { params; eq = Type_abstr { reason = _ } } ->
+  | Datatype d ->
+    Datatype { d with manifest = Some manifest }
+  | Equation ({ params; eq = Type_abstr { reason = _ } } as e) ->
     let param_exprs = List.map (fun p -> p.param_expr) params in
     let expansion = !newgenty_ref (Tconstr (manifest, param_exprs, ref Mnil)) in
-    Equation { params; eq = Type_abbrev { priv = Public; expansion } }
-  | Equation { params; eq = Type_abbrev { priv; expansion = _ } } ->
+    Equation { e with eq = Type_abbrev { priv = Public; expansion } }
+  | Equation ({ params; eq = Type_abbrev { priv; expansion = _ } } as e) ->
     let param_exprs = List.map (fun p -> p.param_expr) params in
     let expansion = !newgenty_ref (Tconstr (manifest, param_exprs, ref Mnil)) in
-    Equation { params; eq = Type_abbrev { priv; expansion } }
+    Equation { e with eq = Type_abbrev { priv; expansion } }
 
 let with_manifest decl expansion =
   { decl with type_noun = noun_with_manifest decl.type_noun expansion }
@@ -487,8 +499,8 @@ let create_type_equation priv manifest =
      but are sometimes created. *)
   | (Public | Private), None -> Type_abstr { reason = abstract_reason_of_abbrev }
 
-let create_type_equation_noun params priv manifest =
-  Equation { params; eq = create_type_equation priv manifest }
+let create_type_equation_noun params ret_jkind priv manifest =
+  Equation { params; ret_jkind; eq = create_type_equation priv manifest }
 
 (* Type expressions for the class language *)
 

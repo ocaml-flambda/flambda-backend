@@ -110,10 +110,11 @@ type 'a t : value = 'a or_null [@@or_null_reexport]
 Line 1, characters 0-51:
 1 | type 'a t : value = 'a or_null [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type 'a or_null is value_or_null
+Error:
+       The kind of 'a t is value_or_null
          because it is the primitive value_or_null type or_null.
-       But the kind of type 'a or_null must be a subkind of value
-         because of the definition of t at line 1, characters 0-51.
+       But the kind of 'a t must be a subkind of value
+         because of the annotation on the declaration of the type t.
 |}]
 
 type 'a t : float64 = 'a or_null [@@or_null_reexport]
@@ -122,10 +123,11 @@ type 'a t : float64 = 'a or_null [@@or_null_reexport]
 Line 1, characters 0-53:
 1 | type 'a t : float64 = 'a or_null [@@or_null_reexport]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type 'a or_null is value
+Error:
+       The layout of 'a t is value
          because it is the primitive value_or_null type or_null.
-       But the layout of type 'a or_null must be a sublayout of float64
-         because of the definition of t at line 1, characters 0-53.
+       But the layout of 'a t must be a sublayout of float64
+         because of the annotation on the declaration of the type t.
 |}]
 
 type ('a : float64) t = 'a or_null [@@or_null_reexport]
