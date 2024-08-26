@@ -216,7 +216,7 @@ let or_null_argument_jkind = Jkind.Builtin.value ~why:(
 
 let mk_add_type add_type
       type_ident
-      ?(kind=create_type_equation_in_noun [] Public None)
+      ?(kind=create_type_equation_noun [] Public None)
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* [jkind_annotation] is just used for printing. It's best to
          provide it if the jkind is not implied by the kind of the
@@ -329,7 +329,7 @@ let build_initial_env add_type add_extension empty_env =
   and add_type1 = mk_add_type1 add_type
   and add_extension = mk_add_extension add_extension in
   let of_varsep variance separability param =
-    create_type_equation_in_noun
+    create_type_equation_noun
       [{ param_expr = param; variance; separability }] Public None
   in
   empty_env

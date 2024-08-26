@@ -720,7 +720,7 @@ val set_type_variance : type_declaration -> Variance.t list -> type_declaration
 val get_type_separability : type_declaration -> Separability.t list
 val set_type_separability : type_declaration -> Separability.t list -> type_declaration
 
-val create_type_equation_in_noun : type_param list -> private_flag -> type_expr option -> type_noun
+val create_type_equation_noun : type_param list -> private_flag -> type_expr option -> type_noun
 val create_type_equation : private_flag -> type_expr option -> type_equation
 
 val hide_manifest : type_declaration -> type_declaration

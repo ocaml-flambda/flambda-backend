@@ -680,7 +680,7 @@ let merge_constraint initial_env loc sg lid constr =
           let type_params_ = create_type_params type_params type_variance type_separability in
           { (* CR jbachurski: This is the abstract type created for the private row.
                Notice it used to be created as [Private], but will now be observed as [Public]. *)
-            type_noun = create_type_equation_in_noun type_params_ Private None;
+            type_noun = create_type_equation_noun type_params_ Private None;
             type_jkind = Jkind.Builtin.value ~why:(Unknown "merge_constraint");
             type_jkind_annotation = None;
             type_loc = sdecl.ptype_loc;

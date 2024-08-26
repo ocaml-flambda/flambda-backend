@@ -1606,7 +1606,7 @@ let temp_abbrev loc id arity uid =
   let ty = Ctype.newobj (Ctype.newvar (Jkind.Builtin.value ~why:Object)) in
   let type_params_ = create_type_params_of_unknowns ~injective:true !params in
   let ty_td =
-      {type_noun = create_type_equation_in_noun type_params_ Public (Some ty);
+      {type_noun = create_type_equation_noun type_params_ Public (Some ty);
        type_jkind = Jkind.Builtin.value ~why:Object;
        type_jkind_annotation = None;
        type_is_newtype = false;
@@ -1832,7 +1832,7 @@ let class_infos define_class kind
   let type_params_ = create_type_params_of_unknowns ~injective:false obj_params in
   let obj_abbr =
     {
-     type_noun = create_type_equation_in_noun type_params_ Public (Some obj_ty);
+     type_noun = create_type_equation_noun type_params_ Public (Some obj_ty);
      type_jkind = Jkind.Builtin.value ~why:Object;
      type_jkind_annotation = None;
      type_is_newtype = false;

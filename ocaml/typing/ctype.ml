@@ -1331,7 +1331,7 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
     | Some (ty, scope) -> Some ty, scope
   in
   {
-    type_noun = create_type_equation_in_noun [] Public manifest;
+    type_noun = create_type_equation_noun [] Public manifest;
     type_jkind = jkind;
     type_jkind_annotation = jkind_annot;
     type_is_newtype = true;
@@ -6513,9 +6513,9 @@ let nondep_type_decl env mid is_covariant decl =
           | Some ty when Btype.has_constr_row ty -> Private
           | _ -> priv
         in
-        create_type_equation_in_noun type_params_ priv manifest
+        create_type_equation_noun type_params_ priv manifest
       (* If any uncaught expansions fail, fallback to an abstract type *)
-      with Nondep_cannot_erase _ when is_covariant -> create_type_equation_in_noun type_params_ Public None
+      with Nondep_cannot_erase _ when is_covariant -> create_type_equation_noun type_params_ Public None
     in
     clear_hash ();
     { type_noun;

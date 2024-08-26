@@ -269,7 +269,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let type_noun =
     match sdecl.ptype_manifest, abstract_abbrevs, sdecl.ptype_private with
     | None, _, priv | Some _, None, priv ->
-      create_type_equation_in_noun type_params_ priv (Some (Ctype.newvar type_jkind))
+      create_type_equation_noun type_params_ priv (Some (Ctype.newvar type_jkind))
     (* CR jbachurski: This can hit private, apparently? *)
     | Some _, Some reason, (Public | Private) -> Equation { params = type_params_; eq = Type_abstr { reason } }
   in
@@ -833,7 +833,7 @@ let transl_declaration env sdecl (id, uid) =
         raise (Error (sdecl.ptype_loc, Non_abstract_reexport path))
       | Ptype_abstract ->
           Ttype_abstract,
-          create_type_equation_in_noun type_params_ priv man,
+          create_type_equation_noun type_params_ priv man,
           Jkind.Builtin.value ~why:Default_type_jkind
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
@@ -3133,7 +3133,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let type_noun =
     let sig_decl = set_type_params_ sig_decl type_params_ in
     match sig_decl.type_noun, sdecl.ptype_private with
-    | _ when not arity_ok -> create_type_equation_in_noun type_params_ sdecl.ptype_private (Some man)
+    | _ when not arity_ok -> create_type_equation_noun type_params_ sdecl.ptype_private (Some man)
     | _, Private -> noun_privatise_manifest (noun_with_manifest sig_decl.type_noun man)
     | Datatype _, Public -> noun_with_manifest sig_decl.type_noun man
     | Equation _, Public -> noun_publicise_manifest (noun_with_manifest sig_decl.type_noun man)
@@ -3214,7 +3214,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
    Package constraints are much simpler than normal with type constraints (e.g.,
    they can not have parameters and can only update abstract types.) *)
 let transl_package_constraint ~loc ty =
-  { type_noun = create_type_equation_in_noun [] Public (Some ty);
+  { type_noun = create_type_equation_noun [] Public (Some ty);
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
@@ -3235,7 +3235,7 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
     let params = List.map Ctype.newvar params in
     let type_params_ = create_type_params_of_unknowns ~injective params in
-    { type_noun = create_type_equation_in_noun type_params_ Public None;
+    { type_noun = create_type_equation_noun type_params_ Public None;
       type_jkind = jkind;
       type_jkind_annotation = jkind_annotation;
       type_is_newtype = false;

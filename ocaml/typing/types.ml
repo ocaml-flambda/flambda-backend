@@ -508,7 +508,7 @@ let create_type_equation priv manifest =
      but are sometimes created. *)
   | (Public | Private), None -> Type_abstr { reason = abstract_reason_of_abbrev }
 
-let create_type_equation_in_noun params priv manifest =
+let create_type_equation_noun params priv manifest =
   Equation { params; eq = create_type_equation priv manifest }
 
 (* Type expressions for the class language *)
