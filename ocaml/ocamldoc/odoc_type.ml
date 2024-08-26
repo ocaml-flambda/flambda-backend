@@ -66,3 +66,12 @@ type t_type = {
     mutable ty_loc : Odoc_types.location ;
     mutable ty_code : string option;
   }
+
+(* Legacy *)
+let get_type_private decl =
+  match decl.Types.type_noun with
+  | Datatype { params = _; manifest = _; noun = Datatype_record { priv; _ } } -> priv
+  | Datatype { params = _; manifest = _; noun = Datatype_variant { priv; _ } } -> priv
+  | Datatype { params = _; manifest = _; noun = Datatype_open { priv; _ } } -> priv
+  | Equation { params = _; eq = Type_abstr { reason = _ } } -> Public
+  | Equation { params = _; eq = Type_abbrev { priv; expansion = _ } } -> priv

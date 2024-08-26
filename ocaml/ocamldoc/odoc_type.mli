@@ -72,3 +72,6 @@ type t_type = {
 }
 
 (** Representation of a type. *)
+
+(* Get the legacy property [type_declaration.type_private] *)
+val get_type_private : Types.type_declaration -> private_flag

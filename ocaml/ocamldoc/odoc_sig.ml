@@ -1118,7 +1118,7 @@ module Analyser =
                         (Types.get_type_params sig_type_decl)
                         (Types.get_type_variance sig_type_decl);
                       ty_kind = type_kind;
-                      ty_private = Types.get_type_private sig_type_decl;
+                      ty_private = get_type_private sig_type_decl;
                       ty_manifest =
                         begin match Types.get_type_manifest sig_type_decl with
                         | None   -> None
@@ -1201,7 +1201,7 @@ module Analyser =
                         (Types.get_type_params sig_type_decl)
                         (Types.get_type_variance sig_type_decl);
                       ty_kind = type_kind;
-                      ty_private = Types.get_type_private sig_type_decl;
+                      ty_private = get_type_private sig_type_decl;
                       ty_manifest =
                         begin match Types.get_type_manifest sig_type_decl with
                         | None   -> None

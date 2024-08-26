@@ -1768,17 +1768,17 @@ let prepare_decl id decl =
         prepare_type ty;
         Some ty
   in
-  begin match get_type_kind decl with
-  | Type_abstract _ -> ()
-  | Type_variant (cstrs, _rep) ->
+  begin match decl.type_noun with
+  | Equation _ -> ()
+  | Datatype { noun = Datatype_variant { cstrs } } ->
       List.iter
         (fun c ->
            prepare_type_constructor_arguments c.cd_args;
            Option.iter prepare_type c.cd_res)
         cstrs
-  | Type_record(l, _rep) ->
+  | Datatype { noun = Datatype_record { lbls = l } } ->
       List.iter (fun l -> prepare_type l.ld_type) l
-  | Type_open -> ()
+  | Datatype { noun = Datatype_open _ } -> ()
   end;
   ty_manifest, params
 
@@ -1791,16 +1791,19 @@ let tree_of_type_decl id decl =
   in
   let type_defined decl =
     let abstr =
-      match get_type_kind decl with
-        Type_abstract _ ->
-          get_type_manifest decl = None || get_type_private decl = Private
-      | Type_record _ ->
-          get_type_private decl = Private
-      | Type_variant (tll, _rep) ->
-          get_type_private decl = Private ||
+      match decl.type_noun with
+      | Equation { eq = Type_abstr _ }
+      | Equation { eq = Type_abbrev { priv = Private } } ->
+          true
+      | Equation { eq = Type_abbrev { priv = Public } } ->
+          false
+      | Datatype { noun = Datatype_record { priv } } ->
+          priv = Private
+      | Datatype { noun = Datatype_variant { priv; cstrs = tll } } ->
+          priv = Private ||
           List.exists (fun cd -> cd.cd_res <> None) tll
-      | Type_open ->
-          get_type_manifest decl = None
+      | Datatype { manifest; noun = Datatype_open _ } ->
+          manifest = None
     in
     let vari =
       List.map2
@@ -1808,12 +1811,13 @@ let tree_of_type_decl id decl =
           let is_var = is_Tvar ty in
           if abstr || not is_var then
             let inj =
-              type_kind_is_abstract decl && Variance.mem Inj v &&
-              match get_type_manifest decl with
-              | None -> true
-              | Some ty -> (* only abstract or private row types *)
-                  get_type_private decl = Private &&
+              Variance.mem Inj v &&
+              match decl.type_noun with
+              | Equation { eq = Type_abbrev { priv = Private; expansion = ty } } ->
+                  (* only abstract or private row types *)
                   Btype.is_constr_row ~allow_ident:true (Btype.row_of_type ty)
+              | Equation { eq = Type_abstr _ } -> true
+              | _ -> false
             and (co, cn) = Variance.get_upper v in
             (if not cn then Covariant else
              if not co then Contravariant else NoVariance),
@@ -1838,29 +1842,27 @@ let tree_of_type_decl id decl =
   let (name, args) = type_defined decl in
   let constraints = tree_of_constraints params in
   let ty, priv, unboxed =
-    match get_type_kind decl with
-    | Type_abstract _ ->
-        begin match ty_manifest with
-        | None -> (Otyp_abstract, Public, false)
-        | Some ty ->
-            tree_of_typexp Type ty, get_type_private decl, false
-        end
-    | Type_variant (cstrs, rep) ->
+    match decl.type_noun with
+    | Equation { eq = Type_abstr _ } ->
+        Otyp_abstract, Public, false
+    | Equation { eq = Type_abbrev { priv; expansion } } ->
+        tree_of_typexp Type expansion, priv, false
+    | Datatype { noun = Datatype_variant { priv; cstrs; rep } } ->
         let unboxed =
           match rep with
           | Variant_unboxed -> true
           | Variant_boxed _ | Variant_extensible -> false
         in
         tree_of_manifest (Otyp_sum (List.map tree_of_constructor_in_decl cstrs)),
-        get_type_private decl,
+        priv,
         unboxed
-    | Type_record(lbls, rep) ->
+    | Datatype { noun = Datatype_record { priv; lbls; rep } } ->
         tree_of_manifest (Otyp_record (List.map tree_of_label lbls)),
-        get_type_private decl,
+        priv,
         (match rep with Record_unboxed -> true | _ -> false)
-    | Type_open ->
+    | Datatype { noun = Datatype_open { priv } } ->
         tree_of_manifest Otyp_open,
-        get_type_private decl,
+        priv,
         false
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
@@ -3010,8 +3012,8 @@ let explain mis ppf =
 let warn_on_missing_def env ppf t =
   match get_desc t with
   | Tconstr (p,_,_) ->
-    begin match Env.find_type p env |> get_type_kind with
-    | Type_abstract Abstract_rec_check_regularity ->
+    begin match (Env.find_type p env).type_noun with
+    | Equation { eq = Type_abstr { reason = Abstract_rec_check_regularity } } ->
         fprintf ppf
           "@,@[<hov>Type %a was considered abstract@ when checking\
            @ constraints@ in this@ recursive type definition.@]"
@@ -3020,8 +3022,7 @@ let warn_on_missing_def env ppf t =
         fprintf ppf
           "@,@[<hov>Type %a is abstract because@ no corresponding\
            @ cmi file@ was found@ in path.@]" path p
-    | Type_abstract Abstract_def | Type_record _ | Type_variant _ | Type_open
-      -> ()
+    | _ -> ()
     end
   | _ -> ()
 

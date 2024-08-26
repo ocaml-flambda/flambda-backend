@@ -726,7 +726,6 @@ val create_type_equation_in_noun : type_param list -> private_flag -> type_expr 
 
 val get_type_kind_of_noun : type_noun -> type_decl_kind
 val get_type_kind : type_declaration -> type_decl_kind
-val get_type_private : type_declaration -> private_flag
 
 val hide_manifest : type_declaration -> type_declaration
 val noun_with_manifest : type_noun -> type_expr -> type_noun

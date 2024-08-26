@@ -1185,7 +1185,7 @@ module Analyser =
                         (Types.get_type_params tt_type_decl)
                         (Types.get_type_variance tt_type_decl);
                       ty_kind = kind ;
-                      ty_private = Types.get_type_private tt_type_decl;
+                      ty_private = get_type_private tt_type_decl;
                       ty_manifest =
                         (match Types.get_type_manifest tt_type_decl with
                            None -> None

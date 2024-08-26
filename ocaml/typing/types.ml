@@ -454,14 +454,6 @@ let get_type_kind_of_noun = function
 
 let get_type_kind decl = get_type_kind_of_noun decl.type_noun
 
-let get_type_private decl =
-  match decl.type_noun with
-  | Datatype { params = _; manifest = _; noun = Datatype_record { priv; _ } } -> priv
-  | Datatype { params = _; manifest = _; noun = Datatype_variant { priv; _ } } -> priv
-  | Datatype { params = _; manifest = _; noun = Datatype_open { priv; _ } } -> priv
-  | Equation { params = _; eq = Type_abstr { reason = _ } } -> Public
-  | Equation { params = _; eq = Type_abbrev { priv; expansion = _ } } -> priv
-
 let hide_manifest decl =
   { decl with type_noun = match decl.type_noun with
     | Datatype { params; manifest = _; noun } -> Datatype { params; manifest = None; noun }
@@ -534,9 +526,7 @@ let create_type_equation priv manifest =
   match priv, manifest with
   | priv, Some expansion -> Type_abbrev { priv; expansion }
   (* CR jbachurski: 'Private' abstract types don't really exist,
-     but are sometimes created.
-     Invariant broken: Private abstract types with no manifest
-     are observed by [get_type_private] as public. *)
+     but are sometimes created. *)
   | (Public | Private), None -> Type_abstr { reason = Abstract_def }
 
 let create_type_equation_in_noun params priv manifest =

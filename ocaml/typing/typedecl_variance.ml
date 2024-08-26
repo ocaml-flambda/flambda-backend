@@ -230,13 +230,22 @@ let compute_variance_type env ~check (required, loc) decl tyl =
   List.map2
     (fun ty (p, n, i) ->
       let v = get_variance ty tvl in
-      let tr = get_type_private decl in
+      let pa =
+        match decl.type_noun with
+        (* CR jbachurski: Which of these cases actually make sense? *)
+        | Equation { eq = Type_abbrev { priv = Private } }
+        | Datatype { noun = Datatype_record { priv = Private } }
+        | Datatype { noun = Datatype_variant { priv = Private } }
+        | Datatype { noun = Datatype_open { priv = Private } }
+          -> true
+        | _ -> false
+      in
       (* Use required variance where relevant *)
       let concr = not (Btype.type_kind_is_abstract decl) in
       let (p, n) =
-        if tr = Private || not (Btype.is_Tvar ty) then (p, n) (* set *)
+        if pa || not (Btype.is_Tvar ty) then (p, n) (* set *)
         else (false, false) (* only check *)
-      and i = concr  || i && tr = Private in
+      and i = concr  || i && pa in
       let v = union v (make p n i) in
       if not concr || Btype.is_Tvar ty then v else
       union v
