@@ -2363,7 +2363,7 @@ let rec package_constraints_sig env loc sg constrs =
                                   | Datatype{params=[]; _}; _} as td), rs, priv)
         when List.mem_assoc [Ident.name id] constrs ->
           let ty = List.assoc [Ident.name id] constrs in
-          Sig_type (id, with_manifest td ty, rs, priv)
+          Sig_type (id, with_expansion td ty, rs, priv)
       | Sig_module (id, pres, md, rs, priv) ->
           let rec aux = function
             | (m :: ((_ :: _) as l), t) :: rest when m = Ident.name id ->

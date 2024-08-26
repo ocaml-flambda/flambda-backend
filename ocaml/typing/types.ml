@@ -434,7 +434,7 @@ let set_type_separability decl separabilities =
     (List.map2 (fun separability param -> { param with separability }) separabilities)
 
 let get_desc_ref = ref (fun _ -> assert false)
-let noun_with_manifest type_noun expansion =
+let noun_with_expansion type_noun expansion =
   match type_noun with
   | Datatype { params; manifest = _; noun } ->
     let manifest =
@@ -448,15 +448,32 @@ let noun_with_manifest type_noun expansion =
   | Equation { params; eq = Type_abbrev { priv; expansion = _ } } ->
     Equation { params; eq = Type_abbrev { priv; expansion } }
 
+let with_expansion decl expansion =
+  { decl with type_noun = noun_with_expansion decl.type_noun expansion }
+
+let newgenty_ref = ref (fun _ -> assert false)
+let noun_with_manifest type_noun manifest =
+  match type_noun with
+  | Datatype { params; manifest = _; noun } ->
+    Datatype { params; manifest = Some manifest; noun }
+  | Equation { params; eq = Type_abstr { reason = _ } } ->
+    let param_exprs = List.map (fun p -> p.param_expr) params in
+    let expansion = !newgenty_ref (Tconstr (manifest, param_exprs, ref Mnil)) in
+    Equation { params; eq = Type_abbrev { priv = Public; expansion } }
+  | Equation { params; eq = Type_abbrev { priv; expansion = _ } } ->
+    let param_exprs = List.map (fun p -> p.param_expr) params in
+    let expansion = !newgenty_ref (Tconstr (manifest, param_exprs, ref Mnil)) in
+    Equation { params; eq = Type_abbrev { priv; expansion } }
+
 let with_manifest decl expansion =
   { decl with type_noun = noun_with_manifest decl.type_noun expansion }
 
-let newgenty_ref = ref (fun _ -> assert false)
 let get_type_manifest decl =
   match decl.type_noun with
   | Datatype { params = _; manifest = None; noun = _ } -> None
-  | Datatype { params = _; manifest = Some path; noun = _ } ->
-    Some (!newgenty_ref (Tconstr (path, get_type_params decl, ref Mnil)))
+  | Datatype { params; manifest = Some path; noun = _ } ->
+    let param_exprs = List.map (fun p -> p.param_expr) params in
+    Some (!newgenty_ref (Tconstr (path, param_exprs, ref Mnil)))
   | Equation { params = _; eq = Type_abstr { reason = _ } } -> None
   | Equation { params = _; eq = Type_abbrev { priv = _; expansion } } -> Some expansion
 

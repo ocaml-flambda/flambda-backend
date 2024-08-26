@@ -723,8 +723,8 @@ val set_type_separability : type_declaration -> Separability.t list -> type_decl
 val create_type_equation_noun : type_param list -> private_flag -> type_expr option -> type_noun
 val create_type_equation : private_flag -> type_expr option -> type_equation
 
-val noun_with_manifest : type_noun -> type_expr -> type_noun
-val with_manifest : type_declaration -> type_expr -> type_declaration
+val with_expansion : type_declaration -> type_expr -> type_declaration
+val with_manifest : type_declaration -> Path.t -> type_declaration
 val get_type_manifest : type_declaration -> type_expr option
 
 

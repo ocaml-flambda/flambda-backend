@@ -528,11 +528,7 @@ let enrich_typedecl env p id decl =
                  from the signature. We should just fail now, but then, we could
                  also have failed if the arities of the two decls were
                  different, which we didn't. *)
-          | () ->
-              let orig_ty =
-                Btype.newgenty(Tconstr(p, get_type_params decl, ref Mnil))
-              in
-              with_manifest decl orig_ty
+          | () -> with_manifest decl p
         end
 
 let rec enrich_modtype env p mty =

@@ -1848,7 +1848,7 @@ let class_infos define_class kind
     Ctype.instance_parameterized_type params (Btype.self_type typ)
   in
   Ctype.set_object_name obj_id cl_params cl_ty;
-  let cl_abbr = with_manifest (set_type_params cl_td cl_params) cl_ty in
+  let cl_abbr = with_expansion (set_type_params cl_td cl_params) cl_ty in
   let cltydef =
     {clty_params = params'; clty_type = Btype.class_body typ';
      clty_variance = cty_variance;
