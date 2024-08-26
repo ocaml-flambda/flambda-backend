@@ -2047,38 +2047,38 @@ type unbox_result =
   (* unboxing process made a step: either an unboxing or removal of a [Tpoly] *)
   | Stepped of type_expr
   (* no step to make; we're all done here *)
-  | Final_result of type_expr
+  | Final_result
   (* definition not in environment: missing cmi *)
   | Missing of Path.t
 
-(* We use expand_head_opt version of expand_head to get access
-   to the manifest type of private abbreviations. *)
 let unbox_once env ty =
-  let ty = expand_head_opt env ty in
   match get_desc ty with
   | Tconstr (p, args, _) ->
     begin match Env.find_type p env with
     | exception Not_found -> Missing p
     | decl ->
       begin match find_unboxed_type decl with
-      | None -> Final_result ty
+      | None -> Final_result
       | Some ty2 ->
         let ty2 = match get_desc ty2 with Tpoly (t, _) -> t | _ -> ty2 in
         Stepped (apply env decl.type_params ty2 args)
       end
     end
   | Tpoly (ty, _) -> Stepped ty
-  | _ -> Final_result ty
+  | _ -> Final_result
 
 (* We use ty_prev to track the last type for which we found a definition,
    allowing us to return a type for which a definition was found even if
    we eventually bottom out at a missing cmi file, or otherwise. *)
 let rec get_unboxed_type_representation env ty_prev ty fuel =
   if fuel < 0 then Error ty else
+    (* We use expand_head_opt version of expand_head to get access
+       to the manifest type of private abbreviations. *)
+    let ty = expand_head_opt env ty in
     match unbox_once env ty with
     | Stepped ty2 ->
       get_unboxed_type_representation env ty ty2 (fuel - 1)
-    | Final_result ty2 -> Ok ty2
+    | Final_result -> Ok ty
     | Missing _ -> Ok ty_prev
 
 let get_unboxed_type_representation env ty =
@@ -2088,18 +2088,6 @@ let get_unboxed_type_representation env ty =
 let get_unboxed_type_approximation env ty =
   match get_unboxed_type_representation env ty with
   | Ok ty | Error ty -> ty
-
-(* When computing a jkind, we distinguish a few cases:
-   - Jkind: We computed the jkind, and the type wasn't a variable or an unboxed
-     product.
-   - Var: The type was a var, we return the jkind and the type_expr it was in,
-     in case the caller wants to update it.
-   - Product: The type was an unboxed product, these are the components.
-*)
-type jkind_head =
-  | Jkind of Jkind.t
-  | TyVar of type_expr * Jkind.t
-  | Product of type_expr list
 
 let tvariant_not_immediate row =
   (* if all labels are devoid of arguments, not a pointer *)
@@ -2112,102 +2100,62 @@ let tvariant_not_immediate row =
       | _ -> false)
     (row_fields row)
 
-(* We assume here that [get_unboxed_type_representation] has already been
-   called, if the type is a Tconstr.  This allows for some optimization by
-   callers (e.g., skip expanding if the kind tells them enough).
-
-   Note that this really returns an upper bound, and in particular returns [Any]
-   in some edge cases (when [get_unboxed_type_representation] ran out of fuel,
-   or when the type is a Tconstr that is missing from the Env due to a missing
-   cmi). *)
-let rec estimate_type_jkind_head env ty =
-  let open Jkind in
-  match get_desc ty with
-  | Tconstr(p, _, _) -> begin
-    try
-      Jkind (Env.find_type p env).type_jkind
-    with
-      Not_found -> Jkind (Builtin.any ~why:(Missing_cmi p))
-  end
-  | Tvariant row ->
-      if tvariant_not_immediate row
-      then Jkind (Builtin.value ~why:Polymorphic_variant)
-      else Jkind (Builtin.immediate ~why:Immediate_polymorphic_variant)
-  | Tvar { jkind } when get_level ty = generic_level ->
-    (* Once a Tvar gets generalized with a jkind, it should be considered
-       as fixed (similar to the Tunivar case below).
-
-       This notably prevents [constrain_type_jkind] from changing layout
-       [any] to a sort or changing the externality once the Tvar gets
-       generalized.
-
-       This, however, still allows sort variables to get instantiated. *)
-    Jkind jkind
-  | Tvar { jkind } -> TyVar (ty, jkind)
-  | Tarrow _ -> Jkind for_arrow
-  | Ttuple _ -> Jkind (Builtin.value ~why:Tuple)
-  | Tunboxed_tuple ltys -> Product (List.map snd ltys)
-  | Tobject _ -> Jkind (Builtin.value ~why:Object)
-  | Tfield _ -> Jkind (Builtin.value ~why:Tfield)
-  | Tnil -> Jkind (Builtin.value ~why:Tnil)
-  | (Tlink _ | Tsubst _) -> assert false
-  | Tunivar { jkind } -> Jkind jkind
-  | Tpoly (ty, _) -> estimate_type_jkind_head env ty
-  | Tpackage _ -> Jkind (Builtin.value ~why:First_class_module)
-
-(* We parameterize [estimate_type_jkind] and [jkind_of_jkind_head] by a function
-   [expand_components] because some callers want expansion of types and others
+(* We parameterize [estimate_type_jkind] by a function
+   [expand_component] because some callers want expansion of types and others
    don't. *)
-let rec estimate_type_jkind env ~expand_components ty =
-  jkind_of_jkind_head env ~expand_components (estimate_type_jkind_head env ty)
+let rec estimate_type_jkind ~expand_component env ty =
+  match get_desc ty with
+  | Tvar { jkind } -> jkind
+  | Tarrow _ -> Jkind.for_arrow
+  | Ttuple _ -> Jkind.Builtin.value ~why:Tuple
+  | Tunboxed_tuple ltys ->
+     Jkind.Builtin.product
+       (List.map (fun (_, ty) ->
+          estimate_type_jkind ~expand_component env (expand_component ty)) ltys)
+       ~why:Unboxed_tuple
+  | Tconstr (p, _, _) -> begin
+      try
+        (Env.find_type p env).type_jkind
+      with
+        Not_found -> Jkind.Builtin.any ~why:(Missing_cmi p)
+    end
+  | Tobject _ -> Jkind.Builtin.value ~why:Object
+  | Tfield _ -> Jkind.Builtin.value ~why:Tfield
+  | Tnil -> Jkind.Builtin.value ~why:Tnil
+  | Tlink _ | Tsubst _ -> assert false
+  | Tvariant row ->
+     if tvariant_not_immediate row
+     then Jkind.Builtin.value ~why:Polymorphic_variant
+     else Jkind.Builtin.immediate ~why:Immediate_polymorphic_variant
+  | Tunivar { jkind } -> jkind
+  | Tpoly (ty, _) -> estimate_type_jkind ~expand_component env ty
+  | Tpackage _ -> Jkind.Builtin.value ~why:First_class_module
 
-(* See [estimate_type_jkind] above for explanation of [expand_components]. *)
-and jkind_of_jkind_head env ~expand_components jkind_head =
-  match jkind_head with
-  | Jkind l -> l
-  | TyVar (_, l) -> l
-  | Product tys ->
-    Jkind.Builtin.product ~why:Unboxed_tuple
-      (List.map (fun ty ->
-         estimate_type_jkind env ~expand_components (expand_components ty)
-       ) tys)
+let type_jkind env ty =
+  estimate_type_jkind env
+    ~expand_component:(get_unboxed_type_approximation env)
+    (get_unboxed_type_approximation env ty)
+
+let type_jkind_purely env ty =
+  if !Clflags.principal || Env.has_local_constraints env then
+    (* We snapshot to keep this pure; see the test in [typing-local/crossing.ml]
+       that mentions snapshotting for an example. *)
+    let snap = Btype.snapshot () in
+    let jkind = type_jkind env ty in
+    Btype.backtrack snap;
+    jkind
+  else
+    type_jkind env ty
+
+let estimate_type_jkind = estimate_type_jkind ~expand_component:Fun.id
 
 (**** checking jkind relationships ****)
 
-(* This type represents jkind constraints that we weren't able prove yet, but
-   which might succeed either by further expanding the type or by modifying a
-   type variable (in which case the [ty] will be a type variable). *)
-type type_jkind_sub_possible_failure =
-  { estimate : Jkind.t;
-    bound : Jkind.t;
-    ty : type_expr }
-
-type type_jkind_sub_result =
-  | Success
-  | Type_vars of type_jkind_sub_possible_failure list
-  (* [Type_vars] indicates a possible success - the caller should check, and
-     possibly update the variables *)
-  | Missing_cmi of Path.t
-  | Failure of type_jkind_sub_possible_failure
-  (* [Failure] indicates we couldn't verify the constraint.  However, further
-     expansion the type might make it possible to verify. *)
-
-let type_jkind_sub env ty jkind =
-  let jkind_est_of_results prefix_jkinds later_components =
-    (* [jkind_est_of_results] is used when we've reached an error state in the
-       middle of checking a product. In that case, we don't want to continue
-       with any further checks for later components of the product, but we do
-       need to get our best estimate so far of the kinds of those components,
-       because the error shows the product's computed jkind. *)
-    let jkinds =
-      List.rev_append prefix_jkinds
-        (List.map fst later_components)
-    in
-    Jkind.Builtin.product ~why:Unboxed_tuple jkinds
-  in
-
-  (* Every function here returns the best jkind computed for the type or types
-     it is passed, along with whether the constraint check succeeded.
+(* The ~fixed argument controls what effects this may have on `ty`.  If false,
+   then we will update the jkind of type variables to make the check true, if
+   possible.  If true, we won't (but will still instantiate sort variables). *)
+let constrain_type_jkind ~fixed env ty jkind =
+  (* The [expanded] argument says whether we've already tried [expand_head_opt].
 
      The "fuel" argument is used because we're duplicating the loop of
      `get_unboxed_type_representation`, but performing jkind checking at each
@@ -2222,137 +2170,114 @@ let type_jkind_sub env ty jkind =
      loop trying to also expand [s], and then performing jkind checking to
      ensure it's a valid argument to [t].  (We believe there are still loops
      like this that can occur, though, and may need a more principled solution
-     later).  *)
-  let rec expand_and_check_one fuel ty jkind =
-    (* This is an optimization to avoid unboxing if we can tell the constraint
-       is satisfied from the type_kind *)
+     later).
+  *)
+  let rec loop ~fuel ~expanded ty ty's_jkind jkind =
+    (* Just succeed if we're comparing against [any] *)
+    if Jkind.is_max jkind then Ok () else
+    if fuel < 0 then
+      Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
+    else
     match get_desc ty with
-    | Tconstr(p, _args, _abbrev) ->
-        let jkind_estimate =
-          try (Env.find_type p env).type_jkind
-          with Not_found -> Jkind.Builtin.any ~why:(Missing_cmi p)
-        in
-        if Jkind.sub jkind_estimate jkind
-        then jkind_estimate, Success
-        else if fuel < 0 then
-          jkind_estimate,
-          Failure { estimate = jkind_estimate; bound = jkind; ty }
-        else begin match unbox_once env ty with
-          | Final_result ty -> check_one fuel ty jkind
-          | Stepped ty -> expand_and_check_one (fuel - 1) ty jkind
-          | Missing missing_cmi_for ->
-            jkind_estimate, Missing_cmi missing_cmi_for
-        end
-    | Tpoly (ty, _) -> expand_and_check_one fuel ty jkind
-    | _ -> check_one fuel ty jkind
+    | Tvar _ when not fixed ->
+       (* Unfixed tyvars are special in at least two ways:
 
-  (* Unlike [expand_and_check_one], this will not expand the type it is passed.
-     But, if that type turns out to be an unboxed product we may end up
-     expanding its components. *)
-  and check_one fuel ty jkind =
-    match estimate_type_jkind_head env ty with
-    | Jkind ty_jkind ->
-      let result =
-        if Jkind.sub ty_jkind jkind then Success else
-          Failure {estimate = ty_jkind; bound = jkind; ty}
-      in
-      ty_jkind, result
-    | TyVar (ty, ty_jkind) ->
-      ty_jkind, Type_vars [{ estimate = ty_jkind; bound = jkind; ty }]
-    | Product component_types as product ->
-      let jkinds =
-        Jkind.is_nary_product (List.length component_types) jkind
-      in
-      match jkinds with
-      | None ->
-        (* The upper bound is not a product, but the type is.  This may be
-           OK if the upper bound has layout any. *)
-        let estimate =
-          jkind_of_jkind_head env ~expand_components:(fun x -> x) product
-        in
-        let result =
-          if Jkind.sub estimate jkind then Success else
-            Failure { estimate; bound = jkind; ty }
-        in
-        estimate, result
-      | Some jkinds ->
-        (* Note: here we "duplicate" the fuel, which may seem like
-           cheating. Fuel counts expansions, and its purpose is to guard against
-           infinitely expanding a recursive type. In a wide product, we many
-           need to expand many types shallowly, and that's fine. *)
-        let results = List.map2 (check_one fuel) component_types jkinds in
-        process_product_results fuel [] [] results
+          1) Suppose we're processing [type 'a t = 'a list]. The ['a] on the
+          left will be born with an [Unannotated_type_parameter] history and a
+          sort variable as its jkind. When unifying with the arguments to
+          [list], we'll need to change that jkind to be [value]. But we want to
+          do this update by changing the type variable, not just by filling in
+          the sort variable: the former preserves history (improving error
+          messages), while the latter does not.  (If you're reading this in a
+          future where sorts track their own history, then this reason no longer
+          applies; delete this bullet.)
 
-  (* Here, we are recusing down [results] is a list of the (unprocessed) results
-     from attempting to constrain a product jkind. There is one for each
-     component, and we process them individually into the accumulators [vars]
-     and [jkind_ests]. Those collect the [Type_vars] from the component checks
-     and the jkind estimate of each component, respectively
+          2) Suppose we're checking whether ['a : value] has jkind float64. This
+          would be possible if those two jkinds had an intersection. And so an
+          error message should complain about the lack of intersection, not the
+          lack of subjkinding.
 
-     [Failure]s in results may have occurred just because we haven't expanded
-     the component type enough yet, so we expand and check it again. *)
+          Because of these reasons, we pull out the unfixed tyvar case and treat
+          it first.
+        *)
+       let jkind_inter =
+         Jkind.intersection_or_error
+           ~reason:Tyvar_refinement_intersection ty's_jkind jkind
+       in
+       Result.map (set_var_jkind ty) jkind_inter
 
-  and process_product_results fuel vars jkind_ests results =
-    match results with
-    | [] ->
-      let jkind =
-        Jkind.Builtin.product ~why:Unboxed_tuple (List.rev jkind_ests)
-      in
-      if vars = [] then jkind, Success else jkind, Type_vars vars
-    | (jkind_est, result) :: results ->
-      (* If the result is failure, we try again with expansion. *)
-      let jkind_est, result =
-        match result with
-        (* CR: We could refactor slightly so that we skip the shortcut check
-           in [expand_and_check_one] here. *)
-        | Failure { bound; ty } -> expand_and_check_one fuel ty bound
-        | Success | Type_vars _ | Missing_cmi _ -> jkind_est, result
-      in
-      let jkind_ests = jkind_est :: jkind_ests in
-      match result with
-      | Success -> process_product_results fuel vars jkind_ests results
-      | Type_vars vars' ->
-        process_product_results fuel (vars' @ vars) jkind_ests results
-      | Failure _ | Missing_cmi _ ->
-        let jkind = jkind_est_of_results jkind_ests results in
-        jkind, result
+    (* Handle the [Tpoly] case out here so [Tvar]s wrapped in [Tpoly]s can get
+       the treatment above. *)
+    | Tpoly (t, _) -> loop ~fuel ~expanded:false t ty's_jkind jkind
+
+    | _ ->
+       match Jkind.sub_or_intersect ty's_jkind jkind with
+       | Sub -> Ok ()
+       | Disjoint ->
+          (* Reporting that [ty's_jkind] must be a subjkind of [jkind] is not
+             always right.  Suppose we had [type ('a : word) t = 'a] and we were
+             checking ['a t] against [value]. Then it would be enough for [word]
+             and [value] to have an intersection, not for one to be a subjkind
+             of another. But getting this reporting correct would require
+             arbitrary amounts of expansion and looking through [@@unboxed]
+             types. So we don't, settling for the slightly worse error
+             message. *)
+          Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
+       | Has_intersection ->
+          match get_desc ty with
+          | Tconstr _ ->
+             if not expanded
+             then
+               let ty = expand_head_opt env ty in
+               loop ~fuel ~expanded:true ty (estimate_type_jkind env ty) jkind
+             else
+               begin match unbox_once env ty with
+               | Missing path -> Error (Jkind.Violation.of_ ~missing_cmi:path
+                                          (Not_a_subjkind (ty's_jkind, jkind)))
+               | Final_result ->
+                  Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
+               | Stepped ty ->
+                  loop ~fuel:(fuel - 1) ~expanded:false ty
+                    (estimate_type_jkind env ty) jkind
+               end
+          | Tunboxed_tuple ltys ->
+             let num_components = List.length ltys in
+             let recur ty's_jkinds jkinds =
+               (* Note: here we "duplicate" the fuel, which may seem like
+                  cheating. Fuel counts expansions, and its purpose is to guard
+                  against infinitely expanding a recursive type. In a wide
+                  product, we many need to expand many types shallowly, and
+                  that's fine. *)
+               let results =
+                 Misc.Stdlib.List.map3
+                   (fun (_, ty) -> loop ~fuel ~expanded:false ty)
+                   ltys ty's_jkinds jkinds
+               in
+               Misc.Stdlib.Monad.Result.all_unit results
+             in
+             begin match Jkind.decompose_product ty's_jkind,
+                         Jkind.decompose_product jkind with
+             | Some ty's_jkinds, Some jkinds
+                  when List.length ty's_jkinds = num_components
+                       && List.length jkinds = num_components ->
+               recur ty's_jkinds jkinds
+             | Some ty's_jkinds, None
+                  when Jkind.has_layout_any jkind ->
+               (* Even though [jkind] has layout any, it still might have
+                  mode-crossing restrictions, so we recur, just duplicating
+                  the jkind. *)
+               recur ty's_jkinds (List.init num_components (fun _ -> jkind))
+             | _ -> Misc.fatal_error "unboxed tuple jkinds don't line up"
+             end
+          | _ -> Error (Jkind.Violation.of_ (Not_a_subjkind (ty's_jkind, jkind)))
   in
-  expand_and_check_one 100 ty jkind
+  loop ~fuel:100 ~expanded:false ty (estimate_type_jkind env ty) jkind
 
-(* The ~fixed argument controls what effects this may have on `ty`.  If false,
-   then we will update the jkind of type variables to make the check true, if
-   possible.  If true, we won't (but will still instantiate sort variables).
-
-   Precondition: [jkind] is not [any]. This common case is short-circuited
-   before calling this function. (Though the current implementation is still
-   correct on [any].)
-*)
-let constrain_type_jkind ~fixed env ty jkind =
-  let ty_jkind, result = type_jkind_sub env ty jkind in
-  match result with
-  | Success -> Ok ()
-  | Type_vars tvs ->
-    let constrain_one_var { estimate; bound; ty } =
-      if fixed then Jkind.sub_or_error estimate bound else
-      let jkind_inter =
-        Jkind.intersection_or_error ~reason:Tyvar_refinement_intersection
-          estimate bound
-      in
-      Result.map (set_var_jkind ty) jkind_inter
-    in
-    Misc.Stdlib.List.iter_until_error ~f:constrain_one_var tvs
-  | Missing_cmi missing_cmi ->
-    Error Jkind.(Violation.of_ ~missing_cmi
-      (Not_a_subjkind
-         (History.update_reason ty_jkind (Missing_cmi missing_cmi), jkind)))
-  | Failure _ ->
-    Error (Jkind.Violation.of_ (Not_a_subjkind (ty_jkind, jkind)))
-
-let constrain_type_jkind ~fixed env ty jkind =
-  (* An optimization to avoid doing any work if we're checking against
-     any. *)
-  if Jkind.is_max jkind then Ok ()
-  else constrain_type_jkind ~fixed env ty jkind
+let type_sort ~why ~fixed env ty =
+  let jkind, sort = Jkind.of_new_sort_var ~why in
+  match constrain_type_jkind ~fixed env ty jkind with
+  | Ok _ -> Ok sort
+  | Error _ as e -> e
 
 let check_type_jkind env ty jkind =
   constrain_type_jkind ~fixed:true env ty jkind
@@ -2397,6 +2322,7 @@ let constrain_type_jkind_exn env texn ty jkind =
   | Ok _ -> ()
   | Error err -> raise_for texn (Bad_jkind (ty,err))
 
+<<<<<<< HEAD
 let type_jkind env ty =
   estimate_type_jkind env
     ~expand_components:(get_unboxed_type_approximation env)
@@ -2422,6 +2348,35 @@ let type_sort ~why env ty =
   | Ok _ -> Ok sort
   | Error _ as e -> e
 
+||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
+let type_jkind env ty =
+  estimate_type_jkind env
+    ~expand_components:(get_unboxed_type_approximation env)
+    (get_unboxed_type_approximation env ty)
+
+let type_jkind_purely env ty =
+  if !Clflags.principal || Env.has_local_constraints env then
+    (* We snapshot to keep this pure; see the test in [typing-local/crossing.ml]
+       that mentions snapshotting for an example. *)
+    let snap = Btype.snapshot () in
+    let jkind = type_jkind env ty in
+    Btype.backtrack snap;
+    jkind
+  else
+    type_jkind env ty
+
+let estimate_type_jkind env ty =
+  estimate_type_jkind env ~expand_components:(fun x -> x)
+    (get_unboxed_type_approximation env ty)
+
+let type_sort ~why env ty =
+  let jkind, sort = Jkind.of_new_sort_var ~why in
+  match constrain_type_jkind env ty jkind with
+  | Ok _ -> Ok sort
+  | Error _ as e -> e
+
+=======
+>>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
 let type_legacy_sort ~why env ty =
   let jkind, sort = Jkind.of_new_legacy_sort_var ~why in
   match constrain_type_jkind env ty jkind with

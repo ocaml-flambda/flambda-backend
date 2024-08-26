@@ -21,7 +21,7 @@ Error: This type "t_void" = "('a : void)" should be an instance of type
          "('b : value)"
        The layout of t_void is void
          because of the annotation on the declaration of the type t_void.
-       But the layout of t_void must overlap with value
+       But the layout of t_void must be a sublayout of value
          because of the definition of value at line 1, characters 0-30.
 |}]
 

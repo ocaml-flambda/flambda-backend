@@ -133,14 +133,7 @@ let d (x : 'a array) = get x 0
 [%%expect{|
 external get : ('a : any_non_null). 'a array -> int -> float
   = "%floatarray_safe_get"
-Line 2, characters 23-30:
-2 | let d (x : 'a array) = get x 0
-                           ^^^^^^^
-Error: A representable layout is required here.
-       The layout of 'a is any
-         because of the definition of d at line 2, characters 6-30.
-       But the layout of 'a must be representable
-         because it's the type of an array element.
+val d : 'a array -> float = <fun>
 |}];;
 
 external get : int32# array -> int -> float = "%floatarray_safe_get"

@@ -72,10 +72,21 @@ let f x =
 Line 3, characters 19-20:
 3 |   Float_u.to_float x
                        ^
+<<<<<<< HEAD
 Error: This expression has type "('a : value)"
        but an expression was expected of type "Float_u.t" = "float#"
        The layout of Float_u.t is float64
          because it is the primitive type float#.
+||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
+Error: This expression has type ('a : value)
+       but an expression was expected of type Float_u.t = float#
+       The layout of Float_u.t is float64
+         because it is the primitive type float#.
+=======
+Error: This expression has type ('a : value)
+       but an expression was expected of type Float_u.t = float#
+       The layout of Float_u.t is float64.
+>>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
        But the layout of Float_u.t must be a sublayout of value
          because of the annotation on the wildcard _ at line 2, characters 15-26.
          Custom message

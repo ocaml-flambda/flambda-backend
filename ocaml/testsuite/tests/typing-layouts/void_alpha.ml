@@ -74,7 +74,7 @@ Lines 14-21, characters 2-3:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of void_rec is void
-         because of the definition of t_void at line 1, characters 0-18.
+         because of the definition of void_rec at line 3, characters 0-42.
        But the layout of void_rec must be a sublayout of value
          because it has to be value for the V1 safety check.
 |}]
@@ -136,7 +136,7 @@ Lines 4-11, characters 2-3:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of void_rec is void
-         because of the definition of t_void at line 1, characters 0-18.
+         because of the definition of void_rec at line 3, characters 0-42.
        But the layout of void_rec must be a sublayout of value
          because it has to be value for the V1 safety check.
 |}]
@@ -485,7 +485,7 @@ Lines 4-11, characters 2-24:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of void_rec is void
-         because of the definition of t_void at line 1, characters 0-18.
+         because of the definition of void_rec at line 3, characters 0-42.
        But the layout of void_rec must be a sublayout of value
          because it has to be value for the V1 safety check.
 |}]
@@ -786,7 +786,7 @@ Lines 9-18, characters 2-29:
 Error: Non-value detected in [value_kind].
        Please report this error to the Jane Street compilers team.
        The layout of unboxed_inlined_void_rec is void
-         because of the definition of t_void at line 1, characters 0-18.
+         because of the definition of unboxed_inlined_void_rec at lines 3-4, characters 0-43.
        But the layout of unboxed_inlined_void_rec must be a sublayout of value
          because it has to be value for the V1 safety check.
 |}]

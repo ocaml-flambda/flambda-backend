@@ -140,6 +140,7 @@ module Stdlib = struct
       in
       aux [] l1 l2
 
+<<<<<<< HEAD
     let rec iteri2 i f l1 l2 =
       match (l1, l2) with
         ([], []) -> ()
@@ -148,6 +149,17 @@ module Stdlib = struct
 
     let iteri2 f l1 l2 = iteri2 0 f l1 l2
 
+||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
+=======
+    let map3 f =
+      let rec loop acc as_ bs cs = match as_, bs, cs with
+        | [], [], [] -> List.rev acc
+        | a :: as_, b :: bs, c :: cs -> loop (f a b c :: acc) as_ bs cs
+        | _ -> invalid_arg "map3"
+      in
+      loop []
+
+>>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
     let some_if_all_elements_are_some l =
       let rec aux acc l =
         match l with
@@ -444,6 +456,59 @@ module Stdlib = struct
   end
 
   external compare : 'a -> 'a -> int = "%compare"
+
+  module Monad = struct
+    module type Basic2 = sig
+      (** Multi parameter monad. The second parameter gets unified across all the computation.
+          This is used to encode monads working on a multi parameter data structure like
+          ([('a,'b) result]). *)
+
+      type ('a, 'e) t
+
+      val bind : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+
+      val return : 'a -> ('a, _) t
+    end
+
+    module type S2 = sig
+      type ('a, 'e) t
+
+      val bind : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+      val return : 'a -> ('a, _) t
+      val map : ('a -> 'b) -> ('a, 'e) t -> ('b, 'e) t
+      val join : (('a, 'e) t, 'e) t -> ('a, 'e) t
+      val ignore_m : (_, 'e) t -> (unit, 'e) t
+      val all : ('a, 'e) t list -> ('a list, 'e) t
+      val all_unit : (unit, 'e) t list -> (unit, 'e) t
+    end
+
+    module Make2 (X : Basic2) = struct
+      include X
+
+      let map f m =
+        bind m (fun a -> return (f a))
+
+      let join m = bind m Fun.id
+
+      let ignore_m m = bind m (fun _ -> return ())
+
+      let all ms =
+        let rec loop acc = function
+          | [] -> return (List.rev acc)
+          | m :: ms -> bind m (fun a -> loop (a :: acc) ms)
+        in
+        loop [] ms
+
+      let all_unit ms =
+        let skip = return () in
+        List.fold_left (fun _ m -> bind m (fun _ -> skip)) skip ms
+    end
+
+    module Result = Make2(struct
+        include Result
+        let return = ok
+      end)
+  end
 end
 
 module Int = Stdlib.Int

@@ -128,7 +128,7 @@ Error: This expression has type "'a t_bits32_id" = "('a : bits32)"
        but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_bits32_id is bits32
          because of the definition of t_bits32_id at line 2, characters 0-35.
-       But the layout of 'a t_bits32_id must overlap with value
+       But the layout of 'a t_bits32_id must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 
@@ -325,7 +325,7 @@ Error: This expression has type "'a t_bits32_id" = "('a : bits32)"
        but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_bits32_id is bits32
          because of the definition of t_bits32_id at line 2, characters 0-35.
-       But the layout of 'a t_bits32_id must overlap with value
+       But the layout of 'a t_bits32_id must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
 
@@ -402,8 +402,8 @@ Line 1, characters 20-41:
 Error: This expression has type "'a t_bits32_id" = "('a : bits32)"
        but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_bits32_id is bits32
-         because of the definition of make_t_bits32_id at line 2, characters 21-55.
-       But the layout of 'a t_bits32_id must overlap with value
+         because of the definition of t_bits32_id at line 2, characters 0-35.
+       But the layout of 'a t_bits32_id must be a sublayout of value
          because of the definition of id_value at line 5, characters 13-18.
 |}];;
 
