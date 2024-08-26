@@ -257,9 +257,9 @@ let find_constr_by_tag ~constant tag cstrlist =
 
 let constructors_of_type ~current_unit ty_path decl =
   match decl.type_noun with
-  | Datatype { params; noun = Datatype_variant { priv; cstrs; rep } } ->
+  | Datatype { params; ret_jkind; noun = Datatype_variant { priv; cstrs; rep } } ->
     let params = List.map (fun p -> p.param_expr) params in
-     constructor_descrs ~current_unit ty_path params priv cstrs rep (get_type_jkind decl)
+     constructor_descrs ~current_unit ty_path params priv cstrs rep ret_jkind
   | _ -> []
 
 let labels_of_type ty_path decl =

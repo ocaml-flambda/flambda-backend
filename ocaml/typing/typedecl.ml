@@ -1163,11 +1163,11 @@ let narrow_to_manifest_jkind env loc decl =
    with the same constructors and labels. *)
 let check_kind_coherence env loc dpath decl =
   match decl.type_noun with
-  | Datatype { manifest = Some path } ->
+  | Datatype { ret_jkind; manifest = Some path } ->
       let ty = Btype.newgenty (Tconstr (path, get_type_param_exprs decl, ref Mnil)) in
       if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
-        begin match Jkind.sub_with_history jkind' (get_type_jkind decl) with
+        begin match Jkind.sub_with_history jkind' ret_jkind with
         | Ok _ -> ()
         | Error v ->
           raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
@@ -1640,7 +1640,7 @@ let update_decl_jkind env dpath decl =
   in
 
   let new_decl, new_jkind = match decl.type_noun with
-    | Equation _ -> decl, get_type_jkind decl
+    | Equation { ret_jkind } -> decl, ret_jkind
     | Datatype { params = _; manifest = _; noun = Datatype_open { priv = _ } } ->
       let type_jkind = Jkind.Builtin.value ~why:Extensible_variant in
       set_type_jkind type_jkind decl, type_jkind
@@ -1657,9 +1657,9 @@ let update_decl_jkind env dpath decl =
        No updating required for [or_null_reexport], and we must not
        incorrectly override the jkind to [non_null].
     *)
-    | Datatype { params = _; manifest = _; noun = Datatype_variant { priv = _; cstrs = _; rep = _ } } when
+    | Datatype { ret_jkind; noun = Datatype_variant _ } when
       Builtin_attributes.has_or_null_reexport decl.type_attributes ->
-      decl, get_type_jkind decl
+      decl, ret_jkind
     | Datatype { params; manifest; noun = Datatype_variant { priv; cstrs; rep } } ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
