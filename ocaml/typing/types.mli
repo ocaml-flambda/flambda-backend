@@ -560,8 +560,6 @@ and type_equation =
   | Type_abstr of { reason: abstract_reason }
   | Type_abbrev of { priv: private_flag; expansion: type_expr }
 
-and type_decl_kind = (label_declaration, constructor_declaration) type_kind
-
 and ('lbl, 'cstr) type_kind =
     Type_abstract of abstract_reason
   | Type_record of 'lbl list  * record_representation
