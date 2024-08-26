@@ -262,13 +262,9 @@ let f: 'a. 'a -> ('b : void) = fun x -> x
 [%%expect{|
 Line 1, characters 31-41:
 1 | let f: 'a. 'a -> ('b : void) = fun x -> x
-                                            ^
-Error: This expression has type ('a : value)
-       but an expression was expected of type ('b : void)
-       The layout of 'b is void
-         because of the annotation on the type variable 'b.
-       But the layout of 'b must overlap with value
-         because it is or unifies with an unannotated universal variable.
+                                   ^^^^^^^^^^
+Error: This definition has type 'b -> 'b which is less general than
+         ('a : void). 'a -> 'c
 |}];;
 
 (* Polymorphic_variant_field *)

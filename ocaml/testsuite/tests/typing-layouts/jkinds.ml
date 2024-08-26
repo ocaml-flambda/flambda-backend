@@ -1305,18 +1305,12 @@ module type S = sig
   val x : ('a : value). ('a : value mod global)
 end
 [%%expect {|
-Line 1, characters 8-35:
-1 | val x : 'a. ('a : value mod global)
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was defaulted to have kind value.
-       But it was inferred to have kind value mod global
-         because of the annotation on the type variable 'a.
 Line 2, characters 10-47:
 2 |   val x : ('a : value). ('a : value mod global)
               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was declared to have layout value.
-       But it was inferred to have layout value, because
-         of the annotation on the type variable 'a.
+Error: The universal type variable 'a was declared to have kind value.
+       But it was inferred to have kind value mod global
+         because of the annotation on the type variable 'a.
 |}]
 
 (*****************)
