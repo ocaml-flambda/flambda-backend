@@ -95,15 +95,16 @@ end = struct
 
   let op_isomorphic (op1 : Cfg.operation) (op2 : Cfg.operation) =
     match op1, op2 with
-    | Move, Move
-    | Spill, Spill
-    | Reload, Reload
-    | Const_int _, Const_int _
+    | Move, Move | Spill, Spill | Reload, Reload -> true
+    | Const_int x1, Const_int x2 ->
+      x1 = x2
+      (* CR-someday tip: do not allow different constants for now, may change
+         that in the future *)
     | Const_float32 _, Const_float32 _
     | Const_float _, Const_float _
     | Const_symbol _, Const_symbol _
     | Const_vec128 _, Const_vec128 _ ->
-      true
+      false (* CR-soon tip: add support later *)
     | ( Load
           { memory_chunk = memory_chunk1;
             addressing_mode = addressing_mode1;
@@ -988,24 +989,29 @@ end = struct
         let starting_memory_operation =
           Memory_accesses.get_memory_operation_exn memory_accesses store_id
         in
-        let items_in_vector =
-          vector_width_in_bytes
-          / Memory_accesses.Memory_operation.width starting_memory_operation
+        let width =
+          Memory_accesses.Memory_operation.width starting_memory_operation
         in
-        let store_group = find_stores items_in_vector [] starting_cell in
-        match store_group with
-        | None -> None
-        | Some stores ->
-          let store_ids = List.map Instruction.id stores in
-          if Memory_accesses.all_adjacent memory_accesses store_ids
-             && Memory_accesses.can_group memory_accesses body store_ids
-          then
-            Some
-              (List.map
-                 (fun id ->
-                   Memory_accesses.get_memory_operation_exn memory_accesses id)
-                 store_ids)
-          else None)
+        if width != 8
+           (* CR-soon tip: Only support 64-bit wide things for now, add the rest
+              in the future *)
+        then None
+        else
+          let items_in_vector = vector_width_in_bytes / width in
+          let store_group = find_stores items_in_vector [] starting_cell in
+          match store_group with
+          | None -> None
+          | Some stores ->
+            let store_ids = List.map Instruction.id stores in
+            if Memory_accesses.all_adjacent memory_accesses store_ids
+               && Memory_accesses.can_group memory_accesses body store_ids
+            then
+              Some
+                (List.map
+                   (fun id ->
+                     Memory_accesses.get_memory_operation_exn memory_accesses id)
+                   store_ids)
+            else None)
       all_stores
 
   let dump ppf (seeds : t list) =
@@ -1148,9 +1154,18 @@ end = struct
           | Some op -> (
             match op with
             | Load _ ->
+              let store_width =
+                List.hd seed |> Memory_accesses.Memory_operation.width
+              in
+              let load_width =
+                Instruction.id last_instruction
+                |> Memory_accesses.get_memory_operation_exn memory_accesses
+                |> Memory_accesses.Memory_operation.width
+              in
               if Memory_accesses.all_adjacent memory_accesses instruction_ids
                  && Memory_accesses.inter_independent memory_accesses
                       instructions
+                 && load_width = store_width
               then (
                 Instruction.Id.Tbl.add computation_tree key node;
                 Some key)

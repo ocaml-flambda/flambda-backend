@@ -463,3 +463,23 @@ let () =
   Location.register_error_of_exn (function
     | Error err -> Some (Location.error_of_printer_file report_error err)
     | _ -> None)
+
+let vectorize_operation (cfg_op : Cfg.operation) width =
+  match cfg_op with
+  | Move -> Move
+  | Const_int n ->
+    match width with
+    | 8 ->
+    let m = Int64.of_nativeint n in
+    Const_vec128 {low = m; high = m}
+    |_ -> assert false
+  | Load x -> Load x
+  | Store x -> Store x
+  | Intop op -> (* CR-soon tip: fix this tomorrow *)
+  | Intop_imm (op, n) ->
+  | Specific _ | Alloc _ | Reinterpret_cast _ | Static_cast _ | Spill | Reload
+  | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
+  | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
+  | Opaque | Begin_region | End_region | Name_for_debugger _ | Dls_get
+  | Poll ->
+    assert false
