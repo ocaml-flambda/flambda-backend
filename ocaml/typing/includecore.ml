@@ -1193,7 +1193,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
   in
   let constrained ty = not (Btype.is_Tvar ty) in
   if List.for_all2
-      (fun ty (v1,v2) ->
+      (fun ty (v1, v2) ->
         let open Variance in
         let imp a b = not a || b in
         let (co1,cn1) = get_upper v1 and (co2,cn2) = get_upper v2 in

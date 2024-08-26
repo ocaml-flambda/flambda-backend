@@ -428,10 +428,13 @@ let set_type_variance decl variances =
   map_type_params_ decl
     (List.map2 (fun variance param -> { param with variance }) variances)
 
-let get_type_separability decl = List.map (fun { separability } -> separability) (get_type_params_ decl)
-let set_type_separability decl separabilities =
-  map_type_params_ decl
-    (List.map2 (fun separability param -> { param with separability }) separabilities)
+
+let zip_params_with_applied tys decl =
+  let params = get_type_params_ decl in
+  if List.length tys <> List.length params
+  then Misc.fatal_error "Mismatched arities in type application"
+  else List.combine tys params
+
 
 let get_desc_ref = ref (fun _ -> assert false)
 let noun_with_expansion type_noun expansion =

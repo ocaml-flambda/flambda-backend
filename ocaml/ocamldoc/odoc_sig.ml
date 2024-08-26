@@ -1113,9 +1113,10 @@ module Analyser =
                       ty_name = Name.concat current_module_name name.txt ;
                       ty_info = assoc_com ;
                       ty_parameters =
-                        List.map2 (fun p v -> Odoc_env.subst_type env p,v)
-                        (Types.get_type_params sig_type_decl)
-                        (Types.get_type_variance sig_type_decl);
+                        List.map
+                          (fun { param_expr = p; variance = v } ->
+                            Odoc_env.subst_type env p, v)
+                          (Types.get_type_params_ sig_type_decl);
                       ty_kind = type_kind;
                       ty_private = get_type_private sig_type_decl;
                       ty_manifest =
@@ -1196,9 +1197,10 @@ module Analyser =
                       ty_name = Name.concat current_module_name name.txt ;
                       ty_info = assoc_com ;
                       ty_parameters =
-                        List.map2 (fun p v -> Odoc_env.subst_type env p,v)
-                        (Types.get_type_params sig_type_decl)
-                        (Types.get_type_variance sig_type_decl);
+                        List.map
+                          (fun { param_expr = p; variance = v } ->
+                            Odoc_env.subst_type env p, v)
+                          (Types.get_type_params_ sig_type_decl);
                       ty_kind = type_kind;
                       ty_private = get_type_private sig_type_decl;
                       ty_manifest =

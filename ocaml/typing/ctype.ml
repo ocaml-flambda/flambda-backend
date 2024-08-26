@@ -2674,10 +2674,10 @@ let univars_escape env univar_pairs vl ty =
       | Tconstr (p, tl, _) ->
           begin try
             let td = Env.find_type p env in
-            List.iter2
+            List.iter
               (* see occur_univar *)
-              (fun t v -> if not Variance.(eq v null) then occur t)
-              tl (get_type_variance td)
+              (fun (t, { variance = v }) -> if not Variance.(eq v null) then occur t)
+              (zip_params_with_applied tl td)
           with Not_found ->
             List.iter occur tl
           end
@@ -5783,8 +5783,8 @@ let rec build_subtype env (visited : transient_expr list)
         && not (has_constr_row' env t)
         then warn := true;
         let tl' =
-          List.map2
-            (fun v t ->
+          List.map
+            (fun (t, { variance = v }) ->
               let (co,cn) = Variance.get_upper v in
               if cn then
                 if co then (t, Unchanged)
@@ -5794,7 +5794,7 @@ let rec build_subtype env (visited : transient_expr list)
                 else (newvar (Jkind.Builtin.value
                                 ~why:(Unknown "build_subtype 3")),
                       Changed))
-            (get_type_variance decl) tl
+            (zip_params_with_applied tl decl)
         in
         let c = collect tl' in
         if c > Unchanged then (newconstr p (List.map fst tl'), c)
@@ -5944,8 +5944,8 @@ let rec subtype_rec env trace t1 t2 cstrs =
     | (Tconstr(p1, tl1, _), Tconstr(p2, tl2, _)) when Path.same p1 p2 ->
         begin try
           let decl = Env.find_type p1 env in
-          List.fold_left2
-            (fun cstrs v (t1, t2) ->
+          List.fold_left
+            (fun cstrs ((t1, t2), { variance = v }) ->
               let (co, cn) = Variance.get_upper v in
               if co then
                 if cn then
@@ -5967,7 +5967,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
                     t2 t1
                     cstrs
                 else cstrs)
-            cstrs (get_type_variance decl) (List.combine tl1 tl2)
+            cstrs (zip_params_with_applied (List.combine tl1 tl2) decl)
         with Not_found ->
           (trace, t1, t2, !univar_pairs)::cstrs
         end
@@ -6486,8 +6486,7 @@ let () = nondep_type' := nondep_type
 (* Preserve sharing inside type declarations. *)
 let nondep_type_decl env mid is_covariant decl =
   try
-    let params = List.map (nondep_type_rec env mid) (get_type_params decl) in
-    (* CR jbachurski: Tricky! *)
+    (* CR jbachurski: Tricky! Or just confusing. *)
     let expand_public_or_then_private priv ty =
       (* If [priv] is [Private] and we obtain [Some] manifest, it's also [Private] *)
       try Some (nondep_type_rec env mid ty), priv
@@ -6498,7 +6497,7 @@ let nondep_type_decl env mid is_covariant decl =
             with Nondep_cannot_erase _ -> None, Public
     in
     let type_params_ =
-      create_type_params params (get_type_variance decl) (get_type_separability decl)
+      map_param_exprs (nondep_type_rec env mid) (get_type_params_ decl)
     in
     let type_noun =
       try match decl.type_noun with

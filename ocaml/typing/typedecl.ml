@@ -1029,7 +1029,6 @@ let transl_declaration env sdecl (id, uid) =
 (* Generalize a type declaration *)
 
 let generalize_decl decl =
-  List.iter Ctype.generalize (get_type_params decl);
   Btype.iter_type_expr_noun Ctype.generalize decl.type_noun
 
 (* Check that all constraints are enforced *)
@@ -1969,7 +1968,7 @@ let check_regularity ~abs_env env loc path decl to_check =
   (* to_check is true for potentially mutually recursive paths.
      (path, decl) is the type declaration to be checked. *)
 
-  if (get_type_params decl) = [] then () else
+  if get_type_params decl = [] then () else
 
   let visited = ref TypeSet.empty in
 

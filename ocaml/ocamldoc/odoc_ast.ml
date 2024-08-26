@@ -1180,9 +1180,10 @@ module Analyser =
                       ty_name = complete_name ;
                       ty_info = com_opt ;
                       ty_parameters =
-                      List.map2 (fun p v -> Odoc_env.subst_type env p, v)
-                        (Types.get_type_params tt_type_decl)
-                        (Types.get_type_variance tt_type_decl);
+                      List.map
+                        (fun { param_expr = p; variance = v } ->
+                          Odoc_env.subst_type env p, v)
+                        (Types.get_type_params_ tt_type_decl);
                       ty_kind = kind ;
                       ty_private = get_type_private tt_type_decl;
                       ty_manifest =

@@ -441,14 +441,14 @@ let check_type
     | (Tunivar(_)         , _      ) -> empty
     (* Type constructor case. *)
     | (Tconstr(path,tys,_), m      ) ->
-        let msig = get_type_separability (Env.find_type path env) in
-        let on_param context (ty, m_param) =
+        let on_param context (ty, { separability = m_param }) =
           let hyps = match m_param with
             | Ind -> Hyps.guard hyps
             | Sep -> hyps
             | Deepsep -> Hyps.poison hyps in
           context ++ check_type hyps ty (compose m m_param) in
-        List.fold_left on_param empty (List.combine tys msig)
+        List.fold_left on_param empty
+          (Env.find_type path env |> zip_params_with_applied tys)
   in
   check_type Hyps.empty ty m
 
@@ -667,7 +667,10 @@ let property : (prop, unit) Typedecl_properties.property =
     new_prop in
   let default decl = best_msig decl in
   let compute env decl () = compute_decl env decl in
-  let update_decl = set_type_separability in
+  let update_decl decl seps =
+    map_type_params_ decl
+      (List.map2 (fun separability param -> { param with separability }) seps)
+  in
   let check _env _id _decl () = () in (* FIXME run final check? *)
   { eq; merge; default; compute; update_decl; check; }
 
