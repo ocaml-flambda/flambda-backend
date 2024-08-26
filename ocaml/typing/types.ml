@@ -406,31 +406,31 @@ let get_type_arity decl =
   match decl.type_noun with
   | Datatype { params; _ } | Equation { params; _ } -> List.length params
 
-let get_type_params_ decl =
+let get_type_params decl =
   match decl.type_noun with
   | Datatype { params; _ } | Equation { params; _ } -> params
 
-let get_type_params decl = List.map (fun { param_expr } -> param_expr) (get_type_params_ decl)
-let map_type_params_ decl f =
+let get_type_param_exprs decl = List.map (fun { param_expr } -> param_expr) (get_type_params decl)
+let map_type_params decl f =
   { decl with type_noun =
       match decl.type_noun with
       | Equation e -> Equation { e with params = f e.params }
       | Datatype d -> Datatype { d with params = f d.params } }
 
-let set_type_params_ decl t = map_type_params_ decl (fun _ -> t)
+let set_type_params decl t = map_type_params decl (fun _ -> t)
 
-let set_type_params decl param_exprs =
-  map_type_params_ decl
+let set_type_param_exprs decl param_exprs =
+  map_type_params decl
     (List.map2 (fun param_expr param -> { param with param_expr }) param_exprs)
 
-let get_type_variance decl = List.map (fun { variance } -> variance) (get_type_params_ decl)
+let get_type_variance decl = List.map (fun { variance } -> variance) (get_type_params decl)
 let set_type_variance decl variances =
-  map_type_params_ decl
+  map_type_params decl
     (List.map2 (fun variance param -> { param with variance }) variances)
 
 
 let zip_params_with_applied tys decl =
-  let params = get_type_params_ decl in
+  let params = get_type_params decl in
   if List.length tys <> List.length params
   then Misc.fatal_error "Mismatched arities in type application"
   else List.combine tys params

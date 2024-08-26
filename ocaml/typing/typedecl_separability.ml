@@ -63,7 +63,7 @@ let structure : type_definition -> type_structure = fun def ->
              | Tconstr (_, tyl, _) -> tyl
              | _ -> assert false
              end
-          | _ -> get_type_params def
+          | _ -> get_type_param_exprs def
         in
         Unboxed { argument_type = ty; result_type_parameter_instances = params }
       end
@@ -452,8 +452,8 @@ let check_type
   in
   check_type Hyps.empty ty m
 
-let best_msig decl = List.map (fun _ -> Ind) (get_type_params decl)
-let worst_msig decl = List.map (fun _ -> Deepsep) (get_type_params decl)
+let best_msig decl = List.map (fun _ -> Ind) (get_type_param_exprs decl)
+let worst_msig decl = List.map (fun _ -> Deepsep) (get_type_param_exprs decl)
 
 (** [msig_of_external_type decl] infers the mode signature of an
     abstract/external type. We must assume the worst, namely that this
@@ -620,7 +620,7 @@ let check_def
       msig_of_external_type env def
   | Synonym type_expr ->
       check_type env type_expr Sep
-      |> msig_of_context ~decl_loc:def.type_loc ~parameters:(get_type_params def)
+      |> msig_of_context ~decl_loc:def.type_loc ~parameters:(get_type_param_exprs def)
   | Open | Algebraic ->
       best_msig def
   | Unboxed constructor ->
@@ -668,7 +668,7 @@ let property : (prop, unit) Typedecl_properties.property =
   let default decl = best_msig decl in
   let compute env decl () = compute_decl env decl in
   let update_decl decl seps =
-    map_type_params_ decl
+    map_type_params decl
       (List.map2 (fun separability param -> { param with separability }) seps)
   in
   let check _env _id _decl () = () in (* FIXME run final check? *)

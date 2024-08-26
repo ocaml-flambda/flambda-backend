@@ -1544,9 +1544,9 @@ let find_type_expansion path env =
   match decl.type_noun with
   | Equation { eq = Type_abbrev { priv; expansion } }
     when priv = Public || Btype.has_constr_row expansion ->
-      (get_type_params decl, Exp_expr expansion, decl.type_expansion_scope)
+      (get_type_param_exprs decl, Exp_expr expansion, decl.type_expansion_scope)
   | Datatype { manifest = Some path; noun = _ } ->
-      (get_type_params decl, Exp_path path, decl.type_expansion_scope)
+      (get_type_param_exprs decl, Exp_path path, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
      private row are still considered unknown to the type system.
      Hence, this case is caught by the following clause that also handles
@@ -1563,9 +1563,9 @@ let find_type_expansion_opt path env =
   (* The manifest type of Private abstract data types can still get
      an approximation using their manifest type. *)
   | Equation { eq = Type_abbrev { priv = _; expansion } } ->
-      (get_type_params decl, Exp_expr expansion, decl.type_expansion_scope)
+      (get_type_param_exprs decl, Exp_expr expansion, decl.type_expansion_scope)
   | Datatype { manifest = Some path; noun = _ } ->
-      (get_type_params decl, Exp_path path, decl.type_expansion_scope)
+      (get_type_param_exprs decl, Exp_path path, decl.type_expansion_scope)
   | _ -> raise Not_found
 
 let find_modtype_expansion_lazy path env =

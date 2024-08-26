@@ -232,7 +232,7 @@ let set_static_row_name decl path =
       match get_desc ty with
         Tvariant row when static_row row ->
           let row =
-            set_row_name row (Some (path, get_type_params decl)) in
+            set_row_name row (Some (path, get_type_param_exprs decl)) in
           set_type_desc ty (Tvariant row)
       | _ -> ()
 

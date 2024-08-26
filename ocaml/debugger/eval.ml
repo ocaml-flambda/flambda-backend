@@ -167,7 +167,7 @@ and find_label lbl env ty path tydesc pos = function
   | {ld_id; ld_type} :: rem ->
       if Ident.name ld_id = lbl then begin
         let ty_res =
-          Btype.newgenty(Tconstr(path, get_type_params tydesc, ref Mnil))
+          Btype.newgenty(Tconstr(path, get_type_param_exprs tydesc, ref Mnil))
         in
         (pos,
          try Ctype.apply env [ty_res] ld_type [ty] with Ctype.Cannot_apply ->

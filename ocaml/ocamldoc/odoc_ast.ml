@@ -149,7 +149,7 @@ module Typedtree_search =
           (
            try
              let type_decl = search_type_declaration table name in
-             (ce, Types.get_type_params type_decl.typ_type)
+             (ce, Types.get_type_param_exprs type_decl.typ_type)
            with
              Not_found ->
                (ce, [])
@@ -1183,7 +1183,7 @@ module Analyser =
                       List.map
                         (fun { param_expr = p; variance = v } ->
                           Odoc_env.subst_type env p, v)
-                        (Types.get_type_params_ tt_type_decl);
+                        (Types.get_type_params tt_type_decl);
                       ty_kind = kind ;
                       ty_private = get_type_private tt_type_decl;
                       ty_manifest =

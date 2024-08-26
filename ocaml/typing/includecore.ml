@@ -1164,7 +1164,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
   in
   let err =
     noun_mismatch ~equality ~mark ~loc env check_jkinds
-      (get_type_params decl1) decl1.type_noun path (get_type_params decl2) decl2.type_noun
+      (get_type_param_exprs decl1) decl1.type_noun path (get_type_param_exprs decl2) decl2.type_noun
   in
   if err <> None then err else
   let abstr =
@@ -1202,7 +1202,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
          else true) &&
         let (p1,n1,j1) = get_lower v1 and (p2,n2,j2) = get_lower v2 in
         imp abstr (imp p2 p1 && imp n2 n1 && imp j2 j1))
-      (get_type_params decl2) (List.combine (get_type_variance decl1) (get_type_variance decl2))
+      (get_type_param_exprs decl2) (List.combine (get_type_variance decl1) (get_type_variance decl2))
   then None else Some Variance
 
 (* Inclusion between extension constructors *)

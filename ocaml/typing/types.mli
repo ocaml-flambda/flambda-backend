@@ -706,15 +706,15 @@ val newgenty_ref : (type_desc -> type_expr) ref
 val create_type_params : type_expr list -> Variance.t list -> Separability.t list -> type_param list
 val create_type_params_of_unknowns : injective:bool -> type_expr list -> type_param list
 
-val map_type_params_ : type_declaration -> (type_param list -> type_param list) -> type_declaration
-val get_type_params_ : type_declaration -> type_param list
-val set_type_params_ : type_declaration -> type_param list -> type_declaration
+val map_type_params : type_declaration -> (type_param list -> type_param list) -> type_declaration
+val get_type_params : type_declaration -> type_param list
+val set_type_params : type_declaration -> type_param list -> type_declaration
 
 val get_type_arity : type_declaration -> int
 
 val map_param_exprs : (type_expr -> type_expr) -> (type_param list -> type_param list)
-val get_type_params : type_declaration -> type_expr list
-val set_type_params : type_declaration -> type_expr list -> type_declaration
+val get_type_param_exprs : type_declaration -> type_expr list
+val set_type_param_exprs : type_declaration -> type_expr list -> type_declaration
 
 val get_type_variance : type_declaration -> Variance.t list
 val set_type_variance : type_declaration -> Variance.t list -> type_declaration

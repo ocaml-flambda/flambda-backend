@@ -515,11 +515,11 @@ let enrich_typedecl env p id decl =
         else begin
           let orig_ty =
             Ctype.reify_univars env
-              (Btype.newgenty(Tconstr(p, get_type_params orig_decl, ref Mnil)))
+              (Btype.newgenty(Tconstr(p, get_type_param_exprs orig_decl, ref Mnil)))
           in
           let new_ty =
             Ctype.reify_univars env
-              (Btype.newgenty(Tconstr(Pident id, get_type_params decl, ref Mnil)))
+              (Btype.newgenty(Tconstr(Pident id, get_type_param_exprs decl, ref Mnil)))
           in
           let env = Env.add_type ~check:false id decl env in
           match Ctype.mcomp env orig_ty new_ty with

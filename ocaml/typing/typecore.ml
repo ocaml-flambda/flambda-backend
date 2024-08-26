@@ -990,7 +990,7 @@ let unify_pat ?refine ?sdesc_for_hint env pat expected_ty =
 let unify_head_only ~refine loc env ty constr =
   let path = cstr_type_path constr in
   let decl = Env.find_type path !env in
-  let ty' = Ctype.newconstr path (Ctype.instance_list (get_type_params decl)) in
+  let ty' = Ctype.newconstr path (Ctype.instance_list (get_type_param_exprs decl)) in
   unify_pat_types ~refine loc env ty' ty
 
 (* Creating new conjunctive types is not allowed when typing patterns *)
@@ -1700,10 +1700,10 @@ let build_or_pat env loc lid =
   (* CR layouts: the use of value here is wrong:
      there could be other jkinds in a polymorphic variant argument;
      see Test 24 in tests/typing-layouts/basics_alpha.ml *)
-  let arity = List.length (get_type_params decl) in
+  let arity = List.length (get_type_param_exprs decl) in
   let tyl = List.mapi (fun i _ ->
     newvar (Jkind.Builtin.value ~why:(Type_argument {parent_path = path; position = i+1; arity}))
-  ) (get_type_params decl) in
+  ) (get_type_param_exprs decl) in
   let row0 =
     let ty = expand_head env (newty(Tconstr(path, tyl, ref Mnil))) in
     match get_desc ty with
@@ -5503,7 +5503,7 @@ and type_expect_
             let decl = Env.find_type p' env in
             let ty =
               with_local_level ~post:generalize_structure
-                (fun () -> newconstr p' (instance_list (get_type_params decl)))
+                (fun () -> newconstr p' (instance_list (get_type_param_exprs decl)))
             in
             ty, opt_exp_opath
       in

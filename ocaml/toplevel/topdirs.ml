@@ -501,7 +501,7 @@ let () =
          in
          let ext =
            { ext_type_path = path;
-             ext_type_params = get_type_params type_decl;
+             ext_type_params = get_type_param_exprs type_decl;
              ext_args = Cstr_tuple desc.cstr_args;
              ext_arg_jkinds = desc.cstr_arg_jkinds;
              ext_shape = desc.cstr_shape;

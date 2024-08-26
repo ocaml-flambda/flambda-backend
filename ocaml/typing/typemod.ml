@@ -686,10 +686,10 @@ let merge_constraint initial_env loc sg lid constr =
               sdecl.ptype_params
           in
           let type_separability = Types.Separability.default_signature ~arity in
-          let type_params_ = create_type_params type_params type_variance type_separability in
+          let type_params = create_type_params type_params type_variance type_separability in
           { (* CR jbachurski: This is the abstract type created for the private row.
                Notice it used to be created as [Private], but will now be observed as [Public]. *)
-            type_noun = create_type_equation_noun type_params_ Private None;
+            type_noun = create_type_equation_noun type_params Private None;
             type_jkind = Jkind.Builtin.value ~why:(Unknown "merge_constraint");
             type_jkind_annotation = None;
             type_loc = sdecl.ptype_loc;
@@ -712,7 +712,7 @@ let merge_constraint initial_env loc sg lid constr =
         let before_ghosts, row_id, after_ghosts = split_row_id s ghosts in
         check_type_decl outer_sig_env sg_for_env sdecl.ptype_loc
           id row_id newdecl decl;
-        let decl_row = set_type_params decl_row (get_type_params newdecl) in
+        let decl_row = set_type_param_exprs decl_row (get_type_param_exprs newdecl) in
         let rs' = if rs = Trec_first then Trec_not else rs in
         let ghosts =
           List.rev_append before_ghosts
@@ -892,7 +892,7 @@ let merge_constraint initial_env loc sg lid constr =
               fun s path -> Subst.add_type_path path replacement s
           | None ->
               let body = expansion_of_public_abbrev tdecl.typ_type in
-              let params = get_type_params tdecl.typ_type in
+              let params = get_type_param_exprs tdecl.typ_type in
               if params_are_constrained params
               then raise(Error(loc, initial_env,
                               With_cannot_remove_constrained_type));
@@ -1768,7 +1768,7 @@ and transl_signature env (sg : Parsetree.signature) =
              td.typ_private = Private
           then
             raise (Error (td.typ_loc, env, Invalid_type_subst_rhs));
-          let params = get_type_params td.typ_type in
+          let params = get_type_param_exprs td.typ_type in
           if params_are_constrained params
           then raise(Error(loc, env, With_cannot_remove_constrained_type));
           let info =

@@ -1733,7 +1733,7 @@ let tree_of_constructor_in_decl cd =
   | Some _ -> Names.with_local_names (fun () -> tree_of_single_constructor cd)
 
 let prepare_decl id decl =
-  let params = filter_params (get_type_params decl) in
+  let params = filter_params (get_type_param_exprs decl) in
   begin match get_type_manifest decl with
   | Some ty ->
       let vars = free_variables ty in
@@ -1823,7 +1823,7 @@ let tree_of_type_decl id decl =
              if not co then Contravariant else NoVariance),
             (if inj then Injective else NoInjectivity)
           else (NoVariance, NoInjectivity))
-        (get_type_params decl) (get_type_variance decl)
+        (get_type_param_exprs decl) (get_type_variance decl)
     in
     let mk_param ty (variance, injectivity) =
       { oparam_name = type_param (tree_of_typexp Type ty);

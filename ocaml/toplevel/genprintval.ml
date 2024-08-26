@@ -401,7 +401,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                     Oval_stuff "<abstr>"
                 | Equation { eq = Type_abbrev { expansion = body } } ->
                     tree_of_val depth obj
-                      (instantiate_type env (get_type_params decl) ty_list body)
+                      (instantiate_type env (get_type_param_exprs decl) ty_list body)
                 | Datatype { noun = Datatype_variant { cstrs = constr_list; rep } } ->
                   (* Here we work backwards from the actual runtime value to
                      find the appropriate `constructor_declaration` in
@@ -440,7 +440,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                             Tconstr (_,params,_) ->
                               params
                           | _ -> assert false end
-                      | None -> (get_type_params decl)
+                      | None -> (get_type_param_exprs decl)
                     in
                     let unbx =
                       match rep with
@@ -512,7 +512,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                                 else Outval_record_boxed
                         in
                         tree_of_record_fields depth
-                          env path (get_type_params decl) ty_list
+                          env path (get_type_param_exprs decl) ty_list
                           lbl_list pos obj rep
                     end
                 | Datatype { noun = Datatype_open _ } ->

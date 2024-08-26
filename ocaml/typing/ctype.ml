@@ -631,8 +631,8 @@ let closed_parameterized_type params ty =
 
 let closed_type_decl decl =
   try
-    List.iter mark_type (get_type_params decl);
-    List.iter remove_mode_and_jkind_variables (get_type_params decl);
+    List.iter mark_type (get_type_param_exprs decl);
+    List.iter remove_mode_and_jkind_variables (get_type_param_exprs decl);
     begin match decl.type_noun with
     | Equation _ ->
         ()
@@ -2053,7 +2053,7 @@ let unbox_once env ty =
       | None -> Final_result ty
       | Some ty2 ->
         let ty2 = match get_desc ty2 with Tpoly (t, _) -> t | _ -> ty2 in
-        Stepped (apply env (get_type_params decl) ty2 args)
+        Stepped (apply env (get_type_param_exprs decl) ty2 args)
       end
     end
   | Tpoly (ty, _) -> Stepped ty
@@ -2511,7 +2511,7 @@ let rec local_non_recursive_abbrev ~allow_rec strict visited env p ty =
             (try_expand_head try_expand_safe_opt env ty)
         with Cannot_expand ->
           let params =
-            try (Env.find_type p' env |> get_type_params)
+            try (Env.find_type p' env |> get_type_param_exprs)
             with Not_found -> args
           in
           List.iter2
@@ -5735,7 +5735,7 @@ let rec build_subtype env (visited : transient_expr list)
           let ty =
             try
               subst env !current_level Public abbrev None
-                (get_type_params cl_abbr) tl body
+                (get_type_param_exprs cl_abbr) tl body
             with Cannot_subst -> assert false in
           let ty1, tl1 =
             match get_desc ty with
@@ -6496,8 +6496,8 @@ let nondep_type_decl env mid is_covariant decl =
                 Private
             with Nondep_cannot_erase _ -> None, Public
     in
-    let type_params_ =
-      map_param_exprs (nondep_type_rec env mid) (get_type_params_ decl)
+    let type_params =
+      map_param_exprs (nondep_type_rec env mid) (get_type_params decl)
     in
     let type_noun =
       try match decl.type_noun with
@@ -6512,9 +6512,9 @@ let nondep_type_decl env mid is_covariant decl =
           | Some ty when Btype.has_constr_row ty -> Private
           | _ -> priv
         in
-        create_type_equation_noun type_params_ priv manifest
+        create_type_equation_noun type_params priv manifest
       (* If any uncaught expansions fail, fallback to an abstract type *)
-      with Nondep_cannot_erase _ when is_covariant -> create_type_equation_noun type_params_ Public None
+      with Nondep_cannot_erase _ when is_covariant -> create_type_equation_noun type_params Public None
     in
     clear_hash ();
     { type_noun;

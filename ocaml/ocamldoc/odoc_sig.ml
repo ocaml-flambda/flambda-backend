@@ -1116,7 +1116,7 @@ module Analyser =
                         List.map
                           (fun { param_expr = p; variance = v } ->
                             Odoc_env.subst_type env p, v)
-                          (Types.get_type_params_ sig_type_decl);
+                          (Types.get_type_params sig_type_decl);
                       ty_kind = type_kind;
                       ty_private = get_type_private sig_type_decl;
                       ty_manifest =
@@ -1200,7 +1200,7 @@ module Analyser =
                         List.map
                           (fun { param_expr = p; variance = v } ->
                             Odoc_env.subst_type env p, v)
-                          (Types.get_type_params_ sig_type_decl);
+                          (Types.get_type_params sig_type_decl);
                       ty_kind = type_kind;
                       ty_private = get_type_private sig_type_decl;
                       ty_manifest =
