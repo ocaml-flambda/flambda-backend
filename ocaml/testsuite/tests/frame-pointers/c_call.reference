@@ -7,18 +7,9 @@ caml_c_call
 camlC_call.f_0_1_code
 camlC_call.entry
 caml_program
-<<<<<<< HEAD
 caml_start_program
 caml_main/caml_startup
 main
 camlC_call.f_0_1_code
-||||||| 121bedcfd2
-caml_start_program
-caml_main/caml_startup
-main
-camlC_call.f
-=======
-camlC_call.f
->>>>>>> 5.2.0
 camlC_call.entry
 caml_program

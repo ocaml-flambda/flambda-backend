@@ -1,17 +1,13 @@
 (* TEST
-<<<<<<< HEAD
+ no-tsan; (* TSan detects the intentional data race *)
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
-||||||| 121bedcfd2
-=======
- no-tsan; (* TSan detects the intentional data race *)
  {
    bytecode;
  }
  {
    native;
  }
->>>>>>> 5.2.0
 *)
 
 let r = ref (Some 0)

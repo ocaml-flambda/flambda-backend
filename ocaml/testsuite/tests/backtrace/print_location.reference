@@ -1,8 +1,2 @@
 Fatal error: exception Stdlib.Exit
-<<<<<<< HEAD
-Raised at Print_location.f in file "print_location.ml", lines 8-9, characters 11-6
-Called from Print_location in file "print_location.ml", line 12, characters 2-6
-||||||| a198127529
-=======
-Raised at Print_location.f in file "print_location.ml", line 10, characters 11-23
->>>>>>> 57461473bf
+Raised at Print_location.f in file "print_location.ml", lines 10-11, characters 11-6

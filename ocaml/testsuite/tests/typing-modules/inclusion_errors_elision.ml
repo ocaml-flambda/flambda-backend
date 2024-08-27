@@ -34,7 +34,7 @@ Error: Signature mismatch:
          end
        is not included in
          S
-       In module B:
+       In module "B":
        Modules do not match:
          sig
            type a = B.a
@@ -117,7 +117,6 @@ Lines 11-17, characters 15-3:
 16 |   end
 17 | end
 Error: Signature mismatch:
-<<<<<<< HEAD
        Modules do not match:
          sig
            module type B =
@@ -136,7 +135,7 @@ Error: Signature mismatch:
            end
        does not match
          module type B = sig module C = A end
-       At position module type B = <here>
+       At position "module type B = <here>"
        Module types do not match:
          sig
            module C :
@@ -144,18 +143,7 @@ Error: Signature mismatch:
          end
        is not equal to
          sig module C = A end
-       At position module type B = sig module C : <here> end
-||||||| 121bedcfd2
-       ...
-       ...
-       ...
-       At position module type B = sig module C : <here> end
-=======
-       ...
-       ...
-       ...
        At position "module type B = sig module C : <here> end"
->>>>>>> 5.2.0
        Modules do not match:
          sig
            type a = C.a
@@ -195,7 +183,7 @@ Error: Signature mismatch:
        ...
        ...
        ...
-       At position module type B = sig module C : <here> end
+       At position "module type B = sig module C : <here> end"
        Modules do not match:
          sig
            type a = C.a

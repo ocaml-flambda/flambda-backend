@@ -1,4 +1,5 @@
 (* TEST
+ runtime5;
  include runtime_events;
  include unix;
  hasunix;

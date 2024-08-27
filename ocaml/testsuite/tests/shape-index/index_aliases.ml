@@ -1,35 +1,3 @@
-<<<<<<< HEAD
-(* TEST
- flags = "-bin-annot -bin-annot-occurrences";
- compile_only = "true";
- {
-   all_modules = "index_aliases.ml";
-   setup-ocamlc.byte-build-env;
-   ocamlc.byte;
-   program = "-quiet -index -decls index_aliases.cmt";
-   output = "out_objinfo";
-   check-ocamlc.byte-output;
-   ocamlobjinfo;
-   check-program-output;
- }
-*)
-
-
-module A = struct type t end
-module B = A
-
-module F (X : sig type t end) = X
-module F' = F
-module C = F'(A)
-
-module C' = F(B)
-module D = C
-
-module G = B
-include G
-<<<<<<< HEAD
-||||||| 121bedcfd2
-=======
 (* TEST
 
 flags = "-bin-annot -bin-annot-occurrences";
@@ -82,30 +50,3 @@ open FArg
 
 (* FIXME: this sould be (Approx (No_uid)), not (Internal_error_no_uid) *)
 type u = t
->>>>>>> 5.2.0
-||||||| a198127529
-=======
-
-module type S = sig
-  module M : sig val s : unit end
-  module F : functor (S : sig end ) -> sig type t end
- end
-let x = (module struct
-    module M = struct let s = () end
-    module F (_ : sig end) = struct type t end
-  end : S)
-
-module X = (val x)
-module Y = X.M
-module Z = Y
-
-(* FIXME: this sould be (Approx (No_uid)), not (Internal_error_no_uid) *)
-let _ = Z.s
-
-module Arg = struct end
-module FArg = X.F (Arg)
-open FArg
-
-(* FIXME: this sould be (Approx (No_uid)), not (Internal_error_no_uid) *)
-type u = t
->>>>>>> 57461473bf

@@ -85,8 +85,8 @@ let f () =
 Line 3, characters 16-17:
 3 |   print_endline r
                     ^
-Error: This expression has type int ref
-       but an expression was expected of type string
+Error: This expression has type "int ref"
+       but an expression was expected of type "string"
 |}]
 
 (*
@@ -109,7 +109,7 @@ Line 1, characters 37-67:
 1 | type distinct_sarg = unit constraint local_ int -> int = int -> int
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-       Type local_ int -> int is not compatible with type int -> int
+       Type "local_ int -> int" is not compatible with type "int -> int"
 |}]
 type distinct_sret = unit constraint int -> local_ int = int -> int
 [%%expect{|
@@ -117,7 +117,7 @@ Line 1, characters 37-67:
 1 | type distinct_sret = unit constraint int -> local_ int = int -> int
                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-       Type int -> local_ int is not compatible with type int -> int
+       Type "int -> local_ int" is not compatible with type "int -> int"
 |}]
 type distinct_sarg_sret = unit constraint local_ int -> int = local_ int -> local_ int
 [%%expect{|
@@ -125,8 +125,8 @@ Line 1, characters 42-86:
 1 | type distinct_sarg_sret = unit constraint local_ int -> int = local_ int -> local_ int
                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-       Type local_ int -> int is not compatible with type
-         local_ int -> local_ int
+       Type "local_ int -> int" is not compatible with type
+         "local_ int -> local_ int"
 |}]
 
 type local_higher_order = unit constraint
@@ -142,10 +142,10 @@ Line 2, characters 2-66:
 2 |   (int -> int -> int) -> int = (int -> local_ (int -> int)) -> int
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-       Type (int -> int -> int) -> int is not compatible with type
-         (int -> local_ (int -> int)) -> int
-       Type int -> int -> int is not compatible with type
-         int -> local_ (int -> int)
+       Type "(int -> int -> int) -> int" is not compatible with type
+         "(int -> local_ (int -> int)) -> int"
+       Type "int -> int -> int" is not compatible with type
+         "int -> local_ (int -> int)"
 |}]
 
 type local_higher_order = unit constraint
@@ -161,10 +161,10 @@ Line 2, characters 2-66:
 2 |   int -> (int -> int -> int) = int -> (int -> local_ (int -> int))
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-       Type int -> int -> int -> int is not compatible with type
-         int -> int -> local_ (int -> int)
-       Type int -> int -> int is not compatible with type
-         int -> local_ (int -> int)
+       Type "int -> int -> int -> int" is not compatible with type
+         "int -> int -> local_ (int -> int)"
+       Type "int -> int -> int" is not compatible with type
+         "int -> local_ (int -> int)"
 |}]
 
 let foo () =
@@ -183,8 +183,8 @@ let foo () =
 Line 3, characters 4-49:
 3 |     ((fun y z -> z) : int -> local_ (int -> int)) in
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type int -> local_ (int -> int)
-       but an expression was expected of type int -> int -> int
+Error: This expression has type "int -> local_ (int -> int)"
+       but an expression was expected of type "int -> int -> int"
 |}]
 
 let foo () =
@@ -203,8 +203,8 @@ let foo () =
 Line 3, characters 4-43:
 3 |     ((fun y z -> z) : _ -> local_ (_ -> _)) in
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type 'b -> local_ ('c -> 'c)
-       but an expression was expected of type 'a -> 'a -> 'a
+Error: This expression has type "'b -> local_ ('c -> 'c)"
+       but an expression was expected of type "'a -> 'a -> 'a"
 |}]
 
 let foo () =
@@ -223,8 +223,8 @@ let foo () =
 Line 3, characters 4-49:
 3 |     ((fun y z -> z) : int -> local_ (int -> int)) in
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type int -> local_ (int -> int)
-       but an expression was expected of type int -> int -> int
+Error: This expression has type "int -> local_ (int -> int)"
+       but an expression was expected of type "int -> int -> int"
 |}]
 
 let foo (local_ bar : int -> int -> int) =
@@ -241,8 +241,8 @@ let foo (bar : int -> local_ (int -> int)) =
 Line 2, characters 11-14:
 2 |   let _ = (bar : int -> int -> int) in
                ^^^
-Error: This expression has type int -> local_ (int -> int)
-       but an expression was expected of type int -> int -> int
+Error: This expression has type "int -> local_ (int -> int)"
+       but an expression was expected of type "int -> int -> int"
 |}]
 
 
@@ -301,6 +301,373 @@ let apply3_stack x =
 [%%expect{|
 val apply2_stack : int -> int = <fun>
 val apply3_stack : int -> int = <fun>
+|}]
+
+(*
+ * Overapplication (functions that return functions)
+ *)
+
+let g : local_ 'a -> int -> _ = fun _ _ -> (fun[@curry] (local_ _) (x : int) -> x)
+[%%expect{|
+val g : local_ 'a -> int -> (local_ 'b -> int -> int) = <fun>
+|}]
+let apply1 x = g x
+[%%expect{|
+Line 1, characters 15-18:
+1 | let apply1 x = g x
+                   ^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
+|}]
+let apply2 x = g x x
+[%%expect{|
+val apply2 : int -> local_ 'a -> int -> int = <fun>
+|}]
+let apply3 x = g x x x
+[%%expect{|
+Line 1, characters 15-20:
+1 | let apply3 x = g x x x
+                   ^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling local values, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let apply3_wrapped x = (g x x) x
+[%%expect{|
+Line 1, characters 23-32:
+1 | let apply3_wrapped x = (g x x) x
+                           ^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
+|}]
+let apply4 x = g x x x x
+[%%expect{|
+Line 1, characters 15-20:
+1 | let apply4 x = g x x x x
+                   ^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling local values, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let apply4_wrapped x = (g x x) x x
+[%%expect{|
+val apply4_wrapped : int -> int = <fun>
+|}]
+let ill_typed () = g 1 2 3 4 5
+[%%expect{|
+Line 1, characters 19-30:
+1 | let ill_typed () = g 1 2 3 4 5
+                       ^^^^^^^^^^^
+Error: The function "g" has type local_ 'a -> int -> (local_ 'b -> int -> int)
+       It is applied to too many arguments
+Line 1, characters 29-30:
+1 | let ill_typed () = g 1 2 3 4 5
+                                 ^
+  This extra argument is not expected.
+|}]
+
+(*
+ * Defaulting of modes in module type of (like mli-less files)
+ *)
+
+let f g = g (local_ (1, 2)) 1 2 3 [@nontail]
+[%%expect{|
+val f : (local_ int * int -> int -> int -> int -> 'a) -> 'a = <fun>
+|}]
+module type F = module type of struct
+  let f g = g (local_ (1, 2)) 1 2 3 [@nontail]
+end
+[%%expect{|
+module type F =
+  sig val f : (local_ int * int -> int -> int -> int -> 'a) -> 'a end
+|}]
+
+(*
+ * Labels and reordering
+ *)
+
+let app1 (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(local_ ref 42) ()
+[%%expect{|
+Line 1, characters 64-79:
+1 | let app1 (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(local_ ref 42) ()
+                                                                    ^^^^^^^^^^^^^^^
+Error: This value escapes its region.
+  Hint: It is captured by a partial application.
+|}]
+let app2 (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(local_ ref 42)
+[%%expect{|
+Line 1, characters 64-79:
+1 | let app2 (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(local_ ref 42)
+                                                                    ^^^^^^^^^^^^^^^
+Error: This value escapes its region.
+  Hint: It is captured by a partial application.
+|}]
+let app3 (f : a:int -> b:local_ int ref -> unit) = f ~b:(local_ ref 42)
+[%%expect{|
+Line 1, characters 56-71:
+1 | let app3 (f : a:int -> b:local_ int ref -> unit) = f ~b:(local_ ref 42)
+                                                            ^^^^^^^^^^^^^^^
+Error: This value escapes its region.
+  Hint: It is captured by a partial application.
+|}]
+let app4 (f : b:local_ int ref -> a:int -> unit) = f ~b:(local_ ref 42)
+[%%expect{|
+Line 1, characters 56-71:
+1 | let app4 (f : b:local_ int ref -> a:int -> unit) = f ~b:(local_ ref 42)
+                                                            ^^^^^^^^^^^^^^^
+Error: This value escapes its region.
+  Hint: This argument cannot be local,
+  because it is an argument in a tail call.
+|}]
+let app42 (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
+  f ~a:(local_ ref 1) 2 ~c:4
+[%%expect{|
+Line 2, characters 2-21:
+2 |   f ~a:(local_ ref 1) 2 ~c:4
+      ^^^^^^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling local values, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let app42_wrapped (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
+  (f ~a:(local_ ref 1)) 2 ~c:4
+[%%expect{|
+val app42_wrapped :
+  (a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) ->
+  b:local_ int ref -> unit = <fun>
+|}]
+let app43 (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
+  f ~a:(local_ ref 1) 2
+[%%expect{|
+Line 2, characters 7-21:
+2 |   f ~a:(local_ ref 1) 2
+           ^^^^^^^^^^^^^^
+Error: This value escapes its region.
+  Hint: This argument cannot be local,
+  because it is an argument in a tail call.
+|}]
+let app5 (f : b:local_ int ref -> a:int -> unit) = f ~a:42
+[%%expect{|
+val app5 : (b:local_ int ref -> a:int -> unit) -> b:local_ int ref -> unit =
+  <fun>
+|}]
+let app6 (f : a:local_ int ref -> b:local_ int ref -> c:int -> unit) = f ~c:42
+[%%expect{|
+val app6 :
+  (a:local_ int ref -> b:local_ int ref -> c:int -> unit) ->
+  a:local_ int ref -> b:local_ int ref -> unit = <fun>
+|}]
+
+let app1' (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(ref 42) ()
+[%%expect{|
+val app1' : (a:int -> b:local_ int ref -> unit -> unit) -> a:int -> unit =
+  <fun>
+|}]
+let app2' (f : a:int -> b:local_ int ref -> unit -> unit) = f ~b:(ref 42)
+[%%expect{|
+val app2' :
+  (a:int -> b:local_ int ref -> unit -> unit) ->
+  a:int -> local_ (unit -> unit) = <fun>
+|}]
+let app3' (f : a:int -> b:local_ int ref -> unit) = f ~b:(ref 42)
+[%%expect{|
+val app3' : (a:int -> b:local_ int ref -> unit) -> a:int -> unit = <fun>
+|}]
+let app4' (f : b:local_ int ref -> a:int -> unit) = f ~b:(ref 42)
+[%%expect{|
+Line 1, characters 52-65:
+1 | let app4' (f : b:local_ int ref -> a:int -> unit) = f ~b:(ref 42)
+                                                        ^^^^^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
+|}]
+let app42' (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
+  f ~a:(ref 1) 2 ~c:4
+[%%expect{|
+Line 2, characters 2-14:
+2 |   f ~a:(ref 1) 2 ~c:4
+      ^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling local values, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let app42'_wrapped (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
+  (f ~a:(ref 1)) 2 ~c:4
+[%%expect{|
+val app42'_wrapped :
+  (a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) ->
+  b:local_ int ref -> unit = <fun>
+|}]
+let app43' (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
+  f ~a:(ref 1) 2
+[%%expect{|
+Line 2, characters 2-14:
+2 |   f ~a:(ref 1) 2
+      ^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling local values, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+let app43'_wrapped (f : a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) =
+  (f ~a:(ref 1)) 2
+[%%expect{|
+val app43'_wrapped :
+  (a:local_ int ref -> (int -> b:local_ int ref -> c:int -> unit)) ->
+  b:local_ int ref -> c:int -> unit = <fun>
+|}]
+
+let rapp1 (f : a:int -> unit -> local_ int ref) = f ()
+[%%expect{|
+val rapp1 : (a:int -> unit -> local_ int ref) -> a:int -> local_ int ref =
+  <fun>
+|}]
+let rapp2 (f : a:int -> unit -> local_ int ref) = f ~a:1
+[%%expect{|
+val rapp2 : (a:int -> unit -> local_ int ref) -> unit -> local_ int ref =
+  <fun>
+|}]
+let rapp3 (f : a:int -> unit -> local_ int ref) = f ~a:1 ()
+[%%expect{|
+Line 1, characters 50-59:
+1 | let rapp3 (f : a:int -> unit -> local_ int ref) = f ~a:1 ()
+                                                      ^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+let bug1 () =
+  let foo : a:local_ string -> b:local_ string -> c:int -> unit =
+    fun ~a ~b ~c -> ()
+  in
+  let bar = local_ foo ~b:"hello" in
+  let res = bar ~a:"world" in
+  res
+[%%expect{|
+Line 7, characters 2-5:
+7 |   res
+      ^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+let bug2 () =
+  let foo : a:local_ string -> (b:local_ string -> (c:int -> unit)) =
+    fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> ()
+  in
+  let bar = local_ foo ~b:"hello" in
+  let res = bar ~a:"world" in
+  res
+[%%expect{|
+Line 5, characters 19-33:
+5 |   let bar = local_ foo ~b:"hello" in
+                       ^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling local values, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after a in the function's type should be applied separately.
+|}]
+let bug3 () =
+  let foo : a:local_ string -> (b:local_ string -> (c:int -> unit)) =
+    fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> print_string a
+  in
+  let[@stack] bar = foo ~b:"hello" in
+  let res = bar ~a:"world" in
+  res
+[%%expect{|
+Line 3, characters 63-64:
+3 |     fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> print_string a
+                                                                   ^
+Error: The value "a" is local, so cannot be used inside a closure that might escape.
+|}]
+let overapp ~(local_ a) ~b = (); fun ~c ~d -> ()
+
+let () = overapp ~a:1 ~b:2 ~c:3 ~d:4
+[%%expect{|
+val overapp : a:local_ 'a -> b:'b -> (c:'c -> d:'d -> unit) = <fun>
+Line 3, characters 9-26:
+3 | let () = overapp ~a:1 ~b:2 ~c:3 ~d:4
+             ^^^^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling local values, extra arguments are passed in a separate application.
+  Hint: Try wrapping the marked application in parentheses.
+|}]
+
+let () = overapp ~b:2 ~a:1 ~c:3 ~d:4
+[%%expect{|
+Line 1, characters 20-21:
+1 | let () = overapp ~b:2 ~a:1 ~c:3 ~d:4
+                        ^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling local values, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after this one in the function's type should be applied separately.
+|}]
+
+let () = overapp ~c:1 ~b:2
+[%%expect{|
+Line 1, characters 25-26:
+1 | let () = overapp ~c:1 ~b:2
+                             ^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling local values, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after this one in the function's type should be applied separately.
+|}]
+
+let () = overapp ~d:1 ~a:2
+[%%expect{|
+Line 1, characters 9-26:
+1 | let () = overapp ~d:1 ~a:2
+             ^^^^^^^^^^^^^^^^^
+Error: This application is complete, but surplus arguments were provided afterwards.
+       When passing or calling local values, extra arguments are passed in a separate application.
+  Hint: Try splitting the application in two. The arguments that come
+  after b in the function's type should be applied separately.
+|}]
+
+
+(* Regression test for bug with mishandled regional function modes *)
+let bug4 : local_ (string -> foo:string -> unit) -> (string -> unit) =
+  fun f -> f ~foo:"hello"
+[%%expect{|
+Line 2, characters 11-25:
+2 |   fun f -> f ~foo:"hello"
+               ^^^^^^^^^^^^^^
+Error: This value escapes its region.
+  Hint: This is a partial application
+        Adding 1 more argument will make the value non-local
+|}]
+
+(* The fixed version. Note that in the printed type, local returning is implicit
+    *)
+let bug4_fixed : local_ (string -> foo:string -> unit) -> local_ (string -> unit) =
+  fun f -> local_ f ~foo:"hello"
+[%%expect{|
+Line 2, characters 11-32:
+2 |   fun f -> local_ f ~foo:"hello"
+               ^^^^^^^^^^^^^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+
+let bug4' () =
+  let local_ f arg ~foo = () in
+  let local_ perm ~foo = f ~foo in
+  perm ~foo:"foo" "Optional"
+[%%expect{|
+Line 3, characters 25-31:
+3 |   let local_ perm ~foo = f ~foo in
+                             ^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+  Hint: This is a partial application
+        Adding 1 more argument may make the value non-local
 |}]
 
 (*
@@ -455,8 +822,8 @@ let result = use_global bar 1. 2.
 Line 1, characters 24-27:
 1 | let result = use_global bar 1. 2.
                             ^^^
-Error: This expression has type local_ float -> local_ float -> unit
-       but an expression was expected of type local_ 'a -> ('b -> 'c)
+Error: This expression has type "local_ float -> local_ float -> unit"
+       but an expression was expected of type "local_ 'a -> ('b -> 'c)"
 |}]
 
 
@@ -538,7 +905,7 @@ module type T = sig val x : int option end
 Line 4, characters 50-51:
 4 |   let _m : (module T) = local_ (module struct let x = thing end) in
                                                       ^
-Error: This value is local, but expected to be global because it is inside a module.
+Error: This value is "local", but expected to be "global" because it is inside a module.
 |}]
 let local_module () =
   let thing = local_ Some 1 in
@@ -550,7 +917,7 @@ let local_module () =
 Line 4, characters 30-31:
 4 |     let module M = struct let x = thing end in
                                   ^
-Error: This value is local, but expected to be global because it is inside a module.
+Error: This value is "local", but expected to be "global" because it is inside a module.
 |}]
 let obj () =
   let thing = local_ Some 1 in
@@ -560,7 +927,7 @@ let obj () =
 Line 3, characters 33-38:
 3 |   let _obj = object method foo = thing end in
                                      ^^^^^
-Error: The value thing is local, so cannot be used inside a class.
+Error: The value "thing" is local, so cannot be used inside a class.
 |}]
 
 
@@ -612,7 +979,7 @@ let leak_ref_2 =
 Line 3, characters 39-40:
 3 |   use_locally (fun x -> let _ = local_ r in r.contents <- Some x; x) 42
                                            ^
-Error: The value r is local, so cannot be used inside a closure that might escape.
+Error: The value "r" is local, so cannot be used inside a closure that might escape.
 |}]
 
 let leak_ref_3 =
@@ -719,7 +1086,7 @@ let foo (local_ x) =
 Line 2, characters 30-31:
 2 |   let _ = lazy (print_string !x) in
                                   ^
-Error: The value x is local, so cannot be used inside a lazy expression.
+Error: The value "x" is local, so cannot be used inside a lazy expression.
 |}]
 
 (* Don't escape through a functor *)
@@ -734,7 +1101,7 @@ let foo (local_ x) =
 Line 3, characters 27-28:
 3 |     let () = print_string !x
                                ^
-Error: The value x is local, so cannot be used inside a module.
+Error: The value "x" is local, so cannot be used inside a module.
 |}]
 
 (* Don't escape through a class method *)
@@ -749,7 +1116,7 @@ let foo (local_ x) =
 Line 4, characters 18-19:
 4 |       method m = !x
                       ^
-Error: The value x is local, so cannot be used inside a class.
+Error: The value "x" is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape through an object method *)
@@ -764,7 +1131,7 @@ let foo (local_ x) =
 Line 3, characters 16-17:
 3 |     method m = !x
                     ^
-Error: The value x is local, so cannot be used inside a class.
+Error: The value "x" is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape through a class instance variable *)
@@ -779,7 +1146,7 @@ let foo (local_ x) =
 Line 4, characters 15-16:
 4 |       val m = !x
                    ^
-Error: The value x is local, so cannot be used inside a class.
+Error: The value "x" is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape through a class instance variable *)
@@ -792,7 +1159,7 @@ let foo (local_ x) =
 Line 3, characters 13-14:
 3 |     val m = !x
                  ^
-Error: The value x is local, so cannot be used inside a class.
+Error: The value "x" is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape through a class local variable *)
@@ -844,7 +1211,7 @@ let foo (local_ x : string ref) =
 Line 5, characters 15-16:
 5 |       let y = !x in
                    ^
-Error: The value x is local, so cannot be used inside a class.
+Error: The value "x" is local, so cannot be used inside a class.
 |}]
 
 let foo (local_ x : string ref) =
@@ -874,7 +1241,7 @@ class d : string -> object method m : string end
 Line 6, characters 17-18:
 6 |       inherit d !x
                      ^
-Error: The value x is local, so cannot be used inside a class.
+Error: The value "x" is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape in initializers *)
@@ -889,7 +1256,7 @@ let foo (local_ x) =
 Line 3, characters 31-32:
 3 |     initializer (print_string !x)
                                    ^
-Error: The value x is local, so cannot be used inside a class.
+Error: The value "x" is local, so cannot be used inside a class.
 |}]
 
 (* Don't escape in non-function 'let rec' bindings *)
@@ -944,7 +1311,7 @@ val local_cb : local_ (unit -> 'a) -> 'a = <fun>
 Line 2, characters 41-42:
 2 | let foo (local_ x) = local_cb (fun () -> x := 17; 42)
                                              ^
-Error: The value x is local, so cannot be used inside a closure that might escape.
+Error: The value "x" is local, so cannot be used inside a closure that might escape.
 Hint: The closure might escape because it is an argument to a tail call
 |}]
 
@@ -1099,8 +1466,8 @@ let foo : 'a -> unit = fun (local_ x) -> ()
 Line 1, characters 23-43:
 1 | let foo : 'a -> unit = fun (local_ x) -> ()
                            ^^^^^^^^^^^^^^^^^^^^
-Error: This function takes a parameter which is local,
-       but was expected to take a parameter which is global.
+Error: This function takes a parameter which is "local",
+       but was expected to take a parameter which is "global".
 |}]
 
 (* Return mode must be greater than the type *)
@@ -1286,9 +1653,9 @@ Error: Signature mismatch:
        is not included in
          type t = { global_ foo : string; }
        Fields do not match:
-         foo : string;
+         "foo : string;"
        is not the same as:
-         global_ foo : string;
+         "global_ foo : string;"
        The second is global_ and the first is not.
 |}]
 
@@ -1312,9 +1679,9 @@ Error: Signature mismatch:
        is not included in
          type t = { foo : string; }
        Fields do not match:
-         global_ foo : string;
+         "global_ foo : string;"
        is not the same as:
-         foo : string;
+         "foo : string;"
        The first is global_ and the second is not.
 |}]
 
@@ -1584,10 +1951,10 @@ Error: Signature mismatch:
          val add : local_ int32 -> local_ int32 -> local_ int32
        is not included in
          val add : local_ int32 -> local_ int32 -> int32
-       The type local_ int32 -> local_ int32 -> local_ int32
-       is not compatible with the type local_ int32 -> local_ int32 -> int32
-       Type local_ int32 -> local_ int32 is not compatible with type
-         local_ int32 -> int32
+       The type "local_ int32 -> local_ int32 -> local_ int32"
+       is not compatible with the type "local_ int32 -> local_ int32 -> int32"
+       Type "local_ int32 -> local_ int32" is not compatible with type
+         "local_ int32 -> int32"
 |}]
 module Opt32 : sig external add : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_add" end = Int32
 module Bad32_2 : sig val add : local_ int32 -> local_ int32 -> int32 end =
@@ -1617,10 +1984,10 @@ Error: Signature mismatch:
            (int32 [@local_opt]) -> (int32 [@local_opt]) = "%int32_add"
        is not included in
          val add : local_ int32 -> local_ int32 -> int32
-       The type local_ int32 -> local_ int32 -> local_ int32
-       is not compatible with the type local_ int32 -> local_ int32 -> int32
-       Type local_ int32 -> local_ int32 is not compatible with type
-         local_ int32 -> int32
+       The type "local_ int32 -> local_ int32 -> local_ int32"
+       is not compatible with the type "local_ int32 -> local_ int32 -> int32"
+       Type "local_ int32 -> local_ int32" is not compatible with type
+         "local_ int32 -> int32"
 |}]
 
 module Contravariant_instantiation : sig
@@ -1643,8 +2010,8 @@ val zz : local_ int ref -> int -> unit = <fun>
 Line 3, characters 45-49:
 3 | let zy : local_ (int ref) -> (int -> unit) = (:=)
                                                  ^^^^
-Error: This expression has type local_ 'a ref -> 'a -> unit
-       but an expression was expected of type local_ int ref -> (int -> unit)
+Error: This expression has type "local_ 'a ref -> 'a -> unit"
+       but an expression was expected of type "local_ int ref -> (int -> unit)"
 |}]
 
 let int32 (local_ x) (local_ y) = exclave_
@@ -1770,7 +2137,7 @@ end
 Line 2, characters 12-13:
 2 |   let (Some z, _, _) | (None, Some z, _)
                 ^
-Error: This value is local, but expected to be global because it is inside a module.
+Error: This value is "local", but expected to be "global" because it is inside a module.
 |}]
 
 module M = struct
@@ -1781,7 +2148,7 @@ end
 Line 2, characters 12-13:
 2 |   let (Some z, _, _) | (None, Some z, _)
                 ^
-Error: This value is local, but expected to be global because it is inside a module.
+Error: This value is "local", but expected to be "global" because it is inside a module.
 |}]
 
 (* Example of backtracking after mode error *)
@@ -1795,11 +2162,11 @@ val f : (local_ int list -> unit) -> int -> unit = <fun>
 Line 5, characters 44-45:
 5 | let z : (int list -> unit) -> int -> unit = f
                                                 ^
-Error: This expression has type (local_ int list -> unit) -> int -> unit
+Error: This expression has type "(local_ int list -> unit) -> int -> unit"
        but an expression was expected of type
-         (int list -> unit) -> int -> unit
-       Type local_ int list -> unit is not compatible with type
-         int list -> unit
+         "(int list -> unit) -> int -> unit"
+       Type "local_ int list -> unit" is not compatible with type
+         "int list -> unit"
 |}]
 
 module M = struct
@@ -1813,11 +2180,11 @@ end
 Line 6, characters 46-47:
 6 |   let z : (int list -> unit) -> int -> unit = f
                                                   ^
-Error: This expression has type (local_ int list -> unit) -> int -> unit
+Error: This expression has type "(local_ int list -> unit) -> int -> unit"
        but an expression was expected of type
-         (int list -> unit) -> int -> unit
-       Type local_ int list -> unit is not compatible with type
-         int list -> unit
+         "(int list -> unit) -> int -> unit"
+       Type "local_ int list -> unit" is not compatible with type
+         "int list -> unit"
 |}]
 
 (* Subtyping *)
@@ -1837,7 +2204,7 @@ let foo f = (f : string -> local_ float :> string -> float)
 Line 1, characters 12-59:
 1 | let foo f = (f : string -> local_ float :> string -> float)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type string -> local_ float is not a subtype of string -> float
+Error: Type "string -> local_ float" is not a subtype of "string -> float"
 |}]
 
 let foo f = (f : string -> float :> local_ string -> local_ float)
@@ -1845,7 +2212,7 @@ let foo f = (f : string -> float :> local_ string -> local_ float)
 Line 1, characters 12-66:
 1 | let foo f = (f : string -> float :> local_ string -> local_ float)
                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type string -> float is not a subtype of local_ string -> local_ float
+Error: Type "string -> float" is not a subtype of "local_ string -> local_ float"
 |}]
 
 let foo f = ignore (f :> string -> float); ()
@@ -1874,10 +2241,10 @@ val local_to_global_to_global : (local_ float -> string) -> string = <fun>
 Line 5, characters 6-31:
 5 |   [f; local_to_global_to_global]
           ^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type (local_ float -> string) -> string
-       but an expression was expected of type (float -> string) -> string
-       Type local_ float -> string is not compatible with type
-         float -> string
+Error: This expression has type "(local_ float -> string) -> string"
+       but an expression was expected of type "(float -> string) -> string"
+       Type "local_ float -> string" is not compatible with type
+         "float -> string"
 |}]
 
 (* Submoding during module inclusion *)
@@ -1916,8 +2283,8 @@ Error: Signature mismatch:
          val foo : float -> string
        is not included in
          val foo : local_ float -> string
-       The type float -> string is not compatible with the type
-         local_ float -> string
+       The type "float -> string" is not compatible with the type
+         "local_ float -> string"
 |}]
 
 module F (X : sig val foo : float -> local_ string end) : sig
@@ -1936,8 +2303,8 @@ Error: Signature mismatch:
          val foo : float -> local_ string
        is not included in
          val foo : float -> string
-       The type float -> local_ string is not compatible with the type
-         float -> string
+       The type "float -> local_ string" is not compatible with the type
+         "float -> string"
 |}]
 
 module F (X : sig val foo : local_ float -> float -> string end) : sig
@@ -1956,8 +2323,8 @@ Error: Signature mismatch:
          val foo : local_ float -> float -> string
        is not included in
          val foo : float -> float -> string
-       The type local_ float -> float -> string
-       is not compatible with the type float -> float -> string
+       The type "local_ float -> float -> string"
+       is not compatible with the type "float -> float -> string"
 |}]
 
 module F (X : sig val foo : local_ float -> float -> string end) : sig
@@ -2003,10 +2370,10 @@ Error: Signature mismatch:
          val foo : (float -> string) inv
        is not included in
          val foo : (float -> local_ string) inv
-       The type (float -> string) inv is not compatible with the type
-         (float -> local_ string) inv
-       Type float -> string is not compatible with type
-         float -> local_ string
+       The type "(float -> string) inv" is not compatible with the type
+         "(float -> local_ string) inv"
+       Type "float -> string" is not compatible with type
+         "float -> local_ string"
 |}]
 
 module F (X : sig val foo : (float -> string) co end) : sig
@@ -2034,10 +2401,10 @@ Error: Signature mismatch:
          val foo : (float -> string) contra
        is not included in
          val foo : (float -> local_ string) contra
-       The type (float -> string) contra is not compatible with the type
-         (float -> local_ string) contra
-       Type float -> string is not compatible with type
-         float -> local_ string
+       The type "(float -> string) contra" is not compatible with the type
+         "(float -> local_ string) contra"
+       Type "float -> string" is not compatible with type
+         "float -> local_ string"
 |}]
 
 module F (X : sig val foo : (float -> string) bi end) : sig
@@ -2065,10 +2432,10 @@ Error: Signature mismatch:
          val foo : (float -> local_ string) inv
        is not included in
          val foo : (float -> string) inv
-       The type (float -> local_ string) inv is not compatible with the type
-         (float -> string) inv
-       Type float -> local_ string is not compatible with type
-         float -> string
+       The type "(float -> local_ string) inv" is not compatible with the type
+         "(float -> string) inv"
+       Type "float -> local_ string" is not compatible with type
+         "float -> string"
 |}]
 
 module F (X : sig val foo : (float -> local_ string) co end) : sig
@@ -2087,10 +2454,10 @@ Error: Signature mismatch:
          val foo : (float -> local_ string) co
        is not included in
          val foo : (float -> string) co
-       The type (float -> local_ string) co is not compatible with the type
-         (float -> string) co
-       Type float -> local_ string is not compatible with type
-         float -> string
+       The type "(float -> local_ string) co" is not compatible with the type
+         "(float -> string) co"
+       Type "float -> local_ string" is not compatible with type
+         "float -> string"
 |}]
 
 module F (X : sig val foo : (float -> local_ string) contra end) : sig
@@ -2137,9 +2504,9 @@ Error: Signature mismatch:
        is not included in
          type t = Bar of int * global_ string
        Constructors do not match:
-         Bar of int * string
+         "Bar of int * string"
        is not the same as:
-         Bar of int * global_ string
+         "Bar of int * global_ string"
        Modality mismatch at argument position 2:
        The second is global_ and the first is not.
 |}]
@@ -2165,9 +2532,9 @@ Error: Signature mismatch:
        is not included in
          type t = Bar of int * string
        Constructors do not match:
-         Bar of int * global_ string
+         "Bar of int * global_ string"
        is not the same as:
-         Bar of int * string
+         "Bar of int * string"
        Modality mismatch at argument position 2:
        The first is global_ and the second is not.
 |}]
@@ -2400,8 +2767,8 @@ Error: Signature mismatch:
          val f : 'a -> local_ ('b -> local_ string)
        is not included in
          val f : string -> string -> local_ string
-       The type string -> local_ (string -> local_ string)
-       is not compatible with the type string -> string -> local_ string
+       The type "string -> local_ (string -> local_ string)"
+       is not compatible with the type "string -> string -> local_ string"
 |}]
 
 (* Escaping uncurried functions *)

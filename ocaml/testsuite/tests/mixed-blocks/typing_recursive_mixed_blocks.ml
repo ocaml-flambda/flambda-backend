@@ -27,7 +27,7 @@ let rec x2 = let _ = { t = rec_t; x2 } in #4.0;;
 Line 1, characters 13-46:
 1 | let rec x2 = let _ = { t = rec_t; x2 } in #4.0;;
                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+Error: This kind of expression is not allowed as right-hand side of "let rec"
 |}];;
 
 (* OK: an adapted version of the above error to show that the difference
@@ -57,7 +57,7 @@ let rec bad_flat = let _ = A (rec_cstr, bad_flat) in #4.0;;
 Line 1, characters 19-57:
 1 | let rec bad_flat = let _ = A (rec_cstr, bad_flat) in #4.0;;
                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+Error: This kind of expression is not allowed as right-hand side of "let rec"
 |}];;
 
 (* OK: an adapted version of the above error to show that the difference
@@ -87,7 +87,7 @@ let rec bad_flat = let _ = A { cstr = rec_cstr; flt = bad_flat } in #4.0;;
 Line 1, characters 19-72:
 1 | let rec bad_flat = let _ = A { cstr = rec_cstr; flt = bad_flat } in #4.0;;
                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+Error: This kind of expression is not allowed as right-hand side of "let rec"
 |}];;
 
 (* OK: an adapted version of the above error to show that the difference

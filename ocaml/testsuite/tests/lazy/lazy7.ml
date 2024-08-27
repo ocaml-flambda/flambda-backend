@@ -1,13 +1,7 @@
 (* TEST
-<<<<<<< HEAD
  ocamlopt_flags += " -O3 ";
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
-||||||| 121bedcfd2
-   ocamlopt_flags += " -O3 "
-=======
- ocamlopt_flags += " -O3 ";
->>>>>>> 5.2.0
 *)
 
 let num_domains = 4

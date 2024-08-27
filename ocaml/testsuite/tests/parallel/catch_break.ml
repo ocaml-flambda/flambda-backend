@@ -1,4 +1,9 @@
 (* TEST
+reason = "CR ocaml 5 domains: re-enable this test";
+skip;
+*)
+
+(*
 hassysthreads;
 include systhreads;
 not-windows;
