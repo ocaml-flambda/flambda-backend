@@ -516,8 +516,8 @@ module Acc = struct
          mode, but they are not currently provided with approximations. *)
       | Immutable_float_array _ | Immutable_float32_array _
       | Immutable_value_array _ | Empty_array _ | Immutable_int32_array _
-      | Immutable_int64_array _ | Immutable_nativeint_array _ | Mutable_string _
-      | Immutable_string _ ->
+      | Immutable_int64_array _ | Immutable_nativeint_array _
+      | Immutable_vec128_array _ | Mutable_string _ | Immutable_string _ ->
         Value_unknown
     in
     let symbol_approximations =

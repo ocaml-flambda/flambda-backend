@@ -1054,6 +1054,10 @@ let custom_ops_unboxed_nativeint_array =
   Cconst_symbol
     (Cmm.global_symbol "caml_unboxed_nativeint_array_ops", Debuginfo.none)
 
+let custom_ops_unboxed_vec128_array =
+  Cconst_symbol
+    (Cmm.global_symbol "caml_unboxed_vec128_array_ops", Debuginfo.none)
+
 let unboxed_packed_array_length arr dbg ~custom_ops_base_symbol
     ~elements_per_word =
   (* Checking custom_ops is needed to determine if the array contains an odd or
@@ -1104,6 +1108,14 @@ let unboxed_int64_or_nativeint_array_length arr dbg =
         sub_int (get_size arr dbg) (int ~dbg 1) dbg)
   in
   tag_int res dbg
+
+let unboxed_vec128_array_length arr dbg =
+  let res =
+    bind "arr" arr (fun arr ->
+        (* need to subtract so as not to count the custom_operations field *)
+        sub_int (get_size arr dbg) (int ~dbg 1) dbg)
+  in
+  tag_int (lsr_int res (int ~dbg 1) dbg) dbg
 
 let addr_array_ref arr ofs dbg =
   Cop (mk_load_mut Word_val, [array_indexing log2_size_addr arr ofs dbg], dbg)
@@ -1375,6 +1387,18 @@ let setfield_unboxed_float32 arr ofs newval dbg =
          [array_indexing log2_size_addr arr ofs dbg; newval],
          dbg ))
 
+let setfield_unboxed_vec128 arr ofs newval dbg =
+  (* CR layouts v5.1: Properly support big-endian. *)
+  if Arch.big_endian
+  then
+    Misc.fatal_error
+      "Unboxed vec128 fields only supported on little-endian architectures";
+  return_unit dbg
+    (Cop
+       ( Cstore (Onetwentyeight_unaligned, Assignment),
+         [array_indexing log2_size_addr arr ofs dbg; newval],
+         dbg ))
+
 (* String length *)
 
 (* Length of string block *)
@@ -1585,9 +1609,8 @@ let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
     let rec fill_fields idx = function
       | [] -> Cvar id
       | e1 :: el ->
-        Csequence
-          ( set_fn idx (Cvar id) (int_const dbg idx) e1 dbg,
-            fill_fields (idx + 1) el )
+        let set, adv = set_fn idx (Cvar id) (int_const dbg idx) e1 dbg in
+        Csequence (set, fill_fields (idx + adv) el)
     in
     let caml_alloc_func, caml_alloc_args =
       match Config.runtime5, scannable_prefix with
@@ -1634,15 +1657,59 @@ let addr_array_init arr ofs newval dbg =
 
 let make_alloc ~mode dbg ~tag args =
   make_alloc_generic ~mode
-    (fun _ arr ofs newval dbg -> addr_array_init arr ofs newval dbg)
+    (fun _ arr ofs newval dbg -> addr_array_init arr ofs newval dbg, 1)
     dbg tag (List.length args) args
 
 let make_float_alloc ~mode dbg ~tag args =
   make_alloc_generic ~mode
-    (fun _ -> float_array_set)
+    (fun _ arr ofs newval dbg -> float_array_set arr ofs newval dbg, 1)
     dbg tag
     (List.length args * size_float / size_addr)
     args
+
+module Flat_prefix_element = struct
+  type t =
+    | Naked_field
+    | Naked_float
+    | Naked_float32
+    | Naked_int32
+    | Naked_vec128
+
+  let words = function
+    | Naked_field | Naked_float | Naked_float32 | Naked_int32 -> 1
+    | Naked_vec128 -> 2
+
+  let total_words = Array.fold_left (fun len t -> len + words t) 0
+end
+
+let make_mixed_closure ~mode dbg ~value_suffix_size ~flat_prefix fields =
+  (* args with shape [Float] must already have been unboxed. *)
+  let flat_prefix_size = Flat_prefix_element.total_words flat_prefix in
+  let set_fn idx arr ofs newval dbg =
+    if idx >= flat_prefix_size
+    then addr_array_init arr ofs newval dbg, 1
+    else
+      let set =
+        match (flat_prefix.(idx) : Flat_prefix_element.t) with
+        | Naked_field -> int_array_set arr ofs newval dbg
+        | Naked_float -> float_array_set arr ofs newval dbg
+        | Naked_float32 -> setfield_unboxed_float32 arr ofs newval dbg
+        | Naked_int32 -> setfield_unboxed_int32 arr ofs newval dbg
+        | Naked_vec128 -> setfield_unboxed_vec128 arr ofs newval dbg
+      in
+      set, Flat_prefix_element.words flat_prefix.(idx)
+  in
+  let size =
+    (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
+       will need to change. *)
+    flat_prefix_size + value_suffix_size
+  in
+  if size_float <> size_addr
+  then
+    Misc.fatal_error
+      "Unable to compile mixed closures on a platform where a float is not the \
+       same width as a value.";
+  make_alloc_generic ~mode set_fn dbg Obj.closure_tag size fields
 
 module Flat_suffix_element = struct
   type t =
@@ -1658,15 +1725,18 @@ let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size
   (* args with shape [Float] must already have been unboxed. *)
   let set_fn idx arr ofs newval dbg =
     if idx < value_prefix_size
-    then addr_array_init arr ofs newval dbg
+    then addr_array_init arr ofs newval dbg, 1
     else
-      match flat_suffix.(idx - value_prefix_size) with
-      | Tagged_immediate -> int_array_set arr ofs newval dbg
-      | Naked_float -> float_array_set arr ofs newval dbg
-      | Naked_float32 -> setfield_unboxed_float32 arr ofs newval dbg
-      | Naked_int32 -> setfield_unboxed_int32 arr ofs newval dbg
-      | Naked_int64_or_nativeint ->
-        setfield_unboxed_int64_or_nativeint arr ofs newval dbg
+      let set =
+        match flat_suffix.(idx - value_prefix_size) with
+        | Tagged_immediate -> int_array_set arr ofs newval dbg
+        | Naked_float -> float_array_set arr ofs newval dbg
+        | Naked_float32 -> setfield_unboxed_float32 arr ofs newval dbg
+        | Naked_int32 -> setfield_unboxed_int32 arr ofs newval dbg
+        | Naked_int64_or_nativeint ->
+          setfield_unboxed_int64_or_nativeint arr ofs newval dbg
+      in
+      set, 1
   in
   let size =
     (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
@@ -3037,6 +3107,11 @@ let intermediate_curry_functions ~nlocal ~arity result =
       in
       let has_nary = curry_clos_has_nary_application ~narity (num + 1) in
       let function_slot_size = if has_nary then 3 else 2 in
+      if !Clflags.debug_ocaml
+      then
+        Printf.printf "cmm startenv: %d length: %d\n"
+          (function_slot_size + machtype_non_scanned_size arg_type)
+          (function_slot_size + machtype_stored_size arg_type + 1);
       Cfunction
         { fun_name = global_symbol name2;
           fun_args =
@@ -3160,6 +3235,7 @@ let arraylength kind arg dbg =
   | Punboxedintarray Pint64 | Punboxedintarray Pnativeint ->
     unboxed_int64_or_nativeint_array_length arg dbg
   | Punboxedintarray Pint32 -> unboxed_int32_array_length arg dbg
+  | Punboxedvectorarray Pvec128 -> unboxed_vec128_array_length arg dbg
 
 (* CR-soon gyorsh: effects and coeffects for primitives are set conservatively
    to Arbitrary_effects and Has_coeffects, resp. Check if this can be improved
@@ -4142,6 +4218,20 @@ let allocate_unboxed_int64_array =
 
 let allocate_unboxed_nativeint_array =
   allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_nativeint_array
+
+let allocate_unboxed_vec128_array ~elements (mode : Lambda.alloc_mode) dbg =
+  let header =
+    let size =
+      1 (* custom_ops field *) + (ints_per_vec128 * List.length elements)
+    in
+    match mode with
+    | Alloc_heap -> custom_header ~size
+    | Alloc_local -> custom_local_header ~size
+  in
+  Cop
+    ( Calloc mode,
+      Cconst_natint (header, dbg) :: custom_ops_unboxed_vec128_array :: elements,
+      dbg )
 
 (* Drop internal optional arguments from exported interface *)
 let block_header x y = block_header x y

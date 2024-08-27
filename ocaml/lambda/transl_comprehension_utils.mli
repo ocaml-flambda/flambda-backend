@@ -65,6 +65,8 @@ module Lambda_utils : sig
 
     val unboxed_int64 : Int64.t -> lambda
 
+    val unboxed_vec128 : high:Int64.t -> low:Int64.t -> lambda
+
     val unboxed_nativeint : Targetint.t -> lambda
 
     (** Lambda string literals; these require a location, and are constructed as
@@ -154,6 +156,9 @@ module Lambda_utils : sig
 
     (** Like [make_float_vect] but for unboxed nativeint arrays. *)
     val make_unboxed_nativeint_vect : loc:scoped_location -> lambda -> lambda
+
+    (** Like [make_float_vect] but for unboxed vec128 arrays. *)
+    val make_unboxed_vec128_vect : loc:scoped_location -> lambda -> lambda
 
     (** [array_append a1 a2] calls the [caml_array_append] C primitive, which
         creates a new array by appending [a1] and [a2] *)

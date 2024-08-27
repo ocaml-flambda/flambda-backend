@@ -142,7 +142,13 @@ let classify env loc ty sort : classification =
            || Path.same p Predef.path_nativeint
            || Path.same p Predef.path_float32
            || Path.same p Predef.path_int32
-           || Path.same p Predef.path_int64 then Addr
+           || Path.same p Predef.path_int64
+           || Path.same p Predef.path_int8x16
+           || Path.same p Predef.path_int16x8
+           || Path.same p Predef.path_int32x4
+           || Path.same p Predef.path_int64x2
+           || Path.same p Predef.path_float32x4
+           || Path.same p Predef.path_float64x2 then Addr
       else begin
         try
           match (Env.find_type p env).type_kind with
@@ -187,9 +193,7 @@ let array_type_kind ~elt_sort env loc ty =
       | Int -> Pintarray
       | Unboxed_float f -> Punboxedfloatarray f
       | Unboxed_int i -> Punboxedintarray i
-      | Unboxed_vector _ ->
-        (* CR mslater: unboxed vector arrays *)
-        Misc.fatal_error "Array of unboxed vectors is not yet supported."
+      | Unboxed_vector v -> Punboxedvectorarray v
       end
   | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
       Pfloatarray

@@ -45,7 +45,7 @@ let simplify_array_set (array_set_kind : P.Array_set_kind.t)
         (* We don't expect specialisation regressions from Immediates to
            Values. *)
         | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
-        | Naked_nativeints ->
+        | Naked_nativeints | Naked_vec128s ->
           Misc.fatal_errorf
             "Didn't expect array specialisation to yield array kind %a from \
              array set kind %a:@ %a"
@@ -56,6 +56,7 @@ let simplify_array_set (array_set_kind : P.Array_set_kind.t)
       | Naked_int32s -> Naked_int32s
       | Naked_int64s -> Naked_int64s
       | Naked_nativeints -> Naked_nativeints
+      | Naked_vec128s -> Naked_vec128s
     in
     let named =
       Named.create_prim

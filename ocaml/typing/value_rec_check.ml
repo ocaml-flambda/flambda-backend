@@ -597,7 +597,8 @@ let array_mode exp elt_sort = match Typeopt.array_kind exp elt_sort with
   | Lambda.Paddrarray | Lambda.Pintarray ->
     (* non-generic, non-float arrays act as constructors *)
     Guard
-  | Lambda.Punboxedfloatarray _ | Lambda.Punboxedintarray _ ->
+  | Lambda.Punboxedfloatarray _ | Lambda.Punboxedintarray _
+  | Lambda.Punboxedvectorarray _ ->
     Dereference
 
 (* Expression judgment:

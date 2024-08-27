@@ -707,6 +707,8 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
       Immutable StrictOpt, make_unboxed_int64_vect ~loc array_size.var
     | Fixed_size, Punboxedintarray Pnativeint ->
       Immutable StrictOpt, make_unboxed_nativeint_vect ~loc array_size.var
+    | Fixed_size, Punboxedvectorarray Pvec128 ->
+      Immutable StrictOpt, make_unboxed_vec128_vect ~loc array_size.var
     (* Case 3: Unknown size, known array kind *)
     | Dynamic_size, (Pintarray | Paddrarray) ->
       Mutable, Resizable_array.make ~loc array_kind (int 0)
@@ -724,6 +726,9 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
       ( Mutable,
         Resizable_array.make ~loc array_kind (unboxed_nativeint Targetint.zero)
       )
+    | Dynamic_size, Punboxedvectorarray Pvec128 ->
+      ( Mutable,
+        Resizable_array.make ~loc array_kind (unboxed_vec128 ~high:0L ~low:0L) )
   in
   Let_binding.make array_let_kind (Pvalue Pgenval) "array" array_value
 
@@ -810,7 +815,7 @@ let body ~loc ~array_kind ~array_size ~array_sizing ~array ~index ~body =
              Pvalue Pintval (* [unit] is immediate *) ))
     | Pintarray | Paddrarray | Pfloatarray
     | Punboxedfloatarray (Pfloat64 | Pfloat32)
-    | Punboxedintarray _ ->
+    | Punboxedintarray _ | Punboxedvectorarray _ ->
       set_element_in_bounds body
   in
   Lsequence
@@ -820,7 +825,7 @@ let comprehension ~transl_exp ~scopes ~loc ~(array_kind : Lambda.array_kind)
     { comp_body; comp_clauses } =
   (match array_kind with
   | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> ()
-  | Punboxedfloatarray _ | Punboxedintarray _ ->
+  | Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _ ->
     if not !Clflags.native_code
     then
       Misc.fatal_errorf

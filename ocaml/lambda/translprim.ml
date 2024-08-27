@@ -899,7 +899,7 @@ let glb_array_type loc t1 t2 =
 
      WARNING: This trick will stop working when [Config.flat_float_array]
      becomes [false].*)
-  | Pfloatarray, (Punboxedfloatarray _ | Punboxedintarray _) ->
+  | Pfloatarray, (Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _) ->
     (* Have a nice error message for a case reachable. *)
     raise(Error(loc, Invalid_floatarray_glb))
   | (Pgenarray | Punboxedfloatarray Pfloat64), Punboxedfloatarray Pfloat64 ->
@@ -915,6 +915,10 @@ let glb_array_type loc t1 t2 =
   | (Pgenarray | Punboxedintarray Pnativeint), Punboxedintarray Pnativeint ->
     Punboxedintarray Pnativeint
   | Punboxedintarray _, _ | _, Punboxedintarray _ ->
+    Misc.fatal_error "unexpected array kind in glb"
+  | (Pgenarray | Punboxedvectorarray Pvec128), Punboxedvectorarray Pvec128 ->
+    Punboxedvectorarray Pvec128
+  | Punboxedvectorarray _, _ | _, Punboxedvectorarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
 
   (* No GLB; only used in the [Obj.magic] case *)
@@ -936,7 +940,7 @@ let glb_array_ref_type loc t1 t2 =
 
      WARNING: This trick will stop working when [Config.flat_float_array]
      becomes [false].*)
-  | Pfloatarray_ref _, (Punboxedfloatarray _ | Punboxedintarray _) ->
+  | Pfloatarray_ref _, (Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _) ->
     (* Have a nice error message for a case reachable. *)
     raise(Error(loc, Invalid_floatarray_glb))
   | (Pgenarray_ref _ | Punboxedfloatarray_ref Pfloat64), Punboxedfloatarray Pfloat64 ->
@@ -953,6 +957,10 @@ let glb_array_ref_type loc t1 t2 =
   | (Pgenarray_ref _ | Punboxedintarray_ref Pnativeint), Punboxedintarray Pnativeint ->
     Punboxedintarray_ref Pnativeint
   | Punboxedintarray_ref _, _ | _, Punboxedintarray _ ->
+    Misc.fatal_error "unexpected array kind in glb"
+  | (Pgenarray_ref _ | Punboxedvectorarray_ref Pvec128), Punboxedvectorarray Pvec128 ->
+    Punboxedvectorarray_ref Pvec128
+  | Punboxedvectorarray_ref _, _ | _, Punboxedvectorarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
 
   (* No GLB; only used in the [Obj.magic] case *)
@@ -988,7 +996,7 @@ let glb_array_set_type loc t1 t2 =
 
      WARNING: This trick will stop working when [Config.flat_float_array]
      becomes [false].*)
-  | Pfloatarray_set, (Punboxedfloatarray _ | Punboxedintarray _) ->
+  | Pfloatarray_set, (Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _) ->
     (* Have a nice error message for a case reachable. *)
     raise(Error(loc, Invalid_floatarray_glb))
   | (Pgenarray_set _ | Punboxedfloatarray_set Pfloat64), Punboxedfloatarray Pfloat64 ->
@@ -1005,6 +1013,10 @@ let glb_array_set_type loc t1 t2 =
   | (Pgenarray_set _ | Punboxedintarray_set Pnativeint), Punboxedintarray Pnativeint ->
     Punboxedintarray_set Pnativeint
   | Punboxedintarray_set _, _ | _, Punboxedintarray _ ->
+    Misc.fatal_error "unexpected array kind in glb"
+  | (Pgenarray_set _ | Punboxedvectorarray_set Pvec128), Punboxedvectorarray Pvec128 ->
+    Punboxedvectorarray_set Pvec128
+  | Punboxedvectorarray_set _, _ | _, Punboxedvectorarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
 
   (* No GLB; only used in the [Obj.magic] case *)
@@ -1625,7 +1637,7 @@ let lambda_primitive_needs_event_after = function
   | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
   | Pbytessetu
   | Pmakearray ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
-      | Punboxedintarray _), _, _)
+      | Punboxedintarray _ | Punboxedvectorarray _), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _

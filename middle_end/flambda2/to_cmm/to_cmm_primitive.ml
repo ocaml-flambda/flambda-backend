@@ -169,6 +169,7 @@ let make_array ~dbg kind alloc_mode args =
   | Naked_int64s -> C.allocate_unboxed_int64_array ~elements:args mode dbg
   | Naked_nativeints ->
     C.allocate_unboxed_nativeint_array ~elements:args mode dbg
+  | Naked_vec128s -> C.allocate_unboxed_vec128_array ~elements:args mode dbg
 
 let array_length ~dbg arr (kind : P.Array_kind.t) =
   match kind with
@@ -183,6 +184,7 @@ let array_length ~dbg arr (kind : P.Array_kind.t) =
     (* These need a special case as they are represented by custom blocks, even
        though the contents are of word width. *)
     C.unboxed_int64_or_nativeint_array_length arr dbg
+  | Naked_vec128s -> C.unboxed_vec128_array_length arr dbg
 
 let array_load_128 ~dbg ~element_width_log2 ~has_custom_ops arr index =
   let index =
@@ -226,6 +228,8 @@ let array_load ~dbg (kind : P.Array_kind.t)
     array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
   | (Naked_int32s | Naked_float32s), Vec128 ->
     array_load_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
+  | Naked_vec128s, (Scalar | Vec128) ->
+    array_load_128 ~dbg ~element_width_log2:4 ~has_custom_ops:true arr index
   | Values, Vec128 ->
     Misc.fatal_error "Attempted to load a SIMD vector from a value array."
 
@@ -259,6 +263,9 @@ let array_set ~dbg (kind : P.Array_set_kind.t)
     | (Naked_int32s | Naked_float32s), Vec128 ->
       array_set_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
         new_value
+    | Naked_vec128s, (Scalar | Vec128) ->
+      array_set_128 ~dbg ~element_width_log2:4 ~has_custom_ops:true arr index
+        new_value
     | Values _, Vec128 ->
       Misc.fatal_error "Attempted to store a SIMD vector to a value array."
   in
@@ -281,10 +288,10 @@ let bigarray_store ~dbg kind ~bigarray ~index ~new_value =
   bigarray_load_or_store ~dbg kind ~bigarray ~index
     (C.bigarray_store ~new_value)
 
-(* String and bytes access. For these functions, [index] is a tagged integer. *)
+(* String and bytes access. For these functions, [index] is an untagged
+   integer. *)
 
 let string_like_load_aux ~dbg width ~str ~index =
-  let index = C.untag_int index dbg in
   match (width : P.string_accessor_width) with
   | Eight -> C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int str index dbg)
   | Sixteen -> C.unaligned_load_16 str index dbg
@@ -304,7 +311,6 @@ let string_like_load ~dbg kind width ~str ~index =
         string_like_load_aux ~dbg width ~str ~index)
 
 let bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value =
-  let index = C.untag_int index dbg in
   match (width : P.string_accessor_width) with
   | Eight ->
     let addr = C.add_int bytes index dbg in

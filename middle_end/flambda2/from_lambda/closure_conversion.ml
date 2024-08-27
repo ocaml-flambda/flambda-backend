@@ -136,6 +136,12 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
     (* CR pchambart: this should be pushed further to lambda *)
     let c = Targetint_32_64.of_int64 (Int64.of_nativeint c) in
     acc, reg_width (RWC.naked_nativeint c), "unboxed_nativeint"
+  | Const_unboxed_vec128 { high; low } ->
+    ( acc,
+      reg_width
+        (RWC.naked_vec128
+           (Vector_types.Vec128.Bit_pattern.of_bits { high; low })),
+      "unboxed_vec128" )
   | Const_immstring c ->
     register_const acc dbg (SC.immutable_string c) "immstring"
   | Const_float_block c ->
@@ -177,13 +183,11 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
               match RWC.descr cst with
               | Tagged_immediate _ -> ()
               | Naked_immediate _ | Naked_float32 _ | Naked_float _
-              | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ ->
+              | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
+              | Naked_vec128 _ ->
                 Misc.fatal_errorf
                   "Unboxed constants are not allowed inside of Const_block: %a"
-                  Printlambda.structured_constant const
-              | Naked_vec128 _ ->
-                Misc.fatal_error
-                  "Naked_vec128 not yet supported as a static field initializer");
+                  Printlambda.structured_constant const);
           acc, field)
         acc consts
     in
@@ -201,8 +205,8 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
           | Const_unboxed_float _ | Const_unboxed_float32 _ | Const_int32 _
           | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
           | Const_unboxed_int64 _ | Const_unboxed_nativeint _ )
-      | Const_block _ | Const_mixed_block _ | Const_float_array _
-      | Const_immstring _ | Const_float_block _ ->
+      | Const_unboxed_vec128 _ | Const_block _ | Const_mixed_block _
+      | Const_float_array _ | Const_immstring _ | Const_float_block _ ->
         Misc.fatal_errorf
           "In constant mixed block, a field of kind Float_boxed contained the \
            constant %a"

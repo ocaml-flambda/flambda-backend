@@ -74,6 +74,11 @@ let max_unboxed_nativeint_array_length =
   | Native -> max_custom_array_length
   | Bytecode | Other _ -> max_array_length
 
+let max_unboxed_vec128_array_length =
+  match backend_type with
+  | Native -> max_custom_array_length / 2
+  | Bytecode | Other _ -> max_array_length
+
 external runtime_variant : unit -> string = "caml_runtime_variant"
 external runtime_parameters : unit -> string = "caml_runtime_parameters"
 

@@ -181,7 +181,7 @@ end) : S with type t = Arg.M.t
 
   let unsafe_get t idx = to_boxed (unsafe_get t idx)
   let unsafe_set t idx v = unsafe_set t idx (of_boxed v)
-  let equal = for_all2 (fun x y -> to_boxed x = to_boxed y)
+  let equal = for_all2 (fun x y -> I.compare (to_boxed x) (to_boxed y) = 0)
   let for_all2 f t1 t2 = for_all2 (fun a b -> f (to_boxed a) (to_boxed b)) t1 t2
   let exists2 f t1 t2 = exists2 (fun a b -> f (to_boxed a) (to_boxed b)) t1 t2
 end
@@ -802,7 +802,7 @@ module Test (A : S) : sig end = struct
   let a = A.init 876 I.of_int in
   let ar1 = A.map_to_array f a in
   let ar2 = Array.init 876 (fun x -> I.of_int (2 * x)) in
-  assert (ar1 = ar2);
+  assert (Array.for_all2 (fun l r -> I.compare l r = 0) ar1 ar2);
   let ar = A.map_to_array (fun _ -> assert false) (A.make 0 (I.of_int 0)) in
   assert (ar = [| |]);
 

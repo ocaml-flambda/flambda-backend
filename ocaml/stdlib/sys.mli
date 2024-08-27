@@ -220,6 +220,10 @@ val max_unboxed_nativeint_array_length : int
 (** Maximum length of a [nativeint# array].
     In non-native backends, equal to [max_array_length]. *)
 
+val max_unboxed_vec128_array_length : int
+(** Maximum length of an unboxed 128-bit simd vector array.
+    Only supported in 64-bit native code. *)
+
 external runtime_variant : unit -> string = "caml_runtime_variant"
 (** Return the name of the runtime variant the program is running on.
     This is normally the argument given to [-runtime-variant] at compile

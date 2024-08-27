@@ -46,6 +46,8 @@ module Lambda_utils = struct
 
     let unboxed_int64 i = Lconst (Const_base (Const_unboxed_int64 i))
 
+    let unboxed_vec128 ~high ~low = Lconst (Const_unboxed_vec128 { high; low })
+
     let unboxed_nativeint i =
       (* See CR in typedtree.mli *)
       let i = i |> Targetint.to_int64 |> Int64.to_nativeint in
@@ -182,6 +184,8 @@ module Lambda_utils = struct
     let make_unboxed_int64_vect = unary "caml_make_unboxed_int64_vect"
 
     let make_unboxed_nativeint_vect = unary "caml_make_unboxed_nativeint_vect"
+
+    let make_unboxed_vec128_vect = unary "caml_make_unboxed_vec128_vect"
 
     let array_append = binary "caml_array_append"
 

@@ -196,6 +196,9 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Immutable_nativeint_array fields ->
     rebuild_naked_number_array dacc ~bind_result_sym KS.naked_nativeint
       T.this_naked_nativeint RSC.create_immutable_nativeint_array ~fields
+  | Immutable_vec128_array fields ->
+    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_vec128
+      T.this_naked_vec128 RSC.create_immutable_vec128_array ~fields
   | Immutable_value_array fields ->
     let fields_with_tys =
       List.map

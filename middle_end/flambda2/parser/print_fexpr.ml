@@ -293,6 +293,7 @@ let array_kind ~space ppf (ak : array_kind) =
     | Naked_int32s -> Some "int32"
     | Naked_int64s -> Some "int64"
     | Naked_nativeints -> Some "nativeint"
+    | Naked_vec128s -> Some "vec128"
   in
   pp_option ~space Format.pp_print_string ppf str
 
@@ -304,6 +305,7 @@ let empty_array_kind ~space ppf (ak : empty_array_kind) =
     | Naked_int32s -> Some "int32"
     | Naked_int64s -> Some "int64"
     | Naked_nativeints -> Some "nativeint"
+    | Naked_vec128s -> Some "vec128"
   in
   pp_option ~space Format.pp_print_string ppf str
 
