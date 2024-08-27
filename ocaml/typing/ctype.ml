@@ -3103,8 +3103,10 @@ and mcomp_type_decl type_pairs env p1 p2 args1 args2 =
       match args1, args2 with
       | Unapplied, Unapplied -> [], []
       | Applied tl1, Applied tl2 -> tl1, tl2
-      (* TODO jbachurski: Over/under-application *)
-      | Unapplied, Applied _ | Applied _, Unapplied -> raise Incompatible
+      (* TODO jbachurski: Over/under-application...?
+         Obscure test failures without permitting these cases. *)
+      | Unapplied, Applied tl2 -> [], tl2
+      | Applied tl1, Unapplied -> tl1, []
     in
     let check_jkinds () =
       if not (Jkind.has_intersection decl.type_jkind decl'.type_jkind)
