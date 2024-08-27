@@ -813,11 +813,7 @@ let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
 
 (** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
     fragment is a left mode. *)
-let alloc_mode_cross_to_max_min ~loc env ty { monadic; comonadic } =
-  let () = match constrain_type_jkind env ty (Jkind.of_type_jkind (Jkind.Type.Primitive.any ~why:Dummy_jkind)) with
-    | Ok () -> ()
-    | Error err -> raise (Error (loc, env, Not_a_value(err, None)))
-  in
+let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   let monadic = Alloc.Monadic.disallow_left monadic in
   let comonadic = Alloc.Comonadic.disallow_right comonadic in
   if not (is_principal ty) then { monadic; comonadic } else
@@ -6800,7 +6796,7 @@ and type_function
                      uses the [arg_mode.comonadic] as a left mode, and
                      [arg_mode.monadic] as a right mode, hence they need to be
                      mode-crossed differently. *)
-                  let arg_mode = alloc_mode_cross_to_max_min ~loc env ty_arg arg_mode in
+                  let arg_mode = alloc_mode_cross_to_max_min env ty_arg arg_mode in
                   begin match
                     Alloc.submode (Alloc.close_over arg_mode) fun_alloc_mode
                   with
