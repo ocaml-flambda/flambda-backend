@@ -2119,9 +2119,6 @@ let is_datatype_decl (k : type_decl_kind) =
   | Type_record _ | Type_variant _ | Type_open -> true
   | Type_abstract _ -> false
 
-let find_type_opt p env =
-  try Some (Env.find_type p env) with Not_found -> None
-
 let rec jkind_of_decl_unapplied env (decl : type_declaration) : jkind option =
   (* FIXME jbachurski: Shouldn't we look at type_variance and type_separability here? *)
   match decl.type_arity with
@@ -2156,9 +2153,10 @@ and type_jkind_for_app_decl env decl tys =
   | None -> type_jkind_for_app decl.type_jkind decl.type_arity tys
 
 and type_jkind_for_app_path env path tys =
-  match find_type_opt path env with
-  | Some decl -> type_jkind_for_app_decl env decl tys
-  | None -> Some (Jkind.Type.Primitive.any ~why:(Missing_cmi path) |> Jkind.of_type_jkind)
+  match Env.find_type path env with
+  | decl -> type_jkind_for_app_decl env decl tys
+  | exception Not_found ->
+    Some (Jkind.Type.Primitive.any ~why:(Missing_cmi path) |> Jkind.of_type_jkind)
 
 (* We assume here that [get_unboxed_type_representation] has already been
    called, if the type is a Tconstr.  This allows for some optimization by
