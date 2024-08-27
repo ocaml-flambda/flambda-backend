@@ -446,15 +446,15 @@ end = struct
     let rec lower_to_representable (jkind : Jkind.t) =
       match Jkind.get jkind with
       | Arrow { args; result } ->
-        Jkind.of_arrow 
+        Jkind.of_arrow
           ~history:jkind.history
           ~args:(List.map co_lower_to_representable args)
           ~result:(lower_to_representable result)
-      | Type _ | Top -> {jkind with jkind = (intersection_with_new_sort jkind).jkind }
+      | Type _ | Top -> { jkind with desc = (intersection_with_new_sort jkind).desc }
     and co_lower_to_representable (jkind : Jkind.t) =
       match Jkind.get jkind with
       | Arrow { args; result } ->
-        Jkind.of_arrow 
+        Jkind.of_arrow
           ~history:jkind.history
           ~args:(List.map lower_to_representable args)
           ~result
