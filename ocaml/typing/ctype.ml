@@ -1791,9 +1791,11 @@ let subst env level priv abbrev oty params args body =
    care about efficiency here.
 *)
 let apply ?(use_current_level = false) env params body args =
+  (* TODO jbachurski: Since this function now uses [AppArgs.t], it should handle
+      over- and under-application depending on [params] and [body]. *)
   let level = if use_current_level then !current_level else generic_level in
   try
-    subst env level Public (ref Mnil) None params args body
+    subst env level Public (ref Mnil) None params (AppArgs.to_list args) body
   with
     Cannot_subst -> raise Cannot_apply
 
@@ -2042,7 +2044,7 @@ let unbox_once env ty =
       | None -> Final_result ty
       | Some ty2 ->
         let ty2 = match get_desc ty2 with Tpoly (t, _) -> t | _ -> ty2 in
-        Stepped (apply env decl.type_params ty2 (AppArgs.to_list args))
+        Stepped (apply env decl.type_params ty2 args)
       end
     end
   | Tpoly (ty, _) -> Stepped ty

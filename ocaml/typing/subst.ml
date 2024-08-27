@@ -309,7 +309,7 @@ let rec typexp copy_scope s ty =
          | exception Not_found -> Tconstr(type_path s p, args, ref Mnil)
          | Path _ -> Tconstr(type_path s p, args, ref Mnil)
          | Type_function { params; body } ->
-            Tlink (!ctype_apply_env_empty params body (AppArgs.to_list args))
+            Tlink (!ctype_apply_env_empty params body args)
          end
       | Tpackage(p, fl) ->
           Tpackage(modtype_path s p,

@@ -394,7 +394,6 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                  Oval_constr (Oide_ident (Out_name.create "lazy"), [v])
                end
           | Tconstr(path, args, _) -> begin
-              let ty_list = AppArgs.to_list args in
               try
                 let decl = Env.find_type path env in
                 match decl with
@@ -402,7 +401,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                     Oval_stuff "<abstr>"
                 | {type_kind = Type_abstract _; type_manifest = Some body} ->
                     tree_of_val depth obj
-                      (instantiate_type env decl.type_params ty_list body)
+                      (instantiate_type env decl.type_params args body)
                 | {type_kind = Type_variant (constr_list,rep)} ->
                   (* Here we work backwards from the actual runtime value to
                      find the appropriate `constructor_declaration` in
@@ -452,7 +451,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                       match cd_args with
                       | Cstr_tuple l ->
                           let ty_args =
-                            instantiate_types env type_params ty_list l in
+                            instantiate_types env type_params args l in
                           let ty_args =
                             List.mapi
                               (fun i ty_arg ->
@@ -473,7 +472,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           in
                           let r =
                             tree_of_record_fields depth
-                              env path type_params ty_list
+                              env path type_params args
                               lbls 0 obj rep
                           in
                           Oval_constr(tree_of_constr env path
@@ -513,11 +512,11 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                                 else Outval_record_boxed
                         in
                         tree_of_record_fields depth
-                          env path decl.type_params ty_list
+                          env path decl.type_params args
                           lbl_list pos obj rep
                     end
                 | {type_kind = Type_open} ->
-                    tree_of_extension path ty_list depth obj
+                    tree_of_extension path args depth obj
               with
                 Not_found ->                (* raised by Env.find_type *)
                   Oval_stuff "<abstr>"
@@ -565,12 +564,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               Oval_stuff "<module>"
         end
 
-      and tree_of_record_fields depth env path type_params ty_list
+      and tree_of_record_fields depth env path type_params args
           lbl_list pos obj rep =
         let rec tree_of_fields first pos = function
           | [] -> []
           | {ld_id; ld_type; ld_jkind} :: remainder ->
-              let ty_arg = instantiate_type env type_params ty_list ld_type in
+              let ty_arg = instantiate_type env type_params args ld_type in
               let name = Ident.name ld_id in
               (* PR#5722: print full module path only
                  for first record field *)
@@ -621,16 +620,16 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
       (* CR layouts v4: When we allow other jkinds in tuples, this should be
          generalized to take a list or array of jkinds, rather than just
          pairing each type with a bool indicating whether it is void *)
-      and tree_of_val_list start depth obj ty_list =
+      and tree_of_val_list start depth obj args =
         let rec tree_list i = function
           | [] -> []
-          | (_, Print_as msg) :: ty_list ->
-              Oval_stuff msg :: tree_list i ty_list
-          | (ty, Print_as_value) :: ty_list ->
+          | (_, Print_as msg) :: args ->
+              Oval_stuff msg :: tree_list i args
+          | (ty, Print_as_value) :: args ->
               let tree = nest tree_of_val (depth - 1) (O.field obj i) ty in
-              tree :: tree_list (i + 1) ty_list
+              tree :: tree_list (i + 1) args
         in
-      tree_list start ty_list
+      tree_list start args
 
       and tree_of_generic_array am depth obj ty_arg =
         if O.tag obj = Obj.custom_tag then
@@ -670,7 +669,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         in
         Oval_constr (lid, args)
 
-    and tree_of_extension type_path ty_list depth bucket =
+    and tree_of_extension type_path args depth bucket =
       let slot =
         if O.tag bucket <> 0 then bucket
         else O.field bucket 0
@@ -703,15 +702,15 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
              AppArgs.to_list params
           | _ -> assert false
         in
-        let args = instantiate_types env type_params ty_list cstr.cstr_args in
-        let args = List.mapi (fun i arg ->
+        let tys = instantiate_types env type_params args cstr.cstr_args in
+        let tys = List.mapi (fun i arg ->
             (arg, get_and_default_jkind_for_printing cstr.cstr_arg_jkinds.(i)))
-            args
+            tys
         in
         tree_of_constr_with_args
            (fun x -> Oide_ident x) name (cstr.cstr_inlined <> None)
            1 depth bucket
-           args false
+           tys false
       with Not_found | EVP.Error ->
         match check_depth depth bucket ty with
           Some x -> x
@@ -720,12 +719,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
         | None ->
             Oval_stuff "<extension>"
 
-    and instantiate_type env type_params ty_list ty =
-      try Ctype.apply env type_params ty ty_list
+    and instantiate_type env type_params args ty =
+      try Ctype.apply env type_params ty args
       with Ctype.Cannot_apply -> abstract_type
 
-    and instantiate_types env type_params ty_list args =
-      List.map (fun {ca_type=ty; _} -> instantiate_type env type_params ty_list ty) args
+    and instantiate_types env type_params args tys =
+      List.map (fun {ca_type=ty; _} -> instantiate_type env type_params args ty) tys
 
     and find_printer depth env ty =
       let rec find = function

@@ -803,7 +803,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
              raise (Error(sty.ptyp_loc, env, Type_mismatch err))
         )
         (List.combine stl args) params;
-      let ty_args = List.map (fun ctyp -> ctyp.ctyp_type) args in
+      let ty_args = List.map (fun ctyp -> ctyp.ctyp_type) args |> AppArgs.of_list in
       let ty = Ctype.apply ~use_current_level:true env params body ty_args in
       let ty = match get_desc ty with
         | Tobject (fi, _) ->
