@@ -1511,7 +1511,6 @@ module Type = struct
         fprintf ppf "Generalized (%s, %a)"
           (match id with Some id -> Ident.unique_name id | None -> "")
           Location.print_loc loc
-      | Temporary -> fprintf ppf "Temporary"
 
     let project_reason ppf : History.project_reason -> _ = function
       | Arrow_argument i -> fprintf ppf "Arrow_argument %d" i
@@ -2105,7 +2104,6 @@ module Format_history = struct
       in
       fprintf ppf "of the definition%a at %a" format_id id
         Location.print_loc_in_lowercase loc
-    | Temporary -> fprintf ppf "it is an intermediate created by an operation"
 
   let format_interact_reason ppf : History.interact_reason -> _ = function
     | Gadt_equation name ->

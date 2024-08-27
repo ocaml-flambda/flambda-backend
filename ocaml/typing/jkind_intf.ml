@@ -302,7 +302,6 @@ module History = struct
         }
     (* [position] is 1-indexed *)
     | Generalized of Ident.t option * Location.t
-    | Temporary
 
   type project_reason =
     | Arrow_argument of int
