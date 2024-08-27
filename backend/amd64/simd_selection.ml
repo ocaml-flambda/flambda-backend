@@ -471,8 +471,10 @@ type width =
   | W64
 
 type register =
-  | Original of int
   | New of int
+  | Argument of int
+  | Result of int
+  | Original of int
 
 type vectorized_instruction =
   { operation : Cfg.operation;
@@ -498,8 +500,8 @@ let vectorize_operation width (cfg_ops : Cfg.operation list) :
   let make_default arg_count res_count operation =
     Some
       [ { operation;
-          arguments = Array.init arg_count (fun i -> Original i);
-          results = Array.init res_count (fun i -> Original i)
+          arguments = Array.init arg_count (fun i -> Argument i);
+          results = Array.init res_count (fun i -> Result i)
         } ]
   in
   let create_const_vec consts =
@@ -627,12 +629,29 @@ let vectorize_operation width (cfg_ops : Cfg.operation list) :
     in
     let consts = List.map extract_const_int cfg_ops in
     create_const_vec consts
-  | Load { memory_chunk; addressing_mode; mutability; is_atomic } ->
-    Cfg.Load { memory_chunk; addressing_mode; mutability; is_atomic }
-    |> make_default (Arch.num_args_addressing addressing_mode) 1
-  | Store (memory_chunk, addressing_mode, is_assignment) ->
-    Cfg.Store (memory_chunk, addressing_mode, is_assignment)
-    |> make_default (Arch.num_args_addressing addressing_mode + 1) 1
+  | Load
+      { memory_chunk = _;
+        addressing_mode;
+        mutability;
+        is_atomic
+      } -> let operation = Cfg.Load
+      { memory_chunk = Onetwentyeight_aligned;
+        addressing_mode;
+        mutability;
+        is_atomic
+      } in
+          Some
+      [ { operation;
+          arguments = Array.init (Arch.num_args_addressing addressing_mode) (fun i -> Original i);
+          results =  [|Result 0|]
+        } ]
+
+  | Store (_, addressing_mode, is_assignment) ->
+    let operation = Cfg.Store (Onetwentyeight_aligned, addressing_mode, is_assignment) in Some
+    [ { operation;
+        arguments = Array.append [|Argument 0|] (Array.init (Arch.num_args_addressing addressing_mode) (fun i -> Original (i + 1)));
+        results =  [| |]
+      } ]
   | Intop intop -> vectorize_intop intop
   | Intop_imm (intop, _) ->
     let extract_intop_imm_int (op : Cfg.operation) =

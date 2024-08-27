@@ -34,7 +34,7 @@ module Instruction : sig
 
     val update_max_id : t -> unit
 
-    val next_max_id : unit -> t
+    val next_available_id : unit -> t
   end
 
   type t =
@@ -85,7 +85,7 @@ end = struct
 
     let update_max_id id = max_id := Int.max id !max_id
 
-    let next_max_id () =
+    let next_available_id () =
       max_id := !max_id + 1;
       !max_id
   end
@@ -1359,6 +1359,8 @@ end = struct
     fprintf ppf "\n"
 end
 
+let reg_map = Numbers.Int.Tbl.create 100
+
 let vectorize (block : Cfg.basic_block) cfg_with_infos =
   let all_trees = Computation_tree.from_block block cfg_with_infos in
   let rec find_independent_trees trees =
@@ -1386,23 +1388,83 @@ let vectorize (block : Cfg.basic_block) cfg_with_infos =
       |> Instruction.Id.Tbl.to_seq
       |> Instruction.Id.Tbl.add_seq good_nodes)
     good_trees;
-  let vectorize_node cell node =
-    ignore cell;
-    ignore node;
-    ignore Instruction.Id.next_max_id
+  let id_to_instructions = Instruction.tbl_of block in
+  let add_vector_instructions_for_node cell (node : Computation_tree.Node.t) =
+    let max_new_reg =
+      Array.fold_left
+        (fun current_max (simd_reg : Simd_selection.register) ->
+          match simd_reg with
+          | New n -> Int.max current_max n
+          | Argument _ | Result _ | Original _ -> current_max)
+        0
+    in
+    let all_max_new_reg =
+      List.fold_left
+        (fun current_max
+             (vectrorized_instruction : Simd_selection.vectorized_instruction) ->
+          Int.max current_max
+            (Int.max
+               (max_new_reg vectrorized_instruction.arguments)
+               (max_new_reg vectrorized_instruction.results)))
+        0
+    in
+    let new_regs =
+      Array.init
+        (all_max_new_reg node.vector_instructions + 1)
+        (fun _ -> Reg.create Vec128)
+    in
+    let old_instruction =
+      List.hd node.instructions |> Instruction.Id.Tbl.find id_to_instructions
+    in
+    let get_reg (reg : Reg.t) =
+      match Numbers.Int.Tbl.find_opt reg_map reg.stamp with
+      | Some reg -> reg
+      | None ->
+        let new_reg = Reg.create Vec128 in
+        Numbers.Int.Tbl.add reg_map reg.stamp new_reg;
+        new_reg
+    in
+    let create_instruction
+        (simd_instruction : Simd_selection.vectorized_instruction) =
+      let get_register (simd_reg : Simd_selection.register) =
+        match simd_reg with
+        | New n -> new_regs.(n)
+        | Argument n ->
+          let original_reg = (Instruction.arguments old_instruction).(n) in
+          get_reg original_reg
+        | Result n ->
+          let original_reg = (Instruction.results old_instruction).(n) in
+          get_reg original_reg
+        | Original n ->
+          let original_reg = (Instruction.arguments old_instruction).(n) in
+          original_reg
+      in
+      match old_instruction with
+      | Terminator _ -> assert false
+      | Basic instruction ->
+        { instruction with
+          desc = Cfg.Op simd_instruction.operation;
+          arg = Array.map get_register simd_instruction.arguments;
+          res = Array.map get_register simd_instruction.results;
+          id = Instruction.Id.next_available_id () |> Instruction.Id.to_int
+        }
+    in
+    List.iter
+      (fun simd_instruction ->
+        create_instruction simd_instruction |> DLL.insert_before cell)
+      node.vector_instructions
   in
   let rec add_vector_instructions cell_option =
     match cell_option with
     | None -> ()
-    | Some cell -> (
-      let instructon = Instruction.Basic (DLL.value cell) in
-      match
-        Instruction.id instructon |> Instruction.Id.Tbl.find_opt good_nodes
-      with
-      | None -> ()
-      | Some node ->
-        vectorize_node cell node;
-        DLL.next cell |> add_vector_instructions)
+    | Some cell ->
+      (let instructon = Instruction.Basic (DLL.value cell) in
+       match
+         Instruction.id instructon |> Instruction.Id.Tbl.find_opt good_nodes
+       with
+       | None -> ()
+       | Some node -> add_vector_instructions_for_node cell node);
+      DLL.next cell |> add_vector_instructions
   in
   let rec remove_scalar_instructions cell_option =
     match cell_option with
@@ -1413,9 +1475,7 @@ let vectorize (block : Cfg.basic_block) cfg_with_infos =
       if Instruction.Id.Set.exists
            (Instruction.Id.equal (Instruction.id instructon))
            good_instructions
-      then (
-        Format.print_char 'a';
-        DLL.delete_curr cell);
+      then DLL.delete_curr cell;
       remove_scalar_instructions next_cell
   in
   DLL.hd_cell block.body |> add_vector_instructions;
