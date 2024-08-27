@@ -19,3 +19,18 @@
 let select_operation _ = None
 
 let pseudoregs_for_operation _ arg res = arg, res
+
+(* for avoiding compilation errors when using them in amd64 *)
+type register =
+  | Original of int
+  | New of int
+
+type vectorized_instruction =
+  { operation : Cfg.operation;
+    arguments : register array;
+    results : register array
+  }
+
+let vector_width = 128
+
+let vectorize_operation _ _ : vectorized_instruction list option = None

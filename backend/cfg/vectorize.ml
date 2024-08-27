@@ -29,6 +29,12 @@ module Instruction : sig
     val to_int : t -> int
 
     val of_int : int -> t
+
+    val reset_max_id : unit -> unit
+
+    val update_max_id : t -> unit
+
+    val next_max_id : unit -> t
   end
 
   type t =
@@ -72,6 +78,16 @@ end = struct
     let to_int t = t
 
     let of_int t = t
+
+    let max_id = ref 0
+
+    let reset_max_id () = max_id := 0
+
+    let update_max_id id = max_id := Int.max id !max_id
+
+    let next_max_id () =
+      max_id := !max_id + 1;
+      !max_id
   end
 
   type t =
@@ -1048,7 +1064,9 @@ module Computation_tree : sig
 
   type t
 
-  val iter : (Instruction.Id.t -> Node.t -> unit) -> t -> unit
+  val all_instructions : t -> Instruction.Id.Set.t
+
+  val all_nodes : t -> Node.t Instruction.Id.Tbl.t
 
   val from_block : Cfg.basic_block -> Cfg_with_infos.t -> t list
 
@@ -1081,7 +1099,14 @@ end = struct
 
   let init () : t = Instruction.Id.Tbl.create 100
 
-  let iter = Instruction.Id.Tbl.iter
+  let all_instructions t =
+    Instruction.Id.Tbl.fold
+      (fun _ (node : Node.t) instructions ->
+        Instruction.Id.Set.of_list node.instructions
+        |> Instruction.Id.Set.union instructions)
+      t Instruction.Id.Set.empty
+
+  let all_nodes t = t
 
   let from_seed (block : Cfg.basic_block) cfg_with_infos seed =
     let body = Instruction.body_of block in
@@ -1335,14 +1360,66 @@ end = struct
 end
 
 let vectorize (block : Cfg.basic_block) cfg_with_infos =
-  let vectorize_node key node =
-    ignore key;
-    ignore node
+  let all_trees = Computation_tree.from_block block cfg_with_infos in
+  let rec find_independent_trees trees =
+    (* CR-someday tip: This is fine for now because trees are independent with
+       anything outside the tree except loads, so trees with no instructions in
+       common are independent with each other. Will have to re-implement if
+       trees have other external dependencies *)
+    match trees with
+    | [] -> [], Instruction.Id.Set.empty
+    | hd :: tl ->
+      let tree_instructions = Computation_tree.all_instructions hd in
+      let good_trees, good_instructions = find_independent_trees tl in
+      if Instruction.Id.Set.inter tree_instructions good_instructions
+         |> Instruction.Id.Set.is_empty
+      then
+        ( hd :: good_trees,
+          Instruction.Id.Set.union tree_instructions good_instructions )
+      else good_trees, good_instructions
   in
-  let vectorize_tree ct = Computation_tree.iter vectorize_node ct in
-  match Computation_tree.from_block block cfg_with_infos with
-  | [] -> ()
-  | ct :: _ -> vectorize_tree ct
+  let good_trees, good_instructions = find_independent_trees all_trees in
+  let good_nodes = Instruction.Id.Tbl.create 100 in
+  List.iter
+    (fun tree ->
+      Computation_tree.all_nodes tree
+      |> Instruction.Id.Tbl.to_seq
+      |> Instruction.Id.Tbl.add_seq good_nodes)
+    good_trees;
+  let vectorize_node cell node =
+    ignore cell;
+    ignore node;
+    ignore Instruction.Id.next_max_id
+  in
+  let rec add_vector_instructions cell_option =
+    match cell_option with
+    | None -> ()
+    | Some cell -> (
+      let instructon = Instruction.Basic (DLL.value cell) in
+      match
+        Instruction.id instructon |> Instruction.Id.Tbl.find_opt good_nodes
+      with
+      | None -> ()
+      | Some node ->
+        vectorize_node cell node;
+        DLL.next cell |> add_vector_instructions)
+  in
+  let rec remove_scalar_instructions cell_option =
+    match cell_option with
+    | None -> ()
+    | Some cell ->
+      let instructon = Instruction.Basic (DLL.value cell) in
+      let next_cell = DLL.next cell in
+      if Instruction.Id.Set.exists
+           (Instruction.Id.equal (Instruction.id instructon))
+           good_instructions
+      then (
+        Format.print_char 'a';
+        DLL.delete_curr cell);
+      remove_scalar_instructions next_cell
+  in
+  DLL.hd_cell block.body |> add_vector_instructions;
+  DLL.hd_cell block.body |> remove_scalar_instructions
 
 let dump ppf cfg_with_layout ~msg =
   let open Format in
@@ -1363,6 +1440,13 @@ let dump ppf cfg_with_layout ~msg =
 let cfg ppf_dump cl =
   if !Flambda_backend_flags.dump_vectorize
   then Format.fprintf ppf_dump "*** Vectorization@.";
+  Instruction.Id.reset_max_id ();
+  Cfg_with_layout.iter_instructions cl
+    ~instruction:(fun basic_instruction ->
+      Basic basic_instruction |> Instruction.id |> Instruction.Id.update_max_id)
+    ~terminator:(fun terminator_instruction ->
+      Terminator terminator_instruction |> Instruction.id
+      |> Instruction.Id.update_max_id);
   let cfg = Cfg_with_layout.cfg cl in
   let layout = Cfg_with_layout.layout cl in
   let cfg_with_infos = Cfg_with_infos.make cl in
@@ -1375,18 +1459,23 @@ let cfg ppf_dump cl =
       then
         Format.fprintf ppf_dump
           "more than 1000 instructions in basic block, cannot vectorize\n"
-      else
+      else if !Flambda_backend_flags.dump_vectorize
+      then (
         let dependency_graph = Dependency_graph.from_block block in
+        Dependency_graph.dump ppf_dump dependency_graph block;
         if !Flambda_backend_flags.dump_vectorize
-        then Dependency_graph.dump ppf_dump dependency_graph block;
-        let memory_accesses = Memory_accesses.from_block block in
-        if !Flambda_backend_flags.dump_vectorize
-        then Memory_accesses.dump ppf_dump memory_accesses;
-        let seeds = Seed.from_block block in
-        if !Flambda_backend_flags.dump_vectorize then Seed.dump ppf_dump seeds;
-        let trees = Computation_tree.from_block block cfg_with_infos in
-        if !Flambda_backend_flags.dump_vectorize
-        then Computation_tree.dump ppf_dump trees block;
-        vectorize block cfg_with_infos;
-        if !Flambda_backend_flags.dump_vectorize then dump ppf_dump ~msg:"" cl);
+        then (
+          let memory_accesses = Memory_accesses.from_block block in
+          Memory_accesses.dump ppf_dump memory_accesses;
+          if !Flambda_backend_flags.dump_vectorize
+          then (
+            let seeds = Seed.from_block block in
+            Seed.dump ppf_dump seeds;
+            if !Flambda_backend_flags.dump_vectorize
+            then (
+              let trees = Computation_tree.from_block block cfg_with_infos in
+              Computation_tree.dump ppf_dump trees block;
+              vectorize block cfg_with_infos;
+              if !Flambda_backend_flags.dump_vectorize
+              then dump ppf_dump ~msg:"" cl)))));
   cl
