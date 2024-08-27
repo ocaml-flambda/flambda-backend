@@ -825,12 +825,8 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   { monadic; comonadic }
 
 (** Mode cross a right mode *)
-let expect_mode_cross ~loc env ty (expected_mode : expected_mode) =
+let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
-  let () = match constrain_type_jkind env ty (Jkind.of_type_jkind (Jkind.Type.Primitive.any ~why:Dummy_jkind)) with
-    | Ok () -> ()
-    | Error err -> raise (Error (loc, env, Not_a_value(err, None)))
-  in
   let jkind = type_jkind_purely env ty in
   let upper_bounds = Jkind.Type.get_modal_upper_bounds (Jkind.to_type_jkind jkind) in
   let upper_bounds = Const.alloc_as_value upper_bounds in
@@ -4923,7 +4919,7 @@ let split_function_ty
           | Error _ -> raise (Error (loc_fun, env, Function_returns_local))
         end
       in
-      let ret_value_mode = expect_mode_cross ~loc:loc_fun env ty_ret ret_value_mode in
+      let ret_value_mode = expect_mode_cross env ty_ret ret_value_mode in
       ret_value_mode
   in
   let ty_arg_mono =
@@ -7518,7 +7514,10 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       end
       end
   | None ->
-      let mode = expect_mode_cross ~loc:sarg.pexp_loc env ty_expected' mode in
+      (match constrain_type_jkind env ty_expected' (Jkind.of_type_jkind (Jkind.Type.Primitive.any ~why:Dummy_jkind)) with
+      | Ok () -> ()
+      | Error err -> raise (Error (sarg.pexp_loc, env, Not_a_value(err, None))));
+      let mode = expect_mode_cross env ty_expected' mode in
       let texp = type_expect ?recarg env mode sarg
         (mk_expected ?explanation ty_expected') in
       unify_exp env texp ty_expected;
@@ -7721,7 +7720,7 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
     List.map2
       (fun (label, body) ((_, ty), argument_mode) ->
         let argument_mode = mode_default argument_mode in
-        let argument_mode = expect_mode_cross ~loc env ty argument_mode in
+        let argument_mode = expect_mode_cross env ty argument_mode in
           (label, type_expect env argument_mode body (mk_expected ty)))
       sexpl types_and_modes
   in
@@ -8734,7 +8733,7 @@ and type_generic_array
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
-  let argument_mode = expect_mode_cross ~loc env ty argument_mode in
+  let argument_mode = expect_mode_cross env ty argument_mode in
   let argl =
     List.map
       (fun sarg -> type_expect env argument_mode sarg (mk_expected ty))
