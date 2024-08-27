@@ -542,8 +542,6 @@ val get_unboxed_type_approximation : Env.t -> type_expr -> type_expr
    void. *)
 val tvariant_not_immediate : row_desc -> bool
 
-val app_args_match_decl : type_declaration -> AppArgs.t -> bool
-
 (* Cheap upper bound on jkind.  Will not expand unboxed types - call
    [type_jkind] if that's needed. *)
 val estimate_type_jkind : Env.t ->  type_expr -> jkind

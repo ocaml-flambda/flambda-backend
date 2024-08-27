@@ -1128,11 +1128,12 @@ let check_kind_coherence env loc dpath decl =
       begin
       try
         let decl' = Env.find_type path env in
+        let ty_list = AppArgs.to_list args in
         let err =
-          if not @@ Ctype.app_args_match_decl decl args
+          if List.length ty_list <> List.length decl.type_params
           then Some Includecore.Arity
           else begin
-            match Ctype.equal env false (AppArgs.to_list args) decl.type_params with
+            match Ctype.equal env false ty_list decl.type_params with
             | exception Ctype.Equality err ->
                 Some (Includecore.Constraint err)
             | () ->
