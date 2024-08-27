@@ -67,7 +67,7 @@ CAMLexport value caml_alloc (mlsize_t wosize, tag_t tag) {
   return caml_alloc_with_reserved (wosize, tag, 0);
 }
 
-#if NATIVE_CODE
+#if defined(NATIVE_CODE) && NATIVE_CODE
 CAMLexport value caml_alloc_mixed (mlsize_t wosize, tag_t tag,
                                    mlsize_t scannable_prefix) {
   reserved_t reserved =
