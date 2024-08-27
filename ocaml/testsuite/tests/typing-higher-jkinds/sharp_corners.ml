@@ -107,3 +107,11 @@ let f x = (x : int l :> l)
 Uncaught exception: Invalid_argument("List.combine")
 
 |}]
+
+type ('a : float64) t = Foo of 'a
+type ('f : value => value) s
+let foo (x : t s) = x
+[%%expect{|
+Uncaught exception: Invalid_argument("List.combine")
+
+|}]

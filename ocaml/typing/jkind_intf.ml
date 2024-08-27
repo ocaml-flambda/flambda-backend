@@ -306,6 +306,7 @@ module History = struct
   type project_reason =
     | Arrow_argument of int
     | Arrow_result
+    | Unapplied
 
   type interact_reason =
     | Gadt_equation of Path.t

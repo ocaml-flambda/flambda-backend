@@ -2126,7 +2126,10 @@ let rec jkind_of_decl_unapplied env (decl : type_declaration) =
   | 0 -> Some decl.type_jkind
   | _ when is_datatype_decl decl.type_kind ->
     Some (Jkind.of_arrow
-      ~history:decl.type_jkind.history
+      ~history:(Projection {
+        reason = Unapplied;
+        history = decl.type_jkind.history;
+        jkind = decl.type_jkind.desc })
       ~args:(List.map (type_jkind env) decl.type_params)
       ~result:decl.type_jkind)
   | _ -> None

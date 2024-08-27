@@ -1514,6 +1514,7 @@ module Type = struct
     let project_reason ppf : History.project_reason -> _ = function
       | Arrow_argument i -> fprintf ppf "Arrow_argument %d" i
       | Arrow_result -> fprintf ppf "Arrow_result"
+      | Unapplied -> fprintf ppf "Unapplied"
 
     let interact_reason ppf : History.interact_reason -> _ = function
       | Gadt_equation p -> fprintf ppf "Gadt_equation %a" Path.print p
@@ -2113,6 +2114,7 @@ module Format_history = struct
   let format_project_reason ppf : History.project_reason -> _ = function
     | Arrow_argument i -> fprintf ppf "in an application at position %d to" i
     | Arrow_result -> fprintf ppf "result of an application to"
+    | Unapplied -> fprintf ppf "unapplied constructor"
 
   (* CR layouts: An older implementation of format_flattened_history existed
       which displays more information not limited to one layout and one creation_reason
