@@ -382,33 +382,6 @@ module Solver_mono (C : Lattices_mono) = struct
       | Ok () -> Ok ()
       | Error e -> Error (C.apply obj f e)
 
-  (** Zap [mv] to its lower bound. Returns the [log] of the zapping, in
-      case the caller are only interested in the lower bound and wants to
-      reverse the zapping.
-
-      As mentioned in [var], [mlower mv] is not precise; to get the precise
-      lower bound of [mv], we call [submode mv (mlower mv)]. This will propagate
-      to all its children, which might fail because some children's lower bound
-      [a] is more up-to-date than [mv]. In that case, we call [submode mv a]. We
-      repeat this process until no failure, and we will get the precise lower
-      bound.
-
-      The loop is guaranteed to terminate, because for each iteration our
-      guessed lower bound is strictly higher; and all lattices are finite.
-      *)
-  let zap_to_floor_morphvar_aux (type a r) (obj : a C.obj)
-      (mv : (a, allowed * r) morphvar) =
-    let rec loop lower =
-      let log = ref empty_changes in
-      let r = submode_mvc ~log:(Some log) obj mv lower in
-      match r with
-      | Ok () -> !log, lower
-      | Error a ->
-        undo_changes !log;
-        loop (C.join obj a lower)
-    in
-    loop (mlower obj mv)
-
   let eq_morphvar :
       type a l0 r0 l1 r1. (a, l0 * r0) morphvar -> (a, l1 * r1) morphvar -> bool
       =
@@ -510,20 +483,6 @@ module Solver_mono (C : Lattices_mono) = struct
                       find_error (fun mv -> submode_mvmv ~log obj mv mu) mvs)
                     mus)))
 
-  let zap_to_ceil_morphvar obj mv ~log =
-    assert (submode_cmv obj (mupper obj mv) mv ~log |> Result.is_ok);
-    mupper obj mv
-
-  let zap_to_ceil : type a l. a C.obj -> (a, l * allowed) mode -> log:_ -> a =
-   fun obj m ~log ->
-    match m with
-    | Amode m -> m
-    | Amodevar mv -> zap_to_ceil_morphvar obj mv ~log
-    | Amodemeet (a, mvs) ->
-      List.fold_left
-        (fun acc mv -> C.meet obj acc (zap_to_ceil_morphvar obj mv ~log))
-        a mvs
-
   let cons_dedup x xs = if exists x xs then xs else x :: xs
 
   (* Similar to [List.rev_append] but dedup the result (assuming both inputs are
@@ -584,28 +543,6 @@ module Solver_mono (C : Lattices_mono) = struct
     in
     loop (C.max obj) [] l
 
-  (** Zaps a morphvar to its floor and returns the floor. [commit] could be
-      [Some log], in which case the zapping is appended to [log]; it could also
-      be [None], in which case the zapping is reverted. The latter is useful
-      when the caller only wants to know the floor without zapping. *)
-  let zap_to_floor_morphvar obj mv ~commit =
-    let log_, lower = zap_to_floor_morphvar_aux obj mv in
-    (match commit with
-    | None -> undo_changes log_
-    | Some log -> log := append_changes !log log_);
-    lower
-
-  let zap_to_floor : type a r. a C.obj -> (a, allowed * r) mode -> log:_ -> a =
-   fun obj m ~log ->
-    match m with
-    | Amode a -> a
-    | Amodevar mv -> zap_to_floor_morphvar obj mv ~commit:log
-    | Amodejoin (a, mvs) ->
-      List.fold_left
-        (fun acc mv ->
-          C.join obj acc (zap_to_floor_morphvar obj mv ~commit:log))
-        a mvs
-
   let get_conservative_ceil : type a l r. a C.obj -> (a, l * r) mode -> a =
    fun obj m ->
     match m with
@@ -628,6 +565,69 @@ module Solver_mono (C : Lattices_mono) = struct
 
   (* Due to our biased implementation, the ceil is precise. *)
   let get_ceil = get_conservative_ceil
+
+  let zap_to_ceil_morphvar obj mv ~log =
+    assert (submode_cmv obj (mupper obj mv) mv ~log |> Result.is_ok);
+    mupper obj mv
+
+  let zap_to_ceil : type a l. a C.obj -> (a, l * allowed) mode -> log:_ -> a =
+   fun obj m ~log ->
+    match m with
+    | Amode m -> m
+    | Amodevar mv -> zap_to_ceil_morphvar obj mv ~log
+    | Amodemeet (a, mvs) ->
+      List.fold_left
+        (fun acc mv -> C.meet obj acc (zap_to_ceil_morphvar obj mv ~log))
+        a mvs
+
+  (** Zap [mv] to its lower bound. Returns the [log] of the zapping, in
+      case the caller are only interested in the lower bound and wants to
+      reverse the zapping.
+
+      As mentioned in [var], [mlower mv] is not precise; to get the precise
+      lower bound of [mv], we call [submode mv (mlower mv)]. This will propagate
+      to all its children, which might fail because some children's lower bound
+      [a] is more up-to-date than [mv]. In that case, we call [submode mv a]. We
+      repeat this process until no failure, and we will get the precise lower
+      bound.
+
+      The loop is guaranteed to terminate, because for each iteration our
+      guessed lower bound is strictly higher; and all lattices are finite.
+      *)
+  let zap_to_floor_morphvar_aux (type a r) (obj : a C.obj)
+      (mv : (a, allowed * r) morphvar) =
+    let rec loop lower =
+      let log = ref empty_changes in
+      let r = submode_mvc ~log:(Some log) obj mv lower in
+      match r with
+      | Ok () -> !log, lower
+      | Error a ->
+        undo_changes !log;
+        loop (C.join obj a lower)
+    in
+    loop (mlower obj mv)
+
+  (** Zaps a morphvar to its floor and returns the floor. [commit] could be
+      [Some log], in which case the zapping is appended to [log]; it could also
+      be [None], in which case the zapping is reverted. The latter is useful
+      when the caller only wants to know the floor without zapping. *)
+  let zap_to_floor_morphvar obj mv ~commit =
+    let log_, lower = zap_to_floor_morphvar_aux obj mv in
+    (match commit with
+    | None -> undo_changes log_
+    | Some log -> log := append_changes !log log_);
+    lower
+
+  let zap_to_floor : type a r. a C.obj -> (a, allowed * r) mode -> log:_ -> a =
+   fun obj m ~log ->
+    match m with
+    | Amode a -> a
+    | Amodevar mv -> zap_to_floor_morphvar obj mv ~commit:log
+    | Amodejoin (a, mvs) ->
+      List.fold_left
+        (fun acc mv ->
+          C.join obj acc (zap_to_floor_morphvar obj mv ~commit:log))
+        a mvs
 
   let get_floor : type a r. a C.obj -> (a, allowed * r) mode -> a =
    fun obj m ->
