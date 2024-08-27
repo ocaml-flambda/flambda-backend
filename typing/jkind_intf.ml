@@ -39,6 +39,10 @@ module type Sort = sig
     val equal : t -> t -> bool
 
     val format : Format.formatter -> t -> unit
+
+    module Debug_printers : sig
+      val t : Format.formatter -> t -> unit
+    end
   end
 
   module Var : sig
@@ -240,8 +244,6 @@ module History = struct
     | Primitive of Ident.t
     | Immediate_polymorphic_variant
 
-  type immediate64_creation_reason = Separability_check
-
   (* CR layouts v5: make new void_creation_reasons *)
   type void_creation_reason = |
 
@@ -256,22 +258,7 @@ module History = struct
     | Inside_of_Tarrow
     | Wildcard
     | Unification_var
-
-  type any_non_null_creation_reason = Array_type_argument
-
-  type immutable_data_creation_reason = Primitive of Ident.t
-
-  type mutable_data_creation_reason = Primitive of Ident.t
-
-  type float64_creation_reason = Primitive of Ident.t
-
-  type float32_creation_reason = Primitive of Ident.t
-
-  type word_creation_reason = Primitive of Ident.t
-
-  type bits32_creation_reason = Primitive of Ident.t
-
-  type bits64_creation_reason = Primitive of Ident.t
+    | Array_type_argument
 
   type creation_reason =
     | Annotated of annotation_context * Location.t
@@ -279,19 +266,11 @@ module History = struct
     | Value_or_null_creation of value_or_null_creation_reason
     | Value_creation of value_creation_reason
     | Immediate_creation of immediate_creation_reason
-    | Immediate64_creation of immediate64_creation_reason
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
-    | Any_non_null_creation of any_non_null_creation_reason
-    | Immutable_data_creation of immutable_data_creation_reason
-    | Mutable_data_creation of mutable_data_creation_reason
-    | Float64_creation of float64_creation_reason
-    | Float32_creation of float32_creation_reason
-    | Word_creation of word_creation_reason
-    | Bits32_creation of bits32_creation_reason
-    | Bits64_creation of bits64_creation_reason
     | Concrete_creation of concrete_creation_reason
     | Concrete_legacy_creation of concrete_legacy_creation_reason
+    | Primitive of Ident.t
     | Imported
     | Imported_type_argument of
         { parent_path : Path.t;

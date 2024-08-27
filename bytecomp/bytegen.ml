@@ -389,7 +389,7 @@ let comp_bint_primitive bi suff args =
                 | Pint64 -> "caml_int64_" in
   Kccall(pref ^ suff, List.length args)
 
-let array_primitive (index_kind : Lambda.array_index_kind) prefix =
+let indexing_primitive (index_kind : Lambda.array_index_kind) prefix =
   let suffix =
     match index_kind with
     | Ptagged_int_index -> ""
@@ -476,18 +476,30 @@ let comp_primitive stack_info p sz args =
   | Pstringrefu -> Kgetstringchar
   | Pbytesrefu -> Kgetbyteschar
   | Pbytessetu -> Ksetbyteschar
-  | Pstring_load_16(_) -> Kccall("caml_string_get16", 2)
-  | Pstring_load_32(_) -> Kccall("caml_string_get32", 2)
-  | Pstring_load_f32(_) -> Kccall("caml_string_getf32", 2)
-  | Pstring_load_64(_) -> Kccall("caml_string_get64", 2)
-  | Pbytes_set_16(_) -> Kccall("caml_bytes_set16", 3)
-  | Pbytes_set_32(_) -> Kccall("caml_bytes_set32", 3)
-  | Pbytes_set_f32(_) -> Kccall("caml_bytes_setf32", 3)
-  | Pbytes_set_64(_) -> Kccall("caml_bytes_set64", 3)
-  | Pbytes_load_16(_) -> Kccall("caml_bytes_get16", 2)
-  | Pbytes_load_32(_) -> Kccall("caml_bytes_get32", 2)
-  | Pbytes_load_f32(_) -> Kccall("caml_bytes_getf32", 2)
-  | Pbytes_load_64(_) -> Kccall("caml_bytes_get64", 2)
+  | Pstring_load_16 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_string_get16", 2)
+  | Pstring_load_32 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_string_get32", 2)
+  | Pstring_load_f32 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_string_getf32", 2)
+  | Pstring_load_64 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_string_get64", 2)
+  | Pbytes_set_16 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_bytes_set16", 3)
+  | Pbytes_set_32 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_bytes_set32", 3)
+  | Pbytes_set_f32 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_bytes_setf32", 3)
+  | Pbytes_set_64 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_bytes_set64", 3)
+  | Pbytes_load_16 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_bytes_get16", 2)
+  | Pbytes_load_32 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_bytes_get32", 2)
+  | Pbytes_load_f32 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_bytes_getf32", 2)
+  | Pbytes_load_64 { index_kind; _ } ->
+      Kccall(indexing_primitive index_kind "caml_bytes_get64", 2)
   | Parraylength _ -> Kvectlength
   (* In bytecode, nothing is ever actually stack-allocated, so we ignore the
      array modes (allocation for [Parrayref{s,u}], modification for
@@ -496,7 +508,7 @@ let comp_primitive stack_info p sz args =
   | Parrayrefs ((Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
                 | Punboxedfloatarray_ref (Pfloat64 | Pfloat32) | Punboxedintarray_ref _),
                 (Punboxed_int_index _ as index_kind)) ->
-      Kccall(array_primitive index_kind "caml_array_get", 2)
+      Kccall(indexing_primitive index_kind "caml_array_get", 2)
   | Parrayrefs ((Punboxedfloatarray_ref Pfloat64 | Pfloatarray_ref _), Ptagged_int_index) ->
       Kccall("caml_floatarray_get", 2)
   | Parrayrefs ((Punboxedfloatarray_ref Pfloat32 | Punboxedintarray_ref _
@@ -506,7 +518,7 @@ let comp_primitive stack_info p sz args =
   | Parraysets ((Paddrarray_set _ | Pintarray_set | Pfloatarray_set
                 | Punboxedfloatarray_set (Pfloat64 | Pfloat32) | Punboxedintarray_set _),
                 (Punboxed_int_index _ as index_kind)) ->
-      Kccall(array_primitive index_kind "caml_array_set", 3)
+      Kccall(indexing_primitive index_kind "caml_array_set", 3)
   | Parraysets ((Punboxedfloatarray_set Pfloat64 | Pfloatarray_set),
                 Ptagged_int_index) ->
       Kccall("caml_floatarray_set", 3)
@@ -517,7 +529,7 @@ let comp_primitive stack_info p sz args =
   | Parrayrefu ((Paddrarray_ref | Pintarray_ref | Pfloatarray_ref _
                 | Punboxedfloatarray_ref (Pfloat64 | Pfloat32) | Punboxedintarray_ref _),
                 (Punboxed_int_index _ as index_kind)) ->
-      Kccall(array_primitive index_kind "caml_array_unsafe_get", 2)
+      Kccall(indexing_primitive index_kind "caml_array_unsafe_get", 2)
   | Parrayrefu ((Punboxedfloatarray_ref Pfloat64 | Pfloatarray_ref _), Ptagged_int_index) ->
     Kccall("caml_floatarray_unsafe_get", 2)
   | Parrayrefu ((Punboxedfloatarray_ref Pfloat32 | Punboxedintarray_ref _
@@ -526,7 +538,7 @@ let comp_primitive stack_info p sz args =
   | Parraysetu ((Paddrarray_set _ | Pintarray_set | Pfloatarray_set
                 | Punboxedfloatarray_set (Pfloat64 | Pfloat32) | Punboxedintarray_set _),
                 (Punboxed_int_index _ as index_kind)) ->
-      Kccall(array_primitive index_kind "caml_array_unsafe_set", 3)
+      Kccall(indexing_primitive index_kind "caml_array_unsafe_set", 3)
   | Parraysetu ((Punboxedfloatarray_set Pfloat64 | Pfloatarray_set), Ptagged_int_index) ->
       Kccall("caml_floatarray_unsafe_set", 3)
   | Parraysetu ((Punboxedfloatarray_set Pfloat32 | Punboxedintarray_set _
@@ -581,14 +593,22 @@ let comp_primitive stack_info p sz args =
   | Pbigarrayref(_, n, _, _) -> Kccall("caml_ba_get_" ^ Int.to_string n, n + 1)
   | Pbigarrayset(_, n, _, _) -> Kccall("caml_ba_set_" ^ Int.to_string n, n + 2)
   | Pbigarraydim(n) -> Kccall("caml_ba_dim_" ^ Int.to_string n, 1)
-  | Pbigstring_load_16(_) -> Kccall("caml_ba_uint8_get16", 2)
-  | Pbigstring_load_32(_) -> Kccall("caml_ba_uint8_get32", 2)
-  | Pbigstring_load_f32(_) -> Kccall("caml_ba_uint8_getf32", 2)
-  | Pbigstring_load_64(_) -> Kccall("caml_ba_uint8_get64", 2)
-  | Pbigstring_set_16(_) -> Kccall("caml_ba_uint8_set16", 3)
-  | Pbigstring_set_32(_) -> Kccall("caml_ba_uint8_set32", 3)
-  | Pbigstring_set_f32(_) -> Kccall("caml_ba_uint8_setf32", 3)
-  | Pbigstring_set_64(_) -> Kccall("caml_ba_uint8_set64", 3)
+  | Pbigstring_load_16{unsafe=_;index_kind} ->
+      Kccall(indexing_primitive index_kind "caml_ba_uint8_get16", 2)
+  | Pbigstring_load_32{unsafe=_;mode=_;index_kind} ->
+      Kccall(indexing_primitive index_kind "caml_ba_uint8_get32", 2)
+  | Pbigstring_load_f32{unsafe=_;mode=_;index_kind} ->
+      Kccall(indexing_primitive index_kind "caml_ba_uint8_getf32", 2)
+  | Pbigstring_load_64{unsafe=_;mode=_;index_kind} ->
+      Kccall(indexing_primitive index_kind "caml_ba_uint8_get64", 2)
+  | Pbigstring_set_16{unsafe=_;index_kind} ->
+      Kccall(indexing_primitive index_kind "caml_ba_uint8_set16", 3)
+  | Pbigstring_set_32{unsafe=_;index_kind} ->
+      Kccall(indexing_primitive index_kind "caml_ba_uint8_set32", 3)
+  | Pbigstring_set_f32{unsafe=_;index_kind} ->
+      Kccall(indexing_primitive index_kind "caml_ba_uint8_setf32", 3)
+  | Pbigstring_set_64{unsafe=_;index_kind} ->
+      Kccall(indexing_primitive index_kind "caml_ba_uint8_set64", 3)
   | Pbswap16 -> Kccall("caml_bswap16", 1)
   | Pbbswap(bi,_) -> comp_bint_primitive bi "bswap" args
   | Pint_as_pointer _ -> Kccall("caml_int_as_pointer", 1)
