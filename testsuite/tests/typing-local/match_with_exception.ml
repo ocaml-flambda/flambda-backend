@@ -3,10 +3,10 @@
 *)
 
 let[@inline never] f x =
-  local_ (x, (0, 0))
+  exclave_ (x, (0, 0))
 
 let[@inline never] g x =
-  local_ (x, 0)
+  exclave_ (x, 0)
 
 let[@inline never] h x =
   match f x with

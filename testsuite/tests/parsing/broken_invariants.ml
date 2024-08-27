@@ -23,6 +23,8 @@ end;;
 let f ([%lt_empty_open_pat]) = ();;
 let f ([%lt_short_closed_pat]) = ();;
 
+let f ([%nested_pat_constraint]) = ();;
+
 (* TEST
  readonly_files = "illegal_ppx.ml";
  setup-ocamlc.byte-build-env;
