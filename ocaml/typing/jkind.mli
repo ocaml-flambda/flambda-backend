@@ -328,6 +328,11 @@ module Type : sig
   val set_externality_upper_bound : t -> Externality.t -> t
 
   (*********************************)
+  (* pretty printing *)
+
+  val format : Format.formatter -> t -> unit
+
+  (*********************************)
   (* debugging *)
 
   module Debug_printers : sig

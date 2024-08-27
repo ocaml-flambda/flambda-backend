@@ -1267,6 +1267,8 @@ module Type = struct
   (*********************************)
   (* pretty printing *)
 
+  let format ppf (t : t) = Jkind_desc.format ppf t.jkind
+
   module Report_missing_cmi : sig
     (* used both in format_history and in Violation.report_general *)
     val report_missing_cmi : Format.formatter -> Path.t option -> unit
