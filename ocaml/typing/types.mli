@@ -100,7 +100,7 @@ and type_desc =
   (** [Tconstr (`A.B.t', [t1;...;tn], _)] ==> [(t1,...,tn) A.B.t]
       The last parameter keep tracks of known expansions, see [abbrev_memo]. *)
 
-  | Tapp of type_expr * app_args
+  | Tapp of type_expr * type_expr list
   (** [Tapp (t, [t1;...;tn])] ==> [(t1,...,tn) t]
       Applied in cases where the applied constructor is not a path,
       but e.g. a variable *)

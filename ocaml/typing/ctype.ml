@@ -808,7 +808,7 @@ let rec generalize_spine ty =
   | Tapp (t, tyl) ->
       set_level ty generic_level;
       generalize_spine t;
-      AppArgs.iter generalize_spine tyl
+      List.iter generalize_spine tyl
   | _ -> ()
 
 let forward_try_expand_safe = (* Forward declaration *)
@@ -2109,13 +2109,9 @@ let rec estimate_type_jkind env ty =
     with
       Not_found -> Jkind (Jkind.Primitive.top ~why:(Missing_cmi p))
   end
-  | Tapp (ty, tys) -> begin
-    let app_jkind = estimate_type_jkind env ty in
-    match tys, jkind_of_result app_jkind with
-    | Unapplied, _ -> app_jkind
-    | Applied _, Type _ -> assert false
-    | Applied _, Arrow { args = _; result } -> Jkind result
-  end
+  | Tapp (_, _) ->
+    (* TODO jbachurski *)
+    assert false
   | Tvariant row ->
       if tvariant_not_immediate row
       then Jkind (Type.Primitive.value ~why:Polymorphic_variant |> Jkind.of_type_jkind)

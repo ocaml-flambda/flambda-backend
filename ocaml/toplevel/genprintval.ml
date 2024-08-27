@@ -526,7 +526,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
           | Tapp (ty, tyl) ->
             begin match get_desc ty with
             | Tconstr(p, Unapplied, _) ->
-              tree_of_val (depth - 1) obj (Ctype.newconstr p (AppArgs.to_list tyl))
+              tree_of_val (depth - 1) obj (Ctype.newconstr p tyl)
             | _ -> Oval_stuff "<poly>"
             end
           | Tvariant row ->

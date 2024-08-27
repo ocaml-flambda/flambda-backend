@@ -654,7 +654,7 @@ and raw_type_desc ppf = function
   | Tapp (t, tl) ->
       fprintf ppf "@[<hov1>Tapp(@,%a,@,%a)@]"
         raw_type t
-        raw_app_args tl
+        raw_type_list tl
   | Tobject (t, nm) ->
       fprintf ppf "@[<hov1>Tobject(@,%a,@,@[<1>ref%t@])@]" raw_type t
         (fun ppf ->
@@ -1436,7 +1436,7 @@ let rec tree_of_typexp mode alloc_mode ty =
         else Otyp_constr (tree_of_path (Some Type) p', tree_of_typlist mode tyl')
     | Tapp (ty, tyl) ->
         Otyp_app (tree_of_typexp mode Alloc.Const.legacy ty,
-                  tree_of_typlist mode (AppArgs.to_list tyl))
+                  tree_of_typlist mode tyl)
     | Tvariant row ->
         let Row {fields; name; closed; _} = row_repr row in
         let fields =
