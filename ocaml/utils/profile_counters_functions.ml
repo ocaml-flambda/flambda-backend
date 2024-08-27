@@ -40,7 +40,7 @@ let count_language_extensions typing_input =
       label_opt_pair_list
   in
   let check_array_mutability mutability =
-    if Types.is_mutable mutability then incr Immutable_arrays
+    if not (Types.is_mutable mutability) then incr Immutable_arrays
   in
   let iterator =
     Tast_iterator.

@@ -1,0 +1,2 @@
+ immutable_arrays/ml_counters.ml
+  [comprehensions = 0; immutable_arrays = 2; include_functor = 0; labeled_tuples = 0; module_strengthening = 0] typing
