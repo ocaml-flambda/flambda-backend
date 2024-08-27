@@ -433,7 +433,7 @@ let update_class_decls env cldecls =
     Typedecl_properties.compute_property property env decls required in
   List.map2
     (fun (_,decl) (_, _, clty, cltydef, _) ->
-      let variance = Ctype.applied_variance_of_decl decl in
+      let variance = decl.type_variance in
       (decl, {clty with cty_variance = variance},
        {cltydef with
         clty_variance = variance;

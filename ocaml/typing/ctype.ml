@@ -3179,7 +3179,7 @@ and mcomp_type_decl type_pairs env p1 p2 args1 args2 =
     in
     if compatible_paths p1 p2 then begin
       let inj =
-        try List.map Variance.(mem Inj) (Env.find_type p1 env |> applied_variance_of_decl)
+        try List.map Variance.(mem Inj) (Env.find_type p1 env).type_variance
         with Not_found -> List.map (fun _ -> false) tl1
       in
       List.iter2
