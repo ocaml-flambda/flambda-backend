@@ -1731,7 +1731,8 @@ let unify_var' = (* Forward declaration *)
   ref (fun _env _ty1 _ty2 -> assert false)
 
 let subst env level priv abbrev oty params args body =
-  if List.length params <> List.length args then raise Cannot_subst;
+  (* TODO jbachurski: Over/under-application *)
+  if List.length params <> List.length (AppArgs.to_list args) then raise Cannot_subst;
   let old_level = !current_level in
   current_level := level;
   let body0 = newvar (Jkind.Primitive.top ~why:Dummy_jkind) in          (* Stub *)
@@ -1753,7 +1754,7 @@ let subst env level priv abbrev oty params args body =
   umode := Subst;
   try
     !unify_var' env body0 body';
-    List.iter2 (!unify_var' env) params' args;
+    AppArgs.iter_with_list (!unify_var' env) params' args;
     current_level := old_level;
     umode := old_umode;
     body'
@@ -1791,11 +1792,9 @@ let subst env level priv abbrev oty params args body =
    care about efficiency here.
 *)
 let apply ?(use_current_level = false) env params body args =
-  (* TODO jbachurski: Since this function now uses [AppArgs.t], it should handle
-      over- and under-application depending on [params] and [body]. *)
   let level = if use_current_level then !current_level else generic_level in
   try
-    subst env level Public (ref Mnil) None params (AppArgs.to_list args) body
+    subst env level Public (ref Mnil) None params args body
   with
     Cannot_subst -> raise Cannot_apply
 
@@ -1883,7 +1882,7 @@ let expand_abbrev_gen kind find_type_expansion env ty =
               ("add a "^string_of_kind kind^" expansion for "^Path.name path);*)
             let ty' =
               try
-                subst env level kind abbrev (Some ty) params (AppArgs.to_list args) body
+                subst env level kind abbrev (Some ty) params args body
               with Cannot_subst -> raise_escape_exn Constraint
             in
             (* For gadts, remember type as non exportable *)
@@ -2811,6 +2810,10 @@ let deep_occur_list t0 tyl =
   with Occur ->
     List.iter unmark_type tyl;
     true
+
+let deep_occur_appargs t0 args =
+  (* This is safe, as we just end up iterating over [args] *)
+  deep_occur_list t0 (AppArgs.to_list args)
 
 let deep_occur t0 ty =
   try
@@ -5746,7 +5749,7 @@ let rec build_subtype env (visited : transient_expr list)
           let ty =
             try
               subst env !current_level Public abbrev None
-                cl_abbr.type_params (AppArgs.to_list tl) body
+                cl_abbr.type_params tl body
             with Cannot_subst -> assert false in
           let ty1, tl1 =
             match get_desc ty with
@@ -5757,7 +5760,7 @@ let rec build_subtype env (visited : transient_expr list)
           (* Fix PR#4505: do not set ty to Tvar when it appears in tl1,
              as this occurrence might break the occur check.
              XXX not clear whether this correct anyway... *)
-          if deep_occur_list ty (AppArgs.to_list tl1) then raise Not_found;
+          if deep_occur_appargs ty tl1 then raise Not_found;
           set_type_desc ty
             (Tvar { name = None;
                     jkind = Jkind.Type.Primitive.value
