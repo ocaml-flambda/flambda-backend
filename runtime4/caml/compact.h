@@ -2,9 +2,9 @@
 /*                                                                        */
 /*                                 OCaml                                  */
 /*                                                                        */
-/*           Xavier Leroy, Collège de France and Inria Paris              */
+/*              Damien Doligez, projet Para, INRIA Rocquencourt           */
 /*                                                                        */
-/*   Copyright 2022 Institut National de Recherche en Informatique et     */
+/*   Copyright 1996 Institut National de Recherche en Informatique et     */
 /*     en Automatique.                                                    */
 /*                                                                        */
 /*   All rights reserved.  This file is distributed under the terms of    */
@@ -13,34 +13,24 @@
 /*                                                                        */
 /**************************************************************************/
 
-/* BLAKE2 message digest */
-
-#ifndef CAML_BLAKE2_H
-#define CAML_BLAKE2_H
+#ifndef CAML_COMPACT_H
+#define CAML_COMPACT_H
 
 #ifdef CAML_INTERNALS
 
+#include "config.h"
 #include "misc.h"
+#include "mlvalues.h"
 
-#define BLAKE2_BLOCKSIZE 128
+/* [caml_compact_heap] compacts the heap and optionally changes the
+   allocation policy.
+   if [new_allocation_policy] is -1, the policy is not changed.
+*/
+void caml_compact_heap (intnat new_allocation_policy);
 
-struct BLAKE2_context {
-  uint64_t h[8];
-  uint64_t len[2];
-  size_t numbytes;
-  unsigned char buffer[BLAKE2_BLOCKSIZE];
-};
-
-CAMLextern void
-caml_BLAKE2Init(struct BLAKE2_context * context,
-                size_t hashlen, size_t keylen, const unsigned char * key);
-CAMLextern void
-caml_BLAKE2Update(struct BLAKE2_context * context,
-                  const unsigned char * data, size_t len);
-CAMLextern void
-caml_BLAKE2Final(struct BLAKE2_context * context,
-                 size_t hashlen, unsigned char * hash);
+void caml_compact_heap_maybe (double previous_overhead);
+void caml_invert_root (value v, value *p);
 
 #endif /* CAML_INTERNALS */
 
-#endif /* CAML_BLAKE2_H */
+#endif /* CAML_COMPACT_H */
