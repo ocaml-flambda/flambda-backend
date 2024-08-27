@@ -8013,7 +8013,7 @@ and map_half_typed_cases
         else ty_res, (fun env -> env)
       in
       (* Unify all cases (delayed to keep it order-free) *)
-      let ty_arg' = newvar (Jkind.Primitive.top ~why:Dummy_jkind) in
+      let ty_arg' = new_type_var (Jkind.Type.Primitive.any ~why:Dummy_jkind) in
       let unify_pats ty =
         List.iter (fun { typed_pat = pat; pat_type_for_unif = pat_ty; _ } ->
           unify_pat_types pat.pat_loc (ref env) pat_ty ty

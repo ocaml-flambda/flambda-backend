@@ -664,7 +664,7 @@ let transl_bound_vars : (_, _) Either.t -> _ =
                            ~context:(fun v -> Univar ("'" ^ v)) vars_jkinds
 
 let constrain_type_expr_jkind_to_any ~loc ~vloc env typ =
-  let any = Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind in
+  let any = Jkind.Type.Primitive.any ~why:Inside_of_Tarrow |> Jkind.of_type_jkind in
   match constrain_type_jkind env typ any with
   | Ok _ -> ()
   | Error err ->

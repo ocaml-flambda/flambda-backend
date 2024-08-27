@@ -273,9 +273,9 @@ module History = struct
     | Missing_cmi of Path.t
     | Initial_typedecl_env
     | Dummy_jkind
-    | Type_expression_call
     | Wildcard
     | Unification_var
+    | Union_incompatible
 
   type creation_reason =
     | Annotated of annotation_context * Location.t

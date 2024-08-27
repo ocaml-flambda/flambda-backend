@@ -1471,9 +1471,9 @@ module Type = struct
       | Missing_cmi p -> fprintf ppf "Missing_cmi %a" Path.print p
       | Initial_typedecl_env -> fprintf ppf "Initial_typedecl_env"
       | Dummy_jkind -> fprintf ppf "Dummy_jkind"
-      | Type_expression_call -> fprintf ppf "Type_expression_call"
       | Wildcard -> fprintf ppf "Wildcard"
       | Unification_var -> fprintf ppf "Unification_var"
+      | Union_incompatible -> fprintf ppf "Union_incompatible"
 
     let creation_reason ppf : History.creation_reason -> unit = function
       | Annotated (ctx, loc) ->
@@ -2107,8 +2107,7 @@ module Format_history = struct
     | Initial_typedecl_env ->
       format_any_creation_reason ppf Initial_typedecl_env
     | Dummy_jkind -> format_any_creation_reason ppf Dummy_jkind
-    | Type_expression_call ->
-      format_any_creation_reason ppf Type_expression_call
+    | Union_incompatible -> fprintf ppf "union of two incompatible kinds"
 
   let format_creation_reason ppf ~layout_or_kind :
       History.creation_reason -> unit = function
@@ -2474,13 +2473,15 @@ and union_or_error ~reason (t1 : t) (t2 : t) =
       Arrow { args = args2; result = result2 } ) ->
     Ok
       (Result.value
-         ~default:(Primitive.top ~why:Dummy_jkind)
+         ~default:(Primitive.top ~why:Union_incompatible)
          (let* args =
             intersection_list_or_error ~reason ~violation args1 args2
           in
           let* result = union_or_error ~reason result1 result2 in
           Ok (of_arrow ~history:(combine_histories reason t1 t2) ~args ~result)))
-  | _, (Arrow _ | Type _ | Top) -> Ok (Primitive.top ~why:Dummy_jkind)
+  | Top, _ -> Ok t1
+  | _, Top -> Ok t2
+  | _, (Arrow _ | Type _) -> Ok (Primitive.top ~why:Union_incompatible)
 
 and intersection_list_or_error ~reason ~violation =
   combine_list_or_error ~violation (intersection_or_error ~reason)
