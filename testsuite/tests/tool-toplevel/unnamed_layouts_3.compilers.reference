@@ -2,5 +2,5 @@ Line 15, characters 0-29:
 15 | let ((_ : _) : _) : _ = #3.14;;
      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Types of unnamed expressions must have layout value when using
-       the toplevel, but this expression has layout float64.
+       the toplevel, but this expression has layout "float64".
 

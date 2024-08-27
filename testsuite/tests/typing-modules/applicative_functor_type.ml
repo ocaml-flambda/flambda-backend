@@ -22,16 +22,8 @@ Line 1, characters 9-22:
 Error: Modules do not match:
        sig type t = M.t val equal : 'a -> 'a -> bool end
      is not included in Set.OrderedType
-<<<<<<< HEAD
-     The value `compare' is required but not provided
-     File "set.mli", line 58, characters 4-31: Expected declaration
-||||||| 121bedcfd2
-     The value `compare' is required but not provided
-     File "set.mli", line 55, characters 4-31: Expected declaration
-=======
      The value "compare" is required but not provided
-     File "set.mli", line 55, characters 4-31: Expected declaration
->>>>>>> 5.2.0
+     File "set.mli", line 58, characters 4-31: Expected declaration
 |} ]
 
 

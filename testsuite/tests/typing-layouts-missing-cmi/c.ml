@@ -42,8 +42,8 @@ type err1 = b_value imm_arg;;
 Line 1, characters 12-19:
 1 | type err1 = b_value imm_arg;;
                 ^^^^^^^
-Error: This type B.b_value = A.a_value should be an instance of type
-         ('a : immediate)
+Error: This type "B.b_value" = "A.a_value" should be an instance of type
+         "('a : immediate)"
        The kind of B.b_value is value
          because the .cmi file for A.a_value is missing.
        But the kind of B.b_value must be a subkind of immediate

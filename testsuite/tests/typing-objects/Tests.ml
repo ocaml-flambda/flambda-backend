@@ -778,9 +778,9 @@ type 'a t
 |}];;
 fun (x : 'a t as 'a) -> ();;
 [%%expect{|
-Line 1, characters 17-19:
+Line 1, characters 18-19:
 1 | fun (x : 'a t as 'a) -> ();;
-                     ^^
+                      ^
 Error: This alias is bound to type "'a t" but is used as an instance of type "'a"
        The type variable "'a" occurs inside "'a t"
 |}];;
@@ -814,8 +814,8 @@ fun ((x : 'a) | (x : 'a t)) -> ();;
 Line 1, characters 10-12:
 1 | fun ((x : 'a) | (x : 'a t)) -> ();;
               ^^
-Error: This type 'a t should be an instance of type 'a
-       The type variable 'a occurs inside 'a t
+Error: This type "'a t" should be an instance of type "'a"
+       The type variable "'a" occurs inside "'a t"
 |}];;
 type 'a t = < x : 'a >;;
 [%%expect{|

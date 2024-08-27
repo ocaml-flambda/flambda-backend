@@ -1,20 +1,4 @@
 (* TEST
-<<<<<<< HEAD
- flags = "-pp '${c_preprocessor}'";
- ocaml_filetype_flag = "-impl";
- {
-   compare_programs = "false";
-   bytecode;
- }{
-   native;
- }
-||||||| 121bedcfd2
-   flags = "-pp '${c_preprocessor}'"
-   ocaml_filetype_flag = "-impl"
-   * bytecode
-     compare_programs = "false"
-   * native
-=======
  flags = "-pp '${cpp} ${cppflags}'";
  ocaml_filetype_flag = "-impl";
  {
@@ -23,7 +7,6 @@
  }{
    native;
  }
->>>>>>> 5.2.0
 *)
 
 (* This file has extension .ml.c because it needs to be preprocessed

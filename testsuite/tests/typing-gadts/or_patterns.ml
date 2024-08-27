@@ -219,19 +219,9 @@ let simple_merged_annotated_return (type a) (t : a t) (a : a) =
 [%%expect{|
 Line 3, characters 18-19:
 3 |   | IntLit, (3 as x)
-<<<<<<< HEAD
-                      ^
-Error: This pattern matches values of type int
-       This instance of int is ambiguous:
-||||||| 121bedcfd2
-                ^^^^^^^^
-Error: This pattern matches values of type int
-       This instance of int is ambiguous:
-=======
                       ^
 Error: This pattern matches values of type "int"
        This instance of "int" is ambiguous:
->>>>>>> 5.2.0
        it would escape the scope of its equation
 |}]
 

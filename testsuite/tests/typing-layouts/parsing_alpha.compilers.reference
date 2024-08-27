@@ -3,7 +3,7 @@ type ('a : immediate) t0 = 'a list
 Line 2, characters 22-24:
 2 | type ('a : void) t0 = 'a list;;
                           ^^
-Error: This type ('a : void) should be an instance of type ('b : value)
+Error: This type "('a : void)" should be an instance of type "('b : value)"
        The layout of 'a is void
          because of the annotation on 'a in the declaration of the type t0.
        But the layout of 'a must overlap with value
@@ -16,12 +16,12 @@ type t = float#
 Line 2, characters 9-13:
 2 | type t = int#;;
              ^^^^
-Error: Unbound type constructor int#
-Hint: Did you mean int?
+Error: Unbound type constructor "int#"
+Hint: Did you mean "int"?
 Line 2, characters 9-17:
 2 | type t = Float.t#;;
              ^^^^^^^^
-Error: Unbound type constructor Float.t#
+Error: Unbound type constructor "Float.t#"
 type ('a : any, 'b : any, 'c : any) t
 type ('a : float64) s1 = ('a, int, bool) t
 val f : ('a : any) 'b. ('a, 'b, bool) t -> int = <fun>

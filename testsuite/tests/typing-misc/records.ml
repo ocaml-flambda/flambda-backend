@@ -197,19 +197,9 @@ Line 1, characters 0-40:
 1 | type ('a,'b) ct = (int,'b) def = {x:int};;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This variant or record definition does not match that of type
-<<<<<<< HEAD
-         (int, [> `A ]) def
-       Their parameters differ:
-       The type int is not equal to the type 'a
-||||||| 121bedcfd2
-         (int, [> `A ]) def
-       Their parameters differ
-       The type int is not equal to the type 'a
-=======
          "(int, [> `A ]) def"
-       Their parameters differ
+       Their parameters differ:
        The type "int" is not equal to the type "'a"
->>>>>>> 5.2.0
 |}]
 
 type ('a,'b) kind = ('a, 'b) def = A constraint 'b = [> `A];;
@@ -318,6 +308,17 @@ type a = unit
 Line 2, characters 0-24:
 2 | type b = a = { a : int }
     ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type a
+Error: This variant or record definition does not match that of type "a"
+       The original is abstract, but this is a record.
+|}]
+
+type a = unit
+type b = a = { a : int }
+[%%expect{|
+type a = unit
+Line 2, characters 0-24:
+2 | type b = a = { a : int }
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This variant or record definition does not match that of type "a"
        The original is abstract, but this is a record.
 |}]

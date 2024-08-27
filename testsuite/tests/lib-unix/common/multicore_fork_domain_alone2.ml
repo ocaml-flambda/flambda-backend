@@ -1,5 +1,4 @@
 (* TEST
-<<<<<<< HEAD
  include unix;
  reason = "CR ocaml 5 domains: re-enable this test";
  skip;
@@ -10,22 +9,6 @@
  }{
    native;
  }
-||||||| 121bedcfd2
-include unix
-* hasunix
-** not-windows
-*** bytecode
-*** native
-=======
- include unix;
- hasunix;
- not-windows;
- {
-   bytecode;
- }{
-   native;
- }
->>>>>>> 5.2.0
 *)
 
 (* on Multicore, fork is not allowed is another domain is, and was running. *)

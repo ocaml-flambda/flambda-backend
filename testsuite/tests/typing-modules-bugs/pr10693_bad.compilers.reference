@@ -45,24 +45,10 @@ Error: Signature mismatch:
          val x : X/1.t option
        is not included in
          val x : X/2.t option
-<<<<<<< HEAD
-       The type X/1.t option is not compatible with the type X/2.t option
-       Type X/1.t is not compatible with type X/2.t
-||||||| 121bedcfd2
-       The type X.t option is not compatible with the type X/2.t option
-       Type X.t is not compatible with type X/2.t
-=======
-       The type "X.t option" is not compatible with the type "X/2.t option"
-       Type "X.t" is not compatible with type "X/2.t"
->>>>>>> 5.2.0
+       The type "X/1.t option" is not compatible with the type "X/2.t option"
+       Type "X/1.t" is not compatible with type "X/2.t"
        File "_none_", line 1:
-<<<<<<< HEAD
-         Definition of module X/1
-||||||| 121bedcfd2
-         Definition of module X
-=======
-         Definition of module "X"
->>>>>>> 5.2.0
+         Definition of module "X/1"
        File "_none_", line 1:
          Definition of module "X/2"
        File "pr10693_bad.ml", line 17, characters 6-24: Expected declaration

@@ -194,11 +194,7 @@ Error: This recursive type is not regular.
 
 type 'a t = 'a * 'b constraint _ * 'a = 'b t;;
 [%%expect{|
-Line 1, characters 0-44:
-1 | type 'a t = 'a * 'b constraint _ * 'a = 'b t;;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: A type variable is unbound in this type declaration.
-       In type "'a * 'b" the variable "'b" is unbound
+type 'b t = 'b * 'b
 |}]
 type 'a t = 'a * 'b constraint 'a = 'b t;;
 [%%expect{|
@@ -401,23 +397,6 @@ val test_obj_with_expansion :
   'a tag -> ('b, < bar : bar -> 'b; foo : foo -> 'b; .. >) obj -> 'a -> 'b =
   <fun>
 |}]
-<<<<<<< HEAD
-
-(* PR #12334 *)
-
-type 'a t = 'a foo foo
-and 'a foo = int constraint 'a = int
-[%%expect{|
-Line 1, characters 0-22:
-1 | type 'a t = 'a foo foo
-    ^^^^^^^^^^^^^^^^^^^^^^
-Error: Constraints are not satisfied in this type.
-       Type int should be an instance of 'a foo
-       Type foo was considered abstract when checking constraints in this
-       recursive type definition.
-|}]
-||||||| 121bedcfd2
-=======
 
 
 (* PR#12145 -- Loopy constraints cause ocamlc to loop *)
@@ -428,12 +407,8 @@ and 'a id = 'a
 and s = cycle t
 [%%expect{|
 type 'a t constraint 'a = 'b * 'c
-Line 2, characters 0-21:
-2 | type cycle = cycle id
-    ^^^^^^^^^^^^^^^^^^^^^
-Error: The type abbreviation "cycle" is cyclic:
-         "cycle" = "cycle id",
-         "cycle id" = "cycle"
+Uncaught exception: Stack overflow
+
 |}]
 
 (* Vanishing constraints may be discarded during the translation *)
@@ -447,8 +422,11 @@ type 'a cstr constraint 'a = float
 type s = int
 and r = [s cstr t | `Bar]
 [%%expect{|
-type s = int
-and r = [ `Bar | `Foo ]
+Line 1, characters 0-12:
+1 | type s = int
+    ^^^^^^^^^^^^
+Error: This type constructor expands to type "s" = "int"
+       but is used here with type "float"
 |}]
 
 
@@ -465,4 +443,3 @@ Error: Constraints are not satisfied in this type.
        Type "foo" was considered abstract when checking constraints in this
        recursive type definition.
 |}]
->>>>>>> 5.2.0

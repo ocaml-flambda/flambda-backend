@@ -116,19 +116,9 @@ Line 1, characters 0-37:
 1 | type ('a, 'b) bar = ('a, 'a) foo = ..
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This variant or record definition does not match that of type
-<<<<<<< HEAD
-         ('a, 'a) foo
-       Their parameters differ:
-       The type 'a is not equal to the type 'b
-||||||| 121bedcfd2
-         ('a, 'a) foo
-       Their parameters differ
-       The type 'a is not equal to the type 'b
-=======
          "('a, 'a) foo"
-       Their parameters differ
+       Their parameters differ:
        The type "'a" is not equal to the type "'b"
->>>>>>> 5.2.0
 |}]
 
 (* Check that signatures can hide exstensibility *)

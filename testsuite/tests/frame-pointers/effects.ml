@@ -1,6 +1,6 @@
 (* TEST
-<<<<<<< HEAD
  {
+   runtime4;
    skip;
  }{
    reason = "CR ocaml 5 effects: re-enable this test";
@@ -10,19 +10,6 @@
    all_modules = "${readonly_files} effects.ml";
    native;
  }
-||||||| 121bedcfd2
-
-* frame_pointers
-** native
-readonly_files = "fp_backtrace.c"
-all_modules = "${readonly_files} effects.ml"
-
-=======
- frame_pointers;
- readonly_files = "fp_backtrace.c";
- all_modules = "${readonly_files} effects.ml";
- native;
->>>>>>> 5.2.0
 *)
 
 open Printf

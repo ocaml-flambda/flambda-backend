@@ -55,16 +55,6 @@ module _ = (Int : T with type t = int [@foo])
 let _ = (module Int : T [@foo])
 
 let _ = (module Int : T with type t = int [@foo])
-<<<<<<< HEAD
-
-(* TEST
- flags = "-dparsetree";
- setup-ocamlc.byte-build-env;
- ocamlc.byte;
- check-ocamlc.byte-output;
-*)
-||||||| 121bedcfd2
-=======
 
 let f (x [@foo]) : unit -> unit [@foo] = function [@foo]
   | (()[@foo]) -> ()[@foo]
@@ -75,4 +65,10 @@ let f (x [@foo]) : unit -> unit [@foo] = function [@foo]
  ocamlc.byte;
  check-ocamlc.byte-output;
 *)
->>>>>>> 5.2.0
+
+(* TEST
+ flags = "-dparsetree";
+ setup-ocamlc.byte-build-env;
+ ocamlc.byte;
+ check-ocamlc.byte-output;
+*)
