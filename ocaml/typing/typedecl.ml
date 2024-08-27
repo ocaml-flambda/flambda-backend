@@ -996,7 +996,7 @@ let rec check_constraints_rec env loc visited ty =
         try Env.find_type path env
         with Not_found ->
           raise (Error(loc, Unavailable_type_constructor path)) in
-      let ty' = Ctype.newconstr path (Ctype.instance_list (Ctype.app_params_of_decl decl)) in
+      let ty' = Ctype.newconstr path (Ctype.instance_list (Ctype.applied_params_of_decl decl)) in
       begin
         (* We don't expand the error trace because that produces types that
            *already* violate the constraints -- we need to report a problem with

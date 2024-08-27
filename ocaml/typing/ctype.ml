@@ -888,19 +888,19 @@ let update_scope_for tr_exn scope ty =
     (without this constraint, the type system would actually be unsound.)
 *)
 
-let app_params_of_decl decl =
+let applied_params_of_decl decl =
   match decl.type_arity, decl.type_jkind with
   | 0, Type _ -> []
   | 0, Arrow { args; result = _ } -> List.map Btype.newgenvar args
   | _ -> decl.type_params
 
-let app_variance_of_decl decl =
+let applied_variance_of_decl decl =
   match decl.type_arity, decl.type_jkind with
   | 0, Type _ -> []
   | 0, Arrow { args; result = _ } -> Variance.unknown_signature ~injective:true ~arity:(List.length args)
   | _ -> decl.type_variance
 
-let app_separability_of_decl decl =
+let applied_separability_of_decl decl =
   match decl.type_arity, decl.type_jkind with
   | 0, Type _ -> []
   | 0, Arrow { args; result = _ } -> Separability.default_signature ~arity:(List.length args)
@@ -921,7 +921,7 @@ let rec update_level env level expand ty =
         end
     | Tconstr(p, Applied tl, _) ->
         let variance =
-          try Env.find_type p env |> app_variance_of_decl
+          try Env.find_type p env |> applied_variance_of_decl
           with Not_found -> List.map (fun _ -> Variance.unknown) tl in
         let needs_expand =
           expand ||
@@ -1000,7 +1000,7 @@ let rec lower_contravariant env var_level visited contra ty =
        let variance, maybe_expand =
          try
            let typ = Env.find_type path env in
-           app_variance_of_decl typ,
+           applied_variance_of_decl typ,
            type_kind_is_abstract typ
           with Not_found ->
             (* See testsuite/tests/typing-missing-cmi-2 for an example *)
@@ -2685,7 +2685,7 @@ let occur_univar ?(inj_only=false) env ty =
       | Tconstr (_, Unapplied, _) -> ()
       | Tconstr (p, Applied tl, _) ->
           begin try
-            let var = Env.find_type p env |> app_variance_of_decl in
+            let var = Env.find_type p env |> applied_variance_of_decl in
             List.iter2
               (fun t v ->
                 (* The null variance only occurs in type abbreviations and
@@ -2749,7 +2749,7 @@ let univars_escape env univar_pairs vl ty =
       | Tconstr (_, Unapplied, _) -> ()
       | Tconstr (p, tl, _) ->
           begin try
-            let var = Env.find_type p env |> app_variance_of_decl in
+            let var = Env.find_type p env |> applied_variance_of_decl in
             AppArgs.iter_with_list
               (* see occur_univar *)
               (fun v t -> if not Variance.(eq v null) then occur t)
@@ -3195,7 +3195,7 @@ and mcomp_type_decl type_pairs env p1 p2 args1 args2 =
     in
     if compatible_paths p1 p2 then begin
       let inj =
-        try List.map Variance.(mem Inj) (Env.find_type p1 env |> app_variance_of_decl)
+        try List.map Variance.(mem Inj) (Env.find_type p1 env |> applied_variance_of_decl)
         with Not_found -> List.map (fun _ -> false) tl1
       in
       List.iter2
@@ -3691,7 +3691,7 @@ and unify3 env t1 t1' t2 t2' =
             let tl2 = AppArgs.to_list tl2 in
             let inj =
               try List.map Variance.(mem Inj)
-                    (Env.find_type p1 !env |> app_variance_of_decl)
+                    (Env.find_type p1 !env |> applied_variance_of_decl)
               with Not_found -> List.map (fun _ -> false) tl1
             in
             List.iter2
@@ -4790,7 +4790,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
                 match Env.find_type p1 env with
                 | decl ->
                     moregen_param_list inst_nongen variance type_pairs env
-                      (decl |> app_variance_of_decl) tl1 tl2
+                      (decl |> applied_variance_of_decl) tl1 tl2
                 | exception Not_found ->
                     moregen_list inst_nongen Invariant type_pairs env tl1 tl2
             end
@@ -5878,7 +5878,7 @@ let rec build_subtype env (visited : transient_expr list)
       if memq_warn tt visited then (t, Unchanged) else
       let visited = tt :: visited in
       begin try
-        let var = Env.find_type p env |> app_variance_of_decl in
+        let var = Env.find_type p env |> applied_variance_of_decl in
         if level = 0 && generic_abbrev env p && safe_abbrev env t
         && not (has_constr_row' env t)
         then warn := true;
@@ -6047,7 +6047,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
         subtype_rec env trace t1 (expand_abbrev env t2) cstrs
     | (Tconstr(p1, tl1, _), Tconstr(p2, tl2, _)) when Path.same p1 p2 ->
         begin try
-          let var = Env.find_type p1 env |> app_variance_of_decl in
+          let var = Env.find_type p1 env |> applied_variance_of_decl in
           List.fold_left2
             (fun cstrs v (t1, t2) ->
               let (co, cn) = Variance.get_upper v in

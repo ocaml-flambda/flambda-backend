@@ -732,7 +732,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
       in
-      let params = if stl <> [] then instance_list (app_params_of_decl decl) else [] in
+      let params = if stl <> [] then instance_list (applied_params_of_decl decl) else [] in
       let unify_param =
         match decl.type_manifest with
           None -> unify_var

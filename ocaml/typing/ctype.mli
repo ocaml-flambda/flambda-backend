@@ -121,9 +121,9 @@ val flatten_fields:
     future. (Test cases were added to typing-gadts/test.ml)
 *)
 
-val app_params_of_decl : type_declaration -> type_expr list
-val app_variance_of_decl : type_declaration -> Variance.t list
-val app_separability_of_decl : type_declaration -> Separability.t list
+val applied_params_of_decl : type_declaration -> type_expr list
+val applied_variance_of_decl : type_declaration -> Variance.t list
+val applied_separability_of_decl : type_declaration -> Separability.t list
 
 val associate_fields:
         (string * field_kind * type_expr) list ->

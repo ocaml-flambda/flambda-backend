@@ -446,7 +446,7 @@ let check_type
     (* Type constructor case. *)
     | (Tconstr(_,Unapplied,_), _) -> empty
     | (Tconstr(path,Applied tys,_), m) ->
-        let msig = Env.find_type path env |> Ctype.app_separability_of_decl in
+        let msig = Env.find_type path env |> Ctype.applied_separability_of_decl in
         let on_param context (ty, m_param) =
           let hyps = match m_param with
             | Ind -> Hyps.guard hyps
