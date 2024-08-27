@@ -100,6 +100,7 @@ all: profiling.cmo
 opt.opt: profiling.cmx
 
 OCAMLCP = config.cmo build_path_prefix_map.cmo misc.cmo profile.cmo \
+		  profile_counters_functions.cmo \
           warnings.cmo identifiable.cmo numbers.cmo arg_helper.cmo \
           language_extension_kernel.cmo language_extension.cmo \
 	  	  zero_alloc_annotations.cmo local_store.cmo \
@@ -137,9 +138,9 @@ ocamlmklib.opt$(EXE): $(call byte2native, $(OCAMLMKLIB))
 # To make custom toplevels
 
 OCAMLMKTOP=config.cmo build_path_prefix_map.cmo misc.cmo \
-       identifiable.cmo numbers.cmo arg_helper.cmo zero_alloc_annotations.cmo \
-	   clflags.cmo local_store.cmo load_path.cmo profile.cmo ccomp.cmo \
-	   ocamlmktop.cmo
+       		 identifiable.cmo numbers.cmo arg_helper.cmo zero_alloc_annotations.cmo \
+	   			 clflags.cmo local_store.cmo load_path.cmo profile.cmo \
+					 profile_counters_functions.cmo ccomp.cmo ocamlmktop.cmo
 
 ocamlmktop$(EXE): $(OCAMLMKTOP)
 ocamlmktop.opt$(EXE): $(call byte2native, $(OCAMLMKTOP))

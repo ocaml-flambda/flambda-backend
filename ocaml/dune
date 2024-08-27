@@ -88,12 +88,11 @@
  (modules
    ;; UTILS
    config build_path_prefix_map misc identifiable numbers arg_helper clflags
-   debug profile terminfo ccomp warnings consistbl strongly_connected_components
-   targetint load_path int_replace_polymorphic_compare domainstate binutils
-   local_store target_system compilation_unit import_info linkage_name symbol
-   lazy_backtrack diffing diffing_with_keys
-   language_extension_kernel language_extension
-   zero_alloc_utils zero_alloc_annotations
+   debug profile profile_counters_functions terminfo ccomp warnings consistbl
+   strongly_connected_components targetint load_path int_replace_polymorphic_compare
+   domainstate binutils local_store target_system compilation_unit import_info
+   linkage_name symbol lazy_backtrack diffing diffing_with_keys language_extension_kernel
+   language_extension zero_alloc_utils zero_alloc_annotations
 
    ;; PARSING
    location longident docstrings printast syntaxerr ast_helper
@@ -273,6 +272,7 @@
     (clflags.mli as compiler-libs/clflags.mli)
     (language_extension.mli as compiler-libs/language_extension.mli)
     (profile.mli as compiler-libs/profile.mli)
+    (profile_counters_functions.mli as compiler-libs/profile_counters_functions.mli)
     (terminfo.mli as compiler-libs/terminfo.mli)
     (ccomp.mli as compiler-libs/ccomp.mli)
     (warnings.mli as compiler-libs/warnings.mli)
