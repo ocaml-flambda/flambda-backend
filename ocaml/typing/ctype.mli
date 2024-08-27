@@ -80,7 +80,7 @@ val newvar: ?name:string -> Jkind.t -> type_expr
 
 val new_rep_var
   : ?name:string
-  -> why:Jkind_intf.History.concrete_creation_reason
+  -> why:Jkind.History.concrete_creation_reason
   -> unit
   -> type_expr * Jkind.Type.sort
         (* Return a fresh representable variable, along with its sort *)
@@ -566,13 +566,13 @@ val type_jkind_purely : Env.t -> type_expr -> jkind
 (* Find a type's sort (constraining it to be an arbitrary sort variable, if
    needed) *)
 val type_sort :
-  why:Jkind_intf.History.concrete_creation_reason ->
+  why:Jkind.History.concrete_creation_reason ->
   Env.t -> type_expr -> (Jkind.Type.sort, Jkind.Violation.t) result
 
 (* As [type_sort], but constrain the jkind to be non-null.
    Used for checking array elements. *)
 val type_legacy_sort :
-  why:Jkind_intf.History.concrete_legacy_creation_reason ->
+  why:Jkind.History.concrete_legacy_creation_reason ->
   Env.t -> type_expr -> (Jkind.Type.sort, Jkind.Violation.t) result
 
 (* Jkind checking. [constrain_type_jkind] will update the jkind of type

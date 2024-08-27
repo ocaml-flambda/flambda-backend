@@ -41,25 +41,6 @@
 
    All definitions here are commented in jkind.ml or jkind.mli. *)
 
-module History : sig
-  type 'desc t =
-    | Interact of
-        { reason : Jkind_intf.History.interact_reason;
-          lhs_jkind : 'desc;
-          lhs_history : 'desc t;
-          rhs_jkind : 'desc;
-          rhs_history : 'desc t
-        }
-    | Projection of
-        { reason : Jkind_intf.History.project_reason;
-          jkind : 'desc;
-          history : 'desc t
-        }
-    | Creation of Jkind_intf.History.creation_reason
-
-  val desc_map : ('a -> 'b) -> 'a t -> 'b t
-end
-
 module Type : sig
   module Sort : sig
     (* We need to expose these details for use in [Jkind] *)
@@ -175,7 +156,24 @@ module Jkind_desc : sig
         }
 end
 
-type 'type_expr history = 'type_expr Jkind_desc.t History.t
+module History : sig
+  type 'type_expr t =
+    | Interact of
+        { reason : Jkind_intf.History.interact_reason;
+          lhs_jkind : 'type_expr Jkind_desc.t;
+          lhs_history : 'type_expr t;
+          rhs_jkind : 'type_expr Jkind_desc.t;
+          rhs_history : 'type_expr t
+        }
+    | Projection of
+        { reason : Jkind_intf.History.project_reason;
+          jkind : 'type_expr Jkind_desc.t;
+          history : 'type_expr t
+        }
+    | Creation of Jkind_intf.History.creation_reason
+end
+
+type 'type_expr history = 'type_expr History.t
 
 type 'type_expr type_jkind =
   { jkind : 'type_expr Type.Jkind_desc.t;

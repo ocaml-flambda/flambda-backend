@@ -1661,7 +1661,7 @@ let update_decls_jkind_reason decls =
        List.iter update_generalized decl.type_params;
        Btype.iter_type_expr_kind update_generalized decl.type_kind;
        Option.iter update_generalized decl.type_manifest;
-       let reason = Jkind_intf.History.Generalized (Some id, decl.type_loc) in
+       let reason = Jkind.History.Generalized (Some id, decl.type_loc) in
        let new_decl = {decl with type_jkind =
                                    Jkind.History.update_reason decl.type_jkind reason} in
        (id, new_decl)

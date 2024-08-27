@@ -342,9 +342,13 @@ type t = Types.type_expr Jkind_types.t
 type desc = Types.type_expr Jkind_types.Jkind_desc.t
 
 module History : sig
+  include module type of struct
+    include Jkind_intf.History
+  end
+
   val has_imported_history : t -> bool
 
-  val update_reason : t -> Jkind_intf.History.creation_reason -> t
+  val update_reason : t -> creation_reason -> t
 
   (* Mark the jkind as having produced a compiler warning. *)
   val with_warning : t -> t
@@ -368,7 +372,7 @@ end
 
 module Primitive : sig
   (** Top element of the jkind lattice, including higher jkinds *)
-  val top : why:Jkind_intf.History.any_creation_reason -> t
+  val top : why:History.any_creation_reason -> t
 end
 
 (******************************)
@@ -379,30 +383,27 @@ val to_const : t -> Const.t option
 
 (** Create a fresh sort variable, packed into a jkind, returning both
     the resulting kind and the sort. *)
-val of_new_sort_var :
-  why:Jkind_intf.History.concrete_creation_reason -> t * Type.sort
+val of_new_sort_var : why:History.concrete_creation_reason -> t * Type.sort
 
 (** Create a fresh sort variable, packed into a jkind. *)
-val of_new_sort : why:Jkind_intf.History.concrete_creation_reason -> t
+val of_new_sort : why:History.concrete_creation_reason -> t
 
-val of_const : why:Jkind_intf.History.creation_reason -> Const.t -> t
+val of_const : why:History.creation_reason -> Const.t -> t
 
 val const_of_user_written_annotation :
-  context:Jkind_intf.History.annotation_context ->
-  Jane_syntax.Jkind.annotation ->
-  Const.t
+  context:History.annotation_context -> Jane_syntax.Jkind.annotation -> Const.t
 
 (** The typed jkind together with its user-written annotation. *)
 type annotation = Types.type_expr Jkind_types.annotation
 
 val of_annotation :
-  context:Jkind_intf.History.annotation_context ->
+  context:History.annotation_context ->
   Jane_syntax.Jkind.annotation ->
   t * annotation
 
 val of_annotation_option_default :
   default:t ->
-  context:Jkind_intf.History.annotation_context ->
+  context:History.annotation_context ->
   Jane_syntax.Jkind.annotation option ->
   t * annotation option
 
@@ -420,7 +421,7 @@ val of_annotation_option_default :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl :
-  context:Jkind_intf.History.annotation_context ->
+  context:History.annotation_context ->
   Parsetree.type_declaration ->
   (t * annotation * Parsetree.attributes) option
 
@@ -430,7 +431,7 @@ val of_type_decl :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl_default :
-  context:Jkind_intf.History.annotation_context ->
+  context:History.annotation_context ->
   default:t ->
   Parsetree.type_declaration ->
   t * annotation option * Parsetree.attributes
@@ -551,10 +552,7 @@ val has_intersection : t -> t -> bool
     it should be thought of as modifying the first jkind to be the
     intersection of the two, not something that modifies the second jkind. *)
 val intersection_or_error :
-  reason:Jkind_intf.History.interact_reason ->
-  t ->
-  t ->
-  (t, Violation.t) Result.t
+  reason:History.interact_reason -> t -> t -> (t, Violation.t) Result.t
 
 (** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
     either [t1] or [t2] to make their layouts equal.*)

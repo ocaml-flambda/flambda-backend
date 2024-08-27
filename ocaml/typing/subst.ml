@@ -84,7 +84,7 @@ let with_additional_action =
   let builtins =
     Jkind.Type.Const.Primitive.all
     |> List.map (fun (builtin : Jkind.Type.Const.Primitive.t) ->
-          builtin.jkind, Jkind.Type.of_const builtin.jkind ~why:Jkind_intf.History.Imported)
+          builtin.jkind, Jkind.Type.of_const builtin.jkind ~why:Jkind.History.Imported)
   in
   fun (config : additional_action_config) s ->
   (* CR layouts: it would be better to put all this stuff outside this
@@ -110,7 +110,7 @@ let with_additional_action =
             in
             begin match builtin with
             | Some (__, jkind) -> (Jkind.of_type_jkind jkind : jkind)
-            | None -> Jkind.of_const const ~why:Jkind_intf.History.Imported
+            | None -> Jkind.of_const const ~why:Jkind.History.Imported
             end
           | None -> raise(Error (loc, Unconstrained_jkind_variable))
         in

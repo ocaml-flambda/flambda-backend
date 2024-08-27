@@ -1542,6 +1542,8 @@ type desc = type_expr Jkind_types.Jkind_desc.t
 type nonrec t = type_expr jkind
 
 module History = struct
+  include Jkind_intf.History
+
   let has_imported_history t : bool =
     match t.history with Creation Imported -> true | _ -> false
 
@@ -2436,7 +2438,7 @@ let has_intersection t t' =
   Result.is_ok
     (intersection_or_error
      (* This reason is just used as a dummy for the test *)
-       ~reason:Jkind_intf.History.Subjkind t t')
+       ~reason:Subjkind t t')
 
 let rec check_sub (t : t) (t' : t) : Misc.Le_result.t =
   match get t, get t' with
