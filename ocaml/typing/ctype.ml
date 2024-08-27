@@ -1983,10 +1983,9 @@ let rec extract_concrete_typedecl env ty =
                 | May_have_typedecl -> May_have_typedecl
           end
       end
-  | Tpoly(ty, _) -> extract_concrete_typedecl env ty
-  (* FIXME jbachurski: Does Tapp have a typedecl in this function's understanding? *)
+  | Tapp (ty, _) | Tpoly(ty, _) -> extract_concrete_typedecl env ty
   | Tarrow _ | Ttuple _ | Tobject _ | Tfield _ | Tnil
-  | Tvariant _ | Tpackage _ | Tapp _ -> Has_no_typedecl
+  | Tvariant _ | Tpackage _ -> Has_no_typedecl
   | Tvar _ | Tunivar _ -> May_have_typedecl
   | Tlink _ | Tsubst _ -> assert false
 
