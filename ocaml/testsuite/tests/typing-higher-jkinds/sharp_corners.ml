@@ -19,8 +19,11 @@ Error: This variant or record definition does not match that of type t
    *probably* fail [Typedecl.check_regularity]? *)
 type 'a t = Foo of 'a (t)
 [%%expect{|
-Uncaught exception: Failure("General type application is not implemented")
-
+Line 1, characters 23-24:
+1 | type 'a t = Foo of 'a (t)
+                           ^
+Error: The type constructor t expects 1 argument(s),
+       but is here applied to 0 argument(s)
 |}]
 
 (* Should work, bug due to higher-kinded substitution not working.
@@ -29,11 +32,7 @@ type t : value => value = list
 let x : int t = []
 [%%expect{|
 type t = list
-Line 2, characters 16-18:
-2 | let x : int t = []
-                    ^^
-Error: This expression has type 'a list
-       but an expression was expected of type int t
+val x : int t = <abstr>
 |}]
 
 (* As above, substitution in higher-kinded type applications *)

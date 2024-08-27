@@ -117,8 +117,7 @@ Error: Function argument types must have a representable layout.
        The kind of 'a is ((value) => value)
          because of the annotation on the universal variable 'a.
        But the kind of 'a must overlap with any
-         because it's assigned a dummy kind that should have been overwritten.
-                 Please notify the Jane Street compilers group if you see this output.
+         because argument or result of a function type.
 |}]
 
 type r : (value => value) => value
