@@ -176,13 +176,13 @@ end
 type 'type_expr history = 'type_expr History.t
 
 type 'type_expr type_jkind =
-  { jkind : 'type_expr Type.Jkind_desc.t;
+  { desc : 'type_expr Type.Jkind_desc.t;
     history : 'type_expr history;
     has_warned : bool
   }
 
 type 'type_expr t =
-  { jkind : 'type_expr Jkind_desc.t;
+  { desc : 'type_expr Jkind_desc.t;
     history : 'type_expr history;
     has_warned : bool
   }
