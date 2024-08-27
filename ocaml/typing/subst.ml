@@ -82,8 +82,8 @@ type additional_action_config =
 let with_additional_action =
   (* Memoize the built-in jkinds *)
   let builtins =
-    Jkind.Const.Primitive.all
-    |> List.map (fun (builtin : Jkind.Const.Primitive.t) ->
+    Jkind.Const.Builtin.all
+    |> List.map (fun (builtin : Jkind.Const.Builtin.t) ->
           builtin.jkind, Jkind.of_const builtin.jkind ~why:Jkind.History.Imported)
   in
   fun (config : additional_action_config) s ->
@@ -351,7 +351,7 @@ let rec typexp copy_scope s ty =
     let has_fixed_row =
       not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
     (* Make a stub *)
-    let jkind = Jkind.Primitive.any ~why:Dummy_jkind in
+    let jkind = Jkind.Builtin.any ~why:Dummy_jkind in
     let ty' =
       if should_duplicate_vars then newpersty (Tvar {name = None; jkind})
       else newgenstub ~scope:(get_scope ty) jkind

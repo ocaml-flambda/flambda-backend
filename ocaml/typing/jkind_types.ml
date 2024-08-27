@@ -53,6 +53,21 @@ module Sort = struct
       | Bits64 -> "bits64"
 
     let format ppf const = Format.fprintf ppf "%s" (to_string const)
+
+    module Debug_printers = struct
+      open Format
+
+      let t ppf c =
+        fprintf ppf
+          (match c with
+          | Void -> "Void"
+          | Value -> "Value"
+          | Float64 -> "Float64"
+          | Float32 -> "Float32"
+          | Word -> "Word"
+          | Bits32 -> "Bits32"
+          | Bits64 -> "Bits64")
+    end
   end
 
   module Var = struct
@@ -259,16 +274,7 @@ module Sort = struct
 
     let rec t ppf = function
       | Var v -> fprintf ppf "Var %a" var v
-      | Const c ->
-        fprintf ppf
-          (match c with
-          | Void -> "Void"
-          | Value -> "Value"
-          | Float64 -> "Float64"
-          | Float32 -> "Float32"
-          | Word -> "Word"
-          | Bits32 -> "Bits32"
-          | Bits64 -> "Bits64")
+      | Const c -> Const.Debug_printers.t ppf c
 
     and opt_t ppf = function
       | Some s -> fprintf ppf "Some %a" t s
@@ -344,17 +350,99 @@ module Layout = struct
   type t = Sort.t layout
 end
 
+module type Axis = sig
+  type t
+
+  val max : t
+
+  val min : t
+
+  val equal : t -> t -> bool
+
+  val less_or_equal : t -> t -> Misc.Le_result.t
+
+  val le : t -> t -> bool
+
+  val meet : t -> t -> t
+
+  val print : Format.formatter -> t -> unit
+end
+
 module Externality = struct
   type t =
     | External
     | External64
     | Internal
+
+  let max = Internal
+
+  let min = External
+
+  let equal e1 e2 =
+    match e1, e2 with
+    | External, External -> true
+    | External64, External64 -> true
+    | Internal, Internal -> true
+    | (External | External64 | Internal), _ -> false
+
+  let less_or_equal t1 t2 : Misc.Le_result.t =
+    match t1, t2 with
+    | External, External -> Equal
+    | External, (External64 | Internal) -> Less
+    | External64, External -> Not_le
+    | External64, External64 -> Equal
+    | External64, Internal -> Less
+    | Internal, (External | External64) -> Not_le
+    | Internal, Internal -> Equal
+
+  let le t1 t2 = Misc.Le_result.is_le (less_or_equal t1 t2)
+
+  let meet t1 t2 =
+    match t1, t2 with
+    | External, (External | External64 | Internal)
+    | (External64 | Internal), External ->
+      External
+    | External64, (External64 | Internal) | Internal, External64 -> External64
+    | Internal, Internal -> Internal
+
+  let print ppf = function
+    | External -> Format.fprintf ppf "external_"
+    | External64 -> Format.fprintf ppf "external64"
+    | Internal -> Format.fprintf ppf "internal"
 end
 
 module Nullability = struct
   type t =
     | Non_null
     | Maybe_null
+
+  let max = Maybe_null
+
+  let min = Non_null
+
+  let equal n1 n2 =
+    match n1, n2 with
+    | Non_null, Non_null -> true
+    | Maybe_null, Maybe_null -> true
+    | (Non_null | Maybe_null), _ -> false
+
+  let less_or_equal n1 n2 : Misc.Le_result.t =
+    match n1, n2 with
+    | Non_null, Non_null -> Equal
+    | Non_null, Maybe_null -> Less
+    | Maybe_null, Non_null -> Not_le
+    | Maybe_null, Maybe_null -> Equal
+
+  let le n1 n2 = Misc.Le_result.is_le (less_or_equal n1 n2)
+
+  let meet n1 n2 =
+    match n1, n2 with
+    | Non_null, (Non_null | Maybe_null) | Maybe_null, Non_null -> Non_null
+    | Maybe_null, Maybe_null -> Maybe_null
+
+  let print ppf = function
+    | Non_null -> Format.fprintf ppf "non_null"
+    | Maybe_null -> Format.fprintf ppf "maybe_null"
 end
 
 module Modes = Mode.Alloc.Const
@@ -399,6 +487,4 @@ module Const = struct
     }
 end
 
-type 'type_expr const = 'type_expr Const.t
-
-type 'type_expr annotation = 'type_expr const * Jane_syntax.Jkind.annotation
+type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation

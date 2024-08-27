@@ -38,6 +38,8 @@ val add_begin : 'a t -> 'a -> unit
 
 val add_end : 'a t -> 'a -> unit
 
+val add_list : 'a t -> 'a list -> unit
+
 val is_empty : 'a t -> bool
 
 val length : 'a t -> int

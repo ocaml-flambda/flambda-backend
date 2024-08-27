@@ -128,6 +128,7 @@ type t =
   | Probe_name_too_long of string           (* 190 *)
   | Unchecked_zero_alloc_attribute          (* 199 *)
   | Unboxing_impossible                     (* 210 *)
+  | Mod_by_top of string                    (* 211 *)
 
 type alert = {kind:string; message:string; def:loc; use:loc}
 
