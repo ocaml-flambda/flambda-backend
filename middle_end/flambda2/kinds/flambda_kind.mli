@@ -160,6 +160,8 @@ module Standard_int_or_float : sig
     | Naked_int64
     | Naked_nativeint
 
+  val of_standard_int : Standard_int.t -> t
+
   val to_kind : t -> kind
 
   val print_lowercase : Format.formatter -> t -> unit

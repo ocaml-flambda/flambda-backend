@@ -1,7 +1,7 @@
 let $camlTests9__immstring60 = "tests9.ml" in
 let $camlTests9__const_block62 = Block 0 ($camlTests9__immstring60, 27, 11)
 in
-let code rec size(110) rev_sort_11 (n : imm tagged, l) my_closure my_region my_depth
+let code rec size(110) rev_sort_11 (n : imm tagged, l) my_closure my_region my_ghost_region my_depth
                          -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let cmp = %project_value_slot rev_sort.cmp_12 my_closure in
@@ -69,14 +69,14 @@ let code rec size(110) rev_sort_11 (n : imm tagged, l) my_closure my_region my_d
     where k2 =
       apply sort (n, l) -> k * k1
 in
-let code rec size(8) sort_10 (n : imm tagged, l) my_closure my_region my_depth -> k
+let code rec size(8) sort_10 (n : imm tagged, l) my_closure my_region my_ghost_region my_depth -> k
                        * k1 =
   let next_depth = rec_info (succ my_depth) in
   let cmp = %project_value_slot sort.cmp_12 my_closure in
   let rev_sort = %project_function_slot (sort -> rev_sort) my_closure in
   apply rev_sort (n, l) -> k * k1
 in
-let code size(1755) sort_uniq_4 (cmp, l) my_closure my_region my_depth -> k * k1 =
+let code size(1755) sort_uniq_4 (cmp, l) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let rev_append = %project_value_slot sort_uniq.rev_append_2 my_closure in
   let chop = %project_value_slot sort_uniq.chop_3 my_closure in
@@ -107,7 +107,7 @@ let code size(1755) sort_uniq_4 (cmp, l) my_closure my_region my_depth -> k * k1
          where k2 =
            apply sort (len, l) -> k * k1)
 in
-let code rec size(708) rev_sort_8 (n : imm tagged, l) my_closure my_region my_depth
+let code rec size(708) rev_sort_8 (n : imm tagged, l) my_closure my_region my_ghost_region my_depth
                          -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let cmp = %project_value_slot rev_sort_1.cmp_9 my_closure in
@@ -609,7 +609,7 @@ let code rec size(708) rev_sort_8 (n : imm tagged, l) my_closure my_region my_de
                    where k2 (s2) =
                      apply rev_merge (s1, s2, 0) -> k * k1)))
 in
-let code rec size(37) rev_append_2 (l1, l2) my_closure my_region my_depth -> k * k1 =
+let code rec size(37) rev_append_2 (l1, l2) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   (let prim = %is_int l1 in
    let is_scrutinee_int = %Tag_imm prim in
@@ -631,7 +631,7 @@ let code rec size(37) rev_append_2 (l1, l2) my_closure my_region my_depth -> k *
       let Pfield_1 = %block_load 0 size(2) (l1, 1) in
       apply my_closure (Pfield_1, Pmakeblock) -> k * k1
 in
-let code rec size(708) sort_7 (n : imm tagged, l) my_closure my_region my_depth -> k
+let code rec size(708) sort_7 (n : imm tagged, l) my_closure my_region my_ghost_region my_depth -> k
                          * k1 =
   let next_depth = rec_info (succ my_depth) in
   let rev_merge = %project_value_slot sort_1.rev_merge_10 my_closure in
@@ -1133,7 +1133,7 @@ let code rec size(708) sort_7 (n : imm tagged, l) my_closure my_region my_depth 
                    where k2 (s2) =
                      apply rev_merge_rev (s1, s2, 0) -> k * k1)))
 in
-let code rec size(58) chop_3 (k : imm tagged, l) my_closure my_region my_depth -> k
+let code rec size(58) chop_3 (k : imm tagged, l) my_closure my_region my_ghost_region my_depth -> k
                         * k1 =
   let next_depth = rec_info (succ my_depth) in
   let prim = %phys_eq (k, 0) in
@@ -1169,7 +1169,7 @@ let code rec size(58) chop_3 (k : imm tagged, l) my_closure my_region my_depth -
            in
            cont k1 pop(regular k1) (Pmakeblock))
 in
-let code rec size(137) rev_merge_5 (l1, l2, accu) my_closure my_region my_depth -> k
+let code rec size(137) rev_merge_5 (l1, l2, accu) my_closure my_region my_ghost_region my_depth -> k
                          * k1 =
   let next_depth = rec_info (succ my_depth) in
   let rev_append = %project_value_slot rev_merge.rev_append_4 my_closure in
@@ -1237,12 +1237,12 @@ let code rec size(137) rev_merge_5 (l1, l2, accu) my_closure my_region my_depth 
     where k2 =
       apply rev_append (l2, accu) -> k * k1
 in
-let code size(7) length_1 (l) my_closure my_region my_depth -> k * k1 : imm tagged =
+let code size(7) length_1 (l) my_closure my_region my_ghost_region my_depth -> k * k1 : imm tagged =
   let next_depth = rec_info (succ my_depth) in
   let length_aux = %project_value_slot length.length_aux_0 my_closure in
   apply length_aux (0, l) -> k * k1
 in
-let code size(136) foo_9 (cmp, l) my_closure my_region my_depth -> k * k1 =
+let code size(136) foo_9 (cmp, l) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let sort = closure sort_10 @sort
   and rev_sort = closure rev_sort_11 @rev_sort
@@ -1272,7 +1272,7 @@ let code rec size(31) length_aux_0 (len : imm tagged, param) my_closure
       let Paddint = len + 1 in
       apply my_closure (Paddint, Pfield) -> k * k1
 in
-let code rec size(137) rev_merge_rev_6 (l1, l2, accu) my_closure my_region my_depth
+let code rec size(137) rev_merge_rev_6 (l1, l2, accu) my_closure my_region my_ghost_region my_depth
                          -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let cmp = %project_value_slot rev_merge_rev.cmp_7 my_closure in
@@ -1431,7 +1431,7 @@ in
 let $camlTests9__chop_15 =
   closure chop_3_1 @chop
 and code rec size(30) newer_version_of(chop_3) chop_3_1 (k : imm tagged, l)
-                                                 my_closure my_region my_depth -> k
+                                                 my_closure my_region my_ghost_region my_depth -> k
                                                  * k1 =
   let prim = %phys_eq (k, 0) in
   switch prim
@@ -1452,7 +1452,7 @@ and code rec size(30) newer_version_of(chop_3) chop_3_1 (k : imm tagged, l)
 in
 let code rec size(99) newer_version_of(rev_merge_rev_6) rev_merge_rev_6_1
                                                           (l1, l2, accu)
-                                                          my_closure my_region my_depth
+                                                          my_closure my_region my_ghost_region my_depth
                                                           -> k * k1 =
   let cmp = %project_value_slot rev_merge_rev.cmp_7 my_closure in
   (let prim = %is_int l1 in
@@ -1513,7 +1513,7 @@ let code rec size(99) newer_version_of(rev_merge_rev_6) rev_merge_rev_6_1
 in
 let code rec size(99) newer_version_of(rev_merge_5) rev_merge_5_1
                                                       (l1, l2, accu)
-                                                      my_closure my_region my_depth
+                                                      my_closure my_region my_ghost_region my_depth
                                                       -> k * k1 =
   let cmp = %project_value_slot rev_merge.cmp_5 my_closure in
   (let prim = %is_int l1 in
@@ -1574,7 +1574,7 @@ let code rec size(99) newer_version_of(rev_merge_5) rev_merge_5_1
 in
 let code rec size(595) newer_version_of(rev_sort_8) rev_sort_8_1
                                                       (n : imm tagged, l)
-                                                      my_closure my_region my_depth
+                                                      my_closure my_region my_ghost_region my_depth
                                                       -> k * k1 =
   let cmp = %project_value_slot rev_sort.cmp_9 my_closure in
   let rev_merge = %project_value_slot rev_sort.rev_merge_10 my_closure in
@@ -1956,7 +1956,7 @@ let code rec size(595) newer_version_of(rev_sort_8) rev_sort_8_1
                        (s1, s2, 0)
                        -> k * k1)))
 and code rec size(595) newer_version_of(sort_7) sort_7_1 (n : imm tagged, l)
-                                                  my_closure my_region my_depth -> k
+                                                  my_closure my_region my_ghost_region my_depth -> k
                                                   * k1 =
   let cmp = %project_value_slot sort.cmp_9 my_closure in
   let rev_merge_rev = %project_value_slot sort.rev_merge_rev_11 my_closure in
@@ -2342,7 +2342,7 @@ and code rec size(595) newer_version_of(sort_7) sort_7_1 (n : imm tagged, l)
                        -> k * k1)))
 in
 let code size(1444) newer_version_of(sort_uniq_4) sort_uniq_4_1 (cmp, l)
-                                                    my_closure my_region my_depth -> k
+                                                    my_closure my_region my_ghost_region my_depth -> k
                                                     * k1 =
   let rev_merge = closure rev_merge_5_1 @rev_merge
   with { rev_append_4 = $camlTests9__rev_append_14; cmp_5 = cmp }
@@ -2375,13 +2375,13 @@ let code size(1444) newer_version_of(sort_uniq_4) sort_uniq_4_1 (cmp, l)
 in
 let $camlTests9__sort_uniq_16 = closure sort_uniq_4_1 @sort_uniq in
 let code rec size(5) newer_version_of(sort_10) sort_10_1 (n : imm tagged, l)
-                                                 my_closure my_region my_depth -> k
+                                                 my_closure my_region my_ghost_region my_depth -> k
                                                  * k1 =
   let rev_sort = %project_function_slot (sort_1 -> rev_sort_1) my_closure in
   apply direct(rev_sort_11_1 @rev_sort_1) rev_sort (n, l) -> k * k1
 and code rec size(78) newer_version_of(rev_sort_11) rev_sort_11_1
                                                       (n : imm tagged, l)
-                                                      my_closure my_region my_depth
+                                                      my_closure my_region my_ghost_region my_depth
                                                       -> k * k1 =
   let cmp = %project_value_slot rev_sort_1.cmp_12 my_closure in
   let sort = %project_function_slot (rev_sort_1 -> sort_1) my_closure in

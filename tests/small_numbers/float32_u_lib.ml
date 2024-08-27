@@ -4,7 +4,7 @@
 
 (* Tests for the float32 otherlib  *)
 
-module F32 = Stdlib_stable.Float32_u
+module F32 = Stdlib_beta.Float32_u
 
 external box_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
 external unbox_int32 : (int32[@local_opt]) -> int32# = "%unbox_int32"
@@ -153,8 +153,8 @@ module CF32 = struct
       for _ = 0 to 100_000 do
           let f0 = Random.int32 Int32.max_int in
           let f1 = Random.int32 Int32.max_int in
-          f ((if Random.bool () then f0 else Int32.neg f0) |> Int32.float_of_bits |> Stdlib_stable.Float32.of_float)
-            ((if Random.bool () then f1 else Int32.neg f1) |> Int32.float_of_bits |> Stdlib_stable.Float32.of_float)
+          f ((if Random.bool () then f0 else Int32.neg f0) |> Int32.float_of_bits |> Stdlib_beta.Float32.of_float)
+            ((if Random.bool () then f1 else Int32.neg f1) |> Int32.float_of_bits |> Stdlib_beta.Float32.of_float)
       done
   ;;
 end
@@ -242,9 +242,9 @@ let () =
     let u = F32.of_float32 f in
     bit_eq (F32.round_up u) (CF32.ceil f);
     bit_eq (F32.round_down u) (CF32.floor f);
-    bit_eq (F32.round_half_to_even u) (CF32.round_current f);
+    bit_eq (F32.round_current u) (CF32.round_current f);
     (* Returns int64, so can compare directly. *)
-    assert (box_int64 (F32.iround_half_to_even u) = (CF32.iround_current f));
+    assert (box_int64 (F32.iround_current u) = (CF32.iround_current f));
   )
 ;;
 
@@ -841,3 +841,30 @@ module Bigarray = struct
   end
 end
 
+module Noalloc = struct
+
+  let don't_allocate f : 'a =
+    (* NB: right-to-left evaluation order gets this right *)
+    let baseline_allocation = Gc.allocated_bytes() -. Gc.allocated_bytes() in
+    let before = Gc.allocated_bytes () in
+    let result = (f[@inlined never]) () in
+    let after = Gc.allocated_bytes () in
+    (match Sys.backend_type with
+    | Native ->  assert ((after -. before) = baseline_allocation)
+    | _ -> ());
+    result
+
+  let[@inline] of_int32_preserve_order x =
+    let open Stdlib_beta.Float32 in
+    if Stdlib.( >= ) x 0l then of_bits x else neg (of_bits (Stdlib.Int32.neg x))
+  ;;
+
+  let[@inline] of_int32_preserve_order i : float32# =
+    F32.of_float32 ((of_int32_preserve_order [@inlined hint]) i)
+  ;;
+
+  let _ =
+    don't_allocate (fun () -> of_int32_preserve_order (Sys.opaque_identity 0l))
+  ;;
+
+end

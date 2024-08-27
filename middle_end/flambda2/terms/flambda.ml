@@ -577,20 +577,22 @@ and print_continuation_handler (recursive : Recursive.t) invariant_params ppf k
 
 and print_function_params_and_body ppf t =
   let print ~return_continuation ~exn_continuation params ~body ~my_closure
-      ~is_my_closure_used:_ ~my_region ~my_depth ~free_names_of_body:_ =
+      ~is_my_closure_used:_ ~my_region ~my_ghost_region ~my_depth
+      ~free_names_of_body:_ =
     let my_closure =
       Bound_parameter.create my_closure (K.With_subkind.create K.value Anything)
     in
     fprintf ppf
       "@[<hov 1>(%t@<1>\u{03bb}%t@[<hov \
        1>@<1>\u{3008}%a@<1>\u{3009}@<1>\u{300a}%a@<1>\u{300b}\u{27c5}%t%a%t\u{27c6}@ \
-       %a %a %t%a%t %t.%t@]@ %a))@]"
+       \u{27c5}%t%a%t\u{27c6}@ %a %a %t%a%t %t.%t@]@ %a))@]"
       Flambda_colours.lambda Flambda_colours.pop Continuation.print
       return_continuation Continuation.print exn_continuation
       Flambda_colours.parameter Variable.print my_region Flambda_colours.pop
-      Bound_parameters.print params Bound_parameter.print my_closure
-      Flambda_colours.depth_variable Variable.print my_depth Flambda_colours.pop
-      Flambda_colours.elide Flambda_colours.pop print body
+      Flambda_colours.parameter Variable.print my_ghost_region
+      Flambda_colours.pop Bound_parameters.print params Bound_parameter.print
+      my_closure Flambda_colours.depth_variable Variable.print my_depth
+      Flambda_colours.pop Flambda_colours.elide Flambda_colours.pop print body
   in
   let module BFF = Bound_for_function in
   Name_abstraction.pattern_match_for_printing
@@ -602,7 +604,8 @@ and print_function_params_and_body ppf t =
         ~exn_continuation:(BFF.exn_continuation bff) (BFF.params bff) ~body:expr
         ~my_closure:(BFF.my_closure bff)
         ~is_my_closure_used:t.is_my_closure_used ~my_region:(BFF.my_region bff)
-        ~my_depth:(BFF.my_depth bff) ~free_names_of_body:free_names)
+        ~my_ghost_region:(BFF.my_ghost_region bff) ~my_depth:(BFF.my_depth bff)
+        ~free_names_of_body:free_names)
 
 and print_let_cont_expr ppf t =
   let rec gather_let_conts let_conts let_cont =
@@ -987,7 +990,7 @@ module Function_params_and_body = struct
   type t = function_params_and_body
 
   let create ~return_continuation ~exn_continuation params ~body
-      ~free_names_of_body ~my_closure ~my_region ~my_depth =
+      ~free_names_of_body ~my_closure ~my_region ~my_ghost_region ~my_depth =
     Bound_parameters.check_no_duplicates params;
     let is_my_closure_used =
       Or_unknown.map free_names_of_body ~f:(fun free_names_of_body ->
@@ -996,7 +999,7 @@ module Function_params_and_body = struct
     let base : Base.t = { expr = body; free_names = free_names_of_body } in
     let bound_for_function =
       Bound_for_function.create ~return_continuation ~exn_continuation ~params
-        ~my_closure ~my_region ~my_depth
+        ~my_closure ~my_region ~my_ghost_region ~my_depth
     in
     let abst = A.create bound_for_function base in
     { abst; is_my_closure_used }
@@ -1011,8 +1014,8 @@ module Function_params_and_body = struct
       ~return_continuation:(BFF.return_continuation bff)
       ~exn_continuation:(BFF.exn_continuation bff) (BFF.params bff) ~body:expr
       ~my_closure:(BFF.my_closure bff) ~is_my_closure_used:t.is_my_closure_used
-      ~my_region:(BFF.my_region bff) ~my_depth:(BFF.my_depth bff)
-      ~free_names_of_body:free_names
+      ~my_region:(BFF.my_region bff) ~my_ghost_region:(BFF.my_ghost_region bff)
+      ~my_depth:(BFF.my_depth bff) ~free_names_of_body:free_names
 
   let pattern_match_pair t1 t2 ~f =
     A.pattern_match_pair t1.abst t2.abst
@@ -1030,6 +1033,8 @@ module Function_params_and_body = struct
           ~body1 ~body2
           ~my_closure:(Bound_for_function.my_closure bound_for_function)
           ~my_region:(Bound_for_function.my_region bound_for_function)
+          ~my_ghost_region:
+            (Bound_for_function.my_ghost_region bound_for_function)
           ~my_depth:(Bound_for_function.my_depth bound_for_function))
 
   let apply_renaming = apply_renaming_function_params_and_body

@@ -201,15 +201,8 @@ tools/gdb-macros text eol=lf linguist-language=GDB
 tools/magic text eol=lf
 tools/ocamlsize text eol=lf
 tools/pre-commit-githook text eol=lf
-<<<<<<< HEAD
 tools/markdown-add-pr-links.sh text eol=lf
 runtime/caml/sizeclasses.h typo.missing-header
-||||||| 121bedcfd2
-tools/markdown-add-pr-links.sh text eol=lf
-runtime/caml/sizeclasses.h typo.missing-header typo.white-at-eol
-=======
-runtime/caml/sizeclasses.h typo.missing-header
->>>>>>> 5.2.0
 
 # Tests which include references spanning multiple lines fail with \r\n
 # endings, so use \n endings only, even on Windows.

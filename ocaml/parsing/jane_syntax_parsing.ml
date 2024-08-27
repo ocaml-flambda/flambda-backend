@@ -13,8 +13,7 @@
     In particular, for an language extension named [EXTNAME] (i.e., one that is
     enabled by [-extension EXTNAME] on the command line), the attribute (if
     used) must be [[@jane.ERASABILITY.EXTNAME]], and the extension node (if
-    used) must be [[%jane.ERASABILITY.EXTNAME]]. For built-in syntax, we use
-    [_builtin] instead of an language extension name.
+    used) must be [[%jane.ERASABILITY.EXTNAME]].
 
     The [ERASABILITY] component indicates to tools such as ocamlformat and
     ppxlib whether or not the attribute is erasable. See the documentation of

@@ -49,6 +49,8 @@ module Priority_heuristics = struct
     | Interval_length
     | Random_for_testing
 
+  let default = Interval_length
+
   let all = [Interval_length; Random_for_testing]
 
   let to_string = function
@@ -64,11 +66,7 @@ module Priority_heuristics = struct
     in
     lazy
       (match find_param_value "GI_PRIORITY_HEURISTICS" with
-      | None ->
-        fatal
-          "the GI_PRIORITY_HEURISTICS parameter is not set (possible values: \
-           %s)"
-          (available_heuristics ())
+      | None -> default
       | Some id -> (
         match String.lowercase_ascii id with
         | "interval_length" | "interval-length" -> Interval_length
@@ -85,6 +83,8 @@ module Selection_heuristics = struct
     | Best_fit
     | Worst_fit
     | Random_for_testing
+
+  let default = First_available
 
   let all = [First_available; Best_fit; Worst_fit; Random_for_testing]
 
@@ -110,11 +110,7 @@ module Selection_heuristics = struct
     in
     lazy
       (match find_param_value "GI_SELECTION_HEURISTICS" with
-      | None ->
-        fatal
-          "the GI_SELECTION_HEURISTICS parameter is not set (possible values: \
-           %s)"
-          (available_heuristics ())
+      | None -> default
       | Some id -> (
         match String.lowercase_ascii id with
         | "first_available" | "first-available" -> First_available
@@ -132,6 +128,8 @@ module Spilling_heuristics = struct
     | Hierarchical_uses
     | Random_for_testing
 
+  let default = Flat_uses
+
   let all = [Flat_uses; Hierarchical_uses; Random_for_testing]
 
   let to_string = function
@@ -148,11 +146,7 @@ module Spilling_heuristics = struct
     in
     lazy
       (match find_param_value "GI_SPILLING_HEURISTICS" with
-      | None ->
-        fatal
-          "the GI_SPILLING_HEURISTICS parameter is not set (possible values: \
-           %s)"
-          (available_heuristics ())
+      | None -> default
       | Some id -> (
         match String.lowercase_ascii id with
         | "flat_uses" | "flat-uses" -> Flat_uses

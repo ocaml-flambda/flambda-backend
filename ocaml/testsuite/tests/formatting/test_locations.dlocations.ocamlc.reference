@@ -6,8 +6,6 @@
         pattern (test_locations.ml[17,534+8]..[17,534+11])
           Ppat_var "fib" (test_locations.ml[17,534+8]..[17,534+11])
         expression (test_locations.ml[17,534+14]..[19,572+34])
-          attribute "jane.erasable._builtin"
-            []
           Pexp_function
           []
           None
@@ -95,7 +93,12 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
         expression (test_locations.ml[17,534+14]..test_locations.ml[19,572+34])
           Texp_function
 <<<<<<< HEAD
+<<<<<<< HEAD
           region true
+||||||| a198127529
+          region true
+=======
+>>>>>>> 57461473bf
           alloc_mode global,many,nonportable;id(modevar#7[shared,contended .. unique,uncontended])
           []
           Tfunction_cases (test_locations.ml[17,534+14]..test_locations.ml[19,572+34])

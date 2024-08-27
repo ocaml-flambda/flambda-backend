@@ -45,7 +45,7 @@ _runtest/
 autom4te.cache
 _install/
 _coverage/
-
+_profile/
 /Makefile.config
 /config.log
 /config.status

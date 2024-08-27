@@ -51,7 +51,7 @@ expect_test_spec: KWD_SWITCH FLOAT TILDE TILDEMINUS
 ##
 ## Ends in an error in state: 11.
 ##
-## simple -> simple TILDE . coercion [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+## simple -> simple TILDE . coercion [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## simple TILDE
@@ -63,7 +63,7 @@ expect_test_spec: KWD_SWITCH FLOAT TILDE KWD_DEPTH TILDEMINUS
 ##
 ## Ends in an error in state: 13.
 ##
-## coercion -> KWD_DEPTH . rec_info MINUSGREATER rec_info [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+## coercion -> KWD_DEPTH . rec_info MINUSGREATER rec_info [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_DEPTH
@@ -75,7 +75,7 @@ expect_test_spec: KWD_LET IDENT EQUAL KWD_REC_INFO LPAREN TILDEMINUS
 ##
 ## Ends in an error in state: 14.
 ##
-## rec_info_atom -> LPAREN . rec_info RPAREN [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+## rec_info_atom -> LPAREN . rec_info RPAREN [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## LPAREN
@@ -87,7 +87,7 @@ expect_test_spec: KWD_SWITCH FLOAT TILDE KWD_DEPTH KWD_UNROLL TILDEMINUS
 ##
 ## Ends in an error in state: 15.
 ##
-## rec_info -> KWD_UNROLL . plain_int rec_info_atom [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+## rec_info -> KWD_UNROLL . plain_int rec_info_atom [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_UNROLL
@@ -99,7 +99,7 @@ expect_test_spec: KWD_SWITCH FLOAT TILDE KWD_DEPTH KWD_UNROLL INT TILDEMINUS
 ##
 ## Ends in an error in state: 17.
 ##
-## rec_info -> KWD_UNROLL plain_int . rec_info_atom [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+## rec_info -> KWD_UNROLL plain_int . rec_info_atom [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_UNROLL plain_int
@@ -111,7 +111,7 @@ expect_test_spec: KWD_SWITCH FLOAT TILDE KWD_DEPTH KWD_SUCC TILDEMINUS
 ##
 ## Ends in an error in state: 23.
 ##
-## rec_info -> KWD_SUCC . rec_info_atom [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+## rec_info -> KWD_SUCC . rec_info_atom [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_SUCC
@@ -123,7 +123,7 @@ expect_test_spec: KWD_LET IDENT EQUAL KWD_REC_INFO LPAREN INT TILDEMINUS
 ##
 ## Ends in an error in state: 26.
 ##
-## rec_info_atom -> LPAREN rec_info . RPAREN [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+## rec_info_atom -> LPAREN rec_info . RPAREN [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## LPAREN rec_info
@@ -135,7 +135,7 @@ expect_test_spec: KWD_SWITCH FLOAT TILDE KWD_DEPTH INT TILDEMINUS
 ##
 ## Ends in an error in state: 28.
 ##
-## coercion -> KWD_DEPTH rec_info . MINUSGREATER rec_info [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+## coercion -> KWD_DEPTH rec_info . MINUSGREATER rec_info [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_DEPTH rec_info
@@ -147,7 +147,7 @@ expect_test_spec: KWD_SWITCH FLOAT TILDE KWD_DEPTH INT MINUSGREATER TILDEMINUS
 ##
 ## Ends in an error in state: 29.
 ##
-## coercion -> KWD_DEPTH rec_info MINUSGREATER . rec_info [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW AMP ]
+## coercion -> KWD_DEPTH rec_info MINUSGREATER . rec_info [ TILDE STARDOT STAR SLASHDOT SLASH SEMICOLON RPAREN RBRACE QMARKDOT QMARK PLUSDOT PLUS PIPE PERCENT NOTEQUALDOT NOTEQUAL MINUSGREATER MINUSDOT MINUS LPAREN LESSEQUALDOT LESSEQUAL LESSDOT LESS KWD_WITH KWD_WHERE KWD_LXOR KWD_LSR KWD_LSL KWD_LOR KWD_LAND KWD_IN KWD_ASR KWD_ANDWHERE KWD_AND INT GREATEREQUALDOT GREATEREQUAL GREATERDOT GREATER EQUALDOT EQUAL EOF DOT COMMA COLON BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_DEPTH rec_info MINUSGREATER
@@ -303,7 +303,7 @@ expect_test_spec: KWD_APPLY FLOAT LPAREN TILDEMINUS
 ##
 ## Ends in an error in state: 59.
 ##
-## simple_args -> LPAREN . separated_nonempty_list(COMMA,simple) RPAREN [ RPAREN PIPE KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW AMP ]
+## simple_args -> LPAREN . separated_nonempty_list(COMMA,simple) RPAREN [ RPAREN PIPE MINUSGREATER KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## LPAREN
@@ -439,7 +439,7 @@ expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN IDENT AT TILDEMINUS
 ##
 ## Ends in an error in state: 80.
 ##
-## function_slot_opt -> AT . function_slot [ RPAREN KWD_WITH KWD_LOCAL KWD_IN KWD_HEAP_OR_LOCAL KWD_END KWD_AND AMP ]
+## function_slot_opt -> AT . function_slot [ RPAREN KWD_WITH KWD_IN KWD_END KWD_AND AMP ]
 ##
 ## The known suffix of the stack is as follows:
 ## AT
@@ -459,11 +459,11 @@ expect_test_spec: KWD_LET SYMBOL EQUAL KWD_CLOSURE IDENT AT IDENT TILDEMINUS
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_FLOAT AMP TILDEMINUS
+expect_test_spec: KWD_APPLY AMP TILDEMINUS
 ##
 ## Ends in an error in state: 84.
 ##
-## alloc_mode_for_allocations_opt -> AMP . region [ SYMBOL LPAREN KWD_WITH KWD_IN KWD_END KWD_AND INT IDENT FLOAT ]
+## alloc_mode_for_allocations_opt -> AMP . region [ SYMBOL RPAREN LPAREN KWD_WITH KWD_UNROLL KWD_INLINING_STATE KWD_INLINED KWD_IN KWD_END KWD_AND INT IDENT FLOAT ]
 ##
 ## The known suffix of the stack is as follows:
 ## AMP
@@ -948,7 +948,7 @@ expect_test_spec: KWD_LET IDENT EQUAL TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_STRING_LOAD TILDEMINUS
 ##
-## Ends in an error in state: 161.
+## Ends in an error in state: 162.
 ##
 ## prefix_binop -> PRIM_STRING_LOAD . string_accessor_width [ LPAREN ]
 ##
@@ -960,7 +960,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_STRING_LOAD TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_VALUE_SLOT TILDEMINUS
 ##
-## Ends in an error in state: 165.
+## Ends in an error in state: 166.
 ##
 ## unop -> PRIM_PROJECT_VALUE_SLOT . function_slot DOT value_slot_for_projection [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -972,7 +972,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_VALUE_SLOT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_VALUE_SLOT IDENT TILDEMINUS
 ##
-## Ends in an error in state: 166.
+## Ends in an error in state: 167.
 ##
 ## unop -> PRIM_PROJECT_VALUE_SLOT function_slot . DOT value_slot_for_projection [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -984,7 +984,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_VALUE_SLOT IDENT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_VALUE_SLOT IDENT DOT TILDEMINUS
 ##
-## Ends in an error in state: 167.
+## Ends in an error in state: 168.
 ##
 ## unop -> PRIM_PROJECT_VALUE_SLOT function_slot DOT . value_slot_for_projection [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -996,7 +996,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_VALUE_SLOT IDENT DOT TILDEMIN
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT TILDEMINUS
 ##
-## Ends in an error in state: 169.
+## Ends in an error in state: 170.
 ##
 ## unop -> PRIM_PROJECT_FUNCTION_SLOT . LPAREN function_slot MINUSGREATER function_slot RPAREN [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1008,7 +1008,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 170.
+## Ends in an error in state: 171.
 ##
 ## unop -> PRIM_PROJECT_FUNCTION_SLOT LPAREN . function_slot MINUSGREATER function_slot RPAREN [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1020,7 +1020,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT LPAREN TILDEMIN
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT LPAREN IDENT TILDEMINUS
 ##
-## Ends in an error in state: 171.
+## Ends in an error in state: 172.
 ##
 ## unop -> PRIM_PROJECT_FUNCTION_SLOT LPAREN function_slot . MINUSGREATER function_slot RPAREN [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1032,7 +1032,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT LPAREN IDENT TI
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT LPAREN IDENT MINUSGREATER TILDEMINUS
 ##
-## Ends in an error in state: 172.
+## Ends in an error in state: 173.
 ##
 ## unop -> PRIM_PROJECT_FUNCTION_SLOT LPAREN function_slot MINUSGREATER . function_slot RPAREN [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1044,7 +1044,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT LPAREN IDENT MI
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT LPAREN IDENT MINUSGREATER IDENT TILDEMINUS
 ##
-## Ends in an error in state: 173.
+## Ends in an error in state: 174.
 ##
 ## unop -> PRIM_PROJECT_FUNCTION_SLOT LPAREN function_slot MINUSGREATER function_slot . RPAREN [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1056,7 +1056,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_PROJECT_FUNCTION_SLOT LPAREN IDENT MI
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV TILDEMINUS
 ##
-## Ends in an error in state: 178.
+## Ends in an error in state: 179.
 ##
 ## unop -> PRIM_NUM_CONV . LPAREN convertible_type MINUSGREATER convertible_type RPAREN [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1068,7 +1068,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 179.
+## Ends in an error in state: 180.
 ##
 ## unop -> PRIM_NUM_CONV LPAREN . convertible_type MINUSGREATER convertible_type RPAREN [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1080,7 +1080,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN KWD_IMM TILDEMINUS
 ##
-## Ends in an error in state: 183.
+## Ends in an error in state: 184.
 ##
 ## convertible_type -> KWD_IMM . KWD_TAGGED [ RPAREN MINUSGREATER ]
 ## convertible_type -> KWD_IMM . [ RPAREN MINUSGREATER ]
@@ -1093,7 +1093,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN KWD_IMM TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN KWD_FLOAT RPAREN
 ##
-## Ends in an error in state: 186.
+## Ends in an error in state: 187.
 ##
 ## unop -> PRIM_NUM_CONV LPAREN convertible_type . MINUSGREATER convertible_type RPAREN [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1105,7 +1105,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN KWD_FLOAT RPAREN
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN KWD_FLOAT MINUSGREATER TILDEMINUS
 ##
-## Ends in an error in state: 187.
+## Ends in an error in state: 188.
 ##
 ## unop -> PRIM_NUM_CONV LPAREN convertible_type MINUSGREATER . convertible_type RPAREN [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1117,7 +1117,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN KWD_FLOAT MINUSGREATE
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN KWD_FLOAT MINUSGREATER KWD_FLOAT MINUSGREATER
 ##
-## Ends in an error in state: 188.
+## Ends in an error in state: 189.
 ##
 ## unop -> PRIM_NUM_CONV LPAREN convertible_type MINUSGREATER convertible_type . RPAREN [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1129,7 +1129,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_NUM_CONV LPAREN KWD_FLOAT MINUSGREATE
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT TILDEMINUS
 ##
-## Ends in an error in state: 192.
+## Ends in an error in state: 193.
 ##
 ## binop_app -> PRIM_INT_SHIFT . standard_int simple int_shift simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1141,7 +1141,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT KWD_IMM TILDEMINUS
 ##
-## Ends in an error in state: 197.
+## Ends in an error in state: 198.
 ##
 ## binop_app -> PRIM_INT_SHIFT standard_int . simple int_shift simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1153,7 +1153,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT KWD_IMM TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 198.
+## Ends in an error in state: 199.
 ##
 ## binop_app -> PRIM_INT_SHIFT standard_int simple . int_shift simple [ KWD_WITH KWD_IN KWD_AND ]
 ## simple -> simple . TILDE coercion [ TILDE KWD_LSR KWD_LSL KWD_ASR ]
@@ -1166,7 +1166,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT FLOAT KWD_ASR TILDEMINUS
 ##
-## Ends in an error in state: 202.
+## Ends in an error in state: 203.
 ##
 ## binop_app -> PRIM_INT_SHIFT standard_int simple int_shift . simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1178,7 +1178,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT FLOAT KWD_ASR TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT FLOAT KWD_ASR FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 203.
+## Ends in an error in state: 204.
 ##
 ## binop_app -> PRIM_INT_SHIFT standard_int simple int_shift simple . [ KWD_WITH KWD_IN KWD_AND ]
 ## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
@@ -1191,7 +1191,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_SHIFT FLOAT KWD_ASR FLOAT TILDEMI
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP TILDEMINUS
 ##
-## Ends in an error in state: 204.
+## Ends in an error in state: 205.
 ##
 ## binop_app -> PRIM_INT_COMP . standard_int signed_or_unsigned simple int_comp simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1203,7 +1203,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP KWD_IMM TILDEMINUS
 ##
-## Ends in an error in state: 205.
+## Ends in an error in state: 206.
 ##
 ## binop_app -> PRIM_INT_COMP standard_int . signed_or_unsigned simple int_comp simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1215,7 +1215,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP KWD_IMM TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP KWD_UNSIGNED TILDEMINUS
 ##
-## Ends in an error in state: 207.
+## Ends in an error in state: 208.
 ##
 ## binop_app -> PRIM_INT_COMP standard_int signed_or_unsigned . simple int_comp simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1227,7 +1227,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP KWD_UNSIGNED TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 208.
+## Ends in an error in state: 209.
 ##
 ## binop_app -> PRIM_INT_COMP standard_int signed_or_unsigned simple . int_comp simple [ KWD_WITH KWD_IN KWD_AND ]
 ## simple -> simple . TILDE coercion [ TILDE QMARK NOTEQUAL LESSEQUAL LESS GREATEREQUAL GREATER EQUAL ]
@@ -1240,7 +1240,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP FLOAT EQUAL TILDEMINUS
 ##
-## Ends in an error in state: 216.
+## Ends in an error in state: 217.
 ##
 ## binop_app -> PRIM_INT_COMP standard_int signed_or_unsigned simple int_comp . simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1252,7 +1252,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP FLOAT EQUAL TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP FLOAT EQUAL FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 217.
+## Ends in an error in state: 218.
 ##
 ## binop_app -> PRIM_INT_COMP standard_int signed_or_unsigned simple int_comp simple . [ KWD_WITH KWD_IN KWD_AND ]
 ## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
@@ -1265,7 +1265,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_COMP FLOAT EQUAL FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH TILDE
 ##
-## Ends in an error in state: 218.
+## Ends in an error in state: 219.
 ##
 ## binop_app -> PRIM_INT_ARITH . standard_int simple binary_int_arith_op simple [ KWD_WITH KWD_IN KWD_AND ]
 ## unop -> PRIM_INT_ARITH . standard_int unary_int_arith_op [ SYMBOL INT IDENT FLOAT ]
@@ -1278,7 +1278,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH TILDE
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH KWD_IMM TILDE
 ##
-## Ends in an error in state: 219.
+## Ends in an error in state: 220.
 ##
 ## binop_app -> PRIM_INT_ARITH standard_int . simple binary_int_arith_op simple [ KWD_WITH KWD_IN KWD_AND ]
 ## unop -> PRIM_INT_ARITH standard_int . unary_int_arith_op [ SYMBOL INT IDENT FLOAT ]
@@ -1291,7 +1291,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH KWD_IMM TILDE
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 223.
+## Ends in an error in state: 224.
 ##
 ## binop_app -> PRIM_INT_ARITH standard_int simple . binary_int_arith_op simple [ KWD_WITH KWD_IN KWD_AND ]
 ## simple -> simple . TILDE coercion [ TILDE STAR SLASH PLUS PERCENT MINUS KWD_LXOR KWD_LOR KWD_LAND ]
@@ -1304,7 +1304,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH FLOAT KWD_LAND TILDEMINUS
 ##
-## Ends in an error in state: 232.
+## Ends in an error in state: 233.
 ##
 ## binop_app -> PRIM_INT_ARITH standard_int simple binary_int_arith_op . simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1316,7 +1316,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH FLOAT KWD_LAND TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH FLOAT KWD_LAND FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 233.
+## Ends in an error in state: 234.
 ##
 ## binop_app -> PRIM_INT_ARITH standard_int simple binary_int_arith_op simple . [ KWD_WITH KWD_IN KWD_AND ]
 ## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
@@ -1329,7 +1329,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_INT_ARITH FLOAT KWD_LAND FLOAT TILDEM
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BYTES_LOAD TILDEMINUS
 ##
-## Ends in an error in state: 237.
+## Ends in an error in state: 239.
 ##
 ## prefix_binop -> PRIM_BYTES_LOAD . string_accessor_width [ LPAREN ]
 ##
@@ -1341,7 +1341,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BYTES_LOAD TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_NATIVEINT TILDEMINUS
 ##
-## Ends in an error in state: 240.
+## Ends in an error in state: 242.
 ##
 ## unop -> PRIM_BOX_NATIVEINT . alloc_mode_for_allocations_opt [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1353,7 +1353,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_NATIVEINT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_INT64 TILDEMINUS
 ##
-## Ends in an error in state: 242.
+## Ends in an error in state: 244.
 ##
 ## unop -> PRIM_BOX_INT64 . alloc_mode_for_allocations_opt [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1365,7 +1365,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_INT64 TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_INT32 TILDEMINUS
 ##
-## Ends in an error in state: 244.
+## Ends in an error in state: 246.
 ##
 ## unop -> PRIM_BOX_INT32 . alloc_mode_for_allocations_opt [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1377,7 +1377,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_INT32 TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 246.
+## Ends in an error in state: 248.
 ##
 ## unop -> PRIM_BOX_FLOAT . alloc_mode_for_allocations_opt [ SYMBOL INT IDENT FLOAT ]
 ##
@@ -1389,7 +1389,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BOX_FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET TILDEMINUS
 ##
-## Ends in an error in state: 249.
+## Ends in an error in state: 251.
 ##
 ## ternop_app -> PRIM_BLOCK_SET . block_access_kind simple DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1401,7 +1401,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 251.
+## Ends in an error in state: 253.
 ##
 ## block_access_kind -> KWD_FLOAT . size_opt [ SYMBOL LPAREN INT IDENT FLOAT ]
 ##
@@ -1413,7 +1413,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_SIZE TILDEMINUS
 ##
-## Ends in an error in state: 252.
+## Ends in an error in state: 254.
 ##
 ## size_opt -> KWD_SIZE . LPAREN targetint RPAREN [ SYMBOL LPAREN INT IDENT FLOAT ]
 ##
@@ -1425,7 +1425,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_SIZE TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_SIZE LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 253.
+## Ends in an error in state: 255.
 ##
 ## size_opt -> KWD_SIZE LPAREN . targetint RPAREN [ SYMBOL LPAREN INT IDENT FLOAT ]
 ##
@@ -1437,7 +1437,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_SIZE LPAREN TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_SIZE LPAREN INT TILDEMINUS
 ##
-## Ends in an error in state: 255.
+## Ends in an error in state: 257.
 ##
 ## size_opt -> KWD_SIZE LPAREN targetint . RPAREN [ SYMBOL LPAREN INT IDENT FLOAT ]
 ##
@@ -1449,7 +1449,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_SIZE LPAREN INT TILDEMI
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_IMM LPAREN
 ##
-## Ends in an error in state: 258.
+## Ends in an error in state: 260.
 ##
 ## ternop_app -> PRIM_BLOCK_SET block_access_kind . simple DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1460,16 +1460,16 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_IMM LPAREN
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 269, spurious reduction of production tag_opt ->
-## In state 274, spurious reduction of production size_opt ->
-## In state 275, spurious reduction of production block_access_kind -> block_access_field_kind tag_opt size_opt
+## In state 271, spurious reduction of production tag_opt ->
+## In state 276, spurious reduction of production size_opt ->
+## In state 277, spurious reduction of production block_access_kind -> block_access_field_kind tag_opt size_opt
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 259.
+## Ends in an error in state: 261.
 ##
 ## simple -> simple . TILDE coercion [ TILDE DOT ]
 ## ternop_app -> PRIM_BLOCK_SET block_access_kind simple . DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
@@ -1482,7 +1482,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT TILDEMINUS
 ##
-## Ends in an error in state: 260.
+## Ends in an error in state: 262.
 ##
 ## ternop_app -> PRIM_BLOCK_SET block_access_kind simple DOT . LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1494,7 +1494,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 261.
+## Ends in an error in state: 263.
 ##
 ## ternop_app -> PRIM_BLOCK_SET block_access_kind simple DOT LPAREN . simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1506,7 +1506,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 262.
+## Ends in an error in state: 264.
 ##
 ## simple -> simple . TILDE coercion [ TILDE RPAREN ]
 ## ternop_app -> PRIM_BLOCK_SET block_access_kind simple DOT LPAREN simple . RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
@@ -1519,7 +1519,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN FLOAT TILD
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN FLOAT RPAREN TILDEMINUS
 ##
-## Ends in an error in state: 263.
+## Ends in an error in state: 265.
 ##
 ## ternop_app -> PRIM_BLOCK_SET block_access_kind simple DOT LPAREN simple RPAREN . init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1529,9 +1529,9 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN FLOAT RPAR
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT LPAREN FLOAT RPAREN LESSMINUS TILDEMINUS
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN FLOAT RPAREN LESSMINUS TILDEMINUS
 ##
-## Ends in an error in state: 264.
+## Ends in an error in state: 266.
 ##
 ## init_or_assign -> LESSMINUS . [ SYMBOL INT IDENT FLOAT ]
 ## init_or_assign -> LESSMINUS . AMP [ SYMBOL INT IDENT FLOAT ]
@@ -1544,7 +1544,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT LPAREN FLOAT RPAR
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN FLOAT RPAREN EQUAL TILDEMINUS
 ##
-## Ends in an error in state: 267.
+## Ends in an error in state: 269.
 ##
 ## ternop_app -> PRIM_BLOCK_SET block_access_kind simple DOT LPAREN simple RPAREN init_or_assign . simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1556,7 +1556,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN FLOAT RPAR
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN FLOAT RPAREN EQUAL FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 268.
+## Ends in an error in state: 270.
 ##
 ## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
 ## ternop_app -> PRIM_BLOCK_SET block_access_kind simple DOT LPAREN simple RPAREN init_or_assign simple . [ KWD_WITH KWD_IN KWD_AND ]
@@ -1569,7 +1569,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET FLOAT DOT LPAREN FLOAT RPAR
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_IMM TILDEMINUS
 ##
-## Ends in an error in state: 269.
+## Ends in an error in state: 271.
 ##
 ## block_access_kind -> block_access_field_kind . tag_opt size_opt [ SYMBOL LPAREN INT IDENT FLOAT ]
 ##
@@ -1581,7 +1581,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_IMM TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_TAG TILDEMINUS
 ##
-## Ends in an error in state: 270.
+## Ends in an error in state: 272.
 ##
 ## tag_opt -> KWD_TAG . LPAREN tag RPAREN [ SYMBOL LPAREN KWD_SIZE INT IDENT FLOAT ]
 ##
@@ -1593,7 +1593,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_TAG TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_TAG LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 271.
+## Ends in an error in state: 273.
 ##
 ## tag_opt -> KWD_TAG LPAREN . tag RPAREN [ SYMBOL LPAREN KWD_SIZE INT IDENT FLOAT ]
 ##
@@ -1605,7 +1605,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_TAG LPAREN TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_TAG LPAREN INT TILDEMINUS
 ##
-## Ends in an error in state: 272.
+## Ends in an error in state: 274.
 ##
 ## tag_opt -> KWD_TAG LPAREN tag . RPAREN [ SYMBOL LPAREN KWD_SIZE INT IDENT FLOAT ]
 ##
@@ -1617,7 +1617,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_TAG LPAREN INT TILDEMIN
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_TAG LPAREN INT RPAREN TILDEMINUS
 ##
-## Ends in an error in state: 274.
+## Ends in an error in state: 276.
 ##
 ## block_access_kind -> block_access_field_kind tag_opt . size_opt [ SYMBOL LPAREN INT IDENT FLOAT ]
 ##
@@ -1629,7 +1629,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_SET KWD_TAG LPAREN INT RPAREN T
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD TILDEMINUS
 ##
-## Ends in an error in state: 276.
+## Ends in an error in state: 278.
 ##
 ## prefix_binop -> PRIM_BLOCK_LOAD . mutability block_access_kind [ LPAREN ]
 ##
@@ -1641,7 +1641,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD KWD_IMMUTABLE_UNIQUE TILDEMINUS
 ##
-## Ends in an error in state: 279.
+## Ends in an error in state: 281.
 ##
 ## prefix_binop -> PRIM_BLOCK_LOAD mutability . block_access_kind [ LPAREN ]
 ##
@@ -1653,7 +1653,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD KWD_IMMUTABLE_UNIQUE TILDE
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK TILDEMINUS
 ##
-## Ends in an error in state: 281.
+## Ends in an error in state: 283.
 ##
 ## block -> PRIM_BLOCK . mutability tag alloc_mode_for_allocations_opt LPAREN loption(separated_nonempty_list(COMMA,simple)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1665,7 +1665,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK KWD_IMMUTABLE_UNIQUE TILDEMINUS
 ##
-## Ends in an error in state: 282.
+## Ends in an error in state: 284.
 ##
 ## block -> PRIM_BLOCK mutability . tag alloc_mode_for_allocations_opt LPAREN loption(separated_nonempty_list(COMMA,simple)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1677,7 +1677,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK KWD_IMMUTABLE_UNIQUE TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK INT TILDEMINUS
 ##
-## Ends in an error in state: 283.
+## Ends in an error in state: 285.
 ##
 ## block -> PRIM_BLOCK mutability tag . alloc_mode_for_allocations_opt LPAREN loption(separated_nonempty_list(COMMA,simple)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1689,7 +1689,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK INT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK INT AMP IDENT TILDEMINUS
 ##
-## Ends in an error in state: 284.
+## Ends in an error in state: 286.
 ##
 ## block -> PRIM_BLOCK mutability tag alloc_mode_for_allocations_opt . LPAREN loption(separated_nonempty_list(COMMA,simple)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1701,7 +1701,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK INT AMP IDENT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK INT LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 285.
+## Ends in an error in state: 287.
 ##
 ## block -> PRIM_BLOCK mutability tag alloc_mode_for_allocations_opt LPAREN . loption(separated_nonempty_list(COMMA,simple)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1713,7 +1713,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK INT LPAREN TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_LOAD TILDEMINUS
 ##
-## Ends in an error in state: 290.
+## Ends in an error in state: 292.
 ##
 ## prefix_binop -> PRIM_BIGSTRING_LOAD . string_accessor_width [ LPAREN ]
 ##
@@ -1725,9 +1725,9 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_LOAD TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET TILDEMINUS
 ##
-## Ends in an error in state: 294.
+## Ends in an error in state: 296.
 ##
-## ternop_app -> PRIM_ARRAY_SET . array_kind simple DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+## ternop_app -> PRIM_ARRAY_SET . array_kind array_accessor_width simple DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## PRIM_ARRAY_SET
@@ -1737,9 +1737,9 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET KWD_FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 297.
+## Ends in an error in state: 299.
 ##
-## ternop_app -> PRIM_ARRAY_SET array_kind . simple DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+## ternop_app -> PRIM_ARRAY_SET array_kind . array_accessor_width simple DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## PRIM_ARRAY_SET array_kind
@@ -1747,98 +1747,110 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET KWD_FLOAT TILDEMINUS
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT TILDEMINUS
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET KWD_VEC128 TILDEMINUS
 ##
-## Ends in an error in state: 298.
+## Ends in an error in state: 301.
 ##
-## simple -> simple . TILDE coercion [ TILDE DOT ]
-## ternop_app -> PRIM_ARRAY_SET array_kind simple . DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+## ternop_app -> PRIM_ARRAY_SET array_kind array_accessor_width . simple DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
-## PRIM_ARRAY_SET array_kind simple
+## PRIM_ARRAY_SET array_kind array_accessor_width
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT TILDEMINUS
+##
+## Ends in an error in state: 302.
+##
+## simple -> simple . TILDE coercion [ TILDE DOT ]
+## ternop_app -> PRIM_ARRAY_SET array_kind array_accessor_width simple . DOT LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_SET array_kind array_accessor_width simple
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT TILDEMINUS
 ##
-## Ends in an error in state: 299.
+## Ends in an error in state: 303.
 ##
-## ternop_app -> PRIM_ARRAY_SET array_kind simple DOT . LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+## ternop_app -> PRIM_ARRAY_SET array_kind array_accessor_width simple DOT . LPAREN simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
-## PRIM_ARRAY_SET array_kind simple DOT
+## PRIM_ARRAY_SET array_kind array_accessor_width simple DOT
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 300.
+## Ends in an error in state: 304.
 ##
-## ternop_app -> PRIM_ARRAY_SET array_kind simple DOT LPAREN . simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+## ternop_app -> PRIM_ARRAY_SET array_kind array_accessor_width simple DOT LPAREN . simple RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
-## PRIM_ARRAY_SET array_kind simple DOT LPAREN
+## PRIM_ARRAY_SET array_kind array_accessor_width simple DOT LPAREN
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT LPAREN FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 301.
+## Ends in an error in state: 305.
 ##
 ## simple -> simple . TILDE coercion [ TILDE RPAREN ]
-## ternop_app -> PRIM_ARRAY_SET array_kind simple DOT LPAREN simple . RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+## ternop_app -> PRIM_ARRAY_SET array_kind array_accessor_width simple DOT LPAREN simple . RPAREN init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
-## PRIM_ARRAY_SET array_kind simple DOT LPAREN simple
+## PRIM_ARRAY_SET array_kind array_accessor_width simple DOT LPAREN simple
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT LPAREN FLOAT RPAREN TILDEMINUS
 ##
-## Ends in an error in state: 302.
+## Ends in an error in state: 306.
 ##
-## ternop_app -> PRIM_ARRAY_SET array_kind simple DOT LPAREN simple RPAREN . init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
+## ternop_app -> PRIM_ARRAY_SET array_kind array_accessor_width simple DOT LPAREN simple RPAREN . init_or_assign simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
-## PRIM_ARRAY_SET array_kind simple DOT LPAREN simple RPAREN
+## PRIM_ARRAY_SET array_kind array_accessor_width simple DOT LPAREN simple RPAREN
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT LPAREN FLOAT RPAREN EQUAL TILDEMINUS
 ##
-## Ends in an error in state: 303.
+## Ends in an error in state: 307.
 ##
-## ternop_app -> PRIM_ARRAY_SET array_kind simple DOT LPAREN simple RPAREN init_or_assign . simple [ KWD_WITH KWD_IN KWD_AND ]
+## ternop_app -> PRIM_ARRAY_SET array_kind array_accessor_width simple DOT LPAREN simple RPAREN init_or_assign . simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
-## PRIM_ARRAY_SET array_kind simple DOT LPAREN simple RPAREN init_or_assign
+## PRIM_ARRAY_SET array_kind array_accessor_width simple DOT LPAREN simple RPAREN init_or_assign
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_SET FLOAT DOT LPAREN FLOAT RPAREN EQUAL FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 304.
+## Ends in an error in state: 308.
 ##
 ## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
-## ternop_app -> PRIM_ARRAY_SET array_kind simple DOT LPAREN simple RPAREN init_or_assign simple . [ KWD_WITH KWD_IN KWD_AND ]
+## ternop_app -> PRIM_ARRAY_SET array_kind array_accessor_width simple DOT LPAREN simple RPAREN init_or_assign simple . [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
-## PRIM_ARRAY_SET array_kind simple DOT LPAREN simple RPAREN init_or_assign simple
+## PRIM_ARRAY_SET array_kind array_accessor_width simple DOT LPAREN simple RPAREN init_or_assign simple
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD TILDEMINUS
 ##
-## Ends in an error in state: 305.
+## Ends in an error in state: 309.
 ##
-## binop_app -> PRIM_ARRAY_LOAD . array_kind mutability simple DOT LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+## binop_app -> PRIM_ARRAY_LOAD . array_kind mutability array_accessor_width simple DOT LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## PRIM_ARRAY_LOAD
@@ -1848,9 +1860,9 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD KWD_FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 306.
+## Ends in an error in state: 310.
 ##
-## binop_app -> PRIM_ARRAY_LOAD array_kind . mutability simple DOT LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+## binop_app -> PRIM_ARRAY_LOAD array_kind . mutability array_accessor_width simple DOT LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## PRIM_ARRAY_LOAD array_kind
@@ -1860,9 +1872,9 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD KWD_FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD KWD_IMMUTABLE_UNIQUE TILDEMINUS
 ##
-## Ends in an error in state: 307.
+## Ends in an error in state: 311.
 ##
-## binop_app -> PRIM_ARRAY_LOAD array_kind mutability . simple DOT LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+## binop_app -> PRIM_ARRAY_LOAD array_kind mutability . array_accessor_width simple DOT LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## PRIM_ARRAY_LOAD array_kind mutability
@@ -1870,59 +1882,71 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD KWD_IMMUTABLE_UNIQUE TILDE
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
+expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD KWD_VEC128 TILDEMINUS
+##
+## Ends in an error in state: 312.
+##
+## binop_app -> PRIM_ARRAY_LOAD array_kind mutability array_accessor_width . simple DOT LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## PRIM_ARRAY_LOAD array_kind mutability array_accessor_width
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 308.
+## Ends in an error in state: 313.
 ##
-## binop_app -> PRIM_ARRAY_LOAD array_kind mutability simple . DOT LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+## binop_app -> PRIM_ARRAY_LOAD array_kind mutability array_accessor_width simple . DOT LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ## simple -> simple . TILDE coercion [ TILDE DOT ]
 ##
 ## The known suffix of the stack is as follows:
-## PRIM_ARRAY_LOAD array_kind mutability simple
+## PRIM_ARRAY_LOAD array_kind mutability array_accessor_width simple
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD FLOAT DOT TILDEMINUS
 ##
-## Ends in an error in state: 309.
+## Ends in an error in state: 314.
 ##
-## binop_app -> PRIM_ARRAY_LOAD array_kind mutability simple DOT . LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+## binop_app -> PRIM_ARRAY_LOAD array_kind mutability array_accessor_width simple DOT . LPAREN simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
-## PRIM_ARRAY_LOAD array_kind mutability simple DOT
+## PRIM_ARRAY_LOAD array_kind mutability array_accessor_width simple DOT
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD FLOAT DOT LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 310.
+## Ends in an error in state: 315.
 ##
-## binop_app -> PRIM_ARRAY_LOAD array_kind mutability simple DOT LPAREN . simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+## binop_app -> PRIM_ARRAY_LOAD array_kind mutability array_accessor_width simple DOT LPAREN . simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
-## PRIM_ARRAY_LOAD array_kind mutability simple DOT LPAREN
+## PRIM_ARRAY_LOAD array_kind mutability array_accessor_width simple DOT LPAREN
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LOAD FLOAT DOT LPAREN FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 311.
+## Ends in an error in state: 316.
 ##
-## binop_app -> PRIM_ARRAY_LOAD array_kind mutability simple DOT LPAREN simple . RPAREN [ KWD_WITH KWD_IN KWD_AND ]
+## binop_app -> PRIM_ARRAY_LOAD array_kind mutability array_accessor_width simple DOT LPAREN simple . RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ## simple -> simple . TILDE coercion [ TILDE RPAREN ]
 ##
 ## The known suffix of the stack is as follows:
-## PRIM_ARRAY_LOAD array_kind mutability simple DOT LPAREN simple
+## PRIM_ARRAY_LOAD array_kind mutability array_accessor_width simple DOT LPAREN simple
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_LET IDENT EQUAL KWD_REC_INFO TILDEMINUS
 ##
-## Ends in an error in state: 314.
+## Ends in an error in state: 319.
 ##
 ## named -> KWD_REC_INFO . rec_info_atom [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1934,7 +1958,7 @@ expect_test_spec: KWD_LET IDENT EQUAL KWD_REC_INFO TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LENGTH TILDEMINUS
 ##
-## Ends in an error in state: 316.
+## Ends in an error in state: 321.
 ##
 ## named -> unop . simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1946,7 +1970,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LENGTH TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LENGTH FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 317.
+## Ends in an error in state: 322.
 ##
 ## named -> unop simple . [ KWD_WITH KWD_IN KWD_AND ]
 ## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
@@ -1959,7 +1983,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_ARRAY_LENGTH FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 319.
+## Ends in an error in state: 324.
 ##
 ## binop_app -> simple . infix_binop simple [ KWD_WITH KWD_IN KWD_AND ]
 ## named -> simple . [ KWD_WITH KWD_IN KWD_AND ]
@@ -1973,7 +1997,7 @@ expect_test_spec: KWD_LET IDENT EQUAL FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL FLOAT MINUSDOT TILDEMINUS
 ##
-## Ends in an error in state: 333.
+## Ends in an error in state: 338.
 ##
 ## binop_app -> simple infix_binop . simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -1985,7 +2009,7 @@ expect_test_spec: KWD_LET IDENT EQUAL FLOAT MINUSDOT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL FLOAT MINUSDOT FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 334.
+## Ends in an error in state: 339.
 ##
 ## binop_app -> simple infix_binop simple . [ KWD_WITH KWD_IN KWD_AND ]
 ## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
@@ -1998,7 +2022,7 @@ expect_test_spec: KWD_LET IDENT EQUAL FLOAT MINUSDOT FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_PHYS_EQ TILDEMINUS
 ##
-## Ends in an error in state: 338.
+## Ends in an error in state: 343.
 ##
 ## binop_app -> prefix_binop . LPAREN simple COMMA simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2010,7 +2034,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_PHYS_EQ TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 339.
+## Ends in an error in state: 344.
 ##
 ## binop_app -> prefix_binop LPAREN . simple COMMA simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2022,7 +2046,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD LPAREN TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD LPAREN FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 340.
+## Ends in an error in state: 345.
 ##
 ## binop_app -> prefix_binop LPAREN simple . COMMA simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ## simple -> simple . TILDE coercion [ TILDE COMMA ]
@@ -2035,7 +2059,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD LPAREN FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD LPAREN FLOAT COMMA TILDEMINUS
 ##
-## Ends in an error in state: 341.
+## Ends in an error in state: 346.
 ##
 ## binop_app -> prefix_binop LPAREN simple COMMA . simple RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2047,7 +2071,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD LPAREN FLOAT COMMA TILDEMI
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD LPAREN FLOAT COMMA FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 342.
+## Ends in an error in state: 347.
 ##
 ## binop_app -> prefix_binop LPAREN simple COMMA simple . RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ## simple -> simple . TILDE coercion [ TILDE RPAREN ]
@@ -2060,7 +2084,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BLOCK_LOAD LPAREN FLOAT COMMA FLOAT T
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET TILDEMINUS
 ##
-## Ends in an error in state: 347.
+## Ends in an error in state: 352.
 ##
 ## ternop_app -> bytes_or_bigstring_set . string_accessor_width simple DOT LPAREN simple RPAREN simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2072,7 +2096,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT TILDEMINUS
 ##
-## Ends in an error in state: 348.
+## Ends in an error in state: 353.
 ##
 ## ternop_app -> bytes_or_bigstring_set string_accessor_width . simple DOT LPAREN simple RPAREN simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2084,7 +2108,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 349.
+## Ends in an error in state: 354.
 ##
 ## simple -> simple . TILDE coercion [ TILDE DOT ]
 ## ternop_app -> bytes_or_bigstring_set string_accessor_width simple . DOT LPAREN simple RPAREN simple [ KWD_WITH KWD_IN KWD_AND ]
@@ -2097,7 +2121,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT TILDEMINUS
 ##
-## Ends in an error in state: 350.
+## Ends in an error in state: 355.
 ##
 ## ternop_app -> bytes_or_bigstring_set string_accessor_width simple DOT . LPAREN simple RPAREN simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2109,7 +2133,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT TILDEMINU
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 351.
+## Ends in an error in state: 356.
 ##
 ## ternop_app -> bytes_or_bigstring_set string_accessor_width simple DOT LPAREN . simple RPAREN simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2121,7 +2145,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT LPAREN TI
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT LPAREN FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 352.
+## Ends in an error in state: 357.
 ##
 ## simple -> simple . TILDE coercion [ TILDE RPAREN ]
 ## ternop_app -> bytes_or_bigstring_set string_accessor_width simple DOT LPAREN simple . RPAREN simple [ KWD_WITH KWD_IN KWD_AND ]
@@ -2134,7 +2158,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT LPAREN FL
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT LPAREN FLOAT RPAREN TILDEMINUS
 ##
-## Ends in an error in state: 353.
+## Ends in an error in state: 358.
 ##
 ## ternop_app -> bytes_or_bigstring_set string_accessor_width simple DOT LPAREN simple RPAREN . simple [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2146,7 +2170,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT LPAREN FL
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT LPAREN FLOAT RPAREN FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 354.
+## Ends in an error in state: 359.
 ##
 ## simple -> simple . TILDE coercion [ TILDE KWD_WITH KWD_IN KWD_AND ]
 ## ternop_app -> bytes_or_bigstring_set string_accessor_width simple DOT LPAREN simple RPAREN simple . [ KWD_WITH KWD_IN KWD_AND ]
@@ -2159,7 +2183,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BIGSTRING_SET INT FLOAT DOT LPAREN FL
 
 expect_test_spec: KWD_LET KWD_CODE IDENT KWD_DELETED TILDEMINUS
 ##
-## Ends in an error in state: 357.
+## Ends in an error in state: 362.
 ##
 ## separated_nonempty_list(KWD_AND,symbol_binding) -> symbol_binding . [ KWD_WITH KWD_IN ]
 ## separated_nonempty_list(KWD_AND,symbol_binding) -> symbol_binding . KWD_AND separated_nonempty_list(KWD_AND,symbol_binding) [ KWD_WITH KWD_IN ]
@@ -2172,7 +2196,7 @@ expect_test_spec: KWD_LET KWD_CODE IDENT KWD_DELETED TILDEMINUS
 
 expect_test_spec: KWD_LET KWD_CODE IDENT KWD_DELETED KWD_AND TILDEMINUS
 ##
-## Ends in an error in state: 358.
+## Ends in an error in state: 363.
 ##
 ## separated_nonempty_list(KWD_AND,symbol_binding) -> symbol_binding KWD_AND . separated_nonempty_list(KWD_AND,symbol_binding) [ KWD_WITH KWD_IN ]
 ##
@@ -2184,7 +2208,7 @@ expect_test_spec: KWD_LET KWD_CODE IDENT KWD_DELETED KWD_AND TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL TILDEMINUS
 ##
-## Ends in an error in state: 359.
+## Ends in an error in state: 364.
 ##
 ## static_closure_binding -> symbol . EQUAL fun_decl [ KWD_WITH KWD_IN KWD_AND ]
 ## static_data_binding -> symbol . EQUAL static_data [ KWD_WITH KWD_IN KWD_AND ]
@@ -2197,7 +2221,7 @@ expect_test_spec: KWD_LET SYMBOL TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL EQUAL TILDEMINUS
 ##
-## Ends in an error in state: 360.
+## Ends in an error in state: 365.
 ##
 ## static_closure_binding -> symbol EQUAL . fun_decl [ KWD_WITH KWD_IN KWD_AND ]
 ## static_data_binding -> symbol EQUAL . static_data [ KWD_WITH KWD_IN KWD_AND ]
@@ -2210,7 +2234,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_BLOCK TILDEMINUS
 ##
-## Ends in an error in state: 362.
+## Ends in an error in state: 367.
 ##
 ## static_data -> STATIC_CONST_FLOAT_BLOCK . LPAREN loption(separated_nonempty_list(COMMA,float_or_variable)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2222,7 +2246,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_BLOCK TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_BLOCK LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 363.
+## Ends in an error in state: 368.
 ##
 ## static_data -> STATIC_CONST_FLOAT_BLOCK LPAREN . loption(separated_nonempty_list(COMMA,float_or_variable)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2234,7 +2258,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_BLOCK LPAREN TILDEMINU
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_BLOCK LPAREN IDENT TILDEMINUS
 ##
-## Ends in an error in state: 369.
+## Ends in an error in state: 374.
 ##
 ## separated_nonempty_list(COMMA,float_or_variable) -> float_or_variable . [ RPAREN ]
 ## separated_nonempty_list(COMMA,float_or_variable) -> float_or_variable . COMMA separated_nonempty_list(COMMA,float_or_variable) [ RPAREN ]
@@ -2247,7 +2271,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_BLOCK LPAREN IDENT TIL
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_BLOCK LPAREN IDENT COMMA TILDEMINUS
 ##
-## Ends in an error in state: 370.
+## Ends in an error in state: 375.
 ##
 ## separated_nonempty_list(COMMA,float_or_variable) -> float_or_variable COMMA . separated_nonempty_list(COMMA,float_or_variable) [ RPAREN ]
 ##
@@ -2259,7 +2283,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_BLOCK LPAREN IDENT COM
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_ARRAY TILDEMINUS
 ##
-## Ends in an error in state: 372.
+## Ends in an error in state: 377.
 ##
 ## static_data -> STATIC_CONST_FLOAT_ARRAY . LBRACKPIPE loption(separated_nonempty_list(SEMICOLON,float_or_variable)) RBRACKPIPE [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2271,7 +2295,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_ARRAY TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_ARRAY LBRACKPIPE TILDEMINUS
 ##
-## Ends in an error in state: 373.
+## Ends in an error in state: 378.
 ##
 ## static_data -> STATIC_CONST_FLOAT_ARRAY LBRACKPIPE . loption(separated_nonempty_list(SEMICOLON,float_or_variable)) RBRACKPIPE [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2283,7 +2307,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_ARRAY LBRACKPIPE TILDE
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_ARRAY LBRACKPIPE IDENT TILDEMINUS
 ##
-## Ends in an error in state: 377.
+## Ends in an error in state: 382.
 ##
 ## separated_nonempty_list(SEMICOLON,float_or_variable) -> float_or_variable . [ RBRACKPIPE ]
 ## separated_nonempty_list(SEMICOLON,float_or_variable) -> float_or_variable . SEMICOLON separated_nonempty_list(SEMICOLON,float_or_variable) [ RBRACKPIPE ]
@@ -2296,7 +2320,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_ARRAY LBRACKPIPE IDENT
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_ARRAY LBRACKPIPE IDENT SEMICOLON TILDEMINUS
 ##
-## Ends in an error in state: 378.
+## Ends in an error in state: 383.
 ##
 ## separated_nonempty_list(SEMICOLON,float_or_variable) -> float_or_variable SEMICOLON . separated_nonempty_list(SEMICOLON,float_or_variable) [ RBRACKPIPE ]
 ##
@@ -2308,7 +2332,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_FLOAT_ARRAY LBRACKPIPE IDENT
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK TILDEMINUS
 ##
-## Ends in an error in state: 381.
+## Ends in an error in state: 387.
 ##
 ## static_data -> STATIC_CONST_BLOCK . mutability tag LPAREN loption(separated_nonempty_list(COMMA,field_of_block)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2320,7 +2344,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK KWD_IMMUTABLE_UNIQUE TILDEMINUS
 ##
-## Ends in an error in state: 382.
+## Ends in an error in state: 388.
 ##
 ## static_data -> STATIC_CONST_BLOCK mutability . tag LPAREN loption(separated_nonempty_list(COMMA,field_of_block)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2332,7 +2356,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK KWD_IMMUTABLE_UNIQUE T
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK INT TILDEMINUS
 ##
-## Ends in an error in state: 383.
+## Ends in an error in state: 389.
 ##
 ## static_data -> STATIC_CONST_BLOCK mutability tag . LPAREN loption(separated_nonempty_list(COMMA,field_of_block)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2344,7 +2368,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK INT TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK INT LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 384.
+## Ends in an error in state: 390.
 ##
 ## static_data -> STATIC_CONST_BLOCK mutability tag LPAREN . loption(separated_nonempty_list(COMMA,field_of_block)) RPAREN [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2356,7 +2380,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK INT LPAREN TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK INT LPAREN SYMBOL TILDEMINUS
 ##
-## Ends in an error in state: 391.
+## Ends in an error in state: 397.
 ##
 ## separated_nonempty_list(COMMA,field_of_block) -> field_of_block . [ RPAREN ]
 ## separated_nonempty_list(COMMA,field_of_block) -> field_of_block . COMMA separated_nonempty_list(COMMA,field_of_block) [ RPAREN ]
@@ -2369,7 +2393,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK INT LPAREN SYMBOL TILD
 
 expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK INT LPAREN SYMBOL COMMA TILDEMINUS
 ##
-## Ends in an error in state: 392.
+## Ends in an error in state: 398.
 ##
 ## separated_nonempty_list(COMMA,field_of_block) -> field_of_block COMMA . separated_nonempty_list(COMMA,field_of_block) [ RPAREN ]
 ##
@@ -2381,7 +2405,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL STATIC_CONST_BLOCK INT LPAREN SYMBOL COMM
 
 expect_test_spec: KWD_LET SYMBOL EQUAL KWD_MUTABLE TILDEMINUS
 ##
-## Ends in an error in state: 394.
+## Ends in an error in state: 400.
 ##
 ## static_data -> KWD_MUTABLE . STRING [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2393,7 +2417,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL KWD_MUTABLE TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL EQUAL IDENT TILDEMINUS
 ##
-## Ends in an error in state: 398.
+## Ends in an error in state: 404.
 ##
 ## static_data -> variable . COLON static_data_kind [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2405,7 +2429,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL IDENT TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON TILDEMINUS
 ##
-## Ends in an error in state: 399.
+## Ends in an error in state: 405.
 ##
 ## static_data -> variable COLON . static_data_kind [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2417,7 +2441,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON KWD_NATIVEINT TILDEMINUS
 ##
-## Ends in an error in state: 400.
+## Ends in an error in state: 406.
 ##
 ## static_data_kind -> KWD_NATIVEINT . KWD_BOXED [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2429,7 +2453,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON KWD_NATIVEINT TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON KWD_INT64 TILDEMINUS
 ##
-## Ends in an error in state: 402.
+## Ends in an error in state: 408.
 ##
 ## static_data_kind -> KWD_INT64 . KWD_BOXED [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2441,7 +2465,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON KWD_INT64 TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON KWD_INT32 TILDEMINUS
 ##
-## Ends in an error in state: 404.
+## Ends in an error in state: 410.
 ##
 ## static_data_kind -> KWD_INT32 . KWD_BOXED [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2453,7 +2477,7 @@ expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON KWD_INT32 TILDEMINUS
 
 expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON KWD_FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 406.
+## Ends in an error in state: 412.
 ##
 ## static_data_kind -> KWD_FLOAT . KWD_BOXED [ KWD_WITH KWD_IN KWD_AND ]
 ##
@@ -2465,9 +2489,9 @@ expect_test_spec: KWD_LET SYMBOL EQUAL IDENT COLON KWD_FLOAT TILDEMINUS
 
 expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT TILDEMINUS
 ##
-## Ends in an error in state: 415.
+## Ends in an error in state: 421.
 ##
-## code -> code_header . kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+## code -> code_header . kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity boption(KWD_LOCAL) EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## code_header
@@ -2477,7 +2501,7 @@ expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT TILDEMINUS
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 416.
+## Ends in an error in state: 422.
 ##
 ## kinded_args -> LPAREN . separated_nonempty_list(COMMA,kinded_variable) RPAREN [ IDENT EQUAL ]
 ##
@@ -2489,7 +2513,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN TILDEMINUS
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT TILDEMINUS
 ##
-## Ends in an error in state: 417.
+## Ends in an error in state: 423.
 ##
 ## kinded_variable -> variable . kind_with_subkind_opt [ RPAREN COMMA ]
 ##
@@ -2501,7 +2525,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT TILDEMINUS
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT COLON TILDEMINUS
 ##
-## Ends in an error in state: 418.
+## Ends in an error in state: 424.
 ##
 ## kind_with_subkind_opt -> COLON . kind_with_subkind [ RPAREN COMMA ]
 ##
@@ -2513,9 +2537,9 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT COLON TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK TILDEMINUS
 ##
-## Ends in an error in state: 419.
+## Ends in an error in state: 425.
 ##
-## subkind -> LBRACK . ctors RBRACK [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## subkind -> LBRACK . ctors RBRACK [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
 ##
 ## The known suffix of the stack is as follows:
 ## LBRACK
@@ -2525,7 +2549,7 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT TILDEMINUS
 ##
-## Ends in an error in state: 420.
+## Ends in an error in state: 426.
 ##
 ## tag -> INT . [ KWD_OF ]
 ## targetint -> INT . [ RBRACK PIPE ]
@@ -2538,7 +2562,7 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT PIPE TILDEMINUS
 ##
-## Ends in an error in state: 422.
+## Ends in an error in state: 428.
 ##
 ## ctors_nonempty -> targetint PIPE . ctors_nonempty [ RBRACK ]
 ##
@@ -2550,7 +2574,7 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT PIPE TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT KWD_OF KWD_FLOAT PIPE INT TILDEMINUS
 ##
-## Ends in an error in state: 423.
+## Ends in an error in state: 429.
 ##
 ## nonconst_ctor -> tag . KWD_OF kinds_with_subkinds_nonempty [ RBRACK PIPE ]
 ##
@@ -2562,7 +2586,7 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT KWD_OF KWD_FLOAT PIPE 
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT KWD_OF TILDEMINUS
 ##
-## Ends in an error in state: 424.
+## Ends in an error in state: 430.
 ##
 ## nonconst_ctor -> tag KWD_OF . kinds_with_subkinds_nonempty [ RBRACK PIPE ]
 ##
@@ -2574,10 +2598,10 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT KWD_OF TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_VAL TILDEMINUS
 ##
-## Ends in an error in state: 425.
+## Ends in an error in state: 431.
 ##
-## subkind -> KWD_VAL . [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
-## subkind -> KWD_VAL . KWD_ARRAY [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## subkind -> KWD_VAL . [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
+## subkind -> KWD_VAL . KWD_ARRAY [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_VAL
@@ -2587,10 +2611,10 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_VAL TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_NATIVEINT TILDEMINUS
 ##
-## Ends in an error in state: 429.
+## Ends in an error in state: 435.
 ##
-## naked_number_kind -> KWD_NATIVEINT . [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
-## subkind -> KWD_NATIVEINT . KWD_BOXED [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## naked_number_kind -> KWD_NATIVEINT . [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
+## subkind -> KWD_NATIVEINT . KWD_BOXED [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_NATIVEINT
@@ -2600,10 +2624,10 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_NATIVEINT TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_INT64 TILDEMINUS
 ##
-## Ends in an error in state: 431.
+## Ends in an error in state: 437.
 ##
-## naked_number_kind -> KWD_INT64 . [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
-## subkind -> KWD_INT64 . KWD_BOXED [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## naked_number_kind -> KWD_INT64 . [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
+## subkind -> KWD_INT64 . KWD_BOXED [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_INT64
@@ -2613,10 +2637,10 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_INT64 TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_INT32 TILDEMINUS
 ##
-## Ends in an error in state: 433.
+## Ends in an error in state: 439.
 ##
-## naked_number_kind -> KWD_INT32 . [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
-## subkind -> KWD_INT32 . KWD_BOXED [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## naked_number_kind -> KWD_INT32 . [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
+## subkind -> KWD_INT32 . KWD_BOXED [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_INT32
@@ -2626,11 +2650,11 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_INT32 TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_IMM TILDEMINUS
 ##
-## Ends in an error in state: 435.
+## Ends in an error in state: 441.
 ##
-## naked_number_kind -> KWD_IMM . [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
-## subkind -> KWD_IMM . KWD_TAGGED [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
-## subkind -> KWD_IMM . KWD_ARRAY [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## naked_number_kind -> KWD_IMM . [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
+## subkind -> KWD_IMM . KWD_TAGGED [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
+## subkind -> KWD_IMM . KWD_ARRAY [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_IMM
@@ -2640,12 +2664,12 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_IMM TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 438.
+## Ends in an error in state: 444.
 ##
-## naked_number_kind -> KWD_FLOAT . [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
-## subkind -> KWD_FLOAT . KWD_BOXED [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
-## subkind -> KWD_FLOAT . CARET plain_int [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
-## subkind -> KWD_FLOAT . KWD_ARRAY [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## naked_number_kind -> KWD_FLOAT . [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
+## subkind -> KWD_FLOAT . KWD_BOXED [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
+## subkind -> KWD_FLOAT . CARET plain_int [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
+## subkind -> KWD_FLOAT . KWD_ARRAY [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_FLOAT
@@ -2655,9 +2679,9 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT CARET TILDEMINUS
 ##
-## Ends in an error in state: 441.
+## Ends in an error in state: 447.
 ##
-## subkind -> KWD_FLOAT CARET . plain_int [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## subkind -> KWD_FLOAT CARET . plain_int [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_FLOAT CARET
@@ -2667,9 +2691,9 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT CARET TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_ANY TILDEMINUS
 ##
-## Ends in an error in state: 443.
+## Ends in an error in state: 449.
 ##
-## subkind -> KWD_ANY . KWD_ARRAY [ STAR RPAREN RBRACK PIPE MINUSGREATER EQUAL COMMA ]
+## subkind -> KWD_ANY . KWD_ARRAY [ STAR RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL COMMA ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_ANY
@@ -2679,10 +2703,10 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_ANY TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_REC_INFO TILDEMINUS
 ##
-## Ends in an error in state: 449.
+## Ends in an error in state: 455.
 ##
-## separated_nonempty_list(STAR,kind_with_subkind) -> kind_with_subkind . [ RPAREN RBRACK PIPE MINUSGREATER EQUAL ]
-## separated_nonempty_list(STAR,kind_with_subkind) -> kind_with_subkind . STAR separated_nonempty_list(STAR,kind_with_subkind) [ RPAREN RBRACK PIPE MINUSGREATER EQUAL ]
+## separated_nonempty_list(STAR,kind_with_subkind) -> kind_with_subkind . [ RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL ]
+## separated_nonempty_list(STAR,kind_with_subkind) -> kind_with_subkind . STAR separated_nonempty_list(STAR,kind_with_subkind) [ RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL ]
 ##
 ## The known suffix of the stack is as follows:
 ## kind_with_subkind
@@ -2692,9 +2716,9 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_REC_INFO TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT STAR TILDEMINUS
 ##
-## Ends in an error in state: 450.
+## Ends in an error in state: 456.
 ##
-## separated_nonempty_list(STAR,kind_with_subkind) -> kind_with_subkind STAR . separated_nonempty_list(STAR,kind_with_subkind) [ RPAREN RBRACK PIPE MINUSGREATER EQUAL ]
+## separated_nonempty_list(STAR,kind_with_subkind) -> kind_with_subkind STAR . separated_nonempty_list(STAR,kind_with_subkind) [ RPAREN RBRACK PIPE MINUSGREATER KWD_LOCAL EQUAL ]
 ##
 ## The known suffix of the stack is as follows:
 ## kind_with_subkind STAR
@@ -2704,7 +2728,7 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT STAR TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT KWD_OF KWD_FLOAT RPAREN
 ##
-## Ends in an error in state: 454.
+## Ends in an error in state: 460.
 ##
 ## separated_nonempty_list(PIPE,nonconst_ctor) -> nonconst_ctor . [ RBRACK ]
 ## separated_nonempty_list(PIPE,nonconst_ctor) -> nonconst_ctor . PIPE separated_nonempty_list(PIPE,nonconst_ctor) [ RBRACK ]
@@ -2716,18 +2740,18 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT KWD_OF KWD_FLOAT RPARE
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 438, spurious reduction of production naked_number_kind -> KWD_FLOAT
-## In state 447, spurious reduction of production kind_with_subkind -> naked_number_kind
-## In state 449, spurious reduction of production separated_nonempty_list(STAR,kind_with_subkind) -> kind_with_subkind
-## In state 446, spurious reduction of production kinds_with_subkinds_nonempty -> separated_nonempty_list(STAR,kind_with_subkind)
-## In state 448, spurious reduction of production nonconst_ctor -> tag KWD_OF kinds_with_subkinds_nonempty
+## In state 444, spurious reduction of production naked_number_kind -> KWD_FLOAT
+## In state 453, spurious reduction of production kind_with_subkind -> naked_number_kind
+## In state 455, spurious reduction of production separated_nonempty_list(STAR,kind_with_subkind) -> kind_with_subkind
+## In state 452, spurious reduction of production kinds_with_subkinds_nonempty -> separated_nonempty_list(STAR,kind_with_subkind)
+## In state 454, spurious reduction of production nonconst_ctor -> tag KWD_OF kinds_with_subkinds_nonempty
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT KWD_OF KWD_FLOAT PIPE TILDEMINUS
 ##
-## Ends in an error in state: 455.
+## Ends in an error in state: 461.
 ##
 ## separated_nonempty_list(PIPE,nonconst_ctor) -> nonconst_ctor PIPE . separated_nonempty_list(PIPE,nonconst_ctor) [ RBRACK ]
 ##
@@ -2739,7 +2763,7 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON LBRACK INT KWD_OF KWD_FLOAT PIPE 
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT COLON KWD_REC_INFO TILDEMINUS
 ##
-## Ends in an error in state: 465.
+## Ends in an error in state: 471.
 ##
 ## separated_nonempty_list(COMMA,kinded_variable) -> kinded_variable . [ RPAREN ]
 ## separated_nonempty_list(COMMA,kinded_variable) -> kinded_variable . COMMA separated_nonempty_list(COMMA,kinded_variable) [ RPAREN ]
@@ -2752,7 +2776,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT COLON KWD_REC_INFO TILDEM
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT COMMA TILDEMINUS
 ##
-## Ends in an error in state: 466.
+## Ends in an error in state: 472.
 ##
 ## separated_nonempty_list(COMMA,kinded_variable) -> kinded_variable COMMA . separated_nonempty_list(COMMA,kinded_variable) [ RPAREN ]
 ##
@@ -2764,9 +2788,9 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT COMMA TILDEMINUS
 
 expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT LPAREN IDENT RPAREN TILDEMINUS
 ##
-## Ends in an error in state: 468.
+## Ends in an error in state: 474.
 ##
-## code -> code_header kinded_args . variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+## code -> code_header kinded_args . variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity boption(KWD_LOCAL) EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## code_header kinded_args
@@ -2776,9 +2800,9 @@ expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT LPAREN IDENT
 
 expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT TILDEMINUS
 ##
-## Ends in an error in state: 469.
+## Ends in an error in state: 475.
 ##
-## code -> code_header kinded_args variable . variable variable MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+## code -> code_header kinded_args variable . variable variable MINUSGREATER continuation_id exn_continuation_id return_arity boption(KWD_LOCAL) EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## code_header kinded_args variable
@@ -2788,9 +2812,9 @@ expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT TILDEM
 
 expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT TILDEMINUS
 ##
-## Ends in an error in state: 470.
+## Ends in an error in state: 476.
 ##
-## code -> code_header kinded_args variable variable . variable MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+## code -> code_header kinded_args variable variable . variable MINUSGREATER continuation_id exn_continuation_id return_arity boption(KWD_LOCAL) EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## code_header kinded_args variable variable
@@ -2800,9 +2824,9 @@ expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT 
 
 expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT TILDEMINUS
 ##
-## Ends in an error in state: 471.
+## Ends in an error in state: 477.
 ##
-## code -> code_header kinded_args variable variable variable . MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+## code -> code_header kinded_args variable variable variable . MINUSGREATER continuation_id exn_continuation_id return_arity boption(KWD_LOCAL) EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## code_header kinded_args variable variable variable
@@ -2812,9 +2836,9 @@ expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT 
 
 expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER TILDEMINUS
 ##
-## Ends in an error in state: 472.
+## Ends in an error in state: 478.
 ##
-## code -> code_header kinded_args variable variable variable MINUSGREATER . continuation_id exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+## code -> code_header kinded_args variable variable variable MINUSGREATER . continuation_id exn_continuation_id return_arity boption(KWD_LOCAL) EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## code_header kinded_args variable variable variable MINUSGREATER
@@ -2824,9 +2848,9 @@ expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT 
 
 expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT TILDEMINUS
 ##
-## Ends in an error in state: 473.
+## Ends in an error in state: 479.
 ##
-## code -> code_header kinded_args variable variable variable MINUSGREATER continuation_id . exn_continuation_id return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+## code -> code_header kinded_args variable variable variable MINUSGREATER continuation_id . exn_continuation_id return_arity boption(KWD_LOCAL) EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## code_header kinded_args variable variable variable MINUSGREATER continuation_id
@@ -2836,9 +2860,9 @@ expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT 
 
 expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT STAR TILDEMINUS
 ##
-## Ends in an error in state: 474.
+## Ends in an error in state: 480.
 ##
-## exn_continuation_id -> STAR . continuation_id [ EQUAL COLON ]
+## exn_continuation_id -> STAR . continuation_id [ KWD_LOCAL EQUAL COLON ]
 ##
 ## The known suffix of the stack is as follows:
 ## STAR
@@ -2848,9 +2872,9 @@ expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT 
 
 expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT STAR IDENT TILDEMINUS
 ##
-## Ends in an error in state: 476.
+## Ends in an error in state: 482.
 ##
-## code -> code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id . return_arity EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+## code -> code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id . return_arity boption(KWD_LOCAL) EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id
@@ -2860,9 +2884,9 @@ expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT 
 
 expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT STAR IDENT COLON TILDEMINUS
 ##
-## Ends in an error in state: 477.
+## Ends in an error in state: 483.
 ##
-## return_arity -> COLON . kinds_with_subkinds [ EQUAL ]
+## return_arity -> COLON . kinds_with_subkinds [ KWD_LOCAL EQUAL ]
 ##
 ## The known suffix of the stack is as follows:
 ## COLON
@@ -2872,9 +2896,9 @@ expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT 
 
 expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT STAR IDENT COLON KWD_UNIT TILDEMINUS
 ##
-## Ends in an error in state: 481.
+## Ends in an error in state: 487.
 ##
-## code -> code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity . EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
+## code -> code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity . boption(KWD_LOCAL) EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
 ## code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity
@@ -2882,21 +2906,33 @@ expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT 
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT STAR IDENT EQUAL TILDEMINUS
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT STAR IDENT KWD_LOCAL TILDEMINUS
 ##
-## Ends in an error in state: 482.
+## Ends in an error in state: 489.
 ##
-## code -> code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL . expr [ KWD_WITH KWD_IN KWD_AND ]
+## code -> code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity boption(KWD_LOCAL) . EQUAL expr [ KWD_WITH KWD_IN KWD_AND ]
 ##
 ## The known suffix of the stack is as follows:
-## code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity EQUAL
+## code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity boption(KWD_LOCAL)
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+expect_test_spec: KWD_LET KWD_CODE KWD_SIZE LPAREN INT RPAREN IDENT IDENT IDENT IDENT MINUSGREATER IDENT STAR IDENT EQUAL TILDEMINUS
+##
+## Ends in an error in state: 490.
+##
+## code -> code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity boption(KWD_LOCAL) EQUAL . expr [ KWD_WITH KWD_IN KWD_AND ]
+##
+## The known suffix of the stack is as follows:
+## code_header kinded_args variable variable variable MINUSGREATER continuation_id exn_continuation_id return_arity boption(KWD_LOCAL) EQUAL
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_INVALID TILDEMINUS
 ##
-## Ends in an error in state: 483.
+## Ends in an error in state: 491.
 ##
 ## atomic_expr -> KWD_INVALID . STRING [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
@@ -2908,7 +2944,7 @@ expect_test_spec: KWD_INVALID TILDEMINUS
 
 expect_test_spec: KWD_CONT TILDEMINUS
 ##
-## Ends in an error in state: 486.
+## Ends in an error in state: 494.
 ##
 ## atomic_expr -> KWD_CONT . apply_cont_expr [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
@@ -2920,7 +2956,7 @@ expect_test_spec: KWD_CONT TILDEMINUS
 
 expect_test_spec: KWD_APPLY TILDEMINUS
 ##
-## Ends in an error in state: 488.
+## Ends in an error in state: 496.
 ##
 ## atomic_expr -> KWD_APPLY . apply_expr [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
@@ -2932,9 +2968,9 @@ expect_test_spec: KWD_APPLY TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_DIRECT TILDEMINUS
 ##
-## Ends in an error in state: 491.
+## Ends in an error in state: 497.
 ##
-## call_kind -> KWD_DIRECT . LPAREN code_id function_slot_opt alloc_mode_for_types_opt RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
+## call_kind -> KWD_DIRECT . LPAREN code_id function_slot_opt alloc_mode_for_allocations_opt RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_DIRECT
@@ -2944,9 +2980,9 @@ expect_test_spec: KWD_APPLY KWD_DIRECT TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 492.
+## Ends in an error in state: 498.
 ##
-## call_kind -> KWD_DIRECT LPAREN . code_id function_slot_opt alloc_mode_for_types_opt RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
+## call_kind -> KWD_DIRECT LPAREN . code_id function_slot_opt alloc_mode_for_allocations_opt RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_DIRECT LPAREN
@@ -2956,9 +2992,9 @@ expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN IDENT TILDEMINUS
 ##
-## Ends in an error in state: 493.
+## Ends in an error in state: 499.
 ##
-## call_kind -> KWD_DIRECT LPAREN code_id . function_slot_opt alloc_mode_for_types_opt RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
+## call_kind -> KWD_DIRECT LPAREN code_id . function_slot_opt alloc_mode_for_allocations_opt RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_DIRECT LPAREN code_id
@@ -2968,9 +3004,9 @@ expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN IDENT TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN IDENT AT IDENT TILDEMINUS
 ##
-## Ends in an error in state: 494.
+## Ends in an error in state: 500.
 ##
-## call_kind -> KWD_DIRECT LPAREN code_id function_slot_opt . alloc_mode_for_types_opt RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
+## call_kind -> KWD_DIRECT LPAREN code_id function_slot_opt . alloc_mode_for_allocations_opt RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
 ##
 ## The known suffix of the stack is as follows:
 ## KWD_DIRECT LPAREN code_id function_slot_opt
@@ -2978,21 +3014,21 @@ expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN IDENT AT IDENT TILDEMINUS
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN IDENT KWD_HEAP_OR_LOCAL TILDEMINUS
+expect_test_spec: KWD_APPLY KWD_DIRECT LPAREN IDENT AMP IDENT TILDEMINUS
 ##
-## Ends in an error in state: 495.
+## Ends in an error in state: 501.
 ##
-## call_kind -> KWD_DIRECT LPAREN code_id function_slot_opt alloc_mode_for_types_opt . RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
+## call_kind -> KWD_DIRECT LPAREN code_id function_slot_opt alloc_mode_for_allocations_opt . RPAREN [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
 ##
 ## The known suffix of the stack is as follows:
-## KWD_DIRECT LPAREN code_id function_slot_opt alloc_mode_for_types_opt
+## KWD_DIRECT LPAREN code_id function_slot_opt alloc_mode_for_allocations_opt
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_APPLY KWD_CCALL TILDEMINUS
 ##
-## Ends in an error in state: 497.
+## Ends in an error in state: 503.
 ##
 ## call_kind -> KWD_CCALL . boption(KWD_NOALLOC) [ SYMBOL LPAREN KWD_UNROLL KWD_INLINING_STATE KWD_INLINED INT IDENT FLOAT ]
 ##
@@ -3002,11 +3038,11 @@ expect_test_spec: KWD_APPLY KWD_CCALL TILDEMINUS
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-expect_test_spec: KWD_APPLY KWD_HEAP_OR_LOCAL TILDEMINUS
+expect_test_spec: KWD_APPLY AMP IDENT TILDEMINUS
 ##
-## Ends in an error in state: 500.
+## Ends in an error in state: 506.
 ##
-## apply_expr -> call_kind . option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+## apply_expr -> call_kind . option(inlined) option(inlining_state) func_name_with_optional_arities simple_args MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## call_kind
@@ -3016,7 +3052,7 @@ expect_test_spec: KWD_APPLY KWD_HEAP_OR_LOCAL TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_UNROLL TILDEMINUS
 ##
-## Ends in an error in state: 501.
+## Ends in an error in state: 507.
 ##
 ## inlined -> KWD_UNROLL . LPAREN plain_int RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
 ##
@@ -3028,7 +3064,7 @@ expect_test_spec: KWD_APPLY KWD_UNROLL TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_UNROLL LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 502.
+## Ends in an error in state: 508.
 ##
 ## inlined -> KWD_UNROLL LPAREN . plain_int RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
 ##
@@ -3040,7 +3076,7 @@ expect_test_spec: KWD_APPLY KWD_UNROLL LPAREN TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_UNROLL LPAREN INT TILDEMINUS
 ##
-## Ends in an error in state: 503.
+## Ends in an error in state: 509.
 ##
 ## inlined -> KWD_UNROLL LPAREN plain_int . RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
 ##
@@ -3052,7 +3088,7 @@ expect_test_spec: KWD_APPLY KWD_UNROLL LPAREN INT TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_INLINED TILDEMINUS
 ##
-## Ends in an error in state: 505.
+## Ends in an error in state: 511.
 ##
 ## inlined -> KWD_INLINED . LPAREN KWD_ALWAYS RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
 ## inlined -> KWD_INLINED . LPAREN KWD_HINT RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
@@ -3067,7 +3103,7 @@ expect_test_spec: KWD_APPLY KWD_INLINED TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_INLINED LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 506.
+## Ends in an error in state: 512.
 ##
 ## inlined -> KWD_INLINED LPAREN . KWD_ALWAYS RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
 ## inlined -> KWD_INLINED LPAREN . KWD_HINT RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
@@ -3082,7 +3118,7 @@ expect_test_spec: KWD_APPLY KWD_INLINED LPAREN TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_NEVER TILDEMINUS
 ##
-## Ends in an error in state: 507.
+## Ends in an error in state: 513.
 ##
 ## inlined -> KWD_INLINED LPAREN KWD_NEVER . RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
 ##
@@ -3094,7 +3130,7 @@ expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_NEVER TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_HINT TILDEMINUS
 ##
-## Ends in an error in state: 509.
+## Ends in an error in state: 515.
 ##
 ## inlined -> KWD_INLINED LPAREN KWD_HINT . RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
 ##
@@ -3106,7 +3142,7 @@ expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_HINT TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_DEFAULT TILDEMINUS
 ##
-## Ends in an error in state: 511.
+## Ends in an error in state: 517.
 ##
 ## inlined -> KWD_INLINED LPAREN KWD_DEFAULT . RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
 ##
@@ -3118,7 +3154,7 @@ expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_DEFAULT TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_ALWAYS TILDEMINUS
 ##
-## Ends in an error in state: 513.
+## Ends in an error in state: 519.
 ##
 ## inlined -> KWD_INLINED LPAREN KWD_ALWAYS . RPAREN [ SYMBOL LPAREN KWD_INLINING_STATE INT IDENT FLOAT ]
 ##
@@ -3130,9 +3166,9 @@ expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_ALWAYS TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_ALWAYS RPAREN TILDEMINUS
 ##
-## Ends in an error in state: 515.
+## Ends in an error in state: 521.
 ##
-## apply_expr -> call_kind option(inlined) . option(inlining_state) func_name_with_optional_arities simple_args AMP region MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+## apply_expr -> call_kind option(inlined) . option(inlining_state) func_name_with_optional_arities simple_args MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## call_kind option(inlined)
@@ -3142,7 +3178,7 @@ expect_test_spec: KWD_APPLY KWD_INLINED LPAREN KWD_ALWAYS RPAREN TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_INLINING_STATE TILDEMINUS
 ##
-## Ends in an error in state: 516.
+## Ends in an error in state: 522.
 ##
 ## inlining_state -> KWD_INLINING_STATE . LPAREN inlining_state_depth RPAREN [ SYMBOL LPAREN INT IDENT FLOAT ]
 ##
@@ -3154,7 +3190,7 @@ expect_test_spec: KWD_APPLY KWD_INLINING_STATE TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 517.
+## Ends in an error in state: 523.
 ##
 ## inlining_state -> KWD_INLINING_STATE LPAREN . inlining_state_depth RPAREN [ SYMBOL LPAREN INT IDENT FLOAT ]
 ##
@@ -3166,7 +3202,7 @@ expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH TILDEMINUS
 ##
-## Ends in an error in state: 518.
+## Ends in an error in state: 524.
 ##
 ## inlining_state_depth -> KWD_DEPTH . LPAREN plain_int RPAREN [ RPAREN ]
 ##
@@ -3178,7 +3214,7 @@ expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH TILDEMINUS
 
 expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 519.
+## Ends in an error in state: 525.
 ##
 ## inlining_state_depth -> KWD_DEPTH LPAREN . plain_int RPAREN [ RPAREN ]
 ##
@@ -3190,7 +3226,7 @@ expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH LPAREN TILDEMINU
 
 expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH LPAREN INT TILDEMINUS
 ##
-## Ends in an error in state: 520.
+## Ends in an error in state: 526.
 ##
 ## inlining_state_depth -> KWD_DEPTH LPAREN plain_int . RPAREN [ RPAREN ]
 ##
@@ -3202,7 +3238,7 @@ expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH LPAREN INT TILDE
 
 expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH LPAREN INT RPAREN TILDEMINUS
 ##
-## Ends in an error in state: 522.
+## Ends in an error in state: 528.
 ##
 ## inlining_state -> KWD_INLINING_STATE LPAREN inlining_state_depth . RPAREN [ SYMBOL LPAREN INT IDENT FLOAT ]
 ##
@@ -3214,9 +3250,9 @@ expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH LPAREN INT RPARE
 
 expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH LPAREN INT RPAREN RPAREN TILDEMINUS
 ##
-## Ends in an error in state: 524.
+## Ends in an error in state: 530.
 ##
-## apply_expr -> call_kind option(inlined) option(inlining_state) . func_name_with_optional_arities simple_args AMP region MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+## apply_expr -> call_kind option(inlined) option(inlining_state) . func_name_with_optional_arities simple_args MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## call_kind option(inlined) option(inlining_state)
@@ -3226,9 +3262,9 @@ expect_test_spec: KWD_APPLY KWD_INLINING_STATE LPAREN KWD_DEPTH LPAREN INT RPARE
 
 expect_test_spec: KWD_APPLY LPAREN TILDEMINUS
 ##
-## Ends in an error in state: 525.
+## Ends in an error in state: 531.
 ##
-## func_name_with_optional_arities -> LPAREN . simple COLON blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds RPAREN [ LPAREN AMP ]
+## func_name_with_optional_arities -> LPAREN . simple COLON blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds RPAREN [ MINUSGREATER LPAREN ]
 ##
 ## The known suffix of the stack is as follows:
 ## LPAREN
@@ -3238,9 +3274,9 @@ expect_test_spec: KWD_APPLY LPAREN TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 526.
+## Ends in an error in state: 532.
 ##
-## func_name_with_optional_arities -> LPAREN simple . COLON blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds RPAREN [ LPAREN AMP ]
+## func_name_with_optional_arities -> LPAREN simple . COLON blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds RPAREN [ MINUSGREATER LPAREN ]
 ## simple -> simple . TILDE coercion [ TILDE COLON ]
 ##
 ## The known suffix of the stack is as follows:
@@ -3251,9 +3287,9 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON TILDEMINUS
 ##
-## Ends in an error in state: 527.
+## Ends in an error in state: 533.
 ##
-## func_name_with_optional_arities -> LPAREN simple COLON . blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds RPAREN [ LPAREN AMP ]
+## func_name_with_optional_arities -> LPAREN simple COLON . blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds RPAREN [ MINUSGREATER LPAREN ]
 ##
 ## The known suffix of the stack is as follows:
 ## LPAREN simple COLON
@@ -3263,9 +3299,9 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_UNIT TILDEMINUS
 ##
-## Ends in an error in state: 530.
+## Ends in an error in state: 536.
 ##
-## func_name_with_optional_arities -> LPAREN simple COLON blank_or(kinds_with_subkinds) . MINUSGREATER kinds_with_subkinds RPAREN [ LPAREN AMP ]
+## func_name_with_optional_arities -> LPAREN simple COLON blank_or(kinds_with_subkinds) . MINUSGREATER kinds_with_subkinds RPAREN [ MINUSGREATER LPAREN ]
 ##
 ## The known suffix of the stack is as follows:
 ## LPAREN simple COLON blank_or(kinds_with_subkinds)
@@ -3275,9 +3311,9 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_UNIT TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT MINUSGREATER TILDEMINUS
 ##
-## Ends in an error in state: 531.
+## Ends in an error in state: 537.
 ##
-## func_name_with_optional_arities -> LPAREN simple COLON blank_or(kinds_with_subkinds) MINUSGREATER . kinds_with_subkinds RPAREN [ LPAREN AMP ]
+## func_name_with_optional_arities -> LPAREN simple COLON blank_or(kinds_with_subkinds) MINUSGREATER . kinds_with_subkinds RPAREN [ MINUSGREATER LPAREN ]
 ##
 ## The known suffix of the stack is as follows:
 ## LPAREN simple COLON blank_or(kinds_with_subkinds) MINUSGREATER
@@ -3287,9 +3323,9 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT MINUSGREATER TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT MINUSGREATER KWD_UNIT TILDEMINUS
 ##
-## Ends in an error in state: 532.
+## Ends in an error in state: 538.
 ##
-## func_name_with_optional_arities -> LPAREN simple COLON blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds . RPAREN [ LPAREN AMP ]
+## func_name_with_optional_arities -> LPAREN simple COLON blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds . RPAREN [ MINUSGREATER LPAREN ]
 ##
 ## The known suffix of the stack is as follows:
 ## LPAREN simple COLON blank_or(kinds_with_subkinds) MINUSGREATER kinds_with_subkinds
@@ -3299,10 +3335,10 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT MINUSGREATER KWD_UNIT T
 
 expect_test_spec: KWD_APPLY FLOAT TILDEMINUS
 ##
-## Ends in an error in state: 534.
+## Ends in an error in state: 540.
 ##
-## func_name_with_optional_arities -> simple . [ LPAREN AMP ]
-## simple -> simple . TILDE coercion [ TILDE LPAREN AMP ]
+## func_name_with_optional_arities -> simple . [ MINUSGREATER LPAREN ]
+## simple -> simple . TILDE coercion [ TILDE MINUSGREATER LPAREN ]
 ##
 ## The known suffix of the stack is as follows:
 ## simple
@@ -3312,9 +3348,9 @@ expect_test_spec: KWD_APPLY FLOAT TILDEMINUS
 
 expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT MINUSGREATER KWD_FLOAT RPAREN TILDEMINUS
 ##
-## Ends in an error in state: 535.
+## Ends in an error in state: 541.
 ##
-## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities . simple_args AMP region MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities . simple_args MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities
@@ -3324,9 +3360,9 @@ expect_test_spec: KWD_APPLY LPAREN FLOAT COLON KWD_FLOAT MINUSGREATER KWD_FLOAT 
 
 expect_test_spec: KWD_APPLY FLOAT LPAREN FLOAT RPAREN TILDEMINUS
 ##
-## Ends in an error in state: 536.
+## Ends in an error in state: 542.
 ##
-## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args . AMP region MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args . MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
 ## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args
@@ -3334,57 +3370,33 @@ expect_test_spec: KWD_APPLY FLOAT LPAREN FLOAT RPAREN TILDEMINUS
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-expect_test_spec: KWD_APPLY FLOAT AMP TILDEMINUS
+expect_test_spec: KWD_APPLY FLOAT MINUSGREATER TILDEMINUS
 ##
-## Ends in an error in state: 537.
+## Ends in an error in state: 543.
 ##
-## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP . region MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args MINUSGREATER . result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
-## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP
+## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args MINUSGREATER
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-expect_test_spec: KWD_APPLY FLOAT AMP IDENT TILDEMINUS
+expect_test_spec: KWD_APPLY FLOAT MINUSGREATER IDENT TILDEMINUS
 ##
-## Ends in an error in state: 538.
+## Ends in an error in state: 545.
 ##
-## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region . MINUSGREATER result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
+## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args MINUSGREATER result_continuation . exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
 ## The known suffix of the stack is as follows:
-## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region
+## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args MINUSGREATER result_continuation
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-expect_test_spec: KWD_APPLY FLOAT AMP IDENT MINUSGREATER TILDEMINUS
+expect_test_spec: KWD_APPLY FLOAT MINUSGREATER IDENT STAR TILDEMINUS
 ##
-## Ends in an error in state: 539.
-##
-## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region MINUSGREATER . result_continuation exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
-##
-## The known suffix of the stack is as follows:
-## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region MINUSGREATER
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE>
-
-expect_test_spec: KWD_APPLY FLOAT AMP IDENT MINUSGREATER IDENT TILDEMINUS
-##
-## Ends in an error in state: 541.
-##
-## apply_expr -> call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region MINUSGREATER result_continuation . exn_continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
-##
-## The known suffix of the stack is as follows:
-## call_kind option(inlined) option(inlining_state) func_name_with_optional_arities simple_args AMP region MINUSGREATER result_continuation
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE>
-
-expect_test_spec: KWD_APPLY FLOAT AMP IDENT MINUSGREATER IDENT STAR TILDEMINUS
-##
-## Ends in an error in state: 542.
+## Ends in an error in state: 546.
 ##
 ## exn_continuation -> STAR . continuation [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
@@ -3396,7 +3408,7 @@ expect_test_spec: KWD_APPLY FLOAT AMP IDENT MINUSGREATER IDENT STAR TILDEMINUS
 
 expect_test_spec: KWD_HCF TILDEMINUS
 ##
-## Ends in an error in state: 553.
+## Ends in an error in state: 557.
 ##
 ## expr -> inner_expr . [ RPAREN KWD_WITH KWD_IN KWD_AND EOF BIGARROW ]
 ## where_expr -> inner_expr . KWD_WHERE recursive loption(separated_nonempty_list(KWD_ANDWHERE,continuation_binding)) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_AND EOF BIGARROW ]
@@ -3409,7 +3421,7 @@ expect_test_spec: KWD_HCF TILDEMINUS
 
 expect_test_spec: KWD_HCF KWD_WHERE TILDEMINUS
 ##
-## Ends in an error in state: 554.
+## Ends in an error in state: 558.
 ##
 ## where_expr -> inner_expr KWD_WHERE . recursive loption(separated_nonempty_list(KWD_ANDWHERE,continuation_binding)) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_AND EOF BIGARROW ]
 ##
@@ -3421,7 +3433,7 @@ expect_test_spec: KWD_HCF KWD_WHERE TILDEMINUS
 
 expect_test_spec: KWD_HCF KWD_WHERE KWD_REC TILDEMINUS
 ##
-## Ends in an error in state: 555.
+## Ends in an error in state: 559.
 ##
 ## where_expr -> inner_expr KWD_WHERE recursive . loption(separated_nonempty_list(KWD_ANDWHERE,continuation_binding)) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_AND EOF BIGARROW ]
 ##
@@ -3433,7 +3445,7 @@ expect_test_spec: KWD_HCF KWD_WHERE KWD_REC TILDEMINUS
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT TILDEMINUS
 ##
-## Ends in an error in state: 558.
+## Ends in an error in state: 562.
 ##
 ## continuation_binding -> continuation_id . continuation_sort kinded_args EQUAL continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
@@ -3445,7 +3457,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT TILDEMINUS
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT KWD_DEFINE_ROOT_SYMBOL TILDEMINUS
 ##
-## Ends in an error in state: 561.
+## Ends in an error in state: 565.
 ##
 ## continuation_binding -> continuation_id continuation_sort . kinded_args EQUAL continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
@@ -3457,7 +3469,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT KWD_DEFINE_ROOT_SYMBOL TILDEMINUS
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT RPAREN TILDEMINUS
 ##
-## Ends in an error in state: 562.
+## Ends in an error in state: 566.
 ##
 ## continuation_binding -> continuation_id continuation_sort kinded_args . EQUAL continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
@@ -3469,7 +3481,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT LPAREN IDENT RPAREN TILDEMINUS
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL TILDEMINUS
 ##
-## Ends in an error in state: 563.
+## Ends in an error in state: 567.
 ##
 ## continuation_binding -> continuation_id continuation_sort kinded_args EQUAL . continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
@@ -3481,7 +3493,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL TILDEMINUS
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET TILDEMINUS
 ##
-## Ends in an error in state: 564.
+## Ends in an error in state: 568.
 ##
 ## let_expr(continuation_body) -> KWD_LET . let_(continuation_body) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ## let_symbol(continuation_body) -> KWD_LET . separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt KWD_IN continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
@@ -3494,7 +3506,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET TILDEMINUS
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET KWD_CODE IDENT KWD_DELETED KWD_WITH LBRACE RBRACE TILDEMINUS
 ##
-## Ends in an error in state: 566.
+## Ends in an error in state: 570.
 ##
 ## let_symbol(continuation_body) -> KWD_LET separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt . KWD_IN continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
@@ -3506,7 +3518,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET KWD_CODE IDENT KWD_DELET
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET KWD_CODE IDENT KWD_DELETED KWD_IN TILDEMINUS
 ##
-## Ends in an error in state: 567.
+## Ends in an error in state: 571.
 ##
 ## let_symbol(continuation_body) -> KWD_LET separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt KWD_IN . continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
@@ -3518,7 +3530,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET KWD_CODE IDENT KWD_DELET
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_WITH LBRACE RBRACE TILDEMINUS
 ##
-## Ends in an error in state: 573.
+## Ends in an error in state: 577.
 ##
 ## let_(continuation_body) -> separated_nonempty_list(KWD_AND,let_binding) with_value_slots_opt . KWD_IN continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
@@ -3530,7 +3542,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET IDENT EQUAL PRIM_BEGIN_R
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_IN TILDEMINUS
 ##
-## Ends in an error in state: 574.
+## Ends in an error in state: 578.
 ##
 ## let_(continuation_body) -> separated_nonempty_list(KWD_AND,let_binding) with_value_slots_opt KWD_IN . continuation_body [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
@@ -3542,7 +3554,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_LET IDENT EQUAL PRIM_BEGIN_R
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION TILDEMINUS
 ##
-## Ends in an error in state: 576.
+## Ends in an error in state: 580.
 ##
 ## separated_nonempty_list(KWD_AND,let_binding) -> let_binding . [ KWD_WITH KWD_IN ]
 ## separated_nonempty_list(KWD_AND,let_binding) -> let_binding . KWD_AND separated_nonempty_list(KWD_AND,let_binding) [ KWD_WITH KWD_IN ]
@@ -3555,7 +3567,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_AND TILDEMINUS
 ##
-## Ends in an error in state: 577.
+## Ends in an error in state: 581.
 ##
 ## separated_nonempty_list(KWD_AND,let_binding) -> let_binding KWD_AND . separated_nonempty_list(KWD_AND,let_binding) [ KWD_WITH KWD_IN ]
 ##
@@ -3567,7 +3579,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_AND TILDEMINUS
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_HCF TILDEMINUS
 ##
-## Ends in an error in state: 582.
+## Ends in an error in state: 586.
 ##
 ## separated_nonempty_list(KWD_ANDWHERE,continuation_binding) -> continuation_binding . [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_AND EOF BIGARROW ]
 ## separated_nonempty_list(KWD_ANDWHERE,continuation_binding) -> continuation_binding . KWD_ANDWHERE separated_nonempty_list(KWD_ANDWHERE,continuation_binding) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_AND EOF BIGARROW ]
@@ -3580,7 +3592,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_HCF TILDEMINUS
 
 expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_HCF KWD_ANDWHERE TILDEMINUS
 ##
-## Ends in an error in state: 583.
+## Ends in an error in state: 587.
 ##
 ## separated_nonempty_list(KWD_ANDWHERE,continuation_binding) -> continuation_binding KWD_ANDWHERE . separated_nonempty_list(KWD_ANDWHERE,continuation_binding) [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_AND EOF BIGARROW ]
 ##
@@ -3592,7 +3604,7 @@ expect_test_spec: KWD_HCF KWD_WHERE IDENT EQUAL KWD_HCF KWD_ANDWHERE TILDEMINUS
 
 expect_test_spec: KWD_LET KWD_CODE IDENT KWD_DELETED KWD_WITH LBRACE RBRACE TILDEMINUS
 ##
-## Ends in an error in state: 588.
+## Ends in an error in state: 592.
 ##
 ## let_symbol(expr) -> KWD_LET separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt . KWD_IN expr [ RPAREN KWD_WITH KWD_IN KWD_AND EOF BIGARROW ]
 ##
@@ -3604,7 +3616,7 @@ expect_test_spec: KWD_LET KWD_CODE IDENT KWD_DELETED KWD_WITH LBRACE RBRACE TILD
 
 expect_test_spec: KWD_LET KWD_CODE IDENT KWD_DELETED KWD_IN TILDEMINUS
 ##
-## Ends in an error in state: 589.
+## Ends in an error in state: 593.
 ##
 ## let_symbol(expr) -> KWD_LET separated_nonempty_list(KWD_AND,symbol_binding) with_value_slots_opt KWD_IN . expr [ RPAREN KWD_WITH KWD_IN KWD_AND EOF BIGARROW ]
 ##
@@ -3616,7 +3628,7 @@ expect_test_spec: KWD_LET KWD_CODE IDENT KWD_DELETED KWD_IN TILDEMINUS
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_WITH LBRACE RBRACE TILDEMINUS
 ##
-## Ends in an error in state: 592.
+## Ends in an error in state: 596.
 ##
 ## let_(expr) -> separated_nonempty_list(KWD_AND,let_binding) with_value_slots_opt . KWD_IN expr [ RPAREN KWD_WITH KWD_IN KWD_AND EOF BIGARROW ]
 ##
@@ -3628,7 +3640,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_WITH LBRACE RBRACE T
 
 expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_IN TILDEMINUS
 ##
-## Ends in an error in state: 593.
+## Ends in an error in state: 597.
 ##
 ## let_(expr) -> separated_nonempty_list(KWD_AND,let_binding) with_value_slots_opt KWD_IN . expr [ RPAREN KWD_WITH KWD_IN KWD_AND EOF BIGARROW ]
 ##
@@ -3640,7 +3652,7 @@ expect_test_spec: KWD_LET IDENT EQUAL PRIM_BEGIN_REGION KWD_IN TILDEMINUS
 
 expect_test_spec: LPAREN KWD_HCF KWD_WITH
 ##
-## Ends in an error in state: 596.
+## Ends in an error in state: 600.
 ##
 ## atomic_expr -> LPAREN expr . RPAREN [ RPAREN KWD_WITH KWD_WHERE KWD_IN KWD_ANDWHERE KWD_AND EOF BIGARROW ]
 ##
@@ -3651,14 +3663,14 @@ expect_test_spec: LPAREN KWD_HCF KWD_WITH
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 553, spurious reduction of production expr -> inner_expr
+## In state 557, spurious reduction of production expr -> inner_expr
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_HCF RPAREN
 ##
-## Ends in an error in state: 598.
+## Ends in an error in state: 602.
 ##
 ## expect_test_spec -> module_ . BIGARROW module_ EOF [ # ]
 ##
@@ -3669,15 +3681,15 @@ expect_test_spec: KWD_HCF RPAREN
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 553, spurious reduction of production expr -> inner_expr
-## In state 602, spurious reduction of production module_ -> expr
+## In state 557, spurious reduction of production expr -> inner_expr
+## In state 606, spurious reduction of production module_ -> expr
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 expect_test_spec: KWD_HCF BIGARROW TILDEMINUS
 ##
-## Ends in an error in state: 599.
+## Ends in an error in state: 603.
 ##
 ## expect_test_spec -> module_ BIGARROW . module_ EOF [ # ]
 ##
@@ -3689,7 +3701,7 @@ expect_test_spec: KWD_HCF BIGARROW TILDEMINUS
 
 expect_test_spec: KWD_HCF BIGARROW KWD_HCF RPAREN
 ##
-## Ends in an error in state: 600.
+## Ends in an error in state: 604.
 ##
 ## expect_test_spec -> module_ BIGARROW module_ . EOF [ # ]
 ##
@@ -3700,15 +3712,15 @@ expect_test_spec: KWD_HCF BIGARROW KWD_HCF RPAREN
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 553, spurious reduction of production expr -> inner_expr
-## In state 602, spurious reduction of production module_ -> expr
+## In state 557, spurious reduction of production expr -> inner_expr
+## In state 606, spurious reduction of production module_ -> expr
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 flambda_unit: TILDEMINUS
 ##
-## Ends in an error in state: 604.
+## Ends in an error in state: 608.
 ##
 ## flambda_unit' -> . flambda_unit [ # ]
 ##
@@ -3720,7 +3732,7 @@ flambda_unit: TILDEMINUS
 
 flambda_unit: KWD_HCF RPAREN
 ##
-## Ends in an error in state: 605.
+## Ends in an error in state: 609.
 ##
 ## flambda_unit -> module_ . EOF [ # ]
 ##
@@ -3731,8 +3743,8 @@ flambda_unit: KWD_HCF RPAREN
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 553, spurious reduction of production expr -> inner_expr
-## In state 602, spurious reduction of production module_ -> expr
+## In state 557, spurious reduction of production expr -> inner_expr
+## In state 606, spurious reduction of production module_ -> expr
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>

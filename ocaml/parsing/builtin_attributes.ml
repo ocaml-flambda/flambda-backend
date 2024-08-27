@@ -93,6 +93,7 @@ let builtin_attrs =
   ; "local_opt"
   ; "curry"; "extension.curry"
   (* [local] and [global] are never used and always trigger warning 53 *)
+<<<<<<< HEAD
   ; "global"; "extension.global"
   ; "local"; "extension.local"
   ; "nontail"; "extension.nontail"
@@ -111,6 +112,46 @@ let builtin_attrs =
   ; "error_message"
   ; "layout_poly"
   ; "no_mutable_implied_modalities"
+||||||| a198127529
+  ; "global"; "ocaml.global"; "extension.global"
+  ; "local"; "ocaml.local"; "extension.local"
+  ; "nontail"; "ocaml.nontail"; "extension.nontail"
+  ; "tail"; "ocaml.tail"; "extension.tail"
+  ; "noalloc"; "ocaml.noalloc"
+  ; "zero_alloc"; "ocaml.zero_alloc"
+  ; "untagged"; "ocaml.untagged"
+  ; "poll"; "ocaml.poll"
+  ; "loop"; "ocaml.loop"
+  ; "tail_mod_cons"; "ocaml.tail_mod_cons"
+  ; "unaliasable"; "ocaml.unaliasable"
+  ; "builtin"; "ocaml.builtin"
+  ; "no_effects"; "ocaml.no_effects"
+  ; "no_coeffects"; "ocaml.no_coeffects"
+  ; "only_generative_effects"; "ocaml.only_generative_effects"
+  ; "error_message"; "ocaml.error_message"
+  ; "layout_poly"; "ocaml.layout_poly"
+  ; "no_mutable_implied_modalities"; "ocaml.no_mutable_implied_modalities"
+=======
+  ; "global"; "ocaml.global"; "extension.global"
+  ; "local"; "ocaml.local"; "extension.local"
+  ; "nontail"; "ocaml.nontail"; "extension.nontail"
+  ; "tail"; "ocaml.tail"; "extension.tail"
+  ; "noalloc"; "ocaml.noalloc"
+  ; "zero_alloc"; "ocaml.zero_alloc"
+  ; "untagged"; "ocaml.untagged"
+  ; "poll"; "ocaml.poll"
+  ; "loop"; "ocaml.loop"
+  ; "tail_mod_cons"; "ocaml.tail_mod_cons"
+  ; "unaliasable"; "ocaml.unaliasable"
+  ; "builtin"; "ocaml.builtin"
+  ; "no_effects"; "ocaml.no_effects"
+  ; "no_coeffects"; "ocaml.no_coeffects"
+  ; "only_generative_effects"; "ocaml.only_generative_effects"
+  ; "error_message"; "ocaml.error_message"
+  ; "layout_poly"; "ocaml.layout_poly"
+  ; "no_mutable_implied_modalities"; "ocaml.no_mutable_implied_modalities"
+  ; "or_null_reexport"; "ocaml.or_null_reexport"
+>>>>>>> flambda-backend/main
   ]
 
 let drop_ocaml_attr_prefix s =
@@ -659,6 +700,9 @@ let has_layout_poly attrs =
 let has_curry attrs =
   has_attribute Jane_syntax.Arrow_curry.curry_attr_name attrs
   || has_attribute "curry" attrs
+
+let has_or_null_reexport attrs =
+  has_attribute ["ocaml.or_null_reexport"; "or_null_reexport"] attrs
 
 let tailcall attr =
   let has_nontail = has_attribute "nontail" attr in

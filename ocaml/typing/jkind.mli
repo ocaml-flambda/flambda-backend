@@ -209,6 +209,12 @@ module Const : sig
     (** This is the jkind of normal ocaml values *)
     val value : t
 
+    (** Immutable values that don't contain functions. *)
+    val immutable_data : t
+
+    (** Mutable values that don't contain functions. *)
+    val mutable_data : t
+
     (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)
     val immediate64 : t
@@ -264,6 +270,14 @@ module Primitive : sig
 
   (** This is the jkind of normal ocaml values *)
   val value : why:History.value_creation_reason -> t
+
+  (* CR layouts v2.8: remove this in PR #2676 *)
+
+  (** Immutable values that don't contain functions. *)
+  val immutable_data : why:History.immutable_data_creation_reason -> t
+
+  (** Mutable values that don't contain functions. *)
+  val mutable_data : why:History.mutable_data_creation_reason -> t
 
   (** Values of types of this jkind are immediate on 64-bit platforms; on other
     platforms, we know nothing other than that it's a value. *)
@@ -377,6 +391,9 @@ val for_boxed_record : all_void:bool -> t
 (** Choose an appropriate jkind for a boxed variant type, given whether
     all of the fields of all of its constructors are [void]. *)
 val for_boxed_variant : all_voids:bool -> t
+
+(** The jkind of an arrow type. *)
+val for_arrow : t
 
 (******************************)
 (* elimination and defaulting *)

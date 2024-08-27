@@ -289,11 +289,11 @@ type nullary_primitive =
           let-binding. *)
   | Probe_is_enabled of { name : string }
       (** Returns a boolean saying whether the given tracing probe is enabled. *)
-  | Begin_region
+  | Begin_region of { ghost : bool }
       (** Starting delimiter of local allocation region, returning a region
           name. For regions for the "try" part of a "try...with", use
           [Begin_try_region] (below) instead. *)
-  | Begin_try_region
+  | Begin_try_region of { ghost : bool }
       (** Starting delimiter of local allocation region, when used for a "try"
           body. *)
   | Enter_inlined_apply of { dbg : Inlined_debuginfo.t }
@@ -395,9 +395,10 @@ type unary_primitive =
       (** Only valid when the float array optimisation is enabled. *)
   | Is_flat_float_array
       (** Only valid when the float array optimisation is enabled. *)
-  | End_region
+  | End_region of { ghost : bool }
       (** Ending delimiter of local allocation region, accepting a region name. *)
-  | End_try_region  (** Corresponding delimiter for [Begin_try_region]. *)
+  | End_try_region of { ghost : bool }
+      (** Corresponding delimiter for [Begin_try_region]. *)
   | Obj_dup  (** Corresponds to [Obj.dup]; see the documentation in obj.mli. *)
   | Get_header
       (** Get the header of a block. This primitive is invalid if provided with
