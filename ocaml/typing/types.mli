@@ -986,6 +986,8 @@ module AppArgs : sig
 
   val map : (type_expr -> type_expr) -> t -> t
   val iter : (type_expr -> unit) -> t -> unit
+  (* TODO jbachurski: Every use of [map/iter_with_list] likely needs
+                      some handling of over/under-application *)
   val iter_with_list : ('a -> type_expr -> unit) -> 'a list -> t -> unit
   val fold_left : ('acc -> type_expr -> 'acc) -> 'acc -> t -> 'acc
 end

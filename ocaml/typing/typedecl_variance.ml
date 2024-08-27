@@ -270,8 +270,8 @@ let compute_variance_gadt env ~check (required, loc as rloc) decl
   | Some ret_type ->
       match get_desc ret_type with
       | Tconstr (_, tyl, _) ->
-          (* let tyl = List.map (Ctype.expand_head env) tyl in *)
           let tyl = AppArgs.to_list tyl in
+          (* let tyl = List.map (Ctype.expand_head env) tyl in *)
           let fvl = List.map (Ctype.free_variables ?env:None) tyl in
           let _ =
             List.fold_left2

@@ -2989,7 +2989,7 @@ let rec mcomp type_pairs env t1 t2 =
         | (Ttuple tl1, Ttuple tl2, _, _) ->
             mcomp_labeled_list type_pairs env tl1 tl2
         | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _), _, _) ->
-            mcomp_type_decl type_pairs env p1 p2 (AppArgs.to_list tl1) (AppArgs.to_list tl2)
+            mcomp_type_decl type_pairs env p1 p2 tl1 tl2
         | (Tconstr (_, Unapplied, _), _, _, _) when has_injective_univars env t2' ->
             raise_unexplained_for Unify
         | (_, Tconstr (_, Unapplied, _), _, _) when has_injective_univars env t1' ->
@@ -3095,10 +3095,17 @@ and mcomp_row type_pairs env row1 row2 =
       | _ -> ())
     pairs
 
-and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
+and mcomp_type_decl type_pairs env p1 p2 args1 args2 =
   try
     let decl = Env.find_type p1 env in
     let decl' = Env.find_type p2 env in
+    let tl1, tl2 =
+      match args1, args2 with
+      | Unapplied, Unapplied -> [], []
+      | Applied tl1, Applied tl2 -> tl1, tl2
+      (* TODO jbachurski: Over/under-application *)
+      | Unapplied, Applied _ | Applied _, Unapplied -> raise Incompatible
+    in
     let check_jkinds () =
       if not (Jkind.has_intersection decl.type_jkind decl'.type_jkind)
       then raise Incompatible
@@ -3596,6 +3603,7 @@ and unify3 env t1 t1' t2 t2' =
           then
             unify_appargs env tl1 tl2
           else
+            (* TODO jbachurski: Over/under-application *)
             let tl1 = AppArgs.to_list tl1 in
             let tl2 = AppArgs.to_list tl2 in
             let inj =
@@ -4690,6 +4698,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
                 labeled_tl1 labeled_tl2
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
                 when Path.same p1 p2 -> begin
+              (* TODO jbachurski: Over/under-application *)
               let tl1 = AppArgs.to_list tl1 in
               let tl2 = AppArgs.to_list tl2 in
               match variance with
@@ -5803,6 +5812,7 @@ let rec build_subtype env (visited : transient_expr list)
                 else (newvar (Jkind.Type.Primitive.value
                                 ~why:(Unknown "build_subtype 3") |> Jkind.of_type_jkind),
                       Changed))
+            (* TODO jbachurski: Over/under-application *)
             decl.type_variance (AppArgs.to_list tl)
         in
         let c = collect tl' in
@@ -5875,7 +5885,8 @@ let rec build_subtype env (visited : transient_expr list)
       else (t, Unchanged)
   | Tunivar _ | Tpackage _ ->
       (t, Unchanged)
-  (* FIXME jbachurski: Can Tapp occur here, in subtype construction? *)
+  (* TODO jbachurski (by lwhite): the only useful [build_subtype] for [Tapp]
+     seems to be on applications of [Tconstr(_, Unapplied, _)]. *)
   | Tapp _ -> assert false
 
 let enlarge_type env ty =
@@ -5978,7 +5989,9 @@ let rec subtype_rec env trace t1 t2 cstrs =
                     t2 t1
                     cstrs
                 else cstrs)
-            cstrs decl.type_variance (List.combine (AppArgs.to_list tl1) (AppArgs.to_list tl2))
+            cstrs decl.type_variance
+            (* TODO jbachurski: Over/under-application *)
+            (List.combine (AppArgs.to_list tl1) (AppArgs.to_list tl2))
         with Not_found ->
           (trace, t1, t2, !univar_pairs)::cstrs
         end
