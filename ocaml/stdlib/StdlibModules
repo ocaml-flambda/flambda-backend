@@ -101,6 +101,7 @@ STDLIB_MODULE_BASENAMES = \
   stringLabels \
   moreLabels \
   stdLabels \
+  effect \
   camlinternalComprehension
 
 STDLIB_PREFIXED_MODULES = \

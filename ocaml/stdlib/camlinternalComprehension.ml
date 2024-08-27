@@ -14,20 +14,20 @@ let rec rev_list_to_list' acc = function
 let rev_list_to_list rl = rev_list_to_list' [] rl
 
 (* Can be thought of as the combination of [map] and composition *)
-let rec rev_dlist_concat_map l f acc = exclave_
+let rec rev_dlist_concat_map l f acc = local_
   (* [List.fold_left (fun acc el -> f el acc) acc l], but more [local_] *)
   match l with
   | []      -> acc
   | el :: l -> rev_dlist_concat_map l f (f el acc)
 ;;
 
-let rec rev_dlist_concat_iterate_up from to_ f acc = exclave_
+let rec rev_dlist_concat_iterate_up from to_ f acc = local_
   if to_ < from
   then acc
   else rev_dlist_concat_iterate_up (from + 1) to_ f (f from acc)
 ;;
 
-let rec rev_dlist_concat_iterate_down from to_ f acc = exclave_
+let rec rev_dlist_concat_iterate_down from to_ f acc = local_
   if to_ > from
   then acc
   else rev_dlist_concat_iterate_down (from - 1) to_ f (f from acc)

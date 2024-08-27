@@ -20,10 +20,6 @@
   (modules_before_stdlib camlinternalFormatBasics camlinternalAtomic))
  (flags
   (:standard
-   ; XXX mshinwell: things like arg.mli:77 and scanf.mli:91 which seem ok
-   ; are triggering w53
-   -w
-   -53
    -strict-sequence
    -g
    -absname
