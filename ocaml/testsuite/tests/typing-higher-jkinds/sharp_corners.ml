@@ -17,7 +17,8 @@ Error: The type constructor t expects 1 argument(s),
        but is here applied to 0 argument(s)
 |}]
 
-(* Requires basic Tconstr-aware Tapp *)
+(* Requires basic Tconstr-aware Tapp: this should
+   *probably* fail [Typedecl.check_regularity]? *)
 type 'a t = Foo of 'a (t)
 
 [%%expect{|
