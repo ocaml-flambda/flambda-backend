@@ -141,7 +141,7 @@ end = struct
         res,
         Ece.pure,
         updates )
-    | Value_slot { value_slot; is_scanned; size = _ } ->
+    | Value_slot { value_slot; is_scanned; size } ->
       let simple = Value_slot.Map.find value_slot value_slots in
       let kind = Value_slot.kind value_slot in
       if (not
@@ -194,11 +194,11 @@ end = struct
                 ~index:(slot_offset - function_slot_offset_for_updates)
                 ~prev_updates:updates
             in
-            env, res, [P.int ~dbg 1n], updates)
+            env, res, List.init size (fun _ -> P.int ~dbg 1n), updates)
       in
       ( List.rev_append fields acc,
         free_vars,
-        slot_offset + 1,
+        slot_offset + size,
         env,
         res,
         eff,
@@ -633,6 +633,74 @@ let lift_set_of_closures env res ~body ~bound_vars layout set ~translate_expr
   in
   translate_expr env res body
 
+let closure_shape slots =
+  let open Cmm_helpers.Flat_prefix_element in
+  let require_prefix = function
+    | true ->
+      Misc.fatal_error
+        "closure_shape: found non-scanned value slot in scanned suffix"
+    | false -> ()
+  in
+  let prefix, suffix_size, _ =
+    List.fold_left
+      (fun (prefix, suffix, in_suffix) (_, slot) ->
+        match (slot : Slot_offsets.Layout.slot) with
+        | Infix_header ->
+          require_prefix in_suffix;
+          Naked_field :: prefix, suffix, in_suffix
+        | Function_slot { size; _ } ->
+          require_prefix in_suffix;
+          List.init size (fun _ -> Naked_field) @ prefix, suffix, in_suffix
+        | Value_slot { is_scanned = true; size; value_slot } ->
+          if size <> 1
+          then
+            Misc.fatal_errorf
+              "closure_shape: scanned value slot %a has size %d (should be 1)"
+              Value_slot.print value_slot size;
+          prefix, suffix + 1, true
+        | Value_slot { is_scanned = false; size; value_slot } ->
+          require_prefix in_suffix;
+          let kind = Value_slot.kind value_slot in
+          let prefix_kind =
+            match KS.kind kind with
+            | Value ->
+              if KS.Subkind.equal (KS.subkind kind) Tagged_immediate
+              then Naked_field
+              else
+                Misc.fatal_errorf
+                  "closure_shape: found non-scanned non-immediate value slot %a"
+                  Value_slot.print value_slot
+            | Naked_number Naked_immediate
+            | Naked_number Naked_int64
+            | Naked_number Naked_nativeint ->
+              Naked_field
+            | Naked_number Naked_float -> Naked_float
+            | Naked_number Naked_int32 -> Naked_int32
+            | Naked_number Naked_float32 -> Naked_float32
+            | Naked_number Naked_vec128 -> Naked_vec128
+            | Region | Rec_info ->
+              Misc.fatal_errorf "closure_shape: unexpected kind for slot %a: %a"
+                Value_slot.print value_slot KS.print kind
+          in
+          (match prefix_kind with
+          | Naked_vec128 ->
+            if size <> 2
+            then
+              Misc.fatal_errorf
+                "closure_shape: naked vec128 value slot %a has size %d (should \
+                 be 2)"
+                Value_slot.print value_slot size
+          | Naked_field | Naked_float | Naked_float32 | Naked_int32 ->
+            if size <> 1
+            then
+              Misc.fatal_errorf
+                "closure_shape: value slot %a has size %d (should be 1)"
+                Value_slot.print value_slot size);
+          prefix_kind :: prefix, suffix, in_suffix)
+      ([], 0, false) slots
+  in
+  List.rev prefix, suffix_size
+
 let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
     (layout : Slot_offsets.Layout.t) ~num_normal_occurrences_of_bound_vars
     ~(closure_alloc_mode : Alloc_mode.For_allocations.t) ~translate_expr =
@@ -650,17 +718,23 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   let decl_map =
     decls |> Function_slot.Lmap.bindings |> Function_slot.Map.of_list
   in
-  let l, free_vars, _offset, env, res, effs, updates =
+  let l, free_vars, length, env, res, effs, updates =
     Dynamic.fill_layout None decl_map dbg ~startenv:layout.startenv value_slots
       env res effs ~prev_updates:None layout.slots
   in
   assert (Option.is_none updates);
   let csoc =
-    assert (List.compare_length_with l 0 > 0);
-    let tag = Tag.(to_int closure_tag) in
-    C.make_alloc
+    if List.length l > length
+    then
+      Misc.fatal_errorf
+        "let_dynamic_set_of_closures0: too many fields (%d) for block length %d"
+        (List.length l) length;
+    let flat_prefix, value_suffix_size = closure_shape layout.slots in
+    C.make_mixed_closure
       ~mode:(Alloc_mode.For_allocations.to_lambda closure_alloc_mode)
-      dbg ~tag l
+      ~value_suffix_size
+      ~flat_prefix:(Array.of_list flat_prefix)
+      dbg l
   in
   let soc_var = Variable.create "*set_of_closures*" in
   let defining_expr = Env.simple csoc free_vars in
