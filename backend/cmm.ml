@@ -359,11 +359,11 @@ type phrase =
 
 let width_of (memory_chunk : memory_chunk) : int =
   match memory_chunk with
-  | Byte_unsigned | Byte_signed -> 1
-  | Sixteen_unsigned | Sixteen_signed -> 2
-  | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> 4
-  | Word_int | Word_val | Double -> 8
-  | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 16
+  | Byte_unsigned | Byte_signed -> 8
+  | Sixteen_unsigned | Sixteen_signed -> 16
+  | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> 32
+  | Word_int | Word_val | Double -> 64
+  | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 128
 
 let ccatch (i, ids, e1, e2, dbg, kind, is_cold) =
   Ccatch(Nonrecursive, [i, ids, e2, dbg, is_cold], e1, kind)

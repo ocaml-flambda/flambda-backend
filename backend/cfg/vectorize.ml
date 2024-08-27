@@ -8,7 +8,15 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let ( << ) f g x = f (g x)
 
-let vector_width_in_bytes = 16
+let all_option_list list =
+  List.fold_right
+    (fun item result ->
+      match item, result with
+      | Some item, Some result -> Some (item :: result)
+      | _ -> None)
+    list (Some [])
+
+let vector_width = Simd_selection.vector_width
 
 module Instruction : sig
   (* CR-someday tip: consider moving this to cfg or at least have something
@@ -27,12 +35,6 @@ module Instruction : sig
     | Basic of Cfg.basic Cfg.instruction
     | Terminator of Cfg.terminator Cfg.instruction
 
-  val op : t -> Cfg.operation option
-
-  val is_supported_isomorphic_instructions : t list -> bool
-
-  val have_isomorphic_op : t -> t -> bool
-
   val id : t -> Id.t
 
   val arguments : t -> Reg.t Array.t
@@ -41,7 +43,12 @@ module Instruction : sig
 
   val destroyed : t -> Reg.t Array.t
 
-  val print : Format.formatter -> t -> unit
+  val op : t -> Cfg.operation option
+
+  val have_isomorphic_op : t -> t -> bool
+
+  val to_vector_instructions :
+    int -> t list -> Simd_selection.vectorized_instruction list option
 
   val is_store : t -> bool
 
@@ -56,6 +63,8 @@ module Instruction : sig
   val tbl_of : Cfg.basic_block -> t Id.Tbl.t
 
   val find_last_instruction : t DLL.t -> Id.t list -> t
+
+  val print : Format.formatter -> t -> unit
 end = struct
   module Id = struct
     include Numbers.Int
@@ -69,6 +78,31 @@ end = struct
     | Basic of Cfg.basic Cfg.instruction
     | Terminator of Cfg.terminator Cfg.instruction
 
+  let id (instruction : t) : Id.t =
+    match instruction with
+    | Basic instruction -> instruction.id
+    | Terminator instruction -> instruction.id
+
+  let arguments (instruction : t) : Reg.t Array.t =
+    match instruction with
+    | Basic instruction -> instruction.arg
+    | Terminator instruction -> instruction.arg
+
+  let results (instruction : t) : Reg.t Array.t =
+    match instruction with
+    | Basic instruction -> instruction.res
+    | Terminator instruction -> instruction.res
+
+  let destroyed (instruction : t) : Reg.t Array.t =
+    match instruction with
+    | Basic instruction -> Proc.destroyed_at_basic instruction.desc
+    | Terminator instruction -> Proc.destroyed_at_terminator instruction.desc
+
+  let stack_offset (instruction : t) : int =
+    match instruction with
+    | Basic instruction -> instruction.stack_offset
+    | Terminator instruction -> instruction.stack_offset
+
   let op (instruction : t) : Cfg.operation option =
     match instruction with
     | Basic basic_instruction -> (
@@ -78,33 +112,15 @@ end = struct
       | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> None)
     | Terminator _ -> None
 
-  let supported instruction =
-    match op instruction with
-    | None -> false
-    | Some op -> (
-      match op with
-      | Move | Const_int _ | Load _ | Store _ | Intop _ | Intop_imm _ -> true
-      | Specific specific_operation ->
-        Arch.supports_vectorize specific_operation
-      | Alloc _ | Reinterpret_cast _ | Static_cast _ | Spill | Reload
-      | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
-      | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
-      | Opaque | Begin_region | End_region | Name_for_debugger _ | Dls_get
-      | Poll ->
-        false)
-
   let op_isomorphic (op1 : Cfg.operation) (op2 : Cfg.operation) =
     match op1, op2 with
     | Move, Move | Spill, Spill | Reload, Reload -> true
-    | Const_int x1, Const_int x2 ->
-      x1 = x2
-      (* CR-someday tip: do not allow different constants for now, may change
-         that in the future *)
+    | Const_int _, Const_int _
     | Const_float32 _, Const_float32 _
     | Const_float _, Const_float _
     | Const_symbol _, Const_symbol _
     | Const_vec128 _, Const_vec128 _ ->
-      false (* CR-soon tip: add support later *)
+      true
     | ( Load
           { memory_chunk = memory_chunk1;
             addressing_mode = addressing_mode1;
@@ -174,41 +190,24 @@ end = struct
     | Some op1, Some op2 -> op_isomorphic op1 op2
     | _ -> false
 
-  let is_supported_isomorphic_instructions instructions =
-    let rec check hd1 tl1 =
-      match tl1 with
-      | [] -> true
-      | hd2 :: tl2 ->
-        if have_isomorphic_op hd1 hd2 then check hd2 tl2 else false
-    in
-    match instructions with
-    | [] -> assert false
-    | hd :: tl -> supported hd && check hd tl
+  let same_stack_offset instructions =
+    match List.map stack_offset instructions with
+    | [] -> true
+    | hd :: tl -> List.for_all (Int.equal hd) tl
 
-  let id (instruction : t) : Id.t =
-    match instruction with
-    | Basic instruction -> instruction.id
-    | Terminator instruction -> instruction.id
+  let are_isomorphic cfg_ops =
+    match cfg_ops with
+    | [] -> true
+    | hd :: tl -> List.for_all (op_isomorphic hd) tl
 
-  let arguments (instruction : t) : Reg.t Array.t =
-    match instruction with
-    | Basic instruction -> instruction.arg
-    | Terminator instruction -> instruction.arg
-
-  let results (instruction : t) : Reg.t Array.t =
-    match instruction with
-    | Basic instruction -> instruction.res
-    | Terminator instruction -> instruction.res
-
-  let destroyed (instruction : t) : Reg.t Array.t =
-    match instruction with
-    | Basic instruction -> Proc.destroyed_at_basic instruction.desc
-    | Terminator instruction -> Proc.destroyed_at_terminator instruction.desc
-
-  let print ppf (instruction : t) : unit =
-    match instruction with
-    | Basic i -> Cfg.print_basic ppf i
-    | Terminator i -> Cfg.print_terminator ppf i
+  let to_vector_instructions width instructions =
+    assert (width * List.length instructions = vector_width);
+    match List.map op instructions |> all_option_list with
+    | None -> None
+    | Some cfg_ops ->
+      if same_stack_offset instructions && are_isomorphic cfg_ops
+      then Simd_selection.vectorize_operation width cfg_ops
+      else None
 
   let is_store (instruction : t) =
     match instruction with
@@ -315,6 +314,11 @@ end = struct
         else find_last (DLL.prev cell)
     in
     find_last starting_cell
+
+  let print ppf (instruction : t) : unit =
+    match instruction with
+    | Basic i -> Cfg.print_basic ppf i
+    | Terminator i -> Cfg.print_terminator ppf i
 end
 
 module Dependency_graph : sig
@@ -694,11 +698,9 @@ end = struct
       let res =
         if Instruction.have_isomorphic_op t1.instruction t2.instruction
         then
-          let width = Cmm.width_of t1.memory_chunk in
-          let offset_option = offset_of t1 t2 in
-          match offset_option with
+          match offset_of t1 t2 with
           | None -> false
-          | Some offset -> width = offset
+          | Some offset -> width t1 = offset * 8
         else false
       in
       res
@@ -856,6 +858,7 @@ end = struct
                 offset
                 > Cmm.width_of
                     left_memory_operation.Memory_operation.memory_chunk
+                  * 8
             in
             check_direct_separation memory_operation_1 memory_operation_2
             || check_direct_separation memory_operation_2 memory_operation_1
@@ -992,12 +995,10 @@ end = struct
         let width =
           Memory_accesses.Memory_operation.width starting_memory_operation
         in
-        if width != 8
-           (* CR-soon tip: Only support 64-bit wide things for now, add the rest
-              in the future *)
+        if width = 128 (* No point "vectorizing" that *)
         then None
         else
-          let items_in_vector = vector_width_in_bytes / width in
+          let items_in_vector = vector_width / width in
           let store_group = find_stores items_in_vector [] starting_cell in
           match store_group with
           | None -> None
@@ -1038,7 +1039,7 @@ end
 module Computation_tree : sig
   module Node : sig
     type t =
-      { operation : Cfg.operation;
+      { vector_instructions : Simd_selection.vectorized_instruction list;
         instructions : Instruction.Id.t list;
         dependencies : Instruction.Id.t array;
         is_dependency_of : Instruction.Id.Set.t
@@ -1055,22 +1056,23 @@ module Computation_tree : sig
 end = struct
   module Node = struct
     type t =
-      { operation : Cfg.operation;
+      { vector_instructions : Simd_selection.vectorized_instruction list;
         instructions : Instruction.Id.t list;
         dependencies : Instruction.Id.t array;
             (* Only counts dependencies within the same computation tree *)
         is_dependency_of : Instruction.Id.Set.t
       }
 
-    let init instruction instruction_ids =
-      match Instruction.op instruction with
-      | None -> assert false
-      | Some operation ->
-        { operation;
-          instructions = instruction_ids;
-          dependencies = Array.of_list [];
-          is_dependency_of = Instruction.Id.Set.empty
-        }
+    let init width instructions =
+      match Instruction.to_vector_instructions width instructions with
+      | None -> None
+      | Some vector_instructions ->
+        Some
+          { vector_instructions;
+            instructions = List.map Instruction.id instructions;
+            dependencies = [||];
+            is_dependency_of = Instruction.Id.Set.empty
+          }
   end
 
   type t = Node.t Instruction.Id.Tbl.t
@@ -1093,6 +1095,7 @@ end = struct
         seed
     in
     let computation_tree = init () in
+    let seed_width = List.hd seed |> Memory_accesses.Memory_operation.width in
     let rec build instruction_ids : Instruction.Id.t option =
       (* Recursively builds the computation tree and returns Some id of the root
          if possible, otherwise None *)
@@ -1103,11 +1106,10 @@ end = struct
       let last_instruction =
         Instruction.find_last_instruction body instruction_ids
       in
-      if Instruction.is_supported_isomorphic_instructions instructions |> not
-      then None
-      else
+      match Node.init seed_width instructions with
+      | None -> None
+      | Some node -> (
         let key = Instruction.id last_instruction in
-        let node : Node.t = Node.init last_instruction instruction_ids in
         match Instruction.Id.Tbl.find_opt computation_tree key with
         (* Is there another node with the same key already in the tree? *)
         | Some (old_node : Node.t) ->
@@ -1120,14 +1122,6 @@ end = struct
                the other node is different from this node, we won't vectorize
                this for simplicity's sake *)
         | None -> (
-          let all_option_list list =
-            List.fold_right
-              (fun item result ->
-                match item, result with
-                | Some item, Some result -> Some (item :: result)
-                | _ -> None)
-              list (Some [])
-          in
           let all_option_array array =
             Array.to_list array |> all_option_list |> Option.map Array.of_list
           in
@@ -1154,9 +1148,6 @@ end = struct
           | Some op -> (
             match op with
             | Load _ ->
-              let store_width =
-                List.hd seed |> Memory_accesses.Memory_operation.width
-              in
               let load_width =
                 Instruction.id last_instruction
                 |> Memory_accesses.get_memory_operation_exn memory_accesses
@@ -1165,7 +1156,7 @@ end = struct
               if Memory_accesses.all_adjacent memory_accesses instruction_ids
                  && Memory_accesses.inter_independent memory_accesses
                       instructions
-                 && load_width = store_width
+                 && load_width = seed_width
               then (
                 Instruction.Id.Tbl.add computation_tree key node;
                 Some key)
@@ -1174,7 +1165,7 @@ end = struct
               if Memory_accesses.all_adjacent memory_accesses instruction_ids
               then (
                 Instruction.Id.Tbl.add computation_tree key node;
-                let built_dependencies = Array.make 1 (build_arg 0) in
+                let built_dependencies = [| build_arg 0 |] in
                 update_node_dependencies built_dependencies)
               else None
             | Move | Const_int _ | Intop _ | Intop_imm _ | Specific _ ->
@@ -1193,7 +1184,7 @@ end = struct
             | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _
             | Probe_is_enabled _ | Opaque | Begin_region | End_region
             | Name_for_debugger _ | Dls_get | Poll ->
-              None))
+              None)))
     in
     let is_valid computation_tree =
       (* Checks nodes can be grouped together, and instructions outside the tree
@@ -1308,7 +1299,11 @@ end = struct
       | None -> ()
       | Some (node : Node.t) ->
         fprintf ppf "\nNode key: %d\n" (Instruction.Id.to_int id);
-        fprintf ppf "\nOperation: %a\n" Cfg.dump_basic (Cfg.Op node.operation);
+        fprintf ppf "\nOperations:\n";
+        List.iter
+          (fun (simd_instruction : Simd_selection.vectorized_instruction) ->
+            fprintf ppf "%a " Cfg.dump_basic (Cfg.Op simd_instruction.operation))
+          node.vector_instructions;
         fprintf ppf "\ninstructions:\n";
         List.iter (fprintf ppf "%d " << Instruction.Id.to_int) node.instructions;
         fprintf ppf "\ndependencies:\n";

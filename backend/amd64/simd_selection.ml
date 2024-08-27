@@ -464,22 +464,199 @@ let () =
     | Error err -> Some (Location.error_of_printer_file report_error err)
     | _ -> None)
 
-let vectorize_operation (cfg_op : Cfg.operation) width =
-  match cfg_op with
-  | Move -> Move
-  | Const_int n ->
+type width =
+  | W8
+  | W16
+  | W32
+  | W64
+
+type register =
+  | Original of int
+  | New of int
+
+type vectorized_instruction =
+  { operation : Cfg.operation;
+    arguments : register array;
+    results : register array
+  }
+
+let vector_width = 128
+
+let vectorize_operation width (cfg_ops : Cfg.operation list) :
+    vectorized_instruction list option =
+  (* Assumes cfg_ops are isomorphic and can be vectorized *)
+  let length = List.length cfg_ops in
+  assert (length * width = vector_width);
+  let width_type =
     match width with
-    | 8 ->
-    let m = Int64.of_nativeint n in
-    Const_vec128 {low = m; high = m}
-    |_ -> assert false
-  | Load x -> Load x
-  | Store x -> Store x
-  | Intop op -> (* CR-soon tip: fix this tomorrow *)
-  | Intop_imm (op, n) ->
+    | 64 -> W64
+    | 32 -> W32
+    | 16 -> W16
+    | 8 -> W8
+    | _ -> assert false
+  in
+  let make_default arg_count res_count operation =
+    Some
+      [ { operation;
+          arguments = Array.init arg_count (fun i -> Original i);
+          results = Array.init res_count (fun i -> Original i)
+        } ]
+  in
+  let create_const_vec consts =
+    let rec get_list list n =
+      if n = 0
+      then [], list
+      else
+        match list with
+        | [] -> assert false
+        | hd :: tl ->
+          let list1, list2 = get_list tl (n - 1) in
+          hd :: list1, list2
+    in
+    let highs, lows = get_list consts (length / 2) in
+    let pack_int64 nums =
+      let mask = Int64.sub (Int64.shift_left 1L width) 1L in
+      List.fold_left
+        (fun target num ->
+          Int64.logor (Int64.shift_left target width) (Int64.logand num mask))
+        0L nums
+    in
+    Cfg.Const_vec128 { high = pack_int64 highs; low = pack_int64 lows }
+    |> make_default 0 1
+  in
+  let vectorize_intop (intop : Mach.integer_operation) =
+    match intop with
+    | Iadd ->
+      let sse_op =
+        match width_type with
+        | W64 -> Add_i64
+        | W32 -> Add_i32
+        | W16 -> Add_i16
+        | W8 -> Add_i8
+      in
+      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default 2 1
+    | Isub ->
+      let sse_op =
+        match width_type with
+        | W64 -> Sub_i64
+        | W32 -> Sub_i32
+        | W16 -> Sub_i16
+        | W8 -> Sub_i8
+      in
+      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default 2 1
+    | Imul -> (
+      match width_type with
+      | W64 -> None
+      | W32 -> Cfg.Specific (Isimd (SSE41 Mullo_i32)) |> make_default 2 1
+      | W16 -> Cfg.Specific (Isimd (SSE2 Mullo_i16)) |> make_default 2 1
+      | W8 -> None)
+    | Imulh { signed } -> (
+      match width_type with
+      | W64 -> None
+      | W32 -> None
+      | W16 ->
+        if signed
+        then Cfg.Specific (Isimd (SSE2 Mulhi_i16)) |> make_default 2 1
+        else Cfg.Specific (Isimd (SSE2 Mulhi_unsigned_i16)) |> make_default 2 1
+      | W8 -> None)
+    | Iand -> Cfg.Specific (Isimd (SSE2 And_bits)) |> make_default 2 1
+    | Ior -> Cfg.Specific (Isimd (SSE2 Or_bits)) |> make_default 2 1
+    | Ixor -> Cfg.Specific (Isimd (SSE2 Xor_bits)) |> make_default 2 1
+    | Ilsl ->
+      let sse_op =
+        match width_type with
+        | W64 -> SLL_i64
+        | W32 -> SLL_i32
+        | W16 -> SLL_i16
+        | W8 -> assert false
+      in
+      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default 2 1
+    | Ilsr ->
+      let sse_op =
+        match width_type with
+        | W64 -> SRL_i64
+        | W32 -> SRL_i32
+        | W16 -> SRL_i16
+        | W8 -> assert false
+      in
+      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default 2 1
+    | Iasr ->
+      let sse_op =
+        match width_type with
+        | W64 -> assert false
+        | W32 -> SRA_i32
+        | W16 -> SRA_i16
+        | W8 -> assert false
+      in
+      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default 2 1
+    | Icomp (Isigned intcomp) -> (
+      match intcomp with
+      | Ceq ->
+        let sse_op =
+          match width_type with
+          | W64 -> SSE41 Cmpeq_i64
+          | W32 -> SSE2 Cmpeq_i32
+          | W16 -> SSE2 Cmpeq_i16
+          | W8 -> SSE2 Cmpeq_i8
+        in
+        Cfg.Specific (Isimd sse_op) |> make_default 2 1
+      | Cgt ->
+        let sse_op =
+          match width_type with
+          | W64 -> SSE42 Cmpgt_i64
+          | W32 -> SSE2 Cmpgt_i32
+          | W16 -> SSE2 Cmpgt_i16
+          | W8 -> SSE2 Cmpgt_i8
+        in
+        Cfg.Specific (Isimd sse_op) |> make_default 2 1
+      | Cne | Clt | Cle | Cge -> None)
+    | Idiv | Imod | Iclz _ | Ictz _ | Ipopcnt | Icomp (Iunsigned _) -> None
+  in
+  match List.hd cfg_ops with
+  | Move -> Cfg.Move |> make_default 1 1
+  | Const_int _ ->
+    let extract_const_int (op : Cfg.operation) =
+      match op with
+      | Const_int n -> Int64.of_nativeint n
+      | Move | Load _ | Store _ | Intop _ | Intop_imm _ | Specific _ | Alloc _
+      | Reinterpret_cast _ | Static_cast _ | Spill | Reload | Const_float32 _
+      | Const_float _ | Const_symbol _ | Const_vec128 _ | Stackoffset _
+      | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _ | Opaque
+      | Begin_region | End_region | Name_for_debugger _ | Dls_get | Poll ->
+        assert false
+    in
+    let consts = List.map extract_const_int cfg_ops in
+    create_const_vec consts
+  | Load { memory_chunk; addressing_mode; mutability; is_atomic } ->
+    Cfg.Load { memory_chunk; addressing_mode; mutability; is_atomic }
+    |> make_default (Arch.num_args_addressing addressing_mode) 1
+  | Store (memory_chunk, addressing_mode, is_assignment) ->
+    Cfg.Store (memory_chunk, addressing_mode, is_assignment)
+    |> make_default (Arch.num_args_addressing addressing_mode + 1) 1
+  | Intop intop -> vectorize_intop intop
+  | Intop_imm (intop, _) ->
+    let extract_intop_imm_int (op : Cfg.operation) =
+      match op with
+      | Intop_imm (_, n) -> Int64.of_int n
+      | Move | Load _ | Store _ | Intop _ | Specific _ | Alloc _
+      | Reinterpret_cast _ | Static_cast _ | Spill | Reload | Const_int _
+      | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
+      | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
+      | Opaque | Begin_region | End_region | Name_for_debugger _ | Dls_get
+      | Poll ->
+        assert false
+    in
+    let consts = List.map extract_intop_imm_int cfg_ops in
+    let instructions =
+      match create_const_vec consts, vectorize_intop intop with
+      | Some const_instruction, Some intop_instruction ->
+        Some (const_instruction @ intop_instruction)
+      | _ -> None
+    in
+    ignore instructions;
+    None
   | Specific _ | Alloc _ | Reinterpret_cast _ | Static_cast _ | Spill | Reload
   | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
   | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
-  | Opaque | Begin_region | End_region | Name_for_debugger _ | Dls_get
-  | Poll ->
-    assert false
+  | Opaque | Begin_region | End_region | Name_for_debugger _ | Dls_get | Poll ->
+    None
