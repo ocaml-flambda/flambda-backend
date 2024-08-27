@@ -1,6 +1,5 @@
 (* TEST
  expect;
- expect;
 *)
 
 
