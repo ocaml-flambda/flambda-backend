@@ -1,0 +1,4 @@
+File "pr2979.ml", line 12, characters 23-35:
+12 | let[@tail_mod_cons]  f x = (42, 42)
+                            ^^^^^^^^^^^^
+Error: [@tail_mod_cons]: Functions cannot be both local-returning and [@tail_mod_cons]
