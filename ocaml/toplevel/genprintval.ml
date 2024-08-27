@@ -393,8 +393,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                  in
                  Oval_constr (Oide_ident (Out_name.create "lazy"), [v])
                end
-          | Tconstr(path, ty_list, _) -> begin
-              let ty_list = AppArgs.to_list ty_list in
+          | Tconstr(path, args, _) -> begin
+              let ty_list = AppArgs.to_list args in
               try
                 let decl = Env.find_type path env in
                 match decl with
