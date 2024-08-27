@@ -566,19 +566,11 @@ module Solver_mono (C : Lattices_mono) = struct
   (* Due to our biased implementation, the ceil is precise. *)
   let get_ceil = get_conservative_ceil
 
-  let zap_to_ceil_morphvar obj mv ~log =
-    assert (submode_cmv obj (mupper obj mv) mv ~log |> Result.is_ok);
-    mupper obj mv
-
   let zap_to_ceil : type a l. a C.obj -> (a, l * allowed) mode -> log:_ -> a =
    fun obj m ~log ->
-    match m with
-    | Amode m -> m
-    | Amodevar mv -> zap_to_ceil_morphvar obj mv ~log
-    | Amodemeet (a, mvs) ->
-      List.fold_left
-        (fun acc mv -> C.meet obj acc (zap_to_ceil_morphvar obj mv ~log))
-        a mvs
+    let ceil = get_ceil obj m in
+    assert (submode obj (Amode ceil) m ~log |> Result.is_ok);
+    ceil
 
   (** Zap [mv] to its lower bound. Returns the [log] of the zapping, in
       case the caller are only interested in the lower bound and wants to
@@ -624,10 +616,16 @@ module Solver_mono (C : Lattices_mono) = struct
     | Amode a -> a
     | Amodevar mv -> zap_to_floor_morphvar obj mv ~commit:log
     | Amodejoin (a, mvs) ->
-      List.fold_left
-        (fun acc mv ->
-          C.join obj acc (zap_to_floor_morphvar obj mv ~commit:log))
-        a mvs
+      let floor =
+        List.fold_left
+          (fun acc mv ->
+            C.join obj acc (zap_to_floor_morphvar obj mv ~commit:None))
+          a mvs
+      in
+      List.iter
+        (fun mv -> assert (submode_mvc obj mv floor ~log |> Result.is_ok))
+        mvs;
+      floor
 
   let get_floor : type a r. a C.obj -> (a, allowed * r) mode -> a =
    fun obj m ->
