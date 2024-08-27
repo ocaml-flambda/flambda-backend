@@ -635,6 +635,25 @@ let enrich_with_attributes attrs annotation_context =
 let jkind_of_annotation annotation_context attrs jkind =
   Jkind.of_annotation ~context:(enrich_with_attributes attrs annotation_context) jkind
 
+let check_arity_matches_decl ~loc ~txt env decl arity =
+  let ok =
+    match arity, decl.type_arity with
+    | 0, 0 -> true
+    | 0, _ -> begin
+      match jkind_of_decl_unapplied env decl with
+      | None -> false
+      | Some _ -> true
+    end
+    | m, 0 -> begin
+      match decl.type_jkind with
+      | Type _ -> false
+      | Arrow { args = kind_args; result = _ } -> List.length kind_args = m
+    end
+    | m, n -> m = n
+  in
+  if not ok then
+    raise (Error (loc, env, Type_arity_mismatch(txt, decl.type_arity, arity)))
+
 (* translate the ['a 'b ('c : immediate) .] part of a polytype,
    returning a [poly_univars] *)
 let transl_bound_vars : (_, _) Either.t -> _ =
@@ -725,10 +744,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             List.map (fun _ -> t) decl.type_params
         | _ -> stl
       in
-      if not @@ Ctype.arity_matches_decl env decl (List.length stl) then
-        raise(Error(styp.ptyp_loc, env,
-                    Type_arity_mismatch(lid.txt, decl.type_arity,
-                                        List.length stl)));
+      check_arity_matches_decl ~loc:styp.ptyp_loc ~txt:lid.txt env decl (List.length stl);
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
       in

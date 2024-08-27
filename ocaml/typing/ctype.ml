@@ -2207,20 +2207,6 @@ and estimate_type_jkind env ty =
 and type_jkind env ty =
   jkind_of_result (estimate_type_jkind env (get_unboxed_type_approximation env ty))
 
-let arity_matches_decl env decl t = match t, decl.type_arity with
-  | 0, 0 -> true
-  | 0, _ -> begin
-    match jkind_of_decl_unapplied env decl with
-    | None -> false
-    | Some _ -> true
-  end
-  | m, 0 -> begin
-    match decl.type_jkind with
-    | Type _ -> false
-    | Arrow { args = kind_args; result = _ } -> List.length kind_args = m
-  end
-  | m, n -> m = n
-
 (**** checking jkind relationships ****)
 
 type type_jkind_sub_result =
