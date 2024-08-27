@@ -1231,7 +1231,7 @@ value caml_interprete(code_t prog, asize_t prog_size)
 
 #ifndef THREADED_CODE
     default:
-#if defined(_MSC_VER) && _MSC_VER >= 1200
+#ifdef _MSC_VER
       __assume(0);
 #else
       caml_fatal_error("bad opcode (%"
