@@ -38,7 +38,7 @@ type error =
 exception Error of error
 
 let abstract_type =
-  Btype.newgenty (Tconstr (Pident (Ident.create_local "<abstr>"), AppArgs.unapp, ref Mnil))
+  Btype.newgenty (Tconstr (Pident (Ident.create_local "<abstr>"), Unapplied, ref Mnil))
 let get_global_or_predef id =
   try
     Debugcom.Remote_value.global (Symtable.get_global_position id)

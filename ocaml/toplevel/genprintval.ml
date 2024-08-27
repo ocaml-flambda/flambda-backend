@@ -235,7 +235,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
 
     let abstract_type =
       let id = Ident.create_local "abstract" in
-      let ty = Btype.newgenty (Tconstr (Pident id, AppArgs.unapp, ref Mnil)) in
+      let ty = Btype.newgenty (Tconstr (Pident id, Unapplied, ref Mnil)) in
       ty
 
     (* The main printing function *)

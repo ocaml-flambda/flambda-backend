@@ -1384,7 +1384,7 @@ let instance_constructor existential_treatment cstr =
               Env.enter_type (get_new_abstract_name !env name) decl !env
                 ~scope:fresh_constr_scope in
             env := new_env;
-            let to_unify = newty (Tconstr (Path.Pident id,AppArgs.unapp,ref Mnil)) in
+            let to_unify = newty (Tconstr (Path.Pident id,Unapplied,ref Mnil)) in
             let tv = copy copy_scope existential in
             assert (is_Tvar tv);
             link_type tv to_unify;
@@ -2849,7 +2849,7 @@ let reify env t =
       Env.enter_type (get_new_abstract_name !env name) decl !env
         ~scope:fresh_constr_scope in
     let path = Path.Pident id in
-    let t = newty2 ~level:lev (Tconstr (path,AppArgs.unapp,ref Mnil))  in
+    let t = newty2 ~level:lev (Tconstr (path,Unapplied,ref Mnil))  in
     env := new_env;
     path, t
   in
@@ -3508,7 +3508,7 @@ and unify2_rec env t10 t1 t20 t2 =
   if unify_eq t1 t2 then () else
   try match (get_desc t1, get_desc t2) with
   | (Tconstr (p1, tl1, a1), Tconstr (p2, tl2, a2)) ->
-      if Path.same p1 p2 && tl1 = AppArgs.unapp && tl2 = AppArgs.unapp
+      if Path.same p1 p2 && tl1 = Unapplied && tl2 = Unapplied
       && not (has_cached_expansion p1 !a1 || has_cached_expansion p2 !a2)
       then begin
         update_level_for Unify !env (get_level t1) t2;
@@ -4136,7 +4136,7 @@ let filter_arrow env t l ~force_tpoly =
                        AppArgs.one (newvar2 level Predef.option_argument_jkind),
                        ref Mnil))
           else if is_position l then
-            newty2 ~level (Tconstr (Predef.path_lexing_position, AppArgs.unapp, ref Mnil))
+            newty2 ~level (Tconstr (Predef.path_lexing_position, Unapplied, ref Mnil))
           else
             newvar2 level k_arg
         in

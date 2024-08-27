@@ -71,7 +71,7 @@ type row_field
 type field_kind
 type commutable
 
-type app_args = private
+type app_args =
   | Unapplied
   | Applied of type_expr list
 
@@ -974,7 +974,7 @@ val set_commu_ok: commutable -> unit
 
 (*  *)
 module AppArgs : sig
-  type t = app_args = private
+  type t = app_args =
     | Unapplied
     | Applied of type_expr list
 
