@@ -58,8 +58,8 @@ module Int64x2_I = struct
     of_i64s Int64.(mul xh yh) Int64.(mul xl yl)
 
   let of_int i = of_i64s (Int64.of_int i) (Int64.of_int i)
-  let max_val = const1 Int64.max_int
-  let min_val = const1 Int64.min_int
+  let max_val = of_i64s Int64.max_int Int64.max_int
+  let min_val = of_i64s Int64.min_int Int64.min_int
   let rand x =
     let h, l = high_to x, low_to x in
     of_i64s (Random.int64 h) (Random.int64 l)
