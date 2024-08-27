@@ -32,6 +32,15 @@ module M : sig type t : top end
 |}]
 
 module M : sig
+  type t : top
+end = struct
+  type t : value => value
+end
+[%%expect {|
+module M : sig type t : top end
+|}]
+
+module M : sig
   type t : value => value
 end = struct
   type t : value => top
