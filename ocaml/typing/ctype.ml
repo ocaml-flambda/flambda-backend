@@ -2745,15 +2745,15 @@ let univars_escape env univar_pairs vl ty =
           else occur t
       | Tunivar _ -> if TypeSet.mem t family then raise_escape_exn (Univ t)
       | Tconstr (_, Unapplied, _) -> ()
-      | Tconstr (p, tl, _) ->
+      | Tconstr (p, Applied tl, _) ->
           begin try
             let var = Env.find_type p env |> applied_variance_of_decl in
-            AppArgs.iter_with_list
+            List.iter2
               (* see occur_univar *)
               (fun v t -> if not Variance.(eq v null) then occur t)
               var tl
           with Not_found ->
-            AppArgs.iter occur tl
+            List.iter occur tl
           end
       | _ ->
           iter_type_expr occur t
