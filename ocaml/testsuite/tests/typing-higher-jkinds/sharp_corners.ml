@@ -62,13 +62,20 @@ end = struct
   type t = int l
 end
 [%%expect{|
-Line 2, characters 2-12:
-2 |   type t = l
-      ^^^^^^^^^^
-Error: The kind of type l is ((value) => value)
-         because of the definition of l at line 1, characters 0-23.
-       But the kind of type l must be a subkind of any
-         because of the definition of t at line 2, characters 2-12.
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = int l
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = int l end
+       is not included in
+         sig type t = l end
+       Type declarations do not match:
+         type t = int l
+       is not included in
+         type t = l
+       The type int l is not equal to the type l
 |}]
 module S : sig
   type t = int l
@@ -76,13 +83,20 @@ end = struct
   type t = l
 end
 [%%expect{|
-Line 4, characters 2-12:
+Lines 3-5, characters 6-3:
+3 | ......struct
 4 |   type t = l
-      ^^^^^^^^^^
-Error: The kind of type l is ((value) => value)
-         because of the definition of l at line 1, characters 0-23.
-       But the kind of type l must be a subkind of any
-         because of the definition of t at line 4, characters 2-12.
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = l end
+       is not included in
+         sig type t = int l end
+       Type declarations do not match:
+         type t = l
+       is not included in
+         type t = int l
+       The type l is not equal to the type int l
 |}]
 
 (* Over/under-application in [subtype] and [build_subtype]
@@ -94,8 +108,15 @@ type l : value => value
 let f x = (x : l :> l)
 let f x = (x : int l :> int l)
 [%%expect{|
-Uncaught exception: Jkind.Unexpected_higher_jkind("Coerced arrow to type jkind")
-
+Line 1, characters 11-12:
+1 | let f x = (x : l :> l)
+               ^
+Error: Object types must have layout value.
+       The kind of the type of this expression is ((value) => value)
+         because of the definition of l at line 1, characters 0-23.
+       But the kind of the type of this expression must be a subkind of any
+         because it's assigned a dummy kind that should have been overwritten.
+                 Please notify the Jane Street compilers group if you see this output.
 |}]
 let f x = (x : l :> int l)
 [%%expect{|
