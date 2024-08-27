@@ -112,6 +112,14 @@ type ('a : float64) t = Foo of 'a
 type ('f : value => value) s
 let foo (x : t s) = x
 [%%expect{|
-Uncaught exception: Invalid_argument("List.combine")
-
+type ('a : float64) t = Foo of 'a
+type ('f : value => value) s
+Line 3, characters 13-14:
+3 | let foo (x : t s) = x
+                 ^
+Error: This type t should be an instance of type ('a : value => value)
+       The kind of t is ((float64) => value)
+         because of the definition of t at line 1, characters 0-33.
+       But the kind of t must be a subkind of ((value) => value)
+         because of the definition of s at line 2, characters 0-28.
 |}]
