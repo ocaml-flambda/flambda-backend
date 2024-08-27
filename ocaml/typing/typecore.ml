@@ -8282,7 +8282,7 @@ and type_newtype
         Hashtbl.add seen (get_id t) ();
         match get_desc t with
         | Tconstr (Path.Pident id', Unapplied, _) when id == id' -> link_type t ty
-        | Tconstr (Path.Pident id', (Applied _ as args), _) when id == id' ->
+        | Tconstr (Path.Pident id', (Applied args), _) when id == id' ->
           link_type t (newty2 ~level:(get_level t) (Tapp (ty, args)))
         | _ -> Btype.iter_type_expr replace t
       end

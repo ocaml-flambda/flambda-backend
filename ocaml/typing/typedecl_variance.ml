@@ -79,7 +79,7 @@ let compute_variance env visited vari ty =
         end
     | Tapp (ty, tl) ->
       compute_variance_rec vari ty;
-      AppArgs.iter (compute_variance_rec vari) tl
+      List.iter (compute_variance_rec vari) tl
     | Tobject (ty, _) ->
         compute_same ty
     | Tfield (_, _, ty1, ty2) ->

@@ -1905,7 +1905,7 @@ let expand_abbrev_gen kind find_type_expansion env ty =
               match args, params with
               | Applied args, [] ->
                 let params = List.map (fun _ -> Btype.newgenvar (Jkind.Primitive.top ~why:Dummy_jkind)) args in
-                (params, newgenty (Tapp (body, AppArgs.of_list params)))
+                (params, newgenty (Tapp (body, params)))
               | Unapplied, _ | _, (_ :: _) -> (params, body))
             in
             let ty' =
@@ -3080,12 +3080,12 @@ let rec mcomp type_pairs env t1 t2 =
             raise_unexplained_for Unify
         | (Tapp (t, args), Tapp (t', args'), _, _) ->
             mcomp type_pairs env t t';
-            mcomp_list type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
+            mcomp_list type_pairs env args args'
         | (Tapp (t, args'), Tconstr (p, args, _), _, _)
         | (Tconstr (p, args, _), Tapp (t, args'), _, _)
           when path_legal_unapplied env p ->
             mcomp type_pairs env t (newconstr p []);
-            mcomp_list type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
+            mcomp_list type_pairs env (AppArgs.to_list args) args'
         | (Tconstr (p, _, _), _, _, other) | (_, Tconstr (p, _, _), other, _) ->
             begin try
               let decl = Env.find_type p env in
@@ -3754,13 +3754,13 @@ and unify3 env t1 t1' t2 t2' =
           )
       | (Tapp (t, args), Tapp (t', args')) ->
           unify env t t';
-          unify_appargs env args args'
+          unify_list env args args'
       | (Tapp (t, args), Tconstr (p, args', _)) when path_legal_unapplied !env p ->
           unify env t (newconstr p []);
-          unify_appargs env args args'
+          unify_list env args (AppArgs.to_list args')
       | (Tconstr (p, args, _), Tapp (t, args')) when path_legal_unapplied !env p ->
           unify env (newconstr p []) t;
-          unify_appargs env args args'
+          unify_list env (AppArgs.to_list args) args'
       | (Tobject (fi1, nm1), Tobject (fi2, _)) ->
           unify_fields env fi1 fi2;
           (* Type [t2'] may have been instantiated by [unify_fields] *)
@@ -4828,15 +4828,15 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
           | (Tconstr _,  Tnil ) -> raise_for Moregen (Obj (Abstract_row First))
           | (Tapp (t, args), Tapp (t', args')) ->
               moregen inst_nongen variance type_pairs env t t';
-              moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
+              moregen_list inst_nongen variance type_pairs env args args'
           | (Tapp (t, args), Tconstr (p, args', _))
             when path_legal_unapplied env p ->
               moregen inst_nongen variance type_pairs env t (newconstr p []);
-              moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
+              moregen_list inst_nongen variance type_pairs env args (AppArgs.to_list args')
           | (Tconstr (p, args, _), Tapp (t, args'))
             when path_legal_unapplied env p ->
               moregen inst_nongen variance type_pairs env (newconstr p []) t;
-              moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) (AppArgs.to_list args')
+              moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) args'
           | (Tvariant row1, Tvariant row2) ->
               moregen_row inst_nongen variance type_pairs env row1 row2
           | (Tobject (fi1, _nm1), Tobject (fi2, _nm2)) ->
@@ -5257,12 +5257,12 @@ let rec eqtype rename type_pairs subst env t1 t2 =
               raise_for Equality (Obj (Abstract_row First))
           | (Tapp (t, args), Tapp (t', args')) ->
               eqtype rename type_pairs subst env t t';
-              eqtype_appargs rename type_pairs subst env args args'
+              eqtype_list rename type_pairs subst env args args'
           | (Tapp (t, args'), Tconstr (p, args, _))
           | (Tconstr (p, args, _), Tapp (t, args'))
             when path_legal_unapplied env p ->
               eqtype rename type_pairs subst env t (newconstr p []);
-              eqtype_appargs rename type_pairs subst env args args'
+              eqtype_list rename type_pairs subst env (AppArgs.to_list args) args'
           | (Tvariant row1, Tvariant row2) ->
               eqtype_row rename type_pairs subst env row1 row2
           | (Tobject (fi1, _nm1), Tobject (fi2, _nm2)) ->
