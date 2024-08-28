@@ -57,7 +57,6 @@
  (action
    (progn
      (run %{dep:gen_primitives.sh} primitives %{deps})
-     (run rm -f prims.c)
      (with-stdout-to prims.c (run %{dep:gen_primsc.sh} primitives %{deps})))))
 
 (rule
@@ -79,6 +78,7 @@
    (glob_files *.h)
    caml/domain_state.tbl
    primitives
+   prims.c
    sak
    (glob_files *.S)
    (glob_files *.c)
