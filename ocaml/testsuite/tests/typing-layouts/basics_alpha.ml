@@ -453,8 +453,7 @@ Line 2, characters 2-32:
 Error: This definition has type 'b -> unit which is less general than
          'a. 'a -> unit
        The kind of 'a is value
-         because it's a fresh unification variable,
-         defaulted to kind value.
+         because it is or unifies with an unannotated universal variable.
        But the kind of 'a must be a subkind of immediate
          because of the definition of t6_imm at line 1, characters 0-42.
 |}];;
@@ -470,8 +469,7 @@ Line 3, characters 4-34:
 Error: This method has type 'b -> unit which is less general than
          'a. 'a -> unit
        The kind of 'a is value
-         because it's a fresh unification variable,
-         defaulted to kind value.
+         because it is or unifies with an unannotated universal variable.
        But the kind of 'a must be a subkind of immediate
          because of the definition of t6_imm at line 1, characters 0-42.
 |}];;

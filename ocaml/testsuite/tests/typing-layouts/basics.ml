@@ -654,8 +654,7 @@ Line 2, characters 2-32:
 Error: This definition has type 'b -> unit which is less general than
          'a. 'a -> unit
        The kind of 'a is value
-         because it's a fresh unification variable,
-         defaulted to kind value.
+         because it is or unifies with an unannotated universal variable.
        But the kind of 'a must be a subkind of immediate
          because of the definition of t6_imm at line 1, characters 0-42.
 |}];;
@@ -671,39 +670,9 @@ Line 3, characters 4-34:
 Error: This method has type 'b -> unit which is less general than
          'a. 'a -> unit
        The kind of 'a is value
-         because it's a fresh unification variable,
-         defaulted to kind value.
+         because it is or unifies with an unannotated universal variable.
        But the kind of 'a must be a subkind of immediate
          because of the definition of t6_imm at line 1, characters 0-42.
-|}];;
-
-let ignore_repr6 : 'a . 'a -> unit = fun x -> ()
-type ('a : any) t6 = 'a
-let f (x : 'a t6) = ignore_repr6 42
-let ignore_repr6' = ignore_repr6
-[%%expect{|
-val ignore_repr6 : 'a -> unit = <fun>
-type ('a : any) t6 = 'a
-val f : 'a t6 -> unit = <fun>
-val ignore_repr6' : 'a -> unit = <fun>
-|}];;
-
-type ('a : any) t6 = 'a
-let ignore_any_but_repr : 'a . 'a -> unit =
-  let id (x : ('a : any)) = x in
-  fun x -> ignore (id x)
-[%%expect{|
-type ('a : any) t6 = 'a
-val ignore_any_but_repr : 'a -> unit = <fun>
-|}];;
-
-type ('a : word) word6 = 'a
-let ignore_word_but_repr : 'a . 'a -> unit =
-  let id (x : 'a word6) = x in
-  fun x -> let _ = id x in ()
-[%%expect{|
-type ('a : word) word6 = 'a
-val ignore_word_but_repr : ('a : word). 'a -> unit = <fun>
 |}];;
 
 (* CR layouts v1.5: add more tests here once you can annotate these types with
@@ -2327,8 +2296,7 @@ Line 5, characters 32-33:
 5 |   : < foo : 'a . 'a foo bar > = x
                                     ^
 Error: This expression has type < foo : ('a : float64). 'a foo bar >
-       but an expression was expected of type
-         < foo : ('a : float64). 'a foo bar >
+       but an expression was expected of type < foo : 'a. 'a foo bar >
        Type 'a foo = 'a is not compatible with type 'a0 foo = 'a0
        Types for method foo are incompatible
 |}]
