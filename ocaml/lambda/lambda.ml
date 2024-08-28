@@ -1967,8 +1967,6 @@ let primitive_result_layout (p : primitive) =
   | Punboxed_float32_array_load_128 { boxed = true; _ }
   | Pint_array_load_128 { boxed = true; _ }
   | Punboxed_int64_array_load_128 { boxed = true; _ }
-  (* 128-bit types are only supported in the x86_64 backend, so we may
-     assume that nativeint is 64 bits. *)
   | Punboxed_nativeint_array_load_128 { boxed = true; _ }
   | Punboxed_int32_array_load_128 { boxed = true; _ } ->
       layout_boxed_vector Pvec128
@@ -1978,8 +1976,6 @@ let primitive_result_layout (p : primitive) =
   | Punboxed_float32_array_load_128 { boxed = false; _ }
   | Pint_array_load_128 { boxed = false; _ }
   | Punboxed_int64_array_load_128 { boxed = false; _ }
-  (* 128-bit types are only supported in the x86_64 backend, so we may
-     assume that nativeint is 64 bits. *)
   | Punboxed_nativeint_array_load_128 { boxed = false; _ }
   | Punboxed_int32_array_load_128 { boxed = false; _ } ->
       layout_unboxed_vector Pvec128
