@@ -100,9 +100,8 @@ let add_to_synonym_list synonyms suffix =
 (* Find file 'name' (capitalized) in search path *)
 let find_module_in_load_path name =
   let names = List.map (fun ext -> name ^ ext) (!mli_synonyms @ !ml_synonyms) in
-  let uname = String.uncapitalize_ascii name in
+  let uname = Unit_info.normalize name in
   let unames =
-    let uname = Unit_info.normalize name in
     List.map (fun ext -> uname ^ ext) (!mli_synonyms @ !ml_synonyms)
   in
   let stdlib_unames =
@@ -124,23 +123,16 @@ let find_module_in_load_path name =
       let uname =
         String.sub name plen (String.length name - plen)
       in
-      let uname = String.uncapitalize_ascii uname in
+      let uname = Unit_info.normalize uname in
       List.map (fun ext -> uname ^ ext) (!mli_synonyms @ !ml_synonyms)
     else
       []
   in
-  let rec find_in_array a pos =
-    if pos >= Array.length a then None else begin
-      let s = a.(pos) in
-      if List.mem s names || List.mem s unames || List.mem s stdlib_unames then
-        Some s
-      else
-        find_in_array a (pos + 1)
-    end in
   let rec find_in_path = function
     | [] -> raise Not_found
     | (dir, contents) :: rem ->
-        let mem s = List.mem s names || List.mem s unames in
+        let mem s = List.mem s names || List.mem s unames
+          || List.mem s stdlib_unames in
         match Array.find_opt mem contents with
         | Some truename ->
             if dir = Filename.current_dir_name then truename

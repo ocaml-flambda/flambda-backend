@@ -76,18 +76,8 @@ let typecheck_intf info ast =
   Warnings.check_fatal ();
   alerts, tsg
 
-<<<<<<< HEAD
 let emit_signature info alerts tsg =
   let sg =
-    let name = Compilation_unit.name info.module_name in
-||||||| parent of c6823d0165 (Minor Unit_info-related fixes etc)
-let emit_signature info ast tsg =
-  let sg =
-    let name = Compilation_unit.name info.module_name in
-=======
-let emit_signature info ast tsg =
-  let sg : Cmi_format.cmi_infos_lazy =
->>>>>>> c6823d0165 (Minor Unit_info-related fixes etc)
     let kind : Cmi_format.kind =
       if !Clflags.as_parameter then
         Parameter
