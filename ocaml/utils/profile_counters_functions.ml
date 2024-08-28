@@ -1,6 +1,6 @@
-type typing_input =
-  | Typedtree_implementation_input of Typedtree.implementation
-  | Typedtree_signature_input of Typedtree.signature
+type typing_output_for_counters =
+  | Typedtree_implementation_output of Typedtree.implementation
+  | Typedtree_signature_output of Typedtree.signature
 
 let count_language_extensions typing_input =
   let counters = ref (Profile.Counters.create ()) in
@@ -108,7 +108,7 @@ let count_language_extensions typing_input =
       }
   in
   (match typing_input with
-  | Typedtree_implementation_input tree ->
+  | Typedtree_implementation_output tree ->
     iterator.structure iterator tree.structure
-  | Typedtree_signature_input signature -> iterator.signature iterator signature);
+  | Typedtree_signature_output signature -> iterator.signature iterator signature);
   !counters

@@ -64,7 +64,7 @@ let typecheck_intf info ast =
     record_call_with_counters
       ~counter_f:(fun signature ->
         Profile_counters_functions.(
-          count_language_extensions (Typedtree_signature_input signature)))
+          count_language_extensions (Typedtree_signature_output signature)))
       typing)
   @@ fun () ->
   let tsg =
@@ -134,7 +134,7 @@ let typecheck_impl i parsetree =
       ~counter_f:(fun (typed_tree : Typedtree.implementation) ->
         Profile_counters_functions.(
           count_language_extensions
-            (Typedtree_implementation_input typed_tree)))
+            (Typedtree_implementation_output typed_tree)))
       typing)
     (Typemod.type_implementation
        ~sourcefile:i.source_file i.output_prefix i.module_name i.env)

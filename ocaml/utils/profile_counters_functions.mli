@@ -1,5 +1,5 @@
-type typing_input =
-  | Typedtree_implementation_input of Typedtree.implementation
-  | Typedtree_signature_input of Typedtree.signature
+type typing_output_for_counters =
+  | Typedtree_implementation_output of Typedtree.implementation
+  | Typedtree_signature_output of Typedtree.signature
 
-val count_language_extensions : typing_input -> Profile.Counters.t
+val count_language_extensions : typing_output_for_counters -> Profile.Counters.t
