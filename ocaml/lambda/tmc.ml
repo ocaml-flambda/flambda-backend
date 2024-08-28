@@ -1044,9 +1044,9 @@ and make_dps_variant var inner_ctx outer_ctx (lfun : lfunction) =
       (Debuginfo.Scoped_location.to_location lfun.loc)
       Warnings.Unused_tmc_attribute;
   let direct =
-    let { kind; params; return; body = _; attr; loc; mode; ret_mode; region } = lfun in
+    let { kind; params; return; body = _; attr; loc; mode; ret_mode } = lfun in
     let body = Choice.direct fun_choice in
-    lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region in
+    lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode in
   let dps =
     let dst_param = {
       var = Ident.create_local "dst";
@@ -1075,7 +1075,6 @@ and make_dps_variant var inner_ctx outer_ctx (lfun : lfunction) =
       ~loc:lfun.loc
       ~mode:lfun.mode
       ~ret_mode:lfun.ret_mode
-      ~region:true
   in
   let dps_var = special.dps_id in
   [var, direct; dps_var, dps]

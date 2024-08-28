@@ -627,11 +627,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               ~params_arity:remaining_param_arity
               ~param_modes:remaining_params_alloc_modes
               ~first_complex_local_param ~result_arity ~result_types:Unknown
-              ~result_mode
-              ~contains_no_escaping_local_allocs:
-                (Code_metadata.contains_no_escaping_local_allocs
-                   callee's_code_metadata)
-              ~stub:true ~inline:Default_inline ~poll_attribute:Default
+              ~result_mode ~stub:true ~inline:Default_inline
+              ~poll_attribute:Default
               ~zero_alloc_attribute:Zero_alloc_attribute.Default_zero_alloc
               ~is_a_functor:false ~is_opaque:false ~recursive
               ~cost_metrics:cost_metrics_of_body

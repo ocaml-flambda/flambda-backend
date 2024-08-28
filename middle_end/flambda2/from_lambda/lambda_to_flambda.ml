@@ -1570,14 +1570,13 @@ and cps_function_bindings env (bindings : Lambda.rec_binding list) =
                    loc;
                    ret_mode;
                    mode;
-                   region;
                    return;
                    _
                  }
              } ->
         match
           Simplif.split_default_wrapper ~id:fun_id ~kind ~params ~body:fbody
-            ~return ~attr ~loc ~ret_mode ~mode ~region
+            ~return ~attr ~loc ~ret_mode ~mode
         with
         | [{ id; def = lfun }] -> [id, lfun]
         | [{ id = id1; def = lfun1 }; { id = id2; def = lfun2 }] ->
@@ -1629,8 +1628,8 @@ and cps_function_bindings env (bindings : Lambda.rec_binding list) =
     bindings_with_wrappers
 
 and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
-    ({ kind; params; return; body; attr; loc; mode; ret_mode; region } :
-      L.lfunction) : Function_decl.t =
+    ({ kind; params; return; body; attr; loc; mode; ret_mode } : L.lfunction) :
+    Function_decl.t =
   let first_complex_local_param =
     List.length params
     - match kind with Curried { nlocal } -> nlocal | Tupled -> 0
@@ -1823,8 +1822,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
     ~params_arity ~removed_params ~return ~calling_convention
     ~return_continuation:body_cont ~exn_continuation ~my_region ~my_ghost_region
     ~body ~attr ~loc ~free_idents_of_body recursive ~closure_alloc_mode:mode
-    ~first_complex_local_param ~contains_no_escaping_local_allocs:region
-    ~result_mode:ret_mode
+    ~first_complex_local_param ~result_mode:ret_mode
 
 and cps_switch acc env ccenv (switch : L.lambda_switch) ~condition_dbg
     ~scrutinee (k : Continuation.t) (k_exn : Continuation.t) : Expr_with_acc.t =

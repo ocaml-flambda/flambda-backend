@@ -776,7 +776,7 @@ and lfunction =
     loc: scoped_location;
     mode: alloc_mode;
     ret_mode: alloc_mode;
-    region: bool; }
+  }
 
 and lambda_while =
   { wh_cond : lambda;
@@ -841,7 +841,7 @@ let max_arity () =
   (* 126 = 127 (the maximal number of parameters supported in C--)
            - 1 (the hidden parameter containing the environment) *)
 
-let lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
+let lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode =
   assert (List.length params <= max_arity ());
   (* A curried function type with n parameters has n arrows. Of these,
      the first [n-nlocal] have return mode Heap, while the remainder
@@ -861,14 +861,13 @@ let lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
      let nparams = List.length params in
      assert (0 <= nlocal);
      assert (nlocal <= nparams);
-     if not region then assert (nlocal >= 1);
+     if is_local_mode ret_mode then assert (nlocal >= 1);
      if is_local_mode mode then assert (nlocal = nparams)
   end;
-  { kind; params; return; body; attr; loc; mode; ret_mode; region }
+  { kind; params; return; body; attr; loc; mode; ret_mode }
 
-let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region =
-  Lfunction
-    (lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region)
+let lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode =
+  Lfunction (lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode)
 
 let lambda_unit = Lconst const_unit
 
@@ -1501,9 +1500,9 @@ let duplicate_function =
      Ident.Map.empty).subst_lfunction
 
 let map_lfunction f { kind; params; return; body; attr; loc;
-                      mode; ret_mode; region } =
+                      mode; ret_mode } =
   let body = f body in
-  { kind; params; return; body; attr; loc; mode; ret_mode; region }
+  { kind; params; return; body; attr; loc; mode; ret_mode }
 
 let shallow_map ~tail ~non_tail:f = function
   | Lvar _
@@ -1978,7 +1977,7 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_128 _ | Pbytes_load_128 _
   | Pbigstring_load_128 { boxed = true; _ } ->
       layout_boxed_vector (Pvec128 Int8x16)
-  | Pbigstring_load_32 { boxed = false; _ } 
+  | Pbigstring_load_32 { boxed = false; _ }
   | Pstring_load_32 { boxed = false; _ }
   | Pbytes_load_32 { boxed = false; _ } -> layout_unboxed_int Pint32
   | Pbigstring_load_f32 { boxed = false; _ }

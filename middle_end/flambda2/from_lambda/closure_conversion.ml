@@ -2086,10 +2086,6 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
       ~first_complex_local_param:(Function_decl.first_complex_local_param decl)
       ~result_arity:return ~result_types:Unknown
       ~result_mode:(Function_decl.result_mode decl)
-      ~contains_no_escaping_local_allocs:
-        (match Function_decl.result_mode decl with
-        | Alloc_heap -> true
-        | Alloc_local -> true)
       ~stub:true ~inline:Inline_attribute.Default_inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
@@ -2468,8 +2464,6 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       ~param_modes:main_code_unarized_param_modes
       ~first_complex_local_param:first_complex_local_param_main_code
       ~result_arity:result_arity_main_code ~result_types:Unknown ~result_mode
-      ~contains_no_escaping_local_allocs:
-        (Function_decl.contains_no_escaping_local_allocs decl)
       ~stub ~inline
       ~poll_attribute:
         (Poll_attribute.from_lambda (Function_decl.poll_attribute decl))
@@ -2583,10 +2577,10 @@ let close_functions acc external_env ~current_region function_declarations =
       (fun approx_map decl ->
         (* The only fields of metadata which are used for this pass are
            params_arity, param_modes, is_tupled, first_complex_local_param,
-           contains_no_escaping_local_allocs, result_mode, and result_arity. We
-           try to populate the different fields as much as possible, but put
-           dummy values when they are not yet computed or simply too expensive
-           to compute for the other fields. *)
+           result_mode, and result_arity. We try to populate the different
+           fields as much as possible, but put dummy values when they are not
+           yet computed or simply too expensive to compute for the other
+           fields. *)
         let function_slot = Function_decl.function_slot decl in
         let code_id = Function_slot.Map.find function_slot function_code_ids in
         let params = Function_decl.params decl in
@@ -2618,8 +2612,6 @@ let close_functions acc external_env ~current_region function_declarations =
               (Function_decl.first_complex_local_param decl)
             ~param_modes ~result_arity ~result_types:Unknown
             ~result_mode:(Function_decl.result_mode decl)
-            ~contains_no_escaping_local_allocs:
-              (Function_decl.contains_no_escaping_local_allocs decl)
             ~stub:(Function_decl.stub decl) ~inline:Never_inline
             ~zero_alloc_attribute ~poll_attribute
             ~is_a_functor:(Function_decl.is_a_functor decl)
@@ -2908,8 +2900,7 @@ let close_let_rec acc env ~function_declarations
 
 let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     approx ~provided ~provided_arity ~missing_arity ~missing_param_modes
-    ~result_arity ~arity ~first_complex_local_param ~result_mode
-    ~contains_no_escaping_local_allocs =
+    ~result_arity ~arity ~first_complex_local_param ~result_mode =
   (* In case of partial application, creates a wrapping function from scratch to
      allow inlining and lifting *)
   let wrapper_id = Ident.create_local ("partial_" ^ Ident.name apply.func) in
@@ -3021,8 +3012,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
           ~return_continuation ~exn_continuation ~my_region:apply.region
           ~my_ghost_region:apply.ghost_region ~body:fbody ~attr ~loc:apply.loc
           ~free_idents_of_body ~closure_alloc_mode ~first_complex_local_param
-          ~result_mode ~contains_no_escaping_local_allocs
-          Recursive.Non_recursive ]
+          ~result_mode Recursive.Non_recursive ]
     in
     let body acc env =
       let arg = find_simple_from_id env wrapper_id in
@@ -3191,8 +3181,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
           Code_metadata.is_tupled metadata,
           Code_metadata.param_modes metadata,
           Code_metadata.first_complex_local_param metadata,
-          Code_metadata.result_mode metadata,
-          Code_metadata.contains_no_escaping_local_allocs metadata )
+          Code_metadata.result_mode metadata )
     | Value_unknown -> None
     | Value_symbol _ | Value_const _ | Block_approximation _ ->
       if Flambda_features.check_invariants ()
@@ -3211,8 +3200,7 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
         is_tupled,
         param_modes,
         first_complex_local_param,
-        result_mode,
-        contains_no_escaping_local_allocs ) -> (
+        result_mode ) -> (
     let acc, _ = find_simples_and_arity acc env apply.args in
     let split_args =
       let non_unarized_arity, arity =
@@ -3296,7 +3284,6 @@ let close_apply acc env (apply : IR.apply) : Expr_with_acc.t =
       wrap_partial_application acc env apply.continuation apply approx ~provided
         ~provided_arity ~missing_arity ~missing_param_modes ~result_arity
         ~arity:params_arity ~first_complex_local_param ~result_mode
-        ~contains_no_escaping_local_allocs
     | Over_app { full; provided_arity; remaining; remaining_arity; result_mode }
       ->
       let full_args_call apply_continuation ~region ~ghost_region acc =

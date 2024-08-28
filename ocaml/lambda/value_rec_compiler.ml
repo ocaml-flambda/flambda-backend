@@ -403,8 +403,8 @@ let compute_static_size lam =
   compute_expression_size Ident.Map.empty lam
 
 let lfunction_with_body { kind; params; return; body = _; attr; loc;
-                          mode; ret_mode; region } body =
-  lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region
+                          mode; ret_mode } body =
+  lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode
 
 (** {1. Function Lifting} *)
 
@@ -522,7 +522,6 @@ let rec split_static_function lfun block_var local_idents lam :
         ~loc:no_loc
         ~mode:lfun.mode
         ~ret_mode:lfun.ret_mode
-        ~region:lfun.region
     in
     let lifted = { lfun = wrapper; free_vars_block_size = 1 } in
     Reachable (lifted,
