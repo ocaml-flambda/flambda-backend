@@ -12,12 +12,11 @@
 ;*                                                                        *
 ;**************************************************************************
 
-; set warning as error in release profile
 
+; set warning as error in release profile
 (env
- (release
-  (flags
-   (:standard -principal -w +a-4-9-40-41-42-44-45-48-66-67-70)))
+ (release (flags (:standard -principal -w +a-4-9-40-41-42-44-45-48-66-67-70)))
+
  (main
   (flags
    (:standard -principal -warn-error +A -w +a-4-9-40-41-42-44-45-48-66-67-70)))
@@ -28,24 +27,15 @@
 (include dune.runtime_selection)
 
 (copy_files# utils/*.ml{,i})
-
 (copy_files# parsing/*.ml{,i})
-
 (copy_files parsing/parser.mly)
-
 (copy_files# typing/*.ml{,i})
-
 (copy_files# bytecomp/*.ml{,i})
-
 (copy_files# driver/*.ml{,i})
-
 ;(copy_files# asmcomp/*.ml{,i})
 ;(copy_files# asmcomp/debug/*.ml{,i})
-
 (copy_files# file_formats/*.ml{,i})
-
 (copy_files# lambda/*.ml{,i})
-
 ;(copy_files# middle_end/*.ml{,i})
 ;(copy_files# middle_end/closure/*.ml{,i})
 ;(copy_files# middle_end/flambda/*.ml{,i})
@@ -69,267 +59,133 @@
   GREATERRBRACKET
   --table
   --fixed-exception
-  --strategy
-  simplified
+  --strategy simplified
   --cmly
   --inspection))
 
 (library
  (name ocamlcommon)
  (wrapped false)
- (flags
-  (:standard
+ (flags (
+   :standard
    -strict-sequence
-   -bin-annot
-   -safe-string
-   -strict-formats
-   -w
-   -67
+   -bin-annot -safe-string -strict-formats
+   -w -67
    ; remove -w -67 by adding the camlinternalMenhirLib hack like the Makefile
-   ))
- (ocamlopt_flags
-  (:include %{project_root}/ocamlopt_flags.sexp))
+ ))
+ (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (preprocess
-  (per_module
-   ((action
-     (progn
-      (echo "module MenhirLib = CamlinternalMenhirLib")
-      (run cat %{input-file})))
-    parser)))
+   (per_module
+     ((action
+        (progn
+          (echo "module MenhirLib = CamlinternalMenhirLib")
+          (run cat %{input-file})))
+       parser)))
  (library_flags -linkall)
  (libraries flambda2_floats)
  (modules_without_implementation
-  annot
-  value_rec_types
-  asttypes
-  cmo_format
-  outcometree
-  parsetree
-  debug_event
-  solver_intf
-  mode_intf)
+   annot value_rec_types asttypes cmo_format outcometree parsetree debug_event solver_intf mode_intf)
  (modules
-  ;; UTILS
-  config
-  build_path_prefix_map
-  misc
-  identifiable
-  numbers
-  arg_helper
-  clflags
-  debug
-  profile
-  terminfo
-  ccomp
-  warnings
-  consistbl
-  strongly_connected_components
-  targetint
-  load_path
-  int_replace_polymorphic_compare
-  domainstate
-  binutils
-  local_store
-  target_system
-  compilation_unit
-  import_info
-  linkage_name
-  symbol
-  lazy_backtrack
-  diffing
-  diffing_with_keys
-  unit_info
-  language_extension_kernel
-  language_extension
-  zero_alloc_utils
-  zero_alloc_annotations
-  ;; PARSING
-  location
-  longident
-  docstrings
-  printast
-  syntaxerr
-  ast_helper
-  camlinternalMenhirLib
-  ast_iterator
-  parser
-  lexer
-  parse
-  pprintast
-  ast_mapper
-  attr_helper
-  builtin_attributes
-  ast_invariants
-  depend
-  jane_syntax_parsing
-  jane_syntax
-  parser_types ; manual update: mli only files asttypes parsetree
-  ;; TYPING
-  ident
-  path
-  jkind
-  primitive
-  shape
-  shape_reduce
-  zero_alloc
-  types
-  btype
-  oprint
-  subst
-  predef
-  datarepr
-  global_module
-  cmi_format
-  persistent_env
-  env
-  errortrace
-  mode
-  jkind_types
-  jkind_intf
-  typedtree
-  printtyped
-  ctype
-  printtyp
-  includeclass
-  mtype
-  envaux
-  includecore
-  tast_iterator
-  tast_mapper
-  signature_group
-  cmt_format
-  cms_format
-  untypeast
-  includemod
-  includemod_errorprinter
-  typemode
-  typemodifier
-  typetexp
-  patterns
-  printpat
-  parmatch
-  stypes
-  typedecl
-  typeopt
-  value_rec_check
-  typecore
-  solver_intf
-  solver
-  mode_intf
-  mode
-  uniqueness_analysis
-  typeclass
-  typemod
-  typedecl_variance
-  typedecl_properties
-  typedecl_separability
-  cmt2annot
-  ; manual update: mli only files
-  annot
-  outcometree
-  ;; lambda/
-  debuginfo
-  lambda
-  matching
-  printlambda
-  runtimedef
-  runtimetags
-  tmc
-  simplif
-  switch
-  value_rec_compiler
-  translmode
-  transl_comprehension_utils
-  transl_array_comprehension
-  transl_list_comprehension
-  translattribute
-  translclass
-  translcore
-  translmod
-  translobj
-  translprim
-  ;; bytecomp/
-  debug_event
-  meta
-  opcodes
-  bytesections
-  dll
-  symtable
-  ;; some of COMP
-  pparse
-  main_args
-  compenv
-  compmisc
-  makedepend
-  compile_common
-  ; manual update: mli only files
-  annot
-  value_rec_types
-  asttypes
-  cmo_format
-  outcometree
-  parsetree
-  debug_event))
+   ;; UTILS
+   config build_path_prefix_map misc identifiable numbers arg_helper clflags
+   debug profile terminfo ccomp warnings consistbl strongly_connected_components
+   targetint load_path int_replace_polymorphic_compare domainstate binutils
+   local_store target_system compilation_unit import_info linkage_name symbol
+   lazy_backtrack diffing diffing_with_keys unit_info
+   language_extension_kernel language_extension
+   zero_alloc_utils zero_alloc_annotations
+
+   ;; PARSING
+   location longident docstrings printast syntaxerr ast_helper
+   camlinternalMenhirLib ast_iterator parser lexer parse pprintast ast_mapper
+   attr_helper builtin_attributes ast_invariants depend jane_syntax_parsing
+   jane_syntax parser_types ; manual update: mli only files asttypes parsetree
+
+   ;; TYPING
+   ident path jkind primitive shape shape_reduce zero_alloc types btype oprint subst
+   predef datarepr
+   global_module cmi_format persistent_env env errortrace mode jkind_types jkind_intf
+   typedtree printtyped ctype printtyp includeclass mtype envaux includecore
+   tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
+   includemod includemod_errorprinter
+   typemode typemodifier typetexp patterns printpat parmatch stypes typedecl typeopt
+   value_rec_check typecore solver_intf solver mode_intf mode uniqueness_analysis
+   typeclass typemod typedecl_variance typedecl_properties
+   typedecl_separability cmt2annot
+   ; manual update: mli only files
+   annot outcometree
+
+   ;; lambda/
+   debuginfo lambda matching printlambda runtimedef runtimetags tmc simplif switch
+   value_rec_compiler
+   translmode
+   transl_comprehension_utils
+   transl_array_comprehension transl_list_comprehension
+   translattribute translclass translcore translmod translobj translprim
+
+   ;; bytecomp/
+   debug_event meta opcodes bytesections dll symtable
+
+   ;; some of COMP
+   pparse main_args compenv compmisc makedepend compile_common
+   ; manual update: mli only files
+   annot value_rec_types asttypes cmo_format outcometree parsetree debug_event
+ ))
 
 (library
  (name ocamlbytecomp)
  (wrapped false)
- (flags
-  (:standard -strict-sequence -w +67 -bin-annot -safe-string -strict-formats))
- (ocamlopt_flags
-  (:include %{project_root}/ocamlopt_flags.sexp))
+ (flags (
+   :standard
+   -strict-sequence -w +67
+   -bin-annot -safe-string -strict-formats
+ ))
+ (ocamlopt_flags (:include %{project_root}/ocamlopt_flags.sexp))
  (libraries ocamlcommon)
  (modules
-  ;; bytecomp/
-  bytegen
-  bytelibrarian
-  bytelink
-  bytepackager
-  emitcode
-  printinstr
-  instruct
-  ;; driver/
-  errors
-  compile
-  maindriver))
+    ;; bytecomp/
+    bytegen bytelibrarian bytelink bytepackager emitcode printinstr
+    instruct
+
+    ;; driver/
+    errors compile maindriver
+ ))
 
 (executable
  (name main)
  (modes byte)
- (flags
-  (:standard -strict-sequence -w +67 -bin-annot -safe-string -strict-formats))
+ (flags (
+   :standard
+   -strict-sequence -w +67
+   -bin-annot -safe-string -strict-formats
+ ))
  (libraries ocamlbytecomp ocamlcommon)
  (modules main))
 
 (executable
  (name main_native)
  (modes native)
- (flags
-  (:standard -strict-sequence -w +67 -bin-annot -safe-string -strict-formats))
+ (flags (
+   :standard
+   -strict-sequence -w +67
+   -bin-annot -safe-string -strict-formats
+ ))
  (libraries ocamlbytecomp ocamlcommon)
  (modules main_native))
 
 ; Disabled since there can be only one (data_only_dirs) declaration
 ;(data_only_dirs yacc)
-
 (include duneconf/dirs-to-ignore.inc)
-
 (include duneconf/jst-extra.inc)
 
 (rule
- (deps
-  Makefile.build_config
-  Makefile.config_if_required
-  Makefile.common
-  (source_tree yacc))
+ (deps Makefile.build_config Makefile.config_if_required Makefile.common (source_tree yacc))
  (targets ocamlyacc)
  (action
-  (no-infer
-   (progn
-    (chdir
-     yacc
-     (run make -s OCAMLYACC_INCLUDE_PATH=%{ocaml_where}))
-    (copy yacc/ocamlyacc ocamlyacc)))))
+ (no-infer
+  (progn
+   (chdir yacc (run make -s OCAMLYACC_INCLUDE_PATH=%{ocaml_where}))
+   (copy yacc/ocamlyacc ocamlyacc)))))
 
 (install
   (files
@@ -340,20 +196,21 @@
 
 (alias
  (name world)
- (deps
-  ocamlc_byte.bc
-  debugger/ocamldebug.byte
-  ;       ocamldoc/ocamldoc.byte
-  ocamltest/ocamltest.byte
-  toplevel/byte
-  toplevel/expunge.exe))
+ (deps ocamlc_byte.bc
+       debugger/ocamldebug.byte
+       ocamldoc/ocamldoc.byte
+       ocamltest/ocamltest.byte
+       toplevel/byte
+       toplevel/expunge.exe
+       ))
 
 (install
- (files
-  (main.bc as ocamlc.byte)
-  (main_native.exe as ocamlc.opt))
- (section bin)
- (package ocaml))
+  (files
+    (main.bc as ocamlc.byte)
+    (main_native.exe as ocamlc.opt)
+  )
+  (section bin)
+  (package ocaml))
 
 ; For the moment we don't install optmain.{cmo,cmx,o} and opttopstart.{cmx,o}.
 ; When built with Dune, these have the "dune exe" module prefixes, so won't
@@ -363,168 +220,171 @@
 ; "dune exe" prefix problem.
 
 (install
- (files
-  (ocamlbytecomp.a as compiler-libs/ocamlbytecomp.a)
-  (ocamlcommon.a as compiler-libs/ocamlcommon.a)
-  (ocamlbytecomp.cmxa as compiler-libs/ocamlbytecomp.cmxa)
-  (ocamlcommon.cmxa as compiler-libs/ocamlcommon.cmxa)
-  (ocamlbytecomp.cma as compiler-libs/ocamlbytecomp.cma)
-  (ocamlcommon.cma as compiler-libs/ocamlcommon.cma))
- (section lib)
- (package ocaml))
+  (files
+    (ocamlbytecomp.a as compiler-libs/ocamlbytecomp.a)
+    (ocamlcommon.a as compiler-libs/ocamlcommon.a)
+
+    (ocamlbytecomp.cmxa as compiler-libs/ocamlbytecomp.cmxa)
+    (ocamlcommon.cmxa as compiler-libs/ocamlcommon.cmxa)
+
+    (ocamlbytecomp.cma as compiler-libs/ocamlbytecomp.cma)
+    (ocamlcommon.cma as compiler-libs/ocamlcommon.cma)
+  )
+  (section lib)
+  (package ocaml))
 
 (install
- (files
-  Makefile.build_config
-  Makefile.config_if_required
-  Makefile.config
-  VERSION)
- (section lib)
- (package ocaml))
+  (files
+    Makefile.build_config
+    Makefile.config_if_required
+    Makefile.config
+    VERSION
+  )
+  (section lib)
+  (package ocaml))
 
 (install
- (section lib)
- (package ocaml)
- (files
-  (bytegen.mli as compiler-libs/bytegen.mli)
-  (bytelibrarian.mli as compiler-libs/bytelibrarian.mli)
-  (bytelink.mli as compiler-libs/bytelink.mli)
-  (bytepackager.mli as compiler-libs/bytepackager.mli)
-  (emitcode.mli as compiler-libs/emitcode.mli)
-  (compile.mli as compiler-libs/compile.mli)
-  (errors.mli as compiler-libs/errors.mli)
-  (printinstr.mli as compiler-libs/printinstr.mli)
-  (instruct.mli as compiler-libs/instruct.mli)
-  (opcodes.mli as compiler-libs/opcodes.mli)))
+  (section lib)
+  (package ocaml)
+  (files
+    (bytegen.mli as compiler-libs/bytegen.mli)
+    (bytelibrarian.mli as compiler-libs/bytelibrarian.mli)
+    (bytelink.mli as compiler-libs/bytelink.mli)
+    (bytepackager.mli as compiler-libs/bytepackager.mli)
+    (emitcode.mli as compiler-libs/emitcode.mli)
+    (compile.mli as compiler-libs/compile.mli)
+    (errors.mli as compiler-libs/errors.mli)
+    (printinstr.mli as compiler-libs/printinstr.mli)
+    (instruct.mli as compiler-libs/instruct.mli)
+    (opcodes.mli as compiler-libs/opcodes.mli)
+  ))
 
 (install
- (section lib)
- (package ocaml)
- (files
-  (config.mli as compiler-libs/config.mli)
-  (build_path_prefix_map.mli as compiler-libs/build_path_prefix_map.mli)
-  (misc.mli as compiler-libs/misc.mli)
-  (identifiable.mli as compiler-libs/identifiable.mli)
-  (numbers.mli as compiler-libs/numbers.mli)
-  (arg_helper.mli as compiler-libs/arg_helper.mli)
-  (zero_alloc_annotations.mli as compiler-libs/zero_alloc_annotations.mli)
-  (clflags.mli as compiler-libs/clflags.mli)
-  (language_extension.mli as compiler-libs/language_extension.mli)
-  (profile.mli as compiler-libs/profile.mli)
-  (terminfo.mli as compiler-libs/terminfo.mli)
-  (ccomp.mli as compiler-libs/ccomp.mli)
-  (warnings.mli as compiler-libs/warnings.mli)
-  (consistbl.mli as compiler-libs/consistbl.mli)
-  (strongly_connected_components.mli
-   as
-   compiler-libs/strongly_connected_components.mli)
-  (targetint.mli as compiler-libs/targetint.mli)
-  (target_system.mli as compiler-libs/target_system.mli)
-  (load_path.mli as compiler-libs/load_path.mli)
-  (int_replace_polymorphic_compare.mli
-   as
-   compiler-libs/int_replace_polymorphic_compare.mli)
-  (location.mli as compiler-libs/location.mli)
-  (longident.mli as compiler-libs/longident.mli)
-  (docstrings.mli as compiler-libs/docstrings.mli)
-  (syntaxerr.mli as compiler-libs/syntaxerr.mli)
-  (ast_helper.mli as compiler-libs/ast_helper.mli)
-  (camlinternalMenhirLib.mli as compiler-libs/camlinternalMenhirLib.mli)
-  (parser.mli as compiler-libs/parser.mli)
-  (lexer.mli as compiler-libs/lexer.mli)
-  (parse.mli as compiler-libs/parse.mli)
-  (printast.mli as compiler-libs/printast.mli)
-  (pprintast.mli as compiler-libs/pprintast.mli)
-  (ast_mapper.mli as compiler-libs/ast_mapper.mli)
-  (ast_iterator.mli as compiler-libs/ast_iterator.mli)
-  (attr_helper.mli as compiler-libs/attr_helper.mli)
-  (builtin_attributes.mli as compiler-libs/builtin_attributes.mli)
-  (ast_invariants.mli as compiler-libs/ast_invariants.mli)
-  (depend.mli as compiler-libs/depend.mli)
-  (asttypes.mli as compiler-libs/asttypes.mli)
-  (parsetree.mli as compiler-libs/parsetree.mli)
-  (ident.mli as compiler-libs/ident.mli)
-  (path.mli as compiler-libs/path.mli)
-  (jkind.mli as compiler-libs/jkind.mli)
-  (jkind_types.mli as compiler-libs/jkind_types.mli)
-  (primitive.mli as compiler-libs/primitive.mli)
-  (zero_alloc.mli as compiler-libs/zero_alloc.mli)
-  (types.mli as compiler-libs/types.mli)
-  (btype.mli as compiler-libs/btype.mli)
-  (binutils.mli as compiler-libs/binutils.mli)
-  (local_store.mli as compiler-libs/local_store.mli)
-  (patterns.mli as compiler-libs/patterns.mli)
-  (oprint.mli as compiler-libs/oprint.mli)
-  (subst.mli as compiler-libs/subst.mli)
-  (predef.mli as compiler-libs/predef.mli)
-  (datarepr.mli as compiler-libs/datarepr.mli)
-  (cmi_format.mli as compiler-libs/cmi_format.mli)
-  (persistent_env.mli as compiler-libs/persistent_env.mli)
-  (env.mli as compiler-libs/env.mli)
-  (typedtree.mli as compiler-libs/typedtree.mli)
-  (printtyped.mli as compiler-libs/printtyped.mli)
-  (ctype.mli as compiler-libs/ctype.mli)
-  (printtyp.mli as compiler-libs/printtyp.mli)
-  (includeclass.mli as compiler-libs/includeclass.mli)
-  (mtype.mli as compiler-libs/mtype.mli)
-  (envaux.mli as compiler-libs/envaux.mli)
-  (includecore.mli as compiler-libs/includecore.mli)
-  (tast_iterator.mli as compiler-libs/tast_iterator.mli)
-  (tast_mapper.mli as compiler-libs/tast_mapper.mli)
-  (cmt_format.mli as compiler-libs/cmt_format.mli)
-  (cms_format.mli as compiler-libs/cms_format.mli)
-  (untypeast.mli as compiler-libs/untypeast.mli)
-  (includemod.mli as compiler-libs/includemod.mli)
-  (typemode.mli as compiler-libs/typemode.mli)
-  (typemodifier.mli as compiler-libs/typemodifier.mli)
-  (typetexp.mli as compiler-libs/typetexp.mli)
-  (printpat.mli as compiler-libs/printpat.mli)
-  (parmatch.mli as compiler-libs/parmatch.mli)
-  (stypes.mli as compiler-libs/stypes.mli)
-  (typedecl.mli as compiler-libs/typedecl.mli)
-  (typeopt.mli as compiler-libs/typeopt.mli)
-  (value_rec_check.mli as compiler-libs/value_rec_check.mli)
-  (typecore.mli as compiler-libs/typecore.mli)
-  (solver.mli as compiler-libs/solver.mli)
-  (mode.mli as compiler-libs/mode.mli)
-  (uniqueness_analysis.mli as compiler-libs/uniqueness_analysis.mli)
-  (typeclass.mli as compiler-libs/typeclass.mli)
-  (typemod.mli as compiler-libs/typemod.mli)
-  (typedecl_variance.mli as compiler-libs/typedecl_variance.mli)
-  (typedecl_properties.mli as compiler-libs/typedecl_properties.mli)
-  (typedecl_separability.mli as compiler-libs/typedecl_separability.mli)
-  (annot.mli as compiler-libs/annot.mli)
-  (outcometree.mli as compiler-libs/outcometree.mli)
-  (debuginfo.mli as compiler-libs/debuginfo.mli)
-  (lambda.mli as compiler-libs/lambda.mli)
-  (matching.mli as compiler-libs/matching.mli)
-  (printlambda.mli as compiler-libs/printlambda.mli)
-  (runtimedef.mli as compiler-libs/runtimedef.mli)
-  (runtimetags.mli as compiler-libs/runtimetags.mli)
-  (value_rec_compiler.mli as compiler-libs/value_rec_compiler.mli)
-  (simplif.mli as compiler-libs/simplif.mli)
-  (switch.mli as compiler-libs/switch.mli)
-  (translmode.mli as compiler-libs/translmode.mli)
-  (translattribute.mli as compiler-libs/translattribute.mli)
-  (translclass.mli as compiler-libs/translclass.mli)
-  (translcore.mli as compiler-libs/translcore.mli)
-  (translmod.mli as compiler-libs/translmod.mli)
-  (translobj.mli as compiler-libs/translobj.mli)
-  (translprim.mli as compiler-libs/translprim.mli)
-  (meta.mli as compiler-libs/meta.mli)
-  (bytesections.mli as compiler-libs/bytesections.mli)
-  (dll.mli as compiler-libs/dll.mli)
-  (symtable.mli as compiler-libs/symtable.mli)
-  (pparse.mli as compiler-libs/pparse.mli)
-  (main_args.mli as compiler-libs/main_args.mli)
-  (compenv.mli as compiler-libs/compenv.mli)
-  (compmisc.mli as compiler-libs/compmisc.mli)
-  (makedepend.mli as compiler-libs/makedepend.mli)
-  (compile_common.mli as compiler-libs/compile_common.mli)
-  (cmo_format.mli as compiler-libs/cmo_format.mli)
-  (debug_event.mli as compiler-libs/debug_event.mli)
-  (domainstate.mli as compiler-libs/domainstate.mli)
-  (compilation_unit.mli as compiler-libs/compilation_unit.mli)
-  (linkage_name.mli as compiler-libs/linkage_name.mli)
-  (symbol.mli as compiler-libs/symbol.mli)
-  (zero_alloc_utils.mli as compiler-libs/zero_alloc_utils.mli)))
+  (section lib)
+  (package ocaml)
+  (files
+    (config.mli as compiler-libs/config.mli)
+    (build_path_prefix_map.mli as compiler-libs/build_path_prefix_map.mli)
+    (misc.mli as compiler-libs/misc.mli)
+    (identifiable.mli as compiler-libs/identifiable.mli)
+    (numbers.mli as compiler-libs/numbers.mli)
+    (arg_helper.mli as compiler-libs/arg_helper.mli)
+    (zero_alloc_annotations.mli as compiler-libs/zero_alloc_annotations.mli)
+    (clflags.mli as compiler-libs/clflags.mli)
+    (language_extension.mli as compiler-libs/language_extension.mli)
+    (profile.mli as compiler-libs/profile.mli)
+    (terminfo.mli as compiler-libs/terminfo.mli)
+    (ccomp.mli as compiler-libs/ccomp.mli)
+    (warnings.mli as compiler-libs/warnings.mli)
+    (consistbl.mli as compiler-libs/consistbl.mli)
+    (strongly_connected_components.mli as compiler-libs/strongly_connected_components.mli)
+    (targetint.mli as compiler-libs/targetint.mli)
+    (target_system.mli as compiler-libs/target_system.mli)
+    (load_path.mli as compiler-libs/load_path.mli)
+    (int_replace_polymorphic_compare.mli as compiler-libs/int_replace_polymorphic_compare.mli)
+    (location.mli as compiler-libs/location.mli)
+    (longident.mli as compiler-libs/longident.mli)
+    (docstrings.mli as compiler-libs/docstrings.mli)
+    (syntaxerr.mli as compiler-libs/syntaxerr.mli)
+    (ast_helper.mli as compiler-libs/ast_helper.mli)
+    (camlinternalMenhirLib.mli as compiler-libs/camlinternalMenhirLib.mli)
+    (parser.mli as compiler-libs/parser.mli)
+    (lexer.mli as compiler-libs/lexer.mli)
+    (parse.mli as compiler-libs/parse.mli)
+    (printast.mli as compiler-libs/printast.mli)
+    (pprintast.mli as compiler-libs/pprintast.mli)
+    (ast_mapper.mli as compiler-libs/ast_mapper.mli)
+    (ast_iterator.mli as compiler-libs/ast_iterator.mli)
+    (attr_helper.mli as compiler-libs/attr_helper.mli)
+    (builtin_attributes.mli as compiler-libs/builtin_attributes.mli)
+    (ast_invariants.mli as compiler-libs/ast_invariants.mli)
+    (depend.mli as compiler-libs/depend.mli)
+    (asttypes.mli as compiler-libs/asttypes.mli)
+    (parsetree.mli as compiler-libs/parsetree.mli)
+    (ident.mli as compiler-libs/ident.mli)
+    (path.mli as compiler-libs/path.mli)
+    (jkind.mli as compiler-libs/jkind.mli)
+    (jkind_types.mli as compiler-libs/jkind_types.mli)
+    (primitive.mli as compiler-libs/primitive.mli)
+    (zero_alloc.mli as compiler-libs/zero_alloc.mli)
+    (types.mli as compiler-libs/types.mli)
+    (btype.mli as compiler-libs/btype.mli)
+    (binutils.mli as compiler-libs/binutils.mli)
+    (local_store.mli as compiler-libs/local_store.mli)
+    (patterns.mli as compiler-libs/patterns.mli)
+    (oprint.mli as compiler-libs/oprint.mli)
+    (subst.mli as compiler-libs/subst.mli)
+    (predef.mli as compiler-libs/predef.mli)
+    (datarepr.mli as compiler-libs/datarepr.mli)
+    (cmi_format.mli as compiler-libs/cmi_format.mli)
+    (persistent_env.mli as compiler-libs/persistent_env.mli)
+    (env.mli as compiler-libs/env.mli)
+    (typedtree.mli as compiler-libs/typedtree.mli)
+    (printtyped.mli as compiler-libs/printtyped.mli)
+    (ctype.mli as compiler-libs/ctype.mli)
+    (printtyp.mli as compiler-libs/printtyp.mli)
+    (includeclass.mli as compiler-libs/includeclass.mli)
+    (mtype.mli as compiler-libs/mtype.mli)
+    (envaux.mli as compiler-libs/envaux.mli)
+    (includecore.mli as compiler-libs/includecore.mli)
+    (tast_iterator.mli as compiler-libs/tast_iterator.mli)
+    (tast_mapper.mli as compiler-libs/tast_mapper.mli)
+    (cmt_format.mli as compiler-libs/cmt_format.mli)
+    (cms_format.mli as compiler-libs/cms_format.mli)
+    (untypeast.mli as compiler-libs/untypeast.mli)
+    (includemod.mli as compiler-libs/includemod.mli)
+    (typemode.mli as compiler-libs/typemode.mli)
+    (typemodifier.mli as compiler-libs/typemodifier.mli)
+    (typetexp.mli as compiler-libs/typetexp.mli)
+    (printpat.mli as compiler-libs/printpat.mli)
+    (parmatch.mli as compiler-libs/parmatch.mli)
+    (stypes.mli as compiler-libs/stypes.mli)
+    (typedecl.mli as compiler-libs/typedecl.mli)
+    (typeopt.mli as compiler-libs/typeopt.mli)
+    (value_rec_check.mli as compiler-libs/value_rec_check.mli)
+    (typecore.mli as compiler-libs/typecore.mli)
+    (solver.mli as compiler-libs/solver.mli)
+    (mode.mli as compiler-libs/mode.mli)
+    (uniqueness_analysis.mli as compiler-libs/uniqueness_analysis.mli)
+    (typeclass.mli as compiler-libs/typeclass.mli)
+    (typemod.mli as compiler-libs/typemod.mli)
+    (typedecl_variance.mli as compiler-libs/typedecl_variance.mli)
+    (typedecl_properties.mli as compiler-libs/typedecl_properties.mli)
+    (typedecl_separability.mli as compiler-libs/typedecl_separability.mli)
+    (annot.mli as compiler-libs/annot.mli)
+    (outcometree.mli as compiler-libs/outcometree.mli)
+    (debuginfo.mli as compiler-libs/debuginfo.mli)
+    (lambda.mli as compiler-libs/lambda.mli)
+    (matching.mli as compiler-libs/matching.mli)
+    (printlambda.mli as compiler-libs/printlambda.mli)
+    (runtimedef.mli as compiler-libs/runtimedef.mli)
+    (runtimetags.mli as compiler-libs/runtimetags.mli)
+    (value_rec_compiler.mli as compiler-libs/value_rec_compiler.mli)
+    (simplif.mli as compiler-libs/simplif.mli)
+    (switch.mli as compiler-libs/switch.mli)
+    (translmode.mli as compiler-libs/translmode.mli)
+    (translattribute.mli as compiler-libs/translattribute.mli)
+    (translclass.mli as compiler-libs/translclass.mli)
+    (translcore.mli as compiler-libs/translcore.mli)
+    (translmod.mli as compiler-libs/translmod.mli)
+    (translobj.mli as compiler-libs/translobj.mli)
+    (translprim.mli as compiler-libs/translprim.mli)
+    (meta.mli as compiler-libs/meta.mli)
+    (bytesections.mli as compiler-libs/bytesections.mli)
+    (dll.mli as compiler-libs/dll.mli)
+    (symtable.mli as compiler-libs/symtable.mli)
+    (pparse.mli as compiler-libs/pparse.mli)
+    (main_args.mli as compiler-libs/main_args.mli)
+    (compenv.mli as compiler-libs/compenv.mli)
+    (compmisc.mli as compiler-libs/compmisc.mli)
+    (makedepend.mli as compiler-libs/makedepend.mli)
+    (compile_common.mli as compiler-libs/compile_common.mli)
+    (cmo_format.mli as compiler-libs/cmo_format.mli)
+    (debug_event.mli as compiler-libs/debug_event.mli)
+    (domainstate.mli as compiler-libs/domainstate.mli)
+    (compilation_unit.mli as compiler-libs/compilation_unit.mli)
+    (linkage_name.mli as compiler-libs/linkage_name.mli)
+    (symbol.mli as compiler-libs/symbol.mli)
+    (zero_alloc_utils.mli as compiler-libs/zero_alloc_utils.mli)
+
+  ))
