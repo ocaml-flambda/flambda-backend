@@ -61,7 +61,7 @@ boot_targets = \
   $(boot_ocamlmklib) \
   $(boot_ocamldep) \
   $(boot_ocamlobjinfo) \
-  ocaml/ocamltest/ocamltest.byte
+  ocaml/ocamltest/ocamltest.native
 
 boot-compiler: _build/_bootinstall
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
@@ -70,7 +70,7 @@ boot-runtest: boot-compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) runtest $(ws_boot) $(coverage_dune_flags) --force
 
 runtime-stdlib: boot-compiler
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_runstd) --verbose --only-package=ocaml_runtime_stdlib @install
 	rm -rf _build/runtime_stdlib_install
 # Dune 3.11+ clears `_build/install` before building, move the runtime stdlib
 # to a separate directory.
@@ -79,9 +79,16 @@ runtime-stdlib: boot-compiler
 	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink.cmxa
 
 compiler: runtime-stdlib
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) --only-package=ocaml @install \
-	  $(ocamldir)/ocamltest/ocamltest.byte \
-	  $(ocamldir)/tools/dumpobj.bc
+	RUNTIME_DIR=$(RUNTIME_DIR) SYSTEM=$(SYSTEM) MODEL=$(MODEL) \
+          ASPP="$(ASPP)" ASPPFLAGS="$(ASPPFLAGS)" \
+          $(dune) build $(ws_main) --verbose \
+          --only-package=ocaml @install \
+          testsuite/tools/expect.exe \
+          testsuite/tools/codegen_main.exe \
+          testsuite/tools/asmgen_$(ARCH).o \
+          ocaml/testsuite/lib/lib.cm{,x}a \
+          ocaml/testsuite/lib/testing.cm{,x}a \
+          $(ocamldir)/tools/dumpobj.bc
 
 runtest: compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) runtest $(ws_main)
@@ -208,6 +215,7 @@ install_for_opam:
 
 main_prefix = _build/install/main
 main_build = _build/main
+boot_build = _build/default
 
 # The following horror will be removed when work to allow the testsuite to
 # run on an installed tree (led by David Allsopp) is completed.
@@ -218,8 +226,27 @@ install_for_test: _install
 	ln -s ../_install _runtest/_install
 	$(cpl) -a $(ocamldir)/testsuite _runtest/testsuite
 	 # replace backend-specific testsuite/tools with their new versions
-	rm _runtest/testsuite/tools/*
+	rm -f _runtest/testsuite/tools/*
 	cp -a testsuite/tools/* _runtest/testsuite/tools/
+	cp $(main_build)/testsuite/tools/expect.exe _runtest/testsuite/tools/expect
+	chmod 755 _runtest/testsuite/tools/expect
+	cp $(main_build)/testsuite/tools/codegen_main.exe \
+          _runtest/testsuite/tools/codegen
+	chmod 755 _runtest/testsuite/tools/codegen
+	cp $(main_build)/testsuite/tools/asmgen_*.o \
+          _runtest/testsuite/tools/
+	cp $(main_build)/ocaml/testsuite/lib/lib.{a,cmxa,cma} \
+          _runtest/testsuite/lib/
+	cp $(main_build)/ocaml/testsuite/lib/.lib.objs/byte/lib.cm* \
+          _runtest/testsuite/lib/
+	cp $(main_build)/ocaml/testsuite/lib/.lib.objs/native/lib.cm* \
+          _runtest/testsuite/lib/
+	cp $(main_build)/ocaml/testsuite/lib/testing.{a,cmxa,cma} \
+          _runtest/testsuite/lib/
+	cp $(main_build)/ocaml/testsuite/lib/.testing.objs/byte/testing.cm* \
+          _runtest/testsuite/lib/
+	cp $(main_build)/ocaml/testsuite/lib/.testing.objs/native/testing.cm* \
+          _runtest/testsuite/lib/
 	 # replace backend-specific testsuite/tests/asmcomp with their new versions
 	rm _runtest/testsuite/tests/asmcomp/*
 	cp -a testsuite/tests/asmcomp/* _runtest/testsuite/tests/asmcomp/
@@ -302,13 +329,13 @@ install_for_test: _install
 	ln -s ../_install/bin/ocamlobjinfo.byte _runtest/tools/ocamlobjinfo
 	ln -s ../_install/bin/dumpobj.byte _runtest/tools/dumpobj
         # ocamldoc
-	rm _runtest/ocamldoc
-	mkdir _runtest/ocamldoc
-	ln -s ../../_install/bin/ocamldoc.byte _runtest/ocamldoc/ocamldoc
-	cp $(main_build)/$(ocamldir)/ocamldoc/.odoc_lib.objs/byte/*.cm* _runtest/ocamldoc
+	# rm _runtest/ocamldoc
+	# mkdir _runtest/ocamldoc
+	# ln -s ../../_install/bin/ocamldoc.byte _runtest/ocamldoc/ocamldoc
+	# cp $(main_build)/$(ocamldir)/ocamldoc/.odoc_lib.objs/byte/*.cm* _runtest/ocamldoc
 	# ocamltest itself
 	mkdir _runtest/ocamltest
-	cp $(main_build)/$(ocamldir)/ocamltest/ocamltest.byte _runtest/ocamltest/ocamltest
+	cp $(boot_build)/ocaml/ocamltest/ocamltest.native _runtest/ocamltest/ocamltest
 test: install_for_test
 	if [ "$(middle_end)" = "flambda2" ]; then \
 	  for dir in `cd ocaml/testsuite; ls -1 -d tests/*`; do \
@@ -384,7 +411,7 @@ promote-one-no-rebuild:
 # This target is like a polling version of upstream "make ocamlopt"
 .PHONY: hacking
 hacking: _build/_bootinstall
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) -w $(boot_targets)
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) --verbose -w $(boot_targets)
 
 # The `hacking-emacs-poller` and `hacking-emacs-builder` targets make it
 # possible to run the polling build with Emacs's `M-x compile`.  You should run

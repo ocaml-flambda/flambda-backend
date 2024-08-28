@@ -44,7 +44,7 @@
     (.runtime_events.objs/byte/runtime_events.cmi as runtime_events/runtime_events.cmi)
     (.runtime_events.objs/byte/runtime_events.cmt as runtime_events/runtime_events.cmt)
     (.runtime_events.objs/byte/runtime_events.cmti as runtime_events/runtime_events.cmti)
-    (runtime_events_consumer.h as caml/runtime_events_consumer.h)
+    (caml/runtime_events_consumer.h as caml/runtime_events_consumer.h)
     (META as runtime_events/META)
   )
   (section lib)
