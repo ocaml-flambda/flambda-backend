@@ -169,11 +169,13 @@ let if_emit_do f x = if should_emit () then f x else ()
 
 let emit_begin_assembly unix = if_emit_do Emit.begin_assembly unix
 
-let emit_end_assembly filename () =
+let emit_end_assembly ~sourcefile () =
   if_emit_do
     (fun () ->
       try Emit.end_assembly ()
-      with Emitaux.Error e -> raise (Error (Asm_generation (filename, e))))
+      with Emitaux.Error e ->
+        let sourcefile = Option.value ~default:"*none*" sourcefile in
+        raise (Error (Asm_generation (sourcefile, e))))
     ()
 
 let emit_data dl = if_emit_do Emit.data dl
@@ -644,7 +646,7 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename
       remove_asm_file ())
 
 let end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
-  Emitaux.Dwarf_helpers.init ~disable_dwarf:false sourcefile;
+  Emitaux.Dwarf_helpers.init ~disable_dwarf:false ~sourcefile;
   emit_begin_assembly unix;
   ( make_cmm ()
   ++ (fun x ->
@@ -665,12 +667,11 @@ let end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile make_cmm =
             then None
             else Some (Cmm.global_symbol (Primitive.native_name prim)))
           !Translmod.primitive_declarations));
-  emit_end_assembly sourcefile ()
+  emit_end_assembly ~sourcefile ()
 
 type direct_to_cmm =
   ppf_dump:Format.formatter ->
   prefixname:string ->
-  filename:string ->
   Lambda.program ->
   Cmm.phrase list
 
@@ -681,7 +682,7 @@ let asm_filename output_prefix =
   then output_prefix ^ ext_asm
   else Filename.temp_file "camlasm" ext_asm
 
-let compile_implementation unix ?toplevel ~pipeline ~filename ~prefixname
+let compile_implementation unix ?toplevel ~pipeline ~sourcefile ~prefixname
     ~ppf_dump (program : Lambda.program) =
   compile_unit ~ppf_dump ~output_prefix:prefixname
     ~asm_filename:(asm_filename prefixname) ~keep_asm:!keep_asm_file
@@ -692,11 +693,9 @@ let compile_implementation unix ?toplevel ~pipeline ~filename ~prefixname
       Compilenv.record_external_symbols ();
       match pipeline with
       | Direct_to_cmm direct_to_cmm ->
-        let cmm_phrases =
-          direct_to_cmm ~ppf_dump ~prefixname ~filename program
-        in
-        end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile:filename
-          (fun () -> cmm_phrases))
+        let cmm_phrases = direct_to_cmm ~ppf_dump ~prefixname program in
+        end_gen_implementation unix ?toplevel ~ppf_dump ~sourcefile (fun () ->
+            cmm_phrases))
 
 let linear_gen_implementation unix filename =
   let open Linear_format in
@@ -710,10 +709,12 @@ let linear_gen_implementation unix filename =
     | Func f -> emit_fundecl f
   in
   start_from_emit := true;
-  Emitaux.Dwarf_helpers.init ~disable_dwarf:false filename;
+  (* CR mshinwell: set [sourcefile] properly; [filename] isn't a .ml file *)
+  let sourcefile = Some filename in
+  Emitaux.Dwarf_helpers.init ~disable_dwarf:false ~sourcefile;
   emit_begin_assembly unix;
   Profile.record "Emit" (List.iter emit_item) linear_unit_info.items;
-  emit_end_assembly filename ()
+  emit_end_assembly ~sourcefile ()
 
 let compile_implementation_linear unix output_prefix ~progname =
   compile_unit ~may_reduce_heap:true ~output_prefix

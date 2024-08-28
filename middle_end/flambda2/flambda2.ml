@@ -82,7 +82,7 @@ let print_flexpect name main_dump_ppf ~raw_flambda:old_unit new_unit =
     ~header:("Before and after " ^ name)
     ~f:pp_flambda_as_flexpect (old_unit, new_unit)
 
-let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~filename:_ ~keep_symbol_tables
+let lambda_to_cmm ~ppf_dump:ppf ~prefixname ~keep_symbol_tables
     (program : Lambda.program) =
   let compilation_unit = program.compilation_unit in
   let module_block_size_in_words = program.main_module_block_size in

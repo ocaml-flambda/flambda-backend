@@ -1232,6 +1232,8 @@ module Magic_number = struct
     flambda : bool;
   }
   let native_obj_config = {
+    (* This must match the logic in the configure script for deciding
+       which magic numbers to use. *)
     flambda = Config.flambda;
   }
 

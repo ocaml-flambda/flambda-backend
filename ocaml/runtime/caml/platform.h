@@ -87,8 +87,8 @@ typedef pthread_cond_t custom_condvar;
    that no deadlock can arise from the interaction with the domain
    locks and the stop-the-world sections.
 
-   In particular one must not call [caml_plat_lock] on a mutex while
-   the domain lock is held:
+   In particular one must not call [caml_plat_lock_blocking] on a
+   mutex while the domain lock is held:
     - if any critical section of the mutex crosses an allocation, a
       blocking section releasing the domain lock, or any other
       potential STW section, nor
@@ -96,7 +96,7 @@ typedef pthread_cond_t custom_condvar;
       [caml_plat_lock_non_blocking] on the same domain (circular
       deadlock with the domain lock).
 
-   Thus, as a general rule, prefer [caml_plat_lock_non_blocking] to
+   Hence, as a general rule, prefer [caml_plat_lock_non_blocking] to
    lock a mutex when inside the mutator and holding the domain lock.
    The domain lock must be held in order to call
    [caml_plat_lock_non_blocking].

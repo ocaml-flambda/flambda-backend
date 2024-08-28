@@ -65,3 +65,15 @@ let f (x [@foo]) : unit -> unit [@foo] = function [@foo]
  ocamlc.byte;
  check-ocamlc.byte-output;
 *)
+<<<<<<< HEAD
+||||||| merged common ancestors
+>>>>>>> 5.2.0
+=======
+
+(* TEST
+ flags = "-dparsetree";
+ setup-ocamlc.byte-build-env;
+ ocamlc.byte;
+ check-ocamlc.byte-output;
+*)
+>>>>>>> merge-5.2
