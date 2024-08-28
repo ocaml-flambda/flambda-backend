@@ -891,21 +891,15 @@ let () = assert (x = 42);;
 let () = assert (List.for_all2 (=) !r [2;1]);;
 
 [%%expect{|
-Lines 4-11, characters 2-11:
- 4 | ..let v = match vh with
- 5 |     | V v -> v
- 6 |   in
- 7 |   (* not all void *)
- 8 |   let rec y = (cons_r 1; x)
- 9 |   and v' = (cons_r 2; v)
-10 |   in
-11 |   (y, V v')
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
+Line 9, characters 22-23:
+9 |   and v' = (cons_r 2; v)
+                          ^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
        The layout of t_void is void
          because of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value
-         because it has to be value for the V1 safety check.
+         because it's the type of the recursive variable v'.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -934,22 +928,15 @@ let () = assert (x = 42);;
 let () = assert (List.for_all2 (=) !r [3;2;1]);;
 
 [%%expect{|
-Lines 4-12, characters 2-23:
- 4 | ..let v = match vh with
- 5 |     | V v -> v
- 6 |   in
- 7 |   (* all void *)
- 8 |   let rec v1 = cons_r 1; v
- 9 |   and v2 = cons_r 2; v
-10 |   and v3 = cons_r 3; v
-11 |   in
-12 |   (x, V v1, V v2, V v3)
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
+Line 8, characters 25-26:
+8 |   let rec v1 = cons_r 1; v
+                             ^
+Error: This expression has type t_void but an expression was expected of type
+         ('a : value)
        The layout of t_void is void
          because of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value
-         because it has to be value for the V1 safety check.
+         because it's the type of the recursive variable v1.
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after

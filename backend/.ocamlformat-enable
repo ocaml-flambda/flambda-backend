@@ -1,3 +1,4 @@
+
 amd64/selection.ml
 amd64/simd*.ml
 amd64/stack_check.ml
@@ -6,6 +7,8 @@ arm64/simd*.ml
 arm64/stack_check.ml
 asm_targets/**/*.ml
 asm_targets/**/*.mli
+asmgen.ml
+asmgen.mli
 cfg/**/*.ml
 cfg/**/*.mli
 cmm_builtins.ml
