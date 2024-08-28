@@ -1298,6 +1298,8 @@ module Format_history = struct
       fprintf ppf
         "it's the type of the first argument to a function in a recursive \
          module"
+    | Let_rec_variable v ->
+      fprintf ppf "it's the type of the recursive variable %s" (Ident.name v)
     | Unknown s ->
       fprintf ppf
         "unknown @[(please alert the Jane Street@;\
@@ -1706,6 +1708,7 @@ module Debug_printers = struct
     | Class_term_argument -> fprintf ppf "Class_term_argument"
     | Debug_printer_argument -> fprintf ppf "Debug_printer_argument"
     | Recmod_fun_arg -> fprintf ppf "Recmod_fun_arg"
+    | Let_rec_variable v -> fprintf ppf "Let_rec_variable %a" Ident.print v
     | Unknown s -> fprintf ppf "Unknown %s" s
 
   let creation_reason ppf : History.creation_reason -> unit = function

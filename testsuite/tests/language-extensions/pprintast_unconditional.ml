@@ -34,6 +34,8 @@ module Example = struct
   let modality_val  = parse module_type
     "sig \
       val t : string -> string @ local @@ foo bar \
+      include S @@ bar foo
+      include functor S @@ foo foo
      end"
 
   let local_exp = parse expression "let x = foo (local_ x) in local_ y"

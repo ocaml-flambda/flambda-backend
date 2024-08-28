@@ -1187,7 +1187,7 @@ let check_kind_coherence env loc dpath decl =
       with Not_found ->
         raise(Error(loc, Unavailable_type_constructor path))
       end
-    | _ -> ()
+    | _ -> raise (Error(loc, Definition_mismatch (ty, env, None)))
     end
   | _ -> ()
 

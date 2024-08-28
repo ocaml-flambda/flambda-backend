@@ -2,9 +2,9 @@
 
 set -e
 
-asm=stop_after_linearization.${asmext}
-obj=stop_after_linearization.${objext}
-cmx=stop_after_linearization.cmx
+asm=stop_after_scheduling.${asmext}
+obj=stop_after_scheduling.${objext}
+cmx=stop_after_scheduling.cmx
 
 # Check that cmx is generated but asm and obj are not
 if [ -e "$asm" ] ; then

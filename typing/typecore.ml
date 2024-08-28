@@ -178,7 +178,8 @@ type error =
       Datatype_kind.t * Longident.t * (Path.t * Path.t) * (Path.t * Path.t) list
   | Invalid_format of string
   | Not_an_object of type_expr * type_forcing_context option
-  | Not_a_value of Jkind.Violation.t * type_forcing_context option
+  | Non_value_object of Jkind.Violation.t * type_forcing_context option
+  | Non_value_let_rec of Jkind.Violation.t * type_expr
   | Undefined_method of type_expr * string * string list option
   | Undefined_self_method of string * string list
   | Virtual_class of Longident.t
@@ -473,7 +474,7 @@ let get_single_mode_exn {mode; tuple_modes; _} =
 
 let mode_morph f expected_mode =
   let mode = as_single_mode expected_mode in
-  let mode = f mode in
+  let mode = f mode |> Mode.Value.disallow_left in
   let tuple_modes = None in
   {expected_mode with mode; tuple_modes}
 
@@ -7332,7 +7333,13 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       let exp_mode, _ = Value.newvar_below (as_single_mode mode) in
       let texp =
         with_local_level_if_principal ~post:generalize_structure_exp
-          (fun () -> type_exp env {mode with mode = Value.disallow_left exp_mode} sarg)
+          (fun () ->
+            let expected_mode =
+              mode
+              |> mode_morph (fun _mode -> exp_mode)
+              |> expect_mode_cross env ty_expected'
+            in
+            type_exp env expected_mode sarg)
       in
       let rec make_args args ty_fun =
         match get_desc (expand_head env ty_fun) with
@@ -8323,7 +8330,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
             List.split (List.map (fun _ -> new_rep_var ~why:Let_binding ())
                           spatl)
           in
-          let (pat_list, _new_env, _force, _pvs, _mvs as res) =
+          let (pat_list, _new_env, _force, pvs, _mvs as res) =
             with_local_level_if is_recursive (fun () ->
               type_pattern_list Value existential_context env spatl nvs
                 allow_modules
@@ -8345,6 +8352,19 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
                 let bound_expr = vb_exp_constraint binding in
                 type_approx env bound_expr pat.pat_type)
               pat_list spat_sexp_list;
+          (* If recursive, all pattern variables must have layout value. This
+             could be relaxed in some cases, like let recs that aren't actually
+             recusive. But, if making that change, delete [Lambda.layout_letrec]
+             and route the appropriate sorts through to its uses. *)
+          if is_recursive then begin
+            List.iter (fun { pv_id; pv_loc; pv_type; _ } ->
+              let value = Jkind.Builtin.value ~why:(Let_rec_variable pv_id) in
+              match constrain_type_jkind env pv_type value with
+              | Ok () -> ()
+              | Error e ->
+                raise (Error(pv_loc, env, Non_value_let_rec (e, pv_type)))
+            ) pvs
+          end;
           (* Polymorphic variant processing *)
           List.iter
             (fun (_, pat) ->
@@ -9242,7 +9262,7 @@ and type_send env loc explanation e met =
                     in
                     Undefined_method(obj.exp_type, met, valid_methods)
                 | Not_a_value err ->
-                    Not_a_value (err, explanation)
+                    Non_value_object (err, explanation)
               in
               raise (Error(e.pexp_loc, env, error))
         in
@@ -9806,12 +9826,18 @@ let report_error ~loc env = function
         (Style.as_inline_code Printtyp.type_expr) ty;
       report_type_expected_explanation_opt explanation ppf
     ) ()
-  | Not_a_value (err, explanation) ->
+  | Non_value_object (err, explanation) ->
     Location.error_of_printer ~loc (fun ppf () ->
       fprintf ppf "Object types must have layout value.@ %a"
         (Jkind.Violation.report_with_name ~name:"the type of this expression")
         err;
       report_type_expected_explanation_opt explanation ppf)
+      ()
+  | Non_value_let_rec (err, ty) ->
+    Location.error_of_printer ~loc (fun ppf () ->
+      fprintf ppf "Variables bound in a \"let rec\" must have layout value.@ %a"
+        (Jkind.Violation.report_with_offender
+           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err)
       ()
   | Undefined_method (ty, me, valid_methods) ->
       Location.error_of_printer ~loc (fun ppf () ->

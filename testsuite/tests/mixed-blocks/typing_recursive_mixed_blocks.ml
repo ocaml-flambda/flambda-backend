@@ -24,10 +24,23 @@ val rec_t : rec_t = {rec_t = <cycle>; x1 = <abstr>}
 let rec x2 = let _ = { t = rec_t; x2 } in #4.0;;
 
 [%%expect {|
-Line 1, characters 13-46:
+Line 1, characters 34-36:
 1 | let rec x2 = let _ = { t = rec_t; x2 } in #4.0;;
+<<<<<<< HEAD
                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This kind of expression is not allowed as right-hand side of "let rec"
+||||||| b532dff77b
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This kind of expression is not allowed as right-hand side of `let rec'
+=======
+                                      ^^
+Error: This expression has type ('a : value)
+       but an expression was expected of type float#
+       The layout of float# is float64
+         because it is the primitive type float#.
+       But the layout of float# must be a sublayout of value
+         because it's the type of the recursive variable x2.
+>>>>>>> flambda-backend/main
 |}];;
 
 (* OK: an adapted version of the above error to show that the difference
@@ -54,10 +67,23 @@ val rec_cstr : cstr = A (<cycle>, <abstr>)
 (* Error: the recursive use is for a field in the flat suffix *)
 let rec bad_flat = let _ = A (rec_cstr, bad_flat) in #4.0;;
 [%%expect {|
-Line 1, characters 19-57:
+Line 1, characters 40-48:
 1 | let rec bad_flat = let _ = A (rec_cstr, bad_flat) in #4.0;;
+<<<<<<< HEAD
                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This kind of expression is not allowed as right-hand side of "let rec"
+||||||| b532dff77b
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This kind of expression is not allowed as right-hand side of `let rec'
+=======
+                                            ^^^^^^^^
+Error: This expression has type ('a : value)
+       but an expression was expected of type float#
+       The layout of float# is float64
+         because it is the primitive type float#.
+       But the layout of float# must be a sublayout of value
+         because it's the type of the recursive variable bad_flat.
+>>>>>>> flambda-backend/main
 |}];;
 
 (* OK: an adapted version of the above error to show that the difference
@@ -84,10 +110,23 @@ val rec_cstr : cstr = A {cstr = <cycle>; flt = <abstr>}
 (* Error: the recursive use is for a field in the flat suffix *)
 let rec bad_flat = let _ = A { cstr = rec_cstr; flt = bad_flat } in #4.0;;
 [%%expect {|
-Line 1, characters 19-72:
+Line 1, characters 54-62:
 1 | let rec bad_flat = let _ = A { cstr = rec_cstr; flt = bad_flat } in #4.0;;
+<<<<<<< HEAD
                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This kind of expression is not allowed as right-hand side of "let rec"
+||||||| b532dff77b
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This kind of expression is not allowed as right-hand side of `let rec'
+=======
+                                                          ^^^^^^^^
+Error: This expression has type ('a : value)
+       but an expression was expected of type float#
+       The layout of float# is float64
+         because it is the primitive type float#.
+       But the layout of float# must be a sublayout of value
+         because it's the type of the recursive variable bad_flat.
+>>>>>>> flambda-backend/main
 |}];;
 
 (* OK: an adapted version of the above error to show that the difference

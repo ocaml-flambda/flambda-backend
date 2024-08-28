@@ -303,7 +303,8 @@ module Sig:
     val modtype: ?loc:loc -> module_type_declaration -> signature_item
     val modtype_subst: ?loc:loc -> module_type_declaration -> signature_item
     val open_: ?loc:loc -> open_description -> signature_item
-    val include_: ?loc:loc -> include_description -> signature_item
+    val include_: ?loc:loc -> ?modalities:modalities -> include_description ->
+      signature_item
     val class_: ?loc:loc -> class_description list -> signature_item
     val class_type: ?loc:loc -> class_type_declaration list -> signature_item
     val extension: ?loc:loc -> ?attrs:attrs -> extension -> signature_item
@@ -372,7 +373,8 @@ module Opn:
 (** Includes *)
 module Incl:
   sig
-    val mk: ?loc: loc -> ?attrs:attrs -> ?docs:docs -> 'a -> 'a include_infos
+    val mk: ?loc: loc -> ?attrs:attrs -> ?docs:docs -> ?kind:include_kind -> 'a
+      -> 'a include_infos
   end
 
 (** Value bindings *)
