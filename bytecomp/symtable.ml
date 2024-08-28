@@ -343,12 +343,11 @@ type bytecode_sections =
     prim: string list;
     dlpt: string list }
 
-external get_bytecode_sections : unit -> bytecode_sections =
-  "caml_dynlink_get_bytecode_sections"
-
 (* Initialize the linker for toplevel use *)
 
-let init_toplevel () =
+(* In flambda-backend, [get_bytecode_sections] is passed in, because it is
+   absent from the 4.x runtime as used by the current system compiler. *)
+let init_toplevel ~get_bytecode_sections =
   let sect = get_bytecode_sections () in
   global_table := sect.symb;
   c_prim_table := PrimMap.empty;
