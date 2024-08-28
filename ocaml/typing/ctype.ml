@@ -3099,20 +3099,19 @@ and mcomp_type_decl type_pairs env p1 p2 args1 args2 =
   try
     let decl = Env.find_type p1 env in
     let decl' = Env.find_type p2 env in
-    let tl1, tl2 =
+    (* TODO jbachurski: Over/under-application *)
+    let unwrap_args () =
       match args1, args2 with
       | Unapplied, Unapplied -> [], []
       | Applied tl1, Applied tl2 -> tl1, tl2
-      (* TODO jbachurski: Over/under-application...?
-         Obscure test failures without permitting these cases. *)
-      | Unapplied, Applied tl2 -> [], tl2
-      | Applied tl1, Unapplied -> tl1, []
+      | Unapplied, Applied _ | Applied _, Unapplied -> assert false
     in
     let check_jkinds () =
       if not (Jkind.has_intersection decl.type_jkind decl'.type_jkind)
       then raise Incompatible
     in
     if compatible_paths p1 p2 then begin
+      let tl1, tl2 = unwrap_args () in
       let inj =
         try List.map Variance.(mem Inj) (Env.find_type p1 env).type_variance
         with Not_found -> List.map (fun _ -> false) tl1
@@ -3126,16 +3125,19 @@ and mcomp_type_decl type_pairs env p1 p2 args1 args2 =
       match decl.type_kind, decl'.type_kind with
       | Type_record (lst,r), Type_record (lst',r')
         when equal_record_representation r r' ->
+          let tl1, tl2 = unwrap_args () in
           mcomp_list type_pairs env tl1 tl2;
           mcomp_record_description type_pairs env lst lst'
       | Type_variant (v1,r), Type_variant (v2,r')
         when equal_variant_representation r r' ->
+          let tl1, tl2 = unwrap_args () in
           mcomp_list type_pairs env tl1 tl2;
           mcomp_variant_description type_pairs env v1 v2
       | Type_open, Type_open ->
+          let tl1, tl2 = unwrap_args () in
           mcomp_list type_pairs env tl1 tl2
       | Type_abstract _, Type_abstract _ -> check_jkinds ()
-      | Type_abstract _, _ when not (non_aliasable p1 decl)-> check_jkinds ()
+      | Type_abstract _, _ when not (non_aliasable p1 decl) -> check_jkinds ()
       | _, Type_abstract _ when not (non_aliasable p2 decl') -> check_jkinds ()
       | _ -> raise Incompatible
   with Not_found -> ()
