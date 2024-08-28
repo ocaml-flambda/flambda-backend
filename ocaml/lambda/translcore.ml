@@ -1128,7 +1128,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           ~attr
           ~mode:alloc_heap
           ~ret_mode:alloc_local
-          ~region:false
+          (* CR zqian: the handler function doesn't have a region. However, the
+             [region] field is currently broken. *)
+          ~region:true
       in
       let app =
         { ap_func = Lvar funcid;
