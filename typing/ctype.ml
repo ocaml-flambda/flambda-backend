@@ -3273,6 +3273,8 @@ let add_gadt_equation uenv source destination =
     in
     add_jkind_equation ~reason:(Gadt_equation source)
       uenv destination jkind;
+    (* Adding a jkind equation may change the uenv. *)
+    let env = get_env uenv in
     let decl =
       new_local_type
         ~manifest_and_scope:(destination, expansion_scope)
