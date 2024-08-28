@@ -337,6 +337,7 @@ module Group = struct
          ~free_names_of_body:Unknown
          ~my_closure:(Variable.create "my_closure")
          ~my_region:(Variable.create "my_region")
+         ~my_ghost_region:(Variable.create "my_ghost_region")
          ~my_depth:(Variable.create "my_depth"))
 
   let pieces_of_code_including_those_not_rebuilt t =

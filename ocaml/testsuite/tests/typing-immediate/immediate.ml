@@ -145,6 +145,7 @@ Line 2, characters 2-31:
       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 Error: The layout of type string is value, because
          it is the primitive value type string.
        But the layout of type string must be a sublayout of immediate, because
@@ -157,6 +158,13 @@ Error: The layout of type string is value, because
 =======
 Error: The kind of type string is value
          because it is the primitive value type string.
+||||||| a198127529
+Error: The kind of type string is value
+         because it is the primitive value type string.
+=======
+Error: The kind of type string is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> 57461473bf
        But the kind of type string must be a subkind of immediate
          because of the definition of t at line 2, characters 2-31.
 >>>>>>> ocaml-jst/flambda-patches
@@ -265,8 +273,8 @@ Error: Signature mismatch:
          type t = string
        is not included in
          type t : immediate
-       The kind of the first is value
-         because it is the primitive value type string.
+       The kind of the first is immutable_data
+         because it is the primitive immutable_data type string.
        But the kind of the first must be a subkind of immediate
          because of the definition of t at line 1, characters 15-35.
 |}];;
@@ -283,8 +291,8 @@ Error: Signature mismatch:
          type t = string
        is not included in
          type t : immediate
-       The kind of the first is value
-         because it is the primitive value type string.
+       The kind of the first is immutable_data
+         because it is the primitive immutable_data type string.
        But the kind of the first must be a subkind of immediate
          because of the definition of t at line 1, characters 20-40.
 |}];;
@@ -300,8 +308,8 @@ Error: Modules do not match: sig type t = string end is not included in
        type t = string
      is not included in
        type t : immediate
-     The kind of the first is value
-       because it is the primitive value type string.
+     The kind of the first is immutable_data
+       because it is the primitive immutable_data type string.
      But the kind of the first must be a subkind of immediate
        because of the definition of t at line 1, characters 20-40.
 |}];;
@@ -317,6 +325,7 @@ Line 2, characters 2-26:
       ^^^^^^^^^^^^^^^^^^^^^^^^
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 Error: The layout of type s is value, because
          it is the primitive value type string.
        But the layout of type s must be a sublayout of immediate, because
@@ -329,6 +338,13 @@ Error: The layout of type s is value, because
 =======
 Error: The kind of type s is value
          because it is the primitive value type string.
+||||||| a198127529
+Error: The kind of type s is value
+         because it is the primitive value type string.
+=======
+Error: The kind of type s is immutable_data
+         because it is the primitive immutable_data type string.
+>>>>>>> 57461473bf
        But the kind of type s must be a subkind of immediate
          because of the definition of t at line 2, characters 2-26.
 >>>>>>> ocaml-jst/flambda-patches

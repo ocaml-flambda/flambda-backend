@@ -223,7 +223,7 @@ Error: This value escapes its region.
 
 (* the result of function application crosses mode *)
 let f : _ -> local_ _ =
-  fun () -> local_ 42
+  fun () -> exclave_ 42
 [%%expect{|
 val f : unit -> local_ int = <fun>
 |}]
@@ -235,7 +235,7 @@ val g : unit -> int = <fun>
 |}]
 
 let f : _ -> local_ _ =
-  fun () -> local_ "hello"
+  fun () -> exclave_ "hello"
 [%%expect{|
 val f : unit -> local_ string = <fun>
 |}]
@@ -370,7 +370,7 @@ let foo : int -> int = fun x -> x
 val foo : int -> int = <fun>
 |}]
 
-let foo' : int -> local_ int = fun x -> local_ x
+let foo' : int -> local_ int = fun x -> exclave_ x
 [%%expect{|
 val foo' : int -> local_ int = <fun>
 |}]

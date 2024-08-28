@@ -113,7 +113,7 @@ let () = foo3 10 true 1 2 None
 external local_stack_offset : unit -> int = "caml_local_stack_offset"
 
 let[@inline never][@specialise never][@local never] allocate () =
-  local_ ref 0
+  exclave_ ref 0
 
 let[@inline never][@specialise never][@local never] use (local_ r) =
   r := 10
@@ -222,5 +222,5 @@ let[@inline never][@specialise never][@local never] rec foo previous =
 let () = foo None
 
 let[@inline always] inl a b = let local_ z = (a, b) in let r = fst z + snd z in r
-let[@inline never] lret a b = local_ let local_ _z = [|a;b|] in inl a b
+let[@inline never] lret a b = exclave_ let local_ _z = [|a;b|] in inl a b
 let () = assert ((lret 1 2)+1 = 4)

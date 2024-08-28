@@ -13,7 +13,7 @@
 ;**************************************************************************
 
 (rule
- (targets arch.ml arch.mli CSE.ml proc.ml regalloc_stack_operands.ml reload.ml scheduling.ml selection.ml
+ (targets arch.ml arch.mli CSE.ml proc.ml regalloc_stack_operands.ml reload.ml selection.ml
           simd.ml simd_selection.ml simd_reload.ml simd_proc.ml stack_check.ml)
  (mode    fallback)
  (deps    (glob_files amd64/*.ml)
