@@ -39,29 +39,6 @@ let global_symbol comp_unit =
 
 let remembered = ref Ident.empty
 
-<<<<<<< HEAD
-let remember phrase_name signature =
-  let exported = List.filter Includemod.is_runtime_component signature in
-  List.iteri (fun i sg ->
-    match sg with
-    | Sig_value  (id, _, _)
-    | Sig_module (id, _, _, _, _)
-    | Sig_typext (id, _, _, _)
-    | Sig_class  (id, _, _, _) ->
-      remembered := Ident.add id (phrase_name, i) !remembered
-    | _ -> ())
-    exported
-||||||| 121bedcfd2
-let rec remember phrase_name i = function
-  | [] -> ()
-  | Sig_value  (id, _, _) :: rest
-  | Sig_module (id, _, _, _, _) :: rest
-  | Sig_typext (id, _, _, _) :: rest
-  | Sig_class  (id, _, _, _) :: rest ->
-      remembered := Ident.add id (phrase_name, i) !remembered;
-      remember phrase_name (succ i) rest
-  | _ :: rest -> remember phrase_name i rest
-=======
 let remember phrase_name signature =
   let exported = List.filter Includemod.is_runtime_component signature in
   List.iteri (fun i sg ->
@@ -70,10 +47,9 @@ let remember phrase_name signature =
       | Sig_module (id, _, _, _, _)
       | Sig_typext (id, _, _, _)
       | Sig_class  (id, _, _, _) ->
-          remembered := Ident.add id (phrase_name, i) !remembered
+        remembered := Ident.add id (phrase_name, i) !remembered
       | _ -> ())
     exported
->>>>>>> 5.2.0
 
 let toplevel_value id =
   try Ident.find_same id !remembered
@@ -161,14 +137,8 @@ let name_expression ~loc ~attrs sort exp =
    in
    let sg = [Sig_value(id, vd, Exported)] in
    let pat =
-<<<<<<< HEAD
      { pat_desc = Tpat_var(id, mknoloc name, vd.val_uid,
         Mode.Value.disallow_right Mode.Value.legacy);
-||||||| 121bedcfd2
-     { pat_desc = Tpat_var(id, mknoloc name);
-=======
-     { pat_desc = Tpat_var(id, mknoloc name, vd.val_uid);
->>>>>>> 5.2.0
        pat_loc = loc;
        pat_extra = [];
        pat_type = exp.exp_type;
@@ -178,13 +148,8 @@ let name_expression ~loc ~attrs sort exp =
    let vb =
      { vb_pat = pat;
        vb_expr = exp;
-<<<<<<< HEAD
        vb_rec_kind = Dynamic;
        vb_sort = sort;
-||||||| 121bedcfd2
-=======
-       vb_rec_kind = Dynamic;
->>>>>>> 5.2.0
        vb_attributes = attrs;
        vb_loc = loc; }
    in
@@ -250,16 +215,8 @@ let execute_phrase print_outcome ppf phr =
             Translmod.transl_implementation phrase_comp_unit (str, Tcoerce_none)
               ~style:Plain_block
           in
-<<<<<<< HEAD
           remember compilation_unit sg';
           compilation_unit, close_phrase res, required_globals, size
-||||||| 121bedcfd2
-          remember module_ident 0 sg';
-          module_ident, close_phrase res, required_globals, size
-=======
-          remember module_ident sg';
-          module_ident, close_phrase res, required_globals, size
->>>>>>> 5.2.0
         else
           let size, res = Translmod.transl_store_phrases phrase_comp_unit str in
           phrase_comp_unit, res, Compilation_unit.Set.empty, size
