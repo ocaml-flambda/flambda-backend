@@ -50,7 +50,18 @@ val transl_const: Lambda.structured_constant -> Obj.t
 
 (* Functions for the toplevel *)
 
-val init_toplevel: unit -> Import_info.t array
+type global_map
+
+(* See comment about [get_bytecode_sections] in the .ml file. *)
+type bytecode_sections = private
+  { symb: global_map;
+    crcs: Import_info.t array;
+    prim: string list;
+    dlpt: string list }
+
+val init_toplevel: get_bytecode_sections:(unit -> bytecode_sections)
+  -> Import_info.t array
+
 val update_global_table: unit -> unit
 val get_global_value: Global.t -> Obj.t
 val is_global_defined: Global.t -> bool
@@ -59,8 +70,6 @@ val get_global_position: Global.t -> int
 val check_global_initialized: (reloc_info * int) list -> unit
 val initialized_compunits: (reloc_info * int) list -> Compilation_unit.t list
 val required_compunits: (reloc_info * int) list -> Compilation_unit.t list
-
-type global_map
 
 val empty_global_map: global_map
 val current_state: unit -> global_map
