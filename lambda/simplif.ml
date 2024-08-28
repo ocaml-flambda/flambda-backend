@@ -253,10 +253,10 @@ let simplify_exits lam =
   | Lletrec(bindings, body) ->
       let bindings =
         List.map (fun ({ def = {kind; params; return; body = l; attr; loc;
-                                mode; ret_mode; region} }
+                                mode; ret_mode } }
                        as rb) ->
                    let def =
-                     lfunction' ~kind ~params ~return ~mode ~ret_mode ~region
+                     lfunction' ~kind ~params ~return ~mode ~ret_mode
                        ~body:(simplif ~layout:None ~try_depth l) ~attr ~loc
                    in
                    { rb with def })
@@ -586,13 +586,12 @@ let simplify_lets lam =
           end
       | _ -> no_opt ()
       end
-  | Lfunction{kind=outer_kind; params; return=outer_return; body = l;
-              attr=attr1; loc; ret_mode; mode; region=outer_region} ->
-      begin match outer_kind, outer_region, simplif l with
-        Curried {nlocal=0},
-        true,
+  | Lfunction{kind; params; return=outer_return; body = l;
+              attr=attr1; loc; ret_mode; mode} ->
+      begin match ret_mode, simplif l with
+        Alloc_heap,
         Lfunction{kind=Curried _ as kind; params=params'; return=return2;
-                  body; attr=attr2; loc; mode=inner_mode; ret_mode; region}
+                  body; attr=attr2; loc; mode=inner_mode; ret_mode }
         when optimize &&
              attr1.may_fuse_arity && attr2.may_fuse_arity &&
              List.length params + List.length params' <= Lambda.max_arity() ->
@@ -603,9 +602,9 @@ let simplify_lets lam =
              type of the merged function taking [params @ params'] as
              parameters is the type returned after applying [params']. *)
           let return = return2 in
-          lfunction ~kind ~params:(params @ params') ~return ~body ~attr:attr1 ~loc ~mode ~ret_mode ~region
-      | kind, region, body ->
-          lfunction ~kind ~params ~return:outer_return ~body ~attr:attr1 ~loc ~mode ~ret_mode ~region
+          lfunction ~kind ~params:(params @ params') ~return ~body ~attr:attr1 ~loc ~mode ~ret_mode
+      | (Alloc_heap | Alloc_local), body ->
+          lfunction ~kind ~params ~return:outer_return ~body ~attr:attr1 ~loc ~mode ~ret_mode
       end
   | Llet(_str, _k, v, Lvar w, l2) when optimize ->
       Hashtbl.add subst v (simplif (Lvar w));
@@ -802,7 +801,7 @@ and emit_tail_infos_lfunction _is_tail lfun =
    function's body. *)
 
 let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
-      ~attr ~loc ~mode ~ret_mode ~region:orig_region =
+      ~attr ~loc ~mode ~ret_mode =
   let rec aux map add_region = function
     (* When compiling [fun ?(x=expr) -> body], this is first translated
        to:
@@ -882,28 +881,27 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
         let inner_fun =
           lfunction' ~kind:(Curried {nlocal=0})
             ~params:new_ids
-            ~return ~body ~attr ~loc ~mode ~ret_mode ~region:true
+            ~return ~body ~attr ~loc ~mode ~ret_mode
         in
         (wrapper_body, { id = inner_id;
                          def = inner_fun })
   in
   try
     (* TODO: enable this optimisation even in the presence of local returns *)
-    begin match kind with
-    | Curried {nlocal} when nlocal > 0 -> raise Exit
-    | Tupled when not orig_region -> raise Exit
-    | _ -> assert orig_region
+    begin match ret_mode with
+    | Alloc_local -> raise Exit
+    | Alloc_heap -> ()
     end;
     let body, inner = aux [] false body in
     let attr = { default_stub_attribute with zero_alloc = attr.zero_alloc } in
     [{ id = fun_id;
        def = lfunction' ~kind ~params ~return ~body ~attr ~loc
-           ~mode ~ret_mode ~region:true };
+           ~mode ~ret_mode };
      inner]
   with Exit ->
     [{ id = fun_id;
        def = lfunction' ~kind ~params ~return ~body ~attr ~loc
-           ~mode ~ret_mode ~region:orig_region }]
+           ~mode ~ret_mode  }]
 
 (* Simplify local let-bound functions: if all occurrences are
    fully-applied function calls in the same "tail scope", replace the

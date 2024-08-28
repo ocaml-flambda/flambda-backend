@@ -37,12 +37,12 @@ let layout_meth = layout_any_value
 let layout_tables = layout_any_value
 
 
-let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) ?(ret_mode=alloc_heap) return_layout params body =
+let lfunction ?(kind=Curried {nlocal=0}) ?(ret_mode=alloc_heap) return_layout params body =
   if params = [] then body else
   match kind, body with
   | Curried {nlocal=0},
     Lfunction {kind = Curried _ as kind; params = params';
-               body = body'; attr; loc; mode = Alloc_heap; ret_mode; region}
+               body = body'; attr; loc; mode = Alloc_heap; ret_mode }
     when attr.may_fuse_arity &&
          List.length params + List.length params' <= Lambda.max_arity() ->
       lfunction ~kind ~params:(params @ params')
@@ -52,7 +52,6 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) ?(ret_mode=alloc_heap) r
                 ~loc
                 ~mode:alloc_heap
                 ~ret_mode
-                ~region
   |  _ ->
       lfunction ~kind ~params ~return:return_layout
                 ~body
@@ -60,7 +59,6 @@ let lfunction ?(kind=Curried {nlocal=0}) ?(region=true) ?(ret_mode=alloc_heap) r
                 ~loc:Loc_unknown
                 ~mode:alloc_heap
                 ~ret_mode
-                ~region
 
 let lapply ap =
   match ap.ap_func with
@@ -230,7 +228,6 @@ let rec build_object_init ~scopes cl_table obj params inh_init obj_init cl =
                    ~body
                    ~mode:alloc_heap
                    ~ret_mode:alloc_heap
-                   ~region:true
        in
        begin match obj_init with
          Lfunction {kind = Curried {nlocal=0}; params; body = rem} ->
@@ -520,7 +517,6 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
                   ~body
                   ~mode:alloc_heap
                   ~ret_mode:alloc_heap
-                  ~region:true
       in
       (path, path_lam,
        match obj_init with
@@ -799,7 +795,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   let new_ids_meths = ref [] in
   let no_env_update _ _ env = env in
   let msubst arr = function
-      Lfunction {kind = Curried _ as kind; region; ret_mode;
+      Lfunction {kind = Curried _ as kind; ret_mode;
                  params = self :: args; return; body} ->
         let env = Ident.create_local "env" in
         let body' =
@@ -811,7 +807,7 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
           if not arr || !Clflags.debug then raise Not_found;
           builtin_meths [self.name] env env2 (lfunction return args body')
         with Not_found ->
-          [lfunction ~kind ~region ~ret_mode return (self :: args)
+          [lfunction ~kind ~ret_mode return (self :: args)
              (if not (Ident.Set.mem env (free_variables body')) then body' else
               Llet(Alias, layout_block, env,
                    Lprim(Pfield_computed Reads_vary,
@@ -885,7 +881,6 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
            ~return:layout_function
            ~mode:alloc_heap
            ~ret_mode:alloc_heap
-           ~region:true
            ~params:[lparam cla layout_table]
            ~body:cl_init,
          Dynamic (* Placeholder, real kind is computed in [lbody] below *))
@@ -917,7 +912,6 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                           ~return:layout_function
                           ~mode:alloc_heap
                           ~ret_mode:alloc_heap
-                          ~region:true
                           ~params:[lparam cla layout_table] ~body:cl_init;
            lambda_unit; lenvs],
          Loc_unknown),
@@ -980,7 +974,6 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                    ~loc:Loc_unknown
                    ~mode:alloc_heap
                    ~ret_mode:alloc_heap
-                   ~region:true
                    ~body:(def_ids cla cl_init), lam)
   and lset cached i lam =
     Lprim(Psetfield(i, Pointer, Assignment modify_heap),
@@ -999,7 +992,6 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
          ~loc:Loc_unknown
          ~mode:alloc_heap
          ~ret_mode:alloc_heap
-         ~region:true
          ~return:layout_function
          ~params:[lparam cla layout_table]
          ~body:(def_ids cla cl_init))

@@ -39,5 +39,4 @@ val split_default_wrapper
   -> loc:Lambda.scoped_location
   -> mode:Lambda.locality_mode
   -> ret_mode:Lambda.locality_mode
-  -> region:bool
   -> rec_binding list
