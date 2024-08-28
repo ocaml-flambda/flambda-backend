@@ -22,8 +22,10 @@ let pseudoregs_for_operation _ arg res = arg, res
 
 (* for avoiding compilation errors when using them in amd64 *)
 type register =
-  | Original of int
   | New of int
+  | Argument of int
+  | Result of int
+  | Original of int
 
 type vectorized_instruction =
   { operation : Cfg.operation;
