@@ -415,7 +415,7 @@ let loading_hint_printer ppf cu =
     let leafname =
       (Compilation_unit.Name.to_string (Compilation_unit.name cu)) ^ ext
     in
-    try Some (Load_path.find_uncap leafname) with Not_found -> None
+    try Some (Load_path.find_normalized leafname) with Not_found -> None
   in
   fprintf ppf
     "@.Hint: @[\

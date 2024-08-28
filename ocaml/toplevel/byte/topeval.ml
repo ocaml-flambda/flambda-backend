@@ -268,7 +268,7 @@ and really_load_file recursive ppf name filename ic =
                   (Compilation_unit.Name.to_string (Compilation_unit.name cu))
                   ^ ".cmo"
                 in
-                begin match Load_path.find_uncap file with
+                begin match Load_path.find_normalized file with
                 | exception Not_found -> ()
                 | file ->
                     if not (load_file recursive ppf file) then raise Load_failed
@@ -303,8 +303,11 @@ and really_load_file recursive ppf name filename ic =
       end
   with Load_failed -> false
 
+external get_bytecode_sections : unit -> Symtable.bytecode_sections =
+  "caml_dynlink_get_bytecode_sections"
+
 let init () =
-  let crc_intfs = Symtable.init_toplevel() in
+  let crc_intfs = Symtable.init_toplevel ~get_bytecode_sections in
   Compmisc.init_path ();
   Env.import_crcs ~source:Sys.executable_name crc_intfs;
   ()
