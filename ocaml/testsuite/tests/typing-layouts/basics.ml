@@ -677,6 +677,51 @@ Error: This method has type 'b -> unit which is less general than
          because of the definition of t6_imm at line 1, characters 0-42.
 |}];;
 
+
+type ('a : float64) t6_float64 = Foo of 'a
+[%%expect{|
+type ('a : float64) t6_float64 = Foo of 'a
+|}];;
+
+let t6_float64_id : 'a. 'a t6_float64 -> 'a t6_float64 = fun x -> x
+[%%expect{|
+val t6_float64_id : ('a : float64). 'a t6_float64 -> 'a t6_float64 = <fun>
+|}];;
+
+let t6_float64_id_packing : 'a. 'a -> 'a =
+  fun x -> let Foo y = Foo x in Foo y
+[%%expect{|
+Line 2, characters 27-28:
+2 |   fun x -> let Foo y = Foo x in Foo y
+                               ^
+Error: This expression has type ('a : value)
+       but an expression was expected of type ('b : float64)
+       The layout of 'a is float64
+         because of the definition of t6_float64 at line 1, characters 0-42.
+       But the layout of 'a must overlap with value
+         because it's a fresh unification variable,
+         defaulted to layout value.
+|}];;
+
+let t6_float64_id_packing : ('a : float64). 'a -> 'a =
+  fun x -> let Foo y = Foo x in y
+[%%expect{|
+val t6_float64_id_packing : ('a : float64). 'a -> 'a = <fun>
+|}];;
+
+(* This should probably work, but is difficult to implement *)
+let t6_float64_id : type a. a t6_float64 -> a t6_float64 = fun x -> x
+[%%expect{|
+Line 1, characters 28-29:
+1 | let t6_float64_id : type a. a t6_float64 -> a t6_float64 = fun x -> x
+                                ^
+Error: This type a should be an instance of type ('a : float64)
+       The layout of a is value
+         because it is or unifies with an unannotated universal variable.
+       But the layout of a must be a sublayout of float64
+         because of the definition of t6_float64 at line 1, characters 0-42.
+|}];;
+
 (* CR layouts v1.5: add more tests here once you can annotate these types with
    jkinds. *)
 
