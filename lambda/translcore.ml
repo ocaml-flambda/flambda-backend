@@ -158,33 +158,8 @@ let is_alloc_heap = function Alloc_heap -> true | Alloc_local -> false
 let function_attribute_disallowing_arity_fusion =
   { default_function_attribute with may_fuse_arity = false }
 
-(** A well-formed function parameter list is of the form
-     [G @ L @ [ Final_arg ]],
-    where the values of G and L are of the form [More_args { partial_mode }],
-    where [partial_mode] has locality Global in G and locality Local in L.
-
-    [curried_function_kind p] checks the well-formedness of the list and returns
-    the corresponding [curried_function_kind]. [nlocal] is populated as follows:
-      - if {v |L| > 0 v}, then {v nlocal = |L| + 1 v}.
-      - if {v |L| = 0 v},
-        * if the function returns at mode local, the final arg has mode local,
-          or the function itself is allocated locally, then {v nlocal = 1 v}.
-        * otherwise, {v nlocal = 0 v}.
-*)
-(* CR-someday: Now that some functions' arity won't be changed downstream of
-   lambda (see [may_fuse_arity = false]), we could change [nlocal] to be
-   more expressive. I suggest the variant:
-
-   {[
-     type partial_application_is_local_when =
-       | Applied_up_to_nth_argument_from_end of int
-       | Never
-   ]}
-
-   I believe this will allow us to get rid of the complicated logic for
-   |L| = 0, and help clarify how clients use this type. I plan on doing
-   this in a follow-on PR.
-*)
+(** [curried_function_kind p] checks the well-formedness of the list and returns
+  the corresponding [curried_function_kind]. *)
 let curried_function_kind
     : (function_curry * Mode.Alloc.l) list
       -> return_mode:locality_mode
