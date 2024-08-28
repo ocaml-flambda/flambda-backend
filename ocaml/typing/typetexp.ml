@@ -730,7 +730,7 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
   | Ptyp_arrow _ ->
       let args, ret, ret_mode = extract_params styp in
       let rec loop acc_mode args =
-        let jkind = Jkind.Type.Primitive.any ~why:Dummy_jkind |> Jkind.of_type_jkind in
+        let jkind = Jkind.Type.Primitive.any ~why:Inside_of_Tarrow |> Jkind.of_type_jkind in
         match args with
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
