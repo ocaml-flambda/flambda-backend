@@ -1,23 +1,31 @@
 (** Interpret mode syntax as mode annotation, where axes can be left unspecified *)
-val transl_mode_annots : Jane_syntax.Mode_expr.t -> Mode.Alloc.Const.Option.t
+val transl_mode_annots : Parsetree.modes -> Mode.Alloc.Const.Option.t
+
+val untransl_mode_annots :
+  loc:Location.t -> Mode.Alloc.Const.Option.t -> Parsetree.modes
 
 (** Interpret mode syntax as alloc mode (on arrow types), where axes are set to
     legacy if unspecified *)
-val transl_alloc_mode : Jane_syntax.Mode_expr.t -> Mode.Alloc.Const.t
+val transl_alloc_mode : Parsetree.modes -> Mode.Alloc.Const.t
 
 (** Interpret mode syntax as modalities. Modalities occuring at different places
-    requires different levels of maturity. *)
+    requires different levels of maturity. Also takes the mutability and
+    attributes on the field and insert mutable-implied modalities accordingly.
+    *)
 val transl_modalities :
   maturity:Language_extension.maturity ->
-  has_mutable_implied_modalities:bool ->
-  Parsetree.modality Location.loc list ->
+  Types.mutability ->
+  Parsetree.attributes ->
+  Parsetree.modalities ->
   Mode.Modality.Value.Const.t
 
+val untransl_modality : Mode.Modality.t -> Parsetree.modality Location.loc
+
+(** Un-interpret modalities back to parsetree. Takes the mutability and
+    attributes on the field and remove mutable-implied modalities accordingly.
+    *)
 val untransl_modalities :
-  loc:Location.t ->
+  Types.mutability ->
+  Parsetree.attributes ->
   Mode.Modality.Value.Const.t ->
-  Parsetree.modality Location.loc list
-
-val is_mutable_implied_modality : Mode.Modality.t -> bool
-
-val mutable_implied_modalities : Mode.Modality.Value.Const.t
+  Parsetree.modalities

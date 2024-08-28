@@ -191,7 +191,7 @@ _install: compiler
 	  $(cpl) $$file _install/lib/ocaml/compiler-libs/ ; \
 	done
 	mkdir _install/lib/stublibs
-
+	cp _build/main/ocaml/parser.cmly _install/lib/ocaml/compiler-libs/
 	find _build/main/ \( -name "flambda2*.cmi" \
           -or -name "flambda2*.cmti" -or -name "flambda2*.cmt" \) \
           -exec cp -f {} _install/lib/ocaml/compiler-libs \;

@@ -67,7 +67,7 @@ let main argv ppf =
            are  incompatible with -pack, -a, -output-obj"
           (String.concat "|"
              (P.available_pass_names ~filter:(fun _ -> true) ~native:false))
-      | Some (P.Middle_end | P.Scheduling | P.Simplify_cfg | P.Emit | P.Selection) ->
+      | Some (P.Middle_end | P.Linearization | P.Simplify_cfg | P.Emit | P.Selection) ->
         assert false (* native only *)
     end;
     if !make_archive then begin
@@ -113,9 +113,12 @@ let main argv ppf =
     n
   | exception Continue
   | () ->
-    Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile"
-      (fun ppf -> Profile.print ppf !Clflags.profile_columns
-        ~timings_precision:!Clflags.timings_precision);
+    (* Prevents outputting when using make install to dump CSVs for whole compiler.
+       Example use case: scripts/profile-compiler-build.sh *)
+    if not !Clflags.dump_into_csv then
+      Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile"
+        (fun ppf -> Profile.print ppf !Clflags.profile_columns
+          ~timings_precision:!Clflags.timings_precision);
     0
   | exception x ->
     Location.report_exception ppf x;

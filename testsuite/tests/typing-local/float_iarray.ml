@@ -27,7 +27,7 @@ let ignore_local : local_ 'a -> unit = fun x ->
   let _ = local_ opaque_local x in
   ()
 
-let run name f x = local_
+let run name f x = exclave_
   let prebefore = Gc.allocated_bytes () in
   let before = Gc.allocated_bytes () in
   let r = Sys.opaque_identity f x in
@@ -47,7 +47,7 @@ let run name f x = local_
 (* Testing functions *)
 
 let test_access : local_ float iarray -> local_ float =
-  fun iarr -> local_ iarr.:(0)
+  fun iarr -> exclave_ iarr.:(0)
 
 let test_match : local_ float iarray -> local_ float =
   fun iarr ->

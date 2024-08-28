@@ -12,4 +12,4 @@ jobs:
       - name: Check Menhir version
         shell: bash
         run: |
-          grep --count --max-count=1 --quiet 'MenhirLib.StaticVersion.require_20210419' ocaml-jst/boot/menhir/parser.ml
+          grep --count --max-count=1 --quiet 'MenhirLib.StaticVersion.require_20231231' ocaml-jst/boot/menhir/parser.ml

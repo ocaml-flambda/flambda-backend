@@ -162,6 +162,10 @@ module TyVarEnv : sig
     row_context:type_expr option ref list -> string -> type_expr
     (* look up a local type variable; throws Not_found if it isn't in scope *)
 
+  val lookup_global :
+    string -> type_expr
+    (* look up a global type variable; throws Not_found if it isn't in scope *)
+
   val remember_used : string -> type_expr -> Location.t -> unit
     (* remember that a given name is bound to a given type *)
 
@@ -224,7 +228,7 @@ end = struct
      ~finally:(fun () -> widen context)
 
   (* throws Not_found if the variable is not in scope *)
-  let lookup_global_type_variable name =
+  let lookup_global name =
     TyVarMap.find name !type_variables
 
   let get_in_scope_names () =
@@ -451,7 +455,7 @@ end = struct
           let snap = Btype.snapshot () in
           if try unify env v ty; true with _ -> Btype.backtrack snap; false
           then try
-            r := (loc, v, lookup_global_type_variable name) :: !r
+            r := (loc, v, lookup_global name) :: !r
           with Not_found ->
             if extensibility = Fixed && Btype.is_Tvar ty then
               raise(Error(loc, env,
@@ -576,23 +580,18 @@ let get_type_param_name styp =
   | Ptyp_var name -> Some name
   | _ -> Misc.fatal_error "non-type-variable in get_type_param_name"
 
-let get_alloc_mode styp =
-  let modes, _ = Jane_syntax.Mode_expr.of_attrs styp.ptyp_attributes in
-  Typemode.transl_alloc_mode modes
-
 let rec extract_params styp =
-  let final styp =
-    [], styp, get_alloc_mode styp
-  in
   match styp.ptyp_desc with
-  | Ptyp_arrow (l, a, r) ->
-      let arg_mode = get_alloc_mode a in
+  | Ptyp_arrow (l, a, r, ma, mr) ->
+      let arg_mode = Typemode.transl_alloc_mode ma in
       let params, ret, ret_mode =
-        if Builtin_attributes.has_curry r.ptyp_attributes then final r
-        else extract_params r
+        match r.ptyp_desc with
+        | Ptyp_arrow _ when not (Builtin_attributes.has_curry r.ptyp_attributes) ->
+          extract_params r
+        | _ -> [], r, Typemode.transl_alloc_mode mr
       in
       (l, arg_mode, a) :: params, ret, ret_mode
-  | _ -> final styp
+  | _ -> assert false
 
 let check_arg_type styp =
   if not (Language_extension.is_enabled Polymorphic_parameters) then begin
@@ -617,11 +616,11 @@ let transl_label (label : Parsetree.arg_label)
 let transl_label_from_pat (label : Parsetree.arg_label)
     (pat : Parsetree.pattern) =
   let label, inner_pat = match pat with
-  | {ppat_desc = Ppat_constraint (inner_pat, ty); _} ->
+  | {ppat_desc = Ppat_constraint (inner_pat, ty, _); _} ->
       (* If the argument is a constraint, translate the label using the
           type information. Otherwise, it can't be a Position argument, so
           we don't care about the argument type *)
-      transl_label label (Some ty), inner_pat
+      transl_label label ty, inner_pat
   | _ -> transl_label label None, pat
   in
   label, if Btype.is_position label then inner_pat else pat
@@ -1033,7 +1032,10 @@ and transl_type_var env ~policy ~row_context attrs loc name jkind_annot_opt =
   let ty = try
       TyVarEnv.lookup_local ~row_context name
     with Not_found ->
-      let jkind = TyVarEnv.new_jkind ~is_named:true policy in
+      let jkind =
+        try TyVarEnv.lookup_global name |> estimate_type_jkind env
+        with Not_found -> TyVarEnv.new_jkind ~is_named:true policy
+      in
       let ty = TyVarEnv.new_var ~name jkind policy in
       TyVarEnv.remember_used name ty loc;
       ty
