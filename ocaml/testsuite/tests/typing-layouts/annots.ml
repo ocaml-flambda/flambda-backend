@@ -877,23 +877,13 @@ module type S = sig
 end
 ;;
 [%%expect {|
-Line 2, characters 10-36:
-2 |   val f : 'a. 'a t2_imm -> 'a t2_imm
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was defaulted to have kind value.
-       But it was inferred to have kind immediate
-         because of the definition of t2_imm at line 1, characters 0-28.
+module type S = sig val f : ('a : immediate). 'a t2_imm -> 'a t2_imm end
 |}]
 
 let f : 'a. 'a t2_imm -> 'a t2_imm = fun x -> x
 
 [%%expect {|
-Line 1, characters 8-34:
-1 | let f : 'a. 'a t2_imm -> 'a t2_imm = fun x -> x
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The universal type variable 'a was defaulted to have kind value.
-       But it was inferred to have kind immediate
-         because of the definition of t2_imm at line 1, characters 0-28.
+val f : ('a : immediate). 'a t2_imm -> 'a t2_imm = <fun>
 |}]
 
 (********************************************)

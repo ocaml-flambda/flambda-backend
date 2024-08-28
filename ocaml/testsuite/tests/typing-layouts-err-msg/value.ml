@@ -268,7 +268,8 @@ Error: This expression has type ('a : value)
        The layout of 'b is void
          because of the annotation on the type variable 'b.
        But the layout of 'b must overlap with value
-         because it is or unifies with an unannotated universal variable.
+         because it's a fresh unification variable,
+         defaulted to layout value.
 |}];;
 
 (* Polymorphic_variant_field *)

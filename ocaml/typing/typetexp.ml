@@ -330,8 +330,6 @@ end = struct
       in
       begin match get_desc v, jkind_info.of_annot with
       (* Must agree exactly with annotation, if one exists *)
-      (* FIXME jbachurski: Should we check that if no annotation is present,
-         the inferred jkind (in covariant positions) is representable? *)
       | Tvar { jkind }, Some (declared_jkind, _)
           when not (Jkind.equate jkind declared_jkind) ->
         let reason =
@@ -341,7 +339,7 @@ end = struct
       | Tvar _, _ when get_level v <> Btype.generic_level ->
           cant_quantify Scope_escape
       | Tvar { name; jkind }, _ ->
-         (* Jkind.default_to_value jkind; *)
+         Jkind.default_to_value jkind;
          set_type_desc v (Tunivar { name; jkind })
       | Tunivar _, _ ->
          cant_quantify Univar
