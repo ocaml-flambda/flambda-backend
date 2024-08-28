@@ -4163,24 +4163,16 @@ let report_error ~loc _env = function
         Misc.print_see_manual manual_ref
   | Toplevel_nonvalue (id, sort) ->
       Location.errorf ~loc
-<<<<<<< HEAD
         "@[Types of top-level module bindings must have layout %a, but@ \
          the type of %a has layout@ %a.@]"
         Style.inline_code "value"
         Style.inline_code id
         (Style.as_inline_code Jkind.Sort.format) sort
-||||||| a198127529
-        "@[Types of top-level module bindings must have layout value, but@ \
-         the type of %s has layout@ %a.@]" id Jkind.Sort.format sort
-=======
-        "@[Types of top-level module bindings must have layout value, but@ \
-         the type of %s has layout@ %a.@]" id Jkind.Sort.format sort
   | Toplevel_unnamed_nonvalue sort ->
       Location.errorf ~loc
         "@[Types of unnamed expressions must have layout value when using@ \
            the toplevel, but this expression has layout@ %a.@]"
-        Jkind.Sort.format sort
->>>>>>> flambda-backend/main
+        (Style.as_inline_code Jkind.Sort.format) sort
  | Strengthening_mismatch(lid, explanation) ->
       let main = Includemod_errorprinter.err_msgs explanation in
       Location.errorf ~loc

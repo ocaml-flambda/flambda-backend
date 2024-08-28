@@ -2466,16 +2466,6 @@ and type_pat_aux
       pat_attributes = sp.ppat_attributes;
       pat_env = !!penv }
   in
-<<<<<<< HEAD
-  match Jane_syntax.Mode_expr.maybe_of_attrs sp.ppat_attributes with
-  | Some modes, _ -> raise (Error (modes.loc, !!penv, Modes_on_pattern))
-  | None, _ ->
-||||||| a198127529
-  match Jane_syntax.Mode_expr.maybe_of_attrs sp.ppat_attributes with
-  | Some modes, _ -> raise (Error (modes.loc, !env, Modes_on_pattern))
-  | None, _ ->
-=======
->>>>>>> flambda-backend/main
   match Jane_syntax.Pattern.of_ast sp with
   | Some (jpat, attrs) -> begin
       (* Normally this would go to an auxiliary function, but this function
@@ -2812,39 +2802,14 @@ and type_pat_aux
         pat_loc = loc; pat_extra=[];
         pat_type = instance expected_ty;
         pat_attributes = sp.ppat_attributes;
-<<<<<<< HEAD
         pat_env = !!penv }
-  | Ppat_constraint(sp_constrained, sty) ->
-||||||| a198127529
-        pat_env = !env }
-  | Ppat_constraint(sp_constrained, sty) ->
-=======
-        pat_env = !env }
   | Ppat_constraint(sp_constrained, sty, ms) ->
->>>>>>> flambda-backend/main
       (* Pretend separate = true *)
-<<<<<<< HEAD
-      let cty, ty, expected_ty' =
-        let type_modes, sty = alloc_mode_from_ppat_constraint_typ_attrs sty in
-        solve_Ppat_constraint tps loc !!penv type_modes sty expected_ty
-      in
-      let p = type_pat ~alloc_mode tps category sp_constrained expected_ty' in
-      let extra = (Tpat_constraint cty, loc, sp_constrained.ppat_attributes) in
-      { p with pat_type = ty; pat_extra = extra::p.pat_extra }
-||||||| a198127529
-      let cty, ty, expected_ty' =
-        let type_modes, sty = alloc_mode_from_ppat_constraint_typ_attrs sty in
-        solve_Ppat_constraint ~refine tps loc env type_modes sty expected_ty
-      in
-      let p = type_pat ~alloc_mode tps category sp_constrained expected_ty' in
-      let extra = (Tpat_constraint cty, loc, sp_constrained.ppat_attributes) in
-      { p with pat_type = ty; pat_extra = extra::p.pat_extra }
-=======
       begin match sty with
       | Some sty ->
         let cty, ty, expected_ty' =
           let type_modes = Typemode.transl_alloc_mode ms in
-          solve_Ppat_constraint ~refine tps loc env type_modes sty expected_ty
+          solve_Ppat_constraint tps loc !!penv type_modes sty expected_ty
         in
         let p = type_pat ~alloc_mode tps category sp_constrained expected_ty' in
         let extra = (Tpat_constraint cty, loc, sp_constrained.ppat_attributes) in
@@ -2852,7 +2817,6 @@ and type_pat_aux
       | None ->
         type_pat ~alloc_mode tps category sp_constrained expected_ty
       end
->>>>>>> flambda-backend/main
   | Ppat_type lid ->
       let (path, p) = build_or_pat !!penv loc lid in
       pure category @@ solve_expected
@@ -3972,229 +3936,6 @@ let check_recursive_class_bindings env ids exprs =
          raise(Error(expr.cl_loc, env, Illegal_class_expr)))
     exprs
 
-<<<<<<< HEAD
-module Is_local_returning : sig
-  val function_body : Parsetree.function_body -> bool
-end = struct
-
-  (* Is the return value annotated with "local_"?
-     [assert false] can work either way *)
-
-  type local_returning_flag =
-    | Local of Location.t  (* location of a local return *)
-    | Not of Location.t  (* location of a non-local return *)
-    | Either
-
-  let combine flag1 flag2 =
-    match flag1, flag2 with
-    | (Local _ as flag), Local _
-    | (Local _ as flag), Either
-    | (Not _ as flag), Not _
-    | (Not _ as flag), Either
-    | Either, (Local _ as flag)
-    | Either, (Not _ as flag)
-    | (Either as flag), Either ->
-      flag
-
-    | Local local_loc, Not not_local_loc
-    | Not not_local_loc, Local local_loc ->
-       raise(Error(not_local_loc, Env.empty,
-                   Local_return_annotation_mismatch local_loc))
-
-  let expr e =
-    let rec loop e =
-      match Jane_syntax.Expression.of_ast e with
-      | Some (jexp, _attrs) -> begin
-          match jexp with
-          | Jexp_comprehension   _ -> Not e.pexp_loc
-          | Jexp_immutable_array _ -> Not e.pexp_loc
-          | Jexp_layout (Lexp_constant _) -> Not e.pexp_loc
-          | Jexp_layout (Lexp_newtype (_, _, e)) -> loop e
-          | Jexp_tuple _ -> Not e.pexp_loc
-          | Jexp_modes (Coerce (modes, exp)) ->
-              if List.exists
-                  (fun m ->
-                     let {txt; _} =
-                       (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc)
-                     in
-                     txt = "local")
-                  modes.txt
-              then Local e.pexp_loc
-              else loop exp
-        end
-      | None      ->
-      match e.pexp_desc with
-      | Pexp_assert { pexp_desc = Pexp_construct ({ txt = Lident "false" },
-                                                  None) } ->
-          Either
-      | Pexp_ident _ | Pexp_constant _ | Pexp_apply _ | Pexp_tuple _
-      | Pexp_construct _ | Pexp_variant _ | Pexp_record _ | Pexp_field _
-      | Pexp_setfield _ | Pexp_array _ | Pexp_while _ | Pexp_for _ | Pexp_send _
-      | Pexp_new _ | Pexp_setinstvar _ | Pexp_override _ | Pexp_assert _
-      | Pexp_lazy _ | Pexp_object _ | Pexp_pack _ | Pexp_function _
-      | Pexp_letop _ | Pexp_extension _ | Pexp_unreachable ->
-          Not e.pexp_loc
-      | Pexp_let(_, _, e) | Pexp_sequence(_, e) | Pexp_constraint(e, _)
-      | Pexp_coerce(e, _, _) | Pexp_letmodule(_, _, e) | Pexp_letexception(_, e)
-      | Pexp_poly(e, _) | Pexp_newtype(_, e) | Pexp_open(_, e)
-      | Pexp_ifthenelse(_, e, None)->
-          loop e
-      | Pexp_ifthenelse(_, e1, Some e2)-> combine (loop e1) (loop e2)
-      | Pexp_match(_, cases) -> begin
-          match cases with
-          | [] -> Not e.pexp_loc
-          | first :: rest ->
-              List.fold_left
-                (fun acc pc -> combine acc (loop pc.pc_rhs))
-                (loop first.pc_rhs) rest
-        end
-      | Pexp_try(e, cases) ->
-          List.fold_left
-            (fun acc pc -> combine acc (loop pc.pc_rhs))
-            (loop e) cases
-    in
-    loop e
-
-  let cases cs =
-    match cs with
-    | [] -> Either
-    | case :: cases ->
-        let is_local_returning_case case =
-          expr case.pc_rhs
-        in
-        List.fold_left
-          (fun acc case -> combine acc (is_local_returning_case case))
-          (is_local_returning_case case) cases
-
-  let function_body body =
-    match body with
-    | Pfunction_body body -> expr body
-    | Pfunction_cases (cs, _, _) -> cases cs
-
-  let is_strictly_local = function
-    | Local _ -> true
-    | Either | Not _ -> false
-        (* [fun _ -> assert false] must not be local-returning for
-          backward compatibility *)
-
-  (* for exporting from this module *)
-
-  let function_body body = is_strictly_local (function_body body)
-end
-
-||||||| a198127529
-module Is_local_returning : sig
-  val function_body : Jane_syntax.N_ary_functions.function_body -> bool
-end = struct
-
-  (* Is the return value annotated with "local_"?
-     [assert false] can work either way *)
-
-  type local_returning_flag =
-    | Local of Location.t  (* location of a local return *)
-    | Not of Location.t  (* location of a non-local return *)
-    | Either
-
-  let combine flag1 flag2 =
-    match flag1, flag2 with
-    | (Local _ as flag), Local _
-    | (Local _ as flag), Either
-    | (Not _ as flag), Not _
-    | (Not _ as flag), Either
-    | Either, (Local _ as flag)
-    | Either, (Not _ as flag)
-    | (Either as flag), Either ->
-      flag
-
-    | Local local_loc, Not not_local_loc
-    | Not not_local_loc, Local local_loc ->
-       raise(Error(not_local_loc, Env.empty,
-                   Local_return_annotation_mismatch local_loc))
-
-  let expr e =
-    let rec loop e =
-      match Jane_syntax.Expression.of_ast e with
-      | Some (jexp, _attrs) -> begin
-          match jexp with
-          | Jexp_comprehension   _ -> Not e.pexp_loc
-          | Jexp_immutable_array _ -> Not e.pexp_loc
-          | Jexp_layout (Lexp_constant _) -> Not e.pexp_loc
-          | Jexp_layout (Lexp_newtype (_, _, e)) -> loop e
-          | Jexp_n_ary_function _ -> Not e.pexp_loc
-          | Jexp_tuple _ -> Not e.pexp_loc
-          | Jexp_modes (Coerce (modes, exp)) ->
-              if List.exists
-                  (fun m ->
-                     let {txt; _} =
-                       (m : Jane_syntax.Mode_expr.Const.t :> _ Location.loc)
-                     in
-                     txt = "local")
-                  modes.txt
-              then Local e.pexp_loc
-              else loop exp
-        end
-      | None      ->
-      match e.pexp_desc with
-      | Pexp_assert { pexp_desc = Pexp_construct ({ txt = Lident "false" },
-                                                  None) } ->
-          Either
-      | Pexp_ident _ | Pexp_constant _ | Pexp_apply _ | Pexp_tuple _
-      | Pexp_construct _ | Pexp_variant _ | Pexp_record _ | Pexp_field _
-      | Pexp_setfield _ | Pexp_array _ | Pexp_while _ | Pexp_for _ | Pexp_send _
-      | Pexp_new _ | Pexp_setinstvar _ | Pexp_override _ | Pexp_assert _
-      | Pexp_lazy _ | Pexp_object _ | Pexp_pack _ | Pexp_function _ | Pexp_fun _
-      | Pexp_letop _ | Pexp_extension _ | Pexp_unreachable ->
-          Not e.pexp_loc
-      | Pexp_let(_, _, e) | Pexp_sequence(_, e) | Pexp_constraint(e, _)
-      | Pexp_coerce(e, _, _) | Pexp_letmodule(_, _, e) | Pexp_letexception(_, e)
-      | Pexp_poly(e, _) | Pexp_newtype(_, e) | Pexp_open(_, e)
-      | Pexp_ifthenelse(_, e, None)->
-          loop e
-      | Pexp_ifthenelse(_, e1, Some e2)-> combine (loop e1) (loop e2)
-      | Pexp_match(_, cases) -> begin
-          match cases with
-          | [] -> Not e.pexp_loc
-          | first :: rest ->
-              List.fold_left
-                (fun acc pc -> combine acc (loop pc.pc_rhs))
-                (loop first.pc_rhs) rest
-        end
-      | Pexp_try(e, cases) ->
-          List.fold_left
-            (fun acc pc -> combine acc (loop pc.pc_rhs))
-            (loop e) cases
-    in
-    loop e
-
-  let cases cs =
-    match cs with
-    | [] -> Either
-    | case :: cases ->
-        let is_local_returning_case case =
-          expr case.pc_rhs
-        in
-        List.fold_left
-          (fun acc case -> combine acc (is_local_returning_case case))
-          (is_local_returning_case case) cases
-
-  let function_body (body : Jane_syntax.N_ary_functions.function_body) =
-    match body with
-    | Pfunction_body body -> expr body
-    | Pfunction_cases (cs, _, _) -> cases cs
-
-  let is_strictly_local = function
-    | Local _ -> true
-    | Either | Not _ -> false
-        (* [fun _ -> assert false] must not be local-returning for
-          backward compatibility *)
-
-  (* for exporting from this module *)
-
-  let function_body body = is_strictly_local (function_body body)
-end
-
-=======
->>>>>>> flambda-backend/main
 (* The "rest of the function" extends from the start of the first parameter
    to the end of the overall function. The parser does not construct such
    a location so we forge one for type errors.
@@ -4285,31 +4026,17 @@ let type_pattern_approx env spat ty_expected =
   | Some (jpat, _attrs) -> type_pattern_approx_jane_syntax jpat
   | None      ->
   match spat.ppat_desc with
-<<<<<<< HEAD
-  | Ppat_constraint(_, sty) ->
+  | Ppat_constraint(_, Some sty, arg_type_mode) ->
       let inferred_ty =
         match sty with
         | {ptyp_desc=Ptyp_poly _} ->
-          let arg_type_mode, sty =
-            alloc_mode_from_ppat_constraint_typ_attrs sty
-          in
+          let arg_type_mode = Typemode.transl_alloc_mode arg_type_mode in
           let inferred_ty =
             Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false
               arg_type_mode sty
           in
           inferred_ty.ctyp_type
         | _ -> approx_type env sty
-||||||| a198127529
-  | Ppat_constraint(_, ({ptyp_desc=Ptyp_poly _} as sty)) ->
-      let arg_type_mode, sty = alloc_mode_from_ppat_constraint_typ_attrs sty in
-      let ty_pat =
-        Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false arg_type_mode sty
-=======
-  | Ppat_constraint(_, Some ({ptyp_desc=Ptyp_poly _} as sty), arg_type_mode) ->
-      let arg_type_mode = Typemode.transl_alloc_mode arg_type_mode in
-      let ty_pat =
-        Typetexp.transl_simple_type ~new_var_jkind:Any env ~closed:false arg_type_mode sty
->>>>>>> flambda-backend/main
       in
       begin try unify env inferred_ty ty_expected with Unify trace ->
         raise(Error(spat.ppat_loc, env, Pattern_type_clash(trace, None)))
@@ -4429,13 +4156,7 @@ and type_tuple_approx (env: Env.t) loc ty_expected l =
 and type_approx_function =
   let rec loop env params c body ty_expected ~in_function ~first =
     let loc_function, _ = in_function in
-<<<<<<< HEAD
-    let loc = loc_rest_of_function ~loc_function ~first params body in
-||||||| a198127529
-    let loc = loc_rest_of_function ~loc_function params body in
-=======
     let loc = loc_rest_of_function ~first ~loc_function params body in
->>>>>>> flambda-backend/main
     (* We can approximate types up to the first newtype parameter, whereupon
       we give up.
     *)
@@ -5183,29 +4904,11 @@ let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_modes=
           Exp.constraint_ ~loc expr (Some typ) modes
       end
   | Some (Pvc_coercion { ground; coercion}) ->
-<<<<<<< HEAD
-      let loc = { expr.pexp_loc with Location.loc_ghost = true } in
-      Exp.coerce ~loc expr ground coercion
-  | Some (Pvc_constraint { locally_abstract_univars;typ}) ->
-      let loc_start = pat.ppat_loc.Location.loc_start in
-      let loc = { expr.pexp_loc with loc_start; loc_ghost=true } in
-      let expr = Exp.constraint_ ~loc expr (add_mode_annot_attrs mode_annot_attr typ) in
-      List.fold_right (Exp.newtype ~loc) locally_abstract_univars expr
-||||||| a198127529
-      let loc = { expr.pexp_loc with Location.loc_ghost = true } in
-      Exp.coerce ~loc expr ground coercion
-  | Some (Pvc_constraint { locally_abstract_univars=vars;typ}) ->
-      let loc_start = pat.ppat_loc.Location.loc_start in
-      let loc = { expr.pexp_loc with loc_start; loc_ghost=true } in
-      let expr = Exp.constraint_ ~loc expr (add_mode_annot_attrs mode_annot_attr typ) in
-      List.fold_right (Exp.newtype ~loc) vars expr
-=======
       Exp.coerce ~loc expr ground coercion |> maybe_add_modes_constraint
-  | Some (Pvc_constraint { locally_abstract_univars=vars;typ}) ->
+  | Some (Pvc_constraint { locally_abstract_univars;typ}) ->
       let loc = Location.merge [ loc; pat.ppat_loc ] in
       let expr = Exp.constraint_ ~loc expr (Some typ) modes in
-      List.fold_right (Exp.newtype ~loc) vars expr
->>>>>>> flambda-backend/main
+      List.fold_right (Exp.newtype ~loc) locally_abstract_univars expr
 
 let vb_pat_constraint
       ({pvb_pat=pat; pvb_expr = exp; pvb_modes = modes; _ } as vb) =
@@ -6110,13 +5813,7 @@ and type_expect_
         in
         type_constraint env sty alloc_mode
       in
-<<<<<<< HEAD
-||||||| a198127529
-      let ty' = instance ty in
-=======
       let expected_mode = type_expect_mode ~loc ~env ~modes expected_mode in
-      let ty' = instance ty in
->>>>>>> flambda-backend/main
       let error_message_attr_opt =
         Builtin_attributes.error_message_attr sexp.pexp_attributes in
       let explanation = Option.map (fun msg -> Error_message_attr msg)
@@ -6883,27 +6580,7 @@ and type_function
       params_suffix body_constraint body ~first ~in_function
   : type_function_result
   =
-<<<<<<< HEAD
-  let { ty_fun; loc_fun; _ } = in_function in
-||||||| a198127529
-  let open Jane_syntax.N_ary_functions in
-  let { ty_fun; loc_fun; _ } = in_function in
-  (* The "rest of the function" extends from the start of the first parameter
-     to the end of the overall function. The parser does not construct such
-     a location so we forge one for type errors.
-  *)
-  let loc : Location.t =
-    match params_suffix, body with
-    | param :: _, _ ->
-        { loc_start = param.pparam_loc.loc_start;
-          loc_end = loc_fun.loc_end;
-          loc_ghost = true;
-        }
-    | [], Pfunction_body pexp -> pexp.pexp_loc
-    | [], Pfunction_cases (_, loc_cases, _) -> loc_cases
-=======
   let ty_fun, (loc_fun : Location.t) = in_function in
->>>>>>> flambda-backend/main
   let loc =
     loc_rest_of_function ~first ~loc_function:loc_fun params_suffix body
   in
@@ -8026,16 +7703,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
         | Some (( Jexp_tuple _
                 | Jexp_comprehension _
                 | Jexp_immutable_array _
-<<<<<<< HEAD
-                | Jexp_layout _
-                | Jexp_modes _ ), _) -> [se]
-||||||| a198127529
-                | Jexp_n_ary_function _
-                | Jexp_layout _
-                | Jexp_modes _ ), _) -> [se]
-=======
                 | Jexp_layout _), _) -> [se]
->>>>>>> flambda-backend/main
         | None -> match se.pexp_desc with
         | Pexp_tuple sel when
             constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs
@@ -8603,14 +8271,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
     | Some (jexp, _attrs) -> jexp_is_fun jexp
     | None      -> match sexp.pexp_desc with
     | Pexp_function _ -> true
-<<<<<<< HEAD
-    | Pexp_constraint (e, _)
-||||||| a198127529
-    | Pexp_fun _ | Pexp_function _ -> true
-    | Pexp_constraint (e, _)
-=======
     | Pexp_constraint (e, _, _)
->>>>>>> flambda-backend/main
     | Pexp_newtype (_, e) -> sexp_is_fun e
     | _ -> false
   and jexp_is_fun : Jane_syntax.Expression.t -> _ = function
@@ -10568,17 +10229,10 @@ let report_error ~loc env = function
         | Labelled _ | Position _ -> assert false )
   | Nonoptional_call_pos_label label ->
     Location.errorf ~loc
-<<<<<<< HEAD
       "@[the argument labeled %a is a %a argument, filled in @ \
          automatically if omitted. It cannot be passed with '?'.@]"
       Style.inline_code label
       Style.inline_code "[%call_pos]"
-||||||| a198127529
-      "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \
-         automatically if ommitted. It cannot be passed with '?'.@]" label
-=======
-      "@[the argument labeled '%s' is a [%%call_pos] argument, filled in @ \
-         automatically if ommitted. It cannot be passed with '?'.@]" label
   | Cannot_stack_allocate closure_context ->
       let sub = stack_hint closure_context in
       Location.errorf ~loc ~sub "@[This allocation cannot be on the stack.@]"
@@ -10587,7 +10241,6 @@ let report_error ~loc env = function
       print_unsupported_stack_allocation category
   | Not_allocation ->
       Location.errorf ~loc "This expression is not an allocation site."
->>>>>>> flambda-backend/main
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env_error env
