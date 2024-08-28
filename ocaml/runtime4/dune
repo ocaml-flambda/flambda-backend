@@ -93,7 +93,7 @@
    (progn
     (bash "touch .depend") ; hack.
     (run make "SAK_LINK=cc -o $(1) $(2)" COMPUTE_DEPS=false sak)
-    (run make -j8 %{targets} COMPUTE_DEPS=false)
+    (run make -sj8 %{targets} COMPUTE_DEPS=false)
     (bash "rm .depend")))))
 
 (install
