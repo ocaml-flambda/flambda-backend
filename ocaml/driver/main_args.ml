@@ -539,7 +539,7 @@ let mk_dprofile f =
 
 let mk_dgranularity f =
   "-dgranularity",
-  Arg.Symbol (["file"; "func"], f),
+  Arg.Symbol (Clflags.all_profile_granularity_levels, f),
   " Specify granularity level for profile information (-dtimings, -dcounters, -dprofile)";
 ;;
 

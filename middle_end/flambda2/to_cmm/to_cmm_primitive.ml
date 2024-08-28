@@ -281,10 +281,10 @@ let bigarray_store ~dbg kind ~bigarray ~index ~new_value =
   bigarray_load_or_store ~dbg kind ~bigarray ~index
     (C.bigarray_store ~new_value)
 
-(* String and bytes access. For these functions, [index] is a tagged integer. *)
+(* String and bytes access. For these functions, [index] is an untagged
+   integer. *)
 
 let string_like_load_aux ~dbg width ~str ~index =
-  let index = C.untag_int index dbg in
   match (width : P.string_accessor_width) with
   | Eight -> C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int str index dbg)
   | Sixteen -> C.unaligned_load_16 str index dbg
@@ -304,7 +304,6 @@ let string_like_load ~dbg kind width ~str ~index =
         string_like_load_aux ~dbg width ~str ~index)
 
 let bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value =
-  let index = C.untag_int index dbg in
   match (width : P.string_accessor_width) with
   | Eight ->
     let addr = C.add_int bytes index dbg in

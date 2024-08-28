@@ -649,8 +649,8 @@ let signature_item sub x =
         Tsig_modtype (sub.module_type_declaration sub x)
     | Tsig_modtypesubst x ->
         Tsig_modtypesubst (sub.module_type_declaration sub x)
-    | Tsig_include incl ->
-        Tsig_include (sig_include_infos sub incl)
+    | Tsig_include (incl, moda) ->
+        Tsig_include (sig_include_infos sub incl, moda)
     | Tsig_class list ->
         Tsig_class (List.map (sub.class_description sub) list)
     | Tsig_class_type list ->

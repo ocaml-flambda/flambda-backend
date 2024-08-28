@@ -1241,13 +1241,9 @@ module Analyser =
      in
      (0, env, [ Element_included_module im ]) (* FIXME: extend the environment? With what? *)
 
-   and analyse_structure_item_jst env _current_module_name _loc _pos_limit comment_opt jstritem _typedtree
+   and analyse_structure_item_jst _env _current_module_name _loc _pos_limit _comment_opt jstritem _typedtree
         _table _table_values =
      match (jstritem : Jane_syntax.Structure_item.t) with
-      | Jstr_include_functor ifincl -> begin match ifincl with
-          | Ifstr_include_functor incl ->
-              analyse_structure_item_include ~env ~comment_opt incl
-        end
       | Jstr_layout (Lstr_kind_abbrev _) ->
         Misc.fatal_error "Lstr_kind_abbrev"
 

@@ -167,6 +167,7 @@
                       None
           signature_item (attributes.ml[39,498+2]..[40,566+11])
             Psig_include
+            Structure
             module_type (attributes.ml[39,498+10]..[39,498+61])
               attribute "foo"
                 []
