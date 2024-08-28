@@ -169,7 +169,6 @@ and apply_coercion_result loc strict funct params args cc_res =
              ~loc
              ~mode:alloc_heap
              ~ret_mode:alloc_heap
-             ~region:true
              ~body:(apply_coercion
                    loc Strict cc_res
                    (Lapply{
@@ -582,7 +581,6 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
     ~loc
     ~mode:alloc_heap
     ~ret_mode:alloc_heap
-    ~region:true
     ~body
 
 (* Compile a module expression *)

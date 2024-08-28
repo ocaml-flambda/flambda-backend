@@ -1878,7 +1878,6 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
        ~body
        ~mode:alloc_heap
        ~ret_mode:(to_locality p.prim_native_repr_res)
-       ~region
 
 let lambda_primitive_needs_event_after = function
   (* We add an event after any primitive resulting in a C call that

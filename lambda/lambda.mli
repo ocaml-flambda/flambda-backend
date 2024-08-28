@@ -665,7 +665,9 @@ type loop_attribute =
 type curried_function_kind = { nlocal: int } [@@unboxed]
 (* [nlocal] determines how many arguments may be partially applied
     before the resulting closure must be locally allocated.
-    See [lfunction] for details *)
+    See the implementation of [lfunction] for details *)
+(* CR mshinwell: this comment should presumably say that nlocal = 0 implies
+   that the function cannot allocate in the caller's region *)
 
 type function_kind = Curried of curried_function_kind | Tupled
 
@@ -797,8 +799,6 @@ and lfunction = private
     loc : scoped_location;
     mode : locality_mode;     (* locality of the closure itself *)
     ret_mode: locality_mode;
-    region : bool;         (* false if this function may locally
-                              allocate in the caller's region *)
   }
 
 and lambda_while =
@@ -1002,7 +1002,6 @@ val lfunction :
   loc:scoped_location ->
   mode:locality_mode ->
   ret_mode:locality_mode ->
-  region:bool ->
   lambda
 
 val lfunction' :
@@ -1014,7 +1013,6 @@ val lfunction' :
   loc:scoped_location ->
   mode:locality_mode ->
   ret_mode:locality_mode ->
-  region:bool ->
   lfunction
 
 
