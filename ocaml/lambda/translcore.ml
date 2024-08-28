@@ -1096,10 +1096,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           ignore (Env.find_module_lazy path e.exp_env)
       ) arg_idents;
       let body = Lambda.rename map lam in
-      let body =
-        if Config.stack_allocation then Lexclave body
-        else body
-      in
       let attr =
         { inline = Never_inline;
           specialise = Always_specialise;
@@ -1127,7 +1123,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
              probes. *)
           ~params:(List.map (fun name -> { name; layout = layout_probe_arg; attributes = Lambda.default_param_attribute; mode = alloc_local }) param_idents)
           ~return:return_layout
-          ~body:(maybe_region_layout return_layout body)
+          ~body:body
           ~loc:(of_location ~scopes exp.exp_loc)
           ~attr
           ~mode:alloc_heap
