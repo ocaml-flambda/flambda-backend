@@ -163,8 +163,14 @@ Error: The kind of type string is value
          because it is the primitive value type string.
 =======
 Error: The kind of type string is immutable_data
+<<<<<<< HEAD
          because it is the primitive immutable_data type string.
 >>>>>>> 57461473bf
+||||||| 57461473bf
+         because it is the primitive immutable_data type string.
+=======
+         because it is the primitive type string.
+>>>>>>> b532dff77bae26442a96373ce7c1f82b0af7732e
        But the kind of type string must be a subkind of immediate
          because of the definition of t at line 2, characters 2-31.
 >>>>>>> ocaml-jst/flambda-patches
@@ -274,7 +280,7 @@ Error: Signature mismatch:
        is not included in
          type t : immediate
        The kind of the first is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of the first must be a subkind of immediate
          because of the definition of t at line 1, characters 15-35.
 |}];;
@@ -292,7 +298,7 @@ Error: Signature mismatch:
        is not included in
          type t : immediate
        The kind of the first is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of the first must be a subkind of immediate
          because of the definition of t at line 1, characters 20-40.
 |}];;
@@ -309,7 +315,7 @@ Error: Modules do not match: sig type t = string end is not included in
      is not included in
        type t : immediate
      The kind of the first is immutable_data
-       because it is the primitive immutable_data type string.
+       because it is the primitive type string.
      But the kind of the first must be a subkind of immediate
        because of the definition of t at line 1, characters 20-40.
 |}];;
@@ -343,8 +349,14 @@ Error: The kind of type s is value
          because it is the primitive value type string.
 =======
 Error: The kind of type s is immutable_data
+<<<<<<< HEAD
          because it is the primitive immutable_data type string.
 >>>>>>> 57461473bf
+||||||| 57461473bf
+         because it is the primitive immutable_data type string.
+=======
+         because it is the primitive type string.
+>>>>>>> b532dff77bae26442a96373ce7c1f82b0af7732e
        But the kind of type s must be a subkind of immediate
          because of the definition of t at line 2, characters 2-26.
 >>>>>>> ocaml-jst/flambda-patches

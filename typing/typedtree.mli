@@ -1181,3 +1181,6 @@ val exp_is_nominal : expression -> bool
 
 (** Calculates the syntactic arity of a function based on its parameters and body. *)
 val function_arity : function_param list -> function_body -> int
+
+(** Given a declaration, return the location of the bound identifier *)
+val loc_of_decl : uid:Shape.Uid.t -> item_declaration -> string Location.loc
