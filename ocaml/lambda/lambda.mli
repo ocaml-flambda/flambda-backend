@@ -696,7 +696,6 @@ type lambda =
   (* [Lexclave] closes the newest region opened.
      Note that [Lexclave] nesting is currently unsupported. *)
   | Lexclave of lambda
-  (** Exit the current region and proceed to the subexpression. *)
 
 and rec_binding = {
   id : Ident.t;
@@ -715,13 +714,8 @@ and lfunction = private
     loc : scoped_location;
     mode : alloc_mode;     (* alloc mode of the closure itself *)
     ret_mode: alloc_mode;
-    (** The mode of the return value. If [local], the function might allocate in
-        caller's region. *)
-    region : bool;
-    (** Does the function have a region? Even if this is [true], the function
-        can still allocate in caller's region via [Lexclave].
-
-        CR zqian: this field is always true and should be removed. *)
+    region : bool;         (* false if this function may locally
+                              allocate in the caller's region *)
   }
 
 and lambda_while =

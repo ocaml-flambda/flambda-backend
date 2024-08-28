@@ -1128,7 +1128,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           ~attr
           ~mode:alloc_heap
           ~ret_mode:alloc_local
-          ~region:true
+          ~region:false
       in
       let app =
         { ap_func = Lvar funcid;
