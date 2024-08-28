@@ -759,7 +759,8 @@
     Pstr_extension "foo"
     [
       structure_item (shortcut_ext_attr.ml[93,1885+0]..[93,1885+19])
-        Pstr_include          attribute "foo"
+        Pstr_include        Structure
+          attribute "foo"
             []
         module_expr (shortcut_ext_attr.ml[93,1885+18]..[93,1885+19])
           Pmod_ident "M" (shortcut_ext_attr.ml[93,1885+18]..[93,1885+19])
@@ -936,6 +937,7 @@
             [
               signature_item (shortcut_ext_attr.ml[114,2245+2]..[114,2245+21])
                 Psig_include
+                Structure
                 module_type (shortcut_ext_attr.ml[114,2245+20]..[114,2245+21])
                   Pmty_ident "M" (shortcut_ext_attr.ml[114,2245+20]..[114,2245+21])
                   attribute "foo"

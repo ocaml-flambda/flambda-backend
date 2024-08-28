@@ -346,7 +346,7 @@ let bint_shift bi mode prim arg1 arg2 =
          unbox_bint bi arg1,
          untag_int arg2 ))
 
-let convert_index_to_tagged_int index (index_kind : Lambda.array_index_kind) =
+let convert_index_to_tagged_int ~index ~(index_kind : Lambda.array_index_kind) =
   match index_kind with
   | Ptagged_int_index -> index
   | Punboxed_int_index bint ->
@@ -357,6 +357,15 @@ let convert_index_to_tagged_int index (index_kind : Lambda.array_index_kind) =
                dst = Tagged_immediate
              },
            index ))
+
+let convert_index_to_untagged_int ~index ~(index_kind : Lambda.array_index_kind)
+    =
+  let src : I_or_f.t =
+    match index_kind with
+    | Ptagged_int_index -> Tagged_immediate
+    | Punboxed_int_index bint -> standard_int_or_float_of_boxed_integer bint
+  in
+  H.Prim (Unary (Num_conv { src; dst = Naked_immediate }, index))
 
 let check_non_negative_imm imm prim_name =
   if not (Targetint_31_63.is_non_negative imm)
@@ -529,7 +538,7 @@ let checked_bigstring_access ~dbg ~size_int ~access_size ~primitive arg1
       checked_alignment ~dbg ~primitive
         ~conditions:
           [ bigstring_alignment_validity_condition arg1 16
-              (convert_index_to_tagged_int arg2 index_kind) ]
+              (convert_index_to_tagged_int ~index:arg2 ~index_kind) ]
     | Eight | Sixteen | Thirty_two | Single | Sixty_four
     | One_twenty_eight { aligned = false } ->
       primitive
@@ -545,7 +554,7 @@ let string_like_load ~dbg ~unsafe
     (kind : P.string_like_value) mode ~boxed string ~index_kind index
     ~current_region =
   let unsafe_load =
-    let index = convert_index_to_tagged_int index index_kind in
+    let index = convert_index_to_untagged_int ~index ~index_kind in
     let wrap =
       match access_size, mode with
       | (Eight | Sixteen), None ->
@@ -586,7 +595,7 @@ let bytes_like_set ~dbg ~unsafe
     ~(access_size : Flambda_primitive.string_accessor_width) ~size_int
     (kind : P.bytes_like_value) ~boxed bytes ~index_kind index new_value =
   let unsafe_set =
-    let index = convert_index_to_tagged_int index index_kind in
+    let index = convert_index_to_untagged_int ~index ~index_kind in
     let wrap =
       match access_size with
       | Eight | Sixteen ->
@@ -1555,36 +1564,32 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pmodbint { size = Pnativeint; is_safe = Safe; mode }, [[arg1]; [arg2]] ->
     [ checked_arith_op ~dbg (Some Pnativeint) Mod (Some mode) arg1 arg2
         ~current_region ]
-  | Parrayrefu (array_ref_kind, array_index_kind), [[array]; [index]] ->
+  | Parrayrefu (array_ref_kind, index_kind), [[array]; [index]] ->
     (* For this and the following cases we will end up relying on the backend to
        CSE the two accesses to the array's header word in the [Pgenarray]
        case. *)
     [ match_on_array_ref_kind ~array array_ref_kind
         (array_load_unsafe ~array
-           ~index:(convert_index_to_tagged_int index array_index_kind)
+           ~index:(convert_index_to_tagged_int ~index ~index_kind)
            ~current_region) ]
-  | Parrayrefs (array_ref_kind, array_index_kind), [[array]; [index]] ->
+  | Parrayrefs (array_ref_kind, index_kind), [[array]; [index]] ->
     let array_kind = convert_array_ref_kind_for_length array_ref_kind in
-    [ check_array_access ~dbg ~array array_kind ~index
-        ~index_kind:array_index_kind
+    [ check_array_access ~dbg ~array array_kind ~index ~index_kind
         (match_on_array_ref_kind ~array array_ref_kind
            (array_load_unsafe ~array
-              ~index:(convert_index_to_tagged_int index array_index_kind)
+              ~index:(convert_index_to_tagged_int ~index ~index_kind)
               ~current_region)) ]
-  | ( Parraysetu (array_set_kind, array_index_kind),
-      [[array]; [index]; [new_value]] ) ->
+  | Parraysetu (array_set_kind, index_kind), [[array]; [index]; [new_value]] ->
     [ match_on_array_set_kind ~array array_set_kind
         (array_set_unsafe ~array
-           ~index:(convert_index_to_tagged_int index array_index_kind)
+           ~index:(convert_index_to_tagged_int ~index ~index_kind)
            ~new_value) ]
-  | ( Parraysets (array_set_kind, array_index_kind),
-      [[array]; [index]; [new_value]] ) ->
+  | Parraysets (array_set_kind, index_kind), [[array]; [index]; [new_value]] ->
     let array_kind = convert_array_set_kind_for_length array_set_kind in
-    [ check_array_access ~dbg ~array array_kind ~index
-        ~index_kind:array_index_kind
+    [ check_array_access ~dbg ~array array_kind ~index ~index_kind
         (match_on_array_set_kind ~array array_set_kind
            (array_set_unsafe ~array
-              ~index:(convert_index_to_tagged_int index array_index_kind)
+              ~index:(convert_index_to_tagged_int ~index ~index_kind)
               ~new_value)) ]
   | Pbytessetu (* unsafe *), [[bytes]; [index]; [new_value]] ->
     [ bytes_like_set ~unsafe:true ~dbg ~size_int ~access_size:Eight Bytes

@@ -1731,13 +1731,8 @@ structure_item:
     )
     { $1 }
   | include_statement(module_expr)
-      { let is_functor, incl, ext = $1 in
-        let item =
-          if is_functor
-          then Jane_syntax.Include_functor.str_item_of ~loc:(make_loc $sloc)
-                (Ifstr_include_functor incl)
-          else mkstr ~loc:$sloc (Pstr_include incl)
-        in
+      { let incl, ext = $1 in
+        let item = mkstr ~loc:$sloc (Pstr_include incl) in
         wrap_str_ext ~loc:$sloc item ext
       }
   | kind_abbreviation_decl
@@ -1823,17 +1818,17 @@ module_binding_body:
 
 (* Shared material between structures and signatures. *)
 
-include_maybe_functor:
+include_kind:
   | INCLUDE %prec below_FUNCTOR
-      { false }
+      { Structure }
   | INCLUDE FUNCTOR
-      { true }
+      { Functor }
 ;
 
 (* An [include] statement can appear in a structure or in a signature,
    which is why this definition is parameterized. *)
 %inline include_statement(thing):
-  is_functor = include_maybe_functor
+  kind = include_kind
   ext = ext
   attrs1 = attributes
   thing = thing
@@ -1842,8 +1837,8 @@ include_maybe_functor:
     let attrs = attrs1 @ attrs2 in
     let loc = make_loc $sloc in
     let docs = symbol_docs $sloc in
-    let incl = Incl.mk thing ~attrs ~loc ~docs in
-    is_functor, incl, ext
+    let incl = Incl.mk ~kind thing ~attrs ~loc ~docs in
+    incl, ext
   }
 ;
 
@@ -2009,14 +2004,9 @@ signature_item:
         { let (ext, l) = $1 in (Psig_class_type l, ext) }
     )
     { $1 }
-  | include_statement(module_type)
-      { let is_functor, incl, ext = $1 in
-        let item =
-          if is_functor
-          then Jane_syntax.Include_functor.sig_item_of ~loc:(make_loc $sloc)
-                 (Ifsig_include_functor incl)
-          else mksig ~loc:$sloc (Psig_include incl)
-        in
+  | include_statement(module_type) modalities = optional_atat_modalities_expr
+      { let incl, ext = $1 in
+        let item = mksig ~loc:$sloc (Psig_include (incl, modalities)) in
         wrap_sig_ext ~loc:$sloc item ext
       }
   | kind_abbreviation_decl

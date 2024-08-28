@@ -60,7 +60,7 @@ module Libloc : sig
 end
 
 type profile_column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap | `Counters ]
-type profile_granularity_level = File_level | Function_level
+type profile_granularity_level = File_level | Function_level | Block_level
 
 val objfiles : string list ref
 val ccobjs : string list ref
@@ -158,6 +158,7 @@ val dump_interf : bool ref
 val dump_prefer : bool ref
 val dump_regalloc : bool ref
 val dump_reload : bool ref
+val dump_scheduling : bool ref
 val dump_linear : bool ref
 val dump_interval : bool ref
 val debug_ocaml : bool ref
@@ -204,6 +205,7 @@ val default_timings_precision : int
 val timings_precision : int ref
 val profile_columns : profile_column list ref
 val profile_granularity : profile_granularity_level ref
+val all_profile_granularity_levels : string list
 val set_profile_granularity : string -> unit
 val flambda_invariant_checks : bool ref
 val unbox_closures : bool ref
@@ -277,7 +279,7 @@ end
 
 module Compiler_pass : sig
   type t = Parsing | Typing | Lambda | Middle_end
-         | Linearization | Emit | Simplify_cfg | Selection
+         | Scheduling | Emit | Simplify_cfg | Selection
   val of_string : string -> t option
   val to_string : t -> string
   val is_compilation_pass : t -> bool

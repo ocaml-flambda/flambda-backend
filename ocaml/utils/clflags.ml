@@ -53,7 +53,7 @@ module Libloc = struct
 end
 
 type profile_column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap | `Counters ]
-type profile_granularity_level = File_level | Function_level
+type profile_granularity_level = File_level | Function_level | Block_level
 
 let compile_only = ref false            (* -c *)
 and output_name = ref (None : string option) (* -o *)
@@ -151,6 +151,7 @@ let dump_interf = ref false             (* -dinterf *)
 let dump_prefer = ref false             (* -dprefer *)
 let dump_regalloc = ref false           (* -dalloc *)
 let dump_reload = ref false             (* -dreload *)
+let dump_scheduling = ref false         (* -dscheduling *)
 let dump_linear = ref false             (* -dlinear *)
 let dump_interval = ref false           (* -dinterval *)
 let keep_startup_file = ref false       (* -dstartup *)
@@ -161,11 +162,18 @@ let timings_precision = ref default_timings_precision (* -dtimings-precision *)
 let profile_columns : profile_column list ref = ref [] (* -dprofile/-dtimings/-dcounters *)
 let profile_granularity : profile_granularity_level ref = ref File_level (* -dgranularity *)
 
+let profile_granularity_level_mapping = [
+  "file", File_level;
+  "func", Function_level;
+  "block", Block_level;
+]
+
+let all_profile_granularity_levels = List.map fst profile_granularity_level_mapping
+
 let set_profile_granularity v =
-  profile_granularity := match v with
-  | "file" -> File_level
-  | "func" -> Function_level
-  | _ -> raise (Invalid_argument (Format.sprintf "profile granularity: %s" v))
+  match List.assoc_opt v profile_granularity_level_mapping with
+  | Some granularity -> profile_granularity := granularity
+  | None -> raise (Invalid_argument (Format.sprintf "profile granularity: %s" v))
 
 let native_code = ref false             (* set to true under ocamlopt *)
 
@@ -535,14 +543,14 @@ module Compiler_pass = struct
      - the manual manual/src/cmds/unified-options.etex
   *)
   type t = Parsing | Typing | Lambda | Middle_end
-         | Linearization | Emit | Simplify_cfg | Selection
+         | Scheduling | Emit | Simplify_cfg | Selection
 
   let to_string = function
     | Parsing -> "parsing"
     | Typing -> "typing"
     | Lambda -> "lambda"
     | Middle_end -> "middle_end"
-    | Linearization -> "linearization"
+    | Scheduling -> "scheduling"
     | Emit -> "emit"
     | Simplify_cfg -> "simplify_cfg"
     | Selection -> "selection"
@@ -552,7 +560,7 @@ module Compiler_pass = struct
     | "typing" -> Some Typing
     | "lambda" -> Some Lambda
     | "middle_end" -> Some Middle_end
-    | "linearization" -> Some Linearization
+    | "scheduling" -> Some Scheduling
     | "emit" -> Some Emit
     | "simplify_cfg" -> Some Simplify_cfg
     | "selection" -> Some Selection
@@ -565,7 +573,7 @@ module Compiler_pass = struct
     | Middle_end -> 3
     | Selection -> 20
     | Simplify_cfg -> 49
-    | Linearization -> 50
+    | Scheduling -> 50
     | Emit -> 60
 
   let passes = [
@@ -573,7 +581,7 @@ module Compiler_pass = struct
     Typing;
     Lambda;
     Middle_end;
-    Linearization;
+    Scheduling;
     Emit;
     Simplify_cfg;
     Selection;
@@ -581,7 +589,7 @@ module Compiler_pass = struct
   let is_compilation_pass _ = true
   let is_native_only = function
     | Middle_end -> true
-    | Linearization -> true
+    | Scheduling -> true
     | Emit -> true
     | Simplify_cfg -> true
     | Selection -> true
@@ -589,7 +597,7 @@ module Compiler_pass = struct
 
   let enabled is_native t = not (is_native_only t) || is_native
   let can_save_ir_after = function
-    | Linearization -> true
+    | Scheduling -> true
     | Simplify_cfg -> true
     | Selection -> true
     | Parsing | Typing | Lambda | Middle_end | Emit -> false
@@ -605,7 +613,7 @@ module Compiler_pass = struct
 
   let to_output_filename t ~prefix =
     match t with
-    | Linearization -> prefix ^ Compiler_ir.(extension Linear)
+    | Scheduling -> prefix ^ Compiler_ir.(extension Linear)
     | Simplify_cfg -> prefix ^ Compiler_ir.(extension Cfg)
     | Selection -> prefix ^ Compiler_ir.(extension Cfg) ^ "-sel"
     | Emit | Parsing | Typing | Lambda | Middle_end -> Misc.fatal_error "Not supported"

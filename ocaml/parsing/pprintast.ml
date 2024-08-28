@@ -406,6 +406,10 @@ let modalities_type pty ctxt f pca =
     (pty ctxt) pca.pca_type
     optional_atat_modalities m
 
+let include_kind f = function
+  | Functor -> pp f "@ functor"
+  | Structure -> ()
+
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
   | [] -> ()
@@ -1446,15 +1450,18 @@ and class_expr ctxt f x =
           (class_expr ctxt) e
 
 and include_ : 'a. ctxt -> formatter ->
-                   functor_:bool ->
                    contents:(ctxt -> formatter -> 'a -> unit) ->
                    'a include_infos ->
                    unit =
-  fun ctxt f ~functor_ ~contents incl ->
-    pp f "@[<hov2>include%t@ %a@]%a"
-      (if functor_ then fun f -> pp f "@ functor" else fun _ -> ())
+  fun ctxt f ~contents incl ->
+    pp f "@[<hov2>include%a@ %a@]%a"
+      include_kind incl.pincl_kind
       (contents ctxt) incl.pincl_mod
       (item_attributes ctxt) incl.pincl_attributes
+
+and sig_include ctxt f incl moda =
+  include_ ctxt f ~contents:module_type incl;
+  optional_atat_modalities f moda
 
 and kind_abbrev ctxt f name jkind =
   pp f "@[<hov2>kind_abbrev_@ %a@ =@ %a@]"
@@ -1545,11 +1552,6 @@ and module_type_jane_syntax1 ctxt attrs f : Jane_syntax.Module_type.t -> _ =
 
 and signature ctxt f x =  list ~sep:"@\n" (signature_item ctxt) f x
 
-and sig_include_functor ctxt f
-  : Jane_syntax.Include_functor.signature_item -> _ = function
-  | Ifsig_include_functor incl ->
-      include_ ctxt f ~functor_:true ~contents:module_type incl
-
 and sig_layout ctxt f
   : Jane_syntax.Layouts.signature_item -> _ = function
   | Lsig_kind_abbrev (name, jkind) ->
@@ -1557,7 +1559,6 @@ and sig_layout ctxt f
 
 and signature_item_jane_syntax ctxt f : Jane_syntax.Signature_item.t -> _ =
   function
-  | Jsig_include_functor ifincl -> sig_include_functor ctxt f ifincl
   | Jsig_layout sigi -> sig_layout ctxt f sigi
 
 and signature_item ctxt f x : unit =
@@ -1619,8 +1620,8 @@ and signature_item ctxt f x : unit =
         (override od.popen_override)
         longident_loc od.popen_expr
         (item_attributes ctxt) od.popen_attributes
-  | Psig_include incl ->
-      include_ ctxt f ~functor_:false ~contents:module_type incl
+  | Psig_include (incl, modalities) ->
+      sig_include ctxt f incl modalities
   | Psig_modtype {pmtd_name=s; pmtd_type=md; pmtd_attributes=attrs} ->
       pp f "@[<hov2>module@ type@ %s%a@]%a"
         s.txt
@@ -1860,11 +1861,6 @@ and binding_op ctxt f x =
      pp f "@[<2>%s %a@;=@;%a@]"
        x.pbop_op.txt (pattern ctxt) pat (expression ctxt) exp
 
-and str_include_functor ctxt f
-  : Jane_syntax.Include_functor.structure_item -> _ = function
-  | Ifstr_include_functor incl ->
-      include_ ctxt f ~functor_:true ~contents:module_expr incl
-
 and str_layout ctxt f
   : Jane_syntax.Layouts.structure_item -> _ = function
   | Lstr_kind_abbrev (name, jkind) ->
@@ -1872,7 +1868,6 @@ and str_layout ctxt f
 
 and structure_item_jane_syntax ctxt f : Jane_syntax.Structure_item.t -> _ =
   function
-  | Jstr_include_functor ifincl -> str_include_functor ctxt f ifincl
   | Jstr_layout stri -> str_layout ctxt f stri
 
 and structure_item ctxt f x =
@@ -1978,7 +1973,7 @@ and structure_item ctxt f x =
         (value_description ctxt) vd
         (item_attributes ctxt) vd.pval_attributes
   | Pstr_include incl ->
-      include_ ctxt f ~functor_:false ~contents:module_expr incl
+      include_ ctxt f ~contents:module_expr incl
   | Pstr_recmodule decls -> (* 3.07 *)
       let aux f = function
         | ({pmb_expr={pmod_desc=Pmod_constraint (expr, typ)}} as pmb) ->
