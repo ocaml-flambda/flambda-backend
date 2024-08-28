@@ -16,7 +16,7 @@ type t_void  : void
 type void_variant = VV of t_void
 [%%expect{|
 type t_any : any
-type t_value : value
+type t_value
 type t_imm : immediate
 type t_imm64 : immediate64
 type t_float64 : float64
@@ -160,7 +160,7 @@ Line 1, characters 40-45:
 Error: This expression has type string but an expression was expected of type
          ('a : void)
        The layout of string is value
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the layout of string must be a sublayout of void
          because of the annotation on the type variable 'a.
 |}];;

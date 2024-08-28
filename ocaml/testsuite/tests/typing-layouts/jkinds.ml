@@ -96,14 +96,14 @@ Uncaught exception: Misc.Fatal_error
 type a : value
 type b : value = a
 [%%expect{|
-type a : value
+type a
 type b = a
 |}]
 
 type a : value
 type b : any = a
 [%%expect{|
-type a : value
+type a
 type b = a
 |}]
 
@@ -163,7 +163,7 @@ Error: The layout of type a is float32
 type a : value mod local
 type b : value mod local = a
 [%%expect{|
-type a : value mod local
+type a
 type b = a
 |}]
 
@@ -184,7 +184,7 @@ type b = a
 type a : value mod local
 type b : value mod global = a
 [%%expect{|
-type a : value mod local
+type a
 Line 2, characters 0-29:
 2 | type b : value mod global = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -255,9 +255,9 @@ type b : value mod local shared once contended nonportable internal = a
 type c : value mod local shared once contended nonportable internal
 type d : value = c
 [%%expect{|
-type a : value
+type a
 type b = a
-type c : value mod local shared once contended nonportable internal
+type c
 type d = c
 |}]
 
@@ -404,7 +404,7 @@ val f : nativeint# -> unit = <fun>
 
 type t_value : value
 [%%expect {|
-type t_value : value
+type t_value
 |}]
 
 type t : any mod global = t_value
@@ -483,7 +483,7 @@ Line 2, characters 25-33:
 Error: This expression has type string but an expression was expected of type
          ('a : value mod unique)
        The kind of string is immutable_data
-         because it is the primitive immutable_data type string.
+         because it is the primitive type string.
        But the kind of string must be a subkind of value mod unique
          because of the definition of t at line 1, characters 0-54.
 |}]
@@ -558,7 +558,7 @@ end
 type t : immediate = A.t
 
 [%%expect {|
-module A : sig type t : value end
+module A : sig type t end
 Line 7, characters 0-24:
 7 | type t : immediate = A.t
     ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -890,7 +890,7 @@ type ('a : immediate) t : immediate = { x : 'a; } [@@unboxed]
 
 type u : value
 [%%expect {|
-type u : value
+type u
 |}]
 
 type t : any mod global = { x : u } [@@unboxed]

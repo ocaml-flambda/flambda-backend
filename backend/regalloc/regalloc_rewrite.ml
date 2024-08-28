@@ -37,6 +37,77 @@ type direction =
   | Load_after_list of Cfg.basic_instruction_list
   | Store_before_list of Cfg.basic_instruction_list
 
+(* Applies an optimization on the CFG outputted by [rewrite_gen] having one
+   temporary per variable per block rather than one per use of the variable,
+   reducing the number of spills and reloads needed for variables used multiple
+   times in a block. It iterates over each block and builds a substitution from
+   the first used temporary for each variable to all the other temporaries used
+   later for that variable, deleting now redundant reload/spill instructions
+   along the way.
+
+   This optimization is unsound when spilled nodes are used directly in
+   instructions (if allowed by the ISA) without a new temporary being created
+   (hence stack operands are not used in [rewrite_gen] if this optimization is
+   enabled). Spills in blocks inserted by [rewrite_gen] (due to spills in block
+   terminators) do not share temporaries with the body of the original block and
+   are hence not considered in this optimization.
+
+   No new temporaries are created by this optimization. Some temporaries are
+   promoted to block temporaries (and so moved from the list of new instruction
+   temporaries to the list of new block temporaries). Instruction temporaries
+   that are now redundant (due to being replaced by block temporaries) are
+   removed from the list of new instruction temporaries. *)
+let coalesce_temp_spills_and_reloads (block : Cfg.basic_block)
+    ~new_inst_temporaries ~new_block_temporaries =
+  (* CR-soon mitom: Avoid cases where optimisation worsens spills and reloads
+     due to assigning block temporaries for spilled registers that have live
+     ranges interfering with things that have already been register allocated *)
+  let removed_inst_temporaries = Reg.Tbl.create 128 in
+  let var_to_block_temp = Reg.Tbl.create 8 in
+  let replacements = Reg.Tbl.create 8 in
+  let last_spill = Reg.Tbl.create 8 in
+  let replace to_replace replace_with =
+    if not (Reg.same to_replace replace_with)
+    then Reg.Tbl.add replacements to_replace replace_with
+  in
+  let update_info_using_inst (inst_cell : Cfg.basic Cfg.instruction DLL.cell) =
+    let inst = DLL.value inst_cell in
+    match inst.desc with
+    | Op Reload -> (
+      let var = inst.arg.(0) in
+      let temp = inst.res.(0) in
+      match Reg.Tbl.find_opt var_to_block_temp var with
+      | None -> Reg.Tbl.add var_to_block_temp var temp
+      | Some block_temp ->
+        DLL.delete_curr inst_cell;
+        replace temp block_temp)
+    | Op Spill -> (
+      let var = inst.res.(0) in
+      let temp = inst.arg.(0) in
+      (match Reg.Tbl.find_opt last_spill var with
+      | None -> ()
+      | Some prev_inst_cell -> DLL.delete_curr prev_inst_cell);
+      Reg.Tbl.replace last_spill var inst_cell;
+      match Reg.Tbl.find_opt var_to_block_temp var with
+      | None -> Reg.Tbl.add var_to_block_temp var temp
+      | Some block_temp -> replace temp block_temp)
+    | _ -> ()
+  in
+  DLL.iter_cell block.body ~f:update_info_using_inst;
+  if Reg.Tbl.length replacements <> 0
+  then (
+    Substitution.apply_block_in_place replacements block;
+    Reg.Tbl.iter
+      (fun temp block_temp ->
+        Reg.Tbl.replace removed_inst_temporaries temp ();
+        Reg.Tbl.replace removed_inst_temporaries block_temp ();
+        new_block_temporaries := block_temp :: !new_block_temporaries)
+      replacements);
+  new_inst_temporaries
+    := List.filter
+         ~f:(fun temp -> not (Reg.Tbl.mem removed_inst_temporaries temp))
+         !new_inst_temporaries
+
 let rewrite_gen :
     type s.
     (module State with type t = s) ->
@@ -44,9 +115,13 @@ let rewrite_gen :
     s ->
     Cfg_with_infos.t ->
     spilled_nodes:Reg.t list ->
-    Reg.t list * bool =
+    block_temporaries:bool ->
+    Reg.t list * Reg.t list * bool =
  fun (module State : State with type t = s) (module Utils) state cfg_with_infos
-     ~spilled_nodes ->
+     ~spilled_nodes ~block_temporaries ->
+  let should_coalesce_temp_spills_and_reloads =
+    Lazy.force Regalloc_utils.block_temporaries && block_temporaries
+  in
   if Utils.debug then Utils.log ~indent:1 "rewrite";
   let block_insertion = ref false in
   let spilled_map : Reg.t Reg.Tbl.t =
@@ -68,12 +143,13 @@ let rewrite_gen :
         Reg.Tbl.replace spilled_map reg spilled;
         spilled_map)
   in
-  let new_temporaries : Reg.t list ref = ref [] in
+  let new_inst_temporaries : Reg.t list ref = ref [] in
+  let new_block_temporaries = ref [] in
   let make_new_temporary ~(move : Move.t) (reg : Reg.t) : Reg.t =
     let res =
       make_temporary ~same_class_and_base_name_as:reg ~name_prefix:"temp"
     in
-    new_temporaries := res :: !new_temporaries;
+    new_inst_temporaries := res :: !new_inst_temporaries;
     if Utils.debug
     then
       Utils.log ~indent:2 "adding temporary %a (to %s %a)" Printmach.reg res
@@ -153,49 +229,73 @@ let rewrite_gen :
         Utils.log ~indent:2 "body of #%d, before:" label;
         Utils.log_body_and_terminator ~indent:3 block.body block.terminator
           liveness);
+      let block_rewritten = ref false in
       DLL.iter_cell block.body ~f:(fun cell ->
           let instr = DLL.value cell in
           if instruction_contains_spilled instr
           then
-            match Regalloc_stack_operands.basic spilled_map instr with
-            | All_spilled_registers_rewritten -> ()
-            | May_still_have_spilled_registers ->
+            (* CR-soon mitom: Use stack operands regardless of whether
+               coalescing temporaries when it allows using the memory address of
+               a variable used exactly once in a block directly in an
+               instruction. Currently, if the "block" temporary for this
+               variable is register allocated, an extra spill/reload instruction
+               is added compared to using it directly in the instruction (if
+               possible).
+
+               For variables used 2+ times in the block, short circuiting here
+               is fine. If the block temporary we create gets register
+               allocated, then that is better than using stack operands to use
+               the memory address directly in the instruction. If the block
+               temporary is spilled, stack operands will apply to it in the next
+               round in the same way it would have done to the original
+               variable. *)
+            if should_coalesce_temp_spills_and_reloads
+               || Regalloc_stack_operands.basic spilled_map instr
+                  = May_still_have_spilled_registers
+            then (
+              block_rewritten := true;
               let sharing = Reg.Tbl.create 8 in
               rewrite_instruction ~direction:(Load_before_cell cell) ~sharing
                 instr;
               rewrite_instruction ~direction:(Store_after_cell cell) ~sharing
-                instr);
+                instr));
       if instruction_contains_spilled block.terminator
       then
-        match
-          Regalloc_stack_operands.terminator spilled_map block.terminator
-        with
-        | All_spilled_registers_rewritten -> ()
-        | May_still_have_spilled_registers ->
-          (let sharing = Reg.Tbl.create 8 in
-           rewrite_instruction ~direction:(Load_after_list block.body)
-             ~sharing:(Reg.Tbl.create 8) block.terminator;
-           let new_instrs = DLL.make_empty () in
-           rewrite_instruction ~direction:(Store_before_list new_instrs)
-             ~sharing block.terminator;
-           if not (DLL.is_empty new_instrs)
-           then
-             (* insert block *)
-             let (_ : Cfg.basic_block list) =
-               Regalloc_utils.insert_block
-                 (Cfg_with_infos.cfg_with_layout cfg_with_infos)
-                 new_instrs ~after:block ~before:None
-                 ~next_instruction_id:(fun () ->
-                   State.get_and_incr_instruction_id state)
-             in
-             block_insertion := true);
-          if Utils.debug
-          then (
-            Utils.log ~indent:2 "and after:";
-            Utils.log_body_and_terminator ~indent:3 block.body block.terminator
-              liveness;
-            Utils.log ~indent:2 "end"));
-  !new_temporaries, !block_insertion
+        (* CR-soon mitom: Same issue as short circuiting in basic instruction
+           rewriting *)
+        if should_coalesce_temp_spills_and_reloads
+           || Regalloc_stack_operands.terminator spilled_map block.terminator
+              = May_still_have_spilled_registers
+        then (
+          block_rewritten := true;
+          let sharing = Reg.Tbl.create 8 in
+          rewrite_instruction ~direction:(Load_after_list block.body)
+            ~sharing:(Reg.Tbl.create 8) block.terminator;
+          let new_instrs = DLL.make_empty () in
+          rewrite_instruction ~direction:(Store_before_list new_instrs) ~sharing
+            block.terminator;
+          if not (DLL.is_empty new_instrs)
+          then
+            (* insert block *)
+            let (_ : Cfg.basic_block list) =
+              Regalloc_utils.insert_block
+                (Cfg_with_infos.cfg_with_layout cfg_with_infos)
+                new_instrs ~after:block ~before:None
+                ~next_instruction_id:(fun () ->
+                  State.get_and_incr_instruction_id state)
+            in
+            block_insertion := true);
+      if !block_rewritten && should_coalesce_temp_spills_and_reloads
+      then
+        coalesce_temp_spills_and_reloads block ~new_inst_temporaries
+          ~new_block_temporaries;
+      if Utils.debug
+      then (
+        Utils.log ~indent:2 "and after:";
+        Utils.log_body_and_terminator ~indent:3 block.body block.terminator
+          liveness;
+        Utils.log ~indent:2 "end"));
+  !new_inst_temporaries, !new_block_temporaries, !block_insertion
 
 (* CR-soon xclerc for xclerc: investigate exactly why this threshold is
    necessary. *)

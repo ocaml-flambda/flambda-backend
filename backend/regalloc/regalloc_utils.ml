@@ -23,14 +23,15 @@ let find_param_value param_name =
            then Some (String.concat ":" rest)
            else None)
 
-let bool_of_param ?guard param_name =
+let bool_of_param ?guard ?(default = false) param_name =
   lazy
     (let res =
        match
          find_param_value param_name |> Option.map String.lowercase_ascii
        with
+       | None -> default
        | Some ("1" | "true" | "on") -> true
-       | Some ("0" | "false" | "off") | None -> false
+       | Some ("0" | "false" | "off") -> false
        | Some value ->
          Misc.fatal_errorf
            "the %s variable is %S but should be one of: \"0\", \"1\", \
@@ -47,6 +48,8 @@ let bool_of_param ?guard param_name =
      res)
 
 let validator_debug = bool_of_param "VALIDATOR_DEBUG"
+
+let block_temporaries = bool_of_param "BLOCK_TEMPORARIES"
 
 type liveness = Cfg_with_infos.liveness
 

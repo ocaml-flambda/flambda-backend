@@ -22,6 +22,7 @@ open Config
 open Clflags
 open Misc
 open Cmm
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
 module String = Misc.Stdlib.String
 
@@ -214,20 +215,54 @@ let rec regalloc ~ppf_dump round (fd : Mach.fundecl) =
     newfd
   end
 
-let regalloc_profile =
+let count_duplicate_spills_reloads_in_block (cfg_with_infos : Cfg_with_infos.t) =
+  let count_per_inst
+      ((dup_spills, dup_reloads, seen_spill_regs, seen_reload_regs) as acc)
+      (inst : Cfg.basic Cfg.instruction) =
+    match inst.desc with
+    | Op Spill ->
+      let reg = inst.res.(0) in
+      let new_dup_spills =
+        dup_spills + if Reg.Set.mem reg seen_spill_regs then 1 else 0
+      in
+      new_dup_spills, dup_reloads, Reg.Set.add reg seen_spill_regs, seen_reload_regs
+    | Op Reload ->
+      let reg = inst.arg.(0) in
+      let new_dup_reloads =
+        dup_reloads + if Reg.Set.mem reg seen_reload_regs then 1 else 0
+      in
+      dup_spills, new_dup_reloads, seen_spill_regs, Reg.Set.add reg seen_reload_regs
+    | _ -> acc
+  in
+  let count_per_block _ (block : Cfg.basic_block) (dup_spills, dup_reloads) =
+    let dup_spills, dup_reloads, _, _ =
+      DLL.fold_left block.body ~f:count_per_inst
+        ~init:(dup_spills, dup_reloads, Reg.Set.empty, Reg.Set.empty)
+    in
+    dup_spills, dup_reloads
+  in
+  Cfg_with_infos.fold_blocks cfg_with_infos ~f:count_per_block ~init:(0, 0)
+
+let count_spills_reloads (cfg_with_infos : Cfg_with_infos.t) =
   let f ((spills, reloads) as acc) (instr : Cfg.basic Cfg.instruction) =
   match instr.desc with
   | Op Spill -> (spills + 1, reloads)
   | Op Reload -> (spills, reloads + 1)
   | _ -> acc
   in
-  let regalloc_counters (cfg : Cfg_with_infos.t) =
-    let (spills, reloads) = Cfg_with_infos.fold_body_instructions cfg ~f ~init:(0, 0) in
+  Cfg_with_infos.fold_body_instructions cfg_with_infos ~f ~init:(0, 0)
+
+let regalloc_profile =
+  let counter_f cfg =
+    let dup_spills, dup_reloads = count_duplicate_spills_reloads_in_block cfg in
+    let spills, reloads = count_spills_reloads cfg in
     Profile.Counters.create ()
+    |> Profile.Counters.set "block_duplicate_spill" dup_spills
+    |> Profile.Counters.set "block_duplicate_reload" dup_reloads
     |> Profile.Counters.set "spill" spills
     |> Profile.Counters.set "reload" reloads
   in
-  Profile.record_with_counters ~accumulate:true ~counter_f:regalloc_counters
+  Profile.record_with_counters ~accumulate:true ~counter_f
 
 let (++) x f = f x
 
@@ -441,8 +476,8 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
         ++ Profile.record ~accumulate:true "save_cfg" save_cfg
         ++ Profile.record ~accumulate:true "cfg_reorder_blocks"
              (reorder_blocks_random ppf_dump)
-        ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run)
-  ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code")
+        ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run))
+  ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ Profile.record ~accumulate:true "save_linear" save_linear
   ++ (fun (fd : Linear.fundecl) ->

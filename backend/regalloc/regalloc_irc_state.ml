@@ -47,7 +47,8 @@ type t =
     move_list : Instruction.Set.t Reg.Tbl.t;
     stack_slots : Regalloc_stack_slots.t;
     mutable next_instruction_id : Instruction.id;
-    mutable introduced_temporaries : Reg.Set.t
+    mutable inst_temporaries : Reg.Set.t;
+    mutable block_temporaries : Reg.Set.t
   }
 
 let max_capacity = 1024
@@ -90,7 +91,8 @@ let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
   let active_moves = InstructionWorkList.make ~original_capacity in
   let adj_set = RegisterStamp.PairSet.make ~num_registers in
   let move_list = Reg.Tbl.create 128 in
-  let introduced_temporaries = Reg.Set.empty in
+  let inst_temporaries = Reg.Set.empty in
+  let block_temporaries = Reg.Set.empty in
   let initial = Doubly_linked_list.of_list initial in
   { initial;
     simplify_work_list;
@@ -109,7 +111,8 @@ let[@inline] make ~initial ~stack_slots ~next_instruction_id () =
     move_list;
     stack_slots;
     next_instruction_id;
-    introduced_temporaries
+    inst_temporaries;
+    block_temporaries
   }
 
 let[@inline] add_initial_one state reg =
@@ -129,7 +132,7 @@ let[@inline] add_initial_list state regs =
       reg.Reg.degree <- 0;
       Doubly_linked_list.add_begin state.initial reg)
 
-let[@inline] reset state ~new_temporaries =
+let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
   let unknown_reg_work_list (rwl : RegWorkList.t) : unit =
     RegWorkList.iter rwl ~f:(fun reg -> reg.irc_work_list <- Unknown_list)
   in
@@ -153,7 +156,8 @@ let[@inline] reset state ~new_temporaries =
       reg.Reg.interf <- [];
       assert (reg.Reg.degree = Degree.infinite))
     (all_precolored_regs ());
-  state.initial <- Doubly_linked_list.of_list new_temporaries;
+  state.initial <- Doubly_linked_list.of_list new_inst_temporaries;
+  Doubly_linked_list.add_list state.initial new_block_temporaries;
   Doubly_linked_list.transfer ~from:state.colored_nodes ~to_:state.initial ();
   RegWorkList.iter state.coalesced_nodes ~f:(fun reg ->
       Doubly_linked_list.add_end state.initial reg);
@@ -180,10 +184,7 @@ let[@inline] reset state ~new_temporaries =
   unknown_instruction_work_list state.active_moves;
   InstructionWorkList.clear state.active_moves;
   RegisterStamp.PairSet.clear state.adj_set;
-  Reg.Tbl.clear state.move_list;
-  state.introduced_temporaries
-    <- List.fold_left new_temporaries ~init:state.introduced_temporaries
-         ~f:(fun acc reg -> Reg.Set.add reg acc)
+  Reg.Tbl.clear state.move_list
 
 let[@inline] is_precolored _state reg = reg.Reg.irc_work_list = Reg.Precolored
 
@@ -487,18 +488,25 @@ let[@inline] get_and_incr_instruction_id state =
   state.next_instruction_id <- succ res;
   res
 
-let[@inline] add_introduced_temporaries_one state reg =
-  state.introduced_temporaries <- Reg.Set.add reg state.introduced_temporaries
+let[@inline] add_inst_temporaries_list state regs =
+  state.inst_temporaries
+    <- Reg.Set.add_seq (List.to_seq regs) state.inst_temporaries
 
-let[@inline] add_introduced_temporaries_list state regs =
-  state.introduced_temporaries
-    <- List.fold_left regs ~init:state.introduced_temporaries
-         ~f:(fun introduced reg -> Reg.Set.add reg introduced)
+let[@inline] add_block_temporaries_list state regs =
+  state.block_temporaries
+    <- Reg.Set.add_seq (List.to_seq regs) state.block_temporaries
 
-let[@inline] mem_introduced_temporaries state reg =
-  Reg.Set.mem reg state.introduced_temporaries
+let[@inline] mem_inst_temporaries state reg =
+  Reg.Set.mem reg state.inst_temporaries
 
-let[@inline] introduced_temporaries state = state.introduced_temporaries
+let[@inline] mem_block_temporaries state reg =
+  Reg.Set.mem reg state.block_temporaries
+
+let[@inline] mem_all_introduced_temporaries state reg =
+  mem_inst_temporaries state reg || mem_block_temporaries state reg
+
+let[@inline] diff_all_introduced_temporaries state set =
+  Reg.Set.diff (Reg.Set.diff set state.inst_temporaries) state.block_temporaries
 
 let[@inline] check_disjoint sets ~is_disjoint =
   List.iter sets ~f:(fun (name1, set1) ->
