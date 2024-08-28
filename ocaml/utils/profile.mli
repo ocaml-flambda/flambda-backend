@@ -43,8 +43,8 @@ val record_call : ?accumulate:bool -> string -> (unit -> 'a) -> 'a
 val record_call_with_counters :
   ?accumulate:bool -> counter_f:('a -> Counters.t) -> string -> (unit -> 'a) -> 'a
 (** [record_call_with_counters counter_f pass f] calls [f] and records its profile
-    information and records counter information given by calling [counter_f] on the
-    result of calling [f] *)
+    information (including counter information given by calling [counter_f] on the
+    result of calling [f]) *)
 
 val record : ?accumulate:bool -> string -> ('a -> 'b) -> 'a -> 'b
 (** [record pass f arg] records the profile information of [f arg] *)
