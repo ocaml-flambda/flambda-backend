@@ -34,10 +34,10 @@ let count_language_extensions typing_input =
       counters := Profile.Counters.set (to_string lang_ext) 0 !counters)
     supported_lang_exts;
   let check_for_labeled_tuples label_opt_pair_list =
-    List.iter
-      (fun (label_opt, _) ->
-        if Option.is_some label_opt then incr Labeled_tuples)
-      label_opt_pair_list
+    if List.exists
+         (fun (label_opt, _) -> Option.is_some label_opt)
+         label_opt_pair_list
+    then incr Labeled_tuples
   in
   let check_array_mutability mutability =
     if not (Types.is_mutable mutability) then incr Immutable_arrays
@@ -64,7 +64,7 @@ let count_language_extensions typing_input =
             | _ -> ());
             default_iterator.signature_item sub si);
         expr =
-          (fun sub ({ exp_desc; exp_extra; _ } as e) ->
+          (fun sub ({ exp_desc; _ } as e) ->
             (match exp_desc with
             | Texp_list_comprehension _ -> incr Comprehensions
             | Texp_array_comprehension (mutability, _, _) ->
@@ -72,20 +72,9 @@ let count_language_extensions typing_input =
               check_array_mutability mutability
             | Texp_array (mutability, _, _, _) ->
               check_array_mutability mutability
+            | Texp_tuple (label_opt_pair_list, _) ->
+              check_for_labeled_tuples label_opt_pair_list
             | _ -> ());
-            let check_extra (extra : Typedtree.exp_extra) =
-              match extra with
-              | Texp_constraint (core_typ_opt, _) -> (
-                match core_typ_opt with
-                | Some { ctyp_desc; _ } -> (
-                  match ctyp_desc with
-                  | Ttyp_tuple label_opt_pair_list ->
-                    check_for_labeled_tuples label_opt_pair_list
-                  | _ -> ())
-                | None -> ())
-              | _ -> ()
-            in
-            List.iter (fun (extra, _, _) -> check_extra extra) exp_extra;
             default_iterator.expr sub e);
         module_type =
           (fun sub ({ mty_desc; _ } as mty) ->
