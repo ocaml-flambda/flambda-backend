@@ -153,7 +153,8 @@ let get_unit_info comp_unit =
         else begin
           try
             let filename =
-              Load_path.find_uncap ((cmx_name |> CU.Name.to_string) ^ ".cmx") in
+              Load_path.find_normalized
+                ((cmx_name |> CU.Name.to_string) ^ ".cmx") in
             let (ui, crc) = read_unit_info filename in
             if not (CU.equal ui.ui_unit comp_unit) then
               raise(Error(Illegal_renaming(comp_unit, ui.ui_unit, filename)));
