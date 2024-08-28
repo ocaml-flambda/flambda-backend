@@ -517,7 +517,7 @@ let vectorize_operation width (cfg_ops : Cfg.operation list) :
     in
     let highs, lows = get_list consts (length / 2) in
     let pack_int64 nums =
-      let mask = Int64.sub (Int64.shift_left 1L width) 1L in
+      let mask = Int64.shift_right_logical Int64.minus_one (64 - width) in
       List.fold_left
         (fun target num ->
           Int64.logor (Int64.shift_left target width) (Int64.logand num mask))
@@ -526,17 +526,26 @@ let vectorize_operation width (cfg_ops : Cfg.operation list) :
     Cfg.Const_vec128 { high = pack_int64 highs; low = pack_int64 lows }
     |> make_default 0 1
   in
+  let add_op =
+    let sse_op =
+      match width_type with
+      | W64 -> Add_i64
+      | W32 -> Add_i32
+      | W16 -> Add_i16
+      | W8 -> Add_i8
+    in
+    Some (Cfg.Specific (Isimd (SSE2 sse_op)))
+  in
+  let mul_op =
+    match width_type with
+    | W64 -> None
+    | W32 -> Some (Cfg.Specific (Isimd (SSE41 Mullo_i32)))
+    | W16 -> Some (Cfg.Specific (Isimd (SSE2 Mullo_i16)))
+    | W8 -> None
+  in
   let vectorize_intop (intop : Mach.integer_operation) =
     match intop with
-    | Iadd ->
-      let sse_op =
-        match width_type with
-        | W64 -> Add_i64
-        | W32 -> Add_i32
-        | W16 -> Add_i16
-        | W8 -> Add_i8
-      in
-      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default 2 1
+    | Iadd -> Option.bind add_op (make_default 2 1)
     | Isub ->
       let sse_op =
         match width_type with
@@ -546,12 +555,7 @@ let vectorize_operation width (cfg_ops : Cfg.operation list) :
         | W8 -> Sub_i8
       in
       Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default 2 1
-    | Imul -> (
-      match width_type with
-      | W64 -> None
-      | W32 -> Cfg.Specific (Isimd (SSE41 Mullo_i32)) |> make_default 2 1
-      | W16 -> Cfg.Specific (Isimd (SSE2 Mullo_i16)) |> make_default 2 1
-      | W8 -> None)
+    | Imul -> Option.bind mul_op (make_default 2 1)
     | Imulh { signed } -> (
       match width_type with
       | W64 -> None
@@ -629,31 +633,36 @@ let vectorize_operation width (cfg_ops : Cfg.operation list) :
     in
     let consts = List.map extract_const_int cfg_ops in
     create_const_vec consts
-  | Load
-      { memory_chunk = _;
-        addressing_mode;
-        mutability;
-        is_atomic
-      } -> let operation = Cfg.Load
-      { memory_chunk = Onetwentyeight_aligned;
-        addressing_mode;
-        mutability;
-        is_atomic
-      } in
-          Some
+  | Load { memory_chunk = _; addressing_mode; mutability; is_atomic } ->
+    let operation =
+      Cfg.Load
+        { memory_chunk = Onetwentyeight_unaligned;
+          addressing_mode;
+          mutability;
+          is_atomic
+        }
+    in
+    Some
       [ { operation;
-          arguments = Array.init (Arch.num_args_addressing addressing_mode) (fun i -> Original i);
-          results =  [|Result 0|]
+          arguments =
+            Array.init (Arch.num_args_addressing addressing_mode) (fun i ->
+                Original i);
+          results = [| Result 0 |]
         } ]
-
   | Store (_, addressing_mode, is_assignment) ->
-    let operation = Cfg.Store (Onetwentyeight_aligned, addressing_mode, is_assignment) in Some
-    [ { operation;
-        arguments = Array.append [|Argument 0|] (Array.init (Arch.num_args_addressing addressing_mode) (fun i -> Original (i + 1)));
-        results =  [| |]
-      } ]
+    let operation =
+      Cfg.Store (Onetwentyeight_unaligned, addressing_mode, is_assignment)
+    in
+    Some
+      [ { operation;
+          arguments =
+            Array.append [| Argument 0 |]
+              (Array.init (Arch.num_args_addressing addressing_mode) (fun i ->
+                   Original (i + 1)));
+          results = [||]
+        } ]
   | Intop intop -> vectorize_intop intop
-  | Intop_imm (intop, _) ->
+  | Intop_imm (intop, _) -> (
     let extract_intop_imm_int (op : Cfg.operation) =
       match op with
       | Intop_imm (_, n) -> Int64.of_int n
@@ -666,15 +675,123 @@ let vectorize_operation width (cfg_ops : Cfg.operation list) :
         assert false
     in
     let consts = List.map extract_intop_imm_int cfg_ops in
-    let instructions =
-      match create_const_vec consts, vectorize_intop intop with
-      | Some const_instruction, Some intop_instruction ->
-        Some (const_instruction @ intop_instruction)
-      | _ -> None
-    in
-    ignore instructions;
-    None
-  | Specific _ | Alloc _ | Reinterpret_cast _ | Static_cast _ | Spill | Reload
+    match create_const_vec consts, vectorize_intop intop with
+    | Some [const_instruction], Some [intop_instruction] ->
+      if Array.length const_instruction.results = 1
+         && Array.length intop_instruction.arguments = 2
+      then (
+        const_instruction.results.(0) <- New 0;
+        intop_instruction.arguments.(1) <- New 0;
+        Some [const_instruction; intop_instruction])
+      else None
+    | _ -> None)
+  | Specific op -> (
+    match op with
+    | Ilea addressing_mode -> (
+      let extract_scale_displ (op : Cfg.operation) =
+        match op with
+        | Specific spec_op -> (
+          match spec_op with
+          | Ilea addressing_mode -> (
+            match addressing_mode with
+            | Iindexed displ -> None, Some displ
+            | Iindexed2 displ -> None, Some displ
+            | Iscaled (scale, displ) -> Some scale, Some displ
+            | Iindexed2scaled (scale, displ) -> Some scale, Some displ
+            | Ibased _ -> None, None)
+          | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _
+          | Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence
+          | Imfence | Ipause | Isimd _ | Iprefetch _ ->
+            assert false)
+        | Move | Load _ | Store _ | Intop _ | Intop_imm _ | Alloc _
+        | Reinterpret_cast _ | Static_cast _ | Spill | Reload | Const_int _
+        | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
+        | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _
+        | Probe_is_enabled _ | Opaque | Begin_region | End_region
+        | Name_for_debugger _ | Dls_get | Poll ->
+          assert false
+      in
+      let get_scale op =
+        match extract_scale_displ op with
+        | Some scale, _ -> scale |> Int64.of_int
+        | _ -> assert false
+      in
+      let get_displ op =
+        match extract_scale_displ op with
+        | _, Some displ -> displ |> Int64.of_int
+        | _ -> assert false
+      in
+      let make_move arg res =
+        { operation = Move; arguments = [| arg |]; results = [| res |] }
+      in
+      let make_binary_operation arg_0 arg_1 res operation =
+        { operation; arguments = [| arg_0; arg_1 |]; results = [| res |] }
+      in
+      let make_const res consts =
+        match create_const_vec consts with
+        | Some [const_instruction] ->
+          assert (
+            Array.length const_instruction.arguments = 0
+            && Array.length const_instruction.results = 1);
+          const_instruction.results.(0) <- res;
+          const_instruction
+        | _ -> assert false
+      in
+      match addressing_mode with
+      | Iindexed _ -> (
+        match add_op with
+        | Some add ->
+          let displs = List.map get_displ cfg_ops in
+          (* reg + displ *)
+          Some
+            [ make_move (Argument 0) (Result 0);
+              make_const (New 0) displs;
+              make_binary_operation (Result 0) (New 0) (Result 0) add ]
+        | None -> None)
+      | Iindexed2 _ -> (
+        match add_op with
+        | Some add ->
+          let displs = List.map get_displ cfg_ops in
+          (* reg + reg + displ *)
+          Some
+            [ make_move (Argument 0) (Result 0);
+              make_binary_operation (Result 0) (Argument 1) (Result 0) add;
+              make_const (New 0) displs;
+              make_binary_operation (Result 0) (New 0) (Result 0) add ]
+        | None -> None)
+      | Iscaled _ -> (
+        match add_op, mul_op with
+        | Some add, Some mul ->
+          let scales = List.map get_scale cfg_ops in
+          let displs = List.map get_displ cfg_ops in
+          (* reg * scale + displ *)
+          Some
+            [ make_move (Argument 0) (Result 0);
+              make_const (New 0) scales;
+              make_binary_operation (Result 0) (New 0) (Result 0) mul;
+              make_const (New 1) displs;
+              make_binary_operation (Result 0) (New 1) (Result 0) add ]
+        | _ -> None)
+      | Iindexed2scaled _ -> (
+        match add_op, mul_op with
+        | Some add, Some mul ->
+          let scales = List.map get_scale cfg_ops in
+          let displs = List.map get_displ cfg_ops in
+          (* reg + reg * scale + displ *)
+          Some
+            [ make_move (Argument 0) (Result 0);
+              make_const (New 0) scales;
+              make_binary_operation (Result 0) (New 0) (Result 0) mul;
+              make_binary_operation (Result 0) (New 1) (Result 0) add;
+              make_const (New 1) displs;
+              make_binary_operation (Result 0) (New 1) (Result 0) add ]
+        | _ -> None)
+      | Ibased _ -> None)
+    | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Isextend32
+    | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause
+    | Isimd _ | Iprefetch _ ->
+      None)
+  | Alloc _ | Reinterpret_cast _ | Static_cast _ | Spill | Reload
   | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
   | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
   | Opaque | Begin_region | End_region | Name_for_debugger _ | Dls_get | Poll ->

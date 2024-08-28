@@ -1252,7 +1252,7 @@ end = struct
           |> Instruction.Id.Set.inter tree_is_dependency_of
           |> Instruction.Id.Set.is_empty
         in
-        let tree_is_not_dependency_outside_body =
+        let tree_is_not_dependency_of_outside_body =
           let terminator_id = block.terminator.id in
           let live_before_terminator =
             (Cfg_with_infos.liveness_find cfg_with_infos terminator_id).before
@@ -1282,8 +1282,35 @@ end = struct
           Instruction.Id.Set.inter tree_instructions latest_changes_of_live
           |> Instruction.Id.Set.is_empty
         in
+        let seed_address_does_not_depend_on_tree =
+          let instruction =
+            List.hd seed |> Memory_accesses.Memory_operation.instruction
+          in
+          let rec find_address_dependencies n =
+            if n < 1
+            then Instruction.Id.Set.empty
+            else
+              let address_dependencies = find_address_dependencies (n - 1) in
+              match
+                Dependency_graph.get_arg_dependency dependency_graph
+                  (Instruction.id instruction)
+                  ~arg_i:n
+              with
+              | None -> address_dependencies
+              | Some id -> Instruction.Id.Set.add id address_dependencies
+          in
+          let address_dependencies =
+            find_address_dependencies
+              (Array.length (Instruction.arguments instruction) - 1)
+          in
+          Instruction.Id.Set.inter
+            (all_instructions computation_tree)
+            address_dependencies
+          |> Instruction.Id.Set.is_empty
+        in
         tree_is_not_dependency_of_the_rest_of_body
-        && tree_is_not_dependency_outside_body
+        && tree_is_not_dependency_of_outside_body
+        && seed_address_does_not_depend_on_tree
       else false
     in
     let set_is_dependency_of key dependency_id =
@@ -1481,9 +1508,8 @@ let vectorize (block : Cfg.basic_block) cfg_with_infos =
   DLL.hd_cell block.body |> add_vector_instructions;
   DLL.hd_cell block.body |> remove_scalar_instructions
 
-let dump ppf cfg_with_layout ~msg =
+let dump ppf (cfg : Cfg.t) ~msg =
   let open Format in
-  let cfg = Cfg_with_layout.cfg cfg_with_layout in
   fprintf ppf "\nvectorization extra information for %s\n" msg;
   fprintf ppf "%s\n" (Cfg.fun_name cfg);
   let block_count = Label.Tbl.length cfg.blocks in
@@ -1507,6 +1533,7 @@ let cfg ppf_dump cl =
     ~terminator:(fun terminator_instruction ->
       Terminator terminator_instruction |> Instruction.id
       |> Instruction.Id.update_max_id);
+  Numbers.Int.Tbl.clear reg_map;
   let cfg = Cfg_with_layout.cfg cl in
   let layout = Cfg_with_layout.layout cl in
   let cfg_with_infos = Cfg_with_infos.make cl in
@@ -1519,23 +1546,27 @@ let cfg ppf_dump cl =
       then
         Format.fprintf ppf_dump
           "more than 1000 instructions in basic block, cannot vectorize\n"
-      else if !Flambda_backend_flags.dump_vectorize
-      then (
-        let dependency_graph = Dependency_graph.from_block block in
-        Dependency_graph.dump ppf_dump dependency_graph block;
-        if !Flambda_backend_flags.dump_vectorize
-        then (
+      else (
+        (if !Flambda_backend_flags.dump_vectorize
+        then
+          let dependency_graph = Dependency_graph.from_block block in
+          Dependency_graph.dump ppf_dump dependency_graph block);
+        (if !Flambda_backend_flags.dump_vectorize
+        then
           let memory_accesses = Memory_accesses.from_block block in
-          Memory_accesses.dump ppf_dump memory_accesses;
-          if !Flambda_backend_flags.dump_vectorize
-          then (
-            let seeds = Seed.from_block block in
-            Seed.dump ppf_dump seeds;
-            if !Flambda_backend_flags.dump_vectorize
-            then (
-              let trees = Computation_tree.from_block block cfg_with_infos in
-              Computation_tree.dump ppf_dump trees block;
-              vectorize block cfg_with_infos;
-              if !Flambda_backend_flags.dump_vectorize
-              then dump ppf_dump ~msg:"" cl)))));
+          Memory_accesses.dump ppf_dump memory_accesses);
+        (if !Flambda_backend_flags.dump_vectorize
+        then
+          let seeds = Seed.from_block block in
+          Seed.dump ppf_dump seeds);
+        (if !Flambda_backend_flags.dump_vectorize
+        then
+          let trees = Computation_tree.from_block block cfg_with_infos in
+          Computation_tree.dump ppf_dump trees block);
+        ignore Dependency_graph.dump;
+        ignore Memory_accesses.dump;
+        ignore Seed.dump;
+        ignore Computation_tree.dump;
+        vectorize block cfg_with_infos;
+        if !Flambda_backend_flags.dump_vectorize then dump ppf_dump ~msg:"" cfg));
   cl
