@@ -586,12 +586,13 @@ let simplify_lets lam =
           end
       | _ -> no_opt ()
       end
-  | Lfunction{kind; params; return=outer_return; body = l;
+  | Lfunction{kind=outer_kind; params; return=outer_return; body = l;
               attr=attr1; loc; ret_mode; mode} ->
-      begin match ret_mode, simplif l with
+      begin match outer_kind, ret_mode, simplif l with
+        Curried {nlocal=0},
         Alloc_heap,
         Lfunction{kind=Curried _ as kind; params=params'; return=return2;
-                  body; attr=attr2; loc; mode=inner_mode; ret_mode }
+                  body; attr=attr2; loc; mode=inner_mode; ret_mode}
         when optimize &&
              attr1.may_fuse_arity && attr2.may_fuse_arity &&
              List.length params + List.length params' <= Lambda.max_arity() ->
@@ -603,7 +604,7 @@ let simplify_lets lam =
              parameters is the type returned after applying [params']. *)
           let return = return2 in
           lfunction ~kind ~params:(params @ params') ~return ~body ~attr:attr1 ~loc ~mode ~ret_mode
-      | (Alloc_heap | Alloc_local), body ->
+      | kind, ret_mode, body ->
           lfunction ~kind ~params ~return:outer_return ~body ~attr:attr1 ~loc ~mode ~ret_mode
       end
   | Llet(_str, _k, v, Lvar w, l2) when optimize ->
@@ -888,9 +889,11 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
   in
   try
     (* TODO: enable this optimisation even in the presence of local returns *)
-    begin match ret_mode with
-    | Alloc_local -> raise Exit
-    | Alloc_heap -> ()
+    begin match kind, ret_mode with
+    | Curried {nlocal}, _ when nlocal > 0 -> raise Exit
+    | Tupled, Alloc_local -> raise Exit
+    | _, Alloc_heap -> ()
+    | _, Alloc_local -> assert false
     end;
     let body, inner = aux [] false body in
     let attr = { default_stub_attribute with zero_alloc = attr.zero_alloc } in
