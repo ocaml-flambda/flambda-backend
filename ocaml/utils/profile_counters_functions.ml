@@ -110,5 +110,6 @@ let count_language_extensions typing_input =
   (match typing_input with
   | Typedtree_implementation_output tree ->
     iterator.structure iterator tree.structure
-  | Typedtree_signature_output signature -> iterator.signature iterator signature);
+  | Typedtree_signature_output signature ->
+    iterator.signature iterator signature);
   !counters
