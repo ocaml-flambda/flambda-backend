@@ -858,6 +858,8 @@ CSC
 DIFF_FLAGS
 CC
 LINEAR_MAGIC_NUMBER
+CFG_MAGIC_NUMBER
+CMS_MAGIC_NUMBER
 CMT_MAGIC_NUMBER
 CMXS_MAGIC_NUMBER
 AST_INTF_MAGIC_NUMBER
@@ -3391,6 +3393,10 @@ AST_INTF_MAGIC_NUMBER=Caml1999N550
 CMXS_MAGIC_NUMBER=Caml1999D550
 
 CMT_MAGIC_NUMBER=Caml1999T550
+
+CMS_MAGIC_NUMBER=Caml1999S550
+
+CFG_MAGIC_NUMBER=Caml1999G550
 
 LINEAR_MAGIC_NUMBER=Caml1999L550
 
@@ -19210,6 +19216,16 @@ then :
 fi
 
 fi
+
+fi
+
+
+## ffs or _BitScanForward
+# CR mshinwell all-runtime5: remove ffs check, it's only needed for runtime4
+ac_fn_c_check_func "$LINENO" "ffs" "ac_cv_func_ffs"
+if test "x$ac_cv_func_ffs" = xyes
+then :
+  printf "%s\n" "#define HAS_FFS 1" >>confdefs.h
 
 fi
 
