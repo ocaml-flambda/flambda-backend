@@ -473,7 +473,7 @@ type 'type_expr history =
   | Creation of Jkind_intf.History.creation_reason
 
 type 'type_expr t =
-  { jkind : 'type_expr Jkind_desc.t;
+  { desc : 'type_expr Jkind_desc.t;
     history : 'type_expr history;
     has_warned : bool
   }
