@@ -20,6 +20,7 @@ let count_language_extensions typing_input =
   let incr lang_ext =
     counters := Profile.Counters.incr (to_string lang_ext) !counters
   in
+  (* CR-someday mitom: Add support for counting stdlib [Iarray] usages *)
   let supported_lang_exts =
     Language_extension_kernel.
       [ Comprehensions;
@@ -87,6 +88,12 @@ let count_language_extensions typing_input =
             (match ctyp_desc with
             | Ttyp_tuple label_opt_pair_list ->
               check_for_labeled_tuples label_opt_pair_list
+            (* CR-someday mitom: type occurence of [iarray] double counted in
+               [let a_iarray : int iarray = [: 1; 2; 3; 4; 5 :]] *)
+            | Ttyp_constr (Pident ident, _, _) ->
+              if Ident.is_predef ident
+                 && String.equal (Ident.name ident) "iarray"
+              then incr Immutable_arrays
             | _ -> ());
             default_iterator.typ sub ctyp);
         pat =

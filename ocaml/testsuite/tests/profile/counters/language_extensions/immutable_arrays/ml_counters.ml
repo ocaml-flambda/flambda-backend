@@ -4,6 +4,8 @@ let a_iarray : int iarray = [: 1; 2; 3; 4; 5 :]
 
 let b_iarray : float iarray = [: 1.; 2.; 3.; 4.; 5. :]
 
+(* CR-someday mitom: Add tests for [Iarray] module from stdlib *)
+
 (* Mutable arrays (should not be counted) *)
 
 let c_array : int array = [| 1; 2; 3; 4; 5 |]
