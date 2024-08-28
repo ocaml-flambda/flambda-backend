@@ -440,7 +440,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                             Tconstr (_,params,_) ->
                               params
                           | _ -> assert false end
-                      | None -> (get_type_param_exprs decl)
+                      | None -> get_type_param_exprs decl
                     in
                     let unbx =
                       match rep with

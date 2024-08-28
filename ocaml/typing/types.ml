@@ -439,11 +439,17 @@ let set_type_variance decl variances =
     (List.map2 (fun variance param -> { param with variance }) variances)
 
 
-let zip_params_with_applied tys decl =
+let zip_params_with_applied xs decl =
   let params = get_type_params decl in
-  if List.length tys <> List.length params
-  then Misc.fatal_error "Mismatched arities in type application"
-  else List.combine tys params
+  if List.length xs <> List.length params
+  then raise (Invalid_argument "Mismatched arities in application")
+  else List.combine xs params
+
+let zip_params_with_applied2 xs ys decl =
+  let params = get_type_params decl in
+  if List.length xs <> List.length params || List.length ys <> List.length params
+  then raise (Invalid_argument "Mismatched arities in application")
+  else List.map2 (fun (x, y) p -> (x, y, p)) (List.combine xs ys) params
 
 
 let get_desc_ref = ref (fun _ -> assert false)

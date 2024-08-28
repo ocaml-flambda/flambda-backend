@@ -730,6 +730,7 @@ val get_type_variance : type_declaration -> Variance.t list
 val set_type_variance : type_declaration -> Variance.t list -> type_declaration
 
 val zip_params_with_applied : 'a list -> type_declaration -> ('a * type_param) list
+val zip_params_with_applied2 : 'a list -> 'b list -> type_declaration -> ('a * 'b * type_param) list
 
 val create_type_equation_noun : type_param list -> jkind -> private_flag -> type_expr option -> type_noun
 

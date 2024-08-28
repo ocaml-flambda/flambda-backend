@@ -3110,11 +3110,11 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
   let sig_decl = Ctype.instance_declaration sig_decl in
   let arity_ok = (arity = get_type_arity sig_decl) in
   if arity_ok then
-    List.iter2 (fun (cty, _) tparam ->
+    List.iter (fun ((cty, _), { param_expr = tparam }) ->
       try Ctype.unify_var env cty.ctyp_type tparam
       with Ctype.Unify err ->
         raise(Error(cty.ctyp_loc, Inconsistent_constraint (env, err)))
-    ) tparams (get_type_param_exprs sig_decl);
+    ) (zip_params_with_applied tparams sig_decl);
   List.iter (fun (cty, cty', loc) ->
     (* Note: constraints must also be enforced in [sig_env] because
        they may contain parameter variables from [tparams]

@@ -1398,10 +1398,7 @@ let instance_parameterized_type ?keep_names sch_args sch =
 let map_kind f : type_noun -> type_noun = function
   | Equation { params; ret_jkind; eq } ->
     Equation {
-      params = List.map (
-        fun { param_expr; variance; separability } ->
-          { param_expr = f param_expr; variance; separability })
-        params;
+      params = List.map (fun p -> { p with param_expr = f p.param_expr }) params;
       ret_jkind;
       eq = match eq with
       | Type_abstr { reason } -> Type_abstr { reason }
@@ -1409,11 +1406,7 @@ let map_kind f : type_noun -> type_noun = function
     }
   | Datatype { params; ret_jkind; manifest; noun } ->
     Datatype {
-      params =
-        List.map (
-          fun { param_expr; variance; separability } ->
-            { param_expr = f param_expr; variance; separability })
-          params;
+      params = List.map (fun p -> { p with param_expr = f p.param_expr }) params;
       ret_jkind;
       manifest;
       noun = match noun with
@@ -2931,6 +2924,13 @@ let compatible_paths p1 p2 =
   Path.same p1 path_bytes && Path.same p2 path_string ||
   Path.same p1 path_string && Path.same p2 path_bytes
 
+let zip_with_found_injectivities_or_false env path tl1 tl2 =
+  match Env.find_type path env with
+  | decl ->
+    List.map (fun (t1, t2, { variance = v }) -> (Variance.(mem Inj) v, t1, t2))
+      (zip_params_with_applied2 tl1 tl2 decl)
+  | exception Not_found -> List.map2 (fun t1 t2 -> (false, t1, t2)) tl1 tl2
+
 (* Check for datatypes carefully; see PR#6348 *)
 let rec expands_to_datatype env ty =
   match get_desc ty with
@@ -3106,13 +3106,12 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
       then raise Incompatible
     in
     if compatible_paths p1 p2 then begin
-      let inj =
-        try List.map Variance.(mem Inj) (Env.find_type p1 env |> get_type_variance)
-        with Not_found -> List.map (fun _ -> false) tl1
+      let injs =
+        zip_with_found_injectivities_or_false env p1 tl1 tl2
       in
-      List.iter2
-        (fun i (t1,t2) -> if i then mcomp type_pairs env t1 t2)
-        inj (List.combine tl1 tl2)
+      List.iter
+        (fun (i, t1, t2) -> if i then mcomp type_pairs env t1 t2)
+        injs
     end else if non_aliasable p1 decl && non_aliasable p2 decl' then
       raise Incompatible
     else
@@ -3604,13 +3603,9 @@ and unify3 env t1 t1' t2 t2' =
           then
             unify_list env tl1 tl2
           else
-            let inj =
-              try List.map Variance.(mem Inj)
-                    (Env.find_type p1 !env |> get_type_variance)
-              with Not_found -> List.map (fun _ -> false) tl1
-            in
-            List.iter2
-              (fun i (t1, t2) ->
+            let injs = zip_with_found_injectivities_or_false !env p1 tl1 tl2 in
+            List.iter
+              (fun (i, t1, t2) ->
                 if i then unify env t1 t2 else
                 without_generating_equations
                   begin fun () ->
@@ -3620,7 +3615,7 @@ and unify3 env t1 t1' t2 t2' =
                       reify env t1;
                       reify env t2
                   end)
-              inj (List.combine tl1 tl2)
+              injs
       | (Tconstr (path,[],_),
          Tconstr (path',[],_))
         when is_instantiable !env ~for_jkind_eqn:false path
@@ -4697,7 +4692,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
                 match Env.find_type p1 env with
                 | decl ->
                     moregen_param_list inst_nongen variance type_pairs env
-                      (get_type_variance decl) tl1 tl2
+                      (try zip_params_with_applied2 tl1 tl2 decl
+                       with Invalid_argument _ -> raise_unexplained_for Moregen)
                 | exception Not_found ->
                     moregen_list inst_nongen Invariant type_pairs env tl1 tl2
             end
@@ -4748,14 +4744,13 @@ and moregen_labeled_list inst_nongen variance type_pairs env labeled_tl1
       moregen inst_nongen variance type_pairs env ty1 ty2)
     labeled_tl1 labeled_tl2
 
-and moregen_param_list inst_nongen variance type_pairs env vl tl1 tl2 =
-  match vl, tl1, tl2 with
-  | [], [], [] -> ()
-  | v :: vl, t1 :: tl1, t2 :: tl2 ->
+and moregen_param_list inst_nongen variance type_pairs env vts =
+  match vts with
+  | [] -> ()
+  | (t1, t2, { variance = v }) :: vts ->
     let param_variance = compose_variance variance v in
     moregen inst_nongen param_variance type_pairs env t1 t2;
-    moregen_param_list inst_nongen variance type_pairs env vl tl1 tl2
-  | _, _, _ -> raise_unexplained_for Moregen
+    moregen_param_list inst_nongen variance type_pairs env vts
 
 and moregen_fields inst_nongen variance type_pairs env ty1 ty2 =
   let (fields1, rest1) = flatten_fields ty1
@@ -5946,7 +5941,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
         begin try
           let decl = Env.find_type p1 env in
           List.fold_left
-            (fun cstrs ((t1, t2), { variance = v }) ->
+            (fun cstrs (t1, t2, { variance = v }) ->
               let (co, cn) = Variance.get_upper v in
               if co then
                 if cn then
@@ -5968,7 +5963,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
                     t2 t1
                     cstrs
                 else cstrs)
-            cstrs (zip_params_with_applied (List.combine tl1 tl2) decl)
+            cstrs (zip_params_with_applied2 tl1 tl2 decl)
         with Not_found ->
           (trace, t1, t2, !univar_pairs)::cstrs
         end
