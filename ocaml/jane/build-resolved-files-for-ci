@@ -89,6 +89,7 @@ typing_mls=(
   includemod
   jkind
   jkind_types
+  higher_jkind
   mtype
   oprint
   parmatch

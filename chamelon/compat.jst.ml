@@ -2,7 +2,7 @@ open Typedtree
 open Types
 open Mode
 
-let dummy_jkind = Jkind.Builtin.value ~why:(Unknown "dummy_layout")
+let dummy_jkind = Higher_jkind.Builtin.value ~why:(Unknown "dummy_layout")
 let dummy_value_mode = Value.disallow_right Value.legacy
 
 let dummy_alloc_mode =
@@ -53,7 +53,7 @@ type texp_function_param_identifier = {
   param_sort : Jkind.Sort.t;
   param_mode : Alloc.l;
   param_curry : function_curry;
-  param_newtypes : (string Location.loc * Jkind.annotation option) list;
+  param_newtypes : (string Location.loc * Jkind.higher_annotation option) list;
 }
 
 type texp_function_param = {
@@ -102,7 +102,7 @@ let texp_function_cases_identifier_defaults =
     last_arg_exp_extra = None;
     last_arg_attributes = [];
     env = Env.empty;
-    ret_type = Ctype.newvar (Jkind.Builtin.any ~why:Dummy_jkind);
+    ret_type = Ctype.newvar (Higher_jkind.Builtin.any ~why:Dummy_jkind);
   }
 
 let texp_function_param_identifier_defaults =

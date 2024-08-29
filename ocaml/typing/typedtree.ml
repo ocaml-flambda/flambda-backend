@@ -1191,12 +1191,12 @@ let loc_of_decl ~uid =
   | Value vd -> vd.val_name
   | Value_binding vb ->
     let bound_idents = let_bound_idents_full [vb] in
-    let name = ListLabels.find_map 
+    let name = ListLabels.find_map
       ~f:(fun (_, name, _, uid') -> if uid = uid' then Some name else None)
       bound_idents in
     (match name with
     | Some name -> name
-    | None -> 
+    | None ->
       (* The find_map will only fail if a bad uid was given. In that case, just
          use the location of the pattern on the left of the binding. *)
       { txt = ""; loc = vb.vb_pat.pat_loc })

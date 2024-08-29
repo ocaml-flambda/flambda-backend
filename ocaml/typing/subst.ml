@@ -32,7 +32,7 @@ type type_replacement =
   | Type_function of { params : type_expr list; body : type_expr }
 
 type additional_action =
-  | Prepare_for_saving of (Location.t -> jkind -> jkind)
+  | Prepare_for_saving of (Location.t -> higher_jkind -> higher_jkind)
     (* The [Prepare_for_saving] function should be applied to all jkinds when
        saving; this commons them up, truncates their histories, and runs
        a check that all unconstrained variables have been defaulted to value. *)
@@ -84,7 +84,8 @@ let with_additional_action =
   let builtins =
     Jkind.Const.Builtin.all
     |> List.map (fun (builtin : Jkind.Const.Builtin.t) ->
-          builtin.jkind, Jkind.of_const builtin.jkind ~why:Jkind.History.Imported)
+          builtin.jkind |> Higher_jkind.Const.wrap,
+          Jkind.of_const builtin.jkind ~why:Jkind.History.Imported |> Higher_jkind.wrap)
   in
   fun (config : additional_action_config) s ->
   (* CR layouts: it would be better to put all this stuff outside this
@@ -102,24 +103,27 @@ let with_additional_action =
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
         let prepare_jkind loc jkind =
-          match Jkind.get jkind with
-          | Const const ->
+          match Higher_jkind.to_const jkind with
+          | Some const ->
             let builtin =
-              List.find_opt (fun (builtin, _) -> Jkind.Const.equal const builtin) builtins
+              List.find_opt (fun (builtin, _) -> Higher_jkind.Const.equal const builtin) builtins
             in
             begin match builtin with
             | Some (__, jkind) -> jkind
-            | None -> Jkind.of_const const ~why:Jkind.History.Imported
+            | None -> Higher_jkind.of_const const ~why:Jkind.History.Imported
             end
-          | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
+          | None -> raise(Error (loc, Unconstrained_jkind_variable))
         in
         Prepare_for_saving prepare_jkind
   in
   { s with additional_action; last_compose = None }
 
+let lift_prepare ~prepare_jkind loc ty =
+  ty |> Higher_jkind.wrap |> prepare_jkind loc |> Higher_jkind.unwrap
+
 let apply_prepare_jkind s lay loc =
   match s.additional_action with
-  | Prepare_for_saving prepare_jkind -> prepare_jkind loc lay
+  | Prepare_for_saving prepare_jkind -> lift_prepare ~prepare_jkind loc lay
   | Duplicate_variables | No_action -> lay
 
 let change_locs s loc = { s with loc = Some loc; last_compose = None }
@@ -288,7 +292,7 @@ let rec typexp copy_scope s ty =
     let has_fixed_row =
       not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
     (* Make a stub *)
-    let jkind = Jkind.Builtin.any ~why:Dummy_jkind in
+    let jkind = Higher_jkind.Builtin.any ~why:Dummy_jkind in
     let ty' =
       if should_duplicate_vars then newpersty (Tvar {name = None; jkind})
       else newgenstub ~scope:(get_scope ty) jkind
@@ -431,7 +435,7 @@ let constructor_declaration copy_scope s c =
 let constructor_tag ~prepare_jkind loc = function
   | Ordinary _ as tag -> tag
   | Extension (path, lays) ->
-      Extension (path, Array.map (prepare_jkind loc) lays)
+      Extension (path, Array.map (lift_prepare ~prepare_jkind loc) lays)
 
 (* called only when additional_action is [Prepare_for_saving] *)
 let variant_representation ~prepare_jkind loc = function
@@ -439,7 +443,7 @@ let variant_representation ~prepare_jkind loc = function
   | Variant_boxed cstrs_and_jkinds  ->
     Variant_boxed
       (Array.map
-         (fun (cstr, jkinds) -> cstr, Array.map (prepare_jkind loc) jkinds)
+         (fun (cstr, jkinds) -> cstr, Array.map (lift_prepare ~prepare_jkind loc) jkinds)
          cstrs_and_jkinds)
   | Variant_extensible -> Variant_extensible
 
@@ -451,7 +455,7 @@ let record_representation ~prepare_jkind loc = function
                     constructor_rep,
                     variant_representation ~prepare_jkind loc variant_rep)
   | Record_boxed lays ->
-      Record_boxed (Array.map (prepare_jkind loc) lays)
+      Record_boxed (Array.map (lift_prepare ~prepare_jkind loc) lays)
   | (Record_float | Record_ufloat | Record_mixed _) as rep -> rep
 
 let type_declaration' copy_scope s decl =
@@ -474,7 +478,7 @@ let type_declaration' copy_scope s decl =
         }
       | Datatype { params; ret_jkind; manifest; noun } -> Datatype {
         params = map_param_exprs (typexp copy_scope s decl.type_loc) params;
-        ret_jkind = prep_ret_jkind ret_jkind;
+        ret_jkind = Higher_jkind.wrap ret_jkind |> prep_ret_jkind |> Higher_jkind.unwrap;
         manifest = Option.map (type_path s) manifest;
         noun = match noun with
         | Datatype_variant { priv; cstrs; rep } ->
@@ -581,7 +585,7 @@ let extension_constructor' copy_scope s ext =
     ext_args = constructor_arguments copy_scope s ext.ext_args;
     ext_arg_jkinds = begin match s.additional_action with
       | Prepare_for_saving prepare_jkind ->
-          Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
+          Array.map (lift_prepare ~prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
       | Duplicate_variables | No_action -> ext.ext_arg_jkinds
     end;
     ext_shape = ext.ext_shape;

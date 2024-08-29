@@ -72,7 +72,7 @@ type field_kind
 type commutable
 
 and type_desc =
-  | Tvar of { name : string option; jkind : jkind }
+  | Tvar of { name : string option; jkind : higher_jkind }
   (** [Tvar (Some "a")] ==> ['a] or ['_a]
       [Tvar None]       ==> [_] *)
 
@@ -136,7 +136,7 @@ and type_desc =
   | Tvariant of row_desc
   (** Representation of polymorphic variants, see [row_desc]. *)
 
-  | Tunivar of { name : string option; jkind : jkind }
+  | Tunivar of { name : string option; jkind : higher_jkind }
   (** Occurrence of a type variable introduced by a
       forall quantifier / [Tpoly]. *)
 
@@ -219,7 +219,8 @@ and abbrev_memo =
 
 (** Jkinds classify types. *)
 (* CR layouts v2.8: Say more here. *)
-and jkind = type_expr Jkind_types.t
+and jkind = type_expr Jkind_types.jkind
+and higher_jkind = type_expr Jkind_types.higher_jkind
 
 (* jkind depends on types defined in this file, but Jkind.equal is required
    here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
@@ -534,7 +535,7 @@ and type_noun =
     noun: datatype_noun }
   | Equation of {
     params: type_param list;
-    ret_jkind: jkind;
+    ret_jkind: higher_jkind;
     eq: type_equation }
 
 (* [ret_jkind] fields store the jkind of the type once it is fully applied.
@@ -710,8 +711,8 @@ val abstract_reason_of_abbrev : abstract_reason
 
 val newgenty_ref : (type_desc -> type_expr) ref
 
-val get_type_jkind : type_declaration -> jkind
-val set_type_jkind : jkind -> type_declaration -> type_declaration
+val get_type_jkind : type_declaration -> higher_jkind
+val set_type_jkind : higher_jkind -> type_declaration -> type_declaration
 
 val create_type_params : type_expr list -> Variance.t list -> Separability.t list -> type_param list
 val create_type_params_of_unknowns : injective:bool -> type_expr list -> type_param list
@@ -732,7 +733,10 @@ val set_type_variance : type_declaration -> Variance.t list -> type_declaration
 val zip_params_with_applied : 'a list -> type_declaration -> ('a * type_param) list
 val zip_params_with_applied2 : 'a list -> 'b list -> type_declaration -> ('a * 'b * type_param) list
 
-val create_type_equation_noun : type_param list -> jkind -> private_flag -> type_expr option -> type_noun
+val create_higher_kinded_type_equation_noun
+  : type_param list -> higher_jkind -> private_flag -> type_expr option -> type_noun
+val create_type_equation_noun
+  : type_param list -> jkind -> private_flag -> type_expr option -> type_noun
 
 val with_expansion : type_declaration -> type_expr -> type_declaration
 val with_manifest : type_declaration -> Path.t -> type_declaration
@@ -1005,7 +1009,7 @@ val set_type_desc: type_expr -> type_desc -> unit
         (* Set directly the desc field, without sharing *)
 val set_level: type_expr -> int -> unit
 val set_scope: type_expr -> int -> unit
-val set_var_jkind: type_expr -> jkind -> unit
+val set_var_jkind: type_expr -> higher_jkind -> unit
         (* May only be called on Tvars *)
 val set_name:
     (Path.t * type_expr list) option ref ->

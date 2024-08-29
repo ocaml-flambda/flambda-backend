@@ -122,6 +122,8 @@ module type Axis = sig
 
   val meet : t -> t -> t
 
+  val join : t -> t -> t
+
   val print : Format.formatter -> t -> unit
 end
 
@@ -156,18 +158,34 @@ end
 type 'type_expr history =
   | Interact of
       { reason : Jkind_intf.History.interact_reason;
-        lhs_jkind : 'type_expr Jkind_desc.t;
+        lhs_jkind : 'type_expr higher_jkind_desc;
         lhs_history : 'type_expr history;
-        rhs_jkind : 'type_expr Jkind_desc.t;
+        rhs_jkind : 'type_expr higher_jkind_desc;
         rhs_history : 'type_expr history
       }
   | Creation of Jkind_intf.History.creation_reason
 
-type 'type_expr t =
+and 'type_expr jkind =
   { desc : 'type_expr Jkind_desc.t;
     history : 'type_expr history;
     has_warned : bool
   }
+
+and 'type_expr higher_jkind_desc =
+  | Type of 'type_expr jkind
+  | Arrow of 'type_expr higher_jkind list * 'type_expr higher_jkind
+  | Top
+
+and 'type_expr higher_jkind =
+  { hdesc : 'type_expr higher_jkind_desc;
+    hhistory : 'type_expr history
+  }
+
+val wrap_higher_jkind : 'type_expr jkind -> 'type_expr higher_jkind
+
+val unwrap_type_jkind : 'type_expr higher_jkind -> 'type_expr jkind
+
+type 'type_expr t = 'type_expr jkind
 
 (** CR layouts v2.8: remove this when printing is improved *)
 module Const : sig
@@ -179,5 +197,13 @@ module Const : sig
     }
 end
 
+module Higher_const : sig
+  type 'type_expr t =
+    | Type of 'type_expr Const.t
+    | Arrow of 'type_expr t list * 'type_expr t
+    | Top
+end
+
 (** CR layouts v2.8: remove this when printing is improved *)
-type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation
+type 'type_expr annotation =
+  'type_expr Higher_const.t * Jane_syntax.Jkind.annotation

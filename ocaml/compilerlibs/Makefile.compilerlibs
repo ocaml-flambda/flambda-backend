@@ -94,6 +94,7 @@ TYPING = \
   typing/btype.cmo \
   typing/oprint.cmo \
   typing/jkind.cmo \
+  typing/higher_jkind.cmo \
   typing/subst.cmo \
   typing/predef.cmo \
   typing/datarepr.cmo \

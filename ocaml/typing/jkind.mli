@@ -79,6 +79,8 @@ end
     [Any] and subjkinds of other sorts, such as [Immediate]. *)
 type t = Types.type_expr Jkind_types.t
 
+type higher = Types.type_expr Jkind_types.higher_jkind
+
 module History : sig
   include module type of struct
     include Jkind_intf.History
@@ -102,8 +104,8 @@ end
 
 module Violation : sig
   type violation =
-    | Not_a_subjkind of t * t
-    | No_intersection of t * t
+    | Not_a_subjkind of higher * higher
+    | No_intersection of higher * higher
 
   type t
 
@@ -145,9 +147,13 @@ module Const : sig
   (** Constant jkinds are used for user-written annotations *)
   type t = Types.type_expr Jkind_types.Const.t
 
+  type higher = Types.type_expr Jkind_types.Higher_const.t
+
   val to_out_jkind_const : t -> Outcometree.out_jkind_const
 
   val format : Format.formatter -> t -> unit
+
+  val format_higher : Format.formatter -> higher -> unit
 
   val equal : t -> t -> bool
 
@@ -162,6 +168,9 @@ module Const : sig
 
   val of_user_written_annotation :
     context:History.annotation_context -> Jane_syntax.Jkind.annotation -> t
+
+  val higher_of_user_written_annotation :
+    context:History.annotation_context -> Jane_syntax.Jkind.annotation -> higher
 
   (* CR layouts: Remove this once we have a better story for printing with jkind
      abbreviations. *)
@@ -278,21 +287,23 @@ val of_new_legacy_sort : why:History.concrete_legacy_creation_reason -> t
 
 val of_const : why:History.creation_reason -> Const.t -> t
 
+val higher_of_const : why:History.creation_reason -> Const.higher -> higher
+
 (* CR layouts v2.8: remove this when printing is improved *)
 
 (** The [Jkind.Const.t] together with its user-written annotation. *)
 type annotation = Types.type_expr Jkind_types.annotation
 
-val of_annotation :
+val higher_of_annotation :
   context:History.annotation_context ->
   Jane_syntax.Jkind.annotation ->
-  t * annotation
+  higher * annotation
 
-val of_annotation_option_default :
-  default:t ->
+val higher_of_annotation_option_default :
+  default:higher ->
   context:History.annotation_context ->
   Jane_syntax.Jkind.annotation option ->
-  t * annotation option
+  higher * annotation option
 
 (** Find a jkind from a type declaration. Type declarations are special because
     the jkind may have been provided via [: jkind] syntax (which goes through
@@ -307,21 +318,21 @@ val of_annotation_option_default :
 
     Raises if a disallowed or unknown jkind is present.
 *)
-val of_type_decl :
+val higher_of_type_decl :
   context:History.annotation_context ->
   Parsetree.type_declaration ->
-  (t * annotation * Parsetree.attributes) option
+  (higher * annotation * Parsetree.attributes) option
 
 (** Find a jkind from a type declaration in the same way as [of_type_decl],
     defaulting to ~default.
 
     Raises if a disallowed or unknown jkind is present.
 *)
-val of_type_decl_default :
+val higher_of_type_decl_default :
   context:History.annotation_context ->
-  default:t ->
+  default:higher ->
   Parsetree.type_declaration ->
-  t * annotation option * Parsetree.attributes
+  higher * annotation option * Parsetree.attributes
 
 (** Choose an appropriate jkind for a boxed record type, given whether
     all of its fields are [void]. *)
@@ -386,6 +397,8 @@ val set_externality_upper_bound : t -> Externality.t -> t
 
 val format : Format.formatter -> t -> unit
 
+val format_higher : Format.formatter -> higher -> unit
+
 (** Format the history of this jkind: what interactions it has had and why
     it is the jkind that it is. Might be a no-op: see [display_histories]
     in the implementation of the [Jkind] module.
@@ -400,6 +413,8 @@ val set_printtyp_path : (Format.formatter -> Path.t -> unit) -> unit
 
 (******************************)
 (* relations *)
+
+val equate_or_equal : allow_mutation:bool -> t -> t -> bool
 
 (** This checks for equality, and sets any variables to make two jkinds
     equal, if possible. e.g. [equate] on a var and [value] will set the
@@ -427,6 +442,10 @@ val has_intersection : t -> t -> bool
 val intersection_or_error :
   reason:History.interact_reason -> t -> t -> (t, Violation.t) Result.t
 
+val union : reason:History.interact_reason -> t -> t -> t
+
+val check_sub : t -> t -> Misc.Le_result.t
+
 (** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
     either [t1] or [t2] to make their layouts equal.*)
 val sub : t -> t -> bool
@@ -451,7 +470,11 @@ val has_layout_any : t -> bool
 module Debug_printers : sig
   val t : Format.formatter -> t -> unit
 
+  val higher : Format.formatter -> higher -> unit
+
   module Const : sig
     val t : Format.formatter -> Const.t -> unit
+
+    val higher : Format.formatter -> Const.higher -> unit
   end
 end

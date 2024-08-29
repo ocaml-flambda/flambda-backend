@@ -261,6 +261,14 @@ module History = struct
     | Unification_var
     | Array_type_argument
 
+  type top_creation_reason =
+    | Missing_cmi of Path.t
+    | Initial_typedecl_env
+    | Dummy_jkind
+    | Wildcard
+    | Unification_var
+    | Union_incompatible
+
   type creation_reason =
     | Annotated of annotation_context * Location.t
     | Missing_cmi of Path.t
@@ -269,6 +277,7 @@ module History = struct
     | Immediate_creation of immediate_creation_reason
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
+    | Top_creation of top_creation_reason
     | Concrete_creation of concrete_creation_reason
     | Concrete_legacy_creation of concrete_legacy_creation_reason
     | Primitive of Ident.t

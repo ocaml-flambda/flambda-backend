@@ -55,7 +55,7 @@ type cannot_quantify_reason =
    it is original as compared to the inferred jkind after processing
    the body of the type *)
 type jkind_info =
-  { original_jkind : jkind;
+  { original_jkind : higher_jkind;
     jkind_annot : Jkind.annotation option;
     defaulted : bool;
   }
@@ -78,7 +78,7 @@ type error =
   | Invalid_variable_name of string
   | Cannot_quantify of string * cannot_quantify_reason
   | Bad_univar_jkind of
-      { name : string; jkind_info : jkind_info; inferred_jkind : jkind }
+      { name : string; jkind_info : jkind_info; inferred_jkind : higher_jkind }
   | Multiple_constraints_on_type of Longident.t
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
@@ -137,12 +137,12 @@ module TyVarEnv : sig
     (* common case *)
   val univars_policy : policy
     (* fresh variables are univars (in methods), with representable jkinds *)
-  val new_any_var : Location.t -> Env.t -> Jkind.t -> policy -> type_expr
+  val new_any_var : Location.t -> Env.t -> Higher_jkind.t -> policy -> type_expr
     (* create a new variable to represent a _; fails for fixed policy *)
-  val new_var : ?name:string -> Jkind.t -> policy -> type_expr
+  val new_var : ?name:string -> Higher_jkind.t -> policy -> type_expr
     (* create a new variable according to the given policy *)
 
-  val new_jkind : is_named:bool -> policy -> Jkind.t
+  val new_jkind : is_named:bool -> policy -> Higher_jkind.t
     (* create a new jkind depending on the current policy *)
 
   val add_pre_univar : type_expr -> policy -> unit
@@ -282,7 +282,7 @@ end = struct
   let mk_poly_univars_tuple_with_jkind ~context var jkind =
     let name = var.txt in
     let original_jkind, jkind_annot =
-      Jkind.of_annotation ~context:(context name) jkind
+      Higher_jkind.of_annotation ~context:(context name) jkind
     in
     let jkind_info =
       { original_jkind; jkind_annot = Some jkind_annot; defaulted = false }
@@ -291,7 +291,7 @@ end = struct
 
   let mk_poly_univars_tuple_without_jkind var =
     let name = var.txt in
-    let original_jkind = Jkind.Builtin.value ~why:Univar in
+    let original_jkind = Higher_jkind.Builtin.value ~why:Univar in
     let jkind_info = { original_jkind; jkind_annot = None; defaulted = true } in
     name, mk_pending_univar name original_jkind jkind_info
 
@@ -326,7 +326,7 @@ end = struct
       in
       begin match get_desc v with
       | Tvar { jkind } when
-          not (Jkind.equate jkind jkind_info.original_jkind) ->
+          not (Higher_jkind.equate jkind jkind_info.original_jkind) ->
         let reason =
           Bad_univar_jkind { name; jkind_info; inferred_jkind = jkind }
         in
@@ -438,8 +438,8 @@ end = struct
        From testing, we need all callsites that use [Sort] to be non-null to
        preserve backwards compatibility. But we also need [Any] callsites
        to accept nullable jkinds to allow cases like [type ('a : value_or_null) t = 'a]. *)
-    | Any -> Jkind.Builtin.any ~why:(if is_named then Unification_var else Wildcard)
-    | Sort -> Jkind.of_new_legacy_sort ~why:(if is_named then Unification_var else Wildcard)
+    | Any -> Higher_jkind.Builtin.any ~why:(if is_named then Unification_var else Wildcard)
+    | Sort -> Jkind.of_new_legacy_sort ~why:(if is_named then Unification_var else Wildcard) |> Higher_jkind.wrap
 
   let new_any_var loc env jkind = function
     | { extensibility = Fixed } -> raise(Error(loc, env, No_type_wildcards))
@@ -450,7 +450,7 @@ end = struct
     TyVarMap.iter
       (fun name (ty, loc) ->
         if flavor = Unification || is_in_scope name then
-          let v = new_global_var (Jkind.Builtin.any ~why:Dummy_jkind) in
+          let v = new_global_var (Higher_jkind.Builtin.any ~why:Dummy_jkind) in
           let snap = Btype.snapshot () in
           if try unify env v ty; true with _ -> Btype.backtrack snap; false
           then try
@@ -460,7 +460,7 @@ end = struct
               raise(Error(loc, env,
                           Unbound_type_variable ("'"^name,
                                                  get_in_scope_names ())));
-            let v2 = new_global_var (Jkind.Builtin.any ~why:Dummy_jkind) in
+            let v2 = new_global_var (Higher_jkind.Builtin.any ~why:Dummy_jkind) in
             r := (loc, v, v2) :: !r;
             add name v2)
       !used_variables;
@@ -507,7 +507,7 @@ let valid_tyvar_name name =
   name <> "" && name.[0] <> '_'
 
 let transl_type_param_var env loc attrs name_opt
-      (jkind : jkind) jkind_annot =
+      (jkind : higher_jkind) jkind_annot =
   let tvar = Ttyp_var (name_opt, jkind_annot) in
   let name =
     match name_opt with
@@ -529,7 +529,7 @@ let transl_type_param_jst env loc attrs path :
   function
   | Jtyp_layout (Ltyp_var { name; jkind = jkind_annot }) ->
      let jkind, jkind_annot =
-       Jkind.of_annotation ~context:(Type_parameter (path, name)) jkind_annot
+       Higher_jkind.of_annotation ~context:(Type_parameter (path, name)) jkind_annot
      in
      transl_type_param_var env loc attrs name jkind (Some jkind_annot)
   | Jtyp_layout (Ltyp_poly _ | Ltyp_alias _)
@@ -546,6 +546,7 @@ let transl_type_param env path styp =
    for backwards compatibility (e.g., we wouldn't want [type 'a id = 'a] to
    have jkind any).  But it might be possible to infer [any] in some cases. *)
   let jkind = Jkind.of_new_legacy_sort ~why:(Unannotated_type_parameter path) in
+  let jkind = Higher_jkind.wrap jkind in
   let attrs = styp.ptyp_attributes in
   match styp.ptyp_desc with
     Ptyp_any -> transl_type_param_var env loc attrs None jkind None
@@ -561,10 +562,10 @@ let transl_type_param env path styp =
 
 let get_type_param_jkind path styp =
   match Jane_syntax.Core_type.of_ast styp with
-  | None -> Jkind.of_new_legacy_sort ~why:(Unannotated_type_parameter path)
+  | None -> Jkind.of_new_legacy_sort ~why:(Unannotated_type_parameter path) |> Higher_jkind.wrap
   | Some (Jtyp_layout (Ltyp_var { name; jkind }), _attrs) ->
     let jkind, _ =
-      Jkind.of_annotation
+      Higher_jkind.of_annotation
         ~context:(Type_parameter (path, name))
         jkind
     in
@@ -630,7 +631,7 @@ let enrich_with_attributes attrs annotation_context =
   | None -> annotation_context
 
 let jkind_of_annotation annotation_context attrs jkind =
-  Jkind.of_annotation ~context:(enrich_with_attributes attrs annotation_context) jkind
+  Higher_jkind.of_annotation ~context:(enrich_with_attributes attrs annotation_context) jkind
 
 (* translate the ['a 'b ('c : immediate) .] part of a polytype,
    returning a [poly_univars] *)
@@ -740,7 +741,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       List.iteri
         (fun idx ((sty, cty), ty') ->
            begin match Types.get_desc ty' with
-           | Tvar {jkind; _} when Jkind.History.is_imported jkind ->
+           | Tvar {jkind; _} when Higher_jkind.History.is_imported jkind ->
              (* In case of a Tvar with imported jkind history, we can improve
                 the jkind reason using the in scope [path] to the parent type.
 
@@ -750,7 +751,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
                 no statistically significant increase in build time. *)
              let reason = Jkind.History.Imported_type_argument
                             {parent_path = path; position = idx + 1; arity} in
-             Types.set_var_jkind ty' (Jkind.History.update_reason jkind reason)
+             Types.set_var_jkind ty' (Higher_jkind.History.update_reason jkind reason)
            | _ -> ()
            end;
            try unify_param env ty' cty.ctyp_type with Unify err ->
@@ -820,7 +821,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       let name = ref None in
       let mkfield l f =
         newty (Tvariant (create_row ~fields:[l,f]
-                           ~more:(newvar (Jkind.Builtin.value ~why:Row_variable))
+                           ~more:(newvar (Higher_jkind.Builtin.value ~why:Row_variable))
                            ~closed:true ~fixed:None ~name:None)) in
       let hfields = Hashtbl.create 17 in
       let add_typed_field loc l f =
@@ -855,7 +856,7 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
                  polymorphic variants. *)
               match
                 constrain_type_jkind env ctyp_type
-                  (Jkind.Builtin.value_or_null ~why:Polymorphic_variant_field)
+                  (Higher_jkind.Builtin.value_or_null ~why:Polymorphic_variant_field)
               with
               | Ok _ -> ()
               | Error e ->
@@ -930,9 +931,9 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       in
       let more =
         if Btype.static_row
-             (make_row (newvar (Jkind.Builtin.value ~why:Row_variable)))
+             (make_row (newvar (Higher_jkind.Builtin.value ~why:Row_variable)))
         then newty Tnil
-        else TyVarEnv.new_var (Jkind.Builtin.value ~why:Row_variable) policy
+        else TyVarEnv.new_var (Higher_jkind.Builtin.value ~why:Row_variable) policy
       in
       more_slot := Some more;
       let ty = newty (Tvariant (make_row more)) in
@@ -1055,7 +1056,7 @@ and transl_type_poly env ~policy ~row_context mode loc (vars : (_, _) Either.t)
   let ty_list = TyVarEnv.check_poly_univars env loc new_univars in
   let ty_list = List.filter (fun v -> deep_occur v ty) ty_list in
   let ty' = Btype.newgenty (Tpoly(ty, ty_list)) in
-  unify_var env (newvar (Jkind.Builtin.any ~why:Dummy_jkind)) ty';
+  unify_var env (newvar (Higher_jkind.Builtin.any ~why:Dummy_jkind)) ty';
   Ttyp_poly (typed_vars, cty), ty'
 
 and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_opt
@@ -1090,7 +1091,7 @@ and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_op
           with_local_level_if_principal begin fun () ->
             let jkind, jkind_annot =
               match jkind_annot_opt with
-              | None -> Jkind.Builtin.any ~why:Dummy_jkind, None
+              | None -> Higher_jkind.Builtin.any ~why:Dummy_jkind, None
               | Some jkind_annot ->
                 let jkind, annot =
                   jkind_of_annotation (Type_variable ("'" ^ alias)) attrs jkind_annot
@@ -1151,7 +1152,7 @@ and transl_type_aux_tuple env ~policy ~row_context stl =
   List.iter (fun (_, {ctyp_type; ctyp_loc}) ->
     (* CR layouts v5: remove value requirement *)
     match
-      constrain_type_jkind env ctyp_type (Jkind.Builtin.value_or_null ~why:Tuple_element)
+      constrain_type_jkind env ctyp_type (Higher_jkind.Builtin.value_or_null ~why:Tuple_element)
     with
     | Ok _ -> ()
     | Error e ->
@@ -1187,7 +1188,7 @@ and transl_fields env ~policy ~row_context o fields =
         begin
           match
             constrain_type_jkind
-              env ty1.ctyp_type (Jkind.Builtin.value ~why:Object_field)
+              env ty1.ctyp_type (Higher_jkind.Builtin.value ~why:Object_field)
           with
           | Ok _ -> ()
           | Error e ->
@@ -1234,7 +1235,7 @@ and transl_fields env ~policy ~row_context o fields =
   let ty_init =
      match o with
      | Closed -> newty Tnil
-     | Open -> TyVarEnv.new_var (Jkind.Builtin.value ~why:Row_variable) policy
+     | Open -> TyVarEnv.new_var (Higher_jkind.Builtin.value ~why:Row_variable) policy
   in
   let ty = List.fold_left (fun ty (s, ty') ->
       newty (Tfield (s, field_public, ty', ty))) ty_init fields in
@@ -1464,12 +1465,12 @@ let report_error env ppf = function
         "@[<hov>The universal type variable %a was %s to have kind %a.@;%a@]"
         Pprintast.tyvar name
         (if jkind_info.defaulted then "defaulted" else "declared")
-        Jkind.format jkind_info.original_jkind
-        (Jkind.format_history ~intro:(
+        Higher_jkind.format jkind_info.original_jkind
+        (Higher_jkind.format_history ~intro:(
           dprintf "But it was inferred to have %t"
-            (fun ppf -> match Jkind.get inferred_jkind with
-            | Const c -> fprintf ppf "kind %a" Jkind.Const.format c
-            | Var _ -> fprintf ppf "a representable kind")))
+            (fun ppf -> match Higher_jkind.to_const inferred_jkind with
+            | Some c -> fprintf ppf "kind %a" Higher_jkind.Const.format c
+            | None -> fprintf ppf "a representable kind")))
         inferred_jkind
   | Multiple_constraints_on_type s ->
       fprintf ppf "Multiple constraints for type %a" longident s

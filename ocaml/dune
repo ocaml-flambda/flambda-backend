@@ -103,7 +103,7 @@
 
    ;; TYPING
    ident path jkind primitive shape shape_reduce zero_alloc types btype oprint subst
-   predef datarepr
+   predef datarepr higher_jkind
    global_module cmi_format persistent_env env errortrace mode jkind_types jkind_intf
    typedtree printtyped ctype printtyp includeclass mtype envaux includecore
    tast_iterator tast_mapper signature_group cmt_format cms_format untypeast
@@ -303,6 +303,7 @@
     (parsetree.mli as compiler-libs/parsetree.mli)
     (ident.mli as compiler-libs/ident.mli)
     (path.mli as compiler-libs/path.mli)
+    (higher_jkind.mli as compiler-libs/higher_jkind.mli)
     (jkind.mli as compiler-libs/jkind.mli)
     (jkind_types.mli as compiler-libs/jkind_types.mli)
     (primitive.mli as compiler-libs/primitive.mli)
