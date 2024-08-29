@@ -47,8 +47,6 @@ let get_global glob =
   with Symtable.Error _ ->
     raise(Error(Unbound_global glob))
 
-(* XXX mshinwell: check for other occurrences of this Aunit/Alocal pattern
-   and make the code look like this *)
 let rec address path event = function
   | Env.Aunit cu -> get_global (Glob_compunit cu)
   | Env.Alocal id ->
