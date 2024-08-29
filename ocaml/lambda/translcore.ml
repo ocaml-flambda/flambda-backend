@@ -1120,16 +1120,20 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         let assume_zero_alloc = get_assume_zero_alloc ~scopes in
         let scopes = enter_value_definition ~scopes ~assume_zero_alloc funcid in
         lfunction
-          ~kind:(Curried {nlocal=0})
+          (* We conservatively assume that all arguments are local. This doesn't
+             hurt performance as probe handlers are always applied fully. *)
+          ~kind:(Curried {nlocal=List.length param_idents})
           (* CR layouts: Adjust param layouts when we allow other things in
              probes. *)
-          ~params:(List.map (fun name -> { name; layout = layout_probe_arg; attributes = Lambda.default_param_attribute; mode = alloc_heap }) param_idents)
+          ~params:(List.map (fun name -> { name; layout = layout_probe_arg; attributes = Lambda.default_param_attribute; mode = alloc_local }) param_idents)
           ~return:return_layout
-          ~body:(maybe_region_layout return_layout body)
+          ~body:body
           ~loc:(of_location ~scopes exp.exp_loc)
           ~attr
           ~mode:alloc_heap
-          ~ret_mode:alloc_heap
+          ~ret_mode:alloc_local
+          (* CR zqian: the handler function doesn't have a region. However, the
+             [region] field is currently broken. *)
           ~region:true
       in
       let app =
@@ -1137,7 +1141,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           ap_args = List.map (fun id -> Lvar id) arg_idents;
           ap_result_layout = return_layout;
           ap_region_close = Rc_normal;
-          ap_mode = alloc_heap;
+          ap_mode = alloc_local;
           ap_loc = of_location e.exp_loc ~scopes;
           ap_tailcall = Default_tailcall;
           ap_inlined = Never_inlined;
