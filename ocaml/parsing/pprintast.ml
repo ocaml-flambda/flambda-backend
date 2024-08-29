@@ -941,7 +941,7 @@ and expression ?(jane_syntax_parens = false) ctxt f x =
         when ctxt.semi ->
         paren true (expression reset_ctxt) f x
     | Pexp_newtype (lid, e) ->
-        pp f "@[<2>fun@;(type@;%s)@;%a@]" lid.txt
+        pp f "@[<2>fun@;(type@;%a)@;%a@]" ident_of_name lid.txt
           (pp_print_pexp_newtype ctxt "->") e
     | Pexp_function (params, constraint_, body) ->
         begin match params, constraint_ with
@@ -1670,8 +1670,8 @@ and pp_print_pexp_newtype ctxt sep f x =
      makes the pretty-printing a bit prettier. *)
   match Jane_syntax.Expression.of_ast x with
   | Some (Jexp_layout (Lexp_newtype (str, lay, e)), []) ->
-      pp f "@[(type@ %s :@ %a)@]@ %a"
-        str.txt
+      pp f "@[(type@ %a :@ %a)@]@ %a"
+        ident_of_name str.txt
         (jkind_annotation ctxt) lay
         (pp_print_pexp_newtype ctxt sep) e
   | Some (jst, attrs) ->
@@ -1681,7 +1681,7 @@ and pp_print_pexp_newtype ctxt sep f x =
   else
     match x.pexp_desc with
     | Pexp_newtype (str,e) ->
-      pp f "(type@ %s)@ %a" str.txt (pp_print_pexp_newtype ctxt sep) e
+      pp f "(type@ %a)@ %a" ident_of_name str.txt (pp_print_pexp_newtype ctxt sep) e
     | _ ->
        pp f "%s@;%a" sep (expression ctxt) x
 
@@ -2260,8 +2260,8 @@ and layout_expr ctxt f (x : Jane_syntax.Layouts.expression) ~parens =
     paren true (layout_expr reset_ctxt ~parens:false) f x
   | Lexp_constant x -> unboxed_constant ctxt f x
   | Lexp_newtype (lid, jkind, inner_expr) ->
-    pp f "@[<2>fun@;(type@;%s :@;%a)@;%a@]"
-      lid.txt
+    pp f "@[<2>fun@;(type@;%a :@;%a)@;%a@]"
+      ident_of_name lid.txt
       (jkind_annotation ctxt) jkind
       (pp_print_pexp_newtype ctxt "->") inner_expr
 
@@ -2278,9 +2278,9 @@ and unboxed_constant _ctxt f (x : Jane_syntax.Layouts.constant)
 and function_param ctxt f { pparam_desc; pparam_loc = _ } =
   match pparam_desc with
   | Pparam_val (a, b, c) -> label_exp ctxt f (a, b, c)
-  | Pparam_newtype (ty, None) -> pp f "(type %s)" ty.txt
+  | Pparam_newtype (ty, None) -> pp f "(type %a)" ident_of_name ty.txt
   | Pparam_newtype (ty, Some annot) ->
-      pp f "(type %s : %a)" ty.txt (jkind_annotation ctxt) annot
+      pp f "(type %a : %a)" ident_of_name ty.txt (jkind_annotation ctxt) annot
 
 and function_body ctxt f x =
   match x with
