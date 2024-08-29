@@ -1568,8 +1568,59 @@ let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
 
 (* Allocation *)
 
-let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
-    wordsize args =
+let mixed_block_size memory_chunks =
+  (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
+     will need to change. *)
+  List.fold_left
+    (fun acc memory_chunk ->
+      match memory_chunk with
+      | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
+        Misc.fatal_errorf
+          "Fields with memory chunk %s are not allowed in mixed blocks"
+          (Printcmm.chunk memory_chunk)
+      | Thirtytwo_unsigned | Thirtytwo_signed ->
+        (* Int32s are currently stored using a whole word *)
+        acc + 1
+      | Single _ | Double ->
+        (* Float32s are currently stored using a whole word *)
+        if size_float <> size_addr
+        then
+          Misc.fatal_error
+            "Unable to compile mixed blocks on a platform where a float is not \
+             the same width as a value.";
+        acc + 1
+      | Word_int | Word_val -> acc + 1
+      | Onetwentyeight_unaligned | Onetwentyeight_aligned -> acc + 2)
+    0 memory_chunks
+
+let alloc_generic_set_fn block ofs newval memory_chunk dbg =
+  let generic_case () =
+    let addr = array_indexing log2_size_addr block ofs dbg in
+    Cop (Cstore (memory_chunk, Assignment), [addr; newval], dbg)
+  in
+  match (memory_chunk : Cmm.memory_chunk) with
+  | Word_val ->
+    (* Values must go through "caml_initialize" *)
+    addr_array_initialize block ofs newval dbg
+  | Word_int -> generic_case ()
+  (* Generic cases that may differ under big endian archs *)
+  | Single _ | Double | Thirtytwo_unsigned | Thirtytwo_signed
+  | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
+    if Arch.big_endian
+    then
+      Misc.fatal_errorf
+        "Fields with memory_chunk %s are not supported on little-endian \
+         architecture"
+        (Printcmm.chunk memory_chunk);
+    generic_case ()
+  (* Forbidden cases *)
+  | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
+    Misc.fatal_errorf
+      "Fields with memory_chunk %s are not supported in generic allocations"
+      (Printcmm.chunk memory_chunk)
+
+let make_alloc_generic ~scannable_prefix ~mode dbg tag wordsize args
+    args_memory_chunks =
   (* allocs of size 0 must be statically allocated else the Gc will bug *)
   assert (List.compare_length_with args 0 > 0);
   if Lambda.is_local_mode mode || wordsize <= Config.max_young_wosize
@@ -1582,12 +1633,14 @@ let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
     Cop (Calloc mode, Cconst_natint (hdr, dbg) :: args, dbg)
   else
     let id = V.create_local "*alloc*" in
-    let rec fill_fields idx = function
-      | [] -> Cvar id
-      | e1 :: el ->
+    let rec fill_fields idx args memory_chunks =
+      match args, memory_chunks with
+      | [], [] -> Cvar id
+      | e1 :: el, m1 :: ml ->
         Csequence
-          ( set_fn idx (Cvar id) (int_const dbg idx) e1 dbg,
-            fill_fields (idx + 1) el )
+          ( alloc_generic_set_fn (Cvar id) (int_const dbg idx) e1 m1 dbg,
+            fill_fields (idx + 1) el ml )
+      | _ -> assert false (* TODO: fatal error, mismatched list lengths *)
     in
     let caml_alloc_func, caml_alloc_args =
       match Config.runtime5, scannable_prefix with
@@ -1615,71 +1668,28 @@ let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
               },
             List.map (fun arg -> Cconst_int (arg, dbg)) caml_alloc_args,
             dbg ),
-        fill_fields 0 args )
-
-let addr_array_init arr ofs newval dbg =
-  Cop
-    ( Cextcall
-        { func = "caml_initialize";
-          ty = typ_void;
-          alloc = false;
-          builtin = false;
-          returns = true;
-          effects = Arbitrary_effects;
-          coeffects = Has_coeffects;
-          ty_args = []
-        },
-      [array_indexing log2_size_addr arr ofs dbg; newval],
-      dbg )
+        fill_fields 0 args args_memory_chunks )
 
 let make_alloc ~mode dbg ~tag args =
-  make_alloc_generic ~mode
-    (fun _ arr ofs newval dbg -> addr_array_init arr ofs newval dbg)
-    dbg tag (List.length args) args
+  make_alloc_generic ~scannable_prefix:Scan_all ~mode dbg tag (List.length args)
+    args
+    (List.map (fun _ -> Word_val) args)
 
 let make_float_alloc ~mode dbg ~tag args =
-  make_alloc_generic ~mode
-    (fun _ -> float_array_set)
-    dbg tag
+  make_alloc_generic ~scannable_prefix:Scan_all ~mode dbg tag
     (List.length args * size_float / size_addr)
     args
+    (List.map (fun _ -> Double) args)
 
-module Flat_suffix_element = struct
-  type t =
-    | Tagged_immediate
-    | Naked_float
-    | Naked_float32
-    | Naked_int32
-    | Naked_int64_or_nativeint
-end
+let make_closure_alloc ~mode dbg ~tag args args_memory_chunks =
+  let size = mixed_block_size args_memory_chunks in
+  make_alloc_generic ~scannable_prefix:Scan_all ~mode dbg tag size args
+    args_memory_chunks
 
-let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size
-    ~(flat_suffix : Flat_suffix_element.t array) args =
-  (* args with shape [Float] must already have been unboxed. *)
-  let set_fn idx arr ofs newval dbg =
-    if idx < value_prefix_size
-    then addr_array_init arr ofs newval dbg
-    else
-      match flat_suffix.(idx - value_prefix_size) with
-      | Tagged_immediate -> int_array_set arr ofs newval dbg
-      | Naked_float -> float_array_set arr ofs newval dbg
-      | Naked_float32 -> setfield_unboxed_float32 arr ofs newval dbg
-      | Naked_int32 -> setfield_unboxed_int32 arr ofs newval dbg
-      | Naked_int64_or_nativeint ->
-        setfield_unboxed_int64_or_nativeint arr ofs newval dbg
-  in
-  let size =
-    (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
-       will need to change. *)
-    value_prefix_size + Array.length flat_suffix
-  in
-  if size_float <> size_addr
-  then
-    Misc.fatal_error
-      "Unable to compile mixed blocks on a platform where a float is not the \
-       same width as a value.";
-  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_size) ~mode
-    set_fn dbg tag size args
+let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
+  let size = mixed_block_size args_memory_chunks in
+  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_size) ~mode dbg
+    tag size args args_memory_chunks
 
 (* Record application and currying functions *)
 
