@@ -179,7 +179,7 @@ module Error = struct
         { from_annotation : higher_const;
           from_attribute : higher_const
         }
-    | Unexpected_higher_jkind of higher_const
+    | Unexpected_higher_jkind of Jane_syntax.Jkind.t
 
   exception User_error of Location.t * t
 end
@@ -608,7 +608,7 @@ module Const = struct
     | Immediate -> Builtin.immediate.jkind
     | Immediate64 -> Builtin.immediate64.jkind
 
-  let rec of_user_written_annotation_unchecked_level
+  let rec of_user_written_annotation_unchecked_level ~loc
       (jkind : Jane_syntax.Jkind.t) : t =
     match jkind with
     | Abbreviation { txt = name; loc } -> (
@@ -632,7 +632,7 @@ module Const = struct
       | "bits64" -> Builtin.bits64.jkind
       | _ -> raise ~loc (Unknown_jkind jkind))
     | Mod (jkind, modifiers) ->
-      let base = of_user_written_annotation_unchecked_level jkind in
+      let base = of_user_written_annotation_unchecked_level ~loc jkind in
       (* for each mode, lower the corresponding modal bound to be that mode *)
       let parsed_modifiers = Typemodifier.transl_modifier_annots modifiers in
       { layout = base.layout;
@@ -649,13 +649,18 @@ module Const = struct
             (Option.value ~default:Externality.max
                parsed_modifiers.externality_upper_bound)
       }
+    | Arrow _ -> raise ~loc (Unexpected_higher_jkind jkind)
     | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 
-  let higher_of_user_written_annotation_unchecked_higher
+  let rec higher_of_user_written_annotation_unchecked_level ~loc
       (jkind : Jane_syntax.Jkind.t) : higher =
     match jkind with
     | Abbreviation { txt = "top"; loc = _ } -> Top
-    | _ -> Type (of_user_written_annotation_unchecked_level jkind)
+    | Arrow (args, result) ->
+      Arrow
+        ( List.map (higher_of_user_written_annotation_unchecked_level ~loc) args,
+          higher_of_user_written_annotation_unchecked_level ~loc result )
+    | _ -> Type (of_user_written_annotation_unchecked_level ~loc jkind)
 
   (* The [annotation_context] parameter can be used to allow annotations / kinds
      in different contexts to be enabled with different extension settings.
@@ -675,7 +680,7 @@ module Const = struct
     | Arrow _ | Top -> Alpha
 
   let higher_of_user_written_annotation ~context Location.{ loc; txt = annot } =
-    let const = higher_of_user_written_annotation_unchecked_higher annot in
+    let const = higher_of_user_written_annotation_unchecked_level ~loc annot in
     let required_layouts_level = get_required_layouts_level context const in
     if not (Language_extension.is_at_least Layouts required_layouts_level)
     then
@@ -685,8 +690,7 @@ module Const = struct
   let of_user_written_annotation ~context (annot : _ Location.loc) =
     match higher_of_user_written_annotation ~context annot with
     | Type ty -> ty
-    | (Arrow _ | Top) as const ->
-      raise ~loc:annot.loc (Unexpected_higher_jkind const)
+    | Arrow _ | Top -> raise ~loc:annot.loc (Unexpected_higher_jkind annot.txt)
 end
 
 module Desc = struct
@@ -1975,8 +1979,8 @@ let report_error ~loc : Error.t -> _ = function
          %t@]"
         Const.format_higher_no_hiding jkind hint)
   | Unexpected_higher_jkind jkind ->
-    Location.errorf ~loc "@[<v>Unexpected higher jkind in this position %a@]"
-      Const.format_higher_no_hiding jkind
+    Location.errorf ~loc "@[<v>Unexpected higher jkind (%a) in this position@]"
+      Pprintast.jkind jkind
 
 let () =
   Location.register_error_of_exn (function

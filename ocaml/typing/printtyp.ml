@@ -1264,6 +1264,10 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
         List.map (fun {txt = (Parsetree.Mode s); _} -> s) modes
       in
       Ojkind_const_mod (base, modes)
+    | Arrow (args, result) ->
+      Ojkind_const_arrow (
+        List.map out_jkind_const_of_user_jkind args,
+        out_jkind_const_of_user_jkind result)
     | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
   in
   Ojkind_const (out_jkind_const_of_user_jkind jkind.txt)

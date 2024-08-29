@@ -129,6 +129,7 @@ module Jkind : sig
     | Mod of t * Parsetree.modes
     | With of t * Parsetree.core_type
     | Kind_of of Parsetree.core_type
+    | Arrow of t list * t
 
   type annotation = t Location.loc
 end
