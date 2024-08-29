@@ -1159,6 +1159,7 @@ and jkind_annotation =
   | Mod of jkind_annotation * modes
   | With of jkind_annotation * core_type
   | Kind_of of core_type
+  | Arrow of jkind_annotation list * jkind_annotation
 
 (** {1 Toplevel} *)
 

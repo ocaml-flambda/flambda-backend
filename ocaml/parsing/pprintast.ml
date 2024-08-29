@@ -421,6 +421,11 @@ and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
   | With (t, ty) ->
     pp f "%a with %a" (jkind ctxt) t (core_type ctxt) ty
   | Kind_of ty -> pp f "kind_of_ %a" (core_type ctxt) ty
+  | Arrow ([(Default | Abbreviation _ | Mod _ | With _ | Kind_of _) as arg], result) ->
+    pp f "%a => %a" (jkind ctxt) arg (jkind ctxt) result
+  | Arrow (args, result) ->
+      pp f "(%a) => %a" (list (jkind ctxt) ~sep:", ") args (jkind ctxt) result
+
 
 and jkind_annotation ctxt f annot = jkind ctxt f annot.txt
 
