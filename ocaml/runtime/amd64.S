@@ -685,7 +685,7 @@ LBL(106):
         subq    $32, %rsp
 #endif
     /* Call the function (address in %rax) */
-        C_call_align  (*%rax)
+        C_call  (*%rax)
     /* Pop arguments back off the stack */
         movq    Caml_state(c_stack), %rsp
     /* Prepare for return to OCaml */
