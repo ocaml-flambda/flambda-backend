@@ -122,7 +122,6 @@
 #define LEAVE_FUNCTION
 #endif
 
-
 #ifdef DEBUG
 #define CHECK_STACK_ALIGNMENT \
         test $0xf, %rsp; jz 9f; int3; 9:
@@ -244,7 +243,7 @@
         movq    %rsp, Cstack_sp(%r11);                     \
         movq    %r10, Cstack_stack(%r11);                  \
     /* Switch to C stack */                                \
-        movq    %r11, %rsp;                                \
+        CHECK_STACK_ALIGNMENT                              \
         SWITCH_OCAML_TO_C_CFI
 
 /* Switch from C to OCaml stack.  Clobbers %r11. */
@@ -746,7 +745,7 @@ LBL(caml_start_program):
         movq    %r10, Caml_state(exn_handler)
         movq    %r10, Caml_state(async_exn_handler)
     /* Switch stacks and call the OCaml code */
-        movq    %r10, %rsp
+        CHECK_STACK_ALIGNMENT
 #ifdef ASM_CFI_SUPPORTED
         CFI_REMEMBER_STATE
         .cfi_escape DW_CFA_def_cfa_expression, 3 + 2,                 \
