@@ -27,6 +27,7 @@
  (targets opnames.h)
  (deps
   instruct.h
+  ../../stdlib/StdlibModules
   ../../Makefile
   ../../Makefile.common
   ../../Makefile.config
