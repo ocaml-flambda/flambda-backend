@@ -634,7 +634,7 @@ and raw_lid_type_list tl =
     tl
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
-      fprintf ppf "Tvar (@,%a,@,%a)" print_name name Jkind.format jkind
+      fprintf ppf "Tvar (@,%a,@,%a)" print_name name Higher_jkind.format jkind
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
         (string_of_label l)
@@ -664,7 +664,7 @@ and raw_type_desc ppf = function
   | Tsubst (t, Some t') ->
       fprintf ppf "@[<1>Tsubst@,(%a,@ Some%a)@]" raw_type t raw_type t'
   | Tunivar { name; jkind } ->
-      fprintf ppf "Tunivar (@,%a,@,%a)" print_name name Jkind.format jkind
+      fprintf ppf "Tunivar (@,%a,@,%a)" print_name name Higher_jkind.format jkind
   | Tpoly (t, tl) ->
       fprintf ppf "@[<hov1>Tpoly(@,%a,@,%a)@]"
         raw_type t
@@ -1271,24 +1271,44 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
 
+let rec out_jkind_of_jkind ~sort_var_names (jkind : Higher_jkind.t) =
+  match jkind.hdesc with
+  | Type ty ->
+    begin match Jkind.get ty with
+    | Const clay -> out_jkind_of_const_jkind clay
+    | Var v -> Ojkind_var (if sort_var_names then Jkind.Sort.Var.name v else "_")
+    end
+  | Arrow (args, result) ->
+    Ojkind_arrow (
+      List.map (out_jkind_of_jkind ~sort_var_names) args,
+      out_jkind_of_jkind ~sort_var_names result)
+  | Top -> Ojkind_const (Ojkind_const_abbreviation "top")
+
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
-let out_jkind_option_of_jkind jkind =
-  match Jkind.get jkind with
-  | Const jkind ->
-    let is_value = Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
-      (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
-      || (not Language_extension.(is_at_least Layouts Alpha)
-          && Jkind.Const.equal jkind Jkind.Const.Builtin.value_or_null.jkind)
-    in
-    begin match is_value with
-    | true -> None
-    | false -> Some (out_jkind_of_const_jkind jkind)
+let out_jkind_option_of_jkind (t : Higher_jkind.t) =
+  match t.hdesc with
+  | Type ty -> begin
+    match Jkind.get ty with
+    | Const jkind ->
+      let value_jkind = Jkind.Const.Builtin.value.jkind in
+      let value_or_null_jkind = Jkind.Const.Builtin.value_or_null.jkind in
+      let is_value = Jkind.Const.equal jkind value_jkind
+        (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
+        || (not Language_extension.(is_at_least Layouts Alpha)
+            && Jkind.Const.equal jkind value_or_null_jkind)
+      in
+      begin match is_value with
+      | true -> None
+      | false -> Some (out_jkind_of_const_jkind jkind)
+      end
+    | Var v -> (* This handles (X1). *)
+      if !Clflags.verbose_types
+      then Some (Ojkind_var (Jkind.Sort.Var.name v))
+      else None
     end
-  | Var v -> (* This handles (X1). *)
-    if !Clflags.verbose_types
-    then Some (Ojkind_var (Jkind.Sort.Var.name v))
-    else None
+  (* We ignore the rules above for arrows, which should always be printed *)
+  | _ -> Some (out_jkind_of_jkind ~sort_var_names:!Clflags.verbose_types t)
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
@@ -1869,8 +1889,8 @@ let tree_of_type_decl id decl =
      Note [When to print jkind annotations] *)
   let is_value =
     match decl.type_jkind_annotation with
-    | Some (jkind, _) -> Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
-    | None -> false
+    | Some (Type jkind, _) -> Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
+    | Some ((Arrow _ | Top), _) | None -> false
   in
   let jkind_annotation = match ty, unboxed, is_value, decl.type_has_illegal_crossings with
     | (Otyp_abstract, _, false, _) | (_, true, _, _) | (_, _, _, true) ->
@@ -2660,10 +2680,7 @@ let trees_of_type_expansion'
     if var_jkinds then
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
-          let olay = match Jkind.get jkind with
-            | Const clay -> out_jkind_of_const_jkind clay
-            | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
-          in
+          let olay = out_jkind_of_jkind ~sort_var_names:true jkind in
           Otyp_jkind_annot (out, olay)
       | _ ->
           out
@@ -2781,7 +2798,7 @@ let hide_variant_name t =
         (Tvariant
            (create_row ~fields ~fixed ~closed ~name:None
               ~more:(newvar2 (get_level more)
-                       (Jkind.Builtin.value ~why:Row_variable))))
+                       (Higher_jkind.Builtin.value ~why:Row_variable))))
   | _ -> t
 
 let prepare_expansion Errortrace.{ty; expanded} =
@@ -2993,7 +3010,7 @@ let explanation (type variety) intro prev env
                  ~offender:(fun ppf -> type_expr ppf t)) e)
   | Errortrace.Unequal_var_jkinds (t1,l1,t2,l2) ->
       let fmt_history t l ppf =
-        Jkind.(format_history ~intro:(
+        Higher_jkind.(format_history ~intro:(
           dprintf "The layout of %a is %a" type_expr t format l) ppf l)
       in
       Some (dprintf "@ because their layouts are different.@ @[<v>%t@;%t@]"

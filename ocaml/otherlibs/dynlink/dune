@@ -99,6 +99,7 @@
     oprint
     typemodifier
     jkind
+    higher_jkind
     value_rec_types
     btype
     lazy_backtrack
@@ -194,6 +195,7 @@
 (copy_files ../../typing/ident.ml)
 (copy_files ../../typing/path.ml)
 (copy_files ../../typing/jkind.ml)
+(copy_files ../../typing/higher_jkind.ml)
 (copy_files ../../typing/jkind_intf.ml)
 (copy_files ../../typing/jkind_types.ml)
 (copy_files ../../typing/typemodifier.ml)
@@ -266,6 +268,7 @@
 (copy_files ../../typing/ident.mli)
 (copy_files ../../typing/path.mli)
 (copy_files ../../typing/jkind.mli)
+(copy_files ../../typing/higher_jkind.mli)
 (copy_files ../../typing/jkind_intf.mli)
 (copy_files ../../typing/jkind_types.mli)
 (copy_files ../../typing/typemodifier.mli)
@@ -395,6 +398,7 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Oprint.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Typemodifier.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Higher_jkind.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Bytesections.cmo
@@ -481,6 +485,7 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Oprint.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Typemodifier.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Higher_jkind.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Bytesections.cmx

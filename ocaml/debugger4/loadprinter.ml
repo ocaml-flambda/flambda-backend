@@ -93,7 +93,7 @@ let eval_value_path env path =
 
 let match_printer_type desc make_printer_type =
   Ctype.with_local_level ~post:Ctype.generalize begin fun () ->
-    let ty_arg = Ctype.newvar Jkind.Builtin.(value ~why:Debug_printer_argument) in
+    let ty_arg = Ctype.newvar Higher_jkind.Builtin.(value ~why:Debug_printer_argument) in
     Ctype.unify (Lazy.force Env.initial)
       (make_printer_type ty_arg)
       (Ctype.instance desc.val_type);

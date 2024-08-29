@@ -36,7 +36,7 @@ type transient_expr =
 and type_expr = transient_expr
 
 and type_desc =
-  | Tvar of { name : string option; jkind : jkind }
+  | Tvar of { name : string option; jkind : higher_jkind }
   | Tarrow of arrow_desc * type_expr * type_expr * commutable
   | Ttuple of (string option * type_expr) list
   | Tconstr of Path.t * type_expr list * abbrev_memo ref
@@ -46,7 +46,7 @@ and type_desc =
   | Tlink of type_expr
   | Tsubst of type_expr * type_expr option
   | Tvariant of row_desc
-  | Tunivar of { name : string option; jkind : jkind }
+  | Tunivar of { name : string option; jkind : higher_jkind }
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
 
@@ -97,7 +97,8 @@ and _ commutable_gen =
   | Cunknown : [> `none] commutable_gen
   | Cvar : {mutable commu: any commutable_gen} -> [> `var] commutable_gen
 
-and jkind = type_expr Jkind_types.t
+and jkind = type_expr Jkind_types.jkind
+and higher_jkind = type_expr Jkind_types.higher_jkind
 
 (* jkind depends on types defined in this file, but Jkind.equal is required
    here. When jkind.ml is loaded, it calls set_jkind_equal to fill a ref to the
@@ -272,7 +273,7 @@ and type_param =
    kind of the type itself! *)
 and type_noun =
   | Datatype of { params: type_param list; ret_jkind: jkind; manifest: Path.t option; noun: datatype_noun}
-  | Equation of { params: type_param list; ret_jkind: jkind; eq: type_equation }
+  | Equation of { params: type_param list; ret_jkind: higher_jkind; eq: type_equation }
 
 and datatype_noun =
   | Datatype_record of { priv: private_flag; lbls: label_declaration list; rep: record_representation}
@@ -390,12 +391,14 @@ let abstract_reason_of_abbrev = Abstract_def
 
 let get_type_jkind decl =
   match decl.type_noun with
-  | Datatype { ret_jkind }
+  | Datatype { ret_jkind } -> Jkind_types.wrap_higher_jkind ret_jkind
   | Equation { ret_jkind } -> ret_jkind
 
 let set_type_jkind ret_jkind decl =
   match decl.type_noun with
-  | Datatype d -> { decl with type_noun = Datatype { d with ret_jkind } }
+  | Datatype d ->
+    let ret_jkind = Jkind_types.unwrap_type_jkind ret_jkind in
+    { decl with type_noun = Datatype { d with ret_jkind } }
   | Equation e -> { decl with type_noun = Equation { e with ret_jkind } }
 
 let create_type_params type_params type_variance type_separability =
@@ -503,8 +506,12 @@ let create_type_equation priv manifest =
      but are sometimes created. *)
   | (Public | Private), None -> Type_abstr { reason = abstract_reason_of_abbrev }
 
-let create_type_equation_noun params ret_jkind priv manifest =
+let create_higher_kinded_type_equation_noun params ret_jkind priv manifest =
   Equation { params; ret_jkind; eq = create_type_equation priv manifest }
+
+let create_type_equation_noun params ret_jkind priv manifest =
+  create_higher_kinded_type_equation_noun
+    params (Jkind_types.wrap_higher_jkind ret_jkind) priv manifest
 
 (* Type expressions for the class language *)
 

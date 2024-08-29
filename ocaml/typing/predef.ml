@@ -202,7 +202,7 @@ let predef_jkind_annotation primitive =
          Jane_syntax.Jkind.(Abbreviation (Const.mk primitive.name Location.none))
          |> Location.mknoloc
        in
-       primitive.jkind, user_written)
+       Jkind_types.Higher_const.Type primitive.jkind, user_written)
     primitive
 
 let option_argument_jkind = Jkind.Builtin.value ~why:(
@@ -254,7 +254,7 @@ let mk_add_type1 add_type type_ident
       ?jkind_annotation
       ?(param_jkind=default_param_jkind type_ident)
       env =
-  let param = newgenvar param_jkind in
+  let param = newgenvar (Higher_jkind.wrap param_jkind) in
   let decl =
     { type_noun = kind param;
       type_jkind_annotation = predef_jkind_annotation jkind_annotation;

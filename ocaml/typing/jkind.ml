@@ -103,6 +103,13 @@ module Layout = struct
     | Any, _ -> Some t2
     | Sort s1, Sort s2 -> if Sort.equate s1 s2 then Some t1 else None
 
+  let union t1 t2 =
+    match t1, t2 with
+    | _ when t1 == t2 -> t1
+    | _, Any -> Any
+    | Any, _ -> Any
+    | _ -> assert false
+
   let of_new_sort_var () =
     let sort = Sort.new_var () in
     Sort sort, sort
@@ -156,20 +163,23 @@ end
 (* forward declare [Const.t] so we can use it for [Error.t] *)
 type const = type_expr Jkind_types.Const.t
 
+type higher_const = type_expr Jkind_types.Higher_const.t
+
 (******************************)
 (*** user errors ***)
 
 module Error = struct
   type t =
     | Insufficient_level of
-        { jkind : const;
+        { jkind : higher_const;
           required_layouts_level : Language_extension.maturity
         }
     | Unknown_jkind of Jane_syntax.Jkind.t
     | Multiple_jkinds of
-        { from_annotation : const;
-          from_attribute : const
+        { from_annotation : higher_const;
+          from_attribute : higher_const
         }
+    | Unexpected_higher_jkind of higher_const
 
   exception User_error of Location.t * t
 end
@@ -180,6 +190,8 @@ module Const = struct
   open Jkind_types.Const
 
   type t = const
+
+  type higher = Types.type_expr Higher_const.t
 
   let max =
     { layout = Layout.Const.max;
@@ -575,6 +587,23 @@ module Const = struct
     To_out_jkind_const.convert ~allow_null:true jkind
     |> !Oprint.out_jkind_const ppf
 
+  let rec format_higher_gen ?(hiding = true) ppf (t : higher) =
+    let open Format in
+    let format_higher = format_higher_gen ~hiding in
+    match t with
+    | Type t -> if hiding then format ppf t else format_no_hiding ppf t
+    | Arrow ([((Type _ | Top) as arg)], result) ->
+      fprintf ppf "%a => %a" format_higher arg format_higher result
+    | Arrow (args, result) ->
+      fprintf ppf "(%a) => %a"
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") format_higher)
+        args format_higher result
+    | Top -> Format.fprintf ppf "top"
+
+  let format_higher = format_higher_gen ~hiding:true
+
+  let format_higher_no_hiding = format_higher_gen ~hiding:false
+
   let of_attribute : Builtin_attributes.jkind_attribute -> t = function
     | Immediate -> Builtin.immediate.jkind
     | Immediate64 -> Builtin.immediate64.jkind
@@ -622,6 +651,12 @@ module Const = struct
       }
     | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 
+  let higher_of_user_written_annotation_unchecked_higher
+      (jkind : Jane_syntax.Jkind.t) : higher =
+    match jkind with
+    | Abbreviation { txt = "top"; loc = _ } -> Top
+    | _ -> Type (of_user_written_annotation_unchecked_level jkind)
+
   (* The [annotation_context] parameter can be used to allow annotations / kinds
      in different contexts to be enabled with different extension settings.
      At some points in time, we will not care about the context, and so this
@@ -629,32 +664,35 @@ module Const = struct
   *)
   (* CR layouts: When everything is stable, remove this function. *)
   let get_required_layouts_level (_context : History.annotation_context)
-      (jkind : t) : Language_extension.maturity =
-    match jkind.layout, jkind.nullability_upper_bound with
-    | (Sort (Float64 | Float32 | Word | Bits32 | Bits64) | Any), _
-    | Sort Value, Non_null ->
-      Stable
-    | Sort Void, _ | Sort Value, Maybe_null -> Alpha
+      (jkind : higher) : Language_extension.maturity =
+    match jkind with
+    | Type jkind -> (
+      match jkind.layout, jkind.nullability_upper_bound with
+      | (Sort (Float64 | Float32 | Word | Bits32 | Bits64) | Any), _
+      | Sort Value, Non_null ->
+        Stable
+      | Sort Void, _ | Sort Value, Maybe_null -> Alpha)
+    | Arrow _ | Top -> Alpha
 
-  let of_user_written_annotation ~context Location.{ loc; txt = annot } =
-    let const = of_user_written_annotation_unchecked_level annot in
+  let higher_of_user_written_annotation ~context Location.{ loc; txt = annot } =
+    let const = higher_of_user_written_annotation_unchecked_higher annot in
     let required_layouts_level = get_required_layouts_level context const in
     if not (Language_extension.is_at_least Layouts required_layouts_level)
     then
       raise ~loc (Insufficient_level { jkind = const; required_layouts_level });
     const
+
+  let of_user_written_annotation ~context (annot : _ Location.loc) =
+    match higher_of_user_written_annotation ~context annot with
+    | Type ty -> ty
+    | (Arrow _ | Top) as const ->
+      raise ~loc:annot.loc (Unexpected_higher_jkind const)
 end
 
 module Desc = struct
   type t =
     | Const of Const.t
     | Var of Sort.var (* all modes will be [max] *)
-
-  let format ppf =
-    let open Format in
-    function
-    | Const c -> fprintf ppf "%a" Const.format c
-    | Var v -> fprintf ppf "%s" (Sort.Var.name v)
 
   (* considers sort variables < Any. Two sort variables are in a [sub]
      relationship only when they are equal.
@@ -771,6 +809,23 @@ module Jkind_desc = struct
             nullability_upper_bound = Nullability.meet null1 null2
           })
 
+  let union
+      { layout = lay1;
+        modes_upper_bounds = modes1;
+        externality_upper_bound = ext1;
+        nullability_upper_bound = null1
+      }
+      { layout = lay2;
+        modes_upper_bounds = modes2;
+        externality_upper_bound = ext2;
+        nullability_upper_bound = null2
+      } =
+    { layout = Layout.union lay1 lay2;
+      modes_upper_bounds = Modes.join modes1 modes2;
+      externality_upper_bound = Externality.join ext1 ext2;
+      nullability_upper_bound = Nullability.join null1 null2
+    }
+
   let of_new_sort_var nullability_upper_bound =
     let layout, sort = Layout.of_new_sort_var () in
     ( { layout;
@@ -837,6 +892,8 @@ module Jkind_desc = struct
 end
 
 type t = type_expr Jkind_types.t
+
+type higher = type_expr Jkind_types.higher_jkind
 
 let fresh_jkind desc ~why = { desc; history = Creation why; has_warned = false }
 
@@ -921,29 +978,44 @@ let of_const ~why
     has_warned = false
   }
 
+let rec higher_of_const ~why (const : higher_const) : higher =
+  match const with
+  | Type ty -> of_const ~why ty |> wrap_higher_jkind
+  | Arrow (args, result) ->
+    { hdesc =
+        Arrow
+          (List.map (higher_of_const ~why) args, (higher_of_const ~why) result);
+      hhistory = Creation why
+    }
+  | Top -> { hdesc = Top; hhistory = Creation why }
+
 let of_annotated_const ~context ~const ~const_loc =
   of_const ~why:(Annotated (context, const_loc)) const
 
-let of_annotation ~context (annot : _ Location.loc) =
-  let const = Const.of_user_written_annotation ~context annot in
-  let jkind = of_annotated_const ~const ~const_loc:annot.loc ~context in
+let higher_of_annotated_const ~context ~const ~const_loc =
+  higher_of_const ~why:(Annotated (context, const_loc)) const
+
+let higher_of_annotation ~context (annot : _ Location.loc) =
+  let const = Const.higher_of_user_written_annotation ~context annot in
+  let jkind = higher_of_annotated_const ~const ~const_loc:annot.loc ~context in
   jkind, (const, annot)
 
-let of_annotation_option_default ~default ~context =
+let higher_of_annotation_option_default ~default ~context =
   Option.fold ~none:(default, None) ~some:(fun annot ->
-      let t, annot = of_annotation ~context annot in
+      let t, annot = higher_of_annotation ~context annot in
       t, Some annot)
 
 let of_attribute ~context
     (attribute : Builtin_attributes.jkind_attribute Location.loc) =
   let const = Const.of_attribute attribute.txt in
-  of_annotated_const ~context ~const ~const_loc:attribute.loc, const
+  ( of_annotated_const ~context ~const ~const_loc:attribute.loc,
+    Higher_const.Type const )
 
-let of_type_decl ~context (decl : Parsetree.type_declaration) =
+let higher_of_type_decl ~context (decl : Parsetree.type_declaration) =
   let jkind_of_annotation =
     Jane_syntax.Layouts.of_type_declaration decl
     |> Option.map (fun (annot, attrs) ->
-           let t, const = of_annotation ~context annot in
+           let t, const = higher_of_annotation ~context annot in
            t, const, attrs)
   in
   let jkind_of_attribute =
@@ -964,7 +1036,7 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
                  Jane_syntax.Jkind.(Abbreviation (Const.mk name Location.none)))
                attr
            in
-           t, (const, annot), decl.ptype_attributes)
+           wrap_higher_jkind t, (const, annot), decl.ptype_attributes)
   in
   match jkind_of_annotation, jkind_of_attribute with
   | None, None -> None
@@ -973,8 +1045,9 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
     raise ~loc:decl.ptype_loc
       (Multiple_jkinds { from_annotation; from_attribute })
 
-let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
-  match of_type_decl ~context decl with
+let higher_of_type_decl_default ~context ~default
+    (decl : Parsetree.type_declaration) =
+  match higher_of_type_decl ~context decl with
   | Some (t, const, attrs) -> t, Some const, attrs
   | None -> default, None, decl.ptype_attributes
 
@@ -1061,6 +1134,18 @@ let format ppf jkind =
   match get jkind with
   | Const c -> Format.fprintf ppf "%a" Const.format c
   | Var v -> Format.fprintf ppf "%s" (Sort.Var.name v)
+
+let rec format_higher ppf (jkind : higher) =
+  let open Format in
+  match jkind.hdesc with
+  | Type ty -> format ppf ty
+  | Arrow ([({ hdesc = Type _ | Top; hhistory = _ } as arg)], result) ->
+    fprintf ppf "%a => %a" format_higher arg format_higher result
+  | Arrow (args, result) ->
+    fprintf ppf "(%a) => %a"
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") format_higher)
+      args format_higher result
+  | Top -> fprintf ppf "top"
 
 let printtyp_path = ref (fun _ _ -> assert false)
 
@@ -1196,6 +1281,22 @@ module Format_history = struct
       (* message gets printed in [format_flattened_history] so we ignore it here *)
       format_annotation_context ppf context
 
+  let format_top_creation_reason ppf : History.top_creation_reason -> unit =
+    function
+    | Missing_cmi p ->
+      fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
+    | Initial_typedecl_env ->
+      format_with_notify_js ppf
+        "a dummy kind of any is used to check mutually recursive datatypes"
+    | Wildcard -> format_with_notify_js ppf "there's a _ in the type"
+    | Unification_var ->
+      format_with_notify_js ppf "it's a fresh unification variable"
+    | Dummy_jkind ->
+      format_with_notify_js ppf
+        "it's assigned a dummy kind that should have been overwritten"
+    | Union_incompatible ->
+      format_with_notify_js ppf "it's a union of two incompatible kinds"
+
   let format_any_creation_reason ppf : History.any_creation_reason -> unit =
     function
     | Missing_cmi p ->
@@ -1309,6 +1410,7 @@ module Format_history = struct
       fprintf ppf "of the annotation on %a" format_annotation_context ctx
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
+    | Top_creation top -> format_top_creation_reason ppf top
     | Any_creation any -> format_any_creation_reason ppf any
     | Immediate_creation immediate ->
       format_immediate_creation_reason ppf immediate
@@ -1349,19 +1451,22 @@ module Format_history = struct
       Consider revisiting that if the current implementation becomes insufficient. *)
 
   let format_flattened_history ~intro ~layout_or_kind ppf t =
-    let jkind_desc = Jkind_desc.get t.desc in
     fprintf ppf "@[<v 2>%t" intro;
-    (match t.history with
+    (match t.hhistory with
     | Creation reason -> (
       fprintf ppf "@ because %a" (format_creation_reason ~layout_or_kind) reason;
-      match reason, jkind_desc with
-      | Concrete_legacy_creation _, Const _ ->
-        fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format
-          jkind_desc
+      let is_const =
+        match t.hdesc with
+        | Type ty -> ( match get ty with Const _ -> true | Var _ -> false)
+        | Arrow _ | Top -> false
+      in
+      match reason, is_const with
+      | Concrete_legacy_creation _, true ->
+        fprintf ppf ",@ defaulted to %s %a" layout_or_kind format_higher t
       | _ -> ())
     | _ -> assert false);
     fprintf ppf ".";
-    (match t.history with
+    (match t.hhistory with
     | Creation (Annotated (With_error_message (message, _), _)) ->
       fprintf ppf "@ @[%s@]" message
     | _ -> ());
@@ -1377,7 +1482,7 @@ module Format_history = struct
       | Creation c -> format_creation_reason ppf ~layout_or_kind c
     in
     fprintf ppf "@;%t has this %s history:@;@[<v 2>  %a@]" intro layout_or_kind
-      in_order t.history
+      in_order t.hhistory
 
   let format_history ~intro ~layout_or_kind ppf t =
     if display_histories
@@ -1387,7 +1492,11 @@ module Format_history = struct
       else format_history_tree ~intro ~layout_or_kind ppf t
 end
 
-let format_history = Format_history.format_history ~layout_or_kind:"kind"
+let format_history_higher ~intro ppf t =
+  Format_history.format_history ~intro ~layout_or_kind:"kind" ppf t
+
+let format_history ~intro ppf t =
+  format_history_higher ~intro ppf (wrap_higher_jkind t)
 
 (******************************)
 (* errors *)
@@ -1396,8 +1505,8 @@ module Violation = struct
   open Format
 
   type violation =
-    | Not_a_subjkind of t * t
-    | No_intersection of t * t
+    | Not_a_subjkind of higher * higher
+    | No_intersection of higher * higher
 
   type nonrec t =
     { violation : violation;
@@ -1415,31 +1524,44 @@ module Violation = struct
   let is_missing_cmi viol = Option.is_some viol.missing_cmi
 
   type locale =
-    | Mode
+    | Mode_or_kind
     | Layout
 
   let report_general preamble pp_former former ppf t =
     let mismatch_type =
       match t.violation with
-      | Not_a_subjkind (k1, k2) ->
+      | Not_a_subjkind ({ hdesc = Type k1; _ }, { hdesc = Type k2; _ }) ->
         if Misc.Le_result.is_le (Layout.sub k1.desc.layout k2.desc.layout)
-        then Mode
+        then Mode_or_kind
         else Layout
-      | No_intersection _ -> Layout
+      | Not_a_subjkind (_, _) -> Mode_or_kind
+      | No_intersection ({ hdesc = Type _; _ }, { hdesc = Type _; _ }) -> Layout
+      | No_intersection (_, _) -> Mode_or_kind
     in
     let layout_or_kind =
-      match mismatch_type with Mode -> "kind" | Layout -> "layout"
+      match mismatch_type with Mode_or_kind -> "kind" | Layout -> "layout"
     in
     let format_layout_or_kind =
       match mismatch_type with
-      | Mode -> fun ppf jkind -> Format.fprintf ppf "@,%a" format jkind
-      | Layout -> fun ppf jkind -> Layout.format ppf jkind.desc.layout
+      | Mode_or_kind ->
+        fun ppf jkind -> Format.fprintf ppf "@,%a" format_higher jkind
+      | Layout -> (
+        fun ppf jkind ->
+          match jkind.hdesc with
+          | Type ty -> Layout.format ppf ty.desc.layout
+          | Arrow _ | Top -> assert false)
+    in
+    let distinguish_for_format k =
+      match k.hdesc with
+      | Type ty -> ( match get ty with Var _ -> `Var | Const _ -> `Const)
+      | Arrow _ | Top -> `Higher
     in
     let subjkind_format verb k2 =
-      match get k2 with
-      | Var _ -> dprintf "%s representable" verb
-      | Const _ ->
+      match distinguish_for_format k2 with
+      | `Var -> dprintf "%s representable" verb
+      | `Const ->
         dprintf "%s a sub%s of %a" verb layout_or_kind format_layout_or_kind k2
+      | `Higher -> dprintf "%s a subkind of %a" verb format_layout_or_kind k2
     in
     let k1, k2, fmt_k1, fmt_k2, missing_cmi_option =
       match t with
@@ -1447,7 +1569,7 @@ module Violation = struct
         let missing_cmi =
           match missing_cmi with
           | None -> (
-            match k1.history with
+            match k1.hhistory with
             | Creation (Missing_cmi p) -> Some p
             | Creation (Any_creation (Missing_cmi p)) -> Some p
             | _ -> None)
@@ -1477,12 +1599,12 @@ module Violation = struct
     if display_histories
     then
       let connective =
-        match t.violation, get k2 with
-        | Not_a_subjkind _, Const _ ->
+        match t.violation, distinguish_for_format k2 with
+        | Not_a_subjkind _, (`Const | `Higher) ->
           dprintf "be a sub%s of %a" layout_or_kind format_layout_or_kind k2
-        | No_intersection _, Const _ ->
+        | No_intersection _, (`Const | `Higher) ->
           dprintf "overlap with %a" format_layout_or_kind k2
-        | _, Var _ -> dprintf "be representable"
+        | _, `Var -> dprintf "be representable"
       in
       fprintf ppf "@[<v>%a@;%a@]"
         (Format_history.format_history
@@ -1539,33 +1661,46 @@ let score_reason = function
   | Creation (Concrete_creation _ | Concrete_legacy_creation _) -> -1
   | _ -> 0
 
-let combine_histories reason lhs rhs =
+let combine_histories_higher reason lhs rhs =
   if flattened_histories
   then
-    match Desc.sub (Jkind_desc.get lhs.desc) (Jkind_desc.get rhs.desc) with
-    | Less -> lhs.history
+    let cmp : Misc.Le_result.t =
+      match lhs.hdesc, rhs.hdesc with
+      | Type ty, Type ty' ->
+        Desc.sub (Jkind_desc.get ty.desc) (Jkind_desc.get ty'.desc)
+      | _, _ -> Equal
+    in
+    match cmp with
+    | Less -> lhs.hhistory
     | Not_le ->
-      rhs.history
+      rhs.hhistory
       (* CR layouts: this will be wrong if we ever have a non-trivial meet in the layout lattice *)
     | Equal ->
-      if score_reason lhs.history >= score_reason rhs.history
-      then lhs.history
-      else rhs.history
+      if score_reason lhs.hhistory >= score_reason rhs.hhistory
+      then lhs.hhistory
+      else rhs.hhistory
   else
     Interact
       { reason;
-        lhs_jkind = lhs.desc;
-        lhs_history = lhs.history;
-        rhs_jkind = rhs.desc;
-        rhs_history = rhs.history
+        lhs_jkind = lhs.hdesc;
+        lhs_history = lhs.hhistory;
+        rhs_jkind = rhs.hdesc;
+        rhs_history = rhs.hhistory
       }
+
+let combine_histories reason lhs rhs =
+  combine_histories_higher reason (wrap_higher_jkind lhs)
+    (wrap_higher_jkind rhs)
 
 let has_intersection t1 t2 =
   Option.is_some (Jkind_desc.intersection t1.desc t2.desc)
 
 let intersection_or_error ~reason t1 t2 =
   match Jkind_desc.intersection t1.desc t2.desc with
-  | None -> Error (Violation.of_ (No_intersection (t1, t2)))
+  | None ->
+    Error
+      (Violation.of_
+         (No_intersection (wrap_higher_jkind t1, wrap_higher_jkind t2)))
   | Some desc ->
     Ok
       { desc;
@@ -1573,19 +1708,33 @@ let intersection_or_error ~reason t1 t2 =
         has_warned = t1.has_warned || t2.has_warned
       }
 
+let union ~reason t1 t2 =
+  { desc = Jkind_desc.union t1.desc t2.desc;
+    history = combine_histories reason t1 t2;
+    has_warned = t1.has_warned || t2.has_warned
+  }
+
 (* this is hammered on; it must be fast! *)
 let check_sub sub super = Jkind_desc.sub sub.desc super.desc
 
 let sub sub super = Misc.Le_result.is_le (check_sub sub super)
 
 let sub_or_error t1 t2 =
-  if sub t1 t2 then Ok () else Error (Violation.of_ (Not_a_subjkind (t1, t2)))
+  if sub t1 t2
+  then Ok ()
+  else
+    Error
+      (Violation.of_
+         (Not_a_subjkind (wrap_higher_jkind t1, wrap_higher_jkind t2)))
 
 let sub_with_history sub super =
   match check_sub sub super with
   | Less | Equal ->
     Ok { sub with history = combine_histories Subjkind sub super }
-  | Not_le -> Error (Violation.of_ (Not_a_subjkind (sub, super)))
+  | Not_le ->
+    Error
+      (Violation.of_
+         (Not_a_subjkind (wrap_higher_jkind sub, wrap_higher_jkind super)))
 
 let is_void_defaulting = function
   | { desc = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
@@ -1647,6 +1796,14 @@ module Debug_printers = struct
     | With_error_message (message, context) ->
       fprintf ppf "With_error_message (%s, %a)" message annotation_context
         context
+
+  let top_creation_reason ppf : History.top_creation_reason -> unit = function
+    | Missing_cmi p -> fprintf ppf "Missing_cmi %a" Path.print p
+    | Initial_typedecl_env -> fprintf ppf "Initial_typedecl_env"
+    | Dummy_jkind -> fprintf ppf "Dummy_jkind"
+    | Wildcard -> fprintf ppf "Wildcard"
+    | Unification_var -> fprintf ppf "Unification_var"
+    | Union_incompatible -> fprintf ppf "Union_incompatible"
 
   let any_creation_reason ppf : History.any_creation_reason -> unit = function
     | Missing_cmi p -> fprintf ppf "Missing_cmi %a" Path.print p
@@ -1714,6 +1871,7 @@ module Debug_printers = struct
       fprintf ppf "Annotated (%a,%a)" annotation_context ctx Location.print_loc
         loc
     | Missing_cmi p -> fprintf ppf "Missing_cmi %a" !printtyp_path p
+    | Top_creation top -> fprintf ppf "Top_creation %a" top_creation_reason top
     | Any_creation any -> fprintf ppf "Any_creation %a" any_creation_reason any
     | Immediate_creation immediate ->
       fprintf ppf "Immediate_creation %a" immediate_creation_reason immediate
@@ -1749,16 +1907,28 @@ module Debug_printers = struct
       fprintf ppf
         "Interact {@[reason = %a;@ lhs_jkind = %a;@ lhs_history = %a;@ \
          rhs_jkind = %a;@ rhs_history = %a}@]"
-        interact_reason reason Jkind_desc.Debug_printers.t lhs_jkind history
-        lhs_history Jkind_desc.Debug_printers.t rhs_jkind history rhs_history
+        interact_reason reason higher_desc lhs_jkind history lhs_history
+        higher_desc rhs_jkind history rhs_history
     | Creation c -> fprintf ppf "Creation (%a)" creation_reason c
 
-  let t ppf ({ desc; history = h; has_warned = _ } : t) : unit =
-    fprintf ppf "@[<v 2>{ jkind = %a@,; history = %a }@]"
+  and t ppf ({ desc; history = h; has_warned = _ } : t) : unit =
+    fprintf ppf "@[<v 2>{ desc = %a@,; history = %a }@]"
       Jkind_desc.Debug_printers.t desc history h
 
+  and higher_desc ppf = function
+    | Type ty -> fprintf ppf "Type %a" t ty
+    | Arrow (args, result) ->
+      fprintf ppf "Arrow ([%a],@ %a)"
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") higher)
+        args higher result
+    | Top -> fprintf ppf "Top"
+
+  and higher ppf ({ hdesc; hhistory = h } : higher) : unit =
+    fprintf ppf "@[<v 2>{ hdesc = %a@,; history = %a }@]" higher_desc hdesc
+      history h
+
   module Const = struct
-    let t ppf (jkind : Const.t) =
+    let rec t ppf (jkind : Const.t) =
       fprintf ppf
         "@[{ layout = <v 2>%a@,\
          ; modes_upper_bounds = <v 2>%a@,\
@@ -1768,6 +1938,14 @@ module Debug_printers = struct
         Layout.Const.Debug_printers.t jkind.layout Modes.print
         jkind.modes_upper_bounds Externality.print jkind.externality_upper_bound
         Nullability.print jkind.nullability_upper_bound
+
+    and higher ppf : higher_const -> unit = function
+      | Type ty -> fprintf ppf "Type %a" t ty
+      | Arrow (args, result) ->
+        fprintf ppf "Arrow ([%a],@ %a)"
+          (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf "; ") higher)
+          args higher result
+      | Top -> fprintf ppf "Top"
   end
 end
 
@@ -1784,7 +1962,8 @@ let report_error ~loc : Error.t -> _ = function
       "@[<v>A type declaration's layout can be given at most once.@;\
        This declaration has an layout annotation (%a) and a layout attribute \
        ([@@@@%a]).@]"
-      Const.format_no_hiding from_annotation Const.format from_attribute
+      Const.format_higher_no_hiding from_annotation Const.format_higher
+      from_attribute
   | Insufficient_level { jkind; required_layouts_level } -> (
     let hint ppf =
       Format.fprintf ppf "You must enable -extension %s to use this feature."
@@ -1803,7 +1982,10 @@ let report_error ~loc : Error.t -> _ = function
         "@[<v>Layout %a is more experimental than allowed by the enabled \
          layouts extension.@;\
          %t@]"
-        Const.format_no_hiding jkind hint)
+        Const.format_higher_no_hiding jkind hint)
+  | Unexpected_higher_jkind jkind ->
+    Location.errorf ~loc "@[<v>Unexpected higher jkind in this position %a@]"
+      Const.format_higher_no_hiding jkind
 
 let () =
   Location.register_error_of_exn (function
@@ -1812,7 +1994,6 @@ let () =
 
 (* CR layouts v2.8: Remove the definitions below by propagating changes
    outside of this file. *)
-
-type annotation = Const.t * Jane_syntax.Jkind.annotation
+type annotation = Const.higher * Jane_syntax.Jkind.annotation
 
 let default_to_value_and_get t = default_to_value_and_get t
