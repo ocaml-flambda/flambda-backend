@@ -135,11 +135,14 @@ val prove_unique_fully_constructed_immutable_heap_block :
   (Tag.t * Flambda_kind.Block_shape.t * Targetint_31_63.t * Simple.t list)
   proof_of_property
 
-val meet_is_naked_number_array :
+val meet_is_flat_float_array :
+  Typing_env.t -> Type_grammar.t -> bool meet_shortcut
+
+val meet_is_non_empty_naked_number_array :
+  Flambda_kind.Naked_number_kind.t ->
   Typing_env.t ->
   Type_grammar.t ->
-  Flambda_kind.Naked_number_kind.t ->
-  bool meet_shortcut
+  unit meet_shortcut
 
 val meet_is_immutable_array :
   Typing_env.t ->
@@ -182,9 +185,7 @@ val meet_strings :
   Typing_env.t -> Type_grammar.t -> String_info.Set.t meet_shortcut
 
 val prove_strings :
-  Typing_env.t ->
-  Type_grammar.t ->
-  (Alloc_mode.For_types.t * String_info.Set.t) proof_of_property
+  Typing_env.t -> Type_grammar.t -> String_info.Set.t proof_of_property
 
 val prove_tagging_of_simple :
   Typing_env.t ->
