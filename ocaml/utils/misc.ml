@@ -1277,10 +1277,10 @@ module Magic_number = struct
     | "Caml1999I" -> Some Cmi
     | "Caml1999O" -> Some Cmo
     | "Caml1999A" -> Some Cma
-    | "Caml1999y" -> Some (Cmx {flambda = true})
-    | "Caml1999Y" -> Some (Cmx {flambda = false})
-    | "Caml1999z" -> Some (Cmxa {flambda = true})
-    | "Caml1999Z" -> Some (Cmxa {flambda = false})
+    | "Caml2021y" -> Some (Cmx {flambda = true})
+    | "Caml2021Y" -> Some (Cmx {flambda = false})
+    | "Caml2021z" -> Some (Cmxa {flambda = true})
+    | "Caml2021Z" -> Some (Cmxa {flambda = false})
 
     (* Caml2007D and Caml2012T were used instead of the common Caml1999 prefix
        between the introduction of those magic numbers and October 2017
@@ -1306,12 +1306,12 @@ module Magic_number = struct
     | Cma -> "Caml1999A"
     | Cmx config ->
        if config.flambda
-       then "Caml1999y"
-       else "Caml1999Y"
+       then "Caml2021y"
+       else "Caml2021Y"
     | Cmxa config ->
        if config.flambda
-       then "Caml1999z"
-       else "Caml1999Z"
+       then "Caml2021z"
+       else "Caml2021Z"
     | Cmxs -> "Caml1999D"
     | Cmt -> "Caml1999T"
     | Cms -> "Caml1999S"
