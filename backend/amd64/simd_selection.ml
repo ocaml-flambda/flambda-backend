@@ -787,9 +787,20 @@ let vectorize_operation width (cfg_ops : Cfg.operation list) :
               make_binary_operation (Result 0) (New 1) (Result 0) add ]
         | _ -> None)
       | Ibased _ -> None)
-    | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Isextend32
-    | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause
-    | Isimd _ | Iprefetch _ ->
+    | Isextend32 -> (
+      match width_type with
+      | W64 -> Cfg.Specific (Isimd (SSE41 I32_sx_i64)) |> make_default 1 1
+      | W32 -> make_default 1 1 Cfg.Move
+      | W16 -> None
+      | W8 -> None)
+    | Izextend32 -> (
+      match width_type with
+      | W64 -> Cfg.Specific (Isimd (SSE41 I32_zx_i64)) |> make_default 1 1
+      | W32 -> make_default 1 1 Cfg.Move
+      | W16 -> None
+      | W8 -> None)
+    | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Irdtsc
+    | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Isimd _ | Iprefetch _ ->
       None)
   | Alloc _ | Reinterpret_cast _ | Static_cast _ | Spill | Reload
   | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
