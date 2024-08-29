@@ -428,6 +428,8 @@ module type S = sig
 
   module Const : sig
     val alloc_as_value : Alloc.Const.t -> Value.Const.t
+
+    val locality_as_regionality : Locality.Const.t -> Regionality.Const.t
   end
 
   (** Converts regional to local, identity otherwise *)

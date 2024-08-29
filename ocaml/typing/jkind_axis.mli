@@ -51,6 +51,7 @@ module Nullability : sig
 end
 
 module Axis : sig
+  (* CR zqian: remove this and use [Mode.Alloc.axis] instead *)
   module Modal : sig
     type 'a t =
       | Locality : Mode.Locality.Const.t t
@@ -72,6 +73,8 @@ module Axis : sig
     | Nonmodal of 'a Nonmodal.t
 
   type packed = Pack : 'a t -> packed
+
+  (* CR zqian: push ['a t] into the module to avoid first-class module. *)
 
   (** Given a jkind axis, get its interface *)
   val get : 'a t -> (module Axis_s with type t = 'a)

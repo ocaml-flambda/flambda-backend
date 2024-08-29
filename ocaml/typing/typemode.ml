@@ -2,21 +2,20 @@ open Location
 open Mode
 open Jkind_axis
 
-type modal = |
+(* CR zqian: kind modifier can be either a modaity or externality/nullability.
+   I.e., mode-like modifiers are just modalities and should be represented as
+   such. Therefore, [transl_modalities] (not dealing with
+   externality/nullability) will stay in this file, while [transl_modifiers]
+   should go into [typekind.ml] and calls [transl_modalities]. *)
 
-type modal_or_nonmodal = |
+type modal = private |
 
-type modelike_annot_type =
-  | Mode
-  | Modality
+type maybe_nonmodal = private |
 
 type 'm annot_type =
-  | Modifier : modal_or_nonmodal annot_type
-  | Mode_like : modelike_annot_type -> modal annot_type
-
-type 'm axis_pair =
-  | Modal_axis_pair : 'a Axis.Modal.t * 'a -> modal axis_pair
-  | Any_axis_pair : 'a Axis.t * 'a -> modal_or_nonmodal axis_pair
+  | Modifier : maybe_nonmodal annot_type
+  | Mode : modal annot_type
+  | Modality : modal annot_type
 
 type error =
   | Duplicated_axis : _ Axis.t -> error
@@ -24,46 +23,48 @@ type error =
 
 exception Error of Location.t * error
 
-module Str_map = Map.Make (String)
+module Axis_pair = struct
+  type 'm t =
+    | Modal_axis_pair : 'a Axis.Modal.t * 'a -> modal t
+    | Any_axis_pair : 'a Axis.t * 'a -> maybe_nonmodal t
 
-let modifiers =
-  let alist =
+  let of_string s =
     let open Mode in
-    [ "local", Any_axis_pair (Modal Locality, Locality.Const.Local);
-      "global", Any_axis_pair (Modal Locality, Locality.Const.Global);
-      "unique", Any_axis_pair (Modal Uniqueness, Uniqueness.Const.Unique);
-      "shared", Any_axis_pair (Modal Uniqueness, Uniqueness.Const.Shared);
-      "once", Any_axis_pair (Modal Linearity, Linearity.Const.Once);
-      "many", Any_axis_pair (Modal Linearity, Linearity.Const.Many);
-      ( "nonportable",
-        Any_axis_pair (Modal Portability, Portability.Const.Nonportable) );
-      "portable", Any_axis_pair (Modal Portability, Portability.Const.Portable);
-      "contended", Any_axis_pair (Modal Contention, Contention.Const.Contended);
-      ( "uncontended",
-        Any_axis_pair (Modal Contention, Contention.Const.Uncontended) );
-      "maybe_null", Any_axis_pair (Nonmodal Nullability, Nullability.Maybe_null);
-      "non_null", Any_axis_pair (Nonmodal Nullability, Nullability.Non_null);
-      "internal", Any_axis_pair (Nonmodal Externality, Externality.Internal);
-      "external64", Any_axis_pair (Nonmodal Externality, Externality.External64);
-      "external_", Any_axis_pair (Nonmodal Externality, Externality.External) ]
-  in
-  List.fold_left
-    (fun acc (name, axis_pair) -> Str_map.add name axis_pair acc)
-    Str_map.empty alist
+    match s with
+    | "local" -> Any_axis_pair (Modal Locality, Locality.Const.Local)
+    | "global" -> Any_axis_pair (Modal Locality, Locality.Const.Global)
+    | "unique" -> Any_axis_pair (Modal Uniqueness, Uniqueness.Const.Unique)
+    | "shared" -> Any_axis_pair (Modal Uniqueness, Uniqueness.Const.Shared)
+    | "once" -> Any_axis_pair (Modal Linearity, Linearity.Const.Once)
+    | "many" -> Any_axis_pair (Modal Linearity, Linearity.Const.Many)
+    | "nonportable" ->
+      Any_axis_pair (Modal Portability, Portability.Const.Nonportable)
+    | "portable" -> Any_axis_pair (Modal Portability, Portability.Const.Portable)
+    | "contended" -> Any_axis_pair (Modal Contention, Contention.Const.Contended)
+    | "uncontended" ->
+      Any_axis_pair (Modal Contention, Contention.Const.Uncontended)
+    | "maybe_null" ->
+      Any_axis_pair (Nonmodal Nullability, Nullability.Maybe_null)
+    | "non_null" -> Any_axis_pair (Nonmodal Nullability, Nullability.Non_null)
+    | "internal" -> Any_axis_pair (Nonmodal Externality, Externality.Internal)
+    | "external64" ->
+      Any_axis_pair (Nonmodal Externality, Externality.External64)
+    | "external_" -> Any_axis_pair (Nonmodal Externality, Externality.External)
+    | _ -> raise Not_found
+end
 
 let transl_annot (type m) ~(annot_type : m annot_type) ~required_mode_maturity
-    annot : m axis_pair =
+    annot : m Axis_pair.t =
   Option.iter
     (fun maturity ->
       Jane_syntax_parsing.assert_extension_enabled ~loc:annot.loc Mode maturity)
     required_mode_maturity;
-  match Str_map.find_opt annot.txt modifiers, annot_type with
-  | Some (Any_axis_pair (Nonmodal _, _)), Mode_like (Mode | Modality) | None, _
-    ->
+  match Axis_pair.of_string annot.txt, annot_type with
+  | Any_axis_pair (Nonmodal _, _), (Mode | Modality) | (exception Not_found) ->
     raise (Error (annot.loc, Unrecognized_modifier (annot_type, annot.txt)))
-  | Some (Any_axis_pair (Modal axis, mode)), Mode_like (Mode | Modality) ->
-    Modal_axis_pair (axis, mode)
-  | Some pair, Modifier -> pair
+  | Any_axis_pair (Modal axis, mode), Mode -> Modal_axis_pair (axis, mode)
+  | Any_axis_pair (Modal axis, mode), Modality -> Modal_axis_pair (axis, mode)
+  | pair, Modifier -> pair
 
 let unpack_mode_annot { txt = Parsetree.Mode s; loc } = { txt = s; loc }
 
@@ -98,8 +99,7 @@ let transl_modifier_annots annots =
 let transl_mode_annots annots : Alloc.Const.Option.t =
   let step modifiers_so_far annot =
     let (Modal_axis_pair (type a) ((axis, mode) : a Axis.Modal.t * a)) =
-      transl_annot ~annot_type:(Mode_like Mode)
-        ~required_mode_maturity:(Some Stable)
+      transl_annot ~annot_type:Mode ~required_mode_maturity:(Some Stable)
       @@ unpack_mode_annot annot
     in
     let axis = Axis.Modal axis in
@@ -136,6 +136,24 @@ let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
   List.filter_map
     (fun x -> Option.map (fun s -> { txt = Parsetree.Mode s; loc }) x)
     [areality; uniqueness; linearity; portability; contention]
+
+let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
+  let axis_pair =
+    transl_annot ~annot_type:Modality ~required_mode_maturity:(Some maturity)
+      { txt = modality; loc }
+  in
+  match axis_pair with
+  | Modal_axis_pair (Locality, mode) ->
+    Modality.Atom
+      (Comonadic Areality, Meet_with (Const.locality_as_regionality mode))
+  | Modal_axis_pair (Linearity, mode) ->
+    Modality.Atom (Comonadic Linearity, Meet_with mode)
+  | Modal_axis_pair (Uniqueness, mode) ->
+    Modality.Atom (Monadic Uniqueness, Join_with mode)
+  | Modal_axis_pair (Portability, mode) ->
+    Modality.Atom (Comonadic Portability, Meet_with mode)
+  | Modal_axis_pair (Contention, mode) ->
+    Modality.Atom (Monadic Contention, Join_with mode)
 
 let untransl_modality (a : Modality.t) : Parsetree.modality loc =
   let s =
@@ -181,28 +199,6 @@ let mutable_implied_modalities (mut : Types.mutability) attrs =
     then monadic
     else monadic @ comonadic
 
-let locality_to_regionality : Mode.Locality.Const.t -> Mode.Regionality.Const.t
-    = function
-  | Local -> Local
-  | Global -> Global
-
-let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
-  let axis_pair =
-    transl_annot ~annot_type:(Mode_like Modality)
-      ~required_mode_maturity:(Some maturity) { txt = modality; loc }
-  in
-  match axis_pair with
-  | Modal_axis_pair (Locality, mode) ->
-    Modality.Atom (Comonadic Areality, Meet_with (locality_to_regionality mode))
-  | Modal_axis_pair (Linearity, mode) ->
-    Modality.Atom (Comonadic Linearity, Meet_with mode)
-  | Modal_axis_pair (Uniqueness, mode) ->
-    Modality.Atom (Monadic Uniqueness, Join_with mode)
-  | Modal_axis_pair (Portability, mode) ->
-    Modality.Atom (Comonadic Portability, Meet_with mode)
-  | Modal_axis_pair (Contention, mode) ->
-    Modality.Atom (Monadic Contention, Join_with mode)
-
 let transl_modalities ~maturity mut attrs modalities =
   let mut_modalities = mutable_implied_modalities mut attrs in
   let modalities = List.map (transl_modality ~maturity) modalities in
@@ -242,8 +238,8 @@ let report_error ppf =
     let annot_type_str =
       match annot_type with
       | Modifier -> "modifier"
-      | Mode_like Mode -> "mode"
-      | Mode_like Modality -> "modality"
+      | Mode -> "mode"
+      | Modality -> "modality"
     in
     fprintf ppf "Unrecognized %s %s." annot_type_str modifier
 
