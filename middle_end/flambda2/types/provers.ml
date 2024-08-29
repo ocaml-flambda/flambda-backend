@@ -81,7 +81,10 @@ let prove_equals_to_simple_of_kind env t kind : Simple.t proof_of_property =
    that the argument represents a variant, unless [variant_only] is [true] *)
 let prove_is_int_generic ~variant_only env t : bool generic_proof =
   match expand_head env t with
-  | Value (Ok (Variant blocks_imms)) -> (
+  | Value (Ok { is_null = Unknown; non_null = _ }) -> Unknown
+  | Value (Ok { is_null = Known true; non_null = _ }) ->
+    if variant_only then Invalid else Unknown
+  | Value (Ok { is_null = Known false; non_null = Variant blocks_imms }) -> (
     match blocks_imms.blocks, blocks_imms.immediates with
     | Unknown, Unknown -> Unknown
     | Unknown, Known imms ->
@@ -94,12 +97,16 @@ let prove_is_int_generic ~variant_only env t : bool generic_proof =
       else if is_bottom env imms
       then Proved false
       else Unknown)
-  | Value (Ok (Mutable_block _)) -> Proved false
+  | Value (Ok { is_null = Known false; non_null = Mutable_block _ }) ->
+    Proved false
   | Value
       (Ok
-        ( Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
-        | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _ | Array _
-          )) ->
+        { is_null = Known false;
+          non_null =
+            ( Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
+            | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _
+            | Array _ )
+        }) ->
     if variant_only then Invalid else Proved false
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
@@ -121,7 +128,7 @@ let meet_is_int_variant_only env t =
 (* CR vlaviron: Switch result to Tag.Scannable *)
 let prove_get_tag_generic env t : Tag.Set.t generic_proof =
   match expand_head env t with
-  | Value (Ok (Variant blocks_imms)) -> (
+  | Value (Ok { is_null = Known false; non_null = Variant blocks_imms }) -> (
     match blocks_imms.immediates with
     | Unknown -> Unknown
     | Known imms -> (
@@ -137,15 +144,16 @@ let prove_get_tag_generic env t : Tag.Set.t generic_proof =
           | Unknown -> Unknown
           | Known tags -> if Tag.Set.is_empty tags then Invalid else Proved tags
           )))
+  | Value (Ok { is_null = Unknown | Known true; non_null = _ }) -> Unknown
   | Value
       (Ok
-        ( Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
-        | Boxed_nativeint _ | Boxed_vec128 _ )) ->
+        { is_null = Known false;
+          non_null =
+            ( Mutable_block _ | Closures _ | String _ | Array _ | Boxed_float _
+            | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
+            | Boxed_nativeint _ | Boxed_vec128 _ )
+        }) ->
     Unknown
-  | Value (Ok (Mutable_block _)) -> Unknown
-  | Value (Ok (Closures _)) -> Unknown
-  | Value (Ok (String _)) -> Unknown
-  | Value (Ok (Array _)) -> Unknown
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
@@ -190,7 +198,11 @@ let meet_naked_immediates env t =
 
 let prove_equals_tagged_immediates env t : _ proof_of_property =
   match expand_head env t with
-  | Value (Ok (Variant { immediates; blocks; is_unique = _ })) -> (
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Variant { immediates; blocks; is_unique = _ }
+        }) -> (
     match blocks with
     | Unknown -> Unknown
     | Known blocks ->
@@ -212,15 +224,24 @@ let prove_equals_tagged_immediates env t : _ proof_of_property =
 
 let meet_equals_tagged_immediates env t : _ meet_shortcut =
   match expand_head env t with
-  | Value (Ok (Variant { immediates; blocks = _; is_unique = _ })) -> (
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Variant { immediates; blocks = _; is_unique = _ }
+        }) -> (
     match immediates with
     | Unknown -> Need_meet
     | Known imms -> meet_naked_immediates env imms)
+  | Value (Ok { is_null = Unknown; non_null = _ }) -> Need_meet
+  | Value (Ok { is_null = Known true; non_null = _ }) -> Invalid
   | Value
       (Ok
-        ( Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
-        | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
-        | String _ | Array _ )) ->
+        { is_null = Known false;
+          non_null =
+            ( Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+            | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _
+            | String _ | Array _ )
+        }) ->
     Invalid
   | Value Unknown -> Need_meet
   | Value Bottom
@@ -339,7 +360,8 @@ type variant_like_proof =
 
 let prove_variant_like_generic env t : variant_like_proof generic_proof =
   match expand_head env t with
-  | Value (Ok (Variant blocks_imms)) -> (
+  | Value (Ok { is_null = Unknown | Known true; non_null = _ }) -> Unknown
+  | Value (Ok { is_null = Known false; non_null = Variant blocks_imms }) -> (
     match blocks_imms.blocks with
     | Unknown -> Unknown
     | Known blocks -> (
@@ -373,13 +395,16 @@ let prove_variant_like_generic env t : variant_like_proof generic_proof =
               | Proved const_ctors -> Known const_ctors)
           in
           Proved { const_ctors; non_const_ctors_with_sizes })))
-  | Value (Ok (Mutable_block _)) -> Unknown
-  | Value (Ok (Array _)) ->
+  | Value (Ok { is_null = Known false; non_null = Mutable_block _ }) -> Unknown
+  | Value (Ok { is_null = Known false; non_null = Array _ }) ->
     Unknown (* We could return Invalid in a strict mode *)
   | Value
       (Ok
-        ( Closures _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
-        | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | String _ )) ->
+        { is_null = Known false;
+          non_null =
+            ( Closures _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
+            | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | String _ )
+        }) ->
     Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
@@ -403,26 +428,60 @@ let prove_is_a_boxed_or_tagged_number env t :
     boxed_or_tagged_number proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
-  | Value (Ok (Variant { blocks; immediates = _; is_unique = _ })) -> (
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Variant { blocks; immediates = _; is_unique = _ }
+        }) -> (
     match blocks with
     | Unknown -> Unknown
     | Known blocks ->
       if TG.Row_like_for_blocks.is_bottom blocks
       then Proved Tagged_immediate
       else Unknown)
-  | Value (Ok (Boxed_float (contents_ty, alloc_mode))) ->
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Boxed_float (contents_ty, alloc_mode)
+        }) ->
     Proved (Boxed (alloc_mode, Naked_float, contents_ty))
-  | Value (Ok (Boxed_float32 (contents_ty, alloc_mode))) ->
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Boxed_float32 (contents_ty, alloc_mode)
+        }) ->
     Proved (Boxed (alloc_mode, Naked_float32, contents_ty))
-  | Value (Ok (Boxed_int32 (contents_ty, alloc_mode))) ->
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Boxed_int32 (contents_ty, alloc_mode)
+        }) ->
     Proved (Boxed (alloc_mode, Naked_int32, contents_ty))
-  | Value (Ok (Boxed_int64 (contents_ty, alloc_mode))) ->
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Boxed_int64 (contents_ty, alloc_mode)
+        }) ->
     Proved (Boxed (alloc_mode, Naked_int64, contents_ty))
-  | Value (Ok (Boxed_nativeint (contents_ty, alloc_mode))) ->
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Boxed_nativeint (contents_ty, alloc_mode)
+        }) ->
     Proved (Boxed (alloc_mode, Naked_nativeint, contents_ty))
-  | Value (Ok (Boxed_vec128 (contents_ty, alloc_mode))) ->
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Boxed_vec128 (contents_ty, alloc_mode)
+        }) ->
     Proved (Boxed (alloc_mode, Naked_vec128, contents_ty))
-  | Value (Bottom | Ok (Mutable_block _ | Closures _ | String _ | Array _)) ->
+  | Value
+      ( Bottom
+      | Ok { is_null = Unknown | Known true; non_null = _ }
+      | Ok
+          { is_null = Known false;
+            non_null = Mutable_block _ | Closures _ | String _ | Array _
+          } ) ->
     Unknown
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
@@ -438,7 +497,8 @@ let prove_is_a_tagged_immediate env t : _ proof_of_property =
 let prove_is_a_boxed_float32 env t : _ proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
-  | Value (Ok (Boxed_float32 _)) -> Proved ()
+  | Value (Ok { is_null = Known false; non_null = Boxed_float32 _ }) ->
+    Proved ()
   | Value _ -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
@@ -448,7 +508,7 @@ let prove_is_a_boxed_float32 env t : _ proof_of_property =
 let prove_is_a_boxed_float env t : _ proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
-  | Value (Ok (Boxed_float _)) -> Proved ()
+  | Value (Ok { is_null = Known false; non_null = Boxed_float _ }) -> Proved ()
   | Value _ -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
@@ -459,7 +519,8 @@ let prove_is_or_is_not_a_boxed_float env t : _ proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
   | Value Bottom -> Unknown
-  | Value (Ok (Boxed_float _)) -> Proved true
+  | Value (Ok { is_null = Known false; non_null = Boxed_float _ }) ->
+    Proved true
   | Value (Ok _) -> Proved false
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
@@ -469,7 +530,7 @@ let prove_is_or_is_not_a_boxed_float env t : _ proof_of_property =
 let prove_is_a_boxed_int32 env t : _ proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
-  | Value (Ok (Boxed_int32 _)) -> Proved ()
+  | Value (Ok { is_null = Known false; non_null = Boxed_int32 _ }) -> Proved ()
   | Value _ -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
@@ -479,7 +540,7 @@ let prove_is_a_boxed_int32 env t : _ proof_of_property =
 let prove_is_a_boxed_int64 env t : _ proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
-  | Value (Ok (Boxed_int64 _)) -> Proved ()
+  | Value (Ok { is_null = Known false; non_null = Boxed_int64 _ }) -> Proved ()
   | Value _ -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
@@ -489,7 +550,8 @@ let prove_is_a_boxed_int64 env t : _ proof_of_property =
 let prove_is_a_boxed_nativeint env t : _ proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
-  | Value (Ok (Boxed_nativeint _)) -> Proved ()
+  | Value (Ok { is_null = Known false; non_null = Boxed_nativeint _ }) ->
+    Proved ()
   | Value _ -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
@@ -499,7 +561,7 @@ let prove_is_a_boxed_nativeint env t : _ proof_of_property =
 let prove_is_a_boxed_vec128 env t : _ proof_of_property =
   match expand_head env t with
   | Value Unknown -> Unknown
-  | Value (Ok (Boxed_vec128 _)) -> Proved ()
+  | Value (Ok { is_null = Known false; non_null = Boxed_vec128 _ }) -> Proved ()
   | Value _ -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
@@ -514,7 +576,7 @@ let prove_unique_tag_and_size0 env t :
     * Alloc_mode.For_types.t)
     proof_of_property =
   match expand_head env t with
-  | Value (Ok (Variant blocks_imms)) -> (
+  | Value (Ok { is_null = Known false; non_null = Variant blocks_imms }) -> (
     match blocks_imms.immediates with
     | Unknown -> Unknown
     | Known immediates ->
@@ -528,8 +590,10 @@ let prove_unique_tag_and_size0 env t :
           | Some (tag, shape, size, product, alloc_mode) ->
             Proved (tag, shape, size, product, alloc_mode))
       else Unknown)
-  | Value (Ok (Mutable_block _)) | Value (Ok _) | Value Unknown | Value Bottom
-    ->
+  | Value (Ok { is_null = Known false; non_null = Mutable_block _ })
+  | Value (Ok _)
+  | Value Unknown
+  | Value Bottom ->
     Unknown
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
@@ -567,13 +631,25 @@ let meet_is_naked_number_array env t naked_number_kind : bool meet_shortcut =
   match expand_head env t with
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
-  | Value (Ok (Array { element_kind = Unknown; _ })) -> Need_meet
-  | Value (Ok (Array { element_kind = Bottom; _ })) ->
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Array { element_kind = Unknown; _ }
+        }) ->
+    Need_meet
+  | Value
+      (Ok
+        { is_null = Known false; non_null = Array { element_kind = Bottom; _ } })
+    ->
     (* Empty array case. We cannot return Invalid, but any other result is
        correct. We arbitrarily pick [false], as this is what we would get if we
        looked at the tag at runtime. *)
     Known_result false
-  | Value (Ok (Array { element_kind = Ok element_kind; _ })) -> (
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Array { element_kind = Ok element_kind; _ }
+        }) -> (
     match K.With_subkind.kind element_kind with
     | Value -> Known_result false
     | Naked_number naked_number_kind'
@@ -584,12 +660,17 @@ let meet_is_naked_number_array env t naked_number_kind : bool meet_shortcut =
         element_kind)
   | Value
       (Ok
-        ( Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
-        | Boxed_nativeint _ | Boxed_vec128 _ | Closures _ | String _ )) ->
+        { is_null = Known false;
+          non_null =
+            ( Boxed_float _ | Boxed_float32 _ | Boxed_int32 _ | Boxed_int64 _
+            | Boxed_nativeint _ | Boxed_vec128 _ | Closures _ | String _ )
+        }) ->
     Invalid
-  | Value (Ok (Variant _ | Mutable_block _)) ->
+  | Value (Ok { is_null = Known false; non_null = Variant _ | Mutable_block _ })
+    ->
     (* In case of untyped code using array primitives on regular blocks *)
     Need_meet
+  | Value (Ok { is_null = Unknown | Known true; non_null = _ }) -> Need_meet
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
     ->
@@ -598,12 +679,24 @@ let meet_is_naked_number_array env t naked_number_kind : bool meet_shortcut =
 let prove_is_immediates_array env t : unit proof_of_property =
   match expand_head env t with
   | Value (Unknown | Bottom) -> Unknown
-  | Value (Ok (Array { element_kind = Unknown; _ })) -> Unknown
-  | Value (Ok (Array { element_kind = Bottom; _ })) ->
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Array { element_kind = Unknown; _ }
+        }) ->
+    Unknown
+  | Value
+      (Ok
+        { is_null = Known false; non_null = Array { element_kind = Bottom; _ } })
+    ->
     (* Empty array case. We cannot return Invalid, but it's correct to state
        that any value contained in this array must be an immediate. *)
     Proved ()
-  | Value (Ok (Array { element_kind = Ok element_kind; _ })) -> (
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Array { element_kind = Ok element_kind; _ }
+        }) -> (
     match K.With_subkind.subkind element_kind with
     | Tagged_immediate -> Proved ()
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
@@ -614,10 +707,14 @@ let prove_is_immediates_array env t : unit proof_of_property =
       Unknown)
   | Value
       (Ok
-        ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
-        | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
-        | Closures _ | String _ )) ->
+        { is_null = Known false;
+          non_null =
+            ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
+            | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
+            | Closures _ | String _ )
+        }) ->
     Unknown
+  | Value (Ok { is_null = Unknown | Known true; non_null = _ }) -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
     ->
@@ -625,7 +722,12 @@ let prove_is_immediates_array env t : unit proof_of_property =
 
 let prove_single_closures_entry_generic env t : _ generic_proof =
   match expand_head env t with
-  | Value (Ok (Closures { by_function_slot; alloc_mode })) -> (
+  | Value (Ok { is_null = Unknown | Known true; non_null = _ }) -> Unknown
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Closures { by_function_slot; alloc_mode }
+        }) -> (
     match TG.Row_like_for_closures.get_singleton by_function_slot with
     | None -> Unknown
     | Some ((function_slot, set_of_closures_contents), closures_entry) -> (
@@ -643,9 +745,12 @@ let prove_single_closures_entry_generic env t : _ generic_proof =
         Proved (function_slot, alloc_mode, closures_entry, function_type)))
   | Value
       (Ok
-        ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
-        | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
-        | String _ | Array _ )) ->
+        { is_null = Known false;
+          non_null =
+            ( Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
+            | Boxed_int32 _ | Boxed_vec128 _ | Boxed_int64 _ | Boxed_nativeint _
+            | String _ | Array _ )
+        }) ->
     Invalid
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
@@ -661,7 +766,13 @@ let prove_is_immutable_array_generic env t : _ generic_proof =
   match expand_head env t with
   | Value Unknown -> Unknown
   | Value Bottom -> Invalid
-  | Value (Ok (Array { element_kind; length = _; contents; alloc_mode })) -> (
+  | Value (Ok { is_null = Unknown; non_null = _ }) -> Need_meet
+  | Value (Ok { is_null = Known true; non_null = _ }) -> Invalid
+  | Value
+      (Ok
+        { is_null = Known false;
+          non_null = Array { element_kind; length = _; contents; alloc_mode }
+        }) -> (
     match contents with
     | Known (Immutable { fields }) -> Proved (element_kind, fields, alloc_mode)
     | Known Mutable -> Invalid
@@ -683,7 +794,9 @@ let prove_single_closures_entry env t =
 
 let meet_strings env t : String_info.Set.t meet_shortcut =
   match expand_head env t with
-  | Value (Ok (String strs)) -> Known_result strs
+  | Value (Ok { is_null = Known false; non_null = String strs }) ->
+    Known_result strs
+  | Value (Ok { is_null = Unknown | Known true; non_null = _ }) -> Need_meet
   | Value (Ok _) -> Invalid
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
@@ -694,7 +807,7 @@ let meet_strings env t : String_info.Set.t meet_shortcut =
 
 let prove_strings env t : _ proof_of_property =
   match expand_head env t with
-  | Value (Ok (String strs)) ->
+  | Value (Ok { is_null = Known false; non_null = String strs }) ->
     (* At present we only track statically-allocated strings (see
        [Type_grammar]). *)
     Proved (Alloc_mode.For_types.heap, strs)
@@ -711,7 +824,9 @@ type tagging_proof_kind =
 let[@inline always] inspect_tagging_of_simple proof_kind env ~min_name_mode t :
     Simple.t generic_proof =
   match expand_head env t with
-  | Value (Ok (Variant { immediates; blocks; is_unique = _ })) -> (
+  | Value
+      (Ok { is_null; non_null = Variant { immediates; blocks; is_unique = _ } })
+    -> (
     let inspect_immediates () =
       match immediates with
       | Unknown -> Unknown
@@ -735,13 +850,14 @@ let[@inline always] inspect_tagging_of_simple proof_kind env ~min_name_mode t :
               Proved (Simple.const (Reg_width_const.naked_immediate imm))
             | None -> Unknown)))
     in
-    match proof_kind, blocks with
-    | Prove, Unknown -> Unknown
-    | Prove, Known blocks ->
+    match proof_kind, blocks, is_null with
+    | Prove, Unknown, _ | Prove, _, (Unknown | Known true) -> Unknown
+    | Prove, Known blocks, Known false ->
       if TG.Row_like_for_blocks.is_bottom blocks
       then inspect_immediates ()
       else Unknown
-    | Meet, _ -> inspect_immediates ())
+    | Meet, _, Known true -> Invalid
+    | Meet, _, (Unknown | Known false) -> inspect_immediates ())
   | Value _ -> Unknown
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
@@ -757,7 +873,7 @@ let meet_tagging_of_simple env ~min_name_mode t =
 let[@inline always] meet_boxed_number_containing_simple
     ~contents_of_boxed_number env ~min_name_mode t : Simple.t meet_shortcut =
   match expand_head env t with
-  | Value (Ok ty_value) -> (
+  | Value (Ok { is_null = Known false; non_null = ty_value }) -> (
     match contents_of_boxed_number ty_value with
     | None -> Invalid
     | Some ty -> (
@@ -766,8 +882,8 @@ let[@inline always] meet_boxed_number_containing_simple
       with
       | simple -> Known_result simple
       | exception Not_found -> Need_meet))
-  | Value Unknown -> Need_meet
-  | Value Bottom -> Invalid
+  | Value (Unknown | Ok { is_null = Unknown; non_null = _ }) -> Need_meet
+  | Value (Bottom | Ok { is_null = Known true; non_null = _ }) -> Invalid
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
     ->
@@ -775,7 +891,8 @@ let[@inline always] meet_boxed_number_containing_simple
 
 let meet_boxed_float32_containing_simple =
   meet_boxed_number_containing_simple
-    ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value) ->
+    ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value_non_null)
+                              ->
       match ty_value with
       | Boxed_float32 (ty, _) -> Some ty
       | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_int32 _
@@ -785,7 +902,8 @@ let meet_boxed_float32_containing_simple =
 
 let meet_boxed_float_containing_simple =
   meet_boxed_number_containing_simple
-    ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value) ->
+    ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value_non_null)
+                              ->
       match ty_value with
       | Boxed_float (ty, _) -> Some ty
       | Variant _ | Mutable_block _ | Boxed_float32 _ | Boxed_int32 _
@@ -795,7 +913,8 @@ let meet_boxed_float_containing_simple =
 
 let meet_boxed_int32_containing_simple =
   meet_boxed_number_containing_simple
-    ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value) ->
+    ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value_non_null)
+                              ->
       match ty_value with
       | Boxed_int32 (ty, _) -> Some ty
       | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
@@ -805,7 +924,8 @@ let meet_boxed_int32_containing_simple =
 
 let meet_boxed_int64_containing_simple =
   meet_boxed_number_containing_simple
-    ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value) ->
+    ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value_non_null)
+                              ->
       match ty_value with
       | Boxed_int64 (ty, _) -> Some ty
       | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
@@ -815,7 +935,8 @@ let meet_boxed_int64_containing_simple =
 
 let meet_boxed_nativeint_containing_simple =
   meet_boxed_number_containing_simple
-    ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value) ->
+    ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value_non_null)
+                              ->
       match ty_value with
       | Boxed_nativeint (ty, _) -> Some ty
       | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
@@ -825,7 +946,8 @@ let meet_boxed_nativeint_containing_simple =
 
 let meet_boxed_vec128_containing_simple =
   meet_boxed_number_containing_simple
-    ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value) ->
+    ~contents_of_boxed_number:(fun (ty_value : TG.head_of_kind_value_non_null)
+                              ->
       match ty_value with
       | Boxed_vec128 (ty, _) -> Some ty
       | Variant _ | Mutable_block _ | Boxed_float _ | Boxed_float32 _
@@ -836,7 +958,11 @@ let meet_boxed_vec128_containing_simple =
 let meet_block_field_simple env ~min_name_mode ~field_kind t field_index :
     Simple.t meet_shortcut =
   match expand_head env t with
-  | Value (Ok (Variant { immediates = _; blocks; is_unique = _ })) -> (
+  | Value
+      (Ok
+        { is_null = _;
+          non_null = Variant { immediates = _; blocks; is_unique = _ }
+        }) -> (
     match blocks with
     | Unknown -> Need_meet
     | Known blocks -> (
@@ -861,7 +987,7 @@ let meet_block_field_simple env ~min_name_mode ~field_kind t field_index :
               | simple -> Known_result simple
               | exception Not_found -> Need_meet)
             | exception Not_found -> Need_meet)))
-  | Value (Ok (Mutable_block _)) -> Need_meet
+  | Value (Ok { is_null = _; non_null = Mutable_block _ }) -> Need_meet
   | Value (Ok _) -> Invalid
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
@@ -873,7 +999,11 @@ let meet_block_field_simple env ~min_name_mode ~field_kind t field_index :
 let meet_project_function_slot_simple env ~min_name_mode t function_slot :
     Simple.t meet_shortcut =
   match expand_head env t with
-  | Value (Ok (Closures { by_function_slot; alloc_mode = _ })) -> (
+  | Value
+      (Ok
+        { is_null = _;
+          non_null = Closures { by_function_slot; alloc_mode = _ }
+        }) -> (
     match
       TG.Row_like_for_closures.get_closure by_function_slot function_slot
     with
@@ -896,7 +1026,11 @@ let meet_project_function_slot_simple env ~min_name_mode t function_slot :
 let meet_project_value_slot_simple env ~min_name_mode t value_slot :
     Simple.t meet_shortcut =
   match expand_head env t with
-  | Value (Ok (Closures { by_function_slot; alloc_mode = _ })) -> (
+  | Value
+      (Ok
+        { is_null = _;
+          non_null = Closures { by_function_slot; alloc_mode = _ }
+        }) -> (
     match TG.Row_like_for_closures.get_env_var by_function_slot value_slot with
     | Unknown -> Need_meet
     | Known ty -> (
@@ -934,14 +1068,23 @@ let meet_rec_info env t : Rec_info_expr.t meet_shortcut =
 let prove_alloc_mode_of_boxed_number env t :
     Alloc_mode.For_types.t proof_of_property =
   match expand_head env t with
-  | Value (Ok (Boxed_float32 (_, alloc_mode)))
-  | Value (Ok (Boxed_float (_, alloc_mode)))
-  | Value (Ok (Boxed_int32 (_, alloc_mode)))
-  | Value (Ok (Boxed_int64 (_, alloc_mode)))
-  | Value (Ok (Boxed_nativeint (_, alloc_mode)))
-  | Value (Ok (Boxed_vec128 (_, alloc_mode))) ->
+  | Value (Ok { is_null = Unknown | Known true; non_null = _ }) -> Unknown
+  | Value
+      (Ok { is_null = Known false; non_null = Boxed_float32 (_, alloc_mode) })
+  | Value (Ok { is_null = Known false; non_null = Boxed_float (_, alloc_mode) })
+  | Value (Ok { is_null = Known false; non_null = Boxed_int32 (_, alloc_mode) })
+  | Value (Ok { is_null = Known false; non_null = Boxed_int64 (_, alloc_mode) })
+  | Value
+      (Ok { is_null = Known false; non_null = Boxed_nativeint (_, alloc_mode) })
+  | Value
+      (Ok { is_null = Known false; non_null = Boxed_vec128 (_, alloc_mode) }) ->
     Proved alloc_mode
-  | Value (Ok (Variant _ | Mutable_block _ | String _ | Array _ | Closures _))
+  | Value
+      (Ok
+        { is_null = _;
+          non_null =
+            Variant _ | Mutable_block _ | String _ | Array _ | Closures _
+        })
   | Value (Unknown | Bottom) ->
     Unknown
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
@@ -954,29 +1097,31 @@ let never_holds_locally_allocated_values env var : _ proof_of_property =
   | None -> Unknown
   | Some ty -> (
     match expand_head env ty with
-    | Value (Ok (Variant { blocks; _ })) -> (
-      match blocks with
-      | Unknown -> Unknown
-      | Known blocks -> (
-        if TG.Row_like_for_blocks.is_bottom blocks
-        then Proved ()
-        else
-          match blocks.alloc_mode with
-          | Heap -> Proved ()
-          | Local | Heap_or_local -> Unknown))
-    | Value (Ok (Boxed_float32 (_, alloc_mode)))
-    | Value (Ok (Boxed_float (_, alloc_mode)))
-    | Value (Ok (Boxed_int32 (_, alloc_mode)))
-    | Value (Ok (Boxed_int64 (_, alloc_mode)))
-    | Value (Ok (Boxed_nativeint (_, alloc_mode)))
-    | Value (Ok (Boxed_vec128 (_, alloc_mode)))
-    | Value (Ok (Mutable_block { alloc_mode }))
-    | Value (Ok (Closures { alloc_mode; _ }))
-    | Value (Ok (Array { alloc_mode; _ })) -> (
-      match alloc_mode with
-      | Heap -> Proved ()
-      | Local | Heap_or_local -> Unknown)
-    | Value (Ok (String _)) -> Proved ()
+    | Value (Ok { is_null = _; non_null }) -> (
+      match non_null with
+      | Variant { blocks; _ } -> (
+        match blocks with
+        | Unknown -> Unknown
+        | Known blocks -> (
+          if TG.Row_like_for_blocks.is_bottom blocks
+          then Proved ()
+          else
+            match blocks.alloc_mode with
+            | Heap -> Proved ()
+            | Local | Heap_or_local -> Unknown))
+      | Boxed_float32 (_, alloc_mode)
+      | Boxed_float (_, alloc_mode)
+      | Boxed_int32 (_, alloc_mode)
+      | Boxed_int64 (_, alloc_mode)
+      | Boxed_nativeint (_, alloc_mode)
+      | Boxed_vec128 (_, alloc_mode)
+      | Mutable_block { alloc_mode }
+      | Closures { alloc_mode; _ }
+      | Array { alloc_mode; _ } -> (
+        match alloc_mode with
+        | Heap -> Proved ()
+        | Local | Heap_or_local -> Unknown)
+      | String _ -> Proved ())
     | Value Unknown -> Unknown
     | Value Bottom -> Unknown
     | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
@@ -1024,7 +1169,11 @@ let prove_physical_equality env t1 t2 =
         | Region _ ) ) ->
       wrong_kind "Value" t2
     | Value (Unknown | Bottom), _ | _, Value (Unknown | Bottom) -> Unknown
-    | Value (Ok head1), Value (Ok head2) -> (
+    | Value (Ok { is_null = Unknown | Known true; non_null = _ }), _
+    | _, Value (Ok { is_null = Unknown | Known true; non_null = _ }) ->
+      Unknown
+    | ( Value (Ok { is_null = Known false; non_null = head1 }),
+        Value (Ok { is_null = Known false; non_null = head2 }) ) -> (
       match head1, head2 with
       (* Basic cases:
        * similar heads -> Unknown

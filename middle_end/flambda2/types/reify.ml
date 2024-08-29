@@ -215,7 +215,13 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
     match
       Expand_head.expand_head env t |> Expand_head.Expanded_type.descr_oub
     with
-    | Value (Ok (Variant { is_unique; blocks; immediates })) -> (
+    | Value (Ok { is_null = Unknown | Known true; _ }) ->
+      try_canonical_simple ()
+    | Value
+        (Ok
+          { is_null = Known false;
+            non_null = Variant { is_unique; blocks; immediates }
+          }) -> (
       match blocks, immediates with
       | Known blocks, Known imms ->
         if Expand_head.is_bottom env imms
@@ -274,8 +280,13 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         else try_canonical_simple ()
       | Known _, Unknown | Unknown, Known _ | Unknown, Unknown ->
         try_canonical_simple ())
-    | Value (Ok (Mutable_block _)) -> try_canonical_simple ()
-    | Value (Ok (Closures { by_function_slot = _; alloc_mode = _ })) ->
+    | Value (Ok { is_null = Known false; non_null = Mutable_block _ }) ->
+      try_canonical_simple ()
+    | Value
+        (Ok
+          { is_null = Known false;
+            non_null = Closures { by_function_slot = _; alloc_mode = _ }
+          }) ->
       try_canonical_simple ()
       (* CR vlaviron: This rather complicated code could be useful, but since a
          while ago Reification simply ignores List_set_of_closures results. So
@@ -448,7 +459,11 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       | Some n -> Simple (Simple.const (Reg_width_const.naked_vec128 n)))
     (* CR-someday mshinwell: These could lift at toplevel when [ty_naked_float]
        is an alias type. That would require checking the alloc mode. *)
-    | Value (Ok (Boxed_float (ty_naked_float, _alloc_mode))) -> (
+    | Value
+        (Ok
+          { is_null = Known false;
+            non_null = Boxed_float (ty_naked_float, _alloc_mode)
+          }) -> (
       match Provers.meet_naked_floats env ty_naked_float with
       | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
@@ -460,7 +475,11 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         match Float.Set.get_singleton fs with
         | None -> try_canonical_simple ()
         | Some f -> Lift (Boxed_float f)))
-    | Value (Ok (Boxed_float32 (ty_naked_float32, _alloc_mode))) -> (
+    | Value
+        (Ok
+          { is_null = Known false;
+            non_null = Boxed_float32 (ty_naked_float32, _alloc_mode)
+          }) -> (
       match Provers.meet_naked_float32s env ty_naked_float32 with
       | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
@@ -472,7 +491,11 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         match Float32.Set.get_singleton fs with
         | None -> try_canonical_simple ()
         | Some f -> Lift (Boxed_float32 f)))
-    | Value (Ok (Boxed_int32 (ty_naked_int32, _alloc_mode))) -> (
+    | Value
+        (Ok
+          { is_null = Known false;
+            non_null = Boxed_int32 (ty_naked_int32, _alloc_mode)
+          }) -> (
       match Provers.meet_naked_int32s env ty_naked_int32 with
       | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
@@ -480,7 +503,11 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         match Int32.Set.get_singleton ns with
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_int32 n)))
-    | Value (Ok (Boxed_int64 (ty_naked_int64, _alloc_mode))) -> (
+    | Value
+        (Ok
+          { is_null = Known false;
+            non_null = Boxed_int64 (ty_naked_int64, _alloc_mode)
+          }) -> (
       match Provers.meet_naked_int64s env ty_naked_int64 with
       | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
@@ -488,7 +515,11 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         match Int64.Set.get_singleton ns with
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_int64 n)))
-    | Value (Ok (Boxed_nativeint (ty_naked_nativeint, _alloc_mode))) -> (
+    | Value
+        (Ok
+          { is_null = Known false;
+            non_null = Boxed_nativeint (ty_naked_nativeint, _alloc_mode)
+          }) -> (
       match Provers.meet_naked_nativeints env ty_naked_nativeint with
       | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
@@ -496,7 +527,11 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         match Targetint_32_64.Set.get_singleton ns with
         | None -> try_canonical_simple ()
         | Some n -> Lift (Boxed_nativeint n)))
-    | Value (Ok (Boxed_vec128 (ty_naked_vec128, _alloc_mode))) -> (
+    | Value
+        (Ok
+          { is_null = Known false;
+            non_null = Boxed_vec128 (ty_naked_vec128, _alloc_mode)
+          }) -> (
       match Provers.meet_naked_vec128s env ty_naked_vec128 with
       | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid
@@ -506,12 +541,15 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
         | Some n -> Lift (Boxed_vec128 n)))
     | Value
         (Ok
-          (Array
-            { contents = Unknown | Known Mutable;
-              length;
-              element_kind;
-              alloc_mode = _
-            })) -> (
+          { is_null = Known false;
+            non_null =
+              Array
+                { contents = Unknown | Known Mutable;
+                  length;
+                  element_kind;
+                  alloc_mode = _
+                }
+          }) -> (
       match Provers.meet_equals_single_tagged_immediate env length with
       | Known_result length -> (
         if not (Targetint_31_63.equal length Targetint_31_63.zero)
@@ -529,12 +567,15 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       | Invalid -> Invalid)
     | Value
         (Ok
-          (Array
-            { contents = Known (Immutable { fields });
-              length = _;
-              alloc_mode;
-              element_kind
-            })) -> (
+          { is_null = Known false;
+            non_null =
+              Array
+                { contents = Known (Immutable { fields });
+                  length = _;
+                  alloc_mode;
+                  element_kind
+                }
+          }) -> (
       match fields with
       | [||] -> (
         match element_kind with
@@ -595,7 +636,7 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
     | Region Bottom ->
       Invalid
     | Value Unknown
-    | Value (Ok (String _))
+    | Value (Ok { non_null = String _; _ })
     | Naked_immediate Unknown
     | Naked_float32 Unknown
     | Naked_float Unknown
