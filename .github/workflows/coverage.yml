@@ -1,87 +1,87 @@
 name: coverage-linux
 
-# CR mshinwell: re-enable this.  Something needs to be done to stop a
-# duplicate unix.cmxa argument to ocamlopt.
+# CR mshinwell: fix build and re-enable.  Something needs to be done
+# about a duplicate unix.cmxa argument to ocamlopt.
 
-#on:
-#  push:
-#    branches:
-#      - main
-#  pull_request:
-#jobs:
-#  build:
-#    name: ${{ matrix.name }}
-#    runs-on: ubuntu-latest
+# on:
+#   push:
+#     branches:
+#       - main
+#   pull_request:
+# jobs:
+#   build:
+#     name: ${{ matrix.name }}
+#     runs-on: ubuntu-latest
 #
-#    strategy:
-#      fail-fast: false
-#      matrix:
-#        include:
-#          - name: flambda2_coverage
-#            config: --enable-middle-end=flambda2 --enable-coverage
-#            ocamlparam: ''
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         include:
+#           - name: flambda2_coverage
+#             config: --enable-middle-end=flambda2 --enable-coverage
+#             ocamlparam: ''
 #
-#    env:
-#      J: "3"
+#     env:
+#       J: "3"
 #
-#    steps:
-#    - name: Checkout the Flambda backend repo
-#      uses: actions/checkout@master
-#      with:
-#        path: 'flambda_backend'
+#     steps:
+#     - name: Checkout the Flambda backend repo
+#       uses: actions/checkout@master
+#       with:
+#         path: 'flambda_backend'
 #
-#    # This adds a switch at $GITHUB_WORKSPACE/_opam
-#    - name: Set up OCaml 4.14
-#      uses: ocaml/setup-ocaml@v2
-#      with:
-#        ocaml-compiler: 4.14
-#        opam-pin: false
-#        opam-depext: false
+#     # This adds a switch at $GITHUB_WORKSPACE/_opam
+#     - name: Set up OCaml 4.14
+#       uses: ocaml/setup-ocaml@v2
+#       with:
+#         ocaml-compiler: 4.14
+#         opam-pin: false
+#         opam-depext: false
 #
-#    - name: Get host build environment from cache
-#      uses: actions/cache@v1
-#      id: cache
-#      with:
-#        path: ${{ github.workspace }}/_opam
-#        key: ${{ matrix.os }}-cache-ocaml-414-dune-2.9.1-g7606d586-menhir20231231
+#     - name: Get host build environment from cache
+#       uses: actions/cache@v1
+#       id: cache
+#       with:
+#         path: ${{ github.workspace }}/_opam
+#         key: ${{ matrix.os }}-cache-ocaml-414-dune-2.9.1-g7606d586-menhir20231231
 #
-#    - name: Install menhir
-#      if: steps.cache.outputs.cache-hit != 'true'
-#      run: |
-#        opam pin menhir 20231231
+#     - name: Install menhir
+#       if: steps.cache.outputs.cache-hit != 'true'
+#       run: |
+#         opam pin menhir 20231231
 #
-#    - name: Build bisect_ppx
-#      if: steps.cache.outputs.cache-hit != 'true'
-#      run: |
-#        opam pin ppxlib 0.25.1
-#        opam pin bisect_ppx --yes \
-#          git+https://github.com/lukemaurer/bisect_ppx#html-report-collate-fix
+#     - name: Build bisect_ppx
+#       if: steps.cache.outputs.cache-hit != 'true'
+#       run: |
+#         opam pin ppxlib 0.25.1
+#         opam pin bisect_ppx --yes \
+#           git+https://github.com/lukemaurer/bisect_ppx#html-report-collate-fix
 #
-#    - name: Trim cached files
-#      if: steps.cache.outputs.cache-hit != 'true'
-#      run: |
-#        # Remove unneeded parts to shrink cache file
-#        rm -rf _opam/{lib/ocaml/expunge,bin/*.byte}
+#     - name: Trim cached files
+#       if: steps.cache.outputs.cache-hit != 'true'
+#       run: |
+#         # Remove unneeded parts to shrink cache file
+#         rm -rf _opam/{lib/ocaml/expunge,bin/*.byte}
 #
-#    - name: Configure Flambda backend
-#      working-directory: flambda_backend
-#      run: |
-#        autoconf
-#        ./configure \
-#          --prefix=$GITHUB_WORKSPACE/_install \
-#          --with-dune=$GITHUB_WORKSPACE/_opam/bin/dune \
-#          ${{ matrix.config }}
+#     - name: Configure Flambda backend
+#       working-directory: flambda_backend
+#       run: |
+#         autoconf
+#         ./configure \
+#           --prefix=$GITHUB_WORKSPACE/_install \
+#           --with-dune=$GITHUB_WORKSPACE/_opam/bin/dune \
+#           ${{ matrix.config }}
 #
 #
-#    - name: Build, install and test Flambda backend
-#      working-directory: flambda_backend
-#      run: opam exec -- make ci
-#      env:
-#        BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
+#     - name: Build, install and test Flambda backend
+#       working-directory: flambda_backend
+#       run: opam exec -- make ci
+#       env:
+#         BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
 #
-#    - name: Publish coverage report
-#      uses: actions/upload-artifact@v3
-#      with:
-#        name: coverage
-#        path: flambda_backend/_coverage/**
+#     - name: Publish coverage report
+#       uses: actions/upload-artifact@v3
+#       with:
+#         name: coverage
+#         path: flambda_backend/_coverage/**
 #
