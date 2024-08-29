@@ -735,8 +735,7 @@ Error: This expression has type "t_word" but an expression was expected of type
          "('a : value)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of t_word must be a sublayout of value.
 |}];;
 
 let f13_2 (x : t_word) = compare x x;;
@@ -748,8 +747,7 @@ Error: This expression has type "t_word" but an expression was expected of type
          "('a : value)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of t_word must be a sublayout of value.
 |}];;
 
 let f13_3 (x : t_word) = Marshal.to_bytes x;;
@@ -761,8 +759,7 @@ Error: This expression has type "t_word" but an expression was expected of type
          "('a : value)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of t_word must be a sublayout of value.
 |}];;
 
 let f13_4 (x : t_word) = Hashtbl.hash x;;
@@ -774,6 +771,5 @@ Error: This expression has type "t_word" but an expression was expected of type
          "('a : value)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
-       But the layout of t_word must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of t_word must be a sublayout of value.
 |}];;

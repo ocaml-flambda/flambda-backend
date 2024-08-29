@@ -90,8 +90,7 @@ Error: This expression has type "float# array"
        but an expression was expected of type "'a array"
        The layout of float# is float64
          because it is the primitive type float#.
-       But the layout of float# must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of float# must be a sublayout of value.
 |}];;
 
 let f (x : float# array) = Array.length x
@@ -103,8 +102,7 @@ Error: This expression has type "float# array"
        but an expression was expected of type "'a array"
        The layout of float# is float64
          because it is the primitive type float#.
-       But the layout of float# must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of float# must be a sublayout of value.
 |}];;
 
 (*****************************************************************)

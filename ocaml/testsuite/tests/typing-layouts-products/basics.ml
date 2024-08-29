@@ -810,8 +810,7 @@ Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
        The layout of #('a * 'b) is '_representable_layout_404 & '_representable_layout_405
          because it is an unboxed tuple.
-       But the layout of #('a * 'b) must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of #('a * 'b) must be a sublayout of value.
 |}]
 
 external make : ('a : value & value) . int -> 'a -> 'a array = "caml_make_vect"

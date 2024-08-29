@@ -261,6 +261,13 @@ module History = struct
   let is_imported t =
     match t.history with Creation Imported -> true | _ -> false
 
+  (* CR layouts: Anything that returns false here could probably just be removed,
+     but let's keep the info around at least during development. *)
+  let is_informative t =
+    match t.history with
+    | Creation Imported -> false
+    | _ -> true
+
   let update_reason t reason = { t with history = Creation reason }
 
   let with_warning t = { t with has_warned = true }
@@ -1576,14 +1583,15 @@ module Format_history = struct
     let jkind_desc = Jkind_desc.get t.jkind in
     fprintf ppf "@[<v 2>%t" intro;
     (match t.history with
-    | Creation reason -> (
-      fprintf ppf "@ because %a" (format_creation_reason ~layout_or_kind) reason;
-      match reason, jkind_desc with
-      | Concrete_legacy_creation _, Const _ ->
-        fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format
-          jkind_desc
-      | _ -> ())
-    | _ -> assert false);
+    | Creation reason ->
+       if History.is_informative t then
+         (fprintf ppf "@ because %a" (format_creation_reason ~layout_or_kind) reason;
+          match reason, jkind_desc with
+          | Concrete_legacy_creation _, Const _ ->
+             fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format
+               jkind_desc
+          | _ -> ())
+    | Interact _ -> Misc.fatal_error "Non-flat history in format_flattened_history");
     fprintf ppf ".";
     (match t.history with
     | Creation (Annotated (With_error_message (message, _), _)) ->

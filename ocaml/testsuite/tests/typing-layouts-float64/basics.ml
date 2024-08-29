@@ -792,8 +792,7 @@ Error: This expression has type "t_float64"
        but an expression was expected of type "('a : value)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of t_float64 must be a sublayout of value.
 |}];;
 
 let f13_2 (x : t_float64) = compare x x;;
@@ -805,8 +804,7 @@ Error: This expression has type "t_float64"
        but an expression was expected of type "('a : value)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of t_float64 must be a sublayout of value.
 |}];;
 
 let f13_3 (x : t_float64) = Marshal.to_bytes x;;
@@ -818,8 +816,7 @@ Error: This expression has type "t_float64"
        but an expression was expected of type "('a : value)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of t_float64 must be a sublayout of value.
 |}];;
 
 let f13_4 (x : t_float64) = Hashtbl.hash x;;
@@ -831,8 +828,7 @@ Error: This expression has type "t_float64"
        but an expression was expected of type "('a : value)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
-       But the layout of t_float64 must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of t_float64 must be a sublayout of value.
 |}];;
 
 (***********************************************************)
