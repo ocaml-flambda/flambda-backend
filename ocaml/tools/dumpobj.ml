@@ -144,11 +144,13 @@ let print_getglobal_name ic =
   if !objfile then begin
     begin try
       match find_reloc ic with
-        | Reloc_getcompunit (Compunit cu_name) -> print_string cu_name
+        | Reloc_getcompunit cu ->
+          print_string (Compilation_unit.full_path_as_string cu)
         | Reloc_getpredef (Predef_exn predef_exn) -> print_string predef_exn
         | Reloc_literal sc -> print_obj sc
-        | Reloc_setcompunit (Compunit cu_name) ->
-          print_unexpected_reloc "Reloc_setcompunit" cu_name
+        | Reloc_setcompunit cu ->
+          print_unexpected_reloc "Reloc_setcompunit"
+            (Compilation_unit.full_path_as_string cu)
         | Reloc_primitive prim ->
           print_unexpected_reloc "Reloc_primitive" prim
     with Not_found ->
@@ -170,11 +172,13 @@ let print_setglobal_name ic =
   if !objfile then begin
     begin try
       match find_reloc ic with
-      | Reloc_setcompunit (Compunit cu_name) -> print_string cu_name
+      | Reloc_setcompunit cu ->
+        print_string (Compilation_unit.full_path_as_string cu)
       | Reloc_literal sc ->
         print_unexpected_reloc_literal sc
-      | Reloc_getcompunit (Compunit cu_name) ->
-        print_unexpected_reloc "Reloc_getcompunit" cu_name
+      | Reloc_getcompunit cu ->
+        print_unexpected_reloc "Reloc_getcompunit"
+          (Compilation_unit.full_path_as_string cu)
       | Reloc_getpredef (Predef_exn predef_exn) ->
         print_unexpected_reloc "Reloc_getpredef" predef_exn
       | Reloc_primitive prim ->
@@ -202,10 +206,12 @@ let print_primitive ic =
         Reloc_primitive s -> print_string s
       | Reloc_literal sc ->
         print_unexpected_reloc_literal sc
-      | Reloc_getcompunit (Compunit cu_name) ->
-          print_unexpected_reloc "Reloc_getcompunit" cu_name
-      | Reloc_setcompunit (Compunit cu_name) ->
-        print_unexpected_reloc "Reloc_setcompunit" cu_name
+      | Reloc_getcompunit cu ->
+        print_unexpected_reloc "Reloc_getcompunit"
+          (Compilation_unit.full_path_as_string cu)
+      | Reloc_setcompunit cu ->
+        print_unexpected_reloc "Reloc_setcompunit"
+          (Compilation_unit.full_path_as_string cu)
       | Reloc_getpredef (Predef_exn predef_exn) ->
         print_unexpected_reloc "Reloc_getpredef" predef_exn
     with Not_found ->
@@ -481,12 +487,14 @@ let print_reloc (info, pos) =
   printf "    %d    (%d)    " pos (pos/4);
   match info with
   | Reloc_literal sc -> print_obj sc; printf "\n"
-  | Reloc_getcompunit (Compunit cu_name) ->
-    printf "require        %s\n" cu_name
+  | Reloc_getcompunit cu ->
+    printf "require        %s\n"
+      (Compilation_unit.full_path_as_string cu)
   | Reloc_getpredef (Predef_exn predef_exn) ->
     printf "require predef %s\n" predef_exn
-  | Reloc_setcompunit (Compunit cu_name) ->
-    printf "provide        %s\n" cu_name
+  | Reloc_setcompunit cu ->
+    printf "provide        %s\n"
+      (Compilation_unit.full_path_as_string cu)
   | Reloc_primitive s ->
     printf "prim           %s\n" s
 
@@ -505,8 +513,12 @@ let dump_obj ic =
     List.iter print_reloc cu.cu_reloc;
   if cu.cu_debug > 0 then begin
     seek_in ic cu.cu_debug;
+    (* CR ocaml 5 compressed-marshal:
     let evl = (Compression.input_value ic : debug_event list) in
     ignore (Compression.input_value ic);
+    *)
+    let evl = (Marshal.from_channel ic : debug_event list) in
+    ignore (Marshal.from_channel ic);
                 (* Skip the list of absolute directory names *)
     record_events 0 evl
   end;
@@ -534,9 +546,14 @@ let dump_exe ic =
         let num_eventlists = input_binary_int ic in
         for _i = 1 to num_eventlists do
           let orig = input_binary_int ic in
+          (* CR ocaml 5 compressed-marshal:
           let evl = (Compression.input_value ic : debug_event list) in
           (* Skip the list of absolute directory names *)
           ignore (Compression.input_value ic);
+          *)
+          let evl = (Marshal.from_channel ic : debug_event list) in
+          (* Skip the list of absolute directory names *)
+          ignore (Marshal.from_channel ic);
           record_events orig evl
         done
   end;
