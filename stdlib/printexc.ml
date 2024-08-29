@@ -166,7 +166,7 @@ let format_backtrace_slot pos slot =
       Some (sprintf "%s %s in file \"%s\"%s, line%s, characters %d-%d"
               (info l.is_raise) l.defname l.filename
               (if l.is_inline then " (inlined)" else "")
-              l.start_lnum l.start_char l.end_offset)
+              lines l.start_char l.end_offset)
 
 let print_exception_backtrace outchan backtrace =
   match backtrace with
