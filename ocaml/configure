@@ -20664,7 +20664,7 @@ else case e in #(
 esac
 fi
 
-oc_cflags="$common_cflags $internal_cflags"
+oc_cflags="$common_cflags $internal_cflags -mno-ssse3 -mno-sse4 -mno-sse4.1 -mno-sse4.2 -mno-align-double"
 oc_cppflags="$common_cppflags $internal_cppflags"
 ocamlc_cflags="$common_cflags $sharedlib_cflags $CFLAGS"
 ocamlc_cppflags="$common_cppflags $CPPFLAGS"

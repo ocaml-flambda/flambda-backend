@@ -504,6 +504,7 @@ next_chunk:
 
   while(1) {
     d = caml_find_frame_descr(fds, retaddr);
+    if(!d) return;
     CAMLassert(d);
     if (!frame_return_to_C(d)) {
       /* Scan the roots in this frame */
