@@ -147,7 +147,7 @@ end = struct
         res,
         Ece.pure,
         updates )
-    | Value_slot { value_slot; is_scanned; size = _ } ->
+    | Value_slot { value_slot; is_scanned; size } ->
       let simple = Value_slot.Map.find value_slot value_slots in
       let kind = Value_slot.kind value_slot in
       if (not
@@ -208,12 +208,13 @@ end = struct
                 ~index:(slot_offset - function_slot_offset_for_updates)
                 ~prev_updates:updates
             in
-            env, res, [P.int ~dbg 1n], chunk_acc, updates)
+            let fields = List.init size (fun _ -> P.int ~dbg 1n) in
+            env, res, fields, chunk_acc, updates)
       in
       ( List.rev_append fields acc,
         chunk_acc,
         free_vars,
-        slot_offset + 1,
+        slot_offset + size,
         env,
         res,
         eff,
