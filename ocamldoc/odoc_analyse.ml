@@ -76,22 +76,12 @@ let unit_from_source source_file =
 
 let process_implementation_file sourcefile =
   init_path ();
-<<<<<<< HEAD
-  let prefixname = Filename.chop_extension sourcefile in
-  let modulename = String.capitalize_ascii(Filename.basename prefixname) in
+  let source = unit_from_source sourcefile in
   let compilation_unit =
     Compilation_unit.create (Compilation_unit.Prefix.from_clflags ())
-      (modulename |> Compilation_unit.Name.of_string)
+      (Unit_info.modname source |> Compilation_unit.Name.of_string)
   in
   Env.set_unit_name (Some compilation_unit);
-||||||| 121bedcfd2
-  let prefixname = Filename.chop_extension sourcefile in
-  let modulename = String.capitalize_ascii(Filename.basename prefixname) in
-  Env.set_unit_name modulename;
-=======
-  let source = unit_from_source sourcefile in
-  Env.set_unit_name (Unit_info.modname source);
->>>>>>> 5.2.0
   let inputfile = preprocess sourcefile in
   let env = initial_env () in
   try
@@ -99,19 +89,10 @@ let process_implementation_file sourcefile =
       Pparse.file ~tool_name inputfile
         (no_docstring Parse.implementation) Pparse.Structure
     in
-<<<<<<< HEAD
     let typedtree =
       Typemod.type_implementation
-        ~sourcefile prefixname compilation_unit env parsetree
+        source compilation_unit env parsetree
     in
-||||||| 121bedcfd2
-    let typedtree =
-      Typemod.type_implementation
-        sourcefile prefixname modulename env parsetree
-    in
-=======
-    let typedtree = Typemod.type_implementation source env parsetree in
->>>>>>> 5.2.0
     (Some (parsetree, typedtree), inputfile)
   with
   | Syntaxerr.Error _ as exn ->
@@ -132,23 +113,13 @@ let process_implementation_file sourcefile =
    no error occurred, else None and an error message is printed.*)
 let process_interface_file sourcefile =
   init_path ();
-<<<<<<< HEAD
-  let prefixname = Filename.chop_extension sourcefile in
-  let modulename = String.capitalize_ascii(Filename.basename prefixname) in
+  let unit = unit_from_source sourcefile in
+  let modulename = Unit_info.modname unit in
   let compilation_unit =
     Compilation_unit.create (Compilation_unit.Prefix.from_clflags ())
       (modulename |> Compilation_unit.Name.of_string)
   in
   Env.set_unit_name (Some compilation_unit);
-||||||| 121bedcfd2
-  let prefixname = Filename.chop_extension sourcefile in
-  let modulename = String.capitalize_ascii(Filename.basename prefixname) in
-  Env.set_unit_name modulename;
-=======
-  let unit = unit_from_source sourcefile in
-  let modulename = Unit_info.modname unit in
-  Env.set_unit_name modulename;
->>>>>>> 5.2.0
   let inputfile = preprocess sourcefile in
   let ast =
     Pparse.file ~tool_name inputfile
