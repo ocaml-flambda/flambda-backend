@@ -483,7 +483,7 @@ class virtual selector_generic =
           List.for_all self#is_simple_expr args
           (* The following may have side effects *)
         | Capply _ | Cextcall _ | Calloc _ | Cstore _ | Craise _ | Catomic _
-        | Cprobe _ | Cprobe_is_enabled _ | Copaque ->
+        | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cpoll ->
           false
         | Cprefetch _ | Cbeginregion | Cendregion ->
           false
@@ -530,7 +530,7 @@ class virtual selector_generic =
           match op with
           | Cextcall { effects = e; coeffects = ce } ->
             EC.create (select_effects e) (select_coeffects ce)
-          | Capply _ | Cprobe _ | Copaque -> EC.arbitrary
+          | Capply _ | Cprobe _ | Copaque | Cpoll -> EC.arbitrary
           | Calloc Alloc_heap -> EC.none
           | Calloc Alloc_local -> EC.coeffect_only Coeffect.Arbitrary
           | Cstore _ -> EC.effect_only Effect.Arbitrary

@@ -48,7 +48,7 @@ let compile i typed ~transl_style ~unix ~pipeline =
            Asmgen.compile_implementation
              unix
              ~pipeline
-             ~filename:(Unit_info.source_file i.target)
+             ~sourcefile:(Some (Unit_info.source_file i.target))
              ~prefixname:(Unit_info.prefix i.target)
              ~ppf_dump:i.ppf_dump
              program);
@@ -58,7 +58,6 @@ let compile i typed ~transl_style ~unix ~pipeline =
 type flambda2 =
   ppf_dump:Format.formatter ->
   prefixname:string ->
-  filename:string ->
   keep_symbol_tables:bool ->
   Lambda.program ->
   Cmm.phrase list
