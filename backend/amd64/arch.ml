@@ -483,10 +483,3 @@ let preserves_alloc_freshness (op : specific_operation) =
   | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Iprefetch _ ->
     true
   | Ifloatarithmem _ | Isimd _ -> false
-
-let supports_vectorize (op : specific_operation) =
-  match op with
-  | Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ ->
-    false (* may add support in the future*)
-  | Ibswap _ | Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence
-  | Ipause | Isimd _ | Iprefetch _ -> false

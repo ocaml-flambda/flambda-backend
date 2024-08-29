@@ -127,5 +127,3 @@ val addressing_offset : addressing_mode -> addressing_mode -> int option
 val can_cross_loads_or_stores : specific_operation -> bool
 
 val preserves_alloc_freshness : specific_operation -> bool
-
-val supports_vectorize : specific_operation -> bool
