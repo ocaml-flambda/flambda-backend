@@ -3044,9 +3044,8 @@ let share_mode ~errors ~env ~loc ~item ~lid vmode shared_context =
         (Once_value_used_in (item, lid, shared_context))
   | Ok () ->
     let mode =
-      Mode.Value.join [
-        Mode.Value.min_with (Monadic Uniqueness) Mode.Uniqueness.shared;
-        vmode.mode]
+      Mode.Value.join_with (Monadic Uniqueness) Mode.Uniqueness.Const.Shared
+        vmode.mode
     in
     {mode; context = Some shared_context}
 

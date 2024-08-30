@@ -444,7 +444,7 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
 
 let meet_regional mode =
   let mode = Value.disallow_left mode in
-  Value.meet [mode; (Value.max_with (Comonadic Areality) Regionality.regional)]
+  Value.meet_with (Comonadic Areality) Regionality.Const.Regional mode
 
 let mode_default mode =
   { position = RNontail;
@@ -6527,9 +6527,7 @@ and type_ident env ?(recarg=Rejected) lid =
        (* if the locality of returned value of the primitive is poly
           we then register allocation for further optimization *)
        | (Prim_poly, _), Some mode ->
-           register_allocation_mode
-             (Alloc.meet [Alloc.max_with (Comonadic Areality) mode;
-                          Alloc.max_with (Comonadic Linearity) Linearity.many])
+           register_allocation_mode (Alloc.max_with (Comonadic Areality) mode)
        | _ -> ()
        end;
        ty, Id_prim (Option.map Locality.disallow_right mode, sort)
