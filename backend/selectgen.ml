@@ -25,7 +25,7 @@ module VP = Backend_var.With_provenance
 
 (* The default instruction selection class *)
 
-type environment = Select_utils.environment
+type environment = unit Select_utils.environment
 
 class virtual selector_generic =
   object (self : 'self)
@@ -664,7 +664,9 @@ class virtual selector_generic =
              body. *)
           List.fold_left
             (fun (env, map) (nfail, ids, rs, e2, dbg, is_cold) ->
-              let env, r = Select_utils.env_add_static_exception nfail rs env in
+              let env, r =
+                Select_utils.env_add_static_exception nfail rs env ()
+              in
               env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold)) map)
             (env, Int.Map.empty) handlers
         in
@@ -787,7 +789,7 @@ class virtual selector_generic =
               Misc.fatal_error
                 "Selection.emit_expr: Return with too many arguments")))
       | Ctrywith (e1, exn_cont, v, e2, dbg, _value_kind) -> (
-        let env_body = Select_utils.env_enter_trywith env exn_cont in
+        let env_body = Select_utils.env_enter_trywith env exn_cont () in
         let r1, s1 = self#emit_sequence env_body e1 ~bound_name in
         let rv = self#regs_for typ_val in
         let with_handler env_handler e2 =
@@ -1198,7 +1200,9 @@ class virtual selector_generic =
         let env, handlers_map =
           List.fold_left
             (fun (env, map) (nfail, ids, rs, e2, dbg, is_cold) ->
-              let env, r = Select_utils.env_add_static_exception nfail rs env in
+              let env, r =
+                Select_utils.env_add_static_exception nfail rs env ()
+              in
               env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold)) map)
             (env, Int.Map.empty) handlers
         in
@@ -1267,7 +1271,7 @@ class virtual selector_generic =
           (Mach.Icatch (rec_flag, env.trap_stack, new_handlers, s_body))
           [||] [||]
       | Ctrywith (e1, exn_cont, v, e2, dbg, _value_kind) -> (
-        let env_body = Select_utils.env_enter_trywith env exn_cont in
+        let env_body = Select_utils.env_enter_trywith env exn_cont () in
         let s1 = self#emit_tail_sequence env_body e1 in
         let rv = self#regs_for typ_val in
         let with_handler env_handler e2 =
