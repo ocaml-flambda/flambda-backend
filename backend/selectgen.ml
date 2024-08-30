@@ -16,15 +16,16 @@
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 
+[@@@ocaml.warning "+a-4-9-40-41-42"]
+
 open Cmm
-open Reg
-open Mach
-open Select_utils
 module Int = Numbers.Int
 module V = Backend_var
 module VP = Backend_var.With_provenance
 
 (* The default instruction selection class *)
+
+type environment = Select_utils.environment
 
 class virtual selector_generic =
   object (self : 'self)
@@ -100,19 +101,23 @@ class virtual selector_generic =
         let from_op =
           match op with
           | Cextcall { effects = e; coeffects = ce } ->
-            EC.create (select_effects e) (select_coeffects ce)
+            EC.create
+              (Select_utils.select_effects e)
+              (Select_utils.select_coeffects ce)
           | Capply _ | Cprobe _ | Copaque -> EC.arbitrary
           | Calloc Alloc_heap -> EC.none
-          | Calloc Alloc_local -> EC.coeffect_only Coeffect.Arbitrary
-          | Cstore _ -> EC.effect_only Effect.Arbitrary
+          | Calloc Alloc_local ->
+            EC.coeffect_only Select_utils.Coeffect.Arbitrary
+          | Cstore _ -> EC.effect_only Select_utils.Effect.Arbitrary
           | Cbeginregion | Cendregion -> EC.arbitrary
           | Cprefetch _ -> EC.arbitrary
           | Catomic _ -> EC.arbitrary
-          | Craise _ -> EC.effect_only Effect.Raise
+          | Craise _ -> EC.effect_only Select_utils.Effect.Raise
           | Cload { mutability = Asttypes.Immutable } -> EC.none
           | Cload { mutability = Asttypes.Mutable } | Cdls_get ->
-            EC.coeffect_only Coeffect.Read_mutable
-          | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
+            EC.coeffect_only Select_utils.Coeffect.Read_mutable
+          | Cprobe_is_enabled _ ->
+            EC.coeffect_only Select_utils.Coeffect.Arbitrary
           | Ctuple_field _ | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
           | Cand | Cor | Cxor | Cbswap _ | Ccsel _ | Cclz _ | Cctz _ | Cpopcnt
           | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf _
@@ -126,7 +131,7 @@ class virtual selector_generic =
     (* Says whether an integer constant is a suitable immediate argument for the
        given integer operation *)
 
-    method is_immediate op n =
+    method is_immediate (op : Mach.integer_operation) n =
       match op with
       | Ilsl | Ilsr | Iasr -> n >= 0 && n < Arch.size_int * 8
       | _ -> false
@@ -134,7 +139,7 @@ class virtual selector_generic =
     (* Says whether an integer constant is a suitable immediate argument for the
        given integer test *)
 
-    method virtual is_immediate_test : integer_comparison -> int -> bool
+    method virtual is_immediate_test : Mach.integer_comparison -> int -> bool
 
     (* Selection of addressing modes *)
 
@@ -145,7 +150,7 @@ class virtual selector_generic =
 
     (* Default instruction selection for stores (of words) *)
 
-    method select_store is_assign addr arg =
+    method select_store is_assign addr arg : Mach.operation * Cmm.expression =
       Istore (Word_val, addr, is_assign), arg
 
     (* call marking methods, documented in selectgen.mli *)
@@ -157,7 +162,7 @@ class virtual selector_generic =
 
     method mark_c_tailcall = if !Clflags.debug then contains_calls := true
 
-    method mark_instr =
+    method mark_instr : Mach.instruction_desc -> unit =
       function
       | Iop (Icall_ind | Icall_imm _ | Iextcall _ | Iprobe _) -> self#mark_call
       | Iop (Itailcall_ind | Itailcall_imm _) -> self#mark_tailcall
@@ -176,7 +181,9 @@ class virtual selector_generic =
 
     (* Default instruction selection for operators *)
 
-    method select_operation op args _dbg =
+    method select_operation (op : Cmm.operation) (args : Cmm.expression list)
+        _dbg : Mach.operation * Cmm.expression list =
+      let open Mach in
       match op, args with
       | Capply _, Cconst_symbol (func, _dbg) :: rem -> Icall_imm { func }, rem
       | Capply _, _ -> Icall_ind, args
@@ -257,33 +264,37 @@ class virtual selector_generic =
       | Cendregion, _ -> Iendregion, args
       | _ -> Misc.fatal_error "Selection.select_oper"
 
-    method private select_arith_comm op =
-      function
+    method private select_arith_comm (op : Mach.integer_operation)
+        (args : Cmm.expression list) : Mach.operation * Cmm.expression list =
+      match args with
       | [arg; Cconst_int (n, _)] when self#is_immediate op n ->
         Iintop_imm (op, n), [arg]
       | [Cconst_int (n, _); arg] when self#is_immediate op n ->
         Iintop_imm (op, n), [arg]
-      | args -> Iintop op, args
+      | _ -> Iintop op, args
 
-    method private select_arith op =
-      function
+    method private select_arith (op : Mach.integer_operation)
+        (args : Cmm.expression list) : Mach.operation * Cmm.expression list =
+      match args with
       | [arg; Cconst_int (n, _)] when self#is_immediate op n ->
         Iintop_imm (op, n), [arg]
-      | args -> Iintop op, args
+      | _ -> Iintop op, args
 
-    method private select_arith_comp cmp =
-      function
-      | [arg; Cconst_int (n, _)] when self#is_immediate (Icomp cmp) n ->
+    method private select_arith_comp (cmp : Mach.integer_comparison)
+        (args : Cmm.expression list) : Mach.operation * Cmm.expression list =
+      match args with
+      | [arg; Cconst_int (n, _)] when self#is_immediate (Mach.Icomp cmp) n ->
         Iintop_imm (Icomp cmp, n), [arg]
       | [Cconst_int (n, _); arg]
-        when self#is_immediate (Icomp (swap_intcomp cmp)) n ->
-        Iintop_imm (Icomp (swap_intcomp cmp), n), [arg]
-      | args -> Iintop (Icomp cmp), args
+        when self#is_immediate (Mach.Icomp (Select_utils.swap_intcomp cmp)) n ->
+        Iintop_imm (Icomp (Select_utils.swap_intcomp cmp), n), [arg]
+      | _ -> Iintop (Icomp cmp), args
 
     (* Instruction selection for conditionals *)
 
-    method select_condition =
-      function
+    method select_condition (arg : Cmm.expression) : Mach.test * Cmm.expression
+        =
+      match arg with
       | Cop (Ccmpi cmp, [arg1; Cconst_int (n, _)], _)
         when self#is_immediate_test (Isigned cmp) n ->
         Iinttest_imm (Isigned cmp, n), arg1
@@ -301,8 +312,8 @@ class virtual selector_generic =
       | Cop (Ccmpa cmp, args, _) -> Iinttest (Iunsigned cmp), Ctuple args
       | Cop (Ccmpf (width, cmp), args, _) ->
         Ifloattest (width, cmp), Ctuple args
-      | Cop (Cand, [arg; Cconst_int (1, _)], _) -> Ioddtest, arg
-      | arg -> Itruetest, arg
+      | Cop (Cand, [arg1; Cconst_int (1, _)], _) -> Ioddtest, arg1
+      | _ -> Itruetest, arg
 
     (* Return an array of fresh registers of the given type. Normally
        implemented as Reg.createv, but some ports (e.g. Arm) can override this
@@ -312,28 +323,30 @@ class virtual selector_generic =
 
     (* Buffering of instruction sequences *)
 
-    val mutable instr_seq = dummy_instr
+    val mutable instr_seq = Mach.dummy_instr
 
     method insert_debug _env desc dbg arg res =
-      instr_seq <- instr_cons_debug desc arg res dbg instr_seq
+      instr_seq <- Mach.instr_cons_debug desc arg res dbg instr_seq
 
     method insert _env desc arg res =
       (* CR mshinwell: fix debuginfo *)
-      instr_seq <- instr_cons_debug desc arg res Debuginfo.none instr_seq
+      instr_seq <- Mach.instr_cons_debug desc arg res Debuginfo.none instr_seq
 
-    method extract_onto o =
+    method extract_onto (o : Mach.instruction) : Mach.instruction =
       let rec extract res i =
-        if i == dummy_instr then res else extract { i with next = res } i.next
+        if i == Mach.dummy_instr
+        then res
+        else extract { i with Mach.next = res } i.Mach.next
       in
       extract o instr_seq
 
-    method extract = self#extract_onto (end_instr ())
+    method extract = self#extract_onto (Mach.end_instr ())
 
     (* Insert a sequence of moves from one pseudoreg set to another. *)
 
     method insert_move env src dst =
-      if src.stamp <> dst.stamp
-      then self#insert env (Iop Imove) [| src |] [| dst |]
+      if src.Reg.stamp <> dst.Reg.stamp
+      then self#insert env Mach.(Iop Imove) [| src |] [| dst |]
 
     method insert_moves env src dst =
       for i = 0 to min (Array.length src) (Array.length dst) - 1 do
@@ -344,20 +357,20 @@ class virtual selector_generic =
 
     method insert_move_args env arg loc stacksize =
       if stacksize <> 0
-      then self#insert env (Iop (Istackoffset stacksize)) [||] [||];
+      then self#insert env Mach.(Iop (Istackoffset stacksize)) [||] [||];
       self#insert_moves env arg loc
 
     method insert_move_results env loc res stacksize =
       self#insert_moves env loc res;
       if stacksize <> 0
-      then self#insert env (Iop (Istackoffset (-stacksize))) [||] [||]
+      then self#insert env Mach.(Iop (Istackoffset (-stacksize))) [||] [||]
 
     (* Add an Iop opcode. Can be overridden by processor description to insert
        moves before and after the operation, i.e. for two-address instructions,
        or instructions using dedicated registers. *)
 
     method insert_op_debug env op dbg rs rd =
-      self#insert_debug env (Iop op) dbg rs rd;
+      self#insert_debug env Mach.(Iop op) dbg rs rd;
       rd
 
     method insert_op env op rs rd =
@@ -386,19 +399,25 @@ class virtual selector_generic =
       match exp with
       | Cconst_int (n, _dbg) ->
         let r = self#regs_for typ_int in
-        ret (self#insert_op env (Iconst_int (Nativeint.of_int n)) [||] r)
+        ret (self#insert_op env (Mach.Iconst_int (Nativeint.of_int n)) [||] r)
       | Cconst_natint (n, _dbg) ->
         let r = self#regs_for typ_int in
-        ret (self#insert_op env (Iconst_int n) [||] r)
+        ret (self#insert_op env (Mach.Iconst_int n) [||] r)
       | Cconst_float32 (n, _dbg) ->
         let r = self#regs_for typ_float32 in
-        ret (self#insert_op env (Iconst_float32 (Int32.bits_of_float n)) [||] r)
+        ret
+          (self#insert_op env
+             (Mach.Iconst_float32 (Int32.bits_of_float n))
+             [||] r)
       | Cconst_float (n, _dbg) ->
         let r = self#regs_for typ_float in
-        ret (self#insert_op env (Iconst_float (Int64.bits_of_float n)) [||] r)
+        ret
+          (self#insert_op env
+             (Mach.Iconst_float (Int64.bits_of_float n))
+             [||] r)
       | Cconst_vec128 (bits, _dbg) ->
         let r = self#regs_for typ_vec128 in
-        ret (self#insert_op env (Iconst_vec128 bits) [||] r)
+        ret (self#insert_op env (Mach.Iconst_vec128 bits) [||] r)
       | Cconst_symbol (n, _dbg) ->
         (* Cconst_symbol _ evaluates to a statically-allocated address, so its
            value fits in a typ_int register and is never changed by the GC.
@@ -408,9 +427,9 @@ class virtual selector_generic =
            registered in the compilation unit's global roots structure, so
            adding this register to the frame table would be redundant *)
         let r = self#regs_for typ_int in
-        ret (self#insert_op env (Iconst_symbol n) [||] r)
+        ret (self#insert_op env (Mach.Iconst_symbol n) [||] r)
       | Cvar v -> (
-        try ret (env_find v env)
+        try ret (Select_utils.env_find v env)
         with Not_found ->
           Misc.fatal_error
             ("Selection.emit_expr: unbound var " ^ V.unique_name v))
@@ -427,7 +446,7 @@ class virtual selector_generic =
         self#emit_expr_aux env body ~bound_name
       | Cassign (v, e1) -> (
         let rv, provenance =
-          try env_find_mut v env
+          try Select_utils.env_find_mut v env
           with Not_found ->
             Misc.fatal_error ("Selection.emit_expr: unbound var " ^ V.name v)
         in
@@ -437,7 +456,7 @@ class virtual selector_generic =
           (if Option.is_some provenance
           then
             let naming_op =
-              Iname_for_debugger
+              Mach.Iname_for_debugger
                 { ident = v;
                   provenance;
                   which_parameter = None;
@@ -445,7 +464,7 @@ class virtual selector_generic =
                   regs = r1
                 }
             in
-            self#insert_debug env (Iop naming_op) Debuginfo.none [||] [||]);
+            self#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||] [||]);
           self#insert_moves env r1 rv;
           ret [||])
       | Ctuple [] -> ret [||]
@@ -459,16 +478,16 @@ class virtual selector_generic =
         | None -> None
         | Some r1 ->
           let rd = [| Proc.loc_exn_bucket |] in
-          self#insert env (Iop Imove) r1 rd;
-          self#insert_debug env (Iraise k) dbg rd [||];
-          set_traps_for_raise env;
+          self#insert env (Mach.Iop Imove) r1 rd;
+          self#insert_debug env (Mach.Iraise k) dbg rd [||];
+          Select_utils.set_traps_for_raise env;
           None)
       | Cop (Copaque, args, dbg) -> (
         match self#emit_parts_list env args with
         | None -> None
         | Some (simple_args, env) ->
           let rs = self#emit_tuple env simple_args in
-          ret (self#insert_op_debug env Iopaque dbg rs rs))
+          ret (self#insert_op_debug env Mach.Iopaque dbg rs rs))
       | Cop (Ctuple_field (field, fields_layout), [arg], _dbg) -> (
         match self#emit_expr env arg ~bound_name:None with
         | None -> None
@@ -496,7 +515,7 @@ class virtual selector_generic =
               then
                 let bound_name = VP.var bound_name in
                 let naming_op =
-                  Iname_for_debugger
+                  Mach.Iname_for_debugger
                     { ident = bound_name;
                       provenance;
                       which_parameter = None;
@@ -504,9 +523,10 @@ class virtual selector_generic =
                       regs
                     }
                 in
-                self#insert_debug env (Iop naming_op) Debuginfo.none [||] [||]
+                self#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||]
+                  [||]
           in
-          let ty = oper_result_type op in
+          let ty = Select_utils.oper_result_type op in
           let new_op, new_args = self#select_operation op simple_args dbg in
           match new_op with
           | Icall_ind ->
@@ -517,7 +537,7 @@ class virtual selector_generic =
             let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
             let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
             self#insert_move_args env rarg loc_arg stack_ofs;
-            self#insert_debug env (Iop new_op) dbg
+            self#insert_debug env (Mach.Iop new_op) dbg
               (Array.append [| r1.(0) |] loc_arg)
               loc_res;
             (* The destination registers (as per the procedure calling
@@ -526,7 +546,7 @@ class virtual selector_generic =
                after the call. *)
             add_naming_op_for_bound_name loc_res;
             self#insert_move_results env loc_res rd stack_ofs;
-            set_traps_for_raise env;
+            Select_utils.set_traps_for_raise env;
             Some rd
           | Icall_imm _ ->
             let r1 = self#emit_tuple env new_args in
@@ -535,10 +555,10 @@ class virtual selector_generic =
             let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
             let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
             self#insert_move_args env r1 loc_arg stack_ofs;
-            self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
+            self#insert_debug env (Mach.Iop new_op) dbg loc_arg loc_res;
             add_naming_op_for_bound_name loc_res;
             self#insert_move_results env loc_res rd stack_ofs;
-            set_traps_for_raise env;
+            Select_utils.set_traps_for_raise env;
             Some rd
           | Iextcall ({ func; ty_args; returns; _ } as r) ->
             let loc_arg, stack_ofs =
@@ -546,7 +566,7 @@ class virtual selector_generic =
             in
             let keep_for_checking =
               (not returns)
-              && !current_function_is_check_enabled
+              && !Select_utils.current_function_is_check_enabled
               && String.equal func Cmm.caml_flambda2_invalid
             in
             let returns, ty =
@@ -555,35 +575,35 @@ class virtual selector_generic =
             let rd = self#regs_for ty in
             let loc_res =
               self#insert_op_debug env
-                (Iextcall { r with stack_ofs; returns })
+                (Mach.Iextcall { r with stack_ofs; returns })
                 dbg loc_arg
                 (Proc.loc_external_results (Reg.typv rd))
             in
             add_naming_op_for_bound_name loc_res;
             self#insert_move_results env loc_res rd stack_ofs;
-            set_traps_for_raise env;
+            Select_utils.set_traps_for_raise env;
             if returns then ret rd else None
           | Ialloc { bytes = _; mode } ->
             let rd = self#regs_for typ_val in
-            let bytes = size_expr env (Ctuple new_args) in
+            let bytes = Select_utils.size_expr env (Ctuple new_args) in
             let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
             let op =
-              Ialloc
+              Mach.Ialloc
                 { bytes = alloc_words * Arch.size_addr;
                   dbginfo = [{ alloc_words; alloc_dbg = dbg }];
                   mode
                 }
             in
-            self#insert_debug env (Iop op) dbg [||] rd;
+            self#insert_debug env (Mach.Iop op) dbg [||] rd;
             add_naming_op_for_bound_name rd;
             self#emit_stores env dbg new_args rd;
-            set_traps_for_raise env;
+            Select_utils.set_traps_for_raise env;
             ret rd
           | Iprobe _ ->
             let r1 = self#emit_tuple env new_args in
             let rd = self#regs_for ty in
             let rd = self#insert_op_debug env new_op dbg r1 rd in
-            set_traps_for_raise env;
+            Select_utils.set_traps_for_raise env;
             ret rd
           | op ->
             let r1 = self#emit_tuple env new_args in
@@ -603,9 +623,9 @@ class virtual selector_generic =
           let relse, (selse : 'self) =
             self#emit_sequence env eelse ~bound_name
           in
-          let r = join env rif sif relse selse ~bound_name in
+          let r = Select_utils.join env rif sif relse selse ~bound_name in
           self#insert_debug env
-            (Iifthenelse (cond, sif#extract, selse#extract))
+            (Mach.Iifthenelse (cond, sif#extract, selse#extract))
             dbg rarg [||];
           r)
       | Cswitch (esel, index, ecases, dbg, _kind) -> (
@@ -617,9 +637,9 @@ class virtual selector_generic =
               (fun (case, _dbg) -> self#emit_sequence env case ~bound_name)
               ecases
           in
-          let r = join_array env rscases ~bound_name in
+          let r = Select_utils.join_array env rscases ~bound_name in
           self#insert_debug env
-            (Iswitch (index, Array.map (fun (_, s) -> s#extract) rscases))
+            (Mach.Iswitch (index, Array.map (fun (_, s) -> s#extract) rscases))
             dbg rsel [||];
           r)
       | Ccatch (_, [], e1, _) -> self#emit_expr_aux env e1 ~bound_name
@@ -631,7 +651,7 @@ class virtual selector_generic =
                 List.map
                   (fun (id, typ) ->
                     let r = self#regs_for typ in
-                    name_regs id r;
+                    Select_utils.name_regs id r;
                     r)
                   ids
               in
@@ -644,7 +664,7 @@ class virtual selector_generic =
              body. *)
           List.fold_left
             (fun (env, map) (nfail, ids, rs, e2, dbg, is_cold) ->
-              let env, r = env_add_static_exception nfail rs env in
+              let env, r = Select_utils.env_add_static_exception nfail rs env in
               env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold)) map)
             (env, Int.Map.empty) handlers
         in
@@ -653,15 +673,15 @@ class virtual selector_generic =
             (traps_info, (ids, rs, e2, _dbg, is_cold)) =
           assert (List.length ids = List.length rs);
           let trap_stack =
-            match !traps_info with
+            match (!traps_info : Select_utils.trap_stack_info) with
             | Unreachable -> assert false
             | Reachable t -> t
           in
           let ids_and_rs = List.combine ids rs in
           let new_env =
             List.fold_left
-              (fun env ((id, _typ), r) -> env_add id r env)
-              (env_set_trap_stack env trap_stack)
+              (fun env ((id, _typ), r) -> Select_utils.env_add id r env)
+              (Select_utils.env_set_trap_stack env trap_stack)
               ids_and_rs
           in
           let r, s =
@@ -673,7 +693,7 @@ class virtual selector_generic =
                     then
                       let var = VP.var var in
                       let naming_op =
-                        Iname_for_debugger
+                        Mach.Iname_for_debugger
                           { ident = var;
                             provenance;
                             which_parameter = None;
@@ -681,15 +701,17 @@ class virtual selector_generic =
                             regs = r
                           }
                       in
-                      seq#insert_debug env (Iop naming_op) Debuginfo.none [||]
-                        [||])
+                      seq#insert_debug env (Mach.Iop naming_op) Debuginfo.none
+                        [||] [||])
                   ids_and_rs)
           in
           (nfail, trap_stack, is_cold), (r, s)
         in
         let rec build_all_reachable_handlers ~already_built ~not_built =
           let not_built, to_build =
-            Int.Map.partition (fun _n (r, _) -> !r = Unreachable) not_built
+            Int.Map.partition
+              (fun _n (r, _) -> !r = Select_utils.Unreachable)
+              not_built
           in
           if Int.Map.is_empty to_build
           then already_built
@@ -707,7 +729,7 @@ class virtual selector_generic =
           (* Note: we're dropping unreachable handlers here *)
         in
         let a = Array.of_list ((r_body, s_body) :: List.map snd l) in
-        let r = join_array env a ~bound_name in
+        let r = Select_utils.join_array env a ~bound_name in
         let aux ((nfail, ts, is_cold), (_r, s)) =
           nfail, ts, s#extract, is_cold
         in
@@ -726,7 +748,8 @@ class virtual selector_generic =
               ts)
         in
         self#insert env
-          (Icatch (rec_flag, final_trap_stack, List.map aux l, s_body#extract))
+          (Mach.Icatch
+             (rec_flag, final_trap_stack, List.map aux l, s_body#extract))
           [||] [||];
         r
       | Cexit (lbl, args, traps) -> (
@@ -737,7 +760,7 @@ class virtual selector_generic =
           | Lbl nfail ->
             let src = self#emit_tuple ext_env simple_list in
             let handler =
-              try env_find_static_exception nfail env
+              try Select_utils.env_find_static_exception nfail env
               with Not_found ->
                 Misc.fatal_error
                   ("Selection.emit_expr: unbound label "
@@ -747,11 +770,11 @@ class virtual selector_generic =
                src are present in dest *)
             let tmp_regs = Reg.createv_like src in
             (* Ccatch registers must not contain out of heap pointers *)
-            Array.iter (fun reg -> assert (reg.typ <> Addr)) src;
+            Array.iter (fun reg -> assert (reg.Reg.typ <> Addr)) src;
             self#insert_moves env src tmp_regs;
             self#insert_moves env tmp_regs (Array.concat handler.regs);
-            self#insert env (Iexit (nfail, traps)) [||] [||];
-            set_traps nfail handler.traps_ref env.trap_stack traps;
+            self#insert env (Mach.Iexit (nfail, traps)) [||] [||];
+            Select_utils.set_traps nfail handler.traps_ref env.trap_stack traps;
             None
           | Return_lbl -> (
             match simple_list with
@@ -764,7 +787,7 @@ class virtual selector_generic =
               Misc.fatal_error
                 "Selection.emit_expr: Return with too many arguments")))
       | Ctrywith (e1, exn_cont, v, e2, dbg, _value_kind) -> (
-        let env_body = env_enter_trywith env exn_cont in
+        let env_body = Select_utils.env_enter_trywith env exn_cont in
         let r1, s1 = self#emit_sequence env_body e1 ~bound_name in
         let rv = self#regs_for typ_val in
         let with_handler env_handler e2 =
@@ -775,7 +798,7 @@ class virtual selector_generic =
                 then
                   let var = VP.var v in
                   let naming_op =
-                    Iname_for_debugger
+                    Mach.Iname_for_debugger
                       { ident = var;
                         provenance;
                         which_parameter = None;
@@ -783,23 +806,24 @@ class virtual selector_generic =
                         regs = rv
                       }
                   in
-                  seq#insert_debug env (Iop naming_op) Debuginfo.none [||] [||])
+                  seq#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||]
+                    [||])
           in
-          let r = join env r1 s1 r2 s2 ~bound_name in
+          let r = Select_utils.join env r1 s1 r2 s2 ~bound_name in
           self#insert env
-            (Itrywith
+            (Mach.Itrywith
                ( s1#extract,
                  exn_cont,
-                 ( env_handler.trap_stack,
-                   instr_cons_debug (Iop Imove) [| Proc.loc_exn_bucket |] rv dbg
-                     s2#extract ) ))
+                 ( env_handler.Select_utils.trap_stack,
+                   Mach.instr_cons_debug (Mach.Iop Imove)
+                     [| Proc.loc_exn_bucket |] rv dbg s2#extract ) ))
             [||] [||];
           r
         in
-        let env = env_add v rv env in
-        match env_find_static_exception exn_cont env_body with
+        let env = Select_utils.env_add v rv env in
+        match Select_utils.env_find_static_exception exn_cont env_body with
         | { traps_ref = { contents = Reachable ts }; _ } ->
-          with_handler (env_set_trap_stack env ts) e2
+          with_handler (Select_utils.env_set_trap_stack env ts) e2
         | { traps_ref = { contents = Unreachable }; _ } ->
           let dummy_constant = Cconst_int (1, Debuginfo.none) in
           let segfault =
@@ -824,7 +848,7 @@ class virtual selector_generic =
                the function. *)
             Csequence (segfault, dummy_raise)
           in
-          let env = env_set_trap_stack env Uncaught in
+          let env = Select_utils.env_set_trap_stack env Uncaught in
           with_handler env unreachable
           (* Misc.fatal_errorf "Selection.emit_expr: \ * Unreachable exception
              handler %d" lbl *)
@@ -833,28 +857,28 @@ class virtual selector_generic =
 
     method private emit_sequence ?at_start (env : environment) exp ~bound_name
         : _ * 'self =
-      let s : 'self = {<instr_seq = dummy_instr>} in
+      let s : 'self = {<instr_seq = Mach.dummy_instr>} in
       (match at_start with None -> () | Some f -> f s);
       let r = s#emit_expr_aux env exp ~bound_name in
       r, s
 
     method private bind_let (env : environment) v r1 =
       let env =
-        if all_regs_anonymous r1
+        if Select_utils.all_regs_anonymous r1
         then (
-          name_regs v r1;
-          env_add v r1 env)
+          Select_utils.name_regs v r1;
+          Select_utils.env_add v r1 env)
         else
           let rv = Reg.createv_like r1 in
-          name_regs v rv;
+          Select_utils.name_regs v rv;
           self#insert_moves env r1 rv;
-          env_add v rv env
+          Select_utils.env_add v rv env
       in
       let provenance = VP.provenance v in
       (if Option.is_some provenance
       then
         let naming_op =
-          Iname_for_debugger
+          Mach.Iname_for_debugger
             { ident = VP.var v;
               which_parameter = None;
               provenance;
@@ -862,18 +886,18 @@ class virtual selector_generic =
               regs = r1
             }
         in
-        self#insert_debug env (Iop naming_op) Debuginfo.none [||] [||]);
+        self#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||] [||]);
       env
 
     method private bind_let_mut (env : environment) v k r1 =
       let rv = self#regs_for k in
-      name_regs v rv;
+      Select_utils.name_regs v rv;
       self#insert_moves env r1 rv;
       let provenance = VP.provenance v in
       (if Option.is_some provenance
       then
         let naming_op =
-          Iname_for_debugger
+          Mach.Iname_for_debugger
             { ident = VP.var v;
               which_parameter = None;
               provenance = VP.provenance v;
@@ -881,8 +905,8 @@ class virtual selector_generic =
               regs = r1
             }
         in
-        self#insert_debug env (Iop naming_op) Debuginfo.none [||] [||]);
-      env_add ~mut:Mutable v rv env
+        self#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||] [||]);
+      Select_utils.env_add ~mut:Mutable v rv env
 
     (* The following two functions, [emit_parts] and [emit_parts_list], force
        right-to-left evaluation order as required by the Flambda [Un_anf] pass
@@ -893,7 +917,7 @@ class virtual selector_generic =
       let may_defer_evaluation =
         let ec = self#effects_of exp in
         match EC.effect ec with
-        | Effect.Arbitrary | Effect.Raise ->
+        | Select_utils.Effect.Arbitrary | Select_utils.Effect.Raise ->
           (* Preserve the ordering of effectful expressions by evaluating them
              early (in the correct order) and assigning their results to
              temporaries. We can avoid this in just one case: if we know that
@@ -904,25 +928,25 @@ class virtual selector_generic =
              to check copurity too to avoid e.g. moving mutable reads earlier
              than the raising of an exception.) *)
           EC.pure_and_copure effects_after
-        | Effect.None -> (
+        | Select_utils.Effect.None -> (
           match EC.coeffect ec with
-          | Coeffect.None ->
+          | Select_utils.Coeffect.None ->
             (* Pure expressions may be moved. *)
             true
-          | Coeffect.Read_mutable -> (
+          | Select_utils.Coeffect.Read_mutable -> (
             (* Read-mutable expressions may only be deferred if evaluation of
                every [exp'] (for [exp'] as in the comment above) has no effects
                "worse" (in the sense of the ordering in [Effect.t]) than raising
                an exception. *)
             match EC.effect effects_after with
-            | Effect.None | Effect.Raise -> true
-            | Effect.Arbitrary -> false)
-          | Coeffect.Arbitrary -> (
+            | Select_utils.Effect.None | Select_utils.Effect.Raise -> true
+            | Select_utils.Effect.Arbitrary -> false)
+          | Select_utils.Coeffect.Arbitrary -> (
             (* Arbitrary expressions may only be deferred if evaluation of every
                [exp'] (for [exp'] as in the comment above) has no effects. *)
             match EC.effect effects_after with
-            | Effect.None -> true
-            | Effect.Arbitrary | Effect.Raise -> false))
+            | Select_utils.Effect.None -> true
+            | Select_utils.Effect.(Arbitrary | Raise) -> false))
       in
       (* Even though some expressions may look like they can be deferred from
          the (co)effect analysis, it may be forbidden to move them. *)
@@ -937,15 +961,15 @@ class virtual selector_generic =
           else
             (* The normal case *)
             let id = V.create_local "bind" in
-            if all_regs_anonymous r
+            if Select_utils.all_regs_anonymous r
             then
               (* r is an anonymous, unshared register; use it directly *)
-              Some (Cvar id, env_add (VP.create id) r env)
+              Some (Cvar id, Select_utils.env_add (VP.create id) r env)
             else
               (* Introduce a fresh temp to hold the result *)
               let tmp = Reg.createv_like r in
               self#insert_moves env r tmp;
-              Some (Cvar id, env_add (VP.create id) tmp env)
+              Some (Cvar id, Select_utils.env_add (VP.create id) tmp env)
 
     method private emit_parts_list (env : environment) exp_list =
       let module EC = Select_utils.Effect_and_coeffect in
@@ -993,7 +1017,7 @@ class virtual selector_generic =
       let locs, stack_ofs = Proc.loc_external_arguments ty_args in
       let ty_args = Array.of_list ty_args in
       if stack_ofs <> 0
-      then self#insert env (Iop (Istackoffset stack_ofs)) [||] [||];
+      then self#insert env (Mach.Iop (Istackoffset stack_ofs)) [||] [||];
       List.iteri
         (fun i arg -> self#insert_move_extcall_arg env ty_args.(i) arg locs.(i))
         args;
@@ -1021,7 +1045,7 @@ class virtual selector_generic =
               for i = 0 to Array.length regs - 1 do
                 let r = regs.(i) in
                 let kind =
-                  match r.typ with
+                  match r.Reg.typ with
                   | Float -> Double
                   | Float32 -> Single { reg = Float32 }
                   | Vec128 ->
@@ -1031,17 +1055,19 @@ class virtual selector_generic =
                   | Val | Addr | Int -> Word_val
                 in
                 self#insert_debug env
-                  (Iop (Istore (kind, !a, false)))
+                  (Mach.Iop (Istore (kind, !a, false)))
                   dbg
                   (Array.append [| r |] regs_addr)
                   [||];
-                a := Arch.offset_addressing !a (size_component r.typ)
+                a
+                  := Arch.offset_addressing !a
+                       (Select_utils.size_component r.Reg.typ)
               done
             | _ ->
-              self#insert_debug env (Iop op) dbg
+              self#insert_debug env (Mach.Iop op) dbg
                 (Array.append regs regs_addr)
                 [||];
-              a := Arch.offset_addressing !a (size_expr env e)))
+              a := Arch.offset_addressing !a (Select_utils.size_expr env e)))
         data
 
     (* Same, but in tail position *)
@@ -1053,7 +1079,7 @@ class virtual selector_generic =
       | Some r ->
         let loc = Proc.loc_results_return (Reg.typv r) in
         self#insert_moves env r loc;
-        self#insert env (Ireturn traps) loc [||]
+        self#insert env (Mach.Ireturn traps) loc [||]
 
     method private emit_return (env : environment) exp traps =
       self#insert_return env (self#emit_expr_aux env exp ~bound_name:None) traps
@@ -1084,45 +1110,49 @@ class virtual selector_generic =
             let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
             let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
             let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
-            if stack_ofs = 0 && trap_stack_is_empty env
+            if stack_ofs = 0 && Select_utils.trap_stack_is_empty env
             then (
-              let call = Iop Itailcall_ind in
+              let call = Mach.Iop Itailcall_ind in
               self#insert_moves env rarg loc_arg;
               self#insert_debug env call dbg
                 (Array.append [| r1.(0) |] loc_arg)
                 [||])
             else (
               self#insert_move_args env rarg loc_arg stack_ofs;
-              self#insert_debug env (Iop new_op) dbg
+              self#insert_debug env (Mach.Iop new_op) dbg
                 (Array.append [| r1.(0) |] loc_arg)
                 loc_res;
-              set_traps_for_raise env;
-              self#insert env (Iop (Istackoffset (-stack_ofs))) [||] [||];
-              self#insert env (Ireturn (pop_all_traps env)) loc_res [||])
+              Select_utils.set_traps_for_raise env;
+              self#insert env (Mach.Iop (Istackoffset (-stack_ofs))) [||] [||];
+              self#insert env
+                (Mach.Ireturn (Select_utils.pop_all_traps env))
+                loc_res [||])
           | Icall_imm { func } ->
             let r1 = self#emit_tuple env new_args in
             let rd = self#regs_for ty in
             let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
             let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
             let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
-            if stack_ofs = 0 && trap_stack_is_empty env
+            if stack_ofs = 0 && Select_utils.trap_stack_is_empty env
             then (
-              let call = Iop (Itailcall_imm { func }) in
+              let call = Mach.Iop (Itailcall_imm { func }) in
               self#insert_moves env r1 loc_arg;
               self#insert_debug env call dbg loc_arg [||])
-            else if func.sym_name = !current_function_name
-                    && trap_stack_is_empty env
+            else if func.sym_name = !Select_utils.current_function_name
+                    && Select_utils.trap_stack_is_empty env
             then (
-              let call = Iop (Itailcall_imm { func }) in
+              let call = Mach.Iop (Itailcall_imm { func }) in
               let loc_arg' = Proc.loc_parameters (Reg.typv r1) in
               self#insert_moves env r1 loc_arg';
               self#insert_debug env call dbg loc_arg' [||])
             else (
               self#insert_move_args env r1 loc_arg stack_ofs;
-              self#insert_debug env (Iop new_op) dbg loc_arg loc_res;
-              set_traps_for_raise env;
-              self#insert env (Iop (Istackoffset (-stack_ofs))) [||] [||];
-              self#insert env (Ireturn (pop_all_traps env)) loc_res [||])
+              self#insert_debug env (Mach.Iop new_op) dbg loc_arg loc_res;
+              Select_utils.set_traps_for_raise env;
+              self#insert env (Mach.Iop (Istackoffset (-stack_ofs))) [||] [||];
+              self#insert env
+                (Mach.Ireturn (Select_utils.pop_all_traps env))
+                loc_res [||])
           | _ -> Misc.fatal_error "Selection.emit_tail"))
       | Csequence (e1, e2) -> (
         match self#emit_expr env e1 ~bound_name:None with
@@ -1134,7 +1164,7 @@ class virtual selector_generic =
         | None -> ()
         | Some rarg ->
           self#insert_debug env
-            (Iifthenelse
+            (Mach.Iifthenelse
                ( cond,
                  self#emit_tail_sequence env eif,
                  self#emit_tail_sequence env eelse ))
@@ -1148,7 +1178,7 @@ class virtual selector_generic =
               (fun (case, _dbg) -> self#emit_tail_sequence env case)
               ecases
           in
-          self#insert_debug env (Iswitch (index, cases)) dbg rsel [||])
+          self#insert_debug env (Mach.Iswitch (index, cases)) dbg rsel [||])
       | Ccatch (_, [], e1, _) -> self#emit_tail env e1
       | Ccatch (rec_flag, handlers, e1, _) ->
         let handlers =
@@ -1158,7 +1188,7 @@ class virtual selector_generic =
                 List.map
                   (fun (id, typ) ->
                     let r = self#regs_for typ in
-                    name_regs id r;
+                    Select_utils.name_regs id r;
                     r)
                   ids
               in
@@ -1168,7 +1198,7 @@ class virtual selector_generic =
         let env, handlers_map =
           List.fold_left
             (fun (env, map) (nfail, ids, rs, e2, dbg, is_cold) ->
-              let env, r = env_add_static_exception nfail rs env in
+              let env, r = Select_utils.env_add_static_exception nfail rs env in
               env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold)) map)
             (env, Int.Map.empty) handlers
         in
@@ -1177,15 +1207,15 @@ class virtual selector_generic =
             =
           assert (List.length ids = List.length rs);
           let trap_stack =
-            match !trap_info with
+            match (!trap_info : Select_utils.trap_stack_info) with
             | Unreachable -> assert false
             | Reachable t -> t
           in
           let ids_and_rs = List.combine ids rs in
           let new_env =
             List.fold_left
-              (fun env ((id, _typ), r) -> env_add id r env)
-              (env_set_trap_stack env trap_stack)
+              (fun env ((id, _typ), r) -> Select_utils.env_add id r env)
+              (Select_utils.env_set_trap_stack env trap_stack)
               ids_and_rs
           in
           let seq =
@@ -1197,7 +1227,7 @@ class virtual selector_generic =
                     then
                       let var = VP.var var in
                       let naming_op =
-                        Iname_for_debugger
+                        Mach.Iname_for_debugger
                           { ident = var;
                             provenance;
                             which_parameter = None;
@@ -1205,15 +1235,17 @@ class virtual selector_generic =
                             regs = r
                           }
                       in
-                      seq#insert_debug new_env (Iop naming_op) Debuginfo.none
-                        [||] [||])
+                      seq#insert_debug new_env (Mach.Iop naming_op)
+                        Debuginfo.none [||] [||])
                   ids_and_rs)
           in
           nfail, trap_stack, seq, is_cold
         in
         let rec build_all_reachable_handlers ~already_built ~not_built =
           let not_built, to_build =
-            Int.Map.partition (fun _n (r, _) -> !r = Unreachable) not_built
+            Int.Map.partition
+              (fun _n (r, _) -> !r = Select_utils.Unreachable)
+              not_built
           in
           if Int.Map.is_empty to_build
           then already_built
@@ -1232,10 +1264,10 @@ class virtual selector_generic =
         in
         (* The final trap stack doesn't matter, as it's not reachable. *)
         self#insert env
-          (Icatch (rec_flag, env.trap_stack, new_handlers, s_body))
+          (Mach.Icatch (rec_flag, env.trap_stack, new_handlers, s_body))
           [||] [||]
       | Ctrywith (e1, exn_cont, v, e2, dbg, _value_kind) -> (
-        let env_body = env_enter_trywith env exn_cont in
+        let env_body = Select_utils.env_enter_trywith env exn_cont in
         let s1 = self#emit_tail_sequence env_body e1 in
         let rv = self#regs_for typ_val in
         let with_handler env_handler e2 =
@@ -1246,7 +1278,7 @@ class virtual selector_generic =
                 then
                   let var = VP.var v in
                   let naming_op =
-                    Iname_for_debugger
+                    Mach.Iname_for_debugger
                       { ident = var;
                         provenance;
                         which_parameter = None;
@@ -1254,22 +1286,22 @@ class virtual selector_generic =
                         regs = rv
                       }
                   in
-                  seq#insert_debug env_handler (Iop naming_op) Debuginfo.none
-                    [||] [||])
+                  seq#insert_debug env_handler (Mach.Iop naming_op)
+                    Debuginfo.none [||] [||])
           in
           self#insert env
-            (Itrywith
+            (Mach.Itrywith
                ( s1,
                  exn_cont,
-                 ( env_handler.trap_stack,
-                   instr_cons_debug (Iop Imove) [| Proc.loc_exn_bucket |] rv dbg
-                     s2 ) ))
+                 ( env_handler.Select_utils.trap_stack,
+                   Mach.instr_cons_debug (Iop Imove) [| Proc.loc_exn_bucket |]
+                     rv dbg s2 ) ))
             [||] [||]
         in
-        let env = env_add v rv env in
-        match env_find_static_exception exn_cont env_body with
+        let env = Select_utils.env_add v rv env in
+        match Select_utils.env_find_static_exception exn_cont env_body with
         | { traps_ref = { contents = Reachable ts }; _ } ->
-          with_handler (env_set_trap_stack env ts) e2
+          with_handler (Select_utils.env_set_trap_stack env ts) e2
         | { traps_ref = { contents = Unreachable }; _ } ->
           (* Note: The following [unreachable] expression has machtype [|Int|],
              but this might not be the correct machtype for this function's
@@ -1296,10 +1328,10 @@ class virtual selector_generic =
       | Cop _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _
       | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ | Cassign _
       | Ctuple _ | Cexit _ ->
-        self#emit_return env exp (pop_all_traps env)
+        self#emit_return env exp (Select_utils.pop_all_traps env)
 
     method private emit_tail_sequence ?at_start env exp =
-      let s = {<instr_seq = dummy_instr>} in
+      let s = {<instr_seq = Mach.dummy_instr>} in
       (match at_start with None -> () | Some f -> f s);
       s#emit_tail env exp;
       s#extract
@@ -1307,8 +1339,8 @@ class virtual selector_generic =
     (* Sequentialization of a function definition *)
 
     method emit_fundecl ~future_funcnames f =
-      current_function_name := f.Cmm.fun_name.sym_name;
-      current_function_is_check_enabled
+      Select_utils.current_function_name := f.Cmm.fun_name.sym_name;
+      Select_utils.current_function_is_check_enabled
         := Zero_alloc_checker.is_check_enabled f.Cmm.fun_codegen_options
              f.Cmm.fun_name.sym_name f.Cmm.fun_dbg;
       let num_regs_per_arg = Array.make (List.length f.Cmm.fun_args) 0 in
@@ -1316,7 +1348,7 @@ class virtual selector_generic =
         List.mapi
           (fun arg_index (var, ty) ->
             let r = self#regs_for ty in
-            name_regs var r;
+            Select_utils.name_regs var r;
             num_regs_per_arg.(arg_index) <- Array.length r;
             r)
           f.Cmm.fun_args
@@ -1325,12 +1357,12 @@ class virtual selector_generic =
       let loc_arg = Proc.loc_parameters (Reg.typv rarg) in
       let env =
         List.fold_right2
-          (fun (id, _ty) r env -> env_add id r env)
-          f.Cmm.fun_args rargs env_empty
+          (fun (id, _ty) r env -> Select_utils.env_add id r env)
+          f.Cmm.fun_args rargs Select_utils.env_empty
       in
       self#emit_tail env f.Cmm.fun_body;
       let body = self#extract in
-      instr_seq <- dummy_instr;
+      instr_seq <- Mach.dummy_instr;
       let loc_arg_index = ref 0 in
       List.iteri
         (fun param_index (var, _ty) ->
@@ -1345,7 +1377,7 @@ class virtual selector_generic =
           if Option.is_some provenance
           then
             let naming_op =
-              Iname_for_debugger
+              Mach.Iname_for_debugger
                 { ident = var;
                   provenance;
                   which_parameter = Some param_index;
@@ -1353,7 +1385,7 @@ class virtual selector_generic =
                   regs = hard_regs_for_arg
                 }
             in
-            self#insert_debug env (Iop naming_op) Debuginfo.none
+            self#insert_debug env (Mach.Iop naming_op) Debuginfo.none
               hard_regs_for_arg [||])
         f.Cmm.fun_args;
       self#insert_moves env loc_arg rarg;
@@ -1361,16 +1393,16 @@ class virtual selector_generic =
         if Polling.requires_prologue_poll ~future_funcnames
              ~fun_name:f.Cmm.fun_name.sym_name body
         then
-          instr_cons_debug
+          Mach.instr_cons_debug
             (Iop (Ipoll { return_label = None }))
             [||] [||] f.Cmm.fun_dbg body
         else body
       in
       let body_with_prologue = self#extract_onto polled_body in
-      instr_iter
+      Mach.instr_iter
         (fun instr -> self#mark_instr instr.Mach.desc)
         body_with_prologue;
-      { fun_name = f.Cmm.fun_name.sym_name;
+      { Mach.fun_name = f.Cmm.fun_name.sym_name;
         fun_args = loc_arg;
         fun_body = body_with_prologue;
         fun_codegen_options = f.Cmm.fun_codegen_options;

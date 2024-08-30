@@ -16,16 +16,16 @@
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 
+[@@@ocaml.warning "+a-4-9-40-41-42"]
+
 open Cmm
-open Reg
-open Mach
 module Int = Numbers.Int
 module V = Backend_var
 module VP = Backend_var.With_provenance
 
 type trap_stack_info =
   | Unreachable
-  | Reachable of trap_stack
+  | Reachable of Mach.trap_stack
 
 type static_handler =
   { regs : Reg.t array list;
@@ -39,7 +39,7 @@ type environment =
     static_exceptions : static_handler Int.Map.t;
         (** Which registers must be populated when jumping to the given
         handler. *)
-    trap_stack : trap_stack
+    trap_stack : Mach.trap_stack
   }
 
 let env_add ?(mut = Asttypes.Immutable) var regs env =
@@ -76,16 +76,17 @@ let env_set_trap_stack env trap_stack = { env with trap_stack }
 
 let rec combine_traps trap_stack = function
   | [] -> trap_stack
-  | Push t :: l -> combine_traps (Specific_trap (t, trap_stack)) l
+  | Push t :: l -> combine_traps (Mach.Specific_trap (t, trap_stack)) l
   | Pop _ :: l -> (
-    match trap_stack with
+    match (trap_stack : Mach.trap_stack) with
     | Uncaught -> Misc.fatal_error "Trying to pop a trap from an empty stack"
     | Specific_trap (_, ts) -> combine_traps ts l)
 
 let print_traps ppf traps =
   let rec print_traps ppf = function
-    | Uncaught -> Format.fprintf ppf "T"
-    | Specific_trap (lbl, ts) -> Format.fprintf ppf "%d::%a" lbl print_traps ts
+    | Mach.Uncaught -> Format.fprintf ppf "T"
+    | Mach.Specific_trap (lbl, ts) ->
+      Format.fprintf ppf "%d::%a" lbl print_traps ts
   in
   Format.fprintf ppf "(%a)" print_traps traps
 
@@ -119,8 +120,8 @@ let trap_stack_is_empty env =
 
 let pop_all_traps env =
   let rec pop_all acc = function
-    | Uncaught -> acc
-    | Specific_trap (lbl, t) -> pop_all (Pop lbl :: acc) t
+    | Mach.Uncaught -> acc
+    | Mach.Specific_trap (lbl, t) -> pop_all (Pop lbl :: acc) t
   in
   pop_all [] env.trap_stack
 
@@ -233,7 +234,7 @@ let size_expr (env : environment) exp =
       with Not_found -> (
         try
           let regs = env_find id env in
-          size_machtype (Array.map (fun r -> r.typ) regs)
+          size_machtype (Array.map (fun r -> r.Reg.typ) regs)
         with Not_found ->
           Misc.fatal_error
             ("Selection.size_expr: unbound var " ^ V.unique_name id)))
@@ -249,8 +250,8 @@ let size_expr (env : environment) exp =
 (* Swap the two arguments of an integer comparison *)
 
 let swap_intcomp = function
-  | Isigned cmp -> Isigned (swap_integer_comparison cmp)
-  | Iunsigned cmp -> Iunsigned (swap_integer_comparison cmp)
+  | Mach.Isigned cmp -> Mach.Isigned (swap_integer_comparison cmp)
+  | Mach.Iunsigned cmp -> Mach.Iunsigned (swap_integer_comparison cmp)
 
 (* Naming of registers *)
 
@@ -265,11 +266,11 @@ let all_regs_anonymous rv =
 let name_regs id rv =
   let id = VP.var id in
   if Array.length rv = 1
-  then rv.(0).raw_name <- Raw_name.create_from_var id
+  then rv.(0).Reg.raw_name <- Reg.Raw_name.create_from_var id
   else
     for i = 0 to Array.length rv - 1 do
-      rv.(i).raw_name <- Raw_name.create_from_var id;
-      rv.(i).part <- Some i
+      rv.(i).Reg.raw_name <- Reg.Raw_name.create_from_var id;
+      rv.(i).Reg.part <- Some i
     done
 
 let maybe_emit_naming_op env ~bound_name seq regs =
@@ -281,7 +282,7 @@ let maybe_emit_naming_op env ~bound_name seq regs =
     then
       let bound_name = VP.var bound_name in
       let naming_op =
-        Iname_for_debugger
+        Mach.Iname_for_debugger
           { ident = bound_name;
             provenance;
             which_parameter = None;
@@ -289,7 +290,7 @@ let maybe_emit_naming_op env ~bound_name seq regs =
             regs
           }
       in
-      seq#insert_debug env (Iop naming_op) Debuginfo.none [||] [||]
+      seq#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||] [||]
 
 (* "Join" two instruction sequences, making sure they return their results in
    the same registers. *)
@@ -304,18 +305,19 @@ let join env opt_r1 seq1 opt_r2 seq2 ~bound_name =
     assert (l1 = Array.length r2);
     let r = Array.make l1 Reg.dummy in
     for i = 0 to l1 - 1 do
-      if Reg.anonymous r1.(i) && Cmm.ge_component r1.(i).typ r2.(i).typ
+      if Reg.anonymous r1.(i) && Cmm.ge_component r1.(i).Reg.typ r2.(i).Reg.typ
       then (
         r.(i) <- r1.(i);
         seq2#insert_move env r2.(i) r1.(i);
         maybe_emit_naming_op seq2 [| r1.(i) |])
-      else if Reg.anonymous r2.(i) && Cmm.ge_component r2.(i).typ r1.(i).typ
+      else if Reg.anonymous r2.(i)
+              && Cmm.ge_component r2.(i).Reg.typ r1.(i).Reg.typ
       then (
         r.(i) <- r2.(i);
         seq1#insert_move env r1.(i) r2.(i);
         maybe_emit_naming_op seq1 [| r2.(i) |])
       else
-        let typ = Cmm.lub_component r1.(i).typ r2.(i).typ in
+        let typ = Cmm.lub_component r1.(i).Reg.typ r2.(i).Reg.typ in
         r.(i) <- Reg.create typ;
         seq1#insert_move env r1.(i) r.(i);
         maybe_emit_naming_op seq1 [| r.(i) |];
@@ -335,10 +337,10 @@ let join_array env rs ~bound_name =
     | None -> ()
     | Some r -> (
       match !some_res with
-      | None -> some_res := Some (r, Array.map (fun r -> r.typ) r)
+      | None -> some_res := Some (r, Array.map (fun r -> r.Reg.typ) r)
       | Some (r', types) ->
         let types =
-          Array.map2 (fun r typ -> Cmm.lub_component r.typ typ) r types
+          Array.map2 (fun r typ -> Cmm.lub_component r.Reg.typ typ) r types
         in
         some_res := Some (r', types))
   done;

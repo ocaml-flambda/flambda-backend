@@ -16,6 +16,8 @@
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 
+[@@@ocaml.warning "+a-4-9-40-41-42"]
+
 type trap_stack_info =
   | Unreachable
   | Reachable of Mach.trap_stack
