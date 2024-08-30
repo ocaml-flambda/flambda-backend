@@ -22,16 +22,17 @@ type trap_stack_info =
   | Unreachable
   | Reachable of Mach.trap_stack
 
-type static_handler =
+type 'a static_handler =
   { regs : Reg.t array list;
-    traps_ref : trap_stack_info ref
+    traps_ref : trap_stack_info ref;
+    extra : 'a
   }
 
-type environment =
+type 'a environment =
   { vars :
       (Reg.t array * Backend_var.Provenance.t option * Asttypes.mutable_flag)
       Backend_var.Map.t;
-    static_exceptions : static_handler Numbers.Int.Map.t;
+    static_exceptions : 'a static_handler Numbers.Int.Map.t;
         (** Which registers must be populated when jumping to the given
           handler. *)
     trap_stack : Mach.trap_stack
@@ -41,26 +42,30 @@ val env_add :
   ?mut:Asttypes.mutable_flag ->
   Backend_var.With_provenance.t ->
   Reg.t array ->
-  environment ->
-  environment
+  'a environment ->
+  'a environment
 
 val env_add_static_exception :
   Lambda.static_label ->
   Reg.t array list ->
-  environment ->
-  environment * trap_stack_info ref
+  'a environment ->
+  'a ->
+  'a environment * trap_stack_info ref
 
-val env_find : Backend_var.t -> environment -> Reg.t array
+val env_find : Backend_var.t -> 'a environment -> Reg.t array
 
 val env_find_mut :
-  Backend_var.t -> environment -> Reg.t array * Backend_var.Provenance.t option
+  Backend_var.t ->
+  'a environment ->
+  Reg.t array * Backend_var.Provenance.t option
 
 val env_find_static_exception :
-  Lambda.static_label -> environment -> static_handler
+  Lambda.static_label -> 'a environment -> 'a static_handler
 
-val env_enter_trywith : environment -> Cmm.trywith_shared_label -> environment
+val env_enter_trywith :
+  'a environment -> Cmm.trywith_shared_label -> 'a -> 'a environment
 
-val env_set_trap_stack : environment -> Mach.trap_stack -> environment
+val env_set_trap_stack : 'a environment -> Mach.trap_stack -> 'a environment
 
 val set_traps :
   Lambda.static_label ->
@@ -69,17 +74,17 @@ val set_traps :
   Cmm.trap_action list ->
   unit
 
-val set_traps_for_raise : environment -> unit
+val set_traps_for_raise : 'a environment -> unit
 
-val trap_stack_is_empty : environment -> bool
+val trap_stack_is_empty : 'a environment -> bool
 
-val pop_all_traps : environment -> Cmm.trap_action list
+val pop_all_traps : 'a environment -> Cmm.trap_action list
 
-val env_empty : environment
+val env_empty : 'a environment
 
 val size_component : Cmm.machtype_component -> int
 
-val size_expr : environment -> Cmm.expression -> int
+val size_expr : 'a environment -> Cmm.expression -> int
 
 val select_mutable_flag : Asttypes.mutable_flag -> Mach.mutable_flag
 
