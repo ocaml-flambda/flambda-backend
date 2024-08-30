@@ -2137,6 +2137,8 @@ module Const = struct
         Alloc.Const.t) : Value.Const.t =
     let areality = C.locality_as_regionality areality in
     { areality; linearity; portability; uniqueness; contention }
+
+  let locality_as_regionality = C.locality_as_regionality
 end
 
 let alloc_as_value m =

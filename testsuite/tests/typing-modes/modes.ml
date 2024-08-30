@@ -53,7 +53,7 @@ let foo @ foo = "hello"
 Line 1, characters 10-13:
 1 | let foo @ foo = "hello"
               ^^^
-Error: Unrecognized mode name foo.
+Error: Unrecognized mode foo.
 |}]
 
 let foo () =
@@ -184,7 +184,7 @@ type r = local_ string @ foo -> string
 Line 1, characters 25-28:
 1 | type r = local_ string @ foo -> string
                              ^^^
-Error: Unrecognized mode name foo.
+Error: Unrecognized mode foo.
 |}]
 
 type r = local_ string @ local -> string
@@ -355,7 +355,7 @@ let foo () =
 Line 2, characters 25-28:
 2 |   let bar @ unique local foo = () in
                              ^^^
-Error: Unrecognized mode name foo.
+Error: Unrecognized mode foo.
 |}]
 
 let foo () =
