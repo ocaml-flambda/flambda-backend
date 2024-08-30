@@ -18,7 +18,6 @@
 open Arch
 open Proc
 open Cmm
-open Mach
 
 (* Auxiliary for recognizing addressing modes *)
 
@@ -89,7 +88,7 @@ let rdx = phys_reg Int 4
 let _xmm0v () = phys_reg Vec128 100
 
 let pseudoregs_for_operation op arg res =
-  match op with
+  match (op : Mach.operation) with
   (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
   | Iintop (Iadd | Isub | Imul | Iand | Ior | Ixor)
   | Ifloatop ((Float32 | Float64), (Iaddf | Isubf | Imulf | Idivf)) ->
@@ -279,10 +278,14 @@ class selector =
             arg ) ->
           Ispecific (Ilea addr), [arg])
       (* Recognize float arithmetic with memory. *)
-      | Caddf width -> self#select_floatarith true width Iaddf Ifloatadd args
-      | Csubf width -> self#select_floatarith false width Isubf Ifloatsub args
-      | Cmulf width -> self#select_floatarith true width Imulf Ifloatmul args
-      | Cdivf width -> self#select_floatarith false width Idivf Ifloatdiv args
+      | Caddf width ->
+        self#select_floatarith true width Mach.Iaddf Arch.Ifloatadd args
+      | Csubf width ->
+        self#select_floatarith false width Mach.Isubf Arch.Ifloatsub args
+      | Cmulf width ->
+        self#select_floatarith true width Mach.Imulf Arch.Ifloatmul args
+      | Cdivf width ->
+        self#select_floatarith false width Mach.Idivf Arch.Ifloatdiv args
       | Cpackf32 ->
         (* We must operate on registers. This is because if the second argument
            was a float stack slot, the resulting UNPCKLPS instruction would
@@ -377,7 +380,7 @@ class selector =
                 [loc2],
                 _ ) ] ) ->
         let addr, arg2 = self#select_addressing chunk loc2 in
-        Ispecific (Ifloatarithmem (width, mem_op, addr)), [arg1; arg2]
+        Mach.Ispecific (Ifloatarithmem (width, mem_op, addr)), [arg1; arg2]
       | ( Float64,
           [Cop (Cload { memory_chunk = Double as chunk; _ }, [loc1], _); arg2] )
       | ( Float32,
@@ -388,8 +391,8 @@ class selector =
             arg2 ] )
         when commutative ->
         let addr, arg1 = self#select_addressing chunk loc1 in
-        Ispecific (Ifloatarithmem (width, mem_op, addr)), [arg2; arg1]
-      | _, [arg1; arg2] -> Ifloatop (width, regular_op), [arg1; arg2]
+        Mach.Ispecific (Ifloatarithmem (width, mem_op, addr)), [arg2; arg1]
+      | _, [arg1; arg2] -> Mach.Ifloatop (width, regular_op), [arg1; arg2]
       | _ -> assert false
 
     method! mark_c_tailcall = contains_calls := true

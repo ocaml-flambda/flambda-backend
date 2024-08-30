@@ -19,7 +19,6 @@
 
 open Arch
 open Cmm
-open Mach
 
 let is_offset chunk n =
   (n >= -256 && n <= 255) (* 9 bits signed unscaled *)

@@ -16,6 +16,8 @@
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 
+[@@@ocaml.warning "+a-4-9-40-41-42"]
+
 class virtual selector_generic :
   object
     (* The following methods must or can be overridden by the processor
