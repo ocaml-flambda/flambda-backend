@@ -461,11 +461,6 @@ let as_single_mode {mode; tuple_modes; _} =
   | Some l -> Value.meet (mode :: l)
   | None -> mode
 
-let get_single_mode_exn {mode; tuple_modes; _} =
-  match tuple_modes with
-  | Some _ -> Misc.fatal_error "tuple_modes should be None"
-  | None -> mode
-
 let mode_morph f expected_mode =
   let mode = as_single_mode expected_mode in
   let mode = f mode |> Mode.Value.disallow_left in
@@ -473,7 +468,7 @@ let mode_morph f expected_mode =
   {expected_mode with mode; tuple_modes}
 
 let mode_modality modality expected_mode =
-  get_single_mode_exn expected_mode
+  as_single_mode expected_mode
   |> Modality.Value.Const.apply modality
   |> mode_default
 
@@ -631,7 +626,7 @@ let register_allocation_value_mode mode =
     of potential subcomponents. *)
 let register_allocation (expected_mode : expected_mode) =
   let alloc_mode, mode =
-    register_allocation_value_mode (get_single_mode_exn expected_mode)
+    register_allocation_value_mode (as_single_mode expected_mode)
   in
   let alloc_mode =
     { mode = alloc_mode;
@@ -4753,7 +4748,7 @@ let split_function_ty
          to be made global if its inner function is global. As a result, a
          function deserves a separate allocation mode.
       *)
-      let mode, _ = Value.newvar_below (get_single_mode_exn expected_mode) in
+      let mode, _ = Value.newvar_below (as_single_mode expected_mode) in
       fst (register_allocation_value_mode mode)
   in
   if expected_mode.strictly_local then
@@ -5074,7 +5069,7 @@ and type_expect_
             in
             Texp_ident(path, lid, desc, kind,
               unique_use ~loc ~env actual_mode.mode
-                (get_single_mode_exn expected_mode))
+                (as_single_mode expected_mode))
         | _ ->
             Texp_ident(path, lid, desc, kind,
               unique_use ~loc ~env actual_mode.mode
@@ -5595,7 +5590,7 @@ and type_expect_
                   submode ~loc ~env mode argument_mode;
                   Kept (ty_arg1, lbl.lbl_mut,
                         unique_use ~loc ~env mode
-                          (get_single_mode_exn argument_mode))
+                          (as_single_mode argument_mode))
                 end
             in
             let label_definitions = Array.map unify_kept lbl.lbl_all in
@@ -5658,7 +5653,7 @@ and type_expect_
           let mode = mode_cross_left env Predef.type_unboxed_float mode in
           submode ~loc ~env mode argument_mode;
           let uu =
-            unique_use ~loc ~env mode (get_single_mode_exn argument_mode)
+            unique_use ~loc ~env mode (as_single_mode argument_mode)
           in
           Boxing (alloc_mode, uu)
         | false ->
