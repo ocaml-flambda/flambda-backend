@@ -68,12 +68,16 @@ class virtual selector_generic :
        stored as pairs of integer registers. *)
 
     method insert_op :
-      environment -> Mach.operation -> Reg.t array -> Reg.t array -> Reg.t array
+      Select_utils.environment ->
+      Mach.operation ->
+      Reg.t array ->
+      Reg.t array ->
+      Reg.t array
     (* Can be overridden to deal with 2-address instructions or instructions
        with hardwired input/output registers *)
 
     method insert_op_debug :
-      environment ->
+      Select_utils.environment ->
       Mach.operation ->
       Debuginfo.t ->
       Reg.t array ->
@@ -83,20 +87,28 @@ class virtual selector_generic :
        with hardwired input/output registers *)
 
     method insert_move_extcall_arg :
-      environment -> Cmm.exttype -> Reg.t array -> Reg.t array -> unit
+      Select_utils.environment ->
+      Cmm.exttype ->
+      Reg.t array ->
+      Reg.t array ->
+      unit
     (* Can be overridden to deal with unusual unboxed calling conventions, e.g.
        on a 64-bit platform, passing unboxed 32-bit arguments in 32-bit stack
        slots. *)
 
     method emit_extcall_args :
-      environment ->
+      Select_utils.environment ->
       Cmm.exttype list ->
       Cmm.expression list ->
       Reg.t array * int
     (* Can be overridden to deal with stack-based calling conventions *)
 
     method emit_stores :
-      environment -> Debuginfo.t -> Cmm.expression list -> Reg.t array -> unit
+      Select_utils.environment ->
+      Debuginfo.t ->
+      Cmm.expression list ->
+      Reg.t array ->
+      unit
     (* Fill a freshly allocated block. Can be overridden for architectures that
        do not provide Arch.offset_addressing. *)
 
@@ -136,39 +148,44 @@ class virtual selector_generic :
     method extract : Mach.instruction
 
     method insert :
-      environment -> Mach.instruction_desc -> Reg.t array -> Reg.t array -> unit
+      Select_utils.environment ->
+      Mach.instruction_desc ->
+      Reg.t array ->
+      Reg.t array ->
+      unit
 
     method insert_debug :
-      environment ->
+      Select_utils.environment ->
       Mach.instruction_desc ->
       Debuginfo.t ->
       Reg.t array ->
       Reg.t array ->
       unit
 
-    method insert_move : environment -> Reg.t -> Reg.t -> unit
+    method insert_move : Select_utils.environment -> Reg.t -> Reg.t -> unit
 
     method insert_move_args :
-      environment -> Reg.t array -> Reg.t array -> int -> unit
+      Select_utils.environment -> Reg.t array -> Reg.t array -> int -> unit
 
     method insert_move_results :
-      environment -> Reg.t array -> Reg.t array -> int -> unit
+      Select_utils.environment -> Reg.t array -> Reg.t array -> int -> unit
 
-    method insert_moves : environment -> Reg.t array -> Reg.t array -> unit
+    method insert_moves :
+      Select_utils.environment -> Reg.t array -> Reg.t array -> unit
 
     method emit_expr :
-      environment ->
+      Select_utils.environment ->
       Cmm.expression ->
       bound_name:Backend_var.With_provenance.t option ->
       Reg.t array option
 
     method emit_expr_aux :
-      environment ->
+      Select_utils.environment ->
       Cmm.expression ->
       bound_name:Backend_var.With_provenance.t option ->
       Reg.t array option
 
-    method emit_tail : environment -> Cmm.expression -> unit
+    method emit_tail : Select_utils.environment -> Cmm.expression -> unit
 
     (* [contains_calls] is declared as a reference instance variable, instead of
        a mutable boolean instance variable, because the traversal uses
