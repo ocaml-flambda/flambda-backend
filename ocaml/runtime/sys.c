@@ -139,12 +139,8 @@ CAMLexport void caml_do_exit(int retcode)
   if ((atomic_load_relaxed(&caml_verb_gc) & 0x400) != 0) {
     caml_compute_gc_stats(&s);
     {
-      /* cf caml_gc_counters */
-      double minwords = s.alloc_stats.minor_words
-        + (double) (domain_state->young_end - domain_state->young_ptr);
-      double majwords = s.alloc_stats.major_words
-        + (double) domain_state->allocated_words;
-      double allocated_words = minwords + majwords
+      double allocated_words = s.alloc_stats.minor_words
+        + s.alloc_stats.major_words
         - s.alloc_stats.promoted_words;
       intnat heap_words =
         s.heap_stats.pool_words + s.heap_stats.large_words;
@@ -162,11 +158,11 @@ CAMLexport void caml_do_exit(int retcode)
       caml_gc_message(0x400, "allocated_words: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
                     (intnat)allocated_words);
       caml_gc_message(0x400, "minor_words: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
-                    (intnat) minwords);
+                    (intnat) s.alloc_stats.minor_words);
       caml_gc_message(0x400, "promoted_words: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
                       (intnat) s.alloc_stats.promoted_words);
       caml_gc_message(0x400, "major_words: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
-                      (intnat) majwords);
+                      (intnat) s.alloc_stats.major_words);
       caml_gc_message(0x400,
           "minor_collections: %"ARCH_INTNAT_PRINTF_FORMAT"d\n",
           (intnat) atomic_load(&caml_minor_collections_count));
