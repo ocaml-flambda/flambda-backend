@@ -1980,6 +1980,14 @@ let call_force_lazy_block ?(inlined = Default_inlined) varg loc ~pos =
       ap_probe = None;
     }
 
+let pintcomp comp = Pintcomp { comp; signed = true }
+
+let[@inline always] pbintcomp (size, comp) =
+  Pbintcomp { size; signed = true; comp }
+
+let[@inline always] punboxed_int_comp (size, comp) =
+  Punboxed_int_comp { size; signed = true; comp }
+
 let lazy_forward_field = Lambda.Pfield (0, Pointer, Reads_vary)
 
 let inline_lazy_force_cond arg pos loc =
@@ -1987,7 +1995,7 @@ let inline_lazy_force_cond arg pos loc =
   let varg = Lvar idarg in
   let tag = Ident.create_local "tag" in
   let test_tag t =
-    Lprim(Pintcomp Ceq, [Lvar tag; Lconst(Const_base(Const_int t))], loc)
+    Lprim(pintcomp Ceq, [Lvar tag; Lconst(Const_base(Const_int t))], loc)
   in
   Llet
     ( Strict,
@@ -2339,10 +2347,10 @@ let zero_lam = Lconst (Const_base (Const_int 0))
 
 let tree_way_test loc kind arg lt eq gt =
   Lifthenelse
-    ( Lprim (Pintcomp Clt, [ arg; zero_lam ], loc),
+    ( Lprim (pintcomp Clt, [ arg; zero_lam ], loc),
       lt,
       Lifthenelse (
-        Lprim (Pintcomp Clt, [ zero_lam; arg ], loc),
+        Lprim (pintcomp Clt, [ zero_lam; arg ], loc),
         gt,
         eq,
         kind),
@@ -2479,17 +2487,17 @@ let make_test_sequence value_kind loc fail tst lt_tst arg const_lambda_list =
 module SArg = struct
   type primitive = Lambda.primitive
 
-  let eqint = Pintcomp Ceq
+  let eqint = pintcomp Ceq
 
-  let neint = Pintcomp Cne
+  let neint = pintcomp Cne
 
-  let leint = Pintcomp Cle
+  let leint = pintcomp Cle
 
-  let ltint = Pintcomp Clt
+  let ltint = pintcomp Clt
 
-  let geint = Pintcomp Cge
+  let geint = pintcomp Cge
 
-  let gtint = Pintcomp Cgt
+  let gtint = pintcomp Cgt
 
   type loc = Lambda.scoped_location
   type arg = Lambda.lambda
@@ -2524,7 +2532,7 @@ module SArg = struct
 
   let make_is_nonzero arg =
     if !Clflags.native_code then
-      Lprim (Pintcomp Cne,
+      Lprim (pintcomp Cne,
              [arg; Lconst (Const_base (Const_int 0))],
              Loc_unknown)
     else
@@ -2917,33 +2925,33 @@ let combine_constant value_kind loc arg cst partial ctx def
           arg const_lambda_list
     | Const_int32 _ ->
         make_test_sequence value_kind loc fail
-          (Pbintcomp (Pint32, Cne))
-          (Pbintcomp (Pint32, Clt))
+          (pbintcomp (Pint32, Cne))
+          (pbintcomp (Pint32, Clt))
           arg const_lambda_list
     | Const_int64 _ ->
         make_test_sequence value_kind loc fail
-          (Pbintcomp (Pint64, Cne))
-          (Pbintcomp (Pint64, Clt))
+          (pbintcomp (Pint64, Cne))
+          (pbintcomp (Pint64, Clt))
           arg const_lambda_list
     | Const_nativeint _ ->
         make_test_sequence value_kind loc fail
-          (Pbintcomp (Pnativeint, Cne))
-          (Pbintcomp (Pnativeint, Clt))
+          (pbintcomp (Pnativeint, Cne))
+          (pbintcomp (Pnativeint, Clt))
           arg const_lambda_list
     | Const_unboxed_int32 _ ->
         make_test_sequence value_kind loc fail
-          (Punboxed_int_comp (Pint32, Cne))
-          (Punboxed_int_comp (Pint32, Clt))
+          (punboxed_int_comp (Pint32, Cne))
+          (punboxed_int_comp (Pint32, Clt))
           arg const_lambda_list
     | Const_unboxed_int64 _ ->
         make_test_sequence value_kind loc fail
-          (Punboxed_int_comp (Pint64, Cne))
-          (Punboxed_int_comp (Pint64, Clt))
+          (punboxed_int_comp (Pint64, Cne))
+          (punboxed_int_comp (Pint64, Clt))
           arg const_lambda_list
     | Const_unboxed_nativeint _ ->
         make_test_sequence value_kind loc fail
-          (Punboxed_int_comp (Pnativeint, Cne))
-          (Punboxed_int_comp (Pnativeint, Clt))
+          (punboxed_int_comp (Pnativeint, Cne))
+          (punboxed_int_comp (Pnativeint, Clt))
           arg const_lambda_list
   in
   (lambda1, Jumps.union local_jumps total)
@@ -3027,7 +3035,7 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
                   (fun (path, act) rem ->
                     let ext = transl_extension_path loc pat_env path in
                     Lifthenelse
-                      (Lprim (Pintcomp Ceq, [ Lvar tag; ext ], loc), act, rem, value_kind))
+                      (Lprim (pintcomp Ceq, [ Lvar tag; ext ], loc), act, rem, value_kind))
                   nonconsts default
               in
               Llet (Alias, Lambda.layout_block, tag,
@@ -3037,7 +3045,7 @@ let combine_constructor value_kind loc arg pat_env cstr partial ctx def
         List.fold_right
           (fun (path, act) rem ->
             let ext = transl_extension_path loc pat_env path in
-            Lifthenelse (Lprim (Pintcomp Ceq, [ arg; ext ], loc), act, rem,
+            Lifthenelse (Lprim (pintcomp Ceq, [ arg; ext ], loc), act, rem,
                          value_kind))
           consts nonconst_lambda
       in

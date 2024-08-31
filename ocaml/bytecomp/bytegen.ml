@@ -132,7 +132,7 @@ let preserve_tailcall_for_prim = function
   | Paddfloat (_, _) | Psubfloat (_, _) | Pmulfloat (_, _)
   | Pdivfloat (_, _) | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu  | Pstringrefs
-  | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
+  | Pcompare_ints _ | Pcompare_floats _ | Pcompare_bints _
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
   | Parrayrefs _ | Parraysets _ | Pisint _ | Pisout | Pbintofint _ | Pintofbint _
@@ -375,11 +375,25 @@ let comp_primitive stack_info p sz args =
   | Psetglobal cu ->
       Ksetglobal (cu |> Compilation_unit.to_global_ident_for_bytecode)
   | Pgetpredef id -> Kgetglobal id
-  | Pintcomp cmp -> Kintcomp cmp
-  | Pcompare_ints -> Kccall("caml_int_compare", 2)
+  | Pintcomp { comp = cmp; signed = true } -> Kintcomp cmp
+  | Pintcomp { comp = (Ceq|Cne); signed = false } ->
+    Misc.fatal_error "Pintcomp: unsigned equal and not_equal are not supported."
+  | Pintcomp { comp = Clt; signed = false } ->
+    Kccall("caml_int_lessthan_unsigned", 2)
+  | Pintcomp { comp = Cgt; signed = false } ->
+    Kccall("caml_int_greaterthan_unsigned", 2)
+  | Pintcomp { comp = Cle; signed = false } ->
+    Kccall("caml_int_lessequal_unsigned", 2)
+  | Pintcomp { comp = Cge; signed = false } ->
+    Kccall("caml_int_greaterequal_unsigned", 2)
+  | Pcompare_ints { signed = true } -> Kccall("caml_int_compare", 2)
+  | Pcompare_ints { signed = false } -> Kccall("caml_int_compare_unsigned", 2)
   | Pcompare_floats Pfloat64 -> Kccall("caml_float_compare", 2)
   | Pcompare_floats Pfloat32 -> Kccall("caml_float32_compare", 2)
-  | Pcompare_bints bi -> comp_bint_primitive bi "compare" args
+  | Pcompare_bints { size = bi; signed = true } ->
+    comp_bint_primitive bi "compare" args
+  | Pcompare_bints { size = bi; signed = false } ->
+    comp_bint_primitive bi "compare_unsigned" args
   | Pfield (n, _ptr, _sem) -> Kgetfield n
   | Pfield_computed _sem -> Kgetvectitem
   | Psetfield(n, _ptr, _init) -> Ksetfield n
@@ -552,12 +566,40 @@ let comp_primitive stack_info p sz args =
   | Plslbint(bi,_) -> comp_bint_primitive bi "shift_left" args
   | Plsrbint(bi,_) -> comp_bint_primitive bi "shift_right_unsigned" args
   | Pasrbint(bi,_) -> comp_bint_primitive bi "shift_right" args
-  | Pbintcomp(_, Ceq) | Punboxed_int_comp(_, Ceq) -> Kccall("caml_equal", 2)
-  | Pbintcomp(_, Cne) | Punboxed_int_comp(_, Cne) -> Kccall("caml_notequal", 2)
-  | Pbintcomp(_, Clt) | Punboxed_int_comp(_, Clt) -> Kccall("caml_lessthan", 2)
-  | Pbintcomp(_, Cgt) | Punboxed_int_comp(_, Cgt) -> Kccall("caml_greaterthan", 2)
-  | Pbintcomp(_, Cle) | Punboxed_int_comp(_, Cle) -> Kccall("caml_lessequal", 2)
-  | Pbintcomp(_, Cge) | Punboxed_int_comp(_, Cge) -> Kccall("caml_greaterequal", 2)
+  | Pbintcomp { size =_; signed = _; comp = Ceq }
+  | Punboxed_int_comp { size =_; signed = _; comp = Ceq} ->
+    Kccall("caml_equal", 2)
+  | Pbintcomp { size = _; signed = _; comp = Cne }
+  | Punboxed_int_comp { size = _; signed = _; comp = Cne } ->
+    Kccall("caml_notequal", 2)
+  | Pbintcomp { size = _; signed = true; comp = Clt }
+  | Punboxed_int_comp { size = _; signed = true; comp = Clt } ->
+    Kccall("caml_lessthan", 2)
+  | Pbintcomp { size = _; signed = true; comp = Cgt }
+  | Punboxed_int_comp { size = _; signed = true; comp = Cgt } ->
+    Kccall("caml_greaterthan", 2)
+  | Pbintcomp { size = _; signed = true; comp = Cle }
+  | Punboxed_int_comp { size = _; signed = true; comp = Cle } ->
+    Kccall("caml_lessequal", 2)
+  | Pbintcomp { size = _; signed = true; comp = Cge }
+  | Punboxed_int_comp { size = _; signed = true; comp = Cge } ->
+    Kccall("caml_greaterequal", 2)
+  | Pbintcomp { size = bi; signed = false; comp = Clt } ->
+    comp_bint_primitive bi "lessthan_unsigned" args
+  | Punboxed_int_comp { size = bi; signed = false; comp = Clt } ->
+    comp_bint_primitive bi "lessthan_unsigned_unboxed" args
+  | Pbintcomp { size = bi; signed = false; comp = Cgt } ->
+    comp_bint_primitive bi "greaterthan_unsigned" args
+  | Punboxed_int_comp { size = bi; signed = false; comp = Cgt } ->
+    comp_bint_primitive bi "greaterthan_unsigned_unboxed" args
+  | Pbintcomp { size = bi; signed = false; comp = Cle } ->
+    comp_bint_primitive bi "lessequal_unsigned" args
+  | Punboxed_int_comp { size = bi; signed = false; comp = Cle } ->
+    comp_bint_primitive bi "lessequal_unsigned_unboxed" args
+  | Pbintcomp { size = bi; signed = false; comp = Cge } ->
+    comp_bint_primitive bi "greaterqual_unsigned" args
+  | Punboxed_int_comp { size = bi; signed = false; comp = Cge } ->
+    comp_bint_primitive bi "greaterequal_unsigned_unboxed" args
   | Pbigarrayref(_, n, Pbigarray_float32_t, _) -> Kccall("caml_ba_float32_get_" ^ Int.to_string n, n + 1)
   | Pbigarrayset(_, n, Pbigarray_float32_t, _) -> Kccall("caml_ba_float32_set_" ^ Int.to_string n, n + 2)
   | Pbigarrayref(_, n, _, _) -> Kccall("caml_ba_get_" ^ Int.to_string n, n + 1)
@@ -880,8 +922,8 @@ let rec comp_expr stack_info env exp sz cont =
   | Lprim (Pduparray _, _, _) ->
       Misc.fatal_error "Bytegen.comp_expr: Pduparray takes exactly one arg"
 (* Integer first for enabling further optimization (cf. emitcode.ml)  *)
-  | Lprim (Pintcomp c, [arg ; (Lconst _ as k)], _) ->
-      let p = Pintcomp (swap_integer_comparison c)
+  | Lprim (Pintcomp { comp=c; signed }, [arg ; (Lconst _ as k)], _) ->
+      let p = Pintcomp { comp = (swap_integer_comparison c); signed }
       and args = [k ; arg] in
       let nargs = List.length args - 1 in
       comp_args stack_info env args sz
