@@ -718,20 +718,20 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       let (path, decl) = Env.lookup_type ~loc:lid.loc lid.txt env in
       let stl =
         match stl with
-        | [ {ptyp_desc=Ptyp_any} as t ] when decl.type_arity > 1 ->
-            List.map (fun _ -> t) decl.type_params
+        | [ {ptyp_desc=Ptyp_any} as t ] when get_type_arity decl > 1 ->
+            List.map (fun _ -> t) (get_type_param_exprs decl)
         | _ -> stl
       in
-      if List.length stl <> decl.type_arity then
+      if List.length stl <> get_type_arity decl then
         raise(Error(styp.ptyp_loc, env,
-                    Type_arity_mismatch(lid.txt, decl.type_arity,
+                    Type_arity_mismatch(lid.txt, get_type_arity decl,
                                         List.length stl)));
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
       in
-      let params = instance_list decl.type_params in
+      let params = instance_list (get_type_param_exprs decl) in
       let unify_param =
-        match decl.type_manifest with
+        match get_type_manifest decl with
           None -> unify_var
         | Some ty ->
             if get_level ty = Btype.generic_level then unify_var else unify
@@ -783,15 +783,15 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             | (_ : _ * _) ->
                 raise (Error (styp.ptyp_loc, env, Did_you_mean_unboxed lid.txt))
       in
-      if List.length stl <> decl.type_arity then
+      if List.length stl <> get_type_arity decl then
         raise(Error(styp.ptyp_loc, env,
-                    Type_arity_mismatch(lid.txt, decl.type_arity,
+                    Type_arity_mismatch(lid.txt, get_type_arity decl,
                                         List.length stl)));
       let args =
         List.map (transl_type env ~policy ~row_context Alloc.Const.legacy) stl
       in
-      let body = Option.get decl.type_manifest in
-      let (params, body) = instance_parameterized_type decl.type_params body in
+      let body = get_type_manifest decl |> Option.get in
+      let (params, body) = instance_parameterized_type (get_type_param_exprs decl) body in
       List.iter2
         (fun (sty, cty) ty' ->
            try unify_var env ty' cty.ctyp_type with Unify err ->

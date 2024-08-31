@@ -48,25 +48,22 @@ type type_structure =
   | Unboxed of argument_to_unbox
 
 let structure : type_definition -> type_structure = fun def ->
-  match def.type_kind with
-  | Type_open -> Open
-  | Type_abstract _ ->
-      begin match def.type_manifest with
-      | None -> Abstract
-      | Some type_expr -> Synonym type_expr
-      end
-  | Type_record _ | Type_variant _ ->
+  match def.type_noun with
+  | Datatype { noun = Datatype_open _ } -> Open
+  | Equation { eq = Type_abstr _ } -> Abstract
+  | Equation { eq = Type_abbrev { expansion = type_expr }} -> Synonym type_expr
+  | Datatype { noun = Datatype_record _ | Datatype_variant _ } ->
       begin match find_unboxed_type def with
       | None -> Algebraic
       | Some ty ->
         let params =
-          match def.type_kind with
-          | Type_variant ([{cd_res = Some ret_type}], _) ->
+          match def.type_noun with
+          | Datatype { noun = Datatype_variant { cstrs = [{cd_res = Some ret_type}] } } ->
              begin match get_desc ret_type with
              | Tconstr (_, tyl, _) -> tyl
              | _ -> assert false
              end
-          | _ -> def.type_params
+          | _ -> get_type_param_exprs def
         in
         Unboxed { argument_type = ty; result_type_parameter_instances = params }
       end
@@ -444,19 +441,19 @@ let check_type
     | (Tunivar(_)         , _      ) -> empty
     (* Type constructor case. *)
     | (Tconstr(path,tys,_), m      ) ->
-        let msig = (Env.find_type path env).type_separability in
-        let on_param context (ty, m_param) =
+        let on_param context (ty, { separability = m_param }) =
           let hyps = match m_param with
             | Ind -> Hyps.guard hyps
             | Sep -> hyps
             | Deepsep -> Hyps.poison hyps in
           context ++ check_type hyps ty (compose m m_param) in
-        List.fold_left on_param empty (List.combine tys msig)
+        List.fold_left on_param empty
+          (Env.find_type path env |> zip_params_with_applied tys)
   in
   check_type Hyps.empty ty m
 
-let best_msig decl = List.map (fun _ -> Ind) decl.type_params
-let worst_msig decl = List.map (fun _ -> Deepsep) decl.type_params
+let best_msig decl = List.map (fun _ -> Ind) (get_type_param_exprs decl)
+let worst_msig decl = List.map (fun _ -> Deepsep) (get_type_param_exprs decl)
 
 (** [msig_of_external_type decl] infers the mode signature of an
     abstract/external type. We must assume the worst, namely that this
@@ -482,7 +479,7 @@ let msig_of_external_type env decl =
                         (Jkind.Builtin.value_or_null ~why:Separability_check))
   in
   let is_external =
-    match Jkind.get_externality_upper_bound decl.type_jkind with
+    match Jkind.get_externality_upper_bound (get_type_jkind decl) with
     | Internal -> false
     | External | External64 -> true
   in
@@ -623,7 +620,7 @@ let check_def
       msig_of_external_type env def
   | Synonym type_expr ->
       check_type env type_expr Sep
-      |> msig_of_context ~decl_loc:def.type_loc ~parameters:def.type_params
+      |> msig_of_context ~decl_loc:def.type_loc ~parameters:(get_type_param_exprs def)
   | Open | Algebraic ->
       best_msig def
   | Unboxed constructor ->
@@ -670,7 +667,10 @@ let property : (prop, unit) Typedecl_properties.property =
     new_prop in
   let default decl = best_msig decl in
   let compute env decl () = compute_decl env decl in
-  let update_decl decl type_separability = { decl with type_separability } in
+  let update_decl decl seps =
+    map_type_params decl
+      (List.map2 (fun separability param -> { param with separability }) seps)
+  in
   let check _env _id _decl () = () in (* FIXME run final check? *)
   { eq; merge; default; compute; update_decl; check; }
 

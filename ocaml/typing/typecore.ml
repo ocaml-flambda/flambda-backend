@@ -792,8 +792,10 @@ let extract_concrete_typedecl_protected env ty =
 
 let extract_concrete_record env ty =
   match extract_concrete_typedecl_protected env ty with
-  | Typedecl(p0, p, {type_kind=Type_record (fields, repres)}) ->
-    Record_type (p0, p, fields, repres)
+  | Typedecl(p0, p, {
+      type_noun = Datatype {
+        manifest = _; noun = Datatype_record { priv = _; lbls; rep } } }) ->
+    Record_type (p0, p, lbls, rep)
   | Has_no_typedecl | Typedecl(_, _, _) -> Not_a_record_type
   | May_have_typedecl -> Maybe_a_record_type
 
@@ -804,9 +806,13 @@ type variant_extraction_result =
 
 let extract_concrete_variant env ty =
   match extract_concrete_typedecl_protected env ty with
-  | Typedecl(p0, p, {type_kind=Type_variant (cstrs, _)}) ->
+  | Typedecl(p0, p, {
+      type_noun = Datatype {
+        manifest = _; noun = Datatype_variant { priv = _; cstrs; rep = _ } } }) ->
     Variant_type (p0, p, cstrs)
-  | Typedecl(p0, p, {type_kind=Type_open}) ->
+  | Typedecl(p0, p, {
+      type_noun = Datatype {
+        manifest = _; noun = Datatype_open { priv = _ } } }) ->
     Variant_type (p0, p, [])
   | Has_no_typedecl | Typedecl(_, _, _) -> Not_a_variant_type
   | May_have_typedecl -> Maybe_a_variant_type
@@ -979,7 +985,7 @@ let unify_pat ?refine ?sdesc_for_hint env pat expected_ty =
 let unify_head_only ~refine loc env ty constr =
   let path = cstr_type_path constr in
   let decl = Env.find_type path !env in
-  let ty' = Ctype.newconstr path (Ctype.instance_list decl.type_params) in
+  let ty' = Ctype.newconstr path (Ctype.instance_list (get_type_param_exprs decl)) in
   unify_pat_types ~refine loc env ty' ty
 
 (* Creating new conjunctive types is not allowed when typing patterns *)
@@ -1689,10 +1695,10 @@ let build_or_pat env loc lid =
   (* CR layouts: the use of value here is wrong:
      there could be other jkinds in a polymorphic variant argument;
      see Test 24 in tests/typing-layouts/basics_alpha.ml *)
-  let arity = List.length decl.type_params in
+  let arity = List.length (get_type_param_exprs decl) in
   let tyl = List.mapi (fun i _ ->
     newvar (Jkind.Builtin.value ~why:(Type_argument {parent_path = path; position = i+1; arity}))
-  ) decl.type_params in
+  ) (get_type_param_exprs decl) in
   let row0 =
     let ty = expand_head env (newty(Tconstr(path, tyl, ref Mnil))) in
     match get_desc ty with
@@ -1819,16 +1825,13 @@ let type_comprehension_for_range_iterator_index ~loc ~env ~param tps =
 (* Type paths *)
 
 let rec expand_path env p =
-  let decl =
-    try Some (Env.find_type p env) with Not_found -> None
-  in
-  match decl with
-    Some {type_manifest = Some ty} ->
+  match Env.find_type p env |> get_type_manifest with
+  | Some ty ->
       begin match get_desc ty with
         Tconstr(p,_,_) -> expand_path env p
       | _ -> assert false
       end
-  | _ ->
+  | None | exception Not_found ->
       let p' = Env.normalize_type_path None env p in
       if Path.same p p' then p else expand_path env p'
 
@@ -2244,8 +2247,8 @@ module Constructor = NameChoice (struct
     match Env.lookup_all_constructors_from_type ~loc usage path env with
     | _ :: _ as x -> x
     | [] ->
-        match (Env.find_type path env).type_kind with
-        | Type_open ->
+        match (Env.find_type path env).type_noun with
+        | Datatype { noun = Datatype_open _ } ->
             (* Extension constructors cannot be found by looking at the type
                declaration.
                We scan the whole environment to get an accurate spellchecking
@@ -4005,7 +4008,7 @@ let rec approx_type env sty =
       newty (Ttuple (List.map (fun t -> None, approx_type env t) args))
   | Ptyp_constr (lid, ctl) ->
       let path, decl = Env.lookup_type ~use:false ~loc:lid.loc lid.txt env in
-      if List.length ctl <> decl.type_arity
+      if List.length ctl <> get_type_arity decl
       then newvar (Jkind.Builtin.any ~why:Dummy_jkind)
       else begin
         let tyl = List.map (approx_type env) ctl in
@@ -5495,7 +5498,7 @@ and type_expect_
             let decl = Env.find_type p' env in
             let ty =
               with_local_level ~post:generalize_structure
-                (fun () -> newconstr p' (instance_list decl.type_params))
+                (fun () -> newconstr p' (instance_list (get_type_param_exprs decl)))
             in
             ty, opt_exp_opath
       in

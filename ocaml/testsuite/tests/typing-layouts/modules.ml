@@ -124,6 +124,7 @@ Error: Signature mismatch:
          type 'a t = 'a list
        is not included in
          type ('a : immediate) t = 'a list
+       Their parameters differ:
        The type ('a : value) is not equal to the type ('a0 : immediate)
        because their layouts are different.
 |}]

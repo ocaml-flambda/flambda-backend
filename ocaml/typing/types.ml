@@ -250,15 +250,8 @@ end
 (* Type definitions *)
 
 type type_declaration =
-  { type_params: type_expr list;
-    type_arity: int;
-    type_kind: type_decl_kind;
-    type_jkind: jkind;
+  { type_noun: type_noun;
     type_jkind_annotation: type_expr Jkind_types.annotation option;
-    type_private: private_flag;
-    type_manifest: type_expr option;
-    type_variance: Variance.t list;
-    type_separability: Separability.t list;
     type_is_newtype: bool;
     type_expansion_scope: int;
     type_loc: Location.t;
@@ -268,7 +261,27 @@ type type_declaration =
     type_has_illegal_crossings: bool;
  }
 
-and type_decl_kind = (label_declaration, constructor_declaration) type_kind
+and type_param =
+  { param_expr: type_expr;
+    variance: Variance.t;
+    separability: Separability.t;
+  }
+
+(* [ret_jkind] stands for the fact the jkind is only valid when the type constructor
+   is fully applied. Once datatypes are higher-kinded, this field shall store the
+   kind of the type itself! *)
+and type_noun =
+  | Datatype of { params: type_param list; ret_jkind: jkind; manifest: Path.t option; noun: datatype_noun}
+  | Equation of { params: type_param list; ret_jkind: jkind; eq: type_equation }
+
+and datatype_noun =
+  | Datatype_record of { priv: private_flag; lbls: label_declaration list; rep: record_representation}
+  | Datatype_variant of { priv: private_flag; cstrs: constructor_declaration list; rep: variant_representation }
+  | Datatype_open of { priv: private_flag }
+
+and type_equation =
+  | Type_abstr of { reason: abstract_reason }
+  | Type_abbrev of { priv: private_flag; expansion: type_expr }
 
 and ('lbl, 'cstr) type_kind =
     Type_abstract of abstract_reason
@@ -370,6 +383,128 @@ and type_transparence =
 let tys_of_constr_args = function
   | Cstr_tuple tl -> List.map (fun ca -> ca.ca_type) tl
   | Cstr_record lbls -> List.map (fun l -> l.ld_type) lbls
+
+let abstract_reason_of_abbrev = Abstract_def
+
+(* Legacy properties *)
+
+let get_type_jkind decl =
+  match decl.type_noun with
+  | Datatype { ret_jkind }
+  | Equation { ret_jkind } -> ret_jkind
+
+let set_type_jkind ret_jkind decl =
+  match decl.type_noun with
+  | Datatype d -> { decl with type_noun = Datatype { d with ret_jkind } }
+  | Equation e -> { decl with type_noun = Equation { e with ret_jkind } }
+
+let create_type_params type_params type_variance type_separability =
+  List.map2
+    (fun param_expr (variance, separability) ->
+      { param_expr; variance; separability })
+    type_params (List.combine type_variance type_separability)
+let create_type_params_of_unknowns ~injective type_params =
+  let arity = List.length type_params in
+  create_type_params
+    type_params
+    (Variance.unknown_signature ~injective ~arity)
+    (Separability.default_signature ~arity)
+
+let map_param_exprs f = List.map (fun p -> { p with param_expr = f p.param_expr })
+
+let get_type_arity decl =
+  match decl.type_noun with
+  | Datatype { params; _ } | Equation { params; _ } -> List.length params
+
+let get_type_params decl =
+  match decl.type_noun with
+  | Datatype { params; _ } | Equation { params; _ } -> params
+
+let get_type_param_exprs decl = List.map (fun { param_expr } -> param_expr) (get_type_params decl)
+let map_type_params decl f =
+  { decl with type_noun =
+      match decl.type_noun with
+      | Equation e -> Equation { e with params = f e.params }
+      | Datatype d -> Datatype { d with params = f d.params } }
+
+let set_type_params decl t = map_type_params decl (fun _ -> t)
+
+let set_type_param_exprs decl param_exprs =
+  map_type_params decl
+    (List.map2 (fun param_expr param -> { param with param_expr }) param_exprs)
+
+let get_type_variance decl = List.map (fun { variance } -> variance) (get_type_params decl)
+let set_type_variance decl variances =
+  map_type_params decl
+    (List.map2 (fun variance param -> { param with variance }) variances)
+
+
+let zip_params_with_applied xs decl =
+  let params = get_type_params decl in
+  if List.length xs <> List.length params
+  then raise (Invalid_argument "Mismatched arities in application")
+  else List.combine xs params
+
+let zip_params_with_applied2 xs ys decl =
+  let params = get_type_params decl in
+  if List.length xs <> List.length params || List.length ys <> List.length params
+  then raise (Invalid_argument "Mismatched arities in application")
+  else List.map2 (fun (x, y) p -> (x, y, p)) (List.combine xs ys) params
+
+
+let get_desc_ref = ref (fun _ -> assert false)
+let noun_with_expansion type_noun expansion =
+  match type_noun with
+  | Datatype d ->
+    let manifest =
+      match !get_desc_ref expansion with
+      | Tconstr (path, _, _ ) -> Some path
+      | _ -> assert false
+    in
+    Datatype { d with manifest }
+  | Equation ({ eq = Type_abstr { reason = _ } } as e) ->
+    Equation { e with eq = Type_abbrev { priv = Public; expansion } }
+  | Equation ({ eq = Type_abbrev { priv; expansion = _ } } as e) ->
+    Equation { e with eq = Type_abbrev { priv; expansion } }
+
+let with_expansion decl expansion =
+  { decl with type_noun = noun_with_expansion decl.type_noun expansion }
+
+let newgenty_ref = ref (fun _ -> assert false)
+let noun_with_manifest type_noun manifest =
+  match type_noun with
+  | Datatype d ->
+    Datatype { d with manifest = Some manifest }
+  | Equation ({ params; eq = Type_abstr { reason = _ } } as e) ->
+    let param_exprs = List.map (fun p -> p.param_expr) params in
+    let expansion = !newgenty_ref (Tconstr (manifest, param_exprs, ref Mnil)) in
+    Equation { e with eq = Type_abbrev { priv = Public; expansion } }
+  | Equation ({ params; eq = Type_abbrev { priv; expansion = _ } } as e) ->
+    let param_exprs = List.map (fun p -> p.param_expr) params in
+    let expansion = !newgenty_ref (Tconstr (manifest, param_exprs, ref Mnil)) in
+    Equation { e with eq = Type_abbrev { priv; expansion } }
+
+let with_manifest decl expansion =
+  { decl with type_noun = noun_with_manifest decl.type_noun expansion }
+
+let get_type_manifest decl =
+  match decl.type_noun with
+  | Datatype { params = _; manifest = None; noun = _ } -> None
+  | Datatype { params; manifest = Some path; noun = _ } ->
+    let param_exprs = List.map (fun p -> p.param_expr) params in
+    Some (!newgenty_ref (Tconstr (path, param_exprs, ref Mnil)))
+  | Equation { params = _; eq = Type_abstr { reason = _ } } -> None
+  | Equation { params = _; eq = Type_abbrev { priv = _; expansion } } -> Some expansion
+
+let create_type_equation priv manifest =
+  match priv, manifest with
+  | priv, Some expansion -> Type_abbrev { priv; expansion }
+  (* CR jbachurski: 'Private' abstract types don't really exist,
+     but are sometimes created. *)
+  | (Public | Private), None -> Type_abstr { reason = abstract_reason_of_abbrev }
+
+let create_type_equation_noun params ret_jkind priv manifest =
+  Equation { params; ret_jkind; eq = create_type_equation priv manifest }
 
 (* Type expressions for the class language *)
 
@@ -677,20 +812,26 @@ let may_equal_constr c1 c2 =
          equal_tag tag1 tag2)
 
 let find_unboxed_type decl =
-  match decl.type_kind with
-    Type_record ([{ld_type = arg; _}], Record_unboxed)
-  | Type_record ([{ld_type = arg; _}], Record_inlined (_, _, Variant_unboxed))
-  | Type_variant ([{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}], Variant_unboxed)
-  | Type_variant ([{cd_args = Cstr_record [{ld_type = arg; _}]; _}],
-                  Variant_unboxed) ->
+  match decl.type_noun with
+  | Datatype { noun =
+    Datatype_record { lbls = [{ld_type = arg; _}];
+                      rep = Record_unboxed } |
+    Datatype_record { lbls = [{ld_type = arg; _}];
+                      rep = Record_inlined (_, _, Variant_unboxed) } |
+    Datatype_variant { cstrs = [{cd_args = Cstr_tuple [{ca_type = arg; _}]; _}];
+                       rep = Variant_unboxed } |
+    Datatype_variant { cstrs = [{cd_args = Cstr_record [{ld_type = arg; _}]; _}];
+                       rep = Variant_unboxed }
+  } ->
     Some arg
-  | Type_record (_, ( Record_inlined _ | Record_unboxed
-                    | Record_boxed _ | Record_float | Record_ufloat
-                    | Record_mixed _))
-  | Type_variant (_, ( Variant_boxed _ | Variant_unboxed
-                     | Variant_extensible ))
-  | Type_abstract _ | Type_open ->
-    None
+  | Datatype { noun =
+    Datatype_record { rep =
+      ( Record_inlined _ | Record_unboxed | Record_boxed _
+      | Record_float | Record_ufloat | Record_mixed _) } |
+    Datatype_variant { rep =
+      Variant_boxed _ | Variant_unboxed | Variant_extensible } |
+    Datatype_open _
+  } | Equation _ -> None
 
 let item_visibility = function
   | Sig_value (_, _, vis)
@@ -869,6 +1010,8 @@ let get_desc t = (repr t).desc
 let get_level t = (repr t).level
 let get_scope t = (repr t).scope
 let get_id t = (repr t).id
+
+let () = get_desc_ref := get_desc
 
 (* transient type_expr *)
 

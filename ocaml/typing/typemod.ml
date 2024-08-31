@@ -622,6 +622,20 @@ type with_info =
     (* Package with type constraints only use this last case.  Normal module
        with constraints never use it. *)
 
+let expansion_of_public_abbrev decl =
+  match decl.type_noun with
+  | Equation { eq = Type_abbrev { priv = Public; expansion }} -> expansion
+  | _ -> Misc.fatal_error
+          "Typemod.expansion_of_public_abbrev: A public type abbreviation was expected"
+
+let abstract_of_public_abbrev decl =
+  match decl.type_noun with
+  | Equation ({ eq = Type_abbrev { priv = Public } } as e) ->
+    { decl with type_noun = Equation {
+        e with eq = Type_abstr { reason = abstract_reason_of_abbrev } } }
+  | _ -> Misc.fatal_error
+          "Typemod.abstract_of_public_abbrev: A public type abbreviation was expected"
+
 let merge_constraint initial_env loc sg lid constr =
   let destructive_substitution =
     match constr with
@@ -651,32 +665,35 @@ let merge_constraint initial_env loc sg lid constr =
       when Ident.name id = s && Typedecl.is_fixed_type sdecl ->
         let decl_row =
           let arity = List.length sdecl.ptype_params in
-          { type_params =
-              (* jkind any is fine on the params because they get thrown away
-                 below *)
-              List.map
-                (fun _ -> Btype.newgenvar (Jkind.Builtin.any ~why:Dummy_jkind))
-                sdecl.ptype_params;
-            type_arity = arity;
-            type_kind = Type_abstract Abstract_def;
-            type_jkind = Jkind.Builtin.value ~why:(Unknown "merge_constraint");
+          let type_params =
+            (* jkind any is fine on the params because they get thrown away
+                below *)
+            List.map
+              (fun _ -> Btype.newgenvar (Jkind.Builtin.any ~why:Dummy_jkind))
+              sdecl.ptype_params;
+          in
+          let type_variance =
+            List.map
+              (fun (_, (v, i)) ->
+                 let (c, n) =
+                   match v with
+                   | Covariant -> true, false
+                   | Contravariant -> false, true
+                   | NoVariance -> false, false
+                 in
+                 make_variance (not n) (not c) (i = Injective)
+              )
+              sdecl.ptype_params
+          in
+          let type_separability = Types.Separability.default_signature ~arity in
+          let type_params = create_type_params type_params type_variance type_separability in
+          { (* CR jbachurski: This is the abstract type created for the private row.
+               Notice it used to be created as [Private], but will now be observed as [Public]. *)
+            type_noun =
+              create_type_equation_noun
+                type_params (Jkind.Builtin.value ~why:(Unknown "merge_constraint"))
+                Private None;
             type_jkind_annotation = None;
-            type_private = Private;
-            type_manifest = None;
-            type_variance =
-              List.map
-                (fun (_, (v, i)) ->
-                   let (c, n) =
-                     match v with
-                     | Covariant -> true, false
-                     | Contravariant -> false, true
-                     | NoVariance -> false, false
-                   in
-                   make_variance (not n) (not c) (i = Injective)
-                )
-                sdecl.ptype_params;
-            type_separability =
-              Types.Separability.default_signature ~arity;
             type_loc = sdecl.ptype_loc;
             type_is_newtype = false;
             type_expansion_scope = Btype.lowest_level;
@@ -697,7 +714,7 @@ let merge_constraint initial_env loc sg lid constr =
         let before_ghosts, row_id, after_ghosts = split_row_id s ghosts in
         check_type_decl outer_sig_env sg_for_env sdecl.ptype_loc
           id row_id newdecl decl;
-        let decl_row = {decl_row with type_params = newdecl.type_params} in
+        let decl_row = set_type_param_exprs decl_row (get_type_param_exprs newdecl) in
         let rs' = if rs = Trec_first then Trec_not else rs in
         let ghosts =
           List.rev_append before_ghosts
@@ -730,7 +747,7 @@ let merge_constraint initial_env loc sg lid constr =
         end
     | Sig_type(id, sig_decl, rs, priv), [s], With_type_package cty
       when Ident.name id = s ->
-        begin match sig_decl.type_manifest with
+        begin match get_type_manifest sig_decl with
         | None -> ()
         | Some ty ->
           raise (Error(loc, outer_sig_env, With_package_manifest (lid.txt, ty)))
@@ -744,7 +761,7 @@ let merge_constraint initial_env loc sg lid constr =
            which we need here to deal with type variables in package constraints
            (see tests in [typing-modules/package_constraint.ml]).  *)
         begin match
-          Ctype.constrain_decl_jkind initial_env tdecl sig_decl.type_jkind
+          Ctype.constrain_decl_jkind initial_env tdecl (get_type_jkind sig_decl)
         with
         | Ok _-> ()
         | Error v ->
@@ -760,8 +777,7 @@ let merge_constraint initial_env loc sg lid constr =
           raise Includemod.(Error(initial_env, err))
         end;
         check_type_decl outer_sig_env sg_for_env loc id None tdecl sig_decl;
-        let tdecl = { tdecl with type_manifest = None } in
-        return ~ghosts ~replace_by:(Some(Sig_type(id, tdecl, rs, priv)))
+        return ~ghosts ~replace_by:(Some(Sig_type(id, abstract_of_public_abbrev tdecl, rs, priv)))
           (Pident id, lid, None)
     | Sig_modtype(id, mtd, priv), [s],
       (With_modtype mty | With_modtypesubst mty)
@@ -877,8 +893,8 @@ let merge_constraint initial_env loc sg lid constr =
               in
               fun s path -> Subst.add_type_path path replacement s
           | None ->
-              let body = Option.get tdecl.typ_type.type_manifest in
-              let params = tdecl.typ_type.type_params in
+              let body = expansion_of_public_abbrev tdecl.typ_type in
+              let params = get_type_param_exprs tdecl.typ_type in
               if params_are_constrained params
               then raise(Error(loc, initial_env,
                               With_cannot_remove_constrained_type));
@@ -1754,14 +1770,14 @@ and transl_signature env (sg : Parsetree.signature) =
              td.typ_private = Private
           then
             raise (Error (td.typ_loc, env, Invalid_type_subst_rhs));
-          let params = td.typ_type.type_params in
+          let params = get_type_param_exprs td.typ_type in
           if params_are_constrained params
           then raise(Error(loc, env, With_cannot_remove_constrained_type));
           let info =
               let subst =
                 Subst.add_type_function (Pident td.typ_id)
                   ~params
-                  ~body:(Option.get td.typ_type.type_manifest)
+                  ~body:(expansion_of_public_abbrev td.typ_type)
                   Subst.identity
               in
               Some (`Substituted_away subst)
@@ -2345,10 +2361,11 @@ let check_recmodule_inclusion env bindings =
 let rec package_constraints_sig env loc sg constrs =
   List.map
     (function
-      | Sig_type (id, ({type_params=[]} as td), rs, priv)
+      | Sig_type (id, ({type_noun = Equation{params=[]; _}
+                                  | Datatype{params=[]; _}; _} as td), rs, priv)
         when List.mem_assoc [Ident.name id] constrs ->
           let ty = List.assoc [Ident.name id] constrs in
-          Sig_type (id, {td with type_manifest = Some ty}, rs, priv)
+          Sig_type (id, with_expansion td ty, rs, priv)
       | Sig_module (id, pres, md, rs, priv) ->
           let rec aux = function
             | (m :: ((_ :: _) as l), t) :: rest when m = Ident.name id ->
@@ -3452,7 +3469,7 @@ let type_package env m p fl =
                  match Env.find_type path env with
                  | exception Not_found -> fl
                  | decl ->
-                     if decl.type_arity > 0 then begin
+                     if get_type_arity decl > 0 then begin
                        fl
                      end else begin
                        let t = Btype.newgenty (Tconstr (path,[],ref Mnil)) in

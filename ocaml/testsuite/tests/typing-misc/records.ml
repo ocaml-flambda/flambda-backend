@@ -196,10 +196,9 @@ type ('a,'b) ct = (int,'b) def = {x:int};;
 Line 1, characters 0-40:
 1 | type ('a,'b) ct = (int,'b) def = {x:int};;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This variant or record definition does not match that of type
-         (int, [> `A ]) def
-       Their parameters differ:
-       The type int is not equal to the type 'a
+Error: This variant or record definition
+       uses a manifest with a mismatched parameter list to the one defined
+         defined ('a, [> `A ]), manifest has (int, [> `A ])
 |}]
 
 type ('a,'b) kind = ('a, 'b) def = A constraint 'b = [> `A];;

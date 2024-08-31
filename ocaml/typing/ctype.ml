@@ -398,9 +398,7 @@ let in_pervasives p =
   with Not_found -> false
 
 let is_datatype decl=
-  match decl.type_kind with
-    Type_record _ | Type_variant _ | Type_open -> true
-  | Type_abstract _ -> false
+  match decl.type_noun with Datatype _ -> true | Equation _ -> false
 
 
                   (**********************************************)
@@ -552,6 +550,10 @@ let remove_mode_and_jkind_variables ty =
 type variable_kind = Row_variable | Type_variable
 exception Non_closed of type_expr * variable_kind
 
+let is_generic_expansion : Env.type_expansion -> bool = function
+  | Exp_expr body -> get_level body = generic_level
+  | Exp_path _ -> true
+
 (* [free_vars] collects the variables of the input type expression. It
    is used for several different things in the type-checker, with the
    following bells and whistles:
@@ -578,8 +580,8 @@ let free_vars ?env tys =
           let acc =
             match Env.find_type_expansion path env with
             | exception Not_found -> acc
-            | (_, body, _) ->
-                if get_level body = generic_level then acc
+            | (_, exp, _) ->
+                if is_generic_expansion exp then acc
                 else (ty, kind) :: acc
           in
           List.fold_left (fv ~kind:Type_variable) acc tl
@@ -629,12 +631,12 @@ let closed_parameterized_type params ty =
 
 let closed_type_decl decl =
   try
-    List.iter mark_type decl.type_params;
-    List.iter remove_mode_and_jkind_variables decl.type_params;
-    begin match decl.type_kind with
-      Type_abstract _ ->
+    List.iter mark_type (get_type_param_exprs decl);
+    List.iter remove_mode_and_jkind_variables (get_type_param_exprs decl);
+    begin match decl.type_noun with
+    | Equation _ ->
         ()
-    | Type_variant (v, _rep) ->
+    | Datatype { noun = Datatype_variant { cstrs = v } } ->
         List.iter
           (fun {cd_args; cd_res; _} ->
             match cd_res with
@@ -652,11 +654,11 @@ let closed_type_decl decl =
             | None -> List.iter closed_type (tys_of_constr_args cd_args)
           )
           v
-    | Type_record(r, _rep) ->
+    | Datatype { noun = Datatype_record { lbls = r } } ->
         List.iter (fun l -> closed_type l.ld_type) r
-    | Type_open -> ()
+    | Datatype { noun = Datatype_open _ } -> ()
     end;
-    begin match decl.type_manifest with
+    begin match get_type_manifest decl with
       None    -> ()
     | Some ty -> closed_type ty
     end;
@@ -895,7 +897,7 @@ let rec update_level env level expand ty =
         end
     | Tconstr(p, (_ :: _ as tl), _) ->
         let variance =
-          try (Env.find_type p env).type_variance
+          try get_type_variance (Env.find_type p env)
           with Not_found -> List.map (fun _ -> Variance.unknown) tl in
         let needs_expand =
           expand ||
@@ -974,7 +976,7 @@ let rec lower_contravariant env var_level visited contra ty =
        let variance, maybe_expand =
          try
            let typ = Env.find_type path env in
-           typ.type_variance,
+           get_type_variance typ,
            type_kind_is_abstract typ
           with Not_found ->
             (* See testsuite/tests/typing-missing-cmi-2 for an example *)
@@ -1329,15 +1331,8 @@ let new_local_type ?(loc = Location.none) ?manifest_and_scope jkind ~jkind_annot
     | Some (ty, scope) -> Some ty, scope
   in
   {
-    type_params = [];
-    type_arity = 0;
-    type_kind = Type_abstract Abstract_def;
-    type_jkind = jkind;
+    type_noun = create_type_equation_noun [] jkind Public manifest;
     type_jkind_annotation = jkind_annot;
-    type_private = Public;
-    type_manifest = manifest;
-    type_variance = [];
-    type_separability = [];
     type_is_newtype = true;
     type_expansion_scope = expansion_scope;
     type_loc = loc;
@@ -1400,32 +1395,44 @@ let instance_parameterized_type ?keep_names sch_args sch =
   )
 
 (* [map_kind f kind] maps [f] over all the types in [kind]. [f] must preserve jkinds *)
-let map_kind f = function
-  | (Type_abstract _ | Type_open) as k -> k
-  | Type_variant (cl, rep) ->
-      Type_variant (
-        List.map
-          (fun c ->
-             {c with
-              cd_args = map_type_expr_cstr_args f c.cd_args;
-              cd_res = Option.map f c.cd_res
-             })
-          cl, rep)
-  | Type_record (fl, rr) ->
-      Type_record (
-        List.map
-          (fun l ->
-             {l with ld_type = f l.ld_type}
-          ) fl, rr)
+let map_kind f : type_noun -> type_noun = function
+  | Equation { params; ret_jkind; eq } ->
+    Equation {
+      params = List.map (fun p -> { p with param_expr = f p.param_expr }) params;
+      ret_jkind;
+      eq = match eq with
+      | Type_abstr { reason } -> Type_abstr { reason }
+      | Type_abbrev { priv; expansion } -> Type_abbrev { priv; expansion = f expansion }
+    }
+  | Datatype { params; ret_jkind; manifest; noun } ->
+    Datatype {
+      params = List.map (fun p -> { p with param_expr = f p.param_expr }) params;
+      ret_jkind;
+      manifest;
+      noun = match noun with
+      | Datatype_variant { priv; cstrs; rep } ->
+        Datatype_variant {
+          priv; rep;
+          cstrs = List.map
+            (fun c ->
+              { c with
+                cd_args = map_type_expr_cstr_args f c.cd_args;
+                cd_res = Option.map f c.cd_res })
+            cstrs
+        }
+      | Datatype_record { priv; lbls; rep } ->
+        Datatype_record {
+          priv; rep;
+          lbls = List.map (fun l -> {l with ld_type = f l.ld_type}) lbls
+        }
+      | Datatype_open { priv } -> Datatype_open { priv }
+    }
 
+
+let map_decl f decl = { decl with type_noun = map_kind f decl.type_noun }
 
 let instance_declaration decl =
-  For_copy.with_scope (fun copy_scope ->
-    {decl with type_params = List.map (copy copy_scope) decl.type_params;
-     type_manifest = Option.map (copy copy_scope) decl.type_manifest;
-     type_kind = map_kind (copy copy_scope) decl.type_kind;
-    }
-  )
+  For_copy.with_scope (fun copy_scope -> map_decl (copy copy_scope) decl)
 
 let generic_instance_declaration decl =
   let old = !current_level in
@@ -1870,9 +1877,14 @@ let expand_abbrev_gen kind find_type_expansion env ty =
             let path' = Env.normalize_type_path None env path in
             if Path.same path path' then raise Cannot_expand
             else newty2 ~level (Tconstr (path', args, abbrev))
-          | (params, body, lv) ->
+          | (params, (expansion : Env.type_expansion), lv) ->
             (* prerr_endline
               ("add a "^string_of_kind kind^" expansion for "^Path.name path);*)
+            let body =
+              match expansion with
+              | Exp_expr body -> body
+              | Exp_path path -> newgenty (Tconstr (path, params, ref Mnil))
+            in
             let ty' =
               try
                 subst env level kind abbrev (Some ty) params args body
@@ -2035,7 +2047,7 @@ let unbox_once env ty =
       | None -> Final_result ty
       | Some ty2 ->
         let ty2 = match get_desc ty2 with Tpoly (t, _) -> t | _ -> ty2 in
-        Stepped (apply env decl.type_params ty2 args)
+        Stepped (apply env (get_type_param_exprs decl) ty2 args)
       end
     end
   | Tpoly (ty, _) -> Stepped ty
@@ -2097,7 +2109,7 @@ let rec estimate_type_jkind env ty =
   match get_desc ty with
   | Tconstr(p, _, _) -> begin
     try
-      Jkind (Env.find_type p env).type_jkind
+      Jkind (Env.find_type p env |> get_type_jkind)
     with
       Not_found -> Jkind (Builtin.any ~why:(Missing_cmi p))
   end
@@ -2164,7 +2176,7 @@ let type_jkind_sub env ty jkind =
     match get_desc ty with
     | Tconstr(p, _args, _abbrev) ->
         let jkind_bound =
-          try (Env.find_type p env).type_jkind
+          try (Env.find_type p env |> get_type_jkind)
           with Not_found -> Jkind.Builtin.any ~why:(Missing_cmi p)
         in
         if Jkind.sub jkind_bound jkind
@@ -2230,18 +2242,18 @@ let check_type_externality env ty ext =
   | Error _ -> false
 
 let check_decl_jkind env decl jkind =
-  match Jkind.sub_or_error decl.type_jkind jkind with
+  match Jkind.sub_or_error (get_type_jkind decl) jkind with
   | Ok () as ok -> ok
   | Error _ as err ->
-      match decl.type_manifest with
+      match get_type_manifest decl with
       | None -> err
       | Some ty -> check_type_jkind env ty jkind
 
 let constrain_decl_jkind env decl jkind =
-  match Jkind.sub_or_error decl.type_jkind jkind with
+  match Jkind.sub_or_error (get_type_jkind decl) jkind with
   | Ok () as ok -> ok
   | Error _ as err ->
-      match decl.type_manifest with
+      match get_type_manifest decl with
       | None -> err
       | Some ty -> constrain_type_jkind env ty jkind
 
@@ -2393,26 +2405,25 @@ let full_expand ~may_forget_scope env ty =
 *)
 let generic_abbrev env path =
   try
-    let (_, body, _) = Env.find_type_expansion path env in
-    get_level body = generic_level
+    let (_, exp, _) = Env.find_type_expansion path env in
+    is_generic_expansion exp
   with
     Not_found ->
       false
 
 let generic_private_abbrev env path =
   try
-    match Env.find_type path env with
-      {type_kind = Type_abstract _;
-       type_private = Private;
-       type_manifest = Some body} ->
-         get_level body = generic_level
+    let decl = Env.find_type path env in
+    match decl.type_noun with
+    | Equation { eq = Type_abbrev { priv = Private; expansion } } ->
+         get_level expansion = generic_level
     | _ -> false
   with Not_found -> false
 
 let is_contractive env p =
   try
     let decl = Env.find_type p env in
-    in_pervasives p && decl.type_manifest = None || is_datatype decl
+    in_pervasives p && get_type_manifest decl = None || is_datatype decl
   with Not_found -> false
 
 
@@ -2494,7 +2505,7 @@ let rec local_non_recursive_abbrev ~allow_rec strict visited env p ty =
             (try_expand_head try_expand_safe_opt env ty)
         with Cannot_expand ->
           let params =
-            try (Env.find_type p' env).type_params
+            try (Env.find_type p' env |> get_type_param_exprs)
             with Not_found -> args
           in
           List.iter2
@@ -2604,7 +2615,7 @@ let occur_univar ?(inj_only=false) env ty =
                    object and variant types too. *)
                 if Variance.(if inj_only then mem Inj v else not (eq v null))
                 then occur_rec bound t)
-              tl td.type_variance
+              tl (get_type_variance td)
           with Not_found ->
             if not inj_only then List.iter (occur_rec bound) tl
           end
@@ -2657,10 +2668,10 @@ let univars_escape env univar_pairs vl ty =
       | Tconstr (p, tl, _) ->
           begin try
             let td = Env.find_type p env in
-            List.iter2
+            List.iter
               (* see occur_univar *)
-              (fun t v -> if not Variance.(eq v null) then occur t)
-              tl td.type_variance
+              (fun (t, { variance = v }) -> if not Variance.(eq v null) then occur t)
+              (zip_params_with_applied tl td)
           with Not_found ->
             List.iter occur tl
           end
@@ -2863,8 +2874,11 @@ let reify env t =
 
 let find_expansion_scope env path =
   match Env.find_type path env with
-  | { type_manifest = None ; _ } | exception Not_found -> generic_level
-  | decl -> decl.type_expansion_scope
+  | decl ->
+    if Option.is_some (get_type_manifest decl)
+    then decl.type_expansion_scope
+    else generic_level
+  | exception Not_found -> generic_level
 
 let non_aliasable p decl =
   (* in_pervasives p ||  (subsumed by in_current_module) *)
@@ -2897,11 +2911,10 @@ let non_aliasable p decl =
 let is_instantiable env ~for_jkind_eqn p =
   try
     let decl = Env.find_type p env in
-    type_kind_is_abstract decl &&
-    decl.type_private = Public &&
-    decl.type_arity = 0 &&
-    decl.type_manifest = None &&
-    (for_jkind_eqn || not (non_aliasable p decl))
+    match decl.type_noun with
+    | Equation { params = []; eq = Type_abstr { reason = _ } }
+      when for_jkind_eqn || not (non_aliasable p decl) -> true
+    | _ -> false
   with Not_found -> false
 
 
@@ -2910,6 +2923,13 @@ let compatible_paths p1 p2 =
   Path.same p1 p2 ||
   Path.same p1 path_bytes && Path.same p2 path_string ||
   Path.same p1 path_string && Path.same p2 path_bytes
+
+let zip_with_found_injectivities_or_false env path tl1 tl2 =
+  match Env.find_type path env with
+  | decl ->
+    List.map (fun (t1, t2, { variance = v }) -> (Variance.(mem Inj) v, t1, t2))
+      (zip_params_with_applied2 tl1 tl2 decl)
+  | exception Not_found -> List.map2 (fun t1 t2 -> (false, t1, t2)) tl1 tl2
 
 (* Check for datatypes carefully; see PR#6348 *)
 let rec expands_to_datatype env ty =
@@ -2980,7 +3000,7 @@ let rec mcomp type_pairs env t1 t2 =
             begin try
               let decl = Env.find_type p env in
               if non_aliasable p decl || is_datatype decl ||
-                 not (has_jkind_intersection_tk env other decl.type_jkind) then
+                 not (has_jkind_intersection_tk env other (get_type_jkind decl)) then
                 raise Incompatible
             with Not_found -> ()
             end
@@ -3082,34 +3102,36 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
     let decl = Env.find_type p1 env in
     let decl' = Env.find_type p2 env in
     let check_jkinds () =
-      if not (Jkind.has_intersection decl.type_jkind decl'.type_jkind)
+      if not (Jkind.has_intersection (get_type_jkind decl) (get_type_jkind decl'))
       then raise Incompatible
     in
     if compatible_paths p1 p2 then begin
-      let inj =
-        try List.map Variance.(mem Inj) (Env.find_type p1 env).type_variance
-        with Not_found -> List.map (fun _ -> false) tl1
+      let injs =
+        zip_with_found_injectivities_or_false env p1 tl1 tl2
       in
-      List.iter2
-        (fun i (t1,t2) -> if i then mcomp type_pairs env t1 t2)
-        inj (List.combine tl1 tl2)
+      List.iter
+        (fun (i, t1, t2) -> if i then mcomp type_pairs env t1 t2)
+        injs
     end else if non_aliasable p1 decl && non_aliasable p2 decl' then
       raise Incompatible
     else
-      match decl.type_kind, decl'.type_kind with
-      | Type_record (lst,r), Type_record (lst',r')
+      match decl.type_noun, decl'.type_noun with
+      | Datatype { noun = Datatype_record { lbls = lst; rep = r } },
+        Datatype { noun = Datatype_record { lbls = lst'; rep = r' } }
         when equal_record_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
           mcomp_record_description type_pairs env lst lst'
-      | Type_variant (v1,r), Type_variant (v2,r')
+      | Datatype { noun = Datatype_variant { cstrs = v1; rep = r } },
+        Datatype { noun = Datatype_variant { cstrs = v2; rep = r' } }
         when equal_variant_representation r r' ->
           mcomp_list type_pairs env tl1 tl2;
           mcomp_variant_description type_pairs env v1 v2
-      | Type_open, Type_open ->
+      | Datatype { noun = Datatype_open _ },
+        Datatype { noun = Datatype_open _ } ->
           mcomp_list type_pairs env tl1 tl2
-      | Type_abstract _, Type_abstract _ -> check_jkinds ()
-      | Type_abstract _, _ when not (non_aliasable p1 decl)-> check_jkinds ()
-      | _, Type_abstract _ when not (non_aliasable p2 decl') -> check_jkinds ()
+      | Equation _, Equation _ -> check_jkinds ()
+      | Equation _, _ when not (non_aliasable p1 decl) -> check_jkinds ()
+      | _, Equation _ when not (non_aliasable p2 decl') -> check_jkinds ()
       | _ -> raise Incompatible
   with Not_found -> ()
 
@@ -3194,7 +3216,7 @@ let jkind_of_abstract_type_declaration env p =
        nice to eliminate the duplication, but is seems tricky to do so without
        complicating unify3. *)
     let typ = Env.find_type p env in
-    typ.type_jkind, typ.type_jkind_annotation
+    (get_type_jkind typ), typ.type_jkind_annotation
   with
     Not_found -> assert false
 
@@ -3211,9 +3233,9 @@ let add_jkind_equation ~reason env destination jkind1 =
         begin
           try
             let decl = Env.find_type p !env in
-            if not (Jkind.equal jkind decl.type_jkind)
+            if not (Jkind.equal jkind (get_type_jkind decl))
             then
-              let refined_decl = { decl with type_jkind = jkind } in
+              let refined_decl = set_type_jkind jkind decl in
               env := Env.add_local_type p refined_decl !env
           with
             Not_found -> ()
@@ -3302,9 +3324,14 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
         nt2 :: complete (if n = n2 then nl else fl1) ntl'
     | (n, _) :: nl, _ ->
         let lid = concat_longident (Longident.Lident "Pkg") n in
-        match Env.find_type_by_name lid env' with
-        | (_, {type_arity = 0; type_kind = Type_abstract _;
-               type_private = Public; type_manifest = Some t2}) ->
+        let go decl =
+          match decl.type_noun with
+          | Equation { params = []; eq = Type_abbrev { priv = Public; expansion } } -> Ok (Some expansion)
+          | Equation { params = []; eq = Type_abstr { reason = _ } } -> Ok None
+          | _ -> Error ()
+        in
+        match Env.find_type_by_name lid env' |> snd |> go with
+        | Ok (Some t2) ->
             begin match nondep_instance env' lv2 id2 t2 with
             | t -> (n, t) :: complete nl fl2
             | exception Nondep_cannot_erase _ ->
@@ -3313,13 +3340,11 @@ let complete_type_list ?(allow_absent=false) env fl1 lv2 mty2 fl2 =
                 else
                   raise Exit
             end
-        | (_, {type_arity = 0; type_kind = Type_abstract _;
-               type_private = Public; type_manifest = None})
+        | Ok None
           when allow_absent ->
             complete nl fl2
         | _ -> raise Exit
-        | exception Not_found when allow_absent->
-            complete nl fl2
+        | exception Not_found when allow_absent -> complete nl fl2
   in
   match complete fl1 fl2 with
   | res -> res
@@ -3578,13 +3603,9 @@ and unify3 env t1 t1' t2 t2' =
           then
             unify_list env tl1 tl2
           else
-            let inj =
-              try List.map Variance.(mem Inj)
-                    (Env.find_type p1 !env).type_variance
-              with Not_found -> List.map (fun _ -> false) tl1
-            in
-            List.iter2
-              (fun i (t1, t2) ->
+            let injs = zip_with_found_injectivities_or_false !env p1 tl1 tl2 in
+            List.iter
+              (fun (i, t1, t2) ->
                 if i then unify env t1 t2 else
                 without_generating_equations
                   begin fun () ->
@@ -3594,7 +3615,7 @@ and unify3 env t1 t1' t2 t2' =
                       reify env t1;
                       reify env t2
                   end)
-              inj (List.combine tl1 tl2)
+              injs
       | (Tconstr (path,[],_),
          Tconstr (path',[],_))
         when is_instantiable !env ~for_jkind_eqn:false path
@@ -4671,7 +4692,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
                 match Env.find_type p1 env with
                 | decl ->
                     moregen_param_list inst_nongen variance type_pairs env
-                      decl.type_variance tl1 tl2
+                      (try zip_params_with_applied2 tl1 tl2 decl
+                       with Invalid_argument _ -> raise_unexplained_for Moregen)
                 | exception Not_found ->
                     moregen_list inst_nongen Invariant type_pairs env tl1 tl2
             end
@@ -4722,14 +4744,13 @@ and moregen_labeled_list inst_nongen variance type_pairs env labeled_tl1
       moregen inst_nongen variance type_pairs env ty1 ty2)
     labeled_tl1 labeled_tl2
 
-and moregen_param_list inst_nongen variance type_pairs env vl tl1 tl2 =
-  match vl, tl1, tl2 with
-  | [], [], [] -> ()
-  | v :: vl, t1 :: tl1, t2 :: tl2 ->
+and moregen_param_list inst_nongen variance type_pairs env vts =
+  match vts with
+  | [] -> ()
+  | (t1, t2, { variance = v }) :: vts ->
     let param_variance = compose_variance variance v in
     moregen inst_nongen param_variance type_pairs env t1 t2;
-    moregen_param_list inst_nongen variance type_pairs env vl tl1 tl2
-  | _, _, _ -> raise_unexplained_for Moregen
+    moregen_param_list inst_nongen variance type_pairs env vts
 
 and moregen_fields inst_nongen variance type_pairs env ty1 ty2 =
   let (fields1, rest1) = flatten_fields ty1
@@ -5598,7 +5619,7 @@ let memq_warn t visited =
 
 let find_cltype_for_path env p =
   let cl_abbr = Env.find_hash_type p env in
-  match cl_abbr.type_manifest with
+  match get_type_manifest cl_abbr with
     Some ty ->
       begin match get_desc ty with
         Tobject(_,{contents=Some(p',_)}) when Path.same p p' -> cl_abbr, ty
@@ -5710,7 +5731,7 @@ let rec build_subtype env (visited : transient_expr list)
           let ty =
             try
               subst env !current_level Public abbrev None
-                cl_abbr.type_params tl body
+                (get_type_param_exprs cl_abbr) tl body
             with Cannot_subst -> assert false in
           let ty1, tl1 =
             match get_desc ty with
@@ -5758,8 +5779,8 @@ let rec build_subtype env (visited : transient_expr list)
         && not (has_constr_row' env t)
         then warn := true;
         let tl' =
-          List.map2
-            (fun v t ->
+          List.map
+            (fun (t, { variance = v }) ->
               let (co,cn) = Variance.get_upper v in
               if cn then
                 if co then (t, Unchanged)
@@ -5769,7 +5790,7 @@ let rec build_subtype env (visited : transient_expr list)
                 else (newvar (Jkind.Builtin.value
                                 ~why:(Unknown "build_subtype 3")),
                       Changed))
-            decl.type_variance tl
+            (zip_params_with_applied tl decl)
         in
         let c = collect tl' in
         if c > Unchanged then (newconstr p (List.map fst tl'), c)
@@ -5919,8 +5940,8 @@ let rec subtype_rec env trace t1 t2 cstrs =
     | (Tconstr(p1, tl1, _), Tconstr(p2, tl2, _)) when Path.same p1 p2 ->
         begin try
           let decl = Env.find_type p1 env in
-          List.fold_left2
-            (fun cstrs v (t1, t2) ->
+          List.fold_left
+            (fun cstrs (t1, t2, { variance = v }) ->
               let (co, cn) = Variance.get_upper v in
               if co then
                 if cn then
@@ -5942,7 +5963,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
                     t2 t1
                     cstrs
                 else cstrs)
-            cstrs decl.type_variance (List.combine tl1 tl2)
+            cstrs (zip_params_with_applied2 tl1 tl2 decl)
         with Not_found ->
           (trace, t1, t2, !univar_pairs)::cstrs
         end
@@ -6461,37 +6482,40 @@ let () = nondep_type' := nondep_type
 (* Preserve sharing inside type declarations. *)
 let nondep_type_decl env mid is_covariant decl =
   try
-    let params = List.map (nondep_type_rec env mid) decl.type_params in
-    let tk =
-      try map_kind (nondep_type_rec env mid) decl.type_kind
-      with Nondep_cannot_erase _ when is_covariant -> Type_abstract Abstract_def
-    and tm, priv =
-      match decl.type_manifest with
-      | None -> None, decl.type_private
-      | Some ty ->
-          try Some (nondep_type_rec env mid ty), decl.type_private
-          with Nondep_cannot_erase _ when is_covariant ->
+    (* CR jbachurski: Tricky! Or just confusing. *)
+    let expand_public_or_then_private priv ty =
+      (* If [priv] is [Private] and we obtain [Some] manifest, it's also [Private] *)
+      try Some (nondep_type_rec env mid ty), priv
+      with Nondep_cannot_erase _ when is_covariant ->
             clear_hash ();
             try Some (nondep_type_rec ~expand_private:true env mid ty),
                 Private
-            with Nondep_cannot_erase _ ->
-              None, decl.type_private
+            with Nondep_cannot_erase _ -> None, Public
+    in
+    let type_params =
+      map_param_exprs (nondep_type_rec env mid) (get_type_params decl)
+    in
+    let type_noun =
+      try match decl.type_noun with
+      (* Datatypes only have path manifests, so nothing to expand there *)
+      | Datatype _ -> map_kind (nondep_type_rec env mid) decl.type_noun
+      | Equation { eq = Type_abstr { reason = _ } } -> decl.type_noun
+      | Equation { ret_jkind; eq = Type_abbrev { priv; expansion } } ->
+        let manifest, priv = expand_public_or_then_private priv expansion in
+        (* This case only matters if the abbreviation wasn't already private *)
+        let priv =
+          match manifest with
+          | Some ty when Btype.has_constr_row ty -> Private
+          | _ -> priv
+        in
+        create_type_equation_noun type_params ret_jkind priv manifest
+      (* If any uncaught expansions fail, fallback to an abstract type *)
+      with Nondep_cannot_erase _ when is_covariant ->
+        create_type_equation_noun type_params (get_type_jkind decl) Public None
     in
     clear_hash ();
-    let priv =
-      match tm with
-      | Some ty when Btype.has_constr_row ty -> Private
-      | _ -> priv
-    in
-    { type_params = params;
-      type_arity = decl.type_arity;
-      type_kind = tk;
-      type_jkind = decl.type_jkind;
+    { type_noun;
       type_jkind_annotation = decl.type_jkind_annotation;
-      type_manifest = tm;
-      type_private = priv;
-      type_variance = decl.type_variance;
-      type_separability = decl.type_separability;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
       type_loc = decl.type_loc;

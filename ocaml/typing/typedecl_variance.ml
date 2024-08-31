@@ -71,9 +71,9 @@ let compute_variance env visited vari ty =
         if tl = [] then () else begin
           try
             let decl = Env.find_type path env in
-            List.iter2
-              (fun ty v -> compute_variance_rec (compose vari v) ty)
-              tl decl.type_variance
+            List.iter
+              (fun (ty, { variance = v }) -> compute_variance_rec (compose vari v) ty)
+              (zip_params_with_applied tl decl)
           with Not_found ->
             List.iter (compute_variance_rec unknown) tl
         end
@@ -122,7 +122,7 @@ let compute_variance_type env ~check (required, loc) decl tyl =
       required
   in
   (* Prepare *)
-  let params = decl.type_params in
+  let params = (get_type_param_exprs decl) in
   let tvl = ref TypeMap.empty in
   (* Compute occurrences in the body *)
   let open Variance in
@@ -230,13 +230,22 @@ let compute_variance_type env ~check (required, loc) decl tyl =
   List.map2
     (fun ty (p, n, i) ->
       let v = get_variance ty tvl in
-      let tr = decl.type_private in
+      let pa =
+        match decl.type_noun with
+        (* CR jbachurski: Which of these cases actually make sense? *)
+        | Equation { eq = Type_abbrev { priv = Private } }
+        | Datatype { noun = Datatype_record { priv = Private } }
+        | Datatype { noun = Datatype_variant { priv = Private } }
+        | Datatype { noun = Datatype_open { priv = Private } }
+          -> true
+        | _ -> false
+      in
       (* Use required variance where relevant *)
       let concr = not (Btype.type_kind_is_abstract decl) in
       let (p, n) =
-        if tr = Private || not (Btype.is_Tvar ty) then (p, n) (* set *)
+        if pa || not (Btype.is_Tvar ty) then (p, n) (* set *)
         else (false, false) (* only check *)
-      and i = concr  || i && tr = Private in
+      and i = concr  || i && pa in
       let v = union v (make p n i) in
       if not concr || Btype.is_Tvar ty then v else
       union v
@@ -260,11 +269,21 @@ let for_constr = function
           (Types.is_mutable ld_mutable, ld_type))
         l
 
+let with_private_constructors decl =
+  { decl with
+      type_noun = match decl.type_noun with
+      | Datatype ({ noun = Datatype_variant d' } as d) ->
+        Datatype { d with noun = Datatype_variant { d' with priv = Private } }
+      | Datatype ({ noun = Datatype_open _ } as d) ->
+        Datatype { d with noun = Datatype_open { priv = Private } }
+      | _ -> assert false }
+
+(* Invariant: only called for [decl] of variants and open variants *)
 let compute_variance_gadt env ~check (required, loc as rloc) decl
     (tl, ret_type_opt) =
   match ret_type_opt with
   | None ->
-      compute_variance_type env ~check rloc {decl with type_private = Private}
+      compute_variance_type env ~check rloc (with_private_constructors decl)
         (for_constr tl)
   | Some ret_type ->
       match get_desc ret_type with
@@ -283,7 +302,7 @@ let compute_variance_gadt env ~check (required, loc as rloc) decl
               ([], fvl) tyl required
           in
           compute_variance_type env ~check rloc
-            {decl with type_params = tyl; type_private = Private}
+            (set_type_param_exprs decl tyl |> with_private_constructors)
             (for_constr tl)
       | _ -> assert false
 
@@ -293,7 +312,7 @@ let compute_variance_extension env decl ext rloc =
   in
   let ext = ext.Typedtree.ext_type in
   compute_variance_gadt env ~check rloc
-    {decl with type_params = ext.ext_type_params}
+    (set_type_param_exprs decl ext.ext_type_params)
     (ext.ext_args, ext.ext_ret_type)
 
 let compute_variance_gadt_constructor env ~check rloc decl tl =
@@ -310,23 +329,23 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
     Option.map (fun id -> Type_declaration (id, decl)) check
   in
   let abstract = Btype.type_kind_is_abstract decl in
-  if (abstract || decl.type_kind = Type_open)
-       && decl.type_manifest = None then
+  match decl.type_noun with
+  | Equation { eq = Type_abstr _ } | Datatype { noun = Datatype_open _ } ->
     List.map
       (fun (c, n, i) ->
         make (not n) (not c) (not abstract || i))
       required
-  else begin
+  | _ -> begin
     let mn =
-      match decl.type_manifest with
+      match get_type_manifest decl with
         None -> []
       | Some ty -> [ false, ty ]
     in
     let vari =
-      match decl.type_kind with
-        Type_abstract _ | Type_open ->
+      match decl.type_noun with
+      | Equation _ | Datatype { noun = Datatype_open _ } ->
           compute_variance_type env ~check rloc decl mn
-      | Type_variant (tll,_rep) ->
+      | Datatype { noun = Datatype_variant { cstrs = tll } } ->
           if List.for_all (fun c -> c.Types.cd_res = None) tll then
             compute_variance_type env ~check rloc decl
               (mn @ List.flatten (List.map (fun c -> for_constr c.Types.cd_args)
@@ -336,10 +355,10 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
               List.map
                 (fun ty ->
                    compute_variance_type env ~check rloc
-                     {decl with type_private = Private}
+                     (with_private_constructors decl)
                      (add_false [ ty ])
                 )
-                (Option.to_list decl.type_manifest)
+                (Option.to_list (get_type_manifest decl))
             in
             let constructor_variance =
               List.map
@@ -351,7 +370,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
                 List.fold_left (List.map2 Variance.union) vari rem
             | _ -> assert false
           end
-      | Type_record (ftl, _) ->
+      | Datatype { noun = Datatype_record { lbls = ftl } } ->
           compute_variance_type env ~check rloc decl
             (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
                  (Types.is_mutable ld_mutable, ld_type)) ftl)
@@ -384,11 +403,10 @@ let property : (prop, req) Typedecl_properties.property =
   let merge ~prop ~new_prop =
     List.map2 Variance.union prop new_prop in
   let default decl =
-    List.map (fun _ -> Variance.null) decl.type_params in
+    List.map (fun _ -> Variance.null) (get_type_param_exprs decl) in
   let compute env decl req =
     compute_decl env ~check:None decl req in
-  let update_decl decl variance =
-    { decl with type_variance = variance } in
+  let update_decl = set_type_variance in
   let check env id decl req =
     if is_hash id then () else check_decl env id decl req in
   {
@@ -431,10 +449,10 @@ let update_class_decls env cldecls =
     Typedecl_properties.compute_property property env decls required in
   List.map2
     (fun (_,decl) (_, _, clty, cltydef, _) ->
-      let variance = decl.type_variance in
+      let variance = get_type_variance decl in
       (decl, {clty with cty_variance = variance},
        {cltydef with
         clty_variance = variance;
-        clty_hash_type = {cltydef.clty_hash_type with type_variance = variance}
+        clty_hash_type = set_type_variance cltydef.clty_hash_type variance
        }))
     decls cldecls

@@ -149,7 +149,7 @@ module Typedtree_search =
           (
            try
              let type_decl = search_type_declaration table name in
-             (ce, type_decl.typ_type.Types.type_params)
+             (ce, Types.get_type_param_exprs type_decl.typ_type)
            with
              Not_found ->
                (ce, [])
@@ -1173,21 +1173,21 @@ module Analyser =
                     Odoc_sig.analyze_alerts com_opt type_decl.Parsetree.ptype_attributes
                   in
                   let kind = Sig.get_type_kind
-                    env name_comment_list
-                    tt_type_decl.Types.type_kind
+                    env name_comment_list tt_type_decl.type_noun
                   in
                   let t =
                     {
                       ty_name = complete_name ;
                       ty_info = com_opt ;
                       ty_parameters =
-                      List.map2 (fun p v -> Odoc_env.subst_type env p, v)
-                       tt_type_decl.Types.type_params
-                       tt_type_decl.Types.type_variance ;
+                      List.map
+                        (fun { param_expr = p; variance = v } ->
+                          Odoc_env.subst_type env p, v)
+                        (Types.get_type_params tt_type_decl);
                       ty_kind = kind ;
-                      ty_private = tt_type_decl.Types.type_private;
+                      ty_private = get_type_private tt_type_decl;
                       ty_manifest =
-                        (match tt_type_decl.Types.type_manifest with
+                        (match Types.get_type_manifest tt_type_decl with
                            None -> None
                          | Some t ->
                            Some (Sig.manifest_structure env name_comment_list t));

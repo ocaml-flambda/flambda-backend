@@ -151,8 +151,8 @@ let rec expression event env = function
       begin match get_desc (Ctype.expand_head_opt env ty) with
         Tconstr(path, _, _) ->
           let tydesc = Env.find_type path env in
-          begin match tydesc.type_kind with
-            Type_record(lbl_list, _repr) ->
+          begin match tydesc.type_noun with
+          | Datatype { noun = Datatype_record { lbls = lbl_list } } ->
               let (pos, ty_res) =
                 find_label lbl env ty path tydesc 0 lbl_list in
               (Debugcom.Remote_value.field v pos, ty_res)
@@ -167,7 +167,7 @@ and find_label lbl env ty path tydesc pos = function
   | {ld_id; ld_type} :: rem ->
       if Ident.name ld_id = lbl then begin
         let ty_res =
-          Btype.newgenty(Tconstr(path, tydesc.type_params, ref Mnil))
+          Btype.newgenty(Tconstr(path, get_type_param_exprs tydesc, ref Mnil))
         in
         (pos,
          try Ctype.apply env [ty_res] ld_type [ty] with Ctype.Cannot_apply ->

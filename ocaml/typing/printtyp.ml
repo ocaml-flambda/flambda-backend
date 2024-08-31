@@ -775,8 +775,9 @@ let rec uniq = function
   | a :: l -> not (List.memq (a : int) l) && uniq l
 
 let rec normalize_type_path ?(cache=false) env p =
-  try
-    let (params, ty, _) = Env.find_type_expansion p env in
+  try match Env.find_type_expansion p env with
+  | (params, Exp_expr ty, _) ->
+    begin
     match get_desc ty with
       Tconstr (p1, tyl, _) ->
         if List.length params = List.length tyl
@@ -790,9 +791,11 @@ let rec normalize_type_path ?(cache=false) env p =
           (p2, compose l1 s2)
     | _ ->
         (p, Nth (index params ty))
-  with
-    Not_found ->
-      (Env.normalize_type_path None env p, Id)
+    end
+  | (_, Exp_path p1, _) ->
+    normalize_type_path ~cache env p1
+  with Not_found ->
+    (Env.normalize_type_path None env p, Id)
 
 let same_printing_env env =
   let used_pers = Env.used_persistent () in
@@ -1730,8 +1733,8 @@ let tree_of_constructor_in_decl cd =
   | Some _ -> Names.with_local_names (fun () -> tree_of_single_constructor cd)
 
 let prepare_decl id decl =
-  let params = filter_params decl.type_params in
-  begin match decl.type_manifest with
+  let params = filter_params (get_type_param_exprs decl) in
+  begin match get_type_manifest decl with
   | Some ty ->
       let vars = free_variables ty in
       List.iter
@@ -1748,7 +1751,7 @@ let prepare_decl id decl =
   List.iter prepare_type params;
   List.iter (add_printed_alias ~non_gen:false) params;
   let ty_manifest =
-    match decl.type_manifest with
+    match get_type_manifest decl with
     | None -> None
     | Some ty ->
         let ty =
@@ -1765,17 +1768,17 @@ let prepare_decl id decl =
         prepare_type ty;
         Some ty
   in
-  begin match decl.type_kind with
-  | Type_abstract _ -> ()
-  | Type_variant (cstrs, _rep) ->
+  begin match decl.type_noun with
+  | Equation _ -> ()
+  | Datatype { noun = Datatype_variant { cstrs } } ->
       List.iter
         (fun c ->
            prepare_type_constructor_arguments c.cd_args;
            Option.iter prepare_type c.cd_res)
         cstrs
-  | Type_record(l, _rep) ->
+  | Datatype { noun = Datatype_record { lbls = l } } ->
       List.iter (fun l -> prepare_type l.ld_type) l
-  | Type_open -> ()
+  | Datatype { noun = Datatype_open _ } -> ()
   end;
   ty_manifest, params
 
@@ -1788,16 +1791,19 @@ let tree_of_type_decl id decl =
   in
   let type_defined decl =
     let abstr =
-      match decl.type_kind with
-        Type_abstract _ ->
-          decl.type_manifest = None || decl.type_private = Private
-      | Type_record _ ->
-          decl.type_private = Private
-      | Type_variant (tll, _rep) ->
-          decl.type_private = Private ||
+      match decl.type_noun with
+      | Equation { eq = Type_abstr _ }
+      | Equation { eq = Type_abbrev { priv = Private } } ->
+          true
+      | Equation { eq = Type_abbrev { priv = Public } } ->
+          false
+      | Datatype { noun = Datatype_record { priv } } ->
+          priv = Private
+      | Datatype { noun = Datatype_variant { priv; cstrs = tll } } ->
+          priv = Private ||
           List.exists (fun cd -> cd.cd_res <> None) tll
-      | Type_open ->
-          decl.type_manifest = None
+      | Datatype { manifest; noun = Datatype_open _ } ->
+          manifest = None
     in
     let vari =
       List.map2
@@ -1805,18 +1811,19 @@ let tree_of_type_decl id decl =
           let is_var = is_Tvar ty in
           if abstr || not is_var then
             let inj =
-              type_kind_is_abstract decl && Variance.mem Inj v &&
-              match decl.type_manifest with
-              | None -> true
-              | Some ty -> (* only abstract or private row types *)
-                  decl.type_private = Private &&
+              Variance.mem Inj v &&
+              match decl.type_noun with
+              | Equation { eq = Type_abbrev { priv = Private; expansion = ty } } ->
+                  (* only abstract or private row types *)
                   Btype.is_constr_row ~allow_ident:true (Btype.row_of_type ty)
+              | Equation { eq = Type_abstr _ } -> true
+              | _ -> false
             and (co, cn) = Variance.get_upper v in
             (if not cn then Covariant else
              if not co then Contravariant else NoVariance),
             (if inj then Injective else NoInjectivity)
           else (NoVariance, NoInjectivity))
-        decl.type_params decl.type_variance
+        (get_type_param_exprs decl) (get_type_variance decl)
     in
     let mk_param ty (variance, injectivity) =
       { oparam_name = type_param (tree_of_typexp Type ty);
@@ -1835,29 +1842,27 @@ let tree_of_type_decl id decl =
   let (name, args) = type_defined decl in
   let constraints = tree_of_constraints params in
   let ty, priv, unboxed =
-    match decl.type_kind with
-    | Type_abstract _ ->
-        begin match ty_manifest with
-        | None -> (Otyp_abstract, Public, false)
-        | Some ty ->
-            tree_of_typexp Type ty, decl.type_private, false
-        end
-    | Type_variant (cstrs, rep) ->
+    match decl.type_noun with
+    | Equation { eq = Type_abstr _ } ->
+        Otyp_abstract, Public, false
+    | Equation { eq = Type_abbrev { priv; expansion } } ->
+        tree_of_typexp Type expansion, priv, false
+    | Datatype { noun = Datatype_variant { priv; cstrs; rep } } ->
         let unboxed =
           match rep with
           | Variant_unboxed -> true
           | Variant_boxed _ | Variant_extensible -> false
         in
         tree_of_manifest (Otyp_sum (List.map tree_of_constructor_in_decl cstrs)),
-        decl.type_private,
+        priv,
         unboxed
-    | Type_record(lbls, rep) ->
+    | Datatype { noun = Datatype_record { priv; lbls; rep } } ->
         tree_of_manifest (Otyp_record (List.map tree_of_label lbls)),
-        decl.type_private,
+        priv,
         (match rep with Record_unboxed -> true | _ -> false)
-    | Type_open ->
+    | Datatype { noun = Datatype_open { priv } } ->
         tree_of_manifest Otyp_open,
-        decl.type_private,
+        priv,
         false
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
@@ -2317,15 +2322,9 @@ let wrap_env fenv ftree arg =
 
 let dummy =
   {
-    type_params = [];
-    type_arity = 0;
-    type_kind = Type_abstract Abstract_def;
-    type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
+    type_noun =
+      create_type_equation_noun [] (Jkind.Builtin.any ~why:Dummy_jkind) Public None;
     type_jkind_annotation = None;
-    type_private = Public;
-    type_manifest = None;
-    type_variance = [];
-    type_separability = [];
     type_is_newtype = false;
     type_expansion_scope = Btype.lowest_level;
     type_loc = Location.none;
@@ -3013,8 +3012,8 @@ let explain mis ppf =
 let warn_on_missing_def env ppf t =
   match get_desc t with
   | Tconstr (p,_,_) ->
-    begin match Env.find_type p env with
-    | { type_kind = Type_abstract Abstract_rec_check_regularity; _ } ->
+    begin match (Env.find_type p env).type_noun with
+    | Equation { eq = Type_abstr { reason = Abstract_rec_check_regularity } } ->
         fprintf ppf
           "@,@[<hov>Type %a was considered abstract@ when checking\
            @ constraints@ in this@ recursive type definition.@]"
@@ -3023,9 +3022,7 @@ let warn_on_missing_def env ppf t =
         fprintf ppf
           "@,@[<hov>Type %a is abstract because@ no corresponding\
            @ cmi file@ was found@ in path.@]" path p
-    | {type_kind =
-       Type_abstract Abstract_def | Type_record _ | Type_variant _ | Type_open }
-      -> ()
+    | _ -> ()
     end
   | _ -> ()
 

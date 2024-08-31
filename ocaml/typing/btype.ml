@@ -113,6 +113,8 @@ let newgenvar ?name jkind = newgenty (Tvar { name; jkind })
 let newgenstub ~scope jkind =
   newty3 ~level:generic_level ~scope (Tvar { name=None; jkind })
 
+let () = Types.newgenty_ref := newgenty
+
 (*
 let newmarkedvar level =
   incr new_id; { desc = Tvar; level = pivot_level - level; id = !new_id }
@@ -128,7 +130,7 @@ let is_Tunivar ty = match get_desc ty with Tunivar _ -> true | _ -> false
 let is_Tconstr ty = match get_desc ty with Tconstr _ -> true | _ -> false
 let is_Tpoly ty = match get_desc ty with Tpoly _ -> true | _ -> false
 let type_kind_is_abstract decl =
-  match decl.type_kind with Type_abstract _ -> true | _ -> false
+  match decl.type_noun with Equation _ -> true | Datatype _ -> false
 
 let dummy_method = "*dummy method*"
 
@@ -224,13 +226,13 @@ let is_constr_row ~allow_ident t =
 (* TODO: where should this really be *)
 (* Set row_name in Env, cf. GPR#1204/1329 *)
 let set_static_row_name decl path =
-  match decl.type_manifest with
+  match get_type_manifest decl with
     None -> ()
   | Some ty ->
       match get_desc ty with
         Tvariant row when static_row row ->
           let row =
-            set_row_name row (Some (path, decl.type_params)) in
+            set_row_name row (Some (path, get_type_param_exprs decl)) in
           set_type_desc ty (Tvariant row)
       | _ -> ()
 
@@ -312,7 +314,7 @@ type type_iterators =
     it_functor_param: type_iterators -> functor_parameter -> unit;
     it_module_type: type_iterators -> module_type -> unit;
     it_class_type: type_iterators -> class_type -> unit;
-    it_type_kind: type_iterators -> type_decl_kind -> unit;
+    it_type_noun: type_iterators -> type_noun -> unit;
     it_do_type_expr: type_iterators -> type_expr -> unit;
     it_type_expr: type_iterators -> type_expr -> unit;
     it_path: Path.t -> unit; }
@@ -326,20 +328,29 @@ let map_type_expr_cstr_args f = function
   | Cstr_record lbls ->
       Cstr_record (List.map (fun d -> {d with ld_type=f d.ld_type}) lbls)
 
-let iter_type_expr_kind f = function
-  | Type_abstract _ -> ()
-  | Type_variant (cstrs, _) ->
+let iter_noun expr path = function
+  | Datatype { params; manifest; noun } -> begin
+    List.iter (fun { param_expr; _ } -> expr param_expr) params;
+    Option.iter path manifest;
+    match noun with
+    | Datatype_variant { priv = _; cstrs; rep = _ } ->
       List.iter
         (fun cd ->
-           iter_type_expr_cstr_args f cd.cd_args;
-           Option.iter f cd.cd_res
+          iter_type_expr_cstr_args expr cd.cd_args;
+          Option.iter expr cd.cd_res
         )
         cstrs
-  | Type_record(lbls, _) ->
-      List.iter (fun d -> f d.ld_type) lbls
-  | Type_open ->
-      ()
+    | Datatype_record { priv = _; lbls; rep = _ } ->
+      List.iter (fun d -> expr d.ld_type) lbls
+    | Datatype_open { priv = _ } -> ()
+    end
+  | Equation { params; eq = Type_abstr { reason = _ }} ->
+    List.iter (fun { param_expr; _ } -> expr param_expr) params;
+  | Equation { params; eq = Type_abbrev { priv = _; expansion }} ->
+    List.iter (fun { param_expr; _ } -> expr param_expr) params;
+    expr expansion
 
+let iter_type_expr_noun f = iter_noun f (fun _ -> ())
 
 let type_iterators =
   let it_signature it =
@@ -355,9 +366,7 @@ let type_iterators =
   and it_value_description it vd =
     it.it_type_expr it vd.val_type
   and it_type_declaration it td =
-    List.iter (it.it_type_expr it) td.type_params;
-    Option.iter (it.it_type_expr it) td.type_manifest;
-    it.it_type_kind it td.type_kind
+    it.it_type_noun it td.type_noun
   and it_extension_constructor it td =
     it.it_path td.ext_type_path;
     List.iter (it.it_type_expr it) td.ext_type_params;
@@ -402,8 +411,8 @@ let type_iterators =
     | Cty_arrow  (_, ty, cty) ->
         it.it_type_expr it ty;
         it.it_class_type it cty
-  and it_type_kind it kind =
-    iter_type_expr_kind (it.it_type_expr it) kind
+  and it_type_noun it noun =
+    iter_noun (it.it_type_expr it) it.it_path noun
   and it_do_type_expr it ty =
     iter_type_expr (it.it_type_expr it) ty;
     match get_desc ty with
@@ -417,7 +426,7 @@ let type_iterators =
   and it_path _p = ()
   in
   { it_path; it_type_expr = it_do_type_expr; it_do_type_expr;
-    it_type_kind; it_class_type; it_functor_param; it_module_type;
+    it_type_noun; it_class_type; it_functor_param; it_module_type;
     it_signature; it_class_type_declaration; it_class_declaration;
     it_modtype_declaration; it_module_declaration; it_extension_constructor;
     it_type_declaration; it_value_description; it_signature_item; }

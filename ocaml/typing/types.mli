@@ -498,21 +498,7 @@ end
 (* Type definitions *)
 
 type type_declaration =
-  { type_params: type_expr list;
-    type_arity: int;
-    type_kind: type_decl_kind;
-
-    type_jkind: jkind;
-    (* for an abstract decl kind or for [@@unboxed] types: this is the stored
-       jkind for the type; expansion might find a type with a more precise
-       jkind. See PR#10017 for motivating examples where subsitution or
-       instantiation may refine the immediacy of a type.
-
-       for other decl kinds: this is a cached jkind, computed from the
-       decl kind. EXCEPTION: if a type's jkind is refined by a gadt equation,
-       the jkind stored here might be a subjkind of the jkind that would
-       be computed from the decl kind. This happens in
-       Ctype.add_jkind_equation. *)
+  { type_noun: type_noun;
 
     type_jkind_annotation: type_expr Jkind_types.annotation option;
     (* This is the jkind annotation written by the user. If the user did
@@ -520,11 +506,6 @@ type type_declaration =
     for an e.g. local abstract type or an inlined record), then this field
     can safely be [None]. It's used only for printing and in untypeast. *)
 
-    type_private: private_flag;
-    type_manifest: type_expr option;
-    type_variance: Variance.t list;
-    (* covariant, contravariant, weakly contravariant, injective *)
-    type_separability: Separability.t list;
     type_is_newtype: bool;
     type_expansion_scope: int;
     type_loc: Location.t;
@@ -538,7 +519,46 @@ type type_declaration =
     (* CR layouts v2.8: remove type_has_illegal_crossings *)
   }
 
-and type_decl_kind = (label_declaration, constructor_declaration) type_kind
+and type_param =
+  { param_expr: type_expr;
+    variance: Variance.t;
+    (* covariant, contravariant, weakly contravariant, injective *)
+    separability: Separability.t;
+  }
+
+and type_noun =
+  | Datatype of {
+    params: type_param list;
+    ret_jkind: jkind;
+    manifest: Path.t option;
+    noun: datatype_noun }
+  | Equation of {
+    params: type_param list;
+    ret_jkind: jkind;
+    eq: type_equation }
+
+(* [ret_jkind] fields store the jkind of the type once it is fully applied.
+   With higher kinds, datatypes have a jkind when not applied. *)
+(* for an abstract decl kind or for [@@unboxed] types, [ret_jkind] is the
+   stored jkind for the type; expansion might find a type with a more precise
+   jkind. See PR#10017 for motivating examples where subsitution or
+   instantiation may refine the immediacy of a type.
+
+   for other decl kinds: this is a cached jkind, computed from the
+   decl kind. EXCEPTION: if a type's jkind is refined by a gadt equation,
+   the jkind stored here might be a subjkind of the jkind that would
+   be computed from the decl kind. This happens in
+   Ctype.add_jkind_equation. *)
+
+
+and datatype_noun =
+  | Datatype_record of { priv: private_flag; lbls: label_declaration list; rep: record_representation}
+  | Datatype_variant of { priv: private_flag; cstrs: constructor_declaration list; rep: variant_representation }
+  | Datatype_open of { priv: private_flag }
+
+and type_equation =
+  | Type_abstr of { reason: abstract_reason }
+  | Type_abbrev of { priv: private_flag; expansion: type_expr }
 
 and ('lbl, 'cstr) type_kind =
     Type_abstract of abstract_reason
@@ -682,6 +702,42 @@ and type_transparence =
     Type_public      (* unrestricted expansion *)
   | Type_new         (* "new" type *)
   | Type_private     (* private type *)
+
+val abstract_reason_of_abbrev : abstract_reason
+
+(* Legacy properties *)
+(* FIXME jbachurski: All of these should be removed by the time this PR is done. *)
+
+val newgenty_ref : (type_desc -> type_expr) ref
+
+val get_type_jkind : type_declaration -> jkind
+val set_type_jkind : jkind -> type_declaration -> type_declaration
+
+val create_type_params : type_expr list -> Variance.t list -> Separability.t list -> type_param list
+val create_type_params_of_unknowns : injective:bool -> type_expr list -> type_param list
+
+val map_type_params : type_declaration -> (type_param list -> type_param list) -> type_declaration
+val get_type_params : type_declaration -> type_param list
+val set_type_params : type_declaration -> type_param list -> type_declaration
+
+val get_type_arity : type_declaration -> int
+
+val map_param_exprs : (type_expr -> type_expr) -> (type_param list -> type_param list)
+val get_type_param_exprs : type_declaration -> type_expr list
+val set_type_param_exprs : type_declaration -> type_expr list -> type_declaration
+
+val get_type_variance : type_declaration -> Variance.t list
+val set_type_variance : type_declaration -> Variance.t list -> type_declaration
+
+val zip_params_with_applied : 'a list -> type_declaration -> ('a * type_param) list
+val zip_params_with_applied2 : 'a list -> 'b list -> type_declaration -> ('a * 'b * type_param) list
+
+val create_type_equation_noun : type_param list -> jkind -> private_flag -> type_expr option -> type_noun
+
+val with_expansion : type_declaration -> type_expr -> type_declaration
+val with_manifest : type_declaration -> Path.t -> type_declaration
+val get_type_manifest : type_declaration -> type_expr option
+
 
 (* Type expressions for the class language *)
 

@@ -728,6 +728,10 @@ let empty_structure =
     comp_classes = NameMap.empty;
     comp_cltypes = NameMap.empty }
 
+type type_expansion =
+  | Exp_expr of type_expr
+  | Exp_path of Path.t
+
 type unbound_value_hint =
   | No_hint
   | Missing_rec of Location.t
@@ -1248,8 +1252,8 @@ let type_of_cstr path = function
       let labels =
         List.map snd (Datarepr.labels_of_type path decl)
       in
-      begin match decl.type_kind with
-      | Type_record (_, repr) ->
+      begin match decl.type_noun with
+      | Datatype { noun = Datatype_record { rep = repr } } ->
         {
           tda_declaration = decl;
           tda_descriptions = Type_record (labels, repr);
@@ -1537,11 +1541,12 @@ let find_module_lazy path env =
    - the type should have an associated manifest type. *)
 let find_type_expansion path env =
   let decl = find_type path env in
-  match decl.type_manifest with
-  | Some body when decl.type_private = Public
-              || not (Btype.type_kind_is_abstract decl)
-              || Btype.has_constr_row body ->
-      (decl.type_params, body, decl.type_expansion_scope)
+  match decl.type_noun with
+  | Equation { eq = Type_abbrev { priv; expansion } }
+    when priv = Public || Btype.has_constr_row expansion ->
+      (get_type_param_exprs decl, Exp_expr expansion, decl.type_expansion_scope)
+  | Datatype { manifest = Some path; noun = _ } ->
+      (get_type_param_exprs decl, Exp_path path, decl.type_expansion_scope)
   (* The manifest type of Private abstract data types without
      private row are still considered unknown to the type system.
      Hence, this case is caught by the following clause that also handles
@@ -1554,11 +1559,13 @@ let find_type_expansion path env =
    is revealed for the sake of compiler's type-based optimisations. *)
 let find_type_expansion_opt path env =
   let decl = find_type path env in
-  match decl.type_manifest with
+  match decl.type_noun with
   (* The manifest type of Private abstract data types can still get
      an approximation using their manifest type. *)
-  | Some body ->
-      (decl.type_params, body, decl.type_expansion_scope)
+  | Equation { eq = Type_abbrev { priv = _; expansion } } ->
+      (get_type_param_exprs decl, Exp_expr expansion, decl.type_expansion_scope)
+  | Datatype { manifest = Some path; noun = _ } ->
+      (get_type_param_exprs decl, Exp_path path, decl.type_expansion_scope)
   | _ -> raise Not_found
 
 let find_modtype_expansion_lazy path env =
@@ -1866,8 +1873,8 @@ let rec components_of_module_maker
             Btype.set_static_row_name final_decl
               (Subst.type_path sub (Path.Pident id));
             let descrs =
-              match decl.type_kind with
-              | Type_variant (_,repr) ->
+              match decl.type_noun with
+              | Datatype { noun = Datatype_variant { rep = repr }} ->
                   let cstrs = List.map snd
                     (Datarepr.constructors_of_type path final_decl
                         ~current_unit:(get_unit_name ()))
@@ -1884,7 +1891,7 @@ let rec components_of_module_maker
                         add_to_tbl descr.cstr_name cda c.comp_constrs
                     ) cstrs;
                  Type_variant (cstrs, repr)
-              | Type_record (_, repr) ->
+              | Datatype { noun = Datatype_record { rep = repr }} ->
                   let lbls = List.map snd
                     (Datarepr.labels_of_type path final_decl)
                   in
@@ -1894,8 +1901,9 @@ let rec components_of_module_maker
                         add_to_tbl descr.lbl_name descr c.comp_labels)
                     lbls;
                   Type_record (lbls, repr)
-              | Type_abstract r -> Type_abstract r
-              | Type_open -> Type_open
+              | Equation { eq = Type_abstr { reason } } -> Type_abstract reason
+              | Equation { eq = Type_abbrev _ } -> Type_abstract abstract_reason_of_abbrev
+              | Datatype { noun = Datatype_open _ } -> Type_open
             in
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
             let tda =
@@ -2052,16 +2060,15 @@ and store_value ?check ~mode id addr decl shape env =
     summary =
       Env_value(env.summary, id, Subst.Lazy.force_value_description decl, mode) }
 
-and store_constructor ~check type_decl type_id cstr_id cstr env =
+and store_constructor ~check priv type_loc type_id cstr_id cstr env =
   Builtin_attributes.warning_scope cstr.cstr_attributes (fun () ->
-  if check && not type_decl.type_loc.Location.loc_ghost
+  if check && not type_loc.Location.loc_ghost
      && Warnings.is_active (Warnings.Unused_constructor ("", Unused))
   then begin
     let ty_name = Ident.name type_id in
     let name = cstr.cstr_name in
     let loc = cstr.cstr_loc in
     let k = cstr.cstr_uid in
-    let priv = type_decl.type_private in
     if not (Types.Uid.Tbl.mem !used_constructors k) then begin
       let used = constructor_usages () in
       Types.Uid.Tbl.add !used_constructors k
@@ -2087,13 +2094,12 @@ and store_constructor ~check type_decl type_id cstr_id cstr env =
         { cda_description = cstr; cda_address = None; cda_shape } env.constrs;
   }
 
-and store_label ~check type_decl type_id lbl_id lbl env =
+and store_label ~check priv type_loc type_id lbl_id lbl env =
   Builtin_attributes.warning_scope lbl.lbl_attributes (fun () ->
-  if check && not type_decl.type_loc.Location.loc_ghost
+  if check && not type_loc.Location.loc_ghost
      && Warnings.is_active (Warnings.Unused_field ("", Unused))
   then begin
     let ty_name = Ident.name type_id in
-    let priv = type_decl.type_private in
     let name = lbl.lbl_name in
     let loc = lbl.lbl_loc in
     let mut = lbl.lbl_mut in
@@ -2125,25 +2131,26 @@ and store_type ~check id info shape env =
       !type_declarations;
   let descrs, env =
     let path = Pident id in
-    match info.type_kind with
-    | Type_variant (_,repr) ->
+    match info.type_noun with
+    | Datatype { noun = Datatype_variant { priv; rep } }  ->
         let constructors = Datarepr.constructors_of_type path info
                             ~current_unit:(get_unit_name ())
         in
-        Type_variant (List.map snd constructors, repr),
+        Type_variant (List.map snd constructors, rep),
         List.fold_left
           (fun env (cstr_id, cstr) ->
-            store_constructor ~check info id cstr_id cstr env)
+            store_constructor ~check priv info.type_loc id cstr_id cstr env)
           env constructors
-    | Type_record (_, repr) ->
+    | Datatype { noun = Datatype_record { priv; rep } } ->
         let labels = Datarepr.labels_of_type path info in
-        Type_record (List.map snd labels, repr),
+        Type_record (List.map snd labels, rep),
         List.fold_left
           (fun env (lbl_id, lbl) ->
-            store_label ~check info id lbl_id lbl env)
+            store_label ~check priv info.type_loc id lbl_id lbl env)
           env labels
-    | Type_abstract r -> Type_abstract r, env
-    | Type_open -> Type_open, env
+    | Datatype { noun = Datatype_open _ } -> Type_open, env
+    | Equation { eq = Type_abstr { reason } } -> Type_abstract reason, env
+    | Equation { eq = Type_abbrev _ } -> Type_abstract abstract_reason_of_abbrev, env
   in
   let tda =
     { tda_declaration = info;

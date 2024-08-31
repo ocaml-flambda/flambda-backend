@@ -396,13 +396,13 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
           | Tconstr(path, ty_list, _) -> begin
               try
                 let decl = Env.find_type path env in
-                match decl with
-                | {type_kind = Type_abstract _; type_manifest = None} ->
+                match decl.type_noun with
+                | Equation { eq = Type_abstr _ } ->
                     Oval_stuff "<abstr>"
-                | {type_kind = Type_abstract _; type_manifest = Some body} ->
+                | Equation { eq = Type_abbrev { expansion = body } } ->
                     tree_of_val depth obj
-                      (instantiate_type env decl.type_params ty_list body)
-                | {type_kind = Type_variant (constr_list,rep)} ->
+                      (instantiate_type env (get_type_param_exprs decl) ty_list body)
+                | Datatype { noun = Datatype_variant { cstrs = constr_list; rep } } ->
                   (* Here we work backwards from the actual runtime value to
                      find the appropriate `constructor_declaration` in
                      `constr_list`.  `Datarepr.find_constr_by_tag` does most
@@ -440,7 +440,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                             Tconstr (_,params,_) ->
                               params
                           | _ -> assert false end
-                      | None -> decl.type_params
+                      | None -> get_type_param_exprs decl
                     in
                     let unbx =
                       match rep with
@@ -479,7 +479,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                                         (Out_name.create (Ident.name cd_id)),
                                       [ r ])
                     end
-                | {type_kind = Type_record(lbl_list, rep)} ->
+                | Datatype { noun = Datatype_record { lbls = lbl_list; rep } } ->
                     begin match check_depth depth obj ty with
                       Some x -> x
                     | None ->
@@ -512,10 +512,10 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                                 else Outval_record_boxed
                         in
                         tree_of_record_fields depth
-                          env path decl.type_params ty_list
+                          env path (get_type_param_exprs decl) ty_list
                           lbl_list pos obj rep
                     end
-                | {type_kind = Type_open} ->
+                | Datatype { noun = Datatype_open _ } ->
                     tree_of_extension path ty_list depth obj
               with
                 Not_found ->                (* raised by Env.find_type *)

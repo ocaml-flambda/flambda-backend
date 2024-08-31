@@ -51,6 +51,10 @@ type address =
   | Alocal of Ident.t
   | Adot of address * int
 
+type type_expansion =
+  | Exp_expr of type_expr
+  | Exp_path of Path.t
+
 type t
 
 val empty: t
@@ -102,9 +106,9 @@ val find_ident_constructor: Ident.t -> t -> constructor_description
 val find_ident_label: Ident.t -> t -> label_description
 
 val find_type_expansion:
-    Path.t -> t -> type_expr list * type_expr * int
+    Path.t -> t -> type_expr list * type_expansion * int
 val find_type_expansion_opt:
-    Path.t -> t -> type_expr list * type_expr * int
+    Path.t -> t -> type_expr list * type_expansion * int
 (* Find the manifest type information associated to a type for the sake
    of the compiler's type-based optimisations. *)
 val find_modtype_expansion: Path.t -> t -> module_type
