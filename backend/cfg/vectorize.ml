@@ -6,6 +6,8 @@
 
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
+let debug = false
+
 let ( << ) f g x = f (g x)
 
 let all_option_list list =
@@ -1510,7 +1512,7 @@ let vectorize (block : Cfg.basic_block) cfg_with_infos =
 
 let dump ppf (cfg : Cfg.t) ~msg =
   let open Format in
-  fprintf ppf "\nvectorization extra information for %s\n" msg;
+  fprintf ppf "\nextra information %s\n" msg;
   fprintf ppf "%s\n" (Cfg.fun_name cfg);
   let block_count = Label.Tbl.length cfg.blocks in
   fprintf ppf "blocks.length=%d\n" block_count;
@@ -1547,26 +1549,19 @@ let cfg ppf_dump cl =
         Format.fprintf ppf_dump
           "more than 1000 instructions in basic block, cannot vectorize\n"
       else (
-        (if !Flambda_backend_flags.dump_vectorize
-        then
+        if debug && !Flambda_backend_flags.dump_vectorize
+        then (
           let dependency_graph = Dependency_graph.from_block block in
-          Dependency_graph.dump ppf_dump dependency_graph block);
-        (if !Flambda_backend_flags.dump_vectorize
-        then
+          Dependency_graph.dump ppf_dump dependency_graph block;
           let memory_accesses = Memory_accesses.from_block block in
-          Memory_accesses.dump ppf_dump memory_accesses);
-        (if !Flambda_backend_flags.dump_vectorize
-        then
+          Memory_accesses.dump ppf_dump memory_accesses;
           let seeds = Seed.from_block block in
-          Seed.dump ppf_dump seeds);
-        (if !Flambda_backend_flags.dump_vectorize
-        then
+          Seed.dump ppf_dump seeds;
           let trees = Computation_tree.from_block block cfg_with_infos in
           Computation_tree.dump ppf_dump trees block);
-        ignore Dependency_graph.dump;
-        ignore Memory_accesses.dump;
-        ignore Seed.dump;
-        ignore Computation_tree.dump;
+        if !Flambda_backend_flags.dump_vectorize
+        then dump ppf_dump ~msg:"before vectorize" cfg;
         vectorize block cfg_with_infos;
-        if !Flambda_backend_flags.dump_vectorize then dump ppf_dump ~msg:"" cfg));
+        if !Flambda_backend_flags.dump_vectorize
+        then dump ppf_dump ~msg:"after vectorize" cfg));
   cl
