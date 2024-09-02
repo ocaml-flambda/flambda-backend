@@ -14,11 +14,5 @@ let f (type output) ~(output : output t) =
 [%%expect{|
 type _ t = A : bool t
 val id : 'a -> 'a = <fun>
-Line 8, characters 11-32:
-8 |     | A -> (id : bool -> output)
-               ^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "bool -> output"
-       but an expression was expected of type "'a"
-       This instance of "bool" is ambiguous:
-       it would escape the scope of its equation
+val f : output:'output t -> bool -> 'output = <fun>
 |}]
