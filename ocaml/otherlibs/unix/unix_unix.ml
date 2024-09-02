@@ -939,8 +939,29 @@ type popen_process =
 
 let popen_processes = (Hashtbl.create 7 : (popen_process, int) Hashtbl.t)
 
-(* CR ocaml 5 all-runtime5: remove lazy, which is here to stop:
-     "Must initialize systhreads library before using Mutex" *)
+(* CR ocaml 5 all-runtime5: go back to the normal [Mutex]. *)
+
+module Mutex : sig
+  type t
+  val create : unit -> t
+  val protect : t -> (unit -> 'a) -> 'a
+end = struct
+  type t = Mutex.t option
+
+  external runtime5 : unit -> bool = "%runtime5"
+
+  let create () =
+    (* On runtime4, systhreads must be linked to use [Mutex], which is
+       error-prone to ensure.  The use of [Mutex] here is new in 5.2.0, so
+       we just omit it for runtime4, which doesn't have parallelism. *)
+    if runtime5 () then Some (Mutex.create ()) else None
+
+  let protect t f =
+    match t with
+    | None -> f ()
+    | Some mutex -> Mutex.protect mutex f
+end
+
 let popen_mutex = lazy (Mutex.create ())
 
 let open_proc prog args envopt proc input output error =
