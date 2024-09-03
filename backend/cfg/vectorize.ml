@@ -1322,6 +1322,8 @@ let cfg ppf_dump cl =
   then Format.fprintf ppf_dump "*** Vectorization@.";
   let cfg = Cfg_with_layout.cfg cl in
   let layout = Cfg_with_layout.layout cl in
+  (* CR-someday tip: the function may someday take a cfg_with_infos instead of
+     creating a new one *)
   let cfg_with_infos = Cfg_with_infos.make cl in
   DLL.iter layout ~f:(fun label ->
       let block = Cfg.get_block_exn cfg label in
