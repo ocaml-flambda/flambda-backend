@@ -32,6 +32,10 @@ val array_kind :
   Typedtree.expression -> Jkind.Sort.t -> Lambda.array_kind
 val array_pattern_kind :
   Typedtree.pattern -> Jkind.Sort.t -> Lambda.array_kind
+
+(* If [kind] or [layout] is unknown, attempt to specialize it by examining the
+   type parameters of the bigarray. If [kind] or [length] is not unknown, returns
+   it unmodified. *)
 val bigarray_specialize_kind_and_layout :
   Env.t -> kind:Lambda.bigarray_kind -> layout:Lambda.bigarray_layout ->
   Types.type_expr -> Lambda.bigarray_kind * Lambda.bigarray_layout
