@@ -477,6 +477,7 @@ static void scan_local_allocations(scanning_action f, void* fdata,
   }
 }
 
+#include <assert.h>
 
 Caml_inline void scan_stack_frames(
   scanning_action f, scanning_action_flags fflags, void* fdata,
@@ -492,10 +493,14 @@ Caml_inline void scan_stack_frames(
   /* does not change during marking */
   struct global_heap_state colors = caml_global_heap_state;
 
+  //fprintf(stderr, "----- scan_stack_frames -----\n");
+
   sp = (char*)stack->sp;
   regs = gc_regs;
 
 next_chunk:
+  //fprintf(stderr, "scan_stack_frames: sp = %p, stack_high = %p\n", (void*) sp, (void*) Stack_high(stack));
+
   if (sp == (char*)Stack_high(stack)) return;
 
   Pop_frame_pointer(sp);
@@ -503,10 +508,17 @@ next_chunk:
   sp += sizeof(value);
 
   while(1) {
+    //fprintf(stderr, "scan_stack_frames loop: sp = %p\n", (void*) sp);
+    //fprintf(stderr, "scan_stack_frames loop: retaddr = %p\n", (void*) retaddr);
     d = caml_find_frame_descr(fds, retaddr);
-    if(!d) return;
+    if(!d) {
+      //fprintf(stderr, "scan_stack_frames loop finished\n");
+      return;
+    }
     CAMLassert(d);
     if (!frame_return_to_C(d)) {
+//      fprintf(stderr, "this is an OCaml frame\n");
+//      fprintf(stderr, "size of this frame = %d\n", frame_size(d));
       /* Scan the roots in this frame */
       if (frame_is_long(d)) {
         frame_descr_long *dl = frame_as_long(d);
@@ -539,11 +551,26 @@ next_chunk:
       retaddr = Saved_return_address(sp);
       /* XXX KC: disabled already scanned optimization. */
     } else {
+//      fprintf(stderr, "this is a C frame, moving to next chunk\n");
       /* This marks the top of an ML stack chunk. Move sp to the previous
        * stack chunk.  */
       sp += 3 * sizeof(value); /* trap frame & DWARF pointer */
       regs = *(value**)sp;     /* update gc_regs */
       sp += 1 * sizeof(value); /* gc_regs */
+      struct c_stack_link* link = (struct c_stack_link*) sp;
+      /* Use the stack link to find the next OCaml stack pointer and
+         hence the corresponding return address into OCaml code. */
+//      assert(link->stack == NULL);
+//      assert(link->sp == NULL);
+      if (link->prev == NULL) {
+//        fprintf(stderr, "scan_stack_frames returning in leaf case\n");
+        return; // leaf caml_start_program
+      }
+      link = link->prev;
+      sp = link->sp;
+//      fprintf(stderr, "sp jumped across C, now at %p, *p=%p\n", (void*) sp,
+//          (void*) * (void**) sp);
+      /* sp should now be pointing at a return address */
       goto next_chunk;
     }
   }

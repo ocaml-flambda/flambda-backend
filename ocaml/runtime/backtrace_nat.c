@@ -40,10 +40,14 @@ frame_descr * caml_next_frame_descriptor
 {
   frame_descr * d;
 
+//  fprintf(stderr, "caml_next_frame_descriptor sp=%p\n", *sp);
   while (1) {
+//    fprintf(stderr, "trying to find frame descr for sp=%p, pc=%p\n",
+//      *sp, (void*) *pc);
     d = caml_find_frame_descr(fds, *pc);
 
     if( d == NULL ) {
+//      fprintf(stderr, "...no frame descr\n");
       return NULL;
     }
 
@@ -51,18 +55,25 @@ frame_descr * caml_next_frame_descriptor
     if (!frame_return_to_C(d)) {
       /* Regular frame, update sp/pc and return the frame descriptor */
       *sp += frame_size(d);
+//      fprintf(stderr, "OCaml frame of size %d\n", frame_size(d));
       *pc = Saved_return_address(*sp);
+//      fprintf(stderr, "New sp = %p, new pc = %p\n", *sp, (void*) *pc);
       return d;
     } else {
+//      fprintf(stderr, "moving over C stack link at %p\n", *sp);
       /* This marks the top of an ML stack chunk. Move sp to the previous stack
        chunk. This includes skipping over the DWARF link & trap frame
        (4 words). */
       *sp += 4 * sizeof(value);
-      if (*sp == (char*)Stack_high(stack)) {
+      struct c_stack_link* link = (struct c_stack_link*) *sp;
+      if (link->prev == NULL) {
         /* We've reached the top of stack. No more frames. */
+//        fprintf(stderr, "no more frames\n");
         *pc = 0;
         return NULL;
       }
+      link = link->prev;
+      *sp = link->sp;
       Pop_frame_pointer(*sp);
       *pc = **(uintnat**)sp;
       *sp += sizeof(value); /* return address */
@@ -107,8 +118,6 @@ void caml_stash_backtrace(value exn, uintnat pc, char * sp, char* trapsp)
   caml_domain_state* domain_state = Caml_state;
   caml_frame_descrs fds;
 
-  return;
-
   if (exn != domain_state->backtrace_last_exn) {
     domain_state->backtrace_pos = 0;
     caml_modify_generational_global_root
@@ -116,8 +125,12 @@ void caml_stash_backtrace(value exn, uintnat pc, char * sp, char* trapsp)
   }
 
   if (Caml_state->backtrace_buffer == NULL &&
-      caml_alloc_backtrace_buffer() == -1)
+      caml_alloc_backtrace_buffer() == -1) {
+//    fprintf(stderr, "returning on caml_alloc_backtrace_buffer\n");
     return;
+  }
+
+//  fprintf(stderr, "loop starting in caml_stash_backtrace\n");
 
   fds = caml_get_frame_descrs();
   /* iterate on each frame  */
@@ -131,12 +144,16 @@ void caml_stash_backtrace(value exn, uintnat pc, char * sp, char* trapsp)
       (backtrace_slot) descr;
 
     /* Stop when we reach the current exception handler */
-    if (sp > trapsp) return;
+    if (sp > trapsp) {
+//      fprintf(stderr, "stopping because trapsp reached\n");
+      return;
+    }
   }
 }
 
 void caml_stash_backtrace_wrapper(value exn, char* rsp, char* trapsp)
 {
+//  fprintf(stderr, "stash_backtrace_wrapper: sp %p, trapsp %p\n", rsp, trapsp);
 #if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
   /* If we get an rsp that lies in the guard page, just do nothing - using rsp
    * would trigger another segfault, and we are probably in the process of

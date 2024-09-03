@@ -54,6 +54,9 @@ void caml_garbage_collection(void)
   Pop_frame_pointer(sp);
   uintnat retaddr = *(uintnat*)sp;
 
+//  fprintf(stderr, "caml_garbage_collection: sp=%p, retaddr=%p\n",
+//    sp, (void*) retaddr);
+
   /* Synchronise for the case when [young_limit] was used to interrupt
      us. */
   atomic_thread_fence(memory_order_acquire);

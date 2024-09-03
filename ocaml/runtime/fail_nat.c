@@ -84,7 +84,8 @@ void caml_raise(value v)
      a blocking call has a chance to interrupt the raising of EINTR */
   v = caml_process_pending_actions_with_root(v);
 
-  limit_of_current_c_stack_chunk = (char*)Caml_state->c_stack;
+//  limit_of_current_c_stack_chunk = (char*)Caml_state->c_stack;
+  limit_of_current_c_stack_chunk = Caml_state->c_stack->sp;
 
   if (limit_of_current_c_stack_chunk == NULL) {
     caml_terminate_signals();
@@ -115,7 +116,8 @@ CAMLno_asan void caml_raise_async(value v)
      so no need to check for another one, and avoiding polling here
      removes the risk of recursion in caml_raise */
 
-  limit_of_current_c_stack_chunk = (char*)Caml_state->c_stack;
+  //limit_of_current_c_stack_chunk = (char*)Caml_state->c_stack;
+  limit_of_current_c_stack_chunk = Caml_state->c_stack->sp;
 
   if (limit_of_current_c_stack_chunk == NULL) {
     caml_terminate_signals();
