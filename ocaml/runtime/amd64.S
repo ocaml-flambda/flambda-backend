@@ -594,12 +594,13 @@ CFI_STARTPROC
         jnz 999f
         addq $8, %rsp  // cannot "sub" here...
 999:
+        CHECK_STACK_MISALIGNMENT
         SWITCH_OCAML_TO_C
         movq    %r15, Caml_state(gc_regs)
         // Switch to a temporary stack to get as far as caml_raise_exception,
         // at which point we will go back to the OCaml stack
         LEA_VAR(segv_handler_stack, %rsp)
-        addq $(1024 * 8), %rsp
+        addq $(10240 * 8), %rsp
         subq $8, %rsp
         CHECK_STACK_MISALIGNMENT
         jmp GCALL(caml_raise_stack_overflow)
@@ -755,6 +756,7 @@ LBL(106):
     /* Pop arguments back off the stack */
         movq    Caml_state(c_stack), %rsp
         movq    Cstack_sp(%rsp), %rsp
+        CHECK_STACK_MISALIGNMENT
     /* Prepare for return to OCaml */
         movq    Caml_state(young_ptr), %r15
     /* Load ocaml stack and restore global variables */
@@ -1065,9 +1067,7 @@ CFI_STARTPROC
     /* Discard the current C stack chunk */
         movq    Caml_state(c_stack), %r10
         movq    Cstack_sp(%r10), %rsp
-        CHECK_STACK_ALIGNMENT
-        subq $8, %rsp
-        STACK_REMOVED
+        CHECK_STACK_MISALIGNMENT
         jmp LBL(caml_raise_exn)
 CFI_ENDPROC
 ENDFUNCTION(G(caml_raise_exception))

@@ -108,24 +108,24 @@ void caml_garbage_collection(void)
 
 CAMLextern void caml_raise_stack_overflow_nat(void);
 
-__attribute__((aligned(16))) uint64_t segv_handler_stack[1024];
+__attribute__((aligned(16))) uint64_t segv_handler_stack[10240];
 
 DECLARE_SIGNAL_HANDLER(segv_handler)
 {
   struct sigaction act;
-  struct stack_info *block = Caml_state->current_stack;
-  char* fault_addr = info->si_addr;
-  int page_size = getpagesize();
-  char* protected_low = Protected_stack_page(block, page_size);
-  char* protected_high = protected_low + page_size;
-  if ((fault_addr >= protected_low) && (fault_addr < protected_high)) {
-    context->uc_mcontext.gregs[REG_RIP]= (greg_t) &caml_raise_stack_overflow_nat;
-  } else {
+//  struct stack_info *block = Caml_state->current_stack;
+//  char* fault_addr = info->si_addr;
+//  int page_size = getpagesize();
+//  char* protected_low = Protected_stack_page(block, page_size);
+//  char* protected_high = protected_low + page_size;
+//  if ((fault_addr >= protected_low) && (fault_addr < protected_high)) {
+//    context->uc_mcontext.gregs[REG_RIP]= (greg_t) &caml_raise_stack_overflow_nat;
+//  } else {
     act.sa_handler = SIG_DFL;
     act.sa_flags = 0;
     sigemptyset(&act.sa_mask);
     sigaction(SIGSEGV, &act, NULL);
-  }
+//  }
 }
 
 void caml_init_nat_signals(void)
