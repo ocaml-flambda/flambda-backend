@@ -251,6 +251,10 @@ let rec core_type i ppf x =
   | Ttyp_constr (li, _, l) ->
       line i ppf "Ttyp_constr %a\n" fmt_path li;
       list i core_type ppf l;
+  | Ttyp_app (ct, l) ->
+      line i ppf "Ttyp_app\n";
+      core_type i ppf ct;
+      list i core_type ppf l;
   | Ttyp_variant (l, closed, low) ->
       line i ppf "Ttyp_variant closed=%a\n" fmt_closed_flag closed;
       list i label_x_bool_x_core_type_list ppf l;

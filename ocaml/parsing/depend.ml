@@ -113,6 +113,7 @@ let rec add_type bv ty =
   | Ptyp_arrow(_, t1, t2, _, _) -> add_type bv t1; add_type bv t2
   | Ptyp_tuple tl -> List.iter (add_type bv) tl
   | Ptyp_constr(c, tl) -> add bv c; List.iter (add_type bv) tl
+  | Ptyp_app(t, tl) -> add_type bv t; List.iter (add_type bv) tl
   | Ptyp_object (fl, _) ->
       List.iter
        (fun {pof_desc; _} -> match pof_desc with

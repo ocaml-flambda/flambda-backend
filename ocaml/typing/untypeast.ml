@@ -1036,6 +1036,8 @@ let core_type sub ct =
     | Ttyp_constr (_path, lid, list) ->
         Ptyp_constr (map_loc sub lid,
           List.map (sub.typ sub) list)
+    | Ttyp_app (ct, list) ->
+        Ptyp_app (sub.typ sub ct, List.map (sub.typ sub) list)
     | Ttyp_object (list, o) ->
         Ptyp_object
           (List.map (sub.object_field sub) list, o)
