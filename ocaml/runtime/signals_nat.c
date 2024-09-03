@@ -108,6 +108,8 @@ void caml_garbage_collection(void)
 
 CAMLextern void caml_raise_stack_overflow_nat(void);
 
+__attribute__((aligned(16))) uint64_t segv_handler_stack[1024];
+
 DECLARE_SIGNAL_HANDLER(segv_handler)
 {
   struct sigaction act;

@@ -244,6 +244,8 @@
         movq    %rsp, Stack_sp(%r10);                      \
     /* Fill in Caml_state->c_stack */                      \
         movq    Caml_state(c_stack), %r10;                 \
+    /* %rsp should be 8 mod 16 because of a retaddr */     \
+        CHECK_STACK_MISALIGNMENT;                          \
         movq    %rsp, Cstack_sp(%r10);                     \
 /*      movq    %r10, Cstack_stack(%r11);   */             \
     /* Switch to C stack */                                \
@@ -260,6 +262,7 @@
         movq    %rsp, Stack_sp(%r10);                      \
     /* Fill in Caml_state->c_stack->sp */                  \
         movq    Caml_state(c_stack), %r10;                 \
+        CHECK_STACK_MISALIGNMENT;                          \
         movq    %rsp, Cstack_sp(%r10);                     \
         subq    $8, %rsp;                                  \
         CFI_ADJUST(8);                                     \
@@ -585,16 +588,21 @@ FUNCTION(G(caml_raise_stack_overflow_nat))
 CFI_STARTPROC
         CFI_SIGNAL_FRAME
         ENTER_FUNCTION
-        SWITCH_OCAML_TO_C_NO_CLOBBER
         SAVE_ALL_REGS
+        // Hack to make sure the OCaml stack ptr is 8 mod 16 aligned
+        test $0xf, %rsp
+        jnz 999f
+        addq $8, %rsp  // cannot "sub" here...
+999:
+        SWITCH_OCAML_TO_C
         movq    %r15, Caml_state(gc_regs)
-        /* We assume that we are always on the OCaml stack at this point.
-           The SIGSEGV handler doesn't actually check that the faulting
-           address lies in OCaml code, so it seems theoretically possible
-           for the code here to be reached via a segfault from C, but
-           in practice this seems most unlikely.  The current situation will
-           suffice as this patch is only a temporary measure in any case. */
-        CHECK_STACK_ALIGNMENT; jmp GCALL(caml_raise_stack_overflow)
+        // Switch to a temporary stack to get as far as caml_raise_exception,
+        // at which point we will go back to the OCaml stack
+        LEA_VAR(segv_handler_stack, %rsp)
+        addq $(1024 * 8), %rsp
+        subq $8, %rsp
+        CHECK_STACK_MISALIGNMENT
+        jmp GCALL(caml_raise_stack_overflow)
         LEAVE_FUNCTION
 CFI_ENDPROC
 ENDFUNCTION(G(caml_raise_stack_overflow_nat))
@@ -1008,8 +1016,8 @@ ENDFUNCTION(G(caml_start_program_for_caml_callback))
 FUNCTION(G(caml_raise_exn))
 CFI_STARTPROC
         ENTER_FUNCTION
-        CHECK_STACK_MISALIGNMENT
 LBL(caml_raise_exn):
+        CHECK_STACK_MISALIGNMENT
         testq   $1, Caml_state(backtrace_active)
         jne   LBL(116)
         RESTORE_EXN_HANDLER_OCAML
@@ -1057,6 +1065,8 @@ CFI_STARTPROC
     /* Discard the current C stack chunk */
         movq    Caml_state(c_stack), %r10
         movq    Cstack_sp(%r10), %rsp
+        CHECK_STACK_ALIGNMENT
+        subq $8, %rsp
         STACK_REMOVED
         jmp LBL(caml_raise_exn)
 CFI_ENDPROC

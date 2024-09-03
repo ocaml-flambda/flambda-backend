@@ -201,7 +201,6 @@ void caml_raise_out_of_memory(void)
 CAMLno_asan
 void caml_raise_stack_overflow(void)
 {
-  fprintf(stderr, "caml_raise_stack_overflow\n");
   caml_raise_async((value) caml_exn_Stack_overflow);
 }
 
