@@ -563,9 +563,9 @@ let block_index_kind = K.value
 
 let array_index_kind = K.value
 
-let string_or_bigstring_index_kind = K.value
+let string_or_bigstring_index_kind = K.naked_immediate
 
-let bytes_or_bigstring_index_kind = K.value
+let bytes_or_bigstring_index_kind = K.naked_immediate
 
 type 'signed_or_unsigned comparison =
   | Eq

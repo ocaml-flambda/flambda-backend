@@ -21,7 +21,12 @@ modality_cstrarg:
       | Foo: global_ string * global_ string -> u 
   end
 
-modality_val: sig val t : string -> local_ string @@ foo bar end
+modality_val:
+  sig
+    val t : string -> local_ string @@ foo bar
+    include S @@ bar foo
+    include functor S @@ foo foo
+  end
 
 local_exp: let x = foo (local_ x) in (local_ y)
 
@@ -139,7 +144,12 @@ modality_cstrarg:
       | Foo: global_ string * global_ string -> u 
   end
 
-modality_val: sig val t : string -> local_ string @@ foo bar end
+modality_val:
+  sig
+    val t : string -> local_ string @@ foo bar
+    include S @@ bar foo
+    include functor S @@ foo foo
+  end
 
 local_exp: let x = foo (local_ x) in (local_ y)
 

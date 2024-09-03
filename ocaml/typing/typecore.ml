@@ -172,7 +172,8 @@ type error =
       Datatype_kind.t * Longident.t * (Path.t * Path.t) * (Path.t * Path.t) list
   | Invalid_format of string
   | Not_an_object of type_expr * type_forcing_context option
-  | Not_a_value of Jkind.Violation.t * type_forcing_context option
+  | Non_value_object of Jkind.Violation.t * type_forcing_context option
+  | Non_value_let_rec of Jkind.Violation.t * type_expr
   | Undefined_method of type_expr * string * string list option
   | Undefined_self_method of string * string list
   | Virtual_class of Longident.t
@@ -443,7 +444,7 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
 
 let meet_regional mode =
   let mode = Value.disallow_left mode in
-  Value.meet [mode; (Value.max_with (Comonadic Areality) Regionality.regional)]
+  Value.meet_with (Comonadic Areality) Regionality.Const.Regional mode
 
 let mode_default mode =
   { position = RNontail;
@@ -460,19 +461,14 @@ let as_single_mode {mode; tuple_modes; _} =
   | Some l -> Value.meet (mode :: l)
   | None -> mode
 
-let get_single_mode_exn {mode; tuple_modes; _} =
-  match tuple_modes with
-  | Some _ -> Misc.fatal_error "tuple_modes should be None"
-  | None -> mode
-
 let mode_morph f expected_mode =
   let mode = as_single_mode expected_mode in
-  let mode = f mode in
+  let mode = f mode |> Mode.Value.disallow_left in
   let tuple_modes = None in
   {expected_mode with mode; tuple_modes}
 
 let mode_modality modality expected_mode =
-  get_single_mode_exn expected_mode
+  as_single_mode expected_mode
   |> Modality.Value.Const.apply modality
   |> mode_default
 
@@ -630,7 +626,7 @@ let register_allocation_value_mode mode =
     of potential subcomponents. *)
 let register_allocation (expected_mode : expected_mode) =
   let alloc_mode, mode =
-    register_allocation_value_mode (get_single_mode_exn expected_mode)
+    register_allocation_value_mode (as_single_mode expected_mode)
   in
   let alloc_mode =
     { mode = alloc_mode;
@@ -4752,7 +4748,7 @@ let split_function_ty
          to be made global if its inner function is global. As a result, a
          function deserves a separate allocation mode.
       *)
-      let mode, _ = Value.newvar_below (get_single_mode_exn expected_mode) in
+      let mode, _ = Value.newvar_below (as_single_mode expected_mode) in
       fst (register_allocation_value_mode mode)
   in
   if expected_mode.strictly_local then
@@ -5073,7 +5069,7 @@ and type_expect_
             in
             Texp_ident(path, lid, desc, kind,
               unique_use ~loc ~env actual_mode.mode
-                (get_single_mode_exn expected_mode))
+                (as_single_mode expected_mode))
         | _ ->
             Texp_ident(path, lid, desc, kind,
               unique_use ~loc ~env actual_mode.mode
@@ -5594,7 +5590,7 @@ and type_expect_
                   submode ~loc ~env mode argument_mode;
                   Kept (ty_arg1, lbl.lbl_mut,
                         unique_use ~loc ~env mode
-                          (get_single_mode_exn argument_mode))
+                          (as_single_mode argument_mode))
                 end
             in
             let label_definitions = Array.map unify_kept lbl.lbl_all in
@@ -5657,7 +5653,7 @@ and type_expect_
           let mode = mode_cross_left env Predef.type_unboxed_float mode in
           submode ~loc ~env mode argument_mode;
           let uu =
-            unique_use ~loc ~env mode (get_single_mode_exn argument_mode)
+            unique_use ~loc ~env mode (as_single_mode argument_mode)
           in
           Boxing (alloc_mode, uu)
         | false ->
@@ -6295,8 +6291,6 @@ and type_expect_
     | Error () -> raise (Error (loc, env, Probe_format))
     | Ok { name; name_loc; enabled_at_init; arg; } ->
         check_probe_name name name_loc env;
-        let env = Env.add_escape_lock Probe env in
-        let env = Env.add_share_lock Probe env in
         Env.add_probe name;
         let exp = type_expect env mode_legacy arg
                     (mk_expected Predef.type_unit) in
@@ -6533,9 +6527,7 @@ and type_ident env ?(recarg=Rejected) lid =
        (* if the locality of returned value of the primitive is poly
           we then register allocation for further optimization *)
        | (Prim_poly, _), Some mode ->
-           register_allocation_mode
-             (Alloc.meet [Alloc.max_with (Comonadic Areality) mode;
-                          Alloc.max_with (Comonadic Linearity) Linearity.many])
+           register_allocation_mode (Alloc.max_with (Comonadic Areality) mode)
        | _ -> ()
        end;
        ty, Id_prim (Option.map Locality.disallow_right mode, sort)
@@ -7316,7 +7308,13 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       let exp_mode, _ = Value.newvar_below (as_single_mode mode) in
       let texp =
         with_local_level_if_principal ~post:generalize_structure_exp
-          (fun () -> type_exp env {mode with mode = Value.disallow_left exp_mode} sarg)
+          (fun () ->
+            let expected_mode =
+              mode
+              |> mode_morph (fun _mode -> exp_mode)
+              |> expect_mode_cross env ty_expected'
+            in
+            type_exp env expected_mode sarg)
       in
       let rec make_args args ty_fun =
         match get_desc (expand_head env ty_fun) with
@@ -8287,7 +8285,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
             List.split (List.map (fun _ -> new_rep_var ~why:Let_binding ())
                           spatl)
           in
-          let (pat_list, _new_env, _force, _pvs, _mvs as res) =
+          let (pat_list, _new_env, _force, pvs, _mvs as res) =
             with_local_level_if is_recursive (fun () ->
               type_pattern_list Value existential_context env spatl nvs
                 allow_modules
@@ -8309,6 +8307,19 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
                 let bound_expr = vb_exp_constraint binding in
                 type_approx env bound_expr pat.pat_type)
               pat_list spat_sexp_list;
+          (* If recursive, all pattern variables must have layout value. This
+             could be relaxed in some cases, like let recs that aren't actually
+             recusive. But, if making that change, delete [Lambda.layout_letrec]
+             and route the appropriate sorts through to its uses. *)
+          if is_recursive then begin
+            List.iter (fun { pv_id; pv_loc; pv_type; _ } ->
+              let value = Jkind.Builtin.value ~why:(Let_rec_variable pv_id) in
+              match constrain_type_jkind env pv_type value with
+              | Ok () -> ()
+              | Error e ->
+                raise (Error(pv_loc, env, Non_value_let_rec (e, pv_type)))
+            ) pvs
+          end;
           (* Polymorphic variant processing *)
           List.iter
             (fun (_, pat) ->
@@ -9201,7 +9212,7 @@ and type_send env loc explanation e met =
                     in
                     Undefined_method(obj.exp_type, met, valid_methods)
                 | Not_a_value err ->
-                    Not_a_value (err, explanation)
+                    Non_value_object (err, explanation)
               in
               raise (Error(e.pexp_loc, env, error))
         in
@@ -9752,12 +9763,18 @@ let report_error ~loc env = function
         Printtyp.type_expr ty;
       report_type_expected_explanation_opt explanation ppf
     ) ()
-  | Not_a_value (err, explanation) ->
+  | Non_value_object (err, explanation) ->
     Location.error_of_printer ~loc (fun ppf () ->
       fprintf ppf "Object types must have layout value.@ %a"
         (Jkind.Violation.report_with_name ~name:"the type of this expression")
         err;
       report_type_expected_explanation_opt explanation ppf)
+      ()
+  | Non_value_let_rec (err, ty) ->
+    Location.error_of_printer ~loc (fun ppf () ->
+      fprintf ppf "Variables bound in a \"let rec\" must have layout value.@ %a"
+        (Jkind.Violation.report_with_offender
+           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err)
       ()
   | Undefined_method (ty, me, valid_methods) ->
       Location.error_of_printer ~loc (fun ppf () ->

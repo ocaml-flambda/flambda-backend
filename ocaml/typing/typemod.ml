@@ -977,6 +977,19 @@ let map_ext fn exts =
   | [] -> []
   | d1 :: dl -> fn Text_first d1 :: List.map (fn Text_next) dl
 
+let apply_modalities_signature modalities sg =
+  List.map (function
+  | Sig_value (id, vd, vis) ->
+      let val_modalities =
+        vd.val_modalities
+        |> Mode.Modality.Value.to_const_exn
+        |> (fun then_ -> Mode.Modality.Value.Const.concat ~then_ modalities)
+        |> Mode.Modality.Value.of_const
+      in
+      let vd = {vd with val_modalities} in
+      Sig_value (id, vd, vis)
+  | item -> item) sg
+
 (* Auxiliary for translating recursively-defined module types.
    Return a module type that approximates the shape of the given module
    type AST.  Retain only module, type, and module type
@@ -1064,15 +1077,8 @@ and approx_module_declaration env pmd =
     md_uid = Uid.internal_not_actually_unique;
   }
 
-and approx_include_functor
-      env (ifincl : Jane_syntax.Include_functor.signature_item) _srem =
-  match ifincl with
-  | Ifsig_include_functor sincl ->
-      raise (Error(sincl.pincl_loc, env, Recursive_include_functor))
-
-and approx_sig_jst' env (jitem : Jane_syntax.Signature_item.t) srem =
+and approx_sig_jst' _env (jitem : Jane_syntax.Signature_item.t) _srem =
   match jitem with
-  | Jsig_include_functor ifincl -> approx_include_functor env ifincl srem
   | Jsig_layout (Lsig_kind_abbrev _) ->
       Misc.fatal_error "kind_abbrev not supported!"
 
@@ -1159,13 +1165,22 @@ and approx_sig env ssg =
       | Psig_open sod ->
           let _, env = type_open_descr env sod in
           approx_sig env srem
-      | Psig_include sincl ->
-          let smty = sincl.pincl_mod in
-          let mty = approx_modtype env smty in
-          let scope = Ctype.create_scope () in
-          let sg, newenv = Env.enter_signature ~scope
-              (extract_sig env smty.pmty_loc mty) env in
-          sg @ approx_sig newenv srem
+      | Psig_include ({pincl_loc=loc; pincl_mod=mod_; pincl_kind=kind; _}, moda) ->
+          begin match kind with
+          | Functor ->
+              Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
+              raise (Error(loc, env, Recursive_include_functor))
+          | Structure ->
+              let mty = approx_modtype env mod_ in
+              let scope = Ctype.create_scope () in
+              let sg = extract_sig env loc mty in
+              let modalities =
+                Typemode.transl_modalities ~maturity:Alpha Immutable [] moda
+              in
+              let sg = apply_modalities_signature modalities sg in
+              let sg, newenv = Env.enter_signature ~scope sg env in
+              sg @ approx_sig newenv srem
+          end
       | Psig_class sdecls | Psig_class_type sdecls ->
           let decls, env = Typeclass.approx_class_declarations env sdecls in
           let rem = approx_sig env srem in
@@ -1659,7 +1674,7 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
 and transl_signature env (sg : Parsetree.signature) =
   let names = Signature_names.create () in
 
-  let transl_include ~functor_ ~loc env sig_acc sincl =
+  let transl_include ~loc env sig_acc sincl modalities =
     let smty = sincl.pincl_mod in
     let tmty =
       Builtin_attributes.warning_scope sincl.pincl_attributes
@@ -1668,14 +1683,20 @@ and transl_signature env (sg : Parsetree.signature) =
     let mty = tmty.mty_type in
     let scope = Ctype.create_scope () in
     let incl_kind, sg =
-      if functor_ then
+      match sincl.pincl_kind with
+      | Functor ->
+        Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
         let sg, incl_kind =
           extract_sig_functor_open false env smty.pmty_loc mty sig_acc
         in
         incl_kind, sg
-      else
+      | Structure ->
         Tincl_structure, extract_sig env smty.pmty_loc mty
     in
+    let modalities =
+      Typemode.transl_modalities ~maturity:Alpha Immutable [] modalities
+    in
+    let sg = apply_modalities_signature modalities sg in
     let sg, newenv = Env.enter_signature ~scope sg env in
     Signature_group.iter
       (Signature_names.check_sig_item names loc)
@@ -1688,19 +1709,11 @@ and transl_signature env (sg : Parsetree.signature) =
         incl_loc = sincl.pincl_loc;
       }
     in
-    mksig (Tsig_include incl) env loc, sg, newenv
+    mksig (Tsig_include (incl, modalities)) env loc, sg, newenv
   in
 
-  let transl_include_functor ~loc env sig_acc
-    : Jane_syntax.Include_functor.signature_item -> _ = function
-    | Ifsig_include_functor sincl ->
-        transl_include ~functor_:true ~loc env sig_acc sincl
-  in
-
-  let transl_sig_item_jst ~loc env sig_acc : Jane_syntax.Signature_item.t -> _ =
+  let transl_sig_item_jst ~loc:_ _env _sig_acc : Jane_syntax.Signature_item.t -> _ =
     function
-    | Jsig_include_functor ifincl ->
-        transl_include_functor ~loc env sig_acc ifincl
     | Jsig_layout (Lsig_kind_abbrev _) ->
         Misc.fatal_error "kind_abbrev not supported!"
   in
@@ -1913,8 +1926,8 @@ and transl_signature env (sg : Parsetree.signature) =
     | Psig_open sod ->
         let (od, newenv) = type_open_descr env sod in
         mksig (Tsig_open od) env loc, [], newenv
-    | Psig_include sincl ->
-        transl_include ~functor_:false ~loc env sig_acc sincl
+    | Psig_include (sincl, modalities) ->
+        transl_include ~loc env sig_acc sincl modalities
     | Psig_class cl ->
         let (classes, newenv) = Typeclass.class_descriptions env cl in
         List.iter (fun cls ->
@@ -2827,7 +2840,7 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
 and type_structure ?(toplevel = None) funct_body anchor env sstr =
   let names = Signature_names.create () in
 
-  let type_str_include ~functor_ ~loc env shape_map sincl sig_acc =
+  let type_str_include ~loc env shape_map sincl sig_acc =
     let smodl = sincl.pincl_mod in
     let modl, modl_shape =
       Builtin_attributes.warning_scope sincl.pincl_attributes
@@ -2835,13 +2848,15 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     in
     let scope = Ctype.create_scope () in
     let incl_kind, sg =
-      if functor_ then
+      match sincl.pincl_kind with
+      | Functor ->
+        Jane_syntax_parsing.assert_extension_enabled ~loc Include_functor ();
         let sg, incl_kind =
           extract_sig_functor_open funct_body env smodl.pmod_loc
             modl.mod_type sig_acc
         in
         incl_kind, sg
-      else
+      | Structure ->
         Tincl_structure, extract_sig_open env smodl.pmod_loc modl.mod_type
     in
     (* Rename all identifiers bound by this signature to avoid clashes *)
@@ -2861,16 +2876,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
     Tstr_include incl, sg, shape, new_env
   in
 
-  let type_str_include_functor ~loc env shape_map ifincl sig_acc =
-    match (ifincl : Jane_syntax.Include_functor.structure_item) with
-    | Ifstr_include_functor incl ->
-        type_str_include ~functor_:true ~loc env shape_map incl sig_acc
-  in
-
-  let type_str_item_jst ~loc env shape_map jitem sig_acc =
+  let type_str_item_jst ~loc:_ _env _shape_map jitem _sig_acc =
     match (jitem : Jane_syntax.Structure_item.t) with
-    | Jstr_include_functor ifincl ->
-        type_str_include_functor ~loc env shape_map ifincl sig_acc
     | Jstr_layout (Lstr_kind_abbrev _) ->
         Misc.fatal_error "kind_abbrev not supported!"
   in
@@ -3250,7 +3257,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         shape_map,
         new_env
     | Pstr_include sincl ->
-        type_str_include ~functor_:false ~loc env shape_map sincl sig_acc
+        type_str_include ~loc env shape_map sincl sig_acc
     | Pstr_extension (ext, _attrs) ->
         raise (Error_forward (Builtin_attributes.error_of_extension ext))
     | Pstr_attribute attr ->

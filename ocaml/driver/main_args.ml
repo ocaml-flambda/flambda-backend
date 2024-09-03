@@ -536,7 +536,7 @@ let mk_dprofile f =
 
 let mk_dgranularity f =
   "-dgranularity",
-  Arg.Symbol (["file"; "func"], f),
+  Arg.Symbol (Clflags.all_profile_granularity_levels, f),
   " Specify granularity level for profile information (-dtimings, -dcounters, -dprofile)";
 ;;
 
@@ -687,7 +687,7 @@ let mk_dump_into_file f =
 ;;
 
 let mk_dump_into_csv f =
-  "-dump-into-csv", Arg.Unit f, " Dump profile information to CSV file"
+  "-dump-into-csv", Arg.Unit f, " Dump profile information to profile.csv"
 
 let mk_extension f =
   let available_extensions =
@@ -747,7 +747,8 @@ let mk_allow_illegal_crossing f =
 
 let mk_dump_dir f =
   "-dump-dir", Arg.String f,
-  "<dir> dump output like -dlambda into <dir>/<target>.dump"
+  "redirects any file(s) that would be outputted as a result of other flags\n\
+  \    to selected directory (adding stamp to ensure uniqueness in directory)"
 ;;
 
 let mk_dparsetree f =

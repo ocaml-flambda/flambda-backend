@@ -1034,16 +1034,14 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if st = array_set_type then None
       else Some (Primitive (Parraysets (array_set_type, index_kind), arity))
     end
-  | Primitive (Pbigarrayref(unsafe, n, Pbigarray_unknown,
-                            Pbigarray_unknown_layout), arity), p1 :: _ -> begin
-      let (k, l) = bigarray_type_kind_and_layout env p1 in
+  | Primitive (Pbigarrayref(unsafe, n, kind, layout), arity), p1 :: _ -> begin
+      let (k, l) = bigarray_specialize_kind_and_layout env ~kind ~layout p1 in
       match k, l with
       | Pbigarray_unknown, Pbigarray_unknown_layout -> None
       | _, _ -> Some (Primitive (Pbigarrayref(unsafe, n, k, l), arity))
     end
-  | Primitive (Pbigarrayset(unsafe, n, Pbigarray_unknown,
-                            Pbigarray_unknown_layout), arity), p1 :: _ -> begin
-      let (k, l) = bigarray_type_kind_and_layout env p1 in
+  | Primitive (Pbigarrayset(unsafe, n, kind, layout), arity), p1 :: _ -> begin
+      let (k, l) = bigarray_specialize_kind_and_layout env ~kind ~layout p1 in
       match k, l with
       | Pbigarray_unknown, Pbigarray_unknown_layout -> None
       | _, _ -> Some (Primitive (Pbigarrayset(unsafe, n, k, l), arity))
