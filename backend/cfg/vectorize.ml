@@ -174,15 +174,9 @@ end = struct
     | _ -> false
 
   let is_supported_isomorphic_instructions instructions =
-    let rec check hd1 tl1 =
-      match tl1 with
-      | [] -> true
-      | hd2 :: tl2 ->
-        if have_isomorphic_op hd1 hd2 then check hd2 tl2 else false
-    in
     match instructions with
     | [] -> assert false
-    | hd :: tl -> supported hd && check hd tl
+    | hd :: tl -> supported hd && List.for_all (have_isomorphic_op hd) tl
 
   let id (instruction : t) : Id.t =
     match instruction with
@@ -873,14 +867,10 @@ end = struct
     else false
 
   let can_cross_lists t instructions1 instructions2 =
-    let can_cross_list instruction1 =
-      List.fold_left
-        (fun can instruction2 -> can && can_cross t instruction1 instruction2)
-        true instructions2
+    let can_cross_list instruction =
+      List.for_all (can_cross t instruction) instructions2
     in
-    List.fold_left
-      (fun can instruction1 -> can && can_cross_list instruction1)
-      true instructions1
+    List.for_all can_cross_list instructions1
 
   let all_adjacent t instructions =
     let rec check_adjacent hd1 tl1 =
