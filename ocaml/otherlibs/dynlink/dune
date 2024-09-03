@@ -97,7 +97,8 @@
     zero_alloc
     types
     oprint
-    typemodifier
+    jkind_axis
+    typemode
     jkind
     value_rec_types
     btype
@@ -196,13 +197,14 @@
 (copy_files ../../typing/jkind.ml)
 (copy_files ../../typing/jkind_intf.ml)
 (copy_files ../../typing/jkind_types.ml)
-(copy_files ../../typing/typemodifier.ml)
+(copy_files ../../typing/jkind_axis.ml)
 (copy_files ../../typing/oprint.ml)
 (copy_files ../../typing/primitive.ml)
 (copy_files ../../typing/shape.ml)
 (copy_files ../../typing/solver.ml)
 (copy_files ../../typing/shape_reduce.ml)
 (copy_files ../../typing/mode.ml)
+(copy_files ../../typing/typemode.ml)
 (copy_files ../../typing/zero_alloc.ml)
 (copy_files ../../typing/types.ml)
 (copy_files ../../typing/btype.ml)
@@ -268,13 +270,14 @@
 (copy_files ../../typing/jkind.mli)
 (copy_files ../../typing/jkind_intf.mli)
 (copy_files ../../typing/jkind_types.mli)
-(copy_files ../../typing/typemodifier.mli)
+(copy_files ../../typing/jkind_axis.mli)
 (copy_files ../../typing/oprint.mli)
 (copy_files ../../typing/primitive.mli)
 (copy_files ../../typing/shape.mli)
 (copy_files ../../typing/solver.mli)
 (copy_files ../../typing/shape_reduce.mli)
 (copy_files ../../typing/mode.mli)
+(copy_files ../../typing/typemode.mli)
 (copy_files ../../typing/zero_alloc.mli)
 (copy_files ../../typing/types.mli)
 (copy_files ../../typing/btype.mli)
@@ -393,7 +396,8 @@
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Attr_helper.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Primitive.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Oprint.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Typemodifier.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind_axis.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Typemode.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
       .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Subst.cmo
@@ -479,7 +483,8 @@
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Attr_helper.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Primitive.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Oprint.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Typemodifier.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind_axis.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Typemode.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx
       .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Subst.cmx

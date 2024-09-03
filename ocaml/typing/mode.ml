@@ -2137,6 +2137,8 @@ module Const = struct
         Alloc.Const.t) : Value.Const.t =
     let areality = C.locality_as_regionality areality in
     { areality; linearity; portability; uniqueness; contention }
+
+  let locality_as_regionality = C.locality_as_regionality
 end
 
 let alloc_as_value m =
@@ -2224,6 +2226,10 @@ module Modality = struct
         | Join_with c0, Join_const c ->
           Join_const (Mode.Const.join (Mode.Const.min_with ax c0) c)
         | Meet_with _, Join_const _ -> assert false
+
+      let concat ~then_ t =
+        match then_, t with
+        | Join_const c0, Join_const c1 -> Join_const (Mode.Const.join c0 c1)
 
       let apply : type l r. t -> (l * r) Mode.t -> (l * r) Mode.t =
        fun t x -> match t with Join_const c -> Mode.join_const c x
@@ -2362,6 +2368,10 @@ module Modality = struct
           Meet_const (Mode.Const.meet (Mode.Const.max_with ax c0) c)
         | Join_with _, Meet_const _ -> assert false
 
+      let concat ~then_ t =
+        match then_, t with
+        | Meet_const c0, Meet_const c1 -> Meet_const (Mode.Const.meet c0 c1)
+
       let apply : type l r. t -> (l * r) Mode.t -> (l * r) Mode.t =
        fun t x -> match t with Meet_const c -> Mode.meet_const c x
 
@@ -2489,6 +2499,11 @@ module Modality = struct
         | Comonadic ax ->
           let comonadic = Comonadic.compose ax a t.comonadic in
           { t with comonadic }
+
+      let concat ~then_ t =
+        let monadic = Monadic.concat ~then_:then_.monadic t.monadic in
+        let comonadic = Comonadic.concat ~then_:then_.comonadic t.comonadic in
+        { monadic; comonadic }
 
       let singleton a = compose ~then_:a id
 

@@ -125,8 +125,8 @@ module Layout = struct
   end
 end
 
-module Externality = Jkind_types.Externality
-module Nullability = Jkind_types.Nullability
+module Externality = Jkind_axis.Externality
+module Nullability = Jkind_axis.Nullability
 
 module Modes = struct
   include Alloc.Const
@@ -605,20 +605,25 @@ module Const = struct
     | Mod (jkind, modifiers) ->
       let base = of_user_written_annotation_unchecked_level jkind in
       (* for each mode, lower the corresponding modal bound to be that mode *)
-      let parsed_modifiers = Typemodifier.transl_modifier_annots modifiers in
+      let parsed_modifiers = Typemode.transl_modifier_annots modifiers in
+      let parsed_modes : Alloc.Const.Option.t =
+        { areality = parsed_modifiers.locality;
+          linearity = parsed_modifiers.linearity;
+          uniqueness = parsed_modifiers.uniqueness;
+          portability = parsed_modifiers.portability;
+          contention = parsed_modifiers.contention
+        }
+      in
       { layout = base.layout;
         modes_upper_bounds =
           Alloc.Const.meet base.modes_upper_bounds
-            (Alloc.Const.Option.value ~default:Alloc.Const.max
-               parsed_modifiers.modal_upper_bounds);
+            (Alloc.Const.Option.value ~default:Alloc.Const.max parsed_modes);
         nullability_upper_bound =
           Nullability.meet base.nullability_upper_bound
-            (Option.value ~default:Nullability.max
-               parsed_modifiers.nullability_upper_bound);
+            (Option.value ~default:Nullability.max parsed_modifiers.nullability);
         externality_upper_bound =
           Externality.meet base.externality_upper_bound
-            (Option.value ~default:Externality.max
-               parsed_modifiers.externality_upper_bound)
+            (Option.value ~default:Externality.max parsed_modifiers.externality)
       }
     | Default | With _ | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 
@@ -1298,6 +1303,8 @@ module Format_history = struct
       fprintf ppf
         "it's the type of the first argument to a function in a recursive \
          module"
+    | Let_rec_variable v ->
+      fprintf ppf "it's the type of the recursive variable %s" (Ident.name v)
     | Unknown s ->
       fprintf ppf
         "unknown @[(please alert the Jane Street@;\
@@ -1706,6 +1713,7 @@ module Debug_printers = struct
     | Class_term_argument -> fprintf ppf "Class_term_argument"
     | Debug_printer_argument -> fprintf ppf "Debug_printer_argument"
     | Recmod_fun_arg -> fprintf ppf "Recmod_fun_arg"
+    | Let_rec_variable v -> fprintf ppf "Let_rec_variable %a" Ident.print v
     | Unknown s -> fprintf ppf "Unknown %s" s
 
   let creation_reason ppf : History.creation_reason -> unit = function

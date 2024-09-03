@@ -227,14 +227,24 @@ let layout_table =
   ["c_layout", Pbigarray_c_layout;
    "fortran_layout", Pbigarray_fortran_layout]
 
-let bigarray_type_kind_and_layout env typ =
+let bigarray_specialize_kind_and_layout env ~kind ~layout typ =
   match scrape env typ with
   | Tconstr(_p, [_caml_type; elt_type; layout_type], _abbrev) ->
-      (bigarray_decode_type env elt_type kind_table Pbigarray_unknown,
-       bigarray_decode_type env layout_type layout_table
-                            Pbigarray_unknown_layout)
+      let kind =
+        match kind with
+        | Pbigarray_unknown ->
+          bigarray_decode_type env elt_type kind_table Pbigarray_unknown
+        | _ -> kind
+      in
+      let layout =
+        match layout with
+        | Pbigarray_unknown_layout ->
+          bigarray_decode_type env layout_type layout_table Pbigarray_unknown_layout
+        | _ -> layout
+      in
+      (kind, layout)
   | _ ->
-      (Pbigarray_unknown, Pbigarray_unknown_layout)
+      (kind, layout)
 
 let value_kind_of_value_jkind jkind =
   let const_jkind = Jkind.default_to_value_and_get jkind in

@@ -176,6 +176,38 @@ Line 1, characters 28-34:
 Error: The uniqueness axis has already been specified.
 |}]
 
+type t : value mod foo
+[%%expect {|
+Line 1, characters 19-22:
+1 | type t : value mod foo
+                       ^^^
+Error: Unrecognized modifier foo.
+|}]
+
+type t : value mod global shared bar
+[%%expect {|
+Line 1, characters 33-36:
+1 | type t : value mod global shared bar
+                                     ^^^
+Error: Unrecognized modifier bar.
+|}]
+
+type t : value mod foobar unique many
+[%%expect {|
+Line 1, characters 19-25:
+1 | type t : value mod foobar unique many
+                       ^^^^^^
+Error: Unrecognized modifier foobar.
+|}]
+
+type t : value mod non_null external_ fizzbuzz global
+[%%expect {|
+Line 1, characters 38-46:
+1 | type t : value mod non_null external_ fizzbuzz global
+                                          ^^^^^^^^
+Error: Unrecognized modifier fizzbuzz.
+|}]
+
 (***************************************)
 (* Test 1: annotation on type variable *)
 

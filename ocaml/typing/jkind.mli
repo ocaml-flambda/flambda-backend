@@ -42,20 +42,20 @@
    https://github.com/goldfirere/flambda-backend/commit/d802597fbdaaa850e1ed9209a1305c5dcdf71e17
    first, which was reisenberg's attempt to do so. *)
 module Externality : sig
-  type t = Jkind_types.Externality.t =
+  type t = Jkind_axis.Externality.t =
     | External (* not managed by the garbage collector *)
     | External64 (* not managed by the garbage collector on 64-bit systems *)
     | Internal (* managed by the garbage collector *)
 
-  include module type of Jkind_types.Externality with type t := t
+  include module type of Jkind_axis.Externality with type t := t
 end
 
 module Nullability : sig
-  type t = Jkind_types.Nullability.t =
+  type t = Jkind_axis.Nullability.t =
     | Non_null (* proven to not have NULL values *)
     | Maybe_null (* may have NULL values *)
 
-  include module type of Jkind_types.Nullability with type t := t
+  include module type of Jkind_axis.Nullability with type t := t
 end
 
 module Sort : Jkind_intf.Sort with type const = Jkind_types.Sort.const
