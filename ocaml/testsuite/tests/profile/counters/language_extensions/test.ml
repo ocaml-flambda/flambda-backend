@@ -1,7 +1,7 @@
 (* TEST
 
 subdirectories = "include_functor immutable_array_comprehensions comprehensions \
-                  immutable_arrays module_strengthening labeled_tuples";
+                  immutable_arrays module_strengthening labeled_tuples nested";
 setup-ocamlc.byte-build-env;
 ocamlc_byte_exit_status = "0";
 flags = "-dcounters -extension include_functor -extension comprehensions \
@@ -112,6 +112,25 @@ flags = "-dcounters -extension include_functor -extension comprehensions \
   ocamlc.byte;
   compiler_reference =
     "${test_source_directory}/module_strengthening/mli_counters.ocamlc.reference";
+  check-ocamlc.byte-output;
+}
+
+(* Nested language extensions *)
+
+{
+  module = "nested/ml_counters.ml";
+  setup-ocamlc.byte-build-env;
+  ocamlc.byte;
+  compiler_reference =
+    "${test_source_directory}/nested/ml_counters.ocamlc.reference";
+  check-ocamlc.byte-output;
+}
+{
+  module = "nested/mli_counters.mli";
+  setup-ocamlc.byte-build-env;
+  ocamlc.byte;
+  compiler_reference =
+    "${test_source_directory}/nested/mli_counters.ocamlc.reference";
   check-ocamlc.byte-output;
 }
 
