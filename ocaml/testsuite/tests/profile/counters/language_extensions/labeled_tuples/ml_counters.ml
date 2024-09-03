@@ -1,9 +1,9 @@
 (* Labeled tuples usage *)
 
-(* 1 type, 1 expression*)
+(* 1 expression *)
 let labeled_1 = ~x:1, ~y:2, 3
 
-(* 1 type, 1 expression*)
+(* 1 type, 1 expression *)
 let (labeled_2 : x:int * int * y:int) = ~x:4, 5, ~y:6
 
 (* 1 pattern *)
