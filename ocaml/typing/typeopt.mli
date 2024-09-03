@@ -32,8 +32,9 @@ val array_kind :
   Typedtree.expression -> Jkind.Sort.t -> Lambda.array_kind
 val array_pattern_kind :
   Typedtree.pattern -> Jkind.Sort.t -> Lambda.array_kind
-val bigarray_type_kind_and_layout :
-      Env.t -> Types.type_expr -> Lambda.bigarray_kind * Lambda.bigarray_layout
+val bigarray_specialize_kind_and_layout :
+  Env.t -> kind:Lambda.bigarray_kind -> layout:Lambda.bigarray_layout ->
+  Types.type_expr -> Lambda.bigarray_kind * Lambda.bigarray_layout
 
 (* CR layouts v7: [layout], [function_return_layout], [function2_return_layout],
    and [layout_of_sort] have had location arguments added just to support the
