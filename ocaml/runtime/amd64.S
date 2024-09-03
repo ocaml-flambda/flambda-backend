@@ -252,24 +252,6 @@
         STACK_REMOVED                                      \
         SWITCH_OCAML_TO_C_CFI
 
-#define SWITCH_OCAML_TO_C_NO_CLOBBER                       \
-        push    %r10;                                      \
-        CFI_ADJUST(8);                                     \
-        addq    $8, %rsp;                                  \
-        CFI_ADJUST(-8);                                    \
-    /* Fill in Caml_state->current_stack->sp */            \
-        movq    Caml_state(current_stack), %r10;           \
-        movq    %rsp, Stack_sp(%r10);                      \
-    /* Fill in Caml_state->c_stack->sp */                  \
-        movq    Caml_state(c_stack), %r10;                 \
-        CHECK_STACK_MISALIGNMENT;                          \
-        movq    %rsp, Cstack_sp(%r10);                     \
-        subq    $8, %rsp;                                  \
-        CFI_ADJUST(8);                                     \
-        pop     %r10;                                      \
-        CFI_ADJUST(-8);                                    \
-        SWITCH_OCAML_TO_C_CFI
-
 /* Switch from C to OCaml stack.  Clobbers %r11. */
 #define SWITCH_C_TO_OCAML                                           \
     /* Assert that %rsp == Caml_state->c_stack &&
@@ -566,8 +548,8 @@ CFI_STARTPROC
         ENTER_FUNCTION
         CHECK_STACK_MISALIGNMENT
 LBL(caml_call_gc):
-        SWITCH_OCAML_TO_C_NO_CLOBBER
         SAVE_ALL_REGS
+        SWITCH_OCAML_TO_C
         movq    %r15, Caml_state(gc_regs)
         // Make stack 16-aligned
         subq $8, %rsp
@@ -656,8 +638,8 @@ CFI_STARTPROC
         CFI_SIGNAL_FRAME
         ENTER_FUNCTION
         CHECK_STACK_MISALIGNMENT
-        SWITCH_OCAML_TO_C_NO_CLOBBER
         SAVE_ALL_REGS
+        SWITCH_OCAML_TO_C
         // Make stack 16-aligned
         subq $8, %rsp
         CFI_ADJUST(8)
