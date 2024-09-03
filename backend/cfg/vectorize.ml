@@ -120,7 +120,8 @@ end = struct
     (* CR-someday tip: some instructions may or may not cause issues for going
        across a load or a store, for simplicity's sake, let's just return false
        and not let them go across for now, but better handling can be added in
-       the future *)
+       the future. Also, loads from an immuntable block has no coeffects and may
+       have less restrictions *)
     match instruction with
     | Basic basic_instruction -> (
       let desc = basic_instruction.desc in
