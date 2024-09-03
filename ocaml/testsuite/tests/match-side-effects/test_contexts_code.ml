@@ -1,6 +1,7 @@
 (* TEST
  readonly_files = "contexts_1.ml contexts_2.ml contexts_3.ml";
  flags = "-dsource -dlambda";
+ stack-allocation;
  expect;
 *)
 

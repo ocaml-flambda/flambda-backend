@@ -2815,8 +2815,8 @@ let three =
 Line 2, characters 14-18:
 2 |   let rec x = #3.4 in
                   ^^^^
-Error: This expression has type float# but an expression was expected of type
-         ('a : value)
+Error: This expression has type "float#" but an expression was expected of type
+         "('a : value)"
        The layout of float# is float64
          because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
