@@ -116,7 +116,7 @@ struct c_stack_link {
   void* sp;
   struct c_stack_link* prev;
   char* async_exn_handler;
-//  void* padding; /* for stack alignment in caml_start_program */
+  void* padding; /* for stack alignment in caml_start_program */
 };
 
 /* `gc_regs` and `gc_regs_buckets`.

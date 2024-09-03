@@ -1399,7 +1399,7 @@ let emit_instr ~first ~fallthrough i =
         load_symbol_addr (Cmm.global_symbol func) rax;
         emit_call (Cmm.global_symbol "caml_c_call_stack_args");
         record_frame i.live (Dbg_other i.dbg);
-      end else begin
+      end else if alloc then begin
         load_symbol_addr (Cmm.global_symbol func) rax;
         emit_call (Cmm.global_symbol "caml_c_call");
         record_frame i.live (Dbg_other i.dbg);
@@ -1415,6 +1415,21 @@ let emit_instr ~first ~fallthrough i =
 
           I.mov (domain_field Domainstate.Domain_young_ptr) r15
         end
+      end else begin
+        if Config.runtime5 then begin
+          I.mov rsp rbx;
+          cfi_remember_state ();
+          cfi_def_cfa_register "rbx";
+          (* NB: gdb has asserts on contiguous stacks that mean it
+            will not unwind through this unless we were to tag this
+            calling frame with cfi_signal_frame in it's definition. *)
+(*          I.mov (domain_field Domainstate.Domain_c_stack) rsp; *)
+        end;
+        emit_call (Cmm.global_symbol func);
+        if Config.runtime5 then begin
+(*         I.mov rbx rsp; *)
+          cfi_restore_state ();
+        end;
       end
   | Lop(Istackoffset n) ->
       emit_stack_offset n
