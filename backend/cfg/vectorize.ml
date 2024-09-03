@@ -269,7 +269,8 @@ end = struct
     (* CR-someday tip: some instructions may or may not cause issues for going
        across a load or a store, for simplicity's sake, let's just return false
        and not let them go across for now, but better handling can be added in
-       the future *)
+       the future. Also, loads from an immuntable block has no coeffects and may
+       have less restrictions*)
     match instruction with
     | Basic basic_instruction -> (
       let desc = basic_instruction.desc in
@@ -1510,19 +1511,10 @@ let vectorize (block : Cfg.basic_block) cfg_with_infos =
   DLL.hd_cell block.body |> add_vector_instructions;
   DLL.hd_cell block.body |> remove_scalar_instructions
 
-let dump ppf (cfg : Cfg.t) ~msg =
+let dump ppf (block : Cfg.basic_block) ~msg =
   let open Format in
   fprintf ppf "\nextra information %s\n" msg;
-  fprintf ppf "%s\n" (Cfg.fun_name cfg);
-  let block_count = Label.Tbl.length cfg.blocks in
-  fprintf ppf "blocks.length=%d\n" block_count;
-  let body_instruction_count =
-    Cfg.fold_body_instructions cfg ~f:(fun sum _ -> sum + 1) ~init:0
-  in
-  fprintf ppf "body instruction count=%d\n" body_instruction_count;
-  fprintf ppf "terminator instruction count=%d\n" block_count;
-  fprintf ppf "body and terminator instruction count=%d\n"
-    (body_instruction_count + block_count);
+  fprintf ppf "body instruction count=%d\n" (DLL.length block.body);
   fprintf ppf "@."
 
 let cfg ppf_dump cl =
@@ -1536,11 +1528,10 @@ let cfg ppf_dump cl =
       Terminator terminator_instruction |> Instruction.id
       |> Instruction.Id.update_max_id);
   Numbers.Int.Tbl.clear reg_map;
-  let cfg = Cfg_with_layout.cfg cl in
   let layout = Cfg_with_layout.layout cl in
   let cfg_with_infos = Cfg_with_infos.make cl in
   DLL.iter layout ~f:(fun label ->
-      let block = Cfg.get_block_exn cfg label in
+      let block = Cfg.get_block_exn (Cfg_with_layout.cfg cl) label in
       let instruction_count = DLL.length block.body in
       Format.fprintf ppf_dump "\nBlock %d (%d basic instructions):\n" label
         instruction_count;
@@ -1560,8 +1551,8 @@ let cfg ppf_dump cl =
           let trees = Computation_tree.from_block block cfg_with_infos in
           Computation_tree.dump ppf_dump trees block);
         if !Flambda_backend_flags.dump_vectorize
-        then dump ppf_dump ~msg:"before vectorize" cfg;
+        then dump ppf_dump ~msg:"before vectorize" block;
         vectorize block cfg_with_infos;
         if !Flambda_backend_flags.dump_vectorize
-        then dump ppf_dump ~msg:"after vectorize" cfg));
+        then dump ppf_dump ~msg:"after vectorize" block));
   cl
