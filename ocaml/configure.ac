@@ -2132,7 +2132,7 @@ AS_CASE([$host],
     saved_LIBS="$LIBS"
     CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
     LIBS="$LIBS $PTHREAD_LIBS"
-    AC_CHECK_FUNC([sigwait], [AC_DEFINE([HAS_SIGWAIT])])
+    AC_DEFINE([HAS_SIGWAIT])
     LIBS="$saved_LIBS"
     CFLAGS="$saved_CFLAGS"],
     [AC_MSG_ERROR(m4_normalize([POSIX threads are required but not supported on

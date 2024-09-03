@@ -19863,12 +19863,7 @@ if test "x$ax_pthread_ok" = "xyes"; then
     saved_LIBS="$LIBS"
     CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
     LIBS="$LIBS $PTHREAD_LIBS"
-    ac_fn_c_check_func "$LINENO" "sigwait" "ac_cv_func_sigwait"
-if test "x$ac_cv_func_sigwait" = xyes
-then :
-  printf "%s\n" "#define HAS_SIGWAIT 1" >>confdefs.h
-
-fi
+    printf "%s\n" "#define HAS_SIGWAIT 1" >>confdefs.h
 
     LIBS="$saved_LIBS"
     CFLAGS="$saved_CFLAGS"
@@ -23072,5 +23067,3 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
-
-

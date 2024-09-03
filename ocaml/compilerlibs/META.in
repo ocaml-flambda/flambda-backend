@@ -42,3 +42,11 @@ package "native-toplevel" (
   archive(native) = "ocamltoplevel.cmxa"
   exists_if = "ocamltoplevel.cmxa"
 )
+
+package "flambda-backend-utils" (
+  requires = "compiler-libs.common"
+  version = "@VERSION@"
+  description = "Flambda Backend tools"
+  archive(byte) = "flambda_backend_utils.cma"
+  archive(native) = "flambda_backend_utils.cmxa"
+)
