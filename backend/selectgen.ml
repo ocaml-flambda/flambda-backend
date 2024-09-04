@@ -25,10 +25,22 @@ module VP = Backend_var.With_provenance
 
 (* The default instruction selection class *)
 
-type environment = unit Select_utils.environment
-
-class virtual selector_generic =
+class virtual ['env, 'op, 'instr] common_selector =
   object (self : 'self)
+    method virtual is_store : 'op -> bool
+
+    method virtual lift_op : 'op -> 'instr
+
+    method virtual make_stack_offset : int -> 'instr
+
+    method virtual make_name_for_debugger
+        : ident:V.t ->
+          which_parameter:int option ->
+          provenance:V.Provenance.t option ->
+          is_assignment:bool ->
+          regs:Reg.t array ->
+          'instr
+
     (* A syntactic criterion used in addition to judgements about (co)effects as
        to whether the evaluation of a given expression may be deferred by
        [emit_parts]. This criterion is a property of the instruction selection
@@ -147,6 +159,311 @@ class virtual selector_generic =
         : Cmm.memory_chunk ->
           Cmm.expression ->
           Arch.addressing_mode * Cmm.expression
+
+    method virtual select_store
+        : bool -> Arch.addressing_mode -> Cmm.expression -> 'op * Cmm.expression
+
+    (* Instruction selection for conditionals *)
+
+    method select_condition (arg : Cmm.expression) : Mach.test * Cmm.expression
+        =
+      match arg with
+      | Cop (Ccmpi cmp, [arg1; Cconst_int (n, _)], _)
+        when self#is_immediate_test (Isigned cmp) n ->
+        Iinttest_imm (Isigned cmp, n), arg1
+      | Cop (Ccmpi cmp, [Cconst_int (n, _); arg2], _)
+        when self#is_immediate_test (Isigned (swap_integer_comparison cmp)) n ->
+        Iinttest_imm (Isigned (swap_integer_comparison cmp), n), arg2
+      | Cop (Ccmpi cmp, args, _) -> Iinttest (Isigned cmp), Ctuple args
+      | Cop (Ccmpa cmp, [arg1; Cconst_int (n, _)], _)
+        when self#is_immediate_test (Iunsigned cmp) n ->
+        Iinttest_imm (Iunsigned cmp, n), arg1
+      | Cop (Ccmpa cmp, [Cconst_int (n, _); arg2], _)
+        when self#is_immediate_test (Iunsigned (swap_integer_comparison cmp)) n
+        ->
+        Iinttest_imm (Iunsigned (swap_integer_comparison cmp), n), arg2
+      | Cop (Ccmpa cmp, args, _) -> Iinttest (Iunsigned cmp), Ctuple args
+      | Cop (Ccmpf (width, cmp), args, _) ->
+        Ifloattest (width, cmp), Ctuple args
+      | Cop (Cand, [arg1; Cconst_int (1, _)], _) -> Ioddtest, arg1
+      | _ -> Itruetest, arg
+
+    (* Return an array of fresh registers of the given type. Normally
+       implemented as Reg.createv, but some ports (e.g. Arm) can override this
+       definition to store float values in pairs of integer registers. *)
+
+    method regs_for tys = Reg.createv tys
+
+    method virtual insert_debug
+        : 'env Select_utils.environment ->
+          'instr ->
+          Debuginfo.t ->
+          Reg.t array ->
+          Reg.t array ->
+          unit
+
+    method virtual insert
+        : 'env Select_utils.environment ->
+          'instr ->
+          Reg.t array ->
+          Reg.t array ->
+          unit
+
+    method virtual insert_move
+        : 'env Select_utils.environment -> Reg.t -> Reg.t -> unit
+
+    method insert_moves env src dst =
+      for i = 0 to min (Array.length src) (Array.length dst) - 1 do
+        self#insert_move env src.(i) dst.(i)
+      done
+
+    (* Insert moves and stack offsets for function arguments and results *)
+
+    method insert_move_args env arg loc stacksize =
+      if stacksize <> 0
+      then self#insert env (self#make_stack_offset stacksize) [||] [||];
+      self#insert_moves env arg loc
+
+    method insert_move_results env loc res stacksize =
+      self#insert_moves env loc res;
+      if stacksize <> 0
+      then self#insert env (self#make_stack_offset (-stacksize)) [||] [||]
+
+    (* Add an Iop opcode. Can be overridden by processor description to insert
+       moves before and after the operation, i.e. for two-address instructions,
+       or instructions using dedicated registers. *)
+
+    method insert_op_debug env op dbg rs rd =
+      self#insert_debug env (self#lift_op op) dbg rs rd;
+      rd
+
+    method insert_op env op rs rd =
+      self#insert_op_debug env op Debuginfo.none rs rd
+
+    method virtual emit_expr
+        : 'env Select_utils.environment ->
+          Cmm.expression ->
+          bound_name:VP.t option ->
+          Reg.t array option
+
+    method private bind_let (env : 'env Select_utils.environment) v r1 =
+      let env =
+        if Select_utils.all_regs_anonymous r1
+        then (
+          Select_utils.name_regs v r1;
+          Select_utils.env_add v r1 env)
+        else
+          let rv = Reg.createv_like r1 in
+          Select_utils.name_regs v rv;
+          self#insert_moves env r1 rv;
+          Select_utils.env_add v rv env
+      in
+      let provenance = VP.provenance v in
+      (if Option.is_some provenance
+      then
+        let naming_op =
+          self#make_name_for_debugger ~ident:(VP.var v) ~which_parameter:None
+            ~provenance ~is_assignment:false ~regs:r1
+        in
+        self#insert_debug env naming_op Debuginfo.none [||] [||]);
+      env
+
+    method private bind_let_mut (env : 'env Select_utils.environment) v k r1 =
+      let rv = self#regs_for k in
+      Select_utils.name_regs v rv;
+      self#insert_moves env r1 rv;
+      let provenance = VP.provenance v in
+      (if Option.is_some provenance
+      then
+        let naming_op =
+          self#make_name_for_debugger ~ident:(VP.var v) ~which_parameter:None
+            ~provenance:(VP.provenance v) ~is_assignment:false ~regs:r1
+        in
+        self#insert_debug env naming_op Debuginfo.none [||] [||]);
+      Select_utils.env_add ~mut:Mutable v rv env
+
+    (* The following two functions, [emit_parts] and [emit_parts_list], force
+       right-to-left evaluation order as required by the Flambda [Un_anf] pass
+       (and to be consistent with the bytecode compiler). *)
+
+    method private emit_parts (env : 'env Select_utils.environment)
+        ~effects_after exp =
+      let module EC = Select_utils.Effect_and_coeffect in
+      let may_defer_evaluation =
+        let ec = self#effects_of exp in
+        match EC.effect ec with
+        | Select_utils.Effect.Arbitrary | Select_utils.Effect.Raise ->
+          (* Preserve the ordering of effectful expressions by evaluating them
+             early (in the correct order) and assigning their results to
+             temporaries. We can avoid this in just one case: if we know that
+             every [exp'] in the original expression list (cf.
+             [emit_parts_list]) to be evaluated after [exp] cannot possibly
+             affect the result of [exp] or depend on the result of [exp], then
+             [exp] may be deferred. (Checking purity here is not enough: we need
+             to check copurity too to avoid e.g. moving mutable reads earlier
+             than the raising of an exception.) *)
+          EC.pure_and_copure effects_after
+        | Select_utils.Effect.None -> (
+          match EC.coeffect ec with
+          | Select_utils.Coeffect.None ->
+            (* Pure expressions may be moved. *)
+            true
+          | Select_utils.Coeffect.Read_mutable -> (
+            (* Read-mutable expressions may only be deferred if evaluation of
+               every [exp'] (for [exp'] as in the comment above) has no effects
+               "worse" (in the sense of the ordering in [Effect.t]) than raising
+               an exception. *)
+            match EC.effect effects_after with
+            | Select_utils.Effect.None | Select_utils.Effect.Raise -> true
+            | Select_utils.Effect.Arbitrary -> false)
+          | Select_utils.Coeffect.Arbitrary -> (
+            (* Arbitrary expressions may only be deferred if evaluation of every
+               [exp'] (for [exp'] as in the comment above) has no effects. *)
+            match EC.effect effects_after with
+            | Select_utils.Effect.None -> true
+            | Select_utils.Effect.(Arbitrary | Raise) -> false))
+      in
+      (* Even though some expressions may look like they can be deferred from
+         the (co)effect analysis, it may be forbidden to move them. *)
+      if may_defer_evaluation && self#is_simple_expr exp
+      then Some (exp, env)
+      else
+        match self#emit_expr env exp ~bound_name:None with
+        | None -> None
+        | Some r ->
+          if Array.length r = 0
+          then Some (Ctuple [], env)
+          else
+            (* The normal case *)
+            let id = V.create_local "bind" in
+            if Select_utils.all_regs_anonymous r
+            then
+              (* r is an anonymous, unshared register; use it directly *)
+              Some (Cvar id, Select_utils.env_add (VP.create id) r env)
+            else
+              (* Introduce a fresh temp to hold the result *)
+              let tmp = Reg.createv_like r in
+              self#insert_moves env r tmp;
+              Some (Cvar id, Select_utils.env_add (VP.create id) tmp env)
+
+    method private emit_parts_list (env : 'env Select_utils.environment)
+        exp_list =
+      let module EC = Select_utils.Effect_and_coeffect in
+      let exp_list_right_to_left, _effect =
+        (* Annotate each expression with the (co)effects that happen after it
+           when the original expression list is evaluated from right to left.
+           The resulting expression list has the rightmost expression first. *)
+        List.fold_left
+          (fun (exp_list, effects_after) exp ->
+            let exp_effect = self#effects_of exp in
+            (exp, effects_after) :: exp_list, EC.join exp_effect effects_after)
+          ([], EC.none) exp_list
+      in
+      List.fold_left
+        (fun results_and_env (exp, effects_after) ->
+          match results_and_env with
+          | None -> None
+          | Some (result, env) -> (
+            match self#emit_parts env exp ~effects_after with
+            | None -> None
+            | Some (exp_result, env) -> Some (exp_result :: result, env)))
+        (Some ([], env))
+        exp_list_right_to_left
+
+    method private emit_tuple_not_flattened env exp_list =
+      let rec emit_list = function
+        | [] -> []
+        | exp :: rem -> (
+          (* Again, force right-to-left evaluation *)
+          let loc_rem = emit_list rem in
+          match self#emit_expr env exp ~bound_name:None with
+          | None -> assert false (* should have been caught in emit_parts *)
+          | Some loc_exp -> loc_exp :: loc_rem)
+      in
+      emit_list exp_list
+
+    method private emit_tuple env exp_list =
+      Array.concat (self#emit_tuple_not_flattened env exp_list)
+
+    method emit_extcall_args env ty_args args =
+      let args = self#emit_tuple_not_flattened env args in
+      let ty_args =
+        if ty_args = [] then List.map (fun _ -> XInt) args else ty_args
+      in
+      let locs, stack_ofs = Proc.loc_external_arguments ty_args in
+      let ty_args = Array.of_list ty_args in
+      if stack_ofs <> 0
+      then self#insert env (Mach.Iop (Istackoffset stack_ofs)) [||] [||];
+      List.iteri
+        (fun i arg -> self#insert_move_extcall_arg env ty_args.(i) arg locs.(i))
+        args;
+      Array.concat (Array.to_list locs), stack_ofs
+
+    method insert_move_extcall_arg env _ty_arg src dst =
+      (* The default implementation is one or two ordinary moves. (Two in the
+         case of an int64 argument on a 32-bit platform.) It can be overridden
+         to use special move instructions, for example a "32-bit move"
+         instruction for int32 arguments. *)
+      self#insert_moves env src dst
+
+    method emit_stores env dbg data regs_addr =
+      let a =
+        ref (Arch.offset_addressing Arch.identity_addressing (-Arch.size_int))
+      in
+      List.iter
+        (fun e ->
+          let op, arg = self#select_store false !a e in
+          match self#emit_expr env arg ~bound_name:None with
+          | None -> assert false
+          | Some regs -> (
+            match self#is_store op with
+            | true ->
+              for i = 0 to Array.length regs - 1 do
+                let r = regs.(i) in
+                let kind =
+                  match r.Reg.typ with
+                  | Float -> Double
+                  | Float32 -> Single { reg = Float32 }
+                  | Vec128 ->
+                    (* 128-bit memory operations are default unaligned. Aligned
+                       (big)array operations are handled separately via cmm. *)
+                    Onetwentyeight_unaligned
+                  | Val | Addr | Int -> Word_val
+                in
+                self#insert_debug env
+                  (Mach.Iop (Istore (kind, !a, false)))
+                  dbg
+                  (Array.append [| r |] regs_addr)
+                  [||];
+                a
+                  := Arch.offset_addressing !a
+                       (Select_utils.size_component r.Reg.typ)
+              done
+            | false ->
+              self#insert_debug env (Mach.Iop op) dbg
+                (Array.append regs regs_addr)
+                [||];
+              a := Arch.offset_addressing !a (Select_utils.size_expr env e)))
+        data
+  end
+
+type environment = unit Select_utils.environment
+
+class virtual selector_generic =
+  object (self : 'self)
+    inherit [unit, Mach.operation, Mach.instruction_desc] common_selector
+
+    method is_store op = match op with Istore (_, _, _) -> true | _ -> false
+
+    method lift_op op = Iop op
+
+    method make_stack_offset stack_ofs = Iop (Istackoffset stack_ofs)
+
+    method make_name_for_debugger ~ident ~which_parameter ~provenance
+        ~is_assignment ~regs =
+      Mach.Iop
+        (Mach.Iname_for_debugger
+           { ident; which_parameter; provenance; is_assignment; regs })
 
     (* Default instruction selection for stores (of words) *)
 
@@ -290,37 +607,6 @@ class virtual selector_generic =
         Iintop_imm (Icomp (Select_utils.swap_intcomp cmp), n), [arg]
       | _ -> Iintop (Icomp cmp), args
 
-    (* Instruction selection for conditionals *)
-
-    method select_condition (arg : Cmm.expression) : Mach.test * Cmm.expression
-        =
-      match arg with
-      | Cop (Ccmpi cmp, [arg1; Cconst_int (n, _)], _)
-        when self#is_immediate_test (Isigned cmp) n ->
-        Iinttest_imm (Isigned cmp, n), arg1
-      | Cop (Ccmpi cmp, [Cconst_int (n, _); arg2], _)
-        when self#is_immediate_test (Isigned (swap_integer_comparison cmp)) n ->
-        Iinttest_imm (Isigned (swap_integer_comparison cmp), n), arg2
-      | Cop (Ccmpi cmp, args, _) -> Iinttest (Isigned cmp), Ctuple args
-      | Cop (Ccmpa cmp, [arg1; Cconst_int (n, _)], _)
-        when self#is_immediate_test (Iunsigned cmp) n ->
-        Iinttest_imm (Iunsigned cmp, n), arg1
-      | Cop (Ccmpa cmp, [Cconst_int (n, _); arg2], _)
-        when self#is_immediate_test (Iunsigned (swap_integer_comparison cmp)) n
-        ->
-        Iinttest_imm (Iunsigned (swap_integer_comparison cmp), n), arg2
-      | Cop (Ccmpa cmp, args, _) -> Iinttest (Iunsigned cmp), Ctuple args
-      | Cop (Ccmpf (width, cmp), args, _) ->
-        Ifloattest (width, cmp), Ctuple args
-      | Cop (Cand, [arg1; Cconst_int (1, _)], _) -> Ioddtest, arg1
-      | _ -> Itruetest, arg
-
-    (* Return an array of fresh registers of the given type. Normally
-       implemented as Reg.createv, but some ports (e.g. Arm) can override this
-       definition to store float values in pairs of integer registers. *)
-
-    method regs_for tys = Reg.createv tys
-
     (* Buffering of instruction sequences *)
 
     val mutable instr_seq = Mach.dummy_instr
@@ -347,34 +633,6 @@ class virtual selector_generic =
     method insert_move env src dst =
       if src.Reg.stamp <> dst.Reg.stamp
       then self#insert env Mach.(Iop Imove) [| src |] [| dst |]
-
-    method insert_moves env src dst =
-      for i = 0 to min (Array.length src) (Array.length dst) - 1 do
-        self#insert_move env src.(i) dst.(i)
-      done
-
-    (* Insert moves and stack offsets for function arguments and results *)
-
-    method insert_move_args env arg loc stacksize =
-      if stacksize <> 0
-      then self#insert env Mach.(Iop (Istackoffset stacksize)) [||] [||];
-      self#insert_moves env arg loc
-
-    method insert_move_results env loc res stacksize =
-      self#insert_moves env loc res;
-      if stacksize <> 0
-      then self#insert env Mach.(Iop (Istackoffset (-stacksize))) [||] [||]
-
-    (* Add an Iop opcode. Can be overridden by processor description to insert
-       moves before and after the operation, i.e. for two-address instructions,
-       or instructions using dedicated registers. *)
-
-    method insert_op_debug env op dbg rs rd =
-      self#insert_debug env Mach.(Iop op) dbg rs rd;
-      rd
-
-    method insert_op env op rs rd =
-      self#insert_op_debug env op Debuginfo.none rs rd
 
     (* Emit an expression.
 
@@ -863,214 +1121,6 @@ class virtual selector_generic =
       (match at_start with None -> () | Some f -> f s);
       let r = s#emit_expr_aux env exp ~bound_name in
       r, s
-
-    method private bind_let (env : environment) v r1 =
-      let env =
-        if Select_utils.all_regs_anonymous r1
-        then (
-          Select_utils.name_regs v r1;
-          Select_utils.env_add v r1 env)
-        else
-          let rv = Reg.createv_like r1 in
-          Select_utils.name_regs v rv;
-          self#insert_moves env r1 rv;
-          Select_utils.env_add v rv env
-      in
-      let provenance = VP.provenance v in
-      (if Option.is_some provenance
-      then
-        let naming_op =
-          Mach.Iname_for_debugger
-            { ident = VP.var v;
-              which_parameter = None;
-              provenance;
-              is_assignment = false;
-              regs = r1
-            }
-        in
-        self#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||] [||]);
-      env
-
-    method private bind_let_mut (env : environment) v k r1 =
-      let rv = self#regs_for k in
-      Select_utils.name_regs v rv;
-      self#insert_moves env r1 rv;
-      let provenance = VP.provenance v in
-      (if Option.is_some provenance
-      then
-        let naming_op =
-          Mach.Iname_for_debugger
-            { ident = VP.var v;
-              which_parameter = None;
-              provenance = VP.provenance v;
-              is_assignment = false;
-              regs = r1
-            }
-        in
-        self#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||] [||]);
-      Select_utils.env_add ~mut:Mutable v rv env
-
-    (* The following two functions, [emit_parts] and [emit_parts_list], force
-       right-to-left evaluation order as required by the Flambda [Un_anf] pass
-       (and to be consistent with the bytecode compiler). *)
-
-    method private emit_parts (env : environment) ~effects_after exp =
-      let module EC = Select_utils.Effect_and_coeffect in
-      let may_defer_evaluation =
-        let ec = self#effects_of exp in
-        match EC.effect ec with
-        | Select_utils.Effect.Arbitrary | Select_utils.Effect.Raise ->
-          (* Preserve the ordering of effectful expressions by evaluating them
-             early (in the correct order) and assigning their results to
-             temporaries. We can avoid this in just one case: if we know that
-             every [exp'] in the original expression list (cf.
-             [emit_parts_list]) to be evaluated after [exp] cannot possibly
-             affect the result of [exp] or depend on the result of [exp], then
-             [exp] may be deferred. (Checking purity here is not enough: we need
-             to check copurity too to avoid e.g. moving mutable reads earlier
-             than the raising of an exception.) *)
-          EC.pure_and_copure effects_after
-        | Select_utils.Effect.None -> (
-          match EC.coeffect ec with
-          | Select_utils.Coeffect.None ->
-            (* Pure expressions may be moved. *)
-            true
-          | Select_utils.Coeffect.Read_mutable -> (
-            (* Read-mutable expressions may only be deferred if evaluation of
-               every [exp'] (for [exp'] as in the comment above) has no effects
-               "worse" (in the sense of the ordering in [Effect.t]) than raising
-               an exception. *)
-            match EC.effect effects_after with
-            | Select_utils.Effect.None | Select_utils.Effect.Raise -> true
-            | Select_utils.Effect.Arbitrary -> false)
-          | Select_utils.Coeffect.Arbitrary -> (
-            (* Arbitrary expressions may only be deferred if evaluation of every
-               [exp'] (for [exp'] as in the comment above) has no effects. *)
-            match EC.effect effects_after with
-            | Select_utils.Effect.None -> true
-            | Select_utils.Effect.(Arbitrary | Raise) -> false))
-      in
-      (* Even though some expressions may look like they can be deferred from
-         the (co)effect analysis, it may be forbidden to move them. *)
-      if may_defer_evaluation && self#is_simple_expr exp
-      then Some (exp, env)
-      else
-        match self#emit_expr env exp ~bound_name:None with
-        | None -> None
-        | Some r ->
-          if Array.length r = 0
-          then Some (Ctuple [], env)
-          else
-            (* The normal case *)
-            let id = V.create_local "bind" in
-            if Select_utils.all_regs_anonymous r
-            then
-              (* r is an anonymous, unshared register; use it directly *)
-              Some (Cvar id, Select_utils.env_add (VP.create id) r env)
-            else
-              (* Introduce a fresh temp to hold the result *)
-              let tmp = Reg.createv_like r in
-              self#insert_moves env r tmp;
-              Some (Cvar id, Select_utils.env_add (VP.create id) tmp env)
-
-    method private emit_parts_list (env : environment) exp_list =
-      let module EC = Select_utils.Effect_and_coeffect in
-      let exp_list_right_to_left, _effect =
-        (* Annotate each expression with the (co)effects that happen after it
-           when the original expression list is evaluated from right to left.
-           The resulting expression list has the rightmost expression first. *)
-        List.fold_left
-          (fun (exp_list, effects_after) exp ->
-            let exp_effect = self#effects_of exp in
-            (exp, effects_after) :: exp_list, EC.join exp_effect effects_after)
-          ([], EC.none) exp_list
-      in
-      List.fold_left
-        (fun results_and_env (exp, effects_after) ->
-          match results_and_env with
-          | None -> None
-          | Some (result, env) -> (
-            match self#emit_parts env exp ~effects_after with
-            | None -> None
-            | Some (exp_result, env) -> Some (exp_result :: result, env)))
-        (Some ([], env))
-        exp_list_right_to_left
-
-    method private emit_tuple_not_flattened env exp_list =
-      let rec emit_list = function
-        | [] -> []
-        | exp :: rem -> (
-          (* Again, force right-to-left evaluation *)
-          let loc_rem = emit_list rem in
-          match self#emit_expr env exp ~bound_name:None with
-          | None -> assert false (* should have been caught in emit_parts *)
-          | Some loc_exp -> loc_exp :: loc_rem)
-      in
-      emit_list exp_list
-
-    method private emit_tuple env exp_list =
-      Array.concat (self#emit_tuple_not_flattened env exp_list)
-
-    method emit_extcall_args env ty_args args =
-      let args = self#emit_tuple_not_flattened env args in
-      let ty_args =
-        if ty_args = [] then List.map (fun _ -> XInt) args else ty_args
-      in
-      let locs, stack_ofs = Proc.loc_external_arguments ty_args in
-      let ty_args = Array.of_list ty_args in
-      if stack_ofs <> 0
-      then self#insert env (Mach.Iop (Istackoffset stack_ofs)) [||] [||];
-      List.iteri
-        (fun i arg -> self#insert_move_extcall_arg env ty_args.(i) arg locs.(i))
-        args;
-      Array.concat (Array.to_list locs), stack_ofs
-
-    method insert_move_extcall_arg env _ty_arg src dst =
-      (* The default implementation is one or two ordinary moves. (Two in the
-         case of an int64 argument on a 32-bit platform.) It can be overridden
-         to use special move instructions, for example a "32-bit move"
-         instruction for int32 arguments. *)
-      self#insert_moves env src dst
-
-    method emit_stores env dbg data regs_addr =
-      let a =
-        ref (Arch.offset_addressing Arch.identity_addressing (-Arch.size_int))
-      in
-      List.iter
-        (fun e ->
-          let op, arg = self#select_store false !a e in
-          match self#emit_expr env arg ~bound_name:None with
-          | None -> assert false
-          | Some regs -> (
-            match op with
-            | Istore (_, _, _) ->
-              for i = 0 to Array.length regs - 1 do
-                let r = regs.(i) in
-                let kind =
-                  match r.Reg.typ with
-                  | Float -> Double
-                  | Float32 -> Single { reg = Float32 }
-                  | Vec128 ->
-                    (* 128-bit memory operations are default unaligned. Aligned
-                       (big)array operations are handled separately via cmm. *)
-                    Onetwentyeight_unaligned
-                  | Val | Addr | Int -> Word_val
-                in
-                self#insert_debug env
-                  (Mach.Iop (Istore (kind, !a, false)))
-                  dbg
-                  (Array.append [| r |] regs_addr)
-                  [||];
-                a
-                  := Arch.offset_addressing !a
-                       (Select_utils.size_component r.Reg.typ)
-              done
-            | _ ->
-              self#insert_debug env (Mach.Iop op) dbg
-                (Array.append regs regs_addr)
-                [||];
-              a := Arch.offset_addressing !a (Select_utils.size_expr env e)))
-        data
 
     (* Same, but in tail position *)
 
