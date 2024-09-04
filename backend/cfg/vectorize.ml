@@ -460,12 +460,12 @@ end = struct
       | Load -> arguments
       | Store -> Array.sub arguments 1 (Array.length arguments - 1)
 
-    let width (t : t) = Cmm.width_of t.memory_chunk
+    let width (t : t) = Cmm.width_in_bytes t.memory_chunk
 
     let print_memory_chunk ppf (t : t) =
       Format.fprintf ppf "%s (length %d)"
         (Printcmm.chunk t.memory_chunk)
-        (Cmm.width_of t.memory_chunk)
+        (Cmm.width_in_bytes t.memory_chunk)
 
     let dump ppf (t : t) =
       let open Format in
@@ -518,7 +518,7 @@ end = struct
       let res =
         if Cmm.equal_memory_chunk t1.memory_chunk t2.memory_chunk
         then
-          let width = Cmm.width_of t1.memory_chunk in
+          let width = Cmm.width_in_bytes t1.memory_chunk in
           let offset_option = offset_of t1 t2 in
           match offset_option with
           | None -> false
@@ -675,8 +675,8 @@ end = struct
             | None -> false
             | Some offset ->
               offset
-              > (left_memory_operation.Memory_operation.memory_chunk
-               |> Cmm.width_of)
+              >= (left_memory_operation.Memory_operation.memory_chunk
+                |> Cmm.width_in_bytes)
           in
           check_direct_separation memory_operation_1 memory_operation_2
           || check_direct_separation memory_operation_2 memory_operation_1
