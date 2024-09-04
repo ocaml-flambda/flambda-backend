@@ -9,16 +9,14 @@
 type 'a list : immutable_data with 'a
 
 [%%expect{|
->> Fatal error: XXX unimplemented
-Uncaught exception: Misc.Fatal_error
+Uncaught exception: Failure("XXX: with syntax unimplemented")
 
 |}]
 
 type ('a, 'b) either : immutable_data with 'a * 'b
 
 [%%expect{|
->> Fatal error: XXX unimplemented
-Uncaught exception: Misc.Fatal_error
+Uncaught exception: Failure("XXX: with syntax unimplemented")
 
 |}]
 
@@ -82,8 +80,7 @@ module type S = sig
 end
 
 [%%expect{|
->> Fatal error: XXX unimplemented
-Uncaught exception: Misc.Fatal_error
+Uncaught exception: Failure("XXX: with syntax unimplemented")
 
 |}]
 

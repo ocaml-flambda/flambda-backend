@@ -116,7 +116,7 @@ module Bound : sig
     }
 end
 
-module Bounds : module type of Axis_collection(Bound)
+module Bounds : module type of Axis_collection (Bound)
 
 module Jkind_desc : sig
   type 'type_expr t =

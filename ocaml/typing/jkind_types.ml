@@ -359,7 +359,7 @@ module Bound = struct
     }
 end
 
-module Bounds = Axis_collection(Bound)
+module Bounds = Axis_collection (Bound)
 
 module Jkind_desc = struct
   type 'type_expr t =

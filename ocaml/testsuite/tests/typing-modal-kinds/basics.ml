@@ -283,22 +283,14 @@ val int_duplicate : int = 5
 
 let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 1, characters 79-80:
-1 | let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
-                                                                                   ^
-Error: This value is "once" but expected to be "many".
+val string_list_duplicate : string list = ["hi"; "bye"]
 |}]
 
 let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 1, characters 66-67:
-1 | let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
-                                                                      ^
-Error: This value is "once" but expected to be "many".
+val int_list_duplicate : int list = [4; 5]
 |}]
 
 let hidden_string_duplicate =
@@ -335,12 +327,8 @@ let hidden_int_list_duplicate =
     [Hidden_int.hide 2; Hidden_int.hide 3]
   in Fun.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 4, characters 12-13:
-4 |   in Fun.id x
-                ^
-Error: This value is "once" but expected to be "many".
+val hidden_int_list_duplicate : Hidden_int.t list = [<abstr>; <abstr>]
 |}]
 
 let float_duplicate = let once_ x : float = 3.14 in Fun.id x

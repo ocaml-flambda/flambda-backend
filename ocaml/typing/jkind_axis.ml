@@ -173,10 +173,10 @@ module Axis = struct
 
   let all =
     [ Pack (Modal Locality);
-      Pack (Modal Linearity);
       Pack (Modal Uniqueness);
-      Pack (Modal Portability);
+      Pack (Modal Linearity);
       Pack (Modal Contention);
+      Pack (Modal Portability);
       Pack (Nonmodal Externality);
       Pack (Nonmodal Nullability) ]
 
@@ -239,10 +239,10 @@ module Axis_collection (T : Misc.T2) = struct
 
   let create ({ f } : _ Create_f.t) =
     { locality = f ~axis:Axis.(Modal Locality);
-      linearity = f ~axis:Axis.(Modal Linearity);
       uniqueness = f ~axis:Axis.(Modal Uniqueness);
-      portability = f ~axis:Axis.(Modal Portability);
+      linearity = f ~axis:Axis.(Modal Linearity);
       contention = f ~axis:Axis.(Modal Contention);
+      portability = f ~axis:Axis.(Modal Portability);
       externality = f ~axis:Axis.(Nonmodal Externality);
       nullability = f ~axis:Axis.(Nonmodal Nullability)
     }

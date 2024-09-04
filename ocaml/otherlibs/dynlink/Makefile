@@ -142,6 +142,7 @@ COMPILERLIBS_SOURCES=\
 >>>>>>> 5.2.0
   typing/path.ml \
   typing/shape.ml \
+  typing/jkind_axis.ml \
   typing/jkind_types.ml \
   typing/primitive.ml \
   typing/zero_alloc.ml \

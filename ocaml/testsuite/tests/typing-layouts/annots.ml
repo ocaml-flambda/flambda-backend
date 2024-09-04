@@ -250,8 +250,9 @@ Line 1, characters 21-23:
                          ^^
 Error: This alias is bound to type "int list"
        but is used as an instance of type "('a : immediate)"
-       The kind of int list is value
-         because it's a boxed variant type.
+       The kind of int list is
+         value mod many with (ty) uncontended with (ty) portable with (ty)
+         because it is the primitive type list.
        But the kind of int list must be a subkind of immediate
          because of the annotation on the type variable 'a.
 |}]
@@ -264,8 +265,9 @@ Line 1, characters 21-23:
                          ^^
 Error: This alias is bound to type "int list"
        but is used as an instance of type "('a : value mod global)"
-       The kind of int list is value
-         because it's a boxed variant type.
+       The kind of int list is
+         value mod many with (ty) uncontended with (ty) portable with (ty)
+         because it is the primitive type list.
        But the kind of int list must be a subkind of value mod global
          because of the annotation on the type variable 'a.
 |}]

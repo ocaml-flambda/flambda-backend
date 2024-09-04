@@ -59,15 +59,16 @@ let transl_annot (type m) ~(annot_type : m annot_type) ~required_mode_maturity
     (fun maturity ->
       Jane_syntax_parsing.assert_extension_enabled ~loc:annot.loc Mode maturity)
     required_mode_maturity;
-  let pair : m Axis_pair.t = 
+  let pair : m Axis_pair.t =
     match Axis_pair.of_string annot.txt, annot_type with
-  | Any_axis_pair (Nonmodal _, _), (Mode | Modality) | (exception Not_found) ->
-    raise (Error (annot.loc, Unrecognized_modifier (annot_type, annot.txt)))
-  | Any_axis_pair (Modal axis, mode), Mode -> Modal_axis_pair (axis, mode)
-  | Any_axis_pair (Modal axis, mode), Modality -> Modal_axis_pair (axis, mode)
-  | pair, Modifier -> pair
+    | Any_axis_pair (Nonmodal _, _), (Mode | Modality) | (exception Not_found)
+      ->
+      raise (Error (annot.loc, Unrecognized_modifier (annot_type, annot.txt)))
+    | Any_axis_pair (Modal axis, mode), Mode -> Modal_axis_pair (axis, mode)
+    | Any_axis_pair (Modal axis, mode), Modality -> Modal_axis_pair (axis, mode)
+    | pair, Modifier -> pair
   in
-  { txt = pair; loc = annot.loc}
+  { txt = pair; loc = annot.loc }
 
 let unpack_mode_annot { txt = Parsetree.Mode s; loc } = { txt = s; loc }
 

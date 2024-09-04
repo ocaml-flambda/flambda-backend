@@ -1437,6 +1437,13 @@ let instance_parameterized_type ?keep_names sch_args sch =
     (ty_args, ty)
   )
 
+let instance_parameterized_kind args jkind =
+  For_copy.with_scope (fun copy_scope ->
+    let ty_args = List.map (fun t -> copy copy_scope t) args in
+    let jkind = Jkind.map_type_expr (copy copy_scope) jkind in
+    (ty_args, jkind)
+  )
+
 (* [map_kind f kind] maps [f] over all the types in [kind]. [f] must preserve jkinds *)
 let map_kind f = function
   | (Type_abstract _ | Type_open) as k -> k
@@ -1792,6 +1799,21 @@ let subst env level priv abbrev oty params args body =
     undo_abbrev ();
     raise Cannot_subst
 
+
+let jkind_subst env level params args jkind =
+  if List.length params <> List.length args then raise Cannot_subst;
+  let old_level = !current_level in
+  current_level := level;
+  let (params', jkind') = instance_parameterized_kind params jkind in
+  let uenv = Expression {env; in_subst = true} in
+  try
+    List.iter2 (!unify_var' uenv) params' args;
+    current_level := old_level;
+    jkind'
+  with Unify _ ->
+    current_level := old_level;
+    raise Cannot_subst
+
 (* CR layouts: Can we actually just always ignore jkinds in apply/subst?
 
    It seems like almost, but there may be cases where it would forget
@@ -2122,9 +2144,14 @@ let tvariant_not_immediate row =
 let rec estimate_type_jkind env ty =
   let open Jkind in
   match get_desc ty with
-  | Tconstr(p, _, _) -> begin
+  | Tconstr(p, args, _) -> begin
     try
-      Jkind (Env.find_type p env).type_jkind
+      let type_decl = Env.find_type p env in
+      let jkind = type_decl.type_jkind in
+      let level = get_level ty in
+      match jkind_subst env level type_decl.type_params args jkind with
+      | jkind -> Jkind jkind
+      | exception Cannot_subst -> Jkind (Builtin.any ~why:(Missing_cmi p))
     with
       Not_found -> Jkind (Builtin.any ~why:(Missing_cmi p))
   end
@@ -2151,6 +2178,37 @@ let rec estimate_type_jkind env ty =
   | (Tlink _ | Tsubst _) -> assert false
   | Tunivar { jkind } -> Jkind jkind
   | Tpoly (ty, _) -> estimate_type_jkind env ty
+  | Tpackage _ -> Jkind (Builtin.value ~why:First_class_module)
+
+(* Similar to [estimate_type_jkind] but the returned jkind is guaranteed to be
+   a right jkind. *)
+let rec estimate_type_jkind_right env ty =
+  let open Jkind in
+  match get_desc ty with
+  | Tconstr(p, _, _) -> Jkind (Builtin.any ~why:(Missing_cmi p))
+  | Tvariant row ->
+      if tvariant_not_immediate row
+      then Jkind (Builtin.value ~why:Polymorphic_variant)
+      else Jkind (Builtin.immediate ~why:Immediate_polymorphic_variant)
+  | Tvar { jkind } when get_level ty = generic_level ->
+    (* Once a Tvar gets generalized with a jkind, it should be considered
+        as fixed (similar to the Tunivar case below).
+
+        This notably prevents [constrain_type_jkind] from changing layout
+        [any] to a sort or changing the externality once the Tvar gets
+        generalized.
+
+        This, however, still allows sort variables to get instantiated. *)
+    Jkind jkind
+  | Tvar { jkind } -> TyVar (jkind, ty)
+  | Tarrow _ -> Jkind for_arrow
+  | Ttuple _ -> Jkind (Builtin.value ~why:Tuple)
+  | Tobject _ -> Jkind (Builtin.value ~why:Object)
+  | Tfield _ -> Jkind (Builtin.value ~why:Tfield)
+  | Tnil -> Jkind (Builtin.value ~why:Tnil)
+  | (Tlink _ | Tsubst _) -> assert false
+  | Tunivar { jkind } -> Jkind jkind
+  | Tpoly (ty, _) -> estimate_type_jkind_right env ty
   | Tpackage _ -> Jkind (Builtin.value ~why:First_class_module)
 
 let is_principal ty =
@@ -2259,21 +2317,6 @@ let check_type_externality env ty ext =
   | Ok () -> true
   | Error _ -> false
 
-let check_decl_jkind env decl jkind =
-  match Jkind.sub_or_error ~type_equal:Types.eq_type decl.type_jkind jkind with
-  | Ok () as ok -> ok
-  | Error _ as err ->
-      match decl.type_manifest with
-      | None -> err
-      | Some ty -> check_type_jkind env ty jkind
-
-let constrain_decl_jkind env decl jkind =
-  match Jkind.sub_or_error ~type_equal:Types.eq_type decl.type_jkind jkind with
-  | Ok () as ok -> ok
-  | Error _ as err ->
-      match decl.type_manifest with
-      | None -> err
-      | Some ty -> constrain_type_jkind env ty jkind
 
 let check_type_jkind_exn env texn ty jkind =
   match check_type_jkind env ty jkind with
@@ -2287,6 +2330,9 @@ let constrain_type_jkind_exn env texn ty jkind =
 
 let estimate_type_jkind env typ =
   jkind_of_result (estimate_type_jkind env typ)
+
+let estimate_type_jkind_right env typ =
+  jkind_of_result (estimate_type_jkind_right env typ)
 
 let type_jkind env ty =
   estimate_type_jkind env (get_unboxed_type_approximation env ty)
@@ -5354,6 +5400,25 @@ let rec equal_private env params1 ty1 params2 ty2 =
       match try_expand_safe_opt env (expand_head env ty1) with
       | ty1' -> equal_private env params1 ty1' params2 ty2
       | exception Cannot_expand -> raise err
+
+let check_decl_jkind env decl0 params1 jkind1 =
+  let type_equal ty0 ty1 =
+      is_equal env true (decl0.type_params @ [ty0]) (params1 @ [ty1])
+  in
+  match Jkind.sub_or_error ~type_equal decl0.type_jkind jkind1 with
+  | Ok () as ok -> ok
+  | Error _ as err ->
+      match decl0.type_manifest with
+      | None -> err
+      | Some ty -> check_type_jkind env ty jkind1
+
+let constrain_decl_jkind env decl jkind =
+  match Jkind.sub_or_error ~type_equal:Types.eq_type decl.type_jkind jkind with
+  | Ok () as ok -> ok
+  | Error _ as err ->
+      match decl.type_manifest with
+      | None -> err
+      | Some ty -> constrain_type_jkind env ty jkind
 
                           (*************************)
                           (*  Class type matching  *)

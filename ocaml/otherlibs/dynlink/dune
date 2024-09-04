@@ -268,8 +268,8 @@
 
 (copy_files ../../typing/jkind_intf.ml)
 
-(copy_files ../../typing/jkind_types.ml)
 (copy_files ../../typing/jkind_axis.ml)
+(copy_files ../../typing/jkind_types.ml)
 (copy_files ../../typing/oprint.ml)
 
 (copy_files ../../typing/primitive.ml)
@@ -576,13 +576,13 @@
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Solver.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Mode.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind_intf.cmo
+      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind_axis.cmo      
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind_types.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Zero_alloc.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Types.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Attr_helper.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Primitive.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Oprint.cmo
-      .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind_axis.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Typemode.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Jkind.cmo
   .dynlink_compilerlibs.objs/byte/dynlink_compilerlibs__Btype.cmo
@@ -670,13 +670,13 @@
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Solver.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Mode.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind_intf.cmx
+      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind_axis.cmx      
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind_types.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Zero_alloc.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Types.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Attr_helper.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Primitive.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Oprint.cmx
-      .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind_axis.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Typemode.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Jkind.cmx
   .dynlink_compilerlibs.objs/native/dynlink_compilerlibs__Btype.cmx

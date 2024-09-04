@@ -26,6 +26,19 @@ type sort = Sort.t
 
 type type_expr = Types.type_expr
 
+(* Copied from [btype.ml] *)
+let wrap_repr f ty = f (Types.Transient_expr.repr ty)
+
+module TransientTypeSet = Set.Make (Types.TransientTypeOps)
+
+module TypeSet = struct
+  include TransientTypeSet
+
+  let add = wrap_repr add
+
+  let mem = wrap_repr mem
+end
+
 (* A *layout* of a type describes the way values of that type are stored at
    runtime, including details like width, register convention, calling
    convention, etc. A layout may be *representable* or *unrepresentable*.  The
@@ -185,6 +198,22 @@ module Bound = struct
 
   let simple modifier : _ Bound.t = { modifier; baggage = [] }
 
+  let sub (type a) ~type_equal ~(axis : a Axis.t) (bound1 : a t) (bound2 : a t)
+      : Misc.Le_result.t =
+    let (module A : Axis_s with type t = a) = Axis.get axis in
+    (* CR layouts v2.8: do a proper check here *)
+    match bound1.baggage, bound2.baggage with
+    | _, _ when A.le A.max bound1.modifier && A.le A.max bound2.modifier ->
+      Equal
+    | _ when List.equal type_equal bound1.baggage bound2.baggage ->
+      (* Although this check is more expensive that the others and therefore seems
+         better to put after, this will return Equal in more cases, which is better for
+         histories *)
+      A.less_or_equal bound1.modifier bound2.modifier
+    | _, _ when A.le A.max bound2.modifier -> Less
+    (* | [], _ :: _ when A.le bound1.modifier A.min -> Less *)
+    | _ -> Not_le
+
   module Debug_printers = struct
     open Format
 
@@ -282,32 +311,11 @@ module Bounds = struct
     | _ -> None
 
   let sub ~type_equal bounds1 bounds2 =
-    let compare_along_axis (Axis.Pack (type a) (axis : a Axis.t)) :
-        Misc.Le_result.t =
-      let (module A : Axis_s with type t = a) = Axis.get axis in
-      let bound1 = Bounds.get ~axis bounds1 in
-      let bound2 = Bounds.get ~axis bounds2 in
-      (* CR layouts v2.8: do a proper check here *)
-      (* Currently, we check that either:
-         1. the baggage types are equal (including order) and the modifiers are le
-         2. the right is max
-         3. the left is min
-
-         1 can be made less strict by only requiring the right's baggage to be a subset of
-         the left's. But this is meant to just be a temporary solution, so it isn't
-         important.
-      *)
-      match bound1.baggage, bound2.baggage with
-      | _ when List.equal type_equal bound1.baggage bound2.baggage ->
-        (* Although this check is more expensive that the others and therefore seems
-           better to put after, this will return Equal in more cases, which is better for
-           histories *)
-        A.less_or_equal bound1.modifier bound2.modifier
-      | _, [] when A.le A.max bound2.modifier -> Less
-      | [], _ when A.le bound1.modifier A.min -> Less
-      | _ -> Not_le
-    in
-    Axis.all |> List.map compare_along_axis |> Misc.Le_result.combine_list
+    Axis.all
+    |> List.map (fun (Axis.Pack axis) ->
+           Bound.sub ~type_equal ~axis (Bounds.get ~axis bounds1)
+             (Bounds.get ~axis bounds2))
+    |> Misc.Le_result.combine_list
 
   let add_baggage ~deep_only ~baggage bounds =
     (* Add the type as a baggage type along all deep axes *)
@@ -571,30 +579,35 @@ module Const = struct
         modal_bounds : string list
       }
 
-    let get_modal_bound ~le ~print ~base actual =
-      match le actual base with
-      | true -> (
-        match le base actual with
-        | true -> `Valid None
-        | false -> `Valid (Some (Format.asprintf "%a" print actual)))
-      | false -> `Invalid
+    let get_baggage = function
+      | [] -> ""
+      | _ :: _ as l ->
+        let type_print ppf _ = Format.fprintf ppf "(ty)" in
+        Format.asprintf " with %a"
+          (Format.pp_print_list ~pp_sep:Format.pp_print_space type_print)
+          l
+
+    let get_modal_bound (type a) ~(axis : a Axis.t) ~(base : a Bound.t)
+        (actual : a Bound.t) =
+      let (module A : Axis_s with type t = a) = Axis.get axis in
+      let type_equal _ _ = false in
+      match Bound.sub ~type_equal ~axis actual base with
+      | Less | Equal -> (
+        match Bound.sub ~type_equal ~axis base actual with
+        | Less | Equal -> `Valid None
+        | Not_le ->
+          `Valid
+            (Some
+               (Format.asprintf "%a%s" A.print actual.modifier
+                  (get_baggage actual.baggage))))
+      | Not_le -> `Invalid
 
     let get_modal_bounds ~(base : Bounds.t) (actual : Bounds.t) =
-      (* CR: TODO print with constraints *)
-      [ get_modal_bound ~le:Locality.Const.le ~print:Locality.Const.print
-          ~base:base.locality.modifier actual.locality.modifier;
-        get_modal_bound ~le:Uniqueness.Const.le ~print:Uniqueness.Const.print
-          ~base:base.uniqueness.modifier actual.uniqueness.modifier;
-        get_modal_bound ~le:Linearity.Const.le ~print:Linearity.Const.print
-          ~base:base.linearity.modifier actual.linearity.modifier;
-        get_modal_bound ~le:Contention.Const.le ~print:Contention.Const.print
-          ~base:base.contention.modifier actual.contention.modifier;
-        get_modal_bound ~le:Portability.Const.le ~print:Portability.Const.print
-          ~base:base.portability.modifier actual.portability.modifier;
-        get_modal_bound ~le:Externality.le ~print:Externality.print
-          ~base:base.externality.modifier actual.externality.modifier;
-        get_modal_bound ~le:Nullability.le ~print:Nullability.print
-          ~base:base.nullability.modifier actual.nullability.modifier ]
+      Axis.all
+      |> List.map (fun (Axis.Pack axis) ->
+             let base = Bounds.get ~axis base in
+             let actual = Bounds.get ~axis actual in
+             get_modal_bound ~axis ~base actual)
       |> List.rev
       |> List.fold_left
            (fun acc mode ->
@@ -721,6 +734,8 @@ module Const = struct
       | "word" -> Builtin.word.jkind
       | "bits32" -> Builtin.bits32.jkind
       | "bits64" -> Builtin.bits64.jkind
+      | "immutable_data" -> Builtin.immutable_data.jkind
+      | "mutable_data" -> Builtin.mutable_data.jkind
       | _ -> raise ~loc (Unknown_jkind jkind))
     | Mod (base, modifiers) ->
       let base = of_user_written_annotation_unchecked_level ~transl_type base in
@@ -884,11 +899,12 @@ module Jkind_desc = struct
     let meet_axis (type a) ~axis (bound1 : a Bound.t) (bound2 : a Bound.t) :
         a Bound.t =
       match bound1, bound2 with
-      | ( { modifier = modifier1; baggage = [] },
+      | ( { modifier = modifier1; baggage = _ },
           { modifier = modifier2; baggage = [] } ) ->
         let (module A : Axis_s with type t = a) = Axis.get axis in
         { modifier = A.meet modifier1 modifier2; baggage = [] }
       | _ ->
+        Printexc.print_raw_backtrace stderr (Printexc.get_callstack 100);
         (* Intersection should only ever be called on a left-right or right jkind, so it
            should be impossible for there to be with constraints here *)
         Misc.fatal_error
@@ -901,6 +917,30 @@ module Jkind_desc = struct
           { layout;
             upper_bounds = Bounds.map2 { f = meet_axis } bounds1 bounds2
           })
+
+  let assert_right { upper_bounds; _ } =
+    let assert_axis (type a) ~axis:_ (bound : a Bound.t) : a Bound.t =
+      match bound with
+      | { baggage = []; _ } -> bound
+      | _ ->
+        Printexc.print_raw_backtrace stderr (Printexc.get_callstack 100);
+        (* Intersection should only ever be called on a left-right or right jkind, so it
+           should be impossible for there to be with constraints here *)
+        Misc.fatal_error
+          "Attempted to intersect two jkinds with non-empty `with` \
+           constraints. If you see this error message, please contact the Jane \
+           Street OCaml Language Team."
+    in
+    let _ = Bounds.map { f = assert_axis } upper_bounds in
+    ()
+
+  let map_type_expr f { layout; upper_bounds } =
+    let f' (type a) ~axis:_ ({ modifier; baggage } : a Bound.t) : a Bound.t =
+      let baggage = List.map f baggage in
+      { modifier; baggage }
+    in
+    let upper_bounds = Bounds.map { f = f' } upper_bounds in
+    { layout; upper_bounds }
 
   let of_new_sort_var nullability_upper_bound =
     let layout, sort = Layout.of_new_sort_var () in
@@ -1132,30 +1172,29 @@ end
 module Reduced_bounds = Axis_collection (Reduced_bound)
 
 let reduce_bound (type a) ~axis ~jkind_of_type bound =
-  (* CR layouts v2.8: this function will loop forever if the baggage types loop, such as
-     in:
-
-     type a : data with b
-     and b : data with a
-
-     At the moment, it is impossible to make such defintions, so this is fine. *)
+  (* use mutable state for a simpler signature of [jkind_of_type]. *)
+  let visited = ref TypeSet.empty in
   let (module A : Axis_s with type t = a) = Axis.get axis in
   let rec loop : _ Bound.t -> _ = function
     | { modifier; baggage = [] } -> modifier
     | { modifier; baggage = _ } when A.le A.max modifier ->
       (* modifier is top so there's no sense in chasing down remaining baggage *)
       modifier
-    | { modifier; baggage = hd :: tl } -> (
-      match jkind_of_type hd with
-      | Some hd_jkind ->
-        let hd_bound = Bounds.get ~axis hd_jkind.jkind.upper_bounds in
-        loop
-          { modifier = A.join modifier hd_bound.modifier;
-            baggage = hd_bound.baggage @ tl
-          }
-      | None ->
-        (* hd is not principally known, so we treat it as having the max bound *)
-        A.max)
+    | { modifier; baggage = hd :: tl } ->
+      if TypeSet.mem hd !visited
+      then loop { modifier; baggage = tl }
+      else (
+        visited := TypeSet.add hd !visited;
+        match jkind_of_type hd with
+        | Some hd_jkind ->
+          let hd_bound = Bounds.get ~axis hd_jkind.jkind.upper_bounds in
+          loop
+            { modifier = A.join modifier hd_bound.modifier;
+              baggage = hd_bound.baggage @ tl
+            }
+        | None ->
+          (* hd is not principally known, so we treat it as having the max bound *)
+          A.max)
   in
   loop bound
 
@@ -1719,6 +1758,8 @@ let intersection_or_error ~reason t1 t2 =
         has_warned = t1.has_warned || t2.has_warned
       }
 
+let assert_right t = Jkind_desc.assert_right t.jkind
+
 (* this is hammered on; it must be fast! *)
 let check_sub ~type_equal sub super =
   Jkind_desc.sub ~type_equal sub.jkind super.jkind
@@ -1740,6 +1781,10 @@ let sub_with_history ~type_equal sub super =
 let is_void_defaulting = function
   | { jkind = { layout = Sort s; _ }; _ } -> Sort.is_void_defaulting s
   | _ -> false
+
+let map_type_expr f t =
+  let jkind = Jkind_desc.map_type_expr f t.jkind in
+  { t with jkind }
 
 (* This doesn't do any mutation because mutating a sort variable can't make it
    any, and modal upper bounds are constant. *)

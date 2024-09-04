@@ -555,6 +555,8 @@ val tvariant_not_immediate : row_desc -> bool
    [type_jkind] if that's needed. *)
 val estimate_type_jkind : Env.t ->  type_expr -> jkind
 
+val estimate_type_jkind_right : Env.t ->  type_expr -> jkind
+
 (* Get the jkind of a type, expanding it and looking through [[@@unboxed]]
    types. *)
 val type_jkind : Env.t -> type_expr -> jkind
@@ -586,7 +588,7 @@ val type_legacy_sort :
 (* CR layouts: When we improve errors, it may be convenient to change these to
    raise on error, like unify. *)
 val check_decl_jkind :
-  Env.t -> type_declaration -> Jkind.t -> (unit, Jkind.Violation.t) result
+  Env.t -> type_declaration -> type_expr list -> Jkind.t -> (unit, Jkind.Violation.t) result
 val constrain_decl_jkind :
   Env.t -> type_declaration -> Jkind.t -> (unit, Jkind.Violation.t) result
 val check_type_jkind :

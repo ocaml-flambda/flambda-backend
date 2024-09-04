@@ -222,10 +222,7 @@ Error: This value is "once" but expected to be "many".
 let int_list_duplicate : once_ _ -> int list = fun x -> x
 
 [%%expect{|
-Line 1, characters 56-57:
-1 | let int_list_duplicate : once_ _ -> int list = fun x -> x
-                                                            ^
-Error: This value is "once" but expected to be "many".
+val int_list_duplicate : once_ int list -> int list = <fun>
 |}]
 
 let hidden_string_duplicate : once_ _ -> Hidden_string.t =

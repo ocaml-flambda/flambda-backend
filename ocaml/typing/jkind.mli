@@ -441,6 +441,8 @@ val has_intersection : t -> t -> bool
 val intersection_or_error :
   reason:History.interact_reason -> t -> t -> (t, Violation.t) Result.t
 
+val assert_right : t -> unit
+
 (** [sub t1 t2] says whether [t1] is a subjkind of [t2]. Might update
     either [t1] or [t2] to make their layouts equal.*)
 val sub :
@@ -460,6 +462,8 @@ val sub_with_history :
   t ->
   t ->
   (t, Violation.t) result
+
+val map_type_expr : (Types.type_expr -> Types.type_expr) -> t -> t
 
 (** Checks to see whether a jkind is the maximum jkind. Never does any
     mutation. *)
