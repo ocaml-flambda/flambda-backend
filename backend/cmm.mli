@@ -371,6 +371,8 @@ type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
 
+val width_of : memory_chunk -> int
+
 val ccatch :
      label * (Backend_var.With_provenance.t * machtype) list
        * expression * expression * Debuginfo.t * kind_for_unboxing
