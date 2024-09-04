@@ -22,6 +22,20 @@ type environment = unit Select_utils.environment
 
 class virtual selector_generic :
   object
+    method is_store : Mach.operation -> bool
+
+    method lift_op : Mach.operation -> Mach.instruction_desc
+
+    method make_stack_offset : int -> Mach.instruction_desc
+
+    method make_name_for_debugger :
+      ident:Backend_var.t ->
+      which_parameter:int option ->
+      provenance:Backend_var.Provenance.t option ->
+      is_assignment:bool ->
+      regs:Reg.t array ->
+      Mach.instruction_desc
+
     (* The following methods must or can be overridden by the processor
        description *)
     method is_immediate : Mach.integer_operation -> int -> bool
