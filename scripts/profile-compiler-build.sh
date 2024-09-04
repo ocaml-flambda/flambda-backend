@@ -39,7 +39,11 @@ build_compiler() {
   make install
 }
 
-temp_dir=$(mktemp -d -p "$root"/.. -t tmp.XXXXXXX)
+if [ -v TMPDIR ] && [ ! -z "$TMPDIR" ]; then
+  temp_dir=$(mktemp -d)
+else
+  temp_dir=$(mktemp -d -p "$root"/.. -t tmp.XXXXXXX)
+fi
 trap "rm -rf "$temp_dir"" EXIT
 cp -r --reflink=auto "$root" "$temp_dir"
 
