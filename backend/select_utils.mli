@@ -176,3 +176,127 @@ end
 val select_effects : Cmm.effects -> Effect.t
 
 val select_coeffects : Cmm.coeffects -> Coeffect.t
+
+class virtual ['env, 'op, 'instr] common_selector :
+  object ('self)
+    method virtual is_store : 'op -> bool
+
+    method virtual lift_op : 'op -> 'instr
+
+    method virtual make_store :
+      Cmm.memory_chunk -> Arch.addressing_mode -> bool -> 'instr
+
+    method virtual make_stack_offset : int -> 'instr
+
+    method virtual make_name_for_debugger :
+      ident:Backend_var.t ->
+      which_parameter:int option ->
+      provenance:Backend_var.Provenance.t option ->
+      is_assignment:bool ->
+      regs:Reg.t array ->
+      'instr
+
+    method is_simple_expr : Cmm.expression -> bool
+
+    method effects_of : Cmm.expression -> Effect_and_coeffect.t
+
+    method is_immediate : Mach.integer_operation -> int -> bool
+
+    method virtual is_immediate_test : Mach.integer_comparison -> int -> bool
+
+    method virtual select_addressing :
+      Cmm.memory_chunk ->
+      Cmm.expression ->
+      Arch.addressing_mode * Cmm.expression
+
+    method virtual select_store :
+      bool -> Arch.addressing_mode -> Cmm.expression -> 'op * Cmm.expression
+
+    method select_condition : Cmm.expression -> Mach.test * Cmm.expression
+
+    method regs_for : Cmm.machtype -> Reg.t array
+
+    method virtual insert_debug :
+      'env environment ->
+      'instr ->
+      Debuginfo.t ->
+      Reg.t array ->
+      Reg.t array ->
+      unit
+
+    method virtual insert :
+      'env environment -> 'instr -> Reg.t array -> Reg.t array -> unit
+
+    method virtual insert_move : 'env environment -> Reg.t -> Reg.t -> unit
+
+    method insert_moves : 'env environment -> Reg.t array -> Reg.t array -> unit
+
+    method insert_move_args :
+      'env environment -> Reg.t array -> Reg.t array -> int -> unit
+
+    method insert_move_results :
+      'env environment -> Reg.t array -> Reg.t array -> int -> unit
+
+    method insert_op_debug :
+      'env environment ->
+      'op ->
+      Debuginfo.t ->
+      Reg.t array ->
+      Reg.t array ->
+      Reg.t array
+
+    method insert_op :
+      'env environment -> 'op -> Reg.t array -> Reg.t array -> Reg.t array
+
+    method virtual emit_expr :
+      'env environment ->
+      Cmm.expression ->
+      bound_name:Backend_var.With_provenance.t option ->
+      Reg.t array option
+
+    method private bind_let :
+      'env environment ->
+      Backend_var.With_provenance.t ->
+      Reg.t array ->
+      'env environment
+
+    method private bind_let_mut :
+      'env environment ->
+      Backend_var.With_provenance.t ->
+      Cmm.machtype ->
+      Reg.t array ->
+      'env environment
+
+    method private emit_parts :
+      'env environment ->
+      effects_after:Effect_and_coeffect.t ->
+      Cmm.expression ->
+      (Cmm.expression * 'env environment) option
+
+    method private emit_parts_list :
+      'env environment ->
+      Cmm.expression list ->
+      (Cmm.expression list * 'env environment) option
+
+    method private emit_tuple_not_flattened :
+      'env environment -> Cmm.expression list -> Reg.t array list
+
+    method private emit_tuple :
+      'env environment -> Cmm.expression list -> Reg.t array
+
+    method emit_extcall_args :
+      'env environment ->
+      Cmm.exttype list ->
+      Cmm.expression list ->
+      Reg.t array * int
+
+    method insert_move_extcall_arg :
+      'env environment -> Cmm.exttype -> Reg.t array -> Reg.t array -> unit
+
+    method emit_stores :
+      'env environment ->
+      Debuginfo.t ->
+      Cmm.expression list ->
+      Reg.t array ->
+      unit
+  end
