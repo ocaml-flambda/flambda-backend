@@ -586,7 +586,7 @@ module Memory_accesses : sig
 
   val get_memory_operation_exn : t -> Instruction.Id.t -> Memory_operation.t
 
-  val from_block : Cfg.basic_block -> t
+  val from_block : Cfg.basic_block -> Dependency_graph.t -> t
 
   val all_adjacent : t -> Instruction.Id.t list -> bool
 
@@ -736,7 +736,7 @@ end = struct
   let get_memory_operation_exn t id =
     Instruction.Id.Tbl.find t.memory_operations id
 
-  let from_block (block : Cfg.basic_block) : t =
+  let from_block (block : Cfg.basic_block) dependency_graph : t =
     (* A heuristic to avoid treating the same "fresh" allocation which address
        stored and loaded into a different register as different, has room for
        improvement. Assumption: if x depends on a fresh allocation, and it is
@@ -751,7 +751,6 @@ end = struct
        the address of the fresh alloc has been saved as a value, and something
        has been loaded till this point. For each memory operation, we will save
        its dependent allocs and unsure allocs *)
-    let dependency_graph = Dependency_graph.from_block block in
     let body = Instruction.body_of block in
     let id_to_instructions = Instruction.tbl_of block in
     let memory_operations = Instruction.Id.Tbl.create 100 in
@@ -976,19 +975,18 @@ module Seed : sig
   (* A seed is a group of stores instructions to adjacent memory addresses that
      can be made to be adjacent in the list of instructions *)
 
-  val from_block : Cfg.basic_block -> t list
+  val from_block : Cfg.basic_block -> Memory_accesses.t -> t list
 
   val dump : Format.formatter -> t list -> unit
 end = struct
   type t = Memory_accesses.Memory_operation.t list
 
-  let from_block (block : Cfg.basic_block) : t list =
+  let from_block (block : Cfg.basic_block) memory_accesses : t list =
     (* For each store instruction, it tries to form a seed with the closest
        stores after it, it will go down the DLL of instructions and tries to
        move the store instructions across the non-store instructions until all
        the store instructions are together *)
     let body = Instruction.body_of block in
-    let memory_accesses = Memory_accesses.from_block block in
     let all_stores = Memory_accesses.stores memory_accesses in
     List.filter_map
       (fun store_id ->
@@ -1071,7 +1069,13 @@ module Computation_tree : sig
 
   val all_nodes : t -> Node.t Instruction.Id.Tbl.t
 
-  val from_block : Cfg.basic_block -> Cfg_with_infos.t -> t list
+  val from_block :
+    Cfg.basic_block ->
+    Dependency_graph.t ->
+    Memory_accesses.t ->
+    Seed.t list ->
+    Cfg_with_infos.t ->
+    t list
 
   val dump : Format.formatter -> t list -> Cfg.basic_block -> unit
 end = struct
@@ -1111,11 +1115,10 @@ end = struct
 
   let all_nodes t = t
 
-  let from_seed (block : Cfg.basic_block) cfg_with_infos seed =
+  let from_seed (block : Cfg.basic_block) dependency_graph memory_accesses
+      cfg_with_infos seed =
     let body = Instruction.body_of block in
     let id_to_instructions = Instruction.tbl_of block in
-    let dependency_graph = Dependency_graph.from_block block in
-    let memory_accesses = Memory_accesses.from_block block in
     let find_instruction = Instruction.Id.Tbl.find id_to_instructions in
     let root =
       List.map
@@ -1343,9 +1346,11 @@ end = struct
         Some computation_tree)
       else None
 
-  let from_block block cfg_with_infos : t list =
-    let seeds = Seed.from_block block in
-    List.filter_map (from_seed block cfg_with_infos) seeds
+  let from_block block dependency_graph memory_accesses seeds cfg_with_infos :
+      t list =
+    List.filter_map
+      (from_seed block dependency_graph memory_accesses cfg_with_infos)
+      seeds
 
   let dump ppf (trees : t list) (block : Cfg.basic_block) =
     let open Format in
@@ -1391,8 +1396,7 @@ end
 
 let reg_map = Numbers.Int.Tbl.create 100
 
-let vectorize (block : Cfg.basic_block) cfg_with_infos =
-  let all_trees = Computation_tree.from_block block cfg_with_infos in
+let vectorize (block : Cfg.basic_block) all_trees =
   let rec find_independent_trees trees =
     (* CR-someday tip: This is fine for now because trees are independent with
        anything outside the tree except loads, so trees with no instructions in
@@ -1496,20 +1500,12 @@ let vectorize (block : Cfg.basic_block) cfg_with_infos =
        | Some node -> add_vector_instructions_for_node cell node);
       DLL.next cell |> add_vector_instructions
   in
-  let rec remove_scalar_instructions cell_option =
-    match cell_option with
-    | None -> ()
-    | Some cell ->
-      let instructon = Instruction.Basic (DLL.value cell) in
-      let next_cell = DLL.next cell in
-      if Instruction.Id.Set.exists
-           (Instruction.Id.equal (Instruction.id instructon))
-           good_instructions
-      then DLL.delete_curr cell;
-      remove_scalar_instructions next_cell
-  in
   DLL.hd_cell block.body |> add_vector_instructions;
-  DLL.hd_cell block.body |> remove_scalar_instructions
+  DLL.filter_left block.body ~f:(fun instruction ->
+      Instruction.Id.Set.exists
+        (Instruction.Id.equal (Instruction.id (Instruction.Basic instruction)))
+        good_instructions
+      |> not)
 
 let dump ppf (block : Cfg.basic_block) ~msg =
   let open Format in
@@ -1539,20 +1535,27 @@ let cfg ppf_dump cl =
       then
         Format.fprintf ppf_dump
           "more than 1000 instructions in basic block, cannot vectorize\n"
-      else (
+      else
+        let dependency_graph = Dependency_graph.from_block block in
         if debug && !Flambda_backend_flags.dump_vectorize
-        then (
-          let dependency_graph = Dependency_graph.from_block block in
-          Dependency_graph.dump ppf_dump dependency_graph block;
-          let memory_accesses = Memory_accesses.from_block block in
-          Memory_accesses.dump ppf_dump memory_accesses;
-          let seeds = Seed.from_block block in
-          Seed.dump ppf_dump seeds;
-          let trees = Computation_tree.from_block block cfg_with_infos in
-          Computation_tree.dump ppf_dump trees block);
+        then Dependency_graph.dump ppf_dump dependency_graph block;
+        let memory_accesses =
+          Memory_accesses.from_block block dependency_graph
+        in
+        if debug && !Flambda_backend_flags.dump_vectorize
+        then Memory_accesses.dump ppf_dump memory_accesses;
+        let seeds = Seed.from_block block memory_accesses in
+        if debug && !Flambda_backend_flags.dump_vectorize
+        then Seed.dump ppf_dump seeds;
+        let trees =
+          Computation_tree.from_block block dependency_graph memory_accesses
+            seeds cfg_with_infos
+        in
+        if debug && !Flambda_backend_flags.dump_vectorize
+        then Computation_tree.dump ppf_dump trees block;
         if !Flambda_backend_flags.dump_vectorize
         then dump ppf_dump ~msg:"before vectorize" block;
-        vectorize block cfg_with_infos;
+        vectorize block trees;
         if !Flambda_backend_flags.dump_vectorize
-        then dump ppf_dump ~msg:"after vectorize" block));
+        then dump ppf_dump ~msg:"after vectorize" block);
   cl

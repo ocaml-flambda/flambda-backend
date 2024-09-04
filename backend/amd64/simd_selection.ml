@@ -471,10 +471,18 @@ type width =
   | W64
 
 type register =
+  (* Registers used in vectorized instruction(s) of one scalar instruction *)
   | New of int
+    (* The n-th new temporary register used in the vectorized instructions *)
   | Argument of int
+    (* Vector version of the n-th argument's register of the scalar
+       instruction *)
   | Result of int
+    (* Vector version of the n-th result's register of the scalar instruction *)
   | Original of int
+(* Keep the original instruction in the n-th argument/result (depending on
+   whether it is used in the argument or result of the vectorized instructions)
+   of the scalar instruction*)
 
 type vectorized_instruction =
   { operation : Cfg.operation;
