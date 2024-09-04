@@ -1,0 +1,2 @@
+ nested/ml_counters.ml
+  [comprehensions = 3; immutable_arrays = 0; include_functor = 0; labeled_tuples = 1; module_strengthening = 0] typing
