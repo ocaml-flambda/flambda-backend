@@ -3,7 +3,7 @@
 set -e -u -o pipefail
 
 # Works regardless of where script run from
-scripts_dir=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+scripts_dir=$( cd "$( dirname "$0" )" &> /dev/null && pwd )
 
 root=$scripts_dir/..
 dump_dir="$root/_profile"
