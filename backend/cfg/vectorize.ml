@@ -526,6 +526,8 @@ end = struct
         else false
       in
       res
+
+    let index_offset t = match t.op with Load -> 0 | Store -> 1
   end
 
   type t =
@@ -598,17 +600,20 @@ end = struct
                      (Instruction.is_alloc
                      << Instruction.Id.Tbl.find id_to_instructions)
               in
-              let start_index =
-                match memory_operation.op with Load -> 0 | Store -> 1
+              let rec get_dependent_allocs arg_i =
+                if arg_i < 0
+                then Instruction.Id.Set.empty
+                else
+                  Instruction.Id.Set.union
+                    (get_dependent_allocs_of_arg
+                       (arg_i + Memory_operation.index_offset memory_operation))
+                    (get_dependent_allocs (arg_i - 1))
               in
-              let dependent_allocs, _ =
-                Array.fold_left
-                  (fun (dependent_allocs, arg_i) _ ->
-                    ( get_dependent_allocs_of_arg arg_i
-                      |> Instruction.Id.Set.union dependent_allocs,
-                      arg_i + 1 ))
-                  (Instruction.Id.Set.empty, start_index)
-                  (Memory_operation.memory_arguments memory_operation)
+              let dependent_allocs =
+                get_dependent_allocs
+                  (Array.length
+                     (Memory_operation.memory_arguments memory_operation)
+                  - 1)
               in
               match memory_operation.op with
               | Load ->
