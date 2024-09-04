@@ -1193,6 +1193,8 @@ end = struct
                 |> Instruction.Id.Set.union is_dependency_of)
               computation_tree Instruction.Id.Set.empty
           in
+          (* CR-someday tip: consider changing this implementation so that it
+             doesn't have to explicitly construct the set *)
           DLL.to_list body |> List.map Instruction.id
           |> Instruction.Id.Set.of_list
           |> Instruction.Id.Set.inter tree_is_dependency_of
