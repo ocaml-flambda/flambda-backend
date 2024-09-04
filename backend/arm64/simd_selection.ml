@@ -33,6 +33,6 @@ type vectorized_instruction =
     results : register array
   }
 
-let vector_width = 128
+let vector_width_in_bits = 128
 
 let vectorize_operation _ _ : vectorized_instruction list option = None

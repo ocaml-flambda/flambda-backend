@@ -490,15 +490,15 @@ type vectorized_instruction =
     results : register array
   }
 
-let vector_width = 128
+let vector_width_in_bits = 128
 
-let vectorize_operation width (cfg_ops : Cfg.operation list) :
+let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
     vectorized_instruction list option =
   (* Assumes cfg_ops are isomorphic and can be vectorized *)
   let length = List.length cfg_ops in
-  assert (length * width = vector_width);
+  assert (length * width_in_bits = vector_width_in_bits);
   let width_type =
-    match width with
+    match width_in_bits with
     | 64 -> W64
     | 32 -> W32
     | 16 -> W16
@@ -525,10 +525,14 @@ let vectorize_operation width (cfg_ops : Cfg.operation list) :
     in
     let highs, lows = get_list consts (length / 2) in
     let pack_int64 nums =
-      let mask = Int64.shift_right_logical Int64.minus_one (64 - width) in
+      let mask =
+        Int64.shift_right_logical Int64.minus_one (64 - width_in_bits)
+      in
       List.fold_left
         (fun target num ->
-          Int64.logor (Int64.shift_left target width) (Int64.logand num mask))
+          Int64.logor
+            (Int64.shift_left target width_in_bits)
+            (Int64.logand num mask))
         0L nums
     in
     Cfg.Const_vec128 { high = pack_int64 highs; low = pack_int64 lows }

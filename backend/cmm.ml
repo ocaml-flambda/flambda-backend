@@ -357,7 +357,7 @@ type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
 
-let width_of (memory_chunk : memory_chunk) : int =
+let width_in_bits (memory_chunk : memory_chunk) : int =
   match memory_chunk with
   | Byte_unsigned | Byte_signed -> 8
   | Sixteen_unsigned | Sixteen_signed -> 16

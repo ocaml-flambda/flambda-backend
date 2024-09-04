@@ -18,7 +18,7 @@ let all_option_list list =
       | _ -> None)
     list (Some [])
 
-let vector_width = Simd_selection.vector_width
+let vector_width_in_bits = Simd_selection.vector_width_in_bits
 
 module Instruction : sig
   (* CR-someday tip: consider moving this to cfg or at least have something
@@ -218,13 +218,13 @@ end = struct
     | [] -> true
     | hd :: tl -> List.for_all (op_isomorphic hd) tl
 
-  let to_vector_instructions width instructions =
-    assert (width * List.length instructions = vector_width);
+  let to_vector_instructions width_in_bits instructions =
+    assert (width_in_bits * List.length instructions = vector_width_in_bits);
     match List.map op instructions |> all_option_list with
     | None -> None
     | Some cfg_ops ->
       if same_stack_offset instructions && are_isomorphic cfg_ops
-      then Simd_selection.vectorize_operation width cfg_ops
+      then Simd_selection.vectorize_operation width_in_bits cfg_ops
       else None
 
   let is_store (instruction : t) =
@@ -575,7 +575,7 @@ module Memory_accesses : sig
 
     val instruction : t -> Instruction.t
 
-    val width : t -> int
+    val width_in_bits : t -> int
 
     val dump : Format.formatter -> t -> unit
   end
@@ -659,12 +659,12 @@ end = struct
       | Load -> arguments
       | Store -> Array.sub arguments 1 (Array.length arguments - 1)
 
-    let width (t : t) = Cmm.width_of t.memory_chunk
+    let width_in_bits (t : t) = Cmm.width_in_bits t.memory_chunk
 
     let print_memory_chunk ppf (t : t) =
       Format.fprintf ppf "%s (length %d)"
         (Printcmm.chunk t.memory_chunk)
-        (Cmm.width_of t.memory_chunk)
+        (width_in_bits t)
 
     let dump ppf (t : t) =
       let open Format in
@@ -719,7 +719,7 @@ end = struct
         then
           match offset_of t1 t2 with
           | None -> false
-          | Some offset -> width t1 = offset * 8
+          | Some offset -> width_in_bits t1 = offset * 8
         else false
       in
       res
@@ -874,24 +874,26 @@ end = struct
               | None -> false
               | Some offset ->
                 offset
-                > Cmm.width_of
+                > Cmm.width_in_bits
                     left_memory_operation.Memory_operation.memory_chunk
-                  * 8
             in
+            (* Case 1: address 1 is before address 2; case 2: address 2 is
+               before address 1 *)
             check_direct_separation memory_operation_1 memory_operation_2
             || check_direct_separation memory_operation_2 memory_operation_1
           else
-            Instruction.Id.Set.is_empty
-              (Instruction.Id.Set.diff memory_operation_1.dependent_allocs
-                 (Instruction.Id.Set.union memory_operation_2.dependent_allocs
-                    memory_operation_2.unsure_allocs))
-            |> not
-            || Instruction.Id.Set.is_empty
-                 (Instruction.Id.Set.diff memory_operation_2.dependent_allocs
-                    (Instruction.Id.Set.union
-                       memory_operation_1.dependent_allocs
-                       memory_operation_1.unsure_allocs))
-               |> not)
+            let first_depends_on_some_alloc_second_certainly_does_not_depend_on
+                (first : Memory_operation.t) (second : Memory_operation.t) =
+              Instruction.Id.Set.is_empty
+                (Instruction.Id.Set.diff first.dependent_allocs
+                   (Instruction.Id.Set.union second.dependent_allocs
+                      second.unsure_allocs))
+              |> not
+            in
+            first_depends_on_some_alloc_second_certainly_does_not_depend_on
+              memory_operation_1 memory_operation_2
+            || first_depends_on_some_alloc_second_certainly_does_not_depend_on
+                 memory_operation_2 memory_operation_1)
     else false
 
   let can_cross_lists t instructions1 instructions2 =
@@ -1009,13 +1011,14 @@ end = struct
         let starting_memory_operation =
           Memory_accesses.get_memory_operation_exn memory_accesses store_id
         in
-        let width =
-          Memory_accesses.Memory_operation.width starting_memory_operation
+        let width_in_bits =
+          Memory_accesses.Memory_operation.width_in_bits
+            starting_memory_operation
         in
-        if width = 128 (* No point "vectorizing" that *)
+        if width_in_bits = 128 (* No point "vectorizing" that *)
         then None
         else
-          let items_in_vector = vector_width / width in
+          let items_in_vector = vector_width_in_bits / width_in_bits in
           let store_group = find_stores items_in_vector [] starting_cell in
           match store_group with
           | None -> None
@@ -1126,7 +1129,9 @@ end = struct
         seed
     in
     let computation_tree = init () in
-    let seed_width = List.hd seed |> Memory_accesses.Memory_operation.width in
+    let seed_width_in_bits =
+      List.hd seed |> Memory_accesses.Memory_operation.width_in_bits
+    in
     let rec build instruction_ids : Instruction.Id.t option =
       (* Recursively builds the computation tree and returns Some id of the root
          if possible, otherwise None *)
@@ -1137,7 +1142,7 @@ end = struct
       let last_instruction =
         Instruction.find_last_instruction body instruction_ids
       in
-      match Node.init seed_width instructions with
+      match Node.init seed_width_in_bits instructions with
       | None -> None
       | Some node -> (
         let key = Instruction.id last_instruction in
@@ -1179,15 +1184,15 @@ end = struct
           | Some op -> (
             match op with
             | Load _ ->
-              let load_width =
+              let load_width_in_bits =
                 Instruction.id last_instruction
                 |> Memory_accesses.get_memory_operation_exn memory_accesses
-                |> Memory_accesses.Memory_operation.width
+                |> Memory_accesses.Memory_operation.width_in_bits
               in
               if Memory_accesses.all_adjacent memory_accesses instruction_ids
                  && Memory_accesses.inter_independent memory_accesses
                       instructions
-                 && load_width = seed_width
+                 && load_width_in_bits = seed_width_in_bits
               then (
                 Instruction.Id.Tbl.add computation_tree key node;
                 Some key)
