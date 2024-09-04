@@ -116,7 +116,7 @@ val operation_allocates : specific_operation -> bool
 
 val operation_can_raise : specific_operation -> bool
 
-(* addressing mode functions, for avoiding compilation errors when using them in amd64 *)
+(* See `amd64/arch.mli`. *)
 
 val compare_addressing_mode_without_displ : addressing_mode -> addressing_mode -> int
 
