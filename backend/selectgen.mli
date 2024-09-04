@@ -26,6 +26,9 @@ class virtual selector_generic :
 
     method lift_op : Mach.operation -> Mach.instruction_desc
 
+    method make_store :
+      Cmm.memory_chunk -> Arch.addressing_mode -> bool -> Mach.instruction_desc
+
     method make_stack_offset : int -> Mach.instruction_desc
 
     method make_name_for_debugger :
