@@ -15,9 +15,9 @@
 
 (* Instruction selection for the AMD64 *)
 
+[@@@ocaml.warning "+a-4-9-40-41-42"]
+
 open Arch
-open Proc
-open Cmm
 open Selection_utils
 
 (* The selector class *)
@@ -192,6 +192,7 @@ class selector =
     (* Recognize float arithmetic with mem *)
 
     method select_floatarith commutative width regular_op mem_op args =
+      let open Cmm in
       match width, args with
       | ( Float64,
           [arg1; Cop (Cload { memory_chunk = Double as chunk; _ }, [loc2], _)] )
