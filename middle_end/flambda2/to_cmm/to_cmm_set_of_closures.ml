@@ -121,7 +121,7 @@ end) : sig
     prev_updates:To_cmm_env.expr_with_info option ->
     (int * Slot_offsets.Layout.slot) list ->
     P.cmm_term list
-    * Cmm.memory_chunk list option
+    * Cmm.memory_chunk list
     * To_cmm_env.free_vars
     * int
     * Env.t
@@ -129,9 +129,8 @@ end) : sig
     * Ece.t
     * To_cmm_env.expr_with_info option
 end = struct
-  let rev_append_chunks l = function
-    | None -> None
-    | Some chunks -> Some (List.rev_append l chunks)
+  let rev_append_chunks ~for_static_sets l chunks =
+    match for_static_sets with None -> List.rev_append l chunks | Some _ -> []
 
   (* The [offset]s here are measured in units of words. *)
   let fill_slot for_static_sets decls dbg ~startenv value_slots env res acc
@@ -140,7 +139,7 @@ end = struct
     | Infix_header ->
       let field = P.infix_header ~function_slot_offset:(slot_offset + 1) ~dbg in
       ( field :: acc,
-        rev_append_chunks [Cmm.Word_int] chunk_acc,
+        rev_append_chunks ~for_static_sets [Cmm.Word_int] chunk_acc,
         Backend_var.Set.empty,
         slot_offset + 1,
         env,
@@ -164,22 +163,20 @@ end = struct
         match contents with
         | `Expr field ->
           let chunk = C.memory_chunk_of_kind kind in
-          let chunk_acc = rev_append_chunks [chunk] chunk_acc in
+          let chunk_acc =
+            rev_append_chunks ~for_static_sets [chunk] chunk_acc
+          in
           env, res, [field], chunk_acc, updates
-        | `Static_data fields -> (
-          match for_static_sets, chunk_acc with
-          | None, _ | _, Some _ -> assert false
-          | Some _, None -> env, res, fields, chunk_acc, updates)
+        | `Static_data fields -> env, res, fields, chunk_acc, updates
         | `Var v -> (
           (* We should only get here in the static allocation case. *)
-          match for_static_sets, chunk_acc with
-          | None, _ | _, Some _ -> assert false
-          | ( Some
-                { function_slot_offset_for_updates;
-                  closure_symbol_for_updates;
-                  _
-                },
-              None ) ->
+          match for_static_sets with
+          | None -> assert false
+          | Some
+              { function_slot_offset_for_updates;
+                closure_symbol_for_updates;
+                _
+              } ->
             let update_kind =
               let module UK = C.Update_kind in
               match KS.kind kind with
@@ -259,7 +256,9 @@ end = struct
             P.int ~dbg closure_info :: P.term_of_symbol ~dbg code_symbol :: acc
           in
           ( acc,
-            rev_append_chunks [Cmm.Word_int; Cmm.Word_int] chunk_acc,
+            rev_append_chunks ~for_static_sets
+              [Cmm.Word_int; Cmm.Word_int]
+              chunk_acc,
             Backend_var.Set.empty,
             slot_offset + size,
             env,
@@ -282,7 +281,7 @@ end = struct
             :: acc
           in
           ( acc,
-            rev_append_chunks
+            rev_append_chunks ~for_static_sets
               [Cmm.Word_int; Cmm.Word_int; Cmm.Word_int]
               chunk_acc,
             Backend_var.Set.empty,
@@ -307,10 +306,12 @@ end = struct
           match size with
           | 2 ->
             ( P.int ~dbg closure_info :: P.int ~dbg 0n :: acc,
-              rev_append_chunks [Cmm.Word_int; Cmm.Word_int] chunk_acc )
+              rev_append_chunks ~for_static_sets
+                [Cmm.Word_int; Cmm.Word_int]
+                chunk_acc )
           | 3 ->
             ( P.int ~dbg 0n :: P.int ~dbg closure_info :: P.int ~dbg 0n :: acc,
-              rev_append_chunks
+              rev_append_chunks ~for_static_sets
                 [Cmm.Word_int; Cmm.Word_int; Cmm.Word_int]
                 chunk_acc )
           | _ -> assert false
@@ -329,7 +330,7 @@ end = struct
     match slots with
     | [] ->
       ( List.rev acc,
-        Option.map List.rev chunk_acc,
+        List.rev chunk_acc,
         free_vars,
         starting_offset,
         env,
@@ -351,7 +352,7 @@ end = struct
              pointers, as noted in the comment in compact.c *)
           ( List.init (slot_offset - starting_offset) (fun _ -> P.int ~dbg 1n)
             @ acc,
-            rev_append_chunks
+            rev_append_chunks ~for_static_sets
               (List.init (slot_offset - starting_offset) (fun _ -> Cmm.Word_int))
               chunk_acc )
       in
@@ -366,12 +367,8 @@ end = struct
 
   let fill_layout for_static_sets decls dbg ~startenv value_slots env res effs
       ~prev_updates slots =
-    let chunk_acc =
-      match for_static_sets with None -> Some [] | Some _ -> None
-    in
     fill_layout0 for_static_sets decls dbg ~startenv value_slots env res effs []
-      chunk_acc prev_updates ~free_vars:Backend_var.Set.empty ~starting_offset:0
-      slots
+      [] prev_updates ~free_vars:Backend_var.Set.empty ~starting_offset:0 slots
 end
 
 (* Filling-up of dynamically-allocated sets of closures. *)
@@ -594,8 +591,8 @@ let let_static_set_of_closures0 env res closure_symbols
       layout.slots
   in
   (match memory_chunks with
-  | None -> ()
-  | Some _ ->
+  | [] -> ()
+  | _ :: _ ->
     Misc.fatal_errorf
       "Broken internal invariant: Static sets of closures do not need a list \
        of memory chunks");
@@ -705,15 +702,9 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
   let csoc =
     assert (List.compare_length_with l 0 > 0);
     let tag = Tag.(to_int closure_tag) in
-    match memory_chunks with
-    | None ->
-      Misc.fatal_errorf
-        "Broken internal invariant: missing memory chunks for dynamic set of \
-         closures"
-    | Some fields_memory_chunks ->
-      C.make_closure_alloc
-        ~mode:(Alloc_mode.For_allocations.to_lambda closure_alloc_mode)
-        dbg ~tag l fields_memory_chunks
+    C.make_closure_alloc
+      ~mode:(Alloc_mode.For_allocations.to_lambda closure_alloc_mode)
+      dbg ~tag l memory_chunks
   in
   let soc_var = Variable.create "*set_of_closures*" in
   let defining_expr = Env.simple csoc free_vars in
