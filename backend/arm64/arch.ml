@@ -332,7 +332,7 @@ let operation_allocates = function
   | Isignext _
   | Ibswap _ -> false
 
-(* addressing mode functions, for avoiding compilation errors when using them in amd64 *)
+(* See `amd64/arch.ml`. *)
 
 let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
