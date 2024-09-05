@@ -887,6 +887,8 @@ end = struct
             check_direct_separation memory_operation_1 memory_operation_2
             || check_direct_separation memory_operation_2 memory_operation_1
           else
+            (* CR-soon tip: if Reg.typ is val, memory accesses using different
+               base addresses will not collide *)
             let first_depends_on_some_alloc_second_certainly_does_not_depend_on
                 (first : Memory_operation.t) (second : Memory_operation.t) =
               Instruction.Id.Set.is_empty
