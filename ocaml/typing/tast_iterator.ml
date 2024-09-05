@@ -257,6 +257,7 @@ let pat
   | Tpat_var (_, s, _, _) -> iter_loc sub s
   | Tpat_constant _ -> ()
   | Tpat_tuple l -> List.iter (fun (_, p) -> sub.pat sub p) l
+  | Tpat_unboxed_tuple l -> List.iter (fun (_, p, _) -> sub.pat sub p) l
   | Tpat_construct (lid, _, l, vto) ->
       iter_loc sub lid;
       List.iter (sub.pat sub) l;
@@ -335,6 +336,7 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
       sub.expr sub exp;
       List.iter (sub.case sub) cases
   | Texp_tuple (list, _) -> List.iter (fun (_,e) -> sub.expr sub e) list
+  | Texp_unboxed_tuple list -> List.iter (fun (_,e,_) -> sub.expr sub e) list
   | Texp_construct (lid, _, args, _) ->
       iter_loc sub lid;
       List.iter (sub.expr sub) args
@@ -629,6 +631,7 @@ let typ sub {ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes; _} =
       sub.typ sub ct1;
       sub.typ sub ct2
   | Ttyp_tuple list -> List.iter (fun (_, t) -> sub.typ sub t) list
+  | Ttyp_unboxed_tuple list -> List.iter (fun (_, t) -> sub.typ sub t) list
   | Ttyp_constr (_, lid, list) ->
       iter_loc sub lid;
       List.iter (sub.typ sub) list

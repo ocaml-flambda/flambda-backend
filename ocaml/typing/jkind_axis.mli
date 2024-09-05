@@ -28,6 +28,8 @@ module type Axis_s = sig
 
   val meet : t -> t -> t
 
+  val join : t -> t -> t
+
   val print : Format.formatter -> t -> unit
 end
 

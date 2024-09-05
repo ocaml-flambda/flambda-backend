@@ -131,6 +131,7 @@ let rec immediate_subtypes : type_expr -> type_expr list = fun ty ->
   | Tarrow(_,ty1,ty2,_) ->
       [ty1; ty2]
   | Ttuple(tys) -> List.map snd tys
+  | Tunboxed_tuple(tys) -> List.map snd tys
   | Tpackage(_, fl) -> (snd (List.split fl))
   | Tobject(row,class_ty) ->
       let class_subtys =
@@ -404,6 +405,7 @@ let check_type
     (* "Separable" case for constructors with known memory representation. *)
     | (Tarrow _           , Sep    )
     | (Ttuple _           , Sep    )
+    | (Tunboxed_tuple _   , Sep    )
     | (Tvariant(_)        , Sep    )
     | (Tobject(_,_)       , Sep    )
     | ((Tnil | Tfield _)  , Sep    )
@@ -411,6 +413,7 @@ let check_type
     (* "Deeply separable" case for these same constructors. *)
     | (Tarrow _           , Deepsep)
     | (Ttuple _           , Deepsep)
+    | (Tunboxed_tuple _   , Deepsep)
     | (Tvariant(_)        , Deepsep)
     | (Tobject(_,_)       , Deepsep)
     | ((Tnil | Tfield _)  , Deepsep)

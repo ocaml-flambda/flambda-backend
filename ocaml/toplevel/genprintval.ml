@@ -257,10 +257,11 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
          printing to avoid descending into NULL. (This module uses
          lots of unsafe Obj features.)
       *)
-      | Sort Value -> Print_as_value
-      | Sort Void -> Print_as "<void>"
+      | Base Value -> Print_as_value
+      | Base Void -> Print_as "<void>"
       | Any -> Print_as "<any>"
-      | Sort (Float64 | Float32 | Bits32 | Bits64 | Word) -> Print_as "<abstr>"
+      | Base (Float64 | Float32 | Bits32 | Bits64 | Word) -> Print_as "<abstr>"
+      | Product _ -> Print_as "<unboxed product>"
 
     let outval_of_value max_steps max_depth check_depth env obj ty =
 
@@ -298,6 +299,9 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               Oval_stuff "<fun>"
           | Ttuple(labeled_tys) ->
               Oval_tuple (tree_of_labeled_val_list 0 depth obj labeled_tys)
+          | Tunboxed_tuple(labeled_tys) ->
+              Oval_unboxed_tuple
+                (tree_of_labeled_val_list 0 depth obj labeled_tys)
           | Tconstr(path, [ty_arg], _)
             when Path.same path Predef.path_list ->
               if O.is_block obj then

@@ -138,6 +138,15 @@ and 'k pattern_desc =
 
             Invariant: n >= 2
          *)
+  | Tpat_unboxed_tuple :
+      (string option * value general_pattern * Jkind.sort) list ->
+      value pattern_desc
+        (** #(P1, ..., Pn)              [(None,P1,s1); ...; (None,Pn,sn)])
+            #(L1:P1, ... Ln:Pn)         [(Some L1,P1,s1); ...; (Some Ln,Pn,sn)])
+            Any mix, e.g. #(L1:P1, P2)  [(Some L1,P1,s1); ...; (None,P2,s2)])
+
+            Invariant: n >= 2
+         *)
   | Tpat_construct :
       Longident.t loc * Types.constructor_description *
         value general_pattern list * (Ident.t loc list * core_type) option ->
@@ -311,9 +320,21 @@ and expression_desc =
         (** try E with P1 -> E1 | ... | PN -> EN *)
   | Texp_tuple of (string option * expression) list * alloc_mode
         (** [Texp_tuple(el)] represents
-            - [(E1, ..., En)]       when [el] is [(None, E1);...;(None, En)],
-            - [(L1:E1, ..., Ln:En)] when [el] is [(Some L1, E1);...;(Some Ln, En)],
-            - Any mix, e.g. [(L1: E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
+            - [(E1, ..., En)]
+                when [el] is [(None, E1);...;(None, En)],
+            - [(L1:E1, ..., Ln:En)]
+                when [el] is [(Some L1, E1);...;(Some Ln, En)],
+            - Any mix, e.g. [(L1: E1, E2)]
+                when [el] is [(Some L1, E1); (None, E2)]
+          *)
+  | Texp_unboxed_tuple of (string option * expression * Jkind.sort) list
+        (** [Texp_unboxed_tuple(el)] represents
+            - [#(E1, ..., En)]
+                when [el] is [(None, E1, s1);...;(None, En, sn)],
+            - [#(L1:E1, ..., Ln:En)]
+                when [el] is [(Some L1, E1, s1);...;(Some Ln, En, sn)],
+            - Any mix, e.g. [#(L1: E1, E2)]
+                when [el] is [(Some L1, E1, s1); (None, E2, s2)]
           *)
   | Texp_construct of
       Longident.t loc * Types.constructor_description *
@@ -866,6 +887,7 @@ and core_type_desc =
   | Ttyp_var of string option * Jkind.annotation option
   | Ttyp_arrow of arg_label * core_type * core_type
   | Ttyp_tuple of (string option * core_type) list
+  | Ttyp_unboxed_tuple of (string option * core_type) list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list

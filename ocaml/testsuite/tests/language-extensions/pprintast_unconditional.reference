@@ -39,6 +39,11 @@ fun_with_modes_on_arg:
     ?f:(local_ f= 2) () = () in
   f
 
+utuple_exp:
+  let #(x, y) : #(int * int) = #(1, 2) in
+  let #(a, #(b, c)) : ('a : value & (value & value)) = #(3, #(4, 5)) in
+  (((x + y) + a) + b) + c
+
 longident: No.Longidents.Require.extensions
 
 expression: [x for x = 1 to 10]
@@ -161,6 +166,11 @@ fun_with_modes_on_arg:
   let f (local_ a) ~b:(local_ b) ?c:(local_ c) ?d:(local_ d= 1) ~e:(local_ e)
     ?f:(local_ f= 2) () = () in
   f
+
+utuple_exp:
+  let #(x, y) : #(int * int) = #(1, 2) in
+  let #(a, #(b, c)) : ('a : value & (value & value)) = #(3, #(4, 5)) in
+  (((x + y) + a) + b) + c
 
 longident: No.Longidents.Require.extensions
 

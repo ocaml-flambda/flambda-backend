@@ -219,7 +219,8 @@ let iter_on_occurrences
       | Texp_extension_constructor (lid, path) ->
           f ~namespace:Extension_constructor exp_env path lid
       | Texp_constant _ | Texp_let _ | Texp_function _ | Texp_apply _
-      | Texp_match _ | Texp_try _ | Texp_tuple _ | Texp_variant _ | Texp_array _
+      | Texp_match _ | Texp_try _ | Texp_tuple _ | Texp_unboxed_tuple _
+      | Texp_variant _ | Texp_array _
       | Texp_ifthenelse _ | Texp_sequence _ | Texp_while _ | Texp_for _
       | Texp_send _
       | Texp_letmodule _ | Texp_letexception _ | Texp_assert _ | Texp_lazy _
@@ -243,6 +244,7 @@ let iter_on_occurrences
           (* Deprecated syntax to extend a polymorphic variant *)
           f ~namespace:Type ctyp_env path lid
       | Ttyp_var _ | Ttyp_arrow _ | Ttyp_tuple _ | Ttyp_object _
+      | Ttyp_unboxed_tuple _
       | Ttyp_alias _ | Ttyp_variant _ | Ttyp_poly _
       | Ttyp_call_pos -> ());
       default_iterator.typ sub ct);
@@ -268,6 +270,7 @@ let iter_on_occurrences
           add_label pat_env lid label_descr)
         fields
       | Tpat_any | Tpat_var _ | Tpat_alias _ | Tpat_constant _ | Tpat_tuple _
+      | Tpat_unboxed_tuple _
       | Tpat_variant _ | Tpat_array _ | Tpat_lazy _ | Tpat_value _
       | Tpat_exception _ | Tpat_or _ -> ());
       List.iter  (fun (pat_extra, _, _) ->
