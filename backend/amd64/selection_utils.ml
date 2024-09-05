@@ -15,6 +15,8 @@
 
 (* Instruction selection for the AMD64 *)
 
+[@@@ocaml.warning "+a-4-9-40-41-42"]
+
 open Arch
 open Proc
 
