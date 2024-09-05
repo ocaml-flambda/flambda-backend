@@ -66,8 +66,13 @@ let mk_load_atomic memory_chunk =
 let floatarray_tag dbg = Cconst_int (Obj.double_array_tag, dbg)
 
 type t =
-  | Scan_all
-  | Scan_prefix of int
+  | Regular_block
+  (* Regular blocks, including closures (with unboxed fields). Closures do *not*
+     need to be mixed block because they can make use of the startenv to skip
+     the unboxed part of the environment. *)
+  | Mixed_block of { scannable_prefix : int }
+(* Mixed blocks, that need special header to specify the length of the scannable
+   prefix. *)
 
 module Mixed_block_support : sig
   val assert_mixed_block_support : unit -> unit
@@ -136,15 +141,15 @@ end = struct
 end
 
 (* CR mshinwell: update to use NOT_MARKABLE terminology *)
-let block_header ?(scannable_prefix = Scan_all) tag sz =
+let block_header ?(block_kind = Regular_block) tag sz =
   let hdr =
     Nativeint.add
       (Nativeint.shift_left (Nativeint.of_int sz) 10)
       (Nativeint.of_int tag)
   in
-  match scannable_prefix with
-  | Scan_all -> hdr
-  | Scan_prefix scannable_prefix ->
+  match block_kind with
+  | Regular_block -> hdr
+  | Mixed_block { scannable_prefix } ->
     Mixed_block_support.make_header hdr ~scannable_prefix
 
 (* Static data corresponding to "value"s must be marked black in case we are in
@@ -154,11 +159,12 @@ let black_block_header tag sz = Nativeint.logor (block_header tag sz) caml_black
 
 let black_mixed_block_header tag sz ~scannable_prefix_len =
   Nativeint.logor
-    (block_header tag sz ~scannable_prefix:(Scan_prefix scannable_prefix_len))
+    (block_header tag sz
+       ~block_kind:(Mixed_block { scannable_prefix = scannable_prefix_len }))
     caml_black
 
-let local_block_header ?scannable_prefix tag sz =
-  Nativeint.logor (block_header ?scannable_prefix tag sz) caml_local
+let local_block_header ?block_kind tag sz =
+  Nativeint.logor (block_header ?block_kind tag sz) caml_local
 
 let white_closure_header sz = block_header Obj.closure_tag sz
 
@@ -1622,7 +1628,7 @@ let alloc_generic_set_fn block ofs newval memory_chunk dbg =
       "Fields with memory_chunk %s are not supported in generic allocations"
       (Printcmm.chunk memory_chunk)
 
-let make_alloc_generic ~scannable_prefix ~mode dbg tag wordsize args
+let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
     args_memory_chunks =
   (* allocs of size 0 must be statically allocated else the Gc will bug *)
   assert (List.compare_length_with args 0 > 0);
@@ -1630,8 +1636,8 @@ let make_alloc_generic ~scannable_prefix ~mode dbg tag wordsize args
   then
     let hdr =
       match mode with
-      | Lambda.Alloc_local -> local_block_header ~scannable_prefix tag wordsize
-      | Lambda.Alloc_heap -> block_header ~scannable_prefix tag wordsize
+      | Lambda.Alloc_local -> local_block_header ~block_kind tag wordsize
+      | Lambda.Alloc_heap -> block_header ~block_kind tag wordsize
     in
     Cop (Calloc mode, Cconst_natint (hdr, dbg) :: args, dbg)
   else
@@ -1650,15 +1656,15 @@ let make_alloc_generic ~scannable_prefix ~mode dbg tag wordsize args
            fiels and memory chunks"
     in
     let caml_alloc_func, caml_alloc_args =
-      match Config.runtime5, scannable_prefix with
-      | true, Scan_all -> "caml_alloc_shr_check_gc", [wordsize; tag]
-      | false, Scan_all -> "caml_alloc", [wordsize; tag]
-      | true, Scan_prefix prefix_len ->
+      match Config.runtime5, block_kind with
+      | true, Regular_block -> "caml_alloc_shr_check_gc", [wordsize; tag]
+      | false, Regular_block -> "caml_alloc", [wordsize; tag]
+      | true, Mixed_block { scannable_prefix } ->
         Mixed_block_support.assert_mixed_block_support ();
-        "caml_alloc_mixed_shr_check_gc", [wordsize; tag; prefix_len]
-      | false, Scan_prefix prefix_len ->
+        "caml_alloc_mixed_shr_check_gc", [wordsize; tag; scannable_prefix]
+      | false, Mixed_block { scannable_prefix } ->
         Mixed_block_support.assert_mixed_block_support ();
-        "caml_alloc_mixed", [wordsize; tag; prefix_len]
+        "caml_alloc_mixed", [wordsize; tag; scannable_prefix]
     in
     Clet
       ( VP.create id,
@@ -1678,25 +1684,26 @@ let make_alloc_generic ~scannable_prefix ~mode dbg tag wordsize args
         fill_fields 0 args args_memory_chunks )
 
 let make_alloc ~mode dbg ~tag args =
-  make_alloc_generic ~scannable_prefix:Scan_all ~mode dbg tag (List.length args)
+  make_alloc_generic ~block_kind:Regular_block ~mode dbg tag (List.length args)
     args
     (List.map (fun _ -> Word_val) args)
 
 let make_float_alloc ~mode dbg ~tag args =
-  make_alloc_generic ~scannable_prefix:Scan_all ~mode dbg tag
+  make_alloc_generic ~block_kind:Regular_block ~mode dbg tag
     (List.length args * size_float / size_addr)
     args
     (List.map (fun _ -> Double) args)
 
 let make_closure_alloc ~mode dbg ~tag args args_memory_chunks =
   let size = mixed_block_size args_memory_chunks in
-  make_alloc_generic ~scannable_prefix:Scan_all ~mode dbg tag size args
+  make_alloc_generic ~block_kind:Regular_block ~mode dbg tag size args
     args_memory_chunks
 
 let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
   let size = mixed_block_size args_memory_chunks in
-  make_alloc_generic ~scannable_prefix:(Scan_prefix value_prefix_size) ~mode dbg
-    tag size args args_memory_chunks
+  make_alloc_generic
+    ~block_kind:(Mixed_block { scannable_prefix = value_prefix_size })
+    ~mode dbg tag size args args_memory_chunks
 
 (* Record application and currying functions *)
 
