@@ -83,7 +83,7 @@ Error: This type #(int * int) should be an instance of type
        But the layout of #(int * int) must be a sublayout of value & bits64
          because of the definition of t3 at line 1, characters 0-34.
 |}]
-(* CR layouts 7.1: The above error should identify the component of the product
+(* CR layouts v7.1: The above error should identify the component of the product
    that is problematic. *)
 
 (* some mutually recusive types *)
@@ -122,7 +122,7 @@ Error: This type #(int * int64) should be an instance of type
          because of the annotation on 'a in the declaration of the type
                                       t6_wrong.
 |}]
-(* CR layouts 7.1: The above error should identify the component of the product
+(* CR layouts v7.1: The above error should identify the component of the product
    that is problematic. *)
 
 (* Just like t6/t7, but with the annotation on the other (the order doesn't
@@ -600,7 +600,7 @@ Error: This value escapes its region.
 (*********************)
 (* Test 9: externals *)
 
-(* CR layouts 7.1: Unboxed products should be allowed for some primitives, like
+(* CR layouts v7.1: Unboxed products should be allowed for some primitives, like
    %identity *)
 
 type t_product : value & value
@@ -685,7 +685,7 @@ Error: Unboxed product layouts are not yet supported as arguments to
        The layout of this argument is value & value.
 |}]
 
-(* CR layouts 7.1: Unboxed products should be allowed for some primitives, like
+(* CR layouts v7.1: Unboxed products should be allowed for some primitives, like
    %identity *)
 
 (***********************************)
@@ -778,12 +778,13 @@ type t3 = #(int * bool) array
 type t4 = #(string * #(float# * bool option)) array
 |}]
 
-(* CR layouts 7.1: This example demonstrates a bug in type inference that we
+(* CR layouts v7.1: This example demonstrates a bug in type inference that we
    should fix.  The issue is the way typing of tuple expressions works - we
-   create type variables at generic level (I'm confused about why not current
-   level) and then constrain them by the expected type.  This will fail if it
-   requires to refine the kind, because we don't allow refining kinds at generic
-   level. Further thinking required. *)
+   create type variables at generic level and then constrain them by the
+   expected type.  This will fail if it requires to refine the kind, because we
+   don't allow refining kinds at generic level.  We need to remove the
+   restriction that kinds of things at generic level can't be modified, but that
+   is orthogonal to unboxed tuples so we leave in this sad bug for now. *)
 let _ = [| #(1,2) |]
 [%%expect{|
 Line 1, characters 11-17:

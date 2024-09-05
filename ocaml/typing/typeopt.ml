@@ -714,7 +714,7 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
                             Language_extension.(is_enabled Small_numbers) ->
     Lambda.Punboxed_float Pfloat32
   | Product consts when Language_extension.(is_at_least Layouts Beta) ->
-    (* CR layouts 7.1: assess whether it is important for performance to support
+    (* CR layouts v7.1: assess whether it is important for performance to support
        deep value_kinds here *)
     Lambda.Punboxed_product
       (List.map (layout_of_const_sort_generic ~value_kind:(lazy Pgenval) ~error)

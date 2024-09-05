@@ -2947,7 +2947,7 @@ let unexpected_layout_any_check prim env cty ty =
       [@layout_poly].
 
       An exception is raised if any of these checks fails. *)
-(* CR layouts 7.1: additionally, we do not allow externals to have unboxed
+(* CR layouts v7.1: additionally, we do not allow externals to have unboxed
    product args/returns. Right now this restriction is in place for all
    externals, but we should be able to relax it for some primitives that are
    implemented by the compiler, like %identity. Enforcement for [@layout_poly]

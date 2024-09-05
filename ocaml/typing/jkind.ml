@@ -1831,7 +1831,7 @@ let is_nary_product n t =
   in
   if Misc.Le_result.is_le (Jkind_desc.sub t.jkind bound)
   then
-    (* CR layouts 7.1: The histories here are wrong (we are giving each
+    (* CR layouts v7.1: The histories here are wrong (we are giving each
        component the history of the whole product).  They don't show up in
        errors, so it's fine for now, but we'll probably need to fix this as
        part of improving errors around products. A couple options: re-work the
