@@ -32,7 +32,7 @@ class selector =
     method! is_immediate op n =
       match op with
       | Iadd | Isub -> n <= 0xFFF_FFF && n >= -0xFFF_FFF
-      | Iand | Ior | Ixor -> is_logical_immediate n
+      | Iand | Ior | Ixor -> is_logical_immediate_int n
       | Icomp _ -> is_immediate n
       | _ -> super#is_immediate op n
 
