@@ -325,30 +325,6 @@ val make_float_alloc :
   expression list ->
   expression
 
-module Flat_prefix_element : sig
-  type t =
-    (* Naked int64, naked nativeint, immediate, code pointer, closinfo word *)
-    | Naked_field
-    | Naked_float
-    | Naked_float32
-    | Naked_int32
-    | Naked_vec128
-end
-
-(** Allocate a mixed closure block of the corresponding shape. Initial values
-    of the flat prefix should be provided unboxed.
-
-    Closures are required to have a flat prefix (whereas other blocks have flat suffixes)
-    because the second (closinfo) field indicates the index of the scannable suffix.
-    The caller is responsible for ensuring the closinfo word matches the prefix size. *)
-val make_mixed_closure :
-  mode:Lambda.alloc_mode ->
-  Debuginfo.t ->
-  value_suffix_size:int ->
-  flat_prefix:Flat_prefix_element.t array ->
-  expression list ->
-  expression
-
 module Flat_suffix_element : sig
   type t =
     | Tagged_immediate

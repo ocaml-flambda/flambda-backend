@@ -1387,18 +1387,6 @@ let setfield_unboxed_float32 arr ofs newval dbg =
          [array_indexing log2_size_addr arr ofs dbg; newval],
          dbg ))
 
-let setfield_unboxed_vec128 arr ofs newval dbg =
-  (* CR layouts v5.1: Properly support big-endian. *)
-  if Arch.big_endian
-  then
-    Misc.fatal_error
-      "Unboxed vec128 fields only supported on little-endian architectures";
-  return_unit dbg
-    (Cop
-       ( Cstore (Onetwentyeight_unaligned, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
-         dbg ))
-
 (* String length *)
 
 (* Length of string block *)
@@ -1609,8 +1597,9 @@ let make_alloc_generic ?(scannable_prefix = Scan_all) ~mode set_fn dbg tag
     let rec fill_fields idx = function
       | [] -> Cvar id
       | e1 :: el ->
-        let set, adv = set_fn idx (Cvar id) (int_const dbg idx) e1 dbg in
-        Csequence (set, fill_fields (idx + adv) el)
+        Csequence
+          ( set_fn idx (Cvar id) (int_const dbg idx) e1 dbg,
+            fill_fields (idx + 1) el )
     in
     let caml_alloc_func, caml_alloc_args =
       match Config.runtime5, scannable_prefix with
@@ -1657,59 +1646,15 @@ let addr_array_init arr ofs newval dbg =
 
 let make_alloc ~mode dbg ~tag args =
   make_alloc_generic ~mode
-    (fun _ arr ofs newval dbg -> addr_array_init arr ofs newval dbg, 1)
+    (fun _ arr ofs newval dbg -> addr_array_init arr ofs newval dbg)
     dbg tag (List.length args) args
 
 let make_float_alloc ~mode dbg ~tag args =
   make_alloc_generic ~mode
-    (fun _ arr ofs newval dbg -> float_array_set arr ofs newval dbg, 1)
+    (fun _ -> float_array_set)
     dbg tag
     (List.length args * size_float / size_addr)
     args
-
-module Flat_prefix_element = struct
-  type t =
-    | Naked_field
-    | Naked_float
-    | Naked_float32
-    | Naked_int32
-    | Naked_vec128
-
-  let words = function
-    | Naked_field | Naked_float | Naked_float32 | Naked_int32 -> 1
-    | Naked_vec128 -> 2
-
-  let total_words = Array.fold_left (fun len t -> len + words t) 0
-end
-
-let make_mixed_closure ~mode dbg ~value_suffix_size ~flat_prefix fields =
-  (* args with shape [Float] must already have been unboxed. *)
-  let flat_prefix_size = Flat_prefix_element.total_words flat_prefix in
-  let set_fn idx arr ofs newval dbg =
-    if idx >= flat_prefix_size
-    then addr_array_init arr ofs newval dbg, 1
-    else
-      let set =
-        match (flat_prefix.(idx) : Flat_prefix_element.t) with
-        | Naked_field -> int_array_set arr ofs newval dbg
-        | Naked_float -> float_array_set arr ofs newval dbg
-        | Naked_float32 -> setfield_unboxed_float32 arr ofs newval dbg
-        | Naked_int32 -> setfield_unboxed_int32 arr ofs newval dbg
-        | Naked_vec128 -> setfield_unboxed_vec128 arr ofs newval dbg
-      in
-      set, Flat_prefix_element.words flat_prefix.(idx)
-  in
-  let size =
-    (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
-       will need to change. *)
-    flat_prefix_size + value_suffix_size
-  in
-  if size_float <> size_addr
-  then
-    Misc.fatal_error
-      "Unable to compile mixed closures on a platform where a float is not the \
-       same width as a value.";
-  make_alloc_generic ~mode set_fn dbg Obj.closure_tag size fields
 
 module Flat_suffix_element = struct
   type t =
@@ -1725,18 +1670,15 @@ let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size
   (* args with shape [Float] must already have been unboxed. *)
   let set_fn idx arr ofs newval dbg =
     if idx < value_prefix_size
-    then addr_array_init arr ofs newval dbg, 1
+    then addr_array_init arr ofs newval dbg
     else
-      let set =
-        match flat_suffix.(idx - value_prefix_size) with
-        | Tagged_immediate -> int_array_set arr ofs newval dbg
-        | Naked_float -> float_array_set arr ofs newval dbg
-        | Naked_float32 -> setfield_unboxed_float32 arr ofs newval dbg
-        | Naked_int32 -> setfield_unboxed_int32 arr ofs newval dbg
-        | Naked_int64_or_nativeint ->
-          setfield_unboxed_int64_or_nativeint arr ofs newval dbg
-      in
-      set, 1
+      match flat_suffix.(idx - value_prefix_size) with
+      | Tagged_immediate -> int_array_set arr ofs newval dbg
+      | Naked_float -> float_array_set arr ofs newval dbg
+      | Naked_float32 -> setfield_unboxed_float32 arr ofs newval dbg
+      | Naked_int32 -> setfield_unboxed_int32 arr ofs newval dbg
+      | Naked_int64_or_nativeint ->
+        setfield_unboxed_int64_or_nativeint arr ofs newval dbg
   in
   let size =
     (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
