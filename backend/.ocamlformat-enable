@@ -1,7 +1,9 @@
 amd64/selection.ml
+amd64/selection_utils.ml
 amd64/simd*.ml
 amd64/stack_check.ml
 arm64/selection.ml
+arm64/selection_utils.ml
 arm64/simd*.ml
 arm64/stack_check.ml
 asm_targets/**/*.ml
