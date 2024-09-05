@@ -391,6 +391,7 @@ module Jkind = struct
     | Mod of t * modes
     | With of t * core_type
     | Kind_of of core_type
+    | Product of t list
 
   type annotation = t loc
 
@@ -461,6 +462,8 @@ module Jkind = struct
         t_loc.loc
     | Kind_of ty ->
       struct_item_of_list "kind_of" [struct_item_of_type ty] t_loc.loc
+    | Product ts ->
+      struct_item_of_list "product" (List.map to_structure_item ts) t_loc.loc
 
   let rec of_structure_item item =
     let bind = Option.bind in
@@ -480,6 +483,9 @@ module Jkind = struct
       bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Kind_of ty))
     | Some ("abbrev", [item], loc) ->
       bind (Const.of_structure_item item) (fun c -> ret loc (Abbreviation c))
+    | Some ("product", items, loc) ->
+      bind (Misc.Stdlib.List.map_option of_structure_item items) (fun tls ->
+          ret loc (Product (List.map (fun tl -> tl.txt) tls)))
     | Some _ | None -> None
 end
 

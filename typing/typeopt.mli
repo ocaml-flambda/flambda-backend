@@ -52,9 +52,9 @@ val layout :
    gives a more precise result---this should only be used when the kind is
    needed for compilation but the precise Lambda.layout isn't needed for
    optimization.  [layout_of_sort] gracefully errors on void, while
-   [layout_of_const_sort] loudly fails on void. *)
+   [layout_of_base] loudly fails on void. *)
 val layout_of_sort : Location.t -> Jkind.sort -> Lambda.layout
-val layout_of_const_sort : Jkind.Sort.const -> Lambda.layout
+val layout_of_base_sort : Jkind.Sort.base -> Lambda.layout
 
 (* Given a function type and the sort of its return type, compute the layout of
    its return type. *)

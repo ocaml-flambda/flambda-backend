@@ -1,0 +1,76 @@
+Test 1, twice pi inlined: 6.28
+Test 1, twice pi not inlined: 6.28
+Test 1, 14/3 inlined: #(4,2)
+Test 1, 14/3 not inlined: #(4,2)
+Test 1, #(6,#(15,24)) inlined: #(6,#(15,24))
+Test 1, #(6,#(15,24)) not inlined: #(6,#(15,24))
+Test 2, add pi twice: 6.28
+Test 2, add pi four times: 12.56
+Test 2, increment pi twice: 5.14
+Test 2, increment pi four times: 7.14
+Test 2, e times four: 18.88
+Test 2, pi times sixteen: 50.24
+Test 2, pi times sixteen again: 50.24
+Test 2, pi minus four: -0.86
+Test 3, 5 * pi: : 15.70
+  Test 3, step 0: 12.56
+  Test 3, step 1: 9.42
+  Test 3, step 2: 6.28
+  Test 3, step 3: 3.14
+  Test 3, step 4: 0.00
+  Test 3, step 5: 0.00
+  Test 3, step 6: 0.00
+  Test 3, step 7: 0.00
+  Test 3, step 8: 0.00
+  Test 3, step 9: 0.00
+Test 3, 610.68: : 610.68
+  Test 3, step 0: 0.00
+  Test 3, step 1: 0.00
+  Test 3, step 2: 0.00
+  Test 3, step 3: 0.00
+  Test 3, step 4: 458.01
+  Test 3, step 5: 305.34
+  Test 3, step 6: 152.67
+  Test 3, step 7: 0.00
+  Test 3, step 8: 0.00
+  Test 3, step 9: 0.00
+Test 4, 1 + 2: 3.00
+Test 4, 1 - 2: -1.00
+Test 4, 5 * pi: : 15.70
+  Test 4, step 0: 12.56
+  Test 4, step 1: 9.42
+  Test 4, step 2: 6.28
+  Test 4, step 3: 3.14
+  Test 4, step 4: 0.00
+  Test 4, step 5: 0.00
+  Test 4, step 6: 0.00
+  Test 4, step 7: 0.00
+  Test 4, step 8: 0.00
+  Test 4, step 9: 0.00
+Test 4, 5 * pi: : 15.70
+  Test 4, step 0: 12.56
+  Test 4, step 1: 9.42
+  Test 4, step 2: 6.28
+  Test 4, step 3: 3.14
+  Test 4, step 4: 0.00
+  Test 4, step 5: 0.00
+  Test 4, step 6: 0.00
+  Test 4, step 7: 0.00
+  Test 4, step 8: 0.00
+  Test 4, step 9: 0.00
+Test 5, pi+e+1: 6.86
+Test 6, 1.42: 1.42
+Test 6, 34.00: 34.00
+Test 6, -46.88: -46.88
+Test 7, 4.14: 4.14
+Test 7, 46.72: 46.72
+Test 8, reverse (inlined): 5, 4.40, 3.30, 2.20, 1
+Test 8, reverse (not inlined): 5, 4.40, 3.30, 2.20, 1
+Test 8, extract y (inlined): 5
+Test 8, extract y (not inlined): 5
+Test 9, #(#(3.0, 2), 1.0, a): #(#(3.0, 2), 1.0, a)
+Test 9, #(#(6.0, 5), 4.0, b): #(#(6.0, 5), 4.0, b)
+Test 9, #(#(3.0, 84), 42.0, hi): #(#(3.0, 84), 42.0, hi)
+Test 10, #(1.0, #(0.0, 0), 0): #(1.0, #(0.0, 0), 0)
+Test 10, #(5.0, #(3.0, 2), 1)): #(5.0, #(3.0, 2), 1)
+Test 10, #(144.0, #(89.0, 55), 34): #(144.0, #(89.0, 55), 34)

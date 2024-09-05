@@ -376,6 +376,10 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         Jane_syntax.Labeled_tuples.pat_of ~loc
           (List.map (fun (label, p) -> label, sub.pat sub p) list, Closed)
         |> add_jane_syntax_attributes
+    | Tpat_unboxed_tuple list ->
+        Ppat_unboxed_tuple
+          (List.map (fun (label, p, _) -> label, sub.pat sub p) list,
+           Closed)
     | Tpat_construct (lid, _, args, vto) ->
         let tyo =
           match vto with
@@ -609,6 +613,9 @@ let expression sub exp =
         Jane_syntax.Labeled_tuples.expr_of ~loc
           (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list)
         |> add_jane_syntax_attributes
+    | Texp_unboxed_tuple list ->
+        Pexp_unboxed_tuple
+          (List.map (fun (lbl, e, _) -> lbl, sub.expr sub e) list)
     | Texp_construct (lid, _, args, _) ->
         Pexp_construct (map_loc sub lid,
           (match args with
@@ -1033,6 +1040,9 @@ let core_type sub ct =
         Jane_syntax.Labeled_tuples.typ_of ~loc
           (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)
         |> add_jane_syntax_attributes
+    | Ttyp_unboxed_tuple list ->
+        Ptyp_unboxed_tuple
+          (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)
     | Ttyp_constr (_path, lid, list) ->
         Ptyp_constr (map_loc sub lid,
           List.map (sub.typ sub) list)

@@ -186,6 +186,9 @@ let classify_expression : Typedtree.expression -> sd =
     | Texp_src_pos ->
         Static
 
+    | Texp_unboxed_tuple _ ->
+        Dynamic
+
     | Texp_for _
     | Texp_setfield _
     | Texp_while _
@@ -681,6 +684,8 @@ let rec expression : Typedtree.expression -> term_judg =
         join [expression e; list arg args] << app_mode
     | Texp_tuple (exprs, _) ->
       list expression (List.map snd exprs) << Guard
+    | Texp_unboxed_tuple exprs ->
+      list expression (List.map (fun (_, e, _) -> e) exprs) << Return
     | Texp_array (_, elt_sort, exprs, _) ->
       list expression exprs << array_mode exp elt_sort
     | Texp_list_comprehension { comp_body; comp_clauses } ->
@@ -1390,6 +1395,7 @@ and is_destructuring_pattern : type k . k general_pattern -> bool =
     | Tpat_alias (pat, _, _, _, _) -> is_destructuring_pattern pat
     | Tpat_constant _ -> true
     | Tpat_tuple _ -> true
+    | Tpat_unboxed_tuple _ -> true
     | Tpat_construct _ -> true
     | Tpat_variant _ -> true
     | Tpat_record (_, _) -> true
