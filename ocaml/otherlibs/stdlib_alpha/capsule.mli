@@ -64,7 +64,7 @@ end
       Requires OCaml 5 runtime. *)
 module Mutex : sig
 
-    type 'k t
+    type 'k t : value mod portable uncontended
     (** ['k t] is the type of the mutex that controls access to
         the capsule ['k]. This mutex is created when creating
         the capsule ['k] using {!create_with_mutex}. *)
