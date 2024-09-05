@@ -90,7 +90,7 @@ let f r =
        (region
          (let
            (*match*/301 =[(consts (0)) (non_consts ([0: *]))]
-              (makelocalblock 0 r/299))
+              (makelocalblock 0 (*) r/299))
            (catch
              (if *match*/301
                (let (*match*/303 =o (field_mut 0 (field_imm 0 *match*/301)))

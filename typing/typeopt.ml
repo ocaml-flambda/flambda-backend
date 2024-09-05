@@ -349,6 +349,9 @@ let value_kind_of_value_jkind jkind =
 *)
 exception Missing_cmi_fallback
 
+(* CR vlaviron: replace this with proper nullability info *)
+let mk_nn raw_kind = { raw_kind; nullable = Non_nullable }
+
 let fallback_if_missing_cmi ~default f =
   try f () with Missing_cmi_fallback -> default
 
@@ -404,44 +407,44 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
   end;
   match get_desc scty with
   | Tconstr(p, _, _) when Path.same p Predef.path_int ->
-    num_nodes_visited, Pintval
+    num_nodes_visited, mk_nn Pintval
   | Tconstr(p, _, _) when Path.same p Predef.path_char ->
-    num_nodes_visited, Pintval
+    num_nodes_visited, mk_nn Pintval
   | Tconstr(p, _, _) when Path.same p Predef.path_float ->
-    num_nodes_visited, (Pboxedfloatval Pfloat64)
+    num_nodes_visited, mk_nn (Pboxedfloatval Pfloat64)
   | Tconstr(p, _, _) when Path.same p Predef.path_float32 ->
-    num_nodes_visited, (Pboxedfloatval Pfloat32)
+    num_nodes_visited, mk_nn (Pboxedfloatval Pfloat32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int32 ->
-    num_nodes_visited, (Pboxedintval Pint32)
+    num_nodes_visited, mk_nn (Pboxedintval Pint32)
   | Tconstr(p, _, _) when Path.same p Predef.path_int64 ->
-    num_nodes_visited, (Pboxedintval Pint64)
+    num_nodes_visited, mk_nn (Pboxedintval Pint64)
   | Tconstr(p, _, _) when Path.same p Predef.path_nativeint ->
-    num_nodes_visited, (Pboxedintval Pnativeint)
+    num_nodes_visited, mk_nn (Pboxedintval Pnativeint)
   | Tconstr(p, _, _) when Path.same p Predef.path_int8x16 ->
-    num_nodes_visited, (Pboxedvectorval Pvec128)
+    num_nodes_visited, mk_nn (Pboxedvectorval Pvec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_int16x8 ->
-    num_nodes_visited, (Pboxedvectorval Pvec128)
+    num_nodes_visited, mk_nn (Pboxedvectorval Pvec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_int32x4 ->
-    num_nodes_visited, (Pboxedvectorval Pvec128)
+    num_nodes_visited, mk_nn (Pboxedvectorval Pvec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_int64x2 ->
-    num_nodes_visited, (Pboxedvectorval Pvec128)
+    num_nodes_visited, mk_nn (Pboxedvectorval Pvec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_float32x4 ->
-    num_nodes_visited, (Pboxedvectorval Pvec128)
+    num_nodes_visited, mk_nn (Pboxedvectorval Pvec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_float64x2 ->
-    num_nodes_visited, (Pboxedvectorval Pvec128)
+    num_nodes_visited, mk_nn (Pboxedvectorval Pvec128)
   | Tconstr(p, _, _)
     when (Path.same p Predef.path_array
           || Path.same p Predef.path_floatarray) ->
     (* CR layouts: [~elt_sort:None] here is bad for performance. To
        fix it, we need a place to store the sort on a [Tconstr]. *)
-    num_nodes_visited, Parrayval (array_type_kind ~elt_sort:None env loc ty)
+    num_nodes_visited, mk_nn (Parrayval (array_type_kind ~elt_sort:None env loc ty))
   | Tconstr(p, _, _) -> begin
       let decl =
         try Env.find_type p env with Not_found -> raise Missing_cmi_fallback
       in
       if cannot_proceed () then
         num_nodes_visited,
-        value_kind_of_value_jkind decl.type_jkind
+        mk_nn (value_kind_of_value_jkind decl.type_jkind)
       else
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         (* Default of [Pgenval] is currently safe for the missing cmi fallback
@@ -449,24 +452,24 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
            of [value_kind]. *)
         match decl.type_kind with
         | Type_variant (cstrs, rep) ->
-          fallback_if_missing_cmi ~default:(num_nodes_visited, Pgenval)
+          fallback_if_missing_cmi ~default:(num_nodes_visited, mk_nn Pgenval)
             (fun () -> value_kind_variant env ~loc ~visited ~depth
                          ~num_nodes_visited cstrs rep)
         | Type_record (labels, rep) ->
           let depth = depth + 1 in
-          fallback_if_missing_cmi ~default:(num_nodes_visited, Pgenval)
+          fallback_if_missing_cmi ~default:(num_nodes_visited, mk_nn Pgenval)
             (fun () -> value_kind_record env ~loc ~visited ~depth
                          ~num_nodes_visited labels rep)
         | Type_abstract _ ->
           num_nodes_visited,
-          value_kind_of_value_jkind decl.type_jkind
-        | Type_open -> num_nodes_visited, Pgenval
+          mk_nn (value_kind_of_value_jkind decl.type_jkind)
+        | Type_open -> num_nodes_visited, mk_nn Pgenval
     end
   | Ttuple labeled_fields ->
     if cannot_proceed () then
-      num_nodes_visited, Pgenval
+      num_nodes_visited, mk_nn Pgenval
     else
-      fallback_if_missing_cmi ~default:(num_nodes_visited, Pgenval) (fun () ->
+      fallback_if_missing_cmi ~default:(num_nodes_visited, mk_nn Pgenval) (fun () ->
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         let depth = depth + 1 in
         let num_nodes_visited, fields =
@@ -480,12 +483,12 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
             num_nodes_visited labeled_fields
         in
         num_nodes_visited,
-        Pvariant { consts = []; non_consts = [0, Constructor_uniform fields] })
+        mk_nn (Pvariant { consts = []; non_consts = [0, Constructor_uniform fields] }))
   | Tvariant row ->
     num_nodes_visited,
-    if Ctype.tvariant_not_immediate row then Pgenval else Pintval
+    if Ctype.tvariant_not_immediate row then mk_nn Pgenval else mk_nn Pintval
   | _ ->
-    num_nodes_visited, Pgenval
+    num_nodes_visited, mk_nn Pgenval
 
 and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
       (cstrs : Types.constructor_declaration list) rep =
@@ -578,6 +581,7 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
       | Cstr_tuple [] -> true
       | (Cstr_tuple (_::_) | Cstr_record _) -> false
     in
+    let num_nodes_visited, raw_kind =
     if List.for_all is_constant cstrs then
       (num_nodes_visited, Pintval)
     else
@@ -616,6 +620,8 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
         | _::_ ->
           (num_nodes_visited, Pvariant { consts; non_consts })
       end
+    in
+    num_nodes_visited, mk_nn raw_kind
 
 and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
       (labels : Types.label_declaration list) rep =
@@ -636,7 +642,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
           labels
       in
       if is_mutable then
-        num_nodes_visited, Pgenval
+        num_nodes_visited, mk_nn Pgenval
       else
         let num_nodes_visited, fields =
           match rep with
@@ -661,7 +667,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
                         optimization. *)
                       match rep with
                       | Record_float | Record_ufloat ->
-                        num_nodes_visited, Pboxedfloatval Pfloat64
+                        num_nodes_visited, mk_nn (Pboxedfloatval Pfloat64)
                       | Record_inlined _ | Record_boxed _ ->
                           value_kind env ~loc ~visited ~depth ~num_nodes_visited
                             label.ld_type
@@ -709,7 +715,7 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
             [0, fields]
           | Record_unboxed -> assert false
         in
-        (num_nodes_visited, Pvariant { consts = []; non_consts })
+        (num_nodes_visited, mk_nn (Pvariant { consts = []; non_consts }))
     end
 
 let value_kind env loc ty =
@@ -743,7 +749,8 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
     (* CR layouts v7.1: assess whether it is important for performance to support
        deep value_kinds here *)
     Lambda.Punboxed_product
-      (List.map (layout_of_const_sort_generic ~value_kind:(lazy Pgenval) ~error)
+      (List.map (layout_of_const_sort_generic
+                   ~value_kind:(lazy Lambda.generic_value) ~error)
          consts)
   | ((  Base (Void | Float32 | Float64 | Word | Bits32 | Bits64 | Vec128)
       | Product _) as const) ->
@@ -776,7 +783,7 @@ let layout env loc sort ty =
 let layout_of_sort loc sort =
   layout_of_const_sort_generic
     (Jkind.Sort.default_to_value_and_get sort)
-    ~value_kind:(lazy Pgenval)
+    ~value_kind:(lazy Lambda.generic_value)
     ~error:(function
     | Base Value -> assert false
     | Base Void ->
@@ -798,7 +805,7 @@ let layout_of_sort loc sort =
 let layout_of_const_sort c =
   layout_of_const_sort_generic
     c
-    ~value_kind:(lazy Pgenval)
+    ~value_kind:(lazy Lambda.generic_value)
     ~error:(fun const ->
       Misc.fatal_errorf "layout_of_const_sort: %a encountered"
         Jkind.Sort.Const.format const)
@@ -865,7 +872,9 @@ let classify_lazy_argument : Typedtree.expression ->
 
 let value_kind_union (k1 : Lambda.value_kind) (k2 : Lambda.value_kind) =
   if Lambda.equal_value_kind k1 k2 then k1
-  else Pgenval
+    (* CR vlaviron: we could be more precise by comparing nullability and
+       raw kinds separately *)
+  else Lambda.generic_value
 
 let rec layout_union l1 l2 =
   match l1, l2 with

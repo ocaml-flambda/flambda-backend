@@ -19,7 +19,7 @@
        x100 x101 x102 x103 x104 x105 x106 x107 x108 x109 x110 x111 x112 x113
        x114 x115 x116 x117 x118 x119 x120 x121 x122 x123 x124 x125 x126
        (function {nlocal = 1} x127 x128 x129 x130 x131
-         [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1 x2)))
+         [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*) x1 x2)))
    local_param_after_split =
      (function {nlocal = 0} x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14
        x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27 x28 x29 x30 x31
@@ -40,7 +40,8 @@
        x100 x101 x102 x103 x104 x105 x106 x107 x108 x109 x110 x111 x112 x113
        x114 x115 x116 x117 x118 x119 x120 x121 x122 x123 x124 x125 x126
        (function {nlocal = 2} x127 x128 x129 x130[L] x131
-         [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1 x130)))
+         [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*) x1
+                                                 x130)))
    local_param_just_after_split =
      (function {nlocal = 0} x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14
        x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27 x28 x29 x30 x31
@@ -61,7 +62,8 @@
        x100 x101 x102 x103 x104 x105 x106 x107 x108 x109 x110 x111 x112 x113
        x114 x115 x116 x117 x118 x119 x120 x121 x122 x123 x124 x125 x126
        (function {nlocal = 5} x127[L] x128 x129 x130 x131
-         [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1 x127)))
+         [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*) x1
+                                                 x127)))
    local_param_just_before_split =
      (function {nlocal = 1} x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14
        x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27 x28 x29 x30 x31
@@ -83,7 +85,8 @@
        x114 x115 x116 x117 x118 x119 x120 x121 x122 x123 x124 x125 x126[L]
        : local
        (function[L] {nlocal = 5} x127 x128 x129 x130 x131
-         [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1 x126)))
+         [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*) x1
+                                                 x126)))
    local_param_before_split =
      (function {nlocal = 119} x1 x2 x3 x4 x5 x6 x7 x8[L] x9 x10 x11 x12 x13
        x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27 x28 x29 x30
@@ -105,7 +108,7 @@
        x113 x114 x115 x116 x117 x118 x119 x120 x121 x122 x123 x124 x125 x126
        : local
        (function[L] {nlocal = 5} x127 x128 x129 x130 x131
-         [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1 x8)))
+         [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*) x1 x8)))
    two_splits =
      (function {nlocal = 0} x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14
        x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27 x28 x29 x30 x31
@@ -146,7 +149,8 @@
          x227 x228 x229 x230 x231 x232 x233 x234 x235 x236 x237 x238 x239
          x240 x241 x242 x243 x244 x245 x246 x247 x248 x249 x250 x251 x252
          (function {nlocal = 1} x253 x254 x255 x256 x257 x258
-           [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1 x258))))
+           [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*) x1
+                                                   x258))))
    two_splits_local_param =
      (function {nlocal = 0} x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12 x13 x14
        x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27 x28 x29 x30 x31
@@ -189,7 +193,8 @@
          x240 x241 x242 x243 x244 x245 x246 x247 x248 x249 x250 x251 x252
          : local
          (function[L] {nlocal = 6} x253 x254 x255 x256 x257 x258
-           [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1 x152))))
+           [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*) x1
+                                                   x152))))
    create_local =
      (function {nlocal = 1} param[int]
        [(consts ())
@@ -217,8 +222,8 @@
               x106 x107 x108 x109 x110 x111 x112 x113 x114 x115 x116 x117
               x118 x119 x120 x121 x122 x123 x124 x125 x126 : local
               (function[L] {nlocal = 5} x127 x128 x129 x130 x131
-                [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1
-                                                        x2)))
+                [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*)
+                                                        x1 x2)))
           local_param_after_split =
             (function[L] {nlocal = 126} x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11
               x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27
@@ -241,8 +246,8 @@
               x106 x107 x108 x109 x110 x111 x112 x113 x114 x115 x116 x117
               x118 x119 x120 x121 x122 x123 x124 x125 x126 : local
               (function[L] {nlocal = 5} x127 x128 x129 x130[L] x131
-                [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1
-                                                        x130)))
+                [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*)
+                                                        x1 x130)))
           local_param_just_after_split =
             (function[L] {nlocal = 126} x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11
               x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27
@@ -265,8 +270,8 @@
               x106 x107 x108 x109 x110 x111 x112 x113 x114 x115 x116 x117
               x118 x119 x120 x121 x122 x123 x124 x125 x126 : local
               (function[L] {nlocal = 5} x127[L] x128 x129 x130 x131
-                [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1
-                                                        x127)))
+                [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*)
+                                                        x1 x127)))
           local_param_just_before_split =
             (function[L] {nlocal = 126} x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11
               x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27
@@ -289,8 +294,8 @@
               x106 x107 x108 x109 x110 x111 x112 x113 x114 x115 x116 x117
               x118 x119 x120 x121 x122 x123 x124 x125 x126[L] : local
               (function[L] {nlocal = 5} x127 x128 x129 x130 x131
-                [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1
-                                                        x126)))
+                [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*)
+                                                        x1 x126)))
           local_param_before_split =
             (function[L] {nlocal = 126} x1 x2 x3 x4 x5 x6 x7 x8[L] x9 x10 x11
               x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27
@@ -313,8 +318,8 @@
               x106 x107 x108 x109 x110 x111 x112 x113 x114 x115 x116 x117
               x118 x119 x120 x121 x122 x123 x124 x125 x126 : local
               (function[L] {nlocal = 5} x127 x128 x129 x130 x131
-                [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1
-                                                        x8)))
+                [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*)
+                                                        x1 x8)))
           two_splits =
             (function[L] {nlocal = 126} x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11
               x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27
@@ -362,8 +367,8 @@
                 x242 x243 x244 x245 x246 x247 x248 x249 x250 x251 x252
                 : local
                 (function[L] {nlocal = 6} x253 x254 x255 x256 x257 x258
-                  [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1
-                                                          x258))))
+                  [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*)
+                                                          x1 x258))))
           two_splits_local_param =
             (function[L] {nlocal = 126} x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11
               x12 x13 x14 x15 x16 x17 x18 x19 x20 x21 x22 x23 x24 x25 x26 x27
@@ -411,10 +416,11 @@
                 x241 x242 x243 x244 x245 x246 x247 x248 x249 x250 x251 x252
                 : local
                 (function[L] {nlocal = 6} x253 x254 x255 x256 x257 x258
-                  [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 x1
-                                                          x152)))))
-         (makelocalblock 0 no_local_params no_local_params__local_returning
-           local_param_after_split local_param_after_split__local_returning
+                  [(consts ()) (non_consts ([0: *, *]))](makelocalblock 0 (*,*)
+                                                          x1 x152)))))
+         (makelocalblock 0 (*,*,*,*,*,*,*,*,*,*,*,*,*,*) no_local_params
+           no_local_params__local_returning local_param_after_split
+           local_param_after_split__local_returning
            local_param_just_after_split
            local_param_just_after_split__local_returning
            local_param_just_before_split
