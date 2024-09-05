@@ -1568,35 +1568,38 @@ let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
 
 (* Allocation *)
 
+let memory_chunk_size_in_words_for_mixed_block = function
+  | (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed) as
+    memory_chunk ->
+    Misc.fatal_errorf
+      "Fields with memory chunk %s are not allowed in mixed blocks"
+      (Printcmm.chunk memory_chunk)
+  | Thirtytwo_unsigned | Thirtytwo_signed ->
+    (* Int32s are currently stored using a whole word *)
+    1
+  | Single _ | Double ->
+    (* Float32s are currently stored using a whole word *)
+    if size_float <> size_addr
+    then
+      Misc.fatal_error
+        "Unable to compile mixed blocks on a platform where a float is not the \
+         same width as a value.";
+    1
+  | Word_int | Word_val -> 1
+  | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 2
+
 let mixed_block_size memory_chunks =
   (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
      will need to change. *)
   List.fold_left
     (fun acc memory_chunk ->
-      match memory_chunk with
-      | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
-        Misc.fatal_errorf
-          "Fields with memory chunk %s are not allowed in mixed blocks"
-          (Printcmm.chunk memory_chunk)
-      | Thirtytwo_unsigned | Thirtytwo_signed ->
-        (* Int32s are currently stored using a whole word *)
-        acc + 1
-      | Single _ | Double ->
-        (* Float32s are currently stored using a whole word *)
-        if size_float <> size_addr
-        then
-          Misc.fatal_error
-            "Unable to compile mixed blocks on a platform where a float is not \
-             the same width as a value.";
-        acc + 1
-      | Word_int | Word_val -> acc + 1
-      | Onetwentyeight_unaligned | Onetwentyeight_aligned -> acc + 2)
+      acc + memory_chunk_size_in_words_for_mixed_block memory_chunk)
     0 memory_chunks
 
 let alloc_generic_set_fn block ofs newval memory_chunk dbg =
   let generic_case () =
     let addr = array_indexing log2_size_addr block ofs dbg in
-    Cop (Cstore (memory_chunk, Assignment), [addr; newval], dbg)
+    Cop (Cstore (memory_chunk, Initialization), [addr; newval], dbg)
   in
   match (memory_chunk : Cmm.memory_chunk) with
   | Word_val ->
@@ -1637,10 +1640,14 @@ let make_alloc_generic ~scannable_prefix ~mode dbg tag wordsize args
       match args, memory_chunks with
       | [], [] -> Cvar id
       | e1 :: el, m1 :: ml ->
+        let ofs = memory_chunk_size_in_words_for_mixed_block m1 in
         Csequence
           ( alloc_generic_set_fn (Cvar id) (int_const dbg idx) e1 m1 dbg,
-            fill_fields (idx + 1) el ml )
-      | _ -> assert false (* TODO: fatal error, mismatched list lengths *)
+            fill_fields (idx + ofs) el ml )
+      | _ ->
+        Misc.fatal_errorf
+          "To_cmm_helpers.maake_alloc_generic: mismatched list size between \
+           fiels and memory chunks"
     in
     let caml_alloc_func, caml_alloc_args =
       match Config.runtime5, scannable_prefix with
