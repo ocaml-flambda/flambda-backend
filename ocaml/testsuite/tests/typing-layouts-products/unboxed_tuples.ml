@@ -392,8 +392,11 @@ let _ =
 (**********************************)
 (* Test 9: Continuations / @local *)
 
+let print4 prefix #(#(z,y),x,w) =
+  Printf.printf "%s: #(#(%.1f, %d), %.1f, %s)\n" prefix z y (Float_u.to_float x) w
+
 let _ =
-  let[@local] swap #(x, y) = #(y, x) in
+  let[@local] swap #(w, x, #(y, z)) = #(#(z, y), x, w) in
   let[@inline never] g i p1 p2 =
     let z =
       if i < 0 then
@@ -401,12 +404,13 @@ let _ =
       else if i = 0 then
         swap p2
       else
-        swap #(42, 84)
+        swap #("hi", #42.0, #(84, 3.0))
     in z
   in
-  print_ints "Test 9, #(2,1)" (g (-1) #(1,2) #(3,4));
+  print4 "Test 9, #(#(3.0, 2), 1.0, a)"
+    (g (-1) #("a", #1.0, #(2, 3.0)) #("a",#4.0,#(5,6.0)));
 
-  let[@local] swap #(x, y) = #(y, x) in
+  let[@local] swap #(w, x, #(y, z)) = #(#(z, y), x, w) in
   let[@inline never] g i p1 p2 =
     let z =
       if i < 0 then
@@ -414,12 +418,13 @@ let _ =
       else if i = 0 then
         swap p2
       else
-        swap #(42, 84)
+        swap #("hi", #42.0, #(84, 3.0))
     in z
   in
-  print_ints "Test 9, #(4,3)" (g 0 #(1,2) #(3,4));
+  print4 "Test 9, #(#(6.0, 5), 4.0, b)"
+    (g 0 #("a", #1.0, #(2, 3.0)) #("b",#4.0,#(5,6.0)));
 
-  let[@local] swap #(x, y) = #(y, x) in
+  let[@local] swap #(w, x, #(y, z)) = #(#(z, y), x, w) in
   let[@inline never] g i p1 p2 =
     let z =
       if i < 0 then
@@ -427,20 +432,27 @@ let _ =
       else if i = 0 then
         swap p2
       else
-        swap #(42, 84)
+        swap #("hi", #42.0, #(84, 3.0))
     in z
   in
-  print_ints "Test 9, #(84,42)" (g 1 #(1,2) #(3,4))
+  print4 "Test 9, #(#(3.0, 84), 42.0, hi)"
+    (g 1 #("a", #1.0, #(2, 3.0)) #("b",#4.0,#(5,6.0)))
 
 (**************************)
 (* Test 10: Loopification *)
 
-let[@loop] rec fib n #(x, y) =
-  if y > n then #(y, x) else
-    fib n #(y, x + y)
+let print4 prefix #(w,#(x,y),z) =
+  Printf.printf "%s: #(%.1f, #(%.1f, %d), %d)\n" prefix
+    (Float_u.to_float w) x y z
+
+let[@loop] rec fib n (#(w, #(x, y), z) as p) =
+  let w = Float_u.to_float w in
+  if Float.compare w (Float.of_int n) > 0 then p else
+    let next = Float_u.of_float (w +. x) in
+    fib n #(next, #(w, Float.to_int x), y)
 
 let _ =
-  print_ints "Test 10, #(1,0)" (fib 0 #(0,1));
-  print_ints "Test 10, #(5,3)" (fib 4 #(0,1));
-  print_ints "Test 10, #(144,89)" (fib 100 #(0,1))
+  print4 "Test 10, #(1.0, #(0.0, 0), 0)" (fib 0 #(#1.0,#(0.0,0),0));
+  print4 "Test 10, #(5.0, #(3.0, 2), 1))" (fib 4 #(#1.0,#(0.0,0),0));
+  print4 "Test 10, #(144.0, #(89.0, 55), 34)" (fib 100 #(#1.0,#(0.0,0),0));
 
