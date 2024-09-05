@@ -168,7 +168,7 @@ let iterator ~transl_exp ~scopes = function
     (* We have to let-bind [start] and [stop] so that they're evaluated in the
        correct (i.e., left-to-right) order *)
     let transl_bound var bound =
-      Let_binding.make (Immutable Strict) (Pvalue Pintval) var
+      Let_binding.make (Immutable Strict) layout_int var
         (transl_exp ~scopes Jkind.Sort.for_predef_value bound)
     in
     let start = transl_bound "start" start in
@@ -179,12 +179,12 @@ let iterator ~transl_exp ~scopes = function
         | Downto -> rev_dlist_concat_iterate_down);
       arg_lets = [start; stop];
       element = ident;
-      element_kind = Pvalue Pintval;
+      element_kind = layout_int;
       add_bindings = Fun.id
     }
   | Texp_comp_in { pattern; sequence } ->
     let iter_list =
-      Let_binding.make (Immutable Strict) (Pvalue Pgenval) "iter_list"
+      Let_binding.make (Immutable Strict) layout_any_value "iter_list"
         (transl_exp ~scopes Jkind.Sort.for_predef_value sequence)
     in
     (* Create a fresh variable to use as the function argument *)
@@ -198,7 +198,7 @@ let iterator ~transl_exp ~scopes = function
       add_bindings =
         (* CR layouts: to change when we allow non-values in sequences *)
         Matching.for_let ~scopes ~arg_sort:Jkind.Sort.for_list_element
-          ~return_layout:(Pvalue Pgenval) pattern.pat_loc (Lvar element) pattern
+          ~return_layout:layout_any_value pattern.pat_loc (Lvar element) pattern
     }
 
 (** Translates a list comprehension binding
@@ -247,11 +247,11 @@ let rec translate_bindings ~transl_exp ~scopes ~loc ~inner_body ~accumulator =
               mode = alloc_heap
             };
             { name = inner_acc;
-              layout = Pvalue Pgenval;
+              layout = layout_any_value;
               attributes = Lambda.default_param_attribute;
               mode = alloc_local
             } ]
-        ~return:(Pvalue Pgenval) ~attr:default_function_attribute ~loc
+        ~return:layout_any_value ~attr:default_function_attribute ~loc
         ~mode:alloc_local ~ret_mode:alloc_local ~region:false
         ~body:(add_bindings body)
     in
@@ -259,7 +259,7 @@ let rec translate_bindings ~transl_exp ~scopes ~loc ~inner_body ~accumulator =
       Lambda_utils.apply ~loc ~mode:alloc_local (Lazy.force builder)
         (List.map (fun Let_binding.{ id; _ } -> Lvar id) arg_lets
         @ [body_func; accumulator])
-        ~result_layout:(Pvalue Pgenval)
+        ~result_layout:layout_any_value
     in
     arg_lets @ body_arg_lets, result
   | [] -> [], inner_body ~accumulator
@@ -290,7 +290,7 @@ let rec translate_clauses ~transl_exp ~scopes ~loc ~comprehension_body
         ( transl_exp ~scopes Jkind.Sort.for_predef_value cond,
           body ~accumulator,
           accumulator,
-          Pvalue Pgenval (* [list]s have the standard representation *) ))
+          layout_any_value (* [list]s have the standard representation *) ))
   | [] -> comprehension_body ~accumulator
 
 let comprehension ~transl_exp ~scopes ~loc { comp_body; comp_clauses } =
@@ -303,4 +303,4 @@ let comprehension ~transl_exp ~scopes ~loc { comp_body; comp_clauses } =
   in
   Lambda_utils.apply ~loc ~mode:alloc_heap
     (Lazy.force rev_list_to_list)
-    [rev_comprehension] ~result_layout:(Pvalue Pgenval)
+    [rev_comprehension] ~result_layout:layout_any_value

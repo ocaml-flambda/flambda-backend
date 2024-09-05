@@ -595,7 +595,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                         Lambda.must_be_value (layout_exp sort e))
                       args_with_sorts
                   in
-                  Pmakeblock(0, Immutable, Some (Pgenval :: shape),
+                  Pmakeblock(0, Immutable, Some (Lambda.generic_value :: shape),
                             alloc_mode)
               | Constructor_mixed shape ->
                   let shape = Lambda.transl_mixed_product_shape shape in
@@ -1473,8 +1473,10 @@ and transl_tupled_function
             cases in
         let kinds =
           match arg_layout with
-          | Pvalue (Pvariant { consts = [];
-                               non_consts = [0, Constructor_uniform kinds] }) ->
+          | Pvalue {
+              nullable = Non_nullable;
+              raw_kind = Pvariant { consts = [];
+                               non_consts = [0, Constructor_uniform kinds] }} ->
               (* CR layouts v5: to change when we have non-value tuple
                  elements. *)
               List.map (fun vk -> Pvalue vk) kinds
@@ -1646,7 +1648,7 @@ and transl_curried_function ~scopes loc repr params body
         in
         (* we return Pgenval (for a function) after the rightmost chunk *)
         { body;
-          return_layout = Pvalue Pgenval;
+          return_layout = Lambda.layout_function;
           return_mode = if enclosing_region then alloc_heap else alloc_local;
           nlocal = enclosing_nlocal;
           region = enclosing_region;
@@ -1951,7 +1953,10 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                           Constructor_uniform_value, Variant_extensible) ->
             let shape = List.map must_be_value shape in
             let slot = transl_extension_path loc env path in
-            Lprim(Pmakeblock(0, mut, Some (Pgenval :: shape), Option.get mode),
+            Lprim(Pmakeblock(0,
+                             mut,
+                             Some (Lambda.generic_value :: shape),
+                             Option.get mode),
                   slot :: ll, loc)
         | Record_inlined (Extension _, _, (Variant_unboxed | Variant_boxed _))
         | Record_inlined (Ordinary _, _, Variant_extensible) ->

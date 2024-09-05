@@ -1578,7 +1578,7 @@ module Extended_machtype = struct
     | Punboxed_int _ ->
       (* Only 64-bit architectures, so this is always [typ_int] *)
       typ_any_int
-    | Pvalue Pintval -> typ_tagged_int
+    | Pvalue { raw_kind = Pintval; _ } -> typ_tagged_int
     | Pvalue _ -> typ_val
     | Punboxed_product fields -> Array.concat (List.map of_layout fields)
 end
@@ -4097,10 +4097,10 @@ let cmm_arith_size (e : Cmm.expression) =
 
 let kind_of_layout (layout : Lambda.layout) =
   match layout with
-  | Pvalue (Pboxedfloatval bf) -> Boxed_float bf
-  | Pvalue (Pboxedintval bi) -> Boxed_integer bi
-  | Pvalue (Pboxedvectorval vi) -> Boxed_vector vi
-  | Pvalue (Pgenval | Pintval | Pvariant _ | Parrayval _)
+  | Pvalue { raw_kind = Pboxedfloatval bf; _ } -> Boxed_float bf
+  | Pvalue { raw_kind = Pboxedintval bi; _ } -> Boxed_integer bi
+  | Pvalue { raw_kind = Pboxedvectorval vi; _ } -> Boxed_vector vi
+  | Pvalue { raw_kind = (Pgenval | Pintval | Pvariant _ | Parrayval _); _ }
   | Ptop | Pbottom | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _
   | Punboxed_product _ ->
     Any
