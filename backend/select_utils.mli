@@ -196,6 +196,18 @@ class virtual ['env, 'op, 'instr] common_selector :
       regs:Reg.t array ->
       'instr
 
+    method virtual make_const_int : nativeint -> 'op
+
+    method virtual make_const_float32 : int32 -> 'op
+
+    method virtual make_const_float : int64 -> 'op
+
+    method virtual make_const_vec128 : Cmm.vec128_bits -> 'op
+
+    method virtual make_const_symbol : Cmm.symbol -> 'op
+
+    method virtual make_opaque : unit -> 'op
+
     method is_simple_expr : Cmm.expression -> bool
 
     method effects_of : Cmm.expression -> Effect_and_coeffect.t
@@ -248,7 +260,7 @@ class virtual ['env, 'op, 'instr] common_selector :
     method insert_op :
       'env environment -> 'op -> Reg.t array -> Reg.t array -> Reg.t array
 
-    method virtual emit_expr :
+    method emit_expr :
       'env environment ->
       Cmm.expression ->
       bound_name:Backend_var.With_provenance.t option ->
@@ -299,4 +311,141 @@ class virtual ['env, 'op, 'instr] common_selector :
       Cmm.expression list ->
       Reg.t array ->
       unit
+
+    method emit_expr :
+      'env environment ->
+      Cmm.expression ->
+      bound_name:Backend_var.With_provenance.t option ->
+      Reg.t array option
+
+    method emit_expr_aux :
+      'env environment ->
+      Cmm.expression ->
+      bound_name:Backend_var.With_provenance.t option ->
+      Reg.t array option
+
+    method virtual emit_expr_aux_raise :
+      'env environment ->
+      Lambda.raise_kind ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Reg.t array option
+
+    method virtual emit_expr_aux_op :
+      'env environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.operation ->
+      Cmm.expression list ->
+      Debuginfo.t ->
+      Reg.t array option
+
+    method virtual emit_expr_aux_ifthenelse :
+      'env environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      Reg.t array option
+
+    method virtual emit_expr_aux_switch :
+      'env environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.expression ->
+      int array ->
+      (Cmm.expression * Debuginfo.t) array ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      Reg.t array option
+
+    method virtual emit_expr_aux_catch :
+      'env environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.rec_flag ->
+      (Lambda.static_label
+      * (Backend_var.With_provenance.t * Cmm.machtype) list
+      * Cmm.expression
+      * Debuginfo.t
+      * bool)
+      list ->
+      Cmm.expression ->
+      Cmm.kind_for_unboxing ->
+      Reg.t array option
+
+    method virtual emit_expr_aux_exit :
+      'env environment ->
+      Cmm.exit_label ->
+      Cmm.expression list ->
+      Cmm.trap_action list ->
+      Reg.t array option
+
+    method virtual emit_expr_aux_trywith :
+      'env environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.expression ->
+      Cmm.trywith_shared_label ->
+      Backend_var.With_provenance.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      Reg.t array option
+
+    method emit_tail : 'env environment -> Cmm.expression -> unit
+
+    method virtual emit_tail_apply :
+      'env environment ->
+      Cmm.machtype ->
+      Cmm.operation ->
+      Cmm.expression list ->
+      Debuginfo.t ->
+      unit
+
+    method virtual emit_tail_ifthenelse :
+      'env environment ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      unit
+
+    method virtual emit_tail_switch :
+      'env environment ->
+      Cmm.expression ->
+      int array ->
+      (Cmm.expression * Debuginfo.t) array ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      unit
+
+    method virtual emit_tail_catch :
+      'env environment ->
+      Cmm.rec_flag ->
+      (Lambda.static_label
+      * (Backend_var.With_provenance.t * Cmm.machtype) list
+      * Cmm.expression
+      * Debuginfo.t
+      * bool)
+      list ->
+      Cmm.expression ->
+      Cmm.kind_for_unboxing ->
+      unit
+
+    method virtual emit_tail_trywith :
+      'env environment ->
+      Cmm.expression ->
+      Cmm.trywith_shared_label ->
+      Backend_var.With_provenance.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      unit
+
+    method virtual emit_return :
+      'env environment -> Cmm.expression -> Cmm.trap_action list -> unit
   end

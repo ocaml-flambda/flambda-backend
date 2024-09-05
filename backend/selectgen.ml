@@ -20,7 +20,6 @@
 
 open Cmm
 module Int = Numbers.Int
-module V = Backend_var
 module VP = Backend_var.With_provenance
 
 (* The default instruction selection class *)
@@ -46,6 +45,18 @@ class virtual selector_generic =
       Mach.Iop
         (Mach.Iname_for_debugger
            { ident; which_parameter; provenance; is_assignment; regs })
+
+    method make_const_int x = Mach.Iconst_int x
+
+    method make_const_float32 x = Mach.Iconst_float32 x
+
+    method make_const_float x = Mach.Iconst_float x
+
+    method make_const_vec128 x = Mach.Iconst_vec128 x
+
+    method make_const_symbol x = Mach.Iconst_symbol x
+
+    method make_opaque () = Mach.Iopaque
 
     (* Default instruction selection for stores (of words) *)
 
@@ -215,152 +226,6 @@ class virtual selector_generic =
     method insert_move env src dst =
       if src.Reg.stamp <> dst.Reg.stamp
       then self#insert env Mach.(Iop Imove) [| src |] [| dst |]
-
-    (* Emit an expression.
-
-       [bound_name] is the name that will be bound to the result of evaluating
-       the expression, if such exists. This is used for emitting debugging info.
-
-       Returns: - [None] if the expression does not finish normally (e.g.
-       raises) - [Some rs] if the expression yields a result in registers
-       [rs] *)
-    method emit_expr (env : environment) exp ~bound_name =
-      self#emit_expr_aux env exp ~bound_name
-
-    (* Emit an expression which may end some regions early.
-
-       Returns: - [None] if the expression does not finish normally (e.g.
-       raises) - [Some (rs, unclosed)] if the expression yields a result in
-       [rs], having left [unclosed] (a suffix of env.regions) regions open *)
-    method emit_expr_aux (env : environment) exp ~bound_name
-        : Reg.t array option =
-      (* Normal case of returning a value: no regions are closed *)
-      let ret res = Some res in
-      match exp with
-      | Cconst_int (n, _dbg) ->
-        let r = self#regs_for typ_int in
-        ret
-          (self#insert_op env (self#make_const_int (Nativeint.of_int n)) [||] r)
-      | Cconst_natint (n, _dbg) ->
-        let r = self#regs_for typ_int in
-        ret (self#insert_op env (self#make_const_int n) [||] r)
-      | Cconst_float32 (n, _dbg) ->
-        let r = self#regs_for typ_float32 in
-        ret
-          (self#insert_op env
-             (self#make_const_float32 (Int32.bits_of_float n))
-             [||] r)
-      | Cconst_float (n, _dbg) ->
-        let r = self#regs_for typ_float in
-        ret
-          (self#insert_op env
-             (self#make_const_float (Int64.bits_of_float n))
-             [||] r)
-      | Cconst_vec128 (bits, _dbg) ->
-        let r = self#regs_for typ_vec128 in
-        ret (self#insert_op env (self#make_const_vec128 bits) [||] r)
-      | Cconst_symbol (n, _dbg) ->
-        (* Cconst_symbol _ evaluates to a statically-allocated address, so its
-           value fits in a typ_int register and is never changed by the GC.
-
-           Some Cconst_symbols point to statically-allocated blocks, some of
-           which may point to heap values. However, any such blocks will be
-           registered in the compilation unit's global roots structure, so
-           adding this register to the frame table would be redundant *)
-        let r = self#regs_for typ_int in
-        ret (self#insert_op env (self#make_const_symbol n) [||] r)
-      | Cvar v -> (
-        try ret (Select_utils.env_find v env)
-        with Not_found ->
-          Misc.fatal_error
-            ("Selection.emit_expr: unbound var " ^ V.unique_name v))
-      | Clet (v, e1, e2) -> (
-        match self#emit_expr env e1 ~bound_name:(Some v) with
-        | None -> None
-        | Some r1 -> self#emit_expr_aux (self#bind_let env v r1) e2 ~bound_name)
-      | Clet_mut (v, k, e1, e2) -> (
-        match self#emit_expr env e1 ~bound_name:(Some v) with
-        | None -> None
-        | Some r1 ->
-          self#emit_expr_aux (self#bind_let_mut env v k r1) e2 ~bound_name)
-      | Cphantom_let (_var, _defining_expr, body) ->
-        self#emit_expr_aux env body ~bound_name
-      | Cassign (v, e1) -> (
-        let rv, provenance =
-          try Select_utils.env_find_mut v env
-          with Not_found ->
-            Misc.fatal_error ("Selection.emit_expr: unbound var " ^ V.name v)
-        in
-        match self#emit_expr env e1 ~bound_name:None with
-        | None -> None
-        | Some r1 ->
-          (if Option.is_some provenance
-          then
-            let naming_op =
-              self#make_name_for_debugger ~ident:v ~provenance
-                ~which_parameter:None ~is_assignment:true ~regs:r1
-            in
-            self#insert_debug env naming_op Debuginfo.none [||] [||]);
-          self#insert_moves env r1 rv;
-          ret [||])
-      | Ctuple [] -> ret [||]
-      | Ctuple exp_list -> (
-        match self#emit_parts_list env exp_list with
-        | None -> None
-        | Some (simple_list, ext_env) ->
-          ret (self#emit_tuple ext_env simple_list))
-      | Cop (Craise k, [arg], dbg) -> self#emit_expr_aux_raise env k arg dbg
-      | Cop (Copaque, args, dbg) -> (
-        match self#emit_parts_list env args with
-        | None -> None
-        | Some (simple_args, env) ->
-          let rs = self#emit_tuple env simple_args in
-          ret (self#insert_op_debug env (self#make_opaque ()) dbg rs rs))
-      | Cop (Ctuple_field (field, fields_layout), [arg], _dbg) -> (
-        match self#emit_expr env arg ~bound_name:None with
-        | None -> None
-        | Some loc_exp ->
-          let flat_size a =
-            Array.fold_left (fun acc t -> acc + Array.length t) 0 a
-          in
-          assert (Array.length loc_exp = flat_size fields_layout);
-          let before = Array.sub fields_layout 0 field in
-          let size_before = flat_size before in
-          let field_slice =
-            Array.sub loc_exp size_before (Array.length fields_layout.(field))
-          in
-          ret field_slice)
-      | Cop (op, args, dbg) -> self#emit_expr_aux_op env bound_name op args dbg
-      | Csequence (e1, e2) -> (
-        match self#emit_expr env e1 ~bound_name:None with
-        | None -> None
-        | Some _ -> self#emit_expr_aux env e2 ~bound_name)
-      | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg, value_kind) ->
-        self#emit_expr_aux_ifthenelse env bound_name econd ifso_dbg eif
-          ifnot_dbg eelse dbg value_kind
-      | Cswitch (esel, index, ecases, dbg, value_kind) ->
-        self#emit_expr_aux_switch env bound_name esel index ecases dbg
-          value_kind
-      | Ccatch (_, [], e1, _) -> self#emit_expr_aux env e1 ~bound_name
-      | Ccatch (rec_flag, handlers, body, value_kind) ->
-        self#emit_expr_aux_catch env bound_name rec_flag handlers body
-          value_kind
-      | Cexit (lbl, args, traps) -> self#emit_expr_aux_exit env lbl args traps
-      | Ctrywith (e1, exn_cont, v, e2, dbg, value_kind) ->
-        self#emit_expr_aux_trywith env bound_name e1 exn_cont v e2 dbg
-          value_kind
-
-    method private make_const_int x = Mach.Iconst_int x
-
-    method private make_const_float32 x = Mach.Iconst_float32 x
-
-    method private make_const_float x = Mach.Iconst_float x
-
-    method private make_const_vec128 x = Mach.Iconst_vec128 x
-
-    method private make_const_symbol x = Mach.Iconst_symbol x
-
-    method private make_opaque () = Mach.Iopaque
 
     method private emit_expr_aux_raise env k arg dbg =
       match self#emit_expr env arg ~bound_name:None with
@@ -747,40 +612,6 @@ class virtual selector_generic =
 
     method private emit_return (env : environment) exp traps =
       self#insert_return env (self#emit_expr_aux env exp ~bound_name:None) traps
-
-    (* Emit an expression in tail position of a function, closing all regions in
-       [env.regions] *)
-    method emit_tail (env : environment) exp =
-      match exp with
-      | Clet (v, e1, e2) -> (
-        match self#emit_expr env e1 ~bound_name:None with
-        | None -> ()
-        | Some r1 -> self#emit_tail (self#bind_let env v r1) e2)
-      | Clet_mut (v, k, e1, e2) -> (
-        match self#emit_expr env e1 ~bound_name:None with
-        | None -> ()
-        | Some r1 -> self#emit_tail (self#bind_let_mut env v k r1) e2)
-      | Cphantom_let (_var, _defining_expr, body) -> self#emit_tail env body
-      | Cop ((Capply (ty, Rc_normal) as op), args, dbg) ->
-        self#emit_tail_apply env ty op args dbg
-      | Csequence (e1, e2) -> (
-        match self#emit_expr env e1 ~bound_name:None with
-        | None -> ()
-        | Some _ -> self#emit_tail env e2)
-      | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg, value_kind) ->
-        self#emit_tail_ifthenelse env econd ifso_dbg eif ifnot_dbg eelse dbg
-          value_kind
-      | Cswitch (esel, index, ecases, dbg, value_kind) ->
-        self#emit_tail_switch env esel index ecases dbg value_kind
-      | Ccatch (_, [], e1, _) -> self#emit_tail env e1
-      | Ccatch (rec_flag, handlers, e1, value_kind) ->
-        self#emit_tail_catch env rec_flag handlers e1 value_kind
-      | Ctrywith (e1, exn_cont, v, e2, dbg, value_kind) ->
-        self#emit_tail_trywith env e1 exn_cont v e2 dbg value_kind
-      | Cop _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _
-      | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ | Cassign _
-      | Ctuple _ | Cexit _ ->
-        self#emit_return env exp (Select_utils.pop_all_traps env)
 
     method private emit_tail_apply env ty op args dbg =
       match self#emit_parts_list env args with
