@@ -20,7 +20,8 @@ let select_operation _ = None
 
 let pseudoregs_for_operation _ arg res = arg, res
 
-(* for avoiding compilation errors when using them in amd64 *)
+(* See `amd64/simd_selection.ml`. *)
+
 type register =
   | New of int
   | Argument of int

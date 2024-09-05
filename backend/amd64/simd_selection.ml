@@ -464,6 +464,8 @@ let () =
     | Error err -> Some (Location.error_of_printer_file report_error err)
     | _ -> None)
 
+(* Vectorize operations *)
+
 type width =
   | W8
   | W16
@@ -492,9 +494,9 @@ type vectorized_instruction =
 
 let vector_width_in_bits = 128
 
-let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
-    vectorized_instruction list option =
-  (* Assumes cfg_ops are isomorphic and can be vectorized *)
+let vectorize_operation ~width_in_bits ~arg_count ~res_count
+    (cfg_ops : Cfg.operation list) : vectorized_instruction list option =
+  (* Assumes cfg_ops are isomorphic *)
   let length = List.length cfg_ops in
   assert (length * width_in_bits = vector_width_in_bits);
   let width_type =
@@ -505,7 +507,7 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
     | 8 -> W8
     | _ -> assert false
   in
-  let make_default arg_count res_count operation =
+  let make_default ~arg_count ~res_count operation =
     Some
       [ { operation;
           arguments = Array.init arg_count (fun i -> Argument i);
@@ -513,17 +515,7 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
         } ]
   in
   let create_const_vec consts =
-    let rec get_list list n =
-      if n = 0
-      then [], list
-      else
-        match list with
-        | [] -> assert false
-        | hd :: tl ->
-          let list1, list2 = get_list tl (n - 1) in
-          hd :: list1, list2
-    in
-    let highs, lows = get_list consts (length / 2) in
+    let highs, lows = Misc.Stdlib.List.split_at (length / 2) consts in
     let pack_int64 nums =
       let mask =
         Int64.shift_right_logical Int64.minus_one (64 - width_in_bits)
@@ -536,7 +528,7 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
         0L nums
     in
     Cfg.Const_vec128 { high = pack_int64 highs; low = pack_int64 lows }
-    |> make_default 0 1
+    |> make_default ~arg_count:0 ~res_count:1
   in
   let add_op =
     let sse_op =
@@ -557,7 +549,7 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
   in
   let vectorize_intop (intop : Mach.integer_operation) =
     match intop with
-    | Iadd -> Option.bind add_op (make_default 2 1)
+    | Iadd -> Option.bind add_op (make_default ~arg_count ~res_count)
     | Isub ->
       let sse_op =
         match width_type with
@@ -566,20 +558,27 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
         | W16 -> Sub_i16
         | W8 -> Sub_i8
       in
-      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default 2 1
-    | Imul -> Option.bind mul_op (make_default 2 1)
+      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default ~arg_count ~res_count
+    | Imul -> Option.bind mul_op (make_default ~arg_count ~res_count)
     | Imulh { signed } -> (
       match width_type with
       | W64 -> None
       | W32 -> None
       | W16 ->
         if signed
-        then Cfg.Specific (Isimd (SSE2 Mulhi_i16)) |> make_default 2 1
-        else Cfg.Specific (Isimd (SSE2 Mulhi_unsigned_i16)) |> make_default 2 1
+        then
+          Cfg.Specific (Isimd (SSE2 Mulhi_i16))
+          |> make_default ~arg_count ~res_count
+        else
+          Cfg.Specific (Isimd (SSE2 Mulhi_unsigned_i16))
+          |> make_default ~arg_count ~res_count
       | W8 -> None)
-    | Iand -> Cfg.Specific (Isimd (SSE2 And_bits)) |> make_default 2 1
-    | Ior -> Cfg.Specific (Isimd (SSE2 Or_bits)) |> make_default 2 1
-    | Ixor -> Cfg.Specific (Isimd (SSE2 Xor_bits)) |> make_default 2 1
+    | Iand ->
+      Cfg.Specific (Isimd (SSE2 And_bits)) |> make_default ~arg_count ~res_count
+    | Ior ->
+      Cfg.Specific (Isimd (SSE2 Or_bits)) |> make_default ~arg_count ~res_count
+    | Ixor ->
+      Cfg.Specific (Isimd (SSE2 Xor_bits)) |> make_default ~arg_count ~res_count
     | Ilsl ->
       let sse_op =
         match width_type with
@@ -588,7 +587,7 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
         | W16 -> SLL_i16
         | W8 -> assert false
       in
-      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default 2 1
+      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default ~arg_count ~res_count
     | Ilsr ->
       let sse_op =
         match width_type with
@@ -597,7 +596,7 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
         | W16 -> SRL_i16
         | W8 -> assert false
       in
-      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default 2 1
+      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default ~arg_count ~res_count
     | Iasr ->
       let sse_op =
         match width_type with
@@ -606,7 +605,7 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
         | W16 -> SRA_i16
         | W8 -> assert false
       in
-      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default 2 1
+      Cfg.Specific (Isimd (SSE2 sse_op)) |> make_default ~arg_count ~res_count
     | Icomp (Isigned intcomp) -> (
       match intcomp with
       | Ceq ->
@@ -617,7 +616,7 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
           | W16 -> SSE2 Cmpeq_i16
           | W8 -> SSE2 Cmpeq_i8
         in
-        Cfg.Specific (Isimd sse_op) |> make_default 2 1
+        Cfg.Specific (Isimd sse_op) |> make_default ~arg_count ~res_count
       | Cgt ->
         let sse_op =
           match width_type with
@@ -626,12 +625,16 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
           | W16 -> SSE2 Cmpgt_i16
           | W8 -> SSE2 Cmpgt_i8
         in
-        Cfg.Specific (Isimd sse_op) |> make_default 2 1
-      | Cne | Clt | Cle | Cge -> None)
+        Cfg.Specific (Isimd sse_op) |> make_default ~arg_count ~res_count
+      | Cne | Clt | Cle | Cge ->
+        None
+        (* These instructions seem to not have a simd counterpart yet, could
+           also implement as a combination of other instructions if needed in
+           the future *))
     | Idiv | Imod | Iclz _ | Ictz _ | Ipopcnt | Icomp (Iunsigned _) -> None
   in
   match List.hd cfg_ops with
-  | Move -> Cfg.Move |> make_default 1 1
+  | Move -> Cfg.Move |> make_default ~arg_count ~res_count
   | Const_int _ ->
     let extract_const_int (op : Cfg.operation) =
       match op with
@@ -643,9 +646,12 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
       | Begin_region | End_region | Name_for_debugger _ | Dls_get | Poll ->
         assert false
     in
+    assert (arg_count = 0 && res_count = 1);
     let consts = List.map extract_const_int cfg_ops in
     create_const_vec consts
   | Load { memory_chunk = _; addressing_mode; mutability; is_atomic } ->
+    let num_args_addressing = Arch.num_args_addressing addressing_mode in
+    assert (arg_count = num_args_addressing && res_count = 1);
     let operation =
       Cfg.Load
         { memory_chunk = Onetwentyeight_unaligned;
@@ -656,12 +662,12 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
     in
     Some
       [ { operation;
-          arguments =
-            Array.init (Arch.num_args_addressing addressing_mode) (fun i ->
-                Original i);
+          arguments = Array.init num_args_addressing (fun i -> Original i);
           results = [| Result 0 |]
         } ]
   | Store (_, addressing_mode, is_assignment) ->
+    let num_args_addressing = Arch.num_args_addressing addressing_mode in
+    assert (arg_count = num_args_addressing + 1 && res_count = 0);
     let operation =
       Cfg.Store (Onetwentyeight_unaligned, addressing_mode, is_assignment)
     in
@@ -669,8 +675,7 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
       [ { operation;
           arguments =
             Array.append [| Argument 0 |]
-              (Array.init (Arch.num_args_addressing addressing_mode) (fun i ->
-                   Original (i + 1)));
+              (Array.init num_args_addressing (fun i -> Original (i + 1)));
           results = [||]
         } ]
   | Intop intop -> vectorize_intop intop
@@ -692,6 +697,7 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
       if Array.length const_instruction.results = 1
          && Array.length intop_instruction.arguments = 2
       then (
+        assert (arg_count = 1 && res_count = 1);
         const_instruction.results.(0) <- New 0;
         intop_instruction.arguments.(1) <- New 0;
         Some [const_instruction; intop_instruction])
@@ -753,6 +759,7 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
       | Iindexed _ -> (
         match add_op with
         | Some add ->
+          assert (arg_count = 1 && res_count = 1);
           let displs = List.map get_displ cfg_ops in
           (* reg + displ *)
           Some
@@ -763,6 +770,7 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
       | Iindexed2 _ -> (
         match add_op with
         | Some add ->
+          assert (arg_count = 2 && res_count = 1);
           let displs = List.map get_displ cfg_ops in
           (* reg + reg + displ *)
           Some
@@ -774,6 +782,7 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
       | Iscaled _ -> (
         match add_op, mul_op with
         | Some add, Some mul ->
+          assert (arg_count = 1 && res_count = 1);
           let scales = List.map get_scale cfg_ops in
           let displs = List.map get_displ cfg_ops in
           (* reg * scale + displ *)
@@ -787,28 +796,37 @@ let vectorize_operation width_in_bits (cfg_ops : Cfg.operation list) :
       | Iindexed2scaled _ -> (
         match add_op, mul_op with
         | Some add, Some mul ->
+          assert (arg_count = 2 && res_count = 1);
           let scales = List.map get_scale cfg_ops in
           let displs = List.map get_displ cfg_ops in
           (* reg + reg * scale + displ *)
           Some
-            [ make_move (Argument 0) (Result 0);
+            [ make_move (Argument 1) (Result 0);
               make_const (New 0) scales;
               make_binary_operation (Result 0) (New 0) (Result 0) mul;
-              make_binary_operation (Result 0) (New 1) (Result 0) add;
+              make_binary_operation (Result 0) (Argument 0) (Result 0) add;
               make_const (New 1) displs;
               make_binary_operation (Result 0) (New 1) (Result 0) add ]
         | _ -> None)
       | Ibased _ -> None)
     | Isextend32 -> (
       match width_type with
-      | W64 -> Cfg.Specific (Isimd (SSE41 I32_sx_i64)) |> make_default 1 1
-      | W32 -> make_default 1 1 Cfg.Move
+      | W64 ->
+        Cfg.Specific (Isimd (SSE41 I32_sx_i64))
+        |> make_default ~arg_count ~res_count
+      | W32 ->
+        None
+        (* If the upper bits of the original register containing the smaller
+           register is determined to be unused without relying on this file,
+           these can also be vectorized to be a move *)
       | W16 -> None
       | W8 -> None)
     | Izextend32 -> (
       match width_type with
-      | W64 -> Cfg.Specific (Isimd (SSE41 I32_zx_i64)) |> make_default 1 1
-      | W32 -> make_default 1 1 Cfg.Move
+      | W64 ->
+        Cfg.Specific (Isimd (SSE41 I32_zx_i64))
+        |> make_default ~arg_count ~res_count
+      | W32 -> None (* See previous comment *)
       | W16 -> None
       | W8 -> None)
     | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Irdtsc

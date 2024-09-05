@@ -224,7 +224,12 @@ end = struct
     | None -> None
     | Some cfg_ops ->
       if same_stack_offset instructions && are_isomorphic cfg_ops
-      then Simd_selection.vectorize_operation width_in_bits cfg_ops
+      then
+        let instruction = List.hd instructions in
+        let arg_count = arguments instruction |> Array.length in
+        let res_count = results instruction |> Array.length in
+        Simd_selection.vectorize_operation ~width_in_bits ~arg_count ~res_count
+          cfg_ops
       else None
 
   let is_store (instruction : t) =
