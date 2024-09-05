@@ -1653,7 +1653,7 @@ let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
       | _ ->
         Misc.fatal_errorf
           "To_cmm_helpers.maake_alloc_generic: mismatched list size between \
-           fiels and memory chunks"
+           fields and memory chunks"
     in
     let caml_alloc_func, caml_alloc_args =
       match Config.runtime5, block_kind with
