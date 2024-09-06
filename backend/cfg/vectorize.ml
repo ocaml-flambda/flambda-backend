@@ -914,14 +914,10 @@ end = struct
     else false
 
   let can_cross_lists t instructions1 instructions2 =
-    let can_cross_list instruction1 =
-      List.fold_left
-        (fun can instruction2 -> can && can_cross t instruction1 instruction2)
-        true instructions2
+    let can_cross_list instruction =
+      List.for_all (can_cross t instruction) instructions2
     in
-    List.fold_left
-      (fun can instruction1 -> can && can_cross_list instruction1)
-      true instructions1
+    List.for_all can_cross_list instructions1
 
   let all_adjacent t instructions =
     let rec check_adjacent hd1 tl1 =
