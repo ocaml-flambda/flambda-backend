@@ -14,6 +14,10 @@ type 'k _mutex : value mod portable uncontended = 'k Capsule.Mutex.t
 
 type ('a, 'k) _data : value mod portable uncontended = ('a, 'k) Capsule.Data.t
 
+(* Packed mutexes are [value mod portable uncontended]. *)
+
+type _packed :  value mod portable uncontended = Capsule.Mutex.packed
+
 type 'a myref = { mutable v : 'a}
 
 module Cell = struct
