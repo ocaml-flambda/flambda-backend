@@ -1618,7 +1618,7 @@ let alloc_generic_set_fn block ofs newval memory_chunk dbg =
     if Arch.big_endian
     then
       Misc.fatal_errorf
-        "Fields with memory_chunk %s are not supported on little-endian \
+        "Fields with memory_chunk %s are not supported on big-endian \
          architecture"
         (Printcmm.chunk memory_chunk);
     generic_case ()
@@ -1652,7 +1652,7 @@ let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
             fill_fields (idx + ofs) el ml )
       | _ ->
         Misc.fatal_errorf
-          "To_cmm_helpers.maake_alloc_generic: mismatched list size between \
+          "To_cmm_helpers.make_alloc_generic: mismatched list size between \
            fields and memory chunks"
     in
     let caml_alloc_func, caml_alloc_args =
