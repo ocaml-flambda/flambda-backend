@@ -36,4 +36,6 @@ type vectorized_instruction =
 
 let vector_width_in_bits = 128
 
-let vectorize_operation _ _ : vectorized_instruction list option = None
+let vectorize_operation ~width_in_bits:_ ~arg_count:_ ~res_count:_ :
+    vectorized_instruction list option =
+  None
