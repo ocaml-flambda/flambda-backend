@@ -450,7 +450,7 @@ let compare_addressing_mode_displ (addressing_mode_1: addressing_mode) (addressi
   | Iscaled _, _ -> None
   | Iindexed2scaled _, _ -> None
 
-let addressing_offset (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let addressing_offset_in_bytes (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
   | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
     match global1, global2 with

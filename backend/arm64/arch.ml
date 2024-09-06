@@ -349,7 +349,7 @@ let compare_addressing_mode_displ (addressing_mode_1: addressing_mode) (addressi
   | Iindexed _ , _ -> None
   | Ibased _ , _ -> None
 
-let addressing_offset (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) = None
+let addressing_offset_in_bytes (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) = None
 
 let can_cross_loads_or_stores (specific_operation : specific_operation) =
   match specific_operation with

@@ -219,7 +219,7 @@ end = struct
 
   let replace = Instruction.Id.Tbl.replace
 
-  let init () : t = Instruction.Id.Tbl.create 100
+  let init ~size : t = Instruction.Id.Tbl.create size
 
   let get_all_dependencies dependency_graph id =
     let (node : Node.t) = Instruction.Id.Tbl.find dependency_graph id in
@@ -234,7 +234,7 @@ end = struct
       |> Instruction.Id.Set.add direct_dependency
 
   let from_block (block : Cfg.basic_block) =
-    let dependency_graph = init () in
+    let dependency_graph = init ~size:(DLL.length block.body) in
     let is_changed_in instruction reg =
       Array.exists (Reg.same reg) (Instruction.results instruction)
       || Array.exists (Reg.same reg) (Instruction.destroyed instruction)
@@ -506,12 +506,12 @@ end = struct
         arguments_comparison
       else addressing_mode_comparison
 
-    let offset_of (t1 : t) (t2 : t) =
+    let offset_in_bytes (t1 : t) (t2 : t) =
       let addressing_mode_and_arguments_comparison =
         compare_addressing_modes_and_arguments t1 t2
       in
       if addressing_mode_and_arguments_comparison = 0
-      then Arch.addressing_offset t1.addressing_mode t2.addressing_mode
+      then Arch.addressing_offset_in_bytes t1.addressing_mode t2.addressing_mode
       else None
 
     let is_adjacent (t1 : t) (t2 : t) =
@@ -519,7 +519,7 @@ end = struct
         if Cmm.equal_memory_chunk t1.memory_chunk t2.memory_chunk
         then
           let width = Cmm.width_in_bytes t1.memory_chunk in
-          let offset_option = offset_of t1 t2 in
+          let offset_option = offset_in_bytes t1 t2 in
           match offset_option with
           | None -> false
           | Some offset -> width = offset
@@ -540,6 +540,14 @@ end = struct
 
   let get_memory_operation_exn t id =
     Instruction.Id.Tbl.find t.memory_operations id
+
+  type alloc_tracker =
+    { loads : Instruction.Id.t list;
+      stores : Instruction.Id.t list;
+      fresh_allocs : Instruction.Id.Set.t;
+      stored_allocs : Instruction.Id.Set.t;
+      unsure_allocs : Instruction.Id.Set.t
+    }
 
   let from_block (block : Cfg.basic_block) : t =
     (* A heuristic to avoid treating the same "fresh" allocation which address
@@ -564,34 +572,37 @@ end = struct
              Instruction.id instruction, instruction)
       |> Instruction.Id.Tbl.of_list
     in
-    let memory_operations = Instruction.Id.Tbl.create 100 in
-    let loads, stores, _, _, _ =
+    let memory_operations = Instruction.Id.Tbl.create (DLL.length block.body) in
+    let ({ loads; stores; _ } : alloc_tracker) =
       DLL.fold_left block.body
         ~f:
-          (fun (loads, stores, fresh_allocs, stored_allocs, unsure_allocs)
+          (fun { loads; stores; fresh_allocs; stored_allocs; unsure_allocs }
                basic_instruction ->
           let instruction = Instruction.Basic basic_instruction in
           let id = Instruction.id instruction in
           if Instruction.is_alloc instruction
           then
-            ( loads,
-              stores,
-              Instruction.Id.Set.add id fresh_allocs,
-              stored_allocs,
-              unsure_allocs )
+            { loads;
+              stores;
+              fresh_allocs = Instruction.Id.Set.add id fresh_allocs;
+              stored_allocs;
+              unsure_allocs
+            }
           else
             let memory_operation = Memory_operation.init instruction in
             match memory_operation with
             | None ->
               if Instruction.may_break_alloc_freshness instruction
               then
-                ( loads,
-                  stores,
-                  Instruction.Id.Set.empty,
-                  Instruction.Id.Set.empty,
-                  Instruction.Id.Set.union fresh_allocs stored_allocs
-                  |> Instruction.Id.Set.union unsure_allocs )
-              else loads, stores, fresh_allocs, stored_allocs, unsure_allocs
+                { loads;
+                  stores;
+                  fresh_allocs = Instruction.Id.Set.empty;
+                  stored_allocs = Instruction.Id.Set.empty;
+                  unsure_allocs =
+                    Instruction.Id.Set.union fresh_allocs stored_allocs
+                    |> Instruction.Id.Set.union unsure_allocs
+                }
+              else { loads; stores; fresh_allocs; stored_allocs; unsure_allocs }
             | Some memory_operation -> (
               let get_dependent_allocs_of_arg arg_i =
                 Dependency_graph.get_all_dependencies_of_arg dependency_graph id
@@ -615,34 +626,38 @@ end = struct
                      (Memory_operation.memory_arguments memory_operation)
                   - 1)
               in
+              Instruction.Id.Tbl.add memory_operations id
+                { memory_operation with dependent_allocs; unsure_allocs };
               match memory_operation.op with
               | Load ->
-                Instruction.Id.Tbl.add memory_operations id
-                  { memory_operation with dependent_allocs; unsure_allocs };
-                ( id :: loads,
-                  stores,
-                  fresh_allocs,
-                  Instruction.Id.Set.empty,
-                  Instruction.Id.Set.union stored_allocs unsure_allocs )
+                { loads = id :: loads;
+                  stores;
+                  fresh_allocs;
+                  stored_allocs = Instruction.Id.Set.empty;
+                  unsure_allocs =
+                    Instruction.Id.Set.union stored_allocs unsure_allocs
+                }
               | Store ->
-                Instruction.Id.Tbl.add memory_operations id
-                  { memory_operation with dependent_allocs; unsure_allocs };
                 let new_stored_allocs =
                   Instruction.Id.Set.diff
                     (get_dependent_allocs_of_arg 0)
                     unsure_allocs
                 in
-                ( loads,
-                  id :: stores,
-                  Instruction.Id.Set.diff fresh_allocs new_stored_allocs,
-                  Instruction.Id.Set.union stored_allocs new_stored_allocs,
-                  unsure_allocs )))
+                { loads;
+                  stores = id :: stores;
+                  fresh_allocs =
+                    Instruction.Id.Set.diff fresh_allocs new_stored_allocs;
+                  stored_allocs =
+                    Instruction.Id.Set.union stored_allocs new_stored_allocs;
+                  unsure_allocs
+                }))
         ~init:
-          ( [],
-            [],
-            Instruction.Id.Set.empty,
-            Instruction.Id.Set.empty,
-            Instruction.Id.Set.empty )
+          { loads = [];
+            stores = [];
+            fresh_allocs = Instruction.Id.Set.empty;
+            stored_allocs = Instruction.Id.Set.empty;
+            unsure_allocs = Instruction.Id.Set.empty
+          }
     in
     { loads = List.rev loads; stores = List.rev stores; memory_operations }
 
@@ -656,6 +671,8 @@ end = struct
       get_memory_operation instruction_1, get_memory_operation instruction_2
     with
     | None, _ | _, None ->
+      (* Make sure that they are not both "dangerous", ie. thinigs like allocs
+         or specific stores *)
       Instruction.can_cross_loads_or_stores instruction_1
       || Instruction.can_cross_loads_or_stores instruction_2
     | Some memory_operation_1, Some memory_operation_2 -> (
@@ -669,7 +686,7 @@ end = struct
           let check_direct_separation left_memory_operation
               right_memory_operation =
             match
-              Memory_operation.offset_of left_memory_operation
+              Memory_operation.offset_in_bytes left_memory_operation
                 right_memory_operation
             with
             | None -> false
@@ -681,6 +698,9 @@ end = struct
           check_direct_separation memory_operation_1 memory_operation_2
           || check_direct_separation memory_operation_2 memory_operation_1
         else
+          (* Assumption: If memory operation 1 definitely depends on an
+             allocation and memory operation 2 definitely does not depend on it,
+             then they are disjoint *)
           Instruction.Id.Set.is_empty
             (Instruction.Id.Set.diff memory_operation_1.dependent_allocs
                (Instruction.Id.Set.union memory_operation_2.dependent_allocs
