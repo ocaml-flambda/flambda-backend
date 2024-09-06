@@ -398,9 +398,13 @@ let column_mapping = [
   `Counters, "counters"
 ]
 
+let sanitise_for_csv =
+  String.map (fun c -> if Char.equal c ',' then '_' else c)
+
 let output_to_csv ppf columns =
-  let sanitise = String.map (fun c -> if c = ',' then '_' else c) in
-  let to_csv cell_strings = cell_strings |> List.map sanitise |> String.concat "," in
+  let to_csv cell_strings =
+    cell_strings |> List.map sanitise_for_csv |> String.concat ","
+  in
   let string_columns = List.map (fun col -> List.assoc col column_mapping) columns in
   Format.fprintf ppf "%s@\n" (to_csv ("pass name" :: string_columns));
   let output_row_f = output_rows

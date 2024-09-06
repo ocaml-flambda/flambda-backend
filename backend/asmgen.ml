@@ -282,7 +282,7 @@ let cfg_profile to_cfg =
       let (_ : Cfg.basic_block) =
         Profile.record_with_counters ~accumulate:true
           ~counter_f:cfg_block_counters
-          (Format.sprintf "block %d" label)
+          (Format.sprintf "block=%d" label)
           Fun.id block
       in
       ()
@@ -573,7 +573,7 @@ let compile_phrases ~ppf_dump ps =
         let profile_wrapper =
           match !profile_granularity with
           | Function_level | Block_level ->
-            Profile.record ~accumulate:true fd.fun_name.sym_name
+            Profile.record ~accumulate:true ("function=" ^ fd.fun_name.sym_name)
           | File_level -> Fun.id
         in
         profile_wrapper (compile_fundecl ~ppf_dump ~funcnames) fd;
