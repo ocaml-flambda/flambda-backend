@@ -68,6 +68,8 @@ module Instruction : sig
 
   val body_of : Cfg.basic_block -> t DLL.t
 
+  val block_size : Cfg.basic_block -> int
+
   val tbl_of : Cfg.basic_block -> t Id.Tbl.t
 
   val find_last_instruction : t DLL.t -> Id.t list -> t
@@ -271,11 +273,13 @@ end = struct
     | Terminator _ -> false
 
   let can_cross_loads_or_stores (instruction : t) =
-    (* CR-someday tip: some instructions may or may not cause issues for going
-       across a load or a store, for simplicity's sake, let's just return false
-       and not let them go across for now, but better handling can be added in
-       the future. Also, loads from an immutable block has no coeffects and may
-       have less restrictions *)
+    (* CR-someday tip: some instructions may or may not commute with load
+       instructions or store instructions, for simplicity's sake, the function
+       returns false for now, but better handling can be added in the future.
+       Also, loads from an immutable block has no coeffects and may have less
+       restrictions *)
+    (* returns true only if this instruction commutes with load instructions and
+       store instructions *)
     match instruction with
     | Basic basic_instruction -> (
       let desc = basic_instruction.desc in
@@ -296,6 +300,8 @@ end = struct
     | Terminator _ -> false
 
   let preserves_alloc_freshness (instruction : t) =
+    (* returns true only if this instruction will not store the address of a
+       previous allocation and will not load a previously stored address *)
     match instruction with
     | Basic basic_instruction -> (
       let desc = basic_instruction.desc in
@@ -318,6 +324,8 @@ end = struct
     DLL.to_list block.body
     |> List.map (fun basic_instruction -> Basic basic_instruction)
     |> DLL.of_list
+
+  let block_size (block : Cfg.basic_block) = DLL.length block.body + 1
 
   let tbl_of block =
     body_of block |> DLL.to_list
@@ -410,8 +418,6 @@ end = struct
 
   let replace = Instruction.Id.Tbl.replace
 
-  let init () : t = Instruction.Id.Tbl.create 100
-
   let get_arg_dependency dependency_graph id ~arg_i =
     let (node : Node.t) = Instruction.Id.Tbl.find dependency_graph id in
     node.reg_nodes.(arg_i).direct_dependency
@@ -460,7 +466,9 @@ end = struct
     find_latest_change starting_cell
 
   let from_block (block : Cfg.basic_block) =
-    let dependency_graph = init () in
+    let (dependency_graph : t) =
+      Instruction.block_size block |> Instruction.Id.Tbl.create
+    in
     let add_arg_dependency instruction arg_i arg =
       let id = Instruction.id instruction in
       let dependency = latest_change ~current:id arg block in
@@ -758,7 +766,9 @@ end = struct
        its dependent allocs and unsure allocs *)
     let body = Instruction.body_of block in
     let id_to_instructions = Instruction.tbl_of block in
-    let memory_operations = Instruction.Id.Tbl.create 100 in
+    let memory_operations =
+      Instruction.block_size block |> Instruction.Id.Tbl.create
+    in
     let loads, stores, _, _, _ =
       DLL.fold_left body
         ~f:
@@ -1114,8 +1124,6 @@ end = struct
   (* The key is the id of the instruction where the node will be inserted, which
      is the last instruction in the node for now, we can change that later *)
 
-  let init () : t = Instruction.Id.Tbl.create 100
-
   let all_instructions t =
     Instruction.Id.Tbl.fold
       (fun _ (node : Node.t) instructions ->
@@ -1135,7 +1143,9 @@ end = struct
         (Instruction.id << Memory_accesses.Memory_operation.instruction)
         seed
     in
-    let computation_tree = init () in
+    let (computation_tree : t) =
+      Instruction.block_size block |> Instruction.Id.Tbl.create
+    in
     let seed_width_in_bits =
       List.hd seed |> Memory_accesses.Memory_operation.width_in_bits
     in
@@ -1427,7 +1437,7 @@ let vectorize (block : Cfg.basic_block) all_trees =
       else good_trees, good_instructions
   in
   let good_trees, good_instructions = find_independent_trees all_trees in
-  let good_nodes = Instruction.Id.Tbl.create (DLL.length block.body) in
+  let good_nodes = Instruction.Id.Tbl.create (Instruction.block_size block) in
   List.iter
     (fun tree ->
       Computation_tree.all_nodes tree
