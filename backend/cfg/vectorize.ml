@@ -1427,7 +1427,7 @@ let vectorize (block : Cfg.basic_block) all_trees =
       else good_trees, good_instructions
   in
   let good_trees, good_instructions = find_independent_trees all_trees in
-  let good_nodes = Instruction.Id.Tbl.create 100 in
+  let good_nodes = Instruction.Id.Tbl.create (DLL.length block.body) in
   List.iter
     (fun tree ->
       Computation_tree.all_nodes tree
