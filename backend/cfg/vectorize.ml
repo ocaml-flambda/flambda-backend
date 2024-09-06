@@ -1541,33 +1541,37 @@ let cfg ppf_dump cl =
   DLL.iter layout ~f:(fun label ->
       let block = Cfg.get_block_exn (Cfg_with_layout.cfg cl) label in
       let instruction_count = DLL.length block.body in
-      Format.fprintf ppf_dump "\nBlock %d (%d basic instructions):\n" label
-        instruction_count;
-      if instruction_count > 1000
+      if !Flambda_backend_flags.dump_vectorize
       then
-        Format.fprintf ppf_dump
-          "more than 1000 instructions in basic block, cannot vectorize\n"
-      else
-        let dependency_graph = Dependency_graph.from_block block in
-        if debug && !Flambda_backend_flags.dump_vectorize
-        then Dependency_graph.dump ppf_dump dependency_graph block;
-        let memory_accesses =
-          Memory_accesses.from_block block dependency_graph
-        in
-        if debug && !Flambda_backend_flags.dump_vectorize
-        then Memory_accesses.dump ppf_dump memory_accesses;
-        let seeds = Seed.from_block block memory_accesses in
-        if debug && !Flambda_backend_flags.dump_vectorize
-        then Seed.dump ppf_dump seeds;
-        let trees =
-          Computation_tree.from_block block dependency_graph memory_accesses
-            seeds cfg_with_infos
-        in
-        if debug && !Flambda_backend_flags.dump_vectorize
-        then Computation_tree.dump ppf_dump trees block;
+        Format.fprintf ppf_dump "\nBlock %d (%d basic instructions):\n" label
+          instruction_count;
+      if instruction_count > 1000
+      then (
         if !Flambda_backend_flags.dump_vectorize
-        then dump ppf_dump ~msg:"before vectorize" block;
-        vectorize block trees;
-        if !Flambda_backend_flags.dump_vectorize
-        then dump ppf_dump ~msg:"after vectorize" block);
+        then
+          Format.fprintf ppf_dump
+            "more than 1000 instructions in basic block, cannot vectorize\n"
+        else
+          let dependency_graph = Dependency_graph.from_block block in
+          if debug && !Flambda_backend_flags.dump_vectorize
+          then Dependency_graph.dump ppf_dump dependency_graph block;
+          let memory_accesses =
+            Memory_accesses.from_block block dependency_graph
+          in
+          if debug && !Flambda_backend_flags.dump_vectorize
+          then Memory_accesses.dump ppf_dump memory_accesses;
+          let seeds = Seed.from_block block memory_accesses in
+          if debug && !Flambda_backend_flags.dump_vectorize
+          then Seed.dump ppf_dump seeds;
+          let trees =
+            Computation_tree.from_block block dependency_graph memory_accesses
+              seeds cfg_with_infos
+          in
+          if debug && !Flambda_backend_flags.dump_vectorize
+          then Computation_tree.dump ppf_dump trees block;
+          if !Flambda_backend_flags.dump_vectorize
+          then dump ppf_dump ~msg:"before vectorize" block;
+          vectorize block trees;
+          if !Flambda_backend_flags.dump_vectorize
+          then dump ppf_dump ~msg:"after vectorize" block));
   cl
