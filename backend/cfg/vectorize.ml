@@ -1271,6 +1271,8 @@ end = struct
                 |> Instruction.Id.Set.union is_dependency_of)
               computation_tree Instruction.Id.Set.empty
           in
+          (* CR-someday tip: consider changing this implementation so that it
+             doesn't have to explicitly construct the set *)
           DLL.to_list body |> List.map Instruction.id
           |> Instruction.Id.Set.of_list
           |> Instruction.Id.Set.inter tree_is_dependency_of
@@ -1543,6 +1545,8 @@ let cfg ppf_dump cl =
       |> Instruction.Id.update_max_id);
   Numbers.Int.Tbl.clear reg_map;
   let layout = Cfg_with_layout.layout cl in
+  (* CR-someday tip: the function may someday take a cfg_with_infos instead of
+     creating a new one *)
   let cfg_with_infos = Cfg_with_infos.make cl in
   DLL.iter layout ~f:(fun label ->
       let block = Cfg.get_block_exn (Cfg_with_layout.cfg cl) label in
