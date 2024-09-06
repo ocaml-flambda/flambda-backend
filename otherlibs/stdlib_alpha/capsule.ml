@@ -27,7 +27,7 @@ end
 
 (* Like [Stdlib.Mutex], but [portable]. *)
 module M = struct
-  type t
+  type t : value mod portable uncontended
   external create: unit -> t @@ portable = "caml_ml_mutex_new"
   external lock: t -> unit @@ portable = "caml_ml_mutex_lock"
   external unlock: t -> unit @@ portable = "caml_ml_mutex_unlock"
@@ -39,7 +39,10 @@ external reraise : exn -> 'a @ portable @@ portable = "%reraise"
 
 module Mutex = struct
 
-  type 'k t = { mutex : M.t; mutable poisoned : bool }
+  (* Illegal mode crossing: ['k t] has a mutable field [poisoned]. It's safe,
+     since [poisoned] protected by [mutex] and not exposed in the API, but
+     is not allowed by the type system. *)
+  type 'k t : value mod portable uncontended = { mutex : M.t; mutable poisoned : bool }
 
   type packed = P : 'k t -> packed
 
