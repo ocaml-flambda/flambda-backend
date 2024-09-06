@@ -138,3 +138,19 @@ val operation_allocates : specific_operation -> bool
 
 val float_cond_and_need_swap
   :  Lambda.float_comparison -> X86_ast.float_condition * bool
+
+(* addressing mode functions *)
+
+val compare_addressing_mode_without_displ : addressing_mode -> addressing_mode -> int
+
+val compare_addressing_mode_displ : addressing_mode -> addressing_mode -> int option
+
+val addressing_offset : addressing_mode -> addressing_mode -> int option
+
+(** returns true only if this specific operation commutes with load instructions and
+    store instructions *)
+val can_cross_loads_or_stores : specific_operation -> bool
+
+(** returns true only if this specific operation will not store the address of a previous
+    allocation and will not load a previously stored address *)
+val preserves_alloc_freshness : specific_operation -> bool
