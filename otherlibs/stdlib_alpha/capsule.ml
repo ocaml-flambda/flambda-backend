@@ -44,7 +44,9 @@ module Mutex = struct
      is not allowed by the type system. *)
   type 'k t : value mod portable uncontended = { mutex : M.t; mutable poisoned : bool }
 
-  type packed = P : 'k t -> packed
+  (* CR: illegal mode crossing on the current version of the compiler,
+     but should be legal. *)
+  type packed : value mod portable uncontended = P : 'k t -> packed
 
   exception Poisoned
 
