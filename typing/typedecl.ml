@@ -2682,7 +2682,7 @@ let is_upstream_compatible_non_value_unbox env ty =
   | _ ->
     false
 
-type sort_or_poly = Sort of Jkind.Sort.const | Poly
+type sort_or_poly = Sort of Jkind.Sort.Const.t | Poly
 
 let native_repr_of_type env kind ty sort_or_poly =
   match kind, get_desc (Ctype.expand_head_opt env ty) with
@@ -2694,8 +2694,8 @@ let native_repr_of_type env kind ty sort_or_poly =
       *)
       && match sort_or_poly with
          | Poly -> false
-         | Sort Value -> true
-         | Sort _ -> false
+         | Sort (Base Value) -> true
+         | Sort (Base _ | Product _) -> false
     ->
     Some Untagged_immediate
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float ->
@@ -2756,8 +2756,6 @@ let type_sort_external ~is_layout_poly ~why env loc typ =
       if is_layout_poly then External_with_layout_poly else External
     in
     raise(Error (loc, Jkind_sort {kloc; typ; err}))
-
-type sort_or_poly = Sort of Jkind.Sort.Const.t | Poly
 
 let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   error_if_has_deep_native_repr_attributes core_type;

@@ -506,15 +506,6 @@ module E = struct
       iter_loc_txt sub sub.jkind_annotation jkind;
       sub.expr sub inner_expr
 
-  let iter_labeled_tuple sub : LT.expression -> _ = function
-    | el -> List.iter (iter_snd (sub.expr sub)) el
-
-  let iter_jst sub : Jane_syntax.Expression.t -> _ = function
-    | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
-    | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
-    | Jexp_layout layout_exp -> iter_layout_exp sub layout_exp
-    | Jexp_tuple lt_exp -> iter_labeled_tuple sub lt_exp
-
   let iter_function_param sub : function_param -> _ =
     fun { pparam_loc = loc; pparam_desc = desc } ->
       sub.location sub loc;

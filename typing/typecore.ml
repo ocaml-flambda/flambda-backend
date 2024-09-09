@@ -1487,7 +1487,7 @@ let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
 
 (* This assumes the [args] have already been reordered according to the
    [expected_ty], if needed.  *)
-let solve_Ppat_unboxed_tuple ~refine ~alloc_mode loc env args expected_ty =
+let solve_Ppat_unboxed_tuple ~alloc_mode loc env args expected_ty =
   let arity = List.length args in
   let arg_modes =
     match alloc_mode.tuple_modes with
@@ -1513,7 +1513,7 @@ let solve_Ppat_unboxed_tuple ~refine ~alloc_mode loc env args expected_ty =
     newgenty (Tunboxed_tuple (List.map (fun (lbl, _, t, _, _) -> lbl, t) ann))
   in
   let expected_ty = generic_instance expected_ty in
-  unify_pat_types ~refine loc env ty expected_ty;
+  unify_pat_types loc env ty expected_ty;
   ann
 
 let solve_constructor_annotation
@@ -2523,18 +2523,18 @@ and type_pat_aux
     Jane_syntax_parsing.assert_extension_enabled ~loc Layouts
       Language_extension.Beta;
     let args =
-      match get_desc (expand_head !env expected_ty) with
+      match get_desc (expand_head !!penv expected_ty) with
       (* If it's a principally-known tuple pattern, try to reorder *)
       | Tunboxed_tuple labeled_tl when is_principal expected_ty ->
-        reorder_pat loc env spl closed labeled_tl expected_ty
+        reorder_pat loc penv spl closed labeled_tl expected_ty
       (* If not, it's not allowed to be open (partial) *)
       | _ ->
         match closed with
-        | Open -> raise (Error (loc, !env, Partial_tuple_pattern_bad_type))
+        | Open -> raise (Error (loc, !!penv, Partial_tuple_pattern_bad_type))
         | Closed -> spl
     in
     let spl_ann =
-      solve_Ppat_unboxed_tuple ~refine ~alloc_mode loc env args expected_ty
+      solve_Ppat_unboxed_tuple ~alloc_mode loc !!penv args expected_ty
     in
     let pl =
       List.map (fun (lbl, p, t, alloc_mode, sort) ->
@@ -2550,38 +2550,6 @@ and type_pat_aux
       pat_type = ty;
       pat_attributes = sp.ppat_attributes;
       pat_env = !!penv }
-  in
-  let type_unboxed_tuple_pat spl closed =
-    Jane_syntax_parsing.assert_extension_enabled ~loc Layouts
-      Language_extension.Beta;
-    let args =
-      match get_desc (expand_head !env expected_ty) with
-      (* If it's a principally-known tuple pattern, try to reorder *)
-      | Tunboxed_tuple labeled_tl when is_principal expected_ty ->
-        reorder_pat loc env spl closed labeled_tl expected_ty
-      (* If not, it's not allowed to be open (partial) *)
-      | _ ->
-        match closed with
-        | Open -> raise (Error (loc, !env, Partial_tuple_pattern_bad_type))
-        | Closed -> spl
-    in
-    let spl_ann =
-      solve_Ppat_unboxed_tuple ~refine ~alloc_mode loc env args expected_ty
-    in
-    let pl =
-      List.map (fun (lbl, p, t, alloc_mode, sort) ->
-        lbl, type_pat tps Value ~alloc_mode p t, sort)
-        spl_ann
-    in
-    let ty =
-      newty (Tunboxed_tuple (List.map (fun (lbl, p, _) -> lbl, p.pat_type) pl))
-    in
-    rvp {
-      pat_desc = Tpat_unboxed_tuple pl;
-      pat_loc = loc; pat_extra=[];
-      pat_type = ty;
-      pat_attributes = sp.ppat_attributes;
-      pat_env = !env }
   in
   match Jane_syntax.Pattern.of_ast sp with
   | Some (jpat, attrs) -> begin
@@ -3343,7 +3311,7 @@ let rec check_counter_example_pat
                                          pl))))
   | Tpat_unboxed_tuple tpl ->
       let tpl_ann =
-        solve_Ppat_unboxed_tuple ~refine ~alloc_mode loc env
+        solve_Ppat_unboxed_tuple ~alloc_mode loc !!penv
           (List.map (fun (l,t,_) -> l, t) tpl)
           expected_ty
       in
