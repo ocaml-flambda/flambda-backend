@@ -1100,6 +1100,16 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
       |> conjuncts_pattern_match
     in
     ext, UF.par uf_read uf_args
+  | Tpat_unboxed_tuple args ->
+    let ext, uf_args =
+      List.mapi
+        (fun i (_, arg, _) ->
+          let paths = Paths.tuple_field i paths in
+          pattern_match_single arg paths)
+        args
+      |> conjuncts_pattern_match
+    in
+    ext, uf_args
 
 let pattern_match pat = function
   | Match_tuple values -> pattern_match_tuple pat values
@@ -1262,6 +1272,8 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     UF.seq uf_body uf_cases
   | Texp_tuple (es, _) ->
     UF.pars (List.map (fun (_, e) -> check_uniqueness_exp ienv e) es)
+  | Texp_unboxed_tuple es ->
+    UF.pars (List.map (fun (_, e, _) -> check_uniqueness_exp ienv e) es)
   | Texp_construct (_, _, es, _) ->
     UF.pars (List.map (fun e -> check_uniqueness_exp ienv e) es)
   | Texp_variant (_, None) -> UF.unused

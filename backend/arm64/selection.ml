@@ -19,7 +19,6 @@
 
 open Arch
 open Cmm
-open Mach
 
 let is_offset chunk n =
   (n >= -256 && n <= 255) (* 9 bits signed unscaled *)
@@ -89,7 +88,7 @@ class selector =
     method! effects_of e =
       match e with
       | Cop (Cextcall { func }, args, _) when List.mem func inline_ops ->
-        Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
+        Select_utils.Effect_and_coeffect.join_list_map args self#effects_of
       | e -> super#effects_of e
 
     method select_addressing chunk =

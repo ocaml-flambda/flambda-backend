@@ -1,0 +1,4 @@
+File "parsing_nullary_term.ml", line 11, characters 10-11:
+11 | let x = #()
+               ^
+Error: Syntax error

@@ -92,6 +92,7 @@ COMPILERLIBS_SOURCES=\
   utils/language_extension_kernel.ml \
   utils/language_extension.ml \
   utils/profile.ml \
+  utils/profile_counters_functions.ml \
   utils/consistbl.ml \
   utils/terminfo.ml \
   utils/warnings.ml \

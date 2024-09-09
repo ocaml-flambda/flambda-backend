@@ -1,9 +1,11 @@
-  (* TEST
- flags += "-extension unique";
+(* TEST
+ flags += "-extension unique -extension layouts_beta";
  expect;
 *)
 
 (* This file is to test uniqueness_analysis.ml *)
+(* CR layouts v7.1: When tuples are out of beta, this test no longer needs
+   -extension layouts_beta *)
 
 (* First some helper functions *)
 let unique_id : 'a. unique_ 'a -> unique_ 'a = fun x -> x
@@ -779,6 +781,32 @@ Line 5, characters 10-11:
 Error: This value is read from here, but it has already been used as unique:
 Line 3, characters 20-21:
 3 |   ignore (unique_id r);
+                        ^
+
+|}]
+
+let foo () =
+  let t = #("hello", "world") in
+  let unique_use_tuple : ('a : value & value). unique_ 'a -> unit = fun _ -> () in
+  unique_use_tuple t;
+  let #(_, _) = t in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]
+
+let foo () =
+  let t = ("hello", "world") in
+  ignore (unique_id t);
+  let (_, _) = t in
+  ()
+[%%expect{|
+Line 4, characters 6-12:
+4 |   let (_, _) = t in
+          ^^^^^^
+Error: This value is read from here, but it has already been used as unique:
+Line 3, characters 20-21:
+3 |   ignore (unique_id t);
                         ^
 
 |}]

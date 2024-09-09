@@ -16,59 +16,29 @@
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 
-type environment
+[@@@ocaml.warning "+a-4-9-40-41-42"]
 
-val env_add :
-  ?mut:Asttypes.mutable_flag ->
-  Backend_var.With_provenance.t ->
-  Reg.t array ->
-  environment ->
-  environment
-
-val env_find : Backend_var.t -> environment -> Reg.t array
-
-val size_expr : environment -> Cmm.expression -> int
-
-val select_mutable_flag : Asttypes.mutable_flag -> Mach.mutable_flag
-
-module Effect : sig
-  type t =
-    | None
-    | Raise
-    | Arbitrary
-end
-
-module Coeffect : sig
-  type t =
-    | None
-    | Read_mutable
-    | Arbitrary
-end
-
-module Effect_and_coeffect : sig
-  type t
-
-  val none : t
-
-  val arbitrary : t
-
-  val effect : t -> Effect.t
-
-  val coeffect : t -> Coeffect.t
-
-  val effect_only : Effect.t -> t
-
-  val coeffect_only : Coeffect.t -> t
-
-  val create : Effect.t -> Coeffect.t -> t
-
-  val join : t -> t -> t
-
-  val join_list_map : 'a list -> ('a -> t) -> t
-end
+type environment = unit Select_utils.environment
 
 class virtual selector_generic :
   object
+    method is_store : Mach.operation -> bool
+
+    method lift_op : Mach.operation -> Mach.instruction_desc
+
+    method make_store :
+      Cmm.memory_chunk -> Arch.addressing_mode -> bool -> Mach.instruction_desc
+
+    method make_stack_offset : int -> Mach.instruction_desc
+
+    method make_name_for_debugger :
+      ident:Backend_var.t ->
+      which_parameter:int option ->
+      provenance:Backend_var.Provenance.t option ->
+      is_assignment:bool ->
+      regs:Reg.t array ->
+      Mach.instruction_desc
+
     (* The following methods must or can be overridden by the processor
        description *)
     method is_immediate : Mach.integer_operation -> int -> bool
@@ -89,7 +59,7 @@ class virtual selector_generic :
 
     method is_simple_expr : Cmm.expression -> bool
 
-    method effects_of : Cmm.expression -> Effect_and_coeffect.t
+    method effects_of : Cmm.expression -> Select_utils.Effect_and_coeffect.t
     (* Can be overridden to reflect special extcalls known to be pure *)
 
     method select_operation :

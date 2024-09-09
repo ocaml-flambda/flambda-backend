@@ -55,7 +55,13 @@ let parse_intf i =
   |> print_if i.ppf_dump Clflags.dump_source Pprintast.signature
 
 let typecheck_intf info ast =
-  Profile.(record_call typing) @@ fun () ->
+  Profile.(
+    record_call_with_counters
+      ~counter_f:(fun signature ->
+        Profile_counters_functions.(
+          count_language_extensions (Typedtree_signature_output signature)))
+      typing)
+  @@ fun () ->
   let tsg =
     ast
     |> Typemod.type_interface
@@ -119,7 +125,13 @@ let parse_impl i =
 
 let typecheck_impl i parsetree =
   parsetree
-  |> Profile.(record typing)
+  |> Profile.(
+    record_with_counters
+      ~counter_f:(fun (typed_tree : Typedtree.implementation) ->
+        Profile_counters_functions.(
+          count_language_extensions
+            (Typedtree_implementation_output typed_tree)))
+      typing)
     (Typemod.type_implementation i.target i.module_name i.env)
   |> print_if i.ppf_dump Clflags.dump_typedtree
     Printtyped.implementation_with_coercion

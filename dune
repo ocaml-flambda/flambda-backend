@@ -133,6 +133,7 @@
   relocation_entry
   relocation_table
   section_table
+  select_utils
   selectgen
   selection
   spill

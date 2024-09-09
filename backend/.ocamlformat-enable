@@ -1,4 +1,3 @@
-
 amd64/selection.ml
 amd64/simd*.ml
 amd64/stack_check.ml
@@ -25,6 +24,8 @@ peephole/**/*.ml
 peephole/**/*.mli
 regalloc/**/*.ml
 regalloc/**/*.mli
+select_utils.ml
+select_utils.mli
 selectgen.ml
 selectgen.mli
 selection.mli

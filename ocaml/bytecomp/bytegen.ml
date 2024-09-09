@@ -411,6 +411,7 @@ let comp_primitive stack_info p sz args =
   | Pcompare_floats Pfloat32 -> Kccall("caml_float32_compare", 2)
   | Pcompare_bints bi -> comp_bint_primitive bi "compare" args
   | Pfield (n, _ptr, _sem) -> Kgetfield n
+  | Punboxed_product_field (n, _layouts) -> Kgetfield n
   | Pfield_computed _sem -> Kgetvectitem
   | Psetfield(n, _ptr, _init) -> Ksetfield n
   | Psetfield_computed(_ptr, _init) -> Ksetvectitem
@@ -659,12 +660,12 @@ let comp_primitive stack_info p sz args =
   | Pmakearray _ | Pduparray _
   | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
   | Pmakeblock _
+  | Pmake_unboxed_product _
   | Pmakefloatblock _
   | Pmakeufloatblock _
   | Pmakemixedblock _
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _
-  | Pmake_unboxed_product _ | Punboxed_product_field _
     ->
       fatal_error "Bytegen.comp_primitive"
 
@@ -975,6 +976,10 @@ let rec comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakeblock(List.length args, tag) :: cont)
+  | Lprim(Pmake_unboxed_product _, args, loc) ->
+      let cont = add_pseudo_event loc !compunit_name cont in
+      comp_args stack_info env args sz
+        (Kmakeblock(List.length args, 0) :: cont)
   | Lprim(Pfloatfield (n, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz (Kgetfloatfield n :: cont)
