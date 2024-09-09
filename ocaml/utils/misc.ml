@@ -1292,8 +1292,8 @@ module Magic_number = struct
     | "Caml1999I" -> Some Cmi
     | "Caml1999O" -> Some Cmo
     | "Caml1999A" -> Some Cma
-    | "Caml2021Y" -> Some Cmx
-    | "Caml2021Z" -> Some Cmxa
+    | "Caml1999Y" -> Some Cmx
+    | "Caml1999Z" -> Some Cmxa
 
     (* Caml2007D and Caml2012T were used instead of the common Caml1999 prefix
        between the introduction of those magic numbers and October 2017
@@ -1317,8 +1317,8 @@ module Magic_number = struct
     | Cmi -> "Caml1999I"
     | Cmo -> "Caml1999O"
     | Cma -> "Caml1999A"
-    | Cmx -> "Caml2021Y"
-    | Cmxa -> "Caml2021Z"
+    | Cmx -> "Caml1999Y"
+    | Cmxa -> "Caml1999Z"
     | Cmxs -> "Caml1999D"
     | Cmt -> "Caml1999T"
     | Cms -> "Caml1999S"

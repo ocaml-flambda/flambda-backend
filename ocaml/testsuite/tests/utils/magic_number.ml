@@ -10,9 +10,18 @@ open Magic_number
 (* sanity checking: the magic number at a given kind can be parsed back *)
 let error kind test =
   fatal_errorf
-    "Internal compiler error (%s): there is a magic number mismatch on kind %s"
+    "Internal compiler error (%s): there is a magic number mismatch on kind %s, raw_kind %s ==> %s"
     test
     (string_of_kind kind)
+    (raw_kind kind)
+    (match parse (current_raw kind) with
+     | Error (Truncated s) -> "A: " ^ s
+     | Error (Not_a_magic_number s) -> "AM: " ^ s
+      | Ok magic ->
+        if not (  magic.kind = kind) then "B"
+        else if not (raw magic = current_raw kind) then "C"
+        else "D")
+
 
 let check_raw_kind kind =
   let valid =
