@@ -163,3 +163,38 @@ Error: Function return types must have a representable layout.
        But the kind of 'm must overlap with any
          because argument or result of a function type.
 |}]
+
+
+(* The following two tests check there is no order dependence: 
+   the inferred types should be equal up to order of arguments,
+   and the type variables should have the same inferred jkinds *)
+
+type ('f : any => value) any_to_value
+module type S = sig 
+  val foo1 : 'f any_to_value -> 'a 'f -> unit 
+  val foo2 : 'a 'f -> 'f any_to_value -> unit
+end
+[%%expect{|
+type ('f : any => value) any_to_value
+module type S =
+  sig
+    val foo1 : ('f : any => value) 'a. 'f any_to_value -> 'a 'f -> unit
+    val foo2 : ('f : any => value) 'a. 'a 'f -> 'f any_to_value -> unit
+  end
+|}]
+
+type ('f : (value => value) => value) third_order
+module type S = sig 
+  val foo1 : 'f third_order -> 'a 'f -> int
+  val foo2 : 'a 'f -> 'f third_order -> int 
+end
+[%%expect{|
+type ('f : (value => value) => value) third_order
+module type S =
+  sig
+    val foo1 :
+      ('f : (value => value) => value) ('a : value => value).
+        'f third_order -> 'a 'f -> int
+    val foo2 : ('f : top => value) 'a. 'a 'f -> 'f third_order -> int
+  end
+|}]
