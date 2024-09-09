@@ -17,4 +17,5 @@
         "[ocaml.interface]": {
                 "editor.defaultFormatter": "ocamllabs.ocaml-platform",
         },
+        "makefile.configureOnOpen": false,
 }
