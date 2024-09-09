@@ -2530,6 +2530,10 @@ let intersection_with_new_sort ~reason jkind : t =
 
 let rec lower_to_representable ~reason (jkind : t) =
   match get jkind with
+  (* We lower all covariant (result) positions to representable
+     in the expected jkind. The resulting jkind is upper bounded
+     by some jkind in the representables sub-lattice.
+     CR lwhite by jbachurski: Are we sure this is right? *)
   | Arrow { args; result } ->
     of_arrow ~history:jkind.history
       ~args:(List.map (co_lower_to_representable ~reason) args)

@@ -457,10 +457,7 @@ end = struct
         ~args:(List.init n (fun _ -> new_jkind_sort ~is_named))
         ~result:(new_jkind ~is_named policy result_jkind_check)
     | Exact jkind, Any -> jkind
-    (* If the initialization policy expects representable layouts,
-       we lower all covariant (result) positions to representable
-       in the expected jkind. The resulting jkind is upper bounded
-       by some jkind in the representables sub-lattice. *)
+    (* If the initialization policy expects representable layouts, we lower below it *)
     | Exact jkind, Sort -> 
       Jkind.lower_to_representable ~reason:Tyvar_refinement_intersection jkind
 
