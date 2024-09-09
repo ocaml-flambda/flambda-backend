@@ -26,19 +26,6 @@ type sort = Sort.t
 
 type type_expr = Types.type_expr
 
-(* Copied from [btype.ml] *)
-let wrap_repr f ty = f (Types.Transient_expr.repr ty)
-
-module TransientTypeSet = Set.Make (Types.TransientTypeOps)
-
-module TypeSet = struct
-  include TransientTypeSet
-
-  let add = wrap_repr add
-
-  let mem = wrap_repr mem
-end
-
 (* A *layout* of a type describes the way values of that type are stored at
    runtime, including details like width, register convention, calling
    convention, etc. A layout may be *representable* or *unrepresentable*.  The
@@ -1173,7 +1160,7 @@ module Reduced_bounds = Axis_collection (Reduced_bound)
 
 let reduce_bound (type a) ~axis ~jkind_of_type bound =
   (* use mutable state for a simpler signature of [jkind_of_type]. *)
-  let visited = ref TypeSet.empty in
+  let visited = ref false in
   let (module A : Axis_s with type t = a) = Axis.get axis in
   let rec loop : _ Bound.t -> _ = function
     | { modifier; baggage = [] } -> modifier
@@ -1181,10 +1168,9 @@ let reduce_bound (type a) ~axis ~jkind_of_type bound =
       (* modifier is top so there's no sense in chasing down remaining baggage *)
       modifier
     | { modifier; baggage = hd :: tl } ->
-      if TypeSet.mem hd !visited
-      then loop { modifier; baggage = tl }
+      if !visited then A.max
       else (
-        visited := TypeSet.add hd !visited;
+        visited := true;
         match jkind_of_type hd with
         | Some hd_jkind ->
           let hd_bound = Bounds.get ~axis hd_jkind.jkind.upper_bounds in
