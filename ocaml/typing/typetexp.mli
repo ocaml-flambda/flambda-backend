@@ -168,6 +168,7 @@ type error =
   | Non_sort of
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
+  | Bad_jkind_inference of type_expr * Jkind.Violation.t
   | Jkind_mismatch_in_application of (type_expr * Jkind.t) * (type_expr * Jkind.t) list * Jkind.Violation.t option
   | Bad_jkind_for_application of type_expr * Jkind.t
   | Did_you_mean_unboxed of Longident.t

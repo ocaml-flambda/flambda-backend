@@ -91,12 +91,13 @@ end
 Line 3, characters 61-63:
 3 |   val f : (('a : value)[@error_message "Custom message"]) -> 'a t
                                                                  ^^
-Error: This type ('a : value) should be an instance of type ('b : float64)
-       The layout of 'a is value
-         because of the annotation on the type variable 'a.
-         Custom message
-       But the layout of 'a must overlap with float64
-         because of the definition of t at line 2, characters 2-28.
+Error: No consistent jkind could be inferred for 'a.
+         Hint: try annotating the type variable at its binding site.
+         The layout of 'a is value
+           because of the annotation on the type variable 'a.
+           Custom message
+         But the layout of 'a must overlap with float64
+           because of the definition of t at line 2, characters 2-28.
 |}]
 
 

@@ -59,11 +59,16 @@ module type M = sig
   val f : 'a 'b -> int 'a -> list 'b
 end
 [%%expect {|
-Line 2, characters 19-25:
+Line 2, characters 23-25:
 2 |   val f : 'a 'b -> int 'a -> list 'b
-                       ^^^^^^
-Error: The type expression ('a : '_representable_layout_3)
-         is applied as a type constructor, but it is not of a higher jkind.
+                           ^^
+Error: No consistent jkind could be inferred for 'a.
+         Hint: try annotating the type variable at its binding site.
+         The kind of 'a is '_representable_layout_3
+           because its jkind was inferred in a type application.
+         But the kind of 'a must overlap with
+           (('_representable_layout_4) => '_representable_layout_5)
+           because its jkind was inferred in a type application.
 |}]
 
 module type M = sig
@@ -73,7 +78,7 @@ end
 Line 2, characters 20-27:
 2 |   val f : int 'a -> list 'b -> 'a 'b
                         ^^^^^^^
-Error: The type expression ('b : (('_representable_layout_4) => '_representable_layout_5))
+Error: The type expression ('b : (('_representable_layout_6) => '_representable_layout_7))
          cannot be applied to the arguments (list : ((value) => value)).
 |}]
 
@@ -148,25 +153,17 @@ module type M =
 |}]
 
 module type M = sig
-  type t : immediate => value
-  val f : 'a 'm -> 'b 'm -> 'c 'm -> 'd 'm -> 'e 'm -> 'm
+  val f : 'a 'm -> 'b 'm -> 'c 'm
 end
 
 [%%expect{|
-Line 3, characters 55-57:
-3 |   val f : 'a 'm -> 'b 'm -> 'c 'm -> 'd 'm -> 'e 'm -> 'm
-                                                           ^^
-Error: Function return types must have a representable layout.
-       The kind of 'm is
-         (('_representable_layout_6) => '_representable_layout_7)
-         because it was defaulted in inference.
-       But the kind of 'm must overlap with any
-         because argument or result of a function type.
+module type M =
+  sig val f : ('m : value => value) 'a 'b 'c. 'a 'm -> 'b 'm -> 'c 'm end
 |}]
 
 
-(* The following two tests check there is no order dependence: 
-   the inferred types should be equal up to order of arguments,
+(* Order-dependence tests:
+   The inferred types should be equal up to order of arguments,
    and the type variables should have the same inferred jkinds *)
 
 type ('f : any => value) any_to_value
@@ -185,16 +182,14 @@ module type S =
 
 type ('f : (value => value) => value) third_order
 module type S = sig 
-  val foo1 : 'f third_order -> 'a 'f -> int
-  val foo2 : 'a 'f -> 'f third_order -> int 
+  val foo1 : 'f third_order -> 'a 'f -> unit
+  val foo2 : 'a 'f -> 'f third_order -> unit
 end
 [%%expect{|
 type ('f : (value => value) => value) third_order
 module type S =
   sig
-    val foo1 :
-      ('f : (value => value) => value) ('a : value => value).
-        'f third_order -> 'a 'f -> int
-    val foo2 : ('f : top => value) 'a. 'a 'f -> 'f third_order -> int
+    val foo1 : ('f : top => value) 'a. 'f third_order -> 'a 'f -> unit
+    val foo2 : ('f : top => value) 'a. 'a 'f -> 'f third_order -> unit
   end
 |}]

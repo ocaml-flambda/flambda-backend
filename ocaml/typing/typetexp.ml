@@ -92,6 +92,7 @@ type error =
   | Non_sort of
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
+  | Bad_jkind_inference of type_expr * Jkind.Violation.t
   | Jkind_mismatch_in_application of (type_expr * Jkind.t) * (type_expr * Jkind.t) list * Jkind.Violation.t option
   | Bad_jkind_for_application of type_expr * Jkind.t
   | Did_you_mean_unboxed of Longident.t
@@ -164,14 +165,15 @@ module TyVarEnv : sig
        are in scope. *)
 
   val lookup_local :
-    row_context:type_expr option ref list -> string -> type_expr
-    (* look up a local type variable; throws Not_found if it isn't in scope *)
+    row_context:type_expr option ref list -> string -> type_expr * bool
+    (* look up a local type variable and whether it was bound with a jkind annotation; 
+       throws Not_found if it isn't in scope *)
 
   val lookup_global :
     string -> type_expr
     (* look up a global type variable; throws Not_found if it isn't in scope *)
 
-  val remember_used : string -> type_expr -> Location.t -> unit
+  val remember_used : string -> type_expr -> Location.t -> bool -> unit
     (* remember that a given name is bound to a given type *)
 
   val globalize_used_variables : policy -> Env.t -> unit -> unit
@@ -199,8 +201,9 @@ end = struct
   (* These are variables that have been used in the currently-being-checked
      type, possibly including the variables in [type_variables].
   *)
+  type used_var = { ty: type_expr; loc: Location.t; bound_with_annotation: bool }
   let used_variables =
-    ref (TyVarMap.empty : (type_expr * Location.t) TyVarMap.t)
+    ref (TyVarMap.empty : used_var TyVarMap.t)
 
   (* These are variables that will become univars when we're done with the
      current type. Used to force free variables in method types to become
@@ -381,16 +384,20 @@ end = struct
     try
       let p = find_poly_univars name !univars in
       associate row_context p;
-      p.univar
+      p.univar, Option.is_some p.jkind_info.jkind_annot
     with Not_found ->
-      instance (fst (TyVarMap.find name !used_variables))
+      let { ty; loc = _; bound_with_annotation } = 
+        TyVarMap.find name !used_variables 
+      in
+      instance ty, bound_with_annotation
       (* This call to instance might be redundant; all variables
          inserted into [used_variables] are non-generic, but some
          might get generalized. *)
 
-  let remember_used name v loc =
+  let remember_used name v loc bound_with_annotation =
     assert (not_generic v);
-    used_variables := TyVarMap.add name (v, loc) !used_variables
+    used_variables := 
+      TyVarMap.add name { ty = v; loc; bound_with_annotation } !used_variables
 
 
   type flavor = Unification | Universal
@@ -453,7 +460,7 @@ end = struct
       (* Note that the defaulting on the result remains in covariant position.
          We'd need to switch variances in the arguments if we recursed there. *)
       Jkind.of_arrow
-        ~history:(Creation Defaulted)
+        ~history:(Creation Inferred_in_application)
         ~args:(List.init n (fun _ -> new_jkind_sort ~is_named))
         ~result:(new_jkind ~is_named policy result_jkind_check)
     | Exact jkind, Any -> jkind
@@ -468,7 +475,7 @@ end = struct
   let globalize_used_variables { flavor; extensibility } env =
     let r = ref [] in
     TyVarMap.iter
-      (fun name (ty, loc) ->
+      (fun name { ty; loc; bound_with_annotation = _ } ->
         if flavor = Unification || is_in_scope name then
           let v = new_global_var (Jkind.Primitive.top ~why:Dummy_jkind) in
           let snap = Btype.snapshot () in
@@ -1119,15 +1126,24 @@ and transl_type_var env ~policy ~jkind_check ~row_context attrs loc name jkind_a
   if not (valid_tyvar_name name) then
     raise (Error (loc, env, Invalid_variable_name print_name));
   let of_annot = jkind_of_annotation (Type_variable print_name) attrs in
-  let ty = try
-      TyVarEnv.lookup_local ~row_context name
-    with Not_found ->
-      let jkind =
-        try TyVarEnv.lookup_global name |> estimate_type_jkind env
-        with Not_found -> TyVarEnv.new_jkind ~is_named:true policy jkind_check
+  let jkind_from_check = TyVarEnv.new_jkind ~is_named:true policy jkind_check in
+  let ty = 
+    match TyVarEnv.lookup_local ~row_context name with
+    | ty, bound_with_annotation -> 
+      if not bound_with_annotation then begin
+        match constrain_type_jkind env ty jkind_from_check with
+        | Ok () -> ()
+        | Error err ->
+            raise (Error(loc, env, Bad_jkind_inference (ty, err)))
+      end;
+      ty
+    | exception Not_found ->
+      let jkind, bound_with_annotation =
+        try TyVarEnv.lookup_global name |> estimate_type_jkind env, true
+        with Not_found -> jkind_from_check, false
       in
       let ty = TyVarEnv.new_var ~name jkind policy in
-      TyVarEnv.remember_used name ty loc;
+      TyVarEnv.remember_used name ty loc bound_with_annotation;
       ty
   in
   let jkind_annot =
@@ -1167,7 +1183,7 @@ and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_op
   let cty, jkind_annot = match name_opt with
     | Some alias ->
       begin try
-        let t = TyVarEnv.lookup_local ~row_context alias in
+        let t, _ = TyVarEnv.lookup_local ~row_context alias in
         let cty =
           transl_type env ~policy ~aliased:true ~row_context mode styp
         in
@@ -1202,7 +1218,8 @@ and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_op
                 jkind, Some annot
             in
             let t = newvar jkind in
-            TyVarEnv.remember_used alias t alias_loc;
+            (* CR jbachurski: Should aliases ever be marked as annotated? *)
+            TyVarEnv.remember_used alias t alias_loc (Option.is_some jkind_annot_opt);
             let ty = transl_type env ~policy ~row_context mode styp in
             begin try unify_var env t ty.ctyp_type with Unify err ->
               let err = Errortrace.swap_unification_error err in
@@ -1617,6 +1634,12 @@ let report_error env ppf = function
            ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Bad_jkind_annot(ty, violation) ->
     fprintf ppf "@[<b 2>Bad layout annotation:@ %a@]"
+      (Jkind.Violation.report_with_offender
+         ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Bad_jkind_inference(ty, violation) ->
+    fprintf ppf "@[<b 2>No consistent jkind could be inferred for %a.@ \
+                 Hint: try annotating the type variable at its binding site.@ %a@]"
+      Printtyp.type_expr ty
       (Jkind.Violation.report_with_offender
          ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Jkind_mismatch_in_application ((ty, jkind), args, _) ->

@@ -1515,7 +1515,7 @@ module Type = struct
       | Imported_type_argument { parent_path; position; arity } ->
         fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position
           arity !printtyp_path parent_path
-      | Defaulted -> fprintf ppf "Defaulted"
+      | Inferred_in_application -> fprintf ppf "Inferred"
       | Generalized (id, loc) ->
         fprintf ppf "Generalized (%s, %a)"
           (match id with Some id -> Ident.unique_name id | None -> "")
@@ -2143,7 +2143,8 @@ module Format_history = struct
       fprintf ppf "the %stype argument of %a has this %s"
         (format_position ~arity position)
         !printtyp_path parent_path layout_or_kind
-    | Defaulted -> fprintf ppf "it was defaulted in inference"
+    | Inferred_in_application ->
+      fprintf ppf "its jkind was inferred in a type application"
     | Generalized (id, loc) ->
       let format_id ppf = function
         | Some id -> fprintf ppf " of %s" (Ident.name id)
@@ -2325,14 +2326,17 @@ module Violation = struct
     in
     if display_histories
     then
+      let is_sort_var (ty : Type.t) =
+        match Type.get ty with Const _ -> false | Var _ -> true
+      in
       let connective =
-        match t.violation, to_const k2 with
-        | Not_a_subjkind _, Some _ ->
+        match t.violation, get k2 with
+        | _, Type ty when is_sort_var ty -> dprintf "be representable"
+        | Not_a_subjkind _, _ ->
           dprintf "be a sub%s of %a" layout_or_kind format_layout_or_kind k2
-        | No_intersection _, Some _ ->
+        | No_intersection _, _ ->
           dprintf "overlap with %a" format_layout_or_kind k2
-        | No_union _, Some _ -> dprintf "sum with %a" format_layout_or_kind k2
-        | _, None -> dprintf "be representable"
+        | No_union _, _ -> dprintf "sum with %a" format_layout_or_kind k2
       in
       fprintf ppf "@[<v>%a@;%a@]"
         (format_history_gen
