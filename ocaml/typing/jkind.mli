@@ -393,6 +393,11 @@ val of_new_sort_var : why:History.concrete_creation_reason -> t * Type.sort
 (** Create a fresh sort variable, packed into a jkind. *)
 val of_new_sort : why:History.concrete_creation_reason -> t
 
+val of_new_legacy_sort_var :
+  why:History.concrete_legacy_creation_reason -> t * Type.sort
+
+val of_new_legacy_sort : why:History.concrete_legacy_creation_reason -> t
+
 val of_const : why:History.creation_reason -> Const.t -> t
 
 val const_of_user_written_annotation :
@@ -570,6 +575,10 @@ val sub_or_error : t -> t -> (unit, Violation.t) result
 
 (** Like [sub], but returns the subjkind with an updated history. *)
 val sub_with_history : t -> t -> (t, Violation.t) result
+
+(** Find a jkind which is a subjkind of both its argument and some jkind 
+    in the representable space *)
+val lower_to_representable : reason:History.interact_reason -> t -> t
 
 (** Checks to see whether a jkind is top. Never does any mutation. *)
 val is_max : t -> bool

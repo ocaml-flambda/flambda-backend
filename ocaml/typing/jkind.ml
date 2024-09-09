@@ -1723,6 +1723,12 @@ let of_new_sort_var ~why =
 
 let of_new_sort ~why = Type.of_new_sort ~why |> of_type_jkind
 
+let of_new_legacy_sort_var ~why =
+  let jkind, sort = Type.of_new_legacy_sort_var ~why in
+  of_type_jkind jkind, sort
+
+let of_new_legacy_sort ~why = fst (of_new_legacy_sort_var ~why)
+
 let to_const (t : t) = Jkind_desc.to_const t.desc
 
 (* of_const is defined above for use in Primitive *)
@@ -2517,6 +2523,27 @@ let sub_with_history (t : t) (t' : t) =
   if sub t t'
   then Ok { t with history = combine_histories Subjkind t t' }
   else Error (Violation.of_ (Not_a_subjkind (t, t')))
+
+let intersection_with_new_sort ~reason jkind : t =
+  intersection_or_error ~reason jkind (of_new_legacy_sort ~why:Wildcard)
+  |> Result.get_ok (* sorts are the minimum elements of the jkind lattice *)
+
+let rec lower_to_representable ~reason (jkind : t) =
+  match get jkind with
+  | Arrow { args; result } ->
+    of_arrow ~history:jkind.history
+      ~args:(List.map (co_lower_to_representable ~reason) args)
+      ~result:(lower_to_representable ~reason result)
+  | Type _ | Top ->
+    { jkind with desc = (intersection_with_new_sort ~reason jkind).desc }
+
+and co_lower_to_representable ~reason (jkind : t) =
+  match get jkind with
+  | Arrow { args; result } ->
+    of_arrow ~history:jkind.history
+      ~args:(List.map (lower_to_representable ~reason) args)
+      ~result
+  | Type _ | Top -> jkind
 
 (* This doesn't do any mutation because mutating a sort variable can't make it
    any, and modal upper bounds are constant. *)

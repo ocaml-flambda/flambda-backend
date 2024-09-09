@@ -436,46 +436,33 @@ end = struct
     add_pre_univar tv policy;
     tv
 
+  let new_jkind_top ~is_named =
+    Jkind.Primitive.top 
+      ~why:(if is_named then Unification_var else Wildcard)
+  
+  let new_jkind_sort ~is_named =
+    Jkind.Type.of_new_legacy_sort 
+      ~why:(if is_named then Unification_var else Wildcard) 
+    |> Jkind.of_type_jkind
+
   let rec new_jkind ~is_named policy jkind_check =
-    let gen_top  () = Jkind.Primitive.top ~why:(if is_named then Unification_var else Wildcard) in
-    let gen_sort () = Jkind.Type.of_new_legacy_sort ~why:(if is_named then Unification_var else Wildcard) |> Jkind.of_type_jkind in
-    let intersection_with_new_sort jkind : Jkind.t =
-      Jkind.intersection_or_error ~reason:Tyvar_refinement_intersection jkind (gen_sort ())
-      |> Result.get_ok (* sorts are the minimum elements of the jkind lattice *)
-    in
-    let rec lower_to_representable (jkind : Jkind.t) =
-      match Jkind.get jkind with
-      | Arrow { args; result } ->
-        Jkind.of_arrow
-          ~history:jkind.history
-          ~args:(List.map co_lower_to_representable args)
-          ~result:(lower_to_representable result)
-      | Type _ | Top -> { jkind with desc = (intersection_with_new_sort jkind).desc }
-    and co_lower_to_representable (jkind : Jkind.t) =
-      match Jkind.get jkind with
-      | Arrow { args; result } ->
-        Jkind.of_arrow
-          ~history:jkind.history
-          ~args:(List.map lower_to_representable args)
-          ~result
-      | Type _ | Top -> jkind
-    in
     match jkind_check, policy.jkind_initialization with
-    | Unknown, Any -> gen_top ()
-    | Unknown, Sort -> gen_sort ()
+    | Unknown, Any -> new_jkind_top ~is_named
+    | Unknown, Sort -> new_jkind_sort ~is_named
     | Arity (n, result_jkind_check), _ ->
       (* Note that the defaulting on the result remains in covariant position.
          We'd need to switch variances in the arguments if we recursed there. *)
       Jkind.of_arrow
         ~history:(Creation Defaulted)
-        ~args:(List.init n (fun _ -> gen_sort ()))
+        ~args:(List.init n (fun _ -> new_jkind_sort ~is_named))
         ~result:(new_jkind ~is_named policy result_jkind_check)
     | Exact jkind, Any -> jkind
     (* If the initialization policy expects representable layouts,
        we lower all covariant (result) positions to representable
        in the expected jkind. The resulting jkind is upper bounded
        by some jkind in the representables sub-lattice. *)
-    | Exact jkind, Sort -> lower_to_representable jkind
+    | Exact jkind, Sort -> 
+      Jkind.lower_to_representable ~reason:Tyvar_refinement_intersection jkind
 
   let new_any_var loc env jkind = function
     | { extensibility = Fixed } -> raise(Error(loc, env, No_type_wildcards))
