@@ -57,7 +57,7 @@ let parse_intf i =
 let typecheck_intf info ast =
   Profile.(
     record_call_with_counters
-      ~counter_f:(fun signature ->
+      ~counter_f:(fun (_alerts, signature) ->
         Profile_counters_functions.(
           count_language_extensions (Typedtree_signature_output signature)))
       typing)

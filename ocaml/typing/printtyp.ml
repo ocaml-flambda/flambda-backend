@@ -1856,9 +1856,8 @@ let tree_of_type_decl id decl =
   let ty_manifest, params = prepare_decl id decl in
   let type_param ot_variance ot_jkind =
     function
-    | Otyp_var (ot_non_gen, ot_name) ->
-        {ot_non_gen; ot_name; ot_variance; ot_jkind}
-    | _ -> {ot_non_gen=false; ot_name="?"; ot_variance; ot_jkind}
+    | Otyp_var (_, id) -> id
+    | _ -> "?"
   in
   let type_defined decl =
     let abstr =
@@ -1892,12 +1891,11 @@ let tree_of_type_decl id decl =
           else (NoVariance, NoInjectivity))
         decl.type_params decl.type_variance
     in
-    let mk_param ty variance =
-      let jkind = param_jkind ty in
-      type_param variance jkind (tree_of_typexp Type ty)
-    in
-    (Ident.name id,
-     List.map2 mk_param params vari)
+  let mk_param ty (variance, injectivity) =
+    { oparam_name = type_param (tree_of_typexp Type ty);
+      oparam_variance = variance;
+      oparam_injectivity = injectivity;
+      oparam_jkind = param_jkind ty }
   in
   let tree_of_manifest ty1 =
     match ty_manifest with
