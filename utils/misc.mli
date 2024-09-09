@@ -129,6 +129,10 @@ module Stdlib : sig
         is returned with the [xs] being the contents of those [Some]s, with
         order preserved.  Otherwise return [None]. *)
 
+    val map_option : ('a -> 'b option) -> 'a t -> 'b t option
+    (** [map_option f l] is [some_if_all_elements_are_some (map f l)], but with
+        short circuiting. *)
+
     val map2_prefix : ('a -> 'b -> 'c) -> 'a t -> 'b t -> ('c t * 'b t)
     (** [let r1, r2 = map2_prefix f l1 l2]
         If [l1] is of length n and [l2 = h2 @ t2] with h2 of length n,
@@ -179,6 +183,13 @@ module Stdlib : sig
     (** Returns the longest list that, with respect to the provided equality
         function, is a prefix of both of the given lists.  The input lists,
         each with such longest common prefix removed, are also returned. *)
+
+     val iter_until_error
+       : f:('a -> (unit, 'b) Result.t)
+      -> 'a list
+      -> (unit, 'b) Result.t
+     (** [iter_until_error f l] applies [f] to each element of [l], in order,
+         short-circuiting in the case [f] returns [Error] on any element. *)
   end
 
 (** {2 Extensions to the Option module} *)
@@ -649,6 +660,19 @@ val pp_two_columns :
     bb  | dddddd
     v}
 *)
+
+val pp_nested_list :
+     nested:bool
+  -> pp_element:(nested:bool -> Format.formatter -> 'a -> unit)
+  -> pp_sep:(Format.formatter -> unit -> unit)
+  -> Format.formatter
+  -> 'a list
+  -> unit
+(** [pp_nested_list ~nested ~pp_element ~pp_sep ppf args] prints the list [args]
+    with [pp_element] on [ppf]. The elements are separated by [pp_sep]. If
+    [~nested] is true, the list is wrapped in parens. The element printer is
+    always called with [nested:true], indicating that any inner lists are nested
+    and need parens. *)
 
 val print_see_manual : Format.formatter -> int list -> unit
 (** See manual section *)

@@ -69,6 +69,7 @@ let parameter_list_from_arrows typ =
     | Types.Tpoly (texp, _) -> iter texp
     | Types.Tvar _
     | Types.Ttuple _
+    | Types.Tunboxed_tuple _
     | Types.Tconstr _
     | Types.Tobject _
     | Types.Tfield _

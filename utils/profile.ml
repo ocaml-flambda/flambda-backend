@@ -26,6 +26,12 @@ module Counters = struct
   let create () = String.Map.empty
   let get name t = String.Map.find_opt name t |> Option.value ~default:0
   let set name count t = String.Map.add name count t
+  let incr name t =
+    String.Map.update name
+      (fun count_opt ->
+        let count = Option.value ~default:0 count_opt in
+        Some (succ count))
+      t
   let is_empty = String.Map.is_empty
   let union = String.Map.union (fun _ count1 count2 -> Some (count1 + count2))
   let to_string t =
@@ -133,6 +139,9 @@ let record_call_internal ?(accumulate = false) ?counter_f name f =
         Hashtbl.add prev_hierarchy name (measure_diff, E this_table))
 
 let record_call = record_call_internal ?counter_f:None
+
+let record_call_with_counters ?accumulate ~counter_f =
+  record_call_internal ?accumulate ~counter_f
 
 let record ?accumulate pass f x = record_call ?accumulate pass (fun () -> f x)
 
@@ -389,9 +398,13 @@ let column_mapping = [
   `Counters, "counters"
 ]
 
+let sanitise_for_csv =
+  String.map (fun c -> if Char.equal c ',' then '_' else c)
+
 let output_to_csv ppf columns =
-  let sanitise = String.map (fun c -> if c = ',' then '_' else c) in
-  let to_csv cell_strings = cell_strings |> List.map sanitise |> String.concat "," in
+  let to_csv cell_strings =
+    cell_strings |> List.map sanitise_for_csv |> String.concat ","
+  in
   let string_columns = List.map (fun col -> List.assoc col column_mapping) columns in
   Format.fprintf ppf "%s@\n" (to_csv ("pass name" :: string_columns));
   let output_row_f = output_rows

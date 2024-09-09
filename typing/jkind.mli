@@ -42,23 +42,23 @@
    https://github.com/goldfirere/flambda-backend/commit/d802597fbdaaa850e1ed9209a1305c5dcdf71e17
    first, which was reisenberg's attempt to do so. *)
 module Externality : sig
-  type t = Jkind_types.Externality.t =
+  type t = Jkind_axis.Externality.t =
     | External (* not managed by the garbage collector *)
     | External64 (* not managed by the garbage collector on 64-bit systems *)
     | Internal (* managed by the garbage collector *)
 
-  include module type of Jkind_types.Externality with type t := t
+  include module type of Jkind_axis.Externality with type t := t
 end
 
 module Nullability : sig
-  type t = Jkind_types.Nullability.t =
+  type t = Jkind_axis.Nullability.t =
     | Non_null (* proven to not have NULL values *)
     | Maybe_null (* may have NULL values *)
 
-  include module type of Jkind_types.Nullability with type t := t
+  include module type of Jkind_axis.Nullability with type t := t
 end
 
-module Sort : Jkind_intf.Sort with type const = Jkind_types.Sort.const
+module Sort : Jkind_intf.Sort with type base = Jkind_types.Sort.base
 
 type sort = Sort.t
 
@@ -242,6 +242,11 @@ module Builtin : sig
 
   (** We know for sure that values of types of this jkind are always immediate *)
   val immediate : why:History.immediate_creation_reason -> t
+
+  (** This is the jkind of unboxed products.  The layout will be the product of
+      the layouts of the input kinds, and the other components of the kind will
+      be the join relevant component of the inputs. *)
+  val product : why:History.product_creation_reason -> t list -> t
 end
 
 (** Take an existing [t] and add an ability to mode-cross along all the axes. *)
@@ -342,6 +347,9 @@ module Desc : sig
   type t =
     | Const of Const.t
     | Var of Sort.var
+    | Product of t list
+
+  val format : Format.formatter -> t -> unit
 end
 
 (** Extract the [const] from a [Jkind.t], looking through unified
@@ -442,8 +450,14 @@ val sub_with_history : t -> t -> (t, Violation.t) result
     mutation. *)
 val is_max : t -> bool
 
-(** Checks to see whether a jkind is has layout. Never does any mutation. *)
+(** Checks to see whether a jkind has layout any. Never does any mutation. *)
 val has_layout_any : t -> bool
+
+(** Checks whether a jkind's layout is an n-ary product, and returns the jkinds
+    of the components if so (with each component inheriting the non-layout kind
+    pieces from the original input kind). May update sort variables to make the
+    layout a product. *)
+val is_nary_product : int -> t -> t list option
 
 (*********************************)
 (* debugging *)

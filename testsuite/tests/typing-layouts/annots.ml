@@ -176,6 +176,38 @@ Line 1, characters 28-34:
 Error: The uniqueness axis has already been specified.
 |}]
 
+type t : value mod foo
+[%%expect {|
+Line 1, characters 19-22:
+1 | type t : value mod foo
+                       ^^^
+Error: Unrecognized modifier foo.
+|}]
+
+type t : value mod global shared bar
+[%%expect {|
+Line 1, characters 33-36:
+1 | type t : value mod global shared bar
+                                     ^^^
+Error: Unrecognized modifier bar.
+|}]
+
+type t : value mod foobar unique many
+[%%expect {|
+Line 1, characters 19-25:
+1 | type t : value mod foobar unique many
+                       ^^^^^^
+Error: Unrecognized modifier foobar.
+|}]
+
+type t : value mod non_null external_ fizzbuzz global
+[%%expect {|
+Line 1, characters 38-46:
+1 | type t : value mod non_null external_ fizzbuzz global
+                                          ^^^^^^^^
+Error: Unrecognized modifier fizzbuzz.
+|}]
+
 (***************************************)
 (* Test 1: annotation on type variable *)
 
@@ -816,7 +848,7 @@ Line 1, characters 29-36:
                                  ^^^^^^^
 Error: This pattern matches values of type "a"
        but a pattern was expected which matches values of type
-         "('a : '_representable_layout_1)"
+         "('a : '_representable_layout_203)"
        The layout of a is any
          because of the annotation on the abstract type declaration for a.
        But the layout of a must be representable
