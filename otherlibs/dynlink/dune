@@ -161,7 +161,6 @@
   debug_event
   solver_intf
   mode_intf
-  jkind_axis
   value_rec_types))
 
 ;(install
@@ -265,7 +264,7 @@
 
 (copy_files ../../typing/path.ml)
 
-(copy_files ../../typing/typemodifier.ml)
+(copy_files ../../typing/jkind_axis.ml)
 
 (copy_files ../../typing/jkind.ml)
 
