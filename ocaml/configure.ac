@@ -134,8 +134,8 @@ AC_SUBST([EXEC_MAGIC_NUMBER], [EXEC__MAGIC_NUMBER])
 AC_SUBST([CMI_MAGIC_NUMBER], [CMI__MAGIC_NUMBER])
 AC_SUBST([CMO_MAGIC_NUMBER], [CMO__MAGIC_NUMBER])
 AC_SUBST([CMA_MAGIC_NUMBER], [CMA__MAGIC_NUMBER])
-AC_SUBST([CMX_MAGIC_NUMBER])
-AC_SUBST([CMXA_MAGIC_NUMBER])
+AC_SUBST([CMX_MAGIC_NUMBER], [CMX__MAGIC_NUMBER])
+AC_SUBST([CMXA_MAGIC_NUMBER], [CMXA__MAGIC_NUMBER])
 AC_SUBST([AST_IMPL_MAGIC_NUMBER], [AST_IMPL__MAGIC_NUMBER])
 AC_SUBST([AST_INTF_MAGIC_NUMBER], [AST_INTF__MAGIC_NUMBER])
 AC_SUBST([CMXS_MAGIC_NUMBER], [CMXS__MAGIC_NUMBER])
@@ -2647,32 +2647,12 @@ AS_IF([$build_ocamltest],
       [AC_MSG_RESULT([no])])
   done])
 
-AS_IF([test x"$enable_flambda" = "xyes"],
-  [flambda=true
-   flambda2=false
-   AS_IF([test x"$enable_flambda2" = "xyes"],
-     [AC_MSG_ERROR([please enable only one of Flambda 1 and Flambda 2])],
-     [])],
-  [flambda=false])
-
-AS_IF([test x"$enable_flambda2" = "xyes"],
-  [flambda2=true
-   flambda=false],
-  [flambda2=false])
+flambda=false
+flambda2=true
 
 AS_IF([test x"$enable_flambda_invariants" = "xyes"],
   [flambda_invariants=true],
   [flambda_invariants=false])
-
-AS_IF([test x"$enable_cmm_invariants" = "xyes"],
-  [cmm_invariants=true],
-  [cmm_invariants=false])
-
-AS_IF([$flambda],
-  [CMX_MAGIC_NUMBER=CMX_FLAMBDA__MAGIC_NUMBER
-  CMXA_MAGIC_NUMBER=CMXA_FLAMBDA__MAGIC_NUMBER],
-  [CMX_MAGIC_NUMBER=CMX_CLAMBDA__MAGIC_NUMBER
-  CMXA_MAGIC_NUMBER=CMXA_CLAMBDA__MAGIC_NUMBER])
 
 AS_IF([test x"$enable_cmm_invariants" = "xyes"],
   [cmm_invariants=true],

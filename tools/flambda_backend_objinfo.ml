@@ -423,7 +423,7 @@ let dump_obj_by_kind filename ic obj_kind =
     close_in ic;
     let cms = Cms_format.read filename in
     print_cms_infos cms
-  | Cmx _config ->
+  | Cmx ->
     let uir = (input_value ic : unit_infos_raw) in
     let first_section_offset = pos_in ic in
     seek_in ic (first_section_offset + uir.uir_sections_length);
@@ -432,7 +432,7 @@ let dump_obj_by_kind filename ic obj_kind =
     let sections = Flambda_backend_utils.File_sections.create
         uir.uir_section_toc filename ic ~first_section_offset in
     print_cmx_infos (uir, sections, crc)
-  | Cmxa _config ->
+  | Cmxa ->
     let li = (input_value ic : library_infos) in
     close_in ic;
     print_cmxa_infos li
