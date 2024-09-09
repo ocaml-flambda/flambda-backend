@@ -1574,6 +1574,8 @@ let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
 
 (* Allocation *)
 
+(* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code will
+   need to change. *)
 let memory_chunk_size_in_words_for_mixed_block = function
   | (Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed) as
     memory_chunk ->
@@ -1593,14 +1595,6 @@ let memory_chunk_size_in_words_for_mixed_block = function
     1
   | Word_int | Word_val -> 1
   | Onetwentyeight_unaligned | Onetwentyeight_aligned -> 2
-
-let mixed_block_size memory_chunks =
-  (* CR layouts 5.1: When we pack int32s/float32s more efficiently, this code
-     will need to change. *)
-  List.fold_left
-    (fun acc memory_chunk ->
-      acc + memory_chunk_size_in_words_for_mixed_block memory_chunk)
-    0 memory_chunks
 
 let alloc_generic_set_fn block ofs newval memory_chunk dbg =
   let generic_case () =
@@ -1695,12 +1689,48 @@ let make_float_alloc ~mode dbg ~tag args =
     (List.map (fun _ -> Double) args)
 
 let make_closure_alloc ~mode dbg ~tag args args_memory_chunks =
-  let size = mixed_block_size args_memory_chunks in
+  let size =
+    List.fold_left
+      (fun acc memory_chunk ->
+        acc + memory_chunk_size_in_words_for_mixed_block memory_chunk)
+      0 args_memory_chunks
+  in
   make_alloc_generic ~block_kind:Regular_block ~mode dbg tag size args
     args_memory_chunks
 
 let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
-  let size = mixed_block_size args_memory_chunks in
+  let size =
+    List.fold_left
+      (fun ofs memory_chunk ->
+        let ok () =
+          ofs + memory_chunk_size_in_words_for_mixed_block memory_chunk
+        in
+        let error situation =
+          Misc.fatal_errorf "Fields with memory chunk %s are not allowed in %s"
+            (Printcmm.chunk memory_chunk)
+            situation
+        in
+        if ofs < value_prefix_size
+        then
+          (* regular scanned part of a block *)
+          match memory_chunk with
+          | Word_int | Word_val -> ok ()
+          | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
+            error "mixed blocks"
+          | Thirtytwo_unsigned | Thirtytwo_signed | Single _ | Double
+          | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
+            error "value prefix of a mixed block"
+        else
+          (* flat suffix part of the block *)
+          match memory_chunk with
+          | Word_int | Thirtytwo_unsigned | Thirtytwo_signed | Double
+          | Onetwentyeight_unaligned | Onetwentyeight_aligned | Single _ ->
+            ok ()
+          | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
+            error "mixed blocks"
+          | Word_val -> error "flat suffix of a mixed block")
+      0 args_memory_chunks
+  in
   make_alloc_generic
     ~block_kind:(Mixed_block { scannable_prefix = value_prefix_size })
     ~mode dbg tag size args args_memory_chunks
