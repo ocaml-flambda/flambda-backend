@@ -9,7 +9,7 @@ let[@inline never] local_alloc x y =
   Gc.compact ();
   let in_minor = opaque (opaque x, opaque y) in
   Gc.full_major ();
-  local_ (opaque (opaque in_minor, opaque in_minor))
+  exclave_ (opaque (opaque in_minor, opaque in_minor))
 
 let comp1 () =
   let p = local_alloc 1 2 in
