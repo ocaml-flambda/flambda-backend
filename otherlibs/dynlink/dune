@@ -161,6 +161,7 @@
   debug_event
   solver_intf
   mode_intf
+  jkind_axis
   value_rec_types))
 
 ;(install
