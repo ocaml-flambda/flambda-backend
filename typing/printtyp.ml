@@ -1339,7 +1339,10 @@ let out_jkind_option_of_jkind jkind =
     | Const jkind -> out_jkind_of_const_jkind jkind
     | Var v -> Ojkind_var (Jkind.Sort.Var.name v)
     | Product jkinds ->
-      Ojkind_product (List.map desc_to_out_jkind jkinds)
+      Ojkind_const (Ojkind_const_product (List.map desc_to_out_const_jkind jkinds))
+  and desc_to_out_const_jkind : Jkind.Desc.t -> out_jkind_const = function
+    | Const jkind -> Jkind.Const.to_out_jkind_const jkind
+    | Var _ | Product _ -> assert false (* XXX mshinwell *)
   in
   let desc = Jkind.get jkind in
   let elide =
@@ -1856,8 +1859,9 @@ let tree_of_type_decl id decl =
   let ty_manifest, params = prepare_decl id decl in
   let type_param ot_variance ot_jkind =
     function
-    | Otyp_var (_, id) -> id
-    | _ -> "?"
+    | Otyp_var (ot_non_gen, ot_name) ->
+        {ot_non_gen; ot_name; ot_variance; ot_jkind}
+    | _ -> {ot_non_gen=false; ot_name="?"; ot_variance; ot_jkind}
   in
   let type_defined decl =
     let abstr =
@@ -1891,11 +1895,12 @@ let tree_of_type_decl id decl =
           else (NoVariance, NoInjectivity))
         decl.type_params decl.type_variance
     in
-  let mk_param ty (variance, injectivity) =
-    { oparam_name = type_param (tree_of_typexp Type ty);
-      oparam_variance = variance;
-      oparam_injectivity = injectivity;
-      oparam_jkind = param_jkind ty }
+    let mk_param ty variance =
+      let jkind = param_jkind ty in
+      type_param variance jkind (tree_of_typexp Type ty)
+    in
+    (Ident.name id,
+     List.map2 mk_param params vari)
   in
   let tree_of_manifest ty1 =
     match ty_manifest with
@@ -2728,7 +2733,11 @@ let trees_of_type_expansion'
           let rec okind_of_desc : Jkind.Desc.t -> _ = function
             | Const clay -> out_jkind_of_const_jkind clay
             | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
-            | Product ds -> Ojkind_product (List.map okind_of_desc ds)
+            | Product ds ->
+              Ojkind_const (Ojkind_const_product (List.map okind_const_of_desc ds))
+          and okind_const_of_desc : Jkind.Desc.t -> _ = function
+            | Const const -> Jkind.Const.to_out_jkind_const const
+            | Var _ | Product _ -> assert false (* XXX mshinwell *)
           in
           let okind = okind_of_desc (Jkind.get jkind) in
           Otyp_jkind_annot (out, okind)
