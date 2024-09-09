@@ -180,6 +180,13 @@ module type S =
   end
 |}]
 
+(* This one is slightly non-obvious: 
+   constraining ['f] with [(value => value) => value] and [_ => value] 
+   yields ['f : top => value]. 
+   Note that both constrainings happen, with 'a inferred as _ (sort var), 
+   and yielding neither (value => value) nor an error.
+   This is below the representable sub-lattice, as only contravariant 
+   positions are non-representable. *)
 type ('f : (value => value) => value) third_order
 module type S = sig 
   val foo1 : 'f third_order -> 'a 'f -> unit
