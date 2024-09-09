@@ -776,23 +776,12 @@ module Magic_number : sig
       @since 4.11
   *)
 
-  type native_obj_config = {
-    flambda : bool;
-  }
-  (** native object files have a format and magic number that depend
-     on certain native-compiler configuration parameters. This
-     configuration space is expressed by the [native_obj_config]
-     type. *)
-
-  val native_obj_config : native_obj_config
-  (** the native object file configuration of the active/configured compiler. *)
-
   type version = int
 
   type kind =
     | Exec
     | Cmi | Cmo | Cma
-    | Cmx of native_obj_config | Cmxa of native_obj_config
+    | Cmx | Cmxa
     | Cmxs
     | Cmt | Cms | Ast_impl | Ast_intf
 
