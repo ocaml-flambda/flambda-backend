@@ -85,6 +85,26 @@ let check_alloc_fields = function
        be lifted so they can be statically allocated)"
   | _ -> ()
 
+let mixed_block_kinds shape =
+  let value_prefix_size = K.Mixed_block_shape.value_prefix_size shape in
+  let l =
+    Array.fold_right
+      (fun flat_suffix_element acc ->
+        let chunk =
+          match (flat_suffix_element : K.flat_suffix_element) with
+          | K.Tagged_immediate -> K.With_subkind.tagged_immediate
+          | K.Naked_float -> K.With_subkind.naked_float
+          | K.Naked_float32 -> K.With_subkind.naked_float32
+          | K.Naked_int32 -> K.With_subkind.naked_int32
+          | K.Naked_int64 -> K.With_subkind.naked_int64
+          | K.Naked_nativeint -> K.With_subkind.naked_nativeint
+        in
+        chunk :: acc)
+      (K.Mixed_block_shape.flat_suffix shape)
+      []
+  in
+  List.init value_prefix_size (fun _ -> K.With_subkind.any_value) @ l
+
 let make_block ~dbg kind alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
@@ -97,15 +117,9 @@ let make_block ~dbg kind alloc_mode args =
     C.make_float_alloc ~mode dbg ~tag args
   | Mixed (tag, shape) ->
     let value_prefix_size = K.Mixed_block_shape.value_prefix_size shape in
+    let args_kinds = mixed_block_kinds shape in
     let args_memory_chunks =
-      Array.fold_right
-        (fun kind acc ->
-          let chunk =
-            To_cmm_shared.memory_chunk_of_kind (K.With_subkind.anything kind)
-          in
-          chunk :: acc)
-        (K.Mixed_block_shape.field_kinds shape)
-        []
+      List.map To_cmm_shared.memory_chunk_of_kind args_kinds
     in
     let tag = Tag.Scannable.to_int tag in
     C.make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks

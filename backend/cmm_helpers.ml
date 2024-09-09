@@ -1706,9 +1706,17 @@ let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
           ofs + memory_chunk_size_in_words_for_mixed_block memory_chunk
         in
         let error situation =
-          Misc.fatal_errorf "Fields with memory chunk %s are not allowed in %s"
+          Misc.fatal_errorf
+            "Fields with memory chunk %s are not allowed in %s.@\n\
+             value_prefix_size: %d@\n\
+             args: @[<v>%a@]@\n\
+             chunks: @[<v>%a@]@."
             (Printcmm.chunk memory_chunk)
-            situation
+            situation value_prefix_size
+            (Format.pp_print_list Printcmm.expression)
+            args
+            (Format.pp_print_list Format.pp_print_string)
+            (List.map Printcmm.chunk args_memory_chunks)
         in
         if ofs < value_prefix_size
         then
