@@ -685,11 +685,20 @@ let transl_bound_vars : (_, _) Either.t -> _ =
   | Right vars_jkinds -> TyVarEnv.make_poly_univars_jkinds
                            ~context:(fun v -> Univar ("'" ^ v)) vars_jkinds
 
+let constrain_type_expr_jkind_to_any ~vloc ~loc env typ =
+  let jkind = 
+    Jkind.Type.Primitive.any ~why:Inside_of_Tarrow |> Jkind.of_type_jkind 
+  in
+  match constrain_type_jkind env typ jkind with
+  | Ok _ -> ()
+  | Error err -> raise (Error (loc, env, Non_sort {vloc; typ; err}))
+
 let rec transl_type env ~policy ?(jkind_check=Unknown) ?(aliased=false) ~row_context mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
     (fun () -> transl_type_aux env ~policy ~jkind_check ~aliased ~row_context mode styp)
 
 and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) mode styp =
+  (* CR jbachurski: Should [jkind_check] always be used for a [constrain_type_jkind]? *)
   let loc = styp.ptyp_loc in
   let ctyp ctyp_desc ctyp_type =
     { ctyp_desc; ctyp_type; ctyp_env = env;
@@ -712,9 +721,9 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
       in
       ctyp desc typ
   | Ptyp_arrow _ ->
+      let any = Jkind.Type.Primitive.any ~why:Inside_of_Tarrow |> Jkind.of_type_jkind in
       let args, ret, ret_mode = extract_params styp in
       let rec loop acc_mode args =
-        let jkind = Jkind.Type.Primitive.any ~why:Inside_of_Tarrow |> Jkind.of_type_jkind in
         match args with
         | (l, arg_mode, arg) :: rest ->
           check_arg_type arg;
@@ -722,7 +731,7 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
           let arg_cty =
             if Btype.is_position l then
               ctyp Ttyp_call_pos (newconstr Predef.path_lexing_position [])
-            else transl_type env ~policy ~jkind_check:(Exact jkind) ~row_context arg_mode arg
+            else transl_type env ~policy ~jkind_check:(Exact any) ~row_context arg_mode arg
           in
           let acc_mode = curry_mode acc_mode arg_mode in
           let ret_mode =
@@ -744,12 +753,8 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
                 (newconstr Predef.path_option [Btype.tpoly_get_mono arg_ty])
             end
           in
-          (* TODO jbachurski: [jkind_check] should probably do this by itself,
-             but we do constraining explicitly for now. *)
-          (match constrain_type_jkind env arg_cty.ctyp_type jkind with
-          | Ok _ -> ()
-          | Error err ->
-            raise (Error(arg_cty.ctyp_loc, env, Non_sort {vloc = Fun_arg; typ = arg_cty.ctyp_type; err})));
+          constrain_type_expr_jkind_to_any 
+            ~loc:arg_cty.ctyp_loc ~vloc:Fun_arg env arg_cty.ctyp_type;
           let arg_mode = Alloc.of_const arg_mode in
           let ret_mode = Alloc.of_const ret_mode in
           let arrow_desc = (l, arg_mode, ret_mode) in
@@ -759,12 +764,10 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
           ctyp (Ttyp_arrow (l, arg_cty, ret_cty)) ty
         | [] ->
           let ret_cty =
-            transl_type env ~policy ~jkind_check:(Exact jkind) ~row_context ret_mode ret
+            transl_type env ~policy ~jkind_check:(Exact any) ~row_context ret_mode ret
           in
-          (match constrain_type_jkind env ret_cty.ctyp_type jkind with
-          | Ok _ -> ()
-          | Error err ->
-            raise (Error(ret_cty.ctyp_loc, env, Non_sort {vloc = Fun_ret; typ = ret_cty.ctyp_type; err})));
+          constrain_type_expr_jkind_to_any 
+            ~vloc:Fun_ret ~loc:ret_cty.ctyp_loc env ret_cty.ctyp_type;
           ret_cty
       in
       loop mode args
@@ -774,7 +777,7 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
         (List.map (fun t -> (None, t)) stl)
     in
     ctyp desc typ
-    | Ptyp_constr(lid, stl) ->
+  | Ptyp_constr(lid, stl) ->
       let (path, decl) = Env.lookup_type ~loc:lid.loc lid.txt env in
       let stl =
         match stl with
@@ -793,8 +796,9 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
       let arity = List.length params in
       let args = List.mapi
         (fun idx (sty, ty') ->
-           let jkind = match Types.get_desc ty' with
-           | Tvar {jkind; _} when Jkind.History.has_imported_history jkind ->
+           let jkind = 
+            match Types.get_desc ty' with
+            | Tvar {jkind; _} when Jkind.History.has_imported_history jkind ->
              (* In case of a Tvar with imported jkind history, we can improve
                 the jkind reason using the in scope [path] to the parent type.
 
@@ -807,8 +811,8 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
              let jkind = Jkind.History.update_reason jkind reason in
              Types.set_var_jkind ty' jkind;
              jkind
-           | _ -> type_jkind_purely env ty'
-           in
+            | _ -> type_jkind_purely env ty'
+          in
            let cty =
             transl_type env ~policy ~jkind_check:(Exact jkind)
               ~row_context Alloc.Const.legacy sty
@@ -832,10 +836,14 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
     let arg_ty_jkinds =
       match Jkind.get ty_jkind with
       | Arrow { args; result = _ } -> args
-      | Type _ -> raise (Error (
-        styp.ptyp_loc, env,
-        Bad_jkind_for_application (ty.ctyp_type, ty_jkind)))
-      | Top -> raise (Error (st.ptyp_loc, env, Bad_jkind_for_application (ty.ctyp_type, ty_jkind)))
+      | Type _ -> 
+        raise (Error (
+          styp.ptyp_loc, env,
+          Bad_jkind_for_application (ty.ctyp_type, ty_jkind)))
+      | Top -> 
+        raise (Error (
+          st.ptyp_loc, env, 
+          Bad_jkind_for_application (ty.ctyp_type, ty_jkind)))
     in
     let arg_tys =
       List.map2 (fun sty jkind ->
