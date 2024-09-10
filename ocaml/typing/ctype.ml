@@ -1199,9 +1199,9 @@ let rec copy ?partial ?keep_names copy_scope ty =
       (* Using jkind "any" is ok here: We're forgetting the type because it
          will be unified with the original later. *)
       newty2 ~level:forget
-        (Tvar { name = None; jkind = Jk.Builtin.any ~why:Dummy_jkind })
+        (Tvar { name = None; jkind = Jk.Builtin.top ~why:Dummy_jkind })
     else
-    let t = newstub ~scope:(get_scope ty) (Jk.Builtin.any ~why:Dummy_jkind) in
+    let t = newstub ~scope:(get_scope ty) (Jk.Builtin.top ~why:Dummy_jkind) in
     For_copy.redirect_desc copy_scope ty (Tsubst (t, None));
     let desc' =
       match desc with
@@ -1510,13 +1510,13 @@ let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) sch =
     if is_Tvar ty || may_share && TypeSet.is_empty univars then
       if get_level ty <> generic_level then ty else
       (* jkind not consulted during copy_sep, so Any is safe *)
-      let t = newstub ~scope:(get_scope ty) (Jk.Builtin.any ~why:Dummy_jkind) in
+      let t = newstub ~scope:(get_scope ty) (Jk.Builtin.top ~why:Dummy_jkind) in
       add_delayed_copy t ty;
       t
     else try
       TypeHash.find visited ty
     with Not_found -> begin
-      let t = newstub ~scope:(get_scope ty) (Jk.Builtin.any ~why:Dummy_jkind) in
+      let t = newstub ~scope:(get_scope ty) (Jk.Builtin.top ~why:Dummy_jkind) in
       TypeHash.add visited ty t;
       let desc' =
         match get_desc ty with

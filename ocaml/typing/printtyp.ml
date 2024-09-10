@@ -2347,7 +2347,8 @@ let wrap_env fenv ftree arg =
 let dummy =
   {
     type_noun =
-      create_type_equation_noun [] (Jkind.Builtin.any ~why:Dummy_jkind) Public None;
+      create_higher_kinded_type_equation_noun 
+        [] (Higher_jkind.Builtin.top ~why:Dummy_jkind) Public None;
     type_jkind_annotation = None;
     type_is_newtype = false;
     type_expansion_scope = Btype.lowest_level;

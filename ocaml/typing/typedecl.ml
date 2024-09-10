@@ -255,7 +255,7 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let type_jkind, type_jkind_annotation, sdecl_attributes =
     Higher_jkind.of_type_decl_default
       ~context:(Type_declaration path)
-      ~default:(Higher_jkind.Builtin.any ~why:Initial_typedecl_env)
+      ~default:(Higher_jkind.Builtin.top ~why:Initial_typedecl_env)
       sdecl
   in
   let type_params =
@@ -3230,8 +3230,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
    they can not have parameters and can only update abstract types.) *)
 let transl_package_constraint ~loc ty =
   { type_noun =
-      create_type_equation_noun
-        [] (Jkind.Builtin.any ~why:Dummy_jkind) Public (Some ty);
+      create_higher_kinded_type_equation_noun
+        [] (Higher_jkind.Builtin.top ~why:Dummy_jkind) Public (Some ty);
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)

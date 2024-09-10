@@ -7466,6 +7466,10 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       end
       end
   | None ->
+      (* CR jbachurski: We don't really want this to be here, but it seems necessary... *)
+      (match constrain_type_jkind env ty_expected' (Higher_jkind.Builtin.any ~why:Dummy_jkind) with
+      | Ok () -> ()
+      | Error err -> raise (Error (sarg.pexp_loc, env, Function_type_not_rep (ty_expected', err))));
       let mode = expect_mode_cross env ty_expected' mode in
       let texp = type_expect ?recarg env mode sarg
         (mk_expected ?explanation ty_expected') in

@@ -44,6 +44,8 @@ end
 val to_const : t -> Const.t option
 
 module Builtin : sig
+  val top : why:History.top_creation_reason -> t
+
   val any : why:History.any_creation_reason -> t
 
   val void : why:History.void_creation_reason -> t

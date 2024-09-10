@@ -438,7 +438,7 @@ end = struct
        From testing, we need all callsites that use [Sort] to be non-null to
        preserve backwards compatibility. But we also need [Any] callsites
        to accept nullable jkinds to allow cases like [type ('a : value_or_null) t = 'a]. *)
-    | Any -> Higher_jkind.Builtin.any ~why:(if is_named then Unification_var else Wildcard)
+    | Any -> Higher_jkind.Builtin.top ~why:(if is_named then Unification_var else Wildcard)
     | Sort -> Jkind.of_new_legacy_sort ~why:(if is_named then Unification_var else Wildcard) |> Higher_jkind.wrap
 
   let new_any_var loc env jkind = function
@@ -450,7 +450,7 @@ end = struct
     TyVarMap.iter
       (fun name (ty, loc) ->
         if flavor = Unification || is_in_scope name then
-          let v = new_global_var (Higher_jkind.Builtin.any ~why:Dummy_jkind) in
+          let v = new_global_var (Higher_jkind.Builtin.top ~why:Dummy_jkind) in
           let snap = Btype.snapshot () in
           if try unify env v ty; true with _ -> Btype.backtrack snap; false
           then try
@@ -460,7 +460,7 @@ end = struct
               raise(Error(loc, env,
                           Unbound_type_variable ("'"^name,
                                                  get_in_scope_names ())));
-            let v2 = new_global_var (Higher_jkind.Builtin.any ~why:Dummy_jkind) in
+            let v2 = new_global_var (Higher_jkind.Builtin.top ~why:Dummy_jkind) in
             r := (loc, v, v2) :: !r;
             add name v2)
       !used_variables;
@@ -641,6 +641,14 @@ let transl_bound_vars : (_, _) Either.t -> _ =
   | Right vars_jkinds -> TyVarEnv.make_poly_univars_jkinds
                            ~context:(fun v -> Univar ("'" ^ v)) vars_jkinds
 
+let constrain_type_expr_jkind_to_any ~vloc ~loc env typ =
+  let jkind = 
+    Jkind.Builtin.any ~why:Inside_of_Tarrow |> Higher_jkind.wrap
+  in
+  match constrain_type_jkind env typ jkind with
+  | Ok _ -> ()
+  | Error err -> raise (Error (loc, env, Non_sort {vloc; typ; err}))
+
 let rec transl_type env ~policy ?(aliased=false) ~row_context mode styp =
   Builtin_attributes.warning_scope styp.ptyp_attributes
     (fun () -> transl_type_aux env ~policy ~aliased ~row_context mode styp)
@@ -699,6 +707,8 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
                 (newconstr Predef.path_option [Btype.tpoly_get_mono arg_ty])
             end
           in
+          constrain_type_expr_jkind_to_any 
+            ~loc:arg_cty.ctyp_loc ~vloc:Fun_arg env arg_cty.ctyp_type;
           let arg_mode = Alloc.of_const arg_mode in
           let ret_mode = Alloc.of_const ret_mode in
           let arrow_desc = (l, arg_mode, ret_mode) in
@@ -706,7 +716,11 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
             newty (Tarrow(arrow_desc, arg_ty, ret_cty.ctyp_type, commu_ok))
           in
           ctyp (Ttyp_arrow (l, arg_cty, ret_cty)) ty
-        | [] -> transl_type env ~policy ~row_context ret_mode ret
+        | [] ->
+          let ret_cty = transl_type env ~policy ~row_context ret_mode ret in
+          constrain_type_expr_jkind_to_any 
+            ~vloc:Fun_ret ~loc:ret_cty.ctyp_loc env ret_cty.ctyp_type;
+          ret_cty
       in
       loop mode args
   | Ptyp_tuple stl ->
@@ -1057,7 +1071,7 @@ and transl_type_poly env ~policy ~row_context mode loc (vars : (_, _) Either.t)
   let ty_list = TyVarEnv.check_poly_univars env loc new_univars in
   let ty_list = List.filter (fun v -> deep_occur v ty) ty_list in
   let ty' = Btype.newgenty (Tpoly(ty, ty_list)) in
-  unify_var env (newvar (Higher_jkind.Builtin.any ~why:Dummy_jkind)) ty';
+  unify_var env (newvar (Higher_jkind.Builtin.top ~why:Dummy_jkind)) ty';
   Ttyp_poly (typed_vars, cty), ty'
 
 and transl_type_alias env ~row_context ~policy mode attrs alias_loc styp name_opt

@@ -292,7 +292,7 @@ let rec typexp copy_scope s ty =
     let has_fixed_row =
       not (is_Tconstr ty) && is_constr_row ~allow_ident:false tm in
     (* Make a stub *)
-    let jkind = Higher_jkind.Builtin.any ~why:Dummy_jkind in
+    let jkind = Higher_jkind.Builtin.top ~why:Dummy_jkind in
     let ty' =
       if should_duplicate_vars then newpersty (Tvar {name = None; jkind})
       else newgenstub ~scope:(get_scope ty) jkind
