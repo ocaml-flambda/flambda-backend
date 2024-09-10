@@ -15,6 +15,8 @@ let ifarray : float iarray = [:1.5;2.5;3.5;4.5;5.5:];;
 let marray  : int   array = [|1;2;3;4;5|];;
 let mfarray : float array = [|1.5;2.5;3.5;4.5;5.5|];;
 
+external globalize_string : local_ string -> string = "%obj_dup";;
+
 [%%expect{|
 module Iarray = Stdlib_stable.Iarray
 external ( .:() ) : 'a iarray -> int -> 'a = "%array_safe_get"
@@ -22,6 +24,7 @@ val iarray : int iarray = [:1; 2; 3; 4; 5:]
 val ifarray : float iarray = [:1.5; 2.5; 3.5; 4.5; 5.5:]
 val marray : int array = [|1; 2; 3; 4; 5|]
 val mfarray : float array = [|1.5; 2.5; 3.5; 4.5; 5.5|]
+external globalize_string : local_ string -> string = "%obj_dup"
 |}];;
 
 (** Pattern-match on some immutable arrays, and check the typing of array
@@ -276,6 +279,28 @@ Iarray.fold_left (fun acc x -> -x :: acc) [] iarray;;
 |}];;
 
 Iarray.fold_left_map (fun acc x -> acc + x, string_of_int x) 0 iarray;;
+[%%expect{|
+- : int * string iarray = (15, [:"1"; "2"; "3"; "4"; "5":])
+|}];;
+
+let n, strs =
+  Iarray.fold_left_map_local (fun acc x -> acc + x, string_of_int x) 0 iarray
+in
+n, Iarray.map_local_input globalize_string strs;;
+[%%expect{|
+- : int * string iarray = (15, [:"1"; "2"; "3"; "4"; "5":])
+|}];;
+
+Iarray.fold_left_map_local_input (fun acc x -> acc + x, string_of_int x) 0 iarray;;
+[%%expect{|
+- : int * string iarray = (15, [:"1"; "2"; "3"; "4"; "5":])
+|}];;
+
+let n, strs =
+  Iarray.fold_left_map_local_output
+     (fun acc x -> acc + x, string_of_int x) 0 iarray
+in
+n, Iarray.map_local_input globalize_string strs;;
 [%%expect{|
 - : int * string iarray = (15, [:"1"; "2"; "3"; "4"; "5":])
 |}];;
