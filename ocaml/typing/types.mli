@@ -312,6 +312,9 @@ end
 val eq_type: type_expr -> type_expr -> bool
 val compare_type: type_expr -> type_expr -> int
 
+(** Comparison for [type_expr] that always raise. *)
+val eq_type_fail: type_expr -> type_expr -> bool
+
 (** Constructor and accessors for [row_desc] *)
 
 (** [  `X | `Y ]       (row_closed = true)

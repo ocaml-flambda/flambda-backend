@@ -462,7 +462,7 @@ let label_declaration copy_scope s l =
     ld_id = l.ld_id;
     ld_mutable = l.ld_mutable;
     ld_modalities = l.ld_modalities;
-    ld_jkind = apply_prepare_jkind s l.ld_jkind l.ld_loc;
+    ld_jkind =  Jkind.map_type_expr (typexp copy_scope s l.ld_loc) (apply_prepare_jkind s l.ld_jkind l.ld_loc);
     ld_type = typexp copy_scope s l.ld_loc l.ld_type;
     ld_loc = loc s l.ld_loc;
     ld_attributes = attrs s l.ld_attributes;
@@ -552,10 +552,13 @@ let type_declaration' copy_scope s decl =
       end;
     type_jkind =
       begin
-        match s.additional_action with
-        | Prepare_for_saving prepare_jkind ->
-            prepare_jkind decl.type_loc decl.type_jkind
-        | Duplicate_variables | No_action -> decl.type_jkind
+        let jkind =
+          match s.additional_action with
+          | Prepare_for_saving prepare_jkind ->
+              prepare_jkind decl.type_loc decl.type_jkind
+          | Duplicate_variables | No_action -> decl.type_jkind
+        in
+        Jkind.map_type_expr (typexp copy_scope s decl.type_loc) jkind
       end;
     (* CR layouts v10: Apply the substitution here, too *)
     type_jkind_annotation = decl.type_jkind_annotation;
@@ -643,8 +646,9 @@ let extension_constructor' copy_scope s ext =
     ext_args = constructor_arguments copy_scope s ext.ext_args;
     ext_arg_jkinds = begin match s.additional_action with
       | Prepare_for_saving prepare_jkind ->
-          Array.map (prepare_jkind ext.ext_loc) ext.ext_arg_jkinds
-      | Duplicate_variables | No_action -> ext.ext_arg_jkinds
+          Array.map (fun jkind -> jkind |> prepare_jkind ext.ext_loc |> Jkind.map_type_expr (typexp copy_scope s ext.ext_loc)) ext.ext_arg_jkinds
+      | Duplicate_variables | No_action ->
+          Array.map (Jkind.map_type_expr (typexp copy_scope s ext.ext_loc)) ext.ext_arg_jkinds
     end;
     ext_shape = ext.ext_shape;
     ext_constant = ext.ext_constant;

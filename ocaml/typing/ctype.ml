@@ -1469,6 +1469,7 @@ let instance_declaration decl =
     {decl with type_params = List.map (copy copy_scope) decl.type_params;
      type_manifest = Option.map (copy copy_scope) decl.type_manifest;
      type_kind = map_kind (copy copy_scope) decl.type_kind;
+     type_jkind = Jkind.map_type_expr (copy copy_scope) decl.type_jkind;
     }
   )
 
@@ -2277,11 +2278,11 @@ let type_jkind_sub env ty jkind =
    before calling this function. (Though the current implementation is still
    correct on [any].)
 *)
-let constrain_type_jkind ~fixed env ty jkind =
+let constrain_type_jkind ~fixed env ~type_equal ty jkind =
   match type_jkind_sub env ty jkind with
   | Success -> Ok ()
   | Type_var (ty_jkind, ty) ->
-    if fixed then Jkind.sub_or_error ~type_equal:Types.eq_type ty_jkind jkind else
+    if fixed then Jkind.sub_or_error ~type_equal ty_jkind jkind else
     let jkind_inter =
       Jkind.intersection_or_error ~reason:Tyvar_refinement_intersection
         ty_jkind jkind
@@ -2294,17 +2295,23 @@ let constrain_type_jkind ~fixed env ty jkind =
   | Failure ty_jkind ->
     Error (Jkind.Violation.of_ (Not_a_subjkind (ty_jkind, jkind)))
 
-let constrain_type_jkind ~fixed env ty jkind =
+let constrain_type_jkind ~fixed env ~type_equal ty jkind =
   (* An optimization to avoid doing any work if we're checking against
      any. *)
   if Jkind.is_max jkind then Ok ()
-  else constrain_type_jkind ~fixed env ty jkind
+  else constrain_type_jkind ~fixed env ~type_equal ty jkind
+
+let check_type_jkind_with_baggage env ~type_equal ty jkind =
+  constrain_type_jkind ~fixed:true env ~type_equal ty jkind
 
 let check_type_jkind env ty jkind =
-  constrain_type_jkind ~fixed:true env ty jkind
+  constrain_type_jkind ~fixed:true env ~type_equal:Types.eq_type_fail ty jkind
+
+let constrain_type_jkind_with_baggage env ~type_equal ty jkind =
+  constrain_type_jkind ~fixed:false env ~type_equal ty jkind
 
 let constrain_type_jkind env ty jkind =
-  constrain_type_jkind ~fixed:false env ty jkind
+  constrain_type_jkind ~fixed:false env ~type_equal:Types.eq_type_fail ty jkind
 
 let () =
   Env.constrain_type_jkind := constrain_type_jkind
@@ -2318,13 +2325,13 @@ let check_type_externality env ty ext =
   | Error _ -> false
 
 
-let check_type_jkind_exn env texn ty jkind =
-  match check_type_jkind env ty jkind with
+let check_type_jkind_exn env texn ~type_equal ty jkind =
+  match check_type_jkind_with_baggage env ~type_equal ty jkind with
   | Ok _ -> ()
   | Error err -> raise_for texn (Bad_jkind (ty,err))
 
-let constrain_type_jkind_exn env texn ty jkind =
-  match constrain_type_jkind env ty jkind with
+let constrain_type_jkind_exn env texn ~type_equal ty jkind =
+  match constrain_type_jkind_with_baggage env ~type_equal ty jkind with
   | Ok _ -> ()
   | Error err -> raise_for texn (Bad_jkind (ty,err))
 
@@ -2387,7 +2394,7 @@ let rec intersect_type_jkind ~reason env ty1 jkind2 =
 (* See comment on [jkind_unification_mode] *)
 let unification_jkind_check env ty jkind =
   match !lmode with
-  | Perform_checks -> constrain_type_jkind_exn env Unify ty jkind
+  | Perform_checks -> constrain_type_jkind_exn env Unify ~type_equal:Types.eq_type ty jkind
   | Delay_checks r -> r := (ty,jkind) :: !r
 
 let check_and_update_generalized_ty_jkind ?name ~loc env ty =
@@ -4740,7 +4747,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
         occur_for Moregen (Expression {env; in_subst = false}) t1 t2;
         (* use [check], not [constrain], here because [constrain] would be like
         instantiating [t2], which we do not wish to do *)
-        check_type_jkind_exn env Moregen t2 jkind;
+        check_type_jkind_exn env Moregen ~type_equal:eq_type t2 jkind;
         link_type t1 t2
     | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
         ()
@@ -4758,7 +4765,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
               update_scope_for Moregen (get_scope t1') t2;
               (* use [check], not [constrain], here because [constrain] would be like
               instantiating [t2], which we do not wish to do *)
-              check_type_jkind_exn env Moregen t2 jkind;
+              check_type_jkind_exn env Moregen ~type_equal:eq_type t2 jkind;
               link_type t1' t2
           | (Tarrow ((l1,a1,r1), t1, u1, _),
              Tarrow ((l2,a2,r2), t2, u2, _)) when
@@ -5410,15 +5417,18 @@ let check_decl_jkind env decl0 params1 jkind1 =
   | Error _ as err ->
       match decl0.type_manifest with
       | None -> err
-      | Some ty -> check_type_jkind env ty jkind1
+      | Some ty -> check_type_jkind_with_baggage env ~type_equal ty jkind1
 
-let constrain_decl_jkind env decl jkind =
-  match Jkind.sub_or_error ~type_equal:Types.eq_type decl.type_jkind jkind with
+let constrain_decl_jkind env decl0 params1 jkind1 =
+  let type_equal ty0 ty1 =
+    is_equal env true (decl0.type_params @ [ty0]) (params1 @ [ty1])
+  in
+  match Jkind.sub_or_error ~type_equal decl0.type_jkind jkind1 with
   | Ok () as ok -> ok
   | Error _ as err ->
-      match decl.type_manifest with
+      match decl0.type_manifest with
       | None -> err
-      | Some ty -> constrain_type_jkind env ty jkind
+      | Some ty -> constrain_type_jkind_with_baggage env ~type_equal ty jkind1
 
                           (*************************)
                           (*  Class type matching  *)

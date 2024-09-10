@@ -590,11 +590,15 @@ val type_legacy_sort :
 val check_decl_jkind :
   Env.t -> type_declaration -> type_expr list -> Jkind.t -> (unit, Jkind.Violation.t) result
 val constrain_decl_jkind :
-  Env.t -> type_declaration -> Jkind.t -> (unit, Jkind.Violation.t) result
+  Env.t -> type_declaration -> type_expr list -> Jkind.t -> (unit, Jkind.Violation.t) result
 val check_type_jkind :
   Env.t -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
+val check_type_jkind_with_baggage :
+  Env.t ->  type_equal:(type_expr -> type_expr -> bool) -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
 val constrain_type_jkind :
   Env.t -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
+val constrain_type_jkind_with_baggage :
+  Env.t -> type_equal:(type_expr -> type_expr -> bool) -> type_expr -> Jkind.t -> (unit, Jkind.Violation.t) result
 
 (* Check whether a type's externality's upper bound is less than some target.
    Potentially cheaper than just calling [type_jkind], because this can stop

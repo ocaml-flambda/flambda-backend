@@ -746,7 +746,7 @@ let merge_constraint initial_env loc sg lid constr =
            which we need here to deal with type variables in package constraints
            (see tests in [typing-modules/package_constraint.ml]).  *)
         begin match
-          Ctype.constrain_decl_jkind initial_env tdecl sig_decl.type_jkind
+          Ctype.constrain_decl_jkind initial_env tdecl sig_decl.type_params sig_decl.type_jkind
         with
         | Ok _-> ()
         | Error v ->
