@@ -544,7 +544,7 @@ and print_out_type_3 ppf =
       print_typargs ppf tyl;
       print_ident ppf id;
       pp_close_box ppf ()
-  | Otyp_app ((Otyp_var _ as ty), tyl) ->
+  | Otyp_app (((Otyp_var _ | Otyp_constr (_, [])) as ty), tyl) ->
       fprintf ppf "@[<0>%a %a@]" print_typargs tyl print_out_type ty;
   | Otyp_app (ty, tyl) ->
       fprintf ppf "@[<0>%a (%a)@]" print_typargs tyl print_out_type ty;

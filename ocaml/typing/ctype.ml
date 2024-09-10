@@ -243,9 +243,9 @@ let wrap_trace_gadt_instances env f x =
 let simple_abbrevs = ref Mnil
 
 let proper_abbrevs tl abbrev =
-  if tl <> [] || !trace_gadt_instances || !Clflags.principal
-  then abbrev
-  else simple_abbrevs
+  match tl with
+  | Applied _ -> abbrev
+  | _ -> if !trace_gadt_instances || !Clflags.principal then abbrev else simple_abbrevs
 
 (**** Some type creators ****)
 
@@ -267,7 +267,7 @@ let newstub ~scope jkind =
 
 let newobj fields      = newty (Tobject (fields, ref None))
 
-let newconstr path tyl = newty (Tconstr (path, tyl, ref Mnil))
+let newconstr path tyl = newty (Tconstr (path, AppArgs.of_list tyl, ref Mnil))
 
 let newapp ty tyl = newty (Tapp (ty, tyl))
 
@@ -491,7 +491,7 @@ let set_object_name id params ty =
   match get_desc ty with
   | Tobject (fi, nm) ->
       let rv = fields_row_variable fi in
-      set_name nm (Some (Path.Pident id, rv::params))
+      set_name nm (Some (Path.Pident id, AppArgs.of_list (rv :: params)))
   | Tconstr (_, _, _) -> ()
   | _ -> fatal_error "Ctype.set_object_name"
 
@@ -592,7 +592,7 @@ let free_vars ?env tys =
                 if is_generic_expansion exp then acc
                 else (ty, kind) :: acc
           in
-          List.fold_left (fv ~kind:Type_variable) acc tl
+          AppArgs.fold_left (fv ~kind:Type_variable) acc tl
       | Tobject (ty, _), _ ->
           (* ignoring the second parameter of [Tobject] amounts to not
              counting "virtual free variables". *)
@@ -812,7 +812,7 @@ let rec generalize_spine ty =
   | Tconstr (_, tyl, memo) ->
       set_level ty generic_level;
       memo := Mnil;
-      List.iter generalize_spine tyl
+      AppArgs.iter generalize_spine tyl
   | Tapp (t, tyl) ->
       set_level ty generic_level;
       generalize_spine t;
@@ -907,7 +907,7 @@ let rec update_level env level expand ty =
         with Cannot_expand ->
           raise_escape_exn (Constructor p)
         end
-    | Tconstr(p, (_ :: _ as tl), _) ->
+    | Tconstr(p, Applied (_ :: _ as tl), _) ->
         let variance =
           try get_type_variance (Env.find_type p env)
           with Not_found -> List.map (fun _ -> Variance.unknown) tl in
@@ -983,8 +983,8 @@ let rec lower_contravariant env var_level visited contra ty =
     let lower_rec = lower_contravariant env var_level visited in
     match get_desc ty with
       Tvar _ -> if contra then set_level ty var_level
-    | Tconstr (_, [], _) -> ()
-    | Tconstr (path, tyl, _abbrev) ->
+    | Tconstr (_, Unapplied, _) -> ()
+    | Tconstr (path, Applied tyl, _abbrev) ->
        let variance, maybe_expand =
          try
            let typ = Env.find_type path env in
@@ -1226,7 +1226,7 @@ let rec copy ?partial ?keep_names copy_scope ty =
              ation can be released by changing the content of just
              one reference.
           *)
-              Tconstr (p, List.map copy tl,
+              Tconstr (p, AppArgs.map copy tl,
                        ref (match !(!abbreviations) with
                               Mcons _ -> Mlink !abbreviations
                             | abbrev  -> abbrev))
@@ -1385,7 +1385,7 @@ let instance_constructor existential_treatment cstr =
               Env.enter_type (get_new_abstract_name !env name) decl !env
                 ~scope:fresh_constr_scope in
             env := new_env;
-            let to_unify = newty (Tconstr (Path.Pident id,[],ref Mnil)) in
+            let to_unify = newty (Tconstr (Path.Pident id,Unapplied,ref Mnil)) in
             let tv = copy copy_scope existential in
             assert (is_Tvar tv);
             link_type tv to_unify;
@@ -1744,7 +1744,8 @@ let unify_var' = (* Forward declaration *)
   ref (fun _env _ty1 _ty2 -> assert false)
 
 let subst env level priv abbrev oty params args body =
-  if List.length params <> List.length args then raise Cannot_subst;
+  (* TODO jbachurski: Over/under-application *)
+  if List.length params <> List.length (AppArgs.to_list args) then raise Cannot_subst;
   let old_level = !current_level in
   current_level := level;
   let body0 = newvar (Jk.Builtin.any ~why:Dummy_jkind) in          (* Stub *)
@@ -1766,7 +1767,7 @@ let subst env level priv abbrev oty params args body =
   umode := Subst;
   try
     !unify_var' env body0 body';
-    List.iter2 (!unify_var' env) params' args;
+    AppArgs.iter_with_list (!unify_var' env) params' args;
     current_level := old_level;
     umode := old_umode;
     body'
@@ -1895,7 +1896,7 @@ let expand_abbrev_gen kind find_type_expansion env ty =
             let body =
               match expansion with
               | Exp_expr body -> body
-              | Exp_path path -> newgenty (Tconstr (path, params, ref Mnil))
+              | Exp_path path -> newgenty (Tconstr (path, AppArgs.of_list params, ref Mnil))
             in
             let ty' =
               try
@@ -2414,7 +2415,7 @@ let full_expand ~may_forget_scope env ty =
     else expand_head env ty
   in
   match get_desc ty with
-    Tobject (fi, {contents = Some (_, v::_)}) when is_Tvar v ->
+    Tobject (fi, {contents = Some (_, Applied (v::_))}) when is_Tvar v ->
       newty2 ~level:(get_level ty) (Tobject (fi, ref None))
   | _ ->
       ty
@@ -2527,9 +2528,9 @@ let rec local_non_recursive_abbrev ~allow_rec strict visited env p ty =
         with Cannot_expand ->
           let params =
             try (Env.find_type p' env |> get_type_param_exprs)
-            with Not_found -> args
+            with Not_found -> AppArgs.to_list args
           in
-          List.iter2
+          AppArgs.iter_with_list
             (fun tv ty ->
               let strict = strict || not (is_Tvar tv) in
               local_non_recursive_abbrev ~allow_rec strict visited env p ty)
@@ -2621,8 +2622,8 @@ let occur_univar ?(inj_only=false) env ty =
       | Tpoly (ty, tyl) ->
           let bound = List.fold_right TypeSet.add tyl bound in
           occur_rec bound  ty
-      | Tconstr (_, [], _) -> ()
-      | Tconstr (p, tl, _) ->
+      | Tconstr (_, Unapplied, _) -> ()
+      | Tconstr (p, Applied tl, _) ->
           begin try
             let td = Env.find_type p env in
             List.iter2
@@ -2685,8 +2686,8 @@ let univars_escape env univar_pairs vl ty =
           if List.exists (fun t -> TypeSet.mem t family) tl then ()
           else occur t
       | Tunivar _ -> if TypeSet.mem t family then raise_escape_exn (Univ t)
-      | Tconstr (_, [], _) -> ()
-      | Tconstr (p, tl, _) ->
+      | Tconstr (_, Unapplied, _) -> ()
+      | Tconstr (p, Applied tl, _) ->
           begin try
             let td = Env.find_type p env in
             List.iter
@@ -2826,6 +2827,10 @@ let deep_occur_list t0 tyl =
     List.iter unmark_type tyl;
     true
 
+let deep_occur_appargs t0 args =
+  (* This [AppArgs.to_list] is okay, as we just end up iterating over [args] *)
+  deep_occur_list t0 (AppArgs.to_list args)
+
 let deep_occur t0 ty =
   try
     deep_occur_rec t0 ty;
@@ -2854,7 +2859,7 @@ let reify env t =
       Env.enter_type (get_new_abstract_name !env name) decl !env
         ~scope:fresh_constr_scope in
     let path = Path.Pident id in
-    let t = newty2 ~level:lev (Tconstr (path,[],ref Mnil))  in
+    let t = newty2 ~level:lev (Tconstr (path,Unapplied,ref Mnil))  in
     env := new_env;
     path, t
   in
@@ -2945,7 +2950,9 @@ let compatible_paths p1 p2 =
   Path.same p1 path_bytes && Path.same p2 path_string ||
   Path.same p1 path_string && Path.same p2 path_bytes
 
+(* TODO jbachurski: Over/under-application *)
 let zip_with_found_injectivities_or_false env path tl1 tl2 =
+  let tl1, tl2 = AppArgs.to_list tl1, AppArgs.to_list tl2 in
   match Env.find_type path env with
   | decl ->
     List.map (fun (t1, t2, { variance = v }) -> (Variance.(mem Inj) v, t1, t2))
@@ -2993,7 +3000,7 @@ let rec mcomp type_pairs env t1 t2 =
   match (get_desc t1, get_desc t2, t1, t2) with
   | (Tvar { jkind }, _, _, other)
   | (_, Tvar { jkind }, other, _) -> check_jkinds other jkind
-  | (Tconstr (p1, [], _), Tconstr (p2, [], _), _, _) when Path.same p1 p2 ->
+  | (Tconstr (p1, Unapplied, _), Tconstr (p2, Unapplied, _), _, _) when Path.same p1 p2 ->
       ()
   | _ ->
       let t1' = expand_head_opt env t1 in
@@ -3013,9 +3020,9 @@ let rec mcomp type_pairs env t1 t2 =
             mcomp_labeled_list type_pairs env tl1 tl2
         | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _), _, _) ->
             mcomp_type_decl type_pairs env p1 p2 tl1 tl2
-        | (Tconstr (_, [], _), _, _, _) when has_injective_univars env t2' ->
+        | (Tconstr (_, Unapplied, _), _, _, _) when has_injective_univars env t2' ->
             raise_unexplained_for Unify
-        | (_, Tconstr (_, [], _), _, _) when has_injective_univars env t1' ->
+        | (_, Tconstr (_, Unapplied, _), _, _) when has_injective_univars env t1' ->
             raise_unexplained_for Unify
         | (Tconstr (p, _, _), _, _, other) | (_, Tconstr (p, _, _), other, _) ->
             begin try
@@ -3121,17 +3128,24 @@ and mcomp_row type_pairs env row1 row2 =
       | _ -> ())
     pairs
 
-and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
+and mcomp_type_decl type_pairs env p1 p2 args1 args2 =
   try
     let decl = Env.find_type p1 env in
     let decl' = Env.find_type p2 env in
+    (* TODO jbachurski: Over/under-application *)
+    let unwrap_args () =
+      match args1, args2 with
+      | Unapplied, Unapplied -> [], []
+      | Applied tl1, Applied tl2 -> tl1, tl2
+      | Unapplied, Applied _ | Applied _, Unapplied -> assert false
+    in
     let check_jkinds () =
       if not (Jk.has_intersection (get_type_jkind decl) (get_type_jkind decl'))
       then raise Incompatible
     in
     if compatible_paths p1 p2 then begin
       let injs =
-        zip_with_found_injectivities_or_false env p1 tl1 tl2
+        zip_with_found_injectivities_or_false env p1 args1 args2
       in
       List.iter
         (fun (i, t1, t2) -> if i then mcomp type_pairs env t1 t2)
@@ -3143,15 +3157,18 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
       | Datatype { noun = Datatype_record { lbls = lst; rep = r } },
         Datatype { noun = Datatype_record { lbls = lst'; rep = r' } }
         when equal_record_representation r r' ->
+          let tl1, tl2 = unwrap_args () in
           mcomp_list type_pairs env tl1 tl2;
           mcomp_record_description type_pairs env lst lst'
       | Datatype { noun = Datatype_variant { cstrs = v1; rep = r } },
         Datatype { noun = Datatype_variant { cstrs = v2; rep = r' } }
         when equal_variant_representation r r' ->
+          let tl1, tl2 = unwrap_args () in
           mcomp_list type_pairs env tl1 tl2;
           mcomp_variant_description type_pairs env v1 v2
       | Datatype { noun = Datatype_open _ },
         Datatype { noun = Datatype_open _ } ->
+          let tl1, tl2 = unwrap_args () in
           mcomp_list type_pairs env tl1 tl2
       | Equation _, Equation _ -> check_jkinds ()
       | Equation _, _ when not (non_aliasable p1 decl) -> check_jkinds ()
@@ -3441,7 +3458,7 @@ let unify3_var env jkind1 t1' t2 t2' =
       reify env t2';
       if can_generate_equations () then begin
         begin match get_desc t2' with
-        | Tconstr(path,[],_)
+        | Tconstr(path, Unapplied,_)
           when is_instantiable !env ~for_jkind_eqn:false path ->
             add_gadt_equation env path t1'
               (* This is necessary because a failed kind-check above
@@ -3502,7 +3519,7 @@ let rec unify (env:Env.t ref) t1 t2 =
         update_level_for Unify !env (get_level t1) t2;
         update_scope_for Unify (get_scope t1) t2;
         link_type t1 t2
-    | (Tconstr (p1, [], a1), Tconstr (p2, [], a2))
+    | (Tconstr (p1, Unapplied, a1), Tconstr (p2, Unapplied, a2))
           when Path.same p1 p2 (* && actual_mode !env = Old *)
             (* This optimization assumes that t1 does not expand to t2
                (and conversely), so we fall back to the general case
@@ -3528,7 +3545,7 @@ and unify2_rec env t10 t1 t20 t2 =
   if unify_eq t1 t2 then () else
   try match (get_desc t1, get_desc t2) with
   | (Tconstr (p1, tl1, a1), Tconstr (p2, tl2, a2)) ->
-      if Path.same p1 p2 && tl1 = [] && tl2 = []
+      if Path.same p1 p2 && tl1 = Unapplied && tl2 = Unapplied
       && not (has_cached_expansion p1 !a1 || has_cached_expansion p2 !a2)
       then begin
         update_level_for Unify !env (get_level t1) t2;
@@ -3563,8 +3580,8 @@ and unify2_expand env t1 t1' t2 t2' =
     && (find_lowest_level t1' < lv || find_lowest_level t2' < lv) then
       (* Expand abbreviations hiding a lower level *)
       (* Should also do it for parameterized types, after unification... *)
-      (match get_desc t1 with Tconstr (_, [], _) -> t1' | _ -> t1),
-      (match get_desc t2 with Tconstr (_, [], _) -> t2' | _ -> t2)
+      (match get_desc t1 with Tconstr (_, Unapplied, _) -> t1' | _ -> t1),
+      (match get_desc t2 with Tconstr (_, Unapplied, _) -> t2' | _ -> t2)
     else (t1, t2)
   in
   if unify_eq t1 t1' || not (unify_eq t2 t2') then
@@ -3619,13 +3636,13 @@ and unify3 env t1 t1' t2 t2' =
           unify_labeled_list env labeled_tl1 labeled_tl2
       | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _)) when Path.same p1 p2 ->
           if not (can_generate_equations ()) then
-            unify_list env tl1 tl2
+            unify_appargs env tl1 tl2
           else if can_assume_injective () then
-            without_assume_injective (fun () -> unify_list env tl1 tl2)
+            without_assume_injective (fun () -> unify_appargs env tl1 tl2)
           else if in_current_module p1 (* || in_pervasives p1 *)
                || List.exists (expands_to_datatype !env) [t1'; t1; t2]
           then
-            unify_list env tl1 tl2
+            unify_appargs env tl1 tl2
           else
             let injs = zip_with_found_injectivities_or_false !env p1 tl1 tl2 in
             List.iter
@@ -3640,8 +3657,8 @@ and unify3 env t1 t1' t2 t2' =
                       reify env t2
                   end)
               injs
-      | (Tconstr (path,[],_),
-         Tconstr (path',[],_))
+      | (Tconstr (path,Unapplied,_),
+         Tconstr (path',Unapplied,_))
         when is_instantiable !env ~for_jkind_eqn:false path
           && is_instantiable !env ~for_jkind_eqn:false path'
           && can_generate_equations () ->
@@ -3652,13 +3669,13 @@ and unify3 env t1 t1' t2 t2' =
           in
           record_equation t1' t2';
           add_gadt_equation env source destination
-      | (Tconstr (path,[],_), _)
+      | (Tconstr (path,Unapplied,_), _)
         when is_instantiable !env ~for_jkind_eqn:false path
           && can_generate_equations () ->
           reify env t2';
           record_equation t1' t2';
           add_gadt_equation env path t2'
-      | (_, Tconstr (path,[],_))
+      | (_, Tconstr (path,Unapplied,_))
         when is_instantiable !env ~for_jkind_eqn:false path
           && can_generate_equations () ->
           reify env t1';
@@ -3679,7 +3696,7 @@ and unify3 env t1 t1' t2 t2' =
           (* Type [t2'] may have been instantiated by [unify_fields] *)
           (* XXX One should do some kind of unification... *)
           begin match get_desc t2' with
-            Tobject (_, {contents = Some (_, va::_)}) when
+            Tobject (_, {contents = Some (_, Applied (va::_))}) when
               (match get_desc va with
                 Tvar _|Tunivar _|Tnil -> true | _ -> false) -> ()
           | Tobject (_, nm2) -> set_name nm2 !nm1
@@ -3742,7 +3759,7 @@ and unify3 env t1 t1' t2 t2' =
           Tconstr (p, tl, abbrev) ->
             forget_abbrev abbrev p;
             let t2'' = expand_head_unif !env t2 in
-            if not (closed_parameterized_type tl t2'') then
+            if not (closed_parameterized_type (AppArgs.to_list tl) t2'') then
               link_type t2 t2'
         | _ ->
             () (* t2 has already been expanded by update_level *)
@@ -3755,6 +3772,12 @@ and unify_list env tl1 tl2 =
   if List.length tl1 <> List.length tl2 then
     raise_unexplained_for Unify;
   List.iter2 (unify env) tl1 tl2
+
+and unify_appargs env tl1 tl2 =
+  match tl1, tl2 with
+  | Unapplied, Unapplied -> ()
+  | Applied tl1, Applied tl2 -> unify_list env tl1 tl2
+  | _ -> raise_unexplained_for Unify
 
 and unify_labeled_list env labeled_tl1 labeled_tl2 =
   if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
@@ -4144,10 +4167,10 @@ let filter_arrow env t l ~force_tpoly =
               (* CR layouts v5: Change the Jk.Builtin.value when option can
                  hold non-values. *)
               (Tconstr(Predef.path_option,
-                       [newvar2 level (Jk.wrap Predef.option_argument_jkind)],
+                       AppArgs.one (newvar2 level (Jk.wrap Predef.option_argument_jkind)),
                        ref Mnil))
           else if is_position l then
-            newty2 ~level (Tconstr (Predef.path_lexing_position, [], ref Mnil))
+            newty2 ~level (Tconstr (Predef.path_lexing_position, Unapplied, ref Mnil))
           else
             newvar2 level k_arg
         in
@@ -4681,7 +4704,7 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
         instantiating [t2], which we do not wish to do *)
         check_type_jkind_exn env Moregen t2 jkind;
         link_type t1 t2
-    | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
+    | (Tconstr (p1, Unapplied, _), Tconstr (p2, Unapplied, _)) when Path.same p1 p2 ->
         ()
     | _ ->
         let t1' = expand_head env t1 in
@@ -4712,6 +4735,9 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
                 labeled_tl1 labeled_tl2
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
                 when Path.same p1 p2 -> begin
+              (* TODO jbachurski: Over/under-application *)
+              let tl1 = AppArgs.to_list tl1 in
+              let tl2 = AppArgs.to_list tl2 in
               match variance with
               | Invariant | Bivariant ->
                   moregen_list inst_nongen variance type_pairs env tl1 tl2
@@ -5116,7 +5142,7 @@ let rec eqtype rename type_pairs subst env t1 t2 =
     match (get_desc t1, get_desc t2) with
       (Tvar { jkind = k1 }, Tvar { jkind = k2 }) when rename ->
         eqtype_subst type_pairs subst t1 k1 t2 k2
-    | (Tconstr (p1, [], _), Tconstr (p2, [], _)) when Path.same p1 p2 ->
+    | (Tconstr (p1, Unapplied, _), Tconstr (p2, Unapplied, _)) when Path.same p1 p2 ->
         ()
     | _ ->
         let t1' = expand_head_rigid env t1 in
@@ -5141,7 +5167,7 @@ let rec eqtype rename type_pairs subst env t1 t2 =
                 labeled_tl2
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
                 when Path.same p1 p2 ->
-              eqtype_list rename type_pairs subst env tl1 tl2
+              eqtype_appargs rename type_pairs subst env tl1 tl2
           | (Tapp (t, args), Tapp (t', args')) ->
               eqtype rename type_pairs subst env t t';
               eqtype_list rename type_pairs subst env args args'
@@ -5181,6 +5207,12 @@ and eqtype_list rename type_pairs subst env tl1 tl2 =
   if List.length tl1 <> List.length tl2 then
     raise_unexplained_for Equality;
   List.iter2 (eqtype rename type_pairs subst env) tl1 tl2
+
+and eqtype_appargs rename type_pairs subst env tl1 tl2 =
+  match tl1, tl2 with
+  | Unapplied, Unapplied -> ()
+  | Applied tl1, Applied tl2 -> eqtype_list rename type_pairs subst env tl1 tl2
+  | _ -> raise_unexplained_for Equality
 
 and eqtype_labeled_list rename type_pairs subst env labeled_tl1 labeled_tl2 =
   if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
@@ -5775,7 +5807,7 @@ let rec build_subtype env (visited : transient_expr list)
           (* Fix PR#4505: do not set ty to Tvar when it appears in tl1,
              as this occurrence might break the occur check.
              XXX not clear whether this correct anyway... *)
-          if deep_occur_list ty tl1 then raise Not_found;
+          if deep_occur_appargs ty tl1 then raise Not_found;
           set_type_desc ty
             (Tvar { name = None;
                     jkind = Jk.Builtin.value
@@ -5823,7 +5855,8 @@ let rec build_subtype env (visited : transient_expr list)
                 else (newvar (Jk.Builtin.value
                                 ~why:(Unknown "build_subtype 3")),
                       Changed))
-            (zip_params_with_applied tl decl)
+            (* TODO jbachurski: Over/under-application *)
+            (zip_params_with_applied (AppArgs.to_list tl) decl)
         in
         let c = collect tl' in
         if c > Unchanged then (newconstr p (List.map fst tl'), c)
@@ -5966,7 +5999,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
           cstrs
     | (Ttuple tl1, Ttuple tl2) ->
         subtype_labeled_list env trace tl1 tl2 cstrs
-    | (Tconstr(p1, [], _), Tconstr(p2, [], _)) when Path.same p1 p2 ->
+    | (Tconstr(p1, Unapplied, _), Tconstr(p2, Unapplied, _)) when Path.same p1 p2 ->
         cstrs
     | (Tconstr(p1, _tl1, _abbrev1), _)
       when generic_abbrev env p1 && safe_abbrev env t1 ->
@@ -6000,7 +6033,8 @@ let rec subtype_rec env trace t1 t2 cstrs =
                     t2 t1
                     cstrs
                 else cstrs)
-            cstrs (zip_params_with_applied2 tl1 tl2 decl)
+            (* TODO jbachurski: Over/under-application *)
+            cstrs (zip_params_with_applied2 (AppArgs.to_list tl1) (AppArgs.to_list tl2) decl)
         with Not_found ->
           (trace, t1, t2, !univar_pairs)::cstrs
         end
@@ -6380,14 +6414,14 @@ let rec normalize_type_rec visited ty =
     | Tobject (fi, nm) ->
         begin match !nm with
         | None -> ()
-        | Some (n, v :: l) ->
+        | Some (n, Applied (v :: l)) ->
             if deep_occur_list ty l then
               (* The abbreviation may be hiding something, so remove it *)
               set_name nm None
             else
             begin match get_desc v with
             | Tvar _ | Tunivar _ -> ()
-            | Tnil -> set_type_desc ty (Tconstr (n, l, ref Mnil))
+            | Tnil -> set_type_desc ty (Tconstr (n, AppArgs.of_list l, ref Mnil))
             | _    -> set_name nm None
             end
         | _ ->
@@ -6445,7 +6479,7 @@ let rec nondep_type_rec ?(expand_private=false) env ids ty =
             | Some id ->
                raise (Nondep_cannot_erase id)
             | None ->
-               Tconstr(p, List.map (nondep_type_rec env ids) tl, ref Mnil)
+               Tconstr(p, AppArgs.map (nondep_type_rec env ids) tl, ref Mnil)
           with (Nondep_cannot_erase _) as exn ->
             (* If that doesn't work, try expanding abbrevs *)
             try Tlink (nondep_type_rec ~expand_private env ids
@@ -6472,7 +6506,7 @@ let rec nondep_type_rec ?(expand_private=false) env ids ty =
                         None -> None
                       | Some (p, tl) ->
                           if Path.exists_free ids p then None
-                          else Some (p, List.map (nondep_type_rec env ids) tl)))
+                          else Some (p, AppArgs.map (nondep_type_rec env ids) tl)))
       | Tvariant row ->
           let more = row_more row in
           (* We must keep sharing according to the row variable *)
@@ -6573,11 +6607,11 @@ let nondep_extension_constructor env ids ext =
       | Some id ->
         begin
           let ty =
-            newgenty (Tconstr(ext.ext_type_path, ext.ext_type_params, ref Mnil))
+            newgenty (Tconstr(ext.ext_type_path, AppArgs.of_list ext.ext_type_params, ref Mnil))
           in
           let ty' = nondep_type_rec env ids ty in
             match get_desc ty' with
-                Tconstr(p, tl, _) -> p, tl
+                Tconstr(p, tl, _) -> p, AppArgs.to_list tl
               | _ -> raise (Nondep_cannot_erase id)
         end
       | None ->

@@ -60,7 +60,7 @@ let structure : type_definition -> type_structure = fun def ->
           match def.type_noun with
           | Datatype { noun = Datatype_variant { cstrs = [{cd_res = Some ret_type}] } } ->
              begin match get_desc ret_type with
-             | Tconstr (_, tyl, _) -> tyl
+             | Tconstr (_, tyl, _) -> AppArgs.to_list tyl
              | _ -> assert false
              end
           | _ -> get_type_param_exprs def
@@ -133,7 +133,7 @@ let rec immediate_subtypes : type_expr -> type_expr list = fun ty ->
       let class_subtys =
         match !class_ty with
         | None        -> []
-        | Some(_,tys) -> tys
+        | Some(_,tys) -> AppArgs.to_list tys
       in
       immediate_subtypes_object_row class_subtys row
   | Tvariant(row) ->
@@ -148,7 +148,7 @@ let rec immediate_subtypes : type_expr -> type_expr list = fun ty ->
   | Tlink _ | Tsubst _ -> assert false (* impossible due to Ctype.repr *)
   | Tvar _ | Tunivar _ -> []
   | Tpoly (pty, _) -> [pty]
-  | Tconstr (_path, tys, _) -> tys
+  | Tconstr (_path, tys, _) -> AppArgs.to_list tys
   | Tapp (ty, tys) -> ty :: tys
 
 and immediate_subtypes_object_row acc ty = match get_desc ty with
@@ -441,7 +441,8 @@ let check_type
         check_type hyps pty m
     | (Tunivar(_)         , _      ) -> empty
     (* Type constructor case. *)
-    | (Tconstr(path,tys,_), m      ) ->
+    | (Tconstr(_,Unapplied,_), _) -> empty
+    | (Tconstr(path,Applied tys,_), m) ->
         let on_param context (ty, { separability = m_param }) =
           let hyps = match m_param with
             | Ind -> Hyps.guard hyps

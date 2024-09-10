@@ -223,7 +223,7 @@ val curry_mode : Alloc.Const.t -> Alloc.Const.t -> Alloc.Const.t
 
 val apply:
         ?use_current_level:bool ->
-        Env.t -> type_expr list -> type_expr -> type_expr list -> type_expr
+        Env.t -> type_expr list -> type_expr -> AppArgs.t -> type_expr
         (* [apply [p1...pN] t [a1...aN]] applies the type function
            [fun p1 ... pN -> t] to the arguments [a1...aN] and returns the
            resulting instance of [t].
