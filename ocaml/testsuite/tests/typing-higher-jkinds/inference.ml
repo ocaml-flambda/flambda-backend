@@ -116,15 +116,36 @@ module type M = sig val f : 'a ('b : value => value). 'a -> 'a  'b end
 |}]
 
 module type M = sig
-  type t : (((top => top) => top) => top) => any
+  type (_ : ((top => top) => top) => top) t : any
   val f : 'a t -> unit
 end
 [%%expect {|
-Line 3, characters 10-14:
-3 |   val f : 'a t -> unit
-              ^^^^
-Error: The type constructor t expects 0 argument(s),
-       but is here applied to 1 argument(s)
+module type M =
+  sig
+    type (_ : ((top => top) => top) => top) t : any
+    val f : ('a : ((top => value) => top) => value). 'a t -> unit
+  end
+|}]
+
+module type M = sig
+  type t : (((top => top) => top) => top) => any
+  val f : 'a (t) -> unit
+end
+[%%expect {|
+module type M =
+  sig
+    type t : (((top => top) => top) => top) => any
+    val f : ('a : ((top => value) => top) => value). 'a  (t) -> unit
+  end
+|}]
+
+module type M = sig
+  val f : 'a 'b -> unit 'b
+end
+[%%expect {|
+>> Fatal error: Union of sort variables
+Uncaught exception: Misc.Fatal_error
+
 |}]
 
 module type M = sig
