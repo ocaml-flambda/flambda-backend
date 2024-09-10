@@ -417,13 +417,19 @@ let output_to_csv ppf columns =
   in
   let string_columns = List.map (fun col -> List.assoc col column_mapping) columns in
   Format.fprintf ppf "%s@\n" (to_csv ("pass name" :: string_columns));
-  let output_row_f = output_rows
-    ~output_row:(fun ~prefix ~cell_strings ~name ->
-      Format.fprintf ppf "%s@\n" (to_csv ((prefix ^ name) :: cell_strings)))
-    ~new_prefix:(fun ~prev ~curr_name -> Format.sprintf "%s%s/" prev curr_name)
-    ~always_output_ancestors:false
-    ~pad_empty:false
-  in output_columns output_row_f columns
+  let add_suffix pass =
+    let suffix = if String.starts_with ~prefix:file_prefix pass then "/" else "" in
+    pass ^ suffix
+  in
+  let output_row_f =
+    output_rows
+      ~output_row:(fun ~prefix ~cell_strings ~name ->
+        Format.fprintf ppf "%s@\n" (to_csv ((prefix ^ add_suffix name) :: cell_strings)))
+      ~new_prefix:(fun ~prev ~curr_name ->
+        Format.sprintf "%s%s/" prev (add_suffix curr_name))
+      ~always_output_ancestors:false ~pad_empty:false
+  in
+  output_columns output_row_f columns
 
 let all_columns = List.map fst column_mapping
 let column_names = List.map snd column_mapping
