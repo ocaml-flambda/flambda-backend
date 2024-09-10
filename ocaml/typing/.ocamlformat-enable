@@ -1,5 +1,7 @@
 jkind.ml
 jkind.mli
+higher_jkind.ml
+higher_jkind.mli
 jkind_types.ml
 jkind_types.mli
 jkind_intf.ml

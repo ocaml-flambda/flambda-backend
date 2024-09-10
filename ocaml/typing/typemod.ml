@@ -669,7 +669,7 @@ let merge_constraint initial_env loc sg lid constr =
             (* jkind any is fine on the params because they get thrown away
                 below *)
             List.map
-              (fun _ -> Btype.newgenvar (Jkind.Builtin.any ~why:Dummy_jkind))
+              (fun _ -> Btype.newgenvar (Higher_jkind.Builtin.top ~why:Dummy_jkind))
               sdecl.ptype_params;
           in
           let type_variance =
@@ -3487,7 +3487,7 @@ let type_package env m p fl =
   List.iter
     (fun (n, ty) ->
       try Ctype.unify env ty
-            (Ctype.newvar (Jkind.Builtin.any ~why:Dummy_jkind))
+            (Ctype.newvar (Higher_jkind.Builtin.top ~why:Dummy_jkind))
       with Ctype.Unify _ ->
         raise (Error(modl.mod_loc, env, Scoping_pack (n,ty))))
     fl';

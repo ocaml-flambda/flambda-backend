@@ -391,6 +391,7 @@ module Jkind = struct
     | Mod of t * modes
     | With of t * core_type
     | Kind_of of core_type
+    | Arrow of t list * t
 
   type annotation = t loc
 
@@ -461,6 +462,10 @@ module Jkind = struct
         t_loc.loc
     | Kind_of ty ->
       struct_item_of_list "kind_of" [struct_item_of_type ty] t_loc.loc
+    | Arrow (args, result) ->
+      struct_item_of_list "arrow"
+        (to_structure_item result :: List.map to_structure_item args)
+        t_loc.loc
 
   let rec of_structure_item item =
     let bind = Option.bind in
@@ -480,7 +485,20 @@ module Jkind = struct
       bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Kind_of ty))
     | Some ("abbrev", [item], loc) ->
       bind (Const.of_structure_item item) (fun c -> ret loc (Abbreviation c))
+    | Some ("arrow", result :: args, loc) ->
+      bind (of_structure_item result) (fun { txt = result } ->
+          bind (of_structure_item_list args) (fun args ->
+              let args = List.map (fun { txt } -> txt) args in
+              ret loc (Arrow (args, result))))
     | Some _ | None -> None
+
+  and of_structure_item_list items =
+    List.fold_right
+      Option.(
+        fun arg acc ->
+          bind acc (fun acc ->
+              Option.map (fun arg -> arg :: acc) (of_structure_item arg)))
+      items (Some [])
 end
 
 (** Jkind annotations' encoding as attribute payload, used in both n-ary

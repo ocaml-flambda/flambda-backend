@@ -840,7 +840,7 @@ let has_poly_constraint spat =
 let mode_cross_left env ty mode =
   let mode =
     if not (is_principal ty) then mode else
-    let jkind = type_jkind_purely env ty in
+    let jkind = type_jkind_purely env ty |> Higher_jkind.unwrap ~loc:__LOC__ in
     let upper_bounds = Jkind.get_modal_upper_bounds jkind in
     let upper_bounds = Const.alloc_as_value upper_bounds in
     Value.meet_const upper_bounds mode
@@ -858,7 +858,7 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   let monadic = Alloc.Monadic.disallow_left monadic in
   let comonadic = Alloc.Comonadic.disallow_right comonadic in
   if not (is_principal ty) then { monadic; comonadic } else
-  let jkind = type_jkind_purely env ty in
+  let jkind = type_jkind_purely env ty |> Higher_jkind.unwrap ~loc:__LOC__ in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let upper_bounds = Alloc.Const.split upper_bounds in
   let comonadic = Alloc.Comonadic.meet_const upper_bounds.comonadic comonadic in
@@ -868,7 +868,7 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
 (** Mode cross a right mode *)
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
-  let jkind = type_jkind_purely env ty in
+  let jkind = type_jkind_purely env ty |> Higher_jkind.unwrap ~loc:__LOC__ in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let upper_bounds = Const.alloc_as_value upper_bounds in
   mode_morph (Value.imply upper_bounds) expected_mode
@@ -935,6 +935,11 @@ let mode_mutate_mutable =
 let check_project_mutability ~loc ~env mutability mode =
   if Types.is_mutable mutability then
     submode ~loc ~env mode mode_project_mutable
+
+(* Since most of this file does not use higher jkinds, use wrapping aliases *)
+let newvar ?name jkind = newvar ?name (Higher_jkind.wrap jkind)
+let newvar2 ?name level jkind = newvar2 ?name level (Higher_jkind.wrap jkind)
+let newgenvar ?name jkind = newgenvar ?name (Higher_jkind.wrap jkind)
 
 (* Typing of patterns *)
 
@@ -1495,7 +1500,7 @@ let solve_constructor_annotation tps env name_list sty ty_args ty_ex =
             See: https://github.com/ocaml/ocaml/pull/9584/ *)
         let decl = new_local_type ~loc:name.loc
                      ~jkind_annot:None
-                     (Jkind.Builtin.value ~why:Existential_type_variable) in
+                     (Higher_jkind.Builtin.value ~why:Existential_type_variable) in
         let (id, new_env) =
           Env.enter_type ~scope:expansion_scope name.txt decl !env in
         env := new_env;
@@ -7461,6 +7466,10 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       end
       end
   | None ->
+      (* CR jbachurski: We don't really want this to be here, but it seems necessary... *)
+      (match constrain_type_jkind env ty_expected' (Higher_jkind.Builtin.any ~why:Dummy_jkind) with
+      | Ok () -> ()
+      | Error err -> raise (Error (sarg.pexp_loc, env, Function_type_not_rep (ty_expected', err))));
       let mode = expect_mode_cross env ty_expected' mode in
       let texp = type_expect ?recarg env mode sarg
         (mk_expected ?explanation ty_expected') in
@@ -8207,14 +8216,14 @@ and type_newtype
   fun env name jkind_annot_opt type_body  ->
   let { txt = name; loc = name_loc } : _ Location.loc = name in
   let jkind, jkind_annot =
-    Jkind.of_annotation_option_default ~context:(Newtype_declaration name)
-      ~default:(Jkind.Builtin.value ~why:Univar) jkind_annot_opt
+    Higher_jkind.of_annotation_option_default ~context:(Newtype_declaration name)
+      ~default:(Higher_jkind.Builtin.value ~why:Univar) jkind_annot_opt
   in
   let ty =
     if Typetexp.valid_tyvar_name name then
-      newvar ~name jkind
+      Ctype.newvar ~name jkind
     else
-      newvar jkind
+      Ctype.newvar jkind
   in
   (* Use [with_local_level] just for scoping *)
   with_local_level begin fun () ->
@@ -8325,7 +8334,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
              and route the appropriate sorts through to its uses. *)
           if is_recursive then begin
             List.iter (fun { pv_id; pv_loc; pv_type; _ } ->
-              let value = Jkind.Builtin.value ~why:(Let_rec_variable pv_id) in
+              let value = Higher_jkind.Builtin.value ~why:(Let_rec_variable pv_id) in
               match constrain_type_jkind env pv_type value with
               | Ok () -> ()
               | Error e ->

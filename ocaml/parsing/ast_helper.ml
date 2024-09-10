@@ -65,6 +65,7 @@ module Typ = struct
   let arrow ?loc ?attrs a b c d e = mk ?loc ?attrs (Ptyp_arrow (a, b, c, d, e))
   let tuple ?loc ?attrs a = mk ?loc ?attrs (Ptyp_tuple a)
   let constr ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_constr (a, b))
+  let app ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_app (a, b))
   let object_ ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_object (a, b))
   let class_ ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_class (a, b))
   let alias ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_alias (a, b))
@@ -102,8 +103,13 @@ module Typ = struct
         | Ptyp_constr( { txt = Longident.Lident s }, [])
           when List.mem s var_names ->
             Ptyp_var s
+        | Ptyp_constr( { txt = Longident.Lident s }, lst)
+          when List.mem s var_names ->
+            Ptyp_app({t with ptyp_desc = Ptyp_var s}, List.map loop lst)
         | Ptyp_constr(longident, lst) ->
             Ptyp_constr(longident, List.map loop lst)
+        | Ptyp_app(core_type, lst) ->
+            Ptyp_app(loop core_type, List.map loop lst)
         | Ptyp_object (lst, o) ->
             Ptyp_object (List.map loop_object_field lst, o)
         | Ptyp_class (longident, lst) ->

@@ -125,6 +125,7 @@ COMPILERLIBS_SOURCES=\
   typing/types.ml \
   typing/oprint.ml \
   typing/jkind.ml \
+  typing/higher_jkind.ml \
   typing/typedtree.ml \
   typing/btype.ml \
   typing/subst.ml \

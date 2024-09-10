@@ -253,9 +253,9 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
      are checked and then unified with the real manifest and checked against the
      kind. *)
   let type_jkind, type_jkind_annotation, sdecl_attributes =
-    Jkind.of_type_decl_default
+    Higher_jkind.of_type_decl_default
       ~context:(Type_declaration path)
-      ~default:(Jkind.Builtin.any ~why:Initial_typedecl_env)
+      ~default:(Higher_jkind.Builtin.top ~why:Initial_typedecl_env)
       sdecl
   in
   let type_params =
@@ -269,7 +269,8 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let type_noun =
     match sdecl.ptype_manifest, abstract_abbrevs, sdecl.ptype_private with
     | None, _, priv | Some _, None, priv ->
-      create_type_equation_noun type_params type_jkind priv (Some (Ctype.newvar type_jkind))
+      create_higher_kinded_type_equation_noun
+        type_params type_jkind priv (Some (Ctype.newvar type_jkind))
     (* CR jbachurski: This can hit private, apparently? *)
     | Some _, Some reason, (Public | Private) -> Equation { params = type_params; ret_jkind = type_jkind; eq = Type_abstr { reason } }
   in
@@ -530,7 +531,7 @@ let make_constructor
                       ~context:(Constructor_type_parameter (cstr_path, v.txt))
                       annot
                  in
-                 const, annot)
+                 Jkind_types.Higher_const.Type const, annot)
               l)
           vars_jkinds
   in
@@ -773,7 +774,7 @@ let transl_declaration env sdecl (id, uid) =
   in
   verify_unboxed_attr unboxed_attr sdecl;
   let jkind_from_annotation, jkind_annotation, sdecl_attributes =
-    match Jkind.of_type_decl ~context:(Type_declaration path) sdecl with
+    match Higher_jkind.of_type_decl ~context:(Type_declaration path) sdecl with
     | Some (jkind, jkind_annotation, sdecl_attributes) ->
         Some jkind, Some jkind_annotation, sdecl_attributes
     | None -> None, None, sdecl.ptype_attributes
@@ -814,8 +815,11 @@ let transl_declaration env sdecl (id, uid) =
     *)
     match jkind_from_annotation, man with
     | Some annot, _ -> annot
-    | None, Some _ -> Jkind.Builtin.any ~why:Initial_typedecl_env
+    | None, Some _ -> Higher_jkind.Builtin.any ~why:Initial_typedecl_env
     | None, None -> jkind_default
+  in
+  let assign_type_jkind jkind_default =
+    Higher_jkind.(assign_jkind (wrap jkind_default) |> unwrap ~loc:__LOC__)
   in
   let tkind, (kind : type_noun) =
     match sdecl.ptype_kind with
@@ -845,8 +849,8 @@ let transl_declaration env sdecl (id, uid) =
         raise (Error (sdecl.ptype_loc, Non_abstract_reexport path))
       | Ptype_abstract ->
           Ttype_abstract,
-          create_type_equation_noun
-            params (assign_jkind (Jkind.Builtin.value ~why:Default_type_jkind)) priv man
+          create_higher_kinded_type_equation_noun
+            params (assign_jkind (Higher_jkind.Builtin.value ~why:Default_type_jkind)) priv man
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -932,7 +936,7 @@ let transl_declaration env sdecl (id, uid) =
           Ttype_variant tcstrs,
           Datatype {
             params;
-            ret_jkind = assign_jkind jkind;
+            ret_jkind = assign_type_jkind jkind;
             manifest = get_man_path_manifest ();
             noun = Datatype_variant { priv; cstrs; rep } }
       | Ptype_record lbls ->
@@ -956,14 +960,14 @@ let transl_declaration env sdecl (id, uid) =
           Ttype_record lbls,
           Datatype {
             params;
-            ret_jkind = assign_jkind jkind;
+            ret_jkind = assign_type_jkind jkind;
             manifest = get_man_path_manifest ();
             noun = Datatype_record { priv; lbls = lbls'; rep } }
       | Ptype_open ->
           Ttype_open,
           Datatype {
             params;
-            ret_jkind = assign_jkind (Jkind.Builtin.value ~why:Extensible_variant);
+            ret_jkind = assign_type_jkind (Jkind.Builtin.value ~why:Extensible_variant);
             manifest = get_man_path_manifest ();
             noun = Datatype_open { priv }
           }
@@ -1152,7 +1156,7 @@ let narrow_to_manifest_jkind env loc decl =
   | None -> decl
   | Some ty ->
     let jkind' = Ctype.type_jkind_purely env ty in
-    match Jkind.sub_with_history jkind' (get_type_jkind decl) with
+    match Higher_jkind.sub_with_history jkind' (get_type_jkind decl) with
     | Ok jkind' -> set_type_jkind jkind' decl
     | Error v ->
       raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
@@ -1167,7 +1171,7 @@ let check_kind_coherence env loc dpath decl =
       let ty = Btype.newgenty (Tconstr (path, get_type_param_exprs decl, ref Mnil)) in
       if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
-        begin match Jkind.sub_with_history jkind' ret_jkind with
+        begin match Higher_jkind.sub_with_history jkind' (Higher_jkind.wrap ret_jkind) with
         | Ok _ -> ()
         | Error v ->
           raise (Error (loc, Jkind_mismatch_of_type (ty,v)))
@@ -1216,7 +1220,7 @@ let update_label_jkinds env loc lbls named =
   in
   let lbls =
     List.mapi (fun idx (Types.{ld_type} as lbl) ->
-      let ld_jkind = Ctype.type_jkind env ld_type in
+      let ld_jkind = Ctype.type_jkind env ld_type |> Higher_jkind.unwrap ~loc:__LOC__ in
       update idx ld_jkind;
       {lbl with ld_jkind}
     ) lbls
@@ -1233,7 +1237,7 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
   match cd_args with
   | Types.Cstr_tuple tys ->
     List.iteri (fun idx {Types.ca_type=ty; _} ->
-      jkinds.(idx) <- Ctype.type_jkind env ty) tys;
+      jkinds.(idx) <- Ctype.type_jkind env ty |> Higher_jkind.unwrap ~loc:__LOC__) tys;
     cd_args, Array.for_all Jkind.is_void_defaulting jkinds
   | Types.Cstr_record lbls ->
     let lbls, all_void =
@@ -1476,7 +1480,7 @@ let update_decl_jkind env dpath decl =
   let update_record_kind loc lbls rep =
     match lbls, rep with
     | [Types.{ld_type} as lbl], Record_unboxed ->
-      let ld_jkind = Ctype.type_jkind env ld_type in
+      let ld_jkind = Ctype.type_jkind env ld_type |> Higher_jkind.unwrap ~loc:__LOC__ in
       [{lbl with ld_jkind}], Record_unboxed, ld_jkind
     | _, Record_boxed jkinds ->
       let lbls, all_void =
@@ -1586,11 +1590,11 @@ let update_decl_jkind env dpath decl =
     | [{Types.cd_args} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [{ca_type=ty; _}] -> begin
-            let jkind = Ctype.type_jkind env ty in
+            let jkind = Ctype.type_jkind env ty |> Higher_jkind.unwrap ~loc:__LOC__ in
             cstrs, Variant_unboxed, jkind
           end
         | Cstr_record [{ld_type} as lbl] -> begin
-            let ld_jkind = Ctype.type_jkind env ld_type in
+            let ld_jkind = Ctype.type_jkind env ld_type |> Higher_jkind.unwrap ~loc:__LOC__ in
             [{ cstr with Types.cd_args =
                            Cstr_record [{ lbl with ld_jkind }] }],
             Variant_unboxed, ld_jkind
@@ -1635,14 +1639,16 @@ let update_decl_jkind env dpath decl =
 
   let add_crossings jkind =
     match !Clflags.allow_illegal_crossing with
-    | true -> Jkind.add_portability_and_contention_crossing ~from:(get_type_jkind decl) jkind
+    | true ->
+      Jkind.add_portability_and_contention_crossing
+        ~from:(get_type_jkind decl |> Higher_jkind.unwrap ~loc:__LOC__) jkind
     | false -> jkind, false
   in
 
   let new_decl, new_jkind = match decl.type_noun with
     | Equation { ret_jkind } -> decl, ret_jkind
     | Datatype { params = _; manifest = _; noun = Datatype_open { priv = _ } } ->
-      let type_jkind = Jkind.Builtin.value ~why:Extensible_variant in
+      let type_jkind = Higher_jkind.Builtin.value ~why:Extensible_variant in
       set_type_jkind type_jkind decl, type_jkind
     | Datatype { params; manifest; noun = Datatype_record { priv; lbls; rep } } ->
       let lbls, rep, type_jkind = update_record_kind decl.type_loc lbls rep in
@@ -1650,7 +1656,7 @@ let update_decl_jkind env dpath decl =
       { decl with
         type_noun = Datatype { params; ret_jkind = type_jkind; manifest; noun = Datatype_record { priv; lbls; rep } };
         type_has_illegal_crossings },
-      type_jkind
+      Higher_jkind.wrap type_jkind
     (* CR layouts v3.0: handle this case in [update_variant_jkind] when
        [Variant_with_null] introduced.
 
@@ -1659,20 +1665,20 @@ let update_decl_jkind env dpath decl =
     *)
     | Datatype { ret_jkind; noun = Datatype_variant _ } when
       Builtin_attributes.has_or_null_reexport decl.type_attributes ->
-      decl, ret_jkind
+      decl, Higher_jkind.wrap ret_jkind
     | Datatype { params; manifest; noun = Datatype_variant { priv; cstrs; rep } } ->
       let cstrs, rep, type_jkind = update_variant_kind cstrs rep in
       let type_jkind, type_has_illegal_crossings = add_crossings type_jkind in
       { decl with
         type_noun = Datatype { params; ret_jkind = type_jkind; manifest; noun = Datatype_variant { priv; cstrs; rep } };
         type_has_illegal_crossings },
-      type_jkind
+      Higher_jkind.wrap type_jkind
   in
 
   (* check that the jkind computed from the kind matches the jkind
      annotation, which was stored in the decl *)
   if new_jkind != get_type_jkind decl then
-    begin match Jkind.sub_or_error new_jkind (get_type_jkind decl) with
+    begin match Higher_jkind.sub_or_error new_jkind (get_type_jkind decl) with
     | Ok () -> ()
     | Error err ->
       raise(Error(decl.type_loc, Jkind_mismatch_of_path (dpath,err)))
@@ -1690,7 +1696,7 @@ let update_decls_jkind_reason decls =
        Btype.iter_type_expr_noun update_generalized decl.type_noun;
        let reason = Jkind.History.Generalized (Some id, decl.type_loc) in
        let new_decl =
-         set_type_jkind (Jkind.History.update_reason (get_type_jkind decl) reason) decl
+         set_type_jkind (Higher_jkind.History.update_reason (get_type_jkind decl) reason) decl
        in
        (id, new_decl)
     )
@@ -1903,7 +1909,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
   let args =
     (* The jkinds here shouldn't matter for the purposes of
        [check_well_founded] *)
-    List.map (fun _ -> Ctype.newvar (Jkind.Builtin.any ~why:Dummy_jkind))
+    List.map (fun _ -> Ctype.newvar (Higher_jkind.Builtin.top ~why:Dummy_jkind))
       (get_type_param_exprs decl)
   in
   let visited = ref TypeMap.empty in
@@ -2738,7 +2744,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
          transl)
     *)
     | Tvar {jkind} when is_layout_poly
-                      && Jkind.has_layout_any jkind
+                      && Higher_jkind.has_layout_any jkind
                       && get_level ty = Btype.generic_level -> Poly
     | _ ->
       let sort =
@@ -2871,7 +2877,7 @@ let check_unboxable env loc ty =
 
 let has_ty_var_with_layout_any env ty =
   List.exists
-    (fun ty -> Jkind.has_layout_any (Ctype.estimate_type_jkind env ty))
+    (fun ty -> Higher_jkind.has_layout_any (Ctype.estimate_type_jkind env ty))
     (Ctype.free_variables ty)
 
 let unexpected_layout_any_check prim env cty ty =
@@ -2948,7 +2954,7 @@ let transl_value_decl env loc valdecl =
   in
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
-                (Jkind.Builtin.value_or_null ~why:Structure_element) with
+                (Higher_jkind.Builtin.value_or_null ~why:Structure_element) with
   | Ok () -> ()
   | Error err ->
     raise(Error(cty.ctyp_loc, Non_value_in_sig(err,valdecl.pval_name.txt,cty.ctyp_type)))
@@ -3132,7 +3138,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     let sig_decl = set_type_params sig_decl type_params in
     match sig_decl.type_noun, sdecl.ptype_private, arity_ok with
     | _, priv, false ->
-        create_type_equation_noun type_params (get_type_jkind sig_decl) priv (Some man)
+        create_higher_kinded_type_equation_noun
+          type_params (get_type_jkind sig_decl) priv (Some man)
     | Equation ({ eq = Type_abstr { reason = _ } } as e), priv, true ->
         Equation { e with eq = Type_abbrev { priv; expansion = man } }
     | Equation ({ eq = Type_abbrev { priv = _; expansion = _ } } as e), priv, true ->
@@ -3223,8 +3230,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
    they can not have parameters and can only update abstract types.) *)
 let transl_package_constraint ~loc ty =
   { type_noun =
-      create_type_equation_noun
-        [] (Jkind.Builtin.any ~why:Dummy_jkind) Public (Some ty);
+      create_higher_kinded_type_equation_noun
+        [] (Higher_jkind.Builtin.top ~why:Dummy_jkind) Public (Some ty);
     (* There is no reason to calculate an accurate jkind here.  This typedecl
        will be thrown away once it is used for the package constraint inclusion
        check, and that check will expand the manifest as needed. *)
@@ -3244,7 +3251,7 @@ let abstract_type_decl ~injective ~jkind ~jkind_annotation ~params =
   Ctype.with_local_level ~post:generalize_decl begin fun () ->
     let params = List.map Ctype.newvar params in
     let type_params = create_type_params_of_unknowns ~injective params in
-    { type_noun = create_type_equation_noun type_params jkind Public None;
+    { type_noun = create_higher_kinded_type_equation_noun type_params jkind Public None;
       type_jkind_annotation = jkind_annotation;
       type_is_newtype = false;
       type_expansion_scope = Btype.lowest_level;
@@ -3264,9 +3271,9 @@ let approx_type_decl sdecl_list =
        let path = Path.Pident id in
        let injective = sdecl.ptype_kind <> Ptype_abstract in
        let jkind, jkind_annotation, _sdecl_attributes =
-         Jkind.of_type_decl_default
+         Higher_jkind.of_type_decl_default
            ~context:(Type_declaration path)
-           ~default:(Jkind.Builtin.value ~why:Default_type_jkind)
+           ~default:(Higher_jkind.Builtin.value ~why:Default_type_jkind)
            sdecl
        in
        let params =

@@ -166,6 +166,8 @@ module T = struct
     | Ptyp_tuple tyl -> List.iter (sub.typ sub) tyl
     | Ptyp_constr (lid, tl) ->
         iter_loc sub lid; List.iter (sub.typ sub) tl
+    | Ptyp_app (t, tl) ->
+        sub.typ sub t; List.iter (sub.typ sub) tl
     | Ptyp_object (ol, _o) ->
         List.iter (object_field sub) ol
     | Ptyp_class (lid, tl) ->
@@ -956,5 +958,8 @@ let default_iterator =
         | With (t, ty) ->
           this.jkind_annotation this t;
           this.typ this ty
-        | Kind_of ty -> this.typ this ty);
+        | Kind_of ty -> this.typ this ty
+        | Arrow (args, result) ->
+          List.iter (this.jkind_annotation this) args;
+          this.jkind_annotation this result);
   }

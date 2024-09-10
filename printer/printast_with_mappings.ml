@@ -190,6 +190,10 @@ let rec core_type i ppf x =
   | Ptyp_constr (li, l) ->
       line i ppf "Ptyp_constr %a\n" fmt_longident_loc li;
       list i core_type ppf l;
+  | Ptyp_app (t, l) ->
+      line i ppf "Ptyp_app\n";
+      core_type i ppf t;
+      list i core_type ppf l;
   | Ptyp_variant (l, closed, low) ->
       line i ppf "Ptyp_variant closed=%a\n" fmt_closed_flag closed;
       list i label_x_bool_x_core_type_list ppf l;
@@ -448,6 +452,10 @@ and jkind_annotation i ppf (jkind : jkind_annotation) =
   | Kind_of type_ ->
       line i ppf "Kind_of\n";
       core_type (i+1) ppf type_
+  | Arrow (args, result) ->
+      line i ppf "Arrow\n";
+      list (i+1) jkind_annotation ppf args;
+      jkind_annotation (i+1) ppf result;
 
 and function_param i ppf { pparam_desc = desc; pparam_loc = loc } =
   match desc with

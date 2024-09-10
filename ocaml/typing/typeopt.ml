@@ -350,13 +350,13 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
 
        This should be understood, but for now the simple fall back thing is
        sufficient.  *)
-    match Ctype.check_type_jkind env scty (Jkind.Builtin.value_or_null ~why:V1_safety_check)
+    match Ctype.check_type_jkind env scty (Higher_jkind.Builtin.value_or_null ~why:V1_safety_check)
     with
     | Ok _ -> ()
     | Error _ ->
       match
         Ctype.(check_type_jkind env
-                 (correct_levels ty) (Jkind.Builtin.value_or_null ~why:V1_safety_check))
+                 (correct_levels ty) (Higher_jkind.Builtin.value_or_null ~why:V1_safety_check))
       with
       | Ok _ -> ()
       | Error violation ->
@@ -403,7 +403,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       in
       if cannot_proceed () then
         num_nodes_visited,
-        value_kind_of_value_jkind (get_type_jkind decl)
+        value_kind_of_value_jkind (get_type_jkind decl |> Higher_jkind.unwrap ~loc:__LOC__)
       else
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         (* Default of [Pgenval] is currently safe for the missing cmi fallback
@@ -421,7 +421,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
                          ~num_nodes_visited labels rep)
         | Equation _ ->
           num_nodes_visited,
-          value_kind_of_value_jkind (get_type_jkind decl)
+          value_kind_of_value_jkind (get_type_jkind decl |> Higher_jkind.unwrap ~loc:__LOC__)
         | Datatype { noun = Datatype_open _ } -> num_nodes_visited, Pgenval
     end
   | Ttuple labeled_fields ->

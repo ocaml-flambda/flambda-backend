@@ -867,6 +867,24 @@ let unboxed_float sign (f, m) =
 let unboxed_type sloc lident tys =
   let loc = make_loc sloc in
   Ptyp_constr (mkloc lident loc, tys)
+
+let app_typevar_list
+    (tvs : ((Lexing.position * Lexing.position) *
+             string with_loc *
+             Jane_syntax.Jkind.annotation option) list) =
+  let tvs =
+    List.map (fun (loc, tv, annot) ->
+      match annot with
+      | None -> mktyp ~loc (Ptyp_var tv.txt)
+      | Some jkind ->
+        Jane_syntax.Layouts.type_of ~loc:(make_loc loc) @@
+          Ltyp_var { name = Some tv.txt; jkind }) tvs
+  in
+  List.fold_left
+    (fun rest tv ->
+      let loc = (rest.ptyp_loc.loc_start, tv.ptyp_loc.loc_end) in
+      mktyp ~loc (Ptyp_app (tv, [rest])))
+    (List.hd tvs) (List.tl tvs)
 %}
 
 /* Tokens */
@@ -967,6 +985,7 @@ let unboxed_type sloc lident tys =
 %token MINUS                  "-"
 %token MINUSDOT               "-."
 %token MINUSGREATER           "->"
+%token EQUALGREATER           "=>"
 %token MOD                    "mod"
 %token MODULE                 "module"
 %token MUTABLE                "mutable"
@@ -1069,6 +1088,7 @@ The precedences must be listed from low to high.
 %right    OR BARBAR                     /* expr (e || e || e) */
 %right    AMPERSAND AMPERAMPER          /* expr (e && e && e) */
 %nonassoc below_EQUAL
+%left     EQUALGREATER                  /* jkind (k => k => k) */
 %left     INFIXOP0 EQUAL LESS GREATER   /* expr (e OP e OP e) */
 %right    ATAT AT INFIXOP1              /* expr (e OP e OP e) */
 %nonassoc below_LBRACKETAT
@@ -3867,8 +3887,15 @@ type_parameters:
       { ps }
 ;
 
-jkind:
-    jkind MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
+jkind_parameters:
+    p = jkind_base
+      { [p] }
+  | LPAREN ps = separated_nonempty_llist(COMMA, jkind) RPAREN (* ( jkind+ )  *)
+      { ps }
+;
+
+jkind_base:
+    jkind_base MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
       let modes =
         List.map
           (fun {txt; loc} -> {txt = Mode txt; loc})
@@ -3876,7 +3903,7 @@ jkind:
       in
       Jane_syntax.Jkind.Mod ($1, modes)
     }
-  | jkind WITH core_type {
+  | jkind_base WITH core_type {
       Jane_syntax.Jkind.With ($1, $3)
     }
   | mkrhs(ident) {
@@ -3890,6 +3917,12 @@ jkind:
       Jane_syntax.Jkind.Default
     }
 ;
+
+jkind:
+    args=jkind_parameters EQUALGREATER result=jkind {
+      Jane_syntax.Jkind.Arrow (args, result)
+    }
+  | k=jkind_base { k }
 
 jkind_annotation: (* : jkind_annotation *)
   mkrhs(jkind) { $1 }
@@ -4183,16 +4216,21 @@ with_type_binder:
 
 /* Polymorphic types */
 
-%inline typevar: (* : string with_loc * jkind_annotation option *)
+%inline typevar: (* : (position * position) * string with_loc * jkind_annotation option *)
     QUOTE mkrhs(ident)
-      { ($2, None) }
+      { ($sloc, $2, None) }
     | LPAREN QUOTE tyvar=mkrhs(ident) COLON jkind=jkind_annotation RPAREN
-      { (tyvar, Some jkind) }
+      { ($sloc, tyvar, Some jkind) }
 ;
-%inline typevar_list:
-  (* : (string with_loc * jkind_annotation option) list *)
+%inline typevar_list_with_full_pos:
+  (* : ((position * position) * string with_loc * jkind_annotation option) list *)
   nonempty_llist(typevar)
     { $1 }
+;
+%inline typevar_list:
+  (* : string with_loc * jkind_annotation option) list *)
+  typevar_list_with_full_pos
+    { List.map (fun (_, a, b) -> (a, b)) $1 }
 ;
 %inline poly(X):
   typevar_list DOT X
@@ -4483,15 +4521,40 @@ tuple_type:
    - variant types:                       [`A]
  *)
 atomic_type:
-  | LPAREN core_type RPAREN
-      { $2 }
+  | atomic_type_not_quote_inline
+      { $1 }
+  | tvs=typevar_list_with_full_pos
+      { app_typevar_list tvs }
+  | tvs=typevar_list_with_full_pos LPAREN ty=core_type RPAREN
+      { mktyp ~loc:$sloc (Ptyp_app (ty, [app_typevar_list tvs])) }
+
+atomic_type_not_quote:
+  | atomic_type_not_quote_inline { $1 }
+
+%inline applied_type:
+  | LPAREN ty=core_type RPAREN
+      { ty }
+  | mktyp(
+    QUOTE v=ident
+      { Ptyp_var v }
+  )   { $1 }
+
+%inline atomic_type_not_quote_inline:
+  | LPAREN ty=core_type RPAREN
+      { ty }
   | LPAREN MODULE ext_attributes package_type RPAREN
       { wrap_typ_attrs ~loc:$sloc (reloc_typ ~loc:$sloc $4) $3 }
   | mktyp( /* begin mktyp group */
-      QUOTE ident
-        { Ptyp_var $2 }
-    | UNDERSCORE
+      UNDERSCORE
         { Ptyp_any }
+    | ty = atomic_type_not_quote
+      tv = applied_type
+        { Ptyp_app (tv, [ty]) }
+    | LPAREN
+      tys = separated_nontrivial_llist(COMMA, one_type_parameter_of_several)
+      RPAREN
+      tv = applied_type
+        { Ptyp_app (tv, tys) }
     | tys = actual_type_parameters
       tid = mkrhs(type_unboxed_longident)
         { unboxed_type $loc(tid) tid.txt tys }
@@ -4525,9 +4588,6 @@ atomic_type:
         { Ptyp_extension $1 }
   )
   { $1 } /* end mktyp group */
-  | LPAREN QUOTE name=ident COLON jkind=jkind_annotation RPAREN
-      { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
-        Ltyp_var { name = Some name; jkind } }
   | LPAREN UNDERSCORE COLON jkind=jkind_annotation RPAREN
       { Jane_syntax.Layouts.type_of ~loc:(make_loc $sloc) @@
         Ltyp_var { name = None; jkind } }
@@ -4728,6 +4788,7 @@ operator:
   | STAR           {"*"}
   | PERCENT        {"%"}
   | EQUAL          {"="}
+  | EQUALGREATER  {"=>"}
   | LESS           {"<"}
   | GREATER        {">"}
   | OR            {"or"}

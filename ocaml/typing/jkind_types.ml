@@ -365,6 +365,8 @@ module type Axis = sig
 
   val meet : t -> t -> t
 
+  val join : t -> t -> t
+
   val print : Format.formatter -> t -> unit
 end
 
@@ -405,6 +407,14 @@ module Externality = struct
     | External64, (External64 | Internal) | Internal, External64 -> External64
     | Internal, Internal -> Internal
 
+  let join t1 t2 =
+    match t1, t2 with
+    | Internal, (External | External64 | Internal)
+    | (External | External64), Internal ->
+      Internal
+    | External64, (External | External64) | External, External64 -> External64
+    | External, External -> External
+
   let print ppf = function
     | External -> Format.fprintf ppf "external_"
     | External64 -> Format.fprintf ppf "external64"
@@ -440,6 +450,11 @@ module Nullability = struct
     | Non_null, (Non_null | Maybe_null) | Maybe_null, Non_null -> Non_null
     | Maybe_null, Maybe_null -> Maybe_null
 
+  let join n1 n2 =
+    match n1, n2 with
+    | Maybe_null, (Maybe_null | Non_null) | Non_null, Maybe_null -> Maybe_null
+    | Non_null, Non_null -> Non_null
+
   let print ppf = function
     | Non_null -> Format.fprintf ppf "non_null"
     | Maybe_null -> Format.fprintf ppf "maybe_null"
@@ -465,18 +480,37 @@ end
 type 'type_expr history =
   | Interact of
       { reason : Jkind_intf.History.interact_reason;
-        lhs_jkind : 'type_expr Jkind_desc.t;
+        lhs_jkind : 'type_expr higher_jkind_desc;
         lhs_history : 'type_expr history;
-        rhs_jkind : 'type_expr Jkind_desc.t;
+        rhs_jkind : 'type_expr higher_jkind_desc;
         rhs_history : 'type_expr history
       }
   | Creation of Jkind_intf.History.creation_reason
 
-type 'type_expr t =
-  { jkind : 'type_expr Jkind_desc.t;
+and 'type_expr jkind =
+  { desc : 'type_expr Jkind_desc.t;
     history : 'type_expr history;
     has_warned : bool
   }
+
+and 'type_expr higher_jkind_desc =
+  | Type of 'type_expr jkind
+  | Arrow of 'type_expr higher_jkind list * 'type_expr higher_jkind
+  | Top
+
+and 'type_expr higher_jkind =
+  { hdesc : 'type_expr higher_jkind_desc;
+    hhistory : 'type_expr history
+  }
+
+let wrap_higher_jkind t = { hdesc = Type t; hhistory = t.history }
+
+let unwrap_type_jkind ~loc t =
+  match t.hdesc with
+  | Type t -> t
+  | Arrow _ | Top -> Misc.fatal_error ("A type jkind was expected at " ^ loc)
+
+type 'type_expr t = 'type_expr jkind
 
 module Const = struct
   type 'type_expr t =
@@ -487,4 +521,12 @@ module Const = struct
     }
 end
 
-type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation
+module Higher_const = struct
+  type 'type_expr t =
+    | Type of 'type_expr Const.t
+    | Arrow of 'type_expr t list * 'type_expr t
+    | Top
+end
+
+type 'type_expr annotation =
+  'type_expr Higher_const.t * Jane_syntax.Jkind.annotation

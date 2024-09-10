@@ -222,7 +222,7 @@ let attributes i ppf l =
   ) l
 
 let jkind_annotation i ppf (jkind, _) =
-  line i ppf "%a" Jkind.Debug_printers.Const.t jkind
+  line i ppf "%a" Higher_jkind.Debug_printers.Const.t jkind
 
 let zero_alloc_assume i ppf : Zero_alloc.assume -> unit = function
     { strict; never_returns_normally; never_raises; arity; loc = _ } ->
@@ -250,6 +250,10 @@ let rec core_type i ppf x =
       list i labeled_core_type ppf l;
   | Ttyp_constr (li, _, l) ->
       line i ppf "Ttyp_constr %a\n" fmt_path li;
+      list i core_type ppf l;
+  | Ttyp_app (ct, l) ->
+      line i ppf "Ttyp_app\n";
+      core_type i ppf ct;
       list i core_type ppf l;
   | Ttyp_variant (l, closed, low) ->
       line i ppf "Ttyp_variant closed=%a\n" fmt_closed_flag closed;
