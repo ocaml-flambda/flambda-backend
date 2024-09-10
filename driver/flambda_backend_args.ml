@@ -61,6 +61,12 @@ let mk_dvectorize f =
   "-dvectorize", Arg.Unit f, " (undocumented)"
 ;;
 
+let mk_cfg_selection f =
+  "-cfg-selection", Arg.Unit f, " Produce CFG at selection"
+
+let mk_no_cfg_selection f =
+  "-no-cfg-selection", Arg.Unit f, " Do not produce CFG at selection"
+
 let mk_cfg_peephole_optimize f =
   "-cfg-peephole-optimize", Arg.Unit f, " Apply peephole optimizations to CFG"
 
@@ -677,6 +683,9 @@ module type Flambda_backend_options = sig
   val no_vectorize : unit -> unit
   val dvectorize : unit -> unit
 
+  val cfg_selection : unit -> unit
+  val no_cfg_selection : unit -> unit
+
   val cfg_peephole_optimize : unit -> unit
   val no_cfg_peephole_optimize : unit -> unit
 
@@ -803,6 +812,9 @@ struct
     mk_vectorize F.vectorize;
     mk_no_vectorize F.no_vectorize;
     mk_dvectorize F.dvectorize;
+
+    mk_cfg_selection F.cfg_selection;
+    mk_no_cfg_selection F.no_cfg_selection;
 
     mk_cfg_peephole_optimize F.cfg_peephole_optimize;
     mk_no_cfg_peephole_optimize F.no_cfg_peephole_optimize;
@@ -960,6 +972,9 @@ module Flambda_backend_options_impl = struct
   let vectorize = set' Flambda_backend_flags.vectorize
   let no_vectorize = clear' Flambda_backend_flags.vectorize
   let dvectorize = set' Flambda_backend_flags.dump_vectorize
+
+  let cfg_selection = set' Flambda_backend_flags.cfg_selection
+  let no_cfg_selection = clear' Flambda_backend_flags.cfg_selection
 
   let cfg_peephole_optimize = set' Flambda_backend_flags.cfg_peephole_optimize
   let no_cfg_peephole_optimize = clear' Flambda_backend_flags.cfg_peephole_optimize
@@ -1282,6 +1297,7 @@ module Extra_params = struct
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "vectorize" -> set' Flambda_backend_flags.vectorize
+    | "cfg-selection" -> set' Flambda_backend_flags.cfg_selection
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "cfg-cse-optimize" -> set' Flambda_backend_flags.cfg_cse_optimize
     | "cfg-zero-alloc-checker" -> set' Flambda_backend_flags.cfg_zero_alloc_checker
