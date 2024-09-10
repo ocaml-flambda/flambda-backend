@@ -408,10 +408,9 @@ let column_mapping = [
   `Counters, "counters"
 ]
 
-let sanitise_for_csv =
-  String.map (fun c -> if Char.equal c ',' then '_' else c)
-
 let output_to_csv ppf columns =
+  let sanitise_for_csv =
+    String.map (fun c -> if Char.equal c ',' then '_' else c) in
   let to_csv cell_strings =
     cell_strings |> List.map sanitise_for_csv |> String.concat ","
   in
