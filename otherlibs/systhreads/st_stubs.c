@@ -56,6 +56,30 @@
 /* Max computation time before rescheduling, in milliseconds */
 #define Thread_timeout 50
 
+/* Currently, the caml_switch_runtime_locking_scheme mechanism is incompatible
+   with multi-domain programs. To give a reasonable-looking error if both are
+   used at once, we track which (if either) of the features has been used */
+static enum {
+  /* State at startup: neither feature has been used.
+     The domain lock remains held by the first systhread of domain 0,
+     and the st_masterlock is used to provide mutual exclusion of threads.
+     No backup thread has started. */
+  LOCKMODE_STARTUP,
+
+  /* State if caml_switch_runtime_locking_scheme is used.
+     The domain lock remains held by the first systhread of domain 0,
+     and a custom locking scheme is used to provide mutual exclusion of threads.
+     No backup thread has started, nor may one ever start. */
+  LOCKMODE_CUSTOM_SCHEME,
+
+  /* State if multiple domains are used.
+     The domain lock is held by whichever systhread is running, or by the backup
+     thread of the current domain. The st_masterlock is also held by the running
+     systhread. This is the standard OCaml 5 locking mode.
+     caml_switch_runtime_locking_scheme may not be used. */
+  LOCKMODE_DOMAINS
+} domain_lockmode = LOCKMODE_STARTUP;
+
 /* OS-specific code */
 #ifdef _WIN32
 #include "st_win32.h"
@@ -110,6 +134,7 @@ struct caml_thread_struct {
   char * async_exn_handler;  /* saved value of Caml_state->async_exn_handler */
   memprof_thread_t memprof;  /* memprof's internal thread data structure */
   void * signal_stack;       /* this thread's signal stack */
+  int is_main;               /* whether this is the main thread of its domain */
 
 #ifndef NATIVE_CODE
   intnat trap_sp_off;      /* saved value of Caml_state->trap_sp_off */
@@ -317,6 +342,9 @@ CAMLexport void caml_switch_runtime_locking_scheme(struct caml_locking_scheme* n
 {
   struct caml_locking_scheme* old;
   int dom_id = Caml_state->id;
+  if (domain_lockmode == LOCKMODE_DOMAINS)
+    caml_fatal_error("Switching locking scheme is unsupported in multicore programs");
+  CAMLassert (!caml_domain_is_multicore());
   save_runtime_state();
   old = atomic_exchange(&Locking_scheme(dom_id), new);
   /* We hold 'old', but it is no longer the runtime lock */
@@ -413,6 +441,7 @@ static caml_thread_t caml_thread_new_info(void)
   th->gc_regs_buckets = NULL;
   th->exn_handler = NULL;
   th->async_exn_handler = NULL;
+  th->is_main = 0;
 
 #ifndef NATIVE_CODE
   th->trap_sp_off = 1;
@@ -593,6 +622,27 @@ static void caml_thread_domain_stop_hook(void) {
   };
 }
 
+static atomic_bool threads_initialized = false;
+
+static void caml_thread_domain_spawn_hook(void)
+{
+  if (domain_lockmode == LOCKMODE_DOMAINS)
+    return;
+
+  if (domain_lockmode == LOCKMODE_CUSTOM_SCHEME)
+    caml_failwith("Domain.spawn cannot be used with a non-default runtime locking scheme.");
+
+  CAMLassert(domain_lockmode == LOCKMODE_STARTUP);
+  CAMLassert(!caml_domain_is_multicore());
+
+  if (threads_initialized && !This_thread->is_main)
+    caml_failwith("Domain.spawn: first use must be from the main thread.");
+
+  /* We are on the main thread, so we hold the domain_lock,
+     so we can switch lockmode */
+  domain_lockmode = LOCKMODE_DOMAINS;
+}
+
 /* FIXME: this should return an encoded exception for use in
    domain_thread_func, but the latter is not ready to handle it
    yet. */
@@ -628,6 +678,7 @@ static void caml_thread_domain_initialize_hook(void)
   new_thread->prev = new_thread;
   new_thread->backtrace_last_exn = Val_unit;
   new_thread->memprof = caml_memprof_main_thread(Caml_state);
+  new_thread->is_main = 1;
 
   st_tls_set(caml_thread_key, new_thread);
 
@@ -653,8 +704,6 @@ void caml_thread_interrupt_hook(void)
   return;
 }
 
-static atomic_bool threads_initialized = false;
-
 /* [caml_thread_initialize] initialises the systhreads infrastructure. This
    function first sets up the chain for systhreads on this domain, then setup
    the global variables and hooks for systhreads to cooperate with the runtime
@@ -679,6 +728,7 @@ CAMLprim value caml_thread_initialize(value unit)
   caml_enter_blocking_section_hook = caml_thread_enter_blocking_section;
   caml_leave_blocking_section_hook = caml_thread_leave_blocking_section;
   caml_domain_external_interrupt_hook = caml_thread_interrupt_hook;
+  caml_domain_spawn_hook = caml_thread_domain_spawn_hook;
   caml_domain_initialize_hook = caml_thread_domain_initialize_hook;
   caml_domain_stop_hook = caml_thread_domain_stop_hook;
   caml_atfork_hook = caml_thread_reinitialize;
