@@ -228,6 +228,35 @@ let sub_with_history (t : t) (t' : t) =
   then Ok { t with hhistory = combine_histories Subjkind t t' }
   else Error (Violation.of_ (Not_a_subjkind (t, t')))
 
+let intersection_with_new_sort ~reason jkind : t =
+  intersection_or_error ~reason jkind
+    (Jkind.of_new_legacy_sort ~why:Wildcard |> wrap)
+  |> Result.get_ok (* sorts are the minimum elements of the jkind lattice *)
+
+let rec lower_to_representable ~reason (jkind : t) : t =
+  match jkind.hdesc with
+  | Arrow (args, result) ->
+    (* We lower all covariant (result) positions to representable
+       in the expected jkind. The resulting jkind is upper bounded
+       by some jkind in the representables sub-lattice.
+       CR lwhite by jbachurski: Are we sure this is right? *)
+    { jkind with
+      hdesc =
+        Arrow
+          ( List.map (co_lower_to_representable ~reason) args,
+            lower_to_representable ~reason result )
+    }
+  | Type _ | Top ->
+    { jkind with hdesc = (intersection_with_new_sort ~reason jkind).hdesc }
+
+and co_lower_to_representable ~reason (jkind : t) : t =
+  match jkind.hdesc with
+  | Arrow (args, result) ->
+    { jkind with
+      hdesc = Arrow (List.map (lower_to_representable ~reason) args, result)
+    }
+  | Type _ | Top -> jkind
+
 (* This doesn't do any mutation because mutating a sort variable can't make it
    any, and modal upper bounds are constant. *)
 let is_max t = sub (Builtin.top ~why:Dummy_jkind) t

@@ -1434,6 +1434,8 @@ module Format_history = struct
       fprintf ppf "the %stype argument of %a has this %s"
         (format_position ~arity position)
         !printtyp_path parent_path layout_or_kind
+    | Inferred_from_application ->
+      fprintf ppf "its jkind was inferred from a type application"
     | Generalized (id, loc) ->
       let format_id ppf = function
         | Some id -> fprintf ppf " of %s" (Ident.name id)
@@ -1891,6 +1893,7 @@ module Debug_printers = struct
       fprintf ppf "Concrete_legacy_creation %a" concrete_legacy_creation_reason
         concrete
     | Primitive id -> fprintf ppf "Primitive %s" (Ident.name id)
+    | Inferred_from_application -> fprintf ppf "Inferred_from_application"
     | Imported -> fprintf ppf "Imported"
     | Imported_type_argument { parent_path; position; arity } ->
       fprintf ppf "Imported_type_argument (pos %d, arity %d) of %a" position
