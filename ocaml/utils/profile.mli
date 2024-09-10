@@ -54,6 +54,9 @@ val record_with_counters :
 (** [record_with_counters counter_f pass f arg] records the profile information of [f arg]
   and records counter information given by calling [counter_f] on the result of [f arg] *)
 
+val annotate_file_name : string -> string
+(** Annotates profiling pass for file names. *)
+
 val print : Format.formatter -> Clflags.profile_column list -> timings_precision:int -> unit
 (** Prints the selected recorded profiling information to the formatter. *)
 
