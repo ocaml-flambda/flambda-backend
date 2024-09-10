@@ -153,9 +153,6 @@ st_tlskey caml_thread_key;
 
 #define This_thread ((caml_thread_t) st_tls_get(caml_thread_key))
 
-/* Equals This_thread on the main (first) systhread of each domain */
-st_tlskey caml_thread_is_main_key;
-
 /* overall table for threads across domains */
 struct caml_thread_table {
   caml_thread_t active_thread;
