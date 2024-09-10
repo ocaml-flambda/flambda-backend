@@ -93,8 +93,8 @@ type error =
       {vloc : sort_loc; typ : type_expr; err : Jkind.Violation.t}
   | Bad_jkind_annot of type_expr * Jkind.Violation.t
   | Bad_jkind_inference of type_expr * Jkind.Violation.t
-  | Bad_jkind_application of type_expr * Jkind.t
-  | Jkind_mismatch_in_application of (type_expr * Jkind.t) * (type_expr * Jkind.t) list * Jkind.Violation.t option
+  | Bad_jkind_application of type_expr * Higher_jkind.t
+  | Jkind_mismatch_in_application of (type_expr * Higher_jkind.t) * (type_expr * Higher_jkind.t) list * Jkind.Violation.t option
   | Did_you_mean_unboxed of Longident.t
   | Invalid_label_for_call_pos of Parsetree.arg_label
 
@@ -813,10 +813,46 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
       let constr =
         newconstr path (List.map (fun ctyp -> ctyp.ctyp_type) args) in
       ctyp (Ttyp_constr (path, lid, args)) constr
-  | Ptyp_app _ -> 
-    (* TODO jbachurski *)
-    ignore (Arity (0, Unknown));
-    failwith "General type application is not implemented"
+  | Ptyp_app (st, stl) ->
+    let ty =
+      transl_type env ~policy
+        ~jkind_check:(Arity (List.length stl, jkind_check))
+        ~row_context Alloc.Const.legacy st in
+    (* CR jbachurski: According to lwhite this introduces order-dependence,
+         but I'm not sure how to fix it. *)
+    let ty_jkind = estimate_type_jkind env ty.ctyp_type in
+    let arg_ty_jkinds =
+      match ty_jkind.hdesc with
+      | Arrow (args, _) -> args
+      | Type _ -> 
+        raise (Error (
+          styp.ptyp_loc, env,
+          Bad_jkind_application (ty.ctyp_type, ty_jkind)))
+      | Top -> 
+        raise (Error (
+          st.ptyp_loc, env, 
+          Bad_jkind_application (ty.ctyp_type, ty_jkind)))
+    in
+    let arg_tys =
+      List.map2 (fun sty jkind ->
+          transl_type env ~policy ~jkind_check:(Exact jkind)
+            ~row_context Alloc.Const.legacy sty)
+        stl arg_ty_jkinds
+    in
+    List.iter2 (fun arg jkind ->
+      begin match constrain_type_jkind env arg.ctyp_type jkind with
+      | Ok () -> ()
+      | Error err ->
+        let arg_infos =
+          List.map (fun a -> (a.ctyp_type, estimate_type_jkind env a.ctyp_type)) arg_tys
+        in
+        raise (Error (
+          styp.ptyp_loc, env,
+          Jkind_mismatch_in_application ((ty.ctyp_type, ty_jkind), arg_infos, Some err)))
+      end) arg_tys arg_ty_jkinds;
+    let constr =
+      newapp ty.ctyp_type (List.map (fun ctyp -> ctyp.ctyp_type) arg_tys) in
+    ctyp (Ttyp_app (ty, arg_tys)) constr
   | Ptyp_object (fields, o) ->
       let ty, fields = transl_fields env ~policy ~row_context o fields in
       ctyp (Ttyp_object (fields, o)) (newobj ty)
@@ -1589,16 +1625,16 @@ let report_error env ppf = function
          ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Jkind_mismatch_in_application ((ty, jkind), args, _) ->
     fprintf ppf "@[<b 2>The type expression (%a : %a)@ cannot be applied to the arguments (%a).@]"
-      Printtyp.type_expr ty Jkind.format jkind
+      Printtyp.type_expr ty Higher_jkind.format jkind
       (Format.pp_print_list ~pp_sep:(fun ppf () -> Format.fprintf ppf ", ")
         (fun ppf (arg_ty, arg_jkind) ->
-          fprintf ppf "%a : %a" Printtyp.type_expr arg_ty Jkind.format arg_jkind))
+          fprintf ppf "%a : %a" Printtyp.type_expr arg_ty Higher_jkind.format arg_jkind))
       args
   | Bad_jkind_application (ty, jkind) ->
     fprintf ppf "@[<b 2>The type expression (%a : %a)@ \
                  is applied as a type constructor,@ \
                  but it is not of a higher jkind.@]"
-      Printtyp.type_expr ty Jkind.format jkind
+      Printtyp.type_expr ty Higher_jkind.format jkind
   | Did_you_mean_unboxed lid ->
     fprintf ppf "@[%a isn't a class type.@ \
                  Did you mean the unboxed type %a#?@]" longident lid longident lid

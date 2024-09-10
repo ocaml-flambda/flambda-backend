@@ -105,10 +105,13 @@ module Layout = struct
 
   let union t1 t2 =
     match t1, t2 with
-    | _ when t1 == t2 -> t1
     | _, Any -> Any
     | Any, _ -> Any
-    | _ -> assert false
+    | Sort s1, Sort s2 -> (
+      match Sort.get s1, Sort.get s2 with
+      | _ when s1 == s2 -> Sort s1
+      | Const c1, Const c2 -> if c1 = c2 then Sort (Sort.of_const c1) else Any
+      | Var _, _ | _, Var _ -> Misc.fatal_error "Union of sort variables")
 
   let of_new_sort_var () =
     let sort = Sort.new_var () in
