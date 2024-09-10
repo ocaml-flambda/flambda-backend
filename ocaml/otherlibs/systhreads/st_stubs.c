@@ -70,7 +70,7 @@ static enum {
      The domain lock remains held by the first systhread of domain 0,
      and a custom locking scheme is used to provide mutual exclusion of threads.
      No backup thread has started, nor may one ever start. */
-  LOCKMODE_NEW_SCHEME,
+  LOCKMODE_CUSTOM_SCHEME,
 
   /* State if multiple domains are used.
      The domain lock is held by whichever systhread is running, or by the backup
@@ -134,6 +134,7 @@ struct caml_thread_struct {
   char * async_exn_handler;  /* saved value of Caml_state->async_exn_handler */
   memprof_thread_t memprof;  /* memprof's internal thread data structure */
   void * signal_stack;       /* this thread's signal stack */
+  int is_main;               /* whether this is the main thread of its domain */
 
 #ifndef NATIVE_CODE
   intnat trap_sp_off;      /* saved value of Caml_state->trap_sp_off */
@@ -344,8 +345,9 @@ CAMLexport void caml_switch_runtime_locking_scheme(struct caml_locking_scheme* n
 {
   struct caml_locking_scheme* old;
   int dom_id = Caml_state->id;
-  if (caml_domain_is_multicore())
+  if (domain_lockmode == LOCKMODE_DOMAINS)
     caml_fatal_error("Switching locking scheme is unsupported in multicore programs");
+  CAMLassert (!caml_domain_is_multicore());
   save_runtime_state();
   old = atomic_exchange(&Locking_scheme(dom_id), new);
   /* We hold 'old', but it is no longer the runtime lock */
@@ -442,6 +444,7 @@ static caml_thread_t caml_thread_new_info(void)
   th->gc_regs_buckets = NULL;
   th->exn_handler = NULL;
   th->async_exn_handler = NULL;
+  th->is_main = 0;
 
 #ifndef NATIVE_CODE
   th->trap_sp_off = 1;
@@ -629,14 +632,13 @@ static void caml_thread_domain_spawn_hook(void)
   if (domain_lockmode == LOCKMODE_DOMAINS)
     return;
 
-  if (domain_lockmode == LOCKMODE_NEW_SCHEME)
+  if (domain_lockmode == LOCKMODE_CUSTOM_SCHEME)
     caml_failwith("Domain.spawn cannot be used with a non-default runtime locking scheme.");
 
   CAMLassert(domain_lockmode == LOCKMODE_STARTUP);
   CAMLassert(!caml_domain_is_multicore());
 
-  if (threads_initialized &&
-      This_thread != st_tls_get(caml_thread_is_main_key))
+  if (threads_initialized && !This_thread->is_main)
     caml_failwith("Domain.spawn: first use must be from the main thread.");
 
   /* We are on the main thread, so we hold the domain_lock,
@@ -679,9 +681,9 @@ static void caml_thread_domain_initialize_hook(void)
   new_thread->prev = new_thread;
   new_thread->backtrace_last_exn = Val_unit;
   new_thread->memprof = caml_memprof_main_thread(Caml_state);
+  new_thread->is_main = 1;
 
   st_tls_set(caml_thread_key, new_thread);
-  st_tls_set(caml_thread_is_main_key, new_thread);
 
   Active_thread = new_thread;
   caml_memprof_enter_thread(new_thread->memprof);
@@ -720,7 +722,6 @@ CAMLprim value caml_thread_initialize(value unit)
 
   /* Initialize the key to the [caml_thread_t] structure */
   st_tls_newkey(&caml_thread_key);
-  st_tls_newkey(&caml_thread_is_main_key);
 
   /* First initialise the systhread chain on this domain */
   caml_thread_domain_initialize_hook();
