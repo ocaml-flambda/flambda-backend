@@ -149,6 +149,7 @@ let rec immediate_subtypes : type_expr -> type_expr list = fun ty ->
   | Tvar _ | Tunivar _ -> []
   | Tpoly (pty, _) -> [pty]
   | Tconstr (_path, tys, _) -> tys
+  | Tapp (ty, tys) -> ty :: tys
 
 and immediate_subtypes_object_row acc ty = match get_desc ty with
   | Tnil -> acc
@@ -449,6 +450,11 @@ let check_type
           context ++ check_type hyps ty (compose m m_param) in
         List.fold_left on_param empty
           (Env.find_type path env |> zip_params_with_applied tys)
+    | (Tapp(ty,tys)       , m      ) ->
+      List.fold_left (
+        fun context ty -> 
+          context ++ check_type (Hyps.poison hyps) ty (compose m Deepsep))
+        empty (ty :: tys)
   in
   check_type Hyps.empty ty m
 

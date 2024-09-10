@@ -648,6 +648,8 @@ and raw_type_desc ppf = function
       fprintf ppf "@[<hov1>Tconstr(@,%a,@,%a,@,%a)@]" path p
         raw_type_list tl
         (raw_list path) (list_of_memo !abbrev)
+  | Tapp (t, tl) ->
+      fprintf ppf "@[<hov1>Tapp(@,%a,@,%a)@]" raw_type t raw_type_list tl
   | Tobject (t, nm) ->
       fprintf ppf "@[<hov1>Tobject(@,%a,@,@[<1>ref%t@])@]" raw_type t
         (fun ppf ->
@@ -1413,6 +1415,8 @@ let rec tree_of_typexp mode alloc_mode ty =
         if is_nth s && not (tyl'=[])
         then tree_of_typexp mode Alloc.Const.legacy (List.hd tyl')
         else Otyp_constr (tree_of_path (Some Type) p', tree_of_typlist mode tyl')
+    | Tapp (ty, tyl) ->
+        Otyp_app (tree_of_typexp mode alloc_mode ty, tree_of_typlist mode tyl)
     | Tvariant row ->
         let Row {fields; name; closed; _} = row_repr row in
         let fields =

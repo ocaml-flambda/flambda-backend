@@ -156,7 +156,7 @@ let classify env loc ty sort : classification =
       end
   | Tarrow _ | Ttuple _ | Tpackage _ | Tobject _ | Tnil | Tvariant _ ->
       Addr
-  | Tlink _ | Tsubst _ | Tpoly _ | Tfield _ ->
+  | Tapp _ | Tlink _ | Tsubst _ | Tpoly _ | Tfield _ ->
       assert false
   end
   | Float64 -> Unboxed_float Pfloat64

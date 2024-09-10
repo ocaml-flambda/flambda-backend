@@ -96,6 +96,9 @@ and type_desc =
   (** [Tconstr (`A.B.t', [t1;...;tn], _)] ==> [(t1,...,tn) A.B.t]
       The last parameter keep tracks of known expansions, see [abbrev_memo]. *)
 
+  | Tapp of type_expr * type_expr list
+  (** [Tapp (t, [t1;...;tn], _)] ==> [(t1,...,tn) t]. *)
+
   | Tobject of type_expr * (Path.t * type_expr list) option ref
   (** [Tobject (`f1:t1;...;fn: tn', `None')] ==> [< f1: t1; ...; fn: tn >]
       f1, fn are represented as a linked list of types using Tfield and Tnil

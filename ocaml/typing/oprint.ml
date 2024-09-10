@@ -534,6 +534,10 @@ and print_out_type_3 ppf =
       print_typargs ppf tyl;
       print_ident ppf id;
       pp_close_box ppf ()
+  | Otyp_app ((Otyp_var _ as ty), tyl) ->
+      fprintf ppf "@[<0>%a %a@]" print_typargs tyl print_out_type ty;
+  | Otyp_app (ty, tyl) ->
+      fprintf ppf "@[<0>%a (%a)@]" print_typargs tyl print_out_type ty;
   | Otyp_object {fields; open_row} ->
       fprintf ppf "@[<2>< %a >@]" (print_fields open_row) fields
   | Otyp_stuff s -> pp_print_string ppf s

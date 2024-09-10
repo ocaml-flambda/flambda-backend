@@ -496,6 +496,7 @@ let remove_option typ =
     | Tconstr(path, [ty], _)
       when Path.same path Predef.path_option -> get_desc ty
     | Tconstr _
+    | Tapp _
     | Tvar _
     | Tunivar _
     | Tpoly _

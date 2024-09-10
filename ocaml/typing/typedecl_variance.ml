@@ -77,6 +77,11 @@ let compute_variance env visited vari ty =
           with Not_found ->
             List.iter (compute_variance_rec unknown) tl
         end
+    | Tapp (ty, tl) ->
+        (* CR jbachurski: Is this right? *)
+        let open Variance in
+        List.iter (compute_variance_rec (compose vari full)) tl;
+        compute_variance_rec (compose vari covariant) ty;
     | Tobject (ty, _) ->
         compute_same ty
     | Tfield (_, _, ty1, ty2) ->
