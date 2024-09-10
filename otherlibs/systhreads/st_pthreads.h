@@ -166,8 +166,8 @@ static void st_masterlock_acquire(st_masterlock *m)
     atomic_fetch_add(&m->waiters, -1);
   }
   m->busy = 1;
-  // CR ocaml 5 domains: we assume no backup thread
-  // st_bt_lock_acquire(m);
+  if (domain_lockmode == LOCKMODE_DOMAINS)
+    st_bt_lock_acquire(m);
   pthread_mutex_unlock(&m->lock);
 
   return;
@@ -177,8 +177,8 @@ static void st_masterlock_release(st_masterlock * m)
 {
   pthread_mutex_lock(&m->lock);
   m->busy = 0;
-  // CR ocaml 5 domains: we assume no backup thread
-  // st_bt_lock_release(m);
+  if (domain_lockmode == LOCKMODE_DOMAINS)
+    st_bt_lock_release(m);
   pthread_mutex_unlock(&m->lock);
   custom_condvar_signal(&m->is_free);
 
@@ -216,8 +216,8 @@ Caml_inline void st_thread_yield(st_masterlock * m)
      messaging the bt should not be required because yield assumes
      that a thread will resume execution (be it the yielding thread
      or a waiting thread */
-  // CR ocaml 5 domains
-  // caml_release_domain_lock();
+  if (domain_lockmode == LOCKMODE_DOMAINS)
+    caml_release_domain_lock();
 
   do {
     /* Note: the POSIX spec prevents the above signal from pairing with this
@@ -230,8 +230,8 @@ Caml_inline void st_thread_yield(st_masterlock * m)
   m->busy = 1;
   atomic_fetch_add(&m->waiters, -1);
 
-  // CR ocaml 5 domains
-  // caml_acquire_domain_lock();
+  if (domain_lockmode == LOCKMODE_DOMAINS)
+    caml_acquire_domain_lock();
 
   pthread_mutex_unlock(&m->lock);
 

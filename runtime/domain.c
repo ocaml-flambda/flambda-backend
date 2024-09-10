@@ -1131,6 +1131,11 @@ static void install_backup_thread (dom_internal* di)
   }
 }
 
+static void caml_domain_spawn_default(void)
+{
+  return;
+}
+
 static void caml_domain_initialize_default(void)
 {
   return;
@@ -1145,6 +1150,9 @@ static void caml_domain_external_interrupt_hook_default(void)
 {
   return;
 }
+
+CAMLexport void (*caml_domain_spawn_hook)(void)=
+  caml_domain_spawn_default;
 
 CAMLexport void (*caml_domain_initialize_hook)(void) =
    caml_domain_initialize_default;
@@ -1283,6 +1291,8 @@ CAMLprim value caml_domain_spawn(value callback, value term_sync)
   struct domain_startup_params p;
   pthread_t th;
   int err;
+
+  caml_domain_spawn_hook();
 
 #ifndef NATIVE_CODE
   if (caml_debugger_in_use)
