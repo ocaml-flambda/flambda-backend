@@ -16,7 +16,7 @@ type t = Types.type_expr Jkind_types.higher_jkind
 
 val wrap : Jkind.t -> t
 
-val unwrap : t -> Jkind.t
+val unwrap : loc:string -> t -> Jkind.t
 
 module History : sig
   include module type of struct

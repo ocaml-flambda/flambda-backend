@@ -183,7 +183,8 @@ and 'type_expr higher_jkind =
 
 val wrap_higher_jkind : 'type_expr jkind -> 'type_expr higher_jkind
 
-val unwrap_type_jkind : 'type_expr higher_jkind -> 'type_expr jkind
+val unwrap_type_jkind :
+  loc:string -> 'type_expr higher_jkind -> 'type_expr jkind
 
 type 'type_expr t = 'type_expr jkind
 

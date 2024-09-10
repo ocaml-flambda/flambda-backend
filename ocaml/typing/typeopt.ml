@@ -403,7 +403,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
       in
       if cannot_proceed () then
         num_nodes_visited,
-        value_kind_of_value_jkind (get_type_jkind decl |> Higher_jkind.unwrap)
+        value_kind_of_value_jkind (get_type_jkind decl |> Higher_jkind.unwrap ~loc:__LOC__)
       else
         let visited = Numbers.Int.Set.add (get_id ty) visited in
         (* Default of [Pgenval] is currently safe for the missing cmi fallback
@@ -421,7 +421,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
                          ~num_nodes_visited labels rep)
         | Equation _ ->
           num_nodes_visited,
-          value_kind_of_value_jkind (get_type_jkind decl |> Higher_jkind.unwrap)
+          value_kind_of_value_jkind (get_type_jkind decl |> Higher_jkind.unwrap ~loc:__LOC__)
         | Datatype { noun = Datatype_open _ } -> num_nodes_visited, Pgenval
     end
   | Ttuple labeled_fields ->

@@ -840,7 +840,7 @@ let has_poly_constraint spat =
 let mode_cross_left env ty mode =
   let mode =
     if not (is_principal ty) then mode else
-    let jkind = type_jkind_purely env ty |> Higher_jkind.unwrap in
+    let jkind = type_jkind_purely env ty |> Higher_jkind.unwrap ~loc:__LOC__ in
     let upper_bounds = Jkind.get_modal_upper_bounds jkind in
     let upper_bounds = Const.alloc_as_value upper_bounds in
     Value.meet_const upper_bounds mode
@@ -858,7 +858,7 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   let monadic = Alloc.Monadic.disallow_left monadic in
   let comonadic = Alloc.Comonadic.disallow_right comonadic in
   if not (is_principal ty) then { monadic; comonadic } else
-  let jkind = type_jkind_purely env ty |> Higher_jkind.unwrap in
+  let jkind = type_jkind_purely env ty |> Higher_jkind.unwrap ~loc:__LOC__ in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let upper_bounds = Alloc.Const.split upper_bounds in
   let comonadic = Alloc.Comonadic.meet_const upper_bounds.comonadic comonadic in
@@ -868,7 +868,7 @@ let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
 (** Mode cross a right mode *)
 let expect_mode_cross env ty (expected_mode : expected_mode) =
   if not (is_principal ty) then expected_mode else
-  let jkind = type_jkind_purely env ty |> Higher_jkind.unwrap in
+  let jkind = type_jkind_purely env ty |> Higher_jkind.unwrap ~loc:__LOC__ in
   let upper_bounds = Jkind.get_modal_upper_bounds jkind in
   let upper_bounds = Const.alloc_as_value upper_bounds in
   mode_morph (Value.imply upper_bounds) expected_mode

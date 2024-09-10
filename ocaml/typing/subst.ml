@@ -119,7 +119,7 @@ let with_additional_action =
   { s with additional_action; last_compose = None }
 
 let lift_prepare ~prepare_jkind loc ty =
-  ty |> Higher_jkind.wrap |> prepare_jkind loc |> Higher_jkind.unwrap
+  ty |> Higher_jkind.wrap |> prepare_jkind loc |> Higher_jkind.unwrap ~loc:"[Subst.lift_prepare]"
 
 let apply_prepare_jkind s lay loc =
   match s.additional_action with
@@ -478,7 +478,7 @@ let type_declaration' copy_scope s decl =
         }
       | Datatype { params; ret_jkind; manifest; noun } -> Datatype {
         params = map_param_exprs (typexp copy_scope s decl.type_loc) params;
-        ret_jkind = Higher_jkind.wrap ret_jkind |> prep_ret_jkind |> Higher_jkind.unwrap;
+        ret_jkind = Higher_jkind.wrap ret_jkind |> prep_ret_jkind |> Higher_jkind.unwrap ~loc:"subst datatype";
         manifest = Option.map (type_path s) manifest;
         noun = match noun with
         | Datatype_variant { priv; cstrs; rep } ->

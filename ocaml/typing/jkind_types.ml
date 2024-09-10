@@ -505,10 +505,10 @@ and 'type_expr higher_jkind =
 
 let wrap_higher_jkind t = { hdesc = Type t; hhistory = t.history }
 
-let unwrap_type_jkind t =
+let unwrap_type_jkind ~loc t =
   match t.hdesc with
   | Type t -> t
-  | Arrow _ | Top -> Misc.fatal_error "A type jkind was expected"
+  | Arrow _ | Top -> Misc.fatal_error ("A type jkind was expected at " ^ loc)
 
 type 'type_expr t = 'type_expr jkind
 

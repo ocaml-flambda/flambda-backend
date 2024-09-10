@@ -5662,7 +5662,7 @@ let mode_cross_left env ty mode =
      are bad when checking for principality. Really, I'm surprised that
      the types here aren't principal. In any case, leaving the check out
      now; will return and figure this out later. *)
-  let jkind = type_jkind_purely env ty |> Jk.unwrap in
+  let jkind = type_jkind_purely env ty |> Jk.unwrap ~loc:__LOC__ in
   let upper_bounds = Type_jkind.get_modal_upper_bounds jkind in
   Alloc.meet_const upper_bounds mode
 
@@ -5671,7 +5671,7 @@ let mode_cross_left env ty mode =
 let mode_cross_right env ty mode =
   (* CR layouts v2.8: This should probably check for principality. See
      similar comment in [mode_cross_left]. *)
-  let jkind = type_jkind_purely env ty |> Jk.unwrap in
+  let jkind = type_jkind_purely env ty |> Jk.unwrap ~loc:__LOC__ in
   let upper_bounds = Type_jkind.get_modal_upper_bounds jkind in
   Alloc.imply upper_bounds mode
 

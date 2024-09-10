@@ -397,7 +397,7 @@ let get_type_jkind decl =
 let set_type_jkind ret_jkind decl =
   match decl.type_noun with
   | Datatype d ->
-    let ret_jkind = Jkind_types.unwrap_type_jkind ret_jkind in
+    let ret_jkind = Jkind_types.unwrap_type_jkind ~loc:"datatype" ret_jkind in
     { decl with type_noun = Datatype { d with ret_jkind } }
   | Equation e -> { decl with type_noun = Equation { e with ret_jkind } }
 

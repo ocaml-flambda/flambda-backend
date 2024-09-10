@@ -819,7 +819,7 @@ let transl_declaration env sdecl (id, uid) =
     | None, None -> jkind_default
   in
   let assign_type_jkind jkind_default =
-    Higher_jkind.(assign_jkind (wrap jkind_default) |> unwrap)
+    Higher_jkind.(assign_jkind (wrap jkind_default) |> unwrap ~loc:__LOC__)
   in
   let tkind, (kind : type_noun) =
     match sdecl.ptype_kind with
@@ -1220,7 +1220,7 @@ let update_label_jkinds env loc lbls named =
   in
   let lbls =
     List.mapi (fun idx (Types.{ld_type} as lbl) ->
-      let ld_jkind = Ctype.type_jkind env ld_type |> Higher_jkind.unwrap in
+      let ld_jkind = Ctype.type_jkind env ld_type |> Higher_jkind.unwrap ~loc:__LOC__ in
       update idx ld_jkind;
       {lbl with ld_jkind}
     ) lbls
@@ -1237,7 +1237,7 @@ let update_constructor_arguments_jkinds env loc cd_args jkinds =
   match cd_args with
   | Types.Cstr_tuple tys ->
     List.iteri (fun idx {Types.ca_type=ty; _} ->
-      jkinds.(idx) <- Ctype.type_jkind env ty |> Higher_jkind.unwrap) tys;
+      jkinds.(idx) <- Ctype.type_jkind env ty |> Higher_jkind.unwrap ~loc:__LOC__) tys;
     cd_args, Array.for_all Jkind.is_void_defaulting jkinds
   | Types.Cstr_record lbls ->
     let lbls, all_void =
@@ -1480,7 +1480,7 @@ let update_decl_jkind env dpath decl =
   let update_record_kind loc lbls rep =
     match lbls, rep with
     | [Types.{ld_type} as lbl], Record_unboxed ->
-      let ld_jkind = Ctype.type_jkind env ld_type |> Higher_jkind.unwrap in
+      let ld_jkind = Ctype.type_jkind env ld_type |> Higher_jkind.unwrap ~loc:__LOC__ in
       [{lbl with ld_jkind}], Record_unboxed, ld_jkind
     | _, Record_boxed jkinds ->
       let lbls, all_void =
@@ -1590,11 +1590,11 @@ let update_decl_jkind env dpath decl =
     | [{Types.cd_args} as cstr], Variant_unboxed -> begin
         match cd_args with
         | Cstr_tuple [{ca_type=ty; _}] -> begin
-            let jkind = Ctype.type_jkind env ty |> Higher_jkind.unwrap in
+            let jkind = Ctype.type_jkind env ty |> Higher_jkind.unwrap ~loc:__LOC__ in
             cstrs, Variant_unboxed, jkind
           end
         | Cstr_record [{ld_type} as lbl] -> begin
-            let ld_jkind = Ctype.type_jkind env ld_type |> Higher_jkind.unwrap in
+            let ld_jkind = Ctype.type_jkind env ld_type |> Higher_jkind.unwrap ~loc:__LOC__ in
             [{ cstr with Types.cd_args =
                            Cstr_record [{ lbl with ld_jkind }] }],
             Variant_unboxed, ld_jkind
@@ -1641,7 +1641,7 @@ let update_decl_jkind env dpath decl =
     match !Clflags.allow_illegal_crossing with
     | true ->
       Jkind.add_portability_and_contention_crossing
-        ~from:(get_type_jkind decl |> Higher_jkind.unwrap) jkind
+        ~from:(get_type_jkind decl |> Higher_jkind.unwrap ~loc:__LOC__) jkind
     | false -> jkind, false
   in
 
@@ -1909,7 +1909,7 @@ let check_well_founded_manifest ~abs_env env loc path decl =
   let args =
     (* The jkinds here shouldn't matter for the purposes of
        [check_well_founded] *)
-    List.map (fun _ -> Ctype.newvar (Higher_jkind.Builtin.any ~why:Dummy_jkind))
+    List.map (fun _ -> Ctype.newvar (Higher_jkind.Builtin.top ~why:Dummy_jkind))
       (get_type_param_exprs decl)
   in
   let visited = ref TypeMap.empty in
