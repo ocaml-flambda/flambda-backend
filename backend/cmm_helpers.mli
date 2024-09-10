@@ -325,24 +325,33 @@ val make_float_alloc :
   expression list ->
   expression
 
-module Flat_suffix_element : sig
-  type t =
-    | Tagged_immediate
-    | Naked_float
-    | Naked_float32
-    | Naked_int32
-    | Naked_int64_or_nativeint
-end
+(** Allocate a set of closures block.
 
-(** Allocate an mixed block of the corresponding tag and shape. Initial values
-    of the flat suffix should be provided unboxed. *)
+    Takes as argument both a list of expression [exprs] and a list of memory_chunks
+    [chunks], so that the expression [List.nth exprs i] can be written/stored with
+    the memory chunk [List.nth chunks i]. In particular both lists should have the
+    same size.
+
+    The list of expression includes all fields of the set of closures, including code
+    pointers and closure information fields. *)
+val make_closure_alloc :
+  mode:Lambda.alloc_mode ->
+  Debuginfo.t ->
+  tag:int ->
+  expression list ->
+  memory_chunk list ->
+  expression
+
+(** Allocate an mixed block of the corresponding tag and scannable prefix size.
+    The [memory_chunk] list should give the memory_chunk corresponding to
+    each element from the [expression] list. *)
 val make_mixed_alloc :
   mode:Lambda.alloc_mode ->
   Debuginfo.t ->
   tag:int ->
   value_prefix_size:int ->
-  flat_suffix:Flat_suffix_element.t array ->
   expression list ->
+  memory_chunk list ->
   expression
 
 (** Sys.opaque_identity *)
