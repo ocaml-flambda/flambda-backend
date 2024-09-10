@@ -325,15 +325,13 @@ val make_float_alloc :
   expression list ->
   expression
 
-(** Allocate a set of closures block.
+(** Allocate a closure block, to hold a set of closures.
 
-    Takes as argument both a list of expression [exprs] and a list of memory_chunks
-    [chunks], so that the expression [List.nth exprs i] can be written/stored with
-    the memory chunk [List.nth chunks i]. In particular both lists should have the
-    same size.
+    This takes a list of expressions [exprs] and a list of [memory_chunk]s
+    that correspond pairwise.  Both lists must be the same length.
 
-    The list of expression includes all fields of the set of closures, including code
-    pointers and closure information fields. *)
+    The list of expressions includes _all_ fields of the closure block,
+    including the code pointers and closure information fields. *)
 val make_closure_alloc :
   mode:Lambda.alloc_mode ->
   Debuginfo.t ->

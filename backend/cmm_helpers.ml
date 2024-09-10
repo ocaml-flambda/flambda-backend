@@ -1613,7 +1613,7 @@ let alloc_generic_set_fn block ofs newval memory_chunk dbg =
     then
       Misc.fatal_errorf
         "Fields with memory_chunk %s are not supported on big-endian \
-         architecture"
+         architectures"
         (Printcmm.chunk memory_chunk);
     generic_case ()
   (* Forbidden cases *)
@@ -1646,7 +1646,7 @@ let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
             fill_fields (idx + ofs) el ml )
       | _ ->
         Misc.fatal_errorf
-          "To_cmm_helpers.make_alloc_generic: mismatched list size between \
+          "To_cmm_helpers.make_alloc_generic: mismatched list sizes between \
            fields and memory chunks"
     in
     let caml_alloc_func, caml_alloc_args =
@@ -1727,7 +1727,7 @@ let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
             error "mixed blocks"
           | Thirtytwo_unsigned | Thirtytwo_signed | Single _ | Double
           | Onetwentyeight_unaligned | Onetwentyeight_aligned ->
-            error "value prefix of a mixed block"
+            error "the value prefix of a mixed block"
         else
           (* flat suffix part of the block *)
           match memory_chunk with
@@ -1736,7 +1736,7 @@ let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
             ok ()
           | Byte_unsigned | Byte_signed | Sixteen_unsigned | Sixteen_signed ->
             error "mixed blocks"
-          | Word_val -> error "flat suffix of a mixed block")
+          | Word_val -> error "the flat suffix of a mixed block")
       0 args_memory_chunks
   in
   make_alloc_generic

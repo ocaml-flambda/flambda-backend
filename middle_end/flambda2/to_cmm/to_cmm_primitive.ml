@@ -16,6 +16,7 @@ module Env = To_cmm_env
 module Ece = Effects_and_coeffects
 module EO = Exported_offsets
 module K = Flambda_kind
+module KS = Flambda_kind.With_subkind
 module P = Flambda_primitive
 
 (* Note about [Int32]: values of this kind are stored in 64-bit registers and
@@ -86,24 +87,25 @@ let check_alloc_fields = function
   | _ -> ()
 
 let mixed_block_kinds shape =
-  let value_prefix_size = K.Mixed_block_shape.value_prefix_size shape in
-  let l =
-    Array.fold_right
-      (fun flat_suffix_element acc ->
-        let chunk =
-          match (flat_suffix_element : K.flat_suffix_element) with
-          | K.Tagged_immediate -> K.With_subkind.tagged_immediate
-          | K.Naked_float -> K.With_subkind.naked_float
-          | K.Naked_float32 -> K.With_subkind.naked_float32
-          | K.Naked_int32 -> K.With_subkind.naked_int32
-          | K.Naked_int64 -> K.With_subkind.naked_int64
-          | K.Naked_nativeint -> K.With_subkind.naked_nativeint
-        in
-        chunk :: acc)
-      (K.Mixed_block_shape.flat_suffix shape)
-      []
+  let value_prefix =
+    (* CR mshinwell: We should propagate information about whether a field is a
+       tagged immediate. *)
+    List.init (K.Mixed_block_shape.value_prefix_size shape) (fun _ ->
+        K.With_subkind.any_value)
   in
-  List.init value_prefix_size (fun _ -> K.With_subkind.any_value) @ l
+  let flat_suffix =
+    List.map
+      (fun (flat_suffix_element : K.flat_suffix_element) ->
+        match flat_suffix_element with
+        | Tagged_immediate -> KS.tagged_immediate
+        | Naked_float -> KS.naked_float
+        | Naked_float32 -> KS.naked_float32
+        | Naked_int32 -> KS.naked_int32
+        | Naked_int64 -> KS.naked_int64
+        | Naked_nativeint -> KS.naked_nativeint)
+      (Array.to_list (K.Mixed_block_shape.flat_suffix shape))
+  in
+  value_prefix @ flat_suffix
 
 let make_block ~dbg kind alloc_mode args =
   check_alloc_fields args;
@@ -117,9 +119,8 @@ let make_block ~dbg kind alloc_mode args =
     C.make_float_alloc ~mode dbg ~tag args
   | Mixed (tag, shape) ->
     let value_prefix_size = K.Mixed_block_shape.value_prefix_size shape in
-    let args_kinds = mixed_block_kinds shape in
     let args_memory_chunks =
-      List.map To_cmm_shared.memory_chunk_of_kind args_kinds
+      List.map C.memory_chunk_of_kind (mixed_block_kinds shape)
     in
     let tag = Tag.Scannable.to_int tag in
     C.make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks
