@@ -1344,7 +1344,7 @@ module Magic_number = struct
     | Cmo -> "bytecode object file"
     | Cma -> "bytecode library"
     | Cmx -> "native compilation unit description"
-    | Cmxa -> "static native library (%s)"
+    | Cmxa -> "static native library"
     | Cmxs -> "dynamic native library"
     | Cmt -> "compiled typedtree file"
     | Cms -> "compiled shape file"
