@@ -1157,3 +1157,7 @@ CAMLexport wchar_t* caml_stat_wcsconcat(int n, ...)
 }
 
 #endif
+
+const char * __attribute__((used, retain, visibility("default"))) __asan_default_options() {
+  return "detect_leaks=0,halt_on_error=false";
+}

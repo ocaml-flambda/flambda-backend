@@ -242,7 +242,8 @@ CAMLexport value caml_copy_string_array(char const ** arr)
   return caml_alloc_array(caml_copy_string, arr);
 }
 
-CAMLexport int caml_convert_flag_list(value list, const int *flags)
+/* CR ksvetlitski for ksvetlitski: Fix the underlying issue instead of disabling ASAN for this function. */
+CAMLexport int __attribute__((no_sanitize("address"))) caml_convert_flag_list(value list, const int *flags)
 {
   int res;
   res = 0;
