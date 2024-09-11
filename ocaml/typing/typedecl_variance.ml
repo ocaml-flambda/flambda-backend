@@ -66,16 +66,15 @@ let compute_variance env visited vari ty =
         compute_same ty2
     | Ttuple tl ->
         List.iter (fun (_,t) -> compute_same t) tl
-    | Tconstr (_, Unapplied, _) -> ()
-    | Tconstr (path, Applied tl, _) ->
+    | Tconstr (path, args, _) ->
         let open Variance in begin
           try
             let decl = Env.find_type path env in
             List.iter
               (fun (ty, { variance = v }) -> compute_variance_rec (compose vari v) ty)
-              (zip_params_with_applied tl decl)
+              (Ctype.zip_params_with_applied env args decl)
           with Not_found ->
-            List.iter (compute_variance_rec unknown) tl
+            AppArgs.iter (compute_variance_rec unknown) args
         end
     | Tapp (ty, tl) ->
         (* CR jbachurski: Is this right? *)

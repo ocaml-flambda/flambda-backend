@@ -523,9 +523,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               | Datarepr.Constr_not_found -> (* raised by find_constr_by_tag *)
                   Oval_stuff "<unknown constructor>"
               end
-          | Tapp (_ty, _tyl) ->
-              (* TODO jbachurski: Include the case of [ty = Tconstr(p, Unapplied, _) here] *)
-              Oval_stuff "<poly>"
+          | Tapp (ty, tyl) ->
+              begin match get_desc ty with
+              | Tconstr(p, Unapplied, _) ->
+                tree_of_val (depth - 1) obj (Ctype.newconstr p tyl)
+              | _ -> Oval_stuff "<poly>"
+              end
           | Tvariant row ->
               if O.is_block obj then
                 let tag : int = O.obj (O.field obj 0) in

@@ -909,8 +909,10 @@ let rec update_level env level expand ty =
         end
     | Tconstr(p, Applied (_ :: _ as tl), _) ->
         let variance =
-          try get_type_variance (Env.find_type p env)
-          with Not_found -> List.map (fun _ -> Variance.unknown) tl in
+          match get_type_variance (Env.find_type p env) with
+          | [] | exception Not_found -> List.map (fun _ -> Variance.unknown) tl
+          | v -> v
+        in
         let needs_expand =
           expand ||
           List.exists2
@@ -1898,6 +1900,17 @@ let expand_abbrev_gen kind find_type_expansion env ty =
               | Exp_expr body -> body
               | Exp_path path -> newgenty (Tconstr (path, AppArgs.of_list params, ref Mnil))
             in
+            let (params, body) = (
+              match args, params with
+              | Applied args, [] ->
+                let params = 
+                  List.map (fun _ -> 
+                    Btype.newgenvar (Higher_jkind.Builtin.top ~why:Dummy_jkind)) 
+                  args 
+                in
+                (params, newgenty (Tapp (body, params)))
+              | Unapplied, _ | _, (_ :: _) -> (params, body))
+            in
             let ty' =
               try
                 subst env level kind abbrev (Some ty) params args body
@@ -2109,6 +2122,47 @@ let tvariant_not_immediate row =
       | _ -> false)
     (row_fields row)
 
+
+(* Jkinds *)
+
+let rec noun_application : 'a. Env.t -> type_noun -> 'a app_list -> (('a * type_param) list * higher_jkind) option =
+  fun env (noun : type_noun) args ->
+  match noun, args with
+  (* Applying through params *)
+  | Datatype { ret_jkind; params = [] }, Unapplied
+      -> Some ([], Jk.wrap ret_jkind)
+  | Datatype { ret_jkind; params = ((_ :: _) as params) }, Applied ts
+      -> Some (List.combine ts params, Jk.wrap ret_jkind)
+  | Equation { ret_jkind; params = [] }, Unapplied
+      -> Some ([], ret_jkind)
+  | Equation { ret_jkind; params = ((_ :: _) as params) }, Applied ts
+      -> Some (List.combine ts params, ret_jkind)
+  (* Under-application: unapplied datatypes *)
+  | Datatype { ret_jkind; params }, Unapplied
+      -> Some ([], Jkind_types.{ 
+          hdesc = Arrow (List.map (fun p -> type_jkind env p.param_expr) params, Jk.wrap ret_jkind);
+          (* CR jbachurski: This probably should have a 'unapplied datatype' history *)
+          hhistory = ret_jkind.history
+        })
+  (* Over-application: applying through arrow jkinds *)
+  | Equation { ret_jkind = { hdesc = Arrow (arg_jkinds, result) }; params = [] }, Applied args
+      -> 
+        let arity = List.length args in
+        let param_exprs = List.map Btype.newgenvar arg_jkinds in
+        let variances = Variance.unknown_signature ~injective:true ~arity in
+        let separabilities = Separability.default_signature ~arity in
+        Some (List.combine args (create_type_params param_exprs variances separabilities), result)
+  (* CR jbachurski: datatype over-application might exist in the future *)
+  | Datatype { ret_jkind = (_ : jkind); params = [] }, Applied _ (* datatype over-application *)
+  | Equation { ret_jkind = { hdesc = Top | Type _ }; params = [] }, Applied _ (* bad/over application *)
+  | Equation { params = (_ :: _) }, Unapplied (* under-application *)
+      -> None
+
+and jkind_of_decl_application 
+  : 'a. Env.t -> type_declaration -> 'a app_list -> higher_jkind option 
+  = fun env decl args -> 
+    noun_application env decl.type_noun args |> Option.map (fun (_, jkind) -> jkind)
+
 (* We assume here that [get_unboxed_type_representation] has already been
    called, if the type is a Tconstr.  This allows for some optimization by
    callers (e.g., skip expanding if the kind tells them enough).
@@ -2117,20 +2171,22 @@ let tvariant_not_immediate row =
    in some edge cases (when [get_unboxed_type_representation] ran out of fuel,
    or when the type is a Tconstr that is missing from the Env due to a missing
    cmi). *)
-let rec estimate_type_jkind env ty =
+and estimate_type_jkind env ty =
   let open Jk in
   match get_desc ty with
-  | Tconstr(p, _, _) -> begin
-    try
-      Jkind (Env.find_type p env |> get_type_jkind)
-    with
-      Not_found -> Jkind (Builtin.any ~why:(Missing_cmi p))
-  end
+  | Tconstr(p, args, _) -> begin
+      match Env.find_type p env with
+      | decl -> (
+          match jkind_of_decl_application env decl args with
+          | Some jkind -> Jkind jkind
+          | None -> Misc.fatal_error "Cannot assign jkind to type application")
+      | exception Not_found -> Jkind (Builtin.any ~why:(Missing_cmi p))
+      end
   | Tapp(ty, _) ->
-    begin match (estimate_type_jkind env ty |> jkind_of_result).hdesc with
-    | Arrow (_args, result) -> Jkind result
-    | Type _ | Top -> assert false
-    end
+      begin match (estimate_type_jkind env ty |> jkind_of_result).hdesc with
+      | Arrow (_args, result) -> Jkind result
+      | Type _ | Top -> Misc.fatal_error "Cannot assign jkind to type expression application"
+      end
   | Tvariant row ->
       if tvariant_not_immediate row
       then Jkind (Builtin.value ~why:Polymorphic_variant)
@@ -2155,6 +2211,36 @@ let rec estimate_type_jkind env ty =
   | Tunivar { jkind } -> Jkind jkind
   | Tpoly (ty, _) -> estimate_type_jkind env ty
   | Tpackage _ -> Jkind (Builtin.value ~why:First_class_module)
+
+and type_jkind env ty =
+  jkind_of_result (estimate_type_jkind env (get_unboxed_type_approximation env ty))
+
+let jkind_of_decl_unapplied env decl = jkind_of_decl_application env decl Unapplied
+
+let decl_legal_unapplied env decl =
+  jkind_of_decl_unapplied env decl |> Option.is_some
+
+let path_legal_unapplied env p =
+  decl_legal_unapplied env (Env.find_type p env)
+
+let zip_params_with_applied env args decl =
+  match noun_application env decl.type_noun args with
+  | Some (params, _) -> params
+  | None -> raise (Invalid_argument "Invalid type application") 
+
+let zip_params_with_applied2 env args1 args2 decl = 
+  match args1, args2 with
+  | Unapplied, Unapplied -> zip_params_with_applied env Unapplied decl
+  | Applied ts1, Applied ts2 -> 
+      zip_params_with_applied env (Applied (List.combine ts1 ts2)) decl
+  | Unapplied, Applied _ | Applied _, Unapplied ->
+      raise (Invalid_argument "Mismatched arities for type applications to same type")
+
+let params_for_apply env args decl =
+  zip_params_with_applied env args decl |> List.map snd
+
+let param_exprs_for_apply env args decl = 
+  params_for_apply env args decl |> List.map (fun p -> p.param_expr)
 
 (**** checking jkind relationships ****)
 
@@ -2192,10 +2278,12 @@ let type_jkind_sub env ty jkind =
     (* This is an optimization to avoid unboxing if we can tell the constraint
        is satisfied from the type_kind *)
     match get_desc ty with
-    | Tconstr(p, _args, _abbrev) ->
+    | Tconstr(p, args, _abbrev) ->
         let jkind_bound =
-          try (Env.find_type p env |> get_type_jkind)
-          with Not_found -> Jk.Builtin.any ~why:(Missing_cmi p)
+          (match Env.find_type p env with
+          | decl -> jkind_of_decl_application env decl args
+          | exception Not_found -> None
+          ) |> Option.value ~default:(Jk.Builtin.any ~why:(Missing_cmi p))
         in
         if Jk.sub jkind_bound jkind
         then Success
@@ -2527,7 +2615,7 @@ let rec local_non_recursive_abbrev ~allow_rec strict visited env p ty =
             (try_expand_head try_expand_safe_opt env ty)
         with Cannot_expand ->
           let params =
-            try (Env.find_type p' env |> get_type_param_exprs)
+            try (Env.find_type p' env |> param_exprs_for_apply env args)
             with Not_found -> AppArgs.to_list args
           in
           AppArgs.iter_with_list
@@ -2622,12 +2710,11 @@ let occur_univar ?(inj_only=false) env ty =
       | Tpoly (ty, tyl) ->
           let bound = List.fold_right TypeSet.add tyl bound in
           occur_rec bound  ty
-      | Tconstr (_, Unapplied, _) -> ()
-      | Tconstr (p, Applied tl, _) ->
+      | Tconstr (p, args, _) ->
           begin try
             let td = Env.find_type p env in
-            List.iter2
-              (fun t v ->
+            List.iter
+              (fun (t, { variance = v }) ->
                 (* The null variance only occurs in type abbreviations and
                    corresponds to type variables that do not occur in the
                    definition (expansion would erase them completely).
@@ -2637,9 +2724,9 @@ let occur_univar ?(inj_only=false) env ty =
                    object and variant types too. *)
                 if Variance.(if inj_only then mem Inj v else not (eq v null))
                 then occur_rec bound t)
-              tl (get_type_variance td)
+              (zip_params_with_applied env args td)
           with Not_found ->
-            if not inj_only then List.iter (occur_rec bound) tl
+            if not inj_only then AppArgs.iter (occur_rec bound) args
           end
       | _ -> iter_type_expr (occur_rec bound) ty
   in
@@ -2686,16 +2773,15 @@ let univars_escape env univar_pairs vl ty =
           if List.exists (fun t -> TypeSet.mem t family) tl then ()
           else occur t
       | Tunivar _ -> if TypeSet.mem t family then raise_escape_exn (Univ t)
-      | Tconstr (_, Unapplied, _) -> ()
-      | Tconstr (p, Applied tl, _) ->
+      | Tconstr (p, args, _) ->
           begin try
             let td = Env.find_type p env in
             List.iter
               (* see occur_univar *)
               (fun (t, { variance = v }) -> if not Variance.(eq v null) then occur t)
-              (zip_params_with_applied tl td)
+              (zip_params_with_applied env args td)
           with Not_found ->
-            List.iter occur tl
+            AppArgs.iter occur args
           end
       | _ ->
           iter_type_expr occur t
@@ -2950,14 +3036,13 @@ let compatible_paths p1 p2 =
   Path.same p1 path_bytes && Path.same p2 path_string ||
   Path.same p1 path_string && Path.same p2 path_bytes
 
-(* TODO jbachurski: Over/under-application *)
 let zip_with_found_injectivities_or_false env path tl1 tl2 =
-  let tl1, tl2 = AppArgs.to_list tl1, AppArgs.to_list tl2 in
   match Env.find_type path env with
   | decl ->
-    List.map (fun (t1, t2, { variance = v }) -> (Variance.(mem Inj) v, t1, t2))
-      (zip_params_with_applied2 tl1 tl2 decl)
-  | exception Not_found -> List.map2 (fun t1 t2 -> (false, t1, t2)) tl1 tl2
+    List.map (fun ((t1, t2), { variance = v }) -> (Variance.(mem Inj) v, t1, t2))
+      (zip_params_with_applied2 env tl1 tl2 decl)
+  | exception Not_found -> 
+    List.map2 (fun t1 t2 -> (false, t1, t2)) (AppArgs.to_list tl1) (AppArgs.to_list tl2)
 
 (* Check for datatypes carefully; see PR#6348 *)
 let rec expands_to_datatype env ty =
@@ -3020,6 +3105,14 @@ let rec mcomp type_pairs env t1 t2 =
             mcomp_labeled_list type_pairs env tl1 tl2
         | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _), _, _) ->
             mcomp_type_decl type_pairs env p1 p2 tl1 tl2
+        | (Tapp (t, args), Tapp (t', args'), _, _) ->
+            mcomp type_pairs env t t';
+            mcomp_list type_pairs env args args'
+        | (Tapp (t, args'), Tconstr (p, args, _), _, _)
+        | (Tconstr (p, args, _), Tapp (t, args'), _, _)
+          when path_legal_unapplied env p ->
+            mcomp type_pairs env t (newconstr p []);
+            mcomp_list type_pairs env (AppArgs.to_list args) args'
         | (Tconstr (_, Unapplied, _), _, _, _) when has_injective_univars env t2' ->
             raise_unexplained_for Unify
         | (_, Tconstr (_, Unapplied, _), _, _) when has_injective_univars env t1' ->
@@ -3032,9 +3125,6 @@ let rec mcomp type_pairs env t1 t2 =
                 raise Incompatible
             with Not_found -> ()
             end
-        | (Tapp (t, args), Tapp (t', args'), _, _) ->
-            mcomp type_pairs env t t';
-            mcomp_list type_pairs env args args'
         (*
         | (Tpackage (p1, n1, tl1), Tpackage (p2, n2, tl2)) when n1 = n2 ->
             mcomp_list type_pairs env tl1 tl2
@@ -3681,6 +3771,10 @@ and unify3 env t1 t1' t2 t2' =
           reify env t1';
           record_equation t1' t2';
           add_gadt_equation env path t1'
+      | (Tconstr (p, (Applied _ as args), _), Tconstr (p', (Applied _ as args'), _))
+        when in_pattern_mode () && path_legal_unapplied !env p && path_legal_unapplied !env p' ->
+          unify env (newconstr p []) (newconstr p' []);
+          unify_appargs env args args'
       | (Tconstr (_,_,_), _) | (_, Tconstr (_,_,_)) when in_pattern_mode () ->
           reify env t1';
           reify env t2';
@@ -3691,6 +3785,12 @@ and unify3 env t1 t1' t2 t2' =
       | (Tapp (t, args), Tapp (t', args')) ->
           unify env t t';
           unify_list env args args'
+      | (Tapp (t, args), Tconstr (p, args', _)) when path_legal_unapplied !env p ->
+          unify env t (newconstr p []);
+          unify_list env args (AppArgs.to_list args')
+      | (Tconstr (p, args, _), Tapp (t, args')) when path_legal_unapplied !env p ->
+          unify env (newconstr p []) t;
+          unify_list env (AppArgs.to_list args) args'
       | (Tobject (fi1, nm1), Tobject (fi2, _)) ->
           unify_fields env fi1 fi2;
           (* Type [t2'] may have been instantiated by [unify_fields] *)
@@ -4736,23 +4836,29 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
                 when Path.same p1 p2 -> begin
               (* TODO jbachurski: Over/under-application *)
-              let tl1 = AppArgs.to_list tl1 in
-              let tl2 = AppArgs.to_list tl2 in
               match variance with
               | Invariant | Bivariant ->
-                  moregen_list inst_nongen variance type_pairs env tl1 tl2
+                  moregen_appargs inst_nongen variance type_pairs env tl1 tl2
               | _ ->
                 match Env.find_type p1 env with
                 | decl ->
                     moregen_param_list inst_nongen variance type_pairs env
-                      (try zip_params_with_applied2 tl1 tl2 decl
+                      (try zip_params_with_applied2 env tl1 tl2 decl
                        with Invalid_argument _ -> raise_unexplained_for Moregen)
                 | exception Not_found ->
-                    moregen_list inst_nongen Invariant type_pairs env tl1 tl2
+                    moregen_appargs inst_nongen Invariant type_pairs env tl1 tl2
             end
           | (Tapp (t, args), Tapp (t', args')) ->
-            moregen inst_nongen variance type_pairs env t t';
-            moregen_list inst_nongen variance type_pairs env args args'
+              moregen inst_nongen variance type_pairs env t t';
+              moregen_list inst_nongen variance type_pairs env args args'
+          | (Tapp (t, args), Tconstr (p, args', _))
+            when path_legal_unapplied env p ->
+              moregen inst_nongen variance type_pairs env t (newconstr p []);
+              moregen_list inst_nongen variance type_pairs env args (AppArgs.to_list args')
+          | (Tconstr (p, args, _), Tapp (t, args'))
+            when path_legal_unapplied env p ->
+              moregen inst_nongen variance type_pairs env (newconstr p []) t;
+              moregen_list inst_nongen variance type_pairs env (AppArgs.to_list args) args'
           | (Tpackage (p1, fl1), Tpackage (p2, fl2)) ->
               begin try
                 unify_package env (moregen_list inst_nongen variance type_pairs env)
@@ -4789,6 +4895,9 @@ and moregen_list inst_nongen variance type_pairs env tl1 tl2 =
     raise_unexplained_for Moregen;
   List.iter2 (moregen inst_nongen variance type_pairs env) tl1 tl2
 
+and moregen_appargs inst_nongen variance type_pairs env tl1 tl2 =
+  moregen_list inst_nongen variance type_pairs env (AppArgs.to_list tl1) (AppArgs.to_list tl2)
+
 and moregen_labeled_list inst_nongen variance type_pairs env labeled_tl1
     labeled_tl2 =
   if not (Int.equal (List.length labeled_tl1) (List.length labeled_tl2)) then
@@ -4803,7 +4912,7 @@ and moregen_labeled_list inst_nongen variance type_pairs env labeled_tl1
 and moregen_param_list inst_nongen variance type_pairs env vts =
   match vts with
   | [] -> ()
-  | (t1, t2, { variance = v }) :: vts ->
+  | ((t1, t2), { variance = v }) :: vts ->
     let param_variance = compose_variance variance v in
     moregen inst_nongen param_variance type_pairs env t1 t2;
     moregen_param_list inst_nongen variance type_pairs env vts
@@ -5171,6 +5280,11 @@ let rec eqtype rename type_pairs subst env t1 t2 =
           | (Tapp (t, args), Tapp (t', args')) ->
               eqtype rename type_pairs subst env t t';
               eqtype_list rename type_pairs subst env args args'
+          | (Tapp (t, args'), Tconstr (p, args, _))
+          | (Tconstr (p, args, _), Tapp (t, args'))
+            when path_legal_unapplied env p ->
+              eqtype rename type_pairs subst env t (newconstr p []);
+              eqtype_list rename type_pairs subst env (AppArgs.to_list args) args'
           | (Tpackage (p1, fl1), Tpackage (p2, fl2)) ->
               begin try
                 unify_package env (eqtype_list rename type_pairs subst env)
@@ -5855,8 +5969,7 @@ let rec build_subtype env (visited : transient_expr list)
                 else (newvar (Jk.Builtin.value
                                 ~why:(Unknown "build_subtype 3")),
                       Changed))
-            (* TODO jbachurski: Over/under-application *)
-            (zip_params_with_applied (AppArgs.to_list tl) decl)
+            (zip_params_with_applied env tl decl)
         in
         let c = collect tl' in
         if c > Unchanged then (newconstr p (List.map fst tl'), c)
@@ -6011,7 +6124,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
         begin try
           let decl = Env.find_type p1 env in
           List.fold_left
-            (fun cstrs (t1, t2, { variance = v }) ->
+            (fun cstrs ((t1, t2), { variance = v }) ->
               let (co, cn) = Variance.get_upper v in
               if co then
                 if cn then
@@ -6033,8 +6146,7 @@ let rec subtype_rec env trace t1 t2 cstrs =
                     t2 t1
                     cstrs
                 else cstrs)
-            (* TODO jbachurski: Over/under-application *)
-            cstrs (zip_params_with_applied2 (AppArgs.to_list tl1) (AppArgs.to_list tl2) decl)
+            cstrs (zip_params_with_applied2 env tl1 tl2 decl)
         with Not_found ->
           (trace, t1, t2, !univar_pairs)::cstrs
         end

@@ -539,6 +539,11 @@ val get_unboxed_type_approximation : Env.t -> type_expr -> type_expr
    void. *)
 val tvariant_not_immediate : row_desc -> bool
 
+val noun_application : 'a. Env.t -> type_noun -> 'a app_list -> (('a * type_param) list * higher_jkind) option
+
+(* Extract the jkind of a type declaration in the context of an application. *)
+val jkind_of_decl_application : Env.t -> type_declaration -> _ AppArgs.app -> higher_jkind option
+
 (* Cheap upper bound on jkind.  Will not expand unboxed types - call
    [type_jkind] if that's needed. *)
 val estimate_broken_type_jkind : Env.t ->  type_expr -> higher_jkind
@@ -583,6 +588,10 @@ val check_type_jkind :
   Env.t -> type_expr -> Higher_jkind.t -> (unit, Jkind.Violation.t) result
 val constrain_type_jkind :
   Env.t -> type_expr -> Higher_jkind.t -> (unit, Jkind.Violation.t) result
+
+val zip_params_with_applied : Env.t -> 'a app_list -> type_declaration -> ('a * type_param) list
+
+val params_for_apply : Env.t -> _ app_list -> type_declaration -> type_param list
 
 (* Check whether a type's externality's upper bound is less than some target.
    Potentially cheaper than just calling [type_jkind], because this can stop

@@ -806,7 +806,7 @@ let transl_declaration env sdecl (id, uid) =
      is no annotation and no manifest.
      See Note [Default jkinds in transl_declaration].
   *)
-  let assign_jkind jkind_default =
+  let assign_jkind ~is_datatype jkind_default =
     (* - If there's an annotation, we use that. It's checked against
          a kind in [update_decl_jkind] and the manifest in [check_coherence].
          Both of those functions update the [type_jkind] field in the
@@ -819,11 +819,18 @@ let transl_declaration env sdecl (id, uid) =
     *)
     match jkind_from_annotation, man with
     | Some annot, _ -> annot
-    | None, Some _ -> Higher_jkind.Builtin.any ~why:Initial_typedecl_env
+    | None, Some _ -> 
+      Higher_jkind.Builtin.(
+        (* CR jbachurski: If we have higher-kinded datatypes, 
+            this should be fixed, but making this simpler is
+            an argument why it should stay the way it is. *)
+        if is_datatype 
+        then any ~why:Initial_typedecl_env
+        else top ~why:Initial_typedecl_env)
     | None, None -> jkind_default
   in
-  let assign_type_jkind jkind_default =
-    Higher_jkind.(assign_jkind (wrap jkind_default) |> unwrap ~loc:__LOC__)
+  let assign_type_jkind ~is_datatype jkind_default =
+    Higher_jkind.(wrap jkind_default |> assign_jkind ~is_datatype |> unwrap ~loc:__LOC__)
   in
   let tkind, (kind : type_noun) =
     match sdecl.ptype_kind with
@@ -854,7 +861,7 @@ let transl_declaration env sdecl (id, uid) =
       | Ptype_abstract ->
           Ttype_abstract,
           create_higher_kinded_type_equation_noun
-            params (assign_jkind (Higher_jkind.Builtin.value ~why:Default_type_jkind)) priv man
+            params (assign_jkind ~is_datatype:false (Higher_jkind.Builtin.value ~why:Default_type_jkind)) priv man
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -940,7 +947,7 @@ let transl_declaration env sdecl (id, uid) =
           Ttype_variant tcstrs,
           Datatype {
             params;
-            ret_jkind = assign_type_jkind jkind;
+            ret_jkind = assign_type_jkind ~is_datatype:true jkind;
             manifest = get_man_path_manifest ();
             noun = Datatype_variant { priv; cstrs; rep } }
       | Ptype_record lbls ->
@@ -964,14 +971,14 @@ let transl_declaration env sdecl (id, uid) =
           Ttype_record lbls,
           Datatype {
             params;
-            ret_jkind = assign_type_jkind jkind;
+            ret_jkind = assign_type_jkind ~is_datatype:true jkind;
             manifest = get_man_path_manifest ();
             noun = Datatype_record { priv; lbls = lbls'; rep } }
       | Ptype_open ->
           Ttype_open,
           Datatype {
             params;
-            ret_jkind = assign_type_jkind (Jkind.Builtin.value ~why:Extensible_variant);
+            ret_jkind = assign_type_jkind ~is_datatype:true (Jkind.Builtin.value ~why:Extensible_variant);
             manifest = get_man_path_manifest ();
             noun = Datatype_open { priv }
           }
@@ -1048,7 +1055,8 @@ let rec check_constraints_rec env loc visited ty =
         try Env.find_type path env
         with Not_found ->
           raise (Error(loc, Unavailable_type_constructor path)) in
-      let ty' = Ctype.newconstr path (Ctype.instance_list (get_type_param_exprs decl)) in
+      let params = Ctype.params_for_apply env args decl |> List.map (fun p -> p.param_expr) in
+      let ty' = Ctype.newconstr path (Ctype.instance_list params) in
       begin
         (* We don't expand the error trace because that produces types that
            *already* violate the constraints -- we need to report a problem with
@@ -3123,7 +3131,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       try Ctype.unify_var env cty.ctyp_type tparam
       with Ctype.Unify err ->
         raise(Error(cty.ctyp_loc, Inconsistent_constraint (env, err)))
-    ) (zip_params_with_applied tparams sig_decl);
+    ) (List.combine tparams (get_type_params sig_decl));
   List.iter (fun (cty, cty', loc) ->
     (* Note: constraints must also be enforced in [sig_env] because
        they may contain parameter variables from [tparams]

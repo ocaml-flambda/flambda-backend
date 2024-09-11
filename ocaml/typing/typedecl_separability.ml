@@ -441,8 +441,7 @@ let check_type
         check_type hyps pty m
     | (Tunivar(_)         , _      ) -> empty
     (* Type constructor case. *)
-    | (Tconstr(_,Unapplied,_), _) -> empty
-    | (Tconstr(path,Applied tys,_), m) ->
+    | (Tconstr(path,args,_), m) ->
         let on_param context (ty, { separability = m_param }) =
           let hyps = match m_param with
             | Ind -> Hyps.guard hyps
@@ -450,7 +449,7 @@ let check_type
             | Deepsep -> Hyps.poison hyps in
           context ++ check_type hyps ty (compose m m_param) in
         List.fold_left on_param empty
-          (Env.find_type path env |> zip_params_with_applied tys)
+          (Env.find_type path env |> Ctype.zip_params_with_applied env args)
     | (Tapp(ty,tys)       , m      ) ->
       List.fold_left (
         fun context ty -> 

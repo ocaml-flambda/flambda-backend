@@ -51,9 +51,11 @@ and type_desc =
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
 
-and app_args =
+and 'a app_list =
   | Unapplied
-  | Applied of type_expr list
+  | Applied of 'a list
+
+and app_args = type_expr app_list
 
 and arg_label =
   | Nolabel
@@ -445,20 +447,6 @@ let get_type_variance decl = List.map (fun { variance } -> variance) (get_type_p
 let set_type_variance decl variances =
   map_type_params decl
     (List.map2 (fun variance param -> { param with variance }) variances)
-
-
-let zip_params_with_applied xs decl =
-  let params = get_type_params decl in
-  if List.length xs <> List.length params
-  then raise (Invalid_argument "Mismatched arities in application")
-  else List.combine xs params
-
-let zip_params_with_applied2 xs ys decl =
-  let params = get_type_params decl in
-  if List.length xs <> List.length params || List.length ys <> List.length params
-  then raise (Invalid_argument "Mismatched arities in application")
-  else List.map2 (fun (x, y) p -> (x, y, p)) (List.combine xs ys) params
-
 
 let get_desc_ref = ref (fun _ -> assert false)
 let noun_with_expansion type_noun expansion =
@@ -1372,9 +1360,11 @@ let undo_compress (changes, _old) =
 (* Application arguments for [Tconstr] *)
 
 module AppArgs = struct
-  type t = app_args =
+  type 'a app = 'a app_list =
     | Unapplied
-    | Applied of type_expr list
+    | Applied of 'a list
+
+  type t = type_expr app_list
 
   let one e = Applied [e]
   let unapp = Unapplied

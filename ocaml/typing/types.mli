@@ -71,9 +71,11 @@ type row_field
 type field_kind
 type commutable
 
-type app_args =
+type 'a app_list =
   | Unapplied
-  | Applied of type_expr list
+  | Applied of 'a list
+
+and app_args = type_expr app_list
 
 and type_desc =
   | Tvar of { name : string option; jkind : higher_jkind }
@@ -718,6 +720,8 @@ val abstract_reason_of_abbrev : abstract_reason
 
 val newgenty_ref : (type_desc -> type_expr) ref
 
+(* Any uses of [get_type_jkind] do not take into account over/under-application 
+   - it is correct in neither case. Perhaps worth removing it entirely. *)
 val get_type_jkind : type_declaration -> higher_jkind
 val set_type_jkind : higher_jkind -> type_declaration -> type_declaration
 
@@ -736,9 +740,6 @@ val set_type_param_exprs : type_declaration -> type_expr list -> type_declaratio
 
 val get_type_variance : type_declaration -> Variance.t list
 val set_type_variance : type_declaration -> Variance.t list -> type_declaration
-
-val zip_params_with_applied : 'a list -> type_declaration -> ('a * type_param) list
-val zip_params_with_applied2 : 'a list -> 'b list -> type_declaration -> ('a * 'b * type_param) list
 
 val create_higher_kinded_type_equation_noun
   : type_param list -> higher_jkind -> private_flag -> type_expr option -> type_noun
@@ -1031,15 +1032,17 @@ val set_commu_ok: commutable -> unit
 
 (*  *)
 module AppArgs : sig
-  type t = app_args =
+  type 'a app = 'a app_list =
     | Unapplied
-    | Applied of type_expr list
+    | Applied of 'a list
+
+  type t = type_expr app_list
 
   val unapp : t
   val one : type_expr -> t
 
-  val of_list : type_expr list -> t
-  val to_list : t -> type_expr list
+  val of_list : 'a list -> 'a app
+  val to_list : 'a app -> 'a list
 
   val map : (type_expr -> type_expr) -> t -> t
   val iter : (type_expr -> unit) -> t -> unit

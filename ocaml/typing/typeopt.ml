@@ -397,7 +397,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
     (* CR layouts: [~elt_sort:None] here is bad for performance. To
        fix it, we need a place to store the sort on a [Tconstr]. *)
     num_nodes_visited, Parrayval (array_type_kind ~elt_sort:None env loc ty)
-  | Tconstr(p, _, _) -> begin
+  | Tconstr(p, args, _) -> begin
       let decl =
         try Env.find_type p env with Not_found -> raise Missing_cmi_fallback
       in
@@ -420,8 +420,12 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
             (fun () -> value_kind_record env ~loc ~visited ~depth
                          ~num_nodes_visited labels rep)
         | Equation _ ->
-          num_nodes_visited,
-          value_kind_of_value_jkind (get_type_jkind decl |> Higher_jkind.unwrap ~loc:__LOC__)
+          let jkind = 
+            match Ctype.noun_application env decl.type_noun args with
+            | None -> assert false
+            | Some (_, ret_jkind) -> Higher_jkind.unwrap ~loc:__LOC__ ret_jkind
+          in
+          num_nodes_visited, value_kind_of_value_jkind jkind
         | Datatype { noun = Datatype_open _ } -> num_nodes_visited, Pgenval
     end
   | Ttuple labeled_fields ->
