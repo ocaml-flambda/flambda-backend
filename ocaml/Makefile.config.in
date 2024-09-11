@@ -199,6 +199,7 @@ INSTRUMENTED_RUNTIME_LIBS=@instrumented_runtime_libs@
 WITH_DEBUGGER=@with_debugger@
 ASM_CFI_SUPPORTED=@asm_cfi_supported@
 WITH_FRAME_POINTERS=@frame_pointers@
+WITH_ADDRESS_SANITIZER=@address_sanitizer@
 WITH_CPP_MANGLING=@cpp_mangling@
 WITH_PROFINFO=@profinfo@
 PROFINFO_WIDTH=@profinfo_width@
