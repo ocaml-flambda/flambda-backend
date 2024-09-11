@@ -5,6 +5,7 @@ file) into a single summary profile information CSV file.
 
 from argparse import ArgumentParser
 import csv
+import re
 from pathlib import Path
 from string import digits
 from typing import Dict, Iterable, Iterator, List, Tuple, Union
@@ -35,6 +36,11 @@ def parse_counters(counters: str) -> Dict[str, str]:
     return dict(map(lambda x: tuple(x.split(" = ")), split_counters))
 
 
+def get_csv_fieldnames(csv_path: Path) -> CsvRows:
+    with open(csv_path) as csv_file:
+        return csv.DictReader(csv_file).fieldnames
+
+
 def get_csv_rows(csv_path: Path) -> CsvRows:
     with open(csv_path) as csv_file:
         csv_reader = csv.DictReader(csv_file)
@@ -57,6 +63,7 @@ def split_into_number_and_unit(number_string: str) -> (Union[int, float], str):
     return number, unit
 
 
+FILE_KEY = "file"
 PRIMARY_KEY = "pass name"
 COUNTERS_FIELD = "counters"
 summary_non_counter_fields = set()
@@ -64,12 +71,12 @@ summary_counter_fields = set()
 
 # Retrieve non-counter and counter field names selected dynamically from CSV files (also
 # asserts that all CSV files should have primary key and counters fields)
-for rows in map(get_csv_rows, get_input_csv_paths()):
-    fields = set(rows[0])
+for csv_path in get_input_csv_paths():
+    fields = get_csv_fieldnames(csv_path)
     assert PRIMARY_KEY in fields
     assert COUNTERS_FIELD in fields
 
-    for row in rows:
+    for row in get_csv_rows(csv_path):
         summary_counter_fields.update(parse_counters(row[COUNTERS_FIELD]))
 
     fields.remove(PRIMARY_KEY)
@@ -84,7 +91,7 @@ summary_non_counter_fields -= {
 }
 
 # Ensure consistent ordering of summary fields
-field_collections = {PRIMARY_KEY}, summary_non_counter_fields, summary_counter_fields
+field_collections = {FILE_KEY, PRIMARY_KEY}, summary_non_counter_fields, summary_counter_fields
 SUMMARY_FIELD_NAMES = sum(map(lambda fields: sorted(fields), field_collections), [])
 
 units = {}
@@ -97,8 +104,19 @@ def strip_units(row: CsvRow) -> CsvRow:
     return {k: (v[: -len(units[k])] if k in units else v) for k, v in row.items()}
 
 
+def add_file_to_row(row: CsvRow) -> CsvRow:
+    pass_name = row[PRIMARY_KEY]
+    file_match = re.search("/?file=(.*)//.*", pass_name)
+    if file_match is not None:
+        row[FILE_KEY] = file_match.group(1)
+        row[PRIMARY_KEY] = re.sub("/?file=.*//", "", pass_name)
+    else:
+        row[FILE_KEY] = ""
+
+
 def row_summary(row: CsvRow) -> SummaryRow:
     full_summary = {**strip_units(row), **parse_counters(row["counters"])}
+    add_file_to_row(full_summary)
     return {k: v for k, v in full_summary.items() if k in SUMMARY_FIELD_NAMES}
 
 
