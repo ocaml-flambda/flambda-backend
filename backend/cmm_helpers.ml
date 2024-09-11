@@ -1036,6 +1036,16 @@ let array_indexing ?typ log2size ptr ofs dbg =
           Cconst_int (-1 lsl (log2size - 1), dbg) ],
         dbg )
 
+let array_indexing ?typ memory_access log2size ptr ofs dbg =
+  let field_address = array_indexing ?typ log2size ptr ofs dbg in
+  if Config.with_address_sanitizer
+     && log2size <= Address_sanitizer.max_supported_log2size
+  then
+    Csequence
+      ( Address_sanitizer.check memory_access ~log2size field_address dbg,
+        field_address )
+  else field_address
+
 (* CR Gbury: this conversion int -> nativeint is potentially unsafe when
    cross-compiling for 64-bit on a 32-bit host *)
 let int ~dbg i = natint_const_untagged dbg (Nativeint.of_int i)
@@ -1149,16 +1159,22 @@ let unboxed_vec128_array_length arr dbg =
   tag_int (lsr_int res (int ~dbg 1) dbg) dbg
 
 let addr_array_ref arr ofs dbg =
-  Cop (mk_load_mut Word_val, [array_indexing log2_size_addr arr ofs dbg], dbg)
+  Cop
+    (mk_load_mut Word_val, [array_indexing Load log2_size_addr arr ofs dbg], dbg)
 
 let int_array_ref arr ofs dbg =
-  Cop (mk_load_mut Word_int, [array_indexing log2_size_addr arr ofs dbg], dbg)
+  Cop
+    (mk_load_mut Word_int, [array_indexing Load log2_size_addr arr ofs dbg], dbg)
 
 let unboxed_mutable_float_array_ref arr ofs dbg =
-  Cop (mk_load_mut Double, [array_indexing log2_size_float arr ofs dbg], dbg)
+  Cop
+    (mk_load_mut Double, [array_indexing Load log2_size_float arr ofs dbg], dbg)
 
 let unboxed_immutable_float_array_ref arr ofs dbg =
-  Cop (mk_load_immut Double, [array_indexing log2_size_float arr ofs dbg], dbg)
+  Cop
+    ( mk_load_immut Double,
+      [array_indexing Load log2_size_float arr ofs dbg],
+      dbg )
 
 let unboxed_float_array_ref (mutability : Asttypes.mutable_flag) ~block:arr
     ~index:ofs dbg =
@@ -1181,7 +1197,7 @@ let addr_array_set_heap arr ofs newval dbg =
           coeffects = Has_coeffects;
           ty_args = []
         },
-      [array_indexing log2_size_addr arr ofs dbg; newval],
+      [array_indexing Store log2_size_addr arr ofs dbg; newval],
       dbg )
 
 let addr_array_set_local arr ofs newval dbg =
@@ -1209,13 +1225,13 @@ let addr_array_set (mode : Lambda.modify_mode) arr ofs newval dbg =
 let int_array_set arr ofs newval dbg =
   Cop
     ( Cstore (Word_int, Assignment),
-      [array_indexing log2_size_addr arr ofs dbg; newval],
+      [array_indexing Store log2_size_addr arr ofs dbg; newval],
       dbg )
 
 let float_array_set arr ofs newval dbg =
   Cop
     ( Cstore (Double, Assignment),
-      [array_indexing log2_size_float arr ofs dbg; newval],
+      [array_indexing Store log2_size_float arr ofs dbg; newval],
       dbg )
 
 let addr_array_initialize arr ofs newval dbg =
@@ -1230,7 +1246,7 @@ let addr_array_initialize arr ofs newval dbg =
           alloc = false;
           ty_args = []
         },
-      [array_indexing log2_size_addr arr ofs dbg; newval],
+      [array_indexing Store log2_size_addr arr ofs dbg; newval],
       dbg )
 
 (* low_32 x is a value which agrees with x on at least the low 32 bits *)
@@ -1277,7 +1293,7 @@ let unboxed_packed_array_ref arr index dbg ~memory_chunk ~elements_per_word =
           let log2_size_addr = 2 in
           Cop
             ( mk_load_mut memory_chunk,
-              [array_indexing log2_size_addr arr index dbg],
+              [array_indexing Load log2_size_addr arr index dbg],
               dbg )))
 
 let unboxed_int32_array_ref =
@@ -1312,7 +1328,7 @@ let unboxed_packed_array_set arr ~index ~new_value dbg ~memory_chunk
               let log2_size_addr = 2 in
               Cop
                 ( Cstore (memory_chunk, Assignment),
-                  [array_indexing log2_size_addr arr index dbg; new_value],
+                  [array_indexing Store log2_size_addr arr index dbg; new_value],
                   dbg ))))
 
 let unboxed_int32_array_set =
@@ -1341,7 +1357,7 @@ let get_field_computed imm_or_ptr mutability ~block ~index dbg =
     | Lambda.Immediate -> Word_int
     | Lambda.Pointer -> Word_val
   in
-  let field_address = array_indexing log2_size_addr block index dbg in
+  let field_address = array_indexing Load log2_size_addr block index dbg in
   Cop
     (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
 
@@ -1356,13 +1372,13 @@ let get_field_unboxed_int32 mutability ~block ~index dbg =
       "Unboxed int32 fields only supported on little-endian architectures";
   (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
    * int32s *)
-  let field_address = array_indexing log2_size_addr block index dbg in
+  let field_address = array_indexing Load log2_size_addr block index dbg in
   Cop
     (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
 
 let get_field_unboxed_int64_or_nativeint mutability ~block ~index dbg =
   let memory_chunk = Word_int in
-  let field_address = array_indexing log2_size_addr block index dbg in
+  let field_address = array_indexing Load log2_size_addr block index dbg in
   Cop
     (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
 
@@ -1379,14 +1395,14 @@ let setfield_unboxed_int32 arr ofs newval dbg =
   return_unit dbg
     (Cop
        ( Cstore (Thirtytwo_signed, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
+         [array_indexing Store log2_size_addr arr ofs dbg; newval],
          dbg ))
 
 let setfield_unboxed_int64_or_nativeint arr ofs newval dbg =
   return_unit dbg
     (Cop
        ( Cstore (Word_int, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
+         [array_indexing Store log2_size_addr arr ofs dbg; newval],
          dbg ))
 
 (* Getters and setters for unboxed float32 fields *)
@@ -1400,7 +1416,7 @@ let get_field_unboxed_float32 mutability ~block ~index dbg =
   let memory_chunk = Single { reg = Float32 } in
   (* CR layouts v5.1: We'll need to vary log2_size_addr to efficiently pack
    * float32s *)
-  let field_address = array_indexing log2_size_addr block index dbg in
+  let field_address = array_indexing Load log2_size_addr block index dbg in
   Cop
     (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
 
@@ -1415,7 +1431,7 @@ let setfield_unboxed_float32 arr ofs newval dbg =
   return_unit dbg
     (Cop
        ( Cstore (Single { reg = Float32 }, Assignment),
-         [array_indexing log2_size_addr arr ofs dbg; newval],
+         [array_indexing Store log2_size_addr arr ofs dbg; newval],
          dbg ))
 
 (* Getters and setters for unboxed vec128 fields *)
@@ -1427,7 +1443,9 @@ let get_field_unboxed_vec128 mutability ~block ~index_in_words dbg =
     Misc.fatal_error
       "Unboxed vec128 fields only supported on little-endian architectures";
   let memory_chunk = Onetwentyeight_unaligned in
-  let field_address = array_indexing log2_size_addr block index_in_words dbg in
+  let field_address =
+    array_indexing Load log2_size_addr block index_in_words dbg
+  in
   Cop
     (Cload { memory_chunk; mutability; is_atomic = false }, [field_address], dbg)
 
@@ -1437,7 +1455,9 @@ let setfield_unboxed_vec128 arr ~index_in_words newval dbg =
   then
     Misc.fatal_error
       "Unboxed vec128 fields only supported on little-endian architectures";
-  let field_address = array_indexing log2_size_addr arr index_in_words dbg in
+  let field_address =
+    array_indexing Store log2_size_addr arr index_in_words dbg
+  in
   return_unit dbg
     (Cop
        ( Cstore (Onetwentyeight_unaligned, Assignment),
@@ -1618,7 +1638,7 @@ let send_function_name arity result (mode : Cmx_format.alloc_mode) =
 
 let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
     =
-  let cache = array_indexing log2_size_addr cache pos dbg in
+  let cache = array_indexing Load log2_size_addr cache pos dbg in
   Compilenv.need_send_fun
     (List.map Extended_machtype.change_tagged_int_to_val args_type)
     (Extended_machtype.change_tagged_int_to_val result)
@@ -1661,7 +1681,7 @@ let memory_chunk_size_in_words_for_mixed_block = function
 
 let alloc_generic_set_fn block ofs newval memory_chunk dbg =
   let generic_case () =
-    let addr = array_indexing log2_size_addr block ofs dbg in
+    let addr = array_indexing Store log2_size_addr block ofs dbg in
     Cop (Cstore (memory_chunk, Initialization), [addr; newval], dbg)
   in
   match (memory_chunk : Cmm.memory_chunk) with
@@ -3992,7 +4012,7 @@ let bigarray_load ~dbg ~elt_kind ~elt_size ~elt_chunk ~bigarray ~index =
   let ba_data_f = field_address bigarray 1 dbg in
   let ba_data_p = load ~dbg Word_int Mutable ~addr:ba_data_f in
   let addr =
-    array_indexing ~typ:Addr (Misc.log2 elt_size) ba_data_p index dbg
+    array_indexing ~typ:Addr Load (Misc.log2 elt_size) ba_data_p index dbg
   in
   match (elt_kind : Lambda.bigarray_kind) with
   | Pbigarray_complex32 | Pbigarray_complex64 ->
@@ -4014,7 +4034,7 @@ let bigarray_store ~dbg ~(elt_kind : Lambda.bigarray_kind) ~elt_size ~elt_chunk
   let ba_data_f = field_address bigarray 1 dbg in
   let ba_data_p = load ~dbg Word_int Mutable ~addr:ba_data_f in
   let addr =
-    array_indexing ~typ:Addr (Misc.log2 elt_size) ba_data_p index dbg
+    array_indexing ~typ:Addr Store (Misc.log2 elt_size) ba_data_p index dbg
   in
   match elt_kind with
   | Pbigarray_complex32 | Pbigarray_complex64 ->
