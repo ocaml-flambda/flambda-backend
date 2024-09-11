@@ -340,6 +340,7 @@ AC_SUBST([profinfo_width])
 AC_SUBST([custom_ops_struct_size])
 AC_SUBST([no_partial_inlining_cflags])
 AC_SUBST([frame_pointers])
+AC_SUBST([address_sanitizer])
 AC_SUBST([cpp_mangling])
 AC_SUBST([flambda])
 AC_SUBST([flambda2])
@@ -578,6 +579,10 @@ AC_ARG_ENABLE([native-toplevel],
 AC_ARG_ENABLE([frame-pointers],
   [AS_HELP_STRING([--enable-frame-pointers],
     [use frame pointers in runtime and generated code])])
+
+AC_ARG_ENABLE([address-sanitizer],
+  [AS_HELP_STRING([--enable-address-sanitizer],
+    [use Address Sanitizer and alter codegen to expose native OCaml operations to ASAN])])
 
 AC_ARG_ENABLE([cpp-mangling],
   [AS_HELP_STRING([--enable-cpp-mangling],
@@ -2620,10 +2625,10 @@ AS_IF([$native_compiler],
 
 ## Frame pointers
 
-AS_IF([test x"$enable_frame_pointers" = "xyes"],
+AS_IF([test x"$enable_frame_pointers" = "xyes" -o x"$enable_address_sanitizer" = "xyes"],
   [AS_CASE(["$host,$ocaml_cc_vendor"],
     [x86_64-*-linux*,gcc-*|x86_64-*-linux*,clang-*],
-      [common_cflags="$common_cflags -g  -fno-omit-frame-pointer"
+      [common_cflags="$common_cflags -g -fno-omit-frame-pointer"
       frame_pointers=true
       AC_DEFINE([WITH_FRAME_POINTERS])
       AC_MSG_NOTICE([using frame pointers])],
@@ -2631,6 +2636,22 @@ AS_IF([test x"$enable_frame_pointers" = "xyes"],
   )],
   [AC_MSG_NOTICE([not using frame pointers])
   frame_pointers=false])
+
+## Address Sanitizer
+
+AS_IF([test x"$enable_address_sanitizer" = "xyes"],
+  [AS_CASE(["$host,$cc_basename"],
+    [x86_64-*-linux*,gcc-*|x86_64-*-linux*,clang-*],
+      [common_cflags="$common_cflags -fsanitize=address -fsanitize-recover=address"
+       oc_ldflags="$oc_ldflags -fsanitize=address -fsanitize-recover=address"
+       address_sanitizer=true
+      AC_DEFINE([WITH_ADDRESS_SANITIZER])
+      AC_MSG_NOTICE([using Address Sanitizer])],
+    [AC_MSG_ERROR([Address Sanitizer is not supported on this platform])]
+  )],
+  [AC_MSG_NOTICE([not using Address Sanitizer])
+  address_sanitizer=false])
+
 
 ## CPP mangling
 

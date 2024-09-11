@@ -65,6 +65,7 @@ let system = "unknown"
 let asm = boot_cannot_call "the assembler"
 let asm_cfi_supported = false
 let with_frame_pointers = false
+let with_address_sanitizer = false
 let reserved_header_bits = 0
 let custom_ops_struct_size = 64
 let ext_exe = ".ex_The boot compiler should not be using Config.ext_exe"
