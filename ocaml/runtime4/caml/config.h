@@ -180,6 +180,13 @@ typedef uint64_t uintnat;
 #endif
 
 
+#ifdef WITH_ADDRESS_SANITIZER
+#define ADDRESS_SANITIZER_DO_NOT_INSTRUMENT __attribute__((no_sanitize("address")))
+#else
+#define ADDRESS_SANITIZER_DO_NOT_INSTRUMENT
+#endif
+
+
 /* Memory model parameters */
 
 /* The size of a page for memory management (in bytes) is [1 << Page_log].
