@@ -67,7 +67,7 @@ jobs:
             use_runtime: d
             ocamlparam: '_,O3=1,flambda2-meet-algorithm=advanced'
 
-          - name: flambda2_frame_pointers_oclassic
+          - name: flambda2_frame_pointers_oclassic_polling
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion
             os: ubuntu-latest
             build_ocamlparam: ''
