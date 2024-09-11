@@ -55,10 +55,7 @@ type cannot_quantify_reason =
    it is original as compared to the inferred jkind after processing
    the body of the type *)
 type jkind_info =
-  { original_jkind : jkind;
-    jkind_annot : Jkind.annotation option;
-    defaulted : bool;
-  }
+  { of_annot : (jkind * Jkind.annotation) option }
 
 type error =
   | Unbound_type_variable of string * string list
@@ -78,7 +75,7 @@ type error =
   | Invalid_variable_name of string
   | Cannot_quantify of string * cannot_quantify_reason
   | Bad_univar_jkind of
-      { name : string; jkind_info : jkind_info; inferred_jkind : jkind }
+      { name : string; declared_jkind : jkind; inferred_jkind : jkind }
   | Multiple_constraints_on_type of Longident.t
   | Method_mismatch of string * type_expr * type_expr
   | Opened_object of Path.t option
@@ -237,6 +234,15 @@ end = struct
     TyVarMap.fold add_name !type_variables []
 
   (*****)
+  let new_jkind' ~is_named = function
+    (* CR layouts v3.0: while [Any] case allows nullable jkinds, [Sort] does not.
+      From testing, we need all callsites that use [Sort] to be non-null to
+      preserve backwards compatibility. But we also need [Any] callsites
+      to accept nullable jkinds to allow cases like [type ('a : value_or_null) t = 'a]. *)
+    | Any -> Jkind.Builtin.any ~why:(if is_named then Unification_var else Wildcard)
+    | Sort -> Jkind.of_new_legacy_sort ~why:(if is_named then Unification_var else Wildcard)
+
+  (*****)
   (* These are variables we expect to become univars (they were introduced with
      e.g. ['a .]), but we need to make sure they don't unify first.  Why not
      just birth them as univars? Because they might successfully unify with a
@@ -273,7 +279,7 @@ end = struct
       ~finally:(fun () -> univars := old_univars)
 
   let ttyp_poly_arg (poly_univars : poly_univars) = List.map
-      (fun (name, pending_univar) -> name, pending_univar.jkind_info.jkind_annot)
+      (fun (name, pending_univar) -> name, Option.map snd pending_univar.jkind_info.of_annot)
       poly_univars
 
   let mk_pending_univar name jkind jkind_info =
@@ -284,15 +290,13 @@ end = struct
     let original_jkind, jkind_annot =
       Jkind.of_annotation ~context:(context name) jkind
     in
-    let jkind_info =
-      { original_jkind; jkind_annot = Some jkind_annot; defaulted = false }
-    in
+    let jkind_info = { of_annot = Some(original_jkind, jkind_annot) } in
     name, mk_pending_univar name original_jkind jkind_info
 
   let mk_poly_univars_tuple_without_jkind var =
     let name = var.txt in
-    let original_jkind = Jkind.Builtin.value ~why:Univar in
-    let jkind_info = { original_jkind; jkind_annot = None; defaulted = true } in
+    let original_jkind = new_jkind' ~is_named:true Sort in
+    let jkind_info = { of_annot = None } in
     name, mk_pending_univar name original_jkind jkind_info
 
   let make_poly_univars vars =
@@ -324,18 +328,20 @@ end = struct
       let cant_quantify reason =
         raise (Error (loc, env, Cannot_quantify(name, reason)))
       in
-      begin match get_desc v with
-      | Tvar { jkind } when
-          not (Jkind.equate jkind jkind_info.original_jkind) ->
+      begin match get_desc v, jkind_info.of_annot with
+      (* Must agree exactly with annotation, if one exists *)
+      | Tvar { jkind }, Some (declared_jkind, _)
+          when not (Jkind.equate jkind declared_jkind) ->
         let reason =
-          Bad_univar_jkind { name; jkind_info; inferred_jkind = jkind }
+          Bad_univar_jkind { name; declared_jkind; inferred_jkind = jkind }
         in
         raise (Error (loc, env, reason))
-      | Tvar _ when get_level v <> Btype.generic_level ->
+      | Tvar _, _ when get_level v <> Btype.generic_level ->
           cant_quantify Scope_escape
-      | Tvar { name; jkind } ->
+      | Tvar { name; jkind }, _ ->
+         Jkind.default_to_value jkind;
          set_type_desc v (Tunivar { name; jkind })
-      | Tunivar _ ->
+      | Tunivar _, _ ->
          cant_quantify Univar
       | _ ->
          cant_quantify (Unified v)
@@ -432,14 +438,8 @@ end = struct
     add_pre_univar tv policy;
     tv
 
-  let new_jkind ~is_named { jkind_initialization } =
-    match jkind_initialization with
-    (* CR layouts v3.0: while [Any] case allows nullable jkinds, [Sort] does not.
-       From testing, we need all callsites that use [Sort] to be non-null to
-       preserve backwards compatibility. But we also need [Any] callsites
-       to accept nullable jkinds to allow cases like [type ('a : value_or_null) t = 'a]. *)
-    | Any -> Jkind.Builtin.any ~why:(if is_named then Unification_var else Wildcard)
-    | Sort -> Jkind.of_new_legacy_sort ~why:(if is_named then Unification_var else Wildcard)
+  let new_jkind  ~is_named { jkind_initialization } =
+      new_jkind' ~is_named   jkind_initialization
 
   let new_any_var loc env jkind = function
     | { extensibility = Fixed } -> raise(Error(loc, env, No_type_wildcards))
@@ -1473,12 +1473,11 @@ let report_error env ppf = function
         fprintf ppf "it escapes its scope"
       end;
       fprintf ppf ".@]";
-  | Bad_univar_jkind { name; jkind_info; inferred_jkind } ->
+  | Bad_univar_jkind { name; declared_jkind; inferred_jkind } ->
       fprintf ppf
-        "@[<hov>The universal type variable %a was %s to have kind %a.@;%a@]"
+        "@[<hov>The universal type variable %a was declared to have kind %a.@;%a@]"
         Pprintast.tyvar name
-        (if jkind_info.defaulted then "defaulted" else "declared")
-        Jkind.format jkind_info.original_jkind
+        Jkind.format declared_jkind
         (Jkind.format_history ~intro:(
           dprintf "But it was inferred to have %t"
             (fun ppf -> match Jkind.get inferred_jkind with
