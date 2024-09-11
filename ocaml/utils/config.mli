@@ -183,6 +183,10 @@ val asm_cfi_supported: bool
 val with_frame_pointers : bool
 (** Whether assembler should maintain frame pointers *)
 
+val with_address_sanitizer : bool
+(** Whether code generation should expose native OCaml operations to
+    AddressSanitizer. *)
+
 val with_cpp_mangling : bool
 (** Whether symbol names should be following the cpp mangling convention *)
 
