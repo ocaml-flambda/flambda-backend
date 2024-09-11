@@ -427,6 +427,7 @@
   asmlink
   asmpackager
   ;; backend/
+  address_sanitizer
   afl_instrument
   arch
   branch_relaxation

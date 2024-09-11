@@ -287,9 +287,14 @@ char *caml_alloc_for_heap (asize_t request)
 #else
     uintnat size = Round_mmap_size (sizeof (heap_chunk_head) + request);
     void *block;
+    #ifdef WITH_ADDRESS_SANITIZER
+    block = aligned_alloc (Heap_page_size, size);
+    if (block == NULL) return NULL;
+    #else
     block = mmap (NULL, size, PROT_READ | PROT_WRITE,
                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
     if (block == MAP_FAILED) return NULL;
+    #endif
     mem = (char *) block + sizeof (heap_chunk_head);
     Chunk_size (mem) = size - sizeof (heap_chunk_head);
     Chunk_block (mem) = block;
@@ -320,7 +325,11 @@ void caml_free_for_heap (char *mem)
 {
   if (caml_use_huge_pages){
 #ifdef HAS_HUGE_PAGES
+    #ifdef WITH_ADDRESS_SANITIZER
+    free (Chunk_block (mem));
+    #else
     munmap (Chunk_block (mem), Chunk_size (mem) + sizeof (heap_chunk_head));
+    #endif
 #else
     CAMLassert (0);
 #endif
@@ -617,6 +626,12 @@ CAMLexport void caml_adjust_gc_speed (mlsize_t res, mlsize_t max)
   }
 }
 
+/* We mark [caml_initialize], [caml_modify], and [caml_modify_local] with
+   [ADDRESS_SANITIZER_DO_NOT_INSTRUMENT] because we generate ASAN checks for
+   [fp] in the OCaml-side codegen. Opting these functions out of instrumentation
+   helps avoid us paying an even steeper performance penalty for ASAN than we
+   already do. */
+
 /* You must use [caml_initialize] to store the initial value in a field of
    a shared block, unless you are sure the value is not a young block.
    A block value [v] is a shared block if and only if [Is_in_heap (v)]
@@ -625,7 +640,7 @@ CAMLexport void caml_adjust_gc_speed (mlsize_t res, mlsize_t max)
 /* [caml_initialize] never calls the GC, so you may call it while a block is
    unfinished (i.e. just after a call to [caml_alloc_shr].) */
 /* PR#6084 workaround: define it as a weak symbol */
-CAMLexport CAMLweakdef void caml_initialize (value *fp, value val)
+CAMLexport CAMLweakdef ADDRESS_SANITIZER_DO_NOT_INSTRUMENT void caml_initialize (value *fp, value val)
 {
   CAMLassert(Is_in_heap_or_young(fp));
   *fp = val;
@@ -645,7 +660,7 @@ CAMLexport CAMLweakdef void caml_initialize (value *fp, value val)
    block being changed is in the minor heap or the major heap. */
 /* PR#6084 workaround: define it as a weak symbol */
 
-CAMLexport CAMLweakdef void caml_modify (value *fp, value val)
+CAMLexport CAMLweakdef ADDRESS_SANITIZER_DO_NOT_INSTRUMENT void caml_modify (value *fp, value val)
 {
   /* The write barrier implemented by [caml_modify] checks for the
      following two conditions and takes appropriate action:
@@ -702,7 +717,7 @@ CAMLexport CAMLweakdef void caml_modify (value *fp, value val)
    locally-allocated objects. (This version is used by mutations
    generated from OCaml code when the value being modified may be
    locally allocated) */
-CAMLexport void caml_modify_local (value obj, intnat i, value val)
+CAMLexport ADDRESS_SANITIZER_DO_NOT_INSTRUMENT void caml_modify_local (value obj, intnat i, value val)
 {
   if (Color_hd(Hd_val(obj)) == Local_unmarked) {
     Field(obj, i) = val;
@@ -1158,6 +1173,21 @@ CAMLexport wchar_t* caml_stat_wcsconcat(int n, ...)
 
 #endif
 
-const char * __attribute__((used, retain, visibility("default"))) __asan_default_options() {
-  return "detect_leaks=0,halt_on_error=false";
+#ifdef WITH_ADDRESS_SANITIZER
+/* Provides reasonable default settings for AddressSanitizer.
+   Ideally we'd make this a weak symbol so that user programs
+   could easily override it at compile time, but unfortunately that
+   doesn't work because the AddressSanitizer runtime library itself
+   already provides a weak symbol with this name, so there'd be no
+   guarantee which would get used if this symbol was also weak.
+
+   Users can still customize the behavior of AddressSanitizer via the
+   [ASAN_OPTIONS] environment variable at runtime.
+   */
+const char *__attribute__((used, retain))
+__asan_default_options(void) {
+  return "detect_leaks=false,"
+         "halt_on_error=false,"
+         "detect_stack_use_after_return=false";
 }
+#endif

@@ -200,11 +200,18 @@ Caml_inline void write_barrier(
    }
 }
 
+/* We mark [caml_initialize], [caml_modify], and [caml_modify_local] with
+   [ADDRESS_SANITIZER_DO_NOT_INSTRUMENT] because we generate ASAN checks for
+   [fp] in the OCaml-side codegen. Opting these functions out of instrumentation
+   helps avoid us paying an even steeper performance penalty for ASAN than we
+   already do. */
+
 CAMLno_tsan /* We remove the ThreadSanitizer instrumentation of memory accesses
                by the compiler and instrument manually, because we want
                ThreadSanitizer to see a plain store here (this is necessary to
                detect data races). */
-CAMLexport CAMLweakdef void caml_modify (volatile value *fp, value val)
+CAMLexport CAMLweakdef ADDRESS_SANITIZER_DO_NOT_INSTRUMENT
+void caml_modify (volatile value *fp, value val)
 {
 #if defined(WITH_THREAD_SANITIZER) && defined(NATIVE_CODE)
   __tsan_func_entry(__builtin_return_address(0));
@@ -293,7 +300,8 @@ CAMLexport void caml_adjust_minor_gc_speed (mlsize_t res, mlsize_t max)
 CAMLno_tsan /* Avoid instrumenting initializing writes with TSan: they should
                never cause data races (albeit for reasons outside of the C11
                memory model). */
-CAMLexport CAMLweakdef void caml_initialize (volatile value *fp, value val)
+CAMLexport CAMLweakdef ADDRESS_SANITIZER_DO_NOT_INSTRUMENT
+void caml_initialize (volatile value *fp, value val)
 {
 #ifdef DEBUG
   /* Previous value should not be a pointer.
@@ -441,7 +449,8 @@ CAMLexport int caml_is_stack (value v)
    locally-allocated objects. (This version is used by mutations
    generated from OCaml code when the value being modified may be
    locally allocated) */
-CAMLexport void caml_modify_local (value obj, intnat i, value val)
+CAMLexport ADDRESS_SANITIZER_DO_NOT_INSTRUMENT
+void caml_modify_local (value obj, intnat i, value val)
 {
   if (Color_hd(Hd_val(obj)) == NOT_MARKABLE) {
     /* This function should not be used on external values, but we have seen
@@ -955,6 +964,21 @@ CAMLexport wchar_t* caml_stat_wcsconcat(int n, ...)
 
 #endif
 
-const char * __attribute__((used, retain, visibility("default"))) __asan_default_options() {
-  return "detect_leaks=0,halt_on_error=false";
+#ifdef WITH_ADDRESS_SANITIZER
+/* Provides reasonable default settings for AddressSanitizer.
+   Ideally we'd make this a weak symbol so that user programs
+   could easily override it at compile time, but unfortunately that
+   doesn't work because the AddressSanitizer runtime library itself
+   already provides a weak symbol with this name, so there'd be no
+   guarantee which would get used if this symbol was also weak.
+
+   Users can still customize the behavior of AddressSanitizer via the
+   [ASAN_OPTIONS] environment variable at runtime.
+   */
+const char *__attribute__((used, retain))
+__asan_default_options(void) {
+  return "detect_leaks=false,"
+         "halt_on_error=false,"
+         "detect_stack_use_after_return=false";
 }
+#endif
