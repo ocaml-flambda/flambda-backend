@@ -851,7 +851,7 @@ module Jkind_desc = struct
       List.fold_left add_crossing (to'.upper_bounds, false)
         Axis.[Pack (Modal Portability); Pack (Modal Contention)]
     in
-    { from with upper_bounds = new_uppder_bounds }, added_crossings
+    { to' with upper_bounds = new_uppder_bounds }, added_crossings
 
   let add_baggage ~deep_only ~baggage t =
     { t with
