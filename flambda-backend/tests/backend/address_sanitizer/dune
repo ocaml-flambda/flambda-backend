@@ -1,0 +1,56 @@
+; Stubs
+
+(foreign_library
+ (archive_name stubs)
+ (language c)
+ (names stubs)
+ (include_dirs "../../../../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
+
+(executables
+ (names address_sanitizer)
+ (modes (native exe))
+ (ocamlopt_flags (:standard \ -fno-asan))
+ (modules address_sanitizer)
+ (libraries stdlib_stable unix str)
+ (foreign_archives stubs))
+
+;; These tests are only meaningful when the compiler was built with AddressSanitizer enabled.
+;; This condition is not expressible in "enable_if" clause because dune does not support
+;; %{ocaml-config:with_address_sanitizer} (or any of our other configurable extensions for that matter).
+
+(rule
+ (enabled_if (= %{context_name} "main"))
+ (targets should_run_tests.out)
+ (action
+   (with-accepted-exit-codes 0
+     (bash
+        "if %{bin:ocamlopt.opt} -config | grep -q 'with_address_sanitizer: true' ;
+        then
+           echo true > %{targets}
+        else
+           echo false > %{targets}
+        fi"))))
+
+(rule
+ (enabled_if
+   (and
+    (= %{context_name} "main")
+    (= %{architecture} "amd64")))
+ (targets address_sanitizer.out)
+ (deps address_sanitizer.exe should_run_tests.out)
+ (action
+  (progn
+   (with-outputs-to
+    address_sanitizer.out
+    (run ./address_sanitizer.exe should_run_tests.out)))))
+
+(rule
+ (alias runtest)
+ (enabled_if
+  (and
+   (= %{context_name} "main")
+   (= %{architecture} "amd64")))
+ (action
+  (progn
+   (diff address_sanitizer.expected address_sanitizer.out)
+   )))
