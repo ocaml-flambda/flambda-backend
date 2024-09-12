@@ -426,7 +426,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
             | Some (_, ret_jkind) -> Higher_jkind.unwrap ~loc:__LOC__ ret_jkind
           in
           num_nodes_visited, value_kind_of_value_jkind jkind
-        | Datatype { noun = Datatype_open _ } -> num_nodes_visited, Pgenval
+        | Datatype { noun = Datatype_open _ | Datatype_abstr } -> num_nodes_visited, Pgenval
     end
   | Ttuple labeled_fields ->
     if cannot_proceed () then

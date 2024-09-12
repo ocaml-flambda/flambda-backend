@@ -1819,7 +1819,7 @@ let prepare_decl id decl =
         cstrs
   | Datatype { noun = Datatype_record { lbls = l } } ->
       List.iter (fun l -> prepare_type l.ld_type) l
-  | Datatype { noun = Datatype_open _ } -> ()
+  | Datatype { noun = Datatype_open _ | Datatype_abstr } -> ()
   end;
   ty_manifest, params
 
@@ -1843,7 +1843,7 @@ let tree_of_type_decl id decl =
       | Datatype { noun = Datatype_variant { priv; cstrs = tll } } ->
           priv = Private ||
           List.exists (fun cd -> cd.cd_res <> None) tll
-      | Datatype { manifest; noun = Datatype_open _ } ->
+      | Datatype { manifest; noun = Datatype_open _ | Datatype_abstr } ->
           manifest = None
     in
     let vari =
@@ -1905,6 +1905,10 @@ let tree_of_type_decl id decl =
         tree_of_manifest Otyp_open,
         priv,
         false
+    | Datatype { noun = Datatype_abstr } ->
+        tree_of_manifest Otyp_abstract_datatype, 
+        Public, 
+        false
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
@@ -1913,8 +1917,11 @@ let tree_of_type_decl id decl =
     | Some (Type jkind, _) -> Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
     | Some ((Arrow _ | Top), _) | None -> false
   in
-  let jkind_annotation = match ty, unboxed, is_value, decl.type_has_illegal_crossings with
-    | (Otyp_abstract, _, false, _) | (_, true, _, _) | (_, _, _, true) ->
+  let jkind_annotation = 
+    match ty, unboxed, is_value, decl.type_has_illegal_crossings with
+    | ((Otyp_abstract | Otyp_abstract_datatype), _, false, _) 
+    | (_, true, _, _) 
+    | (_, _, _, true) ->
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
            user-written annotation. *)

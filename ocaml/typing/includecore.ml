@@ -191,12 +191,14 @@ type privacy_mismatch =
 
 type type_kind =
   | Kind_abstract
+  | Kind_abstract_datatype
   | Kind_record
   | Kind_variant
   | Kind_open
 
 let of_noun = function
   | Equation _ -> Kind_abstract
+  | Datatype { noun = Datatype_abstr } -> Kind_abstract_datatype
   | Datatype { noun = Datatype_record _ } -> Kind_record
   | Datatype { noun = Datatype_variant _ } -> Kind_variant
   | Datatype { noun = Datatype_open _ } -> Kind_open
@@ -506,6 +508,7 @@ let report_kind_mismatch first second ppf (kind1, kind2) =
   let pr fmt = Format.fprintf ppf fmt in
   let kind_to_string = function
   | Kind_abstract -> "abstract"
+  | Kind_abstract_datatype -> "an abstract datatype"
   | Kind_record -> "a record"
   | Kind_variant -> "a variant"
   | Kind_open -> "an extensible variant" in
@@ -1057,19 +1060,24 @@ let type_manifest env ty1 params1 ty2 params2 priv2 =
       | () -> None
     end
 
+let arity_mismatch params1 params2 =
+  if List.length params1 <> List.length params2 then Some Arity else None
+
+let params_mismatch env params1 params2 = 
+  match Ctype.equal env true params1 params2 with
+  | exception Ctype.Equality err -> Some (Constraint err)
+  | () -> None
+
 let noun_mismatch ~equality ~mark ~loc env check_jkinds params1 noun1 path params2 noun2 =
-  if List.length params1 <> List.length params2 then Some Arity else
+  let err = arity_mismatch params1 params2 in
+  if err <> None then err else
   let err =
     match privacy_mismatch env noun1 noun2 with
     | Some err -> Some (Privacy err)
     | None -> None
   in
   if err <> None then err else
-  let err =
-    match Ctype.equal env true params1 params2 with
-    | exception Ctype.Equality err -> Some (Constraint err)
-    | () -> None
-  in
+  let err = params_mismatch env params1 params2 in
   if err <> None then err else
   let check_new_manifest ty2 =
     let ty1 =
@@ -1093,6 +1101,8 @@ let noun_mismatch ~equality ~mark ~loc env check_jkinds params1 noun1 path param
     let err = check_new_manifest ty2 in
     if err <> None then err else check_jkinds ()
   | Datatype _, Equation { eq = Type_abstr { reason = _ }} ->
+    check_jkinds ()
+  | Datatype _, Datatype { noun = Datatype_abstr } -> 
     check_jkinds ()
   | Datatype { manifest = _; noun = n1 }, Datatype { manifest = m2; noun = n2 } -> begin
     let err =
@@ -1157,19 +1167,34 @@ let type_declarations ?(equality = false) ~loc env ~mark name
      have a manifest, which we check for equality.
      Similarly, [decl1]'s kind may conservatively approximate its
      jkind, but [check_decl_jkind] will expand its manifest.  *)
-  let check_jkinds () =
-    match Ctype.check_decl_jkind env decl1 (get_type_jkind decl2) with
+  let check_jkinds jkind2 =
+    match Ctype.check_decl_jkind env decl1 jkind2 with
     | Ok _ -> None
     | Error v -> Some (Jkind v)
   in
+  (* CR jbachurski: This logic is slightly cursed. Programmer beware.
+     TODO jbachurski: Variance is ignored entirely when parameters are expanded out of a higher kind. *)
+  let ignore_variance, params1, params2, check_jkinds = 
+    let params1 = get_type_params decl1 in
+    match decl1.type_noun, Ctype.noun_application env decl2.type_noun (AppArgs.of_list params1) with
+    | Datatype _, Some (params12, jkind2) -> 
+      let params1, params2 = List.split params12 in 
+      (match (get_type_jkind decl2).hdesc with Type _ -> false | Arrow _ | Top -> true), 
+      params1, params2, fun () -> check_jkinds jkind2
+    | Equation _, _ | _, None -> 
+      false, params1, get_type_params decl2,
+      fun () -> check_jkinds (get_type_jkind decl2)
+  in
   let err =
     noun_mismatch ~equality ~mark ~loc env check_jkinds
-      (get_type_param_exprs decl1) decl1.type_noun path (get_type_param_exprs decl2) decl2.type_noun
+      (List.map (fun p -> p.param_expr) params1) decl1.type_noun path 
+      (List.map (fun p -> p.param_expr) params2) decl2.type_noun
   in
   if err <> None then err else
   let abstr =
     match decl2.type_noun with
     | Equation { eq = Type_abstr _ } -> true
+    | Datatype { noun = Datatype_abstr } -> true
     | _ -> false
   in
   let need_variance =
@@ -1192,8 +1217,10 @@ let type_declarations ?(equality = false) ~loc env ~mark name
     | _ -> false
   in
   let constrained ty = not (Btype.is_Tvar ty) in
+  if ignore_variance then None
+  else
   if List.for_all2
-      (fun ty (v1, v2) ->
+      (fun { variance = v1 } { param_expr = ty; variance = v2 } ->
         let open Variance in
         let imp a b = not a || b in
         let (co1,cn1) = get_upper v1 and (co2,cn2) = get_upper v2 in
@@ -1202,7 +1229,7 @@ let type_declarations ?(equality = false) ~loc env ~mark name
          else true) &&
         let (p1,n1,j1) = get_lower v1 and (p2,n2,j2) = get_lower v2 in
         imp abstr (imp p2 p1 && imp n2 n1 && imp j2 j1))
-      (get_type_param_exprs decl2) (List.combine (get_type_variance decl1) (get_type_variance decl2))
+      params1 params2
   then None else Some Variance
 
 (* Inclusion between extension constructors *)

@@ -500,6 +500,7 @@ let type_declaration' copy_scope s decl =
           let lbls = List.map (label_declaration copy_scope s) lbls in
           Datatype_record { priv; lbls; rep }
         | Datatype_open { priv } -> Datatype_open { priv }
+        | Datatype_abstr -> Datatype_abstr
         }
       end;
     (* CR layouts v10: Apply the substitution here, too *)

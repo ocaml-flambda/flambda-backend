@@ -1904,6 +1904,7 @@ let rec components_of_module_maker
               | Equation { eq = Type_abstr { reason } } -> Type_abstract reason
               | Equation { eq = Type_abbrev _ } -> Type_abstract abstract_reason_of_abbrev
               | Datatype { noun = Datatype_open _ } -> Type_open
+              | Datatype { noun = Datatype_abstr } -> Type_abstract Abstract_def
             in
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
             let tda =
@@ -2149,6 +2150,7 @@ and store_type ~check id info shape env =
             store_label ~check priv info.type_loc id lbl_id lbl env)
           env labels
     | Datatype { noun = Datatype_open _ } -> Type_open, env
+    | Datatype { noun = Datatype_abstr } -> Type_abstract Abstract_def, env
     | Equation { eq = Type_abstr { reason } } -> Type_abstract reason, env
     | Equation { eq = Type_abbrev _ } -> Type_abstract abstract_reason_of_abbrev, env
   in

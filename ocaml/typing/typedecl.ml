@@ -859,9 +859,35 @@ let transl_declaration env sdecl (id, uid) =
         Builtin_attributes.has_or_null_reexport sdecl_attributes ->
         raise (Error (sdecl.ptype_loc, Non_abstract_reexport path))
       | Ptype_abstract ->
-          Ttype_abstract,
-          create_higher_kinded_type_equation_noun
-            params (assign_jkind ~is_datatype:false (Higher_jkind.Builtin.value ~why:Default_type_jkind)) priv man
+          (* CR jbachurski: This logic, which also concerns factoring _in_ parameters 
+             into a higher jkind, should be moved somewhere else. 
+             Same as [noun_application] being usable for cases of factoring _out_ parameters
+             from a higher jkind. *)
+          let has_datatype_attr =
+            List.exists
+              (fun { attr_name = { txt; _ }; _} -> txt = "datatype")
+              sdecl_attributes
+          in
+          begin match has_datatype_attr with
+          | false -> 
+            let ret_jkind = 
+              assign_jkind 
+                ~is_datatype:false (Higher_jkind.Builtin.value ~why:Default_type_jkind) 
+            in
+            Ttype_abstract, create_higher_kinded_type_equation_noun params ret_jkind priv man
+          | true -> 
+            let ret_jkind = 
+              assign_jkind 
+                ~is_datatype:true (Higher_jkind.Builtin.value ~why:Default_type_jkind) 
+              |> Higher_jkind.unwrap ~loc:__LOC__
+            in
+            Ttype_abstract, 
+            Datatype { 
+              params;
+              ret_jkind; 
+              manifest = get_man_path_manifest (); 
+              noun = Datatype_abstr }
+          end
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -1031,7 +1057,7 @@ let transl_declaration env sdecl (id, uid) =
       match decl.typ_type.type_noun with
       | Datatype { noun = Datatype_variant { cstrs } } -> Shape.str ~uid (shape_map_cstrs cstrs)
       | Datatype { noun = Datatype_record { lbls } } -> Shape.str ~uid (shape_map_labels lbls)
-      | Equation _ | Datatype { noun = Datatype_open _ } -> Shape.leaf uid
+      | Equation _ | Datatype { noun = Datatype_open _ | Datatype_abstr } -> Shape.leaf uid
     in
     decl, typ_shape
   end
@@ -1149,6 +1175,7 @@ let check_constraints env sdecl (_, decl) =
       let pl = find_pl sdecl.ptype_kind in
       check_constraints_labels env visited l pl
   | Datatype { noun = Datatype_open _ } -> ()
+  | Datatype { noun = Datatype_abstr } -> ()
   end;
   begin match get_type_manifest decl with
   | None -> ()
@@ -1659,6 +1686,7 @@ let update_decl_jkind env dpath decl =
 
   let new_decl, new_jkind = match decl.type_noun with
     | Equation { ret_jkind } -> decl, ret_jkind
+    | Datatype { ret_jkind; noun = Datatype_abstr } -> decl, Higher_jkind.wrap ret_jkind
     | Datatype { params = _; manifest = _; noun = Datatype_open { priv = _ } } ->
       let type_jkind = Higher_jkind.Builtin.value ~why:Extensible_variant in
       set_type_jkind type_jkind decl, type_jkind
@@ -3069,6 +3097,7 @@ let to_private_datatype = function
   | Datatype_variant d -> Datatype_variant { d with priv = Private }
   | Datatype_record d -> Datatype_record { d with priv = Private }
   | Datatype_open _ -> Datatype_open { priv = Private }
+  | Datatype_abstr -> Datatype_abstr
 
 (* Translate a "with" constraint -- much simplified version of
    transl_type_decl. For a constraint [Sig with t = sdecl],

@@ -565,6 +565,7 @@ and datatype_noun =
   | Datatype_record of { priv: private_flag; lbls: label_declaration list; rep: record_representation}
   | Datatype_variant of { priv: private_flag; cstrs: constructor_declaration list; rep: variant_representation }
   | Datatype_open of { priv: private_flag }
+  | Datatype_abstr
 
 and type_equation =
   | Type_abstr of { reason: abstract_reason }

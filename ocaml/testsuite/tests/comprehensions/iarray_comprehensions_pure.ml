@@ -264,14 +264,8 @@ Error: This expression has type int but an expression was expected of type
 Line 1, characters 13-15:
 1 | [:x for x in []:];;
                  ^^
-Error: This expression has type 'a list
-       but an expression was expected of type 'b iarray
-|}, Principal{|
-Line 1, characters 13-15:
-1 | [:x for x in []:];;
-                 ^^
-Error: This expression has type 'a list
-       but an expression was expected of type 'b iarray
+Error: This expression should not be a list literal, the expected type is
+       'a iarray
        because it is in a for-in iterator in an immutable array comprehension
 |}];;
 
