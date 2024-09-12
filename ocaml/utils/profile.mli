@@ -54,13 +54,11 @@ val record_with_counters :
 (** [record_with_counters counter_f pass f arg] records the profile information of [f arg]
   and records counter information given by calling [counter_f] on the result of [f arg] *)
 
+val annotate_file_name : string -> string
+(** Annotates profiling pass for file names. *)
+
 val print : Format.formatter -> Clflags.profile_column list -> timings_precision:int -> unit
 (** Prints the selected recorded profiling information to the formatter. *)
-
-(* CR mitom: Exported for use with external tools to create dynamic counters *)
-val sanitise_for_csv : string -> string
-(** Sanitises a given string such that it is suitable to be used as a field in outputted
-    CSV files *)
 
 val output_to_csv :
 Format.formatter -> Clflags.profile_column list -> timings_precision:int -> unit

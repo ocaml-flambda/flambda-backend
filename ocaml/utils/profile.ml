@@ -148,6 +148,16 @@ let record ?accumulate pass f x = record_call ?accumulate pass (fun () -> f x)
 let record_with_counters ?accumulate ~counter_f pass f x =
   record_call_internal ?accumulate ~counter_f pass (fun () -> f x)
 
+let file_prefix = "file="
+
+let annotate_file_name name =
+  let file_path =
+    match !Clflags.directory with
+    | Some directory -> Filename.concat directory name
+    | None -> name
+  in
+  file_prefix ^ file_path
+
 type display = {
   to_string : max:float -> width:int -> string;
   worth_displaying : max:float -> bool;
@@ -398,22 +408,27 @@ let column_mapping = [
   `Counters, "counters"
 ]
 
-let sanitise_for_csv =
-  String.map (fun c -> if Char.equal c ',' then '_' else c)
-
 let output_to_csv ppf columns =
+  let sanitise_for_csv =
+    String.map (fun c -> if Char.equal c ',' then '_' else c) in
   let to_csv cell_strings =
     cell_strings |> List.map sanitise_for_csv |> String.concat ","
   in
   let string_columns = List.map (fun col -> List.assoc col column_mapping) columns in
   Format.fprintf ppf "%s@\n" (to_csv ("pass name" :: string_columns));
-  let output_row_f = output_rows
-    ~output_row:(fun ~prefix ~cell_strings ~name ->
-      Format.fprintf ppf "%s@\n" (to_csv ((prefix ^ name) :: cell_strings)))
-    ~new_prefix:(fun ~prev ~curr_name -> Format.sprintf "%s%s/" prev curr_name)
-    ~always_output_ancestors:false
-    ~pad_empty:false
-  in output_columns output_row_f columns
+  let add_suffix pass =
+    let suffix = if String.starts_with ~prefix:file_prefix pass then "/" else "" in
+    pass ^ suffix
+  in
+  let output_row_f =
+    output_rows
+      ~output_row:(fun ~prefix ~cell_strings ~name ->
+        Format.fprintf ppf "%s@\n" (to_csv ((prefix ^ add_suffix name) :: cell_strings)))
+      ~new_prefix:(fun ~prev ~curr_name ->
+        Format.sprintf "%s%s/" prev (add_suffix curr_name))
+      ~always_output_ancestors:false ~pad_empty:false
+  in
+  output_columns output_row_f columns
 
 let all_columns = List.map fst column_mapping
 let column_names = List.map snd column_mapping

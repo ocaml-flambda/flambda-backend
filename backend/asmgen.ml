@@ -573,7 +573,8 @@ let compile_phrases ~ppf_dump ps =
         let profile_wrapper =
           match !profile_granularity with
           | Function_level | Block_level ->
-            Profile.record ~accumulate:true ("function=" ^ fd.fun_name.sym_name)
+            Profile.record ~accumulate:true
+              ("function=" ^ X86_proc.string_of_symbol "" fd.fun_name.sym_name)
           | File_level -> Fun.id
         in
         profile_wrapper (compile_fundecl ~ppf_dump ~funcnames) fd;
