@@ -1,2 +1,2 @@
- include_functor/mli_counters.mli
+ file=include_functor/mli_counters.mli
   [comprehensions = 0; immutable_arrays = 0; include_functor = 1; labeled_tuples = 0; module_strengthening = 0] typing
