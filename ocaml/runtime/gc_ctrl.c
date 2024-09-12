@@ -437,6 +437,15 @@ void caml_init_gc_tweaks(void)
   }
 }
 
+void caml_print_gc_tweaks(void)
+{
+  for (int i = 0; i < N_GC_TWEAKS; i++) {
+    fprintf(stderr, "%s (initial value %ld)\n",
+	gc_tweaks[i].name,
+	gc_tweaks[i].initial_value);
+  }
+}
+
 uintnat* caml_lookup_gc_tweak(const char* name, uintnat len)
 {
   for (int i = 0; i < N_GC_TWEAKS; i++) {

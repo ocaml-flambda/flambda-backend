@@ -45,6 +45,7 @@ void caml_heap_check (void);
 
 void caml_init_gc_tweaks(void);
 uintnat* caml_lookup_gc_tweak(const char* name, uintnat len);
+void caml_print_gc_tweaks(void);
 
 #endif /* CAML_INTERNALS */
 

@@ -146,6 +146,8 @@ void caml_parse_ocamlrunparam(void)
             if (p == NULL) {
               fprintf(stderr, "Ignored unknown GC tweak '%.*s'\n",
                       (int)(opt - name), name);
+	      fprintf(stderr, "Known GC tweaks:\n");
+	      caml_print_gc_tweaks();
             } else {
               scanmult(opt, p);
             }
