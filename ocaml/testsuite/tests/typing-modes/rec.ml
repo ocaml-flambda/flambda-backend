@@ -20,9 +20,7 @@ let te (local_ x) =
 val te : local_ 'a @ portable -> unit = <fun>
 |}]
 
-(* for mixed definitions, they will still share the same mode, but the locality
-   must be global. *)
-
+(* for mixed definitions, they have separate modes, but the locality must be global. *)
 let te (local_ x) =
     let rec foo x' y =
         bar x y
