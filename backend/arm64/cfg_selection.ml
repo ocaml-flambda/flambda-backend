@@ -19,10 +19,9 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42"]
 
-let fundecl ~future_funcnames:_ _ =
-  let _ =
-    object
-      inherit Cfg_selectgen.selector_generic
-    end
-  in
-  Misc.fatal_error "Cfg_selection.fundecl: not implemented"
+class virtual _selector =
+  object
+    inherit Cfg_selectgen.selector_generic
+  end
+
+let fundecl ~future_funcnames:_ _ = Misc.fatal_error "not implemented"
