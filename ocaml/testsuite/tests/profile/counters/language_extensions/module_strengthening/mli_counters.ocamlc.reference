@@ -1,2 +1,2 @@
- module_strengthening/mli_counters.mli
+ file=module_strengthening/mli_counters.mli
   [comprehensions = 0; immutable_arrays = 0; include_functor = 0; labeled_tuples = 0; module_strengthening = 1] typing
