@@ -868,10 +868,10 @@ val may_equal_constr :
 (* Equality *)
 
 val equal_record_representation :
-  record_representation -> record_representation -> bool
+  type_equal:(type_expr -> type_expr -> bool) -> record_representation -> record_representation -> bool
 
 val equal_variant_representation :
-  variant_representation -> variant_representation -> bool
+  type_equal:(type_expr -> type_expr -> bool) -> variant_representation -> variant_representation -> bool
 
 type label_description =
   { lbl_name: string;                   (* Short name *)

@@ -3186,11 +3186,11 @@ and mcomp_type_decl type_pairs env p1 p2 tl1 tl2 =
     else
       match decl.type_kind, decl'.type_kind with
       | Type_record (lst,r), Type_record (lst',r')
-        when equal_record_representation r r' ->
+        when equal_record_representation ~type_equal:(fun _ _ -> true) r r' ->
           mcomp_list type_pairs env tl1 tl2;
           mcomp_record_description type_pairs env lst lst'
       | Type_variant (v1,r), Type_variant (v2,r')
-        when equal_variant_representation r r' ->
+        when equal_variant_representation ~type_equal:(fun _ _ -> true) r r' ->
           mcomp_list type_pairs env tl1 tl2;
           mcomp_variant_description type_pairs env v1 v2
       | Type_open, Type_open ->
@@ -5408,10 +5408,12 @@ let rec equal_private env params1 ty1 params2 ty2 =
       | ty1' -> equal_private env params1 ty1' params2 ty2
       | exception Cannot_expand -> raise err
 
+let eq_type_params env ~params0 ty0 ~params1 ty1 =
+  is_equal env true (params0 @ [ty0]) (params1 @ [ty1])
+
 let check_decl_jkind env decl0 params1 jkind1 =
-  let type_equal ty0 ty1 =
-      is_equal env true (decl0.type_params @ [ty0]) (params1 @ [ty1])
-  in
+  let params0 = decl0.type_params in
+  let type_equal = eq_type_params env ~params0 ~params1 in
   match Jkind.sub_or_error ~type_equal decl0.type_jkind jkind1 with
   | Ok () as ok -> ok
   | Error _ as err ->
@@ -5420,9 +5422,8 @@ let check_decl_jkind env decl0 params1 jkind1 =
       | Some ty -> check_type_jkind_with_baggage env ~type_equal ty jkind1
 
 let constrain_decl_jkind env decl0 params1 jkind1 =
-  let type_equal ty0 ty1 =
-    is_equal env true (decl0.type_params @ [ty0]) (params1 @ [ty1])
-  in
+  let params0 = decl0.type_params in
+  let type_equal = eq_type_params env ~params0 ~params1 in
   match Jkind.sub_or_error ~type_equal decl0.type_jkind jkind1 with
   | Ok () as ok -> ok
   | Error _ as err ->

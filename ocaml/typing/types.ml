@@ -866,13 +866,13 @@ let eq_type t1 t2 = t1 == t2 || repr t1 == repr t2
 let compare_type t1 t2 = compare (get_id t1) (get_id t2)
 let eq_type_fail _ _ = assert false
 
-let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
+let equal_variant_representation ~type_equal r1 r2 = r1 == r2 || match r1, r2 with
   | Variant_unboxed, Variant_unboxed ->
       true
   | Variant_boxed cstrs_and_jkinds1, Variant_boxed cstrs_and_jkinds2 ->
       Misc.Stdlib.Array.equal (fun (cstr1, jkinds1) (cstr2, jkinds2) ->
           equal_constructor_representation cstr1 cstr2
-          && Misc.Stdlib.Array.equal (!jkind_equal ~type_equal:eq_type) jkinds1 jkinds2)
+          && Misc.Stdlib.Array.equal (!jkind_equal ~type_equal) jkinds1 jkinds2)
         cstrs_and_jkinds1
         cstrs_and_jkinds2
   | Variant_extensible, Variant_extensible ->
@@ -880,7 +880,7 @@ let equal_variant_representation r1 r2 = r1 == r2 || match r1, r2 with
   | (Variant_unboxed | Variant_boxed _ | Variant_extensible), _ ->
       false
 
-let equal_record_representation r1 r2 = match r1, r2 with
+let equal_record_representation ~type_equal r1 r2 = match r1, r2 with
   | Record_unboxed, Record_unboxed ->
       true
   | Record_inlined (tag1, cr1, vr1), Record_inlined (tag2, cr2, vr2) ->
@@ -888,9 +888,9 @@ let equal_record_representation r1 r2 = match r1, r2 with
          constructor representation. *)
       ignore (cr1 : constructor_representation);
       ignore (cr2 : constructor_representation);
-      equal_tag tag1 tag2 && equal_variant_representation vr1 vr2
+      equal_tag tag1 tag2 && equal_variant_representation ~type_equal vr1 vr2
   | Record_boxed lays1, Record_boxed lays2 ->
-      Misc.Stdlib.Array.equal (!jkind_equal ~type_equal:eq_type) lays1 lays2
+      Misc.Stdlib.Array.equal (!jkind_equal ~type_equal) lays1 lays2
   | Record_float, Record_float ->
       true
   | Record_ufloat, Record_ufloat ->
