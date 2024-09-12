@@ -623,3 +623,20 @@ module Memprof :
        called on a profile which has not been stopped.
        *)
 end
+
+
+(** GC Tweaks are unstable and undocumented configurable GC parameters,
+    primarily intended for use by GC developers. *)
+module Tweak : sig
+  (** Change a parameter.
+      Raises Invalid_argument if no such parameter exists *)
+  val set : string -> int -> unit
+
+  (** Retrieve a parameter value.
+      Raises Invalid_argument if no such parameter exists *)
+  val get : string -> int
+
+  (** Returns the list of parameters and their values that currently
+      have non-default values *)
+  val list_active : unit -> (string * int) list
+end

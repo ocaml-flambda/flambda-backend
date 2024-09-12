@@ -32,6 +32,7 @@
 #include "caml/startup_aux.h"
 #include "caml/prims.h"
 #include "caml/signals.h"
+#include "caml/gc_ctrl.h"
 
 #include <sys/resource.h>
 
@@ -112,6 +113,7 @@ static void scanmult (char_os *opt, uintnat *var)
 void caml_parse_ocamlrunparam(void)
 {
   init_startup_params();
+  caml_init_gc_tweaks();
 
   char_os *opt = caml_secure_getenv (T("OCAMLRUNPARAM"));
   if (opt == NULL) opt = caml_secure_getenv (T("CAMLRUNPARAM"));
@@ -136,6 +138,24 @@ void caml_parse_ocamlrunparam(void)
       case 'v': scanmult (opt, (uintnat *)&caml_verb_gc); break;
       case 'V': scanmult (opt, &params.verify_heap); break;
       case 'W': scanmult (opt, &caml_runtime_warnings); break;
+      case 'X': {
+        char_os *name = opt;
+        while (*opt != '\0') {
+          if (*opt == '=') {
+            uintnat* p = caml_lookup_gc_tweak(name, opt - name);
+            if (p == NULL) {
+              fprintf(stderr, "Ignored unknown GC tweak '%.*s'\n",
+                      (int)(opt - name), name);
+            } else {
+              scanmult(opt, p);
+            }
+            break;
+          } else {
+            opt++;
+          }
+        }
+        break;
+      }
       case ',': continue;
       }
       while (*opt != '\0'){

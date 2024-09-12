@@ -173,3 +173,9 @@ module Memprof =
 
     external discard : t -> unit = "caml_memprof_discard"
   end
+
+module Tweak = struct
+  external set : string -> int -> unit = "caml_gc_tweak_set"
+  external get : string -> int = "caml_gc_tweak_get"
+  external list_active : unit -> (string * int) list = "caml_gc_tweak_list_active"
+end

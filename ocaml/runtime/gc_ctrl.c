@@ -37,6 +37,7 @@
 #include "caml/signals.h"
 #include "caml/startup.h"
 #include "caml/fail.h"
+#include <string.h>
 
 atomic_uintnat caml_max_stack_wsize;
 uintnat caml_fiber_wsz;
@@ -49,6 +50,7 @@ extern uintnat caml_custom_major_ratio;   /* see custom.c */
 extern uintnat caml_custom_minor_ratio;   /* see custom.c */
 extern uintnat caml_custom_minor_max_bsz; /* see custom.c */
 extern uintnat caml_minor_heap_max_wsz;   /* see domain.c */
+extern uintnat caml_custom_work_max_multiplier; /* see major_gc.c */
 
 CAMLprim value caml_gc_quick_stat(value v)
 {
@@ -416,4 +418,65 @@ CAMLprim value caml_ml_runtime_warnings_enabled(value unit)
 {
   CAMLassert (unit == Val_unit);
   return Val_bool(caml_runtime_warnings);
+}
+
+struct gc_tweak {
+  const char* name;
+  uintnat* ptr;
+  uintnat initial_value;
+};
+static struct gc_tweak gc_tweaks[] = {
+  { "custom_work_max_multiplier", &caml_custom_work_max_multiplier, 0 }
+};
+enum {N_GC_TWEAKS = sizeof(gc_tweaks)/sizeof(gc_tweaks[0])};
+
+void caml_init_gc_tweaks(void)
+{
+  for (int i = 0; i < N_GC_TWEAKS; i++) {
+    gc_tweaks[i].initial_value = *gc_tweaks[i].ptr;
+  }
+}
+
+uintnat* caml_lookup_gc_tweak(const char* name, uintnat len)
+{
+  for (int i = 0; i < N_GC_TWEAKS; i++) {
+    if (strlen(gc_tweaks[i].name) == len &&
+        memcmp(gc_tweaks[i].name, name, len) == 0) {
+      return gc_tweaks[i].ptr;
+    }
+  }
+  return NULL;
+}
+
+CAMLprim value caml_gc_tweak_get(value name)
+{
+  uintnat* p = caml_lookup_gc_tweak(String_val(name),
+                                    caml_string_length(name));
+  if (p == NULL)
+    caml_invalid_argument("Gc.Tweak: parameter not found");
+  return Val_long((long)*p);
+}
+
+CAMLprim value caml_gc_tweak_set(value name, value v)
+{
+  uintnat* p = caml_lookup_gc_tweak(String_val(name),
+                                    caml_string_length(name));
+  if (p == NULL)
+    caml_invalid_argument("Gc.Tweak: parameter not found");
+  *p = (uintnat)Long_val(v);
+  return Val_unit;
+}
+
+CAMLprim value caml_gc_tweak_list_active(value unit)
+{
+  CAMLparam1(unit);
+  CAMLlocal3(list, name, pair);
+  for (int i = N_GC_TWEAKS - 1; i >= 0; i--) {
+    if (*gc_tweaks[i].ptr != gc_tweaks[i].initial_value) {
+      name = caml_copy_string(gc_tweaks[i].name);
+      pair = caml_alloc_2(0, name, Val_long((long)*gc_tweaks[i].ptr));
+      list = caml_alloc_2(0, pair, list);
+    }
+  }
+  CAMLreturn(list);
 }
