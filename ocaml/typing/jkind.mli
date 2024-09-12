@@ -358,7 +358,7 @@ module Desc : sig
   (** The description of a jkind, used as a return type from [get]. *)
   type t =
     | Const of Const.t
-    | Var of Sort.var
+    | Var of Layout.Const.t option * Sort.var list
 end
 
 (** Extract the [const] from a [Jkind.t], looking through unified

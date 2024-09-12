@@ -5,4 +5,6 @@
  check-ocamlopt.byte-output;
 *)
 
-let id : 'a -> 'a = fun x -> x
+module type M = sig
+  val f : int 'a -> int 'a
+end

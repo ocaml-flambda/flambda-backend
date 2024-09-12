@@ -357,6 +357,16 @@ let rec print_out_jkind ppf ojkind =
     print_arrow
       ~is_atom:(function Ojkind_const (Ojkind_const_arrow _) | Ojkind_arrow _ -> false | _ -> true)
       ppf print_out_jkind args result
+  | Ojkind_union (Some c, vs) ->
+    fprintf ppf "%a | %s"
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf " | ")
+        (fun ppf -> fprintf ppf "%s"))
+      vs c
+  | Ojkind_union (None, vs) ->
+    fprintf ppf "%a"
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf " | ")
+        (fun ppf -> fprintf ppf "%s"))
+      vs
 
 let print_out_jkind_annot ppf = function
   | None -> ()
