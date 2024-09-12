@@ -541,7 +541,13 @@ val tvariant_not_immediate : row_desc -> bool
 
 (* Cheap upper bound on jkind.  Will not expand unboxed types - call
    [type_jkind] if that's needed. *)
-val estimate_type_jkind : Env.t ->  type_expr -> higher_jkind
+val estimate_broken_type_jkind : Env.t ->  type_expr -> higher_jkind
+
+type jkind_result =
+| Jkind of higher_jkind
+| TyVar of higher_jkind * type_expr
+
+val estimate_type_jkind : Env.t ->  type_expr -> jkind_result
 
 (* Get the jkind of a type, expanding it and looking through [[@@unboxed]]
    types. *)

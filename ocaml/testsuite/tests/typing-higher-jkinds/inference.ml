@@ -13,8 +13,12 @@ type 'a t = unit 'a
 Line 1, characters 12-19:
 1 | type 'a t = unit 'a
                 ^^^^^^^
-Error: The type expression ('a : '_representable_layout_1)
-         is applied as a type constructor, but it is not of a higher jkind.
+Error: No consistent jkind could be inferred for 'a.
+         Hint: try annotating the type variable at its binding site.
+         The kind of 'a is '_representable_layout_1
+           because it instantiates an unannotated type parameter of t.
+         But the kind of 'a must overlap with value => top
+           because its jkind was inferred from a type application.
 |}]
 
 type ('a, 'm) t = 'a 'm
@@ -22,8 +26,12 @@ type ('a, 'm) t = 'a 'm
 Line 1, characters 18-23:
 1 | type ('a, 'm) t = 'a 'm
                       ^^^^^
-Error: The type expression ('m : '_representable_layout_2)
-         is applied as a type constructor, but it is not of a higher jkind.
+Error: No consistent jkind could be inferred for 'm.
+         Hint: try annotating the type variable at its binding site.
+         The kind of 'm is '_representable_layout_2
+           because it instantiates an unannotated type parameter of t.
+         But the kind of 'm must overlap with '_representable_layout_3 => top
+           because its jkind was inferred from a type application.
 |}]
 
 type ('a, 'm : value => value) t = 'a 'm
@@ -33,12 +41,12 @@ type ('a, 'm : value => value) t = 'a  'm
 
 type ('a, 'm : immediate => immediate) t = 'a 'm
 [%%expect {|
-type ('a : immediate, 'm : immediate => immediate) t = 'a  'm
+type ('a, 'm : value => immediate) t = 'a  'm
 |}]
 
 type ('a, 'b, 'c : (value, immediate) => value) t = ('a, 'b) 'c
 [%%expect {|
-type ('a, 'b : immediate, 'c : (value, immediate) => value) t = ('a, 'b)  'c
+type ('a, 'b, 'c : (value, value) => value) t = ('a, 'b)  'c
 |}]
 
 module type M = sig
@@ -65,10 +73,10 @@ Line 3, characters 23-25:
                            ^^
 Error: No consistent jkind could be inferred for 'a.
          Hint: try annotating the type variable at its binding site.
-         The kind of 'a is '_representable_layout_3
+         The kind of 'a is '_representable_layout_4
            because it's a fresh unification variable.
          But the kind of 'a must overlap with
-           '_representable_layout_4 => '_representable_layout_5
+           '_representable_layout_5 => '_representable_layout_6
            because its jkind was inferred from a type application.
 |}]
 
@@ -80,7 +88,7 @@ end
 Line 3, characters 20-24:
 3 |   val f : int 'a -> l 'b -> 'a 'b
                         ^^^^
-Error: The type expression ('b : '_representable_layout_6 => '_representable_layout_7)
+Error: The type expression ('b : '_representable_layout_7 => '_representable_layout_8)
          cannot be applied to the arguments (l : value => value).
 |}]
 
@@ -103,9 +111,11 @@ module type M = sig
   val f : 'm f64monad -> 'a -> 'a 'm
 end
 [%%expect {|
->> Fatal error: Union of sort variables
-Uncaught exception: Misc.Fatal_error
-
+module type M =
+  sig
+    type (_ : float64 => value) f64monad
+    val f : ('m : any_non_null => value) 'a. 'm f64monad -> 'a -> 'a  'm
+  end
 |}]
 
 module type M = sig
@@ -143,30 +153,29 @@ module type M = sig
   val f : 'a 'b -> unit 'b
 end
 [%%expect {|
->> Fatal error: Union of sort variables
-Uncaught exception: Misc.Fatal_error
-
+module type M = sig val f : ('b : value => value) 'a. 'a  'b -> unit  'b end
 |}]
 
 module type M = sig
   val f : 'a 'b 'c 'd -> unit 'd
 end
 [%%expect {|
->> Fatal error: Union of sort variables
-Uncaught exception: Misc.Fatal_error
-
+module type M =
+  sig
+    val f :
+      ('d : value => value) ('c : value => value) ('b : value => value) 'a.
+        'a  'b  'c  'd -> unit  'd
+  end
 |}]
 
+(* CR jbachurski: It seems this should work, but it still produces bad unions. *)
 module type M = sig
   val f : 'a ('b ('c 'd)) -> unit
 end
 [%%expect {|
-module type M =
-  sig
-    val f :
-      ('d : value => value => value => value) 'c 'b 'a.
-        'a  ('b  ('c  'd)) -> unit
-  end
+>> Fatal error: Jkind.Layout.intersection: Union of sorts used in a negative position
+Uncaught exception: Misc.Fatal_error
+
 |}]
 
 module type M = sig
@@ -174,9 +183,8 @@ module type M = sig
 end
 
 [%%expect{|
->> Fatal error: Union of sort variables
-Uncaught exception: Misc.Fatal_error
-
+module type M =
+  sig val f : ('m : value => value) 'a 'b 'c. 'a  'm -> 'b  'm -> 'c  'm end
 |}]
 
 

@@ -2284,11 +2284,11 @@ let constrain_type_jkind_exn env texn ty jkind =
   | Ok _ -> ()
   | Error err -> raise_for texn (Bad_jkind (ty,err))
 
-let estimate_type_jkind env typ =
+let estimate_broken_type_jkind env typ =
   jkind_of_result (estimate_type_jkind env typ)
 
 let type_jkind env ty =
-  estimate_type_jkind env (get_unboxed_type_approximation env ty)
+  estimate_broken_type_jkind env (get_unboxed_type_approximation env ty)
 
 let type_jkind_purely env ty =
   if !Clflags.principal || Env.has_local_constraints env then
@@ -2330,7 +2330,7 @@ let rec intersect_type_jkind ~reason env ty1 jkind2 =
     (* [intersect_type_jkind] is called rarely, so we don't bother with trying
        to avoid this call as in [constrain_type_jkind] *)
     let ty1 = get_unboxed_type_approximation env ty1 in
-    Jk.intersection_or_error ~reason (estimate_type_jkind env ty1) jkind2
+    Jk.intersection_or_error ~reason (estimate_broken_type_jkind env ty1) jkind2
 
 (* See comment on [jkind_unification_mode] *)
 let unification_jkind_check env ty jkind =
@@ -5831,8 +5831,8 @@ let rec build_subtype env (visited : transient_expr list)
       with Not_found ->
         (t, Unchanged)
       end
-  | Tapp _ -> 
-      (* TODO jbachurski: This could support the case of 
+  | Tapp _ ->
+      (* TODO jbachurski: This could support the case of
          [Tapp (Tconstr (_, Unapplied, _), _)] *)
       (t, Unchanged)
   | Tvariant row ->
