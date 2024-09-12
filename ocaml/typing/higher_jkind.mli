@@ -120,6 +120,10 @@ val sub_or_error : t -> t -> (unit, Jkind.Violation.t) result
 
 val sub_with_history : t -> t -> (t, Jkind.Violation.t) result
 
+(** Find a jkind which is a subjkind of both its argument and some jkind 
+    in the representable space *)
+val lower_to_representable : reason:History.interact_reason -> t -> t
+
 val is_max : t -> bool
 
 val has_layout_any : t -> bool

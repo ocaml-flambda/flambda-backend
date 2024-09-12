@@ -269,6 +269,8 @@ let newobj fields      = newty (Tobject (fields, ref None))
 
 let newconstr path tyl = newty (Tconstr (path, tyl, ref Mnil))
 
+let newapp ty tyl = newty (Tapp (ty, tyl))
+
 let newmono ty = newty (Tpoly(ty, []))
 
 let none = newty (Ttuple [])                (* Clearly ill-formed type *)
@@ -810,6 +812,10 @@ let rec generalize_spine ty =
   | Tconstr (_, tyl, memo) ->
       set_level ty generic_level;
       memo := Mnil;
+      List.iter generalize_spine tyl
+  | Tapp (t, tyl) ->
+      set_level ty generic_level;
+      generalize_spine t;
       List.iter generalize_spine tyl
   | _ -> ()
 
@@ -1994,7 +2000,7 @@ let rec extract_concrete_typedecl env ty =
                 | May_have_typedecl -> May_have_typedecl
           end
       end
-  | Tpoly(ty, _) -> extract_concrete_typedecl env ty
+  | Tapp(ty, _) | Tpoly(ty, _) -> extract_concrete_typedecl env ty
   | Tarrow _ | Ttuple _ | Tobject _ | Tfield _ | Tnil
   | Tvariant _ | Tpackage _ -> Has_no_typedecl
   | Tvar _ | Tunivar _ -> May_have_typedecl
@@ -2119,6 +2125,11 @@ let rec estimate_type_jkind env ty =
     with
       Not_found -> Jkind (Builtin.any ~why:(Missing_cmi p))
   end
+  | Tapp(ty, _) ->
+    begin match (estimate_type_jkind env ty |> jkind_of_result).hdesc with
+    | Arrow (_args, result) -> Jkind result
+    | Type _ | Top -> assert false
+    end
   | Tvariant row ->
       if tvariant_not_immediate row
       then Jkind (Builtin.value ~why:Polymorphic_variant)
@@ -2273,11 +2284,11 @@ let constrain_type_jkind_exn env texn ty jkind =
   | Ok _ -> ()
   | Error err -> raise_for texn (Bad_jkind (ty,err))
 
-let estimate_type_jkind env typ =
+let estimate_broken_type_jkind env typ =
   jkind_of_result (estimate_type_jkind env typ)
 
 let type_jkind env ty =
-  estimate_type_jkind env (get_unboxed_type_approximation env ty)
+  estimate_broken_type_jkind env (get_unboxed_type_approximation env ty)
 
 let type_jkind_purely env ty =
   if !Clflags.principal || Env.has_local_constraints env then
@@ -2319,7 +2330,7 @@ let rec intersect_type_jkind ~reason env ty1 jkind2 =
     (* [intersect_type_jkind] is called rarely, so we don't bother with trying
        to avoid this call as in [constrain_type_jkind] *)
     let ty1 = get_unboxed_type_approximation env ty1 in
-    Jk.intersection_or_error ~reason (estimate_type_jkind env ty1) jkind2
+    Jk.intersection_or_error ~reason (estimate_broken_type_jkind env ty1) jkind2
 
 (* See comment on [jkind_unification_mode] *)
 let unification_jkind_check env ty jkind =
@@ -3014,6 +3025,9 @@ let rec mcomp type_pairs env t1 t2 =
                 raise Incompatible
             with Not_found -> ()
             end
+        | (Tapp (t, args), Tapp (t', args'), _, _) ->
+            mcomp type_pairs env t t';
+            mcomp_list type_pairs env args args'
         (*
         | (Tpackage (p1, n1, tl1), Tpackage (p2, n2, tl2)) when n1 = n2 ->
             mcomp_list type_pairs env tl1 tl2
@@ -3657,6 +3671,9 @@ and unify3 env t1 t1' t2 t2' =
             mcomp_for Unify !env t1' t2';
             record_equation t1' t2'
           )
+      | (Tapp (t, args), Tapp (t', args')) ->
+          unify env t t';
+          unify_list env args args'
       | (Tobject (fi1, nm1), Tobject (fi2, _)) ->
           unify_fields env fi1 fi2;
           (* Type [t2'] may have been instantiated by [unify_fields] *)
@@ -4707,6 +4724,9 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
                 | exception Not_found ->
                     moregen_list inst_nongen Invariant type_pairs env tl1 tl2
             end
+          | (Tapp (t, args), Tapp (t', args')) ->
+            moregen inst_nongen variance type_pairs env t t';
+            moregen_list inst_nongen variance type_pairs env args args'
           | (Tpackage (p1, fl1), Tpackage (p2, fl2)) ->
               begin try
                 unify_package env (moregen_list inst_nongen variance type_pairs env)
@@ -5122,6 +5142,9 @@ let rec eqtype rename type_pairs subst env t1 t2 =
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
                 when Path.same p1 p2 ->
               eqtype_list rename type_pairs subst env tl1 tl2
+          | (Tapp (t, args), Tapp (t', args')) ->
+              eqtype rename type_pairs subst env t t';
+              eqtype_list rename type_pairs subst env args args'
           | (Tpackage (p1, fl1), Tpackage (p2, fl2)) ->
               begin try
                 unify_package env (eqtype_list rename type_pairs subst env)
@@ -5808,6 +5831,10 @@ let rec build_subtype env (visited : transient_expr list)
       with Not_found ->
         (t, Unchanged)
       end
+  | Tapp _ ->
+      (* TODO jbachurski: This could support the case of
+         [Tapp (Tconstr (_, Unapplied, _), _)] *)
+      (t, Unchanged)
   | Tvariant row ->
       let tt = Transient_expr.repr t in
       if memq_warn tt visited || not (static_row row) then (t, Unchanged) else

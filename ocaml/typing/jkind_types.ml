@@ -323,12 +323,10 @@ module Sort = struct
 end
 
 module Layout = struct
-  type 'sort layout =
-    | Sort of 'sort
-    | Any
-
   module Const = struct
-    type t = Sort.const layout
+    type t =
+      | Sort of Sort.const
+      | Any
 
     module Legacy = struct
       type t =
@@ -347,7 +345,10 @@ module Layout = struct
     end
   end
 
-  type t = Sort.t layout
+  type t =
+    | Sort of Sort.t
+    | Union of Sort.t list
+    | Any
 end
 
 module type Axis = sig

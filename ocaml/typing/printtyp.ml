@@ -648,6 +648,8 @@ and raw_type_desc ppf = function
       fprintf ppf "@[<hov1>Tconstr(@,%a,@,%a,@,%a)@]" path p
         raw_type_list tl
         (raw_list path) (list_of_memo !abbrev)
+  | Tapp (t, tl) ->
+      fprintf ppf "@[<hov1>Tapp(@,%a,@,%a)@]" raw_type t raw_type_list tl
   | Tobject (t, nm) ->
       fprintf ppf "@[<hov1>Tobject(@,%a,@,@[<1>ref%t@])@]" raw_type t
         (fun ppf ->
@@ -1275,12 +1277,22 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
 let out_jkind_of_const_jkind jkind =
   Ojkind_const (Jkind.Const.to_out_jkind_const jkind)
 
+let verbose_out_jkind_of_var ~sort_var_names oc vs =
+  let of_var v =
+    (if sort_var_names then Jkind.Sort.Var.name v else "_")
+  in
+  match oc, vs with
+  | None, [v] -> Ojkind_var (of_var v)
+  | None, vs -> Ojkind_union (None, List.map of_var vs)
+  | Some c, vs -> Ojkind_union (Some (Jkind.Layout.Const.to_string c), List.map of_var vs)
+
 let rec out_jkind_of_jkind ~sort_var_names (jkind : Higher_jkind.t) =
   match jkind.hdesc with
   | Type ty ->
+   
     begin match Jkind.get ty with
     | Const clay -> out_jkind_of_const_jkind clay
-    | Var v -> Ojkind_var (if sort_var_names then Jkind.Sort.Var.name v else "_")
+    | Var (oc, vs) -> verbose_out_jkind_of_var ~sort_var_names oc vs
     end
   | Arrow (args, result) ->
     Ojkind_arrow (
@@ -1306,9 +1318,9 @@ let out_jkind_option_of_jkind (t : Higher_jkind.t) =
       | true -> None
       | false -> Some (out_jkind_of_const_jkind jkind)
       end
-    | Var v -> (* This handles (X1). *)
+    | Var (oc, vs) -> (* This handles (X1). *)
       if !Clflags.verbose_types
-      then Some (Ojkind_var (Jkind.Sort.Var.name v))
+      then Some (verbose_out_jkind_of_var ~sort_var_names:true oc vs)
       else None
     end
   (* We ignore the rules above for arrows, which should always be printed *)
@@ -1413,6 +1425,8 @@ let rec tree_of_typexp mode alloc_mode ty =
         if is_nth s && not (tyl'=[])
         then tree_of_typexp mode Alloc.Const.legacy (List.hd tyl')
         else Otyp_constr (tree_of_path (Some Type) p', tree_of_typlist mode tyl')
+    | Tapp (ty, tyl) ->
+        Otyp_app (tree_of_typexp mode alloc_mode ty, tree_of_typlist mode tyl)
     | Tvariant row ->
         let Row {fields; name; closed; _} = row_repr row in
         let fields =

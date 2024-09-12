@@ -113,6 +113,7 @@ type out_jkind_const =
 and out_jkind =
   | Ojkind_const of out_jkind_const
   | Ojkind_var of string
+  | Ojkind_union of string option * string list
   | Ojkind_arrow of out_jkind list * out_jkind
 
 and out_type_param =
@@ -133,6 +134,7 @@ and out_type =
     is [Otyp_arrow] *)
   | Otyp_class of out_ident * out_type list
   | Otyp_constr of out_ident * out_type list
+  | Otyp_app of out_type * out_type list
   | Otyp_manifest of out_type * out_type
   | Otyp_object of { fields: (string * out_type) list; open_row:bool}
   | Otyp_record of (string * out_mutability * out_type * out_modality list) list

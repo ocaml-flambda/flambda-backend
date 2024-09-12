@@ -281,6 +281,7 @@ module History = struct
     | Concrete_creation of concrete_creation_reason
     | Concrete_legacy_creation of concrete_legacy_creation_reason
     | Primitive of Ident.t
+    | Inferred_from_application
     | Imported
     | Imported_type_argument of
         { parent_path : Path.t;

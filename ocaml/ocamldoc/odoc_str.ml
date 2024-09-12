@@ -41,6 +41,7 @@ let rec is_arrow_type t =
   | Types.Tlink t2 -> is_arrow_type t2
   | Types.Ttuple _
   | Types.Tconstr _
+  | Types.Tapp _
   | Types.Tvar _ | Types.Tunivar _ | Types.Tobject _ | Types.Tpoly _
   | Types.Tfield _ | Types.Tnil | Types.Tvariant _ | Types.Tpackage _ -> false
   | Types.Tsubst _ -> assert false
@@ -51,6 +52,7 @@ let rec need_parent t =
     Types.Tarrow _ | Types.Ttuple _ -> true
   | Types.Tlink t2 -> need_parent t2
   | Types.Tconstr _
+  | Types.Tapp _
   | Types.Tvar _ | Types.Tunivar _ | Types.Tobject _ | Types.Tpoly _
   | Types.Tfield _ | Types.Tnil | Types.Tvariant _ | Types.Tpackage _ -> false
   | Types.Tsubst _ -> assert false

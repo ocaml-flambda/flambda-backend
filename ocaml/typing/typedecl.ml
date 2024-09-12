@@ -2877,7 +2877,7 @@ let check_unboxable env loc ty =
 
 let has_ty_var_with_layout_any env ty =
   List.exists
-    (fun ty -> Higher_jkind.has_layout_any (Ctype.estimate_type_jkind env ty))
+    (fun ty -> Higher_jkind.has_layout_any (Ctype.estimate_broken_type_jkind env ty))
     (Ctype.free_variables ty)
 
 let unexpected_layout_any_check prim env cty ty =

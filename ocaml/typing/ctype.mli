@@ -91,6 +91,7 @@ val new_global_var: ?name:string -> Higher_jkind.t -> type_expr
            (as type variables ['a] in type constraints). *)
 val newobj: type_expr -> type_expr
 val newconstr: Path.t -> type_expr list -> type_expr
+val newapp: type_expr -> type_expr list -> type_expr
 val newmono : type_expr -> type_expr
 val none: type_expr
         (* A dummy type expression *)
@@ -540,7 +541,13 @@ val tvariant_not_immediate : row_desc -> bool
 
 (* Cheap upper bound on jkind.  Will not expand unboxed types - call
    [type_jkind] if that's needed. *)
-val estimate_type_jkind : Env.t ->  type_expr -> higher_jkind
+val estimate_broken_type_jkind : Env.t ->  type_expr -> higher_jkind
+
+type jkind_result =
+| Jkind of higher_jkind
+| TyVar of higher_jkind * type_expr
+
+val estimate_type_jkind : Env.t ->  type_expr -> jkind_result
 
 (* Get the jkind of a type, expanding it and looking through [[@@unboxed]]
    types. *)

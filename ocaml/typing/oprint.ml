@@ -357,6 +357,16 @@ let rec print_out_jkind ppf ojkind =
     print_arrow
       ~is_atom:(function Ojkind_const (Ojkind_const_arrow _) | Ojkind_arrow _ -> false | _ -> true)
       ppf print_out_jkind args result
+  | Ojkind_union (Some c, vs) ->
+    fprintf ppf "%a | %s"
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf " | ")
+        (fun ppf -> fprintf ppf "%s"))
+      vs c
+  | Ojkind_union (None, vs) ->
+    fprintf ppf "%a"
+      (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf " | ")
+        (fun ppf -> fprintf ppf "%s"))
+      vs
 
 let print_out_jkind_annot ppf = function
   | None -> ()
@@ -534,6 +544,10 @@ and print_out_type_3 ppf =
       print_typargs ppf tyl;
       print_ident ppf id;
       pp_close_box ppf ()
+  | Otyp_app ((Otyp_var _ as ty), tyl) ->
+      fprintf ppf "@[<0>%a %a@]" print_typargs tyl print_out_type ty;
+  | Otyp_app (ty, tyl) ->
+      fprintf ppf "@[<0>%a (%a)@]" print_typargs tyl print_out_type ty;
   | Otyp_object {fields; open_row} ->
       fprintf ppf "@[<2>< %a >@]" (print_fields open_row) fields
   | Otyp_stuff s -> pp_print_string ppf s
