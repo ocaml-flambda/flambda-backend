@@ -1,4 +1,11 @@
-(* TEST *)
+(* TEST
+ runtime5;
+ {
+   bytecode;
+ }{
+   native;
+ }
+*)
 
 let () =
   (match Gc.Tweak.get "blorp" with
