@@ -20679,14 +20679,47 @@ fi
   done
 fi
 
-flambda=false
-flambda2=true
+if test x"$enable_flambda" = "xyes"
+then :
+  flambda=true
+   flambda2=false
+   if test x"$enable_flambda2" = "xyes"
+then :
+  as_fn_error $? "please enable only one of Flambda 1 and Flambda 2" "$LINENO" 5
+fi
+else $as_nop
+  flambda=false
+fi
+
+if test x"$enable_flambda2" = "xyes"
+then :
+  flambda2=true
+   flambda=false
+else $as_nop
+  flambda2=false
+fi
 
 if test x"$enable_flambda_invariants" = "xyes"
 then :
   flambda_invariants=true
 else $as_nop
   flambda_invariants=false
+fi
+
+if test x"$enable_cmm_invariants" = "xyes"
+then :
+  cmm_invariants=true
+else $as_nop
+  cmm_invariants=false
+fi
+
+if $flambda
+then :
+  CMX_MAGIC_NUMBER=Caml1999y550
+  CMXA_MAGIC_NUMBER=Caml1999z550
+else $as_nop
+  CMX_MAGIC_NUMBER=Caml1999Y550
+  CMXA_MAGIC_NUMBER=Caml1999Z550
 fi
 
 if test x"$enable_cmm_invariants" = "xyes"
@@ -20884,14 +20917,9 @@ Please pass '--enable-stack-allocation=no'." "$LINENO" 5
 fi
 fi
 
-if test x"$enable_poll_insertion" = "xyes"
-then :
-  printf "%s\n" "#define POLL_INSERTION 1" >>confdefs.h
+printf "%s\n" "#define POLL_INSERTION 1" >>confdefs.h
 
-   poll_insertion=true
-else $as_nop
-  poll_insertion=false
-fi
+poll_insertion=true
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"
@@ -23355,5 +23383,3 @@ if test -n "$ac_unrecognized_opts" && test "$enable_option_checking" != no; then
   { printf "%s\n" "$as_me:${as_lineno-$LINENO}: WARNING: unrecognized options: $ac_unrecognized_opts" >&5
 printf "%s\n" "$as_me: WARNING: unrecognized options: $ac_unrecognized_opts" >&2;}
 fi
-
-

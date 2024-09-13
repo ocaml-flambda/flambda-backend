@@ -2744,10 +2744,8 @@ AS_IF([test x"$enable_stack_allocation" = "xno"],
     [AC_MSG_ERROR([Stack allocation is only supported on 64-bit platforms. \
 Please pass '--enable-stack-allocation=no'.])])])
 
-AS_IF([test x"$enable_poll_insertion" = "xyes"],
-  [AC_DEFINE([POLL_INSERTION])
-   poll_insertion=true],
-  [poll_insertion=false])
+AC_DEFINE([POLL_INSERTION])
+poll_insertion=true
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"
