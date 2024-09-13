@@ -672,8 +672,7 @@ module E = struct
         match_ ~loc ~attrs (sub.expr sub e) (sub.cases sub pel)
     | Pexp_try (e, pel) -> try_ ~loc ~attrs (sub.expr sub e) (sub.cases sub pel)
     | Pexp_tuple el ->
-        (* CR labeled tuples: Eventually mappers may want to see the labels *)
-        tuple ~loc ~attrs (List.map (map_snd (sub.expr sub)) el)
+        tuple ~loc ~attrs (map_ltexp sub el)
     | Pexp_unboxed_tuple el ->
         unboxed_tuple ~loc ~attrs (map_ltexp sub el)
     | Pexp_construct (lid, arg) ->

@@ -2462,6 +2462,9 @@ let as_comp_pattern
   | Value -> as_computation_pattern pat
   | Computation -> pat
 
+let components_have_label (labeled_components : (string option * 'a) list) =
+  List.exists (function Some _, _ -> true | _ -> false) labeled_components
+
 (** [type_pat] propagates the expected type, and
     unification may update the typing environment. *)
 let rec type_pat
@@ -2736,9 +2739,7 @@ and type_pat_aux
             constr.cstr_arity > 1 ||
             Builtin_attributes.explicit_arity sp.ppat_attributes
           ->
-          if
-            List.exists (function Some _, _ -> true | _ -> false) spl
-          then
+          if components_have_label spl then
             raise (Error(loc, !!penv, Constructor_labeled_arg))
           else
             List.map snd spl
@@ -4618,9 +4619,7 @@ let turn_let_into_match p =
     | None -> match p.ppat_desc with
     | Ppat_construct _ -> true
     | Ppat_tuple (_, Open) -> true
-    | Ppat_tuple (ps, _)
-        when List.exists (function Some _, _ -> true | _ -> false) ps ->
-        true
+    | Ppat_tuple (ps, _) when components_have_label ps -> true
     | _ -> false) p
 
 (* There are various things that we need to do in presence of module patterns
@@ -7916,9 +7915,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
         | Pexp_tuple sel when
             constr.cstr_arity > 1 || Builtin_attributes.explicit_arity attrs
           ->
-          if
-            List.exists (function Some _, _ -> true | _ -> false) sel
-          then
+          if components_have_label sel then
             raise(Error(loc, env, Constructor_labeled_arg))
           else
             List.map (fun (_, e) -> e) sel

@@ -108,7 +108,7 @@ and core_type_desc =
       (** [Ptyp_tuple(tl)] represents a product type:
           - [T1 * ... * Tn]       when [tl] is [(None,T1);...;(None,Tn)]
           - [L1:T1 * ... * Ln:Tn] when [tl] is [(Some L1,T1);...;(Some Ln,Tn)]
-          - A mix, e.g. [L1:T1,T2] when [tl] is [(Some L1,T1);(None,T2)]
+          - A mix, e.g. [L1:T1 * T2] when [tl] is [(Some L1,T1);(None,T2)]
 
            Invariant: [n >= 2].
         *)
@@ -261,9 +261,9 @@ and pattern_desc =
   | Ppat_tuple of (string option * pattern) list * Asttypes.closed_flag
       (** [Ppat_tuple(pl, Closed)] represents
           - [(P1, ..., Pn)]       when [pl] is [(None, P1);...;(None, Pn)]
-          - [(L1:P1, ..., Ln:Pn)] when [pl] is
+          - [(~L1:P1, ..., ~Ln:Pn)] when [pl] is
             [(Some L1, P1);...;(Some Ln, Pn)]
-          - A mix, e.g. [(L1:P1, P2)] when [pl] is [(Some L1, P1);(None, P2)]
+          - A mix, e.g. [(~L1:P1, P2)] when [pl] is [(Some L1, P1);(None, P2)]
           - If pattern is open, then it also ends in a [..]
 
           Invariant:
