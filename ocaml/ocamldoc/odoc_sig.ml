@@ -451,6 +451,8 @@ module Analyser =
       | Types.Datatype { noun = Datatype_abstr } ->
           (* CR jbachurski: Should odoc care about abstract datatypes? *)
           Odoc_type.Type_abstract
+      | Types.Datatype { noun = Datatype_new _ } ->
+          Odoc_type.Type_abstract
 
       | Types.Datatype { noun = Datatype_variant { cstrs = l } } ->
           let f {Types.cd_id=constructor_name;cd_args;cd_res=ret_type;cd_attributes} =

@@ -419,7 +419,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
           fallback_if_missing_cmi ~default:(num_nodes_visited, Pgenval)
             (fun () -> value_kind_record env ~loc ~visited ~depth
                          ~num_nodes_visited labels rep)
-        | Equation _ ->
+        | Equation _ | Datatype { noun = Datatype_new _ } ->
           let jkind = 
             match Ctype.noun_application env decl.type_noun args with
             | None -> assert false

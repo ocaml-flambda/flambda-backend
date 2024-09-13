@@ -501,6 +501,8 @@ let type_declaration' copy_scope s decl =
           Datatype_record { priv; lbls; rep }
         | Datatype_open { priv } -> Datatype_open { priv }
         | Datatype_abstr -> Datatype_abstr
+        | Datatype_new { expansion } ->
+          Datatype_new { expansion = typexp copy_scope s decl.type_loc expansion }
         }
       end;
     (* CR layouts v10: Apply the substitution here, too *)

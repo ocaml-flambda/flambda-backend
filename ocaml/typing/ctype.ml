@@ -666,6 +666,7 @@ let closed_type_decl decl =
         List.iter (fun l -> closed_type l.ld_type) r
     | Datatype { noun = Datatype_open _ } -> ()
     | Datatype { noun = Datatype_abstr } -> ()
+    | Datatype { noun = Datatype_new _ } -> ()
     end;
     begin match get_type_manifest decl with
       None    -> ()
@@ -1162,7 +1163,7 @@ let rec find_repr p1 =
   function
     Mnil ->
       None
-  | Mcons (Public, p2, ty, _, _) when Path.same p1 p2 ->
+  | Mcons (Type_public, p2, ty, _, _) when Path.same p1 p2 ->
       Some ty
   | Mcons (_, _, _, _, rem) ->
       find_repr p1 rem
@@ -1442,6 +1443,7 @@ let map_kind f : type_noun -> type_noun = function
         }
       | Datatype_open { priv } -> Datatype_open { priv }
       | Datatype_abstr -> Datatype_abstr
+      | Datatype_new { expansion } -> Datatype_new { expansion = f expansion } 
     }
 
 
@@ -1811,7 +1813,7 @@ let subst env level priv abbrev oty params args body =
 let apply ?(use_current_level = false) env params body args =
   let level = if use_current_level then !current_level else generic_level in
   try
-    subst env level Public (ref Mnil) None params args body
+    subst env level Type_public (ref Mnil) None params args body
   with
     Cannot_subst -> raise Cannot_apply
 
@@ -1931,7 +1933,7 @@ let expand_abbrev_gen kind find_type_expansion env ty =
 
 (* Expand respecting privacy *)
 let expand_abbrev env ty =
-  expand_abbrev_gen Public Env.find_type_expansion env ty
+  expand_abbrev_gen Type_public Env.find_type_expansion env ty
 
 (* Expand once the head of a type *)
 let expand_head_once env ty =
@@ -2022,6 +2024,27 @@ let rec extract_concrete_typedecl env ty =
   | Tvar _ | Tunivar _ -> May_have_typedecl
   | Tlink _ | Tsubst _ -> assert false
 
+let expand_abbrev_new env ty =
+  expand_abbrev_gen Type_new Env.find_type_expansion_new env ty
+
+let safe_abbrev_new env ty =
+  let snap = Btype.snapshot () in
+  try ignore (expand_abbrev_new env ty); true
+  with Cannot_expand | Escape _ ->
+    Btype.backtrack snap;
+    false
+
+let try_expand_once_new env ty =
+  match get_desc ty with
+    Tconstr _ -> expand_abbrev_new env ty
+  | _ -> raise Cannot_expand
+
+let try_expand_safe_new env ty =
+  let snap = Btype.snapshot () in
+  try try_expand_once_new env ty
+  with Escape _ ->
+    Btype.backtrack snap; raise Cannot_expand
+
 (* Implementing function [expand_head_opt], the compiler's own version of
    [expand_head] used for type-based optimisations.
    [expand_head_opt] uses [Env.find_type_expansion_opt] to access the
@@ -2030,7 +2053,7 @@ let rec extract_concrete_typedecl env ty =
    the private abbreviation. *)
 
 let expand_abbrev_opt env ty =
-  expand_abbrev_gen Private Env.find_type_expansion_opt env ty
+  expand_abbrev_gen Type_private Env.find_type_expansion_opt env ty
 
 let safe_abbrev_opt env ty =
   let snap = Btype.snapshot () in
@@ -2526,9 +2549,13 @@ let generic_abbrev env path =
   try
     let (_, exp, _) = Env.find_type_expansion path env in
     is_generic_expansion exp
-  with
-    Not_found ->
-      false
+  with Not_found -> false
+
+let generic_new_abbrev env path =
+  try
+    let (_, exp, _) = Env.find_type_expansion_new path env in
+    is_generic_expansion exp
+  with Not_found -> false
 
 let generic_private_abbrev env path =
   try
@@ -5501,6 +5528,14 @@ let rec equal_private env params1 ty1 params2 ty2 =
       | ty1' -> equal_private env params1 ty1' params2 ty2
       | exception Cannot_expand -> raise err
 
+let rec equal_new env params1 ty1 params2 ty2 =
+  match equal env true (params1 @ [ty1]) (params2 @ [ty2]) with
+  | () -> ()
+  | exception (Equality _ as err) ->
+      match try_expand_safe_new env (expand_head env ty1) with
+      | ty1' -> equal_new env params1 ty1' params2 ty2
+      | exception Cannot_expand -> raise err
+
                           (*************************)
                           (*  Class type matching  *)
                           (*************************)
@@ -5918,7 +5953,7 @@ let rec build_subtype env (visited : transient_expr list)
           let cl_abbr, body = find_cltype_for_path env p in
           let ty =
             try
-              subst env !current_level Public abbrev None
+              subst env !current_level Type_public abbrev None
                 (get_type_param_exprs cl_abbr) tl body
             with Cannot_subst -> assert false in
           let ty1, tl1 =
@@ -6120,15 +6155,15 @@ let rec subtype_rec env trace t1 t2 cstrs =
           u1 u2
           cstrs
     | (Ttuple tl1, Ttuple tl2) ->
-        subtype_labeled_list env trace tl1 tl2 cstrs
-    | (Tconstr(p1, Unapplied, _), Tconstr(p2, Unapplied, _)) when Path.same p1 p2 ->
-        cstrs
-    | (Tconstr(p1, _tl1, _abbrev1), _)
-      when generic_abbrev env p1 && safe_abbrev env t1 ->
-        subtype_rec env trace (expand_abbrev env t1) t2 cstrs
+      subtype_labeled_list env trace tl1 tl2 cstrs
+  | (Tconstr(p1, Unapplied, _), Tconstr(p2, Unapplied, _)) when Path.same p1 p2 ->
+      cstrs
+  | (Tconstr(p1, _tl1, _abbrev1), _)
+    when generic_new_abbrev env p1 && safe_abbrev_new env t1 ->
+      subtype_rec env trace (expand_abbrev_new env t1) t2 cstrs
     | (_, Tconstr(p2, _tl2, _abbrev2))
-      when generic_abbrev env p2 && safe_abbrev env t2 ->
-        subtype_rec env trace t1 (expand_abbrev env t2) cstrs
+      when generic_new_abbrev env p2 && safe_abbrev_new env t2 ->
+        subtype_rec env trace t1 (expand_abbrev_new env t2) cstrs
     | (Tconstr(p1, tl1, _), Tconstr(p2, tl2, _)) when Path.same p1 p2 ->
         begin try
           let decl = Env.find_type p1 env in

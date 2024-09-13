@@ -402,6 +402,9 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                 | Equation { eq = Type_abbrev { expansion = body } } ->
                     tree_of_val depth obj
                       (instantiate_type env (get_type_param_exprs decl) args body)
+                | Datatype { noun = Datatype_new { expansion = body } } ->
+                    tree_of_val depth obj
+                      (instantiate_type env (get_type_param_exprs decl) args body)
                 | Datatype { noun = Datatype_variant { cstrs = constr_list; rep } } ->
                   (* Here we work backwards from the actual runtime value to
                      find the appropriate `constructor_declaration` in

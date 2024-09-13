@@ -309,7 +309,7 @@ module Layouts : sig
       (Parsetree.core_type * (Asttypes.variance * Asttypes.injectivity)) list ->
     cstrs:(Parsetree.core_type * Parsetree.core_type * Location.t) list ->
     kind:Parsetree.type_kind ->
-    priv:Asttypes.private_flag ->
+    priv:Parsetree.type_privacy ->
     manifest:Parsetree.core_type option ->
     jkind:Jkind.annotation option ->
     string Location.loc ->

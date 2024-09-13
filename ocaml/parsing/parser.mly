@@ -800,7 +800,7 @@ let package_type_of_module_type pmty =
           err loc "parametrized types are not supported";
         if ptyp.ptype_cstrs <> [] then
           err loc "constrained types are not supported";
-        if ptyp.ptype_private <> Public then
+        if ptyp.ptype_private <> Ppriv_public then
           err loc "private types are not supported";
 
         (* restrictions below are checked by the 'with_constraint' rule *)
@@ -3846,19 +3846,19 @@ generic_type_declaration(flag, kind):
    definition that leads to a smaller grammar (after expansion) and therefore
    a smaller automaton. *)
 nonempty_type_kind:
-  | priv = inline_private_flag
+  | priv = inline_type_privacy
     ty = core_type
       { (Ptype_abstract, priv, Some ty) }
   | oty = type_synonym
-    priv = inline_private_flag
+    priv = inline_type_privacy_not_new
     cs = constructor_declarations
       { (Ptype_variant cs, priv, oty) }
   | oty = type_synonym
-    priv = inline_private_flag
+    priv = inline_type_privacy_not_new
     DOTDOT
       { (Ptype_open, priv, oty) }
   | oty = type_synonym
-    priv = inline_private_flag
+    priv = inline_type_privacy_not_new
     LBRACE ls = label_declarations RBRACE
       { (Ptype_record ls, priv, oty) }
 ;
@@ -3868,7 +3868,7 @@ nonempty_type_kind:
 ;
 type_kind:
     /*empty*/
-      { (Ptype_abstract, Public, None) }
+      { (Ptype_abstract, Ppriv_public, None) }
   | EQUAL nonempty_type_kind
       { $2 }
 ;
@@ -4210,8 +4210,8 @@ with_constraint:
       { Pwith_modtypesubst (l, rhs) }
 ;
 with_type_binder:
-    EQUAL          { Public }
-  | EQUAL PRIVATE  { Private }
+    EQUAL          { Ppriv_public }
+  | EQUAL PRIVATE  { Ppriv_private }
 ;
 
 /* Polymorphic types */
@@ -4935,6 +4935,15 @@ private_flag:
 %inline inline_private_flag:
     /* empty */                                 { Public }
   | PRIVATE                                     { Private }
+;
+%inline inline_type_privacy:
+    /* empty */                                 { Ppriv_public }
+  | NEW                                         { Ppriv_new }
+  | PRIVATE                                     { Ppriv_private }
+;
+%inline inline_type_privacy_not_new:
+    /* empty */                                 { Ppriv_public }
+  | PRIVATE                                     { Ppriv_private }
 ;
 mutable_flag:
     /* empty */                                 { Immutable }

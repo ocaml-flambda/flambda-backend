@@ -347,7 +347,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
     in
     let vari =
       match decl.type_noun with
-      | Equation _ | Datatype { noun = Datatype_open _ | Datatype_abstr } ->
+      | Equation _ | Datatype { noun = Datatype_open _ | Datatype_abstr | Datatype_new _ } ->
           compute_variance_type env ~check rloc decl mn
       | Datatype { noun = Datatype_variant { cstrs = tll } } ->
           if List.for_all (fun c -> c.Types.cd_res = None) tll then

@@ -1553,6 +1553,19 @@ let find_type_expansion path env =
      purely abstract data types without manifest type definition. *)
   | _ -> raise Not_found
 
+(* Find an expansion through new-abbreviations *)
+let find_type_expansion_new path env =
+  let decl = find_type path env in
+  match decl.type_noun with
+  | Equation { eq = Type_abbrev { priv; expansion } }
+    when priv = Public || Btype.has_constr_row expansion ->
+      (get_type_param_exprs decl, Exp_expr expansion, decl.type_expansion_scope)
+  | Datatype { noun = Datatype_new { expansion } } ->
+      (get_type_param_exprs decl, Exp_expr expansion, decl.type_expansion_scope)
+  | Datatype { manifest = Some path; noun = _ } ->
+      (get_type_param_exprs decl, Exp_path path, decl.type_expansion_scope)
+  | _ -> raise Not_found
+
 (* Find the manifest type information associated to a type, i.e.
    the necessary information for the compiler's type-based optimisations.
    In particular, the manifest type associated to a private abstract type
@@ -1563,6 +1576,8 @@ let find_type_expansion_opt path env =
   (* The manifest type of Private abstract data types can still get
      an approximation using their manifest type. *)
   | Equation { eq = Type_abbrev { priv = _; expansion } } ->
+      (get_type_param_exprs decl, Exp_expr expansion, decl.type_expansion_scope)
+  | Datatype { noun = Datatype_new { expansion } } ->
       (get_type_param_exprs decl, Exp_expr expansion, decl.type_expansion_scope)
   | Datatype { manifest = Some path; noun = _ } ->
       (get_type_param_exprs decl, Exp_path path, decl.type_expansion_scope)
@@ -1905,6 +1920,7 @@ let rec components_of_module_maker
               | Equation { eq = Type_abbrev _ } -> Type_abstract abstract_reason_of_abbrev
               | Datatype { noun = Datatype_open _ } -> Type_open
               | Datatype { noun = Datatype_abstr } -> Type_abstract Abstract_def
+              | Datatype { noun = Datatype_new _ } -> Type_abstract Abstract_def
             in
             let shape = Shape.proj cm_shape (Shape.Item.type_ id) in
             let tda =
@@ -2151,6 +2167,7 @@ and store_type ~check id info shape env =
           env labels
     | Datatype { noun = Datatype_open _ } -> Type_open, env
     | Datatype { noun = Datatype_abstr } -> Type_abstract Abstract_def, env
+    | Datatype { noun = Datatype_new _ } -> Type_abstract Abstract_def, env
     | Equation { eq = Type_abstr { reason } } -> Type_abstract reason, env
     | Equation { eq = Type_abbrev _ } -> Type_abstract abstract_reason_of_abbrev, env
   in

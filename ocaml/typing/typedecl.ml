@@ -269,10 +269,19 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let type_noun =
     match sdecl.ptype_manifest, abstract_abbrevs, sdecl.ptype_private with
     | None, _, priv | Some _, None, priv ->
+      let priv = 
+        match priv with 
+        | Ppriv_public -> Public 
+        | Ppriv_private -> Private 
+        (* CR jbachurski: Uh oh. *)
+        | Ppriv_new -> Private
+      in
       create_higher_kinded_type_equation_noun
         type_params type_jkind priv (Some (Ctype.newvar type_jkind))
-    (* CR jbachurski: This can hit private, apparently? *)
-    | Some _, Some reason, (Public | Private) -> Equation { params = type_params; ret_jkind = type_jkind; eq = Type_abstr { reason } }
+    (* CR jbachurski: This can hit private, apparently?
+       CR jbachurski: What about new?? *)
+    | Some _, Some reason, (Ppriv_public | Ppriv_new | Ppriv_private) 
+      -> Equation { params = type_params; ret_jkind = type_jkind; eq = Type_abstr { reason } }
   in
   let decl =
     { type_noun;
@@ -349,7 +358,7 @@ let is_fixed_type sd =
     None -> false
   | Some sty ->
       sd.ptype_kind = Ptype_abstract &&
-      sd.ptype_private = Private &&
+      sd.ptype_private = Ppriv_private &&
       has_row_var sty
 
 (* Set the row variable to a fixed type in a private row type declaration.
@@ -832,6 +841,12 @@ let transl_declaration env sdecl (id, uid) =
   let assign_type_jkind ~is_datatype jkind_default =
     Higher_jkind.(wrap jkind_default |> assign_jkind ~is_datatype |> unwrap ~loc:__LOC__)
   in
+  let unwrap_priv () = 
+    match priv with
+      | Ppriv_public -> Public
+      | Ppriv_private -> Private
+      | Ppriv_new -> assert false
+  in
   let tkind, (kind : type_noun) =
     match sdecl.ptype_kind with
       (* CR layouts v3.5: this is a hack to allow re-exporting the definition
@@ -868,14 +883,15 @@ let transl_declaration env sdecl (id, uid) =
               (fun { attr_name = { txt; _ }; _} -> txt = "datatype")
               sdecl_attributes
           in
-          begin match has_datatype_attr with
-          | false -> 
+          (* CR jbachurski: This is hacky, and sort of done in a rush. *)
+          begin match has_datatype_attr, priv, man with
+          | false, (Ppriv_public | Ppriv_private), _ -> 
             let ret_jkind = 
               assign_jkind 
                 ~is_datatype:false (Higher_jkind.Builtin.value ~why:Default_type_jkind) 
             in
-            Ttype_abstract, create_higher_kinded_type_equation_noun params ret_jkind priv man
-          | true -> 
+            Ttype_abstract, create_higher_kinded_type_equation_noun params ret_jkind (unwrap_priv ()) man
+          | true, Ppriv_public, _ -> 
             let ret_jkind = 
               assign_jkind 
                 ~is_datatype:true (Higher_jkind.Builtin.value ~why:Default_type_jkind) 
@@ -887,6 +903,23 @@ let transl_declaration env sdecl (id, uid) =
               ret_jkind; 
               manifest = get_man_path_manifest (); 
               noun = Datatype_abstr }
+          | true, Ppriv_private, _ ->
+            failwith "Private datatype??"
+          (* FIXME jbachurski: This is the fall-through that allows unmarked datatype new-abbreviations. *)
+          | _, Ppriv_new, Some man ->
+            let ret_jkind = 
+              assign_jkind 
+                ~is_datatype:true (Higher_jkind.Builtin.value ~why:Default_type_jkind) 
+              |> Higher_jkind.unwrap ~loc:__LOC__
+            in
+            Ttype_abstract, 
+            Datatype { 
+              params;
+              ret_jkind; 
+              manifest = None; 
+              noun = Datatype_new { expansion = man } }
+          | _, Ppriv_new, None ->
+            failwith "Abstract new-abbreviation??"
           end
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
@@ -975,7 +1008,7 @@ let transl_declaration env sdecl (id, uid) =
             params;
             ret_jkind = assign_type_jkind ~is_datatype:true jkind;
             manifest = get_man_path_manifest ();
-            noun = Datatype_variant { priv; cstrs; rep } }
+            noun = Datatype_variant { priv = unwrap_priv (); cstrs; rep } }
       | Ptype_record lbls ->
           let lbls, lbls' =
             (* CR layouts: we forbid [@@unboxed] records from being
@@ -999,14 +1032,14 @@ let transl_declaration env sdecl (id, uid) =
             params;
             ret_jkind = assign_type_jkind ~is_datatype:true jkind;
             manifest = get_man_path_manifest ();
-            noun = Datatype_record { priv; lbls = lbls'; rep } }
+            noun = Datatype_record { priv = unwrap_priv (); lbls = lbls'; rep } }
       | Ptype_open ->
           Ttype_open,
           Datatype {
             params;
             ret_jkind = assign_type_jkind ~is_datatype:true (Jkind.Builtin.value ~why:Extensible_variant);
             manifest = get_man_path_manifest ();
-            noun = Datatype_open { priv }
+            noun = Datatype_open { priv = unwrap_priv () }
           }
       in
     let decl =
@@ -1047,7 +1080,8 @@ let transl_declaration env sdecl (id, uid) =
         typ_loc = sdecl.ptype_loc;
         typ_manifest = tman;
         typ_kind = tkind;
-        typ_private = sdecl.ptype_private;
+        (* CR jbachurski: Argh. *)
+        typ_private = (match sdecl.ptype_private with Ppriv_public -> Public | _ -> Private);
         typ_attributes = sdecl.ptype_attributes;
         typ_jkind_annotation = Option.map snd jkind_annotation;
       }
@@ -1057,7 +1091,7 @@ let transl_declaration env sdecl (id, uid) =
       match decl.typ_type.type_noun with
       | Datatype { noun = Datatype_variant { cstrs } } -> Shape.str ~uid (shape_map_cstrs cstrs)
       | Datatype { noun = Datatype_record { lbls } } -> Shape.str ~uid (shape_map_labels lbls)
-      | Equation _ | Datatype { noun = Datatype_open _ | Datatype_abstr } -> Shape.leaf uid
+      | Equation _ | Datatype { noun = Datatype_open _ | Datatype_abstr | Datatype_new _ } -> Shape.leaf uid
     in
     decl, typ_shape
   end
@@ -1176,6 +1210,7 @@ let check_constraints env sdecl (_, decl) =
       check_constraints_labels env visited l pl
   | Datatype { noun = Datatype_open _ } -> ()
   | Datatype { noun = Datatype_abstr } -> ()
+  | Datatype { noun = Datatype_new _ } -> ()
   end;
   begin match get_type_manifest decl with
   | None -> ()
@@ -1191,7 +1226,17 @@ let check_constraints env sdecl (_, decl) =
    immediate, we should check the manifest is immediate). Also, update the
    resulting jkind to match the manifest. *)
 let narrow_to_manifest_jkind env loc decl =
-  match get_type_manifest decl with
+  let expansion =
+    match decl.type_noun with
+    | Datatype { noun = Datatype_new { expansion } } -> Some expansion
+    | Datatype { manifest = None } -> None
+    | Datatype { params; manifest = Some path } ->
+      let param_exprs = List.map (fun p -> p.param_expr) params in
+      Some (!newgenty_ref (Tconstr (path, AppArgs.of_list param_exprs, ref Mnil)))
+    | Equation { eq = Type_abstr { reason = _ } } -> None
+    | Equation { eq = Type_abbrev { priv = _; expansion } } -> Some expansion    
+  in
+  match expansion with
   | None -> decl
   | Some ty ->
     let jkind' = Ctype.type_jkind_purely env ty in
@@ -1686,6 +1731,7 @@ let update_decl_jkind env dpath decl =
 
   let new_decl, new_jkind = match decl.type_noun with
     | Equation { ret_jkind } -> decl, ret_jkind
+    | Datatype { ret_jkind; noun = Datatype_new _ } 
     | Datatype { ret_jkind; noun = Datatype_abstr } -> decl, Higher_jkind.wrap ret_jkind
     | Datatype { params = _; manifest = _; noun = Datatype_open { priv = _ } } ->
       let type_jkind = Higher_jkind.Builtin.value ~why:Extensible_variant in
@@ -3098,6 +3144,7 @@ let to_private_datatype = function
   | Datatype_record d -> Datatype_record { d with priv = Private }
   | Datatype_open _ -> Datatype_open { priv = Private }
   | Datatype_abstr -> Datatype_abstr
+  | Datatype_new d -> Datatype_new d
 
 (* Translate a "with" constraint -- much simplified version of
    transl_type_decl. For a constraint [Sig with t = sdecl],
@@ -3171,12 +3218,18 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     ) constraints;
   let sig_decl_abstract = Btype.type_kind_is_abstract sig_decl in
   if arity_ok && not sig_decl_abstract
-  && sdecl.ptype_private = Private then
+  && sdecl.ptype_private = Ppriv_private then
     Location.deprecated loc "spurious use of private";
   let type_params = create_type_params_of_unknowns ~injective:false params in
   let type_noun =
     let sig_decl = set_type_params sig_decl type_params in
-    match sig_decl.type_noun, sdecl.ptype_private, arity_ok with
+    let priv = 
+      match sdecl.ptype_private with
+      | Ppriv_public -> Public
+      | Ppriv_private -> Private
+      | Ppriv_new -> assert false
+    in
+    match sig_decl.type_noun, priv, arity_ok with
     | _, priv, false ->
         create_higher_kinded_type_equation_noun
           type_params (get_type_jkind sig_decl) priv (Some man)
@@ -3258,7 +3311,8 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
     typ_loc = loc;
     typ_manifest = Some tman;
     typ_kind = Ttype_abstract;
-    typ_private = sdecl.ptype_private;
+    (* CR jbachurski: Argh. *)
+    typ_private = (match sdecl.ptype_private with Ppriv_public -> Public | _ -> Private);
     typ_attributes = sdecl.ptype_attributes;
     typ_jkind_annotation = Option.map snd type_jkind_annotation;
   }

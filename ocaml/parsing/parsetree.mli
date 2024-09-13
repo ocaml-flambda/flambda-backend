@@ -564,7 +564,7 @@ and type_declaration =
      ptype_cstrs: (core_type * core_type * Location.t) list;
       (** [... constraint T1=T1'  ... constraint Tn=Tn'] *)
      ptype_kind: type_kind;
-     ptype_private: private_flag;  (** for [= private ...] *)
+     ptype_private: type_privacy;  (** for [= private ...] *)
      ptype_manifest: core_type option;  (** represents [= T] *)
      ptype_attributes: attributes;  (** [... [\@\@id1] [\@\@id2]] *)
      ptype_loc: Location.t;
@@ -594,6 +594,8 @@ and type_declaration =
               when [type_kind] is {{!type_kind.Ptype_open}[Ptype_open]},
                and [manifest]  is [None].
 *)
+
+and type_privacy = Ppriv_private | Ppriv_new | Ppriv_public
 
 and type_kind =
   | Ptype_abstract

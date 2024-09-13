@@ -902,7 +902,8 @@ let pats_of_type env ty =
           [make_pat (Tpat_record (fields, Closed)) ty env]
       | Type_variant _ | Type_abstract _ | Type_open -> [omega]
       end
-    | Equation _ | Datatype { noun = Datatype_open _ | Datatype_abstr } -> [omega]
+    | Equation _ 
+    | Datatype { noun = Datatype_open _ | Datatype_abstr | Datatype_new _ } -> [omega]
     end
   | Has_no_typedecl ->
       begin match get_desc (Ctype.expand_head env ty) with

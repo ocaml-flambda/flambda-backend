@@ -104,6 +104,15 @@ module M : sig type 'a t end
 module M : sig
   type 'a t [@@datatype]
 end = struct
+  type 'a t [@@datatype]
+end
+[%%expect {|
+module M : sig type +'a t =  end
+|}]
+
+module M : sig
+  type 'a t [@@datatype]
+end = struct
   type 'a t
 end
 [%%expect {|
