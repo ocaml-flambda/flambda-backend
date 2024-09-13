@@ -258,15 +258,8 @@ Error: This expression has type int but an expression was expected of type
 Line 1, characters 13-15:
 1 | [|x for x in []|];;
                  ^^
-Error: This expression has type 'a list
-       but an expression was expected of type 'b array
-|}, Principal{|
-Line 1, characters 13-15:
-1 | [|x for x in []|];;
-                 ^^
-Error: This expression has type 'a list
-       but an expression was expected of type 'b array
-       because it is in a for-in iterator in an array comprehension
+Error: This expression should not be a list literal, the expected type is
+       'a array because it is in a for-in iterator in an array comprehension
 |}];;
 
 (* As above, but don't trigger type-based disambiguation; this affects the error

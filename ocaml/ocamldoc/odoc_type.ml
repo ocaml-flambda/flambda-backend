@@ -73,5 +73,6 @@ let get_type_private decl =
   | Datatype { params = _; manifest = _; noun = Datatype_record { priv; _ } } -> priv
   | Datatype { params = _; manifest = _; noun = Datatype_variant { priv; _ } } -> priv
   | Datatype { params = _; manifest = _; noun = Datatype_open { priv; _ } } -> priv
+  | Datatype { params = _; manifest = _; noun = Datatype_abstr } -> Public
   | Equation { params = _; eq = Type_abstr { reason = _ } } -> Public
   | Equation { params = _; eq = Type_abbrev { priv; expansion = _ } } -> priv

@@ -5,6 +5,7 @@
  check-ocamlopt.byte-output;
 *)
 
-module type M = sig
-  val f : int 'a -> int 'a
-end
+type ('m : value => value) monad = {
+  return : 'a. 'a -> 'a 'm;
+  bind : 'a 'b. 'a 'm -> ('a -> 'b 'm) -> 'b 'm
+}

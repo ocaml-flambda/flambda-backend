@@ -49,7 +49,7 @@ type type_structure =
 
 let structure : type_definition -> type_structure = fun def ->
   match def.type_noun with
-  | Datatype { noun = Datatype_open _ } -> Open
+  | Datatype { noun = Datatype_open _ | Datatype_abstr } -> Open
   | Equation { eq = Type_abstr _ } -> Abstract
   | Equation { eq = Type_abbrev { expansion = type_expr }} -> Synonym type_expr
   | Datatype { noun = Datatype_record _ | Datatype_variant _ } ->

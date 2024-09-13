@@ -127,6 +127,7 @@ and out_vars_jkinds = (string * out_jkind option) list
 
 and out_type =
   | Otyp_abstract
+  | Otyp_abstract_datatype
   | Otyp_open
   | Otyp_alias of {non_gen:bool; aliased:out_type; alias:string}
   | Otyp_arrow of arg_label * out_arg_mode * out_type * out_ret_mode * out_type

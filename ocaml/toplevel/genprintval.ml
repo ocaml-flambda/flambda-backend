@@ -517,6 +517,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                     end
                 | Datatype { noun = Datatype_open _ } ->
                     tree_of_extension path args depth obj
+                | Datatype { noun = Datatype_abstr } ->
+                    Oval_stuff "<abstr data>"
               with
                 Not_found ->                (* raised by Env.find_type *)
                   Oval_stuff "<abstr>"

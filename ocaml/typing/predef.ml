@@ -336,21 +336,33 @@ let build_initial_env add_type add_extension empty_env =
         ?(param_jkind = default_param_jkind type_ident) =
     add_type1 type_ident
       ~kind:(
-        fun param ->
+        fun param_expr ->
           create_type_equation_noun
-            [{ param_expr = param; variance; separability }]
+            [{ param_expr; variance; separability }]
             (Jkind.Builtin.value ~why:(Primitive type_ident))
             Public None)
       ~param_jkind
   in
+  let add_datatype1' type_ident ~variance ~separability
+        ?(param_jkind = default_param_jkind type_ident) =
+    add_type1 type_ident
+      ~kind:(
+        fun param_expr -> 
+          Datatype { 
+            params = [{ param_expr; variance; separability }];
+            ret_jkind = Jkind.Builtin.value ~why:(Primitive type_ident);
+            manifest = None;
+            noun = Datatype_abstr })
+      ~param_jkind
+  in
   empty_env
   (* Predefined types *)
-  |> add_type1' ident_array
+  |> add_datatype1' ident_array
        ~variance:Variance.full
        ~separability:Separability.Ind
        ~param_jkind:(Jkind.add_nullability_crossing
                       (Jkind.Builtin.any ~why:Array_type_argument))
-  |> add_type1' ident_iarray
+  |> add_datatype1' ident_iarray
        ~variance:Variance.covariant
        ~separability:Separability.Ind
        ~param_jkind:(Jkind.add_nullability_crossing

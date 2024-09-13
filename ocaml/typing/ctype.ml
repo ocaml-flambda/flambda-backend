@@ -665,6 +665,7 @@ let closed_type_decl decl =
     | Datatype { noun = Datatype_record { lbls = r } } ->
         List.iter (fun l -> closed_type l.ld_type) r
     | Datatype { noun = Datatype_open _ } -> ()
+    | Datatype { noun = Datatype_abstr } -> ()
     end;
     begin match get_type_manifest decl with
       None    -> ()
@@ -1440,6 +1441,7 @@ let map_kind f : type_noun -> type_noun = function
           lbls = List.map (fun l -> {l with ld_type = f l.ld_type}) lbls
         }
       | Datatype_open { priv } -> Datatype_open { priv }
+      | Datatype_abstr -> Datatype_abstr
     }
 
 
@@ -2127,16 +2129,22 @@ let tvariant_not_immediate row =
 
 let rec noun_application : 'a. Env.t -> type_noun -> 'a app_list -> (('a * type_param) list * higher_jkind) option =
   fun env (noun : type_noun) args ->
+  (* CR jbachurski: This should have some sort of error handling rather than being an option. *)
+  let try_combine xs ys = 
+    try Some (List.combine xs ys) 
+    with Invalid_argument _ -> None
+  in
+  let (let*) = Option.bind in
   match noun, args with
   (* Applying through params *)
   | Datatype { ret_jkind; params = [] }, Unapplied
       -> Some ([], Jk.wrap ret_jkind)
   | Datatype { ret_jkind; params = ((_ :: _) as params) }, Applied ts
-      -> Some (List.combine ts params, Jk.wrap ret_jkind)
+      -> let* ps = try_combine ts params in Some (ps, Jk.wrap ret_jkind)
   | Equation { ret_jkind; params = [] }, Unapplied
       -> Some ([], ret_jkind)
   | Equation { ret_jkind; params = ((_ :: _) as params) }, Applied ts
-      -> Some (List.combine ts params, ret_jkind)
+      -> let* ps = try_combine ts params in Some (ps, ret_jkind)
   (* Under-application: unapplied datatypes *)
   | Datatype { ret_jkind; params }, Unapplied
       -> Some ([], Jkind_types.{ 
@@ -2149,9 +2157,10 @@ let rec noun_application : 'a. Env.t -> type_noun -> 'a app_list -> (('a * type_
       -> 
         let arity = List.length args in
         let param_exprs = List.map Btype.newgenvar arg_jkinds in
-        let variances = Variance.unknown_signature ~injective:true ~arity in
+        let variances = List.init arity (fun _ -> Variance.full) in
         let separabilities = Separability.default_signature ~arity in
-        Some (List.combine args (create_type_params param_exprs variances separabilities), result)
+        let* ps = try_combine args (create_type_params param_exprs variances separabilities) in
+        Some (ps, result)
   (* CR jbachurski: datatype over-application might exist in the future *)
   | Datatype { ret_jkind = (_ : jkind); params = [] }, Applied _ (* datatype over-application *)
   | Equation { ret_jkind = { hdesc = Top | Type _ }; params = [] }, Applied _ (* bad/over application *)

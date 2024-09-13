@@ -539,6 +539,7 @@ val get_unboxed_type_approximation : Env.t -> type_expr -> type_expr
    void. *)
 val tvariant_not_immediate : row_desc -> bool
 
+(* Resolve a given application to a type noun, zipping it with a prepared parameter list *)
 val noun_application : 'a. Env.t -> type_noun -> 'a app_list -> (('a * type_param) list * higher_jkind) option
 
 (* Extract the jkind of a type declaration in the context of an application. *)

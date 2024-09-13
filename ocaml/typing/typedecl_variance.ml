@@ -77,7 +77,6 @@ let compute_variance env visited vari ty =
             AppArgs.iter (compute_variance_rec unknown) args
         end
     | Tapp (ty, tl) ->
-        (* CR jbachurski: Is this right? *)
         let open Variance in
         List.iter (compute_variance_rec (compose vari full)) tl;
         compute_variance_rec (compose vari covariant) ty;
@@ -348,7 +347,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
     in
     let vari =
       match decl.type_noun with
-      | Equation _ | Datatype { noun = Datatype_open _ } ->
+      | Equation _ | Datatype { noun = Datatype_open _ | Datatype_abstr } ->
           compute_variance_type env ~check rloc decl mn
       | Datatype { noun = Datatype_variant { cstrs = tll } } ->
           if List.for_all (fun c -> c.Types.cd_res = None) tll then

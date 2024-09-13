@@ -344,6 +344,7 @@ let iter_noun expr path = function
     | Datatype_record { priv = _; lbls; rep = _ } ->
       List.iter (fun d -> expr d.ld_type) lbls
     | Datatype_open { priv = _ } -> ()
+    | Datatype_abstr -> ()
     end
   | Equation { params; eq = Type_abstr { reason = _ }} ->
     List.iter (fun { param_expr; _ } -> expr param_expr) params;
