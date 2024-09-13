@@ -702,36 +702,36 @@ static void update_major_slice_work(intnat howmuch,
 
   extra_work = (intnat) (my_extra_count * (double) total_cycle_work);
 
-  caml_gc_message (0x40, "heap_words = %"
-                         ARCH_INTNAT_PRINTF_FORMAT "u\n",
-                   (uintnat)heap_words);
-  caml_gc_message (0x40, "allocated_words = %"
-                         ARCH_INTNAT_PRINTF_FORMAT "u\n",
+  CAML_GC_MESSAGE(SLICESIZE,
+                  "heap_words = %" ARCH_INTNAT_PRINTF_FORMAT "u\n",
+                  (uintnat)heap_words);
+  CAML_GC_MESSAGE(SLICESIZE,
+                  "allocated_words = %" ARCH_INTNAT_PRINTF_FORMAT "u\n",
                    my_alloc_count);
-  caml_gc_message (0x40, "allocated_words_direct = %"
-                         ARCH_INTNAT_PRINTF_FORMAT "u\n",
+  CAML_GC_MESSAGE(SLICESIZE,
+                  "allocated_words_direct = %" ARCH_INTNAT_PRINTF_FORMAT "u\n",
                    my_alloc_direct_count);
-  caml_gc_message (0x40, "alloc work-to-do = %"
-                         ARCH_INTNAT_PRINTF_FORMAT "d\n",
+  CAML_GC_MESSAGE(SLICESIZE,
+                  "alloc work-to-do = %" ARCH_INTNAT_PRINTF_FORMAT "d\n",
                    alloc_work);
-  caml_gc_message (0x40, "dependent_words = %"
-                         ARCH_INTNAT_PRINTF_FORMAT "u\n",
+  CAML_GC_MESSAGE(SLICESIZE,
+                  "dependent_words = %" ARCH_INTNAT_PRINTF_FORMAT "u\n",
                    my_dependent_count);
-  caml_gc_message (0x40, "dependent work-to-do = %"
-                         ARCH_INTNAT_PRINTF_FORMAT "d\n",
-                   dependent_work);
-  caml_gc_message (0x40, "extra_heap_resources = %"
-                         ARCH_INTNAT_PRINTF_FORMAT "uu\n",
-                   (uintnat) (my_extra_count * 1000000));
-  caml_gc_message (0x40, "extra work-to-do = %"
-                         ARCH_INTNAT_PRINTF_FORMAT "d\n",
-                   extra_work);
+  CAML_GC_MESSAGE(SLICESIZE,
+                  "dependent work-to-do = %" ARCH_INTNAT_PRINTF_FORMAT "d\n",
+                  dependent_work);
+  CAML_GC_MESSAGE(SLICESIZE,
+                  "extra_heap_resources = %" ARCH_INTNAT_PRINTF_FORMAT "uu\n",
+                  (uintnat) (my_extra_count * 1000000));
+  CAML_GC_MESSAGE(SLICESIZE,
+                  "extra work-to-do = %" ARCH_INTNAT_PRINTF_FORMAT "d\n",
+                  extra_work);
 
   intnat offheap_work = max2 (dependent_work, extra_work);
   intnat clamp = alloc_work * caml_custom_work_max_multiplier;
   if (offheap_work > clamp) {
-    caml_gc_message(0x40, "Work clamped to %"
-                          ARCH_INTNAT_PRINTF_FORMAT "d\n",
+    CAML_GC_MESSAGE(SLICESIZE, "Work clamped to %"
+                    ARCH_INTNAT_PRINTF_FORMAT "d\n",
                     clamp);
     offheap_work = clamp;
   }
@@ -1456,7 +1456,7 @@ static bool should_compact_from_stw_single(int compaction_mode)
   if (compaction_mode == Compaction_none) {
     return false;
   } else if (compaction_mode == Compaction_forced) {
-    caml_gc_message (0x200, "Forced compaction.\n");
+    CAML_GC_MESSAGE (COMPACT_TRIGGER, "Forced compaction.\n");
     return true;
   }
   CAMLassert (compaction_mode == Compaction_auto);
@@ -1464,13 +1464,13 @@ static bool should_compact_from_stw_single(int compaction_mode)
   /* runtime 4 algorithm, as close as possible.
    * TODO: revisit this in future. */
   if (caml_max_percent_free >= 1000 * 1000) {
-    caml_gc_message (0x200,
+    CAML_GC_MESSAGE (COMPACT_TRIGGER,
                      "Max percent free %"ARCH_INTNAT_PRINTF_FORMAT"u%%:"
                      "compaction off.\n", caml_max_percent_free);
     return false;
   }
   if (caml_major_cycles_completed < 3) {
-    caml_gc_message (0x200,
+    CAML_GC_MESSAGE (COMPACT_TRIGGER,
                      "Only %"ARCH_INTNAT_PRINTF_FORMAT"u major cycles: "
                      "compaction off.\n", caml_major_cycles_completed);
     return false;
@@ -1489,7 +1489,7 @@ static bool should_compact_from_stw_single(int compaction_mode)
   double current_overhead = 100.0 * free_words / live_words;
 
   bool compacting = current_overhead >= caml_max_percent_free;
-  caml_gc_message (0x200, "Current overhead: %"
+  CAML_GC_MESSAGE (COMPACT_TRIGGER, "Current overhead: %"
                    ARCH_INTNAT_PRINTF_FORMAT "u%% %s %"
                    ARCH_INTNAT_PRINTF_FORMAT "u%%: %scompacting.\n",
                    (uintnat) current_overhead,
@@ -1511,9 +1511,9 @@ static void cycle_major_heap_from_stw_single(
               (long unsigned int)caml_major_cycles_completed);
 
   caml_major_cycles_completed++;
-  caml_gc_message(0x40, "Starting major GC cycle\n");
+  CAML_GC_MESSAGE(SLICESIZE, "Starting major GC cycle\n");
 
-  if (atomic_load_relaxed(&caml_verb_gc) & 0x400) {
+  if (atomic_load_relaxed(&caml_verb_gc) & CAML_GC_MSG_STATS) {
     struct gc_stats s;
     intnat heap_words, not_garbage_words, swept_words;
 
@@ -1789,8 +1789,9 @@ static void major_collection_slice(intnat howmuch,
   /* Opportunistic slices may run concurrently with gc phase updates. */
   int may_access_gc_phase = (mode != Slice_opportunistic);
 
-  bool log_events = (mode != Slice_opportunistic ||
-                     (atomic_load_relaxed(&caml_verb_gc) & 0x40));
+  bool log_events = mode != Slice_opportunistic ||
+                    (atomic_load_relaxed(&caml_verb_gc) &
+                     CAML_GC_MSG_SLICESIZE);
 
   update_major_slice_work(howmuch, may_access_gc_phase, log_events);
 

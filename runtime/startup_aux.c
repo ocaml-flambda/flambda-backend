@@ -81,7 +81,7 @@ static void init_startup_params(void)
 #ifdef DEBUG
   // Silenced in flambda-backend to make it easier to run tests that
   // check program output.
-  // atomic_store_relaxed(&caml_verb_gc, 0x3F);
+  // atomic_store_relaxed(&caml_verb_gc, CAML_GC_MSG_VERBOSE | CAML_GC_MSG_MINOR);
 #endif
 #ifndef NATIVE_CODE
   cds_file = caml_secure_getenv(T("CAML_DEBUG_FILE"));
