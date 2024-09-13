@@ -38,7 +38,7 @@ type error =
 exception Error of error
 
 let abstract_type =
-  Btype.newgenty (Tconstr (Pident (Ident.create_local "<abstr>"), [], ref Mnil))
+  Btype.newgenty (Tconstr (Pident (Ident.create_local "<abstr>"), Unapplied, ref Mnil))
 
 let get_global_or_predef id =
   try
@@ -124,12 +124,12 @@ let rec expression event env = function
              case) *)
           else (Debugcom.Remote_value.field v (n-1),
                 snd (List.nth ty_list (n-1)))
-      | Tconstr(path, [ty_arg], _) when Path.same path Predef.path_array ->
+      | Tconstr(path, Applied [ty_arg], _) when Path.same path Predef.path_array ->
           let size = Debugcom.Remote_value.size v in
           if n >= size
           then raise(Error(Array_index(size, n)))
           else (Debugcom.Remote_value.field v n, ty_arg)
-      | Tconstr(path, [ty_arg], _) when Path.same path Predef.path_list ->
+      | Tconstr(path, Applied [ty_arg], _) when Path.same path Predef.path_list ->
           let rec nth pos v =
             if not (Debugcom.Remote_value.is_block v) then
               raise(Error(List_index(pos, n)))
@@ -138,7 +138,7 @@ let rec expression event env = function
             else
               nth (pos + 1) (Debugcom.Remote_value.field v 1)
           in nth 0 v
-      | Tconstr(path, [], _) when Path.same path Predef.path_string ->
+      | Tconstr(path, Unapplied, _) when Path.same path Predef.path_string ->
           let s = (Debugcom.Remote_value.obj v : string) in
           if n >= String.length s
           then raise(Error(String_index(s, String.length s, n)))
@@ -168,11 +168,11 @@ and find_label lbl env ty path tydesc pos = function
   | {ld_id; ld_type} :: rem ->
       if Ident.name ld_id = lbl then begin
         let ty_res =
-          Btype.newgenty(Tconstr(path, get_type_param_exprs tydesc, ref Mnil))
+          Btype.newgenty(Tconstr(path, get_type_param_exprs tydesc |> AppArgs.of_list, ref Mnil))
         in
         (pos,
-         try Ctype.apply env [ty_res] ld_type [ty] with Ctype.Cannot_apply ->
-           abstract_type)
+         try Ctype.apply env [ty_res] ld_type (AppArgs.one ty)
+         with Ctype.Cannot_apply -> abstract_type)
       end else
         find_label lbl env ty path tydesc (pos + 1) rem
 

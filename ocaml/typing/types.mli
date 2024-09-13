@@ -71,6 +71,12 @@ type row_field
 type field_kind
 type commutable
 
+type 'a app_list =
+  | Unapplied
+  | Applied of 'a list
+
+and app_args = type_expr app_list
+
 and type_desc =
   | Tvar of { name : string option; jkind : higher_jkind }
   (** [Tvar (Some "a")] ==> ['a] or ['_a]
@@ -92,14 +98,14 @@ and type_desc =
       [Ttuple [Some "l1", t1; None, t2; Some "l3", t3]] ==> [l1:t1 * t2 * l3:t3]
   *)
 
-  | Tconstr of Path.t * type_expr list * abbrev_memo ref
+  | Tconstr of Path.t * app_args * abbrev_memo ref
   (** [Tconstr (`A.B.t', [t1;...;tn], _)] ==> [(t1,...,tn) A.B.t]
       The last parameter keep tracks of known expansions, see [abbrev_memo]. *)
 
   | Tapp of type_expr * type_expr list
   (** [Tapp (t, [t1;...;tn], _)] ==> [(t1,...,tn) t]. *)
 
-  | Tobject of type_expr * (Path.t * type_expr list) option ref
+  | Tobject of type_expr * (Path.t * app_args) option ref
   (** [Tobject (`f1:t1;...;fn: tn', `None')] ==> [< f1: t1; ...; fn: tn >]
       f1, fn are represented as a linked list of types using Tfield and Tnil
       constructors.
@@ -349,15 +355,15 @@ val create_row:
   more:type_expr ->
   closed:bool ->
   fixed:fixed_explanation option ->
-  name:(Path.t * type_expr list) option -> row_desc
+  name:(Path.t * app_args) option -> row_desc
 
 val row_fields: row_desc -> (label * row_field) list
 val row_more: row_desc -> type_expr
 val row_closed: row_desc -> bool
 val row_fixed: row_desc -> fixed_explanation option
-val row_name: row_desc -> (Path.t * type_expr list) option
+val row_name: row_desc -> (Path.t * app_args) option
 
-val set_row_name: row_desc -> (Path.t * type_expr list) option -> row_desc
+val set_row_name: row_desc -> (Path.t * app_args) option -> row_desc
 
 val get_row_field: label -> row_desc -> row_field
 
@@ -367,7 +373,7 @@ type row_desc_repr =
              more:   type_expr;
              closed: bool;
              fixed:  fixed_explanation option;
-             name:   (Path.t * type_expr list) option }
+             name:   (Path.t * app_args) option }
 
 val row_repr: row_desc -> row_desc_repr
 
@@ -714,6 +720,8 @@ val abstract_reason_of_abbrev : abstract_reason
 
 val newgenty_ref : (type_desc -> type_expr) ref
 
+(* Any uses of [get_type_jkind] do not take into account over/under-application 
+   - it is correct in neither case. Perhaps worth removing it entirely. *)
 val get_type_jkind : type_declaration -> higher_jkind
 val set_type_jkind : higher_jkind -> type_declaration -> type_declaration
 
@@ -732,9 +740,6 @@ val set_type_param_exprs : type_declaration -> type_expr list -> type_declaratio
 
 val get_type_variance : type_declaration -> Variance.t list
 val set_type_variance : type_declaration -> Variance.t list -> type_declaration
-
-val zip_params_with_applied : 'a list -> type_declaration -> ('a * type_param) list
-val zip_params_with_applied2 : 'a list -> 'b list -> type_declaration -> ('a * 'b * type_param) list
 
 val create_higher_kinded_type_equation_noun
   : type_param list -> higher_jkind -> private_flag -> type_expr option -> type_noun
@@ -1015,8 +1020,8 @@ val set_scope: type_expr -> int -> unit
 val set_var_jkind: type_expr -> higher_jkind -> unit
         (* May only be called on Tvars *)
 val set_name:
-    (Path.t * type_expr list) option ref ->
-    (Path.t * type_expr list) option -> unit
+    (Path.t * app_args) option ref ->
+    (Path.t * app_args) option -> unit
 val link_row_field_ext: inside:row_field -> row_field -> unit
         (* Extract the extension variable of [inside] and set it to the
            second argument *)
@@ -1024,3 +1029,25 @@ val set_univar: type_expr option ref -> type_expr -> unit
 val link_kind: inside:field_kind -> field_kind -> unit
 val link_commu: inside:commutable -> commutable -> unit
 val set_commu_ok: commutable -> unit
+
+(*  *)
+module AppArgs : sig
+  type 'a app = 'a app_list =
+    | Unapplied
+    | Applied of 'a list
+
+  type t = type_expr app_list
+
+  val unapp : t
+  val one : type_expr -> t
+
+  val of_list : 'a list -> 'a app
+  val to_list : 'a app -> 'a list
+
+  val map : (type_expr -> type_expr) -> t -> t
+  val iter : (type_expr -> unit) -> t -> unit
+  (* TODO jbachurski: Every use of [map/iter_with_list] likely needs
+                      some handling of over/under-application *)
+  val iter_with_list : ('a -> type_expr -> unit) -> 'a list -> t -> unit
+  val fold_left : ('acc -> type_expr -> 'acc) -> 'acc -> t -> 'acc
+end

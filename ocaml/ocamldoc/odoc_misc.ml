@@ -493,7 +493,7 @@ let remove_option typ =
   let open Types in
   let rec trim t =
     match t with
-    | Tconstr(path, [ty], _)
+    | Tconstr(path, Applied [ty], _)
       when Path.same path Predef.path_option -> get_desc ty
     | Tconstr _
     | Tapp _

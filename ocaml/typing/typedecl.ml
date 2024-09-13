@@ -383,7 +383,7 @@ let set_private_row env loc p decl =
         r
     | _ -> assert false
   in
-  set_type_desc rv (Tconstr (p, get_type_param_exprs decl, ref Mnil))
+  set_type_desc rv (Tconstr (p, get_type_param_exprs decl |> AppArgs.of_list, ref Mnil))
 
 (* Makes sure a type is representable. When called with a type variable, will
    lower [any] to a sort variable if [allow_unboxed = true], and to [value]
@@ -740,7 +740,11 @@ let shape_map_cstrs =
 
 let get_path_manifest ~loc env params ty =
   begin match get_desc ty with
-  | Tconstr(path, args, _) ->
+  | Tconstr(path, Unapplied, _) ->
+    if params <> []
+    then raise (Error (loc, Definition_mismatch (ty, env, Some Includecore.Arity)))
+    else path
+  | Tconstr(path, Applied args, _) ->
     if List.length args <> List.length params
     then raise (Error (loc, Definition_mismatch (ty, env, Some Includecore.Arity)))
     else if not (List.for_all2 eq_type args params)
@@ -802,7 +806,7 @@ let transl_declaration env sdecl (id, uid) =
      is no annotation and no manifest.
      See Note [Default jkinds in transl_declaration].
   *)
-  let assign_jkind jkind_default =
+  let assign_jkind ~is_datatype jkind_default =
     (* - If there's an annotation, we use that. It's checked against
          a kind in [update_decl_jkind] and the manifest in [check_coherence].
          Both of those functions update the [type_jkind] field in the
@@ -815,11 +819,18 @@ let transl_declaration env sdecl (id, uid) =
     *)
     match jkind_from_annotation, man with
     | Some annot, _ -> annot
-    | None, Some _ -> Higher_jkind.Builtin.any ~why:Initial_typedecl_env
+    | None, Some _ -> 
+      Higher_jkind.Builtin.(
+        (* CR jbachurski: If we have higher-kinded datatypes, 
+            this should be fixed, but making this simpler is
+            an argument why it should stay the way it is. *)
+        if is_datatype 
+        then any ~why:Initial_typedecl_env
+        else top ~why:Initial_typedecl_env)
     | None, None -> jkind_default
   in
-  let assign_type_jkind jkind_default =
-    Higher_jkind.(assign_jkind (wrap jkind_default) |> unwrap ~loc:__LOC__)
+  let assign_type_jkind ~is_datatype jkind_default =
+    Higher_jkind.(wrap jkind_default |> assign_jkind ~is_datatype |> unwrap ~loc:__LOC__)
   in
   let tkind, (kind : type_noun) =
     match sdecl.ptype_kind with
@@ -836,7 +847,7 @@ let transl_declaration env sdecl (id, uid) =
                must be set to [or_null] so typechecking stays correct. *)
             let ty = Option.map (Ctype.expand_head env) man in
             match Option.map get_desc ty with
-            | Some (Tconstr(path, [param], _))
+            | Some (Tconstr(path, Applied [param], _))
               when Path.same path Predef.path_or_null -> param
             | Some _ | None -> raise (Error (sdecl.ptype_loc, Invalid_reexport
               { definition = path; expected = Predef.path_or_null }))
@@ -850,7 +861,7 @@ let transl_declaration env sdecl (id, uid) =
       | Ptype_abstract ->
           Ttype_abstract,
           create_higher_kinded_type_equation_noun
-            params (assign_jkind (Higher_jkind.Builtin.value ~why:Default_type_jkind)) priv man
+            params (assign_jkind ~is_datatype:false (Higher_jkind.Builtin.value ~why:Default_type_jkind)) priv man
       | Ptype_variant scstrs ->
         if List.exists (fun cstr -> cstr.pcd_res <> None) scstrs then begin
           match cstrs with
@@ -936,7 +947,7 @@ let transl_declaration env sdecl (id, uid) =
           Ttype_variant tcstrs,
           Datatype {
             params;
-            ret_jkind = assign_type_jkind jkind;
+            ret_jkind = assign_type_jkind ~is_datatype:true jkind;
             manifest = get_man_path_manifest ();
             noun = Datatype_variant { priv; cstrs; rep } }
       | Ptype_record lbls ->
@@ -960,14 +971,14 @@ let transl_declaration env sdecl (id, uid) =
           Ttype_record lbls,
           Datatype {
             params;
-            ret_jkind = assign_type_jkind jkind;
+            ret_jkind = assign_type_jkind ~is_datatype:true jkind;
             manifest = get_man_path_manifest ();
             noun = Datatype_record { priv; lbls = lbls'; rep } }
       | Ptype_open ->
           Ttype_open,
           Datatype {
             params;
-            ret_jkind = assign_type_jkind (Jkind.Builtin.value ~why:Extensible_variant);
+            ret_jkind = assign_type_jkind ~is_datatype:true (Jkind.Builtin.value ~why:Extensible_variant);
             manifest = get_man_path_manifest ();
             noun = Datatype_open { priv }
           }
@@ -1044,7 +1055,8 @@ let rec check_constraints_rec env loc visited ty =
         try Env.find_type path env
         with Not_found ->
           raise (Error(loc, Unavailable_type_constructor path)) in
-      let ty' = Ctype.newconstr path (Ctype.instance_list (get_type_param_exprs decl)) in
+      let params = Ctype.params_for_apply env args decl |> List.map (fun p -> p.param_expr) in
+      let ty' = Ctype.newconstr path (Ctype.instance_list params) in
       begin
         (* We don't expand the error trace because that produces types that
            *already* violate the constraints -- we need to report a problem with
@@ -1062,7 +1074,7 @@ let rec check_constraints_rec env loc visited ty =
                             (ty, violation, Check_constraints)))
         | All_good -> ()
       end;
-      List.iter (check_constraints_rec env loc visited) args
+      AppArgs.iter (check_constraints_rec env loc visited) args
   | Tpoly (ty, tl) ->
       let _, ty = Ctype.instance_poly false tl ty in
       check_constraints_rec env loc visited ty
@@ -1168,7 +1180,7 @@ let narrow_to_manifest_jkind env loc decl =
 let check_kind_coherence env loc dpath decl =
   match decl.type_noun with
   | Datatype { ret_jkind; manifest = Some path } ->
-      let ty = Btype.newgenty (Tconstr (path, get_type_param_exprs decl, ref Mnil)) in
+      let ty = Btype.newgenty (Tconstr (path, get_type_param_exprs decl |> AppArgs.of_list, ref Mnil)) in
       if !Clflags.allow_illegal_crossing then begin
         let jkind' = Ctype.type_jkind_purely env ty in
         begin match Higher_jkind.sub_with_history jkind' (Higher_jkind.wrap ret_jkind) with
@@ -1887,11 +1899,11 @@ let check_well_founded ~abs_env env loc path to_check visited ty0 =
     match get_desc ty with
     | Tconstr(p, tyl, _) ->
         let to_check = to_check p in
-        if to_check then List.iter (check_subtype parents trace ty) tyl;
+        if to_check then AppArgs.iter (check_subtype parents trace ty) tyl;
         begin match Ctype.try_expand_once_opt env ty with
         | ty' -> check parents (Expands_to (ty, ty') :: trace) ty'
         | exception Ctype.Cannot_expand ->
-            if not to_check then List.iter (check_subtype parents trace ty) tyl
+            if not to_check then AppArgs.iter (check_subtype parents trace ty) tyl
         end
     | _ ->
         Btype.iter_type_expr (check_subtype parents trace ty) ty
@@ -1978,7 +1990,7 @@ let check_regularity ~abs_env env loc path decl to_check =
       match get_desc ty with
       | Tconstr(path', args', _) ->
           if Path.same path path' then begin
-            if not (Ctype.is_equal abs_env false args args') then
+            if not (Ctype.is_equal abs_env false args (AppArgs.to_list args')) then
               raise (Error(loc,
                      Non_regular {
                        definition=path;
@@ -2000,7 +2012,7 @@ let check_regularity ~abs_env env loc path decl to_check =
               let (params, body) =
                 Ctype.instance_parameterized_type params0 body0 in
               begin
-                try List.iter2 (Ctype.unify abs_env) params args'
+                try AppArgs.iter_with_list (Ctype.unify abs_env) params args'
                 with Ctype.Unify err ->
                   raise (Error(loc, Constraint_failed (abs_env, err)));
               end;
@@ -2009,7 +2021,7 @@ let check_regularity ~abs_env env loc path decl to_check =
                 body
              | (_, Exp_path _, _) | exception Not_found -> ()
           end;
-          List.iter (check_subtype cpath args prev_exp trace ty) args'
+          AppArgs.iter (check_subtype cpath args prev_exp trace ty) args'
       | Tpoly (ty, tl) ->
           let (_, ty) = Ctype.instance_poly ~keep_names:true false tl ty in
           check_regular cpath args prev_exp trace ty
@@ -2073,7 +2085,7 @@ let name_recursion sdecl id decl =
   | Equation { eq = Type_abbrev { priv = Private; expansion = ty } } when is_fixed_type sdecl ->
     let ty' = newty2 ~level:(get_level ty) (get_desc ty) in
     if Ctype.deep_occur ty ty' then
-      let td = Tconstr(Path.Pident id, get_type_param_exprs decl, ref Mnil) in
+      let td = Tconstr(Path.Pident id, get_type_param_exprs decl |> AppArgs.of_list, ref Mnil) in
       link_type ty (newty2 ~level:(get_level ty) td);
       with_expansion decl ty'
     else decl
@@ -2388,12 +2400,12 @@ let transl_extension_constructor ~scope env type_path type_params
         let cstr_type_params = Env.find_type cstr_type_path env |> get_type_param_exprs in
         let cstr_types =
           (Btype.newgenty
-             (Tconstr(cstr_type_path, cstr_type_params, ref Mnil)))
+             (Tconstr(cstr_type_path, AppArgs.of_list cstr_type_params, ref Mnil)))
           :: cstr_type_params
         in
         let ext_types =
           (Btype.newgenty
-             (Tconstr(type_path, type_params, ref Mnil)))
+             (Tconstr(type_path, AppArgs.of_list type_params, ref Mnil)))
           :: type_params
         in
         if not (Ctype.is_equal env true cstr_types ext_types) then
@@ -2422,8 +2434,7 @@ let transl_extension_constructor ~scope env type_path type_params
                 | _ -> assert false
               in
               let decl = Ctype.instance_declaration decl in
-              assert (List.length (get_type_param_exprs decl) = List.length tl);
-              List.iter2 (Ctype.unify env) (get_type_param_exprs decl) tl;
+              AppArgs.iter_with_list (Ctype.unify env) (get_type_param_exprs decl) tl;
               let lbls =
                 match decl.type_noun with
                 | Datatype { noun = Datatype_record { lbls; rep = Record_inlined _ } } -> lbls
@@ -3120,7 +3131,7 @@ let transl_with_constraint id ?fixed_row_path ~sig_env ~sig_decl ~outer_env
       try Ctype.unify_var env cty.ctyp_type tparam
       with Ctype.Unify err ->
         raise(Error(cty.ctyp_loc, Inconsistent_constraint (env, err)))
-    ) (zip_params_with_applied tparams sig_decl);
+    ) (List.combine tparams (get_type_params sig_decl));
   List.iter (fun (cty, cty', loc) ->
     (* Note: constraints must also be enforced in [sig_env] because
        they may contain parameter variables from [tparams]

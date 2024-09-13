@@ -39,9 +39,9 @@ and type_desc =
   | Tvar of { name : string option; jkind : higher_jkind }
   | Tarrow of arrow_desc * type_expr * type_expr * commutable
   | Ttuple of (string option * type_expr) list
-  | Tconstr of Path.t * type_expr list * abbrev_memo ref
+  | Tconstr of Path.t * app_args * abbrev_memo ref
   | Tapp of type_expr * type_expr list
-  | Tobject of type_expr * (Path.t * type_expr list) option ref
+  | Tobject of type_expr * (Path.t * app_args) option ref
   | Tfield of string * field_kind * type_expr * type_expr
   | Tnil
   | Tlink of type_expr
@@ -50,6 +50,12 @@ and type_desc =
   | Tunivar of { name : string option; jkind : higher_jkind }
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
+
+and 'a app_list =
+  | Unapplied
+  | Applied of 'a list
+
+and app_args = type_expr app_list
 
 and arg_label =
   | Nolabel
@@ -65,7 +71,7 @@ and row_desc =
       row_more: type_expr;
       row_closed: bool;
       row_fixed: fixed_explanation option;
-      row_name: (Path.t * type_expr list) option }
+      row_name: (Path.t * app_args) option }
 and fixed_explanation =
   | Univar of type_expr | Fixed_private | Reified of Path.t | Rigid
 and row_field = [`some] row_field_gen
@@ -442,20 +448,6 @@ let set_type_variance decl variances =
   map_type_params decl
     (List.map2 (fun variance param -> { param with variance }) variances)
 
-
-let zip_params_with_applied xs decl =
-  let params = get_type_params decl in
-  if List.length xs <> List.length params
-  then raise (Invalid_argument "Mismatched arities in application")
-  else List.combine xs params
-
-let zip_params_with_applied2 xs ys decl =
-  let params = get_type_params decl in
-  if List.length xs <> List.length params || List.length ys <> List.length params
-  then raise (Invalid_argument "Mismatched arities in application")
-  else List.map2 (fun (x, y) p -> (x, y, p)) (List.combine xs ys) params
-
-
 let get_desc_ref = ref (fun _ -> assert false)
 let noun_with_expansion type_noun expansion =
   match type_noun with
@@ -475,17 +467,22 @@ let with_expansion decl expansion =
   { decl with type_noun = noun_with_expansion decl.type_noun expansion }
 
 let newgenty_ref = ref (fun _ -> assert false)
+
+let app_args_of_list = function
+  | [] -> Unapplied
+  | args -> Applied args
+
 let noun_with_manifest type_noun manifest =
   match type_noun with
   | Datatype d ->
     Datatype { d with manifest = Some manifest }
   | Equation ({ params; eq = Type_abstr { reason = _ } } as e) ->
     let param_exprs = List.map (fun p -> p.param_expr) params in
-    let expansion = !newgenty_ref (Tconstr (manifest, param_exprs, ref Mnil)) in
+    let expansion = !newgenty_ref (Tconstr (manifest, app_args_of_list param_exprs, ref Mnil)) in
     Equation { e with eq = Type_abbrev { priv = Public; expansion } }
   | Equation ({ params; eq = Type_abbrev { priv; expansion = _ } } as e) ->
     let param_exprs = List.map (fun p -> p.param_expr) params in
-    let expansion = !newgenty_ref (Tconstr (manifest, param_exprs, ref Mnil)) in
+    let expansion = !newgenty_ref (Tconstr (manifest, app_args_of_list param_exprs, ref Mnil)) in
     Equation { e with eq = Type_abbrev { priv; expansion } }
 
 let with_manifest decl expansion =
@@ -496,7 +493,7 @@ let get_type_manifest decl =
   | Datatype { params = _; manifest = None; noun = _ } -> None
   | Datatype { params; manifest = Some path; noun = _ } ->
     let param_exprs = List.map (fun p -> p.param_expr) params in
-    Some (!newgenty_ref (Tconstr (path, param_exprs, ref Mnil)))
+    Some (!newgenty_ref (Tconstr (path, app_args_of_list param_exprs, ref Mnil)))
   | Equation { params = _; eq = Type_abstr { reason = _ } } -> None
   | Equation { params = _; eq = Type_abbrev { priv = _; expansion } } -> Some expansion
 
@@ -924,7 +921,7 @@ type change =
   | Clevel : type_expr * int -> change
   | Cscope : type_expr * int -> change
   | Cname :
-      (Path.t * type_expr list) option ref * (Path.t * type_expr list) option -> change
+      (Path.t * app_args) option ref * (Path.t * app_args) option -> change
   | Crow : [`none|`some] row_field_gen ref -> change
   | Ckind : [`var] field_kind_gen -> change
   | Ccommu : [`var] commutable_gen -> change
@@ -1092,7 +1089,7 @@ type row_desc_repr =
              more:type_expr;
              closed:bool;
              fixed:fixed_explanation option;
-             name:(Path.t * type_expr list) option }
+             name:(Path.t * app_args) option }
 
 let row_repr row =
   let fields = row_fields row in
@@ -1359,3 +1356,38 @@ let undo_compress (changes, _old) =
             Transient_expr.set_desc ty desc; r := !next
         | _ -> ())
         log
+
+(* Application arguments for [Tconstr] *)
+
+module AppArgs = struct
+  type 'a app = 'a app_list =
+    | Unapplied
+    | Applied of 'a list
+
+  type t = type_expr app_list
+
+  let one e = Applied [e]
+  let unapp = Unapplied
+
+  let of_list = app_args_of_list
+
+  let to_list = function
+  | Unapplied -> []
+  | Applied args -> args
+
+  let map f = function
+  | Unapplied -> Unapplied
+  | Applied args -> Applied (List.map f args)
+
+  let iter f = function
+  | Unapplied -> ()
+  | Applied args -> List.iter f args
+
+  let iter_with_list f xs = function
+  | Unapplied -> ()
+  | Applied args -> List.iter2 f xs args
+
+  let fold_left f init = function
+  | Unapplied -> init
+  | Applied args -> List.fold_left f init args
+end

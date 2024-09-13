@@ -1073,7 +1073,7 @@ let noun_mismatch ~equality ~mark ~loc env check_jkinds params1 noun1 path param
   if err <> None then err else
   let check_new_manifest ty2 =
     let ty1 =
-      Btype.newgenty (Tconstr(path, params2, ref Mnil))
+      Btype.newgenty (Tconstr(path, AppArgs.of_list params2, ref Mnil))
     in
     match Ctype.equal env false [ty1] [ty2] with
     | exception Ctype.Equality err -> Some (Manifest err)
@@ -1097,7 +1097,7 @@ let noun_mismatch ~equality ~mark ~loc env check_jkinds params1 noun1 path param
   | Datatype { manifest = _; noun = n1 }, Datatype { manifest = m2; noun = n2 } -> begin
     let err =
       Option.map
-        (fun p -> check_new_manifest (Btype.newgenty (Tconstr(p, params2, ref Mnil))))
+        (fun p -> check_new_manifest (Btype.newgenty (Tconstr(p, AppArgs.of_list params2, ref Mnil))))
         m2
       |> Option.join
     in
@@ -1216,10 +1216,10 @@ let extension_constructors ~loc env ~mark id ext1 ext2 =
     Env.mark_extension_used usage ext1
   end;
   let ty1 =
-    Btype.newgenty (Tconstr(ext1.ext_type_path, ext1.ext_type_params, ref Mnil))
+    Btype.newgenty (Tconstr(ext1.ext_type_path, AppArgs.of_list ext1.ext_type_params, ref Mnil))
   in
   let ty2 =
-    Btype.newgenty (Tconstr(ext2.ext_type_path, ext2.ext_type_params, ref Mnil))
+    Btype.newgenty (Tconstr(ext2.ext_type_path, AppArgs.of_list ext2.ext_type_params, ref Mnil))
   in
   let tl1 = ty1 :: ext1.ext_type_params in
   let tl2 = ty2 :: ext2.ext_type_params in

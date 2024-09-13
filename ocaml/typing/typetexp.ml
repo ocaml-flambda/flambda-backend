@@ -768,11 +768,18 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
             List.map (fun _ -> t) (get_type_param_exprs decl)
         | _ -> stl
       in
-      if List.length stl <> get_type_arity decl then
+      let dummy_args = AppArgs.of_list stl in
+      begin match jkind_of_decl_application env decl dummy_args with
+      | Some _ -> ()
+      | None -> 
         raise(Error(styp.ptyp_loc, env,
-                    Type_arity_mismatch(lid.txt, get_type_arity decl,
-                                        List.length stl)));
-      let params = instance_list (get_type_param_exprs decl) in
+          Type_arity_mismatch(lid.txt, get_type_arity decl,
+                              List.length stl)))
+      end;
+      let params = 
+        instance_list (
+          params_for_apply env dummy_args decl |> List.map (fun p -> p.param_expr))
+      in
       let unify_param =
         match get_type_manifest decl with
           None -> unify_var
@@ -782,7 +789,7 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
       let arity = List.length params in
       let args = List.mapi
         (fun idx (sty, ty') ->
-           let jkind =
+          let jkind =
             match Types.get_desc ty' with
             | Tvar {jkind; _} when Higher_jkind.History.is_imported jkind ->
              (* In case of a Tvar with imported jkind history, we can improve
@@ -899,7 +906,7 @@ and transl_type_aux env ~row_context ~aliased ~policy ?(jkind_check = Unknown) m
              raise (Error(sty.ptyp_loc, env, Type_mismatch err))
         )
         (List.combine stl args) params;
-      let ty_args = List.map (fun ctyp -> ctyp.ctyp_type) args in
+      let ty_args = List.map (fun ctyp -> ctyp.ctyp_type) args |> AppArgs.of_list in
       let ty = Ctype.apply ~use_current_level:true env params body ty_args in
       let ty = match get_desc ty with
         | Tobject (fi, _) ->

@@ -169,7 +169,7 @@ let classify env loc ty sort : classification =
 
 let array_type_kind ~elt_sort env loc ty =
   match scrape_poly env ty with
-  | Tconstr(p, [elt_ty], _)
+  | Tconstr(p, Applied [elt_ty], _)
     when Path.same p Predef.path_array || Path.same p Predef.path_iarray ->
       let elt_sort =
         match elt_sort with
@@ -185,7 +185,7 @@ let array_type_kind ~elt_sort env loc ty =
       | Unboxed_float f -> Punboxedfloatarray f
       | Unboxed_int i -> Punboxedintarray i
       end
-  | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
+  | Tconstr(p, Unapplied, _) when Path.same p Predef.path_floatarray ->
       Pfloatarray
   | _ ->
       (* This can happen with e.g. Obj.field *)
@@ -203,7 +203,7 @@ let array_pattern_kind pat elt_sort =
 
 let bigarray_decode_type env ty tbl dfl =
   match scrape env ty with
-  | Tconstr(Pdot(Pident mod_id, type_name), [], _)
+  | Tconstr(Pdot(Pident mod_id, type_name), Unapplied, _)
     when Ident.name mod_id = "Stdlib__Bigarray" ->
       begin try List.assoc type_name tbl with Not_found -> dfl end
   | _ ->
@@ -229,7 +229,7 @@ let layout_table =
 
 let bigarray_type_kind_and_layout env typ =
   match scrape env typ with
-  | Tconstr(_p, [_caml_type; elt_type; layout_type], _abbrev) ->
+  | Tconstr(_p, Applied [_caml_type; elt_type; layout_type], _abbrev) ->
       (bigarray_decode_type env elt_type kind_table Pbigarray_unknown,
        bigarray_decode_type env layout_type layout_table
                             Pbigarray_unknown_layout)
@@ -397,7 +397,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
     (* CR layouts: [~elt_sort:None] here is bad for performance. To
        fix it, we need a place to store the sort on a [Tconstr]. *)
     num_nodes_visited, Parrayval (array_type_kind ~elt_sort:None env loc ty)
-  | Tconstr(p, _, _) -> begin
+  | Tconstr(p, args, _) -> begin
       let decl =
         try Env.find_type p env with Not_found -> raise Missing_cmi_fallback
       in
@@ -420,8 +420,12 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
             (fun () -> value_kind_record env ~loc ~visited ~depth
                          ~num_nodes_visited labels rep)
         | Equation _ ->
-          num_nodes_visited,
-          value_kind_of_value_jkind (get_type_jkind decl |> Higher_jkind.unwrap ~loc:__LOC__)
+          let jkind = 
+            match Ctype.noun_application env decl.type_noun args with
+            | None -> assert false
+            | Some (_, ret_jkind) -> Higher_jkind.unwrap ~loc:__LOC__ ret_jkind
+          in
+          num_nodes_visited, value_kind_of_value_jkind jkind
         | Datatype { noun = Datatype_open _ } -> num_nodes_visited, Pgenval
     end
   | Ttuple labeled_fields ->

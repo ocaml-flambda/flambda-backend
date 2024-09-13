@@ -145,7 +145,7 @@ end
 module type M =
   sig
     type t : (((top => top) => top) => top) => any
-    val f : ('a : ((top => value) => top) => value). 'a  (t) -> unit
+    val f : ('a : ((top => value) => top) => value). 'a  t -> unit
   end
 |}]
 

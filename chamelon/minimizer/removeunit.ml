@@ -20,9 +20,11 @@ let is_unit e =
 let is_unit_typ (typ : type_expr) =
   match get_desc typ with
   | Ttuple [] -> true
-  | Tconstr (path, [], _) -> (
-      match path with Path.Pident id -> name id = "unit" | _ -> false)
-  | _ -> false
+  | desc -> (
+      match unwrap_path_if_unapplied_constr desc with
+      | Some path -> (
+          match path with Path.Pident id -> name id = "unit" | _ -> false)
+      | None -> false)
 
 let minimize should_remove map cur_name =
   let remove_unit_mapper =

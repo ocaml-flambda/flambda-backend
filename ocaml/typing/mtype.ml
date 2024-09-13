@@ -31,7 +31,7 @@ let strengthen_noun_with_manifest path = function
         e with
         eq = Type_abbrev {
           priv = Public;
-          expansion = Btype.newgenty (Tconstr(path, param_exprs, ref Mnil))
+          expansion = Btype.newgenty (Tconstr(path, AppArgs.of_list param_exprs, ref Mnil))
         }
       }
   | Datatype ({ manifest = None } as d) ->
@@ -515,11 +515,11 @@ let enrich_typedecl env p id decl =
         else begin
           let orig_ty =
             Ctype.reify_univars env
-              (Btype.newgenty(Tconstr(p, get_type_param_exprs orig_decl, ref Mnil)))
+              (Btype.newgenty(Tconstr(p, get_type_param_exprs orig_decl |> AppArgs.of_list, ref Mnil)))
           in
           let new_ty =
             Ctype.reify_univars env
-              (Btype.newgenty(Tconstr(Pident id, get_type_param_exprs decl, ref Mnil)))
+              (Btype.newgenty(Tconstr(Pident id, get_type_param_exprs decl |> AppArgs.of_list, ref Mnil)))
           in
           let env = Env.add_type ~check:false id decl env in
           match Ctype.mcomp env orig_ty new_ty with

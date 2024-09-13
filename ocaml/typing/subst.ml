@@ -307,7 +307,7 @@ let rec typexp copy_scope s ty =
         | _ -> assert false
       else match desc with
       | Tconstr (p, args, _abbrev) ->
-         let args = List.map (typexp copy_scope s) args in
+         let args = AppArgs.map (typexp copy_scope s) args in
          begin match Path.Map.find p s.types with
          | exception Not_found -> Tconstr(type_path s p, args, ref Mnil)
          | Path _ -> Tconstr(type_path s p, args, ref Mnil)
@@ -325,7 +325,7 @@ let rec typexp copy_scope s ty =
             | Some (p, tl) ->
                 if to_subst_by_type_function s p
                 then None
-                else Some (type_path s p, List.map (typexp copy_scope s) tl)
+                else Some (type_path s p, AppArgs.map (typexp copy_scope s) tl)
           in
           Tobject (t1', ref name')
       | Tvariant row ->

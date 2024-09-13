@@ -108,7 +108,7 @@ val compose: t -> t -> t
 
 (* A forward reference to be filled in ctype.ml. *)
 val ctype_apply_env_empty:
-  (type_expr list -> type_expr -> type_expr list -> type_expr) ref
+  (type_expr list -> type_expr -> AppArgs.t -> type_expr) ref
 
 module Lazy : sig
   include Types.Wrapped
