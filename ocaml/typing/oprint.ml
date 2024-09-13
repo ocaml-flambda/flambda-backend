@@ -548,6 +548,8 @@ and print_out_type_3 ppf =
       fprintf ppf "@[<0>%a %a@]" print_typargs tyl print_out_type ty;
   | Otyp_app (ty, tyl) ->
       fprintf ppf "@[<0>%a (%a)@]" print_typargs tyl print_out_type ty;
+  | Otyp_new {expansion} ->
+      print_out_type ppf expansion
   | Otyp_object {fields; open_row} ->
       fprintf ppf "@[<2>< %a >@]" (print_fields open_row) fields
   | Otyp_stuff s -> pp_print_string ppf s
@@ -987,6 +989,9 @@ and print_out_type_decl kwd ppf td =
   | Otyp_open ->
       fprintf ppf " =%a .."
         print_private td.otype_private
+  | Otyp_new _ ->
+      fprintf ppf " = new@;<1 2>%a"
+        !out_type ty
   | ty ->
       fprintf ppf " =%a@;<1 2>%a"
         print_private td.otype_private

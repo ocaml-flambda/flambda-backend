@@ -85,9 +85,11 @@ and _ row_field_gen =
   | RFabsent : [> `some] row_field_gen
   | RFnone : [> `none] row_field_gen
 
+and type_privacy = Type_private | Type_new | Type_public
+
 and abbrev_memo =
     Mnil
-  | Mcons of private_flag * Path.t * type_expr * type_expr * abbrev_memo
+  | Mcons of type_privacy * Path.t * type_expr * type_expr * abbrev_memo
   | Mlink of abbrev_memo ref
 
 and any = [`some | `none | `var]
@@ -287,6 +289,7 @@ and datatype_noun =
   | Datatype_variant of { priv: private_flag; cstrs: constructor_declaration list; rep: variant_representation }
   | Datatype_open of { priv: private_flag }
   | Datatype_abstr
+  | Datatype_new of { expansion: type_expr }
 
 and type_equation =
   | Type_abstr of { reason: abstract_reason }
@@ -383,11 +386,6 @@ type extension_constructor =
     ext_attributes: Parsetree.attributes;
     ext_uid: Uid.t;
   }
-
-and type_transparence =
-    Type_public      (* unrestricted expansion *)
-  | Type_new         (* "new" type *)
-  | Type_private     (* private type *)
 
 let tys_of_constr_args = function
   | Cstr_tuple tl -> List.map (fun ca -> ca.ca_type) tl
@@ -837,7 +835,8 @@ let find_unboxed_type decl =
     Datatype_variant { rep =
       Variant_boxed _ | Variant_unboxed | Variant_extensible } |
     Datatype_open _ |
-    Datatype_abstr
+    Datatype_abstr | 
+    Datatype_new _
   } | Equation _ -> None
 
 let item_visibility = function

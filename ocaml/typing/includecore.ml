@@ -192,6 +192,7 @@ type privacy_mismatch =
 type type_kind =
   | Kind_abstract
   | Kind_abstract_datatype
+  | Kind_datatype_new
   | Kind_record
   | Kind_variant
   | Kind_open
@@ -199,6 +200,7 @@ type type_kind =
 let of_noun = function
   | Equation _ -> Kind_abstract
   | Datatype { noun = Datatype_abstr } -> Kind_abstract_datatype
+  | Datatype { noun = Datatype_new _ } -> Kind_datatype_new
   | Datatype { noun = Datatype_record _ } -> Kind_record
   | Datatype { noun = Datatype_variant _ } -> Kind_variant
   | Datatype { noun = Datatype_open _ } -> Kind_open
@@ -509,6 +511,7 @@ let report_kind_mismatch first second ppf (kind1, kind2) =
   let kind_to_string = function
   | Kind_abstract -> "abstract"
   | Kind_abstract_datatype -> "an abstract datatype"
+  | Kind_datatype_new -> "a datatype new-abbreviation"
   | Kind_record -> "a record"
   | Kind_variant -> "a variant"
   | Kind_open -> "an extensible variant" in
@@ -1039,7 +1042,7 @@ let type_manifest env ty1 params1 ty2 params2 priv2 =
   | _ -> begin
       let is_private_abbrev_2 =
         match priv2 with
-        | Private -> begin
+        | Type_private -> begin
             (* Same checks as the [when] guards from above, inverted *)
             match get_desc ty2' with
             | Tvariant row ->
@@ -1048,11 +1051,13 @@ let type_manifest env ty1 params1 ty2 params2 priv2 =
                 not (is_absrow env (snd (Ctype.flatten_fields fi)))
             | _ -> true
           end
-        | Public -> false
+        | Type_new | Type_public -> false
       in
       match
         if is_private_abbrev_2 then
           Ctype.equal_private env params1 ty1 params2 ty2
+        else if priv2 = Type_new then
+          Ctype.equal_new env params1 ty1 params2 ty2
         else
           Ctype.equal env true (params1 @ [ty1]) (params2 @ [ty2])
       with
@@ -1093,7 +1098,7 @@ let noun_mismatch ~equality ~mark ~loc env check_jkinds params1 noun1 path param
     | _, Type_abstr { reason = _} ->
         check_jkinds ()
     | Type_abbrev { priv = _; expansion = ty1 }, Type_abbrev { priv; expansion = ty2 } ->
-        type_manifest env ty1 params1 ty2 params2 priv
+        type_manifest env ty1 params1 ty2 params2 (match priv with Public -> Type_public | Private -> Type_private)
     | Type_abstr { reason = _ }, Type_abbrev { priv = _; expansion = ty2 } ->
         check_new_manifest ty2
     end
@@ -1148,6 +1153,8 @@ let noun_mismatch ~equality ~mark ~loc env check_jkinds params1 noun1 path param
           labels1 labels2
           rep1 rep2
     | Datatype_open { priv = _ }, Datatype_open { priv = _ } -> None
+    | Datatype_new { expansion = ty1 }, Datatype_new { expansion = ty2 } ->
+      type_manifest env ty1 params1 ty2 params2 Type_new
     | _, _ -> Some (Kind (of_noun noun1, of_noun noun2))
     end
 

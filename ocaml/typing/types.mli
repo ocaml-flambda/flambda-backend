@@ -177,6 +177,8 @@ and fixed_explanation =
   | Reified of Path.t (** The row was reified *)
   | Rigid (** The row type was made rigid during constraint verification *)
 
+and type_privacy = Type_private | Type_new | Type_public
+
 (** [abbrev_memo] allows one to keep track of different expansions of a type
     alias. This is done for performance purposes.
 
@@ -195,7 +197,7 @@ and fixed_explanation =
 and abbrev_memo =
   | Mnil (** No known abbreviation *)
 
-  | Mcons of private_flag * Path.t * type_expr * type_expr * abbrev_memo
+  | Mcons of type_privacy * Path.t * type_expr * type_expr * abbrev_memo
   (** Found one abbreviation.
       A valid abbreviation should be at least as visible and reachable by the
       same path.
@@ -566,6 +568,7 @@ and datatype_noun =
   | Datatype_variant of { priv: private_flag; cstrs: constructor_declaration list; rep: variant_representation }
   | Datatype_open of { priv: private_flag }
   | Datatype_abstr
+  | Datatype_new of { expansion: type_expr }
 
 and type_equation =
   | Type_abstr of { reason: abstract_reason }
@@ -708,11 +711,6 @@ type extension_constructor =
     ext_attributes: Parsetree.attributes;
     ext_uid: Uid.t;
   }
-
-and type_transparence =
-    Type_public      (* unrestricted expansion *)
-  | Type_new         (* "new" type *)
-  | Type_private     (* private type *)
 
 val abstract_reason_of_abbrev : abstract_reason
 

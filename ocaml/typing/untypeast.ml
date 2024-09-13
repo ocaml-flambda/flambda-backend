@@ -235,7 +235,7 @@ let type_declaration sub decl =
            (sub.typ sub ct1, sub.typ sub ct2, sub.location sub loc))
         decl.typ_cstrs)
     ~kind:(sub.type_kind sub decl.typ_kind)
-    ~priv:decl.typ_private
+    ~priv:(match decl.typ_private with Public -> Ppriv_public | Private -> Ppriv_private)
     ~manifest:(Option.map (sub.typ sub) decl.typ_manifest)
     ~docs:Docstrings.empty_docs
     ~text:None

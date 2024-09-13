@@ -345,6 +345,7 @@ let iter_noun expr path = function
       List.iter (fun d -> expr d.ld_type) lbls
     | Datatype_open { priv = _ } -> ()
     | Datatype_abstr -> ()
+    | Datatype_new { expansion } -> expr expansion      
     end
   | Equation { params; eq = Type_abstr { reason = _ }} ->
     List.iter (fun { param_expr; _ } -> expr param_expr) params;
@@ -515,15 +516,17 @@ end
 
 (* Search whether the expansion has been memorized. *)
 
-let lte_public p1 p2 =  (* Private <= Public *)
+let lte_privacy p1 p2 =  (* Private <= Public *)
   match p1, p2 with
-  | Private, _ | _, Public -> true
-  | Public, Private -> false
+  | Type_private, _ | _, Type_public -> true
+  | Type_public, (Type_private | Type_new) -> false
+  | Type_new, Type_new -> true
+  | Type_new, Type_private -> false
 
 let rec find_expans priv p1 = function
     Mnil -> None
   | Mcons (priv', p2, _ty0, ty, _)
-    when lte_public priv priv' && Path.same p1 p2 -> Some ty
+    when lte_privacy priv priv' && Path.same p1 p2 -> Some ty
   | Mcons (_, _, _, _, rem)   -> find_expans priv p1 rem
   | Mlink {contents = rem} -> find_expans priv p1 rem
 

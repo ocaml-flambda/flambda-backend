@@ -1819,7 +1819,7 @@ let prepare_decl id decl =
         cstrs
   | Datatype { noun = Datatype_record { lbls = l } } ->
       List.iter (fun l -> prepare_type l.ld_type) l
-  | Datatype { noun = Datatype_open _ | Datatype_abstr } -> ()
+  | Datatype { noun = Datatype_open _ | Datatype_abstr | Datatype_new _ } -> ()
   end;
   ty_manifest, params
 
@@ -1843,6 +1843,8 @@ let tree_of_type_decl id decl =
       | Datatype { noun = Datatype_variant { priv; cstrs = tll } } ->
           priv = Private ||
           List.exists (fun cd -> cd.cd_res <> None) tll
+      | Datatype { noun = Datatype_new _ } ->
+          true
       | Datatype { manifest; noun = Datatype_open _ | Datatype_abstr } ->
           manifest = None
     in
@@ -1888,6 +1890,8 @@ let tree_of_type_decl id decl =
         Otyp_abstract, Public, false
     | Equation { eq = Type_abbrev { priv; expansion } } ->
         tree_of_typexp Type expansion, priv, false
+    | Datatype { noun = Datatype_new { expansion } } ->
+        Otyp_new { expansion = tree_of_typexp Type expansion }, Public, false    
     | Datatype { noun = Datatype_variant { priv; cstrs; rep } } ->
         let unboxed =
           match rep with

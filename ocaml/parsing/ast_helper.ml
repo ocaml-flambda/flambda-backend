@@ -535,7 +535,7 @@ module Type = struct
       ?(params = [])
       ?(cstrs = [])
       ?(kind = Ptype_abstract)
-      ?(priv = Public)
+      ?(priv = Ppriv_public)
       ?manifest
       name =
     {
