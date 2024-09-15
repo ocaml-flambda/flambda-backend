@@ -40,6 +40,10 @@ DOMAIN_STATE(value*, young_trigger)
 DOMAIN_STATE(struct stack_info*, current_stack)
 /* Current stack */
 
+DOMAIN_STATE(void*, safepoint_trigger)
+/* Word which when set to an unmapped address will trigger
+   the next safepoint. */
+
 DOMAIN_STATE(void*, exn_handler)
 /* Pointer into the current stack */
 
@@ -165,6 +169,8 @@ DOMAIN_STATE(int, inside_stw_handler)
 /* whether or not a domain is inside of a stop-the-world handler
    this is used for several debug assertions inside of methods
    that can only be called from either in or outside this state. */
+
+DOMAIN_STATE(char*, safepoints_trigger_page)
 
 DOMAIN_STATE(intnat, trap_sp_off)
 DOMAIN_STATE(intnat, trap_barrier_off)

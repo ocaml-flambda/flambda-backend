@@ -138,6 +138,14 @@ CAMLextern caml_stat_block caml_stat_resize(caml_stat_block, asize_t);
 */
 CAMLextern caml_stat_block caml_stat_resize_noexc(caml_stat_block, asize_t);
 
+/* Allocate a block able to hold a number of bytes, together with a number of
+   extra pages, whose size is determined by [getpagesize].  The returned pointer
+   is to the start of the whole block and will lie on a page boundary.
+   Such pointer is not part of the caml_stat pool and must be freed directly
+   using [free]. */
+CAMLextern void* caml_stat_alloc_aligned_to_page_size(
+  asize_t num_extra_pages,
+  asize_t num_bytes);
 
 /* A [caml_stat_block] containing a NULL-terminated string */
 typedef char* caml_stat_string;

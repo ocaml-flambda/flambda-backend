@@ -122,6 +122,9 @@ int caml_global_barrier_num_domains(void);
 
 int caml_domain_is_terminating(void);
 
+CAMLextern void caml_force_safepoint_trigger(void);
+CAMLextern void caml_reset_safepoint_trigger(void);
+
 #endif /* CAML_INTERNALS */
 
 #ifdef __cplusplus

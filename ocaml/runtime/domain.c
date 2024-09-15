@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
+#include <stdbool.h>
 #ifdef HAS_GNU_GETAFFINITY_NP
 #include <sched.h>
 #ifdef HAS_PTHREAD_NP_H
@@ -35,6 +36,7 @@
 #include <sys/cpuset.h>
 typedef cpuset_t cpu_set_t;
 #endif
+#include <sys/mman.h>
 #ifdef _WIN32
 #include <sysinfoapi.h>
 #endif
@@ -348,7 +350,18 @@ int caml_send_interrupt(struct interruptor* target)
   return 1;
 }
 
-static void caml_wait_interrupt_serviced(struct interruptor* target)
+static void force_safepoint_trigger(caml_domain_state* domain)
+{
+  domain->safepoint_trigger = caml_safepoint_trigger_page;
+}
+
+static void reset_safepoint_trigger(caml_domain_state* domain)
+{
+  domain->safepoint_trigger = (void*) domain;
+}
+
+static void caml_wait_interrupt_serviced(caml_domain_state* domain,
+  struct interruptor* target)
 {
   int i;
 
@@ -360,10 +373,27 @@ static void caml_wait_interrupt_serviced(struct interruptor* target)
     cpu_relax();
   }
 
+  /* Wait for the domain to pick up the interrupt via an allocation point
+     or similar (but not a safe point).  If this hasn't happened after a
+     number of spins, make the domain stop at the next safe point (a more
+     expensive operation). */
   {
-    SPIN_WAIT {
+    // XXX this causes domains to be waited for in sequence
+    // XXX this number should maybe be exposed via OCAMLRUNPARAM
+    SPIN_WAIT_BOUNDED(100000) {
       if (!atomic_load_acquire(&target->interrupt_pending))
         return;
+    }
+  }
+
+  force_safepoint_trigger(domain);
+
+  {
+    SPIN_WAIT {
+      if (!atomic_load_acquire(&target->interrupt_pending)) {
+        reset_safepoint_trigger(domain);
+        return;
+      }
     }
   }
 }
@@ -581,11 +611,17 @@ static void domain_create(uintnat initial_minor_heap_wsize,
   */
   if (d->state == NULL) {
     /* FIXME: Never freed. Not clear when to. */
-    domain_state = (caml_domain_state*)
-      caml_stat_calloc_noexc(1, sizeof(caml_domain_state));
-    if (domain_state == NULL)
+    char* block = (char*)
+      caml_stat_alloc_aligned_to_page_size(1, sizeof(caml_domain_state));
+    if (block == NULL)
       goto domain_init_complete;
-    d->state = domain_state;
+
+    int page_size = getpagesize ();
+    CAMLassert((intnat) block % page_size == 0);
+
+    d->state = (caml_domain_state*) (block + page_size);
+    d->state->safepoints_trigger_page = block;
+    domain_state = d->state;
   } else {
     domain_state = d->state;
   }
@@ -683,6 +719,8 @@ static void domain_create(uintnat initial_minor_heap_wsize,
   domain_state->c_stack = NULL;
   domain_state->exn_handler = NULL;
   domain_state->async_exn_handler = NULL;
+
+  domain_state->safepoint_trigger = (void*) domain_state;
 
   domain_state->action_pending = 0;
 
@@ -976,7 +1014,8 @@ struct domain_startup_params {
 static void* backup_thread_func(void* v)
 {
   // single-domain hack
-  caml_fatal_error("backup thread not allowed to run");
+  return 0;
+  // caml_fatal_error("backup thread not allowed to run");
   dom_internal* di = (dom_internal*)v;
   uintnat msg;
   struct interruptor* s = &di->interruptor;
@@ -1517,7 +1556,8 @@ int caml_try_run_on_all_domains_with_spin_work(
 
   for(i = 0; i < stw_request.num_domains; i++) {
     int id = stw_request.participating[i]->id;
-    caml_wait_interrupt_serviced(&all_domains[id].interruptor);
+    caml_wait_interrupt_serviced(all_domains[id].state,
+      &all_domains[id].interruptor);
   }
 
   /* release from the enter barrier */
@@ -1569,6 +1609,7 @@ int caml_try_run_on_all_domains_async(
 void caml_interrupt_self(void)
 {
   interrupt_domain(&domain_self->interruptor);
+  force_safepoint_trigger(domain_self->state);
 }
 
 /* async-signal-safe */
@@ -1728,6 +1769,8 @@ void caml_poll_gc_work(void)
 void caml_handle_gc_interrupt(void)
 {
   CAMLalloc_point_here;
+
+  reset_safepoint_trigger(Caml_state);
 
   if (caml_incoming_interrupts_queued()) {
     /* interrupt */

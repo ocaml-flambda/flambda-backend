@@ -151,6 +151,9 @@ let configuration_variables () =
   p_bool "probes" probes;
   p_bool "stack_allocation" stack_allocation;
 
+  p_bool "poll_insertion" poll_insertion;
+  p_bool "new_safepoints_strategy" new_safepoints_strategy;
+
   p_bool "no_stack_checks" no_stack_checks;
 ]
 
