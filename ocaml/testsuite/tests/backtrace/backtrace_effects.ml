@@ -46,5 +46,7 @@ let _ = baz ()
  flags = "-g";
  ocamlrunparam += ",b=1";
  exit_status = "2";
- skip;
+ runtime5;
+ { bytecode; }
+ { native; }
 *)
