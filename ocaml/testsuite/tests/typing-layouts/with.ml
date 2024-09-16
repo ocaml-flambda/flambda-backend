@@ -78,3 +78,17 @@ Line 2, characters 17-18:
                      ^
 Error: This value is "nonportable" but expected to be "portable".
 |}]
+
+(* user syntax *)
+type 'a t : value mod portable uncontended with 'a = Foo of 'a
+[%%expect{|
+Line 1, characters 0-62:
+1 | type 'a t : value mod portable uncontended with 'a = Foo of 'a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error:
+       The kind of 'a t is value mod uncontended with (ty) portable with (ty)
+         because of the annotation on the declaration of the type t.
+       But the kind of 'a t must be a subkind of
+         value mod uncontended with (ty) portable with (ty)
+         because of the annotation on the declaration of the type t.
+|}]

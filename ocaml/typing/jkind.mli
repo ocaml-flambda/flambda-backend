@@ -164,6 +164,7 @@ module Const : sig
   val get_conservative_externality_upper_bound : t -> Externality.t
 
   val of_user_written_annotation :
+    transl_type:(Parsetree.core_type -> Types.type_expr) option ->
     context:History.annotation_context -> Jane_syntax.Jkind.annotation -> t
 
   (* CR layouts: Remove this once we have a better story for printing with jkind
@@ -292,12 +293,14 @@ val of_const : why:History.creation_reason -> Const.t -> t
 type annotation = Types.type_expr Jkind_types.annotation
 
 val of_annotation :
+  transl_type:(Parsetree.core_type -> Types.type_expr) option ->
   context:History.annotation_context ->
   Jane_syntax.Jkind.annotation ->
   t * annotation
 
 val of_annotation_option_default :
   default:t ->
+  transl_type:(Parsetree.core_type -> Types.type_expr) option ->
   context:History.annotation_context ->
   Jane_syntax.Jkind.annotation option ->
   t * annotation option
@@ -316,6 +319,7 @@ val of_annotation_option_default :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl :
+  transl_type:(Parsetree.core_type -> Types.type_expr) ->
   context:History.annotation_context ->
   Parsetree.type_declaration ->
   (t * annotation * Parsetree.attributes) option
@@ -326,6 +330,7 @@ val of_type_decl :
     Raises if a disallowed or unknown jkind is present.
 *)
 val of_type_decl_default :
+  transl_type:(Parsetree.core_type -> Types.type_expr) ->
   context:History.annotation_context ->
   default:t ->
   Parsetree.type_declaration ->

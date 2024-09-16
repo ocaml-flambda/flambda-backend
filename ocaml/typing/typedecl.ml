@@ -199,6 +199,14 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
   let arity = List.length sdecl.ptype_params in
   let path = Path.Pident id in
 
+  let type_params =
+    List.map (fun (param, _) ->
+        let name = get_type_param_name param in
+        let jkind = get_type_param_jkind path param in
+        Btype.newgenvar ?name jkind)
+      sdecl.ptype_params
+  in
+
   (* There is some trickiness going on here with the jkind.  It expands on an
      old trick used in the manifest of [decl] below.
 
@@ -254,6 +262,12 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
      kind. *)
   let type_jkind, type_jkind_annotation, sdecl_attributes =
     Jkind.of_type_decl_default
+      ~transl_type:(fun ty ->
+        let cty =
+          transl_simple_type ~new_var_jkind:Any env ~closed:true
+            Mode.Alloc.Const.legacy ty
+        in
+        cty.ctyp_type)
       ~context:(Type_declaration path)
       ~default:(Jkind.Builtin.any ~why:Initial_typedecl_env)
       sdecl
@@ -262,14 +276,8 @@ let enter_type ?abstract_abbrevs rec_flag env sdecl (id, uid) =
     match sdecl.ptype_manifest, abstract_abbrevs with
     | None, _ | Some _, None -> Definition, Some (Ctype.newvar type_jkind)
     | Some _, Some reason -> reason, None
-in
-  let type_params =
-    List.map (fun (param, _) ->
-        let name = get_type_param_name param in
-        let jkind = get_type_param_jkind path param in
-        Btype.newgenvar ?name jkind)
-      sdecl.ptype_params
   in
+
   let decl =
     { type_params;
       type_arity = arity;
@@ -538,6 +546,7 @@ let make_constructor
               (fun annot ->
                  let const =
                     Jkind.Const.of_user_written_annotation
+                      ~transl_type:None
                       ~context:(Constructor_type_parameter (cstr_path, v.txt))
                       annot
                  in
@@ -773,7 +782,10 @@ let transl_declaration env sdecl (id, uid) =
   in
   verify_unboxed_attr unboxed_attr sdecl;
   let jkind_from_annotation, jkind_annotation, sdecl_attributes =
-    match Jkind.of_type_decl ~context:(Type_declaration path) sdecl with
+    match Jkind.of_type_decl ~transl_type:(fun sty ->
+      let cty = transl_simple_type ~new_var_jkind:Any env ~closed:true Mode.Alloc.Const.legacy sty in
+      cty.ctyp_type
+      ) ~context:(Type_declaration path) sdecl with
     | Some (jkind, jkind_annotation, sdecl_attributes) ->
         Some jkind, Some jkind_annotation, sdecl_attributes
     | None -> None, None, sdecl.ptype_attributes
@@ -3290,6 +3302,7 @@ let approx_type_decl sdecl_list =
        let injective = sdecl.ptype_kind <> Ptype_abstract in
        let jkind, jkind_annotation, _sdecl_attributes =
          Jkind.of_type_decl_default
+           ~transl_type:(fun _ -> assert false)
            ~context:(Type_declaration path)
            ~default:(Jkind.Builtin.value ~why:Default_type_jkind)
            sdecl

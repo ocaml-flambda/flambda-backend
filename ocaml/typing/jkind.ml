@@ -172,6 +172,7 @@ module Error = struct
           from_attribute : const
         }
     | Modded_bound_with_baggage_constraints : 'a Axis.t -> t
+    | With_on_right
 
   exception User_error of Location.t * t
 end
@@ -752,11 +753,15 @@ module Const = struct
       { layout = base.layout; upper_bounds }
     | With (base, type_) ->
       let base = of_user_written_annotation_unchecked_level ~transl_type base in
-      let type_ = transl_type type_ in
-      { layout = base.layout;
-        upper_bounds =
-          Bounds.add_baggage ~deep_only:true ~baggage:type_ base.upper_bounds
-      }
+      begin match transl_type with
+      | None -> raise ~loc:type_.ptyp_loc With_on_right
+      | Some transl_type ->
+          let type_ = transl_type type_ in
+          { layout = base.layout;
+            upper_bounds =
+              Bounds.add_baggage ~deep_only:true ~baggage:type_ base.upper_bounds
+          }
+      end
     | Default | Kind_of _ -> Misc.fatal_error "XXX unimplemented"
 
   (* The [annotation_context] parameter can be used to allow annotations / kinds
@@ -773,15 +778,8 @@ module Const = struct
       Stable
     | Sort Void, _ | Sort Value, Maybe_null -> Alpha
 
-  let of_user_written_annotation ~context Location.{ loc; txt = annot } =
-    let const =
-      of_user_written_annotation_unchecked_level
-        ~transl_type:(fun _ ->
-          (* A prerequisite for translating types here is de-duplicating calls to this
-             function within typedecl *)
-          failwith "XXX: with syntax unimplemented")
-        annot
-    in
+  let of_user_written_annotation ~transl_type ~context Location.{ loc; txt = annot } =
+    let const = of_user_written_annotation_unchecked_level ~transl_type annot in
     let required_layouts_level = get_required_layouts_level context const in
     if not (Language_extension.is_at_least Layouts required_layouts_level)
     then
@@ -1051,14 +1049,14 @@ let of_const ~why ({ layout; upper_bounds } : Const.t) =
 let of_annotated_const ~context ~const ~const_loc =
   of_const ~why:(Annotated (context, const_loc)) const
 
-let of_annotation ~context (annot : _ Location.loc) =
-  let const = Const.of_user_written_annotation ~context annot in
+let of_annotation ~transl_type ~context (annot : _ Location.loc) =
+  let const = Const.of_user_written_annotation ~transl_type ~context annot in
   let jkind = of_annotated_const ~const ~const_loc:annot.loc ~context in
   jkind, (const, annot)
 
-let of_annotation_option_default ~default ~context =
+let of_annotation_option_default ~default ~transl_type ~context =
   Option.fold ~none:(default, None) ~some:(fun annot ->
-      let t, annot = of_annotation ~context annot in
+      let t, annot = of_annotation ~transl_type ~context annot in
       t, Some annot)
 
 let of_attribute ~context
@@ -1066,11 +1064,11 @@ let of_attribute ~context
   let const = Const.of_attribute attribute.txt in
   of_annotated_const ~context ~const ~const_loc:attribute.loc, const
 
-let of_type_decl ~context (decl : Parsetree.type_declaration) =
+let of_type_decl ~transl_type ~context (decl : Parsetree.type_declaration) =
   let jkind_of_annotation =
     Jane_syntax.Layouts.of_type_declaration decl
     |> Option.map (fun (annot, attrs) ->
-           let t, const = of_annotation ~context annot in
+           let t, const = of_annotation ~transl_type:(Some transl_type) ~context annot in
            t, const, attrs)
   in
   let jkind_of_attribute =
@@ -1100,8 +1098,8 @@ let of_type_decl ~context (decl : Parsetree.type_declaration) =
     raise ~loc:decl.ptype_loc
       (Multiple_jkinds { from_annotation; from_attribute })
 
-let of_type_decl_default ~context ~default (decl : Parsetree.type_declaration) =
-  match of_type_decl ~context decl with
+let of_type_decl_default ~transl_type ~context ~default (decl : Parsetree.type_declaration) =
+  match of_type_decl ~transl_type ~context decl with
   | Some (t, const, attrs) -> t, Some const, attrs
   | None -> default, None, decl.ptype_attributes
 
@@ -1995,6 +1993,8 @@ let report_error ~loc : Error.t -> _ = function
       "Attempted to 'mod' a kind along the %s axis, which has already been \
        constrained with a 'with' constraint."
       (Axis.name axis)
+  | With_on_right ->
+    Location.errorf ~loc "'with' syntax is not allowed on a right mode."
 
 let () =
   Location.register_error_of_exn (function

@@ -505,6 +505,15 @@ module type S' =
   end
 |}]
 
+module type S' = sig
+include sig
+  val foo : 'a -> 'a
+end @@ portable
+end
+[%%expect{|
+module type S' = sig val foo : 'a -> 'a @@ portable end
+|}]
+
 (* Include functor module types with modalities *)
 module type S = functor (_ : sig end) -> sig
   val foo : 'a -> 'a
@@ -549,3 +558,39 @@ module type S' =
 
 (* CR zqian: add tests of recursive modules & include w/ modalties, once
    modules can have modes. *)
+
+module type T1 = sig
+  val x : unit -> unit
+end
+
+module type T2 = sig
+  include T1 @@ portable
+
+end
+
+module type T3 = sig
+  val x : unit -> unit @@ portable
+end
+
+module T : T3 = struct
+  let x @ nonportable = fun () -> ()
+end
+[%%expect{|
+module type T1 = sig val x : unit -> unit end
+module type T2 = sig val x : unit -> unit @@ portable end
+module type T3 = sig val x : unit -> unit @@ portable end
+Lines 14-16, characters 16-3:
+14 | ................struct
+15 |   let x @ nonportable = fun () -> ()
+16 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val x : unit -> unit @@ global many end
+       is not included in
+         T3
+       Values do not match:
+         val x : unit -> unit @@ global many
+       is not included in
+         val x : unit -> unit @@ portable
+       The second is portable and the first is not.
+|}]
