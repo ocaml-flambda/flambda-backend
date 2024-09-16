@@ -6207,7 +6207,13 @@ and type_expect_
       let to_unify = Predef.type_lazy_t ty in
       with_explanation (fun () ->
         unify_exp_types loc env to_unify (generic_instance ty_expected));
-      let closure_mode = (as_single_mode expected_mode).comonadic in
+      let closure_mode =
+        as_single_mode expected_mode
+        (* the thunk is evaluated only once, so we only require it to be [once],
+           even if the [lazy] is [many]. *)
+        |> Value.join_with (Comonadic Linearity) Linearity.Const.Once
+        |> (fun x -> x.comonadic)
+      in
       let env = Env.add_closure_lock Lazy closure_mode env in
       let arg = type_expect env expected_mode e (mk_expected ty) in
       re {

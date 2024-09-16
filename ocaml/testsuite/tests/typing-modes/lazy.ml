@@ -1,4 +1,5 @@
 (* TEST
+    flags += "-extension unique";
     expect;
 *)
 
@@ -115,3 +116,19 @@ Error: This value is contended but expected to be uncontended.
 |}]
 
 (* stdlib's [Lazy.force] is a special case of lazy pattern *)
+
+(* thunk can close over [unique] values and be [once], even if the lazy itself is [many]. *)
+let use_unique (_ @ unique) = ()
+let use_many (_ @ many) = ()
+[%%expect{|
+val use_unique : unique_ 'a -> unit = <fun>
+val use_many : 'a -> unit = <fun>
+|}]
+
+let foo () =
+    let x = "hello" in
+    let t = lazy (use_unique x) in
+    use_many t
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]
