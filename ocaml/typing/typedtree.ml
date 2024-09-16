@@ -52,6 +52,9 @@ type _ pattern_category =
 
 type unique_barrier = Mode.Uniqueness.r
 
+let fresh_unique_barrier () =
+  ref (Uniqueness.max |> Uniqueness.disallow_left)
+
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
 type alloc_mode = {
@@ -77,6 +80,7 @@ and 'a pattern_data =
     pat_type: type_expr;
     pat_env: Env.t;
     pat_attributes: attribute list;
+    pat_unique_barrier : unique_barrier ref;
    }
 
 and pat_extra =
@@ -169,12 +173,15 @@ and expression_desc =
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
-      alloc_mode : alloc_mode option
+      alloc_mode : alloc_mode option;
+      unique_barrier : unique_barrier ref
     }
   | Texp_field of
-      expression * Longident.t loc * label_description * texp_field_boxing
+      expression * Longident.t loc * label_description * texp_field_boxing *
+        unique_barrier ref
   | Texp_setfield of
-      expression * Mode.Locality.l * Longident.t loc * label_description * expression
+      expression * Mode.Locality.l * Longident.t loc * label_description * expression *
+        unique_barrier ref
   | Texp_array of mutability * Jkind.Sort.t * expression list * alloc_mode
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutability * Jkind.sort * comprehension
@@ -851,6 +858,7 @@ let as_computation_pattern (p : pattern) : computation general_pattern =
     pat_type = p.pat_type;
     pat_env = p.pat_env;
     pat_attributes = [];
+    pat_unique_barrier = fresh_unique_barrier ();
   }
 
 let function_arity params body =
@@ -1189,7 +1197,7 @@ let rec exp_is_nominal exp =
   | Texp_variant (_, None)
   | Texp_construct (_, _, [], _) ->
       true
-  | Texp_field (parent, _, _, _) | Texp_send (parent, _, _) ->
+  | Texp_field (parent, _, _, _, _) | Texp_send (parent, _, _) ->
       exp_is_nominal parent
   | _ -> false
 

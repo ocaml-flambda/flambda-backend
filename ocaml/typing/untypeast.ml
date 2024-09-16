@@ -634,9 +634,9 @@ let expression sub exp =
             [] fields
         in
         Pexp_record (list, Option.map (sub.expr sub) extended_expression)
-    | Texp_field (exp, lid, _label, _) ->
+    | Texp_field (exp, lid, _label, _, _) ->
         Pexp_field (sub.expr sub exp, map_loc sub lid)
-    | Texp_setfield (exp1, _, lid, _label, exp2) ->
+    | Texp_setfield (exp1, _, lid, _label, exp2, _) ->
         Pexp_setfield (sub.expr sub exp1, map_loc sub lid,
           sub.expr sub exp2)
     | Texp_array (amut, _, list, _) -> begin

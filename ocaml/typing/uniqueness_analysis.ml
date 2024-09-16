@@ -766,7 +766,7 @@ module Paths : sig
   val choose : t -> t -> t
 
   val mark_implicit_borrow_memory_address :
-    Maybe_aliased.access -> Occurrence.t -> t -> UF.t
+    unique_barrier ref -> Maybe_aliased.access -> Occurrence.t -> t -> UF.t
 
   val mark_aliased : Occurrence.t -> Aliased.reason -> t -> UF.t
 end = struct
@@ -808,11 +808,7 @@ end = struct
 
   let fresh () = [UF.Path.fresh_root ()]
 
-  let mark_implicit_borrow_memory_address access occ paths =
-    (* Currently we just generate a dummy unique_barrier ref that won't be
-        consumed. The distinction between implicit and explicit borrowing is
-        still needed because they are handled differently in closures *)
-    let barrier = ref (Uniqueness.max |> Uniqueness.disallow_left) in
+  let mark_implicit_borrow_memory_address barrier access occ paths =
     mark
       (Maybe_aliased (Maybe_aliased.singleton barrier occ access))
       (memory_address paths)
@@ -857,10 +853,9 @@ module Value : sig
   val mark_maybe_unique : t -> UF.t
 
   (** Mark the memory_address of the value as implicitly borrowed
-      (borrow_or_aliased). We still ask for the [occ] argument, because
-      [Value.occ] is the occurrence of the value, not necessary the place where
-      it is borrowed. *)
-  val mark_implicit_borrow_memory_address : Maybe_aliased.access -> t -> UF.t
+      (borrow_or_aliased). *)
+  val mark_implicit_borrow_memory_address :
+    unique_barrier ref -> Maybe_aliased.access -> t -> UF.t
 
   val mark_aliased : reason:boundary_reason -> t -> UF.t
 end = struct
@@ -887,10 +882,10 @@ end = struct
       let paths = Paths.record_field gf s paths in
       Existing { paths; occ; unique_use }
 
-  let mark_implicit_borrow_memory_address access = function
+  let mark_implicit_borrow_memory_address barrier access = function
     | Fresh -> UF.unused
     | Existing { paths; occ; _ } ->
-      Paths.mark_implicit_borrow_memory_address access occ paths
+      Paths.mark_implicit_borrow_memory_address barrier access occ paths
 
   let mark_maybe_unique = function
     | Fresh -> UF.unused
@@ -1038,9 +1033,13 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     Ienv.Extension.conjunct ext0 ext1, uf
   | Tpat_constant _ ->
     ( Ienv.Extension.empty,
-      Paths.mark_implicit_borrow_memory_address Read occ paths )
+      Paths.mark_implicit_borrow_memory_address pat.pat_unique_barrier Read occ
+        paths )
   | Tpat_construct (lbl, cd, pats, _) ->
-    let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
+    let uf_read =
+      Paths.mark_implicit_borrow_memory_address pat.pat_unique_barrier Read occ
+        paths
+    in
     let pats_args = List.combine pats cd.cstr_args in
     let ext, uf_pats =
       List.mapi
@@ -1053,7 +1052,10 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     in
     ext, UF.par uf_read uf_pats
   | Tpat_variant (lbl, arg, _) ->
-    let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
+    let uf_read =
+      Paths.mark_implicit_borrow_memory_address pat.pat_unique_barrier Read occ
+        paths
+    in
     let ext, uf_arg =
       match arg with
       | Some arg ->
@@ -1063,7 +1065,10 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     in
     ext, UF.par uf_read uf_arg
   | Tpat_record (pats, _) ->
-    let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
+    let uf_read =
+      Paths.mark_implicit_borrow_memory_address pat.pat_unique_barrier Read occ
+        paths
+    in
     let ext, uf_pats =
       List.map
         (fun (_, l, pat) ->
@@ -1074,7 +1079,10 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     in
     ext, UF.par uf_read uf_pats
   | Tpat_array (_, _, pats) ->
-    let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
+    let uf_read =
+      Paths.mark_implicit_borrow_memory_address pat.pat_unique_barrier Read occ
+        paths
+    in
     let ext, uf_pats =
       List.map
         (fun pat ->
@@ -1091,7 +1099,10 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     let ext, uf_arg = pattern_match_single arg paths in
     ext, UF.par uf_force uf_arg
   | Tpat_tuple args ->
-    let uf_read = Paths.mark_implicit_borrow_memory_address Read occ paths in
+    let uf_read =
+      Paths.mark_implicit_borrow_memory_address pat.pat_unique_barrier Read occ
+        paths
+    in
     let ext, uf_args =
       List.mapi
         (fun i (_, arg) ->
@@ -1279,13 +1290,15 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     UF.pars (List.map (fun e -> check_uniqueness_exp ienv e) es)
   | Texp_variant (_, None) -> UF.unused
   | Texp_variant (_, Some (arg, _)) -> check_uniqueness_exp ienv arg
-  | Texp_record { fields; extended_expression } ->
+  | Texp_record { fields; extended_expression; unique_barrier } ->
     let value, uf_ext =
       match extended_expression with
       | None -> Value.fresh, UF.unused
       | Some exp ->
         let value, uf_exp = check_uniqueness_exp_as_value ienv exp in
-        let uf_read = Value.mark_implicit_borrow_memory_address Read value in
+        let uf_read =
+          Value.mark_implicit_borrow_memory_address unique_barrier Read value
+        in
         value, UF.par uf_exp uf_read
     in
     let uf_fields =
@@ -1305,10 +1318,12 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
   | Texp_field _ ->
     let value, uf = check_uniqueness_exp_as_value ienv exp in
     UF.seq uf (Value.mark_maybe_unique value)
-  | Texp_setfield (rcd, _, _, _, arg) ->
+  | Texp_setfield (rcd, _, _, _, arg, unique_barrier) ->
     let value, uf_rcd = check_uniqueness_exp_as_value ienv rcd in
     let uf_arg = check_uniqueness_exp ienv arg in
-    let uf_write = Value.mark_implicit_borrow_memory_address Write value in
+    let uf_write =
+      Value.mark_implicit_borrow_memory_address unique_barrier Write value
+    in
     UF.pars [uf_rcd; uf_arg; uf_write]
   | Texp_array (_, _, es, _) ->
     UF.pars (List.map (fun e -> check_uniqueness_exp ienv e) es)
@@ -1418,14 +1433,16 @@ and check_uniqueness_exp_as_value ienv exp : Value.t * UF.t =
       | Some value -> value
     in
     value, UF.unused
-  | Texp_field (e, _, l, float) -> (
+  | Texp_field (e, _, l, float, unique_barrier) -> (
     let value, uf = check_uniqueness_exp_as_value ienv e in
     match Value.paths value with
     | None -> Value.fresh, uf
     | Some paths ->
       (* accessing the field meaning borrowing the parent record's mem
          block. Note that the field itself is not borrowed or used *)
-      let uf_read = Value.mark_implicit_borrow_memory_address Read value in
+      let uf_read =
+        Value.mark_implicit_borrow_memory_address unique_barrier Read value
+      in
       let uf_boxing, value =
         let occ = Occurrence.mk loc in
         let paths = Paths.record_field l.lbl_modalities l.lbl_name paths in

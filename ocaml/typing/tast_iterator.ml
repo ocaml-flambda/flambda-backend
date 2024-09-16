@@ -348,10 +348,10 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
         | _, Overridden (lid, exp) -> iter_loc sub lid; sub.expr sub exp)
         fields;
       Option.iter (sub.expr sub) extended_expression;
-  | Texp_field (exp, lid, _, _) ->
+  | Texp_field (exp, lid, _, _, _) ->
       iter_loc sub lid;
       sub.expr sub exp
-  | Texp_setfield (exp1, _, lid, _, exp2) ->
+  | Texp_setfield (exp1, _, lid, _, exp2, _) ->
       iter_loc sub lid;
       sub.expr sub exp1;
       sub.expr sub exp2

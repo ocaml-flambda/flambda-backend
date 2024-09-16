@@ -63,12 +63,13 @@ type _ pattern_category =
 | Value : value pattern_category
 | Computation : computation pattern_category
 
-(* CR zqian: use this field when overwriting is supported. *)
 (** Access mode for a field projection, represented by the usage of the record
   immediately following the projection. If the following usage is unique, the
   projection must be borrowed and cannot be moved. If the following usage is
   aliased, the projection can be aliased and moved. *)
 type unique_barrier = Mode.Uniqueness.r
+
+val fresh_unique_barrier : unit -> unique_barrier ref
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
@@ -97,6 +98,7 @@ and 'a pattern_data =
     pat_type: Types.type_expr;
     pat_env: Env.t;
     pat_attributes: attributes;
+    pat_unique_barrier : unique_barrier ref;
    }
 
 and pat_extra =
@@ -356,7 +358,8 @@ and expression_desc =
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
-      alloc_mode : alloc_mode option
+      alloc_mode : alloc_mode option;
+      unique_barrier : unique_barrier ref
     }
         (** { l1=P1; ...; ln=Pn }           (extended_expression = None)
             { E0 with l1=P1; ...; ln=Pn }   (extended_expression = Some E0)
@@ -373,12 +376,12 @@ and expression_desc =
             in which case it does not need allocation.
           *)
   | Texp_field of expression * Longident.t loc * Types.label_description *
-      texp_field_boxing
+      texp_field_boxing * unique_barrier ref
     (** [texp_field_boxing] provides extra information depending on if the
         projection requires boxing. *)
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc *
-      Types.label_description * expression
+      Types.label_description * expression * unique_barrier ref
     (** [alloc_mode] translates to the [modify_mode] of the record *)
   | Texp_array of Types.mutability * Jkind.Sort.t * expression list * alloc_mode
   | Texp_list_comprehension of comprehension

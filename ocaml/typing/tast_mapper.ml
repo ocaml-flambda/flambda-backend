@@ -476,7 +476,8 @@ let expr sub x =
         Texp_construct (map_loc sub lid, cd, List.map (sub.expr sub) args, am)
     | Texp_variant (l, expo) ->
         Texp_variant (l, Option.map (fun (e, am) -> (sub.expr sub e, am)) expo)
-    | Texp_record { fields; representation; extended_expression; alloc_mode } ->
+    | Texp_record { fields; representation; extended_expression; alloc_mode;
+                    unique_barrier } ->
         let fields = Array.map (function
             | label, Kept (t, mut, uu) -> label, Kept (t, mut, uu)
             | label, Overridden (lid, exp) ->
@@ -486,17 +487,18 @@ let expr sub x =
         Texp_record {
           fields; representation;
           extended_expression = Option.map (sub.expr sub) extended_expression;
-          alloc_mode
+          alloc_mode; unique_barrier
         }
-    | Texp_field (exp, lid, ld, float) ->
-        Texp_field (sub.expr sub exp, map_loc sub lid, ld, float)
-    | Texp_setfield (exp1, am, lid, ld, exp2) ->
+    | Texp_field (exp, lid, ld, float, ubr) ->
+        Texp_field (sub.expr sub exp, map_loc sub lid, ld, float, ubr)
+    | Texp_setfield (exp1, am, lid, ld, exp2, ubr) ->
         Texp_setfield (
           sub.expr sub exp1,
           am,
           map_loc sub lid,
           ld,
-          sub.expr sub exp2
+          sub.expr sub exp2,
+          ubr
         )
     | Texp_array (amut, sort, list, alloc_mode) ->
         Texp_array (amut, sort, List.map (sub.expr sub) list, alloc_mode)
