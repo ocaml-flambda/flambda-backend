@@ -2387,8 +2387,7 @@ let type_jkind_purely env ty =
     type_jkind env ty
 
 let estimate_type_jkind env ty =
-  estimate_type_jkind env ~expand_components:(fun x -> x)
-    (get_unboxed_type_approximation env ty)
+  estimate_type_jkind env ~expand_components:(fun x -> x) ty
 
 let type_sort ~why env ty =
   let jkind, sort = Jkind.of_new_sort_var ~why in
