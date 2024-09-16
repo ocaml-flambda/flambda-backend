@@ -6208,7 +6208,8 @@ and type_expect_
       with_explanation (fun () ->
         unify_exp_types loc env to_unify (generic_instance ty_expected));
       let closure_mode =
-        as_single_mode expected_mode
+        expected_mode
+        |> as_single_mode
         (* the thunk is evaluated only once, so we only require it to be [once],
            even if the [lazy] is [many]. *)
         |> Value.join_with (Comonadic Linearity) Linearity.Const.Once
