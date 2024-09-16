@@ -50,7 +50,7 @@ type _ pattern_category =
 | Value : value pattern_category
 | Computation : computation pattern_category
 
-type unique_barrier = Mode.Uniqueness.r option
+type unique_barrier = Mode.Uniqueness.r
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
