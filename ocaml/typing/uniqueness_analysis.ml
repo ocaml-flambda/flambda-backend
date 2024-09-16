@@ -121,12 +121,12 @@ module Maybe_shared : sig
   (** Extract an arbitrary occurrence from the usage *)
   val extract_occurrence_access : t -> Occurrence.t * access
 
-  (** set a barrier. The uniqueness mode represents the usage immediately
+  (** Add a barrier. The uniqueness mode represents the usage immediately
       following the current usage. If that mode is Unique, the current usage
        must be Borrowed (hence no code motion); if that mode is not restricted
-       to Unique, this usage can be Borrowed or Shared (prefered). Raise if
-        called more than once. *)
-  val set_barrier : t -> Uniqueness.r -> unit
+       to Unique, this usage can be Borrowed or Shared (prefered). Can be called
+       multiple times for multiple barriers (for different branches). *)
+  val add_barrier : t -> Uniqueness.r -> unit
 
   val meet : t -> t -> t
 
@@ -155,12 +155,9 @@ end = struct
     | [] -> assert false
     | (_, occ, access) :: _ -> occ, access
 
-  let set_barrier t uniq =
+  let add_barrier t uniq =
     List.iter
-      (fun (barrier, _, _) ->
-        match !barrier with
-        | None -> barrier := Some uniq
-        | Some _ -> assert false)
+      (fun (barrier, _, _) -> barrier := Uniqueness.meet [!barrier; uniq])
       t
 end
 
@@ -400,7 +397,7 @@ end = struct
           checking of the whole file, m1 will correctly tells whether it needs
           to be Unique, and by extension whether m0 can be Shared. *)
       let uniq = Maybe_unique.uniqueness l1 in
-      Maybe_shared.set_barrier l0 uniq;
+      Maybe_shared.add_barrier l0 uniq;
       m1
     | Shared _, Borrowed _ -> m0
     | Maybe_unique l, Borrowed occ ->
@@ -811,7 +808,7 @@ end = struct
     (* Currently we just generate a dummy unique_barrier ref that won't be
         consumed. The distinction between implicit and explicit borrowing is
         still needed because they are handled differently in closures *)
-    let barrier = ref None in
+    let barrier = ref (Uniqueness.max |> Uniqueness.disallow_left) in
     mark
       (Maybe_shared (Maybe_shared.singleton barrier occ access))
       (memory_address paths)
