@@ -342,7 +342,12 @@ let to_location { dbg; assume_zero_alloc=_ } =
 
 let inline { dbg = dbg1; assume_zero_alloc = a1; }
       { dbg = dbg2; assume_zero_alloc = a2; } =
-  { dbg = dbg1 @ dbg2; assume_zero_alloc = ZA.Assume_info.meet a1 a2; }
+  { dbg = dbg1 @ dbg2;
+    assume_zero_alloc =
+      (* Drop "inferred" zero_alloc annotation from a call when
+         the callee is inlined. *)
+      if ZA.Assume_info.is_inferred a1 then a2 else
+      ZA.Assume_info.meet a1 a2; }
 
 let is_none { dbg; assume_zero_alloc } =
   ZA.Assume_info.is_none assume_zero_alloc && Dbg.is_none dbg

@@ -155,6 +155,8 @@ module Assume_info : sig
 
   val is_none : t -> bool
 
+  val is_inferred : t -> bool
+
   module Witnesses : sig
     type t = unit
 
