@@ -459,21 +459,23 @@ uintnat* caml_lookup_gc_tweak(const char* name, uintnat len)
 
 CAMLprim value caml_gc_tweak_get(value name)
 {
+  CAMLparam1(name);
   uintnat* p = caml_lookup_gc_tweak(String_val(name),
                                     caml_string_length(name));
   if (p == NULL)
     caml_invalid_argument("Gc.Tweak: parameter not found");
-  return Val_long((long)*p);
+  CAMLreturn (Val_long((long)*p));
 }
 
 CAMLprim value caml_gc_tweak_set(value name, value v)
 {
+  CAMLparam2(name, v);
   uintnat* p = caml_lookup_gc_tweak(String_val(name),
                                     caml_string_length(name));
   if (p == NULL)
     caml_invalid_argument("Gc.Tweak: parameter not found");
   *p = (uintnat)Long_val(v);
-  return Val_unit;
+  CAMLreturn (Val_unit);
 }
 
 CAMLprim value caml_gc_tweak_list_active(value unit)
