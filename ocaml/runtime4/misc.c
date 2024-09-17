@@ -225,8 +225,14 @@ void caml_flambda2_invalid (value message)
 {
   fprintf (stderr, "[ocaml] [flambda2] Invalid code:\n%s\n\n",
     String_val(message));
-  fprintf (stderr, "This might have arisen from a wrong use of [Obj.magic].\n");
-  fprintf (stderr, "Consider using [Sys.opaque_identity].\n");
+  fprintf (stderr,
+    "This might have arisen from a wrong use of [%%identity],\n");
+  fprintf (stderr,
+    "for example confusing arrays and records, or non-mixed and\n");
+  fprintf (stderr,
+    "mixed blocks.\n");
+  fprintf (stderr,
+    "Consider using [Obj.magic], [Obj.repr] and/or [Obj.obj].\n");
   abort ();
 }
 

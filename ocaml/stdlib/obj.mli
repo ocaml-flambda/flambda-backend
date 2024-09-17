@@ -25,8 +25,8 @@ type t
 
 type raw_data = nativeint  (* @since 4.12 *)
 
-external repr : 'a -> t = "%identity"
-external obj : t -> 'a = "%identity"
+external repr : 'a -> t = "%obj_magic"
+external obj : t -> 'a = "%obj_magic"
 external magic : 'a -> 'b = "%obj_magic"
 val is_block : t -> bool
 external is_int : t -> bool = "%obj_is_int"
