@@ -4817,6 +4817,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
               (* [t2] and [u2] is the user-written interface, which we deem as
                  more "principal" and used for mode crossing. See
                  [typing-modes/crossing.ml]. *)
+              (* CR zqian: should use the meet of [t1] and [t2] for mode
+              crossing. Similar for [u1] and [u2]. *)
               moregen_alloc_mode env t2 ~is_ret:false (neg_variance variance) a1 a2;
               moregen_alloc_mode env u2 ~is_ret:true variance r1 r2
           | (Ttuple labeled_tl1, Ttuple labeled_tl2) ->
