@@ -357,7 +357,7 @@ let zero_alloc_of_application
   match annotation, funct.exp_desc with
   | Some assume, _ ->
     (* The user wrote a zero_alloc attribute on the application - keep it. *)
-    Builtin_attributes.assume_zero_alloc assume
+    Builtin_attributes.assume_zero_alloc ~inferred:false assume
   | None, Texp_ident (_, _, { val_zero_alloc; _ }, _, _) ->
     (* We assume the call is zero_alloc if the function is known to be
        zero_alloc. If the function is zero_alloc opt, then we need to be sure
@@ -378,7 +378,7 @@ let zero_alloc_of_application
           arity = c.arity;
           loc = c.loc }
       in
-      Builtin_attributes.assume_zero_alloc assume
+      Builtin_attributes.assume_zero_alloc ~inferred:true assume
     | Check _ | Default_zero_alloc | Ignore_assert_all | Assume _ ->
       Zero_alloc_utils.Assume_info.none
     end
@@ -447,7 +447,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let assume_zero_alloc =
         match zero_alloc with
         | None -> Zero_alloc_utils.Assume_info.none
-        | Some assume -> Builtin_attributes.assume_zero_alloc assume
+        | Some assume -> Builtin_attributes.assume_zero_alloc ~inferred:false assume
       in
       let lam =
         let loc =
@@ -1662,7 +1662,7 @@ and transl_function ~in_new_scope ~scopes e params body
     | Default_zero_alloc | Check _ | Ignore_assert_all ->
       Zero_alloc_utils.Assume_info.none
     | Assume assume ->
-      Builtin_attributes.assume_zero_alloc assume
+      Builtin_attributes.assume_zero_alloc ~inferred:false assume
   in
   let scopes =
     if in_new_scope then
