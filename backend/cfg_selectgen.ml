@@ -216,7 +216,7 @@ class virtual selector_generic =
 
     method insert
         : environment -> Cfg.basic -> Reg.t array -> Reg.t array -> unit =
-      fun _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ -> Misc.fatal_error "not implemented (Cfg_selectgen#insert)"
 
     method insert_debug
         : environment ->
@@ -225,7 +225,8 @@ class virtual selector_generic =
           Reg.t array ->
           Reg.t array ->
           unit =
-      fun _ _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ _ ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#insert_debug)"
 
     method insert_move env src dst =
       if src.Reg.stamp <> dst.Reg.stamp
@@ -237,7 +238,8 @@ class virtual selector_generic =
           Cmm.expression ->
           Debuginfo.t ->
           Reg.t array option =
-      fun _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#emit_expr_aux_raise)"
 
     method emit_expr_aux_op
         : environment ->
@@ -246,7 +248,8 @@ class virtual selector_generic =
           Cmm.expression list ->
           Debuginfo.t ->
           Reg.t array option =
-      fun _ _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ _ ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#emit_expr_aux_op)"
 
     method emit_expr_aux_ifthenelse
         : environment ->
@@ -259,7 +262,9 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           Reg.t array option =
-      fun _ _ _ _ _ _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ _ _ _ _ _ ->
+        Misc.fatal_error
+          "not implemented (Cfg_selectgen#emit_expr_aux_ifthenelse)"
 
     method emit_expr_aux_switch
         : environment ->
@@ -270,7 +275,8 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           Reg.t array option =
-      fun _ _ _ _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ _ _ _ ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#emit_expr_aux_switch)"
 
     method emit_expr_aux_catch
         : environment ->
@@ -285,7 +291,8 @@ class virtual selector_generic =
           Cmm.expression ->
           Cmm.kind_for_unboxing ->
           Reg.t array option =
-      fun _ _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ _ ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#emit_expr_aux_catch)"
 
     method emit_expr_aux_exit
         : environment ->
@@ -293,7 +300,8 @@ class virtual selector_generic =
           Cmm.expression list ->
           Cmm.trap_action list ->
           Reg.t array option =
-      fun _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#emit_expr_aux_exit)"
 
     method emit_expr_aux_trywith
         : environment ->
@@ -305,11 +313,13 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           Reg.t array option =
-      fun _ _ _ _ _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ _ _ _ _ ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#emit_expr_aux_trywith)"
 
     method emit_return
         : environment -> Cmm.expression -> Cmm.trap_action list -> unit =
-      fun _ _ _ -> Misc.fatal_error "not implemented"
+      fun _env _exp _traps ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#emit_return)"
 
     method emit_tail_apply
         : environment ->
@@ -318,7 +328,8 @@ class virtual selector_generic =
           Cmm.expression list ->
           Debuginfo.t ->
           unit =
-      fun _ _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ _ ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#emit_tail_apply)"
 
     method emit_tail_ifthenelse
         : environment ->
@@ -330,7 +341,8 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           unit =
-      fun _ _ _ _ _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ _ _ _ _ ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#emit_tail_ifthenelse)"
 
     method emit_tail_switch
         : environment ->
@@ -340,7 +352,8 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           unit =
-      fun _ _ _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ _ _ ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#emit_tail_switch)"
 
     method emit_tail_catch
         : environment ->
@@ -354,7 +367,8 @@ class virtual selector_generic =
           Cmm.expression ->
           Cmm.kind_for_unboxing ->
           unit =
-      fun _ _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ _ ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#emit_tail_catch)"
 
     method emit_tail_trywith
         : environment ->
@@ -365,5 +379,13 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           unit =
-      fun _ _ _ _ _ _ _ -> Misc.fatal_error "not implemented"
+      fun _ _ _ _ _ _ _ ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#emit_tail_trywith)"
+
+    method emit_fundecl
+        : future_funcnames:Misc.Stdlib.String.Set.t ->
+          Cmm.fundecl ->
+          Cfg_with_layout.t =
+      fun ~future_funcnames:_ _ ->
+        Misc.fatal_error "not implemented (Cfg_selectgen#emit_fundecl)"
   end
