@@ -25,7 +25,7 @@ constraint
 type equ_fn = unit
 |}]
 
-(* uniqueness of closures are by default shared,
+(* uniqueness of closures are by default aliased,
    regardless of anything; unique would be better
    except for some backward compatibility issues *)
 type equ_fn = unit

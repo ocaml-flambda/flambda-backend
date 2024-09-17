@@ -38,12 +38,12 @@ module M : sig val foo : r @@ global many end
 |}]
 
 module type S = sig
-    val x : string @@ global local unique shared once many uncontended contended
+    val x : string @@ global local unique aliased once many uncontended contended
       portable nonportable
 end
 [%%expect{|
 module type S =
-  sig val x : string @@ global many portable shared contended end
+  sig val x : string @@ global many portable aliased contended end
 |}]
 
 (* values' comonadic axes must be lower than the module *)
