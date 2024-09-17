@@ -310,7 +310,8 @@ end = struct
     match m0, m1 with
     | Unused, m | m, Unused -> m
     | Borrowed _, t | t, Borrowed _ -> t
-    | Maybe_aliased l0, Maybe_aliased l1 -> Maybe_aliased (Maybe_aliased.meet l0 l1)
+    | Maybe_aliased l0, Maybe_aliased l1 ->
+      Maybe_aliased (Maybe_aliased.meet l0 l1)
     | Maybe_aliased _, t | t, Maybe_aliased _ -> t
     | Aliased _, t | t, Aliased _ -> t
     | Maybe_unique l0, Maybe_unique l1 -> Maybe_unique (Maybe_unique.meet l0 l1)
@@ -337,12 +338,14 @@ end = struct
     match m0, m1 with
     | Unused, m | m, Unused -> m
     | Borrowed occ, Borrowed _ -> Borrowed occ
-    | Borrowed _, Maybe_aliased t | Maybe_aliased t, Borrowed _ -> Maybe_aliased t
+    | Borrowed _, Maybe_aliased t | Maybe_aliased t, Borrowed _ ->
+      Maybe_aliased t
     | Borrowed _, Aliased t | Aliased t, Borrowed _ -> Aliased t
     | Borrowed occ, Maybe_unique t | Maybe_unique t, Borrowed occ ->
       force_aliased_multiuse t (Borrowed occ) First;
       aliased (Maybe_unique.extract_occurrence t) Aliased.Forced
-    | Maybe_aliased t0, Maybe_aliased t1 -> Maybe_aliased (Maybe_aliased.meet t0 t1)
+    | Maybe_aliased t0, Maybe_aliased t1 ->
+      Maybe_aliased (Maybe_aliased.meet t0 t1)
     | Maybe_aliased _, Aliased occ | Aliased occ, Maybe_aliased _ ->
       (* The barrier stays empty; if there is any unique after this, it
          will error *)
@@ -370,7 +373,8 @@ end = struct
     | Unused, m | m, Unused -> m
     | Borrowed _, t -> t
     | Maybe_aliased _, Borrowed _ -> m0
-    | Maybe_aliased l0, Maybe_aliased l1 -> Maybe_aliased (Maybe_aliased.meet l0 l1)
+    | Maybe_aliased l0, Maybe_aliased l1 ->
+      Maybe_aliased (Maybe_aliased.meet l0 l1)
     | Maybe_aliased _, Aliased _ -> m1
     | Maybe_aliased l0, Maybe_unique l1 ->
       (* Four cases (semi-colon meaning sequential composition):
