@@ -4749,6 +4749,9 @@ let submode_with_cross env ~is_ret ty l r =
   let r' = mode_cross_right env ty r in
   let r' =
     if is_ret then
+      (* the locality axis of the return mode cannot cross modes, because a
+         local-returning function might allocate in the caller's region, and
+         this info must be preserved. *)
       Alloc.meet [r'; Alloc.max_with (Comonadic Areality) (Alloc.proj (Comonadic Areality) r)]
     else
       r'
@@ -4812,7 +4815,8 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
               moregen inst_nongen (neg_variance variance) type_pairs env t1 t2;
               moregen inst_nongen variance type_pairs env u1 u2;
               (* [t2] and [u2] is the user-written interface, which we deem as
-                 more "principal". *)
+                 more "principal" and used for mode crossing. See
+                 [typing-modes/crossing.ml]. *)
               moregen_alloc_mode env t2 ~is_ret:false (neg_variance variance) a1 a2;
               moregen_alloc_mode env u2 ~is_ret:true variance r1 r2
           | (Ttuple labeled_tl1, Ttuple labeled_tl2) ->
