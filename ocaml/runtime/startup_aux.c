@@ -21,6 +21,7 @@
    and native code. */
 
 #include <stdio.h>
+#include <string.h>
 #include "caml/backtrace.h"
 #include "caml/memory.h"
 #include "caml/callback.h"
@@ -142,14 +143,19 @@ void caml_parse_ocamlrunparam(void)
         char_os *name = opt;
         while (*opt != '\0') {
           if (*opt == '=') {
-            uintnat* p = caml_lookup_gc_tweak(name, opt - name);
-            if (p == NULL) {
-              fprintf(stderr, "Ignored unknown GC tweak '%.*s'\n",
-                      (int)(opt - name), name);
-	      fprintf(stderr, "Known GC tweaks:\n");
-	      caml_print_gc_tweaks();
+            if (opt - name == strlen("help") &&
+                memcmp(name, "help", opt - name) == 0) {
+              fprintf(stderr, "Known GC tweaks:\n");
+              caml_print_gc_tweaks();
             } else {
-              scanmult(opt, p);
+              uintnat* p = caml_lookup_gc_tweak(name, opt - name);
+              if (p == NULL) {
+                fprintf(stderr, "Ignored unknown GC tweak '%.*s'. "
+                        "Use 'Xhelp=1' to list known tweaks\n",
+                        (int)(opt - name), name);
+              } else {
+                scanmult(opt, p);
+              }
             }
             break;
           } else {
