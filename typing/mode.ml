@@ -177,34 +177,34 @@ module Lattices = struct
   module Uniqueness = struct
     type t =
       | Unique
-      | Shared
+      | Aliased
 
     include Total (struct
       type nonrec t = t
 
       let min = Unique
 
-      let max = Shared
+      let max = Aliased
 
-      let legacy = Shared
+      let legacy = Aliased
 
       let le a b =
         match a, b with
-        | Unique, _ | _, Shared -> true
-        | Shared, Unique -> false
+        | Unique, _ | _, Aliased -> true
+        | Aliased, Unique -> false
 
       let join a b =
         match a, b with
-        | Shared, _ | _, Shared -> Shared
+        | Aliased, _ | _, Aliased -> Aliased
         | Unique, Unique -> Unique
 
       let meet a b =
         match a, b with
         | Unique, _ | _, Unique -> Unique
-        | Shared, Shared -> Shared
+        | Aliased, Aliased -> Aliased
 
       let print ppf = function
-        | Shared -> Format.fprintf ppf "shared"
+        | Aliased -> Format.fprintf ppf "aliased"
         | Unique -> Format.fprintf ppf "unique"
     end)
   end
@@ -867,12 +867,12 @@ module Lattices_mono = struct
   let id = Id
 
   let linear_to_unique = function
-    | Linearity.Many -> Uniqueness.Shared
+    | Linearity.Many -> Uniqueness.Aliased
     | Linearity.Once -> Uniqueness.Unique
 
   let unique_to_linear = function
     | Uniqueness.Unique -> Linearity.Once
-    | Uniqueness.Shared -> Linearity.Many
+    | Uniqueness.Aliased -> Linearity.Many
 
   let portable_to_contended = function
     | Portability.Portable -> Contention.Contended
@@ -1448,7 +1448,7 @@ module Uniqueness = struct
 
   include Common (Obj)
 
-  let shared = of_const Shared
+  let aliased = of_const Aliased
 
   let unique = of_const Unique
 

@@ -35,7 +35,7 @@ let rec iter_error f = function
   | x :: xs -> ( match f x with Ok () -> iter_error f xs | Error e -> Error e)
 
 module Maybe_unique : sig
-  (** The type representing a usage that could be either unique or shared *)
+  (** The type representing a usage that could be either unique or aliased *)
   type t
 
   (** extract an arbitrary occurrence from this usage *)
@@ -50,7 +50,7 @@ module Maybe_unique : sig
     | Uniqueness
     | Linearity
 
-  (** Describes why cannot force shared - including the failing occurrence, and
+  (** Describes why cannot force aliased - including the failing occurrence, and
       the failing axis *)
   type cannot_force =
     { occ : Occurrence.t;
@@ -62,17 +62,17 @@ module Maybe_unique : sig
 
   (** Returns the uniqueness represented by this usage. If this identifier is
       expected to be unique in any branch, it will return unique. If the current
-      usage is forced, it will return shared. *)
+      usage is forced, it will return aliased. *)
   val uniqueness : t -> Uniqueness.r
 end = struct
-  (** Occurrences with modes to be forced shared and many in the future if
+  (** Occurrences with modes to be forced aliased and many in the future if
       needed. This is a list because of multiple control flows. For example, if
-      a value is used shared in one branch but unique in another branch, then
+      a value is used aliased in one branch but unique in another branch, then
       overall the value is used uniquely (this is a "stricter" requirement).
       Therefore, techincally, the mode this list represents is the meet of all
-      modes in the lists. (recall that shared > unique). Therefore, if this
-      virtual mode needs to be forced shared, the whole list needs to be forced
-      shared. *)
+      modes in the lists. (recall that aliased > unique). Therefore, if this
+      virtual mode needs to be forced aliased, the whole list needs to be forced
+      aliased. *)
   type t = (unique_use * Occurrence.t) list
 
   let singleton unique_use occ : t = [unique_use, occ]
@@ -91,12 +91,12 @@ end = struct
   let mark_multi_use l =
     let force_one ((uni, lin), occ) =
       (* values being multi-used means two things:
-         - the expected mode must be higher than [shared]
+         - the expected mode must be higher than [aliased]
          - the access mode must be lower than [many] *)
       match Linearity.submode lin Linearity.many with
       | Error _ -> Error { occ; axis = Linearity }
       | Ok () -> (
-        match Uniqueness.submode Uniqueness.shared uni with
+        match Uniqueness.submode Uniqueness.aliased uni with
         | Ok () -> Ok ()
         | Error _ -> Error { occ; axis = Uniqueness })
     in
@@ -107,7 +107,7 @@ end = struct
   let meet l0 l1 = l0 @ l1
 end
 
-module Maybe_shared : sig
+module Maybe_aliased : sig
   type t
 
   type access =
@@ -116,7 +116,7 @@ module Maybe_shared : sig
 
   val string_of_access : access -> string
 
-  (** The type representing a usage that could be either shared or borrowed *)
+  (** The type representing a usage that could be either aliased or borrowed *)
 
   (** Extract an arbitrary occurrence from the usage *)
   val extract_occurrence_access : t -> Occurrence.t * access
@@ -124,7 +124,7 @@ module Maybe_shared : sig
   (** Add a barrier. The uniqueness mode represents the usage immediately
       following the current usage. If that mode is Unique, the current usage
        must be Borrowed (hence no code motion); if that mode is not restricted
-       to Unique, this usage can be Borrowed or Shared (prefered). Can be called
+       to Unique, this usage can be Borrowed or Aliased (prefered). Can be called
        multiple times for multiple barriers (for different branches). *)
   val add_barrier : t -> Uniqueness.r -> unit
 
@@ -140,9 +140,9 @@ end = struct
 
   (** list of occurences together with modes to be forced as borrowed in the
   future if needed. It is a list because of multiple control flows. For
-  example, if a value is used borrowed in one branch but shared in another,
-  then the overall usage is shared. Therefore, the mode this list represents
-  is the meet of all modes in the list. (recall that borrowed > shared).
+  example, if a value is used borrowed in one branch but aliased in another,
+  then the overall usage is aliased. Therefore, the mode this list represents
+  is the meet of all modes in the list. (recall that borrowed > aliased).
   Therefore, if this virtual mode needs to be forced borrowed, the whole list
   needs to be forced borrowed. *)
   type t = (unique_barrier ref * Occurrence.t * access) list
@@ -161,14 +161,14 @@ end = struct
       t
 end
 
-module Shared : sig
+module Aliased : sig
   type t
 
   type reason =
-    | Forced  (** shared because forced  *)
-    | Lazy  (** shared because it is the argument of lazy forcing *)
-    | Lifted of Maybe_shared.access
-        (** shared because lifted from implicit borrowing, carries the original
+    | Forced  (** aliased because forced  *)
+    | Lazy  (** aliased because it is the argument of lazy forcing *)
+    | Lifted of Maybe_aliased.access
+        (** aliased because lifted from implicit borrowing, carries the original
           access *)
 
   (** The occurrence is only for future error messages. The share_reason must
@@ -182,7 +182,7 @@ end = struct
   type reason =
     | Forced
     | Lazy
-    | Lifted of Maybe_shared.access
+    | Lifted of Maybe_aliased.access
 
   type t = Occurrence.t * reason
 
@@ -200,13 +200,13 @@ module Usage : sig
         (** A borrowed usage with an arbitrary occurrence. The occurrence is
         only for future error messages. Currently not used, because we don't
         have explicit borrowing *)
-    | Maybe_shared of Maybe_shared.t
-        (** A usage that could be either borrowed or shared. *)
-    | Shared of Shared.t  (** A shared usage *)
+    | Maybe_aliased of Maybe_aliased.t
+        (** A usage that could be either borrowed or aliased. *)
+    | Aliased of Aliased.t  (** A aliased usage *)
     | Maybe_unique of Maybe_unique.t
-        (** A usage that could be either unique or shared. *)
+        (** A usage that could be either unique or aliased. *)
 
-  val shared : Occurrence.t -> Shared.reason -> t
+  val aliased : Occurrence.t -> Aliased.reason -> t
 
   val maybe_unique : unique_use -> Occurrence.t -> t
 
@@ -235,11 +235,11 @@ module Usage : sig
   (** Parallel composition *)
   val par : t -> t -> t
 end = struct
-  (* We have Unused (top) > Borrowed > Shared > Unique > Error (bot).
+  (* We have Unused (top) > Borrowed > Aliased > Unique > Error (bot).
 
      - Unused means unused
      - Borrowed means read-only access confined to a region
-     - Shared means read-only access that may escape a region. For example,
+     - Aliased means read-only access that may escape a region. For example,
      storing the value in a cell that can be accessed later.
      - Unique means accessing the value as if it's the only pointer. Example
      includes overwriting.
@@ -248,17 +248,17 @@ end = struct
      Some observations:
      - It is sound to relax mode towards Error. It grants the access more
      "capability" and usually helps performance.
-       For example, relaxing borrowed to shared allows code motion of
-       projections. Relaxing shared to unique allows in-place update.
+       For example, relaxing borrowed to aliased allows code motion of
+       projections. Relaxing aliased to unique allows in-place update.
 
-       An example of the relaxing borrowed to shared:
+       An example of the relaxing borrowed to aliased:
 
        let x = r.a in
        (a lot of codes)
        x
 
        In first line, r.memory_address is accessed as borrowed. But if we weaken
-       it to shared and it still mode checks, that means
+       it to aliased and it still mode checks, that means
        - there is no "unique" access in the "a lot of codes"
        - or equivalently, that r.memory_address stays unchanged and safe to read
 
@@ -272,16 +272,16 @@ end = struct
      mode for each use, such that we get the best performance, while still
      type-check. Currently there are really only two choices worth figuring out,
      Namely
-     - borrowed or shared?
-     - shared or unique?
+     - borrowed or aliased?
+     - aliased or unique?
 
      As a result, instead of having full-range inference, we only care about the
      following ranges:
      - unused
      - borrowed (Currently not useful, because we don't have explicit borrowing)
-     - borrowed or shared
-     - shared
-     - shared or unique
+     - borrowed or aliased
+     - aliased
+     - aliased or unique
      - error
 
      error is represented as exception which is just easier.
@@ -290,11 +290,11 @@ end = struct
   type t =
     | Unused
     | Borrowed of Occurrence.t
-    | Maybe_shared of Maybe_shared.t
-    | Shared of Shared.t
+    | Maybe_aliased of Maybe_aliased.t
+    | Aliased of Aliased.t
     | Maybe_unique of Maybe_unique.t
 
-  let shared occ reason = Shared (Shared.singleton occ reason)
+  let aliased occ reason = Aliased (Aliased.singleton occ reason)
 
   let maybe_unique unique_use occ =
     Maybe_unique (Maybe_unique.singleton unique_use occ)
@@ -302,17 +302,18 @@ end = struct
   let extract_occurrence = function
     | Unused -> None
     | Borrowed occ -> Some occ
-    | Maybe_shared t -> Some (Maybe_shared.extract_occurrence_access t |> fst)
-    | Shared t -> Some (Shared.extract_occurrence t)
+    | Maybe_aliased t -> Some (Maybe_aliased.extract_occurrence_access t |> fst)
+    | Aliased t -> Some (Aliased.extract_occurrence t)
     | Maybe_unique t -> Some (Maybe_unique.extract_occurrence t)
 
   let choose m0 m1 =
     match m0, m1 with
     | Unused, m | m, Unused -> m
     | Borrowed _, t | t, Borrowed _ -> t
-    | Maybe_shared l0, Maybe_shared l1 -> Maybe_shared (Maybe_shared.meet l0 l1)
-    | Maybe_shared _, t | t, Maybe_shared _ -> t
-    | Shared _, t | t, Shared _ -> t
+    | Maybe_aliased l0, Maybe_aliased l1 ->
+      Maybe_aliased (Maybe_aliased.meet l0 l1)
+    | Maybe_aliased _, t | t, Maybe_aliased _ -> t
+    | Aliased _, t | t, Aliased _ -> t
     | Maybe_unique l0, Maybe_unique l1 -> Maybe_unique (Maybe_unique.meet l0 l1)
 
   type first_or_second =
@@ -327,7 +328,7 @@ end = struct
 
   exception Error of error
 
-  let force_shared_multiuse t there first_or_second =
+  let force_aliased_multiuse t there first_or_second =
     match Maybe_unique.mark_multi_use t with
     | Ok () -> ()
     | Error cannot_force ->
@@ -337,97 +338,100 @@ end = struct
     match m0, m1 with
     | Unused, m | m, Unused -> m
     | Borrowed occ, Borrowed _ -> Borrowed occ
-    | Borrowed _, Maybe_shared t | Maybe_shared t, Borrowed _ -> Maybe_shared t
-    | Borrowed _, Shared t | Shared t, Borrowed _ -> Shared t
+    | Borrowed _, Maybe_aliased t | Maybe_aliased t, Borrowed _ ->
+      Maybe_aliased t
+    | Borrowed _, Aliased t | Aliased t, Borrowed _ -> Aliased t
     | Borrowed occ, Maybe_unique t | Maybe_unique t, Borrowed occ ->
-      force_shared_multiuse t (Borrowed occ) First;
-      shared (Maybe_unique.extract_occurrence t) Shared.Forced
-    | Maybe_shared t0, Maybe_shared t1 -> Maybe_shared (Maybe_shared.meet t0 t1)
-    | Maybe_shared _, Shared occ | Shared occ, Maybe_shared _ ->
+      force_aliased_multiuse t (Borrowed occ) First;
+      aliased (Maybe_unique.extract_occurrence t) Aliased.Forced
+    | Maybe_aliased t0, Maybe_aliased t1 ->
+      Maybe_aliased (Maybe_aliased.meet t0 t1)
+    | Maybe_aliased _, Aliased occ | Aliased occ, Maybe_aliased _ ->
       (* The barrier stays empty; if there is any unique after this, it
          will error *)
-      Shared occ
-    | Maybe_shared t0, Maybe_unique t1 | Maybe_unique t1, Maybe_shared t0 ->
-      (* t1 must be shared *)
-      force_shared_multiuse t1 (Maybe_shared t0) First;
+      Aliased occ
+    | Maybe_aliased t0, Maybe_unique t1 | Maybe_unique t1, Maybe_aliased t0 ->
+      (* t1 must be aliased *)
+      force_aliased_multiuse t1 (Maybe_aliased t0) First;
       (* The barrier stays empty; if there is any unique after this, it will
          error *)
-      shared (Maybe_unique.extract_occurrence t1) Shared.Forced
-    | Shared t0, Shared _ -> Shared t0
-    | Shared t0, Maybe_unique t1 ->
-      force_shared_multiuse t1 (Shared t0) Second;
-      Shared t0
-    | Maybe_unique t1, Shared t0 ->
-      force_shared_multiuse t1 (Shared t0) First;
-      Shared t0
+      aliased (Maybe_unique.extract_occurrence t1) Aliased.Forced
+    | Aliased t0, Aliased _ -> Aliased t0
+    | Aliased t0, Maybe_unique t1 ->
+      force_aliased_multiuse t1 (Aliased t0) Second;
+      Aliased t0
+    | Maybe_unique t1, Aliased t0 ->
+      force_aliased_multiuse t1 (Aliased t0) First;
+      Aliased t0
     | Maybe_unique t0, Maybe_unique t1 ->
-      force_shared_multiuse t0 m1 First;
-      force_shared_multiuse t1 m0 Second;
-      shared (Maybe_unique.extract_occurrence t0) Shared.Forced
+      force_aliased_multiuse t0 m1 First;
+      force_aliased_multiuse t1 m0 Second;
+      aliased (Maybe_unique.extract_occurrence t0) Aliased.Forced
 
   let seq m0 m1 =
     match m0, m1 with
     | Unused, m | m, Unused -> m
     | Borrowed _, t -> t
-    | Maybe_shared _, Borrowed _ -> m0
-    | Maybe_shared l0, Maybe_shared l1 -> Maybe_shared (Maybe_shared.meet l0 l1)
-    | Maybe_shared _, Shared _ -> m1
-    | Maybe_shared l0, Maybe_unique l1 ->
+    | Maybe_aliased _, Borrowed _ -> m0
+    | Maybe_aliased l0, Maybe_aliased l1 ->
+      Maybe_aliased (Maybe_aliased.meet l0 l1)
+    | Maybe_aliased _, Aliased _ -> m1
+    | Maybe_aliased l0, Maybe_unique l1 ->
       (* Four cases (semi-colon meaning sequential composition):
-          Borrowed;Shared = Shared
+          Borrowed;Aliased = Aliased
           Borrowed;Unique = Unique
-          Shared;Shared = Shared
-          Shared;Unique = Error
+          Aliased;Aliased = Aliased
+          Aliased;Unique = Error
 
-          We are in a dilemma: recall that Borrowed->Shared allows code
-          motion, and Shared->Unique allows unique overwriting. We can't have
+          We are in a dilemma: recall that Borrowed->Aliased allows code
+          motion, and Aliased->Unique allows unique overwriting. We can't have
           both. We first note is that the first is a soft optimization, and
           the second is a hard requirement.
 
           A reasonable solution is thus to check if the m1 actually needs
           to use the "unique" capabilities. If not, there is no need to
-          relax it to Unique, and we will make it Shared, and make m0
-          Shared for code-motion. However, there is no good way to do that,
+          relax it to Unique, and we will make it Aliased, and make m0
+          Aliased for code-motion. However, there is no good way to do that,
           because the "unique_use" in "maybe_unique" is not complete,
           because the type-checking and uniqueness analysis is performed on
           a per-top-level-expr basis.
 
           Our solution is to record on the m0 that it is constrained by the
-          m1. I.e. if m1 is Unique, then m0 cannot be Shared. After the type
+          m1. I.e. if m1 is Unique, then m0 cannot be Aliased. After the type
           checking of the whole file, m1 will correctly tells whether it needs
-          to be Unique, and by extension whether m0 can be Shared. *)
+          to be Unique, and by extension whether m0 can be Aliased. *)
       let uniq = Maybe_unique.uniqueness l1 in
-      Maybe_shared.add_barrier l0 uniq;
+      Maybe_aliased.add_barrier l0 uniq;
       m1
-    | Shared _, Borrowed _ -> m0
+    | Aliased _, Borrowed _ -> m0
     | Maybe_unique l, Borrowed occ ->
-      force_shared_multiuse l m1 First;
-      shared occ Shared.Forced
-    | Shared _, Maybe_shared _ -> m0
-    | Maybe_unique l0, Maybe_shared l1 ->
+      force_aliased_multiuse l m1 First;
+      aliased occ Aliased.Forced
+    | Aliased _, Maybe_aliased _ -> m0
+    | Maybe_unique l0, Maybe_aliased l1 ->
       (* Four cases:
-          Shared;Borrowed = Shared
-          Shared;Shared = Shared
+          Aliased;Borrowed = Aliased
+          Aliased;Aliased = Aliased
           Unique;Borrowed = Error
-          Unique;Shared = Error
+          Unique;Aliased = Error
 
-          As you can see, we need to force the m0 to Shared, and m1 needn't
-          be constrained. The result is always Shared.
+          As you can see, we need to force the m0 to Aliased, and m1 needn't
+          be constrained. The result is always Aliased.
       *)
-      let occ, _ = Maybe_shared.extract_occurrence_access l1 in
-      force_shared_multiuse l0 m1 First;
-      shared occ Shared.Forced
-    | Shared _, Shared _ -> m0
-    | Maybe_unique l, Shared _ ->
-      force_shared_multiuse l m1 First;
+      let occ, _ = Maybe_aliased.extract_occurrence_access l1 in
+      force_aliased_multiuse l0 m1 First;
+      aliased occ Aliased.Forced
+    | Aliased _, Aliased _ -> m0
+    | Maybe_unique l, Aliased _ ->
+      force_aliased_multiuse l m1 First;
       m1
-    | Shared _, Maybe_unique l ->
-      force_shared_multiuse l m0 Second;
+    | Aliased _, Maybe_unique l ->
+      force_aliased_multiuse l m0 Second;
       m0
     | Maybe_unique l0, Maybe_unique l1 ->
-      force_shared_multiuse l0 m1 First;
-      force_shared_multiuse l1 m0 Second;
-      shared (Maybe_unique.extract_occurrence l0) Shared.Forced
+      force_aliased_multiuse l0 m1 First;
+      force_aliased_multiuse l1 m0 Second;
+      aliased (Maybe_unique.extract_occurrence l0) Aliased.Forced
 end
 
 module Projection : sig
@@ -540,10 +544,10 @@ end = struct
   (** Represents a tree of usage. Each node records the choose on all possible
      execution paths. As a result, trees such as `S -> U` is valid, even though
      it would be invalid if it was the result of a single path: using a parent
-     shared and a child uniquely is obviously bad. However, it might be the
+     aliased and a child uniquely is obviously bad. However, it might be the
      result of "choos"ing multiple path: choose `S` `N -> U`, which is valid.
 
-     INVARIANT: children >= parent. For example, having a shared child under a
+     INVARIANT: children >= parent. For example, having an aliased child under a
      unique parent is nonsense. The invariant is preserved because Usage.choose,
      Usage.par, and Usage.seq above are monotone, and Usage_tree.par and
      Usage_tree.seq, Usage_tree.choose here are node-wise. *)
@@ -762,9 +766,9 @@ module Paths : sig
   val choose : t -> t -> t
 
   val mark_implicit_borrow_memory_address :
-    Maybe_shared.access -> Occurrence.t -> t -> UF.t
+    Maybe_aliased.access -> Occurrence.t -> t -> UF.t
 
-  val mark_shared : Occurrence.t -> Shared.reason -> t -> UF.t
+  val mark_aliased : Occurrence.t -> Aliased.reason -> t -> UF.t
 end = struct
   type t = UF.Path.t list
 
@@ -781,7 +785,7 @@ end = struct
     let l =
       List.filter
         (function
-         | Atom (Monadic Uniqueness, Join_with Shared) -> true
+         | Atom (Monadic Uniqueness, Join_with Aliased) -> true
          | Atom (Comonadic Linearity, Meet_with Many) -> true
          | _ -> false
           : Modality.t -> _)
@@ -810,13 +814,13 @@ end = struct
         still needed because they are handled differently in closures *)
     let barrier = ref (Uniqueness.max |> Uniqueness.disallow_left) in
     mark
-      (Maybe_shared (Maybe_shared.singleton barrier occ access))
+      (Maybe_aliased (Maybe_aliased.singleton barrier occ access))
       (memory_address paths)
 
-  let mark_shared occ reason paths = mark (Usage.shared occ reason) paths
+  let mark_aliased occ reason paths = mark (Usage.aliased occ reason) paths
 end
 
-let force_shared_boundary unique_use occ ~reason =
+let force_aliased_boundary unique_use occ ~reason =
   let maybe_unique = Maybe_unique.singleton unique_use occ in
   match Maybe_unique.mark_multi_use maybe_unique with
   | Ok () -> ()
@@ -849,16 +853,16 @@ module Value : sig
   val implicit_record_field :
     Modality.Value.Const.t -> string -> t -> unique_use -> t
 
-  (** Mark the value as shared_or_unique   *)
+  (** Mark the value as aliased_or_unique   *)
   val mark_maybe_unique : t -> UF.t
 
   (** Mark the memory_address of the value as implicitly borrowed
-      (borrow_or_shared). We still ask for the [occ] argument, because
+      (borrow_or_aliased). We still ask for the [occ] argument, because
       [Value.occ] is the occurrence of the value, not necessary the place where
       it is borrowed. *)
-  val mark_implicit_borrow_memory_address : Maybe_shared.access -> t -> UF.t
+  val mark_implicit_borrow_memory_address : Maybe_aliased.access -> t -> UF.t
 
-  val mark_shared : reason:boundary_reason -> t -> UF.t
+  val mark_aliased : reason:boundary_reason -> t -> UF.t
 end = struct
   type t =
     | Fresh
@@ -893,12 +897,12 @@ end = struct
     | Existing { paths; unique_use; occ } ->
       Paths.mark (Usage.maybe_unique unique_use occ) paths
 
-  let mark_shared ~reason = function
+  let mark_aliased ~reason = function
     | Fresh -> UF.unused
     | Existing { paths; unique_use; occ } ->
-      force_shared_boundary unique_use occ ~reason;
-      let shared = Usage.shared occ Shared.Forced in
-      Paths.mark shared paths
+      force_aliased_boundary unique_use occ ~reason;
+      let aliased = Usage.aliased occ Aliased.Forced in
+      Paths.mark aliased paths
 end
 
 module Ienv : sig
@@ -1082,7 +1086,7 @@ and pattern_match_single pat paths : Ienv.Extension.t * UF.t =
     ext, UF.par uf_read uf_pats
   | Tpat_lazy arg ->
     (* forcing a lazy expression is like calling a nullary-function *)
-    let uf_force = Paths.mark_shared occ Lazy paths in
+    let uf_force = Paths.mark_aliased occ Lazy paths in
     let paths = Paths.fresh () in
     let ext, uf_arg = pattern_match_single arg paths in
     ext, UF.par uf_force uf_arg
@@ -1125,15 +1129,15 @@ let value_of_ident ienv unique_use occ path =
     (* TODO: for better error message, we should record in ienv why some
        variables are not in it. *)
     | None ->
-      force_shared_boundary ~reason:Out_of_mod_class unique_use occ;
+      force_aliased_boundary ~reason:Out_of_mod_class unique_use occ;
       None
     | Some paths ->
       let value = Value.existing paths unique_use occ in
       Some value)
-  (* accessing a module, which is forced by typemod to be shared and many.
+  (* accessing a module, which is forced by typemod to be aliased and many.
      Here we force it again just to be sure *)
   | Path.Pdot _ ->
-    force_shared_boundary ~reason:Paths_from_mod_class unique_use occ;
+    force_aliased_boundary ~reason:Paths_from_mod_class unique_use occ;
     None
   | Path.Papply _ | Path.Pextra_ty _ -> assert false
 
@@ -1141,10 +1145,10 @@ let value_of_ident ienv unique_use occ path =
    The following functions are dirty hacks and used for modules and classes.
    Currently we treat the boundary between modules/classes and their surrounding
    environment coarsely. To be specific, all references in the modules/classes
-   pointing to the environment are treated as many and shared. This translates
+   pointing to the environment are treated as many and aliased. This translates
    to enforcement on both ends:
-   - inside the module, those uses needs to be forced as many and shared
-   - need a UF.t which marks those uses as many and shared, so that the
+   - inside the module, those uses needs to be forced as many and aliased
+   - need a UF.t which marks those uses as many and aliased, so that the
      parent expression can detect conflict if any. *)
 
 (** Returns all open variables inside a module. *)
@@ -1167,13 +1171,13 @@ let open_variables ienv f =
   f iter;
   !ll
 
-(** Marks all open variables in a class/module as shared,
-   as well as returning a UF reflecting all those shared usage. *)
-let mark_shared_open_variables ienv f _loc =
+(** Marks all open variables in a class/module as aliased,
+   as well as returning a UF reflecting all those aliased usage. *)
+let mark_aliased_open_variables ienv f _loc =
   let ll = open_variables ienv f in
   let ufs =
     List.map
-      (fun value -> Value.mark_shared value ~reason:Free_var_of_mod_class)
+      (fun value -> Value.mark_aliased value ~reason:Free_var_of_mod_class)
       ll
   in
   UF.pars ufs
@@ -1181,10 +1185,10 @@ let mark_shared_open_variables ienv f _loc =
 let lift_implicit_borrowing uf =
   UF.map
     (function
-      | Maybe_shared t ->
+      | Maybe_aliased t ->
         (* implicit borrowing lifted. *)
-        let occ, access = Maybe_shared.extract_occurrence_access t in
-        Usage.shared occ (Shared.Lifted access)
+        let occ, access = Maybe_aliased.extract_occurrence_access t in
+        Usage.aliased occ (Aliased.Lifted access)
       | m ->
         (* other usage stays the same *)
         m)
@@ -1244,7 +1248,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     in
     let uf = UF.seq (UF.seqs uf_params) uf_body in
     (* we are constructing a closure here, and therefore any implicit
-       borrowing of free variables in the closure is in fact using shared. *)
+       borrowing of free variables in the closure is in fact using aliased. *)
     lift_implicit_borrowing uf
   | Texp_apply (fn, args, _, _, _) ->
     let uf_fn = check_uniqueness_exp ienv fn in
@@ -1348,7 +1352,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     UF.pars (List.map (fun (_, _, e) -> check_uniqueness_exp ienv e) ls)
   | Texp_letmodule (_, _, _, mod_expr, body) ->
     let uf_mod =
-      mark_shared_open_variables ienv
+      mark_aliased_open_variables ienv
         (fun iter -> iter.module_expr iter mod_expr)
         mod_expr.mod_loc
     in
@@ -1362,13 +1366,13 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
   | Texp_object (cls_struc, _) ->
     (* the object (methods, values) will be type-checked by Typeclass,
        which invokes uniqueness check.*)
-    mark_shared_open_variables ienv
+    mark_aliased_open_variables ienv
       (fun iter -> iter.class_structure iter cls_struc)
       exp.exp_loc
   | Texp_pack mod_expr ->
     (* the module will be type-checked by Typemod which invokes uniqueness
        analysis. *)
-    mark_shared_open_variables ienv
+    mark_aliased_open_variables ienv
       (fun iter -> iter.module_expr iter mod_expr)
       mod_expr.mod_loc
   | Texp_letop { let_; ands; body } ->
@@ -1385,7 +1389,7 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
   | Texp_extension_constructor _ -> UF.unused
   | Texp_open (open_decl, e) ->
     let uf =
-      mark_shared_open_variables ienv
+      mark_aliased_open_variables ienv
         (fun iter -> iter.open_declaration iter open_decl)
         open_decl.open_loc
     in
@@ -1531,7 +1535,7 @@ and check_uniqueness_comprehension_clause_binding ienv cbs =
 and check_uniqueness_binding_op ienv bo =
   let occ = Occurrence.mk bo.bop_loc in
   let uf_path =
-    match value_of_ident ienv shared_many_use occ bo.bop_op_path with
+    match value_of_ident ienv aliased_many_use occ bo.bop_op_path with
     | Some value -> Value.mark_maybe_unique value
     | None -> UF.unused
   in
@@ -1551,14 +1555,14 @@ let report_multi_use inner first_is_of_second =
   let here_usage = "used" in
   let there_usage =
     match there with
-    | Usage.Maybe_shared t -> (
-      let _, access = Maybe_shared.extract_occurrence_access t in
+    | Usage.Maybe_aliased t -> (
+      let _, access = Maybe_aliased.extract_occurrence_access t in
       match access with Read -> "read from" | Write -> "written to")
-    | Usage.Shared t -> (
-      match Shared.reason t with
+    | Usage.Aliased t -> (
+      match Aliased.reason t with
       | Forced | Lazy -> "used"
       | Lifted access ->
-        Maybe_shared.string_of_access access
+        Maybe_aliased.string_of_access access
         ^ " in a closure that might be called later")
     | _ -> "used"
   in
@@ -1614,7 +1618,7 @@ let report_boundary cannot_force reason =
   in
   let error =
     match axis with
-    | Uniqueness -> "This value is shared but used as unique"
+    | Uniqueness -> "This value is aliased but used as unique"
     | Linearity -> "This value is once but used as many"
   in
   Location.errorf ~loc:occ.loc "@[%s.\nHint: This value comes from %s.@]" error

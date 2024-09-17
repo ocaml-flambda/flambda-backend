@@ -101,7 +101,7 @@ val foo : bar:string -> string = <fun>
 Line 5, characters 8-11:
 5 |   foo ~(bar : _ @@ unique)
             ^^^
-Error: Found a shared value where a unique value was expected
+Error: Found a aliased value where a unique value was expected
 |}]
 
 let x =
@@ -111,7 +111,7 @@ let x =
 Line 3, characters 8-11:
 3 |   foo ~(bar @ unique)
             ^^^
-Error: Found a shared value where a unique value was expected
+Error: Found a aliased value where a unique value was expected
 |}]
 
 type r = {a : string; b : string}
@@ -143,7 +143,7 @@ let foo () =
 Line 4, characters 4-7:
 4 |   ~(bar:_@@unique), ~(biz:_@@once)
         ^^^
-Error: Found a shared value where a unique value was expected
+Error: Found a aliased value where a unique value was expected
 |}]
 
 
@@ -155,7 +155,7 @@ let foo () =
 Line 4, characters 4-7:
 4 |   ~(bar @ unique), ~(biz @ once)
         ^^^
-Error: Found a shared value where a unique value was expected
+Error: Found a aliased value where a unique value was expected
 |}]
 *)
 
@@ -265,36 +265,36 @@ type r = { global_ x : string; }
 
 (* Modalities don't imply each other; this will change as we add borrowing. *)
 type r = {
-  global_ x : string @@ shared
+  global_ x : string @@ aliased
 }
 [%%expect{|
-type r = { global_ x : string @@ shared; }
+type r = { global_ x : string @@ aliased; }
 |}]
 
 type r = {
-  x : string @@ shared global many
+  x : string @@ aliased global many
 }
 [%%expect{|
-type r = { global_ x : string @@ many shared; }
+type r = { global_ x : string @@ many aliased; }
 |}]
 
 type r = {
-  x : string @@ shared global many shared
+  x : string @@ aliased global many aliased
 }
 (* CR reduced-modality: this should warn. *)
 [%%expect{|
-type r = { global_ x : string @@ many shared; }
+type r = { global_ x : string @@ many aliased; }
 |}]
 
-type r = Foo of string @@ global shared many
+type r = Foo of string @@ global aliased many
 [%%expect{|
-type r = Foo of global_ string @@ many shared
+type r = Foo of global_ string @@ many aliased
 |}]
 
-(* mutable implies global shared many. No warnings are given since we imagine
+(* mutable implies global aliased many. No warnings are given since we imagine
    that the coupling will be removed soon. *)
 type r = {
-  mutable x : string @@ global shared many
+  mutable x : string @@ global aliased many
 }
 [%%expect{|
 type r = { mutable x : string; }

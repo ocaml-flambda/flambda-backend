@@ -2401,7 +2401,7 @@ let check_scope_escape loc env level ty =
 
    The solution is to pass a GADT tag to [type_pat] to indicate whether
    a value or computation pattern is expected. This way, there is a single
-   place where [Ppat_or] nodes are type-checked, the checking logic is shared,
+   place where [Ppat_or] nodes are type-checked, the checking logic is aliased,
    and only at the end do we inspect the tag to decide to produce a value
    or computation pattern.
 *)
@@ -4757,9 +4757,9 @@ let unique_use ~loc ~env mode_l mode_r  =
   let linearity = Linearity.disallow_right (Value.proj (Comonadic Linearity) mode_l) in
   if not (Language_extension.is_enabled Unique) then begin
     (* if unique extension is not enabled, we will not run uniqueness analysis;
-       instead, we force all uses to be shared and many. This is equivalent to
+       instead, we force all uses to be aliased and many. This is equivalent to
        running a UA which forces everything *)
-    (match Uniqueness.submode Uniqueness.shared uniqueness with
+    (match Uniqueness.submode Uniqueness.aliased uniqueness with
     | Ok () -> ()
     | Error e ->
         let e : Mode.Value.error = Error (Monadic Uniqueness, e) in
@@ -4771,7 +4771,7 @@ let unique_use ~loc ~env mode_l mode_r  =
         let e : Mode.Value.error = Error (Comonadic Linearity, e) in
         raise (Error (loc, env, Submode_failed(e, Other, None, None, None)))
     );
-    (Uniqueness.disallow_left Uniqueness.shared,
+    (Uniqueness.disallow_left Uniqueness.aliased,
      Linearity.disallow_right Linearity.many)
   end
   else (uniqueness, linearity)
