@@ -4724,12 +4724,46 @@ let relevant_pairs pairs v =
   | Contravariant -> pairs.contravariant_pairs
   | Bivariant -> pairs.bivariant_pairs
 
-let moregen_alloc_mode v a1 a2 =
+(* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and [Alloc]
+   get unified *)
+let mode_cross_left env ty mode =
+  (* CR layouts v2.8: The old check didn't check for principality, and so this
+      one doesn't either. I think it should. But actually test results are bad
+      when checking for principality. Really, I'm surprised that the types here
+      aren't principal. In any case, leaving the check out now; will return and
+      figure this out later. *)
+  let jkind = type_jkind_purely env ty in
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  Alloc.meet_const upper_bounds mode
+
+(* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value] and
+    [Alloc] get unified *)
+let mode_cross_right env ty mode =
+  (* CR layouts v2.8: This should probably check for principality. See similar
+      comment in [mode_cross_left]. *)
+  let jkind = type_jkind_purely env ty in
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  Alloc.imply upper_bounds mode
+
+let submode_with_cross env ~is_ret ty l r =
+  let r' = mode_cross_right env ty r in
+  let r' =
+    if is_ret then
+      Alloc.meet [r'; Alloc.max_with (Comonadic Areality) (Alloc.proj (Comonadic Areality) r)]
+    else
+      r'
+  in
+  Alloc.submode l r'
+
+let moregen_alloc_mode env ~is_ret ty v a1 a2 =
   match
     match v with
-    | Invariant -> Result.map_error ignore (Alloc.equate a1 a2)
-    | Covariant -> Result.map_error ignore (Alloc.submode a1 a2)
-    | Contravariant -> Result.map_error ignore (Alloc.submode a2 a1)
+    | Invariant ->
+        Result.bind (submode_with_cross env ~is_ret ty a1 a2)
+          (fun _ -> submode_with_cross env ~is_ret ty a2 a1)
+        |> Result.map_error ignore
+    | Covariant -> Result.map_error ignore (submode_with_cross env ~is_ret ty a1 a2)
+    | Contravariant -> Result.map_error ignore (submode_with_cross env ~is_ret ty a2 a1)
     | Bivariant -> Ok ()
   with
   | Ok () -> ()
@@ -4777,8 +4811,10 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
                 || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
               moregen inst_nongen (neg_variance variance) type_pairs env t1 t2;
               moregen inst_nongen variance type_pairs env u1 u2;
-              moregen_alloc_mode (neg_variance variance) a1 a2;
-              moregen_alloc_mode variance r1 r2
+              (* [t2] and [u2] is the user-written interface, which we deem as
+                 more "principal". *)
+              moregen_alloc_mode env t2 ~is_ret:false (neg_variance variance) a1 a2;
+              moregen_alloc_mode env u2 ~is_ret:true variance r1 r2
           | (Ttuple labeled_tl1, Ttuple labeled_tl2) ->
               moregen_labeled_list inst_nongen variance type_pairs env
                 labeled_tl1 labeled_tl2
@@ -5748,27 +5784,6 @@ let build_submode_neg m =
 let build_submode posi m =
   if posi then build_submode_pos (Alloc.allow_left m)
   else build_submode_neg (Alloc.allow_right m)
-
-(* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and
-   [Alloc] get unified *)
-let mode_cross_left env ty mode =
-  (* CR layouts v2.8: The old check didn't check for principality, and so
-     this one doesn't either. I think it should. But actually test results
-     are bad when checking for principality. Really, I'm surprised that
-     the types here aren't principal. In any case, leaving the check out
-     now; will return and figure this out later. *)
-  let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  Alloc.meet_const upper_bounds mode
-
-(* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value]
-   and [Alloc] get unified *)
-let mode_cross_right env ty mode =
-  (* CR layouts v2.8: This should probably check for principality. See
-     similar comment in [mode_cross_left]. *)
-  let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  Alloc.imply upper_bounds mode
 
 let rec build_subtype env (visited : transient_expr list)
     (loops : (int * type_expr) list) posi level t =
