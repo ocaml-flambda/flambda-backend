@@ -1210,7 +1210,7 @@ let rec copy ?partial ?keep_names copy_scope ty =
              tions belonging to different branches of a type are
              independent.
              Moreover, a reference containing a [Mcons] must be
-             shared, so that the memorized expansion of an abbrevi-
+             aliased, so that the memorized expansion of an abbrevi-
              ation can be released by changing the content of just
              one reference.
           *)
@@ -1526,7 +1526,7 @@ let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) sch =
               copy_row (copy_rec ~may_share:true) fixed' row keep more' in
             Tvariant row
         | Tfield (p, k, ty1, ty2) ->
-            (* the kind is kept shared, see Btype.copy_type_desc *)
+            (* the kind is kept aliased, see Btype.copy_type_desc *)
             Tfield (p, field_kind_internal_repr k,
                     copy_rec ~may_share:true ty1,
                     copy_rec ~may_share:false ty2)
@@ -1597,7 +1597,7 @@ let curry_mode alloc arg : Alloc.Const.t =
       (Alloc.Const.close_over arg)
       (Alloc.Const.partial_apply alloc)
   in
-  (* For A -> B -> C, we always interpret (B -> C) to be of shared. This is the
+  (* For A -> B -> C, we always interpret (B -> C) to be of aliased. This is the
     legacy mode which helps with legacy compatibility. Arrow types cross
     uniqueness so we are not losing too much expressvity here. One
     counter-example is:
@@ -1607,10 +1607,10 @@ let curry_mode alloc arg : Alloc.Const.t =
 
     And [f g] would not work, as mode crossing doesn't work deeply into arrows.
     Our answer to this issue is that, the author of f shouldn't ask B -> C to be
-    unique_. Instead, they should leave it as default which is shared, and mode
+    unique_. Instead, they should leave it as default which is aliased, and mode
     crossing it to unique at the location where B -> C is a real value (instead
     of the return of a function). *)
-  {acc with uniqueness=Uniqueness.Const.Shared}
+  {acc with uniqueness=Uniqueness.Const.Aliased}
 
 let rec instance_prim_locals locals mvar macc finalret ty =
   match locals, get_desc ty with

@@ -67,7 +67,7 @@ type _ pattern_category =
 (** Access mode for a field projection, represented by the usage of the record
   immediately following the projection. If the following usage is unique, the
   projection must be borrowed and cannot be moved. If the following usage is
-  shared, the projection can be shared and moved. *)
+  aliased, the projection can be aliased and moved. *)
 type unique_barrier = Mode.Uniqueness.r
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
@@ -85,7 +85,7 @@ type texp_field_boxing =
   (** Projection does not require boxing. [unique_use] describes the usage of
       the field as the result of direct projection. *)
 
-val shared_many_use : unique_use
+val aliased_many_use : unique_use
 
 type pattern = value general_pattern
 and 'k general_pattern = 'k pattern_desc pattern_data

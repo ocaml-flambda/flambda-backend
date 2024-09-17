@@ -63,8 +63,8 @@ type texp_field_boxing =
   | Boxing of alloc_mode * unique_use
   | Non_boxing of unique_use
 
-let shared_many_use =
-  ( Mode.Uniqueness.disallow_left Mode.Uniqueness.shared,
+let aliased_many_use =
+  ( Mode.Uniqueness.disallow_left Mode.Uniqueness.aliased,
     Mode.Linearity.disallow_right Mode.Linearity.many )
 
 type pattern = value general_pattern

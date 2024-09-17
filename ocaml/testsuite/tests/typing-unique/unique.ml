@@ -106,8 +106,8 @@ let f () =
 val f : unit -> string = <fun>
 |}]
 
-(* variables inside loops will be made both shared and many *)
-(* the following is fine, because k inside loop is shared *)
+(* variables inside loops will be made both aliased and many *)
+(* the following is fine, because k inside loop is aliased *)
 let f () =
   let unique_ k = "foo" in
   for i = 1 to 5 do
@@ -141,7 +141,7 @@ let f () =
 Line 4, characters 12-13:
 4 |     unique_ k
                 ^
-Error: This value is shared but expected to be unique.
+Error: This value is aliased but expected to be unique.
   Hint: This identifier cannot be used uniquely,
   because it was defined outside of the for-loop.
 |}]
@@ -157,7 +157,7 @@ let f =
 Line 5, characters 14-15:
 5 |     let _ = g a in ()
                   ^
-Error: This value is shared but expected to be unique.
+Error: This value is aliased but expected to be unique.
   Hint: This identifier cannot be used uniquely,
   because it was defined outside of the for-loop.
 |}]
@@ -174,7 +174,7 @@ val f : unit = ()
 |}]
 
 (* the following is howerver fine, because g doesn't use the uniqueness of k;
-in fact, the k inside g is just shared.
+in fact, the k inside g is just aliased.
     *)
 let f () =
   let unique_ k = "foo" in
@@ -224,28 +224,28 @@ let foo y = once_ x
 val foo : 'a -> once_ string = <fun>
 |}]
 
-(* top-level must be shared; the following unique is weakened to shared *)
+(* top-level must be aliased; the following unique is weakened to aliased *)
 let unique_ foo = "foo"
 [%%expect{|
 val foo : string = "foo"
 |}]
 
 
-(* the following is bad - trying to tighten shared to unique *)
+(* the following is bad - trying to tighten aliased to unique *)
 let foo y = unique_ x
 [%%expect{|
 Line 1, characters 20-21:
 1 | let foo y = unique_ x
                         ^
-Error: This value is shared but expected to be unique.
+Error: This value is aliased but expected to be unique.
 |}]
 
 
-(* CR zqian: [global] should imply [shared]/[many], once we introduce borrowing whose
+(* CR zqian: [global] should imply [aliased]/[many], once we introduce borrowing whose
 scope is controlled by locality *)
-type 'a glob = { glob: 'a @@ shared many } [@@unboxed]
+type 'a glob = { glob: 'a @@ aliased many } [@@unboxed]
 [%%expect{|
-type 'a glob = { glob : 'a @@ many shared; } [@@unboxed]
+type 'a glob = { glob : 'a @@ many aliased; } [@@unboxed]
 |}]
 let dup (glob : 'a) : 'a glob * 'a glob = unique_ ({glob}, {glob})
 [%%expect{|
@@ -269,9 +269,9 @@ let unique_id : 'a. unique_ 'a -> unique_ 'a = fun x -> x
 val unique_id : unique_ 'a -> unique_ 'a = <fun>
 |}]
 
-let shared_id : 'a -> 'a = fun x -> x
+let aliased_id : 'a -> 'a = fun x -> x
 [%%expect{|
-val shared_id : 'a -> 'a = <fun>
+val aliased_id : 'a -> 'a = <fun>
 |}]
 
 let tail_unique _x =
@@ -302,15 +302,15 @@ let higher_order3 (f : 'a -> 'b) (unique_ x : 'a) = unique_ f x
 Line 1, characters 60-63:
 1 | let higher_order3 (f : 'a -> 'b) (unique_ x : 'a) = unique_ f x
                                                                 ^^^
-Error: This value is shared but expected to be unique.
+Error: This value is aliased but expected to be unique.
 |}]
 
-let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (shared_id x)
+let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (aliased_id x)
 [%%expect{|
-Line 1, characters 54-67:
-1 | let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (shared_id x)
-                                                          ^^^^^^^^^^^^^
-Error: This value is shared but expected to be unique.
+Line 1, characters 54-68:
+1 | let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (aliased_id x)
+                                                          ^^^^^^^^^^^^^^
+Error: This value is aliased but expected to be unique.
 |}]
 
 let higher_order5 (unique_ x) = let f (unique_ x) = unique_ x in higher_order f x
@@ -351,24 +351,24 @@ val inf2 : bool -> unique_ float -> float = <fun>
 |}]
 
 let inf3 : bool -> float -> unique_ float -> float = fun b y x ->
-  let _ = shared_id y in let unique_ z = if b then x else y in z
+  let _ = aliased_id y in let unique_ z = if b then x else y in z
 [%%expect{|
-Line 2, characters 58-59:
-2 |   let _ = shared_id y in let unique_ z = if b then x else y in z
-                                                              ^
-Error: This value is shared but expected to be unique.
+Line 2, characters 59-60:
+2 |   let _ = aliased_id y in let unique_ z = if b then x else y in z
+                                                               ^
+Error: This value is aliased but expected to be unique.
 |}]
 
 let inf4 (b : bool) (y : float) (unique_ x : float) =
-  let _ = shared_id y in let unique_ z = if b then x else y in z
+  let _ = aliased_id y in let unique_ z = if b then x else y in z
 [%%expect{|
-Line 2, characters 58-59:
-2 |   let _ = shared_id y in let unique_ z = if b then x else y in z
-                                                              ^
+Line 2, characters 59-60:
+2 |   let _ = aliased_id y in let unique_ z = if b then x else y in z
+                                                               ^
 Error: This value is used here as unique, but it has already been used:
-Line 2, characters 20-21:
-2 |   let _ = shared_id y in let unique_ z = if b then x else y in z
-                        ^
+Line 2, characters 21-22:
+2 |   let _ = aliased_id y in let unique_ z = if b then x else y in z
+                         ^
 
 |}]
 
@@ -577,7 +577,7 @@ val no_curry : unique_ box -> (unique_ box -> unit) = <fun>
 
 (* If both type and mode are wrong, complain about type *)
 let f () =
-  let id2 (x : string) = shared_id x in
+  let id2 (x : string) = aliased_id x in
   let unique_ r = 42 in
   id2 r
 [%%expect{|
