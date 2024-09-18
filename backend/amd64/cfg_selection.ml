@@ -20,7 +20,7 @@
 open Arch
 open Selection_utils
 
-let specific x = Cfg_selectgen.Basic Cfg.(Op (Specific x))
+let specific x = Cfg_selectgen.Basic (Op (Specific x))
 
 let pseudoregs_for_operation op arg res =
   match (op : Cfg.operation) with
@@ -199,7 +199,7 @@ class selector =
            was a float stack slot, the resulting UNPCKLPS instruction would
            enforce the validity of loading it as a 128-bit memory location, even
            though it only loads 64 bits. *)
-        Basic (Op (Specific (Isimd (SSE Interleave_low_32_regs)))), args
+        specific (Isimd (SSE Interleave_low_32_regs)), args
       (* Special cases overriding C implementations (regardless of
          [@@builtin]). *)
       | Cextcall { func = "sqrt" as func; _ }
