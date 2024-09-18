@@ -415,7 +415,9 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
          ++ fun fd -> Mach_fundecl fd
        | true ->
          Cfg_with_layout
-           (Cfg_selection.fundecl ~future_funcnames:funcnames fd_cmm))
+           (Cfg_selection.fundecl ~future_funcnames:funcnames fd_cmm
+           ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
+                "After selection"))
   ++ Profile.record ~accumulate:true "regalloc" (fun (fd : selection_output) ->
          match register_allocator with
          | (GI | IRC | LS) as regalloc ->
