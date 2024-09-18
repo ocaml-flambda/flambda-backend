@@ -1,6 +1,8 @@
 (* TEST *)
 
-open Float.Array
+type t = Float.Array.t
+
+external create_local : int -> local_ t = "caml_floatarray_create_local"
 
 external get : local_ t -> int -> float = "%floatarray_safe_get"
 external set : local_ t -> int -> float -> unit = "%floatarray_safe_set"

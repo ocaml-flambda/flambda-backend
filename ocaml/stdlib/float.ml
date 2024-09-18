@@ -187,7 +187,6 @@ module Array = struct
   external get : t -> int -> float = "%floatarray_safe_get"
   external set : t -> int -> float -> unit = "%floatarray_safe_set"
   external create : int -> t = "caml_floatarray_create"
-  external create_local : int -> local_ t = "caml_floatarray_create_local"
   external unsafe_get : t -> int -> float = "%floatarray_unsafe_get"
   external unsafe_set : t -> int -> float -> unit = "%floatarray_unsafe_set"
 
