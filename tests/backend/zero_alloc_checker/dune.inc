@@ -1115,7 +1115,7 @@
 (rule
  (enabled_if (= %{context_name} "main"))
  (targets test_remove_inferred_assume.output.corrected)
- (deps (:ml conv.mli conv.ml test_remove_inferred_assume.ml) filter.sh)
+ (deps (:ml test_remove_inferred_assume.ml) filter.sh)
  (action
    (with-outputs-to test_remove_inferred_assume.output.corrected
     (pipe-outputs
