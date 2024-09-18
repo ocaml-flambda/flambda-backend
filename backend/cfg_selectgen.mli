@@ -291,4 +291,9 @@ class virtual selector_generic :
 
     method emit_return :
       environment -> Cmm.expression -> Cmm.trap_action list -> unit
+
+    method emit_fundecl :
+      future_funcnames:Misc.Stdlib.String.Set.t ->
+      Cmm.fundecl ->
+      Cfg_with_layout.t
   end
