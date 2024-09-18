@@ -1397,7 +1397,8 @@ let tree_of_modes modes =
     tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_legacy Omd_once];
     tree_of_mode diff.portability [Mode.Portability.Const.Portable, Omd_new "portable"];
     tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_legacy Omd_unique];
-    tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended"]]
+    tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended";
+                                  Mode.Contention.Const.Shared, Omd_new "shared"]]
   in
   List.filter_map Fun.id l
 

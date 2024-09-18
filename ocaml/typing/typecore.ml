@@ -931,7 +931,7 @@ let check_construct_mutability ~loc ~env mutability argument_mode =
 (** The [expected_mode] of the record when projecting a mutable field. *)
 let mode_project_mutable =
   let mode =
-    Contention.Const.Uncontended
+    Contention.Const.Shared
     |> Contention.of_const
     |> Value.max_with (Monadic Contention)
   in
@@ -9766,7 +9766,7 @@ let contention_hint _fail_reason _submode_reason context =
   | Some Read_mutable ->
       [Location.msg
         "@[Hint: In order to read from the mutable fields,@ \
-        this record needs to be uncontended.@]"]
+        this record needs to be at least shared.@]"]
   | Some Write_mutable ->
       [Location.msg
         "@[Hint: In order to write into the mutable fields,@ \
