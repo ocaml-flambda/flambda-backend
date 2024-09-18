@@ -17,6 +17,8 @@
 
 (* Instruction selection for the ARM processor *)
 
+[@@@ocaml.warning "+a-4-9-40-41-42"]
+
 open Arch
 
 let is_offset chunk n =
