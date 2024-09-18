@@ -39,6 +39,18 @@ class virtual selector_generic :
       regs:Reg.t array ->
       Mach.instruction_desc
 
+    method make_const_int : nativeint -> Mach.operation
+
+    method make_const_float32 : int32 -> Mach.operation
+
+    method make_const_float : int64 -> Mach.operation
+
+    method make_const_vec128 : Cmm.vec128_bits -> Mach.operation
+
+    method make_const_symbol : Cmm.symbol -> Mach.operation
+
+    method make_opaque : unit -> Mach.operation
+
     (* The following methods must or can be overridden by the processor
        description *)
     method is_immediate : Mach.integer_operation -> int -> bool
@@ -185,7 +197,130 @@ class virtual selector_generic :
       bound_name:Backend_var.With_provenance.t option ->
       Reg.t array option
 
+    method emit_expr_aux_raise :
+      environment ->
+      Lambda.raise_kind ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Reg.t array option
+
+    method emit_expr_aux_op :
+      environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.operation ->
+      Cmm.expression list ->
+      Debuginfo.t ->
+      Reg.t array option
+
+    method emit_expr_aux_ifthenelse :
+      environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      Reg.t array option
+
+    method emit_expr_aux_switch :
+      environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.expression ->
+      int array ->
+      (Cmm.expression * Debuginfo.t) array ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      Reg.t array option
+
+    method emit_expr_aux_catch :
+      environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.rec_flag ->
+      (Lambda.static_label
+      * (Backend_var.With_provenance.t * Cmm.machtype) list
+      * Cmm.expression
+      * Debuginfo.t
+      * bool)
+      list ->
+      Cmm.expression ->
+      Cmm.kind_for_unboxing ->
+      Reg.t array option
+
+    method emit_expr_aux_exit :
+      environment ->
+      Cmm.exit_label ->
+      Cmm.expression list ->
+      Cmm.trap_action list ->
+      Reg.t array option
+
+    method emit_expr_aux_trywith :
+      environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.expression ->
+      Cmm.trywith_shared_label ->
+      Backend_var.With_provenance.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      Reg.t array option
+
     method emit_tail : environment -> Cmm.expression -> unit
+
+    method emit_tail_apply :
+      environment ->
+      Cmm.machtype ->
+      Cmm.operation ->
+      Cmm.expression list ->
+      Debuginfo.t ->
+      unit
+
+    method emit_tail_ifthenelse :
+      environment ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      unit
+
+    method emit_tail_switch :
+      environment ->
+      Cmm.expression ->
+      int array ->
+      (Cmm.expression * Debuginfo.t) array ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      unit
+
+    method emit_tail_catch :
+      environment ->
+      Cmm.rec_flag ->
+      (Lambda.static_label
+      * (Backend_var.With_provenance.t * Cmm.machtype) list
+      * Cmm.expression
+      * Debuginfo.t
+      * bool)
+      list ->
+      Cmm.expression ->
+      Cmm.kind_for_unboxing ->
+      unit
+
+    method emit_tail_trywith :
+      environment ->
+      Cmm.expression ->
+      Cmm.trywith_shared_label ->
+      Backend_var.With_provenance.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      unit
+
+    method emit_return :
+      environment -> Cmm.expression -> Cmm.trap_action list -> unit
 
     (* [contains_calls] is declared as a reference instance variable, instead of
        a mutable boolean instance variable, because the traversal uses
