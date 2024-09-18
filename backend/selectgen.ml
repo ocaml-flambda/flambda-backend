@@ -239,25 +239,26 @@ class virtual selector_generic =
       match exp with
       | Cconst_int (n, _dbg) ->
         let r = self#regs_for typ_int in
-        ret (self#insert_op env (Mach.Iconst_int (Nativeint.of_int n)) [||] r)
+        ret
+          (self#insert_op env (self#make_const_int (Nativeint.of_int n)) [||] r)
       | Cconst_natint (n, _dbg) ->
         let r = self#regs_for typ_int in
-        ret (self#insert_op env (Mach.Iconst_int n) [||] r)
+        ret (self#insert_op env (self#make_const_int n) [||] r)
       | Cconst_float32 (n, _dbg) ->
         let r = self#regs_for typ_float32 in
         ret
           (self#insert_op env
-             (Mach.Iconst_float32 (Int32.bits_of_float n))
+             (self#make_const_float32 (Int32.bits_of_float n))
              [||] r)
       | Cconst_float (n, _dbg) ->
         let r = self#regs_for typ_float in
         ret
           (self#insert_op env
-             (Mach.Iconst_float (Int64.bits_of_float n))
+             (self#make_const_float (Int64.bits_of_float n))
              [||] r)
       | Cconst_vec128 (bits, _dbg) ->
         let r = self#regs_for typ_vec128 in
-        ret (self#insert_op env (Mach.Iconst_vec128 bits) [||] r)
+        ret (self#insert_op env (self#make_const_vec128 bits) [||] r)
       | Cconst_symbol (n, _dbg) ->
         (* Cconst_symbol _ evaluates to a statically-allocated address, so its
            value fits in a typ_int register and is never changed by the GC.
@@ -267,7 +268,7 @@ class virtual selector_generic =
            registered in the compilation unit's global roots structure, so
            adding this register to the frame table would be redundant *)
         let r = self#regs_for typ_int in
-        ret (self#insert_op env (Mach.Iconst_symbol n) [||] r)
+        ret (self#insert_op env (self#make_const_symbol n) [||] r)
       | Cvar v -> (
         try ret (Select_utils.env_find v env)
         with Not_found ->
@@ -296,15 +297,10 @@ class virtual selector_generic =
           (if Option.is_some provenance
           then
             let naming_op =
-              Mach.Iname_for_debugger
-                { ident = v;
-                  provenance;
-                  which_parameter = None;
-                  is_assignment = true;
-                  regs = r1
-                }
+              self#make_name_for_debugger ~ident:v ~provenance
+                ~which_parameter:None ~is_assignment:true ~regs:r1
             in
-            self#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||] [||]);
+            self#insert_debug env naming_op Debuginfo.none [||] [||]);
           self#insert_moves env r1 rv;
           ret [||])
       | Ctuple [] -> ret [||]
@@ -313,21 +309,13 @@ class virtual selector_generic =
         | None -> None
         | Some (simple_list, ext_env) ->
           ret (self#emit_tuple ext_env simple_list))
-      | Cop (Craise k, [arg], dbg) -> (
-        match self#emit_expr env arg ~bound_name:None with
-        | None -> None
-        | Some r1 ->
-          let rd = [| Proc.loc_exn_bucket |] in
-          self#insert env (Mach.Iop Imove) r1 rd;
-          self#insert_debug env (Mach.Iraise k) dbg rd [||];
-          Select_utils.set_traps_for_raise env;
-          None)
+      | Cop (Craise k, [arg], dbg) -> self#emit_expr_aux_raise env k arg dbg
       | Cop (Copaque, args, dbg) -> (
         match self#emit_parts_list env args with
         | None -> None
         | Some (simple_args, env) ->
           let rs = self#emit_tuple env simple_args in
-          ret (self#insert_op_debug env Mach.Iopaque dbg rs rs))
+          ret (self#insert_op_debug env (self#make_opaque ()) dbg rs rs))
       | Cop (Ctuple_field (field, fields_layout), [arg], _dbg) -> (
         match self#emit_expr env arg ~bound_name:None with
         | None -> None
@@ -342,360 +330,402 @@ class virtual selector_generic =
             Array.sub loc_exp size_before (Array.length fields_layout.(field))
           in
           ret field_slice)
-      | Cop (op, args, dbg) -> (
-        match self#emit_parts_list env args with
-        | None -> None
-        | Some (simple_args, env) -> (
-          let add_naming_op_for_bound_name regs =
-            match bound_name with
-            | None -> ()
-            | Some bound_name ->
-              let provenance = VP.provenance bound_name in
-              if Option.is_some provenance
-              then
-                let bound_name = VP.var bound_name in
-                let naming_op =
-                  Mach.Iname_for_debugger
-                    { ident = bound_name;
-                      provenance;
-                      which_parameter = None;
-                      is_assignment = false;
-                      regs
-                    }
-                in
-                self#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||]
-                  [||]
-          in
-          let ty = Select_utils.oper_result_type op in
-          let new_op, new_args = self#select_operation op simple_args dbg in
-          match new_op with
-          | Icall_ind ->
-            let r1 = self#emit_tuple env new_args in
-            let rarg = Array.sub r1 1 (Array.length r1 - 1) in
-            let rd = self#regs_for ty in
-            let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
-            let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
-            let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
-            self#insert_move_args env rarg loc_arg stack_ofs;
-            self#insert_debug env (Mach.Iop new_op) dbg
-              (Array.append [| r1.(0) |] loc_arg)
-              loc_res;
-            (* The destination registers (as per the procedure calling
-               convention) need to be named right now, otherwise the result of
-               the function call may be unavailable in the debugger immediately
-               after the call. *)
-            add_naming_op_for_bound_name loc_res;
-            self#insert_move_results env loc_res rd stack_ofs;
-            Select_utils.set_traps_for_raise env;
-            Some rd
-          | Icall_imm _ ->
-            let r1 = self#emit_tuple env new_args in
-            let rd = self#regs_for ty in
-            let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
-            let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
-            let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
-            self#insert_move_args env r1 loc_arg stack_ofs;
-            self#insert_debug env (Mach.Iop new_op) dbg loc_arg loc_res;
-            add_naming_op_for_bound_name loc_res;
-            self#insert_move_results env loc_res rd stack_ofs;
-            Select_utils.set_traps_for_raise env;
-            Some rd
-          | Iextcall ({ func; ty_args; returns; _ } as r) ->
-            let loc_arg, stack_ofs =
-              self#emit_extcall_args env ty_args new_args
-            in
-            let keep_for_checking =
-              (not returns)
-              && !Select_utils.current_function_is_check_enabled
-              && String.equal func Cmm.caml_flambda2_invalid
-            in
-            let returns, ty =
-              if keep_for_checking then true, typ_int else returns, ty
-            in
-            let rd = self#regs_for ty in
-            let loc_res =
-              self#insert_op_debug env
-                (Mach.Iextcall { r with stack_ofs; returns })
-                dbg loc_arg
-                (Proc.loc_external_results (Reg.typv rd))
-            in
-            add_naming_op_for_bound_name loc_res;
-            self#insert_move_results env loc_res rd stack_ofs;
-            Select_utils.set_traps_for_raise env;
-            if returns then ret rd else None
-          | Ialloc { bytes = _; mode } ->
-            let rd = self#regs_for typ_val in
-            let bytes = Select_utils.size_expr env (Ctuple new_args) in
-            let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
-            let op =
-              Mach.Ialloc
-                { bytes = alloc_words * Arch.size_addr;
-                  dbginfo = [{ alloc_words; alloc_dbg = dbg }];
-                  mode
-                }
-            in
-            self#insert_debug env (Mach.Iop op) dbg [||] rd;
-            add_naming_op_for_bound_name rd;
-            self#emit_stores env dbg new_args rd;
-            Select_utils.set_traps_for_raise env;
-            ret rd
-          | Iprobe _ ->
-            let r1 = self#emit_tuple env new_args in
-            let rd = self#regs_for ty in
-            let rd = self#insert_op_debug env new_op dbg r1 rd in
-            Select_utils.set_traps_for_raise env;
-            ret rd
-          | op ->
-            let r1 = self#emit_tuple env new_args in
-            let rd = self#regs_for ty in
-            add_naming_op_for_bound_name rd;
-            ret (self#insert_op_debug env op dbg r1 rd)))
+      | Cop (op, args, dbg) -> self#emit_expr_aux_op env bound_name op args dbg
       | Csequence (e1, e2) -> (
         match self#emit_expr env e1 ~bound_name:None with
         | None -> None
         | Some _ -> self#emit_expr_aux env e2 ~bound_name)
-      | Cifthenelse (econd, _ifso_dbg, eif, _ifnot_dbg, eelse, dbg, _kind) -> (
-        let cond, earg = self#select_condition econd in
-        match self#emit_expr env earg ~bound_name:None with
-        | None -> None
-        | Some rarg ->
-          let rif, (sif : 'self) = self#emit_sequence env eif ~bound_name in
-          let relse, (selse : 'self) =
-            self#emit_sequence env eelse ~bound_name
-          in
-          let r = Select_utils.join env rif sif relse selse ~bound_name in
-          self#insert_debug env
-            (Mach.Iifthenelse (cond, sif#extract, selse#extract))
-            dbg rarg [||];
-          r)
-      | Cswitch (esel, index, ecases, dbg, _kind) -> (
-        match self#emit_expr env esel ~bound_name:None with
-        | None -> None
-        | Some rsel ->
-          let rscases =
-            Array.map
-              (fun (case, _dbg) -> self#emit_sequence env case ~bound_name)
-              ecases
-          in
-          let r = Select_utils.join_array env rscases ~bound_name in
-          self#insert_debug env
-            (Mach.Iswitch (index, Array.map (fun (_, s) -> s#extract) rscases))
-            dbg rsel [||];
-          r)
+      | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg, value_kind) ->
+        self#emit_expr_aux_ifthenelse env bound_name econd ifso_dbg eif
+          ifnot_dbg eelse dbg value_kind
+      | Cswitch (esel, index, ecases, dbg, value_kind) ->
+        self#emit_expr_aux_switch env bound_name esel index ecases dbg
+          value_kind
       | Ccatch (_, [], e1, _) -> self#emit_expr_aux env e1 ~bound_name
-      | Ccatch (rec_flag, handlers, body, _) ->
-        let handlers =
-          List.map
-            (fun (nfail, ids, e2, dbg, is_cold) ->
-              let rs =
-                List.map
-                  (fun (id, typ) ->
-                    let r = self#regs_for typ in
-                    Select_utils.name_regs id r;
-                    r)
-                  ids
+      | Ccatch (rec_flag, handlers, body, value_kind) ->
+        self#emit_expr_aux_catch env bound_name rec_flag handlers body
+          value_kind
+      | Cexit (lbl, args, traps) -> self#emit_expr_aux_exit env lbl args traps
+      | Ctrywith (e1, exn_cont, v, e2, dbg, value_kind) ->
+        self#emit_expr_aux_trywith env bound_name e1 exn_cont v e2 dbg
+          value_kind
+
+    method private make_const_int x = Mach.Iconst_int x
+
+    method private make_const_float32 x = Mach.Iconst_float32 x
+
+    method private make_const_float x = Mach.Iconst_float x
+
+    method private make_const_vec128 x = Mach.Iconst_vec128 x
+
+    method private make_const_symbol x = Mach.Iconst_symbol x
+
+    method private make_opaque () = Mach.Iopaque
+
+    method private emit_expr_aux_raise env k arg dbg =
+      match self#emit_expr env arg ~bound_name:None with
+      | None -> None
+      | Some r1 ->
+        let rd = [| Proc.loc_exn_bucket |] in
+        self#insert env (Mach.Iop Imove) r1 rd;
+        self#insert_debug env (Mach.Iraise k) dbg rd [||];
+        Select_utils.set_traps_for_raise env;
+        None
+
+    method private emit_expr_aux_op env bound_name op args dbg =
+      let ret res = Some res in
+      match self#emit_parts_list env args with
+      | None -> None
+      | Some (simple_args, env) -> (
+        let add_naming_op_for_bound_name regs =
+          match bound_name with
+          | None -> ()
+          | Some bound_name ->
+            let provenance = VP.provenance bound_name in
+            if Option.is_some provenance
+            then
+              let bound_name = VP.var bound_name in
+              let naming_op =
+                Mach.Iname_for_debugger
+                  { ident = bound_name;
+                    provenance;
+                    which_parameter = None;
+                    is_assignment = false;
+                    regs
+                  }
               in
-              nfail, ids, rs, e2, dbg, is_cold)
-            handlers
+              self#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||] [||]
         in
-        let env, handlers_map =
-          (* Since the handlers may be recursive, and called from the body, the
-             same environment is used for translating both the handlers and the
-             body. *)
-          List.fold_left
-            (fun (env, map) (nfail, ids, rs, e2, dbg, is_cold) ->
-              let env, r =
-                Select_utils.env_add_static_exception nfail rs env ()
-              in
-              env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold)) map)
-            (env, Int.Map.empty) handlers
+        let ty = Select_utils.oper_result_type op in
+        let new_op, new_args = self#select_operation op simple_args dbg in
+        match new_op with
+        | Icall_ind ->
+          let r1 = self#emit_tuple env new_args in
+          let rarg = Array.sub r1 1 (Array.length r1 - 1) in
+          let rd = self#regs_for ty in
+          let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
+          let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
+          let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
+          self#insert_move_args env rarg loc_arg stack_ofs;
+          self#insert_debug env (Mach.Iop new_op) dbg
+            (Array.append [| r1.(0) |] loc_arg)
+            loc_res;
+          (* The destination registers (as per the procedure calling convention)
+             need to be named right now, otherwise the result of the function
+             call may be unavailable in the debugger immediately after the
+             call. *)
+          add_naming_op_for_bound_name loc_res;
+          self#insert_move_results env loc_res rd stack_ofs;
+          Select_utils.set_traps_for_raise env;
+          Some rd
+        | Icall_imm _ ->
+          let r1 = self#emit_tuple env new_args in
+          let rd = self#regs_for ty in
+          let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
+          let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
+          let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
+          self#insert_move_args env r1 loc_arg stack_ofs;
+          self#insert_debug env (Mach.Iop new_op) dbg loc_arg loc_res;
+          add_naming_op_for_bound_name loc_res;
+          self#insert_move_results env loc_res rd stack_ofs;
+          Select_utils.set_traps_for_raise env;
+          Some rd
+        | Iextcall ({ func; ty_args; returns; _ } as r) ->
+          let loc_arg, stack_ofs =
+            self#emit_extcall_args env ty_args new_args
+          in
+          let keep_for_checking =
+            (not returns)
+            && !Select_utils.current_function_is_check_enabled
+            && String.equal func Cmm.caml_flambda2_invalid
+          in
+          let returns, ty =
+            if keep_for_checking then true, typ_int else returns, ty
+          in
+          let rd = self#regs_for ty in
+          let loc_res =
+            self#insert_op_debug env
+              (Mach.Iextcall { r with stack_ofs; returns })
+              dbg loc_arg
+              (Proc.loc_external_results (Reg.typv rd))
+          in
+          add_naming_op_for_bound_name loc_res;
+          self#insert_move_results env loc_res rd stack_ofs;
+          Select_utils.set_traps_for_raise env;
+          if returns then ret rd else None
+        | Ialloc { bytes = _; mode } ->
+          let rd = self#regs_for typ_val in
+          let bytes = Select_utils.size_expr env (Ctuple new_args) in
+          let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
+          let op =
+            Mach.Ialloc
+              { bytes = alloc_words * Arch.size_addr;
+                dbginfo = [{ alloc_words; alloc_dbg = dbg }];
+                mode
+              }
+          in
+          self#insert_debug env (Mach.Iop op) dbg [||] rd;
+          add_naming_op_for_bound_name rd;
+          self#emit_stores env dbg new_args rd;
+          Select_utils.set_traps_for_raise env;
+          ret rd
+        | Iprobe _ ->
+          let r1 = self#emit_tuple env new_args in
+          let rd = self#regs_for ty in
+          let rd = self#insert_op_debug env new_op dbg r1 rd in
+          Select_utils.set_traps_for_raise env;
+          ret rd
+        | op ->
+          let r1 = self#emit_tuple env new_args in
+          let rd = self#regs_for ty in
+          add_naming_op_for_bound_name rd;
+          ret (self#insert_op_debug env op dbg r1 rd))
+
+    method private emit_expr_aux_ifthenelse env bound_name econd _ifso_dbg eif
+        _ifnot_dbg eelse dbg _value_kind =
+      let cond, earg = self#select_condition econd in
+      match self#emit_expr env earg ~bound_name:None with
+      | None -> None
+      | Some rarg ->
+        let rif, (sif : 'self) = self#emit_sequence env eif ~bound_name in
+        let relse, (selse : 'self) = self#emit_sequence env eelse ~bound_name in
+        let r = Select_utils.join env rif sif relse selse ~bound_name in
+        self#insert_debug env
+          (Mach.Iifthenelse (cond, sif#extract, selse#extract))
+          dbg rarg [||];
+        r
+
+    method private emit_expr_aux_switch env bound_name esel index ecases dbg
+        _value_kind =
+      match self#emit_expr env esel ~bound_name:None with
+      | None -> None
+      | Some rsel ->
+        let rscases =
+          Array.map
+            (fun (case, _dbg) -> self#emit_sequence env case ~bound_name)
+            ecases
         in
-        let r_body, s_body = self#emit_sequence env body ~bound_name in
-        let translate_one_handler nfail
-            (traps_info, (ids, rs, e2, _dbg, is_cold)) =
-          assert (List.length ids = List.length rs);
-          let trap_stack =
-            match (!traps_info : Select_utils.trap_stack_info) with
-            | Unreachable -> assert false
-            | Reachable t -> t
-          in
-          let ids_and_rs = List.combine ids rs in
-          let new_env =
-            List.fold_left
-              (fun env ((id, _typ), r) -> Select_utils.env_add id r env)
-              (Select_utils.env_set_trap_stack env trap_stack)
-              ids_and_rs
-          in
-          let r, s =
-            self#emit_sequence new_env e2 ~bound_name:None ~at_start:(fun seq ->
-                List.iter
-                  (fun ((var, _typ), r) ->
-                    let provenance = VP.provenance var in
-                    if Option.is_some provenance
-                    then
-                      let var = VP.var var in
-                      let naming_op =
-                        Mach.Iname_for_debugger
-                          { ident = var;
-                            provenance;
-                            which_parameter = None;
-                            is_assignment = false;
-                            regs = r
-                          }
-                      in
-                      seq#insert_debug env (Mach.Iop naming_op) Debuginfo.none
-                        [||] [||])
-                  ids_and_rs)
-          in
-          (nfail, trap_stack, is_cold), (r, s)
-        in
-        let rec build_all_reachable_handlers ~already_built ~not_built =
-          let not_built, to_build =
-            Int.Map.partition
-              (fun _n (r, _) -> !r = Select_utils.Unreachable)
-              not_built
-          in
-          if Int.Map.is_empty to_build
-          then already_built
-          else
-            let already_built =
-              Int.Map.fold
-                (fun nfail handler already_built ->
-                  translate_one_handler nfail handler :: already_built)
-                to_build already_built
+        let r = Select_utils.join_array env rscases ~bound_name in
+        self#insert_debug env
+          (Mach.Iswitch (index, Array.map (fun (_, s) -> s#extract) rscases))
+          dbg rsel [||];
+        r
+
+    method private emit_expr_aux_catch env bound_name rec_flag handlers body
+        _value_kind =
+      let handlers =
+        List.map
+          (fun (nfail, ids, e2, dbg, is_cold) ->
+            let rs =
+              List.map
+                (fun (id, typ) ->
+                  let r = self#regs_for typ in
+                  Select_utils.name_regs id r;
+                  r)
+                ids
             in
-            build_all_reachable_handlers ~already_built ~not_built
+            nfail, ids, rs, e2, dbg, is_cold)
+          handlers
+      in
+      let env, handlers_map =
+        (* Since the handlers may be recursive, and called from the body, the
+           same environment is used for translating both the handlers and the
+           body. *)
+        List.fold_left
+          (fun (env, map) (nfail, ids, rs, e2, dbg, is_cold) ->
+            let env, r =
+              Select_utils.env_add_static_exception nfail rs env ()
+            in
+            env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold)) map)
+          (env, Int.Map.empty) handlers
+      in
+      let r_body, s_body = self#emit_sequence env body ~bound_name in
+      let translate_one_handler nfail (traps_info, (ids, rs, e2, _dbg, is_cold))
+          =
+        assert (List.length ids = List.length rs);
+        let trap_stack =
+          match (!traps_info : Select_utils.trap_stack_info) with
+          | Unreachable -> assert false
+          | Reachable t -> t
         in
-        let l =
-          build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
-          (* Note: we're dropping unreachable handlers here *)
+        let ids_and_rs = List.combine ids rs in
+        let new_env =
+          List.fold_left
+            (fun env ((id, _typ), r) -> Select_utils.env_add id r env)
+            (Select_utils.env_set_trap_stack env trap_stack)
+            ids_and_rs
         in
-        let a = Array.of_list ((r_body, s_body) :: List.map snd l) in
-        let r = Select_utils.join_array env a ~bound_name in
-        let aux ((nfail, ts, is_cold), (_r, s)) =
-          nfail, ts, s#extract, is_cold
+        let r, s =
+          self#emit_sequence new_env e2 ~bound_name:None ~at_start:(fun seq ->
+              List.iter
+                (fun ((var, _typ), r) ->
+                  let provenance = VP.provenance var in
+                  if Option.is_some provenance
+                  then
+                    let var = VP.var var in
+                    let naming_op =
+                      Mach.Iname_for_debugger
+                        { ident = var;
+                          provenance;
+                          which_parameter = None;
+                          is_assignment = false;
+                          regs = r
+                        }
+                    in
+                    seq#insert_debug env (Mach.Iop naming_op) Debuginfo.none
+                      [||] [||])
+                ids_and_rs)
         in
-        let final_trap_stack =
-          match r_body with
-          | Some _ -> env.trap_stack
-          | None -> (
-            (* The body never returns, so the trap stack at the end of the catch
-               is the one from the handlers *)
-            match l with
-            | [] ->
-              (* This whole catch never returns *)
-              env.trap_stack
-            | ((_, ts, _), (_, _)) :: tl ->
-              assert (List.for_all (fun ((_, ts', _), (_, _)) -> ts = ts') tl);
-              ts)
+        (nfail, trap_stack, is_cold), (r, s)
+      in
+      let rec build_all_reachable_handlers ~already_built ~not_built =
+        let not_built, to_build =
+          Int.Map.partition
+            (fun _n (r, _) -> !r = Select_utils.Unreachable)
+            not_built
         in
+        if Int.Map.is_empty to_build
+        then already_built
+        else
+          let already_built =
+            Int.Map.fold
+              (fun nfail handler already_built ->
+                translate_one_handler nfail handler :: already_built)
+              to_build already_built
+          in
+          build_all_reachable_handlers ~already_built ~not_built
+      in
+      let l =
+        build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
+        (* Note: we're dropping unreachable handlers here *)
+      in
+      let a = Array.of_list ((r_body, s_body) :: List.map snd l) in
+      let r = Select_utils.join_array env a ~bound_name in
+      let aux ((nfail, ts, is_cold), (_r, s)) = nfail, ts, s#extract, is_cold in
+      let final_trap_stack =
+        match r_body with
+        | Some _ -> env.Select_utils.trap_stack
+        | None -> (
+          (* The body never returns, so the trap stack at the end of the catch
+             is the one from the handlers *)
+          match l with
+          | [] ->
+            (* This whole catch never returns *)
+            env.Select_utils.trap_stack
+          | ((_, ts, _), (_, _)) :: tl ->
+            assert (List.for_all (fun ((_, ts', _), (_, _)) -> ts = ts') tl);
+            ts)
+      in
+      self#insert env
+        (Mach.Icatch (rec_flag, final_trap_stack, List.map aux l, s_body#extract))
+        [||] [||];
+      r
+
+    method private emit_expr_aux_exit env lbl args traps =
+      match self#emit_parts_list env args with
+      | None -> None
+      | Some (simple_list, ext_env) -> (
+        match lbl with
+        | Lbl nfail ->
+          let src = self#emit_tuple ext_env simple_list in
+          let handler =
+            try Select_utils.env_find_static_exception nfail env
+            with Not_found ->
+              Misc.fatal_error
+                ("Selection.emit_expr: unbound label "
+               ^ Stdlib.Int.to_string nfail)
+          in
+          (* Intermediate registers to handle cases where some registers from
+             src are present in dest *)
+          let tmp_regs = Reg.createv_like src in
+          (* Ccatch registers must not contain out of heap pointers *)
+          Array.iter (fun reg -> assert (reg.Reg.typ <> Addr)) src;
+          self#insert_moves env src tmp_regs;
+          self#insert_moves env tmp_regs (Array.concat handler.regs);
+          self#insert env (Mach.Iexit (nfail, traps)) [||] [||];
+          Select_utils.set_traps nfail handler.Select_utils.traps_ref
+            env.Select_utils.trap_stack traps;
+          None
+        | Return_lbl -> (
+          match simple_list with
+          | [expr] ->
+            self#emit_return ext_env expr traps;
+            None
+          | [] ->
+            Misc.fatal_error "Selection.emit_expr: Return without arguments"
+          | _ :: _ :: _ ->
+            Misc.fatal_error
+              "Selection.emit_expr: Return with too many arguments"))
+
+    method private emit_expr_aux_trywith env bound_name e1 exn_cont v e2 dbg
+        _value_kind =
+      let env_body = Select_utils.env_enter_trywith env exn_cont () in
+      let r1, s1 = self#emit_sequence env_body e1 ~bound_name in
+      let rv = self#regs_for typ_val in
+      let with_handler env_handler e2 =
+        let r2, s2 =
+          self#emit_sequence env_handler e2 ~bound_name ~at_start:(fun seq ->
+              let provenance = VP.provenance v in
+              if Option.is_some provenance
+              then
+                let var = VP.var v in
+                let naming_op =
+                  Mach.Iname_for_debugger
+                    { ident = var;
+                      provenance;
+                      which_parameter = None;
+                      is_assignment = false;
+                      regs = rv
+                    }
+                in
+                seq#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||]
+                  [||])
+        in
+        let r = Select_utils.join env r1 s1 r2 s2 ~bound_name in
         self#insert env
-          (Mach.Icatch
-             (rec_flag, final_trap_stack, List.map aux l, s_body#extract))
+          (Mach.Itrywith
+             ( s1#extract,
+               exn_cont,
+               ( env_handler.Select_utils.trap_stack,
+                 Mach.instr_cons_debug (Mach.Iop Imove)
+                   [| Proc.loc_exn_bucket |] rv dbg s2#extract ) ))
           [||] [||];
         r
-      | Cexit (lbl, args, traps) -> (
-        match self#emit_parts_list env args with
-        | None -> None
-        | Some (simple_list, ext_env) -> (
-          match lbl with
-          | Lbl nfail ->
-            let src = self#emit_tuple ext_env simple_list in
-            let handler =
-              try Select_utils.env_find_static_exception nfail env
-              with Not_found ->
-                Misc.fatal_error
-                  ("Selection.emit_expr: unbound label "
-                 ^ Stdlib.Int.to_string nfail)
-            in
-            (* Intermediate registers to handle cases where some registers from
-               src are present in dest *)
-            let tmp_regs = Reg.createv_like src in
-            (* Ccatch registers must not contain out of heap pointers *)
-            Array.iter (fun reg -> assert (reg.Reg.typ <> Addr)) src;
-            self#insert_moves env src tmp_regs;
-            self#insert_moves env tmp_regs (Array.concat handler.regs);
-            self#insert env (Mach.Iexit (nfail, traps)) [||] [||];
-            Select_utils.set_traps nfail handler.traps_ref env.trap_stack traps;
-            None
-          | Return_lbl -> (
-            match simple_list with
-            | [expr] ->
-              self#emit_return ext_env expr traps;
-              None
-            | [] ->
-              Misc.fatal_error "Selection.emit_expr: Return without arguments"
-            | _ :: _ :: _ ->
-              Misc.fatal_error
-                "Selection.emit_expr: Return with too many arguments")))
-      | Ctrywith (e1, exn_cont, v, e2, dbg, _value_kind) -> (
-        let env_body = Select_utils.env_enter_trywith env exn_cont () in
-        let r1, s1 = self#emit_sequence env_body e1 ~bound_name in
-        let rv = self#regs_for typ_val in
-        let with_handler env_handler e2 =
-          let r2, s2 =
-            self#emit_sequence env_handler e2 ~bound_name ~at_start:(fun seq ->
-                let provenance = VP.provenance v in
-                if Option.is_some provenance
-                then
-                  let var = VP.var v in
-                  let naming_op =
-                    Mach.Iname_for_debugger
-                      { ident = var;
-                        provenance;
-                        which_parameter = None;
-                        is_assignment = false;
-                        regs = rv
-                      }
-                  in
-                  seq#insert_debug env (Mach.Iop naming_op) Debuginfo.none [||]
-                    [||])
-          in
-          let r = Select_utils.join env r1 s1 r2 s2 ~bound_name in
-          self#insert env
-            (Mach.Itrywith
-               ( s1#extract,
-                 exn_cont,
-                 ( env_handler.Select_utils.trap_stack,
-                   Mach.instr_cons_debug (Mach.Iop Imove)
-                     [| Proc.loc_exn_bucket |] rv dbg s2#extract ) ))
-            [||] [||];
-          r
+      in
+      let env = Select_utils.env_add v rv env in
+      match Select_utils.env_find_static_exception exn_cont env_body with
+      | { traps_ref = { contents = Reachable ts }; _ } ->
+        with_handler (Select_utils.env_set_trap_stack env ts) e2
+      | { traps_ref = { contents = Unreachable }; _ } ->
+        let dummy_constant = Cconst_int (1, Debuginfo.none) in
+        let segfault =
+          Cmm.(
+            Cop
+              ( Cload
+                  { memory_chunk = Word_int;
+                    mutability = Mutable;
+                    is_atomic = false
+                  },
+                [Cconst_int (0, Debuginfo.none)],
+                Debuginfo.none ))
         in
-        let env = Select_utils.env_add v rv env in
-        match Select_utils.env_find_static_exception exn_cont env_body with
-        | { traps_ref = { contents = Reachable ts }; _ } ->
-          with_handler (Select_utils.env_set_trap_stack env ts) e2
-        | { traps_ref = { contents = Unreachable }; _ } ->
-          let dummy_constant = Cconst_int (1, Debuginfo.none) in
-          let segfault =
-            Cmm.(
-              Cop
-                ( Cload
-                    { memory_chunk = Word_int;
-                      mutability = Mutable;
-                      is_atomic = false
-                    },
-                  [Cconst_int (0, Debuginfo.none)],
-                  Debuginfo.none ))
-          in
-          let dummy_raise =
-            Cop (Craise Raise_notrace, [dummy_constant], Debuginfo.none)
-          in
-          let unreachable =
-            (* The use of a raise operation means that this handler is known not
-               to return, making it compatible with any layout for the body or
-               surrounding code. We also set the trap stack to [Uncaught] to
-               ensure that we don't introduce spurious control-flow edges inside
-               the function. *)
-            Csequence (segfault, dummy_raise)
-          in
-          let env = Select_utils.env_set_trap_stack env Uncaught in
-          with_handler env unreachable
-          (* Misc.fatal_errorf "Selection.emit_expr: \ * Unreachable exception
-             handler %d" lbl *)
-        | exception Not_found ->
-          Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont)
+        let dummy_raise =
+          Cop (Craise Raise_notrace, [dummy_constant], Debuginfo.none)
+        in
+        let unreachable =
+          (* The use of a raise operation means that this handler is known not
+             to return, making it compatible with any layout for the body or
+             surrounding code. We also set the trap stack to [Uncaught] to
+             ensure that we don't introduce spurious control-flow edges inside
+             the function. *)
+          Csequence (segfault, dummy_raise)
+        in
+        let env = Select_utils.env_set_trap_stack env Uncaught in
+        with_handler env unreachable
+        (* Misc.fatal_errorf "Selection.emit_expr: \ * Unreachable exception
+           handler %d" lbl *)
+      | exception Not_found ->
+        Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
 
     method private emit_sequence ?at_start (env : environment) exp ~bound_name
         : _ * 'self =
@@ -731,240 +761,258 @@ class virtual selector_generic =
         | None -> ()
         | Some r1 -> self#emit_tail (self#bind_let_mut env v k r1) e2)
       | Cphantom_let (_var, _defining_expr, body) -> self#emit_tail env body
-      | Cop ((Capply (ty, Rc_normal) as op), args, dbg) -> (
-        match self#emit_parts_list env args with
-        | None -> ()
-        | Some (simple_args, env) -> (
-          let new_op, new_args = self#select_operation op simple_args dbg in
-          match new_op with
-          | Icall_ind ->
-            let r1 = self#emit_tuple env new_args in
-            let rd = self#regs_for ty in
-            let rarg = Array.sub r1 1 (Array.length r1 - 1) in
-            let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
-            let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
-            let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
-            if stack_ofs = 0 && Select_utils.trap_stack_is_empty env
-            then (
-              let call = Mach.Iop Itailcall_ind in
-              self#insert_moves env rarg loc_arg;
-              self#insert_debug env call dbg
-                (Array.append [| r1.(0) |] loc_arg)
-                [||])
-            else (
-              self#insert_move_args env rarg loc_arg stack_ofs;
-              self#insert_debug env (Mach.Iop new_op) dbg
-                (Array.append [| r1.(0) |] loc_arg)
-                loc_res;
-              Select_utils.set_traps_for_raise env;
-              self#insert env (Mach.Iop (Istackoffset (-stack_ofs))) [||] [||];
-              self#insert env
-                (Mach.Ireturn (Select_utils.pop_all_traps env))
-                loc_res [||])
-          | Icall_imm { func } ->
-            let r1 = self#emit_tuple env new_args in
-            let rd = self#regs_for ty in
-            let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
-            let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
-            let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
-            if stack_ofs = 0 && Select_utils.trap_stack_is_empty env
-            then (
-              let call = Mach.Iop (Itailcall_imm { func }) in
-              self#insert_moves env r1 loc_arg;
-              self#insert_debug env call dbg loc_arg [||])
-            else if func.sym_name = !Select_utils.current_function_name
-                    && Select_utils.trap_stack_is_empty env
-            then (
-              let call = Mach.Iop (Itailcall_imm { func }) in
-              let loc_arg' = Proc.loc_parameters (Reg.typv r1) in
-              self#insert_moves env r1 loc_arg';
-              self#insert_debug env call dbg loc_arg' [||])
-            else (
-              self#insert_move_args env r1 loc_arg stack_ofs;
-              self#insert_debug env (Mach.Iop new_op) dbg loc_arg loc_res;
-              Select_utils.set_traps_for_raise env;
-              self#insert env (Mach.Iop (Istackoffset (-stack_ofs))) [||] [||];
-              self#insert env
-                (Mach.Ireturn (Select_utils.pop_all_traps env))
-                loc_res [||])
-          | _ -> Misc.fatal_error "Selection.emit_tail"))
+      | Cop ((Capply (ty, Rc_normal) as op), args, dbg) ->
+        self#emit_tail_apply env ty op args dbg
       | Csequence (e1, e2) -> (
         match self#emit_expr env e1 ~bound_name:None with
         | None -> ()
         | Some _ -> self#emit_tail env e2)
-      | Cifthenelse (econd, _ifso_dbg, eif, _ifnot_dbg, eelse, dbg, _kind) -> (
-        let cond, earg = self#select_condition econd in
-        match self#emit_expr env earg ~bound_name:None with
-        | None -> ()
-        | Some rarg ->
-          self#insert_debug env
-            (Mach.Iifthenelse
-               ( cond,
-                 self#emit_tail_sequence env eif,
-                 self#emit_tail_sequence env eelse ))
-            dbg rarg [||])
-      | Cswitch (esel, index, ecases, dbg, _kind) -> (
-        match self#emit_expr env esel ~bound_name:None with
-        | None -> ()
-        | Some rsel ->
-          let cases =
-            Array.map
-              (fun (case, _dbg) -> self#emit_tail_sequence env case)
-              ecases
-          in
-          self#insert_debug env (Mach.Iswitch (index, cases)) dbg rsel [||])
+      | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg, value_kind) ->
+        self#emit_tail_ifthenelse env econd ifso_dbg eif ifnot_dbg eelse dbg
+          value_kind
+      | Cswitch (esel, index, ecases, dbg, value_kind) ->
+        self#emit_tail_switch env esel index ecases dbg value_kind
       | Ccatch (_, [], e1, _) -> self#emit_tail env e1
-      | Ccatch (rec_flag, handlers, e1, _) ->
-        let handlers =
-          List.map
-            (fun (nfail, ids, e2, dbg, is_cold) ->
-              let rs =
-                List.map
-                  (fun (id, typ) ->
-                    let r = self#regs_for typ in
-                    Select_utils.name_regs id r;
-                    r)
-                  ids
-              in
-              nfail, ids, rs, e2, dbg, is_cold)
-            handlers
-        in
-        let env, handlers_map =
-          List.fold_left
-            (fun (env, map) (nfail, ids, rs, e2, dbg, is_cold) ->
-              let env, r =
-                Select_utils.env_add_static_exception nfail rs env ()
-              in
-              env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold)) map)
-            (env, Int.Map.empty) handlers
-        in
-        let s_body = self#emit_tail_sequence env e1 in
-        let translate_one_handler nfail (trap_info, (ids, rs, e2, _dbg, is_cold))
-            =
-          assert (List.length ids = List.length rs);
-          let trap_stack =
-            match (!trap_info : Select_utils.trap_stack_info) with
-            | Unreachable -> assert false
-            | Reachable t -> t
-          in
-          let ids_and_rs = List.combine ids rs in
-          let new_env =
-            List.fold_left
-              (fun env ((id, _typ), r) -> Select_utils.env_add id r env)
-              (Select_utils.env_set_trap_stack env trap_stack)
-              ids_and_rs
-          in
-          let seq =
-            self#emit_tail_sequence new_env e2 ~at_start:(fun seq ->
-                List.iter
-                  (fun ((var, _typ), r) ->
-                    let provenance = VP.provenance var in
-                    if Option.is_some provenance
-                    then
-                      let var = VP.var var in
-                      let naming_op =
-                        Mach.Iname_for_debugger
-                          { ident = var;
-                            provenance;
-                            which_parameter = None;
-                            is_assignment = false;
-                            regs = r
-                          }
-                      in
-                      seq#insert_debug new_env (Mach.Iop naming_op)
-                        Debuginfo.none [||] [||])
-                  ids_and_rs)
-          in
-          nfail, trap_stack, seq, is_cold
-        in
-        let rec build_all_reachable_handlers ~already_built ~not_built =
-          let not_built, to_build =
-            Int.Map.partition
-              (fun _n (r, _) -> !r = Select_utils.Unreachable)
-              not_built
-          in
-          if Int.Map.is_empty to_build
-          then already_built
-          else
-            let already_built =
-              Int.Map.fold
-                (fun nfail handler already_built ->
-                  translate_one_handler nfail handler :: already_built)
-                to_build already_built
-            in
-            build_all_reachable_handlers ~already_built ~not_built
-        in
-        let new_handlers =
-          build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
-          (* Note: we're dropping unreachable handlers here *)
-        in
-        (* The final trap stack doesn't matter, as it's not reachable. *)
-        self#insert env
-          (Mach.Icatch (rec_flag, env.trap_stack, new_handlers, s_body))
-          [||] [||]
-      | Ctrywith (e1, exn_cont, v, e2, dbg, _value_kind) -> (
-        let env_body = Select_utils.env_enter_trywith env exn_cont () in
-        let s1 = self#emit_tail_sequence env_body e1 in
-        let rv = self#regs_for typ_val in
-        let with_handler env_handler e2 =
-          let s2 =
-            self#emit_tail_sequence env_handler e2 ~at_start:(fun seq ->
-                let provenance = VP.provenance v in
-                if Option.is_some provenance
-                then
-                  let var = VP.var v in
-                  let naming_op =
-                    Mach.Iname_for_debugger
-                      { ident = var;
-                        provenance;
-                        which_parameter = None;
-                        is_assignment = false;
-                        regs = rv
-                      }
-                  in
-                  seq#insert_debug env_handler (Mach.Iop naming_op)
-                    Debuginfo.none [||] [||])
-          in
-          self#insert env
-            (Mach.Itrywith
-               ( s1,
-                 exn_cont,
-                 ( env_handler.Select_utils.trap_stack,
-                   Mach.instr_cons_debug (Iop Imove) [| Proc.loc_exn_bucket |]
-                     rv dbg s2 ) ))
-            [||] [||]
-        in
-        let env = Select_utils.env_add v rv env in
-        match Select_utils.env_find_static_exception exn_cont env_body with
-        | { traps_ref = { contents = Reachable ts }; _ } ->
-          with_handler (Select_utils.env_set_trap_stack env ts) e2
-        | { traps_ref = { contents = Unreachable }; _ } ->
-          (* Note: The following [unreachable] expression has machtype [|Int|],
-             but this might not be the correct machtype for this function's
-             return value. It doesn't matter at runtime since the expression
-             cannot return, but if we start checking (or joining) the machtypes
-             of the different tails we will need to implement something like the
-             [emit_expr_aux] version above, that hides the machtype. *)
-          let unreachable =
-            Cmm.(
-              Cop
-                ( Cload
-                    { memory_chunk = Word_int;
-                      mutability = Mutable;
-                      is_atomic = false
-                    },
-                  [Cconst_int (0, Debuginfo.none)],
-                  Debuginfo.none ))
-          in
-          with_handler env unreachable
-        (* Misc.fatal_errorf "Selection.emit_expr: \ Unreachable exception
-           handler %d" lbl *)
-        | exception Not_found ->
-          Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont)
+      | Ccatch (rec_flag, handlers, e1, value_kind) ->
+        self#emit_tail_catch env rec_flag handlers e1 value_kind
+      | Ctrywith (e1, exn_cont, v, e2, dbg, value_kind) ->
+        self#emit_tail_trywith env e1 exn_cont v e2 dbg value_kind
       | Cop _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _
       | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ | Cassign _
       | Ctuple _ | Cexit _ ->
         self#emit_return env exp (Select_utils.pop_all_traps env)
+
+    method private emit_tail_apply env ty op args dbg =
+      match self#emit_parts_list env args with
+      | None -> ()
+      | Some (simple_args, env) -> (
+        let new_op, new_args = self#select_operation op simple_args dbg in
+        match new_op with
+        | Icall_ind ->
+          let r1 = self#emit_tuple env new_args in
+          let rd = self#regs_for ty in
+          let rarg = Array.sub r1 1 (Array.length r1 - 1) in
+          let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
+          let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
+          let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
+          if stack_ofs = 0 && Select_utils.trap_stack_is_empty env
+          then (
+            let call = Mach.Iop Itailcall_ind in
+            self#insert_moves env rarg loc_arg;
+            self#insert_debug env call dbg
+              (Array.append [| r1.(0) |] loc_arg)
+              [||])
+          else (
+            self#insert_move_args env rarg loc_arg stack_ofs;
+            self#insert_debug env (Mach.Iop new_op) dbg
+              (Array.append [| r1.(0) |] loc_arg)
+              loc_res;
+            Select_utils.set_traps_for_raise env;
+            self#insert env (Mach.Iop (Istackoffset (-stack_ofs))) [||] [||];
+            self#insert env
+              (Mach.Ireturn (Select_utils.pop_all_traps env))
+              loc_res [||])
+        | Icall_imm { func } ->
+          let r1 = self#emit_tuple env new_args in
+          let rd = self#regs_for ty in
+          let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
+          let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
+          let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
+          if stack_ofs = 0 && Select_utils.trap_stack_is_empty env
+          then (
+            let call = Mach.Iop (Itailcall_imm { func }) in
+            self#insert_moves env r1 loc_arg;
+            self#insert_debug env call dbg loc_arg [||])
+          else if func.sym_name = !Select_utils.current_function_name
+                  && Select_utils.trap_stack_is_empty env
+          then (
+            let call = Mach.Iop (Itailcall_imm { func }) in
+            let loc_arg' = Proc.loc_parameters (Reg.typv r1) in
+            self#insert_moves env r1 loc_arg';
+            self#insert_debug env call dbg loc_arg' [||])
+          else (
+            self#insert_move_args env r1 loc_arg stack_ofs;
+            self#insert_debug env (Mach.Iop new_op) dbg loc_arg loc_res;
+            Select_utils.set_traps_for_raise env;
+            self#insert env (Mach.Iop (Istackoffset (-stack_ofs))) [||] [||];
+            self#insert env
+              (Mach.Ireturn (Select_utils.pop_all_traps env))
+              loc_res [||])
+        | _ -> Misc.fatal_error "Selection.emit_tail")
+
+    method private emit_tail_ifthenelse env econd _ifso_dbg eif _ifnot_dbg eelse
+        dbg _value_kind =
+      let cond, earg = self#select_condition econd in
+      match self#emit_expr env earg ~bound_name:None with
+      | None -> ()
+      | Some rarg ->
+        self#insert_debug env
+          (Mach.Iifthenelse
+             ( cond,
+               self#emit_tail_sequence env eif,
+               self#emit_tail_sequence env eelse ))
+          dbg rarg [||]
+
+    method private emit_tail_switch env esel index ecases dbg _value_kind =
+      match self#emit_expr env esel ~bound_name:None with
+      | None -> ()
+      | Some rsel ->
+        let cases =
+          Array.map
+            (fun (case, _dbg) -> self#emit_tail_sequence env case)
+            ecases
+        in
+        self#insert_debug env (Mach.Iswitch (index, cases)) dbg rsel [||]
+
+    method private emit_tail_catch env rec_flag handlers e1 _value_kind =
+      let handlers =
+        List.map
+          (fun (nfail, ids, e2, dbg, is_cold) ->
+            let rs =
+              List.map
+                (fun (id, typ) ->
+                  let r = self#regs_for typ in
+                  Select_utils.name_regs id r;
+                  r)
+                ids
+            in
+            nfail, ids, rs, e2, dbg, is_cold)
+          handlers
+      in
+      let env, handlers_map =
+        List.fold_left
+          (fun (env, map) (nfail, ids, rs, e2, dbg, is_cold) ->
+            let env, r =
+              Select_utils.env_add_static_exception nfail rs env ()
+            in
+            env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold)) map)
+          (env, Int.Map.empty) handlers
+      in
+      let s_body = self#emit_tail_sequence env e1 in
+      let translate_one_handler nfail (trap_info, (ids, rs, e2, _dbg, is_cold))
+          =
+        assert (List.length ids = List.length rs);
+        let trap_stack =
+          match (!trap_info : Select_utils.trap_stack_info) with
+          | Unreachable -> assert false
+          | Reachable t -> t
+        in
+        let ids_and_rs = List.combine ids rs in
+        let new_env =
+          List.fold_left
+            (fun env ((id, _typ), r) -> Select_utils.env_add id r env)
+            (Select_utils.env_set_trap_stack env trap_stack)
+            ids_and_rs
+        in
+        let seq =
+          self#emit_tail_sequence new_env e2 ~at_start:(fun seq ->
+              List.iter
+                (fun ((var, _typ), r) ->
+                  let provenance = VP.provenance var in
+                  if Option.is_some provenance
+                  then
+                    let var = VP.var var in
+                    let naming_op =
+                      Mach.Iname_for_debugger
+                        { ident = var;
+                          provenance;
+                          which_parameter = None;
+                          is_assignment = false;
+                          regs = r
+                        }
+                    in
+                    seq#insert_debug new_env (Mach.Iop naming_op) Debuginfo.none
+                      [||] [||])
+                ids_and_rs)
+        in
+        nfail, trap_stack, seq, is_cold
+      in
+      let rec build_all_reachable_handlers ~already_built ~not_built =
+        let not_built, to_build =
+          Int.Map.partition
+            (fun _n (r, _) -> !r = Select_utils.Unreachable)
+            not_built
+        in
+        if Int.Map.is_empty to_build
+        then already_built
+        else
+          let already_built =
+            Int.Map.fold
+              (fun nfail handler already_built ->
+                translate_one_handler nfail handler :: already_built)
+              to_build already_built
+          in
+          build_all_reachable_handlers ~already_built ~not_built
+      in
+      let new_handlers =
+        build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
+        (* Note: we're dropping unreachable handlers here *)
+      in
+      (* The final trap stack doesn't matter, as it's not reachable. *)
+      self#insert env
+        (Mach.Icatch
+           (rec_flag, env.Select_utils.trap_stack, new_handlers, s_body))
+        [||] [||]
+
+    method private emit_tail_trywith env e1 exn_cont v e2 dbg _value_kind =
+      let env_body = Select_utils.env_enter_trywith env exn_cont () in
+      let s1 = self#emit_tail_sequence env_body e1 in
+      let rv = self#regs_for typ_val in
+      let with_handler env_handler e2 =
+        let s2 =
+          self#emit_tail_sequence env_handler e2 ~at_start:(fun seq ->
+              let provenance = VP.provenance v in
+              if Option.is_some provenance
+              then
+                let var = VP.var v in
+                let naming_op =
+                  Mach.Iname_for_debugger
+                    { ident = var;
+                      provenance;
+                      which_parameter = None;
+                      is_assignment = false;
+                      regs = rv
+                    }
+                in
+                seq#insert_debug env_handler (Mach.Iop naming_op) Debuginfo.none
+                  [||] [||])
+        in
+        self#insert env
+          (Mach.Itrywith
+             ( s1,
+               exn_cont,
+               ( env_handler.Select_utils.trap_stack,
+                 Mach.instr_cons_debug (Iop Imove) [| Proc.loc_exn_bucket |] rv
+                   dbg s2 ) ))
+          [||] [||]
+      in
+      let env = Select_utils.env_add v rv env in
+      match Select_utils.env_find_static_exception exn_cont env_body with
+      | { traps_ref = { contents = Reachable ts }; _ } ->
+        with_handler (Select_utils.env_set_trap_stack env ts) e2
+      | { traps_ref = { contents = Unreachable }; _ } ->
+        (* Note: The following [unreachable] expression has machtype [|Int|],
+           but this might not be the correct machtype for this function's return
+           value. It doesn't matter at runtime since the expression cannot
+           return, but if we start checking (or joining) the machtypes of the
+           different tails we will need to implement something like the
+           [emit_expr_aux] version above, that hides the machtype. *)
+        let unreachable =
+          Cmm.(
+            Cop
+              ( Cload
+                  { memory_chunk = Word_int;
+                    mutability = Mutable;
+                    is_atomic = false
+                  },
+                [Cconst_int (0, Debuginfo.none)],
+                Debuginfo.none ))
+        in
+        with_handler env unreachable
+      (* Misc.fatal_errorf "Selection.emit_expr: \ Unreachable exception handler
+         %d" lbl *)
+      | exception Not_found ->
+        Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
 
     method private emit_tail_sequence ?at_start env exp =
       let s = {<instr_seq = Mach.dummy_instr>} in
