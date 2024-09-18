@@ -70,18 +70,28 @@ static void init_static(void)
       caml_fatal_error("not enough memory for initial page table");
   }
 
-  caml_code_area_start = caml_code_segments[0].begin;
-  caml_code_area_end = caml_code_segments[0].end;
-  for (i = 1; caml_code_segments[i].begin != 0; i++) {
-    if (caml_code_segments[i].begin < caml_code_area_start)
-      caml_code_area_start = caml_code_segments[i].begin;
-    if (caml_code_segments[i].end > caml_code_area_end)
-      caml_code_area_end = caml_code_segments[i].end;
+  if (caml_prelinking_in_use) {
+    /* Register each segment as a separate code fragment */
+    for (i = 0; caml_code_segments[i].begin != 0; i++) {
+      caml_register_code_fragment(caml_code_segments[i].begin,
+                                  caml_code_segments[i].end,
+                                  DIGEST_LATER, NULL);
+    }
+  } else {
+    caml_code_area_start = caml_code_segments[0].begin;
+    caml_code_area_end = caml_code_segments[0].end;
+    for (i = 1; caml_code_segments[i].begin != 0; i++) {
+      if (caml_code_segments[i].begin < caml_code_area_start)
+        caml_code_area_start = caml_code_segments[i].begin;
+      if (caml_code_segments[i].end > caml_code_area_end)
+        caml_code_area_end = caml_code_segments[i].end;
+    }
+    /* Register the code in the table of code fragments */
+    caml_register_code_fragment(caml_code_area_start,
+                                caml_code_area_end,
+                                DIGEST_LATER, NULL);
   }
-  /* Register the code in the table of code fragments */
-  caml_register_code_fragment(caml_code_area_start,
-                              caml_code_area_end,
-                              DIGEST_LATER, NULL);
+
   /* Also register the glue code written in assembly */
   caml_register_code_fragment(&caml_system__code_begin,
                               &caml_system__code_end,
