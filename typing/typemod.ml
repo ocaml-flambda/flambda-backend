@@ -3662,6 +3662,11 @@ let type_implementation target modulename initial_env ast =
               in
               Unit_info.Artifact.from_filename cmi_file
           in
+          (* We use pre-5.2 behaviour as regards which interface-related file
+             is reported in error messages. *)
+          let compiled_intf_file_name =
+            Unit_info.Artifact.filename compiled_intf_file
+          in
           let dclsig =
             Env.read_signature import compiled_intf_file ~add_binding:false
           in
@@ -3676,7 +3681,7 @@ let type_implementation target modulename initial_env ast =
           let coercion, shape =
             Profile.record_call "check_sig" (fun () ->
               Includemod.compunit initial_env ~mark:Mark_positive
-                sourcefile sg source_intf dclsig shape)
+                sourcefile sg compiled_intf_file_name dclsig shape)
           in
           (* Check the _mli_ against the argument type, since the mli determines
              the visible type of the module and that's what needs to conform to
