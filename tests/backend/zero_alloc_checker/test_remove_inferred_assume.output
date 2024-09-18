@@ -1,0 +1,5 @@
+File "test_remove_inferred_assume.ml", line 32, characters 15-25:
+Error: Annotation check for zero_alloc failed on function Test_remove_inferred_assume.read_exn (camlTest_remove_inferred_assume.read_exn_HIDE_STAMP)
+
+File "test_remove_inferred_assume.ml", line 33, characters 2-22:
+Error: allocation of 24 bytes (test_remove_inferred_assume.ml:33,2--22;test_remove_inferred_assume.ml:26,12--32;test_remove_inferred_assume.ml:21,26--46;test_remove_inferred_assume.ml:11,70--82)
