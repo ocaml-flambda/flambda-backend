@@ -529,6 +529,11 @@ module Array : sig
       with uninitialized data.
       @raise Invalid_argument if [n < 0] or [n > Sys.max_floatarray_length]. *)
 
+  val create_local : int -> local_ t
+  (** [create_local n] returns a fresh local floatarray of length [n],
+      with uninitialized data.
+      @raise Invalid_argument if [n < 0] or [n > Sys.max_floatarray_length]. *)
+
   val init : int -> (int -> float) -> t
   (** [init n f] returns a fresh floatarray of length [n],
       with element number [i] initialized to the result of [f i].
