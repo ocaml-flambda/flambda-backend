@@ -87,19 +87,19 @@ let fill ar ofs len x =
 module type S = sig
   type data
   type t
-  val create : int -> t @@ portable
-  val clear : t -> unit @@ portable
-  val merge : t -> data -> data @@ portable
-  val add : t -> data -> unit @@ portable
-  val remove : t -> data -> unit @@ portable
-  val find : t -> data -> data @@ portable
-  val find_opt : t -> data -> data option @@ portable
-  val find_all : t -> data -> data list @@ portable
-  val mem : t -> data -> bool @@ portable
-  val iter : (data -> unit) -> t -> unit @@ portable
-  val fold : (data -> 'acc -> 'acc) -> t -> 'acc -> 'acc @@ portable
-  val count : t -> int @@ portable
-  val stats : t -> int * int * int * int * int * int @@ portable
+  val create : int -> t
+  val clear : t -> unit
+  val merge : t -> data -> data
+  val add : t -> data -> unit
+  val remove : t -> data -> unit
+  val find : t -> data -> data
+  val find_opt : t -> data -> data option
+  val find_all : t -> data -> data list
+  val mem : t -> data -> bool
+  val iter : (data -> unit) -> t -> unit
+  val fold : (data -> 'acc -> 'acc) -> t -> 'acc -> 'acc
+  val count : t -> int
+  val stats : t -> int * int * int * int * int * int
 end
 
 module Make (H : Hashtbl.HashedType) : (S with type data = H.t) = struct
