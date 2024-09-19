@@ -449,12 +449,14 @@ module Suspension = struct
      raised. *)
 
   let once (f : 'a suspension) : 'a suspension =
-    let action = Atomic.make f in
+    (* CR tdelvecchio: Previously used [Atomic]. *)
+    let action = ref f in
     fun () ->
       (* Get the function currently stored in [action], and write the
          function [failure] in its place, so the next access will result
          in a call to [failure()]. *)
-      let f = Atomic.exchange action failure in
+      let f = !action in
+      action := failure;
       f()
 
 end (* Suspension *)
