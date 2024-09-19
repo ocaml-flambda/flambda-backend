@@ -31,7 +31,7 @@ module DLS : sig
 
     type password
 
-    type 'a key
+    type 'a key : value mod portable uncontended
     (** Type of a DLS key *)
 
     val initial_password : password
