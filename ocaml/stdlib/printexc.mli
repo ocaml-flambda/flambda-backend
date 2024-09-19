@@ -85,7 +85,8 @@ val backtrace_status: unit -> bool @@ portable
     @since 3.11
 *)
 
-val register_printer: (exn -> string option) -> unit @@ portable
+val register_printer: (exn -> string option) -> unit
+[@@alert unsafe]
 (** [Printexc.register_printer fn] registers [fn] as an exception
     printer.  The printer should return [None] or raise an exception
     if it does not know how to convert the passed exception, and [Some
@@ -103,6 +104,8 @@ val register_printer: (exn -> string option) -> unit @@ portable
     the backtrace if it has itself raised an exception before.
     @since 3.11.2
 *)
+
+val register_printer_safe : (exn -> string option) @ portable -> unit @@ portable
 
 val use_printers: exn -> string option @@ portable
 (** [Printexc.use_printers e] returns [None] if there are no registered
@@ -202,7 +205,8 @@ val default_uncaught_exception_handler: exn -> raw_backtrace -> unit @@ portable
     @since 4.11
 *)
 
-val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit @@ portable
+val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit
+[@@alert unsafe]
 (** [Printexc.set_uncaught_exception_handler fn] registers [fn] as the handler
     for uncaught exceptions. The default handler is
     {!Printexc.default_uncaught_exception_handler}.
@@ -220,6 +224,7 @@ val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit @@ po
     @since 4.02
 *)
 
+val set_uncaught_exception_handler_safe: (exn -> raw_backtrace -> unit) @ portable -> unit @@ portable
 
 (** {1 Manipulation of backtrace information}
 
