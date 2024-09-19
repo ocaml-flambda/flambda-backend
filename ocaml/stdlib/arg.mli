@@ -1,3 +1,4 @@
+# 2 "arg.mli"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -115,7 +116,7 @@ type usage_msg = string
 type anon_fun = (string -> unit)
 
 val parse :
-  (key * spec * doc) list -> anon_fun -> usage_msg -> unit @@ portable
+  (key * spec * doc) list -> anon_fun -> usage_msg -> unit
 (** [Arg.parse speclist anon_fun usage_msg] parses the command line.
     [speclist] is a list of triples [(key, spec, doc)].
     [key] is the option keyword, it must start with a ['-'] character.
@@ -144,7 +145,7 @@ val parse :
 *)
 
 val parse_dynamic :
-  (key * spec * doc) list ref -> anon_fun -> usage_msg -> unit @@ portable
+  (key * spec * doc) list ref -> anon_fun -> usage_msg -> unit
 (** Same as {!Arg.parse}, except that the [speclist] argument is a reference
     and may be updated during the parsing. A typical use for this feature
     is to parse command lines of the form:
@@ -154,7 +155,7 @@ val parse_dynamic :
 *)
 
 val parse_argv : ?current: int ref -> string array ->
-  (key * spec * doc) list -> anon_fun -> usage_msg -> unit @@ portable
+  (key * spec * doc) list -> anon_fun -> usage_msg -> unit
 (** [Arg.parse_argv ~current args speclist anon_fun usage_msg] parses
   the array [args] as if it were the command line.  It uses and updates
   the value of [~current] (if given), or {!Arg.current}.  You must set
@@ -167,7 +168,7 @@ val parse_argv : ?current: int ref -> string array ->
 *)
 
 val parse_argv_dynamic : ?current:int ref -> string array ->
-  (key * spec * doc) list ref -> anon_fun -> string -> unit @@ portable
+  (key * spec * doc) list ref -> anon_fun -> string -> unit
 (** Same as {!Arg.parse_argv}, except that the [speclist] argument is a
     reference and may be updated during the parsing.
     See {!Arg.parse_dynamic}.
@@ -175,7 +176,7 @@ val parse_argv_dynamic : ?current:int ref -> string array ->
 *)
 
 val parse_and_expand_argv_dynamic : int ref -> string array ref ->
-  (key * spec * doc) list ref -> anon_fun -> string -> unit @@ portable
+  (key * spec * doc) list ref -> anon_fun -> string -> unit
 (** Same as {!Arg.parse_argv_dynamic}, except that the [argv] argument is a
     reference and may be updated during the parsing of [Expand] arguments.
     See {!Arg.parse_argv_dynamic}.
@@ -183,7 +184,7 @@ val parse_and_expand_argv_dynamic : int ref -> string array ref ->
 *)
 
 val parse_expand:
-  (key * spec * doc) list -> anon_fun -> usage_msg -> unit @@ portable
+  (key * spec * doc) list -> anon_fun -> usage_msg -> unit
 (** Same as {!Arg.parse}, except that the [Expand] arguments are allowed and
     the {!current} reference is not updated.
     @since 4.05
@@ -197,17 +198,17 @@ exception Bad of string
     message to reject invalid arguments.
     [Arg.Bad] is also raised by {!Arg.parse_argv} in case of an error. *)
 
-val usage : (key * spec * doc) list -> usage_msg -> unit @@ portable
+val usage : (key * spec * doc) list -> usage_msg -> unit
 (** [Arg.usage speclist usage_msg] prints to standard error
     an error message that includes the list of valid options.  This is
     the same message that {!Arg.parse} prints in case of error.
     [speclist] and [usage_msg] are the same as for {!Arg.parse}. *)
 
-val usage_string : (key * spec * doc) list -> usage_msg -> string @@ portable
+val usage_string : (key * spec * doc) list -> usage_msg -> string
 (** Returns the message that would have been printed by {!Arg.usage},
     if provided with the same parameters. *)
 
-val align: ?limit: int -> (key * spec * doc) list -> (key * spec * doc) list @@ portable
+val align: ?limit: int -> (key * spec * doc) list -> (key * spec * doc) list
 (** Align the documentation strings by inserting spaces at the first alignment
     separator (tab or, if tab is not found, space), according to the length of
     the keyword.  Use a alignment separator as the first character in a doc
@@ -216,31 +217,31 @@ val align: ?limit: int -> (key * spec * doc) list -> (key * spec * doc) list @@ 
     @param limit options with keyword and message longer than [limit] will not
     be used to compute the alignment. *)
 
-val current : int ref @@ portable
+val current : int ref
 (** Position (in {!Sys.argv}) of the argument being processed.  You can
     change this value, e.g. to force {!Arg.parse} to skip some arguments.
     {!Arg.parse} uses the initial value of {!Arg.current} as the index of
     argument 0 (the program name) and starts parsing arguments
     at the next element. *)
 
-val read_arg: string -> string array @@ portable
+val read_arg: string -> string array
 (** [Arg.read_arg file] reads newline-terminated command line arguments from
     file [file].
     @since 4.05 *)
 
-val read_arg0: string -> string array @@ portable
+val read_arg0: string -> string array
 (** Identical to {!Arg.read_arg} but assumes null character terminated command
     line arguments.
     @since 4.05 *)
 
 
-val write_arg: string -> string array -> unit @@ portable
+val write_arg: string -> string array -> unit
 (** [Arg.write_arg file args] writes the arguments [args] newline-terminated
     into the file [file]. If any of the arguments in [args] contains a
     newline, use {!Arg.write_arg0} instead.
     @since 4.05 *)
 
-val write_arg0: string -> string array -> unit @@ portable
+val write_arg0: string -> string array -> unit
 (** Identical to {!Arg.write_arg} but uses the null character for terminator
     instead of newline.
     @since 4.05 *)
