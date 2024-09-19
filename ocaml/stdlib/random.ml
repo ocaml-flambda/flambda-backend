@@ -342,37 +342,59 @@ let mk_default () =
            6388613595849772044L
 
 let random_key =
-  Domain.DLS.new_key ~split_from_parent:State.split mk_default
+  Domain.DLS.new_key_safe
+    ~split_from_parent:(fun st ->
+      let st = State.split st in
+      let st = Obj.magic_portable st in
+      (fun _ -> Obj.magic_uncontended st))
+    (fun _ -> mk_default ())
 
-let bits () = State.bits (Domain.DLS.get random_key)
-let int bound = State.int (Domain.DLS.get random_key) bound
-let full_int bound = State.full_int (Domain.DLS.get random_key) bound
-let int_in_range ~min ~max =
-  State.int_in_range (Domain.DLS.get random_key) ~min ~max
-let int32 bound = State.int32 (Domain.DLS.get random_key) bound
-let int32_in_range ~min ~max =
-  State.int32_in_range (Domain.DLS.get random_key) ~min ~max
-let nativeint bound = State.nativeint (Domain.DLS.get random_key) bound
-let nativeint_in_range ~min ~max =
-  State.nativeint_in_range (Domain.DLS.get random_key) ~min ~max
-let int64 bound = State.int64 (Domain.DLS.get random_key) bound
-let int64_in_range ~min ~max =
-  State.int64_in_range (Domain.DLS.get random_key) ~min ~max
-let float scale = State.float (Domain.DLS.get random_key) scale
-let bool () = State.bool (Domain.DLS.get random_key)
-let bits32 () = State.bits32 (Domain.DLS.get random_key)
-let bits64 () = State.bits64 (Domain.DLS.get random_key)
-let nativebits () = State.nativebits (Domain.DLS.get random_key)
+let apply0 f () = Domain.DLS.with_password (fun pw -> f (Domain.DLS.get' pw random_key))
+let apply1 (type (a : value mod portable uncontended)) (f : State.t -> a -> a) v =
+  Domain.DLS.with_password (fun pw -> f (Domain.DLS.get' pw random_key) v)
+let apply_in_range (type (a : value mod portable uncontended))
+      (f : State.t -> min:a -> max:a -> a) ~min ~max =
+  Domain.DLS.with_password (fun pw -> f (Domain.DLS.get' pw random_key) ~min ~max)
 
-let full_init seed = State.reinit (Domain.DLS.get random_key) seed
+let bits = apply0 State.bits
+let int = apply1 State.int
+let full_int = apply1 State.full_int
+let int_in_range = apply_in_range State.int_in_range
+let int32 = apply1 State.int32
+let int32_in_range = apply_in_range State.int32_in_range
+let nativeint = apply1 State.nativeint
+let nativeint_in_range = apply_in_range State.nativeint_in_range
+let int64 = apply1 State.int64
+let int64_in_range = apply_in_range State.int64_in_range
+let float = apply1 State.float
+let bool = apply0 State.bool
+let bits32 = apply0 State.bits32
+let bits64 = apply0 State.bits64
+let nativebits = apply0 State.nativebits
+
+let full_init seed =
+  let seed = Obj.magic_portable seed in
+  Domain.DLS.with_password (fun pw ->
+    let seed = Obj.magic_uncontended seed in
+    State.reinit (Domain.DLS.get' pw random_key) seed)
+
 let init seed = full_init [| seed |]
 let self_init () = full_init (random_seed())
 
 (* Splitting *)
 
-let split () = State.split (Domain.DLS.get random_key)
+let split () =
+  Domain.DLS.with_password (fun pw ->
+    State.split (Domain.DLS.get' pw random_key) |> Obj.magic_portable)
+  |> Obj.magic_uncontended
 
 (* Manipulating the current state. *)
 
-let get_state () = State.copy (Domain.DLS.get random_key)
-let set_state s = State.assign (Domain.DLS.get random_key) s
+let get_state () =
+  Domain.DLS.with_password (fun pw ->
+    State.copy (Domain.DLS.get' pw random_key) |> Obj.magic_portable)
+  |> Obj.magic_uncontended
+let set_state s =
+  let s = Obj.magic_portable s in
+  Domain.DLS.with_password (fun pw ->
+    State.assign (Domain.DLS.get' pw random_key) (Obj.magic_uncontended s))
