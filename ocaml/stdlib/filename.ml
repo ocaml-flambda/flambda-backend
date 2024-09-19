@@ -332,20 +332,21 @@ let remove_extension name =
 external open_desc: string -> open_flag list -> int -> int @@ portable = "caml_sys_open"
 external close_desc: int -> unit @@ portable = "caml_sys_close"
 
-let prng_key = Domain.DLS.new_key Random.State.make_self_init
+let prng_key = Domain.DLS.new_key_safe (fun _ -> Random.State.make_self_init ())
 
-let temp_file_name temp_dir prefix suffix =
-  let random_state = Domain.DLS.get prng_key in
-  let rnd = (Random.State.bits random_state) land 0xFFFFFF in
-  concat temp_dir (Printf.sprintf "%s%06x%s" prefix rnd suffix)
+let temp_file_name temp_dir (prefix : string) (suffix : string) =
+  Domain.DLS.with_password (fun pw ->
+    let random_state = Domain.DLS.get' pw prng_key in
+    let rnd = (Random.State.bits random_state) land 0xFFFFFF in
+    concat temp_dir (Printf.sprintf "%s%06x%s" prefix rnd suffix))
 
 let current_temp_dir_name =
-  Domain.DLS.new_key ~split_from_parent:Fun.id (fun () -> temp_dir_name)
+  Domain.DLS.new_key_safe ~split_from_parent:(fun (x : string) _ -> x) (fun _ -> temp_dir_name)
 
-let set_temp_dir_name s = Domain.DLS.set current_temp_dir_name s
-let get_temp_dir_name () = Domain.DLS.get current_temp_dir_name
+let set_temp_dir_name (s : string) = Domain.DLS.with_password (fun pw -> Domain.DLS.set' pw current_temp_dir_name s)
+let get_temp_dir_name () = Domain.DLS.with_password (fun pw : string -> Domain.DLS.get' pw current_temp_dir_name)
 
-let temp_file ?(temp_dir = Domain.DLS.get current_temp_dir_name) prefix suffix =
+let temp_file ?(temp_dir = get_temp_dir_name ()) prefix suffix =
   let rec try_name counter =
     let name = temp_file_name temp_dir prefix suffix in
     try
@@ -356,7 +357,7 @@ let temp_file ?(temp_dir = Domain.DLS.get current_temp_dir_name) prefix suffix =
   in try_name 0
 
 let open_temp_file ?(mode = [Open_text]) ?(perms = 0o600)
-    ?(temp_dir = Domain.DLS.get current_temp_dir_name)
+    ?(temp_dir = get_temp_dir_name ())
     prefix suffix =
   let rec try_name counter =
     let name = temp_file_name temp_dir prefix suffix in
@@ -367,7 +368,7 @@ let open_temp_file ?(mode = [Open_text]) ?(perms = 0o600)
       if counter >= 20 then raise e else try_name (counter + 1)
   in try_name 0
 
-let temp_dir ?(temp_dir = Domain.DLS.get current_temp_dir_name)
+let temp_dir ?(temp_dir = get_temp_dir_name ())
     ?(perms = 0o700) prefix suffix =
   let rec try_name counter =
     let name = temp_file_name temp_dir prefix suffix in
