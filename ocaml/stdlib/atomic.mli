@@ -24,7 +24,8 @@
 *)
 
 (** An atomic (mutable) reference to a value of type ['a]. *)
-type !'a t
+type (!'a : value mod portable) t : value mod portable uncontended
+(* CR tdelvecchio: weaken to [portable with 'a] *)
 
 (** Create an atomic reference. *)
 val make : 'a -> 'a t @@ portable
@@ -44,20 +45,26 @@ val make : 'a -> 'a t @@ portable
 val make_contended : 'a -> 'a t @@ portable
 
 (** Get the current value of the atomic reference. *)
-val get : 'a t -> 'a @@ portable
+val get : 'a t -> 'a
+[@@alert unsafe]
+
+val get_safe : 'a t -> 'a @ contended @@ portable
 
 (** Set a new value for the atomic reference. *)
-val set : 'a t -> 'a -> unit @@ portable
+val set : 'a t -> 'a @ contended -> unit @@ portable
 
 (** Set a new value for the atomic reference, and return the current value. *)
-val exchange : 'a t -> 'a -> 'a @@ portable
+val exchange : 'a t -> 'a -> 'a
+[@@alert unsafe]
+
+val exchange_safe : 'a t -> 'a @ contended -> 'a @ contended @@ portable
 
 (** [compare_and_set r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the
     comparison and the set occur atomically. Returns [true] if the
     comparison succeeded (so the set happened) and [false]
     otherwise. *)
-val compare_and_set : 'a t -> 'a -> 'a -> bool @@ portable
+val compare_and_set : 'a t -> 'a @ contended -> 'a @ contended -> bool @@ portable
 
 (** [fetch_and_add r n] atomically increments the value of [r] by [n],
     and returns the current value (before the increment). *)

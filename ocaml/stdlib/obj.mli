@@ -27,6 +27,8 @@ type raw_data = nativeint  (* @since 4.12 *)
 external repr : 'a -> t @@ portable = "%obj_magic"
 external obj : t -> 'a @@ portable = "%obj_magic"
 external magic : 'a -> 'b @@ portable = "%obj_magic"
+external magic_portable : 'a -> 'a @ portable @@ portable = "%identity"
+external magic_uncontended : 'a @ contended -> 'a @@ portable = "%identity"
 val is_block : t -> bool @@ portable
 external is_int : t -> bool @@ portable = "%obj_is_int"
 external tag : t -> int @@ portable = "caml_obj_tag" [@@noalloc]

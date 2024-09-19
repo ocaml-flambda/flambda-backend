@@ -26,78 +26,18 @@
 
     @since 5.0 *)
 
-type !'a t
-(** A domain of type ['a t] runs independently, eventually producing a
-    result of type 'a, or an exception *)
-
-val spawn : (unit -> 'a) -> 'a t @@ portable
-(** [spawn f] creates a new domain that runs in parallel with the
-    current domain.
-
-    @raise Failure if the program has insufficient resources to create another
-    domain. *)
-
-val join : 'a t -> 'a @@ portable
-(** [join d] blocks until domain [d] runs to completion. If [d] results in a
-    value, then that is returned by [join d]. If [d] raises an uncaught
-    exception, then that is re-raised by [join d]. *)
-
-type id = private int
-(** Domains have unique integer identifiers *)
-
-val get_id : 'a t -> id @@ portable
-(** [get_id d] returns the identifier of the domain [d] *)
-
-val self : unit -> id @@ portable
-(** [self ()] is the identifier of the currently running domain *)
-
-val cpu_relax : unit -> unit @@ portable
-(** If busy-waiting, calling cpu_relax () between iterations
-    will improve performance on some CPU architectures *)
-
-val is_main_domain : unit -> bool @@ portable
-(** [is_main_domain ()] returns true if called from the initial domain. *)
-
-val recommended_domain_count : unit -> int @@ portable
-(** The recommended maximum number of domains which should be running
-    simultaneously (including domains already running).
-
-    The value returned is at least [1]. *)
-
-val before_first_spawn : (unit -> unit) -> unit @@ portable
-(** [before_first_spawn f] registers [f] to be called before the first domain
-    is spawned by the program. The functions registered with
-    [before_first_spawn] are called on the main (initial) domain. The functions
-    registered with [before_first_spawn] are called in 'first in, first out'
-    order: the oldest function added with [before_first_spawn] is called first.
-
-    @raise Invalid_argument if the program has already spawned a domain. *)
-
-val at_exit : (unit -> unit) -> unit @@ portable
-(** [at_exit f] registers [f] to be called when the current domain exits. Note
-    that [at_exit] callbacks are domain-local and only apply to the calling
-    domain. The registered functions are called in 'last in, first out' order:
-    the function most recently added with [at_exit] is called first. An example:
-
-    {[
-let temp_file_key = Domain.DLS.new_key (fun _ ->
-  let tmp = snd (Filename.open_temp_file "" "") in
-  Domain.at_exit (fun () -> close_out_noerr tmp);
-  tmp)
-    ]}
-
-    The snippet above creates a key that when retrieved for the first
-    time will open a temporary file and register an [at_exit] callback
-    to close it, thus guaranteeing the descriptor is not leaked in
-    case the current domain exits. *)
-
 module DLS : sig
 (** Domain-local Storage *)
+
+    type password
 
     type 'a key
     (** Type of a DLS key *)
 
-    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key @@ portable
+    val initial_password : password
+
+    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
+    [@@alert unsafe]
     (** [new_key f] returns a new key bound to initialiser [f] for accessing
 ,        domain-local variables.
 
@@ -133,14 +73,94 @@ module DLS : sig
         explicit synchronization to avoid data races.
     *)
 
-    val get : 'a key -> 'a @@ portable
+    val new_key_safe : ?split_from_parent:('a -> (password -> 'a) @ portable) @ portable -> (password -> 'a) @ portable -> 'a key @@ portable
+
+    val get : 'a key -> 'a
     (** [get k] returns [v] if a value [v] is associated to the key [k] on
         the calling domain's domain-local state. Sets [k]'s value with its
         initialiser and returns it otherwise. *)
 
-    val set : 'a key -> 'a -> unit @@ portable
+    val get' : password -> 'a key -> 'a @@ portable
+
+    val set : 'a key -> 'a -> unit
     (** [set k v] updates the calling domain's domain-local state to associate
         the key [k] with value [v]. It overwrites any previous values associated
         to [k], which cannot be restored later. *)
 
+    val set' : password -> 'a key -> 'a -> unit @@ portable
+
+    val with_password : (password -> 'a @ portable contended) @ portable -> 'a @ portable contended @@ portable
 end
+
+type !'a t
+(** A domain of type ['a t] runs independently, eventually producing a
+    result of type 'a, or an exception *)
+
+val spawn : (unit -> 'a) -> 'a t
+[@@alert unsafe]
+(** [spawn f] creates a new domain that runs in parallel with the
+    current domain.
+
+    @raise Failure if the program has insufficient resources to create another
+    domain. *)
+
+val spawn_safe : (unit -> 'a) @ portable -> 'a t
+val spawn_with_dls : (DLS.password -> 'a) @ portable -> 'a t
+
+val join : 'a t -> 'a @@ portable
+(** [join d] blocks until domain [d] runs to completion. If [d] results in a
+    value, then that is returned by [join d]. If [d] raises an uncaught
+    exception, then that is re-raised by [join d]. *)
+
+type id = private int
+(** Domains have unique integer identifiers *)
+
+val get_id : 'a t -> id @@ portable
+(** [get_id d] returns the identifier of the domain [d] *)
+
+val self : unit -> id @@ portable
+(** [self ()] is the identifier of the currently running domain *)
+
+val cpu_relax : unit -> unit @@ portable
+(** If busy-waiting, calling cpu_relax () between iterations
+    will improve performance on some CPU architectures *)
+
+val is_main_domain : unit -> bool @@ portable
+(** [is_main_domain ()] returns true if called from the initial domain. *)
+
+val recommended_domain_count : unit -> int @@ portable
+(** The recommended maximum number of domains which should be running
+    simultaneously (including domains already running).
+
+    The value returned is at least [1]. *)
+
+val before_first_spawn : (unit -> unit) -> unit
+(** [before_first_spawn f] registers [f] to be called before the first domain
+    is spawned by the program. The functions registered with
+    [before_first_spawn] are called on the main (initial) domain. The functions
+    registered with [before_first_spawn] are called in 'first in, first out'
+    order: the oldest function added with [before_first_spawn] is called first.
+
+    @raise Invalid_argument if the program has already spawned a domain. *)
+
+val at_exit : (unit -> unit) -> unit
+(** [at_exit f] registers [f] to be called when the current domain exits. Note
+    that [at_exit] callbacks are domain-local and only apply to the calling
+    domain. The registered functions are called in 'last in, first out' order:
+    the function most recently added with [at_exit] is called first. An example:
+
+    {[
+let temp_file_key = Domain.DLS.new_key (fun _ ->
+  let tmp = snd (Filename.open_temp_file "" "") in
+  Domain.at_exit (fun () -> close_out_noerr tmp);
+  tmp)
+    ]}
+
+    The snippet above creates a key that when retrieved for the first
+    time will open a temporary file and register an [at_exit] callback
+    to close it, thus guaranteeing the descriptor is not leaked in
+    case the current domain exits. *)
+
+val at_exit_safe : (unit -> unit) @ portable -> unit @@ portable
+
+val at_exit' : DLS.password -> (unit -> unit) -> unit @@ portable
