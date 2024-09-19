@@ -59,9 +59,9 @@ let randomized_default =
 let randomized = Atomic.make randomized_default
 
 let randomize () = Atomic.set randomized true
-let is_randomized () = Atomic.get randomized
+let is_randomized () = Atomic.get_safe randomized
 
-let prng_key = Domain.DLS.new_key Random.State.make_self_init
+let prng_key = Domain.DLS.new_key_safe (fun _ -> Random.State.make_self_init ())
 
 (* Functions which appear before the functorial interface must either be
    independent of the hash function or take it as a parameter (see #2202 and
@@ -74,10 +74,12 @@ let rec power_2_above x n =
   else if x * 2 > Sys.max_array_length then x
   else power_2_above (x * 2) n
 
-let create ?(random = Atomic.get randomized) initial_size =
+let create ?(random = is_randomized ()) initial_size =
   let s = power_2_above 16 initial_size in
   let seed =
-    if random then Random.State.bits (Domain.DLS.get prng_key) else 0
+    if random
+    then Domain.DLS.with_password (fun pw -> Random.State.bits (Domain.DLS.get' pw prng_key))
+    else 0
   in
   { initial_size = s; size = 0; seed = seed; data = Array.make s Empty }
 
@@ -280,74 +282,208 @@ let to_seq_values m = Seq.map snd (to_seq m)
 module type HashedType =
   sig
     type t
-    val equal: t -> t -> bool @@ portable
-    val hash: t -> int @@ portable
+    val equal: t -> t -> bool
+    val hash: t -> int
   end
 
 module type SeededHashedType =
   sig
     type t
-    val equal: t -> t -> bool @@ portable
-    val seeded_hash: int -> t -> int @@ portable
+    val equal: t -> t -> bool
+    val seeded_hash: int -> t -> int
   end
 
 module type S =
   sig
     type key
     type !'a t
-    val create: int -> 'a t @@ portable
-    val clear : 'a t -> unit @@ portable
-    val reset : 'a t -> unit @@ portable
-    val copy: 'a t -> 'a t @@ portable
-    val add: 'a t -> key -> 'a -> unit @@ portable
-    val remove: 'a t -> key -> unit @@ portable
-    val find: 'a t -> key -> 'a @@ portable
-    val find_opt: 'a t -> key -> 'a option @@ portable
-    val find_all: 'a t -> key -> 'a list @@ portable
-    val replace : 'a t -> key -> 'a -> unit @@ portable
-    val mem : 'a t -> key -> bool @@ portable
-    val iter: (key -> 'a -> unit) -> 'a t -> unit @@ portable
-    val filter_map_inplace: (key -> 'a -> 'a option) -> 'a t -> unit @@ portable
-    val fold: (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b @@ portable
-    val length: 'a t -> int @@ portable
-    val stats: 'a t -> statistics @@ portable
-    val to_seq : 'a t -> (key * 'a) Seq.t @@ portable
-    val to_seq_keys : _ t -> key Seq.t @@ portable
-    val to_seq_values : 'a t -> 'a Seq.t @@ portable
-    val add_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
-    val replace_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
-    val of_seq : (key * 'a) Seq.t -> 'a t @@ portable
+    val create: int -> 'a t
+    val clear : 'a t -> unit
+    val reset : 'a t -> unit
+    val copy: 'a t -> 'a t
+    val add: 'a t -> key -> 'a -> unit
+    val remove: 'a t -> key -> unit
+    val find: 'a t -> key -> 'a
+    val find_opt: 'a t -> key -> 'a option
+    val find_all: 'a t -> key -> 'a list
+    val replace : 'a t -> key -> 'a -> unit
+    val mem : 'a t -> key -> bool
+    val iter: (key -> 'a -> unit) -> 'a t -> unit
+    val filter_map_inplace: (key -> 'a -> 'a option) -> 'a t -> unit
+    val fold: (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+    val length: 'a t -> int
+    val stats: 'a t -> statistics
+    val to_seq : 'a t -> (key * 'a) Seq.t
+    val to_seq_keys : _ t -> key Seq.t
+    val to_seq_values : 'a t -> 'a Seq.t
+    val add_seq : 'a t -> (key * 'a) Seq.t -> unit
+    val replace_seq : 'a t -> (key * 'a) Seq.t -> unit
+    val of_seq : (key * 'a) Seq.t -> 'a t
   end
 
 module type SeededS =
   sig
     type key
     type !'a t
-    val create : ?random:bool -> int -> 'a t @@ portable
-    val clear : 'a t -> unit @@ portable
-    val reset : 'a t -> unit @@ portable
-    val copy : 'a t -> 'a t @@ portable
-    val add : 'a t -> key -> 'a -> unit @@ portable
-    val remove : 'a t -> key -> unit @@ portable
-    val find : 'a t -> key -> 'a @@ portable
-    val find_opt: 'a t -> key -> 'a option @@ portable
-    val find_all : 'a t -> key -> 'a list @@ portable
-    val replace : 'a t -> key -> 'a -> unit @@ portable
-    val mem : 'a t -> key -> bool @@ portable
-    val iter : (key -> 'a -> unit) -> 'a t -> unit @@ portable
-    val filter_map_inplace: (key -> 'a -> 'a option) -> 'a t -> unit @@ portable
-    val fold : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b @@ portable
-    val length : 'a t -> int @@ portable
-    val stats: 'a t -> statistics @@ portable
-    val to_seq : 'a t -> (key * 'a) Seq.t @@ portable
-    val to_seq_keys : _ t -> key Seq.t @@ portable
-    val to_seq_values : 'a t -> 'a Seq.t @@ portable
-    val add_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
-    val replace_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
-    val of_seq : (key * 'a) Seq.t -> 'a t @@ portable
+    val create : ?random:bool -> int -> 'a t
+    val clear : 'a t -> unit
+    val reset : 'a t -> unit
+    val copy : 'a t -> 'a t
+    val add : 'a t -> key -> 'a -> unit
+    val remove : 'a t -> key -> unit
+    val find : 'a t -> key -> 'a
+    val find_opt: 'a t -> key -> 'a option
+    val find_all : 'a t -> key -> 'a list
+    val replace : 'a t -> key -> 'a -> unit
+    val mem : 'a t -> key -> bool
+    val iter : (key -> 'a -> unit) -> 'a t -> unit
+    val filter_map_inplace: (key -> 'a -> 'a option) -> 'a t -> unit
+    val fold : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
+    val length : 'a t -> int
+    val stats: 'a t -> statistics
+    val to_seq : 'a t -> (key * 'a) Seq.t
+    val to_seq_keys : _ t -> key Seq.t
+    val to_seq_values : 'a t -> 'a Seq.t
+    val add_seq : 'a t -> (key * 'a) Seq.t -> unit
+    val replace_seq : 'a t -> (key * 'a) Seq.t -> unit
+    val of_seq : (key * 'a) Seq.t -> 'a t
   end
 
 module MakeSeeded(H: SeededHashedType): (SeededS with type key = H.t) =
+  struct
+    type key = H.t
+    type 'a hashtbl = (key, 'a) t
+    type 'a t = 'a hashtbl
+    let create = create
+    let clear = clear
+    let reset = reset
+    let copy = copy
+
+    let key_index h key =
+      (H.seeded_hash h.seed key) land (Array.length h.data - 1)
+
+    let add h key data =
+      let i = key_index h key in
+      let bucket = Cons{key; data; next=h.data.(i)} in
+      h.data.(i) <- bucket;
+      h.size <- h.size + 1;
+      if h.size > Array.length h.data lsl 1 then resize key_index h
+
+    let rec remove_bucket h i key prec = function
+      | Empty ->
+          ()
+      | (Cons {key=k; next}) as c ->
+          if H.equal k key
+          then begin
+            h.size <- h.size - 1;
+            match prec with
+            | Empty -> h.data.(i) <- next
+            | Cons c -> c.next <- next
+          end
+          else remove_bucket h i key c next
+
+    let remove h key =
+      let i = key_index h key in
+      remove_bucket h i key Empty h.data.(i)
+
+    let rec find_rec key = function
+      | Empty ->
+          raise Not_found
+      | Cons{key=k; data; next} ->
+          if H.equal key k then data else find_rec key next
+
+    let find h key =
+      match h.data.(key_index h key) with
+      | Empty -> raise Not_found
+      | Cons{key=k1; data=d1; next=next1} ->
+          if H.equal key k1 then d1 else
+          match next1 with
+          | Empty -> raise Not_found
+          | Cons{key=k2; data=d2; next=next2} ->
+              if H.equal key k2 then d2 else
+              match next2 with
+              | Empty -> raise Not_found
+              | Cons{key=k3; data=d3; next=next3} ->
+                  if H.equal key k3 then d3 else find_rec key next3
+
+    let rec find_rec_opt key = function
+      | Empty ->
+          None
+      | Cons{key=k; data; next} ->
+          if H.equal key k then Some data else find_rec_opt key next
+
+    let find_opt h key =
+      match h.data.(key_index h key) with
+      | Empty -> None
+      | Cons{key=k1; data=d1; next=next1} ->
+          if H.equal key k1 then Some d1 else
+          match next1 with
+          | Empty -> None
+          | Cons{key=k2; data=d2; next=next2} ->
+              if H.equal key k2 then Some d2 else
+              match next2 with
+              | Empty -> None
+              | Cons{key=k3; data=d3; next=next3} ->
+                  if H.equal key k3 then Some d3 else find_rec_opt key next3
+
+    let find_all h key =
+      let[@tail_mod_cons] rec find_in_bucket = function
+      | Empty ->
+          []
+      | Cons{key=k; data=d; next} ->
+          if H.equal k key
+          then d :: find_in_bucket next
+          else find_in_bucket next in
+      find_in_bucket h.data.(key_index h key)
+
+    let rec replace_bucket key data = function
+      | Empty ->
+          true
+      | Cons ({key=k; next} as slot) ->
+          if H.equal k key
+          then (slot.key <- key; slot.data <- data; false)
+          else replace_bucket key data next
+
+    let replace h key data =
+      let i = key_index h key in
+      let l = h.data.(i) in
+      if replace_bucket key data l then begin
+        h.data.(i) <- Cons{key; data; next=l};
+        h.size <- h.size + 1;
+        if h.size > Array.length h.data lsl 1 then resize key_index h
+      end
+
+    let rec mem_in_bucket key = function
+      | Empty ->
+          false
+      | Cons{key=k; next} ->
+          H.equal k key || mem_in_bucket key next
+
+    let mem h key =
+      mem_in_bucket key h.data.(key_index h key)
+
+    let add_seq tbl i =
+      Seq.iter (fun (k,v) -> add tbl k v) i
+
+    let replace_seq tbl i =
+      Seq.iter (fun (k,v) -> replace tbl k v) i
+
+    let of_seq i =
+      let tbl = create 16 in
+      replace_seq tbl i;
+      tbl
+
+    let iter = iter
+    let filter_map_inplace = filter_map_inplace
+    let fold = fold
+    let length = length
+    let stats = stats
+    let to_seq = to_seq
+    let to_seq_keys = to_seq_keys
+    let to_seq_values = to_seq_values
+  end
+
+module MakeSeeded_portable(H: sig include SeededHashedType @@ portable end): (sig include SeededS @@ portable end with type key = H.t) =
   struct
     type key = H.t
     type 'a hashtbl = (key, 'a) t
@@ -495,6 +631,20 @@ module Make(H: HashedType): (S with type key = H.t) =
       tbl
   end
 
+module Make_portable(H: sig include HashedType @@ portable end): (sig include S @@ portable end with type key = H.t) =
+struct
+  include MakeSeeded_portable(struct
+      type t = H.t
+      let equal = H.equal
+      let seeded_hash (_seed: int) x = H.hash x
+    end)
+  let create sz = create ~random:false sz
+  let of_seq i =
+    let tbl = create 16 in
+    replace_seq tbl i;
+    tbl
+end
+
 (* Polymorphic hash function-based tables *)
 (* Code included below the functorial interface to guard against accidental
    use - see #2202 *)
@@ -622,10 +772,11 @@ let of_seq i =
   replace_seq tbl i;
   tbl
 
-let rebuild ?(random = Atomic.get randomized) h =
+let rebuild ?(random = is_randomized ()) h =
   let s = power_2_above 16 (Array.length h.data) in
   let seed =
-    if random then Random.State.bits (Domain.DLS.get prng_key)
+    if random
+    then Domain.DLS.with_password (fun pw -> Random.State.bits (Domain.DLS.get' pw prng_key))
     else if Obj.size (Obj.repr h) >= 4 then h.seed
     else 0 in
   let h' = {
@@ -636,3 +787,4 @@ let rebuild ?(random = Atomic.get randomized) h =
   } in
   insert_all_buckets (key_index h') false h.data h'.data;
   h'
+

@@ -349,10 +349,10 @@ module type HashedType =
     type t
     (** The type of the hashtable keys. *)
 
-    val equal : t -> t -> bool @@ portable
+    val equal : t -> t -> bool
     (** The equality predicate used to compare keys. *)
 
-    val hash : t -> int @@ portable
+    val hash : t -> int
       (** A hashing function on keys. It must be such that if two keys are
           equal according to [equal], then they have identical hash values
           as computed by [hash].
@@ -372,46 +372,46 @@ module type S =
   sig
     type key
     type !'a t
-    val create : int -> 'a t @@ portable
-    val clear : 'a t -> unit @@ portable
-    val reset : 'a t -> unit @@ portable (** @since 4.00 *)
+    val create : int -> 'a t
+    val clear : 'a t -> unit
+    val reset : 'a t -> unit (** @since 4.00 *)
 
-    val copy : 'a t -> 'a t @@ portable
-    val add : 'a t -> key -> 'a -> unit @@ portable
-    val remove : 'a t -> key -> unit @@ portable
-    val find : 'a t -> key -> 'a @@ portable
-    val find_opt : 'a t -> key -> 'a option @@ portable
+    val copy : 'a t -> 'a t
+    val add : 'a t -> key -> 'a -> unit
+    val remove : 'a t -> key -> unit
+    val find : 'a t -> key -> 'a
+    val find_opt : 'a t -> key -> 'a option
     (** @since 4.05 *)
 
-    val find_all : 'a t -> key -> 'a list @@ portable
-    val replace : 'a t -> key -> 'a -> unit @@ portable
-    val mem : 'a t -> key -> bool @@ portable
-    val iter : (key -> 'a -> unit) -> 'a t -> unit @@ portable
+    val find_all : 'a t -> key -> 'a list
+    val replace : 'a t -> key -> 'a -> unit
+    val mem : 'a t -> key -> bool
+    val iter : (key -> 'a -> unit) -> 'a t -> unit
     val filter_map_inplace: (key -> 'a -> 'a option) -> 'a t ->
-      unit @@ portable
+      unit
     (** @since 4.03 *)
 
     val fold :
-      (key -> 'a -> 'acc -> 'acc) -> 'a t -> 'acc -> 'acc @@ portable
-    val length : 'a t -> int @@ portable
-    val stats: 'a t -> statistics @@ portable (** @since 4.00 *)
+      (key -> 'a -> 'acc -> 'acc) -> 'a t -> 'acc -> 'acc
+    val length : 'a t -> int
+    val stats: 'a t -> statistics (** @since 4.00 *)
 
-    val to_seq : 'a t -> (key * 'a) Seq.t @@ portable
+    val to_seq : 'a t -> (key * 'a) Seq.t
     (** @since 4.07 *)
 
-    val to_seq_keys : _ t -> key Seq.t @@ portable
+    val to_seq_keys : _ t -> key Seq.t
     (** @since 4.07 *)
 
-    val to_seq_values : 'a t -> 'a Seq.t @@ portable
+    val to_seq_values : 'a t -> 'a Seq.t
     (** @since 4.07 *)
 
-    val add_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
+    val add_seq : 'a t -> (key * 'a) Seq.t -> unit
     (** @since 4.07 *)
 
-    val replace_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
+    val replace_seq : 'a t -> (key * 'a) Seq.t -> unit
     (** @since 4.07 *)
 
-    val of_seq : (key * 'a) Seq.t -> 'a t @@ portable
+    val of_seq : (key * 'a) Seq.t -> 'a t
     (** @since 4.07 *)
   end
 (** The output signature of the functor {!Make}. *)
@@ -428,15 +428,17 @@ module Make (H : HashedType) : S with type key = H.t
     the [create] operation of the result structure always returns
     non-randomized hash tables. *)
 
+module Make_portable (H : sig include HashedType @@ portable end) : sig include S @@ portable end with type key = H.t
+
 module type SeededHashedType =
   sig
     type t
     (** The type of the hashtable keys. *)
 
-    val equal: t -> t -> bool @@ portable
+    val equal: t -> t -> bool
     (** The equality predicate used to compare keys. *)
 
-    val seeded_hash: int -> t -> int @@ portable
+    val seeded_hash: int -> t -> int
       (** A seeded hashing function on keys.  The first argument is
           the seed.  It must be the case that if [equal x y] is true,
           then [seeded_hash seed x = seeded_hash seed y] for any value of
@@ -451,44 +453,44 @@ module type SeededS =
     type key
     type !'a t
     val create : ?random (* thwart tools/sync_stdlib_docs *) :bool ->
-                 int -> 'a t @@ portable
-    val clear : 'a t -> unit @@ portable
-    val reset : 'a t -> unit @@ portable
-    val copy : 'a t -> 'a t @@ portable
-    val add : 'a t -> key -> 'a -> unit @@ portable
-    val remove : 'a t -> key -> unit @@ portable
-    val find : 'a t -> key -> 'a @@ portable
-    val find_opt : 'a t -> key -> 'a option @@ portable (** @since 4.05 *)
+                 int -> 'a t
+    val clear : 'a t -> unit
+    val reset : 'a t -> unit
+    val copy : 'a t -> 'a t
+    val add : 'a t -> key -> 'a -> unit
+    val remove : 'a t -> key -> unit
+    val find : 'a t -> key -> 'a
+    val find_opt : 'a t -> key -> 'a option (** @since 4.05 *)
 
-    val find_all : 'a t -> key -> 'a list @@ portable
-    val replace : 'a t -> key -> 'a -> unit @@ portable
-    val mem : 'a t -> key -> bool @@ portable
-    val iter : (key -> 'a -> unit) -> 'a t -> unit @@ portable
+    val find_all : 'a t -> key -> 'a list
+    val replace : 'a t -> key -> 'a -> unit
+    val mem : 'a t -> key -> bool
+    val iter : (key -> 'a -> unit) -> 'a t -> unit
     val filter_map_inplace: (key -> 'a -> 'a option) -> 'a t ->
-      unit @@ portable
+      unit
     (** @since 4.03 *)
 
     val fold :
-      (key -> 'a -> 'acc -> 'acc) -> 'a t -> 'acc -> 'acc @@ portable
-    val length : 'a t -> int @@ portable
-    val stats: 'a t -> statistics @@ portable
+      (key -> 'a -> 'acc -> 'acc) -> 'a t -> 'acc -> 'acc
+    val length : 'a t -> int
+    val stats: 'a t -> statistics
 
-    val to_seq : 'a t -> (key * 'a) Seq.t @@ portable
+    val to_seq : 'a t -> (key * 'a) Seq.t
     (** @since 4.07 *)
 
-    val to_seq_keys : _ t -> key Seq.t @@ portable
+    val to_seq_keys : _ t -> key Seq.t
     (** @since 4.07 *)
 
-    val to_seq_values : 'a t -> 'a Seq.t @@ portable
+    val to_seq_values : 'a t -> 'a Seq.t
     (** @since 4.07 *)
 
-    val add_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
+    val add_seq : 'a t -> (key * 'a) Seq.t -> unit
     (** @since 4.07 *)
 
-    val replace_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
+    val replace_seq : 'a t -> (key * 'a) Seq.t -> unit
     (** @since 4.07 *)
 
-    val of_seq : (key * 'a) Seq.t -> 'a t @@ portable
+    val of_seq : (key * 'a) Seq.t -> 'a t
     (** @since 4.07 *)
   end
 (** The output signature of the functor {!MakeSeeded}.
@@ -508,6 +510,7 @@ module MakeSeeded (H : SeededHashedType) : SeededS with type key = H.t
     or if randomization is globally on (see {!Hashtbl.randomize}).
     @since 4.00 *)
 
+module MakeSeeded_portable (H : sig include SeededHashedType @@ portable end) : sig include SeededS @@ portable end with type key = H.t
 
 (** {1 The polymorphic hash functions} *)
 
