@@ -7365,9 +7365,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       Tarrow(_, ty_arg,  ty_res,  _)
       when lv' = generic_level || not !Clflags.principal ->
       let ty_res', ty_res, changed = loosen_arrow_modes ty_res' ty_res in
-      let {comonadic; monadic} = mret in
-      let comonadic, changed' = Alloc.Comonadic.newvar_below comonadic in
-      let mret = {comonadic; monadic} in
+      let mret, changed' = Alloc.newvar_below mret in
       let marg, changed'' = Alloc.newvar_above marg in
       if changed || changed' || changed'' then
         newty2 ~level:lv' (Tarrow((l, marg, mret), ty_arg', ty_res', commu_ok)),

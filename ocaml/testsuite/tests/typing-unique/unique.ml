@@ -588,20 +588,6 @@ Error: This expression has type int but an expression was expected of type
          string
 |}]
 
-
-let foo () =
-  let unique_ _bar : int -> int -> int =
-    ((fun y z -> z) : int -> unique_ (int -> int)) in
-  ()
-[%%expect{|
-Line 3, characters 4-50:
-3 |     ((fun y z -> z) : int -> unique_ (int -> int)) in
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type int -> unique_ (int -> int)
-       but an expression was expected of type int -> int -> int
-|}]
-
-
 let return_local : local_ 'a -> local_ 'a = fun x -> x
 let return_global : local_ 'a -> int = fun x -> 0
 [%%expect{|
