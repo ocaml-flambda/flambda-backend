@@ -85,8 +85,10 @@ val init : int -> (int -> char) -> bytes @@ portable
     index order).
     @raise Invalid_argument if [n < 0] or [n > ]{!Sys.max_string_length}. *)
 
-val empty : bytes @@ portable
+val empty : bytes
 (** A byte sequence of size 0. *)
+
+val mk_empty : unit -> bytes @@ portable
 
 val copy : bytes -> bytes @@ portable
 (** Return a new byte sequence that contains the same bytes as the

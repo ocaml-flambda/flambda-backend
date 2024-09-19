@@ -54,7 +54,8 @@ let init n f =
   done;
   s
 
-let empty = create 0
+let mk_empty () = create 0
+let empty = mk_empty ()
 
 let copy s =
   let len = length s in
@@ -134,7 +135,7 @@ let rec unsafe_blits dst pos sep seplen = function
     unsafe_blits dst (pos + length hd + seplen) sep seplen tl
 
 let concat sep = function
-    [] -> empty
+    [] -> mk_empty ()
   | l -> let seplen = length sep in
           unsafe_blits
             (create (sum_lengths 0 seplen l))
@@ -169,7 +170,7 @@ let trim s =
   if !j >= !i then
     sub s !i (!j - !i + 1)
   else
-    empty
+    mk_empty ()
 
 let unsafe_escape s =
   (* We perform two passes on the input sequence, one to compute the
