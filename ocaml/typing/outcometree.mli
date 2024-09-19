@@ -113,6 +113,7 @@ type out_jkind_const =
 and out_jkind =
   | Ojkind_const of out_jkind_const
   | Ojkind_var of string
+  | Ojkind_product of out_jkind list
 
 (* should be empty if all the jkind annotations are missing *)
 and out_vars_jkinds = (string * out_jkind option) list

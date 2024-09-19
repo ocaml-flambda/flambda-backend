@@ -1339,10 +1339,7 @@ let out_jkind_option_of_jkind jkind =
     | Const jkind -> out_jkind_of_const_jkind jkind
     | Var v -> Ojkind_var (Jkind.Sort.Var.name v)
     | Product jkinds ->
-      Ojkind_const (Ojkind_const_product (List.map desc_to_out_const_jkind jkinds))
-  and desc_to_out_const_jkind : Jkind.Desc.t -> out_jkind_const = function
-    | Const jkind -> Jkind.Const.to_out_jkind_const jkind
-    | Var _ | Product _ -> assert false (* XXX mshinwell *)
+      Ojkind_product (List.map desc_to_out_jkind jkinds)
   in
   let desc = Jkind.get jkind in
   let elide =
@@ -2734,10 +2731,7 @@ let trees_of_type_expansion'
             | Const clay -> out_jkind_of_const_jkind clay
             | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
             | Product ds ->
-              Ojkind_const (Ojkind_const_product (List.map okind_const_of_desc ds))
-          and okind_const_of_desc : Jkind.Desc.t -> _ = function
-            | Const const -> Jkind.Const.to_out_jkind_const const
-            | Var _ | Product _ -> assert false (* XXX mshinwell *)
+              Ojkind_product (List.map okind_of_desc ds)
           in
           let okind = okind_of_desc (Jkind.get jkind) in
           Otyp_jkind_annot (out, okind)
