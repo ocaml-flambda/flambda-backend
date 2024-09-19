@@ -31,7 +31,7 @@ let id x = x
 (* A devoted type for sizes to avoid confusion
    between sizes and mere integers. *)
 module Size : sig
-  type t
+  type t : value mod portable uncontended
 
   val to_int : t -> int @@ portable
   val of_int : int -> t @@ portable
@@ -818,7 +818,7 @@ let pp_set_margin state n =
 
 
 (** Geometry functions and types *)
-type geometry = { max_indent:int; margin: int}
+type geometry : value mod portable uncontended = { max_indent:int; margin: int}
 
 let validate_geometry {margin; max_indent} =
   if max_indent < 2 then
@@ -1028,28 +1028,30 @@ and str_formatter = formatter_of_buffer stdbuf
 (* Initialise domain local state *)
 module DLS = Domain.DLS
 
-let stdbuf_key = DLS.new_key pp_make_buffer
+let stdbuf_key = DLS.new_key_safe (fun _ -> pp_make_buffer ())
 let _ = DLS.set stdbuf_key stdbuf
 
-let str_formatter_key = DLS.new_key (fun () ->
-  formatter_of_buffer (DLS.get stdbuf_key))
+let str_formatter_key = DLS.new_key_safe (fun pw ->
+  formatter_of_buffer (DLS.get' pw stdbuf_key))
 let _ = DLS.set str_formatter_key str_formatter
 
-let buffered_out_string key str ofs len =
-  Buffer.add_substring (Domain.DLS.get key) str ofs len
+let buffered_out_string key (str : string) (ofs : int) (len : int) : unit =
+  Domain.DLS.with_password (fun pw ->
+    Buffer.add_substring (Domain.DLS.get' pw key) str ofs len)
 
-let buffered_out_flush oc key () =
-  let buf = Domain.DLS.get key in
-  let len = Buffer.length buf in
-  let str = Buffer.contents buf in
-  output_substring oc str 0 len ;
-  Stdlib.flush oc;
-  Buffer.clear buf
+let buffered_out_flush oc key () : unit =
+  Domain.DLS.with_password (fun pw ->
+    let buf = Domain.DLS.get' pw key in
+    let len = Buffer.length buf in
+    let str = Buffer.contents buf in
+    output_substring oc str 0 len ;
+    Stdlib.flush oc;
+    Buffer.clear buf)
 
-let std_buf_key = Domain.DLS.new_key (fun () -> Buffer.create pp_buffer_size)
-let err_buf_key = Domain.DLS.new_key (fun () -> Buffer.create pp_buffer_size)
+let std_buf_key = Domain.DLS.new_key_safe (fun _ -> Buffer.create pp_buffer_size)
+let err_buf_key = Domain.DLS.new_key_safe (fun _ -> Buffer.create pp_buffer_size)
 
-let std_formatter_key = DLS.new_key (fun () ->
+let std_formatter_key = DLS.new_key_safe (fun pw ->
   let ppf =
     pp_make_formatter (buffered_out_string std_buf_key)
       (buffered_out_flush Stdlib.stdout std_buf_key) ignore ignore ignore
@@ -1057,11 +1059,11 @@ let std_formatter_key = DLS.new_key (fun () ->
   ppf.pp_out_newline <- display_newline ppf;
   ppf.pp_out_spaces <- display_blanks ppf;
   ppf.pp_out_indent <- display_indent ppf;
-  Domain.at_exit (pp_print_flush ppf);
+  Domain.at_exit' pw (pp_print_flush ppf);
   ppf)
 let _ = DLS.set std_formatter_key std_formatter
 
-let err_formatter_key = DLS.new_key (fun () ->
+let err_formatter_key = DLS.new_key_safe (fun pw ->
   let ppf =
     pp_make_formatter (buffered_out_string err_buf_key)
       (buffered_out_flush Stdlib.stderr err_buf_key) ignore ignore ignore
@@ -1069,14 +1071,18 @@ let err_formatter_key = DLS.new_key (fun () ->
   ppf.pp_out_newline <- display_newline ppf;
   ppf.pp_out_spaces <- display_blanks ppf;
   ppf.pp_out_indent <- display_indent ppf;
-  Domain.at_exit (pp_print_flush ppf);
+  Domain.at_exit' pw (pp_print_flush ppf);
   ppf)
 let _ = DLS.set err_formatter_key err_formatter
 
 let get_std_formatter () = DLS.get std_formatter_key
+let get_std_formatter' pw = DLS.get' pw std_formatter_key
 let get_err_formatter () = DLS.get err_formatter_key
+let get_err_formatter' pw = DLS.get' pw err_formatter_key
 let get_str_formatter () = DLS.get str_formatter_key
+let get_str_formatter' pw = DLS.get' pw str_formatter_key
 let get_stdbuf () = DLS.get stdbuf_key
+let get_stdbuf' pw = DLS.get' pw stdbuf_key
 
 (* [flush_buffer_formatter buf ppf] flushes formatter [ppf],
    then returns the contents of buffer [buf] that is reset.
@@ -1090,12 +1096,13 @@ let flush_buffer_formatter buf ppf =
 
 (* Flush [str_formatter] and get the contents of [stdbuf]. *)
 let flush_str_formatter () =
-  let stdbuf = DLS.get stdbuf_key in
-  let str_formatter = DLS.get str_formatter_key in
-  flush_buffer_formatter stdbuf str_formatter
+  DLS.with_password (fun pw ->
+    let stdbuf = DLS.get' pw stdbuf_key in
+    let str_formatter = DLS.get' pw str_formatter_key in
+    flush_buffer_formatter stdbuf str_formatter)
 
-let make_synchronized_formatter output flush =
-  DLS.new_key (fun () ->
+let make_synchronized_formatter_safe output flush =
+  DLS.new_key_safe (fun _ ->
     let buf = Buffer.create pp_buffer_size in
     let output' = Buffer.add_substring buf in
     let flush' () =
@@ -1105,8 +1112,11 @@ let make_synchronized_formatter output flush =
     in
     make_formatter output' flush')
 
+let make_synchronized_formatter output flush =
+  make_synchronized_formatter_safe (Obj.magic_portable output) (Obj.magic_portable flush)
+
 let synchronized_formatter_of_out_channel oc =
-  make_synchronized_formatter (output_substring oc) (fun () -> flush oc)
+  make_synchronized_formatter (fun s x y -> output_substring oc s x y) (fun () -> flush oc)
 
 (*
   Symbolic pretty-printing
@@ -1175,83 +1185,76 @@ let formatter_of_symbolic_output_buffer sob =
 
 *)
 
-let open_hbox v = pp_open_hbox (DLS.get std_formatter_key) v
-and open_vbox v = pp_open_vbox (DLS.get std_formatter_key) v
-and open_hvbox v = pp_open_hvbox (DLS.get std_formatter_key) v
-and open_hovbox v = pp_open_hovbox (DLS.get std_formatter_key) v
-and open_box v = pp_open_box (DLS.get std_formatter_key) v
-and close_box v = pp_close_box (DLS.get std_formatter_key) v
-and open_stag v = pp_open_stag (DLS.get std_formatter_key) v
-and close_stag v = pp_close_stag (DLS.get std_formatter_key) v
-and print_as v w = pp_print_as (DLS.get std_formatter_key) v w
-and print_string v = pp_print_string (DLS.get std_formatter_key) v
-and print_bytes v = pp_print_bytes (DLS.get std_formatter_key) v
-and print_int v = pp_print_int (DLS.get std_formatter_key) v
-and print_float v = pp_print_float (DLS.get std_formatter_key) v
-and print_char v = pp_print_char (DLS.get std_formatter_key) v
-and print_bool v = pp_print_bool (DLS.get std_formatter_key) v
-and print_break v w = pp_print_break (DLS.get std_formatter_key) v w
-and print_cut v = pp_print_cut (DLS.get std_formatter_key) v
-and print_space v = pp_print_space (DLS.get std_formatter_key) v
-and force_newline v = pp_force_newline (DLS.get std_formatter_key) v
-and print_flush v = pp_print_flush (DLS.get std_formatter_key) v
-and print_newline v = pp_print_newline (DLS.get std_formatter_key) v
-and print_if_newline v = pp_print_if_newline (DLS.get std_formatter_key) v
+let apply1 f v = f (DLS.get std_formatter_key) v
+let apply2 f v w = f (DLS.get std_formatter_key) v w
+let apply1' (type a : value mod portable uncontended) f (v : a) = DLS.with_password (fun pw -> f (DLS.get' pw std_formatter_key) v)
+let apply2' (type (a : value mod portable uncontended) (b : value mod portable uncontended)) f (v : a) (w : b) = DLS.with_password (fun pw -> f (DLS.get' pw std_formatter_key) v w)
 
-and open_tbox v = pp_open_tbox (DLS.get std_formatter_key) v
-and close_tbox v = pp_close_tbox (DLS.get std_formatter_key) v
-and print_tbreak v w = pp_print_tbreak (DLS.get std_formatter_key) v w
+let open_hbox = apply1' pp_open_hbox
+and open_vbox = apply1' pp_open_vbox
+and open_hvbox = apply1' pp_open_hvbox
+and open_hovbox = apply1' pp_open_hovbox
+and open_box = apply1' pp_open_box
+and close_box = apply1' pp_close_box
+and open_stag = apply1 pp_open_stag
+and close_stag = apply1' pp_close_stag
+and print_as = apply2' pp_print_as
+and print_string = apply1' pp_print_string
+and print_bytes = apply1 pp_print_bytes
+and print_int = apply1' pp_print_int
+and print_float = apply1' pp_print_float
+and print_char = apply1' pp_print_char
+and print_bool = apply1' pp_print_bool
+and print_break = apply2' pp_print_break
+and print_cut = apply1' pp_print_cut
+and print_space = apply1' pp_print_space
+and force_newline = apply1' pp_force_newline
+and print_flush = apply1' pp_print_flush
+and print_newline = apply1' pp_print_newline
+and print_if_newline = apply1' pp_print_if_newline
 
-and set_tab v = pp_set_tab (DLS.get std_formatter_key) v
-and print_tab v = pp_print_tab (DLS.get std_formatter_key) v
+and open_tbox = apply1' pp_open_tbox
+and close_tbox = apply1' pp_close_tbox
+and print_tbreak = apply2' pp_print_tbreak
 
-and set_margin v = pp_set_margin (DLS.get std_formatter_key) v
-and get_margin v = pp_get_margin (DLS.get std_formatter_key) v
+and set_tab = apply1' pp_set_tab
+and print_tab = apply1' pp_print_tab
 
-and set_max_indent v = pp_set_max_indent (DLS.get std_formatter_key) v
-and get_max_indent v = pp_get_max_indent (DLS.get std_formatter_key) v
+and set_margin = apply1' pp_set_margin
+and get_margin = apply1' pp_get_margin
+
+and set_max_indent = apply1' pp_set_max_indent
+and get_max_indent = apply1' pp_get_max_indent
 
 and set_geometry ~max_indent ~margin =
-  pp_set_geometry (DLS.get std_formatter_key) ~max_indent ~margin
+  DLS.with_password (fun pw -> pp_set_geometry (DLS.get' pw std_formatter_key) ~max_indent ~margin)
 and safe_set_geometry ~max_indent ~margin =
-  pp_safe_set_geometry (DLS.get std_formatter_key) ~max_indent ~margin
-and get_geometry v = pp_get_geometry (DLS.get std_formatter_key) v
+  DLS.with_password (fun pw -> pp_safe_set_geometry (DLS.get' pw std_formatter_key) ~max_indent ~margin)
+and get_geometry = apply1' pp_get_geometry
 and update_geometry v = pp_update_geometry (DLS.get std_formatter_key) v
 
-and set_max_boxes v = pp_set_max_boxes (DLS.get std_formatter_key) v
-and get_max_boxes v = pp_get_max_boxes (DLS.get std_formatter_key) v
-and over_max_boxes v = pp_over_max_boxes (DLS.get std_formatter_key) v
+and set_max_boxes = apply1' pp_set_max_boxes
+and get_max_boxes = apply1' pp_get_max_boxes
+and over_max_boxes = apply1' pp_over_max_boxes
 
-and set_ellipsis_text v = pp_set_ellipsis_text (DLS.get std_formatter_key) v
-and get_ellipsis_text v = pp_get_ellipsis_text (DLS.get std_formatter_key) v
+and set_ellipsis_text = apply1' pp_set_ellipsis_text
+and get_ellipsis_text = apply1' pp_get_ellipsis_text
 
-and set_formatter_out_channel v =
-  pp_set_formatter_out_channel (DLS.get std_formatter_key) v
+and set_formatter_out_channel = apply1' pp_set_formatter_out_channel
 
-and set_formatter_out_functions v =
-  pp_set_formatter_out_functions (DLS.get std_formatter_key) v
-and get_formatter_out_functions v =
-  pp_get_formatter_out_functions (DLS.get std_formatter_key) v
+and set_formatter_out_functions = apply1 pp_set_formatter_out_functions
+and get_formatter_out_functions = apply1 pp_get_formatter_out_functions
 
-and set_formatter_output_functions v w =
-  pp_set_formatter_output_functions (DLS.get std_formatter_key) v w
-and get_formatter_output_functions v =
-  pp_get_formatter_output_functions (DLS.get std_formatter_key) v
+and set_formatter_output_functions = apply2 pp_set_formatter_output_functions
+and get_formatter_output_functions = apply1 pp_get_formatter_output_functions
 
-and set_formatter_stag_functions v =
-  pp_set_formatter_stag_functions (DLS.get std_formatter_key) v
-and get_formatter_stag_functions v =
-  pp_get_formatter_stag_functions (DLS.get std_formatter_key) v
-and set_print_tags v =
-  pp_set_print_tags (DLS.get std_formatter_key) v
-and get_print_tags v =
-  pp_get_print_tags (DLS.get std_formatter_key) v
-and set_mark_tags v =
-  pp_set_mark_tags (DLS.get std_formatter_key) v
-and get_mark_tags v =
-  pp_get_mark_tags (DLS.get std_formatter_key) v
-and set_tags v =
-  pp_set_tags (DLS.get std_formatter_key) v
+and set_formatter_stag_functions = apply1 pp_set_formatter_stag_functions
+and get_formatter_stag_functions = apply1 pp_get_formatter_stag_functions
+and set_print_tags = apply1' pp_set_print_tags
+and get_print_tags = apply1' pp_get_print_tags
+and set_mark_tags = apply1' pp_set_mark_tags
+and get_mark_tags = apply1' pp_get_mark_tags
+and set_tags = apply1' pp_set_tags
 
 
 (* Convenience functions *)
