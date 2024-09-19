@@ -13,6 +13,7 @@ type v =
   | B of string * float#
   | C of string * float# * int
   | D of string
+  | E of int * int32# * int64# * nativeint#
 
 let r1           = { x1 = "x1"; y1 = #1.0 }
 let create_r1 () = { x1 = "x1"; y1 = #1.0 }
@@ -63,8 +64,16 @@ let () =
   let s = Sys.opaque_identity "foo" in
   let bytes_start0 = Gc.allocated_bytes () in
   let bytes_start1 = Gc.allocated_bytes () in
+  (* These variables ensure that we test the [make_update] code for
+     static inconstant blocks. *)
+  let imm = Sys.opaque_identity 42 in
+  let i32 = Sys.opaque_identity #3l in
+  let i64 = Sys.opaque_identity #4L in
+  let nat = Sys.opaque_identity #5n in
+  let f = Sys.opaque_identity #6. in
   let _ =
-    Sys.opaque_identity [A #4.0; B ("B", #5.0); C ("C", #6.0, 6); D s]
+    Sys.opaque_identity [A #4.0; B ("B", #5.0); C ("C", f, 6); D s;
+      E (imm, i32, i64, nat)]
   in
   match Sys.backend_type with
   | Bytecode -> ()
