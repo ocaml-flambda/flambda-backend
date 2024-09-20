@@ -222,6 +222,30 @@ type static_cast =
   | V128_of_scalar of Primitive.vec128_type
   | Scalar_of_v128 of Primitive.vec128_type
 
+module Alloc_mode = struct
+  type t = Heap | Local
+
+  let equal a b =
+    match a, b with
+    | Heap, Heap -> true
+    | Local, Local -> true
+    | Heap, Local -> false
+    | Local, Heap -> false
+
+  let print a =
+    match a with
+    | Heap -> "Heap"
+    | Local -> "Local"
+
+  let is_local = function
+    | Heap -> false
+    | Local -> true
+
+  let is_heap = function
+    | Heap -> true
+    | Local -> false
+end
+
 type operation =
     Capply of machtype * Lambda.region_close
   | Cextcall of
@@ -239,7 +263,7 @@ type operation =
         mutability: Asttypes.mutable_flag;
         is_atomic: bool;
       }
-  | Calloc of Lambda.alloc_mode
+  | Calloc of Alloc_mode.t
   | Cstore of memory_chunk * initialization_or_assignment
   | Caddi | Csubi | Cmuli | Cmulhi of { signed: bool } | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr

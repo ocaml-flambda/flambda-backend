@@ -22,7 +22,7 @@ type pending_alloc =
   { reg: Reg.t;         (* register holding the result of the last allocation *)
     dbginfos: Debuginfo.alloc_dbginfo;   (* debug info for each pending alloc *)
     totalsz: int;                     (* amount to be allocated in this block *)
-    mode: Lambda.alloc_mode }                     (* heap or stack allocation *)
+    mode: Cmm.Alloc_mode.t }                      (* heap or stack allocation *)
 
 type allocation_state =
     No_alloc
@@ -38,7 +38,7 @@ let rec combine i allocstate =
       | Pending_alloc {reg; dbginfos; totalsz; mode = prev_mode}
           when (mode = prev_mode) &&
               ((totalsz + sz <= (Config.max_young_wosize + 1) * Arch.size_addr)
-               || Lambda.is_local_mode mode) ->
+               || Cmm.Alloc_mode.is_local mode) ->
           let (next, state) =
            combine i.next
              (Pending_alloc { reg = i.res.(0);
@@ -59,7 +59,7 @@ let rec combine i allocstate =
            match state with
            | No_alloc -> assert false
            | Pending_alloc { totalsz; dbginfos; mode = m; _ } ->
-              assert (Lambda.eq_mode m mode);
+              assert (Cmm.Alloc_mode.equal m mode);
               totalsz, dbginfos in
          let next =
            let offset = totalsz - sz in
@@ -77,10 +77,10 @@ let rec combine i allocstate =
        allocstate)
   | Iop(Ibeginregion|Iendregion) -> begin
       match allocstate with
-      | Pending_alloc { mode = Alloc_local; _ } ->
+      | Pending_alloc { mode = Cmm.Alloc_mode.Local; _ } ->
           let newnext = combine_restart i.next in
           (instr_cons_debug i.desc i.arg i.res i.dbg newnext, allocstate)
-      | No_alloc | Pending_alloc { mode = Alloc_heap; _ } ->
+      | No_alloc | Pending_alloc { mode = Cmm.Alloc_mode.Heap; _ } ->
           let newnext, s' = combine i.next allocstate in
           (instr_cons_debug i.desc i.arg i.res i.dbg newnext, s')
     end

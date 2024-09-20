@@ -95,7 +95,7 @@ module S = struct
     | Alloc of
         { bytes : int;
           dbginfo : Debuginfo.alloc_dbginfo;
-          mode : Lambda.alloc_mode
+          mode : Cmm.Alloc_mode.t
         }
 
   type bool_test =

@@ -35,7 +35,11 @@ open Misc
 type machtype_component = Val | Addr | Int | Float | Vec128 | Float32
 type machtype = machtype_component array
 
-type apply_fn := machtype list * machtype * Lambda.alloc_mode
+type alloc_mode =
+  | Alloc_heap
+  | Alloc_local
+
+type apply_fn := machtype list * machtype * alloc_mode
 
 (* Curry/apply/send functions *)
 type generic_fns =

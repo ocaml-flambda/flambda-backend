@@ -140,16 +140,16 @@ val mk_compare_float32s_untagged :
 val test_bool : Debuginfo.t -> expression -> expression
 
 (** Float boxing and unboxing *)
-val box_float32 : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
+val box_float32 : Debuginfo.t -> Cmm.Alloc_mode.t -> expression -> expression
 
 val unbox_float32 : Debuginfo.t -> expression -> expression
 
-val box_float : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
+val box_float : Debuginfo.t -> Cmm.Alloc_mode.t -> expression -> expression
 
 val unbox_float : Debuginfo.t -> expression -> expression
 
 (** Vector boxing and unboxing *)
-val box_vec128 : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
+val box_vec128 : Debuginfo.t -> Cmm.Alloc_mode.t -> expression -> expression
 
 val unbox_vec128 : Debuginfo.t -> expression -> expression
 
@@ -227,7 +227,7 @@ val unboxed_float_array_ref :
   expression
 
 val float_array_ref :
-  Lambda.alloc_mode -> expression -> expression -> Debuginfo.t -> expression
+  Cmm.Alloc_mode.t -> expression -> expression -> Debuginfo.t -> expression
 
 val addr_array_set_heap :
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -311,7 +311,7 @@ end
 
 (** Allocate a block of regular values with the given tag *)
 val make_alloc :
-  mode:Lambda.alloc_mode ->
+  mode:Cmm.Alloc_mode.t ->
   Debuginfo.t ->
   tag:int ->
   expression list ->
@@ -319,7 +319,7 @@ val make_alloc :
 
 (** Allocate a block of unboxed floats with the given tag *)
 val make_float_alloc :
-  mode:Lambda.alloc_mode ->
+  mode:Cmm.Alloc_mode.t ->
   Debuginfo.t ->
   tag:int ->
   expression list ->
@@ -333,7 +333,7 @@ val make_float_alloc :
     The list of expressions includes _all_ fields of the closure block,
     including the code pointers and closure information fields. *)
 val make_closure_alloc :
-  mode:Lambda.alloc_mode ->
+  mode:Cmm.Alloc_mode.t ->
   Debuginfo.t ->
   tag:int ->
   expression list ->
@@ -344,7 +344,7 @@ val make_closure_alloc :
     The [memory_chunk] list should give the memory_chunk corresponding to
     each element from the [expression] list. *)
 val make_mixed_alloc :
-  mode:Lambda.alloc_mode ->
+  mode:Cmm.Alloc_mode.t ->
   Debuginfo.t ->
   tag:int ->
   value_prefix_size:int ->
@@ -403,7 +403,7 @@ val zero_extend_63 : Debuginfo.t -> expression -> expression
 val box_int_gen :
   Debuginfo.t ->
   Primitive.boxed_integer ->
-  Lambda.alloc_mode ->
+  Cmm.Alloc_mode.t ->
   expression ->
   expression
 
@@ -535,7 +535,7 @@ val send :
   expression list ->
   Extended_machtype.t list ->
   Extended_machtype.t ->
-  Lambda.region_close * Lambda.alloc_mode ->
+  Lambda.region_close * Cmx_format.alloc_mode ->
   Debuginfo.t ->
   expression
 
@@ -868,7 +868,7 @@ val indirect_call :
   dbg:Debuginfo.t ->
   Extended_machtype.t ->
   Lambda.region_close ->
-  Lambda.alloc_mode ->
+  Cmx_format.alloc_mode ->
   expression ->
   Extended_machtype.t list ->
   expression list ->
@@ -880,7 +880,7 @@ val indirect_full_call :
   dbg:Debuginfo.t ->
   Extended_machtype.t ->
   Lambda.region_close ->
-  Lambda.alloc_mode ->
+  Cmx_format.alloc_mode ->
   expression ->
   Extended_machtype.t list ->
   expression list ->
@@ -983,10 +983,10 @@ val curry_function :
   Lambda.function_kind * Cmm.machtype list * Cmm.machtype -> Cmm.phrase list
 
 val send_function :
-  Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase
+  Cmm.machtype list * Cmm.machtype * Cmx_format.alloc_mode -> Cmm.phrase
 
 val apply_function :
-  Cmm.machtype list * Cmm.machtype * Lambda.alloc_mode -> Cmm.phrase
+  Cmm.machtype list * Cmm.machtype * Cmx_format.alloc_mode -> Cmm.phrase
 
 (* Atomics *)
 
@@ -1033,22 +1033,22 @@ val reperform :
 (** Allocate a block to hold an unboxed float32 array for the given number of
     elements. *)
 val allocate_unboxed_float32_array :
-  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+  elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
 
 (** Allocate a block to hold an unboxed int32 array for the given number of
     elements. *)
 val allocate_unboxed_int32_array :
-  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+  elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
 
 (** Allocate a block to hold an unboxed int64 array for the given number of
     elements. *)
 val allocate_unboxed_int64_array :
-  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+  elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
 
 (** Allocate a block to hold an unboxed nativeint array for the given number of
     elements. *)
 val allocate_unboxed_nativeint_array :
-  elements:Cmm.expression list -> Lambda.alloc_mode -> Debuginfo.t -> expression
+  elements:Cmm.expression list -> Cmm.Alloc_mode.t -> Debuginfo.t -> expression
 
 (** Compute the length of an unboxed float32 array. *)
 val unboxed_float32_array_length : expression -> Debuginfo.t -> expression

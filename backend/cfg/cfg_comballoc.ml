@@ -10,7 +10,7 @@ type cell = Cfg.basic Cfg.instruction DLL.cell
 type allocation =
   { bytes : int;
     dbginfo : Debuginfo.alloc_dbginfo;
-    mode : Lambda.locality_mode;
+    mode : Cmm.Alloc_mode.t;
     cell : cell
   }
 
@@ -57,12 +57,12 @@ let rec find_next_allocation : cell option -> allocation option =
    allocations compatible with mode [curr_mode] and total size [curr_size]. *)
 let find_compatible_allocations :
     cell option ->
-    curr_mode:Lambda.locality_mode ->
+    curr_mode:Cmm.Alloc_mode.t ->
     curr_size:int ->
     compatible_allocations =
  fun cell ~curr_mode ~curr_size ->
   let rec loop (allocations : allocation list) (cell : cell option)
-      ~(curr_mode : Lambda.alloc_mode) ~(curr_size : int) :
+      ~(curr_mode : Cmm.Alloc_mode.t) ~(curr_size : int) :
       compatible_allocations =
     match cell with
     | None -> { allocations = List.rev allocations; next_cell = None }
@@ -74,10 +74,10 @@ let find_compatible_allocations :
       match instr.desc with
       | Op (Alloc { bytes; dbginfo; mode }) ->
         let is_compatible =
-          Lambda.equal_alloc_mode mode curr_mode
+          Cmm.Alloc_mode.equal mode curr_mode
           && (curr_size + bytes
               <= (Config.max_young_wosize + 1) * Arch.size_addr
-             || Lambda.is_local_mode mode)
+             || Cmm.Alloc_mode.is_local mode)
         in
         if is_compatible
         then
@@ -88,8 +88,8 @@ let find_compatible_allocations :
         else { allocations = List.rev allocations; next_cell = Some cell }
       | Op (Begin_region | End_region) -> (
         match curr_mode with
-        | Lambda.Alloc_local -> return ()
-        | Lambda.Alloc_heap ->
+        | Cmm.Alloc_mode.Local -> return ()
+        | Cmm.Alloc_mode.Heap ->
           loop allocations (DLL.next cell) ~curr_mode ~curr_size)
       | Op Poll -> return ()
       | Reloadretaddr | Poptrap | Prologue | Pushtrap _ | Stack_check _ ->
