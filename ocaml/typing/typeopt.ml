@@ -920,7 +920,7 @@ let report_error ppf = function
         Jkind.Sort.Const.format const
   | Unsupported_product_in_structure const ->
       fprintf ppf
-        "Product layout %a detected in structure in [Typeopt.Layout] \
+        "Product layout %a detected in structure in [Typeopt.Layout]@ \
          Please report this error to the Jane Street compilers team."
         Jkind.Sort.Const.format const
 

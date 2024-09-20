@@ -558,7 +558,7 @@ Line 2, characters 54-78:
 Error: The type constraints are not consistent.
        Type "('a : value)" is not compatible with type "void_unboxed_record"
        The layout of void_unboxed_record is void
-         because of the definition of t_void at line 6, characters 0-19.
+         because of the definition of void_unboxed_record at line 12, characters 0-60.
        But the layout of void_unboxed_record must be a sublayout of value
          because it instantiates an unannotated type parameter of t,
          defaulted to layout value.
@@ -605,7 +605,7 @@ Line 2, characters 31-50:
                                    ^^^^^^^^^^^^^^^^^^^
 Error: Tuple element types must have layout value.
        The layout of "void_unboxed_record" is void
-         because of the definition of t_void at line 6, characters 0-19.
+         because of the definition of void_unboxed_record at line 12, characters 0-60.
        But the layout of "void_unboxed_record" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -625,7 +625,7 @@ Line 7, characters 13-14:
 Error: This expression has type "void_unboxed_record"
        but an expression was expected of type "('a : value_or_null)"
        The layout of void_unboxed_record is void
-         because of the definition of t_void at line 6, characters 0-19.
+         because of the definition of void_unboxed_record at line 12, characters 0-60.
        But the layout of void_unboxed_record must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -642,7 +642,7 @@ Line 4, characters 8-16:
 Error: The record field "vur_void" belongs to the type "void_unboxed_record"
        but is mixed here with fields of type "('a : value)"
        The layout of void_unboxed_record is void
-         because of the definition of t_void at line 6, characters 0-19.
+         because of the definition of void_unboxed_record at line 12, characters 0-60.
        But the layout of void_unboxed_record must be a sublayout of value
          because it's a boxed record type.
 |}];;
@@ -673,7 +673,7 @@ Line 2, characters 34-58:
 Error: The type constraints are not consistent.
        Type "('a : value)" is not compatible with type "void_unboxed_record"
        The layout of void_unboxed_record is void
-         because of the definition of t_void at line 6, characters 0-19.
+         because of the definition of void_unboxed_record at line 12, characters 0-60.
        But the layout of void_unboxed_record must be a sublayout of value
          because it instantiates an unannotated type parameter of t,
          defaulted to layout value.

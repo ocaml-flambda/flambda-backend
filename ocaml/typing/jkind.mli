@@ -389,6 +389,15 @@ val get_externality_upper_bound : t -> Externality.t
     mode for the externality axis *)
 val set_externality_upper_bound : t -> Externality.t -> t
 
+(* CR layouts v2.8: Fix this when we can tell the difference between left and
+   right jkinds. *)
+
+(** Extract out component jkinds from the product. Because there are no product
+    jkinds, this is a bit of a lie: instead, this decomposes the layout but just
+    reuses the non-layout parts of the original jkind. This is sound for expected
+    jkinds but not for actual jkinds. Never does any mutation *)
+val decompose_product : t -> t list option
+
 (*********************************)
 (* pretty printing *)
 
@@ -439,8 +448,17 @@ val intersection_or_error :
     either [t1] or [t2] to make their layouts equal.*)
 val sub : t -> t -> bool
 
-(** [sub_or_error t1 t2] returns [Ok ()] iff [t1] is a subjkind of
-  of [t2]. Otherwise returns an appropriate error to report to the user. *)
+type sub_or_intersect =
+  | Sub  (** The first jkind is a subjkind of the second. *)
+  | Disjoint  (** The two jkinds have no common ground. *)
+  | Has_intersection  (** The two jkinds have an intersection: try harder. *)
+
+(** [sub_or_intersect t1 t2] does a subtype check, returning a [sub_or_intersect];
+    see comments there for more info. *)
+val sub_or_intersect : t -> t -> sub_or_intersect
+
+(** [sub_or_error t1 t2] does a subtype check, returning an appropriate
+    [Violation.t] upon failure. *)
 val sub_or_error : t -> t -> (unit, Violation.t) result
 
 (** Like [sub], but returns the subjkind with an updated history. *)
@@ -452,12 +470,6 @@ val is_max : t -> bool
 
 (** Checks to see whether a jkind has layout any. Never does any mutation. *)
 val has_layout_any : t -> bool
-
-(** Checks whether a jkind's layout is an n-ary product, and returns the jkinds
-    of the components if so (with each component inheriting the non-layout kind
-    pieces from the original input kind). May update sort variables to make the
-    layout a product. *)
-val is_nary_product : int -> t -> t list option
 
 (*********************************)
 (* debugging *)

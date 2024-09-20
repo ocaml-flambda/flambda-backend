@@ -174,8 +174,7 @@ Error: This expression has type "t_void" but an expression was expected of type
          "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 2, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of t_void must be a sublayout of value.
 |}]
 
 type ('a : value) t_v = 'a

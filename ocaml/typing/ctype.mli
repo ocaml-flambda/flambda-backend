@@ -563,13 +563,14 @@ val type_jkind : Env.t -> type_expr -> jkind
    expansion. *)
 val type_jkind_purely : Env.t -> type_expr -> jkind
 
-(* Find a type's sort (constraining it to be an arbitrary sort variable, if
-   needed) *)
+(* Find a type's sort (if fixed is false: constraining it to be an
+   arbitrary sort variable, if needed) *)
 val type_sort :
   why:Jkind.History.concrete_creation_reason ->
+  fixed:bool ->
   Env.t -> type_expr -> (Jkind.sort, Jkind.Violation.t) result
 
-(* As [type_sort], but constrain the jkind to be non-null.
+(* As [type_sort ~fixed:false], but constrain the jkind to be non-null.
    Used for checking array elements. *)
 val type_legacy_sort :
   why:Jkind.History.concrete_legacy_creation_reason ->
