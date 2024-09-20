@@ -2,9 +2,10 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                         Vincent Laviron, OCamlPro                      *)
+(*             Xavier Leroy, projet Cristal, INRIA Rocquencourt           *)
 (*                                                                        *)
-(*   Copyright 2023 OCamlPro, SAS                                         *)
+(*   Copyright 1996 Institut National de Recherche en Informatique et     *)
+(*     en Automatique.                                                    *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -12,17 +13,10 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Types related to the compilation of value let-recs (non-functional
-     recursive definitions) *)
+(* Selection of pseudo-instructions, assignment of pseudo-registers,
+   sequentialization. *)
 
-(** The kind of recursive bindings, as computed by
-    [Value_rec_check.classify_expression] *)
-type recursive_binding_kind =
-| Static
-  (** Bindings for which some kind of pre-allocation scheme is possible.
-      The expression is allowed to be recursive, as long as its definition does
-      not inspect recursively defined values.
-      See [Value_rec_compiler] for more details on the compilation scheme. *)
-| Dynamic
-  (** Bindings for which pre-allocation is not possible.
-      The expression is not allowed to refer to any recursive variable. *)
+[@@@ocaml.warning "+a-4-9-40-41-42"]
+
+val fundecl :
+  future_funcnames:Misc.Stdlib.String.Set.t -> Cmm.fundecl -> Cfg_with_layout.t

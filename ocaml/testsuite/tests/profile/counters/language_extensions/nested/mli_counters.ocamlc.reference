@@ -1,2 +1,2 @@
- nested/mli_counters.mli
+ file=nested/mli_counters.mli
   [comprehensions = 0; immutable_arrays = 1; include_functor = 0; labeled_tuples = 3; module_strengthening = 0] typing

@@ -310,7 +310,13 @@ let string_unshare : _ -> unique_ string = fun x -> x
 Line 1, characters 52-53:
 1 | let string_unshare : _ -> unique_ string = fun x -> x
                                                         ^
+<<<<<<< HEAD
 Error: This value is "shared" but expected to be "unique".
+||||||| caebc8adff
+Error: This value is shared but expected to be unique.
+=======
+Error: This value is aliased but expected to be unique.
+>>>>>>> flambda-backend/main
 |}]
 
 let int_unshare : _ -> unique_ int = fun x -> x
@@ -325,7 +331,13 @@ let string_list_unshare : _ -> unique_ string list = fun x -> x
 Line 1, characters 62-63:
 1 | let string_list_unshare : _ -> unique_ string list = fun x -> x
                                                                   ^
+<<<<<<< HEAD
 Error: This value is "shared" but expected to be "unique".
+||||||| caebc8adff
+Error: This value is shared but expected to be unique.
+=======
+Error: This value is aliased but expected to be unique.
+>>>>>>> flambda-backend/main
 |}]
 
 let int_list_unshare : _ -> unique_ int list = fun x -> x
@@ -334,7 +346,13 @@ let int_list_unshare : _ -> unique_ int list = fun x -> x
 Line 1, characters 56-57:
 1 | let int_list_unshare : _ -> unique_ int list = fun x -> x
                                                             ^
+<<<<<<< HEAD
 Error: This value is "shared" but expected to be "unique".
+||||||| caebc8adff
+Error: This value is shared but expected to be unique.
+=======
+Error: This value is aliased but expected to be unique.
+>>>>>>> flambda-backend/main
 |}]
 
 let function_unshare : _ -> unique_ (int -> int) = fun x -> x
@@ -350,7 +368,13 @@ let hidden_string_unshare : _ -> unique_ Hidden_string.t =
 Line 2, characters 11-12:
 2 |   fun x -> x
                ^
+<<<<<<< HEAD
 Error: This value is "shared" but expected to be "unique".
+||||||| caebc8adff
+Error: This value is shared but expected to be unique.
+=======
+Error: This value is aliased but expected to be unique.
+>>>>>>> flambda-backend/main
 |}]
 
 let hidden_int_unshare : _ -> unique_ Hidden_int.t =
@@ -366,7 +390,13 @@ let float_unshare : _ -> unique_ float = fun x -> x
 Line 1, characters 50-51:
 1 | let float_unshare : _ -> unique_ float = fun x -> x
                                                       ^
+<<<<<<< HEAD
 Error: This value is "shared" but expected to be "unique".
+||||||| caebc8adff
+Error: This value is shared but expected to be unique.
+=======
+Error: This value is aliased but expected to be unique.
+>>>>>>> flambda-backend/main
 |}]
 
 let float_u_unshare : _ -> unique_ float# = fun x -> x
@@ -389,7 +419,13 @@ let float_u_record_unshare : _ -> unique_ float_u_record =
 Line 2, characters 11-12:
 2 |   fun x -> x
                ^
+<<<<<<< HEAD
 Error: This value is "shared" but expected to be "unique".
+||||||| caebc8adff
+Error: This value is shared but expected to be unique.
+=======
+Error: This value is aliased but expected to be unique.
+>>>>>>> flambda-backend/main
 |}]
 
 let float_u_record_list_unshare :
@@ -400,7 +436,13 @@ let float_u_record_list_unshare :
 Line 3, characters 11-12:
 3 |   fun x -> x
                ^
+<<<<<<< HEAD
 Error: This value is "shared" but expected to be "unique".
+||||||| caebc8adff
+Error: This value is shared but expected to be unique.
+=======
+Error: This value is aliased but expected to be unique.
+>>>>>>> flambda-backend/main
 |}]
 
 let hidden_function_unshare : _ -> unique_ (int, int) Hidden_function.t = fun x -> x
@@ -409,7 +451,13 @@ let hidden_function_unshare : _ -> unique_ (int, int) Hidden_function.t = fun x 
 Line 1, characters 83-84:
 1 | let hidden_function_unshare : _ -> unique_ (int, int) Hidden_function.t = fun x -> x
                                                                                        ^
+<<<<<<< HEAD
 Error: This value is "shared" but expected to be "unique".
+||||||| caebc8adff
+Error: This value is shared but expected to be unique.
+=======
+Error: This value is aliased but expected to be unique.
+>>>>>>> flambda-backend/main
 |}]
 
 let function_list_unshare : _ -> unique_ (int -> int) list =
@@ -419,5 +467,11 @@ let function_list_unshare : _ -> unique_ (int -> int) list =
 Line 2, characters 11-12:
 2 |   fun x -> x
                ^
+<<<<<<< HEAD
 Error: This value is "shared" but expected to be "unique".
+||||||| caebc8adff
+Error: This value is shared but expected to be unique.
+=======
+Error: This value is aliased but expected to be unique.
+>>>>>>> flambda-backend/main
 |}]

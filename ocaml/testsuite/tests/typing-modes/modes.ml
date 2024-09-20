@@ -101,7 +101,7 @@ val foo : bar:string -> string = <fun>
 Line 5, characters 8-11:
 5 |   foo ~(bar : _ @@ unique)
             ^^^
-Error: Found a shared value where a unique value was expected
+Error: Found a aliased value where a unique value was expected
 |}]
 
 let x =
@@ -111,7 +111,7 @@ let x =
 Line 3, characters 8-11:
 3 |   foo ~(bar @ unique)
             ^^^
-Error: Found a shared value where a unique value was expected
+Error: Found a aliased value where a unique value was expected
 |}]
 
 type r = {a : string; b : string}
@@ -143,7 +143,7 @@ let foo () =
 Line 4, characters 4-7:
 4 |   ~(bar:_@@unique), ~(biz:_@@once)
         ^^^
-Error: Found a shared value where a unique value was expected
+Error: Found a aliased value where a unique value was expected
 |}]
 
 
@@ -155,7 +155,7 @@ let foo () =
 Line 4, characters 4-7:
 4 |   ~(bar @ unique), ~(biz @ once)
         ^^^
-Error: Found a shared value where a unique value was expected
+Error: Found a aliased value where a unique value was expected
 |}]
 *)
 
@@ -265,36 +265,36 @@ type r = { global_ x : string; }
 
 (* Modalities don't imply each other; this will change as we add borrowing. *)
 type r = {
-  global_ x : string @@ shared
+  global_ x : string @@ aliased
 }
 [%%expect{|
-type r = { global_ x : string @@ shared; }
+type r = { global_ x : string @@ aliased; }
 |}]
 
 type r = {
-  x : string @@ shared global many
+  x : string @@ aliased global many
 }
 [%%expect{|
-type r = { global_ x : string @@ many shared; }
+type r = { global_ x : string @@ many aliased; }
 |}]
 
 type r = {
-  x : string @@ shared global many shared
+  x : string @@ aliased global many aliased
 }
 (* CR reduced-modality: this should warn. *)
 [%%expect{|
-type r = { global_ x : string @@ many shared; }
+type r = { global_ x : string @@ many aliased; }
 |}]
 
-type r = Foo of string @@ global shared many
+type r = Foo of string @@ global aliased many
 [%%expect{|
-type r = Foo of global_ string @@ many shared
+type r = Foo of global_ string @@ many aliased
 |}]
 
-(* mutable implies global shared many. No warnings are given since we imagine
+(* mutable implies global aliased many. No warnings are given since we imagine
    that the coupling will be removed soon. *)
 type r = {
-  mutable x : string @@ global shared many
+  mutable x : string @@ global aliased many
 }
 [%%expect{|
 type r = { mutable x : string; }
@@ -375,4 +375,180 @@ Line 2, characters 38-41:
 2 |   val x : string -> string @ local @@ foo bar
                                           ^^^
 Error: The extension "mode" is disabled and cannot be used
+|}]
+
+
+(*
+ * Modification of return modes in argument position
+ *)
+
+let use_local (f : _ -> _ -> _ @@ local) x y =
+  f x y
+let result = use_local (^) "hello" " world"
+[%%expect{|
+val use_local : local_ ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val result : string = "hello world"
+|}]
+
+let use_local_ret (f : _ -> _ @ local) x y =
+  let _ = f x in ()
+let global_ret : string -> string @ global = fun x -> x
+let result = use_local_ret global_ret "hello"
+[%%expect{|
+val use_local_ret : ('a -> local_ 'b) -> 'a -> 'c -> unit = <fun>
+val global_ret : string -> string = <fun>
+val result : '_weak1 -> unit = <fun>
+|}]
+
+let use_global_ret (f : _ -> _ @ global) x = lazy (f x)
+let local_ret a = exclave_ (Some a)
+let bad_use = use_global_ret local_ret "hello"
+[%%expect{|
+val use_global_ret : ('a -> 'b) -> 'a -> 'b lazy_t = <fun>
+val local_ret : 'a -> local_ 'a option = <fun>
+Line 3, characters 29-38:
+3 | let bad_use = use_global_ret local_ret "hello"
+                                 ^^^^^^^^^
+Error: This expression has type 'a -> local_ 'a option
+       but an expression was expected of type 'b -> 'c
+|}]
+
+let use_nonportable_ret (f : _ -> (_ -> _) @ nonportable) x y =
+  f x y
+let portable_ret : string -> (string -> string) @ portable =
+  fun x y -> y
+let result = use_nonportable_ret portable_ret "hello" " world"
+[%%expect{|
+val use_nonportable_ret : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val portable_ret : string -> (string -> string) @ portable = <fun>
+val result : string = " world"
+|}]
+
+let use_portable_ret (f : _ -> (_ -> _) @ portable) x y =
+  lazy ((f x) y)
+let nonportable_ret : string -> (string -> string) @ nonportable =
+  fun x y -> x ^ y
+let bad_use = use_portable_ret nonportable_ret "hello" " world"
+[%%expect{|
+val use_portable_ret : ('a -> ('b -> 'c) @ portable) -> 'a -> 'b -> 'c lazy_t =
+  <fun>
+val nonportable_ret : string -> string -> string = <fun>
+Line 5, characters 31-46:
+5 | let bad_use = use_portable_ret nonportable_ret "hello" " world"
+                                   ^^^^^^^^^^^^^^^
+Error: This expression has type string -> string -> string
+       but an expression was expected of type 'a -> ('b -> 'c) @ portable
+|}]
+
+let use_contended_ret (f : _ -> _ @ contended) x =
+  let _ = f x in ()
+let uncontended_ret : string -> string @ uncontended =
+  fun x -> x
+let result = use_contended_ret uncontended_ret "hello"
+[%%expect{|
+val use_contended_ret : ('a -> 'b @ contended) -> 'a -> unit = <fun>
+val uncontended_ret : string -> string = <fun>
+val result : unit = ()
+|}]
+
+let use_uncontended_ret (f : _ -> _ @ uncontended) x =
+  let _ = f x in ()
+let contended_ret : string -> string @ contended =
+  fun x -> x
+let bad_use = use_uncontended_ret contended_ret "hello"
+[%%expect{|
+val use_uncontended_ret : ('a -> 'b) -> 'a -> unit = <fun>
+val contended_ret : string -> string @ contended = <fun>
+Line 5, characters 34-47:
+5 | let bad_use = use_uncontended_ret contended_ret "hello"
+                                      ^^^^^^^^^^^^^
+Error: This expression has type string -> string @ contended
+       but an expression was expected of type 'a -> 'b
+|}]
+
+(*
+ * Modification of parameter modes in argument position
+ *)
+
+let use_local (local_ f : _ -> _ -> _) x y =
+  f x y
+let use_global (f : _ -> _ -> _) x y = f x y
+
+let foo x y = x +. y
+let bar (local_ x) (local_ y) = let _ = x +. y in ()
+
+let result = use_local foo 1. 2.
+[%%expect{|
+val use_local : local_ ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val use_global : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val foo : float -> float -> float = <fun>
+val bar : local_ float -> local_ float -> unit = <fun>
+val result : float = 3.
+|}]
+
+let result = use_local bar 1. 2.
+[%%expect{|
+val result : unit = ()
+|}]
+
+let result = use_global foo 1. 2.
+[%%expect{|
+val result : float = 3.
+|}]
+
+let result = use_global bar 1. 2.
+[%%expect{|
+Line 1, characters 24-27:
+1 | let result = use_global bar 1. 2.
+                            ^^^
+Error: This expression has type local_ float -> local_ float -> unit
+       but an expression was expected of type local_ 'a -> ('b -> 'c)
+|}]
+
+let use_portable_arg (f : (_ -> _) @ portable -> _) g = f g
+let nonportable_arg (f @ nonportable) = f ()
+let result = use_portable_arg nonportable_arg (fun () -> ())
+[%%expect{|
+val use_portable_arg :
+  ('a : any) ('b : any) 'c.
+    (('a -> 'b) @ portable -> 'c) -> ('a -> 'b) @ portable -> 'c =
+  <fun>
+val nonportable_arg : (unit -> 'a) -> 'a = <fun>
+val result : unit = ()
+|}]
+
+let use_nonportable_arg (f : (_ -> _) @ nonportable -> _) g = f g
+let portable_arg (f @ portable) = f ()
+let bad_use = use_nonportable_arg portable_arg (fun () -> ())
+[%%expect{|
+val use_nonportable_arg :
+  ('a : any) ('b : any) 'c. (('a -> 'b) -> 'c) -> ('a -> 'b) -> 'c = <fun>
+val portable_arg : (unit -> 'a) @ portable -> 'a = <fun>
+Line 3, characters 34-46:
+3 | let bad_use = use_nonportable_arg portable_arg (fun () -> ())
+                                      ^^^^^^^^^^^^
+Error: This expression has type (unit -> 'a) @ portable -> 'a
+       but an expression was expected of type ('b -> 'c) -> 'd
+|}]
+
+let use_uncontended_arg (f : _ @ uncontended -> _) x = f x
+let contended_arg (x @ contended) = ()
+let result = use_uncontended_arg contended_arg ()
+[%%expect{|
+val use_uncontended_arg : ('a -> 'b) -> 'a -> 'b = <fun>
+val contended_arg : 'a @ contended -> unit = <fun>
+val result : unit = ()
+|}]
+
+let use_contended_arg (f : _ @ contended -> _) x = f x
+let uncontended_arg (x @ uncontended) = ()
+let bad_use = use_contended_arg uncontended_arg ()
+[%%expect{|
+val use_contended_arg : ('a @ contended -> 'b) -> 'a -> 'b = <fun>
+val uncontended_arg : 'a -> unit = <fun>
+Line 3, characters 32-47:
+3 | let bad_use = use_contended_arg uncontended_arg ()
+                                    ^^^^^^^^^^^^^^^
+Error: This expression has type 'a -> unit
+       but an expression was expected of type 'b @ contended -> 'c
 |}]

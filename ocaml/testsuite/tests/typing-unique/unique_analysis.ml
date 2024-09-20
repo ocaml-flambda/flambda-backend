@@ -13,9 +13,9 @@ let unique_id : 'a. unique_ 'a -> unique_ 'a = fun x -> x
 val unique_id : unique_ 'a -> unique_ 'a = <fun>
 |}]
 
-let shared_id : 'a -> 'a = fun x -> x
+let aliased_id : 'a -> 'a = fun x -> x
 [%%expect{|
-val shared_id : 'a -> 'a = <fun>
+val aliased_id : 'a -> 'a = <fun>
 |}]
 
 let ignore_once: once_ 'a -> unit = fun x -> ()
@@ -188,7 +188,13 @@ let or_patterns1 : unique_ float list -> float list -> float =
 Line 3, characters 37-38:
 3 |   | z :: _, _ | _, z :: _ -> unique_ z
                                          ^
+<<<<<<< HEAD
 Error: This value is "shared" but expected to be "unique".
+||||||| caebc8adff
+Error: This value is shared but expected to be unique.
+=======
+Error: This value is aliased but expected to be unique.
+>>>>>>> flambda-backend/main
 |}]
 
 let or_patterns2 : float list -> unique_ float list -> float =
@@ -199,7 +205,13 @@ let or_patterns2 : float list -> unique_ float list -> float =
 Line 3, characters 37-38:
 3 |   | z :: _, _ | _, z :: _ -> unique_ z
                                          ^
+<<<<<<< HEAD
 Error: This value is "shared" but expected to be "unique".
+||||||| caebc8adff
+Error: This value is shared but expected to be unique.
+=======
+Error: This value is aliased but expected to be unique.
+>>>>>>> flambda-backend/main
 |}]
 
 let or_patterns3 p =
@@ -242,7 +254,7 @@ Line 4, characters 50-51:
 
 (* for some reason the following error message is missing "another use". Don't
 know what's wrong *)
-let mark_top_shared =
+let mark_top_aliased =
   let unique_ xs = 2 :: 3 :: [] in
   match xs with
   | x :: xx ->
@@ -261,7 +273,7 @@ Line 5, characters 24-26:
 
 |}]
 
-let mark_top_shared =
+let mark_top_aliased =
   let unique_ xs = 2 :: 3 :: [] in
   let _ = unique_id xs in
   match xs with
@@ -278,19 +290,19 @@ Line 3, characters 20-22:
 
 |}]
 
-let mark_shared_in_one_branch b x =
+let mark_aliased_in_one_branch b x =
   if b then unique_id (x, 3.0)
        else (x, x)
 [%%expect{|
-val mark_shared_in_one_branch : bool -> unique_ float -> float * float =
+val mark_aliased_in_one_branch : bool -> unique_ float -> float * float =
   <fun>
 |}]
 
-let mark_shared_in_one_branch b x =
+let mark_aliased_in_one_branch b x =
   if b then (x, x)
        else unique_id (x, 3.0)
 [%%expect{|
-val mark_shared_in_one_branch : bool -> unique_ float -> float * float =
+val mark_aliased_in_one_branch : bool -> unique_ float -> float * float =
   <fun>
 |}]
 
@@ -327,7 +339,7 @@ Line 3, characters 40-41:
 
 let tuple_parent_marked a b =
   match (a, b) with
-  | (_, b) as _t -> shared_id b
+  | (_, b) as _t -> aliased_id b
 [%%expect{|
 val tuple_parent_marked : 'a -> 'b -> 'b = <fun>
 |}]
@@ -339,7 +351,7 @@ val tuple_parent_marked : 'a -> 'b -> 'b = <fun>
 let tuple_parent_marked a b =
   match (a, b) with
   | (true, b') -> unique_id b'
-  | (false, b') as _t -> shared_id b'
+  | (false, b') as _t -> aliased_id b'
 [%%expect{|
 Line 3, characters 28-30:
 3 |   | (true, b') -> unique_id b'
@@ -353,7 +365,7 @@ Line 2, characters 12-13:
 
 let tuple_parent_marked a b =
   match (a, b) with
-  | (false, b) as _t -> shared_id b
+  | (false, b) as _t -> aliased_id b
   | (true, b) -> unique_id b
 [%%expect{|
 Line 4, characters 27-28:
@@ -552,7 +564,7 @@ let foo () =
   let x = {a = "hello"; b = "world"} in
   ignore (unique_id x.b);
   x.a <- "olleh";
-  ignore (shared_id x.a)
+  ignore (aliased_id x.a)
 [%%expect{|
 val foo : unit -> unit = <fun>
 |}]
@@ -570,16 +582,16 @@ module Value : sig type t val mk : unit -> unique_ t end
 |}]
 
 (* Testing modalities in records *)
-type r_shared = {x : Value.t; y : Value.t @@ shared many}
+type r_aliased = {x : Value.t; y : Value.t @@ aliased many}
 [%%expect{|
-type r_shared = { x : Value.t; y : Value.t @@ many shared; }
+type r_aliased = { x : Value.t; y : Value.t @@ many aliased; }
 |}]
 
 let foo () =
   let r = {x = Value.mk (); y = Value.mk ()} in
-  ignore (shared_id r.y);
+  ignore (aliased_id r.y);
   (* the following is allowed, because using r uniquely implies using r.x
-     shared *)
+     aliased *)
   ignore (unique_id r)
 [%%expect{|
 val foo : unit -> unit = <fun>
@@ -612,7 +624,7 @@ Line 3, characters 14-17:
 
 let foo () =
   let r = {x = Value.mk (); y = Value.mk ()} in
-  ignore (shared_id r.x);
+  ignore (aliased_id r.x);
   (* doesn't work for normal fields *)
   ignore (unique_id r)
 [%%expect{|
@@ -621,9 +633,9 @@ Line 5, characters 20-21:
                         ^
 Error: This value is used here as unique,
        but part of it has already been used:
-Line 3, characters 20-23:
-3 |   ignore (shared_id r.x);
-                        ^^^
+Line 3, characters 21-24:
+3 |   ignore (aliased_id r.x);
+                         ^^^
 
 |}]
 
@@ -631,7 +643,7 @@ Line 3, characters 20-23:
 let foo () =
   let r = {x = Value.mk (); y = Value.mk ()} in
   ignore (unique_ {r with x = Value.mk ()});
-  (* r.y has been used shared; in the following we will use r as unique *)
+  (* r.y has been used aliased; in the following we will use r as unique *)
   ignore (unique_id r)
 [%%expect{|
 val foo : unit -> unit = <fun>
@@ -655,17 +667,17 @@ Line 3, characters 19-20:
 |}]
 
 (* testing modalities in constructors *)
-type r_shared = R_shared of Value.t * Value.t @@ shared many
+type r_aliased = R_aliased of Value.t * Value.t @@ aliased many
 [%%expect{|
-type r_shared = R_shared of Value.t * Value.t @@ many shared
+type r_aliased = R_aliased of Value.t * Value.t @@ many aliased
 |}]
 
 let foo () =
-  let r = R_shared (Value.mk (), Value.mk ()) in
-  let R_shared (_, y) = r in
-  ignore (shared_id y);
+  let r = R_aliased (Value.mk (), Value.mk ()) in
+  let R_aliased (_, y) = r in
+  ignore (aliased_id y);
   (* the following is allowed, because using r uniquely implies using r.x
-     shared *)
+     aliased *)
   ignore (unique_id r)
 [%%expect{|
 val foo : unit -> unit = <fun>
@@ -673,8 +685,8 @@ val foo : unit -> unit = <fun>
 
  (* Similarly for linearity *)
 let foo () =
-  let r = once_ (R_shared (Value.mk (), Value.mk ())) in
-  let R_shared (_, y) = r in
+  let r = once_ (R_aliased (Value.mk (), Value.mk ())) in
+  let R_aliased (_, y) = r in
   ignore_once y;
   ignore_once r;
 [%%expect{|
@@ -682,8 +694,8 @@ val foo : unit -> unit = <fun>
 |}]
 
 let foo () =
-  let r = once_ (R_shared (Value.mk (), Value.mk ())) in
-  let R_shared (x, _) = r in
+  let r = once_ (R_aliased (Value.mk (), Value.mk ())) in
+  let R_aliased (x, _) = r in
   ignore_once x;
   ignore_once r;
 [%%expect{|
@@ -699,9 +711,9 @@ Line 4, characters 14-15:
 |}]
 
 let foo () =
-  let r = R_shared (Value.mk (), Value.mk ()) in
-  let R_shared (x, _) = r in
-  ignore (shared_id x);
+  let r = R_aliased (Value.mk (), Value.mk ()) in
+  let R_aliased (x, _) = r in
+  ignore (aliased_id x);
   (* doesn't work for normal fields *)
   ignore (unique_id r)
 [%%expect{|
@@ -710,9 +722,9 @@ Line 6, characters 20-21:
                         ^
 Error: This value is used here as unique,
        but part of it has already been used:
-Line 4, characters 20-21:
-4 |   ignore (shared_id x);
-                        ^
+Line 4, characters 21-22:
+4 |   ignore (aliased_id x);
+                         ^
 
 |}]
 
@@ -745,7 +757,7 @@ type r = {x : float; y : float}
 (* CR zqian: The following should pass but doesn't, because the uniqueness
    analysis doesn't support mode crossing. The following involes sequencing the
    maybe_unique usage of [r.x] and the maybe_unique usage of [r] as a whole.
-   Sequencing them will force both to be shared and many. The [unique_use] in
+   Sequencing them will force both to be aliased and many. The [unique_use] in
    [r.x] is mode-crossed (being an unboxed float) so is fine. The [unique_use]
    in [r] cannot cross mode, and forcing it causes error. *)
 

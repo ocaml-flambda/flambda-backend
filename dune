@@ -90,6 +90,8 @@
   asmpackager
   branch_relaxation
   branch_relaxation_intf
+  cfg_selectgen
+  cfg_selection
   cfgize
   cmm_helpers
   cmm_builtins
@@ -136,6 +138,7 @@
   select_utils
   selectgen
   selection
+  selection_utils
   spill
   split
   string_table
