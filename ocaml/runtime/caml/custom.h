@@ -36,7 +36,6 @@ struct custom_operations {
   int (*compare_ext)(value v1, value v2);
   const struct custom_fixed_length* fixed_length;
 };
-CAML_STATIC_ASSERT(sizeof(struct custom_operations) == CUSTOM_OPS_STRUCT_SIZE);
 
 #define custom_finalize_default NULL
 #define custom_compare_default NULL
@@ -53,11 +52,17 @@ extern "C" {
 #endif
 
 
+CAMLextern uintnat caml_custom_major_ratio;
+
 CAMLextern value caml_alloc_custom(const struct custom_operations * ops,
                                    uintnat size, /*size in bytes*/
                                    mlsize_t mem, /*resources consumed*/
                                    mlsize_t max  /*max resources*/);
 
+/* [caml_alloc_custom_mem] allocates a custom block with dependent memory
+   (memory outside the heap that will be reclaimed when the block is
+   finalized). If [mem] is greater than [custom_minor_max_size] (see gc.mli)
+   the block is allocated directly in the major heap. */
 CAMLextern value caml_alloc_custom_mem(const struct custom_operations * ops,
                                        uintnat size, /*size in bytes*/
                                        mlsize_t mem  /*memory consumed*/);
@@ -65,11 +70,15 @@ CAMLextern value caml_alloc_custom_mem(const struct custom_operations * ops,
 CAMLextern void
           caml_register_custom_operations(const struct custom_operations * ops);
 
+/* Return the current [max] factor for [caml_alloc_custom_mem] allocations. */
+CAMLextern mlsize_t caml_custom_get_max_major (void);
+
 /* Global variable moved to Caml_state in 4.10 */
 #define caml_compare_unordered (Caml_state_field(compare_unordered))
 
 #ifdef CAML_INTERNALS
-extern struct custom_operations * caml_find_custom_operations(char * ident);
+extern struct custom_operations *
+          caml_find_custom_operations(const char * ident);
 extern struct custom_operations *
           caml_final_custom_operations(void (*fn)(value));
 

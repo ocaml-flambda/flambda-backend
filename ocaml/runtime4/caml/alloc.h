@@ -63,7 +63,7 @@ CAMLextern value caml_alloc_final (mlsize_t wosize,
                                    mlsize_t, /*resources consumed*/
                                    mlsize_t  /*max resources*/);
 
-CAMLextern int caml_convert_flag_list (value, int *);
+CAMLextern int caml_convert_flag_list (value, const int *);
 
 /* Convenience functions to deal with unboxable types. */
 Caml_inline value caml_alloc_unboxed (value arg) { return arg; }

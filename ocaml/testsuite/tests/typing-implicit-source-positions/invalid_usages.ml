@@ -42,9 +42,9 @@ let _ = apply g ;;
 Line 1, characters 14-15:
 1 | let _ = apply g ;;
                   ^
-Error: This expression has type call_pos:[%call_pos] -> unit -> unit
+Error: This expression has type "call_pos:[%call_pos] -> unit -> unit"
        but an expression was expected of type
-         call_pos:Lexing.position -> unit -> 'a
+         "call_pos:Lexing.position -> unit -> 'a"
 |}]
 
 let h ?(call_pos:[%call_pos]) () = ()
@@ -69,10 +69,10 @@ let k : call_pos:[%call_pos] -> unit -> unit =
 Line 2, characters 3-25:
 2 |    fun ~call_pos () -> ()
        ^^^^^^^^^^^^^^^^^^^^^^
-Error: This function should have type call_pos:[%call_pos] -> unit -> unit
-       but its first argument is labeled ~call_pos
-       instead of ~(call_pos:[%call_pos])
-Hint: Consider explicitly annotating the label with '[%call_pos]'
+Error: This function should have type "call_pos:[%call_pos] -> unit -> unit"
+       but its first argument is labeled "~call_pos"
+       instead of "~(call_pos:[%call_pos])"
+Hint: Consider explicitly annotating the label with "[%call_pos]"
 |}]
 
 let n = fun ~(call_pos:[%call_pos]) () -> call_pos

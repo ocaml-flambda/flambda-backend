@@ -139,6 +139,11 @@ val mk_compare_float32s_untagged :
 (** Convert a tagged integer into a raw integer with boolean meaning *)
 val test_bool : Debuginfo.t -> expression -> expression
 
+(** Conversions for 16-bit floats *)
+val float_of_float16 : Debuginfo.t -> expression -> expression
+
+val float16_of_float : Debuginfo.t -> expression -> expression
+
 (** Float boxing and unboxing *)
 val box_float32 : Debuginfo.t -> Cmm.Alloc_mode.t -> expression -> expression
 
@@ -1021,6 +1026,7 @@ val resume :
   stack:expression ->
   f:expression ->
   arg:expression ->
+  last_fiber:expression ->
   expression
 
 val reperform :
@@ -1137,3 +1143,5 @@ val setfield_unboxed_float32 : ternary_primitive
 val setfield_unboxed_int64_or_nativeint : ternary_primitive
 
 val dls_get : dbg:Debuginfo.t -> expression
+
+val poll : dbg:Debuginfo.t -> expression

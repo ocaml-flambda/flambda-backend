@@ -95,16 +95,9 @@ type stat =
 
     stack_size: int;
     (** Current size of the stack, in words.
-
-        This metrics will not be available in the OCaml 5 runtime: the field
-        value will always be [0].
-
+        This metrics is currently not available in OCaml 5: the field value is
+        always [0].
         @since 3.12 *)
-    (* CR ocaml 5 all-runtime5: Update the above comment to what it is upstream:
-
-       This metrics is currently not available in OCaml 5: the field value is
-       always [0].
-    *)
 
     forced_major_collections: int;
     (** Number of forced full major collections completed since the program
@@ -119,6 +112,8 @@ type stat =
    the word size (4 on a 32-bit machine, 8 on a 64-bit machine) to get
    the number of bytes.
 *)
+
+(* CR ocaml 5 all-runtime5: pretty much revert this file to upstream *)
 
 type control =
   { minor_heap_size : int;
@@ -167,8 +162,8 @@ type control =
        compaction is triggered at the end of each major GC cycle
        (this setting is intended for testing purposes only).
        If [max_overhead >= 1000000], compaction is never triggered.
-       If compaction is permanently disabled, it is strongly suggested
-       to set [allocation_policy] to 2.
+       On runtime4, if compaction is permanently disabled, it is strongly
+       suggested to set [allocation_policy] to 2.
        Default: 500. *)
 
     stack_limit : int;
@@ -177,6 +172,19 @@ type control =
 
     allocation_policy : int;
     (** The policy used for allocating in the major heap.
+
+        This option is ignored when using runtime5.
+
+        Prior to runtime5, possible values were 0, 1 and 2.
+
+        - 0 was the next-fit policy
+
+        - 1 was the first-fit policy (since OCaml 3.11)
+
+        - 2 was the best-fit policy (since OCaml 4.10)
+
+        More details for runtime4: -------------------------------------
+
         Possible values are 0, 1 and 2.
 
         - 0 is the next-fit policy, which is usually fast but can
@@ -208,6 +216,8 @@ type control =
         heap is small (e.g. at the start of the program).
 
         Default: 2.
+
+        ----------------------------------------------------------------
 
         @since 3.11 *)
 
@@ -242,7 +252,8 @@ type control =
         @since 4.08 *)
 
     custom_minor_max_size : int;
-    (** Maximum amount of out-of-heap memory for each custom value
+    (** For runtime4:
+        Maximum amount of out-of-heap memory for each custom value
         allocated in the minor heap. When a custom value is allocated
         on the minor heap and holds more than this many bytes, only
         this value is counted against [custom_minor_ratio] and the
@@ -250,6 +261,15 @@ type control =
         Note: this only applies to values allocated with
         [caml_alloc_custom_mem] (e.g. bigarrays).
         Default: 8192 bytes.
+
+        For runtime5:
+        Maximum amount of out-of-heap memory for each custom value
+        allocated in the minor heap. Custom values that hold more
+        than this many bytes are allocated on the major heap.
+        Note: this only applies to values allocated with
+        [caml_alloc_custom_mem] (e.g. bigarrays).
+        Default: 70000 bytes.
+
         @since 4.08 *)
   }
 (** The GC parameters are given as a [control] record.  Note that
@@ -266,9 +286,9 @@ external quick_stat : unit -> stat = "caml_gc_quick_stat"
 (** Same as [stat] except that [live_words], [live_blocks], [free_words],
     [free_blocks], [largest_free], and [fragments] are set to 0. Due to
     per-domain buffers it may only represent the state of the program's
-    total memory usage since the last minor collection. This function is
-    much faster than [stat] because it does not need to trigger a full
-    major collection. *)
+    total memory usage since the last minor collection or major cycle.
+    This function is much faster than [stat] because it does not need to
+    trigger a full major collection. *)
 
 external counters : unit -> float * float * float = "caml_gc_counters"
 (** Return [(minor_words, promoted_words, major_words)] for the current
@@ -424,24 +444,45 @@ val finalise_release : unit -> unit
 
 type alarm
 (** An alarm is a piece of data that calls a user function at the end of
-   each major GC cycle.  The following functions are provided to create
+   major GC cycle.  The following functions are provided to create
    and delete alarms. *)
 
 val create_alarm : (unit -> unit) -> alarm
-(** [create_alarm f] will arrange for [f] to be called at the end of each
-   major GC cycle, not caused by [f] itself, starting with the current
-   cycle or the next one.
-   A value of type [alarm] is returned that you can
-   use to call [delete_alarm]. *)
+(** [create_alarm f] will arrange for [f] to be called at the end of
+   major GC cycles, not caused by [f] itself, starting with the
+   current cycle or the next one. [f] will run on the same domain that
+   created the alarm, until the domain exits or [delete_alarm] is
+   called. A value of type [alarm] is returned that you can use to
+   call [delete_alarm].
+
+   It is not guaranteed that the Gc alarm runs at the end of every major
+   GC cycle, but it is guaranteed that it will run eventually.
+
+   As an example, here is a crude way to interrupt a function if the
+   memory consumption of the program exceeds a given [limit] in MB,
+   suitable for use in the toplevel:
+
+   {[
+let run_with_memory_limit (limit : int) (f : unit -> 'a) : 'a =
+  let limit_memory () =
+    let mem = Gc.(quick_stat ()).heap_words in
+    if mem / (1024 * 1024) > limit / (Sys.word_size / 8) then
+      raise Out_of_memory
+  in
+  let alarm = Gc.create_alarm limit_memory in
+  Fun.protect f ~finally:(fun () -> Gc.delete_alarm alarm ; Gc.compact ())
+   ]}
+
+*)
 
 val delete_alarm : alarm -> unit
 (** [delete_alarm a] will stop the calls to the function associated
    to [a]. Calling [delete_alarm a] again has no effect. *)
 
-external eventlog_pause : unit -> unit = "caml_eventlog_pause"
+val eventlog_pause : unit -> unit
 [@@ocaml.deprecated "Use Runtime_events.pause instead."]
 
-external eventlog_resume : unit -> unit = "caml_eventlog_resume"
+val eventlog_resume : unit -> unit
 [@@ocaml.deprecated "Use Runtime_events.resume instead."]
 
 (** [Memprof] is a profiling engine which randomly samples allocated
@@ -461,7 +502,12 @@ external eventlog_resume : unit -> unit = "caml_eventlog_resume"
    profiler as an OCaml library.
 
    Note: this API is EXPERIMENTAL. It may change without prior
-   notice. *)
+   notice.
+
+   (The docs in the comments here relate to runtime5; runtime4 should be
+    similar in most regards.)
+
+   *)
 module Memprof :
   sig
     type t
@@ -476,7 +522,8 @@ module Memprof :
         (** The size of the block, in words, excluding the header. *)
 
         source : allocation_source;
-        (** The cause of the allocation. *)
+        (** The cause of the allocation; [Marshal] cannot be produced
+          since OCaml 5. *)
 
         callstack : Printexc.raw_backtrace
         (** The callstack for the allocation. *)
@@ -520,7 +567,7 @@ module Memprof :
        the sampling rate in samples per word (including headers).
        Usually, with cheap callbacks, a rate of 1e-4 has no visible
        effect on performance, and 1e-3 causes the program to run a few
-       percent slower. 0.0 <= sampling_rate <= 1.0.
+       percent slower.  0.0 <= sampling_rate <= 1.0
 
        The parameter [callstack_size] is the length of the callstack
        recorded at every sample. Its default is [max_int].
@@ -528,12 +575,12 @@ module Memprof :
        The parameter [tracker] determines how to track sampled blocks
        over their lifetime in the minor and major heap.
 
-       Sampling and running callbacks are temporarily disabled on the
-       current thread when calling a callback, so callbacks do not
-       need to be re-entrant if the program is single-threaded and
-       single-domain. However, if threads or multiple domains are
-       used, it is possible that several callbacks will run in
-       parallel. In this case, callback functions must be re-entrant.
+       Sampling is temporarily disabled on the current thread when
+       calling a callback, so callbacks do not need to be re-entrant
+       if the program is single-threaded and single-domain. However,
+       if threads or multiple domains are used, it is possible that
+       several callbacks will run in parallel. In this case, callback
+       functions must be re-entrant.
 
        Note that a callback may be postponed slightly after the actual
        event. The callstack passed to an allocation callback always
@@ -541,32 +588,30 @@ module Memprof :
        have evolved between the allocation and the call to the
        callback.
 
-       If a new thread or domain is created when the current domain is
-       sampling for a profile, the child thread or domain joins that
-       profile (using the same [sampling_rate], [callstack_size], and
-       [tracker] callbacks).
+       If a new thread or domain is created when profiling is active,
+       the child thread or domain joins that profile (using the same
+       [sampling_rate], [callstack_size], and [tracker] callbacks).
 
-       An allocation callback is always run by the thread which
+       An allocation callback is generally run by the thread which
        allocated the block. If the thread exits or the profile is
-       stopped before the callback is called, the allocation callback
-       is not called and the block is not tracked.
-
-       Each subsequent callback is generally run by the domain which
-       allocated the block. If the domain terminates or the profile is
        stopped before the callback is called, the callback may be run
-       by a different domain.
+       by a different thread.
 
-       Different domains may sample for different profiles
-       simultaneously.  *)
+       Each callback is generally run by the domain which allocated
+       the block. If the domain terminates or the profile is stopped
+       before the callback is called, the callback may be run by a
+       different domain.
+
+       Different domains may run different profiles simultaneously.
+       *)
 
     val stop : unit -> unit
     (** Stop sampling for the current profile. Fails if no profile is
        sampling in the current domain. Stops sampling in all threads
        and domains sharing the profile.
 
-       Promotion and deallocation callbacks from a profile may run
-       after [stop] is called, until [discard] is applied to the
-       profile.
+       Callbacks from a profile may run after [stop] is called, until
+       [discard] is applied to the profile.
 
        A profile is implicitly stopped (but not discarded) if all
        domains and threads sampling for it are terminated.

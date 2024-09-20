@@ -19,10 +19,35 @@ open Lambda
 
 (* Structure of compilation environments *)
 
+type closure_entry = Debug_event.closure_entry =
+  | Free_variable of int
+  | Function of int
+
+type closure_env = Debug_event.closure_env =
+  | Not_in_closure
+  | In_closure of {
+      entries: closure_entry Ident.tbl; (* Offsets of the free variables and
+                                           recursive functions from the start of
+                                           the block *)
+      env_pos: int;                     (* Offset of the current function from
+                                           the start of the block *)
+    }
+
 type compilation_env = Debug_event.compilation_env =
-  { ce_stack: int Ident.tbl;
-    ce_heap: int Ident.tbl;
-    ce_rec: int Ident.tbl }
+  { ce_stack: int Ident.tbl;  (* Positions of variables in the stack *)
+    ce_closure: closure_env } (* Structure of the heap-allocated env *)
+
+(* The ce_stack component gives locations of variables residing
+   in the stack. The locations are offsets w.r.t. the origin of the
+   stack frame.
+   The ce_closure component gives the positions of variables residing in the
+   heap-allocated environment. The env_pos component gives the position of
+   the current function from the start of the closure block, and the entries
+   component gives the positions of free variables and functions bound by the
+   same let rec as the current function, from the start of the closure block.
+   These are used by the ENVACC and OFFSETCLOSURE instructions to recover the
+   relevant value from the env register (which points to the current function).
+*)
 
 (* Debugging events *)
 
@@ -74,8 +99,9 @@ type instruction =
   | Kclosure of label * int
   | Kclosurerec of label list * int
   | Koffsetclosure of int
-  | Kgetglobal of Ident.t
-  | Ksetglobal of Ident.t
+  | Kgetglobal of Compilation_unit.t
+  | Ksetglobal of Compilation_unit.t
+  | Kgetpredef of Ident.t
   | Kconst of structured_constant
   | Kmakeblock of int * int             (* size, tag *)
   | Kmake_faux_mixedblock of int * int  (* size, tag *)

@@ -271,6 +271,7 @@ let operation d = function
   | Ctuple_field (field, _ty) ->
     to_string "tuple_field %i" field
   | Cdls_get -> "dls_get"
+  | Cpoll -> "poll"
 
 let rec expr ppf = function
   | Cconst_int (n, _dbg) -> fprintf ppf "%i" n

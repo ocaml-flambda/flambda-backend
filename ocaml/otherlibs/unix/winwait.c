@@ -17,7 +17,7 @@
 #include <caml/alloc.h>
 #include <caml/memory.h>
 #include <caml/signals.h>
-#include "unixsupport.h"
+#include "caml/unixsupport.h"
 #include <windows.h>
 #include <sys/types.h>
 
@@ -36,7 +36,7 @@ static value alloc_process_status(HANDLE pid, int status)
 
 enum { CAML_WNOHANG = 1, CAML_WUNTRACED = 2 };
 
-static int wait_flag_table[] = { CAML_WNOHANG, CAML_WUNTRACED };
+static const int wait_flag_table[] = { CAML_WNOHANG, CAML_WUNTRACED };
 
 CAMLprim value caml_unix_waitpid(value vflags, value vpid_req)
 {

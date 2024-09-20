@@ -140,6 +140,14 @@ module Stdlib = struct
       in
       aux [] l1 l2
 
+    let rec iteri2 i f l1 l2 =
+      match (l1, l2) with
+        ([], []) -> ()
+      | (a1::l1, a2::l2) -> f i a1 a2; iteri2 (i + 1) f l1 l2
+      | (_, _) -> raise (Invalid_argument "iteri2")
+
+    let iteri2 f l1 l2 = iteri2 0 f l1 l2
+
     let some_if_all_elements_are_some l =
       let rec aux acc l =
         match l with
@@ -470,8 +478,10 @@ let find_in_path_rel path name =
       if Sys.file_exists fullname then fullname else try_dir rem
   in try_dir path
 
-let find_in_path_uncap path name =
-  let uname = String.uncapitalize_ascii name in
+let normalized_unit_filename = String.uncapitalize_ascii
+
+let find_in_path_normalized path name =
+  let uname = normalized_unit_filename name in
   let rec try_dir = function
     [] -> raise Not_found
   | dir::rem ->
@@ -592,6 +602,12 @@ let no_overflow_mul a b =
 
 let no_overflow_lsl a k =
   0 <= k && k < Sys.word_size - 1 && min_int asr k <= a && a <= max_int asr k
+
+let letter_of_int n =
+  let letter = String.make 1 (Char.chr (Char.code 'a' + n mod 26)) in
+  let num = n / 26 in
+  if num = 0 then letter
+  else letter ^ Int.to_string num
 
 module Int_literal_converter = struct
   (* To convert integer literals, allowing max_int + 1 (PR#4210) *)
@@ -736,11 +752,6 @@ module LongString = struct
       set dst (dstoff + i) (get src (srcoff + i))
     done
 
-  let blit_string src srcoff dst dstoff len =
-    for i = 0 to len - 1 do
-      set dst (dstoff + i) (String.get src (srcoff + i))
-    done
-
   let output oc tbl pos len =
     for i = pos to pos + len - 1 do
       output_char oc (get tbl i)
@@ -759,6 +770,181 @@ module LongString = struct
     tbl
 end
 
+
+let cut_at s c =
+  let pos = String.index s c in
+  String.sub s 0 pos, String.sub s (pos+1) (String.length s - pos - 1)
+
+let ordinal_suffix n =
+  let teen = (n mod 100)/10 = 1 in
+  match n mod 10 with
+  | 1 when not teen -> "st"
+  | 2 when not teen -> "nd"
+  | 3 when not teen -> "rd"
+  | _ -> "th"
+
+let format_as_unboxed_literal s =
+  if String.starts_with ~prefix:"-" s
+  then "-#" ^ (String.sub s 1 (String.length s - 1))
+  else "#" ^ s
+
+(* Color handling *)
+module Color = struct
+  external isatty : out_channel -> bool = "caml_sys_isatty"
+
+  (* reasonable heuristic on whether colors should be enabled *)
+  let should_enable_color () =
+    let term = try Sys.getenv "TERM" with Not_found -> "" in
+    term <> "dumb"
+    && term <> ""
+    && isatty stderr
+
+  type setting = Auto | Always | Never
+
+  let default_setting = Auto
+  let enabled = ref true
+
+end
+
+(* Terminal styling handling *)
+module Style = struct
+  (* use ANSI color codes, see https://en.wikipedia.org/wiki/ANSI_escape_code *)
+  type color =
+    | Black
+    | Red
+    | Green
+    | Yellow
+    | Blue
+    | Magenta
+    | Cyan
+    | White
+
+  type style =
+    | FG of color (* foreground *)
+    | BG of color (* background *)
+    | Bold
+    | Reset
+
+  let ansi_of_color = function
+    | Black -> "0"
+    | Red -> "1"
+    | Green -> "2"
+    | Yellow -> "3"
+    | Blue -> "4"
+    | Magenta -> "5"
+    | Cyan -> "6"
+    | White -> "7"
+
+  let code_of_style = function
+    | FG c -> "3" ^ ansi_of_color c
+    | BG c -> "4" ^ ansi_of_color c
+    | Bold -> "1"
+    | Reset -> "0"
+
+  let ansi_of_style_l l =
+    let s = match l with
+      | [] -> code_of_style Reset
+      | [s] -> code_of_style s
+      | _ -> String.concat ";" (List.map code_of_style l)
+    in
+    "\x1b[" ^ s ^ "m"
+
+
+  type Format.stag += Style of style list
+
+  type tag_style ={
+    ansi: style list;
+    text_open:string;
+    text_close:string
+  }
+
+  type styles = {
+    error: tag_style;
+    warning: tag_style;
+    loc: tag_style;
+    hint: tag_style;
+    inline_code: tag_style;
+  }
+
+  let no_markup stl = { ansi = stl; text_close = ""; text_open = "" }
+
+  let default_styles = {
+      warning = no_markup [Bold; FG Magenta];
+      error = no_markup [Bold; FG Red];
+      loc = no_markup [Bold];
+      hint = no_markup [Bold; FG Blue];
+      inline_code= { ansi=[Bold]; text_open = {|"|}; text_close = {|"|} }
+    }
+
+  let cur_styles = ref default_styles
+  let get_styles () = !cur_styles
+  let set_styles s = cur_styles := s
+
+  (* map a tag to a style, if the tag is known.
+     @raise Not_found otherwise *)
+  let style_of_tag s = match s with
+    | Format.String_tag "error" ->  (!cur_styles).error
+    | Format.String_tag "warning" ->(!cur_styles).warning
+    | Format.String_tag "loc" -> (!cur_styles).loc
+    | Format.String_tag "hint" -> (!cur_styles).hint
+    | Format.String_tag "inline_code" -> (!cur_styles).inline_code
+    | Style s -> no_markup s
+    | _ -> raise Not_found
+
+
+  let as_inline_code printer ppf x =
+    Format.pp_open_stag ppf (Format.String_tag "inline_code");
+    printer ppf x;
+    Format.pp_close_stag ppf ()
+
+  let inline_code ppf s = as_inline_code Format.pp_print_string ppf s
+
+  (* either prints the tag of [s] or delegates to [or_else] *)
+  let mark_open_tag ~or_else s =
+    try
+      let style = style_of_tag s in
+      if !Color.enabled then ansi_of_style_l style.ansi else style.text_open
+    with Not_found -> or_else s
+
+  let mark_close_tag ~or_else s =
+    try
+      let style = style_of_tag s in
+      if !Color.enabled then ansi_of_style_l [Reset] else style.text_close
+    with Not_found -> or_else s
+
+  (* add tag handling to formatter [ppf] *)
+  let set_tag_handling ppf =
+    let open Format in
+    let functions = pp_get_formatter_stag_functions ppf () in
+    let functions' = {functions with
+      mark_open_stag=(mark_open_tag ~or_else:functions.mark_open_stag);
+      mark_close_stag=(mark_close_tag ~or_else:functions.mark_close_stag);
+    } in
+    pp_set_mark_tags ppf true; (* enable tags *)
+    pp_set_formatter_stag_functions ppf functions';
+    ()
+
+  let setup =
+    let first = ref true in (* initialize only once *)
+    let formatter_l =
+      [Format.std_formatter; Format.err_formatter; Format.str_formatter]
+    in
+    let enable_color = function
+      | Color.Auto -> Color.should_enable_color ()
+      | Color.Always -> true
+      | Color.Never -> false
+    in
+    fun o ->
+      if !first then (
+        first := false;
+        Format.set_mark_tags true;
+        List.iter set_tag_handling formatter_l;
+        Color.enabled := (match o with
+          | Some s -> enable_color s
+          | None -> enable_color Color.default_setting)
+      );
+      ()
+end
 
 let edit_distance a b cutoff =
   let la, lb = String.length a, String.length b in
@@ -834,163 +1020,12 @@ let did_you_mean ppf get_choices =
   match get_choices () with
   | [] -> ()
   | choices ->
-     let rest, last = split_last choices in
-     Format.fprintf ppf "@\n@{<hint>Hint@}: Did you mean %s%s%s?@?"
-       (String.concat ", " rest)
+    let rest, last = split_last choices in
+    let comma ppf () = Format.fprintf ppf ", " in
+     Format.fprintf ppf "@\n@{<hint>Hint@}: Did you mean %a%s%a?@?"
+       (Format.pp_print_list ~pp_sep:comma Style.inline_code) rest
        (if rest = [] then "" else " or ")
-       last
-
-let cut_at s c =
-  let pos = String.index s c in
-  String.sub s 0 pos, String.sub s (pos+1) (String.length s - pos - 1)
-
-let ordinal_suffix n =
-  let teen = (n mod 100)/10 = 1 in
-  match n mod 10 with
-  | 1 when not teen -> "st"
-  | 2 when not teen -> "nd"
-  | 3 when not teen -> "rd"
-  | _ -> "th"
-
-let format_as_unboxed_literal s =
-  if String.starts_with ~prefix:"-" s
-  then "-#" ^ (String.sub s 1 (String.length s - 1))
-  else "#" ^ s
-
-(* Color handling *)
-module Color = struct
-  (* use ANSI color codes, see https://en.wikipedia.org/wiki/ANSI_escape_code *)
-  type color =
-    | Black
-    | Red
-    | Green
-    | Yellow
-    | Blue
-    | Magenta
-    | Cyan
-    | White
-
-  type style =
-    | FG of color (* foreground *)
-    | BG of color (* background *)
-    | Bold
-    | Reset
-
-  let ansi_of_color = function
-    | Black -> "0"
-    | Red -> "1"
-    | Green -> "2"
-    | Yellow -> "3"
-    | Blue -> "4"
-    | Magenta -> "5"
-    | Cyan -> "6"
-    | White -> "7"
-
-  let code_of_style = function
-    | FG c -> "3" ^ ansi_of_color c
-    | BG c -> "4" ^ ansi_of_color c
-    | Bold -> "1"
-    | Reset -> "0"
-
-  let ansi_of_style_l l =
-    let s = match l with
-      | [] -> code_of_style Reset
-      | [s] -> code_of_style s
-      | _ -> String.concat ";" (List.map code_of_style l)
-    in
-    "\x1b[" ^ s ^ "m"
-
-
-  type Format.stag += Style of style list
-  type styles = {
-    error: style list;
-    warning: style list;
-    loc: style list;
-    hint:style list;
-  }
-
-  let default_styles = {
-    warning = [Bold; FG Magenta];
-    error = [Bold; FG Red];
-    loc = [Bold];
-    hint = [Bold; FG Blue];
-  }
-
-  let cur_styles = ref default_styles
-  let get_styles () = !cur_styles
-  let set_styles s = cur_styles := s
-
-  (* map a tag to a style, if the tag is known.
-     @raise Not_found otherwise *)
-  let style_of_tag s = match s with
-    | Format.String_tag "error" -> (!cur_styles).error
-    | Format.String_tag "warning" -> (!cur_styles).warning
-    | Format.String_tag "loc" -> (!cur_styles).loc
-    | Format.String_tag "hint" -> (!cur_styles).hint
-    | Style s -> s
-    | _ -> raise Not_found
-
-  let color_enabled = ref true
-
-  (* either prints the tag of [s] or delegates to [or_else] *)
-  let mark_open_tag ~or_else s =
-    try
-      let style = style_of_tag s in
-      if !color_enabled then ansi_of_style_l style else ""
-    with Not_found -> or_else s
-
-  let mark_close_tag ~or_else s =
-    try
-      let _ = style_of_tag s in
-      if !color_enabled then ansi_of_style_l [Reset] else ""
-    with Not_found -> or_else s
-
-  (* add color handling to formatter [ppf] *)
-  let set_color_tag_handling ppf =
-    let open Format in
-    let functions = pp_get_formatter_stag_functions ppf () in
-    let functions' = {functions with
-      mark_open_stag=(mark_open_tag ~or_else:functions.mark_open_stag);
-      mark_close_stag=(mark_close_tag ~or_else:functions.mark_close_stag);
-    } in
-    pp_set_mark_tags ppf true; (* enable tags *)
-    pp_set_formatter_stag_functions ppf functions';
-    ()
-
-  external isatty : out_channel -> bool = "caml_sys_isatty"
-
-  (* reasonable heuristic on whether colors should be enabled *)
-  let should_enable_color () =
-    let term = try Sys.getenv "TERM" with Not_found -> "" in
-    term <> "dumb"
-    && term <> ""
-    && isatty stderr
-
-  type setting = Auto | Always | Never
-
-  let default_setting = Auto
-
-  let setup =
-    let first = ref true in (* initialize only once *)
-    let formatter_l =
-      [Format.std_formatter; Format.err_formatter; Format.str_formatter]
-    in
-    let enable_color = function
-      | Auto -> should_enable_color ()
-      | Always -> true
-      | Never -> false
-    in
-    fun o ->
-      if !first then (
-        first := false;
-        Format.set_mark_tags true;
-        List.iter set_color_tag_handling formatter_l;
-        color_enabled := (match o with
-          | Some s -> enable_color s
-          | None -> enable_color default_setting)
-      );
-      ()
-end
+       Style.inline_code last
 
 module Error_style = struct
   type setting =
@@ -1224,36 +1259,22 @@ module Bitmap = struct
 end
 
 module Magic_number = struct
-  type native_obj_config = {
-    flambda : bool;
-  }
-  let native_obj_config = {
-    flambda = Config.flambda || Config.flambda2;
-  }
-
   type version = int
 
   type kind =
     | Exec
     | Cmi | Cmo | Cma
-    | Cmx of native_obj_config | Cmxa of native_obj_config
+    | Cmx | Cmxa
     | Cmxs
     | Cmt
     | Cms
     | Ast_impl | Ast_intf
 
   (* please keep up-to-date, this is used for sanity checking *)
-  let all_native_obj_configs = [
-      {flambda = true};
-      {flambda = false};
-    ]
   let all_kinds = [
     Exec;
     Cmi; Cmo; Cma;
-  ]
-  @ List.map (fun conf -> Cmx conf) all_native_obj_configs
-  @ List.map (fun conf -> Cmxa conf) all_native_obj_configs
-  @ [
+    Cmx; Cmxa;
     Cmt;
     Ast_impl; Ast_intf;
   ]
@@ -1271,10 +1292,8 @@ module Magic_number = struct
     | "Caml1999I" -> Some Cmi
     | "Caml1999O" -> Some Cmo
     | "Caml1999A" -> Some Cma
-    | "Caml2021y" -> Some (Cmx {flambda = true})
-    | "Caml2021Y" -> Some (Cmx {flambda = false})
-    | "Caml2021z" -> Some (Cmxa {flambda = true})
-    | "Caml2021Z" -> Some (Cmxa {flambda = false})
+    | "Caml1999Y" -> Some Cmx
+    | "Caml1999Z" -> Some Cmxa
 
     (* Caml2007D and Caml2012T were used instead of the common Caml1999 prefix
        between the introduction of those magic numbers and October 2017
@@ -1298,14 +1317,8 @@ module Magic_number = struct
     | Cmi -> "Caml1999I"
     | Cmo -> "Caml1999O"
     | Cma -> "Caml1999A"
-    | Cmx config ->
-       if config.flambda
-       then "Caml2021y"
-       else "Caml2021Y"
-    | Cmxa config ->
-       if config.flambda
-       then "Caml2021z"
-       else "Caml2021Z"
+    | Cmx -> "Caml1999Y"
+    | Cmxa -> "Caml1999Z"
     | Cmxs -> "Caml1999D"
     | Cmt -> "Caml1999T"
     | Cms -> "Caml1999S"
@@ -1317,29 +1330,21 @@ module Magic_number = struct
     | Cmi -> "cmi"
     | Cmo -> "cmo"
     | Cma -> "cma"
-    | Cmx _ -> "cmx"
-    | Cmxa _ -> "cmxa"
+    | Cmx -> "cmx"
+    | Cmxa -> "cmxa"
     | Cmxs -> "cmxs"
     | Cmt -> "cmt"
     | Cms -> "cms"
     | Ast_impl -> "ast_impl"
     | Ast_intf -> "ast_intf"
 
-  let human_description_of_native_obj_config : native_obj_config -> string =
-    fun[@warning "+9"] {flambda} ->
-      if flambda then "flambda" else "non flambda"
-
   let human_name_of_kind : kind -> string = function
     | Exec -> "executable"
     | Cmi -> "compiled interface file"
     | Cmo -> "bytecode object file"
     | Cma -> "bytecode library"
-    | Cmx config ->
-       Printf.sprintf "native compilation unit description (%s)"
-         (human_description_of_native_obj_config config)
-    | Cmxa config ->
-       Printf.sprintf "static native library (%s)"
-         (human_description_of_native_obj_config config)
+    | Cmx -> "native compilation unit description"
+    | Cmxa -> "static native library"
     | Cmxs -> "dynamic native library"
     | Cmt -> "compiled typedtree file"
     | Cms -> "compiled shape file"
@@ -1406,26 +1411,8 @@ module Magic_number = struct
       | Cmi -> cmi_magic_number
       | Cmo -> cmo_magic_number
       | Cma -> cma_magic_number
-      | Cmx config ->
-         (* the 'if' guarantees that in the common case
-            we return the "trusted" value from Config. *)
-         let reference = cmx_magic_number in
-         if config = native_obj_config then reference
-         else
-           (* otherwise we stitch together the magic number
-              for a different configuration by concatenating
-              the right magic kind at this configuration
-              and the rest of the current raw number for our configuration. *)
-           let raw_kind = raw_kind kind in
-           let len = String.length raw_kind in
-           raw_kind ^ String.sub reference len (String.length reference - len)
-      | Cmxa config ->
-         let reference = cmxa_magic_number in
-         if config = native_obj_config then reference
-         else
-           let raw_kind = raw_kind kind in
-           let len = String.length raw_kind in
-           raw_kind ^ String.sub reference len (String.length reference - len)
+      | Cmx -> cmx_magic_number
+      | Cmxa -> cmxa_magic_number
       | Cmxs -> cmxs_magic_number
       | Cmt -> cmt_magic_number
       | Cms -> cms_magic_number

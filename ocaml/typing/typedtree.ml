@@ -225,44 +225,6 @@ and expression_desc =
   | Texp_exclave of expression
   | Texp_src_pos
 
-and function_curry =
-  | More_args of { partial_mode : Mode.Alloc.l }
-  | Final_arg
-
-and function_param =
-  {
-    fp_arg_label: arg_label;
-    fp_param: Ident.t;
-    fp_partial: partial;
-    fp_kind: function_param_kind;
-    fp_sort: Jkind.sort;
-    fp_mode: Mode.Alloc.l;
-    fp_curry: function_curry;
-    fp_newtypes: (string loc * Jkind.annotation option) list;
-    fp_loc: Location.t;
-  }
-
-and function_param_kind =
-  | Tparam_pat of pattern
-  | Tparam_optional_default of pattern * expression * Jkind.sort
-
-and function_body =
-  | Tfunction_body of expression
-  | Tfunction_cases of function_cases
-
-and function_cases =
-  { fc_cases: value case list;
-    fc_env : Env.t;
-    fc_arg_mode: Mode.Alloc.l;
-    fc_arg_sort: Jkind.sort;
-    fc_ret_type : Types.type_expr;
-    fc_partial: partial;
-    fc_param: Ident.t;
-    fc_loc: Location.t;
-    fc_exp_extra: exp_extra option;
-    fc_attributes: attributes;
-  }
-
 and ident_kind =
   | Id_value
   | Id_prim of Mode.Locality.l option * Jkind.Sort.t option
@@ -305,6 +267,44 @@ and 'k case =
      c_guard: expression option;
      c_rhs: expression;
     }
+
+and function_curry =
+  | More_args of { partial_mode : Mode.Alloc.l }
+  | Final_arg
+
+and function_param =
+  {
+    fp_arg_label: arg_label;
+    fp_param: Ident.t;
+    fp_partial: partial;
+    fp_kind: function_param_kind;
+    fp_sort: Jkind.sort;
+    fp_mode: Mode.Alloc.l;
+    fp_curry: function_curry;
+    fp_newtypes: (string loc * Jkind.annotation option) list;
+    fp_loc: Location.t;
+  }
+
+and function_param_kind =
+  | Tparam_pat of pattern
+  | Tparam_optional_default of pattern * expression * Jkind.sort
+
+and function_body =
+  | Tfunction_body of expression
+  | Tfunction_cases of function_cases
+
+and function_cases =
+  { fc_cases: value case list;
+    fc_env : Env.t;
+    fc_arg_mode: Mode.Alloc.l;
+    fc_arg_sort: Jkind.sort;
+    fc_ret_type : Types.type_expr;
+    fc_partial: partial;
+    fc_param: Ident.t;
+    fc_loc: Location.t;
+    fc_exp_extra: exp_extra option;
+    fc_attributes: attributes;
+  }
 
 and record_label_definition =
   | Kept of Types.type_expr * mutability * unique_use
@@ -625,10 +625,11 @@ and core_type_desc =
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list
-  | Ttyp_alias of core_type * string option * Jkind.annotation option
+  | Ttyp_alias of core_type * string loc option * Jkind.annotation option
   | Ttyp_variant of row_field list * closed_flag * label list option
   | Ttyp_poly of (string * Jkind.annotation option) list * core_type
   | Ttyp_package of package_type
+  | Ttyp_open of Path.t * Longident.t loc * core_type
   | Ttyp_call_pos
 
 and package_type = {

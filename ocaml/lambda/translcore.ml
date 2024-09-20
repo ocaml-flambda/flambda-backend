@@ -1002,6 +1002,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                                        attributes = Lambda.default_param_attribute;
                                        mode = alloc_heap}]
                             ~return:Lambda.layout_lazy_contents
+                            (* The translation of [e] may be a function, in
+                               which case disallowing arity fusion gives a very
+                               small performance improvement.
+                            *)
                             ~attr:function_attribute_disallowing_arity_fusion
                             ~loc:(of_location ~scopes e.exp_loc)
                             ~mode:alloc_heap
@@ -1314,8 +1318,18 @@ and transl_apply ~scopes
           ap_probe=None;
         }
   in
+  (* Build a function application.
+     Particular care is required for out-of-order partial applications.
+     The following code guarantees that:
+     * arguments are evaluated right-to-left according to their order in
+       the type of the function, before the function is called;
+     * side-effects occurring after receiving a parameter
+       will occur exactly when all the arguments up to this parameter
+       have been received.
+  *)
   let rec build_apply lam args loc pos ap_mode = function
     | Omitted { mode_closure; mode_arg; mode_ret; sort_arg } :: l ->
+        (* Out-of-order partial application; we will need to build a closure *)
         assert (pos = Rc_normal);
         let defs = ref [] in
         let protect name (lam, layout) =
@@ -1332,7 +1346,10 @@ and transl_apply ~scopes
           else
             lapply lam (List.rev args) loc pos ap_mode layout_function
         in
+        (* Evaluate the function, applied to the arguments in [args] *)
         let handle, _ = protect "func" (lam, layout_function) in
+        (* Evaluate the remaining arguments;
+           if we already passed here this is a no-op. *)
         let l =
           List.map
             (fun arg ->
@@ -1342,6 +1359,7 @@ and transl_apply ~scopes
             l
         in
         let id_arg = Ident.create_local "param" in
+        (* Process remaining arguments and build closure *)
         let body =
           let loc = map_scopes enter_partial_or_eta_wrapper loc in
           let mode = transl_alloc_mode_r mode_closure in
@@ -1369,6 +1387,8 @@ and transl_apply ~scopes
                     ~return:result_layout ~body ~mode ~ret_mode ~region
                     ~attr:{ default_stub_attribute with may_fuse_arity = false } ~loc
         in
+        (* Wrap "protected" definitions, starting from the left,
+           so that evaluation is right-to-left. *)
         List.fold_right
           (fun (id, layout, lam) body -> Llet(Strict, layout, id, lam, body))
           !defs body

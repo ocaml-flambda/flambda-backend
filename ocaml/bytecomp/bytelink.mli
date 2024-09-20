@@ -17,8 +17,8 @@ open Misc
 
 (* Link .cmo files and produce a bytecode executable. *)
 
-(* CR mshinwell: seems like this should use [CU.Name.t] *)
-module Dep : Set.OrderedType with type t = string * string
+module Dep : Set.OrderedType with
+  type t = Compilation_unit.t * Compilation_unit.t
 module DepSet : Set.S with type elt = Dep.t
 
 val link : filepath list -> filepath -> unit
@@ -37,11 +37,10 @@ type error =
   | Custom_runtime
   | File_exists of filepath
   | Cannot_open_dll of filepath
-  | Required_module_unavailable of string * Compilation_unit.t
+  | Required_compunit_unavailable of Compilation_unit.t * Compilation_unit.t
   | Camlheader of string * filepath
   | Wrong_link_order of DepSet.t
-  (* CR mshinwell: seems like [Multiple_definition] should use [CU.t] *)
-  | Multiple_definition of string * filepath * filepath
+  | Multiple_definition of Compilation_unit.t * filepath * filepath
 
 exception Error of error
 

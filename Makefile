@@ -24,20 +24,21 @@ ci: ci-no-coverage
 endif
 
 .PHONY: ci-no-coverage
-ci-no-coverage: runtest runtest-upstream minimizer-upstream minimizer
+ci-no-coverage: runtest runtest-upstream minimizer
 
 .PHONY: ci-coverage
 ci-coverage: boot-runtest coverage
 
-.PHONY: minimizer-upstream
-minimizer-upstream:
-	cp chamelon/dune.upstream chamelon/dune
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) @chamelon/all
+# CR mshinwell: build is broken
+# .PHONY: minimizer-upstream
+# minimizer-upstream:
+# 	cp chamelon/dune.upstream chamelon/dune
+# 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) @chamelon/all
 
 .PHONY: minimizer
 minimizer: _build/_bootinstall
 	cp chamelon/dune.jst chamelon/dune
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) @chamelon/all
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) @chamelon/all
 
 .PHONY: hacking-runtest
 hacking-runtest: _build/_bootinstall

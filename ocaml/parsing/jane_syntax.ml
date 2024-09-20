@@ -1008,7 +1008,7 @@ module Layouts = struct
         }
     | Ltyp_alias of
         { aliased_type : core_type;
-          name : string option;
+          name : string loc option;
           jkind : Jkind.annotation
         }
 

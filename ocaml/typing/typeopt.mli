@@ -71,6 +71,7 @@ val function2_return_layout :
 val function_arg_layout :
   Env.t -> Location.t -> Jkind.sort -> Types.type_expr -> Lambda.layout
 
+val value_kind : Env.t -> Location.t -> Types.type_expr -> Lambda.value_kind
 
 val classify_lazy_argument : Typedtree.expression ->
                              [ `Constant_or_function

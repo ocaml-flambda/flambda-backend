@@ -337,7 +337,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       in
       let free_vars = BV.Set.union (BV.Set.union fv0 fv1) fv2 in
       C.run_stack ~dbg ~stack ~f ~arg, free_vars, env, res, Ece.all
-    | Resume { stack; f; arg } ->
+    | Resume { stack; f; arg; last_fiber } ->
       let { env; res; expr = { cmm = stack; free_vars = fv0; effs = _ } } =
         simple env res stack
       in
@@ -347,8 +347,13 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       let { env; res; expr = { cmm = arg; free_vars = fv2; effs = _ } } =
         simple env res arg
       in
-      let free_vars = BV.Set.union (BV.Set.union fv0 fv1) fv2 in
-      C.resume ~dbg ~stack ~f ~arg, free_vars, env, res, Ece.all)
+      let { env; res; expr = { cmm = last_fiber; free_vars = fv3; effs = _ } } =
+        simple env res last_fiber
+      in
+      let free_vars =
+        BV.Set.union (BV.Set.union fv0 fv1) (BV.Set.union fv2 fv3)
+      in
+      C.resume ~dbg ~stack ~f ~arg ~last_fiber, free_vars, env, res, Ece.all)
 
 (* Function calls that have an exn continuation with extra arguments must be
    wrapped with assignments for the mutable variables used to pass the extra

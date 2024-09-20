@@ -27,11 +27,13 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
 #include "caml/config.h"
+#ifdef HAS_GETTIMEOFDAY
+#include <sys/time.h>
+#endif
 #if defined(SUPPORT_DYNAMIC_LINKING) && !defined(BUILDING_LIBCAMLRUNS)
 #define WITH_DYNAMIC_LINKING
 #ifdef __CYGWIN__
@@ -43,9 +45,10 @@
 #ifdef HAS_UNISTD
 #include <unistd.h>
 #endif
+#ifdef HAS_POSIX_MONOTONIC_CLOCK
 #include <time.h>
-#ifdef HAS_MACH_ABSOLUTE_TIME
-#include <mach/mach_time.h>
+#elif HAS_CLOCK_GETTIME_NSEC_NP
+#include <time.h>
 #endif
 #ifdef HAS_DIRENT
 #include <dirent.h>
@@ -88,10 +91,6 @@ int caml_read_fd(int fd, int flags, void * buf, int n)
   caml_enter_blocking_section_no_pending();
   retcode = read(fd, buf, n);
   caml_leave_blocking_section();
-  if (retcode == -1) {
-    if (errno == EINTR) return Io_interrupted;
-    else caml_sys_io_error(NO_ARG);
-  }
   return retcode;
 }
 
@@ -103,7 +102,6 @@ int caml_write_fd(int fd, int flags, void * buf, int n)
   retcode = write(fd, buf, n);
   caml_leave_blocking_section();
   if (retcode == -1) {
-    if (errno == EINTR) return Io_interrupted;
     if ((errno == EAGAIN || errno == EWOULDBLOCK) && n > 1) {
       /* We couldn't do a partial write here, probably because
          n <= PIPE_BUF and POSIX says that writes of less than
@@ -113,8 +111,7 @@ int caml_write_fd(int fd, int flags, void * buf, int n)
       n = 1; goto again;
     }
   }
-  if (retcode == -1) caml_sys_io_error(NO_ARG);
-  CAMLassert (retcode > 0);
+  CAMLassert (retcode > 0 || retcode == -1);
   return retcode;
 }
 
@@ -353,7 +350,8 @@ CAMLexport int caml_read_directory(char * dirname, struct ext_table * contents)
     e = readdir(d);
     if (e == NULL) break;
     if (strcmp(e->d_name, ".") == 0 || strcmp(e->d_name, "..") == 0) continue;
-    caml_ext_table_add(contents, caml_stat_strdup(e->d_name));
+    int rc = caml_ext_table_add_noexc(contents, caml_stat_strdup(e->d_name));
+    if (rc == -1) { closedir(d); errno = ENOMEM; return -1; }
   }
   closedir(d);
   return 0;
@@ -429,31 +427,22 @@ char *caml_secure_getenv (char const *var)
 #endif
 }
 
-int64_t caml_time_counter(void)
+uint64_t caml_time_counter(void)
 {
-#if defined(HAS_MACH_ABSOLUTE_TIME)
-  static mach_timebase_info_data_t time_base = {0};
-  uint64_t now;
-
-  if (time_base.denom == 0) {
-    if (mach_timebase_info(&time_base) != KERN_SUCCESS)
-      return 0;
-  }
-
-  now = mach_absolute_time();
-  return (int64_t)((now * time_base.numer) / time_base.denom);
+#if defined(HAS_CLOCK_GETTIME_NSEC_NP)
+  return (clock_gettime_nsec_np(CLOCK_UPTIME_RAW));
 #elif defined(HAS_POSIX_MONOTONIC_CLOCK)
   struct timespec t;
   clock_gettime(CLOCK_MONOTONIC, &t);
   return
-    (int64_t)t.tv_sec  * (int64_t)1000000000 +
-    (int64_t)t.tv_nsec;
+    (uint64_t)t.tv_sec  * (uint64_t)1000000000 +
+    (uint64_t)t.tv_nsec;
 #elif defined(HAS_GETTIMEOFDAY)
   struct timeval t;
   gettimeofday(&t, 0);
   return
-    (int64_t)t.tv_sec  * (int64_t)1000000000 +
-    (int64_t)t.tv_usec * (int64_t)1000;
+    (uint64_t)t.tv_sec  * (uint64_t)1000000000 +
+    (uint64_t)t.tv_usec * (uint64_t)1000;
 #else
 # error "No timesource available"
 #endif

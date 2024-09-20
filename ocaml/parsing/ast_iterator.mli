@@ -45,6 +45,7 @@ type iterator = {
   class_type_declaration: iterator -> class_type_declaration -> unit;
   class_type_field: iterator -> class_type_field -> unit;
   constructor_declaration: iterator -> constructor_declaration -> unit;
+  directive_argument: iterator -> directive_argument -> unit;
   expr: iterator -> expression -> unit;
   expr_jane_syntax : iterator -> Jane_syntax.Expression.t -> unit;
   extension: iterator -> extension -> unit;
@@ -72,6 +73,8 @@ type iterator = {
   structure: iterator -> structure -> unit;
   structure_item: iterator -> structure_item -> unit;
   structure_item_jane_syntax: iterator -> Jane_syntax.Structure_item.t -> unit;
+  toplevel_directive: iterator -> toplevel_directive -> unit;
+  toplevel_phrase: iterator -> toplevel_phrase -> unit;
   typ: iterator -> core_type -> unit;
   typ_jane_syntax: iterator -> Jane_syntax.Core_type.t -> unit;
   row_field: iterator -> row_field -> unit;

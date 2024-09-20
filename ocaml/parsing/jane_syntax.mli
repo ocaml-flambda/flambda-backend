@@ -242,7 +242,7 @@ module Layouts : sig
        intervening [type_desc]. *)
     | Ltyp_alias of
         { aliased_type : Parsetree.core_type;
-          name : string option;
+          name : string Location.loc option;
           jkind : Jkind.annotation
         }
 

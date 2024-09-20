@@ -13,6 +13,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "-60"] module Str = Ast_helper.Str (* For ocamldep *)
+[@@@ocaml.warning "+60"]
+
 open Asttypes
 open Parsetree
 open Ast_helper
@@ -336,7 +339,8 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
   match pat with
       { pat_extra=[Tpat_unpack, loc, _attrs]; pat_desc = Tpat_any; _ } ->
         Ppat_unpack { txt = None; loc  }
-    | { pat_extra=[Tpat_unpack, _, _attrs]; pat_desc = Tpat_var (_,name,_,_); _ } ->
+    | { pat_extra=[Tpat_unpack, _, _attrs];
+        pat_desc = Tpat_var (_,name, _, _); _ } ->
         Ppat_unpack { name with txt = Some name.txt }
     | { pat_extra=[Tpat_type (_path, lid), _, _attrs]; _ } ->
         Ppat_type (map_loc sub lid)
@@ -1053,9 +1057,9 @@ let core_type sub ct =
         Ptyp_class (map_loc sub lid, List.map (sub.typ sub) list)
     | Ttyp_alias (ct, Some s, None) ->
         Ptyp_alias (sub.typ sub ct, s)
-    | Ttyp_alias (ct, s, Some (_, jkind_annotation)) ->
+    | Ttyp_alias (ct, name, Some (_, jkind_annotation)) ->
         Jane_syntax.Layouts.type_of ~loc
-          (Ltyp_alias { aliased_type = sub.typ sub ct; name = s;
+          (Ltyp_alias { aliased_type = sub.typ sub ct; name;
                         jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
     | Ttyp_alias (_, None, None) ->
@@ -1068,6 +1072,7 @@ let core_type sub ct =
           (Ltyp_poly { bound_vars; inner_type = sub.typ sub ct }) |>
         add_jane_syntax_attributes
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
+    | Ttyp_open (_path, mod_ident, t) -> Ptyp_open (mod_ident, sub.typ sub t)
     | Ttyp_call_pos ->
         Ptyp_extension call_pos_extension
   in

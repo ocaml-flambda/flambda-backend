@@ -52,8 +52,6 @@ let rec lookup_map lid m =
   | Ldot (l, s) -> String.Map.find s (get_map (lookup_map l m))
   | Lapply _    -> raise Not_found
 
-(* Collect free module identifiers in the a.s.t. *)
-
 let free_structure_names = ref String.Set.empty
 
 let add_names s =
@@ -129,6 +127,9 @@ let rec add_type bv ty =
         fl
   | Ptyp_poly(_, t) -> add_type bv t
   | Ptyp_package pt -> add_package_type bv pt
+  | Ptyp_open (mod_ident, t) ->
+    let bv = open_module bv mod_ident.txt in
+    add_type bv t
   | Ptyp_extension e -> handle_extension e
 
 and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
@@ -410,6 +411,7 @@ and add_function_constraint bv { mode_annotations = _; type_constraint } =
   | Pcoerce (ty1, ty2) ->
       add_opt add_type bv ty1;
       add_type bv ty2
+
 and add_cases bv cases =
   List.iter (add_case bv) cases
 

@@ -201,7 +201,7 @@ let rec core_type i ppf x =
       line i ppf "Ptyp_class %a\n" fmt_longident_loc li;
       list i core_type ppf l
   | Ptyp_alias (ct, s) ->
-      line i ppf "Ptyp_alias \"%s\"\n" s;
+      line i ppf "Ptyp_alias \"%s\"\n" s.txt;
       core_type i ppf ct;
   | Ptyp_poly (sl, ct) ->
       line i ppf "Ptyp_poly%a\n" typevars sl;
@@ -209,6 +209,9 @@ let rec core_type i ppf x =
   | Ptyp_package (s, l) ->
       line i ppf "Ptyp_package %a\n" fmt_longident_loc s;
       list i package_with ppf l;
+  | Ptyp_open (mod_ident, t) ->
+      line i ppf "Ptyp_open \"%a\"\n" fmt_longident_loc mod_ident;
+      core_type i ppf t
   | Ptyp_extension (s, arg) ->
       line i ppf "Ptyp_extension \"%s\"\n" s.txt;
       payload i ppf arg

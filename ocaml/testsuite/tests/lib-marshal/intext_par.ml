@@ -1,10 +1,17 @@
 (* TEST
  reason = "CR ocaml 5 domains: re-enable this test";
  modules = "intextaux_par.c";
+ no-tsan; (* Takes too much time and memory with tsan *)
  skip;
 *)
 
 (* Test for output_value / input_value *)
+
+let test_size =
+  try int_of_string (Sys.getenv "OCAML_TEST_SIZE")
+  with Not_found | Failure _ -> 1
+
+let num_domains = 1 lsl test_size
 
 let max_data_depth = 500000
 
@@ -591,7 +598,7 @@ let main_domain id =
   ()
 
 let main () =
-  let domains = Array.init 8 (fun id ->
+  let domains = Array.init num_domains (fun id ->
     Domain.spawn (fun () -> main_domain id))
   in
   Array.iter Domain.join domains;

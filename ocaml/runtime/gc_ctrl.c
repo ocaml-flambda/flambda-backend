@@ -38,7 +38,7 @@
 #include "caml/startup.h"
 #include "caml/fail.h"
 
-uintnat caml_max_stack_wsize;
+atomic_uintnat caml_max_stack_wsize;
 uintnat caml_fiber_wsz;
 
 extern uintnat caml_major_heap_increment; /* percent or words; see major_gc.c */
@@ -93,8 +93,8 @@ CAMLprim value caml_gc_quick_stat(value v)
 double caml_gc_minor_words_unboxed (void)
 {
   return (Caml_state->stat_minor_words
-          + ((double) ((uintnat)Caml_state->young_end -
-              (uintnat)Caml_state->young_ptr)) / sizeof(value));
+          + ((double) Wsize_bsize((uintnat)Caml_state->young_end -
+                                  (uintnat)Caml_state->young_ptr)));
 }
 
 CAMLprim value caml_gc_minor_words(value v)
@@ -109,9 +109,7 @@ CAMLprim value caml_gc_counters(value v)
   CAMLlocal4 (minwords_, prowords_, majwords_, res);
 
   /* get a copy of these before allocating anything... */
-  double minwords = Caml_state->stat_minor_words
-    + (double) Wsize_bsize ((uintnat)Caml_state->young_end -
-        (uintnat) Caml_state->young_ptr);
+  double minwords = caml_gc_minor_words_unboxed();
   double prowords = Caml_state->stat_promoted_words;
   double majwords = Caml_state->stat_major_words +
                     (double) Caml_state->allocated_words;
@@ -258,7 +256,7 @@ CAMLprim value caml_gc_major(value v)
   return caml_raise_async_if_exception(gc_major_exn (0), "");
 }
 
-static value gc_full_major_exn(int force_compaction)
+static value gc_full_major_exn(void)
 {
   int i;
   value exn = Val_unit;
@@ -267,8 +265,7 @@ static value gc_full_major_exn(int force_compaction)
   /* In general, it can require up to 3 GC cycles for a
      currently-unreachable object to be collected. */
   for (i = 0; i < 3; i++) {
-    caml_empty_minor_heaps_once();
-    caml_finish_major_cycle(force_compaction && i == 2);
+    caml_finish_major_cycle(0);
     exn = caml_process_pending_actions_exn();
     if (Is_exception_result(exn)) break;
   }
@@ -281,7 +278,7 @@ CAMLprim value caml_gc_full_major(value v)
 {
   Caml_check_caml_state();
   CAMLassert (v == Val_unit);
-  return caml_raise_async_if_exception(gc_full_major_exn (0), "");
+  return caml_raise_async_if_exception(gc_full_major_exn (), "");
 }
 
 CAMLprim value caml_gc_major_slice (value v)
@@ -299,7 +296,16 @@ CAMLprim value caml_gc_compaction(value v)
   Caml_check_caml_state();
   CAML_EV_BEGIN(EV_EXPLICIT_GC_COMPACT);
   CAMLassert (v == Val_unit);
-  value exn = gc_full_major_exn(1);
+  value exn = Val_unit;
+  int i;
+  /* We do a full major before this compaction. See [caml_full_major_exn] for
+     why this needs three iterations. */
+  for (i = 0; i < 3; i++) {
+    caml_finish_major_cycle(i == 2);
+    exn = caml_process_pending_actions_exn();
+    if (Is_exception_result(exn)) break;
+  }
+  ++ Caml_state->stat_forced_major_collections;
   CAML_EV_END(EV_EXPLICIT_GC_COMPACT);
   return caml_raise_async_if_exception(exn, "");
 }
@@ -308,7 +314,7 @@ CAMLprim value caml_gc_stat(value v)
 {
   value res;
   CAML_EV_BEGIN(EV_EXPLICIT_GC_STAT);
-  res = gc_full_major_exn(0);
+  res = gc_full_major_exn();
   if (Is_exception_result(res)) goto out;
   res = caml_gc_quick_stat(Val_unit);
  out:
@@ -332,7 +338,7 @@ void caml_init_gc (void)
   caml_percent_free = norm_pfree (caml_params->init_percent_free);
   caml_gc_log ("Initial stack limit: %"
                ARCH_INTNAT_PRINTF_FORMAT "uk bytes",
-               caml_max_stack_wsize / 1024 * sizeof (value));
+               caml_params->init_max_stack_wsz / 1024 * sizeof (value));
 
   caml_custom_major_ratio =
       norm_custom_maj (caml_params->init_custom_major_ratio);

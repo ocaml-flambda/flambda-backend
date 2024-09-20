@@ -26,11 +26,11 @@ m4_include([build-aux/ltoptions.m4])
 m4_include([build-aux/ltsugar.m4])
 m4_include([build-aux/ltversion.m4])
 m4_include([build-aux/lt~obsolete.m4])
+m4_include([build-aux/ax_check_compile_flag.m4])
 
 # Macros from the autoconf macro archive
 m4_include([build-aux/ax_func_which_gethostbyname_r.m4])
 m4_include([build-aux/ax_pthread.m4])
-m4_include([build-aux/ax_check_compile_flag.m4])
 
 # OCaml version
 m4_include([build-aux/ocaml_version.m4])
@@ -47,8 +47,19 @@ AC_DEFUN([OCAML_CC_VENDOR], [
     [AC_LANG_SOURCE([
 #if defined(_MSC_VER)
 msvc _MSC_VER
+# if defined(__clang_major__) && defined(__clang_minor__)
+  clang __clang_major__ __clang_minor__
+# endif
 #elif defined(__INTEL_COMPILER)
 icc __INTEL_COMPILER
+#elif defined(__MINGW32__)
+#include <_mingw_mac.h>
+mingw __MINGW64_VERSION_MAJOR __MINGW64_VERSION_MINOR
+# if defined(__clang_major__) && defined(__clang_minor__)
+  clang __clang_major__ __clang_minor__
+# elif defined(__GNUC__) && defined(__GNUC_MINOR__)
+  gcc __GNUC__ __GNUC_MINOR__
+# endif
 #elif defined(__clang_major__) && defined(__clang_minor__)
 clang __clang_major__ __clang_minor__
 #elif defined(__GNUC__) && defined(__GNUC_MINOR__)
@@ -61,11 +72,14 @@ sunc __SUNPRO_C __SUNPRO_C
 unknown
 #endif]
     )],
-    [AC_CACHE_VAL([ocaml_cv_cc_vendor],
-      [ocaml_cv_cc_vendor=`grep ['^[a-z]'] conftest.i | tr -s ' ' '-' \
-                                                      | tr -d '\r'`])],
+    [AC_CACHE_VAL([ocaml_cv_cc_vendor2],
+      [ocaml_cv_cc_vendor2=`sed -e '/^#/d' conftest.i | tr -s '[:space:]' '-' \
+                             | sed -e 's/^-//' -e 's/-$//'`])
+    # Domain of values was changed in #12768, so the cache key became different
+    # from the variable
+    ocaml_cc_vendor="$ocaml_cv_cc_vendor2"],
     [AC_MSG_FAILURE([unexpected preprocessor failure])])
-  AC_MSG_RESULT([$ocaml_cv_cc_vendor])
+  AC_MSG_RESULT([$ocaml_cc_vendor])
 ])
 
 AC_DEFUN([OCAML_SIGNAL_HANDLERS_SEMANTICS], [
@@ -323,16 +337,16 @@ int main (int argc, char *argv[]){
 ])
 
 AC_DEFUN([OCAML_CHECK_LIBUNWIND], [
-  SAVED_CFLAGS="$CFLAGS"
+  SAVED_CPPFLAGS="$CPPFLAGS"
   SAVED_LDFLAGS="$LDFLAGS"
-  CFLAGS="$CFLAGS $libunwind_include_flags"
-  LDFLAGS="$LDFLAGS $libunwind_link_flags"
+  CPPFLAGS="$CPPFLAGS $libunwind_cppflags"
+  LDFLAGS="$LDFLAGS $libunwind_ldflags"
   AC_CHECK_HEADER([libunwind.h],
     [AC_DEFINE([HAS_LIBUNWIND])
     libunwind_available=true],
     [libunwind_available=false])
   LDFLAGS="$SAVED_LDFLAGS"
-  CFLAGS="$SAVED_CFLAGS"
+  CPPFLAGS="$SAVED_CPPFLAGS"
 ])
 
 AC_DEFUN([OCAML_TEST_FLEXLINK], [
@@ -494,8 +508,8 @@ int main (void) {
       [no,*], [hard_error=true],
       [yes,*], [hard_error=false],
       [*,x86_64-w64-mingw32*|*,x86_64-*-cygwin*], [hard_error=false],
-      [AS_CASE([$ocaml_cv_cc_vendor],
-        [msvc-*], [AS_IF([test "${ocaml_cv_cc_vendor#msvc-}" -lt 1920 ],
+      [AS_CASE([$ocaml_cc_vendor],
+        [msvc-*], [AS_IF([test "${ocaml_cc_vendor#msvc-}" -lt 1920 ],
           [hard_error=false],
           [hard_error=true])],
         [hard_error=true])])

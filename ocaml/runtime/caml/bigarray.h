@@ -43,10 +43,12 @@ enum caml_ba_kind {
   CAML_BA_INT32,               /* Signed 32-bit integers */
   CAML_BA_INT64,               /* Signed 64-bit integers */
   CAML_BA_CAML_INT,            /* OCaml-style integers (signed 31 or 63 bits) */
-  CAML_BA_NATIVE_INT,       /* Platform-native long integers (32 or 64 bits) */
+  CAML_BA_NATIVE_INT,        /* Platform-native long integers (32 or 64 bits) */
   CAML_BA_COMPLEX32,           /* Single-precision complex */
   CAML_BA_COMPLEX64,           /* Double-precision complex */
   CAML_BA_CHAR,                /* Characters */
+  CAML_BA_FLOAT16,             /* Half-precision floats */
+  CAML_BA_FIRST_UNIMPLEMENTED_KIND,
   CAML_BA_KIND_MASK = 0xFF     /* Mask for kind in flags field */
 };
 
@@ -70,6 +72,10 @@ enum caml_ba_managed {
   CAML_BA_MANAGED = 0x200,     /* Data is allocated by OCaml */
   CAML_BA_MAPPED_FILE = 0x400, /* Data is a memory mapped file */
   CAML_BA_MANAGED_MASK = 0x600 /* Mask for "managed" bits in flags field */
+};
+
+enum caml_ba_subarray {
+  CAML_BA_SUBARRAY = 0x800     /* Data is shared with another bigarray */
 };
 
 struct caml_ba_proxy {

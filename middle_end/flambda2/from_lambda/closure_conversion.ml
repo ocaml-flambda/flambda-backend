@@ -868,8 +868,8 @@ let close_effect_primitive acc env ~dbg exn_continuation
   | Prunstack, [[stack]; [f]; [arg]] ->
     let call_kind = C.effect (E.run_stack ~stack ~f ~arg) in
     close call_kind
-  | Presume, [[stack]; [f]; [arg]] ->
-    let call_kind = C.effect (E.resume ~stack ~f ~arg) in
+  | Presume, [[stack]; [f]; [arg]; [last_fiber]] ->
+    let call_kind = C.effect (E.resume ~stack ~f ~arg ~last_fiber) in
     close call_kind
   | Preperform, [[eff]; [cont]; [last_fiber]] ->
     let call_kind = C.effect (E.reperform ~eff ~cont ~last_fiber) in
@@ -1006,7 +1006,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
       | Punboxed_product_field _ | Pget_header _ | Prunstack | Pperform
       | Presume | Preperform | Patomic_exchange | Patomic_cas
-      | Patomic_fetch_add | Pdls_get | Patomic_load _
+      | Patomic_fetch_add | Pdls_get | Ppoll | Patomic_load _
       | Preinterpret_tagged_int63_as_unboxed_int64
       | Preinterpret_unboxed_int64_as_tagged_int63 ->
         (* Inconsistent with outer match *)

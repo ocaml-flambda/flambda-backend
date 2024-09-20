@@ -136,7 +136,7 @@ and core_type_desc =
             - [T #tconstr]             when [l=[T]],
             - [(T1, ..., Tn) #tconstr] when [l=[T1 ; ... ; Tn]].
          *)
-  | Ptyp_alias of core_type * string  (** [T as 'a]. *)
+  | Ptyp_alias of core_type * string loc  (** [T as 'a]. *)
   | Ptyp_variant of row_field list * closed_flag * label list option
       (** [Ptyp_variant([`A;`B], flag, labels)] represents:
             - [[ `A|`B ]]
@@ -181,6 +181,7 @@ and core_type_desc =
            {!value_description}.
          *)
   | Ptyp_package of package_type  (** [(module S)]. *)
+  | Ptyp_open of Longident.t loc * core_type (** [M.(T)] *)
   | Ptyp_extension of extension  (** [[%id]]. *)
 
 and arg_label = Asttypes.arg_label =
@@ -351,7 +352,6 @@ and expression_desc =
         when [body = Pfunction_body E]
       - [fun P1 ... Pn -> function p1 -> e1 | ... | pm -> em]
         when [body = Pfunction_cases [ p1 -> e1; ...; pm -> em ]]
-
       [C] represents a type constraint or coercion placed immediately before the
       arrow, e.g. [fun P1 ... Pn : ty -> ...] when [C = Some (Pconstraint ty)].
 

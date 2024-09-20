@@ -47,3 +47,5 @@ val run : out_channel -> Environments.t -> t -> Result.t * Environments.t
 val does_something : t -> bool
 
 module ActionSet : Set.S with type elt = t
+
+val init : unit -> unit

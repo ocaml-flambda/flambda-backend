@@ -83,8 +83,8 @@ let f (x : float# array) = x.(0)
 Line 1, characters 27-28:
 1 | let f (x : float# array) = x.(0)
                                ^
-Error: This expression has type float# array
-       but an expression was expected of type 'a array
+Error: This expression has type "float# array"
+       but an expression was expected of type "'a array"
        The layout of float# is float64
          because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
@@ -96,8 +96,8 @@ let f (x : float# array) = Array.length x
 Line 1, characters 40-41:
 1 | let f (x : float# array) = Array.length x
                                             ^
-Error: This expression has type float# array
-       but an expression was expected of type 'a array
+Error: This expression has type "float# array"
+       but an expression was expected of type "'a array"
        The layout of float# is float64
          because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
@@ -250,8 +250,8 @@ end
 Line 11, characters 79-82:
 11 |   let _ =  assert (Stdlib_upstream_compatible.Int64_u.equal #42L (get_third [| #0L; #1L; #42L |]))
                                                                                     ^^^
-Error: This expression has type int64# but an expression was expected of type
-         ('a : bits32)
+Error: This expression has type "int64#" but an expression was expected of type
+         "('a : bits32)"
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of bits32
@@ -275,8 +275,8 @@ end
 Line 9, characters 24-35:
 9 |   let f2 idx : int32# = get arr idx
                             ^^^^^^^^^^^
-Error: This expression has type ('a : float64)
-       but an expression was expected of type int32#
+Error: This expression has type "('a : float64)"
+       but an expression was expected of type "int32#"
        The layout of int32# is bits32
          because it is the primitive type int32#.
        But the layout of int32# must be a sublayout of float64
@@ -295,8 +295,8 @@ let _ =
 Line 2, characters 39-44:
 2 |   let[@warning "-10"] rec x = [| x |]; #42.0 in
                                            ^^^^^
-Error: This expression has type float# but an expression was expected of type
-         ('a : value)
+Error: This expression has type "float#" but an expression was expected of type
+         "('a : value)"
        The layout of float# is float64
          because it is the primitive type float#.
        But the layout of float# must be a sublayout of value
@@ -311,8 +311,8 @@ let _ =
 Line 2, characters 39-43:
 2 |   let[@warning "-10"] rec x = [| x |]; #42l in
                                            ^^^^
-Error: This expression has type int32# but an expression was expected of type
-         ('a : value)
+Error: This expression has type "int32#" but an expression was expected of type
+         "('a : value)"
        The layout of int32# is bits32
          because it is the primitive type int32#.
        But the layout of int32# must be a sublayout of value
@@ -327,8 +327,8 @@ let _ =
 Line 2, characters 39-43:
 2 |   let[@warning "-10"] rec x = [| x |]; #42L in
                                            ^^^^
-Error: This expression has type int64# but an expression was expected of type
-         ('a : value)
+Error: This expression has type "int64#" but an expression was expected of type
+         "('a : value)"
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of value
@@ -343,8 +343,8 @@ let _ =
 Line 2, characters 39-43:
 2 |   let[@warning "-10"] rec x = [| x |]; #42n in
                                            ^^^^
-Error: This expression has type nativeint#
-       but an expression was expected of type ('a : value)
+Error: This expression has type "nativeint#"
+       but an expression was expected of type "('a : value)"
        The layout of nativeint# is word
          because it is the primitive type nativeint#.
        But the layout of nativeint# must be a sublayout of value
@@ -359,8 +359,8 @@ let _ =
 Line 2, characters 39-45:
 2 |   let[@warning "-10"] rec x = [| x |]; #42.0s in
                                            ^^^^^^
-Error: This expression has type float32#
-       but an expression was expected of type ('a : value)
+Error: This expression has type "float32#"
+       but an expression was expected of type "('a : value)"
        The layout of float32# is float32
          because it is the primitive type float32#.
        But the layout of float32# must be a sublayout of value

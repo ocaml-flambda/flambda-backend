@@ -193,6 +193,7 @@ let oper_result_type = function
   | Cprobe _ -> typ_void
   | Cprobe_is_enabled _ -> typ_int
   | Copaque -> typ_val
+  | Cpoll -> typ_void
   | Cbeginregion ->
     (* This must not be typ_val; the begin-region operation returns a naked
        pointer into the local allocation stack. *)
@@ -512,7 +513,7 @@ class virtual ['env, 'op, 'instr] common_selector =
           List.for_all self#is_simple_expr args
           (* The following may have side effects *)
         | Capply _ | Cextcall _ | Calloc _ | Cstore _ | Craise _ | Catomic _
-        | Cprobe _ | Cprobe_is_enabled _ | Copaque ->
+        | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cpoll ->
           false
         | Cprefetch _ | Cbeginregion | Cendregion ->
           false
@@ -559,7 +560,7 @@ class virtual ['env, 'op, 'instr] common_selector =
           match op with
           | Cextcall { effects = e; coeffects = ce } ->
             EC.create (select_effects e) (select_coeffects ce)
-          | Capply _ | Cprobe _ | Copaque -> EC.arbitrary
+          | Capply _ | Cprobe _ | Copaque | Cpoll -> EC.arbitrary
           | Calloc Cmm.Alloc_mode.Heap -> EC.none
           | Calloc Cmm.Alloc_mode.Local -> EC.coeffect_only Coeffect.Arbitrary
           | Cstore _ -> EC.effect_only Effect.Arbitrary

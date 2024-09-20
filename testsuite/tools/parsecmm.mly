@@ -16,6 +16,8 @@
 /* A simple parser for C-- */
 
 %{
+[@@@ocaml.warning "-w-27-33"]
+
 open Cmm
 open Parsecmmaux
 

@@ -57,9 +57,9 @@ type t2 : any mod non_null
 Line 3, characters 0-39:
 3 | type t3 : any mod non_null = #(t1 * t2);;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type #(t1 * t2) is any & any
+Error: The kind of type "#(t1 * t2)" is any & any
          because it is an unboxed tuple.
-       But the kind of type #(t1 * t2) must be a subkind of any_non_null
+       But the kind of type "#(t1 * t2)" must be a subkind of any_non_null
          because of the definition of t3 at line 3, characters 0-39.
 |}]
 
@@ -72,9 +72,9 @@ type t2 : any mod non_null
 Line 3, characters 0-47:
 3 | type t3 : (any & any) mod non_null = #(t1 * t2);;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type #(t1 * t2) is any & any
+Error: The kind of type "#(t1 * t2)" is any & any
          because it is an unboxed tuple.
-       But the kind of type #(t1 * t2) must be a subkind of
+       But the kind of type "#(t1 * t2)" must be a subkind of
          any_non_null & any_non_null
          because of the definition of t3 at line 3, characters 0-47.
 |}]
@@ -88,9 +88,9 @@ type t2 : any mod non_null
 Line 3, characters 0-58:
 3 | type t3 : any mod non_null & any mod non_null = #(t1 * t2);;
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type #(t1 * t2) is any & any
+Error: The kind of type "#(t1 * t2)" is any & any
          because it is an unboxed tuple.
-       But the kind of type #(t1 * t2) must be a subkind of
+       But the kind of type "#(t1 * t2)" must be a subkind of
          any_non_null & any_non_null
          because of the definition of t3 at line 3, characters 0-58.
 |}]

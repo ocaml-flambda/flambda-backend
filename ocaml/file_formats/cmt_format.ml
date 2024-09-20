@@ -243,10 +243,11 @@ let iter_on_occurrences
       | Ttyp_class (path, lid, _typs) ->
           (* Deprecated syntax to extend a polymorphic variant *)
           f ~namespace:Type ctyp_env path lid
+      | Ttyp_open (path, lid, _ct) ->
+          f ~namespace:Module ctyp_env path lid
       | Ttyp_var _ | Ttyp_arrow _ | Ttyp_tuple _ | Ttyp_object _
       | Ttyp_unboxed_tuple _
-      | Ttyp_alias _ | Ttyp_variant _ | Ttyp_poly _
-      | Ttyp_call_pos -> ());
+      | Ttyp_alias _ | Ttyp_variant _ | Ttyp_poly _ | Ttyp_call_pos -> ());
       default_iterator.typ sub ct);
 
   pat =
@@ -387,13 +388,19 @@ let index_occurrences binary_annots =
 
 exception Error of error
 
-let input_cmt ic = (input_value ic : cmt_infos)
+let input_cmt ic : cmt_infos =
+  (* CR ocaml 5 compressed-marshal mshinwell:
+     (Compression.input_value ic : cmt_infos)
+  *)
+  Marshal.from_channel ic
 
 let output_cmt oc cmt =
   output_string oc Config.cmt_magic_number;
   (* BACKPORT BEGIN *)
   (* CR ocaml 5 compressed-marshal mshinwell:
-     upstream uses [Compression] here *)
+     upstream uses [Compression] here:
+     Compression.output_value oc (cmt : cmt_infos)
+  *)
   Marshal.(to_channel oc (cmt : cmt_infos) [])
   (* BACKPORT END *)
 
@@ -450,16 +457,25 @@ let record_value_dependency vd1 vd2 =
   if vd1.Types.val_loc <> vd2.Types.val_loc then
     value_deps := (vd1, vd2) :: !value_deps
 
-let save_cmt filename modname binary_annots sourcefile initial_env cmi shape =
+let save_cmt target cu binary_annots initial_env cmi shape =
   if !Clflags.binary_annotations && not !Clflags.print_types then begin
     Misc.output_to_file_via_temporary
-       ~mode:[Open_binary] filename
+       ~mode:[Open_binary] (Unit_info.Artifact.filename target)
        (fun temp_file_name oc ->
          let this_crc =
            match cmi with
            | None -> None
            | Some cmi -> Some (output_cmi temp_file_name oc cmi)
          in
+         let sourcefile = Unit_info.Artifact.source_file target in
+         let cmt_ident_occurrences =
+          if !Clflags.store_occurrences then
+            index_occurrences binary_annots
+          else
+            [| |]
+         in
+         let cmt_annots = clear_env binary_annots in
+         let cmt_uid_to_decl = index_declarations cmt_annots in
          let source_digest = Option.map Digest.file sourcefile in
          let compare_imports import1 import2 =
            let modname1 = Import_info.name import1 in
@@ -471,16 +487,8 @@ let save_cmt filename modname binary_annots sourcefile initial_env cmi shape =
            Array.sort compare_imports imports;
            imports
          in
-         let cmt_ident_occurrences =
-          if !Clflags.store_occurrences then
-            index_occurrences binary_annots
-          else
-            Array.of_list []
-         in
-         let cmt_annots = clear_env binary_annots in
-         let cmt_uid_to_decl = index_declarations cmt_annots in
          let cmt = {
-           cmt_modname = modname;
+           cmt_modname = cu;
            cmt_annots;
            cmt_value_dependencies = !value_deps;
            cmt_comments = Lexer.comments ();

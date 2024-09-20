@@ -540,7 +540,7 @@ module Dwarf_helpers = struct
     dwarf := None;
     sourcefile_for_dwarf := None
 
-  let init ~disable_dwarf sourcefile =
+  let init ~disable_dwarf ~sourcefile =
     reset_dwarf ();
     let can_emit_dwarf =
       !Clflags.debug
@@ -553,7 +553,7 @@ module Dwarf_helpers = struct
         Target_system.architecture (),
         Target_system.derived_system () )
     with
-    | true, (X86_64 | AArch64), _ -> sourcefile_for_dwarf := Some sourcefile
+    | true, (X86_64 | AArch64), _ -> sourcefile_for_dwarf := sourcefile
     | true, _, _ | false, _, _ -> ()
 
   let emit_dwarf () =

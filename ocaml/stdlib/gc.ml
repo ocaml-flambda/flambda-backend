@@ -122,16 +122,17 @@ let rec call_alarm arec =
     Fun.protect ~finally arec.f
   end
 
+let delete_alarm a = Atomic.set a false
 
 (* We use [@inline never] to ensure [arec] is never statically allocated
    (which would prevent installation of the finaliser). *)
 let [@inline never] create_alarm f =
-  let arec = { active = Atomic.make true; f = f } in
+  let alarm = Atomic.make true in
+  Domain.at_exit (fun () -> delete_alarm alarm);
+  let arec = { active = alarm; f = f } in
   finalise call_alarm arec;
-  arec.active
+  alarm
 
-
-let delete_alarm a = Atomic.set a false
 
 module Memprof =
   struct
