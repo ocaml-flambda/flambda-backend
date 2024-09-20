@@ -341,7 +341,7 @@ let to_location { dbg; assume_zero_alloc=_ } =
     { loc_ghost = false; loc_start; loc_end; }
 
 let inline { dbg = dbg1; assume_zero_alloc = a1; }
-      { dbg = dbg2; assume_zero_alloc = a2; } =
+      ~from_inlined_body:{ dbg = dbg2; assume_zero_alloc = a2; } =
   { dbg = dbg1 @ dbg2;
     assume_zero_alloc =
       (* Drop "inferred" zero_alloc annotation from a call when
