@@ -18,7 +18,7 @@
 
 (* Exceptions *)
 
-external register_named_value : string -> 'a -> unit @@ portable
+external register_named_value : string -> 'a @ portable -> unit @@ portable
                               = "caml_register_named_value"
 
 let () =

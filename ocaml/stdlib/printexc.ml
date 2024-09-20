@@ -342,13 +342,13 @@ let set_uncaught_exception_handler_safe fn = Atomic.set uncaught_exception_handl
 let set_uncaught_exception_handler fn =
   set_uncaught_exception_handler_safe (Obj.magic_portable fn)
 
-let empty_backtrace : raw_backtrace = [| |]
+let empty_backtrace () : raw_backtrace = [| |]
 
 let try_get_raw_backtrace () =
   try
     get_raw_backtrace ()
   with _ (* Out_of_memory? *) ->
-    empty_backtrace
+    empty_backtrace ()
 
 let handle_uncaught_exception' exn debugger_in_use =
   try
@@ -356,7 +356,7 @@ let handle_uncaught_exception' exn debugger_in_use =
        destroys it. *)
     let raw_backtrace =
       if debugger_in_use (* Same test as in [runtime/printexc.c] *) then
-        empty_backtrace
+        empty_backtrace ()
       else
         try_get_raw_backtrace ()
     in
@@ -386,7 +386,7 @@ let handle_uncaught_exception exn debugger_in_use =
     (* There is not much we can do at this point *)
     ()
 
-external register_named_value : string -> 'a -> unit @@ portable
+external register_named_value : string -> 'a @ portable -> unit @@ portable
   = "caml_register_named_value"
 
 let () =

@@ -17,7 +17,7 @@
 
 open! Stdlib
 
-type backend_type =
+type backend_type : value mod portable =
   | Native
   | Bytecode
   | Other of string
@@ -37,6 +37,7 @@ external get_backend_type : unit -> backend_type @@ portable = "%backend_type"
 
 let executable_name = get_executable_name()
 let (os_type, _, _) = get_config()
+let os_type = os_type
 let backend_type = get_backend_type ()
 let big_endian = big_endian ()
 let word_size = word_size ()
@@ -142,7 +143,7 @@ let sigxfsz = -28
 exception Break
 (* We don't use [Callback] or [Obj] because of circular dependencies.
    The string "Sys.Break" must match runtime/fail.c. *)
-external register_named_value : string -> 'a -> unit @@ portable
+external register_named_value : string -> 'a @ portable -> unit @@ portable
                               = "caml_register_named_value"
 (* Various places in the runtime rely on the "Sys.Break" name. *)
 let () = register_named_value "Sys.Break" Break

@@ -128,7 +128,7 @@ external readdir : string -> string array @@ portable = "caml_sys_read_directory
    in any specific order; they are not, in particular, guaranteed to
    appear in alphabetical order. *)
 
-val interactive : bool ref @@ portable
+val interactive : bool ref
 [@@alert unsynchronized_access
     "The interactive status is a mutable global state."
 ]

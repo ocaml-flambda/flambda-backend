@@ -22,15 +22,21 @@ open! Stdlib
    OCaml functions, or raise registered OCaml exceptions.
 *)
 
-val register : string -> 'a -> unit @@ portable
+val register : string -> 'a -> unit
+[@@alert unsafe]
 (** [Callback.register n v] registers the value [v] under
    the name [n]. C code can later retrieve a handle to [v]
    by calling [caml_named_value(n)]. *)
 
-val register_exception : string -> exn -> unit @@ portable
+val register_safe : string -> 'a @ portable -> unit @@ portable
+
+val register_exception : string -> exn -> unit
+[@@alert unsafe]
 (** [Callback.register_exception n exn] registers the
    exception contained in the exception value [exn]
    under the name [n]. C code can later retrieve a handle to
    the exception by calling [caml_named_value(n)]. The exception
    value thus obtained is suitable for passing as first argument
    to [raise_constant] or [raise_with_arg]. *)
+
+val register_exception_safe : string -> exn @ portable -> unit @@ portable

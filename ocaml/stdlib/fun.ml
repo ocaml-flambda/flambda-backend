@@ -24,7 +24,7 @@ let negate p v = not (p v)
 
 exception Finally_raised of exn
 
-let () = Printexc.register_printer @@ function
+let () = Printexc.register_printer_safe @@ function
 | Finally_raised exn -> Some ("Fun.Finally_raised: " ^ Printexc.to_string exn)
 | _ -> None
 
