@@ -1,5 +1,0 @@
-merge-5.2-staging:
-8cb65cbfb2d543e883dd7557a082b60974e4cd6d Fix chamelon => chamelon may need more work (see flambda-dev)
-
-merge-5.2:
-13118bd5399c0943ef00c0e1d878659e8bcf5bd3 Promote tests
