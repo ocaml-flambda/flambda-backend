@@ -3,12 +3,17 @@ name: coverage-linux
 # CR mshinwell: fix build and re-enable.  Something needs to be done
 # about a duplicate unix.cmxa argument to ocamlopt.
 
-# on:
-#   push:
-#     branches:
-#       - main
-#   pull_request:
-# jobs:
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "This job always succeeds and does nothing."
+
 #   build:
 #     name: ${{ matrix.name }}
 #     runs-on: ubuntu-latest
