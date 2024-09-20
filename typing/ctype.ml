@@ -1237,7 +1237,7 @@ let rec copy ?partial ?keep_names copy_scope ty =
              tions belonging to different branches of a type are
              independent.
              Moreover, a reference containing a [Mcons] must be
-             shared, so that the memorized expansion of an abbrevi-
+             aliased, so that the memorized expansion of an abbrevi-
              ation can be released by changing the content of just
              one reference.
           *)
@@ -1564,7 +1564,7 @@ let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) sch =
               copy_row (copy_rec ~may_share:true) fixed' row keep more' in
             Tvariant row
         | Tfield (p, k, ty1, ty2) ->
-            (* the kind is kept shared, see Btype.copy_type_desc *)
+            (* the kind is kept aliased, see Btype.copy_type_desc *)
             Tfield (p, field_kind_internal_repr k,
                     copy_rec ~may_share:true ty1,
                     copy_rec ~may_share:false ty2)
@@ -1635,7 +1635,7 @@ let curry_mode alloc arg : Alloc.Const.t =
       (Alloc.Const.close_over arg)
       (Alloc.Const.partial_apply alloc)
   in
-  (* For A -> B -> C, we always interpret (B -> C) to be of shared. This is the
+  (* For A -> B -> C, we always interpret (B -> C) to be of aliased. This is the
     legacy mode which helps with legacy compatibility. Arrow types cross
     uniqueness so we are not losing too much expressvity here. One
     counter-example is:
@@ -1645,10 +1645,10 @@ let curry_mode alloc arg : Alloc.Const.t =
 
     And [f g] would not work, as mode crossing doesn't work deeply into arrows.
     Our answer to this issue is that, the author of f shouldn't ask B -> C to be
-    unique_. Instead, they should leave it as default which is shared, and mode
+    unique_. Instead, they should leave it as default which is aliased, and mode
     crossing it to unique at the location where B -> C is a real value (instead
     of the return of a function). *)
-  {acc with uniqueness=Uniqueness.Const.Shared}
+  {acc with uniqueness=Uniqueness.Const.Aliased}
 
 let rec instance_prim_locals locals mvar macc finalret ty =
   match locals, get_desc ty with
@@ -2414,8 +2414,7 @@ let type_jkind_purely env ty =
     type_jkind env ty
 
 let estimate_type_jkind env ty =
-  estimate_type_jkind env ~expand_components:(fun x -> x)
-    (get_unboxed_type_approximation env ty)
+  estimate_type_jkind env ~expand_components:(fun x -> x) ty
 
 let type_sort ~why env ty =
   let jkind, sort = Jkind.of_new_sort_var ~why in
@@ -4777,12 +4776,49 @@ let relevant_pairs pairs v =
   | Contravariant -> pairs.contravariant_pairs
   | Bivariant -> pairs.bivariant_pairs
 
-let moregen_alloc_mode v a1 a2 =
+(* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and [Alloc]
+   get unified *)
+let mode_cross_left env ty mode =
+  (* CR layouts v2.8: The old check didn't check for principality, and so this
+      one doesn't either. I think it should. But actually test results are bad
+      when checking for principality. Really, I'm surprised that the types here
+      aren't principal. In any case, leaving the check out now; will return and
+      figure this out later. *)
+  let jkind = type_jkind_purely env ty in
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  Alloc.meet_const upper_bounds mode
+
+(* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value] and
+    [Alloc] get unified *)
+let mode_cross_right env ty mode =
+  (* CR layouts v2.8: This should probably check for principality. See similar
+      comment in [mode_cross_left]. *)
+  let jkind = type_jkind_purely env ty in
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  Alloc.imply upper_bounds mode
+
+let submode_with_cross env ~is_ret ty l r =
+  let r' = mode_cross_right env ty r in
+  let r' =
+    if is_ret then
+      (* the locality axis of the return mode cannot cross modes, because a
+         local-returning function might allocate in the caller's region, and
+         this info must be preserved. *)
+      Alloc.meet [r'; Alloc.max_with (Comonadic Areality) (Alloc.proj (Comonadic Areality) r)]
+    else
+      r'
+  in
+  Alloc.submode l r'
+
+let moregen_alloc_mode env ~is_ret ty v a1 a2 =
   match
     match v with
-    | Invariant -> Result.map_error ignore (Alloc.equate a1 a2)
-    | Covariant -> Result.map_error ignore (Alloc.submode a1 a2)
-    | Contravariant -> Result.map_error ignore (Alloc.submode a2 a1)
+    | Invariant ->
+        Result.bind (submode_with_cross env ~is_ret ty a1 a2)
+          (fun _ -> submode_with_cross env ~is_ret ty a2 a1)
+        |> Result.map_error ignore
+    | Covariant -> Result.map_error ignore (submode_with_cross env ~is_ret ty a1 a2)
+    | Contravariant -> Result.map_error ignore (submode_with_cross env ~is_ret ty a2 a1)
     | Bivariant -> Ok ()
   with
   | Ok () -> ()
@@ -4830,8 +4866,13 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
                 || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
               moregen inst_nongen (neg_variance variance) type_pairs env t1 t2;
               moregen inst_nongen variance type_pairs env u1 u2;
-              moregen_alloc_mode (neg_variance variance) a1 a2;
-              moregen_alloc_mode variance r1 r2
+              (* [t2] and [u2] is the user-written interface, which we deem as
+                 more "principal" and used for mode crossing. See
+                 [typing-modes/crossing.ml]. *)
+              (* CR zqian: should use the meet of [t1] and [t2] for mode
+              crossing. Similar for [u1] and [u2]. *)
+              moregen_alloc_mode env t2 ~is_ret:false (neg_variance variance) a1 a2;
+              moregen_alloc_mode env u2 ~is_ret:true variance r1 r2
           | (Ttuple labeled_tl1, Ttuple labeled_tl2) ->
               moregen_labeled_list inst_nongen variance type_pairs env
                 labeled_tl1 labeled_tl2
@@ -5808,27 +5849,6 @@ let build_submode_neg m =
 let build_submode posi m =
   if posi then build_submode_pos (Alloc.allow_left m)
   else build_submode_neg (Alloc.allow_right m)
-
-(* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and
-   [Alloc] get unified *)
-let mode_cross_left env ty mode =
-  (* CR layouts v2.8: The old check didn't check for principality, and so
-     this one doesn't either. I think it should. But actually test results
-     are bad when checking for principality. Really, I'm surprised that
-     the types here aren't principal. In any case, leaving the check out
-     now; will return and figure this out later. *)
-  let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  Alloc.meet_const upper_bounds mode
-
-(* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value]
-   and [Alloc] get unified *)
-let mode_cross_right env ty mode =
-  (* CR layouts v2.8: This should probably check for principality. See
-     similar comment in [mode_cross_left]. *)
-  let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  Alloc.imply upper_bounds mode
 
 let rec build_subtype env (visited : transient_expr list)
     (loops : (int * type_expr) list) posi level t =

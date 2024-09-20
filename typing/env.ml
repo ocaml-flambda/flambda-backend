@@ -3049,7 +3049,7 @@ let share_mode ~errors ~env ~loc ~item ~lid vmode shared_context =
         (Once_value_used_in (item, lid, shared_context))
   | Ok () ->
     let mode =
-      Mode.Value.join_with (Monadic Uniqueness) Mode.Uniqueness.Const.Shared
+      Mode.Value.join_with (Monadic Uniqueness) Mode.Uniqueness.Const.Aliased
         vmode.mode
     in
     {mode; context = Some shared_context}
@@ -4028,7 +4028,7 @@ let sharedness_hint ppf : shared_context -> _ = function
     Format.fprintf ppf
         "@[Hint: This identifier was defined outside of the current closure.@ \
           Either this closure has to be once, or the identifier can be used only@ \
-          as shared.@]"
+          as aliased.@]"
   | Module ->
     Format.fprintf ppf
         "@[Hint: This identifier cannot be used uniquely,@ \

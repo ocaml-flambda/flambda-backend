@@ -19,12 +19,18 @@ val unique_id : unique_ 'a -> unit = <fun>
 Line 8, characters 20-21:
 8 |   val bar = unique_ x
                         ^
+<<<<<<< HEAD
 Error: This value is "shared" but expected to be "unique".
+||||||| caebc8adff
+Error: This value is shared but expected to be unique.
+=======
+Error: This value is aliased but expected to be unique.
+>>>>>>> flambda-backend/main
   Hint: This identifier cannot be used uniquely,
   because it is defined in a class.
 |}]
 
-(* you can use env vars as shared and many, but they might collide with the external uses *)
+(* you can use env vars as aliased and many, but they might collide with the external uses *)
 let texp_object () =
   let x = "foo" in
   unique_id x;
@@ -54,11 +60,11 @@ let texp_letmodule () =
 Line 4, characters 12-21:
 4 |     let y = unique_ x
                 ^^^^^^^^^
-Error: This value is shared but used as unique.
+Error: This value is aliased but used as unique.
 Hint: This value comes from outside the current module or class.
 |}]
 
-(* you can use x as shared and many, but it might collide with external uses. *)
+(* you can use x as aliased and many, but it might collide with external uses. *)
 let texp_letmodule () =
   let x = "foo" in
   unique_id x;
@@ -86,7 +92,7 @@ let texp_open () =
 Line 3, characters 27-36:
 3 |   let open (struct let y = unique_ x end) in
                                ^^^^^^^^^
-Error: This value is shared but used as unique.
+Error: This value is aliased but used as unique.
 Hint: This value comes from outside the current module or class.
 |}]
 
@@ -117,7 +123,7 @@ module type bar = sig val y : string end
 Line 5, characters 33-42:
 5 |   let z = (module struct let y = unique_ x end : bar) in
                                      ^^^^^^^^^
-Error: This value is shared but used as unique.
+Error: This value is aliased but used as unique.
 Hint: This value comes from outside the current module or class.
 |}]
 
@@ -149,5 +155,13 @@ module M : sig val foo : string end
 Line 7, characters 12-17:
 7 |   unique_id M.foo
                 ^^^^^
+<<<<<<< HEAD
 Error: This value is "shared" but expected to be "unique".
 |}]
+||||||| caebc8adff
+Error: This value is shared but expected to be unique.
+|}]
+=======
+Error: This value is aliased but expected to be unique.
+|}]
+>>>>>>> flambda-backend/main

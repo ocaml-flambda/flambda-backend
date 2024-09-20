@@ -224,7 +224,7 @@ module type S = sig
     module Const : sig
       type t =
         | Unique
-        | Shared
+        | Aliased
 
       include Lattice with type t := t
     end
@@ -237,7 +237,7 @@ module type S = sig
          and type error := error
          and type 'd t = (Const.t, 'd) mode_monadic
 
-    val shared : lr
+    val aliased : lr
 
     val unique : lr
   end
