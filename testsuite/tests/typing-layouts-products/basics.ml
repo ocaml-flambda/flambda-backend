@@ -494,8 +494,11 @@ module type S_constrain_type_jkind_deeper' =
     type t3 = #(t2 * bool * int64#)
     type t4 = #(float# * t3 * int)
   end
-Uncaught exception: File "ocaml/typing/printtyp.ml", line 1345, characters 27-33: Assertion failed
-
+type ('a : float64 & ((value & float64) & value & bits64) & value)
+     t_constraint
+module F :
+  functor (X : S_constrain_type_jkind_deeper') ->
+    sig type r = X.t4 t_constraint end
 |}]
 
 (***********************************************)
@@ -698,7 +701,7 @@ Line 2, characters 37-44:
                                          ^^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_350 & '_representable_layout_351
+       The layout of #('a * 'b) is '_representable_layout_366 & '_representable_layout_367
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the recursive variable x.
@@ -714,7 +717,7 @@ Line 1, characters 21-29:
                          ^^^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_357 & '_representable_layout_358
+       The layout of #('a * 'b) is '_representable_layout_373 & '_representable_layout_374
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the recursive variable _x.
@@ -770,8 +773,9 @@ type t3 = #(int * bool) array
 type t4 = #(string * #(float# * bool option)) array
 [%%expect{|
 type ('a : value & value) t1 = 'a array
-Uncaught exception: File "ocaml/typing/printtyp.ml", line 1345, characters 27-33: Assertion failed
-
+type ('a : bits64 & (value & float64)) t2 = 'a array
+type t3 = #(int * bool) array
+type t4 = #(string * #(float# * bool option)) array
 |}]
 
 (* CR layouts v7.1: This example demonstrates a bug in type inference that we
@@ -786,8 +790,15 @@ let _ = [| #(1,2) |]
 Line 1, characters 11-17:
 1 | let _ = [| #(1,2) |]
                ^^^^^^
-Error: Uncaught exception: Typecore.Error(_, _, _)
-
+Error: This expression has type "#('a * 'b)"
+       but an expression was expected of type
+         "('c : '_representable_layout_397 & '_representable_layout_398)"
+       The kind of #('a * 'b) is
+         '_representable_layout_397 & '_representable_layout_398
+         because it is an unboxed tuple.
+       But the kind of #('a * 'b) must be a subkind of
+         '_representable_layout_397 & '_representable_layout_398
+         because it's the type of an array element.
 |}]
 
 let _ = Array.init 3 (fun _ -> #(1,2))
@@ -797,7 +808,7 @@ Line 1, characters 31-37:
                                    ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_380 & '_representable_layout_381
+       The layout of #('a * 'b) is '_representable_layout_404 & '_representable_layout_405
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because of layout requirements from an imported definition.
@@ -865,7 +876,7 @@ Line 2, characters 25-26:
                              ^
 Error: This expression has type "('a : value)"
        but an expression was expected of type "#('b * 'c)"
-       The layout of #('a * 'b) is '_representable_layout_426 & '_representable_layout_427
+       The layout of #('a * 'b) is '_representable_layout_450 & '_representable_layout_451
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a term-level argument to a class constructor.
@@ -882,7 +893,7 @@ Line 1, characters 13-19:
                  ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_431 & '_representable_layout_432
+       The layout of #('a * 'b) is '_representable_layout_455 & '_representable_layout_456
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a lazy expression.
@@ -932,7 +943,7 @@ Line 1, characters 28-34:
                                 ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_461 & '_representable_layout_462
+       The layout of #('a * 'b) is '_representable_layout_485 & '_representable_layout_486
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because the type argument of option has layout value.

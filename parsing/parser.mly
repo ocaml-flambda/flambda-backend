@@ -4572,6 +4572,8 @@ delimited_type_supporting_local_open:
       tags = name_tag_list
       RBRACKET
         { Ptyp_variant(fields, Closed, Some tags) }
+    | HASHLPAREN unboxed_tuple_type_body RPAREN
+        { Ptyp_unboxed_tuple $2 }
   )
   { $1 }
 ;
@@ -4621,8 +4623,6 @@ atomic_type:
         { Ptyp_open (mod_ident, type_) }
     | QUOTE ident = ident
         { Ptyp_var ident }
-    | HASHLPAREN unboxed_tuple_type_body RPAREN
-        { Ptyp_unboxed_tuple $2 }
     | UNDERSCORE
         { Ptyp_any }
   )

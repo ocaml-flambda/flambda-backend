@@ -356,9 +356,15 @@ let print_out_jkind_const ppf ojkind =
   pp_element ~nested:false ppf ojkind
 
 let print_out_jkind ppf ojkind =
-  match ojkind with
-  | Ojkind_var v -> fprintf ppf "%s" v
-  | Ojkind_const jkind -> print_out_jkind_const ppf jkind
+  let rec pp_element ~nested ppf ojkind =
+    match ojkind with
+    | Ojkind_var v -> fprintf ppf "%s" v
+    | Ojkind_const jkind -> print_out_jkind_const ppf jkind
+    | Ojkind_product ts ->
+      let pp_sep ppf () = Format.fprintf ppf "@ & " in
+      Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf ts
+  in
+  pp_element ~nested:false ppf ojkind
 
 let print_out_jkind_annot ppf = function
   | None -> ()
