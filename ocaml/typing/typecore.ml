@@ -1487,7 +1487,7 @@ let solve_Ppat_tuple ~refine ~alloc_mode loc env args expected_ty =
 
 (* This assumes the [args] have already been reordered according to the
    [expected_ty], if needed.  *)
-let solve_Ppat_unboxed_tuple ~alloc_mode loc env args expected_ty =
+let solve_Ppat_unboxed_tuple ~refine ~alloc_mode loc env args expected_ty =
   let arity = List.length args in
   let arg_modes =
     match alloc_mode.tuple_modes with
@@ -1513,7 +1513,7 @@ let solve_Ppat_unboxed_tuple ~alloc_mode loc env args expected_ty =
     newgenty (Tunboxed_tuple (List.map (fun (lbl, _, t, _, _) -> lbl, t) ann))
   in
   let expected_ty = generic_instance expected_ty in
-  unify_pat_types loc env ty expected_ty;
+  unify_pat_types_refine ~refine loc env ty expected_ty;
   ann
 
 let solve_constructor_annotation
@@ -2534,7 +2534,8 @@ and type_pat_aux
         | Closed -> spl
     in
     let spl_ann =
-      solve_Ppat_unboxed_tuple ~alloc_mode loc !!penv args expected_ty
+      solve_Ppat_unboxed_tuple ~refine:false ~alloc_mode loc penv args
+        expected_ty
     in
     let pl =
       List.map (fun (lbl, p, t, alloc_mode, sort) ->
@@ -3311,7 +3312,7 @@ let rec check_counter_example_pat
                                          pl))))
   | Tpat_unboxed_tuple tpl ->
       let tpl_ann =
-        solve_Ppat_unboxed_tuple ~alloc_mode loc !!penv
+        solve_Ppat_unboxed_tuple ~refine ~alloc_mode loc penv
           (List.map (fun (l,t,_) -> l, t) tpl)
           expected_ty
       in
