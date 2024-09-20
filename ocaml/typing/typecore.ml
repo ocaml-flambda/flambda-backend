@@ -528,7 +528,14 @@ let mode_lazy expected_mode =
     mode_coerce (Value.max_with (Comonadic Areality) Regionality.global)
       expected_mode
   in
-  {expected_mode with locality_context = Some Lazy }
+  let closure_mode =
+    expected_mode
+    |> as_single_mode
+    (* The thunk is evaluated only once, so we only require it to be [once],
+       even if the [lazy] is [many]. *)
+    |> Value.join_with (Comonadic Linearity) Linearity.Const.Once
+  in
+  {expected_mode with locality_context = Some Lazy }, closure_mode
 
 let mode_tailcall_function mode =
   { (mode_default mode) with
@@ -6202,20 +6209,12 @@ and type_expect_
         exp_env = env;
       }
   | Pexp_lazy e ->
-      let expected_mode = mode_lazy expected_mode in
+      let expected_mode, closure_mode = mode_lazy expected_mode in
       let ty = newgenvar (Jkind.Builtin.value ~why:Lazy_expression) in
       let to_unify = Predef.type_lazy_t ty in
       with_explanation (fun () ->
         unify_exp_types loc env to_unify (generic_instance ty_expected));
-      let closure_mode =
-        expected_mode
-        |> as_single_mode
-        (* the thunk is evaluated only once, so we only require it to be [once],
-           even if the [lazy] is [many]. *)
-        |> Value.join_with (Comonadic Linearity) Linearity.Const.Once
-        |> (fun x -> x.comonadic)
-      in
-      let env = Env.add_closure_lock Lazy closure_mode env in
+      let env = Env.add_closure_lock Lazy closure_mode.comonadic env in
       let arg = type_expect env expected_mode e (mk_expected ty) in
       re {
         exp_desc = Texp_lazy arg;
