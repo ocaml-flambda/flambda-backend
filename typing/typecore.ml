@@ -8476,7 +8476,16 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
   let rec_mode_var =
     match rec_flag with
     | Recursive when entirely_functions -> Some (Value.newvar ())
-    | Recursive -> Some Value.legacy
+    | Recursive ->
+        (* If the definitions are not purely functions, this involves multiple
+           allocations pointing to each other. For this to be safe, they are all
+           heap-allocated. *)
+        (* CR zqian: the multiple allocations should enjoy their own modes. *)
+        let m, _ =
+          Value.newvar_below (Value.max_with (Comonadic Areality)
+            Regionality.global)
+        in
+        Some m
     | Nonrecursive -> None
   in
   let spatl = List.map vb_pat_constraint spat_sexp_list in
