@@ -103,13 +103,8 @@ let emit_signature info alerts tsg =
   Typemod.save_signature info.target info.module_name tsg info.env sg
 
 let interface ~hook_parse_tree ~hook_typed_tree info =
-<<<<<<< HEAD
-  Profile.record_call (Unit_info.source_file info.target) @@ fun () ->
-||||||| caebc8adff
-  Profile.record_call info.source_file @@ fun () ->
-=======
-  Profile.(record_call (annotate_file_name info.source_file)) @@ fun () ->
->>>>>>> flambda-backend/main
+  Profile.(record_call (annotate_file_name (
+    Unit_info.source_file info.target))) @@ fun () ->
   let ast = parse_intf info in
   hook_parse_tree ast;
   if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
@@ -145,13 +140,8 @@ let typecheck_impl i parsetree =
     (fun fmt {Typedtree.shape; _} -> Shape.print fmt shape)
 
 let implementation ~hook_parse_tree ~hook_typed_tree info ~backend =
-<<<<<<< HEAD
-  Profile.record_call (Unit_info.source_file info.target) @@ fun () ->
-||||||| caebc8adff
-  Profile.record_call info.source_file @@ fun () ->
-=======
-  Profile.(record_call (annotate_file_name info.source_file)) @@ fun () ->
->>>>>>> flambda-backend/main
+  Profile.(record_call (annotate_file_name (
+    Unit_info.source_file info.target))) @@ fun () ->
   let exceptionally () =
     let sufs =
       if info.native then Unit_info.[ cmx; obj ]
