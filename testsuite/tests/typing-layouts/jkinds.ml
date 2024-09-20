@@ -225,34 +225,14 @@ type a : value mod global unique once uncontended portable external_
 type b : value mod local aliased many uncontended nonportable internal = a
 [%%expect{|
 type a : value mod global unique once uncontended portable external_
-<<<<<<< HEAD
-Line 2, characters 0-73:
-2 | type b : value mod local shared many uncontended nonportable internal = a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "a" is
-||||||| caebc8adff
-Line 2, characters 0-73:
-2 | type b : value mod local shared many uncontended nonportable internal = a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is
-=======
 Line 2, characters 0-74:
 2 | type b : value mod local aliased many uncontended nonportable internal = a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type a is
->>>>>>> flambda-backend/main
+Error: The kind of type "a" is
          value mod global unique uncontended portable external_
          because of the definition of a at line 1, characters 0-68.
-<<<<<<< HEAD
        But the kind of type "a" must be a subkind of value mod many uncontended
-         because of the definition of b at line 2, characters 0-73.
-||||||| caebc8adff
-       But the kind of type a must be a subkind of value mod many uncontended
-         because of the definition of b at line 2, characters 0-73.
-=======
-       But the kind of type a must be a subkind of value mod many uncontended
          because of the definition of b at line 2, characters 0-74.
->>>>>>> flambda-backend/main
 |}]
 
 (********************************************************)

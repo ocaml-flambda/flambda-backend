@@ -100,13 +100,7 @@ let foo (r @ unique) = (r.s : _ @@ unique)
 Line 1, characters 24-27:
 1 | let foo (r @ unique) = (r.s : _ @@ unique)
                             ^^^
-<<<<<<< HEAD
-Error: This value is "shared" but expected to be "unique".
-||||||| caebc8adff
-Error: This value is shared but expected to be unique.
-=======
-Error: This value is aliased but expected to be unique.
->>>>>>> flambda-backend/main
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 module M : sig

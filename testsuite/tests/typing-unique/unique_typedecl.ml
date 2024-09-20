@@ -65,16 +65,6 @@ Line 1, characters 42-89:
 1 | type distinct_sarg_sret = unit constraint unique_ int -> int = unique_ int -> unique_ int
                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The type constraints are not consistent.
-<<<<<<< HEAD
        Type "unique_ int -> int" is not compatible with type
          "unique_ int -> unique_ int"
 |}]
-||||||| caebc8adff
-       Type unique_ int -> int is not compatible with type
-         unique_ int -> unique_ int
-|}]
-=======
-       Type unique_ int -> int is not compatible with type
-         unique_ int -> unique_ int
-|}]
->>>>>>> flambda-backend/main

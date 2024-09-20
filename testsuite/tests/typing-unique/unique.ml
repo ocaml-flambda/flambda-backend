@@ -141,13 +141,7 @@ let f () =
 Line 4, characters 12-13:
 4 |     unique_ k
                 ^
-<<<<<<< HEAD
-Error: This value is "shared" but expected to be "unique".
-||||||| caebc8adff
-Error: This value is shared but expected to be unique.
-=======
-Error: This value is aliased but expected to be unique.
->>>>>>> flambda-backend/main
+Error: This value is "aliased" but expected to be "unique".
   Hint: This identifier cannot be used uniquely,
   because it was defined outside of the for-loop.
 |}]
@@ -163,13 +157,7 @@ let f =
 Line 5, characters 14-15:
 5 |     let _ = g a in ()
                   ^
-<<<<<<< HEAD
-Error: This value is "shared" but expected to be "unique".
-||||||| caebc8adff
-Error: This value is shared but expected to be unique.
-=======
-Error: This value is aliased but expected to be unique.
->>>>>>> flambda-backend/main
+Error: This value is "aliased" but expected to be "unique".
   Hint: This identifier cannot be used uniquely,
   because it was defined outside of the for-loop.
 |}]
@@ -249,13 +237,7 @@ let foo y = unique_ x
 Line 1, characters 20-21:
 1 | let foo y = unique_ x
                         ^
-<<<<<<< HEAD
-Error: This value is "shared" but expected to be "unique".
-||||||| caebc8adff
-Error: This value is shared but expected to be unique.
-=======
-Error: This value is aliased but expected to be unique.
->>>>>>> flambda-backend/main
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 
@@ -320,33 +302,15 @@ let higher_order3 (f : 'a -> 'b) (unique_ x : 'a) = unique_ f x
 Line 1, characters 60-63:
 1 | let higher_order3 (f : 'a -> 'b) (unique_ x : 'a) = unique_ f x
                                                                 ^^^
-<<<<<<< HEAD
-Error: This value is "shared" but expected to be "unique".
-||||||| caebc8adff
-Error: This value is shared but expected to be unique.
-=======
-Error: This value is aliased but expected to be unique.
->>>>>>> flambda-backend/main
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (aliased_id x)
 [%%expect{|
-<<<<<<< HEAD
-Line 1, characters 54-67:
-1 | let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (shared_id x)
-                                                          ^^^^^^^^^^^^^
-Error: This value is "shared" but expected to be "unique".
-||||||| caebc8adff
-Line 1, characters 54-67:
-1 | let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (shared_id x)
-                                                          ^^^^^^^^^^^^^
-Error: This value is shared but expected to be unique.
-=======
 Line 1, characters 54-68:
 1 | let higher_order4 (f : unique_ 'a -> 'b) (x : 'a) = f (aliased_id x)
                                                           ^^^^^^^^^^^^^^
-Error: This value is aliased but expected to be unique.
->>>>>>> flambda-backend/main
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let higher_order5 (unique_ x) = let f (unique_ x) = unique_ x in higher_order f x
@@ -389,22 +353,10 @@ val inf2 : bool -> unique_ float -> float = <fun>
 let inf3 : bool -> float -> unique_ float -> float = fun b y x ->
   let _ = aliased_id y in let unique_ z = if b then x else y in z
 [%%expect{|
-<<<<<<< HEAD
-Line 2, characters 58-59:
-2 |   let _ = shared_id y in let unique_ z = if b then x else y in z
-                                                              ^
-Error: This value is "shared" but expected to be "unique".
-||||||| caebc8adff
-Line 2, characters 58-59:
-2 |   let _ = shared_id y in let unique_ z = if b then x else y in z
-                                                              ^
-Error: This value is shared but expected to be unique.
-=======
 Line 2, characters 59-60:
 2 |   let _ = aliased_id y in let unique_ z = if b then x else y in z
                                                                ^
-Error: This value is aliased but expected to be unique.
->>>>>>> flambda-backend/main
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let inf4 (b : bool) (y : float) (unique_ x : float) =
@@ -636,38 +588,6 @@ Error: This expression has type "int" but an expression was expected of type
          "string"
 |}]
 
-<<<<<<< HEAD
-
-let foo () =
-  let unique_ _bar : int -> int -> int =
-    ((fun y z -> z) : int -> unique_ (int -> int)) in
-  ()
-[%%expect{|
-Line 3, characters 4-50:
-3 |     ((fun y z -> z) : int -> unique_ (int -> int)) in
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type "int -> unique_ (int -> int)"
-       but an expression was expected of type "int -> int -> int"
-|}]
-
-
-||||||| caebc8adff
-
-let foo () =
-  let unique_ _bar : int -> int -> int =
-    ((fun y z -> z) : int -> unique_ (int -> int)) in
-  ()
-[%%expect{|
-Line 3, characters 4-50:
-3 |     ((fun y z -> z) : int -> unique_ (int -> int)) in
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type int -> unique_ (int -> int)
-       but an expression was expected of type int -> int -> int
-|}]
-
-
-=======
->>>>>>> flambda-backend/main
 let return_local : local_ 'a -> local_ 'a = fun x -> x
 let return_global : local_ 'a -> int = fun x -> 0
 [%%expect{|
