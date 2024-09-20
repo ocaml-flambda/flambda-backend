@@ -4,16 +4,20 @@ name: coverage-linux
 # about a duplicate unix.cmxa argument to ocamlopt.
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
+  workflow_dispatch:
 jobs:
   noop:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "This job always succeeds and does nothing."
+      - name: No-op step
+        run: echo "This job always succeeds and does nothing."
 
+# on:
+#   push:
+#     branches:
+#       - main
+#   pull_request:
+# jobs:
 #   build:
 #     name: ${{ matrix.name }}
 #     runs-on: ubuntu-latest
