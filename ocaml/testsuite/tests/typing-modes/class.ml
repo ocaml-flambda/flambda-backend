@@ -43,13 +43,7 @@ let foo () =
 Line 5, characters 27-28:
 5 |         val k = unique_use s
                                ^
-<<<<<<< HEAD
-Error: This value is "shared" but expected to be "unique".
-||||||| caebc8adff
-Error: This value is shared but expected to be unique.
-=======
-Error: This value is aliased but expected to be unique.
->>>>>>> flambda-backend/main
+Error: This value is "aliased" but expected to be "unique".
   Hint: This identifier cannot be used uniquely,
   because it is defined in a class.
 |}]

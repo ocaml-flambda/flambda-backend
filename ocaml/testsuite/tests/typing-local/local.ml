@@ -520,14 +520,12 @@ let result = use_global bar 1. 2.
 Line 1, characters 24-27:
 1 | let result = use_global bar 1. 2.
                             ^^^
-Error: This expression has type local_ float -> local_ float -> unit
-       but an expression was expected of type local_ 'a -> ('b -> 'c)
+Error: This expression has type "local_ float -> local_ float -> unit"
+       but an expression was expected of type "local_ 'a -> ('b -> 'c)"
 |}]
 
 
 (*
-=======
->>>>>>> flambda-backend/main
  * Closures and context locks
  *)
 
