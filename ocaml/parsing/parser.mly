@@ -1085,6 +1085,7 @@ The precedences must be listed from low to high.
 %left     INFIXOP2 PLUS PLUSDOT MINUS MINUSDOT PLUSEQ /* expr (e OP e OP e) */
 %left     PERCENT INFIXOP3 MOD STAR                 /* expr (e OP e OP e) */
 %right    INFIXOP4                      /* expr (e OP e OP e) */
+%nonassoc prec_unboxed_product_kind
 %nonassoc prec_unary_minus prec_unary_plus /* unary - */
 %nonassoc prec_constant_constructor     /* cf. simple_expr (C versus C x) */
 %nonassoc prec_constr_appl              /* above AS BAR COLONCOLON COMMA */
@@ -3911,11 +3912,11 @@ jkind:
 ;
 
 reverse_product_jkind :
-  | jkind1 = jkind AMPERSAND jkind2 = jkind %prec below_EQUAL
+  | jkind1 = jkind AMPERSAND jkind2 = jkind %prec prec_unboxed_product_kind
       { [jkind2; jkind1] }
   | jkinds = reverse_product_jkind
     AMPERSAND
-    jkind = jkind %prec below_EQUAL
+    jkind = jkind %prec prec_unboxed_product_kind
     { jkind :: jkinds }
 
 jkind_annotation: (* : jkind_annotation *)
