@@ -604,19 +604,9 @@ Line 2, characters 31-50:
 2 |   type result = V of (string * void_unboxed_record) | I of int
                                    ^^^^^^^^^^^^^^^^^^^
 Error: Tuple element types must have layout value.
-<<<<<<< HEAD
        The layout of "void_unboxed_record" is void
-         because of the definition of t_void at line 6, characters 0-19.
-       But the layout of "void_unboxed_record" must be a sublayout of value
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-       The layout of void_unboxed_record is void
-         because of the definition of t_void at line 6, characters 0-19.
-       But the layout of void_unboxed_record must be a sublayout of value
-=======
-       The layout of void_unboxed_record is void
          because of the definition of void_unboxed_record at line 12, characters 0-60.
-       But the layout of void_unboxed_record must be a sublayout of value
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
+       But the layout of "void_unboxed_record" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
 

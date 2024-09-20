@@ -2322,61 +2322,6 @@ let constrain_type_jkind_exn env texn ty jkind =
   | Ok _ -> ()
   | Error err -> raise_for texn (Bad_jkind (ty,err))
 
-<<<<<<< HEAD
-let type_jkind env ty =
-  estimate_type_jkind env
-    ~expand_components:(get_unboxed_type_approximation env)
-    (get_unboxed_type_approximation env ty)
-
-let type_jkind_purely env ty =
-  if !Clflags.principal || Env.has_local_constraints env then
-    (* We snapshot to keep this pure; see the test in [typing-local/crossing.ml]
-       that mentions snapshotting for an example. *)
-    let snap = Btype.snapshot () in
-    let jkind = type_jkind env ty in
-    Btype.backtrack snap;
-    jkind
-  else
-    type_jkind env ty
-
-let estimate_type_jkind env ty =
-  estimate_type_jkind env ~expand_components:(fun x -> x) ty
-
-let type_sort ~why env ty =
-  let jkind, sort = Jkind.of_new_sort_var ~why in
-  match constrain_type_jkind env ty jkind with
-  | Ok _ -> Ok sort
-  | Error _ as e -> e
-
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-let type_jkind env ty =
-  estimate_type_jkind env
-    ~expand_components:(get_unboxed_type_approximation env)
-    (get_unboxed_type_approximation env ty)
-
-let type_jkind_purely env ty =
-  if !Clflags.principal || Env.has_local_constraints env then
-    (* We snapshot to keep this pure; see the test in [typing-local/crossing.ml]
-       that mentions snapshotting for an example. *)
-    let snap = Btype.snapshot () in
-    let jkind = type_jkind env ty in
-    Btype.backtrack snap;
-    jkind
-  else
-    type_jkind env ty
-
-let estimate_type_jkind env ty =
-  estimate_type_jkind env ~expand_components:(fun x -> x)
-    (get_unboxed_type_approximation env ty)
-
-let type_sort ~why env ty =
-  let jkind, sort = Jkind.of_new_sort_var ~why in
-  match constrain_type_jkind env ty jkind with
-  | Ok _ -> Ok sort
-  | Error _ as e -> e
-
-=======
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
 let type_legacy_sort ~why env ty =
   let jkind, sort = Jkind.of_new_legacy_sort_var ~why in
   match constrain_type_jkind env ty jkind with

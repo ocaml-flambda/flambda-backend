@@ -140,17 +140,6 @@ module Stdlib = struct
       in
       aux [] l1 l2
 
-<<<<<<< HEAD
-    let rec iteri2 i f l1 l2 =
-      match (l1, l2) with
-        ([], []) -> ()
-      | (a1::l1, a2::l2) -> f i a1 a2; iteri2 (i + 1) f l1 l2
-      | (_, _) -> raise (Invalid_argument "iteri2")
-
-    let iteri2 f l1 l2 = iteri2 0 f l1 l2
-
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-=======
     let map3 f =
       let rec loop acc as_ bs cs = match as_, bs, cs with
         | [], [], [] -> List.rev acc
@@ -159,7 +148,14 @@ module Stdlib = struct
       in
       loop []
 
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
+    let rec iteri2 i f l1 l2 =
+      match (l1, l2) with
+        ([], []) -> ()
+      | (a1::l1, a2::l2) -> f i a1 a2; iteri2 (i + 1) f l1 l2
+      | (_, _) -> raise (Invalid_argument "iteri2")
+
+    let iteri2 f l1 l2 = iteri2 0 f l1 l2
+
     let some_if_all_elements_are_some l =
       let rec aux acc l =
         match l with

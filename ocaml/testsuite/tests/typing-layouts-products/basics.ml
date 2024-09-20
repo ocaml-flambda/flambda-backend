@@ -229,19 +229,9 @@ let poly_var_term = `Foo #(1,2)
 Line 1, characters 25-31:
 1 | let poly_var_term = `Foo #(1,2)
                              ^^^^^^
-<<<<<<< HEAD
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_158 & '_representable_layout_159
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_158 & '_representable_layout_159
-=======
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
        The layout of #('a * 'b) is '_representable_layout_86 & '_representable_layout_87
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
@@ -264,19 +254,9 @@ let tuple_term = ("hi", #(1, 2))
 Line 1, characters 24-31:
 1 | let tuple_term = ("hi", #(1, 2))
                             ^^^^^^^
-<<<<<<< HEAD
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_165 & '_representable_layout_166
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_165 & '_representable_layout_166
-=======
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
        The layout of #('a * 'b) is '_representable_layout_89 & '_representable_layout_90
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a tuple element.
@@ -366,19 +346,9 @@ class class_ =
 Line 3, characters 15-21:
 3 |     method x = #(1,2)
                    ^^^^^^
-<<<<<<< HEAD
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_194 & '_representable_layout_195
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_194 & '_representable_layout_195
-=======
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
        The layout of #('a * 'b) is '_representable_layout_102 & '_representable_layout_103
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of an object field.
@@ -393,19 +363,9 @@ end;;
 Line 3, characters 17-21:
 3 |     let #(x,y) = utup in
                      ^^^^
-<<<<<<< HEAD
 Error: This expression has type "('a : value)"
        but an expression was expected of type "#('b * 'c)"
-       The layout of #('a * 'b) is '_representable_layout_206 & '_representable_layout_207
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-Error: This expression has type ('a : value)
-       but an expression was expected of type #('b * 'c)
-       The layout of #('a * 'b) is '_representable_layout_206 & '_representable_layout_207
-=======
-Error: This expression has type ('a : value)
-       but an expression was expected of type #('b * 'c)
        The layout of #('a * 'b) is '_representable_layout_110 & '_representable_layout_111
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a variable captured in an object.
@@ -739,19 +699,9 @@ val e1 : unit = ()
 Line 2, characters 37-44:
 2 | let[@warning "-26"] e2 = let rec x = #(1, y) and y = 42 in ()
                                          ^^^^^^^
-<<<<<<< HEAD
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_366 & '_representable_layout_367
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_366 & '_representable_layout_367
-=======
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
        The layout of #('a * 'b) is '_representable_layout_190 & '_representable_layout_191
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the recursive variable x.
@@ -765,19 +715,9 @@ let _ = let rec _x = #(3, 10) and _y = 42 in 42
 Line 1, characters 21-29:
 1 | let _ = let rec _x = #(3, 10) and _y = 42 in 42
                          ^^^^^^^^
-<<<<<<< HEAD
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_373 & '_representable_layout_374
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_373 & '_representable_layout_374
-=======
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
        The layout of #('a * 'b) is '_representable_layout_195 & '_representable_layout_196
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the recursive variable _x.
@@ -844,33 +784,9 @@ let _ = [| #(1,2) |]
 [%%expect{|
 Line 1, characters 8-20:
 1 | let _ = [| #(1,2) |]
-<<<<<<< HEAD
-               ^^^^^^
-Error: This expression has type "#('a * 'b)"
-       but an expression was expected of type
-         "('c : '_representable_layout_397 & '_representable_layout_398)"
-       The kind of #('a * 'b) is
-         '_representable_layout_397 & '_representable_layout_398
-         because it is an unboxed tuple.
-       But the kind of #('a * 'b) must be a subkind of
-         '_representable_layout_397 & '_representable_layout_398
-         because it's the type of an array element.
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-               ^^^^^^
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type
-         ('c : '_representable_layout_397 & '_representable_layout_398)
-       The kind of #('a * 'b) is
-         '_representable_layout_397 & '_representable_layout_398
-         because it is an unboxed tuple.
-       But the kind of #('a * 'b) must be a subkind of
-         '_representable_layout_397 & '_representable_layout_398
-         because it's the type of an array element.
-=======
             ^^^^^^^^^^^^
 Error: Product layout value & value detected in structure in [Typeopt.Layout]
        Please report this error to the Jane Street compilers team.
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
 |}]
 
 let _ = Array.init 3 (fun _ -> #(1,2))
@@ -878,19 +794,9 @@ let _ = Array.init 3 (fun _ -> #(1,2))
 Line 1, characters 31-37:
 1 | let _ = Array.init 3 (fun _ -> #(1,2))
                                    ^^^^^^
-<<<<<<< HEAD
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_404 & '_representable_layout_405
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_404 & '_representable_layout_405
-=======
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
        The layout of #('a * 'b) is '_representable_layout_210 & '_representable_layout_211
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value.
 |}]
@@ -955,19 +861,9 @@ class product_instance_variable x =
 Line 2, characters 25-26:
 2 |   let sum = let #(a,b) = x in a + b in
                              ^
-<<<<<<< HEAD
 Error: This expression has type "('a : value)"
        but an expression was expected of type "#('b * 'c)"
-       The layout of #('a * 'b) is '_representable_layout_450 & '_representable_layout_451
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-Error: This expression has type ('a : value)
-       but an expression was expected of type #('b * 'c)
-       The layout of #('a * 'b) is '_representable_layout_450 & '_representable_layout_451
-=======
-Error: This expression has type ('a : value)
-       but an expression was expected of type #('b * 'c)
        The layout of #('a * 'b) is '_representable_layout_246 & '_representable_layout_247
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a term-level argument to a class constructor.
@@ -982,19 +878,9 @@ let x = lazy #(1,2)
 Line 1, characters 13-19:
 1 | let x = lazy #(1,2)
                  ^^^^^^
-<<<<<<< HEAD
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_455 & '_representable_layout_456
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_455 & '_representable_layout_456
-=======
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
        The layout of #('a * 'b) is '_representable_layout_249 & '_representable_layout_250
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a lazy expression.
@@ -1042,19 +928,9 @@ let f_optional_utuple ?(x = #(1,2)) () = x
 Line 1, characters 28-34:
 1 | let f_optional_utuple ?(x = #(1,2)) () = x
                                 ^^^^^^
-<<<<<<< HEAD
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_485 & '_representable_layout_486
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_485 & '_representable_layout_486
-=======
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
        The layout of #('a * 'b) is '_representable_layout_267 & '_representable_layout_268
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because the type argument of option has layout value.
@@ -1083,8 +959,8 @@ type should_fail = string t needs_any_mod_global
 Line 1, characters 19-27:
 1 | type should_fail = string t needs_any_mod_global
                        ^^^^^^^^
-Error: This type string t = #(string u * string u)
-       should be an instance of type ('a : any mod global)
+Error: This type "string t" = "#(string u * string u)"
+       should be an instance of type "('a : any mod global)"
        The kind of string t is immutable_data
          because it is the primitive type string.
        But the kind of string t must be a subkind of any mod global

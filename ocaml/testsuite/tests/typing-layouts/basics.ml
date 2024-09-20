@@ -262,18 +262,8 @@ Line 4, characters 72-73:
                                                                             ^
 Error: This expression has type "('a : value)"
        but an expression was expected of type
-<<<<<<< HEAD
          "Stdlib_upstream_compatible.Float_u.t" = "float#"
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-         Stdlib_upstream_compatible.Float_u.t = float#
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
-=======
-         Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64.
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-55.
 |}]
@@ -306,18 +296,8 @@ Line 4, characters 67-68:
                                                                        ^
 Error: This expression has type "('a : value)"
        but an expression was expected of type
-<<<<<<< HEAD
          "Stdlib_upstream_compatible.Float_u.t" = "float#"
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-         Stdlib_upstream_compatible.Float_u.t = float#
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
-=======
-         Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64.
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-50.
 |}]
@@ -334,18 +314,8 @@ Line 4, characters 74-75:
                                                                               ^
 Error: This expression has type "('a : value)"
        but an expression was expected of type
-<<<<<<< HEAD
          "Stdlib_upstream_compatible.Float_u.t" = "float#"
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-         Stdlib_upstream_compatible.Float_u.t = float#
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
-=======
-         Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64.
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-70.
 |}]
@@ -362,18 +332,8 @@ Line 4, characters 69-70:
                                                                          ^
 Error: This expression has type "('a : value)"
        but an expression was expected of type
-<<<<<<< HEAD
          "Stdlib_upstream_compatible.Float_u.t" = "float#"
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-         Stdlib_upstream_compatible.Float_u.t = float#
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
-=======
-         Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64.
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-65.
 |}]
@@ -764,18 +724,8 @@ Line 5, characters 16-17:
                     ^
 Error: This expression has type "('a : value)"
        but an expression was expected of type
-<<<<<<< HEAD
          "Stdlib_upstream_compatible.Float_u.t" = "float#"
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
-||||||| parent of 76f33d6615 (Simplify constrain_type_jkind.)
-         Stdlib_upstream_compatible.Float_u.t = float#
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
-=======
-         Stdlib_upstream_compatible.Float_u.t = float#
        The layout of Stdlib_upstream_compatible.Float_u.t is float64.
->>>>>>> 76f33d6615 (Simplify constrain_type_jkind.)
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -2439,7 +2389,7 @@ and ('a : immediate) t2 = 'a
 Line 1, characters 10-16:
 1 | type t1 = string t2 as (_ : immediate)
               ^^^^^^
-Error: This type string should be an instance of type ('a : immediate)
+Error: This type "string" should be an instance of type "('a : immediate)"
        The kind of string is immutable_data
          because it is the primitive type string.
        But the kind of string must be a subkind of immediate
