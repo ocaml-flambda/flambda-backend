@@ -404,7 +404,7 @@ let set_private_row env loc p decl =
    constructed.  We've been conservative here in the first version. This is the
    same issue as with arrows. *)
 let check_representable ~why ~allow_unboxed env loc kloc typ =
-  match Ctype.type_sort ~why env typ with
+  match Ctype.type_sort ~why ~fixed:false env typ with
   (* CR layouts v5: This is a convenient place to rule out non-value types in
       structures that don't support them yet. (A callsite passes
       [~allow_unboxed:true] to indicate that non-value types are allowed.)
@@ -2749,7 +2749,7 @@ let error_if_has_deep_native_repr_attributes core_type =
     [external f : ('a : any). 'a -> 'a = "%identity"]
    In such cases, we raise an expection. *)
 let type_sort_external ~is_layout_poly ~why env loc typ =
-  match Ctype.type_sort ~why env typ with
+  match Ctype.type_sort ~why ~fixed:true env typ with
   | Ok s -> Jkind.Sort.default_to_value_and_get s
   | Error err ->
     let kloc =

@@ -261,6 +261,11 @@ module History = struct
   let is_imported t =
     match t.history with Creation Imported -> true | _ -> false
 
+  (* CR layouts: Anything that returns false here could probably just be removed,
+     but let's keep the info around at least during development. *)
+  let is_informative t =
+    match t.history with Creation Imported -> false | _ -> true
+
   let update_reason t reason = { t with history = Creation reason }
 
   let with_warning t = { t with has_warned = true }
@@ -1265,6 +1270,25 @@ let get_externality_upper_bound jk = jk.jkind.externality_upper_bound
 let set_externality_upper_bound jk externality_upper_bound =
   { jk with jkind = { jk.jkind with externality_upper_bound } }
 
+let decompose_product ({ jkind; _ } as jk) =
+  let mk_jkind layout = { jk with jkind = { jkind with layout } } in
+  let deal_with_sort : Sort.t -> _ = function
+    | Var _ -> None (* we've called [get] and there's *still* a variable *)
+    | Base _ -> None
+    | Product sorts -> Some (List.map (fun sort -> mk_jkind (Sort sort)) sorts)
+  in
+  match jkind.layout with
+  | Any -> None
+  | Product layouts ->
+    (* CR layouts v7.1: The histories here are wrong (we are giving each
+       component the history of the whole product).  They don't show up in
+       errors, so it's fine for now, but we'll probably need to fix this as
+       part of improving errors around products. A couple options: re-work the
+       relevant bits of [Ctype.type_jkind_sub] to just work on layouts, or
+       introduce product histories. *)
+    Some (List.map mk_jkind layouts)
+  | Sort s -> deal_with_sort (Sort.get s)
+
 (*********************************)
 (* pretty printing *)
 
@@ -1576,14 +1600,19 @@ module Format_history = struct
     let jkind_desc = Jkind_desc.get t.jkind in
     fprintf ppf "@[<v 2>%t" intro;
     (match t.history with
-    | Creation reason -> (
-      fprintf ppf "@ because %a" (format_creation_reason ~layout_or_kind) reason;
-      match reason, jkind_desc with
-      | Concrete_legacy_creation _, Const _ ->
-        fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format
-          jkind_desc
-      | _ -> ())
-    | _ -> assert false);
+    | Creation reason ->
+      if History.is_informative t
+      then (
+        fprintf ppf "@ because %a"
+          (format_creation_reason ~layout_or_kind)
+          reason;
+        match reason, jkind_desc with
+        | Concrete_legacy_creation _, Const _ ->
+          fprintf ppf ",@ defaulted to %s %a" layout_or_kind Desc.format
+            jkind_desc
+        | _ -> ())
+    | Interact _ ->
+      Misc.fatal_error "Non-flat history in format_flattened_history");
     fprintf ppf ".";
     (match t.history with
     | Creation (Annotated (With_error_message (message, _), _)) ->
@@ -1802,8 +1831,22 @@ let check_sub sub super = Jkind_desc.sub sub.jkind super.jkind
 
 let sub sub super = Misc.Le_result.is_le (check_sub sub super)
 
+type sub_or_intersect =
+  | Sub
+  | Disjoint
+  | Has_intersection
+
+let sub_or_intersect t1 t2 =
+  if sub t1 t2
+  then Sub
+  else if has_intersection t1 t2
+  then Has_intersection
+  else Disjoint
+
 let sub_or_error t1 t2 =
-  if sub t1 t2 then Ok () else Error (Violation.of_ (Not_a_subjkind (t1, t2)))
+  match sub_or_intersect t1 t2 with
+  | Sub -> Ok ()
+  | _ -> Error (Violation.of_ (Not_a_subjkind (t1, t2)))
 
 let sub_with_history sub super =
   match check_sub sub super with
@@ -1821,27 +1864,6 @@ let is_max jkind = sub Builtin.any_dummy_jkind jkind
 
 let has_layout_any jkind =
   match jkind.jkind.layout with Any -> true | _ -> false
-
-let is_nary_product n t =
-  let components =
-    List.init n (fun _ -> Jkind_types.Layout.Sort (Sort.new_var ()))
-  in
-  let bound =
-    { Jkind_desc.max with layout = Jkind_types.Layout.Product components }
-  in
-  if Misc.Le_result.is_le (Jkind_desc.sub t.jkind bound)
-  then
-    (* CR layouts v7.1: The histories here are wrong (we are giving each
-       component the history of the whole product).  They don't show up in
-       errors, so it's fine for now, but we'll probably need to fix this as
-       part of improving errors around products. A couple options: re-work the
-       relevant bits of [Ctype.type_jkind_sub] to just work on layouts, or
-       introduce product histories. *)
-    Some
-      (List.map
-         (fun l -> { t with jkind = { t.jkind with layout = l } })
-         components)
-  else None
 
 (*********************************)
 (* debugging *)
