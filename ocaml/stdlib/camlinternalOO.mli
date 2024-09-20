@@ -43,7 +43,7 @@ val set_methods : table -> label array -> unit @@ portable
 val narrow : table -> string array -> string array -> string array -> unit @@ portable
 val widen : table -> unit @@ portable
 val add_initializer : table -> (obj -> unit) -> unit @@ portable
-val dummy_table : table @@ portable
+val dummy_table : table
 val create_table : string array -> table @@ portable
 val init_class : table -> unit @@ portable
 val inherits :
@@ -144,7 +144,7 @@ type params =
     mutable retry_count : int;
     mutable bucket_small_size : int }
 
-val params : params @@ portable
+val params : params
 
 (** {1 Statistics} *)
 

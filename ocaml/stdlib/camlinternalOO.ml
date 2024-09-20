@@ -94,14 +94,14 @@ let public_method_label s : tag =
 (**** Sparse array ****)
 
 module Vars =
-  Map.Make(struct type t = string let compare (x:t) y = compare x y end)
+  Map.Make_portable(struct type t = string let compare (x:t) y = compare x y end)
 type vars = int Vars.t
 
 module Meths =
-  Map.Make(struct type t = string let compare (x:t) y = compare x y end)
+  Map.Make_portable(struct type t = string let compare (x:t) y = compare x y end)
 type meths = label Meths.t
 module Labs =
-  Map.Make(struct type t = label let compare (x:t) y = compare x y end)
+  Map.Make_portable(struct type t = label let compare (x:t) y = compare x y end)
 type labs = bool Labs.t
 
 (* The compiler assumes that the first field of this structure is [size]. *)
@@ -119,18 +119,18 @@ type table =
 
 let dummy_table =
   { methods = [| dummy_item |];
-    methods_by_name = Meths.empty;
-    methods_by_label = Labs.empty;
+    methods_by_name = Meths.mk_empty ();
+    methods_by_label = Labs.mk_empty ();
     previous_states = [];
     hidden_meths = [];
-    vars = Vars.empty;
+    vars = Vars.mk_empty ();
     initializers = [];
     size = 0 }
 
-let table_count = ref 0
+let table_count = Atomic.make 0
 
 (* dummy_met should be a pointer, so use an atom *)
-let dummy_met : item = of_repr (Obj.new_block 0 0)
+let dummy_met : item = Obj.magic_portable (of_repr (Obj.new_block 0 0))
 (* if debugging is needed, this could be a good idea: *)
 (* let dummy_met () = failwith "Undefined method" *)
 
@@ -139,25 +139,25 @@ let rec fit_size n =
   fit_size ((n+1)/2) * 2
 
 let new_table pub_labels =
-  incr table_count;
+  Atomic.incr table_count;
   let len = Array.length pub_labels in
-  let methods = Array.make (len*2+2) dummy_met in
+  let methods = Array.make (len*2+2) (Obj.magic_uncontended dummy_met) in
   methods.(0) <- Obj.magic len;
   methods.(1) <- Obj.magic (fit_size len * Sys.word_size / 8 - 1);
   for i = 0 to len - 1 do methods.(i*2+3) <- Obj.magic pub_labels.(i) done;
   { methods = methods;
-    methods_by_name = Meths.empty;
-    methods_by_label = Labs.empty;
+    methods_by_name = Meths.mk_empty ();
+    methods_by_label = Labs.mk_empty ();
     previous_states = [];
     hidden_meths = [];
-    vars = Vars.empty;
+    vars = Vars.mk_empty ();
     initializers = [];
     size = initial_object_size }
 
 let resize array new_size =
   let old_size = Array.length array.methods in
   if new_size > old_size then begin
-    let new_buck = Array.make new_size dummy_met in
+    let new_buck = Array.make new_size (Obj.magic_uncontended dummy_met) in
     Array.blit array.methods 0 new_buck 0 old_size;
     array.methods <- new_buck
  end
@@ -168,8 +168,8 @@ let put array label element =
 
 (**** Classes ****)
 
-let method_count = ref 0
-let inst_var_count = ref 0
+let method_count = Atomic.make 0
+let inst_var_count = Atomic.make 0
 
 (* type t *)
 type meth = item
@@ -192,7 +192,7 @@ let get_method_labels table names =
   Array.map (get_method_label table) names
 
 let set_method table label element =
-  incr method_count;
+  Atomic.incr method_count;
   if Labs.find label table.methods_by_label then
     put table label element
   else
@@ -220,9 +220,9 @@ let narrow table vars virt_meths concr_meths =
     Vars.fold
       (fun lab info tvars ->
         if List.mem lab vars then Vars.add lab info tvars else tvars)
-      table.vars Vars.empty;
-  let by_name = ref Meths.empty in
-  let by_label = ref Labs.empty in
+      table.vars (Vars.mk_empty ());
+  let by_name = ref (Meths.mk_empty ()) in
+  let by_label = ref (Labs.mk_empty ()) in
   List.iter2
     (fun met label ->
        by_name := Meths.add met label !by_name;
@@ -327,7 +327,7 @@ let create_table public_methods =
   table
 
 let init_class table =
-  inst_var_count := !inst_var_count + table.size - 1;
+  let _ : int = Atomic.fetch_and_add inst_var_count (table.size - 1) in
   table.initializers <- List.rev table.initializers;
   resize table (3 + Obj.magic table.methods.(1) * 16 / Sys.word_size)
 
@@ -627,5 +627,5 @@ type stats =
   { classes: int; methods: int; inst_vars: int; }
 
 let stats () =
-  { classes = !table_count;
-    methods = !method_count; inst_vars = !inst_var_count; }
+  { classes = Atomic.get_safe table_count;
+    methods = Atomic.get_safe method_count; inst_vars = Atomic.get_safe inst_var_count; }
