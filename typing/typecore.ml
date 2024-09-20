@@ -5933,6 +5933,7 @@ and type_expect_
         type_constraint env sty alloc_mode
       in
       let expected_mode = type_expect_mode ~loc ~env ~modes expected_mode in
+      let ty' = instance ty in
       let error_message_attr_opt =
         Builtin_attributes.error_message_attr sexp.pexp_attributes in
       let explanation = Option.map (fun msg -> Error_message_attr msg)
@@ -5941,7 +5942,7 @@ and type_expect_
       rue {
         exp_desc = arg.exp_desc;
         exp_loc = arg.exp_loc;
-        exp_type = instance ty;
+        exp_type = ty';
         exp_attributes = arg.exp_attributes;
         exp_env = env;
         exp_extra =
