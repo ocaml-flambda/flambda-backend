@@ -21,24 +21,24 @@ module type SeededS = sig
 
   type key
   type !'a t
-  val create : ?random (*thwart tools/sync_stdlib_docs*) : bool -> int -> 'a t @@ portable
-  val clear : 'a t -> unit @@ portable
-  val reset : 'a t -> unit @@ portable
-  val copy : 'a t -> 'a t @@ portable
-  val add : 'a t -> key -> 'a -> unit @@ portable
-  val remove : 'a t -> key -> unit @@ portable
-  val find : 'a t -> key -> 'a @@ portable
-  val find_opt : 'a t -> key -> 'a option @@ portable
-  val find_all : 'a t -> key -> 'a list @@ portable
-  val replace : 'a t -> key -> 'a -> unit @@ portable
-  val mem : 'a t -> key -> bool @@ portable
-  val length : 'a t -> int @@ portable
-  val stats : 'a t -> Hashtbl.statistics @@ portable
-  val add_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
-  val replace_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
-  val of_seq : (key * 'a) Seq.t -> 'a t @@ portable
-  val clean: 'a t -> unit @@ portable
-  val stats_alive: 'a t -> Hashtbl.statistics @@ portable
+  val create : ?random (*thwart tools/sync_stdlib_docs*) : bool -> int -> 'a t
+  val clear : 'a t -> unit
+  val reset : 'a t -> unit
+  val copy : 'a t -> 'a t
+  val add : 'a t -> key -> 'a -> unit
+  val remove : 'a t -> key -> unit
+  val find : 'a t -> key -> 'a
+  val find_opt : 'a t -> key -> 'a option
+  val find_all : 'a t -> key -> 'a list
+  val replace : 'a t -> key -> 'a -> unit
+  val mem : 'a t -> key -> bool
+  val length : 'a t -> int
+  val stats : 'a t -> Hashtbl.statistics
+  val add_seq : 'a t -> (key * 'a) Seq.t -> unit
+  val replace_seq : 'a t -> (key * 'a) Seq.t -> unit
+  val of_seq : (key * 'a) Seq.t -> 'a t
+  val clean: 'a t -> unit
+  val stats_alive: 'a t -> Hashtbl.statistics
     (** same as {!stats} but only count the alive bindings *)
 end
 
@@ -46,24 +46,24 @@ module type S = sig
 
   type key
   type !'a t
-  val create : int -> 'a t @@ portable
-  val clear : 'a t -> unit @@ portable
-  val reset : 'a t -> unit @@ portable
-  val copy : 'a t -> 'a t @@ portable
-  val add : 'a t -> key -> 'a -> unit @@ portable
-  val remove : 'a t -> key -> unit @@ portable
-  val find : 'a t -> key -> 'a @@ portable
-  val find_opt : 'a t -> key -> 'a option @@ portable
-  val find_all : 'a t -> key -> 'a list @@ portable
-  val replace : 'a t -> key -> 'a -> unit @@ portable
-  val mem : 'a t -> key -> bool @@ portable
-  val length : 'a t -> int @@ portable
-  val stats : 'a t -> Hashtbl.statistics @@ portable
-  val add_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
-  val replace_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
-  val of_seq : (key * 'a) Seq.t -> 'a t @@ portable
-  val clean: 'a t -> unit @@ portable
-  val stats_alive: 'a t -> Hashtbl.statistics @@ portable
+  val create : int -> 'a t
+  val clear : 'a t -> unit
+  val reset : 'a t -> unit
+  val copy : 'a t -> 'a t
+  val add : 'a t -> key -> 'a -> unit
+  val remove : 'a t -> key -> unit
+  val find : 'a t -> key -> 'a
+  val find_opt : 'a t -> key -> 'a option
+  val find_all : 'a t -> key -> 'a list
+  val replace : 'a t -> key -> 'a -> unit
+  val mem : 'a t -> key -> bool
+  val length : 'a t -> int
+  val stats : 'a t -> Hashtbl.statistics
+  val add_seq : 'a t -> (key * 'a) Seq.t -> unit
+  val replace_seq : 'a t -> (key * 'a) Seq.t -> unit
+  val of_seq : (key * 'a) Seq.t -> 'a t
+  val clean: 'a t -> unit
+  val stats_alive: 'a t -> Hashtbl.statistics
     (** same as {!stats} but only count the alive bindings *)
 end
 
@@ -73,16 +73,18 @@ module GenHashTable = struct
   | ETrue | EFalse
   | EDead (** the garbage collector reclaimed the data *)
 
-  module MakeSeeded(H: sig
+  module type H = sig
     type t
     type 'a container
-    val create: t -> 'a -> 'a container @@ portable
-    val seeded_hash: int -> t -> int @@ portable
-    val equal: 'a container -> t -> equal @@ portable
-    val get_data: 'a container -> 'a option @@ portable
-    val set_key_data: 'a container -> t -> 'a -> unit @@ portable
-    val check_key: 'a container -> bool @@ portable
-  end) : SeededS with type key = H.t
+    val create: t -> 'a -> 'a container
+    val seeded_hash: int -> t -> int
+    val equal: 'a container -> t -> equal
+    val get_data: 'a container -> 'a option
+    val set_key_data: 'a container -> t -> 'a -> unit
+    val check_key: 'a container -> bool
+  end
+
+  module MakeSeeded(H: H) : SeededS with type key = H.t
   = struct
 
     type 'a t =
@@ -379,6 +381,304 @@ module GenHashTable = struct
       tbl
 
   end
+
+  module MakeSeeded_portable(H: sig include H @@ portable end) : sig include SeededS @@ portable end with type key = H.t
+  = struct
+
+    type 'a t =
+      { mutable size: int;                  (* number of entries *)
+        mutable data: 'a bucketlist array;  (* the buckets *)
+        seed: int;                          (* for randomization *)
+        initial_size: int;                  (* initial array size *)
+      }
+
+    and 'a bucketlist =
+    | Empty
+    | Cons of int (* hash of the key *) * 'a H.container * 'a bucketlist
+
+    (** the hash of the key is kept in order to test the equality of the hash
+      before the key. Same reason as for Weak.Make *)
+
+    type key = H.t
+
+    let rec power_2_above x n =
+      if x >= n then x
+      else if x * 2 > Sys.max_array_length then x
+      else power_2_above (x * 2) n
+
+    let create ?(random = (Hashtbl.is_randomized ())) initial_size =
+      let s = power_2_above 16 initial_size in
+      (* CR tdelvecchio: Any reason not to use the global random here? *)
+      let seed = if random then Random.bits () else 0 in
+      { initial_size = s; size = 0; seed = seed; data = Array.make s Empty }
+
+    let clear h =
+      h.size <- 0;
+      let len = Array.length h.data in
+      for i = 0 to len - 1 do
+        h.data.(i) <- Empty
+      done
+
+    let reset h =
+      let len = Array.length h.data in
+      if len = h.initial_size then
+        clear h
+      else begin
+        h.size <- 0;
+        h.data <- Array.make h.initial_size Empty
+      end
+
+    let copy h = { h with data = Array.copy h.data }
+
+    let key_index h hkey =
+      hkey land (Array.length h.data - 1)
+
+    let clean h =
+      let rec do_bucket = function
+        | Empty ->
+            Empty
+        | Cons(_, c, rest) when not (H.check_key c) ->
+            h.size <- h.size - 1;
+            do_bucket rest
+        | Cons(hkey, c, rest) ->
+            Cons(hkey, c, do_bucket rest)
+      in
+      let d = h.data in
+      for i = 0 to Array.length d - 1 do
+        d.(i) <- do_bucket d.(i)
+      done
+
+    (** resize is the only function to do the actual cleaning of dead keys
+        (remove does it just because it could).
+
+        The goal is to:
+
+        - not resize infinitely when the actual number of alive keys is
+        bounded but keys are continuously added. That would happen if
+        this function always resize.
+        - not call this function after each addition, that would happen if this
+        function don't resize even when only one key is dead.
+
+        So the algorithm:
+        - clean the keys before resizing
+        - if the number of remaining keys is less than half the size of the
+        array, don't resize.
+        - if it is more, resize.
+
+        The second problem remains if the table reaches {!Sys.max_array_length}.
+
+    *)
+    let resize h =
+      let odata = h.data in
+      let osize = Array.length odata in
+      let nsize = osize * 2 in
+      clean h;
+      if nsize < Sys.max_array_length && h.size >= osize lsr 1 then begin
+        let ndata = Array.make nsize Empty in
+        h.data <- ndata;       (* so that key_index sees the new bucket count *)
+        let rec insert_bucket = function
+            Empty -> ()
+          | Cons(hkey, data, rest) ->
+              insert_bucket rest; (* preserve original order of elements *)
+              let nidx = key_index h hkey in
+              ndata.(nidx) <- Cons(hkey, data, ndata.(nidx)) in
+        for i = 0 to osize - 1 do
+          insert_bucket odata.(i)
+        done
+      end
+
+    let add h key info =
+      let hkey = H.seeded_hash h.seed key in
+      let i = key_index h hkey in
+      let container = H.create key info in
+      let bucket = Cons(hkey, container, h.data.(i)) in
+      h.data.(i) <- bucket;
+      h.size <- h.size + 1;
+      if h.size > Array.length h.data lsl 1 then resize h
+
+    let remove h key =
+      let hkey = H.seeded_hash h.seed key in
+      let rec remove_bucket = function
+        | Empty -> Empty
+        | Cons(hk, c, next) when hkey = hk ->
+            begin match H.equal c key with
+            | ETrue -> h.size <- h.size - 1; next
+            | EFalse -> Cons(hk, c, remove_bucket next)
+            | EDead ->
+                (* The dead key is automatically removed. It is acceptable
+                    for this function since it already removes a binding *)
+                h.size <- h.size - 1;
+                remove_bucket next
+            end
+        | Cons(hk,c,next) -> Cons(hk, c, remove_bucket next) in
+      let i = key_index h hkey in
+      h.data.(i) <- remove_bucket h.data.(i)
+
+    (** {!find} don't remove dead keys because it would be surprising for
+        the user that a read-only function mutates the state (eg. concurrent
+        access). Same for {!mem}.
+    *)
+    let rec find_rec key hkey = function
+      | Empty ->
+          raise Not_found
+      | Cons(hk, c, rest) when hkey = hk  ->
+          begin match H.equal c key with
+          | ETrue ->
+              begin match H.get_data c with
+              | None ->
+                  (* This case is not impossible because the gc can run between
+                      H.equal and H.get_data *)
+                  find_rec key hkey rest
+              | Some d -> d
+              end
+          | EFalse -> find_rec key hkey rest
+          | EDead ->
+              find_rec key hkey rest
+          end
+      | Cons(_, _, rest) ->
+          find_rec key hkey rest
+
+    let find h key =
+      let hkey = H.seeded_hash h.seed key in
+      (* TODO inline 3 iterations *)
+      find_rec key hkey (h.data.(key_index h hkey))
+
+    let rec find_rec_opt key hkey = function
+      | Empty ->
+          None
+      | Cons(hk, c, rest) when hkey = hk  ->
+          begin match H.equal c key with
+          | ETrue ->
+              begin match H.get_data c with
+              | None ->
+                  (* This case is not impossible because the gc can run between
+                      H.equal and H.get_data *)
+                  find_rec_opt key hkey rest
+              | Some _ as d -> d
+              end
+          | EFalse -> find_rec_opt key hkey rest
+          | EDead ->
+              find_rec_opt key hkey rest
+          end
+      | Cons(_, _, rest) ->
+          find_rec_opt key hkey rest
+
+    let find_opt h key =
+      let hkey = H.seeded_hash h.seed key in
+      (* TODO inline 3 iterations *)
+      find_rec_opt key hkey (h.data.(key_index h hkey))
+
+    let find_all h key =
+      let hkey = H.seeded_hash h.seed key in
+      let rec find_in_bucket = function
+      | Empty -> []
+      | Cons(hk, c, rest) when hkey = hk  ->
+          begin match H.equal c key with
+          | ETrue -> begin match H.get_data c with
+              | None ->
+                  find_in_bucket rest
+              | Some d -> d::find_in_bucket rest
+            end
+          | EFalse -> find_in_bucket rest
+          | EDead ->
+              find_in_bucket rest
+          end
+      | Cons(_, _, rest) ->
+          find_in_bucket rest in
+      find_in_bucket h.data.(key_index h hkey)
+
+
+    let replace h key info =
+      let hkey = H.seeded_hash h.seed key in
+      let rec replace_bucket = function
+        | Empty -> raise Not_found
+        | Cons(hk, c, next) when hkey = hk ->
+            begin match H.equal c key with
+            | ETrue -> H.set_key_data c key info
+            | EFalse | EDead -> replace_bucket next
+            end
+        | Cons(_,_,next) -> replace_bucket next
+      in
+      let i = key_index h hkey in
+      let l = h.data.(i) in
+      try
+        replace_bucket l
+      with Not_found ->
+        let container = H.create key info in
+        h.data.(i) <- Cons(hkey, container, l);
+        h.size <- h.size + 1;
+        if h.size > Array.length h.data lsl 1 then resize h
+
+    let mem h key =
+      let hkey = H.seeded_hash h.seed key in
+      let rec mem_in_bucket = function
+      | Empty ->
+          false
+      | Cons(hk, c, rest) when hk = hkey ->
+          begin match H.equal c key with
+          | ETrue -> true
+          | EFalse | EDead -> mem_in_bucket rest
+          end
+      | Cons(_hk, _c, rest) -> mem_in_bucket rest in
+      mem_in_bucket h.data.(key_index h hkey)
+
+    let length h = h.size
+
+    let rec bucket_length accu = function
+      | Empty -> accu
+      | Cons(_, _, rest) -> bucket_length (accu + 1) rest
+
+    let stats h =
+      let mbl =
+        Array.fold_left (fun m b -> Int.max m (bucket_length 0 b)) 0 h.data in
+      let histo = Array.make (mbl + 1) 0 in
+      Array.iter
+        (fun b ->
+           let l = bucket_length 0 b in
+           histo.(l) <- histo.(l) + 1)
+        h.data;
+      { Hashtbl.num_bindings = h.size;
+        num_buckets = Array.length h.data;
+        max_bucket_length = mbl;
+        bucket_histogram = histo }
+
+    let rec bucket_length_alive accu = function
+      | Empty -> accu
+      | Cons(_, c, rest) when H.check_key c ->
+          bucket_length_alive (accu + 1) rest
+      | Cons(_, _, rest) -> bucket_length_alive accu rest
+
+    let stats_alive h =
+      let size = ref 0 in
+      let mbl =
+        Array.fold_left
+          (fun m b -> Int.max m (bucket_length_alive 0 b)) 0 h.data
+      in
+      let histo = Array.make (mbl + 1) 0 in
+      Array.iter
+        (fun b ->
+           let l = bucket_length_alive 0 b in
+           size := !size + l;
+           histo.(l) <- histo.(l) + 1)
+        h.data;
+      { Hashtbl.num_bindings = !size;
+        num_buckets = Array.length h.data;
+        max_bucket_length = mbl;
+        bucket_histogram = histo }
+
+    let add_seq tbl i =
+      Seq.iter (fun (k,v) -> add tbl k v) i
+
+    let replace_seq tbl i =
+      Seq.iter (fun (k,v) -> replace tbl k v) i
+
+    let of_seq i =
+      let tbl = create 16 in
+      replace_seq tbl i;
+      tbl
+
+  end
+
 end
 
 module ObjEph = Obj.Ephemeron
@@ -442,9 +742,48 @@ module K1 = struct
       let check_key = check_key
     end)
 
+  module MakeSeeded_portable (H:sig include Hashtbl.SeededHashedType @@ portable end) =
+    GenHashTable.MakeSeeded_portable(struct
+      type 'a container = (H.t,'a) t
+      type t = H.t
+      let create k d =
+        let c = create () in
+        set_data c d;
+        set_key c k;
+        c
+      let seeded_hash = H.seeded_hash
+      let equal c k =
+        (* {!get_key_copy} is not used because the equality of the user can be
+           the physical equality *)
+        match get_key c with
+        | None -> GenHashTable.EDead
+        | Some k' ->
+          if H.equal k k' then GenHashTable.ETrue else GenHashTable.EFalse
+      let get_data = get_data
+      let set_key_data c k d =
+        unset_data c;
+        set_key c k;
+        set_data c d
+      let check_key = check_key
+    end)
+
   module Make(H: Hashtbl.HashedType): (S with type key = H.t) =
   struct
     include MakeSeeded(struct
+        type t = H.t
+        let equal = H.equal
+        let seeded_hash (_seed: int) x = H.hash x
+      end)
+    let create sz = create ~random:false sz
+    let of_seq i =
+      let tbl = create 16 in
+      replace_seq tbl i;
+      tbl
+  end
+
+  module Make_portable(H: sig include Hashtbl.HashedType @@ portable end): (sig include S @@ portable end with type key = H.t) =
+  struct
+    include MakeSeeded_portable(struct
         type t = H.t
         let equal = H.equal
         let seeded_hash (_seed: int) x = H.hash x
@@ -555,10 +894,58 @@ module K2 = struct
       let check_key c = check_key1 c && check_key2 c
     end)
 
+  module MakeSeeded_portable
+      (H1:sig include Hashtbl.SeededHashedType @@ portable end)
+      (H2:sig include Hashtbl.SeededHashedType @@ portable end) =
+    GenHashTable.MakeSeeded_portable(struct
+      type 'a container = (H1.t,H2.t,'a) t
+      type t = H1.t * H2.t
+      let create (k1,k2) d =
+        let c = create () in
+        set_data c d;
+        set_key1 c k1; set_key2 c k2;
+        c
+      let seeded_hash seed (k1,k2) =
+        H1.seeded_hash seed k1 + H2.seeded_hash seed k2 * 65599
+      let equal c (k1,k2) =
+        match get_key1 c, get_key2 c with
+        | None, _ | _ , None -> GenHashTable.EDead
+        | Some k1', Some k2' ->
+          if H1.equal k1 k1' && H2.equal k2 k2'
+          then GenHashTable.ETrue else GenHashTable.EFalse
+      let get_data = get_data
+      let set_key_data c (k1,k2) d =
+        unset_data c;
+        set_key1 c k1; set_key2 c k2;
+        set_data c d
+      let check_key c = check_key1 c && check_key2 c
+    end)
+
   module Make(H1: Hashtbl.HashedType)(H2: Hashtbl.HashedType):
     (S with type key = H1.t * H2.t) =
   struct
     include MakeSeeded
+        (struct
+          type t = H1.t
+          let equal = H1.equal
+          let seeded_hash (_seed: int) x = H1.hash x
+        end)
+        (struct
+          type t = H2.t
+          let equal = H2.equal
+          let seeded_hash (_seed: int) x = H2.hash x
+        end)
+    let create sz = create ~random:false sz
+    let of_seq i =
+      let tbl = create 16 in
+      replace_seq tbl i;
+      tbl
+  end
+
+  module Make_portable(H1: sig include Hashtbl.HashedType @@ portable end)(H2: sig include Hashtbl.HashedType @@ portable end):
+    (sig include S @@ portable end with type key = H1.t * H2.t) =
+  struct
+    include MakeSeeded_portable
         (struct
           type t = H1.t
           let equal = H1.equal
@@ -690,9 +1077,69 @@ module Kn = struct
         check c (length c - 1)
     end)
 
+  module MakeSeeded_portable (H:sig include Hashtbl.SeededHashedType @@ portable end) =
+    GenHashTable.MakeSeeded_portable(struct
+      type 'a container = (H.t,'a) t
+      type t = H.t array
+      let create k d =
+        let c = create (Array.length k) in
+        set_data c d;
+        for i=0 to Array.length k -1 do
+          set_key c i k.(i);
+        done;
+        c
+      let seeded_hash seed k =
+        let h = ref 0 in
+        for i=0 to Array.length k -1 do
+          h := H.seeded_hash seed k.(i) * 65599 + !h;
+        done;
+        !h
+      let equal c k =
+        let len  = Array.length k in
+        let len' = length c in
+        if len != len' then GenHashTable.EFalse
+        else
+          let rec equal_array k c i =
+            if i < 0 then GenHashTable.ETrue
+            else
+              match get_key c i with
+              | None -> GenHashTable.EDead
+              | Some ki ->
+                  if H.equal k.(i) ki
+                  then equal_array k c (i-1)
+                  else GenHashTable.EFalse
+          in
+          equal_array k c (len-1)
+      let get_data = get_data
+      let set_key_data c k d =
+        unset_data c;
+        for i=0 to Array.length k -1 do
+          set_key c i k.(i);
+        done;
+        set_data c d
+      let check_key c =
+        let rec check c i =
+          i < 0 || (check_key c i && check c (i-1)) in
+        check c (length c - 1)
+    end)
+
   module Make(H: Hashtbl.HashedType): (S with type key = H.t array) =
   struct
     include MakeSeeded(struct
+        type t = H.t
+        let equal = H.equal
+        let seeded_hash (_seed: int) x = H.hash x
+      end)
+    let create sz = create ~random:false sz
+    let of_seq i =
+      let tbl = create 16 in
+      replace_seq tbl i;
+      tbl
+  end
+
+  module Make_portable(H: sig include Hashtbl.HashedType @@ portable end): (sig include S @@ portable end with type key = H.t array) =
+  struct
+    include MakeSeeded_portable(struct
         type t = H.t
         let equal = H.equal
         let seeded_hash (_seed: int) x = H.hash x
@@ -742,3 +1189,4 @@ module Kn = struct
   end
 
 end
+

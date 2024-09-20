@@ -87,27 +87,27 @@ module type S = sig
 
   type key
   type !'a t
-  val create : int -> 'a t @@ portable
-  val clear : 'a t -> unit @@ portable
-  val reset : 'a t -> unit @@ portable
-  val copy : 'a t -> 'a t @@ portable
-  val add : 'a t -> key -> 'a -> unit @@ portable
-  val remove : 'a t -> key -> unit @@ portable
-  val find : 'a t -> key -> 'a @@ portable
-  val find_opt : 'a t -> key -> 'a option @@ portable
-  val find_all : 'a t -> key -> 'a list @@ portable
-  val replace : 'a t -> key -> 'a -> unit @@ portable
-  val mem : 'a t -> key -> bool @@ portable
-  val length : 'a t -> int @@ portable
-  val stats : 'a t -> Hashtbl.statistics @@ portable
-  val add_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
-  val replace_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
-  val of_seq : (key * 'a) Seq.t -> 'a t @@ portable
+  val create : int -> 'a t
+  val clear : 'a t -> unit
+  val reset : 'a t -> unit
+  val copy : 'a t -> 'a t
+  val add : 'a t -> key -> 'a -> unit
+  val remove : 'a t -> key -> unit
+  val find : 'a t -> key -> 'a
+  val find_opt : 'a t -> key -> 'a option
+  val find_all : 'a t -> key -> 'a list
+  val replace : 'a t -> key -> 'a -> unit
+  val mem : 'a t -> key -> bool
+  val length : 'a t -> int
+  val stats : 'a t -> Hashtbl.statistics
+  val add_seq : 'a t -> (key * 'a) Seq.t -> unit
+  val replace_seq : 'a t -> (key * 'a) Seq.t -> unit
+  val of_seq : (key * 'a) Seq.t -> 'a t
 
-  val clean: 'a t -> unit @@ portable
+  val clean: 'a t -> unit
   (** remove all dead bindings. Done automatically during automatic resizing. *)
 
-  val stats_alive: 'a t -> Hashtbl.statistics @@ portable
+  val stats_alive: 'a t -> Hashtbl.statistics
   (** same as {!Hashtbl.SeededS.stats} but only count the alive bindings *)
 end
 (** The output signature of the functors {!K1.Make} and {!K2.Make}.
@@ -120,27 +120,27 @@ module type SeededS = sig
 
   type key
   type !'a t
-  val create : ?random (*thwart tools/sync_stdlib_docs*) : bool -> int -> 'a t @@ portable
-  val clear : 'a t -> unit @@ portable
-  val reset : 'a t -> unit @@ portable
-  val copy : 'a t -> 'a t @@ portable
-  val add : 'a t -> key -> 'a -> unit @@ portable
-  val remove : 'a t -> key -> unit @@ portable
-  val find : 'a t -> key -> 'a @@ portable
-  val find_opt : 'a t -> key -> 'a option @@ portable
-  val find_all : 'a t -> key -> 'a list @@ portable
-  val replace : 'a t -> key -> 'a -> unit @@ portable
-  val mem : 'a t -> key -> bool @@ portable
-  val length : 'a t -> int @@ portable
-  val stats : 'a t -> Hashtbl.statistics @@ portable
-  val add_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
-  val replace_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
-  val of_seq : (key * 'a) Seq.t -> 'a t @@ portable
+  val create : ?random (*thwart tools/sync_stdlib_docs*) : bool -> int -> 'a t
+  val clear : 'a t -> unit
+  val reset : 'a t -> unit
+  val copy : 'a t -> 'a t
+  val add : 'a t -> key -> 'a -> unit
+  val remove : 'a t -> key -> unit
+  val find : 'a t -> key -> 'a
+  val find_opt : 'a t -> key -> 'a option
+  val find_all : 'a t -> key -> 'a list
+  val replace : 'a t -> key -> 'a -> unit
+  val mem : 'a t -> key -> bool
+  val length : 'a t -> int
+  val stats : 'a t -> Hashtbl.statistics
+  val add_seq : 'a t -> (key * 'a) Seq.t -> unit
+  val replace_seq : 'a t -> (key * 'a) Seq.t -> unit
+  val of_seq : (key * 'a) Seq.t -> 'a t
 
-  val clean: 'a t -> unit @@ portable
+  val clean: 'a t -> unit
   (** remove all dead bindings. Done automatically during automatic resizing. *)
 
-  val stats_alive: 'a t -> Hashtbl.statistics @@ portable
+  val stats_alive: 'a t -> Hashtbl.statistics
   (** same as {!Hashtbl.SeededS.stats} but only count the alive bindings *)
 end
 (** The output signature of the functors {!K1.MakeSeeded} and {!K2.MakeSeeded}.
@@ -160,9 +160,13 @@ module K1 : sig
   module Make (H:Hashtbl.HashedType) : S with type key = H.t
   (** Functor building an implementation of a weak hash table *)
 
+  module Make_portable (H:sig include Hashtbl.HashedType @@ portable end) : sig include S @@ portable end with type key = H.t
+
   module MakeSeeded (H:Hashtbl.SeededHashedType) : SeededS with type key = H.t
   (** Functor building an implementation of a weak hash table.
       The seed is similar to the one of {!Hashtbl.MakeSeeded}. *)
+
+  module MakeSeeded_portable (H:sig include Hashtbl.SeededHashedType @@ portable end) : sig include SeededS @@ portable end with type key = H.t
 
   module Bucket : sig
 
@@ -210,12 +214,22 @@ module K2 : sig
     S with type key = H1.t * H2.t
   (** Functor building an implementation of a weak hash table *)
 
+  module Make_portable
+      (H1:sig include Hashtbl.HashedType @@ portable end)
+      (H2:sig include Hashtbl.HashedType @@ portable end) :
+    sig include S @@ portable end with type key = H1.t * H2.t
+
   module MakeSeeded
       (H1:Hashtbl.SeededHashedType)
       (H2:Hashtbl.SeededHashedType) :
     SeededS with type key = H1.t * H2.t
   (** Functor building an implementation of a weak hash table.
       The seed is similar to the one of {!Hashtbl.MakeSeeded}. *)
+
+  module MakeSeeded_portable
+      (H1:sig include Hashtbl.SeededHashedType @@ portable end)
+      (H2:sig include Hashtbl.SeededHashedType @@ portable end) :
+    sig include SeededS @@ portable end with type key = H1.t * H2.t
 
   module Bucket : sig
 
@@ -263,11 +277,19 @@ module Kn : sig
     S with type key = H.t array
   (** Functor building an implementation of a weak hash table *)
 
+  module Make_portable
+      (H:sig include Hashtbl.HashedType @@ portable end) :
+    sig include S @@ portable end with type key = H.t array
+
   module MakeSeeded
       (H:Hashtbl.SeededHashedType) :
     SeededS with type key = H.t array
   (** Functor building an implementation of a weak hash table.
       The seed is similar to the one of {!Hashtbl.MakeSeeded}. *)
+
+  module MakeSeeded_portable
+      (H:sig include Hashtbl.SeededHashedType @@ portable end) :
+    sig include SeededS @@ portable end with type key = H.t array
 
   module Bucket : sig
 
