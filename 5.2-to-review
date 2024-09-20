@@ -1,18 +1,7 @@
 merge-5.2-staging:
-59462243f5c9c4520c970f7be2d3b0f99ace2067 Use old behaviour for Includemod reporting => lmaurer to review after testing, which is in progress
+994e20d2a3ea47099d9afb276b72ac8d4ecb184c fix for Unix + Mutex => mshinwell will find a reviewer
 8cb65cbfb2d543e883dd7557a082b60974e4cd6d Fix chamelon => chamelon may need more work (see flambda-dev)
-b44913db6e6755c593238a3fc4fa7146fa8e9cde Merge with main, and revert minus-23 magic changes => merge should be redone and diffed against this rev
--- The following is in effect a single merge (see below):
-bac195af1fb487ccea799943f5666403bd78bfae dynlink dune again
-8691c427ef0aee9181a2ebe655ea2ce631b22f5c Add jkind_axis to modules_without_implementation
-764f730e5da69c373a7c03977e01b56893e9062f Dubious merge fixes
-3970ad5e7ca99cfb1e60dd8c5e256669fe1ff726 Merge fixes
-4b06f1928848af7c31aabe74f26a3f5a9b8818a5 Fixes to Select_utils required by previous merge => mshinwell confirms this changeset is ok
-b180783b26b342885ee267ccfb3fa14778263c2d Merge remote-tracking branch 'flambda-backend/main' into merge-5.2
-  => merge should be redone without resolving conflicts and then diffed directly against
-     bac195af1fb487ccea799943f5666403bd78bfae as not all fixes were committed with the merge itself (but some were)
+b44913db6e6755c593238a3fc4fa7146fa8e9cde Merge with main, and revert minus-23 magic changes => merge should be redone and diffed against this rev [mshinwell checking]
 
 merge-5.2:
 13118bd5399c0943ef00c0e1d878659e8bcf5bd3 Promote tests
-87d44113da8367a0285b01f21b1a170d5f37e0a0 Fixes to odoc => lmaurer to review
-
