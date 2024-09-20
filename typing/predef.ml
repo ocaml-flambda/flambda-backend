@@ -289,8 +289,10 @@ let mk_add_extension add_extension id args jkinds =
       | Const const ->
           begin
             match Jkind.Const.get_layout const with
-            | Sort Value -> ()
-            | Any | Sort (Void | Float32 | Float64 | Word | Bits32 | Bits64) ->
+            | Base Value -> ()
+            | Any
+            | Base (Void | Float32 | Float64 | Word | Bits32 | Bits64)
+            | Product _ ->
                 raise_error ()
           end
       | _ -> raise_error ())

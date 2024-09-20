@@ -40,6 +40,7 @@ let rec is_arrow_type t =
     Types.Tarrow _ -> true
   | Types.Tlink t2 -> is_arrow_type t2
   | Types.Ttuple _
+  | Types.Tunboxed_tuple _
   | Types.Tconstr _
   | Types.Tvar _ | Types.Tunivar _ | Types.Tobject _ | Types.Tpoly _
   | Types.Tfield _ | Types.Tnil | Types.Tvariant _ | Types.Tpackage _ -> false
@@ -48,7 +49,7 @@ let rec is_arrow_type t =
 
 let rec need_parent t =
   match Types.get_desc t with
-    Types.Tarrow _ | Types.Ttuple _ -> true
+    Types.Tarrow _ | Types.Ttuple _ | Tunboxed_tuple _ -> true
   | Types.Tlink t2 -> need_parent t2
   | Types.Tconstr _
   | Types.Tvar _ | Types.Tunivar _ | Types.Tobject _ | Types.Tpoly _

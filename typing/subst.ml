@@ -101,8 +101,7 @@ let with_additional_action =
     match config with
     | Duplicate_variables -> Duplicate_variables
     | Prepare_for_saving ->
-        let prepare_jkind loc jkind =
-          match Jkind.get jkind with
+        let rec prepare_desc loc : Jkind.Desc.t -> Jkind.t = function
           | Const const ->
             let builtin =
               List.find_opt (fun (builtin, _) -> Jkind.Const.equal const builtin) builtins
@@ -112,6 +111,12 @@ let with_additional_action =
             | None -> Jkind.of_const const ~why:Jkind.History.Imported
             end
           | Var _ -> raise(Error (loc, Unconstrained_jkind_variable))
+          | Product descs ->
+            Jkind.Builtin.product ~why:Unboxed_tuple
+              (List.map (prepare_desc loc) descs)
+        in
+        let prepare_jkind loc lay : Jkind.t =
+          prepare_desc loc (Jkind.get lay)
         in
         Prepare_for_saving prepare_jkind
   in

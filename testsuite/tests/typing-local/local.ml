@@ -398,6 +398,71 @@ Error: This value escapes its region.
 |}]
 
 (*
+<<<<<<< HEAD
+ * Modification of return modes in argument position
+ *)
+
+let use (local_ f : _ -> _ -> _) x y =
+  f x y
+let result = use (+) 1 2
+[%%expect{|
+val use : local_ ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val result : int = 3
+|}]
+
+let baduse (f : _ -> _ -> _) x y = lazy (f x y)
+let result = baduse (fun a b -> exclave_ (a,b)) 1 2
+[%%expect{|
+val baduse : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c lazy_t = <fun>
+Line 2, characters 32-46:
+2 | let result = baduse (fun a b -> exclave_ (a,b)) 1 2
+                                    ^^^^^^^^^^^^^^
+Error: This expression is local because it is an exclave,
+       but was expected otherwise.
+|}]
+
+(*
+ * Modification of parameter modes in argument position
+ *)
+
+let use_local (local_ f : _ -> _ -> _) x y =
+  f x y
+let use_global (f : _ -> _ -> _) x y = f x y
+
+let foo x y = x +. y
+let bar (local_ x) (local_ y) = let _ = x +. y in ()
+
+let result = use_local foo 1. 2.
+[%%expect{|
+val use_local : local_ ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val use_global : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
+val foo : float -> float -> float = <fun>
+val bar : local_ float -> local_ float -> unit = <fun>
+val result : float = 3.
+|}]
+
+let result = use_local bar 1. 2.
+[%%expect{|
+val result : unit = ()
+|}]
+
+let result = use_global foo 1. 2.
+[%%expect{|
+val result : float = 3.
+|}]
+
+let result = use_global bar 1. 2.
+[%%expect{|
+Line 1, characters 24-27:
+1 | let result = use_global bar 1. 2.
+                            ^^^
+Error: This expression has type "local_ float -> local_ float -> unit"
+       but an expression was expected of type "local_ 'a -> ('b -> 'c)"
+|}]
+
+
+(*
+||||||| caebc8adff
  * Modification of return modes in argument position
  *)
 

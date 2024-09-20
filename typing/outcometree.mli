@@ -55,9 +55,9 @@ type out_value =
   | Oval_string of string * int * out_string (* string, size-to-print, kind *)
   | Oval_stuff of string
   | Oval_tuple of (string option * out_value) list
+  | Oval_unboxed_tuple of (string option * out_value) list
   | Oval_variant of string * out_value option
   | Oval_lazy of out_value
-
 type out_modality_legacy = Ogf_global
 
 type out_modality_new = string
@@ -108,10 +108,12 @@ type out_jkind_const =
   | Ojkind_const_mod of out_jkind_const * string list
   | Ojkind_const_with of out_jkind_const * out_type
   | Ojkind_const_kind_of of out_type
+  | Ojkind_const_product of out_jkind_const list
 
 and out_jkind =
   | Ojkind_const of out_jkind_const
   | Ojkind_var of string
+  | Ojkind_product of out_jkind list
 
 (* should be empty if all the jkind annotations are missing *)
 and out_vars_jkinds = (string * out_jkind option) list
@@ -138,6 +140,7 @@ and out_type =
   | Otyp_stuff of string
   | Otyp_sum of out_constructor list
   | Otyp_tuple of (string option * out_type) list
+  | Otyp_unboxed_tuple of (string option * out_type) list
   | Otyp_var of bool * string
   | Otyp_variant of out_variant * bool * (string list) option
   | Otyp_poly of out_vars_jkinds * out_type

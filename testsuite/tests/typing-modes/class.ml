@@ -31,7 +31,7 @@ Line 5, characters 16-17:
 Error: The value "s" is local, so cannot be used inside a class.
 |}]
 
-(* class can refer to external unique things, but only as shared. *)
+(* class can refer to external unique things, but only as aliased. *)
 let foo () =
     let unique_ s = "hello" in
     let module M = struct
@@ -43,7 +43,7 @@ let foo () =
 Line 5, characters 27-28:
 5 |         val k = unique_use s
                                ^
-Error: This value is "shared" but expected to be "unique".
+Error: This value is "aliased" but expected to be "unique".
   Hint: This identifier cannot be used uniquely,
   because it is defined in a class.
 |}]

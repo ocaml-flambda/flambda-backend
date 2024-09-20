@@ -45,7 +45,7 @@ module Sort : sig
   (* We need to expose these details for use in [Jkind] *)
 
   (* Comments in [Jkind_intf.ml] *)
-  type const =
+  type base =
     | Void
     | Value
     | Float64
@@ -54,14 +54,19 @@ module Sort : sig
     | Bits32
     | Bits64
 
+  val to_string_base : base -> string
+
+  val equal_base : base -> base -> bool
+
   type t =
     | Var of var
-    | Const of const
+    | Base of base
+    | Product of t list
 
-  and var = t option ref
+  and var
 
   include
-    Jkind_intf.Sort with type t := t and type var := var and type const := const
+    Jkind_intf.Sort with type t := t and type var := var and type base := base
 
   val set_change_log : (change -> unit) -> unit
 
@@ -69,6 +74,7 @@ module Sort : sig
     | Unequal
     | Equal_mutated_first
     | Equal_mutated_second
+    | Equal_mutated_both
     | Equal_no_mutation
 
   val equate_tracking_mutation : t -> t -> equate_result
@@ -79,12 +85,19 @@ module Sort : sig
 end
 
 module Layout : sig
-  type 'sort layout =
-    | Sort of 'sort
+  (** Note that products have two possible encodings: as [Product ...] or as
+      [Sort (Product ...]. This duplication is hard to eliminate because of the
+      possibility that a sort variable may be instantiated by a product sort. *)
+  type t =
+    | Sort of Sort.t
+    | Product of t list
     | Any
 
   module Const : sig
-    type t = Sort.const layout
+    type t =
+      | Any
+      | Base of Sort.base
+      | Product of t list
 
     module Legacy : sig
       type t =
@@ -101,45 +114,9 @@ module Layout : sig
         | Word
         | Bits32
         | Bits64
+        | Product of t list
     end
   end
-
-  type t = Sort.t layout
-end
-
-module type Axis = sig
-  type t
-
-  val max : t
-
-  val min : t
-
-  val equal : t -> t -> bool
-
-  val less_or_equal : t -> t -> Misc.Le_result.t
-
-  val le : t -> t -> bool
-
-  val meet : t -> t -> t
-
-  val print : Format.formatter -> t -> unit
-end
-
-module Externality : sig
-  type t =
-    | External
-    | External64
-    | Internal
-
-  include Axis with type t := t
-end
-
-module Nullability : sig
-  type t =
-    | Non_null
-    | Maybe_null
-
-  include Axis with type t := t
 end
 
 module Modes = Mode.Alloc.Const
@@ -148,8 +125,8 @@ module Jkind_desc : sig
   type 'type_expr t =
     { layout : Layout.t;
       modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t;
-      nullability_upper_bound : Nullability.t
+      externality_upper_bound : Jkind_axis.Externality.t;
+      nullability_upper_bound : Jkind_axis.Nullability.t
     }
 end
 
@@ -174,8 +151,8 @@ module Const : sig
   type 'type_expr t =
     { layout : Layout.Const.t;
       modes_upper_bounds : Modes.t;
-      externality_upper_bound : Externality.t;
-      nullability_upper_bound : Nullability.t
+      externality_upper_bound : Jkind_axis.Externality.t;
+      nullability_upper_bound : Jkind_axis.Nullability.t
     }
 end
 

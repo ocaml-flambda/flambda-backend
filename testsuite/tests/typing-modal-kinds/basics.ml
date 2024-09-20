@@ -487,7 +487,7 @@ let hidden_string_unshare =
 Line 2, characters 75-76:
 2 |   let x : Hidden_string.t = Hidden_string.hide "hello" in ignore x; unique x
                                                                                ^
-Error: This value is "shared" but expected to be "unique".
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let hidden_int_unshare =
@@ -514,7 +514,7 @@ let hidden_string_list_unshare =
 Line 4, characters 22-23:
 4 |   in ignore x; unique x
                           ^
-Error: This value is "shared" but expected to be "unique".
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let hidden_int_list_unshare =
@@ -615,7 +615,7 @@ let hidden_int64_u_unshare () =
 Line 3, characters 35-36:
 3 |   Int64_u.ignore x; Int64_u.unique x
                                        ^
-Error: This value is "shared" but expected to be "unique".
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let float_u_record_unshare =
