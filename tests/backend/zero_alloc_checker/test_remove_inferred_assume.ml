@@ -77,7 +77,6 @@ let[@inline] [@zero_alloc] bounds_check ~offset
   then
     raise (Failure "Boo")
 
-
 let[@inline] [@zero_alloc] read_exn offset chunk_length  = exclave_
   bounds_check ~offset;
   Offset.to_int offset
