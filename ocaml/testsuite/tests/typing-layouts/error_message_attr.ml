@@ -74,8 +74,7 @@ Line 3, characters 19-20:
                        ^
 Error: This expression has type "('a : value)"
        but an expression was expected of type "Float_u.t" = "float#"
-       The layout of Float_u.t is float64
-         because it is the primitive type float#.
+       The layout of Float_u.t is float64.
        But the layout of Float_u.t must be a sublayout of value
          because of the annotation on the wildcard _ at line 2, characters 15-26.
          Custom message

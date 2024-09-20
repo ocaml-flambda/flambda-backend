@@ -3671,7 +3671,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
         | Tarrow ((l, mode_arg, mode_ret), ty_arg, ty_res, _)
           when labels_match ~param:l ~arg:lbl ->
             let sort_arg =
-              match type_sort ~why:Function_argument env ty_arg with
+              match type_sort ~why:Function_argument ~fixed:false env ty_arg with
               | Ok sort -> sort
               | Error err -> raise(Error(funct.exp_loc, env,
                                          Function_type_not_rep (ty_arg,err)))
@@ -3746,7 +3746,8 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
             Location.prerr_warning loc w
           end
         in
-        let sort_arg = match type_sort ~why:Function_argument env ty_arg with
+        let sort_arg =
+          match type_sort ~why:Function_argument ~fixed:false env ty_arg with
           | Ok sort -> sort
           | Error err -> raise(Error(sarg1.pexp_loc, env,
                                      Function_type_not_rep(ty_arg, err)))
@@ -4942,7 +4943,7 @@ let split_function_ty
   let arg_value_mode = alloc_to_value_l2r arg_mode in
   let expected_pat_mode = simple_pat_mode arg_value_mode in
   let type_sort ~why ty =
-    match Ctype.type_sort ~why env ty with
+    match Ctype.type_sort ~why ~fixed:false env ty with
     | Ok sort -> sort
     | Error err -> raise (Error (loc_fun, env, Function_type_not_rep (ty, err)))
   in
@@ -7511,7 +7512,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
          cases, look toward the end of
          typing-layouts-missing-cmi/function_arg.ml *)
       let type_sort ~why ty =
-        match type_sort ~why env ty with
+        match type_sort ~why ~fixed:false env ty with
         | Ok sort -> sort
         | Error err ->
           raise(Error(sarg.pexp_loc, env, Function_type_not_rep (ty, err)))
@@ -7673,7 +7674,7 @@ and type_application env app_loc expected_mode position_and_mode
         ) ~post:(fun {ty_ret; _} -> generalize_structure ty_ret)
       in
       let type_sort ~why ty =
-        match Ctype.type_sort ~why env ty with
+        match Ctype.type_sort ~why ~fixed:false env ty with
         | Ok sort -> sort
         | Error err -> raise (Error (app_loc, env, Function_type_not_rep (ty, err)))
       in

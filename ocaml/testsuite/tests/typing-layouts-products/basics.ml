@@ -231,7 +231,7 @@ Line 1, characters 25-31:
                              ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_158 & '_representable_layout_159
+       The layout of #('a * 'b) is '_representable_layout_86 & '_representable_layout_87
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
@@ -256,7 +256,7 @@ Line 1, characters 24-31:
                             ^^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_165 & '_representable_layout_166
+       The layout of #('a * 'b) is '_representable_layout_89 & '_representable_layout_90
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a tuple element.
@@ -348,7 +348,7 @@ Line 3, characters 15-21:
                    ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_194 & '_representable_layout_195
+       The layout of #('a * 'b) is '_representable_layout_102 & '_representable_layout_103
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of an object field.
@@ -365,7 +365,7 @@ Line 3, characters 17-21:
                      ^^^^
 Error: This expression has type "('a : value)"
        but an expression was expected of type "#('b * 'c)"
-       The layout of #('a * 'b) is '_representable_layout_206 & '_representable_layout_207
+       The layout of #('a * 'b) is '_representable_layout_110 & '_representable_layout_111
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a variable captured in an object.
@@ -701,7 +701,7 @@ Line 2, characters 37-44:
                                          ^^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_366 & '_representable_layout_367
+       The layout of #('a * 'b) is '_representable_layout_190 & '_representable_layout_191
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the recursive variable x.
@@ -717,7 +717,7 @@ Line 1, characters 21-29:
                          ^^^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_373 & '_representable_layout_374
+       The layout of #('a * 'b) is '_representable_layout_195 & '_representable_layout_196
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the recursive variable _x.
@@ -778,27 +778,15 @@ type t3 = #(int * bool) array
 type t4 = #(string * #(float# * bool option)) array
 |}]
 
-(* CR layouts v7.1: This example demonstrates a bug in type inference that we
-   should fix.  The issue is the way typing of tuple expressions works - we
-   create type variables at generic level and then constrain them by the
-   expected type.  This will fail if it requires to refine the kind, because we
-   don't allow refining kinds at generic level.  We need to remove the
-   restriction that kinds of things at generic level can't be modified, but that
-   is orthogonal to unboxed tuples so we leave in this sad bug for now. *)
+(* CR layouts v7.1: This should be accepted, or the error message should
+   be improved. *)
 let _ = [| #(1,2) |]
 [%%expect{|
-Line 1, characters 11-17:
+Line 1, characters 8-20:
 1 | let _ = [| #(1,2) |]
-               ^^^^^^
-Error: This expression has type "#('a * 'b)"
-       but an expression was expected of type
-         "('c : '_representable_layout_397 & '_representable_layout_398)"
-       The kind of #('a * 'b) is
-         '_representable_layout_397 & '_representable_layout_398
-         because it is an unboxed tuple.
-       But the kind of #('a * 'b) must be a subkind of
-         '_representable_layout_397 & '_representable_layout_398
-         because it's the type of an array element.
+            ^^^^^^^^^^^^
+Error: Product layout value & value detected in structure in [Typeopt.Layout]
+       Please report this error to the Jane Street compilers team.
 |}]
 
 let _ = Array.init 3 (fun _ -> #(1,2))
@@ -808,10 +796,9 @@ Line 1, characters 31-37:
                                    ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_404 & '_representable_layout_405
+       The layout of #('a * 'b) is '_representable_layout_210 & '_representable_layout_211
          because it is an unboxed tuple.
-       But the layout of #('a * 'b) must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of #('a * 'b) must be a sublayout of value.
 |}]
 
 external make : ('a : value & value) . int -> 'a -> 'a array = "caml_make_vect"
@@ -876,7 +863,7 @@ Line 2, characters 25-26:
                              ^
 Error: This expression has type "('a : value)"
        but an expression was expected of type "#('b * 'c)"
-       The layout of #('a * 'b) is '_representable_layout_450 & '_representable_layout_451
+       The layout of #('a * 'b) is '_representable_layout_246 & '_representable_layout_247
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a term-level argument to a class constructor.
@@ -893,7 +880,7 @@ Line 1, characters 13-19:
                  ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_455 & '_representable_layout_456
+       The layout of #('a * 'b) is '_representable_layout_249 & '_representable_layout_250
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a lazy expression.
@@ -943,8 +930,39 @@ Line 1, characters 28-34:
                                 ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_485 & '_representable_layout_486
+       The layout of #('a * 'b) is '_representable_layout_267 & '_representable_layout_268
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because the type argument of option has layout value.
+|}]
+
+(******************************)
+(* Test 16: Decomposing [any] *)
+
+type ('a : value) u = U of 'a [@@unboxed]
+type ('a : value) t = #('a u * 'a u)
+
+type ('a : any mod global) needs_any_mod_global
+
+type should_work = int t needs_any_mod_global
+
+[%%expect{|
+type 'a u = U of 'a [@@unboxed]
+type 'a t = #('a u * 'a u)
+type ('a : any mod global) needs_any_mod_global
+type should_work = int t needs_any_mod_global
+|}]
+
+type should_fail = string t needs_any_mod_global
+
+[%%expect{|
+Line 1, characters 19-27:
+1 | type should_fail = string t needs_any_mod_global
+                       ^^^^^^^^
+Error: This type "string t" = "#(string u * string u)"
+       should be an instance of type "('a : any mod global)"
+       The kind of string t is immutable_data
+         because it is the primitive type string.
+       But the kind of string t must be a subkind of any mod global
+         because of the definition of needs_any_mod_global at line 4, characters 0-47.
 |}]

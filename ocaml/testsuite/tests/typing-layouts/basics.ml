@@ -263,8 +263,7 @@ Line 4, characters 72-73:
 Error: This expression has type "('a : value)"
        but an expression was expected of type
          "Stdlib_upstream_compatible.Float_u.t" = "float#"
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
+       The layout of Stdlib_upstream_compatible.Float_u.t is float64.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-55.
 |}]
@@ -298,8 +297,7 @@ Line 4, characters 67-68:
 Error: This expression has type "('a : value)"
        but an expression was expected of type
          "Stdlib_upstream_compatible.Float_u.t" = "float#"
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
+       The layout of Stdlib_upstream_compatible.Float_u.t is float64.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-50.
 |}]
@@ -317,8 +315,7 @@ Line 4, characters 74-75:
 Error: This expression has type "('a : value)"
        but an expression was expected of type
          "Stdlib_upstream_compatible.Float_u.t" = "float#"
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
+       The layout of Stdlib_upstream_compatible.Float_u.t is float64.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-70.
 |}]
@@ -336,8 +333,7 @@ Line 4, characters 69-70:
 Error: This expression has type "('a : value)"
        but an expression was expected of type
          "Stdlib_upstream_compatible.Float_u.t" = "float#"
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
+       The layout of Stdlib_upstream_compatible.Float_u.t is float64.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because of the definition of s at line 2, characters 2-65.
 |}]
@@ -729,8 +725,7 @@ Line 5, characters 16-17:
 Error: This expression has type "('a : value)"
        but an expression was expected of type
          "Stdlib_upstream_compatible.Float_u.t" = "float#"
-       The layout of Stdlib_upstream_compatible.Float_u.t is float64
-         because it is the primitive type float#.
+       The layout of Stdlib_upstream_compatible.Float_u.t is float64.
        But the layout of Stdlib_upstream_compatible.Float_u.t must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -1009,8 +1004,8 @@ Line 4, characters 19-33:
 Error: This expression has type "('a : value)"
        but an expression was expected of type "'b t" = "('b : float64)"
        The layout of 'a t is float64
-         because of the definition of f_id at line 3, characters 11-25.
-       But the layout of 'a t must overlap with value
+         because of the definition of t at line 2, characters 2-28.
+       But the layout of 'a t must be a sublayout of value
          because it's the type of an object field.
 |}];;
 
@@ -2373,12 +2368,32 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error:
-       The kind of 'a t2 is value
-         because it instantiates an unannotated type parameter of t2,
-         defaulted to kind value.
-       But the kind of 'a t2 must be a subkind of immediate
-         because of the annotation on the wildcard _ at line 1, characters 28-37.
+Error: Layout mismatch in checking consistency of mutually recursive groups.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The kind of 'a t2 is value
+           because it instantiates an unannotated type parameter of t2,
+           defaulted to kind value.
+         But the kind of 'a t2 must be a subkind of immediate
+           because of the annotation on the wildcard _ at line 1, characters 28-37.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
+|}]
+
+type t1 = string t2 as (_ : immediate)
+and ('a : immediate) t2 = 'a
+
+[%%expect{|
+Line 1, characters 10-16:
+1 | type t1 = string t2 as (_ : immediate)
+              ^^^^^^
+Error: This type "string" should be an instance of type "('a : immediate)"
+       The kind of string is immutable_data
+         because it is the primitive type string.
+       But the kind of string must be a subkind of immediate
+         because of the annotation on 'a in the declaration of the type t2.
 |}]
 
 (* This example is unfortunately rejected as a consequence of the fix for the
@@ -2392,12 +2407,26 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error:
-       The kind of 'a t2 is value
-         because it instantiates an unannotated type parameter of t2,
-         defaulted to kind value.
-       But the kind of 'a t2 must be a subkind of immediate
-         because of the annotation on the wildcard _ at line 1, characters 27-36.
+Error: Layout mismatch in checking consistency of mutually recursive groups.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The kind of 'a t2 is value
+           because it instantiates an unannotated type parameter of t2,
+           defaulted to kind value.
+         But the kind of 'a t2 must be a subkind of immediate
+           because of the annotation on the wildcard _ at line 1, characters 27-36.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
+|}]
+
+type 'a t1 = 'a t2 as (_ : immediate)
+and ('a : immediate) t2 = 'a
+
+[%%expect{|
+type ('a : immediate) t1 = 'a t2
+and ('a : immediate) t2 = 'a
 |}]
 
 (* This one also unfortunately rejected for the same reason. *)
@@ -2408,12 +2437,26 @@ and 'a t2 = 'a
 Line 2, characters 0-14:
 2 | and 'a t2 = 'a
     ^^^^^^^^^^^^^^
-Error:
-       The kind of 'a t2 is value
-         because it instantiates an unannotated type parameter of t2,
-         defaulted to kind value.
-       But the kind of 'a t2 must be a subkind of immediate
-         because of the annotation on the wildcard _ at line 1, characters 25-34.
+Error: Layout mismatch in checking consistency of mutually recursive groups.
+       This is most often caused by the fact that type inference is not
+       clever enough to propagate layouts through variables in different
+       declarations. It is also not clever enough to produce a good error
+       message, so we'll say this instead:
+         The kind of 'a t2 is value
+           because it instantiates an unannotated type parameter of t2,
+           defaulted to kind value.
+         But the kind of 'a t2 must be a subkind of immediate
+           because of the annotation on the wildcard _ at line 1, characters 25-34.
+       A good next step is to add a layout annotation on a parameter to
+       the declaration where this error is reported.
+|}]
+
+type t1 = int t2 as (_ : immediate)
+and ('a : immediate) t2 = 'a
+
+[%%expect{|
+type t1 = int t2
+and ('a : immediate) t2 = 'a
 |}]
 
 (**********************************************************************)
