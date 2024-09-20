@@ -58,8 +58,7 @@ let unbox_number ~dbg kind arg =
     C.unbox_int dbg primitive_kind arg
 
 let box_number ~dbg kind alloc_mode arg =
-  let alloc_mode = C.alloc_mode_lambda_to_cmm
-                     (Alloc_mode.For_allocations.to_lambda alloc_mode) in
+  let alloc_mode = C.alloc_mode_to_cmm alloc_mode in
   match (kind : K.Boxable_number.t) with
   | Naked_float32 -> C.box_float32 dbg alloc_mode arg
   | Naked_float -> C.box_float dbg alloc_mode arg
@@ -110,8 +109,7 @@ let mixed_block_kinds shape =
 
 let make_block ~dbg kind alloc_mode args =
   check_alloc_fields args;
-  let mode = C.alloc_mode_lambda_to_cmm
-               (Alloc_mode.For_allocations.to_lambda alloc_mode) in
+  let mode = C.alloc_mode_to_cmm alloc_mode in
   match (kind : P.Block_kind.t) with
   | Values (tag, _) ->
     let tag = Tag.Scannable.to_int tag in
@@ -176,8 +174,7 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
 
 let make_array ~dbg kind alloc_mode args =
   check_alloc_fields args;
-  let mode = C.alloc_mode_lambda_to_cmm
-               (Alloc_mode.For_allocations.to_lambda alloc_mode) in
+  let mode = C.alloc_mode_to_cmm alloc_mode in
   match (kind : P.Array_kind.t) with
   | Immediates | Values -> C.make_alloc ~mode dbg ~tag:0 args
   | Naked_floats ->

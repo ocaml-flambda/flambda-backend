@@ -703,8 +703,7 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
     assert (List.compare_length_with l 0 > 0);
     let tag = Tag.(to_int closure_tag) in
     C.make_closure_alloc
-      ~mode:(C.alloc_mode_lambda_to_cmm
-               (Alloc_mode.For_allocations.to_lambda closure_alloc_mode))
+      ~mode:(C.alloc_mode_to_cmm closure_alloc_mode)
       dbg ~tag l memory_chunks
   in
   let soc_var = Variable.create "*set_of_closures*" in
