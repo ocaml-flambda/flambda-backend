@@ -1,7 +1,6 @@
 merge-5.2-staging:
 994e20d2a3ea47099d9afb276b72ac8d4ecb184c fix for Unix + Mutex => mshinwell will find a reviewer
 8cb65cbfb2d543e883dd7557a082b60974e4cd6d Fix chamelon => chamelon may need more work (see flambda-dev)
-b44913db6e6755c593238a3fc4fa7146fa8e9cde Merge with main, and revert minus-23 magic changes => merge should be redone and diffed against this rev [mshinwell checking]
 
 merge-5.2:
 13118bd5399c0943ef00c0e1d878659e8bcf5bd3 Promote tests
