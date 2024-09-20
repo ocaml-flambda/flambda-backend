@@ -1039,7 +1039,7 @@ let buffered_out_string key (str : string) (ofs : int) (len : int) : unit =
   Domain.DLS.with_password (fun pw ->
     Buffer.add_substring (Domain.DLS.get' pw key) str ofs len)
 
-let buffered_out_flush oc key () : unit =
+let buffered_out_flush (oc : out_channel) key () : unit =
   Domain.DLS.with_password (fun pw ->
     let buf = Domain.DLS.get' pw key in
     let len = Buffer.length buf in
@@ -1474,11 +1474,12 @@ let asprintf fmt = kasprintf id fmt
 
 (* Flushing standard formatters at end of execution. *)
 
-let flush_standard_formatters () =
-  pp_print_flush (DLS.get std_formatter_key) ();
-  pp_print_flush (DLS.get err_formatter_key) ()
+let flush_standard_formatters () : unit =
+  DLS.with_password (fun pw ->
+    pp_print_flush (DLS.get' pw std_formatter_key) ();
+    pp_print_flush (DLS.get' pw err_formatter_key) ())
 
-let () = at_exit flush_standard_formatters
+let () = at_exit_safe flush_standard_formatters
 
 let () = Domain.before_first_spawn (fun () ->
   flush_standard_formatters ();

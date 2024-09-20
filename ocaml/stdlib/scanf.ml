@@ -45,7 +45,7 @@ module type SCANNING = sig
 
   type file_name = string
 
-  val stdin : in_channel @@ portable
+  val stdin : in_channel
   (* The scanning buffer reading from [Stdlib.stdin]. *)
 
   val next_char : scanbuf -> char @@ portable
@@ -122,10 +122,10 @@ module type SCANNING = sig
   (* [Scanning.name_of_input ib] returns the name of the character
      source for input buffer [ib]. *)
 
-  val open_in : file_name -> in_channel @@ portable
-  val open_in_bin : file_name -> in_channel @@ portable
-  val from_file : file_name -> in_channel @@ portable
-  val from_file_bin : file_name -> in_channel @@ portable
+  val open_in : file_name -> in_channel
+  val open_in_bin : file_name -> in_channel
+  val from_file : file_name -> in_channel
+  val from_file_bin : file_name -> in_channel
   val from_string : string -> in_channel @@ portable
   val from_function : (unit -> char) -> in_channel @@ portable
   val from_channel : Stdlib.in_channel -> in_channel @@ portable
@@ -278,7 +278,7 @@ module Scanning : SCANNING = struct
     create From_string next
 
 
-  let from_function = create From_function
+  let from_function next = create From_function next
 
   (* Scanning from an input channel. *)
 
@@ -321,7 +321,7 @@ module Scanning : SCANNING = struct
   *)
 
   (* Perform bufferized input to improve efficiency. *)
-  let file_buffer_size = ref 1024
+  let file_buffer_size = 1024
 
   (* The scanner closes the input channel at end of input. *)
   let scan_close_at_end ic = Stdlib.close_in ic; raise End_of_file
@@ -331,7 +331,7 @@ module Scanning : SCANNING = struct
   let scan_raise_at_end _ic = raise End_of_file
 
   let from_ic scan_close_ic iname ic =
-    let len = !file_buffer_size in
+    let len = file_buffer_size in
     let buf = Bytes.create len in
     let i = ref 0 in
     let lim = ref 0 in
@@ -378,8 +378,8 @@ module Scanning : SCANNING = struct
       from_ic_close_at_end (From_file (fname, ic)) ic
 
 
-  let open_in = open_in_file Stdlib.open_in
-  let open_in_bin = open_in_file Stdlib.open_in_bin
+  let open_in fname = open_in_file Stdlib.open_in fname
+  let open_in_bin fname = open_in_file Stdlib.open_in_bin fname
 
   let from_file = open_in
   let from_file_bin = open_in_bin
@@ -638,21 +638,21 @@ let is_binary_digit = function
   | _ -> false
 
 
-let scan_binary_int = scan_digit_plus "binary" is_binary_digit
+let scan_binary_int width ib = scan_digit_plus "binary" is_binary_digit width ib
 
 let is_octal_digit = function
   | '0' .. '7' -> true
   | _ -> false
 
 
-let scan_octal_int = scan_digit_plus "octal" is_octal_digit
+let scan_octal_int width ib = scan_digit_plus "octal" is_octal_digit width ib
 
 let is_hexa_digit = function
   | '0' .. '9' | 'a' .. 'f' | 'A' .. 'F' -> true
   | _ -> false
 
 
-let scan_hexadecimal_int = scan_digit_plus "hexadecimal" is_hexa_digit
+let scan_hexadecimal_int width ib = scan_digit_plus "hexadecimal" is_hexa_digit width ib
 
 (* Scan a decimal integer. *)
 let scan_unsigned_decimal_int = scan_decimal_digit_plus
@@ -1269,7 +1269,7 @@ fun k ign fmt -> match ign with
 (* Return the heterogeneous list of scanned values. *)
 let rec make_scanf : type a c d e f.
     Scanning.in_channel -> (a, Scanning.in_channel, c, d, e, f) fmt ->
-      (d, e) heter_list -> (a, f) heter_list =
+      (d, e) heter_list -> (a, f) heter_list @@ portable =
 fun ib fmt readers -> match fmt with
   | Char rest ->
     let _ = scan_char 0 ib in

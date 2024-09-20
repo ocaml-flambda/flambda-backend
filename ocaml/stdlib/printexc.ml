@@ -97,7 +97,7 @@ let print fct arg =
   try
     fct arg
   with x ->
-    eprintf "Uncaught exception: %s\n" (to_string x);
+    fprintf stderr "Uncaught exception: %s\n" (to_string x);
     flush stderr;
     raise x
 
@@ -106,7 +106,7 @@ let catch fct arg =
     fct arg
   with x ->
     flush stdout;
-    eprintf "Uncaught exception: %s\n" (to_string x);
+    fprintf stderr "Uncaught exception: %s\n" (to_string x);
     exit 2
 
 type raw_backtrace_slot
@@ -326,7 +326,7 @@ let errors = [| "";
 |] |> Obj.magic_portable
 
 let default_uncaught_exception_handler exn raw_backtrace =
-  eprintf "Fatal error: exception %s\n" (to_string exn);
+  fprintf stderr "Fatal error: exception %s\n" (to_string exn);
   print_raw_backtrace stderr raw_backtrace;
   let status = get_debug_info_status () in
   if status < 0 then

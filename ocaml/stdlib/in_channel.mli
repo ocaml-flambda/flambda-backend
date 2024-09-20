@@ -40,7 +40,7 @@ type open_flag = Stdlib.open_flag =
   | Open_nonblock    (** open in non-blocking mode. *)
 (** Opening modes for {!open_gen}. *)
 
-val stdin : t @@ portable
+val stdin : t
 (** The standard input for the process. *)
 
 val open_bin : string -> t @@ portable

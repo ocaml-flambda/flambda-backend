@@ -126,7 +126,7 @@ type scanbuf = in_channel
     character yet to be read.
 *)
 
-val stdin : in_channel @@ portable
+val stdin : in_channel
 (** The standard input notion for the {!Scanf} module.
     [Scanning.stdin] is the {!Scanning.in_channel} formatted input channel
     attached to {!Stdlib.stdin}.
@@ -144,7 +144,7 @@ type file_name = string
     @since 4.00
 *)
 
-val open_in : file_name -> in_channel @@ portable
+val open_in : file_name -> in_channel
 (** [Scanning.open_in fname] returns a {!Scanning.in_channel} formatted input
     channel for bufferized reading in text mode from file [fname].
 
@@ -156,7 +156,7 @@ val open_in : file_name -> in_channel @@ portable
     @since 3.12
 *)
 
-val open_in_bin : file_name -> in_channel @@ portable
+val open_in_bin : file_name -> in_channel
 (** [Scanning.open_in_bin fname] returns a {!Scanning.in_channel} formatted
     input channel for bufferized reading in binary mode from file [fname].
     @since 3.12
@@ -168,10 +168,10 @@ val close_in : in_channel -> unit @@ portable
   @since 3.12
 *)
 
-val from_file : file_name -> in_channel @@ portable
+val from_file : file_name -> in_channel
 (** An alias for {!Scanning.open_in} above. *)
 
-val from_file_bin : string -> in_channel @@ portable
+val from_file_bin : string -> in_channel
 (** An alias for {!Scanning.open_in_bin} above. *)
 
 val from_string : string -> in_channel @@ portable
@@ -496,12 +496,12 @@ val sscanf_opt : string -> ('a, 'b, 'c, 'd) scanner_opt @@ portable
 
     @since 5.0 *)
 
-val scanf : ('a, 'b, 'c, 'd) scanner @@ portable
+val scanf : ('a, 'b, 'c, 'd) scanner
 (** Same as {!Scanf.bscanf}, but reads from the predefined formatted input
     channel {!Scanf.Scanning.stdin} that is connected to {!Stdlib.stdin}.
 *)
 
-val scanf_opt : ('a, 'b, 'c, 'd) scanner_opt @@ portable
+val scanf_opt : ('a, 'b, 'c, 'd) scanner_opt
 (** Same as {!Scanf.scanf}, but returns [None] in case of scanning failure.
 
     @since 5.0 *)

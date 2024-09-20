@@ -28,7 +28,7 @@ let () =
         Some msg
     | _ -> None
   in
-  Printexc.register_printer printer
+  Printexc.register_printer_safe printer
 
 (* Register the exceptions so that the runtime can access it *)
 type _ t += Should_not_see_this__ : unit t
