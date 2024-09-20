@@ -483,7 +483,7 @@ module type S5 = sig
   val at_exit : (unit -> unit) -> unit
   val at_exit_safe : (unit -> unit) @ portable -> unit @@ portable
   val at_exit' : DLS.password -> (unit -> unit) -> unit @@ portable
-  val do_at_exit : unit -> unit
+  val do_at_exit : unit -> unit @@ portable
 end
 
 let runtime_4_impl = (module Runtime_4 : S4)
@@ -497,6 +497,4 @@ include (val impl : S5)
 
 let () = DLS.init ()
 
-let _ = Stdlib.do_domain_local_at_exit := do_at_exit
-
-
+let _ = Stdlib.set_do_domain_local_at_exit do_at_exit

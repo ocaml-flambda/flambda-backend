@@ -1362,7 +1362,8 @@ val exit : int -> 'a @@ portable
     An implicit [exit 2] is performed if the program terminates early because
     of an uncaught exception. *)
 
-val at_exit : (unit -> unit) -> unit @@ portable
+val at_exit : (unit -> unit) -> unit
+[@@alert unsafe]
 (** Register the given function to be called at program termination
    time. The functions registered with [at_exit] will be called when
    the program does any of the following:
@@ -1372,6 +1373,8 @@ val at_exit : (unit -> unit) -> unit @@ portable
    - executes the C function [caml_shutdown].
    The functions are called in 'last in, first out' order: the
    function most recently added with [at_exit] is called first. *)
+
+val at_exit_safe : (unit -> unit) @ portable -> unit @@ portable
 
 (**/**)
 
@@ -1383,7 +1386,10 @@ val unsafe_really_input : in_channel -> bytes -> int -> int -> unit @@ portable
 
 val do_at_exit : unit -> unit @@ portable
 
-val do_domain_local_at_exit : (unit -> unit) ref @@ portable
+val do_domain_local_at_exit : (unit -> unit) ref
+[@@alert unsafe]
+
+val set_do_domain_local_at_exit : (unit -> unit) @ portable -> unit @@ portable
 
 (**/**)
 

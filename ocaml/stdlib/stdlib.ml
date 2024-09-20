@@ -48,6 +48,11 @@ exception Division_by_zero = Division_by_zero
 exception Sys_blocked_io = Sys_blocked_io
 exception Undefined_recursive_module = Undefined_recursive_module
 
+(* Magic *)
+
+external magic_portable : 'a -> 'a @ portable @@ portable = "%identity"
+external magic_uncontended : 'a @ contended -> 'a @@ portable = "%identity"
+
 (* Composition operators *)
 
 external ( |> ) : 'a -> ('a -> 'b) -> 'b @@ portable = "%revapply"
@@ -555,30 +560,46 @@ let ( ^^ ) (Format (fmt1, str1)) (Format (fmt2, str2)) =
 external sys_exit : int -> 'a @@ portable = "caml_sys_exit"
 
 (* for at_exit *)
-type 'a atomic_t
+type (!'a : value mod portable) atomic_t : value mod portable uncontended
 external atomic_make : 'a -> 'a atomic_t @@ portable = "%makemutable"
-external atomic_get : 'a atomic_t -> 'a @@ portable = "%atomic_load"
-external atomic_compare_and_set : 'a atomic_t -> 'a -> 'a -> bool @@ portable
+external atomic_get : 'a atomic_t -> 'a @ contended @@ portable = "%atomic_load"
+external atomic_exchange : 'a atomic_t -> 'a @ contended -> 'a @ contended @@ portable = "%atomic_exchange"
+external atomic_compare_and_set : 'a atomic_t -> 'a @ contended -> 'a @ contended -> bool @@ portable
   = "%atomic_cas"
 
-let exit_function = atomic_make flush_all
+type exit_function : value mod portable = Exit_function of (unit -> unit) @@ portable
 
-let rec at_exit f =
+let exit_function = atomic_make (Exit_function flush_all)
+
+let rec at_exit_safe f =
   (* MPR#7253, MPR#7796: make sure "f" is executed only once *)
   let f_yet_to_run = atomic_make true in
-  let old_exit = atomic_get exit_function in
+  let Exit_function old_exit = atomic_get exit_function in
   let new_exit () =
     if atomic_compare_and_set f_yet_to_run true false then f () ;
     old_exit ()
   in
-  let success = atomic_compare_and_set exit_function old_exit new_exit in
-  if not success then at_exit f
+  let success = atomic_compare_and_set exit_function (Exit_function old_exit) (Exit_function new_exit) in
+  if not success then at_exit_safe f
 
-let do_domain_local_at_exit = ref (fun () -> ())
+let at_exit f = at_exit_safe (magic_portable f)
+
+type at_exit : value mod portable = At_exit of (unit -> unit) @@ portable
+
+let do_domain_local_at_exit = magic_portable (ref (fun () -> ()))
+
+let do_domain_local_at_exit_safe = atomic_make (At_exit (fun () -> ()))
+
+let set_do_domain_local_at_exit f =
+  let _ = atomic_exchange do_domain_local_at_exit_safe (At_exit f) in
+  ()
 
 let do_at_exit () =
-  (!do_domain_local_at_exit) ();
-  (atomic_get exit_function) ()
+  (!(magic_uncontended do_domain_local_at_exit)) ();
+  let At_exit do_domain_local_at_exit_safe = atomic_get do_domain_local_at_exit_safe in
+  do_domain_local_at_exit_safe ();
+  let Exit_function exit_function = atomic_get exit_function in
+  exit_function ()
 
 let exit retcode =
   do_at_exit ();
