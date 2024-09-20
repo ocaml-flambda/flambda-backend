@@ -3881,19 +3881,8 @@ type_parameters:
       { ps }
 ;
 
-jkind:
-    jkind MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
-      let modes =
-        List.map
-          (fun {txt; loc} -> {txt = Mode txt; loc})
-          $3
-      in
-      Jane_syntax.Jkind.Mod ($1, modes)
-    }
-  | jkind WITH core_type {
-      Jane_syntax.Jkind.With ($1, $3)
-    }
-  | mkrhs(ident) {
+jkind_no_mod_or_with:
+    mkrhs(ident) {
       let {txt; loc} = $1 in
       Jane_syntax.Jkind.(Abbreviation (Const.mk txt loc))
     }
@@ -3909,14 +3898,28 @@ jkind:
   | LPAREN jkind RPAREN {
       $2
     }
+
+jkind:
+    jkind MOD mkrhs(LIDENT)+ { (* LIDENTs here are for modes *)
+      let modes =
+        List.map
+          (fun {txt; loc} -> {txt = Mode txt; loc})
+          $3
+      in
+      Jane_syntax.Jkind.Mod ($1, modes)
+    }
+  | jkind WITH core_type {
+      Jane_syntax.Jkind.With ($1, $3)
+    }
+  | jkind_no_mod_or_with { $1 }
 ;
 
 reverse_product_jkind :
-  | jkind1 = jkind AMPERSAND jkind2 = jkind %prec prec_unboxed_product_kind
+  | jkind1 = jkind_no_mod_or_with AMPERSAND jkind2 = jkind_no_mod_or_with %prec prec_unboxed_product_kind
       { [jkind2; jkind1] }
   | jkinds = reverse_product_jkind
     AMPERSAND
-    jkind = jkind %prec prec_unboxed_product_kind
+    jkind = jkind_no_mod_or_with %prec prec_unboxed_product_kind
     { jkind :: jkinds }
 
 jkind_annotation: (* : jkind_annotation *)
