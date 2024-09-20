@@ -15,81 +15,13 @@
 
 (* Instruction selection for the AMD64 *)
 
+[@@@ocaml.warning "+a-4-9-40-41-42"]
+
 open Arch
-open Proc
-open Cmm
-open Mach
-
-(* Auxiliary for recognizing addressing modes *)
-
-type addressing_expr =
-  | Asymbol of Cmm.symbol
-  | Alinear of expression
-  | Aadd of expression * expression
-  | Ascale of expression * int
-  | Ascaledadd of expression * expression * int
-
-let rec select_addr exp =
-  let default = Alinear exp, 0 in
-  match exp with
-  | Cconst_symbol (s, _) when not !Clflags.dlcode -> Asymbol s, 0
-  | Cop ((Caddi | Caddv | Cadda), [arg; Cconst_int (m, _)], _)
-  | Cop ((Caddi | Caddv | Cadda), [Cconst_int (m, _); arg], _) ->
-    let a, n = select_addr arg in
-    if Misc.no_overflow_add n m then a, n + m else default
-  | Cop (Csubi, [arg; Cconst_int (m, _)], _) ->
-    let a, n = select_addr arg in
-    if Misc.no_overflow_sub n m then a, n - m else default
-  | Cop (Clsl, [arg; Cconst_int (((1 | 2 | 3) as shift), _)], _) -> (
-    let default = Ascale (arg, 1 lsl shift), 0 in
-    match select_addr arg with
-    | Alinear e, n ->
-      if Misc.no_overflow_lsl n shift
-      then Ascale (e, 1 lsl shift), n lsl shift
-      else default
-    | (Asymbol _ | Aadd (_, _) | Ascale (_, _) | Ascaledadd (_, _, _)), _ ->
-      default)
-  | Cop (Cmuli, [arg; Cconst_int (((2 | 4 | 8) as mult), _)], _)
-  | Cop (Cmuli, [Cconst_int (((2 | 4 | 8) as mult), _); arg], _) -> (
-    let default = Ascale (arg, mult), 0 in
-    match select_addr arg with
-    | Alinear e, n ->
-      if Misc.no_overflow_mul n mult
-      then Ascale (e, mult), n * mult
-      else default
-    | (Asymbol _ | Aadd (_, _) | Ascale (_, _) | Ascaledadd (_, _, _)), _ ->
-      default)
-  | Cop ((Caddi | Caddv | Cadda), [arg1; arg2], _) -> (
-    match select_addr arg1, select_addr arg2 with
-    | (Alinear e1, n1), (Alinear e2, n2) when Misc.no_overflow_add n1 n2 ->
-      Aadd (e1, e2), n1 + n2
-    | (Alinear e1, n1), (Ascale (e2, scale), n2)
-    | (Ascale (e2, scale), n2), (Alinear e1, n1)
-      when Misc.no_overflow_add n1 n2 ->
-      Ascaledadd (e1, e2, scale), n1 + n2
-    | _, (Ascale (e2, scale), n2) -> Ascaledadd (arg1, e2, scale), n2
-    | (Ascale (e1, scale), n1), _ -> Ascaledadd (arg2, e1, scale), n1
-    | ( (Alinear _, _),
-        ((Alinear _ | Asymbol _ | Aadd (_, _) | Ascaledadd (_, _, _)), _) )
-    | ( ((Asymbol _ | Aadd (_, _) | Ascaledadd (_, _, _)), _),
-        ((Asymbol _ | Alinear _ | Aadd (_, _) | Ascaledadd (_, _, _)), _) ) ->
-      Aadd (arg1, arg2), 0)
-  | _ -> default
-
-(* Special constraints on operand and result registers *)
-
-exception Use_default
-
-let rax = phys_reg Int 0
-
-let rcx = phys_reg Int 5
-
-let rdx = phys_reg Int 4
-
-let _xmm0v () = phys_reg Vec128 100
+open Selection_utils
 
 let pseudoregs_for_operation op arg res =
-  match op with
+  match (op : Mach.operation) with
   (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
   | Iintop (Iadd | Isub | Imul | Iand | Ior | Ixor)
   | Ifloatop ((Float32 | Float64), (Iaddf | Isubf | Imulf | Idivf)) ->
@@ -173,32 +105,6 @@ let pseudoregs_for_operation op arg res =
   | Ibeginregion | Iendregion | Ipoll _ | Idls_get ->
     raise Use_default
 
-let select_locality (l : Cmm.prefetch_temporal_locality_hint) :
-    Arch.prefetch_temporal_locality_hint =
-  match l with
-  | Nonlocal -> Nonlocal
-  | Low -> Low
-  | Moderate -> Moderate
-  | High -> High
-
-let select_bitwidth : Cmm.bswap_bitwidth -> Arch.bswap_bitwidth = function
-  | Sixteen -> Sixteen
-  | Thirtytwo -> Thirtytwo
-  | Sixtyfour -> Sixtyfour
-
-let one_arg name args =
-  match args with
-  | [arg] -> arg
-  | _ -> Misc.fatal_errorf "Selection: expected exactly 1 argument for %s" name
-
-(* If you update [inline_ops], you may need to update [is_simple_expr] and/or
-   [effects_of], below. *)
-let inline_ops = ["sqrt"]
-
-let is_immediate n = n <= 0x7FFF_FFFF && n >= -0x8000_0000
-
-let is_immediate_natint n = n <= 0x7FFF_FFFFn && n >= -0x8000_0000n
-
 (* The selector class *)
 
 class selector =
@@ -222,7 +128,7 @@ class selector =
     method! effects_of e =
       match e with
       | Cop (Cextcall { func = fn }, args, _) when List.mem fn inline_ops ->
-        Selectgen.Effect_and_coeffect.join_list_map args self#effects_of
+        Select_utils.Effect_and_coeffect.join_list_map args self#effects_of
       | _ -> super#effects_of e
 
     method select_addressing _chunk exp =
@@ -279,10 +185,14 @@ class selector =
             arg ) ->
           Ispecific (Ilea addr), [arg])
       (* Recognize float arithmetic with memory. *)
-      | Caddf width -> self#select_floatarith true width Iaddf Ifloatadd args
-      | Csubf width -> self#select_floatarith false width Isubf Ifloatsub args
-      | Cmulf width -> self#select_floatarith true width Imulf Ifloatmul args
-      | Cdivf width -> self#select_floatarith false width Idivf Ifloatdiv args
+      | Caddf width ->
+        self#select_floatarith true width Mach.Iaddf Arch.Ifloatadd args
+      | Csubf width ->
+        self#select_floatarith false width Mach.Isubf Arch.Ifloatsub args
+      | Cmulf width ->
+        self#select_floatarith true width Mach.Imulf Arch.Ifloatmul args
+      | Cdivf width ->
+        self#select_floatarith false width Mach.Idivf Arch.Ifloatdiv args
       | Cpackf32 ->
         (* We must operate on registers. This is because if the second argument
            was a float stack slot, the resulting UNPCKLPS instruction would
@@ -367,6 +277,7 @@ class selector =
     (* Recognize float arithmetic with mem *)
 
     method select_floatarith commutative width regular_op mem_op args =
+      let open Cmm in
       match width, args with
       | ( Float64,
           [arg1; Cop (Cload { memory_chunk = Double as chunk; _ }, [loc2], _)] )
@@ -377,7 +288,7 @@ class selector =
                 [loc2],
                 _ ) ] ) ->
         let addr, arg2 = self#select_addressing chunk loc2 in
-        Ispecific (Ifloatarithmem (width, mem_op, addr)), [arg1; arg2]
+        Mach.Ispecific (Ifloatarithmem (width, mem_op, addr)), [arg1; arg2]
       | ( Float64,
           [Cop (Cload { memory_chunk = Double as chunk; _ }, [loc1], _); arg2] )
       | ( Float32,
@@ -388,8 +299,8 @@ class selector =
             arg2 ] )
         when commutative ->
         let addr, arg1 = self#select_addressing chunk loc1 in
-        Ispecific (Ifloatarithmem (width, mem_op, addr)), [arg2; arg1]
-      | _, [arg1; arg2] -> Ifloatop (width, regular_op), [arg1; arg2]
+        Mach.Ispecific (Ifloatarithmem (width, mem_op, addr)), [arg2; arg1]
+      | _, [arg1; arg2] -> Mach.Ifloatop (width, regular_op), [arg1; arg2]
       | _ -> assert false
 
     method! mark_c_tailcall = contains_calls := true

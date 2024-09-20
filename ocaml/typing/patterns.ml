@@ -53,6 +53,7 @@ module Simple = struct
     | `Any
     | `Constant of constant
     | `Tuple of (string option * pattern) list
+    | `Unboxed_tuple of (string option * pattern * Jkind.sort) list
     | `Construct of
         Longident.t loc * constructor_description * pattern list
     | `Variant of label * pattern option * row_desc ref
@@ -95,6 +96,8 @@ module General = struct
        `Constant cst
     | Tpat_tuple ps ->
        `Tuple ps
+    | Tpat_unboxed_tuple ps ->
+       `Unboxed_tuple ps
     | Tpat_construct (cstr, cstr_descr, args, _) ->
        `Construct (cstr, cstr_descr, args)
     | Tpat_variant (cstr, arg, row_desc) ->
@@ -114,6 +117,7 @@ module General = struct
     | `Alias (p, id, str, uid, mode) -> Tpat_alias (p, id, str, uid, mode)
     | `Constant cst -> Tpat_constant cst
     | `Tuple ps -> Tpat_tuple ps
+    | `Unboxed_tuple ps -> Tpat_unboxed_tuple ps
     | `Construct (cstr, cst_descr, args) ->
        Tpat_construct (cstr, cst_descr, args, None)
     | `Variant (cstr, arg, row_desc) ->
@@ -142,6 +146,7 @@ module Head : sig
     | Construct of constructor_description
     | Constant of constant
     | Tuple of string option list
+    | Unboxed_tuple of (string option * Jkind.sort) list
     | Record of label_description list
     | Variant of
         { tag: label; has_arg: bool;
@@ -167,6 +172,7 @@ end = struct
     | Construct of constructor_description
     | Constant of constant
     | Tuple of string option list
+    | Unboxed_tuple of (string option * Jkind.sort) list
     | Record of label_description list
     | Variant of
         { tag: label; has_arg: bool;
@@ -185,6 +191,10 @@ end = struct
       | `Constant c -> Constant c, []
       | `Tuple args ->
           Tuple (List.map fst args), (List.map snd args)
+      | `Unboxed_tuple args ->
+          let labels_and_sorts = List.map (fun (l, _, s) -> l, s) args in
+          let pats = List.map (fun (_, p, _) -> p) args in
+          Unboxed_tuple labels_and_sorts, pats
       | `Construct (_, c, args) ->
           Construct c, args
       | `Variant (tag, arg, cstr_row) ->
@@ -217,6 +227,7 @@ end = struct
       | Constant _ -> 0
       | Construct c -> c.cstr_arity
       | Tuple l -> List.length l
+      | Unboxed_tuple l -> List.length l
       | Array (_, _, n) -> n
       | Record l -> List.length l
       | Variant { has_arg; _ } -> if has_arg then 1 else 0
@@ -231,6 +242,9 @@ end = struct
       | Constant c -> Tpat_constant c
       | Tuple lbls ->
           Tpat_tuple (List.map (fun lbl -> lbl, omega) lbls)
+      | Unboxed_tuple lbls_and_sorts ->
+          Tpat_unboxed_tuple
+            (List.map (fun (lbl, sort) -> lbl, omega, sort) lbls_and_sorts)
       | Array (am, arg_sort, n) -> Tpat_array (am, arg_sort, omegas n)
       | Construct c ->
           let lid_loc = mkloc (Longident.Lident c.cstr_name) in

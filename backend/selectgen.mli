@@ -16,59 +16,41 @@
 (* Selection of pseudo-instructions, assignment of pseudo-registers,
    sequentialization. *)
 
-type environment
+[@@@ocaml.warning "+a-4-9-40-41-42"]
 
-val env_add :
-  ?mut:Asttypes.mutable_flag ->
-  Backend_var.With_provenance.t ->
-  Reg.t array ->
-  environment ->
-  environment
-
-val env_find : Backend_var.t -> environment -> Reg.t array
-
-val size_expr : environment -> Cmm.expression -> int
-
-val select_mutable_flag : Asttypes.mutable_flag -> Mach.mutable_flag
-
-module Effect : sig
-  type t =
-    | None
-    | Raise
-    | Arbitrary
-end
-
-module Coeffect : sig
-  type t =
-    | None
-    | Read_mutable
-    | Arbitrary
-end
-
-module Effect_and_coeffect : sig
-  type t
-
-  val none : t
-
-  val arbitrary : t
-
-  val effect : t -> Effect.t
-
-  val coeffect : t -> Coeffect.t
-
-  val effect_only : Effect.t -> t
-
-  val coeffect_only : Coeffect.t -> t
-
-  val create : Effect.t -> Coeffect.t -> t
-
-  val join : t -> t -> t
-
-  val join_list_map : 'a list -> ('a -> t) -> t
-end
+type environment = unit Select_utils.environment
 
 class virtual selector_generic :
   object
+    method is_store : Mach.operation -> bool
+
+    method lift_op : Mach.operation -> Mach.instruction_desc
+
+    method make_store :
+      Cmm.memory_chunk -> Arch.addressing_mode -> bool -> Mach.instruction_desc
+
+    method make_stack_offset : int -> Mach.instruction_desc
+
+    method make_name_for_debugger :
+      ident:Backend_var.t ->
+      which_parameter:int option ->
+      provenance:Backend_var.Provenance.t option ->
+      is_assignment:bool ->
+      regs:Reg.t array ->
+      Mach.instruction_desc
+
+    method make_const_int : nativeint -> Mach.operation
+
+    method make_const_float32 : int32 -> Mach.operation
+
+    method make_const_float : int64 -> Mach.operation
+
+    method make_const_vec128 : Cmm.vec128_bits -> Mach.operation
+
+    method make_const_symbol : Cmm.symbol -> Mach.operation
+
+    method make_opaque : unit -> Mach.operation
+
     (* The following methods must or can be overridden by the processor
        description *)
     method is_immediate : Mach.integer_operation -> int -> bool
@@ -89,7 +71,7 @@ class virtual selector_generic :
 
     method is_simple_expr : Cmm.expression -> bool
 
-    method effects_of : Cmm.expression -> Effect_and_coeffect.t
+    method effects_of : Cmm.expression -> Select_utils.Effect_and_coeffect.t
     (* Can be overridden to reflect special extcalls known to be pure *)
 
     method select_operation :
@@ -215,7 +197,130 @@ class virtual selector_generic :
       bound_name:Backend_var.With_provenance.t option ->
       Reg.t array option
 
+    method emit_expr_aux_raise :
+      environment ->
+      Lambda.raise_kind ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Reg.t array option
+
+    method emit_expr_aux_op :
+      environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.operation ->
+      Cmm.expression list ->
+      Debuginfo.t ->
+      Reg.t array option
+
+    method emit_expr_aux_ifthenelse :
+      environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      Reg.t array option
+
+    method emit_expr_aux_switch :
+      environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.expression ->
+      int array ->
+      (Cmm.expression * Debuginfo.t) array ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      Reg.t array option
+
+    method emit_expr_aux_catch :
+      environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.rec_flag ->
+      (Lambda.static_label
+      * (Backend_var.With_provenance.t * Cmm.machtype) list
+      * Cmm.expression
+      * Debuginfo.t
+      * bool)
+      list ->
+      Cmm.expression ->
+      Cmm.kind_for_unboxing ->
+      Reg.t array option
+
+    method emit_expr_aux_exit :
+      environment ->
+      Cmm.exit_label ->
+      Cmm.expression list ->
+      Cmm.trap_action list ->
+      Reg.t array option
+
+    method emit_expr_aux_trywith :
+      environment ->
+      Backend_var.With_provenance.t option ->
+      Cmm.expression ->
+      Cmm.trywith_shared_label ->
+      Backend_var.With_provenance.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      Reg.t array option
+
     method emit_tail : environment -> Cmm.expression -> unit
+
+    method emit_tail_apply :
+      environment ->
+      Cmm.machtype ->
+      Cmm.operation ->
+      Cmm.expression list ->
+      Debuginfo.t ->
+      unit
+
+    method emit_tail_ifthenelse :
+      environment ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      unit
+
+    method emit_tail_switch :
+      environment ->
+      Cmm.expression ->
+      int array ->
+      (Cmm.expression * Debuginfo.t) array ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      unit
+
+    method emit_tail_catch :
+      environment ->
+      Cmm.rec_flag ->
+      (Lambda.static_label
+      * (Backend_var.With_provenance.t * Cmm.machtype) list
+      * Cmm.expression
+      * Debuginfo.t
+      * bool)
+      list ->
+      Cmm.expression ->
+      Cmm.kind_for_unboxing ->
+      unit
+
+    method emit_tail_trywith :
+      environment ->
+      Cmm.expression ->
+      Cmm.trywith_shared_label ->
+      Backend_var.With_provenance.t ->
+      Cmm.expression ->
+      Debuginfo.t ->
+      Cmm.kind_for_unboxing ->
+      unit
+
+    method emit_return :
+      environment -> Cmm.expression -> Cmm.trap_action list -> unit
 
     (* [contains_calls] is declared as a reference instance variable, instead of
        a mutable boolean instance variable, because the traversal uses

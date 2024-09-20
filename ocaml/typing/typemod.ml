@@ -2919,8 +2919,9 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         if force_toplevel then
           (* See comment on [force_toplevel]. *)
           begin match Jkind.Sort.default_to_value_and_get sort with
-          | Value -> ()
-          | Void | Float64 | Float32 | Word | Bits32 | Bits64 ->
+          | Base Value -> ()
+          | Product _
+          | Base (Void | Float64 | Float32 | Word | Bits32 | Bits64) ->
             raise (Error (sexpr.pexp_loc, env, Toplevel_unnamed_nonvalue sort))
           end;
         Tstr_eval (expr, sort, attrs), [], shape_map, env
@@ -2937,8 +2938,9 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
             match vb.vb_pat.pat_desc with
             | Tpat_any ->
               begin match Jkind.Sort.default_to_value_and_get vb.vb_sort with
-              | Value -> ()
-              | Void | Float64 | Float32 | Word | Bits32 | Bits64 ->
+              | Base Value -> ()
+              | Product _
+              | Base (Void | Float64 | Float32 | Word | Bits32 | Bits64) ->
                 raise (Error (vb.vb_loc, env,
                               Toplevel_unnamed_nonvalue vb.vb_sort))
               end
@@ -3660,6 +3662,11 @@ let type_implementation target modulename initial_env ast =
               in
               Unit_info.Artifact.from_filename cmi_file
           in
+          (* We use pre-5.2 behaviour as regards which interface-related file
+             is reported in error messages. *)
+          let compiled_intf_file_name =
+            Unit_info.Artifact.filename compiled_intf_file
+          in
           let dclsig =
             Env.read_signature import compiled_intf_file ~add_binding:false
           in
@@ -3674,7 +3681,7 @@ let type_implementation target modulename initial_env ast =
           let coercion, shape =
             Profile.record_call "check_sig" (fun () ->
               Includemod.compunit initial_env ~mark:Mark_positive
-                sourcefile sg source_intf dclsig shape)
+                sourcefile sg compiled_intf_file_name dclsig shape)
           in
           (* Check the _mli_ against the argument type, since the mli determines
              the visible type of the module and that's what needs to conform to

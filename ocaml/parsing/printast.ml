@@ -153,6 +153,10 @@ let include_kind i ppf = function
   | Structure -> line i ppf "Structure\n"
   | Functor -> line i ppf "Functor\n"
 
+let labeled_tuple_element f i ppf (l, ct) =
+  option i string ppf l;
+  f i ppf ct
+
 let rec core_type i ppf x =
   line i ppf "core_type %a\n" fmt_location x.ptyp_loc;
   attributes i ppf x.ptyp_attributes;
@@ -170,6 +174,9 @@ let rec core_type i ppf x =
   | Ptyp_tuple l ->
       line i ppf "Ptyp_tuple\n";
       list i core_type ppf l;
+  | Ptyp_unboxed_tuple l ->
+      line i ppf "Ptyp_unboxed_tuple\n";
+      list i (labeled_tuple_element core_type) ppf l
   | Ptyp_constr (li, l) ->
       line i ppf "Ptyp_constr %a\n" fmt_longident_loc li;
       list i core_type ppf l;
@@ -229,6 +236,9 @@ and pattern i ppf x =
   | Ppat_tuple (l) ->
       line i ppf "Ppat_tuple\n";
       list i pattern ppf l;
+  | Ppat_unboxed_tuple (l, c) ->
+      line i ppf "Ppat_unboxed_tuple %a\n" fmt_closed_flag c;
+      list i (labeled_tuple_element pattern) ppf l
   | Ppat_construct (li, po) ->
       line i ppf "Ppat_construct %a\n" fmt_longident_loc li;
       option i
@@ -303,6 +313,9 @@ and expression i ppf x =
   | Pexp_tuple (l) ->
       line i ppf "Pexp_tuple\n";
       list i expression ppf l;
+  | Pexp_unboxed_tuple (l) ->
+      line i ppf "Pexp_unboxed_tuple\n";
+      list i (labeled_tuple_element expression) ppf l;
   | Pexp_construct (li, eo) ->
       line i ppf "Pexp_construct %a\n" fmt_longident_loc li;
       option i expression ppf eo;
@@ -425,6 +438,9 @@ and jkind_annotation i ppf (jkind : jkind_annotation) =
   | Kind_of type_ ->
       line i ppf "Kind_of\n";
       core_type (i+1) ppf type_
+  | Product jkinds ->
+      line i ppf "Product\n";
+      list i jkind_annotation ppf jkinds
 
 and function_param i ppf { pparam_desc = desc; pparam_loc = loc } =
   match desc with

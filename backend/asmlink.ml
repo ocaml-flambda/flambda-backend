@@ -435,7 +435,7 @@ let call_linker_shared ?(native_toplevel = false) file_list output_name =
   then raise(Error(Linking_error exitcode))
 
 let link_shared unix ~ppf_dump objfiles output_name =
-  Profile.record_call output_name (fun () ->
+  Profile.(record_call (annotate_file_name output_name)) (fun () ->
     if !Flambda_backend_flags.use_cached_generic_functions then
       (* When doing shared linking do not use the shared generated startup file.
          Frametables for the imported functions needs to be initialized, which is a bit
@@ -523,7 +523,7 @@ let reset () =
 let link unix ~ppf_dump objfiles output_name =
   if !Flambda_backend_flags.internal_assembler then
       Emitaux.binary_backend_available := true;
-  Profile.record_call output_name (fun () ->
+  Profile.(record_call (annotate_file_name output_name)) (fun () ->
     let stdlib = "stdlib.cmxa" in
     let stdexit = "std_exit.cmx" in
     let objfiles =

@@ -215,24 +215,24 @@ Error: The layout of type "a" is value
 |}]
 
 type a : value mod global unique many uncontended portable external_
-type b : value mod local shared once contended nonportable internal = a
+type b : value mod local aliased once contended nonportable internal = a
 [%%expect{|
 type a : value mod global unique many uncontended portable external_
 type b = a
 |}]
 
 type a : value mod global unique once uncontended portable external_
-type b : value mod local shared many uncontended nonportable internal = a
+type b : value mod local aliased many uncontended nonportable internal = a
 [%%expect{|
 type a : value mod global unique once uncontended portable external_
-Line 2, characters 0-73:
-2 | type b : value mod local shared many uncontended nonportable internal = a
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 0-74:
+2 | type b : value mod local aliased many uncontended nonportable internal = a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "a" is
          value mod global unique uncontended portable external_
          because of the definition of a at line 1, characters 0-68.
        But the kind of type "a" must be a subkind of value mod many uncontended
-         because of the definition of b at line 2, characters 0-73.
+         because of the definition of b at line 2, characters 0-74.
 |}]
 
 (********************************************************)
@@ -240,19 +240,19 @@ Error: The kind of type "a" is
 (* CR layouts: when we have abbreviations, these tests can become less verbose *)
 
 type a : any
-type b : any mod local shared once contended nonportable internal = a
-type c : any mod local shared once contended nonportable internal
+type b : any mod local aliased once contended nonportable internal = a
+type c : any mod local aliased once contended nonportable internal
 type d : any = c
 [%%expect{|
 type a : any
 type b = a
-type c : any mod local shared once contended nonportable internal
+type c : any mod local aliased once contended nonportable internal
 type d = c
 |}]
 
 type a : value
-type b : value mod local shared once contended nonportable internal = a
-type c : value mod local shared once contended nonportable internal
+type b : value mod local aliased once contended nonportable internal = a
+type c : value mod local aliased once contended nonportable internal
 type d : value = c
 [%%expect{|
 type a
@@ -262,8 +262,8 @@ type d = c
 |}]
 
 type a : void
-type b : void mod local shared once contended nonportable internal = a
-type c : void mod local shared once contended nonportable internal
+type b : void mod local aliased once contended nonportable internal = a
+type c : void mod local aliased once contended nonportable internal
 type d : void = c
 [%%expect{|
 Line 1, characters 9-13:
@@ -318,35 +318,35 @@ type d = c
 |}]
 
 type a : word
-type b : word mod local shared once contended nonportable internal = a
-type c : word mod local shared once contended nonportable internal
+type b : word mod local aliased once contended nonportable internal = a
+type c : word mod local aliased once contended nonportable internal
 type d : word = c
 [%%expect{|
 type a : word
 type b = a
-type c : word mod local shared once contended nonportable internal
+type c : word mod local aliased once contended nonportable internal
 type d = c
 |}]
 
 type a : bits32
-type b : bits32 mod local shared once contended nonportable internal = a
-type c : bits32 mod local shared once contended nonportable internal
+type b : bits32 mod local aliased once contended nonportable internal = a
+type c : bits32 mod local aliased once contended nonportable internal
 type d : bits32 = c
 [%%expect{|
 type a : bits32
 type b = a
-type c : bits32 mod local shared once contended nonportable internal
+type c : bits32 mod local aliased once contended nonportable internal
 type d = c
 |}]
 
 type a : bits64
-type b : bits64 mod local shared once contended nonportable internal = a
-type c : bits64 mod local shared once contended nonportable internal
+type b : bits64 mod local aliased once contended nonportable internal = a
+type c : bits64 mod local aliased once contended nonportable internal
 type d : bits64 = c
 [%%expect{|
 type a : bits64
 type b = a
-type c : bits64 mod local shared once contended nonportable internal
+type c : bits64 mod local aliased once contended nonportable internal
 type d = c
 |}]
 

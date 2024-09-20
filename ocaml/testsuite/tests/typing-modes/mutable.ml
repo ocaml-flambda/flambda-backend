@@ -82,15 +82,15 @@ Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (* This attribute doesn't disable implied modalities on monadic axes. For
-   example, there is a [shared] modality on the [s] field, which allows the
+   example, there is a [aliased] modality on the [s] field, which allows the
    following to type check. Otherwise, new values in mutation are required to be
    [unique]. *)
-let foo r (s @ shared) = r.s <- s
+let foo r (s @ aliased) = r.s <- s
 [%%expect{|
 val foo : 'a r -> 'a -> unit = <fun>
 |}]
 
-let foo (s @ shared) = ({s} : _ @@ unique)
+let foo (s @ aliased) = ({s} : _ @@ unique)
 [%%expect{|
 val foo : 'a -> 'a r = <fun>
 |}]
@@ -100,7 +100,7 @@ let foo (r @ unique) = (r.s : _ @@ unique)
 Line 1, characters 24-27:
 1 | let foo (r @ unique) = (r.s : _ @@ unique)
                             ^^^
-Error: This value is "shared" but expected to be "unique".
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 module M : sig

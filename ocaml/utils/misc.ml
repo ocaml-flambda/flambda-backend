@@ -157,6 +157,17 @@ module Stdlib = struct
       in
       aux [] l
 
+    let map_option f l =
+      let rec aux l acc =
+        match l with
+        | [] -> Some (List.rev acc)
+        | x :: xs ->
+          match f x with
+          | None -> None
+          | Some x -> aux xs (x :: acc)
+      in
+      aux l []
+
     let split_at n l =
       let rec aux n acc l =
         if n = 0
@@ -223,6 +234,14 @@ module Stdlib = struct
           }
       in
       find_prefix ~longest_common_prefix_rev:[] first second
+
+    let rec iter_until_error ~f l =
+      match l with
+      | [] -> Ok ()
+      | x :: xs ->
+        match f x with
+        | Ok () -> iter_until_error ~f xs
+        | Error _ as e -> e
   end
 
   module Option = struct
@@ -1076,6 +1095,18 @@ let pp_two_columns ?(sep = "|") ?max_lines ppf (lines: (string * string) list) =
   ) lines;
   Format.fprintf ppf "@]"
 
+let pp_parens_if condition printer ppf arg =
+  Format.fprintf ppf "%s%a%s"
+    (if condition then "(" else "")
+    printer arg
+    (if condition then ")" else "")
+
+let pp_nested_list ~nested ~pp_element ~pp_sep ppf arg =
+  Format.fprintf ppf "@[%a@]"
+    (pp_parens_if nested
+       (Format.pp_print_list ~pp_sep (pp_element ~nested:true)))
+    arg
+
 (* showing configuration and configuration variables *)
 let show_config_and_exit () =
   Config.print_config stdout;
@@ -1228,38 +1259,22 @@ module Bitmap = struct
 end
 
 module Magic_number = struct
-  type native_obj_config = {
-    flambda : bool;
-  }
-  let native_obj_config = {
-    (* This must match the logic in the configure script for deciding
-       which magic numbers to use. *)
-    flambda = Config.flambda;
-  }
-
   type version = int
 
   type kind =
     | Exec
     | Cmi | Cmo | Cma
-    | Cmx of native_obj_config | Cmxa of native_obj_config
+    | Cmx | Cmxa
     | Cmxs
     | Cmt
     | Cms
     | Ast_impl | Ast_intf
 
   (* please keep up-to-date, this is used for sanity checking *)
-  let all_native_obj_configs = [
-      {flambda = true};
-      {flambda = false};
-    ]
   let all_kinds = [
     Exec;
     Cmi; Cmo; Cma;
-  ]
-  @ List.map (fun conf -> Cmx conf) all_native_obj_configs
-  @ List.map (fun conf -> Cmxa conf) all_native_obj_configs
-  @ [
+    Cmx; Cmxa;
     Cmt;
     Ast_impl; Ast_intf;
   ]
@@ -1277,10 +1292,8 @@ module Magic_number = struct
     | "Caml1999I" -> Some Cmi
     | "Caml1999O" -> Some Cmo
     | "Caml1999A" -> Some Cma
-    | "Caml2021y" -> Some (Cmx {flambda = true})
-    | "Caml2021Y" -> Some (Cmx {flambda = false})
-    | "Caml2021z" -> Some (Cmxa {flambda = true})
-    | "Caml2021Z" -> Some (Cmxa {flambda = false})
+    | "Caml1999Y" -> Some Cmx
+    | "Caml1999Z" -> Some Cmxa
 
     (* Caml2007D and Caml2012T were used instead of the common Caml1999 prefix
        between the introduction of those magic numbers and October 2017
@@ -1304,14 +1317,8 @@ module Magic_number = struct
     | Cmi -> "Caml1999I"
     | Cmo -> "Caml1999O"
     | Cma -> "Caml1999A"
-    | Cmx config ->
-       if config.flambda
-       then "Caml2021y"
-       else "Caml2021Y"
-    | Cmxa config ->
-       if config.flambda
-       then "Caml2021z"
-       else "Caml2021Z"
+    | Cmx -> "Caml1999Y"
+    | Cmxa -> "Caml1999Z"
     | Cmxs -> "Caml1999D"
     | Cmt -> "Caml1999T"
     | Cms -> "Caml1999S"
@@ -1323,29 +1330,21 @@ module Magic_number = struct
     | Cmi -> "cmi"
     | Cmo -> "cmo"
     | Cma -> "cma"
-    | Cmx _ -> "cmx"
-    | Cmxa _ -> "cmxa"
+    | Cmx -> "cmx"
+    | Cmxa -> "cmxa"
     | Cmxs -> "cmxs"
     | Cmt -> "cmt"
     | Cms -> "cms"
     | Ast_impl -> "ast_impl"
     | Ast_intf -> "ast_intf"
 
-  let human_description_of_native_obj_config : native_obj_config -> string =
-    fun[@warning "+9"] {flambda} ->
-      if flambda then "flambda" else "non flambda"
-
   let human_name_of_kind : kind -> string = function
     | Exec -> "executable"
     | Cmi -> "compiled interface file"
     | Cmo -> "bytecode object file"
     | Cma -> "bytecode library"
-    | Cmx config ->
-       Printf.sprintf "native compilation unit description (%s)"
-         (human_description_of_native_obj_config config)
-    | Cmxa config ->
-       Printf.sprintf "static native library (%s)"
-         (human_description_of_native_obj_config config)
+    | Cmx -> "native compilation unit description"
+    | Cmxa -> "static native library"
     | Cmxs -> "dynamic native library"
     | Cmt -> "compiled typedtree file"
     | Cms -> "compiled shape file"
@@ -1412,26 +1411,8 @@ module Magic_number = struct
       | Cmi -> cmi_magic_number
       | Cmo -> cmo_magic_number
       | Cma -> cma_magic_number
-      | Cmx config ->
-         (* the 'if' guarantees that in the common case
-            we return the "trusted" value from Config. *)
-         let reference = cmx_magic_number in
-         if config = native_obj_config then reference
-         else
-           (* otherwise we stitch together the magic number
-              for a different configuration by concatenating
-              the right magic kind at this configuration
-              and the rest of the current raw number for our configuration. *)
-           let raw_kind = raw_kind kind in
-           let len = String.length raw_kind in
-           raw_kind ^ String.sub reference len (String.length reference - len)
-      | Cmxa config ->
-         let reference = cmxa_magic_number in
-         if config = native_obj_config then reference
-         else
-           let raw_kind = raw_kind kind in
-           let len = String.length raw_kind in
-           raw_kind ^ String.sub reference len (String.length reference - len)
+      | Cmx -> cmx_magic_number
+      | Cmxa -> cmxa_magic_number
       | Cmxs -> cmxs_magic_number
       | Cmt -> cmt_magic_number
       | Cms -> cms_magic_number

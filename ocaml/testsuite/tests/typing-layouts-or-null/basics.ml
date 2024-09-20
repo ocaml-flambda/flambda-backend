@@ -26,7 +26,7 @@ Line 1, characters 6-26:
           ^^^^^^^^^^^^^^^^^^^^
 Error: This pattern matches values of type "t_any_non_null"
        but a pattern was expected which matches values of type
-         "('a : '_representable_layout_1)"
+         "('a : '_representable_layout_2)"
        The layout of t_any_non_null is any
          because of the definition of t_any_non_null at line 2, characters 0-34.
        But the layout of t_any_non_null must be representable
@@ -79,7 +79,7 @@ Line 2, characters 13-19:
 2 |   let g () = X.g ()
                  ^^^^^^
 Error: This expression has type "t_any_non_null"
-       but an expression was expected of type "('a : '_representable_layout_2)"
+       but an expression was expected of type "('a : '_representable_layout_7)"
        The layout of t_any_non_null is any
          because of the definition of t_any_non_null at line 2, characters 0-34.
        But the layout of t_any_non_null must be representable

@@ -31,7 +31,6 @@ m4_include([build-aux/ax_check_compile_flag.m4])
 # Macros from the autoconf macro archive
 m4_include([build-aux/ax_func_which_gethostbyname_r.m4])
 m4_include([build-aux/ax_pthread.m4])
-m4_include([build-aux/ax_check_compile_flag.m4])
 
 # OCaml version
 m4_include([build-aux/ocaml_version.m4])

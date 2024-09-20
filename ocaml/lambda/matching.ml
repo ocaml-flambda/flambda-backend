@@ -105,11 +105,18 @@ exception Error of Location.t * error
 let dbg = false
 
 let jkind_layout_default_to_value_and_check_not_void loc jkind =
+  let rec contains_void : Jkind.Layout.Const.t -> bool = function
+    | Any -> false
+    | Base Void -> true
+    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64) -> false
+    | Product [] ->
+      Misc.fatal_error "nil in jkind_layout_default_to_value_and_check_not_void"
+    | Product ts -> List.exists contains_void ts
+  in
   let const = Jkind.default_to_value_and_get jkind in
   let layout = Jkind.Const.get_layout const in
-  match layout with
-  | Sort Void -> raise (Error (loc, Void_layout))
-  | _ -> ()
+  if contains_void layout then
+    raise (Error (loc, Void_layout))
 ;;
 
 let debugf fmt =
@@ -266,8 +273,8 @@ end = struct
           | `Or _ as or_view -> stop orpat or_view
           | other_view -> continue orpat other_view
         )
-      | ( `Constant _ | `Tuple _ | `Construct _ | `Variant _ | `Array _
-        | `Lazy _ ) as view ->
+      | ( `Constant _ | `Tuple _ | `Unboxed_tuple _ | `Construct _ | `Variant _
+        | `Array _ | `Lazy _ ) as view ->
           stop p view
     in
     aux cl
@@ -304,6 +311,9 @@ end = struct
       | `Constant cst -> `Constant cst
       | `Tuple ps ->
           `Tuple (List.map (fun (label, p) -> label, alpha_pat env p) ps)
+      | `Unboxed_tuple ps ->
+          `Unboxed_tuple
+            (List.map (fun (label, p, sort) -> label, alpha_pat env p, sort) ps)
       | `Construct (cstr, cst_descr, args) ->
           `Construct (cstr, cst_descr, List.map (alpha_pat env) args)
       | `Variant (cstr, argo, row_desc) ->
@@ -442,42 +452,27 @@ let matcher discr (p : Simple.pattern) rem =
   match (discr.pat_desc, ph.pat_desc) with
   | Any, _ -> rem
   | ( ( Constant _ | Construct _ | Variant _ | Lazy | Array _ | Record _
-      | Tuple _ ),
+      | Tuple _ | Unboxed_tuple _ ),
       Any ) ->
       omegas @ rem
   | Constant cst, Constant cst' -> yesif (const_compare cst cst' = 0)
-  | Constant _, (Construct _ | Variant _ | Lazy | Array _ | Record _ | Tuple _)
-    ->
-      no ()
   | Construct cstr, Construct cstr' ->
       (* NB: may_equal_constr considers (potential) constructor rebinding;
           Types.may_equal_constr does check that the arities are the same,
           preserving row-size coherence. *)
       yesif (Types.may_equal_constr cstr cstr')
-  | Construct _, (Constant _ | Variant _ | Lazy | Array _ | Record _ | Tuple _)
-    ->
-      no ()
   | Variant { tag; has_arg }, Variant { tag = tag'; has_arg = has_arg' } ->
       yesif (tag = tag' && has_arg = has_arg')
-  | Variant _, (Constant _ | Construct _ | Lazy | Array _ | Record _ | Tuple _)
-    ->
-      no ()
   | Array (am1, _, n1), Array (am2, _, n2) -> yesif (am1 = am2 && n1 = n2)
-  | Array _, (Constant _ | Construct _ | Variant _ | Lazy | Record _ | Tuple _)
-    ->
-      no ()
   | Tuple n1, Tuple n2 -> yesif (n1 = n2)
-  | Tuple _, (Constant _ | Construct _ | Variant _ | Lazy | Array _ | Record _)
-    ->
-      no ()
+  | Unboxed_tuple l1, Unboxed_tuple l2 ->
+    yesif (List.for_all2 (fun (lbl1, _) (lbl2, _) -> lbl1 = lbl2) l1 l2)
   | Record l, Record l' ->
       (* we already expanded the record fully *)
       yesif (List.length l = List.length l')
-  | Record _, (Constant _ | Construct _ | Variant _ | Lazy | Array _ | Tuple _)
-    ->
-      no ()
   | Lazy, Lazy -> yes ()
-  | Lazy, (Constant _ | Construct _ | Variant _ | Array _ | Record _ | Tuple _)
+  | ( Constant _ | Construct _ | Variant _ | Lazy | Array _ | Record _ | Tuple _
+    | Unboxed_tuple _), _
     ->
       no ()
 
@@ -1251,6 +1246,7 @@ let can_group discr pat =
       Types.equal_tag discr_tag pat_cstr.cstr_tag
   | Construct _, Construct _
   | Tuple _, (Tuple _ | Any)
+  | Unboxed_tuple _, (Unboxed_tuple _ | Any)
   | Record _, (Record _ | Any)
   | Array _, Array _
   | Variant _, Variant _
@@ -1264,7 +1260,8 @@ let can_group discr pat =
           | Const_int32 _ | Const_int64 _ | Const_nativeint _
           | Const_unboxed_int32 _ | Const_unboxed_int64 _
           | Const_unboxed_nativeint _ )
-      | Construct _ | Tuple _ | Record _ | Array _ | Variant _ | Lazy ) ) ->
+      | Construct _ | Tuple _ | Unboxed_tuple _ | Record _ | Array _
+      | Variant _ | Lazy ) ) ->
       false
 
 let is_or p =
@@ -2198,6 +2195,13 @@ let get_pat_args_tuple arity p rem =
   | { pat_desc = Tpat_tuple args } -> (List.map snd args) @ rem
   | _ -> assert false
 
+let get_pat_args_unboxed_tuple arity p rem =
+  match p with
+  | { pat_desc = Tpat_any } -> Patterns.omegas arity @ rem
+  | { pat_desc = Tpat_unboxed_tuple args } ->
+    (List.map (fun (_, p, _) -> p) args) @ rem
+  | _ -> assert false
+
 let get_expr_args_tuple ~scopes head (arg, _mut, _sort, _layout) rem =
   let loc = head_loc ~scopes head in
   let arity = Patterns.Head.arity head in
@@ -2211,11 +2215,36 @@ let get_expr_args_tuple ~scopes head (arg, _mut, _sort, _layout) rem =
   in
   make_args 0
 
+let get_expr_args_unboxed_tuple ~scopes shape head (arg, _mut, _sort, _layout)
+      rem =
+  let loc = head_loc ~scopes head in
+  let shape =
+    List.map (fun (_, sort) ->
+      sort,
+      (* CR layouts v7.1: consider whether more accurate [Lambda.layout]s here
+         would make a difference for later optimizations. *)
+      Typeopt.layout_of_sort (Scoped_location.to_location loc) sort
+    ) shape
+  in
+  let layouts = List.map (fun (_, layout) -> layout) shape in
+  List.mapi (fun pos (sort, layout) ->
+    (Lprim (Punboxed_product_field (pos, layouts), [ arg ], loc), Alias,
+     sort, layout))
+    shape
+  @ rem
+
 let divide_tuple ~scopes head ctx pm =
   let arity = Patterns.Head.arity head in
   divide_line (Context.specialize head)
     (get_expr_args_tuple ~scopes)
     (get_pat_args_tuple arity)
+    head ctx pm
+
+let divide_unboxed_tuple ~scopes head shape ctx pm =
+  let arity = Patterns.Head.arity head in
+  divide_line (Context.specialize head)
+    (get_expr_args_unboxed_tuple ~scopes shape)
+    (get_pat_args_unboxed_tuple arity)
     head ctx pm
 
 (* Matching against a record pattern *)
@@ -3714,6 +3743,10 @@ and do_compile_matching ~scopes value_kind repr partial ctx pmh =
           compile_no_test ~scopes value_kind
             (divide_tuple ~scopes ph)
             Context.combine repr partial ctx pm
+      | Unboxed_tuple shape ->
+          compile_no_test ~scopes value_kind
+            (divide_unboxed_tuple ~scopes ph shape)
+            Context.combine repr partial ctx pm
       | Record [] -> assert false
       | Record (lbl :: _) ->
           compile_no_test ~scopes value_kind
@@ -3795,6 +3828,7 @@ let is_lazy_pat p =
   | Tpat_variant _
   | Tpat_record _
   | Tpat_tuple _
+  | Tpat_unboxed_tuple _
   | Tpat_construct _
   | Tpat_array _
   | Tpat_or _
@@ -3815,6 +3849,7 @@ let is_record_with_mutable_field p =
   | Tpat_variant _
   | Tpat_lazy _
   | Tpat_tuple _
+  | Tpat_unboxed_tuple _
   | Tpat_construct _
   | Tpat_array _
   | Tpat_or _
@@ -4170,7 +4205,8 @@ let flatten_simple_pattern size (p : Simple.pattern) =
   | `Record _
   | `Lazy _
   | `Construct _
-  | `Constant _ ->
+  | `Constant _
+  | `Unboxed_tuple _ ->
       (* All calls to this function originate from [do_for_multiple_match],
          where we know that the scrutinee is a tuple literal.
 
