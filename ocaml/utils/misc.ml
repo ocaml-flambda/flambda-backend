@@ -495,9 +495,9 @@ module Stdlib = struct
         in
         loop [] ms
 
-      let all_unit ms =
-        let skip = return () in
-        List.fold_left (fun _ m -> bind m (fun _ -> skip)) skip ms
+      let rec all_unit = function
+        | [] -> return ()
+        | m :: ms -> bind m (fun _ -> all_unit ms)
     end
 
     module Result = Make2(struct

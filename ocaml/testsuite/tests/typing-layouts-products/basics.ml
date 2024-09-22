@@ -966,3 +966,21 @@ Error: This type "string t" = "#(string u * string u)"
        But the kind of string t must be a subkind of any mod global
          because of the definition of needs_any_mod_global at line 4, characters 0-47.
 |}]
+
+type ('a : any mod external_) t
+
+type s = #(int * string * int) t
+[%%expect{|
+type ('a : any mod external_) t
+Line 3, characters 9-30:
+3 | type s = #(int * string * int) t
+             ^^^^^^^^^^^^^^^^^^^^^
+Error: This type "#(int * string * int)" should be an instance of type
+         "('a : any mod external_)"
+       The kind of #(int * string * int) is immutable_data
+         because it is the primitive type string.
+       But the kind of #(int * string * int) must be a subkind of
+         any mod external_
+         because of the definition of t at line 1, characters 0-31.
+|}]
+(* CR layouts v7.1: Both the above have very bad error messages. *)
