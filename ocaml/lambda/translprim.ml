@@ -29,7 +29,6 @@ type error =
   | Unknown_builtin_primitive of string
   | Wrong_arity_builtin_primitive of string
   | Invalid_floatarray_glb
-  | Unexpected_product_in_prim of Jkind.Sort.Const.t
 
 exception Error of Location.t * error
 
@@ -145,14 +144,10 @@ let to_modify_mode ~poly = function
     | Some mode -> transl_modify_mode mode
 
 let extern_repr_of_native_repr:
-  loc:_ -> poly_sort:Jkind.Sort.t option -> Primitive.native_repr
-  -> Lambda.extern_repr
-  = fun ~loc ~poly_sort r -> match r, poly_sort with
+  poly_sort:Jkind.Sort.t option -> Primitive.native_repr -> Lambda.extern_repr
+  = fun ~poly_sort r -> match r, poly_sort with
   | Repr_poly, Some s ->
-    begin match Jkind.Sort.default_to_value_and_get s with
-    | Base b -> Same_as_ocaml_repr b
-    | Product _ as c -> raise (Error (loc, Unexpected_product_in_prim c))
-    end
+    Same_as_ocaml_repr (Jkind.Sort.default_to_value_and_get s)
   | Repr_poly, None -> Misc.fatal_error "Unexpected Repr_poly"
   | Same_as_ocaml_repr s, _ -> Same_as_ocaml_repr s
   | Unboxed_float f, _ -> Unboxed_float f
@@ -160,22 +155,22 @@ let extern_repr_of_native_repr:
   | Unboxed_vector i, _ -> Unboxed_vector i
   | Untagged_immediate, _ -> Untagged_int
 
-let sort_of_native_repr ~loc ~poly_sort repr =
-  match extern_repr_of_native_repr ~loc ~poly_sort repr with
+let sort_of_native_repr ~poly_sort repr =
+  match extern_repr_of_native_repr ~poly_sort repr with
   | Same_as_ocaml_repr s -> s
   | (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
       Unboxed_vector _) ->
-    Jkind.Sort.Value
+    Jkind.Sort.Const.Base Value
 
-let to_lambda_prim ~loc prim ~poly_sort =
+let to_lambda_prim prim ~poly_sort =
   let native_repr_args =
     List.map
-    (fun (m, r) -> m, extern_repr_of_native_repr ~loc ~poly_sort r)
+    (fun (m, r) -> m, extern_repr_of_native_repr ~poly_sort r)
       prim.prim_native_repr_args
   in
   let native_repr_res =
     let (m, r) = prim.prim_native_repr_res in
-    m, extern_repr_of_native_repr ~loc ~poly_sort r
+    m, extern_repr_of_native_repr ~poly_sort r
   in
   Primitive.make
     ~name:prim.prim_name
@@ -332,7 +327,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         Misc.fatal_errorf "Primitive \"%s\" unexpectedly had zero arguments"
           p.prim_name
   in
-  let lambda_prim = to_lambda_prim ~loc p ~poly_sort in
+  let lambda_prim = to_lambda_prim p ~poly_sort in
   let layout =
     (* Extract the result layout of the primitive.  This can be a non-value
        layout even without the use of [@layout_poly]. For example:
@@ -1420,8 +1415,8 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
     match repr_args, repr_res with
     | [], (_, res_repr) ->
       let res_sort =
-        Jkind.Sort.of_base
-          (sort_of_native_repr ~loc:error_loc res_repr ~poly_sort)
+        Jkind.Sort.of_const
+          (sort_of_native_repr res_repr ~poly_sort)
       in
       [], Typeopt.layout env error_loc res_sort ty
     | (((_, arg_repr) as arg) :: repr_args), _ ->
@@ -1431,8 +1426,8 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
             (Primitive.byte_name p)
       | Some (arg_ty, ret_ty) ->
           let arg_sort =
-            Jkind.Sort.of_base
-              (sort_of_native_repr ~loc:error_loc arg_repr ~poly_sort)
+            Jkind.Sort.of_const
+              (sort_of_native_repr arg_repr ~poly_sort)
           in
           let arg_layout =
             Typeopt.layout env error_loc arg_sort arg_ty
@@ -1642,11 +1637,6 @@ let report_error ppf = function
         "@[Floatarray primitives can't be used on arrays containing@ \
          unboxed types.@]"
 
-  | Unexpected_product_in_prim c ->
-      fprintf ppf
-        "@[Unboxed product layouts are not yet supported as arguments to@ \
-         layout polymorphic externals.@ The layout of this argument is %a.@]"
-        Jkind.Sort.Const.format c
 let () =
   Location.register_error_of_exn
     (function

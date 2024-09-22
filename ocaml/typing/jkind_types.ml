@@ -73,6 +73,20 @@ module Sort = struct
       in
       pp_element ~nested:false ppf c
 
+    let value = Base Value
+
+    let void = Base Void
+
+    let float64 = Base Float64
+
+    let float32 = Base Float32
+
+    let word = Base Word
+
+    let bits32 = Base Bits32
+
+    let bits64 = Base Bits64
+
     module Debug_printers = struct
       let t ppf c =
         let rec pp_element ~nested ppf = function
