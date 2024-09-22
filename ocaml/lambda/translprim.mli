@@ -56,7 +56,7 @@ val transl_primitive_application :
     fatal error if it's [None].  *)
 val sort_of_native_repr :
   loc:Location.t -> poly_sort:Jkind.Sort.t option ->
-  Primitive.native_repr -> Jkind.Sort.base
+  Primitive.native_repr -> Jkind.Sort.Const.t
 
 (* Errors *)
 

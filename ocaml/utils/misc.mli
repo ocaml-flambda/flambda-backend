@@ -133,6 +133,8 @@ module Stdlib : sig
     (** [map_option f l] is [some_if_all_elements_are_some (map f l)], but with
         short circuiting. *)
 
+    val map2_option : ('a -> 'b -> 'c option) -> 'a t -> 'b t -> 'c t option
+
     val map2_prefix : ('a -> 'b -> 'c) -> 'a t -> 'b t -> ('c t * 'b t)
     (** [let r1, r2 = map2_prefix f l1 l2]
         If [l1] is of length n and [l2 = h2 @ t2] with h2 of length n,

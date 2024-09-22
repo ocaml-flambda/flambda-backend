@@ -336,7 +336,7 @@ type primitive =
   | Ppoll
 
 and extern_repr =
-  | Same_as_ocaml_repr of Jkind.Sort.base
+  | Same_as_ocaml_repr of Jkind_types.Sort.Const.t
   | Unboxed_float of boxed_float
   | Unboxed_vector of Primitive.boxed_vector
   | Unboxed_integer of Primitive.boxed_integer
@@ -409,6 +409,8 @@ and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
   | Punboxedfloatarray of unboxed_float
   | Punboxedintarray of unboxed_integer
+  | Pgcscannableproductarray of scannable_product_element_kind list
+  | Pgcignorableproductarray of ignorable_product_element_kind list
 
 and array_ref_kind =
   | Pgenarray_ref of alloc_mode
@@ -417,6 +419,8 @@ and array_ref_kind =
   | Pfloatarray_ref of alloc_mode
   | Punboxedfloatarray_ref of unboxed_float
   | Punboxedintarray_ref of unboxed_integer
+  | Pgcscannableproductarray_ref of scannable_product_element_kind list
+  | Pgcignorableproductarray_ref of ignorable_product_element_kind list
 
 and array_set_kind =
   | Pgenarray_set of modify_mode
@@ -425,6 +429,20 @@ and array_set_kind =
   | Pfloatarray_set
   | Punboxedfloatarray_set of unboxed_float
   | Punboxedintarray_set of unboxed_integer
+  | Pgcscannableproductarray_set of
+      modify_mode * scannable_product_element_kind list
+  | Pgcignorableproductarray_set of ignorable_product_element_kind list
+
+and ignorable_product_element_kind =
+  | Pint_ignorable
+  | Punboxedfloat_ignorable of unboxed_float
+  | Punboxedint_ignorable of unboxed_integer
+  | Pproduct_ignorable of ignorable_product_element_kind list
+
+and scannable_product_element_kind =
+  | Pint_scannable
+  | Paddr_scannable
+  | Pproduct_scannable of scannable_product_element_kind list
 
 and array_index_kind =
   | Ptagged_int_index
@@ -1757,9 +1775,13 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Parraylength _ -> None
   | Parraysetu _ | Parraysets _
   | Parrayrefu ((Paddrarray_ref | Pintarray_ref
-      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _)
+                | Punboxedfloatarray_ref _ | Punboxedintarray_ref _
+                | Pgcscannableproductarray_ref _
+                | Pgcignorableproductarray_ref _), _)
   | Parrayrefs ((Paddrarray_ref | Pintarray_ref
-      | Punboxedfloatarray_ref _ | Punboxedintarray_ref _), _) -> None
+                | Punboxedfloatarray_ref _ | Punboxedintarray_ref _
+                | Pgcscannableproductarray_ref _
+                | Pgcignorableproductarray_ref _), _) -> None
   | Parrayrefu ((Pgenarray_ref m | Pfloatarray_ref m), _)
   | Parrayrefs ((Pgenarray_ref m | Pfloatarray_ref m), _) -> Some m
   | Pisint _ | Pisout -> None
@@ -1871,30 +1893,53 @@ let structured_constant_layout = function
   | Const_mixed_block _ | Const_block _ | Const_immstring _ -> Pvalue Pgenval
   | Const_float_array _ | Const_float_block _ -> Pvalue (Parrayval Pfloatarray)
 
+(* This is duplicative of [Typeopt.layout_of_const_sort], but dependency cycles
+   make that one hard to use. *)
+let rec layout_of_const_sort (c : Jkind.Sort.Const.t) : layout =
+  match c with
+  | Base Value -> layout_any_value
+  | Base Float64 -> layout_unboxed_float Pfloat64
+  | Base Float32 -> layout_unboxed_float Pfloat32
+  | Base Word -> layout_unboxed_nativeint
+  | Base Bits32 -> layout_unboxed_int32
+  | Base Bits64 -> layout_unboxed_int64
+  | Base Void -> assert false
+  | Product sorts ->
+    layout_unboxed_product (List.map layout_of_const_sort sorts)
+
+
 let layout_of_extern_repr : extern_repr -> _ = function
   | Untagged_int ->  layout_int
   | Unboxed_vector v -> layout_boxed_vector v
   | Unboxed_float bf -> layout_boxed_float bf
   | Unboxed_integer bi -> layout_boxedint bi
-  | Same_as_ocaml_repr s ->
-    begin match s with
-    | Value -> layout_any_value
-    | Float64 -> layout_unboxed_float Pfloat64
-    | Float32 -> layout_unboxed_float Pfloat32
-    | Word -> layout_unboxed_nativeint
-    | Bits32 -> layout_unboxed_int32
-    | Bits64 -> layout_unboxed_int64
-    | Void -> assert false
-    end
+  | Same_as_ocaml_repr s -> layout_of_const_sort s
+
+let rec layout_of_scannable_kinds kinds =
+  Punboxed_product (List.map layout_of_scannable_kind kinds)
+
+and layout_of_scannable_kind = function
+  | Pint_scannable -> layout_int
+  | Paddr_scannable -> layout_value_field
+  | Pproduct_scannable kinds -> layout_of_scannable_kinds kinds
+
+let rec layout_of_ignorable_kinds kinds =
+  Punboxed_product (List.map layout_of_ignorable_kind kinds)
+
+and layout_of_ignorable_kind = function
+  | Pint_ignorable -> layout_int
+  | Punboxedfloat_ignorable f -> layout_unboxed_float f
+  | Punboxedint_ignorable i -> layout_unboxed_int i
+  | Pproduct_ignorable kinds -> layout_of_ignorable_kinds kinds
 
 let array_ref_kind_result_layout = function
   | Pintarray_ref -> layout_int
   | Pfloatarray_ref _ -> layout_boxed_float Pfloat64
   | Punboxedfloatarray_ref bf -> layout_unboxed_float bf
   | Pgenarray_ref _ | Paddrarray_ref -> layout_value_field
-  | Punboxedintarray_ref Pint32 -> layout_unboxed_int32
-  | Punboxedintarray_ref Pint64 -> layout_unboxed_int64
-  | Punboxedintarray_ref Pnativeint -> layout_unboxed_nativeint
+  | Punboxedintarray_ref i -> layout_unboxed_int i
+  | Pgcscannableproductarray_ref kinds -> layout_of_scannable_kinds kinds
+  | Pgcignorableproductarray_ref kinds -> layout_of_ignorable_kinds kinds
 
 let layout_of_mixed_field (kind : mixed_block_read) =
   match kind with
@@ -1983,7 +2028,7 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_128 _ | Pbytes_load_128 _
   | Pbigstring_load_128 { boxed = true; _ } ->
       layout_boxed_vector (Pvec128 Int8x16)
-  | Pbigstring_load_32 { boxed = false; _ } 
+  | Pbigstring_load_32 { boxed = false; _ }
   | Pstring_load_32 { boxed = false; _ }
   | Pbytes_load_32 { boxed = false; _ } -> layout_unboxed_int Pint32
   | Pbigstring_load_f32 { boxed = false; _ }
@@ -2092,6 +2137,8 @@ let array_ref_kind mode = function
   | Pfloatarray -> Pfloatarray_ref mode
   | Punboxedintarray int_kind -> Punboxedintarray_ref int_kind
   | Punboxedfloatarray float_kind -> Punboxedfloatarray_ref float_kind
+  | Pgcscannableproductarray kinds -> Pgcscannableproductarray_ref kinds
+  | Pgcignorableproductarray kinds -> Pgcignorableproductarray_ref kinds
 
 let array_set_kind mode = function
   | Pgenarray -> Pgenarray_set mode
@@ -2100,6 +2147,8 @@ let array_set_kind mode = function
   | Pfloatarray -> Pfloatarray_set
   | Punboxedintarray int_kind -> Punboxedintarray_set int_kind
   | Punboxedfloatarray float_kind -> Punboxedfloatarray_set float_kind
+  | Pgcscannableproductarray kinds -> Pgcscannableproductarray_set (mode, kinds)
+  | Pgcignorableproductarray kinds -> Pgcignorableproductarray_set kinds
 
 let may_allocate_in_region lam =
   (* loop_region raises, if the lambda might allocate in parent region *)
@@ -2147,6 +2196,7 @@ let may_allocate_in_region lam =
   end
 
 let simple_prim_on_values ~name ~arity ~alloc =
+  let value : Jkind.Sort.Const.t = Base Value in (* XXX pull out *)
   Primitive.make
     ~name
     ~alloc
@@ -2156,6 +2206,6 @@ let simple_prim_on_values ~name ~arity ~alloc =
     ~native_name:""
     ~native_repr_args:
       (Primitive.make_prim_repr_args arity
-        (Primitive.Prim_global,Same_as_ocaml_repr Jkind.Sort.Value))
-    ~native_repr_res:(Prim_global, Same_as_ocaml_repr Jkind.Sort.Value)
+        (Primitive.Prim_global,Same_as_ocaml_repr value))
+    ~native_repr_res:(Prim_global, Same_as_ocaml_repr value)
     ~is_layout_poly:false

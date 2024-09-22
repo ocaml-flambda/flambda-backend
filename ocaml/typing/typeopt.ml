@@ -29,7 +29,8 @@ type error =
   | Small_number_sort_without_extension of Jkind.Sort.t * type_expr option
   | Not_a_sort of type_expr * Jkind.Violation.t
   | Unsupported_sort of Jkind.Sort.Const.t
-  | Unsupported_product_in_structure of Jkind.Sort.Const.t
+  | Unsupported_product_in_lazy
+  | Mixed_product_array of Jkind.Sort.Const.t
 
 exception Error of Location.t * error
 
@@ -118,7 +119,8 @@ type classification =
   | Unboxed_float of unboxed_float
   | Unboxed_int of unboxed_integer
   | Lazy
-  | Addr  (* anything except a float or a lazy *)
+  | Addr  (* any value except a float or a lazy *)
+  | Product of Jkind.Sort.Const.t list
   | Any
 
 (* Classify a ty into a [classification]. Looks through synonyms, using [scrape_ty].
@@ -167,8 +169,37 @@ let classify env loc ty sort : classification =
   | Base Word -> Unboxed_int Pnativeint
   | Base Void as c ->
     raise (Error (loc, Unsupported_sort c))
-  | Product _ as c ->
-    raise (Error (loc, Unsupported_product_in_structure c))
+  | Product sorts -> Product sorts
+
+let rec scannable_product_array_kind loc sorts =
+  List.map (sort_to_scannable_product_element_kind loc) sorts
+
+and sort_to_scannable_product_element_kind loc (s : Jkind.Sort.Const.t) =
+  (* Unfortunate: this never returns `Pint_scannable`.  Doing so would require
+     this to traverse the type, rather than just the kind, or to add product
+     kinds. *)
+  match s with
+  | Base Value -> Paddr_scannable
+  | Base (Float64 | Float32 | Bits32 | Bits64 | Word) as c ->
+    raise (Error (loc, Mixed_product_array c))
+  | Base Void as c ->
+    raise (Error (loc, Unsupported_sort c))
+  | Product sorts -> Pproduct_scannable (scannable_product_array_kind loc sorts)
+
+let rec ignorable_product_array_kind loc sorts =
+  List.map (sort_to_ignorable_product_element_kind loc) sorts
+
+and sort_to_ignorable_product_element_kind loc (s : Jkind.Sort.Const.t) =
+  match s with
+  | Base Value -> Pint_ignorable
+  | Base Float64 -> Punboxedfloat_ignorable Pfloat64
+  | Base Float32 -> Punboxedfloat_ignorable Pfloat32
+  | Base Bits32 -> Punboxedint_ignorable Pint32
+  | Base Bits64 -> Punboxedint_ignorable Pint64
+  | Base Word -> Punboxedint_ignorable Pnativeint
+  | Base Void as c ->
+    raise (Error (loc, Unsupported_sort c))
+  | Product sorts -> Pproduct_ignorable (ignorable_product_array_kind loc sorts)
 
 let array_type_kind ~elt_sort env loc ty =
   match scrape_poly env ty with
@@ -187,6 +218,12 @@ let array_type_kind ~elt_sort env loc ty =
       | Int -> Pintarray
       | Unboxed_float f -> Punboxedfloatarray f
       | Unboxed_int i -> Punboxedintarray i
+      | Product sorts ->
+        (* XXX need scrape_ty elt_ty? *)
+        if is_always_gc_ignorable env elt_ty then
+          Pgcignorableproductarray (ignorable_product_array_kind loc sorts)
+        else
+          Pgcscannableproductarray (scannable_product_array_kind loc sorts)
       end
   | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
       Pfloatarray
@@ -764,9 +801,9 @@ let layout_of_sort loc sort =
                                                  Beta,
                                                  None))))
 
-let layout_of_base_sort b =
+let layout_of_const_sort c =
   layout_of_const_sort_generic
-    (Base b)
+    c
     ~value_kind:(lazy Pgenval)
     ~error:(fun const ->
       Misc.fatal_errorf "layout_of_const_sort: %a encountered"
@@ -801,6 +838,8 @@ let lazy_val_requires_forward env loc ty =
     Misc.fatal_error "Unboxed value encountered inside lazy expression"
   | Float -> Config.flat_float_array
   | Addr | Int -> false
+  | Product _ -> raise (Error (loc, Unsupported_product_in_lazy))
+
 
 (** The compilation of the expression [lazy e] depends on the form of e:
     constants, floats and identifiers are optimized.  The optimization must be
@@ -918,10 +957,15 @@ let report_error ppf = function
   | Unsupported_sort const ->
       fprintf ppf "Layout %a is not supported yet."
         Jkind.Sort.Const.format const
-  | Unsupported_product_in_structure const ->
+  | Unsupported_product_in_lazy ->
       fprintf ppf
-        "Product layout %a detected in structure in [Typeopt.Layout]@ \
+        "Product layout detected in lazy in [Typeopt.Layout].@ \
          Please report this error to the Jane Street compilers team."
+  | Mixed_product_array const ->
+      fprintf ppf
+        "Unboxed product array elements must be external or contain all gc \
+         scannable types.@ This product is not external but contains an \
+         element of sort %a."
         Jkind.Sort.Const.format const
 
 let () =

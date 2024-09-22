@@ -724,6 +724,9 @@ let initial_array ~loc ~array_kind ~array_size ~array_sizing =
       ( Mutable,
         Resizable_array.make ~loc array_kind (unboxed_nativeint Targetint.zero)
       )
+    | _, (Pgcscannableproductarray _ | Pgcignorableproductarray _) ->
+      Misc.fatal_error
+        "Transl_array_comprehension.initial_array: unboxed product array"
   in
   Let_binding.make array_let_kind (Pvalue Pgenval) "array" array_value
 
@@ -812,6 +815,8 @@ let body ~loc ~array_kind ~array_size ~array_sizing ~array ~index ~body =
     | Punboxedfloatarray (Pfloat64 | Pfloat32)
     | Punboxedintarray _ ->
       set_element_in_bounds body
+    | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+      Misc.fatal_error "Transl_array_comprehension.body: unboxed product array"
   in
   Lsequence
     (set_element_known_kind_in_bounds, Lassign (index.id, index.var + l1))
@@ -831,7 +836,10 @@ let comprehension ~transl_exp ~scopes ~loc ~(array_kind : Lambda.array_kind)
       Misc.fatal_errorf
         "Array comprehensions for kind %s can only be compiled for 64-bit \
          native targets"
-        (Printlambda.array_kind array_kind));
+        (Printlambda.array_kind array_kind)
+  | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+    Misc.fatal_error
+      "Transl_array_comprehension.comprehension: unboxed product array");
   let { array_sizing_info; array_size; make_comprehension } =
     clauses ~transl_exp ~scopes ~loc comp_clauses
   in
