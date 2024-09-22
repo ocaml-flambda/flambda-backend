@@ -255,9 +255,11 @@ let compute_static_size lam =
             Block (Regular_block size)
         | Pfloatarray ->
             Block (Float_record size)
-        | Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _ ->
+        | Punboxedfloatarray _ | Punboxedintarray _ | Punboxedvectorarray _
+        | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
             Misc.fatal_error "size_of_primitive"
         end
+    | Pmakearray_dynamic _ -> Misc.fatal_error "size_of_primitive"
     | Pduparray _ ->
         (* The size has to be recovered from the size of the argument *)
         begin match args with

@@ -779,13 +779,18 @@ type t3 = #(int * bool) array
 type t4 = #(string * #(float# * bool option)) array
 |}]
 
+(* CR layouts v7.1: The below error is nonsense - an artifact of the fact that
+   we have temporarily gated product arrays to alpha to stage the release. The
+   PR that adds support later in the compiler can allow this test. *)
 let _ = [| #(1,2) |]
 [%%expect{|
 Line 1, characters 8-20:
 1 | let _ = [| #(1,2) |]
             ^^^^^^^^^^^^
-Error: Unboxed products are not yet supported with array primitives.
-       Here, layout value & value was used.
+Error: Non-value layout value & value detected as sort for type #(int * int),
+       but this requires extension layouts_alpha, which is not enabled.
+       If you intended to use this layout, please add this flag to your build file.
+       Otherwise, please report this error to the Jane Street compilers team.
 |}]
 
 let _ = Array.init 3 (fun _ -> #(1,2))
@@ -821,6 +826,10 @@ Lines 1-2, characters 0-18:
 Error: Attribute "[@layout_poly]" can only be used on built-in primitives.
 |}]
 
+(* CR layouts v7.1: The errors in the next two tests are nonsense - an artifact
+   of the fact that we have temporarily gated product arrays to alpha to stage
+   the release. The PR that adds support later in the compiler can allow this
+   test. *)
 external[@layout_poly] array_get : ('a : any) . 'a array -> int -> 'a =
   "%array_safe_get"
 let f x : #(int * int) = array_get x 3
@@ -830,8 +839,10 @@ external array_get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
 Line 3, characters 25-38:
 3 | let f x : #(int * int) = array_get x 3
                              ^^^^^^^^^^^^^
-Error: Unboxed products are not yet supported with array primitives.
-       Here, layout value & value was used.
+Error: Non-value layout value & value detected as sort for type #(int * int),
+       but this requires extension layouts_alpha, which is not enabled.
+       If you intended to use this layout, please add this flag to your build file.
+       Otherwise, please report this error to the Jane Street compilers team.
 |}]
 
 external[@layout_poly] array_set : ('a : any) . 'a array -> int -> 'a -> unit =
@@ -843,8 +854,10 @@ external array_set : ('a : any). 'a array -> int -> 'a -> unit
 Line 3, characters 10-30:
 3 | let f x = array_set x 3 #(1,2)
               ^^^^^^^^^^^^^^^^^^^^
-Error: Unboxed products are not yet supported with array primitives.
-       Here, layout value & value was used.
+Error: Non-value layout value & value detected as sort for type #(int * int),
+       but this requires extension layouts_alpha, which is not enabled.
+       If you intended to use this layout, please add this flag to your build file.
+       Otherwise, please report this error to the Jane Street compilers team.
 |}]
 
 
