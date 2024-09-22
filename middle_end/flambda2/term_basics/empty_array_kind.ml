@@ -57,3 +57,5 @@ let of_lambda array_kind =
   | Punboxedintarray Pint64 -> Naked_int64s
   | Punboxedintarray Pnativeint -> Naked_nativeints
   | Punboxedvectorarray Pvec128 -> Naked_vec128s
+  | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+    Misc.fatal_errorf "Empty_array_kind.of_lambda: unimplemented"
