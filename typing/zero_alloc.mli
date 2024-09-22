@@ -34,11 +34,14 @@ val create_const : const -> t
 (* [create_var loc n] creates a variable. [loc] is the location of the function
    you are creating a variable for, and [n] is its syntactic arity of the
    function the variable is being created for. *)
-val create_var : Location.t -> int -> t
+val create_lvar : Location.t -> int -> t
+val create_rvar : unit -> t
 
 (* In the case [t] is a variable, [get t] returns its current contents as a
    [const] and has no effect. *)
 val get : t -> const
+
+val get_default : t -> const
 
 (* For types.ml's backtracking mechanism. *)
 type change

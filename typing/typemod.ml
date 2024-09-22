@@ -569,7 +569,7 @@ let rec remove_modality_and_zero_alloc_variables_sg env ~zap_modality sg =
           |> zap_modality |> Mode.Modality.Value.of_const
         in
         let val_zero_alloc =
-          Zero_alloc.create_const (Zero_alloc.get desc.val_zero_alloc)
+          Zero_alloc.create_const (Zero_alloc.get_default desc.val_zero_alloc)
         in
         let desc = {desc with val_modalities; val_zero_alloc} in
         Sig_value (id, desc, vis)
@@ -3013,7 +3013,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    convert "Assume"s in structures to the equivalent "Check" for
                    the signature. *)
                 let open Builtin_attributes in
-                match[@warning "+9"] Zero_alloc.get zero_alloc with
+                match[@warning "+9"] Zero_alloc.get_default zero_alloc with
                 | Default_zero_alloc | Check _ -> zero_alloc
                 | Assume { strict; arity; loc;
                            never_returns_normally = _;
@@ -3028,9 +3028,15 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
               let modalities =
                 maybe_infer_modalities ~loc:first_loc ~env ~md_mode ~mode
               in
+              begin
+                match Zero_alloc.sub zero_alloc vd.val_zero_alloc with
+                | Ok () -> ()
+                | Error _ ->
+                    fatal_error
+                      "Failed to constrain an unconstrained zero alloc var"
+              end;
               let vd =
                 { vd with
-                  val_zero_alloc = zero_alloc;
                   val_modalities = modalities }
               in
               Sig_value(id, vd, Exported) :: acc,

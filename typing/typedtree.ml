@@ -1131,6 +1131,8 @@ let let_bound_idents_with_modes_sorts_and_checks bindings =
     List.fold_left (fun checks vb ->
       iter_pattern_full ~both_sides_of_or:true f vb.vb_sort vb.vb_pat;
        match vb.vb_pat.pat_desc, vb.vb_expr.exp_desc with
+       | Tpat_var (id, _, _, _), Texp_ident (_, _, vd, _, _) ->
+           Ident.Map.add id vd.val_zero_alloc checks
        | Tpat_var (id, _, _, _), Texp_function fn ->
          let zero_alloc =
            match Zero_alloc.get fn.zero_alloc with

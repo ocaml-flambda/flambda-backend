@@ -1183,7 +1183,7 @@ let add_pattern_variables ?check ?check_as env pv =
        Env.add_value ?check ~mode:pv_mode pv_id
          {val_type = pv_type; val_kind = Val_reg; Types.val_loc = pv_loc;
           val_attributes = pv_attributes; val_modalities = Modality.Value.id;
-          val_zero_alloc = Zero_alloc.default;
+          val_zero_alloc = Zero_alloc.create_rvar ();
           val_uid = pv_uid
          } env
     )
@@ -9034,7 +9034,7 @@ and type_n_ary_function
     in
     let zero_alloc =
       match zero_alloc with
-      | Default_zero_alloc -> Zero_alloc.create_var loc syntactic_arity
+      | Default_zero_alloc -> Zero_alloc.create_lvar loc syntactic_arity
       | (Check _ | Assume _ | Ignore_assert_all) ->
         Zero_alloc.create_const zero_alloc
     in
