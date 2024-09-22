@@ -966,3 +966,11 @@ Error: This type "string t" = "#(string u * string u)"
        But the kind of string t must be a subkind of any mod global
          because of the definition of needs_any_mod_global at line 4, characters 0-47.
 |}]
+
+type ('a : any mod external_) t
+
+type s = #(int * string * int) t
+[%%expect{|
+type ('a : any mod external_) t
+type s = #(int * string * int) t
+|}]
