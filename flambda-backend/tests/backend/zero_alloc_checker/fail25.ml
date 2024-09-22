@@ -1,4 +1,4 @@
-(* all functions fail the check when -disable-zero-zero-alloc-checker is passed. *)
+(* This test serves as a record of the checks that fail when -disable-precise-zero-alloc-checker is passed. *)
 module Sexp = struct
   type t =
     | Atom of string
@@ -41,16 +41,16 @@ let[@zero_alloc] rec g x =
     try g x with _ -> ()
   else raise (Failure x)
 
-(* Functions below fail the check when -disable-precise-zero-alloc-checker is passed. *)
+(* Fail the check when -disable-precise-zero-alloc-checker is passed. *)
 let[@zero_alloc] rec foo n =
   bar (n-1)
-and[@zero_alloc] bar n =
+and bar n =
   foo (n-1)
 
 let[@zero_alloc] rec f1 x =
   if x > Sys.opaque_identity 10 then x else
   f2 (x + 1)
-and[@zero_alloc] f2 x =
+and f2 x =
   f1 (x + 1)
 
 (* Fail the check when -disable-precise-zero-alloc-checker is passed and -function-layout source *)
@@ -61,3 +61,19 @@ let[@zero_alloc] outer x =
     else (x + 1)
   in
   inner (x+1)
+
+(** Passing versions of above code *)
+
+module Passing = struct
+  (* Pass the check when recursive functions are all labeled as [@zero_alloc]. *)
+  let[@zero_alloc] rec foo n =
+    bar (n-1)
+  and[@zero_alloc] bar n =
+    foo (n-1)
+
+  let[@zero_alloc] rec f1 x =
+    if x > Sys.opaque_identity 10 then x else
+    f2 (x + 1)
+  and[@zero_alloc] f2 x =
+    f1 (x + 1)
+end

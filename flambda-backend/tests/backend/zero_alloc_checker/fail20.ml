@@ -16,4 +16,8 @@ let[@zero_alloc][@inline never][@local never]  foo x =
   in
   fst (bar x (x*x))
 
+(* This passes the check because the analysis sees that [foo] was
+   marked as [zero_alloc]. ([foo] is, in fact, not zero-alloc, but the check
+   will flag this about [foo] and needs not flag anything about [zee].)
+*)
 let[@zero_alloc] zee x f = foo (Sys.opaque_identity x+1)

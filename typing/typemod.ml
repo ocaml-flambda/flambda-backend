@@ -3013,7 +3013,7 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                    convert "Assume"s in structures to the equivalent "Check" for
                    the signature. *)
                 let open Builtin_attributes in
-                match[@warning "+9"] Zero_alloc.get_default zero_alloc with
+                match[@warning "+9"] Zero_alloc.get zero_alloc with
                 | Default_zero_alloc | Check _ -> zero_alloc
                 | Assume { strict; arity; loc;
                            never_returns_normally = _;
@@ -3032,8 +3032,8 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
                 match Zero_alloc.sub zero_alloc vd.val_zero_alloc with
                 | Ok () -> ()
                 | Error _ ->
-                    fatal_error
-                      "Failed to constrain an unconstrained zero alloc var"
+                    (* [vd.val_zero_alloc] is an unconstrained rvar. *)
+                    assert false
               end;
               let vd =
                 { vd with

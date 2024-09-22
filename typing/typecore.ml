@@ -1175,7 +1175,8 @@ let maybe_add_pattern_variables_ghost loc_let env pv =
 let iter_pattern_variables_type f : pattern_variable list -> unit =
   List.iter (fun {pv_type; _} -> f pv_type)
 
-let add_pattern_variables ?check ?check_as env pv =
+let add_pattern_variables ?check ?check_as
+    ?(val_zero_alloc = fun () -> Zero_alloc.default) env pv =
   List.fold_right
     (fun {pv_id; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes; pv_uid}
       env ->
@@ -1183,11 +1184,22 @@ let add_pattern_variables ?check ?check_as env pv =
        Env.add_value ?check ~mode:pv_mode pv_id
          {val_type = pv_type; val_kind = Val_reg; Types.val_loc = pv_loc;
           val_attributes = pv_attributes; val_modalities = Modality.Value.id;
-          val_zero_alloc = Zero_alloc.create_rvar ();
+          val_zero_alloc = val_zero_alloc ();
           val_uid = pv_uid
          } env
     )
     pv env
+
+let add_pattern_variables_with_zero_alloc_vars ?check ?check_as env pv =
+  let rev_zas = ref [] in
+  let res =
+    add_pattern_variables ?check ?check_as env pv
+      ~val_zero_alloc:(fun () ->
+          let rvar = Zero_alloc.create_rvar () in
+          rev_zas := rvar :: !rev_zas;
+          rvar)
+  in
+  res, !rev_zas
 
 let add_module_variables env module_variables =
   let module_variables_as_list =
@@ -5251,10 +5263,13 @@ and type_expect_
               Modules_allowed { scope }
             else Modules_rejected
           in
-          let (pat_exp_list, new_env) =
+          let (pat_exp_list, new_env, zas) =
             type_let existential_context env rec_flag spat_sexp_list
               allow_modules
           in
+          List.iter (fun za ->
+              ignore (Zero_alloc.get_default za : Zero_alloc.const))
+            zas;
           let body =
             type_expect
               new_env expected_mode sbody ty_expected_explained
@@ -8499,7 +8514,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
   let attrs_list = List.map (fun (attrs, _, _, _) -> attrs) spatl in
   let is_recursive = (rec_flag = Recursive) in
 
-  let (pat_list, exp_list, new_env, mvs, sorts, _pvs) =
+  let (pat_list, exp_list, new_env, mvs, sorts, _pvs, zas) =
     with_local_level begin fun () ->
       if existential_context = At_toplevel then Typetexp.TyVarEnv.reset ();
       let (pat_list, new_env, force, pvs, mvs), sorts =
@@ -8569,7 +8584,9 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
          we type-checked expressions before patterns, then we could call
          [add_module_variables] here.
       *)
-      let new_env = add_pattern_variables new_env pvs in
+      let new_env, zas =
+        add_pattern_variables_with_zero_alloc_vars new_env pvs
+      in
       let mode_pat_typ_list =
         List.map
           (fun (m, pat) ->
@@ -8625,9 +8642,9 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
         mode_pat_typ_list
         (List.map2 (fun (attrs, _, _, _) (e, _) -> attrs, e) spatl exp_list);
       (mode_pat_typ_list, exp_list, new_env, mvs, sorts,
-       List.map (fun pv -> { pv with pv_type = instance pv.pv_type}) pvs)
+       List.map (fun pv -> { pv with pv_type = instance pv.pv_type}) pvs, zas)
     end
-    ~post: begin fun (mode_pat_typ_list, exp_list, _, _, _, pvs) ->
+    ~post: begin fun (mode_pat_typ_list, exp_list, _, _, _, pvs, _) ->
       List.iter2
         (fun (_, pat, _) (exp, _) ->
           if maybe_expansive exp then lower_contravariant env pat.pat_type)
@@ -8697,7 +8714,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
     ) l;
   (* See Note [add_module_variables after checking expressions] *)
   let new_env = add_module_variables new_env mvs in
-  (l, new_env)
+  (l, new_env, zas)
 
 and type_let_def_wrap_warnings
     ?(check = fun s -> Warnings.Unused_var s)
@@ -9414,7 +9431,7 @@ let maybe_check_uniqueness_value_bindings vbl =
 (* Typing of toplevel bindings *)
 
 let type_binding env rec_flag ?force_toplevel spat_sexp_list =
-  let (pat_exp_list, new_env) =
+  let (pat_exp_list, new_env, _zas) =
     type_let
       ~check:(fun s -> Warnings.Unused_value_declaration s)
       ~check_strict:(fun s -> Warnings.Unused_value_declaration s)
@@ -9426,7 +9443,7 @@ let type_binding env rec_flag ?force_toplevel spat_sexp_list =
   (pat_exp_list, new_env)
 
 let type_let existential_ctx env rec_flag spat_sexp_list =
-  let (pat_exp_list, new_env) =
+  let (pat_exp_list, new_env, _zas) =
     type_let existential_ctx env rec_flag spat_sexp_list Modules_rejected
   in
   maybe_check_uniqueness_value_bindings pat_exp_list;
