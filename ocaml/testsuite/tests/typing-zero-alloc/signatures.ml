@@ -1443,3 +1443,115 @@ module type S_outer_subst =
   sig module M_inner : sig val f : unit -> unit end end
 module M : S_outer_subst
 |}]
+
+(* Test 18: rebinding *)
+module type S_rebinding_base = sig
+  val[@zero_alloc] f : 'a -> 'a
+end
+
+module type S_rebinding_opt = sig
+  val[@zero_alloc opt] f : 'a -> 'a
+end
+
+module M1 = struct
+  let g x = x
+  let f = g
+end
+
+module _ : S_rebinding_base = M1
+module _ : S_rebinding_opt = M1
+
+module M2 = struct
+  let g x = x
+  let f = g
+end
+
+module _ : S_rebinding_opt = M2
+module _ : S_rebinding_base = M2
+
+[%%expect{|
+module type S_rebinding_base = sig val f : 'a -> 'a [@@zero_alloc] end
+module type S_rebinding_opt = sig val f : 'a -> 'a [@@zero_alloc opt] end
+module M1 : sig val g : 'a -> 'a val f : 'a -> 'a end
+module M2 : sig val g : 'a -> 'a val f : 'a -> 'a end
+|}]
+
+(* Test 19: rebinding errors *)
+module type S_rebinding_errors_base = sig
+  val[@zero_alloc] f : 'a -> 'a
+end
+
+module type S_rebinding_errors_opt = sig
+  val[@zero_alloc opt] f : 'a -> 'a
+end
+
+[%%expect {|
+module type S_rebinding_errors_base = sig val f : 'a -> 'a [@@zero_alloc] end
+module type S_rebinding_errors_opt =
+  sig val f : 'a -> 'a [@@zero_alloc opt] end
+|}]
+
+module M1 : S_rebinding_errors_base = struct
+  let[@zero_alloc opt] g x = x
+  let f = g
+end
+
+[%%expect{|
+Lines 1-4, characters 38-3:
+1 | ......................................struct
+2 |   let[@zero_alloc opt] g x = x
+3 |   let f = g
+4 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           val g : 'a -> 'a [@@zero_alloc opt]
+           val f : 'a -> 'a [@@zero_alloc opt]
+         end
+       is not included in
+         S_rebinding_errors_base
+       Values do not match:
+         val f : 'a -> 'a [@@zero_alloc opt]
+       is not included in
+         val f : 'a -> 'a [@@zero_alloc]
+       The former provides a weaker "zero_alloc" guarantee than the latter.
+|}]
+
+module M1 : S_rebinding_errors_base = struct
+  let g x = x
+  let[@zero_alloc opt] f = g
+end
+
+(* CR nroberts: this output looks wrong... *)
+[%%expect{|
+module M1 : S_rebinding_errors_base
+|}]
+
+(* Test 20: complex rebinding *)
+module type S_rebinding_complex = sig
+  val[@zero_alloc] f : 'a -> 'a
+  val[@zero_alloc opt] g : 'a -> 'a
+end
+
+[%%expect{|
+module type S_rebinding_complex =
+  sig val f : 'a -> 'a [@@zero_alloc] val g : 'a -> 'a [@@zero_alloc opt] end
+|}]
+
+module M1 : S_rebinding_complex = struct
+  let g x = x
+  let f = g
+end
+
+[%%expect{|
+module M1 : S_rebinding_complex
+|}]
+
+module M2 : S_rebinding_complex = struct
+  let f x = x
+  let g = f
+end
+
+[%%expect{|
+module M2 : S_rebinding_complex
+|}]

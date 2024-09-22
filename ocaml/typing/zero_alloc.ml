@@ -24,7 +24,7 @@ type const = Builtin_attributes.zero_alloc_attribute =
 
 type desc = { strict : bool; opt : bool }
 
-type var =
+type lvar =
   { loc : Location.t;
     arity : int;
     mutable desc : desc option;
@@ -35,9 +35,10 @@ type var =
 
 type t =
   | Const of const
-  | Var of var
+  | Lvar of lvar
+  | Rvar of { mutable t : t option (* not Rvar *) }
 
-let debug_printer ppf t =
+let rec debug_printer ppf t =
   let head c = match c with
     | Default_zero_alloc -> "Default"
     | Ignore_assert_all -> "Ignore"
@@ -46,33 +47,52 @@ let debug_printer ppf t =
   in
   match t with
   | Const c -> Format.fprintf ppf "Const %s" (head c)
-  | Var v ->
+  | Rvar { t = None } -> Format.fprintf ppf "Rvar"
+  | Rvar { t = Some t } -> Format.fprintf ppf "Rvar (%a)" debug_printer t
+  | Lvar v ->
     let print_desc ppf desc =
       match desc with
       | None -> Format.fprintf ppf "None"
       | Some desc ->
         Format.fprintf ppf "{ strict = %b; opt = %b }" desc.strict desc.opt
     in
-    Format.fprintf ppf "Var { arity = %d; desc = %a }" v.arity print_desc v.desc
+    Format.fprintf ppf "Lvar { arity = %d; desc = %a }" v.arity print_desc v.desc
 
 (* For backtracking *)
-type change = desc option * var
-let undo_change (d, v) = v.desc <- d
+type change =
+  | Change_desc of desc option * lvar
+  | Constrain_rvar of t
+
+let undo_change = function
+  | Change_desc (d, v) -> v.desc <- d
+  | Constrain_rvar (Rvar rv) -> rv.t <- None
+  | Constrain_rvar (Const _ | Lvar _) -> assert false
+
 let log_change = ref (fun _ -> ())
 let set_change_log f = log_change := f
 
 let create_const x = Const x
-let create_var loc arity = Var { loc; arity; desc = None }
+let create_lvar loc arity = Lvar { loc; arity; desc = None }
+let create_rvar () = Rvar { t = None }
 let default = Const Default_zero_alloc
 
-let get (t : t) =
+let rec get (t : t) =
   match t with
   | Const c -> c
-  | Var { loc; arity; desc } ->
+  | Rvar { t = None } -> Misc.fatal_error "Zero_alloc.get of unconstrained Rvar"
+  | Rvar { t = Some t } -> get t
+  | Lvar { loc; arity; desc } ->
     match desc with
     | None -> Default_zero_alloc
     | Some { strict; opt } ->
       Check { loc; arity; strict; opt }
+
+let get_default (t : t) =
+  match t with
+  | Rvar ({ t = None } as rv) ->
+      rv.t <- Some (Const Default_zero_alloc);
+      get t
+  | _ -> get t
 
 type error =
   | Less_general of { missing_entirely : bool }
@@ -169,20 +189,29 @@ let sub_var_const_exn v c =
     when arity1 <> arity2 ->
     raise (Error (Arity_mismatch (arity1, arity2)))
   | { desc = None; _ }, Check { strict; opt; _ } ->
-    !log_change (None, v);
+    !log_change (Change_desc (None, v));
     v.desc <- Some { strict; opt }
   | { desc = (Some { strict = strict1; opt = opt1 } as desc); _ },
     Check { strict = strict2; opt = opt2 } ->
     let strict = strict1 || strict2 in
     let opt = opt1 && opt2 in
     if strict <> strict1 || opt <> opt1 then begin
-      !log_change (desc, v);
+      !log_change (Change_desc (desc, v));
       v.desc <- Some { strict; opt }
     end
 
-let sub_exn za1 za2 =
+let rec sub_exn za1 za2 =
   match za1, za2 with
-  | _, Var _ ->
+  | Rvar { t = Some za1 }, x -> sub_exn za1 x
+  | Rvar { t = None }, _ ->
+      Misc.fatal_error "Rvar appeared unconstrained on lhs of <="
+  | za1, Rvar ({ t = None } as rv2) ->
+      !log_change (Constrain_rvar za2);
+      rv2.t <- Some za1
+  | _, Rvar { t = Some za2 } ->
+      if not (za1 == za2) then
+        Misc.fatal_error "Rvar appeared on rhs of 2 different <='s"
+  | _, Lvar _ ->
     (* A fully inferred signature will never have a variable in it, so we almost
        never have to constrain by a variable, but there is one special case:
 
@@ -196,11 +225,13 @@ let sub_exn za1 za2 =
        event).
     *)
     if not (za1 == za2) then
-      Misc.fatal_error "zero_alloc: variable constraint"
+      Misc.fatal_errorf "zero_alloc: variable constraint: %a, %a"
+        debug_printer za1
+        debug_printer za2
   | _, Const (Ignore_assert_all | Assume _) ->
     Misc.fatal_error "zero_alloc: invalid constraint"
   | _, (Const Default_zero_alloc) -> ()
-  | Var v, Const c -> sub_var_const_exn v c
+  | Lvar v, Const c -> sub_var_const_exn v c
   | Const c1, Const c2 -> sub_const_const_exn c1 c2
 
 let sub za1 za2 =

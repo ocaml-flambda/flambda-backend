@@ -369,7 +369,7 @@ let zero_alloc_of_application
       | Check_default | No_check -> false
       | Check_all | Check_opt_only -> true
     in
-    begin match Zero_alloc.get val_zero_alloc with
+    begin match Zero_alloc.get_default val_zero_alloc with
     | Check c when c.arity = num_args && (use_opt || not c.opt) ->
       let assume : Zero_alloc.assume =
         { strict = c.strict;
