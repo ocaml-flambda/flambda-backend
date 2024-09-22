@@ -79,7 +79,7 @@ let default = Const Default_zero_alloc
 let rec get (t : t) =
   match t with
   | Const c -> c
-  | Rvar { t = None } -> Misc.fatal_error "Zero_alloc.get of unconstrained Rvar"
+  | Rvar { t = None } -> Default_zero_alloc
   | Rvar { t = Some t } -> get t
   | Lvar { loc; arity; desc } ->
     match desc with
@@ -203,15 +203,12 @@ let sub_var_const_exn v c =
 let rec sub_exn za1 za2 =
   match za1, za2 with
   | Rvar { t = Some za1 }, x -> sub_exn za1 x
-  | Rvar { t = None }, _ ->
-      Misc.fatal_error "Rvar appeared unconstrained on lhs of <="
   | za1, Rvar ({ t = None } as rv2) ->
       !log_change (Constrain_rvar za2);
       rv2.t <- Some za1
-  | _, Rvar { t = Some za2 } ->
-      if not (za1 == za2) then
-        Misc.fatal_error "Rvar appeared on rhs of 2 different <='s"
-  | _, Lvar _ ->
+  | Rvar { t = None }, (Rvar { t = Some _ } | Lvar _ | Const _) ->
+      Misc.fatal_error "Rvar appeared unconstrained on lhs of <="
+  | _, (Lvar _ as za2 | Rvar { t = Some za2 }) ->
     (* A fully inferred signature will never have a variable in it, so we almost
        never have to constrain by a variable, but there is one special case:
 

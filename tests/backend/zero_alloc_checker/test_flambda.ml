@@ -39,4 +39,7 @@ let[@zero_alloc] rec test36 x =
     try test37 x with _ -> ()
   else raise (Failure x)
 
-and[@zero_alloc]  test37 x = assert (String.length x > 0)
+(* CR nroberts: Here is an example where removing the [@zero_alloc] annotation helps the analysis.
+   I think the code in [translcore.ml] that chooses whether to add Zero_alloc.assume sometimes makes
+   a bad choice: adding zero_alloc.assume might mess up later analysis. *)
+and[@zero_alloc] test37 x = assert (String.length x > 0)

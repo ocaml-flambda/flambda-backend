@@ -6,6 +6,7 @@ type t =
 let[@inline never][@local never] next x y = Sys.opaque_identity (x + y)
 
 let[@zero_alloc] rec foo t x =
+  let foo = foo in
   let
     [@inline never][@local never] rec do_a x y =
     if Sys.opaque_identity false then foo t (next x y) else x
