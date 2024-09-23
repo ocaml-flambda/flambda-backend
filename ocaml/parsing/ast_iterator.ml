@@ -147,7 +147,6 @@ module T = struct
 
   let iter_jst sub : Jane_syntax.Core_type.t -> _ = function
     | Jtyp_layout typ -> iter_jst_layout sub typ
-    | Jtyp_tuple lt_typ -> iter_labeled_tuple sub lt_typ
 
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                   as typ) =
@@ -164,7 +163,7 @@ module T = struct
     | Ptyp_arrow (_lab, t1, t2, m1, m2) ->
         sub.typ sub t1; sub.typ sub t2;
         sub.modes sub m1; sub.modes sub m2
-    | Ptyp_tuple tyl -> List.iter (sub.typ sub) tyl
+    | Ptyp_tuple tyl -> iter_labeled_tuple sub tyl
     | Ptyp_unboxed_tuple tyl -> iter_labeled_tuple sub tyl
     | Ptyp_constr (lid, tl) ->
         iter_loc sub lid; List.iter (sub.typ sub) tl
@@ -543,7 +542,6 @@ module E = struct
     | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
     | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
     | Jexp_layout layout_exp -> iter_layout_exp sub layout_exp
-    | Jexp_tuple lt_exp -> iter_labeled_tuple sub lt_exp
 
   let iter sub
       ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
@@ -569,7 +567,7 @@ module E = struct
     | Pexp_match (e, pel) ->
         sub.expr sub e; sub.cases sub pel
     | Pexp_try (e, pel) -> sub.expr sub e; sub.cases sub pel
-    | Pexp_tuple el -> List.iter (sub.expr sub) el
+    | Pexp_tuple el -> List.iter (iter_snd (sub.expr sub)) el
     | Pexp_unboxed_tuple el -> iter_labeled_tuple sub el
     | Pexp_construct (lid, arg) ->
         iter_loc sub lid; iter_opt (sub.expr sub) arg
@@ -652,7 +650,6 @@ module P = struct
   let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
     | Jpat_immutable_array iapat -> iter_iapat sub iapat
     | Jpat_layout (Lpat_constant _) -> iter_constant
-    | Jpat_tuple (ltpat, _) -> iter_labeled_tuple sub ltpat
 
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
@@ -669,7 +666,7 @@ module P = struct
     | Ppat_alias (p, s) -> sub.pat sub p; iter_loc sub s
     | Ppat_constant _ -> iter_constant
     | Ppat_interval _ -> ()
-    | Ppat_tuple pl -> List.iter (sub.pat sub) pl
+    | Ppat_tuple (pl, _) -> List.iter (iter_snd (sub.pat sub)) pl
     | Ppat_unboxed_tuple (pl, _) -> iter_labeled_tuple sub pl
     | Ppat_construct (l, p) ->
         iter_loc sub l;
