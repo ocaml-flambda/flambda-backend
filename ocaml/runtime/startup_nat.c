@@ -45,7 +45,7 @@ extern char caml_system__code_begin, caml_system__code_end;
    They use the old `__` separator convention because the new convention
    gives `caml_system.code_begin`, which is not a valid C identifier. */
 
-int caml_prelinking_in_use = 0;
+extern uintnat caml_prelinking_in_use;
 
 /* Initialize the static data and code area limits. */
 

@@ -46,7 +46,7 @@
 
 extern int caml_parser_trace;
 extern char caml_system__code_begin, caml_system__code_end;
-int caml_prelinking_in_use = 0;
+extern uintnat caml_prelinking_in_use;
 
 /* Initialize the atom table and the static data and code area limits. */
 
