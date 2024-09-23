@@ -200,6 +200,7 @@ Error: This value is "shared" but expected to be "uncontended".
 (* The signature of Array.get could be generalized to expect shared rather than
    uncontended, but this would require a change to stdlib. For now the following
    test fails *)
+(* CR modes: Fix this *)
 let foo (r @ shared) = Array.get r 42
 [%%expect{|
 Line 1, characters 33-34:
