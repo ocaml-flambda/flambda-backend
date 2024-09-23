@@ -567,19 +567,19 @@ external atomic_exchange : 'a atomic_t -> 'a @ contended -> 'a @ contended @@ po
 external atomic_compare_and_set : 'a atomic_t -> 'a @ contended -> 'a @ contended -> bool @@ portable
   = "%atomic_cas"
 
-type exit_function : value mod portable = Exit_function of (unit -> unit) @@ portable
+type exit_function : value mod portable = Exit_function of (unit -> unit) @@ portable [@@unboxed]
 
 let exit_function = atomic_make (Exit_function flush_all)
 
 let rec at_exit_safe f =
   (* MPR#7253, MPR#7796: make sure "f" is executed only once *)
   let f_yet_to_run = atomic_make true in
-  let Exit_function old_exit = atomic_get exit_function in
+  let (Exit_function old_exit) as cur = atomic_get exit_function in
   let new_exit () =
     if atomic_compare_and_set f_yet_to_run true false then f () ;
     old_exit ()
   in
-  let success = atomic_compare_and_set exit_function (Exit_function old_exit) (Exit_function new_exit) in
+  let success = atomic_compare_and_set exit_function cur (Exit_function new_exit) in
   if not success then at_exit_safe f
 
 let at_exit f = at_exit_safe (magic_portable f)

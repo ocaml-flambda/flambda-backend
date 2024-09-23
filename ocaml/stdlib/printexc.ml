@@ -24,7 +24,7 @@ type t = exn = ..
 type printer = Printer of (exn -> string option) @@ portable
 
 (* CR tdelvecchio: Needs [with] on [list]. *)
-type printer_list : value mod portable = Printers of printer list
+type printer_list : value mod portable = Printers of printer list [@@unboxed]
 
 let printers = Atomic.make (Printers [] : printer_list)
 
@@ -285,9 +285,9 @@ external record_backtrace: bool -> unit @@ portable = "caml_record_backtrace"
 external backtrace_status: unit -> bool @@ portable = "caml_backtrace_status"
 
 let rec register_printer_safe fn =
-  let Printers old_printers = Atomic.get_safe printers in
+  let (Printers old_printers) as cur = Atomic.get_safe printers in
   let new_printers = Printer fn :: old_printers in
-  let success = Atomic.compare_and_set printers (Printers old_printers) (Printers new_printers) in
+  let success = Atomic.compare_and_set printers cur (Printers new_printers) in
   if not success then register_printer_safe fn
 
 let register_printer fn = register_printer_safe (Obj.magic_portable fn)

@@ -198,8 +198,8 @@ module Runtime_5 = struct
     let parent_keys = Atomic.make (KIs [])
 
     let rec add_parent_key ki =
-      let KIs l = Atomic.get_safe parent_keys in
-      if not (Atomic.compare_and_set parent_keys (KIs l) (KIs (ki :: l)))
+      let (KIs l) as cur = Atomic.get_safe parent_keys in
+      if not (Atomic.compare_and_set parent_keys cur (KIs (ki :: l)))
       then add_parent_key ki
 
     let new_key_safe ?split_from_parent init_orphan =
