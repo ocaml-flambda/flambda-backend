@@ -414,7 +414,7 @@ let num_call_gc_points instr =
   let rec loop instr call_gc =
     match instr.desc with
     | Lend -> call_gc
-    | Lop (Ialloc { mode = Alloc_heap; _ }) when !fastcode_flag ->
+    | Lop (Ialloc { mode = Cmm.Alloc_mode.Heap; _ }) when !fastcode_flag ->
       loop instr.next (call_gc + 1)
     | Lop (Ipoll _) ->
       loop instr.next (call_gc + 1)
