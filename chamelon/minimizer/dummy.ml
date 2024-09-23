@@ -108,6 +108,7 @@ let any_pat =
     pat_type = dummy_type_expr;
     pat_env = Env.empty;
     pat_attributes = [];
+    pat_unique_barrier = fresh_unique_barrier ();
   }
 
 let dummy1_str_it_desc =
@@ -126,6 +127,7 @@ let dummy1_str_it_desc =
               pat_type = dummy_type_expr;
               pat_env = Env.empty;
               pat_attributes = [];
+              pat_unique_barrier = fresh_unique_barrier ();
             }
           ~vb_expr:
             (exp_desc_to_exp
@@ -259,6 +261,7 @@ let empty_value_case =
         pat_type = dummy_type_expr;
         pat_env = Env.empty;
         pat_attributes = [];
+        pat_unique_barrier = fresh_unique_barrier ();
       };
     c_guard = None;
     c_rhs =
@@ -283,6 +286,7 @@ let empty_computation_case =
           pat_type = dummy_type_expr;
           pat_env = Env.empty;
           pat_attributes = [];
+          pat_unique_barrier = fresh_unique_barrier ();
         };
     c_guard = None;
     c_rhs =

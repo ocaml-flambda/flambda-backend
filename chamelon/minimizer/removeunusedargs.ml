@@ -61,6 +61,7 @@ let rec fun_wrapper arg_list acc_id depth path_fun n =
                      pat_env = Env.empty;
                      pat_attributes = [];
                      pat_type = dummy_type_expr;
+                     pat_unique_barrier = fresh_unique_barrier ();
                    };
                  c_guard = None;
                  c_rhs =
