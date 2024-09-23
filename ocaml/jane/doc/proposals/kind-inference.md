@@ -355,10 +355,11 @@ lay(κ₂) is a sort  (* this relies on the discrete nature of the sort lattice 
 Γ ⊢ modal_bound_item₁_Ξ ≤ modal_bound₂_Ξ ⊔ with σ
   (* the [with σ] is nondeterministically chosen; order does not matter *)
 
-m₁_Ξ ≤ m₂_Ξ
+m₁_Ξ ≤ ⨆ [[ m₂ᵢ_Ξ ]]
 ------------------------------------------------ MB_MODE
-Γ ⊢ mode m₁_Ξ ≤ modal_bound₂_Ξ ⊔ [[ mode m₂_Ξ ]]
-  (* [m₂_Ξ] nondeterministically chosen, but the highest mode is a good choice *)
+Γ ⊢ mode m₁_Ξ ≤ modal_bound₂_Ξ ⊔ [[ mode m₂ᵢ_Ξ ]]
+  (* The list of [m₂ᵢ_Ξ] is nondeterministically chosen, but grabbing
+     them all is a good choice. *)
 
 Γ ⊢ σ₁ = σ₂
 -------------------------------------- MB_WITH
