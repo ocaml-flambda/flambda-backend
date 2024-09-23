@@ -93,8 +93,9 @@ end
 module Tbl0 = struct
   type t =
     { curry : (Lambda.function_kind * machtype list * machtype, unit) Hashtbl.t;
-      apply : (machtype list * machtype * Cmx_format.alloc_mode, unit) Hashtbl.t;
-      send  : (machtype list * machtype * Cmx_format.alloc_mode, unit) Hashtbl.t
+      apply :
+        (machtype list * machtype * Cmx_format.alloc_mode, unit) Hashtbl.t;
+      send : (machtype list * machtype * Cmx_format.alloc_mode, unit) Hashtbl.t
     }
 
   let make () =

@@ -880,7 +880,9 @@ let float16_of_float dbg c =
 
 let box_complex dbg c_re c_im =
   Cop
-    (Calloc Cmm.Alloc_mode.Heap, [alloc_floatarray_header 2 dbg; c_re; c_im], dbg)
+    ( Calloc Cmm.Alloc_mode.Heap,
+      [alloc_floatarray_header 2 dbg; c_re; c_im],
+      dbg )
 
 let complex_re c dbg = Cop (mk_load_immut Double, [c], dbg)
 
@@ -1582,7 +1584,11 @@ let result_layout_suffix result =
 
 let send_function_name arity result (mode : Cmx_format.alloc_mode) =
   let res = result_layout_suffix result in
-  let suff = match mode with Cmx_format.Alloc_heap -> "" | Cmx_format.Alloc_local -> "L" in
+  let suff =
+    match mode with
+    | Cmx_format.Alloc_heap -> ""
+    | Cmx_format.Alloc_local -> "L"
+  in
   global_symbol ("caml_send" ^ unique_arity_identifier arity ^ res ^ suff)
 
 let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
@@ -1779,7 +1785,11 @@ let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
 
 let apply_function_name arity result (mode : Cmx_format.alloc_mode) =
   let res = result_layout_suffix result in
-  let suff = match mode with Cmx_format.Alloc_heap -> "" | Cmx_format.Alloc_local -> "L" in
+  let suff =
+    match mode with
+    | Cmx_format.Alloc_heap -> ""
+    | Cmx_format.Alloc_local -> "L"
+  in
   "caml_apply" ^ unique_arity_identifier arity ^ res ^ suff
 
 let apply_function_sym arity result mode =
@@ -3129,7 +3139,9 @@ let intermediate_curry_functions ~nlocal ~arity result =
       in
       let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
       let mode : Cmm.Alloc_mode.t =
-        if num >= narity - nlocal then Cmm.Alloc_mode.Local else Cmm.Alloc_mode.Heap
+        if num >= narity - nlocal
+        then Cmm.Alloc_mode.Local
+        else Cmm.Alloc_mode.Heap
       in
       let has_nary = curry_clos_has_nary_application ~narity (num + 1) in
       let function_slot_size = if has_nary then 3 else 2 in
