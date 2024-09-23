@@ -77,6 +77,12 @@ enum caml_ba_managed {
   CAML_BA_MANAGED_MASK = 0x600 /* Mask for "managed" bits in flags field */
 };
 
+enum caml_ba_subarray {
+  CAML_BA_SUBARRAY = 0         /* Data is shared with another bigarray
+                                  (Has no effect on runtime4, but present
+                                   for compatibility with runtime5) */
+};
+
 struct caml_ba_proxy {
   intnat refcount;              /* Reference count */
   void * data;                  /* Pointer to base of actual data */
