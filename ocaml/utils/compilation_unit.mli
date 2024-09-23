@@ -15,12 +15,15 @@
 (**************************************************************************)
 
 (* Handling of the names of compilation units, including associated "-for-pack"
-   prefixes.
+   prefixes and instance arguments.
 
    By "compilation unit" we mean the code and data associated with the
    compilation of a single .ml source file: that is to say, file-level entities
    having OCaml semantics. The notion neither includes the special "startup"
-   files nor external libraries. *)
+   files nor external libraries. If the source file was compiled with
+   "-parameter", then in addition to the compilation unit for the .ml file
+   itself (the _base_), instantiation will produce further compilation units
+   (the _instances_; see [create_instance]). *)
 
 [@@@ocaml.warning "+a-9-40-41-42"]
 
@@ -43,6 +46,8 @@ module Name : sig
   val to_string : t -> string
 
   val of_head_of_global_name : Global_module.Name.t -> t
+
+  val of_global_name_no_args_exn : Global_module.Name.t -> t
 
   val to_global_name : t -> Global_module.Name.t
 

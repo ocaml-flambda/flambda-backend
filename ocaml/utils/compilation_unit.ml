@@ -48,6 +48,8 @@ module Name : sig
 
   val of_head_of_global_name : Global_module.Name.t -> t
 
+  val of_global_name_no_args_exn : Global_module.Name.t -> t
+
   val to_global_name : t -> Global_module.Name.t
 
   val check_as_path_component : t -> unit
@@ -81,6 +83,18 @@ end = struct
     else str
 
   let of_head_of_global_name (name : Global_module.Name.t) = of_string name.head
+
+  let of_global_name_no_args_exn (name : Global_module.Name.t) =
+    match name.args with
+    | [] -> of_head_of_global_name name
+    | _ ->
+      (* This is a wart. We should have a separate type
+         [Global_module.Parameter_name.t] that is known not to have arguments,
+         and then we can convert without runtime checks here. Note that we can't
+         actually be specific in this message about why the thing isn't supposed
+         to have arguments. *)
+      Misc.fatal_errorf "Arguments not allowed in name:@ %a"
+        Global_module.Name.print name
 
   let to_global_name t = Global_module.Name.create t []
 

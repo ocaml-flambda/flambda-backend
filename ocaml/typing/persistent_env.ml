@@ -167,7 +167,7 @@ let find_in_cache penv name =
   find_info_in_cache penv name |> Option.map (fun ps -> ps.ps_val)
 
 let register_parameter ({param_imports; _} as penv) modname =
-  let import = CU.Name.of_head_of_global_name modname in
+  let import = CU.Name.of_global_name_no_args_exn modname in
   begin match find_import_info_in_cache penv import with
   | None ->
       (* Not loaded yet; if it's wrong, we'll get an error at load time *)
@@ -433,6 +433,9 @@ let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
 
 let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
+  if name.Global_module.Name.args <> [] then
+    Misc.fatal_errorf "Unsupported import of instance name: %a"
+      Global_module.Name.print name;
   match Hashtbl.find persistent_structures name with
   | ps -> check_visibility ~allow_hidden ps.ps_import; ps
   | exception Not_found ->
