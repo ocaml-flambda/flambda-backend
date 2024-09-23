@@ -167,13 +167,15 @@ type r = local_ once_ unique_ string -> local_ once_ unique_ string
 
 type r = local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
-type r = local_ once_ unique_ string * string -> local_ once_ string * string
+type r =
+    local_ once_ unique_ string * y:string -> local_ once_ string * w:string
 |}]
 
 type r = x:local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
 type r =
-    x:local_ once_ unique_ string * string -> local_ once_ string * string
+    x:local_ once_ unique_ string * y:string -> local_ once_
+    string * w:string
 |}]
 
 
@@ -313,9 +315,9 @@ val foo : ?x:local_ once_ unique_ int -> unit -> unit = <fun>
 
 let foo ?(local_ x : 'a. 'a -> 'a @@ unique once) = ()
 [%%expect{|
-Line 1, characters 17-48:
+Line 1, characters 10-48:
 1 | let foo ?(local_ x : 'a. 'a -> 'a @@ unique once) = ()
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Optional parameters cannot be polymorphic
 |}]
 
@@ -331,31 +333,10 @@ val foo : ?x:local_ once_ unique_ int * int -> unit -> unit = <fun>
 
 let foo ?x:(local_ (x,y) : 'a.'a->'a @@ unique once) () = ()
 [%%expect{|
-Line 1, characters 19-36:
+Line 1, characters 12-51:
 1 | let foo ?x:(local_ (x,y) : 'a.'a->'a @@ unique once) () = ()
-                       ^^^^^^^^^^^^^^^^^
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Optional parameters cannot be polymorphic
-|}]
-
-(* note: Legacy mode syntax is not parsed for patterns *)
-
-(* CR zqian: currently all patterns, except those directly as function
-   arguments, DO NOT pick up modes during type checking. This should be fixed in
-   another PR. Here, we test that they at least parse. *)
-let foo ((x @ unique once), (y@local unique)) = x + y
-[%%expect{|
-Line 1, characters 14-25:
-1 | let foo ((x @ unique once), (y@local unique)) = x + y
-                  ^^^^^^^^^^^
-Error: Mode annotations on patterns are not supported yet.
-|}]
-
-let foo ((x : _ @@ unique once), (y : _ @@ local unique)) = x + y
-[%%expect{|
-Line 1, characters 19-30:
-1 | let foo ((x : _ @@ unique once), (y : _ @@ local unique)) = x + y
-                       ^^^^^^^^^^^
-Error: Mode annotations on patterns are not supported yet.
 |}]
 
 (* let-bound function *)
@@ -383,18 +364,6 @@ let foo () =
   ()
 [%%expect{|
 val foo : unit -> unit = <fun>
-|}]
-
-(* modalities on primitives are parsed but not supported yet. *)
-
-module type S = sig
-  external x : string -> string @ local @@ foo bar = "%hello"
-end
-[%%expect{|
-Line 2, characters 43-46:
-2 |   external x : string -> string @ local @@ foo bar = "%hello"
-                                               ^^^
-Error: Modality on primitive is not supported yet.
 |}]
 
 (* modalities on normal values requires [-extension mode_alpha] *)

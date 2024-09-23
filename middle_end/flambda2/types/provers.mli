@@ -32,8 +32,8 @@ type 'a proof_of_property = private
   | Unknown
 
 (** If this returns a simple, it is bound with mode Normal *)
-val prove_equals_to_simple_of_kind_value :
-  Typing_env.t -> Type_grammar.t -> Simple.t proof_of_property
+val prove_equals_to_simple_of_kind :
+  Typing_env.t -> Type_grammar.t -> Flambda_kind.t -> Simple.t proof_of_property
 
 (* CR mshinwell: Should remove "_equals_" from these names *)
 val prove_equals_tagged_immediates :

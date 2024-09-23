@@ -51,6 +51,16 @@ let mk_regalloc_validate f =
 let mk_no_regalloc_validate f =
   "-no-regalloc-validate", Arg.Unit f, " Do not validate register allocation"
 
+let mk_vectorize f =
+  "-vectorize", Arg.Unit f, " Enable vectorizer (EXPERIMENTAL)"
+
+let mk_no_vectorize f =
+  "-no-vectorize", Arg.Unit f, " Disable vectorizer (EXPERIMENTAL)"
+
+let mk_dvectorize f =
+  "-dvectorize", Arg.Unit f, " (undocumented)"
+;;
+
 let mk_cfg_peephole_optimize f =
   "-cfg-peephole-optimize", Arg.Unit f, " Apply peephole optimizations to CFG"
 
@@ -663,6 +673,10 @@ module type Flambda_backend_options = sig
   val regalloc_validate : unit -> unit
   val no_regalloc_validate : unit -> unit
 
+  val vectorize : unit -> unit
+  val no_vectorize : unit -> unit
+  val dvectorize : unit -> unit
+
   val cfg_peephole_optimize : unit -> unit
   val no_cfg_peephole_optimize : unit -> unit
 
@@ -785,6 +799,10 @@ struct
     mk_regalloc_param F.regalloc_param;
     mk_regalloc_validate F.regalloc_validate;
     mk_no_regalloc_validate F.no_regalloc_validate;
+
+    mk_vectorize F.vectorize;
+    mk_no_vectorize F.no_vectorize;
+    mk_dvectorize F.dvectorize;
 
     mk_cfg_peephole_optimize F.cfg_peephole_optimize;
     mk_no_cfg_peephole_optimize F.no_cfg_peephole_optimize;
@@ -938,6 +956,10 @@ module Flambda_backend_options_impl = struct
   let regalloc_param x = Flambda_backend_flags.regalloc_params := x :: !Flambda_backend_flags.regalloc_params
   let regalloc_validate = set' Flambda_backend_flags.regalloc_validate
   let no_regalloc_validate = clear' Flambda_backend_flags.regalloc_validate
+
+  let vectorize = set' Flambda_backend_flags.vectorize
+  let no_vectorize = clear' Flambda_backend_flags.vectorize
+  let dvectorize = set' Flambda_backend_flags.dump_vectorize
 
   let cfg_peephole_optimize = set' Flambda_backend_flags.cfg_peephole_optimize
   let no_cfg_peephole_optimize = clear' Flambda_backend_flags.cfg_peephole_optimize
@@ -1259,6 +1281,7 @@ module Extra_params = struct
     | "regalloc" -> set_string Flambda_backend_flags.regalloc
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
+    | "vectorize" -> set' Flambda_backend_flags.vectorize
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "cfg-cse-optimize" -> set' Flambda_backend_flags.cfg_cse_optimize
     | "cfg-zero-alloc-checker" -> set' Flambda_backend_flags.cfg_zero_alloc_checker

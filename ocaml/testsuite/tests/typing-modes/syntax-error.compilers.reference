@@ -128,4 +128,12 @@ Line 3, characters 13-14:
 3 |   let (bar @ ) a b = () in
                  ^
 Error: Syntax error: mode expression expected.
+Line 2, characters 26-27:
+2 | let foo ((x @ unique once), (y@local unique)) = x + y;;
+                              ^
+Error: Syntax error
+Line 2, characters 31-32:
+2 | let foo ((x : _ @@ unique once), (y : _ @@ local unique)) = x + y;;
+                                   ^
+Error: Syntax error
 

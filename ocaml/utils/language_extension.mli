@@ -22,7 +22,7 @@ type 'a t = 'a Language_extension_kernel.t =
   | Layouts : maturity t
   | SIMD : unit t
   | Labeled_tuples : unit t
-  | Small_numbers : unit t
+  | Small_numbers : maturity t
   | Instances : unit t
 
 (** Existentially packed language extension *)

@@ -48,6 +48,9 @@ module type Common = sig
 
   type 'd t constraint 'd = 'l * 'r
 
+  (* [allowed] and [disallowed] is from [Solver_intf], see Note [Allowance]
+     in that file. *)
+
   (** Left-only mode *)
   type l = (allowed * disallowed) t
 
@@ -344,6 +347,8 @@ module type S = sig
         val none : t
 
         val value : t -> default:some -> some
+
+        val print : Format.formatter -> t -> unit
       end
 
       val split : t -> (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic

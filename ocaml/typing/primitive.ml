@@ -18,6 +18,8 @@
 open Misc
 open Parsetree
 
+module String = Misc.Stdlib.String
+
 type boxed_integer = Pnativeint | Pint32 | Pint64
 
 type vec128_type = Int8x16 | Int16x8 | Int32x4 | Int64x2 | Float32x4 | Float64x2
@@ -477,6 +479,62 @@ end
 let prim_has_valid_reprs ~loc prim =
   let open Repr_check in
   let check =
+    let stringlike_indexing_primitives =
+      let widths : (_ * _ * Jkind_types.Sort.const) list =
+        [
+          ("16", "", Value);
+          ("32", "", Value);
+          ("f32", "", Value);
+          ("64", "", Value);
+          ("a128", "", Value);
+          ("u128", "", Value);
+          ("32", "#", Bits32);
+          ("f32", "#", Float32);
+          ("64", "#", Bits64);
+        ]
+      in
+      let indices : (_ * Jkind_types.Sort.const) list =
+        [
+          ("", Value);
+          ("_indexed_by_nativeint#", Word);
+          ("_indexed_by_int32#", Bits32);
+          ("_indexed_by_int64#", Bits64);
+        ]
+      in
+      let combiners =
+        [
+          ( Printf.sprintf "%%caml_%s_get%s%s%s%s",
+            fun index_kind width_kind ->
+              [
+                Same_as_ocaml_repr Value;
+                Same_as_ocaml_repr index_kind;
+                Same_as_ocaml_repr width_kind;
+              ] );
+          ( Printf.sprintf "%%caml_%s_set%s%s%s%s",
+            fun index_kind width_kind ->
+              [
+                Same_as_ocaml_repr Value;
+                Same_as_ocaml_repr index_kind;
+                Same_as_ocaml_repr width_kind;
+                Same_as_ocaml_repr Value;
+              ] );
+        ]
+      in
+      (let ( let* ) x f = List.concat_map f x in
+       let* container = [ "bigstring"; "bytes"; "string" ] in
+       let* safe_sigil = [ ""; "u" ] in
+       let* index_sigil, index_kind = indices in
+       let* width_sigil, unboxed_sigil, width_kind = widths in
+       let* combine_string, combine_repr = combiners in
+       let string =
+         combine_string container width_sigil safe_sigil unboxed_sigil
+           index_sigil
+       in
+       let reprs = combine_repr index_kind width_kind in
+       [ (string, reprs) ])
+      |> List.to_seq
+      |> fun seq -> String.Map.add_seq seq String.Map.empty
+    in
     match prim.prim_name with
     | "%identity"
     | "%opaque"
@@ -615,27 +673,10 @@ let prim_has_valid_reprs ~loc prim =
     | "%unbox_int64" ->
       exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Bits64]
 
-    (* Bigstring primitives *)
-    | "%caml_bigstring_get32#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits32]
-    | "%caml_bigstring_get32u#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits32]
-    | "%caml_bigstring_get64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64]
-    | "%caml_bigstring_get64u#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64]
+    | "%reinterpret_tagged_int63_as_unboxed_int64" ->
+      exactly [Same_as_ocaml_repr Value; Same_as_ocaml_repr Bits64]
+    | "%reinterpret_unboxed_int64_as_tagged_int63" ->
+      exactly [Same_as_ocaml_repr Bits64; Same_as_ocaml_repr Value]
 
     (* CR layouts: add these when we have unboxed simd layouts *)
     (* | "%caml_bigstring_getu128#" ->
@@ -643,50 +684,26 @@ let prim_has_valid_reprs ~loc prim =
     | "%caml_bigstring_geta128#" ->
     | "%caml_bigstring_geta128u#" -> *)
 
-    | "%caml_bigstring_set32#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits32;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_set32u#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits32;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_set64#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-    | "%caml_bigstring_set64u#" ->
-      exactly [
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Value;
-        Same_as_ocaml_repr Bits64;
-        Same_as_ocaml_repr Value]
-
     (* CR layouts: add these when we have unboxed simd layouts *)
     (* | "%caml_bigstring_setu128#" ->
     | "%caml_bigstring_setu128u#" ->
     | "%caml_bigstring_seta128#" ->
     | "%caml_bigstring_seta128u#" -> *)
-
-    | name when is_builtin_prim_name name ->
-      no_non_value_repr
-
-    (* These can probably support non-value reprs if the need arises:
-      {|
-        | "%send"
-        | "%sendself"
-        | "%sendcache"
-      |}
-    *)
-    | _ ->
-      (* make no assumptions about external c primitives *)
-      fun _ -> Success
+    | name -> (
+        match String.Map.find_opt name stringlike_indexing_primitives with
+        | Some reprs -> exactly reprs
+        | None ->
+            if is_builtin_prim_name name then no_non_value_repr
+              (* These can probably support non-value reprs if the need arises:
+                 {|
+                   | "%send"
+                   | "%sendself"
+                   | "%sendcache"
+                 |}
+              *)
+            else
+              (* make no assumptions about external c primitives *)
+              fun _ -> Success)
   in
   match check prim with
   | Success -> ()

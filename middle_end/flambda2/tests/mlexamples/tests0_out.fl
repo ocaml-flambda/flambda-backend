@@ -1,7 +1,7 @@
 let code f_0 deleted in
 let code loopify(never) size(0) newer_version_of(f_0)
       f_0_1 (param : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   cont k (0)

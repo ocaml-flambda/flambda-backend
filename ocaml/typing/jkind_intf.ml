@@ -39,6 +39,10 @@ module type Sort = sig
     val equal : t -> t -> bool
 
     val format : Format.formatter -> t -> unit
+
+    module Debug_printers : sig
+      val t : Format.formatter -> t -> unit
+    end
   end
 
   module Var : sig
@@ -148,17 +152,11 @@ module type Sort = sig
 end
 
 module History = struct
-  (* CR layouts v3: move most [concrete_default_creation_reason]s here. *)
   (* For sort variables that are topmost on the jkind lattice. *)
-  type concrete_creation_reason = |
-
-  (* For sort variables that are in the "default" position
-     on the jkind lattice, defaulting exactly to [value]. *)
-  type concrete_default_creation_reason =
+  type concrete_creation_reason =
     | Match
     | Constructor_declaration of int
     | Label_declaration of Ident.t
-    | Unannotated_type_parameter of Path.t
     | Record_projection
     | Record_assignment
     | Let_binding
@@ -168,10 +166,17 @@ module History = struct
     | External_argument
     | External_result
     | Statement
-    | Wildcard
-    | Unification_var
     | Optional_arg_default
     | Layout_poly_in_external
+
+  (* For sort variables that are in the "legacy" position
+     on the jkind lattice, defaulting exactly to [value]. *)
+  (* CR layouts v3: after implementing separability, [Array_element]
+     should instead accept representable separable jkinds. *)
+  type concrete_legacy_creation_reason =
+    | Unannotated_type_parameter of Path.t
+    | Wildcard
+    | Unification_var
     | Array_element
 
   type annotation_context =
@@ -184,13 +189,23 @@ module History = struct
     | Type_wildcard of Location.t
     | With_error_message of string * annotation_context
 
-  (* CR layouts v3: move some [value_creation_reason]s here. *)
-  type value_or_null_creation_reason = |
+  (* CR layouts v3: move some [value_creation_reason]s
+     related to objects here. *)
+  (* CR layouts v3: add a copy of [Type_argument] once we support
+     enough subjkinding for interfaces to accept [value_or_null]
+     in [list] or [option]. *)
+  type value_or_null_creation_reason =
+    | Primitive of Ident.t
+    | Tuple_element
+    | Separability_check
+    | Polymorphic_variant_field
+    | Structure_element
+    | V1_safety_check
+    | Probe
+    | Captured_in_object
 
   type value_creation_reason =
     | Class_let_binding
-    | Tuple_element
-    | Probe
     | Object
     | Instance_variable
     | Object_field
@@ -212,20 +227,16 @@ module History = struct
     | Tfield
     | Tnil
     | First_class_module
-    | Separability_check
     | Univar
-    | Polymorphic_variant_field
     | Default_type_jkind
     | Existential_type_variable
     | Array_comprehension_element
     | Lazy_expression
     | Class_type_argument
     | Class_term_argument
-    | Structure_element
     | Debug_printer_argument
-    | V1_safety_check
-    | Captured_in_object
     | Recmod_fun_arg
+    | Let_rec_variable of Ident.t
     | Unknown of string (* CR layouts: get rid of these *)
 
   type immediate_creation_reason =
@@ -233,8 +244,6 @@ module History = struct
     | Enumeration
     | Primitive of Ident.t
     | Immediate_polymorphic_variant
-
-  type immediate64_creation_reason = Separability_check
 
   (* CR layouts v5: make new void_creation_reasons *)
   type void_creation_reason = |
@@ -252,36 +261,17 @@ module History = struct
     | Unification_var
     | Array_type_argument
 
-  (* CR layouts v3: move some [any_creation_reason]s here. *)
-  type any_non_null_creation_reason = |
-
-  type float64_creation_reason = Primitive of Ident.t
-
-  type float32_creation_reason = Primitive of Ident.t
-
-  type word_creation_reason = Primitive of Ident.t
-
-  type bits32_creation_reason = Primitive of Ident.t
-
-  type bits64_creation_reason = Primitive of Ident.t
-
   type creation_reason =
     | Annotated of annotation_context * Location.t
     | Missing_cmi of Path.t
     | Value_or_null_creation of value_or_null_creation_reason
     | Value_creation of value_creation_reason
     | Immediate_creation of immediate_creation_reason
-    | Immediate64_creation of immediate64_creation_reason
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
-    | Any_non_null_creation of any_non_null_creation_reason
-    | Float64_creation of float64_creation_reason
-    | Float32_creation of float32_creation_reason
-    | Word_creation of word_creation_reason
-    | Bits32_creation of bits32_creation_reason
-    | Bits64_creation of bits64_creation_reason
     | Concrete_creation of concrete_creation_reason
-    | Concrete_default_creation of concrete_default_creation_reason
+    | Concrete_legacy_creation of concrete_legacy_creation_reason
+    | Primitive of Ident.t
     | Imported
     | Imported_type_argument of
         { parent_path : Path.t;

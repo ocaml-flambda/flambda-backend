@@ -24,7 +24,11 @@
     with values computed at runtime. *)
 type t = private
   | Set_of_closures of Set_of_closures.t
-  | Block of Tag.Scannable.t * Mutability.t * Field_of_static_block.t list
+  | Block of
+      Tag.Scannable.t
+      * Mutability.t
+      * Flambda_kind.Scannable_block_shape.t
+      * Simple.With_debuginfo.t list
   | Boxed_float32 of Numeric_types.Float32_by_bit_pattern.t Or_variable.t
   | Boxed_float of Numeric_types.Float_by_bit_pattern.t Or_variable.t
   | Boxed_int32 of Int32.t Or_variable.t
@@ -40,7 +44,7 @@ type t = private
   | Immutable_int32_array of Int32.t Or_variable.t list
   | Immutable_int64_array of Int64.t Or_variable.t list
   | Immutable_nativeint_array of Targetint_32_64.t Or_variable.t list
-  | Immutable_value_array of Field_of_static_block.t list
+  | Immutable_value_array of Simple.With_debuginfo.t list
       (** [Immutable_*_array] constructors always have at least one field. For
         empty arrays, [Empty_array] must be used. *)
   | Empty_array of Empty_array_kind.t
@@ -60,7 +64,12 @@ include Contains_ids.S with type t := t
 
 val set_of_closures : Set_of_closures.t -> t
 
-val block : Tag.Scannable.t -> Mutability.t -> Field_of_static_block.t list -> t
+val block :
+  Tag.Scannable.t ->
+  Mutability.t ->
+  Flambda_kind.Scannable_block_shape.t ->
+  Simple.With_debuginfo.t list ->
+  t
 
 val boxed_float32 : Numeric_types.Float32_by_bit_pattern.t Or_variable.t -> t
 
@@ -101,7 +110,7 @@ val immutable_nativeint_array : Targetint_32_64.t Or_variable.t list -> t
 
 (** This function can accept empty lists of fields; [Empty_array] will be
     produced. *)
-val immutable_value_array : Field_of_static_block.t list -> t
+val immutable_value_array : Simple.With_debuginfo.t list -> t
 
 val empty_array : Empty_array_kind.t -> t
 

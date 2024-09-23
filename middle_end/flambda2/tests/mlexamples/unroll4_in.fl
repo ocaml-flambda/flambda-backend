@@ -1,6 +1,6 @@
 let $camlUnroll4__first_const49 = Block 0 () in
 let code rec size(29)
-      even_1 (n : imm tagged) my_closure my_region my_depth -> k * k1 =
+      even_1 (n : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let k = %project_value_slot even.k my_closure in
   let odd = %project_function_slot (even -> odd) my_closure in
@@ -17,7 +17,7 @@ let code rec size(29)
       apply direct(odd_2)
         odd ~ depth my_depth -> next_depth (Psubint) -> k * k1
 and code rec size(29)
-      odd_2 (n : imm tagged) my_closure my_region my_depth -> k * k1 =
+      odd_2 (n : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let k = %project_value_slot odd.k my_closure in
   let even = %project_function_slot (odd -> even) my_closure in
@@ -36,7 +36,7 @@ and code rec size(29)
 in
 let code inline(always) size(87)
       parity_is_0 (p : imm tagged, n : imm tagged, k)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1 =
   let even = closure even_1 @even
   and odd = closure odd_2 @odd
@@ -52,7 +52,7 @@ let code inline(always) size(87)
       apply direct(even_1) unroll(3) even (n) -> k * k1
 in
 let code inline(always) size(1)
-      k_3 (b) my_closure my_region my_depth -> k * k1 =
+      k_3 (b) my_closure my_region my_ghost_region my_depth -> k * k1 =
   cont k (b)
 in
 (let parity_is = closure parity_is_0 @parity_is in

@@ -391,7 +391,8 @@ let transl_check_attrib : Zero_alloc_attribute.t -> Cmm.codegen_option list =
 
 let params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
     ~return_continuation ~exn_continuation params ~body ~my_closure
-    ~(is_my_closure_used : _ Or_unknown.t) ~my_region ~translate_expr =
+    ~(is_my_closure_used : _ Or_unknown.t) ~my_region ~my_ghost_region
+    ~translate_expr =
   let params =
     let is_my_closure_used =
       match is_my_closure_used with
@@ -418,12 +419,18 @@ let params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
      [_bound_var]). If it does end up in generated code, Selection will complain
      and refuse to compile the code. *)
   let env, my_region_var = Env.create_bound_parameter env my_region in
+  (* Similarly for [my_ghost_region]. *)
+  let env, my_ghost_region_var =
+    Env.create_bound_parameter env my_ghost_region
+  in
   (* Translate the arg list and body *)
   let env, fun_params = C.function_bound_parameters env params in
   let fun_body, fun_body_free_vars, res = translate_expr env res body in
   let fun_free_vars =
     C.remove_vars_with_machtype
-      (C.remove_var_with_provenance fun_body_free_vars my_region_var)
+      (C.remove_var_with_provenance
+         (C.remove_var_with_provenance fun_body_free_vars my_ghost_region_var)
+         my_region_var)
       fun_params
   in
   if not (Backend_var.Set.is_empty fun_free_vars)
@@ -462,13 +469,14 @@ let params_and_body env res code_id p ~fun_dbg ~zero_alloc_attribute
          ~my_closure
          ~is_my_closure_used
          ~my_region
+         ~my_ghost_region
          ~my_depth:_
          ~free_names_of_body:_
        ->
       try
         params_and_body0 env res code_id ~fun_dbg ~zero_alloc_attribute
           ~return_continuation ~exn_continuation params ~body ~my_closure
-          ~is_my_closure_used ~my_region ~translate_expr
+          ~is_my_closure_used ~my_region ~my_ghost_region ~translate_expr
       with Misc.Fatal_error as e ->
         let bt = Printexc.get_raw_backtrace () in
         Format.eprintf
@@ -652,7 +660,7 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
     let tag = Tag.(to_int closure_tag) in
     C.make_alloc
       ~mode:(Alloc_mode.For_allocations.to_lambda closure_alloc_mode)
-      dbg tag l
+      dbg ~tag l
   in
   let soc_var = Variable.create "*set_of_closures*" in
   let defining_expr = Env.simple csoc free_vars in

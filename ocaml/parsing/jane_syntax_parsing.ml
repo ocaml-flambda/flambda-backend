@@ -13,8 +13,7 @@
     In particular, for an language extension named [EXTNAME] (i.e., one that is
     enabled by [-extension EXTNAME] on the command line), the attribute (if
     used) must be [[@jane.ERASABILITY.EXTNAME]], and the extension node (if
-    used) must be [[%jane.ERASABILITY.EXTNAME]]. For built-in syntax, we use
-    [_builtin] instead of an language extension name.
+    used) must be [[%jane.ERASABILITY.EXTNAME]].
 
     The [ERASABILITY] component indicates to tools such as ocamlformat and
     ppxlib whether or not the attribute is erasable. See the documentation of
@@ -94,9 +93,7 @@ end
 (******************************************************************************)
 
 module Feature : sig
-  type t =
-    | Language_extension : _ Language_extension.t -> t
-    | Builtin
+  type t = Language_extension : _ Language_extension.t -> t
 
   type error =
     | Disabled_extension : _ Language_extension.t -> error
@@ -110,42 +107,29 @@ module Feature : sig
 
   val is_erasable : t -> bool
 end = struct
-  type t =
-    | Language_extension : _ Language_extension.t -> t
-    | Builtin
+  type t = Language_extension : _ Language_extension.t -> t
 
   type error =
     | Disabled_extension : _ Language_extension.t -> error
     | Unknown_extension of string
 
-  let builtin_component = "_builtin"
-
   let describe_uppercase = function
     | Language_extension ext ->
       "The extension \"" ^ Language_extension.to_string ext ^ "\""
-    | Builtin -> "Built-in syntax"
 
   let extension_component = function
     | Language_extension ext -> Language_extension.to_string ext
-    | Builtin -> builtin_component
 
   let of_component str =
-    if String.equal str builtin_component
-    then Ok Builtin
-    else
-      match Language_extension.of_string str with
-      | Some (Pack ext) ->
-        if Language_extension.is_enabled ext
-        then Ok (Language_extension ext)
-        else Error (Disabled_extension ext)
-      | None -> Error (Unknown_extension str)
+    match Language_extension.of_string str with
+    | Some (Pack ext) ->
+      if Language_extension.is_enabled ext
+      then Ok (Language_extension ext)
+      else Error (Disabled_extension ext)
+    | None -> Error (Unknown_extension str)
 
   let is_erasable = function
     | Language_extension ext -> Language_extension.is_erasable ext
-    (* Builtin syntax changes don't involve additions or changes to concrete
-       syntax and are always erasable.
-    *)
-    | Builtin -> true
 end
 
 (** Was this embedded as an [[%extension_node]] or an [[@attribute]]?  Not

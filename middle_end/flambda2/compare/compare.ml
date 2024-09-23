@@ -285,10 +285,10 @@ let subst_rec_info_expr _env ri =
      symbols and other global names *)
   ri
 
-let subst_field env (field : Field_of_static_block.t) =
-  match field with
-  | Symbol symbol -> Field_of_static_block.Symbol (subst_symbol env symbol)
-  | Tagged_immediate _ | Dynamically_computed _ -> field
+let subst_field env field =
+  Simple.With_debuginfo.create
+    (subst_simple env (Simple.With_debuginfo.simple field))
+    (Simple.With_debuginfo.dbg field)
 
 let subst_call_kind env (call_kind : Call_kind.t) : Call_kind.t =
   match call_kind with
@@ -359,9 +359,10 @@ and subst_static_const env (static_const : Static_const_or_code.t) :
     Static_const_or_code.t =
   match static_const with
   | Code code -> Static_const_or_code.create_code (subst_code env code)
-  | Static_const (Block (tag, mut, fields)) ->
+  | Static_const (Block (tag, mut, shape, fields)) ->
     let fields = List.map (subst_field env) fields in
-    Static_const_or_code.create_static_const (Static_const.block tag mut fields)
+    Static_const_or_code.create_static_const
+      (Static_const.block tag mut shape fields)
   | Static_const (Set_of_closures set_of_closures) ->
     Static_const_or_code.create_static_const
       (Static_const.set_of_closures (subst_set_of_closures env set_of_closures))
@@ -392,12 +393,14 @@ and subst_params_and_body env params_and_body =
          ~my_closure
          ~is_my_closure_used:_
          ~my_region
+         ~my_ghost_region
          ~my_depth
          ~free_names_of_body
        ->
       let body = subst_expr env body in
       Function_params_and_body.create ~return_continuation ~exn_continuation
-        params ~body ~my_closure ~my_region ~free_names_of_body ~my_depth)
+        params ~body ~my_closure ~my_region ~my_ghost_region ~free_names_of_body
+        ~my_depth)
 
 and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
   match let_cont_expr with
@@ -908,14 +911,9 @@ let bound_static env bound_static1 bound_static2 : Bound_static.t Comparison.t =
     (bound_static2 |> Bound_static.to_list)
   |> Comparison.map ~f:Bound_static.create
 
-let fields env (field1 : Field_of_static_block.t)
-    (field2 : Field_of_static_block.t) : Field_of_static_block.t Comparison.t =
-  match field1, field2 with
-  | Symbol symbol1, Symbol symbol2 ->
-    symbols env symbol1 symbol2
-    |> Comparison.map ~f:(fun symbol1' -> Field_of_static_block.Symbol symbol1')
-  | _, _ ->
-    Comparator.of_predicate Field_of_static_block.equal env field1 field2
+let fields env (field1 : Simple.With_debuginfo.t)
+    (field2 : Simple.With_debuginfo.t) : Simple.With_debuginfo.t Comparison.t =
+  Comparator.of_predicate Simple.With_debuginfo.equal env field1 field2
 
 let blocks env block1 block2 =
   triples
@@ -936,7 +934,7 @@ let method_kinds _env (method_kind1 : Call_kind.Method_kind.t)
 let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     Call_kind.t Comparison.t =
   let compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f : _ Comparison.t =
-    if Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
+    if Alloc_mode.For_applications.compare alloc_mode1 alloc_mode2 = 0
     then f ()
     else Different { approximant = call_kind1 }
   in
@@ -960,7 +958,7 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
     compare_alloc_modes_then alloc_mode1 alloc_mode2 ~f:(fun () -> Equivalent)
   | ( Method { kind = kind1; obj = obj1; alloc_mode = alloc_mode1 },
       Method { kind = kind2; obj = obj2; alloc_mode = alloc_mode2 } ) ->
-    if Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
+    if Alloc_mode.For_applications.compare alloc_mode1 alloc_mode2 = 0
     then
       pairs ~f1:method_kinds ~f2:simple_exprs ~subst2:subst_simple env
         (kind1, obj1) (kind2, obj2)
@@ -986,7 +984,7 @@ let call_kinds env (call_kind1 : Call_kind.t) (call_kind2 : Call_kind.t) :
           alloc_mode = alloc_mode2
         } ) ->
     if Bool.equal needs_caml_c_call1 needs_caml_c_call2
-       && Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2 = 0
+       && Alloc_mode.For_applications.compare alloc_mode1 alloc_mode2 = 0
        && Bool.equal is_c_builtin1 is_c_builtin2
        && Effects.compare effects1 effects2 = 0
        && Coeffects.compare coeffects1 coeffects2 = 0
@@ -1181,13 +1179,14 @@ and static_consts env (const1 : Static_const_or_code.t)
   match const1, const2 with
   | Code code1, Code code2 ->
     codes env code1 code2 |> Comparison.map ~f:Static_const_or_code.create_code
-  | ( Static_const (Block (tag1, mut1, fields1)),
-      Static_const (Block (tag2, mut2, fields2)) ) ->
+  | ( Static_const (Block (tag1, mut1, shape1, fields1)),
+      Static_const (Block (tag2, mut2, _shape2, fields2)) ) ->
+    (* XXX compare the shapes *)
     blocks env (tag1, mut1, fields1) (tag2, mut2, fields2)
     |> Comparison.map
          ~f:(fun (tag1', mut1', fields1') : Static_const_or_code.t ->
            Static_const_or_code.create_static_const
-             (Static_const.block tag1' mut1' fields1'))
+             (Static_const.block tag1' mut1' shape1 fields1'))
   | Static_const (Set_of_closures set1), Static_const (Set_of_closures set2) ->
     sets_of_closures env set1 set2
     |> Comparison.map ~f:(fun set1' : Static_const_or_code.t ->
@@ -1211,13 +1210,14 @@ and codes env (code1 : Code.t) (code2 : Code.t) =
            ~body2
            ~my_closure
            ~my_region
+           ~my_ghost_region
            ~my_depth
          ->
         exprs env body1 body2
         |> Comparison.map ~f:(fun body1' ->
                Function_params_and_body.create ~return_continuation
                  ~exn_continuation params ~body:body1' ~my_closure ~my_region
-                 ~my_depth ~free_names_of_body:Unknown))
+                 ~my_ghost_region ~my_depth ~free_names_of_body:Unknown))
   in
   pairs ~f1:bodies
     ~f2:(options ~f:code_ids ~subst:subst_code_id)
@@ -1335,6 +1335,7 @@ let flambda_units u1 u2 =
   let ret_cont = Continuation.create ~sort:Toplevel_return () in
   let exn_cont = Continuation.create () in
   let toplevel_my_region = Variable.create "toplevel_my_region" in
+  let toplevel_my_ghost_region = Variable.create "toplevel_my_ghost_region" in
   let mk_renaming u =
     let renaming = Renaming.empty in
     let renaming =
@@ -1352,6 +1353,11 @@ let flambda_units u1 u2 =
         (Flambda_unit.toplevel_my_region u)
         ~guaranteed_fresh:toplevel_my_region
     in
+    let renaming =
+      Renaming.add_fresh_variable renaming
+        (Flambda_unit.toplevel_my_ghost_region u)
+        ~guaranteed_fresh:toplevel_my_ghost_region
+    in
     renaming
   in
   let env = Env.create () in
@@ -1362,4 +1368,5 @@ let flambda_units u1 u2 =
          let module_symbol = Flambda_unit.module_symbol u1 in
          Flambda_unit.create ~return_continuation:ret_cont
            ~exn_continuation:exn_cont ~body ~module_symbol
-           ~used_value_slots:Unknown ~toplevel_my_region)
+           ~used_value_slots:Unknown ~toplevel_my_region
+           ~toplevel_my_ghost_region)

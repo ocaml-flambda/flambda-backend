@@ -183,6 +183,8 @@ module type Float_by_bit_pattern = sig
 
   val of_bits : bits -> t
 
+  val to_bits : t -> bits
+
   val of_string : string -> t
 
   val to_float : t -> float
@@ -225,6 +227,8 @@ struct
   let create f = Bits.bits_of_float f
 
   let of_bits bits = bits
+
+  let to_bits bits = bits
 
   let of_string str = Bits.of_string str
 

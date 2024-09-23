@@ -54,8 +54,13 @@ type unique_barrier = Mode.Uniqueness.r option
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
+type alloc_mode = {
+  mode : Mode.Alloc.r;
+  closure_context : Env.closure_context option;
+}
+
 type texp_field_boxing =
-  | Boxing of Mode.Alloc.r * unique_use
+  | Boxing of alloc_mode * unique_use
   | Non_boxing of unique_use
 
 let shared_many_use =
@@ -122,11 +127,11 @@ and expression =
    }
 
 and exp_extra =
-  | Texp_constraint of core_type
+  | Texp_constraint of core_type option * Mode.Alloc.Const.Option.t
   | Texp_coerce of core_type option * core_type
   | Texp_poly of core_type option
   | Texp_newtype of string * Jkind.annotation option
-  | Texp_mode_coerce of Jane_syntax.Mode_expr.t
+  | Texp_stack
 
 and arg_label = Types.arg_label =
   | Nolabel
@@ -142,10 +147,9 @@ and expression_desc =
   | Texp_function of
       { params : function_param list;
         body : function_body;
-        region : bool;
         ret_mode : Mode.Alloc.l;
         ret_sort : Jkind.sort;
-        alloc_mode : Mode.Alloc.r;
+        alloc_mode : alloc_mode;
         zero_alloc : Zero_alloc.t;
       }
   | Texp_apply of
@@ -153,21 +157,21 @@ and expression_desc =
         Mode.Locality.l * Zero_alloc.assume option
   | Texp_match of expression * Jkind.sort * computation case list * partial
   | Texp_try of expression * value case list
-  | Texp_tuple of (string option * expression) list * Mode.Alloc.r
+  | Texp_tuple of (string option * expression) list * alloc_mode
   | Texp_construct of
-      Longident.t loc * constructor_description * expression list * Mode.Alloc.r option
-  | Texp_variant of label * (expression * Mode.Alloc.r) option
+      Longident.t loc * constructor_description * expression list * alloc_mode option
+  | Texp_variant of label * (expression * alloc_mode) option
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
-      alloc_mode : Mode.Alloc.r option
+      alloc_mode : alloc_mode option
     }
   | Texp_field of
       expression * Longident.t loc * label_description * texp_field_boxing
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc * label_description * expression
-  | Texp_array of mutability * Jkind.Sort.t * expression list * Mode.Alloc.r
+  | Texp_array of mutability * Jkind.Sort.t * expression list * alloc_mode
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutability * Jkind.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
@@ -1176,3 +1180,33 @@ let rec exp_is_nominal exp =
   | Texp_field (parent, _, _, _) | Texp_send (parent, _, _) ->
       exp_is_nominal parent
   | _ -> false
+
+let loc_of_decl ~uid =
+  let of_option { txt; loc } =
+    match txt with
+    | Some txt -> { txt; loc }
+    | None -> { txt = ""; loc }
+  in
+  function
+  | Value vd -> vd.val_name
+  | Value_binding vb ->
+    let bound_idents = let_bound_idents_full [vb] in
+    let name = ListLabels.find_map 
+      ~f:(fun (_, name, _, uid') -> if uid = uid' then Some name else None)
+      bound_idents in
+    (match name with
+    | Some name -> name
+    | None -> 
+      (* The find_map will only fail if a bad uid was given. In that case, just
+         use the location of the pattern on the left of the binding. *)
+      { txt = ""; loc = vb.vb_pat.pat_loc })
+  | Type td -> td.typ_name
+  | Constructor cd -> cd.cd_name
+  | Extension_constructor ec -> ec.ext_name
+  | Label ld -> ld.ld_name
+  | Module md -> of_option md.md_name
+  | Module_binding mb -> of_option mb.mb_name
+  | Module_type mtd -> mtd.mtd_name
+  | Module_substitution msd -> msd.ms_name
+  | Class cd -> cd.ci_id_name
+  | Class_type ctd -> ctd.ci_id_name

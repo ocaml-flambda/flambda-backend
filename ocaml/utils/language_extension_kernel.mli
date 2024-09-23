@@ -21,7 +21,7 @@ type _ t =
   | Layouts : maturity t
   | SIMD : unit t
   | Labeled_tuples : unit t
-  | Small_numbers : unit t
+  | Small_numbers : maturity t
   | Instances : unit t
 
 module Exist : sig

@@ -27,7 +27,8 @@ open Location
 type iterator = {
   attribute: iterator -> attribute -> unit;
   attributes: iterator -> attribute list -> unit;
-  modes : iterator -> Jane_syntax.Mode_expr.t -> unit;
+  modes : iterator -> modes -> unit;
+  modalities : iterator -> modalities -> unit;
   binding_op: iterator -> binding_op -> unit;
   case: iterator -> case -> unit;
   cases: iterator -> case list -> unit;
@@ -62,7 +63,6 @@ type iterator = {
   open_description: iterator -> open_description -> unit;
   pat: iterator -> pattern -> unit;
   pat_jane_syntax: iterator -> Jane_syntax.Pattern.t -> unit;
-  pat_mode_syntax : iterator -> Jane_syntax.Mode_expr.t -> pattern -> unit;
   payload: iterator -> payload -> unit;
   signature: iterator -> signature -> unit;
   signature_item: iterator -> signature_item -> unit;
@@ -72,7 +72,6 @@ type iterator = {
   structure_item_jane_syntax: iterator -> Jane_syntax.Structure_item.t -> unit;
   typ: iterator -> core_type -> unit;
   typ_jane_syntax: iterator -> Jane_syntax.Core_type.t -> unit;
-  typ_mode_syntax : iterator -> Jane_syntax.Mode_expr.t -> core_type -> unit;
   row_field: iterator -> row_field -> unit;
   object_field: iterator -> object_field -> unit;
   type_declaration: iterator -> type_declaration -> unit;
@@ -80,7 +79,6 @@ type iterator = {
   type_exception: iterator -> type_exception -> unit;
   type_kind: iterator -> type_kind -> unit;
   value_binding: iterator -> value_binding -> unit;
-  value_binding_mode_syntax: iterator -> Jane_syntax.Mode_expr.t -> value_binding -> unit;
   value_description: iterator -> value_description -> unit;
   with_constraint: iterator -> with_constraint -> unit;
 }
@@ -99,9 +97,6 @@ let iter_loc sub {loc; txt = _} = sub.location sub loc
 let iter_loc_txt sub f { loc; txt } =
   sub.location sub loc;
   f sub txt
-
-let iter_modalities sub modalities =
-  List.iter (iter_loc sub) modalities
 
 module T = struct
   (* Type expressions for the core language *)
@@ -154,19 +149,9 @@ module T = struct
     | Jtyp_layout typ -> iter_jst_layout sub typ
     | Jtyp_tuple lt_typ -> iter_jst_labeled_tuple sub lt_typ
 
-  let iter_mode sub modes typ =
-    sub.modes sub modes;
-    sub.typ sub typ
-
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                   as typ) =
     sub.location sub loc;
-    let modes, ptyp_attributes = Jane_syntax.Mode_expr.maybe_of_attrs attrs in
-    match modes with
-    | Some modes ->
-        let typ = {typ with ptyp_attributes} in
-        sub.typ_mode_syntax sub modes typ
-    | None ->
     match Jane_syntax.Core_type.of_ast typ with
     | Some (jtyp, attrs) ->
         sub.attributes sub attrs;
@@ -176,8 +161,9 @@ module T = struct
     match desc with
     | Ptyp_any
     | Ptyp_var _ -> ()
-    | Ptyp_arrow (_lab, t1, t2) ->
-        sub.typ sub t1; sub.typ sub t2
+    | Ptyp_arrow (_lab, t1, t2, m1, m2) ->
+        sub.typ sub t1; sub.typ sub t2;
+        sub.modes sub m1; sub.modes sub m2
     | Ptyp_tuple tyl -> List.iter (sub.typ sub) tyl
     | Ptyp_constr (lid, tl) ->
         iter_loc sub lid; List.iter (sub.typ sub) tl
@@ -229,7 +215,7 @@ module T = struct
   let iter_constructor_argument sub {pca_type; pca_loc; pca_modalities} =
     sub.typ sub pca_type;
     sub.location sub pca_loc;
-    iter_modalities sub pca_modalities
+    sub.modalities sub pca_modalities
 
   let iter_constructor_arguments sub = function
     | Pcstr_tuple l -> List.iter (iter_constructor_argument sub) l
@@ -502,9 +488,7 @@ module E = struct
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
   module L = Jane_syntax.Layouts
-  module N_ary = Jane_syntax.N_ary_functions
   module LT = Jane_syntax.Labeled_tuples
-  module Modes = Jane_syntax.Modes
 
   let iter_iterator sub : C.iterator -> _ = function
     | Range { start; stop; direction = _ } ->
@@ -542,7 +526,7 @@ module E = struct
       iter_loc_txt sub sub.jkind_annotation jkind;
       sub.expr sub inner_expr
 
-  let iter_function_param sub : N_ary.function_param -> _ =
+  let iter_function_param sub : function_param -> _ =
     fun { pparam_loc = loc; pparam_desc = desc } ->
       sub.location sub loc;
       match desc with
@@ -553,7 +537,7 @@ module E = struct
           iter_loc sub newtype;
           iter_opt (iter_loc_txt sub sub.jkind_annotation) jkind
 
-  let iter_function_constraint sub : N_ary.function_constraint -> _ =
+  let iter_function_constraint sub : function_constraint -> _ =
     (* Enable warning 9 to ensure that the record pattern doesn't miss any
        field. *)
     fun[@ocaml.warning "+9"] { mode_annotations; type_constraint } ->
@@ -565,7 +549,7 @@ module E = struct
           Option.iter (sub.typ sub) ty1;
           sub.typ sub ty2
 
-  let iter_function_body sub : N_ary.function_body -> _ = function
+  let iter_function_body sub : function_body -> _ = function
     | Pfunction_body expr ->
         sub.expr sub expr
     | Pfunction_cases (cases, loc, attrs) ->
@@ -573,27 +557,14 @@ module E = struct
         sub.location sub loc;
         sub.attributes sub attrs
 
-  let iter_n_ary_function sub : N_ary.expression -> _ =
-    fun (params, constraint_, body) ->
-      List.iter (iter_function_param sub) params;
-      Option.iter (iter_function_constraint sub) constraint_;
-      iter_function_body sub body
-
   let iter_labeled_tuple sub : LT.expression -> _ = function
     | el -> List.iter (iter_snd (sub.expr sub)) el
-
-  let iter_modes_exp sub : Modes.expression -> _ = function
-    | Coerce (modes, expr) ->
-        sub.modes sub modes;
-        sub.expr sub expr
 
   let iter_jst sub : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
     | Jexp_immutable_array iarr_exp -> iter_iarr_exp sub iarr_exp
     | Jexp_layout layout_exp -> iter_layout_exp sub layout_exp
-    | Jexp_n_ary_function n_ary_exp -> iter_n_ary_function sub n_ary_exp
     | Jexp_tuple lt_exp -> iter_labeled_tuple sub lt_exp
-    | Jexp_modes mode_exp -> iter_modes_exp sub mode_exp
 
   let iter sub
         ({pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} as expr)=
@@ -610,11 +581,10 @@ module E = struct
     | Pexp_let (_r, vbs, e) ->
         List.iter (sub.value_binding sub) vbs;
         sub.expr sub e
-    | Pexp_fun (_lab, def, p, e) ->
-        iter_opt (sub.expr sub) def;
-        sub.pat sub p;
-        sub.expr sub e
-    | Pexp_function pel -> sub.cases sub pel
+    | Pexp_function (params, constraint_, body) ->
+        List.iter (iter_function_param sub) params;
+        Option.iter (iter_function_constraint sub) constraint_;
+        iter_function_body sub body
     | Pexp_apply (e, l) ->
         sub.expr sub e; List.iter (iter_snd (sub.expr sub)) l
     | Pexp_match (e, pel) ->
@@ -647,8 +617,10 @@ module E = struct
     | Pexp_coerce (e, t1, t2) ->
         sub.expr sub e; iter_opt (sub.typ sub) t1;
         sub.typ sub t2
-    | Pexp_constraint (e, t) ->
-        sub.expr sub e; sub.typ sub t
+    | Pexp_constraint (e, t, m) ->
+      sub.expr sub e;
+      Option.iter (sub.typ sub) t;
+      sub.modes sub m
     | Pexp_send (e, _s) -> sub.expr sub e
     | Pexp_new lid -> iter_loc sub lid
     | Pexp_setinstvar (s, e) ->
@@ -676,6 +648,7 @@ module E = struct
         sub.expr sub body
     | Pexp_extension x -> sub.extension sub x
     | Pexp_unreachable -> ()
+    | Pexp_stack e -> sub.expr sub e
 
   let iter_binding_op sub {pbop_op; pbop_pat; pbop_exp; pbop_loc} =
     iter_loc sub pbop_op;
@@ -704,19 +677,9 @@ module P = struct
     | Jpat_layout (Lpat_constant _) -> iter_constant
     | Jpat_tuple ltpat -> iter_labeled_tuple sub ltpat
 
-  let iter_mode sub modes pat =
-    sub.modes sub modes;
-    sub.pat sub pat
-
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
     sub.location sub loc;
-    let modes, ppat_attributes = Jane_syntax.Mode_expr.maybe_of_attrs attrs in
-    match modes with
-    | Some modes ->
-      let pat = {pat with ppat_attributes} in
-      sub.pat_mode_syntax sub modes pat
-    | None ->
     match Jane_syntax.Pattern.of_ast pat with
     | Some (jpat, attrs) ->
         sub.attributes sub attrs;
@@ -742,8 +705,8 @@ module P = struct
         List.iter (iter_tuple (iter_loc sub) (sub.pat sub)) lpl
     | Ppat_array pl -> List.iter (sub.pat sub) pl
     | Ppat_or (p1, p2) -> sub.pat sub p1; sub.pat sub p2
-    | Ppat_constraint (p, t) ->
-        sub.pat sub p; sub.typ sub t
+    | Ppat_constraint (p, t, m) ->
+        sub.pat sub p; Option.iter (sub.typ sub) t; sub.modes sub m;
     | Ppat_type s -> iter_loc sub s
     | Ppat_lazy p -> sub.pat sub p
     | Ppat_unpack s -> iter_loc sub s
@@ -845,7 +808,6 @@ let default_iterator =
     type_kind = T.iter_type_kind;
     typ = T.iter;
     typ_jane_syntax = T.iter_jst;
-    typ_mode_syntax = T.iter_mode;
     row_field = T.row_field;
     object_field = T.object_field;
     type_extension = T.iter_type_extension;
@@ -856,14 +818,13 @@ let default_iterator =
                  pval_attributes} ->
         iter_loc this pval_name;
         this.typ this pval_type;
-        iter_modalities this pval_modalities;
         this.location this pval_loc;
+        this.modalities this pval_modalities;
         this.attributes this pval_attributes;
       );
 
     pat = P.iter;
     pat_jane_syntax = P.iter_jst;
-    pat_mode_syntax = P.iter_mode;
     expr = E.iter;
     expr_jane_syntax = E.iter_jst;
     binding_op = E.iter_binding_op;
@@ -930,15 +891,8 @@ let default_iterator =
 
 
     value_binding =
-      (fun this ({pvb_pat; pvb_expr; pvb_attributes; pvb_loc; pvb_constraint} as pvb) ->
-         let modes, pvb_attributes =
-          Jane_syntax.Mode_expr.maybe_of_attrs pvb_attributes
-         in
-         match modes with
-         | Some modes ->
-            let pvb = {pvb with pvb_attributes} in
-            this.value_binding_mode_syntax this modes pvb
-         | None ->
+      (fun this {pvb_pat; pvb_expr; pvb_attributes; pvb_loc; pvb_constraint; pvb_modes} ->
+         this.modes this pvb_modes;
          this.pat this pvb_pat;
          this.expr this pvb_expr;
          Option.iter (function
@@ -951,12 +905,6 @@ let default_iterator =
            ) pvb_constraint;
          this.location this pvb_loc;
          this.attributes this pvb_attributes
-      );
-
-    value_binding_mode_syntax =
-      (fun this modes pvb ->
-        this.modes this modes;
-        this.value_binding this pvb
       );
 
     constructor_declaration =
@@ -984,7 +932,7 @@ let default_iterator =
          this.typ this pld_type;
          this.location this pld_loc;
          this.attributes this pld_attributes;
-         iter_modalities this pld_modalities
+         this.modalities this pld_modalities
       );
 
     cases = (fun this l -> List.iter (this.case this) l);
@@ -1004,13 +952,16 @@ let default_iterator =
       this.location this a.attr_loc
     );
     attributes = (fun this l -> List.iter (this.attribute this) l);
+
     (* Location inside a mode expression needs to be traversed. *)
     modes = (fun this m ->
-      let open Jane_syntax.Mode_expr in
-      let iter_const sub : Const.t -> _ =
-        fun m -> iter_loc sub (m : Const.t :> _ Location.loc)
-      in
-      iter_loc_txt this (fun sub -> List.iter (iter_const sub)) m);
+      List.iter (iter_loc this) m
+    );
+
+    modalities = (fun this m ->
+      List.iter (iter_loc this) m
+    );
+
     payload =
       (fun this -> function
          | PStr x -> this.structure this x

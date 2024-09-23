@@ -2,9 +2,6 @@
  include stdlib_upstream_compatible;
  flambda2;
  {
-   flags = "-extension layouts_alpha -extension small_numbers";
-   expect;
- }{
    flags = "-extension layouts_beta -extension small_numbers";
    expect;
  }{
@@ -91,10 +88,10 @@ Line 1, characters 27-28:
                                ^
 Error: This expression has type float# array
        but an expression was expected of type 'a array
-       The layout of float# is float64, because
-         it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value, because
-         of layout requirements from an imported definition.
+       The layout of float# is float64
+         because it is the primitive type float#.
+       But the layout of float# must be a sublayout of value
+         because of layout requirements from an imported definition.
 |}];;
 
 let f (x : float# array) = Array.length x
@@ -104,10 +101,10 @@ Line 1, characters 40-41:
                                             ^
 Error: This expression has type float# array
        but an expression was expected of type 'a array
-       The layout of float# is float64, because
-         it is the primitive float64 type float#.
-       But the layout of float# must be a sublayout of value, because
-         of layout requirements from an imported definition.
+       The layout of float# is float64
+         because it is the primitive type float#.
+       But the layout of float# must be a sublayout of value
+         because of layout requirements from an imported definition.
 |}];;
 
 (*****************************************************************)
@@ -144,10 +141,10 @@ Line 2, characters 23-30:
 2 | let d (x : 'a array) = get x 0
                            ^^^^^^^
 Error: A representable layout is required here.
-       The layout of 'a is any, because
-         of the definition of d at line 2, characters 6-30.
-       But the layout of 'a must be representable, because
-         it's the type of an array element.
+       The layout of 'a is any
+         because of the definition of d at line 2, characters 6-30.
+       But the layout of 'a must be representable
+         because it's the type of an array element.
 |}];;
 
 external get : int32# array -> int -> float = "%floatarray_safe_get"
@@ -257,10 +254,10 @@ Line 11, characters 79-82:
                                                                                     ^^^
 Error: This expression has type int64# but an expression was expected of type
          ('a : bits32)
-       The layout of int64# is bits64, because
-         it is the primitive bits64 type int64#.
-       But the layout of int64# must be a sublayout of bits32, because
-         of the definition of get_third at lines 4-7, characters 16-23.
+       The layout of int64# is bits64
+         because it is the primitive type int64#.
+       But the layout of int64# must be a sublayout of bits32
+         because of the definition of get_third at lines 4-7, characters 16-23.
 |}]
 
 module M6_2 = struct
@@ -282,10 +279,10 @@ Line 9, characters 24-35:
                             ^^^^^^^^^^^
 Error: This expression has type ('a : float64)
        but an expression was expected of type int32#
-       The layout of int32# is bits32, because
-         it is the primitive bits32 type int32#.
-       But the layout of int32# must be a sublayout of float64, because
-         of the definition of arr at line 6, characters 12-16.
+       The layout of int32# is bits32
+         because it is the primitive type int32#.
+       But the layout of int32# must be a sublayout of float64
+         because of the definition of arr at line 6, characters 12-16.
 |}]
 
 (*********************)
@@ -297,10 +294,15 @@ let _ =
   let[@warning "-10"] rec x = [| x |]; #42.0 in
   ();;
 [%%expect{|
-Line 2, characters 30-44:
+Line 2, characters 39-44:
 2 |   let[@warning "-10"] rec x = [| x |]; #42.0 in
-                                  ^^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+                                           ^^^^^
+Error: This expression has type float# but an expression was expected of type
+         ('a : value)
+       The layout of float# is float64
+         because it is the primitive type float#.
+       But the layout of float# must be a sublayout of value
+         because it's the type of the recursive variable x.
 |}]
 
 let _ =
@@ -308,10 +310,15 @@ let _ =
   ();;
 
 [%%expect{|
-Line 2, characters 30-43:
+Line 2, characters 39-43:
 2 |   let[@warning "-10"] rec x = [| x |]; #42l in
-                                  ^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+                                           ^^^^
+Error: This expression has type int32# but an expression was expected of type
+         ('a : value)
+       The layout of int32# is bits32
+         because it is the primitive type int32#.
+       But the layout of int32# must be a sublayout of value
+         because it's the type of the recursive variable x.
 |}]
 
 let _ =
@@ -319,10 +326,15 @@ let _ =
   ();;
 
 [%%expect{|
-Line 2, characters 30-43:
+Line 2, characters 39-43:
 2 |   let[@warning "-10"] rec x = [| x |]; #42L in
-                                  ^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+                                           ^^^^
+Error: This expression has type int64# but an expression was expected of type
+         ('a : value)
+       The layout of int64# is bits64
+         because it is the primitive type int64#.
+       But the layout of int64# must be a sublayout of value
+         because it's the type of the recursive variable x.
 |}]
 
 let _ =
@@ -330,10 +342,15 @@ let _ =
   ();;
 
 [%%expect{|
-Line 2, characters 30-43:
+Line 2, characters 39-43:
 2 |   let[@warning "-10"] rec x = [| x |]; #42n in
-                                  ^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+                                           ^^^^
+Error: This expression has type nativeint#
+       but an expression was expected of type ('a : value)
+       The layout of nativeint# is word
+         because it is the primitive type nativeint#.
+       But the layout of nativeint# must be a sublayout of value
+         because it's the type of the recursive variable x.
 |}]
 
 let _ =
@@ -341,8 +358,13 @@ let _ =
   ();;
 
 [%%expect{|
-Line 2, characters 30-45:
+Line 2, characters 39-45:
 2 |   let[@warning "-10"] rec x = [| x |]; #42.0s in
-                                  ^^^^^^^^^^^^^^^
-Error: This kind of expression is not allowed as right-hand side of `let rec'
+                                           ^^^^^^
+Error: This expression has type float32#
+       but an expression was expected of type ('a : value)
+       The layout of float32# is float32
+         because it is the primitive type float32#.
+       But the layout of float32# must be a sublayout of value
+         because it's the type of the recursive variable x.
 |}]

@@ -482,6 +482,7 @@ module Function_params_and_body : sig
     free_names_of_body:Name_occurrences.t Or_unknown.t ->
     my_closure:Variable.t ->
     my_region:Variable.t ->
+    my_ghost_region:Variable.t ->
     my_depth:Variable.t ->
     t
 
@@ -504,6 +505,7 @@ module Function_params_and_body : sig
       my_closure:Variable.t ->
       is_my_closure_used:bool Or_unknown.t ->
       my_region:Variable.t ->
+      my_ghost_region:Variable.t ->
       my_depth:Variable.t ->
       free_names_of_body:Name_occurrences.t Or_unknown.t ->
       'a) ->
@@ -529,6 +531,7 @@ module Function_params_and_body : sig
       body2:expr ->
       my_closure:Variable.t ->
       my_region:Variable.t ->
+      my_ghost_region:Variable.t ->
       my_depth:Variable.t ->
       'a) ->
     'a
