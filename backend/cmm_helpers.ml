@@ -1161,6 +1161,33 @@ let unboxed_mutable_float_array_ref arr ofs dbg =
 let unboxed_immutable_float_array_ref arr ofs dbg =
   Cop (mk_load_immut Double, [array_indexing log2_size_float arr ofs dbg], dbg)
 
+let unboxed_mutable_float32_unboxed_product_array_ref arr ~array_index dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" array_index (fun index ->
+          Cop
+            ( mk_load_mut (Single { reg = Float32 }),
+              [array_indexing log2_size_addr arr index dbg],
+              dbg )))
+
+(* CR mshinwell/mslater: if we're writing zeros to the top 32 bits of float32
+   product fields, should we do the same for mixed block record fields? *)
+
+let unboxed_mutable_float32_unboxed_product_array_set arr ~array_index
+    ~new_value dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" array_index (fun index ->
+          bind "new_value" new_value (fun new_value ->
+              Csequence
+                ( Cop
+                    ( Cstore (Word_int, Assignment),
+                      [ array_indexing log2_size_addr arr index dbg;
+                        Cconst_int (0, dbg) ],
+                      dbg ),
+                  Cop
+                    ( Cstore (Single { reg = Float32 }, Assignment),
+                      [array_indexing log2_size_addr arr index dbg; new_value],
+                      dbg ) ))))
+
 let unboxed_float_array_ref (mutability : Asttypes.mutable_flag) ~block:arr
     ~index:ofs dbg =
   match mutability with
@@ -1286,18 +1313,41 @@ let unboxed_int32_array_ref =
      [Thirtytwo_signed] load. *)
   unboxed_packed_array_ref ~memory_chunk:Thirtytwo_signed ~elements_per_word:2
 
+let unboxed_mutable_int32_unboxed_product_array_ref arr ~array_index dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" array_index (fun index ->
+          sign_extend_32 dbg
+            (Cop
+               ( mk_load_mut Thirtytwo_signed,
+                 [array_indexing log2_size_addr arr index dbg],
+                 dbg ))))
+
+let unboxed_mutable_int32_unboxed_product_array_set arr ~array_index ~new_value
+    dbg =
+  bind "arr" arr (fun arr ->
+      bind "index" array_index (fun index ->
+          bind "new_value" new_value (fun new_value ->
+              let new_value = sign_extend_32 dbg new_value in
+              Cop
+                ( Cstore (Word_int, Assignment),
+                  [array_indexing log2_size_addr arr index dbg; new_value],
+                  dbg ))))
+
 let unboxed_float32_array_ref =
   unboxed_packed_array_ref
     ~memory_chunk:(Single { reg = Float32 })
     ~elements_per_word:2
 
-let unboxed_int64_or_nativeint_array_ref arr index dbg =
+let unboxed_int64_or_nativeint_array_ref ~has_custom_ops arr ~array_index dbg =
   bind "arr" arr (fun arr ->
-      bind "index" index (fun index ->
+      bind "index" array_index (fun index ->
           let index =
-            (* Need to skip the custom_operations field. 2 not 1 since we are
-               manipulating a tagged int. *)
-            add_int index (int ~dbg 2) dbg
+            if has_custom_ops
+            then
+              (* Need to skip the custom_operations field. 2 not 1 since we are
+                 manipulating a tagged int. *)
+              add_int index (int ~dbg 2) dbg
+            else index
           in
           int_array_ref arr index dbg))
 
@@ -1324,13 +1374,17 @@ let unboxed_float32_array_set =
     ~memory_chunk:(Single { reg = Float32 })
     ~elements_per_word:2
 
-let unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg =
+let unboxed_int64_or_nativeint_array_set ~has_custom_ops arr ~index ~new_value
+    dbg =
   bind "arr" arr (fun arr ->
       bind "index" index (fun index ->
           bind "new_value" new_value (fun new_value ->
               let index =
-                (* See comment in [unboxed_int64_or_nativeint_array_ref]. *)
-                add_int index (int ~dbg 2) dbg
+                if has_custom_ops
+                then
+                  (* See comment in [unboxed_int64_or_nativeint_array_ref]. *)
+                  add_int index (int ~dbg 2) dbg
+                else index
               in
               int_array_set arr index new_value dbg)))
 

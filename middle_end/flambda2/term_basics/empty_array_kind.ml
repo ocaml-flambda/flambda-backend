@@ -15,6 +15,7 @@
 
 type t =
   | Values_or_immediates_or_naked_floats
+  | Unboxed_products
   | Naked_float32s
   | Naked_int32s
   | Naked_int64s
@@ -24,6 +25,7 @@ type t =
 let print ppf t =
   match t with
   | Values_or_immediates_or_naked_floats -> Format.pp_print_string ppf "regular"
+  | Unboxed_products -> Format.pp_print_string ppf "Unboxed_products"
   | Naked_float32s -> Format.pp_print_string ppf "Naked_float32s"
   | Naked_int32s -> Format.pp_print_string ppf "Naked_int32s"
   | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
@@ -33,6 +35,8 @@ let print ppf t =
 let compare = Stdlib.compare
 
 let of_element_kind t =
+  (* This is used for reification, and we don't yet handle unboxed product
+     arrays there. *)
   match (t : Flambda_kind.t) with
   | Value | Naked_number Naked_float -> Values_or_immediates_or_naked_floats
   | Naked_number Naked_immediate ->
@@ -57,5 +61,4 @@ let of_lambda array_kind =
   | Punboxedintarray Pint64 -> Naked_int64s
   | Punboxedintarray Pnativeint -> Naked_nativeints
   | Punboxedvectorarray Pvec128 -> Naked_vec128s
-  | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
-    Misc.fatal_errorf "Empty_array_kind.of_lambda: unimplemented"
+  | Pgcscannableproductarray _ | Pgcignorableproductarray _ -> Unboxed_products

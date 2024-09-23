@@ -1885,7 +1885,11 @@ let rec emit_all ~first ~fallthrough i =
   match i.desc with
   | Lend -> ()
   | _ ->
-      emit_instr ~first ~fallthrough i;
+      (try emit_instr ~first ~fallthrough i
+       with exn -> (
+         Format.eprintf "Exception whilst emitting instruction:@ %a\n"
+           Printlinear.instr i;
+         raise exn));
       emit_all ~first:false ~fallthrough:(Linear.has_fallthrough i.desc) i.next
 
 let all_functions = ref []

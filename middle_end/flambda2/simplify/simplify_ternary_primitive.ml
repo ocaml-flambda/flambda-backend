@@ -32,7 +32,7 @@ let simplify_array_set (array_kind : P.Array_kind.t)
       | Immediates -> ()
       | Values -> (
         match array_set_kind with
-        | Values _init_or_assign -> ()
+        | Values _ -> ()
         | Immediates
         (* We don't expect specialisation regressions from Immediates to
            Values. *)
@@ -44,15 +44,9 @@ let simplify_array_set (array_kind : P.Array_kind.t)
             P.Array_kind.print array_kind P.Array_set_kind.print array_set_kind
             P.Array_kind.print orig_array_kind Named.print original_term)
       | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ->
+      | Naked_nativeints | Naked_vec128s | Unboxed_product _ ->
         ()
     in
-    (* CR mshinwell: This should check:
-
-       1. Any element kind(s) in [array_ty] match [array_kind].
-
-       2. The [new_value] matches [array_set_kind]. (For unboxed products this
-       can only be checked if the index is known.) *)
     let named =
       Named.create_prim
         (Ternary
