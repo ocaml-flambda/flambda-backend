@@ -62,20 +62,15 @@ Error: This value is "shared" but expected to be "uncontended".
   this record needs to be uncontended.
 |}]
 
-(* Reading from a mutable field in a shared record is fine *)
-let foo (r @ shared) = {r with a = best_bytes ()}
+(* reading mutable field from shared record is fine *)
+let foo (r @ shared) = r.a
 [%%expect{|
-val foo : r @ shared -> r @ shared = <fun>
+val foo : r @ shared -> bytes @ shared = <fun>
 |}]
 
 let foo (r @ shared) = {r with b = best_bytes ()}
 [%%expect{|
 val foo : r @ shared -> r @ shared = <fun>
-|}]
-
-let foo (r @ shared) = r.a
-[%%expect{|
-val foo : r @ shared -> bytes @ shared = <fun>
 |}]
 
 (* reading immutable field from contended record is fine *)
@@ -88,6 +83,11 @@ val foo : r @ contended -> bytes @ contended = <fun>
 let foo (r @ shared) = r.b
 [%%expect{|
 val foo : r @ shared -> bytes @ shared = <fun>
+|}]
+
+let foo (r @ shared) = {r with a = best_bytes ()}
+[%%expect{|
+val foo : r @ shared -> r @ shared = <fun>
 |}]
 
 (* Force top level to be uncontended and nonportable *)
@@ -144,6 +144,18 @@ Line 4, characters 23-26:
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
+(* Closing over reading mutable field from shared value is nonportable *)
+let foo (r @ shared) =
+    let bar () = let _ = r.a in () in
+    let _ @ portable = bar in
+    ()
+[%%expect{|
+Line 3, characters 23-26:
+3 |     let _ @ portable = bar in
+                           ^^^
+Error: This value is "nonportable" but expected to be "portable".
+|}]
+
 (* Closing over reading immutable field is OK *)
 let foo () =
     let r @ portable = {a = best_bytes (); b = best_bytes ()} in
@@ -188,6 +200,7 @@ Error: This value is "contended" but expected to be "shared".
   Hint: In order to read from the mutable fields,
   this record needs to be at least shared.
 |}]
+(* CR modes: Error message should mention array, not record. *)
 
 let foo (r @ shared) = Array.set r 42 (best_bytes ())
 [%%expect{|
@@ -298,6 +311,16 @@ let foo : 'a @ uncontended portable -> (unit -> unit) @ portable = fun a () -> (
 Line 1, characters 67-81:
 1 | let foo : 'a @ uncontended portable -> (unit -> unit) @ portable = fun a () -> ()
                                                                        ^^^^^^^^^^^^^^
+Error: This function when partially applied returns a value which is "nonportable",
+       but expected to be "portable".
+|}]
+
+(* closing over shared gives nonportable *)
+let foo : 'a @ shared portable -> (unit -> unit) @ portable = fun a () -> ()
+[%%expect{|
+Line 1, characters 62-76:
+1 | let foo : 'a @ shared portable -> (unit -> unit) @ portable = fun a () -> ()
+                                                                  ^^^^^^^^^^^^^^
 Error: This function when partially applied returns a value which is "nonportable",
        but expected to be "portable".
 |}]
