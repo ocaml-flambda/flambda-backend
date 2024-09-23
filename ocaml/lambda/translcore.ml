@@ -636,7 +636,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
-      let sem = add_barrier (transl_unique_barrier ubr) sem in
+      let sem = add_barrier_to_read (transl_unique_barrier ubr) sem in
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       check_record_field_sort id.loc lbl_sort;
       begin match lbl.lbl_repres with
@@ -1819,7 +1819,7 @@ and transl_record ~scopes loc env mode ubr fields repres opt_init_expr =
                let sem =
                  if Types.is_mutable mut then Reads_vary else Reads_agree
                in
-               let sem = add_barrier ubr sem in
+               let sem = add_barrier_to_read ubr sem in
                let access =
                  match repres with
                    Record_boxed _

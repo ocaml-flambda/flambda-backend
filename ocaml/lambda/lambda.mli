@@ -80,12 +80,6 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
-type unique_barrier =
-  | MayBePushedDown
-  | MustStayHere
-
-val add_barrier : unique_barrier -> field_read_semantics -> field_read_semantics
-
 (* Tail calls can close their enclosing region early *)
 type region_close =
   | Rc_normal         (* do not close region, may TCO if in tail position *)
@@ -612,6 +606,14 @@ type let_kind = Strict | Alias | StrictOpt
     StrictOpt: e does not have side-effects, but depend on the store;
       we can discard e if x does not appear in e'
  *)
+
+type unique_barrier =
+  | MayBePushedDown
+  | MustStayHere
+
+val add_barrier_to_read : unique_barrier -> field_read_semantics -> field_read_semantics
+
+val add_barrier_to_let_kind : unique_barrier -> let_kind -> let_kind
 
 type meth_kind = Self | Public | Cached
 

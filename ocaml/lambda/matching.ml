@@ -1799,10 +1799,12 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
   Array.iter (fun jkind ->
       jkind_layout_default_to_value_and_check_not_void head.pat_loc jkind)
     cstr.cstr_arg_jkinds;
+  let ubr = Translmode.transl_unique_barrier (head.pat_unique_barrier) in
+  let sem = add_barrier_to_read ubr Reads_agree in
   let make_field_access binding_kind ~field ~pos =
     let prim =
       match cstr.cstr_shape with
-      | Constructor_uniform_value -> Pfield (pos, Pointer, Reads_agree)
+      | Constructor_uniform_value -> Pfield (pos, Pointer, sem)
       | Constructor_mixed shape ->
           let read =
             match Types.get_mixed_product_element shape field with
@@ -1819,25 +1821,26 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
                 Mread_flat_suffix flat_read
           in
           let shape = Lambda.transl_mixed_product_shape shape in
-          Pmixedfield (pos, read, shape, Reads_agree)
+          Pmixedfield (pos, read, shape, sem)
     in
     let jkind = cstr.cstr_arg_jkinds.(field) in
     let sort = Jkind.sort_of_jkind jkind in
     let layout = Typeopt.layout_of_sort head.pat_loc sort in
     (Lprim (prim, [ arg ], loc), binding_kind, sort, layout)
   in
+  let str = add_barrier_to_let_kind ubr Alias in
   if cstr.cstr_inlined <> None then
-    (arg, Alias, sort, layout) :: rem
+    (arg, str, sort, layout) :: rem
   else
     match cstr.cstr_repr with
     | Variant_boxed _ ->
         List.init cstr.cstr_arity
-          (fun i -> make_field_access Alias ~field:i ~pos:i)
+          (fun i -> make_field_access str ~field:i ~pos:i)
         @ rem
-    | Variant_unboxed -> (arg, Alias, sort, layout) :: rem
+    | Variant_unboxed -> (arg, str, sort, layout) :: rem
     | Variant_extensible ->
         List.init cstr.cstr_arity
-          (fun i -> make_field_access Alias ~field:i ~pos:(i+1))
+          (fun i -> make_field_access str ~field:i ~pos:(i+1))
         @ rem
 
 let divide_constructor ~scopes ctx pm =
@@ -1852,14 +1855,17 @@ let divide_constructor ~scopes ctx pm =
 
 let get_expr_args_variant_constant = drop_expr_arg
 
-let nonconstant_variant_field index =
-  Lambda.Pfield(index, Pointer, Reads_agree)
+let nonconstant_variant_field ubr index =
+  let sem = add_barrier_to_read ubr Reads_agree in
+  Lambda.Pfield(index, Pointer, sem)
 
 let get_expr_args_variant_nonconst ~scopes head (arg, _mut, _sort, _layout)
       rem =
   let loc = head_loc ~scopes head in
-   let field_prim = nonconstant_variant_field 1 in
-  (Lprim (field_prim, [ arg ], loc), Alias, Jkind.Sort.for_variant_arg,
+  let ubr = Translmode.transl_unique_barrier (head.pat_unique_barrier) in
+  let field_prim = nonconstant_variant_field ubr 1 in
+  let str = add_barrier_to_let_kind ubr Alias in
+  (Lprim (field_prim, [ arg ], loc), str, Jkind.Sort.for_variant_arg,
    layout_variant_arg)
   :: rem
 
@@ -2105,11 +2111,14 @@ let get_pat_args_unboxed_tuple arity p rem =
 let get_expr_args_tuple ~scopes head (arg, _mut, _sort, _layout) rem =
   let loc = head_loc ~scopes head in
   let arity = Patterns.Head.arity head in
+  let ubr = Translmode.transl_unique_barrier (head.pat_unique_barrier) in
+  let sem = add_barrier_to_read ubr Reads_agree in
+  let str = add_barrier_to_let_kind ubr Alias in
   let rec make_args pos =
     if pos >= arity then
       rem
     else
-      (Lprim (Pfield (pos, Pointer, Reads_agree), [ arg ], loc), Alias,
+      (Lprim (Pfield (pos, Pointer, sem), [ arg ], loc), str,
        Jkind.Sort.for_tuple_element, layout_tuple_element)
         :: make_args (pos + 1)
   in
@@ -2189,6 +2198,8 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
+      let ubr = Translmode.transl_unique_barrier head.pat_unique_barrier in
+      let sem = add_barrier_to_read ubr sem in
       let access, sort, layout =
         match lbl.lbl_repres with
         | Record_boxed _
@@ -2238,6 +2249,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
             lbl_sort, lbl_layout
       in
       let str = if Types.is_mutable lbl.lbl_mut then StrictOpt else Alias in
+      let str = add_barrier_to_let_kind ubr str in
       (access, str, sort, layout) :: make_args (pos + 1)
   in
   make_args 0
@@ -3191,7 +3203,7 @@ let call_switcher_variant_constr value_kind loc fail arg int_lambda_list =
     ( Alias,
       Lambda.layout_int,
       v,
-      Lprim (nonconstant_variant_field 0, [ arg ], loc),
+      Lprim (nonconstant_variant_field MayBePushedDown 0, [ arg ], loc),
       call_switcher value_kind loc fail (Lvar v) min_int max_int int_lambda_list )
 
 let combine_variant value_kind loc row arg partial ctx def

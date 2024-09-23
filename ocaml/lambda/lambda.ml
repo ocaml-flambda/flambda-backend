@@ -43,15 +43,6 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
-type unique_barrier =
-  | MayBePushedDown
-  | MustStayHere
-
-let add_barrier ubr sem =
-  match ubr with
-  | MayBePushedDown -> sem
-  | MustStayHere -> Reads_vary
-
 include (struct
 
   type locality_mode =
@@ -694,6 +685,21 @@ type curried_function_kind = { nlocal : int } [@@unboxed]
 type function_kind = Curried of curried_function_kind | Tupled
 
 type let_kind = Strict | Alias | StrictOpt
+
+type unique_barrier =
+  | MayBePushedDown
+  | MustStayHere
+
+let add_barrier_to_read ubr sem =
+  match ubr with
+  | MayBePushedDown -> sem
+  | MustStayHere -> Reads_vary
+
+let add_barrier_to_let_kind ubr str =
+  match ubr, str with
+  | MayBePushedDown, str -> str
+  | MustStayHere, Strict -> Strict
+  | MustStayHere, (Alias|StrictOpt) -> StrictOpt
 
 type meth_kind = Self | Public | Cached
 
