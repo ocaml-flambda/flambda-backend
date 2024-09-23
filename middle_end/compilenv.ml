@@ -135,7 +135,9 @@ let read_library_info filename =
 
 (* Read and cache info on global identifiers *)
 
-let equal_args (name1, value1) (name2, value2) =
+let equal_args arg1 arg2 =
+  let ({ param = name1; value = value1 } : CU.argument) = arg1 in
+  let ({ param = name2; value = value2 } : CU.argument) = arg2 in
   CU.equal name1 name2 && CU.equal value1 value2
 
 let equal_up_to_pack_prefix cu1 cu2 =

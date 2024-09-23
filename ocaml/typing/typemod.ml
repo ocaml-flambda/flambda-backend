@@ -3564,7 +3564,7 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
   | None -> None
   | Some arg_module ->
       let arg_import =
-        Compilation_unit.Name.of_head_of_global_name arg_module
+        Compilation_unit.Name.of_global_name_no_args_exn arg_module
       in
       (* CR lmaurer: This "look for known name in path" code is duplicated
          all over the place. *)

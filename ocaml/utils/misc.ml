@@ -216,28 +216,34 @@ module Stdlib = struct
       in
       find_prefix ~longest_common_prefix_rev:[] first second
 
-    let [@inline] merge_iter ~cmp ~left_only ~right_only ~both t1 t2 =
-      let rec loop t1 t2 =
+    let [@inline] merge_fold ~cmp ~left_only ~right_only ~both ~init t1 t2 =
+      let rec loop acc t1 t2 =
         match t1, t2 with
-        | [], [] -> ()
-        | a :: t1', [] -> left_only a; loop t1' []
-        | [], b :: t2' -> right_only b; loop [] t2'
+        | [], [] -> acc
+        | a :: t1', [] -> loop (left_only acc a) t1' []
+        | [], b :: t2' -> loop (right_only acc b) [] t2'
         | a :: t1', b :: t2' ->
             match cmp a b with
-            | 0 -> both a b; loop t1' t2'
-            | c when c < 0 -> left_only a; loop t1' t2
-            | _ -> right_only b; loop t1 t2'
+            | 0 -> loop (both acc a b) t1' t2'
+            | c when c < 0 -> loop (left_only acc a) t1' t2
+            | _ -> loop (right_only acc b) t1 t2'
       in
-      loop t1 t2
+      loop init t1 t2
+
+    let [@inline] merge_iter ~cmp ~left_only ~right_only ~both t1 t2 =
+      merge_fold t1 t2 ~cmp
+        ~init:()
+        ~left_only:(fun () a -> left_only a)
+        ~right_only:(fun () b -> right_only b)
+        ~both:(fun () a b -> both a b)
 
     let [@inline] merge_map ~cmp ~left_only ~right_only ~both t1 t2 =
-      let acc_rev = ref [] in
-      let add c = acc_rev := c :: !acc_rev in
-      merge_iter t1 t2 ~cmp
-        ~left_only:(fun a -> add (left_only a))
-        ~right_only:(fun b -> add (right_only b))
-        ~both:(fun a b -> add (both a b));
-      List.rev !acc_rev
+      merge_fold t1 t2 ~cmp
+        ~init:[]
+        ~left_only:(fun acc a -> left_only a :: acc)
+        ~right_only:(fun acc b -> right_only b :: acc)
+        ~both:(fun acc a b -> both a b :: acc)
+      |> List.rev
   end
 
   module Option = struct

@@ -15,12 +15,15 @@
 (**************************************************************************)
 
 (* Handling of the names of compilation units, including associated "-for-pack"
-   prefixes.
+   prefixes and instance arguments.
 
    By "compilation unit" we mean the code and data associated with the
    compilation of a single .ml source file: that is to say, file-level entities
    having OCaml semantics. The notion neither includes the special "startup"
-   files nor external libraries. *)
+   files nor external libraries. If the source file was compiled with
+   "-parameter", then in addition to the compilation unit for the .ml file
+   itself (the _base_), instantiation will produce further compilation units
+   (the _instances_; see [create_instance]). *)
 
 [@@@ocaml.warning "+a-9-40-41-42"]
 
@@ -43,6 +46,8 @@ module Name : sig
   val to_string : t -> string
 
   val of_head_of_global_name : Global_module.Name.t -> t
+
+  val of_global_name_no_args_exn : Global_module.Name.t -> t
 
   val to_global_name : t -> Global_module.Name.t
 
@@ -99,10 +104,15 @@ val create : Prefix.t -> Name.t -> t
     parent compilation unit as the prefix. *)
 val create_child : t -> Name.t -> t
 
+type argument =
+  { param : t;
+    value : t
+  }
+
 (** Create a compilation unit that's an instantiation of another unit with
     given arguments. The arguments will be sorted alphabetically by
     parameter name. *)
-val create_instance : t -> (t * t) list -> t
+val create_instance : t -> argument list -> t
 
 (** Create the compilation unit named by the given [Global_module.Name.t]. Only
     meaningful if the global name is a _complete instantiation_, which is to say
@@ -250,7 +260,7 @@ val flatten : t -> Prefix.t * Name.t * (int * Name.t * Name.t) list
 
 (** Returns the arguments in the compilation unit, if it is an instance, or
     the empty list otherwise. *)
-val instance_arguments : t -> (t * t) list
+val instance_arguments : t -> argument list
 
 (** Returns [true] iff the given compilation unit is an instance (equivalent
     to [instance_arguments t <> []]). *)
@@ -258,7 +268,7 @@ val is_instance : t -> bool
 
 (** Returns the unit that was instantiated and the arguments it was given, if
     this is an instance, throwing a fatal error otherwise. *)
-val split_instance_exn : t -> t * (t * t) list
+val split_instance_exn : t -> t * argument list
 
 type error = private
   | Invalid_character of char * string
