@@ -2914,7 +2914,7 @@ and type_pat_aux
            pat_attributes = sp.ppat_attributes;
            pat_env = !!penv }
   | Ppat_lazy sp1 ->
-      submode ~loc ~env:!env alloc_mode.mode mode_force_lazy;
+      submode ~loc ~env:!!penv alloc_mode.mode mode_force_lazy;
       let nv = solve_Ppat_lazy ~refine:false loc penv expected_ty in
       let alloc_mode = global_pat_mode alloc_mode in
       let p1 = type_pat ~alloc_mode tps Value sp1 nv in

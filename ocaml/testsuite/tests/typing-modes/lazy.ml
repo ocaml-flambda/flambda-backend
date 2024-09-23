@@ -111,7 +111,7 @@ let foo (x @ contended) =
 Line 3, characters 6-12:
 3 |     | lazy _ -> ()
           ^^^^^^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
   Hint: In order to force the lazy expression,
   the lazy needs to be uncontended.
 |}]
