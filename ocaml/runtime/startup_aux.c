@@ -245,3 +245,6 @@ void caml_init_section_table(const char* section_table,
   params.section_table = section_table;
   params.section_table_size = section_table_size;
 }
+
+/* Set to 1 if prelinking is in use. */
+uintnat caml_prelinking_in_use = 0;
