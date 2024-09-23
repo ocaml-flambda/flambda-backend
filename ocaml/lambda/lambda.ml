@@ -43,6 +43,15 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
+type unique_barrier =
+  | MayBePushedDown
+  | MustStayHere
+
+let add_barrier ubr sem =
+  match ubr with
+  | MayBePushedDown -> sem
+  | MustStayHere -> Reads_vary
+
 include (struct
 
   type locality_mode =
@@ -1978,7 +1987,7 @@ let primitive_result_layout (p : primitive) =
   | Pstring_load_128 _ | Pbytes_load_128 _
   | Pbigstring_load_128 { boxed = true; _ } ->
       layout_boxed_vector (Pvec128 Int8x16)
-  | Pbigstring_load_32 { boxed = false; _ } 
+  | Pbigstring_load_32 { boxed = false; _ }
   | Pstring_load_32 { boxed = false; _ }
   | Pbytes_load_32 { boxed = false; _ } -> layout_unboxed_int Pint32
   | Pbigstring_load_f32 { boxed = false; _ }

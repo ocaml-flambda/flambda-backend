@@ -626,15 +626,17 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   [Lconst(const_int tag); lam],
                   of_location ~scopes e.exp_loc)
       end
-  | Texp_record {fields; representation; extended_expression; alloc_mode} ->
+  | Texp_record {fields; representation; extended_expression; alloc_mode; unique_barrier} ->
       transl_record ~scopes e.exp_loc e.exp_env
         (Option.map transl_alloc_mode alloc_mode)
+        (transl_unique_barrier unique_barrier)
         fields representation extended_expression
-  | Texp_field(arg, id, lbl, float) ->
+  | Texp_field(arg, id, lbl, float, ubr) ->
       let targ = transl_exp ~scopes Jkind.Sort.for_record arg in
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
+      let sem = add_barrier (transl_unique_barrier ubr) sem in
       let lbl_sort = Jkind.sort_of_jkind lbl.lbl_jkind in
       check_record_field_sort id.loc lbl_sort;
       begin match lbl.lbl_repres with
@@ -691,7 +693,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           Lprim (Pmixedfield (lbl.lbl_pos, read, shape, sem), [targ],
                   of_location ~scopes e.exp_loc)
       end
-  | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
+  | Texp_setfield(arg, arg_mode, id, lbl, newval, _ubr) ->
       (* CR layouts v2.5: When we allow `any` in record fields and check
          representability on construction, [sort_of_jkind] will be unsafe here.
          Probably we should add a sort to `Texp_setfield` in the typed tree,
@@ -1788,7 +1790,7 @@ and transl_setinstvar ~scopes loc self var expr =
     [self; var; transl_exp ~scopes Jkind.Sort.for_instance_var expr], loc)
 
 (* CR layouts v5: Invariant - this is only called on values.  Relax that. *)
-and transl_record ~scopes loc env mode fields repres opt_init_expr =
+and transl_record ~scopes loc env mode ubr fields repres opt_init_expr =
   let size = Array.length fields in
   (* Determine if there are "enough" fields (only relevant if this is a
      functional-style record update *)
@@ -1817,6 +1819,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                let sem =
                  if Types.is_mutable mut then Reads_vary else Reads_agree
                in
+               let sem = add_barrier ubr sem in
                let access =
                  match repres with
                    Record_boxed _

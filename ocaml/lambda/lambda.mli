@@ -80,6 +80,12 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
+type unique_barrier =
+  | MayBePushedDown
+  | MustStayHere
+
+val add_barrier : unique_barrier -> field_read_semantics -> field_read_semantics
+
 (* Tail calls can close their enclosing region early *)
 type region_close =
   | Rc_normal         (* do not close region, may TCO if in tail position *)
