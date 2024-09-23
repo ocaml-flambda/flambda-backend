@@ -341,9 +341,25 @@ type string_accessor_width = Flambda_primitive.string_accessor_width =
   | Sixty_four
   | One_twenty_eight of { aligned : bool }
 
-type array_accessor_width = Flambda_primitive.array_accessor_width =
-  | Scalar
-  | Vec128
+type array_load_kind = Flambda_primitive.Array_load_kind.t =
+  | Immediates
+  | Values
+  | Naked_floats
+  | Naked_float32s
+  | Naked_int32s
+  | Naked_int64s
+  | Naked_nativeints
+  | Naked_vec128s
+
+type array_set_kind =
+  | Immediates
+  | Values of init_or_assign
+  | Naked_floats
+  | Naked_float32s
+  | Naked_int32s
+  | Naked_int64s
+  | Naked_nativeints
+  | Naked_vec128s
 
 type string_like_value = Flambda_primitive.string_like_value =
   | String
@@ -364,7 +380,7 @@ type infix_binop =
   | Float_comp of float_bitwidth * unit comparison_behaviour
 
 type binop =
-  | Array_load of array_kind * array_accessor_width * mutability
+  | Array_load of array_kind * array_load_kind * mutability
   | Block_load of block_access_kind * mutability
   | Phys_equal of equality_comparison
   | Int_arith of standard_int * binary_int_arith_op
@@ -375,8 +391,7 @@ type binop =
   | Bigarray_get_alignment of int
 
 type ternop =
-  (* CR mshinwell: Array_set should use "array_set_kind" *)
-  | Array_set of array_kind * array_accessor_width * init_or_assign
+  | Array_set of array_kind * array_set_kind
   | Block_set of block_access_kind * init_or_assign
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
 
