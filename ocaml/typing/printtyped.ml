@@ -1192,7 +1192,6 @@ and labeled_expression i ppf (l, e) =
   expression (i+1) ppf e;
 
 and labeled_sorted_expression i ppf (l, e, s) =
-  line i ppf "<tuple component>\n";
   tuple_component_label i ppf l;
   expression (i+1) ppf e;
   line i ppf "%a\n" Jkind.Sort.format s;

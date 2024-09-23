@@ -704,10 +704,10 @@ module Comprehensions = struct
   let iterator_of_expr expr =
     match expand_comprehension_extension_expr expr with
     | ( ["for"; "range"; "upto"],
-        { pexp_desc = Pexp_tuple [(_, start); (_, stop)]; _ } ) ->
+        { pexp_desc = Pexp_tuple [(None, start); (None, stop)]; _ } ) ->
       Range { start; stop; direction = Upto }
     | ( ["for"; "range"; "downto"],
-        { pexp_desc = Pexp_tuple [(_, start); (_, stop)]; _ } ) ->
+        { pexp_desc = Pexp_tuple [(None, start); (None, stop)]; _ } ) ->
       Range { start; stop; direction = Downto }
     | ["for"; "in"], seq -> In seq
     | bad, _ -> Desugaring_error.raise expr (Bad_comprehension_embedding bad)

@@ -743,13 +743,7 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
             pp f "@[<2>{@;%a;_}@]" (list longident_x_pattern ~sep:";@;") l
         end
     | Ppat_tuple (l, closed) ->
-      let closed_flag ppf = function
-        | Closed -> ()
-        | Open -> pp ppf ",@;.."
-      in
-      pp f "@[<1>(%a%a)@]"
-        (list ~sep:",@;" (labeled_pattern1 ctxt)) l
-        closed_flag closed
+        labeled_tuple_pattern ctxt f ~unboxed:false l closed
     | Ppat_unboxed_tuple (l, closed) ->
         labeled_tuple_pattern ctxt f ~unboxed:true l closed
     | Ppat_constant (c) -> pp f "%a" constant c
@@ -1154,8 +1148,8 @@ and simple_expr ctxt f x =
     | Pexp_constant c -> constant f c;
     | Pexp_pack me ->
         pp f "(module@;%a)" (module_expr ctxt) me
-    | Pexp_tuple ltexp ->
-        labeled_tuple_expr ctxt f ~unboxed:false ltexp
+    | Pexp_tuple l ->
+        labeled_tuple_expr ctxt f ~unboxed:false l
     | Pexp_unboxed_tuple l ->
         labeled_tuple_expr ctxt f ~unboxed:true l
     | Pexp_constraint (e, ct, m) ->
