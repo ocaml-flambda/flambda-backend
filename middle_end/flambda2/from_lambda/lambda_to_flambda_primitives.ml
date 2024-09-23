@@ -620,20 +620,12 @@ let bytes_like_set ~dbg ~unsafe
     check_access ~dbg ~size_int ~access_size ~primitive:unsafe_set bytes
       ~index_kind index
 
-(* Array vector load/store *)
+(* Array bounds checks *)
 
-let array_vector_access_validity_condition array ~size_int
-    (array_kind : P.Array_kind.t) index =
-  let width_in_scalars =
-    match array_kind with
-    | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
-    | Naked_int32s | Naked_float32s -> 4
-    | Values ->
-      Misc.fatal_error
-        "Attempted to load/store a SIMD vector from/to a value array."
-  in
+let multiple_word_array_access_validity_condition array ~size_int
+    array_length_kind index_kind ~width_in_scalars ~index =
   let length_untagged =
-    untag_int (H.Prim (Unary (Array_length (Array_kind array_kind), array)))
+    untag_int (H.Prim (Unary (Array_length array_length_kind, array)))
   in
   let reduced_length_untagged =
     H.Prim
@@ -654,8 +646,24 @@ let array_vector_access_validity_condition array ~size_int
            reduced_length_untagged ))
   in
   let nativeint_bound = max_with_zero ~size_int reduced_length_nativeint in
-  check_bound ~index_kind:Ptagged_int_index ~bound_kind:Naked_nativeint ~index
+  check_bound ~index_kind ~bound_kind:Naked_nativeint ~index
     ~bound:nativeint_bound
+
+(* Array vector load/store *)
+
+let array_vector_access_width_in_scalars (array_kind : P.Array_kind.t) =
+  match array_kind with
+  | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
+  | Naked_int32s | Naked_float32s -> 4
+  | Values ->
+    Misc.fatal_error
+      "Attempted to load/store a SIMD vector from/to a value array."
+
+let array_vector_access_validity_condition array ~size_int
+    (array_kind : P.Array_kind.t) index =
+  let width_in_scalars = array_vector_access_width_in_scalars array_kind in
+  multiple_word_array_access_validity_condition array ~size_int
+    (Array_kind array_kind) Ptagged_int_index ~width_in_scalars ~index
 
 let check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
     : H.expr_primitive =
@@ -806,16 +814,16 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
 
 (* Array accesses *)
 let array_access_validity_condition array array_kind index
-    ~(index_kind : L.array_index_kind) =
-  let arr_len_as_tagged_imm = H.Prim (Unary (Array_length array_kind, array)) in
-  [ check_bound ~index_kind ~bound_kind:Tagged_immediate ~index
-      ~bound:arr_len_as_tagged_imm ]
+    ~(index_kind : L.array_index_kind) ~size_int =
+  [ multiple_word_array_access_validity_condition array ~size_int array_kind
+      index_kind ~width_in_scalars:1 ~index ]
 
-let check_array_access ~dbg ~array array_kind ~index ~index_kind primitive :
-    H.expr_primitive =
+let check_array_access ~dbg ~array array_kind ~index ~index_kind ~size_int
+    primitive : H.expr_primitive =
   checked_access ~primitive
     ~conditions:
-      (array_access_validity_condition array array_kind index ~index_kind)
+      (array_access_validity_condition array array_kind index ~index_kind
+         ~size_int)
     ~dbg
 
 let array_load_unsafe ~array ~index (array_ref_kind : Array_ref_kind.t)
@@ -1574,7 +1582,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
            ~current_region) ]
   | Parrayrefs (array_ref_kind, index_kind), [[array]; [index]] ->
     let array_kind = convert_array_ref_kind_for_length array_ref_kind in
-    [ check_array_access ~dbg ~array array_kind ~index ~index_kind
+    [ check_array_access ~dbg ~array array_kind ~index ~index_kind ~size_int
         (match_on_array_ref_kind ~array array_ref_kind
            (array_load_unsafe ~array
               ~index:(convert_index_to_tagged_int ~index ~index_kind)
@@ -1586,7 +1594,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
            ~new_value) ]
   | Parraysets (array_set_kind, index_kind), [[array]; [index]; [new_value]] ->
     let array_kind = convert_array_set_kind_for_length array_set_kind in
-    [ check_array_access ~dbg ~array array_kind ~index ~index_kind
+    [ check_array_access ~dbg ~array array_kind ~index ~index_kind ~size_int
         (match_on_array_set_kind ~array array_set_kind
            (array_set_unsafe ~array
               ~index:(convert_index_to_tagged_int ~index ~index_kind)
