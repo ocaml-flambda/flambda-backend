@@ -301,18 +301,22 @@ module TycompTbl =
 
 type empty = |
 
-type closure_context =
+type locality_context =
   | Tailcall_function
   | Tailcall_argument
   | Partial_application
   | Return
+  | Lazy
+
+type closure_context =
+  | Function of locality_context option
+  | Lazy
 
 type escaping_context =
   | Letop
   | Probe
   | Class
   | Module
-  | Lazy
 
 type shared_context =
   | For_loop
@@ -323,12 +327,11 @@ type shared_context =
   | Class
   | Module
   | Probe
-  | Lazy
 
 type lock =
   | Escape_lock of escaping_context
   | Share_lock of shared_context
-  | Closure_lock of closure_context option * Mode.Value.Comonadic.r
+  | Closure_lock of closure_context * Mode.Value.Comonadic.r
   | Region_lock
   | Exclave_lock
   | Unboxed_lock (* to prevent capture of terms with non-value types *)
@@ -756,7 +759,7 @@ type lookup_error =
   | Local_value_escaping of lock_item * Longident.t * escaping_context
   | Once_value_used_in of lock_item * Longident.t * shared_context
   | Value_used_in_closure of lock_item * Longident.t *
-      Mode.Value.Comonadic.error * closure_context option
+      Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
@@ -2455,7 +2458,7 @@ let add_share_lock shared_context env =
   let lock = Share_lock shared_context in
   add_lock lock env
 
-let add_closure_lock ?closure_context comonadic env =
+let add_closure_lock closure_context comonadic env =
   let lock = Closure_lock
     (closure_context,
      Mode.Value.Comonadic.disallow_left comonadic)
@@ -3055,14 +3058,14 @@ let share_mode ~errors ~env ~loc ~item ~lid vmode shared_context =
     {mode; context = Some shared_context}
 
 let closure_mode ~errors ~env ~loc ~item ~lid
-  ({mode = {Mode.monadic; comonadic}; _} as vmode) closure_context comonadic0 =
+  ({mode = {Mode.monadic; comonadic}; _} as vmode) locality_context comonadic0 =
   begin
     match
       Mode.Value.Comonadic.submode comonadic comonadic0
     with
     | Error e ->
         may_lookup_error errors loc env
-          (Value_used_in_closure (item, lid, e, closure_context))
+          (Value_used_in_closure (item, lid, e, locality_context))
     | Ok () -> ()
   end;
   let monadic =
@@ -3121,8 +3124,8 @@ let walk_locks ~errors ~loc ~env ~item ~lid mode ty locks =
           escape_mode ~errors ~env ~loc ~item ~lid vmode escaping_context
       | Share_lock shared_context ->
           share_mode ~errors ~env ~loc ~item ~lid vmode shared_context
-      | Closure_lock (closure_context, comonadic) ->
-          closure_mode ~errors ~env ~loc ~item ~lid vmode closure_context comonadic
+      | Closure_lock (locality_context, comonadic) ->
+          closure_mode ~errors ~env ~loc ~item ~lid vmode locality_context comonadic
       | Exclave_lock ->
           exclave_mode ~errors ~env ~loc ~item ~lid vmode
       | Unboxed_lock ->
@@ -3989,7 +3992,6 @@ let string_of_escaping_context : escaping_context -> string =
   | Probe -> "a probe"
   | Class -> "a class"
   | Module -> "a module"
-  | Lazy -> "a lazy expression"
 
 let string_of_shared_context : shared_context -> string =
   function
@@ -4001,7 +4003,6 @@ let string_of_shared_context : shared_context -> string =
   | Class -> "a class"
   | Module -> "a module"
   | Probe -> "a probe"
-  | Lazy -> "a lazy expression"
 
 let sharedness_hint ppf : shared_context -> _ = function
   | For_loop ->
@@ -4037,10 +4038,6 @@ let sharedness_hint ppf : shared_context -> _ = function
     Format.fprintf ppf
         "@[Hint: This identifier cannot be used uniquely,@ \
           because it is defined outside of the probe.@]"
-  | Lazy ->
-    Format.fprintf ppf
-        "@[Hint: This identifier cannot be used uniquely,@ \
-          because it is defined outside of the lazy expression.@]"
 
 let print_lock_item ppf (item, lid) =
   match item with
@@ -4187,17 +4184,32 @@ let report_lookup_error _loc env ppf = function
         | Error (Linearity, _) -> "once", "is many"
         | Error (Portability, _) -> "nonportable", "is portable"
       in
+      let s, hint =
+        match context with
+        | Function context ->
+            let hint =
+              match error, context with
+              | Error (Areality, _), Some Tailcall_argument ->
+                  fun ppf ->
+                    fprintf ppf "@.@[Hint: The function might escape because it \
+                                is an argument to a tail call@]"
+              | _ -> fun _ppf -> ()
+            in
+            "function that " ^ e1, hint
+        | Lazy ->
+            let s =
+              match error with
+              | Error (Areality, _) -> "lazy expression"
+              | _ -> "lazy expression that " ^ e1
+            in
+            s, fun _ppf -> ()
+      in
       fprintf ppf
       "@[%a %s, so cannot be used \
-            inside a closure that %s.@]"
+            inside a %s.@]"
       print_lock_item (item, lid)
-      e0 e1;
-      begin match error, context with
-      | Error (Areality, _), Some Tailcall_argument ->
-         fprintf ppf "@.@[Hint: The closure might escape because it \
-                          is an argument to a tail call@]"
-      | _ -> ()
-      end
+      e0 s;
+      hint ppf
   | Local_value_used_in_exclave (item, lid) ->
       fprintf ppf "@[%a local, so it cannot be used \
                   inside an exclave_@]"

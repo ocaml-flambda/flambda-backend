@@ -35,7 +35,7 @@ let te (local_ x) =
 Line 3, characters 12-13:
 3 |         bar x y
                 ^
-Error: The value "x" is local, so cannot be used inside a closure that might escape.
+Error: The value "x" is local, so cannot be used inside a function that might escape.
 |}]
 
 (* for mixed definitions, the other axes are not constrained. *)
