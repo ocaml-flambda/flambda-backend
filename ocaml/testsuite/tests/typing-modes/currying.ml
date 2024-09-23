@@ -275,7 +275,7 @@ let bug3 () =
 Line 3, characters 63-64:
 3 |     fun ~a -> fun[@curry] ~b -> fun[@curry] ~c -> print_string a
                                                                    ^
-Error: The value "a" is local, so cannot be used inside a closure that might escape.
+Error: The value "a" is local, so cannot be used inside a function that might escape.
 |}]
 let overapp ~(local_ a) ~b = (); fun ~c ~d -> ()
 

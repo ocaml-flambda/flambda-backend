@@ -176,18 +176,22 @@ type unbound_value_hint =
   | No_hint
   | Missing_rec of Location.t
 
-type closure_context =
+type locality_context =
   | Tailcall_function
   | Tailcall_argument
   | Partial_application
   | Return
+  | Lazy
+
+type closure_context =
+  | Function of locality_context option
+  | Lazy
 
 type escaping_context =
   | Letop
   | Probe
   | Class
   | Module
-  | Lazy
 
 type shared_context =
   | For_loop
@@ -198,7 +202,6 @@ type shared_context =
   | Class
   | Module
   | Probe
-  | Lazy
 
 (** Items whose accesses are affected by locks *)
 type lock_item =
@@ -229,7 +232,7 @@ type lookup_error =
   | Cannot_scrape_alias of Longident.t * Path.t
   | Local_value_escaping of lock_item * Longident.t * escaping_context
   | Once_value_used_in of lock_item * Longident.t * shared_context
-  | Value_used_in_closure of lock_item * Longident.t * Mode.Value.Comonadic.error * closure_context option
+  | Value_used_in_closure of lock_item * Longident.t * Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
@@ -457,7 +460,7 @@ val add_escape_lock : escaping_context -> t -> t
     `unique` variables beyond the lock can still be accessed, but will be
     relaxed to `shared` *)
 val add_share_lock : shared_context -> t -> t
-val add_closure_lock : ?closure_context:closure_context
+val add_closure_lock : closure_context
   -> ('l * Mode.allowed) Mode.Value.Comonadic.t -> t -> t
 val add_region_lock : t -> t
 val add_exclave_lock : t -> t

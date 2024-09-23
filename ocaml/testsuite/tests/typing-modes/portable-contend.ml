@@ -239,7 +239,7 @@ let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontende
 Line 1, characters 104-114:
 1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
                                                                                                             ^^^^^^^^^^
-Error: The value "best_bytes" is nonportable, so cannot be used inside a closure that is portable.
+Error: The value "best_bytes" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 (* immediates crosses portability and contention *)

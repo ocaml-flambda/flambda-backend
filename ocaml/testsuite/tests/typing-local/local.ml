@@ -549,7 +549,7 @@ let leak_ref_2 =
 Line 3, characters 39-40:
 3 |   use_locally (fun x -> let _ = local_ r in r.contents <- Some x; x) 42
                                            ^
-Error: The value "r" is local, so cannot be used inside a closure that might escape.
+Error: The value "r" is local, so cannot be used inside a function that might escape.
 |}]
 
 let leak_ref_3 =
@@ -881,8 +881,8 @@ val local_cb : local_ (unit -> 'a) -> 'a = <fun>
 Line 2, characters 41-42:
 2 | let foo (local_ x) = local_cb (fun () -> x := 17; 42)
                                              ^
-Error: The value "x" is local, so cannot be used inside a closure that might escape.
-Hint: The closure might escape because it is an argument to a tail call
+Error: The value "x" is local, so cannot be used inside a function that might escape.
+Hint: The function might escape because it is an argument to a tail call
 |}]
 
 let foo x =
