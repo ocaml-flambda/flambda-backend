@@ -99,10 +99,15 @@ val create : Prefix.t -> Name.t -> t
     parent compilation unit as the prefix. *)
 val create_child : t -> Name.t -> t
 
+type argument =
+  { param : t;
+    value : t
+  }
+
 (** Create a compilation unit that's an instantiation of another unit with
     given arguments. The arguments will be sorted alphabetically by
     parameter name. *)
-val create_instance : t -> (t * t) list -> t
+val create_instance : t -> argument list -> t
 
 (** Create the compilation unit named by the given [Global_module.Name.t]. Only
     meaningful if the global name is a _complete instantiation_, which is to say
@@ -250,7 +255,7 @@ val flatten : t -> Prefix.t * Name.t * (int * Name.t * Name.t) list
 
 (** Returns the arguments in the compilation unit, if it is an instance, or
     the empty list otherwise. *)
-val instance_arguments : t -> (t * t) list
+val instance_arguments : t -> argument list
 
 (** Returns [true] iff the given compilation unit is an instance (equivalent
     to [instance_arguments t <> []]). *)
@@ -258,7 +263,7 @@ val is_instance : t -> bool
 
 (** Returns the unit that was instantiated and the arguments it was given, if
     this is an instance, throwing a fatal error otherwise. *)
-val split_instance_exn : t -> t * (t * t) list
+val split_instance_exn : t -> t * argument list
 
 type error = private
   | Invalid_character of char * string
