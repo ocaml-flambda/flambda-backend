@@ -16,31 +16,23 @@
 
 open! Simplify_import
 
-let simplify_array_set (array_set_kind : P.Array_set_kind.t)
-    (accessor_width : P.array_accessor_width) dacc ~original_term dbg
-    ~arg1:array ~arg1_ty:array_ty ~arg2:index ~arg2_ty:_ ~arg3:new_value
-    ~arg3_ty:_ ~result_var =
-  let elt_kind =
-    P.Array_set_kind.element_kind array_set_kind |> K.With_subkind.kind
-  in
+let simplify_array_set (array_kind : P.Array_kind.t)
+    (array_set_kind : P.Array_set_kind.t) dacc ~original_term dbg ~arg1:array
+    ~arg1_ty:array_ty ~arg2:index ~arg2_ty:_ ~arg3:new_value ~arg3_ty:_
+    ~result_var =
+  let orig_array_kind = array_kind in
   let array_kind =
-    Simplify_common.specialise_array_kind dacc
-      (P.Array_set_kind.array_kind array_set_kind)
-      ~array_ty
+    Simplify_common.specialise_array_kind dacc array_kind ~array_ty
   in
   match array_kind with
   | Bottom -> SPR.create_invalid dacc
   | Ok array_kind ->
-    let elt_kind' =
-      P.Array_kind.element_kind array_kind |> K.With_subkind.kind
-    in
-    assert (K.equal elt_kind elt_kind');
-    let array_set_kind : P.Array_set_kind.t =
+    let () =
       match array_kind with
-      | Immediates -> Immediates
+      | Immediates -> ()
       | Values -> (
         match array_set_kind with
-        | Values init_or_assign -> Values init_or_assign
+        | Values _init_or_assign -> ()
         | Immediates
         (* We don't expect specialisation regressions from Immediates to
            Values. *)
@@ -48,20 +40,23 @@ let simplify_array_set (array_set_kind : P.Array_set_kind.t)
         | Naked_nativeints | Naked_vec128s ->
           Misc.fatal_errorf
             "Didn't expect array specialisation to yield array kind %a from \
-             array set kind %a:@ %a"
+             array set kind %a (original array kind %a):@ %a"
             P.Array_kind.print array_kind P.Array_set_kind.print array_set_kind
-            Named.print original_term)
-      | Naked_floats -> Naked_floats
-      | Naked_float32s -> Naked_float32s
-      | Naked_int32s -> Naked_int32s
-      | Naked_int64s -> Naked_int64s
-      | Naked_nativeints -> Naked_nativeints
-      | Naked_vec128s -> Naked_vec128s
+            P.Array_kind.print orig_array_kind Named.print original_term)
+      | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
+      | Naked_nativeints | Naked_vec128s ->
+        ()
     in
+    (* CR mshinwell: This should check:
+
+       1. Any element kind(s) in [array_ty] match [array_kind].
+
+       2. The [new_value] matches [array_set_kind]. (For unboxed products this
+       can only be checked if the index is known.) *)
     let named =
       Named.create_prim
         (Ternary
-           (Array_set (array_set_kind, accessor_width), array, index, new_value))
+           (Array_set (array_kind, array_set_kind), array, index, new_value))
         dbg
     in
     let unit_ty = Flambda2_types.this_tagged_immediate Targetint_31_63.zero in

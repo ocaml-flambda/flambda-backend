@@ -247,27 +247,65 @@ let array_set_128 ~dbg ~element_width_log2 ~has_custom_ops arr index new_value =
   in
   C.unaligned_set_128 arr index new_value dbg
 
-let array_load ~dbg (kind : P.Array_kind.t)
-    (accessor_width : P.array_accessor_width) ~arr ~index =
+let accessor_assumes_non_custom_block dbg index array_kind =
+  if P.Array_kind.has_custom_ops array_kind
+  then C.add_int_caml index (C.int_const dbg 1) dbg
+  else index
+
+let accessor_assumes_custom_block dbg index array_kind =
+  if P.Array_kind.has_custom_ops array_kind
+  then index
+  else C.sub_int_caml index (C.int_const dbg 1) dbg
+
+let array_load ~dbg (array_kind : P.Array_kind.t)
+    (load_kind : P.Array_load_kind.t) ~arr ~index =
   (* CR mshinwell: refactor this function in the same way as [block_load] *)
-  match kind, accessor_width with
-  | Immediates, Scalar -> C.int_array_ref arr index dbg
-  | (Naked_int64s | Naked_nativeints), Scalar ->
-    C.unboxed_int64_or_nativeint_array_ref arr index dbg
-  | Values, Scalar -> C.addr_array_ref arr index dbg
-  | Naked_floats, Scalar ->
-    C.unboxed_float_array_ref Mutable ~block:arr ~index dbg
-  | Naked_float32s, Scalar -> C.unboxed_float32_array_ref arr index dbg
-  | Naked_int32s, Scalar -> C.unboxed_int32_array_ref arr index dbg
-  | (Immediates | Naked_floats), Vec128 ->
+  match array_kind, load_kind with
+  | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_float32s
+      | Naked_int64s | Naked_nativeints | Naked_vec128s ),
+      Immediates ) ->
+    C.int_array_ref arr
+      (accessor_assumes_non_custom_block dbg index array_kind)
+      dbg
+  | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_float32s
+      | Naked_int64s | Naked_nativeints | Naked_vec128s ),
+      (Naked_int64s | Naked_nativeints) ) ->
+    C.unboxed_int64_or_nativeint_array_ref arr
+      (accessor_assumes_custom_block dbg index array_kind)
+      dbg
+  | (Values | Immediates), Values -> C.addr_array_ref arr index dbg
+  | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_float32s
+      | Naked_int64s | Naked_nativeints | Naked_vec128s ),
+      Naked_floats ) ->
+    C.unboxed_float_array_ref Mutable ~block:arr
+      ~index:(accessor_assumes_non_custom_block dbg index array_kind)
+      dbg
+  | Naked_float32s, Naked_float32s -> C.unboxed_float32_array_ref arr index dbg
+  | Naked_int32s, Naked_int32s -> C.unboxed_int32_array_ref arr index dbg
+  | (Immediates | Naked_floats), Naked_vec128s ->
     array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
-  | (Naked_int64s | Naked_nativeints), Vec128 ->
+  | (Naked_int64s | Naked_nativeints), Naked_vec128s ->
     array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
-  | (Naked_int32s | Naked_float32s), Vec128 ->
+  | (Naked_int32s | Naked_float32s), Naked_vec128s ->
     array_load_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
-  | Naked_vec128s, (Scalar | Vec128) ->
+  | Naked_vec128s, Naked_vec128s ->
     array_load_128 ~dbg ~element_width_log2:4 ~has_custom_ops:true arr index
-  | Values, Vec128 ->
+  | ( ( Naked_floats | Naked_int32s | Naked_float32s | Naked_int64s
+      | Naked_nativeints | Naked_vec128s ),
+      Values ) ->
+    Misc.fatal_errorf
+      "Cannot use array load kind [Values] on naked number/vector arrays:@ %a"
+      Debuginfo.print_compact dbg
+  | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_int64s
+      | Naked_nativeints | Naked_vec128s ),
+      Naked_float32s )
+  | ( ( Values | Immediates | Naked_floats | Naked_float32s | Naked_int64s
+      | Naked_nativeints | Naked_vec128s ),
+      Naked_int32s ) ->
+    Misc.fatal_errorf
+      "Array reinterpret loads with 32-bit load kinds are not supported:@ %a"
+      Debuginfo.print_compact dbg
+  | Values, Naked_vec128s ->
     Misc.fatal_error "Attempted to load a SIMD vector from a value array."
 
 let addr_array_store init ~arr ~index ~new_value dbg =
@@ -277,36 +315,66 @@ let addr_array_store init ~arr ~index ~new_value dbg =
   | Assignment Local -> C.addr_array_set_local arr index new_value dbg
   | Initialization -> C.addr_array_initialize arr index new_value dbg
 
-let array_set ~dbg (kind : P.Array_set_kind.t)
-    (accessor_width : P.array_accessor_width) ~arr ~index ~new_value =
-  (* CR mshinwell: refactor this function in the same way as [block_load] *)
-  let expr =
-    match kind, accessor_width with
-    | Immediates, Scalar -> C.int_array_set arr index new_value dbg
-    | Values init, Scalar -> addr_array_store init ~arr ~index ~new_value dbg
-    | Naked_floats, Scalar -> C.float_array_set arr index new_value dbg
-    | Naked_float32s, Scalar ->
-      C.unboxed_float32_array_set arr ~index ~new_value dbg
-    | Naked_int32s, Scalar ->
-      C.unboxed_int32_array_set arr ~index ~new_value dbg
-    | (Naked_int64s | Naked_nativeints), Scalar ->
-      C.unboxed_int64_or_nativeint_array_set arr ~index ~new_value dbg
-    | (Immediates | Naked_floats), Vec128 ->
-      array_set_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
-        new_value
-    | (Naked_int64s | Naked_nativeints), Vec128 ->
-      array_set_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
-        new_value
-    | (Naked_int32s | Naked_float32s), Vec128 ->
-      array_set_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
-        new_value
-    | Naked_vec128s, (Scalar | Vec128) ->
-      array_set_128 ~dbg ~element_width_log2:4 ~has_custom_ops:true arr index
-        new_value
-    | Values _, Vec128 ->
-      Misc.fatal_error "Attempted to store a SIMD vector to a value array."
-  in
-  C.return_unit dbg expr
+let array_set0 ~dbg (array_kind : P.Array_kind.t)
+    (set_kind : P.Array_set_kind.t) ~arr ~index ~new_value =
+  match array_kind, set_kind with
+  | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_float32s
+      | Naked_int64s | Naked_nativeints | Naked_vec128s ),
+      Immediates ) ->
+    C.int_array_set arr
+      (accessor_assumes_non_custom_block dbg index array_kind)
+      new_value dbg
+  | (Values | Immediates), Values init ->
+    addr_array_store init ~arr ~index ~new_value dbg
+  | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_float32s
+      | Naked_int64s | Naked_nativeints | Naked_vec128s ),
+      (Naked_int64s | Naked_nativeints) ) ->
+    C.unboxed_int64_or_nativeint_array_set arr
+      ~index:(accessor_assumes_custom_block dbg index array_kind)
+      ~new_value dbg
+  | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_float32s
+      | Naked_int64s | Naked_nativeints | Naked_vec128s ),
+      Naked_floats ) ->
+    C.float_array_set arr
+      (accessor_assumes_non_custom_block dbg index array_kind)
+      new_value dbg
+  | Naked_float32s, Naked_float32s ->
+    C.unboxed_float32_array_set arr ~index ~new_value dbg
+  | Naked_int32s, Naked_int32s ->
+    C.unboxed_int32_array_set arr ~index ~new_value dbg
+  | (Immediates | Naked_floats), Naked_vec128s ->
+    array_set_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
+      new_value
+  | (Naked_int64s | Naked_nativeints), Naked_vec128s ->
+    array_set_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
+      new_value
+  | (Naked_int32s | Naked_float32s), Naked_vec128s ->
+    array_set_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
+      new_value
+  | Naked_vec128s, Naked_vec128s ->
+    array_set_128 ~dbg ~element_width_log2:4 ~has_custom_ops:true arr index
+      new_value
+  | ( ( Naked_floats | Naked_int32s | Naked_float32s | Naked_int64s
+      | Naked_nativeints | Naked_vec128s ),
+      Values _ ) ->
+    Misc.fatal_errorf
+      "Cannot use array set kind [Values] on naked number/vector arrays:@ %a"
+      Debuginfo.print_compact dbg
+  | ( ( Values | Immediates | Naked_floats | Naked_int32s | Naked_int64s
+      | Naked_nativeints | Naked_vec128s ),
+      Naked_float32s )
+  | ( ( Values | Immediates | Naked_floats | Naked_float32s | Naked_int64s
+      | Naked_nativeints | Naked_vec128s ),
+      Naked_int32s ) ->
+    Misc.fatal_errorf
+      "Array reinterpret stores with 32-bit set kinds are not supported:@ %a"
+      Debuginfo.print_compact dbg
+  | Values, Naked_vec128s ->
+    Misc.fatal_error "Attempted to store a SIMD vector to a value array."
+
+let array_set ~dbg array_kind set_kind ~arr ~index ~new_value =
+  array_set0 ~dbg array_kind set_kind ~arr ~index ~new_value
+  |> C.return_unit dbg
 
 (* Bigarrays. For these functions, [index] is a tagged integer, representing the
    desired position in the bigarray in units of the [elt_size] (so not
@@ -854,7 +922,8 @@ let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
   | Block_set { kind; init; field } ->
     block_set ~dbg kind init ~field ~block:x ~new_value:y
-  | Array_load (kind, width, _mut) -> array_load ~dbg kind width ~arr:x ~index:y
+  | Array_load (array_kind, load_kind, _mut) ->
+    array_load ~dbg array_kind load_kind ~arr:x ~index:y
   | String_or_bigstring_load (kind, width) ->
     string_like_load ~dbg kind width ~str:x ~index:y
   | Bigarray_load (_dimensions, kind, _layout) ->
@@ -877,8 +946,8 @@ let binary_primitive env dbg f x y =
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
-  | Array_set (array_set_kind, width) ->
-    array_set ~dbg array_set_kind width ~arr:x ~index:y ~new_value:z
+  | Array_set (array_kind, array_set_kind) ->
+    array_set ~dbg array_kind array_set_kind ~arr:x ~index:y ~new_value:z
   | Bytes_or_bigstring_set (kind, width) ->
     bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->

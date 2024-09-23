@@ -610,12 +610,36 @@ let binop env (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)
 
+let fexpr_of_array_kind : Flambda_primitive.Array_kind.t -> Fexpr.array_kind =
+  function
+  | Immediates -> Immediates
+  | Naked_floats -> Naked_floats
+  | Values -> Values
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_vec128s ->
+    Misc.fatal_error
+      "fexpr support for unboxed float32/int32/64/nativeint arrays not yet \
+       implemented"
+
+let fexpr_of_array_set_kind env
+    (array_set_kind : Flambda_primitive.Array_set_kind.t) : Fexpr.array_set_kind
+    =
+  match array_set_kind with
+  | Immediates -> Immediates
+  | Naked_floats -> Naked_floats
+  | Values ia -> Values (init_or_assign env ia)
+  | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
+  | Naked_vec128s ->
+    Misc.fatal_error
+      "fexpr support for unboxed float32/int32/64/nativeint/vec128 arrays not \
+       yet implemented"
+
 let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
   match op with
-  | Array_set (ak, width) ->
-    let ia = Flambda_primitive.Array_set_kind.init_or_assign ak in
-    let ak = Flambda_primitive.Array_set_kind.array_kind ak in
-    Array_set (ak, width, init_or_assign env ia)
+  | Array_set (ak, ask) ->
+    let ak = fexpr_of_array_kind ak in
+    let ask = fexpr_of_array_set_kind env ask in
+    Array_set (ak, ask)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
   | Bigarray_set _ | Atomic_compare_and_set ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"

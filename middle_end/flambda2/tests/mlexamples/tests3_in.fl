@@ -1,23 +1,33 @@
-let $camlTests3__string18 = "index out of bounds" in
-let $camlTests3__block20 =
-  Block 0 ($`*predef*`.caml_exn_Invalid_argument, $camlTests3__string18)
+let $camlTests3__string28 = "index out of bounds" in
+let $camlTests3__block30 =
+  Block 0 ($`*predef*`.caml_exn_Invalid_argument, $camlTests3__string28)
 in
-let code size(98)
+let code size(120)
       foo_0 (arr : any array, f, i : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
-  (let prim = %array_length arr in
-   let prim_1 = %num_conv (imm tagged -> imm) prim in
-   let prim_2 = %untag_imm i in
-   let prim_3 = %int_comp imm prim_2 < prim_1 in
-   switch prim_3
+  (let prim = %array_length generic arr in
+   let prim_1 = %untag_imm prim in
+   let prim_2 = %int_arith imm prim_1 - 0i in
+   let prim_3 = %num_conv (imm -> nativeint) prim_2 in
+   let prim_4 = %array_length generic arr in
+   let prim_5 = %untag_imm prim_4 in
+   let prim_6 = %int_arith imm prim_5 - 0i in
+   let prim_7 = %num_conv (imm -> nativeint) prim_6 in
+   let prim_8 = %int_shift nativeint prim_7 asr 63i in
+   let prim_9 = %int_arith nativeint prim_8 lxor -1n in
+   let prim_10 = %int_arith nativeint prim_9 land prim_3 in
+   let prim_11 = %num_conv (nativeint -> imm) prim_10 in
+   let prim_12 = %untag_imm i in
+   let prim_13 = %int_comp imm prim_12 < prim_11 in
+   switch prim_13
      | 0 -> k4
      | 1 -> k5)
     where k5 =
       cont k3
     where k4 =
-      cont k1 pop(regular k1) ($camlTests3__block20)
+      cont k1 pop(regular k1) ($camlTests3__block30)
     where k3 =
       ((let cond_result = %is_flat_float_array arr in
         switch cond_result
@@ -33,17 +43,27 @@ let code size(98)
          where k3 (if_then_else_result) =
            apply f (if_then_else_result) -> k2 * k1)
     where k2 (apply_result) =
-      ((let prim = %array_length arr in
-        let prim_1 = %num_conv (imm tagged -> imm) prim in
-        let prim_2 = %untag_imm i in
-        let prim_3 = %int_comp imm prim_2 < prim_1 in
-        switch prim_3
+      ((let prim = %array_length generic arr in
+        let prim_1 = %untag_imm prim in
+        let prim_2 = %int_arith imm prim_1 - 0i in
+        let prim_3 = %num_conv (imm -> nativeint) prim_2 in
+        let prim_4 = %array_length generic arr in
+        let prim_5 = %untag_imm prim_4 in
+        let prim_6 = %int_arith imm prim_5 - 0i in
+        let prim_7 = %num_conv (imm -> nativeint) prim_6 in
+        let prim_8 = %int_shift nativeint prim_7 asr 63i in
+        let prim_9 = %int_arith nativeint prim_8 lxor -1n in
+        let prim_10 = %int_arith nativeint prim_9 land prim_3 in
+        let prim_11 = %num_conv (nativeint -> imm) prim_10 in
+        let prim_12 = %untag_imm i in
+        let prim_13 = %int_comp imm prim_12 < prim_11 in
+        switch prim_13
           | 0 -> k3
           | 1 -> k4)
          where k4 =
            cont k2
          where k3 =
-           cont k1 pop(regular k1) ($camlTests3__block20)
+           cont k1 pop(regular k1) ($camlTests3__block30)
          where k2 =
            ((let cond_result = %is_flat_float_array arr in
              switch cond_result
@@ -54,7 +74,7 @@ let code size(98)
                 cont k2 (ifnot_result)
               where k3 =
                 let prim = %unbox_float apply_result in
-                let ifso_result = %array_set float arr.(i) <- prim in
+                let ifso_result = %array_set float arr.(i) = prim in
                 cont k2 (ifso_result)
               where k2 (if_then_else_result : imm tagged) =
                 cont k (if_then_else_result)))

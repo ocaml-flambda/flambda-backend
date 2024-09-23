@@ -973,6 +973,24 @@ module With_subkind = struct
   let erase_subkind (t : t) : t = { t with subkind = Anything }
 
   let equal_ignoring_subkind t1 t2 = equal (erase_subkind t1) (erase_subkind t2)
+
+  let must_be_gc_scannable t =
+    match kind t with
+    | Value -> (
+      match subkind t with
+      | Tagged_immediate -> false
+      | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
+      | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
+      | Immediate_array | Value_array | Generic_array | Unboxed_float32_array
+      | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
+      | Unboxed_vec128_array ->
+        true)
+    | Naked_number _ | Region | Rec_info -> false
+
+  let may_be_gc_scannable t =
+    match kind t with
+    | Value -> true
+    | Naked_number _ | Region | Rec_info -> false
 end
 
 module Flat_suffix_element = struct
