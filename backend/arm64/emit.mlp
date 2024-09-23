@@ -523,7 +523,7 @@ module BR = Branch_relaxation.Make (struct
         | _ -> 0
       and single = match memory_chunk with Single { reg = Float64 } -> 2 | _ -> 1 in
       based + barrier + single
-    | Lop (Ialloc { mode = Alloc_local; _ }) -> 9
+    | Lop (Ialloc { mode = Cmm.Alloc_mode.Local; _ }) -> 9
     | Lop (Ialloc _) when !fastcode_flag -> 5
     | Lop (Ispecific (Ifar_alloc _)) when !fastcode_flag -> 6
     | Lop (Ipoll _) -> 3
@@ -960,11 +960,11 @@ let emit_instr i =
             (* CR mslater: (SIMD) arm64 *)
             fatal_error "arm64: got 128 bit memory chunk"
         end
-    | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_heap }) ->
+    | Lop(Ialloc { bytes = n; dbginfo; mode = Cmm.Alloc_mode.Heap }) ->
         assembly_code_for_allocation i ~n ~local:false ~far:false ~dbginfo
     | Lop(Ispecific (Ifar_alloc { bytes = n; dbginfo })) ->
         assembly_code_for_allocation i ~n ~local:false ~far:true ~dbginfo
-    | Lop(Ialloc { bytes = n; dbginfo; mode = Alloc_local }) ->
+    | Lop(Ialloc { bytes = n; dbginfo; mode = Cmm.Alloc_mode.Local }) ->
         assembly_code_for_allocation i ~n ~local:true ~far:false ~dbginfo
     | Lop(Ibeginregion) ->
         let offset = Domainstate.(idx_of_field Domain_local_sp) * 8 in
