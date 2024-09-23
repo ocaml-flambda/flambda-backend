@@ -32,7 +32,7 @@ let apply_cont_deps denv acc apply_cont =
   List.iter2 (fun param dep -> Acc.cont_dep ~denv param dep acc) params args
 
 let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
-  let return = [Variable.create "function_return"] in
+  let return = List.init (Flambda_arity.cardinal_unarized (Code.result_arity code)) (fun i -> Variable.create (Printf.sprintf "function_return_%i" i)) in
   let exn = Variable.create "function_exn" in
   let my_closure = Variable.create "my_closure" in
   let arity = Code.params_arity code in
@@ -456,10 +456,15 @@ and traverse_apply denv acc apply : rev_expr =
       Acc.used ~denv eff acc;
       Acc.used ~denv cont acc;
       Acc.used ~denv last_fiber acc
-    | Effect (Run_stack { stack; f; arg } | Resume { stack; f; arg }) ->
+    | Effect (Run_stack { stack; f; arg }) ->
       Acc.used ~denv stack acc;
       Acc.used ~denv f acc;
       Acc.used ~denv arg acc
+    | Effect (Resume { stack; f; arg; last_fiber }) ->
+      Acc.used ~denv stack acc;
+      Acc.used ~denv f acc;
+      Acc.used ~denv arg acc;
+      Acc.used ~denv last_fiber acc
   in
   let return_args =
     match Apply.continuation apply with
@@ -583,14 +588,15 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
          ~my_closure
          ~is_my_closure_used:_
          ~my_region
+         ~my_ghost_region
          ~my_depth
          ~free_names_of_body:_
        ->
       traverse_function_params_and_body acc code_id code ~return_continuation
-        ~exn_continuation params ~body ~my_closure ~my_region ~my_depth)
+        ~exn_continuation params ~body ~my_closure ~my_region ~my_ghost_region ~my_depth)
 
 and traverse_function_params_and_body acc code_id code ~return_continuation
-    ~exn_continuation params ~body ~my_closure ~my_region ~my_depth : rev_code =
+    ~exn_continuation params ~body ~my_closure ~my_region ~my_ghost_region ~my_depth : rev_code =
   let code_metadata = Code.code_metadata code in
   let free_names_of_params_and_body = Code0.free_names code in
   (* Note: this significately degrades the analysis on zero_alloc code. However,
@@ -611,6 +617,7 @@ and traverse_function_params_and_body acc code_id code ~return_continuation
   Bound_parameters.iter (fun bp -> Acc.bound_parameter_kind bp acc) params;
   Acc.kind (Name.var my_closure) Flambda_kind.value acc;
   Acc.kind (Name.var my_region) Flambda_kind.region acc;
+  Acc.kind (Name.var my_ghost_region) Flambda_kind.region acc;
   Acc.kind (Name.var my_depth) Flambda_kind.rec_info acc;
   if is_opaque
   then
@@ -634,6 +641,7 @@ and traverse_function_params_and_body acc code_id code ~return_continuation
       body;
       my_closure;
       my_region;
+      my_ghost_region;
       my_depth
     }
   in

@@ -60,6 +60,7 @@ and rev_params_and_body =
     body : rev_expr;
     my_closure : Variable.t;
     my_region : Variable.t;
+    my_ghost_region : Variable.t;
     my_depth : Variable.t
   }
 

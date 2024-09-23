@@ -18,6 +18,7 @@ let unit_with_body (unit : Flambda_unit.t) (body : Flambda.Expr.t) =
     ~return_continuation:(Flambda_unit.return_continuation unit)
     ~exn_continuation:(Flambda_unit.exn_continuation unit)
     ~toplevel_my_region:(Flambda_unit.toplevel_my_region unit)
+    ~toplevel_my_ghost_region:(Flambda_unit.toplevel_my_ghost_region unit)
     ~body
     ~module_symbol:(Flambda_unit.module_symbol unit)
     ~used_value_slots:(Flambda_unit.used_value_slots unit)

@@ -286,10 +286,10 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
           Call_kind.effect
             (Call_kind.Effect.run_stack ~stack:(rewrite_simple stack)
                ~f:(rewrite_simple f) ~arg:(rewrite_simple arg))
-        | Effect (Resume { stack; f; arg }) ->
+        | Effect (Resume { stack; f; arg; last_fiber }) ->
           Call_kind.effect
             (Call_kind.Effect.resume ~stack:(rewrite_simple stack)
-               ~f:(rewrite_simple f) ~arg:(rewrite_simple arg))
+               ~f:(rewrite_simple f) ~arg:(rewrite_simple arg) ~last_fiber:(rewrite_simple last_fiber))
       in
       let exn_continuation = Apply.exn_continuation apply in
       let exn_continuation =
@@ -327,7 +327,7 @@ and rebuild_function_params_and_body (kinds : Flambda_kind.t Name.Map.t)
         params;
         body;
         my_closure;
-        my_region;
+        my_region; my_ghost_region;
         my_depth
       } =
     params_and_body
@@ -335,7 +335,7 @@ and rebuild_function_params_and_body (kinds : Flambda_kind.t Name.Map.t)
   let body = rebuild_expr kinds env body in
   Function_params_and_body.create ~return_continuation ~exn_continuation params
     ~body:body.expr ~free_names_of_body:(Known body.free_names) ~my_closure
-    ~my_region ~my_depth
+    ~my_region ~my_ghost_region ~my_depth
 
 and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
     (rev_expr : rev_expr_holed) (hole : RE.t) : RE.t =
