@@ -56,7 +56,7 @@ type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
 type alloc_mode = {
   mode : Mode.Alloc.r;
-  closure_context : Env.closure_context option;
+  locality_context : Env.locality_context option;
 }
 
 type texp_field_boxing =
