@@ -623,3 +623,26 @@ module Memprof :
        called on a profile which has not been stopped.
        *)
 end
+
+
+(** GC Tweaks are unstable and undocumented configurable GC parameters,
+    primarily intended for use by GC developers.
+
+    As well as using Gc.Tweak.set "foo" 42, they can also be configured in
+    OCAMLRUNPARAM, using the following syntax:
+
+        OCAMLRUNPARAM='Xfoo=42'
+    *)
+module Tweak : sig
+  (** Change a parameter.
+      Raises Invalid_argument if no such parameter exists *)
+  val set : string -> int -> unit
+
+  (** Retrieve a parameter value.
+      Raises Invalid_argument if no such parameter exists *)
+  val get : string -> int
+
+  (** Returns the list of parameters and their values that currently
+      have non-default values *)
+  val list_active : unit -> (string * int) list
+end
