@@ -32,7 +32,11 @@ let apply_cont_deps denv acc apply_cont =
   List.iter2 (fun param dep -> Acc.cont_dep ~denv param dep acc) params args
 
 let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
-  let return = List.init (Flambda_arity.cardinal_unarized (Code.result_arity code)) (fun i -> Variable.create (Printf.sprintf "function_return_%i" i)) in
+  let return =
+    List.init
+      (Flambda_arity.cardinal_unarized (Code.result_arity code))
+      (fun i -> Variable.create (Printf.sprintf "function_return_%i" i))
+  in
   let exn = Variable.create "function_exn" in
   let my_closure = Variable.create "my_closure" in
   let arity = Code.params_arity code in
@@ -593,10 +597,12 @@ and traverse_code (acc : acc) (code_id : Code_id.t) (code : Code.t) : rev_code =
          ~free_names_of_body:_
        ->
       traverse_function_params_and_body acc code_id code ~return_continuation
-        ~exn_continuation params ~body ~my_closure ~my_region ~my_ghost_region ~my_depth)
+        ~exn_continuation params ~body ~my_closure ~my_region ~my_ghost_region
+        ~my_depth)
 
 and traverse_function_params_and_body acc code_id code ~return_continuation
-    ~exn_continuation params ~body ~my_closure ~my_region ~my_ghost_region ~my_depth : rev_code =
+    ~exn_continuation params ~body ~my_closure ~my_region ~my_ghost_region
+    ~my_depth : rev_code =
   let code_metadata = Code.code_metadata code in
   let free_names_of_params_and_body = Code0.free_names code in
   (* Note: this significately degrades the analysis on zero_alloc code. However,

@@ -323,7 +323,8 @@ end = struct
                 [Cmm.Word_int; Cmm.Word_int]
                 chunk_acc )
           | 3 ->
-            ( P.term_of_symbol ~dbg sym :: P.int ~dbg closure_info :: P.term_of_symbol ~dbg sym :: acc,
+            ( P.term_of_symbol ~dbg sym :: P.int ~dbg closure_info
+              :: P.term_of_symbol ~dbg sym :: acc,
               rev_append_chunks ~for_static_sets
                 [Cmm.Word_int; Cmm.Word_int; Cmm.Word_int]
                 chunk_acc )

@@ -89,8 +89,8 @@ let run ~cmx_loader ~round ~code_slot_offsets unit =
     | Known slot_offsets -> slot_offsets
   in
   let unit =
-    FU.create ~return_continuation ~exn_continuation ~toplevel_my_region ~toplevel_my_ghost_region
-      ~module_symbol ~body ~used_value_slots:Unknown
+    FU.create ~return_continuation ~exn_continuation ~toplevel_my_region
+      ~toplevel_my_ghost_region ~module_symbol ~body ~used_value_slots:Unknown
   in
   { unit;
     free_names = name_occurrences;
