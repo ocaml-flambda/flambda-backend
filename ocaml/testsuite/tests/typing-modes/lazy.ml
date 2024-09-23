@@ -8,7 +8,8 @@ let use_portable : 'a @ portable -> unit = fun _ -> ()
 val use_portable : 'a @ portable -> unit = <fun>
 |}]
 
-(* The thunk and the result are required to be global *)
+(* The thunk and the result are required to be global. This is only because we
+don't support allocating lazy values on the stack. *)
 let foo () =
     lazy (let x @ local = "hello" in x)
 [%%expect{|
