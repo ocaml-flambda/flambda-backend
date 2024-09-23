@@ -184,12 +184,24 @@ let make_array ~dbg kind alloc_mode args =
   | Naked_int64s -> C.allocate_unboxed_int64_array ~elements:args mode dbg
   | Naked_nativeints ->
     C.allocate_unboxed_nativeint_array ~elements:args mode dbg
+  | Unboxed_product _ ->
+    if P.Array_kind.must_be_gc_scannable kind
+    then C.make_alloc ~mode dbg ~tag:0 args
+    else
+      let mem_chunks =
+        P.Array_kind.element_kinds kind |> List.map C.memory_chunk_of_kind
+      in
+      C.make_mixed_alloc ~mode dbg ~tag:0 ~value_prefix_size:0 args mem_chunks
 
 let array_length ~dbg arr (kind : P.Array_kind.t) =
   match kind with
-  | Immediates | Values | Naked_floats ->
+  | Immediates | Values | Naked_floats | Unboxed_product _ ->
     (* [Paddrarray] may be a lie sometimes, but we know for certain that the bit
-       width of floats is equal to the machine word width (see flambda2.ml). *)
+       width of floats is equal to the machine word width (see flambda2.ml).
+
+       For unboxed products, note that [Array_length] in [Flambda_primitive] is
+       a unarized-array-length operation, and that arrays of unboxed products
+       are represented by mixed blocks with tag zero (not custom blocks). *)
     assert (C.wordsize_shift = C.numfloat_shift);
     C.addr_array_length arr dbg
   | Naked_float32s -> C.unboxed_float32_array_length arr dbg
@@ -243,7 +255,13 @@ let array_load ~dbg (array_kind : P.Array_kind.t)
     | Naked_int32s | Naked_float32s ->
       array_load_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
     | Values ->
-      Misc.fatal_error "Attempted to load a SIMD vector from a value array.")
+      Misc.fatal_error "Attempted to load a SIMD vector from a value array."
+    | Unboxed_product _ ->
+      (* CR mshinwell: should this be supported? *)
+      Misc.fatal_errorf
+        "Loading of SIMD vectors from unboxed product arrays is not currently \
+         supported:@ %a"
+        Debuginfo.print_compact dbg)
 
 let addr_array_store init ~arr ~index ~new_value dbg =
   (* CR mshinwell: refactor this function in the same way as [block_load] *)
@@ -276,7 +294,12 @@ let array_set ~dbg (array_kind : P.Array_kind.t) (set_kind : P.Array_set_kind.t)
         array_set_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
           new_value
       | Values ->
-        Misc.fatal_error "Attempted to store a SIMD vector to a value array.")
+        Misc.fatal_error "Attempted to store a SIMD vector to a value array."
+      | Unboxed_product _ ->
+        Misc.fatal_errorf
+          "Storing of SIMD vectors to unboxed product arrays is not currently \
+           supported:@ %a"
+          Debuginfo.print_compact dbg)
   in
   C.return_unit dbg expr
 

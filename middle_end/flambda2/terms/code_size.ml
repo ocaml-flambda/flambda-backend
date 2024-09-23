@@ -347,8 +347,8 @@ let unary_prim_size prim =
   | Array_length array_kind -> (
     match array_kind with
     | Array_kind
-        (Immediates | Values | Naked_floats | Naked_int64s | Naked_nativeints)
-      ->
+        ( Immediates | Values | Naked_floats | Naked_int64s | Naked_nativeints
+        | Unboxed_product _ ) ->
       array_length_size
     | Array_kind (Naked_int32s | Naked_float32s) ->
       (* There is a dynamic check here to see if the array has an odd or even

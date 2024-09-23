@@ -50,6 +50,10 @@ module Array_kind : sig
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Unboxed_product of t list
+        (** Accesses to arrays of unboxed products are unarized on the way into
+            Flambda 2.  The float array optimization never applies for these
+            arrays.  Vectors are not yet supported inside these arrays. *)
 
   val print : Format.formatter -> t -> unit
 
@@ -359,6 +363,9 @@ type unary_primitive =
   | Is_int of { variant_only : bool }
   | Get_tag
   | Array_length of Array_kind_for_length.t
+      (** The unarized length of an array.  So for an example an array of
+          kind [Unboxed_product [tagged_immediate; tagged_immediate]] always
+          has a length that is a multiple of two. *)
   | Bigarray_length of { dimension : int }
       (** This primitive is restricted by type-checking to bigarrays that have
           at least the correct number of dimensions. More specifically, they
@@ -464,6 +471,11 @@ type binary_float_arith_op =
 type binary_primitive =
   | Block_load of Block_access_kind.t * Mutability.t
   | Array_load of Array_kind.t * Array_load_kind.t * Mutability.t
+      (** Unarized or SIMD array load.
+
+          The array kind preserves unboxed product information but the load
+          kind and index all correspond to the unarized representation.
+          See also [Array_length], above. *)
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Phys_equal of equality_comparison
@@ -482,6 +494,8 @@ type binary_primitive =
 type ternary_primitive =
   | Block_set of Block_access_kind.t * Init_or_assign.t
   | Array_set of Array_kind.t * Array_set_kind.t
+      (** Unarized array update, for mutable arrays.  See [Array_load] above
+          for more details on the unarization. *)
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
   | Atomic_compare_and_set
@@ -539,6 +553,7 @@ val args_kind_of_ternary_primitive :
 type arg_kinds =
   | Variadic_mixed of Flambda_kind.Mixed_block_shape.t
   | Variadic_all_of_kind of Flambda_kind.t
+  | Variadic_unboxed_product of Flambda_kind.t list
 
 val args_kind_of_variadic_primitive : variadic_primitive -> arg_kinds
 

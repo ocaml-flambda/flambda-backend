@@ -48,6 +48,7 @@ let simplify_array_set (array_kind : P.Array_kind.t)
       | Naked_int32s -> Naked_int32s
       | Naked_int64s -> Naked_int64s
       | Naked_nativeints -> Naked_nativeints
+      | Unboxed_product _ -> array_set_kind
     in
     let named =
       Named.create_prim

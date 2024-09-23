@@ -133,6 +133,30 @@ let convert_array_kind (kind : L.array_kind) : converted_array_kind =
   | Punboxedintarray Pint32 -> Array_kind Naked_int32s
   | Punboxedintarray Pint64 -> Array_kind Naked_int64s
   | Punboxedintarray Pnativeint -> Array_kind Naked_nativeints
+  | Pgcscannableproductarray kinds ->
+    let rec convert_kind (kind : L.scannable_product_element_kind) :
+        P.Array_kind.t =
+      match kind with
+      | Pint_scannable -> Immediates
+      | Paddr_scannable -> Values
+      | Pproduct_scannable kinds ->
+        Unboxed_product (List.map convert_kind kinds)
+    in
+    Array_kind (Unboxed_product (List.map convert_kind kinds))
+  | Pgcignorableproductarray kinds ->
+    let rec convert_kind (kind : L.ignorable_product_element_kind) :
+        P.Array_kind.t =
+      match kind with
+      | Pint_ignorable -> Immediates
+      | Punboxedfloat_ignorable Pfloat32 -> Naked_float32s
+      | Punboxedfloat_ignorable Pfloat64 -> Naked_floats
+      | Punboxedint_ignorable Pint32 -> Naked_int32s
+      | Punboxedint_ignorable Pint64 -> Naked_int64s
+      | Punboxedint_ignorable Pnativeint -> Naked_nativeints
+      | Pproduct_ignorable kinds ->
+        Unboxed_product (List.map convert_kind kinds)
+    in
+    Array_kind (Unboxed_product (List.map convert_kind kinds))
 
 let convert_array_kind_for_length kind : P.Array_kind_for_length.t =
   match convert_array_kind kind with
@@ -149,6 +173,17 @@ module Array_ref_kind = struct
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Unboxed_product of t_no_float_array_opt list
+
+  and t_no_float_array_opt =
+    | Immediates
+    | Values
+    | Naked_floats
+    | Naked_float32s
+    | Naked_int32s
+    | Naked_int64s
+    | Naked_nativeints
+    | Unboxed_product of t_no_float_array_opt list
 end
 
 type converted_array_ref_kind =
@@ -175,6 +210,43 @@ let convert_array_ref_kind (kind : L.array_ref_kind) : converted_array_ref_kind
   | Punboxedintarray_ref Pint32 -> Array_ref_kind Naked_int32s
   | Punboxedintarray_ref Pint64 -> Array_ref_kind Naked_int64s
   | Punboxedintarray_ref Pnativeint -> Array_ref_kind Naked_nativeints
+  | Pgcscannableproductarray_ref kinds ->
+    let rec convert_kind (kind : L.scannable_product_element_kind) :
+        Array_ref_kind.t_no_float_array_opt =
+      match kind with
+      | Pint_scannable -> Immediates
+      | Paddr_scannable -> Values
+      | Pproduct_scannable kinds ->
+        Unboxed_product (List.map convert_kind kinds)
+    in
+    Array_ref_kind (Unboxed_product (List.map convert_kind kinds))
+  | Pgcignorableproductarray_ref kinds ->
+    let rec convert_kind (kind : L.ignorable_product_element_kind) :
+        Array_ref_kind.t_no_float_array_opt =
+      match kind with
+      | Pint_ignorable -> Immediates
+      | Punboxedfloat_ignorable Pfloat32 -> Naked_float32s
+      | Punboxedfloat_ignorable Pfloat64 -> Naked_floats
+      | Punboxedint_ignorable Pint32 -> Naked_int32s
+      | Punboxedint_ignorable Pint64 -> Naked_int64s
+      | Punboxedint_ignorable Pnativeint -> Naked_nativeints
+      | Pproduct_ignorable kinds ->
+        Unboxed_product (List.map convert_kind kinds)
+    in
+    Array_ref_kind (Unboxed_product (List.map convert_kind kinds))
+
+let rec convert_unboxed_product_array_ref_kind
+    (kind : Array_ref_kind.t_no_float_array_opt) : P.Array_kind.t =
+  match kind with
+  | Immediates -> Immediates
+  | Values -> Values
+  | Naked_floats -> Naked_floats
+  | Naked_float32s -> Naked_float32s
+  | Naked_int32s -> Naked_int32s
+  | Naked_int64s -> Naked_int64s
+  | Naked_nativeints -> Naked_nativeints
+  | Unboxed_product kinds ->
+    Unboxed_product (List.map convert_unboxed_product_array_ref_kind kinds)
 
 let convert_array_ref_kind_to_array_kind (array_ref_kind : Array_ref_kind.t) :
     P.Array_kind.t =
@@ -186,6 +258,8 @@ let convert_array_ref_kind_to_array_kind (array_ref_kind : Array_ref_kind.t) :
   | Naked_int32s -> Naked_int32s
   | Naked_int64s -> Naked_int64s
   | Naked_nativeints -> Naked_nativeints
+  | Unboxed_product kinds ->
+    Unboxed_product (List.map convert_unboxed_product_array_ref_kind kinds)
 
 let convert_array_ref_kind_for_length array_ref_kind : P.Array_kind_for_length.t
     =
@@ -199,6 +273,9 @@ let convert_array_ref_kind_for_length array_ref_kind : P.Array_kind_for_length.t
   | Array_ref_kind Naked_int32s -> Array_kind Naked_int32s
   | Array_ref_kind Naked_int64s -> Array_kind Naked_int64s
   | Array_ref_kind Naked_nativeints -> Array_kind Naked_nativeints
+  | Array_ref_kind (Unboxed_product kinds) ->
+    Array_kind
+      (Unboxed_product (List.map convert_unboxed_product_array_ref_kind kinds))
 
 module Array_set_kind = struct
   type t =
@@ -210,6 +287,17 @@ module Array_set_kind = struct
     | Naked_int32s
     | Naked_int64s
     | Naked_nativeints
+    | Unboxed_product of t_no_float_array_opt list
+
+  and t_no_float_array_opt =
+    | Immediates
+    | Values of P.Init_or_assign.t
+    | Naked_floats
+    | Naked_float32s
+    | Naked_int32s
+    | Naked_int64s
+    | Naked_nativeints
+    | Unboxed_product of t_no_float_array_opt list
 end
 
 type converted_array_set_kind =
@@ -234,6 +322,44 @@ let convert_array_set_kind (kind : L.array_set_kind) : converted_array_set_kind
   | Punboxedintarray_set Pint32 -> Array_set_kind Naked_int32s
   | Punboxedintarray_set Pint64 -> Array_set_kind Naked_int64s
   | Punboxedintarray_set Pnativeint -> Array_set_kind Naked_nativeints
+  | Pgcscannableproductarray_set (mode, kinds) ->
+    let rec convert_kind (kind : L.scannable_product_element_kind) :
+        Array_set_kind.t_no_float_array_opt =
+      match kind with
+      | Pint_scannable -> Immediates
+      | Paddr_scannable ->
+        Values (Assignment (Alloc_mode.For_assignments.from_lambda mode))
+      | Pproduct_scannable kinds ->
+        Unboxed_product (List.map convert_kind kinds)
+    in
+    Array_set_kind (Unboxed_product (List.map convert_kind kinds))
+  | Pgcignorableproductarray_set kinds ->
+    let rec convert_kind (kind : L.ignorable_product_element_kind) :
+        Array_set_kind.t_no_float_array_opt =
+      match kind with
+      | Pint_ignorable -> Immediates
+      | Punboxedfloat_ignorable Pfloat32 -> Naked_float32s
+      | Punboxedfloat_ignorable Pfloat64 -> Naked_floats
+      | Punboxedint_ignorable Pint32 -> Naked_int32s
+      | Punboxedint_ignorable Pint64 -> Naked_int64s
+      | Punboxedint_ignorable Pnativeint -> Naked_nativeints
+      | Pproduct_ignorable kinds ->
+        Unboxed_product (List.map convert_kind kinds)
+    in
+    Array_set_kind (Unboxed_product (List.map convert_kind kinds))
+
+let rec convert_unboxed_product_array_set_kind
+    (kind : Array_set_kind.t_no_float_array_opt) : P.Array_kind.t =
+  match kind with
+  | Immediates -> Immediates
+  | Values _init_or_assign -> Values
+  | Naked_floats -> Naked_floats
+  | Naked_float32s -> Naked_float32s
+  | Naked_int32s -> Naked_int32s
+  | Naked_int64s -> Naked_int64s
+  | Naked_nativeints -> Naked_nativeints
+  | Unboxed_product kinds ->
+    Unboxed_product (List.map convert_unboxed_product_array_set_kind kinds)
 
 let convert_array_set_kind_to_array_kind (array_set_kind : Array_set_kind.t) :
     P.Array_kind.t =
@@ -245,6 +371,8 @@ let convert_array_set_kind_to_array_kind (array_set_kind : Array_set_kind.t) :
   | Naked_int32s -> Naked_int32s
   | Naked_int64s -> Naked_int64s
   | Naked_nativeints -> Naked_nativeints
+  | Unboxed_product kinds ->
+    Unboxed_product (List.map convert_unboxed_product_array_set_kind kinds)
 
 let convert_array_set_kind_for_length array_set_kind : P.Array_kind_for_length.t
     =
@@ -258,6 +386,9 @@ let convert_array_set_kind_for_length array_set_kind : P.Array_kind_for_length.t
   | Array_set_kind Naked_int32s -> Array_kind Naked_int32s
   | Array_set_kind Naked_int64s -> Array_kind Naked_int64s
   | Array_set_kind Naked_nativeints -> Array_kind Naked_nativeints
+  | Array_set_kind (Unboxed_product kinds) ->
+    Array_kind
+      (Unboxed_product (List.map convert_unboxed_product_array_set_kind kinds))
 
 type converted_duplicate_array_kind =
   | Duplicate_array_kind of P.Duplicate_array_kind.t
@@ -281,6 +412,10 @@ let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
     Duplicate_array_kind (Naked_int64s { length = None })
   | Punboxedintarray Pnativeint ->
     Duplicate_array_kind (Naked_nativeints { length = None })
+  | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+    Misc.fatal_error
+      "Lambda_to_flambda_primitives.convert_array_kind_to_duplicate_array_kind: \
+       unimplemented"
 
 let convert_field_read_semantics (sem : L.field_read_semantics) : Mutability.t =
   match sem with Reads_agree -> Immutable | Reads_vary -> Mutable
@@ -669,6 +804,11 @@ let array_vector_access_width_in_scalars (array_kind : P.Array_kind.t) =
   | Values ->
     Misc.fatal_error
       "Attempted to load/store a SIMD vector from/to a value array."
+  | Unboxed_product _ ->
+    (* CR mshinwell: support unboxed products involving vectors? *)
+    Misc.fatal_error
+      "Attempted to load/store a SIMD vector from/to an unboxed product array, \
+       which is not yet supported."
 
 let array_vector_access_validity_condition array ~size_int
     (array_kind : P.Array_kind.t) index =
@@ -843,6 +983,7 @@ let check_array_access ~dbg ~array (array_kind : P.Array_kind_for_length.t)
     | Array_kind Naked_nativeints
     | Float_array_opt_dynamic ->
       1
+    | Array_kind (Unboxed_product kinds) -> List.length kinds
   in
   checked_access ~primitive
     ~conditions:
@@ -850,7 +991,20 @@ let check_array_access ~dbg ~array (array_kind : P.Array_kind_for_length.t)
          ~width_in_scalars ~size_int)
     ~dbg
 
-let array_load_unsafe ~array ~index _array_kind
+let compute_array_indexes ~index ~num_elts =
+  if num_elts <= 0 then Misc.fatal_errorf "Illegal num_elts value: %d" num_elts;
+  List.init num_elts (fun offset ->
+      assert (offset >= 0);
+      if offset = 0
+      then index
+      else
+        H.Prim
+          (Binary
+             ( Int_arith (Tagged_immediate, Add),
+               index,
+               Simple (Simple.const_int (Targetint_31_63.of_int offset)) )))
+
+let rec array_load_unsafe ~array ~index array_kind
     (array_ref_kind : Array_ref_kind.t) ~current_region : H.expr_primitive list
     =
   match array_ref_kind with
@@ -873,12 +1027,35 @@ let array_load_unsafe ~array ~index _array_kind
     [ Binary
         (Array_load (Naked_nativeints, Naked_nativeints, Mutable), array, index)
     ]
+  | Unboxed_product array_ref_kinds ->
+    let rec unarize_kind (array_ref_kind : Array_ref_kind.t_no_float_array_opt)
+        : Array_ref_kind.t list =
+      match array_ref_kind with
+      | Immediates -> [Array_ref_kind.Immediates]
+      | Values -> [Array_ref_kind.Values]
+      | Naked_floats -> [Array_ref_kind.Naked_floats]
+      | Naked_float32s -> [Array_ref_kind.Naked_float32s]
+      | Naked_int32s -> [Array_ref_kind.Naked_int32s]
+      | Naked_int64s -> [Array_ref_kind.Naked_int64s]
+      | Naked_nativeints -> [Array_ref_kind.Naked_nativeints]
+      | Unboxed_product kinds -> List.concat_map unarize_kind kinds
+    in
+    let unarized = List.concat_map unarize_kind array_ref_kinds in
+    let indexes =
+      (* Reminder: all of the unarized components are machine word width. *)
+      compute_array_indexes ~index ~num_elts:(List.length unarized)
+    in
+    List.concat_map
+      (fun (index, array_ref_kind) ->
+        array_load_unsafe ~array ~index array_kind array_ref_kind
+          ~current_region)
+      (List.combine indexes unarized)
 
 let array_load_unsafe ~array ~index array_kind array_load_kind ~current_region =
   array_load_unsafe ~array ~index array_kind array_load_kind ~current_region
   |> H.maybe_create_unboxed_product
 
-let array_set_unsafe dbg ~array ~index array_kind
+let rec array_set_unsafe dbg ~array ~index array_kind
     (array_set_kind : Array_set_kind.t) ~new_values : H.expr_primitive list =
   let[@inline] normal_case array_set_kind new_values =
     match new_values with
@@ -899,6 +1076,36 @@ let array_set_unsafe dbg ~array ~index array_kind
   | Naked_int32s -> normal_case Naked_int32s new_values
   | Naked_int64s -> normal_case Naked_int64s new_values
   | Naked_nativeints -> normal_case Naked_nativeints new_values
+  | Unboxed_product array_set_kinds ->
+    let rec unarize_kind (array_set_kind : Array_set_kind.t_no_float_array_opt)
+        : Array_set_kind.t list =
+      match array_set_kind with
+      | Immediates -> [Array_set_kind.Immediates]
+      | Values init_or_assign -> [Array_set_kind.Values init_or_assign]
+      | Naked_floats -> [Array_set_kind.Naked_floats]
+      | Naked_float32s -> [Array_set_kind.Naked_float32s]
+      | Naked_int32s -> [Array_set_kind.Naked_int32s]
+      | Naked_int64s -> [Array_set_kind.Naked_int64s]
+      | Naked_nativeints -> [Array_set_kind.Naked_nativeints]
+      | Unboxed_product kinds -> List.concat_map unarize_kind kinds
+    in
+    let unarized = List.concat_map unarize_kind array_set_kinds in
+    let indexes =
+      (* Reminder: all of the unarized components are machine word width. *)
+      compute_array_indexes ~index ~num_elts:(List.length unarized)
+    in
+    if List.compare_lengths indexes new_values <> 0
+    then
+      Misc.fatal_errorf "Wrong arity for unboxed product array_set_unsafe:@ %a"
+        Debuginfo.print_compact dbg;
+    (* XXX mshinwell: should these be set in reverse order, to match the
+       evaluation order? *)
+    [ H.Sequence
+        (List.concat_map
+           (fun (index, (array_set_kind, new_value)) ->
+             array_set_unsafe dbg ~array ~index array_kind array_set_kind
+               ~new_values:[new_value])
+           (List.combine indexes (List.combine unarized new_values))) ]
 
 let array_set_unsafe dbg ~array ~index array_kind array_set_kind ~new_values =
   array_set_unsafe dbg ~array ~index array_kind array_set_kind ~new_values
@@ -918,6 +1125,8 @@ let[@inline always] match_on_array_ref_kind ~array array_ref_kind f :
         f P.Array_kind.Naked_floats
           (Array_ref_kind.Naked_floats_to_be_boxed mode),
         f P.Array_kind.Values (Array_ref_kind.Values : Array_ref_kind.t),
+        (* There are never any unboxed products in this case, so we always have
+           a singleton. *)
         [K.With_subkind.any_value] )
 
 let[@inline always] match_on_array_set_kind ~array array_set_kind f :
@@ -934,6 +1143,8 @@ let[@inline always] match_on_array_set_kind ~array array_set_kind f :
         f P.Array_kind.Naked_floats Array_set_kind.Naked_floats_to_be_unboxed,
         f P.Array_kind.Values
           (Array_set_kind.Values (Assignment mode) : Array_set_kind.t),
+        (* There are never any unboxed products in this case, so we always have
+           a singleton. *)
         [K.With_subkind.tagged_immediate] )
 
 (* Safe arith (div/mod by zero) *)
@@ -1087,7 +1298,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         match lambda_array_kind with
         | Pgenarray | Paddrarray | Pintarray
         | Punboxedfloatarray (Pfloat64 | Pfloat32)
-        | Punboxedintarray (Pint32 | Pint64 | Pnativeint) ->
+        | Punboxedintarray (Pint32 | Pint64 | Pnativeint)
+        | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
           args
         | Pfloatarray -> List.map unbox_float args
       in
@@ -1335,7 +1547,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ( Immediates | Values | Naked_floats | Naked_float32s | Naked_int32s
         | Naked_int64s | Naked_nativeints )
     | Float_array_opt_dynamic ->
-      [prim])
+      [prim]
+    | Array_kind (Unboxed_product kinds) ->
+      (* [Array_length] returns the unarized length (see
+         flambda_primitive.mli). *)
+      let divisor =
+        List.length kinds |> Targetint_31_63.of_int |> Simple.const_int
+      in
+      [Binary (Int_arith (Tagged_immediate, Div), Prim prim, Simple divisor)])
   | Pduparray (kind, mutability), [[arg]] -> (
     let duplicate_array_kind =
       convert_array_kind_to_duplicate_array_kind kind
@@ -2027,12 +2246,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Parrayrefu
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _
-            | Punboxedintarray_ref _ ),
+            | Punboxedintarray_ref _ | Pgcscannableproductarray_ref _
+            | Pgcignorableproductarray_ref _ ),
             _ )
       | Parrayrefs
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _
-            | Punboxedintarray_ref _ ),
+            | Punboxedintarray_ref _ | Pgcscannableproductarray_ref _
+            | Pgcignorableproductarray_ref _ ),
             _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _ | Patomic_exchange
       | Patomic_fetch_add ),
@@ -2049,12 +2270,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Parraysetu
           ( ( Pgenarray_set _ | Paddrarray_set _ | Pintarray_set
             | Pfloatarray_set | Punboxedfloatarray_set _
-            | Punboxedintarray_set _ ),
+            | Punboxedintarray_set _ | Pgcscannableproductarray_set _
+            | Pgcignorableproductarray_set _ ),
             _ )
       | Parraysets
           ( ( Pgenarray_set _ | Paddrarray_set _ | Pintarray_set
             | Pfloatarray_set | Punboxedfloatarray_set _
-            | Punboxedintarray_set _ ),
+            | Punboxedintarray_set _ | Pgcscannableproductarray_set _
+            | Pgcignorableproductarray_set _ ),
             _ )
       | Pbytes_set_16 _ | Pbytes_set_32 _ | Pbytes_set_f32 _ | Pbytes_set_64 _
       | Pbytes_set_128 _ | Pbigstring_set_16 _ | Pbigstring_set_32 _
