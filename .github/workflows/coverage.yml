@@ -3,6 +3,15 @@ name: coverage-linux
 # CR mshinwell: fix build and re-enable.  Something needs to be done
 # about a duplicate unix.cmxa argument to ocamlopt.
 
+on:
+  workflow_dispatch:
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: No-op step
+        run: echo "This job always succeeds and does nothing."
+
 # on:
 #   push:
 #     branches:
