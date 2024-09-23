@@ -1078,14 +1078,48 @@ val unboxed_vec128_array_length : expression -> Debuginfo.t -> expression
 val unboxed_float32_array_ref :
   expression -> expression -> Debuginfo.t -> expression
 
+(** Read an unboxed float32 from a 64-bit field in an array represented as
+    a mixed block, as used for unboxed product arrays. *)
+val unboxed_mutable_float32_unboxed_product_array_ref :
+  expression -> expression -> Debuginfo.t -> expression
+
+(** Write an unboxed float32 into a 64-bit field in an array represented as
+    a mixed block, as used for unboxed product arrays. *)
+val unboxed_mutable_float32_unboxed_product_array_set :
+  expression ->
+  index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
+
 (** Read from an unboxed int32 array (without bounds check). *)
 val unboxed_int32_array_ref :
   expression -> expression -> Debuginfo.t -> expression
 
-(** Read from an unboxed int64 or unboxed nativeint array (without bounds
-    check). *)
-val unboxed_int64_or_nativeint_array_ref :
+(** Read an unboxed int32 from a 64-bit field in an array represented as
+    a mixed block, as used for unboxed product arrays.  (The returned value
+    is not sign extended.) *)
+val unboxed_mutable_int32_unboxed_product_array_ref :
   expression -> expression -> Debuginfo.t -> expression
+
+(** Write an unboxed int32 into a 64-bit field in an array represented as
+    a mixed block, as used for unboxed product arrays. *)
+val unboxed_mutable_int32_unboxed_product_array_set :
+  expression ->
+  index:expression ->
+  new_value:expression ->
+  Debuginfo.t ->
+  expression
+
+(** Read from an unboxed int64 or unboxed nativeint array (without bounds
+    check).
+
+    The [has_custom_ops] parameter should be set to [true] unless the array
+    in question is an unboxed product array: these are represented as mixed
+    blocks, not custom blocks.
+*)
+val unboxed_int64_or_nativeint_array_ref :
+  has_custom_ops:bool -> expression -> expression -> Debuginfo.t -> expression
 
 (** Update an unboxed float32 array (without bounds check). *)
 val unboxed_float32_array_set :
@@ -1104,8 +1138,14 @@ val unboxed_int32_array_set :
   expression
 
 (** Update an unboxed int64 or unboxed nativeint array (without bounds
-    check). *)
+    check).
+
+    The [has_custom_ops] parameter should be set to [true] unless the array
+    in question is an unboxed product array: these are represented as mixed
+    blocks, not custom blocks.
+*)
 val unboxed_int64_or_nativeint_array_set :
+  has_custom_ops:bool ->
   expression ->
   index:expression ->
   new_value:expression ->

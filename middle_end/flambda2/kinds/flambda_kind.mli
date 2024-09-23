@@ -224,6 +224,7 @@ module With_subkind : sig
       | Unboxed_int64_array
       | Unboxed_nativeint_array
       | Unboxed_vec128_array
+      | Unboxed_product_array
 
     include Container_types.S with type t := t
   end
