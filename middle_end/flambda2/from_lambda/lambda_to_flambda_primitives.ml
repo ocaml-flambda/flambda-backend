@@ -874,7 +874,7 @@ let[@inline always] match_on_array_set_kind ~array array_ref_kind f :
       ( Unary (Is_flat_float_array, array),
         f Array_set_kind.Naked_floats_to_be_unboxed,
         f (Array_set_kind.Values (Assignment mode)),
-        [K.With_subkind.any_value] )
+        [K.With_subkind.tagged_immediate] )
 
 (* Safe arith (div/mod by zero) *)
 let checked_arith_op ~dbg (bi : Lambda.boxed_integer option) op mode arg1 arg2
