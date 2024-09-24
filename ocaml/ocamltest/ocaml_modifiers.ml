@@ -131,7 +131,7 @@ let debugger = [add_compiler_subdir ("debugger" ^ runtime_suffix)]
 let extension_universe_lib name =
   make_library_modifier name [compiler_subdir ["otherlibs"; name]]
 
-let _ =
+let init () =
   register_modifiers "principal" principal;
   register_modifiers "config" config;
   register_modifiers "testing" testing;

@@ -29,6 +29,7 @@ open Outcometree
 module String = Misc.Stdlib.String
 module Int = Misc.Stdlib.Int
 module Sig_component_kind = Shape.Sig_component_kind
+module Style = Misc.Style
 
 (* Note [When to print jkind annotations]
    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -112,11 +113,7 @@ module Sig_component_kind = Shape.Sig_component_kind
 *)
 
 (* Print a long identifier *)
-
-let rec longident ppf = function
-  | Lident s -> pp_print_string ppf s
-  | Ldot(p, s) -> fprintf ppf "%a.%s" longident p s
-  | Lapply(p1, p2) -> fprintf ppf "%a(%a)" longident p1 longident p2
+let longident = Pprintast.longident
 
 let () = Env.print_longident := longident
 
@@ -229,8 +226,9 @@ module Conflicts = struct
           explanations := M.add name explanation !explanations
 
   let pp_explanation ppf r=
-    Format.fprintf ppf "@[<v 2>%a:@,Definition of %s %s@]"
-      Location.print_loc r.location (Sig_component_kind.to_string r.kind) r.name
+    Format.fprintf ppf "@[<v 2>%a:@,Definition of %s %a@]"
+      Location.print_loc r.location (Sig_component_kind.to_string r.kind)
+      Style.inline_code r.name
 
   let print_located_explanations ppf l =
     Format.fprintf ppf "@[<v>%a@]" (Format.pp_print_list pp_explanation) l
@@ -257,11 +255,12 @@ module Conflicts = struct
       | [namespace, a] ->
           Format.fprintf ppf
         "@ \
-         @[<2>@{<hint>Hint@}: The %a %s has been defined multiple times@ \
+         @[<2>@{<hint>Hint@}: The %a %a has been defined multiple times@ \
          in@ this@ toplevel@ session.@ \
          Some toplevel values still refer to@ old@ versions@ of@ this@ %a.\
          @ Did you try to redefine them?@]"
-        Namespace.pp namespace a Namespace.pp namespace
+        Namespace.pp namespace
+        Style.inline_code a Namespace.pp namespace
       | (namespace, _) :: _ :: _ ->
       Format.fprintf ppf
         "@ \
@@ -270,7 +269,8 @@ module Conflicts = struct
          Some toplevel values still refer to@ old@ versions@ of@ those@ %a.\
          @ Did you try to redefine them?@]"
         pp_namespace_plural namespace
-        Format.(pp_print_list ~pp_sep:conj pp_print_string) (List.map snd names)
+        Format.(pp_print_list ~pp_sep:conj Style.inline_code)
+        (List.map snd names)
         pp_namespace_plural namespace in
     Array.iter (pp_submsg ppf) submsgs
 
@@ -479,7 +479,7 @@ let expand_longident_head name =
     Some
       (Ldot
         (Lident (String.sub name 0 i),
-          String.capitalize_ascii
+          Unit_info.modulize
             (String.sub name (i + 2) (String.length name - i - 2))))
 
 (* Simple heuristic to print Foo__bar.* as Foo.Bar.* when Foo.Bar is an alias
@@ -644,6 +644,8 @@ and raw_type_desc ppf = function
         (if is_commu_ok c then "Cok" else "Cunknown")
   | Ttuple tl ->
       fprintf ppf "@[<1>Ttuple@,%a@]" labeled_type_list tl
+  | Tunboxed_tuple tl ->
+      fprintf ppf "@[<1>Tunboxed_tuple@,%a@]" labeled_type_list tl
   | Tconstr (p, tl, abbrev) ->
       fprintf ppf "@[<hov1>Tconstr(@,%a,@,%a,@,%a)@]" path p
         raw_type_list tl
@@ -1002,6 +1004,70 @@ let printer_iter_type_expr f ty =
   | _ ->
       Btype.iter_type_expr f ty
 
+module Internal_names : sig
+
+  val reset : unit -> unit
+
+  val add : Path.t -> unit
+
+  val print_explanations : Env.t -> Format.formatter -> unit
+
+end = struct
+
+  let names = ref Ident.Set.empty
+
+  let reset () =
+    names := Ident.Set.empty
+
+  let add p =
+    match p with
+    | Pident id ->
+        let name = Ident.name id in
+        if String.length name > 0 && name.[0] = '$' then begin
+          names := Ident.Set.add id !names
+        end
+    | Pdot _ | Papply _ | Pextra_ty _ -> ()
+
+  let print_explanations env ppf =
+    let constrs =
+      Ident.Set.fold
+        (fun id acc ->
+          let p = Pident id in
+          match Env.find_type p env with
+          | exception Not_found -> acc
+          | decl ->
+              match type_origin decl with
+              | Existential constr ->
+                  let prev = String.Map.find_opt constr acc in
+                  let prev = Option.value ~default:[] prev in
+                  String.Map.add constr (tree_of_path None p :: prev) acc
+              | Definition | Rec_check_regularity -> acc)
+        !names String.Map.empty
+    in
+    String.Map.iter
+      (fun constr out_idents ->
+        match out_idents with
+        | [] -> ()
+        | [out_ident] ->
+            fprintf ppf
+              "@ @[<2>@{<hint>Hint@}:@ %a@ is an existential type@ \
+               bound by the constructor@ %a.@]"
+              (Style.as_inline_code !Oprint.out_ident) out_ident
+              Style.inline_code constr
+        | out_ident :: out_idents ->
+            fprintf ppf
+              "@ @[<2>@{<hint>Hint@}:@ %a@ and %a@ are existential types@ \
+               bound by the constructor@ %a.@]"
+              (Format.pp_print_list
+                 ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+                 (Style.as_inline_code !Oprint.out_ident))
+              (List.rev out_idents)
+              (Style.as_inline_code !Oprint.out_ident) out_ident
+              Style.inline_code constr)
+      constrs
+
+end
+
 module Names : sig
   val reset_names : unit -> unit
 
@@ -1079,11 +1145,7 @@ end = struct
     || String.Set.mem name !named_weak_vars
 
   let rec new_name () =
-    let name =
-      if !name_counter < 26
-      then String.make 1 (Char.chr(97 + !name_counter))
-      else String.make 1 (Char.chr(97 + !name_counter mod 26)) ^
-             Int.to_string(!name_counter / 26) in
+    let name = Misc.letter_of_int !name_counter in
     incr name_counter;
     if name_is_already_used name then new_name () else name
 
@@ -1236,7 +1298,7 @@ let reset_loop_marks () =
   visited_objects := []; aliased := []; delayed := []; printed_aliases := []
 
 let reset_except_context () =
-  Names.reset_names (); reset_loop_marks ()
+  Names.reset_names (); reset_loop_marks (); Internal_names.reset ()
 
 let reset () =
   reset_naming_context (); Conflicts.reset ();
@@ -1261,6 +1323,8 @@ let out_jkind_of_user_jkind (jkind : Jane_syntax.Jkind.annotation) =
         List.map (fun {txt = (Parsetree.Mode s); _} -> s) modes
       in
       Ojkind_const_mod (base, modes)
+    | Product ts ->
+      Ojkind_const_product (List.map out_jkind_const_of_user_jkind ts)
     | With _ | Kind_of _ -> failwith "XXX unimplemented jkind syntax"
   in
   Ojkind_const (out_jkind_const_of_user_jkind jkind.txt)
@@ -1271,21 +1335,25 @@ let out_jkind_of_const_jkind jkind =
 (* returns None for [value], according to (C2.1) from
    Note [When to print jkind annotations] *)
 let out_jkind_option_of_jkind jkind =
-  match Jkind.get jkind with
-  | Const jkind ->
-    let is_value = Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
+  let rec desc_to_out_jkind : Jkind.Desc.t -> out_jkind = function
+    | Const jkind -> out_jkind_of_const_jkind jkind
+    | Var v -> Ojkind_var (Jkind.Sort.Var.name v)
+    | Product jkinds ->
+      Ojkind_product (List.map desc_to_out_jkind jkinds)
+  in
+  let desc = Jkind.get jkind in
+  let elide =
+    match desc with
+    | Const jkind -> (* C2.1 *)
+      Jkind.Const.equal jkind Jkind.Const.Builtin.value.jkind
       (* CR layouts v3.0: remove this hack once [or_null] is out of [Alpha]. *)
       || (not Language_extension.(is_at_least Layouts Alpha)
           && Jkind.Const.equal jkind Jkind.Const.Builtin.value_or_null.jkind)
-    in
-    begin match is_value with
-    | true -> None
-    | false -> Some (out_jkind_of_const_jkind jkind)
-    end
-  | Var v -> (* This handles (X1). *)
-    if !Clflags.verbose_types
-    then Some (Ojkind_var (Jkind.Sort.Var.name v))
-    else None
+    | Var _ -> (* X1 *)
+      not !Clflags.verbose_types
+    | Product _ -> false
+  in
+  if elide then None else Some (desc_to_out_jkind desc)
 
 let alias_nongen_row mode px ty =
     match get_desc ty with
@@ -1329,7 +1397,8 @@ let tree_of_modes modes =
     tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_legacy Omd_once];
     tree_of_mode diff.portability [Mode.Portability.Const.Portable, Omd_new "portable"];
     tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_legacy Omd_unique];
-    tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended"]]
+    tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended";
+                                  Mode.Contention.Const.Shared, Omd_new "shared"]]
   in
   List.filter_map Fun.id l
 
@@ -1380,12 +1449,17 @@ let rec tree_of_typexp mode alloc_mode ty =
         Otyp_arrow (lab, tree_of_modes arg_mode, t1, rm, t2)
     | Ttuple labeled_tyl ->
         Otyp_tuple (tree_of_labeled_typlist mode labeled_tyl)
+    | Tunboxed_tuple labeled_tyl ->
+        Otyp_unboxed_tuple (tree_of_labeled_typlist mode labeled_tyl)
     | Tconstr(p, tyl, _abbrev) ->
         let p', s = best_type_path p in
         let tyl' = apply_subst s tyl in
         if is_nth s && not (tyl'=[])
         then tree_of_typexp mode Alloc.Const.legacy (List.hd tyl')
-        else Otyp_constr (tree_of_path (Some Type) p', tree_of_typlist mode tyl')
+        else begin
+          Internal_names.add p';
+          Otyp_constr (tree_of_path (Some Type) p', tree_of_typlist mode tyl')
+        end
     | Tvariant row ->
         let Row {fields; name; closed; _} = row_repr row in
         let fields =
@@ -1781,10 +1855,11 @@ let prepare_decl id decl =
 
 let tree_of_type_decl id decl =
   let ty_manifest, params = prepare_decl id decl in
-  let type_param =
+  let type_param ot_variance ot_jkind =
     function
-    | Otyp_var (_, id) -> id
-    | _ -> "?"
+    | Otyp_var (ot_non_gen, ot_name) ->
+        {ot_non_gen; ot_name; ot_variance; ot_jkind}
+    | _ -> {ot_non_gen=false; ot_name="?"; ot_variance; ot_jkind}
   in
   let type_defined decl =
     let abstr =
@@ -1818,11 +1893,9 @@ let tree_of_type_decl id decl =
           else (NoVariance, NoInjectivity))
         decl.type_params decl.type_variance
     in
-    let mk_param ty (variance, injectivity) =
-      { oparam_name = type_param (tree_of_typexp Type ty);
-        oparam_variance = variance;
-        oparam_injectivity = injectivity;
-        oparam_jkind = param_jkind ty }
+    let mk_param ty variance =
+      let jkind = param_jkind ty in
+      type_param variance jkind (tree_of_typexp Type ty)
     in
     (Ident.name id,
      List.map2 mk_param params vari)
@@ -2212,21 +2285,15 @@ let class_type ppf cty =
   prepare_class_type [] cty;
   !Oprint.out_class_type ppf (tree_of_class_type Type [] cty)
 
-let tree_of_class_param param var_inj =
-  let variance, injectivity =
-    if is_Tvar param
-    then Asttypes.(NoVariance, NoInjectivity)
-    else var_inj
-  in
-  { oparam_name = begin match tree_of_typexp Type_scheme param with
-      | Otyp_var (_, s) -> s
-      | _ -> "?"
-    end;
-    oparam_variance = variance;
-    oparam_injectivity = injectivity;
-    (* CR layouts: fix next line when adding support for jkind
-       annotations on class type parameters *)
-    oparam_jkind = param_jkind param }
+let tree_of_class_param param variance =
+  let ot_variance =
+    if is_Tvar param then Asttypes.(NoVariance, NoInjectivity) else variance in
+  (* CR layouts: fix next line when adding support for jkind
+     annotations on class type parameters *)
+  let ot_jkind = param_jkind param in
+  match tree_of_typexp Type_scheme param with
+    Otyp_var (ot_non_gen, ot_name) -> {ot_non_gen; ot_name; ot_variance; ot_jkind}
+  | _ -> {ot_non_gen=false; ot_name="?"; ot_variance; ot_jkind}
 
 let class_variance =
   let open Variance in let open Asttypes in
@@ -2319,7 +2386,7 @@ let dummy =
   {
     type_params = [];
     type_arity = 0;
-    type_kind = Type_abstract Abstract_def;
+    type_kind = Type_abstract Definition;
     type_jkind = Jkind.Builtin.any ~why:Dummy_jkind;
     type_jkind_annotation = None;
     type_private = Public;
@@ -2661,11 +2728,14 @@ let trees_of_type_expansion'
     if var_jkinds then
       match get_desc ty with
       | Tvar { jkind; _ } | Tunivar { jkind; _ } ->
-          let olay = match Jkind.get jkind with
+          let rec okind_of_desc : Jkind.Desc.t -> _ = function
             | Const clay -> out_jkind_of_const_jkind clay
             | Var v      -> Ojkind_var (Jkind.Sort.Var.name v)
+            | Product ds ->
+              Ojkind_product (List.map okind_of_desc ds)
           in
-          Otyp_jkind_annot (out, olay)
+          let okind = okind_of_desc (Jkind.get jkind) in
+          Otyp_jkind_annot (out, okind)
       | _ ->
           out
     else
@@ -2690,9 +2760,11 @@ let trees_of_type_expansion =
   trees_of_type_expansion' ~var_jkinds:false
 
 let type_expansion ppf = function
-  | Same t -> !Oprint.out_type ppf t
+  | Same t -> Style.as_inline_code !Oprint.out_type ppf t
   | Diff(t,t') ->
-      fprintf ppf "@[<2>%a@ =@ %a@]"  !Oprint.out_type t  !Oprint.out_type t'
+      fprintf ppf "@[<2>%a@ =@ %a@]"
+        (Style.as_inline_code !Oprint.out_type) t
+        (Style.as_inline_code !Oprint.out_type) t'
 
 let trees_of_trace mode =
   List.map (Errortrace.map_diff (trees_of_type_expansion mode))
@@ -2702,11 +2774,11 @@ let trees_of_type_path_expansion (tp,tp') =
     Diff(tree_of_path (Some Type) tp, tree_of_path (Some Type) tp')
 
 let type_path_expansion ppf = function
-  | Same p -> !Oprint.out_ident ppf p
+  | Same p -> Style.as_inline_code !Oprint.out_ident ppf p
   | Diff(p,p') ->
       fprintf ppf "@[<2>%a@ =@ %a@]"
-        !Oprint.out_ident p
-        !Oprint.out_ident p'
+        (Style.as_inline_code !Oprint.out_ident) p
+        (Style.as_inline_code !Oprint.out_ident) p'
 
 let rec trace fst txt ppf = function
   | {Errortrace.got; expected} :: rem ->
@@ -2800,7 +2872,7 @@ let may_prepare_expansion compact (Errortrace.{ty; expanded} as ty_exp) =
 let print_path p =
   Format.dprintf "%a" !Oprint.out_ident (tree_of_path (Some Type) p)
 
-let print_tag ppf = fprintf ppf "`%s"
+let print_tag ppf s = Style.inline_code ppf ("`" ^ s)
 
 let print_tags =
   let comma ppf () = Format.fprintf ppf ",@ " in
@@ -2830,13 +2902,17 @@ let explanation_diff env t3 t4 : (Format.formatter -> unit) option =
     when is_unit_arg env ty1 && unifiable env ty2 t4 ->
       Some (fun ppf ->
         fprintf ppf
-          "@,@[@{<hint>Hint@}: Did you forget to provide `()' as argument?@]")
+          "@,@[@{<hint>Hint@}: Did you forget to provide %a as argument?@]"
+          Style.inline_code "()"
+        )
   | _, Tarrow (_, ty1, ty2, _)
     when is_unit_arg env ty1 && unifiable env t3 ty2 ->
       Some (fun ppf ->
         fprintf ppf
           "@,@[@{<hint>Hint@}: Did you forget to wrap the expression using \
-           `fun () ->'?@]")
+           %a?@]"
+          Style.inline_code "fun () ->"
+        )
   | _ ->
       None
 
@@ -2844,7 +2920,8 @@ let explain_fixed_row_case ppf = function
   | Errortrace.Cannot_be_closed ->
       fprintf ppf "it cannot be closed"
   | Errortrace.Cannot_add_tags tags ->
-      fprintf ppf "it may not allow the tag(s) %a" print_tags tags
+      fprintf ppf "it may not allow the tag(s) %a"
+        print_tags tags
 
 let explain_fixed_row pos expl = match expl with
   | Fixed_private ->
@@ -2852,16 +2929,24 @@ let explain_fixed_row pos expl = match expl with
   | Univar x ->
     reserve_names x;
     dprintf "The %a variant type is bound to the universal type variable %a"
-      Errortrace.print_pos pos type_expr_with_reserved_names x
+      Errortrace.print_pos pos
+      (Style.as_inline_code type_expr_with_reserved_names) x
   | Reified p ->
-    dprintf "The %a variant type is bound to %t"
-      Errortrace.print_pos pos (print_path p)
+    dprintf "The %a variant type is bound to %a"
+      Errortrace.print_pos pos
+      (Style.as_inline_code
+         (fun ppf p ->
+           Internal_names.add p;
+           print_path p ppf))
+      p
   | Rigid -> ignore
 
 let explain_variant (type variety) : variety Errortrace.variant -> _ = function
   (* Common *)
   | Errortrace.Incompatible_types_for s ->
-      Some(dprintf "@,Types for tag `%s are incompatible" s)
+      Some(dprintf "@,Types for tag %a are incompatible"
+             print_tag s
+          )
   (* Unification *)
   | Errortrace.No_intersection ->
       Some(dprintf "@,These two variant types have no intersection")
@@ -2884,9 +2969,9 @@ let explain_variant (type variety) : variety Errortrace.variant -> _ = function
   (* Equality & Moregen *)
   | Errortrace.Presence_not_guaranteed_for (pos, s) -> Some(
       dprintf
-        "@,@[The tag `%s is guaranteed to be present in the %a variant type,\
+        "@,@[The tag %a is guaranteed to be present in the %a variant type,\
          @ but not in the %a@]"
-        s
+        print_tag s
         Errortrace.print_pos (Errortrace.swap_position pos)
         Errortrace.print_pos pos
     )
@@ -2900,22 +2985,25 @@ let explain_escape pre = function
       reserve_names u;
       Some(
         dprintf "%t@,The universal variable %a would escape its scope"
-          pre type_expr_with_reserved_names u)
+          pre
+          (Style.as_inline_code type_expr_with_reserved_names) u
+      )
   | Errortrace.Constructor p -> Some(
       dprintf
         "%t@,@[The type constructor@;<1 2>%a@ would escape its scope@]"
-        pre path p
+        pre (Style.as_inline_code path) p
     )
   | Errortrace.Module_type p -> Some(
       dprintf
         "%t@,@[The module type@;<1 2>%a@ would escape its scope@]"
-        pre path p
+        pre (Style.as_inline_code path) p
     )
   | Errortrace.Equation Errortrace.{ty = _; expanded = t} ->
       reserve_names t;
       Some(
         dprintf "%t @,@[<hov>This instance of %a is ambiguous:@ %s@]"
-          pre type_expr_with_reserved_names t
+          pre
+          (Style.as_inline_code type_expr_with_reserved_names) t
           "it would escape the scope of its equation"
       )
   | Errortrace.Self ->
@@ -2925,8 +3013,8 @@ let explain_escape pre = function
 
 let explain_object (type variety) : variety Errortrace.obj -> _ = function
   | Errortrace.Missing_field (pos,f) -> Some(
-      dprintf "@,@[The %a object type has no method %s@]"
-        Errortrace.print_pos pos f
+      dprintf "@,@[The %a object type has no method %a@]"
+        Errortrace.print_pos pos Style.inline_code f
     )
   | Errortrace.Abstract_row pos -> Some(
       dprintf
@@ -2935,6 +3023,15 @@ let explain_object (type variety) : variety Errortrace.obj -> _ = function
     )
   | Errortrace.Self_cannot_be_closed ->
       Some (dprintf "@,Self type cannot be unified with a closed object type")
+
+let explain_incompatible_fields name (diff: Types.type_expr Errortrace.diff) =
+  reserve_names diff.got;
+  reserve_names diff.expected;
+  dprintf "@,@[The method %a has type@ %a,@ \
+  but the expected method type was@ %a@]"
+    Style.inline_code name
+    (Style.as_inline_code type_expr_with_reserved_names) diff.got
+    (Style.as_inline_code type_expr_with_reserved_names) diff.expected
 
 let explanation (type variety) intro prev env
   : (Errortrace.expanded_type, variety) Errortrace.elt -> _ = function
@@ -2945,20 +3042,15 @@ let explanation (type variety) intro prev env
       match context, kind, prev with
       | Some ctx, _, _ ->
         reserve_names ctx;
-        dprintf "@[%t@;<1 2>%a@]" intro type_expr_with_reserved_names ctx
+        dprintf "@[%t@;<1 2>%a@]" intro
+          (Style.as_inline_code type_expr_with_reserved_names) ctx
       | None, Univ _, Some(Errortrace.Incompatible_fields {name; diff}) ->
-        reserve_names diff.got;
-        reserve_names diff.expected;
-        dprintf "@,@[The method %s has type@ %a,@ \
-                 but the expected method type was@ %a@]"
-          name
-          type_expr_with_reserved_names diff.got
-          type_expr_with_reserved_names diff.expected
+        explain_incompatible_fields name diff
       | _ -> ignore
     in
     explain_escape pre kind
-  | Errortrace.Incompatible_fields { name; _ } ->
-    Some(dprintf "@,Types for method %s are incompatible" name)
+  | Errortrace.Incompatible_fields { name; diff} ->
+    Some(explain_incompatible_fields name diff)
   | Errortrace.Variant v ->
     explain_variant v
   | Errortrace.Obj o ->
@@ -2973,7 +3065,8 @@ let explanation (type variety) intro prev env
           mark_loops x;
           mark_loops y;
           dprintf "@,@[<hov>The type variable %a occurs inside@ %a@]"
-            prepared_type_expr x prepared_type_expr y
+            (Style.as_inline_code prepared_type_expr) x
+            (Style.as_inline_code prepared_type_expr) y
             ppf)
     | _ ->
         (* We had a delayed unification of the type variable with
@@ -3014,19 +3107,20 @@ let warn_on_missing_def env ppf t =
   match get_desc t with
   | Tconstr (p,_,_) ->
     begin match Env.find_type p env with
-    | { type_kind = Type_abstract Abstract_rec_check_regularity; _ } ->
-        fprintf ppf
-          "@,@[<hov>Type %a was considered abstract@ when checking\
-           @ constraints@ in this@ recursive type definition.@]"
-          path p
     | exception Not_found ->
         fprintf ppf
           "@,@[<hov>Type %a is abstract because@ no corresponding\
-           @ cmi file@ was found@ in path.@]" path p
-    | {type_kind =
-       Type_abstract Abstract_def | Type_record _ | Type_variant _ | Type_open }
-      -> ()
-    end
+           @ cmi file@ was found@ in path.@]" (Style.as_inline_code path) p
+    | { type_manifest = Some _; _ } -> ()
+    | { type_manifest = None; _ } as decl ->
+        match type_origin decl with
+        | Rec_check_regularity ->
+            fprintf ppf
+              "@,@[<hov>Type %a was considered abstract@ when checking\
+               @ constraints@ in this@ recursive type definition.@]"
+              (Style.as_inline_code path) p
+        | Definition | Existential _ -> ()
+      end
   | _ -> ()
 
 let prepare_expansion_head empty_tr = function
@@ -3095,6 +3189,7 @@ let error trace_format mode subst env tr txt1 ppf txt2 ty_expect_explanation =
       if env <> Env.empty && not jkind_error
        (* the jkinds mechanism has its own way of reporting missing cmis *)
       then warn_on_missing_defs env ppf head;
+      Internal_names.print_explanations env ppf;
       Conflicts.print_explanations ppf;
       print_labels := true
     with exn ->

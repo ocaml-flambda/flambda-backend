@@ -26,9 +26,13 @@ val binary_modules : Variables.t
 val bytecc_libs : Variables.t
 (** Libraries to link with for bytecode *)
 
-val c_preprocessor : Variables.t
+val cpp : Variables.t
+
+val cppflags : Variables.t
 
 val cc : Variables.t
+
+val cflags : Variables.t
 
 val caml_ld_library_path : Variables.t
 
@@ -136,3 +140,5 @@ val shared_library_cflags : Variables.t
 val sharedobjext : Variables.t
 
 val use_runtime : Variables.t
+
+val init : unit -> unit

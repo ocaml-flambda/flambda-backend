@@ -19,6 +19,7 @@
 
 #include <signal.h>
 #include <errno.h>
+#include <stdbool.h>
 #include "caml/config.h"
 #ifdef USE_MMAP_MAP_STACK
 #include <sys/mman.h>
@@ -29,6 +30,7 @@
 #include "caml/memory.h"
 #include "caml/misc.h"
 #include "caml/mlvalues.h"
+#include "caml/platform.h"
 #include "caml/roots.h"
 #include "caml/signals.h"
 #include "caml/sys.h"
@@ -46,7 +48,7 @@ CAMLexport atomic_uintnat caml_pending_signals[NSIG_WORDS];
 
 static caml_plat_mutex signal_install_mutex = CAML_PLAT_MUTEX_INITIALIZER;
 
-int caml_check_pending_signals(void)
+CAMLexport int caml_check_pending_signals(void)
 {
   int i;
   for (i = 0; i < NSIG_WORDS; i++) {
@@ -93,7 +95,7 @@ CAMLexport value caml_process_pending_signals_exn(void)
         if (curr == 0) goto next_word;
         if ((curr & mask) == 0) goto next_bit;
       }
-      exn = caml_execute_signal_exn(signo, 0);
+      exn = caml_execute_signal_exn(signo);
       if (Is_exception_result(exn)) return exn;
       /* curr probably changed during the evaluation of the signal handler;
          refresh it from memory */
@@ -137,7 +139,7 @@ CAMLexport void caml_record_signal(int signal_number)
        - Ctrl-C in the toplevel when domain 0 is stuck inside [Domain.join].
        - a thread that has just spawned, before the appropriate mask is set.
   */
-  caml_interrupt_all_for_signal();
+  caml_interrupt_all_signal_safe();
 }
 
 /* Management of blocking sections. */
@@ -159,6 +161,8 @@ CAMLexport void (*caml_enter_blocking_section_hook)(void) =
 CAMLexport void (*caml_leave_blocking_section_hook)(void) =
    caml_leave_blocking_section_default;
 
+static int check_pending_actions(caml_domain_state * dom_st);
+
 CAMLexport void caml_enter_blocking_section(void)
 {
   caml_domain_state * domain = Caml_state;
@@ -166,7 +170,13 @@ CAMLexport void caml_enter_blocking_section(void)
     if (Caml_state->in_minor_collection)
       caml_fatal_error("caml_enter_blocking_section from inside minor GC");
     /* Process all pending signals now */
-    caml_process_pending_actions();
+    if (check_pending_actions(domain)) {
+      /* First reset young_limit, and set action_pending in case there
+         are further async callbacks pending beyond OCaml signal
+         handlers. */
+      caml_handle_gc_interrupt();
+      caml_raise_async_if_exception(caml_process_pending_signals_exn(), "");
+    }
     caml_enter_blocking_section_hook ();
     /* Check again if a signal arrived in the meanwhile. If none,
        done; otherwise, try again. Since we do not hold the domain
@@ -203,7 +213,7 @@ CAMLexport void caml_leave_blocking_section(void)
 
      So we force the examination of signals as soon as possible.
   */
-  if (Caml_state->action_pending || caml_check_pending_signals())
+  if (caml_check_pending_signals())
     caml_set_action_pending(Caml_state);
 
   errno = saved_errno;
@@ -252,10 +262,8 @@ value caml_raise_async_if_exception(value res, const char* where)
 
 /* Execute a signal handler immediately */
 
-value caml_execute_signal_exn(int signal_number, int in_signal_handler)
+value caml_execute_signal_exn(int signal_number)
 {
-  value res;
-  value handler;
 #ifdef POSIX_SIGNALS
   sigset_t nsigs, sigs;
   /* Block the signal before executing the handler, and record in sigs
@@ -264,19 +272,12 @@ value caml_execute_signal_exn(int signal_number, int in_signal_handler)
   sigaddset(&nsigs, signal_number);
   pthread_sigmask(SIG_BLOCK, &nsigs, &sigs);
 #endif
-  handler = Field(caml_signal_handlers, signal_number);
-    res = caml_callback_exn(
-             handler,
-             Val_int(caml_rev_convert_signal_number(signal_number)));
+  value handler = Field(caml_signal_handlers, signal_number);
+  value signum = Val_int(caml_rev_convert_signal_number(signal_number));
+  value res = caml_callback_exn(handler, signum);
 #ifdef POSIX_SIGNALS
-  if (! in_signal_handler) {
-    /* Restore the original signal mask */
-    pthread_sigmask(SIG_SETMASK, &sigs, NULL);
-  } else if (Is_exception_result(res)) {
-    /* Restore the original signal mask and unblock the signal itself */
-    sigdelset(&sigs, signal_number);
-    pthread_sigmask(SIG_SETMASK, &sigs, NULL);
-  }
+  /* Restore the original signal mask */
+  pthread_sigmask(SIG_SETMASK, &sigs, NULL);
 #endif
   return res;
 }
@@ -300,62 +301,86 @@ void caml_request_minor_gc (void)
 }
 
 
-/* Pending asynchronous actions ([Caml_state->action_pending])
+/* Pending asynchronous actions (the flag [Caml_state->action_pending])
    ===
+
+   [Caml_state->action_pending] records that an asynchronous action
+   might have been delayed.
 
    There are two kinds of asynchronous actions:
 
-   - Those that cannot be delayed but never call OCaml code (STW
-     interrupts, requested minor or major GC, forced systhread yield).
+   - Those that we execute immediately in all circumstances (STW
+     interrupts, requested minor or major GC); they must never call
+     OCaml code.
 
-   - Those that may raise OCaml exceptions but can be delayed
-     (asynchronous callbacks, finalisers, memprof callbacks).
+   - Those that run OCaml code and may raise OCaml exceptions
+     (asynchronous callbacks, finalisers, memprof callbacks, forced
+     systhread yield); those can be delayed, and do not run during
+     allocations from C.
 
-   [Caml_state->action_pending] records whether an action of the
-   second kind is currently pending, and is reset _at the beginning_
-   of processing all actions.
+   Queued asynchronous actions are notified to the domain by setting
+   [young_limit] to a high value, thereby making the next allocation
+   fail. When this happens, all non-delayable actions are performed
+   immediately. Then, the delayable actions are either all processed
+   immediately, if the context is ready to run OCaml code concurrently
+   and receive an asynchronous exception (in the case of an allocation
+   from OCaml), or [Caml_state->action_pending] is set in order to
+   record that an action of the delayable kind might be pending (in
+   the case of an allocation from C, typically).
 
-   Hence, when a delayable action is pending, either
-   [Caml_state->action_pending] is 1, or there is a function currently
-   running which is executing all actions.
+   [Caml_state->action_pending] remains set until the program calls
+   [caml_process_pending_actions], [caml_leave_blocking_section], or
+   it returns to OCaml. When returning to OCaml, we set again
+   [Caml_state->young_limit] to a high value if
+   [Caml_state->action_pending] is set, to execute asynchronous
+   actions as soon as possible when back in OCaml code.
 
-   This is used to ensure that [Caml_state->young_limit] is always set
-   appropriately.
+   [Caml_state->action_pending] is then reset _at the beginning_ of
+   processing all actions. Hence, when a delayable action is pending,
+   either [Caml_state->action_pending] is true, or there is a function
+   running which is in process of executing all actions.
 
    In case there are two different callbacks (say, a signal and a
    finaliser) arriving at the same time, then the processing of one
    awaits the return of the other. In case of long-running callbacks,
    we may want to run the second one without waiting the end of the
    first one. We do this by provoking an additional polling every
-   minor collection and every major slice. To guarantee a low latency
-   for signals, we avoid delaying signal handlers in that case by
-   calling them first.
+   minor collection and every major slice. In order to guarantee a low
+   latency for signals, we avoid delaying signal handlers in that case
+   by calling them first.
 */
 
 /* We assume that we have unique access to dom_st. */
-void caml_set_action_pending(caml_domain_state * dom_st)
+CAMLexport void caml_set_action_pending(caml_domain_state * dom_st)
 {
   dom_st->action_pending = 1;
-  atomic_store_release(&dom_st->young_limit, (uintnat)-1);
+}
+
+static int check_pending_actions(caml_domain_state * dom_st)
+{
+  return Caml_check_gc_interrupt(dom_st) || dom_st->action_pending;
 }
 
 CAMLexport int caml_check_pending_actions(void)
 {
   Caml_check_caml_state();
-  return Caml_check_gc_interrupt(Caml_state) || Caml_state->action_pending;
+  return check_pending_actions(Caml_state);
 }
 
 value caml_do_pending_actions_exn(void)
 {
-  Caml_state->action_pending = 0;
-
   /* 1. Non-delayable actions that do not run OCaml code. */
 
   /* Do any pending STW interrupt, minor collection or major slice */
   caml_handle_gc_interrupt();
   /* [young_limit] has now been reset. */
 
-  /* 2. Delayable actions that may raise OCaml exceptions. */
+  /* 2. Delayable actions that may run OCaml code and raise OCaml
+     exceptions.
+
+     We can now clear the action_pending flag since we are going to
+     execute all actions. */
+  Caml_state->action_pending = 0;
 
   /* Call signal handlers first */
   value exn = caml_process_pending_signals_exn();
@@ -371,6 +396,12 @@ value caml_do_pending_actions_exn(void)
   exn = caml_final_do_calls_exn();
   check_async_exn(exn, "finaliser");
   if (Is_exception_result(exn)) goto exception;
+
+  /* Process external interrupts (e.g. preemptive systhread switching).
+     By doing this last, we do not need to set the action pending flag
+     in case a context switch happens: all actions have been processed
+     at this point. */
+  caml_process_external_interrupt();
 
   return Val_unit;
 
@@ -394,7 +425,7 @@ value caml_process_pending_actions_with_root_exn(value root)
   return root;
 }
 
-value caml_process_pending_actions_with_root(value root)
+CAMLprim value caml_process_pending_actions_with_root(value root)
 {
   return caml_raise_async_if_exception(
     caml_process_pending_actions_with_root_exn(root),
@@ -498,7 +529,7 @@ CAMLexport void caml_process_pending_actions(void)
 #define SIGXFSZ -1
 #endif
 
-static int posix_signals[] = {
+static const int posix_signals[] = {
   SIGABRT, SIGALRM, SIGFPE, SIGHUP, SIGILL, SIGINT, SIGKILL, SIGPIPE,
   SIGQUIT, SIGSEGV, SIGTERM, SIGUSR1, SIGUSR2, SIGCHLD, SIGCONT,
   SIGSTOP, SIGTSTP, SIGTTIN, SIGTTOU, SIGVTALRM, SIGPROF, SIGBUS,
@@ -589,8 +620,6 @@ static void * caml_signal_stack_0 = NULL;
 
 void caml_init_signals(void)
 {
-  /* Bound-check trap handling for Power and S390x will go here eventually. */
-
   /* Set up alternate signal stack for domain 0 */
 #ifdef POSIX_SIGNALS
   caml_signal_stack_0 = caml_init_signal_stack();
@@ -709,7 +738,7 @@ CAMLprim value caml_install_signal_handler(value signal_number, value action)
     if (caml_signal_handlers == 0) {
       tmp_signal_handlers = caml_alloc(NSIG, 0);
     }
-    caml_plat_lock(&signal_install_mutex);
+    caml_plat_lock_blocking(&signal_install_mutex);
     if (caml_signal_handlers == 0) {
       /* caml_alloc cannot raise asynchronous exceptions from signals
          so this is safe */

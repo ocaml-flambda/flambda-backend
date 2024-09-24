@@ -21,7 +21,7 @@ module type Sort = sig
   type t
 
   (** These are the constant sorts -- fully determined and without variables *)
-  type const =
+  type base =
     | Void  (** No run time representation at all *)
     | Value  (** Standard ocaml value representation *)
     | Float64  (** Unboxed 64-bit floats *)
@@ -35,7 +35,9 @@ module type Sort = sig
   type var
 
   module Const : sig
-    type t = const
+    type t =
+      | Base of base
+      | Product of t list
 
     val equal : t -> t -> bool
 
@@ -71,6 +73,8 @@ module type Sort = sig
   (** Create a new sort variable that can be unified. *)
   val new_var : unit -> t
 
+  val of_base : base -> t
+
   val of_const : Const.t -> t
 
   val of_var : Var.t -> t
@@ -80,9 +84,6 @@ module type Sort = sig
   val equate : t -> t -> bool
 
   val format : Format.formatter -> t -> unit
-
-  (** Defaults any variables to value; leaves other sorts alone *)
-  val default_to_value : t -> unit
 
   (** Checks whether this sort is [void], defaulting to [value] if a sort
       variable is unfilled. *)
@@ -169,6 +170,7 @@ module History = struct
     | Statement
     | Optional_arg_default
     | Layout_poly_in_external
+    | Unboxed_tuple_element
 
   (* For sort variables that are in the "legacy" position
      on the jkind lattice, defaulting exactly to [value]. *)
@@ -262,6 +264,8 @@ module History = struct
     | Unification_var
     | Array_type_argument
 
+  type product_creation_reason = Unboxed_tuple
+
   type creation_reason =
     | Annotated of annotation_context * Location.t
     | Missing_cmi of Path.t
@@ -270,6 +274,7 @@ module History = struct
     | Immediate_creation of immediate_creation_reason
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
+    | Product_creation of product_creation_reason
     | Concrete_creation of concrete_creation_reason
     | Concrete_legacy_creation of concrete_legacy_creation_reason
     | Primitive of Ident.t

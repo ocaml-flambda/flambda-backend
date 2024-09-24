@@ -1,5 +1,12 @@
 open Stdlib
 
+(* !!!
+
+Should be kept in sync with consts.ml.
+CR-someday mslater: with layout polymorphism, the tests could be functorized.
+
+!!! *)
+
 [@@@ocaml.warning "-unused-module"]
 
 type int8x16 = int8x16#

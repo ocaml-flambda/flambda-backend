@@ -48,11 +48,12 @@ let compile i ~backend ~middle_end ~transl_style
           if Clflags.(should_stop_after Compiler_pass.Lambda) then () else
           Asmgen.compile_implementation
             ~backend
-            ~prefixname:i.output_prefix
+            ~prefixname:(Unit_info.prefix i.target)
             ~middle_end
             ~ppf_dump:i.ppf_dump
             lambda;
-       Compilenv.save_unit_info (cmx i)))
+           Compilenv.save_unit_info
+             Unit_info.(Artifact.filename @@ cmx i.target)))
 
 let flambda i backend typed =
   compile i typed ~backend ~transl_style:Plain_block

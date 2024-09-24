@@ -90,7 +90,8 @@ type 'a sig_reader =
 (* CR-someday lmaurer: [add_binding] is apparently always false, including in the
    [-instantiate] branch. We should remove this parameter. *)
 val read : 'a t -> 'a sig_reader
-  -> Compilation_unit.Name.t -> filepath -> add_binding:bool -> Subst.Lazy.signature
+  -> Compilation_unit.Name.t -> Unit_info.Artifact.t -> add_binding:bool
+  -> Subst.Lazy.signature
 val find : allow_hidden:bool -> 'a t -> 'a sig_reader
   -> Compilation_unit.Name.t -> 'a
 

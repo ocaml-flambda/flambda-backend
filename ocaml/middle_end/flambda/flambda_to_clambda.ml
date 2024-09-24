@@ -253,12 +253,37 @@ let rec to_clambda t env (flam : Flambda.t) : Clambda.ulambda * Lambda.layout =
     Ulet (Immutable, defining_expr_layout, VP.create id, defining_expr, body),
     body_layout
   | Let_mutable { var = mut_var; initial_value = var; body; contents_kind } ->
+<<<<<<< HEAD
     let id, env_body = Env.add_fresh_mutable_ident env mut_var contents_kind in
     let def, def_layout = subst_var env var in
     assert(Lambda.compatible_layout def_layout contents_kind);
     let body, body_layout = to_clambda t env_body body in
     Ulet (Mutable, contents_kind, VP.create id, def, body), body_layout
   | Apply { func; args; kind = Direct direct_func; probe; dbg; reg_close; mode; result_layout } ->
+||||||| 121bedcfd2
+    let id, env_body = Env.add_fresh_mutable_ident env mut_var in
+    let def = subst_var env var in
+    Ulet (Mutable, contents_kind, VP.create id, def, to_clambda t env_body body)
+  | Let_rec (defs, body) ->
+    let env, defs =
+      List.fold_right (fun (var, def) (env, defs) ->
+          let id, env = Env.add_fresh_ident env var in
+          env, (id, var, def) :: defs)
+        defs (env, [])
+    in
+    let defs =
+      List.map (fun (id, var, def) ->
+          VP.create id, to_clambda_named t env var def)
+        defs
+    in
+    Uletrec (defs, to_clambda t env body)
+  | Apply { func; args; kind = Direct direct_func; dbg = dbg } ->
+=======
+    let id, env_body = Env.add_fresh_mutable_ident env mut_var in
+    let def = subst_var env var in
+    Ulet (Mutable, contents_kind, VP.create id, def, to_clambda t env_body body)
+  | Apply { func; args; kind = Direct direct_func; dbg = dbg } ->
+>>>>>>> 5.2.0
     (* The closure _parameter_ of the function is added by cmmgen.
        At the call site, for a direct call, the closure argument must be
        explicitly added (by [to_clambda_direct_apply]); there is no special

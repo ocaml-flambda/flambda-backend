@@ -177,34 +177,34 @@ module Lattices = struct
   module Uniqueness = struct
     type t =
       | Unique
-      | Shared
+      | Aliased
 
     include Total (struct
       type nonrec t = t
 
       let min = Unique
 
-      let max = Shared
+      let max = Aliased
 
-      let legacy = Shared
+      let legacy = Aliased
 
       let le a b =
         match a, b with
-        | Unique, _ | _, Shared -> true
-        | Shared, Unique -> false
+        | Unique, _ | _, Aliased -> true
+        | Aliased, Unique -> false
 
       let join a b =
         match a, b with
-        | Shared, _ | _, Shared -> Shared
+        | Aliased, _ | _, Aliased -> Aliased
         | Unique, Unique -> Unique
 
       let meet a b =
         match a, b with
         | Unique, _ | _, Unique -> Unique
-        | Shared, Shared -> Shared
+        | Aliased, Aliased -> Aliased
 
       let print ppf = function
-        | Shared -> Format.fprintf ppf "shared"
+        | Aliased -> Format.fprintf ppf "aliased"
         | Unique -> Format.fprintf ppf "unique"
     end)
   end
@@ -278,6 +278,7 @@ module Lattices = struct
   module Contention = struct
     type t =
       | Contended
+      | Shared
       | Uncontended
 
     include Total (struct
@@ -292,20 +293,24 @@ module Lattices = struct
       let le a b =
         match a, b with
         | Uncontended, _ | _, Contended -> true
-        | Contended, Uncontended -> false
+        | _, Uncontended | Contended, _ -> false
+        | Shared, Shared -> true
 
       let join a b =
         match a, b with
         | Contended, _ | _, Contended -> Contended
+        | Shared, _ | _, Shared -> Shared
         | Uncontended, Uncontended -> Uncontended
 
       let meet a b =
         match a, b with
         | Uncontended, _ | _, Uncontended -> Uncontended
+        | Shared, _ | _, Shared -> Shared
         | Contended, Contended -> Contended
 
       let print ppf = function
         | Contended -> Format.fprintf ppf "contended"
+        | Shared -> Format.fprintf ppf "shared"
         | Uncontended -> Format.fprintf ppf "uncontended"
     end)
   end
@@ -867,12 +872,12 @@ module Lattices_mono = struct
   let id = Id
 
   let linear_to_unique = function
-    | Linearity.Many -> Uniqueness.Shared
+    | Linearity.Many -> Uniqueness.Aliased
     | Linearity.Once -> Uniqueness.Unique
 
   let unique_to_linear = function
     | Uniqueness.Unique -> Linearity.Once
-    | Uniqueness.Shared -> Linearity.Many
+    | Uniqueness.Aliased -> Linearity.Many
 
   let portable_to_contended = function
     | Portability.Portable -> Contention.Contended
@@ -880,6 +885,7 @@ module Lattices_mono = struct
 
   let contended_to_portable = function
     | Contention.Contended -> Portability.Portable
+    | Contention.Shared -> Portability.Nonportable
     | Contention.Uncontended -> Portability.Nonportable
 
   let local_to_regional = function
@@ -1448,7 +1454,7 @@ module Uniqueness = struct
 
   include Common (Obj)
 
-  let shared = of_const Shared
+  let aliased = of_const Aliased
 
   let unique = of_const Unique
 
@@ -2137,6 +2143,8 @@ module Const = struct
         Alloc.Const.t) : Value.Const.t =
     let areality = C.locality_as_regionality areality in
     { areality; linearity; portability; uniqueness; contention }
+
+  let locality_as_regionality = C.locality_as_regionality
 end
 
 let alloc_as_value m =

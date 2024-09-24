@@ -38,12 +38,12 @@ module M : sig val foo : r @@ global many end
 |}]
 
 module type S = sig
-    val x : string @@ global local unique shared once many uncontended contended
+    val x : string @@ global local unique aliased once many uncontended contended
       portable nonportable
 end
 [%%expect{|
 module type S =
-  sig val x : string @@ global many portable shared contended end
+  sig val x : string @@ global many portable aliased contended end
 |}]
 
 (* values' comonadic axes must be lower than the module *)
@@ -54,7 +54,7 @@ end
 Line 2, characters 15-16:
 2 |     let local_ x = "hello"
                    ^
-Error: This value is local, but expected to be global because it is inside a module.
+Error: This value is "local", but expected to be "global" because it is inside a module.
 |}]
 
 (* Monadic axes don't have such constraint *)
@@ -85,7 +85,7 @@ end
 Line 11, characters 25-29:
 11 |     let _ = portable_use M'.x
                               ^^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 module Module_type_of_monadic = struct
@@ -150,12 +150,12 @@ Error: Signature mismatch:
            val x : string @@ contended
            module N : sig val y : string end
          end
-       In module N:
+       In module "N":
        Modules do not match:
          sig val y : string @@ global many portable contended end
        is not included in
          sig val y : string end
-       In module N:
+       In module "N":
        Values do not match:
          val y : string @@ global many portable contended
        is not included in
@@ -189,7 +189,7 @@ end
 Line 5, characters 26-29:
 5 |     let () = portable_use M.x
                               ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 module Inclusion_fail = struct
@@ -228,7 +228,7 @@ end
 Line 7, characters 28-31:
 7 |     let _ = uncontended_use M.x
                                 ^^^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 module Inclusion_weakens_comonadic = struct
@@ -243,7 +243,7 @@ end
 Line 7, characters 23-26:
 7 |   let _ = portable_use M.x
                            ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 module Inclusion_match = struct
@@ -299,7 +299,7 @@ end
 Line 7, characters 20-23:
 7 |     uncontended_use M.r
                         ^^^
-Error: This value is contended but expected to be uncontended.
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 module Close_over_value_comonadic = struct
@@ -314,7 +314,7 @@ end
 Line 6, characters 12-15:
 6 |     let _ = M.x in
                 ^^^
-Error: The value M.x is nonportable, so cannot be used inside a closure that is portable.
+Error: The value "M.x" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 (* Modalities on primitives are supported. They are simpler than real values,
@@ -371,7 +371,7 @@ module M : sig external length : string -> int = "%string_length" end
 Line 7, characters 21-29:
 7 | let _ = portable_use M.length
                          ^^^^^^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (* The example below demonstrates the need to zap modalities from [with module]
@@ -451,12 +451,12 @@ Error: Signature mismatch:
            module type S_plain =
              sig module M : sig val f : int -> int @@ portable end end
          end
-       In module Plain:
+       In module "Plain":
        Modules do not match:
          sig val f : int -> int @@ global many end
        is not included in
          sig val f : int -> int @@ portable end
-       In module Plain:
+       In module "Plain":
        Values do not match:
          val f : int -> int @@ global many
        is not included in

@@ -27,6 +27,6 @@ let get_logfile_name base =
   Hashtbl.replace counters base (n+1);
   filename
 
-let _ =
+let init () =
   Variables.register_variable strace;
   Variables.register_variable strace_flags
