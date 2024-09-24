@@ -87,12 +87,6 @@ type for_static_sets =
            [function_slot_offset_for_updates]. *)
   }
 
-(* let fresh = let r = ref 0 in fun () -> incr r; "__fresh__" ^ string_of_int
-   !r *)
-let () = Random.self_init ()
-
-let fresh () = Format.sprintf "__fresh__%Ld" (Random.bits64 ())
-
 module Make_layout_filler (P : sig
   type cmm_term
 
@@ -308,23 +302,15 @@ end = struct
             ~arity:(if size = 2 then 1 else 2)
             ~startenv:(startenv - slot_offset) ~is_last:last_function_slot
         in
-        let sym = Cmm.global_symbol (fresh ()) in
-        let name =
-          Compilation_unit.full_path_as_string
-            (Compilation_unit.get_current_exn ())
-        in
-        let s = Cmm_helpers.emit_string_constant sym name [] in
-        let res = To_cmm_result.add_archive_data_items res s in
         let acc, chunk_acc =
           match size with
           | 2 ->
-            ( P.int ~dbg closure_info :: P.term_of_symbol ~dbg sym :: acc,
+            ( P.int ~dbg closure_info :: P.int ~dbg 0n :: acc,
               rev_append_chunks ~for_static_sets
                 [Cmm.Word_int; Cmm.Word_int]
                 chunk_acc )
           | 3 ->
-            ( P.term_of_symbol ~dbg sym :: P.int ~dbg closure_info
-              :: P.term_of_symbol ~dbg sym :: acc,
+            ( P.int ~dbg 0n :: P.int ~dbg closure_info :: P.int ~dbg 0n :: acc,
               rev_append_chunks ~for_static_sets
                 [Cmm.Word_int; Cmm.Word_int; Cmm.Word_int]
                 chunk_acc )
