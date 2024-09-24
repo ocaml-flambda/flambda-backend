@@ -705,6 +705,7 @@ rule token = parse
   | "\'" { QUOTE }
   | "("  { LPAREN }
   | ")"  { RPAREN }
+  | "#(" { HASHLPAREN }
   | "*"  { STAR }
   | ","  { COMMA }
   | "->" { MINUSGREATER }

@@ -51,6 +51,8 @@ type modalities = modality loc list
 type mode = | Mode of string [@@unboxed]
 type modes = mode loc list
 
+type include_kind = Structure | Functor
+
 (** {1 Extension points} *)
 
 type attribute = {
@@ -105,6 +107,13 @@ and core_type_desc =
   | Ptyp_tuple of core_type list
       (** [Ptyp_tuple([T1 ; ... ; Tn])]
           represents a product type [T1 * ... * Tn].
+
+           Invariant: [n >= 2].
+        *)
+  | Ptyp_unboxed_tuple of (string option * core_type) list
+      (** Unboxed tuple types: [Ptyp_unboxed_tuple([(Some l1,P1);...;(Some l2,Pn)]]
+          represents a product type [#(l1:T1 * ... * l2:Tn)], and the labels
+          are optional.
 
            Invariant: [n >= 2].
         *)
@@ -251,6 +260,15 @@ and pattern_desc =
 
            Invariant: [n >= 2]
         *)
+  | Ppat_unboxed_tuple of (string option * pattern) list * Asttypes.closed_flag
+      (** Unboxed tuple patterns: [#(l1:P1, ..., ln:Pn)] is [([(Some
+          l1,P1);...;(Some l2,Pn)], Closed)], and the labels are optional.  An
+          [Open] pattern ends in [..].
+
+          Invariant:
+          - If Closed, [n >= 2]
+          - If Open, [n >= 1]
+        *)
   | Ppat_construct of Longident.t loc * (string loc list * pattern) option
       (** [Ppat_construct(C, args)] represents:
             - [C]               when [args] is [None],
@@ -359,6 +377,13 @@ and expression_desc =
       (** Expressions [(E1, ..., En)]
 
            Invariant: [n >= 2]
+        *)
+  | Pexp_unboxed_tuple of (string option * expression) list
+      (** Unboxed tuple expressions: [Pexp_unboxed_tuple([(Some l1,P1);...;(Some
+          l2,Pn)])] represents [#(l1:E1, ..., ln:En)], and the labels are
+          optional.
+
+          Invariant: [n >= 2]
         *)
   | Pexp_construct of Longident.t loc * expression option
       (** [Pexp_construct(C, exp)] represents:
@@ -959,7 +984,7 @@ and signature_item_desc =
   | Psig_modtypesubst of module_type_declaration
       (** [module type S :=  ...]  *)
   | Psig_open of open_description  (** [open X] *)
-  | Psig_include of include_description  (** [include MT] *)
+  | Psig_include of include_description * modalities (** [include MT] *)
   | Psig_class of class_description list
       (** [class c1 : ... and ... and cn : ...] *)
   | Psig_class_type of class_type_declaration list
@@ -1026,6 +1051,7 @@ and open_declaration = module_expr open_infos
 
 and 'a include_infos =
     {
+     pincl_kind : include_kind;
      pincl_mod: 'a;
      pincl_loc: Location.t;
      pincl_attributes: attributes;
@@ -1156,6 +1182,7 @@ and jkind_annotation =
   | Mod of jkind_annotation * modes
   | With of jkind_annotation * core_type
   | Kind_of of core_type
+  | Product of jkind_annotation list
 
 (** {1 Toplevel} *)
 

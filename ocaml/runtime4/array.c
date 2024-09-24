@@ -404,6 +404,13 @@ CAMLprim value caml_floatarray_create(value len)
 CAMLprim value caml_floatarray_create_local(value len)
 {
   mlsize_t wosize = Long_val(len) * Double_wosize;
+
+  if (wosize == 0)
+    return Atom(0);
+
+  if (wosize > Max_unboxed_float_array_wosize)
+    caml_invalid_argument("Float.Array.create_local");
+
   return caml_alloc_local (wosize, Double_array_tag);
 }
 

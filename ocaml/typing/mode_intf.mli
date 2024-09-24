@@ -224,7 +224,7 @@ module type S = sig
     module Const : sig
       type t =
         | Unique
-        | Shared
+        | Aliased
 
       include Lattice with type t := t
     end
@@ -237,7 +237,7 @@ module type S = sig
          and type error := error
          and type 'd t = (Const.t, 'd) mode_monadic
 
-    val shared : lr
+    val aliased : lr
 
     val unique : lr
   end
@@ -428,6 +428,8 @@ module type S = sig
 
   module Const : sig
     val alloc_as_value : Alloc.Const.t -> Value.Const.t
+
+    val locality_as_regionality : Locality.Const.t -> Regionality.Const.t
   end
 
   (** Converts regional to local, identity otherwise *)
@@ -488,8 +490,11 @@ module type S = sig
         (** Apply a modality on mode. *)
         val apply : t -> ('l * 'r) Value.t -> ('l * 'r) Value.t
 
-        (** [compose m t] returns the modality that is [m] after [t]. *)
+        (** [compose ~then_ t] returns the modality that is [then_] after [t]. *)
         val compose : then_:atom -> t -> t
+
+        (** [concat ~then t] returns the modality that is [then_] after [t]. *)
+        val concat : then_:t -> t -> t
 
         (** [singleton m] returns the modality containing only [m]. *)
         val singleton : atom -> t

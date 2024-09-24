@@ -527,7 +527,6 @@ let rec filter_row_fields erase = function
           link_row_field_ext ~inside:f rf_absent; fi
       | _ -> p :: fi
 
-
 (* Ensure all mode variables are fully determined *)
 let remove_mode_and_jkind_variables ty =
   let visited = ref TypeSet.empty in
@@ -794,6 +793,9 @@ let rec generalize_spine ty =
       set_level ty generic_level;
       generalize_spine ty'
   | Ttuple tyl ->
+      set_level ty generic_level;
+      List.iter (fun (_,t) -> generalize_spine t) tyl
+  | Tunboxed_tuple tyl ->
       set_level ty generic_level;
       List.iter (fun (_,t) -> generalize_spine t) tyl
   | Tpackage (_, fl) ->
@@ -1208,7 +1210,7 @@ let rec copy ?partial ?keep_names copy_scope ty =
              tions belonging to different branches of a type are
              independent.
              Moreover, a reference containing a [Mcons] must be
-             shared, so that the memorized expansion of an abbrevi-
+             aliased, so that the memorized expansion of an abbrevi-
              ation can be released by changing the content of just
              one reference.
           *)
@@ -1524,7 +1526,7 @@ let copy_sep ~copy_scope ~fixed ~(visited : type_expr TypeHash.t) sch =
               copy_row (copy_rec ~may_share:true) fixed' row keep more' in
             Tvariant row
         | Tfield (p, k, ty1, ty2) ->
-            (* the kind is kept shared, see Btype.copy_type_desc *)
+            (* the kind is kept aliased, see Btype.copy_type_desc *)
             Tfield (p, field_kind_internal_repr k,
                     copy_rec ~may_share:true ty1,
                     copy_rec ~may_share:false ty2)
@@ -1595,7 +1597,7 @@ let curry_mode alloc arg : Alloc.Const.t =
       (Alloc.Const.close_over arg)
       (Alloc.Const.partial_apply alloc)
   in
-  (* For A -> B -> C, we always interpret (B -> C) to be of shared. This is the
+  (* For A -> B -> C, we always interpret (B -> C) to be of aliased. This is the
     legacy mode which helps with legacy compatibility. Arrow types cross
     uniqueness so we are not losing too much expressvity here. One
     counter-example is:
@@ -1605,10 +1607,10 @@ let curry_mode alloc arg : Alloc.Const.t =
 
     And [f g] would not work, as mode crossing doesn't work deeply into arrows.
     Our answer to this issue is that, the author of f shouldn't ask B -> C to be
-    unique_. Instead, they should leave it as default which is shared, and mode
+    unique_. Instead, they should leave it as default which is aliased, and mode
     crossing it to unique at the location where B -> C is a real value (instead
     of the return of a function). *)
-  {acc with uniqueness=Uniqueness.Const.Shared}
+  {acc with uniqueness=Uniqueness.Const.Aliased}
 
 let rec instance_prim_locals locals mvar macc finalret ty =
   match locals, get_desc ty with
@@ -1977,7 +1979,7 @@ let rec extract_concrete_typedecl env ty =
           end
       end
   | Tpoly(ty, _) -> extract_concrete_typedecl env ty
-  | Tarrow _ | Ttuple _ | Tobject _ | Tfield _ | Tnil
+  | Tarrow _ | Ttuple _ | Tunboxed_tuple _ | Tobject _ | Tfield _ | Tnil
   | Tvariant _ | Tpackage _ -> Has_no_typedecl
   | Tvar _ | Tunivar _ -> May_have_typedecl
   | Tlink _ | Tsubst _ -> assert false
@@ -2060,18 +2062,17 @@ let get_unboxed_type_approximation env ty =
   match get_unboxed_type_representation env ty with
   | Ok ty | Error ty -> ty
 
-(* When computing a jkind, we distinguish two cases because some callers might
-   want to update the jkind.
-   - Jkind: We compute the jkind, and the type wasn't a variable.
+(* When computing a jkind, we distinguish a few cases:
+   - Jkind: We computed the jkind, and the type wasn't a variable or an unboxed
+     product.
    - Var: The type was a var, we return the jkind and the type_expr it was in,
-     in case the caller wants to update it. *)
-type jkind_result =
+     in case the caller wants to update it.
+   - Product: The type was an unboxed product, these are the components.
+*)
+type jkind_head =
   | Jkind of Jkind.t
-  | TyVar of Jkind.t * type_expr
-
-let jkind_of_result = function
-  | Jkind l -> l
-  | TyVar (l,_) -> l
+  | TyVar of type_expr * Jkind.t
+  | Product of type_expr list
 
 let tvariant_not_immediate row =
   (* if all labels are devoid of arguments, not a pointer *)
@@ -2092,7 +2093,7 @@ let tvariant_not_immediate row =
    in some edge cases (when [get_unboxed_type_representation] ran out of fuel,
    or when the type is a Tconstr that is missing from the Env due to a missing
    cmi). *)
-let rec estimate_type_jkind env ty =
+let rec estimate_type_jkind_head env ty =
   let open Jkind in
   match get_desc ty with
   | Tconstr(p, _, _) -> begin
@@ -2115,36 +2116,73 @@ let rec estimate_type_jkind env ty =
 
        This, however, still allows sort variables to get instantiated. *)
     Jkind jkind
-  | Tvar { jkind } -> TyVar (jkind, ty)
+  | Tvar { jkind } -> TyVar (ty, jkind)
   | Tarrow _ -> Jkind for_arrow
   | Ttuple _ -> Jkind (Builtin.value ~why:Tuple)
+  | Tunboxed_tuple ltys -> Product (List.map snd ltys)
   | Tobject _ -> Jkind (Builtin.value ~why:Object)
   | Tfield _ -> Jkind (Builtin.value ~why:Tfield)
   | Tnil -> Jkind (Builtin.value ~why:Tnil)
   | (Tlink _ | Tsubst _) -> assert false
   | Tunivar { jkind } -> Jkind jkind
-  | Tpoly (ty, _) -> estimate_type_jkind env ty
+  | Tpoly (ty, _) -> estimate_type_jkind_head env ty
   | Tpackage _ -> Jkind (Builtin.value ~why:First_class_module)
+
+(* We parameterize [estimate_type_jkind] and [jkind_of_jkind_head] by a function
+   [expand_components] because some callers want expansion of types and others
+   don't. *)
+let rec estimate_type_jkind env ~expand_components ty =
+  jkind_of_jkind_head env ~expand_components (estimate_type_jkind_head env ty)
+
+(* See [estimate_type_jkind] above for explanation of [expand_components]. *)
+and jkind_of_jkind_head env ~expand_components jkind_head =
+  match jkind_head with
+  | Jkind l -> l
+  | TyVar (_, l) -> l
+  | Product tys ->
+    Jkind.Builtin.product ~why:Unboxed_tuple
+      (List.map (fun ty ->
+         estimate_type_jkind env ~expand_components (expand_components ty)
+       ) tys)
 
 (**** checking jkind relationships ****)
 
+(* This type represents jkind constraints that we weren't able prove yet, but
+   which might succeed either by further expanding the type or by modifying a
+   type variable (in which case the [ty] will be a type variable). *)
+type type_jkind_sub_possible_failure =
+  { estimate : Jkind.t;
+    bound : Jkind.t;
+    ty : type_expr }
+
 type type_jkind_sub_result =
   | Success
-    (* The [Type_var] case might still be "success"; caller should check.
-       We don't just report success here because if the caller unifies the
-       tyvar, error messages improve. *)
-  | Type_var of Jkind.t * type_expr
-  | Missing_cmi of Jkind.t * Path.t
-  | Failure of Jkind.t
+  | Type_vars of type_jkind_sub_possible_failure list
+  (* [Type_vars] indicates a possible success - the caller should check, and
+     possibly update the variables *)
+  | Missing_cmi of Path.t
+  | Failure of type_jkind_sub_possible_failure
+  (* [Failure] indicates we couldn't verify the constraint.  However, further
+     expansion the type might make it possible to verify. *)
 
 let type_jkind_sub env ty jkind =
-  let shallow_check ty =
-    match estimate_type_jkind env ty with
-    | Jkind ty_jkind ->
-      if Jkind.sub ty_jkind jkind then Success else Failure ty_jkind
-    | TyVar (ty_jkind, ty) -> Type_var (ty_jkind, ty)
+  let jkind_est_of_results prefix_jkinds later_components =
+    (* [jkind_est_of_results] is used when we've reached an error state in the
+       middle of checking a product. In that case, we don't want to continue
+       with any further checks for later components of the product, but we do
+       need to get our best estimate so far of the kinds of those components,
+       because the error shows the product's computed jkind. *)
+    let jkinds =
+      List.rev_append prefix_jkinds
+        (List.map fst later_components)
+    in
+    Jkind.Builtin.product ~why:Unboxed_tuple jkinds
   in
-  (* The "fuel" argument here is used because we're duplicating the loop of
+
+  (* Every function here returns the best jkind computed for the type or types
+     it is passed, along with whether the constraint check succeeded.
+
+     The "fuel" argument is used because we're duplicating the loop of
      `get_unboxed_type_representation`, but performing jkind checking at each
      step.  This allows to check examples like:
 
@@ -2158,28 +2196,101 @@ let type_jkind_sub env ty jkind =
      ensure it's a valid argument to [t].  (We believe there are still loops
      like this that can occur, though, and may need a more principled solution
      later).  *)
-  let rec loop ty fuel =
+  let rec expand_and_check_one fuel ty jkind =
     (* This is an optimization to avoid unboxing if we can tell the constraint
        is satisfied from the type_kind *)
     match get_desc ty with
     | Tconstr(p, _args, _abbrev) ->
-        let jkind_bound =
+        let jkind_estimate =
           try (Env.find_type p env).type_jkind
           with Not_found -> Jkind.Builtin.any ~why:(Missing_cmi p)
         in
-        if Jkind.sub jkind_bound jkind
-        then Success
-        else if fuel < 0 then Failure jkind_bound
+        if Jkind.sub jkind_estimate jkind
+        then jkind_estimate, Success
+        else if fuel < 0 then
+          jkind_estimate,
+          Failure { estimate = jkind_estimate; bound = jkind; ty }
         else begin match unbox_once env ty with
-          | Final_result ty -> shallow_check ty
-          | Stepped ty -> loop ty (fuel - 1)
+          | Final_result ty -> check_one fuel ty jkind
+          | Stepped ty -> expand_and_check_one (fuel - 1) ty jkind
           | Missing missing_cmi_for ->
-            Missing_cmi (jkind_bound, missing_cmi_for)
+            jkind_estimate, Missing_cmi missing_cmi_for
         end
-    | Tpoly (ty, _) -> loop ty fuel
-    | _ -> shallow_check ty
+    | Tpoly (ty, _) -> expand_and_check_one fuel ty jkind
+    | _ -> check_one fuel ty jkind
+
+  (* Unlike [expand_and_check_one], this will not expand the type it is passed.
+     But, if that type turns out to be an unboxed product we may end up
+     expanding its components. *)
+  and check_one fuel ty jkind =
+    match estimate_type_jkind_head env ty with
+    | Jkind ty_jkind ->
+      let result =
+        if Jkind.sub ty_jkind jkind then Success else
+          Failure {estimate = ty_jkind; bound = jkind; ty}
+      in
+      ty_jkind, result
+    | TyVar (ty, ty_jkind) ->
+      ty_jkind, Type_vars [{ estimate = ty_jkind; bound = jkind; ty }]
+    | Product component_types as product ->
+      let jkinds =
+        Jkind.is_nary_product (List.length component_types) jkind
+      in
+      match jkinds with
+      | None ->
+        (* The upper bound is not a product, but the type is.  This may be
+           OK if the upper bound has layout any. *)
+        let estimate =
+          jkind_of_jkind_head env ~expand_components:(fun x -> x) product
+        in
+        let result =
+          if Jkind.sub estimate jkind then Success else
+            Failure { estimate; bound = jkind; ty }
+        in
+        estimate, result
+      | Some jkinds ->
+        (* Note: here we "duplicate" the fuel, which may seem like
+           cheating. Fuel counts expansions, and its purpose is to guard against
+           infinitely expanding a recursive type. In a wide product, we many
+           need to expand many types shallowly, and that's fine. *)
+        let results = List.map2 (check_one fuel) component_types jkinds in
+        process_product_results fuel [] [] results
+
+  (* Here, we are recusing down [results] is a list of the (unprocessed) results
+     from attempting to constrain a product jkind. There is one for each
+     component, and we process them individually into the accumulators [vars]
+     and [jkind_ests]. Those collect the [Type_vars] from the component checks
+     and the jkind estimate of each component, respectively
+
+     [Failure]s in results may have occurred just because we haven't expanded
+     the component type enough yet, so we expand and check it again. *)
+
+  and process_product_results fuel vars jkind_ests results =
+    match results with
+    | [] ->
+      let jkind =
+        Jkind.Builtin.product ~why:Unboxed_tuple (List.rev jkind_ests)
+      in
+      if vars = [] then jkind, Success else jkind, Type_vars vars
+    | (jkind_est, result) :: results ->
+      (* If the result is failure, we try again with expansion. *)
+      let jkind_est, result =
+        match result with
+        (* CR: We could refactor slightly so that we skip the shortcut check
+           in [expand_and_check_one] here. *)
+        | Failure { bound; ty } -> expand_and_check_one fuel ty bound
+        | Success | Type_vars _ | Missing_cmi _ -> jkind_est, result
+      in
+      let jkind_ests = jkind_est :: jkind_ests in
+      match result with
+      | Success -> process_product_results fuel vars jkind_ests results
+      | Type_vars vars' ->
+        process_product_results fuel (vars' @ vars) jkind_ests results
+      | Failure _ | Missing_cmi _ ->
+        let jkind = jkind_est_of_results jkind_ests results in
+        jkind, result
   in
-  loop ty 100
+  expand_and_check_one 100 ty jkind
 
 (* The ~fixed argument controls what effects this may have on `ty`.  If false,
    then we will update the jkind of type variables to make the check true, if
@@ -2190,20 +2301,24 @@ let type_jkind_sub env ty jkind =
    correct on [any].)
 *)
 let constrain_type_jkind ~fixed env ty jkind =
-  match type_jkind_sub env ty jkind with
+  let ty_jkind, result = type_jkind_sub env ty jkind in
+  match result with
   | Success -> Ok ()
-  | Type_var (ty_jkind, ty) ->
-    if fixed then Jkind.sub_or_error ty_jkind jkind else
-    let jkind_inter =
-      Jkind.intersection_or_error ~reason:Tyvar_refinement_intersection
-        ty_jkind jkind
+  | Type_vars tvs ->
+    let constrain_one_var { estimate; bound; ty } =
+      if fixed then Jkind.sub_or_error estimate bound else
+      let jkind_inter =
+        Jkind.intersection_or_error ~reason:Tyvar_refinement_intersection
+          estimate bound
+      in
+      Result.map (set_var_jkind ty) jkind_inter
     in
-    Result.map (set_var_jkind ty) jkind_inter
-  | Missing_cmi (ty_jkind, missing_cmi) ->
+    Misc.Stdlib.List.iter_until_error ~f:constrain_one_var tvs
+  | Missing_cmi missing_cmi ->
     Error Jkind.(Violation.of_ ~missing_cmi
       (Not_a_subjkind
          (History.update_reason ty_jkind (Missing_cmi missing_cmi), jkind)))
-  | Failure ty_jkind ->
+  | Failure _ ->
     Error (Jkind.Violation.of_ (Not_a_subjkind (ty_jkind, jkind)))
 
 let constrain_type_jkind ~fixed env ty jkind =
@@ -2255,11 +2370,10 @@ let constrain_type_jkind_exn env texn ty jkind =
   | Ok _ -> ()
   | Error err -> raise_for texn (Bad_jkind (ty,err))
 
-let estimate_type_jkind env typ =
-  jkind_of_result (estimate_type_jkind env typ)
-
 let type_jkind env ty =
-  estimate_type_jkind env (get_unboxed_type_approximation env ty)
+  estimate_type_jkind env
+    ~expand_components:(get_unboxed_type_approximation env)
+    (get_unboxed_type_approximation env ty)
 
 let type_jkind_purely env ty =
   if !Clflags.principal || Env.has_local_constraints env then
@@ -2271,6 +2385,9 @@ let type_jkind_purely env ty =
     jkind
   else
     type_jkind env ty
+
+let estimate_type_jkind env ty =
+  estimate_type_jkind env ~expand_components:(fun x -> x) ty
 
 let type_sort ~why env ty =
   let jkind, sort = Jkind.of_new_sort_var ~why in
@@ -2318,7 +2435,7 @@ let check_and_update_generalized_ty_jkind ?name ~loc ty =
          might turn out later to be value. This is the conservative choice. *)
       Jkind.(Externality.le (get_externality_upper_bound jkind) External64 &&
              match get_layout jkind with
-               | Some (Sort Value) | None -> true
+               | Some (Base Value) | None -> true
                | _ -> false)
     in
     if Language_extension.erasable_extensions_only ()
@@ -3568,6 +3685,8 @@ and unify3 env t1 t1' t2 t2' =
           end
       | (Ttuple labeled_tl1, Ttuple labeled_tl2) ->
           unify_labeled_list env labeled_tl1 labeled_tl2
+      | (Tunboxed_tuple labeled_tl1, Tunboxed_tuple labeled_tl2) ->
+          unify_labeled_list env labeled_tl1 labeled_tl2
       | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _)) when Path.same p1 p2 ->
           if not (can_generate_equations ()) then
             unify_list env tl1 tl2
@@ -4604,12 +4723,49 @@ let relevant_pairs pairs v =
   | Contravariant -> pairs.contravariant_pairs
   | Bivariant -> pairs.bivariant_pairs
 
-let moregen_alloc_mode v a1 a2 =
+(* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and [Alloc]
+   get unified *)
+let mode_cross_left env ty mode =
+  (* CR layouts v2.8: The old check didn't check for principality, and so this
+      one doesn't either. I think it should. But actually test results are bad
+      when checking for principality. Really, I'm surprised that the types here
+      aren't principal. In any case, leaving the check out now; will return and
+      figure this out later. *)
+  let jkind = type_jkind_purely env ty in
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  Alloc.meet_const upper_bounds mode
+
+(* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value] and
+    [Alloc] get unified *)
+let mode_cross_right env ty mode =
+  (* CR layouts v2.8: This should probably check for principality. See similar
+      comment in [mode_cross_left]. *)
+  let jkind = type_jkind_purely env ty in
+  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
+  Alloc.imply upper_bounds mode
+
+let submode_with_cross env ~is_ret ty l r =
+  let r' = mode_cross_right env ty r in
+  let r' =
+    if is_ret then
+      (* the locality axis of the return mode cannot cross modes, because a
+         local-returning function might allocate in the caller's region, and
+         this info must be preserved. *)
+      Alloc.meet [r'; Alloc.max_with (Comonadic Areality) (Alloc.proj (Comonadic Areality) r)]
+    else
+      r'
+  in
+  Alloc.submode l r'
+
+let moregen_alloc_mode env ~is_ret ty v a1 a2 =
   match
     match v with
-    | Invariant -> Result.map_error ignore (Alloc.equate a1 a2)
-    | Covariant -> Result.map_error ignore (Alloc.submode a1 a2)
-    | Contravariant -> Result.map_error ignore (Alloc.submode a2 a1)
+    | Invariant ->
+        Result.bind (submode_with_cross env ~is_ret ty a1 a2)
+          (fun _ -> submode_with_cross env ~is_ret ty a2 a1)
+        |> Result.map_error ignore
+    | Covariant -> Result.map_error ignore (submode_with_cross env ~is_ret ty a1 a2)
+    | Contravariant -> Result.map_error ignore (submode_with_cross env ~is_ret ty a2 a1)
     | Bivariant -> Ok ()
   with
   | Ok () -> ()
@@ -4657,9 +4813,17 @@ let rec moregen inst_nongen variance type_pairs env t1 t2 =
                 || !Clflags.classic && equivalent_with_nolabels l1 l2) ->
               moregen inst_nongen (neg_variance variance) type_pairs env t1 t2;
               moregen inst_nongen variance type_pairs env u1 u2;
-              moregen_alloc_mode (neg_variance variance) a1 a2;
-              moregen_alloc_mode variance r1 r2
+              (* [t2] and [u2] is the user-written interface, which we deem as
+                 more "principal" and used for mode crossing. See
+                 [typing-modes/crossing.ml]. *)
+              (* CR zqian: should use the meet of [t1] and [t2] for mode
+              crossing. Similar for [u1] and [u2]. *)
+              moregen_alloc_mode env t2 ~is_ret:false (neg_variance variance) a1 a2;
+              moregen_alloc_mode env u2 ~is_ret:true variance r1 r2
           | (Ttuple labeled_tl1, Ttuple labeled_tl2) ->
+              moregen_labeled_list inst_nongen variance type_pairs env
+                labeled_tl1 labeled_tl2
+          | (Tunboxed_tuple labeled_tl1, Tunboxed_tuple labeled_tl2) ->
               moregen_labeled_list inst_nongen variance type_pairs env
                 labeled_tl1 labeled_tl2
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
@@ -5086,6 +5250,9 @@ let rec eqtype rename type_pairs subst env t1 t2 =
               eqtype_alloc_mode a1 a2;
               eqtype_alloc_mode r1 r2
           | (Ttuple labeled_tl1, Ttuple labeled_tl2) ->
+              eqtype_labeled_list rename type_pairs subst env labeled_tl1
+                labeled_tl2
+          | (Tunboxed_tuple labeled_tl1, Tunboxed_tuple labeled_tl2) ->
               eqtype_labeled_list rename type_pairs subst env labeled_tl1
                 labeled_tl2
           | (Tconstr (p1, tl1, _), Tconstr (p2, tl2, _))
@@ -5623,27 +5790,6 @@ let build_submode posi m =
   if posi then build_submode_pos (Alloc.allow_left m)
   else build_submode_neg (Alloc.allow_right m)
 
-(* CR layouts v2.8: merge with Typecore.mode_cross_left when [Value] and
-   [Alloc] get unified *)
-let mode_cross_left env ty mode =
-  (* CR layouts v2.8: The old check didn't check for principality, and so
-     this one doesn't either. I think it should. But actually test results
-     are bad when checking for principality. Really, I'm surprised that
-     the types here aren't principal. In any case, leaving the check out
-     now; will return and figure this out later. *)
-  let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  Alloc.meet_const upper_bounds mode
-
-(* CR layouts v2.8: merge with Typecore.expect_mode_cross when [Value]
-   and [Alloc] get unified *)
-let mode_cross_right env ty mode =
-  (* CR layouts v2.8: This should probably check for principality. See
-     similar comment in [mode_cross_left]. *)
-  let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  Alloc.imply upper_bounds mode
-
 let rec build_subtype env (visited : transient_expr list)
     (loops : (int * type_expr) list) posi level t =
   match get_desc t with
@@ -5688,17 +5834,11 @@ let rec build_subtype env (visited : transient_expr list)
       then (newty (Tarrow((l,a',r'), t1', t2', commu_ok)), c)
       else (t, Unchanged)
   | Ttuple labeled_tlist ->
-      let tt = Transient_expr.repr t in
-      if memq_warn tt visited then (t, Unchanged) else
-      let visited = tt :: visited in
-      let labels, tlist = List.split labeled_tlist in
-      let tlist' =
-        List.map (build_subtype env visited loops posi level) tlist
-      in
-      let c = collect tlist' in
-      if c > Unchanged then
-        (newty (Ttuple (List.combine labels (List.map fst tlist'))), c)
-      else (t, Unchanged)
+      build_subtype_tuple env visited loops posi level t labeled_tlist
+        (fun x -> Ttuple x)
+  | Tunboxed_tuple labeled_tlist ->
+      build_subtype_tuple env visited loops posi level t labeled_tlist
+        (fun x -> Tunboxed_tuple x)
   | Tconstr(p, tl, abbrev)
     when level > 0 && generic_abbrev env p && safe_abbrev env t
     && not (has_constr_row' env t) ->
@@ -5842,6 +5982,21 @@ let rec build_subtype env (visited : transient_expr list)
   | Tunivar _ | Tpackage _ ->
       (t, Unchanged)
 
+and build_subtype_tuple env visited loops posi level t labeled_tlist
+      constructor =
+  let tt = Transient_expr.repr t in
+  if memq_warn tt visited then (t, Unchanged) else
+  let visited = tt :: visited in
+  let labels, tlist = List.split labeled_tlist in
+  let tlist' =
+    List.map (build_subtype env visited loops posi level) tlist
+  in
+  let c = collect tlist' in
+  if c > Unchanged then
+    (newty (constructor (List.combine labels (List.map fst tlist'))), c)
+  else (t, Unchanged)
+
+
 let enlarge_type env ty =
   warn := false;
   (* [level = 4] allows 2 expansions involving objects/variants *)
@@ -5907,6 +6062,8 @@ let rec subtype_rec env trace t1 t2 cstrs =
           u1 u2
           cstrs
     | (Ttuple tl1, Ttuple tl2) ->
+        subtype_labeled_list env trace tl1 tl2 cstrs
+    | (Tunboxed_tuple tl1, Tunboxed_tuple tl2) ->
         subtype_labeled_list env trace tl1 tl2 cstrs
     | (Tconstr(p1, [], _), Tconstr(p2, [], _)) when Path.same p1 p2 ->
         cstrs

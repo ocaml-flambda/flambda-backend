@@ -100,8 +100,6 @@ let iter_loc_txt sub f { loc; txt } =
 module T = struct
   (* Type expressions for the core language *)
 
-  module LT = Jane_syntax.Labeled_tuples
-
   let row_field sub {
       prf_desc;
       prf_loc;
@@ -141,12 +139,11 @@ module T = struct
       sub.typ sub aliased_type;
       iter_loc_txt sub sub.jkind_annotation jkind
 
-  let iter_jst_labeled_tuple sub : LT.core_type -> _ = function
-    | tl -> List.iter (iter_snd (sub.typ sub)) tl
+  let iter_labeled_tuple sub tl = List.iter (iter_snd (sub.typ sub)) tl
 
   let iter_jst sub : Jane_syntax.Core_type.t -> _ = function
     | Jtyp_layout typ -> iter_jst_layout sub typ
-    | Jtyp_tuple lt_typ -> iter_jst_labeled_tuple sub lt_typ
+    | Jtyp_tuple lt_typ -> iter_labeled_tuple sub lt_typ
 
   let iter sub ({ptyp_desc = desc; ptyp_loc = loc; ptyp_attributes = attrs}
                   as typ) =
@@ -164,6 +161,7 @@ module T = struct
         sub.typ sub t1; sub.typ sub t2;
         sub.modes sub m1; sub.modes sub m2
     | Ptyp_tuple tyl -> List.iter (sub.typ sub) tyl
+    | Ptyp_unboxed_tuple tyl -> iter_labeled_tuple sub tyl
     | Ptyp_constr (lid, tl) ->
         iter_loc sub lid; List.iter (sub.typ sub) tl
     | Ptyp_object (ol, _o) ->
@@ -350,10 +348,6 @@ module MT = struct
     | Pwith_modtypesubst (lid, mty) ->
         iter_loc sub lid; sub.module_type sub mty
 
-  let iter_sig_include_functor sub
-    : Jane_syntax.Include_functor.signature_item -> unit = function
-    | Ifsig_include_functor incl -> sub.include_description sub incl
-
   let iter_sig_layout sub
     : Jane_syntax.Layouts.signature_item -> unit = function
     | Lsig_kind_abbrev (name, jkind) ->
@@ -362,7 +356,6 @@ module MT = struct
 
   let iter_signature_item_jst sub : Jane_syntax.Signature_item.t -> unit =
     function
-    | Jsig_include_functor ifincl -> iter_sig_include_functor sub ifincl
     | Jsig_layout sigi -> iter_sig_layout sub sigi
 
   let iter_signature_item sub ({psig_desc = desc; psig_loc = loc} as sigi) =
@@ -383,7 +376,9 @@ module MT = struct
         List.iter (sub.module_declaration sub) l
     | Psig_modtype x | Psig_modtypesubst x -> sub.module_type_declaration sub x
     | Psig_open x -> sub.open_description sub x
-    | Psig_include x -> sub.include_description sub x
+    | Psig_include (x, moda) ->
+        sub.include_description sub x;
+        sub.modalities sub moda
     | Psig_class l -> List.iter (sub.class_description sub) l
     | Psig_class_type l ->
         List.iter (sub.class_type_declaration sub) l
@@ -421,10 +416,6 @@ module M = struct
     | Pmod_unpack e -> sub.expr sub e
     | Pmod_extension x -> sub.extension sub x
 
-  let iter_str_include_functor sub
-    : Jane_syntax.Include_functor.structure_item -> unit = function
-    | Ifstr_include_functor incl -> sub.include_declaration sub incl
-
   let iter_str_layout sub
     : Jane_syntax.Layouts.structure_item -> unit = function
     | Lstr_kind_abbrev (name, jkind) ->
@@ -433,7 +424,6 @@ module M = struct
 
   let iter_structure_item_jst sub : Jane_syntax.Structure_item.t -> unit =
     function
-    | Jstr_include_functor ifincl -> iter_str_include_functor sub ifincl
     | Jstr_layout stri -> iter_str_layout sub stri
 
   let iter_structure_item sub ({pstr_loc = loc; pstr_desc = desc} as stri) =
@@ -472,7 +462,6 @@ module E = struct
   module C = Jane_syntax.Comprehensions
   module IA = Jane_syntax.Immutable_arrays
   module L = Jane_syntax.Layouts
-  module LT = Jane_syntax.Labeled_tuples
 
   let iter_iterator sub : C.iterator -> _ = function
     | Range { start; stop; direction = _ } ->
@@ -541,8 +530,7 @@ module E = struct
         sub.location sub loc;
         sub.attributes sub attrs
 
-  let iter_labeled_tuple sub : LT.expression -> _ = function
-    | el -> List.iter (iter_snd (sub.expr sub)) el
+  let iter_labeled_tuple sub el = List.iter (iter_snd (sub.expr sub)) el
 
   let iter_jst sub : Jane_syntax.Expression.t -> _ = function
     | Jexp_comprehension comp_exp -> iter_comp_exp sub comp_exp
@@ -575,6 +563,7 @@ module E = struct
         sub.expr sub e; sub.cases sub pel
     | Pexp_try (e, pel) -> sub.expr sub e; sub.cases sub pel
     | Pexp_tuple el -> List.iter (sub.expr sub) el
+    | Pexp_unboxed_tuple el -> iter_labeled_tuple sub el
     | Pexp_construct (lid, arg) ->
         iter_loc sub lid; iter_opt (sub.expr sub) arg
     | Pexp_variant (_lab, eo) ->
@@ -646,20 +635,17 @@ module P = struct
   (* Patterns *)
 
   module IA = Jane_syntax.Immutable_arrays
-  module LT = Jane_syntax.Labeled_tuples
 
   let iter_iapat sub : IA.pattern -> _ = function
     | Iapat_immutable_array elts ->
       List.iter (sub.pat sub) elts
 
-  let iter_labeled_tuple sub : LT.pattern -> _ = function
-    | (pl, _) ->
-      List.iter (iter_snd (sub.pat sub)) pl
+  let iter_labeled_tuple sub pl = List.iter (iter_snd (sub.pat sub)) pl
 
   let iter_jst sub : Jane_syntax.Pattern.t -> _ = function
     | Jpat_immutable_array iapat -> iter_iapat sub iapat
     | Jpat_layout (Lpat_constant _) -> iter_constant
-    | Jpat_tuple ltpat -> iter_labeled_tuple sub ltpat
+    | Jpat_tuple (ltpat, _) -> iter_labeled_tuple sub ltpat
 
   let iter sub
         ({ppat_desc = desc; ppat_loc = loc; ppat_attributes = attrs} as pat) =
@@ -677,6 +663,7 @@ module P = struct
     | Ppat_constant _ -> iter_constant
     | Ppat_interval _ -> ()
     | Ppat_tuple pl -> List.iter (sub.pat sub) pl
+    | Ppat_unboxed_tuple (pl, _) -> iter_labeled_tuple sub pl
     | Ppat_construct (l, p) ->
         iter_loc sub l;
         iter_opt
@@ -859,14 +846,14 @@ let default_iterator =
 
 
     include_description =
-      (fun this {pincl_mod; pincl_attributes; pincl_loc} ->
+      (fun this {pincl_mod; pincl_attributes; pincl_loc; pincl_kind = _} ->
          this.module_type this pincl_mod;
          this.location this pincl_loc;
          this.attributes this pincl_attributes
       );
 
     include_declaration =
-      (fun this {pincl_mod; pincl_attributes; pincl_loc} ->
+      (fun this {pincl_mod; pincl_attributes; pincl_loc; pincl_kind = _} ->
          this.module_expr this pincl_mod;
          this.location this pincl_loc;
          this.attributes this pincl_attributes
@@ -964,5 +951,6 @@ let default_iterator =
         | With (t, ty) ->
           this.jkind_annotation this t;
           this.typ this ty
-        | Kind_of ty -> this.typ this ty);
+        | Kind_of ty -> this.typ this ty
+        | Product ts -> List.iter (this.jkind_annotation this) ts);
   }

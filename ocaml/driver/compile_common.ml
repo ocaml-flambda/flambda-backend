@@ -60,7 +60,13 @@ let parse_intf i =
   |> print_if i.ppf_dump Clflags.dump_source Pprintast.signature
 
 let typecheck_intf info ast =
-  Profile.(record_call typing) @@ fun () ->
+  Profile.(
+    record_call_with_counters
+      ~counter_f:(fun signature ->
+        Profile_counters_functions.(
+          count_language_extensions (Typedtree_signature_output signature)))
+      typing)
+  @@ fun () ->
   let tsg =
     ast
     |> Typemod.type_interface
@@ -102,7 +108,7 @@ let emit_signature info ast tsg =
     info.output_prefix info.source_file info.env sg
 
 let interface ~hook_parse_tree ~hook_typed_tree info =
-  Profile.record_call info.source_file @@ fun () ->
+  Profile.(record_call (annotate_file_name info.source_file)) @@ fun () ->
   let ast = parse_intf info in
   hook_parse_tree ast;
   if Clflags.(should_stop_after Compiler_pass.Parsing) then () else begin
@@ -123,7 +129,13 @@ let parse_impl i =
 
 let typecheck_impl i parsetree =
   parsetree
-  |> Profile.(record typing)
+  |> Profile.(
+    record_with_counters
+      ~counter_f:(fun (typed_tree : Typedtree.implementation) ->
+        Profile_counters_functions.(
+          count_language_extensions
+            (Typedtree_implementation_output typed_tree)))
+      typing)
     (Typemod.type_implementation
        ~sourcefile:i.source_file i.output_prefix i.module_name i.env)
   |> print_if i.ppf_dump Clflags.dump_typedtree
@@ -132,7 +144,7 @@ let typecheck_impl i parsetree =
     (fun fmt {Typedtree.shape; _} -> Shape.print fmt shape)
 
 let implementation ~hook_parse_tree ~hook_typed_tree info ~backend =
-  Profile.record_call info.source_file @@ fun () ->
+  Profile.(record_call (annotate_file_name info.source_file)) @@ fun () ->
   let exceptionally () =
     let sufs = if info.native then [ cmx; obj ] else [ cmo ] in
     List.iter (fun suf -> remove_file (suf info)) sufs;

@@ -64,6 +64,7 @@ module Typ = struct
   let var ?loc ?attrs a = mk ?loc ?attrs (Ptyp_var a)
   let arrow ?loc ?attrs a b c d e = mk ?loc ?attrs (Ptyp_arrow (a, b, c, d, e))
   let tuple ?loc ?attrs a = mk ?loc ?attrs (Ptyp_tuple a)
+  let unboxed_tuple ?loc ?attrs a = mk ?loc ?attrs (Ptyp_unboxed_tuple a)
   let constr ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_constr (a, b))
   let object_ ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_object (a, b))
   let class_ ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_class (a, b))
@@ -99,6 +100,8 @@ module Typ = struct
         | Ptyp_arrow (label,core_type,core_type',modes,modes') ->
             Ptyp_arrow(label, loop core_type, loop core_type', modes, modes')
         | Ptyp_tuple lst -> Ptyp_tuple (List.map loop lst)
+        | Ptyp_unboxed_tuple lst ->
+          Ptyp_unboxed_tuple (List.map (fun (l, t) -> l, loop t) lst)
         | Ptyp_constr( { txt = Longident.Lident s }, [])
           when List.mem s var_names ->
             Ptyp_var s
@@ -163,6 +166,7 @@ module Pat = struct
   let constant ?loc ?attrs a = mk ?loc ?attrs (Ppat_constant a)
   let interval ?loc ?attrs a b = mk ?loc ?attrs (Ppat_interval (a, b))
   let tuple ?loc ?attrs a = mk ?loc ?attrs (Ppat_tuple a)
+  let unboxed_tuple ?loc ?attrs a b = mk ?loc ?attrs (Ppat_unboxed_tuple (a, b))
   let construct ?loc ?attrs a b = mk ?loc ?attrs (Ppat_construct (a, b))
   let variant ?loc ?attrs a b = mk ?loc ?attrs (Ppat_variant (a, b))
   let record ?loc ?attrs a b = mk ?loc ?attrs (Ppat_record (a, b))
@@ -193,6 +197,7 @@ module Exp = struct
   let match_ ?loc ?attrs a b = mk ?loc ?attrs (Pexp_match (a, b))
   let try_ ?loc ?attrs a b = mk ?loc ?attrs (Pexp_try (a, b))
   let tuple ?loc ?attrs a = mk ?loc ?attrs (Pexp_tuple a)
+  let unboxed_tuple ?loc ?attrs a = mk ?loc ?attrs (Pexp_unboxed_tuple a)
   let construct ?loc ?attrs a b = mk ?loc ?attrs (Pexp_construct (a, b))
   let variant ?loc ?attrs a b = mk ?loc ?attrs (Pexp_variant (a, b))
   let record ?loc ?attrs a b = mk ?loc ?attrs (Pexp_record (a, b))
@@ -284,7 +289,7 @@ module Sig = struct
   let modtype ?loc a = mk ?loc (Psig_modtype a)
   let modtype_subst ?loc a = mk ?loc (Psig_modtypesubst a)
   let open_ ?loc a = mk ?loc (Psig_open a)
-  let include_ ?loc a = mk ?loc (Psig_include a)
+  let include_ ?loc ?(modalities = []) a = mk ?loc (Psig_include (a, modalities))
   let class_ ?loc a = mk ?loc (Psig_class a)
   let class_type ?loc a = mk ?loc (Psig_class_type a)
   let extension ?loc ?(attrs = []) a = mk ?loc (Psig_extension (a, attrs))
@@ -483,8 +488,10 @@ module Opn = struct
 end
 
 module Incl = struct
-  let mk ?(loc = !default_loc) ?(attrs = []) ?(docs = empty_docs) mexpr =
+  let mk ?(loc = !default_loc) ?(attrs = []) ?(docs = empty_docs)
+    ?(kind = Structure) mexpr =
     {
+     pincl_kind = kind;
      pincl_mod = mexpr;
      pincl_loc = loc;
      pincl_attributes = add_docs_attrs docs attrs;

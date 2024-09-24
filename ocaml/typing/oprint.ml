@@ -323,23 +323,35 @@ let pr_var = Pprintast.tyvar
 let ty_var ~non_gen ppf s =
   pr_var ppf (if non_gen then "_" ^ s else s)
 
-let rec print_out_jkind_const ppf (ojkind : Outcometree.out_jkind_const) =
-  match ojkind with
-  | Ojkind_const_default -> fprintf ppf "_"
-  | Ojkind_const_abbreviation abbrev -> fprintf ppf "%s" abbrev
-  | Ojkind_const_mod (base, modes) ->
-    fprintf ppf "%a mod @[%a@]" print_out_jkind_const base
-      (pp_print_list
-          ~pp_sep:(fun ppf () -> fprintf ppf "@ ")
-          (fun ppf -> fprintf ppf "%s"))
-      modes
-  | Ojkind_const_with _ | Ojkind_const_kind_of _ ->
-    failwith "XXX unimplemented jkind syntax"
+let print_out_jkind_const ppf ojkind =
+  let rec pp_element ~nested ppf (ojkind : Outcometree.out_jkind_const) =
+    match ojkind with
+    | Ojkind_const_default -> fprintf ppf "_"
+    | Ojkind_const_abbreviation abbrev -> fprintf ppf "%s" abbrev
+    | Ojkind_const_mod (base, modes) ->
+      fprintf ppf "%a mod @[%a@]" (pp_element ~nested) base
+        (pp_print_list
+            ~pp_sep:(fun ppf () -> fprintf ppf "@ ")
+            (fun ppf -> fprintf ppf "%s"))
+        modes
+    | Ojkind_const_product ts ->
+      let pp_sep ppf () = Format.fprintf ppf "@ & " in
+      Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf ts
+    | Ojkind_const_with _ | Ojkind_const_kind_of _ ->
+      failwith "XXX unimplemented jkind syntax"
+  in
+  pp_element ~nested:false ppf ojkind
 
 let print_out_jkind ppf ojkind =
-  match ojkind with
-  | Ojkind_var v -> fprintf ppf "%s" v
-  | Ojkind_const jkind -> print_out_jkind_const ppf jkind
+  let rec pp_element ~nested ppf ojkind =
+    match ojkind with
+    | Ojkind_var v -> fprintf ppf "%s" v
+    | Ojkind_const jkind -> print_out_jkind_const ppf jkind
+    | Ojkind_product ts ->
+      let pp_sep ppf () = Format.fprintf ppf "@ & " in
+      Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf ts
+  in
+  pp_element ~nested:false ppf ojkind
 
 let print_out_jkind_annot ppf = function
   | None -> ()
@@ -544,6 +556,15 @@ and print_out_type_3 ppf =
       pp_open_box ppf 1;
       pp_print_char ppf '(';
       print_out_type_0 ppf ty;
+      pp_print_char ppf ')';
+      pp_close_box ppf ()
+  | Otyp_unboxed_tuple tyl ->
+      pp_open_box ppf 1;
+      fprintf ppf "#(";
+      fprintf
+        ppf "@[<0>%a@]"
+        (print_labeled_typlist print_simple_out_type " *")
+        tyl;
       pp_print_char ppf ')';
       pp_close_box ppf ()
   | Otyp_abstract | Otyp_open

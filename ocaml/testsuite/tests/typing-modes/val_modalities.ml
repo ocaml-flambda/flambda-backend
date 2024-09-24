@@ -38,12 +38,12 @@ module M : sig val foo : r @@ global many end
 |}]
 
 module type S = sig
-    val x : string @@ global local unique shared once many uncontended contended
+    val x : string @@ global local unique aliased once many uncontended contended
       portable nonportable
 end
 [%%expect{|
 module type S =
-  sig val x : string @@ global many portable shared contended end
+  sig val x : string @@ global many portable aliased contended end
 |}]
 
 (* values' comonadic axes must be lower than the module *)
@@ -463,3 +463,89 @@ Error: Signature mismatch:
          val f : int -> int @@ portable
        The second is portable and the first is not.
 |}]
+
+(* Including module type with modalities *)
+module type S = sig
+  val foo : 'a -> 'a
+
+  val bar : 'a -> 'a @@ nonportable
+
+  val baz : 'a -> 'a @@ portable
+end
+[%%expect{|
+module type S =
+  sig
+    val foo : 'a -> 'a
+    val bar : 'a -> 'a
+    val baz : 'a -> 'a @@ portable
+  end
+|}]
+
+module type S' = sig
+  include S @@ portable
+end
+[%%expect{|
+module type S' =
+  sig
+    val foo : 'a -> 'a @@ portable
+    val bar : 'a -> 'a @@ portable
+    val baz : 'a -> 'a @@ portable
+  end
+|}]
+
+module type S' = sig
+  include S @@ nonportable
+end
+[%%expect{|
+module type S' =
+  sig
+    val foo : 'a -> 'a
+    val bar : 'a -> 'a
+    val baz : 'a -> 'a @@ portable
+  end
+|}]
+
+(* Include functor module types with modalities *)
+module type S = functor (_ : sig end) -> sig
+  val foo : 'a -> 'a
+
+  val bar : 'a -> 'a @@ nonportable
+
+  val baz : 'a -> 'a @@ portable
+end
+[%%expect{|
+module type S =
+  sig end ->
+    sig
+      val foo : 'a -> 'a
+      val bar : 'a -> 'a
+      val baz : 'a -> 'a @@ portable
+    end
+|}]
+
+module type S' = sig
+  include functor S @@ portable
+end
+[%%expect{|
+module type S' =
+  sig
+    val foo : 'a -> 'a @@ portable
+    val bar : 'a -> 'a @@ portable
+    val baz : 'a -> 'a @@ portable
+  end
+|}]
+
+module type S' = sig
+  include functor S @@ nonportable
+end
+[%%expect{|
+module type S' =
+  sig
+    val foo : 'a -> 'a
+    val bar : 'a -> 'a
+    val baz : 'a -> 'a @@ portable
+  end
+|}]
+
+(* CR zqian: add tests of recursive modules & include w/ modalties, once
+   modules can have modes. *)

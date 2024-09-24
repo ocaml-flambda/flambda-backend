@@ -391,6 +391,7 @@ module Jkind = struct
     | Mod of t * modes
     | With of t * core_type
     | Kind_of of core_type
+    | Product of t list
 
   type annotation = t loc
 
@@ -461,6 +462,8 @@ module Jkind = struct
         t_loc.loc
     | Kind_of ty ->
       struct_item_of_list "kind_of" [struct_item_of_type ty] t_loc.loc
+    | Product ts ->
+      struct_item_of_list "product" (List.map to_structure_item ts) t_loc.loc
 
   let rec of_structure_item item =
     let bind = Option.bind in
@@ -480,6 +483,9 @@ module Jkind = struct
       bind (struct_item_to_type item_of_ty) (fun ty -> ret loc (Kind_of ty))
     | Some ("abbrev", [item], loc) ->
       bind (Const.of_structure_item item) (fun c -> ret loc (Abbreviation c))
+    | Some ("product", items, loc) ->
+      bind (Misc.Stdlib.List.map_option of_structure_item items) (fun tls ->
+          ret loc (Product (List.map (fun tl -> tl.txt) tls)))
     | Some _ | None -> None
 end
 
@@ -942,37 +948,6 @@ module Labeled_tuples = struct
       in
       (labeled_components, closed), ppat_attributes
     | _ -> Desugaring_error.raise pat.ppat_loc Malformed
-end
-
-(** [include functor] *)
-module Include_functor = struct
-  type signature_item = Ifsig_include_functor of include_description
-
-  type structure_item = Ifstr_include_functor of include_declaration
-
-  let feature : Feature.t = Language_extension Include_functor
-
-  let sig_item_of ~loc = function
-    | Ifsig_include_functor incl ->
-      (* See Note [Wrapping with make_entire_jane_syntax] *)
-      Signature_item.make_entire_jane_syntax ~loc feature (fun () ->
-          Ast_helper.Sig.include_ incl)
-
-  let of_sig_item sigi =
-    match sigi.psig_desc with
-    | Psig_include incl -> Ifsig_include_functor incl
-    | _ -> failwith "Malformed [include functor] in signature"
-
-  let str_item_of ~loc = function
-    | Ifstr_include_functor incl ->
-      (* See Note [Wrapping with make_entire_jane_syntax] *)
-      Structure_item.make_entire_jane_syntax ~loc feature (fun () ->
-          Ast_helper.Str.include_ incl)
-
-  let of_str_item stri =
-    match stri.pstr_desc with
-    | Pstr_include incl -> Ifstr_include_functor incl
-    | _ -> failwith "Malformed [include functor] in structure"
 end
 
 (** Module strengthening *)
@@ -1597,14 +1572,10 @@ module Module_type = struct
 end
 
 module Signature_item = struct
-  type t =
-    | Jsig_include_functor of Include_functor.signature_item
-    | Jsig_layout of Layouts.signature_item
+  type t = Jsig_layout of Layouts.signature_item
 
   let of_ast_internal (feat : Feature.t) sigi =
     match feat with
-    | Language_extension Include_functor ->
-      Some (Jsig_include_functor (Include_functor.of_sig_item sigi))
     | Language_extension Layouts ->
       Some (Jsig_layout (Layouts.of_sig_item sigi))
     | _ -> None
@@ -1613,14 +1584,10 @@ module Signature_item = struct
 end
 
 module Structure_item = struct
-  type t =
-    | Jstr_include_functor of Include_functor.structure_item
-    | Jstr_layout of Layouts.structure_item
+  type t = Jstr_layout of Layouts.structure_item
 
   let of_ast_internal (feat : Feature.t) stri =
     match feat with
-    | Language_extension Include_functor ->
-      Some (Jstr_include_functor (Include_functor.of_str_item stri))
     | Language_extension Layouts ->
       Some (Jstr_layout (Layouts.of_str_item stri))
     | _ -> None

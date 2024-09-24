@@ -248,6 +248,9 @@ let rec core_type i ppf x =
   | Ttyp_tuple l ->
       line i ppf "Ttyp_tuple\n";
       list i labeled_core_type ppf l;
+  | Ttyp_unboxed_tuple l ->
+      line i ppf "Ttyp_unboxed_tuple\n";
+      list i labeled_core_type ppf l;
   | Ttyp_constr (li, _, l) ->
       line i ppf "Ttyp_constr %a\n" fmt_path li;
       list i core_type ppf l;
@@ -315,6 +318,9 @@ and pattern : type k . _ -> _ -> k general_pattern -> unit = fun i ppf x ->
   | Tpat_tuple (l) ->
       line i ppf "Tpat_tuple\n";
       list i labeled_pattern ppf l;
+  | Tpat_unboxed_tuple (l) ->
+      line i ppf "Tpat_unboxed_tuple\n";
+      list i labeled_pattern_with_sorts ppf l;
   | Tpat_construct (li, _, po, vto) ->
       line i ppf "Tpat_construct %a\n" fmt_longident li;
       list i pattern ppf po;
@@ -352,6 +358,13 @@ and labeled_pattern : type k . _ -> _ -> string option * k general_pattern -> un
   fun i ppf (label, x) ->
     tuple_component_label i ppf label;
     pattern i ppf x
+
+and labeled_pattern_with_sorts :
+  type k . _ -> _ -> string option * k general_pattern * Jkind.sort -> unit =
+  fun i ppf (label, x, sort) ->
+    tuple_component_label i ppf label;
+    pattern i ppf x;
+    line i ppf "%a\n" Jkind.Sort.format sort
 
 and pattern_extra i ppf (extra_pat, _, attrs) =
   match extra_pat with
@@ -476,6 +489,9 @@ and expression i ppf x =
       line i ppf "Texp_tuple\n";
       alloc_mode i ppf am;
       list i labeled_expression ppf l;
+  | Texp_unboxed_tuple l ->
+      line i ppf "Texp_unboxed_tuple\n";
+      list i labeled_sorted_expression ppf l;
   | Texp_construct (li, _, eo, am) ->
       line i ppf "Texp_construct %a\n" fmt_longident li;
       alloc_mode_option i ppf am;
@@ -919,7 +935,7 @@ and signature_item i ppf x =
         fmt_override_flag od.open_override
         fmt_path (fst od.open_expr);
       attributes i ppf od.open_attributes
-  | Tsig_include incl ->
+  | Tsig_include (incl, _) ->
       line i ppf "Tsig_include\n";
       attributes i ppf incl.incl_attributes;
       module_type i ppf incl.incl_mod
@@ -1158,6 +1174,12 @@ and labeled_expression i ppf (l, e) =
   line i ppf "<tuple component>\n";
   tuple_component_label i ppf l;
   expression (i+1) ppf e;
+
+and labeled_sorted_expression i ppf (l, e, s) =
+  line i ppf "<tuple component>\n";
+  tuple_component_label i ppf l;
+  expression (i+1) ppf e;
+  line i ppf "%a\n" Jkind.Sort.format s;
 
 and ident_x_expression_def i ppf (l, e) =
   line i ppf "<def> \"%a\"\n" fmt_ident l;

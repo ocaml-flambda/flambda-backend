@@ -31,6 +31,7 @@ type error =
   | Unreachable_reached
   | Bad_probe_layout of Ident.t
   | Illegal_void_record_field
+  | Illegal_product_record_field of Jkind.Sort.Const.t
   | Void_sort of type_expr
 
 exception Error of Location.t * error
@@ -55,8 +56,9 @@ let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
 
 let check_record_field_sort loc sort =
   match Jkind.Sort.default_to_value_and_get sort with
-  | Value | Float64 | Float32 | Bits32 | Bits64 | Word -> ()
-  | Void -> raise (Error (loc, Illegal_void_record_field))
+  | Base (Value | Float64 | Float32 | Bits32 | Bits64 | Word) -> ()
+  | Base Void -> raise (Error (loc, Illegal_void_record_field))
+  | Product _ as c -> raise (Error (loc, Illegal_product_record_field c))
 
 (* Forward declaration -- to be filled in by Translmod.transl_module *)
 let transl_module =
@@ -428,8 +430,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | ((_, arg_repr) :: prim_repr), ((_, Arg (x, _)) :: oargs) ->
           let arg_exps, extra_args = cut_args prim_repr oargs in
           let arg_sort =
-            Jkind.Sort.of_const
-              (Translprim.sort_of_native_repr arg_repr ~poly_sort:psort)
+            Jkind.Sort.of_base
+              (Translprim.sort_of_native_repr ~loc:x.exp_loc arg_repr
+                 ~poly_sort:psort)
           in
           (x, arg_sort) :: arg_exps, extra_args
         | _, ((_, Omitted _) :: _) -> assert false
@@ -510,6 +513,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
               ll,
               (of_location ~scopes e.exp_loc))
       end
+  | Texp_unboxed_tuple el ->
+      let shape = List.map (fun (_, e, s) -> layout_exp s e) el in
+      let ll = List.map (fun (_, e, s) -> transl_exp ~scopes s e) el in
+      Lprim(Pmake_unboxed_product shape,
+            ll,
+            of_location ~scopes e.exp_loc)
   | Texp_construct(_, cstr, args, alloc_mode) ->
       let args_with_sorts =
         List.mapi (fun i e ->
@@ -1116,16 +1125,20 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         let assume_zero_alloc = get_assume_zero_alloc ~scopes in
         let scopes = enter_value_definition ~scopes ~assume_zero_alloc funcid in
         lfunction
-          ~kind:(Curried {nlocal=0})
+          (* We conservatively assume that all arguments are local. This doesn't
+             hurt performance as probe handlers are always applied fully. *)
+          ~kind:(Curried {nlocal=List.length param_idents})
           (* CR layouts: Adjust param layouts when we allow other things in
              probes. *)
-          ~params:(List.map (fun name -> { name; layout = layout_probe_arg; attributes = Lambda.default_param_attribute; mode = alloc_heap }) param_idents)
+          ~params:(List.map (fun name -> { name; layout = layout_probe_arg; attributes = Lambda.default_param_attribute; mode = alloc_local }) param_idents)
           ~return:return_layout
-          ~body:(maybe_region_layout return_layout body)
+          ~body:body
           ~loc:(of_location ~scopes exp.exp_loc)
           ~attr
           ~mode:alloc_heap
-          ~ret_mode:alloc_heap
+          ~ret_mode:alloc_local
+          (* CR zqian: the handler function doesn't have a region. However, the
+             [region] field is currently broken. *)
           ~region:true
       in
       let app =
@@ -1133,7 +1146,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           ap_args = List.map (fun id -> Lvar id) arg_idents;
           ap_result_layout = return_layout;
           ap_region_close = Rc_normal;
-          ap_mode = alloc_heap;
+          ap_mode = alloc_local;
           ap_loc = of_location e.exp_loc ~scopes;
           ap_tailcall = Default_tailcall;
           ap_inlined = Never_inlined;
@@ -2090,6 +2103,11 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
   let classic =
     match arg, exn_cases with
     | {exp_desc = Texp_tuple (argl, alloc_mode)}, [] ->
+      (* CR layouts v7.1: This case and the one below it give special treatment
+         to matching on literal tuples. This optimization is irrelevant for
+         unboxed tuples in native code, but not doing it for unboxed tuples in
+         bytecode means unboxed tuple are slightly worse than normal tuples
+         there. Consider adding it for unboxed tuples. *)
       assert (static_handlers = []);
       let mode = transl_alloc_mode alloc_mode in
       let argl =
@@ -2252,6 +2270,11 @@ let report_error ppf = function
       fprintf ppf
         "Void sort detected where value was expected in a record field:@ Please \
          report this error to the Jane Street compilers team."
+  | Illegal_product_record_field c ->
+      fprintf ppf
+        "Product sort %a detected in a record field:@ Please \
+         report this error to the Jane Street compilers team."
+        Jkind.Sort.Const.format c
   | Void_sort ty ->
       fprintf ppf
         "Void detected in translation for type %a:@ Please report this error \

@@ -389,6 +389,10 @@ let modalities_type pty ctxt f pca =
     (pty ctxt) pca.pca_type
     optional_atat_modalities m
 
+let include_kind f = function
+  | Functor -> pp f "@ functor"
+  | Structure -> ()
+
 (* c ['a,'b] *)
 let rec class_params_def ctxt f =  function
   | [] -> ()
@@ -402,7 +406,7 @@ and type_with_label ctxt f (label, c, mode) =
   | Labelled s -> pp f "%s:%a" s (maybe_legacy_modes_type_at_modes core_type1 ctxt) (c, mode)
   | Optional s -> pp f "?%s:%a" s (maybe_legacy_modes_type_at_modes core_type1 ctxt) (c, mode)
 
-and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
+and jkind ?(nested = false) ctxt f k = match (k : Jane_syntax.Jkind.t) with
   | Default -> pp f "_"
   | Abbreviation s ->
     pp f "%s" (s : Jane_syntax.Jkind.Const.t :> _ loc).txt
@@ -411,12 +415,16 @@ and jkind ctxt f k = match (k : Jane_syntax.Jkind.t) with
     | [] -> Misc.fatal_error "malformed jkind annotation"
     | _ :: _ ->
       pp f "%a mod %a"
-        (jkind ctxt) t
+        (jkind ~nested:true ctxt) t
         (pp_print_list ~pp_sep:pp_print_space mode) modes
     end
   | With (t, ty) ->
     pp f "%a with %a" (jkind ctxt) t (core_type ctxt) ty
   | Kind_of ty -> pp f "kind_of_ %a" (core_type ctxt) ty
+  | Product ts ->
+    if nested then pp f "(";
+    pp f "%a" (list (jkind ~nested:true ctxt) ~sep:"@;&@;") ts;
+    if nested then pp f ")"
 
 and jkind_annotation ctxt f annot = jkind ctxt f annot.txt
 
@@ -467,6 +475,8 @@ and core_type1 ctxt f x =
     | Ptyp_any -> pp f "_";
     | Ptyp_var s -> tyvar f  s;
     | Ptyp_tuple l ->  pp f "(%a)" (list (core_type1 ctxt) ~sep:"@;*@;") l
+    | Ptyp_unboxed_tuple l ->
+      core_type1_labeled_tuple ctxt f ~unboxed:true l
     | Ptyp_constr (li, l) ->
         pp f (* "%a%a@;" *) "%a%a"
           (fun f l -> match l with
@@ -572,7 +582,7 @@ and core_type1_jane_syntax ctxt attrs f (x : Jane_syntax.Core_type.t) =
     match x with
     | Jtyp_layout (Ltyp_var { name; jkind }) ->
       pp f "(%a@;:@;%a)" tyvar_option name (jkind_annotation ctxt) jkind
-    | Jtyp_tuple x -> core_type1_labeled_tuple ctxt attrs f x
+    | Jtyp_tuple x -> core_type1_labeled_tuple ctxt f ~unboxed:false x
     | Jtyp_layout (Ltyp_alias _ | Ltyp_poly _) ->
       paren true (core_type_jane_syntax ctxt attrs) f x
 
@@ -580,10 +590,11 @@ and tyvar_option f = function
   | None -> pp f "_"
   | Some name -> tyvar f name
 
-and core_type1_labeled_tuple ctxt _attrs f
+and core_type1_labeled_tuple ctxt f ~unboxed
       : Jane_syntax.Labeled_tuples.core_type -> _ =
   fun tl ->
-      pp f "(%a)" (list (labeled_core_type1 ctxt) ~sep:"@;*@;") tl
+    pp f "%s(%a)" (if unboxed then "#" else "")
+      (list (labeled_core_type1 ctxt) ~sep:"@;*@;") tl
 
 and labeled_core_type1 ctxt f (label, ty) =
   begin match label with
@@ -709,6 +720,8 @@ and simple_pattern ctxt (f:Format.formatter) (x:pattern) : unit =
         end
     | Ppat_tuple l ->
         pp f "@[<1>(%a)@]" (list  ~sep:",@;" (pattern1 ctxt))  l (* level1*)
+    | Ppat_unboxed_tuple (l, closed) ->
+        labeled_tuple_pattern ctxt f ~unboxed:true l closed
     | Ppat_constant (c) -> pp f "%a" constant c
     | Ppat_interval (c1, c2) -> pp f "%a..%a" constant c1 constant c2
     | Ppat_variant (l,None) ->  pp f "`%s" l
@@ -758,13 +771,17 @@ and pattern_jane_syntax ctxt attrs f (pat : Jane_syntax.Pattern.t) =
         pp f "@[<2>[:%a:]@]"  (list (pattern1 ctxt) ~sep:";") l
     | Jpat_layout (Lpat_constant c) -> unboxed_constant ctxt f c
     | Jpat_tuple (l, closed) ->
-        let closed_flag ppf = function
-        | Closed -> ()
-        | Open -> pp ppf ",@;.."
-        in
-        pp f "@[<1>(%a%a)@]"
-          (list ~sep:",@;" (labeled_pattern1 ctxt)) l
-          closed_flag closed
+      labeled_tuple_pattern ctxt f ~unboxed:false l closed
+
+and labeled_tuple_pattern ctxt f ~unboxed l closed =
+  let closed_flag ppf = function
+  | Closed -> ()
+  | Open -> pp ppf ",@;.."
+  in
+  pp f "@[<1>%s(%a%a)@]"
+    (if unboxed then "#" else "")
+    (list ~sep:",@;" (labeled_pattern1 ctxt)) l
+    closed_flag closed
 
 and label_exp ctxt f (l,opt,p) =
   match l with
@@ -1107,6 +1124,8 @@ and simple_expr ctxt f x =
         pp f "(module@;%a)" (module_expr ctxt) me
     | Pexp_tuple l ->
         pp f "@[<hov2>(%a)@]" (list (simple_expr ctxt) ~sep:",@;") l
+    | Pexp_unboxed_tuple l ->
+        labeled_tuple_expr ctxt f ~unboxed:true l
     | Pexp_constraint (e, ct, m) ->
       begin match ct with
       | None ->
@@ -1365,15 +1384,18 @@ and class_expr ctxt f x =
           (class_expr ctxt) e
 
 and include_ : 'a. ctxt -> formatter ->
-                   functor_:bool ->
                    contents:(ctxt -> formatter -> 'a -> unit) ->
                    'a include_infos ->
                    unit =
-  fun ctxt f ~functor_ ~contents incl ->
-    pp f "@[<hov2>include%t@ %a@]%a"
-      (if functor_ then fun f -> pp f "@ functor" else fun _ -> ())
+  fun ctxt f ~contents incl ->
+    pp f "@[<hov2>include%a@ %a@]%a"
+      include_kind incl.pincl_kind
       (contents ctxt) incl.pincl_mod
       (item_attributes ctxt) incl.pincl_attributes
+
+and sig_include ctxt f incl moda =
+  include_ ctxt f ~contents:module_type incl;
+  optional_atat_modalities f moda
 
 and kind_abbrev ctxt f name jkind =
   pp f "@[<hov2>kind_abbrev_@ %a@ =@ %a@]"
@@ -1464,11 +1486,6 @@ and module_type_jane_syntax1 ctxt attrs f : Jane_syntax.Module_type.t -> _ =
 
 and signature ctxt f x =  list ~sep:"@\n" (signature_item ctxt) f x
 
-and sig_include_functor ctxt f
-  : Jane_syntax.Include_functor.signature_item -> _ = function
-  | Ifsig_include_functor incl ->
-      include_ ctxt f ~functor_:true ~contents:module_type incl
-
 and sig_layout ctxt f
   : Jane_syntax.Layouts.signature_item -> _ = function
   | Lsig_kind_abbrev (name, jkind) ->
@@ -1476,7 +1493,6 @@ and sig_layout ctxt f
 
 and signature_item_jane_syntax ctxt f : Jane_syntax.Signature_item.t -> _ =
   function
-  | Jsig_include_functor ifincl -> sig_include_functor ctxt f ifincl
   | Jsig_layout sigi -> sig_layout ctxt f sigi
 
 and signature_item ctxt f x : unit =
@@ -1537,8 +1553,8 @@ and signature_item ctxt f x : unit =
         (override od.popen_override)
         longident_loc od.popen_expr
         (item_attributes ctxt) od.popen_attributes
-  | Psig_include incl ->
-      include_ ctxt f ~functor_:false ~contents:module_type incl
+  | Psig_include (incl, modalities) ->
+      sig_include ctxt f incl modalities
   | Psig_modtype {pmtd_name=s; pmtd_type=md; pmtd_attributes=attrs} ->
       pp f "@[<hov2>module@ type@ %s%a@]%a"
         s.txt
@@ -1778,11 +1794,6 @@ and binding_op ctxt f x =
      pp f "@[<2>%s %a@;=@;%a@]"
        x.pbop_op.txt (pattern ctxt) pat (expression ctxt) exp
 
-and str_include_functor ctxt f
-  : Jane_syntax.Include_functor.structure_item -> _ = function
-  | Ifstr_include_functor incl ->
-      include_ ctxt f ~functor_:true ~contents:module_expr incl
-
 and str_layout ctxt f
   : Jane_syntax.Layouts.structure_item -> _ = function
   | Lstr_kind_abbrev (name, jkind) ->
@@ -1790,7 +1801,6 @@ and str_layout ctxt f
 
 and structure_item_jane_syntax ctxt f : Jane_syntax.Structure_item.t -> _ =
   function
-  | Jstr_include_functor ifincl -> str_include_functor ctxt f ifincl
   | Jstr_layout stri -> str_layout ctxt f stri
 
 and structure_item ctxt f x =
@@ -1895,7 +1905,7 @@ and structure_item ctxt f x =
         (value_description ctxt) vd
         (item_attributes ctxt) vd.pval_attributes
   | Pstr_include incl ->
-      include_ ctxt f ~functor_:false ~contents:module_expr incl
+      include_ ctxt f ~contents:module_expr incl
   | Pstr_recmodule decls -> (* 3.07 *)
       let aux f = function
         | ({pmb_expr={pmod_desc=Pmod_constraint (expr, typ)}} as pmb) ->
@@ -2164,7 +2174,7 @@ and jane_syntax_expr ctxt attrs f (jexp : Jane_syntax.Expression.t) ~parens =
   | Jexp_comprehension x -> comprehension_expr ctxt f x
   | Jexp_immutable_array x -> immutable_array_expr ctxt f x
   | Jexp_layout x -> layout_expr ctxt f x ~parens
-  | Jexp_tuple ltexp        -> labeled_tuple_expr ctxt f ltexp
+  | Jexp_tuple ltexp        -> labeled_tuple_expr ctxt f ~unboxed:false ltexp
 
 and comprehension_expr ctxt f (cexp : Jane_syntax.Comprehensions.expression) =
   let punct, comp = match cexp with
@@ -2284,8 +2294,10 @@ and function_params_then_body ctxt f params constraint_ body ~delimiter =
     delimiter
     (function_body (under_functionrhs ctxt)) body
 
-and labeled_tuple_expr ctxt f (x : Jane_syntax.Labeled_tuples.expression) =
-  pp f "@[<hov2>(%a)@]" (list (tuple_component ctxt) ~sep:",@;") x
+and labeled_tuple_expr ctxt f ~unboxed
+      (x : Jane_syntax.Labeled_tuples.expression) =
+  pp f "@[<hov2>%s(%a)@]" (if unboxed then "#" else "")
+    (list (tuple_component ctxt) ~sep:",@;") x
 
 (******************************************************************************)
 (* All exported functions must be defined or redefined below here and wrapped in

@@ -200,17 +200,7 @@ let structure_item sub item =
              (fun (_id, _name, ct) -> sub.class_type_declaration sub ct)
              list)
     | Tstr_include incl ->
-        let pincl = sub.include_declaration sub incl in
-        begin match incl.incl_kind with
-        | Tincl_structure ->
-            Pstr_include pincl
-        | Tincl_functor _ | Tincl_gen_functor _ ->
-          let stri =
-            Jane_syntax.Include_functor.str_item_of ~loc
-              (Jane_syntax.Include_functor.Ifstr_include_functor pincl)
-          in
-          stri.pstr_desc
-        end
+        Pstr_include (sub.include_declaration sub incl)
     | Tstr_attribute x ->
         Pstr_attribute x
   in
@@ -386,6 +376,10 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         Jane_syntax.Labeled_tuples.pat_of ~loc
           (List.map (fun (label, p) -> label, sub.pat sub p) list, Closed)
         |> add_jane_syntax_attributes
+    | Tpat_unboxed_tuple list ->
+        Ppat_unboxed_tuple
+          (List.map (fun (label, p, _) -> label, sub.pat sub p) list,
+           Closed)
     | Tpat_construct (lid, _, args, vto) ->
         let tyo =
           match vto with
@@ -619,6 +613,9 @@ let expression sub exp =
         Jane_syntax.Labeled_tuples.expr_of ~loc
           (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list)
         |> add_jane_syntax_attributes
+    | Texp_unboxed_tuple list ->
+        Pexp_unboxed_tuple
+          (List.map (fun (lbl, e, _) -> lbl, sub.expr sub e) list)
     | Texp_construct (lid, _, args, _) ->
         Pexp_construct (map_loc sub lid,
           (match args with
@@ -814,18 +811,9 @@ let signature_item sub item =
         Psig_modtypesubst (sub.module_type_declaration sub mtd)
     | Tsig_open od ->
         Psig_open (sub.open_description sub od)
-    | Tsig_include incl ->
-        let pincl = sub.include_description sub incl in
-        begin match incl.incl_kind with
-        | Tincl_structure ->
-            Psig_include pincl
-        | Tincl_functor _ | Tincl_gen_functor _ ->
-          let sigi =
-            Jane_syntax.Include_functor.sig_item_of ~loc
-              (Jane_syntax.Include_functor.Ifsig_include_functor pincl)
-          in
-          sigi.psig_desc
-        end
+    | Tsig_include (incl, moda) ->
+        let pmoda = Typemode.untransl_modalities Immutable [] moda in
+        Psig_include (sub.include_description sub incl, pmoda)
     | Tsig_class list ->
         Psig_class (List.map (sub.class_description sub) list)
     | Tsig_class_type list ->
@@ -852,7 +840,12 @@ let module_substitution sub ms =
 let include_infos f sub incl =
   let loc = sub.location sub incl.incl_loc in
   let attrs = sub.attributes sub incl.incl_attributes in
-  Incl.mk ~loc ~attrs (f sub incl.incl_mod)
+  let kind =
+    match incl.incl_kind with
+    | Tincl_structure -> Structure
+    | Tincl_functor _ | Tincl_gen_functor _ -> Functor
+  in
+  Incl.mk ~loc ~attrs ~kind (f sub incl.incl_mod)
 
 let include_declaration sub = include_infos sub.module_expr sub
 let include_description sub = include_infos sub.module_type sub
@@ -1047,6 +1040,9 @@ let core_type sub ct =
         Jane_syntax.Labeled_tuples.typ_of ~loc
           (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)
         |> add_jane_syntax_attributes
+    | Ttyp_unboxed_tuple list ->
+        Ptyp_unboxed_tuple
+          (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)
     | Ttyp_constr (_path, lid, list) ->
         Ptyp_constr (map_loc sub lid,
           List.map (sub.typ sub) list)

@@ -328,7 +328,7 @@ let call_linker_shared file_list output_name =
   then raise(Error(Linking_error exitcode))
 
 let link_shared ~ppf_dump objfiles output_name =
-  Profile.record_call output_name (fun () ->
+  Profile.(record_call (annotate_filename output_name)) (fun () ->
     let obj_infos = List.map read_file objfiles in
     let units_tolink = List.fold_right scan_file obj_infos [] in
     List.iter
@@ -381,7 +381,7 @@ let call_linker file_list startup_file output_name =
 (* Main entry point *)
 
 let link ~ppf_dump objfiles output_name =
-  Profile.record_call output_name (fun () ->
+  Profile.(record_call (annotate_filename output_name)) (fun () ->
     let stdlib = "stdlib.cmxa" in
     let stdexit = "std_exit.cmx" in
     let objfiles =

@@ -16,7 +16,7 @@ let mkTarrow (label, t1, t2, comm) =
 
 type texp_ident_identifier = ident_kind * unique_use
 
-let mkTexp_ident ?id:(ident_kind, uu = (Id_value, shared_many_use))
+let mkTexp_ident ?id:(ident_kind, uu = (Id_value, aliased_many_use))
     (path, longident, vd) =
   Texp_ident (path, longident, vd, ident_kind, uu)
 

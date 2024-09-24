@@ -25,6 +25,8 @@ val regalloc_validate : bool ref
 val vectorize : bool ref
 val dump_vectorize : bool ref
 
+val cfg_selection : bool ref
+
 val cfg_peephole_optimize: bool ref
 
 val cfg_cse_optimize: bool ref

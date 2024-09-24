@@ -99,6 +99,7 @@ type error =
     }
   | Null_arity_external
   | Missing_native_external
+  | Unboxed_product_in_external
   | Unbound_type_var of type_expr * type_declaration
   | Cannot_extend_private_type of Path.t
   | Not_extensible_type of Path.t
@@ -125,7 +126,7 @@ type error =
       }
   | Jkind_empty_record
   | Non_value_in_sig of Jkind.Violation.t * string * type_expr
-  | Invalid_jkind_in_block of type_expr * Jkind.Sort.const * jkind_sort_loc
+  | Invalid_jkind_in_block of type_expr * Jkind.Sort.Const.t * jkind_sort_loc
   | Illegal_mixed_product of mixed_product_violation
   | Separability of Typedecl_separability.error
   | Bad_unboxed_attribute of string
@@ -409,8 +410,9 @@ let check_representable ~why ~allow_unboxed env loc kloc typ =
   | Ok s -> begin
     if not allow_unboxed then
       match Jkind.Sort.default_to_value_and_get s with
-      | Void | Value -> ()
-      | Float64 | Float32 | Word | Bits32 | Bits64 as const ->
+      | Base (Void | Value) -> ()
+      | Base (Float64 | Float32 | Word | Bits32 | Bits64)
+      | Product _ as const ->
         raise (Error (loc, Invalid_jkind_in_block (typ, const, kloc)))
     end
   | Error err -> raise (Error (loc,Jkind_sort {kloc; typ; err}))
@@ -1181,7 +1183,7 @@ let check_kind_coherence env loc dpath decl =
       with Not_found ->
         raise(Error(loc, Unavailable_type_constructor path))
       end
-    | _ -> ()
+    | _ -> raise (Error(loc, Definition_mismatch (ty, env, None)))
     end
   | _ -> ()
 
@@ -1281,7 +1283,7 @@ module Element_repr = struct
     | Value_element
     | Element_without_runtime_component of { loc : Location.t; ty : type_expr }
 
-  let classify env loc ty jkind =
+  let classify env loc kloc ty jkind =
     if is_float env ty then Float_element
     else
       let const_jkind = Jkind.default_to_value_and_get jkind in
@@ -1289,7 +1291,14 @@ module Element_repr = struct
       let externality_upper_bound =
         Jkind.Const.get_externality_upper_bound const_jkind
       in
-      match sort, externality_upper_bound with
+      let base = match sort with
+        | None ->
+            Misc.fatal_error "Element_repr.classify: unexpected abstract layout"
+        | Some (Product _ as c) ->
+            raise (Error (loc, Invalid_jkind_in_block (ty, c, kloc)))
+        | Some (Base b) -> b
+      in
+      match base, externality_upper_bound with
       (* CR layouts v5.1: We don't allow [External64] in the flat suffix of
          mixed blocks. That's because we haven't committed to whether the
          unboxing features of flambda2 can be used together with 32 bit
@@ -1306,17 +1315,14 @@ module Element_repr = struct
          We may revisit this decision later when we know better whether we want
          flambda2 to unbox for 32 bit platforms.
       *)
-      | Some Value, (Internal | External64) ->
-        Value_element
-      | Some Value, External -> Imm_element
-      | Some Float64, _ -> Unboxed_element Float64
-      | Some Float32, _ -> Unboxed_element Float32
-      | Some Word, _ -> Unboxed_element Word
-      | Some Bits32, _ -> Unboxed_element Bits32
-      | Some Bits64, _ -> Unboxed_element Bits64
-      | Some Void, _ -> Element_without_runtime_component { loc; ty }
-      | None, _ ->
-          Misc.fatal_error "Element_repr.classify: unexpected abstract layout"
+      | Value, (Internal | External64) -> Value_element
+      | Value, External -> Imm_element
+      | Float64, _ -> Unboxed_element Float64
+      | Float32, _ -> Unboxed_element Float32
+      | Word, _ -> Unboxed_element Word
+      | Bits32, _ -> Unboxed_element Bits32
+      | Bits64, _ -> Unboxed_element Bits64
+      | Void, _ -> Element_without_runtime_component { loc; ty }
 
   let unboxed_to_flat : unboxed_element -> flat_element = function
     | Float64 -> Float64
@@ -1332,7 +1338,8 @@ module Element_repr = struct
        updating some assumptions in lambda, e.g. the translation
        of [value_prefix_len]. *)
     | Element_without_runtime_component { loc; ty } ->
-        raise (Error (loc, Invalid_jkind_in_block (ty, Void, Mixed_product)))
+        raise (Error (loc, Invalid_jkind_in_block (ty, Base Void,
+                                                   Mixed_product)))
     | Float_element | Value_element -> None
 
   (* Compute the [flat_suffix] field of a mixed block record kind. *)
@@ -1374,7 +1381,8 @@ module Element_repr = struct
               | None -> None
               | Some _ ->
                   raise (Error (loc,
-                    Invalid_jkind_in_block (ty, Void, Mixed_product)))
+                    Invalid_jkind_in_block (ty, Base Void,
+                                            Mixed_product)))
             end
     in
     match find_flat_suffix ts with
@@ -1402,7 +1410,8 @@ let update_constructor_representation
     | Cstr_tuple arg_types_and_modes ->
         let arg_reprs =
           List.map2 (fun {Types.ca_type=arg_type; _} arg_jkind ->
-            Element_repr.classify env loc arg_type arg_jkind, arg_type)
+            let kloc : jkind_sort_loc = Cstr_tuple { unboxed = false } in
+            Element_repr.classify env loc kloc arg_type arg_jkind, arg_type)
             arg_types_and_modes arg_jkinds
         in
         Element_repr.mixed_product_shape loc arg_reprs Cstr_tuple
@@ -1417,7 +1426,9 @@ let update_constructor_representation
     | Cstr_record fields ->
         let arg_reprs =
           List.map (fun ld ->
-              Element_repr.classify env loc ld.Types.ld_type ld.ld_jkind, ld)
+              let kloc = Inlined_record { unboxed = false } in
+              Element_repr.classify env loc kloc ld.Types.ld_type ld.ld_jkind,
+              ld)
             fields
         in
         Element_repr.mixed_product_shape loc arg_reprs Cstr_record
@@ -1480,7 +1491,9 @@ let update_decl_jkind env dpath decl =
       let reprs =
         List.mapi
           (fun i lbl ->
-             Element_repr.classify env loc lbl.Types.ld_type jkinds.(i), lbl)
+             let kloc = Record { unboxed = false } in
+             Element_repr.classify env loc kloc lbl.Types.ld_type jkinds.(i),
+             lbl)
           lbls
       in
       let repr_summary =
@@ -1515,7 +1528,8 @@ let update_decl_jkind env dpath decl =
                   | Unboxed_element Float64 -> Float64
                   | Element_without_runtime_component { ty; loc } ->
                       raise (Error (loc,
-                        Invalid_jkind_in_block (ty, Void, Mixed_product)))
+                        Invalid_jkind_in_block (ty, Base Void,
+                                                Mixed_product)))
                   | Unboxed_element _ | Imm_element | Value_element ->
                       Misc.fatal_error "Expected only floats and float64s")
                 reprs
@@ -2719,7 +2733,7 @@ let type_sort_external ~is_layout_poly ~why env loc typ =
     in
     raise(Error (loc, Jkind_sort {kloc; typ; err}))
 
-type sort_or_poly = Sort of Jkind.Sort.const | Poly
+type sort_or_poly = Sort of Jkind.Sort.Const.t | Poly
 
 let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   error_if_has_deep_native_repr_attributes core_type;
@@ -2747,25 +2761,27 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
         sort_or_poly with
   | Native_repr_attr_absent, Poly ->
     Repr_poly
-  | Native_repr_attr_absent, Sort (Value as sort) ->
-    Same_as_ocaml_repr sort
-  | Native_repr_attr_absent, (Sort sort) ->
+  | Native_repr_attr_absent, Sort (Base Value) ->
+    Same_as_ocaml_repr Value
+  | Native_repr_attr_absent, (Sort (Base sort)) ->
     (if Language_extension.erasable_extensions_only ()
     then
       (* Non-value sorts without [@unboxed] are not erasable. *)
-      let layout = Jkind_types.Sort.to_string (Const sort) in
+      let layout = Jkind_types.Sort.to_string (Base sort) in
       Location.prerr_warning core_type.ptyp_loc
         (Warnings.Incompatible_with_upstream
               (Warnings.Unboxed_attribute layout)));
     Same_as_ocaml_repr sort
-  | Native_repr_attr_present kind, (Poly | Sort Value)
+  | Native_repr_attr_absent, (Sort (Product _)) ->
+    raise (Error (core_type.ptyp_loc, Unboxed_product_in_external))
+  | Native_repr_attr_present kind, (Poly | Sort (Base Value))
   | Native_repr_attr_present (Untagged as kind), Sort _ ->
     begin match native_repr_of_type env kind ty with
     | None ->
       raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type kind))
     | Some repr -> repr
     end
-  | Native_repr_attr_present Unboxed, (Sort sort) ->
+  | Native_repr_attr_present Unboxed, (Sort (Base sort)) ->
     (* We allow [@unboxed] on non-value sorts.
 
        This is to enable upstream-compatibility. We want the code to
@@ -2790,11 +2806,13 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
     then
       (* There are additional requirements if we are operating in
          upstream compatible mode. *)
-      let layout = Jkind_types.Sort.to_string (Const sort) in
+      let layout = Jkind_types.Sort.to_string (Base sort) in
       Location.prerr_warning core_type.ptyp_loc
         (Warnings.Incompatible_with_upstream
               (Warnings.Non_value_sort layout)));
     Same_as_ocaml_repr sort
+  | Native_repr_attr_present Unboxed, (Sort (Product _)) ->
+    raise (Error (core_type.ptyp_loc, Unboxed_product_in_external))
 
 let prim_const_mode m =
   match Mode.Locality.Guts.check_const m with
@@ -2929,6 +2947,15 @@ let unexpected_layout_any_check prim env cty ty =
       [@layout_poly].
 
       An exception is raised if any of these checks fails. *)
+(* CR layouts v7.1: additionally, we do not allow externals to have unboxed
+   product args/returns. Right now this restriction is in place for all
+   externals, but we should be able to relax it for some primitives that are
+   implemented by the compiler, like %identity. Enforcement for [@layout_poly]
+   primitives is tricky, because it is legal to, e.g., apply such a primitive to
+   a sort variable, and that sort variable could subsequently be filled in by a
+   product. So we rule out some things here, but others must be caught much
+   later, in translprim.
+*)
 let error_if_containing_unexpected_jkind prim env cty ty =
   Primitive.prim_has_valid_reprs ~loc:cty.ctyp_loc prim;
   unexpected_layout_any_check prim env cty ty
@@ -3494,6 +3521,9 @@ let report_error ppf = function
       fprintf ppf "@[<hv>An external function with more than 5 arguments \
                    requires a second stub function@ \
                    for native-code compilation@]"
+  | Unboxed_product_in_external ->
+      fprintf ppf "@[Unboxed product layouts are not supported in external \
+                   declarations@]"
   | Unbound_type_var (ty, decl) ->
       fprintf ppf "@[A type variable is unbound in this type declaration";
       begin match decl.type_kind, decl.type_manifest with

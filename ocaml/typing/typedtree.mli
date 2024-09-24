@@ -63,12 +63,12 @@ type _ pattern_category =
 | Value : value pattern_category
 | Computation : computation pattern_category
 
-(* The following will be used in the future when overwriting is introduced and
-  code-motion need to be checked. This will be associated to each field
-  projection, and represents the usage of the record immediately after this
-  projection. If it points to unique, that means this projection must be
-  borrowed and cannot be moved *)
-type unique_barrier = Mode.Uniqueness.r option
+(* CR zqian: use this field when overwriting is supported. *)
+(** Access mode for a field projection, represented by the usage of the record
+  immediately following the projection. If the following usage is unique, the
+  projection must be borrowed and cannot be moved. If the following usage is
+  aliased, the projection can be aliased and moved. *)
+type unique_barrier = Mode.Uniqueness.r
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
@@ -85,7 +85,7 @@ type texp_field_boxing =
   (** Projection does not require boxing. [unique_use] describes the usage of
       the field as the result of direct projection. *)
 
-val shared_many_use : unique_use
+val aliased_many_use : unique_use
 
 type pattern = value general_pattern
 and 'k general_pattern = 'k pattern_desc pattern_data
@@ -135,6 +135,15 @@ and 'k pattern_desc =
         (** (P1, ..., Pn)                  [(None,P1); ...; (None,Pn)])
             (L1:P1, ... Ln:Pn)             [(Some L1,P1); ...; (Some Ln,Pn)])
             Any mix, e.g. (L1:P1, P2)      [(Some L1,P1); ...; (None,P2)])
+
+            Invariant: n >= 2
+         *)
+  | Tpat_unboxed_tuple :
+      (string option * value general_pattern * Jkind.sort) list ->
+      value pattern_desc
+        (** #(P1, ..., Pn)              [(None,P1,s1); ...; (None,Pn,sn)])
+            #(L1:P1, ... Ln:Pn)         [(Some L1,P1,s1); ...; (Some Ln,Pn,sn)])
+            Any mix, e.g. #(L1:P1, P2)  [(Some L1,P1,s1); ...; (None,P2,s2)])
 
             Invariant: n >= 2
          *)
@@ -311,9 +320,21 @@ and expression_desc =
         (** try E with P1 -> E1 | ... | PN -> EN *)
   | Texp_tuple of (string option * expression) list * alloc_mode
         (** [Texp_tuple(el)] represents
-            - [(E1, ..., En)]       when [el] is [(None, E1);...;(None, En)],
-            - [(L1:E1, ..., Ln:En)] when [el] is [(Some L1, E1);...;(Some Ln, En)],
-            - Any mix, e.g. [(L1: E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
+            - [(E1, ..., En)]
+                when [el] is [(None, E1);...;(None, En)],
+            - [(L1:E1, ..., Ln:En)]
+                when [el] is [(Some L1, E1);...;(Some Ln, En)],
+            - Any mix, e.g. [(L1: E1, E2)]
+                when [el] is [(Some L1, E1); (None, E2)]
+          *)
+  | Texp_unboxed_tuple of (string option * expression * Jkind.sort) list
+        (** [Texp_unboxed_tuple(el)] represents
+            - [#(E1, ..., En)]
+                when [el] is [(None, E1, s1);...;(None, En, sn)],
+            - [#(L1:E1, ..., Ln:En)]
+                when [el] is [(Some L1, E1, s1);...;(Some Ln, En, sn)],
+            - Any mix, e.g. [#(L1: E1, E2)]
+                when [el] is [(Some L1, E1, s1); (None, E2, s2)]
           *)
   | Texp_construct of
       Longident.t loc * Types.constructor_description *
@@ -773,7 +794,7 @@ and signature_item_desc =
   | Tsig_modtype of module_type_declaration
   | Tsig_modtypesubst of module_type_declaration
   | Tsig_open of open_description
-  | Tsig_include of include_description
+  | Tsig_include of include_description * Mode.Modality.Value.Const.t
   | Tsig_class of class_description list
   | Tsig_class_type of class_type_declaration list
   | Tsig_attribute of attribute
@@ -866,6 +887,7 @@ and core_type_desc =
   | Ttyp_var of string option * Jkind.annotation option
   | Ttyp_arrow of arg_label * core_type * core_type
   | Ttyp_tuple of (string option * core_type) list
+  | Ttyp_unboxed_tuple of (string option * core_type) list
   | Ttyp_constr of Path.t * Longident.t loc * core_type list
   | Ttyp_object of object_field list * closed_flag
   | Ttyp_class of Path.t * Longident.t loc * core_type list

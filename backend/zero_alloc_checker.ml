@@ -2550,9 +2550,17 @@ end = struct
         | Intop
             ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
             | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ )
-        | Reinterpret_cast _ | Static_cast _ | Csel _ ->
-          assert (Cfg.is_pure_operation op);
+        | Reinterpret_cast
+            ( Float32_of_float | Float_of_float32 | Float_of_int64
+            | Int64_of_float | Float32_of_int32 | Int32_of_float32
+            | V128_of_v128 )
+        | Static_cast _ | Csel _ ->
+          if not (Cfg.is_pure_operation op)
+          then
+            Misc.fatal_errorf "Expected pure operation, got %a\n"
+              Cfg.dump_operation op;
           next
+        | Reinterpret_cast (Int_of_value | Value_of_int)
         | Name_for_debugger _ | Stackoffset _ | Probe_is_enabled _ | Opaque
         | Begin_region | End_region | Intop_atomic _ | Store _ ->
           next

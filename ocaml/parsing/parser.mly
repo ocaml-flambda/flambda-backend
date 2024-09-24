@@ -923,6 +923,7 @@ let unboxed_type sloc lident tys =
 %token GREATER                ">"
 %token GREATERRBRACE          ">}"
 %token GREATERRBRACKET        ">]"
+%token HASHLPAREN             "#("
 %token IF                     "if"
 %token IN                     "in"
 %token INCLUDE                "include"
@@ -1067,6 +1068,7 @@ The precedences must be listed from low to high.
 %nonassoc FUNCTOR                       /* include functor M */
 %right    MINUSGREATER                  /* function_type (t -> t -> t) */
 %right    OR BARBAR                     /* expr (e || e || e) */
+%nonassoc below_AMPERSAND
 %right    AMPERSAND AMPERAMPER          /* expr (e && e && e) */
 %nonassoc below_EQUAL
 %left     INFIXOP0 EQUAL LESS GREATER   /* expr (e OP e OP e) */
@@ -1089,7 +1091,7 @@ The precedences must be listed from low to high.
 %nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT HASH_FLOAT INT HASH_INT OBJECT
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
-          LBRACKETPERCENT QUOTED_STRING_EXPR STACK
+          LBRACKETPERCENT QUOTED_STRING_EXPR STACK HASHLPAREN
 
 
 /* Entry points */
@@ -1725,13 +1727,8 @@ structure_item:
     )
     { $1 }
   | include_statement(module_expr)
-      { let is_functor, incl, ext = $1 in
-        let item =
-          if is_functor
-          then Jane_syntax.Include_functor.str_item_of ~loc:(make_loc $sloc)
-                (Ifstr_include_functor incl)
-          else mkstr ~loc:$sloc (Pstr_include incl)
-        in
+      { let incl, ext = $1 in
+        let item = mkstr ~loc:$sloc (Pstr_include incl) in
         wrap_str_ext ~loc:$sloc item ext
       }
   | kind_abbreviation_decl
@@ -1817,17 +1814,17 @@ module_binding_body:
 
 (* Shared material between structures and signatures. *)
 
-include_maybe_functor:
+include_kind:
   | INCLUDE %prec below_FUNCTOR
-      { false }
+      { Structure }
   | INCLUDE FUNCTOR
-      { true }
+      { Functor }
 ;
 
 (* An [include] statement can appear in a structure or in a signature,
    which is why this definition is parameterized. *)
 %inline include_statement(thing):
-  is_functor = include_maybe_functor
+  kind = include_kind
   ext = ext
   attrs1 = attributes
   thing = thing
@@ -1836,8 +1833,8 @@ include_maybe_functor:
     let attrs = attrs1 @ attrs2 in
     let loc = make_loc $sloc in
     let docs = symbol_docs $sloc in
-    let incl = Incl.mk thing ~attrs ~loc ~docs in
-    is_functor, incl, ext
+    let incl = Incl.mk ~kind thing ~attrs ~loc ~docs in
+    incl, ext
   }
 ;
 
@@ -2003,14 +2000,9 @@ signature_item:
         { let (ext, l) = $1 in (Psig_class_type l, ext) }
     )
     { $1 }
-  | include_statement(module_type)
-      { let is_functor, incl, ext = $1 in
-        let item =
-          if is_functor
-          then Jane_syntax.Include_functor.sig_item_of ~loc:(make_loc $sloc)
-                 (Ifsig_include_functor incl)
-          else mksig ~loc:$sloc (Psig_include incl)
-        in
+  | include_statement(module_type) modalities = optional_atat_modalities_expr
+      { let incl, ext = $1 in
+        let item = mksig ~loc:$sloc (Psig_include (incl, modalities)) in
         wrap_sig_ext ~loc:$sloc item ext
       }
   | kind_abbreviation_decl
@@ -3053,6 +3045,8 @@ comprehension_clause:
   | mod_longident DOT
     LPAREN MODULE ext_attributes module_expr COLON error
       { unclosed "(" $loc($3) ")" $loc($8) }
+  | HASHLPAREN labeled_tuple RPAREN
+      { Pexp_unboxed_tuple $2 }
 ;
 labeled_simple_expr:
     simple_expr %prec below_HASH
@@ -3674,6 +3668,9 @@ simple_delimited_pattern:
             (fun elts -> Ppat_array elts)
             $1
         }
+    | HASHLPAREN reversed_labeled_tuple_pattern(pattern) RPAREN
+        { let (closed, fields) = $2 in
+          Ppat_unboxed_tuple (List.rev fields, closed) }
   ) { $1 }
   | array_patterns(LBRACKETCOLON, COLONRBRACKET)
       { Generic_array.Pattern.to_ast
@@ -3899,7 +3896,21 @@ jkind:
   | UNDERSCORE {
       Jane_syntax.Jkind.Default
     }
+  | reverse_product_jkind %prec below_AMPERSAND {
+      Jane_syntax.Jkind.Product (List.rev $1)
+    }
+  | LPAREN jkind RPAREN {
+      $2
+    }
 ;
+
+reverse_product_jkind :
+  | jkind1 = jkind AMPERSAND jkind2 = jkind %prec below_EQUAL
+      { [jkind2; jkind1] }
+  | jkinds = reverse_product_jkind
+    AMPERSAND
+    jkind = jkind %prec below_EQUAL
+    { jkind :: jkinds }
 
 jkind_annotation: (* : jkind_annotation *)
   mkrhs(jkind) { $1 }
@@ -4478,6 +4489,22 @@ tuple_type:
     ltys = separated_nonempty_llist(STAR, labeled_tuple_typ_element)
       { ty, ltys }
 
+(* In the case of an unboxed tuple, we don't need the nonsense above because
+   the [#( ... )] disambiguates.  However, we still must write out
+   the first element explicitly because [labeled_tuple_typ_element] is
+   restricted to tail position by its %prec annotation. *)
+%inline unboxed_tuple_type_body:
+  | ty1 = atomic_type
+    STAR
+    ltys = separated_nonempty_llist(STAR, labeled_tuple_typ_element)
+    { (None, ty1) :: ltys }
+  | label = LIDENT
+    COLON
+    ty1 = atomic_type
+    STAR
+    ltys = separated_nonempty_llist(STAR, labeled_tuple_typ_element)
+    { (Some label, ty1) :: ltys }
+
 %inline labeled_tuple_typ_element :
   | atomic_type %prec STAR
      { None, $1 }
@@ -4531,6 +4558,8 @@ atomic_type:
         { Ptyp_variant($3, Closed, Some []) }
     | LBRACKETLESS BAR? row_field_list GREATER name_tag_list RBRACKET
         { Ptyp_variant($3, Closed, Some $5) }
+    | HASHLPAREN unboxed_tuple_type_body RPAREN
+        { Ptyp_unboxed_tuple $2 }
     | extension
         { Ptyp_extension $1 }
   )

@@ -301,6 +301,9 @@ let pat
     | Tpat_var (id, s, uid, m) -> Tpat_var (id, map_loc sub s, uid, m)
     | Tpat_tuple l ->
         Tpat_tuple (List.map (fun (label, p) -> label, sub.pat sub p) l)
+    | Tpat_unboxed_tuple l ->
+      Tpat_unboxed_tuple
+        (List.map (fun (label, p, sort) -> label, sub.pat sub p, sort) l)
     | Tpat_construct (loc, cd, l, vto) ->
         let vto = Option.map (fun (vl,cty) ->
           List.map (map_loc sub) vl, sub.typ sub cty) vto in
@@ -466,6 +469,9 @@ let expr sub x =
         )
     | Texp_tuple (list, am) ->
         Texp_tuple (List.map (fun (label, e) -> label, sub.expr sub e) list, am)
+    | Texp_unboxed_tuple list ->
+        Texp_unboxed_tuple
+          (List.map (fun (label, e, s) -> label, sub.expr sub e, s) list)
     | Texp_construct (lid, cd, args, am) ->
         Texp_construct (map_loc sub lid, cd, List.map (sub.expr sub) args, am)
     | Texp_variant (l, expo) ->
@@ -649,8 +655,8 @@ let signature_item sub x =
         Tsig_modtype (sub.module_type_declaration sub x)
     | Tsig_modtypesubst x ->
         Tsig_modtypesubst (sub.module_type_declaration sub x)
-    | Tsig_include incl ->
-        Tsig_include (sig_include_infos sub incl)
+    | Tsig_include (incl, moda) ->
+        Tsig_include (sig_include_infos sub incl, moda)
     | Tsig_class list ->
         Tsig_class (List.map (sub.class_description sub) list)
     | Tsig_class_type list ->
@@ -879,6 +885,9 @@ let typ sub x =
         Ttyp_arrow (label, sub.typ sub ct1, sub.typ sub ct2)
     | Ttyp_tuple list ->
         Ttyp_tuple (List.map (fun (label, t) -> label, sub.typ sub t) list)
+    | Ttyp_unboxed_tuple list ->
+        Ttyp_unboxed_tuple
+          (List.map (fun (label, t) -> label, sub.typ sub t) list)
     | Ttyp_constr (path, lid, list) ->
         Ttyp_constr (path, map_loc sub lid, List.map (sub.typ sub) list)
     | Ttyp_object (list, closed) ->

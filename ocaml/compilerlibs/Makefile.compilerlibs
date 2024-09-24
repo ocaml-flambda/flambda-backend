@@ -40,6 +40,7 @@ UTILS = \
   utils/language_extension_kernel.cmo \
   utils/language_extension.cmo \
   utils/profile.cmo \
+  utils/profile_counters_functions.cmo \
   utils/terminfo.cmo \
   utils/ccomp.cmo \
   utils/warnings.cmo \

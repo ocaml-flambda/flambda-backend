@@ -38,6 +38,9 @@ module type Flambda_backend_options = sig
   val no_vectorize : unit -> unit
   val dvectorize : unit -> unit
 
+  val cfg_selection : unit -> unit
+  val no_cfg_selection : unit -> unit
+
   val cfg_peephole_optimize : unit -> unit
   val no_cfg_peephole_optimize : unit -> unit
 

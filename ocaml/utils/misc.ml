@@ -149,6 +149,17 @@ module Stdlib = struct
       in
       aux [] l
 
+    let map_option f l =
+      let rec aux l acc =
+        match l with
+        | [] -> Some (List.rev acc)
+        | x :: xs ->
+          match f x with
+          | None -> None
+          | Some x -> aux xs (x :: acc)
+      in
+      aux l []
+
     let split_at n l =
       let rec aux n acc l =
         if n = 0
@@ -215,6 +226,14 @@ module Stdlib = struct
           }
       in
       find_prefix ~longest_common_prefix_rev:[] first second
+
+    let rec iter_until_error ~f l =
+      match l with
+      | [] -> Ok ()
+      | x :: xs ->
+        match f x with
+        | Ok () -> iter_until_error ~f xs
+        | Error _ as e -> e
 
     let [@inline] merge_fold ~cmp ~left_only ~right_only ~both ~init t1 t2 =
       let rec loop acc t1 t2 =
@@ -1069,6 +1088,18 @@ let pp_two_columns ?(sep = "|") ?max_lines ppf (lines: (string * string) list) =
     else Format.fprintf ppf "%*s %s %s@," left_column_size line_l sep line_r
   ) lines;
   Format.fprintf ppf "@]"
+
+let pp_parens_if condition printer ppf arg =
+  Format.fprintf ppf "%s%a%s"
+    (if condition then "(" else "")
+    printer arg
+    (if condition then ")" else "")
+
+let pp_nested_list ~nested ~pp_element ~pp_sep ppf arg =
+  Format.fprintf ppf "@[%a@]"
+    (pp_parens_if nested
+       (Format.pp_print_list ~pp_sep (pp_element ~nested:true)))
+    arg
 
 (* showing configuration and configuration variables *)
 let show_config_and_exit () =

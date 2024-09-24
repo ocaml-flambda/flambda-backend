@@ -556,9 +556,8 @@ module Analyser =
            pmty_attributes = []
          }
 
-    let filter_out_erased_item_from_signature_jst _erased acc
+    let filter_out_erased_item_from_signature_jst _erased _acc
       : Jane_syntax.Signature_item.t -> _ = function
-      | Jsig_include_functor (Ifsig_include_functor _) -> acc
       | Jsig_layout (Lsig_kind_abbrev _) ->
         Misc.fatal_error "Lsig_kind_abbrev"
 
@@ -577,9 +576,10 @@ module Analyser =
         | Parsetree.Psig_typext _
         | Parsetree.Psig_exception _
         | Parsetree.Psig_open _
-        | Parsetree.Psig_include _
+        | Parsetree.Psig_include ({pincl_kind=Structure;_}, _)
         | Parsetree.Psig_class _
         | Parsetree.Psig_class_type _ as tp -> take_item tp
+        | Parsetree.Psig_include ({pincl_kind=Functor;_}, _)
         | Parsetree.Psig_typesubst _ -> acc
         | Parsetree.Psig_type (rf, types) ->
           (match List.filter (fun td -> not (is_erased td.Parsetree.ptype_name.txt erased)) types with
@@ -867,7 +867,8 @@ module Analyser =
               Pmod_ident longident -> Name.from_longident longident.txt
             | Pmod_structure [
                 {pstr_desc=Pstr_include
-                     {pincl_mod={pmod_desc=Pmod_ident longident}}
+                     {pincl_mod={pmod_desc=Pmod_ident longident};
+                      pincl_kind=Structure}
                 }] -> (* include module type of struct include M end*)
                 Name.from_longident longident.txt
             | _ -> "??"
@@ -885,13 +886,9 @@ module Analyser =
       in
       (0, env, [ Element_included_module im ]) (* FIXME : extend the environment? How? *)
 
-    and analyse_signature_item_desc_jst env _signat _table _current_module_name
-        _sig_item_loc _pos_start_ele _pos_end_ele _pos_limit comment_opt
+    and analyse_signature_item_desc_jst _env _signat _table _current_module_name
+        _sig_item_loc _pos_start_ele _pos_end_ele _pos_limit _comment_opt
         : Jane_syntax.Signature_item.t -> _ = function
-      | Jsig_include_functor ifincl -> begin match ifincl with
-          | Ifsig_include_functor incl ->
-              analyse_signature_item_desc_include ~env ~comment_opt incl
-        end
       | Jsig_layout (Lsig_kind_abbrev _) ->
         Misc.fatal_error "Lsig_kind_abbrev"
 
@@ -1459,7 +1456,7 @@ module Analyser =
             in
             (maybe_more, new_env2, [ Element_module_type mt ])
 
-        | Parsetree.Psig_include incl ->
+        | Parsetree.Psig_include (incl, _) ->
             analyse_signature_item_desc_include ~env ~comment_opt incl
 
         | Parsetree.Psig_class class_description_list ->

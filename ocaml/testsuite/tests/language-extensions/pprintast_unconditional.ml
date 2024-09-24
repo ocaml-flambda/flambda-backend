@@ -34,6 +34,8 @@ module Example = struct
   let modality_val  = parse module_type
     "sig \
       val t : string -> string @ local @@ foo bar \
+      include S @@ bar foo
+      include functor S @@ foo foo
      end"
 
   let local_exp = parse expression "let x = foo (local_ x) in local_ y"
@@ -46,6 +48,10 @@ module Example = struct
     "let f (a @ local) ~(b @ local) ?(c @ local) \
           ?(d @ local = 1) ~e:(e @ local) ?f:(f @ local = 2) \
            () = () in f"
+  let utuple_exp = parse expression
+    "let #(x,y) : #(int * int) = #(1,2) in \
+     let #(a,#(b,c)) : ('a : value & (value & value)) = #(3,#(4,5)) in
+     x + y + a + b + c"
 
   let modal_kind_struct =
     parse module_expr "struct \
@@ -193,6 +199,7 @@ end = struct
   let local_exp = test "local_exp" expression Example.local_exp
   let stack_exp = test "stack_exp" expression Example.stack_exp
   let fun_with_modes_on_arg = test "fun_with_modes_on_arg" expression Example.fun_with_modes_on_arg
+  let utuple_exp = test "utuple_exp" expression Example.utuple_exp
 
   let longident = test "longident" longident Example.longident
   let expression = test "expression" expression Example.expression
