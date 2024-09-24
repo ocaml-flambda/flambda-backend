@@ -350,16 +350,12 @@ let rec bind_recs acc exn_cont ~register_const0 (prim : expr_primitive)
       in
       let result_pats =
         List.map
-          (fun result_var ->
-            Bound_var.create result_var Name_mode.normal)
+          (fun result_var -> Bound_var.create result_var Name_mode.normal)
           result_vars
       in
-      let result_simples =
-        List.map Simple.var result_vars
-      in
+      let result_simples = List.map Simple.var result_vars in
       let acc, apply_cont =
-        Apply_cont_with_acc.create acc join_point_cont
-          ~args:result_simples ~dbg
+        Apply_cont_with_acc.create acc join_point_cont ~args:result_simples ~dbg
       in
       let acc, body = Expr_with_acc.create_apply_cont acc apply_cont in
       List.fold_left2
@@ -367,9 +363,7 @@ let rec bind_recs acc exn_cont ~register_const0 (prim : expr_primitive)
           Let_with_acc.create acc
             (Bound_pattern.singleton result_pat)
             ifso_or_ifnot ~body)
-        (acc, body)
-        (List.rev result_pats)
-        (List.rev ifso_or_ifnot)
+        (acc, body) (List.rev result_pats) (List.rev ifso_or_ifnot)
     in
     let ifso_handler_expr = ifso_or_ifnot_handler_expr ~name:"ifso" ifso in
     let ifnot_handler_expr = ifso_or_ifnot_handler_expr ~name:"ifnot" ifnot in
