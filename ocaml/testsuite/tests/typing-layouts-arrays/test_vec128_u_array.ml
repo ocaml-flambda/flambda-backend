@@ -4,9 +4,7 @@
  include stdlib_upstream_compatible;
  flambda2;
  {
-   native;
- }{
-   flags = "-extension layouts_beta";
+   flags = "-extension layouts_beta -extension simd_beta";
    native;
  }
 *)
