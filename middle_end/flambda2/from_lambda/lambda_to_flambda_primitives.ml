@@ -860,7 +860,8 @@ let[@inline always] match_on_array_ref_kind ~array array_ref_kind f :
     If_then_else
       ( Unary (Is_flat_float_array, array),
         f (Array_ref_kind.Naked_floats_to_be_boxed mode),
-        f Array_ref_kind.Values )
+        f Array_ref_kind.Values,
+        [K.With_subkind.any_value] )
 
 let[@inline always] match_on_array_set_kind ~array array_ref_kind f :
     H.expr_primitive =
@@ -872,7 +873,8 @@ let[@inline always] match_on_array_set_kind ~array array_ref_kind f :
     If_then_else
       ( Unary (Is_flat_float_array, array),
         f Array_set_kind.Naked_floats_to_be_unboxed,
-        f (Array_set_kind.Values (Assignment mode)) )
+        f (Array_set_kind.Values (Assignment mode)),
+        [K.With_subkind.tagged_immediate] )
 
 (* Safe arith (div/mod by zero) *)
 let checked_arith_op ~dbg (bi : Lambda.boxed_integer option) op mode arg1 arg2
@@ -1046,7 +1048,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
               Variadic
                 ( Make_array (Naked_floats, mutability, mode),
                   List.map unbox_float args ),
-              Variadic (Make_array (Values, mutability, mode), args) ) ]))
+              Variadic (Make_array (Values, mutability, mode), args),
+              [K.With_subkind.any_value] ) ]))
   | Popaque layout, [arg] -> opaque layout arg ~middle_end_only:false
   | Pobj_magic layout, [arg] -> opaque layout arg ~middle_end_only:true
   | Pduprecord (repr, num_fields), [[arg]] ->
@@ -1295,7 +1298,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             Unary
               ( Duplicate_array
                   { kind = Values; source_mutability; destination_mutability },
-                arg ) ) ])
+                arg ),
+            [K.With_subkind.any_value] ) ])
   | Pstringlength, [[arg]] -> [tag_int (Unary (String_length String, arg))]
   | Pbyteslength, [[arg]] -> [tag_int (Unary (String_length Bytes, arg))]
   | Pstringrefu, [[str]; [index]] ->
@@ -2026,4 +2030,6 @@ let convert_and_bind acc ~big_endian exn_cont ~register_const0
     convert_lprim ~big_endian prim args dbg ~current_region
       ~current_ghost_region
   in
-  H.bind_recs acc exn_cont ~register_const0 exprs dbg cont
+  H.bind_recs acc exn_cont ~register_const0
+    (H.maybe_create_unboxed_product exprs)
+    dbg cont
