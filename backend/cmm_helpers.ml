@@ -368,6 +368,8 @@ let rec lsl_int c1 c2 dbg =
     add_const (lsl_int c1 c2 dbg) (n1 lsl n2) dbg
   | _, _ -> Cop (Clsl, [c1; c2], dbg)
 
+let lsl_const c n dbg = lsl_int c (Cconst_int (n, dbg)) dbg
+
 let is_power2 n = n = 1 lsl Misc.log2 n
 
 and mult_power2 c n dbg = lsl_int c (Cconst_int (Misc.log2 n, dbg)) dbg
@@ -406,10 +408,16 @@ let ignore_low_bit_int = function
   | c -> c
 
 let lsr_int c1 c2 dbg =
-  match c2 with
-  | Cconst_int (0, _) -> c1
-  | Cconst_int (n, _) when n > 0 -> Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
+  match c1, c2 with
+  | c1, Cconst_int (0, _) -> c1
+  | Cop (Clsr, [c; Cconst_int (n1, _)], _), Cconst_int (n2, _)
+    when n1 > 0 && n2 > 0 && n1 + n2 < size_int * 8 ->
+    Cop (Clsr, [c; Cconst_int (n1 + n2, dbg)], dbg)
+  | c1, Cconst_int (n, _) when n > 0 ->
+    Cop (Clsr, [ignore_low_bit_int c1; c2], dbg)
   | _ -> Cop (Clsr, [c1; c2], dbg)
+
+let lsr_const c n dbg = lsr_int c (Cconst_int (n, dbg)) dbg
 
 let asr_int c1 c2 dbg =
   match c2 with
@@ -947,11 +955,9 @@ let get_header ptr dbg =
       dbg )
 
 let get_header_masked ptr dbg =
-  if Config.reserved_header_bits > 0
-  then
-    let header_mask = (1 lsl (64 - Config.reserved_header_bits)) - 1 in
-    Cop (Cand, [get_header ptr dbg; Cconst_int (header_mask, dbg)], dbg)
-  else get_header ptr dbg
+  match Config.reserved_header_bits with
+  | 0 -> get_header ptr dbg
+  | bits -> lsr_const (lsl_const (get_header ptr dbg) bits dbg) bits dbg
 
 let tag_offset = if big_endian then -1 else -size_int
 
@@ -971,7 +977,7 @@ let get_tag ptr dbg =
         dbg )
 
 let get_size ptr dbg =
-  Cop (Clsr, [get_header_masked ptr dbg; Cconst_int (10, dbg)], dbg)
+  lsr_const (get_header_masked ptr dbg) 10 dbg
 
 (* Array indexing *)
 
@@ -990,13 +996,10 @@ let is_addr_array_hdr hdr dbg =
       dbg )
 
 let addr_array_length_shifted hdr dbg =
-  Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg)
+  lsr_const hdr wordsize_shift dbg
 
 let float_array_length_shifted hdr dbg =
-  Cop (Clsr, [hdr; Cconst_int (numfloat_shift, dbg)], dbg)
-
-let lsl_const c n dbg =
-  if n = 0 then c else Cop (Clsl, [c; Cconst_int (n, dbg)], dbg)
+  lsr_const hdr numfloat_shift dbg
 
 (* Produces a pointer to the element of the array [ptr] on the position [ofs]
    with the given element [log2size] log2 element size.
@@ -3233,15 +3236,15 @@ let arraylength kind arg dbg =
   | Pgenarray ->
     let len =
       if wordsize_shift = numfloat_shift
-      then Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg)
+      then addr_array_length_shifted hdr dbg
       else
         bind "header" hdr (fun hdr ->
             Cifthenelse
               ( is_addr_array_hdr hdr dbg,
                 dbg,
-                Cop (Clsr, [hdr; Cconst_int (wordsize_shift, dbg)], dbg),
+                addr_array_length_shifted hdr dbg,
                 dbg,
-                Cop (Clsr, [hdr; Cconst_int (numfloat_shift, dbg)], dbg),
+                float_array_length_shifted hdr dbg,
                 dbg,
                 Any ))
     in
