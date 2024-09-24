@@ -167,7 +167,7 @@ module Runtime_5 = struct
 
     type dls_state = Obj.t array
 
-    let unique_value = Obj.repr (ref 0)
+    let unique_value = Obj.magic_portable (Obj.repr (ref 0))
 
     external get_dls_state : unit -> dls_state @@ portable = "%dls_get"
 
@@ -175,7 +175,7 @@ module Runtime_5 = struct
       "caml_domain_dls_set" [@@noalloc]
 
     let create_dls () =
-      let st = Array.make 8 unique_value in
+      let st = Array.make 8 (Obj.magic_uncontended unique_value) in
       set_dls_state st
 
     let init () = create_dls ()
@@ -233,7 +233,7 @@ module Runtime_5 = struct
           if idx < s then s else compute_new_size (2 * s)
         in
         let new_sz = compute_new_size sz in
-        let new_st = Array.make new_sz unique_value in
+        let new_st = Array.make new_sz (Obj.magic_uncontended unique_value) in
         Array.blit st 0 new_st 0 sz;
         set_dls_state new_st;
         new_st
@@ -251,7 +251,7 @@ module Runtime_5 = struct
     let get' () (K (idx, init)) =
       let st = maybe_grow idx in
       let v = st.(idx) in
-      if v == unique_value then
+      if v == (Obj.magic_uncontended unique_value) then
         let v' = Obj.repr (init ()) in
         st.(idx) <- (Sys.opaque_identity v');
         Obj.magic v'
@@ -262,7 +262,7 @@ module Runtime_5 = struct
     let get_initial_keys () : (int * Obj.t) list =
       let (KIs parent_keys) : key_initializer_list = Atomic.get_safe parent_keys in
       List.map
-        (fun (KI ((idx, _) as k, split)) ->
+        (fun (KI (K (idx, _) as k, split)) ->
             (idx, Obj.repr ((split (get k)) ())))
         parent_keys
 
@@ -329,7 +329,7 @@ module Runtime_5 = struct
     if not (Atomic.get_safe first_domain_spawned) then begin
       Atomic.set first_domain_spawned true;
       let F f = Atomic.get_safe first_spawn_function in
-      f ()
+      f ();
       (* Release the old function *)
       Atomic.set first_spawn_function (F (fun () -> ()))
     end
