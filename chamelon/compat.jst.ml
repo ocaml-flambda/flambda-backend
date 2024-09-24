@@ -278,6 +278,18 @@ let view_texp (e : expression_desc) =
   | Texp_match (e, sort, cases, partial) -> Texp_match (e, cases, partial, sort)
   | _ -> O e
 
+let mkpattern_data ~pat_desc ~pat_loc ~pat_extra ~pat_type ~pat_env
+    ~pat_attributes =
+  {
+    pat_desc;
+    pat_loc;
+    pat_extra;
+    pat_type;
+    pat_env;
+    pat_attributes;
+    pat_unique_barrier = fresh_unique_barrier ();
+  }
+
 type tpat_var_identifier = Value.l
 
 let mkTpat_var ?id:(mode = dummy_value_mode) (ident, name) =

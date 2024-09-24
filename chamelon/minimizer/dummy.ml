@@ -101,34 +101,29 @@ let false_expr =
     ({ txt = Lident "false"; loc = Location.none }, false_description, [])
 
 let any_pat =
-  {
-    pat_desc = Tpat_any;
-    pat_loc = Location.none;
-    pat_extra = [];
-    pat_type = dummy_type_expr;
-    pat_env = Env.empty;
-    pat_attributes = [];
-    pat_unique_barrier = fresh_unique_barrier ();
-  }
+  mkpattern_data
+    ~pat_desc:Tpat_any
+    ~pat_loc:Location.none
+    ~pat_extra:[]
+    ~pat_type:dummy_type_expr
+    ~pat_env:Env.empty
+    ~pat_attributes:[]
 
 let dummy1_str_it_desc =
   Tstr_value
     ( Nonrecursive,
       [
         mk_value_binding
-          ~vb_pat:
-            {
-              pat_desc =
-                mkTpat_var
-                  ( create_scoped ~scope:0 "__dummy1__",
-                    { txt = "__dummy1__"; loc = Location.none } );
-              pat_loc = Location.none;
-              pat_extra = [];
-              pat_type = dummy_type_expr;
-              pat_env = Env.empty;
-              pat_attributes = [];
-              pat_unique_barrier = fresh_unique_barrier ();
-            }
+          ~vb_pat:(mkpattern_data
+                   ~pat_desc:(mkTpat_var
+                     ( create_scoped ~scope:0 "__dummy1__",
+                       { txt = "__dummy1__"; loc = Location.none } ))
+                  ~pat_loc:Location.none
+                  ~pat_extra:[]
+                  ~pat_type:dummy_type_expr
+                  ~pat_env:Env.empty
+                  ~pat_attributes:[]
+                  )
           ~vb_expr:
             (exp_desc_to_exp
                (mkTexp_function
@@ -253,16 +248,13 @@ let ignore = exp_desc_to_exp ignore_desc
 
 let empty_value_case =
   {
-    c_lhs =
-      {
-        pat_desc = Tpat_any;
-        pat_loc = Location.none;
-        pat_extra = [];
-        pat_type = dummy_type_expr;
-        pat_env = Env.empty;
-        pat_attributes = [];
-        pat_unique_barrier = fresh_unique_barrier ();
-      };
+    c_lhs = (mkpattern_data
+        ~pat_desc:Tpat_any
+        ~pat_loc:Location.none
+        ~pat_extra:[]
+        ~pat_type:dummy_type_expr
+        ~pat_env:Env.empty
+        ~pat_attributes:[]);
     c_guard = None;
     c_rhs =
       {
@@ -279,15 +271,14 @@ let empty_computation_case =
   {
     c_lhs =
       as_computation_pattern
-        {
-          pat_desc = Tpat_any;
-          pat_loc = Location.none;
-          pat_extra = [];
-          pat_type = dummy_type_expr;
-          pat_env = Env.empty;
-          pat_attributes = [];
-          pat_unique_barrier = fresh_unique_barrier ();
-        };
+        (mkpattern_data
+          ~pat_desc:Tpat_any
+          ~pat_loc:Location.none
+          ~pat_extra:[]
+          ~pat_type:dummy_type_expr
+          ~pat_env:Env.empty
+          ~pat_attributes:[]
+        );
     c_guard = None;
     c_rhs =
       {

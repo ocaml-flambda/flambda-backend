@@ -165,6 +165,10 @@ let rec view_texp (e : expression_desc) =
   | Texp_match (e, cases, partial) -> Texp_match (e, cases, partial, ())
   | _ -> O e
 
+let mkpattern_data ~pat_desc ~pat_loc ~pat_extra ~pat_type ~pat_env
+    ~pat_attributes =
+  { pat_desc; pat_loc; pat_extra; pat_type; pat_env; pat_attributes }
+
 type tpat_var_identifier = unit
 
 let mkTpat_var ?id:(() = ()) (ident, name) = Tpat_var (ident, name)

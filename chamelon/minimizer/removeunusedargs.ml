@@ -48,21 +48,20 @@ let rec fun_wrapper arg_list acc_id depth path_fun n =
              [
                {
                  c_lhs =
-                   {
-                     pat_desc =
-                       mkTpat_var
+                   (mkpattern_data
+                     ~pat_desc:
+                       (mkTpat_var
                          ( id_arg,
                            {
                              txt = "arg" ^ string_of_int n;
                              loc = Location.none;
-                           } );
-                     pat_loc = Location.none;
-                     pat_extra = [];
-                     pat_env = Env.empty;
-                     pat_attributes = [];
-                     pat_type = dummy_type_expr;
-                     pat_unique_barrier = fresh_unique_barrier ();
-                   };
+                           } ))
+                     ~pat_loc:Location.none
+                     ~pat_extra:[]
+                     ~pat_env:Env.empty
+                     ~pat_attributes:[]
+                     ~pat_type:dummy_type_expr
+                   );
                  c_guard = None;
                  c_rhs =
                    exp_desc_to_exp
