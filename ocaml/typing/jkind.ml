@@ -754,7 +754,10 @@ module Const = struct
       | "word" -> Builtin.word.jkind
       | "bits32" -> Builtin.bits32.jkind
       | "bits64" -> Builtin.bits64.jkind
-      | "vec128" -> Builtin.vec128.jkind
+      | "vec128"
+        when Language_extension.(is_at_least Layouts Beta)
+             && Language_extension.(is_at_least SIMD Beta) ->
+        Builtin.vec128.jkind
       | _ -> raise ~loc (Unknown_jkind jkind))
     | Mod (jkind, modifiers) ->
       let base = of_user_written_annotation_unchecked_level jkind in
