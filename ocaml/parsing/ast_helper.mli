@@ -72,7 +72,7 @@ module Typ :
     val var: ?loc:loc -> ?attrs:attrs -> string -> core_type
     val arrow: ?loc:loc -> ?attrs:attrs -> arg_label -> core_type -> core_type ->
       mode with_loc list -> mode with_loc list -> core_type
-    val tuple: ?loc:loc -> ?attrs:attrs -> core_type list -> core_type
+    val tuple: ?loc:loc -> ?attrs:attrs -> (string option * core_type) list -> core_type
     val unboxed_tuple: ?loc:loc -> ?attrs:attrs
                        -> (string option * core_type) list -> core_type
     val constr: ?loc:loc -> ?attrs:attrs -> lid -> core_type list -> core_type
@@ -113,7 +113,8 @@ module Pat:
     val alias: ?loc:loc -> ?attrs:attrs -> pattern -> str -> pattern
     val constant: ?loc:loc -> ?attrs:attrs -> constant -> pattern
     val interval: ?loc:loc -> ?attrs:attrs -> constant -> constant -> pattern
-    val tuple: ?loc:loc -> ?attrs:attrs -> pattern list -> pattern
+    val tuple: ?loc:loc -> ?attrs:attrs -> (string option * pattern) list ->
+      closed_flag -> pattern
     val unboxed_tuple: ?loc:loc -> ?attrs:attrs
                        -> (string option * pattern) list -> closed_flag
                        -> pattern
@@ -152,7 +153,7 @@ module Exp:
     val match_: ?loc:loc -> ?attrs:attrs -> expression -> case list
                 -> expression
     val try_: ?loc:loc -> ?attrs:attrs -> expression -> case list -> expression
-    val tuple: ?loc:loc -> ?attrs:attrs -> expression list -> expression
+    val tuple: ?loc:loc -> ?attrs:attrs -> (string option * expression) list -> expression
     val unboxed_tuple: ?loc:loc -> ?attrs:attrs
                        -> (string option * expression) list -> expression
     val construct: ?loc:loc -> ?attrs:attrs -> lid -> expression option
