@@ -1188,12 +1188,10 @@ and label_x_apply_arg i ppf (l, e) =
   (match e with Omitted _ -> () | Arg (e, _) -> expression (i+1) ppf e)
 
 and labeled_expression i ppf (l, e) =
-  line i ppf "<tuple component>\n";
   tuple_component_label i ppf l;
   expression (i+1) ppf e;
 
 and labeled_sorted_expression i ppf (l, e, s) =
-  line i ppf "<tuple component>\n";
   tuple_component_label i ppf l;
   expression (i+1) ppf e;
   line i ppf "%a\n" Jkind.Sort.format s;

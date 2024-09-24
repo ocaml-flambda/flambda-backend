@@ -109,7 +109,7 @@ let rec add_type bv ty =
     Ptyp_any -> ()
   | Ptyp_var _ -> ()
   | Ptyp_arrow(_, t1, t2, _, _) -> add_type bv t1; add_type bv t2
-  | Ptyp_tuple tl -> List.iter (add_type bv) tl
+  | Ptyp_tuple tl -> add_type_labeled_tuple bv tl
   | Ptyp_unboxed_tuple tl -> add_type_labeled_tuple bv tl
   | Ptyp_constr(c, tl) -> add bv c; List.iter (add_type bv) tl
   | Ptyp_object (fl, _) ->
@@ -134,7 +134,6 @@ let rec add_type bv ty =
 
 and add_type_jst bv : Jane_syntax.Core_type.t -> _ = function
   | Jtyp_layout typ -> add_type_jst_layouts bv typ
-  | Jtyp_tuple x -> add_type_labeled_tuple bv x
 
 and add_type_jst_layouts bv : Jane_syntax.Layouts.core_type -> _ = function
   | Ltyp_var { name = _; jkind } ->
@@ -219,7 +218,7 @@ let rec add_pattern bv pat =
   | Ppat_alias(p, _) -> add_pattern bv p
   | Ppat_interval _
   | Ppat_constant _ -> ()
-  | Ppat_tuple pl -> List.iter (add_pattern bv) pl
+  | Ppat_tuple (pl, _) -> add_pattern_labeled_tuple bv pl
   | Ppat_unboxed_tuple (pl, _)-> add_pattern_labeled_tuple bv pl
   | Ppat_construct(c, opt) ->
       add bv c;
@@ -246,7 +245,6 @@ and add_pattern_jane_syntax bv : Jane_syntax.Pattern.t -> _ = function
   | Jpat_immutable_array (Iapat_immutable_array pl) ->
       List.iter (add_pattern bv) pl
   | Jpat_layout (Lpat_constant _) -> add_constant
-  | Jpat_tuple (labeled_pl, _) -> add_pattern_labeled_tuple bv labeled_pl
 
 and add_pattern_labeled_tuple bv labeled_pl =
   List.iter (fun (_, p) -> add_pattern bv p) labeled_pl
@@ -273,7 +271,7 @@ let rec add_expr bv exp =
       add_expr bv e; List.iter (fun (_,e) -> add_expr bv e) el
   | Pexp_match(e, pel) -> add_expr bv e; add_cases bv pel
   | Pexp_try(e, pel) -> add_expr bv e; add_cases bv pel
-  | Pexp_tuple el -> List.iter (add_expr bv) el
+  | Pexp_tuple el -> add_labeled_tuple_expr bv el
   | Pexp_unboxed_tuple el -> add_labeled_tuple_expr bv el
   | Pexp_construct(c, opte) -> add bv c; add_opt add_expr bv opte
   | Pexp_variant(_, opte) -> add_opt add_expr bv opte
@@ -343,7 +341,6 @@ and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x -> add_comprehension_expr bv x
   | Jexp_immutable_array x -> add_immutable_array_expr bv x
   | Jexp_layout x -> add_layout_expr bv x
-  | Jexp_tuple x -> add_labeled_tuple_expr bv x
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function
