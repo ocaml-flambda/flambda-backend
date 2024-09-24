@@ -324,6 +324,8 @@ Line 1, characters 62-76:
 Error: This function when partially applied returns a value which is "nonportable",
        but expected to be "portable".
 |}]
+(* CR modes: These three tests are in principle fine to allow (they don't cause a data
+   race), since a is never used *)
 
 let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
 (* CR layouts v2.8: arrows should cross contention. *)
