@@ -258,8 +258,14 @@ external close : file_descr -> unit = "caml_unix_close"
 external fsync : file_descr -> unit = "caml_unix_fsync"
 external unsafe_read : file_descr -> bytes -> int -> int -> int
    = "caml_unix_read"
+external unsafe_read_bigarray :
+  file_descr -> _ Bigarray.Array1.t -> int -> int -> int
+  = "caml_unix_read_bigarray"
 external unsafe_write : file_descr -> bytes -> int -> int -> int
                       = "caml_unix_write"
+external unsafe_write_bigarray :
+  file_descr -> _ Bigarray.Array1.t -> int -> int -> single: bool -> int
+  = "caml_unix_write_bigarray"
 external unsafe_single_write : file_descr -> bytes -> int -> int -> int
    = "caml_unix_single_write"
 
@@ -267,10 +273,18 @@ let read fd buf ofs len =
   if ofs < 0 || len < 0 || ofs > Bytes.length buf - len
   then invalid_arg "Unix.read"
   else unsafe_read fd buf ofs len
+let read_bigarray fd buf ofs len =
+  if ofs < 0 || len < 0 || ofs > Bigarray.Array1.dim buf - len
+  then invalid_arg "Unix.read_bigarray"
+  else unsafe_read_bigarray fd buf ofs len
 let write fd buf ofs len =
   if ofs < 0 || len < 0 || ofs > Bytes.length buf - len
   then invalid_arg "Unix.write"
   else unsafe_write fd buf ofs len
+let write_bigarray fd buf ofs len =
+  if ofs < 0 || len < 0 || ofs > Bigarray.Array1.dim buf - len
+  then invalid_arg "Unix.write_bigarray"
+  else unsafe_write_bigarray fd buf ofs len ~single:false
 (* write misbehaves because it attempts to write all data by making repeated
    calls to the Unix write function (see comment in write.c and unix.mli).
    single_write fixes this by never calling write twice. *)
@@ -278,6 +292,10 @@ let single_write fd buf ofs len =
   if ofs < 0 || len < 0 || ofs > Bytes.length buf - len
   then invalid_arg "Unix.single_write"
   else unsafe_single_write fd buf ofs len
+let single_write_bigarray fd buf ofs len =
+  if ofs < 0 || len < 0 || ofs > Bigarray.Array1.dim buf - len
+  then invalid_arg "Unix.single_write_bigarray"
+  else unsafe_write_bigarray fd buf ofs len ~single:true
 
 let write_substring fd buf ofs len =
   write fd (Bytes.unsafe_of_string buf) ofs len
@@ -921,10 +939,36 @@ type popen_process =
 
 let popen_processes = (Hashtbl.create 7 : (popen_process, int) Hashtbl.t)
 
+(* CR ocaml 5 all-runtime5: go back to the normal [Mutex]. *)
+
+module Mutex : sig
+  type t
+  val create : unit -> t
+  val protect : t -> (unit -> 'a) -> 'a
+end = struct
+  type t = Mutex.t option
+
+  external runtime5 : unit -> bool = "%runtime5"
+
+  let create () =
+    (* On runtime4, systhreads must be linked to use [Mutex], which is
+       error-prone to ensure.  The use of [Mutex] here is new in 5.2.0, so
+       we just omit it for runtime4, which doesn't have parallelism. *)
+    if runtime5 () then Some (Mutex.create ()) else None
+
+  let protect t f =
+    match t with
+    | None -> f ()
+    | Some mutex -> Mutex.protect mutex f
+end
+
+let popen_mutex = lazy (Mutex.create ())
+
 let open_proc prog args envopt proc input output error =
   let pid =
     create_process_gen prog args envopt input output error in
-  Hashtbl.add popen_processes proc pid
+  Mutex.protect (Lazy.force popen_mutex) (fun () ->
+    Hashtbl.add popen_processes proc pid)
 
 let open_process_args_in prog args =
   let (in_read, in_write) = pipe ~cloexec:true () in
@@ -1014,12 +1058,16 @@ let open_process_full cmd =
 
 let find_proc_id fun_name proc =
   try
-    Hashtbl.find popen_processes proc
+    Mutex.protect (Lazy.force popen_mutex) (fun () ->
+      Hashtbl.find popen_processes proc
+    )
   with Not_found ->
     raise(Unix_error(EBADF, fun_name, ""))
 
 let remove_proc_id proc =
-  Hashtbl.remove popen_processes proc
+  Mutex.protect (Lazy.force popen_mutex) (fun () ->
+    Hashtbl.remove popen_processes proc
+  )
 
 let process_in_pid inchan =
   find_proc_id "process_in_pid" (Process_in inchan)

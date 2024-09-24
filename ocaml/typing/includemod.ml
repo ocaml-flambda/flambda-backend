@@ -1016,10 +1016,14 @@ let strengthened_modtypes ~in_eq ~loc ~aliasable env ~mark
 type explanation = Env.t * Error.all
 exception Error of explanation
 
+type application_name =
+  | Anonymous_functor
+  | Full_application_path of Longident.t
+  | Named_leftmost_functor of Longident.t
 exception Apply_error of {
     loc : Location.t ;
     env : Env.t ;
-    lid_app : Longident.t option ;
+    app_name : application_name ;
     mty_f : module_type ;
     args : (Error.functor_arg_descr * module_type) list ;
   }
@@ -1050,8 +1054,8 @@ let check_functor_application_in_path
         in
         let mty_f = (Env.find_module f0_path env).md_type in
         let args = List.map prepare_arg args in
-        let lid_app = Some lid_whole_app in
-        raise (Apply_error {loc; env; lid_app; mty_f; args})
+        let app_name = Full_application_path lid_whole_app in
+        raise (Apply_error {loc; env; app_name; mty_f; args})
       else
         raise Not_found
 
@@ -1246,7 +1250,7 @@ module Functor_app_diff = struct
     | Insert(Named(Some param, param_ty))
     | Change(_, Named(Some param, param_ty), _ ) ->
         (* Change is Delete + Insert: we add the Inserted parameter to the
-           environnement to track equalities with external components that the
+           environment to track equalities with external components that the
            parameter might add. *)
         let mty = Subst.modtype Keep st.subst param_ty in
         let env = Env.add_module ~arg:true param Mp_present mty st.env in

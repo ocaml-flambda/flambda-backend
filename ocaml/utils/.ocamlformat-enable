@@ -6,3 +6,5 @@ language_extension.ml
 language_extension.mli
 zero_alloc_utils.ml
 zero_alloc_utils.mli
+profile_counters_functions.ml
+profile_counters_functions.mli

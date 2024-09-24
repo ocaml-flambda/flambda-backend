@@ -33,8 +33,8 @@ external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
 Line 3, characters 14-36:
 3 | let f () = id (assert false : t_any)
                   ^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type t_any but an expression was expected of type
-         ('a : '_representable_layout_1)
+Error: This expression has type "t_any" but an expression was expected of type
+         "('a : '_representable_layout_9)"
        The layout of t_any is any
          because of the definition of t_any at line 3, characters 0-16.
        But the layout of t_any must be representable
@@ -52,8 +52,8 @@ external id : ('a : any). 'a t -> 'a t = "%identity" [@@layout_poly]
 Line 3, characters 14-38:
 3 | let f () = id (assert false : t_any t)
                   ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This expression has type t_any t
-       but an expression was expected of type 'a t
+Error: This expression has type "t_any t"
+       but an expression was expected of type "'a t"
        The layout of t_any is any
          because of the definition of t_any at line 3, characters 0-16.
        But the layout of t_any must be representable
@@ -83,8 +83,8 @@ end
 Line 4, characters 63-68:
 4 |   let () = Format.printf "%f %s\n" (F.to_float (id' #1.)) (id' "abc")
                                                                    ^^^^^
-Error: This expression has type string but an expression was expected of type
-         ('a : float64)
+Error: This expression has type "string" but an expression was expected of type
+         "('a : float64)"
        The layout of string is value
          because it is the primitive type string.
        But the layout of string must be a sublayout of float64
@@ -136,7 +136,7 @@ Error: Signature mismatch:
          external id : ('a : any). 'a s -> 'a s = "%identity" [@@layout_poly]
        is not included in
          external id : ('a : any). 'a s -> 'a s = "%identity"
-       The type 'a s -> 'a s is not compatible with the type 'b s -> 'b s
+       The type "'a s -> 'a s" is not compatible with the type "'b s -> 'b s"
        The layout of 'a is any
          because of the definition of id at line 3, characters 2-54.
        But the layout of 'a must be representable
@@ -180,8 +180,8 @@ Error: Signature mismatch:
        is not included in
          external id : ('b : any). (t_any, 'b) s -> (t_any, 'b) s
            = "%identity" [@@layout_poly]
-       The type ('a, 'b) s -> ('a, 'b) s is not compatible with the type
-         (t_any, 'c) s -> (t_any, 'c) s
+       The type "('a, 'b) s -> ('a, 'b) s" is not compatible with the type
+         "(t_any, 'c) s -> (t_any, 'c) s"
        The layout of t_any is any
          because of the definition of t_any at line 2, characters 0-16.
        But the layout of t_any must be representable
@@ -226,9 +226,9 @@ Error: Signature mismatch:
        is not included in
          external id : ('a : any) ('b : any). ('a, 'b) s -> ('a, 'b) s
            = "%identity" [@@layout_poly]
-       The type (t_any, 'a) s -> (t_any, 'a) s
-       is not compatible with the type ('b, 'c) s -> ('b, 'c) s
-       Type t_any is not compatible with type 'b
+       The type "(t_any, 'a) s -> (t_any, 'a) s"
+       is not compatible with the type "('b, 'c) s -> ('b, 'c) s"
+       Type "t_any" is not compatible with type "'b"
 |}]
 
 (* together with local_opt *)
@@ -307,8 +307,8 @@ let () = Format.printf "%s\n" (S.id "abc")
 Line 1, characters 36-41:
 1 | let () = Format.printf "%s\n" (S.id "abc")
                                         ^^^^^
-Error: This expression has type string but an expression was expected of type
-         ('a : float64)
+Error: This expression has type "string" but an expression was expected of type
+         "('a : float64)"
        The layout of string is value
          because it is the primitive type string.
        But the layout of string must be a sublayout of float64
@@ -338,7 +338,7 @@ Error: Signature mismatch:
          external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
        is not included in
          val id : ('a : any). 'a -> 'a
-       The type 'a -> 'a is not compatible with the type 'b -> 'b
+       The type "'a -> 'a" is not compatible with the type "'b -> 'b"
        The layout of 'a is any
          because of the definition of id at line 2, characters 2-31.
        But the layout of 'a must be representable
@@ -396,7 +396,7 @@ Line 9, characters 49-51:
                                                      ^^
 Error: Types in an external must have a representable layout
        (locally-scoped type variables with layout 'any' are
-       made representable by [@layout_poly]).
+       made representable by "[@layout_poly]").
        The layout of a1 is any
          because of the annotation on the abstract type declaration for a1.
        But the layout of a1 must be representable
@@ -416,7 +416,7 @@ Line 4, characters 49-62:
                                                      ^^^^^^^^^^^^^
 Error: Types in an external must have a representable layout
        (locally-scoped type variables with layout 'any' are
-       made representable by [@layout_poly]).
+       made representable by "[@layout_poly]").
        The layout of a2 t_with_any is any
          because of the annotation on the abstract type declaration for a2.
        But the layout of a2 t_with_any must be representable
@@ -436,7 +436,7 @@ Line 4, characters 49-59:
                                                      ^^^^^^^^^^
 Error: Types in an external must have a representable layout
        (locally-scoped type variables with layout 'any' are
-       made representable by [@layout_poly]).
+       made representable by "[@layout_poly]").
        The layout of a3 M_any.t is any
          because of the annotation on the abstract type declaration for a3.
        But the layout of a3 M_any.t must be representable
@@ -461,7 +461,7 @@ module type S4 = sig type t val f : int -> int end
 Line 10, characters 31-43:
 10 |     external[@layout_poly] f : a4 s -> a4 s = "%identity"
                                     ^^^^^^^^^^^^
-Error: [@layout_poly] on this external declaration has no
+Error: "[@layout_poly]" on this external declaration has no
        effect. Consider removing it or adding a type
        variable for it to operate on.
 |}]
@@ -481,7 +481,7 @@ Line 4, characters 48-51:
                                                     ^^^
 Error: Types in an external must have a representable layout
        (locally-scoped type variables with layout 'any' are
-       made representable by [@layout_poly]).
+       made representable by "[@layout_poly]").
        The layout of A.t is any
          because of the definition of t at line 2, characters 2-13.
        But the layout of A.t must be representable
@@ -519,7 +519,7 @@ external[@layout_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag"
 Line 1, characters 0-65:
 1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag"
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Attribute [@layout_poly] can only be used on built-in primitives.
+Error: Attribute "[@layout_poly]" can only be used on built-in primitives.
 |}]
 
 external[@layout_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag" "caml_obj_tag"
@@ -527,7 +527,7 @@ external[@layout_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag" "caml_obj_tag"
 Line 1, characters 0-80:
 1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "caml_obj_tag" "caml_obj_tag"
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Attribute [@layout_poly] can only be used on built-in primitives.
+Error: Attribute "[@layout_poly]" can only be used on built-in primitives.
 |}]
 
 (***********************************)
@@ -543,8 +543,8 @@ external id : ('a : any) ('b : any). 'a -> 'b = "%identity" [@@layout_poly]
 Line 2, characters 28-32:
 2 | let f (x: float#): int64# = id x
                                 ^^^^
-Error: This expression has type ('a : float64)
-       but an expression was expected of type int64#
+Error: This expression has type "('a : float64)"
+       but an expression was expected of type "int64#"
        The layout of int64# is bits64
          because it is the primitive type int64#.
        But the layout of int64# must be a sublayout of float64
@@ -564,7 +564,7 @@ Line 1, characters 40-42:
 1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@unboxed]
                                             ^^
 Error: Don't know how to unbox this type.
-       Only float, int32, int64, nativeint, vector primitives, and
+       Only "float", "int32", "int64", "nativeint", vector primitives, and
        concrete unboxed types can be marked unboxed.
 |}]
 
@@ -574,7 +574,8 @@ external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@untagged]
 Line 1, characters 40-42:
 1 | external[@layout_poly] id : ('a : any). 'a -> 'a = "%identity" [@@untagged]
                                             ^^
-Error: Don't know how to untag this type. Only int can be untagged.
+Error: Don't know how to untag this type. Only "int"
+       and other immediate types can be untagged.
 |}]
 
 external[@layout_poly] id : ('a : any). 'a -> 'a =
@@ -652,8 +653,8 @@ type ('a : any) t
 Line 2, characters 14-37:
 2 | external id : ('a : any). 'a t -> int = "%array_length"
                   ^^^^^^^^^^^^^^^^^^^^^^^
-Error: The primitive [%array_length] doesn't work well with type variables of
-       layout any. Consider using [@layout_poly].
+Error: The primitive "%array_length" doesn't work well with type variables of
+       layout any. Consider using "[@layout_poly]".
 |}]
 
 external[@layout_poly] id : ('a : any). 'a t -> int = "%array_length"
@@ -709,7 +710,7 @@ type ('a : any) t = 'a
 Line 3, characters 28-40:
 3 | external[@layout_poly] id : 'a t -> 'a t = "%identity"
                                 ^^^^^^^^^^^^
-Error: [@layout_poly] on this external declaration has no
+Error: "[@layout_poly]" on this external declaration has no
        effect. Consider removing it or adding a type
        variable for it to operate on.
 |}]

@@ -356,7 +356,7 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units cached_g
   in
   Compilenv.reset startup_comp_unit;
   Emitaux.Dwarf_helpers.init ~disable_dwarf:(not !Dwarf_flags.dwarf_for_startup_file)
-    sourcefile_for_dwarf;
+    ~sourcefile:sourcefile_for_dwarf;
   Emit.begin_assembly unix;
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   let name_list =
@@ -412,7 +412,7 @@ let make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   in
   Compilenv.reset shared_startup_comp_unit;
   Emitaux.Dwarf_helpers.init ~disable_dwarf:(not !Dwarf_flags.dwarf_for_startup_file)
-    sourcefile_for_dwarf;
+    ~sourcefile:sourcefile_for_dwarf;
   Emit.begin_assembly unix;
   List.iter compile_phrase
     (Cmm_helpers.emit_gc_roots_table ~symbols:[]
@@ -435,7 +435,7 @@ let call_linker_shared ?(native_toplevel = false) file_list output_name =
   then raise(Error(Linking_error exitcode))
 
 let link_shared unix ~ppf_dump objfiles output_name =
-  Profile.record_call output_name (fun () ->
+  Profile.(record_call (annotate_file_name output_name)) (fun () ->
     if !Flambda_backend_flags.use_cached_generic_functions then
       (* When doing shared linking do not use the shared generated startup file.
          Frametables for the imported functions needs to be initialized, which is a bit
@@ -469,7 +469,8 @@ let link_shared unix ~ppf_dump objfiles output_name =
       ~may_reduce_heap:true
       ~ppf_dump
       (fun () ->
-         make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf
+         make_shared_startup_file unix ~ppf_dump
+           ~sourcefile_for_dwarf:(Some sourcefile_for_dwarf)
            genfns units_tolink
       );
     call_linker_shared (startup_obj :: objfiles) output_name;
@@ -522,7 +523,7 @@ let reset () =
 let link unix ~ppf_dump objfiles output_name =
   if !Flambda_backend_flags.internal_assembler then
       Emitaux.binary_backend_available := true;
-  Profile.record_call output_name (fun () ->
+  Profile.(record_call (annotate_file_name output_name)) (fun () ->
     let stdlib = "stdlib.cmxa" in
     let stdexit = "std_exit.cmx" in
     let objfiles =
@@ -556,7 +557,8 @@ let link unix ~ppf_dump objfiles output_name =
       ~may_reduce_heap:true
       ~ppf_dump
       (fun () -> make_startup_file unix ~ppf_dump
-                   ~sourcefile_for_dwarf genfns units_tolink cached_genfns_imports);
+                   ~sourcefile_for_dwarf:(Some sourcefile_for_dwarf)
+                   genfns units_tolink cached_genfns_imports);
     Emitaux.reduce_heap_size ~reset:(fun () -> reset ());
     Misc.try_finally
       (fun () -> call_linker ml_objfiles startup_obj output_name)

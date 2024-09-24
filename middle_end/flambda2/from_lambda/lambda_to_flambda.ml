@@ -313,11 +313,11 @@ let transform_primitive env (prim : L.primitive) args loc =
         let is_float32_t =
           match kind with
           | Pbigarray_float32_t -> "float32_"
-          | Pbigarray_unknown | Pbigarray_float32 | Pbigarray_float64
-          | Pbigarray_sint8 | Pbigarray_uint8 | Pbigarray_sint16
-          | Pbigarray_uint16 | Pbigarray_int32 | Pbigarray_int64
-          | Pbigarray_caml_int | Pbigarray_native_int | Pbigarray_complex32
-          | Pbigarray_complex64 ->
+          | Pbigarray_unknown | Pbigarray_float16 | Pbigarray_float32
+          | Pbigarray_float64 | Pbigarray_sint8 | Pbigarray_uint8
+          | Pbigarray_sint16 | Pbigarray_uint16 | Pbigarray_int32
+          | Pbigarray_int64 | Pbigarray_caml_int | Pbigarray_native_int
+          | Pbigarray_complex32 | Pbigarray_complex64 ->
             ""
         in
         let name =
@@ -342,11 +342,11 @@ let transform_primitive env (prim : L.primitive) args loc =
         let is_float32_t =
           match kind with
           | Pbigarray_float32_t -> "float32_"
-          | Pbigarray_unknown | Pbigarray_float32 | Pbigarray_float64
-          | Pbigarray_sint8 | Pbigarray_uint8 | Pbigarray_sint16
-          | Pbigarray_uint16 | Pbigarray_int32 | Pbigarray_int64
-          | Pbigarray_caml_int | Pbigarray_native_int | Pbigarray_complex32
-          | Pbigarray_complex64 ->
+          | Pbigarray_unknown | Pbigarray_float16 | Pbigarray_float32
+          | Pbigarray_float64 | Pbigarray_sint8 | Pbigarray_uint8
+          | Pbigarray_sint16 | Pbigarray_uint16 | Pbigarray_int32
+          | Pbigarray_int64 | Pbigarray_caml_int | Pbigarray_native_int
+          | Pbigarray_complex32 | Pbigarray_complex64 ->
             ""
         in
         let name =
@@ -717,20 +717,20 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Pbigarrayref
       ( true,
         _,
-        ( Pbigarray_float32 | Pbigarray_float32_t | Pbigarray_float64
-        | Pbigarray_sint8 | Pbigarray_uint8 | Pbigarray_sint16
-        | Pbigarray_uint16 | Pbigarray_int32 | Pbigarray_int64
-        | Pbigarray_caml_int | Pbigarray_native_int | Pbigarray_complex32
-        | Pbigarray_complex64 ),
+        ( Pbigarray_float16 | Pbigarray_float32 | Pbigarray_float32_t
+        | Pbigarray_float64 | Pbigarray_sint8 | Pbigarray_uint8
+        | Pbigarray_sint16 | Pbigarray_uint16 | Pbigarray_int32
+        | Pbigarray_int64 | Pbigarray_caml_int | Pbigarray_native_int
+        | Pbigarray_complex32 | Pbigarray_complex64 ),
         _ )
   | Pbigarrayset
       ( true,
         _,
-        ( Pbigarray_float32 | Pbigarray_float32_t | Pbigarray_float64
-        | Pbigarray_sint8 | Pbigarray_uint8 | Pbigarray_sint16
-        | Pbigarray_uint16 | Pbigarray_int32 | Pbigarray_int64
-        | Pbigarray_caml_int | Pbigarray_native_int | Pbigarray_complex32
-        | Pbigarray_complex64 ),
+        ( Pbigarray_float16 | Pbigarray_float32 | Pbigarray_float32_t
+        | Pbigarray_float64 | Pbigarray_sint8 | Pbigarray_uint8
+        | Pbigarray_sint16 | Pbigarray_uint16 | Pbigarray_int32
+        | Pbigarray_int64 | Pbigarray_caml_int | Pbigarray_native_int
+        | Pbigarray_complex32 | Pbigarray_complex64 ),
         (Pbigarray_c_layout | Pbigarray_fortran_layout) )
   | Pstring_load_16 { unsafe = true; _ }
   | Pstring_load_32 { unsafe = true; _ }
@@ -783,7 +783,7 @@ let primitive_can_raise (prim : Lambda.primitive) =
     false
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _ -> false
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
-  | Pdls_get | Preinterpret_tagged_int63_as_unboxed_int64
+  | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 ->
     false
 

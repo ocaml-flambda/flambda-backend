@@ -32,8 +32,13 @@ val array_kind :
   Typedtree.expression -> Jkind.Sort.t -> Lambda.array_kind
 val array_pattern_kind :
   Typedtree.pattern -> Jkind.Sort.t -> Lambda.array_kind
-val bigarray_type_kind_and_layout :
-      Env.t -> Types.type_expr -> Lambda.bigarray_kind * Lambda.bigarray_layout
+
+(* If [kind] or [layout] is unknown, attempt to specialize it by examining the
+   type parameters of the bigarray. If [kind] or [length] is not unknown, returns
+   it unmodified. *)
+val bigarray_specialize_kind_and_layout :
+  Env.t -> kind:Lambda.bigarray_kind -> layout:Lambda.bigarray_layout ->
+  Types.type_expr -> Lambda.bigarray_kind * Lambda.bigarray_layout
 
 (* CR layouts v7: [layout], [function_return_layout], [function2_return_layout],
    and [layout_of_sort] have had location arguments added just to support the
@@ -47,9 +52,9 @@ val layout :
    gives a more precise result---this should only be used when the kind is
    needed for compilation but the precise Lambda.layout isn't needed for
    optimization.  [layout_of_sort] gracefully errors on void, while
-   [layout_of_const_sort] loudly fails on void. *)
+   [layout_of_base] loudly fails on void. *)
 val layout_of_sort : Location.t -> Jkind.sort -> Lambda.layout
-val layout_of_const_sort : Jkind.Sort.const -> Lambda.layout
+val layout_of_base_sort : Jkind.Sort.base -> Lambda.layout
 
 (* Given a function type and the sort of its return type, compute the layout of
    its return type. *)
@@ -66,6 +71,7 @@ val function2_return_layout :
 val function_arg_layout :
   Env.t -> Location.t -> Jkind.sort -> Types.type_expr -> Lambda.layout
 
+val value_kind : Env.t -> Location.t -> Types.type_expr -> Lambda.value_kind
 
 val classify_lazy_argument : Typedtree.expression ->
                              [ `Constant_or_function

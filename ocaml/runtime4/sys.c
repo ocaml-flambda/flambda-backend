@@ -782,3 +782,15 @@ CAMLprim value caml_sys_const_naked_pointers_checked(value unit)
   return Val_false;
 #endif
 }
+
+/* On Windows, returns a string list of directories to search for configuration
+   files. On Unix, this list is more easily computed in OCaml, so the list
+   returned by the primitive is empty. */
+CAMLprim value caml_xdg_defaults(value unit)
+{
+#ifdef _WIN32
+  return caml_win32_xdg_defaults();
+#else
+  return Val_emptylist;
+#endif
+}

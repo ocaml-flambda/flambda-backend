@@ -28,11 +28,11 @@ type boxed_vector = Pvec128
 
 type native_repr =
   | Repr_poly
-  | Same_as_ocaml_repr of Jkind_types.Sort.const
+  | Same_as_ocaml_repr of Jkind_types.Sort.base
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
-  | Untagged_int
+  | Untagged_immediate
 
 type effects = No_effects | Only_generative_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects
@@ -78,7 +78,7 @@ let check_ocaml_value = function
   | _, Unboxed_float _
   | _, Unboxed_vector _
   | _, Unboxed_integer _
-  | _, Untagged_int -> Bad_attribute
+  | _, Untagged_immediate -> Bad_attribute
 
 let is_builtin_prim_name name = String.length name > 0 && name.[0] = '%'
 
@@ -116,20 +116,16 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly
         fatal_error "Primitive.parse_declaration"
   in
   let noalloc_attribute =
-    Attr_helper.has_no_payload_attribute ["noalloc"; "ocaml.noalloc"]
-      valdecl.pval_attributes
+    Attr_helper.has_no_payload_attribute "noalloc" valdecl.pval_attributes
   in
   let builtin_attribute =
-    Attr_helper.has_no_payload_attribute ["builtin"; "ocaml.builtin"]
-      valdecl.pval_attributes
+    Attr_helper.has_no_payload_attribute "builtin" valdecl.pval_attributes
   in
   let no_effects_attribute =
-    Attr_helper.has_no_payload_attribute ["no_effects"; "ocaml.no_effects"]
-      valdecl.pval_attributes
+    Attr_helper.has_no_payload_attribute "no_effects" valdecl.pval_attributes
   in
   let only_generative_effects_attribute =
-    Attr_helper.has_no_payload_attribute ["only_generative_effects";
-                                          "ocaml.only_generative_effects"]
+    Attr_helper.has_no_payload_attribute "only_generative_effects"
       valdecl.pval_attributes
   in
   let is_builtin_prim = is_builtin_prim_name name in
@@ -148,8 +144,7 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly
     else Arbitrary_effects
   in
   let no_coeffects_attribute =
-    Attr_helper.has_no_payload_attribute ["no_coeffects"; "ocaml.no_coeffects"]
-      valdecl.pval_attributes
+    Attr_helper.has_no_payload_attribute "no_coeffects" valdecl.pval_attributes
   in
   let coeffects =
     if no_coeffects_attribute then No_coeffects
@@ -255,7 +250,7 @@ let print p osig_val_decl =
   let is_unboxed = function
     | _, Same_as_ocaml_repr Value
     | _, Repr_poly
-    | _, Untagged_int -> false
+    | _, Untagged_immediate -> false
     | _, Unboxed_float _
     | _, Unboxed_vector _
     | _, Unboxed_integer _ -> true
@@ -267,7 +262,7 @@ let print p osig_val_decl =
       Language_extension.erasable_extensions_only ()
   in
   let is_untagged = function
-    | _, Untagged_int -> true
+    | _, Untagged_immediate -> true
     | _, Same_as_ocaml_repr _
     | _, Unboxed_float _
     | _, Unboxed_vector _
@@ -312,7 +307,7 @@ let print p osig_val_decl =
      | Unboxed_float _
      | Unboxed_vector _
      | Unboxed_integer _ -> if all_unboxed then [] else [oattr_unboxed]
-     | Untagged_int -> if all_untagged then [] else [oattr_untagged]
+     | Untagged_immediate -> if all_untagged then [] else [oattr_untagged]
      | Same_as_ocaml_repr _->
       if all_unboxed || not (is_unboxed (m, repr))
       then []
@@ -364,27 +359,28 @@ let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
   | Repr_poly, Repr_poly -> true
   | Repr_poly, (Unboxed_float _ | Unboxed_integer _
-               | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _)
+               | Untagged_immediate | Unboxed_vector _ | Same_as_ocaml_repr _)
   | (Unboxed_float _ | Unboxed_integer _
-    | Untagged_int | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly -> false
-  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 -> Jkind_types.Sort.Const.equal s1 s2
+    | Untagged_immediate | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly -> false
+  | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 ->
+    Jkind_types.Sort.equal_base s1 s2
   | Same_as_ocaml_repr _,
-    (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
+    (Unboxed_float _ | Unboxed_integer _ | Untagged_immediate |
      Unboxed_vector _) -> false
   | Unboxed_float f1, Unboxed_float f2 -> equal_boxed_float f1 f2
   | Unboxed_float _,
-    (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_int |
+    (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_immediate |
      Unboxed_vector _) -> false
   | Unboxed_vector vi1, Unboxed_vector vi2 -> equal_boxed_vector_size vi1 vi2
   | Unboxed_vector _,
-    (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_int |
+    (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_immediate |
      Unboxed_integer _) -> false
   | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_boxed_integer bi1 bi2
   | Unboxed_integer _,
-    (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_int |
+    (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_immediate |
      Unboxed_vector _) -> false
-  | Untagged_int, Untagged_int -> true
-  | Untagged_int,
+  | Untagged_immediate, Untagged_immediate -> true
+  | Untagged_immediate,
     (Same_as_ocaml_repr _ | Unboxed_float _ | Unboxed_integer _ |
      Unboxed_vector _) -> false
 
@@ -426,7 +422,7 @@ module Repr_check = struct
   let value_or_unboxed_or_untagged = function
     | Same_as_ocaml_repr Value
     | Unboxed_float _ | Unboxed_integer _ | Unboxed_vector _
-    | Untagged_int -> true
+    | Untagged_immediate -> true
     | Same_as_ocaml_repr _ | Repr_poly -> false
 
   let check checks prim =
@@ -464,7 +460,7 @@ let prim_has_valid_reprs ~loc prim =
   let open Repr_check in
   let check =
     let stringlike_indexing_primitives =
-      let widths : (_ * _ * Jkind_types.Sort.const) list =
+      let widths : (_ * _ * Jkind_types.Sort.base) list =
         [
           ("16", "", Value);
           ("32", "", Value);
@@ -477,7 +473,7 @@ let prim_has_valid_reprs ~loc prim =
           ("64", "#", Bits64);
         ]
       in
-      let indices : (_ * Jkind_types.Sort.const) list =
+      let indices : (_ * Jkind_types.Sort.base) list =
         [
           ("", Value);
           ("_indexed_by_nativeint#", Word);
@@ -726,34 +722,45 @@ let prim_can_contain_layout_any prim =
   | "%array_unsafe_set_indexed_by_nativeint#" -> false
   | _ -> true
 
+module Style = Misc.Style
+
 let report_error ppf err =
   match err with
   | Old_style_float_with_native_repr_attribute ->
-    Format.fprintf ppf "Cannot use \"float\" in conjunction with \
-                        [%@unboxed]/[%@untagged]."
+    Format.fprintf ppf "Cannot use %a in conjunction with %a/%a."
+      Style.inline_code "float"
+      Style.inline_code "[@unboxed]"
+      Style.inline_code  "[@untagged]"
   | Old_style_float_with_non_value ->
-    Format.fprintf ppf "Cannot use \"float\" in conjunction with \
+    Format.fprintf ppf "Cannot use %a in conjunction with \
                         types of non-value layouts."
+      Style.inline_code "float"
   | Old_style_noalloc_with_noalloc_attribute ->
-    Format.fprintf ppf "Cannot use \"noalloc\" in conjunction with \
-                        [%@%@noalloc]."
+    Format.fprintf ppf "Cannot use %a in conjunction with %a."
+      Style.inline_code "noalloc"
+      Style.inline_code "[@@noalloc]"
   | No_native_primitive_with_repr_attribute ->
     Format.fprintf ppf
       "@[The native code version of the primitive is mandatory@ \
-       when attributes [%@untagged] or [%@unboxed] are present.@]"
+      when attributes %a or %a are present.@]"
+      Style.inline_code "[@untagged]"
+      Style.inline_code "[@unboxed]"
   | No_native_primitive_with_non_value ->
     Format.fprintf ppf
       "@[The native code version of the primitive is mandatory@ \
        for types with non-value layouts.@]"
   | Inconsistent_attributes_for_effects ->
-    Format.fprintf ppf "At most one of [%@no_effects] and \
-                        [%@only_generative_effects] can be specified."
+    Format.fprintf ppf "At most one of %a and %a can be specified."
+      Style.inline_code "[@no_effects]"
+      Style.inline_code "[@only_generative_effects]"
   | Inconsistent_noalloc_attributes_for_effects ->
-    Format.fprintf ppf "Cannot use [%@%@no_generative_effects] \
-                        in conjunction with [%@%@noalloc]."
+    Format.fprintf ppf "Cannot use %a in conjunction with %a."
+      Style.inline_code "[@@no_generative_effects]"
+      Style.inline_code "[@@noalloc]"
   | Invalid_representation_polymorphic_attribute ->
-    Format.fprintf ppf "Attribute [%@layout_poly] can only be used \
+    Format.fprintf ppf "Attribute %a can only be used \
                         on built-in primitives."
+      Style.inline_code "[@layout_poly]"
   | Invalid_native_repr_for_primitive name ->
     Format.fprintf ppf
       "The primitive [%s] is used in an invalid declaration.@ \

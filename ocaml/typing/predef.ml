@@ -234,7 +234,7 @@ let or_null_argument_jkind = Jkind.Builtin.value ~why:(
 
 let mk_add_type add_type
       ?manifest type_ident
-      ?(kind=Type_abstract Abstract_def)
+      ?(kind=Type_abstract Definition)
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* [jkind_annotation] is just used for printing. It's best to
          provide it if the jkind is not implied by the kind of the
@@ -264,7 +264,7 @@ let mk_add_type add_type
   add_type type_ident decl env
 
 let mk_add_type1 add_type type_ident
-      ?(kind=fun _ -> Type_abstract Abstract_def)
+      ?(kind=fun _ -> Type_abstract Definition)
       ?(jkind=Jkind.Builtin.value ~why:(Primitive type_ident))
       (* See the comment on the [jkind_annotation] argument to [mk_add_type]
       *)
@@ -307,8 +307,10 @@ let mk_add_extension add_extension id args jkinds =
       | Const const ->
           begin
             match Jkind.Const.get_layout const with
-            | Sort Value -> ()
-            | Any | Sort (Void | Float32 | Float64 | Word | Bits32 | Bits64 | Vec128) ->
+            | Base Value -> ()
+            | Any
+            | Base (Void | Float32 | Float64 | Word | Bits32 | Bits64 | Vec128)
+            | Product _ ->
                 raise_error ()
           end
       | _ -> raise_error ())

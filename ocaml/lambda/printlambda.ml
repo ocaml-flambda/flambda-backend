@@ -291,6 +291,7 @@ let print_bigarray name unsafe kind ppf layout =
     (if unsafe then "unsafe_"^ name else name)
     (match kind with
      | Pbigarray_unknown -> "generic"
+     | Pbigarray_float16 -> "float16"
      | Pbigarray_float32 -> "float32"
      | Pbigarray_float32_t -> "float32_t"
      | Pbigarray_float64 -> "float64"
@@ -805,6 +806,7 @@ let primitive ppf = function
   | Patomic_fetch_add -> fprintf ppf "atomic_fetch_add"
   | Popaque _ -> fprintf ppf "opaque"
   | Pdls_get -> fprintf ppf "dls_get"
+  | Ppoll -> fprintf ppf "poll"
   | Pprobe_is_enabled {name} -> fprintf ppf "probe_is_enabled[%s]" name
   | Pobj_dup -> fprintf ppf "obj_dup"
   | Pobj_magic _ -> fprintf ppf "obj_magic"
@@ -980,6 +982,7 @@ let name_of_primitive = function
   | Pperform -> "Pperform"
   | Preperform -> "Preperform"
   | Pdls_get -> "Pdls_get"
+  | Ppoll -> "Ppoll"
   | Pprobe_is_enabled _ -> "Pprobe_is_enabled"
   | Pobj_dup -> "Pobj_dup"
   | Pobj_magic _ -> "Pobj_magic"

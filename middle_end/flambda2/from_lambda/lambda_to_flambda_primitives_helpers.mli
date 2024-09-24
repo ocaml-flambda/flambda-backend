@@ -40,11 +40,19 @@ type expr_primitive =
         (* Predefined exception *)
         dbg : Debuginfo.t
       }
-  | If_then_else of expr_primitive * expr_primitive * expr_primitive
+  | If_then_else of
+      expr_primitive
+      * expr_primitive
+      * expr_primitive
+      * Flambda_kind.With_subkind.t list
+  | Sequence of expr_primitive list
+  | Unboxed_product of expr_primitive list
 
 and simple_or_prim =
   | Simple of Simple.t
   | Prim of expr_primitive
+
+val maybe_create_unboxed_product : expr_primitive list -> expr_primitive
 
 val print_expr_primitive : Format.formatter -> expr_primitive -> unit
 
@@ -62,7 +70,7 @@ val bind_recs :
   Acc.t ->
   Exn_continuation.t option ->
   register_const0:(Acc.t -> Static_const.t -> string -> Acc.t * Symbol.t) ->
-  expr_primitive list ->
+  expr_primitive ->
   Debuginfo.t ->
   (Acc.t -> Flambda.Named.t list -> Expr_with_acc.t) ->
   Expr_with_acc.t

@@ -139,6 +139,11 @@ val mk_compare_float32s_untagged :
 (** Convert a tagged integer into a raw integer with boolean meaning *)
 val test_bool : Debuginfo.t -> expression -> expression
 
+(** Conversions for 16-bit floats *)
+val float_of_float16 : Debuginfo.t -> expression -> expression
+
+val float16_of_float : Debuginfo.t -> expression -> expression
+
 (** Float boxing and unboxing *)
 val box_float32 : Debuginfo.t -> Lambda.alloc_mode -> expression -> expression
 
@@ -325,24 +330,31 @@ val make_float_alloc :
   expression list ->
   expression
 
-module Flat_suffix_element : sig
-  type t =
-    | Tagged_immediate
-    | Naked_float
-    | Naked_float32
-    | Naked_int32
-    | Naked_int64_or_nativeint
-end
+(** Allocate a closure block, to hold a set of closures.
 
-(** Allocate an mixed block of the corresponding tag and shape. Initial values
-    of the flat suffix should be provided unboxed. *)
+    This takes a list of expressions [exprs] and a list of [memory_chunk]s
+    that correspond pairwise.  Both lists must be the same length.
+
+    The list of expressions includes _all_ fields of the closure block,
+    including the code pointers and closure information fields. *)
+val make_closure_alloc :
+  mode:Lambda.alloc_mode ->
+  Debuginfo.t ->
+  tag:int ->
+  expression list ->
+  memory_chunk list ->
+  expression
+
+(** Allocate an mixed block of the corresponding tag and scannable prefix size.
+    The [memory_chunk] list should give the memory_chunk corresponding to
+    each element from the [expression] list. *)
 val make_mixed_alloc :
   mode:Lambda.alloc_mode ->
   Debuginfo.t ->
   tag:int ->
   value_prefix_size:int ->
-  flat_suffix:Flat_suffix_element.t array ->
   expression list ->
+  memory_chunk list ->
   expression
 
 (** Sys.opaque_identity *)
@@ -1014,6 +1026,7 @@ val resume :
   stack:expression ->
   f:expression ->
   arg:expression ->
+  last_fiber:expression ->
   expression
 
 val reperform :
@@ -1130,3 +1143,5 @@ val setfield_unboxed_float32 : ternary_primitive
 val setfield_unboxed_int64_or_nativeint : ternary_primitive
 
 val dls_get : dbg:Debuginfo.t -> expression
+
+val poll : dbg:Debuginfo.t -> expression

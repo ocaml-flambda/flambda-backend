@@ -25,11 +25,11 @@ type boxed_vector = Pvec128
    of a primitive *)
 type native_repr =
   | Repr_poly
-  | Same_as_ocaml_repr of Jkind_types.Sort.const
+  | Same_as_ocaml_repr of Jkind_types.Sort.base
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
-  | Untagged_int
+  | Untagged_immediate
 
 (* See [middle_end/semantics_of_primitives.mli] *)
 type effects = No_effects | Only_generative_effects | Arbitrary_effects

@@ -177,6 +177,8 @@ let all_coherent column =
           | Const_string _), _ -> false
       end
     | Tuple l1, Tuple l2 -> l1 = l2
+    | Unboxed_tuple l1, Unboxed_tuple l2 ->
+      List.equal (fun (lbl1, _) (lbl2, _) -> lbl1 = lbl2) l1 l2
     | Record (lbl1 :: _), Record (lbl2 :: _) ->
       Array.length lbl1.lbl_all = Array.length lbl2.lbl_all
     | Array (am1, _, _), Array (am2, _, _) -> am1 = am2
@@ -185,7 +187,8 @@ let all_coherent column =
     | Record [], Record []
     | Variant _, Variant _
     | Lazy, Lazy -> true
-    | _, _ -> false
+    | ( Construct _ | Constant _ | Tuple _ | Unboxed_tuple _ | Record _
+      | Array _ | Variant _ | Lazy ), _ -> false
   in
   match
     List.find
@@ -342,6 +345,8 @@ module Compat
       const_compare c1 c2 = 0
   | Tpat_tuple labeled_ps, Tpat_tuple labeled_qs ->
       tuple_compat labeled_ps labeled_qs
+  | Tpat_unboxed_tuple labeled_ps, Tpat_unboxed_tuple labeled_qs ->
+      unboxed_tuple_compat labeled_ps labeled_qs
   | Tpat_lazy p, Tpat_lazy q -> compat p q
   | Tpat_record (l1,_),Tpat_record (l2,_) ->
       let ps,qs = records_args l1 l2 in
@@ -369,6 +374,13 @@ module Compat
       && compat p q && tuple_compat labeled_ps labeled_qs
   | _,_    -> false
 
+  and unboxed_tuple_compat labeled_ps labeled_qs =
+    match labeled_ps,labeled_qs with
+    | [], [] -> true
+    | (p_label, p, _)::labeled_ps, (q_label, q, _)::labeled_qs ->
+        Option.equal String.equal p_label q_label
+        && compat p q && unboxed_tuple_compat labeled_ps labeled_qs
+    | _,_    -> false
 end
 
 module SyntacticCompat =
@@ -447,6 +459,7 @@ let simple_match_args discr head args =
   | Construct _
   | Variant _
   | Tuple _
+  | Unboxed_tuple _
   | Array _
   | Lazy -> args
   | Record lbls ->  extract_fields (record_arg discr) (List.combine lbls args)
@@ -458,6 +471,7 @@ let simple_match_args discr head args =
       | Record lbls ->  omega_list lbls
       | Array (_, _, len) -> Patterns.omegas len
       | Tuple lbls -> omega_list lbls
+      | Unboxed_tuple lbls -> omega_list lbls
       | Variant { has_arg = false }
       | Any
       | Constant _ -> []
@@ -545,6 +559,14 @@ let do_set_args ~erase_mutable q r = match q with
       (Tpat_tuple
         (List.map2 (fun (lbl, _) arg -> lbl, arg) omegas args))
       q.pat_type q.pat_env::rest
+| {pat_desc = Tpat_unboxed_tuple omegas} ->
+    let args,rest =
+      read_args (List.map (fun (_, pat, _) -> pat) omegas) r
+    in
+    make_pat
+      (Tpat_unboxed_tuple
+        (List.map2 (fun (lbl, _, sort) arg -> lbl, arg, sort) omegas args))
+      q.pat_type q.pat_env::rest
 | {pat_desc = Tpat_record (omegas,closed)} ->
     let args,rest = read_args omegas r in
     make_pat
@@ -582,12 +604,14 @@ let do_set_args ~erase_mutable q r = match q with
     end
 | {pat_desc = Tpat_array (am, arg_sort, omegas)} ->
     let args,rest = read_args omegas r in
+    let args = if erase_mutable then omegas else args in
     make_pat
       (Tpat_array (am, arg_sort, args)) q.pat_type q.pat_env::
     rest
 | {pat_desc=Tpat_constant _|Tpat_any} ->
     q::r (* case any is used in matching.ml *)
-| _ -> fatal_error "Parmatch.set_args"
+| {pat_desc = (Tpat_var _ | Tpat_alias _ | Tpat_or _); _} ->
+    fatal_error "Parmatch.set_args"
 
 let set_args q r = do_set_args ~erase_mutable:false q r
 and set_args_erase_mutable q r = do_set_args ~erase_mutable:true q r
@@ -841,6 +865,7 @@ let full_match closing env =  match env with
   | Constant _
   | Array _ -> false
   | Tuple _
+  | Unboxed_tuple _
   | Record _
   | Lazy -> true
 
@@ -857,7 +882,7 @@ let should_extend ext env = match ext with
           let path = get_constructor_type_path p.pat_type p.pat_env in
           Path.same path ext
       | Construct {cstr_tag=Extension _} -> false
-      | Constant _ | Tuple _ | Variant _ | Record _
+      | Constant _ | Tuple _ | Unboxed_tuple _ | Variant _ | Record _
       | Array _ | Lazy -> false
       | Any -> assert false
       end
@@ -1142,6 +1167,8 @@ let rec has_instance p = match p.pat_desc with
   | Tpat_construct (_,_,ps, _) | Tpat_array (_, _, ps) ->
       has_instances ps
   | Tpat_tuple labeled_ps -> has_instances (List.map snd labeled_ps)
+  | Tpat_unboxed_tuple labeled_ps ->
+      has_instances (List.map (fun (_, p, _) -> p) labeled_ps)
   | Tpat_record (lps,_) -> has_instances (List.map (fun (_,_,x) -> x) lps)
   | Tpat_lazy p
     -> has_instance p
@@ -1785,6 +1812,8 @@ let rec le_pat p q =
   | Tpat_variant(_,_,_), Tpat_variant(_,_,_) -> false
   | Tpat_tuple(labeled_ps), Tpat_tuple(labeled_qs) ->
       le_tuple_pats labeled_ps labeled_qs
+  | Tpat_unboxed_tuple(labeled_ps), Tpat_unboxed_tuple(labeled_qs) ->
+      le_unboxed_tuple_pats labeled_ps labeled_qs
   | Tpat_lazy p, Tpat_lazy q -> le_pat p q
   | Tpat_record (l1,_), Tpat_record (l2,_) ->
       let ps,qs = records_args l1 l2 in
@@ -1806,6 +1835,13 @@ and le_tuple_pats labeled_ps labeled_qs =
       && le_pat p q && le_tuple_pats labeled_ps labeled_qs
   | _, _ -> true
 
+and le_unboxed_tuple_pats labeled_ps labeled_qs =
+  match labeled_ps, labeled_qs with
+    (p_label, p, _)::labeled_ps, (q_label, q, _)::labeled_qs ->
+      Option.equal String.equal p_label q_label
+      && le_pat p q && le_unboxed_tuple_pats labeled_ps labeled_qs
+  | _, _ -> true
+
 let get_mins le ps =
   let rec select_rec r = function
       [] -> r
@@ -1813,6 +1849,10 @@ let get_mins le ps =
         if List.exists (fun p0 -> le p0 p) ps
         then select_rec r ps
         else select_rec (p::r) ps in
+  (* [select_rec] removes the elements that are followed by a smaller element.
+     An element that is preceded by a smaller element may stay in the list.
+     We thus do two passes on the list, which is returned reversed
+     the first time. *)
   select_rec [] (select_rec [] ps)
 
 (*
@@ -1831,6 +1871,9 @@ let rec lub p q = match p.pat_desc,q.pat_desc with
 | Tpat_tuple ps, Tpat_tuple qs ->
     let rs = tuple_lubs ps qs in
     make_pat (Tpat_tuple rs) p.pat_type p.pat_env
+| Tpat_unboxed_tuple ps, Tpat_unboxed_tuple qs ->
+    let rs = unboxed_tuple_lubs ps qs in
+    make_pat (Tpat_unboxed_tuple rs) p.pat_type p.pat_env
 | Tpat_lazy p, Tpat_lazy q ->
     let r = lub p q in
     make_pat (Tpat_lazy r) p.pat_type p.pat_env
@@ -1886,6 +1929,13 @@ and tuple_lubs ps qs = match ps,qs with
 | (p_label, p)::ps, (q_label, q)::qs
       when Option.equal String.equal p_label q_label ->
     (p_label, lub p q) :: tuple_lubs ps qs
+| _,_ -> raise Empty
+
+and unboxed_tuple_lubs ps qs = match ps,qs with
+| [], [] -> []
+| (p_label, p, sort)::ps, (q_label, q, _)::qs
+      when Option.equal String.equal p_label q_label ->
+    (p_label, lub p q, sort) :: unboxed_tuple_lubs ps qs
 | _,_ -> raise Empty
 
 and lubs ps qs = match ps,qs with
@@ -1985,7 +2035,7 @@ let do_check_partial ~pred loc casel pss = match pss with
           try
             let buf = Buffer.create 16 in
             let fmt = Format.formatter_of_buffer buf in
-            Printpat.top_pretty fmt v;
+            Format.fprintf fmt "%a@?" Printpat.pretty_pat v;
             if do_match (initial_only_guarded casel) [v] then
               Buffer.add_string buf
                 "\n(However, some guarded clause may match this value.)";
@@ -2032,13 +2082,16 @@ let rec collect_paths_from_pat r p = match p.pat_desc with
 | Tpat_any|Tpat_var _|Tpat_constant _| Tpat_variant (_,None,_) -> r
 | Tpat_tuple ps ->
     List.fold_left (fun r (_, p) -> collect_paths_from_pat r p) r ps
+| Tpat_unboxed_tuple ps ->
+    List.fold_left (fun r (_, p, _) -> collect_paths_from_pat r p) r ps
 | Tpat_array (_, _, ps) | Tpat_construct (_, {cstr_tag=Extension _}, ps, _)->
     List.fold_left collect_paths_from_pat r ps
 | Tpat_record (lps,_) ->
     List.fold_left
       (fun r (_, _, p) -> collect_paths_from_pat r p)
       r lps
-| Tpat_variant (_, Some p, _) | Tpat_alias (p,_,_,_,_) -> collect_paths_from_pat r p
+| Tpat_variant (_, Some p, _) | Tpat_alias (p,_,_,_,_) ->
+    collect_paths_from_pat r p
 | Tpat_or (p1,p2,_) ->
     collect_paths_from_pat (collect_paths_from_pat r p1) p2
 | Tpat_lazy p
@@ -2173,6 +2226,8 @@ let inactive ~partial pat =
           end
         | Tpat_tuple ps ->
             List.for_all (fun (_,p) -> loop p) ps
+        | Tpat_unboxed_tuple ps ->
+            List.for_all (fun (_,p,_) -> loop p) ps
         | Tpat_construct (_, _, ps, _) | Tpat_array (Immutable, _, ps) ->
             List.for_all (fun p -> loop p) ps
         | Tpat_alias (p,_,_,_,_) | Tpat_variant (_, Some p, _) ->

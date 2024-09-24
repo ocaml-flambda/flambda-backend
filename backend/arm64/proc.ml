@@ -513,6 +513,7 @@ let operation_supported = function
   | Cprobe _ | Cprobe_is_enabled _ | Copaque
   | Cbeginregion | Cendregion | Ctuple_field _
   | Cdls_get
+  | Cpoll
     -> true
 
 let trap_size_in_bytes = 16

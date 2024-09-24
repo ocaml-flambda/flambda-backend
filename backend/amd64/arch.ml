@@ -403,3 +403,85 @@ let equal_specific_operation left right =
      Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
      Ipause | Isimd _ | Iprefetch _), _ ->
     false
+
+(* addressing mode functions *)
+
+let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  (* Ignores displ when comparing to show that it is possible to calculate the offset *)
+  match addressing_mode_1, addressing_mode_2 with
+  | Ibased (symbol1, global1, _), Ibased (symbol2, global2, _) -> (
+    match global1, global2 with
+    | Global, Global | Local, Local ->
+      String.compare symbol1 symbol2
+    | Global, Local -> -1
+    | Local, Global -> 1)
+  | Ibased _, _ -> -1
+  | _, Ibased _ -> 1
+  | Iindexed _, Iindexed _ -> 0
+  | Iindexed _, _ -> -1
+  | _, Iindexed _ -> 1
+  | Iindexed2 _, Iindexed2 _ -> 0
+  | Iindexed2 _, _ -> -1
+  | _, Iindexed2 _ -> 1
+  | Iscaled (scale1, _), Iscaled (scale2, _) -> Int.compare scale1 scale2
+  | Iscaled _, _ -> -1
+  | _, Iscaled _ -> 1
+  | Iindexed2scaled (scale1, _), Iindexed2scaled (scale2, _) ->
+    Int.compare scale1 scale2
+
+let compare_addressing_mode_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  match addressing_mode_1, addressing_mode_2 with
+  | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
+    match global1, global2 with
+    | Global, Global | Local, Local ->
+      if symbol1 = symbol2 then Some (Int.compare n1 n2) else None
+    | Global, Local | Local, Global -> None)
+  | Iindexed n1, Iindexed n2 -> Some (Int.compare n1 n2)
+  | Iindexed2 n1, Iindexed2 n2 -> Some (Int.compare n1 n2)
+  | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
+    let scale_compare = scale1 - scale2 in
+    if scale_compare = 0 then Some (Int.compare n1 n2) else None
+  | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
+    let scale_compare = scale1 - scale2 in
+    if scale_compare = 0 then Some (Int.compare n1 n2) else None
+  | Ibased _, _ -> None
+  | Iindexed _, _ -> None
+  | Iindexed2 _, _ -> None
+  | Iscaled _, _ -> None
+  | Iindexed2scaled _, _ -> None
+
+let addressing_offset_in_bytes (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+  match addressing_mode_1, addressing_mode_2 with
+  | Ibased (symbol1, global1, n1), Ibased (symbol2, global2, n2) -> (
+    match global1, global2 with
+    | Global, Global | Local, Local ->
+      if symbol1 = symbol2 then Some (n2 - n1) else None
+    | Global, Local | Local, Global -> None)
+  | Iindexed n1, Iindexed n2 -> Some (n2 - n1)
+  | Iindexed2 n1, Iindexed2 n2 -> Some (n2 - n1)
+  | Iscaled (scale1, n1), Iscaled (scale2, n2) ->
+    let scale_compare = scale1 - scale2 in
+    if scale_compare = 0 then Some (n2 - n1) else None
+  | Iindexed2scaled (scale1, n1), Iindexed2scaled (scale2, n2) ->
+    let scale_compare = scale1 - scale2 in
+    if scale_compare = 0 then Some (n2 - n1) else None
+  | Ibased _, _ -> None
+  | Iindexed _, _ -> None
+  | Iindexed2 _, _ -> None
+  | Iscaled _, _ -> None
+  | Iindexed2scaled _, _ -> None
+
+  let can_cross_loads_or_stores (specific_operation : specific_operation) =
+    match specific_operation with
+    | Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Isimd _ | Iprefetch _ ->
+      false
+    | Ibswap _ | Isextend32 | Izextend32 | Irdtsc  | Irdpmc | Ilfence | Isfence | Imfence
+    | Ipause ->
+      true
+
+  let may_break_alloc_freshness (specific_operation : specific_operation) =
+    match specific_operation with
+    | Isimd _ -> true
+    | Ilea  _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ | Isextend32
+    | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Iprefetch _ ->
+      false

@@ -604,7 +604,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       K.With_subkind.(
         kind
           (from_lambda_values_and_unboxed_numbers_only
-             (Typeopt.layout_of_const_sort sort)))
+             (Typeopt.layout_of_base_sort sort)))
     | Unboxed_float Pfloat64 -> K.naked_float
     | Unboxed_float Pfloat32 -> K.naked_float32
     | Unboxed_integer Pnativeint -> K.naked_nativeint
@@ -868,8 +868,8 @@ let close_effect_primitive acc env ~dbg exn_continuation
   | Prunstack, [[stack]; [f]; [arg]] ->
     let call_kind = C.effect (E.run_stack ~stack ~f ~arg) in
     close call_kind
-  | Presume, [[stack]; [f]; [arg]] ->
-    let call_kind = C.effect (E.resume ~stack ~f ~arg) in
+  | Presume, [[stack]; [f]; [arg]; [last_fiber]] ->
+    let call_kind = C.effect (E.resume ~stack ~f ~arg ~last_fiber) in
     close call_kind
   | Preperform, [[eff]; [cont]; [last_fiber]] ->
     let call_kind = C.effect (E.reperform ~eff ~cont ~last_fiber) in
@@ -1008,7 +1008,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
       | Punboxed_product_field _ | Pget_header _ | Prunstack | Pperform
       | Presume | Preperform | Patomic_exchange | Patomic_cas
-      | Patomic_fetch_add | Pdls_get | Patomic_load _
+      | Patomic_fetch_add | Pdls_get | Ppoll | Patomic_load _
       | Preinterpret_tagged_int63_as_unboxed_int64
       | Preinterpret_unboxed_int64_as_tagged_int63 ->
         (* Inconsistent with outer match *)
@@ -1056,7 +1056,7 @@ let close_named acc env ~let_bound_ids_with_kinds (named : IR.named)
       Unary (Tag_immediate, Prim (Unary (Get_tag, Simple named)))
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
-      [prim] Debuginfo.none k
+      prim Debuginfo.none k
   | Begin_region { is_try_region; ghost } ->
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
       Nullary
@@ -1065,7 +1065,7 @@ let close_named acc env ~let_bound_ids_with_kinds (named : IR.named)
         else Begin_region { ghost })
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
-      [prim] Debuginfo.none k
+      prim Debuginfo.none k
   | End_region { is_try_region; region; ghost } ->
     let named = find_simple_from_id env region in
     let prim : Lambda_to_flambda_primitives_helpers.expr_primitive =
@@ -1076,7 +1076,7 @@ let close_named acc env ~let_bound_ids_with_kinds (named : IR.named)
           Simple named )
     in
     Lambda_to_flambda_primitives_helpers.bind_recs acc None ~register_const0
-      [prim] Debuginfo.none k
+      prim Debuginfo.none k
   | Prim { prim; args; loc; exn_continuation; region; ghost_region } ->
     close_primitive acc env ~let_bound_ids_with_kinds named prim ~args loc
       exn_continuation
