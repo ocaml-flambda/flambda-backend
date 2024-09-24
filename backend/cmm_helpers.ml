@@ -1584,11 +1584,7 @@ let result_layout_suffix result =
 
 let send_function_name arity result (mode : Cmx_format.alloc_mode) =
   let res = result_layout_suffix result in
-  let suff =
-    match mode with
-    | Cmx_format.Alloc_heap -> ""
-    | Cmx_format.Alloc_local -> "L"
-  in
+  let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
   global_symbol ("caml_send" ^ unique_arity_identifier arity ^ res ^ suff)
 
 let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
