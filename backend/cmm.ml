@@ -225,17 +225,17 @@ type static_cast =
 module Alloc_mode = struct
   type t = Heap | Local
 
-  let equal a b =
-    match a, b with
+  let equal t1 t2 =
+    match t1, t2 with
     | Heap, Heap -> true
     | Local, Local -> true
     | Heap, Local -> false
     | Local, Heap -> false
 
-  let print a =
-    match a with
-    | Heap -> "Heap"
-    | Local -> "Local"
+  let print ppf t =
+    match t with
+    | Heap -> Format.fprintf ppf "Heap"
+    | Local -> Format.fprintf ppf "Local"
 
   let is_local = function
     | Heap -> false

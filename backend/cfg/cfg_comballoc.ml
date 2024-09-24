@@ -88,8 +88,8 @@ let find_compatible_allocations :
         else { allocations = List.rev allocations; next_cell = Some cell }
       | Op (Begin_region | End_region) -> (
         match curr_mode with
-        | Cmm.Alloc_mode.Local -> return ()
-        | Cmm.Alloc_mode.Heap ->
+        | Local -> return ()
+        | Heap ->
           loop allocations (DLL.next cell) ~curr_mode ~curr_size)
       | Op Poll -> return ()
       | Reloadretaddr | Poptrap | Prologue | Pushtrap _ | Stack_check _ ->

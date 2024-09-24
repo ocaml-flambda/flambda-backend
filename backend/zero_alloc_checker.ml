@@ -2199,10 +2199,10 @@ end = struct
     (* Ignore poll points even though they may trigger an allocations, because
        otherwise all loops would be considered allocating when poll insertion is
        enabled. [@poll error] should be used instead. *)
-    | Ialloc { mode = Cmm.Alloc_mode.Local; _ } ->
+    | Ialloc { mode = Local; _ } ->
       assert (not (Mach.operation_can_raise op));
       next
-    | Ialloc { mode = Cmm.Alloc_mode.Heap; bytes; dbginfo } ->
+    | Ialloc { mode = Heap; bytes; dbginfo } ->
       assert (not (Mach.operation_can_raise op));
       let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
       let effect =
@@ -2569,8 +2569,8 @@ end = struct
              because otherwise all loops would be considered allocating when
              poll insertion is enabled. [@poll error] should be used instead. *)
           next
-        | Alloc { mode = Cmm.Alloc_mode.Local; _ } -> next
-        | Alloc { mode = Cmm.Alloc_mode.Heap; bytes; dbginfo } ->
+        | Alloc { mode = Local; _ } -> next
+        | Alloc { mode = Heap; bytes; dbginfo } ->
           let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
           let effect =
             match Metadata.assume_value dbg ~can_raise:false w with

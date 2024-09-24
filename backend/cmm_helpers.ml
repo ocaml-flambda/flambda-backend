@@ -254,44 +254,44 @@ let closure_info ~(arity : arity) ~startenv ~is_last =
     ~arity:(arity.function_kind, arity.params_layout)
     ~startenv ~is_last
 
-let alloc_boxedfloat32_header mode dbg =
+let alloc_boxedfloat32_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Cmm.Alloc_mode.Heap -> Cconst_natint (boxedfloat32_header, dbg)
-  | Cmm.Alloc_mode.Local -> Cconst_natint (boxedfloat32_local_header, dbg)
+  | Heap -> Cconst_natint (boxedfloat32_header, dbg)
+  | Local -> Cconst_natint (boxedfloat32_local_header, dbg)
 
-let alloc_float_header mode dbg =
+let alloc_float_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Cmm.Alloc_mode.Heap -> Cconst_natint (float_header, dbg)
-  | Cmm.Alloc_mode.Local -> Cconst_natint (float_local_header, dbg)
+  | Heap -> Cconst_natint (float_header, dbg)
+  | Local -> Cconst_natint (float_local_header, dbg)
 
-let alloc_boxedvec128_header mode dbg =
+let alloc_boxedvec128_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Cmm.Alloc_mode.Heap -> Cconst_natint (boxedvec128_header, dbg)
-  | Cmm.Alloc_mode.Local -> Cconst_natint (boxedvec128_local_header, dbg)
+  | Heap -> Cconst_natint (boxedvec128_header, dbg)
+  | Local -> Cconst_natint (boxedvec128_local_header, dbg)
 
 let alloc_floatarray_header len dbg = Cconst_natint (floatarray_header len, dbg)
 
-let alloc_closure_header ~mode sz dbg =
-  match (mode : Cmm.Alloc_mode.t) with
-  | Cmm.Alloc_mode.Heap -> Cconst_natint (white_closure_header sz, dbg)
-  | Cmm.Alloc_mode.Local -> Cconst_natint (local_closure_header sz, dbg)
+let alloc_closure_header ~(mode : Cmm.Alloc_mode.t) sz dbg =
+  match mode with
+  | Heap -> Cconst_natint (white_closure_header sz, dbg)
+  | Local -> Cconst_natint (local_closure_header sz, dbg)
 
 let alloc_infix_header ofs dbg = Cconst_natint (infix_header ofs, dbg)
 
-let alloc_boxedint32_header mode dbg =
+let alloc_boxedint32_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Cmm.Alloc_mode.Heap -> Cconst_natint (boxedint32_header, dbg)
-  | Cmm.Alloc_mode.Local -> Cconst_natint (boxedint32_local_header, dbg)
+  | Heap -> Cconst_natint (boxedint32_header, dbg)
+  | Local -> Cconst_natint (boxedint32_local_header, dbg)
 
-let alloc_boxedint64_header mode dbg =
+let alloc_boxedint64_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Cmm.Alloc_mode.Heap -> Cconst_natint (boxedint64_header, dbg)
-  | Cmm.Alloc_mode.Local -> Cconst_natint (boxedint64_local_header, dbg)
+  | Heap -> Cconst_natint (boxedint64_header, dbg)
+  | Local -> Cconst_natint (boxedint64_local_header, dbg)
 
-let alloc_boxedintnat_header mode dbg =
+let alloc_boxedintnat_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Cmm.Alloc_mode.Heap -> Cconst_natint (boxedintnat_header, dbg)
-  | Cmm.Alloc_mode.Local -> Cconst_natint (boxedintnat_local_header, dbg)
+  | Heap -> Cconst_natint (boxedintnat_header, dbg)
+  | Local -> Cconst_natint (boxedintnat_local_header, dbg)
 
 (* Integers *)
 
@@ -1667,9 +1667,9 @@ let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
   if Cmm.Alloc_mode.is_local mode || wordsize <= Config.max_young_wosize
   then
     let hdr =
-      match mode with
-      | Cmm.Alloc_mode.Local -> local_block_header ~block_kind tag wordsize
-      | Cmm.Alloc_mode.Heap -> block_header ~block_kind tag wordsize
+      match (mode : Cmm.Alloc_mode.t) with
+      | Local -> local_block_header ~block_kind tag wordsize
+      | Heap -> block_header ~block_kind tag wordsize
     in
     Cop (Calloc mode, Cconst_natint (hdr, dbg) :: args, dbg)
   else
@@ -3139,9 +3139,7 @@ let intermediate_curry_functions ~nlocal ~arity result =
       in
       let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
       let mode : Cmm.Alloc_mode.t =
-        if num >= narity - nlocal
-        then Cmm.Alloc_mode.Local
-        else Cmm.Alloc_mode.Heap
+        if num >= narity - nlocal then Local else Heap
       in
       let has_nary = curry_clos_has_nary_application ~narity (num + 1) in
       let function_slot_size = if has_nary then 3 else 2 in
@@ -4193,8 +4191,8 @@ let allocate_unboxed_int32_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
   let header =
     let size = 1 (* custom_ops field *) + List.length payload in
     match mode with
-    | Cmm.Alloc_mode.Heap -> custom_header ~size
-    | Cmm.Alloc_mode.Local -> custom_local_header ~size
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
   in
   let custom_ops =
     (* For odd-length unboxed int32 arrays there are 32 bits spare at the end of
@@ -4230,8 +4228,8 @@ let allocate_unboxed_float32_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
   let header =
     let size = 1 (* custom_ops field *) + List.length payload in
     match mode with
-    | Cmm.Alloc_mode.Heap -> custom_header ~size
-    | Cmm.Alloc_mode.Local -> custom_local_header ~size
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
   in
   let custom_ops =
     (* For odd-length unboxed float32 arrays there are 32 bits spare at the end
@@ -4247,8 +4245,8 @@ let allocate_unboxed_int64_or_nativeint_array custom_ops ~elements
   let header =
     let size = 1 (* custom_ops field *) + List.length elements in
     match mode with
-    | Cmm.Alloc_mode.Heap -> custom_header ~size
-    | Cmm.Alloc_mode.Local -> custom_local_header ~size
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
   in
   Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: elements, dbg)
 

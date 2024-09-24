@@ -77,10 +77,10 @@ let rec combine i allocstate =
        allocstate)
   | Iop(Ibeginregion|Iendregion) -> begin
       match allocstate with
-      | Pending_alloc { mode = Cmm.Alloc_mode.Local; _ } ->
+      | Pending_alloc { mode = Local; _ } ->
           let newnext = combine_restart i.next in
           (instr_cons_debug i.desc i.arg i.res i.dbg newnext, allocstate)
-      | No_alloc | Pending_alloc { mode = Cmm.Alloc_mode.Heap; _ } ->
+      | No_alloc | Pending_alloc { mode = Heap; _ } ->
           let newnext, s' = combine i.next allocstate in
           (instr_cons_debug i.desc i.arg i.res i.dbg newnext, s')
     end

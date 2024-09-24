@@ -192,7 +192,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
           Apply.print apply
     in
     ( C.indirect_call ~dbg return_ty pos
-        (C.alloc_mode_to_cmx alloc_mode)
+        (C.alloc_mode_for_applications_to_cmx alloc_mode)
         callee args_ty (split_args ()),
       free_vars,
       env,
@@ -215,7 +215,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
          order to translate them"
     else
       ( C.indirect_full_call ~dbg return_ty pos
-          (C.alloc_mode_to_cmx alloc_mode)
+          (C.alloc_mode_for_applications_to_cmx alloc_mode)
           callee args_ty args,
         free_vars,
         env,
@@ -293,7 +293,7 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
     in
     let free_vars = Backend_var.Set.union free_vars obj_free_vars in
     let kind = Call_kind.Method_kind.to_lambda kind in
-    let alloc_mode = C.alloc_mode_to_cmx alloc_mode in
+    let alloc_mode = C.alloc_mode_for_applications_to_cmx alloc_mode in
     ( C.send kind callee obj (split_args ()) args_ty return_ty (pos, alloc_mode)
         dbg,
       free_vars,

@@ -427,12 +427,12 @@ let extended_machtype_of_return_arity arity =
     (* Functions returning multiple values *)
     List.map extended_machtype_of_kind arity |> Array.concat
 
-let alloc_mode_to_cmx t =
+let alloc_mode_for_applications_to_cmx t =
   match t with
   | Alloc_mode.For_applications.Local _ -> Cmx_format.Alloc_local
   | Alloc_mode.For_applications.Heap -> Cmx_format.Alloc_heap
 
-let alloc_mode_to_cmm t =
+let alloc_mode_for_allocations_to_cmm t =
   match t with
   | Alloc_mode.For_allocations.Heap -> Cmm.Alloc_mode.Heap
   | Alloc_mode.For_allocations.Local _ ->

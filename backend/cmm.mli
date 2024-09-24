@@ -206,7 +206,7 @@ module Alloc_mode : sig
   type t = Heap | Local
 
   val equal : t -> t -> bool
-  val print : t -> string
+  val print : Format.formatter -> t -> unit
   val is_local : t -> bool
   val is_heap  : t -> bool
 end

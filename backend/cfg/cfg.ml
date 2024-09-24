@@ -315,9 +315,9 @@ let dump_operation ppf = function
   | Name_for_debugger _ -> Format.fprintf ppf "name_for_debugger"
   | Dls_get -> Format.fprintf ppf "dls_get"
   | Poll -> Format.fprintf ppf "poll"
-  | Alloc { bytes; dbginfo = _; mode = Cmm.Alloc_mode.Heap } ->
+  | Alloc { bytes; dbginfo = _; mode = Heap } ->
     Format.fprintf ppf "alloc %i" bytes
-  | Alloc { bytes; dbginfo = _; mode = Cmm.Alloc_mode.Local } ->
+  | Alloc { bytes; dbginfo = _; mode = Local } ->
     Format.fprintf ppf "alloc_local %i" bytes
 
 let dump_basic ppf (basic : basic) =
