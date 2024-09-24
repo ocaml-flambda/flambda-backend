@@ -189,8 +189,6 @@ end = struct
               | Naked_number Naked_nativeint ->
                 UK.naked_int64s
               | Naked_number Naked_float -> UK.naked_floats
-              (* The "fields" update kind is used because we are indexing by
-                 64-bit slots. *)
               | Naked_number Naked_vec128 -> UK.naked_vec128_fields
               (* The "fields" update kinds are used because we are writing into
                  a 64-bit slot, and wish to initialize the whole. *)
@@ -604,15 +602,9 @@ let let_static_set_of_closures0 env res closure_symbols
       "Non-empty set of free_vars for a static set of closures (*not* \
        including updates):@ %a"
       Backend_var.Set.print free_vars;
-  if layout.startenv > length
-  then
-    Misc.fatal_errorf "Startenv larger than block length: %d vs %d"
-      layout.startenv length;
   let block =
     match l with
     | _ :: _ ->
-      if !Clflags.debug_ocaml
-      then Printf.printf "fl2 startenv: %d length: %d\n" layout.startenv length;
       let header = C.cint (C.black_closure_header length) in
       header :: l
     | [] ->

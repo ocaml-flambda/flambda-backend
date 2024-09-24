@@ -3145,11 +3145,6 @@ let intermediate_curry_functions ~nlocal ~arity result =
       in
       let has_nary = curry_clos_has_nary_application ~narity (num + 1) in
       let function_slot_size = if has_nary then 3 else 2 in
-      if !Clflags.debug_ocaml
-      then
-        Printf.printf "cmm startenv: %d length: %d\n"
-          (function_slot_size + machtype_non_scanned_size arg_type)
-          (function_slot_size + machtype_stored_size arg_type + 1);
       Cfunction
         { fun_name = global_symbol name2;
           fun_args =
