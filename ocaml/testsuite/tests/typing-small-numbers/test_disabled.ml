@@ -113,7 +113,7 @@ Line 1, characters 9-17:
 1 | type t = float32#;;
              ^^^^^^^^
 Error: Unbound type constructor "float32#"
-Hint: Did you mean "float#", "float32x4" or "float32x4#"?
+Hint: Did you mean "float#" or "float32x4"?
 |}];;
 
 let () = ignore #1.0s;;

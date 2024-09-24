@@ -512,7 +512,7 @@ let build_initial_env add_type add_extension empty_env =
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int])]
        [| Jkind.Builtin.value ~why:Tuple |]
 
-let add_simd_extension_types add_type env =
+let add_simd_stable_extension_types add_type env =
   let add_type = mk_add_type add_type in
   env
   |> add_type ident_int8x16
@@ -539,6 +539,10 @@ let add_simd_extension_types add_type env =
       ~jkind:(Jkind.of_const ~why:(Primitive ident_float64x2)
                 Jkind.Const.Builtin.immutable_data.jkind)
       ~jkind_annotation:Jkind.Const.Builtin.immutable_data
+
+let add_simd_beta_extension_types add_type env =
+  let add_type = mk_add_type add_type in
+  env
   |> add_type ident_unboxed_int8x16
       ~jkind:(Jkind.of_const ~why:(Primitive ident_unboxed_int8x16)
                 Jkind.Const.Builtin.vec128.jkind)

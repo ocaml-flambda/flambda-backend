@@ -793,11 +793,11 @@ module Const = struct
   let get_required_layouts_level (_context : History.annotation_context)
       (jkind : t) : Language_extension.maturity =
     match jkind.layout, jkind.nullability_upper_bound with
-    | (Base (Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) | Any), _
+    | (Base (Float64 | Float32 | Word | Bits32 | Bits64) | Any), _
     | Base Value, Non_null ->
       Stable
     | Base Void, _ | Base Value, Maybe_null -> Alpha
-    | Product _, _ -> Beta
+    | Base Vec128, _ | Product _, _ -> Beta
 
   let of_user_written_annotation ~context Location.{ loc; txt = annot } =
     let const = of_user_written_annotation_unchecked_level annot in

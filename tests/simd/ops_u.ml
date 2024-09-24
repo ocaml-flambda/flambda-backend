@@ -1,5 +1,12 @@
 open Stdlib
 
+(* !!!
+
+Should be kept in sync with ops.ml.
+CR-someday mslater: with layout polymorphism, the tests could be functorized.
+
+!!! *)
+
 [@@@ocaml.warning "-unused-value-declaration"]
 [@@@ocaml.warning "-unused-module"]
 

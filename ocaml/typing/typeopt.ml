@@ -726,8 +726,8 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
   | Base Float32 when Language_extension.(is_at_least Layouts Stable) &&
                             Language_extension.(is_enabled Small_numbers) ->
     Lambda.Punboxed_float Pfloat32
-  | Base Vec128 when Language_extension.(is_at_least Layouts Stable) &&
-                     Language_extension.(is_enabled SIMD) ->
+  | Base Vec128 when Language_extension.(is_at_least Layouts Beta) &&
+                     Language_extension.(is_at_least SIMD Beta) ->
     Lambda.Punboxed_vector Pvec128
   | Product consts when Language_extension.(is_at_least Layouts Beta) ->
     (* CR layouts v7.1: assess whether it is important for performance to support

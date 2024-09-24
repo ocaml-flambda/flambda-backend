@@ -22,7 +22,7 @@
  (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension simd)))
+  (:standard -extension-universe beta)))
 
 (rule
  (enabled_if
@@ -134,7 +134,7 @@
  (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension simd -nodynlink)))
+  (:standard -extension-universe beta -nodynlink)))
 
 (rule
  (enabled_if
@@ -208,7 +208,7 @@
   (<> %{system} macosx))
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension simd)))
+  (:standard -extension-universe beta)))
 
 (rule
  (targets
@@ -263,7 +263,7 @@
   (<> %{system} macosx))
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -extension simd -internal-assembler)))
+  (:standard -extension-universe beta -internal-assembler)))
 
 (rule
  (enabled_if

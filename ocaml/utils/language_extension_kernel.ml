@@ -10,7 +10,7 @@ type _ t =
   | Immutable_arrays : unit t
   | Module_strengthening : unit t
   | Layouts : maturity t
-  | SIMD : unit t
+  | SIMD : maturity t
   | Labeled_tuples : unit t
   | Small_numbers : maturity t
 
@@ -70,7 +70,8 @@ let pair_of_string extn_name : Exist_pair.t option =
   | "layouts" -> Some (Pair (Layouts, Stable))
   | "layouts_alpha" -> Some (Pair (Layouts, Alpha))
   | "layouts_beta" -> Some (Pair (Layouts, Beta))
-  | "simd" -> Some (Pair (SIMD, ()))
+  | "simd" -> Some (Pair (SIMD, Stable))
+  | "simd_beta" -> Some (Pair (SIMD, Beta))
   | "labeled_tuples" -> Some (Pair (Labeled_tuples, ()))
   | "small_numbers" -> Some (Pair (Small_numbers, Stable))
   | "small_numbers_beta" -> Some (Pair (Small_numbers, Beta))
