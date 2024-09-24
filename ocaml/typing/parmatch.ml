@@ -52,7 +52,7 @@ let make_pat desc ty tenv =
   {pat_desc = desc; pat_loc = Location.none; pat_extra = [];
    pat_type = ty ; pat_env = tenv;
    pat_attributes = [];
-   pat_unique_barrier = fresh_unique_barrier ();
+   pat_unique_barrier = Unique_barrier.fresh ();
   }
 
 let omega = Patterns.omega

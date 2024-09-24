@@ -50,10 +50,18 @@ type _ pattern_category =
 | Value : value pattern_category
 | Computation : computation pattern_category
 
-type unique_barrier = Mode.Uniqueness.r
+module Unique_barrier = struct
+  type t = Mode.Uniqueness.r ref
 
-let fresh_unique_barrier () =
-  ref (Uniqueness.max |> Uniqueness.disallow_left)
+  let fresh () =
+    ref (Uniqueness.max |> Uniqueness.disallow_left)
+
+  let add_upper_bound uniq barrier =
+    barrier := Uniqueness.meet [!barrier; uniq]
+
+  let resolve barrier =
+    Uniqueness.zap_to_ceil !barrier
+end
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
@@ -80,7 +88,7 @@ and 'a pattern_data =
     pat_type: type_expr;
     pat_env: Env.t;
     pat_attributes: attribute list;
-    pat_unique_barrier : unique_barrier ref;
+    pat_unique_barrier : Unique_barrier.t;
    }
 
 and pat_extra =
@@ -172,16 +180,15 @@ and expression_desc =
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
-      extended_expression : expression option;
-      alloc_mode : alloc_mode option;
-      unique_barrier : unique_barrier ref
+      extended_expression : (expression * Unique_barrier.t) option;
+      alloc_mode : alloc_mode option
     }
   | Texp_field of
       expression * Longident.t loc * label_description * texp_field_boxing *
-        unique_barrier ref
+        Unique_barrier.t
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc * label_description * expression *
-        unique_barrier ref
+        Unique_barrier.t
   | Texp_array of mutability * Jkind.Sort.t * expression list * alloc_mode
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of mutability * Jkind.sort * comprehension
@@ -858,7 +865,7 @@ let as_computation_pattern (p : pattern) : computation general_pattern =
     pat_type = p.pat_type;
     pat_env = p.pat_env;
     pat_attributes = [];
-    pat_unique_barrier = fresh_unique_barrier ();
+    pat_unique_barrier = p.pat_unique_barrier;
   }
 
 let function_arity params body =

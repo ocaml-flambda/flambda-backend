@@ -633,7 +633,8 @@ let expression sub exp =
             | _, Overridden (lid, exp) -> (lid, sub.expr sub exp) :: l)
             [] fields
         in
-        Pexp_record (list, Option.map (sub.expr sub) extended_expression)
+        Pexp_record (list, Option.map (fun (exp, _) -> sub.expr sub exp)
+                             extended_expression)
     | Texp_field (exp, lid, _label, _, _) ->
         Pexp_field (sub.expr sub exp, map_loc sub lid)
     | Texp_setfield (exp1, _, lid, _label, exp2, _) ->

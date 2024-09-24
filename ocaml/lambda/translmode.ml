@@ -44,6 +44,6 @@ let transl_modify_mode locality =
   | Local -> modify_maybe_stack
 
 let transl_unique_barrier barrier =
-  match Uniqueness.zap_to_ceil !barrier with
+  match Typedtree.Unique_barrier.resolve barrier with
   | Uniqueness.Const.Aliased -> MayBePushedDown
   | Uniqueness.Const.Unique -> MustStayHere

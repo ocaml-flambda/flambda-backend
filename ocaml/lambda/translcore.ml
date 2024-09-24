@@ -626,10 +626,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   [Lconst(const_int tag); lam],
                   of_location ~scopes e.exp_loc)
       end
-  | Texp_record {fields; representation; extended_expression; alloc_mode; unique_barrier} ->
+  | Texp_record {fields; representation; extended_expression; alloc_mode} ->
       transl_record ~scopes e.exp_loc e.exp_env
         (Option.map transl_alloc_mode alloc_mode)
-        (transl_unique_barrier unique_barrier)
         fields representation extended_expression
   | Texp_field(arg, id, lbl, float, ubr) ->
       let targ = transl_exp ~scopes Jkind.Sort.for_record arg in
@@ -1790,11 +1789,13 @@ and transl_setinstvar ~scopes loc self var expr =
     [self; var; transl_exp ~scopes Jkind.Sort.for_instance_var expr], loc)
 
 (* CR layouts v5: Invariant - this is only called on values.  Relax that. *)
-and transl_record ~scopes loc env mode ubr fields repres opt_init_expr =
+and transl_record ~scopes loc env mode fields repres opt_init_expr =
   let size = Array.length fields in
   (* Determine if there are "enough" fields (only relevant if this is a
      functional-style record update *)
-  let no_init = match opt_init_expr with None -> true | _ -> false in
+  let (no_init, ubr) = match opt_init_expr with
+    | None -> (true, MayBePushedDown)
+    | Some (_, ubr) -> (false, transl_unique_barrier ubr) in
   let on_heap = match mode with
     | None -> false (* unboxed is not on heap *)
     | Some m -> is_heap_mode m
@@ -1949,7 +1950,7 @@ and transl_record ~scopes loc env mode ubr fields repres opt_init_expr =
     in
     begin match opt_init_expr with
       None -> lam
-    | Some init_expr -> Llet(Strict, Lambda.layout_block, init_id,
+    | Some (init_expr, _) -> Llet(Strict, Lambda.layout_block, init_id,
                              transl_exp ~scopes Jkind.Sort.for_record init_expr, lam)
     end
   end else begin
@@ -2012,7 +2013,7 @@ and transl_record ~scopes loc env mode ubr fields repres opt_init_expr =
     in
     begin match opt_init_expr with
       None -> assert false
-    | Some init_expr ->
+    | Some (init_expr, _) ->
         assert (is_heap_mode (Option.get mode)); (* Pduprecord must be Alloc_heap and not unboxed *)
         Llet(Strict, Lambda.layout_block, copy_id,
              Lprim(Pduprecord (repres, size),

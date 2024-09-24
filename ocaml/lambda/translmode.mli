@@ -24,5 +24,4 @@ val transl_alloc_mode : Typedtree.alloc_mode -> Lambda.alloc_mode
 
 val transl_modify_mode : (allowed * 'r) Locality.t -> Lambda.modify_mode
 
-val transl_unique_barrier :
-  Typedtree.unique_barrier ref -> Lambda.unique_barrier
+val transl_unique_barrier : Typedtree.Unique_barrier.t -> Lambda.unique_barrier

@@ -63,13 +63,22 @@ type _ pattern_category =
 | Value : value pattern_category
 | Computation : computation pattern_category
 
-(** Access mode for a field projection, represented by the usage of the record
-  immediately following the projection. If the following usage is unique, the
-  projection must be borrowed and cannot be moved. If the following usage is
-  aliased, the projection can be aliased and moved. *)
-type unique_barrier = Mode.Uniqueness.r
+(** A unique barrier annotates field accesses (eg. Texp_field and patterns)
+    with the uniqueness mode of the allocation that is projected out of.
+    Projections out of unique allocations may not be pushed down in later
+    stages of the compiler, because the unique allocation may be overwritten. *)
+module Unique_barrier : sig
+  type t
 
-val fresh_unique_barrier : unit -> unique_barrier ref
+  (* Create a fresh (mutable) barrier. *)
+  val fresh : unit -> t
+
+  (* Record an upper bound on the uniqueness of the record. *)
+  val add_upper_bound : Mode.Uniqueness.r -> t -> unit
+
+  (* Resolve the unique barrier once type-checking is complete. *)
+  val resolve : t -> Mode.Uniqueness.Const.t
+end
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
@@ -98,7 +107,7 @@ and 'a pattern_data =
     pat_type: Types.type_expr;
     pat_env: Env.t;
     pat_attributes: attributes;
-    pat_unique_barrier : unique_barrier ref;
+    pat_unique_barrier : Unique_barrier.t;
    }
 
 and pat_extra =
@@ -357,9 +366,8 @@ and expression_desc =
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
-      extended_expression : expression option;
-      alloc_mode : alloc_mode option;
-      unique_barrier : unique_barrier ref
+      extended_expression : (expression * Unique_barrier.t) option;
+      alloc_mode : alloc_mode option
     }
         (** { l1=P1; ...; ln=Pn }           (extended_expression = None)
             { E0 with l1=P1; ...; ln=Pn }   (extended_expression = Some E0)
@@ -376,12 +384,12 @@ and expression_desc =
             in which case it does not need allocation.
           *)
   | Texp_field of expression * Longident.t loc * Types.label_description *
-      texp_field_boxing * unique_barrier ref
+      texp_field_boxing * Unique_barrier.t
     (** [texp_field_boxing] provides extra information depending on if the
         projection requires boxing. *)
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc *
-      Types.label_description * expression * unique_barrier ref
+      Types.label_description * expression * Unique_barrier.t
     (** [alloc_mode] translates to the [modify_mode] of the record *)
   | Texp_array of Types.mutability * Jkind.Sort.t * expression list * alloc_mode
   | Texp_list_comprehension of comprehension

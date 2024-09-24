@@ -130,7 +130,7 @@ module Maybe_aliased : sig
 
   val meet : t -> t -> t
 
-  val singleton : unique_barrier ref -> Occurrence.t -> access -> t
+  val singleton : Unique_barrier.t -> Occurrence.t -> access -> t
 end = struct
   type access =
     | Read
@@ -145,7 +145,7 @@ end = struct
   is the meet of all modes in the list. (recall that borrowed > aliased).
   Therefore, if this virtual mode needs to be forced borrowed, the whole list
   needs to be forced borrowed. *)
-  type t = (unique_barrier ref * Occurrence.t * access) list
+  type t = (Unique_barrier.t * Occurrence.t * access) list
 
   let meet l0 l1 = l0 @ l1
 
@@ -157,7 +157,7 @@ end = struct
 
   let add_barrier t uniq =
     List.iter
-      (fun (barrier, _, _) -> barrier := Uniqueness.meet [!barrier; uniq])
+      (fun (barrier, _, _) -> Unique_barrier.add_upper_bound uniq barrier)
       t
 end
 
@@ -441,7 +441,7 @@ module Projection : sig
     | Record_field of string
     | Construct_field of string * int
     | Variant_field of label
-    | Memory_address
+    | Memory_address (* clubsuit *)
 
   module Map : Map.S with type key = t
 end = struct
@@ -766,7 +766,7 @@ module Paths : sig
   val choose : t -> t -> t
 
   val mark_implicit_borrow_memory_address :
-    unique_barrier ref -> Maybe_aliased.access -> Occurrence.t -> t -> UF.t
+    Unique_barrier.t -> Maybe_aliased.access -> Occurrence.t -> t -> UF.t
 
   val mark_aliased : Occurrence.t -> Aliased.reason -> t -> UF.t
 end = struct
@@ -855,7 +855,7 @@ module Value : sig
   (** Mark the memory_address of the value as implicitly borrowed
       (borrow_or_aliased). *)
   val mark_implicit_borrow_memory_address :
-    unique_barrier ref -> Maybe_aliased.access -> t -> UF.t
+    Unique_barrier.t -> Maybe_aliased.access -> t -> UF.t
 
   val mark_aliased : reason:boundary_reason -> t -> UF.t
 end = struct
@@ -1290,11 +1290,11 @@ let rec check_uniqueness_exp (ienv : Ienv.t) exp : UF.t =
     UF.pars (List.map (fun e -> check_uniqueness_exp ienv e) es)
   | Texp_variant (_, None) -> UF.unused
   | Texp_variant (_, Some (arg, _)) -> check_uniqueness_exp ienv arg
-  | Texp_record { fields; extended_expression; unique_barrier } ->
+  | Texp_record { fields; extended_expression } ->
     let value, uf_ext =
       match extended_expression with
       | None -> Value.fresh, UF.unused
-      | Some exp ->
+      | Some (exp, unique_barrier) ->
         let value, uf_exp = check_uniqueness_exp_as_value ienv exp in
         let uf_read =
           Value.mark_implicit_borrow_memory_address unique_barrier Read value
