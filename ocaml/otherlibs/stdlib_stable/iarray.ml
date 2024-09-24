@@ -433,9 +433,9 @@ let fold_left_map_local f acc input_array = exclave_
   let len = length input_array in
   if len = 0 then (acc, unsafe_of_local_array [||]) else begin
     let rec go acc i = exclave_
-      let acc', elt = f acc (unsafe_get input_array i) in
+      let acc, elt = f acc (unsafe_get input_array i) in
       if i = len - 1 then
-        acc', make_mutable_local len elt
+        acc, make_mutable_local len elt
       else begin
         let (_, output_array) as res = go acc (i+1) in
         unsafe_set_local output_array i elt;
@@ -464,9 +464,9 @@ let fold_left_map_local_output f acc input_array = exclave_
   let len = length input_array in
   if len = 0 then (acc, unsafe_of_local_array [||]) else begin
     let rec go acc i = exclave_
-      let acc', elt = f acc (unsafe_get input_array i) in
+      let acc, elt = f acc (unsafe_get input_array i) in
       if i = len - 1 then
-        acc', make_mutable_local len elt
+        acc, make_mutable_local len elt
       else begin
         let (_, output_array) as res = go acc (i+1) in
         unsafe_set_local output_array i elt;

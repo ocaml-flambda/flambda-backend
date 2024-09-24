@@ -35,22 +35,22 @@ let or_variable f default v cont =
   | Const c -> f c cont
   | Var _ -> f default cont
 
-let update_field symb env res acc i field =
+let update_field symb env res acc i update_kind field =
   Simple.pattern_match'
     (Simple.With_debuginfo.simple field)
     ~var:(fun var ~coercion:_ ->
       (* CR mshinwell/mslater: It would be nice to know if [var] is an
          immediate. *)
       let dbg = Simple.With_debuginfo.dbg field in
-      C.make_update env res dbg UK.pointers ~symbol:(C.symbol ~dbg symb) var
+      C.make_update env res dbg update_kind ~symbol:(C.symbol ~dbg symb) var
         ~index:i ~prev_updates:acc)
     ~symbol:(fun _sym ~coercion:_ -> env, res, acc)
     ~const:(fun _cst -> env, res, acc)
 
 let rec static_block_updates symb env res acc i = function
   | [] -> env, res, acc
-  | sv :: r ->
-    let env, res, acc = update_field symb env res acc i sv in
+  | (simple, update_kind) :: r ->
+    let env, res, acc = update_field symb env res acc i update_kind simple in
     static_block_updates symb env res acc (i + 1) r
 
 type maybe_int32 =
@@ -260,7 +260,31 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     in
     let static_fields = List.concat_map (static_field res) fields in
     let block = C.emit_block sym header static_fields in
-    let env, res, updates = static_block_updates sym env res updates 0 fields in
+    let update_kinds =
+      match shape with
+      | Value_only -> List.map (fun _ -> UK.pointers) fields
+      | Mixed_record shape ->
+        let value_prefix =
+          List.init (Flambda_kind.Mixed_block_shape.value_prefix_size shape)
+            (fun _ -> UK.pointers)
+        in
+        let flat_suffix =
+          List.map
+            (fun (flat_suffix_elt : Flambda_kind.flat_suffix_element) ->
+              match flat_suffix_elt with
+              | Tagged_immediate -> UK.tagged_immediates
+              | Naked_float -> UK.naked_floats
+              | Naked_float32 -> UK.naked_float32_fields
+              | Naked_int32 -> UK.naked_int32_fields
+              | Naked_int64 | Naked_nativeint -> UK.naked_int64s)
+            (Flambda_kind.Mixed_block_shape.flat_suffix shape |> Array.to_list)
+        in
+        value_prefix @ flat_suffix
+    in
+    let env, res, updates =
+      static_block_updates sym env res updates 0
+        (List.combine fields update_kinds)
+    in
     env, R.set_data res block, updates
   | Set_of_closures closure_symbols, Set_of_closures set_of_closures ->
     let res, updates, env =
@@ -363,7 +387,11 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
     let header = C.black_block_header 0 (List.length fields) in
     let static_fields = List.concat_map (static_field res) fields in
     let block = C.emit_block sym header static_fields in
-    let env, res, updates = static_block_updates sym env res updates 0 fields in
+    let update_kinds = List.map (fun _ -> UK.pointers) fields in
+    let env, res, updates =
+      static_block_updates sym env res updates 0
+        (List.combine fields update_kinds)
+    in
     env, R.set_data res block, updates
   | Block_like s, Empty_array Values_or_immediates_or_naked_floats ->
     (* Recall: empty arrays have tag zero, even if their kind is naked float. *)

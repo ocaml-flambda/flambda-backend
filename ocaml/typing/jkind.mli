@@ -42,23 +42,23 @@
    https://github.com/goldfirere/flambda-backend/commit/d802597fbdaaa850e1ed9209a1305c5dcdf71e17
    first, which was reisenberg's attempt to do so. *)
 module Externality : sig
-  type t = Jkind_types.Externality.t =
+  type t = Jkind_axis.Externality.t =
     | External (* not managed by the garbage collector *)
     | External64 (* not managed by the garbage collector on 64-bit systems *)
     | Internal (* managed by the garbage collector *)
 
-  include module type of Jkind_types.Externality with type t := t
+  include module type of Jkind_axis.Externality with type t := t
 end
 
 module Nullability : sig
-  type t = Jkind_types.Nullability.t =
+  type t = Jkind_axis.Nullability.t =
     | Non_null (* proven to not have NULL values *)
     | Maybe_null (* may have NULL values *)
 
-  include module type of Jkind_types.Nullability with type t := t
+  include module type of Jkind_axis.Nullability with type t := t
 end
 
-module Sort : Jkind_intf.Sort with type const = Jkind_types.Sort.const
+module Sort : Jkind_intf.Sort with type base = Jkind_types.Sort.base
 
 type sort = Sort.t
 
@@ -246,6 +246,11 @@ module Builtin : sig
 
   (** We know for sure that values of types of this jkind are always immediate *)
   val immediate : why:History.immediate_creation_reason -> t
+
+  (** This is the jkind of unboxed products.  The layout will be the product of
+      the layouts of the input kinds, and the other components of the kind will
+      be the join relevant component of the inputs. *)
+  val product : why:History.product_creation_reason -> t list -> t
 end
 
 (** Take an existing [t] and add an ability to mode-cross along all the axes. *)
@@ -346,6 +351,9 @@ module Desc : sig
   type t =
     | Const of Const.t
     | Var of Sort.var
+    | Product of t list
+
+  val format : Format.formatter -> t -> unit
 end
 
 (** Extract the [const] from a [Jkind.t], looking through unified
@@ -384,6 +392,15 @@ val get_externality_upper_bound : t -> Externality.t
 (** Computes a jkind that is the same as the input but with an updated maximum
     mode for the externality axis *)
 val set_externality_upper_bound : t -> Externality.t -> t
+
+(* CR layouts v2.8: Fix this when we can tell the difference between left and
+   right jkinds. *)
+
+(** Extract out component jkinds from the product. Because there are no product
+    jkinds, this is a bit of a lie: instead, this decomposes the layout but just
+    reuses the non-layout parts of the original jkind. This is sound for expected
+    jkinds but not for actual jkinds. Never does any mutation *)
+val decompose_product : t -> t list option
 
 (*********************************)
 (* pretty printing *)
@@ -435,8 +452,17 @@ val intersection_or_error :
     either [t1] or [t2] to make their layouts equal.*)
 val sub : t -> t -> bool
 
-(** [sub_or_error t1 t2] returns [Ok ()] iff [t1] is a subjkind of
-  of [t2]. Otherwise returns an appropriate error to report to the user. *)
+type sub_or_intersect =
+  | Sub  (** The first jkind is a subjkind of the second. *)
+  | Disjoint  (** The two jkinds have no common ground. *)
+  | Has_intersection  (** The two jkinds have an intersection: try harder. *)
+
+(** [sub_or_intersect t1 t2] does a subtype check, returning a [sub_or_intersect];
+    see comments there for more info. *)
+val sub_or_intersect : t -> t -> sub_or_intersect
+
+(** [sub_or_error t1 t2] does a subtype check, returning an appropriate
+    [Violation.t] upon failure. *)
 val sub_or_error : t -> t -> (unit, Violation.t) result
 
 (** Like [sub], but returns the subjkind with an updated history. *)
@@ -446,7 +472,7 @@ val sub_with_history : t -> t -> (t, Violation.t) result
     mutation. *)
 val is_max : t -> bool
 
-(** Checks to see whether a jkind is has layout. Never does any mutation. *)
+(** Checks to see whether a jkind has layout any. Never does any mutation. *)
 val has_layout_any : t -> bool
 
 (*********************************)

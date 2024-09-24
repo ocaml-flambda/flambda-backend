@@ -48,6 +48,10 @@ module Example = struct
     "let f (a @ local) ~(b @ local) ?(c @ local) \
           ?(d @ local = 1) ~e:(e @ local) ?f:(f @ local = 2) \
            () = () in f"
+  let utuple_exp = parse expression
+    "let #(x,y) : #(int * int) = #(1,2) in \
+     let #(a,#(b,c)) : ('a : value & (value & value)) = #(3,#(4,5)) in
+     x + y + a + b + c"
 
   let modal_kind_struct =
     parse module_expr "struct \
@@ -133,6 +137,7 @@ module Example = struct
                          ; ptype_loc = loc
                          }
   let tyvar            = "no_tyvars_require_extensions"
+  let tyvar_of_name    = "no_tyvars_require_extensions"
   let jkind            = Jane_syntax.Jkind.(
                             With (
                               Abbreviation
@@ -195,6 +200,7 @@ end = struct
   let local_exp = test "local_exp" expression Example.local_exp
   let stack_exp = test "stack_exp" expression Example.stack_exp
   let fun_with_modes_on_arg = test "fun_with_modes_on_arg" expression Example.fun_with_modes_on_arg
+  let utuple_exp = test "utuple_exp" expression Example.utuple_exp
 
   let longident = test "longident" longident Example.longident
   let expression = test "expression" expression Example.expression
@@ -222,6 +228,8 @@ end = struct
   let modal_kind_struct = test "modal_kind_struct" module_expr Example.modal_kind_struct
   let modal_kind_sig = test "modal_kind_sig" module_type Example.modal_kind_sig
 
+  let tyvar_of_name =
+    test_string_of "tyvar_of_name" tyvar_of_name Example.tyvar_of_name
   let tyvar = test "tyvar" tyvar Example.tyvar
   let jkind = test "jkind" jkind Example.jkind
   let mode = test "mode" mode Example.mode

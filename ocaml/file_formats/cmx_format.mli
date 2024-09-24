@@ -17,7 +17,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Format of .cmx, .cmxa and .cmxs files *)
+(* Format of .cmx and .cmxa files *)
 
 (* Each .o file has a matching .cmx file that provides the following infos
    on the compilation unit:

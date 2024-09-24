@@ -208,6 +208,9 @@ type equality_comparison =
 
 module Bigarray_kind : sig
   type t =
+    | Float16
+        (** This is analogous to [Float32] in that whilst storage is 16-bit,
+            reading and writing goes via 64-bit floats. *)
     | Float32
     | Float32_t
         (** [Float32_t] is used for bigarrays that contain (unboxed) float32
@@ -300,6 +303,10 @@ type nullary_primitive =
       (** Used in classic mode to denote the start of an inlined function body.
           This is then used in to_cmm to correctly add inlined debuginfo. *)
   | Dls_get  (** Obtain the domain-local state block. *)
+  | Poll
+      (** Poll for runtime actions. May run pending actions such as signal
+          handlers, finalizers, memprof callbacks, etc, as well as GCs and
+          GC slices, so should not be moved or optimised away. *)
 
 (** Untagged binary integer arithmetic operations.
 

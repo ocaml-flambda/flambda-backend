@@ -104,9 +104,18 @@ and core_type_desc =
             - [?l:(T1 @ M1) -> (T2 @ M2)] when [lbl] is
                                      {{!arg_label.Optional}[Optional]}.
          *)
-  | Ptyp_tuple of core_type list
-      (** [Ptyp_tuple([T1 ; ... ; Tn])]
-          represents a product type [T1 * ... * Tn].
+  | Ptyp_tuple of (string option * core_type) list
+      (** [Ptyp_tuple(tl)] represents a product type:
+          - [T1 * ... * Tn]       when [tl] is [(None,T1);...;(None,Tn)]
+          - [L1:T1 * ... * Ln:Tn] when [tl] is [(Some L1,T1);...;(Some Ln,Tn)]
+          - A mix, e.g. [L1:T1 * T2] when [tl] is [(Some L1,T1);(None,T2)]
+
+           Invariant: [n >= 2].
+        *)
+  | Ptyp_unboxed_tuple of (string option * core_type) list
+      (** Unboxed tuple types: [Ptyp_unboxed_tuple([(Some l1,P1);...;(Some l2,Pn)]]
+          represents a product type [#(l1:T1 * ... * l2:Tn)], and the labels
+          are optional.
 
            Invariant: [n >= 2].
         *)
@@ -129,7 +138,7 @@ and core_type_desc =
             - [T #tconstr]             when [l=[T]],
             - [(T1, ..., Tn) #tconstr] when [l=[T1 ; ... ; Tn]].
          *)
-  | Ptyp_alias of core_type * string  (** [T as 'a]. *)
+  | Ptyp_alias of core_type * string loc  (** [T as 'a]. *)
   | Ptyp_variant of row_field list * closed_flag * label list option
       (** [Ptyp_variant([`A;`B], flag, labels)] represents:
             - [[ `A|`B ]]
@@ -174,6 +183,7 @@ and core_type_desc =
            {!value_description}.
          *)
   | Ptyp_package of package_type  (** [(module S)]. *)
+  | Ptyp_open of Longident.t loc * core_type (** [M.(T)] *)
   | Ptyp_extension of extension  (** [[%id]]. *)
 
 and arg_label = Asttypes.arg_label =
@@ -248,10 +258,26 @@ and pattern_desc =
 
            Other forms of interval are recognized by the parser
            but rejected by the type-checker. *)
-  | Ppat_tuple of pattern list
-      (** Patterns [(P1, ..., Pn)].
+  | Ppat_tuple of (string option * pattern) list * Asttypes.closed_flag
+      (** [Ppat_tuple(pl, Closed)] represents
+          - [(P1, ..., Pn)]       when [pl] is [(None, P1);...;(None, Pn)]
+          - [(~L1:P1, ..., ~Ln:Pn)] when [pl] is
+            [(Some L1, P1);...;(Some Ln, Pn)]
+          - A mix, e.g. [(~L1:P1, P2)] when [pl] is [(Some L1, P1);(None, P2)]
+          - If pattern is open, then it also ends in a [..]
 
-           Invariant: [n >= 2]
+          Invariant:
+          - If Closed, [n >= 2].
+          - If Open, [n >= 1].
+        *)
+  | Ppat_unboxed_tuple of (string option * pattern) list * Asttypes.closed_flag
+      (** Unboxed tuple patterns: [#(l1:P1, ..., ln:Pn)] is [([(Some
+          l1,P1);...;(Some l2,Pn)], Closed)], and the labels are optional.  An
+          [Open] pattern ends in [..].
+
+          Invariant:
+          - If Closed, [n >= 2]
+          - If Open, [n >= 1]
         *)
   | Ppat_construct of Longident.t loc * (string loc list * pattern) option
       (** [Ppat_construct(C, args)] represents:
@@ -335,7 +361,6 @@ and expression_desc =
         when [body = Pfunction_body E]
       - [fun P1 ... Pn -> function p1 -> e1 | ... | pm -> em]
         when [body = Pfunction_cases [ p1 -> e1; ...; pm -> em ]]
-
       [C] represents a type constraint or coercion placed immediately before the
       arrow, e.g. [fun P1 ... Pn : ty -> ...] when [C = Some (Pconstraint ty)].
 
@@ -357,10 +382,23 @@ and expression_desc =
       (** [match E0 with P1 -> E1 | ... | Pn -> En] *)
   | Pexp_try of expression * case list
       (** [try E0 with P1 -> E1 | ... | Pn -> En] *)
-  | Pexp_tuple of expression list
-      (** Expressions [(E1, ..., En)]
+  | Pexp_tuple of (string option * expression) list
+      (** [Pexp_tuple(el)] represents
+          - [(E1, ..., En)]
+            when [el] is [(None, E1);...;(None, En)]
+          - [(~L1:E1, ..., ~Ln:En)]
+            when [el] is [(Some L1, E1);...;(Some Ln, En)]
+          - A mix, e.g.:
+            [(~L1:E1, E2)] when [el] is [(Some L1, E1); (None, E2)]
 
            Invariant: [n >= 2]
+        *)
+  | Pexp_unboxed_tuple of (string option * expression) list
+      (** Unboxed tuple expressions: [Pexp_unboxed_tuple([(Some l1,P1);...;(Some
+          l2,Pn)])] represents [#(l1:E1, ..., ln:En)], and the labels are
+          optional.
+
+          Invariant: [n >= 2]
         *)
   | Pexp_construct of Longident.t loc * expression option
       (** [Pexp_construct(C, exp)] represents:
@@ -1159,6 +1197,7 @@ and jkind_annotation =
   | Mod of jkind_annotation * modes
   | With of jkind_annotation * core_type
   | Kind_of of core_type
+  | Product of jkind_annotation list
 
 (** {1 Toplevel} *)
 

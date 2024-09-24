@@ -1,0 +1,2 @@
+ file=immutable_array_comprehensions/ml_counters.ml
+  [comprehensions = 4; immutable_arrays = 4; include_functor = 0; labeled_tuples = 0; module_strengthening = 0] typing

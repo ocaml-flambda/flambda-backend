@@ -376,7 +376,7 @@ module Uid = struct
         Format.asprintf "%a.0.inlining.org" Compilation_unit.print_name cu_uid
       in
       try
-        let file = Load_path.find_uncap external_reports in
+        let file = Load_path.find_normalized external_reports in
         Format.fprintf ppf "[[file:%s::%s][in compilation unit %a]]" t file
           Compilation_unit.print cu_uid
       with Not_found ->

@@ -1,8 +1,6 @@
 (* TEST
-   reason = "Broken, ask mshinwell if you want to try to fix it";
-   skip;
-*)
-(* TEST
+ reason = "Broken, ask mshinwell if you want to try to fix it";
+ skip;
  native-compiler;
  script = "sh ${test_source_directory}/has-afl-fuzz.sh";
  readonly_files = "readline.ml";

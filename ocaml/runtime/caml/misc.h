@@ -42,8 +42,9 @@
   #define CAMLdeprecated_typedef(name, type) typedef type name
 #endif
 
-#if defined(__GNUC__) && __STDC_VERSION__ >= 199901L \
- || defined(_MSC_VER) && _MSC_VER >= 1925
+#if defined(__GNUC__)                                           \
+    && defined(__STDC_VERSION__) && __STDC_VERSION__ >= 199901L \
+    || defined(_MSC_VER) && _MSC_VER >= 1925
 
 #define CAML_STRINGIFY(x) #x
 #ifdef _MSC_VER
@@ -75,28 +76,32 @@ typedef size_t asize_t;
 CAMLdeprecated_typedef(addr, char *);
 #endif /* CAML_INTERNALS */
 
-/* Noreturn is preserved for compatibility reasons.
-   Instead of the legacy GCC/Clang-only
-     foo Noreturn;
-   you should prefer
-     CAMLnoreturn_start foo CAMLnoreturn_end;
-   which supports both GCC/Clang and MSVC.
+/* Noreturn, CAMLnoreturn_start and CAMLnoreturn_end are preserved
+   for compatibility reasons.  Instead, we recommend using the CAMLnoret
+   macro, to be added as a modifier at the beginning of the
+   function definition or declaration.  It must occur first, before
+   "static", "extern", "CAMLexport", "CAMLextern".
 
    Note: CAMLnoreturn is a different macro defined in memory.h,
-   to be used in function bodies rather than as a prototype attribute.
+   to be used in function bodies rather than as a function attribute.
 */
-#ifdef __GNUC__
-  /* Works only in GCC 2.5 and later */
-  #define CAMLnoreturn_start
-  #define CAMLnoreturn_end __attribute__ ((noreturn))
-  #define Noreturn __attribute__ ((noreturn))
-#elif defined(_MSC_VER)
-  #define CAMLnoreturn_start __declspec(noreturn)
-  #define CAMLnoreturn_end
-  #define Noreturn
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202300L    \
+    || defined(__cplusplus) && __cplusplus >= 201103L
+  #define CAMLnoret [[noreturn]]
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+  #define CAMLnoret _Noreturn
+#elif defined(__GNUC__)
+  #define CAMLnoret  __attribute__ ((noreturn))
 #else
-  #define CAMLnoreturn_start
-  #define CAMLnoreturn_end
+  #define CAMLnoret
+#endif
+
+#define CAMLnoreturn_start CAMLnoret
+#define CAMLnoreturn_end
+
+#ifdef __GNUC__
+  #define Noreturn __attribute__ ((noreturn))
+#else
   #define Noreturn
 #endif
 
@@ -121,7 +126,9 @@ CAMLdeprecated_typedef(addr, char *);
 #endif
 
 #define CAMLexport
+#ifndef CAML_NO_DEFINE_CAMLprim
 #define CAMLprim
+#endif
 #define CAMLextern CAMLDLLIMPORT extern
 
 /* Weak function definitions that can be overridden by external libs */
@@ -147,6 +154,13 @@ CAMLdeprecated_typedef(addr, char *);
 #define CAMLalign(n) __declspec(align(n))
 #else
 #error "How do I align values on this platform?"
+#endif
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 202311L || \
+    defined(__cplusplus)
+#define CAMLthread_local thread_local
+#else
+#define CAMLthread_local _Thread_local
 #endif
 
 /* Prefetching */
@@ -213,14 +227,6 @@ Caml_inline void call_timing_hook(_Atomic caml_timing_hook * a)
 
 #endif /* CAML_INTERNALS */
 
-#define CAML_STATIC_ASSERT_3(b, l) \
-  CAMLunused_start \
-    CAMLextern char static_assertion_failure_line_##l[(b) ? 1 : -1] \
-  CAMLunused_end
-
-#define CAML_STATIC_ASSERT_2(b, l) CAML_STATIC_ASSERT_3(b, l)
-#define CAML_STATIC_ASSERT(b) CAML_STATIC_ASSERT_2(b, __LINE__)
-
 /* Windows Unicode support (rest below - char_os is needed earlier) */
 
 #ifdef _WIN32
@@ -244,11 +250,20 @@ typedef char char_os;
 #define __OSFILE__ __FILE__
 #endif
 
+/* Although caml_failed_assert never returns, it is not marked as such.
+   This prevents the C compiler optimising away all of the useful context
+   from the callsite, making debuggers able to see it. */
 #define CAMLassert(x) \
   (CAMLlikely(x) ? (void) 0 : caml_failed_assert ( #x , __OSFILE__, __LINE__))
-CAMLnoreturn_start
 CAMLextern void caml_failed_assert (char *, char_os *, int)
-CAMLnoreturn_end;
+#if defined(__has_feature)
+  /* However, we do inform clang-analyzer that this function never returns,
+     since that improves analysis without breaking debugging */
+  #if __has_feature(attribute_analyzer_noreturn)
+    __attribute__((analyzer_noreturn))
+  #endif
+#endif
+;
 #else
 #define CAMLassert(x) ((void) 0)
 #endif
@@ -299,12 +314,11 @@ typedef void (*fatal_error_hook) (char *msg, va_list args);
 extern _Atomic fatal_error_hook caml_fatal_error_hook;
 #endif
 
-CAMLnoreturn_start
-CAMLextern void caml_fatal_error (char *, ...)
+CAMLnoret CAMLextern void caml_fatal_error (char *, ...)
 #ifdef __GNUC__
   __attribute__ ((format (printf, 1, 2)))
 #endif
-CAMLnoreturn_end;
+;
 
 CAMLnoreturn_start
 CAMLextern void caml_fatal_out_of_memory (void)
@@ -461,6 +475,7 @@ struct ext_table {
 
 extern void caml_ext_table_init(struct ext_table * tbl, int init_capa);
 extern int caml_ext_table_add(struct ext_table * tbl, void * data);
+extern int caml_ext_table_add_noexc(struct ext_table * tbl, void * data);
 extern void caml_ext_table_remove(struct ext_table * tbl, void * data);
 extern void caml_ext_table_free(struct ext_table * tbl, int free_entries);
 extern void caml_ext_table_clear(struct ext_table * tbl, int free_entries);
@@ -564,20 +579,26 @@ CAMLextern int caml_snwprintf(wchar_t * buf,
 #define snprintf_os snprintf
 #endif
 
-/* Macro used to deactivate thread and address sanitizers on some
-   functions. */
-#define CAMLno_tsan
+/* Macro used to deactivate address sanitizer on some functions. */
 #define CAMLno_asan
+/* __has_feature is Clang-specific, but GCC defines __SANITIZE_ADDRESS__ and
+ * __SANITIZE_THREAD__. */
 #if defined(__has_feature)
-#  if __has_feature(thread_sanitizer)
-#    undef CAMLno_tsan
-#    define CAMLno_tsan __attribute__((no_sanitize("thread")))
-#  endif
 #  if __has_feature(address_sanitizer)
 #    undef CAMLno_asan
 #    define CAMLno_asan __attribute__((no_sanitize("address")))
 #  endif
+#else
+#  if defined(__SANITIZE_ADDRESS__)
+#    undef CAMLno_asan
+#    define CAMLno_asan __attribute__((no_sanitize_address))
+#  endif
 #endif
+
+/* Generate a named symbol that is unique within the current macro expansion */
+#define CAML_GENSYM_3(name, l) caml__##name##_##l
+#define CAML_GENSYM_2(name, l) CAML_GENSYM_3(name, l)
+#define CAML_GENSYM(name) CAML_GENSYM_2(name, __LINE__)
 
 #endif /* CAML_INTERNALS */
 

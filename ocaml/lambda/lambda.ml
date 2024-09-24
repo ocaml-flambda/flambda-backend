@@ -336,9 +336,11 @@ type primitive =
   | Pget_header of alloc_mode
   (* Fetching domain-local state *)
   | Pdls_get
+  (* Poll for runtime actions *)
+  | Ppoll
 
 and extern_repr =
-  | Same_as_ocaml_repr of Jkind.Sort.const
+  | Same_as_ocaml_repr of Jkind.Sort.base
   | Unboxed_float of boxed_float
   | Unboxed_vector of Primitive.boxed_vector
   | Unboxed_integer of Primitive.boxed_integer
@@ -453,6 +455,7 @@ and unboxed_vector = boxed_vector
 
 and bigarray_kind =
     Pbigarray_unknown
+  | Pbigarray_float16
   | Pbigarray_float32 | Pbigarray_float32_t
   | Pbigarray_float64
   | Pbigarray_sint8 | Pbigarray_uint8
@@ -902,6 +905,7 @@ let default_function_attribute = {
   tmc_candidate = false;
   (* Plain functions ([fun] and [function]) set [may_fuse_arity] to [false] so
      that runtime arity matches syntactic arity in more situations.
+
      Many things compile to functions without having a notion of syntactic arity
      that survives typechecking, e.g. functors. Multi-arg functors are compiled
      as nested unary functions, and rely on the arity fusion in simplif to make
@@ -1803,8 +1807,9 @@ let primitive_may_allocate : primitive -> alloc_mode option = function
   | Pobj_magic _ -> None
   | Punbox_float _ | Punbox_int _ | Punbox_vector _ -> None
   | Pbox_float (_, m) | Pbox_int (_, m) | Pbox_vector (_, m) -> Some m
-  | Prunstack | Presume | Pperform | Preperform ->
+  | Prunstack | Presume | Pperform | Preperform
     (* CR mshinwell: check *)
+  | Ppoll ->
     Some alloc_heap
   | Patomic_load _
   | Patomic_exchange
@@ -1975,8 +1980,6 @@ let primitive_result_layout (p : primitive) =
   | Punboxed_float32_array_load_128 { boxed = true; _ }
   | Pint_array_load_128 { boxed = true; _ }
   | Punboxed_int64_array_load_128 { boxed = true; _ }
-  (* 128-bit types are only supported in the x86_64 backend, so we may
-     assume that nativeint is 64 bits. *)
   | Punboxed_nativeint_array_load_128 { boxed = true; _ }
   | Punboxed_int32_array_load_128 { boxed = true; _ } ->
       layout_boxed_vector Pvec128
@@ -1986,16 +1989,15 @@ let primitive_result_layout (p : primitive) =
   | Punboxed_float32_array_load_128 { boxed = false; _ }
   | Pint_array_load_128 { boxed = false; _ }
   | Punboxed_int64_array_load_128 { boxed = false; _ }
-  (* 128-bit types are only supported in the x86_64 backend, so we may
-     assume that nativeint is 64 bits. *)
   | Punboxed_nativeint_array_load_128 { boxed = false; _ }
   | Punboxed_int32_array_load_128 { boxed = false; _ } ->
       layout_unboxed_vector Pvec128
   | Pbigarrayref (_, _, kind, _) ->
       begin match kind with
       | Pbigarray_unknown -> layout_any_value
-      | Pbigarray_float32 ->
-        (* float32 bigarrays return 64-bit floats for backward compatibility. *)
+      | Pbigarray_float16 | Pbigarray_float32 ->
+        (* float32 bigarrays return 64-bit floats for backward compatibility.
+           Likewise for float16. *)
         layout_boxed_float Pfloat64
       | Pbigarray_float32_t -> layout_boxed_float Pfloat32
       | Pbigarray_float64 -> layout_boxed_float Pfloat64
@@ -2027,6 +2029,7 @@ let primitive_result_layout (p : primitive) =
   | Patomic_cas
   | Patomic_fetch_add
   | Pdls_get -> layout_any_value
+  | Ppoll -> layout_unit
   | Preinterpret_tagged_int63_as_unboxed_int64 -> layout_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 -> layout_int
 

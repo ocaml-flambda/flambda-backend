@@ -70,13 +70,16 @@ let no_docstring f x =
   Lexer.handle_docstrings := true;
   result
 
+let unit_from_source source_file =
+    Unit_info.make ~check_modname:false ~source_file
+      (Filename.remove_extension source_file)
+
 let process_implementation_file sourcefile =
   init_path ();
-  let prefixname = Filename.chop_extension sourcefile in
-  let modulename = String.capitalize_ascii(Filename.basename prefixname) in
+  let source = unit_from_source sourcefile in
   let compilation_unit =
     Compilation_unit.create (Compilation_unit.Prefix.from_clflags ())
-      (modulename |> Compilation_unit.Name.of_string)
+      (Unit_info.modname source |> Compilation_unit.Name.of_string)
   in
   Env.set_unit_name (Some compilation_unit);
   let inputfile = preprocess sourcefile in
@@ -88,7 +91,7 @@ let process_implementation_file sourcefile =
     in
     let typedtree =
       Typemod.type_implementation
-        ~sourcefile prefixname compilation_unit env parsetree
+        source compilation_unit env parsetree
     in
     (Some (parsetree, typedtree), inputfile)
   with
@@ -110,8 +113,8 @@ let process_implementation_file sourcefile =
    no error occurred, else None and an error message is printed.*)
 let process_interface_file sourcefile =
   init_path ();
-  let prefixname = Filename.chop_extension sourcefile in
-  let modulename = String.capitalize_ascii(Filename.basename prefixname) in
+  let unit = unit_from_source sourcefile in
+  let modulename = Unit_info.modname unit in
   let compilation_unit =
     Compilation_unit.create (Compilation_unit.Prefix.from_clflags ())
       (modulename |> Compilation_unit.Name.of_string)
@@ -221,13 +224,7 @@ let process_file sourcefile =
   | Odoc_global.Text_file file ->
       Location.input_name := file;
       try
-        let mod_name =
-          let s =
-            try Filename.chop_extension file
-            with _ -> file
-          in
-          String.capitalize_ascii (Filename.basename s)
-        in
+        let mod_name = Unit_info.modname_from_source file in
         let txt =
           try Odoc_text.Texter.text_of_string (Odoc_misc.input_file_as_string file)
           with Odoc_text.Text_syntax (l, c, s) ->
