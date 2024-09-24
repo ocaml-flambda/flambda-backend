@@ -29,18 +29,18 @@
 
 (** {1 Exceptions} *)
 
-external raise : exn -> 'a = "%reraise"
+external raise : exn -> 'a @@ portable = "%reraise"
 (** Raise the given exception value *)
 
-external raise_notrace : exn -> 'a = "%raise_notrace"
+external raise_notrace : exn -> 'a @@ portable = "%raise_notrace"
 (** A faster version [raise] which does not record the backtrace.
     @since 4.02
 *)
 
-val invalid_arg : string -> 'a
+val invalid_arg : string -> 'a @@ portable
 (** Raise exception [Invalid_argument] with the given string. *)
 
-val failwith : string -> 'a
+val failwith : string -> 'a @@ portable
 (** Raise exception [Failure] with the given string. *)
 
 exception Exit
@@ -121,7 +121,7 @@ exception Undefined_recursive_module of (string * int * int)
 
 (** {1 Comparisons} *)
 
-external ( = ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%equal"
+external ( = ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%equal"
 (** [e1 = e2] tests for structural equality of [e1] and [e2].
    Mutable structures (e.g. references and arrays) are equal
    if and only if their current contents are structurally equal,
@@ -130,27 +130,27 @@ external ( = ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%equal"
    Equality between cyclic data structures may not terminate.
    Left-associative operator, see {!Ocaml_operators} for more information. *)
 
-external ( <> ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%notequal"
+external ( <> ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%notequal"
 (** Negation of {!Stdlib.( = )}.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( < ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%lessthan"
+external ( < ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%lessthan"
 (** See {!Stdlib.( >= )}.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( > ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%greaterthan"
+external ( > ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%greaterthan"
 (** See {!Stdlib.( >= )}.
     Left-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( <= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%lessequal"
+external ( <= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%lessequal"
 (** See {!Stdlib.( >= )}.
     Left-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( >= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%greaterequal"
+external ( >= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%greaterequal"
 (** Structural ordering functions. These functions coincide with
    the usual orderings over integers, characters, strings, byte sequences
    and floating-point numbers, and extend them to a
@@ -162,7 +162,7 @@ external ( >= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%greaterequal"
    Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external compare : ('a[@local_opt]) -> ('a[@local_opt]) -> int = "%compare"
+external compare : ('a[@local_opt]) -> ('a[@local_opt]) -> int @@ portable = "%compare"
 (** [compare x y] returns [0] if [x] is equal to [y],
    a negative integer if [x] is less than [y], and a positive integer
    if [x] is greater than [y].  The ordering implemented by [compare]
@@ -181,17 +181,17 @@ external compare : ('a[@local_opt]) -> ('a[@local_opt]) -> int = "%compare"
    required by the {!Set.Make} and {!Map.Make} functors, as well as
    the {!List.sort} and {!Array.sort} functions. *)
 
-val min : 'a -> 'a -> 'a
+val min : 'a -> 'a -> 'a @@ portable
 (** Return the smaller of the two arguments.
     The result is unspecified if one of the arguments contains
     the float value [nan]. *)
 
-val max : 'a -> 'a -> 'a
+val max : 'a -> 'a -> 'a @@ portable
 (** Return the greater of the two arguments.
     The result is unspecified if one of the arguments contains
     the float value [nan]. *)
 
-external ( == ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%eq"
+external ( == ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%eq"
 (** [e1 == e2] tests for physical equality of [e1] and [e2].
    On mutable types such as references, arrays, byte sequences, records with
    mutable fields and objects with mutable instance variables,
@@ -203,7 +203,7 @@ external ( == ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%eq"
    Left-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( != ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%noteq"
+external ( != ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool @@ portable = "%noteq"
 (** Negation of {!Stdlib.( == )}.
     Left-associative operator,  see {!Ocaml_operators} for more information.
 *)
@@ -211,17 +211,17 @@ external ( != ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%noteq"
 
 (** {1 Boolean operations} *)
 
-external not : (bool[@local_opt]) -> bool = "%boolnot"
+external not : (bool[@local_opt]) -> bool @@ portable = "%boolnot"
 (** The boolean negation. *)
 
-external ( && ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequand"
+external ( && ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool @@ portable = "%sequand"
 (** The boolean 'and'. Evaluation is sequential, left-to-right:
    in [e1 && e2], [e1] is evaluated first, and if it returns [false],
    [e2] is not evaluated at all.
    Right-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( || ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
+external ( || ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool @@ portable = "%sequor"
 (** The boolean 'or'. Evaluation is sequential, left-to-right:
    in [e1 || e2], [e1] is evaluated first, and if it returns [true],
    [e2] is not evaluated at all.
@@ -230,32 +230,32 @@ external ( || ) : (bool[@local_opt]) -> (bool[@local_opt]) -> bool = "%sequor"
 
 (** {1 Debugging} *)
 
-external __LOC__ : string = "%loc_LOC"
+external __LOC__ : string @@ portable = "%loc_LOC"
 (** [__LOC__] returns the location at which this expression appears in
     the file currently being parsed by the compiler, with the standard
     error format of OCaml: "File %S, line %d, characters %d-%d".
     @since 4.02
 *)
 
-external __FILE__ : string = "%loc_FILE"
+external __FILE__ : string @@ portable = "%loc_FILE"
 (** [__FILE__] returns the name of the file currently being
     parsed by the compiler.
     @since 4.02
 *)
 
-external __LINE__ : int = "%loc_LINE"
+external __LINE__ : int @@ portable = "%loc_LINE"
 (** [__LINE__] returns the line number at which this expression
     appears in the file currently being parsed by the compiler.
     @since 4.02
 *)
 
-external __MODULE__ : string = "%loc_MODULE"
+external __MODULE__ : string @@ portable = "%loc_MODULE"
 (** [__MODULE__] returns the module name of the file being
     parsed by the compiler.
     @since 4.02
 *)
 
-external __POS__ : string * int * int * int = "%loc_POS"
+external __POS__ : string * int * int * int @@ portable = "%loc_POS"
 (** [__POS__] returns a tuple [(file,lnum,cnum,enum)], corresponding
     to the location at which this expression appears in the file
     currently being parsed by the compiler. [file] is the current
@@ -264,13 +264,13 @@ external __POS__ : string * int * int * int = "%loc_POS"
     @since 4.02
  *)
 
-external __FUNCTION__ : string = "%loc_FUNCTION"
+external __FUNCTION__ : string @@ portable = "%loc_FUNCTION"
 (** [__FUNCTION__] returns the name of the current function or method, including
     any enclosing modules or classes.
 
     @since 4.12 *)
 
-external __LOC_OF__ : 'a -> string * 'a = "%loc_LOC"
+external __LOC_OF__ : 'a -> string * 'a @@ portable = "%loc_LOC"
 (** [__LOC_OF__ expr] returns a pair [(loc, expr)] where [loc] is the
     location of [expr] in the file currently being parsed by the
     compiler, with the standard error format of OCaml: "File %S, line
@@ -278,14 +278,14 @@ external __LOC_OF__ : 'a -> string * 'a = "%loc_LOC"
     @since 4.02
 *)
 
-external __LINE_OF__ : 'a -> int * 'a = "%loc_LINE"
+external __LINE_OF__ : 'a -> int * 'a @@ portable = "%loc_LINE"
 (** [__LINE_OF__ expr] returns a pair [(line, expr)], where [line] is the
     line number at which the expression [expr] appears in the file
     currently being parsed by the compiler.
     @since 4.02
  *)
 
-external __POS_OF__ : 'a -> (string * int * int * int) * 'a = "%loc_POS"
+external __POS_OF__ : 'a -> (string * int * int * int) * 'a @@ portable = "%loc_POS"
 (** [__POS_OF__ expr] returns a pair [(loc,expr)], where [loc] is a
     tuple [(file,lnum,cnum,enum)] corresponding to the location at
     which the expression [expr] appears in the file currently being
@@ -297,14 +297,14 @@ external __POS_OF__ : 'a -> (string * int * int * int) * 'a = "%loc_POS"
 
 (** {1 Composition operators} *)
 
-external ( |> ) : 'a -> ('a -> 'b) -> 'b = "%revapply"
+external ( |> ) : 'a -> ('a -> 'b) -> 'b @@ portable = "%revapply"
 (** Reverse-application operator: [x |> f |> g] is exactly equivalent
  to [g (f (x))].
  Left-associative operator, see {!Ocaml_operators} for more information.
  @since 4.01
 *)
 
-external ( @@ ) : ('a -> 'b) -> 'a -> 'b = "%apply"
+external ( @@ ) : ('a -> 'b) -> 'a -> 'b @@ portable = "%apply"
 (** Application operator: [g @@ f @@ x] is exactly equivalent to
  [g (f (x))].
  Right-associative operator, see {!Ocaml_operators} for more information.
@@ -317,40 +317,40 @@ external ( @@ ) : ('a -> 'b) -> 'a -> 'b = "%apply"
     All operations are taken modulo 2{^[Sys.int_size]}.
     They do not fail on overflow. *)
 
-external ( ~- ) : (int[@local_opt]) -> int = "%negint"
+external ( ~- ) : (int[@local_opt]) -> int @@ portable = "%negint"
 (** Unary negation. You can also write [- e] instead of [~- e].
     Unary operator, see {!Ocaml_operators} for more information.
 *)
 
 
-external ( ~+ ) : (int[@local_opt]) -> int = "%identity"
+external ( ~+ ) : (int[@local_opt]) -> int @@ portable = "%identity"
 (** Unary addition. You can also write [+ e] instead of [~+ e].
     Unary operator, see {!Ocaml_operators} for more information.
     @since 3.12
 *)
 
-external succ : (int[@local_opt]) -> int = "%succint"
+external succ : (int[@local_opt]) -> int @@ portable = "%succint"
 (** [succ x] is [x + 1]. *)
 
-external pred : (int[@local_opt]) -> int = "%predint"
+external pred : (int[@local_opt]) -> int @@ portable = "%predint"
 (** [pred x] is [x - 1]. *)
 
-external ( + ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%addint"
+external ( + ) : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%addint"
 (** Integer addition.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( - ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%subint"
+external ( - ) : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%subint"
 (** Integer subtraction.
     Left-associative operator, , see {!Ocaml_operators} for more information.
 *)
 
-external ( * ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%mulint"
+external ( * ) : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%mulint"
 (** Integer multiplication.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( / ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%divint"
+external ( / ) : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%divint"
 (** Integer division.
    Integer division rounds the real quotient of its arguments towards zero.
    More precisely, if [x >= 0] and [y > 0], [x / y] is the greatest integer
@@ -361,7 +361,7 @@ external ( / ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%divint"
    @raise Division_by_zero if the second argument is 0.
 *)
 
-external ( mod ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%modint"
+external ( mod ) : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%modint"
 (** Integer remainder.  If [y] is not zero, the result
    of [x mod y] satisfies the following properties:
    [x = (x / y) * y + x mod y] and
@@ -373,44 +373,44 @@ external ( mod ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%modint"
    @raise Division_by_zero if [y] is zero.
 *)
 
-val abs : int -> int
+val abs : int -> int @@ portable
 (** [abs x] is the absolute value of [x]. On [min_int] this
    is [min_int] itself and thus remains negative. *)
 
-val max_int : int
+val max_int : int @@ portable
 (** The greatest representable integer. *)
 
-val min_int : int
+val min_int : int @@ portable
 (** The smallest representable integer. *)
 
 
 (** {2 Bitwise operations} *)
 
-external ( land ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%andint"
+external ( land ) : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%andint"
 (** Bitwise logical and.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( lor ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%orint"
+external ( lor ) : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%orint"
 (** Bitwise logical or.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( lxor ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%xorint"
+external ( lxor ) : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%xorint"
 (** Bitwise logical exclusive or.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-val lnot : int -> int
+val lnot : int -> int @@ portable
 (** Bitwise logical negation. *)
 
-external ( lsl ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%lslint"
+external ( lsl ) : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%lslint"
 (** [n lsl m] shifts [n] to the left by [m] bits.
     The result is unspecified if [m < 0] or [m > Sys.int_size].
     Right-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( lsr ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%lsrint"
+external ( lsr ) : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%lsrint"
 (** [n lsr m] shifts [n] to the right by [m] bits.
     This is a logical shift: zeroes are inserted regardless of
     the sign of [n].
@@ -418,7 +418,7 @@ external ( lsr ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%lsrint"
     Right-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( asr ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%asrint"
+external ( asr ) : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%asrint"
 (** [n asr m] shifts [n] to the right by [m] bits.
     This is an arithmetic shift: the sign bit of [n] is replicated.
     The result is unspecified if [m < 0] or [m > Sys.int_size].
@@ -439,102 +439,102 @@ external ( asr ) : (int[@local_opt]) -> (int[@local_opt]) -> int = "%asrint"
     ([+.], [-.], [*.], [/.]) with [nan] as an argument return [nan], ...
 *)
 
-external ( ~-. ) : (float[@local_opt]) -> (float[@local_opt]) = "%negfloat"
+external ( ~-. ) : (float[@local_opt]) -> (float[@local_opt]) @@ portable = "%negfloat"
 (** Unary negation. You can also write [-. e] instead of [~-. e].
     Unary operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( ~+. ) : (float[@local_opt]) -> (float[@local_opt]) = "%identity"
+external ( ~+. ) : (float[@local_opt]) -> (float[@local_opt]) @@ portable = "%identity"
 (** Unary addition. You can also write [+. e] instead of [~+. e].
     Unary operator, see {!Ocaml_operators} for more information.
     @since 3.12
 *)
 
-external ( +. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%addfloat"
+external ( +. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) @@ portable = "%addfloat"
 (** Floating-point addition.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( -. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%subfloat"
+external ( -. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) @@ portable = "%subfloat"
 (** Floating-point subtraction.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( *. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%mulfloat"
+external ( *. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) @@ portable = "%mulfloat"
 (** Floating-point multiplication.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( /. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) = "%divfloat"
+external ( /. ) : (float[@local_opt]) -> (float[@local_opt]) -> (float[@local_opt]) @@ portable = "%divfloat"
 (** Floating-point division.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( ** ) : float -> float -> float = "caml_power_float" "pow"
+external ( ** ) : float -> float -> float @@ portable = "caml_power_float" "pow"
   [@@unboxed] [@@noalloc]
 (** Exponentiation.
     Right-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external sqrt : float -> float = "caml_sqrt_float" "sqrt"
+external sqrt : float -> float @@ portable = "caml_sqrt_float" "sqrt"
   [@@unboxed] [@@noalloc]
 (** Square root. *)
 
-external exp : float -> float = "caml_exp_float" "exp" [@@unboxed] [@@noalloc]
+external exp : float -> float @@ portable = "caml_exp_float" "exp" [@@unboxed] [@@noalloc]
 (** Exponential. *)
 
-external log : float -> float = "caml_log_float" "log" [@@unboxed] [@@noalloc]
+external log : float -> float @@ portable = "caml_log_float" "log" [@@unboxed] [@@noalloc]
 (** Natural logarithm. *)
 
-external log10 : float -> float = "caml_log10_float" "log10"
+external log10 : float -> float @@ portable = "caml_log10_float" "log10"
   [@@unboxed] [@@noalloc]
 (** Base 10 logarithm. *)
 
-external expm1 : float -> float = "caml_expm1_float" "caml_expm1"
+external expm1 : float -> float @@ portable = "caml_expm1_float" "caml_expm1"
   [@@unboxed] [@@noalloc]
 (** [expm1 x] computes [exp x -. 1.0], giving numerically-accurate results
     even if [x] is close to [0.0].
     @since 3.12
 *)
 
-external log1p : float -> float = "caml_log1p_float" "caml_log1p"
+external log1p : float -> float @@ portable = "caml_log1p_float" "caml_log1p"
   [@@unboxed] [@@noalloc]
 (** [log1p x] computes [log(1.0 +. x)] (natural logarithm),
     giving numerically-accurate results even if [x] is close to [0.0].
     @since 3.12
 *)
 
-external cos : float -> float = "caml_cos_float" "cos" [@@unboxed] [@@noalloc]
+external cos : float -> float @@ portable = "caml_cos_float" "cos" [@@unboxed] [@@noalloc]
 (** Cosine.  Argument is in radians. *)
 
-external sin : float -> float = "caml_sin_float" "sin" [@@unboxed] [@@noalloc]
+external sin : float -> float @@ portable = "caml_sin_float" "sin" [@@unboxed] [@@noalloc]
 (** Sine.  Argument is in radians. *)
 
-external tan : float -> float = "caml_tan_float" "tan" [@@unboxed] [@@noalloc]
+external tan : float -> float @@ portable = "caml_tan_float" "tan" [@@unboxed] [@@noalloc]
 (** Tangent.  Argument is in radians. *)
 
-external acos : float -> float = "caml_acos_float" "acos"
+external acos : float -> float @@ portable = "caml_acos_float" "acos"
   [@@unboxed] [@@noalloc]
 (** Arc cosine.  The argument must fall within the range [[-1.0, 1.0]].
     Result is in radians and is between [0.0] and [pi]. *)
 
-external asin : float -> float = "caml_asin_float" "asin"
+external asin : float -> float @@ portable = "caml_asin_float" "asin"
   [@@unboxed] [@@noalloc]
 (** Arc sine.  The argument must fall within the range [[-1.0, 1.0]].
     Result is in radians and is between [-pi/2] and [pi/2]. *)
 
-external atan : float -> float = "caml_atan_float" "atan"
+external atan : float -> float @@ portable = "caml_atan_float" "atan"
   [@@unboxed] [@@noalloc]
 (** Arc tangent.
     Result is in radians and is between [-pi/2] and [pi/2]. *)
 
-external atan2 : float -> float -> float = "caml_atan2_float" "atan2"
+external atan2 : float -> float -> float @@ portable = "caml_atan2_float" "atan2"
   [@@unboxed] [@@noalloc]
 (** [atan2 y x] returns the arc tangent of [y /. x].  The signs of [x]
     and [y] are used to determine the quadrant of the result.
     Result is in radians and is between [-pi] and [pi]. *)
 
-external hypot : float -> float -> float = "caml_hypot_float" "caml_hypot"
+external hypot : float -> float -> float @@ portable = "caml_hypot_float" "caml_hypot"
   [@@unboxed] [@@noalloc]
 (** [hypot x y] returns [sqrt(x *. x + y *. y)], that is, the length
   of the hypotenuse of a right-angled triangle with sides of length
@@ -543,19 +543,19 @@ external hypot : float -> float -> float = "caml_hypot_float" "caml_hypot"
   even if the other is [nan].
   @since 4.00  *)
 
-external cosh : float -> float = "caml_cosh_float" "cosh"
+external cosh : float -> float @@ portable = "caml_cosh_float" "cosh"
   [@@unboxed] [@@noalloc]
 (** Hyperbolic cosine.  Argument is in radians. *)
 
-external sinh : float -> float = "caml_sinh_float" "sinh"
+external sinh : float -> float @@ portable = "caml_sinh_float" "sinh"
   [@@unboxed] [@@noalloc]
 (** Hyperbolic sine.  Argument is in radians. *)
 
-external tanh : float -> float = "caml_tanh_float" "tanh"
+external tanh : float -> float @@ portable = "caml_tanh_float" "tanh"
   [@@unboxed] [@@noalloc]
 (** Hyperbolic tangent.  Argument is in radians. *)
 
-external acosh : float -> float = "caml_acosh_float" "caml_acosh"
+external acosh : float -> float @@ portable = "caml_acosh_float" "caml_acosh"
   [@@unboxed] [@@noalloc]
 (** Hyperbolic arc cosine.  The argument must fall within the range
     [[1.0, inf]].
@@ -564,7 +564,7 @@ external acosh : float -> float = "caml_acosh_float" "caml_acosh"
     @since 4.13
 *)
 
-external asinh : float -> float = "caml_asinh_float" "caml_asinh"
+external asinh : float -> float @@ portable = "caml_asinh_float" "caml_asinh"
   [@@unboxed] [@@noalloc]
 (** Hyperbolic arc sine.  The argument and result range over the entire
     real line.
@@ -573,7 +573,7 @@ external asinh : float -> float = "caml_asinh_float" "caml_asinh"
     @since 4.13
 *)
 
-external atanh : float -> float = "caml_atanh_float" "caml_atanh"
+external atanh : float -> float @@ portable = "caml_atanh_float" "caml_atanh"
   [@@unboxed] [@@noalloc]
 (** Hyperbolic arc tangent.  The argument must fall within the range
     [[-1.0, 1.0]].
@@ -582,23 +582,23 @@ external atanh : float -> float = "caml_atanh_float" "caml_atanh"
     @since 4.13
 *)
 
-external ceil : float -> float = "caml_ceil_float" "ceil"
+external ceil : float -> float @@ portable = "caml_ceil_float" "ceil"
   [@@unboxed] [@@noalloc]
 (** Round above to an integer value.
     [ceil f] returns the least integer value greater than or equal to [f].
     The result is returned as a float. *)
 
-external floor : float -> float = "caml_floor_float" "floor"
+external floor : float -> float @@ portable = "caml_floor_float" "floor"
   [@@unboxed] [@@noalloc]
 (** Round below to an integer value.
     [floor f] returns the greatest integer value less than or
     equal to [f].
     The result is returned as a float. *)
 
-external abs_float : (float[@local_opt]) -> (float[@local_opt]) = "%absfloat"
+external abs_float : (float[@local_opt]) -> (float[@local_opt]) @@ portable = "%absfloat"
 (** [abs_float f] returns the absolute value of [f]. *)
 
-external copysign : float -> float -> float
+external copysign : float -> float -> float @@ portable
                   = "caml_copysign_float" "caml_copysign"
                   [@@unboxed] [@@noalloc]
 (** [copysign x y] returns a float whose absolute value is that of [x]
@@ -607,13 +607,13 @@ external copysign : float -> float -> float
   specified which.
   @since 4.00  *)
 
-external mod_float : float -> float -> float = "caml_fmod_float" "fmod"
+external mod_float : float -> float -> float @@ portable = "caml_fmod_float" "fmod"
   [@@unboxed] [@@noalloc]
 (** [mod_float a b] returns the remainder of [a] with respect to
    [b].  The returned value is [a -. n *. b], where [n]
    is the quotient [a /. b] rounded towards zero to an integer. *)
 
-external frexp : float -> float * int = "caml_frexp_float"
+external frexp : float -> float * int @@ portable = "caml_frexp_float"
 (** [frexp f] returns the pair of the significant
    and the exponent of [f].  When [f] is zero, the
    significant [x] and the exponent [n] of [f] are equal to
@@ -621,35 +621,35 @@ external frexp : float -> float * int = "caml_frexp_float"
    [f = x *. 2 ** n] and [0.5 <= x < 1.0]. *)
 
 
-external ldexp : (float [@unboxed]) -> (int [@untagged]) -> (float [@unboxed]) =
+external ldexp : (float [@unboxed]) -> (int [@untagged]) -> (float [@unboxed]) @@ portable =
   "caml_ldexp_float" "caml_ldexp_float_unboxed" [@@noalloc]
 (** [ldexp x n] returns [x *. 2 ** n]. *)
 
-external modf : float -> float * float = "caml_modf_float"
+external modf : float -> float * float @@ portable = "caml_modf_float"
 (** [modf f] returns the pair of the fractional and integral
    part of [f]. *)
 
-external float : (int[@local_opt]) -> (float[@local_opt]) = "%floatofint"
+external float : (int[@local_opt]) -> (float[@local_opt]) @@ portable = "%floatofint"
 (** Same as {!Stdlib.float_of_int}. *)
 
-external float_of_int : (int[@local_opt]) -> (float[@local_opt]) = "%floatofint"
+external float_of_int : (int[@local_opt]) -> (float[@local_opt]) @@ portable = "%floatofint"
 (** Convert an integer to floating-point. *)
 
-external truncate : (float[@local_opt]) -> int = "%intoffloat"
+external truncate : (float[@local_opt]) -> int @@ portable = "%intoffloat"
 (** Same as {!Stdlib.int_of_float}. *)
 
-external int_of_float : (float[@local_opt]) -> int = "%intoffloat"
+external int_of_float : (float[@local_opt]) -> int @@ portable = "%intoffloat"
 (** Truncate the given floating-point number to an integer.
    The result is unspecified if the argument is [nan] or falls outside the
    range of representable integers. *)
 
-val infinity : float
+val infinity : float @@ portable
 (** Positive infinity. *)
 
-val neg_infinity : float
+val neg_infinity : float @@ portable
 (** Negative infinity. *)
 
-val nan : float
+val nan : float @@ portable
 (** A special floating-point value denoting the result of an
     undefined operation such as [0.0 /. 0.0].  Stands for
     'not a number'.  Any floating-point operation with [nan] as
@@ -660,13 +660,13 @@ val nan : float
 
     [nan] is a quiet NaN since 5.1;  it was a signaling NaN before. *)
 
-val max_float : float
+val max_float : float @@ portable
 (** The largest positive finite value of type [float]. *)
 
-val min_float : float
+val min_float : float @@ portable
 (** The smallest positive, non-zero, non-denormalized value of type [float]. *)
 
-val epsilon_float : float
+val epsilon_float : float @@ portable
 (** The difference between [1.0] and the smallest exactly representable
     floating-point number greater than [1.0]. *)
 
@@ -679,7 +679,7 @@ type fpclass =
 (** The five classes of floating-point numbers, as determined by
    the {!Stdlib.classify_float} function. *)
 
-external classify_float : (float [@unboxed]) -> fpclass =
+external classify_float : (float [@unboxed]) -> fpclass @@ portable =
   "caml_classify_float" "caml_classify_float_unboxed" [@@noalloc]
 (** Return the class of the given floating-point number:
    normal, subnormal, zero, infinite, or not a number. *)
@@ -690,7 +690,7 @@ external classify_float : (float [@unboxed]) -> fpclass =
    More string operations are provided in module {!String}.
 *)
 
-val ( ^ ) : string -> string -> string
+val ( ^ ) : string -> string -> string @@ portable
 (** String concatenation.
     Right-associative operator, see {!Ocaml_operators} for more information.
 
@@ -703,10 +703,10 @@ val ( ^ ) : string -> string -> string
    More character operations are provided in module {!Char}.
 *)
 
-external int_of_char : char -> int = "%identity"
+external int_of_char : char -> int @@ portable = "%identity"
 (** Return the ASCII code of the argument. *)
 
-val char_of_int : int -> char
+val char_of_int : int -> char @@ portable
 (** Return the character with the given ASCII code.
    @raise Invalid_argument if the argument is
    outside the range 0--255. *)
@@ -714,7 +714,7 @@ val char_of_int : int -> char
 
 (** {1 Unit operations} *)
 
-external ignore : 'a -> unit = "%ignore"
+external ignore : 'a -> unit @@ portable = "%ignore"
 (** Discard the value of its argument and return [()].
    For instance, [ignore(f x)] discards the result of
    the side-effecting function [f].  It is equivalent to
@@ -725,26 +725,26 @@ external ignore : 'a -> unit = "%ignore"
 
 (** {1 String conversion functions} *)
 
-val string_of_bool : bool -> string
+val string_of_bool : bool -> string @@ portable
 (** Return the string representation of a boolean. As the returned values
    may be shared, the user should not modify them directly.
 *)
 
-val bool_of_string_opt: string -> bool option
+val bool_of_string_opt: string -> bool option @@ portable
 (** Convert the given string to a boolean.
 
    Return [None] if the string is not ["true"] or ["false"].
    @since 4.05
 *)
 
-val bool_of_string : string -> bool
+val bool_of_string : string -> bool @@ portable
 (** Same as {!Stdlib.bool_of_string_opt}, but raise
    [Invalid_argument "bool_of_string"] instead of returning [None]. *)
 
-val string_of_int : int -> string
+val string_of_int : int -> string @@ portable
 (** Return the string representation of an integer, in decimal. *)
 
-val int_of_string_opt: string -> int option
+val int_of_string_opt: string -> int option @@ portable
 (** Convert the given string to an integer.
    The string is read in decimal (by default, or if the string
    begins with [0u]), in hexadecimal (if it begins with [0x] or
@@ -765,17 +765,17 @@ val int_of_string_opt: string -> int option
    @since 4.05
 *)
 
-external int_of_string : string -> int = "caml_int_of_string"
+external int_of_string : string -> int @@ portable = "caml_int_of_string"
 (** Same as {!Stdlib.int_of_string_opt}, but raise
    [Failure "int_of_string"] instead of returning [None]. *)
 
-val string_of_float : float -> string
+val string_of_float : float -> string @@ portable
 (** Return a string representation of a floating-point number.
 
     This conversion can involve a loss of precision. For greater control over
     the manner in which the number is printed, see {!Printf}. *)
 
-val float_of_string_opt: string -> float option
+val float_of_string_opt: string -> float option @@ portable
 (** Convert the given string to a float.  The string is read in decimal
    (by default) or in hexadecimal (marked by [0x] or [0X]).
 
@@ -799,16 +799,16 @@ val float_of_string_opt: string -> float option
    @since 4.05
 *)
 
-external float_of_string : string -> float = "caml_float_of_string"
+external float_of_string : string -> float @@ portable = "caml_float_of_string"
 (** Same as {!Stdlib.float_of_string_opt}, but raise
    [Failure "float_of_string"] instead of returning [None]. *)
 
 (** {1 Pair operations} *)
 
-external fst : ('a * 'b[@local_opt]) -> ('a[@local_opt]) = "%field0_immut"
+external fst : ('a * 'b[@local_opt]) -> ('a[@local_opt]) @@ portable = "%field0_immut"
 (** Return the first component of a pair. *)
 
-external snd : ('a * 'b[@local_opt]) -> ('b[@local_opt]) = "%field1_immut"
+external snd : ('a * 'b[@local_opt]) -> ('b[@local_opt]) @@ portable = "%field1_immut"
 (** Return the second component of a pair. *)
 
 
@@ -817,7 +817,7 @@ external snd : ('a * 'b[@local_opt]) -> ('b[@local_opt]) = "%field1_immut"
    More list operations are provided in module {!List}.
 *)
 
-val ( @ ) : 'a list -> 'a list -> 'a list
+val ( @ ) : 'a list -> 'a list -> 'a list @@ portable
 (** [l0 @ l1] appends [l1] to [l0]. Same function as {!List.append}.
   Right-associative operator, see {!Ocaml_operators} for more information.
   @since 5.1 this function is tail-recursive.
@@ -833,42 +833,42 @@ type in_channel
 type out_channel
 (** The type of output channel. *)
 
-val stdin : in_channel
+val stdin : in_channel @@ portable
 (** The standard input for the process. *)
 
-val stdout : out_channel
+val stdout : out_channel @@ portable
 (** The standard output for the process. *)
 
-val stderr : out_channel
+val stderr : out_channel @@ portable
 (** The standard error output for the process. *)
 
 
 (** {2 Output functions on standard output} *)
 
-val print_char : char -> unit
+val print_char : char -> unit @@ portable
 (** Print a character on standard output. *)
 
-val print_string : string -> unit
+val print_string : string -> unit @@ portable
 (** Print a string on standard output. *)
 
-val print_bytes : bytes -> unit
+val print_bytes : bytes -> unit @@ portable
 (** Print a byte sequence on standard output.
    @since 4.02 *)
 
-val print_int : int -> unit
+val print_int : int -> unit @@ portable
 (** Print an integer, in decimal, on standard output. *)
 
-val print_float : float -> unit
+val print_float : float -> unit @@ portable
 (** Print a floating-point number, in decimal, on standard output.
 
     The conversion of the number to a string uses {!string_of_float} and
     can involve a loss of precision. *)
 
-val print_endline : string -> unit
+val print_endline : string -> unit @@ portable
 (** Print a string, followed by a newline character, on
    standard output and flush standard output. *)
 
-val print_newline : unit -> unit
+val print_newline : unit -> unit @@ portable
 (** Print a newline character on standard output, and flush
    standard output. This can be used to simulate line
    buffering of standard output. *)
@@ -876,37 +876,37 @@ val print_newline : unit -> unit
 
 (** {2 Output functions on standard error} *)
 
-val prerr_char : char -> unit
+val prerr_char : char -> unit @@ portable
 (** Print a character on standard error. *)
 
-val prerr_string : string -> unit
+val prerr_string : string -> unit @@ portable
 (** Print a string on standard error. *)
 
-val prerr_bytes : bytes -> unit
+val prerr_bytes : bytes -> unit @@ portable
 (** Print a byte sequence on standard error.
    @since 4.02 *)
 
-val prerr_int : int -> unit
+val prerr_int : int -> unit @@ portable
 (** Print an integer, in decimal, on standard error. *)
 
-val prerr_float : float -> unit
+val prerr_float : float -> unit @@ portable
 (** Print a floating-point number, in decimal, on standard error.
 
     The conversion of the number to a string uses {!string_of_float} and
     can involve a loss of precision. *)
 
-val prerr_endline : string -> unit
+val prerr_endline : string -> unit @@ portable
 (** Print a string, followed by a newline character on standard
    error and flush standard error. *)
 
-val prerr_newline : unit -> unit
+val prerr_newline : unit -> unit @@ portable
 (** Print a newline character on standard error, and flush
    standard error. *)
 
 
 (** {2 Input functions on standard input} *)
 
-val read_line : unit -> string
+val read_line : unit -> string @@ portable
 (** Flush standard output, then read characters from standard input
    until a newline character is encountered.
 
@@ -917,7 +917,7 @@ val read_line : unit -> string
    line.
 *)
 
-val read_int_opt: unit -> int option
+val read_int_opt: unit -> int option @@ portable
 (** Flush standard output, then read one line from standard input
    and convert it to an integer.
 
@@ -925,11 +925,11 @@ val read_int_opt: unit -> int option
    @since 4.05
 *)
 
-val read_int : unit -> int
+val read_int : unit -> int @@ portable
 (** Same as {!Stdlib.read_int_opt}, but raise [Failure "int_of_string"]
    instead of returning [None]. *)
 
-val read_float_opt: unit -> float option
+val read_float_opt: unit -> float option @@ portable
 (** Flush standard output, then read one line from standard input
    and convert it to a floating-point number.
 
@@ -938,7 +938,7 @@ val read_float_opt: unit -> float option
    @since 4.05
 *)
 
-val read_float : unit -> float
+val read_float : unit -> float @@ portable
 (** Same as {!Stdlib.read_float_opt}, but raise [Failure "float_of_string"]
    instead of returning [None]. *)
 
@@ -958,19 +958,19 @@ type open_flag =
 (** Opening modes for {!Stdlib.open_out_gen} and
   {!Stdlib.open_in_gen}. *)
 
-val open_out : string -> out_channel
+val open_out : string -> out_channel @@ portable
 (** Open the named file for writing, and return a new output channel
    on that file, positioned at the beginning of the file. The
    file is truncated to zero length if it already exists. It
    is created if it does not already exists. *)
 
-val open_out_bin : string -> out_channel
+val open_out_bin : string -> out_channel @@ portable
 (** Same as {!Stdlib.open_out}, but the file is opened in binary mode,
    so that no translation takes place during writes. On operating
    systems that do not distinguish between text mode and binary
    mode, this function behaves like {!Stdlib.open_out}. *)
 
-val open_out_gen : open_flag list -> int -> string -> out_channel
+val open_out_gen : open_flag list -> int -> string -> out_channel @@ portable
 (** [open_out_gen mode perm filename] opens the named file for writing,
    as described above. The extra argument [mode]
    specifies the opening mode. The extra argument [perm] specifies
@@ -978,42 +978,42 @@ val open_out_gen : open_flag list -> int -> string -> out_channel
    {!Stdlib.open_out} and {!Stdlib.open_out_bin} are special
    cases of this function. *)
 
-val flush : out_channel -> unit
+val flush : out_channel -> unit @@ portable
 (** Flush the buffer associated with the given output channel,
    performing all pending writes on that channel.
    Interactive programs must be careful about flushing standard
    output and standard error at the right time. *)
 
-val flush_all : unit -> unit
+val flush_all : unit -> unit @@ portable
 (** Flush all open output channels; ignore errors. *)
 
-val output_char : out_channel -> char -> unit
+val output_char : out_channel -> char -> unit @@ portable
 (** Write the character on the given output channel. *)
 
-val output_string : out_channel -> string -> unit
+val output_string : out_channel -> string -> unit @@ portable
 (** Write the string on the given output channel. *)
 
-val output_bytes : out_channel -> bytes -> unit
+val output_bytes : out_channel -> bytes -> unit @@ portable
 (** Write the byte sequence on the given output channel.
    @since 4.02 *)
 
-val output : out_channel -> bytes -> int -> int -> unit
+val output : out_channel -> bytes -> int -> int -> unit @@ portable
 (** [output oc buf pos len] writes [len] characters from byte sequence [buf],
    starting at offset [pos], to the given output channel [oc].
    @raise Invalid_argument if [pos] and [len] do not
    designate a valid range of [buf]. *)
 
-val output_substring : out_channel -> string -> int -> int -> unit
+val output_substring : out_channel -> string -> int -> int -> unit @@ portable
 (** Same as [output] but take a string as argument instead of
    a byte sequence.
    @since 4.02 *)
 
-val output_byte : out_channel -> int -> unit
+val output_byte : out_channel -> int -> unit @@ portable
 (** Write one 8-bit integer (as the single character with that code)
    on the given output channel. The given integer is taken modulo
    256. *)
 
-val output_binary_int : out_channel -> int -> unit
+val output_binary_int : out_channel -> int -> unit @@ portable
 (** Write one integer in binary format (4 bytes, big-endian)
    on the given output channel.
    The given integer is taken modulo 2{^32}.
@@ -1021,7 +1021,7 @@ val output_binary_int : out_channel -> int -> unit
    {!Stdlib.input_binary_int} function. The format is compatible across
    all machines for a given version of OCaml. *)
 
-val output_value : out_channel -> 'a -> unit
+val output_value : out_channel -> 'a -> unit @@ portable
 (** Write the representation of a structured value of any type
    to a channel. Circularities and sharing inside the value
    are detected and preserved. The object can be read back,
@@ -1029,13 +1029,13 @@ val output_value : out_channel -> 'a -> unit
    {!Marshal} for more information. {!Stdlib.output_value} is equivalent
    to {!Marshal.to_channel} with an empty list of flags. *)
 
-val seek_out : out_channel -> int -> unit
+val seek_out : out_channel -> int -> unit @@ portable
 (** [seek_out chan pos] sets the current writing position to [pos]
    for channel [chan]. This works only for regular files. On
    files of other kinds (such as terminals, pipes and sockets),
    the behavior is unspecified. *)
 
-val pos_out : out_channel -> int
+val pos_out : out_channel -> int @@ portable
 (** Return the current writing position for the given channel.  Does
     not work on channels opened with the [Open_append] flag (returns
     unspecified results).
@@ -1046,12 +1046,12 @@ val pos_out : out_channel -> int
     programming idiom to work reliably and portably, the file must be
     opened in binary mode. *)
 
-val out_channel_length : out_channel -> int
+val out_channel_length : out_channel -> int @@ portable
 (** Return the size (number of characters) of the regular file
    on which the given channel is opened.  If the channel is opened
     on a file that is not a regular file, the result is meaningless. *)
 
-val close_out : out_channel -> unit
+val close_out : out_channel -> unit @@ portable
 (** Close the given channel, flushing all buffered write operations.
    Output functions raise a [Sys_error] exception when they are
    applied to a closed output channel, except [close_out] and [flush],
@@ -1059,10 +1059,10 @@ val close_out : out_channel -> unit
    Note that [close_out] may raise [Sys_error] if the operating
    system signals an error when flushing or closing. *)
 
-val close_out_noerr : out_channel -> unit
+val close_out_noerr : out_channel -> unit @@ portable
 (** Same as [close_out], but ignore all errors. *)
 
-val set_binary_mode_out : out_channel -> bool -> unit
+val set_binary_mode_out : out_channel -> bool -> unit @@ portable
 (** [set_binary_mode_out oc true] sets the channel [oc] to binary
    mode: no translations take place during output.
    [set_binary_mode_out oc false] sets the channel [oc] to text
@@ -1075,35 +1075,35 @@ val set_binary_mode_out : out_channel -> bool -> unit
 
 (** {2 General input functions} *)
 
-val open_in : string -> in_channel
+val open_in : string -> in_channel @@ portable
 (** Open the named file for reading, and return a new input channel
    on that file, positioned at the beginning of the file. *)
 
-val open_in_bin : string -> in_channel
+val open_in_bin : string -> in_channel @@ portable
 (** Same as {!Stdlib.open_in}, but the file is opened in binary mode,
    so that no translation takes place during reads. On operating
    systems that do not distinguish between text mode and binary
    mode, this function behaves like {!Stdlib.open_in}. *)
 
-val open_in_gen : open_flag list -> int -> string -> in_channel
+val open_in_gen : open_flag list -> int -> string -> in_channel @@ portable
 (** [open_in_gen mode perm filename] opens the named file for reading,
    as described above. The extra arguments
    [mode] and [perm] specify the opening mode and file permissions.
    {!Stdlib.open_in} and {!Stdlib.open_in_bin} are special
    cases of this function. *)
 
-val input_char : in_channel -> char
+val input_char : in_channel -> char @@ portable
 (** Read one character from the given input channel.
    @raise End_of_file if there are no more characters to read. *)
 
-val input_line : in_channel -> string
+val input_line : in_channel -> string @@ portable
 (** Read characters from the given input channel, until a
    newline character is encountered. Return the string of
    all characters read, without the newline character at the end.
    @raise End_of_file if the end of the file is reached
    at the beginning of line. *)
 
-val input : in_channel -> bytes -> int -> int -> int
+val input : in_channel -> bytes -> int -> int -> int @@ portable
 (** [input ic buf pos len] reads up to [len] characters from
    the given channel [ic], storing them in byte sequence [buf], starting at
    character number [pos].
@@ -1120,7 +1120,7 @@ val input : in_channel -> bytes -> int -> int -> int
    Exception [Invalid_argument "input"] is raised if [pos] and [len]
    do not designate a valid range of [buf]. *)
 
-val really_input : in_channel -> bytes -> int -> int -> unit
+val really_input : in_channel -> bytes -> int -> int -> unit @@ portable
 (** [really_input ic buf pos len] reads [len] characters from channel [ic],
    storing them in byte sequence [buf], starting at character number [pos].
    @raise End_of_file if the end of file is reached before [len]
@@ -1128,37 +1128,37 @@ val really_input : in_channel -> bytes -> int -> int -> unit
    @raise Invalid_argument if
    [pos] and [len] do not designate a valid range of [buf]. *)
 
-val really_input_string : in_channel -> int -> string
+val really_input_string : in_channel -> int -> string @@ portable
 (** [really_input_string ic len] reads [len] characters from channel [ic]
    and returns them in a new string.
    @raise End_of_file if the end of file is reached before [len]
    characters have been read.
    @since 4.02 *)
 
-val input_byte : in_channel -> int
+val input_byte : in_channel -> int @@ portable
 (** Same as {!Stdlib.input_char}, but return the 8-bit integer representing
    the character.
    @raise End_of_file if the end of file was reached. *)
 
-val input_binary_int : in_channel -> int
+val input_binary_int : in_channel -> int @@ portable
 (** Read an integer encoded in binary format (4 bytes, big-endian)
    from the given input channel. See {!Stdlib.output_binary_int}.
    @raise End_of_file if the end of file was reached while reading the
    integer. *)
 
-val input_value : in_channel -> 'a
+val input_value : in_channel -> 'a @@ portable
 (** Read the representation of a structured value, as produced
    by {!Stdlib.output_value}, and return the corresponding value.
    This function is identical to {!Marshal.from_channel};
    see the description of module {!Marshal} for more information,
    in particular concerning the lack of type safety. *)
 
-val seek_in : in_channel -> int -> unit
+val seek_in : in_channel -> int -> unit @@ portable
 (** [seek_in chan pos] sets the current reading position to [pos]
    for channel [chan]. This works only for regular files. On
    files of other kinds, the behavior is unspecified. *)
 
-val pos_in : in_channel -> int
+val pos_in : in_channel -> int @@ portable
 (** Return the current reading position for the given channel.  For
     files opened in text mode under Windows, the returned position is
     approximate (owing to end-of-line conversion); in particular,
@@ -1167,7 +1167,7 @@ val pos_in : in_channel -> int
     idiom to work reliably and portably, the file must be opened in
     binary mode. *)
 
-val in_channel_length : in_channel -> int
+val in_channel_length : in_channel -> int @@ portable
 (** Return the size (number of characters) of the regular file
     on which the given channel is opened.  If the channel is opened
     on a file that is not a regular file, the result is meaningless.
@@ -1175,16 +1175,16 @@ val in_channel_length : in_channel -> int
     translations that can be performed when reading from a channel
     opened in text mode. *)
 
-val close_in : in_channel -> unit
+val close_in : in_channel -> unit @@ portable
 (** Close the given channel.  Input functions raise a [Sys_error]
   exception when they are applied to a closed input channel,
   except [close_in], which does nothing when applied to an already
   closed channel. *)
 
-val close_in_noerr : in_channel -> unit
+val close_in_noerr : in_channel -> unit @@ portable
 (** Same as [close_in], but ignore all errors. *)
 
-val set_binary_mode_in : in_channel -> bool -> unit
+val set_binary_mode_in : in_channel -> bool -> unit @@ portable
 (** [set_binary_mode_in ic true] sets the channel [ic] to binary
    mode: no translations take place during input.
    [set_binary_mode_out ic false] sets the channel [ic] to text
@@ -1199,12 +1199,12 @@ val set_binary_mode_in : in_channel -> bool -> unit
 
 module LargeFile :
   sig
-    val seek_out : out_channel -> int64 -> unit
-    val pos_out : out_channel -> int64
-    val out_channel_length : out_channel -> int64
-    val seek_in : in_channel -> int64 -> unit
-    val pos_in : in_channel -> int64
-    val in_channel_length : in_channel -> int64
+    val seek_out : out_channel -> int64 -> unit @@ portable
+    val pos_out : out_channel -> int64 @@ portable
+    val out_channel_length : out_channel -> int64 @@ portable
+    val seek_in : in_channel -> int64 -> unit @@ portable
+    val pos_in : in_channel -> int64 @@ portable
+    val in_channel_length : in_channel -> int64 @@ portable
   end
 (** Operations on large files.
   This sub-module provides 64-bit variants of the channel functions
@@ -1219,26 +1219,26 @@ type 'a ref = { mutable contents : 'a }
 (** The type of references (mutable indirection cells) containing
    a value of type ['a]. *)
 
-external ref : 'a -> ('a ref[@local_opt]) = "%makemutable"
+external ref : 'a -> ('a ref[@local_opt]) @@ portable = "%makemutable"
 (** Return a fresh reference containing the given value. *)
 
-external ( ! ) : ('a ref[@local_opt]) -> 'a = "%field0"
+external ( ! ) : ('a ref[@local_opt]) -> 'a @@ portable = "%field0"
 (** [!r] returns the current contents of reference [r].
    Equivalent to [fun r -> r.contents].
    Unary operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( := ) : ('a ref[@local_opt]) -> 'a -> unit = "%setfield0"
+external ( := ) : ('a ref[@local_opt]) -> 'a -> unit @@ portable = "%setfield0"
 (** [r := a] stores the value of [a] in reference [r].
    Equivalent to [fun r v -> r.contents <- v].
    Right-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external incr : (int ref[@local_opt]) -> unit = "%incr"
+external incr : (int ref[@local_opt]) -> unit @@ portable = "%incr"
 (** Increment the integer contained in the given reference.
    Equivalent to [fun r -> r := succ !r]. *)
 
-external decr : (int ref[@local_opt]) -> unit = "%decr"
+external decr : (int ref[@local_opt]) -> unit @@ portable = "%decr"
 (** Decrement the integer contained in the given reference.
    Equivalent to [fun r -> r := pred !r]. *)
 
@@ -1324,12 +1324,12 @@ type ('a, 'b, 'c, 'd) format4 = ('a, 'b, 'c, 'c, 'c, 'd) format6
 
 type ('a, 'b, 'c) format = ('a, 'b, 'c, 'c) format4
 
-val string_of_format : ('a, 'b, 'c, 'd, 'e, 'f) format6 -> string
+val string_of_format : ('a, 'b, 'c, 'd, 'e, 'f) format6 -> string @@ portable
 (** Converts a format string into a string. *)
 
 external format_of_string :
   ('a, 'b, 'c, 'd, 'e, 'f) format6 ->
-  ('a, 'b, 'c, 'd, 'e, 'f) format6 = "%identity"
+  ('a, 'b, 'c, 'd, 'e, 'f) format6 @@ portable = "%identity"
 (** [format_of_string s] returns a format string read from the string
     literal [s].
     Note: [format_of_string] can not convert a string argument that is not a
@@ -1340,7 +1340,7 @@ external format_of_string :
 val ( ^^ ) :
   ('a, 'b, 'c, 'd, 'e, 'f) format6 ->
   ('f, 'b, 'c, 'e, 'g, 'h) format6 ->
-  ('a, 'b, 'c, 'd, 'g, 'h) format6
+  ('a, 'b, 'c, 'd, 'g, 'h) format6 @@ portable
 (** [f1 ^^ f2] catenates format strings [f1] and [f2]. The result is a
   format string that behaves as the concatenation of format strings [f1] and
   [f2]: in case of formatted output, it accepts arguments from [f1], then
@@ -1351,7 +1351,7 @@ val ( ^^ ) :
 
 (** {1 Program termination} *)
 
-val exit : int -> 'a
+val exit : int -> 'a @@ portable
 (** Terminate the process, returning the given status code to the operating
     system: usually 0 to indicate no errors, and a small positive integer to
     indicate failure. All open output channels are flushed with [flush_all].
@@ -1362,7 +1362,7 @@ val exit : int -> 'a
     An implicit [exit 2] is performed if the program terminates early because
     of an uncaught exception. *)
 
-val at_exit : (unit -> unit) -> unit
+val at_exit : (unit -> unit) -> unit @@ portable
 (** Register the given function to be called at program termination
    time. The functions registered with [at_exit] will be called when
    the program does any of the following:
@@ -1377,13 +1377,13 @@ val at_exit : (unit -> unit) -> unit
 
 (* The following is for system use only. Do not call directly. *)
 
-val valid_float_lexem : string -> string
+val valid_float_lexem : string -> string @@ portable
 
-val unsafe_really_input : in_channel -> bytes -> int -> int -> unit
+val unsafe_really_input : in_channel -> bytes -> int -> int -> unit @@ portable
 
-val do_at_exit : unit -> unit
+val do_at_exit : unit -> unit @@ portable
 
-val do_domain_local_at_exit : (unit -> unit) ref
+val do_domain_local_at_exit : (unit -> unit) ref @@ portable
 
 (**/**)
 

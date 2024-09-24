@@ -110,9 +110,9 @@ type raw_backtrace = raw_backtrace_entry array
 let raw_backtrace_entries bt = bt
 
 external get_raw_backtrace:
-  unit -> raw_backtrace = "caml_get_exception_raw_backtrace"
+  unit -> raw_backtrace @@ portable = "caml_get_exception_raw_backtrace"
 
-external raise_with_backtrace: exn -> raw_backtrace -> 'a
+external raise_with_backtrace: exn -> raw_backtrace -> 'a @@ portable
   = "%raise_with_backtrace"
 
 (* Disable warning 37: values are constructed in the runtime *)
@@ -133,10 +133,10 @@ type[@warning "-37"] backtrace_slot =
     }
 
 external convert_raw_backtrace_slot:
-  raw_backtrace_slot -> backtrace_slot = "caml_convert_raw_backtrace_slot"
+  raw_backtrace_slot -> backtrace_slot @@ portable = "caml_convert_raw_backtrace_slot"
 
 external convert_raw_backtrace:
-  raw_backtrace -> backtrace_slot array = "caml_convert_raw_backtrace"
+  raw_backtrace -> backtrace_slot array @@ portable = "caml_convert_raw_backtrace"
 
 let convert_raw_backtrace bt =
   try Some (convert_raw_backtrace bt)
@@ -265,18 +265,18 @@ end
 let raw_backtrace_length bt = Array.length bt
 
 external get_raw_backtrace_slot :
-  raw_backtrace -> int -> raw_backtrace_slot = "caml_raw_backtrace_slot"
+  raw_backtrace -> int -> raw_backtrace_slot @@ portable = "caml_raw_backtrace_slot"
 
 external get_raw_backtrace_next_slot :
-  raw_backtrace_slot -> raw_backtrace_slot option
+  raw_backtrace_slot -> raw_backtrace_slot option @@ portable
   = "caml_raw_backtrace_next_slot"
 
 (* confusingly named:
    returns the *string* corresponding to the global current backtrace *)
 let get_backtrace () = raw_backtrace_to_string (get_raw_backtrace ())
 
-external record_backtrace: bool -> unit = "caml_record_backtrace"
-external backtrace_status: unit -> bool = "caml_backtrace_status"
+external record_backtrace: bool -> unit @@ portable = "caml_record_backtrace"
+external backtrace_status: unit -> bool @@ portable = "caml_backtrace_status"
 
 let rec register_printer fn =
   let old_printers = Atomic.get printers in
@@ -284,7 +284,7 @@ let rec register_printer fn =
   let success = Atomic.compare_and_set printers old_printers new_printers in
   if not success then register_printer fn
 
-external get_callstack: int -> raw_backtrace = "caml_get_current_callstack"
+external get_callstack: int -> raw_backtrace @@ portable = "caml_get_current_callstack"
 
 let exn_slot x =
   let x = Obj.repr x in
@@ -298,7 +298,7 @@ let exn_slot_name x =
   let slot = exn_slot x in
   (Obj.obj (Obj.field slot 0) : string)
 
-external get_debug_info_status : unit -> int = "caml_ml_debug_info_status"
+external get_debug_info_status : unit -> int @@ portable = "caml_ml_debug_info_status"
 
 (* Descriptions for errors in startup.h. See also backtrace.c *)
 let errors = [| "";
@@ -372,7 +372,7 @@ let handle_uncaught_exception exn debugger_in_use =
     (* There is not much we can do at this point *)
     ()
 
-external register_named_value : string -> 'a -> unit
+external register_named_value : string -> 'a -> unit @@ portable
   = "caml_register_named_value"
 
 let () =

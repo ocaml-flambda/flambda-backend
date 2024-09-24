@@ -24,14 +24,14 @@ type extern_flags =
   | Compression
 (* note: this type definition is used in 'runtime/debugger.c' *)
 
-external to_channel: out_channel -> 'a -> extern_flags list -> unit
+external to_channel: out_channel -> 'a -> extern_flags list -> unit @@ portable
     = "caml_output_value"
-external to_bytes: 'a -> extern_flags list -> bytes
+external to_bytes: 'a -> extern_flags list -> bytes @@ portable
     = "caml_output_value_to_bytes"
-external to_string: 'a -> extern_flags list -> string
+external to_string: 'a -> extern_flags list -> string @@ portable
     = "caml_output_value_to_string"
 external to_buffer_unsafe:
-      bytes -> int -> int -> 'a -> extern_flags list -> int
+      bytes -> int -> int -> 'a -> extern_flags list -> int @@ portable
     = "caml_output_value_to_buffer"
 
 let to_buffer buff ofs len v flags =
@@ -45,9 +45,9 @@ let to_buffer buff ofs len v flags =
    a text representation.
 *)
 
-external from_channel: in_channel -> 'a = "caml_input_value"
-external from_bytes_unsafe: bytes -> int -> 'a = "caml_input_value_from_bytes"
-external data_size_unsafe: bytes -> int -> int = "caml_marshal_data_size"
+external from_channel: in_channel -> 'a @@ portable = "caml_input_value"
+external from_bytes_unsafe: bytes -> int -> 'a @@ portable = "caml_input_value_from_bytes"
+external data_size_unsafe: bytes -> int -> int @@ portable = "caml_marshal_data_size"
 
 let header_size = 16
 

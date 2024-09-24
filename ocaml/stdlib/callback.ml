@@ -19,7 +19,7 @@ open! Stdlib
 
 (* Registering OCaml values with the C runtime for later callbacks *)
 
-external register_named_value : string -> Obj.t -> unit
+external register_named_value : string -> Obj.t -> unit @@ portable
                               = "caml_register_named_value"
 
 let register name v =

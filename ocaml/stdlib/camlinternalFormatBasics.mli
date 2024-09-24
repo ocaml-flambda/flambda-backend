@@ -315,13 +315,13 @@ val concat_fmtty :
   ('a1, 'b1, 'c1, 'd1, 'e1, 'f1,
    'a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmtty_rel ->
   ('g1, 'b1, 'c1, 'j1, 'e1, 'f1,
-   'g2, 'b2, 'c2, 'j2, 'e2, 'f2) fmtty_rel
+   'g2, 'b2, 'c2, 'j2, 'e2, 'f2) fmtty_rel @@ portable
 
 val erase_rel :
   ('a, 'b, 'c, 'd, 'e, 'f,
-   'g, 'h, 'i, 'j, 'k, 'l) fmtty_rel -> ('a, 'b, 'c, 'd, 'e, 'f) fmtty
+   'g, 'h, 'i, 'j, 'k, 'l) fmtty_rel -> ('a, 'b, 'c, 'd, 'e, 'f) fmtty @@ portable
 
 val concat_fmt :
     ('a, 'b, 'c, 'd, 'e, 'f) fmt ->
     ('f, 'b, 'c, 'e, 'g, 'h) fmt ->
-    ('a, 'b, 'c, 'd, 'g, 'h) fmt
+    ('a, 'b, 'c, 'd, 'g, 'h) fmt @@ portable

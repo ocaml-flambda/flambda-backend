@@ -21,13 +21,13 @@ open! Stdlib
 
 open CamlinternalFormatBasics
 
-val is_in_char_set : char_set -> char -> bool
-val rev_char_set : char_set -> char_set
+val is_in_char_set : char_set -> char -> bool @@ portable
+val rev_char_set : char_set -> char_set @@ portable
 
 type mutable_char_set = bytes
-val create_char_set : unit -> mutable_char_set
-val add_in_char_set : mutable_char_set -> char -> unit
-val freeze_char_set : mutable_char_set -> char_set
+val create_char_set : unit -> mutable_char_set @@ portable
+val add_in_char_set : mutable_char_set -> char -> unit @@ portable
+val freeze_char_set : mutable_char_set -> char_set @@ portable
 
 type ('a, 'b, 'c, 'd, 'e, 'f) param_format_ebb = Param_format_EBB :
      ('x -> 'a, 'b, 'c, 'd, 'e, 'f) fmt ->
@@ -35,7 +35,7 @@ type ('a, 'b, 'c, 'd, 'e, 'f) param_format_ebb = Param_format_EBB :
 
 val param_format_of_ignored_format :
   ('a, 'b, 'c, 'd, 'y, 'x) ignored -> ('x, 'b, 'c, 'y, 'e, 'f) fmt ->
-  ('a, 'b, 'c, 'd, 'e, 'f) param_format_ebb
+  ('a, 'b, 'c, 'd, 'e, 'f) param_format_ebb @@ portable
 
 type ('b, 'c) acc_formatting_gen =
   | Acc_open_tag of ('b, 'c) acc
@@ -63,21 +63,21 @@ type ('b, 'c, 'e, 'f) fmt_ebb = Fmt_EBB :
 
 val make_printf :
   (('b, 'c) acc -> 'd) -> ('b, 'c) acc ->
-  ('a, 'b, 'c, 'c, 'c, 'd) CamlinternalFormatBasics.fmt -> 'a
+  ('a, 'b, 'c, 'c, 'c, 'd) CamlinternalFormatBasics.fmt -> 'a @@ portable
 
-val make_iprintf : ('s -> 'f) -> 's -> ('a, 'b, 'c, 'd, 'e, 'f) fmt -> 'a
+val make_iprintf : ('s -> 'f) -> 's -> ('a, 'b, 'c, 'd, 'e, 'f) fmt -> 'a @@ portable
 
-val output_acc : out_channel -> (out_channel, unit) acc -> unit
-val bufput_acc : Buffer.t -> (Buffer.t, unit) acc -> unit
-val strput_acc : Buffer.t -> (unit, string) acc -> unit
+val output_acc : out_channel -> (out_channel, unit) acc -> unit @@ portable
+val bufput_acc : Buffer.t -> (Buffer.t, unit) acc -> unit @@ portable
+val strput_acc : Buffer.t -> (unit, string) acc -> unit @@ portable
 
 val type_format :
   ('x, 'b, 'c, 't, 'u, 'v) CamlinternalFormatBasics.fmt ->
   ('a, 'b, 'c, 'd, 'e, 'f) CamlinternalFormatBasics.fmtty ->
-  ('a, 'b, 'c, 'd, 'e, 'f) CamlinternalFormatBasics.fmt
+  ('a, 'b, 'c, 'd, 'e, 'f) CamlinternalFormatBasics.fmt @@ portable
 
 val fmt_ebb_of_string :
-  ?legacy_behavior:bool -> string -> ('b, 'c, 'e, 'f) fmt_ebb
+  ?legacy_behavior:bool -> string -> ('b, 'c, 'e, 'f) fmt_ebb @@ portable
 (* warning: the optional flag legacy_behavior is EXPERIMENTAL and will
    be removed in the next version. You must not set it explicitly. It
    is only used by the type-checker implementation.
@@ -86,28 +86,28 @@ val fmt_ebb_of_string :
 val format_of_string_fmtty :
   string ->
   ('a, 'b, 'c, 'd, 'e, 'f) CamlinternalFormatBasics.fmtty ->
-  ('a, 'b, 'c, 'd, 'e, 'f) CamlinternalFormatBasics.format6
+  ('a, 'b, 'c, 'd, 'e, 'f) CamlinternalFormatBasics.format6 @@ portable
 
 val format_of_string_format :
   string ->
   ('a, 'b, 'c, 'd, 'e, 'f) CamlinternalFormatBasics.format6 ->
-  ('a, 'b, 'c, 'd, 'e, 'f) CamlinternalFormatBasics.format6
+  ('a, 'b, 'c, 'd, 'e, 'f) CamlinternalFormatBasics.format6 @@ portable
 
-val char_of_iconv : CamlinternalFormatBasics.int_conv -> char
-val string_of_formatting_lit : CamlinternalFormatBasics.formatting_lit -> string
+val char_of_iconv : CamlinternalFormatBasics.int_conv -> char @@ portable
+val string_of_formatting_lit : CamlinternalFormatBasics.formatting_lit -> string @@ portable
 
 val string_of_fmtty :
-  ('a, 'b, 'c, 'd, 'e, 'f) CamlinternalFormatBasics.fmtty -> string
+  ('a, 'b, 'c, 'd, 'e, 'f) CamlinternalFormatBasics.fmtty -> string @@ portable
 val string_of_fmt :
-  ('a, 'b, 'c, 'd, 'e, 'f) CamlinternalFormatBasics.fmt -> string
+  ('a, 'b, 'c, 'd, 'e, 'f) CamlinternalFormatBasics.fmt -> string @@ portable
 
-val open_box_of_string : string -> int * block_type
+val open_box_of_string : string -> int * block_type @@ portable
 
 val symm :
    ('a1, 'b1, 'c1, 'd1, 'e1, 'f1,
     'a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmtty_rel
 -> ('a2, 'b2, 'c2, 'd2, 'e2, 'f2,
-    'a1, 'b1, 'c1, 'd1, 'e1, 'f1) fmtty_rel
+    'a1, 'b1, 'c1, 'd1, 'e1, 'f1) fmtty_rel @@ portable
 
 val trans :
    ('a1, 'b1, 'c1, 'd1, 'e1, 'f1,
@@ -115,10 +115,10 @@ val trans :
 -> ('a2, 'b2, 'c2, 'd2, 'e2, 'f2,
     'a3, 'b3, 'c3, 'd3, 'e3, 'f3) fmtty_rel
 -> ('a1, 'b1, 'c1, 'd1, 'e1, 'f1,
-    'a3, 'b3, 'c3, 'd3, 'e3, 'f3) fmtty_rel
+    'a3, 'b3, 'c3, 'd3, 'e3, 'f3) fmtty_rel @@ portable
 
 val recast :
    ('a1, 'b1, 'c1, 'd1, 'e1, 'f1) fmt
 -> ('a1, 'b1, 'c1, 'd1, 'e1, 'f1,
     'a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmtty_rel
--> ('a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmt
+-> ('a2, 'b2, 'c2, 'd2, 'e2, 'f2) fmt @@ portable

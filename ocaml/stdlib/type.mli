@@ -57,13 +57,13 @@ module Id : sig
   type !'a t
   (** The type for identifiers for type ['a]. *)
 
-  val make : unit -> 'a t
+  val make : unit -> 'a t @@ portable
   (** [make ()] is a new type identifier. *)
 
-  val uid : 'a t -> int
+  val uid : 'a t -> int @@ portable
   (** [uid id] is a runtime unique identifier for [id]. *)
 
-  val provably_equal : 'a t -> 'b t -> ('a, 'b) eq option
+  val provably_equal : 'a t -> 'b t -> ('a, 'b) eq option @@ portable
   (** [provably_equal i0 i1] is [Some Equal] if identifier [i0] is equal
       to [i1] and [None] otherwise. *)
 

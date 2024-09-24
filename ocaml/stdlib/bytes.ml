@@ -25,21 +25,21 @@ open! Stdlib
    These functions have a "duplicated" comment above their definition.
 *)
 
-external length : bytes -> int = "%bytes_length"
-external string_length : string -> int = "%string_length"
-external get : bytes -> int -> char = "%bytes_safe_get"
-external set : bytes -> int -> char -> unit = "%bytes_safe_set"
-external create : int -> bytes = "caml_create_bytes"
-external unsafe_get : bytes -> int -> char = "%bytes_unsafe_get"
-external unsafe_set : bytes -> int -> char -> unit = "%bytes_unsafe_set"
-external unsafe_fill : bytes -> int -> int -> char -> unit
+external length : bytes -> int @@ portable = "%bytes_length"
+external string_length : string -> int @@ portable = "%string_length"
+external get : bytes -> int -> char @@ portable = "%bytes_safe_get"
+external set : bytes -> int -> char -> unit @@ portable = "%bytes_safe_set"
+external create : int -> bytes @@ portable = "caml_create_bytes"
+external unsafe_get : bytes -> int -> char @@ portable = "%bytes_unsafe_get"
+external unsafe_set : bytes -> int -> char -> unit @@ portable = "%bytes_unsafe_set"
+external unsafe_fill : bytes -> int -> int -> char -> unit @@ portable
                      = "caml_fill_bytes" [@@noalloc]
-external unsafe_to_string : bytes -> string = "%bytes_to_string"
-external unsafe_of_string : string -> bytes = "%bytes_of_string"
+external unsafe_to_string : bytes -> string @@ portable = "%bytes_to_string"
+external unsafe_of_string : string -> bytes @@ portable = "%bytes_of_string"
 
-external unsafe_blit : bytes -> int -> bytes -> int -> int -> unit
+external unsafe_blit : bytes -> int -> bytes -> int -> int -> unit @@ portable
                      = "caml_blit_bytes" [@@noalloc]
-external unsafe_blit_string : string -> int -> bytes -> int -> int -> unit
+external unsafe_blit_string : string -> int -> bytes -> int -> int -> unit @@ portable
                      = "caml_blit_string" [@@noalloc]
 
 let make n c =
@@ -149,8 +149,8 @@ let cat s1 s2 =
   r
 
 
-external char_code: char -> int = "%identity"
-external char_chr: int -> char = "%identity"
+external char_code: char -> int @@ portable = "%identity"
+external char_chr: int -> char @@ portable = "%identity"
 
 let is_space = function
   | ' ' | '\012' | '\n' | '\r' | '\t' -> true
@@ -395,7 +395,7 @@ let rcontains_from s i c =
 type t = bytes
 
 let compare (x: t) (y: t) = Stdlib.compare x y
-external equal : t -> t -> bool = "caml_bytes_equal" [@@noalloc]
+external equal : t -> t -> bool @@ portable = "caml_bytes_equal" [@@noalloc]
 
 (* duplicated in string.ml *)
 let split_on_char sep s =
@@ -452,23 +452,23 @@ let of_seq i =
 
 (* The get_ functions are all duplicated in string.ml *)
 
-external unsafe_get_uint8 : bytes -> int -> int = "%bytes_unsafe_get"
-external unsafe_get_uint16_ne : bytes -> int -> int = "%caml_bytes_get16u"
-external get_uint8 : bytes -> int -> int = "%bytes_safe_get"
-external get_uint16_ne : bytes -> int -> int = "%caml_bytes_get16"
-external get_int32_ne : bytes -> int -> int32 = "%caml_bytes_get32"
-external get_int64_ne : bytes -> int -> int64 = "%caml_bytes_get64"
+external unsafe_get_uint8 : bytes -> int -> int @@ portable = "%bytes_unsafe_get"
+external unsafe_get_uint16_ne : bytes -> int -> int @@ portable = "%caml_bytes_get16u"
+external get_uint8 : bytes -> int -> int @@ portable = "%bytes_safe_get"
+external get_uint16_ne : bytes -> int -> int @@ portable = "%caml_bytes_get16"
+external get_int32_ne : bytes -> int -> int32 @@ portable = "%caml_bytes_get32"
+external get_int64_ne : bytes -> int -> int64 @@ portable = "%caml_bytes_get64"
 
-external unsafe_set_uint8 : bytes -> int -> int -> unit = "%bytes_unsafe_set"
-external unsafe_set_uint16_ne : bytes -> int -> int -> unit
+external unsafe_set_uint8 : bytes -> int -> int -> unit @@ portable = "%bytes_unsafe_set"
+external unsafe_set_uint16_ne : bytes -> int -> int -> unit @@ portable
                               = "%caml_bytes_set16u"
-external set_int8 : bytes -> int -> int -> unit = "%bytes_safe_set"
-external set_int16_ne : bytes -> int -> int -> unit = "%caml_bytes_set16"
-external set_int32_ne : bytes -> int -> int32 -> unit = "%caml_bytes_set32"
-external set_int64_ne : bytes -> int -> int64 -> unit = "%caml_bytes_set64"
-external swap16 : int -> int = "%bswap16"
-external swap32 : int32 -> int32 = "%bswap_int32"
-external swap64 : int64 -> int64 = "%bswap_int64"
+external set_int8 : bytes -> int -> int -> unit @@ portable = "%bytes_safe_set"
+external set_int16_ne : bytes -> int -> int -> unit @@ portable = "%caml_bytes_set16"
+external set_int32_ne : bytes -> int -> int32 -> unit @@ portable = "%caml_bytes_set32"
+external set_int64_ne : bytes -> int -> int64 -> unit @@ portable = "%caml_bytes_set64"
+external swap16 : int -> int @@ portable = "%bswap16"
+external swap32 : int32 -> int32 @@ portable = "%bswap_int32"
+external swap64 : int64 -> int64 @@ portable = "%bswap_int64"
 
 let unsafe_get_uint16_le b i =
   if Sys.big_endian

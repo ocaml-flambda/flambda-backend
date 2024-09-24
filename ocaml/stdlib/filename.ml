@@ -74,22 +74,22 @@ let generic_dirname is_dir_sep current_dir_name name =
   else trailing_sep (String.length name - 1)
 
 module type SYSDEPS = sig
-  val null : string
-  val current_dir_name : string
-  val parent_dir_name : string
-  val dir_sep : string
-  val is_dir_sep : string -> int -> bool
-  val is_relative : string -> bool
-  val is_implicit : string -> bool
-  val check_suffix : string -> string -> bool
-  val chop_suffix_opt : suffix:string -> string -> string option
-  val temp_dir_name : string
-  val quote : string -> string
+  val null : string @@ portable
+  val current_dir_name : string @@ portable
+  val parent_dir_name : string @@ portable
+  val dir_sep : string @@ portable
+  val is_dir_sep : string -> int -> bool @@ portable
+  val is_relative : string -> bool @@ portable
+  val is_implicit : string -> bool @@ portable
+  val check_suffix : string -> string -> bool @@ portable
+  val chop_suffix_opt : suffix:string -> string -> string option @@ portable
+  val temp_dir_name : string @@ portable
+  val quote : string -> string @@ portable
   val quote_command :
     string -> ?stdin: string -> ?stdout: string -> ?stderr: string
-           -> string list -> string
-  val basename : string -> string
-  val dirname : string -> string
+           -> string list -> string @@ portable
+  val basename : string -> string @@ portable
+  val dirname : string -> string @@ portable
 end
 
 module Unix : SYSDEPS = struct
@@ -329,8 +329,8 @@ let remove_extension name =
   let l = extension_len name in
   if l = 0 then name else String.sub name 0 (String.length name - l)
 
-external open_desc: string -> open_flag list -> int -> int = "caml_sys_open"
-external close_desc: int -> unit = "caml_sys_close"
+external open_desc: string -> open_flag list -> int -> int @@ portable = "caml_sys_open"
+external close_desc: int -> unit @@ portable = "caml_sys_close"
 
 let prng_key = Domain.DLS.new_key Random.State.make_self_init
 

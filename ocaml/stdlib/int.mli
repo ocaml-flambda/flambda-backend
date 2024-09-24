@@ -28,75 +28,75 @@ open! Stdlib
 type t = int
 (** The type for integer values. *)
 
-val zero : int
+val zero : int @@ portable
 (** [zero] is the integer [0]. *)
 
-val one : int
+val one : int @@ portable
 (** [one] is the integer [1]. *)
 
-val minus_one : int
+val minus_one : int @@ portable
 (** [minus_one] is the integer [-1]. *)
 
-external neg : (int[@local_opt]) -> int = "%negint"
+external neg : (int[@local_opt]) -> int @@ portable = "%negint"
 (** [neg x] is [~-x]. *)
 
-external add : (int[@local_opt]) -> (int[@local_opt]) -> int = "%addint"
+external add : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%addint"
 (** [add x y] is the addition [x + y]. *)
 
-external sub : (int[@local_opt]) -> (int[@local_opt]) -> int = "%subint"
+external sub : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%subint"
 (** [sub x y] is the subtraction [x - y]. *)
 
-external mul : (int[@local_opt]) -> (int[@local_opt]) -> int = "%mulint"
+external mul : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%mulint"
 (** [mul x y] is the multiplication [x * y]. *)
 
-external div : (int[@local_opt]) -> (int[@local_opt]) -> int = "%divint"
+external div : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%divint"
 (** [div x y] is the division [x / y]. See {!Stdlib.( / )} for details. *)
 
-external rem : (int[@local_opt]) -> (int[@local_opt]) -> int = "%modint"
+external rem : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%modint"
 (** [rem x y] is the remainder [x mod y]. See {!Stdlib.( mod )} for details. *)
 
-external succ : (int[@local_opt]) -> int = "%succint"
+external succ : (int[@local_opt]) -> int @@ portable = "%succint"
 (** [succ x] is [add x 1]. *)
 
-external pred : (int[@local_opt]) -> int = "%predint"
+external pred : (int[@local_opt]) -> int @@ portable = "%predint"
 (** [pred x] is [sub x 1]. *)
 
-val abs : int -> int
+val abs : int -> int @@ portable
 (** [abs x] is the absolute value of [x]. That is [x] if [x] is positive
     and [neg x] if [x] is negative. {b Warning.} This may be negative if
     the argument is {!min_int}. *)
 
-val max_int : int
+val max_int : int @@ portable
 (** [max_int] is the greatest representable integer,
     [2{^[Sys.int_size - 1]} - 1]. *)
 
-val min_int : int
+val min_int : int @@ portable
 (** [min_int] is the smallest representable integer,
     [-2{^[Sys.int_size - 1]}]. *)
 
-external logand : (int[@local_opt]) -> (int[@local_opt]) -> int = "%andint"
+external logand : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%andint"
 (** [logand x y] is the bitwise logical and of [x] and [y]. *)
 
-external logor : (int[@local_opt]) -> (int[@local_opt]) -> int = "%orint"
+external logor : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%orint"
 (** [logor x y] is the bitwise logical or of [x] and [y]. *)
 
-external logxor : (int[@local_opt]) -> (int[@local_opt]) -> int = "%xorint"
+external logxor : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%xorint"
 (** [logxor x y] is the bitwise logical exclusive or of [x] and [y]. *)
 
-val lognot : int -> int
+val lognot : int -> int @@ portable
 (** [lognot x] is the bitwise logical negation of [x]. *)
 
-external shift_left : (int[@local_opt]) -> (int[@local_opt]) -> int = "%lslint"
+external shift_left : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%lslint"
 (** [shift_left x n] shifts [x] to the left by [n] bits. The result
     is unspecified if [n < 0] or [n > ]{!Sys.int_size}. *)
 
-external shift_right : (int[@local_opt]) -> (int[@local_opt]) -> int = "%asrint"
+external shift_right : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%asrint"
 (** [shift_right x n] shifts [x] to the right by [n] bits. This is an
     arithmetic shift: the sign bit of [x] is replicated and inserted
     in the vacated bits. The result is unspecified if [n < 0] or
     [n > ]{!Sys.int_size}. *)
 
-external shift_right_logical : (int[@local_opt]) -> (int[@local_opt]) -> int = "%lsrint"
+external shift_right_logical : (int[@local_opt]) -> (int[@local_opt]) -> int @@ portable = "%lsrint"
 (** [shift_right x n] shifts [x] to the right by [n] bits. This is a
     logical shift: zeroes are inserted in the vacated bits regardless
     of the sign of [x]. The result is unspecified if [n < 0] or
@@ -104,28 +104,28 @@ external shift_right_logical : (int[@local_opt]) -> (int[@local_opt]) -> int = "
 
 (** {1:preds Predicates and comparisons} *)
 
-val equal : int -> int -> bool
+val equal : int -> int -> bool @@ portable
 (** [equal x y] is [true] if and only if [x = y]. *)
 
-val compare : int -> int -> int
+val compare : int -> int -> int @@ portable
 (** [compare x y] is {!Stdlib.compare}[ x y] but more efficient. *)
 
-val min : int -> int -> int
+val min : int -> int -> int @@ portable
 (** Return the smaller of the two arguments.
     @since 4.13
 *)
 
-val max : int -> int -> int
+val max : int -> int -> int @@ portable
 (** Return the greater of the two arguments.
     @since 4.13
  *)
 
 (** {1:convert Converting} *)
 
-external to_float : (int[@local_opt]) -> (float[@local_opt]) = "%floatofint"
+external to_float : (int[@local_opt]) -> (float[@local_opt]) @@ portable = "%floatofint"
 (** [to_float x] is [x] as a floating point number. *)
 
-external of_float : (float[@local_opt]) -> int = "%intoffloat"
+external of_float : (float[@local_opt]) -> int @@ portable = "%intoffloat"
 (** [of_float x] truncates [x] to an integer. The result is
     unspecified if the argument is [nan] or falls outside the range of
     representable integers. *)
@@ -152,17 +152,17 @@ val of_string : string -> int option
     digits of the number. *)
 *)
 
-val to_string : int -> string
+val to_string : int -> string @@ portable
 (** [to_string x] is the written representation of [x] in decimal. *)
 
-val seeded_hash : int -> int -> int
+val seeded_hash : int -> int -> int @@ portable
 (** A seeded hash function for ints, with the same output value as
     {!Hashtbl.seeded_hash}. This function allows this module to be passed as
     argument to the functor {!Hashtbl.MakeSeeded}.
 
     @since 5.1 *)
 
-val hash : int -> int
+val hash : int -> int @@ portable
 (** An unseeded hash function for ints, with the same output value as
     {!Hashtbl.hash}. This function allows this module to be passed as argument
     to the functor {!Hashtbl.Make}.

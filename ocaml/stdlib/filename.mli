@@ -17,34 +17,34 @@ open! Stdlib
 
 (** Operations on file names. *)
 
-val current_dir_name : string
+val current_dir_name : string @@ portable
 (** The conventional name for the current directory (e.g. [.] in Unix). *)
 
-val parent_dir_name : string
+val parent_dir_name : string @@ portable
 (** The conventional name for the parent of the current directory
    (e.g. [..] in Unix). *)
 
-val dir_sep : string
+val dir_sep : string @@ portable
 (** The directory separator (e.g. [/] in Unix).
 
     @since 3.11.2 *)
 
-val concat : string -> string -> string
+val concat : string -> string -> string @@ portable
 (** [concat dir file] returns a file name that designates file
    [file] in directory [dir]. *)
 
-val is_relative : string -> bool
+val is_relative : string -> bool @@ portable
 (** Return [true] if the file name is relative to the current
    directory, [false] if it is absolute (i.e. in Unix, starts
    with [/]). *)
 
-val is_implicit : string -> bool
+val is_implicit : string -> bool @@ portable
 (** Return [true] if the file name is relative and does not start
    with an explicit reference to the current directory ([./] or
    [../] in Unix), [false] if it starts with an explicit reference
    to the root directory or the current directory. *)
 
-val check_suffix : string -> string -> bool
+val check_suffix : string -> string -> bool @@ portable
 (** [check_suffix name suff] returns [true] if the filename [name]
     ends with the suffix [suff].
 
@@ -53,13 +53,13 @@ val check_suffix : string -> string -> bool
     this does not match exactly the interpretation of case-insensitive
     filename equivalence from Windows.  *)
 
-val chop_suffix : string -> string -> string
+val chop_suffix : string -> string -> string @@ portable
 (** [chop_suffix name suff] removes the suffix [suff] from
     the filename [name].
     @raise Invalid_argument if [name] does not end with the suffix [suff].
 *)
 
-val chop_suffix_opt: suffix:string -> string -> string option
+val chop_suffix_opt: suffix:string -> string -> string option @@ portable
 (** [chop_suffix_opt ~suffix filename] removes the suffix from
     the [filename] if possible, or returns [None] if the
     filename does not end with the suffix.
@@ -73,7 +73,7 @@ val chop_suffix_opt: suffix:string -> string -> string option
 *)
 
 
-val extension : string -> string
+val extension : string -> string @@ portable
 (** [extension name] is the shortest suffix [ext] of [name0] where:
 
     - [name0] is the longest suffix of [name] that does not
@@ -88,7 +88,7 @@ val extension : string -> string
     @since 4.04
 *)
 
-val remove_extension : string -> string
+val remove_extension : string -> string @@ portable
 (** Return the given file name without its extension, as defined
     in {!Filename.extension}. If the extension is empty, the function
     returns the given file name.
@@ -100,12 +100,12 @@ val remove_extension : string -> string
     @since 4.04
 *)
 
-val chop_extension : string -> string
+val chop_extension : string -> string @@ portable
 (** Same as {!Filename.remove_extension}, but raise [Invalid_argument]
     if the given name has an empty extension. *)
 
 
-val basename : string -> string
+val basename : string -> string @@ portable
 (** Split a file name into directory name / base file name.
    If [name] is a valid file name, then [concat (dirname name) (basename name)]
    returns a file name which is equivalent to [name]. Moreover,
@@ -116,18 +116,18 @@ val basename : string -> string
    This function conforms to the specification of POSIX.1-2008 for the
    [basename] utility. *)
 
-val dirname : string -> string
+val dirname : string -> string @@ portable
 (** See {!Filename.basename}.
    This function conforms to the specification of POSIX.1-2008 for the
    [dirname] utility. *)
 
-val null : string
+val null : string @@ portable
 (** [null] is ["/dev/null"] on POSIX and ["NUL"] on Windows. It represents a
     file on the OS that discards all writes and returns end of file on reads.
 
     @since 4.10 *)
 
-val temp_file : ?temp_dir: string -> string -> string -> string
+val temp_file : ?temp_dir: string -> string -> string -> string @@ portable
 (** [temp_file prefix suffix] returns the name of a
    fresh temporary file in the temporary directory.
    The base name of the temporary file is formed by concatenating
@@ -144,7 +144,7 @@ val temp_file : ?temp_dir: string -> string -> string -> string
 
 val open_temp_file :
       ?mode: open_flag list -> ?perms: int -> ?temp_dir: string -> string ->
-      string -> string * out_channel
+      string -> string * out_channel @@ portable
 (** Same as {!Filename.temp_file}, but returns both the name of a fresh
    temporary file, and an output channel opened (atomically) on
    this file.  This function is more secure than [temp_file]: there
@@ -161,7 +161,7 @@ val open_temp_file :
    @before 3.11.2 no ?temp_dir optional argument
 *)
 
-val temp_dir : ?temp_dir: string -> ?perms:int  -> string -> string -> string
+val temp_dir : ?temp_dir: string -> ?perms:int  -> string -> string -> string @@ portable
 (** [temp_dir prefix suffix] creates and returns the name of a fresh
    temporary directory with permissions [perms] (defaults to 0o700)
    inside [temp_dir].  The base name of the temporary directory is
@@ -181,7 +181,7 @@ val temp_dir : ?temp_dir: string -> ?perms:int  -> string -> string -> string
    @since 5.1
 *)
 
-val get_temp_dir_name : unit -> string
+val get_temp_dir_name : unit -> string @@ portable
 (** The name of the temporary directory:
     Under Unix, the value of the [TMPDIR] environment variable, or "/tmp"
     if the variable is not set.
@@ -191,7 +191,7 @@ val get_temp_dir_name : unit -> string
     @since 4.00
 *)
 
-val set_temp_dir_name : string -> unit
+val set_temp_dir_name : string -> unit @@ portable
 (** Change the temporary directory returned by {!Filename.get_temp_dir_name}
     and used by {!Filename.temp_file} and {!Filename.open_temp_file}.
     The temporary directory is a domain-local value which is inherited
@@ -199,7 +199,7 @@ val set_temp_dir_name : string -> unit
     @since 4.00
 *)
 
-val quote : string -> string
+val quote : string -> string @@ portable
 (** Return a quoted version of a file name, suitable for use as
     one argument in a command line, escaping all meta-characters.
     Warning: under Windows, the output is only suitable for use
@@ -209,7 +209,7 @@ val quote : string -> string
 
 val quote_command :
        string -> ?stdin:string -> ?stdout:string -> ?stderr:string
-              -> string list -> string
+              -> string list -> string @@ portable
 (** [quote_command cmd args] returns a quoted command line, suitable
     for use as an argument to {!Sys.command}, {!Unix.system}, and the
     {!Unix.open_process} functions.

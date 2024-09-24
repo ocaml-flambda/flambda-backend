@@ -28,11 +28,11 @@ type t = unit = () (**)
     but it is not intended to be used in user-defined data types.
  *)
 
-val equal : t -> t -> bool
+val equal : t -> t -> bool @@ portable
 (** [equal u1 u2] is [true]. *)
 
-val compare : t -> t -> int
+val compare : t -> t -> int @@ portable
 (** [compare u1 u2] is [0]. *)
 
-val to_string : t -> string
+val to_string : t -> string @@ portable
 (** [to_string b] is ["()"]. *)

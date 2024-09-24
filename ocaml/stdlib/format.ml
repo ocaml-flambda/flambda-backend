@@ -33,11 +33,11 @@ let id x = x
 module Size : sig
   type t
 
-  val to_int : t -> int
-  val of_int : int -> t
-  val zero : t
-  val unknown : t
-  val is_known : t -> bool
+  val to_int : t -> int @@ portable
+  val of_int : int -> t @@ portable
+  val zero : t @@ portable
+  val unknown : t @@ portable
+  val is_known : t -> bool @@ portable
 end  = struct
   type t = int
 

@@ -23,40 +23,40 @@ type t
 
 type raw_data = nativeint
 
-external repr : 'a -> t = "%obj_magic"
-external obj : t -> 'a = "%obj_magic"
-external magic : 'a -> 'b = "%obj_magic"
-external is_int : t -> bool = "%obj_is_int"
+external repr : 'a -> t @@ portable = "%obj_magic"
+external obj : t -> 'a @@ portable = "%obj_magic"
+external magic : 'a -> 'b @@ portable = "%obj_magic"
+external is_int : t -> bool @@ portable = "%obj_is_int"
 let [@inline always] is_block a = not (is_int a)
-external tag : t -> int = "caml_obj_tag" [@@noalloc]
+external tag : t -> int @@ portable = "caml_obj_tag" [@@noalloc]
 (* For Flambda 2 there is a strict distinction between arrays and other
    blocks.  %obj_size and %obj_field may only be used on blocks.  As such
    they are protected here using [Sys.opaque_identity], since this
    restriction is likely not respected by callees of this module. *)
-external size : t -> int = "%obj_size"
+external size : t -> int @@ portable = "%obj_size"
 let [@inline always] size t = size (Sys.opaque_identity t)
-external reachable_words : t -> int = "caml_obj_reachable_words"
-external uniquely_reachable_words : t array -> int array * int = "caml_obj_uniquely_reachable_words"
-external field : t -> int -> t = "%obj_field"
+external reachable_words : t -> int @@ portable = "caml_obj_reachable_words"
+external uniquely_reachable_words : t array -> int array * int @@ portable = "caml_obj_uniquely_reachable_words"
+external field : t -> int -> t @@ portable = "%obj_field"
 let [@inline always] field t index = field (Sys.opaque_identity t) index
-external set_field : t -> int -> t -> unit = "%obj_set_field"
+external set_field : t -> int -> t -> unit @@ portable = "%obj_set_field"
 let [@inline always] set_field t index new_value =
   set_field (Sys.opaque_identity t) index new_value
-external floatarray_get : floatarray -> int -> float = "caml_floatarray_get"
+external floatarray_get : floatarray -> int -> float @@ portable = "caml_floatarray_get"
 external floatarray_set :
-    floatarray -> int -> float -> unit = "caml_floatarray_set"
+    floatarray -> int -> float -> unit @@ portable = "caml_floatarray_set"
 let [@inline always] double_field x i = floatarray_get (obj x : floatarray) i
 let [@inline always] set_double_field x i v =
   floatarray_set (obj x : floatarray) i v
-external raw_field : t -> int -> raw_data = "caml_obj_raw_field"
-external set_raw_field : t -> int -> raw_data -> unit
+external raw_field : t -> int -> raw_data @@ portable = "caml_obj_raw_field"
+external set_raw_field : t -> int -> raw_data -> unit @@ portable
                                           = "caml_obj_set_raw_field"
 
-external new_block : int -> int -> t = "caml_obj_block"
+external new_block : int -> int -> t @@ portable = "caml_obj_block"
 
-external dup : t -> t = "%obj_dup"
-external add_offset : t -> Int32.t -> t = "caml_obj_add_offset"
-external with_tag : int -> t -> t = "caml_obj_with_tag"
+external dup : t -> t @@ portable = "%obj_dup"
+external add_offset : t -> Int32.t -> t @@ portable = "caml_obj_add_offset"
+external with_tag : int -> t -> t @@ portable = "caml_obj_with_tag"
 
 let first_non_constant_constructor_tag = 0
 let last_non_constant_constructor_tag = 243
@@ -142,7 +142,7 @@ module Ephemeron = struct
   let additional_values = 2
   let max_ephe_length = Sys.max_array_length - additional_values
 
-  external create : int -> t = "caml_ephe_create"
+  external create : int -> t @@ portable = "caml_ephe_create"
   let create l =
     if not (0 <= l && l <= max_ephe_length) then
       invalid_arg "Obj.Ephemeron.create";
@@ -154,32 +154,32 @@ module Ephemeron = struct
     if not (0 <= o && o < length e) then
       invalid_arg msg
 
-  external get_key: t -> int -> obj_t option = "caml_ephe_get_key"
+  external get_key: t -> int -> obj_t option @@ portable = "caml_ephe_get_key"
   let get_key e o =
     raise_if_invalid_offset e o "Obj.Ephemeron.get_key";
     get_key e o
 
-  external get_key_copy: t -> int -> obj_t option = "caml_ephe_get_key_copy"
+  external get_key_copy: t -> int -> obj_t option @@ portable = "caml_ephe_get_key_copy"
   let get_key_copy e o =
     raise_if_invalid_offset e o "Obj.Ephemeron.get_key_copy";
     get_key_copy e o
 
-  external set_key: t -> int -> obj_t -> unit = "caml_ephe_set_key"
+  external set_key: t -> int -> obj_t -> unit @@ portable = "caml_ephe_set_key"
   let set_key e o x =
     raise_if_invalid_offset e o "Obj.Ephemeron.set_key";
     set_key e o x
 
-  external unset_key: t -> int -> unit = "caml_ephe_unset_key"
+  external unset_key: t -> int -> unit @@ portable = "caml_ephe_unset_key"
   let unset_key e o =
     raise_if_invalid_offset e o "Obj.Ephemeron.unset_key";
     unset_key e o
 
-  external check_key: t -> int -> bool = "caml_ephe_check_key"
+  external check_key: t -> int -> bool @@ portable = "caml_ephe_check_key"
   let check_key e o =
     raise_if_invalid_offset e o "Obj.Ephemeron.check_key";
     check_key e o
 
-  external blit_key : t -> int -> t -> int -> int -> unit
+  external blit_key : t -> int -> t -> int -> int -> unit @@ portable
     = "caml_ephe_blit_key"
 
   let blit_key e1 o1 e2 o2 l =
@@ -188,12 +188,12 @@ module Ephemeron = struct
     then invalid_arg "Obj.Ephemeron.blit_key"
     else if l <> 0 then blit_key e1 o1 e2 o2 l
 
-  external get_data: t -> obj_t option = "caml_ephe_get_data"
-  external get_data_copy: t -> obj_t option = "caml_ephe_get_data_copy"
-  external set_data: t -> obj_t -> unit = "caml_ephe_set_data"
-  external unset_data: t -> unit = "caml_ephe_unset_data"
-  external check_data: t -> bool = "caml_ephe_check_data"
-  external blit_data : t -> t -> unit = "caml_ephe_blit_data"
+  external get_data: t -> obj_t option @@ portable = "caml_ephe_get_data"
+  external get_data_copy: t -> obj_t option @@ portable = "caml_ephe_get_data_copy"
+  external set_data: t -> obj_t -> unit @@ portable = "caml_ephe_set_data"
+  external unset_data: t -> unit @@ portable = "caml_ephe_unset_data"
+  external check_data: t -> bool @@ portable = "caml_ephe_check_data"
+  external blit_data : t -> t -> unit @@ portable = "caml_ephe_blit_data"
 
 end
 
@@ -207,7 +207,7 @@ module Uniform_or_mixed = struct
    *)
   type t = int
 
-  external of_block : obj_t -> t = "caml_succ_scannable_prefix_len" [@@noalloc]
+  external of_block : obj_t -> t @@ portable = "caml_succ_scannable_prefix_len" [@@noalloc]
 
   type repr =
     | Uniform

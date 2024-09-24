@@ -28,35 +28,35 @@ type t = bool = false | true (**)
     paths, but they are not intended to be used in user-defined data types.
  *)
 
-val not : bool -> bool
+val not : bool -> bool @@ portable
 (** [not b] is the boolean negation of [b]. *)
 
-external ( && ) : bool -> bool -> bool = "%sequand"
+external ( && ) : bool -> bool -> bool @@ portable = "%sequand"
 (** [e0 && e1] is the lazy boolean conjunction of expressions [e0] and [e1].
     If [e0] evaluates to [false], [e1] is not evaluated. Right-associative
     operator at precedence level 3/11. *)
 
-external ( || ) : bool -> bool -> bool = "%sequor"
+external ( || ) : bool -> bool -> bool @@ portable = "%sequor"
 (** [e0 || e1] is the lazy boolean disjunction of expressions [e0] and [e1].
     If [e0] evaluates to [true], [e1] is not evaluated. Right-associative
     operator at precedence level 2/11. *)
 
 (** {1:preds Predicates and comparisons} *)
 
-val equal : bool -> bool -> bool
+val equal : bool -> bool -> bool @@ portable
 (** [equal b0 b1] is [true] if and only if [b0] and [b1] are both [true]
     or both [false]. *)
 
-val compare : bool -> bool -> int
+val compare : bool -> bool -> int @@ portable
 (** [compare b0 b1] is a total order on boolean values. [false] is smaller
     than [true]. *)
 
 (** {1:convert Converting} *)
 
-val to_int : bool -> int
+val to_int : bool -> int @@ portable
 (** [to_int b] is [0] if [b] is [false] and [1] if [b] is [true]. *)
 
-val to_float : bool -> float
+val to_float : bool -> float @@ portable
 (** [to_float b] is [0.] if [b] is [false] and [1.] if [b] is [true]. *)
 
 (*
@@ -65,18 +65,18 @@ val of_string : string -> bool option
     is ["false"] and [None] otherwise. *)
 *)
 
-val to_string : bool -> string
+val to_string : bool -> string @@ portable
 (** [to_string b] is ["true"] if [b] is [true] and ["false"] if [b] is
     [false]. *)
 
-val seeded_hash : int -> bool -> int
+val seeded_hash : int -> bool -> int @@ portable
 (** A seeded hash function for booleans, with the same output value as
     {!Hashtbl.seeded_hash}. This function allows this module to be passed as
     argument to the functor {!Hashtbl.MakeSeeded}.
 
     @since 5.1 *)
 
-val hash : bool -> int
+val hash : bool -> int @@ portable
 (** An unseeded hash function for booleans, with the same output value as
     {!Hashtbl.hash}. This function allows this module to be passed as argument
     to the functor {!Hashtbl.Make}.

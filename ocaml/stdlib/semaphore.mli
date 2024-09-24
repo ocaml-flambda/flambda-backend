@@ -48,14 +48,14 @@ module Counting : sig
 type t
 (** The type of counting semaphores. *)
 
-val make : int -> t
+val make : int -> t @@ portable
 (** [make n] returns a new counting semaphore, with initial value [n].
     The initial value [n] must be nonnegative.
 
     @raise Invalid_argument if [n < 0]
 *)
 
-val release : t -> unit
+val release : t -> unit @@ portable
 (** [release s] increments the value of semaphore [s].
     If other threads are waiting on [s], one of them is restarted.
     If the current value of [s] is equal to [max_int], the value of
@@ -65,18 +65,18 @@ val release : t -> unit
     @raise Sys_error if the value of the semaphore would overflow [max_int]
 *)
 
-val acquire : t -> unit
+val acquire : t -> unit @@ portable
 (** [acquire s] blocks the calling thread until the value of semaphore [s]
     is not zero, then atomically decrements the value of [s] and returns.
 *)
 
-val try_acquire : t -> bool
+val try_acquire : t -> bool @@ portable
 (** [try_acquire s] immediately returns [false] if the value of semaphore [s]
     is zero.  Otherwise, the value of [s] is atomically decremented
     and [try_acquire s] returns [true].
 *)
 
-val get_value : t -> int
+val get_value : t -> int @@ portable
 (** [get_value s] returns the current value of semaphore [s].
     The current value can be modified at any time by concurrent
     {!release} and {!acquire} operations.  Hence, the [get_value]
@@ -114,26 +114,26 @@ module Binary : sig
 type t
 (** The type of binary semaphores. *)
 
-val make : bool -> t
+val make : bool -> t @@ portable
 (** [make b] returns a new binary semaphore.
     If [b] is [true], the initial value of the semaphore is 1, meaning
     "available".  If [b] is [false], the initial value of the
     semaphore is 0, meaning "unavailable".
 *)
 
-val release : t -> unit
+val release : t -> unit @@ portable
 (** [release s] sets the value of semaphore [s] to 1, putting it in the
     "available" state.  If other threads are waiting on [s], one of them is
     restarted.
 *)
 
-val acquire : t -> unit
+val acquire : t -> unit @@ portable
 (** [acquire s] blocks the calling thread until the semaphore [s]
     has value 1 (is available), then atomically sets it to 0
     and returns.
 *)
 
-val try_acquire : t -> bool
+val try_acquire : t -> bool @@ portable
 (** [try_acquire s] immediately returns [false] if the semaphore [s]
     has value 0.  If [s] has value 1, its value is atomically set to 0
     and [try_acquire s] returns [true].

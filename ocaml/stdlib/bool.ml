@@ -19,12 +19,12 @@ open! Stdlib
 
 type t = bool = false | true
 
-external not : bool -> bool = "%boolnot"
-external ( && ) : bool -> bool -> bool = "%sequand"
-external ( || ) : bool -> bool -> bool = "%sequor"
+external not : bool -> bool @@ portable = "%boolnot"
+external ( && ) : bool -> bool -> bool @@ portable = "%sequand"
+external ( || ) : bool -> bool -> bool @@ portable = "%sequor"
 let equal : bool -> bool -> bool = ( = )
 let compare : bool -> bool -> int = Stdlib.compare
-external to_int : bool -> int = "%identity"
+external to_int : bool -> int @@ portable = "%identity"
 let to_float = function false -> 0. | true -> 1.
 
 (*
@@ -40,7 +40,7 @@ let to_string = function false -> "false" | true -> "true"
    it to be marked as [@@noalloc].
  *)
 external seeded_hash_param :
-  int -> int -> int -> bool -> int = "caml_hash_exn" [@@noalloc]
+  int -> int -> int -> bool -> int @@ portable = "caml_hash_exn" [@@noalloc]
 
 let seeded_hash seed x = seeded_hash_param 10 100 seed x
 let hash x = seeded_hash_param 10 100 0 x

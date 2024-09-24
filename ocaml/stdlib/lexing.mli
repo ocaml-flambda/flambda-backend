@@ -40,7 +40,7 @@ type position = lexing_position = {
    how the lexing engine will manage positions.
  *)
 
-val dummy_pos : position
+val dummy_pos : position @@ portable
 (** A value of type [position], guaranteed to be different from any
    valid position.
  *)
@@ -92,18 +92,18 @@ type lexbuf =
    of line -- see also [new_line]).
 *)
 
-val from_channel : ?with_positions:bool -> in_channel -> lexbuf
+val from_channel : ?with_positions:bool -> in_channel -> lexbuf @@ portable
 (** Create a lexer buffer on the given input channel.
    [Lexing.from_channel inchan] returns a lexer buffer which reads
    from the input channel [inchan], at the current reading position. *)
 
-val from_string : ?with_positions:bool -> string -> lexbuf
+val from_string : ?with_positions:bool -> string -> lexbuf @@ portable
 (** Create a lexer buffer which reads from
    the given string. Reading starts from the first character in
    the string. An end-of-input condition is generated when the
    end of the string is reached. *)
 
-val from_function : ?with_positions:bool -> (bytes -> int -> int) -> lexbuf
+val from_function : ?with_positions:bool -> (bytes -> int -> int) -> lexbuf @@ portable
 (** Create a lexer buffer with the given function as its reading method.
    When the scanner needs more characters, it will call the given
    function, giving it a byte sequence [s] and a byte
@@ -111,17 +111,17 @@ val from_function : ?with_positions:bool -> (bytes -> int -> int) -> lexbuf
    starting at index 0, and return the number of bytes
    provided. A return value of 0 means end of input. *)
 
-val set_position : lexbuf -> position -> unit
+val set_position : lexbuf -> position -> unit @@ portable
 (** Set the initial tracked input position for [lexbuf] to a custom value.
    Ignores [pos_fname]. See {!set_filename} for changing this field.
    @since 4.11 *)
 
-val set_filename: lexbuf -> string -> unit
+val set_filename: lexbuf -> string -> unit @@ portable
 (** Set filename in the initial tracked position to [file] in
    [lexbuf].
    @since 4.11 *)
 
-val with_positions : lexbuf -> bool
+val with_positions : lexbuf -> bool @@ portable
 (** Tell whether the lexer buffer keeps track of position fields
     [lex_curr_p] / [lex_start_p], as determined by the corresponding
     optional argument for functions that create lexer buffers
@@ -145,35 +145,35 @@ val with_positions : lexbuf -> bool
    [ocamllex], is bound to the lexer buffer passed to the parsing
    function. *)
 
-val lexeme : lexbuf -> string
+val lexeme : lexbuf -> string @@ portable
 (** [Lexing.lexeme lexbuf] returns the string matched by
            the regular expression. *)
 
-val lexeme_char : lexbuf -> int -> char
+val lexeme_char : lexbuf -> int -> char @@ portable
 (** [Lexing.lexeme_char lexbuf i] returns character number [i] in
    the matched string. *)
 
-val lexeme_start : lexbuf -> int
+val lexeme_start : lexbuf -> int @@ portable
 (** [Lexing.lexeme_start lexbuf] returns the offset in the
    input stream of the first character of the matched string.
    The first character of the stream has offset 0. *)
 
-val lexeme_end : lexbuf -> int
+val lexeme_end : lexbuf -> int @@ portable
 (** [Lexing.lexeme_end lexbuf] returns the offset in the input stream
    of the character following the last character of the matched
    string. The first character of the stream has offset 0. *)
 
-val lexeme_start_p : lexbuf -> position
+val lexeme_start_p : lexbuf -> position @@ portable
 (** Like [lexeme_start], but return a complete [position] instead
     of an offset.  When position tracking is disabled, the function
     returns [dummy_pos]. *)
 
-val lexeme_end_p : lexbuf -> position
+val lexeme_end_p : lexbuf -> position @@ portable
 (** Like [lexeme_end], but return a complete [position] instead
     of an offset.  When position tracking is disabled, the function
     returns [dummy_pos]. *)
 
-val new_line : lexbuf -> unit
+val new_line : lexbuf -> unit @@ portable
 (** Update the [lex_curr_p] field of the lexbuf to reflect the start
     of a new line.  You can call this function in the semantic action
     of the rule that matches the end-of-line character.  The function
@@ -183,7 +183,7 @@ val new_line : lexbuf -> unit
 
 (** {1 Miscellaneous functions} *)
 
-val flush_input : lexbuf -> unit
+val flush_input : lexbuf -> unit @@ portable
 (** Discard the contents of the buffer and reset the current
     position to 0.  The next use of the lexbuf will trigger a
     refill. *)
@@ -193,10 +193,10 @@ val flush_input : lexbuf -> unit
 (** The following definitions are used by the generated scanners only.
    They are not intended to be used directly by user programs. *)
 
-val sub_lexeme : lexbuf -> int -> int -> string
-val sub_lexeme_opt : lexbuf -> int -> int -> string option
-val sub_lexeme_char : lexbuf -> int -> char
-val sub_lexeme_char_opt : lexbuf -> int -> char option
+val sub_lexeme : lexbuf -> int -> int -> string @@ portable
+val sub_lexeme_opt : lexbuf -> int -> int -> string option @@ portable
+val sub_lexeme_char : lexbuf -> int -> char @@ portable
+val sub_lexeme_char_opt : lexbuf -> int -> char option @@ portable
 
 type lex_tables =
   { lex_base : string;
@@ -211,5 +211,5 @@ type lex_tables =
     lex_check_code : string;
     lex_code: string;}
 
-val engine : lex_tables -> int -> lexbuf -> int
-val new_engine : lex_tables -> int -> lexbuf -> int
+val engine : lex_tables -> int -> lexbuf -> int @@ portable
+val new_engine : lex_tables -> int -> lexbuf -> int @@ portable

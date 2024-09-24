@@ -31,19 +31,19 @@ exception Undefined
    CAS is successful. If the CAS fails, then the tag was observed to be
    something other than [lazy_tag] due to a concurrent mutator. In this case,
    the function returns [1]. *)
-external update_to_forcing : Obj.t -> int =
+external update_to_forcing : Obj.t -> int @@ portable =
   "caml_lazy_update_to_forcing" [@@noalloc]
 
 (* [reset_to_lazy blk] expects [blk] to be a lazy object with [Obj.forcing_tag]
    and updates the tag to [Obj.lazy_tag], taking care to handle concurrent
    marking of this object's header by a concurrent GC thread. *)
-external reset_to_lazy : Obj.t -> unit = "caml_lazy_reset_to_lazy" [@@noalloc]
+external reset_to_lazy : Obj.t -> unit @@ portable = "caml_lazy_reset_to_lazy" [@@noalloc]
 
 (* [update_to_forward blk] expects [blk] to be a lazy object with
    [Obj.forcing_tag] and updates the tag to [Obj.forward_tag], taking care to
    handle concurrent marking of this object's header by a concurrent GC thread.
  *)
-external update_to_forward : Obj.t -> unit =
+external update_to_forward : Obj.t -> unit @@ portable =
   "caml_lazy_update_to_forward" [@@noalloc]
 
 (* Assumes [blk] is a block with tag forcing *)

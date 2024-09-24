@@ -27,7 +27,7 @@
 type !'a t
 
 (** Create an atomic reference. *)
-val make : 'a -> 'a t
+val make : 'a -> 'a t @@ portable
 
 (** Create an atomic reference that is alone on a cache line. It occupies 4-16x
     the memory of one allocated with [make v].
@@ -41,33 +41,33 @@ val make : 'a -> 'a t
     enhance performance.
 
     CR ocaml 5 all-runtime5: does not support runtime4 *)
-val make_contended : 'a -> 'a t
+val make_contended : 'a -> 'a t @@ portable
 
 (** Get the current value of the atomic reference. *)
-val get : 'a t -> 'a
+val get : 'a t -> 'a @@ portable
 
 (** Set a new value for the atomic reference. *)
-val set : 'a t -> 'a -> unit
+val set : 'a t -> 'a -> unit @@ portable
 
 (** Set a new value for the atomic reference, and return the current value. *)
-val exchange : 'a t -> 'a -> 'a
+val exchange : 'a t -> 'a -> 'a @@ portable
 
 (** [compare_and_set r seen v] sets the new value of [r] to [v] only
     if its current value is physically equal to [seen] -- the
     comparison and the set occur atomically. Returns [true] if the
     comparison succeeded (so the set happened) and [false]
     otherwise. *)
-val compare_and_set : 'a t -> 'a -> 'a -> bool
+val compare_and_set : 'a t -> 'a -> 'a -> bool @@ portable
 
 (** [fetch_and_add r n] atomically increments the value of [r] by [n],
     and returns the current value (before the increment). *)
-val fetch_and_add : int t -> int -> int
+val fetch_and_add : int t -> int -> int @@ portable
 
 (** [incr r] atomically increments the value of [r] by [1]. *)
-val incr : int t -> unit
+val incr : int t -> unit @@ portable
 
 (** [decr r] atomically decrements the value of [r] by [1]. *)
-val decr : int t -> unit
+val decr : int t -> unit @@ portable
 
 (** {1:examples Examples}
 

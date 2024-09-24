@@ -256,12 +256,12 @@ type control =
     OCAMLRUNPARAM environment variable.  See the documentation of
     [ocamlrun]. *)
 
-external stat : unit -> stat = "caml_gc_stat"
+external stat : unit -> stat @@ portable = "caml_gc_stat"
 (** Return the current values of the memory management counters in a
    [stat] record that represent the program's total memory stats.
    This function causes a full major collection. *)
 
-external quick_stat : unit -> stat = "caml_gc_quick_stat"
+external quick_stat : unit -> stat @@ portable = "caml_gc_quick_stat"
 (** Same as [stat] except that [live_words], [live_blocks], [free_words],
     [free_blocks], [largest_free], and [fragments] are set to 0. Due to
     per-domain buffers it may only represent the state of the program's
@@ -269,12 +269,12 @@ external quick_stat : unit -> stat = "caml_gc_quick_stat"
     much faster than [stat] because it does not need to trigger a full
     major collection. *)
 
-external counters : unit -> float * float * float = "caml_gc_counters"
+external counters : unit -> float * float * float @@ portable = "caml_gc_counters"
 (** Return [(minor_words, promoted_words, major_words)] for the current
     domain or potentially previous domains.  This function is as fast as
     [quick_stat]. *)
 
-external minor_words : unit -> (float [@unboxed])
+external minor_words : unit -> (float [@unboxed]) @@ portable
   = "caml_gc_minor_words" "caml_gc_minor_words_unboxed"
 (** Number of words allocated in the minor heap by this domain or potentially
     previous domains. This number is accurate in byte-code programs, but
@@ -284,23 +284,23 @@ external minor_words : unit -> (float [@unboxed])
 
     @since 4.04 *)
 
-external get : unit -> control = "caml_gc_get"
+external get : unit -> control @@ portable = "caml_gc_get"
 [@@alert unsynchronized_access
     "GC parameters are a mutable global state."
 ]
 (** Return the current values of the GC parameters in a [control] record. *)
 
-external set : control -> unit = "caml_gc_set"
+external set : control -> unit @@ portable = "caml_gc_set"
 [@@alert unsynchronized_access
     "GC parameters are a mutable global state."
 ]
  (** [set r] changes the GC parameters according to the [control] record [r].
    The normal usage is: [Gc.set { (Gc.get()) with Gc.verbose = 0x00d }] *)
 
-external minor : unit -> unit = "caml_gc_minor"
+external minor : unit -> unit @@ portable = "caml_gc_minor"
 (** Trigger a minor collection. *)
 
-external major_slice : int -> int = "caml_gc_major_slice"
+external major_slice : int -> int @@ portable = "caml_gc_major_slice"
 (** [major_slice n]
     Do a minor collection and a slice of major collection. [n] is the
     size of the slice: the GC will do enough work to free (on average)
@@ -308,34 +308,34 @@ external major_slice : int -> int = "caml_gc_major_slice"
     to ensure that the next automatic slice has no work to do.
     This function returns an unspecified integer (currently: 0). *)
 
-external major : unit -> unit = "caml_gc_major"
+external major : unit -> unit @@ portable = "caml_gc_major"
 (** Do a minor collection and finish the current major collection cycle. *)
 
-external full_major : unit -> unit = "caml_gc_full_major"
+external full_major : unit -> unit @@ portable = "caml_gc_full_major"
 (** Do a minor collection, finish the current major collection cycle,
    and perform a complete new cycle.  This will collect all currently
    unreachable blocks. *)
 
-external compact : unit -> unit = "caml_gc_compaction"
+external compact : unit -> unit @@ portable = "caml_gc_compaction"
 (** Perform a full major collection and compact the heap.  Note that heap
    compaction is a lengthy operation. *)
 
-val print_stat : out_channel -> unit
+val print_stat : out_channel -> unit @@ portable
 (** Print the current values of the memory management counters (in
    human-readable form) of the total program into the channel argument. *)
 
-val allocated_bytes : unit -> float
+val allocated_bytes : unit -> float @@ portable
 (** Return the number of bytes allocated by this domain and potentially
    a previous domain. It is returned as a [float] to avoid overflow problems
    with [int] on 32-bit machines. *)
 
-external get_minor_free : unit -> int = "caml_get_minor_free"
+external get_minor_free : unit -> int @@ portable = "caml_get_minor_free"
 (** Return the current size of the free space inside the minor heap of this
    domain.
 
     @since 4.03 *)
 
-val finalise : ('a -> unit) -> 'a -> unit
+val finalise : ('a -> unit) -> 'a -> unit @@ portable
 (** [finalise f v] registers [f] as a finalisation function for [v].
    [v] must be heap-allocated.  [f] will be called with [v] as
    argument at some point between the first time [v] becomes unreachable
@@ -401,7 +401,7 @@ val finalise : ('a -> unit) -> 'a -> unit
    heap-allocated and non-constant except when the length argument is [0].
 *)
 
-val finalise_last : (unit -> unit) -> 'a -> unit
+val finalise_last : (unit -> unit) -> 'a -> unit @@ portable
 (** same as {!finalise} except the value is not given as argument. So
     you can't use the given value for the computation of the
     finalisation function. The benefit is that the function is called
@@ -416,7 +416,7 @@ val finalise_last : (unit -> unit) -> 'a -> unit
     @since 4.04
 *)
 
-val finalise_release : unit -> unit
+val finalise_release : unit -> unit @@ portable
 (** A finalisation function may call [finalise_release] to tell the
     GC that it can launch the next finalisation function without waiting
     for the current one to return. *)
@@ -426,21 +426,21 @@ type alarm
    each major GC cycle.  The following functions are provided to create
    and delete alarms. *)
 
-val create_alarm : (unit -> unit) -> alarm
+val create_alarm : (unit -> unit) -> alarm @@ portable
 (** [create_alarm f] will arrange for [f] to be called at the end of each
    major GC cycle, not caused by [f] itself, starting with the current
    cycle or the next one.
    A value of type [alarm] is returned that you can
    use to call [delete_alarm]. *)
 
-val delete_alarm : alarm -> unit
+val delete_alarm : alarm -> unit @@ portable
 (** [delete_alarm a] will stop the calls to the function associated
    to [a]. Calling [delete_alarm a] again has no effect. *)
 
-external eventlog_pause : unit -> unit = "caml_eventlog_pause"
+external eventlog_pause : unit -> unit @@ portable = "caml_eventlog_pause"
 [@@ocaml.deprecated "Use Runtime_events.pause instead."]
 
-external eventlog_resume : unit -> unit = "caml_eventlog_resume"
+external eventlog_resume : unit -> unit @@ portable = "caml_eventlog_resume"
 [@@ocaml.deprecated "Use Runtime_events.resume instead."]
 
 (** [Memprof] is a profiling engine which randomly samples allocated
@@ -504,14 +504,14 @@ module Memprof :
        returns [None], memprof stops tracking the corresponding block.
        *)
 
-    val null_tracker: ('minor, 'major) tracker
+    val null_tracker: ('minor, 'major) tracker @@ portable
     (** Default callbacks simply return [None] or [()] *)
 
     val start :
       sampling_rate:float ->
       ?callstack_size:int ->
       ('minor, 'major) tracker ->
-      t
+      t @@ portable
     (** Start a profile with the given parameters. Raises an exception
        if a profile is already sampling in the current domain.
 
@@ -558,7 +558,7 @@ module Memprof :
        Different domains may sample for different profiles
        simultaneously.  *)
 
-    val stop : unit -> unit
+    val stop : unit -> unit @@ portable
     (** Stop sampling for the current profile. Fails if no profile is
        sampling in the current domain. Stops sampling in all threads
        and domains sharing the profile.
@@ -571,7 +571,7 @@ module Memprof :
        domains and threads sampling for it are terminated.
        *)
 
-    val discard : t -> unit
+    val discard : t -> unit @@ portable
     (** Discards all profiling state for a stopped profile, which
        prevents any more callbacks for it. Raises an exception if
        called on a profile which has not been stopped.

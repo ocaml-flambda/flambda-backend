@@ -17,9 +17,9 @@
 
 (* CamlinternalAtomic is a dependency of Stdlib, so it is compiled with
    -nopervasives. *)
-external ( == ) : 'a -> 'a -> bool = "%eq"
-external ( + ) : int -> int -> int = "%addint"
-external ignore : 'a -> unit = "%ignore"
+external ( == ) : 'a -> 'a -> bool @@ portable = "%eq"
+external ( + ) : int -> int -> int @@ portable = "%addint"
+external ignore : 'a -> unit @@ portable = "%ignore"
 
 (* We are not reusing ('a ref) directly to make it easier to reason
    about atomicity if we wish to: even in a sequential implementation,

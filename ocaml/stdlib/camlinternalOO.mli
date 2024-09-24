@@ -28,55 +28,55 @@ type meth
 type t
 type obj
 type closure
-val public_method_label : string -> tag
-val new_method : table -> label
-val new_variable : table -> string -> int
+val public_method_label : string -> tag @@ portable
+val new_method : table -> label @@ portable
+val new_variable : table -> string -> int @@ portable
 val new_methods_variables :
-    table -> string array -> string array -> label array
-val get_variable : table -> string -> int
-val get_variables : table -> string array -> int array
-val get_method_label : table -> string -> label
-val get_method_labels : table -> string array -> label array
-val get_method : table -> label -> meth
-val set_method : table -> label -> meth -> unit
-val set_methods : table -> label array -> unit
-val narrow : table -> string array -> string array -> string array -> unit
-val widen : table -> unit
-val add_initializer : table -> (obj -> unit) -> unit
-val dummy_table : table
-val create_table : string array -> table
-val init_class : table -> unit
+    table -> string array -> string array -> label array @@ portable
+val get_variable : table -> string -> int @@ portable
+val get_variables : table -> string array -> int array @@ portable
+val get_method_label : table -> string -> label @@ portable
+val get_method_labels : table -> string array -> label array @@ portable
+val get_method : table -> label -> meth @@ portable
+val set_method : table -> label -> meth -> unit @@ portable
+val set_methods : table -> label array -> unit @@ portable
+val narrow : table -> string array -> string array -> string array -> unit @@ portable
+val widen : table -> unit @@ portable
+val add_initializer : table -> (obj -> unit) -> unit @@ portable
+val dummy_table : table @@ portable
+val create_table : string array -> table @@ portable
+val init_class : table -> unit @@ portable
 val inherits :
     table -> string array -> string array -> string array ->
-    (t * (table -> obj -> Obj.t) * t * obj) -> bool -> Obj.t array
+    (t * (table -> obj -> Obj.t) * t * obj) -> bool -> Obj.t array @@ portable
 val make_class :
     string array -> (table -> Obj.t -> t) ->
-    (t * (table -> Obj.t -> t) * (Obj.t -> t) * Obj.t)
+    (t * (table -> Obj.t -> t) * (Obj.t -> t) * Obj.t) @@ portable
 type init_table
 val make_class_store :
-    string array -> (table -> t) -> init_table -> unit
+    string array -> (table -> t) -> init_table -> unit @@ portable
 val dummy_class :
     string * int * int ->
-    (t * (table -> Obj.t -> t) * (Obj.t -> t) * Obj.t)
+    (t * (table -> Obj.t -> t) * (Obj.t -> t) * Obj.t) @@ portable
 
 (** {1 Objects} *)
 
-val copy : (< .. > as 'a) -> 'a
-val create_object : table -> obj
-val create_object_opt : obj -> table -> obj
-val run_initializers : obj -> table -> unit
-val run_initializers_opt : obj -> obj -> table -> obj
-val create_object_and_run_initializers : obj -> table -> obj
-external send : obj -> tag -> t = "%send"
-external sendcache : obj -> tag -> t -> int -> t = "%sendcache"
-external sendself : obj -> label -> t = "%sendself"
-external get_public_method : obj -> tag -> closure
+val copy : (< .. > as 'a) -> 'a @@ portable
+val create_object : table -> obj @@ portable
+val create_object_opt : obj -> table -> obj @@ portable
+val run_initializers : obj -> table -> unit @@ portable
+val run_initializers_opt : obj -> obj -> table -> obj @@ portable
+val create_object_and_run_initializers : obj -> table -> obj @@ portable
+external send : obj -> tag -> t @@ portable = "%send"
+external sendcache : obj -> tag -> t -> int -> t @@ portable = "%sendcache"
+external sendself : obj -> label -> t @@ portable = "%sendself"
+external get_public_method : obj -> tag -> closure @@ portable
     = "caml_get_public_method" [@@noalloc]
 
 (** {1 Table cache} *)
 
 type tables
-val lookup_tables : tables -> closure array -> tables
+val lookup_tables : tables -> closure array -> tables @@ portable
 
 (** {1 Builtins to reduce code size} *)
 
@@ -144,7 +144,7 @@ type params =
     mutable retry_count : int;
     mutable bucket_small_size : int }
 
-val params : params
+val params : params @@ portable
 
 (** {1 Statistics} *)
 
@@ -152,4 +152,4 @@ type stats =
   { classes : int;
     methods : int;
     inst_vars : int }
-val stats : unit -> stats
+val stats : unit -> stats @@ portable

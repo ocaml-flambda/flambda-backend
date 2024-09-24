@@ -54,8 +54,8 @@ open! Stdlib
 type 'a t = 'a CamlinternalLazy.t
 
 exception Undefined = CamlinternalLazy.Undefined
-external make_forward : 'a -> 'a lazy_t = "caml_lazy_make_forward"
-external force : 'a t -> 'a = "%lazy_force"
+external make_forward : 'a -> 'a lazy_t @@ portable = "caml_lazy_make_forward"
+external force : 'a t -> 'a @@ portable = "%lazy_force"
 
 let force_val l = CamlinternalLazy.force_gen ~only_val:true l
 

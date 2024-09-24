@@ -280,71 +280,71 @@ let to_seq_values m = Seq.map snd (to_seq m)
 module type HashedType =
   sig
     type t
-    val equal: t -> t -> bool
-    val hash: t -> int
+    val equal: t -> t -> bool @@ portable
+    val hash: t -> int @@ portable
   end
 
 module type SeededHashedType =
   sig
     type t
-    val equal: t -> t -> bool
-    val seeded_hash: int -> t -> int
+    val equal: t -> t -> bool @@ portable
+    val seeded_hash: int -> t -> int @@ portable
   end
 
 module type S =
   sig
     type key
     type !'a t
-    val create: int -> 'a t
-    val clear : 'a t -> unit
-    val reset : 'a t -> unit
-    val copy: 'a t -> 'a t
-    val add: 'a t -> key -> 'a -> unit
-    val remove: 'a t -> key -> unit
-    val find: 'a t -> key -> 'a
-    val find_opt: 'a t -> key -> 'a option
-    val find_all: 'a t -> key -> 'a list
-    val replace : 'a t -> key -> 'a -> unit
-    val mem : 'a t -> key -> bool
-    val iter: (key -> 'a -> unit) -> 'a t -> unit
-    val filter_map_inplace: (key -> 'a -> 'a option) -> 'a t -> unit
-    val fold: (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
-    val length: 'a t -> int
-    val stats: 'a t -> statistics
-    val to_seq : 'a t -> (key * 'a) Seq.t
-    val to_seq_keys : _ t -> key Seq.t
-    val to_seq_values : 'a t -> 'a Seq.t
-    val add_seq : 'a t -> (key * 'a) Seq.t -> unit
-    val replace_seq : 'a t -> (key * 'a) Seq.t -> unit
-    val of_seq : (key * 'a) Seq.t -> 'a t
+    val create: int -> 'a t @@ portable
+    val clear : 'a t -> unit @@ portable
+    val reset : 'a t -> unit @@ portable
+    val copy: 'a t -> 'a t @@ portable
+    val add: 'a t -> key -> 'a -> unit @@ portable
+    val remove: 'a t -> key -> unit @@ portable
+    val find: 'a t -> key -> 'a @@ portable
+    val find_opt: 'a t -> key -> 'a option @@ portable
+    val find_all: 'a t -> key -> 'a list @@ portable
+    val replace : 'a t -> key -> 'a -> unit @@ portable
+    val mem : 'a t -> key -> bool @@ portable
+    val iter: (key -> 'a -> unit) -> 'a t -> unit @@ portable
+    val filter_map_inplace: (key -> 'a -> 'a option) -> 'a t -> unit @@ portable
+    val fold: (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b @@ portable
+    val length: 'a t -> int @@ portable
+    val stats: 'a t -> statistics @@ portable
+    val to_seq : 'a t -> (key * 'a) Seq.t @@ portable
+    val to_seq_keys : _ t -> key Seq.t @@ portable
+    val to_seq_values : 'a t -> 'a Seq.t @@ portable
+    val add_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
+    val replace_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
+    val of_seq : (key * 'a) Seq.t -> 'a t @@ portable
   end
 
 module type SeededS =
   sig
     type key
     type !'a t
-    val create : ?random:bool -> int -> 'a t
-    val clear : 'a t -> unit
-    val reset : 'a t -> unit
-    val copy : 'a t -> 'a t
-    val add : 'a t -> key -> 'a -> unit
-    val remove : 'a t -> key -> unit
-    val find : 'a t -> key -> 'a
-    val find_opt: 'a t -> key -> 'a option
-    val find_all : 'a t -> key -> 'a list
-    val replace : 'a t -> key -> 'a -> unit
-    val mem : 'a t -> key -> bool
-    val iter : (key -> 'a -> unit) -> 'a t -> unit
-    val filter_map_inplace: (key -> 'a -> 'a option) -> 'a t -> unit
-    val fold : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
-    val length : 'a t -> int
-    val stats: 'a t -> statistics
-    val to_seq : 'a t -> (key * 'a) Seq.t
-    val to_seq_keys : _ t -> key Seq.t
-    val to_seq_values : 'a t -> 'a Seq.t
-    val add_seq : 'a t -> (key * 'a) Seq.t -> unit
-    val replace_seq : 'a t -> (key * 'a) Seq.t -> unit
-    val of_seq : (key * 'a) Seq.t -> 'a t
+    val create : ?random:bool -> int -> 'a t @@ portable
+    val clear : 'a t -> unit @@ portable
+    val reset : 'a t -> unit @@ portable
+    val copy : 'a t -> 'a t @@ portable
+    val add : 'a t -> key -> 'a -> unit @@ portable
+    val remove : 'a t -> key -> unit @@ portable
+    val find : 'a t -> key -> 'a @@ portable
+    val find_opt: 'a t -> key -> 'a option @@ portable
+    val find_all : 'a t -> key -> 'a list @@ portable
+    val replace : 'a t -> key -> 'a -> unit @@ portable
+    val mem : 'a t -> key -> bool @@ portable
+    val iter : (key -> 'a -> unit) -> 'a t -> unit @@ portable
+    val filter_map_inplace: (key -> 'a -> 'a option) -> 'a t -> unit @@ portable
+    val fold : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b @@ portable
+    val length : 'a t -> int @@ portable
+    val stats: 'a t -> statistics @@ portable
+    val to_seq : 'a t -> (key * 'a) Seq.t @@ portable
+    val to_seq_keys : _ t -> key Seq.t @@ portable
+    val to_seq_values : 'a t -> 'a Seq.t @@ portable
+    val add_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
+    val replace_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
+    val of_seq : (key * 'a) Seq.t -> 'a t @@ portable
   end
 
 module MakeSeeded(H: SeededHashedType): (SeededS with type key = H.t) =
@@ -500,7 +500,7 @@ module Make(H: HashedType): (S with type key = H.t) =
    use - see #2202 *)
 
 external seeded_hash_param :
-  int -> int -> int -> 'a -> int = "caml_hash_exn"
+  int -> int -> int -> 'a -> int @@ portable = "caml_hash_exn"
 
 let hash x = seeded_hash_param 10 100 0 x
 let hash_param n1 n2 x = seeded_hash_param n1 n2 0 x

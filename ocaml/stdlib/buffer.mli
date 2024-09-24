@@ -49,7 +49,7 @@ open! Stdlib
 type t
 (** The abstract type of buffers. *)
 
-val create : int -> t
+val create : int -> t @@ portable
 (** [create n] returns a fresh buffer, initially empty.
    The [n] parameter is the initial size of the internal byte sequence
    that holds the buffer contents. That byte sequence is automatically
@@ -63,22 +63,22 @@ val create : int -> t
    If [n] is not between 1 and {!Sys.max_string_length}, it will
    be clipped to that interval. *)
 
-val contents : t -> string
+val contents : t -> string @@ portable
 (** Return a copy of the current contents of the buffer.
     The buffer itself is unchanged. *)
 
-val to_bytes : t -> bytes
+val to_bytes : t -> bytes @@ portable
 (** Return a copy of the current contents of the buffer.
     The buffer itself is unchanged.
     @since 4.02 *)
 
-val sub : t -> int -> int -> string
+val sub : t -> int -> int -> string @@ portable
 (** [Buffer.sub b off len] returns a copy of [len] bytes from the
     current contents of the buffer [b], starting at offset [off].
     @raise Invalid_argument if [off] and [len] do not designate a valid
     range of [b]. *)
 
-val blit : t -> int -> bytes -> int -> int -> unit
+val blit : t -> int -> bytes -> int -> int -> unit @@ portable
 (** [Buffer.blit src srcoff dst dstoff len] copies [len] characters from
    the current contents of the buffer [src], starting at offset [srcoff]
    to [dst], starting at character [dstoff].
@@ -88,29 +88,29 @@ val blit : t -> int -> bytes -> int -> int -> unit
    @since 3.11.2
 *)
 
-val nth : t -> int -> char
+val nth : t -> int -> char @@ portable
 (** Get the n-th character of the buffer.
     @raise Invalid_argument if
     index out of bounds *)
 
-val length : t -> int
+val length : t -> int @@ portable
 (** Return the number of characters currently contained in the buffer. *)
 
-val clear : t -> unit
+val clear : t -> unit @@ portable
 (** Empty the buffer. *)
 
-val reset : t -> unit
+val reset : t -> unit @@ portable
 (** Empty the buffer and deallocate the internal byte sequence holding the
    buffer contents, replacing it with the initial internal byte sequence
    of length [n] that was allocated by {!Buffer.create} [n].
    For long-lived buffers that may have grown a lot, [reset] allows
    faster reclamation of the space used by the buffer. *)
 
-val output_buffer : out_channel -> t -> unit
+val output_buffer : out_channel -> t -> unit @@ portable
 (** [output_buffer oc b] writes the current contents of buffer [b]
    on the output channel [oc]. *)
 
-val truncate : t -> int -> unit
+val truncate : t -> int -> unit @@ portable
 (** [truncate b len] truncates the length of [b] to [len]
   Note: the internal byte sequence is not shortened.
   @raise Invalid_argument if [len < 0] or [len > length b].
@@ -122,44 +122,44 @@ val truncate : t -> int -> unit
     sequence of the buffer would need to grow beyond {!Sys.max_string_length}.
 *)
 
-val add_char : t -> char -> unit
+val add_char : t -> char -> unit @@ portable
 (** [add_char b c] appends the character [c] at the end of buffer [b]. *)
 
-val add_utf_8_uchar : t -> Uchar.t -> unit
+val add_utf_8_uchar : t -> Uchar.t -> unit @@ portable
 (** [add_utf_8_uchar b u] appends the {{:https://tools.ietf.org/html/rfc3629}
     UTF-8} encoding of [u] at the end of buffer [b].
 
     @since 4.06 *)
 
-val add_utf_16le_uchar : t -> Uchar.t -> unit
+val add_utf_16le_uchar : t -> Uchar.t -> unit @@ portable
 (** [add_utf_16le_uchar b u] appends the
     {{:https://tools.ietf.org/html/rfc2781}UTF-16LE} encoding of [u]
     at the end of buffer [b].
 
     @since 4.06 *)
 
-val add_utf_16be_uchar : t -> Uchar.t -> unit
+val add_utf_16be_uchar : t -> Uchar.t -> unit @@ portable
 (** [add_utf_16be_uchar b u] appends the
     {{:https://tools.ietf.org/html/rfc2781}UTF-16BE} encoding of [u]
     at the end of buffer [b].
 
     @since 4.06 *)
 
-val add_string : t -> string -> unit
+val add_string : t -> string -> unit @@ portable
 (** [add_string b s] appends the string [s] at the end of buffer [b]. *)
 
-val add_bytes : t -> bytes -> unit
+val add_bytes : t -> bytes -> unit @@ portable
 (** [add_bytes b s] appends the byte sequence [s] at the end of buffer [b].
     @since 4.02 *)
 
-val add_substring : t -> string -> int -> int -> unit
+val add_substring : t -> string -> int -> int -> unit @@ portable
 (** [add_substring b s ofs len] takes [len] characters from offset
    [ofs] in string [s] and appends them at the end of buffer [b].
 
     @raise Invalid_argument if [ofs] and [len] do not designate a valid
     range of [s]. *)
 
-val add_subbytes : t -> bytes -> int -> int -> unit
+val add_subbytes : t -> bytes -> int -> int -> unit @@ portable
 (** [add_subbytes b s ofs len] takes [len] characters from offset
     [ofs] in byte sequence [s] and appends them at the end of buffer [b].
 
@@ -168,7 +168,7 @@ val add_subbytes : t -> bytes -> int -> int -> unit
 
     @since 4.02 *)
 
-val add_substitute : t -> (string -> string) -> string -> unit
+val add_substitute : t -> (string -> string) -> string -> unit @@ portable
 (** [add_substitute b f s] appends the string pattern [s] at the end
    of buffer [b] with substitution.
    The substitution process looks for variables into
@@ -184,11 +184,11 @@ val add_substitute : t -> (string -> string) -> string -> unit
    @raise Not_found if the closing character of a parenthesized variable
    cannot be found. *)
 
-val add_buffer : t -> t -> unit
+val add_buffer : t -> t -> unit @@ portable
 (** [add_buffer b1 b2] appends the current contents of buffer [b2]
    at the end of buffer [b1].  [b2] is not modified. *)
 
-val add_channel : t -> in_channel -> int -> unit
+val add_channel : t -> in_channel -> int -> unit @@ portable
 (** [add_channel b ic n] reads at most [n] characters from the
    input channel [ic] and stores them at the end of buffer [b].
    @raise End_of_file if the channel contains fewer than [n]
@@ -200,23 +200,23 @@ val add_channel : t -> in_channel -> int -> unit
 
 (** {1 Buffers and Sequences} *)
 
-val to_seq : t -> char Seq.t
+val to_seq : t -> char Seq.t @@ portable
 (** Iterate on the buffer, in increasing order.
 
     The behavior is not specified if the buffer is modified during iteration.
     @since 4.07 *)
 
-val to_seqi : t -> (int * char) Seq.t
+val to_seqi : t -> (int * char) Seq.t @@ portable
 (** Iterate on the buffer, in increasing order, yielding indices along chars.
 
     The behavior is not specified if the buffer is modified during iteration.
     @since 4.07 *)
 
-val add_seq : t -> char Seq.t -> unit
+val add_seq : t -> char Seq.t -> unit @@ portable
 (** Add chars to the buffer
     @since 4.07 *)
 
-val of_seq : char Seq.t -> t
+val of_seq : char Seq.t -> t @@ portable
 (** Create a buffer from the generator
     @since 4.07 *)
 
@@ -240,85 +240,85 @@ val of_seq : char Seq.t -> t
     significant bytes.
 *)
 
-val add_uint8 : t -> int -> unit
+val add_uint8 : t -> int -> unit @@ portable
 (** [add_uint8 b i] appends a binary unsigned 8-bit integer [i] to
     [b].
     @since 4.08
 *)
 
-val add_int8 : t -> int -> unit
+val add_int8 : t -> int -> unit @@ portable
 (** [add_int8 b i] appends a binary signed 8-bit integer [i] to
     [b].
     @since 4.08
 *)
 
-val add_uint16_ne : t -> int -> unit
+val add_uint16_ne : t -> int -> unit @@ portable
 (** [add_uint16_ne b i] appends a binary native-endian unsigned 16-bit
     integer [i] to [b].
     @since 4.08
 *)
 
-val add_uint16_be : t -> int -> unit
+val add_uint16_be : t -> int -> unit @@ portable
 (** [add_uint16_be b i] appends a binary big-endian unsigned 16-bit
     integer [i] to [b].
     @since 4.08
 *)
 
-val add_uint16_le : t -> int -> unit
+val add_uint16_le : t -> int -> unit @@ portable
 (** [add_uint16_le b i] appends a binary little-endian unsigned 16-bit
     integer [i] to [b].
     @since 4.08
 *)
 
-val add_int16_ne : t -> int -> unit
+val add_int16_ne : t -> int -> unit @@ portable
 (** [add_int16_ne b i] appends a binary native-endian signed 16-bit
     integer [i] to [b].
     @since 4.08
 *)
 
-val add_int16_be : t -> int -> unit
+val add_int16_be : t -> int -> unit @@ portable
 (** [add_int16_be b i] appends a binary big-endian signed 16-bit
     integer [i] to [b].
     @since 4.08
 *)
 
-val add_int16_le : t -> int -> unit
+val add_int16_le : t -> int -> unit @@ portable
 (** [add_int16_le b i] appends a binary little-endian signed 16-bit
     integer [i] to [b].
     @since 4.08
 *)
 
-val add_int32_ne : t -> int32 -> unit
+val add_int32_ne : t -> int32 -> unit @@ portable
 (** [add_int32_ne b i] appends a binary native-endian 32-bit integer
     [i] to [b].
     @since 4.08
 *)
 
-val add_int32_be : t -> int32 -> unit
+val add_int32_be : t -> int32 -> unit @@ portable
 (** [add_int32_be b i] appends a binary big-endian 32-bit integer
     [i] to [b].
     @since 4.08
 *)
 
-val add_int32_le : t -> int32 -> unit
+val add_int32_le : t -> int32 -> unit @@ portable
 (** [add_int32_le b i] appends a binary little-endian 32-bit integer
     [i] to [b].
     @since 4.08
 *)
 
-val add_int64_ne  : t -> int64 -> unit
+val add_int64_ne  : t -> int64 -> unit @@ portable
 (** [add_int64_ne b i] appends a binary native-endian 64-bit integer
     [i] to [b].
     @since 4.08
 *)
 
-val add_int64_be : t -> int64 -> unit
+val add_int64_be : t -> int64 -> unit @@ portable
 (** [add_int64_be b i] appends a binary big-endian 64-bit integer
     [i] to [b].
     @since 4.08
 *)
 
-val add_int64_le : t -> int64 -> unit
+val add_int64_le : t -> int64 -> unit @@ portable
 (** [add_int64_ne b i] appends a binary little-endian 64-bit integer
     [i] to [b].
     @since 4.08

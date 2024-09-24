@@ -17,27 +17,27 @@ open! Stdlib
 
 (** Character operations. *)
 
-external code : char -> int = "%identity"
+external code : char -> int @@ portable = "%identity"
 (** Return the ASCII code of the argument. *)
 
-val chr : int -> char
+val chr : int -> char @@ portable
 (** Return the character with the given ASCII code.
    @raise Invalid_argument if the argument is
    outside the range 0--255. *)
 
-val escaped : char -> string
+val escaped : char -> string @@ portable
 (** Return a string representing the given character,
     with special characters escaped following the lexical conventions
     of OCaml.
     All characters outside the ASCII printable range (32..126) are
     escaped, as well as backslash, double-quote, and single-quote. *)
 
-val lowercase_ascii : char -> char
+val lowercase_ascii : char -> char @@ portable
 (** Convert the given character to its equivalent lowercase character,
    using the US-ASCII character set.
    @since 4.03 *)
 
-val uppercase_ascii : char -> char
+val uppercase_ascii : char -> char @@ portable
 (** Convert the given character to its equivalent uppercase character,
    using the US-ASCII character set.
    @since 4.03 *)
@@ -45,24 +45,24 @@ val uppercase_ascii : char -> char
 type t = char
 (** An alias for the type of characters. *)
 
-val compare: t -> t -> int
+val compare: t -> t -> int @@ portable
 (** The comparison function for characters, with the same specification as
     {!Stdlib.compare}.  Along with the type [t], this function [compare]
     allows the module [Char] to be passed as argument to the functors
     {!Set.Make} and {!Map.Make}. *)
 
-val equal: t -> t -> bool
+val equal: t -> t -> bool @@ portable
 (** The equal function for chars.
     @since 4.03 *)
 
-val seeded_hash : int -> t -> int
+val seeded_hash : int -> t -> int @@ portable
 (** A seeded hash function for characters, with the same output value as
     {!Hashtbl.seeded_hash}. This function allows this module to be passed as
     argument to the functor {!Hashtbl.MakeSeeded}.
 
     @since 5.1 *)
 
-val hash : t -> int
+val hash : t -> int @@ portable
 (** An unseeded hash function for characters, with the same output value as
     {!Hashtbl.hash}. This function allows this module to be passed as argument
     to the functor {!Hashtbl.Make}.
@@ -73,4 +73,4 @@ val hash : t -> int
 
 (* The following is for system use only. Do not call directly. *)
 
-external unsafe_chr : int -> char = "%identity"
+external unsafe_chr : int -> char @@ portable = "%identity"

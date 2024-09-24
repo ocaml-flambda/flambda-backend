@@ -20,17 +20,17 @@ open! Stdlib
 type t = exn = ..
 (** The type of exception values. *)
 
-val to_string: exn -> string
+val to_string: exn -> string @@ portable
 (** [Printexc.to_string e] returns a string representation of
    the exception [e]. *)
 
-val to_string_default: exn -> string
+val to_string_default: exn -> string @@ portable
 (** [Printexc.to_string_default e] returns a string representation of the
     exception [e], ignoring all registered exception printers.
     @since 4.09
 *)
 
-val print: ('a -> 'b) -> 'a -> 'b
+val print: ('a -> 'b) -> 'a -> 'b @@ portable
 (** [Printexc.print fn x] applies [fn] to [x] and returns the result.
    If the evaluation of [fn x] raises any exception, the
    name of the exception is printed on standard error output,
@@ -38,7 +38,7 @@ val print: ('a -> 'b) -> 'a -> 'b
    The typical use is to catch and report exceptions that
    escape a function application. *)
 
-val catch: ('a -> 'b) -> 'a -> 'b
+val catch: ('a -> 'b) -> 'a -> 'b @@ portable
 [@@ocaml.deprecated "This function is no longer needed."]
 (** [Printexc.catch fn x] is similar to {!Printexc.print}, but
    aborts the program with exit code 2 after printing the
@@ -49,7 +49,7 @@ val catch: ('a -> 'b) -> 'a -> 'b
    using the debugger or the stack backtrace facility.
    So, do not use [Printexc.catch] in new code.  *)
 
-val print_backtrace: out_channel -> unit
+val print_backtrace: out_channel -> unit @@ portable
 (** [Printexc.print_backtrace oc] prints an exception backtrace
     on the output channel [oc].  The backtrace lists the program
     locations where the most-recently raised exception was raised
@@ -64,14 +64,14 @@ val print_backtrace: out_channel -> unit
     @since 3.11
 *)
 
-val get_backtrace: unit -> string
+val get_backtrace: unit -> string @@ portable
 (** [Printexc.get_backtrace ()] returns a string containing the
     same exception backtrace that [Printexc.print_backtrace] would
     print. Same restriction usage than {!print_backtrace}.
     @since 3.11
 *)
 
-val record_backtrace: bool -> unit
+val record_backtrace: bool -> unit @@ portable
 (** [Printexc.record_backtrace b] turns recording of exception backtraces
     on (if [b = true]) or off (if [b = false]).  Initially, backtraces
     are not recorded, unless the [b] flag is given to the program
@@ -79,13 +79,13 @@ val record_backtrace: bool -> unit
     @since 3.11
 *)
 
-val backtrace_status: unit -> bool
+val backtrace_status: unit -> bool @@ portable
 (** [Printexc.backtrace_status()] returns [true] if exception
     backtraces are currently recorded, [false] if not.
     @since 3.11
 *)
 
-val register_printer: (exn -> string option) -> unit
+val register_printer: (exn -> string option) -> unit @@ portable
 (** [Printexc.register_printer fn] registers [fn] as an exception
     printer.  The printer should return [None] or raise an exception
     if it does not know how to convert the passed exception, and [Some
@@ -104,7 +104,7 @@ val register_printer: (exn -> string option) -> unit
     @since 3.11.2
 *)
 
-val use_printers: exn -> string option
+val use_printers: exn -> string option @@ portable
 (** [Printexc.use_printers e] returns [None] if there are no registered
     printers and [Some s] with else as the resulting string otherwise.
     @since 4.09
@@ -149,10 +149,10 @@ type raw_backtrace_entry = private int
 
     @since 4.12 *)
 
-val raw_backtrace_entries : raw_backtrace -> raw_backtrace_entry array
+val raw_backtrace_entries : raw_backtrace -> raw_backtrace_entry array @@ portable
 (** @since 4.12 *)
 
-val get_raw_backtrace: unit -> raw_backtrace
+val get_raw_backtrace: unit -> raw_backtrace @@ portable
 (** [Printexc.get_raw_backtrace ()] returns the same exception
     backtrace that [Printexc.print_backtrace] would print, but in
     a raw format. Same restriction usage than {!print_backtrace}.
@@ -160,21 +160,21 @@ val get_raw_backtrace: unit -> raw_backtrace
     @since 4.01
 *)
 
-val print_raw_backtrace: out_channel -> raw_backtrace -> unit
+val print_raw_backtrace: out_channel -> raw_backtrace -> unit @@ portable
 (** Print a raw backtrace in the same format
     [Printexc.print_backtrace] uses.
 
     @since 4.01
 *)
 
-val raw_backtrace_to_string: raw_backtrace -> string
+val raw_backtrace_to_string: raw_backtrace -> string @@ portable
 (** Return a string from a raw backtrace, in the same format
     [Printexc.get_backtrace] uses.
 
     @since 4.01
 *)
 
-external raise_with_backtrace: exn -> raw_backtrace -> 'a
+external raise_with_backtrace: exn -> raw_backtrace -> 'a @@ portable
   = "%raise_with_backtrace"
 (** Reraise the exception using the given raw_backtrace for the
     origin of the exception
@@ -184,7 +184,7 @@ external raise_with_backtrace: exn -> raw_backtrace -> 'a
 
 (** {1 Current call stack} *)
 
-external get_callstack: int -> raw_backtrace = "caml_get_current_callstack"
+external get_callstack: int -> raw_backtrace @@ portable = "caml_get_current_callstack"
 (** [Printexc.get_callstack n] returns a description of the top of the
     call stack on the current program point (for the current thread),
     with at most [n] entries.  (Note: this function is not related to
@@ -195,14 +195,14 @@ external get_callstack: int -> raw_backtrace = "caml_get_current_callstack"
 
 (** {1 Uncaught exceptions} *)
 
-val default_uncaught_exception_handler: exn -> raw_backtrace -> unit
+val default_uncaught_exception_handler: exn -> raw_backtrace -> unit @@ portable
 (** [Printexc.default_uncaught_exception_handler] prints the exception and
     backtrace on standard error output.
 
     @since 4.11
 *)
 
-val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit
+val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit @@ portable
 (** [Printexc.set_uncaught_exception_handler fn] registers [fn] as the handler
     for uncaught exceptions. The default handler is
     {!Printexc.default_uncaught_exception_handler}.
@@ -234,7 +234,7 @@ type backtrace_slot
     @since 4.02
 *)
 
-val backtrace_slots : raw_backtrace -> backtrace_slot array option
+val backtrace_slots : raw_backtrace -> backtrace_slot array option @@ portable
 (** Returns the slots of a raw backtrace, or [None] if none of them
     contain useful information.
 
@@ -252,7 +252,7 @@ val backtrace_slots : raw_backtrace -> backtrace_slot array option
 *)
 
 val backtrace_slots_of_raw_entry :
-  raw_backtrace_entry -> backtrace_slot array option
+  raw_backtrace_entry -> backtrace_slot array option @@ portable
 (** Returns the slots of a single raw backtrace entry, or [None] if this
     entry lacks debug information.
 
@@ -282,7 +282,7 @@ type location = {
 module Slot : sig
   type t = backtrace_slot
 
-  val is_raise : t -> bool
+  val is_raise : t -> bool @@ portable
   (** [is_raise slot] is [true] when [slot] refers to a raising
       point in the code, and [false] when it comes from a simple
       function call.
@@ -290,7 +290,7 @@ module Slot : sig
       @since 4.02
   *)
 
-  val is_inline : t -> bool
+  val is_inline : t -> bool @@ portable
   (** [is_inline slot] is [true] when [slot] refers to a call
       that got inlined by the compiler, and [false] when it comes from
       any other context.
@@ -298,7 +298,7 @@ module Slot : sig
       @since 4.04
   *)
 
-  val location : t -> location option
+  val location : t -> location option @@ portable
   (** [location slot] returns the location information of the slot,
       if available, and [None] otherwise.
 
@@ -310,7 +310,7 @@ module Slot : sig
       @since 4.02
   *)
 
-  val name : t -> string option
+  val name : t -> string option @@ portable
   (** [name slot] returns the name of the function or definition
       enclosing the location referred to by the slot.
 
@@ -320,7 +320,7 @@ module Slot : sig
       @since 4.11
   *)
 
-  val format : int -> t -> string option
+  val format : int -> t -> string option @@ portable
   (** [format pos slot] returns the string representation of [slot] as
       [raw_backtrace_to_string] would format it, assuming it is the
       [pos]-th element of the backtrace: the [0]-th element is
@@ -352,21 +352,21 @@ type raw_backtrace_slot
     @since 4.02
 *)
 
-val raw_backtrace_length : raw_backtrace -> int
+val raw_backtrace_length : raw_backtrace -> int @@ portable
 (** [raw_backtrace_length bckt] returns the number of slots in the
     backtrace [bckt].
 
     @since 4.02
 *)
 
-val get_raw_backtrace_slot : raw_backtrace -> int -> raw_backtrace_slot
+val get_raw_backtrace_slot : raw_backtrace -> int -> raw_backtrace_slot @@ portable
 (** [get_raw_backtrace_slot bckt pos] returns the slot in position [pos] in the
     backtrace [bckt].
 
     @since 4.02
 *)
 
-val convert_raw_backtrace_slot : raw_backtrace_slot -> backtrace_slot
+val convert_raw_backtrace_slot : raw_backtrace_slot -> backtrace_slot @@ portable
 (** Extracts the user-friendly [backtrace_slot] from a low-level
     [raw_backtrace_slot].
 
@@ -375,7 +375,7 @@ val convert_raw_backtrace_slot : raw_backtrace_slot -> backtrace_slot
 
 
 val get_raw_backtrace_next_slot :
-    raw_backtrace_slot -> raw_backtrace_slot option
+    raw_backtrace_slot -> raw_backtrace_slot option @@ portable
 (** [get_raw_backtrace_next_slot slot] returns the next slot inlined, if any.
 
     Sample code to iterate over all frames (inlined and non-inlined):
@@ -399,7 +399,7 @@ val get_raw_backtrace_next_slot :
 
 (** {1 Exception slots} *)
 
-val exn_slot_id: exn -> int
+val exn_slot_id: exn -> int @@ portable
 (** [Printexc.exn_slot_id] returns an integer which uniquely identifies
     the constructor used to create the exception value [exn]
     (in the current runtime).
@@ -407,7 +407,7 @@ val exn_slot_id: exn -> int
     @since 4.02
 *)
 
-val exn_slot_name: exn -> string
+val exn_slot_name: exn -> string @@ portable
 (** [Printexc.exn_slot_name exn] returns the internal name of the constructor
     used to create the exception value [exn].
 
@@ -421,4 +421,4 @@ val exn_slot_name: exn -> string
    module
 *)
 
-val string_of_extension_constructor: Obj.t -> string
+val string_of_extension_constructor: Obj.t -> string @@ portable

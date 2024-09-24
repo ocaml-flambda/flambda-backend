@@ -19,30 +19,30 @@ open! Stdlib
 
 (* Module [Int32]: 32-bit integers *)
 
-external neg : (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_neg"
-external add : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_add"
-external sub : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_sub"
-external mul : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_mul"
-external div : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_div"
-external rem : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_mod"
-external logand : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_and"
-external logor : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_or"
-external logxor : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) = "%int32_xor"
-external shift_left : (int32[@local_opt]) -> int -> (int32[@local_opt]) = "%int32_lsl"
-external shift_right : (int32[@local_opt]) -> int -> (int32[@local_opt]) = "%int32_asr"
-external shift_right_logical : (int32[@local_opt]) -> int -> (int32[@local_opt]) = "%int32_lsr"
-external of_int : int -> (int32[@local_opt]) = "%int32_of_int"
-external to_int : (int32[@local_opt]) -> int = "%int32_to_int"
-external of_float : float -> int32
+external neg : (int32[@local_opt]) -> (int32[@local_opt]) @@ portable = "%int32_neg"
+external add : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) @@ portable = "%int32_add"
+external sub : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) @@ portable = "%int32_sub"
+external mul : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) @@ portable = "%int32_mul"
+external div : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) @@ portable = "%int32_div"
+external rem : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) @@ portable = "%int32_mod"
+external logand : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) @@ portable = "%int32_and"
+external logor : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) @@ portable = "%int32_or"
+external logxor : (int32[@local_opt]) -> (int32[@local_opt]) -> (int32[@local_opt]) @@ portable = "%int32_xor"
+external shift_left : (int32[@local_opt]) -> int -> (int32[@local_opt]) @@ portable = "%int32_lsl"
+external shift_right : (int32[@local_opt]) -> int -> (int32[@local_opt]) @@ portable = "%int32_asr"
+external shift_right_logical : (int32[@local_opt]) -> int -> (int32[@local_opt]) @@ portable = "%int32_lsr"
+external of_int : int -> (int32[@local_opt]) @@ portable = "%int32_of_int"
+external to_int : (int32[@local_opt]) -> int @@ portable = "%int32_to_int"
+external of_float : float -> int32 @@ portable
   = "caml_int32_of_float" "caml_int32_of_float_unboxed"
   [@@unboxed] [@@noalloc]
-external to_float : int32 -> float
+external to_float : int32 -> float @@ portable
   = "caml_int32_to_float" "caml_int32_to_float_unboxed"
   [@@unboxed] [@@noalloc]
-external bits_of_float : float -> int32
+external bits_of_float : float -> int32 @@ portable
   = "caml_int32_bits_of_float" "caml_int32_bits_of_float_unboxed"
   [@@unboxed] [@@noalloc]
-external float_of_bits : int32 -> float
+external float_of_bits : int32 -> float @@ portable
   = "caml_int32_float_of_bits" "caml_int32_float_of_bits_unboxed"
   [@@unboxed] [@@noalloc]
 
@@ -72,10 +72,10 @@ let unsigned_to_int =
   | _ ->
       assert false
 
-external format : string -> int32 -> string = "caml_int32_format"
+external format : string -> int32 -> string @@ portable = "caml_int32_format"
 let[@inline available] to_string n = format "%d" n
 
-external of_string : string -> (int32[@unboxed])
+external of_string : string -> (int32[@unboxed]) @@ portable
   = "caml_int32_of_string" "caml_int32_of_string_unboxed"
 
 let[@inline available] of_string_opt s =
@@ -112,6 +112,6 @@ let[@inline available] unsigned_rem n d =
    it to be marked as [@@noalloc].
  *)
 external seeded_hash_param :
-  int -> int -> int -> int32 -> int = "caml_hash_exn" [@@noalloc]
+  int -> int -> int -> int32 -> int @@ portable = "caml_hash_exn" [@@noalloc]
 let seeded_hash seed x = seeded_hash_param 10 100 seed x
 let hash x = seeded_hash_param 10 100 0 x

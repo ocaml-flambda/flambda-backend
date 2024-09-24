@@ -30,14 +30,14 @@ type !'a t
 (** A domain of type ['a t] runs independently, eventually producing a
     result of type 'a, or an exception *)
 
-val spawn : (unit -> 'a) -> 'a t
+val spawn : (unit -> 'a) -> 'a t @@ portable
 (** [spawn f] creates a new domain that runs in parallel with the
     current domain.
 
     @raise Failure if the program has insufficient resources to create another
     domain. *)
 
-val join : 'a t -> 'a
+val join : 'a t -> 'a @@ portable
 (** [join d] blocks until domain [d] runs to completion. If [d] results in a
     value, then that is returned by [join d]. If [d] raises an uncaught
     exception, then that is re-raised by [join d]. *)
@@ -45,26 +45,26 @@ val join : 'a t -> 'a
 type id = private int
 (** Domains have unique integer identifiers *)
 
-val get_id : 'a t -> id
+val get_id : 'a t -> id @@ portable
 (** [get_id d] returns the identifier of the domain [d] *)
 
-val self : unit -> id
+val self : unit -> id @@ portable
 (** [self ()] is the identifier of the currently running domain *)
 
-val cpu_relax : unit -> unit
+val cpu_relax : unit -> unit @@ portable
 (** If busy-waiting, calling cpu_relax () between iterations
     will improve performance on some CPU architectures *)
 
-val is_main_domain : unit -> bool
+val is_main_domain : unit -> bool @@ portable
 (** [is_main_domain ()] returns true if called from the initial domain. *)
 
-val recommended_domain_count : unit -> int
+val recommended_domain_count : unit -> int @@ portable
 (** The recommended maximum number of domains which should be running
     simultaneously (including domains already running).
 
     The value returned is at least [1]. *)
 
-val before_first_spawn : (unit -> unit) -> unit
+val before_first_spawn : (unit -> unit) -> unit @@ portable
 (** [before_first_spawn f] registers [f] to be called before the first domain
     is spawned by the program. The functions registered with
     [before_first_spawn] are called on the main (initial) domain. The functions
@@ -73,7 +73,7 @@ val before_first_spawn : (unit -> unit) -> unit
 
     @raise Invalid_argument if the program has already spawned a domain. *)
 
-val at_exit : (unit -> unit) -> unit
+val at_exit : (unit -> unit) -> unit @@ portable
 (** [at_exit f] registers [f] to be called when the current domain exits. Note
     that [at_exit] callbacks are domain-local and only apply to the calling
     domain. The registered functions are called in 'last in, first out' order:
@@ -97,7 +97,7 @@ module DLS : sig
     type 'a key
     (** Type of a DLS key *)
 
-    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key
+    val new_key : ?split_from_parent:('a -> 'a) -> (unit -> 'a) -> 'a key @@ portable
     (** [new_key f] returns a new key bound to initialiser [f] for accessing
 ,        domain-local variables.
 
@@ -133,12 +133,12 @@ module DLS : sig
         explicit synchronization to avoid data races.
     *)
 
-    val get : 'a key -> 'a
+    val get : 'a key -> 'a @@ portable
     (** [get k] returns [v] if a value [v] is associated to the key [k] on
         the calling domain's domain-local state. Sets [k]'s value with its
         initialiser and returns it otherwise. *)
 
-    val set : 'a key -> 'a -> unit
+    val set : 'a key -> 'a -> unit @@ portable
     (** [set k v] updates the calling domain's domain-local state to associate
         the key [k] with value [v]. It overwrites any previous values associated
         to [k], which cannot be restored later. *)

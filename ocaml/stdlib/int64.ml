@@ -19,30 +19,30 @@ open! Stdlib
 
 (* Module [Int64]: 64-bit integers *)
 
-external neg : (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_neg"
-external add : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_add"
-external sub : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_sub"
-external mul : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_mul"
-external div : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_div"
-external rem : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_mod"
-external logand : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_and"
-external logor : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_or"
-external logxor : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) = "%int64_xor"
-external shift_left : (int64[@local_opt]) -> int -> (int64[@local_opt]) = "%int64_lsl"
-external shift_right : (int64[@local_opt]) -> int -> (int64[@local_opt]) = "%int64_asr"
-external shift_right_logical : (int64[@local_opt]) -> int -> (int64[@local_opt]) = "%int64_lsr"
-external of_int : int -> (int64[@local_opt]) = "%int64_of_int"
-external to_int : (int64[@local_opt]) -> int = "%int64_to_int"
-external of_float : float -> int64
+external neg : (int64[@local_opt]) -> (int64[@local_opt]) @@ portable = "%int64_neg"
+external add : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) @@ portable = "%int64_add"
+external sub : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) @@ portable = "%int64_sub"
+external mul : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) @@ portable = "%int64_mul"
+external div : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) @@ portable = "%int64_div"
+external rem : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) @@ portable = "%int64_mod"
+external logand : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) @@ portable = "%int64_and"
+external logor : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) @@ portable = "%int64_or"
+external logxor : (int64[@local_opt]) -> (int64[@local_opt]) -> (int64[@local_opt]) @@ portable = "%int64_xor"
+external shift_left : (int64[@local_opt]) -> int -> (int64[@local_opt]) @@ portable = "%int64_lsl"
+external shift_right : (int64[@local_opt]) -> int -> (int64[@local_opt]) @@ portable = "%int64_asr"
+external shift_right_logical : (int64[@local_opt]) -> int -> (int64[@local_opt]) @@ portable = "%int64_lsr"
+external of_int : int -> (int64[@local_opt]) @@ portable = "%int64_of_int"
+external to_int : (int64[@local_opt]) -> int @@ portable = "%int64_to_int"
+external of_float : float -> int64 @@ portable
   = "caml_int64_of_float" "caml_int64_of_float_unboxed"
   [@@unboxed] [@@noalloc]
-external to_float : int64 -> float
+external to_float : int64 -> float @@ portable
   = "caml_int64_to_float" "caml_int64_to_float_unboxed"
   [@@unboxed] [@@noalloc]
-external of_int32 : int32 -> int64 = "%int64_of_int32"
-external to_int32 : int64 -> int32 = "%int64_to_int32"
-external of_nativeint : nativeint -> int64 = "%int64_of_nativeint"
-external to_nativeint : int64 -> nativeint = "%int64_to_nativeint"
+external of_int32 : int32 -> int64 @@ portable = "%int64_of_int32"
+external to_int32 : int64 -> int32 @@ portable = "%int64_to_int32"
+external of_nativeint : nativeint -> int64 @@ portable = "%int64_of_nativeint"
+external to_nativeint : int64 -> nativeint @@ portable = "%int64_to_nativeint"
 
 let zero = 0L
 let one = 1L
@@ -62,10 +62,10 @@ let unsigned_to_int =
     else
       None
 
-external format : string -> int64 -> string = "caml_int64_format"
+external format : string -> int64 -> string @@ portable = "caml_int64_format"
 let[@inline available] to_string n = format "%d" n
 
-external of_string : string -> (int64[@unboxed])
+external of_string : string -> (int64[@unboxed]) @@ portable
   = "caml_int64_of_string" "caml_int64_of_string_unboxed"
 
 let[@inline available] of_string_opt s =
@@ -75,10 +75,10 @@ let[@inline available] of_string_opt s =
 
 
 
-external bits_of_float : float -> int64
+external bits_of_float : float -> int64 @@ portable
   = "caml_int64_bits_of_float" "caml_int64_bits_of_float_unboxed"
   [@@unboxed] [@@noalloc]
-external float_of_bits : int64 -> float
+external float_of_bits : int64 -> float @@ portable
   = "caml_int64_float_of_bits" "caml_int64_float_of_bits_unboxed"
   [@@unboxed] [@@noalloc]
 
@@ -111,6 +111,6 @@ let[@inline available] unsigned_rem n d =
    it to be marked as [@@noalloc].
  *)
 external seeded_hash_param :
-  int -> int -> int -> int64 -> int = "caml_hash_exn" [@@noalloc]
+  int -> int -> int -> int64 -> int @@ portable = "caml_hash_exn" [@@noalloc]
 let seeded_hash seed x = seeded_hash_param 10 100 seed x
 let hash x = seeded_hash_param 10 100 0 x

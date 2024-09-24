@@ -21,24 +21,24 @@ module type SeededS = sig
 
   type key
   type !'a t
-  val create : ?random (*thwart tools/sync_stdlib_docs*) : bool -> int -> 'a t
-  val clear : 'a t -> unit
-  val reset : 'a t -> unit
-  val copy : 'a t -> 'a t
-  val add : 'a t -> key -> 'a -> unit
-  val remove : 'a t -> key -> unit
-  val find : 'a t -> key -> 'a
-  val find_opt : 'a t -> key -> 'a option
-  val find_all : 'a t -> key -> 'a list
-  val replace : 'a t -> key -> 'a -> unit
-  val mem : 'a t -> key -> bool
-  val length : 'a t -> int
-  val stats : 'a t -> Hashtbl.statistics
-  val add_seq : 'a t -> (key * 'a) Seq.t -> unit
-  val replace_seq : 'a t -> (key * 'a) Seq.t -> unit
-  val of_seq : (key * 'a) Seq.t -> 'a t
-  val clean: 'a t -> unit
-  val stats_alive: 'a t -> Hashtbl.statistics
+  val create : ?random (*thwart tools/sync_stdlib_docs*) : bool -> int -> 'a t @@ portable
+  val clear : 'a t -> unit @@ portable
+  val reset : 'a t -> unit @@ portable
+  val copy : 'a t -> 'a t @@ portable
+  val add : 'a t -> key -> 'a -> unit @@ portable
+  val remove : 'a t -> key -> unit @@ portable
+  val find : 'a t -> key -> 'a @@ portable
+  val find_opt : 'a t -> key -> 'a option @@ portable
+  val find_all : 'a t -> key -> 'a list @@ portable
+  val replace : 'a t -> key -> 'a -> unit @@ portable
+  val mem : 'a t -> key -> bool @@ portable
+  val length : 'a t -> int @@ portable
+  val stats : 'a t -> Hashtbl.statistics @@ portable
+  val add_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
+  val replace_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
+  val of_seq : (key * 'a) Seq.t -> 'a t @@ portable
+  val clean: 'a t -> unit @@ portable
+  val stats_alive: 'a t -> Hashtbl.statistics @@ portable
     (** same as {!stats} but only count the alive bindings *)
 end
 
@@ -46,24 +46,24 @@ module type S = sig
 
   type key
   type !'a t
-  val create : int -> 'a t
-  val clear : 'a t -> unit
-  val reset : 'a t -> unit
-  val copy : 'a t -> 'a t
-  val add : 'a t -> key -> 'a -> unit
-  val remove : 'a t -> key -> unit
-  val find : 'a t -> key -> 'a
-  val find_opt : 'a t -> key -> 'a option
-  val find_all : 'a t -> key -> 'a list
-  val replace : 'a t -> key -> 'a -> unit
-  val mem : 'a t -> key -> bool
-  val length : 'a t -> int
-  val stats : 'a t -> Hashtbl.statistics
-  val add_seq : 'a t -> (key * 'a) Seq.t -> unit
-  val replace_seq : 'a t -> (key * 'a) Seq.t -> unit
-  val of_seq : (key * 'a) Seq.t -> 'a t
-  val clean: 'a t -> unit
-  val stats_alive: 'a t -> Hashtbl.statistics
+  val create : int -> 'a t @@ portable
+  val clear : 'a t -> unit @@ portable
+  val reset : 'a t -> unit @@ portable
+  val copy : 'a t -> 'a t @@ portable
+  val add : 'a t -> key -> 'a -> unit @@ portable
+  val remove : 'a t -> key -> unit @@ portable
+  val find : 'a t -> key -> 'a @@ portable
+  val find_opt : 'a t -> key -> 'a option @@ portable
+  val find_all : 'a t -> key -> 'a list @@ portable
+  val replace : 'a t -> key -> 'a -> unit @@ portable
+  val mem : 'a t -> key -> bool @@ portable
+  val length : 'a t -> int @@ portable
+  val stats : 'a t -> Hashtbl.statistics @@ portable
+  val add_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
+  val replace_seq : 'a t -> (key * 'a) Seq.t -> unit @@ portable
+  val of_seq : (key * 'a) Seq.t -> 'a t @@ portable
+  val clean: 'a t -> unit @@ portable
+  val stats_alive: 'a t -> Hashtbl.statistics @@ portable
     (** same as {!stats} but only count the alive bindings *)
 end
 
@@ -76,12 +76,12 @@ module GenHashTable = struct
   module MakeSeeded(H: sig
     type t
     type 'a container
-    val create: t -> 'a -> 'a container
-    val seeded_hash: int -> t -> int
-    val equal: 'a container -> t -> equal
-    val get_data: 'a container -> 'a option
-    val set_key_data: 'a container -> t -> 'a -> unit
-    val check_key: 'a container -> bool
+    val create: t -> 'a -> 'a container @@ portable
+    val seeded_hash: int -> t -> int @@ portable
+    val equal: 'a container -> t -> equal @@ portable
+    val get_data: 'a container -> 'a option @@ portable
+    val set_key_data: 'a container -> t -> 'a -> unit @@ portable
+    val check_key: 'a container -> bool @@ portable
   end) : SeededS with type key = H.t
   = struct
 

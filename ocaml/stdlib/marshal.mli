@@ -62,7 +62,7 @@ type extern_flags =
                                             @since 5.1 *)
 (** The flags to the [Marshal.to_*] functions below. *)
 
-val to_channel : out_channel -> 'a -> extern_flags list -> unit
+val to_channel : out_channel -> 'a -> extern_flags list -> unit @@ portable
 (** [Marshal.to_channel chan v flags] writes the representation
    of [v] on channel [chan]. The [flags] argument is a
    possibly empty list of flags that governs the marshaling
@@ -129,7 +129,7 @@ val to_channel : out_channel -> 'a -> extern_flags list -> unit
  *)
 
 external to_bytes :
-  'a -> extern_flags list -> bytes = "caml_output_value_to_bytes"
+  'a -> extern_flags list -> bytes @@ portable = "caml_output_value_to_bytes"
 (** [Marshal.to_bytes v flags] returns a byte sequence containing
    the representation of [v].
    The [flags] argument has the same meaning as for
@@ -137,11 +137,11 @@ external to_bytes :
    @since 4.02 *)
 
 external to_string :
-  'a -> extern_flags list -> string = "caml_output_value_to_string"
+  'a -> extern_flags list -> string @@ portable = "caml_output_value_to_string"
 (** Same as [to_bytes] but return the result as a string instead of
     a byte sequence. *)
 
-val to_buffer : bytes -> int -> int -> 'a -> extern_flags list -> int
+val to_buffer : bytes -> int -> int -> 'a -> extern_flags list -> int @@ portable
 (** [Marshal.to_buffer buff ofs len v flags] marshals the value [v],
    storing its byte representation in the sequence [buff],
    starting at index [ofs], and writing at most
@@ -150,7 +150,7 @@ val to_buffer : bytes -> int -> int -> 'a -> extern_flags list -> int
    of [v] does not fit in [len] characters, the exception [Failure]
    is raised. *)
 
-val from_channel : in_channel -> 'a
+val from_channel : in_channel -> 'a @@ portable
 (** [Marshal.from_channel chan] reads from channel [chan] the
    byte representation of a structured value, as produced by
    one of the [Marshal.to_*] functions, and reconstructs and
@@ -161,7 +161,7 @@ val from_channel : in_channel -> 'a
    @raise Failure if the end of the file is reached during
    unmarshalling itself or if [chan] is not in binary mode.*)
 
-val from_bytes : bytes -> int -> 'a
+val from_bytes : bytes -> int -> 'a @@ portable
 (** [Marshal.from_bytes buff ofs] unmarshals a structured value
    like {!Marshal.from_channel} does, except that the byte
    representation is not read from a channel, but taken from
@@ -169,11 +169,11 @@ val from_bytes : bytes -> int -> 'a
    The byte sequence is not mutated.
    @since 4.02 *)
 
-val from_string : string -> int -> 'a
+val from_string : string -> int -> 'a @@ portable
 (** Same as [from_bytes] but take a string as argument instead of a
     byte sequence. *)
 
-val header_size : int
+val header_size : int @@ portable
 (** The bytes representing a marshaled value are composed of
    a fixed-size header and a variable-sized data part,
    whose size can be determined from the header.
@@ -195,13 +195,13 @@ val header_size : int
    data, then read it, and finally call {!Marshal.from_bytes}
    to unmarshal the value. *)
 
-val data_size : bytes -> int -> int
+val data_size : bytes -> int -> int @@ portable
 (** See {!Marshal.header_size}.*)
 
-val total_size : bytes -> int -> int
+val total_size : bytes -> int -> int @@ portable
 (** See {!Marshal.header_size}.*)
 
-val compression_supported : unit -> bool
+val compression_supported : unit -> bool @@ portable
 (** Indicates whether the compressed data format is supported.
 
     If [Marshal.compression_supported()] is [true], compressed data

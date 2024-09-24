@@ -14,13 +14,13 @@
 (**************************************************************************)
 
 type t
-external create: unit -> t = "caml_ml_mutex_new"
-external lock: t -> unit = "caml_ml_mutex_lock"
-external try_lock: t -> bool = "caml_ml_mutex_try_lock"
-external unlock: t -> unit = "caml_ml_mutex_unlock"
+external create: unit -> t @@ portable = "caml_ml_mutex_new"
+external lock: t -> unit @@ portable = "caml_ml_mutex_lock"
+external try_lock: t -> bool @@ portable = "caml_ml_mutex_try_lock"
+external unlock: t -> unit @@ portable = "caml_ml_mutex_unlock"
 
 (* private re-export *)
-external reraise : exn -> 'a = "%reraise"
+external reraise : exn -> 'a @@ portable = "%reraise"
 
 (* cannot inline, otherwise flambda might move code around. *)
 let[@inline never] protect m f =

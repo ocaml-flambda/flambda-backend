@@ -19,7 +19,7 @@ open! Stdlib
 
 [@@@ocaml.warning "+A-e"]
 
-val fprintf : out_channel -> ('a, out_channel, unit) format -> 'a
+val fprintf : out_channel -> ('a, out_channel, unit) format -> 'a @@ portable
 (** [fprintf outchan format arg1 ... argN] formats the arguments
    [arg1] to [argN] according to the format string [format], and
    outputs the resulting string on the channel [outchan].
@@ -130,28 +130,28 @@ val fprintf : out_channel -> ('a, out_channel, unit) format -> 'a
    For instance, [%.*f] prints a [float] with as many fractional
    digits as the value of the argument given before the float. *)
 
-val printf : ('a, out_channel, unit) format -> 'a
+val printf : ('a, out_channel, unit) format -> 'a @@ portable
 (** Same as {!Printf.fprintf}, but output on [stdout]. *)
 
-val eprintf : ('a, out_channel, unit) format -> 'a
+val eprintf : ('a, out_channel, unit) format -> 'a @@ portable
 (** Same as {!Printf.fprintf}, but output on [stderr]. *)
 
-val sprintf : ('a, unit, string) format -> 'a
+val sprintf : ('a, unit, string) format -> 'a @@ portable
 (** Same as {!Printf.fprintf}, but instead of printing on an output channel,
    return a string containing the result of formatting the arguments. *)
 
-val bprintf : Buffer.t -> ('a, Buffer.t, unit) format -> 'a
+val bprintf : Buffer.t -> ('a, Buffer.t, unit) format -> 'a @@ portable
 (** Same as {!Printf.fprintf}, but instead of printing on an output channel,
    append the formatted arguments to the given extensible buffer
    (see module {!Buffer}). *)
 
-val ifprintf : 'b -> ('a, 'b, 'c, unit) format4 -> 'a
+val ifprintf : 'b -> ('a, 'b, 'c, unit) format4 -> 'a @@ portable
 (** Same as {!Printf.fprintf}, but does not print anything.
     Useful to ignore some material when conditionally printing.
     @since 3.10
 *)
 
-val ibprintf : Buffer.t -> ('a, Buffer.t, unit) format -> 'a
+val ibprintf : Buffer.t -> ('a, Buffer.t, unit) format -> 'a @@ portable
 (** Same as {!Printf.bprintf}, but does not print anything.
     Useful to ignore some material when conditionally printing.
     @since 4.11
@@ -160,33 +160,33 @@ val ibprintf : Buffer.t -> ('a, Buffer.t, unit) format -> 'a
 (** Formatted output functions with continuations. *)
 
 val kfprintf : (out_channel -> 'd) -> out_channel ->
-              ('a, out_channel, unit, 'd) format4 -> 'a
+              ('a, out_channel, unit, 'd) format4 -> 'a @@ portable
 (** Same as [fprintf], but instead of returning immediately,
    passes the out channel to its first argument at the end of printing.
    @since 3.09
 *)
 
-val ikfprintf : ('b -> 'd) -> 'b -> ('a, 'b, 'c, 'd) format4 -> 'a
+val ikfprintf : ('b -> 'd) -> 'b -> ('a, 'b, 'c, 'd) format4 -> 'a @@ portable
 (** Same as [kfprintf] above, but does not print anything.
    Useful to ignore some material when conditionally printing.
    @since 4.01
 *)
 
-val ksprintf : (string -> 'd) -> ('a, unit, string, 'd) format4 -> 'a
+val ksprintf : (string -> 'd) -> ('a, unit, string, 'd) format4 -> 'a @@ portable
 (** Same as [sprintf] above, but instead of returning the string,
    passes it to the first argument.
    @since 3.09
 *)
 
 val kbprintf : (Buffer.t -> 'd) -> Buffer.t ->
-              ('a, Buffer.t, unit, 'd) format4 -> 'a
+              ('a, Buffer.t, unit, 'd) format4 -> 'a @@ portable
 (** Same as [bprintf], but instead of returning immediately,
    passes the buffer to its first argument at the end of printing.
    @since 3.10
 *)
 
 val ikbprintf : (Buffer.t -> 'd) -> Buffer.t ->
-               ('a, Buffer.t, unit, 'd) format4 -> 'a
+               ('a, Buffer.t, unit, 'd) format4 -> 'a @@ portable
 (** Same as [kbprintf] above, but does not print anything.
    Useful to ignore some material when conditionally printing.
    @since 4.11
@@ -194,6 +194,6 @@ val ikbprintf : (Buffer.t -> 'd) -> Buffer.t ->
 
 (** Deprecated *)
 
-val kprintf : (string -> 'b) -> ('a, unit, string, 'b) format4 -> 'a
+val kprintf : (string -> 'b) -> ('a, unit, string, 'b) format4 -> 'a @@ portable
 [@@ocaml.deprecated "Use Printf.ksprintf instead."]
 (** A deprecated synonym for [ksprintf]. *)

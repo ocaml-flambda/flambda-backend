@@ -325,18 +325,18 @@ let of_seq i =
 
 (** {6 Binary encoding of integers} *)
 
-external unsafe_set_int8 : bytes -> int -> int -> unit = "%bytes_unsafe_set"
-external unsafe_set_int16 : bytes -> int -> int -> unit = "%caml_bytes_set16u"
-external unsafe_set_int32 : bytes -> int -> int32 -> unit = "%caml_bytes_set32u"
-external unsafe_set_int64 : bytes -> int -> int64 -> unit = "%caml_bytes_set64u"
-external set_int8 : bytes -> int -> int -> unit = "%bytes_safe_set"
-external set_int16 : bytes -> int -> int -> unit = "%caml_bytes_set16"
-external set_int32 : bytes -> int -> int32 -> unit = "%caml_bytes_set32"
-external set_int64 : bytes -> int -> int64 -> unit = "%caml_bytes_set64"
+external unsafe_set_int8 : bytes -> int -> int -> unit @@ portable = "%bytes_unsafe_set"
+external unsafe_set_int16 : bytes -> int -> int -> unit @@ portable = "%caml_bytes_set16u"
+external unsafe_set_int32 : bytes -> int -> int32 -> unit @@ portable = "%caml_bytes_set32u"
+external unsafe_set_int64 : bytes -> int -> int64 -> unit @@ portable = "%caml_bytes_set64u"
+external set_int8 : bytes -> int -> int -> unit @@ portable = "%bytes_safe_set"
+external set_int16 : bytes -> int -> int -> unit @@ portable = "%caml_bytes_set16"
+external set_int32 : bytes -> int -> int32 -> unit @@ portable = "%caml_bytes_set32"
+external set_int64 : bytes -> int -> int64 -> unit @@ portable = "%caml_bytes_set64"
 
-external swap16 : int -> int = "%bswap16"
-external swap32 : int32 -> int32 = "%bswap_int32"
-external swap64 : int64 -> int64 = "%bswap_int64"
+external swap16 : int -> int @@ portable = "%bswap16"
+external swap32 : int32 -> int32 @@ portable = "%bswap_int32"
+external swap64 : int64 -> int64 @@ portable = "%bswap_int64"
 
 
 let add_int8 b x =

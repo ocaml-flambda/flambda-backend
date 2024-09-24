@@ -22,39 +22,39 @@ open! Stdlib
   an error.
 *)
 
-external argv : string array = "%sys_argv"
+external argv : string array @@ portable = "%sys_argv"
 (** The command line arguments given to the process.
    The first element is the command name used to invoke the program.
    The following elements are the command-line arguments
    given to the program. *)
 
-val executable_name : string
+val executable_name : string @@ portable
 (** The name of the file containing the executable currently running.
     This name may be absolute or relative to the current directory, depending
     on the platform and whether the program was compiled to bytecode or a native
     executable. *)
 
-external file_exists : string -> bool = "caml_sys_file_exists"
+external file_exists : string -> bool @@ portable = "caml_sys_file_exists"
 (** Test if a file with the given name exists. *)
 
-external is_directory : string -> bool = "caml_sys_is_directory"
+external is_directory : string -> bool @@ portable = "caml_sys_is_directory"
 (** Returns [true] if the given name refers to a directory,
     [false] if it refers to another kind of file.
     @raise Sys_error if no file exists with the given name.
     @since 3.10
 *)
 
-external is_regular_file : string -> bool = "caml_sys_is_regular_file"
+external is_regular_file : string -> bool @@ portable = "caml_sys_is_regular_file"
 (** Returns [true] if the given name refers to a regular file,
     [false] if it refers to another kind of file.
     @raise Sys_error if no file exists with the given name.
     @since 5.1
 *)
 
-external remove : string -> unit = "caml_sys_remove"
+external remove : string -> unit @@ portable = "caml_sys_remove"
 (** Remove the given file name from the file system. *)
 
-external rename : string -> string -> unit = "caml_sys_rename"
+external rename : string -> string -> unit @@ portable = "caml_sys_rename"
 (** Rename a file or directory.  [rename oldpath newpath] renames the
     file or directory called [oldpath], giving it [newpath] as its new name,
     moving it between (parent) directories if needed.  If a file named
@@ -65,18 +65,18 @@ external rename : string -> string -> unit = "caml_sys_rename"
     those of [oldpath].
    @since 4.06 concerning the "replace existing file" behavior *)
 
-external getenv : string -> string = "caml_sys_getenv"
+external getenv : string -> string @@ portable = "caml_sys_getenv"
 (** Return the value associated to a variable in the process
    environment.
    @raise Not_found if the variable is unbound. *)
 
-val getenv_opt: string -> string option
+val getenv_opt: string -> string option @@ portable
 (** Return the value associated to a variable in the process
     environment or [None] if the variable is unbound.
     @since 4.05
 *)
 
-external command : string -> int = "caml_sys_system_command"
+external command : string -> int @@ portable = "caml_sys_system_command"
 (** Execute the given shell command and return its exit code.
 
   The argument of {!Sys.command} is generally the name of a
@@ -96,30 +96,30 @@ external command : string -> int = "caml_sys_system_command"
   given a command name, a list of arguments, and optional file redirections.
 *)
 
-external time : unit -> (float [@unboxed]) =
+external time : unit -> (float [@unboxed]) @@ portable =
   "caml_sys_time" "caml_sys_time_unboxed" [@@noalloc]
 (** Return the processor time, in seconds, used by the program
    since the beginning of execution. *)
 
-external chdir : string -> unit = "caml_sys_chdir"
+external chdir : string -> unit @@ portable = "caml_sys_chdir"
 (** Change the current working directory of the process. *)
 
-external mkdir : string -> int -> unit = "caml_sys_mkdir"
+external mkdir : string -> int -> unit @@ portable = "caml_sys_mkdir"
 (** Create a directory with the given permissions.
 
     @since 4.12
 *)
 
-external rmdir : string -> unit = "caml_sys_rmdir"
+external rmdir : string -> unit @@ portable = "caml_sys_rmdir"
 (** Remove an empty directory.
 
     @since 4.12
 *)
 
-external getcwd : unit -> string = "caml_sys_getcwd"
+external getcwd : unit -> string @@ portable = "caml_sys_getcwd"
 (** Return the current working directory of the process. *)
 
-external readdir : string -> string array = "caml_sys_read_directory"
+external readdir : string -> string array @@ portable = "caml_sys_read_directory"
 (** Return the names of all files present in the given directory.
    Names denoting the current directory and the parent directory
    (["."] and [".."] in Unix) are not returned.  Each string in the
@@ -128,7 +128,7 @@ external readdir : string -> string array = "caml_sys_read_directory"
    in any specific order; they are not, in particular, guaranteed to
    appear in alphabetical order. *)
 
-val interactive : bool ref
+val interactive : bool ref @@ portable
 [@@alert unsynchronized_access
     "The interactive status is a mutable global state."
 ]
@@ -136,7 +136,7 @@ val interactive : bool ref
    programs and to [true] if the code is being executed under
    the interactive toplevel system [ocaml]. *)
 
-val os_type : string
+val os_type : string @@ portable
 (** Operating system currently executing the OCaml program. One of
 -  ["Unix"] (for all Unix versions, including Linux and Mac OS X),
 -  ["Win32"] (for MS-Windows, OCaml compiled with MSVC++ or MinGW-w64),
@@ -153,79 +153,79 @@ type backend_type =
     @since 4.04
 *)
 
-val backend_type : backend_type
+val backend_type : backend_type @@ portable
 (** Backend type  currently executing the OCaml program.
     @since 4.04
  *)
 
-val unix : bool
+val unix : bool @@ portable
 (** True if [Sys.os_type = "Unix"].
     @since 4.01 *)
 
-val win32 : bool
+val win32 : bool @@ portable
 (** True if [Sys.os_type = "Win32"].
     @since 4.01 *)
 
-val cygwin : bool
+val cygwin : bool @@ portable
 (** True if [Sys.os_type = "Cygwin"].
     @since 4.01 *)
 
-val word_size : int
+val word_size : int @@ portable
 (** Size of one word on the machine currently executing the OCaml
     program, in bits: 32 or 64. *)
 
-val int_size : int
+val int_size : int @@ portable
 (** Size of [int], in bits. It is 31 (resp. 63) when using OCaml on a
     32-bit (resp. 64-bit) platform. It may differ for other implementations,
     e.g. it can be 32 bits when compiling to JavaScript.
     @since 4.03 *)
 
-val big_endian : bool
+val big_endian : bool @@ portable
 (** Whether the machine currently executing the Caml program is big-endian.
     @since 4.00 *)
 
-val max_string_length : int
+val max_string_length : int @@ portable
 (** Maximum length of strings and byte sequences. *)
 
-val max_array_length : int
+val max_array_length : int @@ portable
 (** Maximum length of a normal array (i.e. any array whose elements are
     not unboxed and not of type [float]). The maximum length of a [float array]
     is [max_floatarray_length] if OCaml was configured with
     [--enable-flat-float-array] and [max_array_length] if configured
     with [--disable-flat-float-array]. *)
 
-val max_floatarray_length : int
+val max_floatarray_length : int @@ portable
 (** Maximum length of a floatarray. This is also the maximum length of
     a [float array] when OCaml is configured with
     [--enable-flat-float-array]. *)
 
-val max_unboxed_float_array_length : int
+val max_unboxed_float_array_length : int @@ portable
 (** Maximum length of a [float# array].
     Equivalent to [max_floatarray_length]. *)
 
-val max_unboxed_float32_array_length : int
+val max_unboxed_float32_array_length : int @@ portable
 (** Maximum length of a [float32# array].
     In non-native backends, equal to [max_array_length]. *)
 
-val max_unboxed_int64_array_length : int
+val max_unboxed_int64_array_length : int @@ portable
 (** Maximum length of a [int64# array].
     In non-native backends, equal to [max_array_length]. *)
 
-val max_unboxed_int32_array_length : int
+val max_unboxed_int32_array_length : int @@ portable
 (** Maximum length of a [int32# array].
     In non-native backends, equal to [max_array_length]. *)
 
-val max_unboxed_nativeint_array_length : int
+val max_unboxed_nativeint_array_length : int @@ portable
 (** Maximum length of a [nativeint# array].
     In non-native backends, equal to [max_array_length]. *)
 
-external runtime_variant : unit -> string = "caml_runtime_variant"
+external runtime_variant : unit -> string @@ portable = "caml_runtime_variant"
 (** Return the name of the runtime variant the program is running on.
     This is normally the argument given to [-runtime-variant] at compile
     time, but for byte-code it can be changed after compilation.
     @since 4.03 *)
 
-external runtime_parameters : unit -> string = "caml_runtime_parameters"
+external runtime_parameters : unit -> string @@ portable = "caml_runtime_parameters"
 (** Return the value of the runtime parameters, in the same format
     as the contents of the [OCAMLRUNPARAM] environment variable.
     @since 4.03 *)
@@ -246,107 +246,107 @@ type signal_behavior =
    number as argument. *)
 
 external signal :
-  int -> signal_behavior -> signal_behavior = "caml_install_signal_handler"
+  int -> signal_behavior -> signal_behavior @@ portable = "caml_install_signal_handler"
 (** Set the behavior of the system on receipt of a given signal.  The
    first argument is the signal number.  Return the behavior
    previously associated with the signal. If the signal number is
    invalid (or not available on your system), an [Invalid_argument]
    exception is raised. *)
 
-val set_signal : int -> signal_behavior -> unit
+val set_signal : int -> signal_behavior -> unit @@ portable
 (** Same as {!Sys.signal} but return value is ignored. *)
 
 
 (** {2 Signal numbers for the standard POSIX signals.} *)
 
-val sigabrt : int
+val sigabrt : int @@ portable
 (** Abnormal termination *)
 
-val sigalrm : int
+val sigalrm : int @@ portable
 (** Timeout *)
 
-val sigfpe : int
+val sigfpe : int @@ portable
 (** Arithmetic exception *)
 
-val sighup : int
+val sighup : int @@ portable
 (** Hangup on controlling terminal *)
 
-val sigill : int
+val sigill : int @@ portable
 (** Invalid hardware instruction *)
 
-val sigint : int
+val sigint : int @@ portable
 (** Interactive interrupt (ctrl-C) *)
 
-val sigkill : int
+val sigkill : int @@ portable
 (** Termination (cannot be ignored) *)
 
-val sigpipe : int
+val sigpipe : int @@ portable
 (** Broken pipe *)
 
-val sigquit : int
+val sigquit : int @@ portable
 (** Interactive termination *)
 
-val sigsegv : int
+val sigsegv : int @@ portable
 (** Invalid memory reference *)
 
-val sigterm : int
+val sigterm : int @@ portable
 (** Termination *)
 
-val sigusr1 : int
+val sigusr1 : int @@ portable
 (** Application-defined signal 1 *)
 
-val sigusr2 : int
+val sigusr2 : int @@ portable
 (** Application-defined signal 2 *)
 
-val sigchld : int
+val sigchld : int @@ portable
 (** Child process terminated *)
 
-val sigcont : int
+val sigcont : int @@ portable
 (** Continue *)
 
-val sigstop : int
+val sigstop : int @@ portable
 (** Stop *)
 
-val sigtstp : int
+val sigtstp : int @@ portable
 (** Interactive stop *)
 
-val sigttin : int
+val sigttin : int @@ portable
 (** Terminal read from background process *)
 
-val sigttou : int
+val sigttou : int @@ portable
 (** Terminal write from background process *)
 
-val sigvtalrm : int
+val sigvtalrm : int @@ portable
 (** Timeout in virtual time *)
 
-val sigprof : int
+val sigprof : int @@ portable
 (** Profiling interrupt *)
 
-val sigbus : int
+val sigbus : int @@ portable
 (** Bus error
     @since 4.03 *)
 
-val sigpoll : int
+val sigpoll : int @@ portable
 (** Pollable event
     @since 4.03 *)
 
-val sigsys : int
+val sigsys : int @@ portable
 (** Bad argument to routine
     @since 4.03 *)
 
-val sigtrap : int
+val sigtrap : int @@ portable
 (** Trace/breakpoint trap
     @since 4.03 *)
 
-val sigurg : int
+val sigurg : int @@ portable
 (** Urgent condition on socket
     @since 4.03 *)
 
-val sigxcpu : int
+val sigxcpu : int @@ portable
 (** Timeout in cpu time
     @since 4.03 *)
 
-val sigxfsz : int
+val sigxfsz : int @@ portable
 (** File size limit exceeded
     @since 4.03 *)
 
@@ -356,7 +356,7 @@ exception Break
    is on. *)
 
 
-val catch_break : bool -> unit
+val catch_break : bool -> unit @@ portable
 (** [catch_break] governs whether interactive interrupt (ctrl-C)
     terminates the program or raises the [Break] exception.
     Call [catch_break true] to enable raising [Break],
@@ -368,7 +368,7 @@ val catch_break : bool -> unit
     [with_async_exns], below.
 *)
 
-val with_async_exns : (unit -> 'a) -> 'a
+val with_async_exns : (unit -> 'a) -> 'a @@ portable
 (** [with_async_exns f] runs [f] and returns its result, in addition to
     causing any asynchronous [Break] or [Stack_overflow] exceptions
     (e.g. from finalisers, signal handlers or the GC) to be raised from the
@@ -379,7 +379,7 @@ val with_async_exns : (unit -> 'a) -> 'a
 *)
 
 
-val ocaml_version : string
+val ocaml_version : string @@ portable
 (** [ocaml_version] is the version of OCaml.
     It is a string of the form
       ["major.minor[.patchlevel][(+|~)additional-info]"],
@@ -389,7 +389,7 @@ val ocaml_version : string
     became mandatory from 3.08.0 onwards.
     The [[(+|~)additional-info]] part may be absent. *)
 
-val development_version : bool
+val development_version : bool @@ portable
 (** [true] if this is a development version, [false] otherwise.
     @since 4.14
 *)
@@ -408,12 +408,12 @@ type ocaml_release_info = {
 }
 (** @since 4.14 *)
 
-val ocaml_release : ocaml_release_info
+val ocaml_release : ocaml_release_info @@ portable
 (** [ocaml_release] is the version of OCaml.
     @since 4.14
 *)
 
-val enable_runtime_warnings: bool -> unit
+val enable_runtime_warnings: bool -> unit @@ portable
 [@@alert unsynchronized_access
     "The status of runtime warnings is a mutable global state."
 ]
@@ -424,7 +424,7 @@ val enable_runtime_warnings: bool -> unit
 
     @since 4.03 *)
 
-val runtime_warnings_enabled: unit -> bool
+val runtime_warnings_enabled: unit -> bool @@ portable
 [@@alert unsynchronized_access
     "The status of runtime warnings is a mutable global state."
 ]
@@ -434,7 +434,7 @@ val runtime_warnings_enabled: unit -> bool
 
 (** {1 Optimization} *)
 
-external[@layout_poly] opaque_identity : ('a : any). 'a -> 'a = "%opaque"
+external[@layout_poly] opaque_identity : ('a : any). 'a -> 'a @@ portable = "%opaque"
 (** For the purposes of optimization, [opaque_identity] behaves like an
     unknown (and thus possibly side-effecting) function.
 
@@ -472,6 +472,6 @@ module Immediate64 : sig
     type 'a repr =
       | Immediate : Immediate.t repr
       | Non_immediate : Non_immediate.t repr
-    val repr : t repr
+    val repr : t repr @@ portable
   end
 end

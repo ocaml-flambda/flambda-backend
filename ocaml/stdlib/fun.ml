@@ -17,7 +17,7 @@ open! Stdlib
 
 [@@@ocaml.flambda_o3]
 
-external id : 'a -> 'a = "%identity"
+external id : 'a -> 'a @@ portable = "%identity"
 let const c _ = c
 let flip f x y = f y x
 let negate p v = not (p v)

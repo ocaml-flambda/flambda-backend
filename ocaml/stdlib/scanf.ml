@@ -45,92 +45,92 @@ module type SCANNING = sig
 
   type file_name = string
 
-  val stdin : in_channel
+  val stdin : in_channel @@ portable
   (* The scanning buffer reading from [Stdlib.stdin]. *)
 
-  val next_char : scanbuf -> char
+  val next_char : scanbuf -> char @@ portable
   (* [Scanning.next_char ib] advance the scanning buffer for
      one character.
      If no more character can be read, sets a end of file condition and
      returns '\000'. *)
 
-  val invalidate_current_char : scanbuf -> unit
+  val invalidate_current_char : scanbuf -> unit @@ portable
   (* [Scanning.invalidate_current_char ib] mark the current_char as already
      scanned. *)
 
-  val peek_char : scanbuf -> char
+  val peek_char : scanbuf -> char @@ portable
   (* [Scanning.peek_char ib] returns the current char available in
      the buffer or reads one if necessary (when the current character is
      already scanned).
      If no character can be read, sets an end of file condition and
      returns '\000'. *)
 
-  val checked_peek_char : scanbuf -> char
+  val checked_peek_char : scanbuf -> char @@ portable
   (* Same as [Scanning.peek_char] above but always returns a valid char or
      fails: instead of returning a null char when the reading method of the
      input buffer has reached an end of file, the function raises exception
      [End_of_file]. *)
 
-  val store_char : int -> scanbuf -> char -> int
+  val store_char : int -> scanbuf -> char -> int @@ portable
   (* [Scanning.store_char lim ib c] adds [c] to the token buffer
      of the scanning buffer [ib]. It also advances the scanning buffer for
      one character and returns [lim - 1], indicating the new limit for the
      length of the current token. *)
 
-  val skip_char : int -> scanbuf -> int
+  val skip_char : int -> scanbuf -> int @@ portable
   (* [Scanning.skip_char lim ib] ignores the current character. *)
 
-  val ignore_char : int -> scanbuf -> int
+  val ignore_char : int -> scanbuf -> int @@ portable
   (* [Scanning.ignore_char ib lim] ignores the current character and
      decrements the limit. *)
 
-  val token : scanbuf -> string
+  val token : scanbuf -> string @@ portable
   (* [Scanning.token ib] returns the string stored into the token
      buffer of the scanning buffer: it returns the token matched by the
      format. *)
 
-  val reset_token : scanbuf -> unit
+  val reset_token : scanbuf -> unit @@ portable
   (* [Scanning.reset_token ib] resets the token buffer of
      the given scanning buffer. *)
 
-  val char_count : scanbuf -> int
+  val char_count : scanbuf -> int @@ portable
   (* [Scanning.char_count ib] returns the number of characters
      read so far from the given buffer. *)
 
-  val line_count : scanbuf -> int
+  val line_count : scanbuf -> int @@ portable
   (* [Scanning.line_count ib] returns the number of new line
      characters read so far from the given buffer. *)
 
-  val token_count : scanbuf -> int
+  val token_count : scanbuf -> int @@ portable
   (* [Scanning.token_count ib] returns the number of tokens read
      so far from [ib]. *)
 
-  val eof : scanbuf -> bool
+  val eof : scanbuf -> bool @@ portable
   (* [Scanning.eof ib] returns the end of input condition
      of the given buffer. *)
 
-  val end_of_input : scanbuf -> bool
+  val end_of_input : scanbuf -> bool @@ portable
   (* [Scanning.end_of_input ib] tests the end of input condition
      of the given buffer (if no char has ever been read, an attempt to
      read one is performed). *)
 
-  val beginning_of_input : scanbuf -> bool
+  val beginning_of_input : scanbuf -> bool @@ portable
   (* [Scanning.beginning_of_input ib] tests the beginning of input
      condition of the given buffer. *)
 
-  val name_of_input : scanbuf -> string
+  val name_of_input : scanbuf -> string @@ portable
   (* [Scanning.name_of_input ib] returns the name of the character
      source for input buffer [ib]. *)
 
-  val open_in : file_name -> in_channel
-  val open_in_bin : file_name -> in_channel
-  val from_file : file_name -> in_channel
-  val from_file_bin : file_name -> in_channel
-  val from_string : string -> in_channel
-  val from_function : (unit -> char) -> in_channel
-  val from_channel : Stdlib.in_channel -> in_channel
+  val open_in : file_name -> in_channel @@ portable
+  val open_in_bin : file_name -> in_channel @@ portable
+  val from_file : file_name -> in_channel @@ portable
+  val from_file_bin : file_name -> in_channel @@ portable
+  val from_string : string -> in_channel @@ portable
+  val from_function : (unit -> char) -> in_channel @@ portable
+  val from_channel : Stdlib.in_channel -> in_channel @@ portable
 
-  val close_in : in_channel -> unit
+  val close_in : in_channel -> unit @@ portable
 
 end
 
@@ -551,13 +551,13 @@ let token_float ib = float_of_string (Scanning.token ib)
    since those modules are not available to [Scanf].
    However, we can bind and use the corresponding primitives that are
    available in the runtime. *)
-external nativeint_of_string : string -> nativeint
+external nativeint_of_string : string -> nativeint @@ portable
   = "caml_nativeint_of_string"
 
-external int32_of_string : string -> int32
+external int32_of_string : string -> int32 @@ portable
   = "caml_int32_of_string"
 
-external int64_of_string : string -> int64
+external int64_of_string : string -> int64 @@ portable
   = "caml_int64_of_string"
 
 
