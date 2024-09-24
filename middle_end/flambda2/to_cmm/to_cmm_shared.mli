@@ -73,7 +73,7 @@ val simple :
 val simple_static :
   To_cmm_result.t ->
   Simple.t ->
-  [> `Static_data of Cmm.data_item list | `Var of Variable.t]
+  [`Data of Cmm.data_item list | `Var of Variable.t]
 
 (** This function translates the [Simple] at the head of the list first.
     Regarding [consider_inlining_effectful_expressions], see [simple] above. *)

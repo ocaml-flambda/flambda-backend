@@ -85,44 +85,30 @@ let check_alloc_fields = function
        be lifted so they can be statically allocated)"
   | _ -> ()
 
-let mixed_block_kinds shape =
-  let value_prefix_size = K.Mixed_block_shape.value_prefix_size shape in
-  let l =
-    Array.fold_right
-      (fun flat_suffix_element acc ->
-        let chunk =
-          match (flat_suffix_element : K.flat_suffix_element) with
-          | K.Tagged_immediate -> K.With_subkind.tagged_immediate
-          | K.Naked_float -> K.With_subkind.naked_float
-          | K.Naked_float32 -> K.With_subkind.naked_float32
-          | K.Naked_int32 -> K.With_subkind.naked_int32
-          | K.Naked_int64 -> K.With_subkind.naked_int64
-          | K.Naked_nativeint -> K.With_subkind.naked_nativeint
-        in
-        chunk :: acc)
-      (K.Mixed_block_shape.flat_suffix shape)
-      []
-  in
-  List.init value_prefix_size (fun _ -> K.With_subkind.any_value) @ l
-
 let make_block ~dbg kind alloc_mode args =
   check_alloc_fields args;
   let mode = Alloc_mode.For_allocations.to_lambda alloc_mode in
-  match (kind : P.Block_kind.t) with
-  | Values (tag, _) ->
-    let tag = Tag.Scannable.to_int tag in
-    C.make_alloc ~mode dbg ~tag args
-  | Naked_floats ->
-    let tag = Tag.to_int Tag.double_array_tag in
-    C.make_float_alloc ~mode dbg ~tag args
-  | Mixed (tag, shape) ->
-    let value_prefix_size = K.Mixed_block_shape.value_prefix_size shape in
-    let args_kinds = mixed_block_kinds shape in
-    let args_memory_chunks =
-      List.map To_cmm_shared.memory_chunk_of_kind args_kinds
-    in
-    let tag = Tag.Scannable.to_int tag in
-    C.make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks
+  let allocator, tag =
+    match (kind : P.Block_kind.t) with
+    | Values (tag, _) -> C.make_alloc, Tag.Scannable.to_tag tag
+    | Naked_floats -> C.make_float_alloc, Tag.double_array_tag
+    | Mixed (tag, shape) ->
+      let value_prefix_size = K.Mixed_block_shape.value_prefix_size shape in
+      let flat_suffix =
+        Array.map
+          (fun (flat_elt : K.Flat_suffix_element.t) : C.Flat_suffix_element.t ->
+            match flat_elt with
+            | Tagged_immediate -> Tagged_immediate
+            | Naked_float -> Naked_float
+            | Naked_float32 -> Naked_float32
+            | Naked_int32 -> Naked_int32
+            | Naked_int64 | Naked_nativeint -> Naked_int64_or_nativeint)
+          (K.Mixed_block_shape.flat_suffix shape)
+      in
+      ( C.make_mixed_alloc ~value_prefix_size ~flat_suffix,
+        Tag.Scannable.to_tag tag )
+  in
+  allocator ~mode dbg ~tag:(Tag.to_int tag) args
 
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~index =

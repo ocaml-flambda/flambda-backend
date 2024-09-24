@@ -201,8 +201,7 @@ let simple ?consider_inlining_effectful_expressions ~dbg env res s =
 let name_static res name =
   Name.pattern_match name
     ~var:(fun v -> `Var v)
-    ~symbol:(fun s ->
-      `Static_data [symbol_address (To_cmm_result.symbol res s)])
+    ~symbol:(fun s -> `Data [symbol_address (To_cmm_result.symbol res s)])
 
 let const_static cst =
   match Reg_width_const.descr cst with
@@ -236,7 +235,7 @@ let const_static cst =
 let simple_static res s =
   Simple.pattern_match s
     ~name:(fun n ~coercion:_ -> name_static res n)
-    ~const:(fun c -> `Static_data (const_static c))
+    ~const:(fun c -> `Data (const_static c))
 
 let simple_list ?consider_inlining_effectful_expressions ~dbg env res l =
   (* Note that [To_cmm_primitive] relies on this function translating the
