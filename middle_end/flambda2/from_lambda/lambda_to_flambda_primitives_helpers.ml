@@ -39,11 +39,23 @@ type expr_primitive =
         (* Predefined exception *)
         dbg : Debuginfo.t
       }
-  | If_then_else of expr_primitive * expr_primitive * expr_primitive
+  | If_then_else of
+      expr_primitive
+      * expr_primitive
+      * expr_primitive
+      * Flambda_kind.With_subkind.t list
+  | Sequence of expr_primitive list
+  | Unboxed_product of expr_primitive list
 
 and simple_or_prim =
   | Simple of Simple.t
   | Prim of expr_primitive
+
+let maybe_create_unboxed_product expr_prims =
+  match expr_prims with
+  | [] -> Misc.fatal_error "Empty unboxed product"
+  | [expr_prim] -> expr_prim
+  | _ -> Unboxed_product expr_prims
 
 let rec print_expr_primitive ppf expr_primitive =
   let module W = Flambda_primitive.Without_args in
@@ -56,11 +68,28 @@ let rec print_expr_primitive ppf expr_primitive =
   | Variadic (prim, _) -> W.print ppf (Variadic prim)
   | Checked { primitive; _ } ->
     Format.fprintf ppf "@[<hov 1>(Checked@ %a)@]" print_expr_primitive primitive
-  | If_then_else (cond, ifso, ifnot) ->
+  | If_then_else (cond, ifso, ifnot, result_kinds) ->
     Format.fprintf ppf
-      "@[<hov 1>(If_then_else@ (cond@ %a)@ (ifso@ %a)@ (ifnot@ %a))@]"
+      "@[<hov 1>(If_then_else@ (cond@ %a)@ (ifso@ %a)@ (ifnot@ %a)@ \
+       (result_kinds@ %a))@]"
       print_expr_primitive cond print_expr_primitive ifso print_expr_primitive
       ifnot
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space
+         Flambda_kind.With_subkind.print)
+      result_kinds
+  | Sequence expr_primitives ->
+    Format.fprintf ppf "@[<hov 1>(%a)@]"
+      (Format.pp_print_list
+         ~pp_sep:(fun ppf () -> Format.fprintf ppf ";@ ")
+         print_expr_primitive)
+      expr_primitives
+  | Unboxed_product [expr_primitive] -> print_expr_primitive ppf expr_primitive
+  | Unboxed_product expr_primitives ->
+    Format.fprintf ppf "@[<hov 1>(%a)@]"
+      (Format.pp_print_list
+         ~pp_sep:(fun ppf () -> Format.fprintf ppf " #* ")
+         print_expr_primitive)
+      expr_primitives
 
 let print_simple_or_prim ppf (simple_or_prim : simple_or_prim) =
   match simple_or_prim with
@@ -157,56 +186,78 @@ let expression_for_failure acc exn_cont ~register_const0 primitive dbg
     in
     raise_exn_for_failure acc ~dbg exn_cont (Simple.symbol exn_bucket)
 
-let rec bind_rec acc exn_cont ~register_const0 (prim : expr_primitive)
-    (dbg : Debuginfo.t) (cont : Acc.t -> Named.t -> Expr_with_acc.t) :
+let must_be_singleton args =
+  match args with
+  | [arg] -> arg
+  | [] | _ :: _ ->
+    Misc.fatal_errorf "Expected singleton list of [Simple]s:@ %a"
+      Simple.List.print args
+
+let must_be_singleton_named args =
+  match args with
+  | [arg] -> arg
+  | [] | _ :: _ ->
+    Misc.fatal_errorf "Expected singleton list of [Named]s:@ %a"
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Named.print)
+      args
+
+let rec bind_recs acc exn_cont ~register_const0 (prim : expr_primitive)
+    (dbg : Debuginfo.t) (cont : Acc.t -> Named.t list -> Expr_with_acc.t) :
     Expr_with_acc.t =
   match prim with
   | Simple simple ->
     let named = Named.create_simple simple in
-    cont acc named
+    cont acc [named]
   | Nullary prim ->
     let named = Named.create_prim (Nullary prim) dbg in
-    cont acc named
+    cont acc [named]
   | Unary (prim, arg) ->
-    let cont acc (arg : Simple.t) =
+    let cont acc (args : Simple.t list) =
+      let arg = must_be_singleton args in
       let named = Named.create_prim (Unary (prim, arg)) dbg in
-      cont acc named
+      cont acc [named]
     in
     bind_rec_primitive acc exn_cont ~register_const0 arg dbg cont
-  | Binary (prim, arg1, arg2) ->
-    let cont acc (arg2 : Simple.t) =
-      let cont acc (arg1 : Simple.t) =
+  | Binary (prim, args1, args2) ->
+    let cont acc (args2 : Simple.t list) =
+      let arg2 = must_be_singleton args2 in
+      let cont acc (args1 : Simple.t list) =
+        let arg1 = must_be_singleton args1 in
         let named = Named.create_prim (Binary (prim, arg1, arg2)) dbg in
-        cont acc named
+        cont acc [named]
       in
-      bind_rec_primitive acc exn_cont ~register_const0 arg1 dbg cont
+      bind_rec_primitive acc exn_cont ~register_const0 args1 dbg cont
     in
-    bind_rec_primitive acc exn_cont ~register_const0 arg2 dbg cont
-  | Ternary (prim, arg1, arg2, arg3) ->
-    let cont acc (arg3 : Simple.t) =
-      let cont acc (arg2 : Simple.t) =
-        let cont acc (arg1 : Simple.t) =
+    bind_rec_primitive acc exn_cont ~register_const0 args2 dbg cont
+  | Ternary (prim, args1, args2, args3) ->
+    let cont acc (args3 : Simple.t list) =
+      let arg3 = must_be_singleton args3 in
+      let cont acc (args2 : Simple.t list) =
+        let arg2 = must_be_singleton args2 in
+        let cont acc (args1 : Simple.t list) =
+          let arg1 = must_be_singleton args1 in
           let named =
             Named.create_prim (Ternary (prim, arg1, arg2, arg3)) dbg
           in
-          cont acc named
+          cont acc [named]
         in
-        bind_rec_primitive acc exn_cont ~register_const0 arg1 dbg cont
+        bind_rec_primitive acc exn_cont ~register_const0 args1 dbg cont
       in
-      bind_rec_primitive acc exn_cont ~register_const0 arg2 dbg cont
+      bind_rec_primitive acc exn_cont ~register_const0 args2 dbg cont
     in
-    bind_rec_primitive acc exn_cont ~register_const0 arg3 dbg cont
+    bind_rec_primitive acc exn_cont ~register_const0 args3 dbg cont
   | Variadic (prim, args) ->
     let cont acc args =
       let named = Named.create_prim (Variadic (prim, args)) dbg in
-      cont acc named
+      cont acc [named]
     in
     let rec build_cont acc args_to_convert converted_args =
       match args_to_convert with
       | [] -> cont acc converted_args
       | arg :: args_to_convert ->
-        let cont acc arg =
-          build_cont acc args_to_convert (arg :: converted_args)
+        let cont acc args =
+          (* XXX check order of the appending here *)
+          build_cont acc args_to_convert (args @ converted_args)
         in
         bind_rec_primitive acc exn_cont ~register_const0 arg dbg cont
     in
@@ -214,7 +265,7 @@ let rec bind_rec acc exn_cont ~register_const0 (prim : expr_primitive)
   | Checked { validity_conditions; primitive; failure; dbg } ->
     let primitive_cont = Continuation.create () in
     let primitive_handler_expr acc =
-      bind_rec acc exn_cont ~register_const0 primitive dbg cont
+      bind_recs acc exn_cont ~register_const0 primitive dbg cont
     in
     let failure_cont = Continuation.create () in
     let failure_handler_expr acc =
@@ -231,6 +282,7 @@ let rec bind_rec acc exn_cont ~register_const0 (prim : expr_primitive)
           let body acc =
             bind_rec_primitive acc exn_cont ~register_const0
               (Prim expr_primitive) dbg (fun acc prim_result ->
+                let prim_result = must_be_singleton prim_result in
                 let acc, condition_passed =
                   Apply_cont_with_acc.goto acc condition_passed_cont
                 in
@@ -256,21 +308,25 @@ let rec bind_rec acc exn_cont ~register_const0 (prim : expr_primitive)
     Let_cont_with_acc.build_non_recursive acc primitive_cont
       ~handler_params:Bound_parameters.empty ~handler:primitive_handler_expr
       ~body ~is_exn_handler:false ~is_cold:false
-  | If_then_else (cond, ifso, ifnot) ->
+  | If_then_else (cond, ifso, ifnot, result_kinds) ->
     let cond_result = Variable.create "cond_result" in
     let cond_result_pat = Bound_var.create cond_result Name_mode.normal in
     let ifso_cont = Continuation.create () in
-    let ifso_result = Variable.create "ifso_result" in
-    let ifso_result_pat = Bound_var.create ifso_result Name_mode.normal in
     let ifnot_cont = Continuation.create () in
-    let ifnot_result = Variable.create "ifnot_result" in
-    let ifnot_result_pat = Bound_var.create ifnot_result Name_mode.normal in
     let join_point_cont = Continuation.create () in
-    let result_var = Variable.create "if_then_else_result" in
-    let result_param =
-      Bound_parameter.create result_var Flambda_kind.With_subkind.any_value
+    let result_vars =
+      List.map (fun _ -> Variable.create "if_then_else_result") result_kinds
     in
-    bind_rec acc exn_cont ~register_const0 cond dbg @@ fun acc cond ->
+    let result_params =
+      List.map2
+        (fun result_var result_kind ->
+          Bound_parameter.create result_var result_kind)
+        result_vars result_kinds
+    in
+    let result_simples = List.map Simple.var result_vars in
+    let result_nameds = List.map Named.create_simple result_simples in
+    bind_recs acc exn_cont ~register_const0 cond dbg @@ fun acc cond ->
+    let cond = must_be_singleton_named cond in
     let compute_cond_and_switch acc =
       let acc, ifso_cont = Apply_cont_with_acc.goto acc ifso_cont in
       let acc, ifnot_cont = Apply_cont_with_acc.goto acc ifnot_cont in
@@ -286,32 +342,58 @@ let rec bind_rec acc exn_cont ~register_const0 (prim : expr_primitive)
         (Bound_pattern.singleton cond_result_pat)
         cond ~body:switch
     in
-    let join_handler_expr acc =
-      cont acc (Named.create_simple (Simple.var result_var))
-    in
-    let ifso_handler_expr acc =
-      bind_rec acc exn_cont ~register_const0 ifso dbg @@ fun acc ifso ->
+    let join_handler_expr acc = cont acc result_nameds in
+    let ifso_handler_expr acc : Expr_with_acc.t =
+      bind_recs acc exn_cont ~register_const0 ifso dbg @@ fun acc ifso ->
+      let ifso_result_vars =
+        List.map (fun _ -> Variable.create "ifso_result") ifso
+      in
+      let ifso_result_pats =
+        List.map
+          (fun ifso_result_var ->
+            Bound_var.create ifso_result_var Name_mode.normal)
+          ifso_result_vars
+      in
+      let ifso_result_simples = List.map Simple.var ifso_result_vars in
       let acc, apply_cont =
-        Apply_cont_with_acc.create acc join_point_cont
-          ~args:[Simple.var ifso_result]
+        Apply_cont_with_acc.create acc join_point_cont ~args:ifso_result_simples
           ~dbg
       in
       let acc, body = Expr_with_acc.create_apply_cont acc apply_cont in
-      Let_with_acc.create acc
-        (Bound_pattern.singleton ifso_result_pat)
-        ifso ~body
+      List.fold_left2
+        (fun (acc, body) ifso_result_pat ifso ->
+          Let_with_acc.create acc
+            (Bound_pattern.singleton ifso_result_pat)
+            ifso ~body)
+        (acc, body)
+        (List.rev ifso_result_pats)
+        (List.rev ifso)
     in
-    let ifnot_handler_expr acc =
-      bind_rec acc exn_cont ~register_const0 ifnot dbg @@ fun acc ifnot ->
+    let ifnot_handler_expr acc : Expr_with_acc.t =
+      bind_recs acc exn_cont ~register_const0 ifnot dbg @@ fun acc ifnot ->
+      let ifnot_result_vars =
+        List.map (fun _ -> Variable.create "ifnot_result") ifnot
+      in
+      let ifnot_result_pats =
+        List.map
+          (fun ifnot_result_var ->
+            Bound_var.create ifnot_result_var Name_mode.normal)
+          ifnot_result_vars
+      in
+      let ifnot_result_simples = List.map Simple.var ifnot_result_vars in
       let acc, apply_cont =
         Apply_cont_with_acc.create acc join_point_cont
-          ~args:[Simple.var ifnot_result]
-          ~dbg
+          ~args:ifnot_result_simples ~dbg
       in
       let acc, body = Expr_with_acc.create_apply_cont acc apply_cont in
-      Let_with_acc.create acc
-        (Bound_pattern.singleton ifnot_result_pat)
-        ifnot ~body
+      List.fold_left2
+        (fun (acc, body) ifnot_result_pat ifnot ->
+          Let_with_acc.create acc
+            (Bound_pattern.singleton ifnot_result_pat)
+            ifnot ~body)
+        (acc, body)
+        (List.rev ifnot_result_pats)
+        (List.rev ifnot)
     in
     let body acc =
       Let_cont_with_acc.build_non_recursive acc ifnot_cont
@@ -324,29 +406,45 @@ let rec bind_rec acc exn_cont ~register_const0 (prim : expr_primitive)
         ~is_exn_handler:false ~is_cold:false
     in
     Let_cont_with_acc.build_non_recursive acc join_point_cont
-      ~handler_params:(Bound_parameters.create [result_param])
+      ~handler_params:(Bound_parameters.create result_params)
       ~handler:join_handler_expr ~body ~is_exn_handler:false ~is_cold:false
+  | Sequence [expr_primitive] | Unboxed_product [expr_primitive] ->
+    bind_recs acc exn_cont ~register_const0 expr_primitive dbg cont
+  | Sequence expr_primitives ->
+    List.fold_left
+      (fun (acc, body) expr_primitive ->
+        bind_recs acc exn_cont ~register_const0 expr_primitive dbg
+          (fun acc nameds ->
+            let named = must_be_singleton_named nameds in
+            let pat =
+              Bound_var.create (Variable.create "seq") Name_mode.normal
+              |> Bound_pattern.singleton
+            in
+            Let_with_acc.create acc pat named ~body))
+      (cont acc [Named.create_simple Simple.const_unit])
+      (List.rev expr_primitives)
+  | Unboxed_product (expr_primitive :: expr_primitives) ->
+    bind_recs acc exn_cont ~register_const0 expr_primitive dbg
+      (fun acc nameds1 ->
+        bind_recs acc exn_cont ~register_const0
+          (Unboxed_product expr_primitives) dbg (fun acc nameds2 ->
+            cont acc (nameds1 @ nameds2)))
+  | Unboxed_product [] ->
+    Misc.fatal_error "Nullary unboxed products are not permitted here"
 
 and bind_rec_primitive acc exn_cont ~register_const0 (prim : simple_or_prim)
-    (dbg : Debuginfo.t) (cont : Acc.t -> Simple.t -> Expr_with_acc.t) :
+    (dbg : Debuginfo.t) (cont : Acc.t -> Simple.t list -> Expr_with_acc.t) :
     Expr_with_acc.t =
   match prim with
-  | Simple s -> cont acc s
+  | Simple s -> cont acc [s]
   | Prim p ->
-    let var = Variable.create "prim" in
-    let var' = VB.create var Name_mode.normal in
-    let cont acc (named : Named.t) =
-      let acc, body = cont acc (Simple.var var) in
-      Let_with_acc.create acc (Bound_pattern.singleton var') named ~body
+    let cont acc (nameds : Named.t list) =
+      let vars = List.map (fun _ -> Variable.create "prim") nameds in
+      let vars' = List.map (fun var -> VB.create var Name_mode.normal) vars in
+      let acc, body = cont acc (List.map Simple.var vars) in
+      List.fold_left2
+        (fun (acc, body) pat prim ->
+          Let_with_acc.create acc (Bound_pattern.singleton pat) prim ~body)
+        (acc, body) (List.rev vars') (List.rev nameds)
     in
-    bind_rec acc exn_cont ~register_const0 p dbg cont
-
-let rec bind_recs acc exn_cont ~register_const0 (prims : expr_primitive list)
-    (dbg : Debuginfo.t) (cont : Acc.t -> Named.t list -> Expr_with_acc.t) :
-    Expr_with_acc.t =
-  match prims with
-  | [] -> cont acc []
-  | prim :: prims ->
-    bind_rec acc exn_cont ~register_const0 prim dbg (fun acc named ->
-        bind_recs acc exn_cont ~register_const0 prims dbg (fun acc nameds ->
-            cont acc (named :: nameds)))
+    bind_recs acc exn_cont ~register_const0 p dbg cont
