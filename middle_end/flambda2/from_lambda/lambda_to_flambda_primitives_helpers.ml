@@ -256,7 +256,6 @@ let rec bind_recs acc exn_cont ~register_const0 (prim : expr_primitive)
       | [] -> cont acc converted_args
       | arg :: args_to_convert ->
         let cont acc args =
-          (* XXX check order of the appending here *)
           build_cont acc args_to_convert (args @ converted_args)
         in
         bind_rec_primitive acc exn_cont ~register_const0 arg dbg cont
@@ -343,58 +342,37 @@ let rec bind_recs acc exn_cont ~register_const0 (prim : expr_primitive)
         cond ~body:switch
     in
     let join_handler_expr acc = cont acc result_nameds in
-    let ifso_handler_expr acc : Expr_with_acc.t =
-      bind_recs acc exn_cont ~register_const0 ifso dbg @@ fun acc ifso ->
-      let ifso_result_vars =
-        List.map (fun _ -> Variable.create "ifso_result") ifso
+    let ifso_or_ifnot_handler_expr ~name ifso_or_ifnot acc : Expr_with_acc.t =
+      bind_recs acc exn_cont ~register_const0 ifso_or_ifnot dbg
+      @@ fun acc ifso_or_ifnot ->
+      let result_vars =
+        List.map (fun _ -> Variable.create (name ^ "_result")) ifso_or_ifnot
       in
-      let ifso_result_pats =
+      let result_pats =
         List.map
-          (fun ifso_result_var ->
-            Bound_var.create ifso_result_var Name_mode.normal)
-          ifso_result_vars
+          (fun result_var ->
+            Bound_var.create result_var Name_mode.normal)
+          result_vars
       in
-      let ifso_result_simples = List.map Simple.var ifso_result_vars in
-      let acc, apply_cont =
-        Apply_cont_with_acc.create acc join_point_cont ~args:ifso_result_simples
-          ~dbg
+      let result_simples =
+        List.map Simple.var result_vars
       in
-      let acc, body = Expr_with_acc.create_apply_cont acc apply_cont in
-      List.fold_left2
-        (fun (acc, body) ifso_result_pat ifso ->
-          Let_with_acc.create acc
-            (Bound_pattern.singleton ifso_result_pat)
-            ifso ~body)
-        (acc, body)
-        (List.rev ifso_result_pats)
-        (List.rev ifso)
-    in
-    let ifnot_handler_expr acc : Expr_with_acc.t =
-      bind_recs acc exn_cont ~register_const0 ifnot dbg @@ fun acc ifnot ->
-      let ifnot_result_vars =
-        List.map (fun _ -> Variable.create "ifnot_result") ifnot
-      in
-      let ifnot_result_pats =
-        List.map
-          (fun ifnot_result_var ->
-            Bound_var.create ifnot_result_var Name_mode.normal)
-          ifnot_result_vars
-      in
-      let ifnot_result_simples = List.map Simple.var ifnot_result_vars in
       let acc, apply_cont =
         Apply_cont_with_acc.create acc join_point_cont
-          ~args:ifnot_result_simples ~dbg
+          ~args:result_simples ~dbg
       in
       let acc, body = Expr_with_acc.create_apply_cont acc apply_cont in
       List.fold_left2
-        (fun (acc, body) ifnot_result_pat ifnot ->
+        (fun (acc, body) result_pat ifso_or_ifnot ->
           Let_with_acc.create acc
-            (Bound_pattern.singleton ifnot_result_pat)
-            ifnot ~body)
+            (Bound_pattern.singleton result_pat)
+            ifso_or_ifnot ~body)
         (acc, body)
-        (List.rev ifnot_result_pats)
-        (List.rev ifnot)
+        (List.rev result_pats)
+        (List.rev ifso_or_ifnot)
     in
+    let ifso_handler_expr = ifso_or_ifnot_handler_expr ~name:"ifso" ifso in
+    let ifnot_handler_expr = ifso_or_ifnot_handler_expr ~name:"ifnot" ifnot in
     let body acc =
       Let_cont_with_acc.build_non_recursive acc ifnot_cont
         ~handler_params:Bound_parameters.empty ~handler:ifnot_handler_expr
@@ -429,8 +407,7 @@ let rec bind_recs acc exn_cont ~register_const0 (prim : expr_primitive)
         bind_recs acc exn_cont ~register_const0
           (Unboxed_product expr_primitives) dbg (fun acc nameds2 ->
             cont acc (nameds1 @ nameds2)))
-  | Unboxed_product [] ->
-    Misc.fatal_error "Nullary unboxed products are not permitted here"
+  | Unboxed_product [] -> cont acc []
 
 and bind_rec_primitive acc exn_cont ~register_const0 (prim : simple_or_prim)
     (dbg : Debuginfo.t) (cont : Acc.t -> Simple.t list -> Expr_with_acc.t) :
