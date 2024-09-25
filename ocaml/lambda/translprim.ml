@@ -931,6 +931,11 @@ let glb_array_ref_type loc t1 t2 =
   | Punboxedfloatarray_ref _, _
   | _, Punboxedfloatarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
+  | Punboxedint64array_reinterpret_ref kinds, Punboxedintarray Pint64 ->
+    Punboxedint64array_reinterpret_ref kinds
+  | Punboxedint64array_reinterpret_ref _, _ ->
+    Misc.fatal_error "Punboxedint64array_reinterpret_ref is only compatible \
+      with Punboxedintarray Pint64 arrays"
   | (Pgenarray_ref _ | Punboxedintarray_ref Pint32), Punboxedintarray Pint32 ->
     Punboxedintarray_ref Pint32
   | (Pgenarray_ref _ | Punboxedintarray_ref Pint64), Punboxedintarray Pint64 ->
@@ -1004,6 +1009,11 @@ let glb_array_set_type loc t1 t2 =
   | Punboxedfloatarray_set _, _
   | _, Punboxedfloatarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
+  | Punboxedint64array_reinterpret_set kinds, Punboxedintarray Pint64 ->
+    Punboxedint64array_reinterpret_set kinds
+  | Punboxedint64array_reinterpret_set _, _ ->
+    Misc.fatal_error "Punboxedint64array_reinterpret_set is only compatible \
+      with Punboxedintarray Pint64 arrays"
   | (Pgenarray_set _ | Punboxedintarray_set Pint32), Punboxedintarray Pint32 ->
     Punboxedintarray_set Pint32
   | (Pgenarray_set _ | Punboxedintarray_set Pint64), Punboxedintarray Pint64 ->

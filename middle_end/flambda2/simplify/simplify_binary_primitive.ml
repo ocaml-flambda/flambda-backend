@@ -1073,6 +1073,9 @@ let simplify_mutable_block_load _access_kind ~original_prim dacc ~original_term
 let simplify_array_load (array_kind : P.Array_kind.t)
     (array_load_kind : P.Array_load_kind.t) mutability dacc ~original_term:_ dbg
     ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~result_var =
+  (* CR mshinwell: because of the int64# array unboxed product load+reinterpret
+     operation, we may need to propagate more information if we want to check
+     kinds here *)
   let result_kind =
     match array_load_kind with
     | Immediates -> (* CR mshinwell: use the subkind *) K.value

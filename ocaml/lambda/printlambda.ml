@@ -123,6 +123,9 @@ let array_ref_kind ppf k =
     fprintf ppf "scannableproduct %s" (scannable_product_element_kinds kinds)
   | Pgcignorableproductarray_ref kinds ->
     fprintf ppf "ignorableproduct %s" (ignorable_product_element_kinds kinds)
+  | Punboxedint64array_reinterpret_ref kinds ->
+    fprintf ppf "unboxed_int64_reinterpret %s"
+      (ignorable_product_element_kinds kinds)
 
 let array_index_kind ppf k =
   match k with
@@ -151,6 +154,9 @@ let array_set_kind ppf k =
       (scannable_product_element_kinds kinds)
   | Pgcignorableproductarray_set kinds ->
     fprintf ppf "ignorableproduct %s" (ignorable_product_element_kinds kinds)
+  | Punboxedint64array_reinterpret_set kinds ->
+    fprintf ppf "unboxed_int64_reinterpret %s"
+      (ignorable_product_element_kinds kinds)
 
 let alloc_mode_if_local = function
   | Alloc_heap -> ""

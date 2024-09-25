@@ -95,7 +95,10 @@ let simplify_make_array (array_kind : P.Array_kind.t)
   in
   let element_kinds = P.Array_kind.element_kinds array_kind in
   let element_kind =
-    (* CR mshinwell: support unboxed product arrays in the type system *)
+    (* CR mshinwell: support unboxed product arrays in the type system. If doing
+       that, because of the int64# array unboxed product load+reinterpret
+       operation, we may need to propagate more information if we want to check
+       kinds here *)
     (* Remember that the element subkinds cannot in general be deduced from the
        types of the array members, it must be obtained from the array kind
        annotations that came via [Lambda]. *)

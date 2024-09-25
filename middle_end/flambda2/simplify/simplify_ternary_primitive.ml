@@ -20,6 +20,9 @@ let simplify_array_set (array_kind : P.Array_kind.t)
     (array_set_kind : P.Array_set_kind.t) dacc ~original_term dbg ~arg1:array
     ~arg1_ty:array_ty ~arg2:index ~arg2_ty:_ ~arg3:new_value ~arg3_ty:_
     ~result_var =
+  (* CR mshinwell: because of the int64# array unboxed product load+reinterpret
+     operation, we may need to propagate more information if we want to check
+     kinds here *)
   let orig_array_kind = array_kind in
   let array_kind =
     Simplify_common.specialise_array_kind dacc array_kind ~array_ty
