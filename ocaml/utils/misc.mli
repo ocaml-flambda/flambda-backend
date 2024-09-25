@@ -661,6 +661,15 @@ val pp_two_columns :
     v}
 *)
 
+val pp_parens_if :
+     bool
+  -> (Format.formatter -> 'a -> unit)
+  -> Format.formatter
+  -> 'a
+  -> unit
+(** [pp_parens_if bool formatter ppf arg] prints [formatter ppf arg], wrapping it with
+    [()] if [bool] is true. *)
+
 val pp_nested_list :
      nested:bool
   -> pp_element:(nested:bool -> Format.formatter -> 'a -> unit)
