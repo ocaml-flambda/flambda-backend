@@ -102,6 +102,7 @@ let mixed_block_kinds shape =
         | Naked_float32 -> KS.naked_float32
         | Naked_int32 -> KS.naked_int32
         | Naked_int64 -> KS.naked_int64
+        | Naked_vec128 -> KS.naked_vec128
         | Naked_nativeint -> KS.naked_nativeint)
       (Array.to_list (K.Mixed_block_shape.flat_suffix shape))
   in
@@ -143,6 +144,7 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
       | Naked_float -> C.unboxed_float_array_ref
       | Naked_float32 -> C.get_field_unboxed_float32
       | Naked_int32 -> C.get_field_unboxed_int32
+      | Naked_vec128 -> C.get_field_unboxed_vec128
       | Naked_int64 | Naked_nativeint -> C.get_field_unboxed_int64_or_nativeint)
   in
   load_func mutability ~block ~index dbg
@@ -165,6 +167,7 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
       | Naked_float -> C.float_array_set
       | Naked_float32 -> C.setfield_unboxed_float32
       | Naked_int32 -> C.setfield_unboxed_int32
+      | Naked_vec128 -> C.setfield_unboxed_vec128
       | Naked_int64 | Naked_nativeint -> C.setfield_unboxed_int64_or_nativeint)
   in
   C.return_unit dbg (set_func block index new_value dbg)

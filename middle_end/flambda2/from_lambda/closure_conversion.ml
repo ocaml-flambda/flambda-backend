@@ -220,7 +220,7 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
           else
             match shape.flat_suffix.(i - shape.value_prefix_len) with
             | Float_boxed -> unbox_float_constant c
-            | Imm | Float64 | Float32 | Bits32 | Bits64 | Word -> c)
+            | Imm | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> c)
         consts
     in
     let shape = K.Mixed_block_shape.from_lambda shape in

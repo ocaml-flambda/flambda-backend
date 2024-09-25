@@ -276,6 +276,7 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
               | Naked_float -> UK.naked_floats
               | Naked_float32 -> UK.naked_float32_fields
               | Naked_int32 -> UK.naked_int32_fields
+              | Naked_vec128 -> UK.naked_vec128_fields
               | Naked_int64 | Naked_nativeint -> UK.naked_int64s)
             (Flambda_kind.Mixed_block_shape.flat_suffix shape |> Array.to_list)
         in
