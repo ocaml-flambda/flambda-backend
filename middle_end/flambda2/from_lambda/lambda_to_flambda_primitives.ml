@@ -1266,14 +1266,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             (kind, Alloc_mode.For_allocations.from_lambda mode ~current_region),
           arg ) ]
   | Pfield_computed sem, [[obj]; [field]] ->
-    (* CR mslater for mshinwell: is this ok? *)
     [ Binary
         ( Array_load (Values, Scalar, convert_field_read_semantics sem),
           obj,
           field ) ]
   | ( Psetfield_computed (imm_or_pointer, init_or_assign),
       [[obj]; [field]; [value]] ) ->
-    (* CR mslater for mshinwell: is this ok? *)
     let kind : P.Array_set_kind.t =
       match imm_or_pointer with
       | Immediate -> Immediates

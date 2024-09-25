@@ -313,7 +313,6 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
   (* CR mshinwell: consider sharing the constants *)
   let block = Simple.symbol block_sym in
   let load_from_block_prim : P.t =
-    (* CR mslater for mshinwell: is this ok? *)
     Binary (Array_load (Values, Scalar, Immutable), block, tagged_scrutinee)
   in
   let load_from_block = Named.create_prim load_from_block_prim dbg in
