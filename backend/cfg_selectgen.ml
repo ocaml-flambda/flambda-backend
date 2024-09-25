@@ -112,7 +112,7 @@ let join_array env rs ~bound_name =
 
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-type environment = unit Select_utils.environment
+type environment = Label.t Select_utils.environment
 
 type basic_or_terminator =
   | Basic of Cfg.basic
@@ -220,7 +220,7 @@ end
 
 class virtual selector_generic =
   object (self : 'self)
-    inherit [unit, Cfg.operation, Cfg.basic] Select_utils.common_selector
+    inherit [Label.t, Cfg.operation, Cfg.basic] Select_utils.common_selector
 
     method is_store op = match op with Store (_, _, _) -> true | _ -> false
 
@@ -570,8 +570,45 @@ class virtual selector_generic =
           Cmm.expression list ->
           Cmm.trap_action list ->
           Reg.t array option =
-      fun _ _ _ _ ->
-        Misc.fatal_error "not implemented (Cfg_selectgen#emit_expr_aux_exit)"
+      fun env lbl args traps ->
+        match self#emit_parts_list env args with
+        | None -> None
+        | Some (simple_list, ext_env) -> (
+          match lbl with
+          | Lbl nfail ->
+            let src = self#emit_tuple ext_env simple_list in
+            let handler =
+              try Select_utils.env_find_static_exception nfail env
+              with Not_found ->
+                Misc.fatal_error
+                  ("Selection.emit_expr: unbound label "
+                 ^ Stdlib.Int.to_string nfail)
+            in
+            (* Intermediate registers to handle cases where some registers from
+               src are present in dest *)
+            let tmp_regs = Reg.createv_like src in
+            (* Ccatch registers must not contain out of heap pointers *)
+            Array.iter (fun reg -> assert (reg.Reg.typ <> Addr)) src;
+            self#insert_moves env src tmp_regs;
+            self#insert_moves env tmp_regs (Array.concat handler.regs);
+            assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+            sub_cfg.exit.terminator
+              <- { sub_cfg.exit.terminator with
+                   desc = Cfg.Always handler.extra
+                 };
+            Select_utils.set_traps nfail handler.Select_utils.traps_ref
+              env.Select_utils.trap_stack traps;
+            None
+          | Return_lbl -> (
+            match simple_list with
+            | [expr] ->
+              self#emit_return ext_env expr traps;
+              None
+            | [] ->
+              Misc.fatal_error "Selection.emit_expr: Return without arguments"
+            | _ :: _ :: _ ->
+              Misc.fatal_error
+                "Selection.emit_expr: Return with too many arguments"))
 
     method emit_expr_aux_trywith
         : environment ->
@@ -800,8 +837,9 @@ class virtual selector_generic =
         let env, handlers_map =
           List.fold_left
             (fun (env, map) (nfail, ids, rs, e2, dbg, is_cold) ->
+              let label = Cmm.new_label () in
               let env, r =
-                Select_utils.env_add_static_exception nfail rs env ()
+                Select_utils.env_add_static_exception nfail rs env label
               in
               env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold)) map)
             (env, Int.Map.empty) handlers
@@ -887,8 +925,9 @@ class virtual selector_generic =
           unit =
       fun env e1 exn_cont v e2 _XXXdbg _value_kind ->
         assert (sub_cfg.exit.terminator.desc = Cfg.Never);
-        (* CR xclerc for xclerc: should not be `()` on the line below. *)
-        let env_body = Select_utils.env_enter_trywith env exn_cont () in
+        let env_body =
+          Select_utils.env_enter_trywith env exn_cont (Cmm.new_label ())
+        in
         let s1 : Sub_cfg.t = self#emit_tail_sequence env_body e1 in
         let rv = self#regs_for typ_val in
         let with_handler env_handler e2 =
