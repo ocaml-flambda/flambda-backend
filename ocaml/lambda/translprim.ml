@@ -346,6 +346,43 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     let (_, repr) = lambda_prim.prim_native_repr_res in
     Lambda.layout_of_extern_repr repr
   in
+  let get_unboxed_product_kinds layout what =
+    match layout with
+    | Punboxed_product layouts -> (
+      let rec convert_layout layout =
+        match layout with
+        | Pvalue Pintval -> Pint_ignorable
+        | Pvalue _ ->
+          Misc.fatal_error
+            "Scannable layouts not permitted for reinterpret array load/store"
+        | Punboxed_float fk -> Punboxedfloat_ignorable fk
+        | Punboxed_int ubi -> Punboxedint_ignorable ubi
+        | Punboxed_vector _ ->
+          Misc.fatal_error
+            "SIMD vectors not permitted for reinterpret array load/store"
+        | Punboxed_product layouts ->
+          Pproduct_ignorable (List.map convert_layout layouts)
+        | Ptop -> Misc.fatal_error "Unexpected Ptop"
+        | Pbottom -> Misc.fatal_error "Unexpected Pbottom"
+      in
+      List.map convert_layout layouts
+    )
+    | _ ->
+      Misc.fatal_errorf
+        "Expected unboxed product return layout for %s but got:@ (%a)"
+        what
+        Printlambda.layout layout
+  in
+  let get_result_unboxed_product_kinds what =
+    get_unboxed_product_kinds layout ("result of " ^ what)
+  in
+  let get_third_arg_unboxed_product_kinds what =
+    match lambda_prim.prim_native_repr_args with
+    | [ _; _; (_mode, repr) ] ->
+      get_unboxed_product_kinds (Lambda.layout_of_extern_repr repr)
+        ("third arg of " ^ what)
+    | _ -> Misc.fatal_error "Expected three arguments"
+  in
   let prim = match p.prim_name with
     | "%identity" -> Identity
     | "%bytes_to_string" -> Primitive (Pbytes_to_string, 1)
@@ -464,6 +501,24 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%array_unsafe_set" ->
       Primitive
         ((Parraysetu (gen_array_set_kind (get_first_arg_mode ()), Ptagged_int_index)),
+        3)
+    | "%unboxed_int64_array_safe_get_reinterpret" ->
+      Primitive
+        (Parrayrefs (Punboxedint64array_reinterpret_ref
+          (get_result_unboxed_product_kinds p.prim_name), Ptagged_int_index), 2)
+    | "%unboxed_int64_array_safe_set_reinterpret" ->
+      Primitive
+        ((Parraysets (Punboxedint64array_reinterpret_set
+          (get_third_arg_unboxed_product_kinds p.prim_name), Ptagged_int_index)),
+         3)
+    | "%unboxed_int64_array_unsafe_get_reinterpret" ->
+      Primitive
+        (Parrayrefu (Punboxedint64array_reinterpret_ref
+          (get_result_unboxed_product_kinds p.prim_name), Ptagged_int_index), 2)
+    | "%unboxed_int64_array_unsafe_set_reinterpret" ->
+      Primitive
+        ((Parraysetu (Punboxedint64array_reinterpret_set
+          (get_third_arg_unboxed_product_kinds p.prim_name), Ptagged_int_index)),
         3)
     | "%array_safe_get_indexed_by_int64#" ->
       Primitive
