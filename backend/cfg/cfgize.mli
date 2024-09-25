@@ -1,3 +1,6 @@
+val terminator_of_test :
+  Mach.test -> label_false:Label.t -> label_true:Label.t -> Cfg.terminator
+
 val fundecl :
   Mach.fundecl ->
   before_register_allocation:bool ->
