@@ -767,12 +767,143 @@ let simplify_atomic_load
     (P.result_kind' original_prim)
     ~original_term
 
+let[@inline always] simplify_immutable_block_load0
+    (access_kind : P.Block_access_kind.t) ~field ~min_name_mode dacc
+    ~original_term _dbg ~arg:block ~arg_ty:block_ty ~result_var =
+  let result_kind = P.Block_access_kind.element_kind_for_load access_kind in
+  let result_var' = Bound_var.var result_var in
+  let typing_env = DA.typing_env dacc in
+  match
+    T.meet_block_field_simple typing_env ~min_name_mode ~field_kind:result_kind
+      block_ty field
+  with
+  | Invalid -> SPR.create_invalid dacc
+  | Known_result simple ->
+    let dacc =
+      DA.add_variable dacc result_var (T.alias_type_of result_kind simple)
+    in
+    SPR.create (Named.create_simple simple) ~try_reify:false dacc
+  | Need_meet -> (
+    let n = Targetint_31_63.add field Targetint_31_63.one in
+    (* CR-someday mshinwell: We should be able to use the size in the
+       [access_kind] to constrain the type of the block *)
+    let tag, shape =
+      match access_kind with
+      | Values { tag; _ } ->
+        ( Or_unknown.map tag ~f:Tag.Scannable.to_tag,
+          K.Block_shape.Scannable Value_only )
+      | Naked_floats { size } ->
+        ( (match size with
+          | Known size ->
+            (* We don't expect blocks of naked floats of size zero (it doesn't
+               seem that the frontend currently emits code to create such
+               blocks) and so it isn't clear whether such blocks should have tag
+               zero (like zero-sized naked float arrays) or another tag. *)
+            if Targetint_31_63.equal size Targetint_31_63.zero
+            then Or_unknown.Unknown
+            else Or_unknown.Known Tag.double_array_tag
+          | Unknown -> Or_unknown.Unknown),
+          K.Block_shape.Float_record )
+      | Mixed { tag; size = _; field_kind = _; shape } ->
+        ( Or_unknown.map tag ~f:Tag.Scannable.to_tag,
+          K.Block_shape.Scannable (Mixed_record shape) )
+    in
+    let result =
+      Simplify_common.simplify_projection dacc ~original_term
+        ~deconstructing:block_ty
+        ~shape:
+          (T.immutable_block_with_size_at_least ~tag ~n ~shape
+             ~field_n_minus_one:result_var')
+        ~result_var ~result_kind
+    in
+    match result.simplified_named with
+    | Invalid -> result
+    | Ok _ -> (
+      (* If the type contains enough information to actually build a primitive
+         to make the corresponding block, then we add a CSE equation, to try to
+         avoid duplicate allocations in the future. This should help with cases
+         such as "Some x -> Some x". *)
+      let dacc = result.dacc in
+      match
+        T.prove_unique_fully_constructed_immutable_heap_block
+          (DA.typing_env dacc) block_ty
+      with
+      | Unknown -> result
+      | Proved (tag, shape_from_type, _size, field_simples) -> (
+        match Tag.Scannable.of_tag tag with
+        | None -> result
+        | Some tag -> (
+          let block_kind : P.Block_kind.t =
+            match access_kind with
+            | Values _ ->
+              let arity =
+                List.map (fun _ -> K.With_subkind.any_value) field_simples
+              in
+              Values (tag, arity)
+            | Naked_floats _ -> Naked_floats
+            | Mixed { shape; _ } ->
+              (match shape_from_type with
+              | Scannable (Mixed_record shape_from_type)
+                when K.Mixed_block_shape.equal shape shape_from_type ->
+                ()
+              | Scannable Value_only | Float_record | Scannable (Mixed_record _)
+                ->
+                Misc.fatal_error
+                  "Block access kind disagrees with block shape from type");
+              Mixed (tag, shape)
+          in
+          let prim =
+            P.Eligible_for_cse.create
+              (Variadic
+                 ( Make_block
+                     (block_kind, Immutable, Alloc_mode.For_allocations.heap),
+                   field_simples ))
+          in
+          match prim with
+          | None -> result
+          | Some prim ->
+            let dacc =
+              DA.map_denv dacc ~f:(fun denv ->
+                  DE.add_cse denv prim ~bound_to:block)
+            in
+            SPR.with_dacc result dacc))))
+
+let simplify_immutable_block_load access_kind ~field ~min_name_mode dacc
+    ~original_term ~dbg ~arg ~arg_ty ~result_var =
+  let result =
+    simplify_immutable_block_load0 access_kind ~field ~min_name_mode dacc
+      ~original_term dbg ~arg ~arg_ty ~result_var
+  in
+  let dacc' =
+    (* The [args] being queried here are the post-simplification arguments of
+       the primitive, so we can directly read off whether they are symbols or
+       constants, as needed. *)
+    let kind = P.Block_access_kind.element_subkind_for_load access_kind in
+    Simplify_common.add_symbol_projection result.dacc ~projected_from:arg
+      (Symbol_projection.Projection.block_load ~index:field)
+      ~projection_bound_to:result_var ~kind
+  in
+  SPR.with_dacc result dacc'
+
+let simplify_mutable_block_load _access_kind ~field:_ ~original_prim dacc
+    ~original_term ~dbg:_ ~arg ~arg_ty:_ ~result_var =
+  if Simple.is_const arg
+  then SPR.create_invalid dacc
+  else
+    SPR.create_unknown dacc ~result_var
+      (P.result_kind' original_prim)
+      ~original_term
+
 let simplify_unary_primitive dacc original_prim (prim : P.unary_primitive) ~arg
     ~arg_ty dbg ~result_var =
   let min_name_mode = Bound_var.name_mode result_var in
   let original_term = Named.create_prim original_prim dbg in
   let simplifier =
     match prim with
+    | Block_load { kind; mut = Immutable | Immutable_unique; field } ->
+      simplify_immutable_block_load kind ~field ~min_name_mode ~dbg
+    | Block_load { kind; mut = Mutable; field } ->
+      simplify_mutable_block_load kind ~field ~original_prim ~dbg
     | Project_value_slot { project_from; value_slot } ->
       simplify_project_value_slot project_from value_slot ~min_name_mode
     | Project_function_slot { move_from; move_to } ->

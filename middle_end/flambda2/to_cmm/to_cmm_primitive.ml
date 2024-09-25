@@ -126,8 +126,9 @@ let make_block ~dbg kind alloc_mode args =
     C.make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks
 
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
-    ~block ~index =
+    ~block ~field =
   let mutability = Mutability.to_asttypes mutability in
+  let index = C.const ~dbg (Reg_width_const.tagged_immediate field) in
   let load_func =
     match kind with
     | Mixed { field_kind = Value_prefix Any_value; _ }
@@ -148,8 +149,9 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
   load_func mutability ~block ~index dbg
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
-    ~block ~index ~new_value =
+    ~block ~field ~new_value =
   let init_or_assign = P.Init_or_assign.to_lambda init in
+  let index = C.const ~dbg (Reg_width_const.tagged_immediate field) in
   let set_func =
     match kind with
     | Mixed { field_kind = Value_prefix Any_value; _ }
@@ -699,6 +701,8 @@ let nullary_primitive _env res dbg prim =
 
 let unary_primitive env res dbg f arg =
   match (f : P.unary_primitive) with
+  | Block_load { kind; mut; field } ->
+    None, res, block_load ~dbg kind mut ~field ~block:arg
   | Duplicate_array _ | Duplicate_block _ | Obj_dup ->
     ( None,
       res,
@@ -821,7 +825,8 @@ let unary_primitive env res dbg f arg =
 
 let binary_primitive env dbg f x y =
   match (f : P.binary_primitive) with
-  | Block_load (kind, mut) -> block_load ~dbg kind mut ~block:x ~index:y
+  | Block_set { kind; init; field } ->
+    block_set ~dbg kind init ~field ~block:x ~new_value:y
   | Array_load (kind, width, _mut) -> array_load ~dbg kind width ~arr:x ~index:y
   | String_or_bigstring_load (kind, width) ->
     string_like_load ~dbg kind width ~str:x ~index:y
@@ -845,8 +850,6 @@ let binary_primitive env dbg f x y =
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
-  | Block_set (block_access, init) ->
-    block_set ~dbg block_access init ~block:x ~index:y ~new_value:z
   | Array_set (array_set_kind, width) ->
     array_set ~dbg array_set_kind width ~arr:x ~index:y ~new_value:z
   | Bytes_or_bigstring_set (kind, width) ->

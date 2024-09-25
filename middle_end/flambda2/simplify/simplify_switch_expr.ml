@@ -281,7 +281,6 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
     dbg =
   let rebuilding = UA.are_rebuilding_terms uacc in
   let tag = Tag.Scannable.zero in
-  let num_consts = List.length consts in
   let block_sym =
     let var = Variable.create "switch_block" in
     Symbol.create
@@ -313,15 +312,9 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
   in
   (* CR mshinwell: consider sharing the constants *)
   let block = Simple.symbol block_sym in
-  let access_kind : P.Block_access_kind.t =
-    Values
-      { tag = Known tag;
-        size = Known (TI.of_int num_consts);
-        field_kind = Immediate
-      }
-  in
   let load_from_block_prim : P.t =
-    Binary (Block_load (access_kind, Immutable), block, tagged_scrutinee)
+    (* CR mslater for mshinwell: is this ok? *)
+    Binary (Array_load (Values, Scalar, Immutable), block, tagged_scrutinee)
   in
   let load_from_block = Named.create_prim load_from_block_prim dbg in
   let arg_var = Variable.create "arg" in
