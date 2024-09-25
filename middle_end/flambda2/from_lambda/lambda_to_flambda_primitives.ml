@@ -624,30 +624,38 @@ let bytes_like_set ~dbg ~unsafe
 
 let multiple_word_array_access_validity_condition array ~size_int
     array_length_kind index_kind ~width_in_scalars ~index =
-  let length_untagged =
-    untag_int (H.Prim (Unary (Array_length array_length_kind, array)))
-  in
-  let reduced_length_untagged =
-    H.Prim
-      (Binary
-         ( Int_arith (Naked_immediate, Sub),
-           length_untagged,
-           Simple
-             (Simple.untagged_const_int
-                (Targetint_31_63.of_int (width_in_scalars - 1))) ))
-  in
-  (* We need to convert the length into a naked_nativeint because the optimised
-     version of the max_with_zero function needs to be on machine-width integers
-     to work (or at least on an integer number of bytes to work). *)
-  let reduced_length_nativeint =
-    H.Prim
-      (Unary
-         ( Num_conv { src = Naked_immediate; dst = Naked_nativeint },
-           reduced_length_untagged ))
-  in
-  let nativeint_bound = max_with_zero ~size_int reduced_length_nativeint in
-  check_bound ~index_kind ~bound_kind:Naked_nativeint ~index
-    ~bound:nativeint_bound
+  let length_tagged = H.Prim (Unary (Array_length array_length_kind, array)) in
+  if width_in_scalars < 1
+  then Misc.fatal_errorf "Invalid width_in_scalars value: %d" width_in_scalars
+  else if width_in_scalars = 1
+  then
+    (* Ensure good code generation in the common case. *)
+    check_bound ~index_kind ~bound_kind:Tagged_immediate ~index
+      ~bound:length_tagged
+  else
+    let length_untagged = untag_int length_tagged in
+    let reduced_length_untagged =
+      H.Prim
+        (Binary
+           ( Int_arith (Naked_immediate, Sub),
+             length_untagged,
+             Simple
+               (Simple.untagged_const_int
+                  (Targetint_31_63.of_int (width_in_scalars - 1))) ))
+    in
+    (* We need to convert the length into a naked_nativeint because the
+       optimised version of the max_with_zero function needs to be on
+       machine-width integers to work (or at least on an integer number of bytes
+       to work). *)
+    let reduced_length_nativeint =
+      H.Prim
+        (Unary
+           ( Num_conv { src = Naked_immediate; dst = Naked_nativeint },
+             reduced_length_untagged ))
+    in
+    let nativeint_bound = max_with_zero ~size_int reduced_length_nativeint in
+    check_bound ~index_kind ~bound_kind:Naked_nativeint ~index
+      ~bound:nativeint_bound
 
 (* Array vector load/store *)
 
