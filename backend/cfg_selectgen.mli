@@ -25,6 +25,22 @@ type basic_or_terminator =
   | Terminator of Cfg.terminator
   | With_next_label of (Label.t -> Cfg.terminator)
 
+module Sub_cfg : sig
+  type t =
+    { entry : Cfg.basic_block;
+      exit : Cfg.basic_block;
+      layout : Cfg.basic_block Flambda_backend_utils.Doubly_linked_list.t
+    }
+
+  val make_empty : unit -> t
+
+  val add_instruction :
+    t -> Cfg.basic -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
+
+  val set_terminator :
+    t -> Cfg.terminator -> Reg.t array -> Reg.t array -> Debuginfo.t -> unit
+end
+
 class virtual selector_generic :
   object
     method is_store : Cfg.operation -> bool
@@ -140,6 +156,17 @@ class virtual selector_generic :
     method insert_debug :
       environment ->
       Cfg.basic ->
+      Debuginfo.t ->
+      Reg.t array ->
+      Reg.t array ->
+      unit
+
+    method insert' :
+      environment -> Cfg.terminator -> Reg.t array -> Reg.t array -> unit
+
+    method insert_debug' :
+      environment ->
+      Cfg.terminator ->
       Debuginfo.t ->
       Reg.t array ->
       Reg.t array ->
@@ -291,6 +318,8 @@ class virtual selector_generic :
 
     method emit_return :
       environment -> Cmm.expression -> Cmm.trap_action list -> unit
+
+    method extract : Sub_cfg.t
 
     method emit_fundecl :
       future_funcnames:Misc.Stdlib.String.Set.t ->
