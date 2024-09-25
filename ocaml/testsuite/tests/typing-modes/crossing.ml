@@ -37,9 +37,9 @@ Error: Signature mismatch:
          val f : unit -> [> `A ]
        is not included in
          val f : unit -> [ `A | `B of 'a -> 'a ] @ portable
-       The type unit -> [ `A | `B of 'a -> 'a ]
+       The type "unit -> [ `A | `B of 'a -> 'a ]"
        is not compatible with the type
-         unit -> [ `A | `B of 'a -> 'a ] @ portable
+         "unit -> [ `A | `B of 'a -> 'a ] @ portable"
 |}]
 
 (* In this example, the inferred type does not allow crossing portability, but
@@ -75,8 +75,8 @@ Error: Signature mismatch:
          val f : unit -> local_ int
        is not included in
          val f : unit -> int
-       The type unit -> local_ int is not compatible with the type
-         unit -> int
+       The type "unit -> local_ int" is not compatible with the type
+         "unit -> int"
 |}]
 
 module M : sig

@@ -20,7 +20,7 @@
 
 #include "misc.h"
 
-CAMLextern uintnat caml_max_stack_wsize;
+CAMLextern atomic_uintnat caml_max_stack_wsize;
 CAMLextern uintnat caml_fiber_wsz;
 CAMLextern uintnat caml_major_cycles_completed;
 
@@ -42,6 +42,10 @@ value caml_gc_major(value);
 #ifdef DEBUG
 void caml_heap_check (void);
 #endif
+
+void caml_init_gc_tweaks(void);
+uintnat* caml_lookup_gc_tweak(const char* name, uintnat len);
+void caml_print_gc_tweaks(void);
 
 #endif /* CAML_INTERNALS */
 

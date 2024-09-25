@@ -16,6 +16,7 @@
 
 #define CAML_INTERNALS
 
+#include <string.h>
 #include "caml/config.h"
 #include "caml/memory.h"
 #include "caml/mlvalues.h"
@@ -140,7 +141,7 @@ CAMLexport value caml_setup_afl(value unit)
       return Val_unit;
     }
 
-    /* As long as the child keeps raising SIGSTOP, we re-use the same process */
+    /* As long as the child keeps raising SIGSTOP, we reuse the same process */
     while (1) {
       int status;
       uint32_t was_killed;

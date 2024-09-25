@@ -288,7 +288,7 @@ let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
 Line 1, characters 79-80:
 1 | let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
                                                                                    ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
@@ -298,7 +298,7 @@ let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
 Line 1, characters 66-67:
 1 | let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
                                                                       ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let hidden_string_duplicate =
@@ -308,7 +308,7 @@ let hidden_string_duplicate =
 Line 2, characters 71-72:
 2 |   let once_ x : Hidden_string.t = Hidden_string.hide "hello" in Fun.id x
                                                                            ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let hidden_int_duplicate =
@@ -327,7 +327,7 @@ let hidden_string_list_duplicate =
 Line 4, characters 12-13:
 4 |   in Fun.id x
                 ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let hidden_int_list_duplicate =
@@ -340,7 +340,7 @@ let hidden_int_list_duplicate =
 Line 4, characters 12-13:
 4 |   in Fun.id x
                 ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let float_duplicate = let once_ x : float = 3.14 in Fun.id x
@@ -375,7 +375,7 @@ let hidden_int64_u_duplicate () =
 Line 2, characters 75-76:
 2 |   let once_ x : Hidden_int64_u.t = Hidden_int64_u.hide #314L in Int64_u.id x
                                                                                ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let float_u_record_duplicate =
@@ -386,7 +386,7 @@ let float_u_record_duplicate =
 Line 2, characters 69-70:
 2 |   let once_ x : float_u_record = { x = #3.14; y = #2.718 } in Fun.id x
                                                                          ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let float_u_record_list_duplicate =
@@ -397,7 +397,7 @@ let float_u_record_list_duplicate =
 Line 2, characters 51-52:
 2 |   let once_ x : float_u_record list = [] in Fun.id x
                                                        ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
@@ -406,7 +406,7 @@ let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
 Line 1, characters 73-74:
 1 | let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
                                                                              ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let function_list_duplicate =
@@ -416,7 +416,7 @@ let function_list_duplicate =
 Line 2, characters 77-78:
 2 |   let once_ x : (int -> int) list = [(fun y -> y); fun z -> z + 1] in Fun.id x
                                                                                  ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let unique (unique_ x) = x
@@ -487,7 +487,7 @@ let hidden_string_unshare =
 Line 2, characters 75-76:
 2 |   let x : Hidden_string.t = Hidden_string.hide "hello" in ignore x; unique x
                                                                                ^
-Error: This value is aliased but expected to be unique.
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let hidden_int_unshare =
@@ -514,7 +514,7 @@ let hidden_string_list_unshare =
 Line 4, characters 22-23:
 4 |   in ignore x; unique x
                           ^
-Error: This value is aliased but expected to be unique.
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let hidden_int_list_unshare =
@@ -615,7 +615,7 @@ let hidden_int64_u_unshare () =
 Line 3, characters 35-36:
 3 |   Int64_u.ignore x; Int64_u.unique x
                                        ^
-Error: This value is aliased but expected to be unique.
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 let float_u_record_unshare =
@@ -705,7 +705,7 @@ let ref_immutable_data_right x =
 Line 2, characters 30-53:
 2 |   take_strong_immutable_data (weaken_immutable_data x : float ref);
                                   ^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let ref_immutable_data_left x =
@@ -715,7 +715,7 @@ let ref_immutable_data_left x =
 Line 3, characters 29-30:
 3 |   take_strong_immutable_data x
                                  ^
-Error: This value is once but expected to be many.
+Error: This value is "once" but expected to be "many".
 |}]
 
 let float_immutable_data_right x =

@@ -1,14 +1,7 @@
 (* TEST
- include unix;
  modules = "test7_.c";
  reason = "CR ocaml 5 effects: re-enable this test";
  skip;
- libunix;
- {
-   bytecode;
- }{
-   native;
- }
 *)
 
 (* Tests nested calls from C (main C) to OCaml (main OCaml) to C (caml_to_c) to

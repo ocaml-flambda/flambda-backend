@@ -85,8 +85,8 @@ let foo = ("hello" @ local)
 Line 1, characters 11-18:
 1 | let foo = ("hello" @ local)
                ^^^^^^^
-Error: This expression has type string but an expression was expected of type
-         'a list
+Error: This expression has type "string" but an expression was expected of type
+         "'a list"
 |}]
 
 (* CR zqian: Support the following in the future. Currently skipped for
@@ -409,8 +409,8 @@ val local_ret : 'a -> local_ 'a option = <fun>
 Line 3, characters 29-38:
 3 | let bad_use = use_global_ret local_ret "hello"
                                  ^^^^^^^^^
-Error: This expression has type 'a -> local_ 'a option
-       but an expression was expected of type 'b -> 'c
+Error: This expression has type "'a -> local_ 'a option"
+       but an expression was expected of type "'b -> 'c"
 |}]
 
 let use_nonportable_ret (f : _ -> (_ -> _) @ nonportable) x y =
@@ -436,8 +436,8 @@ val nonportable_ret : string -> string -> string = <fun>
 Line 5, characters 31-46:
 5 | let bad_use = use_portable_ret nonportable_ret "hello" " world"
                                    ^^^^^^^^^^^^^^^
-Error: This expression has type string -> string -> string
-       but an expression was expected of type 'a -> ('b -> 'c) @ portable
+Error: This expression has type "string -> string -> string"
+       but an expression was expected of type "'a -> ('b -> 'c) @ portable"
 |}]
 
 let use_contended_ret (f : _ -> _ @ contended) x =
@@ -462,8 +462,8 @@ val contended_ret : string -> string @ contended = <fun>
 Line 5, characters 34-47:
 5 | let bad_use = use_uncontended_ret contended_ret "hello"
                                       ^^^^^^^^^^^^^
-Error: This expression has type string -> string @ contended
-       but an expression was expected of type 'a -> 'b
+Error: This expression has type "string -> string @ contended"
+       but an expression was expected of type "'a -> 'b"
 |}]
 
 (*
@@ -501,8 +501,8 @@ let result = use_global bar 1. 2.
 Line 1, characters 24-27:
 1 | let result = use_global bar 1. 2.
                             ^^^
-Error: This expression has type local_ float -> local_ float -> unit
-       but an expression was expected of type local_ 'a -> ('b -> 'c)
+Error: This expression has type "local_ float -> local_ float -> unit"
+       but an expression was expected of type "local_ 'a -> ('b -> 'c)"
 |}]
 
 let use_portable_arg (f : (_ -> _) @ portable -> _) g = f g
@@ -527,8 +527,8 @@ val portable_arg : (unit -> 'a) @ portable -> 'a = <fun>
 Line 3, characters 34-46:
 3 | let bad_use = use_nonportable_arg portable_arg (fun () -> ())
                                       ^^^^^^^^^^^^
-Error: This expression has type (unit -> 'a) @ portable -> 'a
-       but an expression was expected of type ('b -> 'c) -> 'd
+Error: This expression has type "(unit -> 'a) @ portable -> 'a"
+       but an expression was expected of type "('b -> 'c) -> 'd"
 |}]
 
 let use_uncontended_arg (f : _ @ uncontended -> _) x = f x
@@ -549,6 +549,6 @@ val uncontended_arg : 'a -> unit = <fun>
 Line 3, characters 32-47:
 3 | let bad_use = use_contended_arg uncontended_arg ()
                                     ^^^^^^^^^^^^^^^
-Error: This expression has type 'a -> unit
-       but an expression was expected of type 'b @ contended -> 'c
+Error: This expression has type "'a -> unit"
+       but an expression was expected of type "'b @ contended -> 'c"
 |}]

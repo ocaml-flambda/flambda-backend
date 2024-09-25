@@ -34,9 +34,9 @@ Line 1, characters 23-39:
 1 | type t_nope = string * #(string * bool)
                            ^^^^^^^^^^^^^^^^
 Error: Tuple element types must have layout value.
-       The layout of #(string * bool) is value & value
+       The layout of "#(string * bool)" is value & value
          because it is an unboxed tuple.
-       But the layout of #(string * bool) must be a sublayout of value
+       But the layout of "#(string * bool)" must be a sublayout of value
          because it's the type of a tuple element.
 |}]
 
@@ -55,9 +55,9 @@ type t2_wrong : value & float64 & value = #(string option * t1)
 Line 1, characters 0-63:
 1 | type t2_wrong : value & float64 & value = #(string option * t1)
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The layout of type #(string option * t1) is value & (float64 & value)
+Error: The layout of type "#(string option * t1)" is value & (float64 & value)
          because it is an unboxed tuple.
-       But the layout of type #(string option * t1) must be a sublayout of
+       But the layout of type "#(string option * t1)" must be a sublayout of
          value & float64 & value
          because of the definition of t2_wrong at line 1, characters 0-63.
 |}]
@@ -76,8 +76,8 @@ type t4_wrong = #(int * int) t3
 Line 1, characters 16-28:
 1 | type t4_wrong = #(int * int) t3
                     ^^^^^^^^^^^^
-Error: This type #(int * int) should be an instance of type
-         ('a : value & bits64)
+Error: This type "#(int * int)" should be an instance of type
+         "('a : value & bits64)"
        The layout of #(int * int) is value & value
          because it is an unboxed tuple.
        But the layout of #(int * int) must be a sublayout of value & bits64
@@ -101,7 +101,7 @@ type t9 = #(int * int64#) t7
 Line 2, characters 11-15:
 2 | type t10 = bool t6
                ^^^^
-Error: This type bool should be an instance of type ('a : value & bits64)
+Error: This type "bool" should be an instance of type "('a : value & bits64)"
        The layout of bool is value
          because it's an enumeration variant type (all constructors are constant).
        But the layout of bool must be a sublayout of value & bits64
@@ -114,8 +114,8 @@ and 'a t7_wrong = { x : #(int * int64) t6_wrong }
 Line 2, characters 24-38:
 2 | and 'a t7_wrong = { x : #(int * int64) t6_wrong }
                             ^^^^^^^^^^^^^^
-Error: This type #(int * int64) should be an instance of type
-         ('a : value & bits64)
+Error: This type "#(int * int64)" should be an instance of type
+         "('a : value & bits64)"
        The layout of #(int * int64) is value & value
          because it is an unboxed tuple.
        But the layout of #(int * int64) must be a sublayout of value & bits64
@@ -149,8 +149,8 @@ val f_uvar_ok : ('a : float64 & value). 'a -> 'a t = <fun>
 Line 6, characters 28-30:
 6 | let f_uvar_bad : 'a . 'a -> 'a t = fun x -> x
                                 ^^
-Error: This type ('a : value) should be an instance of type
-         ('b : float64 & value)
+Error: This type "('a : value)" should be an instance of type
+         "('b : float64 & value)"
        The layout of 'a is value
          because it is or unifies with an unannotated universal variable.
        But the layout of 'a must overlap with float64 & value
@@ -218,9 +218,9 @@ Line 1, characters 31-44:
 1 | type poly_var_type = [ `Foo of #(int * bool) ]
                                    ^^^^^^^^^^^^^
 Error: Polymorphic variant constructor argument types must have layout value.
-       The layout of #(int * bool) is value & value
+       The layout of "#(int * bool)" is value & value
          because it is an unboxed tuple.
-       But the layout of #(int * bool) must be a sublayout of value
+       But the layout of "#(int * bool)" must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}]
 
@@ -229,9 +229,9 @@ let poly_var_term = `Foo #(1,2)
 Line 1, characters 25-31:
 1 | let poly_var_term = `Foo #(1,2)
                              ^^^^^^
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_158 & '_representable_layout_159
+Error: This expression has type "#('a * 'b)"
+       but an expression was expected of type "('c : value)"
+       The layout of #('a * 'b) is '_representable_layout_86 & '_representable_layout_87
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
@@ -243,9 +243,9 @@ Line 1, characters 25-41:
 1 | type tuple_type = (int * #(bool * float#))
                              ^^^^^^^^^^^^^^^^
 Error: Tuple element types must have layout value.
-       The layout of #(bool * float#) is value & float64
+       The layout of "#(bool * float#)" is value & float64
          because it is an unboxed tuple.
-       But the layout of #(bool * float#) must be a sublayout of value
+       But the layout of "#(bool * float#)" must be a sublayout of value
          because it's the type of a tuple element.
 |}]
 
@@ -254,9 +254,9 @@ let tuple_term = ("hi", #(1, 2))
 Line 1, characters 24-31:
 1 | let tuple_term = ("hi", #(1, 2))
                             ^^^^^^^
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_165 & '_representable_layout_166
+Error: This expression has type "#('a * 'b)"
+       but an expression was expected of type "('c : value)"
+       The layout of #('a * 'b) is '_representable_layout_89 & '_representable_layout_90
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a tuple element.
@@ -267,7 +267,7 @@ type record = { x : #(int * bool) }
 Line 1, characters 0-35:
 1 | type record = { x : #(int * bool) }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type #(int * bool) has layout value & value.
+Error: Type "#(int * bool)" has layout "value & value".
        Records may not yet contain types of this layout.
 |}]
 
@@ -276,7 +276,7 @@ type inlined_record = A of { x : #(int * bool) }
 Line 1, characters 22-48:
 1 | type inlined_record = A of { x : #(int * bool) }
                           ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type #(int * bool) has layout value & value.
+Error: Type "#(int * bool)" has layout "value & value".
        Inlined records may not yet contain types of this layout.
 |}]
 
@@ -285,7 +285,7 @@ type variant = A of #(int * bool)
 Line 1, characters 15-33:
 1 | type variant = A of #(int * bool)
                    ^^^^^^^^^^^^^^^^^^
-Error: Type #(int * bool) has layout value & value.
+Error: Type "#(int * bool)" has layout "value & value".
        Variants may not yet contain types of this layout.
 |}]
 
@@ -296,7 +296,7 @@ end
 Line 2, characters 10-23:
 2 |   val x : #(int * bool)
               ^^^^^^^^^^^^^
-Error: This type signature for x is not a value type.
+Error: This type signature for "x" is not a value type.
        The layout of type #(int * bool) is value & value
          because it is an unboxed tuple.
        But the layout of type #(int * bool) must be a sublayout of value
@@ -310,8 +310,8 @@ end
 Line 2, characters 6-7:
 2 |   let x = #(1, 2)
           ^
-Error: Types of top-level module bindings must have layout value, but
-       the type of x has layout value & value.
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "x" has layout "value & value".
 |}]
 
 type object_type = < x : #(int * bool) >
@@ -320,9 +320,9 @@ Line 1, characters 21-38:
 1 | type object_type = < x : #(int * bool) >
                          ^^^^^^^^^^^^^^^^^
 Error: Object field types must have layout value.
-       The layout of #(int * bool) is value & value
+       The layout of "#(int * bool)" is value & value
          because it is an unboxed tuple.
-       But the layout of #(int * bool) must be a sublayout of value
+       But the layout of "#(int * bool)" must be a sublayout of value
          because it's the type of an object field.
 |}]
 
@@ -346,9 +346,9 @@ class class_ =
 Line 3, characters 15-21:
 3 |     method x = #(1,2)
                    ^^^^^^
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_194 & '_representable_layout_195
+Error: This expression has type "#('a * 'b)"
+       but an expression was expected of type "('c : value)"
+       The layout of #('a * 'b) is '_representable_layout_102 & '_representable_layout_103
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of an object field.
@@ -363,9 +363,9 @@ end;;
 Line 3, characters 17-21:
 3 |     let #(x,y) = utup in
                      ^^^^
-Error: This expression has type ('a : value)
-       but an expression was expected of type #('b * 'c)
-       The layout of #('a * 'b) is '_representable_layout_206 & '_representable_layout_207
+Error: This expression has type "('a : value)"
+       but an expression was expected of type "#('b * 'c)"
+       The layout of #('a * 'b) is '_representable_layout_110 & '_representable_layout_111
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a variable captured in an object.
@@ -699,9 +699,9 @@ val e1 : unit = ()
 Line 2, characters 37-44:
 2 | let[@warning "-26"] e2 = let rec x = #(1, y) and y = 42 in ()
                                          ^^^^^^^
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_366 & '_representable_layout_367
+Error: This expression has type "#('a * 'b)"
+       but an expression was expected of type "('c : value)"
+       The layout of #('a * 'b) is '_representable_layout_190 & '_representable_layout_191
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the recursive variable x.
@@ -715,9 +715,9 @@ let _ = let rec _x = #(3, 10) and _y = 42 in 42
 Line 1, characters 21-29:
 1 | let _ = let rec _x = #(3, 10) and _y = 42 in 42
                          ^^^^^^^^
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_373 & '_representable_layout_374
+Error: This expression has type "#('a * 'b)"
+       but an expression was expected of type "('c : value)"
+       The layout of #('a * 'b) is '_representable_layout_195 & '_representable_layout_196
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of the recursive variable _x.
@@ -731,7 +731,7 @@ type ('a : value & value) t = A of 'a [@@unboxed]
 Line 1, characters 30-37:
 1 | type ('a : value & value) t = A of 'a [@@unboxed]
                                   ^^^^^^^
-Error: Type 'a has layout value & value.
+Error: Type "'a" has layout "value & value".
        Unboxed variants may not yet contain types of this layout.
 |}]
 
@@ -740,7 +740,7 @@ type t = A of #(int * int) [@@unboxed]
 Line 1, characters 9-26:
 1 | type t = A of #(int * int) [@@unboxed]
              ^^^^^^^^^^^^^^^^^
-Error: Type #(int * int) has layout value & value.
+Error: Type "#(int * int)" has layout "value & value".
        Unboxed variants may not yet contain types of this layout.
 |}]
 
@@ -749,7 +749,7 @@ type ('a : value & value) t = A of { x : 'a } [@@unboxed]
 Line 1, characters 37-43:
 1 | type ('a : value & value) t = A of { x : 'a } [@@unboxed]
                                          ^^^^^^
-Error: Type 'a has layout value & value.
+Error: Type "'a" has layout "value & value".
        Unboxed inlined records may not yet contain types of this layout.
 |}]
 
@@ -758,7 +758,7 @@ type t = A of { x : #(int * int) } [@@unboxed]
 Line 1, characters 16-32:
 1 | type t = A of { x : #(int * int) } [@@unboxed]
                     ^^^^^^^^^^^^^^^^
-Error: Type #(int * int) has layout value & value.
+Error: Type "#(int * int)" has layout "value & value".
        Unboxed inlined records may not yet contain types of this layout.
 |}]
 
@@ -778,27 +778,15 @@ type t3 = #(int * bool) array
 type t4 = #(string * #(float# * bool option)) array
 |}]
 
-(* CR layouts v7.1: This example demonstrates a bug in type inference that we
-   should fix.  The issue is the way typing of tuple expressions works - we
-   create type variables at generic level and then constrain them by the
-   expected type.  This will fail if it requires to refine the kind, because we
-   don't allow refining kinds at generic level.  We need to remove the
-   restriction that kinds of things at generic level can't be modified, but that
-   is orthogonal to unboxed tuples so we leave in this sad bug for now. *)
+(* CR layouts v7.1: This should be accepted, or the error message should
+   be improved. *)
 let _ = [| #(1,2) |]
 [%%expect{|
-Line 1, characters 11-17:
+Line 1, characters 8-20:
 1 | let _ = [| #(1,2) |]
-               ^^^^^^
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type
-         ('c : '_representable_layout_397 & '_representable_layout_398)
-       The kind of #('a * 'b) is
-         '_representable_layout_397 & '_representable_layout_398
-         because it is an unboxed tuple.
-       But the kind of #('a * 'b) must be a subkind of
-         '_representable_layout_397 & '_representable_layout_398
-         because it's the type of an array element.
+            ^^^^^^^^^^^^
+Error: Product layout value & value detected in structure in [Typeopt.Layout]
+       Please report this error to the Jane Street compilers team.
 |}]
 
 let _ = Array.init 3 (fun _ -> #(1,2))
@@ -806,12 +794,11 @@ let _ = Array.init 3 (fun _ -> #(1,2))
 Line 1, characters 31-37:
 1 | let _ = Array.init 3 (fun _ -> #(1,2))
                                    ^^^^^^
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_404 & '_representable_layout_405
+Error: This expression has type "#('a * 'b)"
+       but an expression was expected of type "('c : value)"
+       The layout of #('a * 'b) is '_representable_layout_210 & '_representable_layout_211
          because it is an unboxed tuple.
-       But the layout of #('a * 'b) must be a sublayout of value
-         because of layout requirements from an imported definition.
+       But the layout of #('a * 'b) must be a sublayout of value.
 |}]
 
 external make : ('a : value & value) . int -> 'a -> 'a array = "caml_make_vect"
@@ -830,7 +817,7 @@ let _ = make 3 #(1,2)
 Lines 1-2, characters 0-18:
 1 | external[@layout_poly] make : ('a : any) . int -> 'a -> 'a array =
 2 |   "caml_make_vect"
-Error: Attribute [@layout_poly] can only be used on built-in primitives.
+Error: Attribute "[@layout_poly]" can only be used on built-in primitives.
 |}]
 
 external[@layout_poly] array_get : ('a : any) . 'a array -> int -> 'a =
@@ -874,9 +861,9 @@ class product_instance_variable x =
 Line 2, characters 25-26:
 2 |   let sum = let #(a,b) = x in a + b in
                              ^
-Error: This expression has type ('a : value)
-       but an expression was expected of type #('b * 'c)
-       The layout of #('a * 'b) is '_representable_layout_450 & '_representable_layout_451
+Error: This expression has type "('a : value)"
+       but an expression was expected of type "#('b * 'c)"
+       The layout of #('a * 'b) is '_representable_layout_246 & '_representable_layout_247
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a term-level argument to a class constructor.
@@ -891,9 +878,9 @@ let x = lazy #(1,2)
 Line 1, characters 13-19:
 1 | let x = lazy #(1,2)
                  ^^^^^^
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_455 & '_representable_layout_456
+Error: This expression has type "#('a * 'b)"
+       but an expression was expected of type "('c : value)"
+       The layout of #('a * 'b) is '_representable_layout_249 & '_representable_layout_250
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a lazy expression.
@@ -905,7 +892,7 @@ type t = #(int * int) lazy_t
 Line 1, characters 9-21:
 1 | type t = #(int * int) lazy_t
              ^^^^^^^^^^^^
-Error: This type #(int * int) should be an instance of type ('a : value)
+Error: This type "#(int * int)" should be an instance of type "('a : value)"
        The layout of #(int * int) is value & value
          because it is an unboxed tuple.
        But the layout of #(int * int) must be a sublayout of value
@@ -929,8 +916,8 @@ let g (x : #(int * int)) = f (x :> #(t * t))
 Line 1, characters 29-44:
 1 | let g (x : #(int * int)) = f (x :> #(t * t))
                                  ^^^^^^^^^^^^^^^
-Error: Type #(int * int) is not a subtype of #(t * t)
-       Type int is not a subtype of t
+Error: Type "#(int * int)" is not a subtype of "#(t * t)"
+       Type "int" is not a subtype of "t"
 |}]
 
 (************************************************)
@@ -941,10 +928,59 @@ let f_optional_utuple ?(x = #(1,2)) () = x
 Line 1, characters 28-34:
 1 | let f_optional_utuple ?(x = #(1,2)) () = x
                                 ^^^^^^
-Error: This expression has type #('a * 'b)
-       but an expression was expected of type ('c : value)
-       The layout of #('a * 'b) is '_representable_layout_485 & '_representable_layout_486
+Error: This expression has type "#('a * 'b)"
+       but an expression was expected of type "('c : value)"
+       The layout of #('a * 'b) is '_representable_layout_267 & '_representable_layout_268
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because the type argument of option has layout value.
 |}]
+
+(******************************)
+(* Test 16: Decomposing [any] *)
+
+type ('a : value) u = U of 'a [@@unboxed]
+type ('a : value) t = #('a u * 'a u)
+
+type ('a : any mod global) needs_any_mod_global
+
+type should_work = int t needs_any_mod_global
+
+[%%expect{|
+type 'a u = U of 'a [@@unboxed]
+type 'a t = #('a u * 'a u)
+type ('a : any mod global) needs_any_mod_global
+type should_work = int t needs_any_mod_global
+|}]
+
+type should_fail = string t needs_any_mod_global
+
+[%%expect{|
+Line 1, characters 19-27:
+1 | type should_fail = string t needs_any_mod_global
+                       ^^^^^^^^
+Error: This type "string t" = "#(string u * string u)"
+       should be an instance of type "('a : any mod global)"
+       The kind of string t is immutable_data
+         because it is the primitive type string.
+       But the kind of string t must be a subkind of any mod global
+         because of the definition of needs_any_mod_global at line 4, characters 0-47.
+|}]
+
+type ('a : any mod external_) t
+
+type s = #(int * string * int) t
+[%%expect{|
+type ('a : any mod external_) t
+Line 3, characters 9-30:
+3 | type s = #(int * string * int) t
+             ^^^^^^^^^^^^^^^^^^^^^
+Error: This type "#(int * string * int)" should be an instance of type
+         "('a : any mod external_)"
+       The kind of #(int * string * int) is immutable_data
+         because it is the primitive type string.
+       But the kind of #(int * string * int) must be a subkind of
+         any mod external_
+         because of the definition of t at line 1, characters 0-31.
+|}]
+(* CR layouts v7.1: Both the above have very bad error messages. *)

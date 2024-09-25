@@ -246,6 +246,7 @@ module type S = sig
     module Const : sig
       type t =
         | Contended
+        | Shared
         | Uncontended
 
       include Lattice with type t := t

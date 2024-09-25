@@ -213,7 +213,8 @@ let bigarray_decode_type env ty tbl dfl =
       dfl
 
 let kind_table =
-  ["float32_elt", Pbigarray_float32;
+  ["float16_elt", Pbigarray_float16;
+   "float32_elt", Pbigarray_float32;
    "float64_elt", Pbigarray_float64;
    "int8_signed_elt", Pbigarray_sint8;
    "int8_unsigned_elt", Pbigarray_uint8;
@@ -919,7 +920,7 @@ let report_error ppf = function
         Jkind.Sort.Const.format const
   | Unsupported_product_in_structure const ->
       fprintf ppf
-        "Product layout %a detected in structure in [Typeopt.Layout] \
+        "Product layout %a detected in structure in [Typeopt.Layout]@ \
          Please report this error to the Jane Street compilers team."
         Jkind.Sort.Const.format const
 

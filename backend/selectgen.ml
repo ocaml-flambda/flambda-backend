@@ -118,6 +118,7 @@ class virtual selector_generic =
         else Istore (chunk, addr, is_assign), [arg2; eloc]
         (* Inversion addr/datum in Istore *)
       | Cdls_get, _ -> Idls_get, args
+      | Cpoll, _ -> Ipoll { return_label = None }, args
       | Calloc mode, _ -> Ialloc { bytes = 0; dbginfo = []; mode }, args
       | Caddi, _ -> self#select_arith_comm Iadd args
       | Csubi, _ -> self#select_arith Isub args

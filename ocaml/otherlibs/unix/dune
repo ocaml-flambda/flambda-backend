@@ -12,10 +12,7 @@
 ;*                                                                        *
 ;**************************************************************************
 
-(rule
- (deps unix_unix.ml)
- (targets unix.ml)
- (action (copy unix_unix.ml unix.ml)))
+(copy_files# caml/*.h)
 
 (library
  (name unix)

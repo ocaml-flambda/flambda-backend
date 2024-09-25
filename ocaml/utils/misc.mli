@@ -138,6 +138,12 @@ module Stdlib : sig
         If [l1] is of length n and [l2 = h2 @ t2] with h2 of length n,
         r1 is [List.map2 f l1 h1] and r2 is t2. *)
 
+    val map3 : ('a -> 'b -> 'c -> 'd) -> 'a list -> 'b list -> 'c list -> 'd list
+
+    val iteri2 : (int -> 'a -> 'b -> unit) -> 'a list -> 'b list -> unit
+    (** Same as {!List.iter2}, but the function is applied to the index of
+        the element as first argument (counting from 0) *)
+
     val split_at : int -> 'a t -> 'a t * 'a t
     (** [split_at n l] returns the pair [before, after] where [before] is
         the [n] first elements of [l] and [after] the remaining ones.
@@ -297,6 +303,36 @@ module Stdlib : sig
   end
 
   external compare : 'a -> 'a -> int = "%compare"
+
+  module Monad : sig
+    module type Basic2 = sig
+      (** Multi parameter monad. The second parameter gets unified across all the computation.
+          This is used to encode monads working on a multi parameter data structure like
+          ([('a,'b) result]). *)
+
+      type ('a, 'e) t
+
+      val bind : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+
+      val return : 'a -> ('a, _) t
+    end
+
+    module type S2 = sig
+      type ('a, 'e) t
+
+      val bind : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+      val return : 'a -> ('a, _) t
+      val map : ('a -> 'b) -> ('a, 'e) t -> ('b, 'e) t
+      val join : (('a, 'e) t, 'e) t -> ('a, 'e) t
+      val ignore_m : (_, 'e) t -> (unit, 'e) t
+      val all : ('a, 'e) t list -> ('a list, 'e) t
+      val all_unit : (unit, 'e) t list -> (unit, 'e) t
+    end
+
+    module Make2 (X : Basic2) : S2 with type ('a, 'e) t = ('a, 'e) X.t
+
+    module Result : S2 with type ('a, 'e) t = ('a, 'e) result
+  end
 end
 
 (** {1 Operations on files and file paths} *)
@@ -307,10 +343,13 @@ val find_in_path: string list -> string -> string
 val find_in_path_rel: string list -> string -> string
        (** Search a relative file in a list of directories. *)
 
-val find_in_path_uncap: string list -> string -> string
-       (** Same, but search also for uncapitalized name, i.e.
-           if name is [Foo.ml], allow [/path/Foo.ml] and [/path/foo.ml]
-           to match. *)
+ (** Normalize file name [Foo.ml] to [foo.ml] *)
+val normalized_unit_filename: string -> string
+
+val find_in_path_normalized: string list -> string -> string
+(** Same as {!find_in_path_rel} , but search also for normalized unit filename,
+    i.e. if name is [Foo.ml], allow [/path/Foo.ml] and [/path/foo.ml] to
+    match. *)
 
 val remove_file: string -> unit
        (** Delete the given file if it exists and is a regular file.
@@ -400,6 +439,8 @@ val no_overflow_mul: int -> int -> bool
 val no_overflow_lsl: int -> int -> bool
        (** [no_overflow_lsl n k] returns [true] if the computation of
            [n lsl k] does not overflow. *)
+
+val letter_of_int : int -> string
 
 module Int_literal_converter : sig
   val int : string -> int
@@ -534,9 +575,7 @@ module LongString :
     val get : t -> int -> char
     val set : t -> int -> char -> unit
     val blit : t -> int -> t -> int -> int -> unit
-    val blit_string : string -> int -> t -> int -> int -> unit
     val output : out_channel -> t -> int -> int -> unit
-    val input_bytes_into : t -> in_channel -> int -> unit
     val input_bytes : in_channel -> int -> t
   end
 
@@ -573,9 +612,19 @@ val did_you_mean : Format.formatter -> (unit -> string list) -> unit
     the failure even if producing the hint is slow.
 *)
 
-(** {1 Colored terminal output } *)
+(** {1 Color support detection }*)
+module Color: sig
 
-module Color : sig
+  type setting = Auto | Always | Never
+
+  val default_setting : setting
+
+end
+
+
+(** {1 Styling handling for terminal output } *)
+
+module Style : sig
   type color =
     | Black
     | Red
@@ -596,27 +645,33 @@ module Color : sig
   val ansi_of_style_l : style list -> string
   (* ANSI escape sequence for the given style *)
 
-  type styles = {
-    error: style list;
-    warning: style list;
-    loc: style list;
-    hint: style list;
+  type tag_style ={
+    ansi: style list;
+    text_open:string;
+    text_close:string
   }
+
+  type styles = {
+    error: tag_style;
+    warning: tag_style;
+    loc: tag_style;
+    hint: tag_style;
+    inline_code: tag_style;
+  }
+
+  val as_inline_code: (Format.formatter -> 'a -> unit as 'printer) -> 'printer
+  val inline_code: Format.formatter -> string -> unit
 
   val default_styles: styles
   val get_styles: unit -> styles
   val set_styles: styles -> unit
 
-  type setting = Auto | Always | Never
-
-  val default_setting : setting
-
-  val setup : setting option -> unit
+  val setup : Color.setting option -> unit
   (* [setup opt] will enable or disable color handling on standard formatters
      according to the value of color setting [opt].
      Only the first call to this function has an effect. *)
 
-  val set_color_tag_handling : Format.formatter -> unit
+  val set_tag_handling : Format.formatter -> unit
   (* adds functions to support color tags to the given formatter. *)
 end
 
@@ -783,23 +838,12 @@ module Magic_number : sig
       @since 4.11
   *)
 
-  type native_obj_config = {
-    flambda : bool;
-  }
-  (** native object files have a format and magic number that depend
-     on certain native-compiler configuration parameters. This
-     configuration space is expressed by the [native_obj_config]
-     type. *)
-
-  val native_obj_config : native_obj_config
-  (** the native object file configuration of the active/configured compiler. *)
-
   type version = int
 
   type kind =
     | Exec
     | Cmi | Cmo | Cma
-    | Cmx of native_obj_config | Cmxa of native_obj_config
+    | Cmx | Cmxa
     | Cmxs
     | Cmt | Cms | Ast_impl | Ast_intf
 

@@ -23,7 +23,7 @@
 #ifdef CAML_RUNTIME_5
 #include <caml/platform.h>
 #endif
-#include "unixsupport.h"
+#include "caml/unixsupport.h"
 #include "cst2constr.h"
 #include <errno.h>
 #ifdef HAS_UNISTD
@@ -244,7 +244,7 @@
 #define EOVERFLOW (-1)
 #endif
 
-static int error_table[] = {
+static const int error_table[] = {
   E2BIG, EACCES, EAGAIN, EBADF, EBUSY, ECHILD, EDEADLK, EDOM,
   EEXIST, EFAULT, EFBIG, EINTR, EINVAL, EIO, EISDIR, EMFILE, EMLINK,
   ENAMETOOLONG, ENFILE, ENODEV, ENOENT, ENOEXEC, ENOLCK, ENOMEM, ENOSPC,

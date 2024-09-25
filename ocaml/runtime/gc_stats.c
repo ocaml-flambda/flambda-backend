@@ -17,6 +17,7 @@
 
 #include "caml/gc_stats.h"
 #include "caml/minor_gc.h"
+#include "caml/platform.h"
 #include "caml/shared_heap.h"
 
 Caml_inline intnat intnat_max(intnat a, intnat b) {
@@ -82,7 +83,7 @@ static caml_plat_mutex orphan_lock = CAML_PLAT_MUTEX_INITIALIZER;
 static struct alloc_stats orphaned_alloc_stats = {0,};
 
 void caml_accum_orphan_alloc_stats(struct alloc_stats *acc) {
-  caml_plat_lock(&orphan_lock);
+  caml_plat_lock_blocking(&orphan_lock);
   caml_accum_alloc_stats(acc, &orphaned_alloc_stats);
   caml_plat_unlock(&orphan_lock);
 }
@@ -95,7 +96,7 @@ void caml_orphan_alloc_stats(caml_domain_state *domain) {
   caml_reset_domain_alloc_stats(domain);
 
   /* push them into the orphan stats */
-  caml_plat_lock(&orphan_lock);
+  caml_plat_lock_blocking(&orphan_lock);
   caml_accum_alloc_stats(&orphaned_alloc_stats, &alloc_stats);
   caml_plat_unlock(&orphan_lock);
 }
@@ -104,20 +105,30 @@ void caml_orphan_alloc_stats(caml_domain_state *domain) {
 /* The "sampled stats" of a domain are a recent copy of its
    domain-local stats, accessed without synchronization and only
    updated ("sampled") during stop-the-world events -- each minor
-   collection, and on domain termination. */
+   collection, major cycle (which potentially includes compaction),
+   all of these events could happen during domain termination. */
 static struct gc_stats sampled_gc_stats[Max_domains];
 
-/* Update the sampled stats for the given domain. */
-void caml_collect_gc_stats_sample(caml_domain_state* domain)
+/* Update the sampled stats for the given domain during a STW section. */
+void caml_collect_gc_stats_sample_stw(caml_domain_state* domain)
 {
   struct gc_stats* stats = &sampled_gc_stats[domain->id];
-  caml_collect_alloc_stats_sample(domain, &stats->alloc_stats);
-  caml_collect_heap_stats_sample(domain->shared_heap, &stats->heap_stats);
-}
+  if (caml_domain_terminating(domain)) {
+    /* If the domain is terminating, we should not update the sample
+       with accurate domain-local data, but instead clear the sample
+       so that a new domain spawning there in the future can start
+       with empty stats.
 
-void caml_clear_gc_stats_sample(caml_domain_state *domain) {
-  struct gc_stats* stats = &sampled_gc_stats[domain->id];
-  memset(stats, 0, sizeof(*stats));
+       The current stats will also be 'orphaned' during domain
+       termination, so they will remain accounted for in the global
+       statistics. (Orphaning right now would be correct but
+       insufficient as further stat updates may come after the current
+       STW section.)  */
+    memset(stats, 0, sizeof(*stats));
+  } else {
+    caml_collect_alloc_stats_sample(domain, &stats->alloc_stats);
+    caml_collect_heap_stats_sample(domain->shared_heap, &stats->heap_stats);
+  }
 }
 
 /* Compute global stats for the whole runtime. */

@@ -69,6 +69,9 @@ val bytecomp_c_libraries: string
 val native_c_libraries: string
 (** The C libraries to link with native-code programs *)
 
+val native_ldflags : string
+(* Flags to pass to the system linker *)
+
 val native_pack_linker: string
 (** The linker to use for packaging (ocamlopt -pack) and for partial
     links (ocamlopt -output-obj). *)
@@ -292,6 +295,9 @@ val runtime5 : bool
 
 val no_stack_checks : bool
 (** [true] if stack checks are disabled; used only if [runtime5] is [true]. *)
+
+val tsan : bool
+(** Whether ThreadSanitizer instrumentation is enabled *)
 
 (** Access to configuration values *)
 val print_config : out_channel -> unit
