@@ -398,6 +398,10 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
       match T.meet_is_naked_number_array typing_env array_ty Naked_float with
       | Known_result false | Need_meet -> Ok array_kind
       | Known_result true | Invalid -> Bottom))
+  | Unboxed_product _ ->
+    (* No float array optimization here. We could potentially specialize to
+       immediates, but not yet. *)
+    Ok array_kind
 
 let add_symbol_projection dacc ~projected_from projection ~projection_bound_to
     ~kind =

@@ -149,10 +149,9 @@ let extern_repr_of_native_repr:
   -> Lambda.extern_repr
   = fun ~loc ~poly_sort r -> match r, poly_sort with
   | Repr_poly, Some s ->
-    begin match Jkind.Sort.default_to_value_and_get s with
-    | Base b -> Same_as_ocaml_repr b
-    | Product _ as c -> raise (Error (loc, Unexpected_product_in_prim c))
-    end
+    (* XXX can all layout poly prims support products? *)
+    ignore loc;
+    Same_as_ocaml_repr (Jkind.Sort.default_to_value_and_get s)
   | Repr_poly, None -> Misc.fatal_error "Unexpected Repr_poly"
   | Same_as_ocaml_repr s, _ -> Same_as_ocaml_repr s
   | Unboxed_float f, _ -> Unboxed_float f
@@ -165,7 +164,7 @@ let sort_of_native_repr ~loc ~poly_sort repr =
   | Same_as_ocaml_repr s -> s
   | (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
       Unboxed_vector _) ->
-    Jkind.Sort.Value
+    Jkind.Sort.Const.Base Value
 
 let to_lambda_prim ~loc prim ~poly_sort =
   let native_repr_args =
@@ -347,6 +346,43 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     let (_, repr) = lambda_prim.prim_native_repr_res in
     Lambda.layout_of_extern_repr repr
   in
+  let get_unboxed_product_kinds layout what =
+    match layout with
+    | Punboxed_product layouts -> (
+      let rec convert_layout layout =
+        match layout with
+        | Pvalue Pintval -> Pint_ignorable
+        | Pvalue _ ->
+          Misc.fatal_error
+            "Scannable layouts not permitted for reinterpret array load/store"
+        | Punboxed_float fk -> Punboxedfloat_ignorable fk
+        | Punboxed_int ubi -> Punboxedint_ignorable ubi
+        | Punboxed_vector _ ->
+          Misc.fatal_error
+            "SIMD vectors not permitted for reinterpret array load/store"
+        | Punboxed_product layouts ->
+          Pproduct_ignorable (List.map convert_layout layouts)
+        | Ptop -> Misc.fatal_error "Unexpected Ptop"
+        | Pbottom -> Misc.fatal_error "Unexpected Pbottom"
+      in
+      List.map convert_layout layouts
+    )
+    | _ ->
+      Misc.fatal_errorf
+        "Expected unboxed product return layout for %s but got:@ (%a)"
+        what
+        Printlambda.layout layout
+  in
+  let get_result_unboxed_product_kinds what =
+    get_unboxed_product_kinds layout ("result of " ^ what)
+  in
+  let get_third_arg_unboxed_product_kinds what =
+    match lambda_prim.prim_native_repr_args with
+    | [ _; _; (_mode, repr) ] ->
+      get_unboxed_product_kinds (Lambda.layout_of_extern_repr repr)
+        ("third arg of " ^ what)
+    | _ -> Misc.fatal_error "Expected three arguments"
+  in
   let prim = match p.prim_name with
     | "%identity" -> Identity
     | "%bytes_to_string" -> Primitive (Pbytes_to_string, 1)
@@ -465,6 +501,24 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%array_unsafe_set" ->
       Primitive
         ((Parraysetu (gen_array_set_kind (get_first_arg_mode ()), Ptagged_int_index)),
+        3)
+    | "%unboxed_int64_array_safe_get_reinterpret" ->
+      Primitive
+        (Parrayrefs (Punboxedint64array_reinterpret_ref
+          (get_result_unboxed_product_kinds p.prim_name), Ptagged_int_index), 2)
+    | "%unboxed_int64_array_safe_set_reinterpret" ->
+      Primitive
+        ((Parraysets (Punboxedint64array_reinterpret_set
+          (get_third_arg_unboxed_product_kinds p.prim_name), Ptagged_int_index)),
+         3)
+    | "%unboxed_int64_array_unsafe_get_reinterpret" ->
+      Primitive
+        (Parrayrefu (Punboxedint64array_reinterpret_ref
+          (get_result_unboxed_product_kinds p.prim_name), Ptagged_int_index), 2)
+    | "%unboxed_int64_array_unsafe_set_reinterpret" ->
+      Primitive
+        ((Parraysetu (Punboxedint64array_reinterpret_set
+          (get_third_arg_unboxed_product_kinds p.prim_name), Ptagged_int_index)),
         3)
     | "%array_safe_get_indexed_by_int64#" ->
       Primitive
@@ -820,6 +874,23 @@ let simplify_constant_constructor = function
   | Greater_than -> false
   | Compare -> false
 
+(* See [glb_array_type] *)
+let rec glb_scannable_kinds kinds1 kinds2 =
+  if List.length kinds1 = List.length kinds2 then
+    Misc.Stdlib.List.map2_option glb_scannable_kind kinds1 kinds2
+  else
+    None
+
+and glb_scannable_kind kind1 kind2 =
+  match kind1, kind2 with
+  | Pint_scannable, (Paddr_scannable | Pint_scannable)
+  | Paddr_scannable, Pint_scannable -> Some Pint_scannable
+  | Paddr_scannable, Paddr_scannable -> Some Paddr_scannable
+  | Pproduct_scannable kinds1, Pproduct_scannable kinds2 ->
+    Option.map (fun x -> Pproduct_scannable x)
+      (glb_scannable_kinds kinds1 kinds2)
+  | (Pint_scannable | Paddr_scannable | Pproduct_scannable _), _ -> None
+
 (* The following function computes the greatest lower bound of array kinds:
 
         gen      unboxed-float  unboxed-int32  unboxed-int64  unboxed-nativeint
@@ -829,6 +900,9 @@ let simplify_constant_constructor = function
     addr  float
       |
     int
+
+   For product kinds, we take the product of this lattice.
+
    Note that the GLB is not guaranteed to exist.
    In case of array kinds working with layout value, we return
    our first argument instead of raising a fatal error because, although
@@ -863,13 +937,33 @@ let glb_array_type loc t1 t2 =
   | Punboxedintarray _, _ | _, Punboxedintarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
 
+  (* Unboxed product arrays. Same cheat as above for Pgenarray. *)
+  (* XXX: I think these are too conservative for Obj.magics we want to work.
+     Write tests. *)
+  | Pgenarray,
+    ((Pgcignorableproductarray _ | Pgcscannableproductarray _) as k) -> k
+  | (Pgcignorableproductarray kinds1) as k, Pgcignorableproductarray kinds2 ->
+    if kinds1 = kinds2 then k else
+      Misc.fatal_error "mismatched ignorableproductarray kinds in glb"
+  | Pgcscannableproductarray kinds1, Pgcscannableproductarray kinds2 ->
+    begin match glb_scannable_kinds kinds1 kinds2 with
+    | Some kinds -> Pgcscannableproductarray kinds
+    | None -> Misc.fatal_error "mismatched scannableproductarray kinds in glb"
+    end
+  | Pgcignorableproductarray _, _ | _, Pgcignorableproductarray _ ->
+    Misc.fatal_error "unexpected Pgcignorableproductarray kind in glb"
+  | Pgcscannableproductarray _, _ | _, Pgcscannableproductarray _ ->
+    Misc.fatal_error "unexpected Pgcscannableproductarray kind in glb"
+
   (* No GLB; only used in the [Obj.magic] case *)
   | Pfloatarray, (Paddrarray | Pintarray)
   | (Paddrarray | Pintarray), Pfloatarray -> t1
 
   (* Compute the correct GLB *)
-  | Pgenarray, x | x, Pgenarray -> x
-  | Paddrarray, x | x, Paddrarray -> x
+  | Pgenarray, ((Pgenarray | Paddrarray | Pintarray | Pfloatarray) as x)
+  | ((Paddrarray | Pintarray | Pfloatarray) as x), Pgenarray -> x
+  | Paddrarray, Paddrarray -> Paddrarray
+  | Paddrarray, Pintarray | Pintarray, Paddrarray -> Pintarray
   | Pintarray, Pintarray -> Pintarray
   | Pfloatarray, Pfloatarray -> Pfloatarray
 
@@ -892,6 +986,11 @@ let glb_array_ref_type loc t1 t2 =
   | Punboxedfloatarray_ref _, _
   | _, Punboxedfloatarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
+  | Punboxedint64array_reinterpret_ref kinds, Punboxedintarray Pint64 ->
+    Punboxedint64array_reinterpret_ref kinds
+  | Punboxedint64array_reinterpret_ref _, _ ->
+    Misc.fatal_error "Punboxedint64array_reinterpret_ref is only compatible \
+      with Punboxedintarray Pint64 arrays"
   | (Pgenarray_ref _ | Punboxedintarray_ref Pint32), Punboxedintarray Pint32 ->
     Punboxedintarray_ref Pint32
   | (Pgenarray_ref _ | Punboxedintarray_ref Pint64), Punboxedintarray Pint64 ->
@@ -900,6 +999,27 @@ let glb_array_ref_type loc t1 t2 =
     Punboxedintarray_ref Pnativeint
   | Punboxedintarray_ref _, _ | _, Punboxedintarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
+
+  (* Unboxed product arrays. Same cheat as above for Pgenarray. *)
+  (* XXX: I think these are too conservative for Obj.magics we want to work.
+     Write tests. *)
+  | Pgenarray_ref _, Pgcignorableproductarray kinds ->
+    Pgcignorableproductarray_ref kinds
+  | Pgenarray_ref _, Pgcscannableproductarray kinds ->
+    Pgcscannableproductarray_ref kinds
+  | (Pgcignorableproductarray_ref kinds1) as k,
+    Pgcignorableproductarray kinds2 ->
+    if kinds1 = kinds2 then k else
+      Misc.fatal_error "mismatched ignorableproductarray kinds in glb"
+  | Pgcscannableproductarray_ref kinds1, Pgcscannableproductarray kinds2 ->
+    begin match glb_scannable_kinds kinds1 kinds2 with
+    | Some kinds -> Pgcscannableproductarray_ref kinds
+    | None -> Misc.fatal_error "mismatched scannableproductarray kinds in glb"
+    end
+  | Pgcignorableproductarray_ref _, _ | _, Pgcignorableproductarray _ ->
+    Misc.fatal_error "unexpected Pgcignorableproductarray kind in glb"
+  | Pgcscannableproductarray_ref _, _ | _, Pgcscannableproductarray _ ->
+    Misc.fatal_error "unexpected Pgcscannableproductarray kind in glb"
 
   (* No GLB; only used in the [Obj.magic] case *)
   | Pfloatarray_ref _, (Paddrarray | Pintarray)
@@ -944,6 +1064,11 @@ let glb_array_set_type loc t1 t2 =
   | Punboxedfloatarray_set _, _
   | _, Punboxedfloatarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
+  | Punboxedint64array_reinterpret_set kinds, Punboxedintarray Pint64 ->
+    Punboxedint64array_reinterpret_set kinds
+  | Punboxedint64array_reinterpret_set _, _ ->
+    Misc.fatal_error "Punboxedint64array_reinterpret_set is only compatible \
+      with Punboxedintarray Pint64 arrays"
   | (Pgenarray_set _ | Punboxedintarray_set Pint32), Punboxedintarray Pint32 ->
     Punboxedintarray_set Pint32
   | (Pgenarray_set _ | Punboxedintarray_set Pint64), Punboxedintarray Pint64 ->
@@ -952,6 +1077,28 @@ let glb_array_set_type loc t1 t2 =
     Punboxedintarray_set Pnativeint
   | Punboxedintarray_set _, _ | _, Punboxedintarray _ ->
     Misc.fatal_error "unexpected array kind in glb"
+
+  (* Unboxed product arrays. Same cheat as above for Pgenarray. *)
+  (* XXX: I think these are too conservative for Obj.magics we want to work.
+     Write tests. *)
+  | Pgenarray_set _, Pgcignorableproductarray kinds ->
+    Pgcignorableproductarray_set kinds
+  | Pgenarray_set m, Pgcscannableproductarray kinds ->
+    Pgcscannableproductarray_set (m, kinds)
+  | (Pgcignorableproductarray_set kinds1) as k,
+    Pgcignorableproductarray kinds2 ->
+    if kinds1 = kinds2 then k else
+      Misc.fatal_error "mismatched ignorableproductarray kinds in glb"
+  | Pgcscannableproductarray_set (mode, kinds1),
+    Pgcscannableproductarray kinds2 ->
+    begin match glb_scannable_kinds kinds1 kinds2 with
+    | Some kinds -> Pgcscannableproductarray_set (mode, kinds)
+    | None -> Misc.fatal_error "mismatched scannableproductarray kinds in glb"
+    end
+  | Pgcignorableproductarray_set _, _ | _, Pgcignorableproductarray _ ->
+    Misc.fatal_error "unexpected Pgcignorableproductarray_set kind in glb"
+  | Pgcscannableproductarray_set _, _ | _, Pgcscannableproductarray _ ->
+    Misc.fatal_error "unexpected Pgcscannableproductarray_set kind in glb"
 
   (* No GLB; only used in the [Obj.magic] case *)
   | Pfloatarray_set, (Paddrarray | Pintarray)
@@ -1420,7 +1567,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
     match repr_args, repr_res with
     | [], (_, res_repr) ->
       let res_sort =
-        Jkind.Sort.of_base
+        Jkind.Sort.of_const
           (sort_of_native_repr ~loc:error_loc res_repr ~poly_sort)
       in
       [], Typeopt.layout env error_loc res_sort ty
@@ -1431,7 +1578,7 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
             (Primitive.byte_name p)
       | Some (arg_ty, ret_ty) ->
           let arg_sort =
-            Jkind.Sort.of_base
+            Jkind.Sort.of_const
               (sort_of_native_repr ~loc:error_loc arg_repr ~poly_sort)
           in
           let arg_layout =
@@ -1572,7 +1719,8 @@ let lambda_primitive_needs_event_after = function
   | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu
   | Pbytessetu
   | Pmakearray ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
-      | Punboxedintarray _), _, _)
+                | Punboxedintarray _ | Pgcscannableproductarray _
+                | Pgcignorableproductarray _), _, _)
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _

@@ -218,6 +218,7 @@ module With_subkind : sig
       | Unboxed_int32_array
       | Unboxed_int64_array
       | Unboxed_nativeint_array
+      | Unboxed_product_array
 
     include Container_types.S with type t := t
   end
@@ -295,6 +296,10 @@ module With_subkind : sig
   include Container_types.S with type t := t
 
   val equal_ignoring_subkind : t -> t -> bool
+
+  val must_be_gc_scannable : t -> bool
+
+  val may_be_gc_scannable : t -> bool
 end
 
 module Flat_suffix_element : sig

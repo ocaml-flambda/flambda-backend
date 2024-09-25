@@ -476,23 +476,28 @@ string_accessor_width:
       | 128, Some 'u' -> One_twenty_eight {aligned = false}
       | _, _ -> Misc.fatal_error "invalid string accessor width" }
 
-array_accessor_width:
-  | { Scalar }
-  | KWD_VEC128 { Vec128 }
+(* CR mshinwell: temporary hack with array_load_kind *)
+array_set_kind:
+  | { (Values : array_load_kind) }
+  | KWD_VEC128 { (Naked_vec128s : array_load_kind) }
+
+array_load_kind:
+  | { (Values : array_load_kind) }
+  | KWD_VEC128 { (Naked_vec128s : array_load_kind) }
 
 array_kind:
-  | { Values }
-  | KWD_IMM { Immediates }
-  | KWD_FLOAT { Naked_floats }
+  | { (Values : array_kind) }
+  | KWD_IMM { (Immediates : array_kind) }
+  | KWD_FLOAT { (Naked_floats : array_kind) }
 
 empty_array_kind:
   | { Values_or_immediates_or_naked_floats }
 
 block_access_kind:
   | field_kind = block_access_field_kind; tag = tag_opt; size = size_opt
-    { Values { field_kind; tag; size } }
+    { (Values { field_kind; tag; size } : block_access_kind) }
   | KWD_FLOAT; size = size_opt
-    { Naked_floats { size } }
+    { (Naked_floats { size } : block_access_kind) }
 ;
 
 block_access_field_kind:
@@ -582,9 +587,9 @@ binop_app:
   | arg1 = simple; op = infix_binop; arg2 = simple
     { Binary (Infix op, arg1, arg2) }
   | PRIM_ARRAY_LOAD; ak = array_kind; mut = mutability;
-    width = array_accessor_width; arg1 = simple; DOT;
+    array_load_kind = array_load_kind; arg1 = simple; DOT;
     LPAREN; arg2 = simple; RPAREN
-    { Binary (Array_load (ak, width, mut), arg1, arg2) }
+    { Binary (Array_load (ak, array_load_kind, mut), arg1, arg2) }
   | PRIM_INT_ARITH; i = standard_int;
     arg1 = simple; c = binary_int_arith_op; arg2 = simple
     { Binary (Int_arith (i, c), arg1, arg2) }
@@ -602,10 +607,23 @@ bytes_or_bigstring_set:
   | PRIM_BIGSTRING_SET { Bigstring }
 
 ternop_app:
-  | PRIM_ARRAY_SET; ak = array_kind; width = array_accessor_width;
+  | PRIM_ARRAY_SET; ak = array_kind; array_set_kind = array_set_kind;
     arr = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple
-    { Ternary (Array_set (ak, width, ia), arr, ix, v) }
+    {
+      let array_set_kind : array_set_kind =
+        match (array_set_kind : array_load_kind) with
+        | Immediates -> Immediates
+        | Values -> Values ia
+        | Naked_floats -> Naked_floats
+        | Naked_float32s -> Naked_float32s
+        | Naked_int32s -> Naked_int32s
+        | Naked_int64s -> Naked_int64s
+        | Naked_nativeints -> Naked_nativeints
+        | Naked_vec128s -> Naked_vec128s
+      in
+      Ternary (Array_set (ak, array_set_kind), arr, ix, v)
+    }
   | PRIM_BLOCK_SET; kind = block_access_kind;
     block = simple; DOT LPAREN; ix = simple; RPAREN; ia = init_or_assign;
     v = simple

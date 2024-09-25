@@ -677,12 +677,7 @@ let sum =
   x + y
 [%%expect{|
 external id : ('a : any). 'a -> 'a = "%identity" [@@layout_poly]
-Line 4, characters 18-24:
-4 |   let #(x,y) = id #(1,2) in
-                      ^^^^^^
-Error: Unboxed product layouts are not yet supported as arguments to
-       layout polymorphic externals.
-       The layout of this argument is value & value.
+val sum : int = 3
 |}]
 
 (* CR layouts v7.1: Unboxed products should be allowed for some primitives, like
@@ -785,8 +780,7 @@ let _ = [| #(1,2) |]
 Line 1, characters 8-20:
 1 | let _ = [| #(1,2) |]
             ^^^^^^^^^^^^
-Error: Product layout value & value detected in structure in [Typeopt.Layout]
-       Please report this error to the Jane Street compilers team.
+Error: Unboxed product array expressions are not yet supported
 |}]
 
 let _ = Array.init 3 (fun _ -> #(1,2))
@@ -826,12 +820,7 @@ let f x : #(int * int) = array_get x 3
 [%%expect{|
 external array_get : ('a : any). 'a array -> int -> 'a = "%array_safe_get"
   [@@layout_poly]
-Line 3, characters 25-38:
-3 | let f x : #(int * int) = array_get x 3
-                             ^^^^^^^^^^^^^
-Error: Unboxed product layouts are not yet supported as arguments to
-       layout polymorphic externals.
-       The layout of this argument is value & value.
+val f : #(int * int) array -> #(int * int) = <fun>
 |}]
 
 external[@layout_poly] array_set : ('a : any) . 'a array -> int -> 'a -> unit =
@@ -840,12 +829,7 @@ let f x = array_set x 3 #(1,2)
 [%%expect{|
 external array_set : ('a : any). 'a array -> int -> 'a -> unit
   = "%array_safe_set" [@@layout_poly]
-Line 3, characters 24-30:
-3 | let f x = array_set x 3 #(1,2)
-                            ^^^^^^
-Error: Unboxed product layouts are not yet supported as arguments to
-       layout polymorphic externals.
-       The layout of this argument is value & value.
+val f : #(int * int) array -> unit = <fun>
 |}]
 
 
@@ -863,7 +847,7 @@ Line 2, characters 25-26:
                              ^
 Error: This expression has type "('a : value)"
        but an expression was expected of type "#('b * 'c)"
-       The layout of #('a * 'b) is '_representable_layout_246 & '_representable_layout_247
+       The layout of #('a * 'b) is '_representable_layout_250 & '_representable_layout_251
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a term-level argument to a class constructor.
@@ -880,7 +864,7 @@ Line 1, characters 13-19:
                  ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_249 & '_representable_layout_250
+       The layout of #('a * 'b) is '_representable_layout_253 & '_representable_layout_254
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because it's the type of a lazy expression.
@@ -930,7 +914,7 @@ Line 1, characters 28-34:
                                 ^^^^^^
 Error: This expression has type "#('a * 'b)"
        but an expression was expected of type "('c : value)"
-       The layout of #('a * 'b) is '_representable_layout_267 & '_representable_layout_268
+       The layout of #('a * 'b) is '_representable_layout_271 & '_representable_layout_272
          because it is an unboxed tuple.
        But the layout of #('a * 'b) must be a sublayout of value
          because the type argument of option has layout value.

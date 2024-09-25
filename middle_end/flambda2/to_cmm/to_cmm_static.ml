@@ -362,8 +362,10 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
         (List.combine fields update_kinds)
     in
     env, R.set_data res block, updates
-  | Block_like s, Empty_array Values_or_immediates_or_naked_floats ->
-    (* Recall: empty arrays have tag zero, even if their kind is naked float. *)
+  | ( Block_like s,
+      Empty_array (Values_or_immediates_or_naked_floats | Unboxed_products) ) ->
+    (* Recall: empty arrays have tag zero, even if their kind is naked float.
+       Likewise arrays of unboxed products have tag zero. *)
     let sym = R.symbol res s in
     let header = C.black_block_header 0 0 in
     let block = C.emit_block sym header [] in

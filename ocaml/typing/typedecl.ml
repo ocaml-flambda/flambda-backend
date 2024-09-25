@@ -2784,8 +2784,8 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
   | Native_repr_attr_absent, Poly ->
     Repr_poly
   | Native_repr_attr_absent, Sort (Base Value) ->
-    Same_as_ocaml_repr Value
-  | Native_repr_attr_absent, (Sort (Base sort)) ->
+    Same_as_ocaml_repr (Base Value)
+  | Native_repr_attr_absent, (Sort (Base sort as c)) ->
     (if Language_extension.erasable_extensions_only ()
     then
       (* Non-value sorts without [@unboxed] are not erasable. *)
@@ -2793,7 +2793,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
       Location.prerr_warning core_type.ptyp_loc
         (Warnings.Incompatible_with_upstream
               (Warnings.Unboxed_attribute layout)));
-    Same_as_ocaml_repr sort
+    Same_as_ocaml_repr c
   | Native_repr_attr_absent, (Sort (Product _)) ->
     raise (Error (core_type.ptyp_loc, Unboxed_product_in_external))
   | Native_repr_attr_present kind, (Poly | Sort (Base Value))
@@ -2803,7 +2803,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
       raise (Error (core_type.ptyp_loc, Cannot_unbox_or_untag_type kind))
     | Some repr -> repr
     end
-  | Native_repr_attr_present Unboxed, (Sort (Base sort)) ->
+  | Native_repr_attr_present Unboxed, (Sort (Base sort as c)) ->
     (* We allow [@unboxed] on non-value sorts.
 
        This is to enable upstream-compatibility. We want the code to
@@ -2832,7 +2832,7 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
       Location.prerr_warning core_type.ptyp_loc
         (Warnings.Incompatible_with_upstream
               (Warnings.Non_value_sort layout)));
-    Same_as_ocaml_repr sort
+    Same_as_ocaml_repr c
   | Native_repr_attr_present Unboxed, (Sort (Product _)) ->
     raise (Error (core_type.ptyp_loc, Unboxed_product_in_external))
 

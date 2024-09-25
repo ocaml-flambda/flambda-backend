@@ -33,6 +33,8 @@ type error =
   | Illegal_void_record_field
   | Illegal_product_record_field of Jkind.Sort.Const.t
   | Void_sort of type_expr
+  | Array_comprehension_kind
+  | Product_array
 
 exception Error of Location.t * error
 
@@ -430,7 +432,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         | ((_, arg_repr) :: prim_repr), ((_, Arg (x, _)) :: oargs) ->
           let arg_exps, extra_args = cut_args prim_repr oargs in
           let arg_sort =
-            Jkind.Sort.of_base
+            Jkind.Sort.of_const
               (Translprim.sort_of_native_repr ~loc:x.exp_loc arg_repr
                  ~poly_sort:psort)
           in
@@ -740,6 +742,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_array (amut, element_sort, expr_list, alloc_mode) ->
       let mode = transl_alloc_mode alloc_mode in
       let kind = array_kind e element_sort in
+      begin match kind with
+      | Pgcignorableproductarray _ | Pgcscannableproductarray _ ->
+        raise (Error (e.exp_loc, Product_array))
+      | Pgenarray | Paddrarray | Pintarray | Pfloatarray
+      | Punboxedfloatarray _ | Punboxedintarray _ -> ()
+      end;
       let ll =
         transl_list ~scopes
           (List.map (fun e -> (e, element_sort)) expr_list)
@@ -795,7 +803,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   Lconst(Const_float_array(List.map extract_float cl))
                 | Pgenarray ->
                   raise Not_constant    (* can this really happen? *)
-                | Punboxedfloatarray _ | Punboxedintarray _ ->
+                | Punboxedfloatarray _ | Punboxedintarray _
+                | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
                   Misc.fatal_error "Use flambda2 for unboxed arrays"
             in
             if Types.is_mutable amut then duparray_to_mutable const else const
@@ -813,6 +822,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
          way *)
       let loc = of_location ~scopes e.exp_loc in
       let array_kind = Typeopt.array_kind e elt_sort in
+      begin match array_kind with
+      | Pgenarray | Paddrarray | Pintarray | Pfloatarray
+      | Punboxedfloatarray _ | Punboxedintarray _ -> ()
+      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+        raise (Error(e.exp_loc, Array_comprehension_kind))
+      end;
       Transl_array_comprehension.comprehension
         ~transl_exp ~scopes ~loc ~array_kind comp
   | Texp_ifthenelse(cond, ifso, Some ifnot) ->
@@ -2300,6 +2315,13 @@ let report_error ppf = function
         "Void detected in translation for type %a:@ Please report this error \
          to the Jane Street compilers team."
         Printtyp.type_expr ty
+  | Array_comprehension_kind ->
+      fprintf ppf
+        "Array comprehensions are not yet supported for arrays of unboxed \
+         products."
+  | Product_array ->
+      fprintf ppf "Unboxed product array expressions are not yet supported"
+      (* XXX but they should be. *)
 
 let () =
   Location.register_error_of_exn

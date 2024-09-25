@@ -464,7 +464,7 @@ val raise_prim : Lambda.raise_kind -> unary_primitive
 val negint : unary_primitive
 
 (** Return the length of the array argument, as an OCaml integer *)
-val arraylength : Lambda.array_kind -> unary_primitive
+val addr_array_length : unary_primitive
 
 (** Byte swap primitive Operates on Cmm integers (unboxed values) *)
 val bbswap : Primitive.boxed_integer -> unary_primitive
