@@ -50,8 +50,10 @@ module Example = struct
            () = () in f"
   let utuple_exp = parse expression
     "let #(x,y) : #(int * int) = #(1,2) in \
-     let #(a,#(b,c)) : ('a : value & (value & value)) = #(3,#(4,5)) in
-     x + y + a + b + c"
+     let #(a,#(b,c)) : ('a : value & (value & value)) = #(3,#(4,5)) in \
+     let #(i,j) : ('b : value mod m & (value mod l)) = #(6,7) in \
+     let #(s,t) : ('c : value mod m & value mod l) = #(7,8) in \
+     x + y + a + b + c + i + j + s + t"
 
   let modal_kind_struct =
     parse module_expr "struct \
