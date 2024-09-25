@@ -47,6 +47,15 @@ type t2
 type t3 = #(t1 * t2)
 |}]
 
+type t1 : any
+type t2 : any mod non_null
+type t3 : any & (any mod non_null) = #(t1 * t2);;
+[%%expect{|
+type t1 : any
+type t2 : any mod non_null
+type t3 = #(t1 * t2)
+|}]
+
 (* Should not be allowed. *)
 type t1 : any
 type t2 : any mod non_null
