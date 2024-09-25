@@ -169,18 +169,21 @@ let () =
 ;;
 
 (* Store in record *)
-type record = { a : int64x2
+type record = { prefix : string
+              ; a : int64x2
               ; mutable b : int64x2
               ; c : float# }
 
 let () =
-  let record = { a = int64x2_of_int64s 1L 2L; b = int64x2_of_int64s 3L 4L; c = #5. } in
+  let record = { prefix = "prefix"; a = int64x2_of_int64s 1L 2L; b = int64x2_of_int64s 3L 4L; c = #5. } in
   check record.a 1L 2L;
   check record.b 3L 4L;
+  assert (record.prefix = "prefix");
   let record = Sys.opaque_identity record in
   record.b <- int64x2_of_int64s 5L 6L;
   check record.a 1L 2L;
   check record.b 5L 6L;
+  assert (record.prefix = "prefix");
   let v = combine_with_floats record.a (box_float record.c) record.b 6. in
   check v 11L 14L
 ;;

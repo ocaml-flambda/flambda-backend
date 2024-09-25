@@ -129,46 +129,67 @@ let make_block ~dbg kind alloc_mode args =
 let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
     ~block ~index =
   let mutability = Mutability.to_asttypes mutability in
-  let load_func =
+  let load_func, index =
     match kind with
     | Mixed { field_kind = Value_prefix Any_value; _ }
     | Values { field_kind = Any_value; _ } ->
-      C.get_field_computed Pointer
+      C.get_field_computed Pointer, index
     | Mixed { field_kind = Value_prefix Immediate; _ }
     | Values { field_kind = Immediate; _ } ->
-      C.get_field_computed Immediate
-    | Naked_floats _ -> C.unboxed_float_array_ref
-    | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
-      match field_kind with
-      | Tagged_immediate -> C.get_field_computed Immediate
-      | Naked_float -> C.unboxed_float_array_ref
-      | Naked_float32 -> C.get_field_unboxed_float32
-      | Naked_int32 -> C.get_field_unboxed_int32
-      | Naked_vec128 -> C.get_field_unboxed_vec128
-      | Naked_int64 | Naked_nativeint -> C.get_field_unboxed_int64_or_nativeint)
+      C.get_field_computed Immediate, index
+    | Naked_floats _ -> C.unboxed_float_array_ref, index
+    | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
+      (* CR mslater: remove after switching fl2 Block_load to a static index *)
+      let[@warning "-4"] index =
+        match index with
+        | Cmm.Cconst_int (i, _) -> i / 2
+        | _ -> Misc.fatal_error "Got non-constant index in mixed block load"
+      in
+      let index = Flambda_kind.Mixed_block_shape.offset_in_words shape index in
+      let func =
+        match field_kind with
+        | Tagged_immediate -> C.get_field_computed Immediate
+        | Naked_float -> C.unboxed_float_array_ref
+        | Naked_float32 -> C.get_field_unboxed_float32
+        | Naked_int32 -> C.get_field_unboxed_int32
+        | Naked_vec128 -> C.get_field_unboxed_vec128
+        | Naked_int64 | Naked_nativeint ->
+          C.get_field_unboxed_int64_or_nativeint
+      in
+      func, Cmm.Cconst_int ((index * 2) + 1, dbg)
   in
   load_func mutability ~block ~index dbg
 
 let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     ~block ~index ~new_value =
   let init_or_assign = P.Init_or_assign.to_lambda init in
-  let set_func =
+  let set_func, index =
     match kind with
     | Mixed { field_kind = Value_prefix Any_value; _ }
     | Values { field_kind = Any_value; _ } ->
-      C.setfield_computed Pointer init_or_assign
+      C.setfield_computed Pointer init_or_assign, index
     | Mixed { field_kind = Value_prefix Immediate; _ }
     | Values { field_kind = Immediate; _ } ->
-      C.setfield_computed Immediate init_or_assign
-    | Naked_floats _ -> C.float_array_set
-    | Mixed { field_kind = Flat_suffix field_kind; _ } -> (
-      match field_kind with
-      | Tagged_immediate -> C.setfield_computed Immediate init_or_assign
-      | Naked_float -> C.float_array_set
-      | Naked_float32 -> C.setfield_unboxed_float32
-      | Naked_int32 -> C.setfield_unboxed_int32
-      | Naked_vec128 -> C.setfield_unboxed_vec128
-      | Naked_int64 | Naked_nativeint -> C.setfield_unboxed_int64_or_nativeint)
+      C.setfield_computed Immediate init_or_assign, index
+    | Naked_floats _ -> C.float_array_set, index
+    | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
+      (* CR mslater: remove after switching fl2 Block_set to a static index *)
+      let[@warning "-4"] index =
+        match index with
+        | Cmm.Cconst_int (i, _) -> i / 2
+        | _ -> Misc.fatal_error "Got non-constant index in mixed block load"
+      in
+      let index = Flambda_kind.Mixed_block_shape.offset_in_words shape index in
+      let func =
+        match field_kind with
+        | Tagged_immediate -> C.setfield_computed Immediate init_or_assign
+        | Naked_float -> C.float_array_set
+        | Naked_float32 -> C.setfield_unboxed_float32
+        | Naked_int32 -> C.setfield_unboxed_int32
+        | Naked_vec128 -> C.setfield_unboxed_vec128
+        | Naked_int64 | Naked_nativeint -> C.setfield_unboxed_int64_or_nativeint
+      in
+      func, Cmm.Cconst_int ((index * 2) + 1, dbg)
   in
   C.return_unit dbg (set_func block index new_value dbg)
 
