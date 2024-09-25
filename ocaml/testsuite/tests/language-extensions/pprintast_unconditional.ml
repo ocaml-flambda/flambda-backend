@@ -53,7 +53,9 @@ module Example = struct
      let #(a,#(b,c)) : ('a : value & (value & value)) = #(3,#(4,5)) in \
      let #(i,j) : ('b : value mod m & (value mod l)) = #(6,7) in \
      let #(s,t) : ('c : value mod m & value mod l) = #(7,8) in \
-     x + y + a + b + c + i + j + s + t"
+     let #(k,l) : ('d : value with t & (value with t)) = #(6,7) in \
+     let #(u,v) : ('e : value with t & value with t) = #(7,8) in \
+     x + y + a + b + c + i + j + s + t + k + l + u + v"
 
   let modal_kind_struct =
     parse module_expr "struct \

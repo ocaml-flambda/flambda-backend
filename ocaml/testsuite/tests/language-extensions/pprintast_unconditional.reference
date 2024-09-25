@@ -42,9 +42,11 @@ fun_with_modes_on_arg:
 utuple_exp:
   let #(x, y) : #(int * int) = #(1, 2) in
   let #(a, #(b, c)) : ('a : value & (value & value)) = #(3, #(4, 5)) in
-  let #(i, j) : ('b : value mod m & value mod l) = #(6, 7) in
-  let #(s, t) : ('c : (value mod m & value) mod l) = #(7, 8) in
-  (((((((x + y) + a) + b) + c) + i) + j) + s) + t
+  let #(i, j) : ('b : (value mod m) & (value mod l)) = #(6, 7) in
+  let #(s, t) : ('c : ((value mod m) & value) mod l) = #(7, 8) in
+  let #(k, l) : ('d : (value with t) & (value with t)) = #(6, 7) in
+  let #(u, v) : ('e : ((value with t) & value) with t) = #(7, 8) in
+  (((((((((((x + y) + a) + b) + c) + i) + j) + s) + t) + k) + l) + u) + v
 
 longident: No.Longidents.Require.extensions
 
@@ -174,9 +176,11 @@ fun_with_modes_on_arg:
 utuple_exp:
   let #(x, y) : #(int * int) = #(1, 2) in
   let #(a, #(b, c)) : ('a : value & (value & value)) = #(3, #(4, 5)) in
-  let #(i, j) : ('b : value mod m & value mod l) = #(6, 7) in
-  let #(s, t) : ('c : (value mod m & value) mod l) = #(7, 8) in
-  (((((((x + y) + a) + b) + c) + i) + j) + s) + t
+  let #(i, j) : ('b : (value mod m) & (value mod l)) = #(6, 7) in
+  let #(s, t) : ('c : ((value mod m) & value) mod l) = #(7, 8) in
+  let #(k, l) : ('d : (value with t) & (value with t)) = #(6, 7) in
+  let #(u, v) : ('e : ((value with t) & value) with t) = #(7, 8) in
+  (((((((((((x + y) + a) + b) + c) + i) + j) + s) + t) + k) + l) + u) + v
 
 longident: No.Longidents.Require.extensions
 
