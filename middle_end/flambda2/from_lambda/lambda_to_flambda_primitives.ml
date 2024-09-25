@@ -1041,9 +1041,16 @@ let rec array_load_unsafe ~array ~index array_kind
       | Unboxed_product kinds -> List.concat_map unarize_kind kinds
     in
     let unarized = List.concat_map unarize_kind array_ref_kinds in
+    let index : H.expr_primitive =
+      let multiplier =
+        List.length array_ref_kinds
+        |> Targetint_31_63.of_int |> Simple.const_int
+      in
+      Binary (Int_arith (Tagged_immediate, Mul), index, Simple multiplier)
+    in
     let indexes =
       (* Reminder: all of the unarized components are machine word width. *)
-      compute_array_indexes ~index ~num_elts:(List.length unarized)
+      compute_array_indexes ~index:(Prim index) ~num_elts:(List.length unarized)
     in
     List.concat_map
       (fun (index, array_ref_kind) ->
@@ -1090,9 +1097,16 @@ let rec array_set_unsafe dbg ~array ~index array_kind
       | Unboxed_product kinds -> List.concat_map unarize_kind kinds
     in
     let unarized = List.concat_map unarize_kind array_set_kinds in
+    let index : H.expr_primitive =
+      let multiplier =
+        List.length array_set_kinds
+        |> Targetint_31_63.of_int |> Simple.const_int
+      in
+      Binary (Int_arith (Tagged_immediate, Mul), index, Simple multiplier)
+    in
     let indexes =
       (* Reminder: all of the unarized components are machine word width. *)
-      compute_array_indexes ~index ~num_elts:(List.length unarized)
+      compute_array_indexes ~index:(Prim index) ~num_elts:(List.length unarized)
     in
     if List.compare_lengths indexes new_values <> 0
     then
