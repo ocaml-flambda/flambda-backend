@@ -230,10 +230,19 @@ let make_unboxed_tuple_vect (lambda_array_kind : L.array_kind)
       "Cannot compile Pmake_unboxed_tuple_vect without stack allocation enabled";
   (* Trick: use the local stack as a way of getting the variable argument list
      to the C function. *)
-  let num_arg_layouts, is_scannable =
+  let length, init =
+    match args with
+    | [length; init] -> length, init
+    | [] | [_] | _ :: _ :: _ ->
+      Misc.fatal_error
+        "%make_unboxed_tuple_vect takes two arguments: the (non-unarized) \
+         length and the initializer (the latter likely of unboxed product \
+         layout)"
+  in
+  let is_scannable =
     match lambda_array_kind with
-    | Pgcscannableproductarray kinds -> List.length kinds, true
-    | Pgcignorableproductarray kinds -> List.length kinds, false
+    | Pgcscannableproductarray _ -> true
+    | Pgcignorableproductarray _ -> false
     | Pgenarray | Paddrarray | Pintarray | Pfloatarray | Punboxedfloatarray _
     | Punboxedintarray _ ->
       Misc.fatal_errorf
@@ -241,11 +250,6 @@ let make_unboxed_tuple_vect (lambda_array_kind : L.array_kind)
         Location.print_loc
         (Debuginfo.Scoped_location.to_location loc)
   in
-  if List.compare_length_with args num_arg_layouts <> 0
-  then
-    Misc.fatal_errorf "Array kind does not match up with args:@ %a"
-      Location.print_loc
-      (Debuginfo.Scoped_location.to_location loc);
   let args_array = Ident.create_local "args_array" in
   let array_layout = Lambda.layout_array lambda_array_kind in
   let is_scannable =
@@ -260,7 +264,7 @@ let make_unboxed_tuple_vect (lambda_array_kind : L.array_kind)
   in
   let external_call_desc =
     Primitive.make ~name:"caml_make_unboxed_product_vect"
-      ~alloc:(match mode with Alloc_heap -> true | Alloc_local -> false)
+      ~alloc:true (* the C stub may raise an exception *)
       ~c_builtin:false ~effects:Arbitrary_effects ~coeffects:Has_coeffects
       ~native_name:"caml_make_unboxed_product_vect"
       ~native_repr_args:[Prim_global, L.Same_as_ocaml_repr (Base Value)]
@@ -280,11 +284,11 @@ let make_unboxed_tuple_vect (lambda_array_kind : L.array_kind)
              args_array,
              Lprim
                ( Pmakearray (lambda_array_kind, Mutable, L.alloc_local),
-                 args (* will be unarized when this term is CPS converted *),
+                 [init] (* will be unarized when this term is CPS converted *),
                  loc ),
              Lprim
                ( Pccall external_call_desc,
-                 [Lvar args_array; is_local; is_scannable],
+                 [Lvar args_array; is_local; is_scannable; length],
                  loc ) ),
          array_layout ))
 

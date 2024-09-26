@@ -568,7 +568,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         ((Parraysetu
           (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pnativeint)),
         3)
-    | "%caml_make_unboxed_tuple_vect" ->
+    | "%make_unboxed_tuple_vect" ->
       Primitive (Pmake_unboxed_tuple_vect (gen_array_kind, mode), 2)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
     | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index)), 2)

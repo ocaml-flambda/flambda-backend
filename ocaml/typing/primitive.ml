@@ -695,7 +695,7 @@ let prim_has_valid_reprs ~loc prim =
         is (Same_as_ocaml_repr word);
         any;
         is (Same_as_ocaml_repr value)]
-    | "%caml_make_unboxed_tuple_vect" ->
+    | "%make_unboxed_tuple_vect" ->
       check [
         is (Same_as_ocaml_repr value);
         is_unboxed_product;

@@ -65,3 +65,15 @@ external[@layout_poly] set : ('a : any) . int64# array -> int -> 'a -> unit =
 
 let reinterpret_safe_set x =
   set x 42 #(#1.0, 2, #3L, true)
+
+
+(* Creation via the magic primitive *)
+
+external[@layout_poly] make_unboxed_tuple_vect : ('a : any) .
+  int -> 'a -> 'a array = "%make_unboxed_tuple_vect"
+
+let make_unboxed_tuple_vect_scannable () =
+  make_unboxed_tuple_vect 42 #(1, 2.0, "3")
+
+let make_unboxed_tuple_vect_ignorable () =
+  make_unboxed_tuple_vect 42 #(#1.0, 2, #3L, true)
