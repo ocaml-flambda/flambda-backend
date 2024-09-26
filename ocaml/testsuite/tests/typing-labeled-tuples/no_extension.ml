@@ -83,3 +83,21 @@ Line 1, characters 7-17:
            ^^^^^^^^^^
 Error: The extension "labeled_tuples" is disabled and cannot be used
 |}]
+
+let (_ : x : int * y : string) = assert false
+
+[%%expect{|
+Line 1, characters 9-29:
+1 | let (_ : x : int * y : string) = assert false
+             ^^^^^^^^^^^^^^^^^^^^
+Error: The extension "labeled_tuples" is disabled and cannot be used
+|}]
+
+let (_ : ('a -> x : int * y : string) -> 'b) = assert false
+
+[%%expect{|
+Line 1, characters 16-36:
+1 | let (_ : ('a -> x : int * y : string) -> 'b) = assert false
+                    ^^^^^^^^^^^^^^^^^^^^
+Error: The extension "labeled_tuples" is disabled and cannot be used
+|}]
