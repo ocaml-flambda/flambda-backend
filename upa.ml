@@ -85,3 +85,5 @@ let make_unboxed_tuple_vect_scannable () =
 let make_unboxed_tuple_vect_ignorable () =
   make_unboxed_tuple_vect 42 #(#1.0, 2, #3L, true)
 *)
+
+let _ = make_unboxed_tuple_vect_scannable ()
