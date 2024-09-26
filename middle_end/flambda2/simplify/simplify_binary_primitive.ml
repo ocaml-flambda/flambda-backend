@@ -1111,21 +1111,29 @@ let simplify_array_load (array_kind : P.Array_kind.t)
        to immutable loads only and use [T.meet_is_immutable_array] instead. *)
     match T.prove_is_immutable_array (DA.typing_env dacc) array_ty with
     | Unknown -> contents_unknown ()
-    | Proved (_kind, fields, _mode) -> (
-      match T.prove_equals_tagged_immediates (DA.typing_env dacc) index_ty with
-      | Unknown -> contents_unknown ()
-      | Proved imms -> (
-        match Targetint_31_63.Set.get_singleton imms with
-        | None -> contents_unknown ()
-        | Some imm ->
-          if Targetint_31_63.( < ) imm Targetint_31_63.zero
-             || Targetint_31_63.( >= ) imm
-                  (Array.length fields |> Targetint_31_63.of_int)
-          then SPR.create_invalid dacc
-          else
-            return_given_type
-              fields.(Targetint_31_63.to_int imm)
-              ~try_reify:true)))
+    | Proved (elt_kind, fields, _mode) -> (
+      match elt_kind with
+      | Unknown | Bottom -> contents_unknown ()
+      | Ok elt_kind -> (
+        if not (K.equal (K.With_subkind.kind elt_kind) result_kind)
+        then contents_unknown ()
+        else
+          match
+            T.prove_equals_tagged_immediates (DA.typing_env dacc) index_ty
+          with
+          | Unknown -> contents_unknown ()
+          | Proved imms -> (
+            match Targetint_31_63.Set.get_singleton imms with
+            | None -> contents_unknown ()
+            | Some imm ->
+              if Targetint_31_63.( < ) imm Targetint_31_63.zero
+                 || Targetint_31_63.( >= ) imm
+                      (Array.length fields |> Targetint_31_63.of_int)
+              then SPR.create_invalid dacc
+              else
+                return_given_type
+                  fields.(Targetint_31_63.to_int imm)
+                  ~try_reify:true))))
 
 let simplify_string_or_bigstring_load _string_like_value _string_accessor_width
     ~original_prim dacc ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_
