@@ -207,5 +207,6 @@ let () =
     ~extra_flags:"-zero-alloc-check all"
     ~exit_code:2 "test_inference";
   print_test_expected_output ~cutoff:default_cutoff
-     ~extra_dep:None ~exit_code:2 "test_remove_inferred_assume";
+    ~extra_dep:None ~exit_code:2 "test_remove_inferred_assume";
+  print_test "test_remove_inferred_assume_workaround.ml";
   ()

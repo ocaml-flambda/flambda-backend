@@ -1130,3 +1130,9 @@
  (enabled_if (= %{context_name} "main"))
  (deps test_remove_inferred_assume.output test_remove_inferred_assume.output.corrected)
  (action (diff test_remove_inferred_assume.output test_remove_inferred_assume.output.corrected)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (= %{context_name} "main"))
+ (deps test_remove_inferred_assume_workaround.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dzero-alloc -dump-into-file -O3 -warn-error +a)))
