@@ -1106,18 +1106,12 @@ let simplify_array_load (array_kind : P.Array_kind.t)
     let[@inline] contents_unknown () =
       return_given_type (T.unknown (P.result_kind' prim)) ~try_reify:false
     in
-    match T.meet_is_immutable_array (DA.typing_env dacc) array_ty with
-    | Invalid ->
-      (* CR mshinwell: This should be: SPR.create_invalid dacc but we need to
-         fix the CR below first. *)
-      contents_unknown ()
-    | Need_meet -> contents_unknown ()
-    | Known_result (_kind, fields, _mode) -> (
-      (* We try to read the array if it is known to be immutable, even if the
-         load is marked as mutable. *)
-      (* CR mshinwell/vlaviron: We should produce [Invalid] in this case once
-         the frontend has been fixed so that [iarray] accessors are marked in
-         Lambda as immutable. *)
+    (* CR mshinwell/vlaviron: if immutable array accesses were consistently
+       setting [mutability] to [Immutable], we could restrict the following code
+       to immutable loads only and use [T.meet_is_immutable_array] instead. *)
+    match T.prove_is_immutable_array (DA.typing_env dacc) array_ty with
+    | Unknown -> contents_unknown ()
+    | Proved (_kind, fields, _mode) -> (
       match T.prove_equals_tagged_immediates (DA.typing_env dacc) index_ty with
       | Unknown -> contents_unknown ()
       | Proved imms -> (
