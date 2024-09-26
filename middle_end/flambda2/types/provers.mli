@@ -145,7 +145,7 @@ val meet_is_immutable_array :
   Typing_env.t ->
   Type_grammar.t ->
   (Flambda_kind.With_subkind.t Or_unknown_or_bottom.t
-  * Type_grammar.t
+  * Type_grammar.t array
   * Alloc_mode.For_types.t)
   meet_shortcut
 

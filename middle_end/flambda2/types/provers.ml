@@ -660,9 +660,10 @@ let meet_is_immutable_array env t : _ meet_shortcut =
   match expand_head env t with
   | Value Unknown -> Need_meet
   | Value Bottom -> Invalid
-  | Value (Ok (Array { element_kind; length; contents; alloc_mode })) -> (
+  | Value (Ok (Array { element_kind; length = _; contents; alloc_mode })) -> (
     match contents with
-    | Known (Immutable _) -> Known_result (element_kind, length, alloc_mode)
+    | Known (Immutable { fields }) ->
+      Known_result (element_kind, fields, alloc_mode)
     | Known Mutable -> Invalid
     | Unknown -> Need_meet)
   | Value (Ok _)
