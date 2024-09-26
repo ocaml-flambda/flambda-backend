@@ -1266,18 +1266,22 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             (kind, Alloc_mode.For_allocations.from_lambda mode ~current_region),
           arg ) ]
   | Pfield_computed sem, [[obj]; [field]] ->
+    (* We are reinterpreting a block(/object) as a value array, so it needs to be opaque. *)
+    let obj = H.Unary (Opaque_identity { middle_end_only = true; kind = K.value }, obj) in
     [ Binary
         ( Array_load (Values, Scalar, convert_field_read_semantics sem),
-          obj,
+          Prim obj,
           field ) ]
   | ( Psetfield_computed (imm_or_pointer, init_or_assign),
       [[obj]; [field]; [value]] ) ->
+    (* We are reinterpreting a block(/object) as a value array, so it needs to be opaque. *)
+    let obj = H.Unary (Opaque_identity { middle_end_only = true; kind = K.value }, obj) in
     let kind : P.Array_set_kind.t =
       match imm_or_pointer with
       | Immediate -> Immediates
       | Pointer -> Values (convert_init_or_assign init_or_assign)
     in
-    [Ternary (Array_set (kind, Scalar), obj, field, value)]
+    [Ternary (Array_set (kind, Scalar), Prim obj, field, value)]
   | Parraylength kind, [[arg]] ->
     let array_kind = convert_array_kind_for_length kind in
     [Unary (Array_length array_kind, arg)]
