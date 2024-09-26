@@ -34,7 +34,6 @@ type error =
   | Illegal_product_record_field of Jkind.Sort.Const.t
   | Void_sort of type_expr
   | Array_comprehension_kind
-  | Product_array
 
 exception Error of Location.t * error
 
@@ -742,12 +741,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_array (amut, element_sort, expr_list, alloc_mode) ->
       let mode = transl_alloc_mode alloc_mode in
       let kind = array_kind e element_sort in
-      begin match kind with
-      | Pgcignorableproductarray _ | Pgcscannableproductarray _ ->
-        raise (Error (e.exp_loc, Product_array))
-      | Pgenarray | Paddrarray | Pintarray | Pfloatarray
-      | Punboxedfloatarray _ | Punboxedintarray _ -> ()
-      end;
       let ll =
         transl_list ~scopes
           (List.map (fun e -> (e, element_sort)) expr_list)
@@ -2319,9 +2312,6 @@ let report_error ppf = function
       fprintf ppf
         "Array comprehensions are not yet supported for arrays of unboxed \
          products."
-  | Product_array ->
-      fprintf ppf "Unboxed product array expressions are not yet supported"
-      (* XXX but they should be. *)
 
 let () =
   Location.register_error_of_exn

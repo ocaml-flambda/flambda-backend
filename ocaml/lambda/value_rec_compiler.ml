@@ -259,6 +259,7 @@ let compute_static_size lam =
         | Pgcscannableproductarray _ | Pgcignorableproductarray _->
             Misc.fatal_error "size_of_primitive"
         end
+    | Pmake_unboxed_tuple_vect _ -> Misc.fatal_error "size_of_primitive"
     | Pduparray _ ->
         (* The size has to be recovered from the size of the argument *)
         begin match args with

@@ -568,6 +568,8 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
         ((Parraysetu
           (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pnativeint)),
         3)
+    | "%caml_make_unboxed_tuple_vect" ->
+      Primitive (Pmake_unboxed_tuple_vect (gen_array_kind, mode), 2)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
     | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index)), 2)
     | "%obj_set_field" ->
@@ -1191,6 +1193,16 @@ let specialize_primitive env loc ty ~has_constant_constructor prim =
       if st = array_set_type then None
       else Some (Primitive (Parraysets (array_set_type, index_kind), arity))
     end
+  | Primitive (Pmake_unboxed_tuple_vect (at, mode), arity),
+    _ :: p2 :: _ -> begin
+      let loc = to_location loc in
+      let array_type =
+        glb_array_type loc at
+          (array_kind_of_elt ~elt_sort:None env loc p2)
+      in
+      if at = array_type then None
+      else Some (Primitive (Pmake_unboxed_tuple_vect (array_type, mode), arity))
+    end
   | Primitive (Pbigarrayref(unsafe, n, kind, layout), arity), p1 :: _ -> begin
       let (k, l) = bigarray_specialize_kind_and_layout env ~kind ~layout p1 in
       match k, l with
@@ -1721,6 +1733,7 @@ let lambda_primitive_needs_event_after = function
   | Pmakearray ((Pintarray | Paddrarray | Pfloatarray | Punboxedfloatarray _
                 | Punboxedintarray _ | Pgcscannableproductarray _
                 | Pgcignorableproductarray _), _, _)
+  | Pmake_unboxed_tuple_vect _
   | Parraylength _ | Parrayrefu _ | Parraysetu _ | Pisint _ | Pisout
   | Pprobe_is_enabled _
   | Patomic_exchange | Patomic_cas | Patomic_fetch_add | Patomic_load _

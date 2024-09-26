@@ -906,7 +906,7 @@ let rec choice ctx t =
     | Punbox_int _ | Pbox_int _
 
     (* we don't handle array indices as destinations yet *)
-    | (Pmakearray _ | Pduparray _)
+    | (Pmakearray _ | Pduparray _ | Pmake_unboxed_tuple_vect _)
 
     (* we don't handle { foo with x = ...; y = recursive-call } *)
     | Pduprecord _

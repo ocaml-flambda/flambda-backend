@@ -99,7 +99,6 @@ type error =
     }
   | Null_arity_external
   | Missing_native_external
-  | Unboxed_product_in_external
   | Unbound_type_var of type_expr * type_declaration
   | Cannot_extend_private_type of Path.t
   | Not_extensible_type of Path.t
@@ -2794,8 +2793,14 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
         (Warnings.Incompatible_with_upstream
               (Warnings.Unboxed_attribute layout)));
     Same_as_ocaml_repr c
-  | Native_repr_attr_absent, (Sort (Product _)) ->
-    raise (Error (core_type.ptyp_loc, Unboxed_product_in_external))
+  | Native_repr_attr_absent, (Sort ((Product _) as c)) ->
+    (if Language_extension.erasable_extensions_only ()
+     then
+      let sort = Format.asprintf "%a" Jkind_types.Sort.Const.format c in
+      Location.prerr_warning core_type.ptyp_loc
+        (Warnings.Incompatible_with_upstream
+              (Warnings.Non_value_sort sort)));
+    Same_as_ocaml_repr c
   | Native_repr_attr_present kind, (Poly | Sort (Base Value))
   | Native_repr_attr_present (Untagged as kind), Sort _ ->
     begin match native_repr_of_type env kind ty sort_or_poly with
@@ -2834,7 +2839,9 @@ let make_native_repr env core_type ty ~global_repr ~is_layout_poly ~why =
               (Warnings.Non_value_sort layout)));
     Same_as_ocaml_repr c
   | Native_repr_attr_present Unboxed, (Sort (Product _)) ->
-    raise (Error (core_type.ptyp_loc, Unboxed_product_in_external))
+    (* You can't write an @@unboxed on a product, but that is enforced by
+       Primitive.parse_declaration *)
+    assert false
 
 let prim_const_mode m =
   match Mode.Locality.Guts.check_const m with
@@ -3546,9 +3553,6 @@ let report_error ppf = function
       fprintf ppf "@[<hv>An external function with more than 5 arguments \
                    requires a second stub function@ \
                    for native-code compilation@]"
-  | Unboxed_product_in_external ->
-      fprintf ppf "@[Unboxed product layouts are not supported in external \
-                   declarations@]"
   | Unbound_type_var (ty, decl) ->
       fprintf ppf "@[A type variable is unbound in this type declaration";
       begin match decl.type_kind, decl.type_manifest with

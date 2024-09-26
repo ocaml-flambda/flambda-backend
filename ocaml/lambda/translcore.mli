@@ -52,7 +52,6 @@ type error =
   | Illegal_product_record_field of Jkind.Sort.Const.t
   | Void_sort of Types.type_expr
   | Array_comprehension_kind
-  | Product_array
 
 exception Error of Location.t * error
 

@@ -201,30 +201,32 @@ and sort_to_ignorable_product_element_kind loc (s : Jkind.Sort.Const.t) =
     raise (Error (loc, Unsupported_sort c))
   | Product sorts -> Pproduct_ignorable (ignorable_product_array_kind loc sorts)
 
+let array_kind_of_elt ~elt_sort env loc ty =
+  let elt_sort =
+    match elt_sort with
+    | Some s -> s
+    | None ->
+      type_legacy_sort ~why:Array_element env loc ty
+  in
+  match classify env loc ty elt_sort with
+  | Any -> if Config.flat_float_array then Pgenarray else Paddrarray
+  | Float -> if Config.flat_float_array then Pfloatarray else Paddrarray
+  | Addr | Lazy -> Paddrarray
+  | Int -> Pintarray
+  | Unboxed_float f -> Punboxedfloatarray f
+  | Unboxed_int i -> Punboxedintarray i
+  | Product sorts ->
+    (* XXX need scrape_ty elt_ty? *)
+    if is_always_gc_ignorable env ty then
+      Pgcignorableproductarray (ignorable_product_array_kind loc sorts)
+    else
+      Pgcscannableproductarray (scannable_product_array_kind loc sorts)
+
 let array_type_kind ~elt_sort env loc ty =
   match scrape_poly env ty with
   | Tconstr(p, [elt_ty], _)
     when Path.same p Predef.path_array || Path.same p Predef.path_iarray ->
-      let elt_sort =
-        match elt_sort with
-        | Some s -> s
-        | None ->
-          type_legacy_sort ~why:Array_element env loc elt_ty
-      in
-      begin match classify env loc elt_ty elt_sort with
-      | Any -> if Config.flat_float_array then Pgenarray else Paddrarray
-      | Float -> if Config.flat_float_array then Pfloatarray else Paddrarray
-      | Addr | Lazy -> Paddrarray
-      | Int -> Pintarray
-      | Unboxed_float f -> Punboxedfloatarray f
-      | Unboxed_int i -> Punboxedintarray i
-      | Product sorts ->
-        (* XXX need scrape_ty elt_ty? *)
-        if is_always_gc_ignorable env elt_ty then
-          Pgcignorableproductarray (ignorable_product_array_kind loc sorts)
-        else
-          Pgcscannableproductarray (scannable_product_array_kind loc sorts)
-      end
+      array_kind_of_elt ~elt_sort env loc elt_ty
   | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
       Pfloatarray
   | _ ->

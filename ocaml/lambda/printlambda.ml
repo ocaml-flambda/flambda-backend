@@ -620,6 +620,9 @@ let primitive ppf = function
   | Pmakearray (k, Immutable_unique, mode) ->
       fprintf ppf "make%sarray_unique[%s]" (alloc_mode_if_local mode)
         (array_kind k)
+  | Pmake_unboxed_tuple_vect (k, mode) ->
+      fprintf ppf "make%s_unboxed_tuple_vect[%s]" (alloc_mode_if_local mode)
+        (array_kind k)
   | Pduparray (k, Mutable) -> fprintf ppf "duparray[%s]" (array_kind k)
   | Pduparray (k, Immutable) -> fprintf ppf "duparray_imm[%s]" (array_kind k)
   | Pduparray (k, Immutable_unique) ->
@@ -934,6 +937,7 @@ let name_of_primitive = function
   | Pbytessets -> "Pbytessets"
   | Parraylength _ -> "Parraylength"
   | Pmakearray _ -> "Pmakearray"
+  | Pmake_unboxed_tuple_vect _ -> "Pmake_unboxed_tupl_vect"
   | Pduparray _ -> "Pduparray"
   | Parrayrefu _ -> "Parrayrefu"
   | Parraysetu _ -> "Parraysetu"
