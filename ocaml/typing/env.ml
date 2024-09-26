@@ -1633,7 +1633,8 @@ let rec scrape_alias_for_visit env mty =
   | Mty_alias path -> begin
       match path with
       | Pident id
-        when Ident.is_global id && not (global_ident_is_looked_up id) ->
+        when Ident.is_global id
+          && not (global_ident_is_looked_up id) ->
           false
       | path -> (* PR#6600: find_module may raise Not_found *)
           try
@@ -3711,7 +3712,8 @@ let bound_module name env =
       if Current_unit_name.is name then false
       else begin
         match
-          find_pers_mod ~allow_hidden:false (Global_module.Name.create name [])
+          find_pers_mod ~allow_hidden:false
+            (Global_module.Name.create name [])
         with
         | _ -> true
         | exception Not_found -> false
@@ -3795,15 +3797,13 @@ let fold_modules f lid env acc =
                in
                f name p md acc
            | Mod_persistent ->
-               match
-                 (* CR lmaurer: Setting instance args to [] here isn't right. We
-                    really should have [IdTbl.fold_name] provide the whole ident
-                    rather than just the name. It looks like the only immediate
-                    consequence of this is that spellcheck won't suggest
-                    instance names (which is good!). *)
-                 let modname = Global_module.Name.create name [] in
-                 Persistent_env.find_in_cache !persistent_env modname
-               with
+               (* CR lmaurer: Setting instance args to [] here isn't right. We
+                  really should have [IdTbl.fold_name] provide the whole ident
+                  rather than just the name. It looks like the only immediate
+                  consequence of this is that spellcheck won't suggest
+                  instance names (which is good!). *)
+               let modname = Global_module.Name.create name [] in
+               match Persistent_env.find_in_cache !persistent_env modname with
                | None -> acc
                | Some mda ->
                    let md =
@@ -3869,12 +3869,10 @@ let filter_non_loaded_persistent f env =
          | Mod_local _ -> acc
          | Mod_unbound _ -> acc
          | Mod_persistent ->
-             match
-               (* CR lmaurer: Again, setting args to [] here is weird but fine
-                  for the moment *)
-               let modname = Global_module.Name.create name [] in
-               Persistent_env.find_in_cache !persistent_env modname
-             with
+             (* CR lmaurer: Again, setting args to [] here is weird but fine
+                for the moment *)
+             let modname = Global_module.Name.create name [] in
+             match Persistent_env.find_in_cache !persistent_env modname with
              | Some _ -> acc
              | None ->
                  if f (Ident.create_persistent name) then

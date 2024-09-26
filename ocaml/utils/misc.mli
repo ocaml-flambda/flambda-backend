@@ -205,16 +205,6 @@ module Stdlib : sig
         that appear only in the left list, [right_only] on those elements
         that appear only in the right list, and [both] on those elements that
         appear in both. *)
-
-    val merge_map
-       : cmp:('a -> 'b -> int)
-      -> left_only:('a -> 'c)
-      -> right_only:('b -> 'c)
-      -> both:('a -> 'b -> 'c)
-      -> 'a t
-      -> 'b t
-      -> 'c t
-    (** Like [merge_iter] but produces an output list. *)
   end
 
 (** {2 Extensions to the Option module} *)

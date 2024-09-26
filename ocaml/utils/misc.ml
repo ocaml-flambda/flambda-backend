@@ -271,14 +271,6 @@ module Stdlib = struct
         ~left_only:(fun () a -> left_only a)
         ~right_only:(fun () b -> right_only b)
         ~both:(fun () a b -> both a b)
-
-    let [@inline] merge_map ~cmp ~left_only ~right_only ~both t1 t2 =
-      merge_fold t1 t2 ~cmp
-        ~init:[]
-        ~left_only:(fun acc a -> left_only a :: acc)
-        ~right_only:(fun acc b -> right_only b :: acc)
-        ~both:(fun acc a b -> both a b :: acc)
-      |> List.rev
   end
 
   module Option = struct

@@ -92,8 +92,8 @@ type 'a sig_reader =
 val read : 'a t -> 'a sig_reader
   -> Global_module.Name.t -> Unit_info.Artifact.t -> add_binding:bool
   -> Subst.Lazy.signature
-val find : allow_hidden:bool
-  -> 'a t -> 'a sig_reader -> Global_module.Name.t -> 'a
+val find : allow_hidden:bool -> 'a t -> 'a sig_reader
+  -> Global_module.Name.t -> 'a
 
 val find_in_cache : 'a t -> Global_module.Name.t -> 'a option
 

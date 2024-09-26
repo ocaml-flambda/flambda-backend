@@ -101,7 +101,8 @@ module Param_set = Global_module.Name.Set
 (* If you add something here, _do not forget_ to add it to [clear]! *)
 type 'a t = {
   imports : (CU.Name.t, import_info) Hashtbl.t;
-  persistent_structures : (Global_module.Name.t, 'a pers_struct_info) Hashtbl.t;
+  persistent_structures :
+    (Global_module.Name.t, 'a pers_struct_info) Hashtbl.t;
   imported_units: CU.Name.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
   param_imports : Param_set.t ref;
@@ -167,7 +168,11 @@ let find_in_cache penv name =
   find_info_in_cache penv name |> Option.map (fun ps -> ps.ps_val)
 
 let register_parameter ({param_imports; _} as penv) modname =
-  let import = CU.Name.of_global_name_no_args_exn modname in
+  let import =
+    (* Note that parameters cannot themselves be parameterised. (This may be lifted in the
+       future, but dependent types are hard.) *)
+    CU.Name.of_global_name_no_args_exn modname
+  in
   begin match find_import_info_in_cache penv import with
   | None ->
       (* Not loaded yet; if it's wrong, we'll get an error at load time *)
@@ -375,6 +380,9 @@ type 'a sig_reader =
    Checks that OCaml source is allowed to refer to this module. *)
 
 let acknowledge_pers_struct penv modname import val_of_pers_sig =
+  if modname.Global_module.Name.args <> [] then
+    Misc.fatal_errorf "TODO: Unsupported instance name: %a"
+      Global_module.Name.print modname;
   let {persistent_structures; _} = penv in
   let is_param = import.imp_is_param in
   let sign = import.imp_sign in
@@ -434,9 +442,6 @@ let read_pers_struct penv val_of_pers_sig check modname cmi ~add_binding =
 
 let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
-  if name.Global_module.Name.args <> [] then
-    Misc.fatal_errorf "Unsupported import of instance name: %a"
-      Global_module.Name.print name;
   match Hashtbl.find persistent_structures name with
   | ps -> check_visibility ~allow_hidden ps.ps_import; ps
   | exception Not_found ->

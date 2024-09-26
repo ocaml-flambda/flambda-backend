@@ -25,11 +25,7 @@ type error =
   | Bad_compilation_unit_name of string
   | Child_of_instance of { child_name : string }
   | Packed_instance of { name : string }
-  | Duplicate_argument of
-      { param : string;
-        value1 : string;
-        value2 : string
-      }
+  | Already_an_instance of { name : string }
 
 exception Error of error
 
@@ -221,8 +217,6 @@ module T0 : sig
   val of_global_name : Global_module.Name.t -> t
 
   val compare : t -> t -> int
-
-  val compare_argument_by_name : argument -> argument -> int
 end = struct
   (* As with [Name.t], changing [descr] or [t] requires bumping magic
      numbers. *)
@@ -266,7 +260,7 @@ end = struct
 
   let convert_arguments l =
     ListLabels.map
-      ~f:(fun (param, value) ->
+      ~f:(fun ({ param; value } : Global_module.Name.argument) ->
         { param = of_global_name param; value = of_global_name value })
       l
 
@@ -390,14 +384,12 @@ end = struct
     let () =
       if not empty_prefix
       then (
-        let () =
-          if not empty_arguments
-          then
-            (* CR-someday lmaurer: [for_pack_prefix] and [arguments] would make
-               for better output but it doesn't seem worth moving both [error]
-               and [print] to before this point *)
-            raise (Error (Packed_instance { name = name |> Name.to_string }))
-        in
+        if not empty_arguments
+        then
+          (* CR-someday lmaurer: [for_pack_prefix] and [arguments] would make
+             for better output but it doesn't seem worth moving both [error] and
+             [print] to before this point *)
+          raise (Error (Packed_instance { name = name |> Name.to_string }));
         Name.check_as_path_component name;
         ListLabels.iter ~f:Name.check_as_path_component
           (for_pack_prefix |> Prefix.to_list))
@@ -410,8 +402,10 @@ end = struct
       let head = Name.to_string name in
       let arguments =
         ListLabels.map
-          ~f:(fun { param; value } ->
-            to_global_name_exn param, to_global_name_exn value)
+          ~f:(fun { param; value } : Global_module.Name.argument ->
+            { param = to_global_name_exn param;
+              value = to_global_name_exn value
+            })
           arguments
       in
       of_full (Global (Global_module.Name.create head arguments))
@@ -503,21 +497,11 @@ let is_instance t =
 
 let create_instance t arguments =
   let { for_pack_prefix; name; arguments = existing_arguments } = descr t in
-  let cmp = compare_argument_by_name in
-  let arguments = ListLabels.sort ~cmp arguments in
-  let arguments =
-    List.merge_map ~cmp
-      ~left_only:(fun arg -> arg)
-      ~right_only:(fun arg -> arg)
-      ~both:(fun { param; value = value1 } { value = value2; _ } ->
-        raise
-          (Error
-             (Duplicate_argument
-                { param = full_path_as_string param;
-                  value1 = full_path_as_string value1;
-                  value2 = full_path_as_string value2
-                })))
-      arguments existing_arguments
+  let () =
+    match existing_arguments with
+    | [] -> ()
+    | _ :: _ ->
+      raise (Error (Already_an_instance { name = full_path_as_string t }))
   in
   create_full for_pack_prefix name arguments
 
