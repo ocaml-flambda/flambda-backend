@@ -662,8 +662,7 @@ let prove_is_immutable_array_generic env t : _ generic_proof =
   | Value Bottom -> Invalid
   | Value (Ok (Array { element_kind; length = _; contents; alloc_mode })) -> (
     match contents with
-    | Known (Immutable { fields }) ->
-      Proved (element_kind, fields, alloc_mode)
+    | Known (Immutable { fields }) -> Proved (element_kind, fields, alloc_mode)
     | Known Mutable -> Invalid
     | Unknown -> Unknown)
   | Value (Ok _)
