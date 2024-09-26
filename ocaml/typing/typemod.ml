@@ -3889,9 +3889,7 @@ let package_units initial_env objfiles target_cmi modulename =
       raise(Error(Location.in_file mli, Env.empty,
                   Interface_not_compiled mli))
     end;
-    let name =
-      Compilation_unit.name modulename |> Compilation_unit.Name.to_global_name
-    in
+    let name = Compilation_unit.to_global_name_without_prefix modulename in
     let dclsig = Env.read_signature name target_cmi ~add_binding:false in
     let cc, _shape =
       Includemod.compunit initial_env ~mark:Mark_both
