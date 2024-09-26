@@ -135,7 +135,11 @@ module Assume_info : sig
   val none : t
 
   val create :
-    strict:bool -> never_returns_normally:bool -> never_raises:bool -> t
+    strict:bool ->
+    never_returns_normally:bool ->
+    never_raises:bool ->
+    inferred:bool ->
+    t
 
   val compare : t -> t -> int
 
@@ -150,6 +154,8 @@ module Assume_info : sig
   val print : Format.formatter -> t -> unit
 
   val is_none : t -> bool
+
+  val is_inferred : t -> bool
 
   module Witnesses : sig
     type t = unit

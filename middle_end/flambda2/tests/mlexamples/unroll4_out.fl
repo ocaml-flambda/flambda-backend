@@ -2,7 +2,9 @@ let code odd_2 deleted and code even_1 deleted in
 let code parity_is_0 deleted in
 let code k_3 deleted in
 let code rec loopify(never) size(26) newer_version_of(even_1)
-      even_1_1 (n : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
+      even_1_1 (n : imm tagged)
+        my_closure my_region my_ghost_region my_depth
+        -> k * k1 =
   let k = %project_value_slot even.k my_closure in
   let odd = %project_function_slot (even -> odd) my_closure in
   let prim = %phys_eq (n, 0) in
@@ -16,7 +18,9 @@ let code rec loopify(never) size(26) newer_version_of(even_1)
       apply direct(odd_2_1)
         odd ~ depth my_depth -> succ my_depth (Psubint) -> k * k1
 and code rec loopify(never) size(26) newer_version_of(odd_2)
-      odd_2_1 (n : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
+      odd_2_1 (n : imm tagged)
+        my_closure my_region my_ghost_region my_depth
+        -> k * k1 =
   let k = %project_value_slot odd.k my_closure in
   let even = %project_function_slot (odd -> even) my_closure in
   let prim = %phys_eq (n, 0) in
@@ -132,7 +136,9 @@ apply direct(k_3_1) inlined(hint) inlining_state(depth(21))
                 (Psubint)
                 -> k1 * k2
       and code rec loopify(never) size(18) newer_version_of(odd_2_1)
-            odd_2_2 (n : imm tagged) my_closure my_region my_ghost_region my_depth -> k1 * k2 =
+            odd_2_2 (n : imm tagged)
+              my_closure my_region my_ghost_region my_depth
+              -> k1 * k2 =
         let prim = %phys_eq (n, 0) in
         switch prim
           | 0 -> k3

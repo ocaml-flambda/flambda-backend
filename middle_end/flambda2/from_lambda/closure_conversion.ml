@@ -1100,14 +1100,8 @@ let simplify_block_load acc body_env ~block ~field : simplified_block_load =
   | Closure_approximation _ | Value_symbol _ | Value_const _ -> Not_a_block
   | Block_approximation (_tag, _shape, approx, _alloc_mode) -> (
     let approx =
-      Simple.pattern_match field
-        ~const:(fun const ->
-          match Reg_width_const.descr const with
-          | Tagged_immediate i ->
-            let i = Targetint_31_63.to_int i in
-            if i >= Array.length approx then None else Some approx.(i)
-          | _ -> Some Value_approximation.Value_unknown)
-        ~name:(fun _ ~coercion:_ -> Some Value_approximation.Value_unknown)
+      let i = Targetint_31_63.to_int field in
+      if i >= Array.length approx then None else Some approx.(i)
     in
     match approx with
     | Some (Value_symbol sym) -> Field_contents (Simple.symbol sym)
@@ -1368,7 +1362,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
             (Bound_pattern.static
                (Bound_static.create [Bound_static.Pattern.block_like symbol]))
             defining_expr ~body
-        | Prim (Binary (Block_load _, block, field), _) -> (
+        | Prim (Unary (Block_load { field; _ }, block), _) -> (
           match simplify_block_load acc body_env ~block ~field with
           | Unknown -> bind acc body_env
           | Not_a_block ->
@@ -1703,20 +1697,18 @@ let unboxing_primitive (k : Function_decl.unboxing_kind) boxed_variable i =
           field_kind = Any_value
         }
     in
-    Flambda_primitive.Binary
-      ( Block_load (block_access_kind, Immutable),
-        Simple.var boxed_variable,
-        Simple.const_int i )
+    Flambda_primitive.Unary
+      ( Block_load { kind = block_access_kind; mut = Immutable; field = i },
+        Simple.var boxed_variable )
   | Unboxed_number bn ->
     Flambda_primitive.Unary (Unbox_number bn, Simple.var boxed_variable)
   | Unboxed_float_record num_fields ->
     let block_access_kind : P.Block_access_kind.t =
       Naked_floats { size = Known (Targetint_31_63.of_int num_fields) }
     in
-    Flambda_primitive.Binary
-      ( Block_load (block_access_kind, Immutable),
-        Simple.var boxed_variable,
-        Simple.const_int i )
+    Flambda_primitive.Unary
+      ( Block_load { kind = block_access_kind; mut = Immutable; field = i },
+        Simple.var boxed_variable )
 
 let boxing_primitive (k : Function_decl.unboxing_kind) alloc_mode
     unboxed_variables : Flambda_primitive.t =
@@ -3487,12 +3479,14 @@ let wrap_final_module_block acc env ~program ~prog_return_cont
         let pat = Bound_pattern.singleton var in
         let pos = Targetint_31_63.of_int pos in
         let block = module_block_simple in
-        let field = Simple.const (Reg_width_const.tagged_immediate pos) in
-        match simplify_block_load acc env ~block ~field with
+        match simplify_block_load acc env ~block ~field:pos with
         | Unknown | Not_a_block | Block_but_cannot_simplify _ ->
           let named =
             Named.create_prim
-              (Binary (Block_load (block_access, Immutable), block, field))
+              (Unary
+                 ( Block_load
+                     { kind = block_access; mut = Immutable; field = pos },
+                   block ))
               Debuginfo.none
           in
           Let_with_acc.create acc pat named ~body

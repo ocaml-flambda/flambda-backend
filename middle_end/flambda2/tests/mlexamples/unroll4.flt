@@ -1,6 +1,8 @@
-let $camlUnroll4__first_const49 = Block 0 () in
+let $camlUnroll4__first_const54 = Block 0 () in
 let code rec size(29)
-      even_1 (n : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
+      even_1 (n : imm tagged)
+        my_closure my_region my_ghost_region my_depth
+        -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let k = %project_value_slot even.k my_closure in
   let odd = %project_function_slot (even -> odd) my_closure in
@@ -17,7 +19,9 @@ let code rec size(29)
       apply direct(odd_2)
         odd ~ depth my_depth -> next_depth (Psubint) -> k * k1
 and code rec size(29)
-      odd_2 (n : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
+      odd_2 (n : imm tagged)
+        my_closure my_region my_ghost_region my_depth
+        -> k * k1 =
   let next_depth = rec_info (succ my_depth) in
   let k = %project_value_slot odd.k my_closure in
   let even = %project_function_slot (odd -> even) my_closure in
@@ -67,10 +71,10 @@ in
           in
           cont k (Pmakeblock)))
   where k define_root_symbol (module_block) =
-    let field_0 = %block_load tag(0) size(4) (module_block, 0) in
-    let field_1 = %block_load tag(0) size(4) (module_block, 1) in
-    let field_2 = %block_load tag(0) size(4) (module_block, 2) in
-    let field_3 = %block_load tag(0) size(4) (module_block, 3) in
+    let field_0 = %block_load tag(0) size(4) (0) module_block in
+    let field_1 = %block_load tag(0) size(4) (1) module_block in
+    let field_2 = %block_load tag(0) size(4) (2) module_block in
+    let field_3 = %block_load tag(0) size(4) (3) module_block in
     let $camlUnroll4 = Block 0 (field_0, field_1, field_2, field_3) in
     cont done ($camlUnroll4)
 ===>
@@ -78,7 +82,9 @@ let code odd_2 deleted and code even_1 deleted in
 let code parity_is_0 deleted in
 let code k_3 deleted in
 let code rec loopify(never) size(26) newer_version_of(even_1)
-      even_1_1 (n : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
+      even_1_1 (n : imm tagged)
+        my_closure my_region my_ghost_region my_depth
+        -> k * k1 =
   let k = %project_value_slot even.k my_closure in
   let odd = %project_function_slot (even -> odd) my_closure in
   let prim = %phys_eq (n, 0) in
@@ -92,7 +98,9 @@ let code rec loopify(never) size(26) newer_version_of(even_1)
       apply direct(odd_2_1)
         odd ~ depth my_depth -> succ my_depth (Psubint) -> k * k1
 and code rec loopify(never) size(26) newer_version_of(odd_2)
-      odd_2_1 (n : imm tagged) my_closure my_region my_ghost_region my_depth -> k * k1 =
+      odd_2_1 (n : imm tagged)
+        my_closure my_region my_ghost_region my_depth
+        -> k * k1 =
   let k = %project_value_slot odd.k my_closure in
   let even = %project_function_slot (odd -> even) my_closure in
   let prim = %phys_eq (n, 0) in
@@ -208,7 +216,9 @@ apply direct(k_3_1) inlined(hint) inlining_state(depth(21))
                 (Psubint)
                 -> k1 * k2
       and code rec loopify(never) size(18) newer_version_of(odd_2_1)
-            odd_2_2 (n : imm tagged) my_closure my_region my_ghost_region my_depth -> k1 * k2 =
+            odd_2_2 (n : imm tagged)
+              my_closure my_region my_ghost_region my_depth
+              -> k1 * k2 =
         let prim = %phys_eq (n, 0) in
         switch prim
           | 0 -> k3

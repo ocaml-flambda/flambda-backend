@@ -516,10 +516,9 @@ let binop ppf binop a b =
       (array_kind ~space:Before) ak (mutability ~space:Before) mut
       (array_accessor_width ~space:Before)
       width simple a simple b
-  | Block_load (access_kind, mut) ->
-    Format.fprintf ppf "@[<2>%%block_load%a%a@ (%a,@ %a)@]"
-      (mutability ~space:Before) mut block_access_kind access_kind simple a
-      simple b
+  | Block_set { kind; init; field } ->
+    Format.fprintf ppf "@[<2>%%block_set%a@ %a.(%a)@ %a %a@]" block_access_kind
+      kind simple a Targetint_31_63.print field init_or_assign init simple b
   | String_or_bigstring_load (slv, saw) ->
     let prim =
       match slv with
@@ -569,6 +568,10 @@ let unop ppf u =
     | Naked_vec128 -> print verb_not_imm "vec128"
   in
   match (u : unop) with
+  | Block_load { kind; mut; field } ->
+    Format.fprintf ppf "@[<2>%%block_load%a%a@ (%a)@]"
+      (mutability ~space:Before) mut block_access_kind kind
+      Targetint_31_63.print field
   | Array_length ak ->
     str "%array_length";
     array_kind_for_length ppf ~space:Before ak
@@ -610,9 +613,6 @@ let ternop ppf t a1 a2 a3 =
       (array_kind ~space:Before) ak
       (array_accessor_width ~space:Before)
       width simple a1 simple a2 init_or_assign ia simple a3
-  | Block_set (bk, ia) ->
-    Format.fprintf ppf "@[<2>%%block_set%a@ %a.(%a)@ %a %a@]" block_access_kind
-      bk simple a1 simple a2 init_or_assign ia simple a3
   | Bytes_or_bigstring_set (blv, saw) ->
     let prim =
       match blv with Bytes -> "%bytes_set" | Bigstring -> "%bigstring_set"

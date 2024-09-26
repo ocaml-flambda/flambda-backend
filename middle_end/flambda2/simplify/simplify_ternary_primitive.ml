@@ -68,10 +68,6 @@ let simplify_array_set (array_set_kind : P.Array_set_kind.t)
     let dacc = DA.add_variable dacc result_var unit_ty in
     SPR.create named ~try_reify:false dacc
 
-let simplify_block_set _block_access_kind _init_or_assign dacc ~original_term
-    _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~arg3:_ ~arg3_ty:_ ~result_var =
-  SPR.create_unit dacc ~result_var ~original_term
-
 let simplify_bytes_or_bigstring_set _bytes_like_value _string_accessor_width
     dacc ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~arg3:_
     ~arg3_ty:_ ~result_var =
@@ -94,8 +90,6 @@ let simplify_ternary_primitive dacc original_prim (prim : P.ternary_primitive)
   let simplifier =
     match prim with
     | Array_set (array_kind, width) -> simplify_array_set array_kind width
-    | Block_set (block_access_kind, init_or_assign) ->
-      simplify_block_set block_access_kind init_or_assign
     | Bytes_or_bigstring_set (bytes_like_value, string_accessor_width) ->
       simplify_bytes_or_bigstring_set bytes_like_value string_accessor_width
     | Bigarray_set (num_dimensions, bigarray_kind, bigarray_layout) ->

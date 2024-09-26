@@ -254,44 +254,44 @@ let closure_info ~(arity : arity) ~startenv ~is_last =
     ~arity:(arity.function_kind, arity.params_layout)
     ~startenv ~is_last
 
-let alloc_boxedfloat32_header mode dbg =
+let alloc_boxedfloat32_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Lambda.Alloc_heap -> Cconst_natint (boxedfloat32_header, dbg)
-  | Lambda.Alloc_local -> Cconst_natint (boxedfloat32_local_header, dbg)
+  | Heap -> Cconst_natint (boxedfloat32_header, dbg)
+  | Local -> Cconst_natint (boxedfloat32_local_header, dbg)
 
-let alloc_float_header mode dbg =
+let alloc_float_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Lambda.Alloc_heap -> Cconst_natint (float_header, dbg)
-  | Lambda.Alloc_local -> Cconst_natint (float_local_header, dbg)
+  | Heap -> Cconst_natint (float_header, dbg)
+  | Local -> Cconst_natint (float_local_header, dbg)
 
-let alloc_boxedvec128_header mode dbg =
+let alloc_boxedvec128_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Lambda.Alloc_heap -> Cconst_natint (boxedvec128_header, dbg)
-  | Lambda.Alloc_local -> Cconst_natint (boxedvec128_local_header, dbg)
+  | Heap -> Cconst_natint (boxedvec128_header, dbg)
+  | Local -> Cconst_natint (boxedvec128_local_header, dbg)
 
 let alloc_floatarray_header len dbg = Cconst_natint (floatarray_header len, dbg)
 
-let alloc_closure_header ~mode sz dbg =
-  match (mode : Lambda.alloc_mode) with
-  | Alloc_heap -> Cconst_natint (white_closure_header sz, dbg)
-  | Alloc_local -> Cconst_natint (local_closure_header sz, dbg)
+let alloc_closure_header ~(mode : Cmm.Alloc_mode.t) sz dbg =
+  match mode with
+  | Heap -> Cconst_natint (white_closure_header sz, dbg)
+  | Local -> Cconst_natint (local_closure_header sz, dbg)
 
 let alloc_infix_header ofs dbg = Cconst_natint (infix_header ofs, dbg)
 
-let alloc_boxedint32_header mode dbg =
+let alloc_boxedint32_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Lambda.Alloc_heap -> Cconst_natint (boxedint32_header, dbg)
-  | Lambda.Alloc_local -> Cconst_natint (boxedint32_local_header, dbg)
+  | Heap -> Cconst_natint (boxedint32_header, dbg)
+  | Local -> Cconst_natint (boxedint32_local_header, dbg)
 
-let alloc_boxedint64_header mode dbg =
+let alloc_boxedint64_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Lambda.Alloc_heap -> Cconst_natint (boxedint64_header, dbg)
-  | Lambda.Alloc_local -> Cconst_natint (boxedint64_local_header, dbg)
+  | Heap -> Cconst_natint (boxedint64_header, dbg)
+  | Local -> Cconst_natint (boxedint64_local_header, dbg)
 
-let alloc_boxedintnat_header mode dbg =
+let alloc_boxedintnat_header (mode : Cmm.Alloc_mode.t) dbg =
   match mode with
-  | Lambda.Alloc_heap -> Cconst_natint (boxedintnat_header, dbg)
-  | Lambda.Alloc_local -> Cconst_natint (boxedintnat_local_header, dbg)
+  | Heap -> Cconst_natint (boxedintnat_header, dbg)
+  | Local -> Cconst_natint (boxedintnat_local_header, dbg)
 
 (* Integers *)
 
@@ -880,7 +880,9 @@ let float16_of_float dbg c =
 
 let box_complex dbg c_re c_im =
   Cop
-    (Calloc Lambda.alloc_heap, [alloc_floatarray_header 2 dbg; c_re; c_im], dbg)
+    ( Calloc Cmm.Alloc_mode.Heap,
+      [alloc_floatarray_header 2 dbg; c_re; c_im],
+      dbg )
 
 let complex_re c dbg = Cop (mk_load_immut Double, [c], dbg)
 
@@ -1592,7 +1594,7 @@ let unique_arity_identifier (arity : Cmm.machtype list) =
 let result_layout_suffix result =
   match result with [| Val |] -> "" | _ -> "_R" ^ machtype_identifier result
 
-let send_function_name arity result (mode : Lambda.alloc_mode) =
+let send_function_name arity result (mode : Cmx_format.alloc_mode) =
   let res = result_layout_suffix result in
   let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
   global_symbol ("caml_send" ^ unique_arity_identifier arity ^ res ^ suff)
@@ -1670,12 +1672,12 @@ let make_alloc_generic ~block_kind ~mode dbg tag wordsize args
     args_memory_chunks =
   (* allocs of size 0 must be statically allocated else the Gc will bug *)
   assert (List.compare_length_with args 0 > 0);
-  if Lambda.is_local_mode mode || wordsize <= Config.max_young_wosize
+  if Cmm.Alloc_mode.is_local mode || wordsize <= Config.max_young_wosize
   then
     let hdr =
-      match mode with
-      | Lambda.Alloc_local -> local_block_header ~block_kind tag wordsize
-      | Lambda.Alloc_heap -> block_header ~block_kind tag wordsize
+      match (mode : Cmm.Alloc_mode.t) with
+      | Local -> local_block_header ~block_kind tag wordsize
+      | Heap -> block_header ~block_kind tag wordsize
     in
     Cop (Calloc mode, Cconst_natint (hdr, dbg) :: args, dbg)
   else
@@ -1789,9 +1791,13 @@ let make_mixed_alloc ~mode dbg ~tag ~value_prefix_size args args_memory_chunks =
 
 (* Record application and currying functions *)
 
-let apply_function_name arity result (mode : Lambda.alloc_mode) =
+let apply_function_name arity result (mode : Cmx_format.alloc_mode) =
   let res = result_layout_suffix result in
-  let suff = match mode with Alloc_heap -> "" | Alloc_local -> "L" in
+  let suff =
+    match mode with
+    | Cmx_format.Alloc_heap -> ""
+    | Cmx_format.Alloc_local -> "L"
+  in
   "caml_apply" ^ unique_arity_identifier arity ^ res ^ suff
 
 let apply_function_sym arity result mode =
@@ -2619,13 +2625,13 @@ let rec might_split_call_caml_apply ?old_region result arity mut clos args pos
           (apply_or_call_caml_apply result arity mut clos args pos mode dbg)
         ~body_nontail:
           (apply_or_call_caml_apply result arity mut clos args Rc_normal
-             Lambda.alloc_local dbg)
+             Cmx_format.Alloc_local dbg)
         old_region)
   | (arity, args), Some (arity', args') -> (
     let body old_region =
       bind "result"
         (call_caml_apply [| Val |] arity mut clos args Rc_normal
-           Lambda.alloc_local dbg) (fun clos ->
+           Cmx_format.Alloc_local dbg) (fun clos ->
           might_split_call_caml_apply ?old_region result arity' mut clos args'
             pos mode dbg)
     in
@@ -2639,7 +2645,7 @@ let rec might_split_call_caml_apply ?old_region result arity mut clos args pos
        so, we close the region ourselves afterwards, as is already done inside
        [caml_apply]. *)
     match old_region, mode with
-    | None, Lambda.Alloc_heap when Config.stack_allocation ->
+    | None, Cmx_format.Alloc_heap when Config.stack_allocation ->
       let dbg = placeholder_dbg in
       bind "region"
         (Cop (Cbeginregion, [], dbg ()))
@@ -2775,7 +2781,7 @@ let placeholder_fun_dbg ~human_name:_ = Debuginfo.none
  *        (app closN-1.code aN closN-1))))
  *)
 
-let apply_function_body arity result (mode : Lambda.alloc_mode) =
+let apply_function_body arity result (mode : Cmx_format.alloc_mode) =
   let dbg = placeholder_dbg in
   let args = List.map (fun _ -> V.create_local "arg") arity in
   let clos = V.create_local "clos" in
@@ -2786,8 +2792,8 @@ let apply_function_body arity result (mode : Lambda.alloc_mode) =
     then None
     else
       match mode with
-      | Alloc_heap -> Some (V.create_local "region")
-      | Alloc_local -> None
+      | Cmx_format.Alloc_heap -> Some (V.create_local "region")
+      | Cmx_format.Alloc_local -> None
   in
   let rec app_fun clos args =
     match args with
@@ -3140,8 +3146,8 @@ let intermediate_curry_functions ~nlocal ~arity result =
             V.create_local "arg", arg_type.(i))
       in
       let fun_dbg = placeholder_fun_dbg ~human_name:name2 in
-      let mode : Lambda.alloc_mode =
-        if num >= narity - nlocal then Lambda.alloc_local else Lambda.alloc_heap
+      let mode : Cmm.Alloc_mode.t =
+        if num >= narity - nlocal then Local else Heap
       in
       let has_nary = curry_clos_has_nary_application ~narity (num + 1) in
       let function_slot_size = if has_nary then 3 else 2 in
@@ -4189,13 +4195,13 @@ let make_unboxed_int32_array_payload dbg unboxed_int32_list =
   in
   aux [] unboxed_int32_list
 
-let allocate_unboxed_int32_array ~elements (mode : Lambda.alloc_mode) dbg =
+let allocate_unboxed_int32_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
   let num_elts, payload = make_unboxed_int32_array_payload dbg elements in
   let header =
     let size = 1 (* custom_ops field *) + List.length payload in
     match mode with
-    | Alloc_heap -> custom_header ~size
-    | Alloc_local -> custom_local_header ~size
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
   in
   let custom_ops =
     (* For odd-length unboxed int32 arrays there are 32 bits spare at the end of
@@ -4226,13 +4232,13 @@ let make_unboxed_float32_array_payload dbg unboxed_float32_list =
   in
   aux [] unboxed_float32_list
 
-let allocate_unboxed_float32_array ~elements (mode : Lambda.alloc_mode) dbg =
+let allocate_unboxed_float32_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
   let num_elts, payload = make_unboxed_float32_array_payload dbg elements in
   let header =
     let size = 1 (* custom_ops field *) + List.length payload in
     match mode with
-    | Alloc_heap -> custom_header ~size
-    | Alloc_local -> custom_local_header ~size
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
   in
   let custom_ops =
     (* For odd-length unboxed float32 arrays there are 32 bits spare at the end
@@ -4244,12 +4250,12 @@ let allocate_unboxed_float32_array ~elements (mode : Lambda.alloc_mode) dbg =
   Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: payload, dbg)
 
 let allocate_unboxed_int64_or_nativeint_array custom_ops ~elements
-    (mode : Lambda.alloc_mode) dbg =
+    (mode : Cmm.Alloc_mode.t) dbg =
   let header =
     let size = 1 (* custom_ops field *) + List.length elements in
     match mode with
-    | Alloc_heap -> custom_header ~size
-    | Alloc_local -> custom_local_header ~size
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
   in
   Cop (Calloc mode, Cconst_natint (header, dbg) :: custom_ops :: elements, dbg)
 
@@ -4259,14 +4265,14 @@ let allocate_unboxed_int64_array =
 let allocate_unboxed_nativeint_array =
   allocate_unboxed_int64_or_nativeint_array custom_ops_unboxed_nativeint_array
 
-let allocate_unboxed_vec128_array ~elements (mode : Lambda.alloc_mode) dbg =
+let allocate_unboxed_vec128_array ~elements (mode : Cmm.Alloc_mode.t) dbg =
   let header =
     let size =
       1 (* custom_ops field *) + (ints_per_vec128 * List.length elements)
     in
     match mode with
-    | Alloc_heap -> custom_header ~size
-    | Alloc_local -> custom_local_header ~size
+    | Heap -> custom_header ~size
+    | Local -> custom_local_header ~size
   in
   Cop
     ( Calloc mode,
@@ -4282,7 +4288,7 @@ let perform ~dbg eff =
   let cont =
     make_alloc dbg ~tag:Runtimetags.cont_tag
       [int_const dbg 0]
-      ~mode:Lambda.alloc_heap
+      ~mode:Cmm.Alloc_mode.Heap
   in
   (* Rc_normal means "allow tailcalls". Preventing them here by using Rc_nontail
      improves backtraces of paused fibers. *)

@@ -1,44 +1,42 @@
-let $camlTests11__first_const50 = Block 0 () in
+let $camlTests11__first_const56 = Block 0 () in
 let code size(1)
-      `anon-fn[tests11.ml:15,52--67]_2` (param : imm tagged)
+      `fn[tests11.ml:15,52--67]_2` (param : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : [ 0 | 0 of val * val ] =
   cont k (0)
 in
 let code size(1)
-      `anon-fn[tests11.ml:15,39--51]_3` (x)
+      `fn[tests11.ml:15,39--51]_3` (x)
         my_closure my_region my_ghost_region my_depth
         -> k * k1 =
   cont k (x)
 in
 let code size(23)
-      `anon-fn[tests11.ml:15,2--70]_1` (param : imm tagged)
+      `fn[tests11.ml:15,2--70]_1` (param : imm tagged)
         my_closure my_region my_ghost_region my_depth
         -> k * k1 =
   let map_foo =
-    %project_value_slot `anon-fn[tests11.ml:15,2--70]`.map_foo my_closure
+    %project_value_slot `fn[tests11.ml:15,2--70]`.map_foo my_closure
   in
-  let `anon-fn[tests11.ml:15,52--67]` =
-    closure `anon-fn[tests11.ml:15,52--67]_2`
-      @`anon-fn[tests11.ml:15,52--67]`
+  let `fn[tests11.ml:15,52--67]` =
+    closure `fn[tests11.ml:15,52--67]_2` @`fn[tests11.ml:15,52--67]`
   in
-  let `anon-fn[tests11.ml:15,39--51]` =
-    closure `anon-fn[tests11.ml:15,39--51]_3`
-      @`anon-fn[tests11.ml:15,39--51]`
+  let `fn[tests11.ml:15,39--51]` =
+    closure `fn[tests11.ml:15,39--51]_3` @`fn[tests11.ml:15,39--51]`
   in
   apply inlined(never)
     map_foo
-      (`anon-fn[tests11.ml:15,39--51]`, `anon-fn[tests11.ml:15,52--67]`, 0)
+      (`fn[tests11.ml:15,39--51]`, `fn[tests11.ml:15,52--67]`, 0)
       -> k * k1
 in
 let code inline(always) size(32)
       bar_0 (map_foo) my_closure my_region my_ghost_region my_depth -> k * k1 =
-  let `anon-fn[tests11.ml:15,2--70]` =
-    closure `anon-fn[tests11.ml:15,2--70]_1` @`anon-fn[tests11.ml:15,2--70]`
+  let `fn[tests11.ml:15,2--70]` =
+    closure `fn[tests11.ml:15,2--70]_1` @`fn[tests11.ml:15,2--70]`
   with { map_foo = map_foo }
   in
-  cont k (`anon-fn[tests11.ml:15,2--70]`)
+  cont k (`fn[tests11.ml:15,2--70]`)
 in
 let code rec size(55)
       map_foo_4 (f, seq, param : imm tagged)
@@ -68,7 +66,7 @@ let code rec size(55)
                  apply direct(bar_0)
                    bar (my_closure ~ depth my_depth -> next_depth) -> k2 * k1)
               where k2 (switch_result) =
-                ((let Pfield = %block_load (`*match*`, 0) in
+                ((let Pfield = %block_load (0) `*match*` in
                   apply f (Pfield) -> k2 * k1)
                    where k2 (apply_result) =
                      let Pmakeblock = %Block 0 (apply_result, switch_result)
@@ -80,7 +78,7 @@ in
  let Pmakeblock = %Block 0 (bar, map_foo) in
  cont k (Pmakeblock))
   where k define_root_symbol (module_block) =
-    let field_0 = %block_load tag(0) size(2) (module_block, 0) in
-    let field_1 = %block_load tag(0) size(2) (module_block, 1) in
+    let field_0 = %block_load tag(0) size(2) (0) module_block in
+    let field_1 = %block_load tag(0) size(2) (1) module_block in
     let $camlTests11 = Block 0 (field_0, field_1) in
     cont done ($camlTests11)
