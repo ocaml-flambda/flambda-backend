@@ -26,16 +26,16 @@ let asan_report_extcall memory_access log2size =
      emit *a lot* of them, so we take extra care to structure our code such that
      they are statically allocated as manifest constants in a flat array. *)
   match index with
-  | 0 -> asan_report_extcall "__asan_report_load1_noabort"
-  | 1 -> asan_report_extcall "__asan_report_store1_noabort"
-  | 2 -> asan_report_extcall "__asan_report_load2_noabort"
-  | 3 -> asan_report_extcall "__asan_report_store2_noabort"
-  | 4 -> asan_report_extcall "__asan_report_load4_noabort"
-  | 5 -> asan_report_extcall "__asan_report_store4_noabort"
-  | 6 -> asan_report_extcall "__asan_report_load8_noabort"
-  | 7 -> asan_report_extcall "__asan_report_store8_noabort"
-  | 8 -> asan_report_extcall "__asan_report_load16_noabort"
-  | 9 -> asan_report_extcall "__asan_report_store16_noabort"
+  | 0 -> asan_report_extcall "caml_asan_report_load1_noabort"
+  | 1 -> asan_report_extcall "caml_asan_report_store1_noabort"
+  | 2 -> asan_report_extcall "caml_asan_report_load2_noabort"
+  | 3 -> asan_report_extcall "caml_asan_report_store2_noabort"
+  | 4 -> asan_report_extcall "caml_asan_report_load4_noabort"
+  | 5 -> asan_report_extcall "caml_asan_report_store4_noabort"
+  | 6 -> asan_report_extcall "caml_asan_report_load8_noabort"
+  | 7 -> asan_report_extcall "caml_asan_report_store8_noabort"
+  | 8 -> asan_report_extcall "caml_asan_report_load16_noabort"
+  | 9 -> asan_report_extcall "caml_asan_report_store16_noabort"
   | _ ->
     (* Larger loads and stores can be reported using
        [__asan_report_load_n_noabort], but we don't support this yet. *)
