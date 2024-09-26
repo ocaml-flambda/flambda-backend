@@ -1183,15 +1183,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
     else l
   | Texp_src_pos ->
       let pos = e.exp_loc.loc_start in
-      let pos =
-        match !Clflags.directory with
-        | None -> pos
-        | Some directory ->
-          let pos_fname = directory ^ "/" ^ pos.pos_fname in
-          { pos with pos_fname }
-      in
+      let pos_fname = Clflags.prepend_directory pos.pos_fname in
       let cl =
-        [ Const_base (Const_string (pos.pos_fname, e.exp_loc, None))
+        [ Const_base (Const_string (pos_fname, e.exp_loc, None))
         ; Const_base (Const_int pos.pos_lnum)
         ; Const_base (Const_int pos.pos_bol)
         ; Const_base (Const_int pos.pos_cnum)
