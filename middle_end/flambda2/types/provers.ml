@@ -656,21 +656,27 @@ let prove_single_closures_entry_generic env t : _ generic_proof =
 let meet_single_closures_entry env t =
   as_meet_shortcut (prove_single_closures_entry_generic env t)
 
-let meet_is_immutable_array env t : _ meet_shortcut =
+let prove_is_immutable_array_generic env t : _ generic_proof =
   match expand_head env t with
-  | Value Unknown -> Need_meet
+  | Value Unknown -> Unknown
   | Value Bottom -> Invalid
   | Value (Ok (Array { element_kind; length = _; contents; alloc_mode })) -> (
     match contents with
     | Known (Immutable { fields }) ->
-      Known_result (element_kind, fields, alloc_mode)
+      Proved (element_kind, fields, alloc_mode)
     | Known Mutable -> Invalid
-    | Unknown -> Need_meet)
+    | Unknown -> Unknown)
   | Value (Ok _)
   | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
   | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
     ->
     Invalid
+
+let meet_is_immutable_array env t =
+  as_meet_shortcut (prove_is_immutable_array_generic env t)
+
+let prove_is_immutable_array env t =
+  as_property (prove_is_immutable_array_generic env t)
 
 let prove_single_closures_entry env t =
   as_property (prove_single_closures_entry_generic env t)
