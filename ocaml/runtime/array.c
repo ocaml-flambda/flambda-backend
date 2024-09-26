@@ -516,7 +516,9 @@ CAMLprim value caml_make_unboxed_product_vect(value v_init, value v_is_local,
       CAML_EV_COUNTER (EV_C_FORCE_MINOR_MAKE_VECT, 1);
       caml_minor_collection ();
     }
-    CAMLassert(!(Is_block(init) && Is_young(init)));
+    for (mlsize_t i = 0; is_scannable && i < non_unarized_length; i++) {
+      CAMLassert(!(Is_block(Field(v_init, i)) && Is_young(Field(v_init, i)));
+    }
     res = caml_alloc_shr(size, 0);
     /* We now know that everything in [v_init] is not in the minor heap, so
        there is no need to call [caml_initialize].  (Indeed we cannot if
