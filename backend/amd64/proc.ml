@@ -504,6 +504,16 @@ let destroyed_at_alloc_or_poll =
 let destroyed_at_pushtrap =
   [| r11 |]
 
+(* Per the documentation for [__attribute__((preserve_all))]:
+   > On X86-64 the callee preserves all general purpose registers, except for
+     R11. R11 can be used as a scratch register. Furthermore it also preserves
+     all floating-point registers (XMMs/YMMs).
+
+   https://clang.llvm.org/docs/AttributeReference.html#preserve-all
+*)
+let destroyed_at_asan_report =
+  [| r11 |]
+
 let has_pushtrap traps =
   List.exists (function Cmm.Push _ -> true | Pop _ -> false) traps
 
@@ -525,7 +535,25 @@ let destroyed_by_simd_op (register_behavior : Simd_proc.register_behavior) =
 (* note: keep this function in sync with `destroyed_at_{basic,terminator}` below. *)
 let destroyed_at_oper = function
     Iop(Icall_ind | Icall_imm _) -> all_phys_regs
-  | Iop(Iextcall {alloc; stack_ofs; }) ->
+  | Iop
+      (Iextcall
+        { alloc;
+          stack_ofs;
+          func =
+            ( "caml_asan_report_load1_noabort"
+            | "caml_asan_report_load2_noabort"
+            | "caml_asan_report_load4_noabort"
+            | "caml_asan_report_load8_noabort"
+            | "caml_asan_report_load16_noabort"
+            | "caml_asan_report_store1_noabort"
+            | "caml_asan_report_store2_noabort"
+            | "caml_asan_report_store4_noabort"
+            | "caml_asan_report_store8_noabort"
+            | "caml_asan_report_store16_noabort" )
+        }) ->
+    assert (stack_ofs >= 0 && not alloc);
+    destroyed_at_asan_report
+  | Iop(Iextcall {alloc; stack_ofs; func }) ->
       assert (stack_ofs >= 0);
       if alloc || stack_ofs > 0 then all_phys_regs
       else destroyed_at_c_call
@@ -646,6 +674,29 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     if fp then [| rbp |] else [||]
   | Switch _ ->
     [| rax; rdx |]
+  | Prim
+      { op =
+          External
+            { func_symbol =
+                ( "caml_asan_report_load1_noabort"
+                | "caml_asan_report_load2_noabort"
+                | "caml_asan_report_load4_noabort"
+                | "caml_asan_report_load8_noabort"
+                | "caml_asan_report_load16_noabort"
+                | "caml_asan_report_store1_noabort"
+                | "caml_asan_report_store2_noabort"
+                | "caml_asan_report_store4_noabort"
+                | "caml_asan_report_store8_noabort"
+                | "caml_asan_report_store16_noabort" );
+              alloc;
+              ty_res = _;
+              ty_args = _;
+              stack_ofs
+            };
+        _
+      } ->
+    assert (stack_ofs >= 0 && not alloc);
+    destroyed_at_asan_report
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }
   | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; }; _} ->
     assert (stack_ofs >= 0);
@@ -672,6 +723,28 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
   | Prim {op = Probe _; _} ->
     false
   | Switch _ ->
+    false
+  | Prim
+      { op =
+          External
+            { func_symbol =
+                ( "caml_asan_report_load1_noabort"
+                | "caml_asan_report_load2_noabort"
+                | "caml_asan_report_load4_noabort"
+                | "caml_asan_report_load8_noabort"
+                | "caml_asan_report_load16_noabort"
+                | "caml_asan_report_store1_noabort"
+                | "caml_asan_report_store2_noabort"
+                | "caml_asan_report_store4_noabort"
+                | "caml_asan_report_store8_noabort"
+                | "caml_asan_report_store16_noabort" );
+              alloc = _;
+              ty_res = _;
+              ty_args = _;
+              stack_ofs = _;
+            };
+        _
+      } ->
     false
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; }
   | Prim {op = External { func_symbol = _; alloc; ty_res = _; ty_args = _; }; _} ->
