@@ -250,7 +250,7 @@ let make_unboxed_tuple_vect (lambda_array_kind : L.array_kind)
         Location.print_loc
         (Debuginfo.Scoped_location.to_location loc)
   in
-  let extern_reprs =
+  let _extern_reprs =
     match lambda_array_kind with
     | Pgcscannableproductarray kinds ->
       let rec extern_repr kind : L.extern_repr =
@@ -295,8 +295,11 @@ let make_unboxed_tuple_vect (lambda_array_kind : L.array_kind)
       ~alloc:true (* the C stub may raise an exception *)
       ~c_builtin:false ~effects:Arbitrary_effects ~coeffects:Has_coeffects
       ~native_name:"caml_make_unboxed_product_vect"
-      ~native_repr_args:[Prim_global, L.Unboxed_product extern_reprs]
-        (* CR mshinwell: seems like Prim_global should be ok above? *)
+      ~native_repr_args:
+        [ Prim_global, L.Same_as_ocaml_repr (Base Value);
+          Prim_global, L.Same_as_ocaml_repr (Base Value);
+          Prim_global, L.Same_as_ocaml_repr (Base Value);
+          Prim_global, L.Same_as_ocaml_repr (Base Value) ]
       ~native_repr_res:
         ( (match mode with
           | Alloc_heap -> Prim_global
