@@ -834,25 +834,30 @@ let check_array_access ~dbg ~array array_kind ~index ~index_kind ~size_int
          ~size_int)
     ~dbg
 
-let array_load_unsafe ~array ~index (array_ref_kind : Array_ref_kind.t)
+let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag) (array_ref_kind : Array_ref_kind.t)
     ~current_region : H.expr_primitive =
+  let mut : Mutability.t =
+    match mut with
+    | Immutable | Immutable_unique -> Immutable
+    | Mutable -> Mutable
+  in
   match array_ref_kind with
-  | Immediates -> Binary (Array_load (Immediates, Scalar, Mutable), array, index)
-  | Values -> Binary (Array_load (Values, Scalar, Mutable), array, index)
+  | Immediates -> Binary (Array_load (Immediates, Scalar, mut), array, index)
+  | Values -> Binary (Array_load (Values, Scalar, mut), array, index)
   | Naked_floats_to_be_boxed mode ->
     box_float mode
-      (Binary (Array_load (Naked_floats, Scalar, Mutable), array, index))
+      (Binary (Array_load (Naked_floats, Scalar, mut), array, index))
       ~current_region
   | Naked_floats ->
-    Binary (Array_load (Naked_floats, Scalar, Mutable), array, index)
+    Binary (Array_load (Naked_floats, Scalar, mut), array, index)
   | Naked_float32s ->
-    Binary (Array_load (Naked_float32s, Scalar, Mutable), array, index)
+    Binary (Array_load (Naked_float32s, Scalar, mut), array, index)
   | Naked_int32s ->
-    Binary (Array_load (Naked_int32s, Scalar, Mutable), array, index)
+    Binary (Array_load (Naked_int32s, Scalar, mut), array, index)
   | Naked_int64s ->
-    Binary (Array_load (Naked_int64s, Scalar, Mutable), array, index)
+    Binary (Array_load (Naked_int64s, Scalar, mut), array, index)
   | Naked_nativeints ->
-    Binary (Array_load (Naked_nativeints, Scalar, Mutable), array, index)
+    Binary (Array_load (Naked_nativeints, Scalar, mut), array, index)
 
 let array_set_unsafe ~array ~index ~new_value
     (array_set_kind : Array_set_kind.t) : H.expr_primitive =
@@ -1584,19 +1589,19 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pmodbint { size = Pnativeint; is_safe = Safe; mode }, [[arg1]; [arg2]] ->
     [ checked_arith_op ~dbg (Some Pnativeint) Mod (Some mode) arg1 arg2
         ~current_region ]
-  | Parrayrefu (array_ref_kind, index_kind), [[array]; [index]] ->
+  | Parrayrefu (array_ref_kind, index_kind, mut), [[array]; [index]] ->
     (* For this and the following cases we will end up relying on the backend to
        CSE the two accesses to the array's header word in the [Pgenarray]
        case. *)
     [ match_on_array_ref_kind ~array array_ref_kind
-        (array_load_unsafe ~array
+        (array_load_unsafe ~array ~mut
            ~index:(convert_index_to_tagged_int ~index ~index_kind)
            ~current_region) ]
-  | Parrayrefs (array_ref_kind, index_kind), [[array]; [index]] ->
+  | Parrayrefs (array_ref_kind, index_kind, mut), [[array]; [index]] ->
     let array_kind = convert_array_ref_kind_for_length array_ref_kind in
     [ check_array_access ~dbg ~array array_kind ~index ~index_kind ~size_int
         (match_on_array_ref_kind ~array array_ref_kind
-           (array_load_unsafe ~array
+           (array_load_unsafe ~array ~mut
               ~index:(convert_index_to_tagged_int ~index ~index_kind)
               ~current_region)) ]
   | Parraysetu (array_set_kind, index_kind), [[array]; [index]; [new_value]] ->
@@ -1976,12 +1981,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _
             | Punboxedintarray_ref _ ),
-            _ )
+            _, _ )
       | Parrayrefs
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _
             | Punboxedintarray_ref _ ),
-            _ )
+            _, _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _ | Patomic_exchange
       | Patomic_fetch_add ),
       ( []

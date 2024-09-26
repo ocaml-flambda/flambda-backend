@@ -189,9 +189,9 @@ type primitive =
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
   | Parraylength of array_kind
-  | Parrayrefu of array_ref_kind * array_index_kind
+  | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
   | Parraysetu of array_set_kind * array_index_kind
-  | Parrayrefs of array_ref_kind * array_index_kind
+  | Parrayrefs of array_ref_kind * array_index_kind * mutable_flag
   | Parraysets of array_set_kind * array_index_kind
   (* Test if the argument is a block or an immediate integer *)
   | Pisint of { variant_only : bool }
