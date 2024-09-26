@@ -33,7 +33,7 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 type basic_instruction_list = basic instruction DLL.t
 
 type basic_block =
-  { start : Label.t;
+  { mutable start : Label.t;
     body : basic_instruction_list;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
