@@ -484,6 +484,8 @@ CAMLprim value caml_make_unboxed_product_vect(value v_init, value v_is_local,
   value res;
   mlsize_t size, i;
 
+  // N.B. [v_init] is on the local stack!
+
   size = non_unarized_length * num_initializers;
   if (size == 0) {
     res = Atom(0);
