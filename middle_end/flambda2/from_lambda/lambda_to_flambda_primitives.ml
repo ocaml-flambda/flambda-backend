@@ -620,42 +620,58 @@ let bytes_like_set ~dbg ~unsafe
     check_access ~dbg ~size_int ~access_size ~primitive:unsafe_set bytes
       ~index_kind index
 
+(* Array bounds checks *)
+
+let multiple_word_array_access_validity_condition array ~size_int
+    array_length_kind index_kind ~width_in_scalars ~index =
+  let length_tagged = H.Prim (Unary (Array_length array_length_kind, array)) in
+  if width_in_scalars < 1
+  then Misc.fatal_errorf "Invalid width_in_scalars value: %d" width_in_scalars
+  else if width_in_scalars = 1
+  then
+    (* Ensure good code generation in the common case. *)
+    check_bound ~index_kind ~bound_kind:Tagged_immediate ~index
+      ~bound:length_tagged
+  else
+    let length_untagged = untag_int length_tagged in
+    let reduced_length_untagged =
+      H.Prim
+        (Binary
+           ( Int_arith (Naked_immediate, Sub),
+             length_untagged,
+             Simple
+               (Simple.untagged_const_int
+                  (Targetint_31_63.of_int (width_in_scalars - 1))) ))
+    in
+    (* We need to convert the length into a naked_nativeint because the
+       optimised version of the max_with_zero function needs to be on
+       machine-width integers to work (or at least on an integer number of bytes
+       to work). *)
+    let reduced_length_nativeint =
+      H.Prim
+        (Unary
+           ( Num_conv { src = Naked_immediate; dst = Naked_nativeint },
+             reduced_length_untagged ))
+    in
+    let nativeint_bound = max_with_zero ~size_int reduced_length_nativeint in
+    check_bound ~index_kind ~bound_kind:Naked_nativeint ~index
+      ~bound:nativeint_bound
+
 (* Array vector load/store *)
+
+let array_vector_access_width_in_scalars (array_kind : P.Array_kind.t) =
+  match array_kind with
+  | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
+  | Naked_int32s | Naked_float32s -> 4
+  | Values ->
+    Misc.fatal_error
+      "Attempted to load/store a SIMD vector from/to a value array."
 
 let array_vector_access_validity_condition array ~size_int
     (array_kind : P.Array_kind.t) index =
-  let width_in_scalars =
-    match array_kind with
-    | Naked_floats | Immediates | Naked_int64s | Naked_nativeints -> 2
-    | Naked_int32s | Naked_float32s -> 4
-    | Values ->
-      Misc.fatal_error
-        "Attempted to load/store a SIMD vector from/to a value array."
-  in
-  let length_untagged =
-    untag_int (H.Prim (Unary (Array_length (Array_kind array_kind), array)))
-  in
-  let reduced_length_untagged =
-    H.Prim
-      (Binary
-         ( Int_arith (Naked_immediate, Sub),
-           length_untagged,
-           Simple
-             (Simple.untagged_const_int
-                (Targetint_31_63.of_int (width_in_scalars - 1))) ))
-  in
-  (* We need to convert the length into a naked_nativeint because the optimised
-     version of the max_with_zero function needs to be on machine-width integers
-     to work (or at least on an integer number of bytes to work). *)
-  let reduced_length_nativeint =
-    H.Prim
-      (Unary
-         ( Num_conv { src = Naked_immediate; dst = Naked_nativeint },
-           reduced_length_untagged ))
-  in
-  let nativeint_bound = max_with_zero ~size_int reduced_length_nativeint in
-  check_bound ~index_kind:Ptagged_int_index ~bound_kind:Naked_nativeint ~index
-    ~bound:nativeint_bound
+  let width_in_scalars = array_vector_access_width_in_scalars array_kind in
+  multiple_word_array_access_validity_condition array ~size_int
+    (Array_kind array_kind) Ptagged_int_index ~width_in_scalars ~index
 
 let check_array_vector_access ~dbg ~size_int ~array array_kind ~index primitive
     : H.expr_primitive =
@@ -806,16 +822,16 @@ let bigarray_set ~dbg ~unsafe kind layout b indexes value =
 
 (* Array accesses *)
 let array_access_validity_condition array array_kind index
-    ~(index_kind : L.array_index_kind) =
-  let arr_len_as_tagged_imm = H.Prim (Unary (Array_length array_kind, array)) in
-  [ check_bound ~index_kind ~bound_kind:Tagged_immediate ~index
-      ~bound:arr_len_as_tagged_imm ]
+    ~(index_kind : L.array_index_kind) ~size_int =
+  [ multiple_word_array_access_validity_condition array ~size_int array_kind
+      index_kind ~width_in_scalars:1 ~index ]
 
-let check_array_access ~dbg ~array array_kind ~index ~index_kind primitive :
-    H.expr_primitive =
+let check_array_access ~dbg ~array array_kind ~index ~index_kind ~size_int
+    primitive : H.expr_primitive =
   checked_access ~primitive
     ~conditions:
-      (array_access_validity_condition array array_kind index ~index_kind)
+      (array_access_validity_condition array array_kind index ~index_kind
+         ~size_int)
     ~dbg
 
 let array_load_unsafe ~array ~index (array_ref_kind : Array_ref_kind.t)
@@ -1257,23 +1273,22 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             (kind, Alloc_mode.For_allocations.from_lambda mode ~current_region),
           arg ) ]
   | Pfield_computed sem, [[obj]; [field]] ->
-    let block_access : P.Block_access_kind.t =
-      Values { tag = Unknown; size = Unknown; field_kind = Any_value }
-    in
+    (* We are reinterpreting a block(/object) as a value array, so it needs to be opaque. *)
+    let obj = H.Unary (Opaque_identity { middle_end_only = true; kind = K.value }, obj) in
     [ Binary
-        (Block_load (block_access, convert_field_read_semantics sem), obj, field)
-    ]
+        ( Array_load (Values, Scalar, convert_field_read_semantics sem),
+          Prim obj,
+          field ) ]
   | ( Psetfield_computed (imm_or_pointer, init_or_assign),
       [[obj]; [field]; [value]] ) ->
-    let field_kind = convert_block_access_field_kind imm_or_pointer in
-    let block_access : P.Block_access_kind.t =
-      Values { tag = Unknown; size = Unknown; field_kind }
+    (* We are reinterpreting a block(/object) as a value array, so it needs to be opaque. *)
+    let obj = H.Unary (Opaque_identity { middle_end_only = true; kind = K.value }, obj) in
+    let kind : P.Array_set_kind.t =
+      match imm_or_pointer with
+      | Immediate -> Immediates
+      | Pointer -> Values (convert_init_or_assign init_or_assign)
     in
-    [ Ternary
-        ( Block_set (block_access, convert_init_or_assign init_or_assign),
-          obj,
-          field,
-          value ) ]
+    [Ternary (Array_set (kind, Scalar), Prim obj, field, value)]
   | Parraylength kind, [[arg]] ->
     let array_kind = convert_array_kind_for_length kind in
     [Unary (Array_length array_kind, arg)]
@@ -1431,36 +1446,38 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     (* CR mshinwell: make use of the int-or-ptr flag (new in OCaml 5)? *)
     let imm = Targetint_31_63.of_int index in
     check_non_negative_imm imm "Pfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
       Values { tag = Unknown; size = Unknown; field_kind = Any_value }
     in
-    [Binary (Block_load (block_access, mutability), arg, Simple field)]
+    [ Unary
+        (Block_load { kind = block_access; mut = mutability; field = imm }, arg)
+    ]
   | Pfloatfield (field, sem, mode), [[arg]] ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Pfloatfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
       Naked_floats { size = Unknown }
     in
     [ box_float mode
-        (Binary (Block_load (block_access, mutability), arg, Simple field))
+        (Unary
+           ( Block_load { kind = block_access; mut = mutability; field = imm },
+             arg ))
         ~current_region ]
   | Pufloatfield (field, sem), [[arg]] ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Pufloatfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
       Naked_floats { size = Unknown }
     in
-    [Binary (Block_load (block_access, mutability), arg, Simple field)]
+    [ Unary
+        (Block_load { kind = block_access; mut = mutability; field = imm }, arg)
+    ]
   | Pmixedfield (field, read, shape, sem), [[arg]] -> (
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Pmixedfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let mutability = convert_field_read_semantics sem in
     let block_access : P.Block_access_kind.t =
       let field_kind : P.Mixed_block_access_field_kind.t =
@@ -1478,7 +1495,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       Mixed { tag = Unknown; field_kind; shape; size = Unknown }
     in
     let block_access : H.expr_primitive =
-      Binary (Block_load (block_access, mutability), arg, Simple field)
+      Unary
+        (Block_load { kind = block_access; mut = mutability; field = imm }, arg)
     in
     match read with
     | Mread_value_prefix _ | Mread_flat_suffix (Flat_read _) -> [block_access]
@@ -1489,43 +1507,40 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let field_kind = convert_block_access_field_kind immediate_or_pointer in
     let imm = Targetint_31_63.of_int index in
     check_non_negative_imm imm "Psetfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
     let block_access : P.Block_access_kind.t =
       Values { tag = Unknown; size = Unknown; field_kind }
     in
-    [ Ternary
-        (Block_set (block_access, init_or_assign), block, Simple field, value)
-    ]
+    [ Binary
+        ( Block_set { kind = block_access; init = init_or_assign; field = imm },
+          block,
+          value ) ]
   | Psetfloatfield (field, initialization_or_assignment), [[block]; [value]] ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Psetfloatfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let block_access : P.Block_access_kind.t =
       Naked_floats { size = Unknown }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
-    [ Ternary
-        ( Block_set (block_access, init_or_assign),
+    [ Binary
+        ( Block_set { kind = block_access; init = init_or_assign; field = imm },
           block,
-          Simple field,
           unbox_float value ) ]
   | Psetufloatfield (field, initialization_or_assignment), [[block]; [value]] ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Psetufloatfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let block_access : P.Block_access_kind.t =
       Naked_floats { size = Unknown }
     in
     let init_or_assign = convert_init_or_assign initialization_or_assignment in
-    [ Ternary
-        (Block_set (block_access, init_or_assign), block, Simple field, value)
-    ]
+    [ Binary
+        ( Block_set { kind = block_access; init = init_or_assign; field = imm },
+          block,
+          value ) ]
   | ( Psetmixedfield (field, write, shape, initialization_or_assignment),
       [[block]; [value]] ) ->
     let imm = Targetint_31_63.of_int field in
     check_non_negative_imm imm "Psetmixedfield";
-    let field = Simple.const (Reg_width_const.tagged_immediate imm) in
     let block_access : P.Block_access_kind.t =
       Mixed
         { field_kind =
@@ -1548,9 +1563,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         value
       | Mwrite_flat_suffix Float_boxed -> unbox_float value
     in
-    [ Ternary
-        (Block_set (block_access, init_or_assign), block, Simple field, value)
-    ]
+    [ Binary
+        ( Block_set { kind = block_access; init = init_or_assign; field = imm },
+          block,
+          value ) ]
   | Pdivint Unsafe, [[arg1]; [arg2]] ->
     [Binary (Int_arith (I.Tagged_immediate, Div), arg1, arg2)]
   | Pdivint Safe, [[arg1]; [arg2]] ->
@@ -1585,7 +1601,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
            ~current_region) ]
   | Parrayrefs (array_ref_kind, index_kind), [[array]; [index]] ->
     let array_kind = convert_array_ref_kind_for_length array_ref_kind in
-    [ check_array_access ~dbg ~array array_kind ~index ~index_kind
+    [ check_array_access ~dbg ~array array_kind ~index ~index_kind ~size_int
         (match_on_array_ref_kind ~array array_ref_kind
            (array_load_unsafe ~array
               ~index:(convert_index_to_tagged_int ~index ~index_kind)
@@ -1597,7 +1613,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
            ~new_value) ]
   | Parraysets (array_set_kind, index_kind), [[array]; [index]; [new_value]] ->
     let array_kind = convert_array_set_kind_for_length array_set_kind in
-    [ check_array_access ~dbg ~array array_kind ~index ~index_kind
+    [ check_array_access ~dbg ~array array_kind ~index ~index_kind ~size_int
         (match_on_array_set_kind ~array array_set_kind
            (array_set_unsafe ~array
               ~index:(convert_index_to_tagged_int ~index ~index_kind)
@@ -1618,8 +1634,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     let old_ref_value =
       H.Prim
-        (Binary
-           (Block_load (block_access, Mutable), block, Simple Simple.const_zero))
+        (Unary
+           ( Block_load
+               { kind = block_access;
+                 mut = Mutable;
+                 field = Targetint_31_63.zero
+               },
+             block ))
     in
     let new_ref_value =
       H.Prim
@@ -1628,11 +1649,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
              Simple (Simple.const_int (Targetint_31_63.of_int n)),
              old_ref_value ))
     in
-    [ Ternary
+    [ Binary
         ( Block_set
-            (block_access, Assignment (Alloc_mode.For_assignments.local ())),
+            { kind = block_access;
+              init = Assignment (Alloc_mode.For_assignments.local ());
+              field = Targetint_31_63.zero
+            },
           block,
-          Simple Simple.const_zero,
           new_ref_value ) ]
   | Pctconst const, _ -> (
     match const with

@@ -342,11 +342,13 @@ let print_out_jkind_const ppf ojkind =
     | Ojkind_const_default -> fprintf ppf "_"
     | Ojkind_const_abbreviation abbrev -> fprintf ppf "%s" abbrev
     | Ojkind_const_mod (base, modes) ->
-      fprintf ppf "%a mod @[%a@]" (pp_element ~nested) base
-        (pp_print_list
-            ~pp_sep:(fun ppf () -> fprintf ppf "@ ")
-            (fun ppf -> fprintf ppf "%s"))
-        modes
+      Misc.pp_parens_if nested (fun ppf (base, modes) ->
+        fprintf ppf "%a mod @[%a@]" (pp_element ~nested:true) base
+          (pp_print_list
+              ~pp_sep:(fun ppf () -> fprintf ppf "@ ")
+              (fun ppf -> fprintf ppf "%s"))
+          modes
+      ) ppf (base, modes)
     | Ojkind_const_product ts ->
       let pp_sep ppf () = Format.fprintf ppf "@ & " in
       Misc.pp_nested_list ~nested ~pp_element ~pp_sep ppf ts

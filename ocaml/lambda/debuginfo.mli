@@ -113,7 +113,7 @@ val from_location : Scoped_location.t -> t
 
 val to_location : t -> Location.t
 
-val inline : t -> t -> t
+val inline : t -> from_inlined_body:t -> t
 
 val compare : t -> t -> int
 
