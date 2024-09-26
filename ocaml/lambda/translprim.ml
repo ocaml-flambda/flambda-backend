@@ -160,11 +160,17 @@ let extern_repr_of_native_repr:
   | Untagged_immediate, _ -> Untagged_int
 
 let sort_of_native_repr ~loc ~poly_sort repr =
-  match extern_repr_of_native_repr ~loc ~poly_sort repr with
-  | Same_as_ocaml_repr s -> s
-  | (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
-      Unboxed_vector _) ->
-    Jkind.Sort.Const.Base Value
+  let extern_repr = extern_repr_of_native_repr ~loc ~poly_sort repr in
+  let rec sort_of_extern_repr extern_repr =
+    match extern_repr with
+    | Same_as_ocaml_repr s -> s
+    | (Unboxed_float _ | Unboxed_integer _ | Untagged_int |
+        Unboxed_vector _) ->
+      Jkind.Sort.Const.Base Value
+    | Unboxed_product reprs ->
+      Jkind.Sort.Const.Product (List.map sort_of_extern_repr reprs)
+  in
+  sort_of_extern_repr extern_repr
 
 let to_lambda_prim ~loc prim ~poly_sort =
   let native_repr_args =
@@ -569,7 +575,13 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
           (gen_array_set_kind (get_first_arg_mode ()), Punboxed_int_index Pnativeint)),
         3)
     | "%make_unboxed_tuple_vect" ->
-      Primitive (Pmake_unboxed_tuple_vect (gen_array_kind, mode), 2)
+      Primitive (Pmake_unboxed_tuple_vect (
+        Pgcscannableproductarray [
+          Pint_scannable;
+          Paddr_scannable;
+          Paddr_scannable;
+        ]
+      (* gen_array_kind *), mode), 2)
     | "%obj_size" -> Primitive ((Parraylength Pgenarray), 1)
     | "%obj_field" -> Primitive ((Parrayrefu (Pgenarray_ref mode, Ptagged_int_index)), 2)
     | "%obj_set_field" ->

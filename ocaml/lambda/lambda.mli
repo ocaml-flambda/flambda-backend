@@ -345,6 +345,7 @@ and extern_repr =
   | Unboxed_float of boxed_float
   | Unboxed_vector of Primitive.boxed_vector
   | Unboxed_integer of Primitive.boxed_integer
+  | Unboxed_product of extern_repr list
   | Untagged_int
 
 and external_call_description = extern_repr Primitive.description_gen

@@ -250,6 +250,34 @@ let make_unboxed_tuple_vect (lambda_array_kind : L.array_kind)
         Location.print_loc
         (Debuginfo.Scoped_location.to_location loc)
   in
+  let extern_reprs =
+    match lambda_array_kind with
+    | Pgcscannableproductarray kinds ->
+      let rec extern_repr kind : L.extern_repr =
+        match (kind : L.scannable_product_element_kind) with
+        | Pint_scannable -> Same_as_ocaml_repr (Base Value)
+        | Paddr_scannable -> Same_as_ocaml_repr (Base Value)
+        | Pproduct_scannable kinds ->
+          Unboxed_product (List.map extern_repr kinds)
+      in
+      List.map extern_repr kinds
+    | Pgcignorableproductarray kinds ->
+      let rec extern_repr kind : L.extern_repr =
+        match (kind : L.ignorable_product_element_kind) with
+        | Pint_ignorable -> Same_as_ocaml_repr (Base Value)
+        | Punboxedfloat_ignorable Pfloat32 -> Same_as_ocaml_repr (Base Float32)
+        | Punboxedfloat_ignorable Pfloat64 -> Same_as_ocaml_repr (Base Float64)
+        | Punboxedint_ignorable Pint32 -> Same_as_ocaml_repr (Base Bits32)
+        | Punboxedint_ignorable (Pint64 | Pnativeint) ->
+          Same_as_ocaml_repr (Base Bits64)
+        | Pproduct_ignorable kinds ->
+          Unboxed_product (List.map extern_repr kinds)
+      in
+      List.map extern_repr kinds
+    | Pgenarray | Paddrarray | Pintarray | Pfloatarray | Punboxedfloatarray _
+    | Punboxedintarray _ ->
+      assert false (* see above *)
+  in
   let args_array = Ident.create_local "args_array" in
   let array_layout = Lambda.layout_array lambda_array_kind in
   let is_scannable =
@@ -267,7 +295,7 @@ let make_unboxed_tuple_vect (lambda_array_kind : L.array_kind)
       ~alloc:true (* the C stub may raise an exception *)
       ~c_builtin:false ~effects:Arbitrary_effects ~coeffects:Has_coeffects
       ~native_name:"caml_make_unboxed_product_vect"
-      ~native_repr_args:[Prim_global, L.Same_as_ocaml_repr (Base Value)]
+      ~native_repr_args:[Prim_global, L.Unboxed_product extern_reprs]
         (* CR mshinwell: seems like Prim_global should be ok above? *)
       ~native_repr_res:
         ( (match mode with

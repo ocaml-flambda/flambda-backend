@@ -341,6 +341,7 @@ and extern_repr =
   | Unboxed_float of boxed_float
   | Unboxed_vector of Primitive.boxed_vector
   | Unboxed_integer of Primitive.boxed_integer
+  | Unboxed_product of extern_repr list
   | Untagged_int
 
 and external_call_description = extern_repr Primitive.description_gen
@@ -1915,12 +1916,14 @@ let rec layout_of_const_sort (c : Jkind.Sort.Const.t) : layout =
     layout_unboxed_product (List.map layout_of_const_sort sorts)
 
 
-let layout_of_extern_repr : extern_repr -> _ = function
+let rec layout_of_extern_repr : extern_repr -> _ = function
   | Untagged_int ->  layout_int
   | Unboxed_vector v -> layout_boxed_vector v
   | Unboxed_float bf -> layout_boxed_float bf
   | Unboxed_integer bi -> layout_boxedint bi
   | Same_as_ocaml_repr s -> layout_of_const_sort s
+  | Unboxed_product l ->
+    layout_unboxed_product (List.map layout_of_extern_repr l)
 
 let rec layout_of_scannable_kinds kinds =
   Punboxed_product (List.map layout_of_scannable_kind kinds)

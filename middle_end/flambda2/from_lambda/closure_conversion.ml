@@ -519,21 +519,13 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     Misc.fatal_errorf
       "close_c_call: C call primitive %s can't be layout polymorphic." prim_name;
   let args =
-    List.map
-      (function
-        | [arg] -> arg
-        | [] | _ :: _ :: _ ->
-          Misc.fatal_errorf
-            "close_c_call: expected only singleton arguments for primitive %s, \
-             but got: [%a]"
-            prim_name
-            (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf args ->
-                 Format.fprintf ppf "[%a]"
-                   (Format.pp_print_list ~pp_sep:Format.pp_print_space
-                      Simple.print)
-                   args))
-            args)
-      args
+    List.flatten args
+    (* XXX List.map (function | [arg] -> arg | [] | _ :: _ :: _ ->
+       Misc.fatal_errorf "close_c_call: expected only singleton arguments for
+       primitive %s, \ but got: [%a]" prim_name (Format.pp_print_list
+       ~pp_sep:Format.pp_print_space (fun ppf args -> Format.fprintf ppf "[%a]"
+       (Format.pp_print_list ~pp_sep:Format.pp_print_space Simple.print) args))
+       args) args *)
   in
   let env, let_bound_vars =
     List.fold_left_map
@@ -572,6 +564,19 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | Some alloc_mode ->
       Alloc_mode.For_allocations.from_lambda alloc_mode ~current_region
   in
+  let prim_native_repr_args =
+    let rec convert (mode, (extern_repr : Lambda.extern_repr)) =
+      match extern_repr with
+      | Same_as_ocaml_repr _ | Unboxed_float _ | Unboxed_vector _
+      | Unboxed_integer _ | Untagged_int ->
+        [mode, extern_repr]
+      | Unboxed_product extern_reprs ->
+        List.concat_map
+          (fun extern_repr -> convert (mode, extern_repr))
+          extern_reprs
+    in
+    List.concat_map convert prim_native_repr_args
+  in
   let box_return_value =
     match prim_native_repr_res with
     | _, Same_as_ocaml_repr _ -> None
@@ -585,6 +590,8 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | _, Unboxed_vector (Pvec128 _) ->
       Some (P.Box_number (Naked_vec128, alloc_mode))
     | _, Untagged_int -> Some P.Tag_immediate
+    | _, Unboxed_product _ ->
+      Misc.fatal_error "Cannot handle C calls with unboxed product returns yet"
   in
   let return_continuation, needs_wrapper =
     match Expr.descr body with
@@ -612,6 +619,9 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | Unboxed_integer Pint64 -> K.naked_int64
     | Untagged_int -> K.naked_immediate
     | Unboxed_vector (Pvec128 _) -> K.naked_vec128
+    | Unboxed_product _ ->
+      Misc.fatal_error
+        "Unboxed_product extern_repr should have been expanded by now"
   in
   let param_arity =
     List.map kind_of_primitive_extern_repr prim_native_repr_args
@@ -704,6 +714,9 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           | _, Unboxed_integer Pint64 -> Some (P.Unbox_number Naked_int64)
           | _, Untagged_int -> Some P.Untag_immediate
           | _, Unboxed_vector (Pvec128 _) -> Some (P.Unbox_number Naked_vec128)
+          | _, Unboxed_product _ ->
+            Misc.fatal_error
+              "Unboxed_product extern_repr should have been expanded by now"
         in
         match unbox_arg with
         | None -> fun args acc -> call (arg :: args) acc
