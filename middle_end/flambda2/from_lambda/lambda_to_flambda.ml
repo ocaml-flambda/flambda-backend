@@ -219,6 +219,75 @@ let switch_for_if_then_else ~cond ~ifso ~ifnot ~kind =
   in
   L.Lswitch (cond, switch, try_to_find_location cond, kind)
 
+let make_unboxed_tuple_vect (lambda_array_kind : L.array_kind)
+    (mode : L.alloc_mode) args loc =
+  (* This is analogous to (from stdlib/array.ml):
+   * external create: int -> 'a -> 'a array = "caml_make_vect"
+   *)
+  if not Config.stack_allocation
+  then
+    Misc.fatal_error
+      "Cannot compile Pmake_unboxed_tuple_vect without stack allocation enabled";
+  (* Trick: use the local stack as a way of getting the variable argument list
+     to the C function. *)
+  let num_arg_layouts, is_scannable =
+    match lambda_array_kind with
+    | Pgcscannableproductarray kinds -> List.length kinds, true
+    | Pgcignorableproductarray kinds -> List.length kinds, false
+    | Pgenarray | Paddrarray | Pintarray | Pfloatarray | Punboxedfloatarray _
+    | Punboxedintarray _ ->
+      Misc.fatal_errorf
+        "Expected a product [array_kind] for %%make_unboxed_tuple_vect:@ %a"
+        Location.print_loc
+        (Debuginfo.Scoped_location.to_location loc)
+  in
+  if List.compare_length_with args num_arg_layouts <> 0
+  then
+    Misc.fatal_errorf "Array kind does not match up with args:@ %a"
+      Location.print_loc
+      (Debuginfo.Scoped_location.to_location loc);
+  let args_array = Ident.create_local "args_array" in
+  let array_layout = Lambda.layout_array lambda_array_kind in
+  let is_scannable =
+    if is_scannable
+    then L.Lconst (Const_base (Const_int 1))
+    else L.Lconst (Const_base (Const_int 0))
+  in
+  let is_local =
+    match mode with
+    | Alloc_heap -> L.Lconst (Const_base (Const_int 0))
+    | Alloc_local -> L.Lconst (Const_base (Const_int 1))
+  in
+  let external_call_desc =
+    Primitive.make ~name:"caml_make_unboxed_product_vect"
+      ~alloc:(match mode with Alloc_heap -> true | Alloc_local -> false)
+      ~c_builtin:false ~effects:Arbitrary_effects ~coeffects:Has_coeffects
+      ~native_name:"caml_make_unboxed_product_vect"
+      ~native_repr_args:[Prim_global, L.Same_as_ocaml_repr (Base Value)]
+        (* CR mshinwell: seems like Prim_global should be ok above? *)
+      ~native_repr_res:
+        ( (match mode with
+          | Alloc_heap -> Prim_global
+          | Alloc_local -> Prim_local),
+          L.Same_as_ocaml_repr (Base Value) )
+      ~is_layout_poly:false
+  in
+  Transformed
+    (L.Lregion
+       ( Llet
+           ( Strict,
+             array_layout,
+             args_array,
+             Lprim
+               ( Pmakearray (lambda_array_kind, Mutable, L.alloc_local),
+                 args (* will be unarized when this term is CPS converted *),
+                 loc ),
+             Lprim
+               ( Pccall external_call_desc,
+                 [Lvar args_array; is_local; is_scannable],
+                 loc ) ),
+         array_layout ))
+
 let transform_primitive env (prim : L.primitive) args loc =
   match prim, args with
   | Psequor, [arg1; arg2] ->
@@ -256,6 +325,8 @@ let transform_primitive env (prim : L.primitive) args loc =
                  ~ifnot:(L.Lvar const_false) ~kind:Lambda.layout_int ) ))
   | (Psequand | Psequor), _ ->
     Misc.fatal_error "Psequand / Psequor must have exactly two arguments"
+  | Pmake_unboxed_tuple_vect (lambda_array_kind, mode), args ->
+    make_unboxed_tuple_vect lambda_array_kind mode args loc
   | ( (Pbytes_to_string | Pbytes_of_string | Parray_of_iarray | Parray_to_iarray),
       [arg] ) ->
     Transformed arg
@@ -708,9 +779,8 @@ let primitive_can_raise (prim : Lambda.primitive) =
   | Punboxed_float_comp (_, _)
   | Pstringlength | Pstringrefu | Pbyteslength | Pbytesrefu | Pbytessetu
   | Pmakearray _ | Pduparray _ | Parraylength _ | Parrayrefu _ | Parraysetu _
-  | Pmake_unboxed_tuple_vect _
-  | Pisint _ | Pisout | Pbintofint _ | Pintofbint _ | Pcvtbint _ | Pnegbint _
-  | Paddbint _ | Psubbint _ | Pmulbint _
+  | Pmake_unboxed_tuple_vect _ | Pisint _ | Pisout | Pbintofint _ | Pintofbint _
+  | Pcvtbint _ | Pnegbint _ | Paddbint _ | Psubbint _ | Pmulbint _
   | Pdivbint { is_safe = Unsafe; _ }
   | Pmodbint { is_safe = Unsafe; _ }
   | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _

@@ -958,8 +958,6 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pmakearray (array_kind, _, _mode) ->
         let array_kind = Empty_array_kind.of_lambda array_kind in
         register_const0 acc (Static_const.empty_array array_kind) "empty_array"
-      | Pmake_unboxed_tuple_vect (_array_kind, _mode) ->
-        Misc.fatal_error "Closure_conversion.close_primitive: unimplemented"
       | Pbytes_to_string | Pbytes_of_string | Parray_of_iarray
       | Parray_to_iarray | Pignore | Pgetglobal _ | Psetglobal _ | Pgetpredef _
       | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _
@@ -1010,7 +1008,8 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Presume | Preperform | Patomic_exchange | Patomic_cas
       | Patomic_fetch_add | Pdls_get | Ppoll | Patomic_load _
       | Preinterpret_tagged_int63_as_unboxed_int64
-      | Preinterpret_unboxed_int64_as_tagged_int63 ->
+      | Preinterpret_unboxed_int64_as_tagged_int63 | Pmake_unboxed_tuple_vect _
+        ->
         (* Inconsistent with outer match *)
         assert false
     in

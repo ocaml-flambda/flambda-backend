@@ -1396,8 +1396,6 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
                   List.map unbox_float args ),
               Variadic (Make_array (Values, mutability, mode), args),
               [K.With_subkind.any_value] ) ]))
-  | Pmake_unboxed_tuple_vect (_lambda_array_kind, _mode), _ ->
-    Misc.fatal_error "Lambda_to_flambda_primitives.convert_lprim: unimplemented"
   | Popaque layout, [arg] -> opaque layout arg ~middle_end_only:false
   | Pobj_magic layout, [arg] -> opaque layout arg ~middle_end_only:true
   | Pduprecord (repr, num_fields), [[arg]] ->
@@ -2384,7 +2382,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     Misc.fatal_errorf
       "[%a] should have been removed by [Lambda_to_flambda.transform_primitive]"
       Printlambda.primitive prim
-  | Pgetglobal _, _ | Pgetpredef _, _ ->
+  | Pgetglobal _, _ | Pgetpredef _, _ | Pmake_unboxed_tuple_vect _, _ ->
     Misc.fatal_errorf
       "[%a] should have been handled by [Closure_conversion.close_primitive]"
       Printlambda.primitive prim

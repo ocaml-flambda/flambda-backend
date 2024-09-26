@@ -469,6 +469,19 @@ CAMLprim value caml_make_local_vect(value len, value init)
   return make_vect_gen(len, init, 1);
 }
 
+CAMLprim value caml_make_unboxed_product_vect(value v_init, value v_is_local,
+  value v_is_scannable)
+{
+  mlsize_t num_initializers = Wosize_val(v_init);
+  int is_local = Bool_val(v_is_local);
+  int is_scannable = Bool_val(v_is_scannable);
+
+  fprintf(stderr, "num_init %d, is_local %d, is_scannable %d\n",
+    (int) num_initializers, is_local, is_scannable);
+
+  return Val_unit;
+}
+
 /* [len] is a [value] representing number of floats */
 /* [ int -> float array ] */
 CAMLprim value caml_make_float_vect(value len)

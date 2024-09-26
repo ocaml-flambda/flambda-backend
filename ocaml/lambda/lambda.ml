@@ -923,6 +923,7 @@ let layout_unboxed_int64 = Punboxed_int Pint64
 let layout_string = Pvalue Pgenval
 let layout_unboxed_int ubi = Punboxed_int ubi
 let layout_boxedint bi = Pvalue (Pboxedintval bi)
+let layout_unboxedint bi = Punboxed_int bi
 
 let layout_unboxed_vector (v : Primitive.boxed_vector) =
   match v with

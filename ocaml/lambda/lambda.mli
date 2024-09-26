@@ -834,6 +834,7 @@ val layout_string : layout
 val layout_boxed_float : boxed_float -> layout
 val layout_unboxed_float : boxed_float -> layout
 val layout_boxedint : boxed_integer -> layout
+val layout_unboxedint : unboxed_integer -> layout
 val layout_boxed_vector : Primitive.boxed_vector -> layout
 (* A layout that is Pgenval because it is the field of a tuple *)
 val layout_tuple_element : layout
