@@ -93,10 +93,17 @@ runtime-stdlib: boot-compiler
 	mkdir -p _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink
 	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/{,dynlink/}dynlink.cmxa
 
+compiler_targets = \
+  $(ocamlc) \
+  $(ocamlopt) \
+  $(boot_ocamlmklib) \
+  $(boot_ocamldep) \
+  $(boot_ocamlobjinfo)
+
 compiler: runtime-stdlib
 # Build the same target as in [boot-compiler], but with our runtime stdlib.
 # Uses the [main] context to avoid duplicating work.
-	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_compiler) $(boot_targets)
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_compiler) $(compiler_targets)
 
 main: _build/compiler_install compiler
 # Build the rest of the installation using the compiler from the [main] context.
@@ -191,16 +198,16 @@ _build/_bootinstall: Makefile.config $(dune_config_targets)
 	done
 
 _build/compiler_install: compiler
-# Same as _bootinstall, but uses the final compiler and hardlinks
+# Similar as _bootinstall, but uses the final compiler and copies
 	rm -rf _build/compiler_install
 	mkdir -p _build/compiler_install/{bin,lib/ocaml}
 	cp Makefile.config $(dune_config_targets) _build/compiler_install/lib/ocaml
-	ln -f _build/main/$(boot_ocamlopt) _build/compiler_install/bin/ocamlopt.opt
-	ln -f _build/main/$(boot_ocamlc) _build/compiler_install/bin/ocamlc.opt
-	ln -f _build/main/$(boot_ocamlmklib) _build/compiler_install/bin/ocamlmklib.opt
-	ln -f _build/main/$(boot_ocamldep) _build/compiler_install/bin/ocamldep.opt
-	ln -f _build/main/$(boot_ocamlobjinfo) _build/compiler_install/bin/ocamlobjinfo.opt
-	ln -f "`which ocamllex`" _build/compiler_install/bin/ocamllex.opt
+	cp _build/main/$(ocamlopt) _build/compiler_install/bin/ocamlopt.opt
+	cp _build/main/$(ocamlc) _build/compiler_install/bin/ocamlc.opt
+	cp _build/main/$(boot_ocamlmklib) _build/compiler_install/bin/ocamlmklib.opt
+	cp _build/main/$(boot_ocamldep) _build/compiler_install/bin/ocamldep.opt
+	cp _build/main/$(boot_ocamlobjinfo) _build/compiler_install/bin/ocamlobjinfo.opt
+	cp "`which ocamllex`" _build/compiler_install/bin/ocamllex.opt
 	for prog in ocamlopt ocamlc ocamllex ocamldep ocamlmklib; do \
 	  ln -sf "$$prog.opt" "_build/compiler_install/bin/$$prog"; \
 	done
