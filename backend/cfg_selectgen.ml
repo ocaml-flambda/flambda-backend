@@ -438,6 +438,17 @@ class virtual selector_generic =
       fun _env basic dbg arg res ->
         Sub_cfg.set_terminator sub_cfg basic arg res dbg
 
+    method private insert_op_debug'
+        : environment ->
+          Cfg.terminator ->
+          Debuginfo.t ->
+          Reg.t array ->
+          Reg.t array ->
+          Reg.t array =
+      fun _env op dbg rs rd ->
+        Sub_cfg.set_terminator sub_cfg op rs rd dbg;
+        rd
+
     method insert_move env src dst =
       if src.Reg.stamp <> dst.Reg.stamp
       then self#insert env Cfg.(Op Move) [| src |] [| dst |]
@@ -448,8 +459,15 @@ class virtual selector_generic =
           Cmm.expression ->
           Debuginfo.t ->
           Reg.t array option =
-      fun _ _ _ _ ->
-        Misc.fatal_error "not implemented (Cfg_selectgen#emit_expr_aux_raise)"
+      fun env k arg dbg ->
+        match self#emit_expr env arg ~bound_name:None with
+        | None -> None
+        | Some r1 ->
+          let rd = [| Proc.loc_exn_bucket |] in
+          self#insert env Cfg.(Op Move) r1 rd;
+          self#insert_debug' env (Cfg.Raise k) dbg rd [||];
+          set_traps_for_raise env;
+          None
 
     method emit_expr_aux_op
         : environment ->
@@ -458,8 +476,165 @@ class virtual selector_generic =
           Cmm.expression list ->
           Debuginfo.t ->
           Reg.t array option =
-      fun _ _ _ _ _ ->
-        Misc.fatal_error "not implemented (Cfg_selectgen#emit_expr_aux_op)"
+      fun env bound_name op args dbg ->
+        let ret res = Some res in
+        match self#emit_parts_list env args with
+        | None -> None
+        | Some (simple_args, env) -> (
+          assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+          let add_naming_op_for_bound_name regs =
+            match bound_name with
+            | None -> ()
+            | Some bound_name ->
+              let provenance = VP.provenance bound_name in
+              if Option.is_some provenance
+              then
+                let bound_name = VP.var bound_name in
+                let naming_op =
+                  Cfg.Name_for_debugger
+                    { ident = bound_name;
+                      provenance;
+                      which_parameter = None;
+                      is_assignment = false;
+                      regs
+                    }
+                in
+                self#insert_debug env (Cfg.Op naming_op) Debuginfo.none [||] [||]
+          in
+          let ty = Select_utils.oper_result_type op in
+          let new_op, new_args = self#select_operation op simple_args dbg in
+          match new_op with
+          | With_next_label (f : Label.t -> Cfg.terminator) -> (
+            let label = Cmm.new_label () in
+            let term = f label in
+            match term with
+            | Call { op = Indirect; label_after } ->
+              let r1 = self#emit_tuple env new_args in
+              let rarg = Array.sub r1 1 (Array.length r1 - 1) in
+              let rd = self#regs_for ty in
+              let loc_arg, stack_ofs_args =
+                Proc.loc_arguments (Reg.typv rarg)
+              in
+              let loc_res, stack_ofs_res =
+                Proc.loc_results_call (Reg.typv rd)
+              in
+              let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
+              self#insert_move_args env rarg loc_arg stack_ofs;
+              self#insert_debug' env term dbg
+                (Array.append [| r1.(0) |] loc_arg)
+                loc_res;
+              (* The destination registers (as per the procedure calling
+                 convention) need to be named right now, otherwise the result of
+                 the function call may be unavailable in the debugger
+                 immediately after the call. *)
+              add_naming_op_for_bound_name loc_res;
+              self#insert_move_results env loc_res rd stack_ofs;
+              let next_block =
+                Sub_cfg.make_empty_block ~label:label_after
+                  (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
+              in
+              DLL.add_end sub_cfg.Sub_cfg.layout next_block;
+              sub_cfg <- { sub_cfg with Sub_cfg.exit = next_block };
+              Select_utils.set_traps_for_raise env;
+              Some rd
+            | Call { op = Direct _; label_after } ->
+              let r1 = self#emit_tuple env new_args in
+              let rd = self#regs_for ty in
+              let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
+              let loc_res, stack_ofs_res =
+                Proc.loc_results_call (Reg.typv rd)
+              in
+              let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
+              self#insert_move_args env r1 loc_arg stack_ofs;
+              self#insert_debug' env term dbg loc_arg loc_res;
+              add_naming_op_for_bound_name loc_res;
+              self#insert_move_results env loc_res rd stack_ofs;
+              let next_block =
+                Sub_cfg.make_empty_block ~label:label_after
+                  (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
+              in
+              DLL.add_end sub_cfg.Sub_cfg.layout next_block;
+              sub_cfg <- { sub_cfg with Sub_cfg.exit = next_block };
+              Select_utils.set_traps_for_raise env;
+              Some rd
+            | Prim { op = External ({ ty_args; ty_res; _ } as r); label_after }
+              ->
+              let loc_arg, stack_ofs =
+                self#emit_extcall_args env ty_args new_args
+              in
+              let rd = self#regs_for ty_res in
+              let term =
+                Cfg.Prim { op = External { r with stack_ofs }; label_after }
+              in
+              let loc_res =
+                self#insert_op_debug' env term dbg loc_arg
+                  (Proc.loc_external_results (Reg.typv rd))
+              in
+              add_naming_op_for_bound_name loc_res;
+              self#insert_move_results env loc_res rd stack_ofs;
+              Select_utils.set_traps_for_raise env;
+              let next_block =
+                Sub_cfg.make_empty_block ~label:label_after
+                  (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
+              in
+              DLL.add_end sub_cfg.Sub_cfg.layout next_block;
+              sub_cfg <- { sub_cfg with Sub_cfg.exit = next_block };
+              ret rd
+            | Prim { op = Probe _; label_after } ->
+              let r1 = self#emit_tuple env new_args in
+              let rd = self#regs_for ty in
+              let rd = self#insert_op_debug' env term dbg r1 rd in
+              Select_utils.set_traps_for_raise env;
+              let next_block =
+                Sub_cfg.make_empty_block ~label:label_after
+                  (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
+              in
+              DLL.add_end sub_cfg.Sub_cfg.layout next_block;
+              sub_cfg <- { sub_cfg with Sub_cfg.exit = next_block };
+              ret rd
+            | _ -> assert false)
+          | Terminator (Call_no_return ({ func_symbol; ty_args; _ } as r)) ->
+            let loc_arg, stack_ofs =
+              self#emit_extcall_args env ty_args new_args
+            in
+            let keep_for_checking =
+              !Select_utils.current_function_is_check_enabled
+              && String.equal func_symbol Cmm.caml_flambda2_invalid
+            in
+            let returns, ty =
+              if keep_for_checking then true, typ_int else false, ty
+            in
+            let rd = self#regs_for ty in
+            let term = Cfg.Call_no_return { r with stack_ofs } in
+            let _ =
+              self#insert_op_debug' env term dbg loc_arg
+                (Proc.loc_external_results (Reg.typv rd))
+            in
+            Select_utils.set_traps_for_raise env;
+            if returns then ret rd else None
+          | Basic (Op (Alloc { bytes = _; mode })) ->
+            let rd = self#regs_for typ_val in
+            let bytes = Select_utils.size_expr env (Ctuple new_args) in
+            let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
+            let op =
+              Cfg.Alloc
+                { bytes = alloc_words * Arch.size_addr;
+                  dbginfo = [{ alloc_words; alloc_dbg = dbg }];
+                  mode
+                }
+            in
+            self#insert_debug env (Cfg.Op op) dbg [||] rd;
+            add_naming_op_for_bound_name rd;
+            self#emit_stores env dbg new_args rd;
+            Select_utils.set_traps_for_raise env;
+            ret rd
+          | Basic (Op op) ->
+            let r1 = self#emit_tuple env new_args in
+            let rd = self#regs_for ty in
+            add_naming_op_for_bound_name rd;
+            ret (self#insert_op_debug env op dbg r1 rd)
+          | Basic _ -> assert false
+          | Terminator _ -> assert false)
 
     method emit_expr_aux_ifthenelse
         : environment ->
@@ -561,8 +736,119 @@ class virtual selector_generic =
           Cmm.expression ->
           Cmm.kind_for_unboxing ->
           Reg.t array option =
-      fun _ _ _ _ _ ->
-        Misc.fatal_error "not implemented (Cfg_selectgen#emit_expr_aux_catch)"
+      fun env bound_name _XXXrec_flag handlers body _value_kind ->
+        let handlers =
+          List.map
+            (fun (nfail, ids, e2, dbg, is_cold) ->
+              let rs =
+                List.map
+                  (fun (id, typ) ->
+                    let r = self#regs_for typ in
+                    Select_utils.name_regs id r;
+                    r)
+                  ids
+              in
+              nfail, ids, rs, e2, dbg, is_cold)
+            handlers
+        in
+        let env, handlers_map =
+          (* Since the handlers may be recursive, and called from the body, the
+             same environment is used for translating both the handlers and the
+             body. *)
+          List.fold_left
+            (fun (env, map) (nfail, ids, rs, e2, dbg, is_cold) ->
+              let label = Cmm.new_label () in
+              let env, r =
+                Select_utils.env_add_static_exception nfail rs env label
+              in
+              env, Int.Map.add nfail (r, (ids, rs, e2, dbg, is_cold)) map)
+            (env, Int.Map.empty) handlers
+        in
+        let r_body, s_body = self#emit_sequence env body ~bound_name in
+        let translate_one_handler nfail (trap_info, (ids, rs, e2, _dbg, is_cold))
+            =
+          assert (List.length ids = List.length rs);
+          let trap_stack =
+            match (!trap_info : Select_utils.trap_stack_info) with
+            | Unreachable -> assert false
+            | Reachable t -> t
+          in
+          let ids_and_rs = List.combine ids rs in
+          let new_env =
+            List.fold_left
+              (fun env ((id, _typ), r) -> Select_utils.env_add id r env)
+              (Select_utils.env_set_trap_stack env trap_stack)
+              ids_and_rs
+          in
+          let r, s =
+            self#emit_sequence new_env e2 ~bound_name:None ~at_start:(fun seq ->
+                List.iter
+                  (fun ((var, _typ), r) ->
+                    let provenance = VP.provenance var in
+                    if Option.is_some provenance
+                    then
+                      let var = VP.var var in
+                      let naming_op =
+                        Cfg.Name_for_debugger
+                          { ident = var;
+                            provenance;
+                            which_parameter = None;
+                            is_assignment = false;
+                            regs = r
+                          }
+                      in
+                      seq#insert_debug new_env (Cfg.Op naming_op) Debuginfo.none
+                        [||] [||])
+                  ids_and_rs)
+          in
+          (nfail, trap_stack, is_cold), (r, s)
+        in
+        let rec build_all_reachable_handlers ~already_built ~not_built =
+          let not_built, to_build =
+            Int.Map.partition
+              (fun _n (r, _) -> !r = Select_utils.Unreachable)
+              not_built
+          in
+          if Int.Map.is_empty to_build
+          then already_built
+          else
+            let already_built =
+              Int.Map.fold
+                (fun nfail handler already_built ->
+                  translate_one_handler nfail handler :: already_built)
+                to_build already_built
+            in
+            build_all_reachable_handlers ~already_built ~not_built
+        in
+        let l =
+          build_all_reachable_handlers ~already_built:[] ~not_built:handlers_map
+          (* Note: we're dropping unreachable handlers here *)
+        in
+        let a = Array.of_list ((r_body, s_body) :: List.map snd l) in
+        let r = join_array env a ~bound_name in
+        assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+        let s_body : Sub_cfg.t = s_body#extract in
+        let s_handlers =
+          List.map (fun (_, (_, sub_handler)) -> sub_handler#extract) l
+        in
+        let term_desc = Cfg.Always s_body.Sub_cfg.entry.start in
+        sub_cfg.exit.terminator
+          <- { sub_cfg.exit.terminator with desc = term_desc };
+        DLL.transfer ~from:s_body.Sub_cfg.layout ~to_:sub_cfg.layout ();
+        let join_block =
+          Sub_cfg.make_empty_block
+            (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
+        in
+        Sub_cfg.link_if_needed ~from:s_body.Sub_cfg.exit ~to_:join_block ();
+        List.iter
+          (fun sub_handler ->
+            DLL.transfer ~from:sub_handler.Sub_cfg.layout ~to_:sub_cfg.layout ();
+            Sub_cfg.link_if_needed ~from:sub_handler.Sub_cfg.exit
+              ~to_:join_block ())
+          s_handlers;
+        DLL.add_end sub_cfg.Sub_cfg.layout join_block;
+        sub_cfg <- { sub_cfg with Sub_cfg.exit = join_block };
+        r
 
     method emit_expr_aux_exit
         : environment ->
@@ -620,8 +906,94 @@ class virtual selector_generic =
           Debuginfo.t ->
           Cmm.kind_for_unboxing ->
           Reg.t array option =
-      fun _ _ _ _ _ _ _ _ ->
-        Misc.fatal_error "not implemented (Cfg_selectgen#emit_expr_aux_trywith)"
+      fun env bound_name e1 exn_cont v e2 _XXXdbg _value_kind ->
+        assert (sub_cfg.exit.terminator.desc = Cfg.Never);
+        let exn_label = Cmm.new_label () in
+        let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
+        let r1, s1 = self#emit_sequence env_body e1 ~bound_name in
+        let rv = self#regs_for typ_val in
+        let with_handler env_handler e2 =
+          let r2, s2 =
+            self#emit_sequence env_handler e2 ~bound_name ~at_start:(fun seq ->
+                let provenance = VP.provenance v in
+                if Option.is_some provenance
+                then
+                  let var = VP.var v in
+                  let naming_op =
+                    Cfg.Name_for_debugger
+                      { ident = var;
+                        provenance;
+                        which_parameter = None;
+                        is_assignment = false;
+                        regs = rv
+                      }
+                  in
+                  seq#insert_debug env (Cfg.Op naming_op) Debuginfo.none [||]
+                    [||])
+          in
+          let move_exn_bucket =
+            Sub_cfg.make_instr (Cfg.Op Move) [| Proc.loc_exn_bucket |] rv
+              Debuginfo.none
+          in
+          let r = join env r1 s1 r2 s2 ~bound_name in
+          let s1 : Sub_cfg.t = s1#extract in
+          let s2 : Sub_cfg.t = s2#extract in
+          s2.entry.start <- exn_label;
+          DLL.add_begin s2.entry.body move_exn_bucket;
+          s2.entry.is_trap_handler <- true;
+          let pushtrap =
+            Sub_cfg.make_instr
+              (Cfg.Pushtrap { lbl_handler = s2.entry.start })
+              [||] [||] Debuginfo.none
+          in
+          DLL.add_begin s1.entry.body pushtrap;
+          let poptrap =
+            Sub_cfg.make_instr Cfg.Poptrap [||] [||] Debuginfo.none
+          in
+          DLL.add_end s1.exit.body poptrap;
+          sub_cfg.exit.terminator
+            <- { sub_cfg.exit.terminator with desc = Always s1.entry.start };
+          DLL.iter s1.layout ~f:(fun (block : Cfg.basic_block) ->
+              if block.can_raise then block.exn <- Some s2.entry.start);
+          DLL.transfer ~from:s1.Sub_cfg.layout ~to_:sub_cfg.layout ();
+          DLL.transfer ~from:s2.Sub_cfg.layout ~to_:sub_cfg.layout ();
+          let join_block =
+            Sub_cfg.make_empty_block
+              (Sub_cfg.make_instr Cfg.Never [||] [||] Debuginfo.none)
+          in
+          DLL.add_end sub_cfg.Sub_cfg.layout join_block;
+          Sub_cfg.link_if_needed ~from:s1.exit ~to_:join_block ();
+          Sub_cfg.link_if_needed ~from:s2.exit ~to_:join_block ();
+          sub_cfg <- { sub_cfg with Sub_cfg.exit = join_block };
+          r
+        in
+        let env = Select_utils.env_add v rv env in
+        match Select_utils.env_find_static_exception exn_cont env_body with
+        | { traps_ref = { contents = Reachable ts }; _ } ->
+          with_handler (Select_utils.env_set_trap_stack env ts) e2
+        | { traps_ref = { contents = Unreachable }; _ } ->
+          (* Note: The following [unreachable] expression has machtype [|Int|],
+             but this might not be the correct machtype for this function's
+             return value. It doesn't matter at runtime since the expression
+             cannot return, but if we start checking (or joining) the machtypes
+             of the different tails we will need to implement something like the
+             [emit_expr_aux] version above, that hides the machtype. *)
+          let unreachable =
+            Cmm.(
+              Cop
+                ( Cload
+                    { memory_chunk = Word_int;
+                      mutability = Mutable;
+                      is_atomic = false
+                    },
+                  [Cconst_int (0, Debuginfo.none)],
+                  Debuginfo.none ))
+          in
+          with_handler env unreachable
+        (* Misc.fatal_errorf "Selection.emit_expr: \ Unreachable exception
+           handler %d" lbl *)
+        | exception Not_found ->
+          Misc.fatal_errorf "Selection.emit_expr: Unbound handler %d" exn_cont
 
     method private emit_sequence ?at_start (env : environment) exp ~bound_name
         : _ * 'self =
@@ -925,9 +1297,8 @@ class virtual selector_generic =
           unit =
       fun env e1 exn_cont v e2 _XXXdbg _value_kind ->
         assert (sub_cfg.exit.terminator.desc = Cfg.Never);
-        let env_body =
-          Select_utils.env_enter_trywith env exn_cont (Cmm.new_label ())
-        in
+        let exn_label = Cmm.new_label () in
+        let env_body = Select_utils.env_enter_trywith env exn_cont exn_label in
         let s1 : Sub_cfg.t = self#emit_tail_sequence env_body e1 in
         let rv = self#regs_for typ_val in
         let with_handler env_handler e2 =
@@ -949,6 +1320,7 @@ class virtual selector_generic =
                   seq#insert_debug env_handler (Cfg.Op naming_op) Debuginfo.none
                     [||] [||])
           in
+          s2.entry.start <- exn_label;
           let move_exn_bucket =
             Sub_cfg.make_instr (Cfg.Op Move) [| Proc.loc_exn_bucket |] rv
               Debuginfo.none

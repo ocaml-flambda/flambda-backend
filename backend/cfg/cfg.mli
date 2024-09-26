@@ -35,7 +35,7 @@ type basic_instruction_list =
   basic instruction Flambda_backend_utils.Doubly_linked_list.t
 
 type basic_block =
-  { start : Label.t;
+  { mutable start : Label.t;
     body : basic_instruction_list;
     mutable terminator : terminator instruction;
     mutable predecessors : Label.Set.t;
