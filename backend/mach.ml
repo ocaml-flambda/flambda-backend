@@ -86,7 +86,7 @@ type operation =
                is_atomic : bool }
   | Istore of Cmm.memory_chunk * Arch.addressing_mode * bool
   | Ialloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo;
-                mode : Lambda.alloc_mode }
+                mode : Cmm.Alloc_mode.t }
   | Iintop of integer_operation
   | Iintop_imm of integer_operation * int
   | Iintop_atomic of { op : Cmm.atomic_op; size : Cmm.atomic_bitwidth;

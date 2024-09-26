@@ -334,6 +334,11 @@ end
 
 (** Primitives taking exactly one argument. *)
 type unary_primitive =
+  | Block_load of
+      { kind : Block_access_kind.t;
+        mut : Mutability.t;
+        field : Targetint_31_63.t
+      }
   | Duplicate_block of { kind : Duplicate_block_kind.t }
       (** [Duplicate_block] may not be used to change the tag or the mutability
           of a block. *)
@@ -448,7 +453,11 @@ type binary_float_arith_op =
 
 (** Primitives taking exactly two arguments. *)
 type binary_primitive =
-  | Block_load of Block_access_kind.t * Mutability.t
+  | Block_set of
+      { kind : Block_access_kind.t;
+        init : Init_or_assign.t;
+        field : Targetint_31_63.t
+      }
   | Array_load of Array_kind.t * array_accessor_width * Mutability.t
   | String_or_bigstring_load of string_like_value * string_accessor_width
   | Bigarray_load of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
@@ -466,7 +475,6 @@ type binary_primitive =
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =
-  | Block_set of Block_access_kind.t * Init_or_assign.t
   | Array_set of Array_set_kind.t * array_accessor_width
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t

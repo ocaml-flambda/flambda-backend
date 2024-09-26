@@ -341,6 +341,7 @@ let nullary_prim_size prim =
 
 let unary_prim_size prim =
   match (prim : Flambda_primitive.unary_primitive) with
+  | Block_load { kind; _ } -> block_load kind
   | Duplicate_array _ | Duplicate_block _ -> needs_caml_c_call_extcall_size + 1
   | Is_int _ -> 1
   | Get_tag -> 2
@@ -384,7 +385,7 @@ let unary_prim_size prim =
 
 let binary_prim_size prim =
   match (prim : Flambda_primitive.binary_primitive) with
-  | Block_load (kind, _) -> block_load kind
+  | Block_set { kind; init; _ } -> block_set kind init
   | Array_load (kind, _width, _mut) -> array_load kind
   | String_or_bigstring_load (kind, width) ->
     string_or_bigstring_load kind width
@@ -407,7 +408,6 @@ let binary_prim_size prim =
 
 let ternary_prim_size prim =
   match (prim : Flambda_primitive.ternary_primitive) with
-  | Block_set (block_access, init) -> block_set block_access init
   | Array_set (kind, _width) -> array_set kind
   | Bytes_or_bigstring_set (kind, width) -> bytes_like_set kind width
   | Bigarray_set (_dims, (Complex32 | Complex64), _layout) ->

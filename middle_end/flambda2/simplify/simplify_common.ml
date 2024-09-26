@@ -86,8 +86,10 @@ let project_tuple ~dbg ~size ~field tuple =
       }
   in
   let mutability : Mutability.t = Immutable in
-  let index = Simple.const_int (Targetint_31_63.of_int field) in
-  let prim = P.Binary (Block_load (bak, mutability), tuple, index) in
+  let field = Targetint_31_63.of_int field in
+  let prim =
+    P.Unary (Block_load { kind = bak; mut = mutability; field }, tuple)
+  in
   Named.create_prim prim dbg
 
 let split_direct_over_application apply
@@ -372,7 +374,8 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
   let typing_env = DA.typing_env dacc in
   let for_naked_number kind : _ Or_bottom.t =
     match T.meet_is_naked_number_array typing_env array_ty kind with
-    | Known_result true | Need_meet -> Ok array_kind
+    | Known_result true -> Ok array_kind
+    | Need_meet -> Ok array_kind
     | Known_result false | Invalid -> Bottom
   in
   match array_kind with
