@@ -656,9 +656,17 @@ val meet_is_immutable_array :
   Typing_env.t ->
   t ->
   (Flambda_kind.With_subkind.t Or_unknown_or_bottom.t
-  * t
+  * t array
   * Alloc_mode.For_types.t)
   meet_shortcut
+
+val prove_is_immutable_array :
+  Typing_env.t ->
+  t ->
+  (Flambda_kind.With_subkind.t Or_unknown_or_bottom.t
+  * t array
+  * Alloc_mode.For_types.t)
+  proof_of_property
 
 val meet_single_closures_entry :
   Typing_env.t ->

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+target_dir=$PWD
 cd "$(dirname "$0")"
 
 ocamlmerlin="$(which ocamlmerlin 2>&-)"
@@ -11,5 +12,5 @@ fi
 set -e
 
 merlin_dir="$(dirname "$ocamlmerlin")"
-echo "$merlin_dir" > .local-merlin-binaries
-ocamlc -where > .local-ocaml-lib
+echo "$merlin_dir" > "$target_dir"/.local-merlin-binaries
+ocamlc -where > "$target_dir"/.local-ocaml-lib

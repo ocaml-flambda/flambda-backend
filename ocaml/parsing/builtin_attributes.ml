@@ -961,10 +961,10 @@ let zero_alloc_attribute_only_assume_allowed za =
     Location.prerr_warning loc (Warnings.Attribute_payload (name, msg));
     None
 
-let assume_zero_alloc assume : Zero_alloc_utils.Assume_info.t =
+let assume_zero_alloc ~inferred assume : Zero_alloc_utils.Assume_info.t =
   match assume with
   | { strict; never_returns_normally; never_raises; } ->
-    Zero_alloc_utils.Assume_info.create ~strict ~never_returns_normally ~never_raises
+    Zero_alloc_utils.Assume_info.create ~strict ~never_returns_normally ~never_raises ~inferred
 
 type tracing_probe =
   { name : string;

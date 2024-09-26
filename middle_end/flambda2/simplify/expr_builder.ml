@@ -523,7 +523,6 @@ let create_let_symbols uacc lifted_constant ~body =
             let kind = Symbol_projection.kind proj in
             match Symbol_projection.projection proj with
             | Block_load { index } ->
-              let index = Simple.const_int index in
               let block_access_kind : P.Block_access_kind.t =
                 match Flambda_kind.With_subkind.kind kind with
                 | Value ->
@@ -544,7 +543,10 @@ let create_let_symbols uacc lifted_constant ~body =
                     Flambda_kind.With_subkind.print kind Symbol_projection.print
                     proj
               in
-              Binary (Block_load (block_access_kind, Immutable), symbol, index)
+              Unary
+                ( Block_load
+                    { kind = block_access_kind; mut = Immutable; field = index },
+                  symbol )
             | Project_value_slot { project_from; value_slot } ->
               Unary (Project_value_slot { project_from; value_slot }, symbol)
           in
