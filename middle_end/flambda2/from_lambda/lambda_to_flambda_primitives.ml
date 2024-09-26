@@ -834,8 +834,8 @@ let check_array_access ~dbg ~array array_kind ~index ~index_kind ~size_int
          ~size_int)
     ~dbg
 
-let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag) (array_ref_kind : Array_ref_kind.t)
-    ~current_region : H.expr_primitive =
+let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag)
+    (array_ref_kind : Array_ref_kind.t) ~current_region : H.expr_primitive =
   let mut : Mutability.t =
     match mut with
     | Immutable | Immutable_unique -> Immutable
@@ -848,14 +848,11 @@ let array_load_unsafe ~array ~index ~(mut : Lambda.mutable_flag) (array_ref_kind
     box_float mode
       (Binary (Array_load (Naked_floats, Scalar, mut), array, index))
       ~current_region
-  | Naked_floats ->
-    Binary (Array_load (Naked_floats, Scalar, mut), array, index)
+  | Naked_floats -> Binary (Array_load (Naked_floats, Scalar, mut), array, index)
   | Naked_float32s ->
     Binary (Array_load (Naked_float32s, Scalar, mut), array, index)
-  | Naked_int32s ->
-    Binary (Array_load (Naked_int32s, Scalar, mut), array, index)
-  | Naked_int64s ->
-    Binary (Array_load (Naked_int64s, Scalar, mut), array, index)
+  | Naked_int32s -> Binary (Array_load (Naked_int32s, Scalar, mut), array, index)
+  | Naked_int64s -> Binary (Array_load (Naked_int64s, Scalar, mut), array, index)
   | Naked_nativeints ->
     Binary (Array_load (Naked_nativeints, Scalar, mut), array, index)
 
@@ -1981,12 +1978,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _
             | Punboxedintarray_ref _ ),
-            _, _ )
+            _,
+            _ )
       | Parrayrefs
           ( ( Pgenarray_ref _ | Paddrarray_ref | Pintarray_ref
             | Pfloatarray_ref _ | Punboxedfloatarray_ref _
             | Punboxedintarray_ref _ ),
-            _, _ )
+            _,
+            _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _ | Patomic_exchange
       | Patomic_fetch_add ),
       ( []
