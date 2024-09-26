@@ -305,7 +305,14 @@ val get_zero_alloc_attribute :
 val zero_alloc_attribute_only_assume_allowed :
   zero_alloc_attribute -> zero_alloc_assume option
 
-val assume_zero_alloc : zero_alloc_assume -> Zero_alloc_utils.Assume_info.t
+(* [inferred] is true only for "assume" annotations added by the compiler onto
+   applications based on the type of the callee, to distinguish them from annotations
+   added by the user. Inferred annotations are removed if the callee is inlined, to ensure
+   that inlining and other middle-end optimizations preserve the relaxed meaning of
+   zero_alloc.  Note that "inferred" assume annotations are different assume annotations
+   "propagated" by the compiler from function definition to all primitives in the
+   function's body (via scopes / debug info). *)
+val assume_zero_alloc : inferred:bool -> zero_alloc_assume -> Zero_alloc_utils.Assume_info.t
 
 type tracing_probe =
   { name : string;
