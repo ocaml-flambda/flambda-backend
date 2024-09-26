@@ -662,7 +662,10 @@ let simplify_duplicate_array ~kind:_ ~(source_mutability : Mutability.t)
     | Need_meet ->
       let dacc = DA.add_variable dacc result_var T.any_value in
       SPR.create original_term ~try_reify:false dacc
-    | Known_result (element_kind, length, alloc_mode) ->
+    | Known_result (element_kind, fields, alloc_mode) ->
+      let length =
+        T.this_tagged_immediate (Array.length fields |> Targetint_31_63.of_int)
+      in
       let ty = T.mutable_array ~element_kind ~length alloc_mode in
       let dacc = DA.add_variable dacc result_var ty in
       SPR.create original_term ~try_reify:false dacc)

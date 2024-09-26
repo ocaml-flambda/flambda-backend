@@ -372,7 +372,8 @@ let specialise_array_kind dacc (array_kind : P.Array_kind.t) ~array_ty :
   let typing_env = DA.typing_env dacc in
   let for_naked_number kind : _ Or_bottom.t =
     match T.meet_is_naked_number_array typing_env array_ty kind with
-    | Known_result true | Need_meet -> Ok array_kind
+    | Known_result true -> Ok array_kind
+    | Need_meet -> Ok array_kind
     | Known_result false | Invalid -> Bottom
   in
   match array_kind with
