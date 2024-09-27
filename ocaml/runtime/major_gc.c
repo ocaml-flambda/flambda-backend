@@ -611,15 +611,6 @@ static inline intnat min2 (intnat a, intnat b)
   }
 }
 
-static inline intnat max3(intnat a, intnat b, intnat c)
-{
-  if (a > b){
-    return max2 (a, c);
-  }else{
-    return max2 (b, c);
-  }
-}
-
 /* Take two natural numbers n1 and n2 and let N = 2^{64}.
    Assume that n1 and n2 are not too far apart (less than N/2).
    Given unsigned numbers x1 = n1 modulo N and x2 = n2 modulo N, return

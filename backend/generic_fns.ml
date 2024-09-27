@@ -93,8 +93,9 @@ end
 module Tbl0 = struct
   type t =
     { curry : (Lambda.function_kind * machtype list * machtype, unit) Hashtbl.t;
-      apply : (machtype list * machtype * Lambda.alloc_mode, unit) Hashtbl.t;
-      send : (machtype list * machtype * Lambda.alloc_mode, unit) Hashtbl.t
+      apply :
+        (machtype list * machtype * Cmx_format.alloc_mode, unit) Hashtbl.t;
+      send : (machtype list * machtype * Cmx_format.alloc_mode, unit) Hashtbl.t
     }
 
   let make () =
@@ -128,12 +129,12 @@ module Cache = struct
   type send =
     Cmm.machtype_component array list
     * Cmm.machtype_component array
-    * Lambda.locality_mode
+    * Cmx_format.alloc_mode
 
   type apply =
     Cmm.machtype_component array list
     * Cmm.machtype_component array
-    * Lambda.locality_mode
+    * Cmx_format.alloc_mode
 
   type curry =
     Lambda.function_kind
@@ -183,8 +184,8 @@ module Cache = struct
     then false
     else
       match alloc with
-      | Lambda.Alloc_local -> len_arity arity = 0
-      | Lambda.Alloc_heap -> len_arity arity <= max_send
+      | Cmx_format.Alloc_local -> len_arity arity = 0
+      | Cmx_format.Alloc_heap -> len_arity arity <= max_send
 
   let mem_apply (arity, result, alloc) =
     (* For now we don't cache generic functions involving unboxed types *)
@@ -192,10 +193,10 @@ module Cache = struct
     then false
     else
       match alloc with
-      | Lambda.Alloc_local ->
+      | Cmx_format.Alloc_local ->
         let l = len_arity arity in
         2 <= l && l <= considered_as_small_threshold
-      | Lambda.Alloc_heap ->
+      | Cmx_format.Alloc_heap ->
         let l = len_arity arity in
         2 <= l && l <= Lambda.max_arity ()
 
@@ -232,8 +233,8 @@ module Cache = struct
     let send =
       Seq.init (max_send + 1) (fun n ->
           Seq.cons
-            (arity n, result, Lambda.alloc_local)
-            (Seq.return (arity n, result, Lambda.alloc_heap)))
+            (arity n, result, Cmx_format.Alloc_local)
+            (Seq.return (arity n, result, Cmx_format.Alloc_heap)))
       |> Seq.concat
     in
     Seq.filter mem_send send
@@ -248,8 +249,8 @@ module Cache = struct
         (Lambda.max_arity () + 1)
         (fun n ->
           Seq.cons
-            (arity n, result, Lambda.alloc_local)
-            (Seq.return (arity n, result, Lambda.alloc_heap)))
+            (arity n, result, Cmx_format.Alloc_local)
+            (Seq.return (arity n, result, Cmx_format.Alloc_heap)))
       |> Seq.concat
     in
     Seq.filter mem_apply apply
@@ -336,8 +337,8 @@ end
 let default_generic_fns : Cmx_format.generic_fns =
   { curry_fun = [];
     apply_fun =
-      [ [typ_val; typ_val], typ_val, Lambda.alloc_heap;
-        [typ_val; typ_val; typ_val], typ_val, Lambda.alloc_heap ];
+      [ [typ_val; typ_val], typ_val, Cmx_format.Alloc_heap;
+        [typ_val; typ_val; typ_val], typ_val, Cmx_format.Alloc_heap ];
     send_fun = []
   }
 

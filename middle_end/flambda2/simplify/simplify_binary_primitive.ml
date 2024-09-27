@@ -1072,7 +1072,8 @@ let simplify_mutable_block_load _access_kind ~original_prim dacc ~original_term
 
 let simplify_array_load (array_kind : P.Array_kind.t)
     (accessor_width : P.array_accessor_width) mutability dacc ~original_term:_
-    dbg ~arg1 ~arg1_ty:array_ty ~arg2 ~arg2_ty:_ ~result_var =
+    dbg ~arg1:array ~arg1_ty:array_ty ~arg2:index ~arg2_ty:index_ty ~result_var
+    =
   let result_kind =
     match accessor_width with
     | Scalar -> P.Array_kind.element_kind array_kind |> K.With_subkind.kind
@@ -1087,10 +1088,7 @@ let simplify_array_load (array_kind : P.Array_kind.t)
     let ty = T.bottom result_kind in
     let dacc = DA.add_variable dacc result_var ty in
     SPR.create_invalid dacc
-  | Ok array_kind ->
-    (* CR mshinwell: Add proper support for immutable arrays here (probably not
-       required at present since they only go into [Duplicate_array]
-       operations). *)
+  | Ok array_kind -> (
     let result_kind' =
       match accessor_width with
       | Scalar -> P.Array_kind.element_kind array_kind |> K.With_subkind.kind
@@ -1098,12 +1096,44 @@ let simplify_array_load (array_kind : P.Array_kind.t)
     in
     assert (K.equal result_kind result_kind');
     let prim : P.t =
-      Binary (Array_load (array_kind, accessor_width, mutability), arg1, arg2)
+      Binary (Array_load (array_kind, accessor_width, mutability), array, index)
     in
-    let named = Named.create_prim prim dbg in
-    let ty = T.unknown (P.result_kind' prim) in
-    let dacc = DA.add_variable dacc result_var ty in
-    SPR.create named ~try_reify:false dacc
+    let[@inline] return_given_type ty ~try_reify =
+      let named = Named.create_prim prim dbg in
+      let dacc = DA.add_variable dacc result_var ty in
+      SPR.create named ~try_reify dacc
+    in
+    let[@inline] contents_unknown () =
+      return_given_type (T.unknown (P.result_kind' prim)) ~try_reify:false
+    in
+    (* CR mshinwell/vlaviron: if immutable array accesses were consistently
+       setting [mutability] to [Immutable], we could restrict the following code
+       to immutable loads only and use [T.meet_is_immutable_array] instead. *)
+    match T.prove_is_immutable_array (DA.typing_env dacc) array_ty with
+    | Unknown -> contents_unknown ()
+    | Proved (elt_kind, fields, _mode) -> (
+      match elt_kind with
+      | Unknown | Bottom -> contents_unknown ()
+      | Ok elt_kind -> (
+        if not (K.equal (K.With_subkind.kind elt_kind) result_kind)
+        then contents_unknown ()
+        else
+          match
+            T.prove_equals_tagged_immediates (DA.typing_env dacc) index_ty
+          with
+          | Unknown -> contents_unknown ()
+          | Proved imms -> (
+            match Targetint_31_63.Set.get_singleton imms with
+            | None -> contents_unknown ()
+            | Some imm ->
+              if Targetint_31_63.( < ) imm Targetint_31_63.zero
+                 || Targetint_31_63.( >= ) imm
+                      (Array.length fields |> Targetint_31_63.of_int)
+              then SPR.create_invalid dacc
+              else
+                return_given_type
+                  fields.(Targetint_31_63.to_int imm)
+                  ~try_reify:true))))
 
 let simplify_string_or_bigstring_load _string_like_value _string_accessor_width
     ~original_prim dacc ~original_term _dbg ~arg1:_ ~arg1_ty:_ ~arg2:_
