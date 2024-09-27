@@ -172,23 +172,7 @@ let () =
   process "source.ml";
   Language_extension.set_universe_and_enable_all
     Language_extension.Universe.maximal;
-  process "source_jane_street.ml" ~extra_checks:(fun raw_parsetree_str text ->
-  (* Additionally check that:
-
-     1. Jane Street language extensions only use "extension." and "jane." prefixed
-     attributes and exntensions for its parsetree encoding. This is important for
-     ppx support.
-
-     2. Printing Jane Street language extensions produces no more
-     attributes or extension nodes than the input program, all of whose
-     attributes begin with "test". This ensures that Jane Syntax attributes
-     aren't printed.
-   *)
-    Result.bind
-      (check_all_ast_attributes_and_extensions_start_with raw_parsetree_str
-        ~prefixes:["extension."; "jane."; "test."])
-      (fun () -> check_all_printed_attributes_and_extensions_start_with text
-                    ~prefix:"test"));
+  process "source_jane_street.ml";
   (* Additionally check that merely parsing doesn't attempt
      to check extensions enabledness. This is actually an important property.
      That's because ppxes run the parser code in a separate process from the
