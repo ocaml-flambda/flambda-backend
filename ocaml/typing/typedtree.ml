@@ -51,16 +51,15 @@ type _ pattern_category =
 | Computation : computation pattern_category
 
 module Unique_barrier = struct
-  type t = Mode.Uniqueness.r ref
+  type t = Mode.Uniqueness.lr
 
-  let fresh () =
-    ref (Uniqueness.max |> Uniqueness.disallow_left)
+  let fresh () = Uniqueness.newvar ()
 
   let add_upper_bound uniq barrier =
-    barrier := Uniqueness.meet [!barrier; uniq]
+    Uniqueness.submode_exn barrier uniq
 
   let resolve barrier =
-    Uniqueness.zap_to_ceil !barrier
+    Uniqueness.zap_to_ceil barrier
 end
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l

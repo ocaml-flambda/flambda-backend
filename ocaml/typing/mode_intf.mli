@@ -241,8 +241,6 @@ module type S = sig
 
     val unique : lr
 
-    val zap_to_floor : (allowed * 'r) t -> Const.t
-
     val zap_to_ceil : ('l * allowed) t -> Const.t
   end
 
