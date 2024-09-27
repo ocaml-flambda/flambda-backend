@@ -3,12 +3,18 @@
 module Name : sig
   type t = private {
     head : string;
-    args : (t * t) list;
+    args : argument list;
+  }
+  and argument = {
+    param : t;
+    value : t;
   }
 
   include Identifiable.S with type t := t
 
-  val create : string -> (t * t) list -> t
+  val create : string -> argument list -> t
+
+  val to_string : t -> string
 end
 
 (** An elaborated form of name in which all arguments are expressed, including
@@ -21,9 +27,9 @@ end
     parameterised. If someone is passing [Foo] as the value of [X], then, we
     will have (abbreviating nested records):
 
-    {v
+    {[
       { head: M; visible_args: [ X, Foo ]; hidden_args: [ Y, Y ] }
-    v}
+    ]}
 
     This represents that [X] is explicitly being given the value [Foo] and [Y]
     (the parameter) is implicitly getting the value [Y] (the argument currently
@@ -33,9 +39,9 @@ end
     two parameters [X] and [Y], but now once [X] has the value [Foo], [Y]
     requires _that particular_ [X]:
 
-    {v
+    {[
       { head: M; visible_args: [ X, Foo ]; hidden_args: [ Y, Y[X:Foo] ] }
-    v}
+    ]}
 
     Importantly, the _parameters_ [X] and [Y] never change: they are names that
     appear in [m.ml] and [m.cmi]. But further specialisation requires passing
@@ -52,6 +58,8 @@ type t = private {
 include Identifiable.S with type t := t
 
 val create : string -> (Name.t * t) list -> hidden_args:(Name.t * t) list -> t
+
+val to_string : t -> string
 
 val to_name : t -> Name.t
 

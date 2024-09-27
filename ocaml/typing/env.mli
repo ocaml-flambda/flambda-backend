@@ -476,9 +476,9 @@ val reset_cache_toplevel: unit -> unit
 val set_unit_name: Compilation_unit.t option -> unit
 val get_unit_name: unit -> Compilation_unit.t option
 
-(* Read, save a signature to/from a file *)
+(* Read, save a signature to/from a file. *)
 val read_signature:
-  Compilation_unit.Name.t -> Unit_info.Artifact.t -> add_binding:bool
+  Global_module.Name.t -> Unit_info.Artifact.t -> add_binding:bool
   -> signature
         (* Arguments: module name, file name, [add_binding] flag.
            Results: signature. If [add_binding] is true, creates an entry for
@@ -494,7 +494,7 @@ val save_signature_with_imports:
            file name, imported units with their CRCs. *)
 
 (* Register a module as a parameter to this unit. *)
-val register_parameter: Compilation_unit.Name.t -> unit
+val register_parameter: Global_module.Name.t -> unit
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
@@ -507,11 +507,11 @@ val import_crcs: source:string -> Import_info.t array -> unit
 
 (* Return the set of imports represented as runtime parameters (see
    [Persistent_env.runtime_parameters] for details) *)
-val runtime_parameters: unit -> (Compilation_unit.Name.t * Ident.t) list
+val runtime_parameters: unit -> (Global_module.Name.t * Ident.t) list
 
 (* Return the list of parameters specified for the current unit, in
    alphabetical order *)
-val parameters: unit -> Compilation_unit.Name.t list
+val parameters: unit -> Global_module.Name.t list
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
 val is_imported_opaque: Compilation_unit.Name.t -> bool
@@ -521,12 +521,11 @@ val register_import_as_opaque: Compilation_unit.Name.t -> unit
 
 (* [is_parameter_unit md] returns true if [md] was compiled with
    -as-parameter *)
-val is_parameter_unit: Compilation_unit.Name.t -> bool
+val is_parameter_unit: Global_module.Name.t -> bool
 
 (* [implemented_parameter md] is the argument given to -as-argument-for when
    [md] was compiled *)
-val implemented_parameter:
-  Compilation_unit.Name.t -> Compilation_unit.Name.t option
+val implemented_parameter: Global_module.Name.t -> Global_module.Name.t option
 
 (* Summaries -- compact representation of an environment, to be
    exported in debugging information. *)

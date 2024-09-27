@@ -2,7 +2,11 @@ module Test_data = struct
   open Global_module
 
   open struct
-    let n ?(args = []) head : Name.t = Name.create head args
+    let n ?(args = []) head : Name.t =
+      let args =
+        List.map (fun (param, value) : Name.argument -> { param; value }) args
+      in
+      Name.create head args
 
     let g ?(vis = []) ?(hid = []) head = create head vis ~hidden_args:hid
   end
