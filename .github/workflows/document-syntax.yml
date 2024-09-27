@@ -1,0 +1,29 @@
+name: Request documentation for syntax changes
+
+on:
+  pull_request:
+    paths:
+      - 'ocaml/parsing/parser.mly'
+
+jobs:
+  request-documentation-for-syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create PR Comment
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REPO=${{ github.repository }}
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          COMMENT="## Parser Change Checklist
+
+          This PR modifies the parser. Please check that the following
+          tests are updated:
+
+          - [ ] language-extensions/examples.ml
+          - [ ] language-extensions/pprintast_unconditional.ml
+
+          Both of these tests should have examples of every new bit of
+          syntax you are adding."
+
+          gh pr comment $PR_NUMBER --body "$COMMENT" --repo $REPO
