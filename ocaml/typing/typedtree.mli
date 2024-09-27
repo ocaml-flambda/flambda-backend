@@ -229,7 +229,12 @@ and exp_extra =
   | Texp_poly of core_type option
         (** Used for method bodies. *)
   | Texp_newtype of Ident.t * string loc * Jkind.annotation option * Uid.t
-        (** fun (type t : immediate) ->  *)
+        (** fun (type t : immediate) ->
+
+        The [Ident.t] and [Uid.t] fields are unused by the compiler, but Merlin needs
+        them. Merlin cannot be cleanly patched to include these fields because Merlin
+        must be able to deserialize typedtrees produced by the compiler. Thus, we include
+        them here, as the cost of tracking this additional information is minimal. *)
   | Texp_stack
         (** stack_ E *)
 
@@ -458,7 +463,12 @@ and function_param =
     (** [fp_newtypes] are the new type declarations that come *after* that
         parameter. The newtypes that come before the first parameter are
         placed as exp_extras on the Texp_function node. This is just used in
-        {!Untypeast}. *)
+        {!Untypeast}.
+
+        The [Ident.t] and [Uid.t] fields are unused by the compiler, but Merlin needs
+        them. Merlin cannot be cleanly patched to include these fields because Merlin
+        must be able to deserialize typedtrees produced by the compiler. Thus, we include
+        them here, as the cost of tracking this additional information is minimal. *)
     fp_loc: Location.t;
     (** [fp_loc] is the location of the entire value parameter, not including
         the [fp_newtypes].
