@@ -19,7 +19,7 @@
 (executables
  (names basic ops arrays scalar_ops consts)
  (modules basic ops arrays scalar_ops consts)
- (libraries simd_test_helpers)
+ (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -extension simd)))
@@ -52,7 +52,7 @@
  (enabled_if
   (and
    (= %{context_name} "main")
-   (= %{architecture} amd64)))
+   (= %{architecture} "amd64")))
  (action
   (progn
    (diff empty.expected basic.out)
@@ -92,7 +92,7 @@
   consts_nodynlink
   arrays_nodynlink
   scalar_ops_nodynlink)
- (libraries simd_test_helpers)
+ (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
  (foreign_archives stubs)
  (ocamlopt_flags
   (:standard -extension simd -nodynlink)))
@@ -133,7 +133,7 @@
  (enabled_if
   (and
    (= %{context_name} "main")
-   (= %{architecture} amd64)))
+   (= %{architecture} "amd64")))
  (action
   (progn
    (diff empty.expected basic_nodynlink.out)
@@ -182,7 +182,7 @@
   consts_internal
   arrays_internal
   scalar_ops_internal)
- (libraries simd_test_helpers)
+ (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
  (enabled_if
   (<> %{system} macosx))
  (foreign_archives stubs)
@@ -232,6 +232,7 @@
  (enabled_if
   (and
    (= %{context_name} "main")
+   (= %{architecture} "amd64")
    (<> %{system} macosx)))
  (action
   (progn

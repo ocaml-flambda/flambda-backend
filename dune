@@ -134,8 +134,6 @@
   reloadgen
   relocation_entry
   relocation_table
-  schedgen
-  scheduling
   section_table
   selectgen
   selection
@@ -177,6 +175,7 @@
   label
   linear_utils
   simplify_terminator
+  vectorize
   ;; backend/regalloc
   regalloc_gi
   regalloc_gi_state

@@ -30,9 +30,9 @@ let ignore_local : local_ 'a -> unit = fun x ->
   let _ = local_ opaque_local x in
   ()
 
-let local_some : 'a -> local_ 'a option = fun x -> local_ Some x
+let local_some : 'a -> local_ 'a option = fun x -> exclave_ Some x
 
-let run name f x = local_
+let run name f x = exclave_
   let prebefore = Gc.allocated_bytes () in
   let before = Gc.allocated_bytes () in
   let r = Sys.opaque_identity f x in
@@ -51,39 +51,39 @@ let run name f x = local_
 
 (* Testing functions *)
 
-let test_init n = local_ Iarray.init_local n local_some
+let test_init n = exclave_ Iarray.init_local n local_some
 
-let test_append (a1, a2) = local_ Iarray.append_local a1 a2
+let test_append (a1, a2) = exclave_ Iarray.append_local a1 a2
 
 let test_concat = Iarray.concat_local
 
-let test_sub a = local_ Iarray.sub_local a 0 3
+let test_sub a = exclave_ Iarray.sub_local a 0 3
 
 let test_to_list = Iarray.to_list_local
 
 let test_of_list = Iarray.of_list_local
 
-let test_map a = local_
+let test_map a = exclave_
   Iarray.map_local
-    (function Some x -> local_ Some (-x) | None -> local_ Some 0)
+    (function Some x -> exclave_ Some (-x) | None -> exclave_ Some 0)
     a
 
-let test_mapi a = local_ Iarray.mapi_local (fun i x -> local_ i, x) a
+let test_mapi a = exclave_ Iarray.mapi_local (fun i x -> exclave_ i, x) a
 
-let test_fold_left a = local_
-  Iarray.fold_left_local (fun l x -> local_ x :: l) [] a
+let test_fold_left a = exclave_
+  Iarray.fold_left_local (fun l x -> exclave_ x :: l) [] a
 
-let test_fold_left_map a = local_
-  Iarray.fold_left_map_local (fun l x -> local_ x :: l, Some x) [] a
+let test_fold_left_map a = exclave_
+  Iarray.fold_left_map_local (fun l x -> exclave_ x :: l, Some x) [] a
 
-let test_fold_right a = local_
-  Iarray.fold_right_local (fun x l -> local_ x :: l) a []
+let test_fold_right a = exclave_
+  Iarray.fold_right_local (fun x l -> exclave_ x :: l) a []
 
-let test_map2 (a1, a2) = local_ Iarray.map2_local (fun x y -> local_ x, y) a1 a2
+let test_map2 (a1, a2) = exclave_ Iarray.map2_local (fun x y -> exclave_ x, y) a1 a2
 
 let test_split = Iarray.split_local
 
-let test_combine (a1, a2) = local_ Iarray.combine_local a1 a2
+let test_combine (a1, a2) = exclave_ Iarray.combine_local a1 a2
 
 (* Run the test, keeping the values alive *)
 let () =
@@ -135,7 +135,7 @@ let () =
   in
   let local_ rC = run "split_local"
     test_split
-    (Iarray.init_local 42 (fun i -> local_ Some i, Some (-i)))
+    (Iarray.init_local 42 (fun i -> exclave_ Some i, Some (-i)))
   in
   let local_ rD = run "combine_local"
     test_combine

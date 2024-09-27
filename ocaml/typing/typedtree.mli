@@ -72,8 +72,13 @@ type unique_barrier = Mode.Uniqueness.r option
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
 
+type alloc_mode = {
+  mode : Mode.Alloc.r;
+  closure_context : Env.closure_context option;
+}
+
 type texp_field_boxing =
-  | Boxing of Mode.Alloc.r * unique_use
+  | Boxing of alloc_mode * unique_use
   (** Projection requires boxing. [unique_use] describes the usage of the
       unboxed field as argument to boxing. *)
   | Non_boxing of unique_use
@@ -207,8 +212,8 @@ and expression =
    }
 
 and exp_extra =
-  | Texp_constraint of core_type
-        (** E : T *)
+  | Texp_constraint of core_type option * Mode.Alloc.Const.Option.t
+        (** E : T @@ M *)
   | Texp_coerce of core_type option * core_type
         (** E :> T           [Texp_coerce (None, T)]
             E : T0 :> T      [Texp_coerce (Some T0, T)]
@@ -217,12 +222,8 @@ and exp_extra =
         (** Used for method bodies. *)
   | Texp_newtype of string * Jkind.annotation option
         (** fun (type t : immediate) ->  *)
-  | Texp_mode_coerce of Jane_syntax.Mode_expr.t
-        (** local_ E *)
-
-(* CR modes: Consider fusing [Texp_mode_coerce] and [Texp_constraint] when
-   the syntax changes.
-*)
+  | Texp_stack
+        (** stack_ E *)
 
 and arg_label = Types.arg_label =
   | Nolabel
@@ -259,12 +260,11 @@ and expression_desc =
   | Texp_function of
       { params : function_param list;
         body : function_body;
-        region : bool;
         ret_mode : Mode.Alloc.l;
         (* Mode where the function allocates, ie local for a function of
            type 'a -> local_ 'b, and heap for a function of type 'a -> 'b *)
         ret_sort : Jkind.sort;
-        alloc_mode : Mode.Alloc.r;
+        alloc_mode : alloc_mode;
         (* Mode at which the closure is allocated *)
         zero_alloc : Zero_alloc.t;
         (* zero-alloc attributes *)
@@ -309,7 +309,7 @@ and expression_desc =
          *)
   | Texp_try of expression * value case list
         (** try E with P1 -> E1 | ... | PN -> EN *)
-  | Texp_tuple of (string option * expression) list * Mode.Alloc.r
+  | Texp_tuple of (string option * expression) list * alloc_mode
         (** [Texp_tuple(el)] represents
             - [(E1, ..., En)]       when [el] is [(None, E1);...;(None, En)],
             - [(L1:E1, ..., Ln:En)] when [el] is [(Some L1, E1);...;(Some Ln, En)],
@@ -317,7 +317,7 @@ and expression_desc =
           *)
   | Texp_construct of
       Longident.t loc * Types.constructor_description *
-      expression list * Mode.Alloc.r option
+      expression list * alloc_mode option
         (** C                []
             C E              [E]
             C (E1, ..., En)  [E1;...;En]
@@ -326,7 +326,7 @@ and expression_desc =
             or [None] if the constructor is [Cstr_unboxed] or [Cstr_constant],
             in which case it does not need allocation.
          *)
-  | Texp_variant of label * (expression * Mode.Alloc.r) option
+  | Texp_variant of label * (expression * alloc_mode) option
         (** [alloc_mode] is the allocation mode of the variant,
             or [None] if the variant has no argument,
             in which case it does not need allocation.
@@ -335,7 +335,7 @@ and expression_desc =
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
       extended_expression : expression option;
-      alloc_mode : Mode.Alloc.r option
+      alloc_mode : alloc_mode option
     }
         (** { l1=P1; ...; ln=Pn }           (extended_expression = None)
             { E0 with l1=P1; ...; ln=Pn }   (extended_expression = Some E0)
@@ -359,7 +359,7 @@ and expression_desc =
       expression * Mode.Locality.l * Longident.t loc *
       Types.label_description * expression
     (** [alloc_mode] translates to the [modify_mode] of the record *)
-  | Texp_array of Types.mutability * Jkind.Sort.t * expression list * Mode.Alloc.r
+  | Texp_array of Types.mutability * Jkind.Sort.t * expression list * alloc_mode
   | Texp_list_comprehension of comprehension
   | Texp_array_comprehension of Types.mutability * Jkind.sort * comprehension
   | Texp_ifthenelse of expression * expression * expression option
@@ -1181,3 +1181,6 @@ val exp_is_nominal : expression -> bool
 
 (** Calculates the syntactic arity of a function based on its parameters and body. *)
 val function_arity : function_param list -> function_body -> int
+
+(** Given a declaration, return the location of the bound identifier *)
+val loc_of_decl : uid:Shape.Uid.t -> item_declaration -> string Location.loc

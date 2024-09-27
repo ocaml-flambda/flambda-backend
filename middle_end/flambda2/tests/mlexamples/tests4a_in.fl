@@ -1,7 +1,7 @@
 let $camlTests4a__first_const17 = Block 0 () in
 let code size(21)
       pr2162_3_as_int64_0 (z : imm tagged, x : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   (let untagged = %untag_imm z in

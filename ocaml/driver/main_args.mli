@@ -34,6 +34,7 @@ module type Common_options = sig
   val _extension : string -> unit
   val _no_extension : string -> unit
   val _extension_universe : string -> unit
+  val _allow_illegal_crossing : unit -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -140,8 +141,11 @@ module type Compiler_options = sig
   val _match_context_rows : int -> unit
   val _dtimings : unit -> unit
   val _dtimings_precision : int -> unit
+  val _dcounters : unit -> unit
   val _dprofile : unit -> unit
+  val _dgranularity : string -> unit
   val _dump_into_file : unit -> unit
+  val _dump_into_csv : unit -> unit
   val _dump_dir : string -> unit
 
   val _args: string -> string array

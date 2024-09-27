@@ -1,5 +1,5 @@
 (* TEST
- modules = "cstubs.c";
+ modules = "cstubs.c int_as_pointer_regions.ml int_as_pointer_regions_classic_mode.ml";
  include ocamlcommon;
  stack-allocation;
  native;
@@ -30,7 +30,7 @@ let check_not_empty name =
 
 let () = check_empty "startup"
 
-let allocate_in_current_region x = local_
+let allocate_in_current_region x = exclave_
   ignore_local (Some x);
   ()
 
@@ -40,13 +40,6 @@ external make_dumb_external_block : unit -> int = "make_dumb_external_block"
 external follow : int -> ('a [@local_opt]) = "%int_as_pointer"
 
 let ext : int = make_dumb_external_block ()
-
-let[@inline never] int_as_pointer_local x =
-  leak_in_current_region x;
-  (* The region should be preserved by the following call; hence no stack space
-     leaking *)
-  let _ = opaque_identity (follow ext) in
-  ()
 
 let[@inline never] int_as_pointer_global x =
   (* The current function region will be eliminated, because the following two
@@ -60,9 +53,22 @@ let () =
   int_as_pointer_global 42;
   check_not_empty "int_as_pointer (global)"
 
+(* The %int_as_pointer primitive acts on ghost regions in Flambda 2, with
+    stack allocation regions being unaffected.  Since an [Lregion] Lambda
+    construct translates into both a stack allocation region and a ghost
+    region, there will still be a stack allocation region present in the
+    Flambda 2 output unless the optimizer deletes it because it is unused.
+    Such deletion happens in Simplify mode but not in classic mode.
+    We cannot specify optimization levels on a per-function basis at the
+    moment, so we use separate files. *)
+
 let () =
-  int_as_pointer_local 42;
-  check_empty "int_as_pointer (local)"
+  Int_as_pointer_regions.int_as_pointer_local 42;
+  check_not_empty "int_as_pointer (local -O3)"
+
+let () =
+  Int_as_pointer_regions_classic_mode.int_as_pointer_local 42;
+  check_empty "int_as_pointer (local -Oclassic)"
 
 let[@inline never] uses_local x =
   let local_ r = ref x in
@@ -150,7 +156,7 @@ let () =
   check_empty "after inlined tailcall"
 
 
-let[@inline never] local_ret a b = local_ ref (a + b)
+let[@inline never] local_ret a b = exclave_ ref (a + b)
 let[@inline never] calls_local_ret () =
   let local_ r = (local_ret 1) 2 in
   let () = ignore_local r in
@@ -253,7 +259,7 @@ let () = check_empty "class instantiation"
 
 
 let glob = ref 0
-let[@inline never] local_fn_ret () s = local_
+let[@inline never] local_fn_ret () s = exclave_
   incr glob;
   fun x -> Gc.minor (); string_of_int x ^ s
 
@@ -261,7 +267,7 @@ let globstr = ref ""
 let unknown_fn = ref local_fn_ret
 let gpart_fn = ref (local_fn_ret ())
 let obj = ref (object
-  method local_ret s = local_
+  method local_ret s = exclave_
     incr glob;
     fun x -> Gc.minor (); string_of_int x ^ s
   end)
@@ -283,8 +289,8 @@ let () =
 
 type t = { x : int } [@@unboxed]
 let[@inline never] create_local () =
-  let local_ _extra = opaque_identity (Some (opaque_identity ())) in
-  local_ { x = opaque_identity 0 }
+  exclave_ let local_ _extra = opaque_identity (Some (opaque_identity ())) in
+  { x = opaque_identity 0 }
 let create_and_ignore () =
   let x = create_local () in
   ignore (Sys.opaque_identity x : t)

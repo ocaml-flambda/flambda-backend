@@ -184,6 +184,10 @@ module Stdlib : sig
       -> 'a t
       -> 'b t
       -> unit
+    (** Iterates over two sorted lists, calling [left_only] on those elements
+        that appear only in the left list, [right_only] on those elements
+        that appear only in the right list, and [both] on those elements that
+        appear in both. *)
 
     val merge_map
        : cmp:('a -> 'b -> int)
@@ -193,6 +197,7 @@ module Stdlib : sig
       -> 'a t
       -> 'b t
       -> 'c t
+    (** Like [merge_iter] but produces an output list. *)
   end
 
 (** {2 Extensions to the Option module} *)
@@ -269,6 +274,8 @@ module Stdlib : sig
 
     val starts_with : prefix:string -> string -> bool
     val ends_with : suffix:string -> string -> bool
+
+    val is_substring : string -> substring:string -> bool
   end
 
   module Int : sig

@@ -79,16 +79,6 @@ let region = Region
 
 let rec_info = Rec_info
 
-let from_lambda_flat_element (elt : Lambda.flat_element) =
-  match elt with
-  | Imm -> Value
-  | Float_boxed -> Naked_number Naked_float
-  | Float64 -> Naked_number Naked_float
-  | Float32 -> Naked_number Naked_float32
-  | Bits32 -> Naked_number Naked_int32
-  | Bits64 -> Naked_number Naked_int64
-  | Word -> Naked_number Naked_nativeint
-
 let to_lambda (t : t) : Lambda.layout =
   match t with
   | Value -> Pvalue Pgenval
@@ -173,108 +163,186 @@ let is_naked_float t =
   | Region | Rec_info ->
     false
 
+type flat_suffix_element =
+  | Tagged_immediate
+  | Naked_float
+  | Naked_float32
+  | Naked_int32
+  | Naked_int64
+  | Naked_nativeint
+
+module Flat_suffix_element0 = struct
+  type t = flat_suffix_element
+
+  let kind t =
+    match t with
+    | Tagged_immediate -> value
+    | Naked_float -> naked_float
+    | Naked_float32 -> naked_float32
+    | Naked_int32 -> naked_int32
+    | Naked_int64 -> naked_int64
+    | Naked_nativeint -> naked_nativeint
+
+  let naked_float = Naked_float
+
+  let compare = Stdlib.compare
+
+  let equal = Stdlib.( = )
+
+  let print ppf t =
+    match t with
+    | Tagged_immediate -> Format.pp_print_string ppf "Tagged_immediate"
+    | Naked_float -> Format.pp_print_string ppf "Naked_float"
+    | Naked_float32 -> Format.pp_print_string ppf "Naked_float32"
+    | Naked_int32 -> Format.pp_print_string ppf "Naked_int32"
+    | Naked_int64 -> Format.pp_print_string ppf "Naked_int64"
+    | Naked_nativeint -> Format.pp_print_string ppf "Naked_nativeint"
+
+  let from_lambda (elt : Lambda.flat_element) =
+    match elt with
+    | Imm -> Tagged_immediate
+    | Float_boxed | Float64 -> Naked_float
+    | Float32 -> Naked_float32
+    | Bits32 -> Naked_int32
+    | Bits64 -> Naked_int64
+    | Word -> Naked_nativeint
+end
+
 module Mixed_block_shape = struct
   type kind = t
 
   type t =
-    { fields : kind array;
-      (* For compiling to Cmm, we need the lambda shape. We also use it to know
-         the value prefix length. *)
-      lambda_shape : Lambda.mixed_block_shape
+    { value_prefix_size : int;
+      flat_suffix : Flat_suffix_element0.t array;
+      field_kinds : kind array
+          (* [field_kinds] is uniquely determined by [flat_suffix]. The kinds
+             are the thing used during most of Flambda 2, but the [flat_suffix]
+             is required for compilation to Cmm. We could also use a kind with
+             subkind, but that would require significant restructuring in this
+             file, and would provide an overly-permissive type in the face of
+             the various restrictions as to what suffix elements are
+             permitted. *)
     }
 
-  let field_kinds { fields; lambda_shape = _ } = fields
+  let value_prefix_size t = t.value_prefix_size
 
-  let value_prefix_size { fields = _; lambda_shape } =
-    lambda_shape.value_prefix_len
+  let flat_suffix t = t.flat_suffix
+
+  let field_kinds t = t.field_kinds
 
   (* This function has two meanings. The first is to say whether two shapes are
-     equivalent (which is why the lambda shape is not compared directly). The
-     second is to tell whether two shapes are compatible. Currently this matches
-     with equivalence, but if we introduce subkinds this will have to be split
-     into two functions. *)
-  let equal t1 t2 =
-    Int.equal t1.lambda_shape.value_prefix_len t2.lambda_shape.value_prefix_len
-    && Int.equal (Array.length t1.fields) (Array.length t2.fields)
-    && Array.for_all2 equal t1.fields t2.fields
+     equivalent. The second is to tell whether two shapes are compatible.
+     Currently this matches with equivalence, but if we introduce subkinds this
+     will have to be split into two functions. *)
+  let equal
+      { value_prefix_size = value_prefix_size1;
+        flat_suffix = flat_suffix1;
+        field_kinds = _
+      }
+      { value_prefix_size = value_prefix_size2;
+        flat_suffix = flat_suffix2;
+        field_kinds = _
+      } =
+    Int.equal value_prefix_size1 value_prefix_size2
+    && Int.equal (Array.length flat_suffix1) (Array.length flat_suffix2)
+    && Array.for_all2 Flat_suffix_element0.equal flat_suffix1 flat_suffix2
 
-  let compare t1 t2 =
-    let c =
-      Int.compare t1.lambda_shape.value_prefix_len
-        t2.lambda_shape.value_prefix_len
-    in
+  let print ppf t =
+    Format.fprintf ppf "@[<hov 1>((fields@ %a)@ (value_prefix_size@ %d))@]"
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space
+         Flat_suffix_element0.print)
+      (Array.to_list t.flat_suffix)
+      t.value_prefix_size
+
+  let compare
+      { value_prefix_size = value_prefix_size1;
+        flat_suffix = flat_suffix1;
+        field_kinds = _
+      }
+      { value_prefix_size = value_prefix_size2;
+        flat_suffix = flat_suffix2;
+        field_kinds = _
+      } =
+    let c = Int.compare value_prefix_size1 value_prefix_size2 in
     if c <> 0
     then c
     else
-      let length1 = Array.length t1.fields in
-      let length2 = Array.length t2.fields in
-      let c = Int.compare length1 length2 in
-      if c <> 0
-      then c
-      else
-        let exception Result of int in
-        try
-          for i = 0 to length1 - 1 do
-            let c = compare t1.fields.(i) t2.fields.(i) in
-            if c <> 0 then raise_notrace (Result c)
-          done;
-          0
-        with Result c -> c
+      Misc.Stdlib.Array.compare Flat_suffix_element0.compare flat_suffix1
+        flat_suffix2
 
-  let from_lambda (shape : Lambda.mixed_block_shape) =
-    let value_prefix_shape =
-      List.init shape.value_prefix_len (fun _ -> Value)
-    in
-    let flat_suffix_shape =
-      List.map from_lambda_flat_element (Array.to_list shape.flat_suffix)
-    in
-    { fields = Array.of_list (value_prefix_shape @ flat_suffix_shape);
-      lambda_shape = shape
+  let from_lambda ({ value_prefix_len; flat_suffix } : Lambda.mixed_block_shape)
+      =
+    let value_prefix_kinds = Array.init value_prefix_len (fun _ -> value) in
+    let flat_suffix = Array.map Flat_suffix_element0.from_lambda flat_suffix in
+    let flat_suffix_kinds = Array.map Flat_suffix_element0.kind flat_suffix in
+    { flat_suffix;
+      value_prefix_size = value_prefix_len;
+      field_kinds = Array.concat [value_prefix_kinds; flat_suffix_kinds]
     }
+end
 
-  let to_lambda { fields = _; lambda_shape } = lambda_shape
+module Scannable_block_shape = struct
+  type t =
+    | Value_only
+    | Mixed_record of Mixed_block_shape.t
+
+  (* Some users rely on shapes not being compatible if they're not equal. *)
+  let equal t1 t2 =
+    match t1, t2 with
+    | Value_only, Value_only -> true
+    | Mixed_record t1, Mixed_record t2 -> Mixed_block_shape.equal t1 t2
+    | (Value_only | Mixed_record _), _ -> false
+
+  let compare t1 t2 =
+    match t1, t2 with
+    | Value_only, Value_only -> 0
+    | Value_only, _ -> -1
+    | _, Value_only -> 1
+    | Mixed_record kinds1, Mixed_record kinds2 ->
+      Mixed_block_shape.compare kinds1 kinds2
+
+  let print ppf t =
+    match t with
+    | Value_only -> Format.fprintf ppf "Value_only"
+    | Mixed_record mixed ->
+      Format.fprintf ppf "(Mixed_record@ %a)" Mixed_block_shape.print mixed
+
+  let element_kind t index =
+    match t with
+    | Value_only -> Value
+    | Mixed_record t -> (Mixed_block_shape.field_kinds t).(index)
 end
 
 module Block_shape = struct
   type t =
-    | Value_only
+    | Scannable of Scannable_block_shape.t
     | Float_record
-    | Mixed_record of Mixed_block_shape.t
 
-  (* Some users rely on shapes not being compatible if they're not equal. *)
-  let equal shape1 shape2 =
-    match shape1, shape2 with
-    | Value_only, Value_only -> true
+  let equal t1 t2 =
+    match t1, t2 with
+    | Scannable shape1, Scannable shape2 ->
+      Scannable_block_shape.equal shape1 shape2
     | Float_record, Float_record -> true
-    | Mixed_record shape1, Mixed_record shape2 ->
-      Mixed_block_shape.equal shape1 shape2
-    | (Value_only | Float_record | Mixed_record _), _ -> false
+    | (Scannable _ | Float_record), _ -> false
 
-  let compare shape1 shape2 =
-    match shape1, shape2 with
-    | Value_only, Value_only -> 0
-    | Value_only, _ -> -1
-    | _, Value_only -> 1
+  let compare t1 t2 =
+    match t1, t2 with
+    | Scannable shape1, Scannable shape2 ->
+      Scannable_block_shape.compare shape1 shape2
+    | Scannable _, Float_record -> -1
+    | Float_record, Scannable _ -> 1
     | Float_record, Float_record -> 0
-    | Float_record, _ -> -1
-    | _, Float_record -> 1
-    | Mixed_record kinds1, Mixed_record kinds2 ->
-      Mixed_block_shape.compare kinds1 kinds2
 
-  let print ppf shape =
-    match shape with
-    | Value_only -> Format.fprintf ppf "Values"
-    | Float_record -> Format.fprintf ppf "Floats"
-    | Mixed_record { fields; lambda_shape = _ } ->
-      Format.fprintf ppf "Mixed@ (@[<h>";
-      Array.iter (fun k -> Format.fprintf ppf "%a@ " print k) fields;
-      Format.fprintf ppf "@])"
+  let print ppf t =
+    match t with
+    | Scannable shape ->
+      Format.fprintf ppf "(Scannable@ %a)" Scannable_block_shape.print shape
+    | Float_record -> Format.fprintf ppf "Float_record"
 
-  let element_kind shape index =
-    match shape with
-    | Value_only -> Value
+  let element_kind t index =
+    match t with
+    | Scannable shape -> Scannable_block_shape.element_kind shape index
     | Float_record -> Naked_number Naked_float
-    | Mixed_record shape -> (Mixed_block_shape.field_kinds shape).(index)
 end
 
 module Standard_int = struct
@@ -329,6 +397,14 @@ module Standard_int_or_float = struct
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
+
+  let of_standard_int (t : Standard_int.t) : t =
+    match t with
+    | Tagged_immediate -> Tagged_immediate
+    | Naked_immediate -> Naked_immediate
+    | Naked_int32 -> Naked_int32
+    | Naked_int64 -> Naked_int64
+    | Naked_nativeint -> Naked_nativeint
 
   let to_kind t : kind =
     match t with
@@ -696,7 +772,8 @@ module With_subkind = struct
         (Variant
            { consts = Targetint_31_63.Set.empty;
              non_consts =
-               Tag.Scannable.Map.singleton tag (Block_shape.Value_only, fields)
+               Tag.Scannable.Map.singleton tag
+                 (Block_shape.Scannable Value_only, fields)
            })
     | None -> Misc.fatal_errorf "Tag %a is not scannable" Tag.print tag
 
@@ -729,6 +806,12 @@ module With_subkind = struct
     | Naked_int64 -> boxed_int64
     | Naked_nativeint -> boxed_nativeint
     | Naked_vec128 -> boxed_vec128
+
+  let of_flat_suffix_element elt =
+    create (Flat_suffix_element0.kind elt) Anything
+
+  let of_lambda_flat_element_kind elt =
+    Flat_suffix_element0.from_lambda elt |> of_flat_suffix_element
 
   let rec from_lambda_value_kind (vk : Lambda.value_kind) =
     match vk with
@@ -763,39 +846,24 @@ module With_subkind = struct
             (fun non_consts (tag, shape) ->
               match Tag.Scannable.create tag with
               | Some tag ->
-                let shape_and_fields =
+                let shape_and_fields : Block_shape.t * _ =
+                  (* CR mshinwell/vlaviron: In both of these cases it would be
+                     nice to propagate immediacy information. *)
                   match (shape : Lambda.constructor_shape) with
                   | Constructor_uniform fields ->
-                    ( Block_shape.Value_only,
-                      List.map from_lambda_value_kind fields )
+                    Scannable Value_only, List.map from_lambda_value_kind fields
                   | Constructor_mixed { value_prefix; flat_suffix } ->
-                    let lambda_shape : Lambda.mixed_block_shape =
-                      { value_prefix_len = List.length value_prefix;
-                        flat_suffix = Array.of_list flat_suffix
-                      }
+                    let mixed_block_shape =
+                      Mixed_block_shape.from_lambda
+                        { value_prefix_len = List.length value_prefix;
+                          flat_suffix = Array.of_list flat_suffix
+                        }
                     in
                     let fields =
-                      let flat_element_kind (elt : Lambda.flat_element) =
-                        match elt with
-                        | Imm -> tagged_immediate
-                        | Float_boxed -> naked_float
-                        | Float64 -> naked_float
-                        | Float32 -> naked_float32
-                        | Bits32 -> naked_int32
-                        | Bits64 -> naked_int64
-                        | Word -> naked_nativeint
-                      in
-                      let prefix =
-                        List.map from_lambda_value_kind value_prefix
-                      in
-                      let suffix = List.map flat_element_kind flat_suffix in
-                      prefix @ suffix
+                      List.map from_lambda_value_kind value_prefix
+                      @ List.map of_lambda_flat_element_kind flat_suffix
                     in
-                    let shape =
-                      Block_shape.Mixed_record
-                        (Mixed_block_shape.from_lambda lambda_shape)
-                    in
-                    shape, fields
+                    Scannable (Mixed_record mixed_block_shape), fields
                 in
                 Tag.Scannable.Map.add tag shape_and_fields non_consts
               | None ->
@@ -868,4 +936,17 @@ module With_subkind = struct
   let erase_subkind (t : t) : t = { t with subkind = Anything }
 
   let equal_ignoring_subkind t1 t2 = equal (erase_subkind t1) (erase_subkind t2)
+end
+
+module Flat_suffix_element = struct
+  include Flat_suffix_element0
+
+  let to_kind_with_subkind t =
+    match t with
+    | Tagged_immediate -> With_subkind.tagged_immediate
+    | Naked_float -> With_subkind.naked_float
+    | Naked_float32 -> With_subkind.naked_float32
+    | Naked_int32 -> With_subkind.naked_int32
+    | Naked_int64 -> With_subkind.naked_int64
+    | Naked_nativeint -> With_subkind.naked_nativeint
 end

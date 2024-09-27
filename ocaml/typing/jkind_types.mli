@@ -107,17 +107,39 @@ module Layout : sig
   type t = Sort.t layout
 end
 
+module type Axis = sig
+  type t
+
+  val max : t
+
+  val min : t
+
+  val equal : t -> t -> bool
+
+  val less_or_equal : t -> t -> Misc.Le_result.t
+
+  val le : t -> t -> bool
+
+  val meet : t -> t -> t
+
+  val print : Format.formatter -> t -> unit
+end
+
 module Externality : sig
   type t =
     | External
     | External64
     | Internal
+
+  include Axis with type t := t
 end
 
 module Nullability : sig
   type t =
     | Non_null
     | Maybe_null
+
+  include Axis with type t := t
 end
 
 module Modes = Mode.Alloc.Const
@@ -147,6 +169,7 @@ type 'type_expr t =
     has_warned : bool
   }
 
+(** CR layouts v2.8: remove this when printing is improved *)
 module Const : sig
   type 'type_expr t =
     { layout : Layout.Const.t;
@@ -156,4 +179,5 @@ module Const : sig
     }
 end
 
+(** CR layouts v2.8: remove this when printing is improved *)
 type 'type_expr annotation = 'type_expr Const.t * Jane_syntax.Jkind.annotation

@@ -16,6 +16,8 @@
     this module, unlike the ones in [Cmm_helpers], depend on Flambda 2 data
     types. *)
 
+val const_static : Reg_width_const.t -> Cmm.data_item list
+
 val remove_skipped_params :
   (Backend_var.With_provenance.t * Cmm.machtype To_cmm_env.param_type) list ->
   (Backend_var.With_provenance.t * Cmm.machtype) list

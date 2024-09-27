@@ -12,7 +12,7 @@ type _ t =
   | Layouts : maturity t
   | SIMD : unit t
   | Labeled_tuples : unit t
-  | Small_numbers : unit t
+  | Small_numbers : maturity t
   | Instances : unit t
 
 type 'a language_extension_kernel = 'a t
@@ -75,7 +75,8 @@ let pair_of_string extn_name : Exist_pair.t option =
   | "layouts_beta" -> Some (Pair (Layouts, Beta))
   | "simd" -> Some (Pair (SIMD, ()))
   | "labeled_tuples" -> Some (Pair (Labeled_tuples, ()))
-  | "small_numbers" -> Some (Pair (Small_numbers, ()))
+  | "small_numbers" -> Some (Pair (Small_numbers, Stable))
+  | "small_numbers_beta" -> Some (Pair (Small_numbers, Beta))
   | "instances" -> Some (Pair (Instances, ()))
   | _ -> None
 

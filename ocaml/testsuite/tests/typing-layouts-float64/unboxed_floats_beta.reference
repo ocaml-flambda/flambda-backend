@@ -124,6 +124,45 @@ Test 17, record update and mutation:
   d: 25.00
   e: -6
   f: -27.10
+Test 17.1, construction:
+  a: 3.17
+  b: 13
+  c: 7.31
+  d: 1.41
+  e: 6
+  f: 27.10
+  a: -3.17
+  b: -13
+  c: -7.31
+  d: -1.41
+  e: -6
+  f: -27.10
+Test 17.1, matching and projection:
+  a: -6.00
+  b: -4
+  c: 0.00
+  d: 14.41
+  e: 21
+  f: -27.10
+Test 17.1, variant update and mutation:
+  a: 3.17
+  b: 13
+  c: 7.31
+  d: 42.00
+  e: 6
+  f: -7.31
+  a: -3.17
+  b: 17
+  c: -7.31
+  d: -1.41
+  e: -6
+  f: -27.10
+  a: -3.17
+  b: 4
+  c: 42.00
+  d: 25.00
+  e: -6
+  f: -27.10
 Test 18, (float#+imm) records in recursive groups:
   a: 1.10
   b: 2

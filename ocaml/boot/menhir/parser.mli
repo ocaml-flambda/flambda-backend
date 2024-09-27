@@ -19,6 +19,7 @@ type token =
   | STRUCT
   | STRING of (string * Location.t * string option)
   | STAR
+  | STACK
   | SIG
   | SEMISEMI
   | SEMI

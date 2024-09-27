@@ -28,6 +28,7 @@ let run ~cmx_loader ~round ~code_slot_offsets unit =
   let return_continuation = FU.return_continuation unit in
   let exn_continuation = FU.exn_continuation unit in
   let toplevel_my_region = FU.toplevel_my_region unit in
+  let toplevel_my_ghost_region = FU.toplevel_my_ghost_region unit in
   let module_symbol = FU.module_symbol unit in
   let resolver = Flambda_cmx.load_cmx_file_contents cmx_loader in
   let get_imported_names = Flambda_cmx.get_imported_names cmx_loader in
@@ -37,6 +38,7 @@ let run ~cmx_loader ~round ~code_slot_offsets unit =
       ~propagating_float_consts:(Flambda_features.float_const_prop ())
       ~unit_toplevel_return_continuation:return_continuation
       ~unit_toplevel_exn_continuation:exn_continuation ~toplevel_my_region
+      ~toplevel_my_ghost_region
   in
   (* CR gbury: only compute closure offsets if this is the last round. (same
      remark for the cmx contents) *)
@@ -104,6 +106,7 @@ let run ~cmx_loader ~round ~code_slot_offsets unit =
   in
   let unit =
     FU.create ~return_continuation ~exn_continuation ~toplevel_my_region
-      ~module_symbol ~body ~used_value_slots:(Known used_value_slots)
+      ~toplevel_my_ghost_region ~module_symbol ~body
+      ~used_value_slots:(Known used_value_slots)
   in
   { cmx; unit; all_code; exported_offsets; reachable_names }

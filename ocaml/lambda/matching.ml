@@ -2163,11 +2163,11 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       let access, sort, layout =
         match lbl.lbl_repres with
         | Record_boxed _
-        | Record_inlined (_, Variant_boxed _) ->
+        | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
             Lprim (Pfield (lbl.lbl_pos, ptr, sem), [ arg ], loc),
             lbl_sort, lbl_layout
         | Record_unboxed
-        | Record_inlined (_, Variant_unboxed) -> arg, sort, layout
+        | Record_inlined (_, _, Variant_unboxed) -> arg, sort, layout
         | Record_float ->
            (* TODO: could optimise to Alloc_local sometimes *)
            Lprim (Pfloatfield (lbl.lbl_pos, sem, alloc_heap), [ arg ], loc),
@@ -2177,10 +2177,18 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
            Lprim (Pufloatfield (lbl.lbl_pos, sem), [ arg ], loc),
            (* Here we are projecting an unboxed float from a float record. *)
            lbl_sort, lbl_layout
-        | Record_inlined (_, Variant_extensible) ->
+        | Record_inlined (_, Constructor_uniform_value, Variant_extensible) ->
             Lprim (Pfield (lbl.lbl_pos + 1, ptr, sem), [ arg ], loc),
             lbl_sort, lbl_layout
-        | Record_mixed { value_prefix_len; flat_suffix } ->
+        | Record_inlined (_, Constructor_mixed _, Variant_extensible) ->
+            (* CR layouts v5.9: support this *)
+            fatal_error
+              "Mixed inlined records not supported for extensible variants"
+        | Record_inlined (_, Constructor_mixed shape, Variant_boxed _)
+        | Record_mixed shape ->
+            let ({ value_prefix_len; flat_suffix } : mixed_product_shape) =
+              shape
+            in
             let read =
               if pos < value_prefix_len then Mread_value_prefix ptr
               else

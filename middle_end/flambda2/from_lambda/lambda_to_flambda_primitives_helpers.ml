@@ -112,9 +112,11 @@ let register_invalid_argument ~register_const0 acc error_text =
     in
     symbol_for_prim invalid_argument
   in
+  let dbg = Debuginfo.none in
   register_const0 acc
-    (Static_const.block Tag.Scannable.zero Immutable
-       [Symbol invalid_argument; Symbol error_text])
+    (Static_const.block Tag.Scannable.zero Immutable Value_only
+       [ Simple.With_debuginfo.create (Simple.symbol invalid_argument) dbg;
+         Simple.With_debuginfo.create (Simple.symbol error_text) dbg ])
     "block"
 
 let expression_for_failure acc exn_cont ~register_const0 primitive dbg

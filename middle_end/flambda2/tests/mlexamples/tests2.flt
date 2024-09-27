@@ -1,7 +1,7 @@
 let $camlTests2__first_const19 = Block 0 () in
 let code rec size(24)
       f_0 (x : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let next_depth = rec_info (succ my_depth) in
@@ -37,7 +37,7 @@ let $camlTests2__f_1 =
   closure f_0_1 @f
 and code rec loopify(never) size(21) newer_version_of(f_0)
       f_0_1 (x : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   let prim = %int_comp x > 0 in

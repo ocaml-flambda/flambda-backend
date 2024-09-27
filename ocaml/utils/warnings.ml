@@ -123,6 +123,7 @@ type t =
   | Probe_name_too_long of string           (* 190 *)
   | Unchecked_zero_alloc_attribute          (* 199 *)
   | Unboxing_impossible                     (* 210 *)
+  | Mod_by_top of string                    (* 211 *)
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
    the numbers of existing warnings.
@@ -210,6 +211,7 @@ let number = function
   | Probe_name_too_long _ -> 190
   | Unchecked_zero_alloc_attribute -> 199
   | Unboxing_impossible -> 210
+  | Mod_by_top _ -> 211
 ;;
 (* DO NOT REMOVE the ;; above: it is used by
    the testsuite/ests/warnings/mnemonics.mll test to determine where
@@ -580,6 +582,10 @@ let descriptions = [
   { number = 210;
     names = ["unboxing-impossible"];
     description = "The parameter or return value corresponding @unboxed attribute cannot be unboxed.";
+    since = since 4 14 };
+  { number = 211;
+    names = ["mod-by-top"];
+    description = "Including the top-most element of an axis in a kind's modifiers is a no-op.";
     since = since 4 14 };
 ]
 
@@ -1217,6 +1223,11 @@ let message = function
       Printf.sprintf
         "This [@unboxed] attribute cannot be used.\n\
          The type of this value does not allow unboxing."
+  | Mod_by_top modifier ->
+      Printf.sprintf
+        "%s is the top-most modifier.\n\
+         Modifying by a top element is a no-op."
+        modifier
 ;;
 
 let nerrors = ref 0

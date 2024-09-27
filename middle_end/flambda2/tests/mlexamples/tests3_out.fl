@@ -6,7 +6,7 @@ let code foo_0 deleted in
 let code f_1 deleted in
 let code loopify(never) size(65) newer_version_of(foo_0)
       foo_0_1 (arr : any array, f, i : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   (let prim = %array_length arr in
@@ -44,7 +44,7 @@ in
 let $camlTests3__foo_2 = closure foo_0_1 @foo in
 let code loopify(never) size(33) newer_version_of(f_1)
       f_1_1 (c : imm tagged, m, n, x' : imm tagged, y' : imm tagged)
-        my_closure my_region my_depth
+        my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
   (let prim = %int_comp c < 0 in

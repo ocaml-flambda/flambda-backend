@@ -110,7 +110,7 @@ let rec add_type bv ty =
   match ty.ptyp_desc with
     Ptyp_any -> ()
   | Ptyp_var _ -> ()
-  | Ptyp_arrow(_, t1, t2) -> add_type bv t1; add_type bv t2
+  | Ptyp_arrow(_, t1, t2, _, _) -> add_type bv t1; add_type bv t2
   | Ptyp_tuple tl -> List.iter (add_type bv) tl
   | Ptyp_constr(c, tl) -> add bv c; List.iter (add_type bv) tl
   | Ptyp_object (fl, _) ->
@@ -227,7 +227,9 @@ let rec add_pattern bv pat =
       List.iter (fun (lbl, p) -> add bv lbl; add_pattern bv p) pl
   | Ppat_array pl -> List.iter (add_pattern bv) pl
   | Ppat_or(p1, p2) -> add_pattern bv p1; add_pattern bv p2
-  | Ppat_constraint(p, ty) -> add_pattern bv p; add_type bv ty
+  | Ppat_constraint(p, ty, _) ->
+      add_pattern bv p;
+      Option.iter (fun ty -> add_type bv ty) ty;
   | Ppat_variant(_, op) -> add_opt add_pattern bv op
   | Ppat_type li -> add bv li
   | Ppat_lazy p -> add_pattern bv p
@@ -258,10 +260,10 @@ let rec add_expr bv exp =
   | Pexp_constant _ -> add_constant
   | Pexp_let(rf, pel, e) ->
       let bv = add_bindings rf bv pel in add_expr bv e
-  | Pexp_fun (_, opte, p, e) ->
-      add_opt add_expr bv opte; add_expr (add_pattern bv p) e
-  | Pexp_function pel ->
-      add_cases bv pel
+  | Pexp_function (params, constraint_, body) ->
+      let bv = List.fold_left add_function_param bv params in
+      add_opt add_function_constraint bv constraint_;
+      add_function_body bv body
   | Pexp_apply(e, el) ->
       add_expr bv e; List.iter (fun (_,e) -> add_expr bv e) el
   | Pexp_match(e, pel) -> add_expr bv e; add_cases bv pel
@@ -285,9 +287,9 @@ let rec add_expr bv exp =
       add_expr bv e1;
       add_opt add_type bv oty2;
       add_type bv ty3
-  | Pexp_constraint(e1, ty2) ->
+  | Pexp_constraint(e1, ty2, _) ->
       add_expr bv e1;
-      add_type bv ty2
+      Option.iter (add_type bv) ty2
   | Pexp_send(e, _m) -> add_expr bv e
   | Pexp_new li -> add bv li
   | Pexp_setinstvar(_v, e) -> add_expr bv e
@@ -328,19 +330,14 @@ let rec add_expr bv exp =
       | Ok { arg; _ } -> add_expr bv arg
       end
   | Pexp_extension e -> handle_extension e
+  | Pexp_stack e -> add_expr bv e
   | Pexp_unreachable -> ()
 
 and add_expr_jane_syntax bv : Jane_syntax.Expression.t -> _ = function
   | Jexp_comprehension x -> add_comprehension_expr bv x
   | Jexp_immutable_array x -> add_immutable_array_expr bv x
   | Jexp_layout x -> add_layout_expr bv x
-  | Jexp_n_ary_function n_ary -> add_n_ary_function bv n_ary
   | Jexp_tuple x -> add_labeled_tuple_expr bv x
-  | Jexp_modes x -> add_modes_expr bv x
-
-and add_modes_expr bv : Jane_syntax.Modes.expression -> _ =
-  function
-  | Coerce (_modes, exp) -> add_expr bv exp
 
 and add_comprehension_expr bv : Jane_syntax.Comprehensions.expression -> _ =
   function
@@ -385,42 +382,30 @@ and add_layout_expr bv : Jane_syntax.Layouts.expression -> _ = function
     add_jkind bv jkind;
     add_expr bv inner_expr
 
-and add_n_ary_function bv : Jane_syntax.N_ary_functions.expression -> _ =
-  fun (params, constraint_, body) ->
-    let bv = List.fold_left add_function_param bv params in
-    add_opt add_function_constraint bv constraint_;
-    add_function_body bv body
-
-and add_function_param bv : Jane_syntax.N_ary_functions.function_param -> _ =
-  fun { pparam_desc } ->
-    match pparam_desc with
-    | Pparam_val (_, opte, pat) ->
-      add_opt add_expr bv opte;
-      add_pattern bv pat
-    | Pparam_newtype _ -> bv
-
-and add_function_body bv : Jane_syntax.N_ary_functions.function_body -> _ =
-  function
-  | Pfunction_body e ->
-    add_expr bv e
-  | Pfunction_cases (cases, _, _) ->
-    add_cases bv cases
-
-and add_function_constraint bv
-    : Jane_syntax.N_ary_functions.function_constraint -> _ =
-  (* Enable warning 9 to ensure that the record pattern doesn't miss any field.
-  *)
-  fun[@ocaml.warning "+9"] { mode_annotations = _; type_constraint } ->
-    match type_constraint with
-    | Pconstraint ty ->
-      add_type bv ty
-    | Pcoerce (ty1, ty2) ->
-      add_opt add_type bv ty1;
-      add_type bv ty2
-
 and add_labeled_tuple_expr bv : Jane_syntax.Labeled_tuples.expression -> _ =
   function el -> List.iter (add_expr bv) (List.map snd el)
 
+and add_function_param bv param =
+  match param.pparam_desc with
+  | Pparam_val (_, opte, pat) ->
+      add_opt add_expr bv opte;
+      add_pattern bv pat
+  | Pparam_newtype _ -> bv
+
+and add_function_body bv body =
+  match body with
+  | Pfunction_body e ->
+      add_expr bv e
+  | Pfunction_cases (cases, _, _) ->
+      add_cases bv cases
+
+and add_function_constraint bv { mode_annotations = _; type_constraint } =
+  match type_constraint with
+  | Pconstraint ty ->
+      add_type bv ty
+  | Pcoerce (ty1, ty2) ->
+      add_opt add_type bv ty1;
+      add_type bv ty2
 and add_cases bv cases =
   List.iter (add_case bv) cases
 

@@ -91,9 +91,8 @@ let build : State.t -> Cfg_with_infos.t -> unit =
         let live = Cfg_dataflow.Instr.Tbl.find liveness first_id in
         Reg.Set.iter
           (fun reg1 ->
-            Array.iter
-              (filter_fp (Proc.destroyed_at_raise ()))
-              ~f:(fun reg2 -> State.add_edge state reg1 reg2))
+            Array.iter (filter_fp Proc.destroyed_at_raise) ~f:(fun reg2 ->
+                State.add_edge state reg1 reg2))
           (Reg.Set.remove Proc.loc_exn_bucket live.before))
 
 let make_work_list : State.t -> unit =
@@ -258,9 +257,9 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
     (* This is the "heuristics" from the IRC paper: pick any candidate, just try
        to avoid any of the temporaries introduces for spilling. *)
     let spill_work_list = State.spill_work_list state in
-    let introduced_temporaries = State.introduced_temporaries state in
     match
-      Reg.Set.choose_opt (Reg.Set.diff spill_work_list introduced_temporaries)
+      Reg.Set.choose_opt
+        (State.diff_all_introduced_temporaries state spill_work_list)
     with
     | Some reg -> reg
     | None -> (
@@ -281,7 +280,7 @@ let select_spilling_register_using_heuristics : State.t -> Reg.t =
       (* note: while this magic constant is questionable, it is key to not favor
          the introduced temporaries which, by construct, have very few
          occurrences. *)
-      +. if State.mem_introduced_temporaries state reg then 10_000. else 0.
+      +. if State.mem_inst_temporaries state reg then 10_000. else 0.
     in
     match State.is_empty_spill_work_list state with
     | true -> fatal "spill_work_list is empty"
@@ -390,27 +389,29 @@ let rewrite :
     Cfg_with_infos.t ->
     spilled_nodes:Reg.t list ->
     reset:bool ->
+    block_temporaries:bool ->
     bool =
- fun state cfg_with_infos ~spilled_nodes ~reset ->
-  let new_temporaries, block_inserted =
+ fun state cfg_with_infos ~spilled_nodes ~reset ~block_temporaries ->
+  let new_inst_temporaries, new_block_temporaries, block_inserted =
     Regalloc_rewrite.rewrite_gen
       (module State)
       (module Utils)
-      state cfg_with_infos ~spilled_nodes
+      state cfg_with_infos ~spilled_nodes ~block_temporaries
   in
-  if new_temporaries <> []
-  then Cfg_with_infos.invalidate_liveness cfg_with_infos;
   if block_inserted
   then Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos;
-  match new_temporaries, reset with
-  | [], _ -> false
-  | _ :: _, true ->
-    State.reset state ~new_temporaries;
-    true
-  | _ :: _, false ->
-    State.add_introduced_temporaries_list state new_temporaries;
-    State.clear_spilled_nodes state;
-    State.add_initial_list state new_temporaries;
+  match new_inst_temporaries, new_block_temporaries with
+  | [], [] -> false
+  | _ ->
+    (Cfg_with_infos.invalidate_liveness cfg_with_infos;
+     State.add_inst_temporaries_list state new_inst_temporaries;
+     State.add_block_temporaries_list state new_block_temporaries;
+     match reset with
+     | true -> State.reset state ~new_inst_temporaries ~new_block_temporaries
+     | false ->
+       State.clear_spilled_nodes state;
+       State.add_initial_list state new_block_temporaries;
+       State.add_initial_list state new_inst_temporaries);
     true
 
 (* CR xclerc for xclerc: could probably be lower; the compiler distribution
@@ -490,7 +491,10 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
     then
       List.iter spilled_nodes ~f:(fun reg ->
           log ~indent:1 "/!\\ register %a needs to be spilled" Printmach.reg reg);
-    match rewrite state cfg_with_infos ~spilled_nodes ~reset:true with
+    match
+      rewrite state cfg_with_infos ~spilled_nodes ~reset:true
+        ~block_temporaries:(round = 1)
+    with
     | false -> if irc_debug then log ~indent:1 "(end of main)"
     | true ->
       State.invariant state;
@@ -524,7 +528,10 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     List.iter spilled_nodes ~f:(fun reg -> State.add_spilled_nodes state reg);
     (* note: rewrite will remove the `spilling` registers from the "spilled"
        work list and set the field to unknown. *)
-    let (_ : bool) = rewrite state cfg_with_infos ~spilled_nodes ~reset:false in
+    let (_ : bool) =
+      rewrite state cfg_with_infos ~spilled_nodes ~reset:false
+        ~block_temporaries:false
+    in
     ());
   main ~round:1 state cfg_with_infos;
   if irc_debug then log_cfg_with_infos ~indent:1 cfg_with_infos;

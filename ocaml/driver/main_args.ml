@@ -527,8 +527,18 @@ let mk_dtimings_precision f =
       Clflags.default_timings_precision
 ;;
 
+let mk_dcounters f =
+  "-dcounters", Arg.Unit f, " Print counter information for each pass";
+;;
+
 let mk_dprofile f =
   "-dprofile", Arg.Unit f, Profile.options_doc
+
+let mk_dgranularity f =
+  "-dgranularity",
+  Arg.Symbol (["file"; "func"], f),
+  " Specify granularity level for profile information (-dtimings, -dcounters, -dprofile)";
+;;
 
 let mk_unbox_closures f =
   "-unbox-closures", Arg.Unit f,
@@ -685,6 +695,9 @@ let mk_dump_into_file f =
   "-dump-into-file", Arg.Unit f, " dump output like -dlambda into <target>.dump"
 ;;
 
+let mk_dump_into_csv f =
+  "-dump-into-csv", Arg.Unit f, " Dump profile information to profile.csv"
+
 let mk_extension f =
   let available_extensions =
     Language_extension.Exist.(List.concat_map to_command_line_strings all)
@@ -737,9 +750,14 @@ in
   \    allows a set of extensions, and every successive universe includes \n\
   \    the previous one."
 
+let mk_allow_illegal_crossing f =
+  "-allow-illegal-crossing", Arg.Unit f,
+  "Type declarations will not be checked along the portability or contention axes"
+
 let mk_dump_dir f =
   "-dump-dir", Arg.String f,
-  "<dir> dump output like -dlambda into <dir>/<target>.dump"
+  "redirects any file(s) that would be outputted as a result of other flags\n\
+  \    to selected directory (adding stamp to ensure uniqueness in directory)"
 ;;
 
 let mk_dparsetree f =
@@ -929,6 +947,7 @@ module type Common_options = sig
   val _extension : string -> unit
   val _no_extension : string -> unit
   val _extension_universe : string -> unit
+  val _allow_illegal_crossing : unit -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -1035,8 +1054,11 @@ module type Compiler_options = sig
   val _match_context_rows : int -> unit
   val _dtimings : unit -> unit
   val _dtimings_precision : int -> unit
+  val _dcounters : unit -> unit
   val _dprofile : unit -> unit
+  val _dgranularity : string -> unit
   val _dump_into_file : unit -> unit
+  val _dump_into_csv : unit -> unit
   val _dump_dir : string -> unit
 
   val _args: string -> string array
@@ -1211,6 +1233,7 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
+    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_for_pack_byt F._for_pack;
     mk_g_byt F._g;
     mk_no_g F._no_g;
@@ -1308,8 +1331,11 @@ struct
     mk_dcamlprimc F._dcamlprimc;
     mk_dtimings F._dtimings;
     mk_dtimings_precision F._dtimings_precision;
+    mk_dcounters F._dcounters;
     mk_dprofile F._dprofile;
+    mk_dgranularity F._dgranularity;
     mk_dump_into_file F._dump_into_file;
+    mk_dump_into_csv F._dump_into_csv;
     mk_dump_dir F._dump_dir;
     mk_debug_ocaml F._debug_ocaml;
 
@@ -1339,6 +1365,7 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
+    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
     mk_nolabels F._nolabels;
@@ -1432,6 +1459,7 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
+    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
     mk_no_g F._no_g;
@@ -1573,8 +1601,11 @@ struct
     mk_dstartup F._dstartup;
     mk_dtimings F._dtimings;
     mk_dtimings_precision F._dtimings_precision;
+    mk_dcounters F._dcounters;
     mk_dprofile F._dprofile;
+    mk_dgranularity F._dgranularity;
     mk_dump_into_file F._dump_into_file;
+    mk_dump_into_csv F._dump_into_csv;
     mk_dump_dir F._dump_dir;
     mk_dump_pass F._dump_pass;
     mk_debug_ocaml F._debug_ocaml;
@@ -1619,6 +1650,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
+    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_no_float_const_prop F._no_float_const_prop;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
@@ -1726,6 +1758,7 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
+    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_noassert F._noassert;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
@@ -1837,6 +1870,7 @@ module Default = struct
     let _no_extension s = Language_extension.(disable_of_string_exn s)
     let _extension_universe s =
       Language_extension.(set_universe_and_enable_all_of_string_exn s)
+    let _allow_illegal_crossing = set Clflags.allow_illegal_crossing
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include
@@ -2013,7 +2047,10 @@ module Default = struct
     let _dprofile () = profile_columns := Profile.all_columns
     let _dtimings () = profile_columns := [`Time]
     let _dtimings_precision n = timings_precision := n
+    let _dcounters () = profile_columns := [`Counters]
+    let _dgranularity = Clflags.set_profile_granularity
     let _dump_into_file = set dump_into_file
+    let _dump_into_csv = set dump_into_csv
     let _dump_dir s = dump_dir := Some s
     let _for_pack s = for_package := (Some (String.capitalize_ascii s))
     let _g = set debug

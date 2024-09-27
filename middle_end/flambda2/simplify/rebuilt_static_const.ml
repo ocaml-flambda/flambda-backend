@@ -103,17 +103,17 @@ let create_set_of_closures are_rebuilding set =
         free_names
       }
 
-let create_block are_rebuilding tag is_mutable ~fields =
+let free_names_of_fields fields =
+  ListLabels.fold_left fields ~init:Name_occurrences.empty
+    ~f:(fun free_names field ->
+      Name_occurrences.union free_names (Simple.With_debuginfo.free_names field))
+
+let create_block are_rebuilding tag is_mutable shape ~fields =
   if ART.do_not_rebuild_terms are_rebuilding
   then
-    let free_names =
-      ListLabels.fold_left fields ~init:Name_occurrences.empty
-        ~f:(fun free_names field ->
-          Name_occurrences.union free_names
-            (Field_of_static_block.free_names field))
-    in
+    let free_names = free_names_of_fields fields in
     Block_not_rebuilt { free_names }
-  else create_normal_non_code (SC.block tag is_mutable fields)
+  else create_normal_non_code (SC.block tag is_mutable shape fields)
 
 let create_boxed_float32 are_rebuilding or_var =
   if ART.do_not_rebuild_terms are_rebuilding
@@ -185,12 +185,7 @@ let create_immutable_nativeint_array =
 let create_immutable_value_array are_rebuilding fields =
   if ART.do_not_rebuild_terms are_rebuilding
   then
-    let free_names =
-      ListLabels.fold_left fields ~init:Name_occurrences.empty
-        ~f:(fun free_names field ->
-          Name_occurrences.union free_names
-            (Field_of_static_block.free_names field))
-    in
+    let free_names = free_names_of_fields fields in
     Block_not_rebuilt { free_names }
   else create_normal_non_code (SC.immutable_value_array fields)
 
@@ -342,6 +337,7 @@ module Group = struct
          ~free_names_of_body:Unknown
          ~my_closure:(Variable.create "my_closure")
          ~my_region:(Variable.create "my_region")
+         ~my_ghost_region:(Variable.create "my_ghost_region")
          ~my_depth:(Variable.create "my_depth"))
 
   let pieces_of_code_including_those_not_rebuilt t =

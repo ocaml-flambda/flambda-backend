@@ -167,6 +167,8 @@ module Spilling_heuristics = struct
     | Flat_uses
     | Hierarchical_uses
 
+  let default = Flat_uses
+
   let all = [Set_choose; Flat_uses; Hierarchical_uses]
 
   let to_string = function
@@ -181,11 +183,7 @@ module Spilling_heuristics = struct
     in
     lazy
       (match find_param_value "IRC_SPILLING_HEURISTICS" with
-      | None ->
-        fatal
-          "the IRC_SPILLING_HEURISTICS parameter is not set (possible values: \
-           %s)"
-          (available_heuristics ())
+      | None -> default
       | Some id -> (
         match String.lowercase_ascii id with
         | "set_choose" | "set-choose" -> Set_choose
