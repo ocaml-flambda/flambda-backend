@@ -39,7 +39,7 @@ let u =
 Line 6, characters 17-20:
 6 |     portable_use foo
                      ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 let u =
@@ -56,7 +56,7 @@ let u =
 Line 10, characters 17-20:
 10 |     portable_use foo
                       ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (* File-level modules are looked up differently and need to be tested
@@ -71,7 +71,7 @@ let u =
 Line 6, characters 17-20:
 6 |     portable_use foo
                      ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 let u =
@@ -91,7 +91,7 @@ let x = ((module M : SL) : _ @@ portable)
 Line 1, characters 9-24:
 1 | let x = ((module M : SL) : _ @@ portable)
              ^^^^^^^^^^^^^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (* first class modules are consumed at legacy *)

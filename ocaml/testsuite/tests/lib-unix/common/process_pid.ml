@@ -1,6 +1,6 @@
 (* TEST
- include unix;
- hasunix;
+ include systhreads;
+ hassysthreads;
  {
    bytecode;
  }{

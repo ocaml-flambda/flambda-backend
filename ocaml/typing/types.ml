@@ -39,6 +39,7 @@ and type_desc =
   | Tvar of { name : string option; jkind : jkind }
   | Tarrow of arrow_desc * type_expr * type_expr * commutable
   | Ttuple of (string option * type_expr) list
+  | Tunboxed_tuple of (string option * type_expr) list
   | Tconstr of Path.t * type_expr list * abbrev_memo ref
   | Tobject of type_expr * (Path.t * type_expr list) option ref
   | Tfield of string * field_kind * type_expr * type_expr
@@ -271,7 +272,7 @@ type type_declaration =
 and type_decl_kind = (label_declaration, constructor_declaration) type_kind
 
 and ('lbl, 'cstr) type_kind =
-    Type_abstract of abstract_reason
+    Type_abstract of type_origin
   | Type_record of 'lbl list * record_representation
   | Type_variant of 'cstr list * variant_representation
   | Type_open
@@ -280,9 +281,11 @@ and tag = Ordinary of {src_index: int;     (* Unique name (per type) *)
                        runtime_tag: int}   (* The runtime tag *)
         | Extension of Path.t * jkind array
 
-and abstract_reason =
-    Abstract_def
-  | Abstract_rec_check_regularity
+and type_origin =
+    Definition
+  | Rec_check_regularity
+  | Existential of string
+
 
 and flat_element =
   | Imm

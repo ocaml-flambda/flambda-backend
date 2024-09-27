@@ -884,7 +884,8 @@ let split_default_wrapper ~id:fun_id ~kind ~params ~return ~body
             ~params:new_ids
             ~return ~body ~attr ~loc ~mode ~ret_mode ~region:true
         in
-        (wrapper_body, { id = inner_id; def = inner_fun })
+        (wrapper_body, { id = inner_id;
+                         def = inner_fun })
   in
   try
     (* TODO: enable this optimisation even in the presence of local returns *)

@@ -63,6 +63,9 @@ val initial: t Lazy.t
 
 val diff: t -> t -> Ident.t list
 
+(* approximation to the preimage equivalence class of [find_type] *)
+val same_type_declarations: t -> t -> bool
+
 type type_descr_kind =
   (label_description, constructor_description) type_kind
 
@@ -173,18 +176,22 @@ type unbound_value_hint =
   | No_hint
   | Missing_rec of Location.t
 
-type closure_context =
+type locality_context =
   | Tailcall_function
   | Tailcall_argument
   | Partial_application
   | Return
+  | Lazy
+
+type closure_context =
+  | Function of locality_context option
+  | Lazy
 
 type escaping_context =
   | Letop
   | Probe
   | Class
   | Module
-  | Lazy
 
 type shared_context =
   | For_loop
@@ -195,7 +202,6 @@ type shared_context =
   | Class
   | Module
   | Probe
-  | Lazy
 
 (** Items whose accesses are affected by locks *)
 type lock_item =
@@ -226,7 +232,7 @@ type lookup_error =
   | Cannot_scrape_alias of Longident.t * Path.t
   | Local_value_escaping of lock_item * Longident.t * escaping_context
   | Once_value_used_in of lock_item * Longident.t * shared_context
-  | Value_used_in_closure of lock_item * Longident.t * Mode.Value.Comonadic.error * closure_context option
+  | Value_used_in_closure of lock_item * Longident.t * Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
 
@@ -371,7 +377,7 @@ val add_modtype_lazy: update_summary:bool ->
    Ident.t -> Subst.Lazy.modtype_declaration -> t -> t
 val add_class: Ident.t -> class_declaration -> t -> t
 val add_cltype: Ident.t -> class_type_declaration -> t -> t
-val add_local_type: Path.t -> type_declaration -> t -> t
+val add_local_constraint: Path.t -> type_declaration -> t -> t
 
 (* Insertion of persistent signatures *)
 
@@ -383,7 +389,7 @@ val add_local_type: Path.t -> type_declaration -> t -> t
    contents of the module is accessed. *)
 val add_persistent_structure : Ident.t -> t -> t
 
-(* Returns the set of persistent structures found in the given
+ (* Returns the set of persistent structures found in the given
    directory. *)
 val persistent_structures_of_dir : Load_path.Dir.t -> Misc.Stdlib.String.Set.t
 
@@ -454,7 +460,7 @@ val add_escape_lock : escaping_context -> t -> t
     `unique` variables beyond the lock can still be accessed, but will be
     relaxed to `shared` *)
 val add_share_lock : shared_context -> t -> t
-val add_closure_lock : ?closure_context:closure_context
+val add_closure_lock : closure_context
   -> ('l * Mode.allowed) Mode.Value.Comonadic.t -> t -> t
 val add_region_lock : t -> t
 val add_exclave_lock : t -> t
@@ -472,17 +478,18 @@ val get_unit_name: unit -> Compilation_unit.t option
 
 (* Read, save a signature to/from a file. *)
 val read_signature:
-  Global_module.Name.t -> filepath -> add_binding:bool -> signature
+  Global_module.Name.t -> Unit_info.Artifact.t -> add_binding:bool
+  -> signature
         (* Arguments: module name, file name, [add_binding] flag.
            Results: signature. If [add_binding] is true, creates an entry for
            the module in the environment. *)
 val save_signature:
-  alerts:alerts -> signature -> Compilation_unit.Name.t -> Cmi_format.kind
-  -> filepath -> Cmi_format.cmi_infos_lazy
+  alerts:alerts -> Types.signature -> Compilation_unit.Name.t -> Cmi_format.kind
+  -> Unit_info.Artifact.t -> Cmi_format.cmi_infos_lazy
         (* Arguments: signature, module name, module kind, file name. *)
 val save_signature_with_imports:
   alerts:alerts -> signature -> Compilation_unit.Name.t -> Cmi_format.kind
-  -> filepath -> Import_info.t array -> Cmi_format.cmi_infos_lazy
+  -> Unit_info.Artifact.t -> Import_info.t array -> Cmi_format.cmi_infos_lazy
         (* Arguments: signature, module name, module kind,
            file name, imported units with their CRCs. *)
 

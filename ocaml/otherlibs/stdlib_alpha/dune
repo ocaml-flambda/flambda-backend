@@ -24,7 +24,9 @@
    -safe-string
    -strict-formats
    -extension-universe
-   alpha))
+   alpha
+   ;; Capsule API can't be defined legally.
+   -allow-illegal-crossing))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (library_flags

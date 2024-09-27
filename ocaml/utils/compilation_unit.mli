@@ -275,11 +275,7 @@ type error = private
   | Bad_compilation_unit_name of string
   | Child_of_instance of { child_name : string }
   | Packed_instance of { name : string }
-  | Duplicate_argument of
-      { param : string;
-        value1 : string;
-        value2 : string
-      }
+  | Already_an_instance of { name : string }
 
 (** The exception raised by conversion functions in this module. *)
 exception Error of error

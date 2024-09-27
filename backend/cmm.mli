@@ -253,6 +253,7 @@ type operation =
   | Ctuple_field of int * machtype array
       (* the [machtype array] refers to the whole tuple *)
   | Cdls_get
+  | Cpoll
 
 (* This is information used exclusively during construction of cmm terms by
    cmmgen, and thus irrelevant for selectgen and flambda2. *)
@@ -370,6 +371,8 @@ type data_item =
 type phrase =
     Cfunction of fundecl
   | Cdata of data_item list
+
+val width_in_bytes : memory_chunk -> int
 
 val ccatch :
      label * (Backend_var.With_provenance.t * machtype) list

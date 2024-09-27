@@ -13,6 +13,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "-60"] module Str = Ast_helper.Str (* For ocamldep *)
+[@@@ocaml.warning "+60"]
+
 open Asttypes
 open Parsetree
 open Ast_helper
@@ -200,17 +203,7 @@ let structure_item sub item =
              (fun (_id, _name, ct) -> sub.class_type_declaration sub ct)
              list)
     | Tstr_include incl ->
-        let pincl = sub.include_declaration sub incl in
-        begin match incl.incl_kind with
-        | Tincl_structure ->
-            Pstr_include pincl
-        | Tincl_functor _ | Tincl_gen_functor _ ->
-          let stri =
-            Jane_syntax.Include_functor.str_item_of ~loc
-              (Jane_syntax.Include_functor.Ifstr_include_functor pincl)
-          in
-          stri.pstr_desc
-        end
+        Pstr_include (sub.include_declaration sub incl)
     | Tstr_attribute x ->
         Pstr_attribute x
   in
@@ -346,7 +339,8 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
   match pat with
       { pat_extra=[Tpat_unpack, loc, _attrs]; pat_desc = Tpat_any; _ } ->
         Ppat_unpack { txt = None; loc  }
-    | { pat_extra=[Tpat_unpack, _, _attrs]; pat_desc = Tpat_var (_,name,_,_); _ } ->
+    | { pat_extra=[Tpat_unpack, _, _attrs];
+        pat_desc = Tpat_var (_,name, _, _); _ } ->
         Ppat_unpack { name with txt = Some name.txt }
     | { pat_extra=[Tpat_type (_path, lid), _, _attrs]; _ } ->
         Ppat_type (map_loc sub lid)
@@ -383,9 +377,13 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
         Jane_syntax.Layouts.pat_of ~loc (Lpat_constant cst) |> add_jane_syntax_attributes
       end
     | Tpat_tuple list ->
-        Jane_syntax.Labeled_tuples.pat_of ~loc
-          (List.map (fun (label, p) -> label, sub.pat sub p) list, Closed)
-        |> add_jane_syntax_attributes
+        Ppat_tuple
+          ( List.map (fun (label, p) -> label, sub.pat sub p) list
+          , Closed)
+    | Tpat_unboxed_tuple list ->
+        Ppat_unboxed_tuple
+          (List.map (fun (label, p, _) -> label, sub.pat sub p) list,
+           Closed)
     | Tpat_construct (lid, _, args, vto) ->
         let tyo =
           match vto with
@@ -400,7 +398,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
           match args with
             []    -> None
           | [arg] -> Some (sub.pat sub arg)
-          | args  -> Some (Pat.tuple ~loc (List.map (sub.pat sub) args))
+          | args  -> Some (Pat.tuple ~loc (List.map (fun p -> None, sub.pat sub p) args) Closed)
         in
         Ppat_construct (map_loc sub lid,
           match tyo, arg with
@@ -616,9 +614,10 @@ let expression sub exp =
     | Texp_try (exp, cases) ->
         Pexp_try (sub.expr sub exp, List.map (sub.case sub) cases)
     | Texp_tuple (list, _) ->
-        Jane_syntax.Labeled_tuples.expr_of ~loc
-          (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list)
-        |> add_jane_syntax_attributes
+        Pexp_tuple (List.map (fun (lbl, e) -> lbl, sub.expr sub e) list)
+    | Texp_unboxed_tuple list ->
+        Pexp_unboxed_tuple
+          (List.map (fun (lbl, e, _) -> lbl, sub.expr sub e) list)
     | Texp_construct (lid, _, args, _) ->
         Pexp_construct (map_loc sub lid,
           (match args with
@@ -626,7 +625,7 @@ let expression sub exp =
           | [ arg ] -> Some (sub.expr sub arg)
           | args ->
               Some
-                (Exp.tuple ~loc (List.map (sub.expr sub) args))
+                (Exp.tuple ~loc (List.map (fun e -> None, sub.expr sub e) args))
           ))
     | Texp_variant (label, expo) ->
         Pexp_variant (label, Option.map (fun (e, _) -> sub.expr sub e) expo)
@@ -814,18 +813,9 @@ let signature_item sub item =
         Psig_modtypesubst (sub.module_type_declaration sub mtd)
     | Tsig_open od ->
         Psig_open (sub.open_description sub od)
-    | Tsig_include incl ->
-        let pincl = sub.include_description sub incl in
-        begin match incl.incl_kind with
-        | Tincl_structure ->
-            Psig_include pincl
-        | Tincl_functor _ | Tincl_gen_functor _ ->
-          let sigi =
-            Jane_syntax.Include_functor.sig_item_of ~loc
-              (Jane_syntax.Include_functor.Ifsig_include_functor pincl)
-          in
-          sigi.psig_desc
-        end
+    | Tsig_include (incl, moda) ->
+        let pmoda = Typemode.untransl_modalities Immutable [] moda in
+        Psig_include (sub.include_description sub incl, pmoda)
     | Tsig_class list ->
         Psig_class (List.map (sub.class_description sub) list)
     | Tsig_class_type list ->
@@ -852,7 +842,12 @@ let module_substitution sub ms =
 let include_infos f sub incl =
   let loc = sub.location sub incl.incl_loc in
   let attrs = sub.attributes sub incl.incl_attributes in
-  Incl.mk ~loc ~attrs (f sub incl.incl_mod)
+  let kind =
+    match incl.incl_kind with
+    | Tincl_structure -> Structure
+    | Tincl_functor _ | Tincl_gen_functor _ -> Functor
+  in
+  Incl.mk ~loc ~attrs ~kind (f sub incl.incl_mod)
 
 let include_declaration sub = include_infos sub.module_expr sub
 let include_description sub = include_infos sub.module_type sub
@@ -1044,9 +1039,10 @@ let core_type sub ct =
         (* CR cgunn: recover mode annotation here *)
         Ptyp_arrow (label arg_label, sub.typ sub ct1, sub.typ sub ct2, [], [])
     | Ttyp_tuple list ->
-        Jane_syntax.Labeled_tuples.typ_of ~loc
+        Ptyp_tuple (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)
+    | Ttyp_unboxed_tuple list ->
+        Ptyp_unboxed_tuple
           (List.map (fun (lbl, t) -> lbl, sub.typ sub t) list)
-        |> add_jane_syntax_attributes
     | Ttyp_constr (_path, lid, list) ->
         Ptyp_constr (map_loc sub lid,
           List.map (sub.typ sub) list)
@@ -1057,9 +1053,9 @@ let core_type sub ct =
         Ptyp_class (map_loc sub lid, List.map (sub.typ sub) list)
     | Ttyp_alias (ct, Some s, None) ->
         Ptyp_alias (sub.typ sub ct, s)
-    | Ttyp_alias (ct, s, Some (_, jkind_annotation)) ->
+    | Ttyp_alias (ct, name, Some (_, jkind_annotation)) ->
         Jane_syntax.Layouts.type_of ~loc
-          (Ltyp_alias { aliased_type = sub.typ sub ct; name = s;
+          (Ltyp_alias { aliased_type = sub.typ sub ct; name;
                         jkind = jkind_annotation }) |>
         add_jane_syntax_attributes
     | Ttyp_alias (_, None, None) ->
@@ -1072,6 +1068,7 @@ let core_type sub ct =
           (Ltyp_poly { bound_vars; inner_type = sub.typ sub ct }) |>
         add_jane_syntax_attributes
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
+    | Ttyp_open (_path, mod_ident, t) -> Ptyp_open (mod_ident, sub.typ sub t)
     | Ttyp_call_pos ->
         Ptyp_extension call_pos_extension
   in

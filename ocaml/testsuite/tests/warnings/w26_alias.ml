@@ -17,4 +17,3 @@ Warning 26 [unused-var]: unused variable t.
 
 val sum : t -> int = <fun>
 |}]
-

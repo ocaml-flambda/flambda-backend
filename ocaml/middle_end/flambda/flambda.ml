@@ -798,7 +798,16 @@ let iter_general ~toplevel f f_named maybe_named =
       | Let _ -> assert false
       | Let_mutable { body; _ } ->
         aux body
+<<<<<<< HEAD
       | Try_with (f1,_,f2, _)
+||||||| 121bedcfd2
+      | Let_rec (defs, body) ->
+        List.iter (fun (_,l) -> aux_named l) defs;
+        aux body
+      | Try_with (f1,_,f2)
+=======
+      | Try_with (f1,_,f2)
+>>>>>>> 5.2.0
       | While (f1,f2)
       | Static_catch (_,_,f1,f2, _) ->
         aux f1; aux f2

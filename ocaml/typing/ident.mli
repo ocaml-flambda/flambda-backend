@@ -33,8 +33,7 @@ val create_scoped: scope:int -> string -> t
 val create_local: string -> t
 val create_persistent: string -> t
 val create_predef: string -> t
-val create_instance:
-      string -> (Global_module.Name.t * Global_module.Name.t) list -> t
+val create_instance: string -> Global_module.Name.argument list -> t
 val create_global: Global_module.Name.t -> t
 
 val create_local_binding_for_global: Global_module.Name.t -> t

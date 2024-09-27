@@ -42,11 +42,11 @@ type err1 = b_value imm_arg;;
 Line 1, characters 12-19:
 1 | type err1 = b_value imm_arg;;
                 ^^^^^^^
-Error: This type B.b_value = A.a_value should be an instance of type
-         ('a : immediate)
-       The kind of B.b_value is value
+Error: This type "B.b_value" = "A.a_value" should be an instance of type
+         "('a : immediate)"
+       The layout of B.b_value is any
          because the .cmi file for A.a_value is missing.
-       But the kind of B.b_value must be a subkind of immediate
+       But the layout of B.b_value must be a sublayout of value
          because of the definition of imm_arg at line 3, characters 0-29.
        No .cmi file found containing A.a_value.
        Hint: Adding "a" to your dependencies might help.

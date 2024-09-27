@@ -6,14 +6,18 @@ type ('name, 'value) duplicate =
 module Name : sig
   type t = private {
     head : string;
-    args : (t * t) list;
+    args : argument list;
+  }
+  and argument = {
+    param : t;
+    value : t;
   }
 
   include Identifiable.S with type t := t
 
-  val create : string -> (t * t) list -> (t, (t, t) duplicate) Result.t
+  val create : string -> argument list -> (t, (t, t) duplicate) Result.t
 
-  val create_exn : string -> (t * t) list -> t
+  val create_exn : string -> argument list -> t
 
   val to_string : t -> string
 end

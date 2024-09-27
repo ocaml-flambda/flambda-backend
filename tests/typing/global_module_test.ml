@@ -2,7 +2,11 @@ module Test_data = struct
   open Global_module
 
   open struct
-    let n ?(args = []) head : Name.t = Name.create_exn head args
+    let n ?(args = []) head : Name.t =
+      let args =
+        List.map (fun (param, value) : Name.argument -> { param; value }) args
+      in
+      Name.create_exn head args
 
     let g ?(vis = []) ?(hid = []) head = create_exn head vis ~hidden_args:hid
   end
@@ -11,10 +15,10 @@ module Test_data = struct
     (* This [let] is only here so that ocamlformat lets us add line breaks in
        the following. Note that, despite being disabled, ocamlformat insists on
        adding whitespace errors by indenting empty lines. *)
-  
+
     (* Here we imagine the following modules and parameters, with their
        parameters given in square brackets:
-  
+
        {v
          - X (parameter)
          - Y[X] (parameter)
@@ -29,7 +33,7 @@ module Test_data = struct
          - Opaque[I] : Conv[I][O:String]
          - Print[I][Conv[I][O:String]] (regular module)
        v}
-  
+
        Each [*_p] is an [I.param] and an untagged identifier is an [I.t].
        *)
     ()

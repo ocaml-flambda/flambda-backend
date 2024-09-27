@@ -14,7 +14,6 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open! Stdlib
 (** Ephemerons and weak hash tables.
 
     Ephemerons and weak hash tables are useful when one wants to cache
@@ -72,6 +71,8 @@ open! Stdlib
 [@@@alert unsynchronized_access
   "Unsynchronized accesses to weak hash tables are a programming error."
 ]
+
+open! Stdlib
 
 (**
     Unsynchronized accesses to a weak hash table may lead to an invalid

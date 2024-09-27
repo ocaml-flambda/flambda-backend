@@ -28,10 +28,10 @@ let foo () =
 Line 5, characters 16-17:
 5 |         val k = s
                     ^
-Error: The value s is local, so cannot be used inside a class.
+Error: The value "s" is local, so cannot be used inside a class.
 |}]
 
-(* class can refer to external unique things, but only as shared. *)
+(* class can refer to external unique things, but only as aliased. *)
 let foo () =
     let unique_ s = "hello" in
     let module M = struct
@@ -43,7 +43,7 @@ let foo () =
 Line 5, characters 27-28:
 5 |         val k = unique_use s
                                ^
-Error: This value is shared but expected to be unique.
+Error: This value is "aliased" but expected to be "unique".
   Hint: This identifier cannot be used uniquely,
   because it is defined in a class.
 |}]
@@ -69,7 +69,7 @@ end
 Line 4, characters 30-31:
 4 |     method foo = portable_use x
                                   ^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (* values written to instance variables need to be legacy *)
@@ -109,7 +109,7 @@ let u =
 Line 3, characters 17-22:
 3 |     portable_use obj#m
                      ^^^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 (* for methods, arguments can be of any modes *)
@@ -129,7 +129,7 @@ let foo () =
 Line 4, characters 10-11:
 4 |     o#foo x
               ^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 
@@ -141,7 +141,7 @@ let u =
 Line 3, characters 17-20:
 3 |     portable_use foo
                      ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 module type SC = sig
@@ -170,7 +170,7 @@ let u =
 Line 3, characters 17-20:
 3 |     portable_use obj
                      ^^^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 let foo () =
@@ -180,7 +180,7 @@ let foo () =
 Line 3, characters 17-18:
 3 |     portable_use x
                      ^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]
 
 class cla = object
@@ -192,5 +192,5 @@ end
 Line 4, characters 21-22:
 4 |         portable_use o
                          ^
-Error: This value is nonportable but expected to be portable.
+Error: This value is "nonportable" but expected to be "portable".
 |}]

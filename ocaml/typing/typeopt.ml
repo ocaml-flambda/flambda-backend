@@ -28,7 +28,8 @@ type error =
   | Non_value_sort_unknown_ty of Jkind.Sort.t
   | Small_number_sort_without_extension of Jkind.Sort.t * type_expr option
   | Not_a_sort of type_expr * Jkind.Violation.t
-  | Unsupported_sort of Jkind.Sort.const
+  | Unsupported_sort of Jkind.Sort.Const.t
+  | Unsupported_product_in_structure of Jkind.Sort.Const.t
 
 exception Error of Location.t * error
 
@@ -125,7 +126,7 @@ type classification =
 let classify env loc ty sort : classification =
   let ty = scrape_ty env ty in
   match Jkind.(Sort.default_to_value_and_get sort) with
-  | Value -> begin
+  | Base Value -> begin
   if is_always_gc_ignorable env ty then Int
   else match get_desc ty with
   | Tvar _ | Tunivar _ ->
@@ -156,16 +157,18 @@ let classify env loc ty sort : classification =
       end
   | Tarrow _ | Ttuple _ | Tpackage _ | Tobject _ | Tnil | Tvariant _ ->
       Addr
-  | Tlink _ | Tsubst _ | Tpoly _ | Tfield _ ->
+  | Tlink _ | Tsubst _ | Tpoly _ | Tfield _ | Tunboxed_tuple _ ->
       assert false
   end
-  | Float64 -> Unboxed_float Pfloat64
-  | Float32 -> Unboxed_float Pfloat32
-  | Bits32 -> Unboxed_int Pint32
-  | Bits64 -> Unboxed_int Pint64
-  | Word -> Unboxed_int Pnativeint
-  | Void ->
-    raise (Error (loc, Unsupported_sort Void))
+  | Base Float64 -> Unboxed_float Pfloat64
+  | Base Float32 -> Unboxed_float Pfloat32
+  | Base Bits32 -> Unboxed_int Pint32
+  | Base Bits64 -> Unboxed_int Pint64
+  | Base Word -> Unboxed_int Pnativeint
+  | Base Void as c ->
+    raise (Error (loc, Unsupported_sort c))
+  | Product _ as c ->
+    raise (Error (loc, Unsupported_product_in_structure c))
 
 let array_type_kind ~elt_sort env loc ty =
   match scrape_poly env ty with
@@ -210,7 +213,8 @@ let bigarray_decode_type env ty tbl dfl =
       dfl
 
 let kind_table =
-  ["float32_elt", Pbigarray_float32;
+  ["float16_elt", Pbigarray_float16;
+   "float32_elt", Pbigarray_float32;
    "float64_elt", Pbigarray_float64;
    "int8_signed_elt", Pbigarray_sint8;
    "int8_unsigned_elt", Pbigarray_uint8;
@@ -227,14 +231,24 @@ let layout_table =
   ["c_layout", Pbigarray_c_layout;
    "fortran_layout", Pbigarray_fortran_layout]
 
-let bigarray_type_kind_and_layout env typ =
+let bigarray_specialize_kind_and_layout env ~kind ~layout typ =
   match scrape env typ with
   | Tconstr(_p, [_caml_type; elt_type; layout_type], _abbrev) ->
-      (bigarray_decode_type env elt_type kind_table Pbigarray_unknown,
-       bigarray_decode_type env layout_type layout_table
-                            Pbigarray_unknown_layout)
+      let kind =
+        match kind with
+        | Pbigarray_unknown ->
+          bigarray_decode_type env elt_type kind_table Pbigarray_unknown
+        | _ -> kind
+      in
+      let layout =
+        match layout with
+        | Pbigarray_unknown_layout ->
+          bigarray_decode_type env layout_type layout_table Pbigarray_unknown_layout
+        | _ -> layout
+      in
+      (kind, layout)
   | _ ->
-      (Pbigarray_unknown, Pbigarray_unknown_layout)
+      (kind, layout)
 
 let value_kind_of_value_jkind jkind =
   let const_jkind = Jkind.default_to_value_and_get jkind in
@@ -243,11 +257,13 @@ let value_kind_of_value_jkind jkind =
     Jkind.Const.get_externality_upper_bound const_jkind
   in
   match layout, externality_upper_bound with
-  | Sort Value, External -> Pintval
-  | Sort Value, External64 ->
+  | Base Value, External -> Pintval
+  | Base Value, External64 ->
     if !Clflags.native_code && Sys.word_size = 64 then Pintval else Pgenval
-  | Sort Value, Internal -> Pgenval
-  | (Any | Sort (Void | Float64 | Float32 | Word | Bits32 | Bits64)) , _ ->
+  | Base Value, Internal -> Pgenval
+  | Any, _
+  | Product _, _
+  | Base (Void | Float64 | Float32 | Word | Bits32 | Bits64) , _ ->
     Misc.fatal_error "expected a layout of value"
 
 (* [value_kind] has a pre-condition that it is only called on values.  With the
@@ -684,21 +700,28 @@ let value_kind env loc ty =
   with
   | Missing_cmi_fallback -> raise (Error (loc, Non_value_layout (ty, None)))
 
-let[@inline always] layout_of_const_sort_generic ~value_kind ~error
-  : Jkind.Sort.const -> _ = function
-  | Value -> Lambda.Pvalue (Lazy.force value_kind)
-  | Float64 when Language_extension.(is_at_least Layouts Stable) ->
+let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
+  : Jkind.Sort.Const.t -> _ = function
+  | Base Value -> Lambda.Pvalue (Lazy.force value_kind)
+  | Base Float64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_float Pfloat64
-  | Word when Language_extension.(is_at_least Layouts Stable) ->
+  | Base Word when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pnativeint
-  | Bits32 when Language_extension.(is_at_least Layouts Stable) ->
+  | Base Bits32 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pint32
-  | Bits64 when Language_extension.(is_at_least Layouts Stable) ->
+  | Base Bits64 when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_int Pint64
-  | Float32 when Language_extension.(is_at_least Layouts Stable) &&
-                 Language_extension.(is_enabled Small_numbers) ->
+  | Base Float32 when Language_extension.(is_at_least Layouts Stable) &&
+                            Language_extension.(is_enabled Small_numbers) ->
     Lambda.Punboxed_float Pfloat32
-  | (Void | Float64 | Float32 | Word | Bits32 | Bits64 as const) ->
+  | Product consts when Language_extension.(is_at_least Layouts Beta) ->
+    (* CR layouts v7.1: assess whether it is important for performance to support
+       deep value_kinds here *)
+    Lambda.Punboxed_product
+      (List.map (layout_of_const_sort_generic ~value_kind:(lazy Pgenval) ~error)
+         consts)
+  | ((  Base (Void | Float32 | Float64 | Word | Bits32 | Bits64)
+      | Product _) as const) ->
     error const
 
 let layout env loc sort ty =
@@ -706,28 +729,44 @@ let layout env loc sort ty =
     (Jkind.Sort.default_to_value_and_get sort)
     ~value_kind:(lazy (value_kind env loc ty))
     ~error:(function
-      | Value -> assert false
-      | Void -> raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
-      | (Float32 as const) ->
-        raise (Error (loc, Small_number_sort_without_extension (Jkind.Sort.of_const const, Some ty)))
-      | (Float64 | Word | Bits32 | Bits64 as const) ->
-        raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, Some ty))))
+      | Base Value -> assert false
+      | Base Void ->
+        raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
+      | Base Float32 as const ->
+        raise (Error (loc, Small_number_sort_without_extension
+                             (Jkind.Sort.of_const const, Some ty)))
+      | Base (Float64 | Word | Bits32 | Bits64) as const ->
+        raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const,
+                                                   Stable,
+                                                   Some ty)))
+      | Product _ as const ->
+        raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const,
+                                                   Beta,
+                                                   Some ty)))
+    )
 
 let layout_of_sort loc sort =
   layout_of_const_sort_generic
     (Jkind.Sort.default_to_value_and_get sort)
     ~value_kind:(lazy Pgenval)
     ~error:(function
-    | Value -> assert false
-    | Void -> raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
-    | (Float32 as const) ->
-      raise (Error (loc, Small_number_sort_without_extension (Jkind.Sort.of_const const, None)))
-    | (Float64 | Word | Bits32 | Bits64 as const) ->
-      raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const, Stable, None))))
+    | Base Value -> assert false
+    | Base Void ->
+      raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
+    | Base Float32 as const ->
+      raise (Error (loc, Small_number_sort_without_extension
+                           (Jkind.Sort.of_const const, None)))
+    | Base (Float64 | Word | Bits32 | Bits64) as const ->
+      raise (Error (loc, Sort_without_extension
+                           (Jkind.Sort.of_const const, Stable, None)))
+    | Product _ as const ->
+      raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const,
+                                                 Beta,
+                                                 None))))
 
-let layout_of_const_sort s =
+let layout_of_base_sort b =
   layout_of_const_sort_generic
-    s
+    (Base b)
     ~value_kind:(lazy Pgenval)
     ~error:(fun const ->
       Misc.fatal_errorf "layout_of_const_sort: %a encountered"
@@ -877,7 +916,13 @@ let report_error ppf = function
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
   | Unsupported_sort const ->
-      fprintf ppf "Layout %a is not supported yet." Jkind.Sort.Const.format const
+      fprintf ppf "Layout %a is not supported yet."
+        Jkind.Sort.Const.format const
+  | Unsupported_product_in_structure const ->
+      fprintf ppf
+        "Product layout %a detected in structure in [Typeopt.Layout]@ \
+         Please report this error to the Jane Street compilers team."
+        Jkind.Sort.Const.format const
 
 let () =
   Location.register_error_of_exn

@@ -281,7 +281,7 @@ let intop (op : Mach.integer_operation) =
   | Ictz _ -> " ctz "
   | Icomp cmp -> intcomp cmp
 
-let dump_op ppf = function
+let dump_operation ppf = function
   | Move -> Format.fprintf ppf "mov"
   | Spill -> Format.fprintf ppf "spill"
   | Reload -> Format.fprintf ppf "reload"
@@ -323,7 +323,7 @@ let dump_op ppf = function
 let dump_basic ppf (basic : basic) =
   let open Format in
   match basic with
-  | Op op -> dump_op ppf op
+  | Op op -> dump_operation ppf op
   | Reloadretaddr -> fprintf ppf "Reloadretaddr"
   | Pushtrap { lbl_handler } -> fprintf ppf "Pushtrap handler=%d" lbl_handler
   | Poptrap -> fprintf ppf "Poptrap"

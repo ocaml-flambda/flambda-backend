@@ -51,7 +51,7 @@ module Persistent_signature = struct
 
   let load = ref (fun ~allow_hidden ~unit_name ->
     let unit_name = CU.Name.to_string unit_name in
-    match Load_path.find_uncap_with_visibility (unit_name ^ ".cmi") with
+    match Load_path.find_normalized_with_visibility (unit_name ^ ".cmi") with
     | filename, visibility when allow_hidden ->
       Some { filename; cmi = read_cmi_lazy filename; visibility}
     | filename, Visible ->
@@ -101,7 +101,8 @@ module Param_set = Global_module.Name.Set
 (* If you add something here, _do not forget_ to add it to [clear]! *)
 type 'a t = {
   imports : (CU.Name.t, import_info) Hashtbl.t;
-  persistent_structures : (Global_module.Name.t, 'a pers_struct_info) Hashtbl.t;
+  persistent_structures :
+    (Global_module.Name.t, 'a pers_struct_info) Hashtbl.t;
   imported_units: CU.Name.Set.t ref;
   imported_opaque_units: CU.Name.Set.t ref;
   param_imports : Param_set.t ref;
@@ -167,7 +168,11 @@ let find_in_cache penv name =
   find_info_in_cache penv name |> Option.map (fun ps -> ps.ps_val)
 
 let register_parameter ({param_imports; _} as penv) modname =
-  let import = CU.Name.of_global_name_no_args_exn modname in
+  let import =
+    (* Note that parameters cannot themselves be parameterised. (This may be lifted in the
+       future, but dependent types are hard.) *)
+    CU.Name.of_global_name_no_args_exn modname
+  in
   begin match find_import_info_in_cache penv import with
   | None ->
       (* Not loaded yet; if it's wrong, we'll get an error at load time *)
@@ -309,7 +314,8 @@ let acknowledge_import penv ~check modname pers_sig =
   Hashtbl.add imports modname (Found import);
   import
 
-let read_import penv ~check modname filename =
+let read_import penv ~check modname cmi =
+  let filename = Unit_info.Artifact.filename cmi in
   add_import penv modname;
   let cmi = read_cmi_lazy filename in
   let pers_sig = { Persistent_signature.filename; cmi; visibility = Visible } in
@@ -374,6 +380,9 @@ type 'a sig_reader =
    Checks that OCaml source is allowed to refer to this module. *)
 
 let acknowledge_pers_struct penv modname import val_of_pers_sig =
+  if modname.Global_module.Name.args <> [] then
+    Misc.fatal_errorf "TODO: Unsupported instance name: %a"
+      Global_module.Name.print modname;
   let {persistent_structures; _} = penv in
   let is_param = import.imp_is_param in
   let sign = import.imp_sign in
@@ -422,9 +431,9 @@ let acknowledge_pers_struct penv modname import val_of_pers_sig =
   Hashtbl.add persistent_structures modname ps;
   ps
 
-let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
+let read_pers_struct penv val_of_pers_sig check modname cmi ~add_binding =
   let unit_name = CU.Name.of_head_of_global_name modname in
-  let import = read_import penv ~check unit_name filename in
+  let import = read_import penv ~check unit_name cmi in
   if add_binding then
     ignore
       (acknowledge_pers_struct penv modname import val_of_pers_sig
@@ -433,9 +442,6 @@ let read_pers_struct penv val_of_pers_sig check modname filename ~add_binding =
 
 let find_pers_struct ~allow_hidden penv val_of_pers_sig check name =
   let {persistent_structures; _} = penv in
-  if name.Global_module.Name.args <> [] then
-    Misc.fatal_errorf "Unsupported import of instance name: %a"
-      Global_module.Name.print name;
   match Hashtbl.find persistent_structures name with
   | ps -> check_visibility ~allow_hidden ps.ps_import; ps
   | exception Not_found ->
@@ -449,6 +455,7 @@ let describe_prefix ppf prefix =
   else
     Format.fprintf ppf "package %a" CU.Prefix.print prefix
 
+module Style = Misc.Style
 (* Emits a warning if there is no valid cmi for name *)
 let check_pers_struct ~allow_hidden penv f ~loc name =
   let name_as_string = CU.Name.to_string (CU.Name.of_head_of_global_name name) in
@@ -469,14 +476,14 @@ let check_pers_struct ~allow_hidden penv f ~loc name =
             Format.asprintf
               " %a@ contains the compiled interface for @ \
                %a when %a was expected"
-              Location.print_filename filename
-              CU.Name.print ps_name
-              CU.Name.print name
+              (Style.as_inline_code Location.print_filename) filename
+              (Style.as_inline_code CU.Name.print) ps_name
+              (Style.as_inline_code CU.Name.print) name
         | Inconsistent_import _ -> assert false
         | Need_recursive_types name ->
             Format.asprintf
               "%a uses recursive types"
-              CU.Name.print name
+              (Style.as_inline_code CU.Name.print) name
         | Inconsistent_package_declaration_between_imports _ -> assert false
         | Direct_reference_from_wrong_package (unit, _filename, prefix) ->
             Format.asprintf "%a is inaccessible from %a"
@@ -489,8 +496,8 @@ let check_pers_struct ~allow_hidden penv f ~loc name =
       let warn = Warnings.No_cmi_file(name_as_string, Some msg) in
         Location.prerr_warning loc warn
 
-let read penv f modname filename ~add_binding =
-  read_pers_struct penv f true modname filename ~add_binding
+let read penv f modname a ~add_binding =
+  read_pers_struct penv f true modname a ~add_binding
 
 let find ~allow_hidden penv f name =
   (find_pers_struct ~allow_hidden penv f true name).ps_val
@@ -506,23 +513,6 @@ let check ~allow_hidden penv f ~loc name =
       !add_delayed_check_forward
         (fun () -> check_pers_struct ~allow_hidden penv f ~loc name)
   end
-
-(* CR mshinwell: delete this having moved to 4.14 build compilers *)
-module Array = struct
-  include Array
-
-  (* From stdlib/array.ml *)
-  let find_opt p a =
-    let n = Array.length a in
-    let rec loop i =
-      if i = n then None
-      else
-        let x = Array.unsafe_get a i in
-        if p x then Some x
-        else loop (succ i)
-    in
-    loop 0
-end
 
 let crc_of_unit penv name =
   match Consistbl.find penv.crc_units name with
@@ -632,42 +622,44 @@ let report_error ppf =
   | Illegal_renaming(modname, ps_name, filename) -> fprintf ppf
       "Wrong file naming: %a@ contains the compiled interface for@ \
        %a when %a was expected"
-      Location.print_filename filename
-      CU.Name.print ps_name
-      CU.Name.print modname
+      (Style.as_inline_code Location.print_filename) filename
+      (Style.as_inline_code CU.Name.print) ps_name
+      (Style.as_inline_code CU.Name.print) modname
   | Inconsistent_import(name, source1, source2) -> fprintf ppf
       "@[<hov>The files %a@ and %a@ \
               make inconsistent assumptions@ over interface %a@]"
-      Location.print_filename source1 Location.print_filename source2
-      CU.Name.print name
+      (Style.as_inline_code Location.print_filename) source1
+      (Style.as_inline_code Location.print_filename) source2
+      (Style.as_inline_code CU.Name.print) name
   | Need_recursive_types(import) ->
       fprintf ppf
-        "@[<hov>Invalid import of %a, which uses recursive types.@ %s@]"
-        CU.Name.print import
-        "The compilation flag -rectypes is required"
+        "@[<hov>Invalid import of %a, which uses recursive types.@ \
+         The compilation flag %a is required@]"
+        (Style.as_inline_code CU.Name.print) import
+        Style.inline_code "-rectypes"
   | Inconsistent_package_declaration_between_imports (filename, unit1, unit2) ->
       fprintf ppf
         "@[<hov>The file %s@ is imported both as %a@ and as %a.@]"
         filename
-        CU.print unit1
-        CU.print unit2
+        (Style.as_inline_code CU.print) unit1
+        (Style.as_inline_code CU.print) unit2
   | Illegal_import_of_parameter(modname, filename) ->
       fprintf ppf
         "@[<hov>The file %a@ contains the interface of a parameter.@ \
          %a is not declared as a parameter for the current unit (-parameter %a).@]"
-        Location.print_filename filename
-        Global_module.Name.print modname
-        Global_module.Name.print modname
+        (Style.as_inline_code Location.print_filename) filename
+        (Style.as_inline_code Global_module.Name.print) modname
+        (Style.as_inline_code Global_module.Name.print) modname
   | Not_compiled_as_parameter(modname, filename) ->
       fprintf ppf
         "@[<hov>The module %a@ is specified as a parameter, but %a@ \
          was not compiled with -as-parameter.@]"
-        Global_module.Name.print modname
-        Location.print_filename filename
+        (Style.as_inline_code Global_module.Name.print) modname
+        (Style.as_inline_code Location.print_filename) filename
   | Direct_reference_from_wrong_package(unit, filename, prefix) ->
       fprintf ppf
         "@[<hov>Invalid reference to %a (in file %s) from %a.@ %s]"
-        CU.print unit
+        (Style.as_inline_code CU.print) unit
         filename
         describe_prefix prefix
         "Can only access members of this library's package or a containing package"
@@ -679,10 +671,10 @@ let report_error ppf =
          @[<hov>@{<hint>Hint@}: \
            @[<hov>Pass `-parameter %a`@ to add %a@ as a parameter@ \
            of the current unit.@]@]"
-        Global_module.Name.print modname
-        Global_module.Name.print param
-        Global_module.Name.print param
-        Global_module.Name.print param
+        (Style.as_inline_code Global_module.Name.print) modname
+        (Style.as_inline_code Global_module.Name.print) param
+        (Style.as_inline_code Global_module.Name.print) param
+        (Style.as_inline_code Global_module.Name.print) param
 
 let () =
   Location.register_error_of_exn
