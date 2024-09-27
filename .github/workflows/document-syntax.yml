@@ -8,6 +8,8 @@ on:
 jobs:
   request-documentation-for-syntax:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - name: Create PR Comment
         env:
